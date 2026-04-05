@@ -80,19 +80,26 @@ pub(crate) async fn handle_job_cleanup(envelope: &EventEnvelope) {
     let worktree_path = worktrees_dir().join(&slug);
     let branch = format!("job/{slug}");
 
-    tracing::info!(slug, "job-dispatch: cleaning up job resources");
+    tracing::info!(
+        slug,
+        job_id,
+        tmux_session = %tmux_session,
+        worktree = %worktree_path.display(),
+        branch = %branch,
+        "job-dispatch: cleaning up job resources"
+    );
 
     if let Err(e) = kill_tmux_session(&tmux_session) {
-        tracing::warn!(slug, "job-dispatch: tmux cleanup failed: {e}");
+        tracing::warn!(slug, tmux_session = %tmux_session, "job-dispatch: tmux cleanup failed: {e}");
     }
     if let Err(e) = remove_worktree(&worktree_path) {
-        tracing::warn!(slug, "job-dispatch: worktree cleanup failed: {e}");
+        tracing::warn!(slug, worktree = %worktree_path.display(), "job-dispatch: worktree cleanup failed: {e}");
     }
     if let Err(e) = delete_branch(&branch) {
-        tracing::warn!(slug, "job-dispatch: branch cleanup failed: {e}");
+        tracing::warn!(slug, branch = %branch, "job-dispatch: branch cleanup failed: {e}");
     }
 
-    tracing::info!(slug, "job-dispatch: cleanup complete");
+    tracing::info!(slug, job_id, "job-dispatch: cleanup complete");
 }
 
 /// After a job completes/merges, check if any pending jobs had it as a dependency.
@@ -105,7 +112,10 @@ pub(crate) async fn dispatch_unblocked_jobs(
 ) {
     let payload: serde_json::Value = match serde_json::from_str(&envelope.payload_json) {
         Ok(v) => v,
-        Err(_) => return,
+        Err(e) => {
+            tracing::warn!("job-dispatch: malformed payload in unblocked-job check: {e}");
+            return;
+        }
     };
 
     let completed_slug = payload["slug"]
@@ -113,19 +123,46 @@ pub(crate) async fn dispatch_unblocked_jobs(
         .or_else(|| payload["job_id"].as_str())
         .unwrap_or(&envelope.entity_id);
 
+    if pending.is_empty() {
+        tracing::debug!(
+            completed_slug,
+            "job-dispatch: no pending jobs to unblock"
+        );
+        return;
+    }
+
     let mut ready: Vec<String> = Vec::new();
     for (slug, job) in pending.iter_mut() {
         if let Some(deps) = &mut job.depends_on {
             deps.retain(|d| d != completed_slug);
             if deps.is_empty() {
                 ready.push(slug.clone());
+            } else {
+                tracing::debug!(
+                    slug,
+                    completed_slug,
+                    remaining_deps = deps.len(),
+                    "job-dispatch: dependency cleared, still waiting on others"
+                );
             }
         }
     }
 
+    if ready.is_empty() {
+        tracing::debug!(
+            completed_slug,
+            "job-dispatch: no jobs fully unblocked"
+        );
+    }
+
     for slug in ready {
         if let Some(mut job) = pending.remove(&slug) {
-            tracing::info!(slug, "job-dispatch: dependencies cleared, dispatching deferred job");
+            tracing::info!(
+                slug,
+                completed_slug,
+                job_id = job.job_id,
+                "job-dispatch: all dependencies cleared, dispatching unblocked job"
+            );
             job.depends_on = None;
             super::job_dispatch::dispatch_job_internal(kernel, &job, dctx).await;
         }

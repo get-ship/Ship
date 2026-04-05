@@ -7,7 +7,7 @@
 
 use runtime::events::job::JobCreatedPayload;
 use runtime::events::{ActorConfig, CallerKind, EmitContext, EventEnvelope};
-use runtime::projections::job::{load_jobs, load_jobs_at};
+use runtime::projections::job::load_jobs_at;
 use runtime::services::dispatch_ports::{IsolationStrategy, JobContext, JobExecutor};
 use std::collections::HashMap;
 use std::path::PathBuf;
@@ -17,10 +17,13 @@ use tokio::sync::Mutex;
 use super::adapters;
 pub(crate) use super::dispatch_handlers::dispatch_unblocked_jobs;
 use super::dispatch_handlers::{handle_job_cleanup, handle_job_update};
-use super::dispatch_pipeline::{emit_job_dispatched, enrich_pipeline_from_spec};
+use super::dispatch_pipeline::{emit_job_dispatched, enrich_pipeline_from_spec, try_advance_pipeline};
+#[cfg(test)]
+pub(crate) use super::dispatch_pipeline::try_advance_pipeline_at;
 use super::helpers::worktrees_dir;
 
 /// Bundles the injected isolation and execution strategies for dispatch.
+#[derive(Clone)]
 pub(crate) struct DispatchContext {
     pub isolation: Arc<dyn IsolationStrategy>,
     pub executor: Arc<dyn JobExecutor>,
@@ -58,6 +61,14 @@ pub async fn subscribe_job_events(
         executor: Arc::new(adapters::TmuxExecutor),
     });
 
+    // Replay unprocessed job.completed events from before daemon started.
+    // Jobs in "completed" status that were never advanced or cleaned up.
+    let replay_kernel = kernel.clone();
+    let replay_dctx = dctx.clone();
+    tokio::spawn(async move {
+        super::dispatch_replay::replay_unprocessed_completions(&replay_kernel, &*replay_dctx).await;
+    });
+
     let kr = kernel.clone();
     tokio::spawn(async move {
         let mut mb = mailbox;
@@ -79,14 +90,22 @@ pub(crate) async fn handle_job_event(
         "job.created" => handle_job_created(kernel, envelope, pending, dctx).await,
         "job.update" => handle_job_update(kernel, envelope).await,
         "job.completed" => {
+            tracing::info!(
+                entity_id = %envelope.entity_id,
+                "job-dispatch: handling job.completed"
+            );
             // Check if this is a pipeline job with more phases
             if !try_advance_pipeline(kernel, envelope, dctx).await {
-                // No more phases — clean up and unblock dependents
-                handle_job_cleanup(envelope).await;
+                // No more phases — unblock dependents but do NOT clean up.
+                // Worktree stays alive for gate agents. Cleanup happens on job.merged.
                 dispatch_unblocked_jobs(kernel, envelope, pending, dctx).await;
             }
         }
         "job.merged" => {
+            tracing::info!(
+                entity_id = %envelope.entity_id,
+                "job-dispatch: handling job.merged"
+            );
             handle_job_cleanup(envelope).await;
             dispatch_unblocked_jobs(kernel, envelope, pending, dctx).await;
         }
@@ -174,134 +193,6 @@ pub(crate) async fn dispatch_job_internal(
 
     // 3. Emit job.dispatched
     emit_job_dispatched(kernel, payload, &worktree_path, slug).await;
-}
-
-/// Check if a completed job has a pipeline with more phases.
-/// If so, dispatch the next phase in the same worktree. Returns true if advanced.
-///
-/// `ship_dir_override`: if `Some`, reads from that DB path instead of
-/// `get_global_dir()`. Used in tests to avoid thread-local isolation issues.
-pub(crate) async fn try_advance_pipeline(
-    kernel: &Arc<Mutex<runtime::events::KernelRouter>>,
-    envelope: &EventEnvelope,
-    dctx: &DispatchContext,
-) -> bool {
-    try_advance_pipeline_inner(kernel, envelope, dctx, None).await
-}
-
-pub(crate) async fn try_advance_pipeline_at(
-    kernel: &Arc<Mutex<runtime::events::KernelRouter>>,
-    envelope: &EventEnvelope,
-    dctx: &DispatchContext,
-    ship_dir: &std::path::Path,
-) -> bool {
-    try_advance_pipeline_inner(kernel, envelope, dctx, Some(ship_dir)).await
-}
-
-async fn try_advance_pipeline_inner(
-    kernel: &Arc<Mutex<runtime::events::KernelRouter>>,
-    envelope: &EventEnvelope,
-    dctx: &DispatchContext,
-    ship_dir_override: Option<&std::path::Path>,
-) -> bool {
-    let payload: serde_json::Value = match serde_json::from_str(&envelope.payload_json) {
-        Ok(v) => v,
-        Err(_) => return false,
-    };
-
-    let slug = match payload["slug"].as_str() {
-        Some(s) => s.to_string(),
-        None => return false,
-    };
-
-    // Load current job state to check pipeline
-    let jobs = match ship_dir_override {
-        Some(dir) => load_jobs_at(dir),
-        None => load_jobs(),
-    };
-    let jobs = match jobs {
-        Ok(j) => j,
-        Err(_) => return false,
-    };
-
-    let job = match jobs.values().find(|j| j.slug == slug) {
-        Some(j) => j.clone(),
-        None => return false,
-    };
-
-    let pipeline = match &job.pipeline {
-        Some(p) if p.len() > 1 => p,
-        _ => return false,
-    };
-
-    // Determine current phase (default 0 if not tracked)
-    let current = job.current_phase.unwrap_or(0);
-    let next = current + 1;
-
-    if next >= pipeline.len() {
-        tracing::info!(slug, "job-dispatch: pipeline complete (all {} phases done)", pipeline.len());
-        return false; // All phases done — let normal completion flow handle it
-    }
-
-    let next_phase = &pipeline[next];
-    tracing::info!(
-        slug,
-        phase = next,
-        agent = next_phase.agent,
-        goal = next_phase.goal,
-        "job-dispatch: advancing pipeline to next phase"
-    );
-
-    let worktree_path = worktrees_dir().join(&slug);
-    if !worktree_path.exists() {
-        tracing::error!(slug, "job-dispatch: worktree missing for pipeline advance");
-        return false;
-    }
-
-    // Rewrite the spec with next phase context
-    adapters::write_phase_spec(&worktree_path, &job.spec_path, &job.pipeline, Some(next));
-
-    // Spawn the next phase via executor
-    let job_ctx = JobContext {
-        job_id: job.job_id.clone(),
-        slug: slug.clone(),
-        agent: next_phase.agent.clone(),
-        branch: job.branch.clone(),
-        spec_path: job.spec_path.clone(),
-        work_dir: worktree_path.clone(),
-        env: [("SHIP_MESH_ID".to_string(), slug.clone())].into(),
-        model: None,
-        provider: None,
-    };
-    if let Err(e) = dctx.executor.spawn(&job_ctx).await {
-        tracing::error!(slug, "job-dispatch: executor spawn failed for phase: {e}");
-        return false;
-    }
-
-    // Emit job.dispatched for the new phase
-    // (Re-use the existing payload but the worktree stays the same)
-    let dispatched_payload = runtime::events::job::JobDispatchedPayload {
-        job_id: job.job_id.clone(),
-        worktree: worktree_path.to_string_lossy().to_string(),
-        pid: None,
-    };
-    let dispatched_envelope = match EventEnvelope::new(
-        runtime::events::job::event_types::JOB_DISPATCHED,
-        &job.job_id,
-        &dispatched_payload,
-    ) {
-        Ok(e) => e,
-        Err(_) => return true,
-    };
-    let ctx = EmitContext {
-        caller_kind: CallerKind::Mcp,
-        skill_id: None,
-        workspace_id: None,
-        session_id: None,
-    };
-    let _ = kernel.lock().await.route(dispatched_envelope, &ctx).await;
-
-    true
 }
 
 #[cfg(test)]

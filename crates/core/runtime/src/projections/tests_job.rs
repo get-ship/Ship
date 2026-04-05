@@ -183,3 +183,97 @@ fn project_ignores_event_for_unknown_job() {
     let map = project(&events);
     assert!(map.is_empty());
 }
+
+#[test]
+fn project_pipeline_phase_tracking() {
+    // Simulate a 2-phase pipeline: created → dispatched (phase 0) → completed → dispatched (phase 1)
+    let events = vec![
+        make_event(
+            event_types::JOB_CREATED,
+            serde_json::json!({
+                "job_id": "j-pipe",
+                "slug": "pipe-test",
+                "agent": "test-writer",
+                "branch": "job/pipe-test",
+                "spec_path": "spec.md",
+                "plan_id": null,
+                "pipeline": [
+                    { "agent": "test-writer", "goal": "Write tests" },
+                    { "agent": "rust-runtime", "goal": "Implement" }
+                ]
+            }),
+        ),
+        // Phase 0 dispatched
+        make_event(
+            event_types::JOB_DISPATCHED,
+            serde_json::json!({"job_id": "j-pipe", "worktree": "/tmp/wt", "pid": null}),
+        ),
+        // Phase 0 completed
+        make_event(
+            event_types::JOB_COMPLETED,
+            serde_json::json!({"job_id": "j-pipe", "slug": "pipe-test"}),
+        ),
+        // Phase 1 dispatched (pipeline advance)
+        make_event(
+            event_types::JOB_DISPATCHED,
+            serde_json::json!({"job_id": "j-pipe", "worktree": "/tmp/wt", "pid": null}),
+        ),
+    ];
+    let map = project(&events);
+    let rec = map.get("j-pipe").unwrap();
+    assert_eq!(rec.status, JobStatus::Dispatched);
+    assert_eq!(rec.current_phase, Some(1), "current_phase must be 1 after pipeline advance");
+    assert!(rec.pipeline.is_some());
+    assert_eq!(rec.pipeline.as_ref().unwrap().len(), 2);
+}
+
+#[test]
+fn project_pipeline_full_lifecycle() {
+    // 3-phase pipeline: all phases complete
+    let events = vec![
+        make_event(
+            event_types::JOB_CREATED,
+            serde_json::json!({
+                "job_id": "j-3p",
+                "slug": "three-phase",
+                "agent": "spec",
+                "branch": "job/three-phase",
+                "spec_path": "spec.md",
+                "plan_id": null,
+                "pipeline": [
+                    { "agent": "spec", "goal": "Write spec" },
+                    { "agent": "test-writer", "goal": "Write tests" },
+                    { "agent": "rust-runtime", "goal": "Implement" }
+                ]
+            }),
+        ),
+        // Phase 0 dispatched + completed
+        make_event(event_types::JOB_DISPATCHED, serde_json::json!({"job_id": "j-3p", "worktree": "/w", "pid": null})),
+        make_event(event_types::JOB_COMPLETED, serde_json::json!({"job_id": "j-3p"})),
+        // Phase 1 dispatched + completed
+        make_event(event_types::JOB_DISPATCHED, serde_json::json!({"job_id": "j-3p", "worktree": "/w", "pid": null})),
+        make_event(event_types::JOB_COMPLETED, serde_json::json!({"job_id": "j-3p"})),
+        // Phase 2 dispatched + completed
+        make_event(event_types::JOB_DISPATCHED, serde_json::json!({"job_id": "j-3p", "worktree": "/w", "pid": null})),
+        make_event(event_types::JOB_COMPLETED, serde_json::json!({"job_id": "j-3p"})),
+        // Merged after all phases
+        make_event(event_types::JOB_MERGED, serde_json::json!({"job_id": "j-3p"})),
+    ];
+    let map = project(&events);
+    let rec = map.get("j-3p").unwrap();
+    assert_eq!(rec.status, JobStatus::Merged);
+    assert_eq!(rec.current_phase, Some(2), "current_phase must be 2 after 3 pipeline advances");
+}
+
+#[test]
+fn project_non_pipeline_job_has_no_phase() {
+    // A normal job (no pipeline) should have current_phase = None
+    let events = vec![
+        created_event("j-nopipe"),
+        make_event(event_types::JOB_DISPATCHED, serde_json::json!({"job_id": "j-nopipe", "worktree": "/w", "pid": null})),
+        make_event(event_types::JOB_COMPLETED, serde_json::json!({"job_id": "j-nopipe"})),
+    ];
+    let map = project(&events);
+    let rec = map.get("j-nopipe").unwrap();
+    assert_eq!(rec.current_phase, None, "non-pipeline job must not track current_phase");
+}

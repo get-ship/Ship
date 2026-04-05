@@ -161,7 +161,36 @@ impl KernelRouter {
                 if event.event_type.starts_with(ns.as_str()) {
                     for actor_id in actor_ids {
                         if let Some(tx) = self.mailboxes.get(actor_id) {
-                            let _ = tx.send(event.clone()).await;
+                            if let Err(_) = tx.try_send(event.clone()) {
+                                if tx.is_closed() {
+                                    tracing::warn!(
+                                        actor_id,
+                                        event_type = %event.event_type,
+                                        "kernel-router: mailbox closed, event dropped"
+                                    );
+                                } else {
+                                    tracing::warn!(
+                                        actor_id,
+                                        event_type = %event.event_type,
+                                        capacity = MAILBOX_CAPACITY,
+                                        "kernel-router: mailbox full, retrying once"
+                                    );
+                                    // Retry once with async send (waits for capacity)
+                                    if let Err(_) = tx.send(event.clone()).await {
+                                        tracing::warn!(
+                                            actor_id,
+                                            event_type = %event.event_type,
+                                            "kernel-router: retry failed, event dropped"
+                                        );
+                                    }
+                                }
+                            } else {
+                                tracing::debug!(
+                                    actor_id,
+                                    event_type = %event.event_type,
+                                    "kernel-router: event delivered"
+                                );
+                            }
                         }
                     }
                 }

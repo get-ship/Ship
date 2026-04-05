@@ -228,14 +228,7 @@ async fn pipeline_advances_to_next_phase() {
     )
     .unwrap();
 
-    // SHIP_WORKTREE_DIR for worktree path resolution (still env-var based).
-    // SHIP_GLOBAL_DIR is NOT set — use explicit-path APIs to avoid env var races.
-    unsafe {
-        std::env::set_var("SHIP_WORKTREE_DIR", &worktree_root);
-    }
-
-    // Use explicit-path event store to avoid thread-local isolation issues
-    // in multi-threaded async tests.
+    // Use explicit-path APIs to avoid env var races in parallel tests.
     let store = SqliteEventStore::new_at(&global_dir).expect("test DB must initialize");
 
     let created = ev(
@@ -280,11 +273,6 @@ async fn pipeline_advances_to_next_phase() {
 
     let dctx = noop_dctx();
     let advanced = super::try_advance_pipeline_at(&kernel, &completed, &dctx, &global_dir).await;
-
-    // Clean up env var
-    unsafe {
-        std::env::remove_var("SHIP_WORKTREE_DIR");
-    }
 
     assert!(
         advanced,
@@ -506,10 +494,6 @@ mod ports {
         )
         .unwrap();
 
-        unsafe {
-            std::env::set_var("SHIP_WORKTREE_DIR", &worktree_root);
-        }
-
         let store = SqliteEventStore::new_at(&global_dir).unwrap();
         store.append(&super::ev(
             event_types::JOB_CREATED,
@@ -543,10 +527,6 @@ mod ports {
             serde_json::json!({ "job_id": job_id, "slug": slug }),
         );
         super::super::try_advance_pipeline_at(&kernel, &completed, &dctx, &global_dir).await;
-
-        unsafe {
-            std::env::remove_var("SHIP_WORKTREE_DIR");
-        }
 
         assert!(
             executor.spawn_count.load(Ordering::SeqCst) > 0,

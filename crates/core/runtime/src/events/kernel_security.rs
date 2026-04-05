@@ -181,7 +181,19 @@ impl KernelRouter {
         if let Some(ref target) = event.target_actor_id {
             if let Some(tx) = self.mailboxes.get(target) {
                 if self.should_deliver(event, target) {
-                    let _ = tx.send(event.clone()).await;
+                    if let Err(_) = tx.send(event.clone()).await {
+                        tracing::warn!(
+                            actor_id = target,
+                            event_type = %event.event_type,
+                            "kernel-router: targeted delivery failed, mailbox closed"
+                        );
+                    } else {
+                        tracing::debug!(
+                            actor_id = target,
+                            event_type = %event.event_type,
+                            "kernel-router: targeted event delivered"
+                        );
+                    }
                 }
             }
             return;
@@ -192,7 +204,19 @@ impl KernelRouter {
                 for actor_id in actor_ids {
                     if self.should_deliver(event, actor_id) {
                         if let Some(tx) = self.mailboxes.get(actor_id) {
-                            let _ = tx.send(event.clone()).await;
+                            if let Err(_) = tx.send(event.clone()).await {
+                                tracing::warn!(
+                                    actor_id,
+                                    event_type = %event.event_type,
+                                    "kernel-router: delivery failed, mailbox closed"
+                                );
+                            } else {
+                                tracing::debug!(
+                                    actor_id,
+                                    event_type = %event.event_type,
+                                    "kernel-router: event delivered"
+                                );
+                            }
                         }
                     }
                 }

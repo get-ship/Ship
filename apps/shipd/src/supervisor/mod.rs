@@ -5,6 +5,7 @@
 pub mod adapters;
 mod dispatch_handlers;
 mod dispatch_pipeline;
+mod dispatch_replay;
 pub mod helpers;
 pub mod job_dispatch;
 pub mod terminal_launcher;
