@@ -23,18 +23,11 @@ use crate::rest_api::{ApiState, MeshResponse};
 // ---- Shared helpers ----
 
 /// Resolve a workspace branch to its worktree path. Returns 404 if not found.
-pub(crate) fn resolve_worktree(id: &str) -> Result<PathBuf, (StatusCode, Json<MeshResponse>)> {
-    let ship_dir = runtime::project::get_global_dir().map_err(|e| {
-        (
-            StatusCode::INTERNAL_SERVER_ERROR,
-            Json(MeshResponse {
-                ok: false,
-                data: serde_json::json!(e.to_string()),
-            }),
-        )
-    })?;
-
-    let ws = runtime::workspace::get_workspace(&ship_dir, id)
+pub(crate) fn resolve_worktree(
+    ship_dir: &std::path::Path,
+    id: &str,
+) -> Result<PathBuf, (StatusCode, Json<MeshResponse>)> {
+    let ws = runtime::workspace::get_workspace(ship_dir, id)
         .map_err(|e| {
             (
                 StatusCode::INTERNAL_SERVER_ERROR,
@@ -132,13 +125,10 @@ pub async fn emit_event(
 
 /// DELETE /api/workspaces/{id}
 pub async fn delete_workspace(
+    State(state): State<ApiState>,
     axum::extract::Path(id): axum::extract::Path<String>,
 ) -> Result<(StatusCode, Json<MeshResponse>), (StatusCode, Json<MeshResponse>)> {
-    let ship_dir = runtime::project::get_global_dir().map_err(|e| {
-        err_response(StatusCode::INTERNAL_SERVER_ERROR, &e.to_string())
-    })?;
-
-    runtime::workspace::delete_workspace(&ship_dir, &id).map_err(|e| {
+    runtime::workspace::delete_workspace(&state.ship_dir, &id).map_err(|e| {
         err_response(StatusCode::INTERNAL_SERVER_ERROR, &e.to_string())
     })?;
 
@@ -149,13 +139,10 @@ pub async fn delete_workspace(
 
 /// POST /api/workspaces/{id}/activate
 pub async fn activate_workspace(
+    State(state): State<ApiState>,
     axum::extract::Path(id): axum::extract::Path<String>,
 ) -> Result<(StatusCode, Json<MeshResponse>), (StatusCode, Json<MeshResponse>)> {
-    let ship_dir = runtime::project::get_global_dir().map_err(|e| {
-        err_response(StatusCode::INTERNAL_SERVER_ERROR, &e.to_string())
-    })?;
-
-    runtime::workspace::activate_workspace(&ship_dir, &id).map_err(|e| {
+    runtime::workspace::activate_workspace(&state.ship_dir, &id).map_err(|e| {
         err_response(StatusCode::INTERNAL_SERVER_ERROR, &e.to_string())
     })?;
 
@@ -168,11 +155,38 @@ mod tests;
 #[cfg(test)]
 mod tests_inline {
     use super::*;
-    use axum::extract::Path;
+    use axum::extract::{Path, State};
+
+    fn make_test_state() -> (ApiState, tempfile::TempDir) {
+        let dir = tempfile::TempDir::new().unwrap();
+        let ship_dir = dir.path().join(".ship");
+        std::fs::create_dir_all(&ship_dir).unwrap();
+        runtime::db::ensure_db_at(&ship_dir).unwrap();
+        let kernel = runtime::events::init_kernel_router(ship_dir.clone()).unwrap();
+        let mesh_registry = std::sync::Arc::new(tokio::sync::RwLock::new(
+            std::collections::HashMap::new(),
+        ));
+        let state = ApiState {
+            kernel,
+            mesh_registry,
+            agent_mailboxes: std::sync::Arc::new(tokio::sync::Mutex::new(
+                std::collections::HashMap::new(),
+            )),
+            pty_connections: std::sync::Arc::new(tokio::sync::Mutex::new(
+                std::collections::HashMap::new(),
+            )),
+            ship_dir,
+        };
+        (state, dir)
+    }
 
     #[tokio::test(flavor = "multi_thread")]
     async fn nonexistent_workspace_returns_404() {
-        let response = git_status(Path("nonexistent-branch-xyz".to_string()))
+        let (state, _dir) = make_test_state();
+        let response = git_status(
+            State(state),
+            Path("nonexistent-branch-xyz".to_string()),
+        )
             .await
             .unwrap_err();
         let (status, body) = response;

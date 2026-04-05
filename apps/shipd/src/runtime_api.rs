@@ -26,20 +26,8 @@ pub struct SessionsQuery {
 // ---- Handlers ----
 
 /// GET /api/runtime/workspaces
-pub async fn list_workspaces(State(_state): State<ApiState>) -> impl IntoResponse {
-    let ship_dir = match runtime::project::get_global_dir() {
-        Ok(p) => p,
-        Err(e) => {
-            return (
-                StatusCode::INTERNAL_SERVER_ERROR,
-                Json(MeshResponse {
-                    ok: false,
-                    data: serde_json::json!(e.to_string()),
-                }),
-            );
-        }
-    };
-    match runtime::workspace::list_workspaces(&ship_dir) {
+pub async fn list_workspaces(State(state): State<ApiState>) -> impl IntoResponse {
+    match runtime::workspace::list_workspaces(&state.ship_dir) {
         Ok(ws) => (
             StatusCode::OK,
             Json(MeshResponse {
@@ -471,7 +459,8 @@ mod tests {
     fn make_api_state(dir: &TempDir) -> ApiState {
         let ship_dir = dir.path().join(".ship");
         std::fs::create_dir_all(&ship_dir).unwrap();
-        let kernel = runtime::events::init_kernel_router(ship_dir).unwrap();
+        runtime::db::ensure_db_at(&ship_dir).unwrap();
+        let kernel = runtime::events::init_kernel_router(ship_dir.clone()).unwrap();
         let mesh_registry = Arc::new(tokio::sync::RwLock::new(
             std::collections::HashMap::new(),
         ));
@@ -480,6 +469,7 @@ mod tests {
             mesh_registry,
             agent_mailboxes: Arc::new(Mutex::new(std::collections::HashMap::new())),
             pty_connections: Arc::new(Mutex::new(std::collections::HashMap::new())),
+            ship_dir,
         }
     }
 

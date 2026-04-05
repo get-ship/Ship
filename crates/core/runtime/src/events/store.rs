@@ -3,7 +3,7 @@ use chrono::{DateTime, Utc};
 use sqlx::{QueryBuilder, Row};
 use std::path::{Path, PathBuf};
 
-use crate::db::{block_on, db_path, ensure_db, open_db_at};
+use crate::db::{block_on, db_path, ensure_db, ensure_db_at, open_db_at};
 use crate::events::envelope::EventEnvelope;
 use crate::events::filter::EventFilter;
 
@@ -56,6 +56,16 @@ impl SqliteEventStore {
     pub fn new() -> Result<Self> {
         ensure_db()?;
         Ok(Self { db_path: db_path()? })
+    }
+
+    /// Create an event store at an explicit `ship_dir` path.
+    ///
+    /// Preferred in tests to avoid thread-local / env var isolation issues.
+    pub fn new_at(ship_dir: &Path) -> Result<Self> {
+        ensure_db_at(ship_dir)?;
+        Ok(Self {
+            db_path: ship_dir.join("platform.db"),
+        })
     }
 }
 

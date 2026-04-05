@@ -79,6 +79,35 @@ pub fn ensure_db() -> Result<()> {
     Ok(())
 }
 
+/// Ensure the schema is up to date for a database at an explicit path.
+///
+/// Like `ensure_db()` but takes a `ship_dir` instead of deriving it from
+/// `get_global_dir()`. Use this in tests and handlers that receive `ship_dir`
+/// through `ApiState` to avoid env-var races.
+pub fn ensure_db_at(ship_dir: &Path) -> Result<()> {
+    let path = ship_dir.join("platform.db");
+    if let Some(parent) = path.parent() {
+        std::fs::create_dir_all(parent)?;
+    }
+    let url = sqlite_url(&path);
+    let opts = SqliteConnectOptions::from_str(&url)
+        .with_context(|| format!("invalid sqlite url: {url}"))?
+        .create_if_missing(true);
+    let mut conn = block_on(async { SqliteConnection::connect_with(&opts).await })?;
+    block_on(async {
+        sqlx::query("PRAGMA journal_mode = WAL")
+            .execute(&mut conn)
+            .await
+    })?;
+    block_on(async {
+        sqlx::query("PRAGMA foreign_keys = ON")
+            .execute(&mut conn)
+            .await
+    })?;
+    block_on_migrate(async { sqlx::migrate!("./migrations").run(&mut conn).await })?;
+    Ok(())
+}
+
 /// Open a connection to a specific database path (no migration run).
 /// The database must already be initialized via `ensure_db`.
 pub fn open_db_at(path: &Path) -> Result<SqliteConnection> {

@@ -175,6 +175,26 @@ pub fn load_jobs() -> Result<HashMap<String, JobRecord>> {
     ensure_db()?;
     let mut conn = open_db_at(&db_path()?)?;
 
+    Ok(load_jobs_from_conn(&mut conn)?)
+}
+
+/// Load jobs from an explicit `ship_dir` path.
+///
+/// Preferred in tests to avoid thread-local / env var isolation issues.
+pub fn load_jobs_at(ship_dir: &std::path::Path) -> Result<HashMap<String, JobRecord>> {
+    use crate::db::{ensure_db_at, open_db_at};
+
+    ensure_db_at(ship_dir)?;
+    let mut conn = open_db_at(&ship_dir.join("platform.db"))?;
+
+    Ok(load_jobs_from_conn(&mut conn)?)
+}
+
+fn load_jobs_from_conn(
+    conn: &mut sqlx::SqliteConnection,
+) -> Result<HashMap<String, JobRecord>> {
+    use crate::db::block_on;
+
     const COLS: &str = "id, event_type, entity_id, actor, payload_json, version, \
         causation_id, workspace_id, session_id, \
         actor_id, parent_actor_id, elevated, created_at";
@@ -183,7 +203,7 @@ pub fn load_jobs() -> Result<HashMap<String, JobRecord>> {
         sqlx::query(&format!(
             "SELECT {COLS} FROM events WHERE event_type LIKE 'job.%' ORDER BY created_at ASC"
         ))
-        .fetch_all(&mut conn)
+        .fetch_all(&mut *conn)
         .await
     })?;
 

@@ -228,15 +228,15 @@ async fn pipeline_advances_to_next_phase() {
     )
     .unwrap();
 
-    // Point env vars to temp locations for isolation
-    // Safety: test-only; env var mutation is inherently global.
+    // SHIP_WORKTREE_DIR for worktree path resolution (still env-var based).
+    // SHIP_GLOBAL_DIR is NOT set — use explicit-path APIs to avoid env var races.
     unsafe {
         std::env::set_var("SHIP_WORKTREE_DIR", &worktree_root);
-        std::env::set_var("SHIP_GLOBAL_DIR", &global_dir);
     }
 
-    // Persist events so load_jobs() finds the pipeline job in Dispatched state
-    let store = SqliteEventStore::new().expect("test DB must initialize");
+    // Use explicit-path event store to avoid thread-local isolation issues
+    // in multi-threaded async tests.
+    let store = SqliteEventStore::new_at(&global_dir).expect("test DB must initialize");
 
     let created = ev(
         event_types::JOB_CREATED,
@@ -279,12 +279,11 @@ async fn pipeline_advances_to_next_phase() {
     );
 
     let dctx = noop_dctx();
-    let advanced = super::try_advance_pipeline(&kernel, &completed, &dctx).await;
+    let advanced = super::try_advance_pipeline_at(&kernel, &completed, &dctx, &global_dir).await;
 
-    // Clean up env vars
+    // Clean up env var
     unsafe {
         std::env::remove_var("SHIP_WORKTREE_DIR");
-        std::env::remove_var("SHIP_GLOBAL_DIR");
     }
 
     assert!(
@@ -509,10 +508,9 @@ mod ports {
 
         unsafe {
             std::env::set_var("SHIP_WORKTREE_DIR", &worktree_root);
-            std::env::set_var("SHIP_GLOBAL_DIR", &global_dir);
         }
 
-        let store = SqliteEventStore::new().unwrap();
+        let store = SqliteEventStore::new_at(&global_dir).unwrap();
         store.append(&super::ev(
             event_types::JOB_CREATED,
             serde_json::json!({
@@ -544,11 +542,10 @@ mod ports {
             event_types::JOB_COMPLETED,
             serde_json::json!({ "job_id": job_id, "slug": slug }),
         );
-        super::super::try_advance_pipeline(&kernel, &completed, &dctx).await;
+        super::super::try_advance_pipeline_at(&kernel, &completed, &dctx, &global_dir).await;
 
         unsafe {
             std::env::remove_var("SHIP_WORKTREE_DIR");
-            std::env::remove_var("SHIP_GLOBAL_DIR");
         }
 
         assert!(

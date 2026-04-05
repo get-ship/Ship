@@ -74,6 +74,7 @@ pub async fn run_network(host: String, port: u16) -> Result<()> {
         pty_connections: std::sync::Arc::new(tokio::sync::Mutex::new(
             std::collections::HashMap::new(),
         )),
+        ship_dir: global_dir.clone(),
     };
     let webhook_routes = axum::Router::new()
         .route(

@@ -27,6 +27,7 @@ pub struct ApiState {
     pub mesh_registry: SharedMeshRegistry,
     pub agent_mailboxes: AgentMailboxes,
     pub pty_connections: PtyConnections,
+    pub ship_dir: std::path::PathBuf,
 }
 
 // ---- Request / Response types ----

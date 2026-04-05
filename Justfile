@@ -170,4 +170,14 @@ rebuild: clean build wasm
 check-gates:
     cargo build -p ship-studio-cli -p mcp
     cargo build --features unstable -p ship-studio-cli -p mcp
+    just check-no-set-var-global-dir
     @echo "Both gates compile ✓"
+
+# Fail if any test uses set_var("SHIP_GLOBAL_DIR") — causes env var races
+check-no-set-var-global-dir:
+    @if grep -rn 'set_var.*SHIP_GLOBAL_DIR' apps/ crates/ --include='*.rs'; then \
+        echo "ERROR: set_var(\"SHIP_GLOBAL_DIR\") found in test code."; \
+        echo "Use explicit ship_dir parameters instead. See job-spec: test-db-isolation."; \
+        exit 1; \
+    fi
+    @echo "No set_var(SHIP_GLOBAL_DIR) found ✓"

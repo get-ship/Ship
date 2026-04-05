@@ -38,18 +38,9 @@ pub async fn workspace_pty(
     request: Request,
 ) -> Response {
     // Resolve workspace and tmux session name.
-    let ship_dir = match runtime::project::get_global_dir() {
-        Ok(p) => p,
-        Err(e) => {
-            return (
-                StatusCode::INTERNAL_SERVER_ERROR,
-                Json(json!({"error": e.to_string()})),
-            )
-                .into_response();
-        }
-    };
+    let ship_dir = &state.ship_dir;
 
-    let workspace = match runtime::workspace::get_workspace_by_id(&ship_dir, &workspace_id) {
+    let workspace = match runtime::workspace::get_workspace_by_id(ship_dir, &workspace_id) {
         Ok(Some(w)) => w,
         Ok(None) => {
             return (

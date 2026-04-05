@@ -7,7 +7,7 @@
 
 use runtime::events::job::JobCreatedPayload;
 use runtime::events::{ActorConfig, CallerKind, EmitContext, EventEnvelope};
-use runtime::projections::job::load_jobs;
+use runtime::projections::job::{load_jobs, load_jobs_at};
 use runtime::services::dispatch_ports::{IsolationStrategy, JobContext, JobExecutor};
 use std::collections::HashMap;
 use std::path::PathBuf;
@@ -178,10 +178,31 @@ pub(crate) async fn dispatch_job_internal(
 
 /// Check if a completed job has a pipeline with more phases.
 /// If so, dispatch the next phase in the same worktree. Returns true if advanced.
+///
+/// `ship_dir_override`: if `Some`, reads from that DB path instead of
+/// `get_global_dir()`. Used in tests to avoid thread-local isolation issues.
 pub(crate) async fn try_advance_pipeline(
     kernel: &Arc<Mutex<runtime::events::KernelRouter>>,
     envelope: &EventEnvelope,
     dctx: &DispatchContext,
+) -> bool {
+    try_advance_pipeline_inner(kernel, envelope, dctx, None).await
+}
+
+pub(crate) async fn try_advance_pipeline_at(
+    kernel: &Arc<Mutex<runtime::events::KernelRouter>>,
+    envelope: &EventEnvelope,
+    dctx: &DispatchContext,
+    ship_dir: &std::path::Path,
+) -> bool {
+    try_advance_pipeline_inner(kernel, envelope, dctx, Some(ship_dir)).await
+}
+
+async fn try_advance_pipeline_inner(
+    kernel: &Arc<Mutex<runtime::events::KernelRouter>>,
+    envelope: &EventEnvelope,
+    dctx: &DispatchContext,
+    ship_dir_override: Option<&std::path::Path>,
 ) -> bool {
     let payload: serde_json::Value = match serde_json::from_str(&envelope.payload_json) {
         Ok(v) => v,
@@ -194,7 +215,11 @@ pub(crate) async fn try_advance_pipeline(
     };
 
     // Load current job state to check pipeline
-    let jobs = match load_jobs() {
+    let jobs = match ship_dir_override {
+        Some(dir) => load_jobs_at(dir),
+        None => load_jobs(),
+    };
+    let jobs = match jobs {
         Ok(j) => j,
         Err(_) => return false,
     };

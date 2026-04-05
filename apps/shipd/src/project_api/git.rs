@@ -1,9 +1,9 @@
 //! Git endpoints — status, diff, log for workspace worktrees.
 
-use axum::{Json, extract::Path, extract::Query, http::StatusCode};
+use axum::{Json, extract::{Path, Query, State}, http::StatusCode};
 use serde::Deserialize;
 
-use crate::rest_api::MeshResponse;
+use crate::rest_api::{ApiState, MeshResponse};
 
 use super::{err_response, ok_response, resolve_worktree};
 
@@ -35,9 +35,10 @@ fn run_git(
 
 /// GET /api/workspaces/{id}/git/status
 pub async fn git_status(
+    State(state): State<ApiState>,
     Path(id): Path<String>,
 ) -> Result<(StatusCode, Json<MeshResponse>), (StatusCode, Json<MeshResponse>)> {
-    let worktree = resolve_worktree(&id)?;
+    let worktree = resolve_worktree(&state.ship_dir, &id)?;
     let output = run_git(&worktree, &["status"])?;
     Ok(ok_response(serde_json::json!({ "output": output })))
 }
@@ -49,10 +50,11 @@ pub struct DiffQuery {
 
 /// GET /api/workspaces/{id}/git/diff
 pub async fn git_diff(
+    State(state): State<ApiState>,
     Path(id): Path<String>,
     Query(params): Query<DiffQuery>,
 ) -> Result<(StatusCode, Json<MeshResponse>), (StatusCode, Json<MeshResponse>)> {
-    let worktree = resolve_worktree(&id)?;
+    let worktree = resolve_worktree(&state.ship_dir, &id)?;
     let output = match &params.range {
         Some(range) => run_git(&worktree, &["diff", range])?,
         None => run_git(&worktree, &["diff"])?,
@@ -67,10 +69,11 @@ pub struct LogQuery {
 
 /// GET /api/workspaces/{id}/git/log
 pub async fn git_log(
+    State(state): State<ApiState>,
     Path(id): Path<String>,
     Query(params): Query<LogQuery>,
 ) -> Result<(StatusCode, Json<MeshResponse>), (StatusCode, Json<MeshResponse>)> {
-    let worktree = resolve_worktree(&id)?;
+    let worktree = resolve_worktree(&state.ship_dir, &id)?;
     let limit = params.limit.unwrap_or(20);
     let limit_arg = format!("-{limit}");
     let output = run_git(
