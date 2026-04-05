@@ -116,8 +116,9 @@ async function loadData() {
       jobsFailed = true;
     }
     const fileResult = await (wsId ? ship.files.list(wsId).catch(() => []) : Promise.resolve([]));
-    jobs = Array.isArray(jobList) ? jobList : [];
+    const newJobs = Array.isArray(jobList) ? jobList : [];
     isStale = jobsFailed;
+    if (!jobsFailed) jobs = newJobs;
     const jobBySpecPath = new Map(jobs.filter(j => j.spec_path).map(j => [j.spec_path, j]));
     const jobBySlug = new Map(jobs.map(j => [j.slug, j]));
     const files = fileResult?.data?.files || fileResult?.files || [];
@@ -337,6 +338,7 @@ function showDetail(item, up, down) {
 
   const pColor = PRIORITY_COLORS[item.priority] || '#3b82f6';
   const sColor = SURFACE_COLORS[item.surface] || '#6b7280';
+  const stColor = STATUS_COLORS[item.status] || '#6b7280';
   const waveIdx = waves.findIndex(w => w.some(i => i.slug === item.slug));
   const bySlug = new Map(items.map(i => [i.slug, i]));
   const stBg = stColor + '26';
