@@ -1,6 +1,6 @@
 import { createContext, useContext, useState, useCallback, useEffect, type ReactNode } from 'react'
 
-/** Rail panel IDs — each opens an overlay panel from the left */
+/** Rail panel IDs -- each opens an overlay panel from the left */
 export type PanelId = 'files' | 'git' | 'views' | 'jobs'
 
 interface StudioShellState {
@@ -9,11 +9,14 @@ interface StudioShellState {
   setActivePanel: (panel: PanelId | null) => void
   togglePanel: (panel: PanelId) => void
 
-  /** Floating overlays */
-  eventsOpen: boolean
-  toggleEvents: () => void
-  chatOpen: boolean
-  toggleChat: () => void
+  /** Right drawer open state */
+  rightDrawerOpen: boolean
+  toggleRightDrawer: () => void
+
+  /** Command palette */
+  commandPaletteOpen: boolean
+  toggleCommandPalette: () => void
+  setCommandPaletteOpen: (open: boolean) => void
 
   /** Legacy compat for session sidebar */
   sidebarOpen: boolean
@@ -25,16 +28,16 @@ const StudioShellContext = createContext<StudioShellState | null>(null)
 
 export function StudioShellProvider({ children }: { children: ReactNode }) {
   const [activePanel, setActivePanelRaw] = useState<PanelId | null>(null)
-  const [eventsOpen, setEventsOpen] = useState(false)
-  const [chatOpen, setChatOpen] = useState(false)
+  const [commandPaletteOpen, setCommandPaletteOpen] = useState(false)
+  const [rightDrawerOpen, setRightDrawerOpen] = useState(false)
 
   const setActivePanel = useCallback((panel: PanelId | null) => setActivePanelRaw(panel), [])
   const togglePanel = useCallback((panel: PanelId) => {
     setActivePanelRaw((p) => p === panel ? null : panel)
   }, [])
 
-  const toggleEvents = useCallback(() => setEventsOpen((p) => !p), [])
-  const toggleChat = useCallback(() => setChatOpen((p) => !p), [])
+  const toggleCommandPalette = useCallback(() => setCommandPaletteOpen((p) => !p), [])
+  const toggleRightDrawer = useCallback(() => setRightDrawerOpen((p) => !p), [])
 
   // Legacy: files panel = sidebar
   const sidebarOpen = activePanel === 'files'
@@ -45,27 +48,60 @@ export function StudioShellProvider({ children }: { children: ReactNode }) {
 
   useEffect(() => {
     function handleKey(e: KeyboardEvent) {
-      if (e.key === 'b' && (e.metaKey || e.ctrlKey)) {
+      const mod = e.metaKey || e.ctrlKey
+
+      // Cmd+B = toggle files
+      if (e.key === 'b' && mod) {
         e.preventDefault()
         togglePanel('files')
+        return
       }
-      if (e.key === 'j' && (e.metaKey || e.ctrlKey) && e.shiftKey) {
+
+      // Cmd+K = command palette
+      if (e.key === 'k' && mod) {
         e.preventDefault()
-        togglePanel('jobs')
+        toggleCommandPalette()
+        return
       }
-      if (e.key === 'Escape' && activePanel) {
-        setActivePanelRaw(null)
+
+      // Cmd+/ = toggle right drawer
+      if (e.key === '/' && mod) {
+        e.preventDefault()
+        toggleRightDrawer()
+        return
+      }
+
+      // Escape = close panel or palette
+      if (e.key === 'Escape') {
+        if (commandPaletteOpen) {
+          setCommandPaletteOpen(false)
+          return
+        }
+        if (activePanel) {
+          setActivePanelRaw(null)
+          return
+        }
+      }
+
+      // F11 = fullscreen
+      if (e.key === 'F11') {
+        e.preventDefault()
+        if (document.fullscreenElement) {
+          void document.exitFullscreen()
+        } else {
+          void document.documentElement.requestFullscreen()
+        }
       }
     }
     window.addEventListener('keydown', handleKey)
     return () => window.removeEventListener('keydown', handleKey)
-  }, [togglePanel, activePanel])
+  }, [togglePanel, toggleCommandPalette, toggleRightDrawer, activePanel, commandPaletteOpen])
 
   return (
     <StudioShellContext value={{
       activePanel, setActivePanel, togglePanel,
-      eventsOpen, toggleEvents,
-      chatOpen, toggleChat,
+      rightDrawerOpen, toggleRightDrawer,
+      commandPaletteOpen, toggleCommandPalette, setCommandPaletteOpen,
       sidebarOpen, toggleSidebar, closeSidebar,
     }}>
       {children}

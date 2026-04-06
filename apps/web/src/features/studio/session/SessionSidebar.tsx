@@ -1,7 +1,7 @@
 // Left sidebar for Session page: Files, Git, Sessions tabs.
 // Files are grouped by namespace (first path segment = skill territory).
 
-import { useState, useRef, useCallback, useMemo } from 'react'
+import { useState, useRef, useCallback, useMemo, useEffect } from 'react'
 import {
   FileText, CheckSquare, Image, ChevronDown, ChevronRight, Plus, Folder, MonitorPlay, ExternalLink,
 } from 'lucide-react'
@@ -35,6 +35,8 @@ interface SessionSidebarProps {
   onOpenView?: (viewName: string) => void
   gitStatus: GitStatusResult | null | undefined
   gitLog: GitLogEntry[] | null | undefined
+  /** When provided, the sidebar opens on this tab instead of 'files'. */
+  initialTab?: 'files' | 'git' | 'views'
 }
 
 // ── Namespace grouping — first path segment is the skill's claimed territory ──
@@ -136,8 +138,12 @@ export function SessionSidebar({
   onSelectFile, onDeleteFile, onUploadFiles,
   onShowDiff, onSelectCommit, onOpenView,
   gitStatus, gitLog,
+  initialTab,
 }: SessionSidebarProps) {
-  const [tab, setTab] = useState<SidebarTab>('files')
+  const [tab, setTab] = useState<SidebarTab>(initialTab ?? 'files')
+  useEffect(() => {
+    if (initialTab) setTab(initialTab)
+  }, [initialTab])
   const [collapsedGroups, setCollapsedGroups] = useState<Set<string>>(new Set())
   const [contextMenu, setContextMenu] = useState<ArtifactMenuState | null>(null)
   const fileInputRef = useRef<HTMLInputElement>(null)

@@ -9,8 +9,7 @@ import { StudioErrorBoundary } from '#/features/studio/StudioErrorBoundary'
 import { PanicSaveProvider } from '#/features/agents/PanicSaveContext'
 import { StudioRail } from '#/features/studio/StudioRail'
 import { StudioShellProvider } from '#/features/studio/StudioShellContext'
-import { FloatingEvents } from '#/features/studio/FloatingEvents'
-import { FloatingChat } from '#/features/studio/FloatingChat'
+import { CommandPalette } from '#/features/studio/CommandPalette'
 
 export const Route = createFileRoute('/studio')({
   component: StudioLayout,
@@ -78,7 +77,7 @@ function StudioSyncShell() {
     <div className="flex-1 overflow-hidden min-w-0 flex relative">
       <StudioRail />
 
-      {/* Content — full bleed, no docked sidebars */}
+      {/* Content -- full bleed, no docked sidebars */}
       <main className="flex-1 min-w-0 flex min-h-0 overflow-hidden">
         <div className={`flex-1 min-w-0 ${isSession ? 'flex flex-col overflow-hidden' : 'overflow-auto'}`}>
           <Outlet />
@@ -94,9 +93,8 @@ function StudioSyncShell() {
         )}
       </main>
 
-      {/* Floating overlays — always accessible */}
-      <FloatingEvents />
-      <FloatingChat />
+      {/* Command palette */}
+      <CommandPalette />
     </div>
   )
 }

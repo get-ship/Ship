@@ -1,8 +1,10 @@
+import { useNavigate } from '@tanstack/react-router'
 import {
   FolderTree, GitBranch, LayoutGrid, Briefcase,
-  Activity, MessageSquare, Settings,
+  Search, Maximize, Minimize, Settings,
   type LucideIcon,
 } from 'lucide-react'
+import { useState, useCallback, useEffect } from 'react'
 import { Button } from '@ship/primitives'
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@ship/primitives'
 import { Separator } from '@ship/primitives'
@@ -21,17 +23,35 @@ const PANEL_ITEMS: RailEntry[] = [
   { id: 'files', icon: FolderTree, label: 'Files', kbd: 'Cmd+B' },
   { id: 'git', icon: GitBranch, label: 'Git' },
   { id: 'views', icon: LayoutGrid, label: 'Views' },
-  { id: 'jobs', icon: Briefcase, label: 'Jobs', kbd: 'Cmd+Shift+J' },
+  { id: 'jobs', icon: Briefcase, label: 'Jobs' },
 ]
 
 export function StudioRail() {
-  const { activePanel, togglePanel, eventsOpen, toggleEvents, chatOpen, toggleChat } = useStudioShell()
+  const { activePanel, togglePanel, toggleCommandPalette } = useStudioShell()
   const { connected } = useDaemon()
+  const navigate = useNavigate()
+  const [isFullscreen, setIsFullscreen] = useState(false)
+
+  useEffect(() => {
+    function onFsChange() {
+      setIsFullscreen(!!document.fullscreenElement)
+    }
+    document.addEventListener('fullscreenchange', onFsChange)
+    return () => document.removeEventListener('fullscreenchange', onFsChange)
+  }, [])
+
+  const handleFullscreen = useCallback(() => {
+    if (document.fullscreenElement) {
+      void document.exitFullscreen()
+    } else {
+      void document.documentElement.requestFullscreen()
+    }
+  }, [])
 
   return (
     <TooltipProvider>
       <nav className="w-12 shrink-0 bg-card border-r border-border/60 flex flex-col items-center py-2 gap-1">
-        {/* Project logo + connection status */}
+        {/* Ship logo + connection dot */}
         <Tooltip>
           <TooltipTrigger asChild>
             <button className="w-8 h-8 rounded-lg flex items-center justify-center mb-1 transition-colors hover:bg-muted">
@@ -48,7 +68,7 @@ export function StudioRail() {
 
         <Separator className="w-6 my-1" />
 
-        {/* Panel toggles — each opens an overlay */}
+        {/* Panel toggles */}
         {PANEL_ITEMS.map((entry) => (
           <Tooltip key={entry.id}>
             <TooltipTrigger asChild>
@@ -67,42 +87,29 @@ export function StudioRail() {
           </Tooltip>
         ))}
 
-        <div className="flex-1" />
-
-        {/* Floating toggles */}
-        <Separator className="w-6 mb-1" />
-
-        <Tooltip>
-          <TooltipTrigger asChild>
-            <Button
-              variant="ghost"
-              size="icon"
-              className={`size-8 ${eventsOpen ? 'bg-primary/10 text-primary' : ''}`}
-              onClick={toggleEvents}
-            >
-              <Activity className="size-4" strokeWidth={eventsOpen ? 2.2 : 1.8} />
-            </Button>
-          </TooltipTrigger>
-          <TooltipContent side="right">Events</TooltipContent>
-        </Tooltip>
-
-        <Tooltip>
-          <TooltipTrigger asChild>
-            <Button
-              variant="ghost"
-              size="icon"
-              className={`size-8 ${chatOpen ? 'bg-primary/10 text-primary' : ''}`}
-              onClick={toggleChat}
-            >
-              <MessageSquare className="size-4" strokeWidth={chatOpen ? 2.2 : 1.8} />
-            </Button>
-          </TooltipTrigger>
-          <TooltipContent side="right">Agent Chat</TooltipContent>
-        </Tooltip>
-
         <Separator className="w-6 my-1" />
 
-        {/* Theme + Settings */}
+        {/* Search = command palette */}
+        <Tooltip>
+          <TooltipTrigger asChild>
+            <Button
+              variant="ghost"
+              size="icon"
+              className="size-8"
+              onClick={toggleCommandPalette}
+            >
+              <Search className="size-4" strokeWidth={1.8} />
+            </Button>
+          </TooltipTrigger>
+          <TooltipContent side="right">Search (Cmd+K)</TooltipContent>
+        </Tooltip>
+
+        {/* Spacer */}
+        <div className="flex-1" />
+
+        <Separator className="w-6 mb-1" />
+
+        {/* Theme */}
         <Tooltip>
           <TooltipTrigger asChild>
             <div className="size-8 flex items-center justify-center">
@@ -112,10 +119,36 @@ export function StudioRail() {
           <TooltipContent side="right">Theme</TooltipContent>
         </Tooltip>
 
+        {/* Fullscreen */}
         <Tooltip>
           <TooltipTrigger asChild>
-            <Button variant="ghost" size="icon" className="size-8">
-              <Settings className="size-4" />
+            <Button
+              variant="ghost"
+              size="icon"
+              className="size-8"
+              onClick={handleFullscreen}
+            >
+              {isFullscreen
+                ? <Minimize className="size-4" strokeWidth={1.8} />
+                : <Maximize className="size-4" strokeWidth={1.8} />
+              }
+            </Button>
+          </TooltipTrigger>
+          <TooltipContent side="right">
+            {isFullscreen ? 'Exit fullscreen (F11)' : 'Fullscreen (F11)'}
+          </TooltipContent>
+        </Tooltip>
+
+        {/* Settings */}
+        <Tooltip>
+          <TooltipTrigger asChild>
+            <Button
+              variant="ghost"
+              size="icon"
+              className="size-8"
+              onClick={() => void navigate({ to: '/studio/settings' })}
+            >
+              <Settings className="size-4" strokeWidth={1.8} />
             </Button>
           </TooltipTrigger>
           <TooltipContent side="right">Settings</TooltipContent>

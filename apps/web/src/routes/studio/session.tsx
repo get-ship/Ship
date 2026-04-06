@@ -1,7 +1,6 @@
 import { createFileRoute } from '@tanstack/react-router'
 import { useState, useCallback, useEffect } from 'react'
 import { useQuery } from '@tanstack/react-query'
-import { Layers } from 'lucide-react'
 import { useDaemon } from '#/features/studio/hooks/useDaemon'
 import { DAEMON_BASE_URL } from '#/lib/daemon-config'
 import { SessionCanvas } from '#/features/studio/session/SessionCanvas'
@@ -20,6 +19,8 @@ import { SessionSkeleton } from '#/features/studio/session/SessionSkeleton'
 import { DropZoneOverlay } from '#/features/studio/session/DropZoneOverlay'
 import { ViewHost } from '#/features/studio/views/ViewHost'
 import { useStudioShell } from '#/features/studio/StudioShellContext'
+import { SessionEmptyState } from '#/features/studio/session/SessionEmptyState'
+import { JobsPanel } from '#/features/studio/session/JobsPanel'
 
 export const Route = createFileRoute('/studio/session')({
   component: SessionPage,
@@ -31,11 +32,12 @@ type ViewMode = 'file' | 'diff'
 interface OpenTab { path: string; name: string; type: string }
 
 function SessionPage() {
-  const { workspaces } = useDaemon()
+  const { workspaces, jobs } = useDaemon()
   const active = workspaces
     .filter((w) => w.status === 'active')
     .sort((a, b) => (b.last_activated_at ?? '').localeCompare(a.last_activated_at ?? ''))
-  const workspaceId = active[0]?.branch ?? ''
+  const activeWs = active[0]
+  const workspaceId = activeWs?.branch ?? ''
 
   const { files } = useSessionFiles()
   const uploadMutation = useUploadSessionFile()
@@ -51,7 +53,6 @@ function SessionPage() {
   const [selectedCommitHash, setSelectedCommitHash] = useState<string | null>(null)
   const [activeView, setActiveView] = useState<string | null>(null)
 
-  // Fetch view HTML when a view is active
   const { data: viewHtml } = useQuery({
     queryKey: ['view', activeView],
     queryFn: async () => {
@@ -77,7 +78,6 @@ function SessionPage() {
     if (activeTabPath && fileContent != null) drafts.openFile(activeTabPath, fileContent)
   }, [activeTabPath, fileContent]) // eslint-disable-line react-hooks/exhaustive-deps
 
-  // Cmd+S to save
   useEffect(() => {
     const handler = (e: KeyboardEvent) => {
       if ((e.metaKey || e.ctrlKey) && e.key === 's') {
@@ -143,14 +143,15 @@ function SessionPage() {
   const activeDiffText = selectedCommitHash ? commitDiff : diffText
 
   const { activePanel, setActivePanel } = useStudioShell()
-  const filesOpen = activePanel === 'files'
+  const sidebarPanel = activePanel === 'files' || activePanel === 'git' || activePanel === 'views'
+  const jobsPanel = activePanel === 'jobs'
   const closePanel = useCallback(() => setActivePanel(null), [setActivePanel])
 
   return (
     <>
       <div className="flex md:hidden flex-col items-center justify-center gap-4 px-8 py-20 text-center min-h-[60vh]">
         <div className="flex size-12 items-center justify-center rounded-xl border border-border bg-muted/40">
-          <Layers className="size-5 text-muted-foreground" />
+          <img src="/ship-logos/ship_logo.svg" alt="" className="size-5 opacity-60" />
         </div>
         <p className="font-display text-base font-semibold">Best on desktop</p>
         <p className="text-sm text-muted-foreground max-w-xs">
@@ -164,14 +165,15 @@ function SessionPage() {
         onDragLeave={handleDragLeave}
         onDrop={handleDrop}
       >
-        {/* Files panel — overlays content, does not push it */}
-        {filesOpen && (
+        {/* Sidebar overlay for files/git/views */}
+        {sidebarPanel && (
           <>
             <div className="absolute inset-0 z-30" onClick={closePanel} />
             <div className="absolute left-0 top-0 bottom-0 w-64 z-40 bg-card border-r border-border/60 shadow-lg animate-in slide-in-from-left-1 duration-100">
               <SessionSidebar
                 files={files}
                 activeFile={activeTabPath}
+                initialTab={activePanel as 'files' | 'git' | 'views'}
                 onSelectFile={(path) => { openFile(path); closePanel() }}
                 onDeleteFile={handleDeleteFile}
                 onUploadFiles={handleUploadFiles}
@@ -181,6 +183,16 @@ function SessionPage() {
                 gitStatus={gitStatus}
                 gitLog={gitLog}
               />
+            </div>
+          </>
+        )}
+
+        {/* Jobs overlay */}
+        {jobsPanel && (
+          <>
+            <div className="absolute inset-0 z-30" onClick={closePanel} />
+            <div className="absolute left-0 top-0 bottom-0 w-72 z-40 bg-card border-r border-border/60 shadow-lg animate-in slide-in-from-left-1 duration-100">
+              <JobsPanel jobs={jobs} onClose={closePanel} />
             </div>
           </>
         )}
@@ -251,13 +263,10 @@ function SessionPage() {
                     )
                 )}
                 {!showView && !showCanvas && !showArtifact && !showDiff && (
-                  <div className="flex items-center justify-center h-full text-muted-foreground">
-                    <div className="text-center">
-                      <Layers className="size-8 mx-auto mb-3 opacity-40" />
-                      <p className="text-sm font-medium">No file open</p>
-                      <p className="text-xs mt-1">Toggle sidebar or press Cmd+B</p>
-                    </div>
-                  </div>
+                  <SessionEmptyState
+                    workspaceName={activeWs?.branch ?? null}
+                    activeAgent={activeWs?.active_agent ?? null}
+                  />
                 )}
               </div>
             </div>
