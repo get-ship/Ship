@@ -25,6 +25,7 @@ impl SessionProjection {
 
 const HANDLED: &[&str] = &[
     event_types::SESSION_STARTED,
+    event_types::SESSION_ATTACHED,
     event_types::SESSION_ENDED,
     event_types::SESSION_RECORDED,
     event_types::SESSION_DRAIN_STARTED,
@@ -45,6 +46,7 @@ impl Projection for SessionProjection {
     fn apply(&self, event: &EventEnvelope, conn: &mut SqliteConnection) -> Result<()> {
         match event.event_type.as_str() {
             event_types::SESSION_STARTED => apply_started(event, conn),
+            event_types::SESSION_ATTACHED => Ok(()), // no-op: session row already exists
             event_types::SESSION_ENDED => apply_ended(event, conn),
             event_types::SESSION_RECORDED => apply_recorded(event, conn),
             event_types::SESSION_DRAIN_STARTED => apply_drain_started(event, conn),

@@ -1,10 +1,10 @@
 use crate::db::session::{get_active_workspace_session_db, get_workspace_session_db};
 use crate::db::session_events::{
-    insert_session_recorded_event, insert_session_with_started_event,
-    update_session_with_ended_event,
+    insert_session_attached_event, insert_session_recorded_event,
+    insert_session_with_started_event, update_session_with_ended_event,
 };
 use crate::db::workspace_state::get_workspace_config_generation_db;
-use crate::events::types::{SessionEnded, SessionRecorded, SessionStarted};
+use crate::events::types::{SessionAttached, SessionEnded, SessionRecorded, SessionStarted};
 use anyhow::{Result, anyhow};
 use chrono::Utc;
 use std::path::Path;
@@ -111,6 +111,14 @@ pub fn start_workspace_session(
     if let Some(active) = get_active_workspace_session_db(&workspace.id)? {
         let mut existing = hydrate_workspace_session(active);
         annotate_session_stale_state(&mut existing, &std::collections::HashMap::new());
+
+        let attached_payload = SessionAttached {
+            existing_session_id: existing.id.clone(),
+            workspace_id: workspace.id.clone(),
+            workspace_branch: workspace.branch.clone(),
+        };
+        insert_session_attached_event(&existing.id, &workspace.id, &attached_payload)?;
+
         if let Err(error) = persist_session_artifact(ship_dir, &existing, "attach") {
             eprintln!("Failed to persist attached session artifact: {}", error);
         }
@@ -235,9 +243,14 @@ pub fn end_workspace_session(
     if let Err(error) = persist_session_artifact(ship_dir, &ended, "end") {
         eprintln!("Failed to persist session artifact on end: {}", error);
     }
-    if let Err(error) = run_post_session_hooks(ship_dir, &ended) {
-        eprintln!("Failed to run post-session hooks: {}", error);
-    }
+    // Run hooks in background so end_workspace_session returns immediately.
+    let hook_ship_dir = ship_dir.to_path_buf();
+    let hook_session = ended.clone();
+    std::thread::spawn(move || {
+        if let Err(error) = run_post_session_hooks(&hook_ship_dir, &hook_session) {
+            eprintln!("Failed to run post-session hooks: {}", error);
+        }
+    });
 
     Ok(ended)
 }
