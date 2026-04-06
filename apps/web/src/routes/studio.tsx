@@ -19,13 +19,11 @@ function StudioLayout() {
       <StudioShellProvider>
         <div className="flex-1 overflow-hidden min-w-0 flex">
           <StudioRail />
-          <div className="flex-1 min-w-0 flex min-h-0 overflow-hidden relative">
-            <main className="flex-1 min-w-0 flex flex-col min-h-0 overflow-hidden">
-              <WorkspaceIndicator />
-              <Outlet />
-            </main>
-            <RightDrawer />
-          </div>
+          <main className="flex-1 min-w-0 flex flex-col min-h-0 overflow-hidden">
+            <WorkspaceIndicator />
+            <Outlet />
+          </main>
+          <RightDrawer />
           <CommandPalette />
         </div>
       </StudioShellProvider>
