@@ -70,7 +70,7 @@ Review step. Same as agent but semantically a read-only review. The gate agent r
 
 ### `merge`
 
-Merges the job branch to the target. Cleans up worktree after merge.
+Merges the job branch into the current branch. Emits `job.merged` which triggers cleanup (worktree removal, branch deletion, tmux session kill).
 
 ```yaml
 - id: merge

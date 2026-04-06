@@ -61,7 +61,7 @@ See `references/docs/pipelines.md` for the full reference.
 | Daemon startup replay of stale completions | actual |
 | Projection tracking (current_step, completed_steps) | actual |
 | gate step type | partial — dispatches reviewer, no retry loop |
-| merge step type | aspirational — logs only, manual merge |
+| merge step type | actual — git merge + job.merged + cleanup |
 | human step type | aspirational — no inbox item yet |
 | Conditional steps (when:) | aspirational |
 | Retry loops (on_failure) | aspirational |
