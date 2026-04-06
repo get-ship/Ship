@@ -189,6 +189,23 @@ export function useCreateJob() {
   })
 }
 
+export function useUpdateJob() {
+  const queryClient = useQueryClient()
+  return useMutation({
+    mutationFn: async (input: { job_id: string; status: string; error?: string }) => {
+      const res = await fetch(`${DAEMON_BASE_URL}/api/runtime/jobs/update`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(input),
+      })
+      if (!res.ok) throw new Error(`daemon: update job ${res.status}`)
+    },
+    onSuccess: () => {
+      void queryClient.invalidateQueries({ queryKey: daemonKeys.jobs })
+    },
+  })
+}
+
 export function useActivateWorkspace() {
   const queryClient = useQueryClient()
   return useMutation({

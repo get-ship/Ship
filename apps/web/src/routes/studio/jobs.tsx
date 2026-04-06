@@ -1,9 +1,9 @@
 import { createFileRoute } from '@tanstack/react-router'
 import { useState, useMemo } from 'react'
-import { Briefcase, Plus } from 'lucide-react'
+import { Briefcase, Plus, Square } from 'lucide-react'
 import { Tabs, TabsList, TabsTrigger, TabsContent } from '@ship/primitives'
 import { Button } from '@ship/primitives'
-import { useDaemon } from '#/features/studio/hooks/useDaemon'
+import { useDaemon, useUpdateJob } from '#/features/studio/hooks/useDaemon'
 import { CreateJobDialog } from '#/features/studio/CreateJobDialog'
 import type { JobRecord, JobStatus } from '@ship/ui'
 
@@ -175,6 +175,8 @@ function EmptyState({ onCreateNew }: { onCreateNew: () => void }) {
 function JobCard({ job }: { job: JobRecord }) {
   const dotColor = STATUS_COLORS[job.status] ?? 'bg-muted-foreground/30'
   const textColor = STATUS_TEXT_COLORS[job.status] ?? 'text-muted-foreground'
+  const updateJob = useUpdateJob()
+  const canStop = job.status === 'dispatched' || job.status === 'pending'
 
   return (
     <div className="flex items-start gap-3 rounded-lg border border-border/60 bg-card p-4 hover:border-border transition-colors">
@@ -233,9 +235,21 @@ function JobCard({ job }: { job: JobRecord }) {
           </div>
         )}
       </div>
-      <span className="text-[11px] text-muted-foreground/50 shrink-0 mt-0.5">
-        {formatRelativeTime(job.created_at)}
-      </span>
+      <div className="flex flex-col items-end gap-1 shrink-0 mt-0.5">
+        <span className="text-[11px] text-muted-foreground/50">
+          {formatRelativeTime(job.created_at)}
+        </span>
+        {canStop && (
+          <button
+            onClick={() => updateJob.mutate({ job_id: job.job_id, status: 'failed', error: 'stopped by user' })}
+            disabled={updateJob.isPending}
+            className="flex items-center gap-1 px-2 py-0.5 rounded text-[10px] text-muted-foreground hover:text-destructive hover:bg-destructive/10 transition-colors disabled:opacity-50"
+          >
+            <Square className="size-2.5" />
+            Stop
+          </button>
+        )}
+      </div>
     </div>
   )
 }
