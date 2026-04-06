@@ -1,5 +1,5 @@
 import { useNavigate } from '@tanstack/react-router'
-import { Layers, Users, Zap, Briefcase, Settings, FolderTree, MessageSquare } from 'lucide-react'
+import { Layers, Users, Zap, Briefcase, Settings, FolderTree } from 'lucide-react'
 import {
   CommandDialog, CommandInput, CommandList, CommandEmpty,
   CommandGroup, CommandItem, CommandShortcut,
@@ -7,7 +7,7 @@ import {
 import { useStudioShell } from './StudioShellContext'
 
 export function CommandPalette() {
-  const { commandPaletteOpen, setCommandPaletteOpen, toggleFileSidebar, toggleAgentPanel } = useStudioShell()
+  const { commandPaletteOpen, setCommandPaletteOpen, toggleFileSidebar } = useStudioShell()
   const navigate = useNavigate()
 
   function go(to: string) {
@@ -54,11 +54,6 @@ export function CommandPalette() {
             <FolderTree className="size-4" />
             <span>Toggle file sidebar</span>
             <CommandShortcut>Cmd+B</CommandShortcut>
-          </CommandItem>
-          <CommandItem onSelect={() => run(toggleAgentPanel)}>
-            <MessageSquare className="size-4" />
-            <span>Toggle agent chat</span>
-            <CommandShortcut>Cmd+/</CommandShortcut>
           </CommandItem>
         </CommandGroup>
       </CommandList>

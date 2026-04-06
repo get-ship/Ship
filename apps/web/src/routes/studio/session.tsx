@@ -11,7 +11,6 @@ import { useSessionFiles, useSessionFileContent, useUploadSessionFile, useDelete
 import { useSessionDrafts } from '#/features/studio/session/useSessionDrafts'
 import { SessionTabBar } from '#/features/studio/session/SessionTabBar'
 import { useAnnotations } from '#/features/studio/session/useAnnotations'
-import { RightDrawer } from '#/features/studio/session/RightDrawer'
 import { useSessionHandlers } from '#/features/studio/session/useSessionHandlers'
 import { useDiffContent } from '#/features/studio/session/useDiffContent'
 import { useGitStatus, useGitLog, useGitDiff } from '#/features/studio/session/useGitInfo'
@@ -123,7 +122,7 @@ function SessionPage() {
   const {
     isDragging, handleDeleteFile, handleExport, handleComment, handleDiffComment,
     handleUploadFiles,
-    handleSendToAgent, handleDragOver, handleDragLeave, handleDrop,
+    handleDragOver, handleDragLeave, handleDrop,
   } = useSessionHandlers({
     workspaceId,
     ann, openFile, closeTab,
@@ -248,13 +247,6 @@ function SessionPage() {
               </div>
             </div>
 
-            <RightDrawer
-              stagedAnnotations={ann.allStaged}
-              onSend={handleSendToAgent}
-              onRemoveAnnotation={ann.removeAnnotation}
-              onUploadFiles={handleUploadFiles}
-              disabled={false}
-            />
           </div>
         </div>
 

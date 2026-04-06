@@ -1,6 +1,6 @@
 // Right-side drawer: Chat + Events + Terminal tabs.
-// Opens/closes with a toggle button at the right edge. State persisted to localStorage.
-// Width: 320px (w-80). Canvas reflows in a flex layout — not fixed positioned.
+// Global — renders in the studio layout. Annotation props are optional
+// (only provided when the session/artifacts page is active).
 
 import { useState, useCallback } from 'react'
 import { MessageSquare, Activity, PanelRightClose, PanelRightOpen, TerminalIcon } from 'lucide-react'
@@ -16,22 +16,22 @@ const LS_KEY = 'ship-studio:right-drawer-open'
 function readInitialOpen(): boolean {
   try {
     const stored = localStorage.getItem(LS_KEY)
-    return stored === null ? true : stored === 'true'
+    return stored === null ? false : stored === 'true'
   } catch {
-    return true
+    return false
   }
 }
 
 interface Props {
-  stagedAnnotations: StagedAnnotation[]
-  onSend: (text: string) => Promise<void>
-  onRemoveAnnotation: (id: string) => void
-  onUploadFiles: (files: FileList) => void
+  stagedAnnotations?: StagedAnnotation[]
+  onSend?: (text: string) => Promise<void>
+  onRemoveAnnotation?: (id: string) => void
+  onUploadFiles?: (files: FileList) => void
   disabled?: boolean
 }
 
 export function RightDrawer({
-  stagedAnnotations,
+  stagedAnnotations = [],
   onSend,
   onRemoveAnnotation,
   onUploadFiles,
@@ -41,7 +41,7 @@ export function RightDrawer({
   const [activeTab, setActiveTab] = useState<string>('chat')
   const { workspaces } = useDaemon()
 
-  const activeWorkspaceId = workspaces.find((w) => w.status === 'active')?.id ?? null
+  const activeWorkspaceId = workspaces.find((w) => String(w.status).toLowerCase() === 'active')?.id ?? null
 
   const toggle = useCallback(() => {
     setOpen((prev) => {
@@ -51,14 +51,17 @@ export function RightDrawer({
     })
   }, [])
 
+  const noopSend = useCallback(async (_text: string) => {}, [])
+  const noopRemove = useCallback((_id: string) => {}, [])
+  const noopUpload = useCallback((_files: FileList) => {}, [])
+
   return (
     <div className={`flex shrink-0 relative ${open ? '' : 'w-0'}`}>
-      {/* Toggle button — sits at the left edge of this container (right edge of canvas) */}
+      {/* Toggle tab on left edge */}
       <button
         onClick={toggle}
         className="absolute left-0 top-1/2 -translate-y-1/2 -translate-x-full z-10 flex items-center justify-center w-5 h-10 rounded-l-md border border-r-0 border-border bg-card/80 text-muted-foreground hover:text-foreground hover:bg-card transition-colors"
         title={open ? 'Close panel' : 'Open Chat & Events'}
-        aria-label={open ? 'Close right panel' : 'Open right panel'}
       >
         {open
           ? <PanelRightClose className="size-3" />
@@ -101,9 +104,9 @@ export function RightDrawer({
             <TabsContent value="chat" className="flex flex-col flex-1 min-h-0 mt-0">
               <ChatTab
                 stagedAnnotations={stagedAnnotations}
-                onSend={onSend}
-                onRemoveAnnotation={onRemoveAnnotation}
-                onUploadFiles={onUploadFiles}
+                onSend={onSend ?? noopSend}
+                onRemoveAnnotation={onRemoveAnnotation ?? noopRemove}
+                onUploadFiles={onUploadFiles ?? noopUpload}
                 disabled={disabled}
               />
             </TabsContent>
