@@ -10,7 +10,7 @@ use axum::{
     response::IntoResponse,
 };
 use axum::response::sse::{Event, KeepAlive, Sse};
-use runtime::events::{ActorConfig, CallerKind, EmitContext, EventEnvelope};
+use runtime::events::{ActorConfig, EventEnvelope};
 use runtime::events::job::{JobCreatedPayload, event_types};
 use serde::Deserialize;
 
@@ -280,21 +280,7 @@ pub async fn create_job(
             );
         }
     };
-    // Persist to event store so projections see it
-    if let Ok(store) = runtime::events::SqliteEventStore::new() {
-        if let Err(e) = runtime::events::EventStore::append(&store, &envelope) {
-            tracing::warn!("create_job: failed to persist: {e}");
-        }
-    }
-
-    let ctx = EmitContext {
-        caller_kind: CallerKind::Runtime,
-        skill_id: None,
-        workspace_id: None,
-        session_id: None,
-    };
-
-    match state.kernel.lock().await.route(envelope, &ctx).await {
+    match state.persist_and_route(&envelope).await {
         Ok(()) => (
             StatusCode::OK,
             Json(MeshResponse {
@@ -374,14 +360,7 @@ pub async fn end_job(
         }
     };
 
-    let ctx = EmitContext {
-        caller_kind: CallerKind::Runtime,
-        skill_id: None,
-        workspace_id: None,
-        session_id: None,
-    };
-
-    match state.kernel.lock().await.route(envelope, &ctx).await {
+    match state.persist_and_route(&envelope).await {
         Ok(()) => (
             StatusCode::OK,
             Json(MeshResponse { ok: true, data: serde_json::json!(format!("job '{}' completed", req.slug)) }),

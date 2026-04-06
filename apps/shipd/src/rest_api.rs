@@ -30,6 +30,27 @@ pub struct ApiState {
     pub ship_dir: std::path::PathBuf,
 }
 
+impl ApiState {
+    /// Persist event to platform.db then route through kernel to subscribers.
+    /// This is the single entry point for all daemon-originated events.
+    /// Events from MCP tools are already persisted by the MCP server before
+    /// reaching the daemon via event_route — those skip persistence here.
+    pub async fn persist_and_route(&self, envelope: &EventEnvelope) -> anyhow::Result<()> {
+        // 1. Persist first — event store is the source of truth
+        if let Ok(store) = runtime::events::SqliteEventStore::new() {
+            runtime::events::EventStore::append(&store, envelope)?;
+        }
+        // 2. Route to subscribers
+        let ctx = EmitContext {
+            caller_kind: CallerKind::Runtime,
+            skill_id: None,
+            workspace_id: None,
+            session_id: None,
+        };
+        self.kernel.lock().await.route(envelope.clone(), &ctx).await
+    }
+}
+
 // ---- Request / Response types ----
 
 #[derive(Deserialize)]
