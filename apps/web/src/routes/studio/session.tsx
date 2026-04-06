@@ -269,6 +269,41 @@ function SessionPage() {
         </div>
 
         {isDragging && <DropZoneOverlay />}
+
+        {/* Annotation FAB — bottom center, visible on canvas/artifact/diff views */}
+        {(showCanvas || showArtifact || showDiff) && (
+          <div className="absolute bottom-4 left-1/2 -translate-x-1/2 z-20 flex items-center gap-1.5 rounded-full border border-border/60 bg-card/90 backdrop-blur-sm shadow-lg px-2 py-1">
+            <button
+              onClick={() => ann.setAnnotationMode(!ann.annotationMode)}
+              className={`flex items-center gap-1.5 rounded-full px-3 py-1.5 text-[11px] font-medium transition ${
+                ann.annotationMode
+                  ? 'bg-primary text-primary-foreground'
+                  : 'text-muted-foreground hover:text-foreground hover:bg-muted/40'
+              }`}
+            >
+              {ann.annotationMode ? 'Annotating' : 'Annotate'}
+            </button>
+            {ann.annotations.length > 0 && (
+              <>
+                <span className="text-[10px] text-muted-foreground tabular-nums">
+                  {ann.annotations.length}
+                </span>
+                <button
+                  onClick={handleExport}
+                  className="rounded-full px-2 py-1 text-[10px] text-muted-foreground hover:text-foreground hover:bg-muted/40 transition"
+                >
+                  Export
+                </button>
+                <button
+                  onClick={ann.clearAnnotations}
+                  className="rounded-full px-2 py-1 text-[10px] text-muted-foreground hover:text-destructive hover:bg-destructive/10 transition"
+                >
+                  Clear
+                </button>
+              </>
+            )}
+          </div>
+        )}
       </div>
     </>
   )

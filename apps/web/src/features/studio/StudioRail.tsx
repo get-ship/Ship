@@ -1,7 +1,7 @@
 import { useNavigate, useRouterState } from '@tanstack/react-router'
 import {
   Layers, Users, Zap, Briefcase, GitBranch,
-  Search, Maximize, Minimize, Settings,
+  Search, Maximize, Minimize, Settings, MessageSquare,
   type LucideIcon,
 } from 'lucide-react'
 import { useState, useCallback, useEffect } from 'react'
@@ -25,7 +25,7 @@ const PINNED_VIEWS: { to: string; icon: LucideIcon; label: string }[] = [
 export function StudioRail() {
   const pathname = useRouterState({ select: (s) => s.location.pathname })
   const navigate = useNavigate()
-  const { toggleCommandPalette } = useStudioShell()
+  const { toggleCommandPalette, agentPanelOpen, toggleAgentPanel } = useStudioShell()
   const [isFullscreen, setIsFullscreen] = useState(false)
 
   useEffect(() => {
@@ -81,6 +81,21 @@ export function StudioRail() {
             </Button>
           </TooltipTrigger>
           <TooltipContent side="right">Search (Cmd+K)</TooltipContent>
+        </Tooltip>
+
+        {/* Agent chat/events */}
+        <Tooltip>
+          <TooltipTrigger asChild>
+            <Button
+              variant="ghost"
+              size="icon"
+              className={`size-8 ${agentPanelOpen ? 'bg-primary/10 text-primary' : ''}`}
+              onClick={toggleAgentPanel}
+            >
+              <MessageSquare className="size-4" strokeWidth={agentPanelOpen ? 2.2 : 1.8} />
+            </Button>
+          </TooltipTrigger>
+          <TooltipContent side="right">Agent Chat (Cmd+/)</TooltipContent>
         </Tooltip>
 
         <div className="flex-1" />
