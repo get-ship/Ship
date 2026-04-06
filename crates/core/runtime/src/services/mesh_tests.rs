@@ -52,6 +52,11 @@ fn status_event(id: &str, status: &str) -> EventEnvelope {
     ev("mesh.status", id, serde_json::json!({ "agent_id": id, "status": status }))
 }
 
+/// Drain all pending events from the receiver, discarding them.
+fn drain(rx: &mut mpsc::UnboundedReceiver<EventEnvelope>) {
+    while rx.try_recv().is_ok() {}
+}
+
 #[test]
 fn register_adds_agent() {
     let (mut svc, _rx, store) = setup();
@@ -107,6 +112,7 @@ fn send_to_registered_agent_emits_message() {
     let (mut svc, mut rx, store) = setup();
     svc.handle(&register_event("agent.reviewer", &["review"]), &store)
         .unwrap();
+    drain(&mut rx);
     svc.handle(
         &send_event("agent.rust", "agent.reviewer", serde_json::json!({"text": "hi"})),
         &store,
@@ -143,6 +149,7 @@ fn broadcast_delivers_to_all_except_sender() {
     svc.handle(&register_event("agent.a", &["rust"]), &store).unwrap();
     svc.handle(&register_event("agent.b", &["rust"]), &store).unwrap();
     svc.handle(&register_event("agent.c", &["go"]), &store).unwrap();
+    drain(&mut rx);
 
     svc.handle(
         &broadcast_event("agent.a", serde_json::json!({"ping": true}), None),
@@ -165,6 +172,7 @@ fn broadcast_with_capability_filter() {
     svc.handle(&register_event("agent.a", &["rust"]), &store).unwrap();
     svc.handle(&register_event("agent.b", &["rust"]), &store).unwrap();
     svc.handle(&register_event("agent.c", &["go"]), &store).unwrap();
+    drain(&mut rx);
 
     svc.handle(
         &broadcast_event("agent.a", serde_json::json!({}), Some("rust")),
@@ -183,6 +191,7 @@ fn broadcast_with_capability_filter() {
 fn broadcast_without_filter_excludes_sender() {
     let (mut svc, mut rx, store) = setup();
     svc.handle(&register_event("agent.only", &[]), &store).unwrap();
+    drain(&mut rx);
 
     svc.handle(
         &broadcast_event("agent.only", serde_json::json!({}), None),
@@ -198,6 +207,7 @@ fn discover_returns_all_agents() {
     let (mut svc, mut rx, store) = setup();
     svc.handle(&register_event("agent.a", &["rust"]), &store).unwrap();
     svc.handle(&register_event("agent.b", &["go"]), &store).unwrap();
+    drain(&mut rx);
 
     svc.handle(&discover_event("agent.requester", None, None), &store)
         .unwrap();
@@ -214,6 +224,7 @@ fn discover_filters_by_capability() {
     let (mut svc, mut rx, store) = setup();
     svc.handle(&register_event("agent.a", &["rust"]), &store).unwrap();
     svc.handle(&register_event("agent.b", &["go"]), &store).unwrap();
+    drain(&mut rx);
 
     svc.handle(&discover_event("agent.requester", Some("rust"), None), &store)
         .unwrap();
@@ -231,6 +242,7 @@ fn discover_filters_by_status() {
     svc.handle(&register_event("agent.a", &["rust"]), &store).unwrap();
     svc.handle(&register_event("agent.b", &["rust"]), &store).unwrap();
     svc.handle(&status_event("agent.b", "busy"), &store).unwrap();
+    drain(&mut rx);
 
     svc.handle(&discover_event("agent.requester", None, Some("active")), &store)
         .unwrap();
@@ -248,6 +260,7 @@ fn discover_filters_by_capability_and_status() {
     svc.handle(&register_event("agent.a", &["rust"]), &store).unwrap();
     svc.handle(&register_event("agent.b", &["rust"]), &store).unwrap();
     svc.handle(&status_event("agent.a", "idle"), &store).unwrap();
+    drain(&mut rx);
 
     svc.handle(
         &discover_event("agent.requester", Some("rust"), Some("idle")),
