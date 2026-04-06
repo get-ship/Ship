@@ -249,7 +249,7 @@ pub async fn run_network(host: String, port: u16) -> Result<()> {
     }
 
     let _ = std::fs::remove_file(global_dir.join("network.port"));
-    let _ = std::fs::remove_file(global_dir.join("network.pid"));
+    let _ = std::fs::remove_file(global_dir.join("daemon.pid"));
     let _ = std::fs::remove_file(global_dir.join("network.token"));
     tracing::info!("shipd: shutdown complete");
     Ok(())
@@ -268,7 +268,7 @@ pub fn network_status() -> Result<()> {
 /// Send SIGTERM to the network daemon via the stored PID file.
 pub fn network_stop() -> Result<()> {
     let global_dir = runtime::project::get_global_dir()?;
-    let pid_file = global_dir.join("network.pid");
+    let pid_file = global_dir.join("daemon.pid");
     let pid_str = std::fs::read_to_string(&pid_file)
         .map_err(|_| anyhow!("shipd is not running (no pid file)"))?;
     let pid = pid_str.trim().to_string();
@@ -349,8 +349,8 @@ fn write_port_file(global_dir: &Path, port: u16) -> Result<()> {
 
 fn write_pid_file(global_dir: &Path) -> Result<()> {
     let pid = std::process::id();
-    std::fs::write(global_dir.join("network.pid"), pid.to_string())
-        .map_err(|e| anyhow!("failed to write network.pid: {e}"))
+    std::fs::write(global_dir.join("daemon.pid"), pid.to_string())
+        .map_err(|e| anyhow!("failed to write daemon.pid: {e}"))
 }
 
 /// Wait for SIGINT or SIGTERM (UNIX) or just SIGINT (other platforms).
