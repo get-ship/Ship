@@ -71,10 +71,19 @@ pub(crate) async fn handle_job_cleanup(envelope: &EventEnvelope) {
     };
 
     let job_id = payload["job_id"].as_str().unwrap_or(&envelope.entity_id);
-    let slug = payload["slug"]
-        .as_str()
-        .map(str::to_string)
-        .unwrap_or_else(|| job_id.to_string());
+    let payload_slug = payload["slug"].as_str().unwrap_or("");
+
+    // Resolve slug from job projection if not in payload
+    let slug = if !payload_slug.is_empty() {
+        payload_slug.to_string()
+    } else if let Ok(jobs) = runtime::projections::job::load_jobs() {
+        jobs.values()
+            .find(|j| j.job_id == job_id || j.job_id == envelope.entity_id)
+            .map(|j| j.slug.clone())
+            .unwrap_or_else(|| job_id.to_string())
+    } else {
+        job_id.to_string()
+    };
 
     let tmux_session = format!("job-{slug}");
     let worktree_path = worktrees_dir().join(&slug);
@@ -118,10 +127,20 @@ pub(crate) async fn dispatch_unblocked_jobs(
         }
     };
 
-    let completed_slug = payload["slug"]
-        .as_str()
-        .or_else(|| payload["job_id"].as_str())
-        .unwrap_or(&envelope.entity_id);
+    // Resolve completed job's slug — try payload, then projection lookup by entity_id
+    let completed_slug = if let Some(s) = payload["slug"].as_str().filter(|s| !s.is_empty()) {
+        s.to_string()
+    } else {
+        let job_id = payload["job_id"].as_str().unwrap_or(&envelope.entity_id);
+        if let Ok(jobs) = runtime::projections::job::load_jobs() {
+            jobs.values()
+                .find(|j| j.job_id == job_id || j.job_id == envelope.entity_id)
+                .map(|j| j.slug.clone())
+                .unwrap_or_else(|| envelope.entity_id.clone())
+        } else {
+            envelope.entity_id.clone()
+        }
+    };
 
     if pending.is_empty() {
         tracing::debug!(
@@ -134,7 +153,7 @@ pub(crate) async fn dispatch_unblocked_jobs(
     let mut ready: Vec<String> = Vec::new();
     for (slug, job) in pending.iter_mut() {
         if let Some(deps) = &mut job.depends_on {
-            deps.retain(|d| d != completed_slug);
+            deps.retain(|d| d != &completed_slug);
             if deps.is_empty() {
                 ready.push(slug.clone());
             } else {

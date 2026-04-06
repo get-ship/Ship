@@ -140,14 +140,21 @@ fn spawn_agent_with_mesh_id(tmux_session: &str, slug: &str) {
         return;
     }
 
+    // Auto-accept the experimental channels prompt, then send "go" to start the agent.
+    // Timing: ~5s for claude to boot and show the channels prompt, ~5s more for it to
+    // load CLAUDE.md and be ready for input.
     let session = tmux_session.to_string();
     std::thread::spawn(move || {
-        for delay in [5, 3] {
-            std::thread::sleep(std::time::Duration::from_secs(delay));
-            let _ = std::process::Command::new("tmux")
-                .args(["send-keys", "-t", &session, "1", "Enter"])
-                .status();
-        }
+        // Accept experimental channels prompt
+        std::thread::sleep(std::time::Duration::from_secs(5));
+        let _ = std::process::Command::new("tmux")
+            .args(["send-keys", "-t", &session, "", "Enter"])
+            .status();
+        // Send "go" to trigger job autostart
+        std::thread::sleep(std::time::Duration::from_secs(5));
+        let _ = std::process::Command::new("tmux")
+            .args(["send-keys", "-t", &session, "go", "Enter"])
+            .status();
     });
 }
 

@@ -140,28 +140,6 @@ async fn try_advance_pipeline_inner(
     ship_dir_override: Option<&std::path::Path>,
     worktree_root_override: Option<&std::path::Path>,
 ) -> bool {
-    let payload: serde_json::Value = match serde_json::from_str(&envelope.payload_json) {
-        Ok(v) => v,
-        Err(e) => {
-            tracing::warn!(
-                event_id = %envelope.id,
-                "pipeline: malformed job.completed payload: {e}"
-            );
-            return false;
-        }
-    };
-
-    let slug = match payload["slug"].as_str() {
-        Some(s) => s.to_string(),
-        None => {
-            tracing::warn!(
-                event_id = %envelope.id,
-                "pipeline: job.completed payload missing slug field"
-            );
-            return false;
-        }
-    };
-
     // Load current job state to check pipeline
     let jobs = match ship_dir_override {
         Some(dir) => load_jobs_at(dir),
@@ -170,18 +148,43 @@ async fn try_advance_pipeline_inner(
     let jobs = match jobs {
         Ok(j) => j,
         Err(e) => {
-            tracing::warn!(slug, "pipeline: failed to load jobs for pipeline check: {e}");
+            tracing::warn!(
+                entity_id = %envelope.entity_id,
+                "pipeline: failed to load jobs for pipeline check: {e}"
+            );
             return false;
         }
     };
 
-    let job = match jobs.values().find(|j| j.slug == slug) {
-        Some(j) => j.clone(),
+    // Look up the job by entity_id (job_id) first — this is reliable since
+    // the event system sets it. Fall back to slug from payload if present.
+    let payload: serde_json::Value = serde_json::from_str(&envelope.payload_json)
+        .unwrap_or_default();
+    let payload_slug = payload["slug"].as_str().unwrap_or("");
+    let payload_job_id = payload["job_id"].as_str().unwrap_or("");
+    let entity_id = &envelope.entity_id;
+
+    let job = jobs.values()
+        .find(|j| {
+            j.job_id == *entity_id
+            || (!payload_job_id.is_empty() && j.job_id == payload_job_id)
+            || (!payload_slug.is_empty() && j.slug == payload_slug)
+        })
+        .cloned();
+
+    let job = match job {
+        Some(j) => j,
         None => {
-            tracing::warn!(slug, "pipeline: job not found in projection");
+            tracing::warn!(
+                entity_id = %entity_id,
+                payload_slug,
+                payload_job_id,
+                "pipeline: job not found in projection"
+            );
             return false;
         }
     };
+    let slug = job.slug.clone();
 
     let pipeline = match &job.pipeline {
         Some(p) if p.len() > 1 => p,
