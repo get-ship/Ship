@@ -277,13 +277,18 @@ async fn advance_pipeline_inner(
         }
     };
 
+    // Idempotency: if this step is already in completed_steps, skip.
+    // This prevents re-dispatching the same step on duplicate completion events.
+    if job.completed_steps.contains(&current_step_id) {
+        tracing::debug!(slug, step = %current_step_id, "pipeline: step already completed, skipping");
+        return false;
+    }
+
     tracing::info!(slug, step = %current_step_id, "pipeline: step completed");
 
     // Mark current step as completed and find next steps
     let mut completed = job.completed_steps.clone();
-    if !completed.contains(&current_step_id) {
-        completed.push(current_step_id.clone());
-    }
+    completed.push(current_step_id.clone());
 
     let next_steps = pipeline.unblocked_steps(&completed);
     if next_steps.is_empty() {
