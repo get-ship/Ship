@@ -99,16 +99,24 @@ pub async fn auth_middleware(
         .get("authorization")
         .and_then(|v| v.to_str().ok());
 
+    // Allow localhost browser origins without a token (Studio web app).
+    // Non-browser clients (CLI, MCP) always send the token.
+    let origin = req.headers().get("origin").and_then(|v| v.to_str().ok()).unwrap_or("");
+    let is_local_browser = origin.starts_with("http://localhost:") || origin.starts_with("http://127.0.0.1:");
+
     let token = match auth_header {
-        Some(h) if h.starts_with("Bearer ") => &h[7..],
+        Some(h) if h.starts_with("Bearer ") => Some(&h[7..]),
+        _ if is_local_browser => None, // exempt local browser requests
         _ => {
             return (StatusCode::UNAUTHORIZED, "missing or malformed Authorization header")
                 .into_response();
         }
     };
 
-    if token != expected_token.as_str() {
-        return (StatusCode::UNAUTHORIZED, "invalid token").into_response();
+    if let Some(t) = token {
+        if t != expected_token.as_str() {
+            return (StatusCode::UNAUTHORIZED, "invalid token").into_response();
+        }
     }
 
     // Extract caller identity from optional headers.
