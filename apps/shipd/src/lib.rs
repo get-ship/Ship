@@ -14,6 +14,11 @@ pub mod runtime_api;
 mod server;
 pub mod supervisor;
 
+#[cfg(test)]
+pub mod test_harness;
+#[cfg(test)]
+mod integration_tests;
+
 pub use server::NetworkServer;
 
 use anyhow::{Result, anyhow};
