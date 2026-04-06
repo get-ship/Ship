@@ -340,9 +340,53 @@ async fn advance_pipeline_inner(
                 dispatched_any = true;
             }
             StepType::Merge => {
-                tracing::info!(slug, "pipeline: executing merge step");
-                // TODO: implement git merge. For now, log and mark as needing manual merge.
-                tracing::warn!(slug, "pipeline: auto-merge not yet implemented, awaiting manual merge");
+                tracing::info!(slug, branch = %job.branch, "pipeline: executing merge step");
+
+                // Gracefully end any running agent first
+                graceful_agent_exit(slug).await;
+
+                // Git merge the job branch into the current branch (v0.2.0 or whatever HEAD is)
+                let merge_result = std::process::Command::new("git")
+                    .args(["merge", &job.branch, "--no-edit"])
+                    .current_dir(super::helpers::repo_dir())
+                    .output();
+
+                match merge_result {
+                    Ok(output) if output.status.success() => {
+                        tracing::info!(slug, branch = %job.branch, "pipeline: merge successful");
+
+                        // Emit job.merged to trigger cleanup
+                        let merged_payload = runtime::events::job::JobMergedPayload {
+                            job_id: job.job_id.clone(),
+                            slug: slug.clone(),
+                        };
+                        let merged_envelope = EventEnvelope::new(
+                            runtime::events::job::event_types::JOB_MERGED,
+                            &job.job_id,
+                            &merged_payload,
+                        );
+                        if let Ok(envelope) = merged_envelope {
+                            if let Ok(store) = runtime::events::SqliteEventStore::new() {
+                                let _ = runtime::events::EventStore::append(&store, &envelope);
+                            }
+                            let ctx = EmitContext {
+                                caller_kind: CallerKind::Runtime,
+                                skill_id: None,
+                                workspace_id: None,
+                                session_id: None,
+                            };
+                            let _ = kernel.lock().await.route(envelope, &ctx).await;
+                        }
+                        dispatched_any = true;
+                    }
+                    Ok(output) => {
+                        let stderr = String::from_utf8_lossy(&output.stderr);
+                        tracing::error!(slug, branch = %job.branch, "pipeline: merge failed: {stderr}");
+                    }
+                    Err(e) => {
+                        tracing::error!(slug, "pipeline: git merge command failed: {e}");
+                    }
+                }
             }
             StepType::Human => {
                 tracing::info!(slug, step_id = step.id, "pipeline: human step — pausing for human action");
