@@ -122,10 +122,24 @@ pub fn activate_workspace(ship_dir: &Path, branch: &str) -> Result<Workspace> {
     let project_root = ship_dir.parent().unwrap_or(ship_dir);
     let _ = super::reconcile::reconcile_workspace(ship_dir, branch, project_root);
 
-    let mut workspace =
-        get_workspace(ship_dir, branch)?.unwrap_or_else(|| new_workspace(branch, now));
+    let existing = get_workspace(ship_dir, branch)?;
+    let auto_created = existing.is_none();
+    let mut workspace = existing.unwrap_or_else(|| new_workspace(branch, now));
 
     validate_workspace_transition(workspace.status, WorkspaceStatus::Active)?;
+
+    // Emit workspace.created for auto-created workspaces so the event log
+    // shows an explicit creation before the activation.
+    if auto_created {
+        upsert_workspace_on_created(
+            ship_dir,
+            branch,
+            workspace.is_worktree,
+            workspace.worktree_path.as_deref(),
+            workspace.active_agent.as_deref(),
+            &workspace.status.to_string(),
+        )?;
+    }
 
     workspace.id = workspace_id_from_branch(branch);
     workspace.branch = branch.to_string();
