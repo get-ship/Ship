@@ -186,3 +186,20 @@ export function useCreateJob() {
     },
   })
 }
+
+export function useActivateWorkspace() {
+  const queryClient = useQueryClient()
+  return useMutation({
+    mutationFn: async (branch: string) => {
+      const res = await fetch(
+        `${DAEMON_BASE_URL}/api/workspaces/${encodeURIComponent(branch)}/activate`,
+        { method: 'POST' },
+      )
+      if (!res.ok) throw new Error(`activate workspace: ${res.status}`)
+      return res.json()
+    },
+    onSuccess: () => {
+      void queryClient.invalidateQueries({ queryKey: daemonKeys.workspaces })
+    },
+  })
+}

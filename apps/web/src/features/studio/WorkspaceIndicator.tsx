@@ -1,16 +1,18 @@
 import { useState, useEffect, useCallback } from 'react'
 import { useRouterState } from '@tanstack/react-router'
-import { GitBranch, Circle, Maximize, Minimize, PanelLeft } from 'lucide-react'
-import { useDaemon } from './hooks/useDaemon'
+import { GitBranch, Circle, Maximize, Minimize, PanelLeft, ChevronDown, Loader2 } from 'lucide-react'
+import { Popover, PopoverContent, PopoverTrigger } from '@ship/primitives'
+import { Separator } from '@ship/primitives'
+import { useDaemon, useActivateWorkspace } from './hooks/useDaemon'
 import { useStudioShell } from './StudioShellContext'
 
-/** Routes that are workspace-scoped (show the indicator). */
 const WORKSPACE_ROUTES = ['/studio/session', '/studio/git', '/studio/view/']
 
 export function WorkspaceIndicator() {
   const pathname = useRouterState({ select: (s) => s.location.pathname })
   const { workspaces, connected } = useDaemon()
   const { fileSidebarOpen, toggleFileSidebar } = useStudioShell()
+  const activateMutation = useActivateWorkspace()
   const [isFullscreen, setIsFullscreen] = useState(false)
 
   useEffect(() => {
@@ -30,11 +32,11 @@ export function WorkspaceIndicator() {
   const activeWs = workspaces.find((w) => String(w.status).toLowerCase() === 'active')
   if (!activeWs && connected) return null
 
+  const otherWorkspaces = workspaces.filter((w) => w !== activeWs)
   const isArtifacts = pathname.startsWith('/studio/session')
 
   return (
     <div className="flex items-center gap-1.5 px-2 py-1 border-b border-border/40 shrink-0 bg-card/30">
-      {/* Sidebar toggle — only on artifacts view */}
       {isArtifacts && (
         <button
           onClick={toggleFileSidebar}
@@ -47,31 +49,84 @@ export function WorkspaceIndicator() {
         </button>
       )}
 
-      {/* Workspace info */}
-      <GitBranch className="size-3 text-muted-foreground/60" />
-      <span className="text-[10px] font-medium text-muted-foreground">
-        {activeWs?.branch ?? 'No workspace'}
-      </span>
-      {activeWs?.active_agent && (
-        <>
-          <Circle className="size-1 fill-border text-border" />
-          <span className="text-[10px] text-muted-foreground/60">
-            {activeWs.active_agent}
-          </span>
-        </>
-      )}
+      {/* Workspace picker */}
+      <Popover>
+        <PopoverTrigger
+          render={
+            <button className="flex items-center gap-1 rounded px-1 py-0.5 hover:bg-muted/40 transition-colors">
+              <GitBranch className="size-3 text-muted-foreground/60" />
+              <span className="text-[10px] font-medium text-muted-foreground">
+                {activateMutation.isPending ? (
+                  <span className="flex items-center gap-1">
+                    <Loader2 className="size-2.5 animate-spin" />
+                    Switching...
+                  </span>
+                ) : (
+                  activeWs?.branch ?? 'No workspace'
+                )}
+              </span>
+              {activeWs?.active_agent && (
+                <>
+                  <Circle className="size-1 fill-border text-border" />
+                  <span className="text-[10px] text-muted-foreground/60">
+                    {activeWs.active_agent}
+                  </span>
+                </>
+              )}
+              <ChevronDown className="size-2.5 text-muted-foreground/40" />
+            </button>
+          }
+        />
+        <PopoverContent align="start" className="w-64 p-0">
+          {/* Active */}
+          {activeWs && (
+            <div className="px-3 py-2">
+              <div className="text-[10px] text-muted-foreground/50 uppercase tracking-wider mb-1">Active</div>
+              <div className="flex items-center gap-2">
+                <span className="size-1.5 rounded-full bg-emerald-500 shrink-0" />
+                <span className="text-xs font-medium truncate">{activeWs.branch}</span>
+              </div>
+              {activeWs.active_agent && (
+                <div className="text-[10px] text-muted-foreground/60 mt-0.5 pl-3.5">{activeWs.active_agent}</div>
+              )}
+            </div>
+          )}
+
+          {/* Others */}
+          {otherWorkspaces.length > 0 && (
+            <>
+              <Separator />
+              <div className="py-1">
+                <div className="px-3 py-1 text-[10px] text-muted-foreground/50 uppercase tracking-wider">Switch to</div>
+                {otherWorkspaces.map((ws) => (
+                  <button
+                    key={ws.branch}
+                    onClick={() => activateMutation.mutate(ws.branch)}
+                    disabled={activateMutation.isPending}
+                    className="w-full flex items-center gap-2 px-3 py-1.5 text-xs text-muted-foreground hover:bg-muted hover:text-foreground transition-colors disabled:opacity-50"
+                  >
+                    <span className="size-1.5 rounded-full bg-muted-foreground/30 shrink-0" />
+                    <span className="truncate">{ws.branch}</span>
+                  </button>
+                ))}
+              </div>
+            </>
+          )}
+
+          {otherWorkspaces.length === 0 && !activeWs && (
+            <div className="px-3 py-4 text-xs text-muted-foreground text-center">No workspaces</div>
+          )}
+        </PopoverContent>
+      </Popover>
 
       <div className="flex-1" />
 
-      {/* Fullscreen */}
       <button
         onClick={handleFullscreen}
         className="size-6 flex items-center justify-center rounded text-muted-foreground/50 hover:text-foreground/70 transition-colors"
         title={isFullscreen ? 'Exit fullscreen' : 'Fullscreen'}
       >
-        {isFullscreen
-          ? <Minimize className="size-3.5" />
-          : <Maximize className="size-3.5" />}
+        {isFullscreen ? <Minimize className="size-3.5" /> : <Maximize className="size-3.5" />}
       </button>
     </div>
   )
