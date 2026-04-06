@@ -4,6 +4,7 @@
 //! `network_status` / `network_stop` for CLI subcommands.
 
 pub mod actor_api;
+pub mod auth;
 mod connections;
 mod handler;
 pub mod human_webhook;
@@ -46,6 +47,11 @@ pub async fn run_network(host: String, port: u16) -> Result<()> {
     supervisor::subscribe_workspace_events(kernel.clone(), global_dir.clone()).await;
     supervisor::job_dispatch::subscribe_job_events(kernel.clone(), global_dir.clone()).await;
     spawn_human_gateway(&kernel).await;
+
+    let token = Arc::new(auth::generate_token());
+    auth::write_token_file(&global_dir, &token)
+        .map_err(|e| anyhow!("failed to write network.token: {e}"))?;
+    tracing::info!("shipd: auth token written to network.token");
 
     write_port_file(&global_dir, port)?;
     write_pid_file(&global_dir)?;
@@ -176,6 +182,7 @@ pub async fn run_network(host: String, port: u16) -> Result<()> {
         )
         .with_state(api_state);
 
+    let auth_token = token.clone();
     let app = Router::new()
         .nest("/api", api_routes)
         .nest("/api", hook_routes)
@@ -184,6 +191,9 @@ pub async fn run_network(host: String, port: u16) -> Result<()> {
         .nest("/api", supervisor_routes)
         .nest("/api", project_routes)
         .nest_service("/mcp", service)
+        .layer(axum::middleware::from_fn(move |req, next| {
+            auth::auth_middleware(auth_token.clone(), req, next)
+        }))
         .layer(axum::middleware::from_fn(cors_middleware));
 
     let addr = format!("{host}:{port}");
@@ -201,6 +211,7 @@ pub async fn run_network(host: String, port: u16) -> Result<()> {
 
     let _ = std::fs::remove_file(global_dir.join("network.port"));
     let _ = std::fs::remove_file(global_dir.join("network.pid"));
+    let _ = std::fs::remove_file(global_dir.join("network.token"));
     tracing::info!("shipd: shutdown complete");
     Ok(())
 }

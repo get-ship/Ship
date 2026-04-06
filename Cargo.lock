@@ -2690,6 +2690,7 @@ dependencies = [
  "axum",
  "chrono",
  "futures",
+ "getrandom 0.2.17",
  "http-body-util",
  "rmcp",
  "runtime",

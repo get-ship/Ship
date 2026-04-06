@@ -3,7 +3,7 @@
 //! These endpoints bypass the MCP protocol — no handshake needed.
 //! ship-mcp calls these to forward mesh operations to the shared kernel.
 
-use axum::{Json, extract::{Path, State}, http::StatusCode, response::IntoResponse};
+use axum::{Extension, Json, extract::{Path, State}, http::StatusCode, response::IntoResponse};
 use axum::response::sse::{Event, KeepAlive, Sse};
 use futures::stream::Stream;
 use runtime::events::{CallerKind, EmitContext, EventEnvelope};
@@ -11,6 +11,8 @@ use runtime::services::mesh::SharedMeshRegistry;
 use serde::{Deserialize, Serialize};
 use std::sync::Arc;
 use tokio::sync::Mutex;
+
+use crate::auth::AuthContext;
 
 pub type SharedKernel = Arc<Mutex<runtime::events::KernelRouter>>;
 
