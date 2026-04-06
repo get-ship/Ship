@@ -127,6 +127,7 @@ export function SessionSidebar({
 }: SessionSidebarProps) {
   const [collapsedGroups, setCollapsedGroups] = useState<Set<string>>(new Set())
   const [contextMenu, setContextMenu] = useState<ArtifactMenuState | null>(null)
+  const [showProjectFiles, setShowProjectFiles] = useState(false)
   const fileInputRef = useRef<HTMLInputElement>(null)
   const promoteMutation = usePromoteArtifact()
 
@@ -143,10 +144,26 @@ export function SessionSidebar({
     setContextMenu({ x: e.clientX, y: e.clientY, file })
   }, [])
 
-  const { todo, groups, root } = groupByNamespace(files)
+  // Filter out project-only files unless toggled on
+  const visibleFiles = showProjectFiles
+    ? files
+    : files.filter((f) => f.tier !== 'project')
+
+  const projectOnlyCount = files.filter((f) => f.tier === 'project').length
+
+  const { todo, groups, root } = groupByNamespace(visibleFiles)
 
   return (
     <aside className="flex w-full shrink-0 flex-col h-full">
+      {projectOnlyCount > 0 && (
+        <button
+          onClick={() => setShowProjectFiles((p) => !p)}
+          className="flex items-center gap-1.5 px-3 py-1.5 text-[10px] text-muted-foreground/60 hover:text-muted-foreground transition-colors border-b border-border/30 shrink-0"
+        >
+          <Folder className="size-3" />
+          {showProjectFiles ? 'Hide' : 'Show'} {projectOnlyCount} saved
+        </button>
+      )}
       <div className="flex-1 overflow-y-auto pt-1">
         <FilesTab
             todo={todo}
