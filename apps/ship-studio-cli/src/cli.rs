@@ -220,7 +220,8 @@ pub enum Commands {
         action: HookCommands,
     },
 
-    /// Manage the Ship network daemon for cross-agent communication
+    /// Deprecated: use `ship daemon` instead
+    #[command(hide = true)]
     Network {
         #[command(subcommand)]
         action: NetworkCommands,

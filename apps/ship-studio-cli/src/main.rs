@@ -24,7 +24,6 @@ mod loader;
 mod logging;
 mod mcp;
 mod mcp_serve;
-mod network_serve;
 mod paths;
 mod profile;
 mod publish;
@@ -442,14 +441,16 @@ fn dispatch_mcp(action: McpCommands) -> Result<()> {
     }
 }
 
-// ── Network ───────────────────────────────────────────────────────────────────
+// ── Network (deprecated) ─────────────────────────────────────────────────────
 
 fn dispatch_network(action: NetworkCommands) -> Result<()> {
-    match action {
-        NetworkCommands::Serve { port, host } => network_serve::run(host, port),
-        NetworkCommands::Status => network_serve::status(),
-        NetworkCommands::Stop => network_serve::stop(),
-    }
+    let replacement = match action {
+        NetworkCommands::Serve { .. } => "ship daemon start",
+        NetworkCommands::Status => "ship daemon status",
+        NetworkCommands::Stop => "ship daemon stop",
+    };
+    eprintln!("`ship network` has been removed. Use `{replacement}` instead.");
+    std::process::exit(1);
 }
 
 // ── Hidden / legacy ──────────────────────────────────────────────────────────
