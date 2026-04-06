@@ -107,6 +107,19 @@ pub(crate) async fn dispatch_ready_pending_jobs(
         .map(|j| j.slug.as_str())
         .collect();
 
+    // Count currently running jobs
+    let running_count = jobs.values()
+        .filter(|j| j.status == JobStatus::Dispatched)
+        .count();
+
+    // Concurrency limit — don't overwhelm the machine
+    const MAX_CONCURRENT: usize = 3;
+    let slots = MAX_CONCURRENT.saturating_sub(running_count);
+    if slots == 0 {
+        tracing::debug!(running_count, "job-dispatch: concurrency limit reached, skipping dispatch");
+        return;
+    }
+
     // Find pending jobs with all deps resolved
     let ready: Vec<_> = jobs.values()
         .filter(|j| j.status == JobStatus::Pending)
@@ -116,6 +129,7 @@ pub(crate) async fn dispatch_ready_pending_jobs(
                 Some(deps) => deps.iter().all(|d| done_slugs.contains(d.as_str())),
             }
         })
+        .take(slots)
         .collect();
 
     if ready.is_empty() {
