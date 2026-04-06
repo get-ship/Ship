@@ -24,6 +24,9 @@ pub mod workspace_db;
 pub mod workspace_events;
 pub mod workspace_state;
 
+#[cfg(test)]
+mod tests_session_drain;
+
 use anyhow::{Context, Result, anyhow};
 use sqlx::sqlite::SqliteConnectOptions;
 use sqlx::{Connection, SqliteConnection};
