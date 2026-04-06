@@ -1,6 +1,10 @@
-//! Pipeline enrichment, spec parsing, and phase advancement for job dispatch.
+//! Pipeline DAG — step-based advancement for job dispatch.
+//!
+//! A pipeline is a DAG of steps. Each step has a type (agent, gate, merge, human)
+//! and declares dependencies via `after`. The engine walks the DAG: when a step
+//! completes, it finds unblocked steps and dispatches them.
 
-use runtime::events::job::{JobCreatedPayload, PipelinePhase};
+use runtime::events::job::{Pipeline, StepType};
 use runtime::events::{CallerKind, EmitContext, EventEnvelope};
 use runtime::projections::job::{load_jobs, load_jobs_at};
 use runtime::services::dispatch_ports::JobContext;
@@ -10,29 +14,42 @@ use tokio::sync::Mutex;
 use super::helpers::{compile_agent_config, worktrees_dir};
 use super::job_dispatch::DispatchContext;
 
-/// Parse the spec file's YAML frontmatter and extract the pipeline field.
-/// Returns the payload with pipeline set if found in the spec.
-pub(crate) fn enrich_pipeline_from_spec(
-    mut payload: JobCreatedPayload,
-) -> JobCreatedPayload {
-    if payload.pipeline.is_some() {
+/// Enrich a job with a default pipeline if none is specified.
+/// Called before initial dispatch.
+pub(crate) fn ensure_pipeline(
+    mut payload: runtime::events::job::JobCreatedPayload,
+) -> runtime::events::job::JobCreatedPayload {
+    if payload.steps.is_some() {
         return payload;
     }
 
+    // Try to parse steps from spec frontmatter
     let spec_content = read_spec_content(&payload.spec_path);
-    if let Some(pipeline) = parse_pipeline_from_frontmatter(&spec_content) {
-        if !pipeline.is_empty() {
+    if let Some(pipeline) = parse_steps_from_frontmatter(&spec_content) {
+        if !pipeline.steps.is_empty() {
             tracing::info!(
                 slug = payload.slug,
-                phases = pipeline.len(),
-                "job-dispatch: pipeline found in spec frontmatter"
+                steps = pipeline.steps.len(),
+                "pipeline: loaded steps from spec frontmatter"
             );
-            if let Some(first) = pipeline.first() {
-                payload.agent = first.agent.clone();
+            // Override agent with the first root step's agent
+            if let Some(root) = pipeline.root_steps().first() {
+                if let Some(ref agent) = root.agent {
+                    payload.agent = agent.clone();
+                }
             }
-            payload.pipeline = Some(pipeline);
+            payload.steps = Some(pipeline);
+            return payload;
         }
     }
+
+    // No pipeline in spec — inject default (implement → gate → merge)
+    tracing::info!(
+        slug = payload.slug,
+        agent = payload.agent,
+        "pipeline: no steps defined, injecting default pipeline"
+    );
+    payload.steps = Some(Pipeline::default_for_agent(&payload.agent));
     payload
 }
 
@@ -53,8 +70,8 @@ fn read_spec_content(spec_path: &str) -> String {
     String::new()
 }
 
-/// Extract pipeline phases from YAML frontmatter.
-fn parse_pipeline_from_frontmatter(content: &str) -> Option<Vec<PipelinePhase>> {
+/// Parse pipeline steps from YAML frontmatter.
+fn parse_steps_from_frontmatter(content: &str) -> Option<Pipeline> {
     let content = content.trim();
     if !content.starts_with("---") {
         return None;
@@ -64,83 +81,81 @@ fn parse_pipeline_from_frontmatter(content: &str) -> Option<Vec<PipelinePhase>> 
     let yaml_str = &rest[..end];
 
     let fm: serde_json::Value = serde_yaml::from_str(yaml_str).ok()?;
-    let pipeline_val = fm.get("pipeline")?;
-    serde_json::from_value(pipeline_val.clone()).ok()
+    let steps_val = fm.get("steps")?;
+    serde_json::from_value(steps_val.clone()).ok()
 }
 
-/// Emit a `job.dispatched` event, persisting it and routing through the kernel.
+/// Emit a `job.dispatched` event.
 pub(crate) async fn emit_job_dispatched(
     kernel: &Arc<Mutex<runtime::events::KernelRouter>>,
-    payload: &JobCreatedPayload,
+    job_id: &str,
     worktree_path: &std::path::Path,
     slug: &str,
 ) {
     let dispatched_payload = runtime::events::job::JobDispatchedPayload {
-        job_id: payload.job_id.clone(),
+        job_id: job_id.to_string(),
         worktree: worktree_path.to_string_lossy().into_owned(),
         pid: None,
     };
     let dispatched_envelope = match EventEnvelope::new(
         runtime::events::job::event_types::JOB_DISPATCHED,
-        &payload.job_id,
+        job_id,
         &dispatched_payload,
     ) {
         Ok(e) => e.with_actor_id("service.job-dispatch"),
         Err(e) => {
-            tracing::warn!(slug, "job-dispatch: failed to build job.dispatched event: {e}");
+            tracing::warn!(slug, "pipeline: failed to build job.dispatched event: {e}");
             return;
         }
     };
 
     if let Ok(store) = runtime::events::SqliteEventStore::new() {
         if let Err(e) = runtime::events::EventStore::append(&store, &dispatched_envelope) {
-            tracing::warn!(slug, "job-dispatch: failed to persist job.dispatched: {e}");
+            tracing::warn!(slug, "pipeline: failed to persist job.dispatched: {e}");
         }
     }
 
     let ctx = EmitContext {
-        caller_kind: CallerKind::Mcp,
+        caller_kind: CallerKind::Runtime,
         skill_id: None,
         workspace_id: None,
         session_id: None,
     };
     if let Err(e) = kernel.lock().await.route(dispatched_envelope, &ctx).await {
-        tracing::warn!(slug, "job-dispatch: job.dispatched routing failed: {e}");
+        tracing::warn!(slug, "pipeline: job.dispatched routing failed: {e}");
     }
 
-    tracing::info!(slug, "job-dispatch: job dispatched successfully");
+    tracing::info!(slug, "pipeline: job dispatched successfully");
 }
 
-/// Check if a completed job has a pipeline with more phases.
-/// If so, dispatch the next phase in the same worktree. Returns true if advanced.
-pub(crate) async fn try_advance_pipeline(
+/// Advance the pipeline after a step completes. Returns true if a next step was dispatched.
+pub(crate) async fn advance_pipeline(
     kernel: &Arc<Mutex<runtime::events::KernelRouter>>,
     envelope: &EventEnvelope,
     dctx: &DispatchContext,
 ) -> bool {
-    try_advance_pipeline_inner(kernel, envelope, dctx, None, None).await
+    advance_pipeline_inner(kernel, envelope, dctx, None, None).await
 }
 
-/// Test-friendly variant with explicit paths instead of global env vars.
-pub(crate) async fn try_advance_pipeline_at(
+/// Test-friendly variant with explicit paths.
+#[cfg(test)]
+pub(crate) async fn advance_pipeline_at(
     kernel: &Arc<Mutex<runtime::events::KernelRouter>>,
     envelope: &EventEnvelope,
     dctx: &DispatchContext,
     ship_dir: &std::path::Path,
 ) -> bool {
-    // Derive worktree root from ship_dir's parent (test layout: <tmp>/global -> <tmp>/worktrees)
     let worktree_root = ship_dir.parent().map(|p| p.join("worktrees"));
-    try_advance_pipeline_inner(kernel, envelope, dctx, Some(ship_dir), worktree_root.as_deref()).await
+    advance_pipeline_inner(kernel, envelope, dctx, Some(ship_dir), worktree_root.as_deref()).await
 }
 
-async fn try_advance_pipeline_inner(
+async fn advance_pipeline_inner(
     kernel: &Arc<Mutex<runtime::events::KernelRouter>>,
     envelope: &EventEnvelope,
     dctx: &DispatchContext,
     ship_dir_override: Option<&std::path::Path>,
     worktree_root_override: Option<&std::path::Path>,
 ) -> bool {
-    // Load current job state to check pipeline
     let jobs = match ship_dir_override {
         Some(dir) => load_jobs_at(dir),
         None => load_jobs(),
@@ -148,158 +163,138 @@ async fn try_advance_pipeline_inner(
     let jobs = match jobs {
         Ok(j) => j,
         Err(e) => {
-            tracing::warn!(
-                entity_id = %envelope.entity_id,
-                "pipeline: failed to load jobs for pipeline check: {e}"
-            );
+            tracing::warn!(entity_id = %envelope.entity_id, "pipeline: failed to load jobs: {e}");
             return false;
         }
     };
 
-    // Look up the job by entity_id (job_id) first — this is reliable since
-    // the event system sets it. Fall back to slug from payload if present.
-    let payload: serde_json::Value = serde_json::from_str(&envelope.payload_json)
-        .unwrap_or_default();
+    // Find the job
+    let payload: serde_json::Value = serde_json::from_str(&envelope.payload_json).unwrap_or_default();
     let payload_slug = payload["slug"].as_str().unwrap_or("");
     let payload_job_id = payload["job_id"].as_str().unwrap_or("");
     let entity_id = &envelope.entity_id;
 
-    let job = jobs.values()
-        .find(|j| {
-            j.job_id == *entity_id
-            || (!payload_job_id.is_empty() && j.job_id == payload_job_id)
-            || (!payload_slug.is_empty() && j.slug == payload_slug)
-        })
-        .cloned();
-
-    let job = match job {
+    let job = match jobs.values().find(|j| {
+        j.job_id == *entity_id
+        || (!payload_job_id.is_empty() && j.job_id == payload_job_id)
+        || (!payload_slug.is_empty() && j.slug == payload_slug)
+    }).cloned() {
         Some(j) => j,
         None => {
-            tracing::warn!(
-                entity_id = %entity_id,
-                payload_slug,
-                payload_job_id,
-                "pipeline: job not found in projection"
-            );
+            tracing::warn!(entity_id = %entity_id, "pipeline: job not found in projection");
             return false;
         }
     };
-    let slug = job.slug.clone();
 
-    let pipeline = match &job.pipeline {
-        Some(p) if p.len() > 1 => p,
-        Some(_) => {
-            tracing::info!(slug, "pipeline: single-phase pipeline, no advancement needed");
-            return false;
-        }
+    let slug = &job.slug;
+    let pipeline = match &job.steps {
+        Some(p) => p,
         None => {
-            tracing::debug!(slug, "pipeline: no pipeline defined for job");
+            tracing::debug!(slug, "pipeline: no steps defined for job");
             return false;
         }
     };
 
-    // Determine current phase (default 0 if not tracked)
-    let current = job.current_phase.unwrap_or(0);
-    let next = current + 1;
+    // Find the current step that just completed
+    let current_step_id = match &job.current_step {
+        Some(id) => id.clone(),
+        None => {
+            // First step just completed — find the root step
+            if let Some(root) = pipeline.root_steps().first() {
+                root.id.clone()
+            } else {
+                tracing::warn!(slug, "pipeline: no root step found");
+                return false;
+            }
+        }
+    };
 
-    if next >= pipeline.len() {
-        tracing::info!(
-            slug,
-            phases = pipeline.len(),
-            "pipeline: all phases completed"
-        );
-        return false;
+    tracing::info!(slug, step = %current_step_id, "pipeline: step completed");
+
+    // Mark current step as completed and find next steps
+    let mut completed = job.completed_steps.clone();
+    if !completed.contains(&current_step_id) {
+        completed.push(current_step_id.clone());
     }
 
-    let next_phase = &pipeline[next];
-    tracing::info!(
-        slug,
-        phase = next,
-        total_phases = pipeline.len(),
-        agent = next_phase.agent,
-        goal = next_phase.goal,
-        "pipeline: advancing to next phase"
-    );
+    let next_steps = pipeline.unblocked_steps(&completed);
+    if next_steps.is_empty() {
+        tracing::info!(slug, completed_count = completed.len(), "pipeline: all steps completed");
+        return false;
+    }
 
     let wt_root = worktree_root_override.map(|p| p.to_path_buf()).unwrap_or_else(worktrees_dir);
-    let worktree_path = wt_root.join(&slug);
-    if !worktree_path.exists() {
-        tracing::error!(slug, "pipeline: worktree missing for pipeline advance");
-        return false;
-    }
+    let worktree_path = wt_root.join(slug);
 
-    // 1. Gracefully end the current agent — send /exit via tmux, wait for clean exit.
-    //    Do NOT kill the tmux session — human needs scroll-back visibility.
-    //    Best-effort: if tmux isn't available (tests), skip gracefully.
-    graceful_agent_exit(&slug).await;
+    // Dispatch each unblocked step
+    let mut dispatched_any = false;
+    for step in next_steps {
+        tracing::info!(
+            slug,
+            step_id = step.id,
+            step_type = ?step.step_type,
+            agent = ?step.agent,
+            "pipeline: dispatching next step"
+        );
 
-    // 2. Swap agent profile — run `ship use <next-agent>` in the worktree.
-    //    Do NOT overwrite the original job-spec.md — the next agent reads it.
-    //    Best-effort: if `ship` CLI isn't available (tests), skip.
-    tracing::info!(slug, agent = %next_phase.agent, "pipeline: compiling agent config for next phase");
-    if let Err(e) = compile_agent_config(&worktree_path, &next_phase.agent) {
-        tracing::warn!(slug, agent = %next_phase.agent, "pipeline: ship use failed (non-fatal): {e}");
-    }
+        match step.step_type {
+            StepType::Agent | StepType::Gate => {
+                let agent = step.agent.as_deref().unwrap_or("reviewer");
 
-    // 3. Relaunch agent in the same tmux session
-    let job_ctx = JobContext {
-        job_id: job.job_id.clone(),
-        slug: slug.clone(),
-        agent: next_phase.agent.clone(),
-        branch: job.branch.clone(),
-        spec_path: job.spec_path.clone(),
-        work_dir: worktree_path.clone(),
-        env: [("SHIP_MESH_ID".to_string(), slug.clone())].into(),
-        model: None,
-        provider: None,
-    };
-    if let Err(e) = dctx.executor.spawn(&job_ctx).await {
-        tracing::error!(slug, phase = next, "pipeline: executor spawn failed for phase: {e}");
-        return false;
-    }
+                if !worktree_path.exists() {
+                    tracing::error!(slug, "pipeline: worktree missing");
+                    continue;
+                }
 
-    // Emit job.dispatched for the new phase
-    let dispatched_payload = runtime::events::job::JobDispatchedPayload {
-        job_id: job.job_id.clone(),
-        worktree: worktree_path.to_string_lossy().to_string(),
-        pid: None,
-    };
-    let dispatched_envelope = match EventEnvelope::new(
-        runtime::events::job::event_types::JOB_DISPATCHED,
-        &job.job_id,
-        &dispatched_payload,
-    ) {
-        Ok(e) => e,
-        Err(e) => {
-            tracing::warn!(slug, phase = next, "pipeline: failed to build job.dispatched event: {e}");
-            return true; // phase was spawned even though event emission failed
+                // Gracefully end the current agent
+                graceful_agent_exit(slug).await;
+
+                // Swap agent profile
+                tracing::info!(slug, agent, step_id = step.id, "pipeline: compiling agent config");
+                if let Err(e) = compile_agent_config(&worktree_path, agent) {
+                    tracing::warn!(slug, agent, "pipeline: ship use failed (non-fatal): {e}");
+                }
+
+                // Launch the agent
+                let job_ctx = JobContext {
+                    job_id: job.job_id.clone(),
+                    slug: slug.clone(),
+                    agent: agent.to_string(),
+                    branch: job.branch.clone(),
+                    spec_path: job.spec_path.clone(),
+                    work_dir: worktree_path.clone(),
+                    env: [("SHIP_MESH_ID".to_string(), slug.clone())].into(),
+                    model: step.model.clone(),
+                    provider: step.provider.clone(),
+                };
+                if let Err(e) = dctx.executor.spawn(&job_ctx).await {
+                    tracing::error!(slug, step_id = step.id, "pipeline: spawn failed: {e}");
+                    continue;
+                }
+
+                emit_job_dispatched(kernel, &job.job_id, &worktree_path, slug).await;
+                dispatched_any = true;
+            }
+            StepType::Merge => {
+                tracing::info!(slug, "pipeline: executing merge step");
+                // TODO: implement git merge. For now, log and mark as needing manual merge.
+                tracing::warn!(slug, "pipeline: auto-merge not yet implemented, awaiting manual merge");
+            }
+            StepType::Human => {
+                tracing::info!(slug, step_id = step.id, "pipeline: human step — pausing for human action");
+                // TODO: create inbox item. For now, the job stays in completed status.
+            }
         }
-    };
-    let ctx = EmitContext {
-        caller_kind: CallerKind::Mcp,
-        skill_id: None,
-        workspace_id: None,
-        session_id: None,
-    };
-    if let Err(e) = kernel.lock().await.route(dispatched_envelope, &ctx).await {
-        tracing::warn!(slug, phase = next, "pipeline: job.dispatched routing failed: {e}");
     }
 
-    tracing::info!(
-        slug,
-        phase = next,
-        total_phases = pipeline.len(),
-        "pipeline: phase dispatched successfully"
-    );
-    true
+    dispatched_any
 }
 
-/// Send /exit to the agent in a tmux session and wait for it to exit cleanly.
-/// Best-effort — if tmux isn't available (e.g. in tests), returns immediately.
+/// Send /exit to the agent in a tmux session and wait for clean exit.
+/// Best-effort — skips if tmux isn't available (tests).
 async fn graceful_agent_exit(slug: &str) {
     let tmux_session = format!("job-{}", slug);
 
-    // Check if tmux session exists
     let has_session = std::process::Command::new("tmux")
         .args(["has-session", "-t", &tmux_session])
         .status()
@@ -307,7 +302,7 @@ async fn graceful_agent_exit(slug: &str) {
         .unwrap_or(false);
 
     if !has_session {
-        tracing::debug!(slug, "pipeline: no tmux session found, skipping graceful exit");
+        tracing::debug!(slug, "pipeline: no tmux session, skipping graceful exit");
         return;
     }
 
@@ -316,7 +311,6 @@ async fn graceful_agent_exit(slug: &str) {
         .args(["send-keys", "-t", &tmux_session, "/exit", "Enter"])
         .status();
 
-    // Wait for agent to exit (up to 30s)
     for _ in 0..30 {
         tokio::time::sleep(std::time::Duration::from_secs(1)).await;
         let output = std::process::Command::new("tmux")

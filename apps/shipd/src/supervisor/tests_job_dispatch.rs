@@ -203,8 +203,8 @@ async fn non_job_events_not_delivered_to_subscriber() {
 ///
 /// Sets up a 2-phase pipeline job (test-writer → rust-runtime), persists
 /// job.created + job.dispatched to the event store, then calls
-/// `try_advance_pipeline` with a job.completed event. Asserts that:
-/// 1. `try_advance_pipeline` returns true (pipeline advanced)
+/// `advance_pipeline` with a job.completed event. Asserts that:
+/// 1. `advance_pipeline` returns true (pipeline advanced)
 /// 2. A `job.dispatched` event for phase 1 is routed to the subscriber
 #[tokio::test(flavor = "multi_thread", worker_threads = 2)]
 async fn pipeline_advances_to_next_phase() {
@@ -240,10 +240,12 @@ async fn pipeline_advances_to_next_phase() {
             "branch": "job/pipeline-adv-test",
             "spec_path": ".ship-session/job-spec.md",
             "plan_id": null,
-            "pipeline": [
-                { "agent": "test-writer", "goal": "Write failing tests" },
-                { "agent": "rust-runtime", "goal": "Make tests pass" }
-            ]
+            "steps": {
+                "steps": [
+                    { "id": "write-tests", "type": "agent", "agent": "test-writer", "after": [] },
+                    { "id": "implement", "type": "agent", "agent": "rust-runtime", "after": ["write-tests"] }
+                ]
+            }
         }),
     );
     store.append(&created).unwrap();
@@ -272,11 +274,11 @@ async fn pipeline_advances_to_next_phase() {
     );
 
     let dctx = noop_dctx();
-    let advanced = super::try_advance_pipeline_at(&kernel, &completed, &dctx, &global_dir).await;
+    let advanced = super::advance_pipeline_at(&kernel, &completed, &dctx, &global_dir).await;
 
     assert!(
         advanced,
-        "try_advance_pipeline must return true for a 2-phase pipeline completing phase 0"
+        "advance_pipeline must return true for a 2-phase pipeline completing phase 0"
     );
 
     let phase1_event = mb
@@ -501,10 +503,12 @@ mod ports {
                 "job_id": job_id, "slug": slug,
                 "agent": "test-writer", "branch": "job/pipe-exec-test",
                 "spec_path": ".ship-session/job-spec.md", "plan_id": null,
-                "pipeline": [
-                    { "agent": "test-writer", "goal": "Write tests" },
-                    { "agent": "rust-runtime", "goal": "Implement" }
-                ]
+                "steps": {
+                    "steps": [
+                        { "id": "write-tests", "type": "agent", "agent": "test-writer", "after": [] },
+                        { "id": "implement", "type": "agent", "agent": "rust-runtime", "after": ["write-tests"] }
+                    ]
+                }
             }),
         )).unwrap();
         store.append(&super::ev(
@@ -526,7 +530,7 @@ mod ports {
             event_types::JOB_COMPLETED,
             serde_json::json!({ "job_id": job_id, "slug": slug }),
         );
-        super::super::try_advance_pipeline_at(&kernel, &completed, &dctx, &global_dir).await;
+        super::super::advance_pipeline_at(&kernel, &completed, &dctx, &global_dir).await;
 
         assert!(
             executor.spawn_count.load(Ordering::SeqCst) > 0,

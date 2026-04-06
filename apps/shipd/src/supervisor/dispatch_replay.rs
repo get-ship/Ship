@@ -11,7 +11,7 @@ use runtime::projections::job::{load_jobs, JobStatus};
 use std::sync::Arc;
 use tokio::sync::Mutex;
 
-use super::dispatch_pipeline::{enrich_pipeline_from_spec, try_advance_pipeline};
+use super::dispatch_pipeline::{advance_pipeline, ensure_pipeline};
 use super::job_dispatch::DispatchContext;
 
 /// Replay unprocessed `job.completed` events that arrived while the daemon was down.
@@ -76,7 +76,7 @@ pub(crate) async fn replay_unprocessed_completions(
 
         // Try to advance pipeline. If no pipeline, just log — do NOT clean up.
         // Cleanup only happens on job.merged.
-        if !try_advance_pipeline(kernel, &envelope, dctx).await {
+        if !advance_pipeline(kernel, &envelope, dctx).await {
             tracing::info!(
                 slug = job.slug,
                 "job-dispatch: replay — no pipeline to advance, awaiting gate/merge"
@@ -164,7 +164,7 @@ pub(crate) async fn dispatch_ready_pending_jobs(
             provider: None,
         };
 
-        let payload = enrich_pipeline_from_spec(payload);
+        let payload = ensure_pipeline(payload);
         super::job_dispatch::dispatch_job_internal(kernel, &payload, dctx).await;
     }
 }

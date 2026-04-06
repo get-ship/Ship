@@ -1,13 +1,11 @@
 //! Job dispatch subscriber — reacts to job lifecycle events from the kernel.
 //!
 //! When `job.created` flows through the kernel, prepares isolation and spawns
-//! the agent via injected trait objects. When `job.update` arrives, routes the
-//! message to the agent's mailbox via mesh. When `job.completed` or
-//! `job.merged` arrives, cleans up resources.
+//! the agent via injected trait objects. When `job.completed` arrives, advances
+//! the pipeline DAG. When `job.merged` arrives, cleans up resources.
 
 use runtime::events::job::JobCreatedPayload;
-use runtime::events::{ActorConfig, CallerKind, EmitContext, EventEnvelope};
-use runtime::projections::job::load_jobs_at;
+use runtime::events::{ActorConfig, EventEnvelope};
 use runtime::services::dispatch_ports::{IsolationStrategy, JobContext, JobExecutor};
 use std::collections::HashMap;
 use std::path::PathBuf;
@@ -17,9 +15,9 @@ use tokio::sync::Mutex;
 use super::adapters;
 pub(crate) use super::dispatch_handlers::dispatch_unblocked_jobs;
 use super::dispatch_handlers::{handle_job_cleanup, handle_job_update};
-use super::dispatch_pipeline::{emit_job_dispatched, enrich_pipeline_from_spec, try_advance_pipeline};
+use super::dispatch_pipeline::{advance_pipeline, emit_job_dispatched, ensure_pipeline};
 #[cfg(test)]
-pub(crate) use super::dispatch_pipeline::try_advance_pipeline_at;
+pub(crate) use super::dispatch_pipeline::advance_pipeline_at;
 use super::helpers::worktrees_dir;
 
 /// Bundles the injected isolation and execution strategies for dispatch.
@@ -30,9 +28,6 @@ pub(crate) struct DispatchContext {
 }
 
 /// Subscribe to `job.*` kernel events and dispatch jobs to worktrees.
-///
-/// Spawns a `service.job-dispatch` actor subscribed to `job.` namespace.
-/// Runs in a background task for the daemon lifetime.
 pub async fn subscribe_job_events(
     kernel: Arc<Mutex<runtime::events::KernelRouter>>,
     _ship_dir: PathBuf,
@@ -61,7 +56,7 @@ pub async fn subscribe_job_events(
         executor: Arc::new(adapters::TmuxExecutor),
     });
 
-    // On startup: replay stale completions and dispatch any pending jobs with resolved deps.
+    // On startup: replay stale completions and dispatch ready pending jobs.
     let replay_kernel = kernel.clone();
     let replay_dctx = dctx.clone();
     tokio::spawn(async move {
@@ -90,27 +85,17 @@ pub(crate) async fn handle_job_event(
         "job.created" => handle_job_created(kernel, envelope, pending, dctx).await,
         "job.update" => handle_job_update(kernel, envelope).await,
         "job.completed" => {
-            tracing::info!(
-                entity_id = %envelope.entity_id,
-                "job-dispatch: handling job.completed"
-            );
-            // Check if this is a pipeline job with more phases
-            if !try_advance_pipeline(kernel, envelope, dctx).await {
-                // No more phases — unblock dependents but do NOT clean up.
-                // Worktree stays alive for gate agents. Cleanup happens on job.merged.
+            tracing::info!(entity_id = %envelope.entity_id, "job-dispatch: handling job.completed");
+            if !advance_pipeline(kernel, envelope, dctx).await {
+                // Pipeline done or no pipeline — scan for unblocked jobs
                 dispatch_unblocked_jobs(kernel, envelope, pending, dctx).await;
-                // Also scan projection for any pending jobs now unblocked
                 super::dispatch_replay::dispatch_ready_pending_jobs(kernel, dctx).await;
             }
         }
         "job.merged" => {
-            tracing::info!(
-                entity_id = %envelope.entity_id,
-                "job-dispatch: handling job.merged"
-            );
+            tracing::info!(entity_id = %envelope.entity_id, "job-dispatch: handling job.merged");
             handle_job_cleanup(envelope).await;
             dispatch_unblocked_jobs(kernel, envelope, pending, dctx).await;
-            // Scan projection for any pending jobs now unblocked
             super::dispatch_replay::dispatch_ready_pending_jobs(kernel, dctx).await;
         }
         _ => {}
@@ -144,8 +129,8 @@ pub(crate) async fn handle_job_created(
         }
     }
 
-    // Enrich payload with pipeline from spec frontmatter if not already set
-    let payload = enrich_pipeline_from_spec(payload);
+    // Ensure job has a pipeline (inject default if none)
+    let payload = ensure_pipeline(payload);
 
     dispatch_job_internal(kernel, &payload, dctx).await;
 }
@@ -158,9 +143,11 @@ pub(crate) async fn dispatch_job_internal(
     let slug = &payload.slug;
     let branch = &payload.branch;
 
-    // Determine active agent — pipeline phase 0 overrides the top-level agent
-    let agent = if let Some(ref pipeline) = payload.pipeline {
-        pipeline.first().map(|p| p.agent.as_str()).unwrap_or(payload.agent.as_str())
+    // Determine agent from pipeline root step or top-level agent field
+    let agent = if let Some(ref steps) = payload.steps {
+        steps.root_steps().first()
+            .and_then(|s| s.agent.as_deref())
+            .unwrap_or(payload.agent.as_str())
     } else {
         payload.agent.as_str()
     };
@@ -196,7 +183,7 @@ pub(crate) async fn dispatch_job_internal(
     }
 
     // 3. Emit job.dispatched
-    emit_job_dispatched(kernel, payload, &worktree_path, slug).await;
+    emit_job_dispatched(kernel, &payload.job_id, &worktree_path, slug).await;
 }
 
 #[cfg(test)]
