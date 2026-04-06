@@ -86,7 +86,7 @@ pub(crate) fn ensure_tmux_session(
     session_name: &str,
     worktree_path: &std::path::Path,
 ) -> Result<()> {
-    // Check if session already exists.
+    // Check if session/window already exists.
     let check = std::process::Command::new("tmux")
         .args(["has-session", "-t", session_name])
         .status();
@@ -100,6 +100,27 @@ pub(crate) fn ensure_tmux_session(
     let path_str = worktree_path
         .to_str()
         .ok_or_else(|| anyhow::anyhow!("worktree path is not valid UTF-8"))?;
+
+    // Try creating a window in the "ship" session first (works with tmux -CC / iTerm2).
+    // Falls back to a new detached session if "ship" session doesn't exist.
+    let parent_session = "ship";
+    let has_parent = std::process::Command::new("tmux")
+        .args(["has-session", "-t", parent_session])
+        .status()
+        .map(|s| s.success())
+        .unwrap_or(false);
+
+    if has_parent {
+        let status = std::process::Command::new("tmux")
+            .args(["new-window", "-t", parent_session, "-n", session_name, "-c", path_str])
+            .status()
+            .map_err(|e| anyhow::anyhow!("failed to run tmux: {e}"))?;
+
+        if status.success() {
+            return Ok(());
+        }
+        // Fall through to new-session if new-window failed
+    }
 
     let status = std::process::Command::new("tmux")
         .args(["new-session", "-d", "-s", session_name, "-c", path_str])
@@ -120,12 +141,25 @@ pub(crate) fn send_agent_command(session_name: &str, providers: &[String]) {
         return;
     };
 
+    // Try window in "ship" session first, fall back to standalone session
+    let window_target = format!("ship:{session_name}");
+    let target = if std::process::Command::new("tmux")
+        .args(["has-session", "-t", "ship"])
+        .status()
+        .map(|s| s.success())
+        .unwrap_or(false)
+    {
+        &window_target
+    } else {
+        session_name
+    };
+
     let result = std::process::Command::new("tmux")
-        .args(["send-keys", "-t", session_name, &cmd, "Enter"])
+        .args(["send-keys", "-t", target, &cmd, "Enter"])
         .status();
 
     if let Err(e) = result {
-        tracing::warn!(session = session_name, "tmux send-keys failed: {e}");
+        tracing::warn!(session = session_name, target, "tmux send-keys failed: {e}");
     }
 }
 
