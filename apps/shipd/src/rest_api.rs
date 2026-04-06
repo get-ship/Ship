@@ -5,7 +5,7 @@
 
 use axum::{Extension, Json, extract::{Path, State}, http::StatusCode, response::IntoResponse};
 use axum::response::sse::{Event, KeepAlive, Sse};
-use runtime::events::{CallerKind, EventEnvelope};
+use runtime::events::{CallerKind, EmitContext, EventEnvelope};
 use runtime::services::mesh::SharedMeshRegistry;
 use serde::{Deserialize, Serialize};
 use std::sync::Arc;
