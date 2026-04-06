@@ -88,6 +88,7 @@ mod tests {
             &ship_dir,
             "feature/se-progress",
             "halfway done",
+            None,
         )?;
 
         let store = event_store();
@@ -177,7 +178,7 @@ mod tests {
 
         let session = start_workspace_session(&ship_dir, branch, Some("meta test".to_string()), None, None)?;
 
-        record_workspace_session_progress(&ship_dir, branch, "checkpoint")?;
+        record_workspace_session_progress(&ship_dir, branch, "checkpoint", None)?;
 
         end_workspace_session(
             &ship_dir,
@@ -261,7 +262,7 @@ mod tests {
             None,
         )?;
 
-        record_workspace_session_progress(&ship_dir, "feature/se-elevated", "midpoint")?;
+        record_workspace_session_progress(&ship_dir, "feature/se-elevated", "midpoint", None)?;
 
         end_workspace_session(
             &ship_dir,

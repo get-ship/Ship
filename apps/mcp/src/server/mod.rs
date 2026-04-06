@@ -22,8 +22,6 @@ use skills::{
 };
 
 #[cfg(feature = "unstable")]
-use crate::tools::adr;
-#[cfg(feature = "unstable")]
 use crate::tools::dispatch as dispatch_tools;
 
 // ---- Server struct ----
@@ -533,7 +531,8 @@ impl ShipServer {
     }
 
     #[tool(
-        description = "Record a progress note for the active session. Requires an active session."
+        description = "Record a progress note for the active session. Requires an active session. \
+        Set escalation to 'blocker', 'warning', or 'question' to alert the human."
     )]
     async fn log_progress(&self, Parameters(req): Parameters<LogProgressRequest>) -> String {
         let project_dir = match self.get_effective_project_dir().await {
@@ -820,20 +819,6 @@ impl ShipServer {
 #[cfg(feature = "unstable")]
 #[tool_router(router = unstable_tool_router)]
 impl ShipServer {
-    // ---- ADR ----
-
-    #[tool(
-        description = "Create a new Architecture Decision Record (ADR). Use when committing to a \
-        technical approach, trade-off, or design choice that future contributors need to understand."
-    )]
-    async fn create_adr(&self, Parameters(req): Parameters<LogDecisionRequest>) -> String {
-        let project_dir = match self.get_effective_project_dir().await {
-            Ok(d) => d,
-            Err(e) => return e,
-        };
-        adr::create_adr(&project_dir, &req.title, &req.decision)
-    }
-
     // ---- Dispatch ----
 
     #[tool(

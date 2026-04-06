@@ -215,7 +215,12 @@ pub fn get_workspace_session_record(
     Ok(get_workspace_session_record_db(session_id)?.map(hydrate_workspace_session_record))
 }
 
-pub fn record_workspace_session_progress(ship_dir: &Path, branch: &str, note: &str) -> Result<()> {
+pub fn record_workspace_session_progress(
+    ship_dir: &Path,
+    branch: &str,
+    note: &str,
+    escalation: Option<&str>,
+) -> Result<()> {
     let branch = ensure_branch_key(branch)?;
     let workspace = get_workspace(ship_dir, branch)?
         .ok_or_else(|| anyhow::anyhow!("Workspace not found for branch '{}'", branch))?;
@@ -229,6 +234,7 @@ pub fn record_workspace_session_progress(ship_dir: &Path, branch: &str, note: &s
 
     let progress_payload = SessionProgress {
         message: normalized_note.to_string(),
+        escalation: escalation.map(|s| s.to_string()),
     };
     insert_session_progress_event(&active.id, &workspace.id, &progress_payload)?;
 

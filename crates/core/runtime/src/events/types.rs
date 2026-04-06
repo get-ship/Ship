@@ -103,9 +103,12 @@ pub struct SessionStarted {
     pub compiled_at: Option<String>,
 }
 
-#[derive(Debug, Serialize, Deserialize)]
+#[derive(Debug, Default, Serialize, Deserialize)]
 pub struct SessionProgress {
+    #[serde(default)]
     pub message: String,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub escalation: Option<String>,
 }
 
 #[derive(Debug, Default, Serialize, Deserialize)]
