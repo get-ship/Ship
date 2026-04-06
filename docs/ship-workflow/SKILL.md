@@ -1,8 +1,8 @@
 ---
 name: ship-workflow
 stable-id: ship-workflow
-description: Use when working with Ship's workflow primitives — workspaces, sessions, multi-agent coordination, job dispatch, and the session lifecycle.
-tags: [ship, workflow, sessions, workspaces]
+description: Use when working with Ship's workflow primitives — workspaces, sessions, pipelines, multi-agent coordination, job dispatch, and the session lifecycle.
+tags: [ship, workflow, sessions, workspaces, pipelines]
 authors: [ship]
 ---
 
@@ -15,6 +15,7 @@ See `references/docs/` for the full reference:
 - **Overview** -- How workspaces, sessions, and multi-agent coordination fit together.
 - **Workspaces** -- Branch-based identity, creation, activation, worktrees, and file scoping.
 - **Sessions** -- The session lifecycle, progress logging, events, and drain.
+- **Pipelines** -- DAG-based job execution: define steps, dependencies, and agent handoffs.
 
 ## Workspaces
 
