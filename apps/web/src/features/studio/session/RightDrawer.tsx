@@ -52,7 +52,7 @@ export function RightDrawer({
   }, [])
 
   return (
-    <div className="flex shrink-0 relative">
+    <div className={`flex shrink-0 relative ${open ? '' : 'w-0'}`}>
       {/* Toggle button — sits at the left edge of this container (right edge of canvas) */}
       <button
         onClick={toggle}

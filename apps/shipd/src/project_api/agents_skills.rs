@@ -219,11 +219,15 @@ pub async fn list_skills(
             }
         }
 
+        // Read SKILL.md content for the editor
+        let skill_content = std::fs::read_to_string(&skill_md).unwrap_or_default();
+
         skills.push(serde_json::json!({
             "id": dir_name,
             "name": name,
             "stable_id": stable_id,
             "description": description,
+            "content": skill_content,
             "files": files,
         }));
     }

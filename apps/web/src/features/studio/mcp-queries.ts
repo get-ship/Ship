@@ -145,9 +145,30 @@ export function useProjectSkills() {
       if (!res.ok) throw new Error(`daemon: skills ${res.status}`)
       const body = (await res.json()) as {
         ok: boolean
-        data: { skills: PullSkill[] }
+        data: {
+          skills: Array<{
+            id: string
+            name: string
+            stable_id?: string | null
+            description?: string | null
+            content?: string
+            files: string[]
+          }>
+        }
       }
-      return body.data.skills
+      return body.data.skills.map((s) => ({
+        id: s.id,
+        name: s.name,
+        stable_id: s.stable_id ?? null,
+        description: s.description ?? null,
+        content: s.content ?? '',
+        source: 'custom' as const,
+        artifacts: [],
+        files: s.files,
+        tags: [],
+        authors: [],
+        reference_docs: {},
+      })) as PullSkill[]
     },
     enabled: wsId != null,
     staleTime: 5_000,
