@@ -293,7 +293,56 @@ mod tests {
         Ok(())
     }
 
-    // ── test 6: atomicity — if event insert fails, session row rolls back ──────
+    // ── test 6: attach emits session.attached event ────────────────────────────
+
+    #[test]
+    fn attach_emits_session_attached_event() -> Result<()> {
+        let (_tmp, ship_dir) = setup();
+
+        create_workspace(
+            &ship_dir,
+            CreateWorkspaceRequest {
+                branch: "feature/se-attach".to_string(),
+                status: Some(WorkspaceStatus::Active),
+                ..Default::default()
+            },
+        )?;
+
+        let first = start_workspace_session(
+            &ship_dir,
+            "feature/se-attach",
+            Some("original".to_string()),
+            None,
+            None,
+        )?;
+
+        let attached = start_workspace_session(
+            &ship_dir,
+            "feature/se-attach",
+            Some("second call".to_string()),
+            None,
+            None,
+        )?;
+        assert_eq!(attached.id, first.id, "attach must return same session");
+
+        let store = event_store();
+        let events = store.query(&EventFilter {
+            entity_id: Some(first.id.clone()),
+            event_type: Some(event_types::SESSION_ATTACHED.to_string()),
+            ..Default::default()
+        })?;
+
+        assert_eq!(events.len(), 1, "expected exactly one session.attached event");
+        let ev = &events[0];
+        assert!(ev.elevated, "session.attached must be elevated");
+
+        let payload: crate::events::types::SessionAttached =
+            serde_json::from_str(&ev.payload_json)?;
+        assert_eq!(payload.existing_session_id, first.id);
+        Ok(())
+    }
+
+    // ── test 7: atomicity — if event insert fails, session row rolls back ──────
 
     #[test]
     fn session_event_insert_failure_rolls_back_session_write() -> Result<()> {

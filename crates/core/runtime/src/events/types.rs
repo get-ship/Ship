@@ -137,6 +137,13 @@ pub struct SessionDrainAborted {
 #[derive(Debug, Serialize, Deserialize)]
 pub struct SessionToolCountIncremented {}
 
+#[derive(Debug, Serialize, Deserialize)]
+pub struct SessionAttached {
+    pub existing_session_id: String,
+    pub workspace_id: String,
+    pub workspace_branch: String,
+}
+
 #[derive(Debug, Default, Serialize, Deserialize)]
 pub struct SessionRecorded {
     pub record_id: String,
@@ -279,6 +286,7 @@ pub mod event_types {
     pub const SESSION_DRAIN_COMPLETED: &str = "session.drain_completed";
     pub const SESSION_DRAIN_ABORTED: &str = "session.drain_aborted";
     pub const SESSION_TOOL_COUNT_INCREMENTED: &str = "session.tool_count_incremented";
+    pub const SESSION_ATTACHED: &str = "session.attached";
     pub const ACTOR_CREATED: &str = "actor.created";
     pub const ACTOR_WOKE: &str = "actor.woke";
     pub const ACTOR_SLEPT: &str = "actor.slept";
@@ -319,6 +327,7 @@ pub mod event_types {
         SESSION_DRAIN_COMPLETED,
         SESSION_DRAIN_ABORTED,
         SESSION_TOOL_COUNT_INCREMENTED,
+        SESSION_ATTACHED,
         ACTOR_CREATED,
         ACTOR_WOKE,
         ACTOR_SLEPT,

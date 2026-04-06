@@ -108,18 +108,22 @@ pub fn cleanup_stale_draining(grace_secs: i64) -> Result<u64> {
         .fetch_all(&mut conn)
         .await
     })?;
-    let count = rows.len() as u64;
+    let mut count = 0u64;
     let now = Utc::now().to_rfc3339();
     for row in &rows {
         let sid: String = row.get(0);
         let wid: String = row.get(1);
         let payload = SessionDrainCompleted { ended_at: now.clone() };
-        let _ = emit_session_drain_event(
+        if let Err(e) = emit_session_drain_event(
             event_types::SESSION_DRAIN_COMPLETED,
             &sid,
             &wid,
             &payload,
-        );
+        ) {
+            eprintln!("Failed to complete drain for session '{}': {}", sid, e);
+            continue;
+        }
+        count += 1;
     }
     Ok(count)
 }

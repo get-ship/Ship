@@ -14,7 +14,9 @@ use anyhow::Result;
 use crate::db::{block_on, block_on_anyhow, open_db};
 use crate::events::store::append_event_with_conn;
 use crate::events::types::event_types;
-use crate::events::types::{SessionEnded, SessionProgress, SessionRecorded, SessionStarted};
+use crate::events::types::{
+    SessionAttached, SessionEnded, SessionProgress, SessionRecorded, SessionStarted,
+};
 use crate::events::validator::{CallerKind, EmitContext};
 use crate::events::EventEnvelope;
 use crate::projections::{Projection, SessionProjection};
@@ -75,6 +77,20 @@ pub fn insert_session_with_started_event(
 ) -> Result<EventEnvelope> {
     let envelope = session_envelope(
         event_types::SESSION_STARTED,
+        session_id,
+        workspace_id,
+        payload,
+    )?;
+    emit_session(envelope, workspace_id)
+}
+
+pub fn insert_session_attached_event(
+    session_id: &str,
+    workspace_id: &str,
+    payload: &SessionAttached,
+) -> Result<EventEnvelope> {
+    let envelope = session_envelope(
+        event_types::SESSION_ATTACHED,
         session_id,
         workspace_id,
         payload,
