@@ -238,11 +238,14 @@ async fn advance_pipeline_inner(
     let payload_job_id = payload["job_id"].as_str().unwrap_or("");
     let entity_id = &envelope.entity_id;
 
-    let job = match jobs.values().find(|j| {
-        j.job_id == *entity_id
-        || (!payload_job_id.is_empty() && j.job_id == payload_job_id)
-        || (!payload_slug.is_empty() && j.slug == payload_slug)
-    }).cloned() {
+    // Look up by job_id first (exact), then fall back to slug (ambiguous).
+    // entity_id and payload job_id are authoritative; slug is a last resort.
+    let job = jobs.values()
+        .find(|j| j.job_id == *entity_id)
+        .or_else(|| jobs.values().find(|j| !payload_job_id.is_empty() && j.job_id == payload_job_id))
+        .or_else(|| jobs.values().find(|j| !payload_slug.is_empty() && j.slug == payload_slug))
+        .cloned();
+    let job = match job {
         Some(j) => j,
         None => {
             tracing::warn!(entity_id = %entity_id, "pipeline: job not found in projection");
