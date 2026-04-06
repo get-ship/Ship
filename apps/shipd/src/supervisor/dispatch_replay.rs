@@ -87,6 +87,126 @@ pub(crate) async fn replay_unprocessed_completions(
     tracing::info!("job-dispatch: replay complete");
 }
 
+/// Reconcile jobs stuck in `Dispatched` state after daemon restart.
+///
+/// For each Dispatched job, checks if the process is still alive via the
+/// executor. If the process is dead, emits `job.failed` with reason
+/// "daemon restart, process not found".
+///
+/// Uses `load_jobs` (global dir) for production. Tests use the `_at` variant.
+pub(crate) async fn reconcile_dispatched_jobs(
+    kernel: &Arc<Mutex<runtime::events::KernelRouter>>,
+    dctx: &DispatchContext,
+) {
+    let jobs = match load_jobs() {
+        Ok(j) => j,
+        Err(e) => {
+            tracing::warn!("job-dispatch: reconcile failed to load jobs: {e}");
+            return;
+        }
+    };
+
+    reconcile_dispatched_inner(kernel, dctx, jobs).await;
+}
+
+/// Path-aware variant for tests.
+pub(crate) async fn reconcile_dispatched_jobs_at(
+    kernel: &Arc<Mutex<runtime::events::KernelRouter>>,
+    dctx: &DispatchContext,
+    ship_dir: &std::path::Path,
+) {
+    let jobs = match runtime::projections::job::load_jobs_at(ship_dir) {
+        Ok(j) => j,
+        Err(e) => {
+            tracing::warn!("job-dispatch: reconcile failed to load jobs: {e}");
+            return;
+        }
+    };
+
+    reconcile_dispatched_inner(kernel, dctx, jobs).await;
+}
+
+async fn reconcile_dispatched_inner(
+    kernel: &Arc<Mutex<runtime::events::KernelRouter>>,
+    dctx: &DispatchContext,
+    jobs: std::collections::HashMap<String, runtime::projections::job::JobRecord>,
+) {
+    use runtime::events::job::event_types;
+
+    let stale: Vec<_> = jobs
+        .values()
+        .filter(|j| j.status == JobStatus::Dispatched)
+        .collect();
+
+    if stale.is_empty() {
+        tracing::debug!("job-dispatch: no stale dispatched jobs to reconcile");
+        return;
+    }
+
+    tracing::info!(
+        count = stale.len(),
+        "job-dispatch: reconciling stale dispatched jobs"
+    );
+
+    for job in stale {
+        // Construct a temporary handle for the liveness check.
+        // After restart, the opaque inner state is lost — real executors
+        // will return false (downcast fails), which is the safe default.
+        let handle = runtime::services::dispatch_ports::ExecutorHandle {
+            pid: None,
+            inner: Box::new(()),
+        };
+
+        if dctx.executor.is_alive(&handle).await {
+            tracing::info!(
+                slug = job.slug,
+                "job-dispatch: reconcile — process still alive, resuming"
+            );
+            continue;
+        }
+
+        tracing::warn!(
+            slug = job.slug,
+            job_id = job.job_id,
+            "job-dispatch: reconcile — process dead, marking failed"
+        );
+
+        let payload = serde_json::json!({
+            "job_id": job.job_id,
+            "error": "daemon restart, process not found",
+        });
+        let envelope = match EventEnvelope::new(
+            event_types::JOB_FAILED,
+            &job.job_id,
+            &payload,
+        ) {
+            Ok(e) => e.with_actor_id("service.job-dispatch"),
+            Err(e) => {
+                tracing::warn!(
+                    slug = job.slug,
+                    "job-dispatch: reconcile — failed to build envelope: {e}"
+                );
+                continue;
+            }
+        };
+
+        let ctx = runtime::events::validator::EmitContext {
+            caller_kind: runtime::events::validator::CallerKind::Runtime,
+            skill_id: None,
+            workspace_id: None,
+            session_id: None,
+        };
+        if let Err(e) = kernel.lock().await.route(envelope, &ctx).await {
+            tracing::warn!(
+                slug = job.slug,
+                "job-dispatch: reconcile — failed to emit job.failed: {e}"
+            );
+        }
+    }
+
+    tracing::info!("job-dispatch: reconciliation complete");
+}
+
 /// Scan the job projection for pending jobs whose dependencies are all resolved.
 /// Dispatch any that are ready. Called on startup and after job.completed/job.merged.
 pub(crate) async fn dispatch_ready_pending_jobs(

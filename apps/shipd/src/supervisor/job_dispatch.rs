@@ -18,6 +18,10 @@ use super::dispatch_handlers::{handle_job_cleanup, handle_job_update};
 use super::dispatch_pipeline::{advance_pipeline, emit_job_dispatched, ensure_pipeline};
 #[cfg(test)]
 pub(crate) use super::dispatch_pipeline::advance_pipeline_at;
+#[cfg(test)]
+pub(crate) use super::dispatch_replay::reconcile_dispatched_jobs_at;
+#[cfg(test)]
+pub(crate) use super::{ProcessRegistry, graceful_shutdown};
 use super::helpers::worktrees_dir;
 
 /// Bundles the injected isolation and execution strategies for dispatch.
