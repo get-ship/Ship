@@ -68,7 +68,7 @@ pub struct MeshResponse {
 
 fn emit_ctx() -> EmitContext {
     EmitContext {
-        caller_kind: CallerKind::Mcp,
+        caller_kind: CallerKind::Runtime,
         skill_id: None,
         workspace_id: None,
         session_id: None,

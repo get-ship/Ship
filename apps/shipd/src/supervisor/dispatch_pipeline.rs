@@ -14,8 +14,11 @@ use tokio::sync::Mutex;
 use super::helpers::{compile_agent_config, worktrees_dir};
 use super::job_dispatch::DispatchContext;
 
-/// Enrich a job with a default pipeline if none is specified.
-/// Called before initial dispatch.
+/// Enrich a job with a pipeline. Resolution order:
+/// 1. Already has `steps` → use it
+/// 2. Spec frontmatter has `pipeline: <name>` → load from `.ship/pipelines/<name>.yaml`
+/// 3. Spec frontmatter has inline `steps:` → use it
+/// 4. None → inject default (implement → gate → merge)
 pub(crate) fn ensure_pipeline(
     mut payload: runtime::events::job::JobCreatedPayload,
 ) -> runtime::events::job::JobCreatedPayload {
@@ -23,16 +26,40 @@ pub(crate) fn ensure_pipeline(
         return payload;
     }
 
-    // Try to parse steps from spec frontmatter
     let spec_content = read_spec_content(&payload.spec_path);
+
+    // Try named pipeline reference: `pipeline: tdd`
+    if let Some(name) = parse_pipeline_name_from_frontmatter(&spec_content) {
+        if let Some(pipeline) = load_pipeline_file(&name) {
+            tracing::info!(
+                slug = payload.slug,
+                pipeline = name,
+                steps = pipeline.steps.len(),
+                "pipeline: loaded from .ship/pipelines/{name}.yaml"
+            );
+            if let Some(root) = pipeline.root_steps().first() {
+                if let Some(ref agent) = root.agent {
+                    payload.agent = agent.clone();
+                }
+            }
+            payload.steps = Some(pipeline);
+            return payload;
+        }
+        tracing::warn!(
+            slug = payload.slug,
+            pipeline = name,
+            "pipeline: referenced pipeline not found, falling back"
+        );
+    }
+
+    // Try inline steps from frontmatter
     if let Some(pipeline) = parse_steps_from_frontmatter(&spec_content) {
         if !pipeline.steps.is_empty() {
             tracing::info!(
                 slug = payload.slug,
                 steps = pipeline.steps.len(),
-                "pipeline: loaded steps from spec frontmatter"
+                "pipeline: loaded inline steps from spec frontmatter"
             );
-            // Override agent with the first root step's agent
             if let Some(root) = pipeline.root_steps().first() {
                 if let Some(ref agent) = root.agent {
                     payload.agent = agent.clone();
@@ -43,7 +70,7 @@ pub(crate) fn ensure_pipeline(
         }
     }
 
-    // No pipeline in spec — inject default (implement → gate → merge)
+    // Default pipeline
     tracing::info!(
         slug = payload.slug,
         agent = payload.agent,
@@ -51,6 +78,36 @@ pub(crate) fn ensure_pipeline(
     );
     payload.steps = Some(Pipeline::default_for_agent(&payload.agent));
     payload
+}
+
+/// Load a named pipeline from `.ship/pipelines/<name>.yaml`.
+fn load_pipeline_file(name: &str) -> Option<Pipeline> {
+    let ship_dir = runtime::project::get_global_dir().ok()?;
+    let project_root = ship_dir.parent()?;
+    let path = project_root.join(".ship").join("pipelines").join(format!("{name}.yaml"));
+    if !path.exists() {
+        return None;
+    }
+    let content = std::fs::read_to_string(&path).ok()?;
+    // The YAML file has a top-level `steps` key
+    let val: serde_json::Value = serde_yaml::from_str(&content).ok()?;
+    let steps_val = val.get("steps")?;
+    let steps: Vec<runtime::events::job::PipelineStep> =
+        serde_json::from_value(steps_val.clone()).ok()?;
+    Some(Pipeline { steps })
+}
+
+/// Extract `pipeline: <name>` from YAML frontmatter (string value, not array/object).
+fn parse_pipeline_name_from_frontmatter(content: &str) -> Option<String> {
+    let content = content.trim();
+    if !content.starts_with("---") {
+        return None;
+    }
+    let rest = &content[3..];
+    let end = rest.find("\n---")?;
+    let yaml_str = &rest[..end];
+    let fm: serde_json::Value = serde_yaml::from_str(yaml_str).ok()?;
+    fm.get("pipeline")?.as_str().map(str::to_string)
 }
 
 /// Read spec content, trying absolute path then relative to project root.

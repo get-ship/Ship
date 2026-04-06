@@ -69,9 +69,24 @@ pub fn apply(record: &mut JobRecord, event: &EventEnvelope) {
             if let Ok(p) = serde_json::from_str::<serde_json::Value>(&event.payload_json) {
                 record.worktree = p["worktree"].as_str().map(str::to_string);
             }
-            // Pipeline phase tracking: re-dispatch after completion means phase advanced
-            if record.status == JobStatus::Completed && record.pipeline.is_some() {
-                record.current_phase = Some(record.current_phase.map_or(1, |p| p + 1));
+            // DAG step tracking: on re-dispatch after completion, mark current step
+            // as completed and advance to next unblocked step.
+            if record.status == JobStatus::Completed {
+                if let Some(ref current) = record.current_step.take() {
+                    if !record.completed_steps.contains(current) {
+                        record.completed_steps.push(current.clone());
+                    }
+                }
+            }
+            // Set current_step to the next unblocked step
+            if let Some(ref pipeline) = record.steps {
+                let next = pipeline.unblocked_steps(&record.completed_steps);
+                record.current_step = next.first().map(|s| s.id.clone());
+            } else if record.current_step.is_none() {
+                // First dispatch — set to first root step
+                if let Some(ref pipeline) = record.steps {
+                    record.current_step = pipeline.root_steps().first().map(|s| s.id.clone());
+                }
             }
             record.status = JobStatus::Dispatched;
             record.updated_at = ts;
