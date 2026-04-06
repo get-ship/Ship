@@ -1,7 +1,7 @@
 import { useNavigate, useRouterState } from '@tanstack/react-router'
 import {
-  Layers, Users, Zap, Briefcase, Settings,
-  Search, Maximize, Minimize,
+  Layers, Users, Zap, Briefcase, GitBranch,
+  Search, Maximize, Minimize, Settings,
   type LucideIcon,
 } from 'lucide-react'
 import { useState, useCallback, useEffect } from 'react'
@@ -10,11 +10,13 @@ import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@ship/
 import { Separator } from '@ship/primitives'
 import { ThemeToggle } from '@ship/primitives'
 import { useStudioShell } from './StudioShellContext'
-import { useDaemon } from './hooks/useDaemon'
+import { ProjectPicker } from './ProjectPicker'
+import { ViewsOverlay } from './ViewsOverlay'
 
-/** Views that get their own route and a spot on the rail. */
-const RAIL_VIEWS: { to: string; icon: LucideIcon; label: string }[] = [
+/** Default views pinned to the rail. */
+const PINNED_VIEWS: { to: string; icon: LucideIcon; label: string }[] = [
   { to: '/studio/session', icon: Layers, label: 'Session' },
+  { to: '/studio/git', icon: GitBranch, label: 'Git' },
   { to: '/studio/agents', icon: Users, label: 'Agents' },
   { to: '/studio/skills', icon: Zap, label: 'Skills' },
   { to: '/studio/jobs', icon: Briefcase, label: 'Jobs' },
@@ -24,7 +26,6 @@ export function StudioRail() {
   const pathname = useRouterState({ select: (s) => s.location.pathname })
   const navigate = useNavigate()
   const { toggleCommandPalette } = useStudioShell()
-  const { connected } = useDaemon()
   const [isFullscreen, setIsFullscreen] = useState(false)
 
   useEffect(() => {
@@ -41,30 +42,13 @@ export function StudioRail() {
   return (
     <TooltipProvider>
       <nav className="w-12 shrink-0 bg-card border-r border-border/60 flex flex-col items-center py-2 gap-1">
-        {/* Ship logo + connection */}
-        <Tooltip>
-          <TooltipTrigger asChild>
-            <Button
-              variant="ghost"
-              size="icon"
-              className="size-8 mb-1"
-              onClick={() => void navigate({ to: '/studio/session' })}
-            >
-              <div className="relative">
-                <img src="/ship-logos/ship_logo.svg" alt="" className="size-4" />
-                <span className={`absolute -bottom-0.5 -right-0.5 w-1.5 h-1.5 rounded-full ${connected ? 'bg-status-green' : 'bg-status-red'}`} />
-              </div>
-            </Button>
-          </TooltipTrigger>
-          <TooltipContent side="right">
-            {connected ? 'Connected' : 'Disconnected'}
-          </TooltipContent>
-        </Tooltip>
+        {/* Project picker */}
+        <ProjectPicker />
 
         <Separator className="w-6 my-1" />
 
-        {/* View routes */}
-        {RAIL_VIEWS.map((item) => {
+        {/* Pinned views — route navigation */}
+        {PINNED_VIEWS.map((item) => {
           const isActive = pathname.startsWith(item.to)
           const Icon = item.icon
           return (
@@ -86,6 +70,14 @@ export function StudioRail() {
 
         <Separator className="w-6 my-1" />
 
+        {/* Views overlay — full catalog */}
+        <Tooltip>
+          <TooltipTrigger asChild>
+            <div><ViewsOverlay /></div>
+          </TooltipTrigger>
+          <TooltipContent side="right">All views</TooltipContent>
+        </Tooltip>
+
         {/* Search = command palette */}
         <Tooltip>
           <TooltipTrigger asChild>
@@ -100,7 +92,6 @@ export function StudioRail() {
 
         <Separator className="w-6 mb-1" />
 
-        {/* Theme */}
         <Tooltip>
           <TooltipTrigger asChild>
             <div className="size-8 flex items-center justify-center">
@@ -110,7 +101,6 @@ export function StudioRail() {
           <TooltipContent side="right">Theme</TooltipContent>
         </Tooltip>
 
-        {/* Fullscreen */}
         <Tooltip>
           <TooltipTrigger asChild>
             <Button variant="ghost" size="icon" className="size-8" onClick={handleFullscreen}>
@@ -120,11 +110,10 @@ export function StudioRail() {
             </Button>
           </TooltipTrigger>
           <TooltipContent side="right">
-            {isFullscreen ? 'Exit fullscreen (F11)' : 'Fullscreen (F11)'}
+            {isFullscreen ? 'Exit fullscreen' : 'Fullscreen'}
           </TooltipContent>
         </Tooltip>
 
-        {/* Settings */}
         <Tooltip>
           <TooltipTrigger asChild>
             <Button
