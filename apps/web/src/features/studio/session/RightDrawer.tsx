@@ -8,7 +8,6 @@ import { ChatTab } from './ChatTab'
 import { EventStreamPanel } from '../events/EventStreamPanel'
 import { TerminalTab } from './TerminalTab'
 import { useDaemon } from '#/features/studio/hooks/useDaemon'
-import { useStudioShell } from '#/features/studio/StudioShellContext'
 import type { StagedAnnotation } from './types'
 
 interface Props {
@@ -26,7 +25,6 @@ export function RightDrawer({
   onUploadFiles,
   disabled = false,
 }: Props) {
-  const { drawerOpen } = useStudioShell()
   const [activeTab, setActiveTab] = useState<string>('chat')
   const { workspaces } = useDaemon()
 
@@ -36,7 +34,6 @@ export function RightDrawer({
   const noopRemove = useCallback((_id: string) => {}, [])
   const noopUpload = useCallback((_files: FileList) => {}, [])
 
-  if (!drawerOpen) return null
 
   return (
     <div className="w-80 shrink-0 flex flex-col border-l border-border/60 bg-card/30 min-h-0 overflow-hidden">

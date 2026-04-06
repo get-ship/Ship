@@ -17,6 +17,7 @@ import { SessionSkeleton } from '#/features/studio/session/SessionSkeleton'
 import { DropZoneOverlay } from '#/features/studio/session/DropZoneOverlay'
 import { ViewHost } from '#/features/studio/views/ViewHost'
 import { useStudioShell } from '#/features/studio/StudioShellContext'
+import { useGlobalAnnotations } from '#/features/studio/AnnotationContext'
 import { SessionEmptyState } from '#/features/studio/session/SessionEmptyState'
 
 export const Route = createFileRoute('/studio/session')({
@@ -137,7 +138,8 @@ function SessionPage() {
   const showDiff = !showView && viewMode === 'diff'
   const activeDiffText = selectedCommitHash ? commitDiff : diffText
 
-  const { fileSidebarOpen } = useStudioShell()
+  const { fileSidebarOpen, toggleDrawer } = useStudioShell()
+  const globalAnn = useGlobalAnnotations()
 
   return (
     <>
@@ -257,10 +259,16 @@ function SessionPage() {
                   {ann.annotations.length}
                 </span>
                 <button
-                  onClick={handleExport}
-                  className="rounded-full px-2 py-1 text-[10px] text-muted-foreground hover:text-foreground hover:bg-muted/40 transition"
+                  onClick={() => {
+                    // Stage all current annotations into the global context for the agent chat
+                    for (const a of ann.allStaged) {
+                      globalAnn.addAnnotation(a.filePath, a.ann)
+                    }
+                    toggleDrawer()
+                  }}
+                  className="rounded-full px-2 py-1 text-[10px] text-primary hover:bg-primary/10 transition font-medium"
                 >
-                  Export
+                  Send to Agent
                 </button>
                 <button
                   onClick={ann.clearAnnotations}
