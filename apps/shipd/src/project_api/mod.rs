@@ -89,6 +89,7 @@ pub struct EmitEventReq {
 /// POST /api/events/emit
 pub async fn emit_event(
     State(state): State<ApiState>,
+    auth: Option<axum::Extension<crate::auth::AuthContext>>,
     Json(body): Json<EmitEventReq>,
 ) -> Result<(StatusCode, Json<MeshResponse>), (StatusCode, Json<MeshResponse>)> {
     let mut envelope =
@@ -100,11 +101,18 @@ pub async fn emit_event(
         envelope = envelope.with_context(Some(ws_id), None);
     }
 
-    let ctx = runtime::events::EmitContext {
-        caller_kind: runtime::events::CallerKind::Mcp,
-        skill_id: None,
-        workspace_id: body.workspace_id.clone(),
-        session_id: None,
+    // Use auth context if available (token-based), otherwise treat as CLI caller.
+    // Studio (localhost browser) is exempted from auth but needs Cli caller kind
+    // to emit to system namespaces like studio.*.
+    let ctx = if let Some(axum::Extension(ac)) = auth {
+        ac.to_daemon_emit_context()
+    } else {
+        runtime::events::EmitContext {
+            caller_kind: runtime::events::CallerKind::Cli,
+            skill_id: None,
+            workspace_id: body.workspace_id.clone(),
+            session_id: None,
+        }
     };
 
     state

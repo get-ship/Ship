@@ -81,6 +81,7 @@ pub const KERNEL_NAMESPACES: &[&str] = &[
     "mesh.",
     "runtime.",
     "session.",
+    "studio.",
     "sync.",
     "workspace.",
 ];
@@ -90,7 +91,6 @@ pub const KERNEL_NAMESPACES: &[&str] = &[
 pub const PLATFORM_ONLY_NAMESPACES: &[&str] = &[
     "project.",
     "skill.",
-    "studio.",
 ];
 
 /// All reserved namespaces (kernel + platform-only). Untrusted callers cannot
