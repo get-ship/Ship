@@ -15,7 +15,7 @@ import { ViewsOverlay } from './ViewsOverlay'
 
 /** Default views pinned to the rail. */
 const PINNED_VIEWS: { to: string; icon: LucideIcon; label: string }[] = [
-  { to: '/studio/session', icon: Layers, label: 'Session' },
+  { to: '/studio/session', icon: Layers, label: 'Artifacts' },
   { to: '/studio/git', icon: GitBranch, label: 'Git' },
   { to: '/studio/agents', icon: Users, label: 'Agents' },
   { to: '/studio/skills', icon: Zap, label: 'Skills' },

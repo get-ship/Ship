@@ -42,8 +42,8 @@ function SessionPage() {
   const uploadMutation = useUploadSessionFile()
   const deleteMutation = useDeleteSessionFile()
   const { diffText } = useDiffContent()
-  const { data: gitStatus } = useGitStatus()
-  const { data: gitLog } = useGitLog(5)
+  useGitStatus() // keep query warm for diff viewer
+  useGitLog(5)
   const drafts = useSessionDrafts()
 
   const [openTabs, setOpenTabs] = useState<OpenTab[]>([])
@@ -117,14 +117,12 @@ function SessionPage() {
     setActiveView(null)
   }, [])
 
-  const handleOpenView = useCallback((viewName: string) => {
-    setActiveView(viewName)
-    setViewMode('file')
-  }, [])
+  // View opening handled by route navigation now
+  void setActiveView // keep setter available for future use
 
   const {
     isDragging, handleDeleteFile, handleExport, handleComment, handleDiffComment,
-    handleUploadFiles, handleShowDiff, handleSelectCommit,
+    handleUploadFiles,
     handleSendToAgent, handleDragOver, handleDragLeave, handleDrop,
   } = useSessionHandlers({
     workspaceId,
@@ -141,7 +139,7 @@ function SessionPage() {
   const showDiff = !showView && viewMode === 'diff'
   const activeDiffText = selectedCommitHash ? commitDiff : diffText
 
-  const { fileSidebarOpen, closeFileSidebar } = useStudioShell()
+  const { fileSidebarOpen } = useStudioShell()
 
   return (
     <>
@@ -156,34 +154,26 @@ function SessionPage() {
       </div>
 
       <div
-        className="hidden md:flex flex-1 flex-col h-full min-h-0 overflow-hidden relative"
+        className="hidden md:flex flex-1 h-full min-h-0 overflow-hidden"
         onDragOver={handleDragOver}
         onDragLeave={handleDragLeave}
         onDrop={handleDrop}
       >
-        {/* File sidebar overlay — Cmd+B */}
+        {/* Docked file sidebar — Cmd+B toggles */}
         {fileSidebarOpen && (
-          <>
-            <div className="absolute inset-0 z-30" onClick={closeFileSidebar} />
-            <div className="absolute left-0 top-0 bottom-0 w-64 z-40 bg-card border-r border-border/60 shadow-lg animate-in slide-in-from-left-1 duration-100">
-              <SessionSidebar
-                files={files}
-                activeFile={activeTabPath}
-                onSelectFile={(path) => { openFile(path); closeFileSidebar() }}
-                onDeleteFile={handleDeleteFile}
-                onUploadFiles={handleUploadFiles}
-                onShowDiff={() => { handleShowDiff(); closeFileSidebar() }}
-                onSelectCommit={(hash) => { handleSelectCommit(hash); closeFileSidebar() }}
-                onOpenView={(view) => { handleOpenView(view); closeFileSidebar() }}
-                gitStatus={gitStatus}
-                gitLog={gitLog}
-              />
-            </div>
-          </>
+          <div className="w-60 shrink-0 border-r border-border/60 bg-card/30 flex flex-col min-h-0 overflow-hidden">
+            <SessionSidebar
+              files={files}
+              activeFile={activeTabPath}
+              onSelectFile={openFile}
+              onDeleteFile={handleDeleteFile}
+              onUploadFiles={handleUploadFiles}
+            />
+          </div>
         )}
 
-        <div className="flex flex-1 min-h-0">
-          <div className="flex-1 flex min-w-0 min-h-0">
+        <div className="flex flex-1 min-w-0 min-h-0 flex-col">
+          <div className="flex flex-1 min-w-0 min-h-0">
             <div className="flex-1 flex flex-col min-w-0 min-h-0">
               <SessionTabBar
                 openTabs={openTabs}

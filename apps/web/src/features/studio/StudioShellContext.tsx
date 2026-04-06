@@ -20,7 +20,7 @@ const StudioShellContext = createContext<StudioShellState | null>(null)
 
 export function StudioShellProvider({ children }: { children: ReactNode }) {
   const [commandPaletteOpen, setCommandPaletteOpen] = useState(false)
-  const [fileSidebarOpen, setFileSidebarOpen] = useState(false)
+  const [fileSidebarOpen, setFileSidebarOpen] = useState(true)
   const [agentPanelOpen, setAgentPanelOpen] = useState(false)
 
   const toggleCommandPalette = useCallback(() => setCommandPaletteOpen((p) => !p), [])

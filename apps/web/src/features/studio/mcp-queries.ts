@@ -16,7 +16,7 @@ import type {
 
 function useActiveWorkspaceId(): string | null {
   const { workspaces } = useDaemon()
-  return workspaces.find((w) => w.status === 'active')?.branch ?? null
+  return workspaces.find((w) => String(w.status).toLowerCase() === 'active')?.branch ?? null
 }
 
 // ── Queries ─────────────────────────────────────────────────────────────
@@ -50,44 +50,82 @@ export function usePullAgents() {
   return useQuery({
     queryKey: mcpKeys.pull(),
     queryFn: async (): Promise<PullResponse> => {
-      const res = await fetch(
-        `${DAEMON_BASE_URL}/api/workspaces/${encodeURIComponent(wsId!)}/agents`,
-      )
-      if (!res.ok) throw new Error(`daemon: agents ${res.status}`)
-      const body = (await res.json()) as {
+      // Fetch agents + skills in parallel from daemon
+      const [agentsRes, skillsRes] = await Promise.all([
+        fetch(`${DAEMON_BASE_URL}/api/workspaces/${encodeURIComponent(wsId!)}/agents`),
+        fetch(`${DAEMON_BASE_URL}/api/workspaces/${encodeURIComponent(wsId!)}/skills`),
+      ])
+      if (!agentsRes.ok) throw new Error(`daemon: agents ${agentsRes.status}`)
+      if (!skillsRes.ok) throw new Error(`daemon: skills ${skillsRes.status}`)
+
+      const agentsBody = (await agentsRes.json()) as {
         ok: boolean
         data: {
           agents: Array<{
             id: string
             name: string
             description?: string
-            skills?: Array<{ id: string; name: string; description?: string | null; content: string; source: string }>
+            skills?: { refs: string[] }
             providers?: string[]
           }>
         }
       }
-      // Reshape flat daemon agents into PullAgent shape expected by pull-adapter
-      const agents = body.data.agents.map((a) => ({
-        profile: {
-          id: a.id,
-          name: a.name,
-          description: a.description ?? '',
-          providers: a.providers ?? [],
-          version: '0.0.0',
-        },
-        skills: (a.skills ?? []).map((s) => ({
-          id: s.id,
-          name: s.name,
-          description: s.description ?? null,
-          content: s.content,
-          source: s.source,
-          artifacts: [],
-        })),
-        mcpServers: [],
-        rules: [],
-        hooks: [],
+      const skillsBody = (await skillsRes.json()) as {
+        ok: boolean
+        data: {
+          skills: Array<{
+            id: string
+            name: string
+            description?: string | null
+            files: string[]
+          }>
+        }
+      }
+
+      // Build skill lookup for resolving refs
+      const skillMap = new Map(
+        skillsBody.data.skills.map((s) => [s.id, s]),
+      )
+
+      const agents = agentsBody.data.agents.map((a) => {
+        const skillRefs = a.skills?.refs ?? []
+        const resolvedSkills = skillRefs
+          .map((ref) => skillMap.get(ref))
+          .filter(Boolean)
+          .map((s) => ({
+            id: s!.id,
+            name: s!.name,
+            description: s!.description ?? null,
+            content: '',
+            source: 'project',
+            artifacts: [],
+          }))
+
+        return {
+          profile: {
+            id: a.id,
+            name: a.name,
+            description: a.description ?? '',
+            providers: a.providers ?? [],
+            version: '0.0.0',
+          },
+          skills: resolvedSkills,
+          mcpServers: [],
+          rules: [],
+          hooks: [],
+        }
+      })
+
+      const allSkills = skillsBody.data.skills.map((s) => ({
+        id: s.id,
+        name: s.name,
+        description: s.description ?? null,
+        content: '',
+        source: 'project' as const,
+        artifacts: [],
       }))
-      return { agents, skills: [] } as unknown as PullResponse
+
+      return { agents, skills: allSkills } as unknown as PullResponse
     },
     enabled: wsId != null,
     staleTime: 5_000,

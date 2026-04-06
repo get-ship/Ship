@@ -29,7 +29,7 @@ export function CommandPalette() {
         <CommandGroup heading="Navigate">
           <CommandItem onSelect={() => go('/studio/session')}>
             <Layers className="size-4" />
-            <span>Session</span>
+            <span>Artifacts</span>
           </CommandItem>
           <CommandItem onSelect={() => go('/studio/agents')}>
             <Users className="size-4" />
