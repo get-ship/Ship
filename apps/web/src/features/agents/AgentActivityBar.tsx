@@ -1,4 +1,3 @@
-import { useState } from 'react'
 import {
   Zap,
   Grid3X3,
@@ -26,14 +25,12 @@ export function AgentActivityBar({
   onSectionClick,
   counts,
 }: AgentActivityBarProps) {
-  const [hoverIdx, setHoverIdx] = useState<number | null>(null)
-
   return (
     <nav
       aria-label="Agent sections"
-      className="hidden md:flex w-12 shrink-0 flex-col items-center gap-0.5 border-r border-border bg-card/50 py-3"
+      className="flex items-center gap-1 px-4 py-1.5 border-b border-border/60 shrink-0 overflow-x-auto"
     >
-      {SECTION_DEFS.map((section, i) => {
+      {SECTION_DEFS.map((section) => {
         const Icon = section.icon
         const isActive = activeSection === section.id
         const count = section.countable ? counts[section.id] : undefined
@@ -41,35 +38,17 @@ export function AgentActivityBar({
         return (
           <button
             key={section.id}
-            aria-label={section.label}
             onClick={() => onSectionClick(section.id)}
-            onMouseEnter={() => setHoverIdx(i)}
-            onMouseLeave={() => setHoverIdx(null)}
-            className={`relative flex items-center justify-center size-9 rounded-lg outline-none transition-all duration-150 ${
+            className={`flex items-center gap-1.5 px-2.5 py-1.5 rounded-md text-xs font-medium whitespace-nowrap transition-colors ${
               isActive
-                ? 'text-primary'
-                : 'text-muted-foreground hover:text-foreground'
+                ? 'bg-primary/10 text-primary'
+                : 'text-muted-foreground hover:text-foreground hover:bg-muted/40'
             }`}
           >
-            {/* Active indicator — left edge bar */}
-            {isActive && (
-              <span className="absolute left-0 top-1.5 bottom-1.5 w-[2px] rounded-r-full bg-primary" />
-            )}
-
-            <Icon className="size-[16px]" strokeWidth={isActive ? 2.2 : 1.6} />
-
-            {/* Count badge */}
+            <Icon className="size-3.5" strokeWidth={isActive ? 2.2 : 1.6} />
+            {section.label}
             {count !== undefined && count > 0 && (
-              <span className="absolute -top-0.5 -right-0.5 flex items-center justify-center min-w-[14px] h-[14px] rounded-full bg-primary/15 text-[8px] font-bold text-primary px-0.5 tabular-nums">
-                {count}
-              </span>
-            )}
-
-            {/* Tooltip */}
-            {hoverIdx === i && (
-              <span className="absolute left-full ml-2 whitespace-nowrap rounded-md border border-border/50 bg-popover px-2 py-1 text-[11px] font-semibold text-popover-foreground shadow-md animate-in fade-in slide-in-from-left-1 duration-150 pointer-events-none z-50">
-                {section.label}
-              </span>
+              <span className="text-[10px] opacity-60 tabular-nums">{count}</span>
             )}
           </button>
         )

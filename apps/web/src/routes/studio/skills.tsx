@@ -10,6 +10,7 @@ import { SkillsPreviewPanel } from '#/features/studio/skills-ide/SkillsPreviewPa
 import { CreateSkillDialog } from '#/features/studio/skills-ide/CreateSkillDialog'
 import { DAEMON_BASE_URL } from '#/lib/daemon-config'
 import { useDaemon } from '#/features/studio/hooks/useDaemon'
+import { useStudioShell } from '#/features/studio/StudioShellContext'
 
 import { SkillsIdeSkeleton } from '#/features/studio/StudioSkeleton'
 
@@ -30,6 +31,7 @@ export const Route = createFileRoute('/studio/skills')({
 function SkillsIDEPage() {
   const ide = useSkillsIDE()
   const [createOpen, setCreateOpen] = useState(false)
+  const { drawerOpen } = useStudioShell()
   const { workspaces } = useDaemon()
   const wsId = workspaces.find((w) => w.status === 'active')?.branch ?? 'v0.2.0'
   const feedbackRef = useRef<SkillFeedbackEntry[]>([])
@@ -126,7 +128,7 @@ function SkillsIDEPage() {
             onFrontmatterParsed={handleFrontmatterParsed}
           />
 
-          {ide.state.previewOpen && (
+          {ide.state.previewOpen && !drawerOpen && (
             <SkillsPreviewPanel
               skill={ide.activeSkill}
               activeTab={ide.state.previewTab}

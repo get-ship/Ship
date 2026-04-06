@@ -181,7 +181,7 @@ function AgentDetailView({ profile, isDraft, activeSection, scrollRef, onSection
 
   return (
     <>
-      <div className="flex h-full min-h-0 overflow-hidden">
+      <div className="flex flex-col h-full min-h-0 overflow-hidden">
         <AgentActivityBar activeSection={activeSection} onSectionClick={onSectionClick} counts={counts} />
         <div className="flex-1 min-w-0 flex flex-col overflow-hidden">
           <AgentStickyHeader profile={profile} onEdit={() => setEditOpen(true)} onDelete={onDelete} onDiscard={isDraft ? onDiscard : undefined} isDraft={isDraft} />
