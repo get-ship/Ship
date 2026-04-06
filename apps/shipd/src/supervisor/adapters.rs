@@ -140,23 +140,45 @@ fn spawn_agent_with_mesh_id(tmux_session: &str, slug: &str) {
         return;
     }
 
-    // Auto-accept the experimental channels prompt, then send "go" to start the agent.
-    // Uses longer delays and bare Enter (no empty string prefix) to avoid timing issues.
+    // Wait for claude to be ready, then auto-accept prompts and send "go".
+    // Polls the tmux pane for the input prompt (❯) instead of blind delays.
     let session = tmux_session.to_string();
     std::thread::spawn(move || {
-        // Wait for claude to boot and show the experimental channels prompt
-        std::thread::sleep(std::time::Duration::from_secs(8));
-        // Send bare Enter to accept
-        let _ = std::process::Command::new("tmux")
-            .args(["send-keys", "-t", &session, "Enter"])
-            .status();
-        // Wait for CLAUDE.md to load and agent to be ready for input
-        std::thread::sleep(std::time::Duration::from_secs(8));
-        // Send "go" to trigger job autostart
-        let _ = std::process::Command::new("tmux")
-            .args(["send-keys", "-t", &session, "go", "Enter"])
-            .status();
+        // Phase 1: Wait for experimental channels prompt (up to 30s)
+        if wait_for_prompt(&session, 30) {
+            // Accept the experimental channels prompt
+            let _ = std::process::Command::new("tmux")
+                .args(["send-keys", "-t", &session, "Enter"])
+                .status();
+        }
+        // Phase 2: Wait for the main input prompt (up to 30s)
+        if wait_for_prompt(&session, 30) {
+            // Send "go" to trigger job autostart
+            let _ = std::process::Command::new("tmux")
+                .args(["send-keys", "-t", &session, "go", "Enter"])
+                .status();
+        }
     });
+}
+
+/// Poll tmux pane until the Claude input prompt (❯) appears.
+/// Returns true if found, false on timeout.
+fn wait_for_prompt(session: &str, timeout_secs: u64) -> bool {
+    for _ in 0..timeout_secs {
+        std::thread::sleep(std::time::Duration::from_secs(1));
+        let output = std::process::Command::new("tmux")
+            .args(["capture-pane", "-t", session, "-p"])
+            .output();
+        if let Ok(out) = output {
+            let text = String::from_utf8_lossy(&out.stdout);
+            // Claude shows ❯ when ready for input
+            if text.contains('❯') {
+                return true;
+            }
+        }
+    }
+    tracing::warn!(session, "agent: timed out waiting for prompt");
+    false
 }
 
 /// Write phase spec into an existing worktree (used by pipeline advancement).
