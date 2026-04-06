@@ -1,7 +1,7 @@
 use std::path::Path;
 
 use runtime::{
-    get_config, list_models, list_providers, read_log,
+    get_config, get_skill_vars, list_models, list_providers, read_log,
     workspace::{
         get_active_workspace_session as runtime_get_active_workspace_session,
         get_workspace as runtime_get_workspace,
@@ -12,22 +12,28 @@ use runtime::{
 };
 use runtime::{get_effective_skill, list_effective_skills};
 
+use runtime::projections::job::load_jobs;
+
 use crate::resources::render_events_resource;
 
 /// Resolve a `ship://` URI to its text content, or `None` if not found.
+///
+/// `dir` is the project root (parent of `.ship/`).
 pub async fn resolve_resource_uri(
     uri: &str,
     dir: &Path,
     project_info: impl std::future::Future<Output = String>,
 ) -> Option<String> {
+    let ship_dir = dir.join(".ship");
+
     if uri == "ship://project_info" {
         return Some(project_info.await);
     }
     if uri == "ship://specs" {
-        return resolve_specs_list(dir);
+        return resolve_specs_list(&ship_dir);
     }
     if let Some(id) = uri.strip_prefix("ship://specs/") {
-        let spec_path = runtime::project::specs_dir(dir).join(format!("{id}.md"));
+        let spec_path = runtime::project::specs_dir(&ship_dir).join(format!("{id}.md"));
         return std::fs::read_to_string(&spec_path).ok();
     }
     if uri == "ship://adrs" {
@@ -42,7 +48,7 @@ pub async fn resolve_resource_uri(
         });
     }
     if uri == "ship://skills" {
-        let entries = list_effective_skills(dir).ok()?;
+        let entries = list_effective_skills(&ship_dir).ok()?;
         if entries.is_empty() {
             return Some("No skills found.".to_string());
         }
@@ -53,10 +59,21 @@ pub async fn resolve_resource_uri(
         return Some(out);
     }
     if let Some(id) = uri.strip_prefix("ship://skills/") {
-        return get_effective_skill(dir, id).ok().map(|s| s.content);
+        let mut content = get_effective_skill(&ship_dir, id).ok().map(|s| s.content)?;
+        // Include merged variable state if the skill has vars.
+        if let Ok(Some(vars)) = get_skill_vars(&ship_dir, id) {
+            if !vars.is_empty() {
+                if let Ok(vars_json) = serde_json::to_string_pretty(&vars) {
+                    content.push_str("\n\n---\n## Variables\n```json\n");
+                    content.push_str(&vars_json);
+                    content.push_str("\n```\n");
+                }
+            }
+        }
+        return Some(content);
     }
     if uri == "ship://log" {
-        return match read_log(dir) {
+        return match read_log(&ship_dir) {
             Ok(content) if content.trim().is_empty() || content.trim() == "# Project Log" => {
                 Some("No log entries yet.".to_string())
             }
@@ -65,22 +82,33 @@ pub async fn resolve_resource_uri(
         };
     }
     if uri == "ship://events" {
-        return render_events_resource(dir, 100);
+        return render_events_resource(&ship_dir, 100);
     }
     if let Some(limit_str) = uri.strip_prefix("ship://events/") {
         let Ok(limit) = limit_str.parse::<usize>() else {
             return Some(format!("Error: invalid limit '{}'", limit_str));
         };
-        return render_events_resource(dir, limit);
+        return render_events_resource(&ship_dir, limit);
     }
-    if let Some(result) = resolve_workspace_uri(uri, dir) {
+    // Jobs resources
+    if uri == "ship://jobs" {
+        return resolve_jobs_list();
+    }
+    if let Some(id) = uri.strip_prefix("ship://jobs/") {
+        return resolve_job_by_id(id);
+    }
+    // Mesh resource
+    if uri == "ship://mesh" {
+        return resolve_mesh_agents().await;
+    }
+    if let Some(result) = resolve_workspace_uri(uri, &ship_dir) {
         return Some(result);
     }
     None
 }
 
-fn resolve_specs_list(dir: &Path) -> Option<String> {
-    let specs_path = runtime::project::specs_dir(dir);
+fn resolve_specs_list(ship_dir: &Path) -> Option<String> {
+    let specs_path = runtime::project::specs_dir(ship_dir);
     match std::fs::read_dir(&specs_path) {
         Ok(entries) => {
             let mut specs: Vec<String> = entries
@@ -120,9 +148,37 @@ fn resolve_adr_list() -> Option<String> {
     }
 }
 
-fn resolve_workspace_uri(uri: &str, dir: &Path) -> Option<String> {
+fn resolve_jobs_list() -> Option<String> {
+    match load_jobs() {
+        Ok(jobs) if jobs.is_empty() => Some("[]".to_string()),
+        Ok(jobs) => {
+            let records: Vec<_> = jobs.into_values().collect();
+            serde_json::to_string_pretty(&records).ok()
+        }
+        Err(err) => Some(format!("Error: {}", err)),
+    }
+}
+
+fn resolve_job_by_id(id: &str) -> Option<String> {
+    match load_jobs() {
+        Ok(jobs) => match jobs.get(id) {
+            Some(job) => serde_json::to_string_pretty(job).ok(),
+            None => Some(format!("Job '{}' not found", id)),
+        },
+        Err(err) => Some(format!("Error: {}", err)),
+    }
+}
+
+async fn resolve_mesh_agents() -> Option<String> {
+    match crate::network_client::mesh_discover().await {
+        Ok(raw) => Some(raw),
+        Err(err) => Some(format!("Error: {}", err)),
+    }
+}
+
+fn resolve_workspace_uri(uri: &str, ship_dir: &Path) -> Option<String> {
     if uri == "ship://workspaces" {
-        return match runtime_list_workspaces(dir) {
+        return match runtime_list_workspaces(ship_dir) {
             Ok(workspaces) => serde_json::to_string_pretty(&workspaces).ok(),
             Err(err) => Some(format!("Error: {}", err)),
         };
@@ -130,7 +186,7 @@ fn resolve_workspace_uri(uri: &str, dir: &Path) -> Option<String> {
     if let Some(rest) = uri.strip_prefix("ship://workspaces/")
         && let Some(branch) = rest.strip_suffix("/provider-matrix")
     {
-        return match runtime_get_workspace_provider_matrix(dir, branch, None) {
+        return match runtime_get_workspace_provider_matrix(ship_dir, branch, None) {
             Ok(matrix) => serde_json::to_string_pretty(&matrix).ok(),
             Err(err) => Some(format!("Error: {}", err)),
         };
@@ -138,33 +194,33 @@ fn resolve_workspace_uri(uri: &str, dir: &Path) -> Option<String> {
     if let Some(rest) = uri.strip_prefix("ship://workspaces/")
         && let Some(branch) = rest.strip_suffix("/session")
     {
-        return match runtime_get_active_workspace_session(dir, branch) {
+        return match runtime_get_active_workspace_session(ship_dir, branch) {
             Ok(Some(session)) => serde_json::to_string_pretty(&session).ok(),
             Ok(None) => Some(format!("No active workspace session for '{}'", branch)),
             Err(err) => Some(format!("Error: {}", err)),
         };
     }
     if let Some(branch) = uri.strip_prefix("ship://workspaces/") {
-        return match runtime_get_workspace(dir, branch) {
+        return match runtime_get_workspace(ship_dir, branch) {
             Ok(Some(workspace)) => serde_json::to_string_pretty(&workspace).ok(),
             Ok(None) => Some(format!("Workspace '{}' not found", branch)),
             Err(err) => Some(format!("Error: {}", err)),
         };
     }
     if uri == "ship://sessions" {
-        return match runtime_list_workspace_sessions(dir, None, 50) {
+        return match runtime_list_workspace_sessions(ship_dir, None, 50) {
             Ok(sessions) => serde_json::to_string_pretty(&sessions).ok(),
             Err(err) => Some(format!("Error: {}", err)),
         };
     }
     if let Some(workspace) = uri.strip_prefix("ship://sessions/") {
-        return match runtime_list_workspace_sessions(dir, Some(workspace), 50) {
+        return match runtime_list_workspace_sessions(ship_dir, Some(workspace), 50) {
             Ok(sessions) => serde_json::to_string_pretty(&sessions).ok(),
             Err(err) => Some(format!("Error: {}", err)),
         };
     }
     if uri == "ship://modes" {
-        return match get_config(Some(dir.to_path_buf())) {
+        return match get_config(Some(ship_dir.to_path_buf())) {
             Ok(config) => {
                 let payload = serde_json::json!({
                     "active_mode": config.active_agent,
@@ -176,7 +232,7 @@ fn resolve_workspace_uri(uri: &str, dir: &Path) -> Option<String> {
         };
     }
     if uri == "ship://providers" {
-        return match list_providers(dir) {
+        return match list_providers(ship_dir) {
             Ok(providers) => serde_json::to_string_pretty(&providers).ok(),
             Err(err) => Some(format!("Error: {}", err)),
         };
@@ -191,4 +247,3 @@ fn resolve_workspace_uri(uri: &str, dir: &Path) -> Option<String> {
     }
     None
 }
-

@@ -15,6 +15,8 @@ pub fn static_resource_list() -> Vec<rmcp::model::Annotated<RawResource>> {
         RawResource::new("ship://providers", "Providers").no_annotation(),
         RawResource::new("ship://log", "Project Log").no_annotation(),
         RawResource::new("ship://events", "Event Stream").no_annotation(),
+        RawResource::new("ship://jobs", "Jobs").no_annotation(),
+        RawResource::new("ship://mesh", "Mesh Agents").no_annotation(),
     ]
 }
 
@@ -66,6 +68,7 @@ pub fn static_resource_template_list() -> Vec<rmcp::model::Annotated<RawResource
         ),
         tmpl("ship://events/{limit}", "Recent Events", "text/plain"),
         tmpl("ship://skills/{id}", "Skill", "text/markdown"),
+        tmpl("ship://jobs/{id}", "Job", "application/json"),
     ]
 }
 
