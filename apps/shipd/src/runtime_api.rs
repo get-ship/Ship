@@ -325,17 +325,21 @@ pub async fn end_job(
         }
     };
 
-    let job = match jobs.values().find(|j| j.slug == req.slug) {
+    // Find the dispatched job with this slug — prefer dispatched over other statuses
+    let job = match jobs.values()
+        .filter(|j| j.slug == req.slug)
+        .find(|j| j.status == runtime::projections::job::JobStatus::Dispatched)
+    {
         Some(j) => j.clone(),
         None => {
             return (
                 StatusCode::NOT_FOUND,
-                Json(MeshResponse { ok: false, data: serde_json::json!(format!("no job with slug '{}'", req.slug)) }),
+                Json(MeshResponse { ok: false, data: serde_json::json!(format!("no dispatched job with slug '{}'", req.slug)) }),
             );
         }
     };
 
-    // Only complete jobs that are dispatched (running)
+    // Guard: should always be dispatched given the filter above, but keep for clarity
     if job.status != runtime::projections::job::JobStatus::Dispatched {
         return (
             StatusCode::OK,
