@@ -19,7 +19,7 @@ pub(crate) fn file_type_from_ext(path: &std::path::Path) -> &'static str {
     }
 }
 
-fn collect_files_recursive(
+pub(super) fn collect_files_recursive(
     base: &std::path::Path,
     dir: &std::path::Path,
     files: &mut Vec<serde_json::Value>,

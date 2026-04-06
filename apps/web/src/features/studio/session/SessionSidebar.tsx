@@ -2,10 +2,11 @@
 
 import { useState, useRef, useCallback, useMemo } from 'react'
 import {
-  FileText, CheckSquare, Image, ChevronDown, ChevronRight, Plus, Folder, MonitorPlay, ExternalLink,
+  FileText, CheckSquare, Image, ChevronDown, ChevronRight, Plus, Folder, MonitorPlay, ExternalLink, CloudUpload, Check,
 } from 'lucide-react'
 import { ArtifactContextMenu } from './ArtifactContextMenu'
 import { useSkillsLibrary } from '#/features/studio/skills-ide/useSkillsLibrary'
+import { useArtifactStatus, usePromoteArtifact } from './useSessionFiles'
 import type { ArtifactMenuState } from './ArtifactContextMenu'
 import type { SessionFile } from './types'
 
@@ -127,6 +128,8 @@ export function SessionSidebar({
   const [collapsedGroups, setCollapsedGroups] = useState<Set<string>>(new Set())
   const [contextMenu, setContextMenu] = useState<ArtifactMenuState | null>(null)
   const fileInputRef = useRef<HTMLInputElement>(null)
+  const savedStatus = useArtifactStatus()
+  const promoteMutation = usePromoteArtifact()
 
   const toggleGroup = (label: string) => {
     setCollapsedGroups((prev) => {
@@ -157,6 +160,8 @@ export function SessionSidebar({
             onUploadFiles={onUploadFiles}
             onToggleGroup={toggleGroup}
             onContextMenu={handleContextMenu}
+            savedStatus={savedStatus}
+            onPromote={(path) => promoteMutation.mutate(path)}
           />
       </div>
 
@@ -169,7 +174,7 @@ export function SessionSidebar({
 
 // ── Files Tab ──
 
-function FilesTab({ todo, groups, root, activeFile, collapsedGroups, fileInputRef, onSelectFile, onUploadFiles, onToggleGroup, onContextMenu }: {
+function FilesTab({ todo, groups, root, activeFile, collapsedGroups, fileInputRef, onSelectFile, onUploadFiles, onToggleGroup, onContextMenu, savedStatus, onPromote }: {
   todo: SessionFile | null
   groups: NamespaceGroup[]
   root: SessionFile[]
@@ -180,6 +185,8 @@ function FilesTab({ todo, groups, root, activeFile, collapsedGroups, fileInputRe
   onUploadFiles: (files: FileList) => void
   onToggleGroup: (label: string) => void
   onContextMenu: (e: React.MouseEvent, file: SessionFile) => void
+  savedStatus: Map<string, boolean>
+  onPromote: (path: string) => void
 }) {
   const { skills } = useSkillsLibrary()
 
@@ -246,7 +253,7 @@ function FilesTab({ todo, groups, root, activeFile, collapsedGroups, fileInputRe
             {!nsCollapsed && (
               <div className="bg-black/[0.06] border-t border-border/10 px-2.5 py-1.5 space-y-0.5">
                 {group.rootFiles.map((f) => (
-                  <FileEntry key={f.path} file={f} isActive={activeFile === f.path} onClick={() => onSelectFile(f.path)} onContextMenu={(e) => onContextMenu(e, f)} stripPrefix={group.name} />
+                  <FileEntry key={f.path} file={f} isActive={activeFile === f.path} onClick={() => onSelectFile(f.path)} onContextMenu={(e) => onContextMenu(e, f)} stripPrefix={group.name} saved={savedStatus.get(f.path)} onPromote={() => onPromote(f.path)} />
                 ))}
                 {group.subGroups.map((sub) => {
                   const subKey = `${group.name}/${sub.name}`
@@ -262,7 +269,7 @@ function FilesTab({ todo, groups, root, activeFile, collapsedGroups, fileInputRe
                       {!subCollapsed && (
                         <div className="pl-2.5 border-l border-border/30 ml-1.5 space-y-0.5">
                           {sub.files.map((f) => (
-                            <FileEntry key={f.path} file={f} isActive={activeFile === f.path} onClick={() => onSelectFile(f.path)} onContextMenu={(e) => onContextMenu(e, f)} stripPrefix={subKey} />
+                            <FileEntry key={f.path} file={f} isActive={activeFile === f.path} onClick={() => onSelectFile(f.path)} onContextMenu={(e) => onContextMenu(e, f)} stripPrefix={subKey} saved={savedStatus.get(f.path)} onPromote={() => onPromote(f.path)} />
                           ))}
                         </div>
                       )}
@@ -278,7 +285,7 @@ function FilesTab({ todo, groups, root, activeFile, collapsedGroups, fileInputRe
       {root.length > 0 && (
         <div className="px-3 space-y-0.5 mt-1 pt-1 border-t border-border/15">
           {root.map((f) => (
-            <FileEntry key={f.path} file={f} isActive={activeFile === f.path} onClick={() => onSelectFile(f.path)} onContextMenu={(e) => onContextMenu(e, f)} />
+            <FileEntry key={f.path} file={f} isActive={activeFile === f.path} onClick={() => onSelectFile(f.path)} onContextMenu={(e) => onContextMenu(e, f)} saved={savedStatus.get(f.path)} onPromote={() => onPromote(f.path)} />
           ))}
         </div>
       )}
@@ -299,9 +306,10 @@ function FilesTab({ todo, groups, root, activeFile, collapsedGroups, fileInputRe
 
 // ── Helpers ──
 
-function FileEntry({ file, isActive, onClick, onContextMenu, isTodo, stripPrefix }: {
+function FileEntry({ file, isActive, onClick, onContextMenu, isTodo, stripPrefix, saved, onPromote }: {
   file: SessionFile; isActive: boolean; onClick: () => void
   onContextMenu: (e: React.MouseEvent) => void; isTodo?: boolean; stripPrefix?: string
+  saved?: boolean; onPromote?: () => void
 }) {
   const { icon: Icon, color } = FILE_ICONS[file.type] ?? FILE_ICONS.other
   // Strip the known prefix (namespace or namespace/subgroup) so only the relevant tail shows
@@ -313,7 +321,7 @@ function FileEntry({ file, isActive, onClick, onContextMenu, isTodo, stripPrefix
     <button
       onClick={onClick}
       onContextMenu={onContextMenu}
-      className={`flex items-center gap-2 w-full px-2 py-1.5 rounded-md text-xs transition ${
+      className={`group flex items-center gap-2 w-full px-2 py-1.5 rounded-md text-xs transition ${
         isActive ? 'border-l-2 border-primary bg-primary/5 text-primary font-medium' : 'text-muted-foreground hover:text-foreground hover:bg-muted/30'
       }`}
     >
@@ -325,10 +333,17 @@ function FileEntry({ file, isActive, onClick, onContextMenu, isTodo, stripPrefix
         {subdir && <span className="opacity-40">{subdir}</span>}
         {filename}
       </span>
-      {file.modifiedAt > 0 && (
-        <span className="text-[9px] text-muted-foreground/40 shrink-0 tabular-nums">
-          {relativeTime(file.modifiedAt)}
-        </span>
+      {saved === true && (
+        <span title="Saved to project"><Check className="size-3 text-emerald-500/60 shrink-0" /></span>
+      )}
+      {saved === false && onPromote && (
+        <button
+          onClick={(e) => { e.stopPropagation(); onPromote() }}
+          className="size-4 shrink-0 flex items-center justify-center rounded opacity-0 group-hover:opacity-100 text-muted-foreground/40 hover:text-primary transition-opacity"
+          title="Save to project"
+        >
+          <CloudUpload className="size-3" />
+        </button>
       )}
     </button>
   )

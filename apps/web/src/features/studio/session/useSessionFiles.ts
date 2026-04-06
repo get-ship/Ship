@@ -31,13 +31,13 @@ export function useSessionFiles() {
     queryFn: async (): Promise<SessionFile[]> => {
       const res = await fetch(`${DAEMON_BASE_URL}/api/workspaces/${encodeURIComponent(wsId)}/session-files`)
       if (!res.ok) throw new Error(`daemon: session-files ${res.status}`)
-      const body = (await res.json()) as { ok: boolean; data: { files: Array<{ name: string; path: string; size: number; type: string }> } }
+      const body = (await res.json()) as { ok: boolean; data: { files: Array<{ name: string; path: string; size: number; type: string; modifiedAt?: number; createdAt?: number }> } }
       return body.data.files.map((f) => ({
         name: f.name,
         path: f.path,
         type: toFileType(f.type),
         size: f.size,
-        modifiedAt: Date.now(),
+        modifiedAt: f.modifiedAt ?? Date.now(),
       }))
     },
     enabled: wsId.length > 0,
@@ -162,6 +162,45 @@ export function useUploadSessionFile() {
     },
     onSuccess: () => {
       void queryClient.invalidateQueries({ queryKey: sessionKeys.files(wsId) })
+    },
+  })
+}
+
+/** Fetch promotion status — which workspace files have been saved to project tier. */
+export function useArtifactStatus() {
+  const wsId = useActiveWorkspaceId()
+
+  const query = useQuery({
+    queryKey: sessionKeys.artifactStatus(wsId),
+    queryFn: async (): Promise<Map<string, boolean>> => {
+      const res = await fetch(`${DAEMON_BASE_URL}/api/workspaces/${encodeURIComponent(wsId)}/artifacts/status`)
+      if (!res.ok) return new Map()
+      const body = (await res.json()) as { ok: boolean; data: { files: Array<{ path: string; saved: boolean }> } }
+      return new Map(body.data.files.map((f) => [f.path, f.saved]))
+    },
+    enabled: wsId.length > 0,
+    staleTime: 10_000,
+  })
+
+  return query.data ?? new Map<string, boolean>()
+}
+
+/** Promote (save) a workspace artifact to the project tier. */
+export function usePromoteArtifact() {
+  const wsId = useActiveWorkspaceId()
+  const queryClient = useQueryClient()
+
+  return useMutation({
+    mutationFn: async (path: string) => {
+      const res = await fetch(`${DAEMON_BASE_URL}/api/workspaces/${encodeURIComponent(wsId)}/artifacts/promote`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ path }),
+      })
+      if (!res.ok) throw new Error(`promote: ${res.status}`)
+    },
+    onSuccess: () => {
+      void queryClient.invalidateQueries({ queryKey: sessionKeys.artifactStatus(wsId) })
     },
   })
 }

@@ -4,11 +4,13 @@
 //! filesystem, git, and event operations on a single local project.
 //! Routes are mounted under `/api` in lib.rs.
 
+pub mod artifacts;
 mod agents_skills;
 mod git;
-mod session_files;
+pub(crate) mod session_files;
 
 pub use agents_skills::{list_agents, list_skills};
+pub use artifacts::{artifacts_status, list_project_artifacts, promote_artifact};
 pub use git::{git_diff, git_log, git_status};
 pub use session_files::{
     delete_session_file, list_session_files, read_session_file, write_session_file,

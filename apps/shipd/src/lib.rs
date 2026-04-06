@@ -168,6 +168,18 @@ pub async fn run_network(host: String, port: u16) -> Result<()> {
             "/events/emit",
             axum::routing::post(project_api::emit_event),
         )
+        .route(
+            "/workspaces/{id}/artifacts/status",
+            axum::routing::get(project_api::artifacts_status),
+        )
+        .route(
+            "/workspaces/{id}/artifacts/promote",
+            axum::routing::post(project_api::promote_artifact),
+        )
+        .route(
+            "/artifacts",
+            axum::routing::get(project_api::list_project_artifacts),
+        )
         .with_state(api_state);
 
     let app = Router::new()

@@ -6,4 +6,5 @@ export const sessionKeys = {
   gitStatus: (wsId: string) => ['session', 'gitStatus', wsId] as const,
   gitDiff: (wsId: string, base?: string) => ['session', 'gitDiff', wsId, base ?? 'default'] as const,
   gitLog: (wsId: string, limit: number) => ['session', 'gitLog', wsId, limit] as const,
+  artifactStatus: (wsId: string) => ['session', 'artifactStatus', wsId] as const,
 } as const
