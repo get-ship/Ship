@@ -1,13 +1,10 @@
 //! Secondary event handlers for job dispatch — update forwarding, cleanup, DAG unblocking.
 
-use runtime::events::job::JobCreatedPayload;
 use runtime::events::{CallerKind, EmitContext, EventEnvelope};
-use std::collections::HashMap;
 use std::sync::Arc;
 use tokio::sync::Mutex;
 
 use super::helpers::{delete_branch, kill_tmux_session, remove_worktree, worktrees_dir};
-use super::job_dispatch::DispatchContext;
 
 /// Forward `job.update` messages to the agent via mesh routing.
 pub(crate) async fn handle_job_update(
@@ -111,79 +108,3 @@ pub(crate) async fn handle_job_cleanup(envelope: &EventEnvelope) {
     tracing::info!(slug, job_id, "job-dispatch: cleanup complete");
 }
 
-/// After a job completes/merges, check if any pending jobs had it as a dependency.
-/// Dispatch any that become fully unblocked.
-pub(crate) async fn dispatch_unblocked_jobs(
-    kernel: &Arc<Mutex<runtime::events::KernelRouter>>,
-    envelope: &EventEnvelope,
-    pending: &mut HashMap<String, JobCreatedPayload>,
-    dctx: &DispatchContext,
-) {
-    let payload: serde_json::Value = match serde_json::from_str(&envelope.payload_json) {
-        Ok(v) => v,
-        Err(e) => {
-            tracing::warn!("job-dispatch: malformed payload in unblocked-job check: {e}");
-            return;
-        }
-    };
-
-    // Resolve completed job's slug — try payload, then projection lookup by entity_id
-    let completed_slug = if let Some(s) = payload["slug"].as_str().filter(|s| !s.is_empty()) {
-        s.to_string()
-    } else {
-        let job_id = payload["job_id"].as_str().unwrap_or(&envelope.entity_id);
-        if let Ok(jobs) = runtime::projections::job::load_jobs() {
-            jobs.values()
-                .find(|j| j.job_id == job_id || j.job_id == envelope.entity_id)
-                .map(|j| j.slug.clone())
-                .unwrap_or_else(|| envelope.entity_id.clone())
-        } else {
-            envelope.entity_id.clone()
-        }
-    };
-
-    if pending.is_empty() {
-        tracing::debug!(
-            completed_slug,
-            "job-dispatch: no pending jobs to unblock"
-        );
-        return;
-    }
-
-    let mut ready: Vec<String> = Vec::new();
-    for (slug, job) in pending.iter_mut() {
-        if let Some(deps) = &mut job.depends_on {
-            deps.retain(|d| d != &completed_slug);
-            if deps.is_empty() {
-                ready.push(slug.clone());
-            } else {
-                tracing::debug!(
-                    slug,
-                    completed_slug,
-                    remaining_deps = deps.len(),
-                    "job-dispatch: dependency cleared, still waiting on others"
-                );
-            }
-        }
-    }
-
-    if ready.is_empty() {
-        tracing::debug!(
-            completed_slug,
-            "job-dispatch: no jobs fully unblocked"
-        );
-    }
-
-    for slug in ready {
-        if let Some(mut job) = pending.remove(&slug) {
-            tracing::info!(
-                slug,
-                completed_slug,
-                job_id = job.job_id,
-                "job-dispatch: all dependencies cleared, dispatching unblocked job"
-            );
-            job.depends_on = None;
-            super::job_dispatch::dispatch_job_internal(kernel, &job, dctx).await;
-        }
-    }
-}

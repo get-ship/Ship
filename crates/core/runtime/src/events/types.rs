@@ -343,6 +343,8 @@ pub mod event_types {
     pub const SKILL_COMPLETED: &str = "skill.completed";
     pub const SKILL_FAILED: &str = "skill.failed";
 
+    pub const SUPERVISOR_SHUTTING_DOWN: &str = "supervisor.shutting_down";
+
     pub const ALL: &[&str] = &[
         WORKSPACE_CREATED,
         WORKSPACE_DELETED,
@@ -386,6 +388,7 @@ pub mod event_types {
         SKILL_STARTED,
         SKILL_COMPLETED,
         SKILL_FAILED,
+        SUPERVISOR_SHUTTING_DOWN,
     ];
 }
 
@@ -403,6 +406,6 @@ mod tests {
 
     #[test]
     fn all_constants_have_expected_count() {
-        assert_eq!(ALL.len(), 42, "exactly 42 event type constants required");
+        assert_eq!(ALL.len(), 43, "exactly 43 event type constants required");
     }
 }

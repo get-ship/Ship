@@ -45,7 +45,7 @@ pub async fn run_network(host: String, port: u16) -> Result<()> {
 
     let mesh_registry = connections::spawn_mesh_service(&kernel).await?;
     supervisor::subscribe_workspace_events(kernel.clone(), global_dir.clone()).await;
-    supervisor::job_dispatch::subscribe_job_events(kernel.clone(), global_dir.clone()).await;
+    let dispatch_handle = supervisor::job_dispatch::subscribe_job_events(kernel.clone(), global_dir.clone()).await;
     spawn_human_gateway(&kernel).await;
 
     let token = Arc::new(auth::generate_token());
@@ -208,6 +208,16 @@ pub async fn run_network(host: String, port: u16) -> Result<()> {
         .with_graceful_shutdown(async move { ct.cancelled_owned().await })
         .await
         .map_err(|e| anyhow!("server error: {e}"))?;
+
+    // Graceful shutdown: stop all managed agent processes
+    if let Some(dh) = dispatch_handle {
+        supervisor::graceful_shutdown(
+            &kernel,
+            &mut *dh.registry.lock().await,
+            &*dh.executor,
+        )
+        .await;
+    }
 
     let _ = std::fs::remove_file(global_dir.join("network.port"));
     let _ = std::fs::remove_file(global_dir.join("network.pid"));
