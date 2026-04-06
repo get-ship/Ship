@@ -10,6 +10,8 @@ use std::sync::{Arc, OnceLock};
 use tokio::sync::Mutex;
 
 use crate::events::kernel_router::KernelRouter;
+use crate::events::payload_schema::PayloadSchemaValidator;
+use crate::events::validator::{ElevatedValidator, NamespaceValidator, ReservedNamespaceValidator};
 
 static KERNEL_ROUTER: OnceLock<Arc<Mutex<KernelRouter>>> = OnceLock::new();
 
@@ -22,7 +24,11 @@ pub fn init_kernel_router(base_dir: PathBuf) -> anyhow::Result<Arc<Mutex<KernelR
     if let Some(kr) = KERNEL_ROUTER.get() {
         return Ok(kr.clone());
     }
-    let router = KernelRouter::new(base_dir)?;
+    let router = KernelRouter::new(base_dir)?
+        .with_validator(Box::new(NamespaceValidator))
+        .with_validator(Box::new(ReservedNamespaceValidator))
+        .with_validator(Box::new(ElevatedValidator))
+        .with_validator(Box::new(PayloadSchemaValidator));
     let arc = Arc::new(Mutex::new(router));
     // Ignore failure — another thread may have won the race; take its value.
     let _ = KERNEL_ROUTER.set(arc);
