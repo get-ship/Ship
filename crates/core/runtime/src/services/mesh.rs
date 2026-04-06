@@ -1,8 +1,8 @@
 //! Agent mesh service — registration, directed messaging, broadcast, discovery.
 //!
-//! The mesh is a thin validator and address resolver. It does not route events
-//! itself — it creates `EventEnvelope`s with `target_actor_id` set and pushes
-//! them to an outbox channel. The caller drains the outbox through the kernel.
+//! The mesh is a thin validator and address resolver. It creates `EventEnvelope`s
+//! with `target_actor_id` set, pushes them to an outbox channel, and the caller
+//! drains the outbox through the kernel.
 
 use std::collections::HashMap;
 use std::sync::Arc;
@@ -16,7 +16,6 @@ use crate::events::{ActorStore, EventEnvelope};
 use crate::services::ServiceHandler;
 
 /// Shared, read-optimized view of the mesh registry.
-/// The MeshService writes; REST API and other consumers read.
 pub type SharedMeshRegistry = Arc<RwLock<HashMap<String, MeshEntry>>>;
 
 /// Status of a registered agent in the mesh.
@@ -74,6 +73,11 @@ impl MeshService {
         self.agents.get(agent_id)
     }
 
+    /// Return a snapshot of all registered agents.
+    pub fn list_agents(&self) -> Vec<&MeshEntry> {
+        self.agents.values().collect()
+    }
+
     fn handle_register(&mut self, event: &EventEnvelope) -> Result<()> {
         let payload: serde_json::Value = serde_json::from_str(&event.payload_json)?;
         let agent_id = payload["agent_id"]
@@ -93,6 +97,18 @@ impl MeshService {
         };
         self.agents.insert(agent_id.to_string(), entry.clone());
         self.sync_shared_registry();
+
+        let registered = EventEnvelope::new(
+            "mesh.registered",
+            agent_id,
+            &serde_json::json!({
+                "agent_id": agent_id,
+                "capabilities": entry.capabilities,
+            }),
+        )?
+        .with_causation(&event.id);
+        let _ = self.outbox.send(registered);
+
         Ok(())
     }
 
@@ -101,8 +117,19 @@ impl MeshService {
         let agent_id = payload["agent_id"]
             .as_str()
             .ok_or_else(|| anyhow!("mesh.deregister: missing agent_id"))?;
-        self.agents.remove(agent_id);
+        let existed = self.agents.remove(agent_id).is_some();
         self.sync_shared_registry();
+
+        if existed {
+            let deregistered = EventEnvelope::new(
+                "mesh.deregistered",
+                agent_id,
+                &serde_json::json!({ "agent_id": agent_id }),
+            )?
+            .with_causation(&event.id);
+            let _ = self.outbox.send(deregistered);
+        }
+
         Ok(())
     }
 
@@ -119,8 +146,7 @@ impl MeshService {
         Ok(())
     }
 
-    /// Push current local state to the shared registry (blocking write is fine
-    /// here — called from the service event loop which is single-threaded).
+    /// Push current local state to the shared registry.
     fn sync_shared_registry(&self) {
         let snapshot = self.agents.clone();
         let reg = self.shared_registry.clone();
@@ -202,30 +228,17 @@ impl MeshService {
         let cap_filter = payload["capability"].as_str();
         let status_filter = payload["status"].as_str();
 
-        let matches: Vec<serde_json::Value> = self
-            .agents
-            .values()
+        let matches: Vec<serde_json::Value> = self.agents.values()
             .filter(|e| {
-                if let Some(cap) = cap_filter {
-                    if !e.capabilities.iter().any(|c| c == cap) {
-                        return false;
-                    }
-                }
-                if let Some(st) = status_filter {
-                    if status_str(&e.status) != st {
-                        return false;
-                    }
-                }
-                true
+                cap_filter.map_or(true, |cap| e.capabilities.iter().any(|c| c == cap))
+                    && status_filter.map_or(true, |st| status_str(&e.status) == st)
             })
-            .map(|e| {
-                serde_json::json!({
-                    "agent_id": e.agent_id,
-                    "label": e.label,
-                    "capabilities": e.capabilities,
-                    "status": e.status,
-                })
-            })
+            .map(|e| serde_json::json!({
+                "agent_id": e.agent_id,
+                "label": e.label,
+                "capabilities": e.capabilities,
+                "status": e.status,
+            }))
             .collect();
 
         let resp = EventEnvelope::new(
@@ -238,7 +251,6 @@ impl MeshService {
         let _ = self.outbox.send(resp);
         Ok(())
     }
-
 }
 
 impl ServiceHandler for MeshService {
