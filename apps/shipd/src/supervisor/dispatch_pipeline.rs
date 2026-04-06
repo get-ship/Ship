@@ -80,21 +80,28 @@ pub(crate) fn ensure_pipeline(
     payload
 }
 
-/// Load a named pipeline from `.ship/pipelines/<name>.yaml`.
+/// Load a named pipeline from `.ship/pipelines/<name>.yaml` in the project root.
 fn load_pipeline_file(name: &str) -> Option<Pipeline> {
-    let ship_dir = runtime::project::get_global_dir().ok()?;
-    let project_root = ship_dir.parent()?;
-    let path = project_root.join(".ship").join("pipelines").join(format!("{name}.yaml"));
-    if !path.exists() {
-        return None;
+    // Walk up from cwd looking for .ship/ directory
+    let mut dir = std::env::current_dir().ok()?;
+    loop {
+        let ship_dir = dir.join(".ship");
+        if ship_dir.is_dir() {
+            let path = ship_dir.join("pipelines").join(format!("{name}.yaml"));
+            if path.exists() {
+                let content = std::fs::read_to_string(&path).ok()?;
+                let val: serde_json::Value = serde_yaml::from_str(&content).ok()?;
+                let steps_val = val.get("steps")?;
+                let steps: Vec<runtime::events::job::PipelineStep> =
+                    serde_json::from_value(steps_val.clone()).ok()?;
+                return Some(Pipeline { steps });
+            }
+            return None;
+        }
+        if !dir.pop() {
+            return None;
+        }
     }
-    let content = std::fs::read_to_string(&path).ok()?;
-    // The YAML file has a top-level `steps` key
-    let val: serde_json::Value = serde_yaml::from_str(&content).ok()?;
-    let steps_val = val.get("steps")?;
-    let steps: Vec<runtime::events::job::PipelineStep> =
-        serde_json::from_value(steps_val.clone()).ok()?;
-    Some(Pipeline { steps })
 }
 
 /// Extract `pipeline: <name>` from YAML frontmatter (string value, not array/object).

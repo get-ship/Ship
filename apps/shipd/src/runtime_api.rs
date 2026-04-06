@@ -278,7 +278,7 @@ pub async fn create_job(
     };
 
     let ctx = EmitContext {
-        caller_kind: CallerKind::Mcp,
+        caller_kind: CallerKind::Runtime,
         skill_id: None,
         workspace_id: None,
         session_id: None,
@@ -365,7 +365,7 @@ pub async fn end_job(
     };
 
     let ctx = EmitContext {
-        caller_kind: CallerKind::Mcp,
+        caller_kind: CallerKind::Runtime,
         skill_id: None,
         workspace_id: None,
         session_id: None,
