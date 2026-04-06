@@ -19,7 +19,7 @@ The Ship daemon (`shipd`) is a long-running Axum HTTP server that provides the e
 3. **Subscribe workspace events** — spawns `service.workspace-sync` actor to project `workspace.*` events into the workspace database table.
 4. **Subscribe job events** — spawns `service.job-dispatch` actor to handle `job.*` lifecycle (create, update, complete, merge).
 5. **Spawn human gateway** — if `SHIP_TELEGRAM_TOKEN` and `SHIP_TELEGRAM_CHAT_ID` are set, spawns a `service.human-gateway` actor.
-6. **Write PID and port files** — `{global_dir}/network.pid` and `{global_dir}/network.port`.
+6. **Write PID and port files** — `{global_dir}/daemon.pid` and `{global_dir}/network.port`.
 7. **Build Axum router** — mounts MCP service at `/mcp`, REST APIs under `/api`.
 8. **Listen** — binds TCP and serves with graceful shutdown on SIGINT/SIGTERM.
 

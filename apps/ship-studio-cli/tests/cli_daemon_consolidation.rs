@@ -159,10 +159,8 @@ fn test_daemon_help_lists_start_stop_status() {
 fn test_daemon_uses_single_pid_file() {
     let tmp = TempDir::new().unwrap();
 
-    // After daemon start, there should be at most one PID file.
-    // The old network.pid path must not coexist with a separate daemon PID.
-    // We verify by checking that after daemon start (or attempted start),
-    // the directory does not contain both network.pid and a separate daemon.pid.
+    // After daemon start (or attempted start), the old network.pid must not exist.
+    // Only daemon.pid is valid after consolidation.
     let _result = ship_in(&tmp)
         .args(["daemon", "start"])
         .env("HOME", tmp.path())
@@ -170,13 +168,8 @@ fn test_daemon_uses_single_pid_file() {
         .expect("failed to run daemon start");
 
     let ship_dir = tmp.path().join(".ship");
-    let has_network_pid = ship_dir.join("network.pid").exists();
-    let has_daemon_pid = ship_dir.join("daemon.pid").exists();
-
-    // There must not be two separate PID files for network and daemon.
-    // Either one file manages both, or only the daemon PID exists.
     assert!(
-        !(has_network_pid && has_daemon_pid),
-        "must not have both network.pid and daemon.pid — one process, one PID file",
+        !ship_dir.join("network.pid").exists(),
+        "network.pid must not exist — daemon uses daemon.pid now",
     );
 }

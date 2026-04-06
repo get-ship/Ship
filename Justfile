@@ -38,7 +38,7 @@ install: build-release
 daemon-restart: install-dev
     -pkill -9 shipd 2>/dev/null; true
     @sleep 1
-    @rm -f ~/.ship/network.port ~/.ship/network.pid
+    @rm -f ~/.ship/network.port ~/.ship/daemon.pid
     ship daemon start
 
 # Rebuild WASM compiler (requires build-essential)
