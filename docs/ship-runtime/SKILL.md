@@ -24,7 +24,7 @@ Ship's runtime layer owns all persistent state and inter-agent communication. Th
 - `server.rs` — MCP server (NetworkServer) with mesh tools
 - `rest_api.rs` — REST endpoints for mesh operations
 - `runtime_api.rs` — read-only REST API for Studio (workspaces, sessions, agents, SSE events)
-- `supervisor/` — job dispatch, workspace start, terminal launcher
+- `supervisor/` — job dispatch, pipeline DAG engine, workspace start, terminal launcher
 - `pty_handler.rs` — WebSocket-to-tmux PTY bridge
 - `connections.rs` — per-connection lifecycle (event relay, cleanup guard, mesh spawner)
 

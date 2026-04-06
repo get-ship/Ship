@@ -37,6 +37,37 @@ A session is a heartbeat within a workspace. It represents one continuous unit o
 
 Only one active session per workspace at a time. Starting a session on a workspace that already has one returns the existing session (attach semantics).
 
+## Pipelines
+
+Pipelines define how a job executes — a DAG of typed steps that the runtime walks automatically. Define them in `.ship/pipelines/<name>.yaml` and reference from spec frontmatter with `pipeline: <name>`.
+
+Step types: `agent` (spawn an agent), `gate` (review step), `merge` (git merge), `human` (pause for human). Steps declare dependencies with `after` — the engine dispatches unblocked steps when predecessors complete.
+
+Default pipeline when none specified: `implement → gate → merge`.
+
+See `references/docs/pipelines.md` for the full reference.
+
+### Capability Map
+
+| Capability | Status |
+|-----------|--------|
+| Pipeline DAG types (steps, after deps) | actual |
+| Named pipelines from `.ship/pipelines/` | actual |
+| Default pipeline injection | actual |
+| Step advancement on job.completed | actual |
+| Graceful agent exit between steps | actual |
+| Agent profile swap (`ship use`) between steps | actual |
+| Concurrency-limited pending job dispatch | actual |
+| Daemon startup replay of stale completions | actual |
+| Projection tracking (current_step, completed_steps) | actual |
+| gate step type | partial — dispatches reviewer, no retry loop |
+| merge step type | aspirational — logs only, manual merge |
+| human step type | aspirational — no inbox item yet |
+| Conditional steps (when:) | aspirational |
+| Retry loops (on_failure) | aspirational |
+| Parallel agent steps | aspirational |
+| Pipeline registry | aspirational |
+
 ## Multi-Agent Coordination
 
 Ship supports multiple agents working in parallel through git worktrees:
