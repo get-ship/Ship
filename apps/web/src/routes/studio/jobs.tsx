@@ -172,15 +172,7 @@ function EmptyState({ onCreateNew }: { onCreateNew: () => void }) {
   )
 }
 
-// Extended job record — includes pipeline fields not yet in generated types
-interface JobWithPipeline extends JobRecord {
-  steps?: { steps: Array<{ id: string; type: string; agent?: string; after: string[] }> }
-  completed_steps?: string[]
-  current_step?: string
-}
-
 function JobCard({ job }: { job: JobRecord }) {
-  const j = job as JobWithPipeline
   const dotColor = STATUS_COLORS[job.status] ?? 'bg-muted-foreground/30'
   const textColor = STATUS_TEXT_COLORS[job.status] ?? 'text-muted-foreground'
 
@@ -220,11 +212,11 @@ function JobCard({ job }: { job: JobRecord }) {
             ))}
           </div>
         )}
-        {j.steps && j.steps.steps.length > 0 && (
+        {job.steps && job.steps.steps.length > 0 && (
           <div className="mt-2 flex items-center gap-1">
-            {j.steps.steps.map((step) => {
-              const isComplete = j.completed_steps?.includes(step.id)
-              const isCurrent = j.current_step === step.id
+            {job.steps.steps.map((step) => {
+              const isComplete = job.completed_steps?.includes(step.id)
+              const isCurrent = job.current_step === step.id
               return (
                 <div
                   key={step.id}

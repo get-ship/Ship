@@ -227,7 +227,15 @@ blocker: string; needs_human: boolean }
 /**
  * Emitted when a job is created. `entity_id` in the envelope is the job_id.
  */
-export type JobCreatedPayload = { job_id: string; slug: string; agent: string; branch: string; spec_path: string; plan_id: string | null; model: string | null; provider: string | null; depends_on?: string[] | null }
+export type JobCreatedPayload = { job_id: string; slug: string; agent: string; branch: string; spec_path: string; plan_id: string | null; model: string | null; provider: string | null; depends_on?: string[] | null; 
+/**
+ * Legacy linear pipeline. Kept for backward compat.
+ */
+pipeline?: PipelinePhase[] | null; 
+/**
+ * DAG pipeline. Takes precedence over `pipeline` if both are set.
+ */
+steps?: Pipeline | null }
 
 /**
  * Emitted when the job is assigned to a worktree and (optionally) a process.
@@ -262,7 +270,27 @@ export type JobMergedPayload = { job_id: string; slug: string }
 /**
  * Projected state of a single job.
  */
-export type JobRecord = { job_id: string; slug: string; agent: string; branch: string; spec_path: string; depends_on: string[] | null; status: JobStatus; worktree: string | null; blocker: string | null; error: string | null; created_at: string; updated_at: string }
+export type JobRecord = { job_id: string; slug: string; agent: string; branch: string; spec_path: string; depends_on: string[] | null; status: JobStatus; worktree: string | null; blocker: string | null; error: string | null; created_at: string; updated_at: string; 
+/**
+ * Legacy linear pipeline phases.
+ */
+pipeline?: PipelinePhase[] | null; 
+/**
+ * DAG pipeline steps.
+ */
+steps?: Pipeline | null; 
+/**
+ * Index of the currently active pipeline phase (legacy).
+ */
+current_phase?: number | null; 
+/**
+ * IDs of completed pipeline steps (DAG).
+ */
+completed_steps: string[]; 
+/**
+ * ID of the currently running step.
+ */
+current_step?: string | null }
 
 /**
  * Current status of a job, derived from its event sequence.
@@ -340,6 +368,45 @@ default_mode?: string | null;
  * Additional working directories Claude has access to.
  */
 additional_directories?: string[] }
+
+/**
+ * A pipeline definition — a DAG of steps.
+ */
+export type Pipeline = { steps: PipelineStep[] }
+
+/**
+ * A single phase in a job pipeline (legacy linear format).
+ */
+export type PipelinePhase = { agent: string; goal: string; model?: string | null }
+
+/**
+ * A single step in a pipeline DAG.
+ */
+export type PipelineStep = { 
+/**
+ * Step identifier, unique within the pipeline.
+ */
+id: string; 
+/**
+ * What kind of step this is.
+ */
+type: StepType; 
+/**
+ * Agent profile to use (required for agent/gate steps).
+ */
+agent?: string | null; 
+/**
+ * Steps that must complete before this one runs.
+ */
+after?: string[]; 
+/**
+ * Model override for this step.
+ */
+model?: string | null; 
+/**
+ * Provider override for this step.
+ */
+provider?: string | null }
 
 /**
  * A single plugin to install.
@@ -625,6 +692,11 @@ export type SkillRefs = { refs?: string[] }
 export type SkillSource = "custom" | "builtin" | "ai-generated" | "community" | "imported"
 
 export type StatusConfig = { id: string; name: string; color?: string }
+
+/**
+ * Step type in a pipeline DAG.
+ */
+export type StepType = "agent" | "gate" | "merge" | "human"
 
 export type ToolPermissions = { allow?: string[]; 
 /**
