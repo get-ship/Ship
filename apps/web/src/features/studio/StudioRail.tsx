@@ -1,10 +1,9 @@
 import { useNavigate, useRouterState } from '@tanstack/react-router'
 import {
   Layers, Users, Zap, Briefcase, GitBranch,
-  Search, Maximize, Minimize, Settings,
+  Search, Settings,
   type LucideIcon,
 } from 'lucide-react'
-import { useState, useCallback, useEffect } from 'react'
 import { Button } from '@ship/primitives'
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@ship/primitives'
 import { Separator } from '@ship/primitives'
@@ -26,18 +25,6 @@ export function StudioRail() {
   const pathname = useRouterState({ select: (s) => s.location.pathname })
   const navigate = useNavigate()
   const { toggleCommandPalette } = useStudioShell()
-  const [isFullscreen, setIsFullscreen] = useState(false)
-
-  useEffect(() => {
-    const onFs = () => setIsFullscreen(!!document.fullscreenElement)
-    document.addEventListener('fullscreenchange', onFs)
-    return () => document.removeEventListener('fullscreenchange', onFs)
-  }, [])
-
-  const handleFullscreen = useCallback(() => {
-    if (document.fullscreenElement) void document.exitFullscreen()
-    else void document.documentElement.requestFullscreen()
-  }, [])
 
   return (
     <TooltipProvider>
@@ -88,19 +75,6 @@ export function StudioRail() {
         <Separator className="w-6 mb-1" />
 
         <ThemeToggle variant="icon" />
-
-        <Tooltip>
-          <TooltipTrigger asChild>
-            <Button variant="ghost" size="icon" className="size-8" onClick={handleFullscreen}>
-              {isFullscreen
-                ? <Minimize className="size-4" strokeWidth={1.8} />
-                : <Maximize className="size-4" strokeWidth={1.8} />}
-            </Button>
-          </TooltipTrigger>
-          <TooltipContent side="right">
-            {isFullscreen ? 'Exit fullscreen' : 'Fullscreen'}
-          </TooltipContent>
-        </Tooltip>
 
         <Tooltip>
           <TooltipTrigger asChild>
