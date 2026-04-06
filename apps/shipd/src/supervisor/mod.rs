@@ -4,7 +4,7 @@
 
 pub mod adapters;
 mod dispatch_handlers;
-mod dispatch_pipeline;
+pub(crate) mod dispatch_pipeline;
 mod dispatch_replay;
 pub mod helpers;
 pub mod job_dispatch;
