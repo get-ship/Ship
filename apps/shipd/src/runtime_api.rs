@@ -276,6 +276,12 @@ pub async fn create_job(
             );
         }
     };
+    // Persist to event store so projections see it
+    if let Ok(store) = runtime::events::SqliteEventStore::new() {
+        if let Err(e) = runtime::events::EventStore::append(&store, &envelope) {
+            tracing::warn!("create_job: failed to persist: {e}");
+        }
+    }
 
     let ctx = EmitContext {
         caller_kind: CallerKind::Runtime,
