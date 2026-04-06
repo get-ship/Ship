@@ -22,42 +22,35 @@ use crate::rest_api::{ApiState, MeshResponse};
 
 // ---- Shared helpers ----
 
-/// Resolve a workspace branch to its worktree path. Returns 404 if not found.
+/// Resolve a workspace branch to its project root. Reconciles first, then
+/// falls back to ship_dir parent for non-worktree workspaces.
 pub(crate) fn resolve_worktree(
     ship_dir: &std::path::Path,
     id: &str,
 ) -> Result<PathBuf, (StatusCode, Json<MeshResponse>)> {
-    let ws = runtime::workspace::get_workspace(ship_dir, id)
+    let (root, _ws) = runtime::workspace::resolve_project_root(ship_dir, id)
         .map_err(|e| {
-            (
-                StatusCode::INTERNAL_SERVER_ERROR,
-                Json(MeshResponse {
-                    ok: false,
-                    data: serde_json::json!(e.to_string()),
-                }),
-            )
-        })?
-        .ok_or_else(|| {
-            (
-                StatusCode::NOT_FOUND,
-                Json(MeshResponse {
-                    ok: false,
-                    data: serde_json::json!("workspace not found"),
-                }),
-            )
+            let msg = e.to_string();
+            if msg.contains("not found") {
+                (
+                    StatusCode::NOT_FOUND,
+                    Json(MeshResponse {
+                        ok: false,
+                        data: serde_json::json!("workspace not found"),
+                    }),
+                )
+            } else {
+                (
+                    StatusCode::INTERNAL_SERVER_ERROR,
+                    Json(MeshResponse {
+                        ok: false,
+                        data: serde_json::json!(msg),
+                    }),
+                )
+            }
         })?;
 
-    let worktree = ws.worktree_path.ok_or_else(|| {
-        (
-            StatusCode::NOT_FOUND,
-            Json(MeshResponse {
-                ok: false,
-                data: serde_json::json!("workspace not found"),
-            }),
-        )
-    })?;
-
-    Ok(PathBuf::from(worktree))
+    Ok(root)
 }
 
 pub(crate) fn ok_response(data: serde_json::Value) -> (StatusCode, Json<MeshResponse>) {
