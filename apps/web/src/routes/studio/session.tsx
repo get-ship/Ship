@@ -142,7 +142,9 @@ function SessionPage() {
   const showDiff = !showView && viewMode === 'diff'
   const activeDiffText = selectedCommitHash ? commitDiff : diffText
 
-  const { sidebarOpen, closeSidebar } = useStudioShell()
+  const { activePanel, setActivePanel } = useStudioShell()
+  const filesOpen = activePanel === 'files'
+  const closePanel = useCallback(() => setActivePanel(null), [setActivePanel])
 
   return (
     <>
@@ -152,7 +154,7 @@ function SessionPage() {
         </div>
         <p className="font-display text-base font-semibold">Best on desktop</p>
         <p className="text-sm text-muted-foreground max-w-xs">
-          The Session viewer is a multi-panel canvas. Open it on a wider screen for the full experience.
+          Open on a wider screen for the full experience.
         </p>
       </div>
 
@@ -162,20 +164,20 @@ function SessionPage() {
         onDragLeave={handleDragLeave}
         onDrop={handleDrop}
       >
-        {/* Slide-over sidebar */}
-        {sidebarOpen && (
+        {/* Files panel — overlays content, does not push it */}
+        {filesOpen && (
           <>
-            <div className="absolute inset-0 z-30" onClick={closeSidebar} />
-            <div className="absolute left-0 top-0 bottom-0 w-64 z-40 bg-card border-r border-border/60 shadow-lg animate-in slide-in-from-left-2 duration-150">
+            <div className="absolute inset-0 z-30" onClick={closePanel} />
+            <div className="absolute left-0 top-0 bottom-0 w-64 z-40 bg-card border-r border-border/60 shadow-lg animate-in slide-in-from-left-1 duration-100">
               <SessionSidebar
                 files={files}
                 activeFile={activeTabPath}
-                onSelectFile={(path) => { openFile(path); closeSidebar() }}
+                onSelectFile={(path) => { openFile(path); closePanel() }}
                 onDeleteFile={handleDeleteFile}
                 onUploadFiles={handleUploadFiles}
-                onShowDiff={() => { handleShowDiff(); closeSidebar() }}
-                onSelectCommit={(hash) => { handleSelectCommit(hash); closeSidebar() }}
-                onOpenView={(view) => { handleOpenView(view); closeSidebar() }}
+                onShowDiff={() => { handleShowDiff(); closePanel() }}
+                onSelectCommit={(hash) => { handleSelectCommit(hash); closePanel() }}
+                onOpenView={(view) => { handleOpenView(view); closePanel() }}
                 gitStatus={gitStatus}
                 gitLog={gitLog}
               />

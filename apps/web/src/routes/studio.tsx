@@ -9,6 +9,8 @@ import { StudioErrorBoundary } from '#/features/studio/StudioErrorBoundary'
 import { PanicSaveProvider } from '#/features/agents/PanicSaveContext'
 import { StudioRail } from '#/features/studio/StudioRail'
 import { StudioShellProvider } from '#/features/studio/StudioShellContext'
+import { FloatingEvents } from '#/features/studio/FloatingEvents'
+import { FloatingChat } from '#/features/studio/FloatingChat'
 
 export const Route = createFileRoute('/studio')({
   component: StudioLayout,
@@ -31,7 +33,6 @@ function StudioSyncShell() {
   const { state: compileState, compile } = useCompiler()
   const debounceRef = useRef<ReturnType<typeof setTimeout>>(undefined)
 
-  // Detect active agent from route matches (/studio/agents/$id)
   const matches = useMatches()
   const activeAgentId = useMemo(() => {
     for (const match of matches) {
@@ -50,14 +51,12 @@ function StudioSyncShell() {
   const { getAgent } = useAgents()
   const activeAgent = activeAgentId ? getAgent(activeAgentId) : undefined
 
-  // Build effective library: merge agent config when viewing an agent
   const effectiveLibrary = useMemo(() => {
     if (!library) return library
     if (!activeAgent) return library
     return agentToLibrary(activeAgent, library)
   }, [library, activeAgent])
 
-  // Auto-compile when effective library changes while panel is open
   useEffect(() => {
     if (!panelOpen || !effectiveLibrary) return
     clearTimeout(debounceRef.current)
@@ -65,17 +64,13 @@ function StudioSyncShell() {
     return () => clearTimeout(debounceRef.current)
   }, [effectiveLibrary, panelOpen])
 
-  // Immediate compile when panel opens
   useEffect(() => {
     if (panelOpen && effectiveLibrary) {
       compile(effectiveLibrary)
     }
   }, [panelOpen])
 
-  // Only show compiler output panel on agent detail pages
   const showCompilerPanel = Boolean(activeAgentId)
-
-  // Session page is full-screen — no padding
   const pathname = useRouterState({ select: (s) => s.location.pathname })
   const isSession = pathname.startsWith('/studio/session')
 
@@ -83,6 +78,7 @@ function StudioSyncShell() {
     <div className="flex-1 overflow-hidden min-w-0 flex relative">
       <StudioRail />
 
+      {/* Content — full bleed, no docked sidebars */}
       <main className="flex-1 min-w-0 flex min-h-0 overflow-hidden">
         <div className={`flex-1 min-w-0 ${isSession ? 'flex flex-col overflow-hidden' : 'overflow-auto'}`}>
           <Outlet />
@@ -97,6 +93,10 @@ function StudioSyncShell() {
           </div>
         )}
       </main>
+
+      {/* Floating overlays — always accessible */}
+      <FloatingEvents />
+      <FloatingChat />
     </div>
   )
 }

@@ -1,92 +1,125 @@
-import { useNavigate, useRouterState } from '@tanstack/react-router'
-import { Users, Zap, Layers, Settings, PanelLeft } from 'lucide-react'
+import {
+  FolderTree, GitBranch, LayoutGrid, Briefcase,
+  Activity, MessageSquare, Settings,
+  type LucideIcon,
+} from 'lucide-react'
 import { Button } from '@ship/primitives'
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@ship/primitives'
 import { Separator } from '@ship/primitives'
-import { useStudioShell } from './StudioShellContext'
+import { ThemeToggle } from '@ship/primitives'
+import { useStudioShell, type PanelId } from './StudioShellContext'
+import { useDaemon } from './hooks/useDaemon'
 
-const NAV_ITEMS = [
-  { to: '/studio/session', icon: Layers, label: 'Session' },
-  { to: '/studio/agents', icon: Users, label: 'Agents' },
-  { to: '/studio/skills', icon: Zap, label: 'Skills' },
-] as const
+interface RailEntry {
+  id: PanelId
+  icon: LucideIcon
+  label: string
+  kbd?: string
+}
 
-const BOTTOM_ITEMS = [
-  { to: '/studio/settings', icon: Settings, label: 'Settings' },
-] as const
+const PANEL_ITEMS: RailEntry[] = [
+  { id: 'files', icon: FolderTree, label: 'Files', kbd: 'Cmd+B' },
+  { id: 'git', icon: GitBranch, label: 'Git' },
+  { id: 'views', icon: LayoutGrid, label: 'Views' },
+  { id: 'jobs', icon: Briefcase, label: 'Jobs', kbd: 'Cmd+Shift+J' },
+]
 
 export function StudioRail() {
-  const pathname = useRouterState({ select: (s) => s.location.pathname })
-  const navigate = useNavigate()
-  const { sidebarOpen, toggleSidebar } = useStudioShell()
+  const { activePanel, togglePanel, eventsOpen, toggleEvents, chatOpen, toggleChat } = useStudioShell()
+  const { connected } = useDaemon()
 
   return (
     <TooltipProvider>
       <nav className="w-12 shrink-0 bg-card border-r border-border/60 flex flex-col items-center py-2 gap-1">
-        {/* Sidebar toggle */}
+        {/* Project logo + connection status */}
+        <Tooltip>
+          <TooltipTrigger asChild>
+            <button className="w-8 h-8 rounded-lg flex items-center justify-center mb-1 transition-colors hover:bg-muted">
+              <div className="relative">
+                <img src="/ship-logos/ship_logo.svg" alt="" className="size-4" />
+                <span className={`absolute -bottom-0.5 -right-0.5 w-1.5 h-1.5 rounded-full ${connected ? 'bg-status-green' : 'bg-status-red'}`} />
+              </div>
+            </button>
+          </TooltipTrigger>
+          <TooltipContent side="right">
+            {connected ? 'Connected to daemon' : 'Daemon disconnected'}
+          </TooltipContent>
+        </Tooltip>
+
+        <Separator className="w-6 my-1" />
+
+        {/* Panel toggles — each opens an overlay */}
+        {PANEL_ITEMS.map((entry) => (
+          <Tooltip key={entry.id}>
+            <TooltipTrigger asChild>
+              <Button
+                variant="ghost"
+                size="icon"
+                className={`size-8 ${activePanel === entry.id ? 'bg-primary/10 text-primary' : ''}`}
+                onClick={() => togglePanel(entry.id)}
+              >
+                <entry.icon className="size-4" strokeWidth={activePanel === entry.id ? 2.2 : 1.8} />
+              </Button>
+            </TooltipTrigger>
+            <TooltipContent side="right">
+              {entry.label}{entry.kbd ? ` (${entry.kbd})` : ''}
+            </TooltipContent>
+          </Tooltip>
+        ))}
+
+        <div className="flex-1" />
+
+        {/* Floating toggles */}
+        <Separator className="w-6 mb-1" />
+
         <Tooltip>
           <TooltipTrigger asChild>
             <Button
               variant="ghost"
               size="icon"
-              className={`size-8 mb-1 ${sidebarOpen ? 'bg-primary/10 text-primary' : ''}`}
-              onClick={toggleSidebar}
+              className={`size-8 ${eventsOpen ? 'bg-primary/10 text-primary' : ''}`}
+              onClick={toggleEvents}
             >
-              <PanelLeft className="size-4" />
+              <Activity className="size-4" strokeWidth={eventsOpen ? 2.2 : 1.8} />
             </Button>
           </TooltipTrigger>
-          <TooltipContent side="right">Toggle sidebar</TooltipContent>
+          <TooltipContent side="right">Events</TooltipContent>
+        </Tooltip>
+
+        <Tooltip>
+          <TooltipTrigger asChild>
+            <Button
+              variant="ghost"
+              size="icon"
+              className={`size-8 ${chatOpen ? 'bg-primary/10 text-primary' : ''}`}
+              onClick={toggleChat}
+            >
+              <MessageSquare className="size-4" strokeWidth={chatOpen ? 2.2 : 1.8} />
+            </Button>
+          </TooltipTrigger>
+          <TooltipContent side="right">Agent Chat</TooltipContent>
         </Tooltip>
 
         <Separator className="w-6 my-1" />
 
-        {/* Main nav */}
-        <div className="flex flex-col items-center gap-1">
-          {NAV_ITEMS.map((item) => {
-            const isActive = pathname.startsWith(item.to)
-            const Icon = item.icon
-            return (
-              <Tooltip key={item.to}>
-                <TooltipTrigger asChild>
-                  <Button
-                    variant="ghost"
-                    size="icon"
-                    className={`size-8 ${isActive ? 'bg-primary/10 text-primary' : ''}`}
-                    onClick={() => void navigate({ to: item.to })}
-                  >
-                    <Icon className="size-4" strokeWidth={isActive ? 2.2 : 1.8} />
-                  </Button>
-                </TooltipTrigger>
-                <TooltipContent side="right">{item.label}</TooltipContent>
-              </Tooltip>
-            )
-          })}
-        </div>
+        {/* Theme + Settings */}
+        <Tooltip>
+          <TooltipTrigger asChild>
+            <div className="size-8 flex items-center justify-center">
+              <ThemeToggle variant="icon" />
+            </div>
+          </TooltipTrigger>
+          <TooltipContent side="right">Theme</TooltipContent>
+        </Tooltip>
 
-        {/* Spacer */}
-        <div className="flex-1" />
-
-        {/* Bottom */}
-        <Separator className="w-6 mb-1" />
-        {BOTTOM_ITEMS.map((item) => {
-          const isActive = pathname.startsWith(item.to)
-          const Icon = item.icon
-          return (
-            <Tooltip key={item.to}>
-              <TooltipTrigger asChild>
-                <Button
-                  variant="ghost"
-                  size="icon"
-                  className={`size-8 ${isActive ? 'bg-primary/10 text-primary' : ''}`}
-                  onClick={() => void navigate({ to: item.to })}
-                >
-                  <Icon className="size-4" strokeWidth={isActive ? 2.2 : 1.8} />
-                </Button>
-              </TooltipTrigger>
-              <TooltipContent side="right">{item.label}</TooltipContent>
-            </Tooltip>
-          )
-        })}
+        <Tooltip>
+          <TooltipTrigger asChild>
+            <Button variant="ghost" size="icon" className="size-8">
+              <Settings className="size-4" />
+            </Button>
+          </TooltipTrigger>
+          <TooltipContent side="right">Settings</TooltipContent>
+        </Tooltip>
       </nav>
     </TooltipProvider>
   )
