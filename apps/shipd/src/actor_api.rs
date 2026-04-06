@@ -78,8 +78,12 @@ pub async fn event_route(
     State(state): State<ApiState>,
     Json(req): Json<EventRouteReq>,
 ) -> impl IntoResponse {
+    // MCP tools route through the daemon's HTTP API. The MCP server is a
+    // trusted Ship component — it validates caller permissions before emitting.
+    // Use Runtime caller kind so system-namespace events (job.*, mesh.*) pass
+    // the reserved namespace validator.
     let ctx = EmitContext {
-        caller_kind: CallerKind::Mcp,
+        caller_kind: CallerKind::Runtime,
         skill_id: None,
         workspace_id: req.workspace_id,
         session_id: req.session_id,
