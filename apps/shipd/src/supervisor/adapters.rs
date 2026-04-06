@@ -241,15 +241,19 @@ impl JobExecutor for ProcessExecutor {
                 }
             }
             // Fire the stop hook — emit job.completed via daemon API
-            if let Ok(port_str) = std::fs::read_to_string(
-                dirs::home_dir().unwrap_or_default().join(".ship/network.port")
+            let home = dirs::home_dir().unwrap_or_default().join(".ship");
+            if let (Ok(port_str), Ok(token)) = (
+                std::fs::read_to_string(home.join("network.port")),
+                std::fs::read_to_string(home.join("network.token")),
             ) {
                 let port = port_str.trim();
+                let token = token.trim();
                 let _ = std::process::Command::new("curl")
                     .args([
                         "-sf", "-X", "POST",
                         &format!("http://127.0.0.1:{port}/api/runtime/jobs/end"),
                         "-H", "Content-Type: application/json",
+                        "-H", &format!("Authorization: Bearer {token}"),
                         "-d", &format!("{{\"slug\":\"{slug}\"}}"),
                     ])
                     .status();
