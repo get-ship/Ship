@@ -19,6 +19,7 @@ import { useGitStatus, useGitLog, useGitDiff } from '#/features/studio/session/u
 import { SessionSkeleton } from '#/features/studio/session/SessionSkeleton'
 import { DropZoneOverlay } from '#/features/studio/session/DropZoneOverlay'
 import { ViewHost } from '#/features/studio/views/ViewHost'
+import { useStudioShell } from '#/features/studio/StudioShellContext'
 
 export const Route = createFileRoute('/studio/session')({
   component: SessionPage,
@@ -141,6 +142,8 @@ function SessionPage() {
   const showDiff = !showView && viewMode === 'diff'
   const activeDiffText = selectedCommitHash ? commitDiff : diffText
 
+  const { sidebarOpen, closeSidebar } = useStudioShell()
+
   return (
     <>
       <div className="flex md:hidden flex-col items-center justify-center gap-4 px-8 py-20 text-center min-h-[60vh]">
@@ -159,20 +162,28 @@ function SessionPage() {
         onDragLeave={handleDragLeave}
         onDrop={handleDrop}
       >
-        <div className="flex flex-1 min-h-0">
-          <SessionSidebar
-            files={files}
-            activeFile={activeTabPath}
-            onSelectFile={openFile}
-            onDeleteFile={handleDeleteFile}
-            onUploadFiles={handleUploadFiles}
-            onShowDiff={handleShowDiff}
-            onSelectCommit={handleSelectCommit}
-            onOpenView={handleOpenView}
-            gitStatus={gitStatus}
-            gitLog={gitLog}
-          />
+        {/* Slide-over sidebar */}
+        {sidebarOpen && (
+          <>
+            <div className="absolute inset-0 z-30" onClick={closeSidebar} />
+            <div className="absolute left-0 top-0 bottom-0 w-64 z-40 bg-card border-r border-border/60 shadow-lg animate-in slide-in-from-left-2 duration-150">
+              <SessionSidebar
+                files={files}
+                activeFile={activeTabPath}
+                onSelectFile={(path) => { openFile(path); closeSidebar() }}
+                onDeleteFile={handleDeleteFile}
+                onUploadFiles={handleUploadFiles}
+                onShowDiff={() => { handleShowDiff(); closeSidebar() }}
+                onSelectCommit={(hash) => { handleSelectCommit(hash); closeSidebar() }}
+                onOpenView={(view) => { handleOpenView(view); closeSidebar() }}
+                gitStatus={gitStatus}
+                gitLog={gitLog}
+              />
+            </div>
+          </>
+        )}
 
+        <div className="flex flex-1 min-h-0">
           <div className="flex-1 flex min-w-0 min-h-0">
             <div className="flex-1 flex flex-col min-w-0 min-h-0">
               <SessionTabBar
@@ -242,7 +253,7 @@ function SessionPage() {
                     <div className="text-center">
                       <Layers className="size-8 mx-auto mb-3 opacity-40" />
                       <p className="text-sm font-medium">No file open</p>
-                      <p className="text-xs mt-1">Select a file from the sidebar</p>
+                      <p className="text-xs mt-1">Toggle sidebar or press Cmd+B</p>
                     </div>
                   </div>
                 )}

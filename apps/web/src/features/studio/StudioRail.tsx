@@ -1,8 +1,9 @@
 import { useNavigate, useRouterState } from '@tanstack/react-router'
-import { Users, Zap, Layers, Settings } from 'lucide-react'
+import { Users, Zap, Layers, Settings, PanelLeft } from 'lucide-react'
 import { Button } from '@ship/primitives'
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@ship/primitives'
 import { Separator } from '@ship/primitives'
+import { useStudioShell } from './StudioShellContext'
 
 const NAV_ITEMS = [
   { to: '/studio/session', icon: Layers, label: 'Session' },
@@ -17,23 +18,24 @@ const BOTTOM_ITEMS = [
 export function StudioRail() {
   const pathname = useRouterState({ select: (s) => s.location.pathname })
   const navigate = useNavigate()
+  const { sidebarOpen, toggleSidebar } = useStudioShell()
 
   return (
     <TooltipProvider>
       <nav className="w-12 shrink-0 bg-card border-r border-border/60 flex flex-col items-center py-2 gap-1">
-        {/* Logo */}
+        {/* Sidebar toggle */}
         <Tooltip>
           <TooltipTrigger asChild>
             <Button
               variant="ghost"
               size="icon"
-              className="size-8 mb-1"
-              onClick={() => void navigate({ to: '/studio/session' })}
+              className={`size-8 mb-1 ${sidebarOpen ? 'bg-primary/10 text-primary' : ''}`}
+              onClick={toggleSidebar}
             >
-              <img src="/ship-logos/ship_logo.svg" alt="" className="size-4" />
+              <PanelLeft className="size-4" />
             </Button>
           </TooltipTrigger>
-          <TooltipContent side="right">Ship Studio</TooltipContent>
+          <TooltipContent side="right">Toggle sidebar</TooltipContent>
         </Tooltip>
 
         <Separator className="w-6 my-1" />

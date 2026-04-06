@@ -8,6 +8,7 @@ import { agentToLibrary } from '#/features/agents/agent-to-library'
 import { StudioErrorBoundary } from '#/features/studio/StudioErrorBoundary'
 import { PanicSaveProvider } from '#/features/agents/PanicSaveContext'
 import { StudioRail } from '#/features/studio/StudioRail'
+import { StudioShellProvider } from '#/features/studio/StudioShellContext'
 
 export const Route = createFileRoute('/studio')({
   component: StudioLayout,
@@ -18,7 +19,9 @@ export const Route = createFileRoute('/studio')({
 function StudioLayout() {
   return (
     <PanicSaveProvider>
-      <StudioSyncShell />
+      <StudioShellProvider>
+        <StudioSyncShell />
+      </StudioShellProvider>
     </PanicSaveProvider>
   )
 }
