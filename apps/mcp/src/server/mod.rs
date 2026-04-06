@@ -129,7 +129,8 @@ impl ShipServer {
         let actor_id = self.resolve_actor_id().await;
 
         // Compute skill-derived subscriptions
-        let skills_list = runtime::list_skills(&project_dir).unwrap_or_default();
+        let ship_dir = project_dir.join(".ship");
+        let skills_list = runtime::list_skills(&ship_dir).unwrap_or_default();
         let skill_subs =
             runtime::events::artifact_events::skill_event_subscriptions(&skills_list);
 
@@ -264,7 +265,7 @@ impl ShipServer {
         let project_dir = self.get_effective_project_dir().await.ok();
         let agent_name = project_dir
             .as_ref()
-            .and_then(|d| runtime::get_active_agent(Some(d.clone())).ok().flatten())
+            .and_then(|d| runtime::get_active_agent(Some(d.join(".ship"))).ok().flatten())
             .map(|a| a.id)
             .unwrap_or_else(|| "mcp".to_string());
 
@@ -303,20 +304,20 @@ impl ShipServer {
             Ok(d) => d,
             Err(_) => return,
         };
-        let project_root = project_dir.parent().unwrap_or(&project_dir);
-        let branch = match tool_gate::current_branch(project_root) {
+        let ship_dir = project_dir.join(".ship");
+        let branch = match tool_gate::current_branch(&project_dir) {
             Ok(b) => b,
             Err(_) => return,
         };
 
         // Reconcile worktree state against git before session creation.
         let _ = runtime::reconcile_workspace(
-            &project_dir,
+            &ship_dir,
             &branch,
-            project_root,
+            &project_dir,
         );
 
-        let agent_id = runtime::get_active_agent(Some(project_dir.clone()))
+        let agent_id = runtime::get_active_agent(Some(ship_dir.clone()))
             .ok()
             .flatten()
             .map(|a| a.id.clone());
@@ -338,7 +339,7 @@ impl ShipServer {
 
         // Start a fresh session via the runtime.
         match runtime::start_workspace_session(
-            &project_dir,
+            &ship_dir,
             &branch,
             None,
             agent_id,

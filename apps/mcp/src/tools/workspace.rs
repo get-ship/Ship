@@ -10,12 +10,13 @@ use crate::requests::{ActivateWorkspaceRequest, CreateWorkspaceRequest, ListWork
 use crate::util::configured_worktree_dir;
 
 pub fn activate_workspace(project_dir: &Path, req: ActivateWorkspaceRequest) -> String {
-    let mut workspace = match runtime_activate_workspace(project_dir, &req.branch) {
+    let ship_dir = project_dir.join(".ship");
+    let mut workspace = match runtime_activate_workspace(&ship_dir, &req.branch) {
         Ok(workspace) => workspace,
         Err(err) => return format!("Error: {}", err),
     };
     if let Some(agent_id) = req.agent_id.as_deref() {
-        workspace = match set_workspace_active_agent(project_dir, &req.branch, Some(agent_id)) {
+        workspace = match set_workspace_active_agent(&ship_dir, &req.branch, Some(agent_id)) {
             Ok(workspace) => workspace,
             Err(err) => return format!("Error: {}", err),
         };
@@ -25,7 +26,8 @@ pub fn activate_workspace(project_dir: &Path, req: ActivateWorkspaceRequest) -> 
 }
 
 pub fn list_workspaces(project_dir: &Path, req: ListWorkspacesRequest) -> String {
-    let workspaces = match runtime_list_workspaces(project_dir) {
+    let ship_dir = project_dir.join(".ship");
+    let workspaces = match runtime_list_workspaces(&ship_dir) {
         Ok(ws) => ws,
         Err(e) => return format!("Error listing workspaces: {}", e),
     };
@@ -42,9 +44,7 @@ pub fn list_workspaces(project_dir: &Path, req: ListWorkspacesRequest) -> String
 }
 
 pub fn create_workspace(project_dir: &Path, req: CreateWorkspaceRequest) -> String {
-    let Some(project_root) = project_dir.parent() else {
-        return "Error: could not resolve project root from ship dir".to_string();
-    };
+    let project_root = project_dir;
 
     let branch = req
         .branch

@@ -11,7 +11,8 @@ use crate::requests::{
 use crate::tools::studio::{collect_reference_docs, collect_skill_files, parse_skill_frontmatter};
 
 pub fn list_skills(project_dir: &Path, req: ListSkillsRequest) -> String {
-    let skills = match list_effective_skills(project_dir) {
+    let ship_dir = project_dir.join(".ship");
+    let skills = match list_effective_skills(&ship_dir) {
         Ok(s) => s,
         Err(e) => return format!("Error listing skills: {}", e),
     };
@@ -137,8 +138,9 @@ fn read_skill_from_dir(id: &str, skill_dir: &Path) -> Option<PullSkill> {
 }
 
 /// `get_skill_vars` MCP tool — return merged variable state for a skill.
-pub fn get_skill_vars_tool(ship_dir: &Path, req: GetSkillVarsRequest) -> String {
-    match get_skill_vars(ship_dir, &req.skill_id) {
+pub fn get_skill_vars_tool(project_dir: &Path, req: GetSkillVarsRequest) -> String {
+    let ship_dir = project_dir.join(".ship");
+    match get_skill_vars(&ship_dir, &req.skill_id) {
         Ok(Some(vars)) => match serde_json::to_string_pretty(&vars) {
             Ok(json) => json,
             Err(e) => format!("Error serializing vars: {e}"),
@@ -152,7 +154,8 @@ pub fn get_skill_vars_tool(ship_dir: &Path, req: GetSkillVarsRequest) -> String 
 }
 
 /// `set_skill_var` MCP tool — write a single variable value.
-pub fn set_skill_var_tool(ship_dir: &Path, req: SetSkillVarRequest) -> String {
+pub fn set_skill_var_tool(project_dir: &Path, req: SetSkillVarRequest) -> String {
+    let ship_dir = project_dir.join(".ship");
     let value: serde_json::Value = match serde_json::from_str(&req.value_json) {
         Ok(v) => v,
         Err(e) => {
@@ -163,15 +166,16 @@ pub fn set_skill_var_tool(ship_dir: &Path, req: SetSkillVarRequest) -> String {
         }
     };
 
-    match set_skill_var(ship_dir, &req.skill_id, &req.key, value) {
+    match set_skill_var(&ship_dir, &req.skill_id, &req.key, value) {
         Ok(()) => format!("set {}.{} = {}", req.skill_id, req.key, req.value_json),
         Err(e) => format!("Error: {e}"),
     }
 }
 
 /// `list_skill_vars` MCP tool — list all skills with configured variables.
-pub fn list_skill_vars_tool(ship_dir: &Path, req: ListSkillVarsRequest) -> String {
-    let all = match list_skill_vars(ship_dir) {
+pub fn list_skill_vars_tool(project_dir: &Path, req: ListSkillVarsRequest) -> String {
+    let ship_dir = project_dir.join(".ship");
+    let all = match list_skill_vars(&ship_dir) {
         Ok(v) => v,
         Err(e) => return format!("Error listing skill vars: {e}"),
     };

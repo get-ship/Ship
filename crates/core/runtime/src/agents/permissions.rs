@@ -120,6 +120,11 @@ fn default_command_allow() -> Vec<String> {
 fn default_command_deny() -> Vec<String> {
     vec![
         "rm -rf".to_string(),
+        "rm *.db".to_string(),
+        "rm *.db-wal".to_string(),
+        "rm *.db-shm".to_string(),
+        "rm *.sqlite".to_string(),
+        "rm *.sqlite3".to_string(),
         "git push --force".to_string(),
         "npm publish".to_string(),
         "cargo publish".to_string(),
@@ -192,15 +197,17 @@ pub fn get_permissions(ship_dir: PathBuf) -> Result<Permissions> {
         return Ok(Permissions::default());
     }
     let content = fs::read_to_string(&path)?;
-    // If the file uses named-section format (e.g. [ship-standard], [ship-autonomous]),
-    // the flat Permissions struct cannot deserialize it — all fields default to empty.
-    // Detect this case: if the TOML has top-level table keys that are not recognized
-    // flat-format section names, treat the file as a named-preset reference and
-    // return defaults rather than returning silently wrong data.
-    if is_named_preset_format(&content) {
-        return Ok(Permissions::default());
+    // permissions.jsonc is JSONC; legacy .toml files may still exist.
+    let ext = path.extension().and_then(|e| e.to_str()).unwrap_or("");
+    if ext == "jsonc" || ext == "json" {
+        Ok(compiler::jsonc::from_jsonc_str(&content)?)
+    } else {
+        // Legacy TOML path
+        if is_named_preset_format(&content) {
+            return Ok(Permissions::default());
+        }
+        Ok(toml::from_str(&content)?)
     }
-    Ok(toml::from_str(&content)?)
 }
 
 /// Returns true when the TOML content appears to be a named-preset file

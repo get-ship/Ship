@@ -92,7 +92,7 @@ impl ServerHandler for ShipServer {
     ) -> Result<CallToolResult, ErrorData> {
         let tool_name = request.name.to_string();
         if let Ok(project_dir) = self.get_effective_project_dir().await
-            && let Err(message) = Self::enforce_mode_tool_gate(&project_dir, &tool_name)
+            && let Err(message) = Self::enforce_mode_tool_gate(&project_dir.join(".ship"), &tool_name)
         {
             return Ok(CallToolResult::error(vec![Content::text(message)]));
         }
@@ -114,7 +114,8 @@ impl ServerHandler for ShipServer {
     ) -> Result<ListToolsResult, ErrorData> {
         let all_tools = self.tool_router.list_all();
         let visible = if let Ok(project_dir) = self.get_effective_project_dir().await {
-            let active_agent = get_active_agent(Some(project_dir.clone())).unwrap_or(None);
+            let ship_dir = project_dir.join(".ship");
+            let active_agent = get_active_agent(Some(ship_dir)).unwrap_or(None);
             all_tools
                 .into_iter()
                 .filter(|t| {
