@@ -406,6 +406,6 @@ mod tests {
 
     #[test]
     fn all_constants_have_expected_count() {
-        assert_eq!(ALL.len(), 42, "exactly 42 event type constants required");
+        assert_eq!(ALL.len(), 43, "exactly 43 event type constants required");
     }
 }
