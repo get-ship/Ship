@@ -6,13 +6,98 @@
 use serde::{Deserialize, Serialize};
 use specta::Type;
 
-/// A single phase in a job pipeline.
+/// A single phase in a job pipeline (legacy linear format).
 #[derive(Debug, Clone, Serialize, Deserialize, Type)]
 pub struct PipelinePhase {
     pub agent: String,
     pub goal: String,
     #[serde(default)]
     pub model: Option<String>,
+}
+
+/// Step type in a pipeline DAG.
+#[derive(Debug, Clone, Serialize, Deserialize, Type, PartialEq)]
+#[serde(rename_all = "snake_case")]
+pub enum StepType {
+    Agent,
+    Gate,
+    Merge,
+    Human,
+}
+
+/// A single step in a pipeline DAG.
+#[derive(Debug, Clone, Serialize, Deserialize, Type)]
+pub struct PipelineStep {
+    /// Step identifier, unique within the pipeline.
+    pub id: String,
+    /// What kind of step this is.
+    #[serde(rename = "type")]
+    pub step_type: StepType,
+    /// Agent profile to use (required for agent/gate steps).
+    #[serde(default)]
+    pub agent: Option<String>,
+    /// Steps that must complete before this one runs.
+    #[serde(default)]
+    pub after: Vec<String>,
+    /// Model override for this step.
+    #[serde(default)]
+    pub model: Option<String>,
+    /// Provider override for this step.
+    #[serde(default)]
+    pub provider: Option<String>,
+}
+
+/// A pipeline definition — a DAG of steps.
+#[derive(Debug, Clone, Serialize, Deserialize, Type)]
+pub struct Pipeline {
+    pub steps: Vec<PipelineStep>,
+}
+
+impl Pipeline {
+    /// Default pipeline: implement → gate → merge.
+    pub fn default_for_agent(agent: &str) -> Self {
+        Self {
+            steps: vec![
+                PipelineStep {
+                    id: "implement".to_string(),
+                    step_type: StepType::Agent,
+                    agent: Some(agent.to_string()),
+                    after: vec![],
+                    model: None,
+                    provider: None,
+                },
+                PipelineStep {
+                    id: "gate".to_string(),
+                    step_type: StepType::Gate,
+                    agent: Some("reviewer".to_string()),
+                    after: vec!["implement".to_string()],
+                    model: Some("sonnet".to_string()),
+                    provider: None,
+                },
+                PipelineStep {
+                    id: "merge".to_string(),
+                    step_type: StepType::Merge,
+                    agent: None,
+                    after: vec!["gate".to_string()],
+                    model: None,
+                    provider: None,
+                },
+            ],
+        }
+    }
+
+    /// Find root steps (no dependencies).
+    pub fn root_steps(&self) -> Vec<&PipelineStep> {
+        self.steps.iter().filter(|s| s.after.is_empty()).collect()
+    }
+
+    /// Find steps unblocked by completed step IDs.
+    pub fn unblocked_steps(&self, completed: &[String]) -> Vec<&PipelineStep> {
+        self.steps.iter()
+            .filter(|s| !completed.contains(&s.id))
+            .filter(|s| s.after.iter().all(|dep| completed.contains(dep)))
+            .collect()
+    }
 }
 
 /// Emitted when a job is created. `entity_id` in the envelope is the job_id.
@@ -28,10 +113,12 @@ pub struct JobCreatedPayload {
     pub provider: Option<String>,
     #[serde(default)]
     pub depends_on: Option<Vec<String>>,
-    /// Multi-phase pipeline. If set, overrides `agent` — each phase dispatches
-    /// sequentially in the same worktree. Phase 0 uses `agent` field as default.
+    /// Legacy linear pipeline. Kept for backward compat.
     #[serde(default)]
     pub pipeline: Option<Vec<PipelinePhase>>,
+    /// DAG pipeline. Takes precedence over `pipeline` if both are set.
+    #[serde(default)]
+    pub steps: Option<Pipeline>,
 }
 
 /// Emitted when the job is assigned to a worktree and (optionally) a process.

@@ -158,6 +158,7 @@ pub(crate) async fn dispatch_ready_pending_jobs(
             spec_path: job.spec_path.clone(),
             depends_on: None, // deps are resolved
             pipeline: job.pipeline.clone(),
+            steps: job.steps.clone(),
             plan_id: None,
             model: None,
             provider: None,

@@ -665,6 +665,7 @@ async fn completing_dependency_unblocks_pending_job() {
             provider: None,
             depends_on: Some(vec!["upstream-a".to_string(), "upstream-b".to_string()]),
             pipeline: None,
+            steps: None,
         },
     );
 

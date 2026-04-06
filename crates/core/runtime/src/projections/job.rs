@@ -42,12 +42,21 @@ pub struct JobRecord {
     pub error: Option<String>,
     pub created_at: DateTime<Utc>,
     pub updated_at: DateTime<Utc>,
-    /// Pipeline phases (if multi-phase job).
+    /// Legacy linear pipeline phases.
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub pipeline: Option<Vec<crate::events::job::PipelinePhase>>,
-    /// Index of the currently active pipeline phase.
+    /// DAG pipeline steps.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub steps: Option<crate::events::job::Pipeline>,
+    /// Index of the currently active pipeline phase (legacy).
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub current_phase: Option<usize>,
+    /// IDs of completed pipeline steps (DAG).
+    #[serde(default, skip_serializing_if = "Vec::is_empty")]
+    pub completed_steps: Vec<String>,
+    /// ID of the currently running step.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub current_step: Option<String>,
 }
 
 /// Apply a single event to an existing `JobRecord`.
@@ -134,6 +143,8 @@ pub fn project(events: &[EventEnvelope]) -> HashMap<String, JobRecord> {
                     });
                 let pipeline: Option<Vec<crate::events::job::PipelinePhase>> =
                     serde_json::from_value(p["pipeline"].clone()).ok();
+                let steps: Option<crate::events::job::Pipeline> =
+                    serde_json::from_value(p["steps"].clone()).ok();
                 let record = JobRecord {
                     job_id: job_id.clone(),
                     slug: p["slug"].as_str().unwrap_or("").to_string(),
@@ -148,7 +159,10 @@ pub fn project(events: &[EventEnvelope]) -> HashMap<String, JobRecord> {
                     created_at: event.created_at,
                     updated_at: event.created_at,
                     pipeline,
+                    steps,
                     current_phase: None,
+                    completed_steps: vec![],
+                    current_step: None,
                 };
                 map.insert(job_id, record);
             }
