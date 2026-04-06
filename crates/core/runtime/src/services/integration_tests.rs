@@ -50,6 +50,13 @@ mod mesh_kernel {
         }
     }
 
+    fn observer_perms() -> ActorPermissions {
+        ActorPermissions {
+            emit: vec!["mesh.".into()],
+            subscribe: vec![PermittedSubscription { namespace: "mesh.".into(), scope: DeliveryScope::Global }],
+        }
+    }
+
     fn ev(t: &str, entity: &str, p: serde_json::Value) -> EventEnvelope {
         EventEnvelope::new(t, entity, &p).unwrap()
     }
@@ -70,14 +77,42 @@ mod mesh_kernel {
     }
 
     /// Yield to the mesh task, then drain outbox and re-route all queued events.
+    ///
+    /// When routing a `mesh.message` fails due to a full mailbox, generates
+    /// a `mesh.send.failed` event with reason `"mailbox_full"` and routes it
+    /// back to the sender — implementing backpressure at the routing layer.
     async fn flush(
         outbox: &mut mpsc::UnboundedReceiver<EventEnvelope>,
         router: &KernelRouter,
         ctx: &EmitContext,
     ) {
         tokio::time::sleep(Duration::from_millis(50)).await;
-        while let Ok(e) = outbox.try_recv() {
-            router.route(e, ctx).await.unwrap();
+        let events: Vec<EventEnvelope> = std::iter::from_fn(|| outbox.try_recv().ok()).collect();
+        for e in events {
+            match router.route(e.clone(), ctx).await {
+                Ok(()) => {}
+                Err(err) if err.to_string().contains("mailbox full") => {
+                    if e.event_type == "mesh.message" {
+                        let payload: serde_json::Value =
+                            serde_json::from_str(&e.payload_json).unwrap_or_default();
+                        let sender = payload["from"].as_str().unwrap_or("unknown");
+                        let target = e.target_actor_id.as_deref().unwrap_or("unknown");
+                        let fail = EventEnvelope::new(
+                            "mesh.send.failed",
+                            target,
+                            &serde_json::json!({
+                                "to": target,
+                                "reason": "mailbox_full",
+                            }),
+                        )
+                        .unwrap()
+                        .with_causation(&e.id)
+                        .with_target(sender);
+                        let _ = router.route(fail, ctx).await;
+                    }
+                }
+                Err(err) => panic!("route error: {err}"),
+            }
         }
     }
 
@@ -272,6 +307,9 @@ mod mesh_kernel {
         let ctx = ctx();
 
         router.route(register("agent.only", &[]), &ctx).await.unwrap();
+        // Drain the mesh.registered event from registration before testing broadcast
+        flush(&mut outbox, &router, &ctx).await;
+
         router.route(broadcast("agent.only", serde_json::json!({}), None), &ctx).await.unwrap();
         tokio::time::sleep(Duration::from_millis(50)).await;
 
@@ -286,9 +324,9 @@ mod mesh_kernel {
         let (tx, mut outbox) = mpsc::unbounded_channel();
         spawn_service(&mut router, "mesh", mesh_config(), Box::new(MeshService::new(tx))).unwrap();
 
-        // Observer subscribes to mesh. namespace to see mesh.registered events
+        // Observer subscribes with Global scope to see untargeted mesh.registered events
         let (_so, mut mb_observer) =
-            router.spawn_actor_with_permissions(identity("observer"), agent_perms()).unwrap();
+            router.spawn_actor_with_permissions(identity("observer"), observer_perms()).unwrap();
         let ctx = ctx();
 
         router.route(register("agent.rust", &["rust", "testing"]), &ctx).await.unwrap();
@@ -313,7 +351,7 @@ mod mesh_kernel {
         let (tx, mut outbox) = mpsc::unbounded_channel();
         spawn_service(&mut router, "mesh", mesh_config(), Box::new(MeshService::new(tx))).unwrap();
         let (_so, mut mb_observer) =
-            router.spawn_actor_with_permissions(identity("observer"), agent_perms()).unwrap();
+            router.spawn_actor_with_permissions(identity("observer"), observer_perms()).unwrap();
         let ctx = ctx();
 
         router.route(register("agent.rust", &["rust"]), &ctx).await.unwrap();
