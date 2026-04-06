@@ -51,9 +51,18 @@ pub async fn subscribe_job_events(
         }
     };
 
+    let executor: Arc<dyn runtime::services::dispatch_ports::JobExecutor> =
+        if std::env::var("SHIP_EXECUTOR").as_deref() == Ok("process") {
+            tracing::info!("job-dispatch: using ProcessExecutor");
+            Arc::new(adapters::ProcessExecutor)
+        } else {
+            tracing::info!("job-dispatch: using TmuxExecutor");
+            Arc::new(adapters::TmuxExecutor)
+        };
+
     let dctx = Arc::new(DispatchContext {
         isolation: Arc::new(adapters::GitWorktreeIsolation),
-        executor: Arc::new(adapters::TmuxExecutor),
+        executor,
     });
 
     // On startup: replay stale completions and dispatch ready pending jobs.
