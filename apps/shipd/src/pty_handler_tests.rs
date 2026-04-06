@@ -5,38 +5,27 @@ use std::sync::Arc;
 use tempfile::TempDir;
 use tokio::sync::Mutex;
 
-fn make_api_state() -> ApiState {
-    let kernel = {
-        let tmp = std::env::temp_dir().join(format!("ship-pty-test-{}", std::process::id()));
-        let ship_dir = tmp.join(".ship");
-        std::fs::create_dir_all(&ship_dir).unwrap();
-        unsafe { std::env::set_var("SHIP_GLOBAL_DIR", &ship_dir) };
-        runtime::events::init_kernel_router(ship_dir).unwrap()
-    };
+fn make_api_state() -> (ApiState, TempDir) {
+    let tmp = TempDir::new().unwrap();
+    let ship_dir = tmp.path().join(".ship");
+    std::fs::create_dir_all(&ship_dir).unwrap();
+    runtime::db::ensure_db_at(&ship_dir).unwrap();
+    let kernel = runtime::events::init_kernel_router(ship_dir.clone()).unwrap();
     let mesh_registry = Arc::new(tokio::sync::RwLock::new(HashMap::new()));
-    ApiState {
+    let state = ApiState {
         kernel,
         mesh_registry,
         agent_mailboxes: Arc::new(Mutex::new(HashMap::new())),
         pty_connections: Arc::new(Mutex::new(HashMap::new())),
-    }
-}
-
-/// Set up the global DB via init_project on a temp project dir.
-fn setup_db() -> TempDir {
-    let tmp = TempDir::new().unwrap();
-    let ship_dir = tmp.path().join(".ship");
-    unsafe { std::env::set_var("SHIP_GLOBAL_DIR", &ship_dir) };
-    runtime::project::init_project(tmp.path().to_path_buf()).unwrap();
-    runtime::db::ensure_db().unwrap();
-    tmp
+        ship_dir,
+    };
+    (state, tmp)
 }
 
 #[tokio::test(flavor = "multi_thread")]
 async fn pty_returns_404_for_unknown_workspace() {
     use http_body_util::BodyExt;
-    let _tmp = setup_db();
-    let state = make_api_state();
+    let (state, _tmp) = make_api_state();
 
     let req = axum::http::Request::builder()
         .uri("/api/runtime/workspaces/nonexistent/pty")
@@ -65,12 +54,10 @@ async fn pty_returns_404_for_unknown_workspace() {
 #[tokio::test(flavor = "multi_thread")]
 async fn pty_returns_404_when_no_tmux_session() {
     use http_body_util::BodyExt;
-    let _tmp = setup_db();
-    let state = make_api_state();
+    let (state, _tmp) = make_api_state();
 
-    let ship_dir = runtime::project::get_global_dir().unwrap();
     runtime::workspace::create_workspace(
-        &ship_dir,
+        &state.ship_dir,
         runtime::workspace::CreateWorkspaceRequest {
             branch: "feat/pty-no-tmux".to_string(),
             ..Default::default()
@@ -78,7 +65,7 @@ async fn pty_returns_404_when_no_tmux_session() {
     )
     .unwrap();
 
-    let ws = runtime::workspace::get_workspace(&ship_dir, "feat/pty-no-tmux")
+    let ws = runtime::workspace::get_workspace(&state.ship_dir, "feat/pty-no-tmux")
         .unwrap()
         .unwrap();
     let ws_id = ws.id.clone();
@@ -110,12 +97,10 @@ async fn pty_returns_404_when_no_tmux_session() {
 #[tokio::test(flavor = "multi_thread")]
 async fn pty_returns_429_when_over_connection_limit() {
     use http_body_util::BodyExt;
-    let _tmp = setup_db();
-    let state = make_api_state();
+    let (state, _tmp) = make_api_state();
 
-    let ship_dir = runtime::project::get_global_dir().unwrap();
     runtime::workspace::create_workspace(
-        &ship_dir,
+        &state.ship_dir,
         runtime::workspace::CreateWorkspaceRequest {
             branch: "feat/pty-limit".to_string(),
             ..Default::default()
@@ -123,13 +108,13 @@ async fn pty_returns_429_when_over_connection_limit() {
     )
     .unwrap();
 
-    let ws = runtime::workspace::get_workspace(&ship_dir, "feat/pty-limit")
+    let ws = runtime::workspace::get_workspace(&state.ship_dir, "feat/pty-limit")
         .unwrap()
         .unwrap();
     let ws_id = ws.id.clone();
 
     runtime::workspace::set_workspace_tmux_session(
-        &ship_dir,
+        &state.ship_dir,
         "feat/pty-limit",
         Some("test-tmux-session"),
     )

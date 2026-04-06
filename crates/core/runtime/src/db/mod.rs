@@ -8,11 +8,17 @@ pub mod actor_events;
 pub mod adrs;
 pub mod artifact_registry;
 pub mod branch_context;
+pub mod envelope;
 pub mod events;
+pub mod integrity;
 #[cfg(test)]
 mod events_tests;
+#[cfg(test)]
+mod tests_envelope;
 pub mod kv;
 pub mod managed_state;
+pub mod pool;
+pub mod rebuild;
 pub mod schema;
 pub mod session;
 pub mod session_drain;
@@ -23,6 +29,15 @@ pub mod types;
 pub mod workspace_db;
 pub mod workspace_events;
 pub mod workspace_state;
+
+#[cfg(test)]
+mod tests_integrity;
+#[cfg(test)]
+mod tests_pool;
+#[cfg(test)]
+mod tests_rebuild;
+#[cfg(test)]
+mod tests_session_drain;
 
 use anyhow::{Context, Result, anyhow};
 use sqlx::sqlite::SqliteConnectOptions;
@@ -76,6 +91,35 @@ pub fn ensure_db() -> Result<()> {
     // Run migrations. sqlx manages its own `_sqlx_migrations` table.
     block_on_migrate(async { sqlx::migrate!("./migrations").run(&mut conn).await })?;
 
+    Ok(())
+}
+
+/// Ensure the schema is up to date for a database at an explicit path.
+///
+/// Like `ensure_db()` but takes a `ship_dir` instead of deriving it from
+/// `get_global_dir()`. Use this in tests and handlers that receive `ship_dir`
+/// through `ApiState` to avoid env-var races.
+pub fn ensure_db_at(ship_dir: &Path) -> Result<()> {
+    let path = ship_dir.join("platform.db");
+    if let Some(parent) = path.parent() {
+        std::fs::create_dir_all(parent)?;
+    }
+    let url = sqlite_url(&path);
+    let opts = SqliteConnectOptions::from_str(&url)
+        .with_context(|| format!("invalid sqlite url: {url}"))?
+        .create_if_missing(true);
+    let mut conn = block_on(async { SqliteConnection::connect_with(&opts).await })?;
+    block_on(async {
+        sqlx::query("PRAGMA journal_mode = WAL")
+            .execute(&mut conn)
+            .await
+    })?;
+    block_on(async {
+        sqlx::query("PRAGMA foreign_keys = ON")
+            .execute(&mut conn)
+            .await
+    })?;
+    block_on_migrate(async { sqlx::migrate!("./migrations").run(&mut conn).await })?;
     Ok(())
 }
 

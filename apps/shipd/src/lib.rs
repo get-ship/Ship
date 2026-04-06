@@ -4,6 +4,7 @@
 //! `network_status` / `network_stop` for CLI subcommands.
 
 pub mod actor_api;
+pub mod auth;
 mod connections;
 mod handler;
 pub mod human_webhook;
@@ -13,6 +14,11 @@ pub mod rest_api;
 pub mod runtime_api;
 mod server;
 pub mod supervisor;
+
+#[cfg(test)]
+pub mod test_harness;
+#[cfg(test)]
+mod integration_tests;
 
 pub use server::NetworkServer;
 
@@ -34,13 +40,43 @@ use tokio_util::sync::CancellationToken;
 /// Start the network daemon and block until shutdown (SIGINT/SIGTERM).
 pub async fn run_network(host: String, port: u16) -> Result<()> {
     let global_dir = runtime::project::get_global_dir()?;
+
+    // Integrity check before anything touches the database.
+    if global_dir.join("platform.db").exists() {
+        match runtime::db::integrity::check_platform_integrity(&global_dir) {
+            Ok(runtime::db::integrity::IntegrityStatus::Ok) => {
+                tracing::info!("shipd: platform.db integrity check passed");
+            }
+            Ok(runtime::db::integrity::IntegrityStatus::ProjectionsCorrupt { details }) => {
+                tracing::warn!(
+                    "shipd: projection tables corrupt ({details}), will rebuild after startup"
+                );
+                // Projections will be rebuilt via rebuild_projections after kernel init.
+            }
+            Ok(runtime::db::integrity::IntegrityStatus::EventsCorrupt { details }) => {
+                return Err(anyhow!(
+                    "platform.db is corrupt and cannot be recovered: {details}. \
+                     Back up ~/.ship/platform.db and reinitialize with `ship init --global`."
+                ));
+            }
+            Err(e) => {
+                tracing::warn!("shipd: integrity check failed to run: {e}");
+            }
+        }
+    }
+
     let kernel = runtime::events::init_kernel_router(global_dir.clone())
         .map_err(|e| anyhow!("failed to initialize KernelRouter: {e}"))?;
 
     let mesh_registry = connections::spawn_mesh_service(&kernel).await?;
     supervisor::subscribe_workspace_events(kernel.clone(), global_dir.clone()).await;
-    supervisor::job_dispatch::subscribe_job_events(kernel.clone(), global_dir.clone()).await;
+    let dispatch_handle = supervisor::job_dispatch::subscribe_job_events(kernel.clone(), global_dir.clone()).await;
     spawn_human_gateway(&kernel).await;
+
+    let token = Arc::new(auth::generate_token());
+    auth::write_token_file(&global_dir, &token)
+        .map_err(|e| anyhow!("failed to write network.token: {e}"))?;
+    tracing::info!("shipd: auth token written to network.token");
 
     write_port_file(&global_dir, port)?;
     write_pid_file(&global_dir)?;
@@ -74,6 +110,7 @@ pub async fn run_network(host: String, port: u16) -> Result<()> {
         pty_connections: std::sync::Arc::new(tokio::sync::Mutex::new(
             std::collections::HashMap::new(),
         )),
+        ship_dir: global_dir.clone(),
     };
     let webhook_routes = axum::Router::new()
         .route(
@@ -112,6 +149,10 @@ pub async fn run_network(host: String, port: u16) -> Result<()> {
         .route("/views", axum::routing::get(runtime_api::list_views))
         .route("/view/{name}", axum::routing::get(runtime_api::serve_view))
         .route("/events", axum::routing::get(runtime_api::event_stream))
+        .route(
+            "/rebuild-projections",
+            axum::routing::post(runtime_api::rebuild_projections),
+        )
         .route(
             "/workspaces/{id}/pty",
             axum::routing::get(pty_handler::workspace_pty),
@@ -182,6 +223,7 @@ pub async fn run_network(host: String, port: u16) -> Result<()> {
         )
         .with_state(api_state);
 
+    let auth_token = token.clone();
     let app = Router::new()
         .nest("/api", api_routes)
         .nest("/api", hook_routes)
@@ -190,6 +232,9 @@ pub async fn run_network(host: String, port: u16) -> Result<()> {
         .nest("/api", supervisor_routes)
         .nest("/api", project_routes)
         .nest_service("/mcp", service)
+        .layer(axum::middleware::from_fn(move |req, next| {
+            auth::auth_middleware(auth_token.clone(), req, next)
+        }))
         .layer(axum::middleware::from_fn(cors_middleware));
 
     let addr = format!("{host}:{port}");
@@ -205,8 +250,19 @@ pub async fn run_network(host: String, port: u16) -> Result<()> {
         .await
         .map_err(|e| anyhow!("server error: {e}"))?;
 
+    // Graceful shutdown: stop all managed agent processes
+    if let Some(dh) = dispatch_handle {
+        supervisor::graceful_shutdown(
+            &kernel,
+            &mut *dh.registry.lock().await,
+            &*dh.executor,
+        )
+        .await;
+    }
+
     let _ = std::fs::remove_file(global_dir.join("network.port"));
     let _ = std::fs::remove_file(global_dir.join("network.pid"));
+    let _ = std::fs::remove_file(global_dir.join("network.token"));
     tracing::info!("shipd: shutdown complete");
     Ok(())
 }

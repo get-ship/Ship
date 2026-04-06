@@ -3,14 +3,15 @@
 //! These endpoints bypass the MCP protocol — no handshake needed.
 //! ship-mcp calls these to forward mesh operations to the shared kernel.
 
-use axum::{Json, extract::{Path, State}, http::StatusCode, response::IntoResponse};
+use axum::{Extension, Json, extract::{Path, State}, http::StatusCode, response::IntoResponse};
 use axum::response::sse::{Event, KeepAlive, Sse};
-use futures::stream::Stream;
 use runtime::events::{CallerKind, EmitContext, EventEnvelope};
 use runtime::services::mesh::SharedMeshRegistry;
 use serde::{Deserialize, Serialize};
 use std::sync::Arc;
 use tokio::sync::Mutex;
+
+use crate::auth::AuthContext;
 
 pub type SharedKernel = Arc<Mutex<runtime::events::KernelRouter>>;
 
@@ -27,6 +28,28 @@ pub struct ApiState {
     pub mesh_registry: SharedMeshRegistry,
     pub agent_mailboxes: AgentMailboxes,
     pub pty_connections: PtyConnections,
+    pub ship_dir: std::path::PathBuf,
+}
+
+impl ApiState {
+    /// Persist event to platform.db then route through kernel to subscribers.
+    /// This is the single entry point for all daemon-originated events.
+    /// Events from MCP tools are already persisted by the MCP server before
+    /// reaching the daemon via event_route — those skip persistence here.
+    pub async fn persist_and_route(&self, envelope: &EventEnvelope) -> anyhow::Result<()> {
+        // 1. Persist first — event store is the source of truth
+        if let Ok(store) = runtime::events::SqliteEventStore::new() {
+            runtime::events::EventStore::append(&store, envelope)?;
+        }
+        // 2. Route to subscribers
+        let ctx = EmitContext {
+            caller_kind: CallerKind::Runtime,
+            skill_id: None,
+            workspace_id: None,
+            session_id: None,
+        };
+        self.kernel.lock().await.route(envelope.clone(), &ctx).await
+    }
 }
 
 // ---- Request / Response types ----
@@ -65,19 +88,29 @@ pub struct MeshResponse {
 
 // ---- Handlers ----
 
-fn emit_ctx() -> EmitContext {
-    EmitContext {
-        caller_kind: CallerKind::Mcp,
-        skill_id: None,
-        workspace_id: None,
-        session_id: None,
-    }
-}
-
 pub async fn mesh_register(
     State(state): State<ApiState>,
+    Extension(auth): Extension<AuthContext>,
     Json(req): Json<MeshRegisterReq>,
 ) -> impl IntoResponse {
+    // MCP callers must register as their authenticated identity — no impersonation.
+    if auth.caller_kind == CallerKind::Mcp {
+        if let Some(ref bound_id) = auth.agent_id {
+            if bound_id != &req.agent_id {
+                return (
+                    StatusCode::FORBIDDEN,
+                    Json(MeshResponse {
+                        ok: false,
+                        data: serde_json::json!(format!(
+                            "identity mismatch: authenticated as '{}', cannot register as '{}'",
+                            bound_id, req.agent_id
+                        )),
+                    }),
+                );
+            }
+        }
+    }
+
     // Spawn (or re-spawn) an actor in the kernel for this remote agent
     // so messages with target_actor_id can be delivered to its mailbox.
     {
@@ -110,7 +143,8 @@ pub async fn mesh_register(
         Err(e) => return (StatusCode::BAD_REQUEST, Json(MeshResponse { ok: false, data: serde_json::json!(e.to_string()) })),
     };
 
-    match state.kernel.lock().await.route(envelope, &emit_ctx()).await {
+    let ctx = auth.to_daemon_emit_context();
+    match state.kernel.lock().await.route(envelope, &ctx).await {
         Ok(()) => (StatusCode::OK, Json(MeshResponse { ok: true, data: serde_json::json!(format!("registered: {}", req.agent_id)) })),
         Err(e) => (StatusCode::INTERNAL_SERVER_ERROR, Json(MeshResponse { ok: false, data: serde_json::json!(e.to_string()) })),
     }
@@ -118,6 +152,7 @@ pub async fn mesh_register(
 
 pub async fn mesh_send(
     State(state): State<ApiState>,
+    Extension(auth): Extension<AuthContext>,
     Json(req): Json<MeshSendReq>,
 ) -> impl IntoResponse {
     // Route through MeshService via mesh.send event type so it validates
@@ -133,7 +168,8 @@ pub async fn mesh_send(
         Err(e) => return (StatusCode::BAD_REQUEST, Json(MeshResponse { ok: false, data: serde_json::json!(e.to_string()) })),
     };
 
-    match state.kernel.lock().await.route(envelope, &emit_ctx()).await {
+    let ctx = auth.to_daemon_emit_context();
+    match state.kernel.lock().await.route(envelope, &ctx).await {
         Ok(()) => (StatusCode::OK, Json(MeshResponse { ok: true, data: serde_json::json!("sent") })),
         Err(e) => (StatusCode::INTERNAL_SERVER_ERROR, Json(MeshResponse { ok: false, data: serde_json::json!(e.to_string()) })),
     }
@@ -141,6 +177,7 @@ pub async fn mesh_send(
 
 pub async fn mesh_broadcast(
     State(state): State<ApiState>,
+    Extension(auth): Extension<AuthContext>,
     Json(req): Json<MeshBroadcastReq>,
 ) -> impl IntoResponse {
     let mut payload = serde_json::json!({ "from": &req.from, "body": req.body });
@@ -154,7 +191,8 @@ pub async fn mesh_broadcast(
         Err(e) => return (StatusCode::BAD_REQUEST, Json(MeshResponse { ok: false, data: serde_json::json!(e.to_string()) })),
     };
 
-    match state.kernel.lock().await.route(envelope, &emit_ctx()).await {
+    let ctx = auth.to_daemon_emit_context();
+    match state.kernel.lock().await.route(envelope, &ctx).await {
         Ok(()) => (StatusCode::OK, Json(MeshResponse { ok: true, data: serde_json::json!("broadcast sent") })),
         Err(e) => (StatusCode::INTERNAL_SERVER_ERROR, Json(MeshResponse { ok: false, data: serde_json::json!(e.to_string()) })),
     }
@@ -180,6 +218,7 @@ pub async fn mesh_discover(
 
 pub async fn mesh_status_update(
     State(state): State<ApiState>,
+    Extension(auth): Extension<AuthContext>,
     Json(req): Json<MeshStatusReq>,
 ) -> impl IntoResponse {
     let envelope = match EventEnvelope::new(
@@ -193,7 +232,8 @@ pub async fn mesh_status_update(
         Err(e) => return (StatusCode::BAD_REQUEST, Json(MeshResponse { ok: false, data: serde_json::json!(e.to_string()) })),
     };
 
-    match state.kernel.lock().await.route(envelope, &emit_ctx()).await {
+    let ctx = auth.to_daemon_emit_context();
+    match state.kernel.lock().await.route(envelope, &ctx).await {
         Ok(()) => (StatusCode::OK, Json(MeshResponse { ok: true, data: serde_json::json!("status updated") })),
         Err(e) => (StatusCode::INTERNAL_SERVER_ERROR, Json(MeshResponse { ok: false, data: serde_json::json!(e.to_string()) })),
     }
@@ -285,3 +325,7 @@ pub async fn mesh_events(
 
     Ok(Sse::new(stream).keep_alive(KeepAlive::default()))
 }
+
+#[cfg(test)]
+#[path = "rest_api_tests.rs"]
+mod tests;

@@ -10,7 +10,7 @@ use axum::{
     response::IntoResponse,
 };
 use axum::response::sse::{Event, KeepAlive, Sse};
-use runtime::events::{ActorConfig, CallerKind, EmitContext, EventEnvelope};
+use runtime::events::{ActorConfig, EventEnvelope};
 use runtime::events::job::{JobCreatedPayload, event_types};
 use serde::Deserialize;
 
@@ -26,20 +26,8 @@ pub struct SessionsQuery {
 // ---- Handlers ----
 
 /// GET /api/runtime/workspaces
-pub async fn list_workspaces(State(_state): State<ApiState>) -> impl IntoResponse {
-    let ship_dir = match runtime::project::get_global_dir() {
-        Ok(p) => p,
-        Err(e) => {
-            return (
-                StatusCode::INTERNAL_SERVER_ERROR,
-                Json(MeshResponse {
-                    ok: false,
-                    data: serde_json::json!(e.to_string()),
-                }),
-            );
-        }
-    };
-    match runtime::workspace::list_workspaces(&ship_dir) {
+pub async fn list_workspaces(State(state): State<ApiState>) -> impl IntoResponse {
+    match runtime::workspace::list_workspaces(&state.ship_dir) {
         Ok(ws) => (
             StatusCode::OK,
             Json(MeshResponse {
@@ -271,7 +259,12 @@ pub async fn create_job(
         provider: None,
         depends_on: req.depends_on,
         pipeline: None,
+        steps: None,
     };
+
+    // Enrich with pipeline BEFORE persisting — the persisted event must include steps
+    // so projections can track pipeline state.
+    let payload = crate::supervisor::dispatch_pipeline::ensure_pipeline(payload);
 
     let envelope = match EventEnvelope::new(event_types::JOB_CREATED, &job_id, &payload)
         .map(|e| e.with_actor_id("studio"))
@@ -287,15 +280,7 @@ pub async fn create_job(
             );
         }
     };
-
-    let ctx = EmitContext {
-        caller_kind: CallerKind::Mcp,
-        skill_id: None,
-        workspace_id: None,
-        session_id: None,
-    };
-
-    match state.kernel.lock().await.route(envelope, &ctx).await {
+    match state.persist_and_route(&envelope).await {
         Ok(()) => (
             StatusCode::OK,
             Json(MeshResponse {
@@ -340,17 +325,21 @@ pub async fn end_job(
         }
     };
 
-    let job = match jobs.values().find(|j| j.slug == req.slug) {
+    // Find the dispatched job with this slug — prefer dispatched over other statuses
+    let job = match jobs.values()
+        .filter(|j| j.slug == req.slug)
+        .find(|j| j.status == runtime::projections::job::JobStatus::Dispatched)
+    {
         Some(j) => j.clone(),
         None => {
             return (
                 StatusCode::NOT_FOUND,
-                Json(MeshResponse { ok: false, data: serde_json::json!(format!("no job with slug '{}'", req.slug)) }),
+                Json(MeshResponse { ok: false, data: serde_json::json!(format!("no dispatched job with slug '{}'", req.slug)) }),
             );
         }
     };
 
-    // Only complete jobs that are dispatched (running)
+    // Guard: should always be dispatched given the filter above, but keep for clarity
     if job.status != runtime::projections::job::JobStatus::Dispatched {
         return (
             StatusCode::OK,
@@ -375,14 +364,7 @@ pub async fn end_job(
         }
     };
 
-    let ctx = EmitContext {
-        caller_kind: CallerKind::Mcp,
-        skill_id: None,
-        workspace_id: None,
-        session_id: None,
-    };
-
-    match state.kernel.lock().await.route(envelope, &ctx).await {
+    match state.persist_and_route(&envelope).await {
         Ok(()) => (
             StatusCode::OK,
             Json(MeshResponse { ok: true, data: serde_json::json!(format!("job '{}' completed", req.slug)) }),
@@ -390,6 +372,32 @@ pub async fn end_job(
         Err(e) => (
             StatusCode::INTERNAL_SERVER_ERROR,
             Json(MeshResponse { ok: false, data: serde_json::json!(e.to_string()) }),
+        ),
+    }
+}
+
+/// POST /api/runtime/rebuild-projections — rebuild all projections from events.
+pub async fn rebuild_projections(
+    State(state): State<ApiState>,
+) -> impl IntoResponse {
+    match runtime::db::rebuild::rebuild_projections(&state.ship_dir) {
+        Ok(report) => (
+            StatusCode::OK,
+            Json(MeshResponse {
+                ok: true,
+                data: serde_json::json!({
+                    "events_replayed": report.events_replayed,
+                    "projections_rebuilt": report.projections_rebuilt,
+                    "duration_ms": report.duration_ms,
+                }),
+            }),
+        ),
+        Err(e) => (
+            StatusCode::INTERNAL_SERVER_ERROR,
+            Json(MeshResponse {
+                ok: false,
+                data: serde_json::json!(e.to_string()),
+            }),
         ),
     }
 }
@@ -471,7 +479,8 @@ mod tests {
     fn make_api_state(dir: &TempDir) -> ApiState {
         let ship_dir = dir.path().join(".ship");
         std::fs::create_dir_all(&ship_dir).unwrap();
-        let kernel = runtime::events::init_kernel_router(ship_dir).unwrap();
+        runtime::db::ensure_db_at(&ship_dir).unwrap();
+        let kernel = runtime::events::init_kernel_router(ship_dir.clone()).unwrap();
         let mesh_registry = Arc::new(tokio::sync::RwLock::new(
             std::collections::HashMap::new(),
         ));
@@ -480,6 +489,7 @@ mod tests {
             mesh_registry,
             agent_mailboxes: Arc::new(Mutex::new(std::collections::HashMap::new())),
             pty_connections: Arc::new(Mutex::new(std::collections::HashMap::new())),
+            ship_dir,
         }
     }
 
@@ -537,5 +547,135 @@ mod tests {
         assert_eq!(val["ok"], serde_json::json!(true));
         assert!(val["data"]["agents"].is_array());
         assert_eq!(val["data"]["agents"].as_array().unwrap().len(), 0);
+    }
+
+    fn create_test_workspace(state: &ApiState, branch: &str) {
+        runtime::workspace::create_workspace(
+            &state.ship_dir,
+            runtime::workspace::CreateWorkspaceRequest {
+                branch: branch.into(),
+                ..Default::default()
+            },
+        )
+        .unwrap();
+    }
+
+    #[tokio::test(flavor = "multi_thread")]
+    async fn list_workspaces_returns_created_workspace() {
+        let dir = TempDir::new().unwrap();
+        let state = make_api_state(&dir);
+        create_test_workspace(&state, "feature/rt-ws-test");
+
+        let response = list_workspaces(State(state)).await.into_response();
+        let val = collect_body(response).await;
+        let workspaces = val["data"]["workspaces"].as_array().unwrap();
+        assert!(
+            workspaces.iter().any(|w| w["branch"] == "feature/rt-ws-test"),
+            "created workspace should appear in list"
+        );
+    }
+
+    #[tokio::test(flavor = "multi_thread")]
+    async fn list_agents_returns_populated_registry() {
+        let dir = TempDir::new().unwrap();
+        let state = make_api_state(&dir);
+
+        {
+            let mut reg = state.mesh_registry.write().await;
+            reg.insert(
+                "agent.test".into(),
+                runtime::services::mesh::MeshEntry {
+                    agent_id: "agent.test".into(),
+                    label: "Test Agent".into(),
+                    capabilities: vec!["rust".into()],
+                    registered_at: chrono::Utc::now(),
+                    status: runtime::services::mesh::AgentStatus::Active,
+                },
+            );
+        }
+
+        let response = list_agents(State(state)).await.into_response();
+        let val = collect_body(response).await;
+        let agents = val["data"]["agents"].as_array().unwrap();
+        assert_eq!(agents.len(), 1);
+        assert_eq!(agents[0]["agent_id"], "agent.test");
+    }
+
+    #[tokio::test(flavor = "multi_thread")]
+    async fn list_sessions_returns_created_session() {
+        let dir = TempDir::new().unwrap();
+        let state = make_api_state(&dir);
+        create_test_workspace(&state, "feature/rt-sess-test");
+
+        let ws = runtime::workspace::get_workspace(&state.ship_dir, "feature/rt-sess-test")
+            .unwrap()
+            .unwrap();
+        let payload = runtime::events::types::SessionStarted {
+            goal: Some("test".into()),
+            workspace_id: ws.id.clone(),
+            workspace_branch: ws.branch.clone(),
+            ..Default::default()
+        };
+        runtime::db::session_events::insert_session_with_started_event(
+            "rt-test-session",
+            &ws.id,
+            &payload,
+        )
+        .unwrap();
+
+        let query = Query(SessionsQuery { workspace_id: None });
+        let response = list_sessions(State(state), query).await.into_response();
+        let val = collect_body(response).await;
+        let sessions = val["data"]["sessions"].as_array().unwrap();
+        assert!(sessions.len() >= 1, "created session should appear");
+    }
+
+    #[tokio::test(flavor = "multi_thread")]
+    async fn list_sessions_filters_by_workspace_id() {
+        let dir = TempDir::new().unwrap();
+        let state = make_api_state(&dir);
+        create_test_workspace(&state, "feature/ws-filter-a");
+        create_test_workspace(&state, "feature/ws-filter-b");
+
+        let ws_a = runtime::workspace::get_workspace(&state.ship_dir, "feature/ws-filter-a")
+            .unwrap()
+            .unwrap();
+        let payload = runtime::events::types::SessionStarted {
+            goal: Some("a".into()),
+            workspace_id: ws_a.id.clone(),
+            workspace_branch: ws_a.branch.clone(),
+            ..Default::default()
+        };
+        runtime::db::session_events::insert_session_with_started_event(
+            "rt-filter-sess",
+            &ws_a.id,
+            &payload,
+        )
+        .unwrap();
+
+        // Filter by workspace B — should return empty.
+        let ws_b = runtime::workspace::get_workspace(&state.ship_dir, "feature/ws-filter-b")
+            .unwrap()
+            .unwrap();
+        let query = Query(SessionsQuery {
+            workspace_id: Some(ws_b.id),
+        });
+        let response = list_sessions(State(state), query).await.into_response();
+        let val = collect_body(response).await;
+        let sessions = val["data"]["sessions"].as_array().unwrap();
+        assert_eq!(sessions.len(), 0, "no sessions for workspace B");
+    }
+
+    #[tokio::test(flavor = "multi_thread")]
+    async fn list_workspaces_returns_multiple() {
+        let dir = TempDir::new().unwrap();
+        let state = make_api_state(&dir);
+        create_test_workspace(&state, "feature/multi-a");
+        create_test_workspace(&state, "feature/multi-b");
+
+        let response = list_workspaces(State(state)).await.into_response();
+        let val = collect_body(response).await;
+        let workspaces = val["data"]["workspaces"].as_array().unwrap();
+        assert!(workspaces.len() >= 2);
     }
 }

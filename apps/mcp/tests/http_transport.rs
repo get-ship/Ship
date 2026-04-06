@@ -8,15 +8,9 @@ async fn start_test_server_with_token(
     let listener = TcpListener::bind("127.0.0.1:0").await.unwrap();
     let port = listener.local_addr().unwrap().port();
 
-    // Set a temp SHIP_GLOBAL_DIR so read_auth_token won't pick up stale config
-    let tmp_dir = {
-        let dir = tempfile::TempDir::new().unwrap();
-        // SAFETY: single-threaded test setup, no concurrent env access
-        unsafe {
-            std::env::set_var("SHIP_GLOBAL_DIR", dir.path());
-        }
-        Some(dir)
-    };
+    // auto_test_global_dir() provides process-scoped DB isolation for test binaries.
+    // No need to set SHIP_GLOBAL_DIR — it races in parallel tests.
+    let tmp_dir: Option<tempfile::TempDir> = None;
 
     let ct = CancellationToken::new();
     let app = mcp::http::build_mcp_app(token.map(|s| s.to_string()), ct.child_token());

@@ -1,0 +1,29 @@
+name: tdd
+description: Test-driven development — write tests, implement, review, merge, update docs
+
+steps:
+  - id: test
+    type: agent
+    agent: test-writer
+    model: sonnet
+
+  - id: impl
+    type: agent
+    agent: rust-runtime
+    after: [test]
+
+  - id: gate
+    type: gate
+    agent: reviewer
+    model: sonnet
+    after: [impl]
+
+  - id: docs
+    type: agent
+    agent: default
+    model: sonnet
+    after: [gate]
+
+  - id: merge
+    type: merge
+    after: [docs]

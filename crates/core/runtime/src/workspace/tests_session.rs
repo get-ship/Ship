@@ -310,6 +310,155 @@ mod tests {
     }
 
     #[test]
+    fn start_session_auto_creates_workspace_when_missing() -> Result<()> {
+        let tmp = tempdir()?;
+        let ship_dir = crate::project::init_project(tmp.path().to_path_buf())?;
+
+        // No workspace exists yet for this branch.
+        assert!(get_workspace(&ship_dir, "feature/auto-create")?.is_none());
+
+        let session = start_workspace_session(
+            &ship_dir,
+            "feature/auto-create",
+            Some("auto-create test".to_string()),
+            None,
+            None,
+        )?;
+
+        assert_eq!(session.status, WorkspaceSessionStatus::Active);
+        let ws = get_workspace(&ship_dir, "feature/auto-create")?
+            .expect("workspace should have been auto-created");
+        assert_eq!(ws.status, WorkspaceStatus::Active);
+        Ok(())
+    }
+
+    #[test]
+    fn start_session_auto_activates_archived_workspace() -> Result<()> {
+        let tmp = tempdir()?;
+        let ship_dir = crate::project::init_project(tmp.path().to_path_buf())?;
+
+        create_workspace(
+            &ship_dir,
+            CreateWorkspaceRequest {
+                branch: "feature/archived".to_string(),
+                status: Some(WorkspaceStatus::Active),
+                ..Default::default()
+            },
+        )?;
+        transition_workspace_status(&ship_dir, "feature/archived", WorkspaceStatus::Archived)?;
+        let ws = get_workspace(&ship_dir, "feature/archived")?
+            .expect("workspace should exist");
+        assert_eq!(ws.status, WorkspaceStatus::Archived);
+
+        let session = start_workspace_session(
+            &ship_dir,
+            "feature/archived",
+            Some("reactivate".to_string()),
+            None,
+            None,
+        )?;
+        assert_eq!(session.status, WorkspaceSessionStatus::Active);
+
+        let ws = get_workspace(&ship_dir, "feature/archived")?
+            .expect("workspace should exist");
+        assert_eq!(ws.status, WorkspaceStatus::Active);
+        Ok(())
+    }
+
+    #[test]
+    fn end_session_fails_when_no_active_session() -> Result<()> {
+        let tmp = tempdir()?;
+        let ship_dir = crate::project::init_project(tmp.path().to_path_buf())?;
+
+        create_workspace(
+            &ship_dir,
+            CreateWorkspaceRequest {
+                branch: "feature/no-active".to_string(),
+                status: Some(WorkspaceStatus::Active),
+                ..Default::default()
+            },
+        )?;
+
+        let err = end_workspace_session(
+            &ship_dir,
+            "feature/no-active",
+            EndWorkspaceSessionRequest::default(),
+        )
+        .expect_err("should fail with no active session");
+
+        assert!(
+            err.to_string().contains("No active workspace session"),
+            "error should mention no active session, got: {}",
+            err
+        );
+        Ok(())
+    }
+
+    #[test]
+    fn end_session_for_missing_workspace_fails() -> Result<()> {
+        let tmp = tempdir()?;
+        let ship_dir = crate::project::init_project(tmp.path().to_path_buf())?;
+
+        let err = end_workspace_session(
+            &ship_dir,
+            "feature/nonexistent",
+            EndWorkspaceSessionRequest::default(),
+        )
+        .expect_err("should fail for missing workspace");
+
+        assert!(
+            err.to_string().contains("Workspace not found"),
+            "error should mention workspace not found, got: {}",
+            err
+        );
+        Ok(())
+    }
+
+    #[test]
+    fn concurrent_session_starts_return_same_session() -> Result<()> {
+        let tmp = tempdir()?;
+        let ship_dir = crate::project::init_project(tmp.path().to_path_buf())?;
+
+        create_workspace(
+            &ship_dir,
+            CreateWorkspaceRequest {
+                branch: "feature/concurrent".to_string(),
+                status: Some(WorkspaceStatus::Active),
+                ..Default::default()
+            },
+        )?;
+
+        let s1 = start_workspace_session(
+            &ship_dir,
+            "feature/concurrent",
+            Some("first".to_string()),
+            None,
+            None,
+        )?;
+        let s2 = start_workspace_session(
+            &ship_dir,
+            "feature/concurrent",
+            Some("second".to_string()),
+            None,
+            None,
+        )?;
+        let s3 = start_workspace_session(
+            &ship_dir,
+            "feature/concurrent",
+            Some("third".to_string()),
+            None,
+            None,
+        )?;
+
+        assert_eq!(s1.id, s2.id);
+        assert_eq!(s2.id, s3.id);
+        // Only one session should exist.
+        let sessions = list_workspace_sessions(&ship_dir, Some("feature/concurrent"), 10)?;
+        assert_eq!(sessions.len(), 1);
+        Ok(())
+    }
+
+    #[test]
     fn session_stale_context_turns_true_after_recompile() -> Result<()> {
         let tmp = tempdir()?;
         let ship_dir = crate::project::init_project(tmp.path().to_path_buf())?;

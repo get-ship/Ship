@@ -16,6 +16,14 @@ fn get_network_port() -> Result<u16> {
         .map_err(|e| anyhow!("failed to parse network port: {e}"))
 }
 
+/// Read the daemon bearer token from ~/.ship/network.token.
+fn get_network_token() -> Result<String> {
+    let global_dir = runtime::project::get_global_dir()?;
+    let token = std::fs::read_to_string(global_dir.join("network.token"))
+        .map_err(|_| anyhow!("ship network token not found — is the daemon running?"))?;
+    Ok(token.trim().to_string())
+}
+
 fn base_url() -> Result<String> {
     Ok(format!("http://127.0.0.1:{}/api", get_network_port()?))
 }
@@ -23,8 +31,10 @@ fn base_url() -> Result<String> {
 /// POST JSON to a REST endpoint, return the response body.
 async fn post(path: &str, body: Value) -> Result<String> {
     let url = format!("{}{}", base_url()?, path);
+    let token = get_network_token()?;
     let resp = reqwest::Client::new()
         .post(&url)
+        .bearer_auth(&token)
         .json(&body)
         .send()
         .await
@@ -41,8 +51,10 @@ async fn post(path: &str, body: Value) -> Result<String> {
 /// GET from a REST endpoint.
 async fn get(path: &str) -> Result<String> {
     let url = format!("{}{}", base_url()?, path);
+    let token = get_network_token()?;
     let resp = reqwest::Client::new()
         .get(&url)
+        .bearer_auth(&token)
         .send()
         .await
         .map_err(|e| anyhow!("ship-network unavailable: {e}"))?;
@@ -124,11 +136,13 @@ pub fn mesh_subscribe(
     agent_id: &str,
 ) -> Result<tokio::sync::mpsc::UnboundedReceiver<runtime::events::EventEnvelope>> {
     let url = format!("{}/mesh/events/{}", base_url()?, agent_id);
+    let token = get_network_token()?;
     let (tx, rx) = tokio::sync::mpsc::unbounded_channel();
 
     tokio::spawn(async move {
         let resp = match reqwest::Client::new()
             .get(&url)
+            .bearer_auth(&token)
             .header("Accept", "text/event-stream")
             .send()
             .await

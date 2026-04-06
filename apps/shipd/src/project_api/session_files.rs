@@ -1,9 +1,9 @@
 //! Session file endpoints — list, read, write, delete files in .ship-session/.
 
-use axum::{Json, extract::Path, http::StatusCode};
+use axum::{Json, extract::{Path, State}, http::StatusCode};
 use serde::Deserialize;
 
-use crate::rest_api::MeshResponse;
+use crate::rest_api::{ApiState, MeshResponse};
 
 use super::{err_response, ok_response, resolve_worktree};
 
@@ -77,9 +77,10 @@ pub(super) fn collect_files_recursive(
 
 /// GET /api/workspaces/{id}/session-files
 pub async fn list_session_files(
+    State(state): State<ApiState>,
     Path(id): Path<String>,
 ) -> Result<(StatusCode, Json<MeshResponse>), (StatusCode, Json<MeshResponse>)> {
-    let worktree = resolve_worktree(&id)?;
+    let worktree = resolve_worktree(&state.ship_dir, &id)?;
     let session_dir = worktree.join(".ship-session");
 
     if !session_dir.exists() {
@@ -94,9 +95,10 @@ pub async fn list_session_files(
 
 /// GET /api/workspaces/{id}/session-files/*path
 pub async fn read_session_file(
+    State(state): State<ApiState>,
     Path((id, file_path)): Path<(String, String)>,
 ) -> Result<(StatusCode, Json<MeshResponse>), (StatusCode, Json<MeshResponse>)> {
-    let worktree = resolve_worktree(&id)?;
+    let worktree = resolve_worktree(&state.ship_dir, &id)?;
     let target = worktree.join(".ship-session").join(&file_path);
 
     // Prevent path traversal
@@ -150,10 +152,11 @@ pub struct WriteFileReq {
 
 /// PUT /api/workspaces/{id}/session-files/*path
 pub async fn write_session_file(
+    State(state): State<ApiState>,
     Path((id, file_path)): Path<(String, String)>,
     Json(body): Json<WriteFileReq>,
 ) -> Result<(StatusCode, Json<MeshResponse>), (StatusCode, Json<MeshResponse>)> {
-    let worktree = resolve_worktree(&id)?;
+    let worktree = resolve_worktree(&state.ship_dir, &id)?;
     let session_dir = worktree.join(".ship-session");
     let target = session_dir.join(&file_path);
 
@@ -184,9 +187,10 @@ pub async fn write_session_file(
 
 /// DELETE /api/workspaces/{id}/session-files/*path
 pub async fn delete_session_file(
+    State(state): State<ApiState>,
     Path((id, file_path)): Path<(String, String)>,
 ) -> Result<(StatusCode, Json<MeshResponse>), (StatusCode, Json<MeshResponse>)> {
-    let worktree = resolve_worktree(&id)?;
+    let worktree = resolve_worktree(&state.ship_dir, &id)?;
     let target = worktree.join(".ship-session").join(&file_path);
 
     // Prevent path traversal

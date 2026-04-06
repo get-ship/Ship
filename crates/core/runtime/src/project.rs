@@ -649,7 +649,23 @@ pub fn list_registered_projects() -> Result<Vec<ProjectEntry>> {
 }
 /// Returns the global config directory (~/.ship)
 pub fn get_global_dir() -> Result<PathBuf> {
-    let is_test_ctx = cfg!(test) || env::var_os("SHIP_TEST").is_some();
+    let is_test_ctx = cfg!(test)
+        || env::var_os("SHIP_TEST").is_some()
+        || std::env::current_exe()
+            .ok()
+            .as_deref()
+            .is_some_and(is_likely_rust_test_binary);
+
+    // Auto-isolation takes priority — prevents env-var races in parallel tests.
+    if let Some(test_dir) = auto_test_global_dir() {
+        fs::create_dir_all(&test_dir).with_context(|| {
+            format!(
+                "Failed to create auto-isolated test global dir at {}",
+                test_dir.display()
+            )
+        })?;
+        return Ok(test_dir);
+    }
 
     if let Ok(env_path) = env::var("SHIP_GLOBAL_DIR") {
         let path = PathBuf::from(env_path.trim());
@@ -667,22 +683,14 @@ pub fn get_global_dir() -> Result<PathBuf> {
         }
     }
 
-    if let Some(test_dir) = auto_test_global_dir() {
-        fs::create_dir_all(&test_dir).with_context(|| {
-            format!(
-                "Failed to create auto-isolated test global dir at {}",
-                test_dir.display()
-            )
-        })?;
-        return Ok(test_dir);
-    }
-
     // Safety net: if auto_test_global_dir() returned None but we are still in a
     // test context, refuse to return the production path.
+    #[cfg(debug_assertions)]
     if is_test_ctx {
         panic!(
-            "Test attempted to use production database. \
-             Set SHIP_GLOBAL_DIR to a temp directory in test setup."
+            "Test binary detected without explicit DB isolation. \
+             Use `ensure_db_at()` with an explicit path or set SHIP_GLOBAL_DIR \
+             to a temp directory in test setup."
         );
     }
 

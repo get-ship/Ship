@@ -227,3 +227,7 @@ pub async fn spawn_mesh_service(
 
     Ok(registry)
 }
+
+#[cfg(test)]
+#[path = "connections_tests.rs"]
+mod tests;

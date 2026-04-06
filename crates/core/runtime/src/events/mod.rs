@@ -3,8 +3,10 @@ pub mod artifact_events;
 pub mod envelope;
 pub mod filter;
 pub mod job;
+pub mod kernel_lifecycle;
 pub mod kernel_router;
 pub mod mailbox;
+pub mod payload_schema;
 pub mod snapshot;
 pub mod store;
 pub mod types;
@@ -45,6 +47,14 @@ mod directed_delivery_tests;
 mod cursor_tests;
 #[cfg(test)]
 mod integration_tests;
+#[cfg(test)]
+mod validator_tests;
+#[cfg(test)]
+mod kernel_security_tests;
+#[cfg(test)]
+mod lifecycle_tests;
+#[cfg(test)]
+mod snapshot_edge_tests;
 
 pub use actor_store::ActorStore;
 pub use envelope::EventEnvelope;
@@ -53,7 +63,12 @@ pub use kernel_router::{ActorConfig, KernelRouter};
 pub use mailbox::Mailbox;
 pub use snapshot::ActorSnapshot;
 pub use store::{EventStore, SqliteEventStore};
-pub use validator::{CallerKind, EmitContext, EventValidator, ValidationError, RESERVED_NAMESPACES};
+pub use payload_schema::PayloadSchemaValidator;
+pub use validator::{
+    CallerKind, ElevatedValidator, EmitContext, EventValidator, KERNEL_NAMESPACES,
+    NamespaceValidator, PLATFORM_ONLY_NAMESPACES, RESERVED_NAMESPACES, ReservedNamespaceValidator,
+    ValidationError, is_kernel_event,
+};
 pub use global_kernel_router::{init_kernel_router, kernel_router};
 
 use anyhow::Result;

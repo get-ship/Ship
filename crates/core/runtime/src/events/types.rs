@@ -84,6 +84,38 @@ pub struct WorkspaceStarted {
     pub tmux_session_name: String,
 }
 
+#[derive(Debug, Serialize, Deserialize)]
+pub struct WorkspaceWorktreeAdded {
+    pub worktree_path: String,
+    #[serde(default)]
+    pub detected_by: String,
+}
+
+#[derive(Debug, Serialize, Deserialize)]
+pub struct WorkspaceWorktreeRemoved {
+    #[serde(default)]
+    pub previous_path: Option<String>,
+    #[serde(default)]
+    pub detected_by: String,
+}
+
+#[derive(Debug, Serialize, Deserialize)]
+pub struct WorkspaceBranchSwitched {
+    #[serde(default)]
+    pub previous_branch: Option<String>,
+    pub new_branch: String,
+    #[serde(default)]
+    pub detected_by: String,
+}
+
+#[derive(Debug, Serialize, Deserialize)]
+pub struct WorkspaceConfigChanged {
+    #[serde(default)]
+    pub changed_path: Option<String>,
+    #[serde(default)]
+    pub detected_by: String,
+}
+
 // ── Session aggregate ─────────────────────────────────────────────────────────
 
 #[derive(Debug, Default, Serialize, Deserialize)]
@@ -139,6 +171,13 @@ pub struct SessionDrainAborted {
 
 #[derive(Debug, Serialize, Deserialize)]
 pub struct SessionToolCountIncremented {}
+
+#[derive(Debug, Serialize, Deserialize)]
+pub struct SessionAttached {
+    pub existing_session_id: String,
+    pub workspace_id: String,
+    pub workspace_branch: String,
+}
 
 #[derive(Debug, Default, Serialize, Deserialize)]
 pub struct SessionRecorded {
@@ -274,6 +313,10 @@ pub mod event_types {
     pub const WORKSPACE_RECONCILED: &str = "workspace.reconciled";
     pub const WORKSPACE_TMUX_ASSIGNED: &str = "workspace.tmux_assigned";
     pub const WORKSPACE_STARTED: &str = "workspace.started";
+    pub const WORKSPACE_WORKTREE_ADDED: &str = "workspace.worktree_added";
+    pub const WORKSPACE_WORKTREE_REMOVED: &str = "workspace.worktree_removed";
+    pub const WORKSPACE_BRANCH_SWITCHED: &str = "workspace.branch_switched";
+    pub const WORKSPACE_CONFIG_CHANGED: &str = "workspace.config_changed";
     pub const SESSION_STARTED: &str = "session.started";
     pub const SESSION_PROGRESS: &str = "session.progress";
     pub const SESSION_ENDED: &str = "session.ended";
@@ -282,6 +325,7 @@ pub mod event_types {
     pub const SESSION_DRAIN_COMPLETED: &str = "session.drain_completed";
     pub const SESSION_DRAIN_ABORTED: &str = "session.drain_aborted";
     pub const SESSION_TOOL_COUNT_INCREMENTED: &str = "session.tool_count_incremented";
+    pub const SESSION_ATTACHED: &str = "session.attached";
     pub const ACTOR_CREATED: &str = "actor.created";
     pub const ACTOR_WOKE: &str = "actor.woke";
     pub const ACTOR_SLEPT: &str = "actor.slept";
@@ -302,6 +346,8 @@ pub mod event_types {
     pub const SKILL_COMPLETED: &str = "skill.completed";
     pub const SKILL_FAILED: &str = "skill.failed";
 
+    pub const SUPERVISOR_SHUTTING_DOWN: &str = "supervisor.shutting_down";
+
     pub const ALL: &[&str] = &[
         WORKSPACE_CREATED,
         WORKSPACE_DELETED,
@@ -314,6 +360,10 @@ pub mod event_types {
         WORKSPACE_RECONCILED,
         WORKSPACE_TMUX_ASSIGNED,
         WORKSPACE_STARTED,
+        WORKSPACE_WORKTREE_ADDED,
+        WORKSPACE_WORKTREE_REMOVED,
+        WORKSPACE_BRANCH_SWITCHED,
+        WORKSPACE_CONFIG_CHANGED,
         SESSION_STARTED,
         SESSION_PROGRESS,
         SESSION_ENDED,
@@ -322,6 +372,7 @@ pub mod event_types {
         SESSION_DRAIN_COMPLETED,
         SESSION_DRAIN_ABORTED,
         SESSION_TOOL_COUNT_INCREMENTED,
+        SESSION_ATTACHED,
         ACTOR_CREATED,
         ACTOR_WOKE,
         ACTOR_SLEPT,
@@ -340,6 +391,7 @@ pub mod event_types {
         SKILL_STARTED,
         SKILL_COMPLETED,
         SKILL_FAILED,
+        SUPERVISOR_SHUTTING_DOWN,
     ];
 }
 
@@ -357,6 +409,6 @@ mod tests {
 
     #[test]
     fn all_constants_have_expected_count() {
-        assert_eq!(ALL.len(), 37, "exactly 37 event type constants required");
+        assert_eq!(ALL.len(), 43, "exactly 43 event type constants required");
     }
 }

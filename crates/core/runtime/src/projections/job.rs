@@ -42,12 +42,21 @@ pub struct JobRecord {
     pub error: Option<String>,
     pub created_at: DateTime<Utc>,
     pub updated_at: DateTime<Utc>,
-    /// Pipeline phases (if multi-phase job).
+    /// Legacy linear pipeline phases.
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub pipeline: Option<Vec<crate::events::job::PipelinePhase>>,
-    /// Index of the currently active pipeline phase.
+    /// DAG pipeline steps.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub steps: Option<crate::events::job::Pipeline>,
+    /// Index of the currently active pipeline phase (legacy).
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub current_phase: Option<usize>,
+    /// IDs of completed pipeline steps (DAG).
+    #[serde(default, skip_serializing_if = "Vec::is_empty")]
+    pub completed_steps: Vec<String>,
+    /// ID of the currently running step.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub current_step: Option<String>,
 }
 
 /// Apply a single event to an existing `JobRecord`.
@@ -60,9 +69,24 @@ pub fn apply(record: &mut JobRecord, event: &EventEnvelope) {
             if let Ok(p) = serde_json::from_str::<serde_json::Value>(&event.payload_json) {
                 record.worktree = p["worktree"].as_str().map(str::to_string);
             }
-            // Pipeline phase tracking: re-dispatch after completion means phase advanced
-            if record.status == JobStatus::Completed && record.pipeline.is_some() {
-                record.current_phase = Some(record.current_phase.map_or(1, |p| p + 1));
+            // DAG step tracking: on re-dispatch after completion, mark current step
+            // as completed and advance to next unblocked step.
+            if record.status == JobStatus::Completed {
+                if let Some(ref current) = record.current_step.take() {
+                    if !record.completed_steps.contains(current) {
+                        record.completed_steps.push(current.clone());
+                    }
+                }
+            }
+            // Set current_step to the next unblocked step
+            if let Some(ref pipeline) = record.steps {
+                let next = pipeline.unblocked_steps(&record.completed_steps);
+                record.current_step = next.first().map(|s| s.id.clone());
+            } else if record.current_step.is_none() {
+                // First dispatch — set to first root step
+                if let Some(ref pipeline) = record.steps {
+                    record.current_step = pipeline.root_steps().first().map(|s| s.id.clone());
+                }
             }
             record.status = JobStatus::Dispatched;
             record.updated_at = ts;
@@ -134,6 +158,8 @@ pub fn project(events: &[EventEnvelope]) -> HashMap<String, JobRecord> {
                     });
                 let pipeline: Option<Vec<crate::events::job::PipelinePhase>> =
                     serde_json::from_value(p["pipeline"].clone()).ok();
+                let steps: Option<crate::events::job::Pipeline> =
+                    serde_json::from_value(p["steps"].clone()).ok();
                 let record = JobRecord {
                     job_id: job_id.clone(),
                     slug: p["slug"].as_str().unwrap_or("").to_string(),
@@ -148,7 +174,10 @@ pub fn project(events: &[EventEnvelope]) -> HashMap<String, JobRecord> {
                     created_at: event.created_at,
                     updated_at: event.created_at,
                     pipeline,
+                    steps,
                     current_phase: None,
+                    completed_steps: vec![],
+                    current_step: None,
                 };
                 map.insert(job_id, record);
             }
@@ -175,6 +204,27 @@ pub fn load_jobs() -> Result<HashMap<String, JobRecord>> {
     ensure_db()?;
     let mut conn = open_db_at(&db_path()?)?;
 
+    Ok(load_jobs_from_conn(&mut conn)?)
+}
+
+/// Load jobs from an explicit `ship_dir` path.
+///
+/// Preferred in tests to avoid thread-local / env var isolation issues.
+pub fn load_jobs_at(ship_dir: &std::path::Path) -> Result<HashMap<String, JobRecord>> {
+    use crate::db::{ensure_db_at, open_db_at};
+
+    ensure_db_at(ship_dir)?;
+    let mut conn = open_db_at(&ship_dir.join("platform.db"))?;
+
+    Ok(load_jobs_from_conn(&mut conn)?)
+}
+
+fn load_jobs_from_conn(
+    conn: &mut sqlx::SqliteConnection,
+) -> Result<HashMap<String, JobRecord>> {
+    use crate::db::block_on;
+    use crate::db::envelope::envelope_from_row;
+
     const COLS: &str = "id, event_type, entity_id, actor, payload_json, version, \
         causation_id, workspace_id, session_id, \
         actor_id, parent_actor_id, elevated, created_at";
@@ -183,46 +233,16 @@ pub fn load_jobs() -> Result<HashMap<String, JobRecord>> {
         sqlx::query(&format!(
             "SELECT {COLS} FROM events WHERE event_type LIKE 'job.%' ORDER BY created_at ASC"
         ))
-        .fetch_all(&mut conn)
+        .fetch_all(&mut *conn)
         .await
     })?;
 
     let events: Vec<EventEnvelope> = rows
         .iter()
-        .map(row_to_envelope)
+        .map(|r| envelope_from_row(r, false))
         .collect::<Result<Vec<_>>>()?;
 
     Ok(project(&events))
-}
-
-// ── Internal helpers ─────────────────────────────────────────────────────────
-
-fn row_to_envelope(row: &sqlx::sqlite::SqliteRow) -> Result<EventEnvelope> {
-    use sqlx::Row;
-    let created_at_str: String = row.get(12);
-    let created_at = created_at_str
-        .parse::<DateTime<Utc>>()
-        .or_else(|_| {
-            chrono::DateTime::parse_from_rfc3339(&created_at_str)
-                .map(|dt| dt.with_timezone(&Utc))
-        })
-        .map_err(|e| anyhow::anyhow!("invalid created_at '{}': {}", created_at_str, e))?;
-    Ok(EventEnvelope {
-        id: row.get(0),
-        event_type: row.get(1),
-        entity_id: row.get(2),
-        actor: row.get(3),
-        payload_json: row.get(4),
-        version: row.get::<i64, _>(5) as u32,
-        causation_id: row.get(6),
-        workspace_id: row.get(7),
-        session_id: row.get(8),
-        actor_id: row.get(9),
-        parent_actor_id: row.get(10),
-        elevated: row.get::<i64, _>(11) != 0,
-        created_at,
-        target_actor_id: None,
-    })
 }
 
 #[cfg(test)]

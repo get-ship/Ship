@@ -4,10 +4,14 @@
 
 pub mod adapters;
 mod dispatch_handlers;
-mod dispatch_pipeline;
+pub(crate) mod dispatch_pipeline;
+mod dispatch_replay;
 pub mod helpers;
 pub mod job_dispatch;
+pub(crate) mod registry;
 pub mod terminal_launcher;
+
+pub(crate) use registry::graceful_shutdown;
 
 use axum::{
     Json,

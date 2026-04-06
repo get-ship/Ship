@@ -6,12 +6,12 @@
 //! construct their own.
 
 use anyhow::{Result, anyhow};
-use chrono::{DateTime, Utc};
-use sqlx::{Connection, QueryBuilder, Row};
+use sqlx::{Connection, QueryBuilder};
 use sqlx::sqlite::SqliteConnectOptions;
 use std::path::{Path, PathBuf};
 use std::str::FromStr;
 
+use crate::db::envelope::envelope_from_row;
 use crate::db::{block_on, open_db_at};
 use crate::events::envelope::EventEnvelope;
 use crate::events::filter::EventFilter;
@@ -189,34 +189,7 @@ fn query_db(db_path: &Path, filter: &EventFilter) -> Result<Vec<EventEnvelope>> 
     }
 
     let rows = block_on(async { qb.build().fetch_all(&mut conn).await })?;
-    rows.iter().map(row_to_envelope).collect()
-}
-
-fn row_to_envelope(row: &sqlx::sqlite::SqliteRow) -> Result<EventEnvelope> {
-    let created_at_str: String = row.get(12);
-    let created_at = created_at_str
-        .parse::<DateTime<Utc>>()
-        .or_else(|_| {
-            chrono::DateTime::parse_from_rfc3339(&created_at_str)
-                .map(|dt| dt.with_timezone(&Utc))
-        })
-        .map_err(|e| anyhow!("invalid created_at '{}': {}", created_at_str, e))?;
-    Ok(EventEnvelope {
-        id: row.get(0),
-        event_type: row.get(1),
-        entity_id: row.get(2),
-        actor: row.get(3),
-        payload_json: row.get(4),
-        version: row.get::<i64, _>(5) as u32,
-        causation_id: row.get(6),
-        workspace_id: row.get(7),
-        session_id: row.get(8),
-        actor_id: row.get(9),
-        parent_actor_id: row.get(10),
-        elevated: row.get::<i64, _>(11) != 0,
-        created_at,
-        target_actor_id: row.get(13),
-    })
+    rows.iter().map(|r| envelope_from_row(r, true)).collect()
 }
 
 /// Initialise an actor's SQLite DB at `path`, running actor-scoped migrations.

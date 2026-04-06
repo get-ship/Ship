@@ -1,6 +1,6 @@
 //! End-to-end tests for the project REST API endpoints.
 
-use axum::extract::{Path, Query};
+use axum::extract::{Path, Query, State};
 use axum::http::StatusCode;
 use tempfile::TempDir;
 
@@ -15,10 +15,11 @@ fn test_branch(name: &str) -> String {
 }
 
 /// Create a workspace record pointing at the given temp dir so `resolve_worktree` can find it.
-fn create_test_workspace(dir: &TempDir) -> String {
+/// Returns `(branch, ApiState)` with an explicit `ship_dir` — no env var mutation.
+fn create_test_workspace(dir: &TempDir) -> (String, crate::rest_api::ApiState) {
     let ship_dir = dir.path().join(".ship");
-    unsafe { std::env::set_var("SHIP_GLOBAL_DIR", &ship_dir) };
     std::fs::create_dir_all(&ship_dir).unwrap();
+    runtime::db::ensure_db_at(&ship_dir).unwrap();
     let branch = test_branch("ws");
     runtime::workspace::create_workspace(
         &ship_dir,
@@ -30,13 +31,18 @@ fn create_test_workspace(dir: &TempDir) -> String {
         },
     )
     .unwrap();
-    branch
+    (branch, make_api_state_with_dir(&ship_dir))
 }
 
 fn make_api_state(dir: &TempDir) -> crate::rest_api::ApiState {
     let ship_dir = dir.path().join(".ship");
-    std::fs::create_dir_all(&ship_dir).unwrap();
-    let kernel = runtime::events::init_kernel_router(ship_dir).unwrap();
+    make_api_state_with_dir(&ship_dir)
+}
+
+fn make_api_state_with_dir(ship_dir: &std::path::Path) -> crate::rest_api::ApiState {
+    std::fs::create_dir_all(ship_dir).unwrap();
+    runtime::db::ensure_db_at(ship_dir).unwrap();
+    let kernel = runtime::events::init_kernel_router(ship_dir.to_path_buf()).unwrap();
     let mesh_registry = std::sync::Arc::new(tokio::sync::RwLock::new(
         std::collections::HashMap::new(),
     ));
@@ -49,6 +55,7 @@ fn make_api_state(dir: &TempDir) -> crate::rest_api::ApiState {
         pty_connections: std::sync::Arc::new(tokio::sync::Mutex::new(
             std::collections::HashMap::new(),
         )),
+        ship_dir: ship_dir.to_path_buf(),
     }
 }
 
@@ -57,9 +64,9 @@ fn make_api_state(dir: &TempDir) -> crate::rest_api::ApiState {
 #[tokio::test(flavor = "multi_thread")]
 async fn list_session_files_empty() {
     let dir = TempDir::new().unwrap();
-    let branch = create_test_workspace(&dir);
+    let (branch, state) = create_test_workspace(&dir);
 
-    let (status, body) = list_session_files(Path(branch)).await.unwrap();
+    let (status, body) = list_session_files(State(state), Path(branch)).await.unwrap();
     assert_eq!(status, StatusCode::OK);
     assert_eq!(body.0.data["files"].as_array().unwrap().len(), 0);
 }
@@ -72,8 +79,8 @@ async fn list_session_files_with_files() {
     std::fs::write(session_dir.join("notes.md"), "hello").unwrap();
     std::fs::write(session_dir.join("data.json"), "{}").unwrap();
 
-    let branch = create_test_workspace(&dir);
-    let (status, body) = list_session_files(Path(branch)).await.unwrap();
+    let (branch, state) = create_test_workspace(&dir);
+    let (status, body) = list_session_files(State(state), Path(branch)).await.unwrap();
     assert_eq!(status, StatusCode::OK);
 
     let files = body.0.data["files"].as_array().unwrap();
@@ -96,9 +103,9 @@ async fn read_session_file_exists() {
     std::fs::create_dir_all(&session_dir).unwrap();
     std::fs::write(session_dir.join("spec.md"), "# My Spec").unwrap();
 
-    let branch = create_test_workspace(&dir);
+    let (branch, state) = create_test_workspace(&dir);
     let (status, body) =
-        read_session_file(Path((branch, "spec.md".to_string()))).await.unwrap();
+        read_session_file(State(state), Path((branch, "spec.md".to_string()))).await.unwrap();
     assert_eq!(status, StatusCode::OK);
     assert_eq!(body.0.data["content"], "# My Spec");
 }
@@ -106,9 +113,9 @@ async fn read_session_file_exists() {
 #[tokio::test(flavor = "multi_thread")]
 async fn read_session_file_not_found() {
     let dir = TempDir::new().unwrap();
-    let branch = create_test_workspace(&dir);
+    let (branch, state) = create_test_workspace(&dir);
 
-    let (status, body) = read_session_file(Path((branch, "nope.txt".to_string())))
+    let (status, body) = read_session_file(State(state), Path((branch, "nope.txt".to_string())))
         .await
         .unwrap_err();
     assert_eq!(status, StatusCode::NOT_FOUND);
@@ -118,9 +125,10 @@ async fn read_session_file_not_found() {
 #[tokio::test(flavor = "multi_thread")]
 async fn write_session_file_creates() {
     let dir = TempDir::new().unwrap();
-    let branch = create_test_workspace(&dir);
+    let (branch, state) = create_test_workspace(&dir);
 
     let (status, _) = write_session_file(
+        State(state.clone()),
         Path((branch.clone(), "new.txt".to_string())),
         axum::Json(session_files::WriteFileReq {
             content: "created".to_string(),
@@ -131,7 +139,7 @@ async fn write_session_file_creates() {
     assert_eq!(status, StatusCode::OK);
 
     let (status, body) =
-        read_session_file(Path((branch, "new.txt".to_string()))).await.unwrap();
+        read_session_file(State(state), Path((branch, "new.txt".to_string()))).await.unwrap();
     assert_eq!(status, StatusCode::OK);
     assert_eq!(body.0.data["content"], "created");
 }
@@ -139,9 +147,10 @@ async fn write_session_file_creates() {
 #[tokio::test(flavor = "multi_thread")]
 async fn write_session_file_creates_directory() {
     let dir = TempDir::new().unwrap();
-    let branch = create_test_workspace(&dir);
+    let (branch, state) = create_test_workspace(&dir);
 
     let (status, _) = write_session_file(
+        State(state.clone()),
         Path((branch.clone(), "sub/dir/file.txt".to_string())),
         axum::Json(session_files::WriteFileReq {
             content: "nested".to_string(),
@@ -151,7 +160,7 @@ async fn write_session_file_creates_directory() {
     .unwrap();
     assert_eq!(status, StatusCode::OK);
 
-    let (status, body) = read_session_file(Path((branch, "sub/dir/file.txt".to_string())))
+    let (status, body) = read_session_file(State(state), Path((branch, "sub/dir/file.txt".to_string())))
         .await
         .unwrap();
     assert_eq!(status, StatusCode::OK);
@@ -165,14 +174,14 @@ async fn delete_session_file() {
     std::fs::create_dir_all(&session_dir).unwrap();
     std::fs::write(session_dir.join("doomed.txt"), "bye").unwrap();
 
-    let branch = create_test_workspace(&dir);
+    let (branch, state) = create_test_workspace(&dir);
 
-    let (status, _) = super::delete_session_file(Path((branch.clone(), "doomed.txt".to_string())))
+    let (status, _) = super::delete_session_file(State(state.clone()), Path((branch.clone(), "doomed.txt".to_string())))
         .await
         .unwrap();
     assert_eq!(status, StatusCode::OK);
 
-    let (status, _) = read_session_file(Path((branch, "doomed.txt".to_string())))
+    let (status, _) = read_session_file(State(state), Path((branch, "doomed.txt".to_string())))
         .await
         .unwrap_err();
     assert_eq!(status, StatusCode::NOT_FOUND);
@@ -202,9 +211,9 @@ fn init_git_repo(dir: &TempDir) {
 async fn git_status_returns_output() {
     let dir = TempDir::new().unwrap();
     init_git_repo(&dir);
-    let branch = create_test_workspace(&dir);
+    let (branch, state) = create_test_workspace(&dir);
 
-    let (status, body) = git_status(Path(branch)).await.unwrap();
+    let (status, body) = git_status(State(state), Path(branch)).await.unwrap();
     assert_eq!(status, StatusCode::OK);
     let output = body.0.data["output"].as_str().unwrap();
     assert!(output.contains("On branch"));
@@ -228,8 +237,8 @@ async fn git_log_returns_commits() {
         .output()
         .unwrap();
 
-    let branch = create_test_workspace(&dir);
-    let (status, body) = git_log(Path(branch), Query(git::LogQuery { limit: Some(5) }))
+    let (branch, state) = create_test_workspace(&dir);
+    let (status, body) = git_log(State(state), Path(branch), Query(git::LogQuery { limit: Some(5) }))
         .await
         .unwrap();
     assert_eq!(status, StatusCode::OK);
@@ -258,8 +267,8 @@ async fn git_diff_empty_on_clean() {
         .output()
         .unwrap();
 
-    let branch = create_test_workspace(&dir);
-    let (status, body) = git_diff(Path(branch), Query(git::DiffQuery { range: None }))
+    let (branch, state) = create_test_workspace(&dir);
+    let (status, body) = git_diff(State(state), Path(branch), Query(git::DiffQuery { range: None }))
         .await
         .unwrap();
     assert_eq!(status, StatusCode::OK);
@@ -271,9 +280,9 @@ async fn git_diff_empty_on_clean() {
 #[tokio::test(flavor = "multi_thread")]
 async fn list_agents_empty() {
     let dir = TempDir::new().unwrap();
-    let branch = create_test_workspace(&dir);
+    let (branch, state) = create_test_workspace(&dir);
 
-    let (status, body) = list_agents(Path(branch)).await.unwrap();
+    let (status, body) = list_agents(State(state), Path(branch)).await.unwrap();
     assert_eq!(status, StatusCode::OK);
     assert_eq!(body.0.data["agents"].as_array().unwrap().len(), 0);
 }
@@ -295,8 +304,8 @@ async fn list_agents_reads_jsonc() {
     )
     .unwrap();
 
-    let branch = create_test_workspace(&dir);
-    let (status, body) = list_agents(Path(branch)).await.unwrap();
+    let (branch, state) = create_test_workspace(&dir);
+    let (status, body) = list_agents(State(state), Path(branch)).await.unwrap();
     assert_eq!(status, StatusCode::OK);
 
     let agents = body.0.data["agents"].as_array().unwrap();
@@ -325,8 +334,8 @@ async fn list_agents_strips_comments() {
     )
     .unwrap();
 
-    let branch = create_test_workspace(&dir);
-    let (status, body) = list_agents(Path(branch)).await.unwrap();
+    let (branch, state) = create_test_workspace(&dir);
+    let (status, body) = list_agents(State(state), Path(branch)).await.unwrap();
     assert_eq!(status, StatusCode::OK);
 
     let agents = body.0.data["agents"].as_array().unwrap();
@@ -340,9 +349,9 @@ async fn list_agents_strips_comments() {
 #[tokio::test(flavor = "multi_thread")]
 async fn list_skills_empty() {
     let dir = TempDir::new().unwrap();
-    let branch = create_test_workspace(&dir);
+    let (branch, state) = create_test_workspace(&dir);
 
-    let (status, body) = list_skills(Path(branch)).await.unwrap();
+    let (status, body) = list_skills(State(state), Path(branch)).await.unwrap();
     assert_eq!(status, StatusCode::OK);
     assert_eq!(body.0.data["skills"].as_array().unwrap().len(), 0);
 }
@@ -358,8 +367,8 @@ async fn list_skills_reads_directories() {
     )
     .unwrap();
 
-    let branch = create_test_workspace(&dir);
-    let (status, body) = list_skills(Path(branch)).await.unwrap();
+    let (branch, state) = create_test_workspace(&dir);
+    let (status, body) = list_skills(State(state), Path(branch)).await.unwrap();
     assert_eq!(status, StatusCode::OK);
 
     let skills = body.0.data["skills"].as_array().unwrap();
@@ -375,8 +384,10 @@ async fn list_skills_reads_directories() {
 
 #[tokio::test(flavor = "multi_thread")]
 async fn activate_creates_workspace() {
+    let dir = TempDir::new().unwrap();
+    let state = make_api_state(&dir);
     let branch = test_branch("activate-new");
-    let (status, body) = activate_workspace(Path(branch.clone())).await.unwrap();
+    let (status, body) = activate_workspace(State(state), Path(branch.clone())).await.unwrap();
     assert_eq!(status, StatusCode::OK);
     assert_eq!(body.0.data["branch"], branch);
 }
@@ -384,9 +395,9 @@ async fn activate_creates_workspace() {
 #[tokio::test(flavor = "multi_thread")]
 async fn activate_existing_workspace() {
     let dir = TempDir::new().unwrap();
-    let branch = create_test_workspace(&dir);
+    let (branch, state) = create_test_workspace(&dir);
 
-    let (status, body) = activate_workspace(Path(branch.clone())).await.unwrap();
+    let (status, body) = activate_workspace(State(state), Path(branch.clone())).await.unwrap();
     assert_eq!(status, StatusCode::OK);
     assert_eq!(body.0.data["branch"], branch);
 }
@@ -417,7 +428,9 @@ async fn emit_event_routes_to_kernel() {
 
 #[tokio::test(flavor = "multi_thread")]
 async fn workspace_not_found_returns_404() {
-    let (status, body) = git_status(Path("nonexistent-branch-xyz-e2e".to_string()))
+    let dir = TempDir::new().unwrap();
+    let state = make_api_state(&dir);
+    let (status, body) = git_status(State(state), Path("nonexistent-branch-xyz-e2e".to_string()))
         .await
         .unwrap_err();
     assert_eq!(status, StatusCode::NOT_FOUND);
@@ -437,11 +450,11 @@ async fn session_file_path_traversal_blocked() {
     std::fs::write(session_dir.join("legit.txt"), "ok").unwrap();
     std::fs::write(dir.path().join("secret.txt"), "do not read").unwrap();
 
-    let branch = create_test_workspace(&dir);
+    let (branch, state) = create_test_workspace(&dir);
 
     // Currently the traversal is NOT blocked — this documents the existing bug.
     // When the fix lands, flip this test to assert Err with 400/404.
-    let result = read_session_file(Path((branch.clone(), "../secret.txt".to_string()))).await;
+    let result = read_session_file(State(state.clone()), Path((branch.clone(), "../secret.txt".to_string()))).await;
     assert!(
         result.is_ok(),
         "traversal currently bypasses starts_with check (known bug)"
@@ -449,6 +462,7 @@ async fn session_file_path_traversal_blocked() {
 
     // Verify write traversal also goes through (same bug)
     let result = write_session_file(
+        State(state),
         Path((branch, "../traversed.txt".to_string())),
         axum::Json(session_files::WriteFileReq {
             content: "escaped".to_string(),

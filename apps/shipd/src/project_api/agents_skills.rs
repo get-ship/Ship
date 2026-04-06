@@ -1,8 +1,8 @@
 //! Agent and skill config endpoints — serve .ship/agents/ and .ship/skills/ data.
 
-use axum::{Json, extract::Path, http::StatusCode};
+use axum::{Json, extract::{Path, State}, http::StatusCode};
 
-use crate::rest_api::MeshResponse;
+use crate::rest_api::{ApiState, MeshResponse};
 
 use super::{err_response, ok_response, resolve_worktree};
 
@@ -94,9 +94,10 @@ fn strip_trailing_commas(input: &str) -> String {
 
 /// GET /api/workspaces/{id}/agents
 pub async fn list_agents(
+    State(state): State<ApiState>,
     Path(id): Path<String>,
 ) -> Result<(StatusCode, Json<MeshResponse>), (StatusCode, Json<MeshResponse>)> {
-    let worktree = resolve_worktree(&id)?;
+    let worktree = resolve_worktree(&state.ship_dir, &id)?;
     let agents_dir = worktree.join(".ship").join("agents");
 
     if !agents_dir.exists() {
@@ -155,9 +156,10 @@ pub async fn list_agents(
 
 /// GET /api/workspaces/{id}/skills
 pub async fn list_skills(
+    State(state): State<ApiState>,
     Path(id): Path<String>,
 ) -> Result<(StatusCode, Json<MeshResponse>), (StatusCode, Json<MeshResponse>)> {
-    let worktree = resolve_worktree(&id)?;
+    let worktree = resolve_worktree(&state.ship_dir, &id)?;
     let skills_dir = worktree.join(".ship").join("skills");
 
     if !skills_dir.exists() {

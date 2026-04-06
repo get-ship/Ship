@@ -1,0 +1,6 @@
+# Ship agent hooks — compiled into provider-native hook configs by `ship use`.
+
+[[hooks]]
+id = "job-session-end"
+trigger = "Stop"
+command = "bash .ship/scripts/on-agent-stop.sh"
