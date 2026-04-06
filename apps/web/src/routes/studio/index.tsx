@@ -12,7 +12,7 @@ function StudioRedirect() {
 
   // First visit: create a default agent (side effect in useEffect, not render)
   useEffect(() => {
-    void navigate({ to: '/studio/agents', replace: true })
+    void navigate({ to: '/studio/session', replace: true })
   }, [])
 
   return <DashboardSkeleton />

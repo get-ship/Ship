@@ -1,7 +1,7 @@
-import { useNavigate } from '@tanstack/react-router'
+import { useNavigate, useRouterState } from '@tanstack/react-router'
 import {
-  FolderTree, GitBranch, LayoutGrid, Briefcase,
-  Search, Maximize, Minimize, Settings,
+  Layers, Users, Zap, Briefcase, Settings,
+  Search, Maximize, Minimize,
   type LucideIcon,
 } from 'lucide-react'
 import { useState, useCallback, useEffect } from 'react'
@@ -9,102 +9,93 @@ import { Button } from '@ship/primitives'
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@ship/primitives'
 import { Separator } from '@ship/primitives'
 import { ThemeToggle } from '@ship/primitives'
-import { useStudioShell, type PanelId } from './StudioShellContext'
+import { useStudioShell } from './StudioShellContext'
 import { useDaemon } from './hooks/useDaemon'
 
-interface RailEntry {
-  id: PanelId
-  icon: LucideIcon
-  label: string
-  kbd?: string
-}
-
-const PANEL_ITEMS: RailEntry[] = [
-  { id: 'files', icon: FolderTree, label: 'Files', kbd: 'Cmd+B' },
-  { id: 'git', icon: GitBranch, label: 'Git' },
-  { id: 'views', icon: LayoutGrid, label: 'Views' },
-  { id: 'jobs', icon: Briefcase, label: 'Jobs' },
+/** Views that get their own route and a spot on the rail. */
+const RAIL_VIEWS: { to: string; icon: LucideIcon; label: string }[] = [
+  { to: '/studio/session', icon: Layers, label: 'Session' },
+  { to: '/studio/agents', icon: Users, label: 'Agents' },
+  { to: '/studio/skills', icon: Zap, label: 'Skills' },
+  { to: '/studio/jobs', icon: Briefcase, label: 'Jobs' },
 ]
 
 export function StudioRail() {
-  const { activePanel, togglePanel, toggleCommandPalette } = useStudioShell()
-  const { connected } = useDaemon()
+  const pathname = useRouterState({ select: (s) => s.location.pathname })
   const navigate = useNavigate()
+  const { toggleCommandPalette } = useStudioShell()
+  const { connected } = useDaemon()
   const [isFullscreen, setIsFullscreen] = useState(false)
 
   useEffect(() => {
-    function onFsChange() {
-      setIsFullscreen(!!document.fullscreenElement)
-    }
-    document.addEventListener('fullscreenchange', onFsChange)
-    return () => document.removeEventListener('fullscreenchange', onFsChange)
+    const onFs = () => setIsFullscreen(!!document.fullscreenElement)
+    document.addEventListener('fullscreenchange', onFs)
+    return () => document.removeEventListener('fullscreenchange', onFs)
   }, [])
 
   const handleFullscreen = useCallback(() => {
-    if (document.fullscreenElement) {
-      void document.exitFullscreen()
-    } else {
-      void document.documentElement.requestFullscreen()
-    }
+    if (document.fullscreenElement) void document.exitFullscreen()
+    else void document.documentElement.requestFullscreen()
   }, [])
 
   return (
     <TooltipProvider>
       <nav className="w-12 shrink-0 bg-card border-r border-border/60 flex flex-col items-center py-2 gap-1">
-        {/* Ship logo + connection dot */}
+        {/* Ship logo + connection */}
         <Tooltip>
           <TooltipTrigger asChild>
-            <button className="w-8 h-8 rounded-lg flex items-center justify-center mb-1 transition-colors hover:bg-muted">
+            <Button
+              variant="ghost"
+              size="icon"
+              className="size-8 mb-1"
+              onClick={() => void navigate({ to: '/studio/session' })}
+            >
               <div className="relative">
                 <img src="/ship-logos/ship_logo.svg" alt="" className="size-4" />
                 <span className={`absolute -bottom-0.5 -right-0.5 w-1.5 h-1.5 rounded-full ${connected ? 'bg-status-green' : 'bg-status-red'}`} />
               </div>
-            </button>
+            </Button>
           </TooltipTrigger>
           <TooltipContent side="right">
-            {connected ? 'Connected to daemon' : 'Daemon disconnected'}
+            {connected ? 'Connected' : 'Disconnected'}
           </TooltipContent>
         </Tooltip>
 
         <Separator className="w-6 my-1" />
 
-        {/* Panel toggles */}
-        {PANEL_ITEMS.map((entry) => (
-          <Tooltip key={entry.id}>
-            <TooltipTrigger asChild>
-              <Button
-                variant="ghost"
-                size="icon"
-                className={`size-8 ${activePanel === entry.id ? 'bg-primary/10 text-primary' : ''}`}
-                onClick={() => togglePanel(entry.id)}
-              >
-                <entry.icon className="size-4" strokeWidth={activePanel === entry.id ? 2.2 : 1.8} />
-              </Button>
-            </TooltipTrigger>
-            <TooltipContent side="right">
-              {entry.label}{entry.kbd ? ` (${entry.kbd})` : ''}
-            </TooltipContent>
-          </Tooltip>
-        ))}
+        {/* View routes */}
+        {RAIL_VIEWS.map((item) => {
+          const isActive = pathname.startsWith(item.to)
+          const Icon = item.icon
+          return (
+            <Tooltip key={item.to}>
+              <TooltipTrigger asChild>
+                <Button
+                  variant="ghost"
+                  size="icon"
+                  className={`size-8 ${isActive ? 'bg-primary/10 text-primary' : ''}`}
+                  onClick={() => void navigate({ to: item.to })}
+                >
+                  <Icon className="size-4" strokeWidth={isActive ? 2.2 : 1.8} />
+                </Button>
+              </TooltipTrigger>
+              <TooltipContent side="right">{item.label}</TooltipContent>
+            </Tooltip>
+          )
+        })}
 
         <Separator className="w-6 my-1" />
 
         {/* Search = command palette */}
         <Tooltip>
           <TooltipTrigger asChild>
-            <Button
-              variant="ghost"
-              size="icon"
-              className="size-8"
-              onClick={toggleCommandPalette}
-            >
+            <Button variant="ghost" size="icon" className="size-8" onClick={toggleCommandPalette}>
               <Search className="size-4" strokeWidth={1.8} />
             </Button>
           </TooltipTrigger>
           <TooltipContent side="right">Search (Cmd+K)</TooltipContent>
         </Tooltip>
 
-        {/* Spacer */}
         <div className="flex-1" />
 
         <Separator className="w-6 mb-1" />
@@ -122,16 +113,10 @@ export function StudioRail() {
         {/* Fullscreen */}
         <Tooltip>
           <TooltipTrigger asChild>
-            <Button
-              variant="ghost"
-              size="icon"
-              className="size-8"
-              onClick={handleFullscreen}
-            >
+            <Button variant="ghost" size="icon" className="size-8" onClick={handleFullscreen}>
               {isFullscreen
                 ? <Minimize className="size-4" strokeWidth={1.8} />
-                : <Maximize className="size-4" strokeWidth={1.8} />
-              }
+                : <Maximize className="size-4" strokeWidth={1.8} />}
             </Button>
           </TooltipTrigger>
           <TooltipContent side="right">
@@ -145,10 +130,10 @@ export function StudioRail() {
             <Button
               variant="ghost"
               size="icon"
-              className="size-8"
+              className={`size-8 ${pathname.startsWith('/studio/settings') ? 'bg-primary/10 text-primary' : ''}`}
               onClick={() => void navigate({ to: '/studio/settings' })}
             >
-              <Settings className="size-4" strokeWidth={1.8} />
+              <Settings className="size-4" strokeWidth={pathname.startsWith('/studio/settings') ? 2.2 : 1.8} />
             </Button>
           </TooltipTrigger>
           <TooltipContent side="right">Settings</TooltipContent>

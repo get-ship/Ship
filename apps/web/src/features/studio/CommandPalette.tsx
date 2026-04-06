@@ -1,5 +1,5 @@
 import { useNavigate } from '@tanstack/react-router'
-import { MonitorPlay, Users, Zap, Settings, FolderTree, GitBranch, PanelRight } from 'lucide-react'
+import { Layers, Users, Zap, Briefcase, Settings, FolderTree } from 'lucide-react'
 import {
   CommandDialog, CommandInput, CommandList, CommandEmpty,
   CommandGroup, CommandItem, CommandShortcut,
@@ -7,10 +7,15 @@ import {
 import { useStudioShell } from './StudioShellContext'
 
 export function CommandPalette() {
-  const { commandPaletteOpen, setCommandPaletteOpen, togglePanel, toggleRightDrawer } = useStudioShell()
+  const { commandPaletteOpen, setCommandPaletteOpen, toggleFileSidebar } = useStudioShell()
   const navigate = useNavigate()
 
-  function runAndClose(fn: () => void) {
+  function go(to: string) {
+    void navigate({ to })
+    setCommandPaletteOpen(false)
+  }
+
+  function run(fn: () => void) {
     fn()
     setCommandPaletteOpen(false)
   }
@@ -21,39 +26,34 @@ export function CommandPalette() {
       <CommandList>
         <CommandEmpty>No results found.</CommandEmpty>
 
-        <CommandGroup heading="Views">
-          <CommandItem onSelect={() => runAndClose(() => void navigate({ to: '/studio/session' }))}>
-            <MonitorPlay className="size-4" />
+        <CommandGroup heading="Navigate">
+          <CommandItem onSelect={() => go('/studio/session')}>
+            <Layers className="size-4" />
             <span>Session</span>
           </CommandItem>
-          <CommandItem onSelect={() => runAndClose(() => void navigate({ to: '/studio/agents' }))}>
+          <CommandItem onSelect={() => go('/studio/agents')}>
             <Users className="size-4" />
             <span>Agents</span>
           </CommandItem>
-          <CommandItem onSelect={() => runAndClose(() => void navigate({ to: '/studio/skills' }))}>
+          <CommandItem onSelect={() => go('/studio/skills')}>
             <Zap className="size-4" />
             <span>Skills</span>
           </CommandItem>
-          <CommandItem onSelect={() => runAndClose(() => void navigate({ to: '/studio/settings' }))}>
+          <CommandItem onSelect={() => go('/studio/jobs')}>
+            <Briefcase className="size-4" />
+            <span>Jobs</span>
+          </CommandItem>
+          <CommandItem onSelect={() => go('/studio/settings')}>
             <Settings className="size-4" />
             <span>Settings</span>
           </CommandItem>
         </CommandGroup>
 
         <CommandGroup heading="Actions">
-          <CommandItem onSelect={() => runAndClose(() => togglePanel('files'))}>
+          <CommandItem onSelect={() => run(toggleFileSidebar)}>
             <FolderTree className="size-4" />
-            <span>Toggle files panel</span>
+            <span>Toggle file sidebar</span>
             <CommandShortcut>Cmd+B</CommandShortcut>
-          </CommandItem>
-          <CommandItem onSelect={() => runAndClose(() => togglePanel('git'))}>
-            <GitBranch className="size-4" />
-            <span>Toggle git panel</span>
-          </CommandItem>
-          <CommandItem onSelect={() => runAndClose(() => toggleRightDrawer())}>
-            <PanelRight className="size-4" />
-            <span>Toggle right drawer</span>
-            <CommandShortcut>Cmd+/</CommandShortcut>
           </CommandItem>
         </CommandGroup>
       </CommandList>

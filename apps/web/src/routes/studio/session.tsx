@@ -20,7 +20,6 @@ import { DropZoneOverlay } from '#/features/studio/session/DropZoneOverlay'
 import { ViewHost } from '#/features/studio/views/ViewHost'
 import { useStudioShell } from '#/features/studio/StudioShellContext'
 import { SessionEmptyState } from '#/features/studio/session/SessionEmptyState'
-import { JobsPanel } from '#/features/studio/session/JobsPanel'
 
 export const Route = createFileRoute('/studio/session')({
   component: SessionPage,
@@ -32,7 +31,7 @@ type ViewMode = 'file' | 'diff'
 interface OpenTab { path: string; name: string; type: string }
 
 function SessionPage() {
-  const { workspaces, jobs } = useDaemon()
+  const { workspaces } = useDaemon()
   const active = workspaces
     .filter((w) => w.status === 'active')
     .sort((a, b) => (b.last_activated_at ?? '').localeCompare(a.last_activated_at ?? ''))
@@ -142,10 +141,7 @@ function SessionPage() {
   const showDiff = !showView && viewMode === 'diff'
   const activeDiffText = selectedCommitHash ? commitDiff : diffText
 
-  const { activePanel, setActivePanel } = useStudioShell()
-  const sidebarPanel = activePanel === 'files' || activePanel === 'git' || activePanel === 'views'
-  const jobsPanel = activePanel === 'jobs'
-  const closePanel = useCallback(() => setActivePanel(null), [setActivePanel])
+  const { fileSidebarOpen, closeFileSidebar } = useStudioShell()
 
   return (
     <>
@@ -165,34 +161,23 @@ function SessionPage() {
         onDragLeave={handleDragLeave}
         onDrop={handleDrop}
       >
-        {/* Sidebar overlay for files/git/views */}
-        {sidebarPanel && (
+        {/* File sidebar overlay — Cmd+B */}
+        {fileSidebarOpen && (
           <>
-            <div className="absolute inset-0 z-30" onClick={closePanel} />
+            <div className="absolute inset-0 z-30" onClick={closeFileSidebar} />
             <div className="absolute left-0 top-0 bottom-0 w-64 z-40 bg-card border-r border-border/60 shadow-lg animate-in slide-in-from-left-1 duration-100">
               <SessionSidebar
                 files={files}
                 activeFile={activeTabPath}
-                initialTab={activePanel as 'files' | 'git' | 'views'}
-                onSelectFile={(path) => { openFile(path); closePanel() }}
+                onSelectFile={(path) => { openFile(path); closeFileSidebar() }}
                 onDeleteFile={handleDeleteFile}
                 onUploadFiles={handleUploadFiles}
-                onShowDiff={() => { handleShowDiff(); closePanel() }}
-                onSelectCommit={(hash) => { handleSelectCommit(hash); closePanel() }}
-                onOpenView={(view) => { handleOpenView(view); closePanel() }}
+                onShowDiff={() => { handleShowDiff(); closeFileSidebar() }}
+                onSelectCommit={(hash) => { handleSelectCommit(hash); closeFileSidebar() }}
+                onOpenView={(view) => { handleOpenView(view); closeFileSidebar() }}
                 gitStatus={gitStatus}
                 gitLog={gitLog}
               />
-            </div>
-          </>
-        )}
-
-        {/* Jobs overlay */}
-        {jobsPanel && (
-          <>
-            <div className="absolute inset-0 z-30" onClick={closePanel} />
-            <div className="absolute left-0 top-0 bottom-0 w-72 z-40 bg-card border-r border-border/60 shadow-lg animate-in slide-in-from-left-1 duration-100">
-              <JobsPanel jobs={jobs} onClose={closePanel} />
             </div>
           </>
         )}
