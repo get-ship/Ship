@@ -23,12 +23,25 @@ pub fn reconcile_workspace(
     branch: &str,
     connection_path: &Path,
 ) -> Result<Option<Workspace>> {
+    let git_path = git_worktree_path_for_branch(branch);
+    reconcile_workspace_with_git_path(ship_dir, branch, &git_path)
+}
+
+/// Testable reconciliation that accepts the git worktree path directly.
+///
+/// Production callers use `reconcile_workspace` which resolves the path via git.
+/// Tests call this directly to avoid shelling out to git.
+pub fn reconcile_workspace_with_git_path(
+    ship_dir: &Path,
+    branch: &str,
+    git_path: &Option<String>,
+) -> Result<Option<Workspace>> {
     let Some(mut workspace) = get_workspace(ship_dir, branch)? else {
         return Ok(None);
     };
 
-    let git_path = git_worktree_path_for_branch(branch);
-    let changes = detect_changes(&workspace, &git_path, connection_path);
+    let dummy_conn = std::path::PathBuf::from("/");
+    let changes = detect_changes(&workspace, git_path, &dummy_conn);
 
     if let Some(change) = changes {
         workspace.is_worktree = change.is_worktree;
@@ -44,6 +57,41 @@ pub fn reconcile_workspace(
     }
 
     Ok(Some(workspace))
+}
+
+/// Reconcile all workspaces against actual filesystem state.
+///
+/// Called on daemon startup (scenario S5). Iterates every workspace,
+/// checks worktree paths exist on disk, and clears stale records.
+/// Returns the list of all reconciled workspaces.
+pub fn reconcile_all_workspaces(ship_dir: &Path) -> Result<Vec<Workspace>> {
+    let workspaces = super::crud::list_workspaces(ship_dir)?;
+    let mut results = Vec::with_capacity(workspaces.len());
+
+    for ws in workspaces {
+        // For batch reconciliation, check if the stored worktree_path exists on disk.
+        // If it does, keep it; if not, clear it.
+        let git_path = if ws.is_worktree {
+            ws.worktree_path
+                .as_ref()
+                .filter(|p| Path::new(p).exists())
+                .cloned()
+        } else {
+            None
+        };
+
+        let reconciled = reconcile_workspace_with_git_path(
+            ship_dir,
+            &ws.branch,
+            &git_path,
+        )?;
+
+        if let Some(ws) = reconciled {
+            results.push(ws);
+        }
+    }
+
+    Ok(results)
 }
 
 struct WorktreeChange {

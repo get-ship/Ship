@@ -37,6 +37,8 @@ mod tests_lifecycle;
 mod tests_session_lifecycle;
 #[cfg(test)]
 mod tests_event_upserts;
+#[cfg(test)]
+mod tests_reconcile;
 
 // Re-export all public types so `use runtime::workspace::*` continues to work.
 pub use types::{

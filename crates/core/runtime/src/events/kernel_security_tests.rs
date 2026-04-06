@@ -489,11 +489,11 @@ mod kernel_security {
     }
 }
 
-//! Tests for kernel_security.rs — enforce_emit_permissions, should_deliver,
-//! event_matches_actor_scope, and deliver_with_scope edge cases.
-//!
-//! Complements scoped_delivery_tests (scope variants) and permission_tests
-//! (emit/subscribe enforcement) with edge cases specific to the security module.
+/// Tests for kernel_security.rs — enforce_emit_permissions, should_deliver,
+/// event_matches_actor_scope, and deliver_with_scope edge cases.
+///
+/// Complements scoped_delivery_tests (scope variants) and permission_tests
+/// (emit/subscribe enforcement) with edge cases specific to the security module.
 
 #[cfg(feature = "unstable")]
 mod kernel_security {
