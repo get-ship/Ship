@@ -19,14 +19,12 @@ use std::path::{Path, PathBuf};
 use std::sync::Mutex;
 
 use anyhow::{Result, anyhow};
-use chrono::Utc;
 use serde::{Deserialize, Serialize};
 use tokio::sync::mpsc;
 
 use crate::events::actor_store::{ActorStore, init_actor_db, raw_append};
 use crate::events::envelope::EventEnvelope;
 use crate::events::mailbox::Mailbox;
-use crate::events::snapshot::{ActorSnapshot, event_stats};
 use crate::events::validator::{EmitContext, EventValidator, is_kernel_event};
 
 #[cfg(feature = "unstable")]
@@ -140,49 +138,65 @@ impl KernelRouter {
         #[cfg(feature = "unstable")]
         {
             self.event_log.lock().unwrap().push(event.clone());
-            self.deliver_with_scope(&event).await;
-            return Ok(());
+            return self.deliver_with_scope(&event).await;
         }
 
         #[cfg(not(feature = "unstable"))]
         {
+            let mut full_actors: Vec<String> = Vec::new();
+
             for (ns, actor_ids) in &self.subscriptions {
                 if event.event_type.starts_with(ns.as_str()) {
                     for actor_id in actor_ids {
                         if let Some(tx) = self.mailboxes.get(actor_id) {
-                            if let Err(_) = tx.try_send(event.clone()) {
-                                if tx.is_closed() {
+                            match tx.try_send(event.clone()) {
+                                Ok(()) => {
+                                    tracing::debug!(
+                                        actor_id,
+                                        event_type = %event.event_type,
+                                        "kernel-router: event delivered"
+                                    );
+                                }
+                                Err(mpsc::error::TrySendError::Full(_)) => {
+                                    tracing::warn!(
+                                        actor_id,
+                                        event_type = %event.event_type,
+                                        capacity = MAILBOX_CAPACITY,
+                                        "kernel-router: mailbox full, event not delivered"
+                                    );
+                                    let payload = serde_json::json!({
+                                        "actor_id": actor_id,
+                                        "dropped_event_type": &event.event_type,
+                                        "dropped_event_id": &event.id,
+                                    });
+                                    if let Ok(ev) = EventEnvelope::new(
+                                        "actor.mailbox_full",
+                                        actor_id,
+                                        &payload,
+                                    ) {
+                                        let _ = raw_append(&self.kernel_store_path, &ev);
+                                    }
+                                    full_actors.push(actor_id.clone());
+                                }
+                                Err(mpsc::error::TrySendError::Closed(_)) => {
                                     tracing::warn!(
                                         actor_id,
                                         event_type = %event.event_type,
                                         "kernel-router: mailbox closed, event dropped"
                                     );
-                                } else {
-                                    tracing::warn!(
-                                        actor_id,
-                                        event_type = %event.event_type,
-                                        capacity = MAILBOX_CAPACITY,
-                                        "kernel-router: mailbox full, retrying once"
-                                    );
-                                    // Retry once with async send (waits for capacity)
-                                    if let Err(_) = tx.send(event.clone()).await {
-                                        tracing::warn!(
-                                            actor_id,
-                                            event_type = %event.event_type,
-                                            "kernel-router: retry failed, event dropped"
-                                        );
-                                    }
                                 }
-                            } else {
-                                tracing::debug!(
-                                    actor_id,
-                                    event_type = %event.event_type,
-                                    "kernel-router: event delivered"
-                                );
                             }
                         }
                     }
                 }
+            }
+
+            if !full_actors.is_empty() {
+                return Err(anyhow!(
+                    "mailbox full for actor(s) [{}]: event '{}' not delivered",
+                    full_actors.join(", "),
+                    event.event_type
+                ));
             }
             Ok(())
         }
@@ -211,78 +225,6 @@ impl KernelRouter {
         Ok(())
     }
 
-    pub fn snapshot(&self, actor_id: &str) -> Result<ActorSnapshot> {
-        if !self.mailboxes.contains_key(actor_id) {
-            return Err(anyhow!("actor '{}' not found", actor_id));
-        }
-        let config = self
-            .actor_configs
-            .get(actor_id)
-            .ok_or_else(|| anyhow!("actor config missing for '{}'", actor_id))?
-            .clone();
-        let db_path = self.actor_db_path(actor_id);
-        flush_wal(&db_path)?;
-        let db_bytes = std::fs::read(&db_path)?;
-        let (event_count, last_event_id) = event_stats(&db_path)?;
-        let snap = ActorSnapshot {
-            actor_id: actor_id.to_string(),
-            namespace: config.namespace.clone(),
-            config,
-            db_bytes,
-            created_at: Utc::now(),
-            event_count,
-            last_event_id,
-        };
-        let payload = serde_json::json!({
-            "actor_id": actor_id,
-            "event_count": snap.event_count,
-            "last_event_id": snap.last_event_id,
-            "size_bytes": snap.db_bytes.len(),
-        });
-        raw_append(
-            &self.kernel_store_path,
-            &EventEnvelope::new("kernel.actor.snapshot", actor_id, &payload)?,
-        )?;
-        Ok(snap)
-    }
-
-    pub fn suspend(&mut self, actor_id: &str) -> Result<ActorSnapshot> {
-        let snap = self.snapshot(actor_id)?;
-        self.stop_actor(actor_id)?;
-        let payload = serde_json::json!({
-            "actor_id": actor_id,
-            "reason": "suspend_requested",
-        });
-        raw_append(
-            &self.kernel_store_path,
-            &EventEnvelope::new("kernel.actor.suspended", actor_id, &payload)?,
-        )?;
-        Ok(snap)
-    }
-
-    pub fn restore(&mut self, snapshot: ActorSnapshot) -> Result<(ActorStore, Mailbox)> {
-        if self.mailboxes.contains_key(&snapshot.actor_id) {
-            return Err(anyhow!("actor '{}' already exists", snapshot.actor_id));
-        }
-        let db_path = self.actor_db_path(&snapshot.actor_id);
-        if let Some(parent) = db_path.parent() {
-            std::fs::create_dir_all(parent)?;
-        }
-        std::fs::write(&db_path, &snapshot.db_bytes)?;
-        let event_count = snapshot.event_count;
-        let actor_id = snapshot.actor_id.clone();
-        let result = self.spawn_actor(&actor_id, snapshot.config)?;
-        let payload = serde_json::json!({
-            "actor_id": &actor_id,
-            "event_count": event_count,
-        });
-        raw_append(
-            &self.kernel_store_path,
-            &EventEnvelope::new("kernel.actor.restored", &actor_id, &payload)?,
-        )?;
-        Ok(result)
-    }
-
     pub fn actor_count(&self) -> usize {
         self.mailboxes.len()
     }
@@ -307,7 +249,7 @@ impl KernelRouter {
     }
 }
 
-fn flush_wal(db_path: &Path) -> Result<()> {
+pub(crate) fn flush_wal(db_path: &Path) -> Result<()> {
     use crate::db::open_db_at;
     let mut conn = open_db_at(db_path)?;
     crate::db::block_on(async {
