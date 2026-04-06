@@ -496,7 +496,7 @@ mod kernel_security {
 /// (emit/subscribe enforcement) with edge cases specific to the security module.
 
 #[cfg(feature = "unstable")]
-mod kernel_security_edge {
+mod kernel_security_edge_cases {
     use crate::events::envelope::EventEnvelope;
     use crate::events::identity::{ActorIdentity, ActorType};
     use crate::events::kernel_router::{KernelRouter, MAILBOX_CAPACITY};
