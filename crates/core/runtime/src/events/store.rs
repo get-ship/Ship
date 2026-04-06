@@ -1,8 +1,8 @@
 use anyhow::Result;
-use chrono::{DateTime, Utc};
-use sqlx::{QueryBuilder, Row};
+use sqlx::QueryBuilder;
 use std::path::{Path, PathBuf};
 
+use crate::db::envelope::envelope_from_row;
 use crate::db::{block_on, db_path, ensure_db, ensure_db_at, open_db_at};
 use crate::events::envelope::EventEnvelope;
 use crate::events::filter::EventFilter;
@@ -51,12 +51,16 @@ pub fn append_event_with_conn(
 
 pub struct SqliteEventStore {
     db_path: PathBuf,
+    pool: Option<sqlx::SqlitePool>,
 }
 
 impl SqliteEventStore {
     pub fn new() -> Result<Self> {
         ensure_db()?;
-        Ok(Self { db_path: db_path()? })
+        Ok(Self {
+            db_path: db_path()?,
+            pool: None,
+        })
     }
 
     /// Create an event store at an explicit `ship_dir` path.
@@ -66,6 +70,21 @@ impl SqliteEventStore {
         ensure_db_at(ship_dir)?;
         Ok(Self {
             db_path: ship_dir.join("platform.db"),
+            pool: None,
+        })
+    }
+
+    /// Create an event store backed by a connection pool.
+    ///
+    /// Requires a running Tokio runtime. Use in the daemon for high-throughput
+    /// event operations. Falls back to per-call connections if pool acquire fails.
+    pub fn new_pooled(ship_dir: &Path) -> Result<Self> {
+        ensure_db_at(ship_dir)?;
+        let db_path = ship_dir.join("platform.db");
+        let pool = crate::db::pool::create_pool(&db_path, 5)?;
+        Ok(Self {
+            db_path,
+            pool: Some(pool),
         })
     }
 }
@@ -111,7 +130,7 @@ fn query_one_db(path: &Path, filter: &EventFilter) -> Result<Vec<EventEnvelope>>
     }
 
     let rows = block_on(async { qb.build().fetch_all(&mut conn).await })?;
-    rows.iter().map(row_to_envelope).collect()
+    rows.iter().map(|r| envelope_from_row(r, true)).collect()
 }
 
 /// Enumerate all workspace DB files under `{global_dir}/workspaces/*/events.db`.
@@ -135,6 +154,35 @@ fn workspace_db_paths() -> Vec<PathBuf> {
 
 impl EventStore for SqliteEventStore {
     fn append(&self, event: &EventEnvelope) -> Result<()> {
+        if let Some(ref pool) = self.pool {
+            let created_at = event.created_at.to_rfc3339();
+            return block_on(async {
+                sqlx::query(
+                    "INSERT INTO events \
+                     (id, event_type, entity_id, actor, payload_json, version, \
+                      causation_id, workspace_id, session_id, \
+                      actor_id, parent_actor_id, elevated, created_at, target_actor_id) \
+                     VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)",
+                )
+                .bind(&event.id)
+                .bind(&event.event_type)
+                .bind(&event.entity_id)
+                .bind(&event.actor)
+                .bind(&event.payload_json)
+                .bind(event.version as i64)
+                .bind(&event.causation_id)
+                .bind(&event.workspace_id)
+                .bind(&event.session_id)
+                .bind(&event.actor_id)
+                .bind(&event.parent_actor_id)
+                .bind(event.elevated as i64)
+                .bind(&created_at)
+                .bind(&event.target_actor_id)
+                .execute(pool)
+                .await
+            })
+            .map(|_| ());
+        }
         let mut conn = open_db_at(&self.db_path)?;
         let created_at = event.created_at.to_rfc3339();
         block_on(async {
@@ -166,16 +214,25 @@ impl EventStore for SqliteEventStore {
     }
 
     fn get(&self, id: &str) -> Result<Option<EventEnvelope>> {
-        // Try platform DB first.
-        let mut conn = open_db_at(&self.db_path)?;
-        let row = block_on(async {
-            sqlx::query(&format!("SELECT {COLS} FROM events WHERE id = ?"))
-                .bind(id)
-                .fetch_optional(&mut conn)
-                .await
-        })?;
+        // Try platform DB first, using pool if available.
+        let row = if let Some(ref pool) = self.pool {
+            block_on(async {
+                sqlx::query(&format!("SELECT {COLS} FROM events WHERE id = ?"))
+                    .bind(id)
+                    .fetch_optional(pool)
+                    .await
+            })?
+        } else {
+            let mut conn = open_db_at(&self.db_path)?;
+            block_on(async {
+                sqlx::query(&format!("SELECT {COLS} FROM events WHERE id = ?"))
+                    .bind(id)
+                    .fetch_optional(&mut conn)
+                    .await
+            })?
+        };
         if let Some(r) = row {
-            return row_to_envelope(&r).map(Some);
+            return envelope_from_row(&r, true).map(Some);
         }
 
         // Fall back to workspace DBs.
@@ -189,7 +246,7 @@ impl EventStore for SqliteEventStore {
                         .await
                 });
                 if let Ok(Some(r)) = row {
-                    return row_to_envelope(&r).map(Some);
+                    return envelope_from_row(&r, true).map(Some);
                 }
             }
         }
@@ -223,33 +280,3 @@ impl EventStore for SqliteEventStore {
 
 }
 
-fn row_to_envelope(row: &sqlx::sqlite::SqliteRow) -> Result<EventEnvelope> {
-    // Columns: id(0) event_type(1) entity_id(2) actor(3) payload_json(4) version(5)
-    //          causation_id(6) workspace_id(7) session_id(8)
-    //          actor_id(9) parent_actor_id(10) elevated(11) created_at(12) target_actor_id(13)
-    let created_at_str: String = row.get(12);
-    let created_at = created_at_str
-        .parse::<DateTime<Utc>>()
-        .or_else(|_| {
-            chrono::DateTime::parse_from_rfc3339(&created_at_str)
-                .map(|dt| dt.with_timezone(&Utc))
-        })
-        .map_err(|e| anyhow::anyhow!("invalid created_at '{}': {}", created_at_str, e))?;
-
-    Ok(EventEnvelope {
-        id: row.get(0),
-        event_type: row.get(1),
-        entity_id: row.get(2),
-        actor: row.get(3),
-        payload_json: row.get(4),
-        version: row.get::<i64, _>(5) as u32,
-        causation_id: row.get(6),
-        workspace_id: row.get(7),
-        session_id: row.get(8),
-        actor_id: row.get(9),
-        parent_actor_id: row.get(10),
-        elevated: row.get::<i64, _>(11) != 0,
-        created_at,
-        target_actor_id: row.get(13),
-    })
-}

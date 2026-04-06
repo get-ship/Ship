@@ -376,6 +376,32 @@ pub async fn end_job(
     }
 }
 
+/// POST /api/runtime/rebuild-projections — rebuild all projections from events.
+pub async fn rebuild_projections(
+    State(state): State<ApiState>,
+) -> impl IntoResponse {
+    match runtime::db::rebuild::rebuild_projections(&state.ship_dir) {
+        Ok(report) => (
+            StatusCode::OK,
+            Json(MeshResponse {
+                ok: true,
+                data: serde_json::json!({
+                    "events_replayed": report.events_replayed,
+                    "projections_rebuilt": report.projections_rebuilt,
+                    "duration_ms": report.duration_ms,
+                }),
+            }),
+        ),
+        Err(e) => (
+            StatusCode::INTERNAL_SERVER_ERROR,
+            Json(MeshResponse {
+                ok: false,
+                data: serde_json::json!(e.to_string()),
+            }),
+        ),
+    }
+}
+
 /// Stops an actor when dropped — used to clean up the SSE stream actor.
 struct ActorGuard {
     actor_id: String,

@@ -237,6 +237,10 @@ pub enum Commands {
     },
 
 
+    /// Rebuild projection tables from the event log
+    #[cfg(feature = "unstable")]
+    RebuildProjections,
+
     /// Real-time dashboard — workspaces, sessions, events (htop for Ship)
     #[cfg(feature = "unstable")]
     Top,
