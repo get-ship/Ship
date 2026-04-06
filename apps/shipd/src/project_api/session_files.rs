@@ -50,13 +50,26 @@ fn collect_files_recursive(
             .to_string_lossy()
             .to_string();
         let name = entry.file_name().to_string_lossy().to_string();
-        let size = entry.metadata().map(|m| m.len()).unwrap_or(0);
+        let meta = entry.metadata().ok();
+        let size = meta.as_ref().map(|m| m.len()).unwrap_or(0);
+        let modified_at = meta.as_ref()
+            .and_then(|m| m.modified().ok())
+            .and_then(|t| t.duration_since(std::time::UNIX_EPOCH).ok())
+            .map(|d| d.as_millis() as u64)
+            .unwrap_or(0);
+        let created_at = meta.as_ref()
+            .and_then(|m| m.created().ok())
+            .and_then(|t| t.duration_since(std::time::UNIX_EPOCH).ok())
+            .map(|d| d.as_millis() as u64)
+            .unwrap_or(modified_at);
         let file_type = file_type_from_ext(&path);
         files.push(serde_json::json!({
             "name": name,
             "path": rel_path,
             "size": size,
             "type": file_type,
+            "modifiedAt": modified_at,
+            "createdAt": created_at,
         }));
     }
     Ok(())

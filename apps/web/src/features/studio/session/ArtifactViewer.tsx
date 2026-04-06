@@ -53,13 +53,6 @@ function ImageViewer({ file, content }: { file: SessionFile; content: string }) 
           {zoomed ? <ZoomOut className="size-3" /> : <ZoomIn className="size-3" />}
           {zoomed ? 'Fit' : 'Zoom'}
         </button>
-        <button
-          onClick={() => document.documentElement.requestFullscreen?.()}
-          className="flex items-center justify-center rounded size-6 text-muted-foreground hover:text-foreground hover:bg-muted transition"
-          title="Fullscreen"
-        >
-          <Maximize className="size-3" />
-        </button>
       </div>
       <div
         className={`flex-1 overflow-auto bg-black/5 dark:bg-black/20 ${zoomed ? 'cursor-zoom-out' : 'cursor-zoom-in'}`}

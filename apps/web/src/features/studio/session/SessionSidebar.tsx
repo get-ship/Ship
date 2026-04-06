@@ -145,12 +145,7 @@ export function SessionSidebar({
 
   return (
     <aside className="flex w-full shrink-0 flex-col h-full">
-      {/* Header */}
-      <div className="flex items-center justify-between border-b border-border shrink-0 h-9 px-3">
-        <span className="text-[11px] font-medium text-muted-foreground uppercase tracking-wider">Artifacts</span>
-      </div>
-
-      <div className="flex-1 overflow-y-auto">
+      <div className="flex-1 overflow-y-auto pt-1">
         <FilesTab
             todo={todo}
             groups={groups}
@@ -326,10 +321,15 @@ function FileEntry({ file, isActive, onClick, onContextMenu, isTodo, stripPrefix
         ? <CheckSquare className={`size-3.5 shrink-0 ${isActive ? 'text-primary' : 'text-emerald-500'}`} />
         : <Icon className={`size-3.5 shrink-0 ${isActive ? 'text-primary' : color}`} />
       }
-      <span className="truncate text-left min-w-0">
+      <span className="flex-1 truncate text-left min-w-0">
         {subdir && <span className="opacity-40">{subdir}</span>}
         {filename}
       </span>
+      {file.modifiedAt > 0 && (
+        <span className="text-[9px] text-muted-foreground/40 shrink-0 tabular-nums">
+          {relativeTime(file.modifiedAt)}
+        </span>
+      )}
     </button>
   )
 }

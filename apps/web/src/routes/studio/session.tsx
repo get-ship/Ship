@@ -9,7 +9,6 @@ import { DiffViewer } from '#/features/studio/session/DiffViewer'
 import { SessionSidebar } from '#/features/studio/session/SessionSidebar'
 import { useSessionFiles, useSessionFileContent, useUploadSessionFile, useDeleteSessionFile } from '#/features/studio/session/useSessionFiles'
 import { useSessionDrafts } from '#/features/studio/session/useSessionDrafts'
-import { SessionTabBar } from '#/features/studio/session/SessionTabBar'
 import { useAnnotations } from '#/features/studio/session/useAnnotations'
 import { useSessionHandlers } from '#/features/studio/session/useSessionHandlers'
 import { useDiffContent } from '#/features/studio/session/useDiffContent'
@@ -174,17 +173,6 @@ function SessionPage() {
         <div className="flex flex-1 min-w-0 min-h-0 flex-col">
           <div className="flex flex-1 min-w-0 min-h-0">
             <div className="flex-1 flex flex-col min-w-0 min-h-0">
-              <SessionTabBar
-                openTabs={openTabs}
-                activeTabPath={activeTabPath}
-                viewMode={viewMode}
-                unsavedPaths={drafts.unsavedPaths}
-                selectedCommitHash={selectedCommitHash}
-                onSelectTab={selectTab}
-                onCloseTab={closeTab}
-              />
-
-              <div className="flex-1 flex flex-col min-h-0 min-w-0">
                 {showView && (
                   <ViewHost html={viewHtml} workspaceId={workspaceId} />
                 )}
@@ -244,9 +232,7 @@ function SessionPage() {
                     onSelectFile={openFile}
                   />
                 )}
-              </div>
             </div>
-
           </div>
         </div>
 
