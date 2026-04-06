@@ -2,7 +2,7 @@
 // images (click-to-zoom), JSON, and text files.
 
 import { useMemo, useState, lazy, Suspense } from 'react'
-import { FileText, Image as ImageIcon, File, ZoomIn, ZoomOut, Save, Maximize, ChevronDown, ChevronRight, MonitorPlay, ExternalLink } from 'lucide-react'
+import { FileText, Image as ImageIcon, File, ZoomIn, ZoomOut, Save, ChevronDown, ChevronRight, MonitorPlay, ExternalLink } from 'lucide-react'
 import type { FrontmatterEntry } from '@ship/primitives'
 import { MarkdownPreview } from '#/features/studio/skills-ide/MarkdownPreview'
 
@@ -147,13 +147,6 @@ function MarkdownFileEditor({
             Save
           </button>
         )}
-        <button
-          onClick={() => document.documentElement.requestFullscreen?.()}
-          className="flex items-center justify-center rounded size-6 text-muted-foreground hover:text-foreground hover:bg-muted transition"
-          title="Fullscreen (Esc to exit)"
-        >
-          <Maximize className="size-3" />
-        </button>
       </div>
       <FrontmatterBar entries={fmEntries} />
       <div className="flex-1 overflow-hidden">
