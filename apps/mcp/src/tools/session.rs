@@ -41,8 +41,14 @@ pub fn end_session(project_dir: &Path, req: EndSessionRequest, branch: &str) -> 
         gate_result: req.gate_result,
     };
     match runtime_end_workspace_session(project_dir, branch, end_req) {
-        Ok(session) => serde_json::to_string_pretty(&session)
-            .unwrap_or_else(|e| format!("Error serializing workspace session: {}", e)),
+        Ok(session) => {
+            // If this branch has an active job, emit job.completed automatically.
+            // This bridges the session lifecycle → job pipeline so agents don't need
+            // to know they're in a pipeline.
+            try_emit_job_completed_for_branch(branch);
+            serde_json::to_string_pretty(&session)
+                .unwrap_or_else(|e| format!("Error serializing workspace session: {}", e))
+        }
         Err(err) => format!("Error: {}", err),
     }
 }
@@ -81,4 +87,52 @@ pub fn list_sessions(project_dir: &Path, req: ListSessionsRequest) -> String {
             .unwrap_or_else(|e| format!("Error serializing sessions: {}", e)),
         Err(e) => format!("Error: {}", e),
     }
+}
+
+/// If the branch has an active job (dispatched status), emit job.completed
+/// and route it to the daemon. This bridges session end → pipeline advancement.
+fn try_emit_job_completed_for_branch(branch: &str) {
+    let jobs = match runtime::projections::job::load_jobs() {
+        Ok(j) => j,
+        Err(_) => return,
+    };
+
+    let job = jobs.values().find(|j| {
+        j.branch == branch && j.status == runtime::projections::job::JobStatus::Dispatched
+    });
+
+    let job = match job {
+        Some(j) => j,
+        None => return,
+    };
+
+    let payload = runtime::events::job::JobCompletedPayload {
+        job_id: job.job_id.clone(),
+        slug: job.slug.clone(),
+    };
+
+    let envelope = match runtime::events::EventEnvelope::new(
+        runtime::events::job::event_types::JOB_COMPLETED,
+        &job.job_id,
+        &payload,
+    ) {
+        Ok(e) => e,
+        Err(_) => return,
+    };
+
+    // Persist locally
+    if let Ok(store) = runtime::events::SqliteEventStore::new() {
+        let _ = runtime::events::EventStore::append(&store, &envelope);
+    }
+
+    // Route to daemon so the pipeline subscriber catches it.
+    // This is called from a sync context, so spawn a blocking task.
+    std::thread::spawn(move || {
+        let rt = tokio::runtime::Builder::new_current_thread()
+            .enable_all()
+            .build();
+        if let Ok(rt) = rt {
+            let _ = rt.block_on(crate::network_client::event_route(&envelope, None, None));
+        }
+    });
 }
