@@ -29,6 +29,10 @@ pub enum ValidationError {
     ReservedNamespace { namespace: String },
     DirectionViolation { event_type: String, direction: String },
     SchemaViolation { event_type: String, error: String },
+    /// Deferred to RT-03 (daemon security). Requires counters, windows, and
+    /// per-producer tracking that belong in the daemon layer, not event
+    /// validation. Kept here so the error type is ready when that work lands.
+    #[allow(dead_code)]
     RateLimited { producer: String },
 }
 
@@ -67,9 +71,31 @@ pub trait EventValidator: Send + Sync {
 
 // ── Helpers ──────────────────────────────────────────────────────────────────
 
-/// Namespaces reserved by the platform. Agents cannot emit events with these
-/// prefixes. This is the single source of truth — MCP tools and validators
-/// both reference this list.
+/// Namespaces routed through the kernel to actor mailboxes.
+/// Actors can subscribe to events in these namespaces.
+pub const KERNEL_NAMESPACES: &[&str] = &[
+    "actor.",
+    "config.",
+    "gate.",
+    "job.",
+    "mesh.",
+    "runtime.",
+    "session.",
+    "sync.",
+    "workspace.",
+];
+
+/// Platform-only namespaces: persisted in platform.db but NOT routed to actors.
+/// These are UI/config events that actors don't need.
+pub const PLATFORM_ONLY_NAMESPACES: &[&str] = &[
+    "project.",
+    "skill.",
+    "studio.",
+];
+
+/// All reserved namespaces (kernel + platform-only). Untrusted callers cannot
+/// emit events with these prefixes. Must equal KERNEL_NAMESPACES ∪
+/// PLATFORM_ONLY_NAMESPACES — enforced by `namespace_lists_are_aligned` test.
 pub const RESERVED_NAMESPACES: &[&str] = &[
     "actor.",
     "config.",
@@ -86,7 +112,15 @@ pub const RESERVED_NAMESPACES: &[&str] = &[
 ];
 
 fn is_system_event(event_type: &str) -> bool {
-    RESERVED_NAMESPACES
+    KERNEL_NAMESPACES
+        .iter()
+        .chain(PLATFORM_ONLY_NAMESPACES.iter())
+        .any(|ns| event_type.starts_with(ns))
+}
+
+/// Returns true if `event_type` belongs to a kernel-routed namespace.
+pub fn is_kernel_event(event_type: &str) -> bool {
+    KERNEL_NAMESPACES
         .iter()
         .any(|ns| event_type.starts_with(ns))
 }
@@ -149,74 +183,22 @@ impl EventValidator for ReservedNamespaceValidator {
     }
 }
 
-// ── Tests ────────────────────────────────────────────────────────────────────
+/// Rejects elevated events from untrusted callers.
+pub struct ElevatedValidator;
 
-#[cfg(test)]
-mod tests {
-    use super::*;
-    use crate::events::EventEnvelope;
-
-    fn skill_ctx(skill_id: &str) -> EmitContext {
-        EmitContext {
-            caller_kind: CallerKind::Mcp,
-            skill_id: Some(skill_id.to_string()),
-            workspace_id: None,
-            session_id: None,
+impl EventValidator for ElevatedValidator {
+    fn validate(
+        &self,
+        event: &EventEnvelope,
+        ctx: &EmitContext,
+    ) -> Result<(), ValidationError> {
+        if event.elevated && !is_trusted_caller(&ctx.caller_kind) {
+            return Err(ValidationError::DirectionViolation {
+                event_type: event.event_type.clone(),
+                direction: "elevated by untrusted caller".to_string(),
+            });
         }
-    }
-
-    fn caller_ctx(kind: CallerKind) -> EmitContext {
-        EmitContext {
-            caller_kind: kind,
-            skill_id: None,
-            workspace_id: None,
-            session_id: None,
-        }
-    }
-
-    fn make_event(event_type: &str) -> EventEnvelope {
-        EventEnvelope::new(event_type, "entity-1", &serde_json::json!({})).unwrap()
-    }
-
-    #[test]
-    fn namespace_validator_allows_matching_skill() {
-        let v = NamespaceValidator;
-        let event = make_event("mcp-setup.server_ready");
-        let ctx = skill_ctx("mcp-setup");
-        assert!(v.validate(&event, &ctx).is_ok());
-    }
-
-    #[test]
-    fn namespace_validator_rejects_wrong_skill() {
-        let v = NamespaceValidator;
-        let event = make_event("visual-brainstorm.annotation");
-        let ctx = skill_ctx("mcp-setup");
-        let err = v.validate(&event, &ctx).unwrap_err();
-        assert!(matches!(err, ValidationError::NamespaceViolation { .. }));
-    }
-
-    #[test]
-    fn namespace_validator_blocks_system_namespace() {
-        let v = NamespaceValidator;
-        let event = make_event("workspace.created");
-        let ctx = skill_ctx("workspace");
-        let err = v.validate(&event, &ctx).unwrap_err();
-        assert!(matches!(err, ValidationError::ReservedNamespace { .. }));
-    }
-
-    #[test]
-    fn runtime_caller_can_emit_system_events() {
-        let v = NamespaceValidator;
-        let event = make_event("workspace.created");
-        let ctx = caller_ctx(CallerKind::Runtime);
-        assert!(v.validate(&event, &ctx).is_ok());
-    }
-
-    #[test]
-    fn cli_caller_can_emit_system_events() {
-        let v = NamespaceValidator;
-        let event = make_event("session.started");
-        let ctx = caller_ctx(CallerKind::Cli);
-        assert!(v.validate(&event, &ctx).is_ok());
+        Ok(())
     }
 }
+

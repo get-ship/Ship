@@ -108,20 +108,21 @@ CREATE TABLE IF NOT EXISTS branch_context (
 /// Context columns enable scoped queries without joins.
 pub const EVENT_LOG: &str = r#"
 CREATE TABLE IF NOT EXISTS event_log (
-    id             TEXT PRIMARY KEY NOT NULL,
-    actor          TEXT NOT NULL DEFAULT 'ship',
-    entity_type    TEXT NOT NULL,
-    entity_id      TEXT,
-    action         TEXT NOT NULL,
-    detail         TEXT,
-    workspace_id   TEXT,
-    session_id     TEXT,
-    job_id         TEXT,
-    created_at     TEXT NOT NULL DEFAULT (datetime('now')),
-    version        INTEGER,
-    correlation_id TEXT,
-    causation_id   TEXT,
-    synced_at      TEXT
+    id              TEXT PRIMARY KEY NOT NULL,
+    actor           TEXT NOT NULL DEFAULT 'ship',
+    entity_type     TEXT NOT NULL,
+    entity_id       TEXT,
+    action          TEXT NOT NULL,
+    detail          TEXT,
+    workspace_id    TEXT,
+    session_id      TEXT,
+    job_id          TEXT,
+    target_actor_id TEXT,
+    created_at      TEXT NOT NULL DEFAULT (datetime('now')),
+    version         INTEGER,
+    correlation_id  TEXT,
+    causation_id    TEXT,
+    synced_at       TEXT
 );
 CREATE INDEX IF NOT EXISTS idx_event_workspace ON event_log(workspace_id);
 CREATE INDEX IF NOT EXISTS idx_event_session ON event_log(session_id);

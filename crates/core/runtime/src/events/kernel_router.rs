@@ -27,23 +27,12 @@ use crate::events::actor_store::{ActorStore, init_actor_db, raw_append};
 use crate::events::envelope::EventEnvelope;
 use crate::events::mailbox::Mailbox;
 use crate::events::snapshot::{ActorSnapshot, event_stats};
-use crate::events::validator::{EmitContext, EventValidator};
+use crate::events::validator::{EmitContext, EventValidator, is_kernel_event};
 
 #[cfg(feature = "unstable")]
 use crate::events::kernel_security::ActorMeta;
 
 pub(crate) const MAILBOX_CAPACITY: usize = 256;
-
-/// Namespace prefixes owned by the kernel.
-const KERNEL_NAMESPACES: &[&str] = &[
-    "workspace.", "session.", "actor.", "gate.", "config.", "runtime.", "sync.",
-];
-
-fn is_kernel_event(event_type: &str) -> bool {
-    KERNEL_NAMESPACES
-        .iter()
-        .any(|ns| event_type.starts_with(ns))
-}
 
 /// Configuration provided to `KernelRouter::spawn_actor`.
 #[derive(Debug, Clone, Serialize, Deserialize)]

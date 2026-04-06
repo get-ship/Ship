@@ -26,8 +26,8 @@ pub fn append_event_with_conn(
             "INSERT INTO events \
              (id, event_type, entity_id, actor, payload_json, version, \
               causation_id, workspace_id, session_id, \
-              actor_id, parent_actor_id, elevated, created_at) \
-             VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)",
+              actor_id, parent_actor_id, elevated, created_at, target_actor_id) \
+             VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)",
         )
         .bind(&event.id)
         .bind(&event.event_type)
@@ -42,6 +42,7 @@ pub fn append_event_with_conn(
         .bind(&event.parent_actor_id)
         .bind(event.elevated as i64)
         .bind(&created_at)
+        .bind(&event.target_actor_id)
         .execute(conn)
         .await
     })?;
@@ -71,7 +72,7 @@ impl SqliteEventStore {
 
 const COLS: &str = "id, event_type, entity_id, actor, payload_json, version, \
     causation_id, workspace_id, session_id, \
-    actor_id, parent_actor_id, elevated, created_at";
+    actor_id, parent_actor_id, elevated, created_at, target_actor_id";
 
 /// Query a single DB file with the given filter. Returns empty vec if the DB
 /// does not have an events table (e.g. an uninitialized file).
@@ -141,8 +142,8 @@ impl EventStore for SqliteEventStore {
                 "INSERT INTO events \
                  (id, event_type, entity_id, actor, payload_json, version, \
                   causation_id, workspace_id, session_id, \
-                  actor_id, parent_actor_id, elevated, created_at) \
-                 VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)",
+                  actor_id, parent_actor_id, elevated, created_at, target_actor_id) \
+                 VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?)",
             )
             .bind(&event.id)
             .bind(&event.event_type)
@@ -157,6 +158,7 @@ impl EventStore for SqliteEventStore {
             .bind(&event.parent_actor_id)
             .bind(event.elevated as i64)
             .bind(&created_at)
+            .bind(&event.target_actor_id)
             .execute(&mut conn)
             .await
         })?;
@@ -224,7 +226,7 @@ impl EventStore for SqliteEventStore {
 fn row_to_envelope(row: &sqlx::sqlite::SqliteRow) -> Result<EventEnvelope> {
     // Columns: id(0) event_type(1) entity_id(2) actor(3) payload_json(4) version(5)
     //          causation_id(6) workspace_id(7) session_id(8)
-    //          actor_id(9) parent_actor_id(10) elevated(11) created_at(12)
+    //          actor_id(9) parent_actor_id(10) elevated(11) created_at(12) target_actor_id(13)
     let created_at_str: String = row.get(12);
     let created_at = created_at_str
         .parse::<DateTime<Utc>>()
@@ -248,6 +250,6 @@ fn row_to_envelope(row: &sqlx::sqlite::SqliteRow) -> Result<EventEnvelope> {
         parent_actor_id: row.get(10),
         elevated: row.get::<i64, _>(11) != 0,
         created_at,
-        target_actor_id: None,
+        target_actor_id: row.get(13),
     })
 }
