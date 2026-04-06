@@ -10,6 +10,7 @@ use std::sync::Arc;
 use tempfile::TempDir;
 use tower::ServiceExt;
 
+use crate::auth::AuthContext;
 use crate::rest_api::{ApiState, SharedKernel};
 
 /// Self-contained test daemon — temp dir, kernel, router, clean teardown.
@@ -110,15 +111,38 @@ impl TestDaemon {
             )
             .with_state(api_state.clone());
 
+        // Inject a default CLI AuthContext so handlers can extract it.
+        let default_auth = Self::cli_auth();
         let router = Router::new()
             .nest("/api", api_routes)
-            .nest("/api/runtime", runtime_routes);
+            .nest("/api/runtime", runtime_routes)
+            .layer(axum::Extension(default_auth));
 
         Self {
             router,
             state: api_state,
             kernel,
             temp_dir,
+        }
+    }
+
+    /// Create a CLI AuthContext (trusted, default for tests).
+    pub fn cli_auth() -> AuthContext {
+        AuthContext {
+            caller_kind: runtime::events::CallerKind::Cli,
+            agent_id: None,
+            workspace_id: None,
+            session_id: None,
+        }
+    }
+
+    /// Create an MCP AuthContext with the given agent_id.
+    pub fn mcp_auth(agent_id: &str) -> AuthContext {
+        AuthContext {
+            caller_kind: runtime::events::CallerKind::Mcp,
+            agent_id: Some(agent_id.to_string()),
+            workspace_id: None,
+            session_id: None,
         }
     }
 

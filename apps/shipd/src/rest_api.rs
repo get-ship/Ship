@@ -5,8 +5,7 @@
 
 use axum::{Extension, Json, extract::{Path, State}, http::StatusCode, response::IntoResponse};
 use axum::response::sse::{Event, KeepAlive, Sse};
-use futures::stream::Stream;
-use runtime::events::{CallerKind, EmitContext, EventEnvelope};
+use runtime::events::{CallerKind, EventEnvelope};
 use runtime::services::mesh::SharedMeshRegistry;
 use serde::{Deserialize, Serialize};
 use std::sync::Arc;
@@ -68,19 +67,29 @@ pub struct MeshResponse {
 
 // ---- Handlers ----
 
-fn emit_ctx() -> EmitContext {
-    EmitContext {
-        caller_kind: CallerKind::Runtime,
-        skill_id: None,
-        workspace_id: None,
-        session_id: None,
-    }
-}
-
 pub async fn mesh_register(
     State(state): State<ApiState>,
+    Extension(auth): Extension<AuthContext>,
     Json(req): Json<MeshRegisterReq>,
 ) -> impl IntoResponse {
+    // MCP callers must register as their authenticated identity — no impersonation.
+    if auth.caller_kind == CallerKind::Mcp {
+        if let Some(ref bound_id) = auth.agent_id {
+            if bound_id != &req.agent_id {
+                return (
+                    StatusCode::FORBIDDEN,
+                    Json(MeshResponse {
+                        ok: false,
+                        data: serde_json::json!(format!(
+                            "identity mismatch: authenticated as '{}', cannot register as '{}'",
+                            bound_id, req.agent_id
+                        )),
+                    }),
+                );
+            }
+        }
+    }
+
     // Spawn (or re-spawn) an actor in the kernel for this remote agent
     // so messages with target_actor_id can be delivered to its mailbox.
     {
@@ -113,7 +122,8 @@ pub async fn mesh_register(
         Err(e) => return (StatusCode::BAD_REQUEST, Json(MeshResponse { ok: false, data: serde_json::json!(e.to_string()) })),
     };
 
-    match state.kernel.lock().await.route(envelope, &emit_ctx()).await {
+    let ctx = auth.to_daemon_emit_context();
+    match state.kernel.lock().await.route(envelope, &ctx).await {
         Ok(()) => (StatusCode::OK, Json(MeshResponse { ok: true, data: serde_json::json!(format!("registered: {}", req.agent_id)) })),
         Err(e) => (StatusCode::INTERNAL_SERVER_ERROR, Json(MeshResponse { ok: false, data: serde_json::json!(e.to_string()) })),
     }
@@ -121,6 +131,7 @@ pub async fn mesh_register(
 
 pub async fn mesh_send(
     State(state): State<ApiState>,
+    Extension(auth): Extension<AuthContext>,
     Json(req): Json<MeshSendReq>,
 ) -> impl IntoResponse {
     // Route through MeshService via mesh.send event type so it validates
@@ -136,7 +147,8 @@ pub async fn mesh_send(
         Err(e) => return (StatusCode::BAD_REQUEST, Json(MeshResponse { ok: false, data: serde_json::json!(e.to_string()) })),
     };
 
-    match state.kernel.lock().await.route(envelope, &emit_ctx()).await {
+    let ctx = auth.to_daemon_emit_context();
+    match state.kernel.lock().await.route(envelope, &ctx).await {
         Ok(()) => (StatusCode::OK, Json(MeshResponse { ok: true, data: serde_json::json!("sent") })),
         Err(e) => (StatusCode::INTERNAL_SERVER_ERROR, Json(MeshResponse { ok: false, data: serde_json::json!(e.to_string()) })),
     }
@@ -144,6 +156,7 @@ pub async fn mesh_send(
 
 pub async fn mesh_broadcast(
     State(state): State<ApiState>,
+    Extension(auth): Extension<AuthContext>,
     Json(req): Json<MeshBroadcastReq>,
 ) -> impl IntoResponse {
     let mut payload = serde_json::json!({ "from": &req.from, "body": req.body });
@@ -157,7 +170,8 @@ pub async fn mesh_broadcast(
         Err(e) => return (StatusCode::BAD_REQUEST, Json(MeshResponse { ok: false, data: serde_json::json!(e.to_string()) })),
     };
 
-    match state.kernel.lock().await.route(envelope, &emit_ctx()).await {
+    let ctx = auth.to_daemon_emit_context();
+    match state.kernel.lock().await.route(envelope, &ctx).await {
         Ok(()) => (StatusCode::OK, Json(MeshResponse { ok: true, data: serde_json::json!("broadcast sent") })),
         Err(e) => (StatusCode::INTERNAL_SERVER_ERROR, Json(MeshResponse { ok: false, data: serde_json::json!(e.to_string()) })),
     }
@@ -183,6 +197,7 @@ pub async fn mesh_discover(
 
 pub async fn mesh_status_update(
     State(state): State<ApiState>,
+    Extension(auth): Extension<AuthContext>,
     Json(req): Json<MeshStatusReq>,
 ) -> impl IntoResponse {
     let envelope = match EventEnvelope::new(
@@ -196,7 +211,8 @@ pub async fn mesh_status_update(
         Err(e) => return (StatusCode::BAD_REQUEST, Json(MeshResponse { ok: false, data: serde_json::json!(e.to_string()) })),
     };
 
-    match state.kernel.lock().await.route(envelope, &emit_ctx()).await {
+    let ctx = auth.to_daemon_emit_context();
+    match state.kernel.lock().await.route(envelope, &ctx).await {
         Ok(()) => (StatusCode::OK, Json(MeshResponse { ok: true, data: serde_json::json!("status updated") })),
         Err(e) => (StatusCode::INTERNAL_SERVER_ERROR, Json(MeshResponse { ok: false, data: serde_json::json!(e.to_string()) })),
     }

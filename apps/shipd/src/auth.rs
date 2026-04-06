@@ -27,10 +27,25 @@ pub struct AuthContext {
 }
 
 impl AuthContext {
-    /// Convert to the runtime's `EmitContext` for event routing.
+    /// Convert to the runtime's `EmitContext` preserving the caller's identity.
     pub fn to_emit_context(&self) -> runtime::events::EmitContext {
         runtime::events::EmitContext {
             caller_kind: self.caller_kind.clone(),
+            skill_id: None,
+            workspace_id: self.workspace_id.clone(),
+            session_id: self.session_id.clone(),
+        }
+    }
+
+    /// Create an emit context for daemon-mediated operations.
+    ///
+    /// The daemon is a trusted intermediary: it validates the caller's identity
+    /// and permissions, then emits events on their behalf using `CallerKind::Runtime`.
+    /// This allows the daemon to emit to reserved namespaces (mesh.*, job.*, etc.)
+    /// while still carrying the caller's workspace/session context.
+    pub fn to_daemon_emit_context(&self) -> runtime::events::EmitContext {
+        runtime::events::EmitContext {
+            caller_kind: CallerKind::Runtime,
             skill_id: None,
             workspace_id: self.workspace_id.clone(),
             session_id: self.session_id.clone(),
@@ -131,7 +146,9 @@ fn parse_caller_kind(s: &str) -> CallerKind {
         "cli" | "studio" => CallerKind::Cli,
         "mcp" => CallerKind::Mcp,
         "sdk" => CallerKind::Sdk,
-        "runtime" => CallerKind::Runtime,
+        // Runtime is never accepted from external callers — only internal
+        // daemon components may use CallerKind::Runtime. Claiming "runtime"
+        // over HTTP would bypass namespace validation and rate limiting.
         _ => CallerKind::Cli,
     }
 }
@@ -169,8 +186,13 @@ mod tests {
         assert_eq!(parse_caller_kind("studio"), CallerKind::Cli);
         assert_eq!(parse_caller_kind("mcp"), CallerKind::Mcp);
         assert_eq!(parse_caller_kind("sdk"), CallerKind::Sdk);
-        assert_eq!(parse_caller_kind("runtime"), CallerKind::Runtime);
         assert_eq!(parse_caller_kind("unknown"), CallerKind::Cli);
+    }
+
+    #[test]
+    fn runtime_caller_kind_blocked_from_external() {
+        // External callers must never escalate to Runtime via HTTP headers.
+        assert_eq!(parse_caller_kind("runtime"), CallerKind::Cli);
     }
 
     #[test]

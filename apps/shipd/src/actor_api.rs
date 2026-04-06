@@ -3,20 +3,12 @@
 //! These generalize mesh operations so the MCP process can delegate
 //! actor lifecycle and event routing to the daemon's shared kernel.
 
-use axum::{Json, extract::State, http::StatusCode, response::IntoResponse};
-use runtime::events::{CallerKind, EmitContext, EventEnvelope};
+use axum::{Extension, Json, extract::State, http::StatusCode, response::IntoResponse};
+use runtime::events::{EmitContext, EventEnvelope};
 use serde::Deserialize;
 
+use crate::auth::AuthContext;
 use crate::rest_api::{ApiState, MeshResponse};
-
-fn emit_ctx() -> EmitContext {
-    EmitContext {
-        caller_kind: CallerKind::Mcp,
-        skill_id: None,
-        workspace_id: None,
-        session_id: None,
-    }
-}
 
 #[derive(Deserialize)]
 pub struct ActorSpawnReq {
@@ -35,6 +27,7 @@ pub struct EventRouteReq {
 
 pub async fn actor_spawn(
     State(state): State<ApiState>,
+    Extension(auth): Extension<AuthContext>,
     Json(req): Json<ActorSpawnReq>,
 ) -> impl IntoResponse {
     {
@@ -64,7 +57,8 @@ pub async fn actor_spawn(
                 ok: false, data: serde_json::json!(e.to_string()),
             })),
         };
-        if let Err(e) = state.kernel.lock().await.route(envelope, &emit_ctx()).await {
+        let ctx = auth.to_daemon_emit_context();
+        if let Err(e) = state.kernel.lock().await.route(envelope, &ctx).await {
             tracing::warn!(actor_id = %req.actor_id, "mesh.register routing failed: {e}");
         }
     }
@@ -76,17 +70,18 @@ pub async fn actor_spawn(
 
 pub async fn event_route(
     State(state): State<ApiState>,
+    Extension(auth): Extension<AuthContext>,
     Json(req): Json<EventRouteReq>,
 ) -> impl IntoResponse {
     // MCP tools route through the daemon's HTTP API. The MCP server is a
     // trusted Ship component — it validates caller permissions before emitting.
-    // Use Runtime caller kind so system-namespace events (job.*, mesh.*) pass
-    // the reserved namespace validator.
+    // Use the authenticated caller kind but allow CLI callers (default) to route
+    // system-namespace events (the bridge has already validated permissions).
     let ctx = EmitContext {
-        caller_kind: CallerKind::Runtime,
+        caller_kind: auth.caller_kind,
         skill_id: None,
-        workspace_id: req.workspace_id,
-        session_id: req.session_id,
+        workspace_id: req.workspace_id.or(auth.workspace_id),
+        session_id: req.session_id.or(auth.session_id),
     };
     match state.kernel.lock().await.route(req.envelope, &ctx).await {
         Ok(()) => (StatusCode::OK, Json(MeshResponse { ok: true, data: serde_json::json!("routed") })),
