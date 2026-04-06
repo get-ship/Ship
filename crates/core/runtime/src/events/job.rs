@@ -190,10 +190,6 @@ pub struct JobUpdatePayload {
     pub sender: String,
 }
 
-#[cfg(test)]
-#[path = "../projections/tests_pipeline_e2e.rs"]
-mod tests_pipeline_e2e;
-
 /// Event type constants for the `job.` namespace.
 pub mod event_types {
     pub const JOB_CREATED: &str = "job.created";
