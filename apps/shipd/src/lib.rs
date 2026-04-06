@@ -191,11 +191,25 @@ pub async fn run_network(host: String, port: u16) -> Result<()> {
         )
         .route(
             "/workspaces/{id}/agents",
-            axum::routing::get(project_api::list_agents),
+            axum::routing::get(project_api::list_agents)
+                .post(project_api::write_agent),
         )
         .route(
             "/workspaces/{id}/skills",
             axum::routing::get(project_api::list_skills),
+        )
+        .route(
+            "/workspaces/{id}/skills/{skillId}/files/{*path}",
+            axum::routing::put(project_api::write_skill_file)
+                .delete(project_api::delete_skill_file),
+        )
+        .route(
+            "/workspaces/{id}/skills/{skillId}/vars",
+            axum::routing::get(project_api::get_skill_vars),
+        )
+        .route(
+            "/workspaces/{id}/skills/{skillId}/vars/{key}",
+            axum::routing::put(project_api::set_skill_var),
         )
         .route(
             "/workspaces/{id}",

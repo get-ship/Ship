@@ -1,7 +1,7 @@
 // MCP queries — fetch agent and skill config from the shipd daemon.
 // Mutation stubs remain until daemon write endpoints are available.
 
-import { useQuery, useMutation } from '@tanstack/react-query'
+import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import { mcpKeys } from '#/lib/query-keys'
 import { DAEMON_BASE_URL } from '#/lib/daemon-config'
 import { useDaemon } from '#/features/studio/hooks/useDaemon'
@@ -175,57 +175,115 @@ export function useProjectSkills() {
   })
 }
 
-// ── Mutations (no-op stubs) ────────────────────────────────────────────
+// ── Mutations ─────────────────────────────────────────────────────────
 
-/** Push a transfer bundle to CLI (.ship/). */
+/** Push a transfer bundle to daemon (.ship/). */
 export function usePushBundle() {
+  const wsId = useActiveWorkspaceId()
+  const queryClient = useQueryClient()
+
   return useMutation({
-    mutationFn: async (_bundle: TransferBundle): Promise<string> => {
-      console.warn('usePushBundle: stubbed — daemon write endpoint not yet available')
-      return ''
+    mutationFn: async (bundle: TransferBundle): Promise<void> => {
+      if (!wsId) throw new Error('No active workspace')
+      const res = await fetch(
+        `${DAEMON_BASE_URL}/api/workspaces/${encodeURIComponent(wsId)}/agents`,
+        {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify(bundle),
+        },
+      )
+      if (!res.ok) throw new Error(`daemon: push bundle ${res.status}`)
+    },
+    onSuccess: () => {
+      void queryClient.invalidateQueries({ queryKey: mcpKeys.pull() })
     },
   })
 }
 
-/** Write a single skill file to disk via CLI. */
+/** Write a single skill file to disk via daemon. */
 export function useSaveSkillFile() {
+  const wsId = useActiveWorkspaceId()
+  const queryClient = useQueryClient()
+
   return useMutation({
-    mutationFn: async (_args: { skillId: string; filePath: string; content: string }): Promise<string> => {
-      console.warn('useSaveSkillFile: stubbed — daemon write endpoint not yet available')
-      return ''
+    mutationFn: async (args: { skillId: string; filePath: string; content: string }): Promise<void> => {
+      if (!wsId) throw new Error('No active workspace')
+      const res = await fetch(
+        `${DAEMON_BASE_URL}/api/workspaces/${encodeURIComponent(wsId)}/skills/${encodeURIComponent(args.skillId)}/files/${encodeURIComponent(args.filePath)}`,
+        {
+          method: 'PUT',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ content: args.content }),
+        },
+      )
+      if (!res.ok) throw new Error(`daemon: save skill file ${res.status}`)
+    },
+    onSuccess: () => {
+      void queryClient.invalidateQueries({ queryKey: mcpKeys.projectSkills() })
     },
   })
 }
 
 /** Get merged var values for a skill. */
 export function useSkillVars(skillId: string | null) {
+  const wsId = useActiveWorkspaceId()
+
   return useQuery({
     queryKey: mcpKeys.skillVars(skillId ?? ''),
-    queryFn: async () => {
-      console.warn('useSkillVars: stubbed — daemon endpoint not yet available')
-      return {} as Record<string, unknown>
+    queryFn: async (): Promise<Record<string, unknown>> => {
+      const res = await fetch(
+        `${DAEMON_BASE_URL}/api/workspaces/${encodeURIComponent(wsId!)}/skills/${encodeURIComponent(skillId!)}/vars`,
+      )
+      if (!res.ok) throw new Error(`daemon: skill vars ${res.status}`)
+      const body = (await res.json()) as { ok: boolean; data: Record<string, unknown> }
+      return body.data
     },
-    enabled: skillId != null,
+    enabled: wsId != null && skillId != null,
     staleTime: 5_000,
   })
 }
 
 /** Set a single skill variable value. */
 export function useSetSkillVar() {
+  const wsId = useActiveWorkspaceId()
+  const queryClient = useQueryClient()
+
   return useMutation({
-    mutationFn: async (_args: { skillId: string; key: string; valueJson: string }) => {
-      console.warn('useSetSkillVar: stubbed — daemon write endpoint not yet available')
-      return ''
+    mutationFn: async (args: { skillId: string; key: string; valueJson: string }): Promise<void> => {
+      if (!wsId) throw new Error('No active workspace')
+      const res = await fetch(
+        `${DAEMON_BASE_URL}/api/workspaces/${encodeURIComponent(wsId)}/skills/${encodeURIComponent(args.skillId)}/vars/${encodeURIComponent(args.key)}`,
+        {
+          method: 'PUT',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ value_json: args.valueJson }),
+        },
+      )
+      if (!res.ok) throw new Error(`daemon: set skill var ${res.status}`)
+    },
+    onSuccess: (_data, args) => {
+      void queryClient.invalidateQueries({ queryKey: mcpKeys.skillVars(args.skillId) })
     },
   })
 }
 
-/** Delete a single skill file from disk via CLI. */
+/** Delete a single skill file from disk via daemon. */
 export function useDeleteSkillFile() {
+  const wsId = useActiveWorkspaceId()
+  const queryClient = useQueryClient()
+
   return useMutation({
-    mutationFn: async (_args: { skillId: string; filePath: string }) => {
-      console.warn('useDeleteSkillFile: stubbed — daemon write endpoint not yet available')
-      return ''
+    mutationFn: async (args: { skillId: string; filePath: string }): Promise<void> => {
+      if (!wsId) throw new Error('No active workspace')
+      const res = await fetch(
+        `${DAEMON_BASE_URL}/api/workspaces/${encodeURIComponent(wsId)}/skills/${encodeURIComponent(args.skillId)}/files/${encodeURIComponent(args.filePath)}`,
+        { method: 'DELETE' },
+      )
+      if (!res.ok) throw new Error(`daemon: delete skill file ${res.status}`)
+    },
+    onSuccess: () => {
+      void queryClient.invalidateQueries({ queryKey: mcpKeys.projectSkills() })
     },
   })
 }

@@ -6,10 +6,14 @@
 
 pub mod artifacts;
 mod agents_skills;
+mod agents_skills_write;
 mod git;
 pub(crate) mod session_files;
 
 pub use agents_skills::{list_agents, list_skills};
+pub use agents_skills_write::{
+    delete_skill_file, get_skill_vars, set_skill_var, write_agent, write_skill_file,
+};
 pub use artifacts::{artifacts_status, list_project_artifacts, promote_artifact};
 pub use git::{git_diff, git_log, git_status};
 pub use session_files::{
