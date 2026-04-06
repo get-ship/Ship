@@ -12,6 +12,9 @@ pub(crate) fn file_type_from_ext(path: &std::path::Path) -> &'static str {
         Some("html") => "html",
         Some("md") => "markdown",
         Some("json") => "json",
+        Some("png") | Some("jpg") | Some("jpeg") | Some("gif") | Some("webp") | Some("svg")
+        | Some("bmp") | Some("ico") => "image",
+        Some("url") => "url",
         _ => "text",
     }
 }
@@ -88,14 +91,39 @@ pub async fn read_session_file(
         return Err(err_response(StatusCode::BAD_REQUEST, "invalid path"));
     }
 
+    let file_type = file_type_from_ext(&target);
+
+    if file_type == "image" {
+        // Return binary files as data URI
+        let bytes = std::fs::read(&target).map_err(|e| {
+            if e.kind() == std::io::ErrorKind::NotFound {
+                err_response(StatusCode::NOT_FOUND, "file not found")
+            } else {
+                err_response(StatusCode::INTERNAL_SERVER_ERROR, &format!("failed to read file: {e}"))
+            }
+        })?;
+        use base64::Engine;
+        let b64 = base64::engine::general_purpose::STANDARD.encode(&bytes);
+        let ext = target.extension().and_then(|e| e.to_str()).unwrap_or("png");
+        let mime = match ext {
+            "png" => "image/png",
+            "jpg" | "jpeg" => "image/jpeg",
+            "gif" => "image/gif",
+            "webp" => "image/webp",
+            "svg" => "image/svg+xml",
+            "bmp" => "image/bmp",
+            "ico" => "image/x-icon",
+            _ => "application/octet-stream",
+        };
+        let data_uri = format!("data:{mime};base64,{b64}");
+        return Ok(ok_response(serde_json::json!({ "content": data_uri })));
+    }
+
     let content = std::fs::read_to_string(&target).map_err(|e| {
         if e.kind() == std::io::ErrorKind::NotFound {
             err_response(StatusCode::NOT_FOUND, "file not found")
         } else {
-            err_response(
-                StatusCode::INTERNAL_SERVER_ERROR,
-                &format!("failed to read file: {e}"),
-            )
+            err_response(StatusCode::INTERNAL_SERVER_ERROR, &format!("failed to read file: {e}"))
         }
     })?;
 

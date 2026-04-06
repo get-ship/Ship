@@ -68,7 +68,7 @@ export default function TiptapEditor({
             TaskItem.configure({ nested: true }),
             Typography,
             CodeBlockLowlight.configure({ lowlight }),
-            Markdown.configure({ html: true, transformPastedText: true, transformCopiedText: true }),
+            Markdown.configure({ html: true, transformPastedText: true, transformCopiedText: true, linkify: false }),
         ],
         content: value,
         editorProps: {
