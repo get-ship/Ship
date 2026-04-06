@@ -142,7 +142,8 @@ function SessionPage() {
   const showDiff = !showView && viewMode === 'diff'
   const activeDiffText = selectedCommitHash ? commitDiff : diffText
 
-  const { sidebarOpen, closeSidebar } = useStudioShell()
+  const { activePanel, setActivePanel } = useStudioShell()
+  const showArtifactsSidebar = activePanel === 'artifacts'
 
   return (
     <>
@@ -162,25 +163,22 @@ function SessionPage() {
         onDragLeave={handleDragLeave}
         onDrop={handleDrop}
       >
-        {/* Slide-over sidebar */}
-        {sidebarOpen && (
-          <>
-            <div className="absolute inset-0 z-30" onClick={closeSidebar} />
-            <div className="absolute left-0 top-0 bottom-0 w-64 z-40 bg-card border-r border-border/60 shadow-lg animate-in slide-in-from-left-2 duration-150">
-              <SessionSidebar
-                files={files}
-                activeFile={activeTabPath}
-                onSelectFile={(path) => { openFile(path); closeSidebar() }}
-                onDeleteFile={handleDeleteFile}
-                onUploadFiles={handleUploadFiles}
-                onShowDiff={() => { handleShowDiff(); closeSidebar() }}
-                onSelectCommit={(hash) => { handleSelectCommit(hash); closeSidebar() }}
-                onOpenView={(view) => { handleOpenView(view); closeSidebar() }}
-                gitStatus={gitStatus}
-                gitLog={gitLog}
-              />
-            </div>
-          </>
+        {/* Session file sidebar — rendered inline when artifacts panel is active */}
+        {showArtifactsSidebar && (
+          <div className="absolute left-0 top-0 bottom-0 w-64 z-40 bg-card border-r border-border/60 shadow-lg animate-in slide-in-from-left-1 duration-100">
+            <SessionSidebar
+              files={files}
+              activeFile={activeTabPath}
+              onSelectFile={(path) => { openFile(path); setActivePanel(null) }}
+              onDeleteFile={handleDeleteFile}
+              onUploadFiles={handleUploadFiles}
+              onShowDiff={() => { handleShowDiff(); setActivePanel(null) }}
+              onSelectCommit={(hash) => { handleSelectCommit(hash); setActivePanel(null) }}
+              onOpenView={(view) => { handleOpenView(view); setActivePanel(null) }}
+              gitStatus={gitStatus}
+              gitLog={gitLog}
+            />
+          </div>
         )}
 
         <div className="flex flex-1 min-h-0">

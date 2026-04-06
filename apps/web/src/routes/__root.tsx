@@ -49,9 +49,8 @@ function RootDocument({ children }: { children: React.ReactNode }) {
 
   const isLanding = pathname === '/'
   const isStudio = pathname.startsWith('/studio')
-  const isConsole = pathname.startsWith('/console')
-  const isFullscreen = isStudio || isConsole
-  // Show footer on registry and other pages, hide on studio/console (dock) and landing (own footer)
+  const isFullscreen = isStudio
+  // Show footer on registry and other pages, hide on studio and landing
   const showFooter = !isFullscreen && !isLanding
 
   return (
@@ -64,7 +63,7 @@ function RootDocument({ children }: { children: React.ReactNode }) {
         <TanStackQueryProvider>
           <DaemonEventListener />
           <LocalMcpProvider>
-            {!isLanding && !isConsole && (
+            {!isLanding && !isStudio && (
               <Suspense fallback={<div className="h-12 border-b border-border/60" />}>
                 <Header />
               </Suspense>
