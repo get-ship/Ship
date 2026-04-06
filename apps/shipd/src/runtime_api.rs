@@ -529,4 +529,134 @@ mod tests {
         assert!(val["data"]["agents"].is_array());
         assert_eq!(val["data"]["agents"].as_array().unwrap().len(), 0);
     }
+
+    fn create_test_workspace(state: &ApiState, branch: &str) {
+        runtime::workspace::create_workspace(
+            &state.ship_dir,
+            runtime::workspace::CreateWorkspaceRequest {
+                branch: branch.into(),
+                ..Default::default()
+            },
+        )
+        .unwrap();
+    }
+
+    #[tokio::test(flavor = "multi_thread")]
+    async fn list_workspaces_returns_created_workspace() {
+        let dir = TempDir::new().unwrap();
+        let state = make_api_state(&dir);
+        create_test_workspace(&state, "feature/rt-ws-test");
+
+        let response = list_workspaces(State(state)).await.into_response();
+        let val = collect_body(response).await;
+        let workspaces = val["data"]["workspaces"].as_array().unwrap();
+        assert!(
+            workspaces.iter().any(|w| w["branch"] == "feature/rt-ws-test"),
+            "created workspace should appear in list"
+        );
+    }
+
+    #[tokio::test(flavor = "multi_thread")]
+    async fn list_agents_returns_populated_registry() {
+        let dir = TempDir::new().unwrap();
+        let state = make_api_state(&dir);
+
+        {
+            let mut reg = state.mesh_registry.write().await;
+            reg.insert(
+                "agent.test".into(),
+                runtime::services::mesh::MeshEntry {
+                    agent_id: "agent.test".into(),
+                    label: "Test Agent".into(),
+                    capabilities: vec!["rust".into()],
+                    registered_at: chrono::Utc::now(),
+                    status: runtime::services::mesh::AgentStatus::Active,
+                },
+            );
+        }
+
+        let response = list_agents(State(state)).await.into_response();
+        let val = collect_body(response).await;
+        let agents = val["data"]["agents"].as_array().unwrap();
+        assert_eq!(agents.len(), 1);
+        assert_eq!(agents[0]["agent_id"], "agent.test");
+    }
+
+    #[tokio::test(flavor = "multi_thread")]
+    async fn list_sessions_returns_created_session() {
+        let dir = TempDir::new().unwrap();
+        let state = make_api_state(&dir);
+        create_test_workspace(&state, "feature/rt-sess-test");
+
+        let ws = runtime::workspace::get_workspace(&state.ship_dir, "feature/rt-sess-test")
+            .unwrap()
+            .unwrap();
+        let payload = runtime::events::types::SessionStarted {
+            goal: Some("test".into()),
+            workspace_id: ws.id.clone(),
+            workspace_branch: ws.branch.clone(),
+            ..Default::default()
+        };
+        runtime::db::session_events::insert_session_with_started_event(
+            "rt-test-session",
+            &ws.id,
+            &payload,
+        )
+        .unwrap();
+
+        let query = Query(SessionsQuery { workspace_id: None });
+        let response = list_sessions(State(state), query).await.into_response();
+        let val = collect_body(response).await;
+        let sessions = val["data"]["sessions"].as_array().unwrap();
+        assert!(sessions.len() >= 1, "created session should appear");
+    }
+
+    #[tokio::test(flavor = "multi_thread")]
+    async fn list_sessions_filters_by_workspace_id() {
+        let dir = TempDir::new().unwrap();
+        let state = make_api_state(&dir);
+        create_test_workspace(&state, "feature/ws-filter-a");
+        create_test_workspace(&state, "feature/ws-filter-b");
+
+        let ws_a = runtime::workspace::get_workspace(&state.ship_dir, "feature/ws-filter-a")
+            .unwrap()
+            .unwrap();
+        let payload = runtime::events::types::SessionStarted {
+            goal: Some("a".into()),
+            workspace_id: ws_a.id.clone(),
+            workspace_branch: ws_a.branch.clone(),
+            ..Default::default()
+        };
+        runtime::db::session_events::insert_session_with_started_event(
+            "rt-filter-sess",
+            &ws_a.id,
+            &payload,
+        )
+        .unwrap();
+
+        // Filter by workspace B — should return empty.
+        let ws_b = runtime::workspace::get_workspace(&state.ship_dir, "feature/ws-filter-b")
+            .unwrap()
+            .unwrap();
+        let query = Query(SessionsQuery {
+            workspace_id: Some(ws_b.id),
+        });
+        let response = list_sessions(State(state), query).await.into_response();
+        let val = collect_body(response).await;
+        let sessions = val["data"]["sessions"].as_array().unwrap();
+        assert_eq!(sessions.len(), 0, "no sessions for workspace B");
+    }
+
+    #[tokio::test(flavor = "multi_thread")]
+    async fn list_workspaces_returns_multiple() {
+        let dir = TempDir::new().unwrap();
+        let state = make_api_state(&dir);
+        create_test_workspace(&state, "feature/multi-a");
+        create_test_workspace(&state, "feature/multi-b");
+
+        let response = list_workspaces(State(state)).await.into_response();
+        let val = collect_body(response).await;
+        let workspaces = val["data"]["workspaces"].as_array().unwrap();
+        assert!(workspaces.len() >= 2);
+    }
 }

@@ -48,6 +48,8 @@ mod cursor_tests;
 mod integration_tests;
 #[cfg(test)]
 mod validator_tests;
+#[cfg(test)]
+mod kernel_security_tests;
 
 pub use actor_store::ActorStore;
 pub use envelope::EventEnvelope;

@@ -286,3 +286,7 @@ pub async fn mesh_events(
 
     Ok(Sse::new(stream).keep_alive(KeepAlive::default()))
 }
+
+#[cfg(test)]
+#[path = "rest_api_tests.rs"]
+mod tests;
