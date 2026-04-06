@@ -64,14 +64,14 @@ async function fetchWorkspaces(): Promise<Workspace[]> {
   const res = await fetch(`${DAEMON_BASE_URL}/api/runtime/workspaces`)
   if (!res.ok) throw new Error(`daemon: workspaces ${res.status}`)
   const body = await res.json() as { ok: boolean; data: { workspaces: Workspace[] } }
-  return body.data.workspaces
+  return body.data.workspaces.sort((a, b) => a.branch.localeCompare(b.branch))
 }
 
 async function fetchAgents(): Promise<AgentEntry[]> {
   const res = await fetch(`${DAEMON_BASE_URL}/api/runtime/agents`)
   if (!res.ok) throw new Error(`daemon: agents ${res.status}`)
   const body = await res.json() as { ok: boolean; data: { agents: AgentEntry[] } }
-  return body.data.agents
+  return body.data.agents.sort((a, b) => a.agent_id.localeCompare(b.agent_id))
 }
 
 async function fetchSessions(wsId?: string): Promise<SessionEntry[]> {
@@ -81,14 +81,14 @@ async function fetchSessions(wsId?: string): Promise<SessionEntry[]> {
   const res = await fetch(url)
   if (!res.ok) throw new Error(`daemon: sessions ${res.status}`)
   const body = await res.json() as { ok: boolean; data: { sessions: SessionEntry[] } }
-  return body.data.sessions
+  return body.data.sessions.sort((a, b) => (b.started_at ?? '').localeCompare(a.started_at ?? ''))
 }
 
 async function fetchJobs(): Promise<JobRecord[]> {
   const res = await fetch(`${DAEMON_BASE_URL}/api/runtime/jobs`)
   if (!res.ok) throw new Error(`daemon: jobs ${res.status}`)
   const body = await res.json() as { ok: boolean; data: { jobs: JobRecord[] } }
-  return body.data.jobs
+  return body.data.jobs.sort((a, b) => a.created_at.localeCompare(b.created_at))
 }
 
 export interface CreateJobInput {
