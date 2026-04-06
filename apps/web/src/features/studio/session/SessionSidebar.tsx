@@ -164,7 +164,7 @@ export function SessionSidebar({
       </div>
 
       {contextMenu && (
-        <ArtifactContextMenu menu={contextMenu} onClose={() => setContextMenu(null)} onDelete={onDeleteFile} />
+        <ArtifactContextMenu menu={contextMenu} onClose={() => setContextMenu(null)} onDelete={onDeleteFile} onPromote={(path) => promoteMutation.mutate(path)} />
       )}
     </aside>
   )
