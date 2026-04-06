@@ -1,12 +1,9 @@
 //! Thin CLI state layer for skill variables.
 //!
 //! Storage is handled entirely by `runtime::skill_vars` via platform.db KV.
-//! This module adds only what the CLI needs on top: skill_id validation
-//! and the array-append operation.
+//! This module adds only what the CLI needs on top: skill_id validation.
 
 use anyhow::Result;
-use serde_json::Value;
-use std::path::Path;
 
 // ── Validation ────────────────────────────────────────────────────────────────
 
@@ -34,24 +31,6 @@ pub fn validate_skill_id(skill_id: &str) -> Result<()> {
         );
     }
     Ok(())
-}
-
-// ── Wrappers over runtime ─────────────────────────────────────────────────────
-
-/// Append an element to an array variable. Reads current value, appends, writes back.
-pub fn append_to_array(skill_id: &str, key: &str, element: &Value, ship_dir: &Path) -> Result<()> {
-    let current = runtime::skill_vars::get_skill_vars(ship_dir, skill_id)
-        .ok()
-        .flatten()
-        .unwrap_or_default();
-
-    let mut arr = match current.get(key) {
-        Some(Value::Array(a)) => a.clone(),
-        None => vec![],
-        _ => anyhow::bail!("'{}' is not an array", key),
-    };
-    arr.push(element.clone());
-    runtime::skill_vars::set_skill_var(ship_dir, skill_id, key, Value::Array(arr))
 }
 
 // ── Tests ─────────────────────────────────────────────────────────────────────
