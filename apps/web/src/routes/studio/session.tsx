@@ -251,6 +251,8 @@ function SessionPage() {
                   <SessionEmptyState
                     workspaceName={activeWs?.branch ?? null}
                     activeAgent={activeWs?.active_agent ?? null}
+                    files={files}
+                    onSelectFile={openFile}
                   />
                 )}
               </div>

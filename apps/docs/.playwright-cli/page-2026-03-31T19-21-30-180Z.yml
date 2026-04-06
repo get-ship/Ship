@@ -1,0 +1,40 @@
+- generic [active] [ref=e1]:
+  - link "Skip to content" [ref=e2] [cursor=pointer]:
+    - /url: "#_top"
+  - generic [ref=e3]:
+    - banner [ref=e4]:
+      - generic [ref=e5]:
+        - link "Ship" [ref=e7] [cursor=pointer]:
+          - /url: /
+          - generic [ref=e8]: Ship
+        - button "Search" [ref=e11] [cursor=pointer]:
+          - img [ref=e12]
+          - generic [ref=e14]: Search
+          - generic [ref=e15]:
+            - generic [ref=e16]: Ctrl
+            - generic [ref=e17]: K
+        - generic [ref=e21]:
+          - generic [ref=e22]: Select theme
+          - img
+          - combobox "Select theme" [ref=e23] [cursor=pointer]:
+            - option "Dark"
+            - option "Light"
+            - option "Auto" [selected]
+          - img
+    - main [ref=e27]:
+      - generic [ref=e32]:
+        - heading "404" [level=1] [ref=e33]
+        - generic [ref=e34]: Page not found. Check the URL or try using the search bar.
+  - generic [ref=e38]:
+    - button "Menu" [ref=e39]:
+      - img [ref=e41]
+      - generic: Menu
+    - button "Inspect" [ref=e45]:
+      - img [ref=e47]
+      - generic: Inspect
+    - button "Audit" [ref=e49]:
+      - img [ref=e51]
+      - generic: Audit
+    - button "Settings" [ref=e54]:
+      - img [ref=e56]
+      - generic: Settings
