@@ -31,14 +31,11 @@ Create `.ship-session/pod.md` to define your agent pod. The file is gitignored.
 ```yaml
 agents:
   - name: rust
-    agent: rust-runtime
+    agent: rust-lane
     path: ~/dev/ship-worktrees/rust-work
   - name: web
     agent: web-lane
     path: ~/dev/ship-worktrees/web-work
-  - name: auth
-    agent: better-auth
-    path: ~/dev/ship-worktrees/auth-work
 ```
 
 `path` defaults to `$SHIP_WORKTREE_DIR/<name>` if omitted.

@@ -120,4 +120,6 @@ RUN cat > $HOME/.zprofile <<'EOF'
 [ -f "$HOME/.ship-shell-init.sh" ] && source "$HOME/.ship-shell-init.sh"
 EOF
 
+EXPOSE 9315 51741 51742
+
 WORKDIR /workspaces/ship

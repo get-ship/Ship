@@ -35,7 +35,7 @@ Decompose the goal into dispatchable jobs. For each:
 | Field | What |
 |-------|------|
 | **slug** | Short name for worktree/branch (`auth-oauth`, `mesh-heartbeat`) |
-| **agent** | Specialist profile (`rust-runtime`, `web-lane`, `rust-compiler`, etc.) |
+| **agent** | Specialist profile (`rust-lane`, `web-lane`, etc.) or compose with `--with` |
 | **goal** | One-paragraph outcome |
 | **file scope** | Directories/files the agent may touch |
 | **acceptance criteria** | Numbered, verifiable — not goals, verification steps |
@@ -50,7 +50,7 @@ Plan for "[goal]":
    Scope: crates/core/runtime/src/auth/
    Done when: failing tests define OAuth token flow
 
-2. auth-oauth-impl → rust-runtime (blocked by #1)
+2. auth-oauth-impl → rust-lane (blocked by #1)
    Scope: crates/core/runtime/src/auth/
    Done when: tests from #1 pass
 
@@ -105,11 +105,10 @@ On **FAIL**: surface specific failures. File follow-on job or send back to agent
 
 | Work type | Agent |
 |-----------|-------|
-| Rust runtime / DB / platform | `rust-runtime` |
-| Rust compiler / WASM / CLI framework | `rust-compiler` |
+| Rust (runtime, compiler, CLI, MCP) | `rust-lane` |
 | Web / React / Studio | `web-lane` |
-| Cloudflare Workers / infra | `cloudflare` |
-| Auth / Better Auth | `better-auth` |
 | Tests only (no impl) | `test-writer` |
 | Code review / gate | `gatekeeper` |
 | Default / mixed | `default` |
+
+Compose with `--with` for domain knowledge: `ship use rust-lane --with better-auth`, `ship use web-lane --with cloudflare`.

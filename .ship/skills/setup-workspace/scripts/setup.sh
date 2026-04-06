@@ -42,7 +42,7 @@ TERMINAL=$(detect_terminal)
 #   terminal: tmux
 #   agents:
 #     - name: rust
-#       agent: rust-runtime
+#       agent: rust-lane
 #       path: /home/user/dev/ship-worktrees/rust-work
 
 declare -a AGENT_NAMES=()
@@ -87,7 +87,7 @@ else
   cat << 'EXAMPLE'
 agents:
   - name: rust
-    agent: rust-runtime
+    agent: rust-lane
     path: ~/dev/ship-worktrees/rust-work
   - name: web
     agent: web-lane

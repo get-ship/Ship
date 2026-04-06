@@ -24,7 +24,7 @@ All specs go in `.ship-session/specs/<feature>/<spec-name>/spec.md`. Create dire
 ---
 slug: eval-runner
 feature: ship-skills
-agent: rust-runtime
+agent: rust-lane
 priority: 2
 mode: autonomous
 depends_on: []
@@ -88,7 +88,7 @@ For feature work, create two plans with a dependency:
 
 ```
 .ship-session/specs/ship-runtime/auth-tests/spec.md    (agent: test-writer)
-.ship-session/specs/ship-runtime/auth-impl/spec.md     (agent: rust-runtime, depends_on: [auth-tests])
+.ship-session/specs/ship-runtime/auth-impl/spec.md     (agent: rust-lane, depends_on: [auth-tests])
 ```
 
 ## Launching

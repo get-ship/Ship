@@ -2,12 +2,12 @@ use anyhow::{Context, Result};
 use std::path::PathBuf;
 
 pub enum DaemonCommand {
-    Start,
+    Start { host: String },
     Stop,
     Status,
 }
 
-const SHIPD_PORT: u16 = 51742;
+const SHIPD_PORT: u16 = 9315;
 
 fn ship_dir() -> Result<PathBuf> {
     let home = dirs::home_dir().context("cannot determine home directory")?;
@@ -83,13 +83,13 @@ fn find_shipd() -> Result<PathBuf> {
 
 pub fn run_daemon(cmd: DaemonCommand) -> Result<()> {
     match cmd {
-        DaemonCommand::Start => daemon_start(),
+        DaemonCommand::Start { host } => daemon_start(host),
         DaemonCommand::Stop => daemon_stop(),
         DaemonCommand::Status => daemon_status(),
     }
 }
 
-fn daemon_start() -> Result<()> {
+fn daemon_start(host: String) -> Result<()> {
     let pid_path = pid_file()?;
     let log_path = log_file()?;
 
@@ -118,8 +118,13 @@ fn daemon_start() -> Result<()> {
     let stdout = log_handle.try_clone().context("cannot clone log file handle")?;
     let stderr = log_handle;
 
+    let args: Vec<String> = vec![
+        "--port".into(), SHIPD_PORT.to_string(),
+        "--host".into(), host.clone(),
+    ];
+
     let child = std::process::Command::new(&shipd)
-        .args(["--port", &SHIPD_PORT.to_string()])
+        .args(&args)
         .stdout(stdout)
         .stderr(stderr)
         .stdin(std::process::Stdio::null())
@@ -129,9 +134,11 @@ fn daemon_start() -> Result<()> {
     let pid = child.id();
     write_pid(&pid_path, pid)?;
 
+    let bind_host = &host;
     println!(
-        "shipd started (pid {}, port {}, log {})",
+        "shipd started (pid {}, http://{}:{}, log {})",
         pid,
+        bind_host,
         SHIPD_PORT,
         log_path.display()
     );

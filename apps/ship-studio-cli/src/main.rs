@@ -48,7 +48,7 @@ fn try_init_kernel_router() {
 
 pub fn build_version() -> &'static str {
     if cfg!(feature = "unstable") {
-        concat!(env!("CARGO_PKG_VERSION"), "+unstable")
+        concat!(env!("CARGO_PKG_VERSION"), "+unstable.", env!("GIT_COMMIT_SHORT"))
     } else {
         env!("CARGO_PKG_VERSION")
     }
@@ -134,7 +134,7 @@ fn dispatch(command: Option<Commands>) -> Result<()> {
                 use cli::DaemonCommands;
                 use daemon::{DaemonCommand, run_daemon};
                 let cmd = match action {
-                    DaemonCommands::Start => DaemonCommand::Start,
+                    DaemonCommands::Start { host } => DaemonCommand::Start { host },
                     DaemonCommands::Stop => DaemonCommand::Stop,
                     DaemonCommands::Status => DaemonCommand::Status,
                 };

@@ -100,7 +100,7 @@ bash .ship/skills/spawn-agent/scripts/dispatch.sh --slug auth-tests --agent test
   --spec .ship-session/job-spec-auth-tests.md
 
 # Job 2: implementation (after tests complete and gate passes)
-bash .ship/skills/spawn-agent/scripts/dispatch.sh --slug auth-impl --agent rust-runtime \
+bash .ship/skills/spawn-agent/scripts/dispatch.sh --slug auth-impl --agent rust-lane \
   --spec .ship-session/job-spec-auth-impl.md
 ```
 

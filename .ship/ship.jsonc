@@ -21,12 +21,8 @@
     // Public agents — reviewed, publish-ready
     "agents": [
       "agents/gatekeeper.jsonc",
-      "agents/pixel.jsonc",
       "agents/test-writer.jsonc",
-      "agents/reviewer.jsonc",
     ],
-    // Private: commander, cli-lane, cloudflare, default, gstack,
-    // react-architect, react-designer, rust-*, server-lane, web-lane, better-auth
-    // Cut: fullstack, shipper, skeptic, watchdog, red-green, react-dev, mission-control
+    // Private: commander, default, rust-lane, web-lane
   },
 }

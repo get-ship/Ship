@@ -97,6 +97,8 @@ skills-lock.json
 SESSION.json
 .ship-session/
 .ship/platform.db
+.ship/actors/
+.ship/kernel/
 .cursor/
 .opencode/
 opencode.json

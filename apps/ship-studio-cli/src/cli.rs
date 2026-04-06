@@ -254,7 +254,11 @@ pub enum Commands {
 #[derive(Subcommand, Debug)]
 pub enum DaemonCommands {
     /// Start shipd in the background
-    Start,
+    Start {
+        /// Bind address (default: 0.0.0.0)
+        #[arg(long, default_value = "0.0.0.0")]
+        host: String,
+    },
     /// Stop the running shipd process
     Stop,
     /// Show daemon status

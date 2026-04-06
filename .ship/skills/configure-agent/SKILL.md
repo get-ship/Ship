@@ -55,14 +55,11 @@ tools_deny = ["Bash(rm -rf*)"]
 | Agent | Recommended preset | Rationale |
 |---------|-------------------|-----------|
 | commander | `ship-standard` | Orchestration, needs confirmation for dispatch |
-| react-architect | `ship-standard` | Interactive architecture work |
-| react-designer | `ship-standard` | Interactive UI work |
-| rust-runtime | `ship-autonomous` | Scoped feature work in worktree |
-| rust-compiler | `ship-autonomous` | Scoped feature work in worktree |
-| cloudflare | `ship-autonomous` | Scoped infra work in worktree |
-| better-auth | `ship-autonomous` | Scoped auth work in worktree |
+| gatekeeper | `ship-standard` | Gate + review, needs bash for checks, owns merge |
+| rust-lane | `ship-autonomous` | Scoped feature work in worktree |
+| web-lane | `ship-autonomous` | Scoped feature work in worktree |
 | test-writer | `ship-autonomous` | Tests only, low blast radius |
-| reviewer | `ship-readonly` | Read-only analysis, no writes |
+| default | `ship-standard` | Interactive human-paired sessions |
 
 ## Worktree Setup
 

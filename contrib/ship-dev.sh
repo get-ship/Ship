@@ -62,6 +62,7 @@ PORTS=(
   -p 6006:6006   # Storybook
   -p 6274:6274   # MCP Inspector
   -p 51204:51204 # Vitest UI
+  -p 9315:9315   # Ship daemon (shipd REST + SSE)
   -p 51741:51741 # Ship MCP server (HTTP mode — Studio default)
 )
 
