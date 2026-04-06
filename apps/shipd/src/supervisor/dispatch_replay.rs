@@ -1,15 +1,17 @@
-//! Replay unprocessed job.completed events on daemon startup.
+//! Replay and reconciliation for job dispatch.
 //!
-//! When the daemon restarts, jobs may be stuck in `Completed` status because
-//! the supervisor wasn't running to advance pipelines or clean up. This module
-//! scans for those jobs and re-runs the completion flow.
+//! On daemon startup (and after job completion/merge events), this module:
+//! 1. Replays stale `job.completed` events that arrived while daemon was down
+//! 2. Scans for pending jobs whose dependencies are fully resolved and dispatches them
+//!
+//! This eliminates the need for an in-memory pending map — the event log is the source of truth.
 
 use runtime::events::EventEnvelope;
-use runtime::projections::job::load_jobs;
+use runtime::projections::job::{load_jobs, JobStatus};
 use std::sync::Arc;
 use tokio::sync::Mutex;
 
-use super::dispatch_pipeline::try_advance_pipeline;
+use super::dispatch_pipeline::{enrich_pipeline_from_spec, try_advance_pipeline};
 use super::job_dispatch::DispatchContext;
 
 /// Replay unprocessed `job.completed` events that arrived while the daemon was down.
@@ -83,4 +85,71 @@ pub(crate) async fn replay_unprocessed_completions(
     }
 
     tracing::info!("job-dispatch: replay complete");
+}
+
+/// Scan the job projection for pending jobs whose dependencies are all resolved.
+/// Dispatch any that are ready. Called on startup and after job.completed/job.merged.
+pub(crate) async fn dispatch_ready_pending_jobs(
+    kernel: &Arc<Mutex<runtime::events::KernelRouter>>,
+    dctx: &DispatchContext,
+) {
+    let jobs = match load_jobs() {
+        Ok(j) => j,
+        Err(e) => {
+            tracing::warn!("job-dispatch: failed to load jobs for pending scan: {e}");
+            return;
+        }
+    };
+
+    // Build set of completed/merged job slugs
+    let done_slugs: std::collections::HashSet<&str> = jobs.values()
+        .filter(|j| matches!(j.status, JobStatus::Completed | JobStatus::GatePending | JobStatus::Merged))
+        .map(|j| j.slug.as_str())
+        .collect();
+
+    // Find pending jobs with all deps resolved
+    let ready: Vec<_> = jobs.values()
+        .filter(|j| j.status == JobStatus::Pending)
+        .filter(|j| {
+            match &j.depends_on {
+                None => true,
+                Some(deps) => deps.iter().all(|d| done_slugs.contains(d.as_str())),
+            }
+        })
+        .collect();
+
+    if ready.is_empty() {
+        tracing::debug!("job-dispatch: no pending jobs ready to dispatch");
+        return;
+    }
+
+    tracing::info!(
+        count = ready.len(),
+        "job-dispatch: found pending jobs with resolved dependencies"
+    );
+
+    for job in ready {
+        tracing::info!(
+            slug = job.slug,
+            job_id = job.job_id,
+            "job-dispatch: dispatching previously-pending job"
+        );
+
+        // Build a JobCreatedPayload from the projection record
+        let payload = runtime::events::job::JobCreatedPayload {
+            job_id: job.job_id.clone(),
+            slug: job.slug.clone(),
+            agent: job.agent.clone(),
+            branch: job.branch.clone(),
+            spec_path: job.spec_path.clone(),
+            depends_on: None, // deps are resolved
+            pipeline: job.pipeline.clone(),
+            plan_id: None,
+            model: None,
+            provider: None,
+        };
+
+        let payload = enrich_pipeline_from_spec(payload);
+        super::job_dispatch::dispatch_job_internal(kernel, &payload, dctx).await;
+    }
 }

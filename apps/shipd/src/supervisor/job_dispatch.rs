@@ -61,12 +61,12 @@ pub async fn subscribe_job_events(
         executor: Arc::new(adapters::TmuxExecutor),
     });
 
-    // Replay unprocessed job.completed events from before daemon started.
-    // Jobs in "completed" status that were never advanced or cleaned up.
+    // On startup: replay stale completions and dispatch any pending jobs with resolved deps.
     let replay_kernel = kernel.clone();
     let replay_dctx = dctx.clone();
     tokio::spawn(async move {
         super::dispatch_replay::replay_unprocessed_completions(&replay_kernel, &*replay_dctx).await;
+        super::dispatch_replay::dispatch_ready_pending_jobs(&replay_kernel, &*replay_dctx).await;
     });
 
     let kr = kernel.clone();
@@ -99,6 +99,8 @@ pub(crate) async fn handle_job_event(
                 // No more phases — unblock dependents but do NOT clean up.
                 // Worktree stays alive for gate agents. Cleanup happens on job.merged.
                 dispatch_unblocked_jobs(kernel, envelope, pending, dctx).await;
+                // Also scan projection for any pending jobs now unblocked
+                super::dispatch_replay::dispatch_ready_pending_jobs(kernel, dctx).await;
             }
         }
         "job.merged" => {
@@ -108,6 +110,8 @@ pub(crate) async fn handle_job_event(
             );
             handle_job_cleanup(envelope).await;
             dispatch_unblocked_jobs(kernel, envelope, pending, dctx).await;
+            // Scan projection for any pending jobs now unblocked
+            super::dispatch_replay::dispatch_ready_pending_jobs(kernel, dctx).await;
         }
         _ => {}
     }
