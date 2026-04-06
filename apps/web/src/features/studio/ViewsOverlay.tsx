@@ -74,14 +74,17 @@ export function ViewsOverlay() {
             <Separator />
             <div className="px-2 py-2">
               <div className="text-[10px] text-muted-foreground/60 uppercase tracking-wider px-2 mb-1">Extensions</div>
-              {runtimeViews.map((v) => (
-                <ViewItem
-                  key={v.name}
-                  view={{ to: `/studio/session`, icon: MonitorPlay, label: v.name, scope: 'workspace' }}
-                  active={false}
-                  onClick={() => void navigate({ to: '/studio/session' })}
-                />
-              ))}
+              {runtimeViews.map((v) => {
+                const viewTo = `/studio/view/${encodeURIComponent(v.name)}`
+                return (
+                  <ViewItem
+                    key={v.name}
+                    view={{ to: viewTo, icon: MonitorPlay, label: v.name, scope: 'workspace' }}
+                    active={pathname.startsWith(viewTo)}
+                    onClick={() => void navigate({ to: viewTo })}
+                  />
+                )
+              })}
             </div>
           </>
         )}

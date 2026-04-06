@@ -41,7 +41,7 @@ export function StudioRail() {
 
   return (
     <TooltipProvider>
-      <nav className="w-12 shrink-0 bg-card border-r border-border/60 flex flex-col items-center py-2 gap-1">
+      <nav className="w-12 shrink-0 bg-card border-r border-border/60 flex flex-col items-center py-2 gap-1 text-muted-foreground">
         {/* Project picker */}
         <ProjectPicker />
 
@@ -71,12 +71,7 @@ export function StudioRail() {
         <Separator className="w-6 my-1" />
 
         {/* Views overlay — full catalog */}
-        <Tooltip>
-          <TooltipTrigger asChild>
-            <div><ViewsOverlay /></div>
-          </TooltipTrigger>
-          <TooltipContent side="right">All views</TooltipContent>
-        </Tooltip>
+        <ViewsOverlay />
 
         {/* Search = command palette */}
         <Tooltip>
@@ -92,14 +87,7 @@ export function StudioRail() {
 
         <Separator className="w-6 mb-1" />
 
-        <Tooltip>
-          <TooltipTrigger asChild>
-            <div className="size-8 flex items-center justify-center">
-              <ThemeToggle variant="icon" />
-            </div>
-          </TooltipTrigger>
-          <TooltipContent side="right">Theme</TooltipContent>
-        </Tooltip>
+        <ThemeToggle variant="icon" />
 
         <Tooltip>
           <TooltipTrigger asChild>
