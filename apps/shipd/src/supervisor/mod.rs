@@ -11,7 +11,7 @@ pub mod job_dispatch;
 pub(crate) mod registry;
 pub mod terminal_launcher;
 
-pub(crate) use registry::{ProcessRegistry, graceful_shutdown};
+pub(crate) use registry::graceful_shutdown;
 
 use axum::{
     Json,

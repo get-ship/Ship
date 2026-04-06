@@ -334,10 +334,16 @@ async fn advance_pipeline_inner(
                     model: step.model.clone(),
                     provider: step.provider.clone(),
                 };
-                if let Err(e) = dctx.executor.spawn(&job_ctx).await {
-                    tracing::error!(slug, step_id = step.id, "pipeline: spawn failed: {e}");
-                    continue;
-                }
+                let handle = match dctx.executor.spawn(&job_ctx).await {
+                    Ok(h) => h,
+                    Err(e) => {
+                        tracing::error!(slug, step_id = step.id, "pipeline: spawn failed: {e}");
+                        continue;
+                    }
+                };
+
+                // Register new handle (replaces previous step's handle for this slug)
+                dctx.registry.lock().await.register(slug, handle);
 
                 emit_job_dispatched(kernel, &job.job_id, &worktree_path, slug).await;
                 dispatched_any = true;

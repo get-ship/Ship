@@ -106,7 +106,7 @@ pub(crate) async fn reconcile_dispatched_jobs(
         }
     };
 
-    reconcile_dispatched_inner(kernel, dctx, jobs).await;
+    reconcile_dispatched_inner(kernel, dctx, jobs, None).await;
 }
 
 /// Path-aware variant for tests.
@@ -123,13 +123,14 @@ pub(crate) async fn reconcile_dispatched_jobs_at(
         }
     };
 
-    reconcile_dispatched_inner(kernel, dctx, jobs).await;
+    reconcile_dispatched_inner(kernel, dctx, jobs, Some(ship_dir)).await;
 }
 
 async fn reconcile_dispatched_inner(
     kernel: &Arc<Mutex<runtime::events::KernelRouter>>,
     dctx: &DispatchContext,
     jobs: std::collections::HashMap<String, runtime::projections::job::JobRecord>,
+    store_dir: Option<&std::path::Path>,
 ) {
     use runtime::events::job::event_types;
 
@@ -189,6 +190,20 @@ async fn reconcile_dispatched_inner(
                 continue;
             }
         };
+
+        // Persist to event store so projection reflects the failure
+        let persist_result = match store_dir {
+            Some(dir) => runtime::events::SqliteEventStore::new_at(dir)
+                .and_then(|s| runtime::events::EventStore::append(&s, &envelope)),
+            None => runtime::events::SqliteEventStore::new()
+                .and_then(|s| runtime::events::EventStore::append(&s, &envelope)),
+        };
+        if let Err(e) = persist_result {
+            tracing::warn!(
+                slug = job.slug,
+                "job-dispatch: reconcile — failed to persist job.failed: {e}"
+            );
+        }
 
         let ctx = runtime::events::validator::EmitContext {
             caller_kind: runtime::events::validator::CallerKind::Runtime,

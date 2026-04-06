@@ -67,7 +67,7 @@ pub(crate) async fn graceful_shutdown(
 ) {
     // 1. Emit supervisor.shutting_down event
     let envelope = match EventEnvelope::new(
-        "supervisor.shutting_down",
+        runtime::events::types::event_types::SUPERVISOR_SHUTTING_DOWN,
         "supervisor",
         &serde_json::json!({
             "agent_count": registry.len(),

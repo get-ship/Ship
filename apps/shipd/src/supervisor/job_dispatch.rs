@@ -7,21 +7,20 @@
 use runtime::events::job::JobCreatedPayload;
 use runtime::events::{ActorConfig, EventEnvelope};
 use runtime::services::dispatch_ports::{IsolationStrategy, JobContext, JobExecutor};
-use std::collections::HashMap;
 use std::path::PathBuf;
 use std::sync::Arc;
 use tokio::sync::Mutex;
 
 use super::adapters;
-pub(crate) use super::dispatch_handlers::dispatch_unblocked_jobs;
 use super::dispatch_handlers::{handle_job_cleanup, handle_job_update};
 use super::dispatch_pipeline::{advance_pipeline, emit_job_dispatched, ensure_pipeline};
+pub(crate) use super::registry::ProcessRegistry;
 #[cfg(test)]
 pub(crate) use super::dispatch_pipeline::advance_pipeline_at;
 #[cfg(test)]
 pub(crate) use super::dispatch_replay::reconcile_dispatched_jobs_at;
 #[cfg(test)]
-pub(crate) use super::{ProcessRegistry, graceful_shutdown};
+pub(crate) use super::graceful_shutdown;
 use super::helpers::worktrees_dir;
 
 /// Bundles the injected isolation and execution strategies for dispatch.
@@ -29,13 +28,24 @@ use super::helpers::worktrees_dir;
 pub(crate) struct DispatchContext {
     pub isolation: Arc<dyn IsolationStrategy>,
     pub executor: Arc<dyn JobExecutor>,
+    pub registry: Arc<Mutex<ProcessRegistry>>,
+}
+
+/// Handle returned by `subscribe_job_events` — gives the shutdown path
+/// access to the process registry and executor for graceful shutdown.
+pub struct DispatchHandle {
+    pub registry: Arc<Mutex<ProcessRegistry>>,
+    pub executor: Arc<dyn JobExecutor>,
 }
 
 /// Subscribe to `job.*` kernel events and dispatch jobs to worktrees.
+///
+/// Returns a `DispatchHandle` that the shutdown path uses to drain
+/// all managed agents on SIGTERM/SIGINT.
 pub async fn subscribe_job_events(
     kernel: Arc<Mutex<runtime::events::KernelRouter>>,
     _ship_dir: PathBuf,
-) {
+) -> Option<DispatchHandle> {
     let actor_id = "service.job-dispatch".to_string();
     let config = ActorConfig {
         namespace: actor_id.clone(),
@@ -50,7 +60,7 @@ pub async fn subscribe_job_events(
             Ok((_store, mb)) => mb,
             Err(e) => {
                 tracing::warn!("job-dispatch: failed to spawn actor: {e}");
-                return;
+                return None;
             }
         }
     };
@@ -64,15 +74,19 @@ pub async fn subscribe_job_events(
             Arc::new(adapters::TmuxExecutor)
         };
 
+    let registry = Arc::new(Mutex::new(ProcessRegistry::new()));
+
     let dctx = Arc::new(DispatchContext {
         isolation: Arc::new(adapters::GitWorktreeIsolation),
-        executor,
+        executor: executor.clone(),
+        registry: registry.clone(),
     });
 
-    // On startup: replay stale completions and dispatch ready pending jobs.
+    // On startup: reconcile stale dispatched jobs, replay completions, dispatch pending.
     let replay_kernel = kernel.clone();
     let replay_dctx = dctx.clone();
     tokio::spawn(async move {
+        super::dispatch_replay::reconcile_dispatched_jobs(&replay_kernel, &*replay_dctx).await;
         super::dispatch_replay::replay_unprocessed_completions(&replay_kernel, &*replay_dctx).await;
         super::dispatch_replay::dispatch_ready_pending_jobs(&replay_kernel, &*replay_dctx).await;
     });
@@ -80,45 +94,64 @@ pub async fn subscribe_job_events(
     let kr = kernel.clone();
     tokio::spawn(async move {
         let mut mb = mailbox;
-        let mut pending: HashMap<String, JobCreatedPayload> = HashMap::new();
         while let Some(envelope) = mb.recv().await {
-            handle_job_event(&kr, &envelope, &mut pending, &dctx).await;
+            handle_job_event(&kr, &envelope, &dctx).await;
         }
         tracing::info!("job-dispatch: mailbox closed");
     });
+
+    Some(DispatchHandle { registry, executor })
 }
 
 pub(crate) async fn handle_job_event(
     kernel: &Arc<Mutex<runtime::events::KernelRouter>>,
     envelope: &EventEnvelope,
-    pending: &mut HashMap<String, JobCreatedPayload>,
     dctx: &DispatchContext,
 ) {
     match envelope.event_type.as_str() {
-        "job.created" => handle_job_created(kernel, envelope, pending, dctx).await,
+        "job.created" => handle_job_created(kernel, envelope, dctx).await,
         "job.update" => handle_job_update(kernel, envelope).await,
         "job.completed" => {
             tracing::info!(entity_id = %envelope.entity_id, "job-dispatch: handling job.completed");
+            // Unregister completed agent from process registry
+            let slug = extract_slug(envelope);
+            if let Some(slug) = &slug {
+                dctx.registry.lock().await.unregister(slug);
+            }
             if !advance_pipeline(kernel, envelope, dctx).await {
-                // Pipeline done or no pipeline — scan for unblocked jobs
-                dispatch_unblocked_jobs(kernel, envelope, pending, dctx).await;
+                // Pipeline done or no pipeline — scan projection for unblocked jobs
                 super::dispatch_replay::dispatch_ready_pending_jobs(kernel, dctx).await;
             }
         }
         "job.merged" => {
             tracing::info!(entity_id = %envelope.entity_id, "job-dispatch: handling job.merged");
+            let slug = extract_slug(envelope);
+            if let Some(slug) = &slug {
+                dctx.registry.lock().await.unregister(slug);
+            }
             handle_job_cleanup(envelope).await;
-            dispatch_unblocked_jobs(kernel, envelope, pending, dctx).await;
+            // Scan projection for jobs whose deps are now resolved
             super::dispatch_replay::dispatch_ready_pending_jobs(kernel, dctx).await;
+        }
+        "job.failed" => {
+            let slug = extract_slug(envelope);
+            if let Some(slug) = &slug {
+                dctx.registry.lock().await.unregister(slug);
+            }
         }
         _ => {}
     }
 }
 
+/// Extract the slug from an event envelope payload.
+fn extract_slug(envelope: &EventEnvelope) -> Option<String> {
+    let payload: serde_json::Value = serde_json::from_str(&envelope.payload_json).ok()?;
+    payload["slug"].as_str().map(str::to_string)
+}
+
 pub(crate) async fn handle_job_created(
     kernel: &Arc<Mutex<runtime::events::KernelRouter>>,
     envelope: &EventEnvelope,
-    pending: &mut HashMap<String, JobCreatedPayload>,
     dctx: &DispatchContext,
 ) {
     let payload: JobCreatedPayload = match serde_json::from_str(&envelope.payload_json) {
@@ -129,15 +162,16 @@ pub(crate) async fn handle_job_created(
         }
     };
 
-    // DAG-aware: defer if dependencies are unresolved
+    // DAG-aware: defer if dependencies are unresolved.
+    // The job is already persisted in the event store as Pending.
+    // dispatch_ready_pending_jobs will pick it up when deps resolve.
     if let Some(deps) = &payload.depends_on {
         if !deps.is_empty() {
             tracing::info!(
                 slug = payload.slug,
                 deps = ?deps,
-                "job-dispatch: deferring job until dependencies complete"
+                "job-dispatch: deferring job until dependencies complete (projection-backed)"
             );
-            pending.insert(payload.slug.clone(), payload);
             return;
         }
     }
@@ -190,12 +224,18 @@ pub(crate) async fn dispatch_job_internal(
 
     // 2. Spawn agent process
     let job_ctx_with_dir = JobContext { work_dir: worktree_path.clone(), ..job_ctx };
-    if let Err(e) = dctx.executor.spawn(&job_ctx_with_dir).await {
-        tracing::error!(slug, "job-dispatch: executor spawn failed: {e}");
-        return;
-    }
+    let handle = match dctx.executor.spawn(&job_ctx_with_dir).await {
+        Ok(h) => h,
+        Err(e) => {
+            tracing::error!(slug, "job-dispatch: executor spawn failed: {e}");
+            return;
+        }
+    };
 
-    // 3. Emit job.dispatched
+    // 3. Register handle in process registry for shutdown/liveness tracking
+    dctx.registry.lock().await.register(slug, handle);
+
+    // 4. Emit job.dispatched
     emit_job_dispatched(kernel, &payload.job_id, &worktree_path, slug).await;
 }
 
