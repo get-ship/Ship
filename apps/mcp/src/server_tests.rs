@@ -8,7 +8,7 @@ use runtime::{AgentProfile, add_agent};
 use tempfile::tempdir;
 
 #[test]
-fn mode_gate_normalizes_and_blocks_disallowed_tools() {
+fn mode_gate_with_explicit_active_tools() {
     let tmp = tempdir().expect("tempdir");
     let project_dir = init_project(tmp.path().to_path_buf()).expect("init project");
 
@@ -25,33 +25,61 @@ fn mode_gate_normalizes_and_blocks_disallowed_tools() {
     runtime::set_active_agent(Some(project_dir.clone()), Some("mode-gate-test"))
         .expect("set active agent");
 
+    // Explicit active_tools: list_notes allowed, create_spec blocked.
     ShipServer::enforce_mode_tool_gate(&project_dir, "list_notes").expect("list_notes allowed");
     ShipServer::enforce_mode_tool_gate(&project_dir, "ship_list_notes_tool")
         .expect("prefixed note tool allowed");
-    ShipServer::enforce_mode_tool_gate(&project_dir, "create_workspace")
-        .expect("create_workspace must be core");
-    ShipServer::enforce_mode_tool_gate(&project_dir, "complete_workspace")
-        .expect("complete_workspace must be core");
+
+    // Core tools always pass regardless of active_tools.
+    ShipServer::enforce_mode_tool_gate(&project_dir, "log_progress")
+        .expect("core tool log_progress always allowed");
 
     let blocked = ShipServer::enforce_mode_tool_gate(&project_dir, "create_spec")
         .expect_err("create_spec should be blocked");
     assert!(
-        blocked.contains("blocked by active mode"),
-        "unexpected mode gate message: {}",
+        blocked.contains("blocked by agent"),
+        "unexpected gate message: {}",
         blocked
     );
+}
+
+#[test]
+fn role_defaults_worker_gets_core_only() {
+    let tools = ShipServer::role_default_tools("worker");
+    assert!(tools.contains(&"log_progress"));
+    assert!(tools.contains(&"update_job"));
+    assert!(!tools.contains(&"create_job"));
+    assert!(!tools.contains(&"activate_workspace"));
+}
+
+#[test]
+fn role_defaults_lead_gets_job_creation() {
+    let tools = ShipServer::role_default_tools("lead");
+    assert!(tools.contains(&"log_progress"));
+    assert!(tools.contains(&"create_job"));
+    assert!(!tools.contains(&"activate_workspace"));
+}
+
+#[test]
+fn role_defaults_commander_gets_everything() {
+    let tools = ShipServer::role_default_tools("commander");
+    assert!(tools.contains(&"log_progress"));
+    assert!(tools.contains(&"create_job"));
+    assert!(tools.contains(&"activate_workspace"));
+    assert!(tools.contains(&"mesh_discover"));
 }
 
 #[tokio::test(flavor = "multi_thread")]
 async fn mcp_workspace_control_plane_round_trip() {
     let tmp = tempdir().expect("tempdir");
-    let project_dir = init_project(tmp.path().to_path_buf()).expect("init project");
+    let ship_dir = init_project(tmp.path().to_path_buf()).expect("init project");
+    let project_dir = ship_dir.parent().unwrap().to_path_buf();
 
     let server = ShipServer::new();
     *server.active_project.lock().await = Some(project_dir.clone());
 
     runtime_create_workspace(
-        &project_dir,
+        &ship_dir,
         RuntimeCreateWorkspaceRequest {
             branch: "feature/mode-control-plane".to_string(),
             status: None,
@@ -184,15 +212,6 @@ fn core_tool_with_prefix_and_suffix() {
 }
 
 #[test]
-#[cfg(feature = "unstable")]
-fn unstable_tools_are_core_when_feature_enabled() {
-    assert!(
-        ShipServer::is_core_tool("create_adr"),
-        "create_adr should be a core tool with unstable feature"
-    );
-}
-
-#[test]
 fn non_core_tool_is_not_core() {
     assert!(!ShipServer::is_core_tool("create_spec"));
     assert!(!ShipServer::is_core_tool("random_tool"));
@@ -232,7 +251,7 @@ fn normalization_applied_to_both_sides() {
 // ── tool registration surface ──────────────────────────────────────
 
 #[test]
-fn stable_build_registers_only_platform_tools() {
+fn stable_build_registers_platform_tools() {
     let server = ShipServer::new();
     let names = server.registered_tool_names();
     let expected: &[&str] = &[
@@ -260,9 +279,6 @@ fn stable_build_registers_only_platform_tools() {
         "mesh_broadcast",
         "mesh_discover",
         "mesh_status",
-        // Studio-only tools NOT here: pull_agents, list_local_agents,
-        // push_bundle, write/delete_skill_file, list_project_skills, emit_studio_event
-        // Removed: list_events — agents do not have read access to the event store
     ];
     for tool in expected {
         assert!(
@@ -275,8 +291,6 @@ fn stable_build_registers_only_platform_tools() {
 #[test]
 #[cfg(not(feature = "unstable"))]
 fn stable_build_tool_count_not_regressed() {
-    // Verify platform tools are all present. Count is not tested — adding tools
-    // intentionally is not a regression; missing an expected tool is.
     let server = ShipServer::new();
     let names = server.registered_tool_names();
     assert!(
@@ -289,12 +303,11 @@ fn stable_build_tool_count_not_regressed() {
 
 #[test]
 #[cfg(feature = "unstable")]
-fn unstable_build_includes_create_adr() {
+fn unstable_build_includes_dispatch_tools() {
     let server = ShipServer::new();
     let names = server.registered_tool_names();
     assert!(
-        names.iter().any(|n| n == "create_adr"),
-        "create_adr missing from unstable router"
+        names.iter().any(|n| n == "dispatch_agent"),
+        "dispatch_agent missing from unstable router"
     );
 }
-

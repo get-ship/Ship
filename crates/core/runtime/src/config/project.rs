@@ -15,6 +15,9 @@ pub struct AgentProfile {
     pub name: String,
     #[serde(default)]
     pub description: Option<String>,
+    /// Agent role for tool gating defaults: "worker", "lead", "commander".
+    #[serde(default)]
+    pub role: Option<String>,
     /// Tool IDs visible in this mode (empty = all)
     #[serde(default)]
     pub active_tools: Vec<String>,

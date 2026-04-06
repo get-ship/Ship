@@ -53,6 +53,7 @@ pub(super) fn get_modes_config(ship_dir: &Path) -> Result<Vec<AgentProfile>> {
             id: row.id,
             name: row.name,
             description: row.description,
+            role: None,
             active_tools,
             mcp_servers: resolve_refs_to_external_ids(ship_dir, ARTIFACT_KIND_MCP, &mcp_refs)?,
             skills: resolve_refs_to_external_ids(ship_dir, ARTIFACT_KIND_SKILL, &skill_refs)?,
