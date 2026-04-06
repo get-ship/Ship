@@ -7,6 +7,7 @@ import { useAgents } from '#/features/agents/useAgents'
 import { agentToLibrary } from '#/features/agents/agent-to-library'
 import { StudioErrorBoundary } from '#/features/studio/StudioErrorBoundary'
 import { PanicSaveProvider } from '#/features/agents/PanicSaveContext'
+import { StudioRail } from '#/features/studio/StudioRail'
 
 export const Route = createFileRoute('/studio')({
   component: StudioLayout,
@@ -76,8 +77,10 @@ function StudioSyncShell() {
   const isSession = pathname.startsWith('/studio/session')
 
   return (
-    <main className="flex-1 overflow-hidden min-w-0 flex flex-col relative">
-      <div className="flex-1 flex min-h-0 overflow-hidden">
+    <div className="flex-1 overflow-hidden min-w-0 flex relative">
+      <StudioRail />
+
+      <main className="flex-1 min-w-0 flex min-h-0 overflow-hidden">
         <div className={`flex-1 min-w-0 ${isSession ? 'flex flex-col overflow-hidden' : 'overflow-auto'}`}>
           <Outlet />
         </div>
@@ -90,7 +93,7 @@ function StudioSyncShell() {
             />
           </div>
         )}
-      </div>
-    </main>
+      </main>
+    </div>
   )
 }
