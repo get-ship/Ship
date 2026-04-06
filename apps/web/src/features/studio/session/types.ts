@@ -31,12 +31,16 @@ export interface ActionAnnotation {
 
 export type Annotation = ClickAnnotation | BoxAnnotation | ActionAnnotation
 
+export type ArtifactTier = 'workspace' | 'project' | 'both'
+
 export interface SessionFile {
   name: string
   path: string
   type: 'html' | 'image' | 'markdown' | 'url' | 'other'
   size: number
   modifiedAt: number
+  /** Which tier this file lives in */
+  tier: ArtifactTier
 }
 
 export type UploadResult =

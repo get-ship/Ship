@@ -23,22 +23,60 @@ function useActiveWorkspaceId(): string {
   return active[0]?.branch ?? ''
 }
 
+interface RawFile {
+  name: string; path: string; size: number; type: string
+  modifiedAt?: number; createdAt?: number
+}
+
 export function useSessionFiles() {
   const wsId = useActiveWorkspaceId()
 
   const query = useQuery({
     queryKey: sessionKeys.files(wsId),
     queryFn: async (): Promise<SessionFile[]> => {
-      const res = await fetch(`${DAEMON_BASE_URL}/api/workspaces/${encodeURIComponent(wsId)}/session-files`)
-      if (!res.ok) throw new Error(`daemon: session-files ${res.status}`)
-      const body = (await res.json()) as { ok: boolean; data: { files: Array<{ name: string; path: string; size: number; type: string; modifiedAt?: number; createdAt?: number }> } }
-      return body.data.files.map((f) => ({
-        name: f.name,
-        path: f.path,
-        type: toFileType(f.type),
-        size: f.size,
-        modifiedAt: f.modifiedAt ?? Date.now(),
-      }))
+      // Fetch workspace + project files in parallel
+      const [wsRes, projRes] = await Promise.all([
+        fetch(`${DAEMON_BASE_URL}/api/workspaces/${encodeURIComponent(wsId)}/session-files`),
+        fetch(`${DAEMON_BASE_URL}/api/artifacts`),
+      ])
+
+      const wsFiles: RawFile[] = wsRes.ok
+        ? ((await wsRes.json()) as { ok: boolean; data: { files: RawFile[] } }).data.files
+        : []
+      const projFiles: RawFile[] = projRes.ok
+        ? ((await projRes.json()) as { ok: boolean; data: { files: RawFile[] } }).data.files
+        : []
+
+      // Merge: workspace files first, then project-only files
+      const seen = new Set<string>()
+      const merged: SessionFile[] = []
+
+      for (const f of wsFiles) {
+        seen.add(f.path)
+        const inProject = projFiles.some((p) => p.path === f.path)
+        merged.push({
+          name: f.name,
+          path: f.path,
+          type: toFileType(f.type),
+          size: f.size,
+          modifiedAt: f.modifiedAt ?? Date.now(),
+          tier: inProject ? 'both' : 'workspace',
+        })
+      }
+
+      for (const f of projFiles) {
+        if (seen.has(f.path)) continue
+        merged.push({
+          name: f.name,
+          path: f.path,
+          type: toFileType(f.type),
+          size: f.size,
+          modifiedAt: f.modifiedAt ?? Date.now(),
+          tier: 'project',
+        })
+      }
+
+      return merged
     },
     enabled: wsId.length > 0,
     staleTime: 3_000,
