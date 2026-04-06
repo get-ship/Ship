@@ -6,6 +6,7 @@
 
 use runtime::events::job::{Pipeline, StepType};
 use runtime::events::{CallerKind, EmitContext, EventEnvelope};
+use runtime::services::dispatch_ports::JobExecutor;
 use runtime::projections::job::{load_jobs, load_jobs_at};
 use runtime::services::dispatch_ports::JobContext;
 use std::sync::Arc;
@@ -313,7 +314,7 @@ async fn advance_pipeline_inner(
                     continue;
                 }
 
-                // Gracefully end the current agent
+                // Gracefully end the current agent (only needed for tmux reuse)
                 graceful_agent_exit(slug).await;
 
                 // Swap agent profile
@@ -334,9 +335,16 @@ async fn advance_pipeline_inner(
                     model: step.model.clone(),
                     provider: step.provider.clone(),
                 };
-                if let Err(e) = dctx.executor.spawn(&job_ctx).await {
-                    tracing::error!(slug, step_id = step.id, "pipeline: spawn failed: {e}");
-                    continue;
+                // Pipeline steps use ProcessExecutor (headless, auto-exits on completion).
+                // Falls back to the configured executor if ProcessExecutor fails.
+                let process_executor = super::adapters::ProcessExecutor;
+                let spawn_result = process_executor.spawn(&job_ctx).await;
+                if let Err(e) = spawn_result {
+                    tracing::warn!(slug, step_id = step.id, "pipeline: ProcessExecutor failed, falling back: {e}");
+                    if let Err(e2) = dctx.executor.spawn(&job_ctx).await {
+                        tracing::error!(slug, step_id = step.id, "pipeline: fallback spawn also failed: {e2}");
+                        continue;
+                    }
                 }
 
                 emit_job_dispatched(kernel, &job.job_id, &worktree_path, slug).await;
