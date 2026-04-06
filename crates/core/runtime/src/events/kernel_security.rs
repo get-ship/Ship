@@ -177,26 +177,45 @@ impl KernelRouter {
     }
 
     /// Deliver event to matching subscribers respecting scope and directed delivery.
-    pub(crate) async fn deliver_with_scope(&self, event: &EventEnvelope) {
+    ///
+    /// Returns `Err` if any actor's mailbox was full. The event is still
+    /// delivered to all actors that have capacity — only the full ones miss it.
+    pub(crate) async fn deliver_with_scope(&self, event: &EventEnvelope) -> Result<()> {
+        let mut full_actors: Vec<String> = Vec::new();
+
         if let Some(ref target) = event.target_actor_id {
             if let Some(tx) = self.mailboxes.get(target) {
                 if self.should_deliver(event, target) {
-                    if let Err(_) = tx.send(event.clone()).await {
-                        tracing::warn!(
-                            actor_id = target,
-                            event_type = %event.event_type,
-                            "kernel-router: targeted delivery failed, mailbox closed"
-                        );
-                    } else {
-                        tracing::debug!(
-                            actor_id = target,
-                            event_type = %event.event_type,
-                            "kernel-router: targeted event delivered"
-                        );
+                    match tx.try_send(event.clone()) {
+                        Ok(()) => {
+                            tracing::debug!(
+                                actor_id = target,
+                                event_type = %event.event_type,
+                                "kernel-router: targeted event delivered"
+                            );
+                        }
+                        Err(mpsc::error::TrySendError::Full(_)) => {
+                            full_actors.push(target.clone());
+                        }
+                        Err(mpsc::error::TrySendError::Closed(_)) => {
+                            tracing::warn!(
+                                actor_id = target,
+                                event_type = %event.event_type,
+                                "kernel-router: targeted delivery failed, mailbox closed"
+                            );
+                        }
                     }
                 }
             }
-            return;
+            if !full_actors.is_empty() {
+                self.emit_mailbox_full_events(&full_actors, event);
+                return Err(anyhow!(
+                    "mailbox full for actor '{}': event '{}' not delivered",
+                    full_actors[0],
+                    event.event_type
+                ));
+            }
+            return Ok(());
         }
 
         for (ns, actor_ids) in &self.subscriptions {
@@ -204,22 +223,58 @@ impl KernelRouter {
                 for actor_id in actor_ids {
                     if self.should_deliver(event, actor_id) {
                         if let Some(tx) = self.mailboxes.get(actor_id) {
-                            if let Err(_) = tx.send(event.clone()).await {
-                                tracing::warn!(
-                                    actor_id,
-                                    event_type = %event.event_type,
-                                    "kernel-router: delivery failed, mailbox closed"
-                                );
-                            } else {
-                                tracing::debug!(
-                                    actor_id,
-                                    event_type = %event.event_type,
-                                    "kernel-router: event delivered"
-                                );
+                            match tx.try_send(event.clone()) {
+                                Ok(()) => {
+                                    tracing::debug!(
+                                        actor_id,
+                                        event_type = %event.event_type,
+                                        "kernel-router: event delivered"
+                                    );
+                                }
+                                Err(mpsc::error::TrySendError::Full(_)) => {
+                                    full_actors.push(actor_id.clone());
+                                }
+                                Err(mpsc::error::TrySendError::Closed(_)) => {
+                                    tracing::warn!(
+                                        actor_id,
+                                        event_type = %event.event_type,
+                                        "kernel-router: delivery failed, mailbox closed"
+                                    );
+                                }
                             }
                         }
                     }
                 }
+            }
+        }
+
+        if !full_actors.is_empty() {
+            self.emit_mailbox_full_events(&full_actors, event);
+            return Err(anyhow!(
+                "mailbox full for actor(s) [{}]: event '{}' not delivered",
+                full_actors.join(", "),
+                event.event_type
+            ));
+        }
+        Ok(())
+    }
+
+    /// Emit `actor.mailbox_full` kernel events for each actor whose mailbox overflowed.
+    fn emit_mailbox_full_events(&self, actor_ids: &[String], event: &EventEnvelope) {
+        for actor_id in actor_ids {
+            tracing::warn!(
+                actor_id,
+                event_type = %event.event_type,
+                capacity = MAILBOX_CAPACITY,
+                "kernel-router: mailbox full, event not delivered"
+            );
+            let payload = serde_json::json!({
+                "actor_id": actor_id,
+                "dropped_event_type": &event.event_type,
+                "dropped_event_id": &event.id,
+            });
+            if let Ok(ev) = EventEnvelope::new("actor.mailbox_full", actor_id, &payload) {
+                let _ = crate::events::actor_store::raw_append(&self.kernel_store_path, &ev);
             }
         }
     }

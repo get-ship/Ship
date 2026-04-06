@@ -3,6 +3,7 @@ pub mod artifact_events;
 pub mod envelope;
 pub mod filter;
 pub mod job;
+pub mod kernel_lifecycle;
 pub mod kernel_router;
 pub mod mailbox;
 pub mod payload_schema;
@@ -50,6 +51,10 @@ mod integration_tests;
 mod validator_tests;
 #[cfg(test)]
 mod kernel_security_tests;
+#[cfg(test)]
+mod lifecycle_tests;
+#[cfg(test)]
+mod snapshot_edge_tests;
 
 pub use actor_store::ActorStore;
 pub use envelope::EventEnvelope;
