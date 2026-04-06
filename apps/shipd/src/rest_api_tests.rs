@@ -1,12 +1,15 @@
 //! Tests for the REST API mesh endpoints — register, send, broadcast,
-//! discover, status, checkout hook, and SSE events.
+//! discover, status, checkout hook, SSE events, and identity binding.
 
 use axum::extract::{Json, State};
 use axum::http::StatusCode;
 use axum::response::IntoResponse;
+use axum::Extension;
 use tempfile::TempDir;
 
+use crate::auth::AuthContext;
 use crate::rest_api::*;
+use crate::test_harness::TestDaemon;
 
 fn make_api_state(dir: &TempDir) -> ApiState {
     let ship_dir = dir.path().join(".ship");
@@ -38,6 +41,7 @@ async fn register_returns_ok() {
 
     let resp = mesh_register(
         State(state),
+        Extension(TestDaemon::cli_auth()),
         Json(MeshRegisterReq {
             agent_id: "agent.test".into(),
             capabilities: vec!["rust".into()],
@@ -56,6 +60,7 @@ async fn register_spawns_actor_in_kernel() {
 
     mesh_register(
         State(state.clone()),
+        Extension(TestDaemon::cli_auth()),
         Json(MeshRegisterReq {
             agent_id: "agent.spawned".into(),
             capabilities: vec![],
@@ -74,6 +79,7 @@ async fn register_stashes_mailbox() {
 
     mesh_register(
         State(state.clone()),
+        Extension(TestDaemon::cli_auth()),
         Json(MeshRegisterReq {
             agent_id: "agent.mailbox".into(),
             capabilities: vec![],
@@ -92,6 +98,7 @@ async fn register_twice_replaces_actor() {
 
     mesh_register(
         State(state.clone()),
+        Extension(TestDaemon::cli_auth()),
         Json(MeshRegisterReq {
             agent_id: "agent.twice".into(),
             capabilities: vec!["v1".into()],
@@ -101,6 +108,7 @@ async fn register_twice_replaces_actor() {
 
     mesh_register(
         State(state.clone()),
+        Extension(TestDaemon::cli_auth()),
         Json(MeshRegisterReq {
             agent_id: "agent.twice".into(),
             capabilities: vec!["v2".into()],
@@ -121,6 +129,7 @@ async fn send_returns_ok() {
 
     let resp = mesh_send(
         State(state),
+        Extension(TestDaemon::cli_auth()),
         Json(MeshSendReq {
             from: "agent.sender".into(),
             to: "agent.receiver".into(),
@@ -142,6 +151,7 @@ async fn broadcast_returns_ok() {
 
     let resp = mesh_broadcast(
         State(state),
+        Extension(TestDaemon::cli_auth()),
         Json(MeshBroadcastReq {
             from: "agent.broadcaster".into(),
             body: serde_json::json!({"ping": true}),
@@ -161,6 +171,7 @@ async fn broadcast_with_capability_filter() {
 
     let resp = mesh_broadcast(
         State(state),
+        Extension(TestDaemon::cli_auth()),
         Json(MeshBroadcastReq {
             from: "agent.sender".into(),
             body: serde_json::json!({}),
@@ -208,7 +219,7 @@ async fn discover_with_registered_agents() {
     assert_eq!(resp.status(), StatusCode::OK);
 }
 
-// ── mesh_status_update ──────────────────────────────────────────────────────
+// ── mesh_status_update ───────────────────────────────────────────────���──────
 
 #[tokio::test(flavor = "multi_thread")]
 async fn status_update_returns_ok() {
@@ -217,6 +228,7 @@ async fn status_update_returns_ok() {
 
     let resp = mesh_status_update(
         State(state),
+        Extension(TestDaemon::cli_auth()),
         Json(MeshStatusReq {
             agent_id: "agent.status".into(),
             status: "busy".into(),
@@ -279,6 +291,7 @@ async fn mesh_events_registered_agent_has_mailbox() {
 
     mesh_register(
         State(state.clone()),
+        Extension(TestDaemon::cli_auth()),
         Json(MeshRegisterReq {
             agent_id: "agent.sse-test".into(),
             capabilities: vec![],
@@ -297,6 +310,7 @@ async fn mesh_events_takes_mailbox_from_stash() {
 
     mesh_register(
         State(state.clone()),
+        Extension(TestDaemon::cli_auth()),
         Json(MeshRegisterReq {
             agent_id: "agent.take".into(),
             capabilities: vec![],
@@ -311,4 +325,93 @@ async fn mesh_events_takes_mailbox_from_stash() {
     // Second removal finds nothing.
     let gone = state.agent_mailboxes.lock().await.remove("agent.take");
     assert!(gone.is_none(), "mailbox should only be takeable once");
+}
+
+// ── identity binding (S4: agent cannot impersonate) ────────────────────────
+
+#[tokio::test(flavor = "multi_thread")]
+async fn mcp_agent_cannot_register_as_different_id() {
+    let dir = TempDir::new().unwrap();
+    let state = make_api_state(&dir);
+
+    // MCP caller authenticated as "claude-v020" tries to register as "codex-main".
+    let auth = TestDaemon::mcp_auth("claude-v020");
+    let resp = mesh_register(
+        State(state),
+        Extension(auth),
+        Json(MeshRegisterReq {
+            agent_id: "codex-main".into(),
+            capabilities: vec![],
+        }),
+    )
+    .await
+    .into_response();
+
+    assert_eq!(resp.status(), StatusCode::FORBIDDEN);
+}
+
+#[tokio::test(flavor = "multi_thread")]
+async fn mcp_agent_can_register_as_own_id() {
+    let dir = TempDir::new().unwrap();
+    let state = make_api_state(&dir);
+
+    let auth = TestDaemon::mcp_auth("claude-v020");
+    let resp = mesh_register(
+        State(state),
+        Extension(auth),
+        Json(MeshRegisterReq {
+            agent_id: "claude-v020".into(),
+            capabilities: vec!["rust".into()],
+        }),
+    )
+    .await
+    .into_response();
+
+    assert_eq!(resp.status(), StatusCode::OK);
+}
+
+#[tokio::test(flavor = "multi_thread")]
+async fn cli_caller_can_register_any_agent() {
+    let dir = TempDir::new().unwrap();
+    let state = make_api_state(&dir);
+
+    // CLI callers are trusted — no identity binding restriction.
+    let resp = mesh_register(
+        State(state),
+        Extension(TestDaemon::cli_auth()),
+        Json(MeshRegisterReq {
+            agent_id: "any-agent-id".into(),
+            capabilities: vec![],
+        }),
+    )
+    .await
+    .into_response();
+
+    assert_eq!(resp.status(), StatusCode::OK);
+}
+
+#[tokio::test(flavor = "multi_thread")]
+async fn mcp_agent_without_agent_id_can_register() {
+    let dir = TempDir::new().unwrap();
+    let state = make_api_state(&dir);
+
+    // MCP caller with no agent_id in auth (e.g. Studio) — allowed.
+    let auth = AuthContext {
+        caller_kind: runtime::events::CallerKind::Mcp,
+        agent_id: None,
+        workspace_id: None,
+        session_id: None,
+    };
+    let resp = mesh_register(
+        State(state),
+        Extension(auth),
+        Json(MeshRegisterReq {
+            agent_id: "studio-agent".into(),
+            capabilities: vec![],
+        }),
+    )
+    .await
+    .into_response();
+
+    assert_eq!(resp.status(), StatusCode::OK);
 }
