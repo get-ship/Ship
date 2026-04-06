@@ -488,7 +488,7 @@ mod kernel_security {
         );
     }
 }
-||||||| 526bee64
+
 //! Tests for kernel_security.rs — enforce_emit_permissions, should_deliver,
 //! event_matches_actor_scope, and deliver_with_scope edge cases.
 //!
