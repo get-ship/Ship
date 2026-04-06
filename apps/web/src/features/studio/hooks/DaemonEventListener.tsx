@@ -28,11 +28,18 @@ export function DaemonEventListener() {
       es.addEventListener('ship.event', (e: MessageEvent) => {
         try {
           const envelope = JSON.parse(e.data as string) as EventEnvelope
-          if (envelope.event_type?.startsWith('workspace.') || envelope.event_type?.startsWith('session.')) {
+          if (envelope.event_type?.startsWith('workspace.')) {
             void queryClient.invalidateQueries({ queryKey: daemonKeys.workspaces })
+          }
+          if (envelope.event_type?.startsWith('session.')) {
+            void queryClient.invalidateQueries({ queryKey: daemonKeys.workspaces })
+            void queryClient.invalidateQueries({ queryKey: ['daemon', 'sessions'] })
           }
           if (envelope.event_type?.startsWith('job.')) {
             void queryClient.invalidateQueries({ queryKey: daemonKeys.jobs })
+          }
+          if (envelope.event_type?.startsWith('mesh.') || envelope.event_type?.startsWith('actor.')) {
+            void queryClient.invalidateQueries({ queryKey: daemonKeys.agents })
           }
           queryClient.setQueryData<EventEnvelope[]>(mcpKeys.events(), (prev) => {
             const next = [envelope, ...(prev ?? [])]

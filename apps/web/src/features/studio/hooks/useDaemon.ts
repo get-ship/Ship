@@ -112,17 +112,19 @@ async function postCreateJob(input: CreateJobInput): Promise<string> {
 // ---- Hook ----
 
 export function useDaemon(): UseDaemonReturn {
+  // No polling — SSE events from DaemonEventListener invalidate these caches.
+  // staleTime keeps data fresh between SSE pushes without re-fetching.
   const workspacesQuery = useQuery<Workspace[], Error>({
     queryKey: daemonKeys.workspaces,
     queryFn: fetchWorkspaces,
-    refetchInterval: 5000,
+    staleTime: 30_000,
     retry: false,
   })
 
   const agentsQuery = useQuery<AgentEntry[], Error>({
     queryKey: daemonKeys.agents,
     queryFn: fetchAgents,
-    refetchInterval: 5000,
+    staleTime: 30_000,
     retry: false,
   })
 
@@ -130,7 +132,7 @@ export function useDaemon(): UseDaemonReturn {
   const sessionsQuery = useQuery<SessionEntry[], Error>({
     queryKey: daemonKeys.sessions(activeWsId),
     queryFn: () => fetchSessions(activeWsId),
-    refetchInterval: 10000,
+    staleTime: 30_000,
     retry: false,
     enabled: !!activeWsId,
   })
@@ -138,7 +140,7 @@ export function useDaemon(): UseDaemonReturn {
   const jobsQuery = useQuery<JobRecord[], Error>({
     queryKey: daemonKeys.jobs,
     queryFn: fetchJobs,
-    refetchInterval: 5000,
+    staleTime: 30_000,
     retry: false,
   })
 
