@@ -49,8 +49,10 @@ function RootDocument({ children }: { children: React.ReactNode }) {
 
   const isLanding = pathname === '/'
   const isStudio = pathname.startsWith('/studio')
-  // Show footer on registry and other pages, hide on studio (dock) and landing (own footer)
-  const showFooter = !isStudio && !isLanding
+  const isConsole = pathname.startsWith('/console')
+  const isFullscreen = isStudio || isConsole
+  // Show footer on registry and other pages, hide on studio/console (dock) and landing (own footer)
+  const showFooter = !isFullscreen && !isLanding
 
   return (
     <html lang="en" suppressHydrationWarning>
@@ -58,16 +60,16 @@ function RootDocument({ children }: { children: React.ReactNode }) {
         <script dangerouslySetInnerHTML={{ __html: THEME_INIT_SCRIPT }} />
         <HeadContent />
       </head>
-      <body className={`font-sans antialiased [overflow-wrap:anywhere] ${isStudio ? 'flex flex-col h-screen overflow-hidden' : 'min-h-screen flex flex-col'}`}>
+      <body className={`font-sans antialiased [overflow-wrap:anywhere] ${isFullscreen ? 'flex flex-col h-screen overflow-hidden' : 'min-h-screen flex flex-col'}`}>
         <TanStackQueryProvider>
           <DaemonEventListener />
           <LocalMcpProvider>
-            {!isLanding && (
+            {!isLanding && !isConsole && (
               <Suspense fallback={<div className="h-12 border-b border-border/60" />}>
                 <Header />
               </Suspense>
             )}
-            <div className={isStudio ? 'flex-1 flex flex-col min-h-0 overflow-hidden' : 'flex-1'}>
+            <div className={isFullscreen ? 'flex-1 flex flex-col min-h-0 overflow-hidden' : 'flex-1'}>
               {children}
             </div>
             {showFooter && <Footer />}
