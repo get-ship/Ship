@@ -84,6 +84,38 @@ pub struct WorkspaceStarted {
     pub tmux_session_name: String,
 }
 
+#[derive(Debug, Serialize, Deserialize)]
+pub struct WorkspaceWorktreeAdded {
+    pub worktree_path: String,
+    #[serde(default)]
+    pub detected_by: String,
+}
+
+#[derive(Debug, Serialize, Deserialize)]
+pub struct WorkspaceWorktreeRemoved {
+    #[serde(default)]
+    pub previous_path: Option<String>,
+    #[serde(default)]
+    pub detected_by: String,
+}
+
+#[derive(Debug, Serialize, Deserialize)]
+pub struct WorkspaceBranchSwitched {
+    #[serde(default)]
+    pub previous_branch: Option<String>,
+    pub new_branch: String,
+    #[serde(default)]
+    pub detected_by: String,
+}
+
+#[derive(Debug, Serialize, Deserialize)]
+pub struct WorkspaceConfigChanged {
+    #[serde(default)]
+    pub changed_path: Option<String>,
+    #[serde(default)]
+    pub detected_by: String,
+}
+
 // ── Session aggregate ─────────────────────────────────────────────────────────
 
 #[derive(Debug, Default, Serialize, Deserialize)]
@@ -278,6 +310,10 @@ pub mod event_types {
     pub const WORKSPACE_RECONCILED: &str = "workspace.reconciled";
     pub const WORKSPACE_TMUX_ASSIGNED: &str = "workspace.tmux_assigned";
     pub const WORKSPACE_STARTED: &str = "workspace.started";
+    pub const WORKSPACE_WORKTREE_ADDED: &str = "workspace.worktree_added";
+    pub const WORKSPACE_WORKTREE_REMOVED: &str = "workspace.worktree_removed";
+    pub const WORKSPACE_BRANCH_SWITCHED: &str = "workspace.branch_switched";
+    pub const WORKSPACE_CONFIG_CHANGED: &str = "workspace.config_changed";
     pub const SESSION_STARTED: &str = "session.started";
     pub const SESSION_PROGRESS: &str = "session.progress";
     pub const SESSION_ENDED: &str = "session.ended";
@@ -319,6 +355,10 @@ pub mod event_types {
         WORKSPACE_RECONCILED,
         WORKSPACE_TMUX_ASSIGNED,
         WORKSPACE_STARTED,
+        WORKSPACE_WORKTREE_ADDED,
+        WORKSPACE_WORKTREE_REMOVED,
+        WORKSPACE_BRANCH_SWITCHED,
+        WORKSPACE_CONFIG_CHANGED,
         SESSION_STARTED,
         SESSION_PROGRESS,
         SESSION_ENDED,
@@ -363,6 +403,6 @@ mod tests {
 
     #[test]
     fn all_constants_have_expected_count() {
-        assert_eq!(ALL.len(), 37, "exactly 37 event type constants required");
+        assert_eq!(ALL.len(), 42, "exactly 42 event type constants required");
     }
 }

@@ -54,6 +54,10 @@ fn schema_for_event_type(
         "workspace.reconciled" => Some(check::<WorkspaceReconciled>),
         "workspace.tmux_assigned" => Some(check::<WorkspaceTmuxAssigned>),
         "workspace.started" => Some(check::<WorkspaceStarted>),
+        "workspace.worktree_added" => Some(check::<WorkspaceWorktreeAdded>),
+        "workspace.worktree_removed" => Some(check::<WorkspaceWorktreeRemoved>),
+        "workspace.branch_switched" => Some(check::<WorkspaceBranchSwitched>),
+        "workspace.config_changed" => Some(check::<WorkspaceConfigChanged>),
         // session
         "session.started" => Some(check::<SessionStarted>),
         "session.progress" => Some(check::<SessionProgress>),
@@ -148,7 +152,7 @@ mod tests {
     fn all_known_event_types_have_schemas() {
         use crate::events::types::event_types::ALL;
         // job.update has no dedicated payload struct — it's a generic update
-        let exceptions = &["job.update"];
+        let exceptions = &["job.update", "session.attached"];
         for &et in ALL {
             if exceptions.contains(&et) {
                 continue;

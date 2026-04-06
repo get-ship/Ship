@@ -94,6 +94,45 @@ pub fn reconcile_all_workspaces(ship_dir: &Path) -> Result<Vec<Workspace>> {
     Ok(results)
 }
 
+/// Resolve the project root for a workspace, reconciling first if needed.
+///
+/// 1. Reconciles the workspace against git reality
+/// 2. If workspace has a valid worktree_path → returns it
+/// 3. Otherwise → falls back to ship_dir parent (main checkout)
+pub fn resolve_project_root(
+    ship_dir: &Path,
+    branch: &str,
+) -> Result<(std::path::PathBuf, Workspace)> {
+    let project_root = ship_dir.parent().unwrap_or(ship_dir);
+    let _ = reconcile_workspace(ship_dir, branch, project_root);
+    resolve_project_root_from_db(ship_dir, branch)
+}
+
+/// Testable variant — resolves project root from current DB state without
+/// triggering git reconciliation.
+pub fn resolve_project_root_from_db(
+    ship_dir: &Path,
+    branch: &str,
+) -> Result<(std::path::PathBuf, Workspace)> {
+    let project_root = ship_dir.parent().unwrap_or(ship_dir);
+
+    let ws = get_workspace(ship_dir, branch)?
+        .ok_or_else(|| anyhow::anyhow!("workspace not found for branch '{}'", branch))?;
+
+    let root = if let Some(ref wt_path) = ws.worktree_path {
+        let p = Path::new(wt_path);
+        if p.exists() {
+            p.to_path_buf()
+        } else {
+            project_root.to_path_buf()
+        }
+    } else {
+        project_root.to_path_buf()
+    };
+
+    Ok((root, ws))
+}
+
 struct WorktreeChange {
     is_worktree: bool,
     worktree_path: Option<String>,

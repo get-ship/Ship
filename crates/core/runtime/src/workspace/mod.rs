@@ -69,6 +69,6 @@ pub use session::{
     get_active_workspace_session, get_workspace_session_record, list_workspace_sessions,
     record_workspace_session_progress,
 };
-pub use reconcile::reconcile_workspace;
+pub use reconcile::{reconcile_all_workspaces, reconcile_workspace, resolve_project_root};
 pub use session_lifecycle::{end_workspace_session, start_workspace_session};
 pub use crate::db::workspace_db::{open_workspace_db, workspace_db_path};

@@ -394,6 +394,94 @@ mod tests {
         Ok(())
     }
 
+    // ── resolve_project_root ─────────────────────────────────────────────
+
+    #[test]
+    fn resolve_project_root_returns_worktree_path_when_valid() -> Result<()> {
+        use crate::workspace::reconcile::resolve_project_root_from_db;
+
+        let tmp = tempdir()?;
+        let ship_dir = crate::project::init_project(tmp.path().to_path_buf())?;
+
+        let wt_dir = tmp.path().join("worktrees").join("feat-x");
+        std::fs::create_dir_all(&wt_dir)?;
+        let wt_path = wt_dir.to_str().unwrap().to_string();
+
+        create_workspace(
+            &ship_dir,
+            CreateWorkspaceRequest {
+                branch: "feat/x".to_string(),
+                is_worktree: Some(true),
+                worktree_path: Some(wt_path.clone()),
+                ..Default::default()
+            },
+        )?;
+
+        // Simulate git agreeing the worktree exists.
+        reconcile_workspace_with_git_path(&ship_dir, "feat/x", &Some(wt_path.clone()))?;
+
+        let (root, ws) = resolve_project_root_from_db(&ship_dir, "feat/x")?;
+        assert_eq!(root.to_str().unwrap(), wt_path);
+        assert!(ws.is_worktree);
+        Ok(())
+    }
+
+    #[test]
+    fn resolve_project_root_falls_back_for_non_worktree() -> Result<()> {
+        use crate::workspace::reconcile::resolve_project_root_from_db;
+
+        let tmp = tempdir()?;
+        let ship_dir = crate::project::init_project(tmp.path().to_path_buf())?;
+
+        create_workspace(
+            &ship_dir,
+            CreateWorkspaceRequest {
+                branch: "main".to_string(),
+                is_worktree: Some(false),
+                ..Default::default()
+            },
+        )?;
+
+        let (root, _ws) = resolve_project_root_from_db(&ship_dir, "main")?;
+        assert_eq!(root, ship_dir.parent().unwrap());
+        Ok(())
+    }
+
+    #[test]
+    fn resolve_project_root_falls_back_when_worktree_path_stale() -> Result<()> {
+        use crate::workspace::reconcile::resolve_project_root_from_db;
+
+        let tmp = tempdir()?;
+        let ship_dir = crate::project::init_project(tmp.path().to_path_buf())?;
+
+        create_workspace(
+            &ship_dir,
+            CreateWorkspaceRequest {
+                branch: "feat/stale-resolve".to_string(),
+                is_worktree: Some(true),
+                worktree_path: Some("/nonexistent/stale/path".to_string()),
+                ..Default::default()
+            },
+        )?;
+
+        let (root, _ws) = resolve_project_root_from_db(&ship_dir, "feat/stale-resolve")?;
+        assert_eq!(root, ship_dir.parent().unwrap());
+        Ok(())
+    }
+
+    #[test]
+    fn resolve_project_root_returns_error_for_unknown_branch() -> Result<()> {
+        use crate::workspace::reconcile::resolve_project_root_from_db;
+
+        let tmp = tempdir()?;
+        let ship_dir = crate::project::init_project(tmp.path().to_path_buf())?;
+
+        let result = resolve_project_root_from_db(&ship_dir, "nonexistent-branch");
+        assert!(result.is_err());
+        assert!(result.unwrap_err().to_string().contains("not found"));
+        Ok(())
+    }
+
     // ── idempotency ────────────────────────────────────────────────────────
 
     #[test]

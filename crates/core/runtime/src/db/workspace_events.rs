@@ -12,9 +12,10 @@ use crate::db::{block_on, block_on_anyhow, open_db};
 use crate::events::store::append_event_with_conn;
 use crate::events::types::event_types;
 use crate::events::types::{
-    WorkspaceActivated, WorkspaceAgentChanged, WorkspaceArchived, WorkspaceCompileFailed,
-    WorkspaceCompiled, WorkspaceCreated, WorkspaceDeleted, WorkspaceReconciled,
-    WorkspaceStarted, WorkspaceStatusChanged, WorkspaceTmuxAssigned,
+    WorkspaceActivated, WorkspaceAgentChanged, WorkspaceArchived, WorkspaceBranchSwitched,
+    WorkspaceCompileFailed, WorkspaceCompiled, WorkspaceConfigChanged, WorkspaceCreated,
+    WorkspaceDeleted, WorkspaceReconciled, WorkspaceStarted, WorkspaceStatusChanged,
+    WorkspaceTmuxAssigned, WorkspaceWorktreeAdded, WorkspaceWorktreeRemoved,
 };
 use crate::events::validator::{CallerKind, EmitContext};
 use crate::events::EventEnvelope;
@@ -112,4 +113,20 @@ pub fn emit_workspace_tmux_assigned(branch: &str, payload: &WorkspaceTmuxAssigne
 
 pub fn emit_workspace_started(branch: &str, payload: &WorkspaceStarted) -> Result<EventEnvelope> {
     run_tx(branch, event_types::WORKSPACE_STARTED, payload)
+}
+
+pub fn emit_workspace_worktree_added(branch: &str, payload: &WorkspaceWorktreeAdded) -> Result<EventEnvelope> {
+    run_tx(branch, event_types::WORKSPACE_WORKTREE_ADDED, payload)
+}
+
+pub fn emit_workspace_worktree_removed(branch: &str, payload: &WorkspaceWorktreeRemoved) -> Result<EventEnvelope> {
+    run_tx(branch, event_types::WORKSPACE_WORKTREE_REMOVED, payload)
+}
+
+pub fn emit_workspace_branch_switched(branch: &str, payload: &WorkspaceBranchSwitched) -> Result<EventEnvelope> {
+    run_tx(branch, event_types::WORKSPACE_BRANCH_SWITCHED, payload)
+}
+
+pub fn emit_workspace_config_changed(branch: &str, payload: &WorkspaceConfigChanged) -> Result<EventEnvelope> {
+    run_tx(branch, event_types::WORKSPACE_CONFIG_CHANGED, payload)
 }
