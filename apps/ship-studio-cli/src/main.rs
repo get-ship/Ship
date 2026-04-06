@@ -126,6 +126,8 @@ fn dispatch(command: Option<Commands>) -> Result<()> {
             #[cfg(feature = "unstable")]
             Commands::Events { action } => dispatch_events(action),
             #[cfg(feature = "unstable")]
+            Commands::RebuildProjections => run_rebuild_projections(),
+            #[cfg(feature = "unstable")]
             Commands::Top => run_top(),
             Commands::Hook { action } => dispatch_hook(action),
             Commands::Network { action } => dispatch_network(action),
@@ -164,6 +166,21 @@ fn run_studio(port: u16, open: bool) -> Result<()> {
             .spawn();
     }
     mcp_serve::run_studio(port)
+}
+
+#[cfg(feature = "unstable")]
+fn run_rebuild_projections() -> Result<()> {
+    let report = runtime::db::rebuild::rebuild_projections_default()?;
+    println!(
+        "Rebuilt {} projection(s) from {} event(s) in {}ms",
+        report.projections_rebuilt.len(),
+        report.events_replayed,
+        report.duration_ms,
+    );
+    for name in &report.projections_rebuilt {
+        println!("  ✓ {name}");
+    }
+    Ok(())
 }
 
 #[cfg(feature = "unstable")]

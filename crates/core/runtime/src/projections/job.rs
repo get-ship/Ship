@@ -223,6 +223,7 @@ fn load_jobs_from_conn(
     conn: &mut sqlx::SqliteConnection,
 ) -> Result<HashMap<String, JobRecord>> {
     use crate::db::block_on;
+    use crate::db::envelope::envelope_from_row;
 
     const COLS: &str = "id, event_type, entity_id, actor, payload_json, version, \
         causation_id, workspace_id, session_id, \
@@ -238,40 +239,10 @@ fn load_jobs_from_conn(
 
     let events: Vec<EventEnvelope> = rows
         .iter()
-        .map(row_to_envelope)
+        .map(|r| envelope_from_row(r, false))
         .collect::<Result<Vec<_>>>()?;
 
     Ok(project(&events))
-}
-
-// ── Internal helpers ─────────────────────────────────────────────────────────
-
-fn row_to_envelope(row: &sqlx::sqlite::SqliteRow) -> Result<EventEnvelope> {
-    use sqlx::Row;
-    let created_at_str: String = row.get(12);
-    let created_at = created_at_str
-        .parse::<DateTime<Utc>>()
-        .or_else(|_| {
-            chrono::DateTime::parse_from_rfc3339(&created_at_str)
-                .map(|dt| dt.with_timezone(&Utc))
-        })
-        .map_err(|e| anyhow::anyhow!("invalid created_at '{}': {}", created_at_str, e))?;
-    Ok(EventEnvelope {
-        id: row.get(0),
-        event_type: row.get(1),
-        entity_id: row.get(2),
-        actor: row.get(3),
-        payload_json: row.get(4),
-        version: row.get::<i64, _>(5) as u32,
-        causation_id: row.get(6),
-        workspace_id: row.get(7),
-        session_id: row.get(8),
-        actor_id: row.get(9),
-        parent_actor_id: row.get(10),
-        elevated: row.get::<i64, _>(11) != 0,
-        created_at,
-        target_actor_id: None,
-    })
 }
 
 #[cfg(test)]

@@ -40,6 +40,31 @@ use tokio_util::sync::CancellationToken;
 /// Start the network daemon and block until shutdown (SIGINT/SIGTERM).
 pub async fn run_network(host: String, port: u16) -> Result<()> {
     let global_dir = runtime::project::get_global_dir()?;
+
+    // Integrity check before anything touches the database.
+    if global_dir.join("platform.db").exists() {
+        match runtime::db::integrity::check_platform_integrity(&global_dir) {
+            Ok(runtime::db::integrity::IntegrityStatus::Ok) => {
+                tracing::info!("shipd: platform.db integrity check passed");
+            }
+            Ok(runtime::db::integrity::IntegrityStatus::ProjectionsCorrupt { details }) => {
+                tracing::warn!(
+                    "shipd: projection tables corrupt ({details}), will rebuild after startup"
+                );
+                // Projections will be rebuilt via rebuild_projections after kernel init.
+            }
+            Ok(runtime::db::integrity::IntegrityStatus::EventsCorrupt { details }) => {
+                return Err(anyhow!(
+                    "platform.db is corrupt and cannot be recovered: {details}. \
+                     Back up ~/.ship/platform.db and reinitialize with `ship init --global`."
+                ));
+            }
+            Err(e) => {
+                tracing::warn!("shipd: integrity check failed to run: {e}");
+            }
+        }
+    }
+
     let kernel = runtime::events::init_kernel_router(global_dir.clone())
         .map_err(|e| anyhow!("failed to initialize KernelRouter: {e}"))?;
 
@@ -124,6 +149,10 @@ pub async fn run_network(host: String, port: u16) -> Result<()> {
         .route("/views", axum::routing::get(runtime_api::list_views))
         .route("/view/{name}", axum::routing::get(runtime_api::serve_view))
         .route("/events", axum::routing::get(runtime_api::event_stream))
+        .route(
+            "/rebuild-projections",
+            axum::routing::post(runtime_api::rebuild_projections),
+        )
         .route(
             "/workspaces/{id}/pty",
             axum::routing::get(pty_handler::workspace_pty),

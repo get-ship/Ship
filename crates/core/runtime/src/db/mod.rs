@@ -8,13 +8,17 @@ pub mod actor_events;
 pub mod adrs;
 pub mod artifact_registry;
 pub mod branch_context;
+pub mod envelope;
 pub mod events;
+pub mod integrity;
 #[cfg(test)]
 mod events_tests;
 #[cfg(test)]
 mod tests_envelope;
 pub mod kv;
 pub mod managed_state;
+pub mod pool;
+pub mod rebuild;
 pub mod schema;
 pub mod session;
 pub mod session_drain;
@@ -26,6 +30,12 @@ pub mod workspace_db;
 pub mod workspace_events;
 pub mod workspace_state;
 
+#[cfg(test)]
+mod tests_integrity;
+#[cfg(test)]
+mod tests_pool;
+#[cfg(test)]
+mod tests_rebuild;
 #[cfg(test)]
 mod tests_session_drain;
 
