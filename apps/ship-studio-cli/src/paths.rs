@@ -12,9 +12,6 @@ pub fn global_dir() -> PathBuf {
 pub fn global_modes_dir() -> PathBuf {
     global_dir().join("modes")
 }
-pub fn global_agents_dir() -> PathBuf {
-    global_dir().join("agents")
-}
 pub fn global_skills_dir() -> PathBuf {
     global_dir().join("skills")
 }
@@ -100,51 +97,6 @@ pub fn ensure_project_dirs() -> anyhow::Result<()> {
         fs::create_dir_all(dir)?;
     }
     Ok(())
-}
-
-/// Return (agent_id, scope) pairs from project + global dirs.
-/// Scans both `.jsonc` and `.toml` files; `.jsonc` takes precedence.
-pub fn list_agent_ids(local_only: bool, project_only: bool) -> Vec<(String, &'static str)> {
-    let mut agents = Vec::new();
-    // Project agents: .ship/agents/*.{jsonc,toml} (flat)
-    if !local_only {
-        if let Ok(entries) = fs::read_dir(agents_dir()) {
-            for e in entries.flatten() {
-                let path = e.path();
-                if is_config_ext(&path) && path.is_file() && is_agent_config(&path) {
-                    let name = path.file_stem().unwrap().to_string_lossy().to_string();
-                    if !agents.iter().any(|(id, _)| id == &name) {
-                        agents.push((name, "project"));
-                    }
-                }
-            }
-        }
-        // Also check legacy modes dir
-        if let Ok(entries) = fs::read_dir(project_modes_dir()) {
-            for e in entries.flatten() {
-                let path = e.path();
-                if is_config_ext(&path) {
-                    let name = path.file_stem().unwrap().to_string_lossy().to_string();
-                    if !agents.iter().any(|(id, _)| id == &name) {
-                        agents.push((name, "project"));
-                    }
-                }
-            }
-        }
-    }
-    // Global agents
-    if !project_only && let Ok(entries) = fs::read_dir(global_modes_dir()) {
-        for e in entries.flatten() {
-            let path = e.path();
-            if is_config_ext(&path) {
-                let name = path.file_stem().unwrap().to_string_lossy().to_string();
-                if !agents.iter().any(|(id, _)| id == &name) {
-                    agents.push((name, "global"));
-                }
-            }
-        }
-    }
-    agents
 }
 
 #[cfg(test)]

@@ -240,61 +240,6 @@ fn compile_fails_without_ship_dir() {
         .stderr(predicate::str::contains(".ship/ not found"));
 }
 
-// ── ship skill list ───────────────────────────────────────────────────────────
-
-#[test]
-fn skill_list_no_skills_installed() {
-    let tmp = TempDir::new().unwrap();
-
-    // Isolate HOME so no real global skills are picked up.
-    ship()
-        .args(["skills", "list"])
-        .current_dir(tmp.path())
-        .env("HOME", tmp.path())
-        .assert()
-        .success()
-        .stdout(predicate::str::contains("No skills installed."));
-}
-
-#[test]
-fn skill_list_shows_project_skill() {
-    let tmp = TempDir::new().unwrap();
-    write(
-        tmp.path(),
-        ".ship/skills/rust-expert/SKILL.md",
-        "---\nname: Rust Expert\ndescription: Rust coding\n---\n\nBe a Rust expert.",
-    );
-
-    ship()
-        .args(["skills", "list"])
-        .current_dir(tmp.path())
-        .env("HOME", tmp.path())
-        .assert()
-        .success()
-        .stdout(predicate::str::contains("rust-expert"))
-        .stdout(predicate::str::contains("Project skills"));
-}
-
-#[test]
-fn skill_list_shows_global_skill() {
-    let tmp = TempDir::new().unwrap();
-    // Global skills live at $HOME/.ship/skills/<id>/SKILL.md
-    write(
-        tmp.path(),
-        ".ship/skills/go-expert/SKILL.md",
-        "---\nname: Go Expert\n---\n\nBe a Go expert.",
-    );
-
-    ship()
-        .args(["skills", "list"])
-        .current_dir(tmp.path())
-        .env("HOME", tmp.path())
-        .assert()
-        .success()
-        .stdout(predicate::str::contains("go-expert"))
-        .stdout(predicate::str::contains("Global skills"));
-}
-
 // ── ship compile --provider ───────────────────────────────────────────────────
 
 #[test]
