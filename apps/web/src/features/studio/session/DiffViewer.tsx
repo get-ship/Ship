@@ -2,7 +2,7 @@
 // Renders parsed git diff with collapsible files, colored hunks, and comment support.
 
 import { useState, useMemo, useCallback } from 'react'
-import { ChevronRight, ChevronDown, FileCode, Plus, Minus, MessageSquarePlus } from 'lucide-react'
+import { ChevronRight, ChevronDown, FileCode, Plus, Minus, MessageSquarePlus, ChevronsDownUp, ChevronsUpDown } from 'lucide-react'
 import { parseDiff, type DiffFile, type DiffHunk, type DiffLine } from './diff-parser'
 
 interface DiffComment {
@@ -75,19 +75,18 @@ function DiffLineRow({ line, filePath, onComment }: {
 
   return (
     <>
-      <div className={`group flex font-mono text-[11px] leading-5 ${bgClass}`}>
+      <div
+        className={`group flex font-mono text-[11px] leading-5 ${bgClass} ${onComment ? 'cursor-pointer hover:bg-muted/20' : ''}`}
+        onClick={onComment ? () => setShowInput(true) : undefined}
+      >
         <span className="w-10 shrink-0 text-right pr-2 text-muted-foreground/50 select-none border-r border-border/20">{line.oldNum ?? ''}</span>
         <span className="w-10 shrink-0 text-right pr-2 text-muted-foreground/50 select-none border-r border-border/20">{line.newNum ?? ''}</span>
         <span className={`w-4 shrink-0 text-center select-none ${textClass}`}>{indicator}</span>
         <span className={`flex-1 pr-3 whitespace-pre-wrap break-all ${textClass}`}>{line.content}</span>
         {onComment && (
-          <button
-            onClick={() => setShowInput(true)}
-            className="shrink-0 px-1.5 opacity-0 group-hover:opacity-100 text-primary/60 hover:text-primary transition-opacity"
-            title="Add comment"
-          >
+          <span className="shrink-0 px-1.5 opacity-0 group-hover:opacity-60 text-primary/60">
             <MessageSquarePlus className="size-3.5" />
-          </button>
+          </span>
         )}
       </div>
       {showInput && (
@@ -155,6 +154,15 @@ export function DiffViewer({ diffText, onComment }: DiffViewerProps) {
 
   const totalAdds = parsed.files.reduce((s, f) => s + f.additions, 0)
   const totalDels = parsed.files.reduce((s, f) => s + f.deletions, 0)
+  const allCollapsed = collapsed.size === parsed.files.length
+
+  const collapseAll = useCallback(() => {
+    setCollapsed(new Set(parsed.files.map((f) => f.path)))
+  }, [parsed.files])
+
+  const expandAll = useCallback(() => {
+    setCollapsed(new Set())
+  }, [])
 
   return (
     <div className="flex flex-col h-full min-h-0">
@@ -162,6 +170,16 @@ export function DiffViewer({ diffText, onComment }: DiffViewerProps) {
         <span className="text-xs text-muted-foreground">{parsed.files.length} file{parsed.files.length !== 1 ? 's' : ''} changed</span>
         {totalAdds > 0 && <span className="text-[11px] text-emerald-600 dark:text-green-400">+{totalAdds}</span>}
         {totalDels > 0 && <span className="text-[11px] text-red-600 dark:text-red-400">-{totalDels}</span>}
+        <div className="flex-1" />
+        <button
+          onClick={allCollapsed ? expandAll : collapseAll}
+          className="flex items-center gap-1 rounded px-2 py-0.5 text-[11px] text-muted-foreground hover:text-foreground hover:bg-muted transition"
+          title={allCollapsed ? 'Expand all files' : 'Collapse all files'}
+        >
+          {allCollapsed
+            ? <><ChevronsUpDown className="size-3" /> Expand all</>
+            : <><ChevronsDownUp className="size-3" /> Collapse all</>}
+        </button>
       </div>
       <div className="flex-1 overflow-auto">
         {parsed.files.map((file) => (
