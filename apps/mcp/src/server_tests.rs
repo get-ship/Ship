@@ -185,10 +185,10 @@ fn core_tool_with_prefix_and_suffix() {
 
 #[test]
 #[cfg(feature = "unstable")]
-fn unstable_tools_are_core_when_feature_enabled() {
+fn create_adr_not_core_after_removal() {
     assert!(
-        ShipServer::is_core_tool("create_adr"),
-        "create_adr should be a core tool with unstable feature"
+        !ShipServer::is_core_tool("create_adr"),
+        "create_adr removed — should not be core even with unstable"
     );
 }
 
@@ -201,7 +201,10 @@ fn non_core_tool_is_not_core() {
 // ── mode_allows_tool ────────────────────────────────────────────────
 
 #[test]
-fn empty_active_tools_allows_everything() {
+fn empty_active_tools_allows_everything_at_tool_level() {
+    // mode_allows_tool is the low-level check; role defaults are applied
+    // at the enforce_mode_tool_gate level. The raw function still returns
+    // true for empty lists.
     assert!(ShipServer::mode_allows_tool("anything", &[]));
     assert!(ShipServer::mode_allows_tool("create_spec", &[]));
 }
@@ -232,11 +235,10 @@ fn normalization_applied_to_both_sides() {
 // ── tool registration surface ──────────────────────────────────────
 
 #[test]
-fn stable_build_registers_only_platform_tools() {
+fn stable_build_registers_platform_tools() {
     let server = ShipServer::new();
     let names = server.registered_tool_names();
     let expected: &[&str] = &[
-        "event",
         "open_project",
         "set_agent",
         "activate_workspace",
@@ -256,13 +258,14 @@ fn stable_build_registers_only_platform_tools() {
         "get_skill_vars",
         "set_skill_var",
         "list_skill_vars",
+        "create_job",
+        "update_job",
+        "list_jobs",
+        "get_job",
         "mesh_send",
         "mesh_broadcast",
         "mesh_discover",
         "mesh_status",
-        // Studio-only tools NOT here: pull_agents, list_local_agents,
-        // push_bundle, write/delete_skill_file, list_project_skills, emit_studio_event
-        // Removed: list_events — agents do not have read access to the event store
     ];
     for tool in expected {
         assert!(
@@ -274,27 +277,32 @@ fn stable_build_registers_only_platform_tools() {
 
 #[test]
 #[cfg(not(feature = "unstable"))]
-fn stable_build_tool_count_not_regressed() {
-    // Verify platform tools are all present. Count is not tested — adding tools
-    // intentionally is not a regression; missing an expected tool is.
+fn stable_build_does_not_register_event() {
     let server = ShipServer::new();
     let names = server.registered_tool_names();
     assert!(
-        names.len() >= 24,
-        "tool count regressed below baseline (24), got {}: {:?}",
-        names.len(),
-        names
+        !names.iter().any(|n| n == "event"),
+        "event should not be registered in stable build"
     );
 }
 
 #[test]
 #[cfg(feature = "unstable")]
-fn unstable_build_includes_create_adr() {
+fn unstable_build_registers_event() {
     let server = ShipServer::new();
     let names = server.registered_tool_names();
     assert!(
-        names.iter().any(|n| n == "create_adr"),
-        "create_adr missing from unstable router"
+        names.iter().any(|n| n == "event"),
+        "event should be registered in unstable build"
     );
 }
 
+#[test]
+fn create_adr_not_registered_in_any_build() {
+    let server = ShipServer::new();
+    let names = server.registered_tool_names();
+    assert!(
+        !names.iter().any(|n| n == "create_adr"),
+        "create_adr should be removed from tool registration"
+    );
+}
