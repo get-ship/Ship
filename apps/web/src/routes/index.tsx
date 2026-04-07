@@ -2,7 +2,6 @@ import { createFileRoute } from '@tanstack/react-router'
 import { lazy, Suspense } from 'react'
 import { LandingHero } from '../components/landing/LandingHero'
 import { RuntimeDiagram } from '../components/landing/RuntimeDiagram'
-import { AnimatedShowcase } from '../components/landing/AnimatedShowcase'
 import { FeatureGrid } from '../components/landing/FeatureGrid'
 import { HowItWorks } from '../components/landing/HowItWorks'
 import { LandingCta } from '../components/landing/LandingCta'
@@ -30,7 +29,6 @@ function LandingPage() {
         </div>
         <RuntimeDiagram />
       </section>
-      <AnimatedShowcase />
       <FeatureGrid />
       <HowItWorks />
       <LandingCta />
