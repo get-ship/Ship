@@ -76,7 +76,7 @@ impl JobExecutor for TmuxExecutor {
     async fn spawn(&self, ctx: &JobContext) -> Result<ExecutorHandle> {
         let tmux_session = format!("job-{}", ctx.slug);
         ensure_tmux_session(&tmux_session, &ctx.work_dir)?;
-        spawn_agent_with_mesh_id(&tmux_session, &ctx.slug);
+        spawn_agent_with_mesh_id(&tmux_session, &ctx.slug, ctx.model.as_deref());
 
         let (strategy, launched) = terminal_launcher::launch(&tmux_session);
         tracing::info!(
@@ -127,10 +127,14 @@ impl JobExecutor for TmuxExecutor {
 }
 
 /// Send agent CLI command into the tmux session with SHIP_MESH_ID set.
-fn spawn_agent_with_mesh_id(tmux_session: &str, slug: &str) {
+fn spawn_agent_with_mesh_id(tmux_session: &str, slug: &str, model: Option<&str>) {
+    let model_flag = match model {
+        Some(m) => format!(" --model {m}"),
+        None => String::new(),
+    };
     let cmd = format!(
         "SHIP_MESH_ID={slug} claude --dangerously-skip-permissions \
-         --dangerously-load-development-channels server:ship"
+         --dangerously-load-development-channels server:ship{model_flag}"
     );
     let result = std::process::Command::new("tmux")
         .args(["send-keys", "-t", tmux_session, &cmd, "Enter"])
@@ -204,13 +208,18 @@ impl JobExecutor for ProcessExecutor {
         let log_file = std::fs::File::create(&log_path)?;
         let err_file = log_file.try_clone()?;
 
+        let mut args = vec![
+            "--dangerously-skip-permissions",
+            "--dangerously-load-development-channels", "server:ship",
+            "--print",
+            "-p", "go",
+        ];
+        if let Some(ref m) = ctx.model {
+            args.push("--model");
+            args.push(m);
+        }
         let child = std::process::Command::new("claude")
-            .args([
-                "--dangerously-skip-permissions",
-                "--dangerously-load-development-channels", "server:ship",
-                "--print",
-                "-p", "go",
-            ])
+            .args(&args)
             .env("SHIP_MESH_ID", &ctx.slug)
             .current_dir(&ctx.work_dir)
             .stdout(log_file)
