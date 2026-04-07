@@ -3,7 +3,7 @@ import { useRouterState } from '@tanstack/react-router'
 import { GitBranch, Circle, Maximize, Minimize, PanelLeft, ChevronDown } from 'lucide-react'
 import { Popover, PopoverContent, PopoverTrigger } from '@ship/primitives'
 import { Separator } from '@ship/primitives'
-import { useDaemon } from './hooks/useDaemon'
+import { useDaemon } from './hooks/useDaemonData'
 import { useStudioShell } from './StudioShellContext'
 
 const WORKSPACE_ROUTES = ['/studio/session', '/studio/git', '/studio/view/']

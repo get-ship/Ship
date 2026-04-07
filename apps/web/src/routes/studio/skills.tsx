@@ -9,7 +9,7 @@ import { SkillsEditor } from '#/features/studio/skills-ide/SkillsEditor'
 import { SkillsPreviewPanel } from '#/features/studio/skills-ide/SkillsPreviewPanel'
 import { CreateSkillDialog } from '#/features/studio/skills-ide/CreateSkillDialog'
 import { DAEMON_BASE_URL } from '#/lib/daemon-config'
-import { useDaemon } from '#/features/studio/hooks/useDaemon'
+import { useDaemon } from '#/features/studio/hooks/useDaemonData'
 import { useStudioShell } from '#/features/studio/StudioShellContext'
 
 import { SkillsIdeSkeleton } from '#/features/studio/StudioSkeleton'

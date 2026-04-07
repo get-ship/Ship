@@ -5,7 +5,7 @@
 import { useState, useCallback, useEffect, useRef, useMemo } from 'react'
 import { useMutation, useQueryClient } from '@tanstack/react-query'
 import { DAEMON_BASE_URL } from '#/lib/daemon-config'
-import { useDaemon } from '#/features/studio/hooks/useDaemon'
+import { useDaemon } from '#/features/studio/hooks/useDaemonData'
 import { useStudioShell } from '#/features/studio/StudioShellContext'
 import { idbGet, idbSet } from '#/lib/idb-cache'
 import { sessionKeys } from './query-keys'

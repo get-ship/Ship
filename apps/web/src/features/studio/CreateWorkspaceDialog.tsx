@@ -4,7 +4,7 @@ import {
 } from '@ship/primitives'
 import { Input } from '@ship/primitives'
 import { Button } from '@ship/primitives'
-import { useDaemon, useCreateWorkspace } from '#/features/studio/hooks/useDaemon'
+import { useDaemon, useCreateWorkspace } from '#/features/studio/hooks/useDaemonData'
 import { toast } from 'sonner'
 
 interface CreateWorkspaceDialogProps {

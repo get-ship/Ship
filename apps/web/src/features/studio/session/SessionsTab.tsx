@@ -1,6 +1,6 @@
 // Sessions tab — session history from the shipd daemon.
 import { Clock, Bot, GitBranch } from 'lucide-react'
-import { useDaemon, type SessionEntry } from '#/features/studio/hooks/useDaemon'
+import { useDaemon, type SessionEntry } from '#/features/studio/hooks/useDaemonData'
 import type { Workspace } from '@ship/ui'
 
 export function SessionsTab() {

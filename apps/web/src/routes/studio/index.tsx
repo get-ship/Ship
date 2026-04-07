@@ -2,11 +2,13 @@ import { useState } from 'react'
 import { createFileRoute, Link } from '@tanstack/react-router'
 import { Layers, Users, Briefcase, GitBranch, Circle, Plus, Trash2, Loader2 } from 'lucide-react'
 import { Button } from '@ship/primitives'
-import { useDaemon, useDeleteWorkspace, useActivateWorkspace } from '#/features/studio/hooks/useDaemon'
+import { useDaemon, useDeleteWorkspace, useActivateWorkspace } from '#/features/studio/hooks/useDaemonData'
+import { useShipQuery } from '#/features/studio/hooks/useShipQuery'
 import { useGitStatus } from '#/features/studio/session/useGitInfo'
 import { useSessionFiles } from '#/features/studio/session/useSessionFiles'
 import { CreateWorkspaceDialog } from '#/features/studio/CreateWorkspaceDialog'
 import { toast } from 'sonner'
+import type { Workspace } from '@ship/ui'
 
 export const Route = createFileRoute('/studio/')({
   component: DashboardPage,
@@ -14,7 +16,7 @@ export const Route = createFileRoute('/studio/')({
 })
 
 function DashboardPage() {
-  const { workspaces, agents, jobs, connected } = useDaemon()
+  const { workspaces, jobs, connected } = useDaemon()
   const { data: gitStatus } = useGitStatus()
   const { files } = useSessionFiles()
   const deleteMutation = useDeleteWorkspace()
@@ -23,8 +25,22 @@ function DashboardPage() {
   const [confirmDelete, setConfirmDelete] = useState<string | null>(null)
 
   const activeWs = workspaces.find((w) => String(w.status).toLowerCase() === 'active')
+  const activeWsId = activeWs?.branch ?? null
+
+  // Config counts from active workspace
+  const agentsPath = activeWsId ? `/workspaces/${encodeURIComponent(activeWsId)}/agents` : null
+  const skillsPath = activeWsId ? `/workspaces/${encodeURIComponent(activeWsId)}/skills` : null
+  const { data: agentsConfig } = useShipQuery<{ agents: Array<{ id: string }> }>(agentsPath)
+  const { data: skillsConfig } = useShipQuery<{ skills: Array<{ id: string }> }>(skillsPath)
+
+  const agentCount = agentsConfig?.agents.length ?? 0
+  const skillCount = skillsConfig?.skills.length ?? 0
+
   const runningJobs = jobs.filter((j) => j.status === 'dispatched')
   const pendingJobs = jobs.filter((j) => j.status === 'pending')
+
+  // Hide job/* branches — those are agent work branches, not user workspaces
+  const displayWorkspaces = workspaces.filter((ws) => !ws.branch.startsWith('job/'))
 
   const handleDelete = (branch: string) => {
     deleteMutation.mutate(branch, {
@@ -82,7 +98,11 @@ function DashboardPage() {
             to="/studio/agents"
             icon={Users}
             label="Agents"
-            detail={`${agents.length} registered`}
+            detail={
+              agentCount > 0 || skillCount > 0
+                ? `${agentCount} agent${agentCount !== 1 ? 's' : ''} · ${skillCount} skill${skillCount !== 1 ? 's' : ''}`
+                : activeWsId ? 'No agents configured' : 'No active workspace'
+            }
           />
           <NavCard
             to="/studio/jobs"
@@ -110,54 +130,25 @@ function DashboardPage() {
               New
             </Button>
           </div>
-          {workspaces.length > 0 ? (
+          {displayWorkspaces.length > 0 ? (
             <div className="space-y-1">
-              {workspaces.map((ws) => {
+              {displayWorkspaces.map((ws) => {
                 const status = String(ws.status).toLowerCase()
                 const isActive = status === 'active'
                 const isDeleting = deleteMutation.isPending && confirmDelete === ws.branch
                 return (
-                  <div key={ws.branch} className="flex items-center gap-3 px-3 py-2 rounded-lg hover:bg-muted/30 transition-colors group">
-                    <span className={`size-2 rounded-full shrink-0 ${isActive ? 'bg-emerald-500' : 'bg-muted-foreground/30'}`} />
-                    <span className="text-sm font-medium flex-1 truncate">{ws.branch}</span>
-                    {ws.active_agent && (
-                      <span className="text-[10px] text-muted-foreground/60">{ws.active_agent}</span>
-                    )}
-                    {!isActive && (
-                      <button
-                        onClick={() => activateMutation.mutate(ws.branch)}
-                        disabled={activateMutation.isPending}
-                        className="text-[10px] text-muted-foreground/40 hover:text-foreground opacity-0 group-hover:opacity-100 transition-opacity"
-                      >
-                        Activate
-                      </button>
-                    )}
-                    {confirmDelete === ws.branch ? (
-                      <span className="flex items-center gap-1.5">
-                        <button
-                          onClick={() => handleDelete(ws.branch)}
-                          disabled={isDeleting}
-                          className="text-[10px] text-destructive hover:text-destructive/80"
-                        >
-                          {isDeleting ? <Loader2 className="size-3 animate-spin" /> : 'Confirm'}
-                        </button>
-                        <button
-                          onClick={() => setConfirmDelete(null)}
-                          className="text-[10px] text-muted-foreground/40 hover:text-foreground"
-                        >
-                          Cancel
-                        </button>
-                      </span>
-                    ) : (
-                      <button
-                        onClick={() => setConfirmDelete(ws.branch)}
-                        className="text-muted-foreground/30 hover:text-destructive opacity-0 group-hover:opacity-100 transition-opacity"
-                        title="Delete workspace"
-                      >
-                        <Trash2 className="size-3.5" />
-                      </button>
-                    )}
-                  </div>
+                  <WorkspaceRow
+                    key={ws.branch}
+                    ws={ws}
+                    isActive={isActive}
+                    isDeleting={isDeleting}
+                    isConfirmDelete={confirmDelete === ws.branch}
+                    activatePending={activateMutation.isPending}
+                    onActivate={() => activateMutation.mutate(ws.branch)}
+                    onDelete={() => handleDelete(ws.branch)}
+                    onConfirmDelete={() => setConfirmDelete(ws.branch)}
+                    onCancelDelete={() => setConfirmDelete(null)}
+                  />
                 )
               })}
             </div>
@@ -170,6 +161,81 @@ function DashboardPage() {
       </div>
 
       <CreateWorkspaceDialog open={createOpen} onOpenChange={setCreateOpen} />
+    </div>
+  )
+}
+
+interface WorkspaceRowProps {
+  ws: Workspace
+  isActive: boolean
+  isDeleting: boolean
+  isConfirmDelete: boolean
+  activatePending: boolean
+  onActivate: () => void
+  onDelete: () => void
+  onConfirmDelete: () => void
+  onCancelDelete: () => void
+}
+
+function WorkspaceRow({
+  ws, isActive, isDeleting, isConfirmDelete, activatePending,
+  onActivate, onDelete, onConfirmDelete, onCancelDelete,
+}: WorkspaceRowProps) {
+  const gitPath = ws.is_worktree
+    ? `/workspaces/${encodeURIComponent(ws.branch)}/git/status`
+    : null
+  const { data: gitRaw } = useShipQuery<{ output: string }>(gitPath)
+  const gitClean = gitRaw ? isGitOutputClean(gitRaw.output) : null
+
+  return (
+    <div className="flex items-center gap-3 px-3 py-2 rounded-lg hover:bg-muted/30 transition-colors group">
+      <span className={`size-2 rounded-full shrink-0 ${isActive ? 'bg-emerald-500' : 'bg-muted-foreground/30'}`} />
+      <span className="text-sm font-medium flex-1 truncate">{ws.branch}</span>
+
+      {/* Git status badge */}
+      {ws.is_worktree && gitRaw && (
+        <span className={`text-[10px] ${gitClean ? 'text-emerald-500' : 'text-amber-500'}`}>
+          {gitClean ? 'clean' : 'dirty'}
+        </span>
+      )}
+
+      {ws.active_agent && (
+        <span className="text-[10px] text-muted-foreground/60">{ws.active_agent}</span>
+      )}
+      {!isActive && (
+        <button
+          onClick={onActivate}
+          disabled={activatePending}
+          className="text-[10px] text-muted-foreground/40 hover:text-foreground opacity-0 group-hover:opacity-100 transition-opacity"
+        >
+          Activate
+        </button>
+      )}
+      {isConfirmDelete ? (
+        <span className="flex items-center gap-1.5">
+          <button
+            onClick={onDelete}
+            disabled={isDeleting}
+            className="text-[10px] text-destructive hover:text-destructive/80"
+          >
+            {isDeleting ? <Loader2 className="size-3 animate-spin" /> : 'Confirm'}
+          </button>
+          <button
+            onClick={onCancelDelete}
+            className="text-[10px] text-muted-foreground/40 hover:text-foreground"
+          >
+            Cancel
+          </button>
+        </span>
+      ) : (
+        <button
+          onClick={onConfirmDelete}
+          className="text-muted-foreground/30 hover:text-destructive opacity-0 group-hover:opacity-100 transition-opacity"
+          title="Delete workspace"
+        >
+          <Trash2 className="size-3.5" />
+        </button>
+      )}
     </div>
   )
 }
@@ -196,4 +262,12 @@ function NavCard({ to, icon: Icon, label, detail }: {
 
 function countChanges(gs: { staged?: unknown[]; modified?: unknown[]; untracked?: unknown[] }): number {
   return (gs.staged?.length ?? 0) + (gs.modified?.length ?? 0) + (gs.untracked?.length ?? 0)
+}
+
+function isGitOutputClean(output: string): boolean {
+  return (
+    !output.includes('Changes to be committed') &&
+    !output.includes('Changes not staged') &&
+    !output.includes('Untracked files')
+  )
 }

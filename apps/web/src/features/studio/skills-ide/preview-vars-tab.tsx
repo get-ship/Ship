@@ -1,7 +1,7 @@
 import { Globe, FolderOpen, User, Unplug } from 'lucide-react'
 import type { JsonValue } from '@ship/ui'
-import { useDaemon } from '#/features/studio/hooks/useDaemon'
-import { useSkillVars, useSetSkillVar } from "#/features/studio/mcp-mutations"
+import { useDaemon } from '#/features/studio/hooks/useDaemonData'
+import { useSkillVars, useSetSkillVar } from '#/features/studio/hooks/useWorkspaceConfig'
 import type { LibrarySkill } from './useSkillsLibrary'
 import { BoolEditor, EnumEditor, StringEditor, ArrayEditor } from './var-editors'
 

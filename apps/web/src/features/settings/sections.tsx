@@ -3,7 +3,7 @@ import {
   ExternalLink,
 } from 'lucide-react'
 import { ThemeToggle } from '@ship/primitives'
-import { useDaemon } from '#/features/studio/hooks/useDaemon'
+import { useDaemon } from '#/features/studio/hooks/useDaemonData'
 import { DAEMON_BASE_URL } from '#/lib/daemon-config'
 import { SettingsSection, SettingsRow } from './SettingsLayout'
 

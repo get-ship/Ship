@@ -3,7 +3,7 @@
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import { useCallback } from 'react'
 import { DAEMON_BASE_URL } from '#/lib/daemon-config'
-import { useDaemon } from '#/features/studio/hooks/useDaemon'
+import { useDaemon } from '#/features/studio/hooks/useDaemonData'
 import { useStudioShell } from '#/features/studio/StudioShellContext'
 import { sessionKeys } from './query-keys'
 import type { SessionFile, UploadResult } from './types'

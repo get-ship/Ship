@@ -2,7 +2,7 @@
 
 import { useQuery } from '@tanstack/react-query'
 import { DAEMON_BASE_URL } from '#/lib/daemon-config'
-import { useDaemon } from '#/features/studio/hooks/useDaemon'
+import { useDaemon } from '#/features/studio/hooks/useDaemonData'
 import { useStudioShell } from '#/features/studio/StudioShellContext'
 import { sessionKeys } from './query-keys'
 

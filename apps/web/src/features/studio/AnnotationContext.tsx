@@ -5,7 +5,7 @@
 import { createContext, useContext, useState, useCallback, type ReactNode } from 'react'
 import type { Annotation, StagedAnnotation } from './session/types'
 import { DAEMON_BASE_URL } from '#/lib/daemon-config'
-import { useDaemon } from './hooks/useDaemon'
+import { useDaemon } from './hooks/useDaemonData'
 
 let seq = 1
 function genId(): string {

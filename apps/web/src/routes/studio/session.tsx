@@ -1,7 +1,7 @@
 import { createFileRoute } from '@tanstack/react-router'
 import { useState, useCallback, useEffect } from 'react'
 import { useQuery } from '@tanstack/react-query'
-import { useDaemon } from '#/features/studio/hooks/useDaemon'
+import { useDaemon } from '#/features/studio/hooks/useDaemonData'
 import { DAEMON_BASE_URL } from '#/lib/daemon-config'
 import { SessionCanvas } from '#/features/studio/session/SessionCanvas'
 import { ArtifactViewer } from '#/features/studio/session/ArtifactViewer'

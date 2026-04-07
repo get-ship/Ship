@@ -2,7 +2,7 @@ import { useState, useCallback, useEffect, useRef, useMemo } from 'react'
 import { useSkillsLibrary } from './useSkillsLibrary'
 import type { LibrarySkill } from './useSkillsLibrary'
 import { newSkillTemplate } from './skill-frontmatter'
-import { useSaveSkillFile, useDeleteSkillFile } from "#/features/studio/mcp-mutations"
+import { useSaveSkillFile, useDeleteSkillFile } from '#/features/studio/hooks/useWorkspaceConfig'
 import { idbGet, idbSet } from '#/lib/idb-cache'
 import {
   SKILL_MD,

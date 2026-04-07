@@ -1,7 +1,7 @@
 import { useNavigate } from '@tanstack/react-router'
 import { Button } from '@ship/primitives'
 import { Tooltip, TooltipContent, TooltipTrigger } from '@ship/primitives'
-import { useDaemon } from './hooks/useDaemon'
+import { useDaemon } from './hooks/useDaemonData'
 
 export function ProjectPicker() {
   const { connected, workspaces } = useDaemon()

@@ -7,7 +7,7 @@ import { MessageSquare, FileText, Bot, User, AlertTriangle } from 'lucide-react'
 import { useEventStream } from '../events/useEventStream'
 import { ChatDraftArea } from './ChatDraftArea'
 import { useStudioShell } from '#/features/studio/StudioShellContext'
-import { useDaemon } from '#/features/studio/hooks/useDaemon'
+import { useDaemon } from '#/features/studio/hooks/useDaemonData'
 import type { StagedAnnotation } from './types'
 import type { EventEnvelope } from '../events/useEventStream'
 

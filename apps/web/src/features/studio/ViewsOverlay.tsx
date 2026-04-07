@@ -2,7 +2,7 @@ import { useNavigate, useRouterState } from '@tanstack/react-router'
 import { Layers, Users, Zap, Briefcase, GitBranch, GitMerge, Settings, LayoutGrid, MonitorPlay } from 'lucide-react'
 import { Popover, PopoverContent, PopoverTrigger } from '@ship/primitives'
 import { Separator } from '@ship/primitives'
-import { useViews } from './hooks/useDaemon'
+import { useViews } from './hooks/useDaemonData'
 import type { LucideIcon } from 'lucide-react'
 
 interface ViewDef {

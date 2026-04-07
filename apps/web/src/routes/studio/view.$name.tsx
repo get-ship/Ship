@@ -3,7 +3,7 @@ import { useQuery } from '@tanstack/react-query'
 import { MonitorPlay } from 'lucide-react'
 import { DAEMON_BASE_URL } from '#/lib/daemon-config'
 import { ViewHost } from '#/features/studio/views/ViewHost'
-import { useDaemon } from '#/features/studio/hooks/useDaemon'
+import { useDaemon } from '#/features/studio/hooks/useDaemonData'
 
 export const Route = createFileRoute('/studio/view/$name')({
   component: ExtensionViewPage,

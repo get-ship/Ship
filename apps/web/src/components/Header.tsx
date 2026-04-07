@@ -1,11 +1,9 @@
 import { Link, useRouterState } from '@tanstack/react-router'
 import { LogOut, Settings, Users, Zap, Server, Upload, Layers, ChevronDown, Loader2 } from 'lucide-react'
 import { useEffect, useState, useRef } from 'react'
-import { useQueryClient } from '@tanstack/react-query'
 import { ThemeToggle } from '@ship/primitives'
 import { authClient } from '#/lib/auth-client'
-import { DAEMON_BASE_URL } from '#/lib/daemon-config'
-import { useDaemon, daemonKeys } from '#/features/studio/hooks/useDaemon'
+import { useDaemon, useActivateWorkspace } from '#/features/studio/hooks/useDaemonData'
 
 function NavDropdown({ label, href, items, isActive }: {
   label: string
@@ -124,7 +122,7 @@ const REGISTRY_ITEMS = [
 
 function WorkspacePicker() {
   const { connected, workspaces, agents } = useDaemon()
-  const queryClient = useQueryClient()
+  const activateMutation = useActivateWorkspace()
   const [open, setOpen] = useState(false)
   const [activating, setActivating] = useState<string | null>(null)
   const ref = useRef<HTMLDivElement>(null)
@@ -146,15 +144,10 @@ function WorkspacePicker() {
     }
   }, [open])
 
-  const activate = async (branch: string) => {
+  const activate = (branch: string) => {
     setOpen(false)
     setActivating(branch)
-    try {
-      await fetch(`${DAEMON_BASE_URL}/api/workspaces/${encodeURIComponent(branch)}/activate`, { method: 'POST' })
-      void queryClient.invalidateQueries({ queryKey: daemonKeys.workspaces })
-    } finally {
-      setActivating(null)
-    }
+    activateMutation.mutate(branch, { onSuccess: () => setActivating(null), onError: () => setActivating(null) })
   }
 
   return (

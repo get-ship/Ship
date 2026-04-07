@@ -3,7 +3,7 @@ import { useState, useMemo } from 'react'
 import { Briefcase, Plus, Square } from 'lucide-react'
 import { Tabs, TabsList, TabsTrigger, TabsContent } from '@ship/primitives'
 import { Button } from '@ship/primitives'
-import { useDaemon, useUpdateJob } from '#/features/studio/hooks/useDaemon'
+import { useDaemon, useUpdateJob } from '#/features/studio/hooks/useDaemonData'
 import { CreateJobDialog } from '#/features/studio/CreateJobDialog'
 import type { JobRecord, JobStatus } from '@ship/ui'
 

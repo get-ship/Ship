@@ -5,9 +5,8 @@ import {
 } from '@ship/primitives'
 import { Input } from '@ship/primitives'
 import { Button } from '@ship/primitives'
-import { useCreateJob } from '#/features/studio/hooks/useDaemon'
+import { useCreateJob, useDaemon } from '#/features/studio/hooks/useDaemonData'
 import { useStudioShell } from '#/features/studio/StudioShellContext'
-import { useDaemon } from '#/features/studio/hooks/useDaemon'
 import { DAEMON_BASE_URL } from '#/lib/daemon-config'
 import { toast } from 'sonner'
 

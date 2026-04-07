@@ -1,12 +1,11 @@
 // Hook for consuming the ship/event notification stream.
-// Events are written to the TanStack Query cache by useDaemon's SSE listener.
-// This hook provides a read view + clearEvents().
+// Events are sourced via ship.onEvent() from the ShipClient (connected in ShipClientProvider).
 
-import { useQuery, useQueryClient } from '@tanstack/react-query'
-import { mcpKeys } from '#/lib/query-keys'
-import { useDaemon } from '#/features/studio/hooks/useDaemon'
+import { useState, useEffect, useCallback } from 'react'
+import { useShipClient } from '#/features/studio/ShipClientProvider'
+import { useDaemon } from '#/features/studio/hooks/useDaemonData'
 
-/** Shape of a ship/event MCP notification payload. */
+/** Shape of a ship/event notification payload. */
 export interface EventEnvelope {
   id: string
   event_type: string
@@ -23,29 +22,36 @@ export interface UseEventStreamReturn {
   clearEvents: () => void
 }
 
+const MAX_EVENTS = 200
+
 /**
  * Returns the live ship/event stream from the daemon SSE channel.
- * Events are populated by the SSE listener in useDaemon — this hook only reads.
  * Ring buffer: max 200 events, most-recent-first.
  */
 export function useEventStream(): UseEventStreamReturn {
+  const client = useShipClient()
   const { connected } = useDaemon()
-  const queryClient = useQueryClient()
+  const [events, setEvents] = useState<EventEnvelope[]>([])
 
-  const { data } = useQuery<EventEnvelope[]>({
-    queryKey: mcpKeys.events(),
-    queryFn: () => [],
-    staleTime: Infinity,
-    gcTime: Infinity,
-  })
+  useEffect(() => {
+    return client.onEvent((e) => {
+      const envelope: EventEnvelope = {
+        id: e.id,
+        event_type: e.event_type,
+        entity_id: e.entity_id ?? null,
+        actor: e.actor_id ?? null,
+        payload_json: e.payload_json ?? null,
+        workspace_id: e.workspace_id ?? null,
+        created_at: e.created_at,
+      }
+      setEvents((prev) => {
+        const next = [envelope, ...prev]
+        return next.length > MAX_EVENTS ? next.slice(0, MAX_EVENTS) : next
+      })
+    })
+  }, [client])
 
-  const clearEvents = () => {
-    queryClient.setQueryData(mcpKeys.events(), [])
-  }
+  const clearEvents = useCallback(() => setEvents([]), [])
 
-  return {
-    events: data ?? [],
-    isConnected: connected,
-    clearEvents,
-  }
+  return { events, isConnected: connected, clearEvents }
 }
