@@ -1,6 +1,6 @@
 import { createFileRoute } from '@tanstack/react-router'
 import { useState, useMemo } from 'react'
-import { Briefcase, Plus, Square } from 'lucide-react'
+import { LayoutList, Plus, Square } from 'lucide-react'
 import { Tabs, TabsList, TabsTrigger, TabsContent } from '@ship/primitives'
 import { Button } from '@ship/primitives'
 import { useDaemon, useUpdateJob } from '#/features/studio/hooks/useDaemonData'
@@ -158,7 +158,7 @@ function EmptyState({ onCreateNew }: { onCreateNew: () => void }) {
   return (
     <div className="flex flex-col items-center justify-center py-16 text-center">
       <div className="flex size-12 items-center justify-center rounded-xl border border-border/60 bg-muted/40 mb-4">
-        <Briefcase className="size-5 text-muted-foreground" />
+        <LayoutList className="size-5 text-muted-foreground" />
       </div>
       <p className="text-sm font-medium text-foreground">No jobs in queue</p>
       <p className="mt-1 text-xs text-muted-foreground max-w-xs">

@@ -112,14 +112,11 @@ function SkillsIDEPage() {
 
           <SkillsEditor
             skills={ide.skills}
-            openTabIds={ide.state.openTabIds}
             activeTabId={ide.state.activeTabId}
             unsavedIds={ide.state.unsavedIds}
             content={ide.activeContent}
             isLoading={ide.isLoading}
             previewOpen={ide.state.previewOpen}
-            onTabSelect={ide.setActiveTabId}
-            onTabClose={ide.closeTab}
             onContentChange={ide.updateContent}
             onSave={ide.saveSkill}
             onTogglePreview={() => ide.setPreviewOpen(!ide.state.previewOpen)}
@@ -139,6 +136,13 @@ function SkillsIDEPage() {
               frontmatterRaw={fmRaw}
               onFrontmatterUpdate={handleFrontmatterUpdate}
             />
+          )}
+          {ide.state.previewOpen && drawerOpen && (
+            <div className="flex w-80 shrink-0 items-center justify-center border-l border-border/40 bg-card/5">
+              <p className="text-[11px] text-muted-foreground/40 text-center px-4">
+                Info panel hidden — close the agent panel to view it
+              </p>
+            </div>
           )}
         </div>
       </div>

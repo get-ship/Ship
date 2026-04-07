@@ -1,5 +1,6 @@
-import { useState, useEffect } from 'react'
+import { useState, useEffect, useRef } from 'react'
 import { useQuery } from '@tanstack/react-query'
+import { X } from 'lucide-react'
 import {
   Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter,
 } from '@ship/primitives'
@@ -43,15 +44,83 @@ function usePipelineNames() {
   })
 }
 
+// ── DependsOnInput ─────────────────────────────────────────────────────────
+
+function DependsOnInput({ value, onChange, suggestions }: {
+  value: string[]
+  onChange: (deps: string[]) => void
+  suggestions: string[]
+}) {
+  const [input, setInput] = useState('')
+  const inputRef = useRef<HTMLInputElement>(null)
+
+  const addSlug = (slug: string) => {
+    const s = slug.trim()
+    if (!s || value.includes(s)) { setInput(''); return }
+    onChange([...value, s])
+    setInput('')
+    inputRef.current?.focus()
+  }
+
+  const handleKeyDown = (e: React.KeyboardEvent<HTMLInputElement>) => {
+    if (e.key === 'Enter' || e.key === ',') {
+      e.preventDefault()
+      addSlug(input)
+    } else if (e.key === 'Backspace' && !input && value.length > 0) {
+      onChange(value.slice(0, -1))
+    }
+  }
+
+  // Datalist id must be unique to avoid collision
+  const listId = 'job-slugs-datalist'
+
+  return (
+    <div
+      className="min-h-9 flex flex-wrap gap-1 rounded-md border border-input bg-background px-3 py-1.5 cursor-text focus-within:border-primary/50 transition-colors"
+      onClick={() => inputRef.current?.focus()}
+    >
+      {value.map((slug) => (
+        <span key={slug} className="flex items-center gap-1 rounded bg-muted px-1.5 py-0.5 text-[11px] font-medium text-foreground/80">
+          {slug}
+          <button
+            type="button"
+            onClick={(e) => { e.stopPropagation(); onChange(value.filter((s) => s !== slug)) }}
+            className="text-muted-foreground hover:text-destructive transition"
+          >
+            <X className="size-2.5" />
+          </button>
+        </span>
+      ))}
+      <input
+        ref={inputRef}
+        list={listId}
+        value={input}
+        onChange={(e) => setInput(e.target.value)}
+        onKeyDown={handleKeyDown}
+        onBlur={() => { if (input.trim()) addSlug(input) }}
+        placeholder={value.length === 0 ? 'Type a job slug…' : ''}
+        className="flex-1 min-w-[120px] bg-transparent text-xs outline-none placeholder:text-muted-foreground/50"
+      />
+      <datalist id={listId}>
+        {suggestions.map((s) => <option key={s} value={s} />)}
+      </datalist>
+    </div>
+  )
+}
+
+// ── CreateJobDialog ────────────────────────────────────────────────────────
+
 export function CreateJobDialog({ open, onOpenChange }: CreateJobDialogProps) {
   const createJob = useCreateJob()
   const { data: pipelineNames } = usePipelineNames()
+  const { jobs } = useDaemon()
+  const jobSlugs = jobs.map((j) => j.slug)
 
   const [slug, setSlug] = useState('')
   const [agent, setAgent] = useState('')
   const [branch, setBranch] = useState('')
   const [specPath, setSpecPath] = useState('.ship-session/job-spec.md')
-  const [dependsOn, setDependsOn] = useState('')
+  const [dependsOn, setDependsOn] = useState<string[]>([])
   const [pipeline, setPipeline] = useState('')
   const [branchEdited, setBranchEdited] = useState(false)
 
@@ -70,18 +139,13 @@ export function CreateJobDialog({ open, onOpenChange }: CreateJobDialogProps) {
     const trimmedSlug = slug.trim()
     if (!trimmedSlug) return
 
-    const deps = dependsOn
-      .split(',')
-      .map((s) => s.trim())
-      .filter(Boolean)
-
     createJob.mutate(
       {
         slug: trimmedSlug,
         agent: agent.trim(),
         branch: branch.trim() || `job/${slugify(trimmedSlug)}`,
         spec_path: specPath.trim() || '.ship-session/job-spec.md',
-        depends_on: deps.length > 0 ? deps : null,
+        depends_on: dependsOn.length > 0 ? dependsOn : null,
         pipeline: pipeline || undefined,
       },
       {
@@ -102,7 +166,7 @@ export function CreateJobDialog({ open, onOpenChange }: CreateJobDialogProps) {
     setAgent('')
     setBranch('')
     setSpecPath('.ship-session/job-spec.md')
-    setDependsOn('')
+    setDependsOn([])
     setPipeline('')
     setBranchEdited(false)
   }
@@ -176,11 +240,14 @@ export function CreateJobDialog({ open, onOpenChange }: CreateJobDialogProps) {
 
           <div>
             <label className="text-xs font-medium text-foreground mb-1.5 block">Depends on</label>
-            <Input
+            <DependsOnInput
               value={dependsOn}
-              onChange={(e) => setDependsOn(e.target.value)}
-              placeholder="comma-separated slugs"
+              onChange={setDependsOn}
+              suggestions={jobSlugs}
             />
+            <p className="text-[11px] text-muted-foreground/60 mt-1">
+              Enter to add. Type to filter existing jobs.
+            </p>
           </div>
         </div>
 

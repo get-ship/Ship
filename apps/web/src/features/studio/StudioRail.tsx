@@ -1,30 +1,61 @@
+import { useState, useEffect } from 'react'
 import { useNavigate, useRouterState } from '@tanstack/react-router'
 import {
-  Layers, Users, Zap, Briefcase, GitBranch, GitMerge,
-  Search, Settings, Sparkles,
+  Layers, Users, Zap, LayoutList, GitBranch, GitMerge,
+  Search, Settings, Sparkles, Sun, Moon,
   type LucideIcon,
 } from 'lucide-react'
 import { Button } from '@ship/primitives'
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@ship/primitives'
 import { Separator } from '@ship/primitives'
-import { ThemeToggle } from '@ship/primitives'
 import { useStudioShell } from './StudioShellContext'
 import { ProjectPicker } from './ProjectPicker'
 import { ViewsOverlay } from './ViewsOverlay'
+import { useDaemon } from '#/features/studio/hooks/useDaemonData'
 
 const PINNED_VIEWS: { to: string; icon: LucideIcon; label: string }[] = [
   { to: '/studio/session', icon: Layers, label: 'Artifacts' },
   { to: '/studio/git', icon: GitBranch, label: 'Git' },
   { to: '/studio/agents', icon: Users, label: 'Agents' },
   { to: '/studio/skills', icon: Zap, label: 'Skills' },
-  { to: '/studio/jobs', icon: Briefcase, label: 'Jobs' },
+  { to: '/studio/jobs', icon: LayoutList, label: 'Jobs' },
   { to: '/studio/pipelines', icon: GitMerge, label: 'Pipelines' },
 ]
+
+function useTheme() {
+  const [isDark, setIsDark] = useState(true)
+
+  useEffect(() => {
+    const stored = window.localStorage.getItem('theme')
+    if (stored === 'light' || stored === 'dark') {
+      setIsDark(stored === 'dark')
+    } else {
+      setIsDark(window.matchMedia('(prefers-color-scheme: dark)').matches)
+    }
+  }, [])
+
+  const toggle = () => {
+    const next = !isDark
+    setIsDark(next)
+    const mode = next ? 'dark' : 'light'
+    document.documentElement.classList.remove('light', 'dark')
+    document.documentElement.classList.add(mode)
+    document.documentElement.setAttribute('data-theme', mode)
+    document.documentElement.style.colorScheme = mode
+    window.localStorage.setItem('theme', mode)
+  }
+
+  return { isDark, toggle }
+}
 
 export function StudioRail() {
   const pathname = useRouterState({ select: (s) => s.location.pathname })
   const navigate = useNavigate()
   const { toggleCommandPalette, drawerOpen, toggleDrawer } = useStudioShell()
+  const { jobs } = useDaemon()
+  const { isDark, toggle: toggleTheme } = useTheme()
+
+  const runningJobs = jobs.filter((j) => j.status === 'dispatched' || j.status === 'pending').length
 
   return (
     <TooltipProvider>
@@ -36,17 +67,25 @@ export function StudioRail() {
         {PINNED_VIEWS.map((item) => {
           const isActive = pathname.startsWith(item.to)
           const Icon = item.icon
+          const isJobs = item.to === '/studio/jobs'
           return (
             <Tooltip key={item.to}>
               <TooltipTrigger asChild>
-                <Button
-                  variant="ghost"
-                  size="icon"
-                  className={`size-8 ${isActive ? 'bg-primary/10 text-primary' : ''}`}
-                  onClick={() => void navigate({ to: item.to })}
-                >
-                  <Icon className="size-4" strokeWidth={isActive ? 2.2 : 1.8} />
-                </Button>
+                <div className="relative">
+                  <Button
+                    variant="ghost"
+                    size="icon"
+                    className={`size-8 ${isActive ? 'bg-primary/10 text-primary' : ''}`}
+                    onClick={() => void navigate({ to: item.to })}
+                  >
+                    <Icon className="size-4" strokeWidth={isActive ? 2.2 : 1.8} />
+                  </Button>
+                  {isJobs && runningJobs > 0 && (
+                    <span className="absolute -top-0.5 -right-0.5 flex size-3.5 items-center justify-center rounded-full bg-sky-500 text-[8px] font-bold text-white leading-none">
+                      {runningJobs > 9 ? '9+' : runningJobs}
+                    </span>
+                  )}
+                </div>
               </TooltipTrigger>
               <TooltipContent side="right">{item.label}</TooltipContent>
             </Tooltip>
@@ -85,7 +124,16 @@ export function StudioRail() {
           <TooltipContent side="right">Agent Panel (Cmd+/)</TooltipContent>
         </Tooltip>
 
-        <ThemeToggle variant="icon" />
+        <Tooltip>
+          <TooltipTrigger asChild>
+            <Button variant="ghost" size="icon" className="size-8" onClick={toggleTheme}>
+              {isDark
+                ? <Sun className="size-4" strokeWidth={1.8} />
+                : <Moon className="size-4" strokeWidth={1.8} />}
+            </Button>
+          </TooltipTrigger>
+          <TooltipContent side="right">{isDark ? 'Light mode' : 'Dark mode'}</TooltipContent>
+        </Tooltip>
 
         <Tooltip>
           <TooltipTrigger asChild>

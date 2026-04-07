@@ -1,5 +1,5 @@
 import { createFileRoute } from '@tanstack/react-router'
-import { CLIConnectionSection, AppearanceSection, AboutSection } from '#/features/settings/sections'
+import { CLIConnectionSection, IntegrationsSection, AboutSection } from '#/features/settings/sections'
 import { SettingsSkeleton } from '#/features/studio/StudioSkeleton'
 
 export const Route = createFileRoute('/studio/settings')({
@@ -13,11 +13,11 @@ function SettingsPage() {
     <div className="mx-auto max-w-3xl px-6 py-6 pb-24 w-full">
       <div className="mb-6">
         <h1 className="font-display text-xl font-bold text-foreground">Settings</h1>
-        <p className="text-[13px] text-muted-foreground">Studio and CLI configuration</p>
+        <p className="text-[13px] text-muted-foreground">CLI and studio configuration</p>
       </div>
 
       <CLIConnectionSection />
-      <AppearanceSection />
+      <IntegrationsSection />
       <AboutSection />
     </div>
   )

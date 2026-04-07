@@ -6,7 +6,7 @@ import type { LibrarySkill } from './useSkillsLibrary'
 import type { FrontmatterEntry } from '@ship/primitives'
 import { VarsTab } from './preview-vars-tab'
 
-type PreviewTab = 'vars' | 'metadata' | 'used-by'
+type PreviewTab = 'info' | 'vars' | 'used-by'
 
 interface Props {
   skill: LibrarySkill | null
@@ -22,8 +22,8 @@ interface Props {
 }
 
 const TABS: { id: PreviewTab; label: string }[] = [
-  { id: 'vars', label: 'Variables' },
-  { id: 'metadata', label: 'Metadata' },
+  { id: 'info', label: 'Info' },
+  { id: 'vars', label: 'Vars' },
   { id: 'used-by', label: 'Used by' },
 ]
 
@@ -141,10 +141,10 @@ export function SkillsPreviewPanel({
 }: Props) {
   if (!skill) return null
 
-  const tab: PreviewTab = (activeTab === 'vars' || activeTab === 'metadata' || activeTab === 'used-by')
+  const tab: PreviewTab = (activeTab === 'info' || activeTab === 'vars' || activeTab === 'used-by')
     ? activeTab
-    // Migrate old 'info' tab to 'metadata'
-    : activeTab === 'info' ? 'metadata' : 'vars'
+    // Migrate old 'metadata' tab to 'info'
+    : activeTab === 'metadata' ? 'info' : 'info'
 
   return (
     <div className="flex w-80 shrink-0 flex-col border-l border-border bg-card/10">
@@ -174,6 +174,14 @@ export function SkillsPreviewPanel({
       </div>
 
       <div className="flex-1 overflow-y-auto">
+        {tab === 'info' && (
+          <MetadataTab
+            skill={skill}
+            entries={frontmatterEntries}
+            raw={frontmatterRaw}
+            onUpdate={onFrontmatterUpdate}
+          />
+        )}
         {tab === 'vars' && (
           <div className="p-3">
             <VarsTab
@@ -187,14 +195,6 @@ export function SkillsPreviewPanel({
               } : undefined}
             />
           </div>
-        )}
-        {tab === 'metadata' && (
-          <MetadataTab
-            skill={skill}
-            entries={frontmatterEntries}
-            raw={frontmatterRaw}
-            onUpdate={onFrontmatterUpdate}
-          />
         )}
         {tab === 'used-by' && (
           <div className="p-3">

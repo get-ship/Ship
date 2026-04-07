@@ -1,5 +1,5 @@
 import { useCallback, lazy, Suspense } from 'react'
-import { X, PanelRight, Zap, Save, Plus } from 'lucide-react'
+import { PanelRight, Zap, Save, Plus } from 'lucide-react'
 import type { Skill } from '@ship/ui'
 import type { FrontmatterEntry } from '@ship/primitives'
 import { parseTabId } from './useSkillsIDE'
@@ -17,14 +17,11 @@ type ScriptLang = 'sh' | 'py' | 'js' | 'ts'
 
 interface Props {
   skills: Skill[]
-  openTabIds: string[]
   activeTabId: string | null
   unsavedIds: Set<string>
   content: string
   isLoading: boolean
   previewOpen?: boolean
-  onTabSelect: (id: string) => void
-  onTabClose: (id: string) => void
   onContentChange: (id: string, content: string) => void
   onSave: (id: string) => void
   onTogglePreview?: () => void
@@ -48,9 +45,9 @@ function getScriptLang(path: string): ScriptLang {
 }
 
 export function SkillsEditor({
-  skills, openTabIds, activeTabId, unsavedIds, content,
+  skills, activeTabId, unsavedIds, content,
   isLoading, previewOpen,
-  onTabSelect, onTabClose, onContentChange, onSave, onTogglePreview, onCreateSkill,
+  onContentChange, onSave, onTogglePreview, onCreateSkill,
   onComment: onCommentProp,
   onFrontmatterParsed: onFrontmatterParsedProp,
 }: Props) {
@@ -137,33 +134,6 @@ export function SkillsEditor({
             <PanelRight className="size-4" />
           </button>
         </div>
-      </div>
-
-      {/* File tabs */}
-      <div className="flex items-center border-b border-border bg-card/20 px-2 h-8 shrink-0 overflow-x-auto">
-        {openTabIds.map((tabId) => {
-          const { skillId, filePath } = parseTabId(tabId)
-          const skill = skills.find((s) => s.id === skillId)
-          if (!skill) return null
-          const isActive = tabId === activeTabId
-          const isUnsaved = unsavedIds.has(tabId)
-          const fileName = filePath.split('/').pop() ?? filePath
-          return (
-            <button
-              key={tabId}
-              onClick={() => onTabSelect(tabId)}
-              className={`group flex items-center gap-1.5 px-3 py-1 text-xs whitespace-nowrap border-b-2 transition-colors ${
-                isActive ? 'border-primary text-foreground' : 'border-transparent text-muted-foreground hover:text-foreground'
-              }`}
-            >
-              {isUnsaved && <span className="size-1.5 rounded-full bg-primary shrink-0" />}
-              <span className="truncate max-w-[140px]">{fileName}</span>
-              <span onClick={(e) => { e.stopPropagation(); onTabClose(tabId) }} className="ml-1 text-muted-foreground hover:text-destructive transition-colors">
-                <X className="size-3" />
-              </span>
-            </button>
-          )
-        })}
       </div>
 
       {/* Editor area — dispatched by file type */}

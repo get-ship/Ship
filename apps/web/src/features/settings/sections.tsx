@@ -1,8 +1,7 @@
 import {
-  Terminal, Paintbrush, Info,
-  ExternalLink,
+  Terminal, Info,
+  ExternalLink, Activity,
 } from 'lucide-react'
-import { ThemeToggle } from '@ship/primitives'
 import { useDaemon } from '#/features/studio/hooks/useDaemonData'
 import { DAEMON_BASE_URL } from '#/lib/daemon-config'
 import { SettingsSection, SettingsRow } from './SettingsLayout'
@@ -10,11 +9,12 @@ import { SettingsSection, SettingsRow } from './SettingsLayout'
 // ── Daemon Connection ───────────────────────────────────────────────────────
 
 export function CLIConnectionSection() {
-  const { connected, workspaces, error } = useDaemon()
+  const { connected, workspaces, jobs, error } = useDaemon()
   const activeWorkspace = workspaces.find((w) => w.status === 'active')
+  const runningJobs = jobs.filter((j) => j.status === 'dispatched').length
 
   return (
-    <SettingsSection icon={<Terminal className="size-[15px]" />} title="Daemon Connection">
+    <SettingsSection icon={<Terminal className="size-[15px]" />} title="Daemon">
       <SettingsRow label="Status">
         <div className="flex items-center gap-1.5">
           <span className={`size-2 rounded-full ${connected ? 'bg-emerald-500' : 'bg-muted-foreground'}`} />
@@ -26,11 +26,28 @@ export function CLIConnectionSection() {
         <span className="text-[11px] text-muted-foreground font-mono">{DAEMON_BASE_URL}</span>
       </SettingsRow>
 
+      <SettingsRow label="Workspaces">
+        <span className="text-[11px] text-muted-foreground">{workspaces.length}</span>
+      </SettingsRow>
+
       {activeWorkspace && (
-        <SettingsRow label="Workspace">
-          <span className="text-[11px] text-muted-foreground">{activeWorkspace.branch}</span>
+        <SettingsRow label="Active workspace">
+          <span className="text-[11px] text-muted-foreground font-mono truncate max-w-[200px]">{activeWorkspace.branch}</span>
         </SettingsRow>
       )}
+
+      {activeWorkspace?.active_agent && (
+        <SettingsRow label="Active agent">
+          <span className="text-[11px] text-muted-foreground">{activeWorkspace.active_agent}</span>
+        </SettingsRow>
+      )}
+
+      <SettingsRow label="Running jobs">
+        <div className="flex items-center gap-1.5">
+          {runningJobs > 0 && <span className="size-1.5 rounded-full bg-sky-500 animate-pulse" />}
+          <span className="text-[11px] text-muted-foreground">{runningJobs}</span>
+        </div>
+      </SettingsRow>
 
       {error && (
         <SettingsRow label="Error">
@@ -41,13 +58,16 @@ export function CLIConnectionSection() {
   )
 }
 
-// ── Appearance ───────────────────────────────────────────────────────────────
+// ── Integrations ─────────────────────────────────────────────────────────────
 
-export function AppearanceSection() {
+export function IntegrationsSection() {
   return (
-    <SettingsSection icon={<Paintbrush className="size-[15px]" />} title="Appearance">
-      <SettingsRow label="Theme">
-        <ThemeToggle variant="switch" />
+    <SettingsSection icon={<Activity className="size-[15px]" />} title="Integrations">
+      <SettingsRow label="Providers" sublabel="Manage via ship use <provider>">
+        <span className="text-[11px] text-muted-foreground font-mono">ship use</span>
+      </SettingsRow>
+      <SettingsRow label="Worktree directory" sublabel="Override via ship config">
+        <span className="text-[11px] text-muted-foreground font-mono">ship config</span>
       </SettingsRow>
     </SettingsSection>
   )
@@ -58,17 +78,14 @@ export function AppearanceSection() {
 export function AboutSection() {
   return (
     <SettingsSection icon={<Info className="size-[15px]" />} title="About">
-      <SettingsRow label="Version">
-        <span className="text-[11px] text-muted-foreground">0.1.0</span>
-      </SettingsRow>
       <SettingsRow label="Documentation">
         <a
-          href="https://getship.dev"
+          href="https://getship.dev/docs"
           target="_blank"
           rel="noopener noreferrer"
           className="flex items-center gap-1 text-[11px] text-primary transition hover:underline"
         >
-          getship.dev
+          getship.dev/docs
           <ExternalLink className="size-3" />
         </a>
       </SettingsRow>

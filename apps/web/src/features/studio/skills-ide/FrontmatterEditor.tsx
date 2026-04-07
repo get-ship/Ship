@@ -79,7 +79,7 @@ export function FrontmatterEditor({ entries, raw, onUpdate }: FrontmatterEditorP
                 onChange={(e) => updateField(field.key, e.target.value)}
                 maxLength={'maxLength' in field ? field.maxLength : undefined}
                 rows={3}
-                className="w-full rounded-md border border-border bg-background px-2.5 py-1.5 text-xs text-foreground outline-none focus:border-primary/50 resize-none"
+                className="w-full rounded-md border border-border bg-background px-2.5 py-1.5 text-xs text-foreground outline-none focus:border-primary/50 resize-y"
                 placeholder={field.hint}
               />
             ) : field.type === 'tags' ? (
