@@ -10,7 +10,7 @@ use runtime::{
         list_workspaces as runtime_list_workspaces,
     },
 };
-use runtime::{get_effective_skill, list_effective_skills};
+use runtime::{get_effective_skill, get_skill_vars, list_effective_skills, load_jobs_at};
 
 use crate::resources::render_events_resource;
 
@@ -53,8 +53,30 @@ pub async fn resolve_resource_uri(
         return Some(out);
     }
     if let Some(id) = uri.strip_prefix("ship://skills/") {
-        return get_effective_skill(dir, id).ok().map(|s| s.content);
+        return get_effective_skill(dir, id).ok().map(|s| {
+            let mut out = s.content;
+            if let Ok(Some(vars)) = get_skill_vars(dir, id) {
+                out.push_str("\n\n## Variables\n\n");
+                let mut keys: Vec<&String> = vars.keys().collect();
+                keys.sort();
+                for key in keys {
+                    out.push_str(&format!("- {}: {}\n", key, vars[key]));
+                }
+            }
+            out
+        });
     }
+    if uri == "ship://jobs" {
+        let jobs = load_jobs_at(dir).unwrap_or_default();
+        let mut records: Vec<_> = jobs.into_values().collect();
+        records.sort_by(|a, b| a.created_at.cmp(&b.created_at));
+        return serde_json::to_string_pretty(&records).ok();
+    }
+    if let Some(id) = uri.strip_prefix("ship://jobs/") {
+        let jobs = load_jobs_at(dir).unwrap_or_default();
+        return jobs.get(id).and_then(|j| serde_json::to_string_pretty(j).ok());
+    }
+    // ship://mesh deferred to v0.3 — needs SharedMeshRegistry wired into resolver
     if uri == "ship://log" {
         return match read_log(dir) {
             Ok(content) if content.trim().is_empty() || content.trim() == "# Project Log" => {
