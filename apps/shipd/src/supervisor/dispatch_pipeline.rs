@@ -5,7 +5,7 @@
 //! completes, it finds unblocked steps and dispatches them.
 use runtime::events::job::StepType;
 use runtime::events::{CallerKind, EmitContext, EventEnvelope};
-use runtime::services::dispatch_ports::{JobContext, JobExecutor};
+use runtime::services::dispatch_ports::JobContext;
 use runtime::projections::job::{load_jobs, load_jobs_at};
 use std::sync::Arc;
 use tokio::sync::Mutex;
@@ -217,16 +217,9 @@ async fn advance_pipeline_inner(
                         ..Default::default()
                     },
                 };
-                // Pipeline steps use ProcessExecutor (headless, auto-exits on completion).
-                // Falls back to the configured executor if ProcessExecutor fails.
-                let process_executor = super::executors::ProcessExecutor;
-                let spawn_result = process_executor.spawn(&job_ctx).await;
-                if let Err(e) = spawn_result {
-                    tracing::warn!(slug, step_id = step.id, "pipeline: ProcessExecutor failed, falling back: {e}");
-                    if let Err(e2) = dctx.executor.spawn(&job_ctx).await {
-                        tracing::error!(slug, step_id = step.id, "pipeline: fallback spawn also failed: {e2}");
-                        continue;
-                    }
+                if let Err(e) = dctx.executor.spawn(&job_ctx).await {
+                    tracing::error!(slug, step_id = step.id, "pipeline: spawn failed: {e}");
+                    continue;
                 }
 
                 emit_job_dispatched(kernel, &job.job_id, &worktree_path, slug).await;
