@@ -414,6 +414,14 @@ async fn advance_pipeline_inner(
     dispatched_any
 }
 
+#[cfg(test)]
+#[path = "tests_step_tracking.rs"]
+mod tests_step_tracking;
+
+#[cfg(test)]
+#[path = "tests_pipeline_reliability.rs"]
+mod tests_pipeline_reliability;
+
 /// Send /exit to the agent in a tmux session and wait for clean exit.
 /// Best-effort — skips if tmux isn't available (tests).
 async fn graceful_agent_exit(slug: &str) {

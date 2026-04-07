@@ -107,6 +107,13 @@ pub fn apply(record: &mut JobRecord, event: &EventEnvelope) {
             record.updated_at = ts;
         }
         event_types::JOB_COMPLETED => {
+            // DAG step tracking: when the final step completes without a subsequent
+            // JOB_DISPATCHED (e.g. merge follows immediately), record it now.
+            if let Some(ref current) = record.current_step.take() {
+                if !record.completed_steps.contains(current) {
+                    record.completed_steps.push(current.clone());
+                }
+            }
             record.status = JobStatus::Completed;
             record.updated_at = ts;
         }
