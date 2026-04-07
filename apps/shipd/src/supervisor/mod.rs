@@ -41,3 +41,7 @@ mod tests_daemon_startup;
 #[cfg(test)]
 #[path = "tests_event_integrity.rs"]
 mod tests_event_integrity;
+
+#[cfg(test)]
+#[path = "tests_e2e_reliability.rs"]
+mod tests_e2e_reliability;

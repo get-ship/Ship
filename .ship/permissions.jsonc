@@ -4,6 +4,31 @@
   //
   // Referenced via: "permissions": { "preset": "<name>" }
   // Presets are templates, not security boundaries.
+  //
+  // ── HARD RULES (all presets) ──────────────────────────────────────────
+  //
+  // ~/.ship/ is the platform database. It contains project state, event
+  // stores, artifacts, and configuration. NO agent may delete, overwrite,
+  // or rm -rf anything under ~/.ship/ without explicit human confirmation.
+  //
+  // Violations: deleting platform.db, wiping artifacts/specs, removing
+  // project entries. These are production data — treat them as such.
+  //
+  // The base deny rules below apply to EVERY preset. Individual presets
+  // may add more denials but cannot remove these.
+
+  "_base_deny": [
+    // Never delete platform state
+    "Bash(rm */.ship/*)",
+    "Bash(rm -r */.ship/*)",
+    "Bash(rm -rf */.ship/*)",
+    "Bash(rm *~/.ship/*)",
+    "Bash(rm -r *~/.ship/*)",
+    "Bash(rm -rf *~/.ship/*)",
+    "Bash(rm */home/*/.ship/*)",
+    "Bash(rm -r */home/*/.ship/*)",
+    "Bash(rm -rf */home/*/.ship/*)",
+  ],
 
   "ship-readonly": {
     // Read-only analysis. Reviewer agents, gate agents, auditors, tutors.
@@ -22,6 +47,10 @@
       "Write(*)",
       "Edit(*)",
       "Bash(rm*)",
+      // Platform state protection (inherited from _base_deny)
+      "Bash(rm */.ship/*)",
+      "Bash(rm -r*/.ship/*)",
+      "Bash(rm -rf*/.ship/*)",
     ],
   },
 
@@ -36,9 +65,12 @@
       "mcp__ship__*",
     ],
     "tools_deny": [
-      // apps/ migrations are drizzle-generated. Edit schema, run pnpm db:generate.
       "Write(apps/**/migrations/**/*.sql)",
       "Edit(apps/**/migrations/**/*.sql)",
+      // Platform state protection
+      "Bash(rm */.ship/*)",
+      "Bash(rm -r*/.ship/*)",
+      "Bash(rm -rf*/.ship/*)",
     ],
   },
 
@@ -57,9 +89,12 @@
       "Bash(git push*)",
       "Bash(cargo publish*)",
       "Bash(npm publish*)",
-      // apps/ migrations are drizzle-generated. Edit schema, run pnpm db:generate.
       "Write(apps/**/migrations/**/*.sql)",
       "Edit(apps/**/migrations/**/*.sql)",
+      // Platform state protection
+      "Bash(rm */.ship/*)",
+      "Bash(rm -r*/.ship/*)",
+      "Bash(rm -rf*/.ship/*)",
     ],
   },
 
@@ -75,9 +110,12 @@
       "Bash(rm -rf *)",
       "Bash(git reset --hard*)",
       "Bash(git push --force*)",
-      // apps/ migrations are drizzle-generated. Edit schema, run pnpm db:generate.
       "Write(apps/**/migrations/**/*.sql)",
       "Edit(apps/**/migrations/**/*.sql)",
+      // Platform state protection
+      "Bash(rm */.ship/*)",
+      "Bash(rm -r*/.ship/*)",
+      "Bash(rm -rf*/.ship/*)",
     ],
   },
 }
