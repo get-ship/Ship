@@ -15,7 +15,12 @@ fn make_api_state(dir: &TempDir) -> ApiState {
     let ship_dir = dir.path().join(".ship");
     std::fs::create_dir_all(&ship_dir).unwrap();
     runtime::db::ensure_db_at(&ship_dir).unwrap();
-    let kernel = runtime::events::init_kernel_router(ship_dir.clone()).unwrap();
+    // Create a fresh KernelRouter per test — never use init_kernel_router(),
+    // which returns a process-global OnceLock singleton and causes all tests
+    // to share the same kernel when run in parallel.
+    let kernel = std::sync::Arc::new(tokio::sync::Mutex::new(
+        runtime::events::KernelRouter::new(ship_dir.clone()).unwrap(),
+    ));
     let mesh_registry = std::sync::Arc::new(tokio::sync::RwLock::new(
         std::collections::HashMap::new(),
     ));
