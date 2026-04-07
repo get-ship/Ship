@@ -1052,15 +1052,49 @@ fn projection_completed_status() {
 #[cfg(feature = "unstable")]
 mod reliability {
     use super::*;
-    use std::sync::atomic::{AtomicUsize, Ordering};
+    use std::sync::atomic::{AtomicBool, AtomicUsize, Ordering};
 
-    /// Mock executor where `is_alive` always returns false (simulates dead process).
-    struct DeadProcessExecutor;
+    /// Mock executor that tracks spawn calls and reports dead processes.
+    /// Used to verify relaunch behavior during reconciliation.
+    struct RelaunchTrackingExecutor {
+        spawn_count: AtomicUsize,
+        stop_count: AtomicUsize,
+    }
+
+    impl RelaunchTrackingExecutor {
+        fn new() -> Self {
+            Self {
+                spawn_count: AtomicUsize::new(0),
+                stop_count: AtomicUsize::new(0),
+            }
+        }
+    }
 
     #[async_trait]
-    impl JobExecutor for DeadProcessExecutor {
+    impl JobExecutor for RelaunchTrackingExecutor {
         async fn spawn(&self, _ctx: &JobContext) -> anyhow::Result<ExecutorHandle> {
-            Ok(ExecutorHandle { pid: Some(99999), inner: Box::new(()) })
+            self.spawn_count.fetch_add(1, Ordering::SeqCst);
+            Ok(ExecutorHandle { pid: Some(77777), inner: Box::new(()) })
+        }
+        async fn is_alive(&self, _handle: &ExecutorHandle) -> bool {
+            false // dead process
+        }
+        async fn stop(&self, _handle: &ExecutorHandle) -> anyhow::Result<()> {
+            self.stop_count.fetch_add(1, Ordering::SeqCst);
+            Ok(())
+        }
+        async fn send(&self, _handle: &ExecutorHandle, _msg: &str) -> anyhow::Result<()> {
+            Ok(())
+        }
+    }
+
+    /// Mock executor that always fails to spawn (relaunch failure scenario).
+    struct FailingSpawnExecutor;
+
+    #[async_trait]
+    impl JobExecutor for FailingSpawnExecutor {
+        async fn spawn(&self, _ctx: &JobContext) -> anyhow::Result<ExecutorHandle> {
+            Err(anyhow::anyhow!("spawn failed: agent binary not found"))
         }
         async fn is_alive(&self, _handle: &ExecutorHandle) -> bool {
             false
@@ -1069,6 +1103,30 @@ mod reliability {
             Ok(())
         }
         async fn send(&self, _handle: &ExecutorHandle, _msg: &str) -> anyhow::Result<()> {
+            Ok(())
+        }
+    }
+
+    /// Mock isolation that tracks prepare/cleanup calls.
+    struct TrackingIsolation {
+        prepare_count: AtomicUsize,
+    }
+
+    impl TrackingIsolation {
+        fn new() -> Self {
+            Self {
+                prepare_count: AtomicUsize::new(0),
+            }
+        }
+    }
+
+    #[async_trait]
+    impl IsolationStrategy for TrackingIsolation {
+        async fn prepare(&self, job: &JobContext) -> anyhow::Result<PathBuf> {
+            self.prepare_count.fetch_add(1, Ordering::SeqCst);
+            Ok(job.work_dir.clone())
+        }
+        async fn cleanup(&self, _job: &JobContext) -> anyhow::Result<()> {
             Ok(())
         }
     }
@@ -1117,29 +1175,21 @@ mod reliability {
         }
     }
 
-    /// S5: Dispatched job with dead process is marked Failed on startup.
-    ///
-    /// After daemon restart, `reconcile_dispatched_jobs_at` must:
-    /// 1. Find jobs in Dispatched state via projection
-    /// 2. Check if the process PID is alive
-    /// 3. If dead, emit job.failed with "daemon restart, process not found"
-    #[tokio::test(flavor = "multi_thread", worker_threads = 2)]
-    async fn reconcile_dispatched_job_marks_failed_when_dead() {
-        use runtime::events::store::{EventStore, SqliteEventStore};
-
-        let dir = TempDir::new().unwrap();
-        let ship_dir = dir.path().join(".ship");
-        std::fs::create_dir_all(&ship_dir).unwrap();
-        let store = SqliteEventStore::new_at(&ship_dir).unwrap();
-
+    /// Helper: seed event store with a dispatched job.
+    fn seed_dispatched_job(
+        store: &runtime::events::store::SqliteEventStore,
+        job_id: &str,
+        slug: &str,
+    ) {
+        use runtime::events::store::EventStore;
         store
             .append(&ev(
                 event_types::JOB_CREATED,
                 serde_json::json!({
-                    "job_id": "j-stale",
-                    "slug": "stale-running",
+                    "job_id": job_id,
+                    "slug": slug,
                     "agent": "rust-runtime",
-                    "branch": "job/stale-running",
+                    "branch": format!("job/{slug}"),
                     "spec_path": "spec.md",
                     "plan_id": null,
                 }),
@@ -1149,12 +1199,33 @@ mod reliability {
             .append(&ev(
                 event_types::JOB_DISPATCHED,
                 serde_json::json!({
-                    "job_id": "j-stale",
-                    "worktree": "/tmp/wt/stale-running",
+                    "job_id": job_id,
+                    "worktree": format!("/tmp/wt/{slug}"),
                     "pid": 99999,
                 }),
             ))
             .unwrap();
+    }
+
+    // ── Daemon Recovery: Relaunch Dead Agents ────────────────────────────────
+
+    /// Dispatched job with dead process is relaunched, not failed.
+    ///
+    /// After daemon restart, `reconcile_dispatched_jobs_at` must:
+    /// 1. Find jobs in Dispatched state via projection
+    /// 2. Check if the agent process is alive
+    /// 3. If dead, relaunch by calling executor.spawn in the existing worktree
+    /// 4. Job stays Dispatched (not Failed)
+    #[tokio::test(flavor = "multi_thread", worker_threads = 2)]
+    async fn reconcile_dead_process_relaunches_agent() {
+        use runtime::events::store::{EventStore, SqliteEventStore};
+
+        let dir = TempDir::new().unwrap();
+        let ship_dir = dir.path().join(".ship");
+        std::fs::create_dir_all(&ship_dir).unwrap();
+        let store = SqliteEventStore::new_at(&ship_dir).unwrap();
+
+        seed_dispatched_job(&store, "j-stale", "stale-running");
 
         let jobs_before = runtime::projections::job::load_jobs_at(&ship_dir).unwrap();
         assert_eq!(
@@ -1162,8 +1233,134 @@ mod reliability {
             JobStatus::Dispatched
         );
 
-        // Use the same ship_dir for the kernel so job.failed events land in
-        // the same event store that load_jobs_at reads from.
+        let mut router =
+            runtime::events::kernel_router::KernelRouter::new(ship_dir.clone()).unwrap();
+        let (_s, _mb) = router
+            .spawn_actor("service.job-dispatch", super::job_dispatch_config())
+            .unwrap();
+        let kernel = Arc::new(tokio::sync::Mutex::new(router));
+
+        let executor = Arc::new(RelaunchTrackingExecutor::new());
+        let dctx = super::super::DispatchContext {
+            isolation: Arc::new(super::NoopIsolation),
+            executor: executor.clone(),
+            registry: Arc::new(tokio::sync::Mutex::new(
+                super::super::ProcessRegistry::new(),
+            )),
+        };
+
+        super::super::reconcile_dispatched_jobs_at(&kernel, &dctx, &ship_dir).await;
+
+        // Executor.spawn must be called to relaunch the dead agent
+        assert!(
+            executor.spawn_count.load(Ordering::SeqCst) > 0,
+            "executor.spawn must be called to relaunch the dead agent"
+        );
+
+        // Job must NOT be marked Failed — it should stay Dispatched (relaunched)
+        let jobs_after = runtime::projections::job::load_jobs_at(&ship_dir).unwrap();
+        let job = jobs_after.get("j-stale").unwrap();
+        assert_eq!(
+            job.status,
+            JobStatus::Dispatched,
+            "relaunched job must stay Dispatched, not Failed"
+        );
+    }
+
+    /// Relaunch reuses existing worktree — isolation.prepare must NOT be called.
+    ///
+    /// The worktree already exists from original dispatch. Reconciliation should
+    /// only recompile agent config and respawn, not recreate the worktree.
+    #[tokio::test(flavor = "multi_thread", worker_threads = 2)]
+    async fn reconcile_dead_process_reuses_worktree() {
+        use runtime::events::store::{EventStore, SqliteEventStore};
+
+        let dir = TempDir::new().unwrap();
+        let ship_dir = dir.path().join(".ship");
+        std::fs::create_dir_all(&ship_dir).unwrap();
+        let store = SqliteEventStore::new_at(&ship_dir).unwrap();
+
+        seed_dispatched_job(&store, "j-reuse", "reuse-wt");
+
+        let mut router =
+            runtime::events::kernel_router::KernelRouter::new(ship_dir.clone()).unwrap();
+        let (_s, _mb) = router
+            .spawn_actor("service.job-dispatch", super::job_dispatch_config())
+            .unwrap();
+        let kernel = Arc::new(tokio::sync::Mutex::new(router));
+
+        let isolation = Arc::new(TrackingIsolation::new());
+        let dctx = super::super::DispatchContext {
+            isolation: isolation.clone(),
+            executor: Arc::new(RelaunchTrackingExecutor::new()),
+            registry: Arc::new(tokio::sync::Mutex::new(
+                super::super::ProcessRegistry::new(),
+            )),
+        };
+
+        super::super::reconcile_dispatched_jobs_at(&kernel, &dctx, &ship_dir).await;
+
+        assert_eq!(
+            isolation.prepare_count.load(Ordering::SeqCst),
+            0,
+            "isolation.prepare must NOT be called during relaunch — worktree already exists"
+        );
+    }
+
+    /// Relaunched agent handle is registered in ProcessRegistry for monitoring.
+    #[tokio::test(flavor = "multi_thread", worker_threads = 2)]
+    async fn reconcile_dead_process_registers_handle() {
+        use runtime::events::store::{EventStore, SqliteEventStore};
+
+        let dir = TempDir::new().unwrap();
+        let ship_dir = dir.path().join(".ship");
+        std::fs::create_dir_all(&ship_dir).unwrap();
+        let store = SqliteEventStore::new_at(&ship_dir).unwrap();
+
+        seed_dispatched_job(&store, "j-reg", "register-test");
+
+        let mut router =
+            runtime::events::kernel_router::KernelRouter::new(ship_dir.clone()).unwrap();
+        let (_s, _mb) = router
+            .spawn_actor("service.job-dispatch", super::job_dispatch_config())
+            .unwrap();
+        let kernel = Arc::new(tokio::sync::Mutex::new(router));
+
+        let registry = Arc::new(tokio::sync::Mutex::new(
+            super::super::ProcessRegistry::new(),
+        ));
+        let dctx = super::super::DispatchContext {
+            isolation: Arc::new(super::NoopIsolation),
+            executor: Arc::new(RelaunchTrackingExecutor::new()),
+            registry: registry.clone(),
+        };
+
+        assert!(dctx.registry.lock().await.is_empty());
+
+        super::super::reconcile_dispatched_jobs_at(&kernel, &dctx, &ship_dir).await;
+
+        assert_eq!(
+            registry.lock().await.len(),
+            1,
+            "relaunched agent handle must be registered in ProcessRegistry"
+        );
+    }
+
+    /// Relaunch failure (spawn error) marks job as Failed.
+    ///
+    /// If executor.spawn fails during recovery, emit job.failed. This is the
+    /// only path to Failed — dead process alone triggers relaunch, not failure.
+    #[tokio::test(flavor = "multi_thread", worker_threads = 2)]
+    async fn reconcile_relaunch_failure_marks_failed() {
+        use runtime::events::store::{EventStore, SqliteEventStore};
+
+        let dir = TempDir::new().unwrap();
+        let ship_dir = dir.path().join(".ship");
+        std::fs::create_dir_all(&ship_dir).unwrap();
+        let store = SqliteEventStore::new_at(&ship_dir).unwrap();
+
+        seed_dispatched_job(&store, "j-fail-relaunch", "fail-relaunch");
+
         let mut router =
             runtime::events::kernel_router::KernelRouter::new(ship_dir.clone()).unwrap();
         let (_s, _mb) = router
@@ -1173,7 +1370,7 @@ mod reliability {
 
         let dctx = super::super::DispatchContext {
             isolation: Arc::new(super::NoopIsolation),
-            executor: Arc::new(DeadProcessExecutor),
+            executor: Arc::new(FailingSpawnExecutor),
             registry: Arc::new(tokio::sync::Mutex::new(
                 super::super::ProcessRegistry::new(),
             )),
@@ -1182,17 +1379,17 @@ mod reliability {
         super::super::reconcile_dispatched_jobs_at(&kernel, &dctx, &ship_dir).await;
 
         let jobs_after = runtime::projections::job::load_jobs_at(&ship_dir).unwrap();
-        let job = jobs_after.get("j-stale").unwrap();
+        let job = jobs_after.get("j-fail-relaunch").unwrap();
         assert_eq!(
             job.status,
             JobStatus::Failed,
-            "dispatched job with dead process must be Failed after reconciliation"
+            "job must be Failed only when relaunch itself fails"
         );
         assert!(
             job.error
                 .as_ref()
-                .map_or(false, |e| e.contains("daemon restart")),
-            "error must mention daemon restart"
+                .map_or(false, |e| e.contains("relaunch failed")),
+            "error must indicate relaunch failure"
         );
     }
 
@@ -1224,29 +1421,7 @@ mod reliability {
         std::fs::create_dir_all(&ship_dir).unwrap();
         let store = SqliteEventStore::new_at(&ship_dir).unwrap();
 
-        store
-            .append(&ev(
-                event_types::JOB_CREATED,
-                serde_json::json!({
-                    "job_id": "j-alive",
-                    "slug": "alive-job",
-                    "agent": "rust-runtime",
-                    "branch": "job/alive-job",
-                    "spec_path": "spec.md",
-                    "plan_id": null,
-                }),
-            ))
-            .unwrap();
-        store
-            .append(&ev(
-                event_types::JOB_DISPATCHED,
-                serde_json::json!({
-                    "job_id": "j-alive",
-                    "worktree": "/tmp/wt/alive-job",
-                    "pid": 1,
-                }),
-            ))
-            .unwrap();
+        seed_dispatched_job(&store, "j-alive", "alive-job");
 
         let mut router =
             runtime::events::kernel_router::KernelRouter::new(ship_dir.clone()).unwrap();
@@ -1270,6 +1445,66 @@ mod reliability {
             jobs.get("j-alive").unwrap().status,
             JobStatus::Dispatched,
             "dispatched job with live process must stay Dispatched"
+        );
+    }
+
+    /// Live process is registered in ProcessRegistry on startup for monitoring.
+    ///
+    /// When reconciliation finds a dispatched job with a live process, it must
+    /// register the handle so graceful shutdown can stop it later.
+    #[tokio::test(flavor = "multi_thread", worker_threads = 2)]
+    async fn reconcile_live_process_populates_registry() {
+        use runtime::events::store::{EventStore, SqliteEventStore};
+
+        struct AliveProcessExecutor;
+
+        #[async_trait]
+        impl JobExecutor for AliveProcessExecutor {
+            async fn spawn(&self, _ctx: &JobContext) -> anyhow::Result<ExecutorHandle> {
+                Ok(ExecutorHandle { pid: Some(1), inner: Box::new(()) })
+            }
+            async fn is_alive(&self, _handle: &ExecutorHandle) -> bool {
+                true
+            }
+            async fn stop(&self, _handle: &ExecutorHandle) -> anyhow::Result<()> {
+                Ok(())
+            }
+            async fn send(&self, _handle: &ExecutorHandle, _msg: &str) -> anyhow::Result<()> {
+                Ok(())
+            }
+        }
+
+        let dir = TempDir::new().unwrap();
+        let ship_dir = dir.path().join(".ship");
+        std::fs::create_dir_all(&ship_dir).unwrap();
+        let store = SqliteEventStore::new_at(&ship_dir).unwrap();
+
+        seed_dispatched_job(&store, "j-live-reg", "live-reg");
+
+        let mut router =
+            runtime::events::kernel_router::KernelRouter::new(ship_dir.clone()).unwrap();
+        let (_s, _mb) = router
+            .spawn_actor("service.job-dispatch", super::job_dispatch_config())
+            .unwrap();
+        let kernel = Arc::new(tokio::sync::Mutex::new(router));
+
+        let registry = Arc::new(tokio::sync::Mutex::new(
+            super::super::ProcessRegistry::new(),
+        ));
+        let dctx = super::super::DispatchContext {
+            isolation: Arc::new(super::NoopIsolation),
+            executor: Arc::new(AliveProcessExecutor),
+            registry: registry.clone(),
+        };
+
+        assert!(registry.lock().await.is_empty());
+
+        super::super::reconcile_dispatched_jobs_at(&kernel, &dctx, &ship_dir).await;
+
+        assert_eq!(
+            registry.lock().await.len(),
+            1,
+            "live process must be registered in ProcessRegistry on startup"
         );
     }
 
