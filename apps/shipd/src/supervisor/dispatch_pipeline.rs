@@ -9,6 +9,7 @@ use runtime::events::{CallerKind, EmitContext, EventEnvelope};
 use runtime::services::dispatch_ports::JobExecutor;
 use runtime::projections::job::{load_jobs, load_jobs_at};
 use runtime::services::dispatch_ports::JobContext;
+use runtime::services::provider_adapter::adapter_for;
 use std::sync::Arc;
 use tokio::sync::Mutex;
 
@@ -320,7 +321,7 @@ async fn advance_pipeline_inner(
                 }
 
                 // Gracefully end the current agent (only needed for tmux reuse)
-                graceful_agent_exit(slug).await;
+                graceful_agent_exit(slug, step.provider.as_deref()).await;
 
                 // Swap agent profile
                 tracing::info!(slug, agent, step_id = step.id, "pipeline: compiling agent config");
@@ -359,7 +360,7 @@ async fn advance_pipeline_inner(
                 tracing::info!(slug, branch = %job.branch, "pipeline: executing merge step");
 
                 // Gracefully end any running agent first
-                graceful_agent_exit(slug).await;
+                graceful_agent_exit(slug, None).await;
 
                 // Git merge the job branch into the current branch (v0.2.0 or whatever HEAD is)
                 let merge_result = std::process::Command::new("git")
@@ -414,10 +415,11 @@ async fn advance_pipeline_inner(
     dispatched_any
 }
 
-/// Send /exit to the agent in a tmux session and wait for clean exit.
+/// Send the provider's exit command to the agent in a tmux session and wait for clean exit.
 /// Best-effort — skips if tmux isn't available (tests).
-async fn graceful_agent_exit(slug: &str) {
+async fn graceful_agent_exit(slug: &str, provider: Option<&str>) {
     let tmux_session = format!("job-{}", slug);
+    let exit_cmd = adapter_for(provider).exit_command().to_string();
 
     let has_session = std::process::Command::new("tmux")
         .args(["has-session", "-t", &tmux_session])
@@ -430,9 +432,9 @@ async fn graceful_agent_exit(slug: &str) {
         return;
     }
 
-    tracing::info!(slug, session = %tmux_session, "pipeline: sending /exit to current agent");
+    tracing::info!(slug, session = %tmux_session, "pipeline: sending exit command to current agent");
     let _ = std::process::Command::new("tmux")
-        .args(["send-keys", "-t", &tmux_session, "/exit", "Enter"])
+        .args(["send-keys", "-t", &tmux_session, &exit_cmd, "Enter"])
         .status();
 
     for _ in 0..30 {
