@@ -31,6 +31,8 @@ use crate::events::{ActorStore, EventEnvelope, Mailbox};
 pub mod mesh;
 pub mod human_gateway;
 pub mod dispatch_ports;
+pub mod provider_adapter;
+pub(crate) mod providers;
 #[cfg(feature = "unstable")]
 pub mod dispatch;
 #[cfg(feature = "unstable")]

@@ -7,6 +7,7 @@ use anyhow::Result;
 use async_trait::async_trait;
 use runtime::events::job::PipelinePhase;
 use runtime::services::dispatch_ports::{ExecutorHandle, IsolationStrategy, JobContext, JobExecutor};
+use runtime::services::provider_adapter::adapter_for;
 use std::path::PathBuf;
 
 use super::helpers::{
@@ -76,7 +77,7 @@ impl JobExecutor for TmuxExecutor {
     async fn spawn(&self, ctx: &JobContext) -> Result<ExecutorHandle> {
         let tmux_session = format!("job-{}", ctx.slug);
         ensure_tmux_session(&tmux_session, &ctx.work_dir)?;
-        spawn_agent_with_mesh_id(&tmux_session, &ctx.slug, ctx.model.as_deref());
+        spawn_agent_with_mesh_id(&tmux_session, &ctx.slug, ctx.model.as_deref(), ctx.provider.as_deref());
 
         let (strategy, launched) = terminal_launcher::launch(&tmux_session);
         tracing::info!(
@@ -127,14 +128,18 @@ impl JobExecutor for TmuxExecutor {
 }
 
 /// Send agent CLI command into the tmux session with SHIP_MESH_ID set.
-fn spawn_agent_with_mesh_id(tmux_session: &str, slug: &str, model: Option<&str>) {
+fn spawn_agent_with_mesh_id(tmux_session: &str, slug: &str, model: Option<&str>, provider: Option<&str>) {
+    let adapter = adapter_for(provider);
+    let ready = adapter.ready_pattern().to_string();
+    let autostart = adapter.autostart_input().to_string();
+
     let model_flag = match model {
         Some(m) => format!(" --model {m}"),
         None => String::new(),
     };
     let cmd = format!(
-        "SHIP_MESH_ID={slug} claude --dangerously-skip-permissions \
-         --dangerously-load-development-channels server:ship{model_flag}"
+        "SHIP_MESH_ID={slug} {}{model_flag}",
+        adapter.cli_command(),
     );
     let result = std::process::Command::new("tmux")
         .args(["send-keys", "-t", tmux_session, &cmd, "Enter"])
@@ -144,30 +149,30 @@ fn spawn_agent_with_mesh_id(tmux_session: &str, slug: &str, model: Option<&str>)
         return;
     }
 
-    // Wait for claude to be ready, then auto-accept prompts and send "go".
-    // Polls the tmux pane for the input prompt (❯) instead of blind delays.
+    // Wait for the provider to be ready, then auto-accept prompts and send autostart input.
+    // Polls the tmux pane for the ready pattern instead of blind delays.
     let session = tmux_session.to_string();
     std::thread::spawn(move || {
         // Phase 1: Wait for experimental channels prompt (up to 30s)
-        if wait_for_prompt(&session, 30) {
+        if wait_for_prompt(&session, 30, &ready) {
             // Accept the experimental channels prompt
             let _ = std::process::Command::new("tmux")
                 .args(["send-keys", "-t", &session, "Enter"])
                 .status();
         }
         // Phase 2: Wait for the main input prompt (up to 30s)
-        if wait_for_prompt(&session, 30) {
-            // Send "go" to trigger job autostart
+        if wait_for_prompt(&session, 30, &ready) {
+            // Send autostart input to trigger job autostart
             let _ = std::process::Command::new("tmux")
-                .args(["send-keys", "-t", &session, "go", "Enter"])
+                .args(["send-keys", "-t", &session, &autostart, "Enter"])
                 .status();
         }
     });
 }
 
-/// Poll tmux pane until the Claude input prompt (❯) appears.
+/// Poll tmux pane until the provider's ready pattern appears.
 /// Returns true if found, false on timeout.
-fn wait_for_prompt(session: &str, timeout_secs: u64) -> bool {
+fn wait_for_prompt(session: &str, timeout_secs: u64, pattern: &str) -> bool {
     for _ in 0..timeout_secs {
         std::thread::sleep(std::time::Duration::from_secs(1));
         let output = std::process::Command::new("tmux")
@@ -175,8 +180,7 @@ fn wait_for_prompt(session: &str, timeout_secs: u64) -> bool {
             .output();
         if let Ok(out) = output {
             let text = String::from_utf8_lossy(&out.stdout);
-            // Claude shows ❯ when ready for input
-            if text.contains('❯') {
+            if text.contains(pattern) {
                 return true;
             }
         }
@@ -299,6 +303,10 @@ impl JobExecutor for ProcessExecutor {
         Err(anyhow::anyhow!("ProcessExecutor does not support interactive messages"))
     }
 }
+
+#[cfg(test)]
+#[path = "tests_executor.rs"]
+mod tests_executor;
 
 /// Write phase spec into an existing worktree (used by pipeline advancement).
 pub(crate) fn write_phase_spec(
