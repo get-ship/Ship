@@ -64,7 +64,7 @@ pub fn log_progress(project_dir: &Path, req: LogProgressRequest, branch: &str) -
         Err(err) => return format!("Error checking session: {}", err),
         Ok(Some(_)) => {}
     }
-    match runtime_record_workspace_session_progress(project_dir, branch, &req.note) {
+    match runtime_record_workspace_session_progress(project_dir, branch, &req.note, req.escalation.as_deref()) {
         Ok(()) => format!("Progress logged for session on '{}'.", branch),
         Err(e) => format!("Error logging progress: {}", e),
     }

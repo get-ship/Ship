@@ -98,16 +98,20 @@ pub fn insert_session_attached_event(
     emit_session(envelope, workspace_id)
 }
 
-/// Emit `session.progress` — non-elevated, no projection handler.
+/// Emit `session.progress` — elevated when escalation is set.
 pub fn insert_session_progress_event(
     session_id: &str,
     workspace_id: &str,
     payload: &SessionProgress,
+    elevated: bool,
 ) -> Result<()> {
-    let envelope = EventEnvelope::new(event_types::SESSION_PROGRESS, session_id, payload)?
+    let mut envelope = EventEnvelope::new(event_types::SESSION_PROGRESS, session_id, payload)?
         .with_context(Some(workspace_id), Some(session_id))
         .with_actor_id(session_id)
         .with_parent_actor_id(workspace_id);
+    if elevated {
+        envelope = envelope.elevate();
+    }
 
     let mut conn = open_db()?;
     append_event_with_conn(&envelope, &mut conn)?;
