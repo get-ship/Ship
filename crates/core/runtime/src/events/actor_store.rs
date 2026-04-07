@@ -227,6 +227,14 @@ pub(crate) fn init_actor_db(path: &Path) -> Result<()> {
             .await
     })?;
 
+    // Reset migration tracking so checksum changes don't block startup.
+    // Actor migrations are idempotent (CREATE TABLE IF NOT EXISTS).
+    block_on(async {
+        sqlx::query("DROP TABLE IF EXISTS _sqlx_migrations")
+            .execute(&mut conn)
+            .await
+    })?;
+
     let migrate_result = if let Ok(handle) = tokio::runtime::Handle::try_current() {
         tokio::task::block_in_place(|| {
             handle
