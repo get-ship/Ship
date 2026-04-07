@@ -94,10 +94,10 @@ export function FeatureGrid() {
     <section className="mx-auto max-w-[62rem] px-6 pb-20 sm:px-10">
       <div className="mb-12 text-center">
         <h2 className="mb-2 font-display text-3xl font-extrabold sm:text-4xl">
-          The platform, not just the tool
+          A complete platform for working with agents
         </h2>
         <p className="mx-auto max-w-lg text-[15px] text-muted-foreground">
-          Compiler, runtime, and GUI working together. Every piece is a view in Ship Studio — open in your browser, served from localhost.
+          Compiler, runtime, and GUI working together. Open in your browser, served from localhost.
         </p>
       </div>
 
