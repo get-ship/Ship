@@ -58,7 +58,7 @@ export default function TiptapEditor({
 
     const editor = useEditor({
         extensions: [
-            StarterKit.configure({ codeBlock: false }),
+            StarterKit.configure({ codeBlock: false, link: false }),
             Placeholder.configure({ placeholder: placeholder ?? '' }),
             Table.configure({ resizable: false }),
             TableRow, TableCell, TableHeader,
