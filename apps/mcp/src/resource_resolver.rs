@@ -76,11 +76,7 @@ pub async fn resolve_resource_uri(
         let jobs = load_jobs_at(dir).unwrap_or_default();
         return jobs.get(id).and_then(|j| serde_json::to_string_pretty(j).ok());
     }
-    if uri == "ship://mesh" {
-        // Mesh is in-memory; resource resolver returns empty array
-        // when no shared registry is available.
-        return Some("[]".to_string());
-    }
+    // ship://mesh deferred to v0.3 — needs SharedMeshRegistry wired into resolver
     if uri == "ship://log" {
         return match read_log(dir) {
             Ok(content) if content.trim().is_empty() || content.trim() == "# Project Log" => {

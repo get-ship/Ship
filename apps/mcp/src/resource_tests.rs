@@ -176,17 +176,7 @@ async fn jobs_get_reflects_status_changes() {
     assert_eq!(parsed["worktree"].as_str(), Some("/tmp/wt"));
 }
 
-// ── Mesh resource (in-memory registry) ───────────────────────────
-
-#[tokio::test(flavor = "multi_thread")]
-async fn mesh_returns_empty_when_no_agents() {
-    let (_tmp, ship_dir) = setup_with_db();
-    let result = resolve("ship://mesh", &ship_dir).await.unwrap();
-    let parsed: serde_json::Value = serde_json::from_str(&result)
-        .expect("ship://mesh must return valid JSON");
-    assert!(parsed.is_array(), "ship://mesh must return a JSON array");
-    assert!(parsed.as_array().unwrap().is_empty());
-}
+// ship://mesh deferred to v0.3 — needs SharedMeshRegistry wired into resolver
 
 // ── Skill resources with variable state ──────────────────────────
 

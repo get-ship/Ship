@@ -14,7 +14,6 @@ pub fn static_resource_list() -> Vec<rmcp::model::Annotated<RawResource>> {
         RawResource::new("ship://modes", "Modes").no_annotation(),
         RawResource::new("ship://providers", "Providers").no_annotation(),
         RawResource::new("ship://jobs", "Jobs").no_annotation(),
-        RawResource::new("ship://mesh", "Agent Mesh").no_annotation(),
         RawResource::new("ship://log", "Project Log").no_annotation(),
         RawResource::new("ship://events", "Event Stream").no_annotation(),
     ]
