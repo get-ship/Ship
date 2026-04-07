@@ -187,7 +187,7 @@ export function useSkillsLibrary(): UseSkillsLibraryReturn {
 
   return {
     skills,
-    isLoading: pullQuery.isLoading,
+    isLoading: pullQuery.isLoading || projectQuery.isLoading,
     isConnected,
   }
 }

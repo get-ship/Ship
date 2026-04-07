@@ -1,6 +1,7 @@
 import { createContext, useContext, useState, useCallback, useEffect, type ReactNode } from 'react'
 
 const DRAWER_LS_KEY = 'ship-studio:right-drawer-open'
+const VIEWED_WS_LS_KEY = 'ship-studio:viewed-workspace'
 
 function readDrawerInitial(): boolean {
   try {
@@ -8,6 +9,14 @@ function readDrawerInitial(): boolean {
     return stored === 'true'
   } catch {
     return false
+  }
+}
+
+function readViewedWorkspaceInitial(): string | null {
+  try {
+    return localStorage.getItem(VIEWED_WS_LS_KEY)
+  } catch {
+    return null
   }
 }
 
@@ -34,7 +43,14 @@ export function StudioShellProvider({ children }: { children: ReactNode }) {
   const [commandPaletteOpen, setCommandPaletteOpen] = useState(false)
   const [fileSidebarOpen, setFileSidebarOpen] = useState(true)
   const [drawerOpen, setDrawerOpen] = useState(readDrawerInitial)
-  const [viewedWorkspace, setViewedWorkspace] = useState<string | null>(null)
+  const [viewedWorkspace, _setViewedWorkspace] = useState<string | null>(readViewedWorkspaceInitial)
+  const setViewedWorkspace = useCallback((branch: string | null) => {
+    _setViewedWorkspace(branch)
+    try {
+      if (branch) localStorage.setItem(VIEWED_WS_LS_KEY, branch)
+      else localStorage.removeItem(VIEWED_WS_LS_KEY)
+    } catch { /* ignore */ }
+  }, [])
 
   const toggleCommandPalette = useCallback(() => setCommandPaletteOpen((p) => !p), [])
   const toggleFileSidebar = useCallback(() => setFileSidebarOpen((p) => !p), [])

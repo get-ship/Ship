@@ -33,12 +33,17 @@ export function WorkspaceIndicator() {
     ? workspaces.find((w) => w.branch === viewedWorkspace)
     : workspaces.find((w) => String(w.status).toLowerCase() === 'active')
 
-  // Auto-set viewedWorkspace on first load
+  // Auto-set viewedWorkspace on first load, or reset if stale (branch no longer exists)
   useEffect(() => {
     if (!viewedWorkspace && currentWs) {
       setViewedWorkspace(currentWs.branch)
+      return
     }
-  }, [viewedWorkspace, currentWs, setViewedWorkspace])
+    if (viewedWorkspace && workspaces.length > 0 && !workspaces.some((w) => w.branch === viewedWorkspace)) {
+      const fallback = workspaces.find((w) => String(w.status).toLowerCase() === 'active')
+      setViewedWorkspace(fallback?.branch ?? workspaces[0]?.branch ?? null)
+    }
+  }, [viewedWorkspace, currentWs, workspaces, setViewedWorkspace])
 
   if (!currentWs && connected) return null
 

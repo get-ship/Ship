@@ -70,6 +70,14 @@ export function usePullAgents() {
             description?: string
             skills?: { refs: string[] }
             providers?: string[]
+            mcp_servers?: Array<{ name: string; command: string; url?: string | null }>
+            rules?: Array<{ file_name: string; content: string }>
+            hooks?: unknown[]
+            model?: string | null
+            env?: Record<string, string> | null
+            available_models?: string[]
+            agent_limits?: Record<string, unknown> | null
+            provider_settings?: Record<string, Record<string, unknown>>
           }>
         }
       }
@@ -113,9 +121,18 @@ export function usePullAgents() {
             version: '0.0.0',
           },
           skills: resolvedSkills,
-          mcpServers: [],
-          rules: [],
-          hooks: [],
+          mcpServers: (a.mcp_servers ?? []).map((s) => ({
+            name: s.name,
+            command: s.command,
+            url: s.url ?? null,
+          })),
+          rules: a.rules ?? [],
+          hooks: a.hooks ?? [],
+          model: a.model ?? null,
+          env: a.env ?? null,
+          available_models: a.available_models ?? [],
+          agent_limits: a.agent_limits ?? null,
+          provider_settings: a.provider_settings ?? {},
         }
       })
 
