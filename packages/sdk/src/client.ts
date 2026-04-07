@@ -2,7 +2,7 @@
  * ShipClient — typed, capability-scoped client for the Ship daemon.
  *
  * Framework-agnostic. Uses @tanstack/query-core for caching internally.
- * Works over direct fetch (same-origin) or the bridge (cross-origin).
+ * Works over direct fetch with CORS + token auth.
  *
  * Usage:
  *   const ship = new ShipClient({ token: '...' })
@@ -126,7 +126,7 @@ export class ShipClient {
 
   async isConnected(): Promise<boolean> {
     try {
-      const res = await fetch(`${this.baseUrl}/bridge/health`, {
+      const res = await fetch(`${this.baseUrl}/api/runtime/views`, {
         signal: AbortSignal.timeout(2000),
       })
       return res.ok

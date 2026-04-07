@@ -162,7 +162,7 @@ export function SessionCanvas({
               ref={iframeRef}
               srcDoc={themedContent}
               title="Session canvas"
-              sandbox="allow-same-origin allow-scripts"
+              sandbox="allow-scripts"
               className="absolute inset-0 w-full h-full border-0 bg-white"
               onLoad={postTheme}
             />

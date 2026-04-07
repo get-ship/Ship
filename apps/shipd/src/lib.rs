@@ -5,7 +5,6 @@
 
 pub mod actor_api;
 pub mod auth;
-pub mod bridge;
 mod connections;
 mod handler;
 pub mod human_webhook;
@@ -260,14 +259,8 @@ pub async fn run_network(host: String, port: u16) -> Result<()> {
             auth::auth_middleware(auth_token.clone(), req, next)
         }));
 
-    // Bridge routes — outside auth (the bridge page itself handles auth via cookies)
-    let bridge_routes = Router::new()
-        .route("/bridge", axum::routing::get(bridge::bridge_page))
-        .route("/bridge/health", axum::routing::get(bridge::bridge_health));
-
     let app = Router::new()
         .merge(authenticated_routes)
-        .merge(bridge_routes)
         .layer(axum::middleware::from_fn(cors_middleware));
 
     let addr = format!("{host}:{port}");

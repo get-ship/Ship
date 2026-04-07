@@ -76,6 +76,9 @@ export function ViewHost({ html, workspaceId }: ViewHostProps) {
       ref={iframeRef}
       srcDoc={html}
       title="Ship View"
+      // allow-same-origin needed: runtime views make fetch calls to the daemon.
+      // These are trusted views served by the daemon, not user-generated content.
+      // Third-party extensions should use a stricter sandbox.
       sandbox="allow-same-origin allow-scripts"
       className="w-full h-full border-0"
       onLoad={postTheme}

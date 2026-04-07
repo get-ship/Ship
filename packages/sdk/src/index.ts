@@ -15,7 +15,4 @@ export type {
   ShipEvent,
 } from './client'
 
-export { ShipBridge } from './bridge'
-export type { BridgeOptions, BridgeResponse } from './bridge'
-
 export type * from './types'
