@@ -1,72 +1,60 @@
 /**
  * ShipClient — typed, capability-scoped client for the Ship daemon.
  *
- * Framework-agnostic. Works over direct fetch (same-origin) or
- * the bridge (cross-origin). Used by Studio, extensions, and
- * third-party apps.
+ * Framework-agnostic. Uses @tanstack/query-core for caching internally.
+ * Works over direct fetch (same-origin) or the bridge (cross-origin).
  *
- * Security model:
- * - Every client authenticates with a scoped token
- * - Tokens declare capabilities (read:workspaces, write:jobs, etc.)
- * - The daemon enforces capabilities per-request
- * - Apps register via `ship register-app` to get a token
- * - Studio gets a full-access token from the daemon on startup
+ * Usage:
+ *   const ship = new ShipClient({ token: '...' })
+ *   const q = ship.query('/runtime/workspaces')
+ *   q.subscribe(state => console.log(state.data))
  */
 
-import type { Workspace, JobRecord, Skill } from './types'
+import { QueryClient, QueryObserver } from '@tanstack/query-core'
 
 // ── Capabilities ────────────────────────────────────────────
 
-/** Granular capability scopes. Apps declare what they need. */
 export type Capability =
-  // Read scopes
-  | 'read:workspaces'
-  | 'read:agents'
-  | 'read:skills'
-  | 'read:jobs'
-  | 'read:events'
-  | 'read:artifacts'
-  | 'read:git'
-  | 'read:settings'
-  // Write scopes
-  | 'write:agents'
-  | 'write:skills'
-  | 'write:jobs'
-  | 'write:artifacts'
-  | 'write:settings'
-  // Runtime scopes
-  | 'emit:events'
-  | 'subscribe:events'
-  // Custom namespace (extension-defined)
+  | 'read:workspaces' | 'read:agents' | 'read:skills' | 'read:jobs'
+  | 'read:events' | 'read:artifacts' | 'read:git' | 'read:settings'
+  | 'write:agents' | 'write:skills' | 'write:jobs'
+  | 'write:artifacts' | 'write:settings'
+  | 'emit:events' | 'subscribe:events'
   | `namespace:${string}`
+  | '*'
 
-// ── Client options ──────────────────────────────────────────
+// ── Options ─────────────────────────────────────────────────
 
 export interface ShipClientOptions {
   /** Daemon base URL. Default: http://localhost:9315 */
   baseUrl?: string
-  /** Auth token. Required for all requests. */
+  /** Auth token. */
   token?: string
-  /** Requested capabilities. Validated by daemon on first request. */
+  /** Requested capabilities. */
   capabilities?: Capability[]
   /** Request timeout in ms. Default: 10000 */
   timeout?: number
+  /** Default stale time in ms. Default: 5000 */
+  staleTime?: number
 }
 
-// ── Query / Subscription types ──────────────────────────────
+// ── Query types ─────────────────────────────────────────────
 
-export type QueryStatus = 'idle' | 'loading' | 'success' | 'error'
-
-export interface QueryState<T> {
+export interface ShipQueryState<T> {
   data: T | undefined
-  error: Error | undefined
-  status: QueryStatus
+  error: Error | null
   isLoading: boolean
-  refetch: () => Promise<void>
+  isSuccess: boolean
+  isError: boolean
+  refetch: () => void
 }
 
-type Listener<T> = (state: QueryState<T>) => void
+type ShipQueryListener<T> = (state: ShipQueryState<T>) => void
 type Unsubscribe = () => void
+
+export interface ShipQuery<T> extends ShipQueryState<T> {
+  subscribe: (fn: ShipQueryListener<T>) => Unsubscribe
+}
 
 // ── SSE Event types ─────────────────────────────────────────
 
@@ -89,8 +77,8 @@ export class ShipClient {
   private token: string | undefined
   private capabilities: Capability[]
   private timeout: number
-  private cache = new Map<string, QueryState<unknown>>()
-  private listeners = new Map<string, Set<Listener<unknown>>>()
+  private staleTime: number
+  private queryClient: QueryClient
   private eventSource: EventSource | null = null
   private eventListeners = new Set<EventListener>()
   private namespaceListeners = new Map<string, Set<EventListener>>()
@@ -100,16 +88,26 @@ export class ShipClient {
     this.token = options?.token
     this.capabilities = options?.capabilities ?? []
     this.timeout = options?.timeout ?? 10000
+    this.staleTime = options?.staleTime ?? 5000
+
+    this.queryClient = new QueryClient({
+      defaultOptions: {
+        queries: {
+          staleTime: this.staleTime,
+          gcTime: 5 * 60 * 1000, // 5 min garbage collection
+          retry: 1,
+          refetchOnWindowFocus: false,
+        },
+      },
+    })
   }
 
   // ── Auth ────────────────────────────────────────────────
 
-  /** Set the auth token. Called after registration or daemon handshake. */
   setToken(token: string): void {
     this.token = token
   }
 
-  /** Try to read the token from the daemon's bootstrap endpoint. */
   async authenticate(): Promise<boolean> {
     try {
       const res = await fetch(`${this.baseUrl}/auth/handshake`, {
@@ -126,7 +124,6 @@ export class ShipClient {
     }
   }
 
-  /** Check if the daemon is reachable. */
   async isConnected(): Promise<boolean> {
     try {
       const res = await fetch(`${this.baseUrl}/bridge/health`, {
@@ -183,77 +180,88 @@ export class ShipClient {
     return this.fetch<T>(path, { method: 'DELETE' })
   }
 
-  // ── Queries (framework-agnostic reactive cache) ─────────
+  // ── Queries ─────────────────────────────────────────────
 
   /**
-   * Create a reactive query. Returns current state + subscribe for updates.
-   * Inspired by TanStack Query core — same pattern, no framework dependency.
+   * Create a reactive query with built-in caching.
+   *
+   * Deduplicates concurrent requests. Stale-while-revalidate.
+   * Auto-invalidated by SSE events. Subscribe from any framework.
    */
-  query<T>(key: string, fetcher: () => Promise<T>): QueryState<T> & { subscribe: (fn: Listener<T>) => Unsubscribe } {
-    const existing = this.cache.get(key) as QueryState<T> | undefined
+  query<T>(path: string, options?: { staleTime?: number }): ShipQuery<T> {
+    const queryKey = ['ship', path]
 
-    const state: QueryState<T> = existing ?? {
-      data: undefined,
-      error: undefined,
-      status: 'idle',
-      isLoading: false,
-      refetch: async () => { await run() },
+    const observer = new QueryObserver<T, Error>(this.queryClient, {
+      queryKey,
+      queryFn: () => this.get<T>(path),
+      staleTime: options?.staleTime ?? this.staleTime,
+    })
+
+    const currentResult = observer.getCurrentResult()
+
+    const query: ShipQuery<T> = {
+      data: currentResult.data,
+      error: currentResult.error,
+      isLoading: currentResult.isLoading,
+      isSuccess: currentResult.isSuccess,
+      isError: currentResult.isError,
+      refetch: () => { void this.queryClient.invalidateQueries({ queryKey }) },
+      subscribe: (fn: ShipQueryListener<T>): Unsubscribe => {
+        return observer.subscribe((result) => {
+          query.data = result.data
+          query.error = result.error
+          query.isLoading = result.isLoading
+          query.isSuccess = result.isSuccess
+          query.isError = result.isError
+          fn(query)
+        })
+      },
     }
 
-    if (!this.listeners.has(key)) {
-      this.listeners.set(key, new Set())
-    }
+    return query
+  }
 
-    const notify = () => {
-      const fns = this.listeners.get(key)
-      if (fns) fns.forEach((fn) => fn(state as QueryState<unknown>))
-    }
+  /**
+   * Execute a mutation — write operation that invalidates related queries.
+   */
+  async mutate<T = unknown>(
+    method: 'POST' | 'PUT' | 'DELETE',
+    path: string,
+    body?: unknown,
+    invalidateKeys?: string[],
+  ): Promise<T> {
+    const result = method === 'DELETE'
+      ? await this.del<T>(path)
+      : method === 'PUT'
+        ? await this.put<T>(path, body)
+        : await this.post<T>(path, body)
 
-    const run = async () => {
-      state.status = 'loading'
-      state.isLoading = true
-      notify()
-
-      try {
-        state.data = await fetcher()
-        state.error = undefined
-        state.status = 'success'
-      } catch (e) {
-        state.error = e instanceof Error ? e : new Error(String(e))
-        state.status = 'error'
-      } finally {
-        state.isLoading = false
-        this.cache.set(key, state as QueryState<unknown>)
-        notify()
+    if (invalidateKeys) {
+      for (const key of invalidateKeys) {
+        void this.queryClient.invalidateQueries({ queryKey: ['ship', key] })
       }
     }
 
-    // Auto-fetch on first access
-    if (state.status === 'idle') {
-      void run()
-    }
-
-    return {
-      ...state,
-      subscribe: (fn: Listener<T>) => {
-        const fns = this.listeners.get(key)!
-        fns.add(fn as Listener<unknown>)
-        return () => { fns.delete(fn as Listener<unknown>) }
-      },
-    }
+    return result
   }
 
-  /** Invalidate a cached query, triggering refetch for subscribers. */
-  invalidate(key: string): void {
-    const cached = this.cache.get(key)
-    if (cached) {
-      void cached.refetch()
-    }
+  /** Invalidate a query by path, forcing refetch on next access. */
+  invalidate(path: string): void {
+    void this.queryClient.invalidateQueries({ queryKey: ['ship', path] })
+  }
+
+  /** Invalidate all queries matching a prefix. */
+  invalidatePrefix(prefix: string): void {
+    void this.queryClient.invalidateQueries({
+      predicate: (q) => {
+        const key = q.queryKey as string[]
+        return key[0] === 'ship' && key[1]?.startsWith(prefix)
+      },
+    })
   }
 
   // ── SSE Events ──────────────────────────────────────────
 
-  /** Subscribe to the daemon's SSE event stream. */
   connectEvents(): void {
     if (this.eventSource) return
 
@@ -263,31 +271,22 @@ export class ShipClient {
     this.eventSource.addEventListener('ship.event', (e: MessageEvent) => {
       try {
         const event = JSON.parse(e.data as string) as ShipEvent
-        // Broadcast to all listeners
         this.eventListeners.forEach((fn) => fn(event))
-        // Broadcast to namespace listeners
         for (const [ns, fns] of this.namespaceListeners) {
           if (event.event_type.startsWith(ns)) {
             fns.forEach((fn) => fn(event))
           }
         }
-        // Auto-invalidate relevant queries
         this.autoInvalidate(event)
       } catch { /* malformed */ }
     })
-
-    this.eventSource.onerror = () => {
-      // Reconnection is automatic with EventSource
-    }
   }
 
-  /** Subscribe to all events. */
   onEvent(fn: EventListener): Unsubscribe {
     this.eventListeners.add(fn)
     return () => { this.eventListeners.delete(fn) }
   }
 
-  /** Subscribe to events in a specific namespace. */
   onNamespace(namespace: string, fn: EventListener): Unsubscribe {
     if (!this.namespaceListeners.has(namespace)) {
       this.namespaceListeners.set(namespace, new Set())
@@ -297,7 +296,6 @@ export class ShipClient {
     return () => { fns.delete(fn) }
   }
 
-  /** Disconnect from SSE. */
   disconnectEvents(): void {
     this.eventSource?.close()
     this.eventSource = null
@@ -305,32 +303,22 @@ export class ShipClient {
 
   private autoInvalidate(event: ShipEvent): void {
     const t = event.event_type
-    if (t.startsWith('workspace.')) this.invalidate('workspaces')
-    if (t.startsWith('session.')) this.invalidate('sessions')
-    if (t.startsWith('job.')) this.invalidate('jobs')
-    if (t.startsWith('mesh.') || t.startsWith('actor.')) this.invalidate('agents')
-  }
-
-  // ── Convenience methods (typed) ─────────────────────────
-
-  workspaces() {
-    return this.query<{ workspaces: Workspace[] }>('workspaces', () =>
-      this.get('/runtime/workspaces'),
-    )
-  }
-
-  jobs() {
-    return this.query<{ jobs: JobRecord[] }>('jobs', () =>
-      this.get('/runtime/jobs'),
-    )
+    if (t.startsWith('workspace.')) this.invalidatePrefix('/runtime/workspaces')
+    if (t.startsWith('session.')) {
+      this.invalidatePrefix('/runtime/workspaces')
+      this.invalidatePrefix('/runtime/sessions')
+    }
+    if (t.startsWith('job.')) this.invalidatePrefix('/runtime/jobs')
+    if (t.startsWith('mesh.') || t.startsWith('actor.')) {
+      this.invalidatePrefix('/runtime/agents')
+    }
   }
 
   // ── Cleanup ─────────────────────────────────────────────
 
   destroy(): void {
     this.disconnectEvents()
-    this.cache.clear()
-    this.listeners.clear()
+    this.queryClient.clear()
     this.eventListeners.clear()
     this.namespaceListeners.clear()
   }

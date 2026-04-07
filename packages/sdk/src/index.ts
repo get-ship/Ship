@@ -1,21 +1,17 @@
 // @ship/sdk — framework-agnostic client for the Ship daemon
 //
-// For Studio (same-origin): direct fetch, full access
-// For extensions (iframe): postMessage bridge, scoped access
-// For third-party apps: direct fetch with registered token
-//
 // Usage:
 //   import { ShipClient } from '@ship/sdk'
 //   const ship = new ShipClient({ token: '...' })
-//   const ws = ship.workspaces()
-//   ws.subscribe(state => console.log(state.data))
+//   const q = ship.query('/runtime/workspaces')
+//   q.subscribe(state => console.log(state.data))
 
 export { ShipClient } from './client'
 export type {
   ShipClientOptions,
   Capability,
-  QueryState,
-  QueryStatus,
+  ShipQuery,
+  ShipQueryState,
   ShipEvent,
 } from './client'
 
