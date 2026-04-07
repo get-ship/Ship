@@ -18,7 +18,7 @@ export function LandingHero() {
         {/* Badge */}
         <div className="mb-6 inline-flex items-center gap-1.5 rounded-full border border-primary/20 bg-primary/8 px-3.5 py-1.5 text-[11px] font-medium text-primary">
           <Package className="size-3" />
-          v0.1.0 — now in public beta
+          v0.2.0 — runtime, pipelines, and studio
         </div>
 
         {/* Headline */}
@@ -29,9 +29,9 @@ export function LandingHero() {
         </h1>
 
         {/* Subhead */}
-        <p className="mx-auto mb-8 max-w-lg text-lg leading-relaxed text-muted-foreground">
-          Turn your agents into building blocks, scoped with the permissions
-          and tools they need to succeed. Nothing more.
+        <p className="mx-auto mb-8 max-w-xl text-lg leading-relaxed text-muted-foreground">
+          Ship changes the way you work with AI. Focus your attention
+          on what matters. Give agents everything they need to succeed.
         </p>
 
         {/* CTAs */}
@@ -54,7 +54,7 @@ export function LandingHero() {
           </a>
         </div>
         <p className="text-[11px] text-muted-foreground/50">
-          Free and open source. No account required.
+          Free and open source. Local-first. No account required.
         </p>
       </div>
 

@@ -3,23 +3,23 @@ import { ArrowRight } from 'lucide-react'
 const STEPS = [
   {
     num: '1',
-    title: 'Define your agent',
+    title: 'Define your agents',
     description:
-      'Pick skills, MCP servers, permissions, and rules in Ship Studio. Or import from an existing CLAUDE.md.',
+      'Pick skills, permissions, and MCP servers in Studio. Or install a ready-made config from the registry with ',
+    cmd: 'ship add',
+    descriptionAfter: '.',
   },
   {
     num: '2',
-    title: 'Compile',
+    title: 'Dispatch work',
     description:
-      'One click generates config files for every provider you target. CLAUDE.md, .mcp.json, GEMINI.md — all at once.',
+      'Create jobs from the Studio UI or CLI. Ship creates worktrees, assigns pipelines, and launches agents in isolated workspaces.',
   },
   {
     num: '3',
-    title: 'Activate',
-    description: 'Run ',
-    cmd: 'ship use <agent>',
-    descriptionAfter:
-      ' to compile and emit config files on demand. Switch agents instantly.',
+    title: 'Review and ship',
+    description:
+      'Agents produce artifacts. You review, annotate, and promote. When it looks right, merge. The human stays in control.',
   },
 ]
 
@@ -28,10 +28,10 @@ export function HowItWorks() {
     <section className="mx-auto max-w-[62rem] px-6 pb-20 sm:px-10">
       <div className="mb-12 text-center">
         <h2 className="mb-2 font-display text-3xl font-extrabold sm:text-4xl">
-          Three steps to configured agents
+          How you work with Ship
         </h2>
         <p className="text-[15px] text-muted-foreground">
-          From zero to fully configured in under a minute.
+          Define. Dispatch. Review. The human-agent workflow.
         </p>
       </div>
 
@@ -54,11 +54,6 @@ export function HowItWorks() {
               )}
               {step.descriptionAfter}
             </p>
-            {step.num === '3' && (
-              <div className="mt-2.5 rounded-md border border-border/60 bg-background/60 px-2.5 py-2 font-mono text-[10px] text-emerald-400">
-                $ ship use web-lane
-              </div>
-            )}
             {/* Arrow connector */}
             {i < STEPS.length - 1 && (
               <div className="pointer-events-none absolute -right-3 top-1/2 hidden -translate-y-1/2 text-border/40 sm:block">

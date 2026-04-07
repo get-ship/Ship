@@ -3,6 +3,9 @@ import {
   Code2,
   Zap,
   Lock,
+  Layers,
+  Briefcase,
+  MessageSquare,
 } from 'lucide-react'
 import type { LucideIcon } from 'lucide-react'
 
@@ -16,36 +19,52 @@ interface FeatureCard {
 
 const FEATURES: FeatureCard[] = [
   {
-    icon: Package,
+    icon: Code2,
     iconColor: 'text-primary',
     iconBg: 'bg-primary/10',
-    title: 'The package manager for agents',
+    title: 'Compiler',
     description:
-      'Install skills, MCP servers, and agent configs from the registry. Compose them like dependencies. Share what you build. Version everything.',
+      'Define agents once. Ship compiles to native config for Claude Code, Cursor, Gemini CLI, Codex, and more. Skills, permissions, MCP servers — all in sync across providers.',
   },
   {
-    icon: Lock,
-    iconColor: 'text-blue-400',
-    iconBg: 'bg-blue-500/10',
-    title: 'Granular permissions',
+    icon: Package,
+    iconColor: 'text-violet-400',
+    iconBg: 'bg-violet-500/10',
+    title: 'Registry',
     description:
-      'Control which tools each agent can use — allow, ask, or deny at the individual tool level. Scope MCP servers per-agent with different access for different roles.',
+      'Install skills, MCP servers, and agent configs with ship add. Compose them like dependencies. Share what you build. The package manager for agent capabilities.',
+  },
+  {
+    icon: Layers,
+    iconColor: 'text-sky-400',
+    iconBg: 'bg-sky-500/10',
+    title: 'Artifacts',
+    description:
+      'Every agent gets a staging area. Specs, mockups, reports, screenshots — review what agents produce before it ships. Annotate canvases. Promote artifacts to your project.',
+  },
+  {
+    icon: Briefcase,
+    iconColor: 'text-emerald-400',
+    iconBg: 'bg-emerald-500/10',
+    title: 'Jobs & Pipelines',
+    description:
+      'Dispatch work to agents with structure. Define reusable pipelines as YAML DAGs — test, implement, review, merge. Track progress in real time. Stop jobs that go sideways.',
   },
   {
     icon: Zap,
-    iconColor: 'text-emerald-400',
-    iconBg: 'bg-emerald-500/10',
-    title: 'Ship Studio',
+    iconColor: 'text-amber-400',
+    iconBg: 'bg-amber-500/10',
+    title: 'Skills',
     description:
-      'Configure agents visually with live preview. See the compiled output for every provider as you edit. Add skills, set permissions, write rules — all in the browser.',
+      'Markdown templates with variable interpolation. Skills are instructions that make agents actually good at specific tasks. Install from the registry or write your own in the IDE.',
   },
   {
-    icon: Code2,
-    iconColor: 'text-violet-400',
-    iconBg: 'bg-violet-500/10',
-    title: 'Every provider, one config',
+    icon: MessageSquare,
+    iconColor: 'text-rose-400',
+    iconBg: 'bg-rose-500/10',
+    title: 'Agent Chat',
     description:
-      'First-class support for the settings developers use daily across Claude Code, Cursor, Gemini, and Codex. Full schema pass-through for everything else.',
+      'Annotate artifacts and send feedback directly to the workspace agent. See progress updates in real time. The human side of the human-agent loop.',
   },
 ]
 
@@ -75,49 +94,49 @@ export function FeatureGrid() {
     <section className="mx-auto max-w-[62rem] px-6 pb-20 sm:px-10">
       <div className="mb-12 text-center">
         <h2 className="mb-2 font-display text-3xl font-extrabold sm:text-4xl">
-          What Ship gives your agents
+          The platform, not just the tool
         </h2>
-        <p className="text-[15px] text-muted-foreground">
-          Configuration as code. Permissions as policy. Distribution as a service.
+        <p className="mx-auto max-w-lg text-[15px] text-muted-foreground">
+          Compiler, runtime, and GUI working together. Every piece is a view in Ship Studio — open in your browser, served from localhost.
         </p>
       </div>
 
-      <div className="grid gap-4 sm:grid-cols-2">
+      <div className="grid gap-4 sm:grid-cols-2 lg:grid-cols-3">
         {FEATURES.map((f) => (
           <div
             key={f.title}
-            className="rounded-xl border border-border/60 bg-card/30 p-7 transition hover:border-border/80"
+            className="rounded-xl border border-border/60 bg-card/30 p-6 transition hover:border-border/80"
           >
             <div
-              className={`mb-3.5 flex size-10 items-center justify-center rounded-lg ${f.iconBg}`}
+              className={`mb-3 flex size-9 items-center justify-center rounded-lg ${f.iconBg}`}
             >
-              <f.icon className={`size-5 ${f.iconColor}`} />
+              <f.icon className={`size-4.5 ${f.iconColor}`} />
             </div>
-            <h3 className="mb-1.5 text-lg font-bold">{f.title}</h3>
-            <p className="text-[13px] leading-relaxed text-muted-foreground">
+            <h3 className="mb-1.5 text-base font-bold">{f.title}</h3>
+            <p className="text-[12px] leading-relaxed text-muted-foreground">
               {f.description}
             </p>
           </div>
         ))}
+      </div>
 
-        {/* Wide card: Tool scoping */}
-        <div className="rounded-xl border border-border/60 bg-card/30 p-7 transition hover:border-border/80 sm:col-span-2">
-          <div className="flex flex-col gap-6 sm:flex-row sm:items-start">
-            <div className="flex-1">
-              <div className="mb-3.5 flex size-10 items-center justify-center rounded-lg bg-primary/10">
-                <Lock className="size-5 text-primary" />
-              </div>
-              <h3 className="mb-1.5 text-lg font-bold">
-                Per-tool scoping in action
-              </h3>
-              <p className="text-[13px] leading-relaxed text-muted-foreground">
-                Same MCP server, different tool sets per agent. A reviewer gets
-                read access. A developer gets write. Nobody gets delete. Every
-                tool individually controlled.
-              </p>
+      {/* Wide card: Permissions */}
+      <div className="mt-4 rounded-xl border border-border/60 bg-card/30 p-7 transition hover:border-border/80">
+        <div className="flex flex-col gap-6 sm:flex-row sm:items-start">
+          <div className="flex-1">
+            <div className="mb-3.5 flex size-10 items-center justify-center rounded-lg bg-blue-500/10">
+              <Lock className="size-5 text-blue-400" />
             </div>
-            <ToolScopeDemo />
+            <h3 className="mb-1.5 text-lg font-bold">
+              Granular permissions
+            </h3>
+            <p className="text-[13px] leading-relaxed text-muted-foreground">
+              Same MCP server, different tool sets per agent. A reviewer gets
+              read access. A developer gets write. Nobody gets delete. Every
+              tool individually controlled.
+            </p>
           </div>
+          <ToolScopeDemo />
         </div>
       </div>
     </section>
@@ -135,7 +154,6 @@ function ToolScopeDemo() {
           key={row.name}
           className="flex items-center gap-2 py-1 text-[11px]"
         >
-          {/* Toggle pill */}
           <div
             className={`relative h-3.5 w-6 shrink-0 rounded-full ${TOGGLE_STYLES[row.state]}`}
           >
@@ -145,7 +163,6 @@ function ToolScopeDemo() {
               }`}
             />
           </div>
-          {/* Name */}
           <span
             className={`flex-1 font-mono text-[10px] ${
               row.state === 'deny'
@@ -155,7 +172,6 @@ function ToolScopeDemo() {
           >
             {row.name}
           </span>
-          {/* Badge */}
           <span
             className={`rounded px-1.5 py-0.5 text-[8px] font-medium ${BADGE_STYLES[row.state]}`}
           >
