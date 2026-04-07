@@ -2,7 +2,7 @@
 // Theme is synced both via srcdoc injection (initial) and postMessage (updates).
 
 import { useRef, useEffect, useCallback, useMemo } from 'react'
-import { MousePointerClick, Trash2, Download, Square, Maximize, X } from 'lucide-react'
+import { Download, Square, X } from 'lucide-react'
 import { AnnotationOverlay } from './AnnotationOverlay'
 import { getResolvedTheme, injectThemeListener, injectThemeAttribute, wrapContent } from './canvas-helpers'
 import type { Annotation } from './types'
@@ -23,8 +23,6 @@ interface SessionCanvasProps {
   onAddClick: (selector: string, text: string, note: string, x: number, y: number) => void
   onAddBox: (rect: [number, number, number, number], elements: string[], note: string) => void
   onAddAction: (action: string, text: string) => void
-  onToggleAnnotationMode: () => void
-  onClearAnnotations: () => void
   onExport: () => void
 }
 
@@ -44,8 +42,6 @@ export function SessionCanvas({
   onAddClick,
   onAddBox,
   onAddAction,
-  onToggleAnnotationMode,
-  onClearAnnotations,
   onExport,
 }: SessionCanvasProps) {
   const iframeRef = useRef<HTMLIFrameElement>(null)
@@ -73,59 +69,22 @@ export function SessionCanvas({
 
   return (
     <div className="flex flex-1 flex-col min-h-0 min-w-0">
-      {/* Toolbar */}
-      <div className="flex items-center gap-1.5 border-b border-border/60 px-3 py-1.5 shrink-0 bg-card/50">
-        <button
-          onClick={onToggleAnnotationMode}
-          className={`flex items-center gap-1.5 rounded-md px-2.5 py-1 text-[11px] font-medium transition ${
-            annotationMode
-              ? 'bg-primary text-primary-foreground'
-              : 'text-muted-foreground hover:bg-muted hover:text-foreground'
-          }`}
-        >
-          {annotationMode ? (
-            <>
-              <Square className="size-3" />
-              Annotating
-            </>
-          ) : (
-            <>
-              <MousePointerClick className="size-3" />
-              Annotate
-            </>
-          )}
-        </button>
-
-        {annotations.length > 0 && (
-          <>
-            <span className="text-[10px] text-muted-foreground tabular-nums">
-              {annotations.length} note{annotations.length !== 1 ? 's' : ''}
-            </span>
-            <div className="flex-1" />
-            <button
-              onClick={onExport}
-              className="flex items-center gap-1 rounded-md px-2 py-1 text-[11px] text-muted-foreground hover:bg-muted hover:text-foreground"
-            >
-              <Download className="size-3" />
-              Export
-            </button>
-            <button
-              onClick={onClearAnnotations}
-              className="flex items-center gap-1 rounded-md px-2 py-1 text-[11px] text-muted-foreground hover:bg-destructive/10 hover:text-destructive"
-            >
-              <Trash2 className="size-3" />
-              Clear
-            </button>
-          </>
-        )}
-        <button
-          onClick={() => document.documentElement.requestFullscreen?.()}
-          className="flex items-center gap-1 rounded-md px-2 py-1 text-[11px] text-muted-foreground hover:bg-muted hover:text-foreground"
-          title="Fullscreen (Esc to exit)"
-        >
-          <Maximize className="size-3" />
-        </button>
-      </div>
+      {/* Export toolbar — only visible when annotations exist */}
+      {annotations.length > 0 && (
+        <div className="flex items-center gap-1.5 border-b border-border/60 px-3 py-1.5 shrink-0 bg-card/50">
+          <span className="text-[10px] text-muted-foreground tabular-nums">
+            {annotations.length} note{annotations.length !== 1 ? 's' : ''}
+          </span>
+          <div className="flex-1" />
+          <button
+            onClick={onExport}
+            className="flex items-center gap-1 rounded-md px-2 py-1 text-[11px] text-muted-foreground hover:bg-muted hover:text-foreground"
+          >
+            <Download className="size-3" />
+            Export
+          </button>
+        </div>
+      )}
 
       {/* Canvas tabs */}
       {openTabs.length > 1 && (

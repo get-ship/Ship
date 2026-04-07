@@ -1,35 +1,49 @@
-// Zoomable image viewer with stepped zoom controls and pointer-drag pan.
+// Zoomable image viewer with stepped zoom controls, pointer-drag pan, and annotation support.
 
 import { useState, useRef, useCallback } from 'react'
 import { Image as ImageIcon, ZoomIn, ZoomOut, RotateCcw } from 'lucide-react'
-import type { SessionFile } from './types'
+import { AnnotationMarker } from './AnnotationMarker'
+import { AnnotationInput } from './AnnotationInput'
+import type { SessionFile, ClickAnnotation } from './types'
 
 const ZOOM_STEPS = [0.25, 0.5, 0.75, 1, 1.5, 2, 3, 4]
 const DEFAULT_ZOOM = 1
 
-export function ImageViewer({ file, content }: { file: SessionFile; content: string }) {
+interface ImageViewerProps {
+  file: SessionFile
+  content: string
+  annotationMode?: boolean
+  annotations?: ClickAnnotation[]
+  activeAnnotationId?: string | null
+  onAddAnnotation?: (x: number, y: number, note: string) => void
+  onAnnotationClick?: (id: string) => void
+  onRemoveAnnotation?: (id: string) => void
+}
+
+interface PendingAnnotation { x: number; y: number }
+
+export function ImageViewer({
+  file, content,
+  annotationMode, annotations, activeAnnotationId,
+  onAddAnnotation, onAnnotationClick, onRemoveAnnotation,
+}: ImageViewerProps) {
   const [scale, setScale] = useState(DEFAULT_ZOOM)
   const [pan, setPan] = useState({ x: 0, y: 0 })
+  const [pending, setPending] = useState<PendingAnnotation | null>(null)
   const dragging = useRef<{ startX: number; startY: number; panX: number; panY: number } | null>(null)
   const containerRef = useRef<HTMLDivElement>(null)
 
-  const zoomIn = useCallback(() => {
-    setScale((s) => ZOOM_STEPS.find((z) => z > s) ?? s)
-  }, [])
-  const zoomOut = useCallback(() => {
-    setScale((s) => [...ZOOM_STEPS].reverse().find((z) => z < s) ?? s)
-  }, [])
-  const resetZoom = useCallback(() => {
-    setScale(DEFAULT_ZOOM)
-    setPan({ x: 0, y: 0 })
-  }, [])
+  const zoomIn = useCallback(() => setScale((s) => ZOOM_STEPS.find((z) => z > s) ?? s), [])
+  const zoomOut = useCallback(() => setScale((s) => [...ZOOM_STEPS].reverse().find((z) => z < s) ?? s), [])
+  const resetZoom = useCallback(() => { setScale(DEFAULT_ZOOM); setPan({ x: 0, y: 0 }) }, [])
 
   const onPointerDown = useCallback((e: React.PointerEvent) => {
+    if (annotationMode) return
     if (scale <= 1) return
     e.preventDefault()
     dragging.current = { startX: e.clientX, startY: e.clientY, panX: pan.x, panY: pan.y }
     ;(e.target as HTMLElement).setPointerCapture(e.pointerId)
-  }, [scale, pan])
+  }, [scale, pan, annotationMode])
 
   const onPointerMove = useCallback((e: React.PointerEvent) => {
     if (!dragging.current) return
@@ -40,6 +54,14 @@ export function ImageViewer({ file, content }: { file: SessionFile; content: str
   }, [])
 
   const onPointerUp = useCallback(() => { dragging.current = null }, [])
+
+  const handleAnnotationClick = useCallback((e: React.MouseEvent) => {
+    if (!annotationMode || !onAddAnnotation) return
+    if (pending) { setPending(null); return }
+    const rect = containerRef.current?.getBoundingClientRect()
+    if (!rect) return
+    setPending({ x: e.clientX - rect.left, y: e.clientY - rect.top })
+  }, [annotationMode, onAddAnnotation, pending])
 
   const isFit = scale === DEFAULT_ZOOM && pan.x === 0 && pan.y === 0
   const pct = Math.round(scale * 100)
@@ -52,6 +74,9 @@ export function ImageViewer({ file, content }: { file: SessionFile; content: str
       </div>
     )
   }
+
+  const hasAnnotations = annotations && annotations.length > 0
+  const showOverlay = annotationMode || hasAnnotations
 
   return (
     <div className="flex flex-col h-full">
@@ -74,7 +99,9 @@ export function ImageViewer({ file, content }: { file: SessionFile; content: str
       </div>
       <div
         ref={containerRef}
-        className={`flex-1 overflow-auto bg-black/5 dark:bg-black/20 ${scale > 1 ? 'cursor-grab active:cursor-grabbing' : ''}`}
+        className={`flex-1 overflow-auto bg-black/5 dark:bg-black/20 relative ${
+          annotationMode ? 'cursor-crosshair' : scale > 1 ? 'cursor-grab active:cursor-grabbing' : ''
+        }`}
         onPointerDown={onPointerDown}
         onPointerMove={onPointerMove}
         onPointerUp={onPointerUp}
@@ -91,6 +118,38 @@ export function ImageViewer({ file, content }: { file: SessionFile; content: str
             }}
           />
         </div>
+
+        {/* Annotation overlay — pointer capture + markers */}
+        {showOverlay && (
+          <div
+            className={`absolute inset-0 z-10 ${annotationMode ? 'pointer-events-auto' : 'pointer-events-none'}`}
+            onClick={annotationMode ? handleAnnotationClick : undefined}
+          >
+            {annotations?.map((ann, i) => (
+              <AnnotationMarker
+                key={ann.id}
+                annotation={ann}
+                index={i}
+                isActive={activeAnnotationId === ann.id}
+                scrollTop={0}
+                scrollLeft={0}
+                onClick={() => onAnnotationClick?.(ann.id)}
+                onRemove={() => onRemoveAnnotation?.(ann.id)}
+              />
+            ))}
+
+            {pending && onAddAnnotation && (
+              <AnnotationInput
+                pending={{ type: 'click', x: pending.x, y: pending.y }}
+                onConfirm={(note) => {
+                  onAddAnnotation(pending.x, pending.y, note)
+                  setPending(null)
+                }}
+                onCancel={() => setPending(null)}
+              />
+            )}
+          </div>
+        )}
       </div>
     </div>
   )

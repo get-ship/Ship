@@ -1,35 +1,65 @@
 // Viewer for non-HTML artifacts: markdown (tiptap editor),
-// images (click-to-zoom), JSON, and text files.
+// images (click-to-zoom + annotation), JSON, text, and URL artifacts.
 
-import { useMemo, useState, lazy, Suspense } from 'react'
-import { FileText, File, Save, ChevronDown, ChevronRight, MonitorPlay, ExternalLink } from 'lucide-react'
+import { useMemo, useState, useCallback, lazy, Suspense } from 'react'
+import { File, Save, ChevronDown, ChevronRight, MonitorPlay, ExternalLink } from 'lucide-react'
 import type { FrontmatterEntry } from '@ship/primitives'
 import { MarkdownPreview } from '#/features/studio/skills-ide/MarkdownPreview'
 import { ImageViewer } from './ImageViewer'
+import { DAEMON_BASE_URL } from '#/lib/daemon-config'
+import type { SessionFile, ClickAnnotation } from './types'
 
 const MarkdownEditor = lazy(() =>
   import('@ship/primitives').then((m) => ({ default: m.MarkdownEditor }))
 )
-import type { SessionFile } from './types'
 
 interface ArtifactViewerProps {
   file: SessionFile
   content: string
-  /** Draft content (from useSessionDrafts). Falls back to `content` if undefined. */
   draftContent?: string
-  /** Whether the draft is dirty */
   isDirty?: boolean
-  /** Called when the user edits content */
   onContentChange?: (path: string, content: string) => void
-  /** Called when the user saves (Cmd+S or button) */
   onSave?: (path: string) => void
-  /** Called when user highlights text and adds a comment */
   onComment?: (selectedText: string, comment: string) => void
+  annotationMode?: boolean
+  annotations?: ClickAnnotation[]
+  activeAnnotationId?: string | null
+  onAddAnnotation?: (x: number, y: number, note: string) => void
+  onAnnotationClick?: (id: string) => void
+  onRemoveAnnotation?: (id: string) => void
 }
 
-// ── Frontmatter Bar ──
+// ── Frontmatter utilities ──
 
-function FrontmatterBar({ entries }: { entries: FrontmatterEntry[] }) {
+/** Replace or insert a key: value line within the frontmatter block of a markdown document. */
+function patchFrontmatterInContent(content: string, key: string, value: string): string {
+  const FM_RE = /^[\s\uFEFF\xA0]*(\+\+\+|---)[^\n]*\n([\s\S]*?)\n[ \t]*\1[^\n]*(\n|$)/
+  const m = FM_RE.exec(content)
+  if (!m) return content
+  const delim = m[1]
+  const rawFm = m[2]
+  const rest = content.slice(m[0].length)
+  const lines = rawFm.split('\n')
+  const keyRe = new RegExp(`^${key.replace(/[.*+?^${}()|[\]\\]/g, '\\$&')}\\s*:`)
+  const idx = lines.findIndex((l) => keyRe.test(l))
+  if (idx >= 0) {
+    if (value === '') lines.splice(idx, 1)
+    else lines[idx] = `${key}: ${value}`
+  } else if (value !== '') {
+    lines.push(`${key}: ${value}`)
+  }
+  return `${delim}\n${lines.join('\n')}\n${delim}\n${rest}`
+}
+
+// ── Editable Frontmatter Bar ──
+
+function FrontmatterBar({
+  entries,
+  onUpdateEntry,
+}: {
+  entries: FrontmatterEntry[]
+  onUpdateEntry?: (key: string, value: string) => void
+}) {
   const [expanded, setExpanded] = useState(false)
   if (entries.length === 0) return null
   return (
@@ -40,14 +70,25 @@ function FrontmatterBar({ entries }: { entries: FrontmatterEntry[] }) {
       >
         {expanded ? <ChevronDown className="size-3" /> : <ChevronRight className="size-3" />}
         <span className="font-medium">Frontmatter</span>
-        <span className="text-muted-foreground/60">({entries.length} {entries.length === 1 ? 'field' : 'fields'})</span>
+        <span className="text-muted-foreground/60">
+          ({entries.length} {entries.length === 1 ? 'field' : 'fields'})
+        </span>
       </button>
       {expanded && (
-        <div className="px-4 pb-2 space-y-0.5">
+        <div className="px-4 pb-2 space-y-1">
           {entries.map((entry) => (
-            <div key={entry.key} className="flex gap-2 text-[11px]">
-              <span className="text-muted-foreground font-mono shrink-0">{entry.key}:</span>
-              <span className="text-foreground/80 truncate">{entry.value}</span>
+            <div key={entry.key} className="flex gap-2 text-[11px] items-baseline">
+              <span className="text-muted-foreground font-mono shrink-0 pt-1">{entry.key}:</span>
+              {onUpdateEntry ? (
+                <input
+                  className="flex-1 bg-transparent border-b border-border/40 focus:border-primary/60 outline-none text-foreground/80 py-0.5 min-w-0"
+                  defaultValue={entry.value.replace(/^['"]|['"]$/g, '')}
+                  onBlur={(e) => onUpdateEntry(entry.key, e.currentTarget.value)}
+                  onKeyDown={(e) => { if (e.key === 'Enter') e.currentTarget.blur() }}
+                />
+              ) : (
+                <span className="text-foreground/80 truncate">{entry.value}</span>
+              )}
             </div>
           ))}
         </div>
@@ -56,7 +97,7 @@ function FrontmatterBar({ entries }: { entries: FrontmatterEntry[] }) {
   )
 }
 
-// ── Markdown Editor (tiptap with draft support) ──
+// ── Markdown editor (tiptap) with inline frontmatter editing ──
 
 function MarkdownFileEditor({
   file, content, draftContent, isDirty, onContentChange, onSave, onComment,
@@ -73,14 +114,15 @@ function MarkdownFileEditor({
   const displayContent = draftContent ?? content
   const [fmEntries, setFmEntries] = useState<FrontmatterEntry[]>([])
 
+  const handleUpdateFrontmatter = useCallback((key: string, value: string) => {
+    if (!onContentChange) return
+    onContentChange(file.path, patchFrontmatterInContent(displayContent, key, value))
+  }, [displayContent, file.path, onContentChange])
+
   if (!editable) {
-    // Read-only fallback
     return (
       <div className="flex flex-col h-full">
-        <div className="flex items-center gap-2 px-4 py-2 border-b border-border/60 shrink-0 bg-card/30">
-          <FileText className="size-3.5 text-emerald-500" />
-          <span className="text-xs font-medium text-foreground">{file.name}</span>
-        </div>
+        <FrontmatterBar entries={fmEntries} />
         <div className="flex-1 overflow-auto">
           <MarkdownPreview content={displayContent} />
         </div>
@@ -90,12 +132,8 @@ function MarkdownFileEditor({
 
   return (
     <div className="flex flex-col h-full">
-      <div className="flex items-center gap-2 px-4 py-2 border-b border-border/60 shrink-0 bg-card/30">
-        <FileText className="size-3.5 text-emerald-500" />
-        <span className="text-xs font-medium text-foreground">{file.name}</span>
-        {isDirty && <span className="size-1.5 rounded-full bg-primary" title="Unsaved changes" />}
-        <div className="flex-1" />
-        {isDirty && onSave && (
+      {isDirty && onSave && (
+        <div className="flex items-center justify-end px-4 py-1 border-b border-border/60 shrink-0 bg-card/30">
           <button
             onClick={() => onSave(file.path)}
             className="flex items-center gap-1 rounded px-2 py-0.5 text-[11px] font-medium text-primary hover:bg-primary/10 transition"
@@ -103,9 +141,9 @@ function MarkdownFileEditor({
             <Save className="size-3" />
             Save
           </button>
-        )}
-      </div>
-      <FrontmatterBar entries={fmEntries} />
+        </div>
+      )}
+      <FrontmatterBar entries={fmEntries} onUpdateEntry={handleUpdateFrontmatter} />
       <div className="flex-1 overflow-hidden">
         <Suspense fallback={<div className="p-4 text-xs text-muted-foreground">Loading editor...</div>}>
           <MarkdownEditor
@@ -122,7 +160,7 @@ function MarkdownFileEditor({
   )
 }
 
-// ── JSON Viewer ──
+// ── JSON viewer ──
 
 function JsonViewer({ content, file }: { content: string; file: SessionFile }) {
   const formatted = useMemo(() => {
@@ -143,7 +181,7 @@ function JsonViewer({ content, file }: { content: string; file: SessionFile }) {
   )
 }
 
-// ── Text Viewer ──
+// ── Text viewer ──
 
 function TextViewer({ content, file }: { content: string; file: SessionFile }) {
   return (
@@ -159,7 +197,19 @@ function TextViewer({ content, file }: { content: string; file: SessionFile }) {
   )
 }
 
-// ── URL Viewer (iframe for dev tools) ──
+// ── URL viewer — attempts to launch the underlying service ──
+
+async function tryLaunchUrl(url: string): Promise<void> {
+  try {
+    const res = await fetch(`${DAEMON_BASE_URL}/api/runtime/open-url`, {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ url }),
+    })
+    if (res.ok) return
+  } catch { /* daemon not available */ }
+  window.open(url, '_blank', 'noopener,noreferrer')
+}
 
 function UrlViewer({ file, content }: { file: SessionFile; content: string }) {
   const url = content.trim()
@@ -179,15 +229,13 @@ function UrlViewer({ file, content }: { file: SessionFile; content: string }) {
         <MonitorPlay className="size-3.5 text-indigo-500" />
         <span className="text-xs font-medium text-foreground">{file.name}</span>
         <div className="flex-1" />
-        <a
-          href={url}
-          target="_blank"
-          rel="noopener noreferrer"
+        <button
+          onClick={() => tryLaunchUrl(url)}
           className="flex items-center gap-1 rounded px-2 py-0.5 text-[11px] text-muted-foreground hover:text-foreground hover:bg-muted transition"
         >
           <ExternalLink className="size-3" />
           Open
-        </a>
+        </button>
       </div>
       <iframe
         src={url}
@@ -200,8 +248,25 @@ function UrlViewer({ file, content }: { file: SessionFile; content: string }) {
 
 // ── Router ──
 
-export function ArtifactViewer({ file, content, draftContent, isDirty, onContentChange, onSave, onComment }: ArtifactViewerProps) {
-  if (file.type === 'image') return <ImageViewer file={file} content={content} />
+export function ArtifactViewer({
+  file, content, draftContent, isDirty, onContentChange, onSave, onComment,
+  annotationMode, annotations, activeAnnotationId,
+  onAddAnnotation, onAnnotationClick, onRemoveAnnotation,
+}: ArtifactViewerProps) {
+  if (file.type === 'image') {
+    return (
+      <ImageViewer
+        file={file}
+        content={content}
+        annotationMode={annotationMode}
+        annotations={annotations}
+        activeAnnotationId={activeAnnotationId}
+        onAddAnnotation={onAddAnnotation}
+        onAnnotationClick={onAnnotationClick}
+        onRemoveAnnotation={onRemoveAnnotation}
+      />
+    )
+  }
   if (file.type === 'url') return <UrlViewer file={file} content={content} />
   if (file.type === 'markdown') {
     return (

@@ -3,6 +3,7 @@ import { useState, useCallback, useEffect } from 'react'
 import { useQuery } from '@tanstack/react-query'
 import { useDaemon } from '#/features/studio/hooks/useDaemonData'
 import { DAEMON_BASE_URL } from '#/lib/daemon-config'
+import type { ClickAnnotation } from '#/features/studio/session/types'
 import { SessionCanvas } from '#/features/studio/session/SessionCanvas'
 import { ArtifactViewer } from '#/features/studio/session/ArtifactViewer'
 import { DiffViewer } from '#/features/studio/session/DiffViewer'
@@ -196,8 +197,6 @@ function SessionPage() {
                     onAddClick={ann.addClickAnnotation}
                     onAddBox={ann.addBoxAnnotation}
                     onAddAction={ann.addActionAnnotation}
-                    onToggleAnnotationMode={() => ann.setAnnotationMode(!ann.annotationMode)}
-                    onClearAnnotations={ann.clearAnnotations}
                     onExport={handleExport}
                   />
                 )}
@@ -210,6 +209,12 @@ function SessionPage() {
                     onContentChange={drafts.updateContent}
                     onSave={drafts.saveFile}
                     onComment={handleComment}
+                    annotationMode={ann.annotationMode}
+                    annotations={ann.annotations.filter((a): a is ClickAnnotation => a.type === 'click')}
+                    activeAnnotationId={ann.activeId}
+                    onAddAnnotation={(x, y, note) => ann.addClickAnnotation('', '', note, x, y)}
+                    onAnnotationClick={ann.toggleActiveId}
+                    onRemoveAnnotation={ann.removeAnnotation}
                   />
                 )}
                 {showDiff && (

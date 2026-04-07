@@ -93,7 +93,7 @@ function groupByNamespace(files: SessionFile[]): {
           files: subFiles.sort(stableFileSort),
           latestAt: Math.max(...subFiles.map((f) => f.modifiedAt)),
         }))
-        .sort((a, b) => a.name.localeCompare(b.name))
+        .sort((a, b) => b.latestAt - a.latestAt)
       return {
         name,
         subGroups,
@@ -101,7 +101,7 @@ function groupByNamespace(files: SessionFile[]): {
         latestAt: Math.max(...nsFiles.map((f) => f.modifiedAt)),
       }
     })
-    .sort((a, b) => a.name.localeCompare(b.name))
+    .sort((a, b) => b.latestAt - a.latestAt)
 
   return { todo, groups, root: root.sort(stableFileSort) }
 }
