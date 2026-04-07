@@ -84,45 +84,6 @@ impl JobExecutor for TmuxExecutor {
             "job-dispatch: terminal launch attempted"
         );
 
-        // Monitor tmux session in background — fire job.completed when it exits.
-        let monitor_session = tmux_session.clone();
-        let monitor_slug = ctx.slug.clone();
-        std::thread::spawn(move || {
-            loop {
-                std::thread::sleep(std::time::Duration::from_secs(10));
-                let alive = std::process::Command::new("tmux")
-                    .args(["has-session", "-t", &monitor_session])
-                    .status()
-                    .map(|s| s.success())
-                    .unwrap_or(false);
-                if !alive {
-                    tracing::info!(
-                        slug = monitor_slug,
-                        session = monitor_session,
-                        "tmux-monitor: session exited, firing stop hook"
-                    );
-                    let home = dirs::home_dir().unwrap_or_default().join(".ship");
-                    if let (Ok(port_str), Ok(token)) = (
-                        std::fs::read_to_string(home.join("daemon.port")),
-                        std::fs::read_to_string(home.join("daemon.token")),
-                    ) {
-                        let port = port_str.trim().to_string();
-                        let token = token.trim().to_string();
-                        let _ = std::process::Command::new("curl")
-                            .args([
-                                "-sf", "-X", "POST",
-                                &format!("http://127.0.0.1:{port}/api/runtime/jobs/end"),
-                                "-H", "Content-Type: application/json",
-                                "-H", &format!("Authorization: Bearer {token}"),
-                                "-d", &format!("{{\"slug\":\"{monitor_slug}\"}}"),
-                            ])
-                            .status();
-                    }
-                    break;
-                }
-            }
-        });
-
         Ok(ExecutorHandle {
             pid: None,
             inner: Box::new(tmux_session),
