@@ -38,6 +38,9 @@ impl ShipServer {
         "get_job",
         "read_session_file",
         "list_session_files",
+        "log_progress",
+        "update_job",
+        "write_session_file",
     ];
 
     #[cfg(feature = "unstable")]

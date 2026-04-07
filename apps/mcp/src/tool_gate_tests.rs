@@ -18,7 +18,7 @@ fn lead_defaults_extend_worker() {
     let worker = ShipServer::default_tools_for_role("worker");
     let lead = ShipServer::default_tools_for_role("lead");
     for tool in worker {
-        assert!(lead.contains(tool), "lead should inherit worker tool {tool}");
+        assert!(lead.contains(&tool), "lead should inherit worker tool {tool}");
     }
     assert!(lead.contains(&"create_job"), "lead missing create_job");
 }
@@ -29,7 +29,7 @@ fn commander_defaults_extend_lead() {
     let commander = ShipServer::default_tools_for_role("commander");
     for tool in lead {
         assert!(
-            commander.contains(tool),
+            commander.contains(&tool),
             "commander should inherit lead tool {tool}"
         );
     }
