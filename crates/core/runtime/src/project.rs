@@ -737,10 +737,11 @@ fn auto_test_global_dir() -> Option<PathBuf> {
 
 fn is_likely_rust_test_binary(path: &Path) -> bool {
     let path_str = path.to_string_lossy();
-    let in_test_deps = path_str.contains("/target/debug/deps/")
-        || path_str.contains("/target/release/deps/")
-        || path_str.contains("\\target\\debug\\deps\\")
-        || path_str.contains("\\target\\release\\deps\\");
+    // Match both standard target dirs and custom CARGO_TARGET_DIR layouts
+    let in_test_deps = path_str.contains("/debug/deps/")
+        || path_str.contains("/release/deps/")
+        || path_str.contains("\\debug\\deps\\")
+        || path_str.contains("\\release\\deps\\");
     if !in_test_deps {
         return false;
     }

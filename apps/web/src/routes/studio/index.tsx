@@ -1,8 +1,12 @@
+import { useState } from 'react'
 import { createFileRoute, Link } from '@tanstack/react-router'
-import { Layers, Users, Briefcase, GitBranch, Circle } from 'lucide-react'
-import { useDaemon } from '#/features/studio/hooks/useDaemon'
+import { Layers, Users, Briefcase, GitBranch, Circle, Plus, Trash2, Loader2 } from 'lucide-react'
+import { Button } from '@ship/primitives'
+import { useDaemon, useDeleteWorkspace, useActivateWorkspace } from '#/features/studio/hooks/useDaemon'
 import { useGitStatus } from '#/features/studio/session/useGitInfo'
 import { useSessionFiles } from '#/features/studio/session/useSessionFiles'
+import { CreateWorkspaceDialog } from '#/features/studio/CreateWorkspaceDialog'
+import { toast } from 'sonner'
 
 export const Route = createFileRoute('/studio/')({
   component: DashboardPage,
@@ -13,10 +17,26 @@ function DashboardPage() {
   const { workspaces, agents, jobs, connected } = useDaemon()
   const { data: gitStatus } = useGitStatus()
   const { files } = useSessionFiles()
+  const deleteMutation = useDeleteWorkspace()
+  const activateMutation = useActivateWorkspace()
+  const [createOpen, setCreateOpen] = useState(false)
+  const [confirmDelete, setConfirmDelete] = useState<string | null>(null)
 
   const activeWs = workspaces.find((w) => String(w.status).toLowerCase() === 'active')
   const runningJobs = jobs.filter((j) => j.status === 'dispatched')
   const pendingJobs = jobs.filter((j) => j.status === 'pending')
+
+  const handleDelete = (branch: string) => {
+    deleteMutation.mutate(branch, {
+      onSuccess: () => {
+        toast.success(`Workspace "${branch}" deleted`)
+        setConfirmDelete(null)
+      },
+      onError: (err) => {
+        toast.error(err instanceof Error ? err.message : 'Failed to delete workspace')
+      },
+    })
+  }
 
   return (
     <div className="flex-1 overflow-auto">
@@ -77,26 +97,79 @@ function DashboardPage() {
         </div>
 
         {/* Workspaces */}
-        {workspaces.length > 0 && (
-          <div>
-            <h2 className="text-xs font-medium text-muted-foreground uppercase tracking-wider mb-3">Workspaces</h2>
+        <div>
+          <div className="flex items-center justify-between mb-3">
+            <h2 className="text-xs font-medium text-muted-foreground uppercase tracking-wider">Workspaces</h2>
+            <Button
+              variant="ghost"
+              size="sm"
+              className="h-6 gap-1 text-xs"
+              onClick={() => setCreateOpen(true)}
+            >
+              <Plus className="size-3" />
+              New
+            </Button>
+          </div>
+          {workspaces.length > 0 ? (
             <div className="space-y-1">
               {workspaces.map((ws) => {
                 const status = String(ws.status).toLowerCase()
+                const isActive = status === 'active'
+                const isDeleting = deleteMutation.isPending && confirmDelete === ws.branch
                 return (
-                  <div key={ws.branch} className="flex items-center gap-3 px-3 py-2 rounded-lg hover:bg-muted/30 transition-colors">
-                    <span className={`size-2 rounded-full shrink-0 ${status === 'active' ? 'bg-emerald-500' : 'bg-muted-foreground/30'}`} />
+                  <div key={ws.branch} className="flex items-center gap-3 px-3 py-2 rounded-lg hover:bg-muted/30 transition-colors group">
+                    <span className={`size-2 rounded-full shrink-0 ${isActive ? 'bg-emerald-500' : 'bg-muted-foreground/30'}`} />
                     <span className="text-sm font-medium flex-1 truncate">{ws.branch}</span>
                     {ws.active_agent && (
                       <span className="text-[10px] text-muted-foreground/60">{ws.active_agent}</span>
+                    )}
+                    {!isActive && (
+                      <button
+                        onClick={() => activateMutation.mutate(ws.branch)}
+                        disabled={activateMutation.isPending}
+                        className="text-[10px] text-muted-foreground/40 hover:text-foreground opacity-0 group-hover:opacity-100 transition-opacity"
+                      >
+                        Activate
+                      </button>
+                    )}
+                    {confirmDelete === ws.branch ? (
+                      <span className="flex items-center gap-1.5">
+                        <button
+                          onClick={() => handleDelete(ws.branch)}
+                          disabled={isDeleting}
+                          className="text-[10px] text-destructive hover:text-destructive/80"
+                        >
+                          {isDeleting ? <Loader2 className="size-3 animate-spin" /> : 'Confirm'}
+                        </button>
+                        <button
+                          onClick={() => setConfirmDelete(null)}
+                          className="text-[10px] text-muted-foreground/40 hover:text-foreground"
+                        >
+                          Cancel
+                        </button>
+                      </span>
+                    ) : (
+                      <button
+                        onClick={() => setConfirmDelete(ws.branch)}
+                        className="text-muted-foreground/30 hover:text-destructive opacity-0 group-hover:opacity-100 transition-opacity"
+                        title="Delete workspace"
+                      >
+                        <Trash2 className="size-3.5" />
+                      </button>
                     )}
                   </div>
                 )
               })}
             </div>
-          </div>
-        )}
+          ) : (
+            <p className="text-xs text-muted-foreground/50 px-3 py-4 text-center">
+              No workspaces yet
+            </p>
+          )}
+        </div>
       </div>
+
+      <CreateWorkspaceDialog open={createOpen} onOpenChange={setCreateOpen} />
     </div>
   )
 }

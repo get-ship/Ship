@@ -222,3 +222,54 @@ export function useActivateWorkspace() {
     },
   })
 }
+
+export interface CreateWorkspaceInput {
+  branch: string
+  agent_id: string
+  base_branch?: string
+}
+
+export function useCreateWorkspace() {
+  const queryClient = useQueryClient()
+  return useMutation({
+    mutationFn: async (input: CreateWorkspaceInput) => {
+      const res = await fetch(
+        `${DAEMON_BASE_URL}/api/supervisor/workspaces/${encodeURIComponent(input.branch)}/start`,
+        {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({
+            agent_id: input.agent_id,
+            base_branch: input.base_branch ?? 'main',
+            open_terminal: false,
+          }),
+        },
+      )
+      if (!res.ok) {
+        const body = await res.json().catch(() => null) as { error?: string } | null
+        throw new Error(body?.error ?? `create workspace: ${res.status}`)
+      }
+      return res.json()
+    },
+    onSuccess: () => {
+      void queryClient.invalidateQueries({ queryKey: daemonKeys.workspaces })
+    },
+  })
+}
+
+export function useDeleteWorkspace() {
+  const queryClient = useQueryClient()
+  return useMutation({
+    mutationFn: async (branch: string) => {
+      const res = await fetch(
+        `${DAEMON_BASE_URL}/api/workspaces/${encodeURIComponent(branch)}`,
+        { method: 'DELETE' },
+      )
+      if (!res.ok) throw new Error(`delete workspace: ${res.status}`)
+      return res.json()
+    },
+    onSuccess: () => {
+      void queryClient.invalidateQueries({ queryKey: daemonKeys.workspaces })
+    },
+  })
+}
