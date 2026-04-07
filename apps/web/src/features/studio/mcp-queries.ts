@@ -5,6 +5,7 @@ import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import { mcpKeys } from '#/lib/query-keys'
 import { DAEMON_BASE_URL } from '#/lib/daemon-config'
 import { useDaemon } from '#/features/studio/hooks/useDaemon'
+import { useStudioShell } from '#/features/studio/StudioShellContext'
 import type {
   PullResponse,
   PullSkill,
@@ -15,7 +16,9 @@ import type {
 // ── Helpers ────────────────────────────────────────────────────────────
 
 function useActiveWorkspaceId(): string | null {
+  const { viewedWorkspace } = useStudioShell()
   const { workspaces } = useDaemon()
+  if (viewedWorkspace) return viewedWorkspace
   return workspaces.find((w) => String(w.status).toLowerCase() === 'active')?.branch ?? null
 }
 

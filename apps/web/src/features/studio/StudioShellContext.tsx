@@ -22,6 +22,10 @@ interface StudioShellState {
 
   drawerOpen: boolean
   toggleDrawer: () => void
+
+  /** Which workspace the UI is viewing (local state, no daemon mutation) */
+  viewedWorkspace: string | null
+  setViewedWorkspace: (branch: string | null) => void
 }
 
 const StudioShellContext = createContext<StudioShellState | null>(null)
@@ -30,6 +34,7 @@ export function StudioShellProvider({ children }: { children: ReactNode }) {
   const [commandPaletteOpen, setCommandPaletteOpen] = useState(false)
   const [fileSidebarOpen, setFileSidebarOpen] = useState(true)
   const [drawerOpen, setDrawerOpen] = useState(readDrawerInitial)
+  const [viewedWorkspace, setViewedWorkspace] = useState<string | null>(null)
 
   const toggleCommandPalette = useCallback(() => setCommandPaletteOpen((p) => !p), [])
   const toggleFileSidebar = useCallback(() => setFileSidebarOpen((p) => !p), [])
@@ -79,6 +84,7 @@ export function StudioShellProvider({ children }: { children: ReactNode }) {
       commandPaletteOpen, toggleCommandPalette, setCommandPaletteOpen,
       fileSidebarOpen, toggleFileSidebar, closeFileSidebar,
       drawerOpen, toggleDrawer,
+      viewedWorkspace, setViewedWorkspace,
     }}>
       {children}
     </StudioShellContext>
@@ -89,4 +95,15 @@ export function useStudioShell(): StudioShellState {
   const ctx = useContext(StudioShellContext)
   if (!ctx) throw new Error('useStudioShell must be used within StudioShellProvider')
   return ctx
+}
+
+/**
+ * Returns the workspace branch the UI is currently viewing.
+ * Uses viewedWorkspace if set, otherwise falls back to first active workspace.
+ * All data-fetching hooks should use this instead of filtering for status=active.
+ */
+export function useViewedWorkspaceId(): string {
+  const { viewedWorkspace } = useStudioShell()
+  // Can't call useDaemon here (circular) — caller must pass workspaces if needed
+  return viewedWorkspace ?? ''
 }

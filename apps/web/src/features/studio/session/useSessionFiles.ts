@@ -4,6 +4,7 @@ import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import { useCallback } from 'react'
 import { DAEMON_BASE_URL } from '#/lib/daemon-config'
 import { useDaemon } from '#/features/studio/hooks/useDaemon'
+import { useStudioShell } from '#/features/studio/StudioShellContext'
 import { sessionKeys } from './query-keys'
 import type { SessionFile, UploadResult } from './types'
 
@@ -16,9 +17,11 @@ function toFileType(raw: string): SessionFile['type'] {
 }
 
 function useActiveWorkspaceId(): string {
+  const { viewedWorkspace } = useStudioShell()
   const { workspaces } = useDaemon()
+  if (viewedWorkspace) return viewedWorkspace
   const active = workspaces
-    .filter((w) => w.status === 'active')
+    .filter((w) => String(w.status).toLowerCase() === 'active')
     .sort((a, b) => (b.last_activated_at ?? '').localeCompare(a.last_activated_at ?? ''))
   return active[0]?.branch ?? ''
 }
