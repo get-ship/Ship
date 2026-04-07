@@ -93,23 +93,34 @@ function RegistryVisual() {
 function ArtifactsVisual() {
   return (
     <div className="w-full max-w-xs">
-      {/* Mini canvas */}
       <div className="rounded-lg border border-border/40 bg-card/50 p-3 relative">
         <div className="text-[10px] font-medium mb-2 text-foreground/70">design-spec.html</div>
-        <div className="rounded bg-muted/30 h-24 relative">
-          <div className="absolute inset-3 rounded bg-muted/40" />
-          {/* Annotation */}
+        {/* Mini rendered HTML with real-looking content */}
+        <div className="rounded bg-background/60 border border-border/20 p-3 relative" style={{ minHeight: 100 }}>
+          <div className="text-[9px] font-display font-bold text-foreground/80 mb-1">Navigation Redesign</div>
+          <div className="text-[8px] text-muted-foreground/50 mb-2">Rail-based layout with workspace scoping</div>
+          <div className="flex gap-1.5 mb-2">
+            <div className="h-5 w-8 rounded-sm bg-primary/15 border border-primary/20" />
+            <div className="flex-1 space-y-1">
+              <div className="h-2 w-3/4 rounded-full bg-muted/50" />
+              <div className="h-2 w-1/2 rounded-full bg-muted/30" />
+            </div>
+          </div>
+          <div className="h-6 rounded bg-muted/20 border border-border/10" />
+          {/* Annotation marker */}
           <div className="absolute top-2 right-2 size-5 rounded-full bg-primary flex items-center justify-center text-[8px] font-bold text-primary-foreground shadow-[0_0_0_2px] shadow-primary/25">
             1
           </div>
+          {/* Annotation note */}
+          <div className="absolute top-8 right-2 bg-primary/10 border border-primary/20 rounded px-1.5 py-0.5 text-[7px] text-primary max-w-[80px]">
+            "Move this to the rail"
+          </div>
         </div>
-        {/* FAB */}
         <div className="mt-2 flex items-center justify-center gap-1">
           <span className="px-2 py-0.5 rounded-full text-[8px] text-muted-foreground/50 border border-border/30">Annotate</span>
           <span className="px-2 py-0.5 rounded-full text-[8px] font-medium text-primary bg-primary/10 border border-primary/20">Send to Agent</span>
         </div>
       </div>
-      {/* Promotion indicator */}
       <div className="flex items-center gap-2 mt-2 px-1">
         <span className="size-1.5 rounded-full bg-emerald-500/60" />
         <span className="text-[9px] text-muted-foreground/50">Promoted to project</span>
@@ -225,9 +236,9 @@ export function FeatureSections() {
       <Section>
         <SplitRow visual={<CompilerVisual />}>
           <Tag>Compiler</Tag>
-          <Title>One config, every provider</Title>
+          <Title>Build a roster of specialists</Title>
           <Desc>
-            Write your agent setup once in <code className="text-xs bg-muted px-1 py-0.5 rounded font-mono">.ship/</code> — Ship emits native files for Claude Code, Cursor, Gemini, Codex, and OpenCode. Switch providers without rewriting anything.
+            Each agent gets its own tools, permissions, and instructions. Ship compiles the whole roster to native config for every provider you use.
           </Desc>
         </SplitRow>
       </Section>
@@ -235,9 +246,9 @@ export function FeatureSections() {
       <Section>
         <SplitRow visual={<RegistryVisual />} reverse>
           <Tag>Registry</Tag>
-          <Title>A trusted source for agent capabilities</Title>
+          <Title>Install with one command</Title>
           <Desc>
-            Skills, MCP servers, and full agent configs — versioned, audited, installable with one command.
+            Skills, MCP servers, and agent configs — versioned, audited, and ready to use.
           </Desc>
         </SplitRow>
       </Section>
@@ -247,7 +258,7 @@ export function FeatureSections() {
           <Tag>Artifacts & Annotations</Tag>
           <Title>Review before it ships</Title>
           <Desc>
-            Agents produce work into a staging area. You annotate canvases, comment on diffs, and promote artifacts to the project when they're ready. Nothing lands without your sign-off.
+            Agents produce work into a staging area. Draw on canvases, comment on diffs, promote to the project when it's ready. Nothing lands without your sign-off.
           </Desc>
         </SplitRow>
       </Section>
@@ -257,7 +268,7 @@ export function FeatureSections() {
           <Tag>Jobs & Pipelines</Tag>
           <Title>Structured dispatch</Title>
           <Desc>
-            Define workflows as YAML DAGs. Each job gets its own worktree and agent process. Track progress in real time. Kill switch when needed.
+            Define workflows as YAML DAGs. Each job gets its own worktree and agent process. Track progress in real time.
           </Desc>
         </SplitRow>
       </Section>
@@ -265,9 +276,9 @@ export function FeatureSections() {
       <Section>
         <SplitRow visual={<SkillsVisual />}>
           <Tag>Skills</Tag>
-          <Title>An open standard for agent instructions</Title>
+          <Title>The open standard for agent instructions</Title>
           <Desc>
-            Composable markdown templates that travel with your agents across providers. Install from the registry, write in the IDE, share across teams.
+            Ship extends Agent Skills with template variables, artifacts, and a full IDE. Install from the registry or write your own.
           </Desc>
         </SplitRow>
       </Section>
@@ -275,9 +286,9 @@ export function FeatureSections() {
       <Section>
         <SplitRow visual={<PermissionsVisual />} reverse>
           <Tag>Permissions</Tag>
-          <Title>Per-tool, per-agent control</Title>
+          <Title>Every tool, individually scoped</Title>
           <Desc>
-            Same MCP server, different access per agent. A reviewer gets read. A developer gets write. Nobody gets delete. Every tool individually scoped.
+            Control exactly which tools each agent can use — allow, ask, or deny at the individual tool level across every MCP server.
           </Desc>
         </SplitRow>
       </Section>
