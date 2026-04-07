@@ -299,6 +299,125 @@ fn claude_channel_formats_studio_annotation() {
     assert!(content.contains("Needs loading state"));
 }
 
+// ── Escalated progress formatting ─────────────────────────
+
+#[test]
+fn claude_channel_formats_escalated_progress_with_level() {
+    use crate::push::claude_channel::format_event_content;
+
+    let event = EventEnvelope::new(
+        "session.progress",
+        "sess-123",
+        &serde_json::json!({
+            "message": "blocked on missing API key",
+            "escalation": "blocker",
+        }),
+    )
+    .unwrap()
+    .elevate()
+    .with_context(Some("feature/auth"), Some("sess-123"));
+
+    let payload: serde_json::Value =
+        serde_json::from_str(&event.payload_json).unwrap();
+    let content = format_event_content(&event, &payload);
+
+    assert!(
+        content.contains("blocker"),
+        "escalated progress must include escalation level in formatted content: {content}"
+    );
+    assert!(
+        content.contains("blocked on missing API key"),
+        "escalated progress must include the message: {content}"
+    );
+}
+
+#[test]
+fn claude_channel_formats_non_escalated_progress_without_level() {
+    use crate::push::claude_channel::format_event_content;
+
+    let event = EventEnvelope::new(
+        "session.progress",
+        "sess-456",
+        &serde_json::json!({
+            "message": "halfway done",
+        }),
+    )
+    .unwrap()
+    .with_context(Some("feature/work"), Some("sess-456"));
+
+    let payload: serde_json::Value =
+        serde_json::from_str(&event.payload_json).unwrap();
+    let content = format_event_content(&event, &payload);
+
+    // Non-escalated should not mention escalation levels
+    assert!(
+        !content.contains("blocker") && !content.contains("warning") && !content.contains("question"),
+        "non-escalated progress must not include escalation keywords: {content}"
+    );
+}
+
+// ── Escalated progress reaches push adapter via relay ─────
+
+#[tokio::test(flavor = "multi_thread")]
+async fn escalated_progress_event_reaches_push_adapter() {
+    let mut kr = temp_kernel();
+
+    // Spawn session actor (emitter — simulates runtime)
+    let session_config = ActorConfig {
+        namespace: "session".to_string(),
+        write_namespaces: vec!["session.".to_string()],
+        read_namespaces: vec![],
+        subscribe_namespaces: vec![],
+    };
+    let _ = kr.spawn_actor("session-emitter", session_config).unwrap();
+
+    // Spawn agent (receiver subscribed to session.*)
+    let agent_log = wire_agent(
+        &mut kr,
+        "agent.test-agent",
+        "claude-channel",
+        vec!["session.".to_string()],
+    )
+    .await;
+
+    // Emit an escalated session.progress event
+    let event = EventEnvelope::new(
+        "session.progress",
+        "sess-escalation-test",
+        &serde_json::json!({
+            "message": "need human decision on architecture",
+            "escalation": "question",
+        }),
+    )
+    .unwrap()
+    .elevate()
+    .with_actor_id("session-emitter")
+    .with_context(Some("feature/arch"), Some("sess-escalation-test"));
+
+    let ctx = runtime::events::EmitContext {
+        caller_kind: runtime::events::CallerKind::Runtime,
+        skill_id: None,
+        workspace_id: Some("feature/arch".to_string()),
+        session_id: Some("sess-escalation-test".to_string()),
+    };
+    kr.route(event, &ctx).await.unwrap();
+
+    tokio::time::sleep(std::time::Duration::from_millis(50)).await;
+
+    let received = agent_log.lock().await;
+    assert_eq!(received.len(), 1, "agent should receive escalated progress");
+    assert_eq!(received[0].event_type, "session.progress");
+    assert!(received[0].elevated, "received event must be elevated");
+
+    let payload: serde_json::Value =
+        serde_json::from_str(&received[0].payload_json).unwrap();
+    assert_eq!(
+        payload["escalation"].as_str().unwrap(),
+        "question",
+        "escalation level must survive relay delivery"
+    );
+}
+
 // ── Full automated multi-agent flow ────────────────────────
 
 #[tokio::test(flavor = "multi_thread")]

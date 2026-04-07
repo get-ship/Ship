@@ -44,7 +44,7 @@ fn test_ordering() -> anyhow::Result<()> {
     let (_tmp, store) = setup();
     let entity = "ordering-entity";
     for _ in 0..100 {
-        let ev = EventEnvelope::new(event_types::SESSION_PROGRESS, entity, &SessionProgress { message: "tick".into() })?;
+        let ev = EventEnvelope::new(event_types::SESSION_PROGRESS, entity, &SessionProgress { message: "tick".into(), escalation: None })?;
         store.append(&ev)?;
     }
     let results = store.query_aggregate(entity)?;
@@ -152,7 +152,7 @@ fn test_payload_round_trip() -> anyhow::Result<()> {
     rt!(event_types::WORKSPACE_COMPILE_FAILED, WorkspaceCompileFailed { error: "bad syntax".into() });
     rt!(event_types::WORKSPACE_ARCHIVED,    WorkspaceArchived {});
     rt!(event_types::SESSION_STARTED,       SessionStarted { goal: Some("deploy".into()), ..Default::default() });
-    rt!(event_types::SESSION_PROGRESS,      SessionProgress { message: "halfway".into() });
+    rt!(event_types::SESSION_PROGRESS,      SessionProgress { message: "halfway".into(), escalation: None });
     rt!(event_types::SESSION_ENDED,         SessionEnded { summary: Some("done".into()), duration_secs: Some(120), gate_result: Some("pass".into()), ..Default::default() });
     rt!(event_types::ACTOR_CREATED,         ActorCreated { kind: "worker".into(), environment_type: "cli".into(), workspace_id: None, parent_actor_id: None, restart_count: 0 });
     rt!(event_types::ACTOR_WOKE,            ActorWoke {});
@@ -238,7 +238,7 @@ fn test_property_event_ordering() -> anyhow::Result<()> {
 
     for i in 0..n {
         let etype = types[i % types.len()];
-        let ev = EventEnvelope::new(etype, entity, &SessionProgress { message: format!("step {i}") })?;
+        let ev = EventEnvelope::new(etype, entity, &SessionProgress { message: format!("step {i}"), escalation: None })?;
         expected_ids.push(ev.id.clone());
         store.append(&ev)?;
     }

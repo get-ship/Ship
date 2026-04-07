@@ -138,6 +138,8 @@ pub struct SessionStarted {
 #[derive(Debug, Serialize, Deserialize)]
 pub struct SessionProgress {
     pub message: String,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub escalation: Option<String>,
 }
 
 #[derive(Debug, Default, Serialize, Deserialize)]

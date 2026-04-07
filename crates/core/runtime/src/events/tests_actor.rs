@@ -38,12 +38,12 @@ fn test_filter_by_actor_id() -> anyhow::Result<()> {
 
     // actor A emits two events
     for _ in 0..2 {
-        let ev = EventEnvelope::new(event_types::SESSION_PROGRESS, "entity-1", &SessionProgress { message: "tick".into() })?
+        let ev = EventEnvelope::new(event_types::SESSION_PROGRESS, "entity-1", &SessionProgress { message: "tick".into(), escalation: None })?
             .with_actor_id("actor-a");
         store.append(&ev)?;
     }
     // actor B emits one event
-    let ev_b = EventEnvelope::new(event_types::SESSION_PROGRESS, "entity-1", &SessionProgress { message: "tock".into() })?
+    let ev_b = EventEnvelope::new(event_types::SESSION_PROGRESS, "entity-1", &SessionProgress { message: "tock".into(), escalation: None })?
         .with_actor_id("actor-b");
     store.append(&ev_b)?;
 
@@ -63,7 +63,7 @@ fn test_elevated_filter() -> anyhow::Result<()> {
 
     // session.progress — local only (not elevated)
     for _ in 0..3 {
-        let ev = EventEnvelope::new(event_types::SESSION_PROGRESS, entity, &SessionProgress { message: "noise".into() })?;
+        let ev = EventEnvelope::new(event_types::SESSION_PROGRESS, entity, &SessionProgress { message: "noise".into(), escalation: None })?;
         store.append(&ev)?;
     }
     // session.ended — elevated (bubbles to workspace)
@@ -109,7 +109,7 @@ fn supervisor_queries_elevated_child_events_by_parent_actor_id() -> anyhow::Resu
     store.append(&child2)?;
 
     // Child 3 — NOT elevated, parent_actor_id="supervisor-1" — must be filtered out
-    let child3 = EventEnvelope::new(event_types::SESSION_PROGRESS, "child-entity-3", &SessionProgress { message: "noise".into() })?
+    let child3 = EventEnvelope::new(event_types::SESSION_PROGRESS, "child-entity-3", &SessionProgress { message: "noise".into(), escalation: None })?
         .with_actor_id("child-actor-3")
         .with_parent_actor_id("supervisor-1");
     store.append(&child3)?;
