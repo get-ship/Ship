@@ -24,7 +24,7 @@ const FEATURES: FeatureCard[] = [
     iconBg: 'bg-primary/10',
     title: 'Compiler',
     description:
-      'Define agents once. Ship compiles to native config for Claude Code, Cursor, Gemini CLI, Codex, and more. Skills, permissions, MCP servers — all in sync across providers.',
+      'One config, every provider. Write your agent setup once — Ship emits native files for Claude Code, Cursor, Gemini, Codex, and OpenCode.',
   },
   {
     icon: Package,
@@ -32,7 +32,7 @@ const FEATURES: FeatureCard[] = [
     iconBg: 'bg-violet-500/10',
     title: 'Registry',
     description:
-      'Install skills, MCP servers, and agent configs with ship add. Compose them like dependencies. Share what you build. The package manager for agent capabilities.',
+      'ship add what others built. Skills, MCP servers, full agent configs. Composable, versioned, shareable.',
   },
   {
     icon: Layers,
@@ -40,7 +40,7 @@ const FEATURES: FeatureCard[] = [
     iconBg: 'bg-sky-500/10',
     title: 'Artifacts',
     description:
-      'Every agent gets a staging area. Specs, mockups, reports, screenshots — review what agents produce before it ships. Annotate canvases. Promote artifacts to your project.',
+      'Agents produce work. You review it before it ships. Annotate, promote, or reject — right in the browser.',
   },
   {
     icon: Briefcase,
@@ -48,7 +48,7 @@ const FEATURES: FeatureCard[] = [
     iconBg: 'bg-emerald-500/10',
     title: 'Jobs & Pipelines',
     description:
-      'Dispatch work to agents with structure. Define reusable pipelines as YAML DAGs — test, implement, review, merge. Track progress in real time. Stop jobs that go sideways.',
+      'Structured dispatch. YAML-defined workflows. Isolated worktrees per job. Real-time status. Kill switch when needed.',
   },
   {
     icon: Zap,
@@ -56,7 +56,7 @@ const FEATURES: FeatureCard[] = [
     iconBg: 'bg-amber-500/10',
     title: 'Skills',
     description:
-      'Markdown templates with variable interpolation. Skills are instructions that make agents actually good at specific tasks. Install from the registry or write your own in the IDE.',
+      'Composable instructions that travel with your agents. Install from the registry, write in the IDE, share across teams.',
   },
   {
     icon: MessageSquare,
@@ -64,7 +64,7 @@ const FEATURES: FeatureCard[] = [
     iconBg: 'bg-rose-500/10',
     title: 'Agent Chat',
     description:
-      'Annotate artifacts and send feedback directly to the workspace agent. See progress updates in real time. The human side of the human-agent loop.',
+      'Draw on canvases, comment on diffs, message agents directly. Live progress from every running workspace.',
   },
 ]
 
