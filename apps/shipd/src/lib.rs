@@ -5,6 +5,7 @@
 
 pub mod actor_api;
 pub mod auth;
+pub mod bridge;
 mod connections;
 mod handler;
 pub mod human_webhook;
@@ -247,7 +248,7 @@ pub async fn run_network(host: String, port: u16) -> Result<()> {
         .with_state(api_state);
 
     let auth_token = token.clone();
-    let app = Router::new()
+    let authenticated_routes = Router::new()
         .nest("/api", api_routes)
         .nest("/api", hook_routes)
         .nest("/api", webhook_routes)
@@ -257,7 +258,16 @@ pub async fn run_network(host: String, port: u16) -> Result<()> {
         .nest_service("/mcp", service)
         .layer(axum::middleware::from_fn(move |req, next| {
             auth::auth_middleware(auth_token.clone(), req, next)
-        }))
+        }));
+
+    // Bridge routes — outside auth (the bridge page itself handles auth via cookies)
+    let bridge_routes = Router::new()
+        .route("/bridge", axum::routing::get(bridge::bridge_page))
+        .route("/bridge/health", axum::routing::get(bridge::bridge_health));
+
+    let app = Router::new()
+        .merge(authenticated_routes)
+        .merge(bridge_routes)
         .layer(axum::middleware::from_fn(cors_middleware));
 
     let addr = format!("{host}:{port}");
