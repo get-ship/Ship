@@ -1,6 +1,6 @@
 import { useNavigate, useRouterState } from '@tanstack/react-router'
 import {
-  Layers, Users, Zap, Briefcase, GitBranch,
+  Layers, Users, Zap, Briefcase, GitBranch, GitMerge,
   Search, Settings, PanelRight,
   type LucideIcon,
 } from 'lucide-react'
@@ -18,6 +18,7 @@ const PINNED_VIEWS: { to: string; icon: LucideIcon; label: string }[] = [
   { to: '/studio/agents', icon: Users, label: 'Agents' },
   { to: '/studio/skills', icon: Zap, label: 'Skills' },
   { to: '/studio/jobs', icon: Briefcase, label: 'Jobs' },
+  { to: '/studio/pipelines', icon: GitMerge, label: 'Pipelines' },
 ]
 
 export function StudioRail() {

@@ -220,6 +220,15 @@ pub async fn run_network(host: String, port: u16) -> Result<()> {
             axum::routing::post(project_api::activate_workspace),
         )
         .route(
+            "/workspaces/{id}/pipelines",
+            axum::routing::get(project_api::list_pipelines),
+        )
+        .route(
+            "/workspaces/{id}/pipelines/{name}",
+            axum::routing::put(project_api::write_pipeline)
+                .delete(project_api::delete_pipeline),
+        )
+        .route(
             "/events/emit",
             axum::routing::post(project_api::emit_event),
         )

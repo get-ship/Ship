@@ -1,5 +1,5 @@
 import { useNavigate, useRouterState } from '@tanstack/react-router'
-import { Layers, Users, Zap, Briefcase, GitBranch, Settings, LayoutGrid, MonitorPlay } from 'lucide-react'
+import { Layers, Users, Zap, Briefcase, GitBranch, GitMerge, Settings, LayoutGrid, MonitorPlay } from 'lucide-react'
 import { Popover, PopoverContent, PopoverTrigger } from '@ship/primitives'
 import { Separator } from '@ship/primitives'
 import { useViews } from './hooks/useDaemon'
@@ -19,6 +19,7 @@ const BUILT_IN_VIEWS: ViewDef[] = [
   { to: '/studio/agents', icon: Users, label: 'Agents', scope: 'project' },
   { to: '/studio/skills', icon: Zap, label: 'Skills', scope: 'project' },
   { to: '/studio/jobs', icon: Briefcase, label: 'Jobs', scope: 'project' },
+  { to: '/studio/pipelines', icon: GitMerge, label: 'Pipelines', scope: 'project' },
   { to: '/studio/settings', icon: Settings, label: 'Settings', scope: 'project' },
 ]
 
