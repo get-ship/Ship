@@ -21,7 +21,7 @@ export function LandingHero() {
         {/* Badge */}
         <div className="mb-6 inline-flex items-center gap-1.5 rounded-full border border-primary/20 bg-primary/8 px-3.5 py-1.5 text-[11px] font-medium text-primary">
           <Package className="size-3" />
-          v{SHIP_VERSION} — runtime, pipelines, and studio
+          v{SHIP_VERSION} — now in public beta
         </div>
 
         {/* Headline */}
