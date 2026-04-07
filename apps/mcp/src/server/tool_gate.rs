@@ -17,8 +17,8 @@ impl ShipServer {
         normalized
     }
 
-    const PLATFORM_TOOLS: &[&str] = &[
-        "event",
+    /// Core platform tools that always bypass gating.
+    const CORE_TOOLS: &[&str] = &[
         "open_project",
         "activate_workspace",
         "create_workspace",
@@ -28,34 +28,56 @@ impl ShipServer {
         "set_agent",
         "start_session",
         "end_session",
-        "log_progress",
         "get_session",
         "list_sessions",
         "list_skills",
         "get_skill_vars",
         "set_skill_var",
         "list_skill_vars",
-        "create_job",
-        "update_job",
         "list_jobs",
         "get_job",
-        "write_session_file",
         "read_session_file",
         "list_session_files",
-        "mesh_send",
-        "mesh_broadcast",
-        "mesh_discover",
-        "mesh_status",
+        "log_progress",
+        "update_job",
+        "write_session_file",
     ];
 
     #[cfg(feature = "unstable")]
-    const UNSTABLE_TOOLS: &[&str] = &[
-        "create_adr",
+    const UNSTABLE_TOOLS: &[&str] = &["event"];
+
+    // ── Role-based default tool sets ────────────────────────────────
+
+    const WORKER_TOOLS: &[&str] = &[
+        "log_progress",
+        "update_job",
+        "write_session_file",
     ];
+
+    const LEAD_TOOLS: &[&str] = &["create_job"];
+
+    const COMMANDER_TOOLS: &[&str] = &["mesh_discover", "mesh_status"];
+
+    /// Returns the default tool set for a given role.
+    /// Unknown roles fall back to worker defaults.
+    pub fn default_tools_for_role(role: &str) -> Vec<&'static str> {
+        let mut tools: Vec<&'static str> = Self::WORKER_TOOLS.to_vec();
+        match role {
+            "lead" => {
+                tools.extend_from_slice(Self::LEAD_TOOLS);
+            }
+            "commander" => {
+                tools.extend_from_slice(Self::LEAD_TOOLS);
+                tools.extend_from_slice(Self::COMMANDER_TOOLS);
+            }
+            _ => {} // worker or unknown → worker defaults only
+        }
+        tools
+    }
 
     pub fn is_core_tool(tool_name: &str) -> bool {
         let normalized = Self::normalize_mode_tool_id(tool_name);
-        if Self::PLATFORM_TOOLS.contains(&normalized.as_str()) {
+        if Self::CORE_TOOLS.contains(&normalized.as_str()) {
             return true;
         }
         #[cfg(feature = "unstable")]
@@ -90,17 +112,32 @@ impl ShipServer {
         let active_agent =
             get_active_agent(Some(project_dir.to_path_buf())).map_err(|e| e.to_string())?;
         if let Some(ref mode) = active_agent {
-            if Self::mode_allows_tool(tool_name, &mode.active_tools) {
+            // Explicit active_tools override role defaults
+            if !mode.active_tools.is_empty() {
+                if Self::mode_allows_tool(tool_name, &mode.active_tools) {
+                    return Ok(());
+                }
+                return Err(format!(
+                    "Tool '{}' blocked by active mode '{}' (allowed: {}).",
+                    tool_name,
+                    mode.id,
+                    mode.active_tools.join(", ")
+                ));
+            }
+
+            // Use role-based defaults when active_tools is empty
+            let role = mode.role.as_deref().unwrap_or("worker");
+            let role_defaults = Self::default_tools_for_role(role);
+            let normalized = Self::normalize_mode_tool_id(tool_name);
+            if role_defaults.contains(&normalized.as_str()) {
                 return Ok(());
             }
-            let allowed = if mode.active_tools.is_empty() {
-                "all tools".to_string()
-            } else {
-                mode.active_tools.join(", ")
-            };
             return Err(format!(
-                "Tool '{}' blocked by active mode '{}' (allowed: {}).",
-                tool_name, mode.id, allowed
+                "Tool '{}' blocked by active mode '{}' (role '{}' allows: {}).",
+                tool_name,
+                mode.id,
+                role,
+                role_defaults.join(", ")
             ));
         }
         Err(format!(

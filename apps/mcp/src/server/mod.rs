@@ -819,20 +819,6 @@ impl ShipServer {
 #[cfg(feature = "unstable")]
 #[tool_router(router = unstable_tool_router)]
 impl ShipServer {
-    // ---- ADR ----
-
-    #[tool(
-        description = "Create a new Architecture Decision Record (ADR). Use when committing to a \
-        technical approach, trade-off, or design choice that future contributors need to understand."
-    )]
-    async fn create_adr(&self, Parameters(req): Parameters<LogDecisionRequest>) -> String {
-        let project_dir = match self.get_effective_project_dir().await {
-            Ok(d) => d,
-            Err(e) => return e,
-        };
-        adr::create_adr(&project_dir, &req.title, &req.decision)
-    }
-
     // ---- Dispatch ----
 
     #[tool(
@@ -899,3 +885,11 @@ pub async fn run_server() -> Result<()> {
 #[cfg(test)]
 #[path = "../server_tests.rs"]
 mod server_tests;
+
+#[cfg(test)]
+#[path = "../tool_gate_tests.rs"]
+mod tool_gate_tests;
+
+#[cfg(test)]
+#[path = "../role_gate_integration_tests.rs"]
+mod role_gate_integration_tests;
