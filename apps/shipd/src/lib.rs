@@ -243,7 +243,7 @@ pub async fn run_network(host: String, port: u16) -> Result<()> {
         supervisor::graceful_shutdown(
             &kernel,
             &mut *dh.registry.lock().await,
-            &*dh.executor,
+            Arc::clone(&dh.executor),
         )
         .await;
     }

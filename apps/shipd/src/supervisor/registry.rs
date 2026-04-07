@@ -1,6 +1,7 @@
 //! Process registry — tracks spawned agent executor handles for shutdown
 //! and reconciliation.
 
+use futures::future::join_all;
 use runtime::events::{CallerKind, EmitContext, EventEnvelope, KernelRouter};
 use runtime::services::dispatch_ports::{ExecutorHandle, JobExecutor};
 use std::collections::HashMap;
@@ -40,19 +41,29 @@ impl ProcessRegistry {
         self.handles.is_empty()
     }
 
-    /// Stop all managed agents and return the list of stopped slugs.
-    /// Clears the registry after stopping.
-    pub async fn shutdown_all(&mut self, executor: &dyn JobExecutor) -> Vec<String> {
-        let mut stopped = Vec::with_capacity(self.handles.len());
+    /// Stop all managed agents concurrently and return the list of stopped slugs.
+    ///
+    /// Each stop waits up to 30s for graceful exit (enforced inside each executor's
+    /// stop() implementation) before force-killing. All agents are stopped in
+    /// parallel so total shutdown time is bounded by the slowest single agent.
+    pub async fn shutdown_all(&mut self, executor: Arc<dyn JobExecutor>) -> Vec<String> {
+        let handles: Vec<(String, ExecutorHandle)> = self.handles.drain().collect();
+        let slugs: Vec<String> = handles.iter().map(|(s, _)| s.clone()).collect();
 
-        for (slug, handle) in self.handles.drain() {
-            if let Err(e) = executor.stop(&handle).await {
-                tracing::warn!(slug, "registry: failed to stop agent: {e}");
-            }
-            stopped.push(slug);
-        }
+        let stop_futs: Vec<_> = handles
+            .into_iter()
+            .map(|(slug, handle)| {
+                let executor = Arc::clone(&executor);
+                async move {
+                    if let Err(e) = executor.stop(&handle).await {
+                        tracing::warn!(slug, "registry: failed to stop agent: {e}");
+                    }
+                }
+            })
+            .collect();
 
-        stopped
+        join_all(stop_futs).await;
+        slugs
     }
 }
 
@@ -60,10 +71,11 @@ impl ProcessRegistry {
 ///
 /// Called when the daemon receives SIGTERM/SIGINT. Stops accepting new jobs,
 /// drains the process registry, and returns once all agents are stopped.
+/// Each agent gets up to 30s to exit cleanly before being force-killed.
 pub(crate) async fn graceful_shutdown(
     kernel: &Arc<Mutex<KernelRouter>>,
     registry: &mut ProcessRegistry,
-    executor: &dyn JobExecutor,
+    executor: Arc<dyn JobExecutor>,
 ) {
     // 1. Emit supervisor.shutting_down event
     let envelope = match EventEnvelope::new(
@@ -92,7 +104,7 @@ pub(crate) async fn graceful_shutdown(
         tracing::warn!("graceful_shutdown: failed to emit shutting_down event: {e}");
     }
 
-    // 2. Stop all managed agent processes
+    // 2. Stop all managed agent processes (concurrent, 30s timeout per agent)
     let stopped = registry.shutdown_all(executor).await;
     tracing::info!(
         count = stopped.len(),

@@ -41,3 +41,7 @@ mod tests_daemon_startup;
 #[cfg(test)]
 #[path = "tests_event_integrity.rs"]
 mod tests_event_integrity;
+
+#[cfg(test)]
+#[path = "tests_graceful_shutdown.rs"]
+mod tests_graceful_shutdown;
