@@ -13,7 +13,8 @@ use tokio::sync::Mutex;
 
 use super::adapters;
 use super::dispatch_handlers::{handle_job_cleanup, handle_job_update};
-use super::dispatch_pipeline::{advance_pipeline, emit_job_dispatched, ensure_pipeline};
+use super::dispatch_pipeline::{advance_pipeline, emit_job_dispatched};
+use super::pipeline_loader::ensure_pipeline;
 pub(crate) use super::registry::ProcessRegistry;
 #[cfg(test)]
 pub(crate) use super::dispatch_pipeline::advance_pipeline_at;
@@ -68,10 +69,10 @@ pub async fn subscribe_job_events(
     let executor: Arc<dyn runtime::services::dispatch_ports::JobExecutor> =
         if std::env::var("SHIP_EXECUTOR").as_deref() == Ok("process") {
             tracing::info!("job-dispatch: using ProcessExecutor");
-            Arc::new(adapters::ProcessExecutor)
+            Arc::new(super::executors::ProcessExecutor)
         } else {
             tracing::info!("job-dispatch: using TmuxExecutor");
-            Arc::new(adapters::TmuxExecutor)
+            Arc::new(super::executors::TmuxExecutor)
         };
 
     let registry = Arc::new(Mutex::new(ProcessRegistry::new()));
@@ -88,7 +89,7 @@ pub async fn subscribe_job_events(
     tokio::spawn(async move {
         super::dispatch_replay::reconcile_dispatched_jobs(&replay_kernel, &*replay_dctx).await;
         super::dispatch_replay::replay_unprocessed_completions(&replay_kernel, &*replay_dctx).await;
-        super::dispatch_replay::dispatch_ready_pending_jobs(&replay_kernel, &*replay_dctx).await;
+        super::pending_dispatch::dispatch_ready_pending_jobs(&replay_kernel, &*replay_dctx).await;
     });
 
     let kr = kernel.clone();
@@ -120,7 +121,7 @@ pub(crate) async fn handle_job_event(
             }
             if !advance_pipeline(kernel, envelope, dctx).await {
                 // Pipeline done or no pipeline — scan projection for unblocked jobs
-                super::dispatch_replay::dispatch_ready_pending_jobs(kernel, dctx).await;
+                super::pending_dispatch::dispatch_ready_pending_jobs(kernel, dctx).await;
             }
         }
         "job.merged" => {
@@ -131,7 +132,7 @@ pub(crate) async fn handle_job_event(
             }
             handle_job_cleanup(envelope).await;
             // Scan projection for jobs whose deps are now resolved
-            super::dispatch_replay::dispatch_ready_pending_jobs(kernel, dctx).await;
+            super::pending_dispatch::dispatch_ready_pending_jobs(kernel, dctx).await;
         }
         "job.failed" => {
             let slug = extract_slug(envelope);
