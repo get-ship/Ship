@@ -213,7 +213,7 @@ fn refresh_agents(state: &mut TopState) {
 
 fn refresh_network(state: &mut TopState) {
     if let Ok(global_dir) = runtime::project::get_global_dir() {
-        state.network_port = std::fs::read_to_string(global_dir.join("network.port"))
+        state.network_port = std::fs::read_to_string(global_dir.join("daemon.port"))
             .ok()
             .map(|p| p.trim().to_string());
     }

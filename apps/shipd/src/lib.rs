@@ -75,8 +75,8 @@ pub async fn run_network(host: String, port: u16) -> Result<()> {
 
     let token = Arc::new(auth::generate_token());
     auth::write_token_file(&global_dir, &token)
-        .map_err(|e| anyhow!("failed to write network.token: {e}"))?;
-    tracing::info!("shipd: auth token written to network.token");
+        .map_err(|e| anyhow!("failed to write daemon.token: {e}"))?;
+    tracing::info!("shipd: auth token written to daemon.token");
 
     write_port_file(&global_dir, port)?;
     write_pid_file(&global_dir)?;
@@ -248,17 +248,17 @@ pub async fn run_network(host: String, port: u16) -> Result<()> {
         .await;
     }
 
-    let _ = std::fs::remove_file(global_dir.join("network.port"));
+    let _ = std::fs::remove_file(global_dir.join("daemon.port"));
     let _ = std::fs::remove_file(global_dir.join("daemon.pid"));
-    let _ = std::fs::remove_file(global_dir.join("network.token"));
+    let _ = std::fs::remove_file(global_dir.join("daemon.token"));
     tracing::info!("shipd: shutdown complete");
     Ok(())
 }
 
-/// Check whether the network daemon is running by inspecting ~/.ship/network.port.
+/// Check whether the network daemon is running by inspecting ~/.ship/daemon.port.
 pub fn network_status() -> Result<()> {
     let global_dir = runtime::project::get_global_dir()?;
-    match std::fs::read_to_string(global_dir.join("network.port")) {
+    match std::fs::read_to_string(global_dir.join("daemon.port")) {
         Ok(port) => println!("shipd: running on port {}", port.trim()),
         Err(_) => println!("shipd: not running"),
     }
@@ -343,8 +343,8 @@ async fn spawn_human_gateway(
 }
 
 fn write_port_file(global_dir: &Path, port: u16) -> Result<()> {
-    std::fs::write(global_dir.join("network.port"), port.to_string())
-        .map_err(|e| anyhow!("failed to write network.port: {e}"))
+    std::fs::write(global_dir.join("daemon.port"), port.to_string())
+        .map_err(|e| anyhow!("failed to write daemon.port: {e}"))
 }
 
 fn write_pid_file(global_dir: &Path) -> Result<()> {

@@ -1,7 +1,7 @@
 //! Bearer token authentication for the shipd daemon.
 //!
 //! On startup the daemon generates a random token and writes it to
-//! `~/.ship/network.token`. All HTTP endpoints require the token in the
+//! `~/.ship/daemon.token`. All HTTP endpoints require the token in the
 //! `Authorization: Bearer <token>` header. Clients read the token file
 //! and include it in requests.
 
@@ -68,9 +68,9 @@ fn hex_encode(bytes: &[u8]) -> String {
     s
 }
 
-/// Write the daemon token to `<global_dir>/network.token`.
+/// Write the daemon token to `<global_dir>/daemon.token`.
 pub fn write_token_file(global_dir: &Path, token: &str) -> std::io::Result<()> {
-    let path = global_dir.join("network.token");
+    let path = global_dir.join("daemon.token");
     std::fs::write(&path, token)?;
     // Restrict permissions on Unix (owner read/write only).
     #[cfg(unix)]
@@ -81,9 +81,9 @@ pub fn write_token_file(global_dir: &Path, token: &str) -> std::io::Result<()> {
     Ok(())
 }
 
-/// Read the daemon token from `<global_dir>/network.token`.
+/// Read the daemon token from `<global_dir>/daemon.token`.
 pub fn read_token(global_dir: &Path) -> std::io::Result<String> {
-    let content = std::fs::read_to_string(global_dir.join("network.token"))?;
+    let content = std::fs::read_to_string(global_dir.join("daemon.token"))?;
     Ok(content.trim().to_string())
 }
 

@@ -243,8 +243,8 @@ impl JobExecutor for ProcessExecutor {
             // Fire the stop hook — emit job.completed via daemon API
             let home = dirs::home_dir().unwrap_or_default().join(".ship");
             if let (Ok(port_str), Ok(token)) = (
-                std::fs::read_to_string(home.join("network.port")),
-                std::fs::read_to_string(home.join("network.token")),
+                std::fs::read_to_string(home.join("daemon.port")),
+                std::fs::read_to_string(home.join("daemon.token")),
             ) {
                 let port = port_str.trim();
                 let token = token.trim();

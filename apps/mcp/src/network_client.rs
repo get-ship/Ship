@@ -4,23 +4,23 @@
 use anyhow::{Result, anyhow};
 use serde_json::Value;
 
-/// Get the ship-network port from ~/.ship/network.port
+/// Get the ship-network port from ~/.ship/daemon.port
 fn get_network_port() -> Result<u16> {
     let global_dir = runtime::project::get_global_dir()?;
-    let port_file = global_dir.join("network.port");
+    let port_file = global_dir.join("daemon.port");
     let port_str = std::fs::read_to_string(&port_file)
-        .map_err(|_| anyhow!("ship network is not running — start it with: ship network serve"))?;
+        .map_err(|_| anyhow!("ship daemon is not running — start it with: ship daemon start"))?;
     port_str
         .trim()
         .parse::<u16>()
         .map_err(|e| anyhow!("failed to parse network port: {e}"))
 }
 
-/// Read the daemon bearer token from ~/.ship/network.token.
+/// Read the daemon bearer token from ~/.ship/daemon.token.
 fn get_network_token() -> Result<String> {
     let global_dir = runtime::project::get_global_dir()?;
-    let token = std::fs::read_to_string(global_dir.join("network.token"))
-        .map_err(|_| anyhow!("ship network token not found — is the daemon running?"))?;
+    let token = std::fs::read_to_string(global_dir.join("daemon.token"))
+        .map_err(|_| anyhow!("ship daemon token not found — is the daemon running?"))?;
     Ok(token.trim().to_string())
 }
 
@@ -38,12 +38,12 @@ async fn post(path: &str, body: Value) -> Result<String> {
         .json(&body)
         .send()
         .await
-        .map_err(|e| anyhow!("ship-network unavailable: {e}"))?;
+        .map_err(|e| anyhow!("ship daemon unavailable: {e}"))?;
 
     let status = resp.status();
     let text = resp.text().await.map_err(|e| anyhow!("failed to read response: {e}"))?;
     if !status.is_success() {
-        return Err(anyhow!("ship-network error ({}): {}", status, text));
+        return Err(anyhow!("ship daemon error ({}): {}", status, text));
     }
     Ok(text)
 }
@@ -57,12 +57,12 @@ async fn get(path: &str) -> Result<String> {
         .bearer_auth(&token)
         .send()
         .await
-        .map_err(|e| anyhow!("ship-network unavailable: {e}"))?;
+        .map_err(|e| anyhow!("ship daemon unavailable: {e}"))?;
 
     let status = resp.status();
     let text = resp.text().await.map_err(|e| anyhow!("failed to read response: {e}"))?;
     if !status.is_success() {
-        return Err(anyhow!("ship-network error ({}): {}", status, text));
+        return Err(anyhow!("ship daemon error ({}): {}", status, text));
     }
     Ok(text)
 }
@@ -113,6 +113,12 @@ pub async fn actor_spawn(
         "config": config,
         "capabilities": capabilities,
     })).await
+}
+
+/// Create a job via the daemon's REST API. The daemon handles pipeline
+/// enrichment, persistence, kernel routing, and dispatch.
+pub async fn create_job_via_daemon(body: serde_json::Value) -> Result<String> {
+    post("/runtime/jobs", body).await
 }
 
 /// Route a pre-built EventEnvelope through the daemon's KernelRouter.
