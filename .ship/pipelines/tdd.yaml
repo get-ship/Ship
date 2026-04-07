@@ -1,16 +1,29 @@
 name: tdd
-description: Test-driven development — write tests, implement, review, merge, update docs
+description: Test-driven development — RED tests first, GREEN implementation second, gate, merge.
 
 steps:
   - id: test
     type: agent
     agent: test-writer
     model: sonnet
+    vars:
+      phase: red
+      instruction: >
+        Write tests for behaviors described in the job spec that DO NOT EXIST YET.
+        Every test you write MUST FAIL when you run it. If a test passes, delete it —
+        the behavior already exists and doesn't need implementation. Commit only
+        failing tests. The next agent will make them pass.
 
   - id: impl
     type: agent
     agent: rust-runtime
     after: [test]
+    vars:
+      phase: green
+      instruction: >
+        There are failing tests from the previous step. Make them pass with the
+        minimum code necessary. Do not add features beyond what the tests require.
+        Run the tests after each change. Stop when all tests pass.
 
   - id: gate
     type: gate
@@ -18,12 +31,6 @@ steps:
     model: sonnet
     after: [impl]
 
-  - id: docs
-    type: agent
-    agent: default
-    model: sonnet
-    after: [gate]
-
   - id: merge
     type: merge
-    after: [docs]
+    after: [gate]

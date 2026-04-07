@@ -1,11 +1,11 @@
 {
-  // Test Writer — writes focused, meaningful tests. Does not implement.
+  // Test Writer — writes FAILING tests for behaviors that don't exist yet.
   "$schema": "../../schemas/agent.schema.json",
   "agent": {
     "id": "test-writer",
     "name": "Test Writer",
     "version": "0.1.0",
-    "description": "Writes focused, meaningful tests — unit, integration, property. Reads implementation, writes tests. Never touches source code.",
+    "description": "Writes failing tests for behaviors that don't exist yet. Tests define the spec. They MUST fail — if a test passes, delete it. Never touches implementation code.",
     "tags": ["testing", "unit-tests", "integration", "quality"],
     "providers": ["claude", "codex", "cursor", "gemini", "opencode"],
   },
