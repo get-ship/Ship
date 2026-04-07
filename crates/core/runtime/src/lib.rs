@@ -50,7 +50,7 @@ pub use config::{
 pub use events::{
     EventEnvelope, list_events_since, query_events_since, read_events, read_recent_events,
 };
-pub use projections::job::{JobRecord, JobStatus, load_jobs, project as project_jobs};
+pub use projections::job::{JobRecord, JobStatus, load_jobs, load_jobs_at, project as project_jobs};
 pub use hooks::{DefaultRuntimeHooks, RuntimeHooks};
 pub use log::{LogEntry, log_action, log_action_by, read_log, read_log_entries};
 pub use permissions::{
