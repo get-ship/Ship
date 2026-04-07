@@ -133,6 +133,7 @@ async fn reconcile_dispatched_inner(
     store_dir: Option<&std::path::Path>,
 ) {
     use runtime::events::job::event_types;
+    use runtime::services::dispatch_ports::JobContext;
 
     let stale: Vec<_> = jobs
         .values()
@@ -163,63 +164,118 @@ async fn reconcile_dispatched_inner(
                 slug = job.slug,
                 "job-dispatch: reconcile — process still alive, resuming"
             );
+            // Register in ProcessRegistry so graceful shutdown can stop it
+            let resume_handle = runtime::services::dispatch_ports::ExecutorHandle {
+                pid: None,
+                inner: Box::new(()),
+            };
+            dctx.registry.lock().await.register(&job.slug, resume_handle);
             continue;
         }
 
-        tracing::warn!(
+        // Dead process — relaunch in existing worktree
+        tracing::info!(
             slug = job.slug,
             job_id = job.job_id,
-            "job-dispatch: reconcile — process dead, marking failed"
+            "job-dispatch: reconcile — process dead, relaunching"
         );
 
-        let payload = serde_json::json!({
-            "job_id": job.job_id,
-            "error": "daemon restart, process not found",
-        });
-        let envelope = match EventEnvelope::new(
-            event_types::JOB_FAILED,
-            &job.job_id,
-            &payload,
-        ) {
-            Ok(e) => e.with_actor_id("service.job-dispatch"),
-            Err(e) => {
-                tracing::warn!(
-                    slug = job.slug,
-                    "job-dispatch: reconcile — failed to build envelope: {e}"
-                );
-                continue;
-            }
-        };
+        let work_dir = job
+            .worktree
+            .as_deref()
+            .map(std::path::PathBuf::from)
+            .unwrap_or_else(|| super::helpers::worktrees_dir().join(&job.slug));
 
-        // Persist to event store so projection reflects the failure
-        let persist_result = match store_dir {
-            Some(dir) => runtime::events::SqliteEventStore::new_at(dir)
-                .and_then(|s| runtime::events::EventStore::append(&s, &envelope)),
-            None => runtime::events::SqliteEventStore::new()
-                .and_then(|s| runtime::events::EventStore::append(&s, &envelope)),
-        };
-        if let Err(e) = persist_result {
+        // Recompile agent config in case it changed
+        if let Err(e) = super::helpers::compile_agent_config(&work_dir, &job.agent) {
             tracing::warn!(
                 slug = job.slug,
-                "job-dispatch: reconcile — failed to persist job.failed: {e}"
+                "job-dispatch: reconcile — agent config recompile failed: {e}"
             );
+            // Continue with relaunch anyway — stale config is better than no agent
         }
 
-        let ctx = runtime::events::validator::EmitContext {
-            caller_kind: runtime::events::validator::CallerKind::Runtime,
-            skill_id: None,
-            workspace_id: None,
-            session_id: None,
+        let job_ctx = JobContext {
+            job_id: job.job_id.clone(),
+            slug: job.slug.clone(),
+            agent: job.agent.clone(),
+            branch: job.branch.clone(),
+            spec_path: job.spec_path.clone(),
+            work_dir,
+            env: [("SHIP_MESH_ID".to_string(), job.slug.clone())].into(),
+            model: None,
+            provider: None,
         };
-        if let Err(e) = kernel.lock().await.route(envelope, &ctx).await {
-            tracing::warn!(
-                slug = job.slug,
-                "job-dispatch: reconcile — failed to emit job.failed: {e}"
-            );
+
+        match dctx.executor.spawn(&job_ctx).await {
+            Ok(new_handle) => {
+                tracing::info!(
+                    slug = job.slug,
+                    "job-dispatch: reconcile — agent relaunched"
+                );
+                dctx.registry.lock().await.register(&job.slug, new_handle);
+            }
+            Err(e) => {
+                tracing::error!(
+                    slug = job.slug,
+                    "job-dispatch: reconcile — relaunch failed: {e}"
+                );
+                emit_job_failed(
+                    kernel,
+                    &job.job_id,
+                    &job.slug,
+                    &format!("relaunch failed: {e}"),
+                    store_dir,
+                )
+                .await;
+            }
         }
     }
 
     tracing::info!("job-dispatch: reconciliation complete");
+}
+
+/// Emit job.failed and persist to event store.
+async fn emit_job_failed(
+    kernel: &Arc<Mutex<runtime::events::KernelRouter>>,
+    job_id: &str,
+    slug: &str,
+    error: &str,
+    store_dir: Option<&std::path::Path>,
+) {
+    use runtime::events::job::event_types;
+
+    let payload = serde_json::json!({
+        "job_id": job_id,
+        "error": error,
+    });
+    let envelope = match EventEnvelope::new(event_types::JOB_FAILED, job_id, &payload) {
+        Ok(e) => e.with_actor_id("service.job-dispatch"),
+        Err(e) => {
+            tracing::warn!(slug, "job-dispatch: reconcile — failed to build envelope: {e}");
+            return;
+        }
+    };
+
+    let persist_result = match store_dir {
+        Some(dir) => runtime::events::SqliteEventStore::new_at(dir)
+            .and_then(|s| runtime::events::EventStore::append(&s, &envelope)),
+        None => runtime::events::SqliteEventStore::new()
+            .and_then(|s| runtime::events::EventStore::append(&s, &envelope)),
+    };
+    if let Err(e) = persist_result {
+        tracing::warn!(slug, "job-dispatch: reconcile — failed to persist job.failed: {e}");
+    }
+
+    let ctx = runtime::events::validator::EmitContext {
+        caller_kind: runtime::events::validator::CallerKind::Runtime,
+        skill_id: None,
+        workspace_id: None,
+        session_id: None,
+    };
+    if let Err(e) = kernel.lock().await.route(envelope, &ctx).await {
+        tracing::warn!(slug, "job-dispatch: reconcile — failed to emit job.failed: {e}");
+    }
 }
 
 /// Scan the job projection for pending jobs whose dependencies are all resolved.
