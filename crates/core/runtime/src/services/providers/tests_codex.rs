@@ -59,18 +59,18 @@ fn headless_same_as_interactive() {
 // ── Lifecycle hooks ─────────────────────────────────────────────────────────
 
 #[test]
-fn no_ready_pattern() {
-    assert!(CodexAdapter.ready_pattern().is_none());
+fn ready_pattern_is_shell_prompt() {
+    assert_eq!(CodexAdapter.ready_pattern(), "$ ");
 }
 
 #[test]
-fn no_autostart_input() {
-    assert!(CodexAdapter.autostart_input().is_none());
+fn autostart_input_is_go() {
+    assert_eq!(CodexAdapter.autostart_input(), "go");
 }
 
 #[test]
-fn no_exit_command() {
-    assert!(CodexAdapter.exit_command().is_none());
+fn exit_command_is_q() {
+    assert_eq!(CodexAdapter.exit_command(), "q");
 }
 
 // ── Output parsing ──────────────────────────────────────────────────────────
