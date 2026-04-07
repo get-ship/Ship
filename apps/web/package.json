@@ -29,6 +29,7 @@
     "@fontsource-variable/syne": "^5.2.7",
     "@ship/compiler": "workspace:*",
     "@ship/primitives": "workspace:*",
+    "@ship/sdk": "workspace:*",
     "@ship/ui": "workspace:*",
     "@tailwindcss/vite": "^4.2.1",
     "@tanstack/query-db-collection": "^1.0.30",

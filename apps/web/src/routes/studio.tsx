@@ -7,6 +7,7 @@ import { CommandPalette } from '#/features/studio/CommandPalette'
 import { RightDrawer } from '#/features/studio/session/RightDrawer'
 import { WorkspaceIndicator } from '#/features/studio/WorkspaceIndicator'
 import { AnnotationProvider, useGlobalAnnotations } from '#/features/studio/AnnotationContext'
+import { ShipClientProvider } from '#/features/studio/ShipClientProvider'
 
 export const Route = createFileRoute('/studio')({
   component: StudioLayout,
@@ -16,13 +17,15 @@ export const Route = createFileRoute('/studio')({
 
 function StudioLayout() {
   return (
-    <PanicSaveProvider>
-      <StudioShellProvider>
-        <AnnotationProvider>
-          <StudioShell />
-        </AnnotationProvider>
-      </StudioShellProvider>
-    </PanicSaveProvider>
+    <ShipClientProvider>
+      <PanicSaveProvider>
+        <StudioShellProvider>
+          <AnnotationProvider>
+            <StudioShell />
+          </AnnotationProvider>
+        </StudioShellProvider>
+      </PanicSaveProvider>
+    </ShipClientProvider>
   )
 }
 
