@@ -55,7 +55,36 @@ pub fn run_session_end() -> Result<()> {
     println!("{}", serde_json::to_string(&event)?);
     // Best-effort: broadcast session.ended via ship CLI (MCP bridge path).
     broadcast_session_ended(&actor, &workspace);
+    // Fallback: if running inside a job (SHIP_MESH_ID set), signal completion
+    // to the daemon so the pipeline can advance even if the agent didn't
+    // explicitly call update_job.
+    if let Ok(slug) = std::env::var("SHIP_MESH_ID") {
+        signal_job_completed(&slug);
+    }
     Ok(())
+}
+
+/// Signal job completion to the daemon via REST API.
+/// Non-fatal — best-effort fallback for pipeline advancement.
+fn signal_job_completed(slug: &str) {
+    let home = dirs::home_dir().unwrap_or_default().join(".ship");
+    let port = match std::fs::read_to_string(home.join("daemon.port")) {
+        Ok(p) => p.trim().to_string(),
+        Err(_) => return,
+    };
+    let token = match std::fs::read_to_string(home.join("daemon.token")) {
+        Ok(t) => t.trim().to_string(),
+        Err(_) => return,
+    };
+    let _ = std::process::Command::new("curl")
+        .args([
+            "-sf", "-X", "POST",
+            &format!("http://127.0.0.1:{port}/api/runtime/jobs/end"),
+            "-H", "Content-Type: application/json",
+            "-H", &format!("Authorization: Bearer {token}"),
+            "-d", &format!("{{\"slug\":\"{slug}\"}}"),
+        ])
+        .status();
 }
 
 /// Broadcast agent.session.ended via `ship mesh broadcast` CLI.
