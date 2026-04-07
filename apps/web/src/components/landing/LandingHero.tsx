@@ -1,5 +1,7 @@
 import { Link } from '@tanstack/react-router'
 import { Zap, Terminal, Package } from 'lucide-react'
+
+const SHIP_VERSION = import.meta.env.VITE_SHIP_VERSION ?? '0.2.0'
 import { DotGrid } from '#/components/DotGrid'
 import { ProviderLogo } from '#/features/compiler/ProviderLogo'
 
@@ -8,6 +10,7 @@ const PROVIDERS = [
   { id: 'gemini', name: 'Gemini CLI' },
   { id: 'codex', name: 'Codex CLI' },
   { id: 'cursor', name: 'Cursor' },
+  { id: 'opencode', name: 'OpenCode' },
 ]
 
 export function LandingHero() {
@@ -18,7 +21,7 @@ export function LandingHero() {
         {/* Badge */}
         <div className="mb-6 inline-flex items-center gap-1.5 rounded-full border border-primary/20 bg-primary/8 px-3.5 py-1.5 text-[11px] font-medium text-primary">
           <Package className="size-3" />
-          v0.2.0 — runtime, pipelines, and studio
+          v{SHIP_VERSION} — runtime, pipelines, and studio
         </div>
 
         {/* Headline */}

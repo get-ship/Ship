@@ -47,7 +47,7 @@ const AGENTS = [
   },
 ]
 
-const PROVIDERS = ['claude', 'cursor', 'gemini', 'codex'] as const
+const PROVIDERS = ['claude', 'cursor', 'gemini', 'codex', 'opencode'] as const
 const PROVIDER_FILES: Record<string, string> = {
   claude: 'CLAUDE.md',
   cursor: '.cursor/rules/',
