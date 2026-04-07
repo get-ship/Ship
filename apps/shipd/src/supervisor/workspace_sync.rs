@@ -157,7 +157,8 @@ mod tests {
     #[test]
     fn provider_cli_codex() {
         let cli = provider_cli(&["codex".to_string()]);
-        assert_eq!(cli.unwrap(), "codex");
+        let cmd = cli.unwrap();
+        assert!(cmd.contains("codex"), "expected codex binary in: {cmd}");
     }
 
     #[test]

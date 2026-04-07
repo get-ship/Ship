@@ -195,6 +195,11 @@ async fn reconcile_dispatched_inner(
             // Continue with relaunch anyway — stale config is better than no agent
         }
 
+        let resume_session = job.provider_meta.as_ref()
+            .and_then(|m| m.get("session_id"))
+            .and_then(|v| v.as_str())
+            .map(str::to_string);
+
         let job_ctx = JobContext {
             job_id: job.job_id.clone(),
             slug: job.slug.clone(),
@@ -203,8 +208,13 @@ async fn reconcile_dispatched_inner(
             spec_path: job.spec_path.clone(),
             work_dir,
             env: [("SHIP_MESH_ID".to_string(), job.slug.clone())].into(),
-            model: None,
-            provider: None,
+            launch: runtime::services::dispatch_ports::LaunchProfile {
+                provider: job.provider.clone(),
+                model: job.model.clone(),
+                resume_session,
+                persist_session: true,
+                ..Default::default()
+            },
         };
 
         match dctx.executor.spawn(&job_ctx).await {

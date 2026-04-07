@@ -127,6 +127,9 @@ pub struct JobDispatchedPayload {
     pub job_id: String,
     pub worktree: String,
     pub pid: Option<u32>,
+    /// Provider-specific session metadata (e.g. Claude session ID for --resume).
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub provider_meta: Option<serde_json::Value>,
 }
 
 /// Emitted when a gate review is requested for the job.

@@ -33,7 +33,7 @@ impl JobExecutor for ProcessExecutor {
             "--print",
             "-p", "go",
         ];
-        if let Some(ref m) = ctx.model {
+        if let Some(ref m) = ctx.launch.model {
             args.push("--model");
             args.push(m);
         }

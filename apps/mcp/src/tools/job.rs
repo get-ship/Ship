@@ -51,6 +51,7 @@ pub async fn update_job(req: UpdateJobRequest) -> String {
                     job_id: req.job_id.clone(),
                     worktree,
                     pid: req.pid,
+                    provider_meta: None,
                 },
             )
         }

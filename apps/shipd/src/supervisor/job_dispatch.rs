@@ -210,8 +210,12 @@ pub(crate) async fn dispatch_job_internal(
         spec_path: payload.spec_path.clone(),
         work_dir: worktrees_dir().join(slug),
         env: [("SHIP_MESH_ID".to_string(), slug.to_string())].into(),
-        model: payload.model.clone(),
-        provider: payload.provider.clone(),
+        launch: runtime::services::dispatch_ports::LaunchProfile {
+            provider: payload.provider.clone(),
+            model: payload.model.clone(),
+            persist_session: true,
+            ..Default::default()
+        },
     };
 
     // 1. Prepare isolation (worktree + spec + agent config)

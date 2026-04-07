@@ -370,8 +370,7 @@ mod ports {
             spec_path: ".ship-session/job-spec.md".to_string(),
             work_dir,
             env: [("SHIP_MESH_ID".to_string(), slug.to_string())].into(),
-            model: None,
-            provider: None,
+            launch: Default::default(),
         }
     }
 
@@ -1170,8 +1169,7 @@ mod reliability {
             spec_path: "spec.md".to_string(),
             work_dir: PathBuf::from("/tmp"),
             env: Default::default(),
-            model: None,
-            provider: None,
+            launch: Default::default(),
         }
     }
 

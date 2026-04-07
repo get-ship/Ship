@@ -3,6 +3,7 @@
 use anyhow::Result;
 use async_trait::async_trait;
 use runtime::services::dispatch_ports::{ExecutorHandle, JobContext, JobExecutor};
+use runtime::services::provider_adapter::adapter_for;
 
 use super::super::helpers::{ensure_tmux_session, kill_tmux_session};
 use super::super::terminal_launcher;
@@ -15,7 +16,29 @@ impl JobExecutor for TmuxExecutor {
     async fn spawn(&self, ctx: &JobContext) -> Result<ExecutorHandle> {
         let tmux_session = format!("job-{}", ctx.slug);
         ensure_tmux_session(&tmux_session, &ctx.work_dir)?;
-        spawn_agent_with_mesh_id(&tmux_session, &ctx.slug, ctx.model.as_deref());
+
+        let adapter = adapter_for(ctx.launch.provider.as_deref());
+        let cmd = adapter.build_interactive(&ctx.slug, &ctx.launch);
+        let shell_cmd = cmd.to_shell_string();
+
+        let result = std::process::Command::new("tmux")
+            .args(["send-keys", "-t", &tmux_session, &shell_cmd, "Enter"])
+            .status();
+        if let Err(e) = result {
+            tracing::warn!(session = tmux_session, "tmux send-keys failed: {e}");
+        }
+
+        // Wait for the agent to be ready, then send autostart input.
+        let session = tmux_session.clone();
+        let ready_pat = adapter.ready_pattern().to_string();
+        let autostart = adapter.autostart_input().to_string();
+        std::thread::spawn(move || {
+            if wait_for_ready(&session, &ready_pat, 30) {
+                let _ = std::process::Command::new("tmux")
+                    .args(["send-keys", "-t", &session, &autostart, "Enter"])
+                    .status();
+            }
+        });
 
         let (strategy, launched) = terminal_launcher::launch(&tmux_session);
         tracing::info!(
@@ -65,48 +88,8 @@ impl JobExecutor for TmuxExecutor {
     }
 }
 
-/// Send agent CLI command into the tmux session with SHIP_MESH_ID set.
-fn spawn_agent_with_mesh_id(tmux_session: &str, slug: &str, model: Option<&str>) {
-    let model_flag = match model {
-        Some(m) => format!(" --model {m}"),
-        None => String::new(),
-    };
-    let cmd = format!(
-        "SHIP_MESH_ID={slug} claude --dangerously-skip-permissions \
-         --dangerously-load-development-channels server:ship{model_flag}"
-    );
-    let result = std::process::Command::new("tmux")
-        .args(["send-keys", "-t", tmux_session, &cmd, "Enter"])
-        .status();
-    if let Err(e) = result {
-        tracing::warn!(session = tmux_session, "tmux send-keys failed: {e}");
-        return;
-    }
-
-    // Wait for claude to be ready, then auto-accept prompts and send "go".
-    // Polls the tmux pane for the input prompt (❯) instead of blind delays.
-    let session = tmux_session.to_string();
-    std::thread::spawn(move || {
-        // Phase 1: Wait for experimental channels prompt (up to 30s)
-        if wait_for_prompt(&session, 30) {
-            // Accept the experimental channels prompt
-            let _ = std::process::Command::new("tmux")
-                .args(["send-keys", "-t", &session, "Enter"])
-                .status();
-        }
-        // Phase 2: Wait for the main input prompt (up to 30s)
-        if wait_for_prompt(&session, 30) {
-            // Send "go" to trigger job autostart
-            let _ = std::process::Command::new("tmux")
-                .args(["send-keys", "-t", &session, "go", "Enter"])
-                .status();
-        }
-    });
-}
-
-/// Poll tmux pane until the Claude input prompt (❯) appears.
-/// Returns true if found, false on timeout.
-fn wait_for_prompt(session: &str, timeout_secs: u64) -> bool {
+/// Poll tmux pane until the ready pattern appears.
+fn wait_for_ready(session: &str, pattern: &str, timeout_secs: u64) -> bool {
     for _ in 0..timeout_secs {
         std::thread::sleep(std::time::Duration::from_secs(1));
         let output = std::process::Command::new("tmux")
@@ -114,12 +97,11 @@ fn wait_for_prompt(session: &str, timeout_secs: u64) -> bool {
             .output();
         if let Ok(out) = output {
             let text = String::from_utf8_lossy(&out.stdout);
-            // Claude shows ❯ when ready for input
-            if text.contains('❯') {
+            if text.contains(pattern) {
                 return true;
             }
         }
     }
-    tracing::warn!(session, "agent: timed out waiting for prompt");
+    tracing::warn!(session, "agent: timed out waiting for ready pattern");
     false
 }

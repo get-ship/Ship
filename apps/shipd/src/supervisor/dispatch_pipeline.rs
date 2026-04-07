@@ -3,12 +3,10 @@
 //! A pipeline is a DAG of steps. Each step has a type (agent, gate, merge, human)
 //! and declares dependencies via `after`. The engine walks the DAG: when a step
 //! completes, it finds unblocked steps and dispatches them.
-
 use runtime::events::job::StepType;
 use runtime::events::{CallerKind, EmitContext, EventEnvelope};
 use runtime::services::dispatch_ports::{JobContext, JobExecutor};
 use runtime::projections::job::{load_jobs, load_jobs_at};
-use runtime::services::provider_adapter::adapter_for;
 use std::sync::Arc;
 use tokio::sync::Mutex;
 
@@ -23,10 +21,22 @@ pub(crate) async fn emit_job_dispatched(
     worktree_path: &std::path::Path,
     slug: &str,
 ) {
+    emit_job_dispatched_with_meta(kernel, job_id, worktree_path, slug, None).await;
+}
+
+/// Emit a `job.dispatched` event with optional provider metadata.
+pub(crate) async fn emit_job_dispatched_with_meta(
+    kernel: &Arc<Mutex<runtime::events::KernelRouter>>,
+    job_id: &str,
+    worktree_path: &std::path::Path,
+    slug: &str,
+    provider_meta: Option<serde_json::Value>,
+) {
     let dispatched_payload = runtime::events::job::JobDispatchedPayload {
         job_id: job_id.to_string(),
         worktree: worktree_path.to_string_lossy().into_owned(),
         pid: None,
+        provider_meta,
     };
     let dispatched_envelope = match EventEnvelope::new(
         runtime::events::job::event_types::JOB_DISPATCHED,
@@ -58,7 +68,6 @@ pub(crate) async fn emit_job_dispatched(
 
     tracing::info!(slug, "pipeline: job dispatched successfully");
 }
-
 /// Advance the pipeline after a step completes. Returns true if a next step was dispatched.
 pub(crate) async fn advance_pipeline(
     kernel: &Arc<Mutex<runtime::events::KernelRouter>>,
@@ -79,7 +88,6 @@ pub(crate) async fn advance_pipeline_at(
     let worktree_root = ship_dir.parent().map(|p| p.join("worktrees"));
     advance_pipeline_inner(kernel, envelope, dctx, Some(ship_dir), worktree_root.as_deref()).await
 }
-
 async fn advance_pipeline_inner(
     kernel: &Arc<Mutex<runtime::events::KernelRouter>>,
     envelope: &EventEnvelope,
@@ -151,11 +159,8 @@ async fn advance_pipeline_inner(
     }
 
     tracing::info!(slug, step = %current_step_id, "pipeline: step completed");
-
-    // Mark current step as completed and find next steps
     let mut completed = job.completed_steps.clone();
     completed.push(current_step_id.clone());
-
     let next_steps = pipeline.unblocked_steps(&completed);
     if next_steps.is_empty() {
         tracing::info!(slug, completed_count = completed.len(), "pipeline: all steps completed");
@@ -195,6 +200,8 @@ async fn advance_pipeline_inner(
                 }
 
                 // Launch the agent
+                // Gate steps are ephemeral — no session persistence needed.
+                let persist = step.step_type != StepType::Gate;
                 let job_ctx = JobContext {
                     job_id: job.job_id.clone(),
                     slug: slug.clone(),
@@ -203,8 +210,12 @@ async fn advance_pipeline_inner(
                     spec_path: job.spec_path.clone(),
                     work_dir: worktree_path.clone(),
                     env: [("SHIP_MESH_ID".to_string(), slug.clone())].into(),
-                    model: step.model.clone(),
-                    provider: step.provider.clone(),
+                    launch: runtime::services::dispatch_ports::LaunchProfile {
+                        provider: step.provider.clone(),
+                        model: step.model.clone(),
+                        persist_session: persist,
+                        ..Default::default()
+                    },
                 };
                 // Pipeline steps use ProcessExecutor (headless, auto-exits on completion).
                 // Falls back to the configured executor if ProcessExecutor fails.

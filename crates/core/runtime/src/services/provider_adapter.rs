@@ -1,30 +1,54 @@
 //! Provider adapter trait — single interface between executors and provider CLIs.
 //!
-//! `ProviderAdapter` is the contract between job executors and the underlying
-//! provider CLI. It replaces the defunct `provider_launchers` module.
-//!
-//! To add a new provider, implement `ProviderAdapter` in `providers/` and add
-//! a match arm to `adapter_for`.
+//! Each provider implements this trait once. Executors use the trait methods
+//! without knowing which provider they're running.
 
-/// Behaviour that every provider CLI must implement for executor integration.
-pub trait ProviderAdapter: Send + Sync {
-    /// Pattern that appears in the terminal pane when the agent is ready for input.
-    fn ready_pattern(&self) -> &str;
+use std::path::Path;
 
-    /// Text sent to the agent after it becomes ready (triggers job autostart).
-    fn autostart_input(&self) -> &str;
+use super::dispatch_ports::{LaunchCommand, LaunchProfile};
 
-    /// Command sent to the agent to request a graceful exit.
-    fn exit_command(&self) -> &str;
-
-    /// Base CLI invocation string (without slug, model, or flag overrides).
-    fn cli_command(&self) -> &str;
+/// Events extracted from provider process output.
+#[derive(Debug, Clone, PartialEq)]
+pub enum ProviderEvent {
+    ToolUse { tool: String, input_preview: String },
+    Message { text: String },
+    Usage { input_tokens: u64, output_tokens: u64 },
+    SessionStarted { session_id: String },
+    TurnComplete { stop_reason: String },
+    Custom { kind: String, data: serde_json::Value },
 }
 
-/// Return the adapter for a given provider name. Defaults to Claude.
+/// Complete lifecycle adapter for a provider CLI.
+pub trait ProviderAdapter: Send + Sync {
+    /// Provider identifier (e.g. "claude", "codex").
+    fn id(&self) -> &str;
+
+    /// Build the CLI command for an interactive (terminal) session.
+    fn build_interactive(&self, slug: &str, profile: &LaunchProfile) -> LaunchCommand;
+
+    /// Build the CLI command for a headless (non-interactive) session.
+    fn build_headless(&self, slug: &str, profile: &LaunchProfile) -> LaunchCommand;
+
+    /// Pattern that indicates the CLI is ready for input.
+    fn ready_pattern(&self) -> &str;
+
+    /// Text to send after the CLI is ready to trigger job autostart.
+    fn autostart_input(&self) -> &str;
+
+    /// Command to send for graceful shutdown.
+    fn exit_command(&self) -> &str;
+
+    /// Parse a line of stdout from the provider process.
+    fn parse_output(&self, _line: &str) -> Option<ProviderEvent> { None }
+
+    /// Extract session metadata from the work directory after launch.
+    fn extract_session_meta(&self, _work_dir: &Path) -> Option<serde_json::Value> { None }
+}
+
+/// Resolve a provider name to its adapter.
 pub fn adapter_for(provider: Option<&str>) -> Box<dyn ProviderAdapter> {
     match provider {
-        Some("codex") => Box::new(super::providers::codex::CodexProviderAdapter),
-        _ => Box::new(super::providers::claude::ClaudeProviderAdapter),
+        Some("codex") => Box::new(super::providers::codex::CodexAdapter),
+        _ => Box::new(super::providers::claude::ClaudeAdapter),
     }
 }

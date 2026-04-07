@@ -178,11 +178,19 @@ pub(crate) fn delete_branch(branch: &str) -> Result<()> {
 }
 
 pub(crate) fn provider_cli(providers: &[String]) -> Option<String> {
+    use runtime::services::dispatch_ports::LaunchProfile;
     use runtime::services::provider_adapter::adapter_for;
+
     for p in providers {
         match p.as_str() {
             "claude" | "claude-code" | "codex" => {
-                return Some(adapter_for(Some(p)).cli_command().to_string());
+                let profile = LaunchProfile {
+                    provider: Some(p.clone()),
+                    persist_session: true,
+                    ..Default::default()
+                };
+                let adapter = adapter_for(Some(p));
+                return Some(adapter.build_interactive("workspace", &profile).to_shell_string());
             }
             _ => {}
         }

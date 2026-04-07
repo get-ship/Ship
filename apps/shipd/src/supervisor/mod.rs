@@ -21,3 +21,23 @@ pub use workspace_sync::subscribe_workspace_events;
 
 #[cfg(test)]
 mod tests_service_architecture;
+
+#[cfg(test)]
+#[path = "tests_executor.rs"]
+mod tests_executor;
+
+#[cfg(test)]
+#[path = "tests_cleanup_lifecycle.rs"]
+mod tests_cleanup_lifecycle;
+
+#[cfg(test)]
+#[path = "tests_concurrency.rs"]
+mod tests_concurrency;
+
+#[cfg(test)]
+#[path = "tests_daemon_startup.rs"]
+mod tests_daemon_startup;
+
+#[cfg(test)]
+#[path = "tests_event_integrity.rs"]
+mod tests_event_integrity;

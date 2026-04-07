@@ -1,0 +1,177 @@
+//! Cleanup lifecycle tests.
+//!
+//! When a job reaches a terminal state (merged, failed), its resources must
+//! be cleaned up: worktree removed, branch deleted, tmux session killed,
+//! process registry entry cleared.
+//!
+//! Cleanup must be event-driven and idempotent. Running cleanup twice on
+//! the same job must not error.
+
+use runtime::events::job::event_types;
+use runtime::events::EventEnvelope;
+use runtime::projections::job::{project, JobStatus};
+
+fn ev(event_type: &str, payload: serde_json::Value) -> EventEnvelope {
+    let job_id = payload["job_id"].as_str().unwrap_or("test");
+    EventEnvelope::new(event_type, job_id, &payload).unwrap()
+}
+
+// ═══════════════════════════════════════════════════════════════════════════
+// CLEANUP TRIGGERS
+//
+// Cleanup fires on job.merged. Failed jobs retain resources for investigation.
+// ═══════════════════════════════════════════════════════════════════════════
+
+/// Merged jobs must trigger resource cleanup.
+/// The cleanup handler receives the event and acts on it.
+#[test]
+fn cleanup_handler_exists_for_merged_events() {
+    let source = include_str!("dispatch_handlers.rs");
+    assert!(
+        source.contains("job_cleanup") || source.contains("handle_job_cleanup"),
+        "a cleanup handler must exist for merged job events"
+    );
+}
+
+/// The job_dispatch event loop must route job.merged to cleanup.
+#[test]
+fn job_merged_routes_to_cleanup() {
+    let source = include_str!("job_dispatch.rs");
+    assert!(
+        source.contains("job.merged"),
+        "job_dispatch must handle job.merged events"
+    );
+    assert!(
+        source.contains("cleanup") || source.contains("handle_job_cleanup"),
+        "job.merged handler must trigger cleanup"
+    );
+}
+
+/// Cleanup must remove the process registry entry.
+#[test]
+fn job_merged_unregisters_from_process_registry() {
+    let source = include_str!("job_dispatch.rs");
+    // The merged handler should call registry.unregister
+    assert!(
+        source.contains("unregister"),
+        "job.merged handler must unregister from process registry"
+    );
+}
+
+/// Cleanup handler must attempt worktree removal.
+#[test]
+fn cleanup_removes_worktree() {
+    let source = include_str!("dispatch_handlers.rs");
+    assert!(
+        source.contains("remove_worktree"),
+        "cleanup must call remove_worktree"
+    );
+}
+
+/// Cleanup handler must attempt branch deletion.
+#[test]
+fn cleanup_deletes_branch() {
+    let source = include_str!("dispatch_handlers.rs");
+    assert!(
+        source.contains("delete_branch"),
+        "cleanup must call delete_branch"
+    );
+}
+
+/// Cleanup handler must attempt tmux session kill.
+#[test]
+fn cleanup_kills_tmux_session() {
+    let source = include_str!("dispatch_handlers.rs");
+    assert!(
+        source.contains("kill_tmux_session"),
+        "cleanup must call kill_tmux_session"
+    );
+}
+
+/// Failed jobs must NOT trigger automatic cleanup — worktrees are kept
+/// for post-mortem investigation.
+#[test]
+fn job_failed_does_not_trigger_cleanup() {
+    let source = include_str!("job_dispatch.rs");
+    // Find the job.failed handler and verify it doesn't call cleanup
+    let lines: Vec<&str> = source.lines().collect();
+    let failed_handler = lines.iter().enumerate()
+        .find(|(_, l)| l.contains("\"job.failed\""));
+    if let Some((idx, _)) = failed_handler {
+        // Check the next ~10 lines for cleanup calls
+        let handler_block: String = lines[idx..std::cmp::min(idx + 10, lines.len())]
+            .join("\n");
+        assert!(
+            !handler_block.contains("handle_job_cleanup"),
+            "job.failed must not trigger cleanup — keep resources for investigation"
+        );
+    }
+}
+
+// ═══════════════════════════════════════════════════════════════════════════
+// CLEANUP RESILIENCE
+//
+// Cleanup operations must be best-effort and non-fatal. A failed worktree
+// removal must not prevent branch deletion or tmux cleanup.
+// ═══════════════════════════════════════════════════════════════════════════
+
+/// Cleanup must handle missing worktrees gracefully.
+/// (Worktree may have been manually deleted.)
+#[test]
+fn cleanup_tolerates_missing_worktree() {
+    // remove_worktree in helpers.rs should check existence first
+    let source = include_str!("helpers.rs");
+    assert!(
+        source.contains("exists()"),
+        "remove_worktree must check if worktree exists before removal"
+    );
+}
+
+/// Cleanup must handle missing branches gracefully.
+#[test]
+fn cleanup_tolerates_missing_branch() {
+    // delete_branch should not propagate errors for non-existent branches
+    let source = include_str!("helpers.rs");
+    // The function logs but doesn't error on missing branches
+    assert!(
+        source.contains("may not exist"),
+        "delete_branch must tolerate non-existent branches"
+    );
+}
+
+// ═══════════════════════════════════════════════════════════════════════════
+// ORPHAN DETECTION
+//
+// After daemon restart, there may be worktrees on disk for jobs that are
+// already merged or failed. These orphans must be detectable and cleanable.
+// ═══════════════════════════════════════════════════════════════════════════
+
+/// The projection must provide enough data to detect orphaned worktrees.
+/// A worktree is orphaned if the job is in a terminal state but the
+/// worktree path still exists.
+#[test]
+fn terminal_jobs_with_worktrees_are_orphan_candidates() {
+    let events = vec![
+        ev(event_types::JOB_CREATED, serde_json::json!({
+            "job_id": "j1", "slug": "done",
+            "agent": "r", "branch": "job/done",
+            "spec_path": "s.md", "plan_id": null,
+        })),
+        ev(event_types::JOB_DISPATCHED, serde_json::json!({
+            "job_id": "j1", "worktree": "/tmp/wt/done", "pid": null,
+        })),
+        ev(event_types::JOB_COMPLETED, serde_json::json!({
+            "job_id": "j1", "slug": "done",
+        })),
+        ev(event_types::JOB_MERGED, serde_json::json!({
+            "job_id": "j1", "slug": "done",
+        })),
+    ];
+    let map = project(&events);
+    let orphan_candidates: Vec<_> = map.values()
+        .filter(|j| matches!(j.status, JobStatus::Merged | JobStatus::Failed))
+        .filter(|j| j.worktree.is_some())
+        .collect();
+    assert_eq!(orphan_candidates.len(), 1);
+    assert_eq!(orphan_candidates[0].worktree.as_deref(), Some("/tmp/wt/done"));
+}
