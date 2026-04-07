@@ -1,7 +1,7 @@
 import { createFileRoute } from '@tanstack/react-router'
 import { useState } from 'react'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
-import { GitMerge, Plus, Save, ChevronRight } from 'lucide-react'
+import { GitMerge, Plus, Save, ChevronRight, Trash2 } from 'lucide-react'
 import { Button } from '@ship/primitives'
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from '@ship/primitives'
 import { Input } from '@ship/primitives'
@@ -77,13 +77,37 @@ const STEP_TYPE_COLORS: Record<string, string> = {
   merge: 'bg-emerald-500/10 text-emerald-600 border-emerald-500/20',
 }
 
+function useDeletePipeline() {
+  const { viewedWorkspace } = useStudioShell()
+  const { workspaces } = useDaemon()
+  const wsId = viewedWorkspace
+    ?? workspaces.find((w) => String(w.status).toLowerCase() === 'active')?.branch
+    ?? ''
+  const queryClient = useQueryClient()
+
+  return useMutation({
+    mutationFn: async (name: string) => {
+      const res = await fetch(
+        `${DAEMON_BASE_URL}/api/workspaces/${encodeURIComponent(wsId)}/pipelines/${encodeURIComponent(name)}`,
+        { method: 'DELETE' },
+      )
+      if (!res.ok) throw new Error(`delete pipeline: ${res.status}`)
+    },
+    onSuccess: () => {
+      void queryClient.invalidateQueries({ queryKey: ['pipelines'] })
+    },
+  })
+}
+
 function PipelinesPage() {
   const { data: pipelines, isLoading } = usePipelines()
   const [selected, setSelected] = useState<string | null>(null)
   const [editing, setEditing] = useState<string | null>(null)
   const [editorContent, setEditorContent] = useState('')
   const [createOpen, setCreateOpen] = useState(false)
+  const [confirmDelete, setConfirmDelete] = useState<string | null>(null)
   const saveMutation = useSavePipeline()
+  const deleteMutation = useDeletePipeline()
 
   const handleEdit = (pipeline: PipelineDef) => {
     setEditing(pipeline.name)
@@ -180,9 +204,25 @@ function PipelinesPage() {
                         </div>
                       </div>
                     ) : (
-                      <Button size="sm" variant="ghost" onClick={() => handleEdit(pipeline)}>
-                        Edit YAML
-                      </Button>
+                      <div className="flex items-center gap-2">
+                        <Button size="sm" variant="ghost" onClick={() => handleEdit(pipeline)}>
+                          Edit YAML
+                        </Button>
+                        {confirmDelete === pipeline.name ? (
+                          <span className="flex items-center gap-1.5">
+                            <Button size="sm" variant="ghost" className="text-destructive hover:text-destructive" onClick={() => { deleteMutation.mutate(pipeline.name); setConfirmDelete(null) }}>
+                              Confirm delete
+                            </Button>
+                            <Button size="sm" variant="ghost" onClick={() => setConfirmDelete(null)}>
+                              Cancel
+                            </Button>
+                          </span>
+                        ) : (
+                          <Button size="sm" variant="ghost" onClick={() => setConfirmDelete(pipeline.name)}>
+                            <Trash2 className="size-3 text-muted-foreground hover:text-destructive" />
+                          </Button>
+                        )}
+                      </div>
                     )}
                   </div>
                 )}
