@@ -213,6 +213,7 @@ pub struct CreateJobRequest {
     pub branch: String,
     pub spec_path: String,
     pub depends_on: Option<Vec<String>>,
+    pub pipeline: Option<String>,
 }
 
 /// GET /api/runtime/jobs
@@ -260,6 +261,7 @@ pub async fn create_job(
         depends_on: req.depends_on,
         pipeline: None,
         steps: None,
+        pipeline_name: req.pipeline,
     };
 
     // Enrich with pipeline BEFORE persisting — the persisted event must include steps

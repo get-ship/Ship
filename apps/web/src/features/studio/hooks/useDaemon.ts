@@ -97,6 +97,7 @@ export interface CreateJobInput {
   branch: string
   spec_path: string
   depends_on: string[] | null
+  pipeline?: string
 }
 
 async function postCreateJob(input: CreateJobInput): Promise<string> {

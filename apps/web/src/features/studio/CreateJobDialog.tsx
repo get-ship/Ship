@@ -1,10 +1,14 @@
 import { useState, useEffect } from 'react'
+import { useQuery } from '@tanstack/react-query'
 import {
   Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter,
 } from '@ship/primitives'
 import { Input } from '@ship/primitives'
 import { Button } from '@ship/primitives'
 import { useCreateJob } from '#/features/studio/hooks/useDaemon'
+import { useStudioShell } from '#/features/studio/StudioShellContext'
+import { useDaemon } from '#/features/studio/hooks/useDaemon'
+import { DAEMON_BASE_URL } from '#/lib/daemon-config'
 import { toast } from 'sonner'
 
 interface CreateJobDialogProps {
@@ -20,14 +24,36 @@ function slugify(text: string): string {
     .replace(/^-|-$/g, '')
 }
 
+function usePipelineNames() {
+  const { viewedWorkspace } = useStudioShell()
+  const { workspaces } = useDaemon()
+  const wsId = viewedWorkspace
+    ?? workspaces.find((w) => String(w.status).toLowerCase() === 'active')?.branch
+    ?? ''
+
+  return useQuery({
+    queryKey: ['pipeline-names', wsId],
+    queryFn: async (): Promise<string[]> => {
+      const res = await fetch(`${DAEMON_BASE_URL}/api/workspaces/${encodeURIComponent(wsId)}/pipelines`)
+      if (!res.ok) return []
+      const body = await res.json() as { ok: boolean; data: { pipelines: Array<{ name: string }> } }
+      return body.data.pipelines.map((p) => p.name)
+    },
+    enabled: wsId.length > 0,
+    staleTime: 30_000,
+  })
+}
+
 export function CreateJobDialog({ open, onOpenChange }: CreateJobDialogProps) {
   const createJob = useCreateJob()
+  const { data: pipelineNames } = usePipelineNames()
 
   const [slug, setSlug] = useState('')
   const [agent, setAgent] = useState('')
   const [branch, setBranch] = useState('')
   const [specPath, setSpecPath] = useState('.ship-session/job-spec.md')
   const [dependsOn, setDependsOn] = useState('')
+  const [pipeline, setPipeline] = useState('')
   const [branchEdited, setBranchEdited] = useState(false)
 
   useEffect(() => {
@@ -57,6 +83,7 @@ export function CreateJobDialog({ open, onOpenChange }: CreateJobDialogProps) {
         branch: branch.trim() || `job/${slugify(trimmedSlug)}`,
         spec_path: specPath.trim() || '.ship-session/job-spec.md',
         depends_on: deps.length > 0 ? deps : null,
+        pipeline: pipeline || undefined,
       },
       {
         onSuccess: () => {
@@ -77,6 +104,7 @@ export function CreateJobDialog({ open, onOpenChange }: CreateJobDialogProps) {
     setBranch('')
     setSpecPath('.ship-session/job-spec.md')
     setDependsOn('')
+    setPipeline('')
     setBranchEdited(false)
   }
 
@@ -113,6 +141,20 @@ export function CreateJobDialog({ open, onOpenChange }: CreateJobDialogProps) {
           </div>
 
           <div>
+            <label className="text-xs font-medium text-foreground mb-1.5 block">Pipeline</label>
+            <select
+              value={pipeline}
+              onChange={(e) => setPipeline(e.target.value)}
+              className="w-full rounded-md border border-border bg-background px-3 py-2 text-sm text-foreground focus:outline-none focus:border-primary/50"
+            >
+              <option value="">Default (from spec frontmatter)</option>
+              {pipelineNames?.map((name) => (
+                <option key={name} value={name}>{name}</option>
+              ))}
+            </select>
+          </div>
+
+          <div>
             <label className="text-xs font-medium text-foreground mb-1.5 block">Branch</label>
             <Input
               value={branch}
@@ -138,11 +180,8 @@ export function CreateJobDialog({ open, onOpenChange }: CreateJobDialogProps) {
             <Input
               value={dependsOn}
               onChange={(e) => setDependsOn(e.target.value)}
-              placeholder="comma-separated slugs, e.g. setup-db, lint"
+              placeholder="comma-separated slugs"
             />
-            <p className="text-[11px] text-muted-foreground/60 mt-1">
-              Jobs that must complete before this one is dispatched.
-            </p>
           </div>
         </div>
 

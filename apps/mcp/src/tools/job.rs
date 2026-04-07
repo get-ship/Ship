@@ -31,6 +31,7 @@ pub async fn create_job(req: CreateJobRequest) -> String {
         depends_on: req.depends_on,
         pipeline: None,
         steps: None,
+        pipeline_name: req.pipeline,
     };
     let envelope = match EventEnvelope::new(event_types::JOB_CREATED, &job_id, &payload) {
         Ok(e) => e,

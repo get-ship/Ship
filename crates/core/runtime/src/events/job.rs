@@ -119,6 +119,9 @@ pub struct JobCreatedPayload {
     /// DAG pipeline. Takes precedence over `pipeline` if both are set.
     #[serde(default)]
     pub steps: Option<Pipeline>,
+    /// Pipeline name reference (e.g. "tdd"). Resolved by daemon from .ship/pipelines/.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub pipeline_name: Option<String>,
 }
 
 /// Emitted when the job is assigned to a worktree and (optionally) a process.

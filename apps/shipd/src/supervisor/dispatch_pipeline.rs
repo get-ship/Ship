@@ -29,8 +29,11 @@ pub(crate) fn ensure_pipeline(
 
     let spec_content = read_spec_content(&payload.spec_path);
 
-    // Try named pipeline reference: `pipeline: tdd`
-    if let Some(name) = parse_pipeline_name_from_frontmatter(&spec_content) {
+    // Try explicit pipeline_name from the create request first
+    let pipeline_ref = payload.pipeline_name.clone()
+        .or_else(|| parse_pipeline_name_from_frontmatter(&spec_content));
+
+    if let Some(name) = pipeline_ref {
         if let Some(pipeline) = load_pipeline_file(&name) {
             tracing::info!(
                 slug = payload.slug,

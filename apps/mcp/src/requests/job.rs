@@ -19,6 +19,8 @@ pub struct CreateJobRequest {
     pub provider: Option<String>,
     /// Job slugs that must complete before this job is dispatched.
     pub depends_on: Option<Vec<String>>,
+    /// Pipeline name from .ship/pipelines/ (e.g. "tdd"). Overrides spec frontmatter.
+    pub pipeline: Option<String>,
 }
 
 #[derive(Deserialize, JsonSchema)]
