@@ -1,3 +1,4 @@
+pub mod deprecation;
 mod handler;
 pub mod notification_relay;
 mod tool_gate;
