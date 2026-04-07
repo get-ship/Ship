@@ -3,7 +3,7 @@
 // agents reference it and its origin (project vs library).
 
 import { useMemo, useState, useEffect } from 'react'
-import { usePullAgents, useProjectSkills } from '#/features/studio/mcp-queries'
+import { usePullAgents, useProjectSkills } from "#/features/studio/mcp-queries"
 import { useDaemon } from '#/features/studio/hooks/useDaemon'
 import { idbGet, idbSet, migrateFromLocalStorage } from '#/lib/idb-cache'
 import type { Skill, PullSkill, JsonValue } from '@ship/ui'

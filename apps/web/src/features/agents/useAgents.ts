@@ -2,7 +2,7 @@
 // This is the primary read path for agent data in the UI.
 
 import { useMemo, useState, useEffect } from 'react'
-import { usePullAgents } from '#/features/studio/mcp-queries'
+import { usePullAgents } from "#/features/studio/mcp-queries"
 import { useDaemon } from '#/features/studio/hooks/useDaemon'
 import { useAgentDrafts } from './useAgentDrafts'
 import { pullAgentToResolved } from './pull-adapter'

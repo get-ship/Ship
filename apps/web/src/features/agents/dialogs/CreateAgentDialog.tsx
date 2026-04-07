@@ -7,7 +7,7 @@ import { Input } from '@ship/primitives'
 import { Button } from '@ship/primitives'
 import { makeAgent } from '#/features/agents/make-agent'
 import { buildTransferBundle } from '#/features/studio/build-transfer-bundle'
-import { usePushBundle } from '#/features/studio/mcp-queries'
+import { usePushBundle } from "#/features/studio/mcp-mutations"
 import { useDaemon } from '#/features/studio/hooks/useDaemon'
 import { getFieldEnum, getFieldDescription } from '#/features/agents/schema-hints'
 import { validateAgentProfile } from '#/features/agents/schema-validation'
