@@ -18,15 +18,9 @@ const HOOK_PROVIDERS = new Set(['claude', 'gemini'])
 export interface ProvidersSectionProps {
   providers: string[]
   model?: string | null
-  env?: Record<string, string> | null
-  availableModels?: string[] | null
-  agentLimits?: { max_turns?: number; max_cost_per_session?: number } | null
   hooks: HookConfig[]
   providerSettings: Record<string, Record<string, unknown>>
   onChangeModel: (model: string | null) => void
-  onChangeEnv: (env: Record<string, string>) => void
-  onChangeAvailableModels: (models: string[]) => void
-  onChangeAgentLimits: (limits: Record<string, unknown>) => void
   onChangeHooks: (hooks: HookConfig[]) => void
   onChangeProviderSettings: (settings: Record<string, Record<string, unknown>>) => void
 }
@@ -34,15 +28,9 @@ export interface ProvidersSectionProps {
 export function ProvidersSection({
   providers,
   model,
-  env,
-  availableModels,
-  agentLimits,
   hooks,
   providerSettings,
   onChangeModel,
-  onChangeEnv,
-  onChangeAvailableModels,
-  onChangeAgentLimits,
   onChangeHooks,
   onChangeProviderSettings,
 }: ProvidersSectionProps) {
@@ -52,16 +40,10 @@ export function ProvidersSection({
 
   const handleSave = (config: {
     model: string | null
-    env: Record<string, string>
-    availableModels: string[]
-    agentLimits: Record<string, unknown>
     hooks: HookConfig[]
     providerSettings: Record<string, unknown>
   }) => {
     onChangeModel(config.model)
-    onChangeEnv(config.env)
-    onChangeAvailableModels(config.availableModels)
-    onChangeAgentLimits(config.agentLimits)
     onChangeHooks(config.hooks)
     if (activeProvider) {
       onChangeProviderSettings({ ...providerSettings, [activeProvider]: config.providerSettings })
@@ -95,9 +77,6 @@ export function ProvidersSection({
           onOpenChange={(open) => { if (!open) setActiveProvider(null) }}
           provider={activeProvider}
           model={model ?? null}
-          env={env ?? {}}
-          availableModels={availableModels ?? []}
-          agentLimits={agentLimits ?? {}}
           hooks={hooks}
           providerSettings={providerSettings[activeProvider] ?? {}}
           onSave={handleSave}

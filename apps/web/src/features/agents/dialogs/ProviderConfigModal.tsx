@@ -19,16 +19,10 @@ export interface ProviderConfigModalProps {
   onOpenChange: (open: boolean) => void
   provider: string
   model: string | null
-  env: Record<string, string>
-  availableModels: string[]
-  agentLimits: { max_turns?: number; max_cost_per_session?: number }
   hooks: HookConfig[]
   providerSettings: Record<string, unknown>
   onSave: (config: {
     model: string | null
-    env: Record<string, string>
-    availableModels: string[]
-    agentLimits: Record<string, unknown>
     hooks: HookConfig[]
     providerSettings: Record<string, unknown>
   }) => void
@@ -39,18 +33,12 @@ export function ProviderConfigModal({
   onOpenChange,
   provider,
   model,
-  env,
-  availableModels,
-  agentLimits,
   hooks,
   providerSettings,
   onSave,
 }: ProviderConfigModalProps) {
   const [activeTab, setActiveTab] = useState<TabId>('general')
   const [localModel, setLocalModel] = useState<string>(model ?? '')
-  const [localEnv, setLocalEnv] = useState<Record<string, string>>(env)
-  const [localModels, setLocalModels] = useState<string[]>(availableModels)
-  const [localLimits, setLocalLimits] = useState(agentLimits)
   const [localHooks, setLocalHooks] = useState<HookConfig[]>(hooks)
   const [localSettings, setLocalSettings] = useState<Record<string, unknown>>(providerSettings)
 
@@ -60,13 +48,10 @@ export function ProviderConfigModal({
     if (open) {
       setActiveTab('general')
       setLocalModel(model ?? '')
-      setLocalEnv({ ...env })
-      setLocalModels([...availableModels])
-      setLocalLimits({ ...agentLimits })
       setLocalHooks([...hooks])
       setLocalSettings({ ...providerSettings })
     }
-  }, [open, model, env, availableModels, agentLimits, hooks, providerSettings])
+  }, [open, model, hooks, providerSettings])
 
   const close = useCallback(() => onOpenChange(false), [onOpenChange])
 
@@ -82,9 +67,6 @@ export function ProviderConfigModal({
   const handleSave = () => {
     onSave({
       model: localModel.trim() || null,
-      env: localEnv,
-      availableModels: localModels,
-      agentLimits: localLimits,
       hooks: localHooks,
       providerSettings: localSettings,
     })
@@ -141,14 +123,9 @@ export function ProviderConfigModal({
           <div className="flex-1 overflow-y-auto px-5 py-4">
             {activeTab === 'general' && (
               <ProviderGeneralTab
+                provider={provider}
                 model={localModel}
                 onModelChange={setLocalModel}
-                availableModels={localModels}
-                onAvailableModelsChange={setLocalModels}
-                agentLimits={localLimits}
-                onAgentLimitsChange={setLocalLimits}
-                env={localEnv}
-                onEnvChange={setLocalEnv}
               />
             )}
             {activeTab === 'hooks' && supportsHooks && (

@@ -12,8 +12,9 @@ export default meta
 type Story = StoryObj<typeof PermissionsSection>
 
 const fullPermissions: ProfilePermissions = {
-  preset: 'ship-guarded',
+  preset: 'ship-standard',
   tools_allow: ['Read', 'Grep', 'Glob', 'Bash(git *)'],
+  tools_ask: ['Write', 'Edit'],
   tools_deny: ['Bash(rm -rf *)'],
 }
 
@@ -22,44 +23,34 @@ const emptyPermissions: ProfilePermissions = {
   tools_deny: [],
 }
 
-/** Ship-guarded preset with realistic allow/deny rules. */
-export const ShipGuarded: Story = {
+/** Standard preset with realistic allow/ask/deny rules. */
+export const Standard: Story = {
   args: {
     permissions: fullPermissions,
-    activePreset: 'ship-guarded',
+    activePreset: 'ship-standard',
     onPresetChange: fn(),
     onEdit: fn(),
   },
 }
 
-/** Locked-down preset with empty rules. */
-export const LockedDown: Story = {
+/** Read-only preset with empty rules. */
+export const ReadOnly: Story = {
   args: {
     permissions: emptyPermissions,
-    activePreset: 'locked-down',
+    activePreset: 'ship-readonly',
     onPresetChange: fn(),
     onEdit: fn(),
   },
 }
 
-/** Open preset with broad permissions. */
-export const Open: Story = {
+/** Autonomous preset with broad permissions. */
+export const Autonomous: Story = {
   args: {
     permissions: {
-      tools_allow: ['*'],
+      tools_allow: ['Read', 'Write', 'Edit', 'Bash', 'Glob', 'Grep'],
       tools_deny: [],
     },
-    activePreset: 'open',
+    activePreset: 'ship-autonomous',
     onPresetChange: fn(),
-  },
-}
-
-/** Custom preset. */
-export const CustomPreset: Story = {
-  args: {
-    permissions: fullPermissions,
-    activePreset: 'custom',
-    onPresetChange: fn(),
-    onEdit: fn(),
   },
 }

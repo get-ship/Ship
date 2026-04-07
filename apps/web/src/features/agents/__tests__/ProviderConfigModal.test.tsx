@@ -2,16 +2,11 @@ import { describe, it, expect, vi, afterEach } from 'vitest'
 import { render, screen, cleanup, fireEvent } from '@testing-library/react'
 import { ProviderConfigModal } from '../dialogs/ProviderConfigModal'
 
-// Mock sub-tabs to avoid deep dependency chains (Input, @base-ui, etc.)
+// Mock sub-tabs to avoid deep dependency chains
 vi.mock('../dialogs/ProviderGeneralTab', () => ({
   ProviderGeneralTab: () => (
     <div data-testid="general-tab">
       <span>Model override</span>
-      <span>Available models</span>
-      <span>Agent limits</span>
-      <span>Max turns</span>
-      <span>Max cost per session</span>
-      <span>Environment variables</span>
     </div>
   ),
 }))
@@ -40,9 +35,6 @@ const baseProps = {
   onOpenChange: vi.fn(),
   provider: 'claude',
   model: null as string | null,
-  env: {} as Record<string, string>,
-  availableModels: [] as string[],
-  agentLimits: {} as { max_turns?: number; max_cost_per_session?: number },
   hooks: [],
   providerSettings: {} as Record<string, unknown>,
   onSave: vi.fn(),
@@ -63,11 +55,6 @@ describe('ProviderConfigModal', () => {
     render(<ProviderConfigModal {...baseProps} />)
     expect(screen.getByTestId('general-tab')).toBeTruthy()
     expect(screen.getByText('Model override')).toBeTruthy()
-    expect(screen.getByText('Available models')).toBeTruthy()
-    expect(screen.getByText('Agent limits')).toBeTruthy()
-    expect(screen.getByText('Max turns')).toBeTruthy()
-    expect(screen.getByText('Max cost per session')).toBeTruthy()
-    expect(screen.getByText('Environment variables')).toBeTruthy()
   })
 
   it('shows Hooks tab for claude provider', () => {
@@ -112,8 +99,6 @@ describe('ProviderConfigModal', () => {
     expect(onSave).toHaveBeenCalledWith(
       expect.objectContaining({
         model: null,
-        env: {},
-        availableModels: [],
         hooks: [],
         providerSettings: {},
       }),

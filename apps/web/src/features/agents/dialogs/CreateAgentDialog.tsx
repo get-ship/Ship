@@ -1,4 +1,4 @@
-import { useState, useMemo } from 'react'
+import { useState } from 'react'
 import { useNavigate } from '@tanstack/react-router'
 import {
   Dialog, DialogContent, DialogHeader, DialogTitle, DialogDescription, DialogFooter,
@@ -9,8 +9,6 @@ import { makeAgent } from '#/features/agents/make-agent'
 import { buildTransferBundle } from '#/features/studio/build-transfer-bundle'
 import { usePushBundle } from '#/features/studio/hooks/useWorkspaceConfig'
 import { useDaemon } from '#/features/studio/hooks/useDaemonData'
-import { getFieldEnum, getFieldDescription } from '#/features/agents/schema-hints'
-import { validateAgentProfile } from '#/features/agents/schema-validation'
 import { toast } from 'sonner'
 
 interface CreateAgentDialogProps {
@@ -25,29 +23,12 @@ export function CreateAgentDialog({ open, onOpenChange }: CreateAgentDialogProps
 
   const [name, setName] = useState('')
   const [description, setDescription] = useState('')
-  const [selectedProviders, setSelectedProviders] = useState<string[]>(['claude'])
-  const [validationErrors, setValidationErrors] = useState<string[]>([])
-
-  const schemaProviders = useMemo(() => getFieldEnum('agent.providers'), [])
-  const providerHint = useMemo(() => getFieldDescription('agent.providers'), [])
-
-  const toggleProvider = (id: string) => {
-    setSelectedProviders((prev) =>
-      prev.includes(id) ? prev.filter((p) => p !== id) : [...prev, id],
-    )
-  }
 
   const handleCreate = () => {
     if (!name.trim()) return
     const agent = makeAgent({
-      profile: { id: '', name: name.trim(), description: description.trim(), providers: selectedProviders },
+      profile: { id: '', name: name.trim(), description: description.trim() },
     })
-    const result = validateAgentProfile(agent)
-    if (!result.valid) {
-      setValidationErrors(result.errors.map((e) => e.message))
-      return
-    }
-    setValidationErrors([])
 
     if (isConnected) {
       const bundle = buildTransferBundle(agent)
@@ -62,33 +43,39 @@ export function CreateAgentDialog({ open, onOpenChange }: CreateAgentDialogProps
         },
       })
     } else {
-      toast.error('Daemon not connected — cannot create agents')
+      toast.error('Daemon not connected')
     }
   }
 
   const resetForm = () => {
     setName('')
     setDescription('')
-    setSelectedProviders(['claude'])
-    setValidationErrors([])
+  }
+
+  const handleKeyDown = (e: React.KeyboardEvent) => {
+    if (e.key === 'Enter' && name.trim() && isConnected) {
+      e.preventDefault()
+      handleCreate()
+    }
   }
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
-      <DialogContent className="sm:max-w-md">
+      <DialogContent className="sm:max-w-sm">
         <DialogHeader>
-          <DialogTitle>Create agent</DialogTitle>
+          <DialogTitle>New agent</DialogTitle>
           <DialogDescription>
-            Define a new agent configuration. You can add skills, MCP servers, and permissions after creation.
+            Give it a name. Configure everything else on the detail page.
           </DialogDescription>
         </DialogHeader>
 
-        <div className="space-y-4 py-4">
+        <div className="space-y-3 py-2">
           <div>
             <label className="text-xs font-medium text-foreground mb-1.5 block">Name</label>
             <Input
               value={name}
               onChange={(e) => setName(e.target.value)}
+              onKeyDown={handleKeyDown}
               placeholder="e.g. web-lane, rust-runtime, qa-engineer"
               autoFocus
             />
@@ -99,48 +86,15 @@ export function CreateAgentDialog({ open, onOpenChange }: CreateAgentDialogProps
             <Input
               value={description}
               onChange={(e) => setDescription(e.target.value)}
-              placeholder="What does this agent specialize in?"
+              onKeyDown={handleKeyDown}
+              placeholder="Optional -- what does this agent specialize in?"
             />
-          </div>
-
-          <div>
-            <label className="text-xs font-medium text-foreground mb-1.5 block">Target providers</label>
-            {providerHint && (
-              <p className="text-[11px] text-muted-foreground/60 mb-1.5">{providerHint}</p>
-            )}
-            <div className="flex flex-wrap gap-2">
-              {schemaProviders.map((id) => {
-                const active = selectedProviders.includes(id)
-                return (
-                  <button
-                    key={id}
-                    type="button"
-                    onClick={() => toggleProvider(id)}
-                    className={`inline-flex items-center gap-1.5 rounded-lg border px-3 py-1.5 text-xs font-medium transition capitalize ${
-                      active
-                        ? 'border-primary/30 bg-primary/10 text-primary'
-                        : 'border-border/60 text-muted-foreground hover:border-border'
-                    }`}
-                  >
-                    {id}
-                  </button>
-                )
-              })}
-            </div>
           </div>
 
           {!isConnected && (
             <p className="text-[11px] text-amber-500">
-              Daemon not connected. Agents are stored in your local .ship/ directory.
+              Daemon not connected. Start the daemon to create agents.
             </p>
-          )}
-
-          {validationErrors.length > 0 && (
-            <div className="rounded-md border border-destructive/30 bg-destructive/5 px-3 py-2">
-              {validationErrors.map((err, i) => (
-                <p key={i} className="text-xs text-destructive">{err}</p>
-              ))}
-            </div>
           )}
         </div>
 
@@ -150,7 +104,7 @@ export function CreateAgentDialog({ open, onOpenChange }: CreateAgentDialogProps
             onClick={handleCreate}
             disabled={!name.trim() || !isConnected || pushBundle.isPending}
           >
-            {pushBundle.isPending ? 'Creating...' : 'Create agent'}
+            {pushBundle.isPending ? 'Creating...' : 'Create'}
           </Button>
         </DialogFooter>
       </DialogContent>

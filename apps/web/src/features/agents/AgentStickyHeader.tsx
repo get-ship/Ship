@@ -134,15 +134,6 @@ export function AgentStickyHeader({ profile, onEdit, onDelete, onDiscard, isDraf
 
       <div className="flex-1" />
 
-      {/* Edit metadata button */}
-      <button
-        onClick={onEdit}
-        className="rounded-md p-1.5 text-muted-foreground hover:text-foreground hover:bg-muted/50 transition"
-        title="Edit metadata"
-      >
-        <Pencil className="size-3.5" />
-      </button>
-
       {onDelete && (
         <button
           onClick={onDelete}

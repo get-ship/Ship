@@ -100,6 +100,7 @@ export function HookEditorDialog({ open, onOpenChange, hook, onSave, onDelete, t
                 placeholder="./scripts/my-hook.sh"
                 className="w-full rounded-lg border border-border/60 bg-background px-3 py-2 font-mono text-sm text-foreground outline-none focus:border-primary transition placeholder:text-muted-foreground/50"
               />
+              <p className="text-[10px] text-muted-foreground/50">Paths are relative to the project root.</p>
             </div>
             <div className="space-y-1.5">
               <label className="text-xs font-medium text-muted-foreground">Matcher pattern (optional)</label>

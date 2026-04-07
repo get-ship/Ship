@@ -17,15 +17,9 @@ afterEach(cleanup)
 const baseProps = {
   providers: ['claude', 'gemini', 'codex'],
   model: null as string | null,
-  env: null as Record<string, string> | null,
-  availableModels: null as string[] | null,
-  agentLimits: null as { max_turns?: number; max_cost_per_session?: number } | null,
   hooks: [],
   providerSettings: {},
   onChangeModel: vi.fn(),
-  onChangeEnv: vi.fn(),
-  onChangeAvailableModels: vi.fn(),
-  onChangeAgentLimits: vi.fn(),
   onChangeHooks: vi.fn(),
   onChangeProviderSettings: vi.fn(),
 }

@@ -1,6 +1,11 @@
-import { useState, useEffect, useCallback, useRef } from 'react'
+import { useState, useEffect, useCallback, useRef, useMemo } from 'react'
 import { Lock, Wrench, FolderOpen, X } from 'lucide-react'
-import type { ProfilePermissions } from '@ship/ui'
+import type { ProfilePermissions, McpServerConfig } from '@ship/ui'
+import {
+  BUILTIN_TOOLS,
+  COMMON_BASH_PATTERNS,
+  getMcpToolSuggestions,
+} from '#/features/agents/permission-presets'
 
 /** Extended permissions including additional_directories from the schema. */
 type ExtendedPermissions = ProfilePermissions & { additional_directories?: string[] }
@@ -10,10 +15,16 @@ interface PermissionsDialogProps {
   onOpenChange: (open: boolean) => void
   permissions: ProfilePermissions
   onSave: (permissions: ProfilePermissions) => void
+  mcpServers?: McpServerConfig[]
 }
 
-export function PermissionsDialog({ open, onOpenChange, permissions, onSave }: PermissionsDialogProps) {
+export function PermissionsDialog({ open, onOpenChange, permissions, onSave, mcpServers }: PermissionsDialogProps) {
   const [local, setLocal] = useState<ExtendedPermissions>({})
+
+  const suggestions = useMemo(() => {
+    const mcpTools = getMcpToolSuggestions((mcpServers ?? []).map((s) => s.name))
+    return [...BUILTIN_TOOLS, ...mcpTools, ...COMMON_BASH_PATTERNS]
+  }, [mcpServers])
 
   useEffect(() => {
     if (open) setLocal(structuredClone(permissions) as ExtendedPermissions)
@@ -65,18 +76,21 @@ export function PermissionsDialog({ open, onOpenChange, permissions, onSave }: P
                 variant="allow"
                 values={local.tools_allow ?? []}
                 onChange={(v) => setLocal((prev) => ({ ...prev, tools_allow: v }))}
+                suggestions={suggestions}
               />
               <TagInput
                 label="Ask"
                 variant="neutral"
                 values={local.tools_ask ?? []}
                 onChange={(v) => setLocal((prev) => ({ ...prev, tools_ask: v }))}
+                suggestions={suggestions}
               />
               <TagInput
                 label="Deny"
                 variant="deny"
                 values={local.tools_deny ?? []}
                 onChange={(v) => setLocal((prev) => ({ ...prev, tools_deny: v }))}
+                suggestions={suggestions}
               />
             </DimensionSection>
             <DimensionSection icon={<FolderOpen className="size-3.5" />} label="Additional Directories">
@@ -130,27 +144,44 @@ function TagInput({
   variant,
   values,
   onChange,
+  suggestions,
 }: {
   label: string
   variant: 'allow' | 'deny' | 'neutral'
   values: string[]
   onChange: (values: string[]) => void
+  suggestions?: readonly string[] | string[]
 }) {
   const inputRef = useRef<HTMLInputElement>(null)
+  const [inputValue, setInputValue] = useState('')
+  const [showSuggestions, setShowSuggestions] = useState(false)
 
   const tagColor =
     variant === 'allow' ? 'bg-emerald-500/10 text-emerald-600 dark:text-emerald-400 border-emerald-500/20'
     : variant === 'deny' ? 'bg-destructive/10 text-destructive border-destructive/20'
     : 'bg-muted text-muted-foreground border-border/40'
 
+  const filteredSuggestions = useMemo(() => {
+    if (!suggestions || !inputValue) return []
+    const lower = inputValue.toLowerCase()
+    return suggestions
+      .filter((s) => s.toLowerCase().includes(lower) && !values.includes(s))
+      .slice(0, 8)
+  }, [suggestions, inputValue, values])
+
+  const addValue = (v: string) => {
+    const trimmed = v.trim()
+    if (trimmed && !values.includes(trimmed)) {
+      onChange([...values, trimmed])
+    }
+    setInputValue('')
+    setShowSuggestions(false)
+  }
+
   const handleKeyDown = (e: React.KeyboardEvent<HTMLInputElement>) => {
     if (e.key !== 'Enter') return
     e.preventDefault()
-    const v = (e.currentTarget.value ?? '').trim()
-    if (v && !values.includes(v)) {
-      onChange([...values, v])
-    }
-    e.currentTarget.value = ''
+    addValue(inputValue)
   }
 
   const remove = (idx: number) => onChange(values.filter((_, i) => i !== idx))
@@ -170,13 +201,33 @@ function TagInput({
           ))}
         </div>
       )}
-      <input
-        ref={inputRef}
-        type="text"
-        placeholder={`Add ${label.toLowerCase()}...`}
-        onKeyDown={handleKeyDown}
-        className="w-full rounded-md border border-border/60 bg-background px-2.5 py-1.5 text-xs text-foreground placeholder:text-muted-foreground/40 outline-none focus:border-primary"
-      />
+      <div className="relative">
+        <input
+          ref={inputRef}
+          type="text"
+          value={inputValue}
+          onChange={(e) => { setInputValue(e.target.value); setShowSuggestions(true) }}
+          onFocus={() => setShowSuggestions(true)}
+          onBlur={() => { setTimeout(() => setShowSuggestions(false), 150) }}
+          placeholder={`Add ${label.toLowerCase()}...`}
+          onKeyDown={handleKeyDown}
+          className="w-full rounded-md border border-border/60 bg-background px-2.5 py-1.5 text-xs text-foreground placeholder:text-muted-foreground/40 outline-none focus:border-primary"
+        />
+        {showSuggestions && filteredSuggestions.length > 0 && (
+          <div className="absolute top-full left-0 right-0 z-10 mt-1 rounded-md border border-border/60 bg-popover shadow-lg overflow-hidden max-h-40 overflow-y-auto">
+            {filteredSuggestions.map((s) => (
+              <button
+                key={s}
+                type="button"
+                onMouseDown={(e) => { e.preventDefault(); addValue(s) }}
+                className="w-full px-2.5 py-1.5 text-left text-[11px] text-foreground hover:bg-muted/60 transition-colors font-mono"
+              >
+                {s}
+              </button>
+            ))}
+          </div>
+        )}
+      </div>
     </div>
   )
 }

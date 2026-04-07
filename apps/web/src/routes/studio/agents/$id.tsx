@@ -1,11 +1,9 @@
 import { createFileRoute, useNavigate, Link } from '@tanstack/react-router'
-import { useState, useCallback, useMemo } from 'react'
+import { useState, useCallback } from 'react'
 import { ArrowLeft, SearchX } from 'lucide-react'
 import { useAgents } from '#/features/agents/useAgents'
 import { useAgentDrafts } from '#/features/agents/useAgentDrafts'
-import { AgentActivityBar } from '#/features/agents/AgentActivityBar'
 import { AgentStickyHeader } from '#/features/agents/AgentStickyHeader'
-import { useScrollspy } from '#/features/agents/useScrollspy'
 import { SkillsSection } from '#/features/agents/sections/SkillsSection'
 import { McpSection } from '#/features/agents/sections/McpSection'
 import { PermissionsSection } from '#/features/agents/sections/PermissionsSection'
@@ -56,7 +54,6 @@ function AgentDetailPage() {
   const { getAgent, isLoading } = useAgents()
   const { setDraft, hasDraft, clearDraft } = useAgentDrafts()
   const profile = getAgent(id)
-  const { scrollRef, activeSection, handleSectionClick } = useScrollspy()
   const isDraft = hasDraft(id)
 
   if (isLoading && !profile) {
@@ -67,7 +64,6 @@ function AgentDetailPage() {
     return <AgentNotFound id={id} />
   }
 
-  // -- Delete ---------------------------------------------------------------
   const handleDelete = () => {
     if (!confirm(`Delete "${profile.profile.name}"?`)) return
     void navigate({ to: '/studio/agents', replace: true })
@@ -80,9 +76,6 @@ function AgentDetailPage() {
     <AgentDetailView
       profile={profile}
       isDraft={isDraft}
-      activeSection={activeSection}
-      scrollRef={scrollRef}
-      onSectionClick={handleSectionClick}
       onUpdate={update}
       onDelete={handleDelete}
       onDiscard={handleDiscard}
@@ -95,15 +88,12 @@ function AgentDetailPage() {
 interface ViewProps {
   profile: ResolvedAgentProfile
   isDraft: boolean
-  activeSection: string
-  scrollRef: React.RefObject<HTMLDivElement | null>
-  onSectionClick: (section: string) => void
   onUpdate: (patch: Partial<ResolvedAgentProfile>) => void
   onDelete: () => void
   onDiscard: () => void
 }
 
-function AgentDetailView({ profile, isDraft, activeSection, scrollRef, onSectionClick, onUpdate, onDelete, onDiscard }: ViewProps) {
+function AgentDetailView({ profile, isDraft, onUpdate, onDelete, onDiscard }: ViewProps) {
   const removeSkill = useCallback(
     (skillId: string) => onUpdate({ skills: profile.skills.filter((s) => s.id !== skillId) }),
     [onUpdate, profile.skills],
@@ -152,12 +142,6 @@ function AgentDetailView({ profile, isDraft, activeSection, scrollRef, onSection
   )
   const removeRule = useCallback((index: number) => onUpdate({ rules: profile.rules.filter((_, i) => i !== index) }), [onUpdate, profile.rules])
   const setModel = useCallback((model: string | null) => onUpdate({ model }), [onUpdate])
-  const setEnv = useCallback((env: Record<string, string>) => onUpdate({ env }), [onUpdate])
-  const setAvailableModels = useCallback((availableModels: string[]) => onUpdate({ availableModels }), [onUpdate])
-  const setAgentLimits = useCallback(
-    (agentLimits: Record<string, unknown>) => onUpdate({ agentLimits: agentLimits as { max_turns?: number; max_cost_per_session?: number } }),
-    [onUpdate],
-  )
   const setHooks = useCallback((hooks: HookConfig[]) => onUpdate({ hooks }), [onUpdate])
   const setProviderSettings = useCallback(
     (settings: Record<string, Record<string, unknown>>) => onUpdate({ providerSettings: settings }),
@@ -171,54 +155,42 @@ function AgentDetailView({ profile, isDraft, activeSection, scrollRef, onSection
   const [ruleOpen, setRuleOpen] = useState(false)
   const [ruleEdit, setRuleEdit] = useState<{ index: number; rule: Rule } | null>(null)
 
-  // -- Counts for activity bar ----------------------------------------------
-  const counts = useMemo(() => ({
-    skills: profile.skills.length,
-    mcp: profile.mcpServers.length,
-    rules: profile.rules.length,
-    providers: profile.profile.providers?.length ?? 0,
-  }), [profile.skills.length, profile.mcpServers.length, profile.rules.length, profile.profile.providers?.length])
-
   return (
     <>
       <div className="flex flex-col h-full min-h-0 overflow-hidden">
-        <AgentActivityBar activeSection={activeSection} onSectionClick={onSectionClick} counts={counts} />
-        <div className="flex-1 min-w-0 flex flex-col overflow-hidden">
-          <AgentStickyHeader profile={profile} onEdit={() => setEditOpen(true)} onDelete={onDelete} onDiscard={isDraft ? onDiscard : undefined} isDraft={isDraft} />
-          <div ref={scrollRef} className="flex-1 overflow-y-auto">
-            <div id="section-skills">
-              <SkillsSection skills={profile.skills} onRemove={removeSkill} onAdd={() => setSkillOpen(true)} />
-            </div>
-            <div id="section-mcp">
-              <McpSection servers={profile.mcpServers} toolStates={mcpToolStates} onRemove={removeServer} onSetToolPermission={setToolPermission} onSetGroupPermission={setGroupPermission} onAdd={() => setMcpOpen(true)} />
-            </div>
-            <div id="section-permissions">
-              <PermissionsSection
-                permissions={profile.permissions ?? {}}
-                activePreset={profile.permissions?.preset ?? 'ship-standard'}
-                onPresetChange={setPermissionPreset}
-                onEdit={() => setPermsOpen(true)}
-              />
-            </div>
-            <div id="section-rules">
-              <RulesSection
-                rules={profile.rules}
-                onAdd={() => { setRuleEdit(null); setRuleOpen(true) }}
-                onEdit={(i) => { setRuleEdit({ index: i, rule: profile.rules[i] }); setRuleOpen(true) }}
-                onRemove={removeRule}
-              />
-            </div>
-            <div id="section-providers">
-              <ProvidersSection providers={profile.profile.providers ?? []} model={profile.model} env={profile.env} availableModels={profile.availableModels} agentLimits={profile.agentLimits} hooks={profile.hooks} providerSettings={profile.providerSettings ?? {}} onChangeModel={setModel} onChangeEnv={setEnv} onChangeAvailableModels={setAvailableModels} onChangeAgentLimits={setAgentLimits} onChangeHooks={setHooks} onChangeProviderSettings={setProviderSettings} />
-            </div>
-            <div className="h-24" />
-          </div>
+        <AgentStickyHeader profile={profile} onEdit={() => setEditOpen(true)} onDelete={onDelete} onDiscard={isDraft ? onDiscard : undefined} isDraft={isDraft} />
+        <div className="flex-1 overflow-y-auto">
+          <SkillsSection skills={profile.skills} onRemove={removeSkill} onAdd={() => setSkillOpen(true)} />
+          <McpSection servers={profile.mcpServers} toolStates={mcpToolStates} onRemove={removeServer} onSetToolPermission={setToolPermission} onSetGroupPermission={setGroupPermission} onAdd={() => setMcpOpen(true)} />
+          <PermissionsSection
+            permissions={profile.permissions ?? {}}
+            activePreset={profile.permissions?.preset ?? 'ship-standard'}
+            onPresetChange={setPermissionPreset}
+            onEdit={() => setPermsOpen(true)}
+            mcpServers={profile.mcpServers}
+          />
+          <RulesSection
+            rules={profile.rules}
+            onAdd={() => { setRuleEdit(null); setRuleOpen(true) }}
+            onEdit={(i) => { setRuleEdit({ index: i, rule: profile.rules[i] }); setRuleOpen(true) }}
+            onRemove={removeRule}
+          />
+          <ProvidersSection
+            providers={profile.profile.providers ?? []}
+            model={profile.model}
+            hooks={profile.hooks}
+            providerSettings={profile.providerSettings ?? {}}
+            onChangeModel={setModel}
+            onChangeHooks={setHooks}
+            onChangeProviderSettings={setProviderSettings}
+          />
+          <div className="h-24" />
         </div>
       </div>
       <AddSkillDialog open={skillOpen} onOpenChange={setSkillOpen} existingIds={profile.skills.map((s) => s.id)} onAdd={addSkill} />
       <AddMcpDialog open={mcpOpen} onOpenChange={setMcpOpen} existingNames={profile.mcpServers.map((s) => s.name)} onAdd={(server) => onUpdate({ mcpServers: [...profile.mcpServers, server] })} />
       <EditAgentDialog open={editOpen} onOpenChange={setEditOpen} profile={profile} onSave={(patch) => onUpdate(patch)} />
-      <PermissionsDialog open={permsOpen} onOpenChange={setPermsOpen} permissions={profile.permissions ?? {}} onSave={updatePermissions} />
+      <PermissionsDialog open={permsOpen} onOpenChange={setPermsOpen} permissions={profile.permissions ?? {}} onSave={updatePermissions} mcpServers={profile.mcpServers} />
       <RuleEditorDialog open={ruleOpen} onOpenChange={setRuleOpen} rule={ruleEdit?.rule ?? null} onSave={(rule) => { if (ruleEdit) updateRule(ruleEdit.index, rule); else addRule(rule) }} onDelete={ruleEdit ? () => removeRule(ruleEdit.index) : undefined} />
     </>
   )
