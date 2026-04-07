@@ -45,6 +45,8 @@ pub async fn run() -> Result<()> {
 }
 
 #[cfg(test)]
+mod deprecation_tests;
+#[cfg(test)]
 mod resource_tests;
 
 #[cfg(test)]
