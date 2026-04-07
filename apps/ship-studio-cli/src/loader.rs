@@ -39,6 +39,13 @@ fn load_mcp_servers(agents_dir: &Path) -> Result<Vec<McpServerConfig>> {
         agents_dir.join("mcp.toml")
     };
     let file = crate::mcp::McpFile::load(&path)?;
+    // Warn if the MCP file exists but produced no servers (likely a parse error)
+    if path.exists() && file.servers.is_empty() {
+        eprintln!(
+            "warning: {} exists but no MCP servers were loaded. Check JSON/TOML syntax.",
+            path.display()
+        );
+    }
     Ok(file
         .servers
         .into_iter()
