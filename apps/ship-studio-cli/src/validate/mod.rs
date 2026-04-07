@@ -172,7 +172,7 @@ pub fn validate_agent(agent_id: &str, agent_path: &Path, agents_dir: &Path) -> A
             errors.push(ValidationError {
                 agent: agent_id.to_string(),
                 file: agent_path.display().to_string(),
-                error: format!("config parse error: {}", e),
+                error: format!("config parse error: {}. Check JSON/TOML syntax", e),
             });
             return AgentReport {
                 agent_id: agent_id.to_string(),
@@ -190,7 +190,10 @@ pub fn validate_agent(agent_id: &str, agent_path: &Path, agents_dir: &Path) -> A
             errors.push(ValidationError {
                 agent: agent_id.to_string(),
                 file: agent_file.clone(),
-                error: format!("skill '{}' not found in agents/skills/", skill_id),
+                error: format!(
+                    "skill '{}' not found in agents/skills/. Create it at .ship/skills/{}.md or run `ship install`",
+                    skill_id, skill_id,
+                ),
             });
         }
     }
@@ -208,7 +211,10 @@ pub fn validate_agent(agent_id: &str, agent_path: &Path, agents_dir: &Path) -> A
             None => errors.push(ValidationError {
                 agent: agent_id.to_string(),
                 file: "agents/mcp.toml".to_string(),
-                error: format!("mcp server '{}' not found in mcp.toml", server_id),
+                error: format!(
+                    "mcp server '{}' not found in mcp.toml. Add it with `ship mcp add-stdio {} <command>`",
+                    server_id, server_id,
+                ),
             }),
             Some(s) => {
                 if let Some(e) = check_mcp_entry(s) {
@@ -294,12 +300,12 @@ fn check_mcp_entry(s: &McpEntry) -> Option<String> {
         || s.server_type.as_deref() == Some("sse");
     if is_http {
         if s.url.as_deref().is_none_or(|u| u.trim().is_empty()) {
-            return Some("HTTP/SSE server missing 'url' field".to_string());
+            return Some("HTTP/SSE server missing 'url' field. Add a url to the server entry".to_string());
         }
     } else {
         // stdio
         if s.command.as_deref().is_none_or(|c| c.trim().is_empty()) {
-            return Some("stdio server missing 'command' field".to_string());
+            return Some("stdio server missing 'command' field. Add a command to the server entry".to_string());
         }
     }
     None

@@ -96,8 +96,28 @@ pub fn activate_agent(
         .or_else(|| state.active_agent.clone())
         .context("No agent specified and no active agent set. Run: ship use <agent-id>")?;
 
-    let agent_path = find_agent_file(&id, project_root)
-        .with_context(|| format!("Agent '{}' not found in .ship/agents/", id))?;
+    let agent_path = match find_agent_file(&id, project_root) {
+        Some(p) => p,
+        None => {
+            let available = list_available_agents(project_root);
+            if available.is_empty() {
+                anyhow::bail!(
+                    "Agent '{}' not found in .ship/agents/. No agents found.\n\
+                     Create one at .ship/agents/{}.jsonc or see: ship docs agents",
+                    id,
+                    id,
+                );
+            } else {
+                anyhow::bail!(
+                    "Agent '{}' not found in .ship/agents/. Available agents: {}\n\
+                     Check the agent id or create .ship/agents/{}.jsonc",
+                    id,
+                    available.join(", "),
+                    id,
+                );
+            }
+        }
+    };
     let agent = AgentConfig::load(&agent_path)?;
 
     run_compile(CompileOptions {
@@ -207,6 +227,24 @@ pub fn find_agent_file(agent_id: &str, project_root: &Path) -> Option<PathBuf> {
         return Some(p);
     }
     None
+}
+
+/// List agent IDs available in .ship/agents/ (for error messages).
+fn list_available_agents(project_root: &Path) -> Vec<String> {
+    let agents_dir = project_root.join(".ship").join("agents");
+    let mut ids = Vec::new();
+    if let Ok(entries) = std::fs::read_dir(&agents_dir) {
+        for entry in entries.flatten() {
+            let path = entry.path();
+            if path.is_file() && crate::paths::is_config_ext(&path) && crate::paths::is_agent_config(&path) {
+                if let Some(stem) = path.file_stem().and_then(|s| s.to_str()) {
+                    ids.push(stem.to_string());
+                }
+            }
+        }
+    }
+    ids.sort();
+    ids
 }
 
 // ── Tests ─────────────────────────────────────────────────────────────────────
