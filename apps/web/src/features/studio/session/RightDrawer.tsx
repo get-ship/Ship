@@ -1,13 +1,11 @@
-// Right-side drawer: Chat + Events + Terminal tabs.
+// Right-side drawer: Chat + Events tabs.
 // State managed by StudioShellContext (Cmd+/ toggles, rail button toggles).
 
 import { useState, useCallback } from 'react'
-import { MessageSquare, Activity, TerminalIcon } from 'lucide-react'
+import { MessageSquare, Activity } from 'lucide-react'
 import { Tabs, TabsList, TabsTrigger, TabsContent } from '@ship/primitives'
 import { ChatTab } from './ChatTab'
 import { EventStreamPanel } from '../events/EventStreamPanel'
-import { TerminalTab } from './TerminalTab'
-import { useDaemon } from '#/features/studio/hooks/useDaemon'
 import type { StagedAnnotation } from './types'
 
 interface Props {
@@ -26,14 +24,10 @@ export function RightDrawer({
   disabled = false,
 }: Props) {
   const [activeTab, setActiveTab] = useState<string>('chat')
-  const { workspaces } = useDaemon()
-
-  const activeWorkspaceId = workspaces.find((w) => String(w.status).toLowerCase() === 'active')?.id ?? null
 
   const noopSend = useCallback(async (_text: string) => {}, [])
   const noopRemove = useCallback((_id: string) => {}, [])
   const noopUpload = useCallback((_files: FileList) => {}, [])
-
 
   return (
     <div className="w-80 shrink-0 flex flex-col border-l border-border/60 bg-card/30 min-h-0 overflow-hidden">
@@ -58,13 +52,6 @@ export function RightDrawer({
             <Activity className="size-3" />
             Events
           </TabsTrigger>
-          <TabsTrigger
-            value="terminal"
-            className="flex items-center gap-1.5 flex-1 h-full rounded-none border-b-2 text-[11px] font-medium data-[active]:border-primary data-[active]:text-primary border-transparent text-muted-foreground"
-          >
-            <TerminalIcon className="size-3" />
-            Terminal
-          </TabsTrigger>
         </TabsList>
 
         <TabsContent value="chat" className="flex flex-col flex-1 min-h-0 mt-0">
@@ -79,13 +66,6 @@ export function RightDrawer({
 
         <TabsContent value="events" className="flex flex-col flex-1 min-h-0 mt-0">
           <EventStreamPanel />
-        </TabsContent>
-
-        <TabsContent value="terminal" className="flex flex-col flex-1 min-h-0 mt-0">
-          <TerminalTab
-            workspaceId={activeWorkspaceId}
-            visible={activeTab === 'terminal'}
-          />
         </TabsContent>
       </Tabs>
     </div>

@@ -138,7 +138,7 @@ function SessionPage() {
   const showDiff = !showView && viewMode === 'diff'
   const activeDiffText = selectedCommitHash ? commitDiff : diffText
 
-  const { fileSidebarOpen, toggleDrawer } = useStudioShell()
+  const { fileSidebarOpen, drawerOpen, toggleDrawer } = useStudioShell()
   const globalAnn = useGlobalAnnotations()
 
   return (
@@ -264,7 +264,8 @@ function SessionPage() {
                     for (const a of ann.allStaged) {
                       globalAnn.addAnnotation(a.filePath, a.ann)
                     }
-                    toggleDrawer()
+                    // Always open — never close when sending annotations
+                    if (!drawerOpen) toggleDrawer()
                   }}
                   className="rounded-full px-2 py-1 text-[10px] text-primary hover:bg-primary/10 transition font-medium"
                 >
