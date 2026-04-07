@@ -100,11 +100,13 @@ impl ServerHandler for ShipServer {
         if let Some(sid) = self.session_id.lock().await.as_deref() {
             let _ = runtime::db::session_drain::increment_tool_count(sid);
         }
-        self.tool_router
+        let result = self
+            .tool_router
             .call(rmcp::handler::server::tool::ToolCallContext::new(
                 self, request, context,
             ))
-            .await
+            .await?;
+        Ok(super::deprecation::prepend_deprecation_to_result(result, &tool_name))
     }
 
     async fn list_tools(
