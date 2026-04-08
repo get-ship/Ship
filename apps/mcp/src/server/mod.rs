@@ -1,4 +1,3 @@
-pub mod deprecation;
 mod handler;
 pub mod notification_relay;
 mod tool_gate;
@@ -14,13 +13,9 @@ use std::path::PathBuf;
 
 use crate::requests::*;
 use crate::tools::{
-    agent, event, job as job_tools, project, session, session_files, skills, workspace,
-    workspace_ops,
+    event, job as job_tools, project, session, session_files, skills, workspace, workspace_ops,
 };
-use skills::{
-    get_skill_vars_tool, list_skill_vars_tool,
-    set_skill_var_tool,
-};
+use skills::set_skill_var_tool;
 
 #[cfg(feature = "unstable")]
 use crate::tools::dispatch as dispatch_tools;
@@ -399,59 +394,12 @@ impl ShipServer {
             .collect()
     }
 
-    // ---- Project ----
-
-    #[tool(description = "Set the active project for subsequent MCP tool calls")]
-    async fn open_project(&self, Parameters(req): Parameters<OpenProjectRequest>) -> String {
-        let (msg, resolved) = project::open_project(&req.path, &self.active_project).await;
-        if resolved.is_some() {
-            self.notify_resources_changed().await;
-        }
-        msg
-    }
-
-    // ---- Agent ----
-
-    #[tool(
-        description = "Activate an agent profile by id, or clear active agent by passing null/omitting id."
-    )]
-    async fn set_agent(&self, Parameters(req): Parameters<SetAgentRequest>) -> String {
-        let project_dir = match self.get_effective_project_dir().await {
-            Ok(d) => d,
-            Err(e) => return e,
-        };
-        agent::set_agent(project_dir, req.id.as_deref())
-    }
-
     // ---- Studio sync ----
 
     // Studio-only tools (pull_agents, list_local_agents, push_bundle) are on
     // StudioServer, not here. Agents don't need to pull/push their own config.
 
     // ---- Workspace ----
-
-    #[tool(description = "Activate a workspace by branch/id and optionally set its mode override.")]
-    async fn activate_workspace(
-        &self,
-        Parameters(req): Parameters<ActivateWorkspaceRequest>,
-    ) -> String {
-        let project_dir = match self.get_effective_project_dir().await {
-            Ok(d) => d,
-            Err(e) => return e,
-        };
-        workspace::activate_workspace(&project_dir, req)
-    }
-
-    #[tool(
-        description = "List all workspaces for the active project. Optionally filter by status."
-    )]
-    async fn list_workspaces(&self, Parameters(req): Parameters<ListWorkspacesRequest>) -> String {
-        let project_dir = match self.get_effective_project_dir().await {
-            Ok(d) => d,
-            Err(e) => return e,
-        };
-        workspace::list_workspaces(&project_dir, req)
-    }
 
     #[tool(
         description = "Create a new workspace with a git worktree. For 'service' kind the worktree step is skipped."
@@ -481,55 +429,7 @@ impl ShipServer {
         workspace_ops::complete_workspace(&project_dir, req)
     }
 
-    #[tool(
-        description = "List git worktrees that have been idle longer than idle_hours (default: 24)."
-    )]
-    async fn list_stale_worktrees(
-        &self,
-        Parameters(req): Parameters<ListStaleWorktreesRequest>,
-    ) -> String {
-        let project_dir = match self.get_effective_project_dir().await {
-            Ok(d) => d,
-            Err(e) => return e,
-        };
-        workspace_ops::list_stale_worktrees(&project_dir, req)
-    }
-
     // ---- Session ----
-
-    #[tool(
-        description = "Start a workspace session for the active compiled context and selected provider."
-    )]
-    async fn start_session(&self, Parameters(req): Parameters<StartSessionRequest>) -> String {
-        let project_dir = match self.get_effective_project_dir().await {
-            Ok(d) => d,
-            Err(e) => return e,
-        };
-        let branch =
-            match Self::resolve_workspace_branch_for_project(&project_dir, req.branch.as_deref()) {
-                Ok(b) => b,
-                Err(e) => return format!("Error: {}", e),
-            };
-        let project_root = project_dir.parent().unwrap_or(&project_dir);
-        let _ = runtime::reconcile_workspace(&project_dir, &branch, project_root);
-        session::start_session(&project_dir, req, &branch)
-    }
-
-    #[tool(
-        description = "End the active workspace session and record a summary. Emits a session-end event."
-    )]
-    async fn end_session(&self, Parameters(req): Parameters<EndSessionRequest>) -> String {
-        let project_dir = match self.get_effective_project_dir().await {
-            Ok(d) => d,
-            Err(e) => return e,
-        };
-        let branch =
-            match Self::resolve_workspace_branch_for_project(&project_dir, req.branch.as_deref()) {
-                Ok(b) => b,
-                Err(e) => return format!("Error: {}", e),
-            };
-        session::end_session(&project_dir, req, &branch)
-    }
 
     #[tool(
         description = "Record a progress note for the active session. Requires an active session. \
@@ -548,58 +448,7 @@ impl ShipServer {
         session::log_progress(&project_dir, req, &branch)
     }
 
-    #[tool(
-        description = "Get the active session for a workspace branch. Returns session JSON or 'No active session'."
-    )]
-    async fn get_session(&self, Parameters(req): Parameters<GetSessionRequest>) -> String {
-        let project_dir = match self.get_effective_project_dir().await {
-            Ok(d) => d,
-            Err(e) => return e,
-        };
-        let branch =
-            match Self::resolve_workspace_branch_for_project(&project_dir, req.branch.as_deref()) {
-                Ok(b) => b,
-                Err(e) => return format!("Error: {}", e),
-            };
-        session::get_session(&project_dir, req, &branch)
-    }
-
-    #[tool(
-        description = "List session history for a branch. Returns all branches if branch is omitted. \
-        Default limit: 20, max: 100."
-    )]
-    async fn list_sessions(&self, Parameters(req): Parameters<ListSessionsRequest>) -> String {
-        let project_dir = match self.get_effective_project_dir().await {
-            Ok(d) => d,
-            Err(e) => return e,
-        };
-        session::list_sessions(&project_dir, req)
-    }
-
     // ---- Skills ----
-
-    #[tool(
-        description = "List skills available to the active project. Optionally filter by search query."
-    )]
-    async fn list_skills(&self, Parameters(req): Parameters<ListSkillsRequest>) -> String {
-        let project_dir = match self.get_effective_project_dir().await {
-            Ok(d) => d,
-            Err(e) => return e,
-        };
-        skills::list_skills(&project_dir, req)
-    }
-
-    #[tool(
-        description = "Get the merged variable state for a skill (defaults + user state + project state). \
-        Returns JSON object of var name → current value."
-    )]
-    async fn get_skill_vars(&self, Parameters(req): Parameters<GetSkillVarsRequest>) -> String {
-        let project_dir = match self.get_effective_project_dir().await {
-            Ok(d) => d,
-            Err(e) => return e,
-        };
-        get_skill_vars_tool(&project_dir, req)
-    }
 
     #[tool(
         description = "Set a skill variable value. Pass value_json as a JSON-encoded string \
@@ -616,18 +465,6 @@ impl ShipServer {
             self.notify_resources_changed().await;
         }
         result
-    }
-
-    #[tool(
-        description = "List all skills that have configurable variables (vars.json). \
-        Optionally filter to a single skill_id. Shows current value for each var."
-    )]
-    async fn list_skill_vars(&self, Parameters(req): Parameters<ListSkillVarsRequest>) -> String {
-        let project_dir = match self.get_effective_project_dir().await {
-            Ok(d) => d,
-            Err(e) => return e,
-        };
-        list_skill_vars_tool(&project_dir, req)
     }
 
     // Studio-only tools (write_skill_file, delete_skill_file, list_project_skills)
@@ -656,31 +493,6 @@ impl ShipServer {
             self.notify_resources_changed().await;
         }
         result
-    }
-
-    #[tool(
-        description = "Read a file from .artifacts/. Returns text content or base64 for binary files."
-    )]
-    async fn read_session_file(
-        &self,
-        Parameters(req): Parameters<ReadSessionFileRequest>,
-    ) -> String {
-        let project_dir = match self.get_effective_project_dir().await {
-            Ok(d) => d,
-            Err(e) => return e,
-        };
-        session_files::read_session_file(&project_dir, req)
-    }
-
-    #[tool(
-        description = "List all files in .artifacts/ with metadata (name, path, type, size)."
-    )]
-    async fn list_session_files(&self) -> String {
-        let project_dir = match self.get_effective_project_dir().await {
-            Ok(d) => d,
-            Err(e) => return e,
-        };
-        session_files::list_session_files(&project_dir)
     }
 
     // ---- Mesh ----
@@ -742,19 +554,6 @@ impl ShipServer {
     )]
     async fn update_job(&self, Parameters(req): Parameters<UpdateJobRequest>) -> String {
         job_tools::update_job(req).await
-    }
-
-    #[tool(
-        description = "List all jobs. Optionally filter by status: \
-        pending | dispatched | gate_pending | blocked | merged | failed."
-    )]
-    async fn list_jobs(&self, Parameters(req): Parameters<ListJobsRequest>) -> String {
-        job_tools::list_jobs(req)
-    }
-
-    #[tool(description = "Get a single job record by job_id. Returns JSON or an error.")]
-    async fn get_job(&self, Parameters(req): Parameters<GetJobRequest>) -> String {
-        job_tools::get_job(req)
     }
 
     // ---- Events ----

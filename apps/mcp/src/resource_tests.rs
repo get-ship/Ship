@@ -201,7 +201,7 @@ fn write_skill_vars_json(ship_dir: &std::path::Path, skill_id: &str, vars_json: 
 
 #[tokio::test(flavor = "multi_thread")]
 async fn skill_get_includes_content() {
-    let (_tmp, ship_dir) = setup();
+    let (_tmp, ship_dir, _project_dir) = setup();
     write_skill(&ship_dir, "my-skill", "Do the thing.");
 
     let result = resolve("ship://skills/my-skill", &ship_dir).await.unwrap();
@@ -210,7 +210,7 @@ async fn skill_get_includes_content() {
 
 #[tokio::test(flavor = "multi_thread")]
 async fn skill_get_includes_variable_state() {
-    let (_tmp, ship_dir) = setup();
+    let (_tmp, ship_dir, _project_dir) = setup();
     write_skill(&ship_dir, "commit", "Commit helper skill.");
     write_skill_vars_json(
         &ship_dir,
@@ -243,7 +243,7 @@ async fn skill_get_includes_variable_state() {
 
 #[tokio::test(flavor = "multi_thread")]
 async fn skill_get_includes_overridden_variable() {
-    let (_tmp, ship_dir) = setup();
+    let (_tmp, ship_dir, _project_dir) = setup();
     write_skill(&ship_dir, "commit", "Commit skill.");
     write_skill_vars_json(
         &ship_dir,
@@ -271,7 +271,7 @@ async fn skill_get_includes_overridden_variable() {
 
 #[tokio::test(flavor = "multi_thread")]
 async fn skill_get_without_vars_has_no_vars_section() {
-    let (_tmp, ship_dir) = setup();
+    let (_tmp, ship_dir, _project_dir) = setup();
     write_skill(&ship_dir, "simple", "Simple skill with no vars.");
 
     let result = resolve("ship://skills/simple", &ship_dir).await.unwrap();
