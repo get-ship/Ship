@@ -129,6 +129,17 @@ fn pending_dispatch_under_line_limit() {
     );
 }
 
+// ── Orphan cleanup module ─────────────────────────────────────────────────────
+
+#[test]
+fn orphan_cleanup_under_line_limit() {
+    let lines = include_str!("orphan_cleanup.rs").lines().count();
+    assert!(
+        lines <= LINE_LIMIT,
+        "orphan_cleanup.rs has {lines} lines (limit {LINE_LIMIT})"
+    );
+}
+
 // ── New workspace modules ─────────────────────────────────────────────────────
 
 #[test]

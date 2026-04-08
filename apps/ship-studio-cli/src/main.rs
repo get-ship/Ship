@@ -145,6 +145,7 @@ fn dispatch(command: Option<Commands>) -> Result<()> {
                     DaemonCommands::Start => DaemonCommand::Start,
                     DaemonCommands::Stop => DaemonCommand::Stop,
                     DaemonCommands::Status => DaemonCommand::Status,
+                    DaemonCommands::Cleanup => DaemonCommand::Cleanup,
                 };
                 run_daemon(cmd)
             }
