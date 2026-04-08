@@ -264,8 +264,7 @@ pub async fn hooks_checkout(
         }
     };
 
-    let connection_path = std::path::Path::new(&req.path);
-    match runtime::reconcile_workspace(&ship_dir, &req.branch, connection_path) {
+    match runtime::reconcile_workspace(&ship_dir, &req.branch) {
         Ok(Some(ws)) => (
             StatusCode::OK,
             Json(MeshResponse {

@@ -7,8 +7,6 @@ use crate::push::PushAdapter;
 
 /// A connected agent peer with its allowed event types.
 pub struct PeerHandle {
-    pub id: String,
-    pub actor_id: String,
     pub adapter: Box<dyn PushAdapter>,
     /// Event types this agent is allowed to receive, derived from
     /// the agent's active skills' declared `in` events.
@@ -39,10 +37,6 @@ impl EventRelay {
 
     pub async fn add_peer(&self, handle: PeerHandle) {
         self.peers.write().await.push(handle);
-    }
-
-    pub async fn remove_peer(&self, peer_id: &str) {
-        self.peers.write().await.retain(|p| p.id != peer_id);
     }
 
     /// Spawn the relay loop consuming from a `Mailbox`.

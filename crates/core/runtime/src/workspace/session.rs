@@ -12,7 +12,7 @@ use std::collections::HashMap;
 use std::io::Write;
 use std::path::{Path, PathBuf};
 
-use super::crud::{get_workspace, list_workspaces};
+use super::crud::get_workspace;
 use super::helpers::*;
 use super::types_session::*;
 

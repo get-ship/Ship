@@ -11,7 +11,7 @@ dev:
 
 # Watch and rebuild Rust on changes (unstable — includes all dev tools)
 watch:
-    cargo watch -x "build --features unstable -p ship-studio-cli -p mcp"
+    cargo watch -x "build --features unstable -p ship-cli -p mcp"
 
 # ── Build ──────────────────────────────────────────────────────────────────────
 
@@ -31,7 +31,7 @@ install-dev: build
 
 # Install stable binary to ~/.cargo/bin
 install: build-release
-    cargo install --path apps/ship-studio-cli
+    cargo install --path apps/ship-cli
     cp -f target/release/shipd ~/.local/bin/shipd
 
 # Restart shipd with the latest dev build (build → install → hard restart)

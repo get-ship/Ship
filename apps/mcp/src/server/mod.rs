@@ -233,8 +233,6 @@ impl ShipServer {
                 crate::push::select_adapter(provider.as_deref(), peer);
             tracing::info!(adapter = adapter.adapter_name(), "push adapter selected");
             let peer_handle = notification_relay::PeerHandle {
-                id: "mcp-agent".to_string(),
-                actor_id: "mcp".to_string(),
                 adapter,
                 allowed_events: std::collections::HashSet::new(),
             };
@@ -313,7 +311,6 @@ impl ShipServer {
         let _ = runtime::reconcile_workspace(
             &ship_dir,
             &branch,
-            &project_dir,
         );
 
         let agent_id = runtime::get_active_agent(Some(ship_dir.clone()))
@@ -510,8 +507,7 @@ impl ShipServer {
                 Ok(b) => b,
                 Err(e) => return format!("Error: {}", e),
             };
-        let project_root = project_dir.parent().unwrap_or(&project_dir);
-        let _ = runtime::reconcile_workspace(&project_dir, &branch, project_root);
+        let _ = runtime::reconcile_workspace(&project_dir, &branch);
         session::start_session(&project_dir, req, &branch)
     }
 

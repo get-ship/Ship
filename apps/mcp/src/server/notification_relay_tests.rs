@@ -32,19 +32,15 @@ fn envelope(event_type: &str) -> EventEnvelope {
         .with_context(Some("feature/auth"), Some("sess-1"))
 }
 
-fn system_peer(id: &str, adapter: MockAdapter) -> PeerHandle {
+fn system_peer(_id: &str, adapter: MockAdapter) -> PeerHandle {
     PeerHandle {
-        id: id.into(),
-        actor_id: format!("actor-{id}"),
         adapter: Box::new(adapter),
         allowed_events: HashSet::new(),
     }
 }
 
-fn skill_peer(id: &str, adapter: MockAdapter, events: Vec<&str>) -> PeerHandle {
+fn skill_peer(_id: &str, adapter: MockAdapter, events: Vec<&str>) -> PeerHandle {
     PeerHandle {
-        id: id.into(),
-        actor_id: format!("actor-{id}"),
         adapter: Box::new(adapter),
         allowed_events: events.into_iter().map(String::from).collect(),
     }
@@ -161,21 +157,6 @@ async fn event_payload_delivered_intact() {
     let received = log.lock().await;
     assert_eq!(received[0].id, evt_id);
     assert_eq!(received[0].event_type, "session.started");
-}
-
-// ── Peer lifecycle tests ─────────────────────────────────────
-
-#[tokio::test]
-async fn remove_peer_stops_delivery() {
-    let (a, la) = MockAdapter::new();
-    let (b, lb) = MockAdapter::new();
-    let relay = EventRelay::new();
-    relay.add_peer(system_peer("a", a)).await;
-    relay.add_peer(system_peer("b", b)).await;
-    relay.remove_peer("a").await;
-    run_relay(relay, vec![envelope("session.started")]).await;
-    assert!(la.lock().await.is_empty());
-    assert_eq!(lb.lock().await.len(), 1);
 }
 
 // ── Channel lifecycle tests ──────────────────────────────────

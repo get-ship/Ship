@@ -110,6 +110,7 @@ pub(crate) async fn reconcile_dispatched_jobs(
 }
 
 /// Path-aware variant for tests.
+#[cfg(test)]
 pub(crate) async fn reconcile_dispatched_jobs_at(
     kernel: &Arc<Mutex<runtime::events::KernelRouter>>,
     dctx: &DispatchContext,
@@ -132,7 +133,6 @@ async fn reconcile_dispatched_inner(
     jobs: std::collections::HashMap<String, runtime::projections::job::JobRecord>,
     store_dir: Option<&std::path::Path>,
 ) {
-    use runtime::events::job::event_types;
     use runtime::services::dispatch_ports::JobContext;
 
     let stale: Vec<_> = jobs

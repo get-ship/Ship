@@ -7,7 +7,6 @@
 use anyhow::Result;
 use async_trait::async_trait;
 use runtime::services::dispatch_ports::{ExecutorHandle, ExitSignal, JobContext, JobExecutor};
-use std::path::PathBuf;
 
 /// Job executor that spawns agents as direct child processes.
 pub(crate) struct ProcessExecutor;
@@ -15,7 +14,6 @@ pub(crate) struct ProcessExecutor;
 /// State held in the ExecutorHandle for process-based execution.
 struct ProcessState {
     pid: u32,
-    log_path: PathBuf,
 }
 
 #[async_trait]
@@ -71,7 +69,7 @@ impl JobExecutor for ProcessExecutor {
 
         Ok(ExecutorHandle {
             pid: Some(pid),
-            inner: Box::new(ProcessState { pid, log_path }),
+            inner: Box::new(ProcessState { pid }),
         })
     }
 
