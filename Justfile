@@ -17,11 +17,11 @@ watch:
 
 # Build CLI + MCP + shipd (unstable dev build — default for development)
 build:
-    cargo build --features unstable -p ship-studio-cli -p mcp -p shipd
+    cargo build --features unstable -p ship-cli -p mcp -p shipd
 
 # Build release binary (stable — no unstable features, what users get)
 build-release:
-    cargo build --release -p ship-studio-cli -p mcp -p shipd
+    cargo build --release -p ship-cli -p mcp -p shipd
 
 # Install dev binaries to ~/.local/bin (ship + shipd)
 install-dev: build
@@ -168,8 +168,8 @@ rebuild: clean build wasm
 
 # Verify both stable and unstable compile (CI check)
 check-gates:
-    cargo build -p ship-studio-cli -p mcp
-    cargo build --features unstable -p ship-studio-cli -p mcp
+    cargo build -p ship-cli -p mcp
+    cargo build --features unstable -p ship-cli -p mcp
     just check-no-set-var-global-dir
     @echo "Both gates compile ✓"
 
