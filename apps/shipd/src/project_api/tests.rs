@@ -411,6 +411,7 @@ async fn emit_event_routes_to_kernel() {
 
     let (status, body) = emit_event(
         axum::extract::State(state),
+        None,
         axum::Json(EmitEventReq {
             event_type: "test.event".to_string(),
             entity_id: "entity-1".to_string(),
