@@ -353,13 +353,16 @@ function FileEntry({ file, isActive, onClick, onContextMenu, isTodo, stripPrefix
         <span title="Saved to project"><Check className="size-3 text-emerald-500/60 shrink-0" /></span>
       )}
       {saved === false && onPromote && (
-        <button
+        <div
+          role="button"
+          tabIndex={0}
           onClick={(e) => { e.stopPropagation(); onPromote() }}
+          onKeyDown={(e) => { if (e.key === 'Enter' || e.key === ' ') { e.stopPropagation(); onPromote() } }}
           className="size-4 shrink-0 flex items-center justify-center rounded opacity-0 group-hover:opacity-100 text-muted-foreground/40 hover:text-primary transition-opacity"
           title="Save to project"
         >
           <CloudUpload className="size-3" />
-        </button>
+        </div>
       )}
     </button>
   )

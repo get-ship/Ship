@@ -26,7 +26,6 @@ export function WorkspaceIndicator() {
   }, [])
 
   const isWorkspaceView = WORKSPACE_ROUTES.some((r) => pathname.startsWith(r))
-  if (!isWorkspaceView) return null
 
   // Use viewedWorkspace if set, otherwise default to first active workspace
   const currentWs = viewedWorkspace
@@ -35,6 +34,7 @@ export function WorkspaceIndicator() {
 
   // Auto-set viewedWorkspace on first load, or reset if stale (branch no longer exists)
   useEffect(() => {
+    if (!isWorkspaceView) return
     if (!viewedWorkspace && currentWs) {
       setViewedWorkspace(currentWs.branch)
       return
@@ -43,8 +43,9 @@ export function WorkspaceIndicator() {
       const fallback = workspaces.find((w) => String(w.status).toLowerCase() === 'active')
       setViewedWorkspace(fallback?.branch ?? workspaces[0]?.branch ?? null)
     }
-  }, [viewedWorkspace, currentWs, workspaces, setViewedWorkspace])
+  }, [isWorkspaceView, viewedWorkspace, currentWs, workspaces, setViewedWorkspace])
 
+  if (!isWorkspaceView) return null
   if (!currentWs && connected) return null
 
   const otherWorkspaces = workspaces.filter((w) => w.branch !== currentWs?.branch)
