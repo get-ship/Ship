@@ -4,14 +4,16 @@ import {
   createRootRouteWithContext,
   useRouterState,
 } from '@tanstack/react-router'
+import { lazy, Suspense } from 'react'
 import Footer from '../components/Footer'
-import Header from '../components/Header'
 
 import TanStackQueryProvider from '../integrations/tanstack-query/root-provider'
 
 import appCss from '../styles.css?url'
 
 import type { QueryClient } from '@tanstack/react-query'
+
+const Header = lazy(() => import('../components/Header'))
 
 interface MyRouterContext {
   queryClient: QueryClient
@@ -34,13 +36,19 @@ export const Route = createRootRouteWithContext<MyRouterContext>()({
       { rel: 'stylesheet', href: appCss },
       { rel: 'icon', href: '/ship-logos/ship_logo.svg', type: 'image/svg+xml' },
       { rel: 'icon', href: '/favicon.ico', sizes: 'any' },
+      { rel: 'preload', as: 'image', href: '/ship-logos/ship_logo.svg' },
     ],
   }),
   shellComponent: RootDocument,
 })
 
 function RootDocument({ children }: { children: React.ReactNode }) {
-  const isStudio = useRouterState({ select: (s) => s.location.pathname === '/studio' })
+  const pathname = useRouterState({ select: (s) => s.location.pathname })
+
+  const isLanding = pathname === '/'
+  const isStudio = pathname.startsWith('/studio')
+  const isFullscreen = isStudio
+  const showFooter = !isFullscreen && !isLanding
 
   return (
     <html lang="en" suppressHydrationWarning>
@@ -48,11 +56,17 @@ function RootDocument({ children }: { children: React.ReactNode }) {
         <script dangerouslySetInnerHTML={{ __html: THEME_INIT_SCRIPT }} />
         <HeadContent />
       </head>
-      <body className={`font-sans antialiased [overflow-wrap:anywhere]${isStudio ? ' flex flex-col h-screen overflow-hidden' : ''}`}>
+      <body className={`font-sans antialiased [overflow-wrap:anywhere] ${isFullscreen ? 'flex flex-col h-screen overflow-hidden' : 'min-h-screen flex flex-col'}`}>
         <TanStackQueryProvider>
-          <Header />
-          {children}
-          {!isStudio && <Footer />}
+          {!isLanding && !isStudio && (
+            <Suspense fallback={<div className="h-12 border-b border-border/60" />}>
+              <Header />
+            </Suspense>
+          )}
+          <div className={isFullscreen ? 'flex-1 flex flex-col min-h-0 overflow-hidden' : 'flex-1'}>
+            {children}
+          </div>
+          {showFooter && <Footer />}
         </TanStackQueryProvider>
         <Scripts />
       </body>

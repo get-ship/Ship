@@ -1,0 +1,414 @@
+//! Event payload types — immutable once persisted.
+//!
+//! New payload fields must be `Option<T>` (or `#[serde(default)]`) so existing
+//! v1 events deserialize correctly. The `version` field on `EventEnvelope` is
+//! always 1 — reserved for future schema evolution where projections would
+//! match on version to handle incompatible changes.
+//!
+//! See test `event_versioning_v1_compiled_without_new_fields` for enforcement.
+
+use serde::{Deserialize, Serialize};
+
+// ── Workspace aggregate ───────────────────────────────────────────────────────
+
+#[derive(Debug, Serialize, Deserialize)]
+pub struct WorkspaceCreated {
+    pub workspace_id: String,
+    pub workspace_type: String,
+    pub status: String,
+    #[serde(default)]
+    pub active_agent: Option<String>,
+    #[serde(default)]
+    pub providers: Vec<String>,
+    #[serde(default)]
+    pub mcp_servers: Vec<String>,
+    #[serde(default)]
+    pub skills: Vec<String>,
+    #[serde(default)]
+    pub is_worktree: bool,
+    #[serde(default)]
+    pub worktree_path: Option<String>,
+}
+
+#[derive(Debug, Serialize, Deserialize)]
+pub struct WorkspaceDeleted {
+    pub branch: String,
+}
+
+#[derive(Debug, Serialize, Deserialize)]
+pub struct WorkspaceStatusChanged {
+    pub old_status: String,
+    pub new_status: String,
+}
+
+#[derive(Debug, Serialize, Deserialize)]
+pub struct WorkspaceActivated {
+    pub agent_id: Option<String>,
+    pub providers: Vec<String>,
+}
+
+#[derive(Debug, Serialize, Deserialize)]
+pub struct WorkspaceCompiled {
+    pub config_generation: u32,
+    pub duration_ms: u64,
+}
+
+#[derive(Debug, Serialize, Deserialize)]
+pub struct WorkspaceCompileFailed {
+    pub error: String,
+}
+
+#[derive(Debug, Serialize, Deserialize)]
+pub struct WorkspaceArchived {}
+
+#[derive(Debug, Serialize, Deserialize)]
+pub struct WorkspaceAgentChanged {
+    pub agent_id: Option<String>,
+}
+
+#[derive(Debug, Serialize, Deserialize)]
+pub struct WorkspaceReconciled {
+    pub is_worktree: bool,
+    pub worktree_path: Option<String>,
+    pub reason: String,
+}
+
+#[derive(Debug, Serialize, Deserialize)]
+pub struct WorkspaceTmuxAssigned {
+    pub tmux_session_name: Option<String>,
+}
+
+#[derive(Debug, Serialize, Deserialize)]
+pub struct WorkspaceStarted {
+    pub worktree_path: String,
+    pub tmux_session_name: String,
+}
+
+#[derive(Debug, Serialize, Deserialize)]
+pub struct WorkspaceWorktreeAdded {
+    pub worktree_path: String,
+    #[serde(default)]
+    pub detected_by: String,
+}
+
+#[derive(Debug, Serialize, Deserialize)]
+pub struct WorkspaceWorktreeRemoved {
+    #[serde(default)]
+    pub previous_path: Option<String>,
+    #[serde(default)]
+    pub detected_by: String,
+}
+
+#[derive(Debug, Serialize, Deserialize)]
+pub struct WorkspaceBranchSwitched {
+    #[serde(default)]
+    pub previous_branch: Option<String>,
+    pub new_branch: String,
+    #[serde(default)]
+    pub detected_by: String,
+}
+
+#[derive(Debug, Serialize, Deserialize)]
+pub struct WorkspaceConfigChanged {
+    #[serde(default)]
+    pub changed_path: Option<String>,
+    #[serde(default)]
+    pub detected_by: String,
+}
+
+// ── Session aggregate ─────────────────────────────────────────────────────────
+
+#[derive(Debug, Default, Serialize, Deserialize)]
+pub struct SessionStarted {
+    pub goal: Option<String>,
+    #[serde(default)]
+    pub workspace_id: String,
+    #[serde(default)]
+    pub workspace_branch: String,
+    #[serde(default)]
+    pub agent_id: Option<String>,
+    #[serde(default)]
+    pub primary_provider: Option<String>,
+    #[serde(default)]
+    pub config_generation_at_start: Option<i64>,
+    #[serde(default)]
+    pub compiled_at: Option<String>,
+}
+
+#[derive(Debug, Default, Serialize, Deserialize)]
+pub struct SessionProgress {
+    #[serde(default)]
+    pub message: String,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub escalation: Option<String>,
+}
+
+#[derive(Debug, Default, Serialize, Deserialize)]
+pub struct SessionEnded {
+    pub summary: Option<String>,
+    pub duration_secs: Option<u64>,
+    pub gate_result: Option<String>,
+    #[serde(default)]
+    pub updated_workspace_ids: Vec<String>,
+    #[serde(default)]
+    pub compile_error: Option<String>,
+}
+
+#[derive(Debug, Serialize, Deserialize)]
+pub struct SessionDrainStarted {
+    pub drained_at: String,
+}
+
+#[derive(Debug, Serialize, Deserialize)]
+pub struct SessionDrainCompleted {
+    pub ended_at: String,
+}
+
+#[derive(Debug, Serialize, Deserialize)]
+pub struct SessionDrainAborted {
+    pub resumed_at: String,
+}
+
+#[derive(Debug, Serialize, Deserialize)]
+pub struct SessionToolCountIncremented {}
+
+#[derive(Debug, Serialize, Deserialize)]
+pub struct SessionAttached {
+    pub existing_session_id: String,
+    pub workspace_id: String,
+    pub workspace_branch: String,
+}
+
+#[derive(Debug, Default, Serialize, Deserialize)]
+pub struct SessionRecorded {
+    pub record_id: String,
+    pub summary: Option<String>,
+    #[serde(default)]
+    pub updated_workspace_ids: Vec<String>,
+    pub duration_secs: Option<i64>,
+    pub provider: Option<String>,
+    pub model: Option<String>,
+    pub agent_id: Option<String>,
+    pub files_changed: Option<i64>,
+    pub gate_result: Option<String>,
+    pub workspace_branch: String,
+}
+
+// ── Skill aggregate ───────────────────────────────────────────────────────────
+
+#[derive(Debug, Serialize, Deserialize)]
+pub struct SkillStarted {
+    pub skill_id: String,
+}
+
+#[derive(Debug, Serialize, Deserialize)]
+pub struct SkillCompleted {
+    pub skill_id: String,
+    pub duration_ms: Option<u64>,
+}
+
+#[derive(Debug, Serialize, Deserialize)]
+pub struct SkillFailed {
+    pub skill_id: String,
+    pub error: String,
+}
+
+// ── Actor aggregate (v0.2.0 kernel) ──────────────────────────────────────────
+
+#[derive(Debug, Serialize, Deserialize)]
+pub struct ActorCreated {
+    pub kind: String,
+    pub environment_type: String,
+    #[serde(default)]
+    pub workspace_id: Option<String>,
+    #[serde(default)]
+    pub parent_actor_id: Option<String>,
+    #[serde(default)]
+    pub restart_count: u32,
+}
+
+#[derive(Debug, Serialize, Deserialize)]
+pub struct ActorWoke {}
+
+#[derive(Debug, Serialize, Deserialize)]
+pub struct ActorSlept {
+    pub idle_secs: u64,
+}
+
+#[derive(Debug, Serialize, Deserialize)]
+pub struct ActorStopped {
+    pub reason: String,
+}
+
+#[derive(Debug, Serialize, Deserialize)]
+pub struct ActorCrashed {
+    pub error: String,
+    pub restart_count: u32,
+}
+
+// ── Gate aggregate ────────────────────────────────────────────────────────────
+
+#[derive(Debug, Serialize, Deserialize)]
+pub struct GatePassed {
+    pub evidence: String,
+}
+
+#[derive(Debug, Serialize, Deserialize)]
+pub struct GateFailed {
+    pub evidence: String,
+}
+
+// ── Job aggregate ─────────────────────────────────────────────────────────────
+
+#[derive(Debug, Serialize, Deserialize)]
+pub struct JobCreated {
+    pub title: Option<String>,
+}
+
+#[derive(Debug, Serialize, Deserialize)]
+pub struct JobClaimed {
+    pub agent_id: Option<String>,
+}
+
+#[derive(Debug, Serialize, Deserialize)]
+pub struct JobCompleted {
+    pub summary: Option<String>,
+}
+
+#[derive(Debug, Serialize, Deserialize)]
+pub struct JobFailed {
+    pub reason: Option<String>,
+}
+
+#[derive(Debug, Serialize, Deserialize)]
+pub struct JobDispatched {
+    pub agent_id: Option<String>,
+}
+
+// ── Config / Log aggregates ───────────────────────────────────────────────────
+
+#[derive(Debug, Serialize, Deserialize)]
+pub struct ConfigChanged {
+    pub subject: String,
+    pub detail: Option<String>,
+}
+
+#[derive(Debug, Serialize, Deserialize)]
+pub struct ProjectLog {
+    pub action: String,
+    pub details: String,
+}
+
+// ── Event type constants ──────────────────────────────────────────────────────
+
+pub mod event_types {
+    pub const WORKSPACE_CREATED: &str = "workspace.created";
+    pub const WORKSPACE_DELETED: &str = "workspace.deleted";
+    pub const WORKSPACE_STATUS_CHANGED: &str = "workspace.status_changed";
+    pub const WORKSPACE_ACTIVATED: &str = "workspace.activated";
+    pub const WORKSPACE_COMPILED: &str = "workspace.compiled";
+    pub const WORKSPACE_COMPILE_FAILED: &str = "workspace.compile_failed";
+    pub const WORKSPACE_ARCHIVED: &str = "workspace.archived";
+    pub const WORKSPACE_AGENT_CHANGED: &str = "workspace.agent_changed";
+    pub const WORKSPACE_RECONCILED: &str = "workspace.reconciled";
+    pub const WORKSPACE_TMUX_ASSIGNED: &str = "workspace.tmux_assigned";
+    pub const WORKSPACE_STARTED: &str = "workspace.started";
+    pub const WORKSPACE_WORKTREE_ADDED: &str = "workspace.worktree_added";
+    pub const WORKSPACE_WORKTREE_REMOVED: &str = "workspace.worktree_removed";
+    pub const WORKSPACE_BRANCH_SWITCHED: &str = "workspace.branch_switched";
+    pub const WORKSPACE_CONFIG_CHANGED: &str = "workspace.config_changed";
+    pub const SESSION_STARTED: &str = "session.started";
+    pub const SESSION_PROGRESS: &str = "session.progress";
+    pub const SESSION_ENDED: &str = "session.ended";
+    pub const SESSION_RECORDED: &str = "session.recorded";
+    pub const SESSION_DRAIN_STARTED: &str = "session.drain_started";
+    pub const SESSION_DRAIN_COMPLETED: &str = "session.drain_completed";
+    pub const SESSION_DRAIN_ABORTED: &str = "session.drain_aborted";
+    pub const SESSION_TOOL_COUNT_INCREMENTED: &str = "session.tool_count_incremented";
+    pub const SESSION_ATTACHED: &str = "session.attached";
+    pub const ACTOR_CREATED: &str = "actor.created";
+    pub const ACTOR_WOKE: &str = "actor.woke";
+    pub const ACTOR_SLEPT: &str = "actor.slept";
+    pub const ACTOR_STOPPED: &str = "actor.stopped";
+    pub const ACTOR_CRASHED: &str = "actor.crashed";
+    pub const GATE_PASSED: &str = "gate.passed";
+    pub const GATE_FAILED: &str = "gate.failed";
+    pub const JOB_CREATED: &str = "job.created";
+    pub const JOB_CLAIMED: &str = "job.claimed";
+    pub const JOB_COMPLETED: &str = "job.completed";
+    pub const JOB_FAILED: &str = "job.failed";
+    pub const JOB_DISPATCHED: &str = "job.dispatched";
+    pub const JOB_UPDATE: &str = "job.update";
+    pub const CONFIG_CHANGED: &str = "config.changed";
+    pub const PROJECT_LOG: &str = "project.log";
+
+    pub const SKILL_STARTED: &str = "skill.started";
+    pub const SKILL_COMPLETED: &str = "skill.completed";
+    pub const SKILL_FAILED: &str = "skill.failed";
+
+    pub const SUPERVISOR_SHUTTING_DOWN: &str = "supervisor.shutting_down";
+
+    pub const ALL: &[&str] = &[
+        WORKSPACE_CREATED,
+        WORKSPACE_DELETED,
+        WORKSPACE_STATUS_CHANGED,
+        WORKSPACE_ACTIVATED,
+        WORKSPACE_COMPILED,
+        WORKSPACE_COMPILE_FAILED,
+        WORKSPACE_ARCHIVED,
+        WORKSPACE_AGENT_CHANGED,
+        WORKSPACE_RECONCILED,
+        WORKSPACE_TMUX_ASSIGNED,
+        WORKSPACE_STARTED,
+        WORKSPACE_WORKTREE_ADDED,
+        WORKSPACE_WORKTREE_REMOVED,
+        WORKSPACE_BRANCH_SWITCHED,
+        WORKSPACE_CONFIG_CHANGED,
+        SESSION_STARTED,
+        SESSION_PROGRESS,
+        SESSION_ENDED,
+        SESSION_RECORDED,
+        SESSION_DRAIN_STARTED,
+        SESSION_DRAIN_COMPLETED,
+        SESSION_DRAIN_ABORTED,
+        SESSION_TOOL_COUNT_INCREMENTED,
+        SESSION_ATTACHED,
+        ACTOR_CREATED,
+        ACTOR_WOKE,
+        ACTOR_SLEPT,
+        ACTOR_STOPPED,
+        ACTOR_CRASHED,
+        GATE_PASSED,
+        GATE_FAILED,
+        JOB_CREATED,
+        JOB_CLAIMED,
+        JOB_COMPLETED,
+        JOB_FAILED,
+        JOB_DISPATCHED,
+        JOB_UPDATE,
+        CONFIG_CHANGED,
+        PROJECT_LOG,
+        SKILL_STARTED,
+        SKILL_COMPLETED,
+        SKILL_FAILED,
+        SUPERVISOR_SHUTTING_DOWN,
+    ];
+}
+
+#[cfg(test)]
+mod tests {
+    use super::event_types::*;
+
+    #[test]
+    fn event_type_constants_are_unique() {
+        let mut seen = std::collections::HashSet::new();
+        for &t in ALL {
+            assert!(seen.insert(t), "duplicate event type constant: {t}");
+        }
+    }
+
+    #[test]
+    fn all_constants_have_expected_count() {
+        assert_eq!(ALL.len(), 43, "exactly 43 event type constants required");
+    }
+}

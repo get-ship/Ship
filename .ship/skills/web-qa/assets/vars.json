@@ -1,0 +1,19 @@
+{
+  "$schema": "https://getship.dev/schemas/vars.schema.json",
+  "browser": {
+    "type": "enum",
+    "values": ["chromium", "firefox", "webkit"],
+    "default": "chromium",
+    "storage-hint": "project",
+    "label": "Browser",
+    "description": "Browser engine for QA sessions. chromium is fastest; webkit approximates Safari."
+  },
+  "tier": {
+    "type": "enum",
+    "values": ["quick", "standard", "exhaustive"],
+    "default": "standard",
+    "storage-hint": "project",
+    "label": "Default tier",
+    "description": "quick = critical+high only. standard = +medium. exhaustive = +cosmetic."
+  }
+}

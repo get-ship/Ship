@@ -17,6 +17,10 @@ const EMPTY: McpServerConfig = {
   disabled: false,
   url: null,
   timeout_secs: null,
+  codex_enabled_tools: [],
+  codex_disabled_tools: [],
+  gemini_include_tools: [],
+  gemini_exclude_tools: [],
 }
 
 const COMMAND_SUGGESTIONS = ['npx', 'uvx', 'docker', 'node', 'python', 'ship', 'deno']
@@ -83,7 +87,7 @@ function ServerRow({
   onRemove: () => void
 }) {
   const argsStr = (server.args ?? []).join(' ')
-  const envEntries = Object.entries(server.env ?? {})
+  const envEntries = Object.entries(server.env ?? {}).filter((e): e is [string, string] => e[1] !== undefined)
 
   return (
     <div className={`overflow-hidden rounded-xl border transition ${isExpanded ? 'border-border bg-card' : 'border-border/60 bg-card/50'}`}>

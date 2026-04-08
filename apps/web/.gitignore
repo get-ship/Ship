@@ -4,6 +4,8 @@ dist
 dist-ssr
 *.local
 .env
+.env.local
+.dev.vars
 .nitro
 .tanstack
 .wrangler
@@ -11,3 +13,5 @@ dist-ssr
 .vinxi
 __unconfig*
 todos.json
+src/routeTree.gen.ts
+storybook-static

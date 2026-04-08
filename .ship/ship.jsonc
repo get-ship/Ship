@@ -1,0 +1,28 @@
+{
+  // Ship project manifest — https://getship.dev
+  "$schema": "../schemas/ship.schema.json",
+  "id": "bzwmeMdT",
+  "module": {
+    "name": "github.com/madvib/ship",
+    "version": "0.2.0",
+    "description": "Compiler and runtime for AI agent configuration",
+    "license": "MIT",
+  },
+  "project": {
+    "skill_paths": ["docs/", "skills/"],
+  },
+  "dependencies": {
+    "github.com/garrytan/gstack": "main",
+    "github.com/better-auth/skills": "main",
+  },
+  "exports": {
+    // Publish-ready skills — added one by one after testing in Studio
+    "skills": [],
+    // Public agents — reviewed, publish-ready
+    "agents": [
+      "agents/gatekeeper.jsonc",
+      "agents/test-writer.jsonc",
+    ],
+    // Private: commander, default, rust-lane, web-lane
+  },
+}

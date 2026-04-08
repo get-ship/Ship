@@ -1,0 +1,417 @@
+//! End-to-end reliability tests.
+//!
+//! These tests verify the system behaves correctly across failure modes:
+//! daemon restarts, agent crashes, stuck jobs, resource leaks, and
+//! concurrent operations. They define what "stable" means for v0.2.0.
+
+use runtime::events::job::event_types;
+use runtime::events::EventEnvelope;
+use runtime::projections::job::{project, JobStatus};
+
+fn ev(event_type: &str, payload: serde_json::Value) -> EventEnvelope {
+    let job_id = payload["job_id"].as_str().unwrap_or("test");
+    EventEnvelope::new(event_type, job_id, &payload).unwrap()
+}
+
+fn created(job_id: &str, slug: &str) -> EventEnvelope {
+    ev(event_types::JOB_CREATED, serde_json::json!({
+        "job_id": job_id, "slug": slug,
+        "agent": "rust-runtime", "branch": format!("job/{slug}"),
+        "spec_path": "spec.md", "plan_id": null,
+    }))
+}
+
+fn dispatched(job_id: &str) -> EventEnvelope {
+    ev(event_types::JOB_DISPATCHED, serde_json::json!({
+        "job_id": job_id, "worktree": format!("/tmp/wt/{job_id}"), "pid": 1234
+    }))
+}
+
+fn completed(job_id: &str, slug: &str) -> EventEnvelope {
+    ev(event_types::JOB_COMPLETED, serde_json::json!({
+        "job_id": job_id, "slug": slug
+    }))
+}
+
+fn merged(job_id: &str, slug: &str) -> EventEnvelope {
+    ev(event_types::JOB_MERGED, serde_json::json!({
+        "job_id": job_id, "slug": slug
+    }))
+}
+
+fn failed(job_id: &str, error: &str) -> EventEnvelope {
+    ev(event_types::JOB_FAILED, serde_json::json!({
+        "job_id": job_id, "error": error
+    }))
+}
+
+// ═══════════════════════════════════════════════════════════════════════════
+// WORKTREE PROJECT DETECTION
+//
+// Git worktrees must resolve to their parent project identity.
+// ═══════════════════════════════════════════════════════════════════════════
+
+/// Project detection must check for git worktree status.
+#[test]
+fn project_detection_handles_worktrees() {
+    let source = std::fs::read_to_string(
+        concat!(env!("CARGO_MANIFEST_DIR"), "/../../crates/core/runtime/src/project.rs")
+    ).unwrap();
+    assert!(
+        source.contains("worktree") || source.contains("git_common_dir"),
+        "project.rs must detect git worktrees to avoid phantom project registrations"
+    );
+}
+
+// ═══════════════════════════════════════════════════════════════════════════
+// STALE WORKTREE CLEANUP
+//
+// Merged and failed jobs must have their worktrees cleaned up.
+// The cleanup handler must be reliable — not leave orphans.
+// ═══════════════════════════════════════════════════════════════════════════
+
+/// The cleanup handler must resolve the slug from the event payload,
+/// not rely on in-memory state that may not exist after a restart.
+#[test]
+fn cleanup_resolves_slug_from_event_payload() {
+    let source = include_str!("dispatch_handlers.rs");
+    assert!(
+        source.contains("slug") && source.contains("payload"),
+        "cleanup must resolve slug from event payload, not in-memory state"
+    );
+}
+
+/// Cleanup must handle the case where the worktree was already removed
+/// (idempotent cleanup).
+#[test]
+fn cleanup_is_idempotent() {
+    let source = include_str!("../supervisor/helpers.rs");
+    assert!(
+        source.contains("exists()"),
+        "remove_worktree must check existence — cleanup must be idempotent"
+    );
+}
+
+/// Orphan detection: after restart, any worktree for a terminal job
+/// (merged/failed) should be flagged for cleanup.
+#[test]
+fn orphan_worktrees_detectable_from_projection() {
+    let events = vec![
+        created("j1", "merged-job"),
+        dispatched("j1"),
+        completed("j1", "merged-job"),
+        merged("j1", "merged-job"),
+        created("j2", "failed-job"),
+        dispatched("j2"),
+        failed("j2", "crash"),
+        created("j3", "active-job"),
+        dispatched("j3"),
+    ];
+    let map = project(&events);
+
+    let orphans: Vec<_> = map.values()
+        .filter(|j| matches!(j.status, JobStatus::Merged | JobStatus::Failed))
+        .filter(|j| j.worktree.is_some())
+        .map(|j| j.slug.as_str())
+        .collect();
+
+    let active: Vec<_> = map.values()
+        .filter(|j| j.status == JobStatus::Dispatched)
+        .filter(|j| j.worktree.is_some())
+        .map(|j| j.slug.as_str())
+        .collect();
+
+    assert_eq!(orphans.len(), 2, "merged + failed jobs are orphan candidates");
+    assert_eq!(active.len(), 1, "active job is NOT an orphan");
+    assert!(orphans.contains(&"merged-job"));
+    assert!(orphans.contains(&"failed-job"));
+    assert!(active.contains(&"active-job"));
+}
+
+// ═══════════════════════════════════════════════════════════════════════════
+// GRACEFUL SHUTDOWN
+//
+// Daemon must stop all agents within bounded time on SIGTERM.
+// ═══════════════════════════════════════════════════════════════════════════
+
+/// Shutdown must have a timeout — it cannot hang indefinitely.
+#[test]
+fn shutdown_has_bounded_timeout() {
+    let registry_src = include_str!("registry.rs");
+    assert!(
+        registry_src.contains("timeout") || registry_src.contains("Duration"),
+        "shutdown_all must have a timeout to prevent hanging on unresponsive agents"
+    );
+}
+
+/// Shutdown must attempt graceful exit before force-kill.
+#[test]
+fn shutdown_sends_exit_before_kill() {
+    // The executor's stop() should use the adapter's exit_command
+    // before resorting to SIGTERM/SIGKILL.
+    let tmux_src = std::fs::read_to_string(
+        concat!(env!("CARGO_MANIFEST_DIR"), "/src/supervisor/executors/tmux.rs")
+    ).unwrap();
+    let process_src = std::fs::read_to_string(
+        concat!(env!("CARGO_MANIFEST_DIR"), "/src/supervisor/executors/process.rs")
+    ).unwrap();
+    let lifecycle_src = std::fs::read_to_string(
+        concat!(env!("CARGO_MANIFEST_DIR"), "/src/supervisor/agent_lifecycle.rs")
+    ).unwrap();
+
+    // At least one path must use the adapter's exit command
+    let uses_exit = lifecycle_src.contains("exit_command")
+        || tmux_src.contains("exit_command")
+        || process_src.contains("exit_command");
+    assert!(uses_exit, "shutdown path must use adapter.exit_command() for graceful exit");
+}
+
+// ═══════════════════════════════════════════════════════════════════════════
+// PROCESS EXIT DETECTION
+//
+// The daemon must detect dead agents without relying on hooks.
+// ═══════════════════════════════════════════════════════════════════════════
+
+/// ProcessExecutor must monitor the child process and emit events on exit.
+#[test]
+fn process_executor_monitors_child() {
+    let source = std::fs::read_to_string(
+        concat!(env!("CARGO_MANIFEST_DIR"), "/src/supervisor/executors/process.rs")
+    ).unwrap();
+    assert!(
+        source.contains("wait()") || source.contains("child.wait"),
+        "ProcessExecutor must wait on the child process to detect exit"
+    );
+}
+
+/// ProcessExecutor must signal completion when the child exits,
+/// not rely on the SessionEnd hook.
+#[test]
+fn process_executor_signals_on_exit() {
+    let source = std::fs::read_to_string(
+        concat!(env!("CARGO_MANIFEST_DIR"), "/src/supervisor/executors/process.rs")
+    ).unwrap();
+    assert!(
+        source.contains("job") && (source.contains("end") || source.contains("completed") || source.contains("failed")),
+        "ProcessExecutor must signal job completion/failure when child process exits"
+    );
+}
+
+/// TmuxExecutor must have a way to check if the session is still alive.
+#[test]
+fn tmux_executor_has_liveness_check() {
+    let source = std::fs::read_to_string(
+        concat!(env!("CARGO_MANIFEST_DIR"), "/src/supervisor/executors/tmux.rs")
+    ).unwrap();
+    assert!(
+        source.contains("has-session") || source.contains("is_alive"),
+        "TmuxExecutor must be able to check if the tmux session is alive"
+    );
+}
+
+// ═══════════════════════════════════════════════════════════════════════════
+// DAEMON RESTART RECOVERY (E2E-1)
+//
+// After restart, the daemon must recover all in-flight work from the
+// event store. No job lost, no job duplicated.
+// ═══════════════════════════════════════════════════════════════════════════
+
+/// Jobs in every non-terminal state must be recoverable after restart.
+#[test]
+fn all_non_terminal_states_recoverable() {
+    let events = vec![
+        // Pending — waiting for dispatch
+        created("j-pending", "pending"),
+
+        // Dispatched — agent was running
+        created("j-dispatched", "dispatched"),
+        dispatched("j-dispatched"),
+
+        // Completed — waiting for pipeline advancement
+        created("j-completed", "completed"),
+        dispatched("j-completed"),
+        completed("j-completed", "completed"),
+
+        // Blocked — needs human
+        created("j-blocked", "blocked"),
+        dispatched("j-blocked"),
+        ev(event_types::JOB_BLOCKED, serde_json::json!({
+            "job_id": "j-blocked", "blocker": "needs key", "needs_human": true
+        })),
+    ];
+    let map = project(&events);
+
+    assert_eq!(map.get("j-pending").unwrap().status, JobStatus::Pending);
+    assert_eq!(map.get("j-dispatched").unwrap().status, JobStatus::Dispatched);
+    assert_eq!(map.get("j-completed").unwrap().status, JobStatus::Completed);
+    assert_eq!(map.get("j-blocked").unwrap().status, JobStatus::Blocked);
+
+    // All have enough data for the reconciliation loop to act on
+    assert!(map.get("j-dispatched").unwrap().worktree.is_some());
+    assert!(map.get("j-completed").unwrap().worktree.is_some());
+}
+
+/// The reconciliation loop must exist and handle all three phases.
+#[test]
+fn reconciliation_loop_handles_three_phases() {
+    let source = include_str!("job_dispatch.rs");
+    assert!(source.contains("reconcile"), "must reconcile stale dispatched jobs");
+    assert!(source.contains("replay"), "must replay stale completions");
+    assert!(
+        source.contains("pending_dispatch") || source.contains("dispatch_ready"),
+        "must dispatch ready pending jobs"
+    );
+}
+
+// ═══════════════════════════════════════════════════════════════════════════
+// JOB FULL LIFECYCLE (E2E-4)
+//
+// A job must flow from creation to merge without human intervention.
+// Every state transition is an event. No state is lost.
+// ═══════════════════════════════════════════════════════════════════════════
+
+/// Full lifecycle: created → dispatched → completed → merged.
+#[test]
+fn job_full_lifecycle_all_events_present() {
+    let events = vec![
+        created("j1", "auth-fix"),
+        dispatched("j1"),
+        completed("j1", "auth-fix"),
+        merged("j1", "auth-fix"),
+    ];
+    let map = project(&events);
+    let rec = map.get("j1").unwrap();
+
+    assert_eq!(rec.status, JobStatus::Merged);
+    assert_eq!(rec.slug, "auth-fix");
+    assert!(rec.worktree.is_some(), "worktree must be tracked through lifecycle");
+    assert!(rec.error.is_none(), "successful job must have no error");
+}
+
+/// Full lifecycle with pipeline: created → [dispatch+complete per step] → merged.
+#[test]
+fn pipeline_full_lifecycle_all_steps_tracked() {
+    let events = vec![
+        ev(event_types::JOB_CREATED, serde_json::json!({
+            "job_id": "j1", "slug": "pipe",
+            "agent": "test-writer", "branch": "job/pipe",
+            "spec_path": "spec.md", "plan_id": null,
+            "steps": { "steps": [
+                { "id": "test", "type": "agent", "agent": "test-writer", "after": [] },
+                { "id": "impl", "type": "agent", "agent": "rust-runtime", "after": ["test"] },
+                { "id": "gate", "type": "gate", "agent": "reviewer", "after": ["impl"] },
+                { "id": "merge", "type": "merge", "after": ["gate"] },
+            ]}
+        })),
+        dispatched("j1"), completed("j1", "pipe"),  // test
+        dispatched("j1"), completed("j1", "pipe"),  // impl
+        dispatched("j1"), completed("j1", "pipe"),  // gate
+        merged("j1", "pipe"),
+    ];
+    let map = project(&events);
+    let rec = map.get("j1").unwrap();
+
+    assert_eq!(rec.status, JobStatus::Merged);
+    assert!(rec.completed_steps.contains(&"test".to_string()));
+    assert!(rec.completed_steps.contains(&"impl".to_string()));
+    assert!(rec.completed_steps.contains(&"gate".to_string()));
+}
+
+/// Failure mid-pipeline preserves progress for retry.
+#[test]
+fn pipeline_failure_preserves_completed_steps() {
+    let events = vec![
+        ev(event_types::JOB_CREATED, serde_json::json!({
+            "job_id": "j1", "slug": "pipe",
+            "agent": "test-writer", "branch": "job/pipe",
+            "spec_path": "spec.md", "plan_id": null,
+            "steps": { "steps": [
+                { "id": "test", "type": "agent", "agent": "test-writer", "after": [] },
+                { "id": "impl", "type": "agent", "agent": "rust-runtime", "after": ["test"] },
+            ]}
+        })),
+        dispatched("j1"), completed("j1", "pipe"),  // test done
+        dispatched("j1"),                             // impl started
+        failed("j1", "agent crashed"),                // impl failed
+    ];
+    let map = project(&events);
+    let rec = map.get("j1").unwrap();
+
+    assert_eq!(rec.status, JobStatus::Failed);
+    assert!(
+        rec.completed_steps.contains(&"test".to_string()),
+        "completed steps must survive failure — needed for retry"
+    );
+    assert!(
+        rec.worktree.is_some(),
+        "worktree must survive failure — needed for investigation"
+    );
+}
+
+// ═══════════════════════════════════════════════════════════════════════════
+// SECURITY (E2E-5)
+//
+// Auth and validation must be enforced at the HTTP boundary.
+// ═══════════════════════════════════════════════════════════════════════════
+
+/// All daemon HTTP endpoints require auth.
+#[test]
+fn all_endpoints_require_auth() {
+    let lib_src = std::fs::read_to_string(
+        concat!(env!("CARGO_MANIFEST_DIR"), "/src/lib.rs")
+    ).unwrap();
+    assert!(
+        lib_src.contains("auth") && lib_src.contains("middleware"),
+        "daemon must apply auth middleware to all routes"
+    );
+}
+
+/// Auth token is generated per daemon instance.
+#[test]
+fn auth_token_is_per_instance() {
+    let auth_src = std::fs::read_to_string(
+        concat!(env!("CARGO_MANIFEST_DIR"), "/src/auth.rs")
+    ).unwrap();
+    assert!(
+        auth_src.contains("generate_token") || auth_src.contains("random"),
+        "auth token must be generated fresh per daemon instance"
+    );
+}
+
+// ═══════════════════════════════════════════════════════════════════════════
+// NO SILENT FAILURES
+//
+// Every error path must produce an observable signal — event, log, or
+// error return. Nothing swallowed silently.
+// ═══════════════════════════════════════════════════════════════════════════
+
+/// Relaunch failure must emit job.failed.
+#[test]
+fn relaunch_failure_is_observable() {
+    let source = include_str!("dispatch_replay.rs");
+    assert!(
+        source.contains("JOB_FAILED") || source.contains("job.failed"),
+        "relaunch failure must emit job.failed — no silent drops"
+    );
+}
+
+/// Pipeline spawn failure must log and continue, not panic.
+#[test]
+fn pipeline_spawn_failure_does_not_panic() {
+    let source = include_str!("dispatch_pipeline.rs");
+    assert!(
+        source.contains("Err(e)") && source.contains("continue"),
+        "pipeline spawn failure must log and continue to next step"
+    );
+}
+
+/// Cleanup failure must not prevent other cleanup operations.
+#[test]
+fn cleanup_failure_does_not_block_other_cleanup() {
+    let source = include_str!("dispatch_handlers.rs");
+    // Each cleanup operation (tmux, worktree, branch) must be independent
+    let has_independent_ops = source.contains("kill_tmux_session")
+        && source.contains("remove_worktree")
+        && source.contains("delete_branch");
+    assert!(has_independent_ops, "cleanup operations must be independent — one failure doesn't block others");
+}

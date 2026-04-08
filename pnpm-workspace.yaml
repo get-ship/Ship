@@ -1,11 +1,16 @@
 packages:
+  - "apps/docs"
   - "apps/web"
   - "packages/*"
+
+enableGlobalVirtualStore: false
 
 ignoredBuiltDependencies:
   - esbuild
   - lightningcss
 
 onlyBuiltDependencies:
+  - better-sqlite3
   - esbuild
   - lightningcss
+  - workerd

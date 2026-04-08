@@ -1,0 +1,103 @@
+//! Executor behavior tests.
+//!
+//! Executors are provider-agnostic process managers. They receive a
+//! ProviderAdapter and delegate all provider-specific behavior to it.
+
+use runtime::services::provider_adapter::adapter_for;
+
+// ── Source helpers ───────────────────────────────────────────────────────────
+
+fn executor_sources() -> String {
+    let base = std::path::Path::new(env!("CARGO_MANIFEST_DIR"))
+        .join("src/supervisor/executors");
+    let mut combined = String::new();
+    for name in &["tmux.rs", "process.rs", "mod.rs"] {
+        let path = base.join(name);
+        if path.exists() {
+            combined.push_str(&std::fs::read_to_string(&path).unwrap_or_default());
+        }
+    }
+    combined
+}
+
+fn lifecycle_src() -> String {
+    let path = std::path::Path::new(env!("CARGO_MANIFEST_DIR"))
+        .join("src/supervisor/agent_lifecycle.rs");
+    std::fs::read_to_string(&path)
+        .unwrap_or_else(|e| panic!("could not read agent_lifecycle.rs: {e}"))
+}
+
+// ── Executor wiring ─────────────────────────────────────────────────────────
+
+#[test]
+fn executors_resolve_adapter_from_provider_adapter_module() {
+    let src = executor_sources();
+    assert!(
+        src.contains("provider_adapter") || src.contains("adapter_for"),
+        "executor code must use provider_adapter, not hardcoded provider logic"
+    );
+}
+
+#[test]
+fn executors_do_not_use_deprecated_provider_launchers() {
+    let src = executor_sources();
+    assert!(
+        !src.contains("provider_launchers"),
+        "executor code must not reference the deprecated provider_launchers module"
+    );
+}
+
+#[test]
+fn executors_detect_readiness_via_adapter() {
+    let src = executor_sources();
+    assert!(
+        !src.contains("contains('❯')"),
+        "executors must use adapter.ready_pattern(), not hardcode '❯'"
+    );
+}
+
+#[test]
+fn executors_exit_gracefully_via_adapter() {
+    let src = lifecycle_src();
+    assert!(
+        src.contains("exit_command"),
+        "agent_lifecycle must call adapter.exit_command()"
+    );
+    assert!(
+        !src.contains(r#""/exit""#),
+        "agent_lifecycle must not hardcode \"/exit\""
+    );
+}
+
+#[test]
+fn provider_launchers_module_does_not_exist() {
+    let manifest = std::path::Path::new(env!("CARGO_MANIFEST_DIR"));
+    let workspace_root = manifest.parent().and_then(|p| p.parent())
+        .expect("could not resolve workspace root");
+    let path = workspace_root.join("crates/core/runtime/src/services/provider_launchers.rs");
+    assert!(
+        !path.exists(),
+        "provider_launchers.rs must be deleted — providers/ replaces it"
+    );
+}
+
+// ── Adapter contract ────────────────────────────────────────────────────────
+
+#[test]
+fn adapter_for_none_defaults_to_claude_ready_pattern() {
+    let adapter = adapter_for(None);
+    assert_eq!(adapter.ready_pattern(), "❯");
+}
+
+#[test]
+fn adapter_for_claude_has_exit_command() {
+    let adapter = adapter_for(Some("claude"));
+    assert_eq!(adapter.exit_command(), "/exit");
+}
+
+#[test]
+fn adapter_for_codex_has_distinct_exit_command() {
+    let codex = adapter_for(Some("codex"));
+    let claude = adapter_for(None);
+    assert_ne!(codex.exit_command(), claude.exit_command());
+}

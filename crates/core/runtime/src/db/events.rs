@@ -1,161 +1,120 @@
-//! Append-only event log. Never update or delete event records.
+//! Typed event queries against the `events` table.
 
 use anyhow::Result;
-use chrono::Utc;
-use sqlx::Row;
-use std::path::Path;
+use chrono::{DateTime, Utc};
 
-use crate::db::{block_on, open_db};
+use crate::db::envelope::envelope_from_row;
+use crate::db::{block_on, db_path, ensure_db, open_db_at};
+use crate::events::envelope::EventEnvelope;
 
-#[derive(Debug, Clone, PartialEq, Eq)]
-pub struct EventRecord {
-    pub seq: i64,
-    pub timestamp: String,
-    pub actor: String,
-    pub entity: String,
-    pub action: String,
-    pub subject: String,
-    pub details: Option<String>,
-}
+const COLS: &str = "id, event_type, entity_id, actor, payload_json, version, \
+    causation_id, workspace_id, session_id, \
+    actor_id, parent_actor_id, elevated, created_at, target_actor_id";
 
-const COLS: &str = "seq, timestamp, actor, entity, action, subject, details";
-
-pub fn append_event(
-    ship_dir: &Path,
-    actor: &str,
-    entity: &str,
-    action: &str,
-    subject: &str,
-    details: Option<&str>,
-) -> Result<()> {
-    let mut conn = open_db(ship_dir)?;
-    let now = Utc::now().to_rfc3339();
-    block_on(async {
-        sqlx::query(
-            "INSERT INTO event_log (timestamp, actor, entity, action, subject, details)
-             VALUES (?, ?, ?, ?, ?, ?)",
-        )
-        .bind(&now)
-        .bind(actor)
-        .bind(entity)
-        .bind(action)
-        .bind(subject)
-        .bind(details)
-        .execute(&mut conn)
-        .await
+pub fn list_all_events() -> Result<Vec<EventEnvelope>> {
+    ensure_db()?;
+    let mut conn = open_db_at(&db_path()?)?;
+    let rows = block_on(async {
+        sqlx::query(&format!("SELECT {COLS} FROM events ORDER BY id ASC"))
+            .fetch_all(&mut conn)
+            .await
     })?;
-    Ok(())
+    rows.iter().map(|r| envelope_from_row(r, true)).collect()
 }
 
-pub fn list_events(
-    ship_dir: &Path,
-    entity: Option<&str>,
-    subject: Option<&str>,
-    limit: Option<u32>,
-) -> Result<Vec<EventRecord>> {
-    let mut conn = open_db(ship_dir)?;
-    let lim = limit.unwrap_or(200);
-    let rows = match (entity, subject) {
-        (Some(e), Some(s)) => block_on(async {
+pub fn list_events_since_time(
+    since: &DateTime<Utc>,
+    limit: Option<usize>,
+) -> Result<Vec<EventEnvelope>> {
+    ensure_db()?;
+    let mut conn = open_db_at(&db_path()?)?;
+    let since_str = since.to_rfc3339();
+    let rows = match limit {
+        Some(n) => block_on(async {
             sqlx::query(&format!(
-                "SELECT {COLS} FROM event_log WHERE entity = ? AND subject = ? ORDER BY seq DESC LIMIT ?"
+                "SELECT {COLS} FROM events WHERE created_at >= ? ORDER BY id ASC LIMIT ?"
             ))
-            .bind(e).bind(s).bind(lim)
+            .bind(&since_str)
+            .bind(n as i64)
             .fetch_all(&mut conn)
             .await
         })?,
-        (Some(e), None) => block_on(async {
+        None => block_on(async {
             sqlx::query(&format!(
-                "SELECT {COLS} FROM event_log WHERE entity = ? ORDER BY seq DESC LIMIT ?"
+                "SELECT {COLS} FROM events WHERE created_at >= ? ORDER BY id ASC"
             ))
-            .bind(e).bind(lim)
-            .fetch_all(&mut conn)
-            .await
-        })?,
-        (None, Some(s)) => block_on(async {
-            sqlx::query(&format!(
-                "SELECT {COLS} FROM event_log WHERE subject = ? ORDER BY seq DESC LIMIT ?"
-            ))
-            .bind(s).bind(lim)
-            .fetch_all(&mut conn)
-            .await
-        })?,
-        (None, None) => block_on(async {
-            sqlx::query(&format!(
-                "SELECT {COLS} FROM event_log ORDER BY seq DESC LIMIT ?"
-            ))
-            .bind(lim)
+            .bind(&since_str)
             .fetch_all(&mut conn)
             .await
         })?,
     };
-    Ok(rows.iter().map(row_to_event).collect())
+    rows.iter().map(|r| envelope_from_row(r, true)).collect()
 }
 
-fn row_to_event(row: &sqlx::sqlite::SqliteRow) -> EventRecord {
-    EventRecord {
-        seq: row.get(0),
-        timestamp: row.get(1),
-        actor: row.get(2),
-        entity: row.get(3),
-        action: row.get(4),
-        subject: row.get(5),
-        details: row.get(6),
-    }
+pub fn list_recent_events(limit: usize) -> Result<Vec<EventEnvelope>> {
+    ensure_db()?;
+    let mut conn = open_db_at(&db_path()?)?;
+    let rows = block_on(async {
+        sqlx::query(&format!(
+            "SELECT {COLS} FROM events ORDER BY id DESC LIMIT ?"
+        ))
+        .bind(limit as i64)
+        .fetch_all(&mut conn)
+        .await
+    })?;
+    let mut envs: Vec<EventEnvelope> = rows.iter().map(|r| envelope_from_row(r, true)).collect::<Result<_>>()?;
+    envs.reverse();
+    Ok(envs)
 }
 
-#[cfg(test)]
-mod tests {
-    use super::*;
-    use crate::db::ensure_db;
-    use crate::project::init_project;
-    use tempfile::tempdir;
-
-    fn setup() -> (tempfile::TempDir, std::path::PathBuf) {
-        let tmp = tempdir().unwrap();
-        let ship_dir = init_project(tmp.path().to_path_buf()).unwrap();
-        ensure_db(&ship_dir).unwrap();
-        (tmp, ship_dir)
-    }
-
-    #[test]
-    fn test_append_and_list_events() {
-        let (_tmp, ship_dir) = setup();
-        append_event(&ship_dir, "agent-1", "workspace", "activated", "ws-001", None).unwrap();
-        append_event(&ship_dir, "agent-1", "workspace", "session_started", "ws-001", Some("{\"goal\":\"build\"}")).unwrap();
-        let events = list_events(&ship_dir, None, None, None).unwrap();
-        assert_eq!(events.len(), 2);
-        // seq should be monotonically increasing (DESC order means first item has higher seq)
-        assert!(events[0].seq > events[1].seq);
-    }
-
-    #[test]
-    fn test_list_events_filtered_by_entity() {
-        let (_tmp, ship_dir) = setup();
-        append_event(&ship_dir, "agent-1", "workspace", "activated", "ws-001", None).unwrap();
-        append_event(&ship_dir, "agent-1", "session", "started", "sess-1", None).unwrap();
-        let ws_events = list_events(&ship_dir, Some("workspace"), None, None).unwrap();
-        assert_eq!(ws_events.len(), 1);
-        assert_eq!(ws_events[0].entity, "workspace");
-    }
-
-    #[test]
-    fn test_list_events_filtered_by_subject() {
-        let (_tmp, ship_dir) = setup();
-        append_event(&ship_dir, "agent-1", "workspace", "activated", "ws-001", None).unwrap();
-        append_event(&ship_dir, "agent-1", "workspace", "deactivated", "ws-002", None).unwrap();
-        let events = list_events(&ship_dir, None, Some("ws-001"), None).unwrap();
-        assert_eq!(events.len(), 1);
-        assert_eq!(events[0].subject, "ws-001");
-    }
-
-    #[test]
-    fn test_events_are_append_only() {
-        // Verify no update/delete functions exist — the type system enforces this.
-        // This test documents the invariant.
-        let (_tmp, ship_dir) = setup();
-        append_event(&ship_dir, "system", "db", "initialized", "ship.db", None).unwrap();
-        let events = list_events(&ship_dir, None, None, None).unwrap();
-        assert!(!events.is_empty());
-    }
+/// Query events with ID greater than the given cursor.
+///
+/// Used by the sync client to find events that haven't been pushed yet.
+/// If `cursor` is None, returns all matching events.
+/// If `elevated_only` is true, only returns elevated events (platform-scope).
+pub fn query_events_since(
+    cursor: Option<&str>,
+    elevated_only: bool,
+) -> Result<Vec<EventEnvelope>> {
+    ensure_db()?;
+    let mut conn = open_db_at(&db_path()?)?;
+    let query = match (cursor, elevated_only) {
+        (Some(c), true) => {
+            block_on(async {
+                sqlx::query(&format!(
+                    "SELECT {COLS} FROM events WHERE id > ? AND elevated = 1 ORDER BY id ASC"
+                ))
+                .bind(c)
+                .fetch_all(&mut conn)
+                .await
+            })?
+        }
+        (Some(c), false) => {
+            block_on(async {
+                sqlx::query(&format!(
+                    "SELECT {COLS} FROM events WHERE id > ? ORDER BY id ASC"
+                ))
+                .bind(c)
+                .fetch_all(&mut conn)
+                .await
+            })?
+        }
+        (None, true) => {
+            block_on(async {
+                sqlx::query(&format!(
+                    "SELECT {COLS} FROM events WHERE elevated = 1 ORDER BY id ASC"
+                ))
+                .fetch_all(&mut conn)
+                .await
+            })?
+        }
+        (None, false) => {
+            block_on(async {
+                sqlx::query(&format!("SELECT {COLS} FROM events ORDER BY id ASC"))
+                    .fetch_all(&mut conn)
+                    .await
+            })?
+        }
+    };
+    query.iter().map(|r| envelope_from_row(r, true)).collect()
 }

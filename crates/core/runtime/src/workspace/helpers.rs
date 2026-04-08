@@ -1,0 +1,228 @@
+use crate::db::branch_context::clear_branch_link;
+use crate::project::{get_global_dir, project_slug_from_ship_dir, sanitize_file_name};
+use anyhow::Result;
+use chrono::{DateTime, Utc};
+use std::path::{Path, PathBuf};
+use std::str::FromStr;
+
+use super::types::*;
+
+// ---- Parsing helpers -------------------------------------------------------
+
+pub(crate) fn parse_datetime(value: &str) -> DateTime<Utc> {
+    DateTime::from_str(value).unwrap_or_else(|_| Utc::now())
+}
+
+pub(crate) fn parse_datetime_opt(value: Option<String>) -> Option<DateTime<Utc>> {
+    value.and_then(|entry| DateTime::from_str(&entry).ok())
+}
+
+pub(crate) fn normalize_optional_text(value: Option<String>) -> Option<String> {
+    value.and_then(|entry| {
+        let trimmed = entry.trim();
+        if trimmed.is_empty() {
+            None
+        } else {
+            Some(trimmed.to_string())
+        }
+    })
+}
+
+pub(crate) fn normalize_agent_ref(agent: &str) -> Option<String> {
+    let trimmed = agent.trim();
+    if trimmed.is_empty() {
+        None
+    } else {
+        Some(trimmed.to_string())
+    }
+}
+
+pub(crate) fn normalize_provider_ref(provider: &str) -> Option<String> {
+    let trimmed = provider.trim().to_ascii_lowercase();
+    if trimmed.is_empty() {
+        None
+    } else {
+        Some(trimmed)
+    }
+}
+
+pub(crate) fn normalize_nonempty_id_list(ids: &[String]) -> Vec<String> {
+    let mut normalized = Vec::new();
+    for raw in ids {
+        let trimmed = raw.trim();
+        if trimmed.is_empty() {
+            continue;
+        }
+        let value = trimmed.to_string();
+        if !normalized.iter().any(|existing| existing == &value) {
+            normalized.push(value);
+        }
+    }
+    normalized
+}
+
+// ---- Branch key ------------------------------------------------------------
+
+pub(crate) fn ensure_branch_key(branch: &str) -> Result<&str> {
+    let trimmed = branch.trim();
+    if trimmed.is_empty() {
+        return Err(anyhow::anyhow!("Workspace branch/key cannot be empty"));
+    }
+    Ok(trimmed)
+}
+
+// ---- Workspace construction ------------------------------------------------
+
+pub(crate) fn workspace_id_from_branch(branch: &str) -> String {
+    sanitize_file_name(branch)
+}
+
+pub(crate) fn new_workspace(branch: &str, _now: DateTime<Utc>) -> Workspace {
+    Workspace {
+        id: workspace_id_from_branch(branch),
+        branch: branch.to_string(),
+        status: WorkspaceStatus::Active,
+        is_worktree: false,
+        worktree_path: None,
+        active_agent: None,
+        last_activated_at: None,
+    }
+}
+
+// ---- Branch links ----------------------------------------------------------
+
+pub(crate) fn hydrate_from_branch_links(
+    _ship_dir: &Path,
+    _branch: &str,
+    _workspace: &mut Workspace,
+) -> Result<()> {
+    Ok(())
+}
+
+pub(crate) fn hydrate_from_feature_links(
+    _ship_dir: &Path,
+    _workspace: &mut Workspace,
+) -> Result<()> {
+    // Feature links have been migrated to branch_context; this function is
+    // retained as a no-op to preserve existing call-sites without changing
+    // public surface area.
+    Ok(())
+}
+
+pub(crate) fn persist_branch_link_from_workspace(
+    _ship_dir: &Path,
+    workspace: &Workspace,
+) -> Result<()> {
+    clear_branch_link(&workspace.branch)
+}
+
+// ---- Lifecycle validation --------------------------------------------------
+
+fn lifecycle_allows_transition(from: WorkspaceStatus, to: WorkspaceStatus) -> bool {
+    from == to
+        || matches!(
+            (from, to),
+            (WorkspaceStatus::Active, WorkspaceStatus::Archived)
+                | (WorkspaceStatus::Archived, WorkspaceStatus::Active)
+        )
+}
+
+pub fn validate_workspace_transition(
+    from: WorkspaceStatus,
+    to: WorkspaceStatus,
+) -> Result<()> {
+    if !lifecycle_allows_transition(from, to) {
+        return Err(anyhow::anyhow!(
+            "Invalid workspace transition: {} -> {}",
+            from,
+            to
+        ));
+    }
+    Ok(())
+}
+
+// ---- Agent validation ------------------------------------------------------
+
+pub(crate) fn validate_agent_exists(ship_dir: &Path, agent_id: &str) -> Result<String> {
+    let normalized = normalize_agent_ref(agent_id)
+        .ok_or_else(|| anyhow::anyhow!("Workspace agent cannot be empty"))?;
+    let effective = crate::config::get_effective_config(Some(ship_dir.to_path_buf()))?;
+    if effective.modes.iter().any(|mode| mode.id == normalized) {
+        Ok(normalized)
+    } else {
+        Err(anyhow::anyhow!("Agent '{}' not found", normalized))
+    }
+}
+
+// ---- Worktree path resolution via git ----------------------------------------
+
+/// Resolve the actual filesystem path for `branch` using `git worktree list --porcelain`.
+///
+/// Returns `None` when the branch has no active worktree or git is unavailable.
+pub(crate) fn git_worktree_path_for_branch(branch: &str) -> Option<String> {
+    let output = std::process::Command::new("git")
+        .args(["worktree", "list", "--porcelain"])
+        .output()
+        .ok()?;
+
+    if !output.status.success() {
+        return None;
+    }
+
+    let stdout = String::from_utf8_lossy(&output.stdout);
+    parse_git_worktree_path(&stdout, branch)
+}
+
+/// Parse `git worktree list --porcelain` output and return the path for `branch`.
+#[cfg_attr(not(test), allow(dead_code))]
+pub(crate) fn parse_git_worktree_path(porcelain: &str, branch: &str) -> Option<String> {
+    let needle = branch.trim();
+    let mut current_path: Option<String> = None;
+
+    for line in porcelain.lines() {
+        if let Some(path) = line.strip_prefix("worktree ") {
+            current_path = Some(path.to_string());
+        } else if let Some(branch_ref) = line.strip_prefix("branch ") {
+            let short = branch_ref.strip_prefix("refs/heads/").unwrap_or(branch_ref);
+            if short == needle {
+                return current_path;
+            }
+            current_path = None;
+        } else if line.is_empty() {
+            current_path = None;
+        }
+    }
+
+    None
+}
+
+// ---- Worktree path defaults ------------------------------------------------
+
+pub(crate) fn default_project_worktree_root(ship_dir: &Path) -> PathBuf {
+    ship_dir.join("worktrees")
+}
+
+pub(crate) fn default_global_worktree_root(ship_dir: &Path) -> Option<PathBuf> {
+    let slug = project_slug_from_ship_dir(ship_dir);
+    let global_dir = get_global_dir().ok()?;
+    Some(global_dir.join("projects").join(slug).join("worktrees"))
+}
+
+pub(crate) fn default_worktree_path(ship_dir: &Path, branch: &str) -> Option<String> {
+    let branch_token = sanitize_file_name(branch);
+    let project_root = default_project_worktree_root(ship_dir);
+    if std::fs::create_dir_all(&project_root).is_ok() {
+        return Some(
+            project_root
+                .join(&branch_token)
+                .to_string_lossy()
+                .to_string(),
+        );
+    }
+    if let Some(global_root) = default_global_worktree_root(ship_dir)
+        && std::fs::create_dir_all(&global_root).is_ok()
+    {
+        return Some(global_root.join(branch_token).to_string_lossy().to_string());
+    }
+    None
+}

@@ -1,0 +1,110 @@
+//! Secondary event handlers for job dispatch — update forwarding, cleanup, DAG unblocking.
+
+use runtime::events::{CallerKind, EmitContext, EventEnvelope};
+use std::sync::Arc;
+use tokio::sync::Mutex;
+
+use super::helpers::{delete_branch, kill_tmux_session, remove_worktree, worktrees_dir};
+
+/// Forward `job.update` messages to the agent via mesh routing.
+pub(crate) async fn handle_job_update(
+    kernel: &Arc<Mutex<runtime::events::KernelRouter>>,
+    envelope: &EventEnvelope,
+) {
+    let entity_id = &envelope.entity_id;
+    let payload: serde_json::Value = match serde_json::from_str(&envelope.payload_json) {
+        Ok(v) => v,
+        Err(e) => {
+            tracing::warn!("job-dispatch: malformed job.update payload: {e}");
+            return;
+        }
+    };
+
+    let slug = payload
+        .get("slug")
+        .and_then(|v| v.as_str())
+        .unwrap_or(entity_id);
+
+    let mesh_envelope = match EventEnvelope::new(
+        "mesh.send",
+        "service.job-dispatch",
+        &serde_json::json!({
+            "from": "service.job-dispatch",
+            "to": slug,
+            "body": {
+                "type": "job.update",
+                "job_id": entity_id,
+                "payload": payload,
+            }
+        }),
+    ) {
+        Ok(e) => e.with_actor_id("service.job-dispatch"),
+        Err(e) => {
+            tracing::warn!(entity_id, "job-dispatch: failed to build mesh.send: {e}");
+            return;
+        }
+    };
+
+    let ctx = EmitContext {
+        caller_kind: CallerKind::Mcp,
+        skill_id: None,
+        workspace_id: None,
+        session_id: None,
+    };
+    match kernel.lock().await.route(mesh_envelope, &ctx).await {
+        Ok(_) => tracing::info!(entity_id, "job-dispatch: forwarded job.update to agent"),
+        Err(e) => tracing::warn!(entity_id, "job-dispatch: mesh forward failed: {e}"),
+    }
+}
+
+/// Clean up worktree, tmux session, and branch for a completed/merged job.
+pub(crate) async fn handle_job_cleanup(envelope: &EventEnvelope) {
+    let payload: serde_json::Value = match serde_json::from_str(&envelope.payload_json) {
+        Ok(v) => v,
+        Err(e) => {
+            tracing::warn!("job-dispatch: malformed cleanup payload: {e}");
+            return;
+        }
+    };
+
+    let job_id = payload["job_id"].as_str().unwrap_or(&envelope.entity_id);
+    let payload_slug = payload["slug"].as_str().unwrap_or("");
+
+    // Resolve slug from job projection if not in payload
+    let slug = if !payload_slug.is_empty() {
+        payload_slug.to_string()
+    } else if let Ok(jobs) = runtime::projections::job::load_jobs() {
+        jobs.values()
+            .find(|j| j.job_id == job_id || j.job_id == envelope.entity_id)
+            .map(|j| j.slug.clone())
+            .unwrap_or_else(|| job_id.to_string())
+    } else {
+        job_id.to_string()
+    };
+
+    let tmux_session = format!("job-{slug}");
+    let worktree_path = worktrees_dir().join(&slug);
+    let branch = format!("job/{slug}");
+
+    tracing::info!(
+        slug,
+        job_id,
+        tmux_session = %tmux_session,
+        worktree = %worktree_path.display(),
+        branch = %branch,
+        "job-dispatch: cleaning up job resources"
+    );
+
+    if let Err(e) = kill_tmux_session(&tmux_session) {
+        tracing::warn!(slug, tmux_session = %tmux_session, "job-dispatch: tmux cleanup failed: {e}");
+    }
+    if let Err(e) = remove_worktree(&worktree_path) {
+        tracing::warn!(slug, worktree = %worktree_path.display(), "job-dispatch: worktree cleanup failed: {e}");
+    }
+    if let Err(e) = delete_branch(&branch) {
+        tracing::warn!(slug, branch = %branch, "job-dispatch: branch cleanup failed: {e}");
+    }
+
+    tracing::info!(slug, job_id, "job-dispatch: cleanup complete");
+}
+

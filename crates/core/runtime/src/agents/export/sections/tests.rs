@@ -2,10 +2,10 @@
 mod tests {
     use super::*;
     use crate::config::{
-        HookConfig, HookTrigger, McpServerConfig, McpServerType, ModeConfig, PermissionConfig,
+        HookConfig, HookTrigger, McpServerConfig, McpServerType, AgentProfile, PermissionConfig,
         ProjectConfig, save_config,
     };
-    use crate::permissions::{Permissions, save_permissions};
+    use crate::permissions::{Permissions, ToolPermissions, save_permissions};
     use crate::project::init_project;
     use crate::skill::{create_skill, delete_skill};
     use std::collections::HashMap;
@@ -173,10 +173,11 @@ mod tests {
             description: None,
             command: "echo global".to_string(),
         }];
-        config.modes = vec![ModeConfig {
+        config.modes = vec![AgentProfile {
             id: "focus".to_string(),
             name: "Focus".to_string(),
             description: None,
+            role: None,
             active_tools: vec![],
             mcp_servers: vec!["allowed".to_string()],
             skills: vec![],
@@ -196,13 +197,13 @@ mod tests {
             },
             target_agents: vec![],
         }];
-        config.active_mode = Some("focus".to_string());
+        config.active_agent = Some("focus".to_string());
         save_config(&config, Some(project_dir.clone())).unwrap();
 
         let payload = build_payload(&project_dir).unwrap();
         let server_ids: Vec<_> = payload.servers.iter().map(|server| server.id.as_str()).collect();
         assert_eq!(server_ids, vec!["allowed", "blocked"]);
-        assert_eq!(payload.active_mode_id, None);
+        assert_eq!(payload.active_agent_id, None);
         assert_eq!(payload.permissions.tools.allow, vec!["Read(*)".to_string()]);
         assert_eq!(payload.permissions.tools.deny, vec!["Edit(*)".to_string()]);
         assert!(payload.hooks.iter().any(|hook| hook.id == "project-global-hook"));
@@ -235,10 +236,11 @@ mod tests {
             description: None,
             command: "echo global".to_string(),
         }];
-        config.modes = vec![ModeConfig {
+        config.modes = vec![AgentProfile {
             id: "unused".to_string(),
             name: "Unused".to_string(),
             description: None,
+            role: None,
             active_tools: vec![],
             mcp_servers: vec![],
             skills: vec![],
@@ -258,11 +260,11 @@ mod tests {
             },
             target_agents: vec![],
         }];
-        config.active_mode = None;
+        config.active_agent = None;
         save_config(&config, Some(project_dir.clone())).unwrap();
 
         let payload = build_payload(&project_dir).unwrap();
-        assert_eq!(payload.active_mode_id, None);
+        assert_eq!(payload.active_agent_id, None);
         assert_eq!(payload.permissions.tools.allow, vec!["Read(*)".to_string()]);
         assert_eq!(payload.permissions.tools.deny, vec!["Edit(*)".to_string()]);
         assert!(
@@ -300,7 +302,7 @@ mod tests {
         .unwrap();
 
         let mut config = crate::config::get_config(Some(project_dir.clone())).unwrap();
-        config.modes = vec![ModeConfig {
+        config.modes = vec![AgentProfile {
             id: "focus".to_string(),
             name: "Focus".to_string(),
             permissions: PermissionConfig {
@@ -309,7 +311,7 @@ mod tests {
             },
             ..Default::default()
         }];
-        config.active_mode = Some("focus".to_string());
+        config.active_agent = Some("focus".to_string());
         save_config(&config, Some(project_dir.clone())).unwrap();
 
         let payload = build_payload(&project_dir).unwrap();
@@ -344,9 +346,9 @@ mod tests {
         .unwrap();
 
         let mut config = crate::config::get_config(Some(project_dir.clone())).unwrap();
-        config.active_mode = Some("planning".to_string());
+        config.active_agent = Some("planning".to_string());
         config.modes = vec![
-            ModeConfig {
+            AgentProfile {
                 id: "planning".to_string(),
                 name: "Planning".to_string(),
                 mcp_servers: vec!["planning-server".to_string()],
@@ -364,7 +366,7 @@ mod tests {
                 }],
                 ..Default::default()
             },
-            ModeConfig {
+            AgentProfile {
                 id: "code".to_string(),
                 name: "Code".to_string(),
                 mcp_servers: vec!["code-server".to_string()],
@@ -386,7 +388,7 @@ mod tests {
         save_config(&config, Some(project_dir.clone())).unwrap();
 
         let payload = build_payload_with_mode_override(&project_dir, Some("code")).unwrap();
-        assert_eq!(payload.active_mode_id.as_deref(), Some("code"));
+        assert_eq!(payload.active_agent_id.as_deref(), Some("code"));
         let mut server_ids: Vec<_> = payload
             .servers
             .iter()
@@ -413,32 +415,32 @@ mod tests {
     }
 
     #[test]
-    fn sync_active_mode_uses_connected_providers_when_targets_empty() {
+    fn sync_active_agent_uses_connected_providers_when_targets_empty() {
         let (tmp, project_dir) = project_with_servers(vec![make_stdio_server("github")]);
         let mut config = crate::config::get_config(Some(project_dir.clone())).unwrap();
         config.providers = vec!["codex".to_string()];
         save_config(&config, Some(project_dir.clone())).unwrap();
 
-        let synced = sync_active_mode(&project_dir).unwrap();
+        let synced = sync_active_agent(&project_dir).unwrap();
         assert_eq!(synced, vec!["codex".to_string()]);
         assert!(tmp.path().join(".codex").join("config.toml").exists());
     }
 
     #[test]
-    fn sync_active_mode_without_active_mode_uses_connected_providers() {
+    fn sync_active_agent_without_active_agent_uses_connected_providers() {
         let (tmp, project_dir) = project_with_servers(vec![make_stdio_server("github")]);
         let mut config = crate::config::get_config(Some(project_dir.clone())).unwrap();
         config.providers = vec!["gemini".to_string()];
-        config.active_mode = None;
+        config.active_agent = None;
         save_config(&config, Some(project_dir.clone())).unwrap();
 
-        let synced = sync_active_mode(&project_dir).unwrap();
+        let synced = sync_active_agent(&project_dir).unwrap();
         assert_eq!(synced, vec!["gemini".to_string()]);
         assert!(tmp.path().join(".gemini").join("settings.json").exists());
     }
 
     #[test]
-    fn sync_active_mode_normalizes_targets_and_skips_unknown_values() {
+    fn sync_active_agent_normalizes_targets_and_skips_unknown_values() {
         let (tmp, project_dir) = project_with_servers(vec![make_stdio_server("github")]);
         let mut config = crate::config::get_config(Some(project_dir.clone())).unwrap();
         config.providers = vec![
@@ -450,7 +452,7 @@ mod tests {
         ];
         save_config(&config, Some(project_dir.clone())).unwrap();
 
-        let synced = sync_active_mode(&project_dir).unwrap();
+        let synced = sync_active_agent(&project_dir).unwrap();
         assert_eq!(
             synced,
             vec!["codex".to_string(), "claude".to_string()],
@@ -461,23 +463,23 @@ mod tests {
     }
 
     #[test]
-    fn sync_active_mode_with_override_uses_project_targets() {
+    fn sync_active_agent_with_override_uses_project_targets() {
         let (tmp, project_dir) = project_with_servers(vec![make_stdio_server("github")]);
         let mut config = crate::config::get_config(Some(project_dir.clone())).unwrap();
         config.providers = vec!["claude".to_string()];
         save_config(&config, Some(project_dir.clone())).unwrap();
 
-        let synced = sync_active_mode_with_override(&project_dir, Some("code")).unwrap();
+        let synced = sync_active_agent_with_override(&project_dir, Some("code")).unwrap();
         assert_eq!(synced, vec!["claude".to_string()]);
         assert!(tmp.path().join(".mcp.json").exists());
     }
 
     #[test]
-    fn sync_active_mode_with_override_prefers_mode_targets() {
+    fn sync_active_agent_with_override_prefers_agent_targets() {
         let (tmp, project_dir) = project_with_servers(vec![make_stdio_server("github")]);
         let mut config = crate::config::get_config(Some(project_dir.clone())).unwrap();
         config.providers = vec!["claude".to_string()];
-        config.modes = vec![ModeConfig {
+        config.modes = vec![AgentProfile {
             id: "code".to_string(),
             name: "Code".to_string(),
             target_agents: vec!["codex".to_string()],
@@ -485,7 +487,7 @@ mod tests {
         }];
         save_config(&config, Some(project_dir.clone())).unwrap();
 
-        let synced = sync_active_mode_with_override(&project_dir, Some("code")).unwrap();
+        let synced = sync_active_agent_with_override(&project_dir, Some("code")).unwrap();
         assert_eq!(synced, vec!["codex".to_string()]);
         assert!(tmp.path().join(".codex").join("config.toml").exists());
         assert!(
@@ -637,17 +639,19 @@ mod tests {
     fn claude_managed_state_written() {
         let (_tmp, project_dir) = project_with_servers(vec![make_stdio_server("gh")]);
         export_to(project_dir.clone(), "claude").unwrap();
-        let (ids, _mode) = crate::state_db::get_managed_state_db(&project_dir, "claude").unwrap();
+        let (ids, _mode) = crate::db::managed_state::get_managed_state_db("claude").unwrap();
         assert!(
             ids.contains(&"gh".to_string()),
             "managed server not recorded in state"
         );
-        // Clean up DB created in ~/.ship/state/ for this temp project
-        std::fs::remove_file(crate::state_db::project_db_path(&project_dir).unwrap()).ok();
     }
 
     #[test]
-    fn claude_permissions_round_trip_imports_back_to_canonical() {
+    fn claude_permissions_import_only_imports_allow_rules() {
+        // Deny rules must never be imported from the provider settings file back
+        // into the Ship profile. The provider deny list is a compiled artifact;
+        // reading it back would create a feedback loop where each `ship use` bakes
+        // in whatever deny rules the prior session accumulated.
         let (tmp, project_dir) = project_with_servers(vec![]);
         let home = tempdir().unwrap();
         let _home_guard = lock_home_for_test(home.path());
@@ -667,16 +671,7 @@ mod tests {
         let settings_path = tmp.path().join(".claude").join("settings.json");
         let settings: serde_json::Value =
             serde_json::from_str(&std::fs::read_to_string(settings_path).unwrap()).unwrap();
-        let expected_allow = settings["permissions"]["allow"]
-            .as_array()
-            .map(|values| {
-                values
-                    .iter()
-                    .filter_map(|value| value.as_str().map(str::to_string))
-                    .collect::<Vec<_>>()
-            })
-            .unwrap_or_default();
-        let expected_deny = settings["permissions"]["deny"]
+        let exported_allow = settings["permissions"]["allow"]
             .as_array()
             .map(|values| {
                 values
@@ -686,12 +681,54 @@ mod tests {
             })
             .unwrap_or_default();
 
+        // Wipe the Ship permissions and import back from the Claude settings file.
         save_permissions(project_dir.clone(), &Permissions::default()).unwrap();
         let imported = import_permissions_from_provider("claude", project_dir.clone()).unwrap();
-        assert!(imported);
+        assert!(imported, "allow rules present in settings.json should trigger import");
         let restored = crate::permissions::get_permissions(project_dir).unwrap();
-        assert_eq!(restored.tools.allow, expected_allow);
-        assert_eq!(restored.tools.deny, expected_deny);
+        // Allow rules are imported (user may have added them outside Ship).
+        assert_eq!(restored.tools.allow, exported_allow);
+        // Deny rules from the provider settings file are NOT imported back — they are
+        // compiled output, not user intent. The deny list in permissions.toml should
+        // only contain what was already there (the defaults), not what was in settings.json.
+        assert!(
+            !restored.tools.deny.contains(&"WebFetch(*)".to_string()),
+            "deny rules from settings.json must not be imported back into the profile"
+        );
+    }
+
+    #[test]
+    fn claude_permissions_import_skipped_when_only_deny_in_settings() {
+        // If the settings file contains only deny rules (no explicit allow rules),
+        // the import must return false and must NOT write a permissions.toml file.
+        // This prevents feedback-loop state (accumulated deny rules) from being
+        // persisted as permanent policy.
+        let (tmp, project_dir) = project_with_servers(vec![]);
+        let home = tempdir().unwrap();
+        let _home_guard = lock_home_for_test(home.path());
+
+        // Write a settings.json with only deny entries (simulates feedback-loop state).
+        let settings_path = tmp.path().join(".claude").join("settings.json");
+        std::fs::create_dir_all(settings_path.parent().unwrap()).unwrap();
+        std::fs::write(
+            &settings_path,
+            r#"{"permissions":{"deny":["Bash","Write","Edit"]}}"#,
+        )
+        .unwrap();
+
+        let permissions_path = project_dir.join("agents").join("permissions.toml");
+        assert!(!permissions_path.exists(), "permissions.toml must not exist before import");
+
+        let imported = import_permissions_from_provider("claude", project_dir.clone()).unwrap();
+        assert!(
+            !imported,
+            "import must return false when settings.json has only deny rules"
+        );
+        // permissions.toml must not have been created — deny rules must not be persisted.
+        assert!(
+            !permissions_path.exists(),
+            "permissions.toml must not be written when import returns false"
+        );
     }
 
     #[test]
@@ -938,7 +975,6 @@ mod tests {
                 },
                 agent: crate::permissions::AgentLimits {
                     require_confirmation: vec!["git push *".to_string()],
-                    ..Default::default()
                 },
                 ..Default::default()
             },
@@ -1018,45 +1054,6 @@ mod tests {
             before_tool["command"].as_str(),
             Some("ship hooks run --provider gemini")
         );
-    }
-
-    #[test]
-    fn export_writes_hook_runtime_artifacts() {
-        let (tmp, project_dir) = project_with_servers(vec![make_stdio_server("github")]);
-        let _hook_env_guard = lock_env_vars_for_test(&[
-            ("SHIP_MANAGED_HOOKS", Some("1")),
-            ("SHIP_HOOKS_BIN", Some("ship hooks run")),
-        ]);
-        save_permissions(
-            project_dir.clone(),
-            &Permissions {
-                filesystem: crate::permissions::FsPermissions {
-                    allow: vec!["src/auth/**".to_string()],
-                    deny: vec![],
-                },
-                commands: crate::permissions::CommandPermissions {
-                    allow: vec!["git status*".to_string()],
-                    deny: vec!["rm -rf *".to_string()],
-                },
-                ..Default::default()
-            },
-        )
-        .unwrap();
-
-        export_to(project_dir, "gemini").unwrap();
-
-        let runtime_dir = tmp.path().join(".ship").join("generated").join("runtime");
-        let envelope_path = runtime_dir.join("envelope.json");
-        let context_path = runtime_dir.join("hook-context.md");
-        assert!(envelope_path.exists(), "expected hook envelope file");
-        assert!(context_path.exists(), "expected hook context file");
-
-        let envelope: serde_json::Value =
-            serde_json::from_str(&std::fs::read_to_string(envelope_path).unwrap()).unwrap();
-        let expected_root = tmp.path().to_string_lossy().to_string();
-        assert_eq!(envelope["workspace_root"].as_str(), Some(expected_root.as_str()));
-        assert!(envelope["auto_approve_patterns"].is_array());
-        assert!(envelope["always_block_patterns"].is_array());
     }
 
     #[test]
@@ -1189,7 +1186,6 @@ priority = 700
                 },
                 agent: crate::permissions::AgentLimits {
                     require_confirmation: vec!["git push *".to_string()],
-                    ..Default::default()
                 },
                 ..Default::default()
             },
@@ -1368,10 +1364,11 @@ prefix_rules = [
         create_skill(&project_dir, "rt-blocked-skill", "Blocked", "blocked body").unwrap();
 
         let mut config = crate::config::get_config(Some(project_dir.clone())).unwrap();
-        config.modes = vec![ModeConfig {
+        config.modes = vec![AgentProfile {
             id: "focus".to_string(),
             name: "Focus".to_string(),
             description: None,
+            role: None,
             active_tools: vec![],
             mcp_servers: vec![],
             skills: vec!["rt-allowed-skill".to_string()],
@@ -1381,7 +1378,7 @@ prefix_rules = [
             permissions: PermissionConfig::default(),
             target_agents: vec![],
         }];
-        config.active_mode = Some("focus".to_string());
+        config.active_agent = Some("focus".to_string());
         save_config(&config, Some(project_dir.clone())).unwrap();
 
         export_to(project_dir, "codex").unwrap();
@@ -1786,8 +1783,13 @@ Use this for incident response.
         // Simulate ~/.ship as the project dir (parent = home/)
         let project_dir = init_project(home.path().to_path_buf()).unwrap();
 
-        let mut perms = Permissions::default();
-        perms.tools.deny = vec!["Bash".to_string()];
+        let perms = Permissions {
+            tools: ToolPermissions {
+                deny: vec!["Bash".to_string()],
+                ..Default::default()
+            },
+            ..Default::default()
+        };
         save_permissions(project_dir.clone(), &perms).unwrap();
 
         // export_to resolves project_root = project_dir.parent() = home/

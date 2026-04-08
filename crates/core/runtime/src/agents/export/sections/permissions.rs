@@ -228,165 +228,6 @@ fn hooks_for_provider(provider_id: &str, hooks: &[HookConfig]) -> Vec<HookConfig
     merged
 }
 
-fn network_allowed(policy: &crate::permissions::NetworkPolicy) -> bool {
-    !matches!(policy, crate::permissions::NetworkPolicy::None)
-}
-
-fn command_installs_allowed(allow_patterns: &[String]) -> bool {
-    allow_patterns.iter().any(|pattern| {
-        let normalized = pattern.trim().to_ascii_lowercase();
-        normalized.starts_with("npm install")
-            || normalized.starts_with("pnpm add")
-            || normalized.starts_with("yarn add")
-            || normalized.starts_with("pip install")
-            || normalized.starts_with("uv pip install")
-            || normalized.starts_with("cargo add")
-            || normalized.starts_with("go get")
-            || normalized.starts_with("brew install")
-    })
-}
-
-fn dedupe_patterns(values: &mut Vec<String>) {
-    let mut seen = HashSet::new();
-    values.retain(|value| seen.insert(value.clone()));
-}
-
-fn write_hook_runtime_artifacts(project_root: &Path, payload: &SyncPayload) -> Result<()> {
-    let runtime_dir = project_root.join(".ship").join("generated").join("runtime");
-    fs::create_dir_all(&runtime_dir)?;
-
-    let generated_at = chrono::Utc::now().to_rfc3339();
-    let mut auto_approve_patterns = vec![
-        "find *".to_string(),
-        "grep *".to_string(),
-        "rg *".to_string(),
-        "cat *".to_string(),
-        "ls *".to_string(),
-        "git status*".to_string(),
-        "git log*".to_string(),
-        "git diff*".to_string(),
-    ];
-    auto_approve_patterns.extend(payload.permissions.commands.allow.clone());
-    dedupe_patterns(&mut auto_approve_patterns);
-
-    let mut always_block_patterns = vec![
-        "rm -rf *".to_string(),
-        "git push --force*".to_string(),
-        "npm publish*".to_string(),
-        "cargo publish*".to_string(),
-    ];
-    always_block_patterns.extend(payload.permissions.commands.deny.clone());
-    dedupe_patterns(&mut always_block_patterns);
-
-    let mut allowed_paths = payload.permissions.filesystem.allow.clone();
-    if allowed_paths.is_empty() {
-        allowed_paths.push(".".to_string());
-    }
-
-    let servers = payload
-        .servers
-        .iter()
-        .filter(|server| !server.disabled)
-        .map(|server| {
-            serde_json::json!({
-                "id": server.id,
-                "name": server.name,
-                "transport": match server.server_type {
-                    McpServerType::Stdio => "stdio",
-                    McpServerType::Sse => "sse",
-                    McpServerType::Http => "http",
-                },
-            })
-        })
-        .collect::<Vec<_>>();
-
-    let envelope = serde_json::json!({
-        "_ship": {
-            "managed": true,
-            "version": 1,
-            "generated_at": generated_at,
-        },
-        "ship_first": true,
-        "workspace_root": project_root.to_string_lossy().to_string(),
-        "active_mode": payload.active_mode_id,
-        "allowed_paths": allowed_paths,
-        "allow_network": network_allowed(&payload.permissions.network.policy),
-        "allow_installs": command_installs_allowed(&payload.permissions.commands.allow),
-        "auto_approve_patterns": auto_approve_patterns,
-        "always_block_patterns": always_block_patterns,
-        "require_confirmation": payload.permissions.agent.require_confirmation.clone(),
-        "tools_allow": payload.permissions.tools.allow.clone(),
-        "tools_deny": payload.permissions.tools.deny.clone(),
-        "mcp_servers": servers,
-    });
-
-    crate::fs_util::write_atomic(
-        &runtime_dir.join("envelope.json"),
-        serde_json::to_string_pretty(&envelope)?,
-    )?;
-
-    let context = format!(
-        "# Ship Hook Context\n\n\
-         - Generated: `{}`\n\
-         - Active mode: `{}`\n\
-         - MCP servers: `{}`\n\
-         - Network access: `{}`\n\
-         - Package installs: `{}`\n\n\
-         ## Execution Policy\n\
-         - Use `mcp__ship__*` tools first for workspace-aware operations.\n\
-         - Prefer structured MCP actions over raw shell commands whenever possible.\n\
-         - Treat direct shell usage as fallback and stay within declared scope.\n\n\
-         ## File Scope\n\
-         {}\n\n\
-         ## Command Policy\n\
-         - Allow patterns: `{}`\n\
-         - Deny patterns: `{}`\n\
-         - Require confirmation: `{}`\n",
-        generated_at,
-        payload
-            .active_mode_id
-            .as_deref()
-            .unwrap_or("default"),
-        payload
-            .servers
-            .iter()
-            .filter(|server| !server.disabled)
-            .map(|server| server.id.as_str())
-            .collect::<Vec<_>>()
-            .join(", "),
-        if network_allowed(&payload.permissions.network.policy) {
-            "enabled"
-        } else {
-            "disabled"
-        },
-        if command_installs_allowed(&payload.permissions.commands.allow) {
-            "allowed"
-        } else {
-            "blocked"
-        },
-        payload
-            .permissions
-            .filesystem
-            .allow
-            .iter()
-            .map(|path| format!("- `{}`", path))
-            .collect::<Vec<_>>()
-            .join("\n"),
-        payload.permissions.commands.allow.join(", "),
-        payload.permissions.commands.deny.join(", "),
-        payload.permissions.agent.require_confirmation.join(", "),
-    );
-    crate::fs_util::write_atomic(&runtime_dir.join("hook-context.md"), context)?;
-
-    // Best-effort cleanup of legacy runtime path from older builds.
-    let legacy_runtime_dir = project_root.join(".ship").join("agents").join("runtime");
-    for name in ["envelope.json", "hook-context.md"] {
-        let _ = fs::remove_file(legacy_runtime_dir.join(name));
-    }
-    let _ = fs::remove_dir(&legacy_runtime_dir);
-    Ok(())
-}
-
 fn export_claude_settings(
     project_root: &Path,
     hooks: &[HookConfig],
@@ -395,10 +236,10 @@ fn export_claude_settings(
     // Never write to the user's home directory. This can happen if project_dir is ~/.ship
     // (global ship config) and project_dir.parent() resolves to ~/. Permissions must only
     // be written at the project scope.
-    if let Ok(home_dir) = home() {
-        if project_root == home_dir {
-            return Ok(());
-        }
+    if let Ok(home_dir) = home()
+        && project_root == home_dir
+    {
+        return Ok(());
     }
     let path = project_root.join(".claude").join("settings.json");
     if let Some(parent) = path.parent() {
@@ -797,26 +638,22 @@ fn import_permissions_from_claude(project_dir: &Path) -> Result<Option<Permissio
                 .collect::<Vec<_>>()
         })
         .unwrap_or_default();
-    let deny = perms
-        .get("deny")
-        .and_then(|v| v.as_array())
-        .map(|values| {
-            values
-                .iter()
-                .filter_map(|v| v.as_str().map(str::to_string))
-                .collect::<Vec<_>>()
-        })
-        .unwrap_or_default();
-    if allow.is_empty() && deny.is_empty() {
+    // Never import deny rules from a provider settings file back into the Ship
+    // profile. The provider's deny list is a generated artifact that reflects
+    // what Ship compiled last time — importing it would create a feedback loop
+    // where each `ship use` bakes in whatever deny rules the prior session had.
+    // Only import additive allow rules that the user explicitly added outside Ship.
+    if allow.is_empty() {
         return Ok(None);
     }
 
-    let mut permissions = Permissions::default();
-    if !allow.is_empty() {
-        permissions.tools.allow = allow;
-    }
-    permissions.tools.deny = deny;
-    Ok(Some(permissions))
+    Ok(Some(Permissions {
+        tools: crate::permissions::ToolPermissions {
+            allow,
+            ..Default::default()
+        },
+        ..Default::default()
+    }))
 }
 
 fn import_permissions_from_gemini(project_dir: &Path) -> Result<Option<Permissions>> {
@@ -841,12 +678,20 @@ fn import_permissions_from_gemini(project_dir: &Path) -> Result<Option<Permissio
         return Ok(None);
     }
 
-    let mut permissions = Permissions::default();
-    permissions.tools.allow.clear();
-    permissions.tools.deny.clear();
-    permissions.commands.allow.clear();
-    permissions.commands.deny.clear();
-    permissions.agent.require_confirmation.clear();
+    let mut permissions = Permissions {
+        tools: crate::permissions::ToolPermissions {
+            allow: vec![],
+            deny: vec![],
+        },
+        commands: crate::permissions::CommandPermissions {
+            allow: vec![],
+            deny: vec![],
+        },
+        agent: crate::permissions::AgentLimits {
+            require_confirmation: vec![],
+        },
+        ..Default::default()
+    };
 
     for value in rules {
         let Some(rule) = value.as_table() else {
@@ -977,6 +822,32 @@ fn import_permissions_from_codex(project_dir: &Path) -> Result<Option<Permission
         }
     }
 
+    // Read native Starlark rules files under .codex/rules/
+    let rules_dir = project_root.join(".codex").join("rules");
+    if rules_dir.is_dir()
+        && let Ok(entries) = fs::read_dir(&rules_dir)
+    {
+        for entry in entries.flatten() {
+            let path = entry.path();
+            if path.extension().and_then(|e| e.to_str()) != Some("rules") {
+                continue;
+            }
+            let Ok(content) = fs::read_to_string(&path) else {
+                continue;
+            };
+            for (words, decision) in parse_starlark_prefix_rules(&content) {
+                imported = true;
+                let pattern = format!("{} *", words.join(" "));
+                match decision.as_str() {
+                    "allow" => permissions.commands.allow.push(pattern),
+                    "forbidden" => permissions.commands.deny.push(pattern),
+                    "prompt" => permissions.agent.require_confirmation.push(pattern),
+                    _ => {}
+                }
+            }
+        }
+    }
+
     if !imported {
         return Ok(None);
     }
@@ -1059,6 +930,115 @@ fn codex_prefix_to_pattern(prefix: &str) -> String {
     }
 }
 
+fn pattern_to_starlark_words(pattern: &str) -> Option<Vec<String>> {
+    let trimmed = pattern.trim();
+    if !trimmed.ends_with('*') {
+        return None;
+    }
+    let prefix = trimmed.trim_end_matches('*').trim();
+    if prefix.is_empty() {
+        return None;
+    }
+    let words: Vec<String> = prefix.split_whitespace().map(str::to_string).collect();
+    if words.is_empty() { None } else { Some(words) }
+}
+
+fn export_codex_execpolicy(project_root: &Path, permissions: &Permissions) -> Result<()> {
+    let rules_dir = project_root.join(".codex").join("rules");
+    let rules_path = rules_dir.join("ship.rules");
+
+    let mut entries: Vec<(Vec<String>, &str)> = Vec::new();
+    for pattern in &permissions.commands.deny {
+        if let Some(words) = pattern_to_starlark_words(pattern) {
+            entries.push((words, "forbidden"));
+        }
+    }
+    for pattern in &permissions.agent.require_confirmation {
+        if let Some(words) = pattern_to_starlark_words(pattern) {
+            entries.push((words, "prompt"));
+        }
+    }
+    for pattern in &permissions.commands.allow {
+        if let Some(words) = pattern_to_starlark_words(pattern) {
+            entries.push((words, "allow"));
+        }
+    }
+
+    if entries.is_empty() {
+        let _ = fs::remove_file(&rules_path);
+        return Ok(());
+    }
+
+    fs::create_dir_all(&rules_dir)?;
+
+    let mut content =
+        String::from("# managed by ship\n# source: .ship/agents/permissions.toml\n\n");
+    for (words, decision) in &entries {
+        let quoted: Vec<String> = words.iter().map(|w| format!("\"{}\"", w)).collect();
+        content.push_str(&format!(
+            "prefix_rule(\n    pattern = [{}],\n    decision = \"{}\",\n)\n\n",
+            quoted.join(", "),
+            decision
+        ));
+    }
+    let content = content.trim_end_matches('\n').to_string() + "\n";
+    crate::fs_util::write_atomic(&rules_path, content)
+}
+
+fn parse_starlark_prefix_rules(content: &str) -> Vec<(Vec<String>, String)> {
+    let mut results = Vec::new();
+    let mut remaining = content;
+    while let Some(start) = remaining.find("prefix_rule(") {
+        let after_paren = start + "prefix_rule(".len();
+        let rest = &remaining[after_paren..];
+        if let Some(end) = rest.find(')') {
+            let block = &rest[..end];
+            if let Some(entry) = parse_starlark_prefix_rule_block(block) {
+                results.push(entry);
+            }
+            remaining = &rest[end + 1..];
+        } else {
+            break;
+        }
+    }
+    results
+}
+
+fn parse_starlark_prefix_rule_block(block: &str) -> Option<(Vec<String>, String)> {
+    let decision = {
+        let line = block.lines().find(|l| l.trim().starts_with("decision"))?;
+        let after_eq = line.split_once('=')?.1.trim();
+        let inner = after_eq.trim_start_matches('"');
+        let end = inner.find('"')?;
+        inner[..end].to_string()
+    };
+
+    let pattern_line = block.lines().find(|l| l.trim().starts_with("pattern"))?;
+    let bracket_start = pattern_line.find('[')?;
+    let bracket_end = pattern_line.rfind(']')?;
+    if bracket_end <= bracket_start {
+        return None;
+    }
+    let inner = &pattern_line[bracket_start + 1..bracket_end];
+
+    let words: Vec<String> = inner
+        .split(',')
+        .filter_map(|part| {
+            let s = part.trim();
+            if s.len() > 2 && s.starts_with('"') && s.ends_with('"') {
+                Some(s[1..s.len() - 1].to_string())
+            } else {
+                None
+            }
+        })
+        .collect();
+
+    if words.is_empty() || decision.is_empty() {
+        return None;
+    }
+
+    Some((words, decision))
+}
 
 fn dedupe_strings(values: &mut Vec<String>) {
     let mut seen = HashSet::new();

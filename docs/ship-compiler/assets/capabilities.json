@@ -1,0 +1,102 @@
+[
+  {
+    "id": "provider-claude",
+    "status": "stable",
+    "notes": "Fully implemented with 393 test lines, roundtrip verified, production-proven. Emits CLAUDE.md, .mcp.json, settings.json patch, skills/, agents/."
+  },
+  {
+    "id": "provider-gemini",
+    "status": "stable",
+    "notes": "Complete with unique httpUrl handling, 277 test lines, roundtrip tested. Emits GEMINI.md, settings.json, agents/, policy TOML."
+  },
+  {
+    "id": "provider-cursor",
+    "status": "stable",
+    "notes": "Mature with per-file .mdc rules, 591 test lines, excellent roundtrip coverage. Emits rules/, mcp.json, agents/, hooks.json, cli.json."
+  },
+  {
+    "id": "provider-codex",
+    "status": "rc",
+    "notes": "Works but TOML serialization uses JSON workaround. No hooks support (intentional per feature matrix). 353 test lines, roundtrip tested but TOML round-conversion may have gaps."
+  },
+  {
+    "id": "provider-opencode",
+    "status": "rc",
+    "notes": "Implemented: opencode.json, AGENTS.md, .opencode/skills/. Less real-world validated than Claude/Cursor. Agents defined inline. 348 test lines, roundtrip tested."
+  },
+  {
+    "id": "config-resolution",
+    "status": "stable",
+    "notes": "Rock-solid resolve.rs handles merging, overrides, and modes flawlessly. Core of the compilation pipeline."
+  },
+  {
+    "id": "mcp-server-compilation",
+    "status": "stable",
+    "notes": "Provider-aware with all transport types, edge case handling, 283 test lines. Per-provider URL field names and transport detection."
+  },
+  {
+    "id": "skill-file-compilation",
+    "status": "stable",
+    "notes": "Robust Minijinja template resolution with variable/env handling, 370 test lines. Skills compiled to provider-specific SKILL.md paths."
+  },
+  {
+    "id": "agent-profile-compilation",
+    "status": "stable",
+    "notes": "Complete provider-native format compilation, 261 test lines. Claude MD, Gemini MD, Cursor MD, Codex TOML."
+  },
+  {
+    "id": "permissions-compilation",
+    "status": "stable",
+    "notes": "Comprehensive multi-provider translation with 12K test file. Claude settings.json, Gemini policy TOML, Cursor cli.json."
+  },
+  {
+    "id": "hooks-compilation",
+    "status": "stable",
+    "notes": "Event type translation validated, 363 test lines. Claude settings.json, Gemini settings.json, Cursor hooks.json, Codex hooks.json."
+  },
+  {
+    "id": "plugins-manifest",
+    "status": "stable",
+    "notes": "Simple but solid pass-through, 35 test lines. Plugin install intent compiled as manifest artifact for CLI execution."
+  },
+  {
+    "id": "event-subscription-resolution",
+    "status": "rc",
+    "notes": "Code exists (150 lines) but not exposed in WASM CompileResult. Never serialized to JS. Studio integration path unclear. Needs real actor spawn testing."
+  },
+  {
+    "id": "wasm-target",
+    "status": "stable",
+    "notes": "Builds cleanly via wasm-pack, all 5 providers exposed, output matches native. Browser-side compilation in Studio works."
+  },
+  {
+    "id": "input-validation",
+    "status": "partial",
+    "notes": "Spec written but NOT IMPLEMENTED. MCP command/url unchecked. Agent skill refs unvalidated. Permission regex patterns unchecked. Only package name validation exists."
+  },
+  {
+    "id": "actionable-error-messages",
+    "status": "partial",
+    "notes": "WASM errors are flat JsValue strings with no structure. Native resolve errors lack file/line context. Template resolution falls back silently with eprintln(). Spec written but only package validation implemented."
+  },
+  {
+    "id": "decompile-roundtrip-complete",
+    "status": "rc",
+    "notes": "Roundtrip tests exist (337 lines) but incomplete: missing full agent profile preservation, Codex TOML field completeness, OpenCode agent inline preservation. Silent field drops possible."
+  },
+  {
+    "id": "wasm-event-subscriptions",
+    "status": "aspirational",
+    "notes": "Field exists in CompileResult but never reaches JavaScript. Event subscription metadata not exposed to Studio."
+  },
+  {
+    "id": "provider-addition-guide",
+    "status": "aspirational",
+    "notes": "Zero documentation. Adding a provider requires reading existing code. No guide for descriptor/compile/decompile/tests/feature flags."
+  },
+  {
+    "id": "community-providers",
+    "status": "aspirational",
+    "notes": "No architecture. Providers statically compiled. Would need dynamic loading, plugin API, sandboxing."
+  }
+]

@@ -1,0 +1,63 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "title": "Ship Pipeline",
+  "description": "Workflow template defining a DAG of steps for job execution.",
+  "type": "object",
+  "required": ["name", "steps"],
+  "properties": {
+    "name": {
+      "type": "string",
+      "description": "Pipeline identifier. Matches the filename without .yaml extension.",
+      "pattern": "^[a-z0-9][a-z0-9-]*$"
+    },
+    "description": {
+      "type": "string",
+      "description": "Human-readable description of what this pipeline does."
+    },
+    "steps": {
+      "type": "array",
+      "description": "Ordered list of pipeline steps forming a DAG.",
+      "minItems": 1,
+      "items": {
+        "type": "object",
+        "required": ["id", "type"],
+        "properties": {
+          "id": {
+            "type": "string",
+            "description": "Unique step identifier within the pipeline.",
+            "pattern": "^[a-z0-9][a-z0-9-]*$"
+          },
+          "type": {
+            "type": "string",
+            "enum": ["agent", "gate", "merge", "human"],
+            "description": "Step type. 'agent' runs an agent, 'gate' reviews output, 'merge' merges the branch, 'human' waits for human action."
+          },
+          "agent": {
+            "type": "string",
+            "description": "Agent profile ID (e.g. 'rust-runtime'). Required for agent and gate steps."
+          },
+          "after": {
+            "type": "array",
+            "items": { "type": "string" },
+            "description": "Step IDs that must complete before this step runs. Empty = root step.",
+            "default": []
+          },
+          "model": {
+            "type": "string",
+            "description": "Model override (e.g. 'sonnet', 'opus', 'haiku')."
+          },
+          "provider": {
+            "type": "string",
+            "description": "Provider override (e.g. 'anthropic')."
+          }
+        },
+        "if": {
+          "properties": { "type": { "enum": ["agent", "gate"] } }
+        },
+        "then": {
+          "required": ["agent"]
+        }
+      }
+    }
+  }
+}

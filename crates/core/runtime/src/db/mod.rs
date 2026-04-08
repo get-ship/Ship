@@ -1,51 +1,132 @@
-//! Platform DB — clean schema, no workflow-layer tables.
-//! Replaces the monolithic state_db.rs.
+//! Platform DB — relational state (workspaces, sessions, jobs, targets).
+//!
+//! Path: `~/.ship/platform.db`.  Migrations in `migrations/`.
+//! Per-actor event stores live under `~/.ship/actors/` and are managed
+//! by `KernelRouter`, not this module.
 
+pub mod actor_events;
 pub mod adrs;
-pub mod branch;
+pub mod artifact_registry;
+pub mod branch_context;
+pub mod envelope;
 pub mod events;
-pub mod jobs;
+pub mod integrity;
+#[cfg(test)]
+mod events_tests;
+#[cfg(test)]
+mod tests_envelope;
 pub mod kv;
-pub mod migrate_from_state_db;
-pub mod notes;
+pub mod managed_state;
+pub mod pool;
+pub mod rebuild;
 pub mod schema;
-pub mod targets;
-pub mod workspace;
+pub mod session;
+pub mod session_drain;
+pub mod session_events;
+#[cfg(test)]
+pub mod session_events_testutil;
+pub mod types;
+pub mod workspace_db;
+pub mod workspace_events;
+pub mod workspace_state;
+
+#[cfg(test)]
+mod tests_integrity;
+#[cfg(test)]
+mod tests_pool;
+#[cfg(test)]
+mod tests_rebuild;
+#[cfg(test)]
+mod tests_session_drain;
 
 use anyhow::{Context, Result, anyhow};
-use chrono::Utc;
 use sqlx::sqlite::SqliteConnectOptions;
 use sqlx::{Connection, SqliteConnection};
 use std::path::{Path, PathBuf};
 use std::str::FromStr;
 
-pub struct MigrationReport {
-    pub db_path: PathBuf,
-    pub created: bool,
-    pub applied: usize,
-}
-
-/// Path to this project's SQLite DB: `~/.ship/state/<slug>/platform.db`.
+/// Platform database path: `~/.ship/platform.db`.
 ///
-/// Uses a separate file from `state_db`'s `ship.db` during the transition period.
-/// Once `state_db` is retired, this becomes the canonical `ship.db`.
-pub fn db_path(ship_dir: &Path) -> Result<PathBuf> {
-    let global_dir = crate::project::get_global_dir()?;
-    let slug = crate::project::project_slug_from_ship_dir(ship_dir);
-    Ok(global_dir.join("state").join(slug).join("platform.db"))
+/// Never inside a project directory. Per-actor event stores are managed
+/// separately by `KernelRouter`. Tests get automatic isolation
+/// via `get_global_dir()`'s test-binary detection (per-thread temp dir).
+pub fn db_path() -> Result<PathBuf> {
+    Ok(crate::project::get_global_dir()?.join("platform.db"))
 }
 
-/// Open a connection, running migrations first.
-pub fn open_db(ship_dir: &Path) -> Result<SqliteConnection> {
-    ensure_db(ship_dir)?;
-    let path = db_path(ship_dir)?;
+/// Open a connection, ensuring schema exists first.
+pub fn open_db() -> Result<SqliteConnection> {
+    ensure_db()?;
+    let path = db_path()?;
     connect(&path)
 }
 
-/// Run migrations without returning a connection. Idempotent.
-pub fn ensure_db(ship_dir: &Path) -> Result<MigrationReport> {
-    let path = db_path(ship_dir)?;
-    run_migrations(&path, schema::MIGRATIONS)
+/// Ensure the schema is up to date via sqlx migrations.
+///
+/// Idempotent — sqlx tracks applied migrations in `_sqlx_migrations`.
+/// Connection-level PRAGMAs are set on every call.
+pub fn ensure_db() -> Result<()> {
+    let path = db_path()?;
+    if let Some(parent) = path.parent() {
+        std::fs::create_dir_all(parent)?;
+    }
+    let url = sqlite_url(&path);
+    let opts = SqliteConnectOptions::from_str(&url)
+        .with_context(|| format!("invalid sqlite url: {url}"))?
+        .create_if_missing(true);
+    let mut conn = block_on(async { SqliteConnection::connect_with(&opts).await })?;
+
+    // Connection-level PRAGMAs — not persisted in schema.
+    block_on(async {
+        sqlx::query("PRAGMA journal_mode = WAL")
+            .execute(&mut conn)
+            .await
+    })?;
+    block_on(async {
+        sqlx::query("PRAGMA foreign_keys = ON")
+            .execute(&mut conn)
+            .await
+    })?;
+
+    // Run migrations. sqlx manages its own `_sqlx_migrations` table.
+    block_on_migrate(async { sqlx::migrate!("./migrations").run(&mut conn).await })?;
+
+    Ok(())
+}
+
+/// Ensure the schema is up to date for a database at an explicit path.
+///
+/// Like `ensure_db()` but takes a `ship_dir` instead of deriving it from
+/// `get_global_dir()`. Use this in tests and handlers that receive `ship_dir`
+/// through `ApiState` to avoid env-var races.
+pub fn ensure_db_at(ship_dir: &Path) -> Result<()> {
+    let path = ship_dir.join("platform.db");
+    if let Some(parent) = path.parent() {
+        std::fs::create_dir_all(parent)?;
+    }
+    let url = sqlite_url(&path);
+    let opts = SqliteConnectOptions::from_str(&url)
+        .with_context(|| format!("invalid sqlite url: {url}"))?
+        .create_if_missing(true);
+    let mut conn = block_on(async { SqliteConnection::connect_with(&opts).await })?;
+    block_on(async {
+        sqlx::query("PRAGMA journal_mode = WAL")
+            .execute(&mut conn)
+            .await
+    })?;
+    block_on(async {
+        sqlx::query("PRAGMA foreign_keys = ON")
+            .execute(&mut conn)
+            .await
+    })?;
+    block_on_migrate(async { sqlx::migrate!("./migrations").run(&mut conn).await })?;
+    Ok(())
+}
+
+/// Open a connection to a specific database path (no migration run).
+/// The database must already be initialized via `ensure_db`.
+pub fn open_db_at(path: &Path) -> Result<SqliteConnection> {
+    connect(path)
 }
 
 fn connect(path: &Path) -> Result<SqliteConnection> {
@@ -53,70 +134,6 @@ fn connect(path: &Path) -> Result<SqliteConnection> {
     let opts = SqliteConnectOptions::from_str(&url)
         .with_context(|| format!("invalid sqlite url: {url}"))?;
     block_on(async { SqliteConnection::connect_with(&opts).await })
-}
-
-pub(crate) fn run_migrations(
-    db_path: &Path,
-    migrations: &[(&str, &str)],
-) -> Result<MigrationReport> {
-    if let Some(parent) = db_path.parent() {
-        std::fs::create_dir_all(parent)?;
-    }
-    let created = !db_path.exists();
-    let url = sqlite_url(db_path);
-    let opts = SqliteConnectOptions::from_str(&url)
-        .with_context(|| format!("invalid sqlite url: {url}"))?
-        .create_if_missing(true);
-    let mut conn = block_on(async { SqliteConnection::connect_with(&opts).await })?;
-
-    block_on(async {
-        sqlx::query("PRAGMA journal_mode = WAL;")
-            .execute(&mut conn)
-            .await
-    })?;
-    block_on(async {
-        sqlx::query("PRAGMA foreign_keys = ON;")
-            .execute(&mut conn)
-            .await
-    })?;
-
-    let mut applied = 0usize;
-    for (version, ddl) in migrations {
-        let exists = block_on(async {
-            sqlx::query("SELECT version FROM schema_migrations WHERE version = ?")
-                .bind(*version)
-                .fetch_optional(&mut conn)
-                .await
-        })
-        .ok()
-        .flatten()
-        .is_some();
-        if exists {
-            continue;
-        }
-        // Execute each statement individually — sqlx prepare only runs one statement at a time.
-        for stmt in ddl.split(';').map(str::trim).filter(|s| !s.is_empty()) {
-            block_on(async { sqlx::query(stmt).execute(&mut conn).await })
-                .with_context(|| format!("migration {version} failed for {}", db_path.display()))?;
-        }
-        block_on(async {
-            sqlx::query(
-                "INSERT INTO schema_migrations (version, applied_at) VALUES (?, ?)",
-            )
-            .bind(*version)
-            .bind(Utc::now().to_rfc3339())
-            .execute(&mut conn)
-            .await
-        })
-        .with_context(|| format!("recording migration {version} failed"))?;
-        applied += 1;
-    }
-
-    Ok(MigrationReport {
-        db_path: db_path.to_path_buf(),
-        created,
-        applied,
-    })
 }
 
 fn sqlite_url(path: &Path) -> String {
@@ -147,6 +164,46 @@ where
         .map_err(|e| anyhow!("SQLite operation failed: {e}"))
 }
 
+/// Like `block_on` but for `anyhow::Result<T>` futures (e.g. EventRouter::emit).
+///
+/// Uses multi-threaded runtime when creating a new one, because the future may
+/// internally call `block_in_place` (e.g. SqliteEventStore::append uses `block_on`
+/// which calls `block_in_place` when a handle is present).
+pub fn block_on_anyhow<F, T>(future: F) -> Result<T>
+where
+    F: std::future::Future<Output = Result<T>>,
+{
+    if let Ok(handle) = tokio::runtime::Handle::try_current() {
+        return tokio::task::block_in_place(|| handle.block_on(future));
+    }
+    let rt = tokio::runtime::Builder::new_multi_thread()
+        .enable_time()
+        .worker_threads(1)
+        .build()
+        .map_err(|e| anyhow!("Failed to create runtime: {e}"))?;
+    rt.block_on(future)
+}
+
+/// Like `block_on` but for sqlx::migrate::MigrateError instead of sqlx::Error.
+fn block_on_migrate<F>(future: F) -> Result<()>
+where
+    F: std::future::Future<Output = std::result::Result<(), sqlx::migrate::MigrateError>>,
+{
+    if let Ok(handle) = tokio::runtime::Handle::try_current() {
+        return tokio::task::block_in_place(|| {
+            handle
+                .block_on(future)
+                .map_err(|e| anyhow!("Migration failed: {e}"))
+        });
+    }
+    let rt = tokio::runtime::Builder::new_current_thread()
+        .enable_time()
+        .build()
+        .map_err(|e| anyhow!("Failed to create SQLite runtime: {e}"))?;
+    rt.block_on(future)
+        .map_err(|e| anyhow!("Migration failed: {e}"))
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -156,27 +213,23 @@ mod tests {
     #[test]
     fn test_ensure_db_creates_fresh() {
         let tmp = tempdir().unwrap();
-        let ship_dir = init_project(tmp.path().to_path_buf()).unwrap();
-        let report = ensure_db(&ship_dir).unwrap();
-        assert!(report.created);
-        assert_eq!(report.applied, schema::MIGRATIONS.len());
+        let _ship_dir = init_project(tmp.path().to_path_buf()).unwrap();
+        ensure_db().unwrap();
     }
 
     #[test]
     fn test_ensure_db_idempotent() {
         let tmp = tempdir().unwrap();
-        let ship_dir = init_project(tmp.path().to_path_buf()).unwrap();
-        ensure_db(&ship_dir).unwrap();
-        let report2 = ensure_db(&ship_dir).unwrap();
-        assert!(!report2.created);
-        assert_eq!(report2.applied, 0);
+        let _ship_dir = init_project(tmp.path().to_path_buf()).unwrap();
+        ensure_db().unwrap();
+        ensure_db().unwrap();
     }
 
     #[test]
     fn test_open_db_returns_connection() {
         let tmp = tempdir().unwrap();
-        let ship_dir = init_project(tmp.path().to_path_buf()).unwrap();
-        let conn = open_db(&ship_dir);
+        let _ship_dir = init_project(tmp.path().to_path_buf()).unwrap();
+        let conn = open_db();
         assert!(conn.is_ok());
     }
 }

@@ -1,32 +1,54 @@
+pub mod agent_parser;
 pub mod compile;
+pub mod decompile;
+pub mod events;
+pub mod jsonc;
+pub mod lockfile;
+pub mod manifest;
+pub mod permissions;
 pub mod resolve;
+pub mod schemas;
 pub mod types;
+pub mod vars;
 
 // ─── Top-level re-exports ─────────────────────────────────────────────────────
 
 pub use compile::{
-    CompileOutput, ContextFile, McpKey, ProviderDescriptor, SkillsDir,
-    build_claude_settings_patch, compile, get_provider, list_providers,
-    CURSOR_PERMISSIVE_ALLOW,
+    AgentsDir, CURSOR_PERMISSIVE_ALLOW, CompileOutput, ContextFile, McpKey, ProviderDescriptor,
+    ProviderFeatureFlags, SkillsDir, agents::compile_agent_profiles, build_claude_settings_patch,
+    compile, get_provider, list_providers, translate_to_cursor_permission,
 };
-pub use resolve::{FeatureOverrides, ProjectLibrary, ResolvedConfig, resolve, resolve_library};
+pub use decompile::{
+    DetectedProviders, decompile_all, decompile_claude, decompile_codex, decompile_cursor,
+    decompile_gemini, decompile_opencode, detect_providers,
+};
+pub use resolve::{ProjectLibrary, ResolvedConfig, WorkspaceOverrides, resolve, resolve_library};
+pub use schemas::{PROVIDER_MANAGED_KEYS, PROVIDER_SCHEMAS, managed_keys, schema_url};
 pub use types::{
-    AgentLayerConfig, AiConfig, CatalogEntry, CatalogKind, GitConfig, HookConfig, HookTrigger,
-    McpServerConfig, McpServerType, ModeConfig, NamespaceConfig, PermissionConfig, Permissions,
-    PluginEntry, PluginsManifest, ProjectConfig, Rule, Skill, SkillSource, StatusConfig,
-    ToolPermissions, list_catalog, list_catalog_by_kind, search_catalog,
+    AgentBundle, AgentLayerConfig, AgentLimits, AgentProfile, AiConfig, ArtifactType,
+    CatalogCategory, CatalogEntry, CatalogKind, CommandPermissions, FsPermissions, GitConfig,
+    HookConfig, HookTrigger, ListAgentsResponse, McpRefs, McpServerConfig, McpServerType,
+    ModeConfig, NamespaceConfig, NetworkPermissions, NetworkPolicy, PermissionConfig, Permissions,
+    PluginEntry, PluginRefs, PluginsManifest, ProfileMeta, ProfilePermissions, ProfileRules,
+    ProjectConfig, PullAgent, PullMcpServer, PullProfile, PullResponse, PullRule, PullSkill, Rule,
+    Skill, SkillBundle, SkillRefs, SkillSource, StatusConfig, ToolPermissions, TransferBundle,
+    list_catalog, list_catalog_by_kind, search_catalog,
 };
 
 /// Generate a nanoid using Ship's 56-character alphabet (no ambiguous chars).
 pub fn gen_nanoid() -> String {
     let alphabet: [char; 56] = [
-        '2', '3', '4', '5', '6', '7', '8', '9', 'A', 'B', 'C', 'D', 'E', 'F', 'G', 'H', 'J',
-        'K', 'L', 'M', 'N', 'P', 'Q', 'R', 'S', 'T', 'U', 'V', 'W', 'X', 'Y', 'Z', 'a', 'b',
-        'c', 'd', 'e', 'f', 'g', 'h', 'i', 'j', 'k', 'm', 'n', 'p', 'q', 'r', 's', 't', 'u',
-        'v', 'w', 'x', 'y', 'z',
+        '2', '3', '4', '5', '6', '7', '8', '9', 'A', 'B', 'C', 'D', 'E', 'F', 'G', 'H', 'J', 'K',
+        'L', 'M', 'N', 'P', 'Q', 'R', 'S', 'T', 'U', 'V', 'W', 'X', 'Y', 'Z', 'a', 'b', 'c', 'd',
+        'e', 'f', 'g', 'h', 'i', 'j', 'k', 'm', 'n', 'p', 'q', 'r', 's', 't', 'u', 'v', 'w', 'x',
+        'y', 'z',
     ];
     nanoid::format(nanoid::rngs::default, &alphabet, 8)
 }
+
+#[cfg(test)]
+#[path = "schema_drift_tests.rs"]
+mod schema_drift_tests;
 
 // ─── WASM bindings ────────────────────────────────────────────────────────────
 
@@ -47,7 +69,7 @@ mod wasm {
         mcp_servers: serde_json::Value,
         /// Project-relative path where the MCP config file should be written.
         /// e.g. `".mcp.json"` (Claude) or `".cursor/mcp.json"` (Cursor).
-        mcp_config_path: Option<&'static str>,
+        mcp_config_path: Option<String>,
         /// Skill files: relative path → file content.
         skill_files: std::collections::HashMap<String, String>,
         /// Per-file rule output for providers that use individual rule files.
@@ -65,6 +87,13 @@ mod wasm {
         cursor_hooks_patch: Option<serde_json::Value>,
         /// Cursor-only: `.cursor/cli.json` permissions (CLI-only, not IDE).
         cursor_cli_permissions: Option<serde_json::Value>,
+        /// Cursor-only: `.cursor/environment.json` content.
+        cursor_environment_json: Option<serde_json::Value>,
+        /// OpenCode-only: full `opencode.json` content (model + MCP + extras).
+        opencode_config_patch: Option<serde_json::Value>,
+        /// Provider-native agent files: path → content.
+        /// e.g. `.claude/agents/reviewer.md`, `.gemini/agents/reviewer.md`.
+        agent_files: std::collections::HashMap<String, String>,
         /// Plugin install intent declared by the active preset.
         /// The CLI/runtime reads this to execute plugin installs — never the compiler.
         plugins_manifest: crate::PluginsManifest,
@@ -83,12 +112,12 @@ mod wasm {
     pub fn compile_library(
         library_json: &str,
         provider: &str,
-        active_mode: Option<String>,
+        active_agent: Option<String>,
     ) -> Result<String, JsValue> {
         let library: ProjectLibrary = serde_json::from_str(library_json)
             .map_err(|e| JsValue::from_str(&format!("Invalid library JSON: {e}")))?;
 
-        let resolved = resolve_library(&library, None, active_mode.as_deref());
+        let resolved = resolve_library(&library, None, active_agent.as_deref());
 
         let output = compile(&resolved, provider)
             .ok_or_else(|| JsValue::from_str(&format!("Unknown provider: {provider}")))?;
@@ -106,6 +135,9 @@ mod wasm {
             gemini_policy_patch: output.gemini_policy_patch,
             cursor_hooks_patch: output.cursor_hooks_patch,
             cursor_cli_permissions: output.cursor_cli_permissions,
+            cursor_environment_json: output.cursor_environment_json,
+            opencode_config_patch: output.opencode_config_patch,
+            agent_files: output.agent_files,
             plugins_manifest: output.plugins_manifest,
         };
 
@@ -119,12 +151,12 @@ mod wasm {
     #[wasm_bindgen(js_name = compileLibraryAll)]
     pub fn compile_library_all(
         library_json: &str,
-        active_mode: Option<String>,
+        active_agent: Option<String>,
     ) -> Result<String, JsValue> {
         let library: ProjectLibrary = serde_json::from_str(library_json)
             .map_err(|e| JsValue::from_str(&format!("Invalid library JSON: {e}")))?;
 
-        let resolved = resolve_library(&library, None, active_mode.as_deref());
+        let resolved = resolve_library(&library, None, active_agent.as_deref());
 
         let mut results = serde_json::Map::new();
         for provider_id in &resolved.providers {
@@ -142,6 +174,9 @@ mod wasm {
                     gemini_policy_patch: output.gemini_policy_patch,
                     cursor_hooks_patch: output.cursor_hooks_patch,
                     cursor_cli_permissions: output.cursor_cli_permissions,
+                    cursor_environment_json: output.cursor_environment_json,
+                    opencode_config_patch: output.opencode_config_patch,
+                    agent_files: output.agent_files,
                     plugins_manifest: output.plugins_manifest,
                 };
                 if let Ok(v) = serde_json::to_value(&result) {

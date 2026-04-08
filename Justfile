@@ -1,119 +1,183 @@
-ship_dir := ".ship"
-cli     := "./target/release/ship"
-mcp     := "./target/release/ship-mcp"
+# ── Ship Development ───────────────────────────────────────────────────────────
 
-# List available recipes
 default:
     @just --list
-# ── Install ────────────────────────────────────────────────────────────────────
 
-# Build and install `ship` + `ship-mcp` to ~/.cargo/bin (adds to PATH)
-install: build
-    cargo install --path crates/cli --locked
-    cargo install --path crates/mcp --locked
+# ── Dev ────────────────────────────────────────────────────────────────────────
 
-# Alias: same as install
-reinstall: install
+# Start Studio dev server (Vite + local D1)
+dev:
+    pnpm --filter web dev
+
+# Watch and rebuild Rust on changes (unstable — includes all dev tools)
+watch:
+    cargo watch -x "build --features unstable -p ship-studio-cli -p mcp"
 
 # ── Build ──────────────────────────────────────────────────────────────────────
 
-# Build cli + mcp (skips Tauri — needs glib-2.0 not available in WSL)
+# Build CLI + MCP + shipd (unstable dev build — default for development)
 build:
-    cargo build --release -p cli -p mcp
+    cargo build --features unstable -p ship-studio-cli -p mcp -p shipd
 
-# Build in debug mode (faster iteration)
-build-dev:
-    cargo build -p cli -p mcp
+# Build release binary (stable — no unstable features, what users get)
+build-release:
+    cargo build --release -p ship-studio-cli -p mcp -p shipd
 
-# Build everything including Tauri UI (requires native libs)
-build-all:
-    cargo build --release
+# Install dev binaries to ~/.local/bin (ship + shipd)
+install-dev: build
+    cp -f target/debug/ship ~/.local/bin/ship.new && mv ~/.local/bin/ship.new ~/.local/bin/ship
+    cp -f target/debug/shipd ~/.local/bin/shipd
+    @echo "Installed: ship + shipd → ~/.local/bin"
+
+# Install stable binary to ~/.cargo/bin
+install: build-release
+    cargo install --path apps/ship-studio-cli
+    cp -f target/release/shipd ~/.local/bin/shipd
+
+# Restart shipd with the latest dev build (build → install → hard restart)
+daemon-restart: install-dev
+    -pkill -9 shipd 2>/dev/null; true
+    @sleep 1
+    @rm -f ~/.ship/network.port ~/.ship/daemon.pid
+    ship daemon start
+
+# Rebuild WASM compiler (requires build-essential)
+wasm:
+    wasm-pack build crates/core/compiler --target web --out-dir ../../../packages/compiler --out-name compiler -- --features wasm
 
 # ── Test ───────────────────────────────────────────────────────────────────────
 
-# Run all tests
-test:
+# Run all tests (Rust + web)
+test: test-rust test-web
+
+# Rust workspace tests (unstable)
+test-rust:
+    cargo test --workspace --features unstable
+
+# Rust tests — stable surface only (CI release gate)
+test-rust-stable:
     cargo test --workspace
 
-# Run runtime tests only (fastest)
+# Runtime crate only (fastest Rust)
 test-runtime:
     cargo test -p runtime
 
-# Run tests with output visible
-test-verbose:
-    cargo test -p runtime -- --nocapture
+# Compiler crate only
+test-compiler:
+    cargo test -p compiler
 
-# ── Migration ──────────────────────────────────────────────────────────────────
+# Web app tests (vitest)
+test-web:
+    pnpm --filter web test
 
-# Migrate existing YAML issues → TOML in-place
-migrate:
-    SHIP_DIR={{ship_dir}} {{cli}} dev migrate
+# TypeScript type check
+typecheck:
+    pnpm --filter web exec tsc --noEmit
 
-# ── Dev workflow ───────────────────────────────────────────────────────────────
+# ── Database ───────────────────────────────────────────────────────────────────
 
-# Build then run migration (typical dev loop after a format change)
-build-migrate: build migrate
+# Apply D1 migrations locally
+db-migrate:
+    cd apps/web && npx wrangler d1 migrations apply ship --local
 
-# Watch for changes and rebuild (requires cargo-watch)
-watch:
-    cargo watch -x "build -p cli -p mcp"
+# Regenerate Cloudflare worker types from wrangler.jsonc
+cf-types:
+    cd apps/web && npx wrangler types
 
-# ── Tauri ──────────────────────────────────────────────────────────────────────
+# ── Lint & Format ──────────────────────────────────────────────────────────────
 
-# Run Tauri dev server (UI hot-reload)
-tauri-dev:
-    cd crates/ui && npm run tauri dev
-
-# ── Ship CLI shortcuts ─────────────────────────────────────────────────────────
-
-# List all issues
-issues:
-    SHIP_DIR={{ship_dir}} {{cli}} issue list
-
-# List issues by status
-issues-backlog:
-    SHIP_DIR={{ship_dir}} {{cli}} issue list --status backlog
-
-issues-in-progress:
-    SHIP_DIR={{ship_dir}} {{cli}} issue list --status in-progress
-
-# Scan for ghost issues (TODO/FIXME/HACK/BUG)
-ghost:
-    SHIP_DIR={{ship_dir}} {{cli}} ghost scan
-
-# Run projects-module e2e checks
-e2e-projects:
-    ./examples/e2e/checks/project-features.sh
-
-# Reset local example workspace with fresh generated .ship data
-e2e-reset:
-    ./examples/e2e/reset.sh
-
-# ── MCP ────────────────────────────────────────────────────────────────────────
-
-# Start the MCP server manually (usually Claude Code does this)
-mcp-start:
-    {{mcp}}
-
-# ── Housekeeping ───────────────────────────────────────────────────────────────
-
-# Run clippy
+# Rust clippy (unstable)
 lint:
-    ./scripts/check-no-compat-surface.sh
-    cargo clippy --workspace -- -D warnings
+    cargo clippy --workspace --features unstable -- -D warnings
 
-# Guard against compatibility shims in product surfaces
-check-no-compat:
-    ./scripts/check-no-compat-surface.sh
-
-# Format all Rust code
+# Format Rust
 fmt:
     cargo fmt
 
-# Check formatting without modifying
+# Check Rust formatting
 fmt-check:
     cargo fmt --check
+
+# ── Docs ──────────────────────────────────────────────────────────────────────
+
+# Build docs site
+docs:
+    cd apps/docs && npx tsx scripts/collect-skill-docs.ts && pnpm build
+
+# Dev docs site
+docs-dev:
+    cd apps/docs && pnpm dev --port 4321 --host
+
+# ── Deploy ─────────────────────────────────────────────────────────────────────
+
+# Deploy Studio to Cloudflare Workers
+deploy:
+    pnpm --filter web deploy
+
+# Apply D1 migrations to remote (production)
+db-migrate-remote:
+    cd apps/web && npx wrangler d1 migrations apply ship --remote
+
+# ── Registry ───────────────────────────────────────────────────────────────────
+
+# Seed the local registry with @unofficial packages
+seed:
+    @echo "Seeding local registry — requires dev server running on :3000"
+    curl -s -X POST http://localhost:3000/api/registry/seed \
+      -H "Content-Type: application/json" \
+      -H "X-Seed-Secret: ${SEED_SECRET}" \
+      -H "Cookie: ${AUTH_COOKIE}" | jq .
+
+# Publish a package to the local registry
+publish repo:
+    curl -s -X POST http://localhost:3000/api/registry/publish \
+      -H "Content-Type: application/json" \
+      -H "Cookie: ${AUTH_COOKIE}" \
+      -d '{"repo_url": "{{repo}}"}' | jq .
+
+# ── Ship CLI ──────────────────────────────────────────────────────────────────
+
+# Compile agent config for current project
+compile:
+    ship compile
+
+# Activate an agent profile
+use profile="default":
+    ship use {{profile}}
+
+# View targets, capabilities, jobs in TUI
+view:
+    ship view
+
+# ── Housekeeping ───────────────────────────────────────────────────────────────
 
 # Remove build artifacts
 clean:
     cargo clean
+    rm -rf apps/web/dist apps/web/.wrangler/deploy
+
+# Nuke local D1 and re-migrate
+db-reset:
+    rm -rf apps/web/.wrangler/state/v3/d1
+    just db-migrate
+
+# Rebuild everything from scratch
+rebuild: clean build wasm
+    pnpm install
+    just db-migrate
+
+# Verify both stable and unstable compile (CI check)
+check-gates:
+    cargo build -p ship-studio-cli -p mcp
+    cargo build --features unstable -p ship-studio-cli -p mcp
+    just check-no-set-var-global-dir
+    @echo "Both gates compile ✓"
+
+# Fail if any test uses set_var("SHIP_GLOBAL_DIR") — causes env var races
+check-no-set-var-global-dir:
+    @if grep -rn 'set_var.*SHIP_GLOBAL_DIR' apps/ crates/ --include='*.rs'; then \
+        echo "ERROR: set_var(\"SHIP_GLOBAL_DIR\") found in test code."; \
+        echo "Use explicit ship_dir parameters instead. See job-spec: test-db-isolation."; \
+        exit 1; \
+    fi
+    @echo "No set_var(SHIP_GLOBAL_DIR) found ✓"

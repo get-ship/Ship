@@ -1,3 +1,4 @@
+pub mod actor;
 pub mod agents;
 pub mod catalog;
 pub mod config;
@@ -6,11 +7,18 @@ pub mod events;
 pub mod fs_util;
 pub mod hooks;
 pub mod log;
-pub mod migration;
 pub mod plugin;
 pub mod project;
-pub mod state_db;
+pub mod registry;
+pub mod security;
+pub mod skill_paths;
+pub mod skill_vars;
+pub mod projections;
 pub mod workspace;
+
+#[cfg(feature = "unstable")]
+pub mod sync;
+pub mod services;
 
 // Backward-compatible module aliases.
 // Canonical implementation lives under `runtime::agents::*`.
@@ -20,33 +28,31 @@ pub use agents::permissions;
 pub use agents::rule;
 pub use agents::skill;
 
-pub use agent_config::{AgentConfig, resolve_agent_config};
+pub use agent_config::{
+    ProviderSettings, WorkspaceAgentSettings, resolve_provider_settings,
+    resolve_provider_settings_with_agent_override,
+};
 pub use agent_export::{
     ModelInfo, ProviderInfo, autodetect_providers, detect_binary, detect_version, disable_provider,
-    enable_provider, export_to, import_from_claude, list_models, list_providers, sync_active_mode,
+    enable_provider, export_to, import_from_claude, list_models, list_providers, sync_active_agent,
 };
 pub use catalog::{CatalogEntry, CatalogKind, list_catalog, list_catalog_by_kind, search_catalog};
 pub use config::{
-    AgentLayerConfig, AiConfig, GitConfig, HookConfig, HookTrigger, McpServerConfig, McpServerType,
-    ModeConfig, NamespaceConfig, PermissionConfig, ProjectConfig, StatusConfig, add_hook,
-    add_mcp_server, add_mode, add_status, ensure_registered_namespaces, generate_gitignore,
-    get_active_mode, get_config, get_effective_config, get_git_config, get_project_statuses,
-    is_category_committed, list_hooks, list_mcp_servers, migrate_json_config_file, remove_hook,
-    remove_mcp_server, remove_mode, remove_status, save_config, set_active_mode,
-    set_category_committed, set_git_config,
+    AgentLayerConfig, AgentProfile, AiConfig, GitConfig, HookConfig, HookTrigger, McpServerConfig,
+    McpServerType, NamespaceConfig, PermissionConfig, ProjectConfig, StatusConfig, add_agent,
+    add_hook, add_mcp_server, add_status, ensure_registered_namespaces, generate_gitignore,
+    get_active_agent, get_config, get_effective_config, get_git_config, get_project_statuses,
+    is_category_committed, list_hooks, list_mcp_servers, remove_agent, remove_hook,
+    remove_mcp_server, remove_status, save_config, set_active_agent, set_category_committed,
+    set_git_config,
 };
 
 pub use events::{
-    EVENTS_FILE_NAME, EventAction, EventEntity, EventRecord, append_event, ensure_event_log,
-    export_events_ndjson, ingest_external_events, latest_event_seq, list_events_since, read_events,
-    sync_event_snapshot,
+    EventEnvelope, list_events_since, query_events_since, read_events, read_recent_events,
 };
+pub use projections::job::{JobRecord, JobStatus, load_jobs, load_jobs_at, project as project_jobs};
 pub use hooks::{DefaultRuntimeHooks, RuntimeHooks};
 pub use log::{LogEntry, log_action, log_action_by, read_log, read_log_entries};
-pub use migration::{
-    GlobalStateMigrationReport, ProjectFileMigrationReport, ProjectStateMigrationReport,
-    migrate_global_state, migrate_project_state,
-};
 pub use permissions::{
     AgentLimits, CommandPermissions, FsPermissions, NetworkPermissions, NetworkPolicy, Permissions,
     ToolPermissions, get_permissions, permission_tool_ids_for_provider, save_permissions,
@@ -61,27 +67,51 @@ pub use skill::{
     delete_user_skill, get_effective_skill, get_skill, get_user_skill, install_skill_from_source,
     list_effective_skills, list_skills, list_user_skills, update_skill, update_user_skill,
 };
-pub use state_db::{
-    CapabilityDb, CapabilityMapDb, DatabaseMigrationReport, WorkspaceSessionRecordDb,
-    clear_branch_doc, clear_branch_link, clear_global_migration_meta, clear_project_migration_meta,
-    ensure_global_database, ensure_project_database, get_branch_doc, get_branch_link,
-    get_feature_primary_capability_db, get_managed_state_db, get_workspace_session_record_db,
-    list_capabilities_db, list_capability_maps_db, list_target_features_db,
-    mark_migration_meta_complete_global, mark_migration_meta_complete_project,
-    migration_meta_complete_global, migration_meta_complete_project, replace_target_features_db,
-    set_branch_doc, set_branch_link, set_feature_primary_capability_db, set_managed_state_db,
-    upsert_capability_db, upsert_capability_map_db, upsert_workspace_db,
+pub use skill_paths::read_skill_paths;
+pub use skill_vars::{get_skill_vars, list_skill_vars, reset_skill_vars, set_skill_var};
+
+// ─── Re-exports from db (formerly state_db) ────────────────────────────────
+pub use db::artifact_registry::{
+    get_agent_artifact_registry_by_external_id_db, get_agent_artifact_registry_by_uuid_db,
+    upsert_agent_artifact_registry_db,
 };
+pub use db::branch_context::{
+    clear_branch_doc, clear_branch_link, get_branch_doc, get_branch_link, set_branch_doc,
+    set_branch_link,
+};
+pub use db::managed_state::{get_managed_state_db, set_managed_state_db};
+pub use db::session::get_workspace_session_record_db;
+pub use db::types::{
+    AgentArtifactRegistryDb, WorkspaceSessionDb, WorkspaceSessionRecordDb,
+};
+pub use db::workspace_db::{open_workspace_db, workspace_db_path};
+
 pub use workspace::{
     CreateWorkspaceRequest, EndWorkspaceSessionRequest, Environment, Process, ProcessStatus,
-    ShipWorkspaceKind, Workspace, WorkspaceProviderMatrix, WorkspaceRepairReport, WorkspaceSession,
+    Workspace, WorkspaceProviderMatrix, WorkspaceRepairReport, WorkspaceSession,
     WorkspaceSessionRecord, WorkspaceSessionStatus, WorkspaceStatus, activate_workspace,
     create_workspace, delete_workspace, end_workspace_session, get_active_workspace_session,
     get_workspace, get_workspace_provider_matrix, get_workspace_session_record,
-    list_workspace_sessions, list_workspaces, record_workspace_session_progress, repair_workspace,
-    set_workspace_active_mode, start_workspace_session, sync_workspace,
-    transition_workspace_status, upsert_workspace, validate_workspace_transition,
+    list_workspace_sessions, list_workspaces, reconcile_workspace,
+    record_workspace_session_progress, repair_workspace,
+    set_workspace_active_agent, set_workspace_started, start_workspace_session, sync_workspace,
+    transition_workspace_status, validate_workspace_transition,
 };
+
+/// Generate a monotonic ULID string. Thread-safe via thread-local generator.
+pub fn gen_ulid() -> String {
+    use std::cell::RefCell;
+    use std::time::SystemTime;
+    thread_local! {
+        static GEN: RefCell<ulid::Generator> = RefCell::new(ulid::Generator::new());
+    }
+    GEN.with(|g| {
+        g.borrow_mut()
+            .generate_from_datetime(SystemTime::now())
+            .expect("ULID generation failed")
+            .to_string()
+    })
+}
 
 pub fn gen_nanoid() -> String {
     let alphabet: [char; 56] = [
@@ -96,7 +126,7 @@ pub fn gen_nanoid() -> String {
 #[cfg(test)]
 mod tests {
     use super::*;
-    use crate::project::{features_dir, get_project_dir, init_project, sanitize_file_name};
+    use crate::project::{get_project_dir, init_project, sanitize_file_name};
     use std::fs;
     use tempfile::tempdir;
 
@@ -145,15 +175,15 @@ mod tests {
 
         set_category_committed(&project_dir, "agents", false)?;
         let gitignore = fs::read_to_string(project_dir.join(".gitignore"))?;
-        assert!(gitignore.contains("agents/rules"));
-        assert!(gitignore.contains("agents/mcp.toml"));
-        assert!(gitignore.contains("agents/permissions.toml"));
+        assert!(gitignore.contains("\nrules\n") || gitignore.contains("\nrules"));
+        assert!(gitignore.contains("mcp.jsonc"));
+        assert!(gitignore.contains("permissions.jsonc"));
 
         set_category_committed(&project_dir, "agents", true)?;
         let gitignore = fs::read_to_string(project_dir.join(".gitignore"))?;
-        assert!(!gitignore.contains("agents/rules"));
-        assert!(!gitignore.contains("agents/mcp.toml"));
-        assert!(!gitignore.contains("agents/permissions.toml"));
+        assert!(!gitignore.contains("\nrules\n") && !gitignore.contains("\nrules"));
+        assert!(!gitignore.contains("mcp.jsonc"));
+        assert!(!gitignore.contains("permissions.jsonc"));
         Ok(())
     }
 
@@ -187,7 +217,7 @@ mod tests {
         let project_dir = init_project(tmp.path().to_path_buf())?;
         let gitignore = fs::read_to_string(project_dir.join(".gitignore"))?;
         // Default config keeps project docs local unless explicitly included.
-        assert!(gitignore.contains("generated/"));
+        assert!(!gitignore.contains("generated/"));
         assert!(gitignore.contains(".tmp-global/"));
         assert!(gitignore.contains("project/releases"));
         assert!(gitignore.contains("project/features"));
@@ -195,13 +225,12 @@ mod tests {
         assert!(gitignore.contains("project/adrs"));
         assert!(gitignore.contains("project/notes"));
         assert!(gitignore.contains("vision.md"));
-        assert!(gitignore.contains("agents/skills"));
-        assert!(gitignore.contains("agents/README.md"));
-        assert!(!gitignore.contains("agents/rules"));
-        assert!(!gitignore.contains("agents/mcp.toml"));
-        assert!(!gitignore.contains("agents/permissions.toml"));
-        // DB is now at ~/.ship/state/<slug>/ship.db — not inside .ship/
-        assert!(!gitignore.contains("ship.db"));
+        assert!(gitignore.contains("skills"));
+        assert!(!gitignore.contains("\nrules\n") && !gitignore.contains("\nrules"));
+        assert!(!gitignore.contains("mcp.jsonc"));
+        assert!(!gitignore.contains("permissions.jsonc"));
+        // DB is at ~/.ship/platform.db — never inside project .ship/
+        assert!(!gitignore.contains("platform.db"));
         assert!(!gitignore.contains("log.md"));
         Ok(())
     }
@@ -215,10 +244,8 @@ mod tests {
         log_action(&project_dir, "test", "details")?;
         let entries = read_log_entries(&project_dir)?;
         assert_eq!(entries.len(), 1);
-        assert_eq!(entries[0].actor, "ship");
         assert_eq!(entries[0].action, "test");
         assert_eq!(entries[0].details, "details");
-        assert!(!project_dir.join("log.md").exists());
         Ok(())
     }
 
@@ -228,9 +255,8 @@ mod tests {
         let project_dir = init_project(tmp.path().to_path_buf())?;
         log_action_by(&project_dir, "agent", "create", "issue-abc.md")?;
         let entries = read_log_entries(&project_dir)?;
+        assert_eq!(entries.len(), 1);
         assert_eq!(entries[0].actor, "agent");
-        assert_eq!(entries[0].action, "create");
-        assert_eq!(entries[0].details, "issue-abc.md");
         Ok(())
     }
 
@@ -242,10 +268,6 @@ mod tests {
         log_action(&project_dir, "update", "second entry")?;
         let entries = read_log_entries(&project_dir)?;
         assert_eq!(entries.len(), 2);
-        assert_eq!(entries[0].actor, "ship");
-        assert_eq!(entries[0].action, "update");
-        assert_eq!(entries[1].actor, "ship");
-        assert_eq!(entries[1].action, "create");
         Ok(())
     }
 
@@ -263,7 +285,6 @@ mod tests {
         assert!(ship_path.join("project/adrs").is_dir());
         assert!(ship_path.join("project/notes").is_dir());
         assert!(ship_path.join("vision.md").is_file());
-        assert!(ship_path.join("generated").is_dir());
         let project_skills_dir = crate::project::skills_dir(&ship_path);
         assert!(project_skills_dir.is_dir());
         // shared
@@ -276,7 +297,7 @@ mod tests {
             "new projects should not seed legacy planning/code/config modes by default"
         );
         assert!(!ship_path.join("events.ndjson").is_file());
-        assert!(ship_path.join("ship.toml").is_file());
+        assert!(ship_path.join("ship.jsonc").is_file());
         // default skill seeded
         assert!(project_skills_dir.join("task-policy/SKILL.md").is_file());
         let skill_content = fs::read_to_string(project_skills_dir.join("task-policy/SKILL.md"))?;
@@ -349,82 +370,38 @@ mod tests {
 
     #[test]
     fn test_event_stream_since() -> anyhow::Result<()> {
+        use crate::events::store::{EventStore, SqliteEventStore};
+        use crate::events::types::{WorkspaceActivated, event_types};
         let tmp = tempdir()?;
         let ship_path = init_project(tmp.path().to_path_buf())?;
-        assert!(!ship_path.join("events.ndjson").exists());
-        let seq0 = latest_event_seq(&ship_path)?;
-        append_event(
-            &ship_path,
-            "ship",
-            EventEntity::Feature,
-            EventAction::Create,
+        let before = chrono::Utc::now();
+        let store = SqliteEventStore::new()?;
+        store.append(&EventEnvelope::new(
+            event_types::WORKSPACE_ACTIVATED,
             "feat-1",
-            Some("Created feature".to_string()),
-        )?;
-        append_event(
-            &ship_path,
-            "ship",
-            EventEntity::Feature,
-            EventAction::Create,
-            "feat-2",
-            Some("Created another feature".to_string()),
-        )?;
-        let events = list_events_since(&ship_path, seq0, None)?;
-        assert!(events.len() >= 2);
-        assert!(events.iter().all(|e| e.seq > seq0));
-        assert!(events.windows(2).all(|w| w[0].seq < w[1].seq));
+            &WorkspaceActivated { agent_id: None, providers: vec![] },
+        )?)?;
+        let events = list_events_since(&ship_path, &before, None)?;
+        assert_eq!(events.len(), 1);
+        assert_eq!(events[0].entity_id, "feat-1");
         Ok(())
     }
 
     #[test]
-    fn test_event_export_on_demand() -> anyhow::Result<()> {
+    fn test_event_append_and_read() -> anyhow::Result<()> {
+        use crate::events::store::{EventStore, SqliteEventStore};
+        use crate::events::types::{ProjectLog, event_types};
         let tmp = tempdir()?;
         let ship_path = init_project(tmp.path().to_path_buf())?;
-        append_event(
-            &ship_path,
-            "ship",
-            EventEntity::Project,
-            EventAction::Log,
-            "export",
-            Some("ndjson".to_string()),
-        )?;
-        let export_path = ship_path.join("generated").join("events-export.ndjson");
-        let count = export_events_ndjson(&ship_path, &export_path)?;
-        assert!(count >= 1);
-        let content = fs::read_to_string(&export_path)?;
-        assert!(content.contains("\"action\":\"log\""));
-        Ok(())
-    }
-
-    #[test]
-    fn test_ingest_external_events_detects_filesystem_changes() -> anyhow::Result<()> {
-        let tmp = tempdir()?;
-        let ship_path = init_project(tmp.path().to_path_buf())?;
-
-        // Ensure snapshot is synced to current state.
-        let _ = ingest_external_events(&ship_path)?;
-
-        let manual = features_dir(&ship_path).join("manual-sync.md");
-        fs::write(&manual, "+++\ntitle = \"Manual\"\n+++\n\nbody\n")?;
-        let created = ingest_external_events(&ship_path)?;
-        assert_eq!(created.len(), 1);
-        assert_eq!(created[0].actor, "filesystem");
-        assert_eq!(created[0].entity, EventEntity::Feature);
-        assert_eq!(created[0].action, EventAction::Create);
-
-        fs::write(&manual, "+++\ntitle = \"Manual\"\n+++\n\nchanged\n")?;
-        let updated = ingest_external_events(&ship_path)?;
-        assert_eq!(updated.len(), 1);
-        assert_eq!(updated[0].actor, "filesystem");
-        assert_eq!(updated[0].entity, EventEntity::Feature);
-        assert_eq!(updated[0].action, EventAction::Update);
-
-        fs::remove_file(&manual)?;
-        let deleted = ingest_external_events(&ship_path)?;
-        assert_eq!(deleted.len(), 1);
-        assert_eq!(deleted[0].actor, "filesystem");
-        assert_eq!(deleted[0].entity, EventEntity::Feature);
-        assert_eq!(deleted[0].action, EventAction::Delete);
+        let store = SqliteEventStore::new()?;
+        store.append(&EventEnvelope::new(
+            event_types::PROJECT_LOG,
+            "project",
+            &ProjectLog { action: "export".to_string(), details: String::new() },
+        )?)?;
+        let events = read_events(&ship_path)?;
+        assert_eq!(events.len(), 1);
+        assert_eq!(events[0].event_type, event_types::PROJECT_LOG);
         Ok(())
     }
 

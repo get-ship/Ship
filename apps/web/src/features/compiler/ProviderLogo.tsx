@@ -8,6 +8,7 @@ const PROVIDER_COLOR: Record<string, string> = {
   gemini: 'bg-blue-500/15 text-blue-700 dark:text-blue-400',
   codex: 'bg-emerald-500/15 text-emerald-700 dark:text-emerald-400',
   cursor: 'bg-violet-500/15 text-violet-700 dark:text-violet-400',
+  opencode: 'bg-cyan-500/15 text-cyan-700 dark:text-cyan-400',
 }
 
 const PROVIDER_SHORT: Record<string, string> = {
@@ -15,6 +16,7 @@ const PROVIDER_SHORT: Record<string, string> = {
   gemini: 'Gemini',
   codex: 'Codex',
   cursor: 'Cursor',
+  opencode: 'OpenCode',
 }
 
 interface Props {
@@ -43,12 +45,20 @@ export function ProviderLogo({ provider, size = 'sm', className = '' }: Props) {
   if (provider === 'gemini') {
     return <img src="/provider-logos/googlegemini.svg" alt="Gemini" className={`${cls} object-contain ${className}`} />
   }
+  if (provider === 'opencode') {
+    return (
+      <>
+        <img src="/provider-logos/opencode-logo-light.svg" alt="OpenCode" className={`${cls} object-contain dark:hidden ${className}`} />
+        <img src="/provider-logos/opencode-logo-dark.svg" alt="OpenCode" className={`${cls} object-contain hidden dark:block ${className}`} />
+      </>
+    )
+  }
 
   // Fallback: colored initial badge
   const color = PROVIDER_COLOR[provider] ?? 'bg-muted text-muted-foreground'
   const short = PROVIDER_SHORT[provider] ?? provider
   return (
-    <span className={`inline-flex items-center justify-center rounded text-[9px] font-bold px-1 ${color} ${className}`}>
+    <span className={`inline-flex items-center justify-center rounded text-[11px] font-bold px-1 ${color} ${className}`}>
       {short.slice(0, 2).toUpperCase()}
     </span>
   )

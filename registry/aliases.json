@@ -1,0 +1,8 @@
+{
+  "$comment": "Ship registry namespaces. Maps @scope prefixes to canonical repo paths. @scope/skill-id resolves to the repo + skill. PRs welcome.",
+  "namespaces": {
+    "@ship": "github.com/madvib/ship",
+    "@better-auth": "github.com/better-auth/skills",
+    "@gstack": "github.com/garrytan/gstack"
+  }
+}

@@ -1,0 +1,140 @@
+[
+  {
+    "_note": "Ship MCP is the agent sidecar — resources for context, commands that fire events. Runtime handles lifecycle (session start/end, workspace activation, mesh registration) automatically on connect/disconnect. Agents observe and act, they don't manage."
+  },
+  {
+    "id": "resource-project-info",
+    "status": "rc",
+    "notes": "ship://project_info — project metadata, active agent, compilation status. Functional."
+  },
+  {
+    "id": "resource-workspaces",
+    "status": "rc",
+    "notes": "ship://workspaces, ship://workspaces/{branch}, ship://workspaces/{branch}/session, ship://workspaces/{branch}/provider-matrix. All read from runtime projections."
+  },
+  {
+    "id": "resource-sessions",
+    "status": "rc",
+    "notes": "ship://sessions, ship://sessions/{workspace}. Lists session history. Reads from session projection."
+  },
+  {
+    "id": "resource-skills",
+    "status": "stable",
+    "notes": "ship://skills, ship://skills/{id}. Lists effective skills and reads full skill content. Should include vars in response."
+  },
+  {
+    "id": "resource-events",
+    "status": "rc",
+    "notes": "ship://events, ship://events/{limit}. Recent events from event store. Depends on RT-01 event discipline."
+  },
+  {
+    "id": "resource-jobs",
+    "status": "aspirational",
+    "notes": "ship://jobs, ship://jobs/{id} not yet implemented as resources. Currently only available via MCP tools."
+  },
+  {
+    "id": "resource-mesh",
+    "status": "aspirational",
+    "notes": "ship://mesh not yet implemented as resource. Mesh discovery currently via tool only."
+  },
+  {
+    "id": "resource-session-files",
+    "status": "rc",
+    "notes": "ship://session/{path}. Reads .ship-session/ files. Template-based resource. Functional."
+  },
+  {
+    "id": "resource-specs-adrs",
+    "status": "stable",
+    "notes": "ship://specs, ship://specs/{id}, ship://adrs, ship://adrs/{id}. Read from filesystem and DB respectively."
+  },
+  {
+    "id": "resource-modes-providers",
+    "status": "rc",
+    "notes": "ship://modes, ship://providers, ship://providers/{id}/models. Config reads. Functional."
+  },
+  {
+    "id": "cmd-log-progress",
+    "status": "rc",
+    "notes": "Emits session.progress event. Core command — agent signals progress or escalates blockers. Needs escalation field for human alerting."
+  },
+  {
+    "id": "cmd-create-job",
+    "status": "rc",
+    "notes": "Emits job.created event. Gated — lead/commander agents only. Event-sourced, runtime handles dispatch."
+  },
+  {
+    "id": "cmd-update-job",
+    "status": "rc",
+    "notes": "Emits job.{status} event. Agents update their own job status. Event-sourced."
+  },
+  {
+    "id": "cmd-write-session-file",
+    "status": "rc",
+    "notes": "Writes to .ship-session/ and fires resource notification for Studio. Thin wrapper but notification is the value."
+  },
+  {
+    "id": "auto-session-lifecycle",
+    "status": "rc",
+    "notes": "Session auto-starts on MCP connect, drains on disconnect, resumes within grace window. Runtime-managed, not agent-commanded. Works but drain/resume needs hardening (RT-10)."
+  },
+  {
+    "id": "auto-workspace-detection",
+    "status": "rc",
+    "notes": "Workspace detected from git branch on connect. Reconciliation runs before session start. Runtime-managed."
+  },
+  {
+    "id": "auto-mesh-registration",
+    "status": "rc",
+    "notes": "Agent auto-registers on mesh at connect with capabilities derived from skills. Runtime-managed."
+  },
+  {
+    "id": "auto-actor-spawn",
+    "status": "rc",
+    "notes": "KernelRouter actor spawned on connect with namespace subscriptions. Runtime-managed."
+  },
+  {
+    "id": "tool-gating",
+    "status": "rc",
+    "notes": "active_tools on agent config controls tool visibility. Empty = all. Works — commander sees 19/33 tools currently. Needs role-based defaults."
+  },
+  {
+    "id": "push-notifications",
+    "status": "rc",
+    "notes": "EventRelay pushes platform events to connected agent via provider-specific adapter (Claude notifications, Codex stdin). Works for Claude and Codex."
+  },
+  {
+    "id": "cmd-complete-workspace",
+    "status": "partial",
+    "notes": "Emits workspace.completed, writes handoff.md. Questionable as agent command — workspace completion may be better as runtime-detected (all jobs done, branch merged). Needs design clarity."
+  },
+  {
+    "id": "debug-mesh-send",
+    "status": "partial",
+    "notes": "Direct agent-to-agent messaging. Development/debugging tool only, not public API. Needs gating."
+  },
+  {
+    "id": "debug-mesh-broadcast",
+    "status": "partial",
+    "notes": "Broadcast to all agents. Development/debugging only, not public API. Dangerous in production."
+  },
+  {
+    "id": "legacy-imperative-tools",
+    "status": "partial",
+    "notes": "start_session, end_session, activate_workspace, open_project, set_agent, list_*, get_* tools still exist but are superseded by auto-lifecycle and resources. Removal blocked on migration."
+  },
+  {
+    "id": "legacy-skill-var-tools",
+    "status": "partial",
+    "notes": "get_skill_vars, set_skill_var, list_skill_vars — 3 tools for skill vars is excessive. Reads should be resources. One set tool may survive."
+  },
+  {
+    "id": "legacy-event-tool",
+    "status": "partial",
+    "notes": "Generic event() tool with arbitrary payload. Reserved namespaces blocked but custom events have no consumers. Needs apps model to justify. Gate behind unstable."
+  },
+  {
+    "id": "legacy-dispatch-tools",
+    "status": "partial",
+    "notes": "dispatch_agent, list_agents, stop_agent, steer_agent — unstable. Dispatch should become create_job. Direct process control is supervisor territory."
+  }
+]

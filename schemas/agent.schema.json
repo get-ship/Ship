@@ -1,0 +1,220 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://raw.githubusercontent.com/madvib/ship/main/schemas/agent.schema.json",
+  "title": "Ship Agent Configuration",
+  "description": "Schema for .ship/agents/<id>.jsonc — an agent definition that controls identity, skills, MCP servers, plugins, permissions, hooks, rules, and provider settings.",
+  "type": "object",
+  "required": ["agent"],
+  "properties": {
+    "$schema": {
+      "type": "string",
+      "description": "JSON Schema reference for editor autocompletion."
+    },
+    "schema_version": {
+      "type": "string",
+      "const": "1",
+      "description": "Schema version. Currently '1'. Used for forward-compatible migrations."
+    },
+    "agent": {
+      "type": "object",
+      "description": "Agent identity and metadata.",
+      "required": ["name", "id"],
+      "properties": {
+        "name": {
+          "type": "string",
+          "description": "Human-readable agent name."
+        },
+        "id": {
+          "type": "string",
+          "description": "Machine identifier. Must match the filename stem (e.g. rust-compiler.jsonc has id rust-compiler).",
+          "pattern": "^[a-z0-9-]+$"
+        },
+        "version": {
+          "type": "string",
+          "description": "Agent version (semver).",
+          "default": "0.1.0"
+        },
+        "description": {
+          "type": "string",
+          "description": "What this agent does — shown in `ship agents` and editor UI."
+        },
+        "tags": {
+          "type": "array",
+          "items": { "type": "string" },
+          "description": "Searchable tags for registry discovery (e.g. workflow, review, testing, frontend)."
+        },
+        "icon": {
+          "type": "string",
+          "description": "Display icon — emoji or icon name (e.g. '\ud83e\uddea', 'test-tube')."
+        },
+        "providers": {
+          "type": "array",
+          "items": {
+            "type": "string",
+            "enum": ["claude", "cursor", "codex", "gemini", "opencode"]
+          },
+          "description": "Provider targets for this agent. Overrides the project-level providers list."
+        }
+      },
+      "additionalProperties": false
+    },
+    "model": {
+      "type": "string",
+      "description": "Model override for this agent. Compiled to the provider's model field (e.g. model in .claude/settings.json, model.name in .gemini/settings.json, model in .codex/config.toml)."
+    },
+    "skills": {
+      "type": "object",
+      "description": "Skill activation for this agent.",
+      "properties": {
+        "refs": {
+          "type": "array",
+          "items": { "type": "string" },
+          "description": "Skill IDs to activate. Supports local IDs (e.g. tdd) and namespaced IDs (e.g. github.com/owner/repo/skill-name)."
+        }
+      },
+      "additionalProperties": false
+    },
+    "mcp": {
+      "type": "object",
+      "description": "MCP server activation for this agent.",
+      "properties": {
+        "servers": {
+          "type": "array",
+          "items": { "type": "string" },
+          "description": "MCP server IDs to activate from .ship/mcp.jsonc."
+        }
+      },
+      "additionalProperties": false
+    },
+    "plugins": {
+      "type": "object",
+      "description": "Plugin installation intent. The compiler emits a manifest; the CLI executes the installs.",
+      "properties": {
+        "install": {
+          "type": "array",
+          "items": { "type": "string" },
+          "description": "Plugin IDs to install, e.g. superpowers@claude-plugins-official."
+        },
+        "scope": {
+          "type": "string",
+          "enum": ["project", "user"],
+          "default": "project",
+          "description": "Installation scope. project installs locally, user installs globally."
+        }
+      },
+      "additionalProperties": false
+    },
+    "permissions": {
+      "type": "object",
+      "description": "Permission overrides. Merged on top of the named preset from permissions.jsonc.",
+      "properties": {
+        "preset": {
+          "type": "string",
+          "description": "Named permission preset — must match a key in .ship/permissions.jsonc. Defines the base permission tier."
+        },
+        "tools_allow": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/ToolPattern" },
+          "description": "Tool patterns to allow. Merged on top of the preset's allow list."
+        },
+        "tools_deny": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/ToolPattern" },
+          "description": "Tool patterns to deny. Merged on top of the preset's deny list."
+        },
+        "tools_ask": {
+          "type": "array",
+          "items": { "$ref": "#/$defs/ToolPattern" },
+          "description": "Tool patterns requiring user confirmation. Merged on top of the preset's ask list."
+        }
+      },
+      "additionalProperties": false
+    },
+    "rules": {
+      "type": "object",
+      "description": "Inline rules appended to the context file after .ship/rules/*.md files.",
+      "properties": {
+        "inline": {
+          "type": "string",
+          "description": "Inline always-on rules. Use \\n for line breaks."
+        }
+      },
+      "additionalProperties": false
+    },
+    "provider_settings": {
+      "type": "object",
+      "description": "Per-agent provider-specific overrides. Merged on top of project-level provider_defaults from ship.jsonc (agent wins on conflict, deep merge). Keys are provider names. Values validated against upstream provider schemas, with Ship-managed keys excluded (use Ship's own fields for model, permissions, env, hooks, etc.).",
+      "properties": {
+        "claude": {
+          "allOf": [
+            { "$ref": "https://www.schemastore.org/claude-code-settings.json" },
+            {
+              "properties": {
+                "permissions": false,
+                "hooks": false,
+                "model": false,
+                "env": false,
+                "availableModels": false,
+                "maxCostPerSession": false,
+                "maxTurns": false,
+                "autoMemoryEnabled": false
+              }
+            }
+          ],
+          "description": "Claude Code settings pass-through. Ship-managed keys (permissions, hooks, model, env, availableModels, maxCostPerSession, maxTurns, autoMemoryEnabled) must be set via Ship's own fields."
+        },
+        "codex": {
+          "allOf": [
+            { "$ref": "https://raw.githubusercontent.com/openai/codex/main/codex-rs/core/config.schema.json" },
+            {
+              "properties": {
+                "model": false,
+                "mcp_servers": false
+              }
+            }
+          ],
+          "description": "Codex CLI config pass-through. Ship-managed keys (model, mcp_servers) must be set via Ship's own fields."
+        },
+        "gemini": {
+          "allOf": [
+            { "$ref": "https://raw.githubusercontent.com/google-gemini/gemini-cli/main/schemas/settings.schema.json" },
+            {
+              "properties": {
+                "model": false,
+                "hooks": false,
+                "mcpServers": false
+              }
+            }
+          ],
+          "description": "Gemini CLI settings pass-through. Ship-managed keys (model, hooks, mcpServers) must be set via Ship's own fields."
+        },
+        "cursor": {
+          "type": "object",
+          "description": "Cursor settings. No upstream schema published.",
+          "additionalProperties": true
+        },
+        "opencode": {
+          "allOf": [
+            { "$ref": "https://opencode.ai/config.json" },
+            {
+              "properties": {
+                "model": false,
+                "mcp": false,
+                "permission": false
+              }
+            }
+          ],
+          "description": "OpenCode config pass-through. Ship-managed keys (model, mcp, permission) must be set via Ship's own fields."
+        }
+      },
+      "additionalProperties": false
+    }
+  },
+  "additionalProperties": false,
+  "$defs": {
+    "ToolPattern": {
+      "type": "string",
+      "description": "A tool permission pattern. Syntax: bare tool name (Read, Write, Edit, Glob, Grep), parameterized tool (Bash(git *), Bash(rm -rf *)), MCP tool (mcp__<server>__<tool>, e.g. mcp__ship__create_job), or glob (mcp__*__delete*, Bash(*))."
+    }
+  }
+}

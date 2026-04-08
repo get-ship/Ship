@@ -1,11 +1,8 @@
 [package]
 name = "mcp"
-version = "0.1.0"
+version = "0.2.0"
 edition = "2024"
-
-[[bin]]
-name = "ship-mcp"
-path = "src/main.rs"
+publish = false
 
 [lib]
 name = "mcp"
@@ -13,15 +10,30 @@ path = "src/lib.rs"
 
 [dependencies]
 tokio = { version = "1.0", features = ["full"] }
-rmcp = { version = "0.16.0", features = ["server", "transport-io"] }
+rmcp = { version = "0.16.0", features = ["server", "transport-io", "transport-streamable-http-server"] }
 serde = { version = "1.0", features = ["derive"] }
 serde_json = "1.0"
 mcp-framework = { path = "../../crates/core/mcp-framework" }
 async-trait = "0.1"
+compiler = { path = "../../crates/core/compiler" }
 runtime = { path = "../../crates/core/runtime" }
-ship-module-project = { path = "../../crates/modules/project" }
 anyhow = "1.0"
+base64 = "0.22"
 chrono = "0.4"
+axum = { version = "0.8", features = ["http1", "tokio"] }
+toml = "0.8"
+tokio-util = { version = "0.7", features = ["full"] }
+tracing = "0.1"
+tracing-subscriber = { version = "0.3", features = ["env-filter"] }
+tracing-appender = "0.2"
+dirs = "5"
+reqwest = { version = "0.12", default-features = false, features = ["json", "rustls-tls", "stream"] }
+futures-util = "0.3"
+
+[features]
+unstable = ["runtime/unstable"]
 
 [dev-dependencies]
 tempfile = "3.13"
+reqwest = { version = "0.12", default-features = false, features = ["json", "rustls-tls"] }
+rmcp = { version = "0.16.0", features = ["server", "client", "transport-io"] }
