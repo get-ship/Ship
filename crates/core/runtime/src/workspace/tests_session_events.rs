@@ -343,6 +343,226 @@ mod tests {
         Ok(())
     }
 
+    // ── test 8: blocker escalation sets elevated=true and payload.escalation ────
+
+    #[test]
+    fn escalated_progress_blocker_sets_elevated_and_payload() -> Result<()> {
+        let (_tmp, ship_dir) = setup();
+
+        create_workspace(
+            &ship_dir,
+            CreateWorkspaceRequest {
+                branch: "feature/se-escalate-blocker".to_string(),
+                status: Some(WorkspaceStatus::Active),
+                ..Default::default()
+            },
+        )?;
+
+        let session = start_workspace_session(
+            &ship_dir,
+            "feature/se-escalate-blocker",
+            None,
+            None,
+            None,
+        )?;
+
+        record_workspace_session_progress(
+            &ship_dir,
+            "feature/se-escalate-blocker",
+            "blocked on missing API key",
+            Some("blocker"),
+        )?;
+
+        let store = event_store();
+        let events = store.query(&EventFilter {
+            entity_id: Some(session.id.clone()),
+            event_type: Some(event_types::SESSION_PROGRESS.to_string()),
+            ..Default::default()
+        })?;
+
+        assert_eq!(events.len(), 1, "expected one progress event");
+        let ev = &events[0];
+        assert!(ev.elevated, "escalated progress must be elevated");
+
+        let payload: crate::events::types::SessionProgress =
+            serde_json::from_str(&ev.payload_json)?;
+        assert_eq!(payload.message, "blocked on missing API key");
+        assert_eq!(
+            payload.escalation.as_deref(),
+            Some("blocker"),
+            "payload must carry escalation level"
+        );
+        Ok(())
+    }
+
+    // ── test 9: warning escalation sets elevated=true ─────────────────────────
+
+    #[test]
+    fn escalated_progress_warning_is_elevated() -> Result<()> {
+        let (_tmp, ship_dir) = setup();
+
+        create_workspace(
+            &ship_dir,
+            CreateWorkspaceRequest {
+                branch: "feature/se-escalate-warning".to_string(),
+                status: Some(WorkspaceStatus::Active),
+                ..Default::default()
+            },
+        )?;
+
+        let session = start_workspace_session(
+            &ship_dir,
+            "feature/se-escalate-warning",
+            None,
+            None,
+            None,
+        )?;
+
+        record_workspace_session_progress(
+            &ship_dir,
+            "feature/se-escalate-warning",
+            "dependency version mismatch",
+            Some("warning"),
+        )?;
+
+        let store = event_store();
+        let events = store.query(&EventFilter {
+            entity_id: Some(session.id.clone()),
+            event_type: Some(event_types::SESSION_PROGRESS.to_string()),
+            ..Default::default()
+        })?;
+
+        assert_eq!(events.len(), 1);
+        let ev = &events[0];
+        assert!(ev.elevated, "warning-escalated progress must be elevated");
+
+        let payload: crate::events::types::SessionProgress =
+            serde_json::from_str(&ev.payload_json)?;
+        assert_eq!(
+            payload.escalation.as_deref(),
+            Some("warning"),
+        );
+        Ok(())
+    }
+
+    // ── test 10: question escalation sets elevated=true ───────────────────────
+
+    #[test]
+    fn escalated_progress_question_is_elevated() -> Result<()> {
+        let (_tmp, ship_dir) = setup();
+
+        create_workspace(
+            &ship_dir,
+            CreateWorkspaceRequest {
+                branch: "feature/se-escalate-question".to_string(),
+                status: Some(WorkspaceStatus::Active),
+                ..Default::default()
+            },
+        )?;
+
+        let session = start_workspace_session(
+            &ship_dir,
+            "feature/se-escalate-question",
+            None,
+            None,
+            None,
+        )?;
+
+        record_workspace_session_progress(
+            &ship_dir,
+            "feature/se-escalate-question",
+            "should we use gRPC or REST?",
+            Some("question"),
+        )?;
+
+        let store = event_store();
+        let events = store.query(&EventFilter {
+            entity_id: Some(session.id.clone()),
+            event_type: Some(event_types::SESSION_PROGRESS.to_string()),
+            ..Default::default()
+        })?;
+
+        assert_eq!(events.len(), 1);
+        let ev = &events[0];
+        assert!(ev.elevated, "question-escalated progress must be elevated");
+
+        let payload: crate::events::types::SessionProgress =
+            serde_json::from_str(&ev.payload_json)?;
+        assert_eq!(
+            payload.escalation.as_deref(),
+            Some("question"),
+        );
+        Ok(())
+    }
+
+    // ── test 11: non-escalated progress remains not elevated ──────────────────
+
+    #[test]
+    fn non_escalated_progress_stays_not_elevated() -> Result<()> {
+        let (_tmp, ship_dir) = setup();
+
+        create_workspace(
+            &ship_dir,
+            CreateWorkspaceRequest {
+                branch: "feature/se-no-escalation".to_string(),
+                status: Some(WorkspaceStatus::Active),
+                ..Default::default()
+            },
+        )?;
+
+        let session = start_workspace_session(
+            &ship_dir,
+            "feature/se-no-escalation",
+            None,
+            None,
+            None,
+        )?;
+
+        record_workspace_session_progress(
+            &ship_dir,
+            "feature/se-no-escalation",
+            "routine update",
+            None,
+        )?;
+
+        let store = event_store();
+        let events = store.query(&EventFilter {
+            entity_id: Some(session.id.clone()),
+            event_type: Some(event_types::SESSION_PROGRESS.to_string()),
+            ..Default::default()
+        })?;
+
+        assert_eq!(events.len(), 1);
+        let ev = &events[0];
+        assert!(!ev.elevated, "non-escalated progress must NOT be elevated");
+
+        let payload: crate::events::types::SessionProgress =
+            serde_json::from_str(&ev.payload_json)?;
+        assert!(
+            payload.escalation.is_none(),
+            "non-escalated progress must have no escalation field"
+        );
+        Ok(())
+    }
+
+    // ── test 12: escalation field absent in payload when None ──────────────────
+
+    #[test]
+    fn session_progress_payload_omits_escalation_when_none() -> Result<()> {
+        let payload = crate::events::types::SessionProgress {
+            message: "just a note".to_string(),
+            escalation: None,
+        };
+        let json = serde_json::to_string(&payload)?;
+        let parsed: serde_json::Value = serde_json::from_str(&json)?;
+        assert!(
+            parsed.get("escalation").is_none()
+                || parsed["escalation"].is_null(),
+            "escalation must be absent or null when None"
+        );
+        Ok(())
+    }
+
     // ── test 7: atomicity — if event insert fails, session row rolls back ──────
 
     #[test]

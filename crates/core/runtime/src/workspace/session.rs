@@ -234,9 +234,9 @@ pub fn record_workspace_session_progress(
 
     let progress_payload = SessionProgress {
         message: normalized_note.to_string(),
-        escalation: escalation.map(|s| s.to_string()),
+        escalation: escalation.map(String::from),
     };
-    insert_session_progress_event(&active.id, &workspace.id, &progress_payload)?;
+    insert_session_progress_event(&active.id, &workspace.id, &progress_payload, escalation.is_some())?;
 
     if let Err(error) = append_session_note_artifact(ship_dir, &active.id, normalized_note) {
         eprintln!("Failed to persist session note artifact: {}", error);

@@ -1,7 +1,7 @@
 use clap::{Parser, Subcommand};
 use std::path::PathBuf;
 
-pub use crate::commands::{AgentCommands, HookCommands, McpCommands, NetworkCommands, SkillCommands, VarsCommands};
+pub use crate::commands::{HookCommands, McpCommands, NetworkCommands};
 #[cfg(feature = "unstable")]
 pub use crate::commands::EventsCommands;
 
@@ -18,8 +18,6 @@ const AFTER_HELP: &str = "\x1b[1mDaily Workflow:\x1b[0m
   ship publish           Share your package on the registry
 
 \x1b[1mConfiguration:\x1b[0m
-  ship agents create <n> Create an agent definition
-  ship skills add <src>  Install a skill
   ship mcp add-stdio ... Register an MCP server
   ship config set k v    Set a user preference
   ship convert <source>  Convert provider configs to .ship/
@@ -119,25 +117,23 @@ pub enum Commands {
         path: Option<PathBuf>,
     },
 
-    // ── Agent Configuration ──────────────────────────────────────────────────
-    /// Manage agents (create, list, edit, delete, clone)
-    #[command(name = "agents")]
+    // ── Removed (helpful deprecation messages) ────────────────────────────────
+    #[command(name = "agents", hide = true)]
     Agents {
-        #[command(subcommand)]
-        action: AgentCommands,
+        #[arg(trailing_var_arg = true, allow_hyphen_values = true, num_args = 0..)]
+        _args: Vec<String>,
     },
 
-    /// Manage agent skills (add, list, remove, create)
-    #[command(name = "skills")]
-    Skill {
-        #[command(subcommand)]
-        action: SkillCommands,
+    #[command(name = "skills", hide = true)]
+    Skills {
+        #[arg(trailing_var_arg = true, allow_hyphen_values = true, num_args = 0..)]
+        _args: Vec<String>,
     },
 
-    /// Read and write skill variable state (set, get, edit, append, reset)
+    #[command(name = "vars", hide = true)]
     Vars {
-        #[command(subcommand)]
-        action: VarsCommands,
+        #[arg(trailing_var_arg = true, allow_hyphen_values = true, num_args = 0..)]
+        _args: Vec<String>,
     },
 
     /// Manage MCP servers (serve, add, list, remove)
@@ -220,13 +216,14 @@ pub enum Commands {
         action: HookCommands,
     },
 
-    /// Manage the Ship network daemon for cross-agent communication
+    /// Deprecated: use `ship daemon` instead
+    #[command(hide = true)]
     Network {
         #[command(subcommand)]
         action: NetworkCommands,
     },
 
-    /// Launch Ship Studio -- visual IDE for skills and agents
+    /// Launch Ship Studio -- visual IDE for agent configuration
     Studio {
         /// HTTP port for the Studio MCP server
         #[arg(long, default_value_t = 51741)]
@@ -267,6 +264,8 @@ pub enum DaemonCommands {
     Stop,
     /// Show daemon status
     Status,
+    /// Remove orphaned worktrees for merged and failed jobs
+    Cleanup,
 }
 
 #[derive(Subcommand, Debug)]

@@ -4,7 +4,7 @@
 //! and return the result. State is read back via the projection in `load_jobs`.
 
 use runtime::events::job::{
-    JobBlockedPayload, JobCompletedPayload, JobCreatedPayload, JobDispatchedPayload,
+    JobBlockedPayload, JobCompletedPayload, JobDispatchedPayload,
     JobFailedPayload, JobGateFailedPayload, JobGatePassedPayload, JobGateRequestedPayload,
     JobMergedPayload, event_types,
 };
@@ -13,44 +13,22 @@ use runtime::projections::job::{JobStatus, load_jobs};
 
 use crate::requests::{CreateJobRequest, GetJobRequest, ListJobsRequest, UpdateJobRequest};
 
-/// Emit `job.created` and return the new job_id as a JSON string.
+/// Create a job by delegating to the daemon's REST API.
 ///
-/// Persists to the event store AND routes through the daemon's KernelRouter
-/// via HTTP so daemon subscribers (job-dispatch, workspace-sync) see the event.
+/// The daemon handles pipeline enrichment (reading .ship/pipelines/),
+/// event persistence, kernel routing, and dispatch — one code path.
 pub async fn create_job(req: CreateJobRequest) -> String {
-    let job_id = runtime::gen_ulid();
-    let payload = JobCreatedPayload {
-        job_id: job_id.clone(),
-        slug: req.slug,
-        agent: req.agent,
-        branch: req.branch,
-        spec_path: req.spec_path,
-        plan_id: req.plan_id,
-        model: req.model,
-        provider: req.provider,
-        depends_on: req.depends_on,
-        pipeline: None,
-        steps: None,
-        pipeline_name: req.pipeline,
-    };
-    let envelope = match EventEnvelope::new(event_types::JOB_CREATED, &job_id, &payload) {
-        Ok(e) => e,
-        Err(e) => return format!("Error building event: {e}"),
-    };
-    let store = match SqliteEventStore::new() {
-        Ok(s) => s,
-        Err(e) => return format!("Error opening event store: {e}"),
-    };
-    if let Err(e) = store.append(&envelope) {
-        return format!("Error persisting job.created: {e}");
+    let body = serde_json::json!({
+        "slug": req.slug,
+        "agent": req.agent,
+        "branch": req.branch,
+        "spec_path": req.spec_path,
+        "depends_on": req.depends_on,
+    });
+    match crate::network_client::create_job_via_daemon(body).await {
+        Ok(resp) => resp,
+        Err(e) => format!("Error creating job: {e}"),
     }
-
-    // Route via daemon's kernel for subscriber delivery (job-dispatch, workspace-sync).
-    if let Err(e) = crate::network_client::event_route(&envelope, None, None).await {
-        tracing::warn!("job.created daemon routing failed: {e}");
-    }
-
-    serde_json::json!({"job_id": job_id}).to_string()
 }
 
 /// Emit the appropriate event for the requested status transition.
@@ -73,6 +51,7 @@ pub async fn update_job(req: UpdateJobRequest) -> String {
                     job_id: req.job_id.clone(),
                     worktree,
                     pid: req.pid,
+                    provider_meta: None,
                 },
             )
         }
@@ -174,13 +153,24 @@ pub async fn update_job(req: UpdateJobRequest) -> String {
         Ok(e) => e,
         Err(e) => return format!("Error building event: {e}"),
     };
-    if let Err(e) = store.append(&envelope) {
-        return format!("Error persisting event: {e}");
-    }
 
-    // Route via daemon's kernel for subscriber delivery (job-dispatch, unblock deps).
-    if let Err(e) = crate::network_client::event_route(&envelope, None, None).await {
-        tracing::warn!("job.{} daemon routing failed: {e}", req.status);
+    // Route through daemon first — this is the authoritative path that triggers
+    // pipeline advancement, job dispatch, and subscriber delivery. The daemon
+    // persists to its own event store.
+    let daemon_ok = match crate::network_client::event_route(&envelope, None, None).await {
+        Ok(_) => true,
+        Err(e) => {
+            tracing::warn!("job.{} daemon routing failed, falling back to local persist: {e}", req.status);
+            false
+        }
+    };
+
+    // Local persist as fallback — ensures the event is recorded even if daemon is down.
+    // On daemon restart, reconciliation replays from the local store.
+    if !daemon_ok {
+        if let Err(e) = store.append(&envelope) {
+            return format!("Error persisting event: {e}");
+        }
     }
 
     format!("Job {} updated to status '{}'", req.job_id, req.status)

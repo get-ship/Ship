@@ -266,7 +266,7 @@ pub async fn create_job(
 
     // Enrich with pipeline BEFORE persisting — the persisted event must include steps
     // so projections can track pipeline state.
-    let payload = crate::supervisor::dispatch_pipeline::ensure_pipeline(payload);
+    let payload = crate::supervisor::pipeline_loader::ensure_pipeline(payload);
 
     let envelope = match EventEnvelope::new(event_types::JOB_CREATED, &job_id, &payload)
         .map(|e| e.with_actor_id("studio"))

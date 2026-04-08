@@ -79,7 +79,7 @@ pub struct LogProgressRequest {
     pub note: String,
     /// Workspace branch/id. If omitted, resolves from current git branch.
     pub branch: Option<String>,
-    /// Escalation level to alert the human. Values: "blocker", "warning", "question".
+    /// Escalation level: "blocker", "warning", or "question". Sets elevated flag.
     pub escalation: Option<String>,
 }
 

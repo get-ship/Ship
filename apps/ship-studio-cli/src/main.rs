@@ -1,7 +1,6 @@
 mod add;
 mod add_from;
 mod add_from_write;
-mod agent;
 mod agent_config;
 mod audit;
 mod auth;
@@ -24,16 +23,14 @@ mod loader;
 mod logging;
 mod mcp;
 mod mcp_serve;
-mod network_serve;
 mod paths;
 mod profile;
 mod publish;
-mod skill;
 mod validate;
 mod vars;
 
 use anyhow::Result;
-use cli::{AgentCommands, Cli, Commands, ConfigCommands, HookCommands, McpCommands, NetworkCommands, SkillCommands, VarsCommands};
+use cli::{Cli, Commands, ConfigCommands, HookCommands, McpCommands, NetworkCommands};
 #[cfg(feature = "unstable")]
 use cli::EventsCommands;
 use std::path::PathBuf;
@@ -81,14 +78,23 @@ fn dispatch(command: Option<Commands>) -> Result<()> {
                 with_skills,
             } => run_use(Some(&agent_id), path, with_skills),
             Commands::Status { path } => run_status(path),
-            Commands::Agents { action } => dispatch_agent(action),
+            Commands::Agents { .. } => removed_command(
+                "agents",
+                "Edit .ship/agents/ directly. See: ship docs agents",
+            ),
             Commands::Compile {
                 provider,
                 dry_run,
                 path,
             } => run_compile_cmd(provider.as_deref(), dry_run, path),
-            Commands::Skill { action } => dispatch_skill(action),
-            Commands::Vars { action } => dispatch_vars(action),
+            Commands::Skills { .. } => removed_command(
+                "skills",
+                "Edit .ship/skills/ directly or use ship.jsonc. See: ship docs skills",
+            ),
+            Commands::Vars { .. } => removed_command(
+                "vars",
+                "Manage skill variables in .ship/skills/ state files. See: ship docs skills",
+            ),
             Commands::Mcp { action } => dispatch_mcp(action),
             Commands::Convert { source } => convert::run_convert(&source),
             Commands::Docs { topic } => help_topics::run(topic.as_deref()),
@@ -139,6 +145,7 @@ fn dispatch(command: Option<Commands>) -> Result<()> {
                     DaemonCommands::Start { host } => DaemonCommand::Start { host },
                     DaemonCommands::Stop => DaemonCommand::Stop,
                     DaemonCommands::Status => DaemonCommand::Status,
+                    DaemonCommands::Cleanup => DaemonCommand::Cleanup,
                 };
                 run_daemon(cmd)
             }
@@ -291,72 +298,12 @@ fn run_status(path: Option<PathBuf>) -> Result<()> {
     Ok(())
 }
 
-// ── Agent ─────────────────────────────────────────────────────────────────────
+// ── Removed commands ─────────────────────────────────────────────────────────
 
-fn dispatch_agent(action: AgentCommands) -> Result<()> {
-    match action {
-        AgentCommands::List { local, project } => {
-            let agents = paths::list_agent_ids(local, project);
-            if agents.is_empty() {
-                println!("No agents found.");
-                println!("Create one with: ship agents create <name>");
-            } else {
-                for (id, scope) in &agents {
-                    println!("  {} [{}]", id, scope);
-                }
-            }
-        }
-        AgentCommands::Create { name, global } => {
-            let dir = if global {
-                paths::global_agents_dir()
-            } else {
-                paths::agents_dir()
-            };
-            std::fs::create_dir_all(&dir)?;
-            let path = dir.join(format!("{}.jsonc", name));
-            if path.exists() {
-                anyhow::bail!("Agent '{}' already exists at {}", name, path.display());
-            }
-            std::fs::write(&path, agent_config::AgentConfig::scaffold_jsonc(&name))?;
-            println!("created agent '{}' at {}", name, path.display());
-        }
-        AgentCommands::Edit { name, editor } => {
-            let path = profile::find_agent_file(&name, &std::env::current_dir()?)
-                .ok_or_else(|| anyhow::anyhow!("Agent '{}' not found", name))?;
-            let editor = editor
-                .or_else(|| std::env::var("EDITOR").ok())
-                .unwrap_or_else(|| "vi".to_string());
-            std::process::Command::new(&editor).arg(&path).status()?;
-        }
-        AgentCommands::Delete { name } => {
-            let path = profile::find_agent_file(&name, &std::env::current_dir()?)
-                .ok_or_else(|| anyhow::anyhow!("Agent '{}' not found", name))?;
-            std::fs::remove_file(&path)?;
-            println!("deleted agent '{}'", name);
-        }
-        AgentCommands::Clone { source, target } => {
-            let cwd = std::env::current_dir()?;
-            let src_path = profile::find_agent_file(&source, &cwd)
-                .ok_or_else(|| anyhow::anyhow!("Source agent '{}' not found", source))?;
-            let dst_path = src_path.parent().unwrap().join(format!("{}.jsonc", target));
-            if dst_path.exists() {
-                anyhow::bail!("Target agent '{}' already exists", target);
-            }
-            let content = std::fs::read_to_string(&src_path)?
-                .replace(
-                    &format!("\"id\": \"{}\"", source),
-                    &format!("\"id\": \"{}\"", target),
-                )
-                .replace(
-                    &format!("\"name\": \"{}\"", source),
-                    &format!("\"name\": \"{}\"", target),
-                );
-            std::fs::write(&dst_path, content)?;
-            println!("cloned '{}' -> '{}'", source, target);
-        }
-        AgentCommands::Log { message } => agent::agent_log(&message)?,
-    }
-    Ok(())
+fn removed_command(name: &str, guidance: &str) -> Result<()> {
+    eprintln!("Removed: `ship {name}` commands have been removed.");
+    eprintln!("{guidance}");
+    std::process::exit(1);
 }
 
 // ── Compile ───────────────────────────────────────────────────────────────────
@@ -385,43 +332,6 @@ fn run_compile_cmd(provider: Option<&str>, dry_run: bool, path: Option<PathBuf>)
 
 // ── Subcommand dispatchers ────────────────────────────────────────────────────
 
-fn dispatch_skill(action: SkillCommands) -> Result<()> {
-    match action {
-        SkillCommands::List => skill::list(),
-        SkillCommands::Create {
-            id,
-            name,
-            description,
-        } => skill::create(&id, name.as_deref(), description.as_deref()),
-        SkillCommands::Remove { id, global } => skill::remove(&id, global),
-        SkillCommands::Add {
-            source,
-            skill,
-            global,
-        } => skill::add(&source, skill.as_deref(), global),
-    }
-}
-
-fn dispatch_vars(action: VarsCommands) -> Result<()> {
-    let ship_dir = paths::project_ship_dir_required()?;
-    match action {
-        VarsCommands::Set {
-            skill_id,
-            key,
-            value,
-        } => vars::run_vars_set(&ship_dir, &skill_id, &key, &value),
-        VarsCommands::Get { skill_id, key } => {
-            vars::run_vars_get(&ship_dir, &skill_id, key.as_deref())
-        }
-        VarsCommands::Append {
-            skill_id,
-            key,
-            json,
-        } => vars::run_vars_append(&ship_dir, &skill_id, &key, &json),
-        VarsCommands::Reset { skill_id } => vars::run_vars_reset(&ship_dir, &skill_id),
-    }
-}
-
 fn dispatch_mcp(action: McpCommands) -> Result<()> {
     match action {
         McpCommands::Serve { http, port } => mcp_serve::run(http, port),
@@ -442,14 +352,16 @@ fn dispatch_mcp(action: McpCommands) -> Result<()> {
     }
 }
 
-// ── Network ───────────────────────────────────────────────────────────────────
+// ── Network (deprecated) ─────────────────────────────────────────────────────
 
 fn dispatch_network(action: NetworkCommands) -> Result<()> {
-    match action {
-        NetworkCommands::Serve { port, host } => network_serve::run(host, port),
-        NetworkCommands::Status => network_serve::status(),
-        NetworkCommands::Stop => network_serve::stop(),
-    }
+    let replacement = match action {
+        NetworkCommands::Serve { .. } => "ship daemon start",
+        NetworkCommands::Status => "ship daemon status",
+        NetworkCommands::Stop => "ship daemon stop",
+    };
+    eprintln!("`ship network` has been removed. Use `{replacement}` instead.");
+    std::process::exit(1);
 }
 
 // ── Hidden / legacy ──────────────────────────────────────────────────────────

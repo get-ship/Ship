@@ -1,19 +1,22 @@
 //! Pipeline DAG — step-based advancement for job dispatch.
 //!
-//! A pipeline is a DAG of steps. Each step has a type (agent, gate, merge, human)
-//! and declares dependencies via `after`. The engine walks the DAG: when a step
-//! completes, it finds unblocked steps and dispatches them.
-
-use runtime::events::job::{Pipeline, StepType};
+//! A pipeline is a DAG of steps. Each step declares dependencies via `after`.
+//! When a step completes, unblocked steps are found and dispatched.
+use runtime::events::job::StepType;
 use runtime::events::{CallerKind, EmitContext, EventEnvelope};
-use runtime::services::dispatch_ports::JobExecutor;
-use runtime::projections::job::{load_jobs, load_jobs_at};
 use runtime::services::dispatch_ports::JobContext;
+use runtime::projections::job::{load_jobs, load_jobs_at};
 use std::sync::Arc;
 use tokio::sync::Mutex;
 
+use super::agent_lifecycle::graceful_agent_exit;
+use super::dispatch_emit::emit_job_dispatched_with_meta;
 use super::helpers::{compile_agent_config, worktrees_dir};
 use super::job_dispatch::DispatchContext;
+use super::liveness;
+
+// Re-export for callers that import emit_job_dispatched from this module.
+pub(crate) use super::dispatch_emit::emit_job_dispatched;
 
 /// Enrich a job with a pipeline. Resolution order:
 /// 1. Already has `steps` → use it
@@ -216,7 +219,6 @@ pub(crate) async fn advance_pipeline_at(
     let worktree_root = ship_dir.parent().map(|p| p.join("worktrees"));
     advance_pipeline_inner(kernel, envelope, dctx, Some(ship_dir), worktree_root.as_deref()).await
 }
-
 async fn advance_pipeline_inner(
     kernel: &Arc<Mutex<runtime::events::KernelRouter>>,
     envelope: &EventEnvelope,
@@ -266,32 +268,48 @@ async fn advance_pipeline_inner(
         }
     };
 
-    // Find the current step that just completed
-    let current_step_id = match &job.current_step {
-        Some(id) => id.clone(),
-        None => {
-            // First step just completed — find the root step
-            if let Some(root) = pipeline.root_steps().first() {
-                root.id.clone()
-            } else {
-                tracing::warn!(slug, "pipeline: no root step found");
+    // Build the completed-steps set to use for finding the next step.
+    //
+    // Three cases:
+    // (a) current_step is Some — idempotency check, then add to completed.
+    // (b) current_step is None and completed_steps is non-empty — the projection
+    //     already moved the finished step into completed_steps on JOB_COMPLETED.
+    //     Use it as-is; no idempotency check needed.
+    // (c) current_step is None and completed_steps is empty — first step trigger;
+    //     treat the root step as just completed.
+    let completed: Vec<String> = match &job.current_step {
+        Some(id) => {
+            // Idempotency: duplicate completion event for a step already recorded.
+            if job.completed_steps.contains(id) {
+                tracing::debug!(slug, step = %id, "pipeline: step already completed, skipping");
                 return false;
+            }
+            tracing::info!(slug, step = %id, "pipeline: step completed");
+            let mut c = job.completed_steps.clone();
+            c.push(id.clone());
+            c
+        }
+        None if !job.completed_steps.is_empty() => {
+            // JOB_COMPLETED already moved current_step into completed_steps.
+            // Advance from the recorded set without re-checking idempotency.
+            tracing::info!(slug, completed_count = job.completed_steps.len(),
+                "pipeline: advancing from projection-tracked completed_steps");
+            job.completed_steps.clone()
+        }
+        None => {
+            // No completed steps recorded — treat the root step as just finished.
+            match pipeline.root_steps().first() {
+                Some(root) => {
+                    tracing::info!(slug, step = %root.id, "pipeline: first step completed");
+                    vec![root.id.clone()]
+                }
+                None => {
+                    tracing::warn!(slug, "pipeline: no root step found");
+                    return false;
+                }
             }
         }
     };
-
-    // Idempotency: if this step is already in completed_steps, skip.
-    // This prevents re-dispatching the same step on duplicate completion events.
-    if job.completed_steps.contains(&current_step_id) {
-        tracing::debug!(slug, step = %current_step_id, "pipeline: step already completed, skipping");
-        return false;
-    }
-
-    tracing::info!(slug, step = %current_step_id, "pipeline: step completed");
-
-    // Mark current step as completed and find next steps
-    let mut completed = job.completed_steps.clone();
-    completed.push(current_step_id.clone());
 
     let next_steps = pipeline.unblocked_steps(&completed);
     if next_steps.is_empty() {
@@ -323,7 +341,7 @@ async fn advance_pipeline_inner(
                 }
 
                 // Gracefully end the current agent (only needed for tmux reuse)
-                graceful_agent_exit(slug).await;
+                graceful_agent_exit(slug, step.provider.as_deref()).await;
 
                 // Swap agent profile
                 tracing::info!(slug, agent, step_id = step.id, "pipeline: compiling agent config");
@@ -331,7 +349,9 @@ async fn advance_pipeline_inner(
                     tracing::warn!(slug, agent, "pipeline: ship use failed (non-fatal): {e}");
                 }
 
-                // Launch the agent
+                // Launch the agent; gate steps are ephemeral.
+                let persist = step.step_type != StepType::Gate;
+                let (exit_tx, exit_rx) = tokio::sync::mpsc::unbounded_channel();
                 let job_ctx = JobContext {
                     job_id: job.job_id.clone(),
                     slug: slug.clone(),
@@ -340,29 +360,33 @@ async fn advance_pipeline_inner(
                     spec_path: job.spec_path.clone(),
                     work_dir: worktree_path.clone(),
                     env: [("SHIP_MESH_ID".to_string(), slug.clone())].into(),
-                    model: step.model.clone(),
-                    provider: step.provider.clone(),
+                    exit_tx: Some(exit_tx),
+                    launch: runtime::services::dispatch_ports::LaunchProfile {
+                        provider: step.provider.clone(),
+                        model: step.model.clone(),
+                        persist_session: persist,
+                        ..Default::default()
+                    },
                 };
-                // Pipeline steps use ProcessExecutor (headless, auto-exits on completion).
-                // Falls back to the configured executor if ProcessExecutor fails.
-                let process_executor = super::adapters::ProcessExecutor;
-                let spawn_result = process_executor.spawn(&job_ctx).await;
-                if let Err(e) = spawn_result {
-                    tracing::warn!(slug, step_id = step.id, "pipeline: ProcessExecutor failed, falling back: {e}");
-                    if let Err(e2) = dctx.executor.spawn(&job_ctx).await {
-                        tracing::error!(slug, step_id = step.id, "pipeline: fallback spawn also failed: {e2}");
+                match dctx.executor.spawn(&job_ctx).await {
+                    Ok(handle) => {
+                        dctx.registry.lock().await.register(slug, handle);
+                        liveness::start_exit_handler(kernel.clone(), dctx.registry.clone(), exit_rx);
+                    }
+                    Err(e) => {
+                        tracing::error!(slug, step_id = step.id, "pipeline: spawn failed: {e}");
                         continue;
                     }
                 }
 
-                emit_job_dispatched(kernel, &job.job_id, &worktree_path, slug).await;
+                emit_job_dispatched_with_meta(kernel, &job.job_id, &worktree_path, slug, None, ship_dir_override).await;
                 dispatched_any = true;
             }
             StepType::Merge => {
                 tracing::info!(slug, branch = %job.branch, "pipeline: executing merge step");
 
                 // Gracefully end any running agent first
-                graceful_agent_exit(slug).await;
+                graceful_agent_exit(slug, None).await;
 
                 // Git merge the job branch into the current branch (v0.2.0 or whatever HEAD is)
                 let merge_result = std::process::Command::new("git")
@@ -417,39 +441,10 @@ async fn advance_pipeline_inner(
     dispatched_any
 }
 
-/// Send /exit to the agent in a tmux session and wait for clean exit.
-/// Best-effort — skips if tmux isn't available (tests).
-async fn graceful_agent_exit(slug: &str) {
-    let tmux_session = format!("job-{}", slug);
+#[cfg(test)]
+#[path = "tests_step_tracking.rs"]
+mod tests_step_tracking;
 
-    let has_session = std::process::Command::new("tmux")
-        .args(["has-session", "-t", &tmux_session])
-        .status()
-        .map(|s| s.success())
-        .unwrap_or(false);
-
-    if !has_session {
-        tracing::debug!(slug, "pipeline: no tmux session, skipping graceful exit");
-        return;
-    }
-
-    tracing::info!(slug, session = %tmux_session, "pipeline: sending /exit to current agent");
-    let _ = std::process::Command::new("tmux")
-        .args(["send-keys", "-t", &tmux_session, "/exit", "Enter"])
-        .status();
-
-    for _ in 0..30 {
-        tokio::time::sleep(std::time::Duration::from_secs(1)).await;
-        let output = std::process::Command::new("tmux")
-            .args(["capture-pane", "-t", &tmux_session, "-p"])
-            .output();
-        if let Ok(out) = output {
-            let text = String::from_utf8_lossy(&out.stdout);
-            if text.lines().rev().take(3).any(|l| l.trim_end().ends_with('$')) {
-                tracing::info!(slug, "pipeline: agent exited cleanly");
-                return;
-            }
-        }
-    }
-    tracing::warn!(slug, "pipeline: agent did not exit within 30s, proceeding anyway");
-}
+#[cfg(test)]
+#[path = "tests_pipeline_reliability.rs"]
+mod tests_pipeline_reliability;

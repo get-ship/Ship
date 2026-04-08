@@ -40,8 +40,13 @@ pub struct JobRecord {
     pub worktree: Option<String>,
     pub blocker: Option<String>,
     pub error: Option<String>,
+    pub model: Option<String>,
+    pub provider: Option<String>,
     pub created_at: DateTime<Utc>,
     pub updated_at: DateTime<Utc>,
+    /// Provider-specific session metadata (e.g. Claude session ID for --resume).
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub provider_meta: Option<serde_json::Value>,
     /// Legacy linear pipeline phases.
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub pipeline: Option<Vec<crate::events::job::PipelinePhase>>,
@@ -68,6 +73,12 @@ pub fn apply(record: &mut JobRecord, event: &EventEnvelope) {
         event_types::JOB_DISPATCHED => {
             if let Ok(p) = serde_json::from_str::<serde_json::Value>(&event.payload_json) {
                 record.worktree = p["worktree"].as_str().map(str::to_string);
+                // Capture provider session metadata if present (latest dispatch wins).
+                if let Some(meta) = p.get("provider_meta") {
+                    if !meta.is_null() {
+                        record.provider_meta = Some(meta.clone());
+                    }
+                }
             }
             // DAG step tracking: on re-dispatch after completion, mark current step
             // as completed and advance to next unblocked step.
@@ -107,6 +118,13 @@ pub fn apply(record: &mut JobRecord, event: &EventEnvelope) {
             record.updated_at = ts;
         }
         event_types::JOB_COMPLETED => {
+            // DAG step tracking: when the final step completes without a subsequent
+            // JOB_DISPATCHED (e.g. merge follows immediately), record it now.
+            if let Some(ref current) = record.current_step.take() {
+                if !record.completed_steps.contains(current) {
+                    record.completed_steps.push(current.clone());
+                }
+            }
             record.status = JobStatus::Completed;
             record.updated_at = ts;
         }
@@ -171,8 +189,11 @@ pub fn project(events: &[EventEnvelope]) -> HashMap<String, JobRecord> {
                     worktree: None,
                     blocker: None,
                     error: None,
+                    model: p["model"].as_str().map(str::to_string),
+                    provider: p["provider"].as_str().map(str::to_string),
                     created_at: event.created_at,
                     updated_at: event.created_at,
+                    provider_meta: None,
                     pipeline,
                     steps,
                     current_phase: None,

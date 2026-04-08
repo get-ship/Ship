@@ -1,3 +1,4 @@
+pub mod deprecation;
 mod handler;
 pub mod notification_relay;
 mod tool_gate;
@@ -885,3 +886,11 @@ pub async fn run_server() -> Result<()> {
 #[cfg(test)]
 #[path = "../server_tests.rs"]
 mod server_tests;
+
+#[cfg(test)]
+#[path = "../tool_gate_tests.rs"]
+mod tool_gate_tests;
+
+#[cfg(test)]
+#[path = "../role_gate_integration_tests.rs"]
+mod role_gate_integration_tests;

@@ -476,6 +476,58 @@ fn ship_dir_from_git_worktree_pointer(start_dir: &Path) -> Option<PathBuf> {
     None
 }
 
+/// Parse `git worktree list --porcelain` output and return the main working
+/// tree root if `current_dir` is a linked worktree, or `None` if it is the
+/// main worktree (or the output is unparseable).
+fn parse_main_worktree_root(porcelain: &str, current_dir: &Path) -> Option<PathBuf> {
+    let dir_canonical = canonicalize_lossy(current_dir);
+    let worktree_paths: Vec<PathBuf> = porcelain
+        .split("\n\n")
+        .filter_map(|block| {
+            let block = block.trim();
+            if block.is_empty() {
+                return None;
+            }
+            let path_str = block
+                .lines()
+                .find(|l| l.starts_with("worktree "))?
+                .strip_prefix("worktree ")?
+                .trim();
+            Some(canonicalize_lossy(PathBuf::from(path_str).as_path()))
+        })
+        .collect();
+
+    let main_path = worktree_paths.first()?.clone();
+
+    // Determine which worktree current_dir lives under.
+    let current_wt = worktree_paths
+        .iter()
+        .find(|wt| dir_canonical.starts_with(wt.as_path()))?;
+
+    if *current_wt == main_path {
+        return None; // already in the main working tree
+    }
+
+    Some(main_path)
+}
+
+/// If `dir` is a linked git worktree, return the main working tree root.
+/// Uses `git worktree list --porcelain` for detection.
+fn main_worktree_root_for(dir: &Path) -> Option<PathBuf> {
+    let output = std::process::Command::new("git")
+        .args(["worktree", "list", "--porcelain"])
+        .current_dir(dir)
+        .output()
+        .ok()?;
+
+    if !output.status.success() {
+        return None;
+    }
+
+    let text = std::str::from_utf8(&output.stdout).ok()?;
+    parse_main_worktree_root(text, dir)
+}
+
 fn resolve_project_dir_from_start(
     start_dir: &Path,
     migrate_legacy: bool,
@@ -486,6 +538,25 @@ fn resolve_project_dir_from_start(
     loop {
         let ship_path = current_dir.join(SHIP_DIR_NAME);
         if ship_path.exists() && ship_path.is_dir() {
+            // If this .ship/ lives inside a linked git worktree, redirect to
+            // the main working tree's .ship/ so worktrees never register as
+            // separate projects in ~/.ship/projects/.
+            // Primary detection: git worktree list --porcelain.
+            // Fallback: parse the .git file pointer directly (no subprocess).
+            let redirected = main_worktree_root_for(&current_dir)
+                .and_then(|main_root| {
+                    let s = main_root.join(SHIP_DIR_NAME);
+                    if s.exists() && s.is_dir() {
+                        Some(canonicalize_lossy(&s))
+                    } else {
+                        None
+                    }
+                })
+                .or_else(|| ship_dir_from_git_worktree_pointer(&current_dir));
+
+            if let Some(main_ship) = redirected {
+                return Ok(Some(main_ship));
+            }
             return Ok(Some(canonicalize_lossy(&ship_path)));
         }
 
@@ -1178,6 +1249,121 @@ mod tests {
 
         let resolved = resolve_project_ship_dir(&wt_nested).expect("expected .ship resolution");
         assert_eq!(resolved, canonicalize_lossy(&main_ship));
+        Ok(())
+    }
+
+    #[test]
+    fn parse_main_worktree_root_returns_none_for_main_checkout() {
+        let porcelain = "worktree /home/user/ship\nHEAD abc123\nbranch refs/heads/main\n\nworktree /home/user/ship-worktrees/fix-auth\nHEAD def456\nbranch refs/heads/fix-auth\n";
+        // current_dir IS the main worktree — no redirect expected
+        let result = parse_main_worktree_root(porcelain, Path::new("/home/user/ship"));
+        assert!(result.is_none());
+    }
+
+    #[test]
+    fn parse_main_worktree_root_returns_main_for_linked_worktree() {
+        let porcelain = "worktree /home/user/ship\nHEAD abc123\nbranch refs/heads/main\n\nworktree /home/user/ship-worktrees/fix-auth\nHEAD def456\nbranch refs/heads/fix-auth\n";
+        let result =
+            parse_main_worktree_root(porcelain, Path::new("/home/user/ship-worktrees/fix-auth"));
+        assert_eq!(result, Some(PathBuf::from("/home/user/ship")));
+    }
+
+    #[test]
+    fn parse_main_worktree_root_handles_subdirectory_of_linked_worktree() {
+        let porcelain = "worktree /home/user/ship\nHEAD abc123\nbranch refs/heads/main\n\nworktree /home/user/ship-worktrees/fix-auth\nHEAD def456\nbranch refs/heads/fix-auth\n";
+        // current_dir is a subdirectory of the linked worktree
+        let result = parse_main_worktree_root(
+            porcelain,
+            Path::new("/home/user/ship-worktrees/fix-auth/src/app"),
+        );
+        assert_eq!(result, Some(PathBuf::from("/home/user/ship")));
+    }
+
+    #[test]
+    fn parse_main_worktree_root_returns_none_for_unrecognized_dir() {
+        let porcelain = "worktree /home/user/ship\nHEAD abc123\nbranch refs/heads/main\n";
+        // dir is not under any listed worktree
+        let result = parse_main_worktree_root(porcelain, Path::new("/home/other/project"));
+        assert!(result.is_none());
+    }
+
+    #[test]
+    fn resolve_ship_dir_uses_git_worktree_list_for_linked_worktree() -> Result<()> {
+        // Integration test: set up a real git repo with a linked worktree and
+        // verify that resolve_project_ship_dir redirects to the main .ship/.
+        let tmp = tempdir()?;
+        let main_root = tmp.path().join("main");
+        let wt_root = tmp.path().join("wt");
+
+        fs::create_dir_all(&main_root)?;
+
+        // git init
+        let status = std::process::Command::new("git")
+            .args(["init"])
+            .current_dir(&main_root)
+            .output();
+        if status.is_err() || !status.unwrap().status.success() {
+            // git not available — skip
+            return Ok(());
+        }
+
+        // Minimal git config so commit works
+        for (key, val) in [("user.email", "test@test.com"), ("user.name", "Test")] {
+            std::process::Command::new("git")
+                .args(["config", key, val])
+                .current_dir(&main_root)
+                .output()?;
+        }
+
+        // Need an initial commit before worktree add
+        fs::write(main_root.join("README"), "init")?;
+        std::process::Command::new("git")
+            .args(["add", "."])
+            .current_dir(&main_root)
+            .output()?;
+        std::process::Command::new("git")
+            .args(["commit", "-m", "init"])
+            .current_dir(&main_root)
+            .output()?;
+
+        // Create a branch for the worktree
+        std::process::Command::new("git")
+            .args(["branch", "fix-auth"])
+            .current_dir(&main_root)
+            .output()?;
+
+        // Add a linked worktree
+        let wt_out = std::process::Command::new("git")
+            .args([
+                "worktree",
+                "add",
+                wt_root.to_str().unwrap(),
+                "fix-auth",
+            ])
+            .current_dir(&main_root)
+            .output()?;
+        if !wt_out.status.success() {
+            return Ok(()); // worktree add failed — skip
+        }
+
+        // Create .ship/ only in the main checkout
+        let main_ship = main_root.join(".ship");
+        fs::create_dir_all(&main_ship)?;
+
+        // Also copy .ship/ into the worktree (mirrors real git worktree behaviour)
+        let wt_ship = wt_root.join(".ship");
+        fs::create_dir_all(&wt_ship)?;
+
+        let wt_nested = wt_root.join("src").join("deep");
+        fs::create_dir_all(&wt_nested)?;
+
+        let resolved =
+            resolve_project_ship_dir(&wt_nested).expect("must resolve to main .ship/");
+        assert_eq!(
+            resolved,
+            canonicalize_lossy(&main_ship),
+            "worktree must resolve to the main repo's .ship/, not the worktree copy"
+        );
         Ok(())
     }
 

@@ -2,16 +2,16 @@
 //!
 //! On daemon startup (and after job completion/merge events), this module:
 //! 1. Replays stale `job.completed` events that arrived while daemon was down
-//! 2. Scans for pending jobs whose dependencies are fully resolved and dispatches them
+//! 2. Reconciles jobs stuck in `Dispatched` state after a daemon restart
 //!
-//! This eliminates the need for an in-memory pending map — the event log is the source of truth.
+//! Pending job dispatch lives in `pending_dispatch.rs`.
 
 use runtime::events::EventEnvelope;
 use runtime::projections::job::{load_jobs, JobStatus};
 use std::sync::Arc;
 use tokio::sync::Mutex;
 
-use super::dispatch_pipeline::{advance_pipeline, ensure_pipeline};
+use super::dispatch_pipeline::advance_pipeline;
 use super::job_dispatch::DispatchContext;
 
 /// Replay unprocessed `job.completed` events that arrived while the daemon was down.
@@ -133,6 +133,7 @@ async fn reconcile_dispatched_inner(
     store_dir: Option<&std::path::Path>,
 ) {
     use runtime::events::job::event_types;
+    use runtime::services::dispatch_ports::JobContext;
 
     let stale: Vec<_> = jobs
         .values()
@@ -163,144 +164,127 @@ async fn reconcile_dispatched_inner(
                 slug = job.slug,
                 "job-dispatch: reconcile — process still alive, resuming"
             );
+            // Register in ProcessRegistry so graceful shutdown can stop it
+            let resume_handle = runtime::services::dispatch_ports::ExecutorHandle {
+                pid: None,
+                inner: Box::new(()),
+            };
+            dctx.registry.lock().await.register(&job.slug, resume_handle);
             continue;
         }
 
-        tracing::warn!(
+        // Dead process — relaunch in existing worktree
+        tracing::info!(
             slug = job.slug,
             job_id = job.job_id,
-            "job-dispatch: reconcile — process dead, marking failed"
+            "job-dispatch: reconcile — process dead, relaunching"
         );
 
-        let payload = serde_json::json!({
-            "job_id": job.job_id,
-            "error": "daemon restart, process not found",
-        });
-        let envelope = match EventEnvelope::new(
-            event_types::JOB_FAILED,
-            &job.job_id,
-            &payload,
-        ) {
-            Ok(e) => e.with_actor_id("service.job-dispatch"),
-            Err(e) => {
-                tracing::warn!(
-                    slug = job.slug,
-                    "job-dispatch: reconcile — failed to build envelope: {e}"
-                );
-                continue;
-            }
-        };
+        let work_dir = job
+            .worktree
+            .as_deref()
+            .map(std::path::PathBuf::from)
+            .unwrap_or_else(|| super::helpers::worktrees_dir().join(&job.slug));
 
-        // Persist to event store so projection reflects the failure
-        let persist_result = match store_dir {
-            Some(dir) => runtime::events::SqliteEventStore::new_at(dir)
-                .and_then(|s| runtime::events::EventStore::append(&s, &envelope)),
-            None => runtime::events::SqliteEventStore::new()
-                .and_then(|s| runtime::events::EventStore::append(&s, &envelope)),
-        };
-        if let Err(e) = persist_result {
+        // Recompile agent config in case it changed
+        if let Err(e) = super::helpers::compile_agent_config(&work_dir, &job.agent) {
             tracing::warn!(
                 slug = job.slug,
-                "job-dispatch: reconcile — failed to persist job.failed: {e}"
+                "job-dispatch: reconcile — agent config recompile failed: {e}"
             );
+            // Continue with relaunch anyway — stale config is better than no agent
         }
 
-        let ctx = runtime::events::validator::EmitContext {
-            caller_kind: runtime::events::validator::CallerKind::Runtime,
-            skill_id: None,
-            workspace_id: None,
-            session_id: None,
+        let resume_session = job.provider_meta.as_ref()
+            .and_then(|m| m.get("session_id"))
+            .and_then(|v| v.as_str())
+            .map(str::to_string);
+
+        let job_ctx = JobContext {
+            job_id: job.job_id.clone(),
+            slug: job.slug.clone(),
+            agent: job.agent.clone(),
+            branch: job.branch.clone(),
+            spec_path: job.spec_path.clone(),
+            work_dir,
+            env: [("SHIP_MESH_ID".to_string(), job.slug.clone())].into(),
+            exit_tx: None, // liveness sweep handles relaunched jobs
+            launch: runtime::services::dispatch_ports::LaunchProfile {
+                provider: job.provider.clone(),
+                model: job.model.clone(),
+                resume_session,
+                persist_session: true,
+                ..Default::default()
+            },
         };
-        if let Err(e) = kernel.lock().await.route(envelope, &ctx).await {
-            tracing::warn!(
-                slug = job.slug,
-                "job-dispatch: reconcile — failed to emit job.failed: {e}"
-            );
+
+        match dctx.executor.spawn(&job_ctx).await {
+            Ok(new_handle) => {
+                tracing::info!(
+                    slug = job.slug,
+                    "job-dispatch: reconcile — agent relaunched"
+                );
+                dctx.registry.lock().await.register(&job.slug, new_handle);
+            }
+            Err(e) => {
+                tracing::error!(
+                    slug = job.slug,
+                    "job-dispatch: reconcile — relaunch failed: {e}"
+                );
+                emit_job_failed(
+                    kernel,
+                    &job.job_id,
+                    &job.slug,
+                    &format!("relaunch failed: {e}"),
+                    store_dir,
+                )
+                .await;
+            }
         }
     }
 
     tracing::info!("job-dispatch: reconciliation complete");
 }
 
-/// Scan the job projection for pending jobs whose dependencies are all resolved.
-/// Dispatch any that are ready. Called on startup and after job.completed/job.merged.
-pub(crate) async fn dispatch_ready_pending_jobs(
+/// Emit job.failed and persist to event store.
+async fn emit_job_failed(
     kernel: &Arc<Mutex<runtime::events::KernelRouter>>,
-    dctx: &DispatchContext,
+    job_id: &str,
+    slug: &str,
+    error: &str,
+    store_dir: Option<&std::path::Path>,
 ) {
-    let jobs = match load_jobs() {
-        Ok(j) => j,
+    use runtime::events::job::event_types;
+
+    let payload = serde_json::json!({
+        "job_id": job_id,
+        "error": error,
+    });
+    let envelope = match EventEnvelope::new(event_types::JOB_FAILED, job_id, &payload) {
+        Ok(e) => e.with_actor_id("service.job-dispatch"),
         Err(e) => {
-            tracing::warn!("job-dispatch: failed to load jobs for pending scan: {e}");
+            tracing::warn!(slug, "job-dispatch: reconcile — failed to build envelope: {e}");
             return;
         }
     };
 
-    // Build set of completed/merged job slugs
-    let done_slugs: std::collections::HashSet<&str> = jobs.values()
-        .filter(|j| matches!(j.status, JobStatus::Completed | JobStatus::GatePending | JobStatus::Merged))
-        .map(|j| j.slug.as_str())
-        .collect();
-
-    // Count currently running jobs
-    let running_count = jobs.values()
-        .filter(|j| j.status == JobStatus::Dispatched)
-        .count();
-
-    // Concurrency limit — don't overwhelm the machine
-    const MAX_CONCURRENT: usize = 3;
-    let slots = MAX_CONCURRENT.saturating_sub(running_count);
-    if slots == 0 {
-        tracing::debug!(running_count, "job-dispatch: concurrency limit reached, skipping dispatch");
-        return;
+    let persist_result = match store_dir {
+        Some(dir) => runtime::events::SqliteEventStore::new_at(dir)
+            .and_then(|s| runtime::events::EventStore::append(&s, &envelope)),
+        None => runtime::events::SqliteEventStore::new()
+            .and_then(|s| runtime::events::EventStore::append(&s, &envelope)),
+    };
+    if let Err(e) = persist_result {
+        tracing::warn!(slug, "job-dispatch: reconcile — failed to persist job.failed: {e}");
     }
 
-    // Find pending jobs with all deps resolved
-    let ready: Vec<_> = jobs.values()
-        .filter(|j| j.status == JobStatus::Pending)
-        .filter(|j| {
-            match &j.depends_on {
-                None => true,
-                Some(deps) => deps.iter().all(|d| done_slugs.contains(d.as_str())),
-            }
-        })
-        .take(slots)
-        .collect();
-
-    if ready.is_empty() {
-        tracing::debug!("job-dispatch: no pending jobs ready to dispatch");
-        return;
-    }
-
-    tracing::info!(
-        count = ready.len(),
-        "job-dispatch: found pending jobs with resolved dependencies"
-    );
-
-    for job in ready {
-        tracing::info!(
-            slug = job.slug,
-            job_id = job.job_id,
-            "job-dispatch: dispatching previously-pending job"
-        );
-
-        // Build a JobCreatedPayload from the projection record
-        let payload = runtime::events::job::JobCreatedPayload {
-            job_id: job.job_id.clone(),
-            slug: job.slug.clone(),
-            agent: job.agent.clone(),
-            branch: job.branch.clone(),
-            spec_path: job.spec_path.clone(),
-            depends_on: None, // deps are resolved
-            pipeline: job.pipeline.clone(),
-            steps: job.steps.clone(),
-            plan_id: None,
-            model: None,
-            provider: None,
-            pipeline_name: None,
-        };
-
-        let payload = ensure_pipeline(payload);
-        super::job_dispatch::dispatch_job_internal(kernel, &payload, dctx).await;
+    let ctx = runtime::events::validator::EmitContext {
+        caller_kind: runtime::events::validator::CallerKind::Runtime,
+        skill_id: None,
+        workspace_id: None,
+        session_id: None,
+    };
+    if let Err(e) = kernel.lock().await.route(envelope, &ctx).await {
+        tracing::warn!(slug, "job-dispatch: reconcile — failed to emit job.failed: {e}");
     }
 }

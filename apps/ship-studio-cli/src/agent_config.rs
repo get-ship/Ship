@@ -110,41 +110,6 @@ impl AgentConfig {
         }
     }
 
-    /// Template for a new agent file in JSONC format.
-    pub fn scaffold_jsonc(id: &str) -> String {
-        format!(
-            r#"{{
-  // Agent configuration — https://getship.dev/docs/agents
-  "agent": {{
-    "name": "{id}",
-    "id": "{id}",
-    "version": "0.1.0",
-    "description": "",
-    "providers": ["claude"],
-  }},
-  "skills": {{
-    // Skill IDs to activate (empty = all installed skills).
-    "refs": [],
-  }},
-  "mcp": {{
-    // MCP server IDs to activate (empty = all configured servers).
-    "servers": [],
-  }},
-  "plugins": {{
-    // "install": ["superpowers@claude-plugins-official"],
-    // "scope": "project",
-  }},
-  "permissions": {{
-    // "preset": "ship-autonomous",
-    // "tools_deny": ["mcp__*__delete*"],
-  }},
-  "rules": {{
-    // "inline": "Keep operations deterministic.\nRun tests before marking work done.",
-  }},
-}}"#,
-            id = id,
-        )
-    }
 }
 
 /// Apply an agent's permission overrides on top of a base Permissions struct.
@@ -245,15 +210,6 @@ pub fn apply_agent_permissions(
 #[cfg(test)]
 mod tests {
     use super::*;
-
-    #[test]
-    fn agent_scaffold_jsonc_parses() {
-        let s = AgentConfig::scaffold_jsonc("rust-expert");
-        let agent: AgentConfig =
-            compiler::jsonc::from_jsonc_str(&s).expect("scaffold must be valid JSONC");
-        assert_eq!(agent.meta.id, "rust-expert");
-        assert_eq!(agent.meta.providers, vec!["claude"]);
-    }
 
     #[test]
     fn agent_key_parses() {

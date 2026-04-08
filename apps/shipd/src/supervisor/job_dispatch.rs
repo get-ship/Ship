@@ -13,7 +13,8 @@ use tokio::sync::Mutex;
 
 use super::adapters;
 use super::dispatch_handlers::{handle_job_cleanup, handle_job_update};
-use super::dispatch_pipeline::{advance_pipeline, emit_job_dispatched, ensure_pipeline};
+use super::dispatch_pipeline::{advance_pipeline, emit_job_dispatched};
+use super::pipeline_loader::ensure_pipeline;
 pub(crate) use super::registry::ProcessRegistry;
 #[cfg(test)]
 pub(crate) use super::dispatch_pipeline::advance_pipeline_at;
@@ -68,10 +69,10 @@ pub async fn subscribe_job_events(
     let executor: Arc<dyn runtime::services::dispatch_ports::JobExecutor> =
         if std::env::var("SHIP_EXECUTOR").as_deref() == Ok("process") {
             tracing::info!("job-dispatch: using ProcessExecutor");
-            Arc::new(adapters::ProcessExecutor)
+            Arc::new(super::executors::ProcessExecutor)
         } else {
             tracing::info!("job-dispatch: using TmuxExecutor");
-            Arc::new(adapters::TmuxExecutor)
+            Arc::new(super::executors::TmuxExecutor)
         };
 
     let registry = Arc::new(Mutex::new(ProcessRegistry::new()));
@@ -82,13 +83,17 @@ pub async fn subscribe_job_events(
         registry: registry.clone(),
     });
 
+    // Start the periodic liveness sweep (AC2 + AC3).
+    super::liveness::start_liveness_sweep(kernel.clone(), registry.clone(), executor.clone());
+
     // On startup: reconcile stale dispatched jobs, replay completions, dispatch pending.
     let replay_kernel = kernel.clone();
     let replay_dctx = dctx.clone();
     tokio::spawn(async move {
         super::dispatch_replay::reconcile_dispatched_jobs(&replay_kernel, &*replay_dctx).await;
         super::dispatch_replay::replay_unprocessed_completions(&replay_kernel, &*replay_dctx).await;
-        super::dispatch_replay::dispatch_ready_pending_jobs(&replay_kernel, &*replay_dctx).await;
+        super::pending_dispatch::dispatch_ready_pending_jobs(&replay_kernel, &*replay_dctx).await;
+        super::orphan_cleanup::cleanup_orphaned_worktrees().await;
     });
 
     let kr = kernel.clone();
@@ -120,7 +125,7 @@ pub(crate) async fn handle_job_event(
             }
             if !advance_pipeline(kernel, envelope, dctx).await {
                 // Pipeline done or no pipeline — scan projection for unblocked jobs
-                super::dispatch_replay::dispatch_ready_pending_jobs(kernel, dctx).await;
+                super::pending_dispatch::dispatch_ready_pending_jobs(kernel, dctx).await;
             }
         }
         "job.merged" => {
@@ -131,7 +136,7 @@ pub(crate) async fn handle_job_event(
             }
             handle_job_cleanup(envelope).await;
             // Scan projection for jobs whose deps are now resolved
-            super::dispatch_replay::dispatch_ready_pending_jobs(kernel, dctx).await;
+            super::pending_dispatch::dispatch_ready_pending_jobs(kernel, dctx).await;
         }
         "job.failed" => {
             let slug = extract_slug(envelope);
@@ -209,8 +214,13 @@ pub(crate) async fn dispatch_job_internal(
         spec_path: payload.spec_path.clone(),
         work_dir: worktrees_dir().join(slug),
         env: [("SHIP_MESH_ID".to_string(), slug.to_string())].into(),
-        model: payload.model.clone(),
-        provider: payload.provider.clone(),
+        exit_tx: None, // replaced with Some(exit_tx) after channel creation below
+        launch: runtime::services::dispatch_ports::LaunchProfile {
+            provider: payload.provider.clone(),
+            model: payload.model.clone(),
+            persist_session: true,
+            ..Default::default()
+        },
     };
 
     // 1. Prepare isolation (worktree + spec + agent config)
@@ -222,8 +232,13 @@ pub(crate) async fn dispatch_job_internal(
         }
     };
 
-    // 2. Spawn agent process
-    let job_ctx_with_dir = JobContext { work_dir: worktree_path.clone(), ..job_ctx };
+    // 2. Spawn agent process with exit notification channel (AC1).
+    let (exit_tx, exit_rx) = tokio::sync::mpsc::unbounded_channel();
+    let job_ctx_with_dir = JobContext {
+        work_dir: worktree_path.clone(),
+        exit_tx: Some(exit_tx),
+        ..job_ctx
+    };
     let handle = match dctx.executor.spawn(&job_ctx_with_dir).await {
         Ok(h) => h,
         Err(e) => {
@@ -234,6 +249,9 @@ pub(crate) async fn dispatch_job_internal(
 
     // 3. Register handle in process registry for shutdown/liveness tracking
     dctx.registry.lock().await.register(slug, handle);
+
+    // Start exit handler — emits job.completed/job.failed when process exits.
+    super::liveness::start_exit_handler(kernel.clone(), dctx.registry.clone(), exit_rx);
 
     // 4. Emit job.dispatched
     emit_job_dispatched(kernel, &payload.job_id, &worktree_path, slug).await;

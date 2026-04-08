@@ -139,7 +139,7 @@ pub struct SessionStarted {
 pub struct SessionProgress {
     #[serde(default)]
     pub message: String,
-    #[serde(default, skip_serializing_if = "Option::is_none")]
+    #[serde(skip_serializing_if = "Option::is_none")]
     pub escalation: Option<String>,
 }
 

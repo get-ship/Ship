@@ -15,6 +15,7 @@ CREATE TABLE IF NOT EXISTS events (
   actor_id         TEXT,
   parent_actor_id  TEXT,
   elevated         INTEGER NOT NULL DEFAULT 0,
+  target_actor_id  TEXT,
   created_at       TEXT NOT NULL DEFAULT (datetime('now'))
 );
 

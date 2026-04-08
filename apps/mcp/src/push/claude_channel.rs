@@ -90,6 +90,14 @@ pub fn format_event_content(event: &EventEnvelope, payload: &serde_json::Value) 
                 });
             format!("Message from {from}: {body}")
         }
+        "session.progress" => {
+            let message = payload["message"].as_str().unwrap_or("");
+            if let Some(level) = payload["escalation"].as_str() {
+                format!("[{level}] {message}")
+            } else {
+                format!("Progress: {message}")
+            }
+        }
         "session.ended" => {
             let summary = payload["summary"].as_str().unwrap_or("no summary");
             let branch = event.workspace_id.as_deref().unwrap_or("unknown");
