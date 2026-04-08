@@ -90,6 +90,7 @@ pub async fn subscribe_job_events(
         super::dispatch_replay::reconcile_dispatched_jobs(&replay_kernel, &*replay_dctx).await;
         super::dispatch_replay::replay_unprocessed_completions(&replay_kernel, &*replay_dctx).await;
         super::pending_dispatch::dispatch_ready_pending_jobs(&replay_kernel, &*replay_dctx).await;
+        super::orphan_cleanup::cleanup_orphaned_worktrees().await;
     });
 
     let kr = kernel.clone();

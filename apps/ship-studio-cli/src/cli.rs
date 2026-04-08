@@ -260,6 +260,8 @@ pub enum DaemonCommands {
     Stop,
     /// Show daemon status
     Status,
+    /// Remove orphaned worktrees for merged and failed jobs
+    Cleanup,
 }
 
 #[derive(Subcommand, Debug)]

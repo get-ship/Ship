@@ -5,6 +5,7 @@ pub enum DaemonCommand {
     Start,
     Stop,
     Status,
+    Cleanup,
 }
 
 const SHIPD_PORT: u16 = 51742;
@@ -86,6 +87,7 @@ pub fn run_daemon(cmd: DaemonCommand) -> Result<()> {
         DaemonCommand::Start => daemon_start(),
         DaemonCommand::Stop => daemon_stop(),
         DaemonCommand::Status => daemon_status(),
+        DaemonCommand::Cleanup => daemon_cleanup(),
     }
 }
 
@@ -186,45 +188,106 @@ fn daemon_status() -> Result<()> {
     Ok(())
 }
 
-#[cfg(test)]
-mod tests {
-    use super::*;
-    use tempfile::TempDir;
+fn daemon_cleanup() -> Result<()> {
+    use runtime::projections::job::{load_jobs, JobStatus};
 
-    #[test]
-    fn test_write_and_read_pid() {
-        let dir = TempDir::new().unwrap();
-        let pid_path = dir.path().join("daemon.pid");
+    let jobs = load_jobs().context("failed to load job projection")?;
 
-        write_pid(&pid_path, 12345).unwrap();
-        assert!(pid_path.exists());
+    let worktrees_base = {
+        if let Ok(dir) = std::env::var("SHIP_WORKTREE_DIR") {
+            PathBuf::from(dir)
+        } else {
+            let home = std::env::var("HOME")
+                .or_else(|_| std::env::var("USERPROFILE"))
+                .unwrap_or_else(|_| "/tmp".to_string());
+            PathBuf::from(home).join("dev").join("ship-worktrees")
+        }
+    };
 
-        let pid = read_pid(&pid_path).unwrap();
-        assert_eq!(pid, Some(12345));
+    let repo_dir = if let Ok(dir) = std::env::var("SHIP_REPO_DIR") {
+        PathBuf::from(dir)
+    } else {
+        std::env::current_dir().context("cannot determine working directory")?
+    };
+
+    let orphans: Vec<_> = jobs
+        .values()
+        .filter(|j| matches!(j.status, JobStatus::Merged | JobStatus::Failed))
+        .filter(|j| {
+            let path = j
+                .worktree
+                .as_deref()
+                .map(PathBuf::from)
+                .unwrap_or_else(|| worktrees_base.join(&j.slug));
+            path.exists()
+        })
+        .collect();
+
+    if orphans.is_empty() {
+        println!("No orphaned worktrees found.");
+        return Ok(());
     }
 
-    #[test]
-    fn test_read_pid_missing_file() {
-        let dir = TempDir::new().unwrap();
-        let pid_path = dir.path().join("daemon.pid");
-        let pid = read_pid(&pid_path).unwrap();
-        assert_eq!(pid, None);
+    println!("Found {} orphaned worktree(s):", orphans.len());
+
+    let mut cleaned = 0usize;
+    let mut errors = 0usize;
+
+    for job in &orphans {
+        let worktree_path = job
+            .worktree
+            .as_deref()
+            .map(PathBuf::from)
+            .unwrap_or_else(|| worktrees_base.join(&job.slug));
+        let branch = format!("job/{}", job.slug);
+        let tmux_session = format!("job-{}", job.slug);
+
+        println!("  {} — {}", job.slug, worktree_path.display());
+
+        // Kill tmux session (best-effort).
+        let _ = std::process::Command::new("tmux")
+            .args(["kill-session", "-t", &tmux_session])
+            .status();
+
+        // Remove git worktree.
+        let wt_str = match worktree_path.to_str() {
+            Some(s) => s,
+            None => {
+                eprintln!("    error: worktree path is not valid UTF-8, skipping");
+                errors += 1;
+                continue;
+            }
+        };
+        let remove_ok = std::process::Command::new("git")
+            .args(["worktree", "remove", wt_str, "--force"])
+            .current_dir(&repo_dir)
+            .status()
+            .map(|s| s.success())
+            .unwrap_or(false);
+
+        if !remove_ok {
+            eprintln!("    warning: worktree removal failed for {}", worktree_path.display());
+            errors += 1;
+            continue;
+        }
+
+        // Delete branch (best-effort — it may already be gone).
+        let _ = std::process::Command::new("git")
+            .args(["branch", "-D", &branch])
+            .current_dir(&repo_dir)
+            .status();
+
+        cleaned += 1;
     }
 
-    #[test]
-    fn test_read_pid_invalid_content() {
-        let dir = TempDir::new().unwrap();
-        let pid_path = dir.path().join("daemon.pid");
-        std::fs::write(&pid_path, "not-a-number\n").unwrap();
-        assert!(read_pid(&pid_path).is_err());
+    if errors > 0 {
+        println!("Cleaned: {cleaned}, Errors: {errors}");
+    } else {
+        println!("Cleaned: {cleaned}");
     }
-
-    #[test]
-    fn test_write_pid_creates_parent_dirs() {
-        let dir = TempDir::new().unwrap();
-        let pid_path = dir.path().join("nested").join("dirs").join("daemon.pid");
-        write_pid(&pid_path, 99).unwrap();
-        let pid = read_pid(&pid_path).unwrap();
-        assert_eq!(pid, Some(99));
-    }
+    Ok(())
 }
+
+#[cfg(test)]
+#[path = "daemon_tests.rs"]
+mod tests;

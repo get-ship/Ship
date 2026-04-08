@@ -5,6 +5,7 @@ pub(crate) mod agent_lifecycle;
 mod dispatch_handlers;
 pub(crate) mod dispatch_pipeline;
 mod dispatch_replay;
+pub(crate) mod orphan_cleanup;
 pub(crate) mod executors;
 pub mod helpers;
 pub mod job_dispatch;
@@ -37,6 +38,10 @@ mod tests_concurrency;
 #[cfg(test)]
 #[path = "tests_daemon_startup.rs"]
 mod tests_daemon_startup;
+
+#[cfg(test)]
+#[path = "tests_orphan_cleanup.rs"]
+mod tests_orphan_cleanup;
 
 #[cfg(test)]
 #[path = "tests_event_integrity.rs"]
