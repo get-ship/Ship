@@ -3,6 +3,7 @@
 pub mod adapters;
 pub(crate) mod agent_lifecycle;
 mod dispatch_handlers;
+pub(crate) mod dispatch_emit;
 pub(crate) mod dispatch_pipeline;
 mod dispatch_replay;
 pub(crate) mod orphan_cleanup;
