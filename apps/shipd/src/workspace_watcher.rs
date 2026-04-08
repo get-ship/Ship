@@ -231,8 +231,7 @@ async fn handle_branch_switch(ship_dir: &Path) {
     }
 
     // Reconcile the newly active branch.
-    let project_root = ship_dir.parent().unwrap_or(ship_dir);
-    let _ = runtime::workspace::reconcile_workspace(ship_dir, &branch, project_root);
+    let _ = runtime::workspace::reconcile_workspace(ship_dir, &branch);
 }
 
 async fn handle_config_change(ship_dir: &Path, changed_path: Option<String>) {

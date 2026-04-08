@@ -35,7 +35,7 @@ pub(crate) struct DispatchContext {
 /// Handle returned by `subscribe_job_events` — gives the shutdown path
 /// access to the process registry and executor for graceful shutdown.
 pub struct DispatchHandle {
-    pub registry: Arc<Mutex<ProcessRegistry>>,
+    pub(crate) registry: Arc<Mutex<ProcessRegistry>>,
     pub executor: Arc<dyn JobExecutor>,
 }
 

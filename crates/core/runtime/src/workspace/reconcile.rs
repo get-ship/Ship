@@ -21,7 +21,6 @@ use super::types::Workspace;
 pub fn reconcile_workspace(
     ship_dir: &Path,
     branch: &str,
-    connection_path: &Path,
 ) -> Result<Option<Workspace>> {
     let git_path = git_worktree_path_for_branch(branch);
     reconcile_workspace_with_git_path(ship_dir, branch, &git_path)
@@ -103,8 +102,7 @@ pub fn resolve_project_root(
     ship_dir: &Path,
     branch: &str,
 ) -> Result<(std::path::PathBuf, Workspace)> {
-    let project_root = ship_dir.parent().unwrap_or(ship_dir);
-    let _ = reconcile_workspace(ship_dir, branch, project_root);
+    let _ = reconcile_workspace(ship_dir, branch);
     resolve_project_root_from_db(ship_dir, branch)
 }
 

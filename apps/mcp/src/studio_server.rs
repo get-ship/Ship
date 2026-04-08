@@ -164,8 +164,6 @@ impl StudioServer {
         let adapter = crate::push::mcp_notification::McpNotificationAdapter::new(peer);
         let relay = crate::server::notification_relay::EventRelay::new();
         let peer_handle = crate::server::notification_relay::PeerHandle {
-            id: "studio-relay".to_string(),
-            actor_id: "studio".to_string(),
             adapter: Box::new(adapter),
             allowed_events: std::collections::HashSet::new(),
         };

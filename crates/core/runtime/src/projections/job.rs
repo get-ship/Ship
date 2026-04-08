@@ -220,7 +220,7 @@ pub fn project(events: &[EventEnvelope]) -> HashMap<String, JobRecord> {
 
 /// Load all job events from the platform DB and return the projected state.
 pub fn load_jobs() -> Result<HashMap<String, JobRecord>> {
-    use crate::db::{block_on, db_path, ensure_db, open_db_at};
+    use crate::db::{db_path, ensure_db, open_db_at};
 
     ensure_db()?;
     let mut conn = open_db_at(&db_path()?)?;

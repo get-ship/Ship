@@ -40,8 +40,8 @@ pub async fn workspace_pty(
     // Resolve workspace and tmux session name.
     let ship_dir = &state.ship_dir;
 
-    let workspace = match runtime::workspace::get_workspace_by_id(ship_dir, &workspace_id) {
-        Ok(Some(w)) => w,
+    match runtime::workspace::get_workspace_by_id(ship_dir, &workspace_id) {
+        Ok(Some(_)) => {}
         Ok(None) => {
             return (
                 StatusCode::NOT_FOUND,
@@ -56,7 +56,7 @@ pub async fn workspace_pty(
             )
                 .into_response();
         }
-    };
+    }
 
     let session_name = match runtime::db::workspace_state::get_workspace_tmux_session_db(&workspace_id) {
         Ok(Some(s)) if !s.is_empty() => s,
@@ -138,7 +138,6 @@ async fn handle_pty_socket(
     let mut stdout_buf = vec![0u8; 4096];
     let ping_interval = Duration::from_secs(30);
     let pong_timeout = Duration::from_secs(10);
-    let mut waiting_for_pong = false;
 
     loop {
         tokio::select! {
@@ -173,11 +172,6 @@ async fn handle_pty_socket(
                 match msg {
                     // Ping timeout — send a ping and wait for pong.
                     Err(_elapsed) => {
-                        if waiting_for_pong {
-                            // No pong received — close.
-                            break;
-                        }
-                        waiting_for_pong = true;
                         if socket
                             .send(axum::extract::ws::Message::Ping(vec![].into()))
                             .await
@@ -187,15 +181,12 @@ async fn handle_pty_socket(
                         }
                         // Give the client pong_timeout to respond.
                         match timeout(pong_timeout, socket.recv()).await {
-                            Ok(Some(Ok(axum::extract::ws::Message::Pong(_)))) => {
-                                waiting_for_pong = false;
-                            }
+                            Ok(Some(Ok(axum::extract::ws::Message::Pong(_)))) => {}
                             _ => break,
                         }
                     }
                     Ok(None) | Ok(Some(Err(_))) => break,
                     Ok(Some(Ok(msg))) => {
-                        waiting_for_pong = false;
                         match msg {
                             axum::extract::ws::Message::Binary(data) => {
                                 if stdin.write_all(&data).await.is_err() {
@@ -207,9 +198,7 @@ async fn handle_pty_socket(
                                     break;
                                 }
                             }
-                            axum::extract::ws::Message::Pong(_) => {
-                                waiting_for_pong = false;
-                            }
+                            axum::extract::ws::Message::Pong(_) => {}
                             axum::extract::ws::Message::Close(_) => break,
                             axum::extract::ws::Message::Ping(data) => {
                                 let _ = socket
