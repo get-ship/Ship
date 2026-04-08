@@ -46,9 +46,6 @@ mod mesh_tests;
 mod tests;
 #[cfg(test)]
 mod integration_tests;
-#[cfg(test)]
-#[path = "tests_provider_adapter.rs"]
-mod tests_provider_adapter;
 
 /// Trait implemented by headless service actors.
 ///

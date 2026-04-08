@@ -181,19 +181,19 @@ fn persistent_session_omits_no_persistence_flag() {
 #[test]
 fn ready_pattern_is_prompt_char() {
     let adapter = ClaudeAdapter;
-    assert_eq!(adapter.ready_pattern(), Some("❯"));
+    assert_eq!(adapter.ready_pattern(), "❯");
 }
 
 #[test]
 fn autostart_input_is_go() {
     let adapter = ClaudeAdapter;
-    assert_eq!(adapter.autostart_input(), Some("go"));
+    assert_eq!(adapter.autostart_input(), "go");
 }
 
 #[test]
 fn exit_command_is_slash_exit() {
     let adapter = ClaudeAdapter;
-    assert_eq!(adapter.exit_command(), Some("/exit"));
+    assert_eq!(adapter.exit_command(), "/exit");
 }
 
 // ── Output parsing (stream-json) ────────────────────────────────────────────
