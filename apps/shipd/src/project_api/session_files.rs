@@ -1,4 +1,4 @@
-//! Session file endpoints — list, read, write, delete files in .ship-session/.
+//! Session file endpoints — list, read, write, delete files in .artifacts/.
 
 use axum::{Json, extract::{Path, State}, http::StatusCode};
 use serde::Deserialize;
@@ -81,7 +81,7 @@ pub async fn list_session_files(
     Path(id): Path<String>,
 ) -> Result<(StatusCode, Json<MeshResponse>), (StatusCode, Json<MeshResponse>)> {
     let worktree = resolve_worktree(&state.ship_dir, &id)?;
-    let session_dir = worktree.join(".ship-session");
+    let session_dir = worktree.join(".artifacts");
 
     if !session_dir.exists() {
         return Ok(ok_response(serde_json::json!({ "files": [] })));
@@ -99,10 +99,10 @@ pub async fn read_session_file(
     Path((id, file_path)): Path<(String, String)>,
 ) -> Result<(StatusCode, Json<MeshResponse>), (StatusCode, Json<MeshResponse>)> {
     let worktree = resolve_worktree(&state.ship_dir, &id)?;
-    let target = worktree.join(".ship-session").join(&file_path);
+    let target = worktree.join(".artifacts").join(&file_path);
 
     // Prevent path traversal
-    if !target.starts_with(worktree.join(".ship-session")) {
+    if !target.starts_with(worktree.join(".artifacts")) {
         return Err(err_response(StatusCode::BAD_REQUEST, "invalid path"));
     }
 
@@ -157,7 +157,7 @@ pub async fn write_session_file(
     Json(body): Json<WriteFileReq>,
 ) -> Result<(StatusCode, Json<MeshResponse>), (StatusCode, Json<MeshResponse>)> {
     let worktree = resolve_worktree(&state.ship_dir, &id)?;
-    let session_dir = worktree.join(".ship-session");
+    let session_dir = worktree.join(".artifacts");
     let target = session_dir.join(&file_path);
 
     // Prevent path traversal
@@ -191,10 +191,10 @@ pub async fn delete_session_file(
     Path((id, file_path)): Path<(String, String)>,
 ) -> Result<(StatusCode, Json<MeshResponse>), (StatusCode, Json<MeshResponse>)> {
     let worktree = resolve_worktree(&state.ship_dir, &id)?;
-    let target = worktree.join(".ship-session").join(&file_path);
+    let target = worktree.join(".artifacts").join(&file_path);
 
     // Prevent path traversal
-    if !target.starts_with(worktree.join(".ship-session")) {
+    if !target.starts_with(worktree.join(".artifacts")) {
         return Err(err_response(StatusCode::BAD_REQUEST, "invalid path"));
     }
 

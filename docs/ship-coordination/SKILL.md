@@ -37,7 +37,7 @@ set_agent           — assign an agent to the active workspace
 **log_progress**: what was done, what is next, any discoveries that affect other workspaces.
 **end_session**: what was completed, what was not done, what unblocks downstream.
 
-Notes and ADRs are human-facing documents. Do not use `create_note` for agent coordination, plans, or scratch work. Use `log_progress` or `.ship-session/` files instead.
+Notes and ADRs are human-facing documents. Do not use `create_note` for agent coordination, plans, or scratch work. Use `log_progress` or `.artifacts/` files instead.
 
 ## Cross-workspace signals
 

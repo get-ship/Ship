@@ -5,7 +5,7 @@ use serde::Serialize;
 
 use crate::requests::{ReadSessionFileRequest, WriteSessionFileRequest};
 
-const SESSION_DIR: &str = ".ship-session";
+const SESSION_DIR: &str = ".artifacts";
 
 #[derive(Serialize)]
 #[cfg_attr(test, derive(serde::Deserialize))]

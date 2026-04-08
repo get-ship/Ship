@@ -319,7 +319,7 @@ impl StudioServer {
 
     // ---- Session Files ----
 
-    #[tool(description = "List all files in .ship-session/ with path, size, modified, and type.")]
+    #[tool(description = "List all files in .artifacts/ with path, size, modified, and type.")]
     async fn list_session_files(&self) -> String {
         let project_dir = match self.get_effective_project_dir().await {
             Ok(d) => d,
@@ -328,7 +328,7 @@ impl StudioServer {
         session_files::list_session_files(&project_dir)
     }
 
-    #[tool(description = "Read a file from .ship-session/. Returns data URI for images.")]
+    #[tool(description = "Read a file from .artifacts/. Returns data URI for images.")]
     async fn read_session_file(
         &self,
         Parameters(req): Parameters<ReadSessionFileRequest>,
@@ -340,7 +340,7 @@ impl StudioServer {
         session_files::read_session_file(&project_dir, req)
     }
 
-    #[tool(description = "Write a file to .ship-session/. Creates parent directories as needed.")]
+    #[tool(description = "Write a file to .artifacts/. Creates parent directories as needed.")]
     async fn write_session_file(
         &self,
         Parameters(req): Parameters<WriteSessionFileRequest>,
@@ -352,7 +352,7 @@ impl StudioServer {
         session_files::write_session_file(&project_dir, req)
     }
 
-    #[tool(description = "Delete a file from .ship-session/.")]
+    #[tool(description = "Delete a file from .artifacts/.")]
     async fn delete_session_file(&self, Parameters(req): Parameters<ReadSessionFileRequest>) -> String {
         let project_dir = match self.get_effective_project_dir().await {
             Ok(d) => d,
@@ -461,10 +461,10 @@ impl StudioServer {
             return format!("Error routing event via daemon: {}", e);
         }
 
-        // Write to .ship-session/inbox/ so connected Claude Code sessions can
+        // Write to .artifacts/inbox/ so connected Claude Code sessions can
         // read the event via read_session_file.  When the active workspace
         // lives in a git worktree the inbox must land in that worktree's
-        // .ship-session/, not the main project root.  Failure is non-fatal.
+        // .artifacts/, not the main project root.  Failure is non-fatal.
         // target_workspace_id overrides the caller's workspace — used by agents
         // (e.g. gate) that need to notify a different session (e.g. commander).
         let inbox_workspace = req.target_workspace_id.as_deref().unwrap_or(&workspace_id);
@@ -489,7 +489,7 @@ impl StudioServer {
 
 // ---- Helpers ----
 
-/// Resolve the directory that should contain `.ship-session/inbox/` for the
+/// Resolve the directory that should contain `.artifacts/inbox/` for the
 /// given workspace.
 ///
 /// If the workspace record has a non-null `worktree_path`, the agent running

@@ -1,4 +1,4 @@
-// Hook that provides session files from .ship-session/ via the shipd daemon.
+// Hook that provides session files from .artifacts/ via the shipd daemon.
 
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import { useCallback } from 'react'

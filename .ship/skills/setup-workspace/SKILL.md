@@ -8,7 +8,7 @@ authors: [ship]
 
 # Workspace Setup
 
-Launch your agent pod in one command. Reads `.ship-session/pod.md` and opens a
+Launch your agent pod in one command. Reads `.artifacts/pod.md` and opens a
 terminal tab for each agent in its worktree.
 
 ## Usage
@@ -17,16 +17,16 @@ terminal tab for each agent in its worktree.
 bash .ship/skills/setup-workspace/scripts/setup.sh
 ```
 
-Reads `.ship-session/pod.md` by default. Pass `--pod <file>` to use a different layout.
+Reads `.artifacts/pod.md` by default. Pass `--pod <file>` to use a different layout.
 
 ```bash
-bash .ship/skills/setup-workspace/scripts/setup.sh --pod .ship-session/pod.md
+bash .ship/skills/setup-workspace/scripts/setup.sh --pod .artifacts/pod.md
 bash .ship/skills/setup-workspace/scripts/setup.sh --dry-run  # preview without opening
 ```
 
 ## Pod layout file
 
-Create `.ship-session/pod.md` to define your agent pod. The file is gitignored.
+Create `.artifacts/pod.md` to define your agent pod. The file is gitignored.
 
 ```yaml
 agents:

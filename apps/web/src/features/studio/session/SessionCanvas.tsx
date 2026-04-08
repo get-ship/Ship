@@ -145,7 +145,7 @@ export function SessionCanvas({
               <p className="text-sm font-medium">No canvas loaded</p>
               <p className="text-xs mt-1 max-w-[280px]">
                 Select an HTML artifact from the activity panel, or have an agent write to
-                .ship-session/canvas.html
+                .artifacts/canvas.html
               </p>
             </div>
           </div>

@@ -27,7 +27,7 @@ git diff main..HEAD
 Build a change map:
 
 ```markdown
-<!-- .ship-session/review-map.md -->
+<!-- .artifacts/review-map.md -->
 # Review Map
 
 | File | Type | Risk | Reviewer focus |
@@ -72,7 +72,7 @@ For each changed file, check in order:
 ### 4. Write the review
 
 ```markdown
-<!-- .ship-session/review.md -->
+<!-- .artifacts/review.md -->
 # Review: <PR title or branch>
 
 ## Verdict: APPROVE | REQUEST_CHANGES | COMMENT
@@ -98,9 +98,9 @@ For each changed file, check in order:
 {% if post_to_github %}
 Post to GitHub:
 ```bash
-gh pr review <number> --request-changes --body-file .ship-session/review.md
+gh pr review <number> --request-changes --body-file .artifacts/review.md
 # or
-gh pr review <number> --approve --body-file .ship-session/review.md
+gh pr review <number> --approve --body-file .artifacts/review.md
 ```
 {% else %}
 Surface the review inline or to mission-control. Blockers = gate fail. Suggestions = pass with notes.

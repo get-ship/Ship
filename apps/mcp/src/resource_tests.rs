@@ -96,7 +96,7 @@ fn job_created_event(job_id: &str, slug: &str, agent: &str) -> EventEnvelope {
             "slug": slug,
             "agent": agent,
             "branch": format!("job/{slug}"),
-            "spec_path": ".ship-session/job-spec.md",
+            "spec_path": ".artifacts/job-spec.md",
         }),
     )
     .unwrap()

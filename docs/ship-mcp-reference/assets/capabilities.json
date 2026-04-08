@@ -40,7 +40,7 @@
   {
     "id": "resource-session-files",
     "status": "rc",
-    "notes": "ship://session/{path}. Reads .ship-session/ files. Template-based resource. Functional."
+    "notes": "ship://session/{path}. Reads .artifacts/ files. Template-based resource. Functional."
   },
   {
     "id": "resource-specs-adrs",
@@ -70,7 +70,7 @@
   {
     "id": "cmd-write-session-file",
     "status": "rc",
-    "notes": "Writes to .ship-session/ and fires resource notification for Studio. Thin wrapper but notification is the value."
+    "notes": "Writes to .artifacts/ and fires resource notification for Studio. Thin wrapper but notification is the value."
   },
   {
     "id": "auto-session-lifecycle",

@@ -1,18 +1,18 @@
 ---
 name: plan
 stable-id: plan
-description: Create structured job specs in .ship-session/specs/. Specs become launchable jobs via the daemon.
+description: Create structured job specs in .artifacts/specs/. Specs become launchable jobs via the daemon.
 tags: [planning, jobs]
 authors: [ship]
 ---
 
 # Plan
 
-Write job specs to `.ship-session/specs/`. Each spec is a directory containing a `spec.md` with YAML frontmatter that the daemon can launch as a job, plus optional supporting artifacts.
+Write job specs to `.artifacts/specs/`. Each spec is a directory containing a `spec.md` with YAML frontmatter that the daemon can launch as a job, plus optional supporting artifacts.
 
 ## Output location
 
-All specs go in `.ship-session/specs/<feature>/<spec-name>/spec.md`. Create directories as needed.
+All specs go in `.artifacts/specs/<feature>/<spec-name>/spec.md`. Create directories as needed.
 
 - `<feature>` maps to a doc skill name (e.g., `ship-skills`, `ship-runtime`) matching `docs/ship-*/`.
 - `<spec-name>` is the specific capability or work item. Must match the `slug` in frontmatter.
@@ -87,8 +87,8 @@ See `.ship/agents/` for available profiles.
 For feature work, create two plans with a dependency:
 
 ```
-.ship-session/specs/ship-runtime/auth-tests/spec.md    (agent: test-writer)
-.ship-session/specs/ship-runtime/auth-impl/spec.md     (agent: rust-lane, depends_on: [auth-tests])
+.artifacts/specs/ship-runtime/auth-tests/spec.md    (agent: test-writer)
+.artifacts/specs/ship-runtime/auth-impl/spec.md     (agent: rust-lane, depends_on: [auth-tests])
 ```
 
 ## Launching

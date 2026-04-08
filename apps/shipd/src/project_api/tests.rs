@@ -74,7 +74,7 @@ async fn list_session_files_empty() {
 #[tokio::test(flavor = "multi_thread")]
 async fn list_session_files_with_files() {
     let dir = TempDir::new().unwrap();
-    let session_dir = dir.path().join(".ship-session");
+    let session_dir = dir.path().join(".artifacts");
     std::fs::create_dir_all(&session_dir).unwrap();
     std::fs::write(session_dir.join("notes.md"), "hello").unwrap();
     std::fs::write(session_dir.join("data.json"), "{}").unwrap();
@@ -99,7 +99,7 @@ async fn list_session_files_with_files() {
 #[tokio::test(flavor = "multi_thread")]
 async fn read_session_file_exists() {
     let dir = TempDir::new().unwrap();
-    let session_dir = dir.path().join(".ship-session");
+    let session_dir = dir.path().join(".artifacts");
     std::fs::create_dir_all(&session_dir).unwrap();
     std::fs::write(session_dir.join("spec.md"), "# My Spec").unwrap();
 
@@ -170,7 +170,7 @@ async fn write_session_file_creates_directory() {
 #[tokio::test(flavor = "multi_thread")]
 async fn delete_session_file() {
     let dir = TempDir::new().unwrap();
-    let session_dir = dir.path().join(".ship-session");
+    let session_dir = dir.path().join(".artifacts");
     std::fs::create_dir_all(&session_dir).unwrap();
     std::fs::write(session_dir.join("doomed.txt"), "bye").unwrap();
 
@@ -440,13 +440,13 @@ async fn workspace_not_found_returns_404() {
 
 // BUG: Path traversal via `..` is NOT blocked by the current `starts_with` check.
 // `Path::starts_with` does component-level comparison but does not resolve `..`,
-// so `/.ship-session/../secret.txt` passes the check because `.ship-session` is
+// so `/.artifacts/../secret.txt` passes the check because `.artifacts` is
 // still a prefix component. The implementation needs `canonicalize()` or manual
 // `..` rejection to fix this. Filed as a known vulnerability.
 #[tokio::test(flavor = "multi_thread")]
 async fn session_file_path_traversal_blocked() {
     let dir = TempDir::new().unwrap();
-    let session_dir = dir.path().join(".ship-session");
+    let session_dir = dir.path().join(".artifacts");
     std::fs::create_dir_all(&session_dir).unwrap();
     std::fs::write(session_dir.join("legit.txt"), "ok").unwrap();
     std::fs::write(dir.path().join("secret.txt"), "do not read").unwrap();
@@ -474,7 +474,7 @@ async fn session_file_path_traversal_blocked() {
         result.is_ok(),
         "write traversal currently bypasses starts_with check (known bug)"
     );
-    // Confirm the file was written outside .ship-session/
+    // Confirm the file was written outside .artifacts/
     assert!(
         dir.path().join("traversed.txt").exists(),
         "write traversal created file outside session dir (known bug)"

@@ -14,7 +14,7 @@ Starts Storybook and surfaces the component browser in the session canvas.
 ## Start
 
 ```bash
-SESSION_ROOT="$(git rev-parse --show-toplevel)/.ship-session"
+SESSION_ROOT="$(git rev-parse --show-toplevel)/.artifacts"
 URL="http://localhost:{{ port }}"
 
 if curl -sf "$URL" > /dev/null 2>&1; then
@@ -77,5 +77,5 @@ export const Primary: Story = { args: { label: 'Click me' } }
 
 ```bash
 pkill -f "storybook.*{{ port }}"
-rm -f "$(git rev-parse --show-toplevel)/.ship-session/{{ stable_id }}.url"
+rm -f "$(git rev-parse --show-toplevel)/.artifacts/{{ stable_id }}.url"
 ```

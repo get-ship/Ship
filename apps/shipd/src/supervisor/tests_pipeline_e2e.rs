@@ -33,9 +33,9 @@ struct MockIsolation {
 #[async_trait]
 impl IsolationStrategy for MockIsolation {
     async fn prepare(&self, _job: &JobContext) -> anyhow::Result<PathBuf> {
-        std::fs::create_dir_all(self.work_dir.join(".ship-session")).ok();
+        std::fs::create_dir_all(self.work_dir.join(".artifacts")).ok();
         std::fs::write(
-            self.work_dir.join(".ship-session/job-spec.md"),
+            self.work_dir.join(".artifacts/job-spec.md"),
             "---\nslug: test\n---\n# Test",
         ).ok();
         Ok(self.work_dir.clone())
@@ -157,9 +157,9 @@ async fn pipeline_advances_through_all_steps() {
     let worktree_root = dir.path().join("worktrees");
     let worktree_path = worktree_root.join("e2e-pipe");
     std::fs::create_dir_all(&ship_dir).unwrap();
-    std::fs::create_dir_all(worktree_path.join(".ship-session")).unwrap();
+    std::fs::create_dir_all(worktree_path.join(".artifacts")).unwrap();
     std::fs::write(
-        worktree_path.join(".ship-session/job-spec.md"),
+        worktree_path.join(".artifacts/job-spec.md"),
         "---\nslug: e2e-pipe\n---\n# Pipeline Test",
     ).unwrap();
 

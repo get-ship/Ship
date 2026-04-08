@@ -126,7 +126,7 @@ find .ship/ -name "*.db" -o -name "*.db-wal" -o -name "*.db-shm" \
   | grep -v node_modules
 ```
 
-`.ship/` is configuration only. Any runtime artifacts (databases, pid files, sockets) are a FAIL. These belong in `~/.ship/` (global) or `.ship-session/` (ephemeral).
+`.ship/` is configuration only. Any runtime artifacts (databases, pid files, sockets) are a FAIL. These belong in `~/.ship/` (global) or `.artifacts/` (ephemeral).
 
 ## Land Step (on PASS)
 

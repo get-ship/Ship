@@ -14,7 +14,7 @@ fn created_event(job_id: &str) -> EventEnvelope {
             "slug": "auth-tests",
             "agent": "rust-runtime",
             "branch": "job/auth-tests",
-            "spec_path": ".ship-session/job-spec.md",
+            "spec_path": ".artifacts/job-spec.md",
             "plan_id": null
         }),
     )
@@ -142,7 +142,7 @@ fn project_depends_on_stored() {
             "slug": "gated-job",
             "agent": "rust-runtime",
             "branch": "job/gated-job",
-            "spec_path": ".ship-session/job-spec.md",
+            "spec_path": ".artifacts/job-spec.md",
             "plan_id": null,
             "depends_on": ["upstream-a", "upstream-b"]
         }),

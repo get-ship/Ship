@@ -57,9 +57,9 @@ The Ship MCP server (`ship mcp serve`) exposes platform tools to agents via the 
 - `list_skill_vars` -- list skills with configurable variables
 
 ### Session Files
-- `write_session_file` -- write a file to .ship-session/
-- `read_session_file` -- read a file from .ship-session/
-- `list_session_files` -- list files in .ship-session/
+- `write_session_file` -- write a file to .artifacts/
+- `read_session_file` -- read a file from .artifacts/
+- `list_session_files` -- list files in .artifacts/
 
 ### Mesh
 - `mesh_send` -- send a directed message to another agent

@@ -332,10 +332,10 @@ mod tests {
     fn format_skill_file_stable_id_injected() {
         let mut skill = base_skill();
         skill.stable_id = Some("web-qa".to_string());
-        skill.content = "Write to .ship-session/{{ stable_id }}/report.md".to_string();
+        skill.content = "Write to .artifacts/{{ stable_id }}/report.md".to_string();
         let out = format_skill_file(&skill, &no_runtime());
         assert!(
-            out.contains("Write to .ship-session/web-qa/report.md"),
+            out.contains("Write to .artifacts/web-qa/report.md"),
             "got:\n{out}"
         );
     }
@@ -344,7 +344,7 @@ mod tests {
     fn format_skill_file_stable_id_none_leaves_placeholder() {
         let mut skill = base_skill();
         skill.stable_id = None;
-        skill.content = "Write to .ship-session/{{ stable_id }}/report.md".to_string();
+        skill.content = "Write to .artifacts/{{ stable_id }}/report.md".to_string();
         let out = format_skill_file(&skill, &no_runtime());
         assert!(
             !out.contains("{{ stable_id }}"),

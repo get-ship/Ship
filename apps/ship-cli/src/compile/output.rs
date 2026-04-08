@@ -214,10 +214,10 @@ pub(crate) fn ensure_parent(path: &Path) -> Result<()> {
 
 // ── Session scratch space ────────────────────────────────────────────────────
 
-/// Ensure `.ship-session/` is listed in the root `.gitignore`.
+/// Ensure `.artifacts/` is listed in the root `.gitignore`.
 /// Called once per `ship use` — idempotent.
 pub(crate) fn ensure_session_gitignored(root: &Path) -> Result<()> {
-    const ENTRY: &str = ".ship-session/";
+    const ENTRY: &str = ".artifacts/";
     let path = root.join(".gitignore");
     let existing = if path.exists() {
         std::fs::read_to_string(&path)?

@@ -1,7 +1,7 @@
 //! ProcessExecutor — spawns agents as direct child processes.
 //!
 //! No tmux dependency. The runtime owns the PID and detects exit.
-//! Output is logged to `.ship-session/agent.log` in the worktree.
+//! Output is logged to `.artifacts/agent.log` in the worktree.
 //! The agent runs non-interactively via `--print -p "go"`.
 
 use anyhow::Result;
@@ -21,7 +21,7 @@ struct ProcessState {
 #[async_trait]
 impl JobExecutor for ProcessExecutor {
     async fn spawn(&self, ctx: &JobContext) -> Result<ExecutorHandle> {
-        let log_dir = ctx.work_dir.join(".ship-session");
+        let log_dir = ctx.work_dir.join(".artifacts");
         std::fs::create_dir_all(&log_dir)?;
         let log_path = log_dir.join("agent.log");
         let log_file = std::fs::File::create(&log_path)?;

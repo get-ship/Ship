@@ -119,7 +119,7 @@ export function CreateJobDialog({ open, onOpenChange }: CreateJobDialogProps) {
   const [slug, setSlug] = useState('')
   const [agent, setAgent] = useState('')
   const [branch, setBranch] = useState('')
-  const [specPath, setSpecPath] = useState('.ship-session/job-spec.md')
+  const [specPath, setSpecPath] = useState('.artifacts/job-spec.md')
   const [dependsOn, setDependsOn] = useState<string[]>([])
   const [pipeline, setPipeline] = useState('')
   const [branchEdited, setBranchEdited] = useState(false)
@@ -144,7 +144,7 @@ export function CreateJobDialog({ open, onOpenChange }: CreateJobDialogProps) {
         slug: trimmedSlug,
         agent: agent.trim(),
         branch: branch.trim() || `job/${slugify(trimmedSlug)}`,
-        spec_path: specPath.trim() || '.ship-session/job-spec.md',
+        spec_path: specPath.trim() || '.artifacts/job-spec.md',
         depends_on: dependsOn.length > 0 ? dependsOn : null,
         pipeline: pipeline || undefined,
       },
@@ -165,7 +165,7 @@ export function CreateJobDialog({ open, onOpenChange }: CreateJobDialogProps) {
     setSlug('')
     setAgent('')
     setBranch('')
-    setSpecPath('.ship-session/job-spec.md')
+    setSpecPath('.artifacts/job-spec.md')
     setDependsOn([])
     setPipeline('')
     setBranchEdited(false)
@@ -234,7 +234,7 @@ export function CreateJobDialog({ open, onOpenChange }: CreateJobDialogProps) {
             <Input
               value={specPath}
               onChange={(e) => setSpecPath(e.target.value)}
-              placeholder=".ship-session/job-spec.md"
+              placeholder=".artifacts/job-spec.md"
             />
           </div>
 

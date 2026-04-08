@@ -92,7 +92,7 @@
         "properties": {
           "filename": {
             "type": "string",
-            "description": "Filename relative to .ship-session/{namespace}/."
+            "description": "Filename relative to .artifacts/{namespace}/."
           },
           "mime_type": {
             "type": "string",

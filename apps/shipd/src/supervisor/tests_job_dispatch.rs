@@ -90,7 +90,7 @@ async fn job_created_delivered_to_subscriber() {
             "slug": "auth-tests",
             "agent": "rust-runtime",
             "branch": "job/auth-tests",
-            "spec_path": ".ship-session/job-spec.md",
+            "spec_path": ".artifacts/job-spec.md",
             "plan_id": null,
             "model": null,
             "provider": null,
@@ -221,12 +221,12 @@ async fn pipeline_advances_to_next_phase() {
     let worktree_root = dir.path().join("worktrees");
     let worktree_path = worktree_root.join(slug);
     let global_dir = dir.path().join("global");
-    std::fs::create_dir_all(worktree_path.join(".ship-session")).unwrap();
+    std::fs::create_dir_all(worktree_path.join(".artifacts")).unwrap();
     std::fs::create_dir_all(&global_dir).unwrap();
 
     // Write a minimal spec so write_phase_spec can read it
     std::fs::write(
-        worktree_path.join(".ship-session").join("job-spec.md"),
+        worktree_path.join(".artifacts").join("job-spec.md"),
         "---\nslug: pipeline-adv-test\n---\n# Pipeline Test\n",
     )
     .unwrap();
@@ -241,7 +241,7 @@ async fn pipeline_advances_to_next_phase() {
             "slug": slug,
             "agent": "test-writer",
             "branch": "job/pipeline-adv-test",
-            "spec_path": ".ship-session/job-spec.md",
+            "spec_path": ".artifacts/job-spec.md",
             "plan_id": null,
             "steps": {
                 "steps": [
@@ -367,7 +367,7 @@ mod ports {
             slug: slug.to_string(),
             agent: "rust-runtime".to_string(),
             branch: format!("job/{slug}"),
-            spec_path: ".ship-session/job-spec.md".to_string(),
+            spec_path: ".artifacts/job-spec.md".to_string(),
             work_dir,
             env: [("SHIP_MESH_ID".to_string(), slug.to_string())].into(),
             launch: Default::default(),
@@ -425,7 +425,7 @@ mod ports {
                 "slug": "iso-dispatch",
                 "agent": "rust-runtime",
                 "branch": "job/iso-dispatch",
-                "spec_path": ".ship-session/job-spec.md",
+                "spec_path": ".artifacts/job-spec.md",
                 "plan_id": null,
             }),
         );
@@ -463,7 +463,7 @@ mod ports {
                 "slug": "exec-dispatch",
                 "agent": "rust-runtime",
                 "branch": "job/exec-dispatch",
-                "spec_path": ".ship-session/job-spec.md",
+                "spec_path": ".artifacts/job-spec.md",
                 "plan_id": null,
             }),
         );
@@ -498,10 +498,10 @@ mod ports {
         let worktree_root = dir.path().join("worktrees");
         let worktree_path = worktree_root.join(slug);
         let global_dir = dir.path().join("global");
-        std::fs::create_dir_all(worktree_path.join(".ship-session")).unwrap();
+        std::fs::create_dir_all(worktree_path.join(".artifacts")).unwrap();
         std::fs::create_dir_all(&global_dir).unwrap();
         std::fs::write(
-            worktree_path.join(".ship-session").join("job-spec.md"),
+            worktree_path.join(".artifacts").join("job-spec.md"),
             "---\nslug: pipe-exec-test\n---\n# Test\n",
         )
         .unwrap();
@@ -512,7 +512,7 @@ mod ports {
             serde_json::json!({
                 "job_id": job_id, "slug": slug,
                 "agent": "test-writer", "branch": "job/pipe-exec-test",
-                "spec_path": ".ship-session/job-spec.md", "plan_id": null,
+                "spec_path": ".artifacts/job-spec.md", "plan_id": null,
                 "steps": {
                     "steps": [
                         { "id": "write-tests", "type": "agent", "agent": "test-writer", "after": [] },
@@ -560,7 +560,7 @@ fn job_projection_handles_model_and_provider_payload() {
             "slug": "typed-api",
             "agent": "rust-runtime",
             "branch": "job/typed-api",
-            "spec_path": ".ship-session/job-spec.md",
+            "spec_path": ".artifacts/job-spec.md",
             "plan_id": null,
             "model": "claude-opus-4-5",
             "provider": "anthropic",
@@ -573,7 +573,7 @@ fn job_projection_handles_model_and_provider_payload() {
     assert_eq!(rec.slug, "typed-api");
     assert_eq!(rec.agent, "rust-runtime");
     assert_eq!(rec.branch, "job/typed-api");
-    assert_eq!(rec.spec_path, ".ship-session/job-spec.md");
+    assert_eq!(rec.spec_path, ".artifacts/job-spec.md");
     let raw: serde_json::Value =
         serde_json::from_str(&events[0].payload_json).unwrap();
     assert_eq!(raw["model"].as_str(), Some("claude-opus-4-5"));
@@ -618,7 +618,7 @@ async fn job_with_depends_on_is_deferred() {
             "slug": "downstream",
             "agent": "rust-runtime",
             "branch": "job/downstream",
-            "spec_path": ".ship-session/job-spec.md",
+            "spec_path": ".artifacts/job-spec.md",
             "plan_id": null,
             "depends_on": ["upstream-a"]
         }),
@@ -644,7 +644,7 @@ async fn job_without_depends_on_not_deferred() {
             "slug": "no-deps",
             "agent": "rust-runtime",
             "branch": "job/no-deps",
-            "spec_path": ".ship-session/job-spec.md",
+            "spec_path": ".artifacts/job-spec.md",
             "plan_id": null,
         }),
     );
@@ -747,7 +747,7 @@ fn pending_jobs_recoverable_from_event_store() {
                     "slug": format!("persist-job-{i}"),
                     "agent": "rust-runtime",
                     "branch": format!("job/persist-job-{i}"),
-                    "spec_path": ".ship-session/job-spec.md",
+                    "spec_path": ".artifacts/job-spec.md",
                     "plan_id": null,
                     "depends_on": ["upstream-blocker"],
                 }),

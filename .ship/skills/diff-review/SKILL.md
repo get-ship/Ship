@@ -25,7 +25,7 @@ Determine what to diff:
 
 ### 2. Render to Session canvas
 
-Write `.ship-session/canvas.html` with an interactive diff view:
+Write `.artifacts/canvas.html` with an interactive diff view:
 
 - File list at the top, clickable, scrolls to that file's diff
 - Per-file sections with line numbers, green additions, red deletions
@@ -41,14 +41,14 @@ Include review action buttons:
 
 ### 3. Read annotations
 
-After the reviewer annotates in Studio, read `.ship-session/annotations.json`:
+After the reviewer annotates in Studio, read `.artifacts/annotations.json`:
 - Click annotations on diff lines = inline review comments
 - Action annotations = the review decision
 - Box annotations = section-level feedback
 
 ### 4. Write review summary
 
-Output to `.ship-session/review.md` with the decision, per-file comments, and referenced line numbers.
+Output to `.artifacts/review.md` with the decision, per-file comments, and referenced line numbers.
 
 ## Styling
 

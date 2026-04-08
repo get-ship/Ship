@@ -7,7 +7,7 @@
 #
 # Config via env vars (or edit defaults below):
 #   SHIP_REPO          — path to Ship repo (default: ~/dev/Ship)
-#   SHIP_CONTAINERFILE — path to Containerfile (default: $SHIP_REPO/.ship-session/Containerfile)
+#   SHIP_CONTAINERFILE — path to Containerfile (default: $SHIP_REPO/.artifacts/Containerfile)
 
 set -euo pipefail
 

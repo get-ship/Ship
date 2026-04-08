@@ -101,7 +101,7 @@ Always wrap Chart.js creation in a `buildChart()` function as shown above. Never
 
 Save each revision as `canvas-{slug}-v2.html`. Never overwrite — the history is the conversation. On approval, output the final path and a paragraph: layout decisions, color rationale, what visual feedback drove it.
 
-Path: `.ship-session/ship-canvas/canvas-{slug}-v{n}.html`
+Path: `.artifacts/ship-canvas/canvas-{slug}-v{n}.html`
 
 ## Quality bar
 

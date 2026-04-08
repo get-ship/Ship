@@ -1,7 +1,7 @@
 ---
 name: web-qa
 stable-id: web-qa
-description: Use when testing a web application — navigate pages, interact, screenshot, file bugs, write a report. Each run is timestamped. Outputs to .ship-session/qa/ for live viewing in Ship Studio.
+description: Use when testing a web application — navigate pages, interact, screenshot, file bugs, write a report. Each run is timestamped. Outputs to .artifacts/qa/ for live viewing in Ship Studio.
 tags: [qa, testing, browser, playwright]
 authors: [ship]
 license: MIT
@@ -12,12 +12,12 @@ allowed-tools: Bash(playwright-cli:*) Bash(npx:*)
 
 # Web QA
 
-Systematic QA using playwright-cli. Each run is isolated in a timestamped folder under `.ship-session/qa/`. Results are viewable live in Ship Studio's Session page.
+Systematic QA using playwright-cli. Each run is isolated in a timestamped folder under `.artifacts/qa/`. Results are viewable live in Ship Studio's Session page.
 
 ## Setup
 
 ```bash
-QA_ROOT="$(git rev-parse --show-toplevel)/.ship-session/qa"
+QA_ROOT="$(git rev-parse --show-toplevel)/.artifacts/qa"
 QA_RUN="$(date -u +%Y-%m-%dT%H-%M)"
 QA_DIR="$QA_ROOT/$QA_RUN"
 mkdir -p "$QA_DIR/screenshots" "$QA_DIR/bugs"
@@ -144,7 +144,7 @@ Nothing happens. No console errors.
 playwright-cli close
 ```
 
-Append to `$(git rev-parse --show-toplevel)/.ship-session/todo.md`:
+Append to `$(git rev-parse --show-toplevel)/.artifacts/todo.md`:
 
 ```markdown
 - [ ] [Critical] Fix form submit on /settings — qa/{{ run_timestamp }}/bugs/form-submit.md

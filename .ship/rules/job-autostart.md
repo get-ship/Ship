@@ -1,6 +1,6 @@
 # Job Autostart
 
-On session start, check for a job spec at `.ship-session/job-spec.md` (preferred) or `job-spec.md` in the working directory. If found, read it immediately.
+On session start, check for a job spec at `.artifacts/job-spec.md` (preferred) or `job-spec.md` in the working directory. If found, read it immediately.
 
 Then check the `## Mode` field:
 

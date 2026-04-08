@@ -1,4 +1,4 @@
-// Editable TODO checklist backed by .ship-session/todo.md.
+// Editable TODO checklist backed by .artifacts/todo.md.
 // Each line starting with "- [ ]" or "- [x]" is a checklist item.
 
 import { useState, useCallback } from 'react'

@@ -19,7 +19,7 @@ fn created_with_steps(job_id: &str, steps: serde_json::Value) -> EventEnvelope {
             "slug": job_id,
             "agent": "rust-runtime",
             "branch": format!("job/{job_id}"),
-            "spec_path": ".ship-session/job-spec.md",
+            "spec_path": ".artifacts/job-spec.md",
             "plan_id": null,
             "steps": steps,
         }),

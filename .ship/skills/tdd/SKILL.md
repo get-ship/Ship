@@ -28,7 +28,7 @@ Write a **unit test** — isolated, no I/O, fast. Mock external dependencies. On
 
 **Process:** Understand the behavior → write the test → run it → confirm it fails for the right reason → stop.
 
-Check `.ship-session/spec-from-tests.md` for the planned test list if it exists.
+Check `.artifacts/spec-from-tests.md` for the planned test list if it exists.
 
 {% elif phase == "green" %}
 # Green Phase
@@ -118,7 +118,7 @@ Unit tests — isolated, no I/O, fast. Mock external dependencies. One function 
 
 ## Spec Artifact
 
-After 5–8 tests, write `.ship-session/spec-from-tests.md`:
+After 5–8 tests, write `.artifacts/spec-from-tests.md`:
 
 ```markdown
 ## Spec (from tests)

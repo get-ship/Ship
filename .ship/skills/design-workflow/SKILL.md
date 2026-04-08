@@ -12,14 +12,14 @@ From idea to shipped UI in one session. Brainstorm → preview → spec → impl
 
 ## Phase 1: Brainstorm (ship-brainstorm)
 
-Generate a self-contained HTML mockup at `.ship-session/mockup.html`:
+Generate a self-contained HTML mockup at `.artifacts/mockup.html`:
 - Tailwind via CDN, no build step
 - Realistic data (not lorem ipsum)
 - Full visual fidelity — this should look shippable
 
 Serve it:
 ```bash
-python3 -m http.server {{ server_port }} --directory .ship-session &
+python3 -m http.server {{ server_port }} --directory .artifacts &
 ```
 
 **Browse it:**
@@ -37,14 +37,14 @@ Once the design is approved at desktop:
 /browse responsive http://localhost:{{ server_port }}/mockup.html
 ```
 
-This captures mobile + tablet + desktop viewports. Save to `.ship-session/screenshots/`. Fix any responsive issues in the mockup before moving on.
+This captures mobile + tablet + desktop viewports. Save to `.artifacts/screenshots/`. Fix any responsive issues in the mockup before moving on.
 
 ## Phase 3: Design Spec (visual-spec)
 
 Extract the approved mockup into a structured spec:
 
 ```markdown
-<!-- .ship-session/design-spec/spec.md -->
+<!-- .artifacts/design-spec/spec.md -->
 # Design Spec: <name>
 
 ## Screenshots
@@ -83,7 +83,7 @@ Create the job spec from the design spec:
 
 ```bash
 # Write the implementation job
-cat > .ship-session/jobs/impl-<feature>.md << 'SPEC'
+cat > .artifacts/jobs/impl-<feature>.md << 'SPEC'
 ---
 status: ready
 agent: web-lane
@@ -92,7 +92,7 @@ scope: apps/web/src/
 
 # Implement: <feature>
 
-Open `.ship-session/design-spec/spec.md` — that is your implementation brief.
+Open `.artifacts/design-spec/spec.md` — that is your implementation brief.
 
 ## Acceptance Criteria
 - [ ] Matches desktop screenshot
@@ -106,7 +106,7 @@ SPEC
 bash scripts/dispatch.sh \
   --slug impl-<feature> \
   --agent web-lane \
-  --spec .ship-session/jobs/impl-<feature>.md
+  --spec .artifacts/jobs/impl-<feature>.md
 ```
 
 ## Phase 5: Verify

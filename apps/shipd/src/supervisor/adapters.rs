@@ -18,7 +18,7 @@ impl IsolationStrategy for GitWorktreeIsolation {
     async fn prepare(&self, job: &JobContext) -> Result<PathBuf> {
         let worktree_path = worktrees_dir().join(&job.slug);
         create_worktree(&worktree_path, &job.branch, None)?;
-        let session_dir = worktree_path.join(".ship-session");
+        let session_dir = worktree_path.join(".artifacts");
         std::fs::create_dir_all(&session_dir)?;
         write_phase_spec_from_context(&worktree_path, job);
         compile_agent_config(&worktree_path, &job.agent)?;
@@ -36,7 +36,7 @@ impl IsolationStrategy for GitWorktreeIsolation {
 }
 
 fn write_phase_spec_from_context(worktree_path: &std::path::Path, job: &JobContext) {
-    let dst_spec = worktree_path.join(".ship-session").join("job-spec.md");
+    let dst_spec = worktree_path.join(".artifacts").join("job-spec.md");
     let src = std::path::Path::new(&job.spec_path);
     let content = if src.exists() {
         std::fs::read_to_string(src).unwrap_or_default()

@@ -33,7 +33,7 @@ A kernel actor subscribed to `job.*` events. Source: `apps/shipd/src/supervisor/
 
 **`job.created`** — dispatches a job:
 1. Create git worktree at `{worktrees_dir}/{slug}`.
-2. Copy spec file to `.ship-session/job-spec.md` in the worktree.
+2. Copy spec file to `.artifacts/job-spec.md` in the worktree.
 3. Run `ship use {agent}`.
 4. Create tmux session `job-{slug}`.
 5. Spawn agent CLI with `SHIP_MESH_ID={slug}` in the tmux session.

@@ -9,7 +9,7 @@ pub struct CreateJobRequest {
     pub agent: String,
     /// Git branch name for the job worktree (e.g. "job/auth-tests").
     pub branch: String,
-    /// Relative path to the job spec file (e.g. ".ship-session/job-spec.md").
+    /// Relative path to the job spec file (e.g. ".artifacts/job-spec.md").
     pub spec_path: String,
     /// Optional reference to a plan that originated this job.
     pub plan_id: Option<String>,

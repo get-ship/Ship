@@ -38,7 +38,7 @@ export default {
 ## Start
 
 ```bash
-SESSION_ROOT="$(git rev-parse --show-toplevel)/.ship-session"
+SESSION_ROOT="$(git rev-parse --show-toplevel)/.artifacts"
 URL="http://localhost:{{ port }}/__inspect/"
 
 if curl -sf "$URL" > /dev/null 2>&1; then
@@ -68,5 +68,5 @@ echo "$URL" > "$SESSION_ROOT/{{ stable_id }}.url"
 
 ```bash
 pkill -f "vite.*{{ port }}"
-rm -f "$(git rev-parse --show-toplevel)/.ship-session/{{ stable_id }}.url"
+rm -f "$(git rev-parse --show-toplevel)/.artifacts/{{ stable_id }}.url"
 ```

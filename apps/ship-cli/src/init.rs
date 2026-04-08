@@ -143,7 +143,8 @@ fn run_project(provider: Option<String>) -> Result<()> {
         std::fs::write(
             pdir.join(".gitignore"),
             "# Ship compiled artifacts\n/secrets/\nCLAUDE.md\nGEMINI.md\n\
-             AGENTS.md\n.mcp.json\n.codex/\n.gemini/\n.cursor/\n",
+             AGENTS.md\n.mcp.json\n.codex/\n.gemini/\n.cursor/\n\
+             # Agent working artifacts\n.artifacts/\n",
         )?;
     }
     if !pdir.join("README.md").exists() {

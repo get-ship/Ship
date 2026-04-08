@@ -1,8 +1,8 @@
 use std::path::{Path, PathBuf};
 
-/// Write an event payload to `.ship-session/inbox/<unix_ms>.json`.
+/// Write an event payload to `.artifacts/inbox/<unix_ms>.json`.
 ///
-/// `inbox_root` is the directory that contains `.ship-session/`. Pass the
+/// `inbox_root` is the directory that contains `.artifacts/`. Pass the
 /// active workspace's `worktree_path` when the workspace lives in a git
 /// worktree; otherwise pass the main project root. The caller is responsible
 /// for this resolution — see `studio_server::resolve_inbox_root`.
@@ -18,7 +18,7 @@ pub fn write_inbox_file(
     payload: &serde_json::Value,
     event_id: &str,
 ) -> anyhow::Result<PathBuf> {
-    let inbox_dir = inbox_root.join(".ship-session").join("inbox");
+    let inbox_dir = inbox_root.join(".artifacts").join("inbox");
     std::fs::create_dir_all(&inbox_dir)?;
 
     let ts_ms = std::time::SystemTime::now()
@@ -108,12 +108,12 @@ mod tests {
         let project = dir.path();
 
         // Inbox dir must not exist yet.
-        assert!(!project.join(".ship-session").join("inbox").exists());
+        assert!(!project.join(".artifacts").join("inbox").exists());
 
         write_inbox_file(project, "studio.test", &serde_json::json!({}), "evt-x")
             .expect("write");
 
-        assert!(project.join(".ship-session").join("inbox").is_dir());
+        assert!(project.join(".artifacts").join("inbox").is_dir());
     }
 
     #[test]

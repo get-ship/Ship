@@ -1,6 +1,6 @@
 // Hook that reads diff content from two sources:
 // 1. Daemon git diff endpoint (preferred, live working tree diff)
-// 2. .ship-session/diff.txt fallback (manual or agent-generated)
+// 2. .artifacts/diff.txt fallback (manual or agent-generated)
 
 import { useQuery } from '@tanstack/react-query'
 import { DAEMON_BASE_URL } from '#/lib/daemon-config'

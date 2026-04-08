@@ -105,7 +105,7 @@ else
 fi
 
 # ── Write job spec ────────────────────────────────────────────────────────────
-DEST_SPEC="$WORKTREE_PATH/.ship-session/job-spec.md"
+DEST_SPEC="$WORKTREE_PATH/.artifacts/job-spec.md"
 mkdir -p "$(dirname "$DEST_SPEC")"
 cp "$SPEC_FILE" "$DEST_SPEC"
 echo "Job spec written: $DEST_SPEC"
@@ -167,13 +167,13 @@ auto_kickstart_tmux() {
       if tmux capture-pane -t "$session" -p 2>/dev/null | grep -q "I am using this for local development"; then
         tmux send-keys -t "$session" Enter
         sleep 1
-        tmux send-keys -t "$session" "Read .ship-session/job-spec.md and execute it autonomously." Enter
+        tmux send-keys -t "$session" "Read .artifacts/job-spec.md and execute it autonomously." Enter
         exit 0
       fi
     done
     # Prompt not found (non-claude provider or --dangerously-skip-permissions accepted it) —
     # still send the autostart message.
-    tmux send-keys -t "$session" "Read .ship-session/job-spec.md and execute it autonomously." Enter
+    tmux send-keys -t "$session" "Read .artifacts/job-spec.md and execute it autonomously." Enter
   ) &
 }
 

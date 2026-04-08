@@ -175,9 +175,9 @@ impl ServerHandler for ShipServer {
             return Err(ErrorData::internal_error("No active project", None));
         };
 
-        // Handle ship://session/* resources — read files from .ship-session/
+        // Handle ship://session/* resources — read files from .artifacts/
         if let Some(rel_path) = request.uri.strip_prefix("ship://session/") {
-            let session_dir = dir.join(".ship-session");
+            let session_dir = dir.join(".artifacts");
             let file_path = session_dir.join(rel_path);
             // Prevent path traversal
             if !file_path.starts_with(&session_dir) {

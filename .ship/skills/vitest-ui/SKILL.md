@@ -17,7 +17,7 @@ Starts Vitest's interactive test runner and surfaces it in the session canvas.
 Check if already running, then start only if needed:
 
 ```bash
-SESSION_ROOT="$(git rev-parse --show-toplevel)/.ship-session"
+SESSION_ROOT="$(git rev-parse --show-toplevel)/.artifacts"
 URL="http://localhost:{{ port }}/__vitest__/"
 
 if curl -sf "$URL" > /dev/null 2>&1; then
@@ -38,7 +38,7 @@ echo "$URL" > "$SESSION_ROOT/{{ stable_id }}.url"
 
 ```bash
 pkill -f "vitest.*{{ port }}"
-rm -f "$(git rev-parse --show-toplevel)/.ship-session/{{ stable_id }}.url"
+rm -f "$(git rev-parse --show-toplevel)/.artifacts/{{ stable_id }}.url"
 ```
 
 ## Filter tests

@@ -14,7 +14,7 @@ Debug MCP servers interactively. Launch the Inspector, connect it to any server,
 ## Start
 
 ```bash
-SESSION_ROOT="$(git rev-parse --show-toplevel)/.ship-session"
+SESSION_ROOT="$(git rev-parse --show-toplevel)/.artifacts"
 URL="http://{{ host }}:{{ port }}"
 
 if curl -sf "$URL" > /dev/null 2>&1; then
@@ -35,7 +35,7 @@ echo "$URL" > "$SESSION_ROOT/{{ stable_id }}.url"
 
 ```bash
 pkill -f "mcp-inspector"
-rm -f "$(git rev-parse --show-toplevel)/.ship-session/{{ stable_id }}.url"
+rm -f "$(git rev-parse --show-toplevel)/.artifacts/{{ stable_id }}.url"
 ```
 
 ## Quick-connect targets

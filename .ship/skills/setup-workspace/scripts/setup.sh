@@ -1,6 +1,6 @@
 #!/usr/bin/env bash
 # Ship workspace setup — configure a multi-agent terminal environment.
-# Reads .ship-session/pod.md if it exists, otherwise prompts for agents.
+# Reads .artifacts/pod.md if it exists, otherwise prompts for agents.
 # Usage: bash .ship/skills/setup-workspace/scripts/setup.sh [--pod <file>] [--dry-run]
 set -euo pipefail
 
@@ -8,7 +8,7 @@ WORKTREE_BASE="{{ worktree_dir | default: '' }}"
 if [[ -z "$WORKTREE_BASE" ]]; then WORKTREE_BASE="${SHIP_WORKTREE_DIR:-}"; fi
 if [[ -z "$WORKTREE_BASE" ]]; then echo "Error: set SHIP_WORKTREE_DIR or run: ship vars set setup-workspace worktree_dir <path>" >&2; exit 1; fi
 WORKTREE_BASE="${WORKTREE_BASE/#\~/$HOME}"
-POD_FILE=".ship-session/pod.md"
+POD_FILE=".artifacts/pod.md"
 DRY_RUN=false
 PROJECT_ROOT="$(git rev-parse --show-toplevel 2>/dev/null || pwd)"
 
@@ -81,7 +81,7 @@ if [[ -f "$POD_FILE" ]]; then
 else
   echo "No pod file found at $POD_FILE"
   echo "Create one to save your layout, or pass agent names:"
-  echo "  bash .ship/skills/setup-workspace/scripts/setup.sh --pod .ship-session/pod.md"
+  echo "  bash .ship/skills/setup-workspace/scripts/setup.sh --pod .artifacts/pod.md"
   echo ""
   echo "Example pod.md:"
   cat << 'EXAMPLE'

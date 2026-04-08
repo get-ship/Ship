@@ -1,7 +1,7 @@
 ---
 name: web-qa
 stable-id: web-qa
-description: Use when testing a web application — navigate pages, interact, screenshot, file bugs, write a report. Each run is timestamped. Outputs to .ship-session/{{ stable_id }}/ for live viewing in Ship Studio.
+description: Use when testing a web application — navigate pages, interact, screenshot, file bugs, write a report. Each run is timestamped. Outputs to .artifacts/{{ stable_id }}/ for live viewing in Ship Studio.
 tags: [qa, testing, browser, playwright]
 authors: [ship]
 license: MIT
@@ -12,12 +12,12 @@ allowed-tools: Bash(playwright*) Bash(npx playwright*) Bash(pnpm exec playwright
 
 # Web QA
 
-Systematic QA using Playwright. Each run is isolated in a timestamped folder under `.ship-session/{{ stable_id }}/`. Results are viewable live in Ship Studio's Session page.
+Systematic QA using Playwright. Each run is isolated in a timestamped folder under `.artifacts/{{ stable_id }}/`. Results are viewable live in Ship Studio's Session page.
 
 ## Setup
 
 ```bash
-QA_ROOT="$(git rev-parse --show-toplevel)/.ship-session/{{ stable_id }}"
+QA_ROOT="$(git rev-parse --show-toplevel)/.artifacts/{{ stable_id }}"
 QA_RUN="$(date -u +%Y-%m-%dT%H-%M)"
 QA_DIR="$QA_ROOT/$QA_RUN"
 mkdir -p "$QA_DIR/screenshots" "$QA_DIR/bugs"
@@ -164,7 +164,7 @@ Nothing happens. No console errors.
 $PW close
 ```
 
-Append to `$(git rev-parse --show-toplevel)/.ship-session/todo.md`:
+Append to `$(git rev-parse --show-toplevel)/.artifacts/todo.md`:
 
 ```markdown
 - [ ] [Critical] Fix form submit on /settings — qa/{{ run_timestamp }}/bugs/form-submit.md

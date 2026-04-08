@@ -26,7 +26,7 @@ You are writing a failing test. This test defines a behavior that does not exist
 
 ## Process
 
-1. Check `.ship-session/spec-from-tests.md` for the next planned test if it exists
+1. Check `.artifacts/spec-from-tests.md` for the next planned test if it exists
 2. Write a test that asserts the behavior exists
 3. Run it
 4. Confirm it fails **for the right reason**

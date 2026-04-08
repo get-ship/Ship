@@ -7,7 +7,7 @@ pub struct DispatchAgentRequest {
     pub agent_profile: String,
     /// Short slug for the job (e.g. "my-feature"). Used to name the branch and worktree.
     pub slug: String,
-    /// Contents of the job spec — written to `.ship-session/job-spec.md`.
+    /// Contents of the job spec — written to `.artifacts/job-spec.md`.
     pub job_spec: String,
     /// Provider to use: "claude" (default) or "codex".
     pub provider: Option<String>,

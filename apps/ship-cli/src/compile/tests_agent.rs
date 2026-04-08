@@ -259,8 +259,8 @@ fn ensure_session_gitignored_adds_entry() {
     ensure_session_gitignored(tmp.path()).unwrap();
     let content = std::fs::read_to_string(tmp.path().join(".gitignore")).unwrap();
     assert!(
-        content.contains(".ship-session/"),
-        "must add .ship-session/ entry"
+        content.contains(".artifacts/"),
+        "must add .artifacts/ entry"
     );
 }
 
@@ -273,7 +273,7 @@ fn ensure_session_gitignored_is_idempotent() {
     assert_eq!(
         content
             .lines()
-            .filter(|l| l.trim() == ".ship-session/")
+            .filter(|l| l.trim() == ".artifacts/")
             .count(),
         1,
         "must not duplicate the entry"
@@ -290,7 +290,7 @@ fn ensure_session_gitignored_appends_to_existing() {
         content.contains("node_modules/"),
         "must preserve existing entries"
     );
-    assert!(content.contains(".ship-session/"), "must add new entry");
+    assert!(content.contains(".artifacts/"), "must add new entry");
 }
 
 #[test]

@@ -66,7 +66,7 @@ Next tests to write:
 - Permission checks (can agent X modify agent Y?)
 ```
 
-Write this to `.ship-session/spec-from-tests.md`.
+Write this to `.artifacts/spec-from-tests.md`.
 
 ## Phase 4: Implement
 

@@ -36,7 +36,7 @@ pub struct AgentSpawnConfig {
     pub agent_profile: String,
     /// Absolute path to the git worktree for this agent.
     pub worktree_path: PathBuf,
-    /// Contents of job-spec.md to write into `.ship-session/`.
+    /// Contents of job-spec.md to write into `.artifacts/`.
     pub job_spec: String,
     /// Provider name: `"claude"` or `"codex"`.
     pub provider: String,
@@ -202,7 +202,7 @@ fn create_worktree(config: &AgentSpawnConfig) -> Result<()> {
 }
 
 fn write_job_spec(config: &AgentSpawnConfig) -> Result<()> {
-    let session_dir = config.worktree_path.join(".ship-session");
+    let session_dir = config.worktree_path.join(".artifacts");
     std::fs::create_dir_all(&session_dir)?;
     std::fs::write(session_dir.join("job-spec.md"), &config.job_spec)?;
     Ok(())

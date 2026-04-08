@@ -95,6 +95,7 @@ AGENTS.md
 skills-lock.json
 .gstack/
 SESSION.json
+.artifacts/
 .ship-session/
 .ship/platform.db
 .ship/actors/

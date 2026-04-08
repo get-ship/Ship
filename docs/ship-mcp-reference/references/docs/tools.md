@@ -85,11 +85,11 @@ These tools are registered on the StudioServer, not the full ShipServer.
 
 ## Session Files (stable)
 
-**write_session_file** -- `filename` (string, required), `content` (string, required). Write a file to `.ship-session/`. Fires a resource update notification.
+**write_session_file** -- `filename` (string, required), `content` (string, required). Write a file to `.artifacts/`. Fires a resource update notification.
 
-**read_session_file** -- `filename` (string, required). Read a file from `.ship-session/`. Returns text content or base64 for binary files.
+**read_session_file** -- `filename` (string, required). Read a file from `.artifacts/`. Returns text content or base64 for binary files.
 
-**list_session_files** -- no params. List all files in `.ship-session/` with metadata (name, path, type, size).
+**list_session_files** -- no params. List all files in `.artifacts/` with metadata (name, path, type, size).
 
 ## Mesh (stable)
 

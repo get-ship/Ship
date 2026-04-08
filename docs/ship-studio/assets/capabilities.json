@@ -17,7 +17,7 @@
   {
     "id": "session-canvas",
     "status": "rc",
-    "notes": "HTML rendering in iframe works. Tab management works. Annotation overlay works. But session file edits (useSessionDrafts) are drafts-only — daemon writes are stubbed. Cannot actually persist edits back to .ship-session/."
+    "notes": "HTML rendering in iframe works. Tab management works. Annotation overlay works. But session file edits (useSessionDrafts) are drafts-only — daemon writes are stubbed. Cannot actually persist edits back to .artifacts/."
   },
   {
     "id": "annotation-system",

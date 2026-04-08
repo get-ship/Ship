@@ -45,10 +45,10 @@ These are personal configuration — set in your shell profile, not in project f
 
 ## Workflow
 
-1. Write the job spec to `.ship-session/job-spec-<slug>.md`
+1. Write the job spec to `.artifacts/job-spec-<slug>.md`
 2. Run dispatch: `bash scripts/dispatch.sh --slug <slug> --agent <agent> --spec <path>`
 3. Dispatch creates worktree, compiles agent config, opens terminal
-4. Agent picks up `.ship-session/job-spec.md` on start and works autonomously
+4. Agent picks up `.artifacts/job-spec.md` on start and works autonomously
 
 ## Job Spec Template
 
@@ -97,11 +97,11 @@ For feature work, dispatch as two sequential jobs:
 ```bash
 # Job 1: tests only
 bash .ship/skills/spawn-agent/scripts/dispatch.sh --slug auth-tests --agent test-writer \
-  --spec .ship-session/job-spec-auth-tests.md
+  --spec .artifacts/job-spec-auth-tests.md
 
 # Job 2: implementation (after tests complete and gate passes)
 bash .ship/skills/spawn-agent/scripts/dispatch.sh --slug auth-impl --agent rust-lane \
-  --spec .ship-session/job-spec-auth-impl.md
+  --spec .artifacts/job-spec-auth-impl.md
 ```
 
 The test spec scopes to test files only. The impl spec references the test files as its contract and must not modify them.

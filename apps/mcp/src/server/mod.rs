@@ -636,9 +636,9 @@ impl ShipServer {
     // ---- Session Files ----
 
     #[tool(
-        description = "Write a file to .ship-session/. Fires a resource update notification \
+        description = "Write a file to .artifacts/. Fires a resource update notification \
         so subscribed clients (Studio, agents) react immediately. \
-        Path is relative to .ship-session/ (e.g. 'canvas.html', 'vitest/report.html')."
+        Path is relative to .artifacts/ (e.g. 'canvas.html', 'vitest/report.html')."
     )]
     async fn write_session_file(
         &self,
@@ -659,7 +659,7 @@ impl ShipServer {
     }
 
     #[tool(
-        description = "Read a file from .ship-session/. Returns text content or base64 for binary files."
+        description = "Read a file from .artifacts/. Returns text content or base64 for binary files."
     )]
     async fn read_session_file(
         &self,
@@ -673,7 +673,7 @@ impl ShipServer {
     }
 
     #[tool(
-        description = "List all files in .ship-session/ with metadata (name, path, type, size)."
+        description = "List all files in .artifacts/ with metadata (name, path, type, size)."
     )]
     async fn list_session_files(&self) -> String {
         let project_dir = match self.get_effective_project_dir().await {

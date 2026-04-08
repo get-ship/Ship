@@ -1,119 +1,117 @@
 ---
 name: browse
 stable-id: browse
-description: Headless browser for QA testing and site verification. Navigate, interact, screenshot, diff, assert element states. ~100ms per command.
+description: Headless browser for page verification, interaction testing, and screenshots. Uses Playwright CLI — no extra binary required.
 tags: [qa, testing, browser, screenshots, headless]
-authors: [ship, gstack]
-attribution: Based on gstack browse (MIT) by Garry Tan — github.com/garrytan/gstack
-compatibility: Requires the gstack browse binary. Install via ship add github.com/garrytan/gstack
+authors: [ship]
+compatibility: Requires Playwright (@playwright/test) with browsers installed. Install: npm install -D @playwright/test && npx playwright install chromium
+artifacts: [image, markdown]
+allowed-tools: Bash(playwright*) Bash(npx playwright*) Bash(pnpm exec playwright*)
 ---
 
 # Browse
 
-Persistent headless Chromium. First call auto-starts (~3s), then ~100ms per command. State persists between calls (cookies, tabs, login sessions).
+Headless browser using the Playwright CLI. Navigate, interact, screenshot, and assert page state.
 
 ## Setup
 
-Requires the gstack browse binary. Install: `ship add github.com/garrytan/gstack`
-
 ```bash
-_ROOT=$(git rev-parse --show-toplevel 2>/dev/null)
-B=""
-[ -n "$_ROOT" ] && [ -x "$_ROOT/.claude/skills/gstack/browse/dist/browse" ] && B="$_ROOT/.claude/skills/gstack/browse/dist/browse"
-[ -z "$B" ] && B=~/.claude/skills/gstack/browse/dist/browse
-[ -x "$B" ] && echo "READY: $B" || echo "NEEDS_SETUP: run ship add github.com/garrytan/gstack"
+# Discover playwright
+if command -v playwright &>/dev/null; then
+  PW="playwright"
+elif npx --no-install playwright --version &>/dev/null 2>&1; then
+  PW="npx playwright"
+else
+  _root="$(git rev-parse --show-toplevel)"
+  _found=""
+  for _c in "$_root"/node_modules/.bin/playwright "$_root"/apps/*/node_modules/.bin/playwright "$_root"/packages/*/node_modules/.bin/playwright; do
+    [ -x "$_c" ] && { _found="$_c"; break; }
+  done
+  if [ -n "$_found" ]; then PW="$_found"
+  else echo "Playwright not found. Install: npm install -D @playwright/test && npx playwright install chromium" >&2; exit 1
+  fi
+fi
+$PW --version
 ```
+
+Use `$PW` for all commands below.
 
 ## Core Patterns
 
 ### Verify a page loads
 ```bash
-$B goto https://yourapp.com
-$B text
-$B console
-$B network
-$B is visible ".main-content"
+$PW open --browser=chromium <url>
+$PW snapshot
+$PW console
 ```
 
 ### Test a user flow
 ```bash
-$B goto https://app.com/login
-$B snapshot -i
-$B fill @e3 "user@test.com"
-$B fill @e4 "password"
-$B click @e5
-$B snapshot -D
-$B is visible ".dashboard"
+$PW goto <url>
+$PW snapshot
+$PW fill e3 "user@test.com"
+$PW fill e4 "password"
+$PW click e5
+$PW snapshot
+$PW is visible ".dashboard"
 ```
 
-### Visual evidence
+### Screenshot
 ```bash
-$B snapshot -i -a -o {{ screenshot_dir }}/annotated.png
-$B screenshot {{ screenshot_dir }}/page.png
-$B console
+$PW screenshot --filename="{{ screenshot_dir }}/page.png"
 ```
 
 ### Responsive layouts
 ```bash
-$B responsive {{ screenshot_dir }}/layout
-$B viewport 375x812
-$B screenshot {{ screenshot_dir }}/mobile.png
+$PW viewport 375x812
+$PW screenshot --filename="{{ screenshot_dir }}/mobile.png"
+$PW viewport 1280x800
+$PW screenshot --filename="{{ screenshot_dir }}/desktop.png"
 ```
 
-### Assert element states
+### Auth state
 ```bash
-$B is visible ".modal"
-$B is enabled "#submit-btn"
-$B is disabled "#submit-btn"
-$B is checked "#agree-checkbox"
+$PW state-save "{{ screenshot_dir }}/auth.json"
+$PW state-load "{{ screenshot_dir }}/auth.json"
 ```
-
-### Diff environments
-```bash
-$B diff https://staging.app.com https://prod.app.com
-```
-
-## Snapshot Flags
-
-```
--i    Interactive elements only (buttons, links, inputs) with @e refs
--c    Compact (no empty nodes)
--d N  Limit tree depth
--s s  Scope to CSS selector
--D    Unified diff against previous snapshot
--a    Annotated screenshot with red overlay boxes
--o p  Output path for annotated screenshot
--C    Cursor-interactive elements (@c refs)
-```
-
-After snapshot, use @refs: `$B click @e3`, `$B fill @e4 "value"`, `$B hover @e1`
 
 ## Commands
 
 | Command | Description |
 |---------|-------------|
-| `goto <url>` | Navigate |
+| `open --browser=<b> <url>` | Launch browser and navigate |
+| `goto <url>` | Navigate in open browser |
 | `back` / `forward` / `reload` | History |
-| `text` | Page text |
+| `snapshot` | Accessibility tree with element refs |
+| `text` | Page text content |
 | `html [sel]` | innerHTML |
 | `links` | All links |
-| `click <sel>` | Click |
+| `click <sel>` | Click element |
 | `fill <sel> <val>` | Fill input |
 | `type <text>` | Type into focused element |
-| `select <sel> <val>` | Dropdown |
-| `hover <sel>` | Hover |
+| `select <sel> <val>` | Select dropdown option |
+| `hover <sel>` | Hover element |
 | `press <key>` | Keypress |
 | `scroll [sel]` | Scroll into view |
 | `upload <sel> <file>` | File upload |
-| `wait <sel\|--networkidle>` | Wait for element or idle |
-| `screenshot [sel] [path]` | Screenshot |
-| `snapshot [flags]` | Accessibility tree |
-| `responsive [prefix]` | Multi-viewport screenshots |
-| `diff <url1> <url2>` | Cross-page diff |
-| `js <expr>` | Run JavaScript |
+| `wait <sel>` | Wait for element |
+| `screenshot [--filename=p]` | Screenshot |
+| `is visible <sel>` | Assert visible |
+| `is hidden <sel>` | Assert hidden |
+| `is enabled <sel>` | Assert enabled |
+| `is disabled <sel>` | Assert disabled |
+| `is checked <sel>` | Assert checked |
 | `console [--errors]` | Console log |
 | `network [--clear]` | Network requests |
 | `cookies` | All cookies |
-| `is <prop> <sel>` | State assert (visible/hidden/enabled/disabled/checked) |
+| `viewport <WxH>` | Set viewport size |
+| `js <expr>` | Run JavaScript |
+| `close` | Close browser |
 
-All screenshots and artifacts go to `{{ screenshot_dir }}/`.
+## Browsers
+
+`--browser=chromium` (default), `--browser=firefox`, `--browser=webkit`, `--browser=msedge`
+
+## Artifacts
+
+Screenshots go to `{{ screenshot_dir }}/`. Viewable in Ship Studio's Session artifacts tab.

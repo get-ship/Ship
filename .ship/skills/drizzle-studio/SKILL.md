@@ -14,7 +14,7 @@ Starts Drizzle Studio and renders the database browser in the session canvas.
 ## Start
 
 ```bash
-SESSION_ROOT="$(git rev-parse --show-toplevel)/.ship-session"
+SESSION_ROOT="$(git rev-parse --show-toplevel)/.artifacts"
 URL="http://localhost:{{ port }}"
 
 if curl -sf "$URL" > /dev/null 2>&1; then
@@ -50,5 +50,5 @@ Drizzle Studio connects to MySQL using the connection string in your `{{ config 
 
 ```bash
 pkill -f "drizzle-kit.*studio"
-rm -f "$(git rev-parse --show-toplevel)/.ship-session/{{ stable_id }}.url"
+rm -f "$(git rev-parse --show-toplevel)/.artifacts/{{ stable_id }}.url"
 ```
