@@ -52,7 +52,7 @@
   {
     "id": "agent-log",
     "status": "stable",
-    "notes": "Hidden ship agents log command appends timestamped entries to .ship/agent.log. Implemented in apps/ship-studio-cli/src/agent.rs with RFC3339 timestamps. Used by skills to log progress during sessions."
+    "notes": "Hidden ship agents log command appends timestamped entries to .ship/agent.log. Implemented in apps/ship-cli/src/agent.rs with RFC3339 timestamps. Used by skills to log progress during sessions."
   },
   {
     "id": "agent-hooks",

@@ -28,7 +28,7 @@ If you prefer to build from source:
 ```bash
 git clone https://github.com/madvib/ship.git
 cd ship
-cargo install --path apps/ship-studio-cli
+cargo install --path apps/ship-cli
 ```
 
 Requires the [Rust toolchain](https://rustup.rs) (stable channel).

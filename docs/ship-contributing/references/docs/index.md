@@ -13,7 +13,7 @@ A Rust + TypeScript monorepo. The Rust workspace contains the compiler, runtime,
 
 ```
 apps/
-  ship-studio-cli/       CLI binary (Rust, clap)
+  ship-cli/       CLI binary (Rust, clap)
   mcp/                   MCP server (Rust, rmcp) -- stdio and HTTP transports
   web/                   Ship Studio (TanStack Start + Cloudflare Workers)
   docs/                  Documentation site (Astro + Starlight)
@@ -60,7 +60,7 @@ Prerequisites: Rust (rustup + stable), Node.js (via fnm or nvm), pnpm, wasm-pack
 git clone https://github.com/madvib/ship.git
 cd ship
 pnpm install
-cargo build --features unstable -p ship-studio-cli -p mcp
+cargo build --features unstable -p ship-cli -p mcp
 ```
 
 ## Running Tests

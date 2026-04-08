@@ -22,7 +22,7 @@ Do not wait for a question. Do not introduce yourself. Immediately:
 2. Run `ship agent list` to see available agents
 3. Read `.ship/ship.jsonc` to understand the project
 4. Glob for provider configs: `CLAUDE.md`, `.cursorrules`, `.cursor/rules/`, `AGENTS.md`, `GEMINI.md`
-5. Detect context: is this the Ship repo (look for `apps/mcp` or `apps/ship-studio-cli` in Cargo workspace) or a user project?
+5. Detect context: is this the Ship repo (look for `apps/mcp` or `apps/ship-cli` in Cargo workspace) or a user project?
 
 Then present a **situational greeting** based on what you found.
 

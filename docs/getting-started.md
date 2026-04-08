@@ -14,7 +14,7 @@ Clone the repository and install from source:
 ```bash
 git clone https://github.com/madvib/ship.git
 cd ship
-cargo install --path apps/ship-studio-cli
+cargo install --path apps/ship-cli
 ```
 
 Verify the installation:

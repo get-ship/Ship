@@ -1,10 +1,10 @@
-//! HTTP client for forwarding mesh operations to ship-network daemon.
+//! HTTP client for forwarding mesh operations to the shipd daemon.
 //! Calls the REST API at /api/mesh/* (not the MCP endpoint).
 
 use anyhow::{Result, anyhow};
 use serde_json::Value;
 
-/// Get the ship-network port from ~/.ship/daemon.port
+/// Get the shipd port from ~/.ship/daemon.port
 fn get_network_port() -> Result<u16> {
     let global_dir = runtime::project::get_global_dir()?;
     let port_file = global_dir.join("daemon.port");

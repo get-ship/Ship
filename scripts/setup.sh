@@ -44,7 +44,7 @@ echo "==> pnpm: $(pnpm --version)"
 
 # ── 4. Install ship binary from source ───────────────────────────────────────
 echo "==> Building + installing ship binary..."
-cargo install --path "$REPO_ROOT/apps/ship-studio-cli" --locked --force
+cargo install --path "$REPO_ROOT/apps/ship-cli" --locked --force
 echo "==> ship: $(ship --version)"
 
 # ── 5. pnpm install ──────────────────────────────────────────────────────────

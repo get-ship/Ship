@@ -1,5 +1,5 @@
 [package]
-name = "ship-studio-cli"
+name = "ship-cli"
 version = "0.2.0"
 edition = "2024"
 publish = false
