@@ -109,7 +109,22 @@ impl JobExecutor for ProcessExecutor {
             Some(s) => s,
             None => return Ok(()),
         };
-        unsafe { libc::kill(state.pid as i32, libc::SIGTERM); }
+        let pid = state.pid as i32;
+        unsafe { libc::kill(pid, libc::SIGTERM); }
+        tracing::debug!(pid, "process-executor: sent SIGTERM, waiting up to 30s");
+
+        // Wait up to 30s for the process to exit.
+        for _ in 0..30 {
+            tokio::time::sleep(std::time::Duration::from_secs(1)).await;
+            if unsafe { libc::kill(pid, 0) } != 0 {
+                tracing::debug!(pid, "process-executor: process exited after SIGTERM");
+                return Ok(());
+            }
+        }
+
+        // Still alive after 30s — force-kill.
+        tracing::warn!(pid, "process-executor: process did not exit after 30s, sending SIGKILL");
+        unsafe { libc::kill(pid, libc::SIGKILL); }
         Ok(())
     }
 

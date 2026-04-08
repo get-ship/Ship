@@ -1522,7 +1522,7 @@ mod reliability {
 
         assert_eq!(registry.len(), 3);
 
-        let stopped = registry.shutdown_all(&*executor).await;
+        let stopped = registry.shutdown_all(Arc::clone(&executor) as Arc<dyn runtime::services::dispatch_ports::JobExecutor>).await;
 
         assert_eq!(stopped.len(), 3, "shutdown must stop all 3 agents");
         assert_eq!(
@@ -1555,7 +1555,7 @@ mod reliability {
         let handle = executor.spawn(&test_job_ctx("evt-test")).await.unwrap();
         registry.register("evt-test", handle);
 
-        super::super::graceful_shutdown(&kernel, &mut registry, &*executor).await;
+        super::super::graceful_shutdown(&kernel, &mut registry, Arc::clone(&executor) as Arc<dyn runtime::services::dispatch_ports::JobExecutor>).await;
 
         let event = mb
             .try_recv()
