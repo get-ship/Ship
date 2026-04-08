@@ -7,6 +7,20 @@ use anyhow::Result;
 use async_trait::async_trait;
 use std::collections::HashMap;
 use std::path::PathBuf;
+use tokio::sync::mpsc::UnboundedSender;
+
+/// Signal sent from an executor monitor when the agent process exits.
+///
+/// Executors send this on `JobContext::exit_tx` so the dispatch handler can
+/// emit `job.completed` or `job.failed` without waiting for the SessionEnd hook.
+#[derive(Debug)]
+pub struct ExitSignal {
+    pub slug: String,
+    pub job_id: String,
+    /// `None` means the process was killed or the exit code was unavailable
+    /// (e.g. tmux session closed). `Some(0)` = clean exit, non-zero = failure.
+    pub exit_code: Option<i32>,
+}
 
 /// Context for a job being dispatched. Carries everything an executor needs.
 #[derive(Clone, Debug)]
@@ -20,6 +34,10 @@ pub struct JobContext {
     pub env: HashMap<String, String>,
     /// How to launch the provider CLI for this job.
     pub launch: LaunchProfile,
+    /// Exit notification channel. Set by `dispatch_job_internal` so the executor's
+    /// background monitor can signal exit without curling the daemon API.
+    /// `None` for pipeline re-dispatches — the liveness sweep handles those.
+    pub exit_tx: Option<UnboundedSender<ExitSignal>>,
 }
 
 /// Everything about *how* to run the provider process.

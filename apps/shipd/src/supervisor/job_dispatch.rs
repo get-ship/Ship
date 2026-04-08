@@ -83,6 +83,9 @@ pub async fn subscribe_job_events(
         registry: registry.clone(),
     });
 
+    // Start the periodic liveness sweep (AC2 + AC3).
+    super::liveness::start_liveness_sweep(kernel.clone(), registry.clone(), executor.clone());
+
     // On startup: reconcile stale dispatched jobs, replay completions, dispatch pending.
     let replay_kernel = kernel.clone();
     let replay_dctx = dctx.clone();
@@ -211,6 +214,7 @@ pub(crate) async fn dispatch_job_internal(
         spec_path: payload.spec_path.clone(),
         work_dir: worktrees_dir().join(slug),
         env: [("SHIP_MESH_ID".to_string(), slug.to_string())].into(),
+        exit_tx: None, // replaced with Some(exit_tx) after channel creation below
         launch: runtime::services::dispatch_ports::LaunchProfile {
             provider: payload.provider.clone(),
             model: payload.model.clone(),
@@ -228,8 +232,13 @@ pub(crate) async fn dispatch_job_internal(
         }
     };
 
-    // 2. Spawn agent process
-    let job_ctx_with_dir = JobContext { work_dir: worktree_path.clone(), ..job_ctx };
+    // 2. Spawn agent process with exit notification channel (AC1).
+    let (exit_tx, exit_rx) = tokio::sync::mpsc::unbounded_channel();
+    let job_ctx_with_dir = JobContext {
+        work_dir: worktree_path.clone(),
+        exit_tx: Some(exit_tx),
+        ..job_ctx
+    };
     let handle = match dctx.executor.spawn(&job_ctx_with_dir).await {
         Ok(h) => h,
         Err(e) => {
@@ -240,6 +249,9 @@ pub(crate) async fn dispatch_job_internal(
 
     // 3. Register handle in process registry for shutdown/liveness tracking
     dctx.registry.lock().await.register(slug, handle);
+
+    // Start exit handler — emits job.completed/job.failed when process exits.
+    super::liveness::start_exit_handler(kernel.clone(), dctx.registry.clone(), exit_rx);
 
     // 4. Emit job.dispatched
     emit_job_dispatched(kernel, &payload.job_id, &worktree_path, slug).await;

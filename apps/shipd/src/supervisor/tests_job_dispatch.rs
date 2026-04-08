@@ -371,6 +371,7 @@ mod ports {
             work_dir,
             env: [("SHIP_MESH_ID".to_string(), slug.to_string())].into(),
             launch: Default::default(),
+            exit_tx: None,
         }
     }
 
@@ -1170,6 +1171,7 @@ mod reliability {
             work_dir: PathBuf::from("/tmp"),
             env: Default::default(),
             launch: Default::default(),
+            exit_tx: None,
         }
     }
 

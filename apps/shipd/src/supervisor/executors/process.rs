@@ -6,7 +6,7 @@
 
 use anyhow::Result;
 use async_trait::async_trait;
-use runtime::services::dispatch_ports::{ExecutorHandle, JobContext, JobExecutor};
+use runtime::services::dispatch_ports::{ExecutorHandle, ExitSignal, JobContext, JobExecutor};
 use std::path::PathBuf;
 
 /// Job executor that spawns agents as direct child processes.
@@ -54,38 +54,18 @@ impl JobExecutor for ProcessExecutor {
             "process-executor: agent spawned"
         );
 
-        // Monitor the process in a background task — when it exits, fire the stop hook.
+        // Monitor the process in a background thread — when it exits, signal via exit_tx.
         let slug = ctx.slug.clone();
+        let job_id = ctx.job_id.clone();
         let log_path_clone = log_path.clone();
+        let exit_tx = ctx.exit_tx.clone();
         std::thread::spawn(move || {
             let mut child = child;
-            let status = child.wait();
-            match status {
-                Ok(s) => {
-                    tracing::info!(slug, pid, exit_code = ?s.code(), "process-executor: agent exited");
-                }
-                Err(e) => {
-                    tracing::warn!(slug, pid, "process-executor: wait failed: {e}");
-                }
-            }
+            let exit_code = child.wait().ok().and_then(|s| s.code());
+            tracing::info!(slug, pid, exit_code, "process-executor: agent exited");
             drop(log_path_clone);
-            // Fire the stop hook — emit job.completed via daemon API
-            let home = dirs::home_dir().unwrap_or_default().join(".ship");
-            if let (Ok(port_str), Ok(token)) = (
-                std::fs::read_to_string(home.join("daemon.port")),
-                std::fs::read_to_string(home.join("daemon.token")),
-            ) {
-                let port = port_str.trim();
-                let token = token.trim();
-                let _ = std::process::Command::new("curl")
-                    .args([
-                        "-sf", "-X", "POST",
-                        &format!("http://127.0.0.1:{port}/api/runtime/jobs/end"),
-                        "-H", "Content-Type: application/json",
-                        "-H", &format!("Authorization: Bearer {token}"),
-                        "-d", &format!("{{\"slug\":\"{slug}\"}}"),
-                    ])
-                    .status();
+            if let Some(tx) = exit_tx {
+                let _ = tx.send(ExitSignal { slug, job_id, exit_code });
             }
         });
 

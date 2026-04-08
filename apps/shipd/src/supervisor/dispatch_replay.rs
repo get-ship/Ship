@@ -208,6 +208,7 @@ async fn reconcile_dispatched_inner(
             spec_path: job.spec_path.clone(),
             work_dir,
             env: [("SHIP_MESH_ID".to_string(), job.slug.clone())].into(),
+            exit_tx: None, // liveness sweep handles relaunched jobs
             launch: runtime::services::dispatch_ports::LaunchProfile {
                 provider: job.provider.clone(),
                 model: job.model.clone(),

@@ -9,6 +9,7 @@ pub(crate) mod orphan_cleanup;
 pub(crate) mod executors;
 pub mod helpers;
 pub mod job_dispatch;
+pub(crate) mod liveness;
 pub(crate) mod pending_dispatch;
 pub(crate) mod pipeline_loader;
 pub(crate) mod registry;
@@ -54,3 +55,7 @@ mod tests_e2e_reliability;
 #[cfg(test)]
 #[path = "tests_graceful_shutdown.rs"]
 mod tests_graceful_shutdown;
+
+#[cfg(test)]
+#[path = "tests_process_exit.rs"]
+mod tests_process_exit;
