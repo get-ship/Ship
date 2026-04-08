@@ -114,7 +114,7 @@ cmd_start() {
     # install ship binary (skip if already on PATH)
     if ! command -v ship &>/dev/null; then
       echo "Building + installing ship..."
-      cargo install --path apps/ship-studio-cli 2>&1 | tail -3
+      cargo install --path apps/ship-cli 2>&1 | tail -3
     fi
   '
 

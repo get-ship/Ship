@@ -167,7 +167,7 @@ Private registries, package signing, security auditing, enterprise features. The
 curl -fsSL https://getship.dev/install.sh | sh
 
 # From source
-cargo install --path apps/ship-studio-cli
+cargo install --path apps/ship-cli
 
 # Homebrew (coming soon)
 brew install ship

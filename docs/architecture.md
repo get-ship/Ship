@@ -7,7 +7,7 @@ Ship is structured in three layers: the **compiler** (pure transformation), the 
 ```
 ┌──────────────────────────────────────────────────┐
 │                    Transport                      │
-│  CLI (ship-studio-cli)  MCP (ship-mcp)  Web (Studio) │
+│  CLI (ship-cli)  MCP (ship-mcp)  Web (Studio) │
 │  Parses args, routes    Exposes tools    Browser UI   │
 │  to runtime/compiler    via rmcp         + WASM       │
 └────────────────┬────────────┬────────────┬────────┘
@@ -84,7 +84,7 @@ The runtime is the only layer that talks to SQLite. Transport layers call runtim
 
 ## Transport — thin layers
 
-### CLI (`apps/ship-studio-cli/`)
+### CLI (`apps/ship-cli/`)
 
 Parses commands via clap, delegates to runtime and compiler. The CLI never contains domain logic — it maps flags to function calls and formats output.
 
@@ -102,7 +102,7 @@ TanStack Start application on Cloudflare Workers. Imports `@ship/compiler` (WASM
 
 ```
 apps/
-  ship-studio-cli/       CLI binary — ship init, ship use, ship compile, ...
+  ship-cli/       CLI binary — ship init, ship use, ship compile, ...
   mcp/                   MCP stdio/HTTP server
   web/                   Ship Studio (TanStack Start + Cloudflare Workers)
 crates/core/

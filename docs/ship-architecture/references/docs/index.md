@@ -14,7 +14,7 @@ Three layers with strict boundaries: transport (CLI, MCP, web), runtime (state m
 ```
 +----------------------------------------------------+
 |                    Transport                        |
-|  CLI (ship-studio-cli)  MCP (ship-mcp)  Web (Studio)  |
+|  CLI (ship-cli)  MCP (ship-mcp)  Web (Studio)  |
 |  clap commands          rmcp tools      TanStack Start |
 +----------+--------------+-------------+------------+
            |              |             |
@@ -66,7 +66,7 @@ The WASM entry points are `compileLibrary` (single provider) and `compileLibrary
 
 ```
 apps/
-  ship-studio-cli/       CLI binary (clap, ~40 commands)
+  ship-cli/       CLI binary (clap, ~40 commands)
   mcp/                   MCP server (rmcp, stdio + HTTP)
   web/                   Ship Studio (TanStack Start + Cloudflare Workers)
   docs/                  Documentation site (Astro + Markdoc)

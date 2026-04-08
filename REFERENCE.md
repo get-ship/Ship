@@ -256,7 +256,7 @@ Profiles add `tools_deny` and `tools_ask` on top of presets but do not override 
 | What | Owner |
 |---|---|
 | Compiler types + WASM | `crates/core/compiler` |
-| CLI commands + config types | `apps/ship-studio-cli` |
+| CLI commands + config types | `apps/ship-cli` |
 | Studio web UI | `apps/web` |
 | Shared UI primitives | `packages/primitives` |
 | WASM package | `packages/compiler` |

@@ -110,7 +110,7 @@ just check-gates  # Verify both stable and unstable configurations compile
 The workspace is split across `apps/` (binaries) and `crates/core/` (libraries).
 
 **Binaries:**
-- `ship-studio-cli` -- the `ship` CLI. Clap for argument parsing. Delegates to runtime and compiler.
+- `ship-cli` -- the `ship` CLI. Clap for argument parsing. Delegates to runtime and compiler.
 - `mcp` -- the MCP server. Stdio and HTTP transports. Exposes runtime operations as MCP tools via rmcp.
 
 **Libraries:**

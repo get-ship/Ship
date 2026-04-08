@@ -97,7 +97,7 @@
   {
     "id": "cmd-network",
     "status": "partial",
-    "notes": "serve, status, stop for ship-network daemon. Overlaps with cmd-daemon. Unclear boundary — network serve may be subsumed into shipd."
+    "notes": "ship network commands removed — use ship daemon instead."
   },
   {
     "id": "cmd-agents-crud",
