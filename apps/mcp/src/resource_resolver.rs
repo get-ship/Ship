@@ -10,7 +10,7 @@ use runtime::{
         list_workspaces as runtime_list_workspaces,
     },
 };
-use runtime::{get_effective_skill, get_skill_vars, list_effective_skills, load_jobs_at};
+use runtime::{get_effective_skill, list_effective_skills, load_jobs_at};
 
 use runtime::projections::job::load_jobs;
 

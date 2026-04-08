@@ -84,6 +84,7 @@ pub(crate) async fn dispatch_ready_pending_jobs(
             plan_id: None,
             model: None,
             provider: None,
+            pipeline_name: None,
         };
 
         let payload = ensure_pipeline(payload);

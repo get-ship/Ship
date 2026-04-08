@@ -2,7 +2,7 @@
 //!
 //! A pipeline is a DAG of steps. Each step declares dependencies via `after`.
 //! When a step completes, unblocked steps are found and dispatched.
-use runtime::events::job::StepType;
+use runtime::events::job::{Pipeline, StepType};
 use runtime::events::{CallerKind, EmitContext, EventEnvelope};
 use runtime::services::dispatch_ports::JobContext;
 use runtime::projections::job::{load_jobs, load_jobs_at};
@@ -156,48 +156,6 @@ fn parse_steps_from_frontmatter(content: &str) -> Option<Pipeline> {
     serde_json::from_value(steps_val.clone()).ok()
 }
 
-/// Emit a `job.dispatched` event.
-pub(crate) async fn emit_job_dispatched(
-    kernel: &Arc<Mutex<runtime::events::KernelRouter>>,
-    job_id: &str,
-    worktree_path: &std::path::Path,
-    slug: &str,
-) {
-    let dispatched_payload = runtime::events::job::JobDispatchedPayload {
-        job_id: job_id.to_string(),
-        worktree: worktree_path.to_string_lossy().into_owned(),
-        pid: None,
-    };
-    let dispatched_envelope = match EventEnvelope::new(
-        runtime::events::job::event_types::JOB_DISPATCHED,
-        job_id,
-        &dispatched_payload,
-    ) {
-        Ok(e) => e.with_actor_id("service.job-dispatch"),
-        Err(e) => {
-            tracing::warn!(slug, "pipeline: failed to build job.dispatched event: {e}");
-            return;
-        }
-    };
-
-    if let Ok(store) = runtime::events::SqliteEventStore::new() {
-        if let Err(e) = runtime::events::EventStore::append(&store, &dispatched_envelope) {
-            tracing::warn!(slug, "pipeline: failed to persist job.dispatched: {e}");
-        }
-    }
-
-    let ctx = EmitContext {
-        caller_kind: CallerKind::Runtime,
-        skill_id: None,
-        workspace_id: None,
-        session_id: None,
-    };
-    if let Err(e) = kernel.lock().await.route(dispatched_envelope, &ctx).await {
-        tracing::warn!(slug, "pipeline: job.dispatched routing failed: {e}");
-    }
-
-    tracing::info!(slug, "pipeline: job dispatched successfully");
-}
 
 /// Advance the pipeline after a step completes. Returns true if a next step was dispatched.
 pub(crate) async fn advance_pipeline(
