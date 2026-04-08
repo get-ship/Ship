@@ -40,6 +40,31 @@ impl ProcessRegistry {
         self.handles.is_empty()
     }
 
+    /// Returns true if a handle is registered for `slug`.
+    pub fn contains(&self, slug: &str) -> bool {
+        self.handles.contains_key(slug)
+    }
+
+    /// Return all currently registered slugs.
+    pub fn live_slugs(&self) -> Vec<String> {
+        self.handles.keys().cloned().collect()
+    }
+
+    /// Check every registered handle via `executor.is_alive()`.
+    /// Removes and returns slugs for dead processes.
+    pub async fn drain_dead(&mut self, executor: &dyn JobExecutor) -> Vec<String> {
+        let mut dead = Vec::new();
+        for (slug, handle) in &self.handles {
+            if !executor.is_alive(handle).await {
+                dead.push(slug.clone());
+            }
+        }
+        for slug in &dead {
+            self.handles.remove(slug);
+        }
+        dead
+    }
+
     /// Stop all managed agents and return the list of stopped slugs.
     /// Clears the registry after stopping.
     pub async fn shutdown_all(&mut self, executor: &dyn JobExecutor) -> Vec<String> {

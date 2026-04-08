@@ -2,7 +2,7 @@
 
 use anyhow::Result;
 use async_trait::async_trait;
-use runtime::services::dispatch_ports::{ExecutorHandle, JobContext, JobExecutor};
+use runtime::services::dispatch_ports::{ExecutorHandle, ExitSignal, JobContext, JobExecutor};
 use runtime::services::provider_adapter::adapter_for;
 
 use super::super::helpers::{ensure_tmux_session, kill_tmux_session};
@@ -28,15 +28,22 @@ impl JobExecutor for TmuxExecutor {
             tracing::warn!(session = tmux_session, "tmux send-keys failed: {e}");
         }
 
-        // Wait for the agent to be ready, then send autostart input.
+        // Wait for the agent to be ready, send autostart, then monitor liveness.
         let session = tmux_session.clone();
         let ready_pat = adapter.ready_pattern().to_string();
         let autostart = adapter.autostart_input().to_string();
+        let slug = ctx.slug.clone();
+        let job_id = ctx.job_id.clone();
+        let exit_tx = ctx.exit_tx.clone();
         std::thread::spawn(move || {
             if wait_for_ready(&session, &ready_pat, 30) {
                 let _ = std::process::Command::new("tmux")
                     .args(["send-keys", "-t", &session, &autostart, "Enter"])
                     .status();
+            }
+            // After readiness (or timeout), monitor for session death.
+            if let Some(tx) = exit_tx {
+                monitor_tmux_session(&session, &slug, &job_id, tx);
             }
         });
 
@@ -88,7 +95,7 @@ impl JobExecutor for TmuxExecutor {
     }
 }
 
-/// Poll tmux pane until the ready pattern appears.
+/// Poll tmux pane until the ready pattern appears or timeout expires.
 fn wait_for_ready(session: &str, pattern: &str, timeout_secs: u64) -> bool {
     for _ in 0..timeout_secs {
         std::thread::sleep(std::time::Duration::from_secs(1));
@@ -104,4 +111,34 @@ fn wait_for_ready(session: &str, pattern: &str, timeout_secs: u64) -> bool {
     }
     tracing::warn!(session, "agent: timed out waiting for ready pattern");
     false
+}
+
+/// Poll the tmux session every 5s; send ExitSignal when it dies.
+///
+/// Starts after `wait_for_ready` returns so we don't fire before the agent
+/// even launches. The thread is self-terminating — once the session dies the
+/// signal is sent and the thread exits.
+fn monitor_tmux_session(
+    session: &str,
+    slug: &str,
+    job_id: &str,
+    exit_tx: tokio::sync::mpsc::UnboundedSender<ExitSignal>,
+) {
+    loop {
+        std::thread::sleep(std::time::Duration::from_secs(5));
+        let alive = std::process::Command::new("tmux")
+            .args(["has-session", "-t", session])
+            .status()
+            .map(|s| s.success())
+            .unwrap_or(false);
+        if !alive {
+            tracing::info!(session, slug, "tmux-executor: session dead, signalling exit");
+            let _ = exit_tx.send(ExitSignal {
+                slug: slug.to_string(),
+                job_id: job_id.to_string(),
+                exit_code: None, // tmux does not expose the agent's exit code
+            });
+            return;
+        }
+    }
 }

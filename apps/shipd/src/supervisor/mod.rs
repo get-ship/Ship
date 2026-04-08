@@ -8,6 +8,7 @@ mod dispatch_replay;
 pub(crate) mod executors;
 pub mod helpers;
 pub mod job_dispatch;
+pub(crate) mod liveness;
 pub(crate) mod pending_dispatch;
 pub(crate) mod pipeline_loader;
 pub(crate) mod registry;
@@ -41,3 +42,7 @@ mod tests_daemon_startup;
 #[cfg(test)]
 #[path = "tests_event_integrity.rs"]
 mod tests_event_integrity;
+
+#[cfg(test)]
+#[path = "tests_process_exit.rs"]
+mod tests_process_exit;

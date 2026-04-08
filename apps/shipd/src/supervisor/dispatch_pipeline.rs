@@ -1,8 +1,7 @@
 //! Pipeline DAG — step-based advancement for job dispatch.
 //!
-//! A pipeline is a DAG of steps. Each step has a type (agent, gate, merge, human)
-//! and declares dependencies via `after`. The engine walks the DAG: when a step
-//! completes, it finds unblocked steps and dispatches them.
+//! A pipeline is a DAG of steps. Each step declares dependencies via `after`.
+//! When a step completes, unblocked steps are found and dispatched.
 use runtime::events::job::StepType;
 use runtime::events::{CallerKind, EmitContext, EventEnvelope};
 use runtime::services::dispatch_ports::JobContext;
@@ -13,6 +12,7 @@ use tokio::sync::Mutex;
 use super::agent_lifecycle::graceful_agent_exit;
 use super::helpers::{compile_agent_config, worktrees_dir};
 use super::job_dispatch::DispatchContext;
+use super::liveness;
 
 /// Emit a `job.dispatched` event.
 pub(crate) async fn emit_job_dispatched(
@@ -199,9 +199,9 @@ async fn advance_pipeline_inner(
                     tracing::warn!(slug, agent, "pipeline: ship use failed (non-fatal): {e}");
                 }
 
-                // Launch the agent
-                // Gate steps are ephemeral — no session persistence needed.
+                // Launch the agent; gate steps are ephemeral.
                 let persist = step.step_type != StepType::Gate;
+                let (exit_tx, exit_rx) = tokio::sync::mpsc::unbounded_channel();
                 let job_ctx = JobContext {
                     job_id: job.job_id.clone(),
                     slug: slug.clone(),
@@ -210,6 +210,7 @@ async fn advance_pipeline_inner(
                     spec_path: job.spec_path.clone(),
                     work_dir: worktree_path.clone(),
                     env: [("SHIP_MESH_ID".to_string(), slug.clone())].into(),
+                    exit_tx: Some(exit_tx),
                     launch: runtime::services::dispatch_ports::LaunchProfile {
                         provider: step.provider.clone(),
                         model: step.model.clone(),
@@ -217,9 +218,15 @@ async fn advance_pipeline_inner(
                         ..Default::default()
                     },
                 };
-                if let Err(e) = dctx.executor.spawn(&job_ctx).await {
-                    tracing::error!(slug, step_id = step.id, "pipeline: spawn failed: {e}");
-                    continue;
+                match dctx.executor.spawn(&job_ctx).await {
+                    Ok(handle) => {
+                        dctx.registry.lock().await.register(slug, handle);
+                        liveness::start_exit_handler(kernel.clone(), dctx.registry.clone(), exit_rx);
+                    }
+                    Err(e) => {
+                        tracing::error!(slug, step_id = step.id, "pipeline: spawn failed: {e}");
+                        continue;
+                    }
                 }
 
                 emit_job_dispatched(kernel, &job.job_id, &worktree_path, slug).await;
