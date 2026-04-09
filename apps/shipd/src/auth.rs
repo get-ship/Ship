@@ -99,33 +99,27 @@ pub async fn auth_middleware(
         .get("authorization")
         .and_then(|v| v.to_str().ok());
 
-    // Allow localhost browser origins without a token (Studio web app).
-    // Non-browser clients (CLI, MCP) always send the token.
-    let origin = req.headers().get("origin").and_then(|v| v.to_str().ok()).unwrap_or("");
-    let is_local_browser = origin.starts_with("http://localhost:") || origin.starts_with("http://127.0.0.1:");
-
     let token = match auth_header {
-        Some(h) if h.starts_with("Bearer ") => Some(&h[7..]),
-        _ if is_local_browser => None, // exempt local browser requests
+        Some(h) if h.starts_with("Bearer ") => &h[7..],
         _ => {
             return (StatusCode::UNAUTHORIZED, "missing or malformed Authorization header")
                 .into_response();
         }
     };
 
-    if let Some(t) = token {
-        if t != expected_token.as_str() {
-            return (StatusCode::UNAUTHORIZED, "invalid token").into_response();
-        }
+    if token != expected_token.as_str() {
+        return (StatusCode::UNAUTHORIZED, "invalid token").into_response();
     }
 
-    // Extract caller identity from optional headers.
-    let caller_kind = req
-        .headers()
-        .get("x-ship-caller")
-        .and_then(|v| v.to_str().ok())
-        .map(parse_caller_kind)
-        .unwrap_or(CallerKind::Cli);
+    // Derive CallerKind from token format, not from the x-ship-caller header.
+    // Runtime is never accepted from external callers — internal only.
+    let caller_kind = if is_daemon_token(token) {
+        CallerKind::Cli
+    } else if token.starts_with("ship_") {
+        CallerKind::Sdk
+    } else {
+        CallerKind::Cli
+    };
 
     let agent_id = header_string(&req, "x-ship-agent-id");
     let workspace_id = header_string(&req, "x-ship-workspace-id");
@@ -149,16 +143,9 @@ fn header_string(req: &Request<Body>, name: &str) -> Option<String> {
         .map(|s| s.to_string())
 }
 
-fn parse_caller_kind(s: &str) -> CallerKind {
-    match s {
-        "cli" | "studio" => CallerKind::Cli,
-        "mcp" => CallerKind::Mcp,
-        "sdk" => CallerKind::Sdk,
-        // Runtime is never accepted from external callers — only internal
-        // daemon components may use CallerKind::Runtime. Claiming "runtime"
-        // over HTTP would bypass namespace validation and rate limiting.
-        _ => CallerKind::Cli,
-    }
+/// Determine if a token is the local daemon token (64-char hex).
+pub fn is_daemon_token(token: &str) -> bool {
+    token.len() == 64 && token.chars().all(|c| c.is_ascii_hexdigit())
 }
 
 #[cfg(test)]
@@ -189,18 +176,15 @@ mod tests {
     }
 
     #[test]
-    fn parse_caller_kind_variants() {
-        assert_eq!(parse_caller_kind("cli"), CallerKind::Cli);
-        assert_eq!(parse_caller_kind("studio"), CallerKind::Cli);
-        assert_eq!(parse_caller_kind("mcp"), CallerKind::Mcp);
-        assert_eq!(parse_caller_kind("sdk"), CallerKind::Sdk);
-        assert_eq!(parse_caller_kind("unknown"), CallerKind::Cli);
+    fn is_daemon_token_valid() {
+        let token = generate_token();
+        assert!(is_daemon_token(&token));
     }
 
     #[test]
-    fn runtime_caller_kind_blocked_from_external() {
-        // External callers must never escalate to Runtime via HTTP headers.
-        assert_eq!(parse_caller_kind("runtime"), CallerKind::Cli);
+    fn is_daemon_token_rejects_non_hex() {
+        assert!(!is_daemon_token("ship_session_abc123"));
+        assert!(!is_daemon_token("too_short"));
     }
 
     #[test]
