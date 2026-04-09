@@ -20,7 +20,6 @@ use std::path::{Path, PathBuf};
 use std::sync::Mutex;
 
 use anyhow::{Result, anyhow};
-use serde::{Deserialize, Serialize};
 use tokio::sync::mpsc;
 
 use crate::events::actor_store::{ActorStore, init_actor_db, raw_append};
@@ -33,14 +32,7 @@ use crate::events::kernel_security::ActorMeta;
 
 pub(crate) const MAILBOX_CAPACITY: usize = 256;
 
-/// Configuration provided to `KernelRouter::spawn_actor`.
-#[derive(Debug, Clone, Serialize, Deserialize)]
-pub struct ActorConfig {
-    pub namespace: String,
-    pub write_namespaces: Vec<String>,
-    pub read_namespaces: Vec<String>,
-    pub subscribe_namespaces: Vec<String>,
-}
+pub use ship_types::ActorConfig;
 
 /// Kernel-managed event router with per-actor isolation.
 pub struct KernelRouter {

@@ -3,24 +3,7 @@
 use std::fmt;
 
 use crate::events::EventEnvelope;
-
-/// Who is emitting the event.
-#[derive(Debug, Clone, PartialEq, Eq)]
-pub enum CallerKind {
-    Cli,
-    Mcp,
-    Sdk,
-    CloudSync,
-    Runtime,
-}
-
-/// Context provided alongside every emit call.
-pub struct EmitContext {
-    pub caller_kind: CallerKind,
-    pub skill_id: Option<String>,
-    pub workspace_id: Option<String>,
-    pub session_id: Option<String>,
-}
+pub use ship_types::{CallerKind, EmitContext};
 
 /// Reasons an event can be rejected before persistence.
 #[derive(Debug)]
