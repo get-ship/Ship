@@ -98,33 +98,34 @@ fn save_config_keeps_ship_toml_free_of_agent_sections() -> anyhow::Result<()> {
         "legacy agents/config.toml should not be written"
     );
 
-    // Verify runtime settings stored in kv_state
-    let providers: Vec<String> = crate::db::kv::get("runtime", "providers")?
+    // Verify runtime settings stored in kv_state (project-scoped namespace)
+    let ns = super::runtime_settings::project_ns(&ship_dir);
+    let providers: Vec<String> = crate::db::kv::get(&ns, "providers")?
         .map(|v| serde_json::from_value(v).unwrap())
         .unwrap_or_default();
     assert_eq!(providers, vec!["claude".to_string(), "codex".to_string()]);
 
-    let active_agent: Option<String> = crate::db::kv::get("runtime", "active_agent")?
+    let active_agent: Option<String> = crate::db::kv::get(&ns, "active_agent")?
         .and_then(|v| serde_json::from_value(v).ok());
     assert_eq!(active_agent.as_deref(), Some("planning"));
 
-    let hooks_json = crate::db::kv::get("runtime", "hooks")?.unwrap().to_string();
+    let hooks_json = crate::db::kv::get(&ns, "hooks")?.unwrap().to_string();
     assert!(hooks_json.contains("\"audit\""));
 
-    let statuses_json = crate::db::kv::get("runtime", "statuses")?.unwrap().to_string();
+    let statuses_json = crate::db::kv::get(&ns, "statuses")?.unwrap().to_string();
     assert!(statuses_json.contains("\"backlog\""));
 
-    let ai_json = crate::db::kv::get("runtime", "ai")?.unwrap().to_string();
+    let ai_json = crate::db::kv::get(&ns, "ai")?.unwrap().to_string();
     assert!(ai_json.contains("\"codex\""));
 
-    let git_json = crate::db::kv::get("runtime", "git")?.unwrap().to_string();
+    let git_json = crate::db::kv::get(&ns, "git")?.unwrap().to_string();
     assert!(git_json.contains("\"ship.jsonc\""));
 
-    let ns_json = crate::db::kv::get("runtime", "namespaces")?.unwrap().to_string();
+    let ns_json = crate::db::kv::get(&ns, "namespaces")?.unwrap().to_string();
     assert!(ns_json.contains("\"project\""));
 
     // Verify modes stored in kv_state
-    let modes_val = crate::db::kv::get("runtime", "modes")?.expect("expected modes in kv");
+    let modes_val = crate::db::kv::get(&ns, "modes")?.expect("expected modes in kv");
     let modes: Vec<serde_json::Value> = serde_json::from_value(modes_val)?;
     assert_eq!(modes.len(), 1);
     assert_eq!(modes[0]["id"], "planning");

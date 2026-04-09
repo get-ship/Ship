@@ -8,7 +8,22 @@ pub fn discover_projects(root: PathBuf) -> Result<Vec<ProjectDiscovery>> {
     if !root.is_dir() {
         return Ok(projects);
     }
-    for entry in std::fs::read_dir(root)? {
+
+    // Check if root itself is a project (has .ship/ as a direct child).
+    let root_ship = root.join(SHIP_DIR_NAME);
+    if root_ship.exists() && root_ship.is_dir() {
+        let name = root
+            .file_name()
+            .unwrap_or_default()
+            .to_string_lossy()
+            .into_owned();
+        projects.push(ProjectDiscovery {
+            name,
+            path: root_ship,
+        });
+    }
+
+    for entry in std::fs::read_dir(&root)? {
         let entry = entry?;
         let path = entry.path();
         if path.is_dir() {
