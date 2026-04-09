@@ -4,11 +4,11 @@ use super::artifact_registry::{
 };
 use super::project::AgentProfile;
 use super::types::{HookConfig, PermissionConfig};
+use super::runtime_settings::project_ns;
 use crate::db::kv;
 use anyhow::Result;
 use std::path::Path;
 
-const NS: &str = "runtime";
 const KEY: &str = "modes";
 
 /// Intermediate row stored in kv_state — mirrors the old agent_config columns.
@@ -31,7 +31,8 @@ struct ModeRow {
 pub(super) fn get_modes_config(ship_dir: &Path) -> Result<Vec<AgentProfile>> {
     sync_agent_artifact_registry(ship_dir)?;
 
-    let rows: Vec<ModeRow> = match kv::get(NS, KEY)? {
+    let ns = project_ns(ship_dir);
+    let rows: Vec<ModeRow> = match kv::get(&ns, KEY)? {
         Some(v) => serde_json::from_value(v).unwrap_or_default(),
         None => return Ok(Vec::new()),
     };
@@ -102,6 +103,7 @@ pub(super) fn save_modes_config(ship_dir: &Path, modes: &[AgentProfile]) -> Resu
         });
     }
 
-    kv::set(NS, KEY, &serde_json::to_value(&rows)?)?;
+    let ns = project_ns(ship_dir);
+    kv::set(&ns, KEY, &serde_json::to_value(&rows)?)?;
     Ok(())
 }
