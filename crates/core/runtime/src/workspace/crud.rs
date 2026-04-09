@@ -53,7 +53,19 @@ pub fn get_workspace(_ship_dir: &Path, branch: &str) -> Result<Option<Workspace>
     }))
 }
 
-pub fn list_workspaces(_ship_dir: &Path) -> Result<Vec<Workspace>> {
+/// List workspaces with reconciliation against git/filesystem state.
+///
+/// Stale workspaces whose worktree paths no longer exist on disk are
+/// corrected before results are returned, so callers always get clean data.
+pub fn list_workspaces(ship_dir: &Path) -> Result<Vec<Workspace>> {
+    super::reconcile::reconcile_all_workspaces(ship_dir)
+}
+
+/// List workspaces directly from DB without reconciliation.
+///
+/// Used by `reconcile_all_workspaces` to avoid recursion. All other
+/// callers should use `list_workspaces` which reconciles first.
+pub(crate) fn list_workspaces_raw(_ship_dir: &Path) -> Result<Vec<Workspace>> {
     let rows = list_workspaces_db()?;
     let mut workspaces = Vec::with_capacity(rows.len());
     for (branch, id, status, is_worktree, worktree_path, active_agent, last_activated_at) in rows {

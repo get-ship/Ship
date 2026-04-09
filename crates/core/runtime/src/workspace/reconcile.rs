@@ -65,7 +65,7 @@ pub fn reconcile_workspace_with_git_path(
 /// checks worktree paths exist on disk, and clears stale records.
 /// Returns the list of all reconciled workspaces.
 pub fn reconcile_all_workspaces(ship_dir: &Path) -> Result<Vec<Workspace>> {
-    let workspaces = super::crud::list_workspaces(ship_dir)?;
+    let workspaces = super::crud::list_workspaces_raw(ship_dir)?;
     let mut results = Vec::with_capacity(workspaces.len());
 
     for ws in workspaces {
