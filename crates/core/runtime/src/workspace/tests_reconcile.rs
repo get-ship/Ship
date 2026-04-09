@@ -519,4 +519,47 @@ mod tests {
         );
         Ok(())
     }
+
+    // ── list_workspaces self-healing ──────────────────────────────────────
+
+    #[test]
+    fn list_workspaces_cleans_stale_worktree_on_read() -> Result<()> {
+        let tmp = tempdir()?;
+        let ship_dir =
+            crate::project::init_project(tmp.path().to_path_buf())?;
+
+        // Create a workspace with a nonexistent worktree path.
+        create_workspace(
+            &ship_dir,
+            CreateWorkspaceRequest {
+                branch: "feature/stale-listed".to_string(),
+                is_worktree: Some(true),
+                worktree_path: Some("/nonexistent/stale/worktree".to_string()),
+                ..Default::default()
+            },
+        )?;
+
+        // list_workspaces should reconcile and return corrected data.
+        let workspaces = list_workspaces(&ship_dir)?;
+        let stale = workspaces
+            .iter()
+            .find(|w| w.branch == "feature/stale-listed")
+            .expect("workspace should still be in the list");
+
+        assert!(
+            !stale.is_worktree,
+            "stale worktree flag should be cleared by list_workspaces"
+        );
+        assert!(
+            stale.worktree_path.is_none(),
+            "stale worktree path should be cleared by list_workspaces"
+        );
+
+        // Verify DB was also updated (not just the returned data).
+        let from_db = get_workspace(&ship_dir, "feature/stale-listed")?
+            .expect("workspace should exist in DB");
+        assert!(!from_db.is_worktree);
+        assert!(from_db.worktree_path.is_none());
+        Ok(())
+    }
 }
