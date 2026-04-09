@@ -55,8 +55,7 @@ pub fn get_git_status(project_dir: &Path) -> String {
     let mut untracked = Vec::new();
 
     for line in raw.lines() {
-        if line.starts_with("## ") {
-            let rest = &line[3..];
+        if let Some(rest) = line.strip_prefix("## ") {
             branch = rest
                 .split("...")
                 .next()

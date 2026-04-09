@@ -79,10 +79,9 @@ impl EventRelay {
         // is scoped to a workspace, only deliver if they match.
         if let (Some(event_ws), Some(peer_ws)) =
             (&event.workspace_id, &peer.workspace_branch)
+            && event_ws != peer_ws
         {
-            if event_ws != peer_ws {
-                return false;
-            }
+            return false;
         }
 
         // System peers receive all (workspace-matched) events

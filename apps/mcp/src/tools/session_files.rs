@@ -138,10 +138,10 @@ pub fn write_session_file(project_dir: &Path, req: WriteSessionFileRequest) -> S
         return format!("Error: {}", e);
     }
     let file_path = project_dir.join(SESSION_DIR).join(&req.path);
-    if let Some(parent) = file_path.parent() {
-        if let Err(e) = std::fs::create_dir_all(parent) {
-            return format!("Error creating directories: {}", e);
-        }
+    if let Some(parent) = file_path.parent()
+        && let Err(e) = std::fs::create_dir_all(parent)
+    {
+        return format!("Error creating directories: {}", e);
     }
     let file_type = file_type_from_extension(&req.path);
     if is_binary_type(&file_type) {

@@ -1,47 +1,8 @@
 use std::path::Path;
 use std::process::Command as ProcessCommand;
 
-use runtime::workspace::{
-    activate_workspace as runtime_activate_workspace, list_workspaces as runtime_list_workspaces,
-    set_workspace_active_agent,
-};
-
-use crate::requests::{ActivateWorkspaceRequest, CreateWorkspaceRequest, ListWorkspacesRequest};
+use crate::requests::CreateWorkspaceRequest;
 use crate::util::configured_worktree_dir;
-
-pub fn activate_workspace(project_dir: &Path, req: ActivateWorkspaceRequest) -> String {
-    let ship_dir = project_dir.join(".ship");
-    let mut workspace = match runtime_activate_workspace(&ship_dir, &req.branch) {
-        Ok(workspace) => workspace,
-        Err(err) => return format!("Error: {}", err),
-    };
-    if let Some(agent_id) = req.agent_id.as_deref() {
-        workspace = match set_workspace_active_agent(&ship_dir, &req.branch, Some(agent_id)) {
-            Ok(workspace) => workspace,
-            Err(err) => return format!("Error: {}", err),
-        };
-    }
-    serde_json::to_string_pretty(&workspace)
-        .unwrap_or_else(|e| format!("Error serializing workspace: {}", e))
-}
-
-pub fn list_workspaces(project_dir: &Path, req: ListWorkspacesRequest) -> String {
-    let ship_dir = project_dir.join(".ship");
-    let workspaces = match runtime_list_workspaces(&ship_dir) {
-        Ok(ws) => ws,
-        Err(e) => return format!("Error listing workspaces: {}", e),
-    };
-    let filtered: Vec<_> = if let Some(ref status_filter) = req.status {
-        let lower = status_filter.to_ascii_lowercase();
-        workspaces
-            .into_iter()
-            .filter(|w| format!("{:?}", w.status).to_ascii_lowercase() == lower)
-            .collect()
-    } else {
-        workspaces
-    };
-    serde_json::to_string(&filtered).unwrap_or_else(|e| format!("Error serializing workspaces: {}", e))
-}
 
 pub fn create_workspace(project_dir: &Path, req: CreateWorkspaceRequest) -> String {
     let project_root = project_dir;
