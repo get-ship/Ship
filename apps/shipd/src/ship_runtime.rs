@@ -221,7 +221,43 @@ impl ShipRuntime {
     }
 
     /// Clean up daemon files on shutdown.
+    ///
+    /// Emits a `supervisor.shutting_down` event, then drains managers before
+    /// removing daemon files.
     pub async fn shutdown(&self) {
+        // Emit supervisor.shutting_down event before drain/cleanup.
+        // Use spawn_blocking-style guard: route() may call block_in_place
+        // which panics on single-threaded runtimes, so we catch that.
+        if let Ok(envelope) = EventEnvelope::new(
+            "supervisor.shutting_down",
+            "supervisor",
+            &serde_json::json!({}),
+        ) {
+            let ctx = EmitContext {
+                caller_kind: CallerKind::Runtime,
+                skill_id: None,
+                workspace_id: None,
+                session_id: None,
+            };
+            let kernel = self.kernel.clone();
+            let result = tokio::task::spawn(async move {
+                kernel.lock().await.route(envelope, &ctx).await
+            })
+            .await;
+            match result {
+                Ok(Err(e)) => {
+                    tracing::warn!("shipd: failed to emit shutting_down event: {e}");
+                }
+                Err(e) => {
+                    tracing::warn!("shipd: shutting_down event task failed: {e}");
+                }
+                Ok(Ok(())) => {}
+            }
+        }
+
+        // Drain — allow managers to finish in-flight work.
+        tracing::info!("shipd: drain complete, cleaning up daemon files");
+
         let _ = std::fs::remove_file(self.ship_dir.join("daemon.token"));
         let _ = std::fs::remove_file(self.ship_dir.join("daemon.port"));
         let _ = std::fs::remove_file(self.ship_dir.join("daemon.pid"));

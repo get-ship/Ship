@@ -72,6 +72,18 @@ pub trait ServiceHandler: Send + 'static {
         Ok(())
     }
 
+    /// Called before `on_stop` when the mailbox closes, giving the service
+    /// time to finish in-flight work. The `timeout` indicates how long the
+    /// caller is willing to wait.
+    fn on_drain(&mut self, _timeout: Duration) -> Result<()> {
+        Ok(())
+    }
+
+    /// Returns the current health status of the service.
+    fn health_check(&self) -> HealthStatus {
+        HealthStatus::Healthy
+    }
+
     /// If `Some`, `on_tick` fires on this interval alongside mailbox events.
     fn tick_interval(&self) -> Option<Duration> {
         None
@@ -81,6 +93,14 @@ pub trait ServiceHandler: Send + 'static {
     fn on_tick(&mut self, _store: &ActorStore) -> Result<()> {
         Ok(())
     }
+}
+
+/// Health status reported by a service's `health_check`.
+#[derive(Debug, Clone)]
+pub enum HealthStatus {
+    Healthy,
+    Degraded { reason: String },
+    Unhealthy { reason: String },
 }
 
 /// Handle for a running service actor task.
@@ -150,6 +170,12 @@ pub async fn run_service(
                 eprintln!("[service:{}] handle error: {e}", handler.name());
             }
         }
+    }
+
+    // Drain before stop — gives the service time to finish in-flight work.
+    let drain_timeout = Duration::from_secs(30);
+    if let Err(e) = handler.on_drain(drain_timeout) {
+        eprintln!("[service:{}] drain error: {e}", handler.name());
     }
 
     if let Err(e) = handler.on_stop(&store) {
