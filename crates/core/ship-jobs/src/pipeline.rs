@@ -9,6 +9,6 @@ pub struct Pipeline {
 impl Pipeline {
     /// Find root steps (no dependencies).
     pub fn root_steps(&self) -> Vec<&PipelineStep> {
-        todo!()
+        self.steps.iter().filter(|s| s.after.is_empty()).collect()
     }
 }
