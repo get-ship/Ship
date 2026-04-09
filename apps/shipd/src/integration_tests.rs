@@ -499,3 +499,84 @@ async fn event_route_via_harness() {
     assert_eq!(resp.status, 200);
     assert_eq!(resp.body["ok"], true);
 }
+
+// ── Workspace lifecycle e2e ────────────────────────────────────────────────
+
+#[tokio::test(flavor = "multi_thread", worker_threads = 2)]
+async fn archived_workspace_excluded_from_api() {
+    let daemon = TestDaemon::new().await;
+
+    // Create two workspaces — both start as active.
+    runtime::workspace::create_workspace(
+        &daemon.state.ship_dir,
+        runtime::workspace::CreateWorkspaceRequest {
+            branch: "feature/keep-me".into(),
+            ..Default::default()
+        },
+    )
+    .unwrap();
+    runtime::workspace::create_workspace(
+        &daemon.state.ship_dir,
+        runtime::workspace::CreateWorkspaceRequest {
+            branch: "feature/archive-me".into(),
+            ..Default::default()
+        },
+    )
+    .unwrap();
+
+    // Both should appear in the API.
+    let resp = daemon.get("/api/runtime/workspaces").await;
+    let workspaces = resp.body["data"]["workspaces"].as_array().unwrap();
+    assert!(workspaces.iter().any(|w| w["branch"] == "feature/keep-me"));
+    assert!(workspaces.iter().any(|w| w["branch"] == "feature/archive-me"));
+
+    // Archive one.
+    runtime::workspace::transition_workspace_status(
+        &daemon.state.ship_dir,
+        "feature/archive-me",
+        runtime::workspace::WorkspaceStatus::Archived,
+    )
+    .unwrap();
+
+    // Archived workspace must not appear in the API.
+    let resp = daemon.get("/api/runtime/workspaces").await;
+    let workspaces = resp.body["data"]["workspaces"].as_array().unwrap();
+    assert!(
+        workspaces.iter().any(|w| w["branch"] == "feature/keep-me"),
+        "active workspace must still appear"
+    );
+    assert!(
+        !workspaces.iter().any(|w| w["branch"] == "feature/archive-me"),
+        "archived workspace must be excluded from API"
+    );
+}
+
+#[tokio::test(flavor = "multi_thread", worker_threads = 2)]
+async fn deleted_workspace_excluded_from_api() {
+    let daemon = TestDaemon::new().await;
+
+    runtime::workspace::create_workspace(
+        &daemon.state.ship_dir,
+        runtime::workspace::CreateWorkspaceRequest {
+            branch: "feature/delete-me".into(),
+            ..Default::default()
+        },
+    )
+    .unwrap();
+
+    // Verify it exists.
+    let resp = daemon.get("/api/runtime/workspaces").await;
+    let workspaces = resp.body["data"]["workspaces"].as_array().unwrap();
+    assert!(workspaces.iter().any(|w| w["branch"] == "feature/delete-me"));
+
+    // Delete it.
+    runtime::workspace::delete_workspace(&daemon.state.ship_dir, "feature/delete-me").unwrap();
+
+    // Must not appear.
+    let resp = daemon.get("/api/runtime/workspaces").await;
+    let workspaces = resp.body["data"]["workspaces"].as_array().unwrap();
+    assert!(
+        !workspaces.iter().any(|w| w["branch"] == "feature/delete-me"),
+        "deleted workspace must not appear in API"
+    );
+}

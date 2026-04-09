@@ -221,15 +221,23 @@ impl ShipServer {
         let relay = notification_relay::EventRelay::new();
         relay_state.peers = relay.peers();
 
+        // Resolve workspace branch for scoping notifications.
+        let workspace_branch = self
+            .get_effective_project_dir()
+            .await
+            .ok()
+            .and_then(|d| tool_gate::current_branch(&d).ok());
+
         // Select push adapter based on detected provider, register as peer.
         if let Some(peer) = self.notification_peer.lock().await.clone() {
             let provider = self.mcp_provider.lock().await.clone();
             let adapter =
                 crate::push::select_adapter(provider.as_deref(), peer);
-            tracing::info!(adapter = adapter.adapter_name(), "push adapter selected");
+            tracing::info!(adapter = adapter.adapter_name(), branch = ?workspace_branch, "push adapter selected");
             let peer_handle = notification_relay::PeerHandle {
                 adapter,
                 allowed_events: std::collections::HashSet::new(),
+                workspace_branch,
             };
             relay.add_peer(peer_handle).await;
         }

@@ -1,8 +1,3 @@
-# Brainstorm / visual companion (local only, not for git)
-.superpowers/
-docs/brainstorm/
-docs/superpowers/
-
 # Dependencies
 **/node_modules/
 node_modules/
@@ -70,14 +65,6 @@ dist/
 # Added by cargo
 /target
 
-# Leftover Tauri desktop artifacts (archived, not maintained)
-crates/ui/
-
-# Team Coordination
-TEAM.md
-
-
-
 # Ship worktrees — ephemeral, never commit
 .ship/worktrees/
 
@@ -94,12 +81,7 @@ AGENTS.md
 .codex/
 skills-lock.json
 .gstack/
-SESSION.json
 .artifacts/
-.ship-session/
-.ship/platform.db
-.ship/actors/
-.ship/kernel/
 .cursor/
 .opencode/
 opencode.json

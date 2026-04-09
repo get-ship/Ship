@@ -12,6 +12,10 @@ pub struct PeerHandle {
     /// the agent's active skills' declared `in` events.
     /// Empty = system peer, receives all (e.g. internal projections).
     pub allowed_events: HashSet<String>,
+    /// Workspace branch this peer is scoped to. System events with a
+    /// workspace_id are only delivered if it matches this field.
+    /// None = unscoped, receives system events for all workspaces.
+    pub workspace_branch: Option<String>,
 }
 
 /// Routes events from an actor's `Mailbox` to connected agent peers.
@@ -62,19 +66,31 @@ impl EventRelay {
     /// Filter at the relay, not at the receiver.
     ///
     /// System events (workspace.*, session.*, actor.*, config.*, gate.*)
-    /// are delivered to all peers — they're runtime lifecycle, not skill-scoped.
+    /// are scoped by workspace — a peer only receives system events that
+    /// match its workspace_branch, or events with no workspace_id (global).
     ///
     /// Skill-namespaced events (e.g. visual-brainstorm.annotation_created)
     /// are only delivered if the peer's allowed_events contains that type.
     ///
-    /// If allowed_events is empty, the peer is a system peer (receives all).
+    /// If allowed_events is empty, the peer is a system peer (receives all
+    /// system events for its workspace).
     fn peer_should_receive(&self, peer: &PeerHandle, event: &EventEnvelope) -> bool {
-        // System peers receive everything
+        // Workspace scoping: if the event has a workspace_id and the peer
+        // is scoped to a workspace, only deliver if they match.
+        if let (Some(event_ws), Some(peer_ws)) =
+            (&event.workspace_id, &peer.workspace_branch)
+        {
+            if event_ws != peer_ws {
+                return false;
+            }
+        }
+
+        // System peers receive all (workspace-matched) events
         if peer.allowed_events.is_empty() {
             return true;
         }
 
-        // System namespace events go to all peers
+        // System namespace events go to all (workspace-matched) peers
         if is_system_event(&event.event_type) {
             return true;
         }

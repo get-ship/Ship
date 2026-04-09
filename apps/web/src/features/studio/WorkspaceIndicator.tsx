@@ -5,6 +5,7 @@ import { Popover, PopoverContent, PopoverTrigger } from '@ship/primitives'
 import { Separator } from '@ship/primitives'
 import { useDaemon } from './hooks/useDaemonData'
 import { useStudioShell } from './StudioShellContext'
+import { resolveWorkspaceSelection } from './workspace-selection'
 
 const WORKSPACE_ROUTES = ['/studio/session', '/studio/git', '/studio/view/']
 
@@ -32,18 +33,14 @@ export function WorkspaceIndicator() {
     ? workspaces.find((w) => w.branch === viewedWorkspace)
     : workspaces.find((w) => String(w.status).toLowerCase() === 'active')
 
-  // Auto-set viewedWorkspace on first load, or reset if stale (branch no longer exists)
+  // Hydrate viewedWorkspace on first load or clear stale selection.
+  // viewedIsValid is a stable boolean — only flips when the branch leaves the list.
+  const viewedIsValid = !viewedWorkspace || workspaces.some((w) => w.branch === viewedWorkspace)
   useEffect(() => {
     if (!isWorkspaceView) return
-    if (!viewedWorkspace && currentWs) {
-      setViewedWorkspace(currentWs.branch)
-      return
-    }
-    if (viewedWorkspace && workspaces.length > 0 && !workspaces.some((w) => w.branch === viewedWorkspace)) {
-      const fallback = workspaces.find((w) => String(w.status).toLowerCase() === 'active')
-      setViewedWorkspace(fallback?.branch ?? workspaces[0]?.branch ?? null)
-    }
-  }, [isWorkspaceView, viewedWorkspace, currentWs, workspaces, setViewedWorkspace])
+    const next = resolveWorkspaceSelection(viewedWorkspace, workspaces)
+    if (next !== undefined) setViewedWorkspace(next)
+  }, [isWorkspaceView, viewedIsValid]) // eslint-disable-line react-hooks/exhaustive-deps
 
   if (!isWorkspaceView) return null
   if (!currentWs && connected) return null

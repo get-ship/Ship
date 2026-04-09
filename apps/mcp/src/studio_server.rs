@@ -166,6 +166,7 @@ impl StudioServer {
         let peer_handle = crate::server::notification_relay::PeerHandle {
             adapter: Box::new(adapter),
             allowed_events: std::collections::HashSet::new(),
+            workspace_branch: None, // Studio sees all workspaces
         };
         relay.add_peer(peer_handle).await;
         let _handle = relay.spawn(mailbox);
