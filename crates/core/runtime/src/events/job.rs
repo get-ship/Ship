@@ -41,6 +41,9 @@ pub struct PipelineStep {
     /// Agent profile to use (required for agent/gate steps).
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub agent: Option<String>,
+    /// Goal or instruction for the agent step.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub goal: Option<String>,
     /// Steps that must complete before this one runs.
     #[serde(default)]
     pub after: Vec<String>,
@@ -66,6 +69,8 @@ impl<'de> serde::Deserialize<'de> for PipelineStep {
             #[serde(default)]
             agent: Option<String>,
             #[serde(default)]
+            goal: Option<String>,
+            #[serde(default)]
             after: Vec<String>,
             #[serde(default)]
             model: Option<String>,
@@ -87,6 +92,7 @@ impl<'de> serde::Deserialize<'de> for PipelineStep {
             id: raw.id,
             step_type,
             agent: raw.agent,
+            goal: raw.goal,
             after: raw.after,
             model: raw.model,
             provider: raw.provider,
@@ -110,6 +116,7 @@ impl Pipeline {
                     id: "implement".to_string(),
                     step_type: StepType::Agent,
                     agent: Some(agent.to_string()),
+                    goal: None,
                     after: vec![],
                     model: None,
                     provider: None,
@@ -119,6 +126,7 @@ impl Pipeline {
                     id: "gate".to_string(),
                     step_type: StepType::Gate,
                     agent: Some("reviewer".to_string()),
+                    goal: None,
                     after: vec!["implement".to_string()],
                     model: Some("sonnet".to_string()),
                     provider: None,
@@ -128,6 +136,7 @@ impl Pipeline {
                     id: "merge".to_string(),
                     step_type: StepType::Merge,
                     agent: None,
+                    goal: None,
                     after: vec!["gate".to_string()],
                     model: None,
                     provider: None,
@@ -173,6 +182,9 @@ pub struct JobCreatedPayload {
     /// Pipeline name reference (e.g. "tdd"). Resolved by daemon from .ship/pipelines/.
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub pipeline_name: Option<String>,
+    /// Job-level variables for pipeline step interpolation. Override step-level vars.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub vars: Option<std::collections::HashMap<String, String>>,
 }
 
 /// Emitted when the job is assigned to a worktree and (optionally) a process.

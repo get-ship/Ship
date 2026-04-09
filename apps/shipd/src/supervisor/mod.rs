@@ -13,6 +13,7 @@ pub mod job_dispatch;
 pub(crate) mod liveness;
 pub(crate) mod pending_dispatch;
 pub(crate) mod pipeline_loader;
+pub(crate) mod pipeline_vars;
 pub(crate) mod registry;
 pub mod terminal_launcher;
 mod workspace_api;

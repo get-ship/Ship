@@ -262,6 +262,7 @@ pub async fn create_job(
         pipeline: None,
         steps: None,
         pipeline_name: req.pipeline,
+        vars: None,
     };
 
     // Enrich with pipeline BEFORE persisting — the persisted event must include steps

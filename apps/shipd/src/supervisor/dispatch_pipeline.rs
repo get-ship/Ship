@@ -141,8 +141,18 @@ async fn advance_pipeline_inner(
     let worktree_path = wt_root.join(slug);
 
     // Dispatch each unblocked step
+    let job_vars = job.vars.clone().unwrap_or_default();
     let mut dispatched_any = false;
     for step in next_steps {
+        // Interpolate {{ var }} references before dispatch.
+        let step = match super::pipeline_vars::interpolate_step(step, &job_vars, &Default::default()) {
+            Ok(s) => s,
+            Err(missing) => {
+                tracing::error!(slug, step_id = step.id, "pipeline: unresolved pipeline var: {missing} in step {}", step.id);
+                continue;
+            }
+        };
+        let step = &step;
         tracing::info!(
             slug,
             step_id = step.id,
