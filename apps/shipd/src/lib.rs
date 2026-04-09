@@ -9,6 +9,7 @@ mod connections;
 mod handler;
 pub mod human_webhook;
 pub mod managers;
+pub mod openapi;
 pub mod project_api;
 pub mod pty_handler;
 pub mod rest_api;
@@ -40,12 +41,13 @@ pub use server::NetworkServer;
 
 use anyhow::{Result, anyhow};
 use axum::{
-    Router,
+    Json, Router,
     body::Body,
     http::Request,
     middleware::Next,
     response::Response,
 };
+use utoipa::OpenApi;
 use rmcp::transport::streamable_http_server::{
     StreamableHttpServerConfig, StreamableHttpService, session::local::LocalSessionManager,
 };
@@ -139,6 +141,9 @@ fn build_router(
         }));
 
     Router::new()
+        .route("/api/openapi.json", axum::routing::get(|| async {
+            Json(openapi::ApiDoc::openapi())
+        }))
         .merge(authenticated_routes)
         .layer(axum::middleware::from_fn(cors_middleware))
 }

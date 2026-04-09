@@ -18,7 +18,7 @@ use crate::rest_api::{ApiState, MeshResponse};
 
 // ---- Query params ----
 
-#[derive(Deserialize)]
+#[derive(Deserialize, utoipa::IntoParams)]
 pub struct SessionsQuery {
     pub workspace_id: Option<String>,
 }
@@ -29,6 +29,12 @@ pub struct SessionsQuery {
 ///
 /// Returns only active workspaces. Archived/dead workspaces are excluded
 /// from the API surface — the reconciler handles cleanup internally.
+#[utoipa::path(
+    get,
+    path = "/api/runtime/workspaces",
+    responses((status = 200, body = MeshResponse)),
+    tag = "runtime"
+)]
 pub async fn list_workspaces(State(state): State<ApiState>) -> impl IntoResponse {
     match runtime::workspace::list_workspaces(state.ship_dir()) {
         Ok(ws) => {
@@ -55,6 +61,13 @@ pub async fn list_workspaces(State(state): State<ApiState>) -> impl IntoResponse
 }
 
 /// GET /api/runtime/sessions[?workspace_id=<id>]
+#[utoipa::path(
+    get,
+    path = "/api/runtime/sessions",
+    params(SessionsQuery),
+    responses((status = 200, body = MeshResponse)),
+    tag = "runtime"
+)]
 pub async fn list_sessions(
     State(_state): State<ApiState>,
     Query(params): Query<SessionsQuery>,
@@ -101,6 +114,12 @@ pub async fn list_sessions(
 }
 
 /// GET /api/runtime/agents
+#[utoipa::path(
+    get,
+    path = "/api/runtime/agents",
+    responses((status = 200, body = MeshResponse)),
+    tag = "runtime"
+)]
 pub async fn list_agents(State(state): State<ApiState>) -> impl IntoResponse {
     let registry = state.mesh_registry().read().await;
     let agents: Vec<serde_json::Value> = registry
@@ -215,7 +234,7 @@ pub async fn serve_view(
 
 // ---- Job request types ----
 
-#[derive(Deserialize)]
+#[derive(Deserialize, utoipa::ToSchema)]
 pub struct CreateJobRequest {
     pub slug: String,
     pub agent: String,
@@ -226,6 +245,12 @@ pub struct CreateJobRequest {
 }
 
 /// GET /api/runtime/jobs
+#[utoipa::path(
+    get,
+    path = "/api/runtime/jobs",
+    responses((status = 200, body = MeshResponse)),
+    tag = "runtime"
+)]
 pub async fn list_jobs(State(_state): State<ApiState>) -> impl IntoResponse {
     match runtime::projections::job::load_jobs() {
         Ok(jobs) => {
@@ -253,6 +278,13 @@ pub async fn list_jobs(State(_state): State<ApiState>) -> impl IntoResponse {
 /// The kernel persists the event and routes it to subscribers.
 /// The job_dispatch service handles all heavy lifting (worktree creation,
 /// dependency resolution, agent spawning).
+#[utoipa::path(
+    post,
+    path = "/api/runtime/jobs",
+    request_body = CreateJobRequest,
+    responses((status = 200, body = MeshResponse)),
+    tag = "runtime"
+)]
 pub async fn create_job(
     State(state): State<ApiState>,
     Json(req): Json<CreateJobRequest>,
@@ -312,7 +344,7 @@ pub async fn create_job(
 
 // ---- Job end (hook-triggered) ----
 
-#[derive(Deserialize)]
+#[derive(Deserialize, utoipa::ToSchema)]
 pub struct JobEndRequest {
     pub slug: String,
 }
@@ -322,6 +354,13 @@ pub struct JobEndRequest {
 /// Called by the session Stop hook when an agent's session ends.
 /// Resolves the job by slug, emits job.completed through the kernel.
 /// The job_dispatch subscriber handles cleanup and unblocking dependents.
+#[utoipa::path(
+    post,
+    path = "/api/runtime/jobs/end",
+    request_body = JobEndRequest,
+    responses((status = 200, body = MeshResponse)),
+    tag = "runtime"
+)]
 pub async fn end_job(
     State(state): State<ApiState>,
     Json(req): Json<JobEndRequest>,
@@ -389,6 +428,12 @@ pub async fn end_job(
 }
 
 /// POST /api/runtime/rebuild-projections — rebuild all projections from events.
+#[utoipa::path(
+    post,
+    path = "/api/runtime/rebuild-projections",
+    responses((status = 200, body = MeshResponse)),
+    tag = "runtime"
+)]
 pub async fn rebuild_projections(
     State(state): State<ApiState>,
 ) -> impl IntoResponse {
@@ -431,6 +476,12 @@ impl Drop for ActorGuard {
 }
 
 /// GET /api/runtime/events — SSE stream of all kernel events.
+#[utoipa::path(
+    get,
+    path = "/api/runtime/events",
+    responses((status = 200, description = "SSE stream of kernel events")),
+    tag = "runtime"
+)]
 pub async fn event_stream(
     State(state): State<ApiState>,
 ) -> Result<Sse<impl futures::stream::Stream<Item = Result<Event, std::convert::Infallible>>>, (StatusCode, String)> {

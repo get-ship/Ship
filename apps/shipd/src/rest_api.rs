@@ -20,33 +20,33 @@ pub type SharedKernel = crate::ship_runtime::SharedKernel;
 
 // ---- Request / Response types ----
 
-#[derive(Deserialize)]
+#[derive(Deserialize, utoipa::ToSchema)]
 pub struct MeshRegisterReq {
     pub agent_id: String,
     pub capabilities: Vec<String>,
 }
 
-#[derive(Deserialize)]
+#[derive(Deserialize, utoipa::ToSchema)]
 pub struct MeshSendReq {
     pub from: String,
     pub to: String,
     pub body: serde_json::Value,
 }
 
-#[derive(Deserialize)]
+#[derive(Deserialize, utoipa::ToSchema)]
 pub struct MeshBroadcastReq {
     pub from: String,
     pub body: serde_json::Value,
     pub capability_filter: Option<String>,
 }
 
-#[derive(Deserialize)]
+#[derive(Deserialize, utoipa::ToSchema)]
 pub struct MeshStatusReq {
     pub agent_id: String,
     pub status: String,
 }
 
-#[derive(Debug, Serialize)]
+#[derive(Debug, Serialize, utoipa::ToSchema)]
 pub struct MeshResponse {
     pub ok: bool,
     pub data: serde_json::Value,
@@ -54,6 +54,13 @@ pub struct MeshResponse {
 
 // ---- Handlers ----
 
+#[utoipa::path(
+    post,
+    path = "/api/mesh/register",
+    request_body = MeshRegisterReq,
+    responses((status = 200, body = MeshResponse)),
+    tag = "mesh"
+)]
 pub async fn mesh_register(
     State(state): State<ApiState>,
     Extension(auth): Extension<AuthContext>,
@@ -129,6 +136,13 @@ pub async fn mesh_register(
     }
 }
 
+#[utoipa::path(
+    post,
+    path = "/api/mesh/send",
+    request_body = MeshSendReq,
+    responses((status = 200, body = MeshResponse)),
+    tag = "mesh"
+)]
 pub async fn mesh_send(
     State(state): State<ApiState>,
     Extension(auth): Extension<AuthContext>,
@@ -154,6 +168,13 @@ pub async fn mesh_send(
     }
 }
 
+#[utoipa::path(
+    post,
+    path = "/api/mesh/broadcast",
+    request_body = MeshBroadcastReq,
+    responses((status = 200, body = MeshResponse)),
+    tag = "mesh"
+)]
 pub async fn mesh_broadcast(
     State(state): State<ApiState>,
     Extension(auth): Extension<AuthContext>,
@@ -177,6 +198,12 @@ pub async fn mesh_broadcast(
     }
 }
 
+#[utoipa::path(
+    get,
+    path = "/api/mesh/discover",
+    responses((status = 200, body = MeshResponse)),
+    tag = "mesh"
+)]
 pub async fn mesh_discover(
     State(state): State<ApiState>,
 ) -> impl IntoResponse {
@@ -195,6 +222,13 @@ pub async fn mesh_discover(
     (StatusCode::OK, Json(MeshResponse { ok: true, data: serde_json::json!({ "agents": agents }) }))
 }
 
+#[utoipa::path(
+    post,
+    path = "/api/mesh/status",
+    request_body = MeshStatusReq,
+    responses((status = 200, body = MeshResponse)),
+    tag = "mesh"
+)]
 pub async fn mesh_status_update(
     State(state): State<ApiState>,
     Extension(auth): Extension<AuthContext>,
@@ -220,7 +254,7 @@ pub async fn mesh_status_update(
 
 // ---- Capabilities ----
 
-#[derive(Serialize)]
+#[derive(Serialize, utoipa::ToSchema)]
 pub struct CapabilitiesResponse {
     pub authenticated: bool,
     pub mode: String,
@@ -228,6 +262,12 @@ pub struct CapabilitiesResponse {
     pub features: Vec<String>,
 }
 
+#[utoipa::path(
+    get,
+    path = "/api/capabilities",
+    responses((status = 200, body = CapabilitiesResponse)),
+    tag = "capabilities"
+)]
 pub async fn capabilities(
     Extension(auth): Extension<AuthContext>,
 ) -> impl IntoResponse {
@@ -251,7 +291,7 @@ pub async fn capabilities(
 
 // ---- Checkout hook ----
 
-#[derive(Deserialize)]
+#[derive(Deserialize, utoipa::ToSchema)]
 pub struct CheckoutHookReq {
     pub branch: String,
     pub path: String,
@@ -306,6 +346,13 @@ pub async fn hooks_checkout(
 /// SSE endpoint — drains an agent's mailbox as server-sent events.
 /// The agent must register first (which spawns the actor + stashes the mailbox).
 /// Only one SSE connection per agent is supported (mailbox is taken, not cloned).
+#[utoipa::path(
+    get,
+    path = "/api/mesh/events/{agent_id}",
+    params(("agent_id" = String, Path, description = "Agent ID")),
+    responses((status = 200, description = "SSE stream of mesh events")),
+    tag = "mesh"
+)]
 pub async fn mesh_events(
     State(state): State<ApiState>,
     Path(agent_id): Path<String>,

@@ -10,21 +10,30 @@ use serde::Deserialize;
 use crate::auth::AuthContext;
 use crate::rest_api::{ApiState, MeshResponse};
 
-#[derive(Deserialize)]
+#[derive(Deserialize, utoipa::ToSchema)]
 pub struct ActorSpawnReq {
     pub actor_id: String,
+    #[schema(value_type = Object)]
     pub config: runtime::events::ActorConfig,
     /// Optional mesh capabilities for auto-registration.
     pub capabilities: Option<Vec<String>>,
 }
 
-#[derive(Deserialize)]
+#[derive(Deserialize, utoipa::ToSchema)]
 pub struct EventRouteReq {
+    #[schema(value_type = Object)]
     pub envelope: runtime::events::EventEnvelope,
     pub workspace_id: Option<String>,
     pub session_id: Option<String>,
 }
 
+#[utoipa::path(
+    post,
+    path = "/api/actor/spawn",
+    request_body = ActorSpawnReq,
+    responses((status = 200, body = MeshResponse)),
+    tag = "actor"
+)]
 pub async fn actor_spawn(
     State(state): State<ApiState>,
     Extension(auth): Extension<AuthContext>,
@@ -68,6 +77,13 @@ pub async fn actor_spawn(
     }))
 }
 
+#[utoipa::path(
+    post,
+    path = "/api/events/route",
+    request_body = EventRouteReq,
+    responses((status = 200, body = MeshResponse)),
+    tag = "actor"
+)]
 pub async fn event_route(
     State(state): State<ApiState>,
     Extension(auth): Extension<AuthContext>,
