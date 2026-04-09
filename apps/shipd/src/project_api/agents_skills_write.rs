@@ -73,7 +73,7 @@ pub async fn write_agent(
     Path(id): Path<String>,
     Json(body): Json<WriteAgentReq>,
 ) -> Result<(StatusCode, Json<MeshResponse>), (StatusCode, Json<MeshResponse>)> {
-    let worktree = resolve_worktree(&state.ship_dir, &id)?;
+    let worktree = resolve_worktree(state.ship_dir(), &id)?;
     let agents_dir = worktree.join(".ship").join("agents");
 
     std::fs::create_dir_all(&agents_dir).map_err(|e| {
@@ -122,7 +122,7 @@ pub async fn write_skill_file(
     Path((id, skill_id, file_path)): Path<(String, String, String)>,
     Json(body): Json<WriteFileReq>,
 ) -> Result<(StatusCode, Json<MeshResponse>), (StatusCode, Json<MeshResponse>)> {
-    let worktree = resolve_worktree(&state.ship_dir, &id)?;
+    let worktree = resolve_worktree(state.ship_dir(), &id)?;
 
     validate_skill_id(&skill_id)?;
 
@@ -155,7 +155,7 @@ pub async fn delete_skill_file(
     State(state): State<ApiState>,
     Path((id, skill_id, file_path)): Path<(String, String, String)>,
 ) -> Result<(StatusCode, Json<MeshResponse>), (StatusCode, Json<MeshResponse>)> {
-    let worktree = resolve_worktree(&state.ship_dir, &id)?;
+    let worktree = resolve_worktree(state.ship_dir(), &id)?;
 
     validate_skill_id(&skill_id)?;
 
@@ -183,7 +183,7 @@ pub async fn get_skill_vars(
     State(state): State<ApiState>,
     Path((id, skill_id)): Path<(String, String)>,
 ) -> Result<(StatusCode, Json<MeshResponse>), (StatusCode, Json<MeshResponse>)> {
-    let worktree = resolve_worktree(&state.ship_dir, &id)?;
+    let worktree = resolve_worktree(state.ship_dir(), &id)?;
     let ship_dir = worktree.join(".ship");
 
     validate_skill_id(&skill_id)?;
@@ -213,7 +213,7 @@ pub async fn set_skill_var(
     Path((id, skill_id, key)): Path<(String, String, String)>,
     Json(body): Json<SetVarReq>,
 ) -> Result<(StatusCode, Json<MeshResponse>), (StatusCode, Json<MeshResponse>)> {
-    let worktree = resolve_worktree(&state.ship_dir, &id)?;
+    let worktree = resolve_worktree(state.ship_dir(), &id)?;
     let ship_dir = worktree.join(".ship");
 
     validate_skill_id(&skill_id)?;
@@ -261,20 +261,9 @@ mod tests {
         std::fs::create_dir_all(&ship_dir).unwrap();
         runtime::db::ensure_db_at(&ship_dir).unwrap();
         let kernel = runtime::events::init_kernel_router(ship_dir.clone()).unwrap();
-        let mesh_registry = std::sync::Arc::new(tokio::sync::RwLock::new(
-            std::collections::HashMap::new(),
-        ));
-        let state = ApiState {
-            kernel,
-            mesh_registry,
-            agent_mailboxes: std::sync::Arc::new(tokio::sync::Mutex::new(
-                std::collections::HashMap::new(),
-            )),
-            pty_connections: std::sync::Arc::new(tokio::sync::Mutex::new(
-                std::collections::HashMap::new(),
-            )),
-            ship_dir,
-        };
+        let state = std::sync::Arc::new(
+            crate::ship_runtime::ShipRuntime::new_test(ship_dir, kernel),
+        );
         (state, dir)
     }
 

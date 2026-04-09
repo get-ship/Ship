@@ -1,9 +1,7 @@
 use super::{workspace_pty, MAX_PTY_CONNECTIONS};
 use crate::rest_api::ApiState;
-use std::collections::HashMap;
 use std::sync::Arc;
 use tempfile::TempDir;
-use tokio::sync::Mutex;
 
 fn make_api_state() -> (ApiState, TempDir) {
     let tmp = TempDir::new().unwrap();
@@ -11,14 +9,7 @@ fn make_api_state() -> (ApiState, TempDir) {
     std::fs::create_dir_all(&ship_dir).unwrap();
     runtime::db::ensure_db_at(&ship_dir).unwrap();
     let kernel = runtime::events::init_kernel_router(ship_dir.clone()).unwrap();
-    let mesh_registry = Arc::new(tokio::sync::RwLock::new(HashMap::new()));
-    let state = ApiState {
-        kernel,
-        mesh_registry,
-        agent_mailboxes: Arc::new(Mutex::new(HashMap::new())),
-        pty_connections: Arc::new(Mutex::new(HashMap::new())),
-        ship_dir,
-    };
+    let state = Arc::new(crate::ship_runtime::ShipRuntime::new_test(ship_dir, kernel));
     (state, tmp)
 }
 
@@ -57,7 +48,7 @@ async fn pty_returns_404_when_no_tmux_session() {
     let (state, _tmp) = make_api_state();
 
     runtime::workspace::create_workspace(
-        &state.ship_dir,
+        state.ship_dir(),
         runtime::workspace::CreateWorkspaceRequest {
             branch: "feat/pty-no-tmux".to_string(),
             ..Default::default()
@@ -65,7 +56,7 @@ async fn pty_returns_404_when_no_tmux_session() {
     )
     .unwrap();
 
-    let ws = runtime::workspace::get_workspace(&state.ship_dir, "feat/pty-no-tmux")
+    let ws = runtime::workspace::get_workspace(state.ship_dir(), "feat/pty-no-tmux")
         .unwrap()
         .unwrap();
     let ws_id = ws.id.clone();
@@ -100,7 +91,7 @@ async fn pty_returns_429_when_over_connection_limit() {
     let (state, _tmp) = make_api_state();
 
     runtime::workspace::create_workspace(
-        &state.ship_dir,
+        state.ship_dir(),
         runtime::workspace::CreateWorkspaceRequest {
             branch: "feat/pty-limit".to_string(),
             ..Default::default()
@@ -108,13 +99,13 @@ async fn pty_returns_429_when_over_connection_limit() {
     )
     .unwrap();
 
-    let ws = runtime::workspace::get_workspace(&state.ship_dir, "feat/pty-limit")
+    let ws = runtime::workspace::get_workspace(state.ship_dir(), "feat/pty-limit")
         .unwrap()
         .unwrap();
     let ws_id = ws.id.clone();
 
     runtime::workspace::set_workspace_tmux_session(
-        &state.ship_dir,
+        state.ship_dir(),
         "feat/pty-limit",
         Some("test-tmux-session"),
     )
@@ -122,7 +113,7 @@ async fn pty_returns_429_when_over_connection_limit() {
 
     // Pre-fill the connection counter to the limit.
     {
-        let mut conns = state.pty_connections.lock().await;
+        let mut conns = state.pty_connections().lock().await;
         conns.insert(ws_id.clone(), MAX_PTY_CONNECTIONS);
     }
 

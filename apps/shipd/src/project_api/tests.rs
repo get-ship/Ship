@@ -43,20 +43,10 @@ fn make_api_state_with_dir(ship_dir: &std::path::Path) -> crate::rest_api::ApiSt
     std::fs::create_dir_all(ship_dir).unwrap();
     runtime::db::ensure_db_at(ship_dir).unwrap();
     let kernel = runtime::events::init_kernel_router(ship_dir.to_path_buf()).unwrap();
-    let mesh_registry = std::sync::Arc::new(tokio::sync::RwLock::new(
-        std::collections::HashMap::new(),
-    ));
-    crate::rest_api::ApiState {
+    std::sync::Arc::new(crate::ship_runtime::ShipRuntime::new_test(
+        ship_dir.to_path_buf(),
         kernel,
-        mesh_registry,
-        agent_mailboxes: std::sync::Arc::new(tokio::sync::Mutex::new(
-            std::collections::HashMap::new(),
-        )),
-        pty_connections: std::sync::Arc::new(tokio::sync::Mutex::new(
-            std::collections::HashMap::new(),
-        )),
-        ship_dir: ship_dir.to_path_buf(),
-    }
+    ))
 }
 
 // ---- Session files ----

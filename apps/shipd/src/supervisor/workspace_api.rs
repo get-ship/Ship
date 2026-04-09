@@ -114,7 +114,7 @@ pub async fn start_workspace(
         .into_response()
 }
 
-async fn register_on_mesh(state: &ApiState, agent_id: &str) {
+async fn register_on_mesh(state: &crate::ship_runtime::ShipRuntime, agent_id: &str) {
     let envelope = match EventEnvelope::new(
         "mesh.register",
         agent_id,
@@ -134,7 +134,7 @@ async fn register_on_mesh(state: &ApiState, agent_id: &str) {
         session_id: None,
     };
 
-    if let Err(e) = state.kernel.lock().await.route(envelope, &ctx).await {
+    if let Err(e) = state.kernel().lock().await.route(envelope, &ctx).await {
         tracing::warn!(agent_id, "mesh.register routing error: {e}");
     }
 }

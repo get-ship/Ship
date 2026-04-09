@@ -21,20 +21,7 @@ fn make_api_state(dir: &TempDir) -> ApiState {
     let kernel = std::sync::Arc::new(tokio::sync::Mutex::new(
         runtime::events::KernelRouter::new(ship_dir.clone()).unwrap(),
     ));
-    let mesh_registry = std::sync::Arc::new(tokio::sync::RwLock::new(
-        std::collections::HashMap::new(),
-    ));
-    ApiState {
-        kernel,
-        mesh_registry,
-        agent_mailboxes: std::sync::Arc::new(tokio::sync::Mutex::new(
-            std::collections::HashMap::new(),
-        )),
-        pty_connections: std::sync::Arc::new(tokio::sync::Mutex::new(
-            std::collections::HashMap::new(),
-        )),
-        ship_dir,
-    }
+    std::sync::Arc::new(crate::ship_runtime::ShipRuntime::new_test(ship_dir, kernel))
 }
 
 // ── mesh_register ───────────────────────────────────────────────────────────
@@ -73,7 +60,7 @@ async fn register_spawns_actor_in_kernel() {
     )
     .await;
 
-    let kernel = state.kernel.lock().await;
+    let kernel = state.kernel().lock().await;
     assert!(kernel.has_actor("agent.spawned"));
 }
 
@@ -92,7 +79,7 @@ async fn register_stashes_mailbox() {
     )
     .await;
 
-    let mailboxes = state.agent_mailboxes.lock().await;
+    let mailboxes = state.agent_mailboxes().lock().await;
     assert!(mailboxes.contains_key("agent.mailbox"));
 }
 
@@ -121,7 +108,7 @@ async fn register_twice_replaces_actor() {
     )
     .await;
 
-    let kernel = state.kernel.lock().await;
+    let kernel = state.kernel().lock().await;
     assert!(kernel.has_actor("agent.twice"));
 }
 
@@ -207,7 +194,7 @@ async fn discover_with_registered_agents() {
 
     // Populate registry directly.
     {
-        let mut registry = state.mesh_registry.write().await;
+        let mut registry = state.mesh_registry().write().await;
         registry.insert(
             "agent.a".into(),
             runtime::services::mesh::MeshEntry {
@@ -285,7 +272,7 @@ async fn mesh_events_unregistered_agent_has_no_mailbox() {
     let dir = TempDir::new().unwrap();
     let state = make_api_state(&dir);
 
-    let has = state.agent_mailboxes.lock().await.contains_key("agent.unregistered");
+    let has = state.agent_mailboxes().lock().await.contains_key("agent.unregistered");
     assert!(!has, "unregistered agent should have no mailbox");
 }
 
@@ -304,7 +291,7 @@ async fn mesh_events_registered_agent_has_mailbox() {
     )
     .await;
 
-    let has = state.agent_mailboxes.lock().await.contains_key("agent.sse-test");
+    let has = state.agent_mailboxes().lock().await.contains_key("agent.sse-test");
     assert!(has, "registered agent must have stashed mailbox");
 }
 
@@ -324,11 +311,11 @@ async fn mesh_events_takes_mailbox_from_stash() {
     .await;
 
     // Remove mailbox as the SSE endpoint would.
-    let removed = state.agent_mailboxes.lock().await.remove("agent.take");
+    let removed = state.agent_mailboxes().lock().await.remove("agent.take");
     assert!(removed.is_some(), "mailbox should be removable once");
 
     // Second removal finds nothing.
-    let gone = state.agent_mailboxes.lock().await.remove("agent.take");
+    let gone = state.agent_mailboxes().lock().await.remove("agent.take");
     assert!(gone.is_none(), "mailbox should only be takeable once");
 }
 

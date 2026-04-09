@@ -24,9 +24,9 @@ pub async fn artifacts_status(
     State(state): State<ApiState>,
     Path(id): Path<String>,
 ) -> Result<(StatusCode, Json<MeshResponse>), (StatusCode, Json<MeshResponse>)> {
-    let worktree = resolve_worktree(&state.ship_dir, &id)?;
+    let worktree = resolve_worktree(state.ship_dir(), &id)?;
     let session_dir = worktree.join(".artifacts");
-    let project_dir = project_artifacts_dir(&state.ship_dir)?;
+    let project_dir = project_artifacts_dir(state.ship_dir())?;
 
     let mut statuses: Vec<serde_json::Value> = Vec::new();
 
@@ -77,9 +77,9 @@ pub async fn promote_artifact(
     Path(id): Path<String>,
     Json(body): Json<PromoteReq>,
 ) -> Result<(StatusCode, Json<MeshResponse>), (StatusCode, Json<MeshResponse>)> {
-    let worktree = resolve_worktree(&state.ship_dir, &id)?;
+    let worktree = resolve_worktree(state.ship_dir(), &id)?;
     let source = worktree.join(".artifacts").join(&body.path);
-    let project_dir = project_artifacts_dir(&state.ship_dir)?;
+    let project_dir = project_artifacts_dir(state.ship_dir())?;
     let dest = project_dir.join(&body.path);
 
     if !source.is_file() {
@@ -108,7 +108,7 @@ pub async fn promote_artifact(
 pub async fn list_project_artifacts(
     State(state): State<ApiState>,
 ) -> Result<(StatusCode, Json<MeshResponse>), (StatusCode, Json<MeshResponse>)> {
-    let project_dir = project_artifacts_dir(&state.ship_dir)?;
+    let project_dir = project_artifacts_dir(state.ship_dir())?;
 
     let mut files: Vec<serde_json::Value> = Vec::new();
     if project_dir.exists() {

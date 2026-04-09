@@ -21,6 +21,8 @@ pub struct TestDaemon {
     pub temp_dir: TempDir,
 }
 
+// Note: state is Arc<ShipRuntime>, so .clone() gives another Arc handle.
+
 /// Parsed JSON response.
 pub struct TestResponse {
     pub status: u16,
@@ -45,17 +47,13 @@ impl TestDaemon {
         let mesh_registry: runtime::services::mesh::SharedMeshRegistry =
             Arc::new(tokio::sync::RwLock::new(std::collections::HashMap::new()));
 
-        let api_state = ApiState {
-            kernel: kernel.clone(),
-            mesh_registry: mesh_registry.clone(),
-            agent_mailboxes: Arc::new(tokio::sync::Mutex::new(
-                std::collections::HashMap::new(),
-            )),
-            pty_connections: Arc::new(tokio::sync::Mutex::new(
-                std::collections::HashMap::new(),
-            )),
-            ship_dir: ship_dir.clone(),
-        };
+        let api_state: ApiState = Arc::new(
+            crate::ship_runtime::ShipRuntime::new_test_with_registry(
+                ship_dir.clone(),
+                kernel.clone(),
+                mesh_registry.clone(),
+            ),
+        );
 
         let api_routes = Router::new()
             .route(

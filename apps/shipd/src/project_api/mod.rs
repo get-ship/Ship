@@ -118,7 +118,7 @@ pub async fn emit_event(
     };
 
     state
-        .kernel
+        .kernel()
         .lock()
         .await
         .route(envelope, &ctx)
@@ -137,7 +137,7 @@ pub async fn delete_workspace(
     State(state): State<ApiState>,
     axum::extract::Path(id): axum::extract::Path<String>,
 ) -> Result<(StatusCode, Json<MeshResponse>), (StatusCode, Json<MeshResponse>)> {
-    runtime::workspace::delete_workspace(&state.ship_dir, &id).map_err(|e| {
+    runtime::workspace::delete_workspace(state.ship_dir(), &id).map_err(|e| {
         err_response(StatusCode::INTERNAL_SERVER_ERROR, &e.to_string())
     })?;
 
@@ -151,7 +151,7 @@ pub async fn activate_workspace(
     State(state): State<ApiState>,
     axum::extract::Path(id): axum::extract::Path<String>,
 ) -> Result<(StatusCode, Json<MeshResponse>), (StatusCode, Json<MeshResponse>)> {
-    runtime::workspace::activate_workspace(&state.ship_dir, &id).map_err(|e| {
+    runtime::workspace::activate_workspace(state.ship_dir(), &id).map_err(|e| {
         err_response(StatusCode::INTERNAL_SERVER_ERROR, &e.to_string())
     })?;
 
@@ -172,20 +172,9 @@ mod tests_inline {
         std::fs::create_dir_all(&ship_dir).unwrap();
         runtime::db::ensure_db_at(&ship_dir).unwrap();
         let kernel = runtime::events::init_kernel_router(ship_dir.clone()).unwrap();
-        let mesh_registry = std::sync::Arc::new(tokio::sync::RwLock::new(
-            std::collections::HashMap::new(),
-        ));
-        let state = ApiState {
-            kernel,
-            mesh_registry,
-            agent_mailboxes: std::sync::Arc::new(tokio::sync::Mutex::new(
-                std::collections::HashMap::new(),
-            )),
-            pty_connections: std::sync::Arc::new(tokio::sync::Mutex::new(
-                std::collections::HashMap::new(),
-            )),
-            ship_dir,
-        };
+        let state = std::sync::Arc::new(
+            crate::ship_runtime::ShipRuntime::new_test(ship_dir, kernel),
+        );
         (state, dir)
     }
 

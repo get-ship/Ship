@@ -11,7 +11,7 @@ pub async fn list_pipelines(
     axum::extract::State(state): axum::extract::State<ApiState>,
     Path(id): Path<String>,
 ) -> Result<(StatusCode, Json<MeshResponse>), (StatusCode, Json<MeshResponse>)> {
-    let worktree = resolve_worktree(&state.ship_dir, &id)?;
+    let worktree = resolve_worktree(state.ship_dir(), &id)?;
     let pipelines_dir = worktree.join(".ship").join("pipelines");
 
     if !pipelines_dir.exists() {
@@ -73,7 +73,7 @@ pub async fn write_pipeline(
     Path((id, name)): Path<(String, String)>,
     Json(body): Json<WritePipelineReq>,
 ) -> Result<(StatusCode, Json<MeshResponse>), (StatusCode, Json<MeshResponse>)> {
-    let worktree = resolve_worktree(&state.ship_dir, &id)?;
+    let worktree = resolve_worktree(state.ship_dir(), &id)?;
     let pipelines_dir = worktree.join(".ship").join("pipelines");
 
     // Validate name
@@ -100,7 +100,7 @@ pub async fn delete_pipeline(
     axum::extract::State(state): axum::extract::State<ApiState>,
     Path((id, name)): Path<(String, String)>,
 ) -> Result<(StatusCode, Json<MeshResponse>), (StatusCode, Json<MeshResponse>)> {
-    let worktree = resolve_worktree(&state.ship_dir, &id)?;
+    let worktree = resolve_worktree(state.ship_dir(), &id)?;
     let path = worktree.join(".ship").join("pipelines").join(format!("{name}.yaml"));
 
     if !path.exists() {

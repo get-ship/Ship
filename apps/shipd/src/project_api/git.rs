@@ -38,7 +38,7 @@ pub async fn git_status(
     State(state): State<ApiState>,
     Path(id): Path<String>,
 ) -> Result<(StatusCode, Json<MeshResponse>), (StatusCode, Json<MeshResponse>)> {
-    let worktree = resolve_worktree(&state.ship_dir, &id)?;
+    let worktree = resolve_worktree(state.ship_dir(), &id)?;
     let output = run_git(&worktree, &["status"])?;
     Ok(ok_response(serde_json::json!({ "output": output })))
 }
@@ -54,7 +54,7 @@ pub async fn git_diff(
     Path(id): Path<String>,
     Query(params): Query<DiffQuery>,
 ) -> Result<(StatusCode, Json<MeshResponse>), (StatusCode, Json<MeshResponse>)> {
-    let worktree = resolve_worktree(&state.ship_dir, &id)?;
+    let worktree = resolve_worktree(state.ship_dir(), &id)?;
     let output = match &params.range {
         Some(range) => run_git(&worktree, &["diff", range])?,
         None => run_git(&worktree, &["diff"])?,
@@ -73,7 +73,7 @@ pub async fn git_log(
     Path(id): Path<String>,
     Query(params): Query<LogQuery>,
 ) -> Result<(StatusCode, Json<MeshResponse>), (StatusCode, Json<MeshResponse>)> {
-    let worktree = resolve_worktree(&state.ship_dir, &id)?;
+    let worktree = resolve_worktree(state.ship_dir(), &id)?;
     let limit = params.limit.unwrap_or(20);
     let limit_arg = format!("-{limit}");
     let output = run_git(

@@ -38,7 +38,7 @@ pub async fn workspace_pty(
     request: Request,
 ) -> Response {
     // Resolve workspace and tmux session name.
-    let ship_dir = &state.ship_dir;
+    let ship_dir = state.ship_dir();
 
     match runtime::workspace::get_workspace_by_id(ship_dir, &workspace_id) {
         Ok(Some(_)) => {}
@@ -71,7 +71,7 @@ pub async fn workspace_pty(
 
     // Enforce connection limit.
     {
-        let mut conns = state.pty_connections.lock().await;
+        let mut conns = state.pty_connections().lock().await;
         let count = conns.entry(workspace_id.clone()).or_insert(0);
         if *count >= MAX_PTY_CONNECTIONS {
             return (
@@ -83,7 +83,7 @@ pub async fn workspace_pty(
         *count += 1;
     }
 
-    let pty_connections = state.pty_connections.clone();
+    let pty_connections = state.pty_connections().clone();
     let ws_id = workspace_id.clone();
 
     // Extract WebSocketUpgrade now that validation has passed.
