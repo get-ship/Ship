@@ -69,3 +69,7 @@ mod tests_pipeline_e2e;
 #[cfg(test)]
 #[path = "tests_pipeline_vars.rs"]
 mod tests_pipeline_vars;
+
+#[cfg(test)]
+#[path = "tests_actor_registration.rs"]
+mod tests_actor_registration;
