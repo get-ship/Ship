@@ -16,7 +16,7 @@ steps:
 
   - id: impl
     type: agent
-    agent: rust-runtime
+    agent: "{{ impl_agent }}"
     after: [test]
     vars:
       phase: green

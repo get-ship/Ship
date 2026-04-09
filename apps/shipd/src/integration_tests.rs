@@ -53,7 +53,7 @@ async fn sse_delivers_routed_event_to_registered_agent() {
     // Take the mailbox (as SSE endpoint would).
     let mut mailbox = daemon
         .state
-        .agent_mailboxes
+        .agent_mailboxes()
         .lock()
         .await
         .remove("agent.sse-rx")
@@ -159,7 +159,7 @@ async fn agent_crash_drops_actor() {
     // Mailbox should still be in stash (but unusable since sender dropped).
     let has_mailbox = daemon
         .state
-        .agent_mailboxes
+        .agent_mailboxes()
         .lock()
         .await
         .contains_key("agent.crashy");
@@ -379,7 +379,7 @@ async fn mesh_discover_via_router() {
 
     // Populate the shared registry directly (no MeshService in test harness).
     {
-        let mut reg = daemon.state.mesh_registry.write().await;
+        let mut reg = daemon.state.mesh_registry().write().await;
         reg.insert(
             "agent.discoverable".into(),
             runtime::services::mesh::MeshEntry {
@@ -422,7 +422,7 @@ async fn runtime_workspaces_via_harness() {
 
     // Create a workspace.
     runtime::workspace::create_workspace(
-        &daemon.state.ship_dir,
+        daemon.state.ship_dir(),
         runtime::workspace::CreateWorkspaceRequest {
             branch: "feature/harness-ws".into(),
             ..Default::default()
@@ -456,7 +456,7 @@ async fn runtime_agents_via_harness() {
 
     // Populate registry directly.
     {
-        let mut reg = daemon.state.mesh_registry.write().await;
+        let mut reg = daemon.state.mesh_registry().write().await;
         reg.insert(
             "agent.api-test".into(),
             runtime::services::mesh::MeshEntry {
@@ -508,7 +508,7 @@ async fn archived_workspace_excluded_from_api() {
 
     // Create two workspaces — both start as active.
     runtime::workspace::create_workspace(
-        &daemon.state.ship_dir,
+        daemon.state.ship_dir(),
         runtime::workspace::CreateWorkspaceRequest {
             branch: "feature/keep-me".into(),
             ..Default::default()
@@ -516,7 +516,7 @@ async fn archived_workspace_excluded_from_api() {
     )
     .unwrap();
     runtime::workspace::create_workspace(
-        &daemon.state.ship_dir,
+        daemon.state.ship_dir(),
         runtime::workspace::CreateWorkspaceRequest {
             branch: "feature/archive-me".into(),
             ..Default::default()
@@ -532,7 +532,7 @@ async fn archived_workspace_excluded_from_api() {
 
     // Archive one.
     runtime::workspace::transition_workspace_status(
-        &daemon.state.ship_dir,
+        daemon.state.ship_dir(),
         "feature/archive-me",
         runtime::workspace::WorkspaceStatus::Archived,
     )
@@ -556,7 +556,7 @@ async fn deleted_workspace_excluded_from_api() {
     let daemon = TestDaemon::new().await;
 
     runtime::workspace::create_workspace(
-        &daemon.state.ship_dir,
+        daemon.state.ship_dir(),
         runtime::workspace::CreateWorkspaceRequest {
             branch: "feature/delete-me".into(),
             ..Default::default()
@@ -570,7 +570,7 @@ async fn deleted_workspace_excluded_from_api() {
     assert!(workspaces.iter().any(|w| w["branch"] == "feature/delete-me"));
 
     // Delete it.
-    runtime::workspace::delete_workspace(&daemon.state.ship_dir, "feature/delete-me").unwrap();
+    runtime::workspace::delete_workspace(daemon.state.ship_dir(), "feature/delete-me").unwrap();
 
     // Must not appear.
     let resp = daemon.get("/api/runtime/workspaces").await;

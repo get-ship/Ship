@@ -19,6 +19,6 @@
     "tools_deny": ["Bash(git push --force*)", "Bash(*cargo publish*)", "Bash(*npm publish*)"],
   },
   "rules": {
-    "inline": "Scope: crates/core/, apps/mcp/, apps/shipd/. Compiler is pure transformation — no side effects. Runtime owns DB migrations. Run `cargo test -p runtime` before done.",
+    "inline": "Scope: crates/core/, apps/mcp/, apps/shipd/. Compiler is pure transformation — no side effects. Runtime owns DB migrations. Use `just build`, `cargo test -p <crate>`. Never run_in_background for builds.",
   },
 }

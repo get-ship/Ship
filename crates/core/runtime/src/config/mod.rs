@@ -11,6 +11,8 @@ mod runtime_settings;
 mod types;
 
 #[cfg(test)]
+mod tests_boundaries;
+#[cfg(test)]
 mod tests_crud;
 #[cfg(test)]
 mod tests_io;

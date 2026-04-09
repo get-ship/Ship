@@ -21,20 +21,7 @@ fn make_api_state(dir: &TempDir) -> ApiState {
     let kernel = std::sync::Arc::new(tokio::sync::Mutex::new(
         runtime::events::KernelRouter::new(ship_dir.clone()).unwrap(),
     ));
-    let mesh_registry = std::sync::Arc::new(tokio::sync::RwLock::new(
-        std::collections::HashMap::new(),
-    ));
-    ApiState {
-        kernel,
-        mesh_registry,
-        agent_mailboxes: std::sync::Arc::new(tokio::sync::Mutex::new(
-            std::collections::HashMap::new(),
-        )),
-        pty_connections: std::sync::Arc::new(tokio::sync::Mutex::new(
-            std::collections::HashMap::new(),
-        )),
-        ship_dir,
-    }
+    std::sync::Arc::new(crate::ship_runtime::ShipRuntime::new_test(ship_dir, kernel))
 }
 
 // ── mesh_register ───────────────────────────────────────────────────────────
@@ -73,7 +60,7 @@ async fn register_spawns_actor_in_kernel() {
     )
     .await;
 
-    let kernel = state.kernel.lock().await;
+    let kernel = state.kernel().lock().await;
     assert!(kernel.has_actor("agent.spawned"));
 }
 
@@ -92,7 +79,7 @@ async fn register_stashes_mailbox() {
     )
     .await;
 
-    let mailboxes = state.agent_mailboxes.lock().await;
+    let mailboxes = state.agent_mailboxes().lock().await;
     assert!(mailboxes.contains_key("agent.mailbox"));
 }
 
@@ -121,7 +108,7 @@ async fn register_twice_replaces_actor() {
     )
     .await;
 
-    let kernel = state.kernel.lock().await;
+    let kernel = state.kernel().lock().await;
     assert!(kernel.has_actor("agent.twice"));
 }
 
@@ -207,7 +194,7 @@ async fn discover_with_registered_agents() {
 
     // Populate registry directly.
     {
-        let mut registry = state.mesh_registry.write().await;
+        let mut registry = state.mesh_registry().write().await;
         registry.insert(
             "agent.a".into(),
             runtime::services::mesh::MeshEntry {
@@ -285,7 +272,7 @@ async fn mesh_events_unregistered_agent_has_no_mailbox() {
     let dir = TempDir::new().unwrap();
     let state = make_api_state(&dir);
 
-    let has = state.agent_mailboxes.lock().await.contains_key("agent.unregistered");
+    let has = state.agent_mailboxes().lock().await.contains_key("agent.unregistered");
     assert!(!has, "unregistered agent should have no mailbox");
 }
 
@@ -304,7 +291,7 @@ async fn mesh_events_registered_agent_has_mailbox() {
     )
     .await;
 
-    let has = state.agent_mailboxes.lock().await.contains_key("agent.sse-test");
+    let has = state.agent_mailboxes().lock().await.contains_key("agent.sse-test");
     assert!(has, "registered agent must have stashed mailbox");
 }
 
@@ -324,11 +311,11 @@ async fn mesh_events_takes_mailbox_from_stash() {
     .await;
 
     // Remove mailbox as the SSE endpoint would.
-    let removed = state.agent_mailboxes.lock().await.remove("agent.take");
+    let removed = state.agent_mailboxes().lock().await.remove("agent.take");
     assert!(removed.is_some(), "mailbox should be removable once");
 
     // Second removal finds nothing.
-    let gone = state.agent_mailboxes.lock().await.remove("agent.take");
+    let gone = state.agent_mailboxes().lock().await.remove("agent.take");
     assert!(gone.is_none(), "mailbox should only be takeable once");
 }
 
@@ -393,6 +380,121 @@ async fn cli_caller_can_register_any_agent() {
     .into_response();
 
     assert_eq!(resp.status(), StatusCode::OK);
+}
+
+// ── capabilities endpoint ──────────────────────────────────────────────────
+
+#[tokio::test(flavor = "multi_thread")]
+async fn capabilities_endpoint_exists() {
+    let daemon = TestDaemon::new().await;
+    let resp = daemon.get("/api/capabilities").await;
+    assert_eq!(resp.status, 200, "GET /api/capabilities must return 200");
+    assert!(resp.body.get("authenticated").is_some(), "response must contain 'authenticated'");
+    assert!(resp.body.get("mode").is_some(), "response must contain 'mode'");
+    assert!(resp.body.get("tier").is_some(), "response must contain 'tier'");
+}
+
+#[tokio::test(flavor = "multi_thread")]
+async fn capabilities_returns_local_mode_with_daemon_token() {
+    let daemon = TestDaemon::new().await;
+    let resp = daemon.get("/api/capabilities").await;
+    assert_eq!(resp.status, 200);
+    assert_eq!(resp.body["authenticated"], true);
+    assert_eq!(resp.body["mode"], "local");
+}
+
+#[tokio::test(flavor = "multi_thread")]
+async fn capabilities_returns_unauthenticated_without_token() {
+    // A browser request from localhost with no token must be rejected.
+    // Today this PASSES through due to the localhost exemption — test must fail.
+    let temp_dir = TempDir::new().unwrap();
+    let ship_dir = temp_dir.path().join(".ship");
+    std::fs::create_dir_all(&ship_dir).unwrap();
+    runtime::db::ensure_db_at(&ship_dir).unwrap();
+
+    let token = crate::auth::generate_token();
+    let token_arc = std::sync::Arc::new(token);
+
+    let router = axum::Router::new()
+        .route("/api/capabilities", axum::routing::get(|| async { "ok" }))
+        .layer(axum::middleware::from_fn(move |req, next| {
+            crate::auth::auth_middleware(token_arc.clone(), req, next)
+        }));
+
+    // Simulate a browser request from localhost — no token.
+    let req = axum::http::Request::builder()
+        .method("GET")
+        .uri("/api/capabilities")
+        .header("origin", "http://localhost:3000")
+        .body(axum::body::Body::empty())
+        .unwrap();
+
+    let resp = tower::ServiceExt::oneshot(router, req).await.unwrap();
+    assert_eq!(
+        resp.status().as_u16(),
+        401,
+        "localhost browser request without token must return 401"
+    );
+}
+
+// ── CORS enforcement ──────────────────────────────────────────────────────
+
+#[tokio::test(flavor = "multi_thread")]
+async fn cors_allows_configured_origins() {
+    let router = crate::test_cors_router();
+    let req = axum::http::Request::builder()
+        .method("OPTIONS")
+        .uri("/test")
+        .header("origin", "https://getship.dev")
+        .body(axum::body::Body::empty())
+        .unwrap();
+
+    let resp = tower::ServiceExt::oneshot(router, req).await.unwrap();
+    let acao = resp
+        .headers()
+        .get("access-control-allow-origin")
+        .and_then(|v| v.to_str().ok());
+    assert_eq!(acao, Some("https://getship.dev"));
+}
+
+#[tokio::test(flavor = "multi_thread")]
+async fn cors_rejects_unknown_origin() {
+    let router = crate::test_cors_router();
+    let req = axum::http::Request::builder()
+        .method("OPTIONS")
+        .uri("/test")
+        .header("origin", "https://evil.com")
+        .body(axum::body::Body::empty())
+        .unwrap();
+
+    let resp = tower::ServiceExt::oneshot(router, req).await.unwrap();
+    let acao = resp
+        .headers()
+        .get("access-control-allow-origin")
+        .and_then(|v| v.to_str().ok())
+        .unwrap_or("");
+    assert!(
+        acao.is_empty() || acao != "https://evil.com",
+        "CORS must not allow evil.com"
+    );
+}
+
+#[tokio::test(flavor = "multi_thread")]
+async fn cors_allows_localhost_dev() {
+    let router = crate::test_cors_router();
+    let req = axum::http::Request::builder()
+        .method("OPTIONS")
+        .uri("/test")
+        .header("origin", "http://localhost:3000")
+        .body(axum::body::Body::empty())
+        .unwrap();
+
+    let resp = tower::ServiceExt::oneshot(router, req).await.unwrap();
+    let acao = resp
+        .headers()
+        .get("access-control-allow-origin")
+        .and_then(|v| v.to_str().ok());
+    assert_eq!(acao, Some("http://localhost:3000"));
 }
 
 #[tokio::test(flavor = "multi_thread")]

@@ -46,21 +46,6 @@ pub(crate) fn normalize_provider_ref(provider: &str) -> Option<String> {
     }
 }
 
-pub(crate) fn normalize_nonempty_id_list(ids: &[String]) -> Vec<String> {
-    let mut normalized = Vec::new();
-    for raw in ids {
-        let trimmed = raw.trim();
-        if trimmed.is_empty() {
-            continue;
-        }
-        let value = trimmed.to_string();
-        if !normalized.iter().any(|existing| existing == &value) {
-            normalized.push(value);
-        }
-    }
-    normalized
-}
-
 // ---- Branch key ------------------------------------------------------------
 
 pub(crate) fn ensure_branch_key(branch: &str) -> Result<&str> {
@@ -90,24 +75,6 @@ pub(crate) fn new_workspace(branch: &str, _now: DateTime<Utc>) -> Workspace {
 }
 
 // ---- Branch links ----------------------------------------------------------
-
-pub(crate) fn hydrate_from_branch_links(
-    _ship_dir: &Path,
-    _branch: &str,
-    _workspace: &mut Workspace,
-) -> Result<()> {
-    Ok(())
-}
-
-pub(crate) fn hydrate_from_feature_links(
-    _ship_dir: &Path,
-    _workspace: &mut Workspace,
-) -> Result<()> {
-    // Feature links have been migrated to branch_context; this function is
-    // retained as a no-op to preserve existing call-sites without changing
-    // public surface area.
-    Ok(())
-}
 
 pub(crate) fn persist_branch_link_from_workspace(
     _ship_dir: &Path,

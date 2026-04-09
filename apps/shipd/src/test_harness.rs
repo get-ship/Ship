@@ -21,6 +21,8 @@ pub struct TestDaemon {
     pub temp_dir: TempDir,
 }
 
+// Note: state is Arc<ShipRuntime>, so .clone() gives another Arc handle.
+
 /// Parsed JSON response.
 pub struct TestResponse {
     pub status: u16,
@@ -45,17 +47,13 @@ impl TestDaemon {
         let mesh_registry: runtime::services::mesh::SharedMeshRegistry =
             Arc::new(tokio::sync::RwLock::new(std::collections::HashMap::new()));
 
-        let api_state = ApiState {
-            kernel: kernel.clone(),
-            mesh_registry: mesh_registry.clone(),
-            agent_mailboxes: Arc::new(tokio::sync::Mutex::new(
-                std::collections::HashMap::new(),
-            )),
-            pty_connections: Arc::new(tokio::sync::Mutex::new(
-                std::collections::HashMap::new(),
-            )),
-            ship_dir: ship_dir.clone(),
-        };
+        let api_state: ApiState = Arc::new(
+            crate::ship_runtime::ShipRuntime::new_test_with_registry(
+                ship_dir.clone(),
+                kernel.clone(),
+                mesh_registry.clone(),
+            ),
+        );
 
         let api_routes = Router::new()
             .route(
@@ -111,10 +109,17 @@ impl TestDaemon {
             )
             .with_state(api_state.clone());
 
+        let capabilities_routes = Router::new()
+            .route(
+                "/capabilities",
+                axum::routing::get(crate::rest_api::capabilities),
+            );
+
         // Inject a default CLI AuthContext so handlers can extract it.
         let default_auth = Self::cli_auth();
         let router = Router::new()
             .nest("/api", api_routes)
+            .nest("/api", capabilities_routes)
             .nest("/api/runtime", runtime_routes)
             .layer(axum::Extension(default_auth));
 

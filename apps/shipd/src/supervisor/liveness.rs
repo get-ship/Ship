@@ -46,20 +46,46 @@ pub(crate) fn start_exit_handler(
             );
             registry.lock().await.unregister(&signal.slug);
 
-            let (event_type, payload) = match signal.exit_code {
-                Some(0) | None => (
-                    event_types::JOB_COMPLETED,
-                    serde_json::json!({ "job_id": signal.job_id, "slug": signal.slug }),
-                ),
-                Some(code) => (
-                    event_types::JOB_FAILED,
-                    serde_json::json!({
+            match signal.exit_code {
+                Some(0) | None => {
+                    // For multi-step pipelines, emit step_completed for the current step
+                    // rather than job.completed for the whole job.
+                    if let Some(step_id) = pipeline_current_step(&signal.job_id) {
+                        tracing::info!(
+                            slug = signal.slug, step_id,
+                            "liveness: multi-step pipeline agent exit — emitting step_completed"
+                        );
+                        let payload = serde_json::json!({
+                            "job_id": signal.job_id,
+                            "slug": signal.slug,
+                            "step_id": step_id,
+                        });
+                        emit_job_event(
+                            &kernel, event_types::STEP_COMPLETED,
+                            &signal.job_id, &signal.slug, payload,
+                        ).await;
+                    } else {
+                        // Single-step or no-pipeline job — original behavior.
+                        let payload = serde_json::json!({
+                            "job_id": signal.job_id, "slug": signal.slug,
+                        });
+                        emit_job_event(
+                            &kernel, event_types::JOB_COMPLETED,
+                            &signal.job_id, &signal.slug, payload,
+                        ).await;
+                    }
+                }
+                Some(code) => {
+                    let payload = serde_json::json!({
                         "job_id": signal.job_id,
                         "error": format!("process exited with code {code}"),
-                    }),
-                ),
-            };
-            emit_job_event(&kernel, event_type, &signal.job_id, &signal.slug, payload).await;
+                    });
+                    emit_job_event(
+                        &kernel, event_types::JOB_FAILED,
+                        &signal.job_id, &signal.slug, payload,
+                    ).await;
+                }
+            }
         }
     });
 }
@@ -166,6 +192,25 @@ async fn sweep_stale_dispatched(
         )
         .await;
     }
+}
+
+// ── Pipeline step helpers ─────────────────────────────────────────────────────
+
+/// If `job_id` belongs to a multi-step pipeline with an active `current_step`,
+/// return that step ID. Returns `None` for single-step pipelines, no-pipeline
+/// jobs, or when the projection can't be loaded.
+///
+/// Used by the exit handler to decide whether to emit `job.step_completed`
+/// (multi-step pipeline) or `job.completed` (simple job).
+fn pipeline_current_step(job_id: &str) -> Option<String> {
+    let jobs = runtime::projections::job::load_jobs().ok()?;
+    let job = jobs.values().find(|j| j.job_id == job_id)?;
+    let steps = job.steps.as_ref()?;
+    // Only intercept if there are multiple steps (single-step jobs use job.completed).
+    if steps.steps.len() <= 1 {
+        return None;
+    }
+    job.current_step.clone()
 }
 
 // ── Shared emit helper ────────────────────────────────────────────────────────

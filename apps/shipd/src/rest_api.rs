@@ -5,52 +5,18 @@
 
 use axum::{Extension, Json, extract::{Path, State}, http::StatusCode, response::IntoResponse};
 use axum::response::sse::{Event, KeepAlive, Sse};
-use runtime::events::{CallerKind, EmitContext, EventEnvelope};
-use runtime::services::mesh::SharedMeshRegistry;
+use runtime::events::{CallerKind, EventEnvelope};
 use serde::{Deserialize, Serialize};
 use std::sync::Arc;
-use tokio::sync::Mutex;
 
 use crate::auth::AuthContext;
+use crate::ship_runtime::ShipRuntime;
 
-pub type SharedKernel = Arc<Mutex<runtime::events::KernelRouter>>;
+/// Axum shared state — an Arc-wrapped ShipRuntime.
+pub type ApiState = Arc<ShipRuntime>;
 
-/// Stashed mailboxes for remote agents, taken once by the SSE endpoint.
-pub type AgentMailboxes = Arc<Mutex<std::collections::HashMap<String, runtime::events::Mailbox>>>;
-
-/// Active PTY connection counts, keyed by workspace id.
-pub type PtyConnections = Arc<Mutex<std::collections::HashMap<String, usize>>>;
-
-/// Combined state for REST API routes.
-#[derive(Clone)]
-pub struct ApiState {
-    pub kernel: SharedKernel,
-    pub mesh_registry: SharedMeshRegistry,
-    pub agent_mailboxes: AgentMailboxes,
-    pub pty_connections: PtyConnections,
-    pub ship_dir: std::path::PathBuf,
-}
-
-impl ApiState {
-    /// Persist event to platform.db then route through kernel to subscribers.
-    /// This is the single entry point for all daemon-originated events.
-    /// Events from MCP tools are already persisted by the MCP server before
-    /// reaching the daemon via event_route — those skip persistence here.
-    pub async fn persist_and_route(&self, envelope: &EventEnvelope) -> anyhow::Result<()> {
-        // 1. Persist first — event store is the source of truth
-        if let Ok(store) = runtime::events::SqliteEventStore::new() {
-            runtime::events::EventStore::append(&store, envelope)?;
-        }
-        // 2. Route to subscribers
-        let ctx = EmitContext {
-            caller_kind: CallerKind::Runtime,
-            skill_id: None,
-            workspace_id: None,
-            session_id: None,
-        };
-        self.kernel.lock().await.route(envelope.clone(), &ctx).await
-    }
-}
+// Re-export for use in other modules.
+pub type SharedKernel = crate::ship_runtime::SharedKernel;
 
 // ---- Request / Response types ----
 
@@ -113,8 +79,8 @@ pub async fn mesh_register(
 
     // Spawn (or re-spawn) an actor in the kernel for this remote agent
     // so messages with target_actor_id can be delivered to its mailbox.
-    {
-        let mut kernel = state.kernel.lock().await;
+    let mailbox = {
+        let mut kernel = state.kernel().lock().await;
         // Stop existing actor so we get a fresh mailbox for the SSE endpoint.
         let _ = kernel.stop_actor(&req.agent_id);
         let config = runtime::events::ActorConfig {
@@ -124,12 +90,25 @@ pub async fn mesh_register(
             subscribe_namespaces: vec!["mesh.".to_string()],
         };
         match kernel.spawn_actor(&req.agent_id, config) {
-            Ok((_store, mailbox)) => {
-                state.agent_mailboxes.lock().await
-                    .insert(req.agent_id.clone(), mailbox);
+            Ok((_store, mailbox)) => Some(mailbox),
+            Err(e) => {
+                tracing::warn!(agent_id = %req.agent_id, "actor spawn failed: {e}");
+                None
             }
-            Err(e) => tracing::warn!(agent_id = %req.agent_id, "actor spawn failed: {e}"),
         }
+    }; // kernel lock drops here
+
+    if let Some(mailbox) = mailbox {
+        state.agent_mailboxes().lock().await
+            .insert(req.agent_id.clone(), mailbox);
+    } else {
+        return (
+            StatusCode::INTERNAL_SERVER_ERROR,
+            Json(MeshResponse {
+                ok: false,
+                data: serde_json::json!(format!("actor spawn failed for '{}'", req.agent_id)),
+            }),
+        );
     }
 
     let envelope = match EventEnvelope::new(
@@ -144,7 +123,7 @@ pub async fn mesh_register(
     };
 
     let ctx = auth.to_daemon_emit_context();
-    match state.kernel.lock().await.route(envelope, &ctx).await {
+    match state.kernel().lock().await.route(envelope, &ctx).await {
         Ok(()) => (StatusCode::OK, Json(MeshResponse { ok: true, data: serde_json::json!(format!("registered: {}", req.agent_id)) })),
         Err(e) => (StatusCode::INTERNAL_SERVER_ERROR, Json(MeshResponse { ok: false, data: serde_json::json!(e.to_string()) })),
     }
@@ -169,7 +148,7 @@ pub async fn mesh_send(
     };
 
     let ctx = auth.to_daemon_emit_context();
-    match state.kernel.lock().await.route(envelope, &ctx).await {
+    match state.kernel().lock().await.route(envelope, &ctx).await {
         Ok(()) => (StatusCode::OK, Json(MeshResponse { ok: true, data: serde_json::json!("sent") })),
         Err(e) => (StatusCode::INTERNAL_SERVER_ERROR, Json(MeshResponse { ok: false, data: serde_json::json!(e.to_string()) })),
     }
@@ -192,7 +171,7 @@ pub async fn mesh_broadcast(
     };
 
     let ctx = auth.to_daemon_emit_context();
-    match state.kernel.lock().await.route(envelope, &ctx).await {
+    match state.kernel().lock().await.route(envelope, &ctx).await {
         Ok(()) => (StatusCode::OK, Json(MeshResponse { ok: true, data: serde_json::json!("broadcast sent") })),
         Err(e) => (StatusCode::INTERNAL_SERVER_ERROR, Json(MeshResponse { ok: false, data: serde_json::json!(e.to_string()) })),
     }
@@ -201,7 +180,7 @@ pub async fn mesh_broadcast(
 pub async fn mesh_discover(
     State(state): State<ApiState>,
 ) -> impl IntoResponse {
-    let registry = state.mesh_registry.read().await;
+    let registry = state.mesh_registry().read().await;
     let agents: Vec<serde_json::Value> = registry
         .values()
         .map(|e| {
@@ -233,10 +212,41 @@ pub async fn mesh_status_update(
     };
 
     let ctx = auth.to_daemon_emit_context();
-    match state.kernel.lock().await.route(envelope, &ctx).await {
+    match state.kernel().lock().await.route(envelope, &ctx).await {
         Ok(()) => (StatusCode::OK, Json(MeshResponse { ok: true, data: serde_json::json!("status updated") })),
         Err(e) => (StatusCode::INTERNAL_SERVER_ERROR, Json(MeshResponse { ok: false, data: serde_json::json!(e.to_string()) })),
     }
+}
+
+// ---- Capabilities ----
+
+#[derive(Serialize)]
+pub struct CapabilitiesResponse {
+    pub authenticated: bool,
+    pub mode: String,
+    pub tier: String,
+    pub features: Vec<String>,
+}
+
+pub async fn capabilities(
+    Extension(auth): Extension<AuthContext>,
+) -> impl IntoResponse {
+    let mode = match auth.caller_kind {
+        CallerKind::Sdk => "cloud",
+        _ => "local",
+    };
+
+    Json(CapabilitiesResponse {
+        authenticated: true,
+        mode: mode.to_string(),
+        tier: "free".to_string(),
+        features: vec![
+            "workspaces".to_string(),
+            "pipelines".to_string(),
+            "jobs".to_string(),
+            "events".to_string(),
+        ],
+    })
 }
 
 // ---- Checkout hook ----
@@ -264,8 +274,7 @@ pub async fn hooks_checkout(
         }
     };
 
-    let connection_path = std::path::Path::new(&req.path);
-    match runtime::reconcile_workspace(&ship_dir, &req.branch, connection_path) {
+    match runtime::reconcile_workspace(&ship_dir, &req.branch) {
         Ok(Some(ws)) => (
             StatusCode::OK,
             Json(MeshResponse {
@@ -301,7 +310,7 @@ pub async fn mesh_events(
     State(state): State<ApiState>,
     Path(agent_id): Path<String>,
 ) -> impl IntoResponse {
-    let mailbox = state.agent_mailboxes.lock().await.remove(&agent_id);
+    let mailbox = state.agent_mailboxes().lock().await.remove(&agent_id);
     let Some(mut mailbox) = mailbox else {
         return Err((
             StatusCode::NOT_FOUND,

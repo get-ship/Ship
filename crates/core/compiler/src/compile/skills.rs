@@ -5,30 +5,6 @@ use crate::types::Skill;
 
 use super::provider::ProviderDescriptor;
 
-// ── Artifact-to-event mapping ─────────────────────────────────────────────────
-
-/// Maps an artifact type to the Studio-emitted event suffixes applicable to it.
-///
-/// Mirrors `runtime::events::artifact_events::events_for_artifact` — the compiler
-/// cannot depend on the runtime, so this is an intentional local copy.
-///
-/// Returns Studio-action suffixes only (`annotation`, `feedback`, `selection`).
-/// Agent-emitted lifecycle events (`artifact_created`, `artifact_deleted`) are NOT
-/// listed here — they use `{skill.id}.` prefix at emit time.
-fn events_for_artifact(artifact_type: &str) -> &'static [&'static str] {
-    match artifact_type {
-        "html" => &["annotation", "feedback", "selection"],
-        "pdf" => &["selection", "feedback"],
-        "markdown" => &["feedback", "selection"],
-        "image" => &["annotation", "feedback"],
-        "adr" => &["feedback"],
-        "note" => &["feedback"],
-        "url" => &["feedback"],
-        "json" => &["feedback"],
-        _ => &[],
-    }
-}
-
 /// Compute the deduplicated set of event subscription namespaces for a list of skills.
 ///
 /// Returns `{skill.id}.` for each skill. Studio-emitted events (`studio.*`) are

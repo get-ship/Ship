@@ -7,7 +7,11 @@ use anyhow::Result;
 use std::fs;
 use std::path::{Path, PathBuf};
 
-const NS: &str = "runtime";
+/// Derive a project-scoped KV namespace from the ship_dir path.
+/// Each project gets its own namespace so settings don't leak across projects.
+pub(super) fn project_ns(ship_dir: &Path) -> String {
+    format!("runtime::{}", ship_dir.display())
+}
 
 pub(super) fn normalize_git_config(mut git: GitConfig) -> GitConfig {
     if git.commit.iter().any(|entry| entry == "agents") {
@@ -32,7 +36,7 @@ pub(super) fn normalize_git_config(mut git: GitConfig) -> GitConfig {
 
 #[allow(clippy::type_complexity)]
 pub(super) fn get_runtime_settings(
-    _ship_dir: &Path,
+    ship_dir: &Path,
 ) -> Result<
     Option<(
         Vec<String>,
@@ -44,39 +48,40 @@ pub(super) fn get_runtime_settings(
         Option<Vec<NamespaceConfig>>,
     )>,
 > {
-    let providers: Vec<String> = kv::get(NS, "providers")?
+    let ns = project_ns(ship_dir);
+    let providers: Vec<String> = kv::get(&ns, "providers")?
         .map(|v| serde_json::from_value(v).unwrap_or_default())
         .unwrap_or_default();
-    let active_agent: Option<String> = kv::get(NS, "active_agent")?
+    let active_agent: Option<String> = kv::get(&ns, "active_agent")?
         .and_then(|v| serde_json::from_value(v).ok());
-    let hooks: Vec<HookConfig> = kv::get(NS, "hooks")?
+    let hooks: Vec<HookConfig> = kv::get(&ns, "hooks")?
         .map(|v| serde_json::from_value(v).unwrap_or_default())
         .unwrap_or_default();
 
     // If no keys exist at all, return None (fresh project).
     if providers.is_empty() && active_agent.is_none() && hooks.is_empty() {
-        let has_any = kv::get(NS, "providers")?.is_some()
-            || kv::get(NS, "active_agent")?.is_some()
-            || kv::get(NS, "hooks")?.is_some();
+        let has_any = kv::get(&ns, "providers")?.is_some()
+            || kv::get(&ns, "active_agent")?.is_some()
+            || kv::get(&ns, "hooks")?.is_some();
         if !has_any {
             return Ok(None);
         }
     }
 
-    let statuses: Vec<StatusConfig> = kv::get(NS, "statuses")?
+    let statuses: Vec<StatusConfig> = kv::get(&ns, "statuses")?
         .map(|v| serde_json::from_value(v).unwrap_or_default())
         .unwrap_or_default();
     let statuses = if statuses.is_empty() { None } else { Some(statuses) };
 
-    let ai: Option<AiConfig> = kv::get(NS, "ai")?
+    let ai: Option<AiConfig> = kv::get(&ns, "ai")?
         .and_then(|v| serde_json::from_value(v).ok());
 
-    let git_val = kv::get(NS, "git")?;
+    let git_val = kv::get(&ns, "git")?;
     let git = git_val
         .and_then(|v| serde_json::from_value::<GitConfig>(v).ok())
         .map(normalize_git_config);
 
-    let namespaces: Vec<NamespaceConfig> = kv::get(NS, "namespaces")?
+    let namespaces: Vec<NamespaceConfig> = kv::get(&ns, "namespaces")?
         .map(|v| serde_json::from_value(v).unwrap_or_default())
         .unwrap_or_default();
     let namespaces = if namespaces.is_empty() { None } else { Some(namespaces) };
@@ -92,14 +97,15 @@ pub(super) fn get_runtime_settings(
     )))
 }
 
-pub(super) fn save_runtime_settings(_ship_dir: &Path, config: &ProjectConfig) -> Result<()> {
-    kv::set(NS, "providers", &serde_json::to_value(&config.providers)?)?;
-    kv::set(NS, "active_agent", &serde_json::to_value(&config.active_agent)?)?;
-    kv::set(NS, "hooks", &serde_json::to_value(&config.hooks)?)?;
-    kv::set(NS, "statuses", &serde_json::to_value(&config.statuses)?)?;
-    kv::set(NS, "ai", &serde_json::to_value(&config.ai)?)?;
-    kv::set(NS, "git", &serde_json::to_value(&normalize_git_config(config.git.clone()))?)?;
-    kv::set(NS, "namespaces", &serde_json::to_value(&config.namespaces)?)?;
+pub(super) fn save_runtime_settings(ship_dir: &Path, config: &ProjectConfig) -> Result<()> {
+    let ns = project_ns(ship_dir);
+    kv::set(&ns, "providers", &serde_json::to_value(&config.providers)?)?;
+    kv::set(&ns, "active_agent", &serde_json::to_value(&config.active_agent)?)?;
+    kv::set(&ns, "hooks", &serde_json::to_value(&config.hooks)?)?;
+    kv::set(&ns, "statuses", &serde_json::to_value(&config.statuses)?)?;
+    kv::set(&ns, "ai", &serde_json::to_value(&config.ai)?)?;
+    kv::set(&ns, "git", &serde_json::to_value(&normalize_git_config(config.git.clone()))?)?;
+    kv::set(&ns, "namespaces", &serde_json::to_value(&config.namespaces)?)?;
     Ok(())
 }
 

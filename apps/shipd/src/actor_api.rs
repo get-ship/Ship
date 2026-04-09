@@ -31,11 +31,11 @@ pub async fn actor_spawn(
     Json(req): Json<ActorSpawnReq>,
 ) -> impl IntoResponse {
     {
-        let mut kernel = state.kernel.lock().await;
+        let mut kernel = state.kernel().lock().await;
         let _ = kernel.stop_actor(&req.actor_id);
         match kernel.spawn_actor(&req.actor_id, req.config) {
             Ok((_store, mailbox)) => {
-                state.agent_mailboxes.lock().await
+                state.agent_mailboxes().lock().await
                     .insert(req.actor_id.clone(), mailbox);
             }
             Err(e) => return (StatusCode::INTERNAL_SERVER_ERROR, Json(MeshResponse {
@@ -58,7 +58,7 @@ pub async fn actor_spawn(
             })),
         };
         let ctx = auth.to_daemon_emit_context();
-        if let Err(e) = state.kernel.lock().await.route(envelope, &ctx).await {
+        if let Err(e) = state.kernel().lock().await.route(envelope, &ctx).await {
             tracing::warn!(actor_id = %req.actor_id, "mesh.register routing failed: {e}");
         }
     }
@@ -83,7 +83,7 @@ pub async fn event_route(
         workspace_id: req.workspace_id.or(auth.workspace_id),
         session_id: req.session_id.or(auth.session_id),
     };
-    match state.kernel.lock().await.route(req.envelope, &ctx).await {
+    match state.kernel().lock().await.route(req.envelope, &ctx).await {
         Ok(()) => (StatusCode::OK, Json(MeshResponse { ok: true, data: serde_json::json!("routed") })),
         Err(e) => (StatusCode::INTERNAL_SERVER_ERROR, Json(MeshResponse { ok: false, data: serde_json::json!(e.to_string()) })),
     }

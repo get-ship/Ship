@@ -25,6 +25,7 @@ const COLS: &str = "id, event_type, entity_id, actor, payload_json, version, \
 /// Writes are restricted to `write_namespaces`. Typed-filter queries are
 /// restricted to `read_namespaces`. Unfiltered queries always return only
 /// this actor's own events.
+#[derive(Debug)]
 pub struct ActorStore {
     actor_id: String,
     db_path: PathBuf,

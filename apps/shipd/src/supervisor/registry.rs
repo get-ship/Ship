@@ -37,11 +37,13 @@ impl ProcessRegistry {
         self.handles.len()
     }
 
+    #[cfg(test)]
     pub fn is_empty(&self) -> bool {
         self.handles.is_empty()
     }
 
     /// Returns true if a handle is registered for `slug`.
+    #[cfg(test)]
     pub fn contains(&self, slug: &str) -> bool {
         self.handles.contains_key(slug)
     }

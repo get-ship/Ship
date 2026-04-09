@@ -59,8 +59,6 @@ async fn wire_agent(
     let relay = EventRelay::new();
     relay
         .add_peer(PeerHandle {
-            id: format!("{actor_id}-peer"),
-            actor_id: actor_id.to_string(),
             adapter: Box::new(adapter),
             allowed_events: HashSet::new(), // system peer — receives all
             workspace_branch: None,

@@ -9,9 +9,9 @@ use runtime::events::job::{
     JobMergedPayload, event_types,
 };
 use runtime::events::{EventEnvelope, EventStore, SqliteEventStore};
-use runtime::projections::job::{JobStatus, load_jobs};
+use runtime::projections::job::load_jobs;
 
-use crate::requests::{CreateJobRequest, GetJobRequest, ListJobsRequest, UpdateJobRequest};
+use crate::requests::{CreateJobRequest, UpdateJobRequest};
 
 /// Create a job by delegating to the daemon's REST API.
 ///
@@ -167,51 +167,13 @@ pub async fn update_job(req: UpdateJobRequest) -> String {
 
     // Local persist as fallback — ensures the event is recorded even if daemon is down.
     // On daemon restart, reconciliation replays from the local store.
-    if !daemon_ok {
-        if let Err(e) = store.append(&envelope) {
-            return format!("Error persisting event: {e}");
-        }
+    if !daemon_ok
+        && let Err(e) = store.append(&envelope)
+    {
+        return format!("Error persisting event: {e}");
     }
 
     format!("Job {} updated to status '{}'", req.job_id, req.status)
-}
-
-/// Return all jobs, optionally filtered by status.
-pub fn list_jobs(req: ListJobsRequest) -> String {
-    let jobs = match load_jobs() {
-        Ok(j) => j,
-        Err(e) => return format!("Error loading jobs: {e}"),
-    };
-
-    let mut records: Vec<_> = jobs.into_values().collect();
-
-    if let Some(status_filter) = req.status {
-        let target = match status_filter.as_str() {
-            "pending" => Some(JobStatus::Pending),
-            "dispatched" => Some(JobStatus::Dispatched),
-            "completed" => Some(JobStatus::Completed),
-            "gate_pending" => Some(JobStatus::GatePending),
-            "blocked" => Some(JobStatus::Blocked),
-            "merged" => Some(JobStatus::Merged),
-            "failed" => Some(JobStatus::Failed),
-            other => {
-                return format!(
-                    "Error: unknown status filter '{other}'. Valid values: \
-                    pending, dispatched, completed, gate_pending, blocked, merged, failed"
-                );
-            }
-        };
-        if let Some(t) = target {
-            records.retain(|r| r.status == t);
-        }
-    }
-
-    records.sort_by(|a, b| a.created_at.cmp(&b.created_at));
-
-    match serde_json::to_string_pretty(&records) {
-        Ok(json) => json,
-        Err(e) => format!("Error serializing jobs: {e}"),
-    }
 }
 
 /// Look up the slug for a job_id from the event store projection.
@@ -220,20 +182,4 @@ fn resolve_slug(_store: &SqliteEventStore, job_id: &str) -> String {
         .ok()
         .and_then(|jobs| jobs.get(job_id).map(|r| r.slug.clone()))
         .unwrap_or_default()
-}
-
-/// Return a single job record by job_id.
-pub fn get_job(req: GetJobRequest) -> String {
-    let jobs = match load_jobs() {
-        Ok(j) => j,
-        Err(e) => return format!("Error loading jobs: {e}"),
-    };
-
-    match jobs.get(&req.job_id) {
-        Some(record) => match serde_json::to_string_pretty(record) {
-            Ok(json) => json,
-            Err(e) => format!("Error serializing job: {e}"),
-        },
-        None => format!("Error: job '{}' not found", req.job_id),
-    }
 }

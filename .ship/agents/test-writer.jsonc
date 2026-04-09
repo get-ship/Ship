@@ -19,6 +19,6 @@
     "preset": "ship-standard",
   },
   "rules": {
-    "inline": "Write tests only — never implementation. Test behavior, not implementation. Match existing patterns. Only touch test files.",
+    "inline": "Write tests only — never implementation. Test behavior, not implementation. Match existing patterns. Only touch test files. Tests should FAIL. Use `cargo clippy -p <crate>` to check syntax, `cargo test -p <crate> <test>` to verify. Never run full workspace builds.",
   },
 }

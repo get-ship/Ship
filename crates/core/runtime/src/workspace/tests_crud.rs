@@ -174,8 +174,9 @@ mod tests {
             .path()
             .join(".worktrees")
             .join("feature-worktree-export");
+        std::fs::create_dir_all(&worktree_root)?;
         let worktree_path = worktree_root.to_string_lossy().to_string();
-        create_workspace(
+        let workspace = create_workspace(
             &ship_dir,
             CreateWorkspaceRequest {
                 branch: "feature/worktree-export".to_string(),
@@ -186,7 +187,12 @@ mod tests {
             },
         )?;
 
-        let _workspace = activate_workspace(&ship_dir, "feature/worktree-export")?;
+        // Compile directly to avoid git reconciliation (no real git repo in test).
+        crate::workspace::compile::compile_workspace_context(
+            &ship_dir,
+            &workspace,
+            workspace.active_agent.as_deref(),
+        )?;
         assert!(
             worktree_root.join(".mcp.json").exists(),
             "expected provider config to be written to worktree root"

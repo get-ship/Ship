@@ -1,6 +1,7 @@
 //! Secondary event handlers for job dispatch — update forwarding, cleanup, DAG unblocking.
 
-use runtime::events::{CallerKind, EmitContext, EventEnvelope};
+use runtime::events::job::event_types;
+use runtime::events::{CallerKind, EmitContext, EventEnvelope, EventStore, SqliteEventStore};
 use std::sync::Arc;
 use tokio::sync::Mutex;
 
@@ -106,5 +107,56 @@ pub(crate) async fn handle_job_cleanup(envelope: &EventEnvelope) {
     }
 
     tracing::info!(slug, job_id, "job-dispatch: cleanup complete");
+}
+
+/// After `advance_pipeline` returns false on a `job.step_completed` event, emit
+/// `job.completed` if all pipeline steps are now in `completed_steps`.
+pub(crate) async fn finalize_pipeline_if_done(
+    kernel: &Arc<Mutex<runtime::events::KernelRouter>>,
+    envelope: &EventEnvelope,
+) {
+    let payload: serde_json::Value =
+        serde_json::from_str(&envelope.payload_json).unwrap_or_default();
+    let job_id = match payload["job_id"].as_str()
+        .or(Some(envelope.entity_id.as_str()))
+        .filter(|s| !s.is_empty())
+    {
+        Some(id) => id.to_string(),
+        None => return,
+    };
+
+    let jobs = match runtime::projections::job::load_jobs() {
+        Ok(j) => j,
+        Err(_) => return,
+    };
+    let job = match jobs.values().find(|j| j.job_id == job_id) {
+        Some(j) => j.clone(),
+        None => return,
+    };
+
+    // Only emit job.completed when all pipeline steps are recorded as done.
+    let all_done = match job.steps {
+        Some(ref steps) => steps.steps.iter().all(|s| job.completed_steps.contains(&s.id)),
+        None => return, // No pipeline — liveness handler owns job.completed
+    };
+    if !all_done {
+        return;
+    }
+
+    let slug = payload["slug"].as_str().unwrap_or(job.slug.as_str()).to_string();
+    tracing::info!(job_id, slug, "job-dispatch: all pipeline steps done, emitting job.completed");
+    let env = match EventEnvelope::new(
+        event_types::JOB_COMPLETED,
+        &job_id,
+        &serde_json::json!({ "job_id": &job_id, "slug": &slug }),
+    ) {
+        Ok(e) => e.with_actor_id("service.job-dispatch"),
+        Err(_) => return,
+    };
+    if let Ok(store) = SqliteEventStore::new() {
+        let _ = EventStore::append(&store, &env);
+    }
+    let ctx = EmitContext { caller_kind: CallerKind::Runtime, skill_id: None, workspace_id: None, session_id: None };
+    let _ = kernel.lock().await.route(env, &ctx).await;
 }
 

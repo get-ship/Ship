@@ -16,10 +16,10 @@
 
 use std::collections::HashMap;
 use std::path::{Path, PathBuf};
+#[cfg(feature = "unstable")]
 use std::sync::Mutex;
 
 use anyhow::{Result, anyhow};
-use serde::{Deserialize, Serialize};
 use tokio::sync::mpsc;
 
 use crate::events::actor_store::{ActorStore, init_actor_db, raw_append};
@@ -32,14 +32,7 @@ use crate::events::kernel_security::ActorMeta;
 
 pub(crate) const MAILBOX_CAPACITY: usize = 256;
 
-/// Configuration provided to `KernelRouter::spawn_actor`.
-#[derive(Debug, Clone, Serialize, Deserialize)]
-pub struct ActorConfig {
-    pub namespace: String,
-    pub write_namespaces: Vec<String>,
-    pub read_namespaces: Vec<String>,
-    pub subscribe_namespaces: Vec<String>,
-}
+pub use ship_types::ActorConfig;
 
 /// Kernel-managed event router with per-actor isolation.
 pub struct KernelRouter {
@@ -109,11 +102,13 @@ impl KernelRouter {
         self.actor_configs
             .insert(actor_id.to_string(), config.clone());
         for ns in &config.subscribe_namespaces {
-            self.subscriptions
-                .entry(ns.clone())
-                .or_default()
-                .push(actor_id.to_string());
+            let ids = self.subscriptions.entry(ns.clone()).or_default();
+            if !ids.contains(&actor_id.to_string()) {
+                ids.push(actor_id.to_string());
+            }
         }
+        #[cfg(feature = "unstable")]
+        self.actor_cursors.remove(actor_id);
         let store = ActorStore::new(
             actor_id,
             db_path,
@@ -128,11 +123,20 @@ impl KernelRouter {
             v.validate(&event, ctx).map_err(|e| anyhow!("{e}"))?;
         }
 
+        self.enforce_write_namespaces(&event, ctx)?;
+
         #[cfg(feature = "unstable")]
         self.enforce_emit_permissions(&event, ctx)?;
 
+        // Store in the kernel DB only if it's a kernel-routed namespace AND
+        // it doesn't belong to a registered actor's private namespace.
         if is_kernel_event(&event.event_type) {
-            raw_append(&self.kernel_store_path, &event)?;
+            let is_actor_owned = self.actor_configs.values().any(|cfg| {
+                event.event_type.starts_with(&format!("{}.", cfg.namespace))
+            });
+            if !is_actor_owned {
+                raw_append(&self.kernel_store_path, &event)?;
+            }
         }
 
         #[cfg(feature = "unstable")]
@@ -143,6 +147,15 @@ impl KernelRouter {
 
         #[cfg(not(feature = "unstable"))]
         {
+            // Direct message — deliver only to target
+            if let Some(ref target) = event.target_actor_id {
+                if let Some(tx) = self.mailboxes.get(target) {
+                    let _ = tx.try_send(event.clone());
+                }
+                return Ok(());
+            }
+
+            // Broadcast — deliver to matching subscribers
             let mut full_actors: Vec<String> = Vec::new();
 
             for (ns, actor_ids) in &self.subscriptions {
@@ -246,6 +259,50 @@ impl KernelRouter {
             .join("actors")
             .join(actor_id)
             .join("events.db")
+    }
+
+    /// Enforce write namespace permissions using actor_configs.
+    /// Runtime callers bypass this check. MCP/CLI callers must have the
+    /// event_type start with one of the actor's write_namespaces.
+    fn enforce_write_namespaces(
+        &self,
+        event: &EventEnvelope,
+        ctx: &EmitContext,
+    ) -> Result<()> {
+        use crate::events::validator::CallerKind;
+
+        if matches!(ctx.caller_kind, CallerKind::Runtime | CallerKind::Cli) {
+            return Ok(());
+        }
+
+        let actor_id = match event.actor_id.as_deref() {
+            Some(id) => id,
+            None => return Ok(()),
+        };
+
+        let config = match self.actor_configs.get(actor_id) {
+            Some(cfg) => cfg,
+            None => return Ok(()),
+        };
+
+        if config.write_namespaces.is_empty() {
+            return Ok(());
+        }
+
+        let allowed = config
+            .write_namespaces
+            .iter()
+            .any(|ns| event.event_type.starts_with(ns));
+
+        if !allowed {
+            return Err(anyhow!(
+                "actor '{}' not permitted to emit '{}'",
+                actor_id,
+                event.event_type
+            ));
+        }
+
+        Ok(())
     }
 }
 

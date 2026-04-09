@@ -62,6 +62,9 @@ pub struct JobRecord {
     /// ID of the currently running step.
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub current_step: Option<String>,
+    /// Job-level vars for pipeline step interpolation.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub vars: Option<HashMap<String, String>>,
 }
 
 /// Apply a single event to an existing `JobRecord`.
@@ -97,6 +100,14 @@ pub fn apply(record: &mut JobRecord, event: &EventEnvelope) {
                 // First dispatch — set to first root step
                 if let Some(ref pipeline) = record.steps {
                     record.current_step = pipeline.root_steps().first().map(|s| s.id.clone());
+                }
+            }
+            // Legacy pipeline phase tracking
+            if record.pipeline.is_some() {
+                if record.status == JobStatus::Completed {
+                    record.current_phase = Some(record.current_phase.map_or(1, |p| p + 1));
+                } else if record.current_phase.is_none() {
+                    record.current_phase = Some(0);
                 }
             }
             record.status = JobStatus::Dispatched;
@@ -140,6 +151,33 @@ pub fn apply(record: &mut JobRecord, event: &EventEnvelope) {
             record.updated_at = ts;
         }
         event_types::JOB_FAILED => {
+            if let Ok(p) = serde_json::from_str::<serde_json::Value>(&event.payload_json) {
+                record.error = p["error"].as_str().map(str::to_string);
+            }
+            record.status = JobStatus::Failed;
+            record.updated_at = ts;
+        }
+        event_types::STEP_DISPATCHED => {
+            if let Ok(p) = serde_json::from_str::<serde_json::Value>(&event.payload_json) {
+                record.current_step = p["step_id"].as_str().map(str::to_string);
+            }
+            record.status = JobStatus::Dispatched;
+            record.updated_at = ts;
+        }
+        event_types::STEP_COMPLETED => {
+            if let Ok(p) = serde_json::from_str::<serde_json::Value>(&event.payload_json) {
+                if let Some(step_id) = p["step_id"].as_str() {
+                    if record.current_step.as_deref() == Some(step_id) {
+                        record.current_step = None;
+                    }
+                    if !record.completed_steps.contains(&step_id.to_string()) {
+                        record.completed_steps.push(step_id.to_string());
+                    }
+                }
+            }
+            record.updated_at = ts;
+        }
+        event_types::STEP_FAILED => {
             if let Ok(p) = serde_json::from_str::<serde_json::Value>(&event.payload_json) {
                 record.error = p["error"].as_str().map(str::to_string);
             }
@@ -199,6 +237,7 @@ pub fn project(events: &[EventEnvelope]) -> HashMap<String, JobRecord> {
                     current_phase: None,
                     completed_steps: vec![],
                     current_step: None,
+                    vars: serde_json::from_value(p["vars"].clone()).ok(),
                 };
                 map.insert(job_id, record);
             }
@@ -220,7 +259,7 @@ pub fn project(events: &[EventEnvelope]) -> HashMap<String, JobRecord> {
 
 /// Load all job events from the platform DB and return the projected state.
 pub fn load_jobs() -> Result<HashMap<String, JobRecord>> {
-    use crate::db::{block_on, db_path, ensure_db, open_db_at};
+    use crate::db::{db_path, ensure_db, open_db_at};
 
     ensure_db()?;
     let mut conn = open_db_at(&db_path()?)?;

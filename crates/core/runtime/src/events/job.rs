@@ -23,10 +23,15 @@ pub enum StepType {
     Gate,
     Merge,
     Human,
+    /// Execute a shell command. Exit 0 = success, non-zero = failure.
+    Run,
 }
 
 /// A single step in a pipeline DAG.
-#[derive(Debug, Clone, Serialize, Deserialize, Type)]
+///
+/// Custom `Deserialize` allows YAML shorthand: `run: <command>` implies
+/// `type: run` and `name:` is accepted as an alias for `id:`.
+#[derive(Debug, Clone, Serialize, Type)]
 pub struct PipelineStep {
     /// Step identifier, unique within the pipeline.
     pub id: String,
@@ -34,17 +39,66 @@ pub struct PipelineStep {
     #[serde(rename = "type")]
     pub step_type: StepType,
     /// Agent profile to use (required for agent/gate steps).
-    #[serde(default)]
+    #[serde(default, skip_serializing_if = "Option::is_none")]
     pub agent: Option<String>,
+    /// Goal or instruction for the agent step.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub goal: Option<String>,
     /// Steps that must complete before this one runs.
     #[serde(default)]
     pub after: Vec<String>,
     /// Model override for this step.
-    #[serde(default)]
+    #[serde(default, skip_serializing_if = "Option::is_none")]
     pub model: Option<String>,
     /// Provider override for this step.
-    #[serde(default)]
+    #[serde(default, skip_serializing_if = "Option::is_none")]
     pub provider: Option<String>,
+    /// Shell command to run (populated for StepType::Run).
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub command: Option<String>,
+}
+
+impl<'de> serde::Deserialize<'de> for PipelineStep {
+    fn deserialize<D: serde::Deserializer<'de>>(d: D) -> Result<Self, D::Error> {
+        #[derive(serde::Deserialize)]
+        struct Raw {
+            #[serde(alias = "name")]
+            id: String,
+            #[serde(rename = "type", default)]
+            step_type: Option<StepType>,
+            #[serde(default)]
+            agent: Option<String>,
+            #[serde(default)]
+            goal: Option<String>,
+            #[serde(default)]
+            after: Vec<String>,
+            #[serde(default)]
+            model: Option<String>,
+            #[serde(default)]
+            provider: Option<String>,
+            /// Accept both `run:` (YAML shorthand) and `command:`.
+            #[serde(alias = "run", default)]
+            command: Option<String>,
+        }
+        let raw = Raw::deserialize(d)?;
+        let step_type = raw.step_type.unwrap_or_else(|| {
+            if raw.command.is_some() {
+                StepType::Run
+            } else {
+                StepType::Agent
+            }
+        });
+        Ok(PipelineStep {
+            id: raw.id,
+            step_type,
+            agent: raw.agent,
+            goal: raw.goal,
+            after: raw.after,
+            model: raw.model,
+            provider: raw.provider,
+            command: raw.command,
+        })
+    }
 }
 
 /// A pipeline definition — a DAG of steps.
@@ -62,25 +116,31 @@ impl Pipeline {
                     id: "implement".to_string(),
                     step_type: StepType::Agent,
                     agent: Some(agent.to_string()),
+                    goal: None,
                     after: vec![],
                     model: None,
                     provider: None,
+                    command: None,
                 },
                 PipelineStep {
                     id: "gate".to_string(),
                     step_type: StepType::Gate,
                     agent: Some("reviewer".to_string()),
+                    goal: None,
                     after: vec!["implement".to_string()],
                     model: Some("sonnet".to_string()),
                     provider: None,
+                    command: None,
                 },
                 PipelineStep {
                     id: "merge".to_string(),
                     step_type: StepType::Merge,
                     agent: None,
+                    goal: None,
                     after: vec!["gate".to_string()],
                     model: None,
                     provider: None,
+                    command: None,
                 },
             ],
         }
@@ -122,6 +182,9 @@ pub struct JobCreatedPayload {
     /// Pipeline name reference (e.g. "tdd"). Resolved by daemon from .ship/pipelines/.
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub pipeline_name: Option<String>,
+    /// Job-level variables for pipeline step interpolation. Override step-level vars.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub vars: Option<std::collections::HashMap<String, String>>,
 }
 
 /// Emitted when the job is assigned to a worktree and (optionally) a process.
@@ -196,6 +259,41 @@ pub struct JobUpdatePayload {
     pub sender: String,
 }
 
+/// Emitted when a pipeline step begins executing.
+#[derive(Debug, Clone, Serialize, Deserialize, Type)]
+pub struct StepDispatchedPayload {
+    pub job_id: String,
+    pub slug: String,
+    pub step_id: String,
+    pub step_type: String,
+}
+
+/// Emitted when a pipeline step finishes successfully.
+#[derive(Debug, Clone, Serialize, Deserialize, Type)]
+pub struct StepCompletedPayload {
+    pub job_id: String,
+    pub slug: String,
+    pub step_id: String,
+}
+
+/// Emitted when a pipeline step fails. Halts pipeline advancement.
+#[derive(Debug, Clone, Serialize, Deserialize, Type)]
+pub struct StepFailedPayload {
+    pub job_id: String,
+    pub slug: String,
+    pub step_id: String,
+    pub error: String,
+}
+
+/// Emitted by run steps to capture stdout/stderr output.
+#[derive(Debug, Clone, Serialize, Deserialize, Type)]
+pub struct StepOutputPayload {
+    pub job_id: String,
+    pub step_id: String,
+    pub stdout: Option<String>,
+    pub stderr: Option<String>,
+}
+
 /// Event type constants for the `job.` namespace.
 pub mod event_types {
     pub const JOB_CREATED: &str = "job.created";
@@ -208,4 +306,8 @@ pub mod event_types {
     pub const JOB_MERGED: &str = "job.merged";
     pub const JOB_FAILED: &str = "job.failed";
     pub const JOB_UPDATE: &str = "job.update";
+    pub const STEP_DISPATCHED: &str = "job.step_dispatched";
+    pub const STEP_COMPLETED: &str = "job.step_completed";
+    pub const STEP_FAILED: &str = "job.step_failed";
+    pub const STEP_OUTPUT: &str = "job.step_output";
 }
