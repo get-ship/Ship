@@ -471,3 +471,82 @@ async fn run_step_advances_to_agent_step() {
         "job must be Dispatched for the implement step"
     );
 }
+
+// ── E2E: First step is run — dispatches without agent ────────────────────────
+
+/// When a pipeline's first step is a `run:` step, `dispatch_job_internal`
+/// must execute the command directly without spawning an agent process.
+///
+/// Sequence:
+///   dispatch_job_internal detects first step is StepType::Run →
+///   prepares isolation → emits job.dispatched → executes run step →
+///   run step emits step_dispatched + step_completed →
+///   advance_pipeline dispatches the next agent step.
+#[tokio::test(flavor = "multi_thread", worker_threads = 2)]
+async fn first_step_run_executes_without_agent() {
+    let dir = TempDir::new().unwrap();
+    let ship_dir = dir.path().join(".ship");
+    let worktree_root = dir.path().join("worktrees");
+    let worktree_path = worktree_root.join("run-first");
+    std::fs::create_dir_all(&ship_dir).unwrap();
+    std::fs::create_dir_all(&worktree_path).unwrap();
+
+    let store = SqliteEventStore::new_at(&ship_dir).unwrap();
+    let job_id = "j-run-first";
+    let slug = "run-first";
+
+    // Create job with pipeline: [run: "echo hello", agent: "rust-lane"]
+    let created_payload = serde_json::json!({
+        "job_id": job_id, "slug": slug,
+        "agent": "rust-lane", "branch": format!("job/{slug}"),
+        "spec_path": "spec.md", "plan_id": null,
+        "steps": { "steps": [
+            { "id": "setup", "type": "run", "command": "echo hello", "after": [] },
+            { "id": "implement", "type": "agent", "agent": "rust-lane", "after": ["setup"] },
+        ]}
+    });
+
+    // Persist job.created so the projection sees it
+    store.append(&EventEnvelope::new(
+        event_types::JOB_CREATED, job_id, &created_payload,
+    ).unwrap()).unwrap();
+
+    // Parse the payload for dispatch_job_internal
+    let payload: runtime::events::job::JobCreatedPayload =
+        serde_json::from_value(created_payload).unwrap();
+
+    // Set up kernel + dispatch context with mock executor
+    let mut router = KernelRouter::new(ship_dir.clone()).unwrap();
+    let (_s, _mb) = router.spawn_actor("service.job-dispatch", dispatch_config()).unwrap();
+    let kernel = Arc::new(Mutex::new(router));
+
+    let executor = Arc::new(MockExecutor::new());
+    let dctx = DispatchContext {
+        isolation: Arc::new(MockIsolation { work_dir: worktree_path.clone() }),
+        executor: executor.clone(),
+        registry: Arc::new(Mutex::new(ProcessRegistry::new())),
+    };
+
+    // Dispatch the first run step directly — should execute without spawning an agent.
+    // Use the _at variant so events persist to the test's temp store.
+    super::dispatch_run::dispatch_first_run_step_at(
+        &kernel, &payload, &dctx, "setup", "echo hello", &ship_dir,
+    ).await;
+
+    // The executor should NOT have been called — run steps don't spawn agents
+    assert_eq!(
+        executor.spawn_count.load(Ordering::SeqCst), 0,
+        "executor.spawn must NOT be called for a first run step"
+    );
+
+    // The projection should show the job as dispatched with step events
+    let jobs = load_jobs_at(&ship_dir).unwrap();
+    let rec = jobs.get(job_id).unwrap();
+    assert_eq!(rec.status, JobStatus::Dispatched, "job must be dispatched");
+
+    // step_dispatched and step_completed events should exist for the run step
+    assert!(
+        rec.completed_steps.contains(&"setup".to_string()),
+        "setup (run step) must be in completed_steps after execution"
+    );
+}
