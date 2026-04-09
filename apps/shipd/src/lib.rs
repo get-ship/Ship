@@ -257,11 +257,15 @@ pub async fn run_network(host: String, port: u16) -> Result<()> {
         )
         .with_state(api_state);
 
+    let capabilities_routes = Router::new()
+        .route("/capabilities", axum::routing::get(rest_api::capabilities));
+
     let auth_token = token.clone();
     let authenticated_routes = Router::new()
         .nest("/api", api_routes)
         .nest("/api", hook_routes)
         .nest("/api", webhook_routes)
+        .nest("/api", capabilities_routes)
         .nest("/api/runtime", runtime_routes)
         .nest("/api", supervisor_routes)
         .nest("/api", project_routes)
@@ -474,11 +478,15 @@ async fn cors_middleware(req: Request<Body>, next: Next) -> Response {
         );
         h.insert(
             "access-control-allow-headers",
-            HeaderValue::from_static("content-type, authorization, accept, mcp-session-id"),
+            HeaderValue::from_static("content-type, authorization, accept, mcp-session-id, x-ship-caller, x-ship-agent-id, x-ship-workspace-id, x-ship-session-id"),
         );
         h.insert(
             "access-control-expose-headers",
             HeaderValue::from_static("mcp-session-id"),
+        );
+        h.insert(
+            "access-control-allow-credentials",
+            HeaderValue::from_static("true"),
         );
         return res;
     }

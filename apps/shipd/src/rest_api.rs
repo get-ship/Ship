@@ -252,6 +252,37 @@ pub async fn mesh_status_update(
     }
 }
 
+// ---- Capabilities ----
+
+#[derive(Serialize)]
+pub struct CapabilitiesResponse {
+    pub authenticated: bool,
+    pub mode: String,
+    pub tier: String,
+    pub features: Vec<String>,
+}
+
+pub async fn capabilities(
+    Extension(auth): Extension<AuthContext>,
+) -> impl IntoResponse {
+    let mode = match auth.caller_kind {
+        CallerKind::Sdk => "cloud",
+        _ => "local",
+    };
+
+    Json(CapabilitiesResponse {
+        authenticated: true,
+        mode: mode.to_string(),
+        tier: "free".to_string(),
+        features: vec![
+            "workspaces".to_string(),
+            "pipelines".to_string(),
+            "jobs".to_string(),
+            "events".to_string(),
+        ],
+    })
+}
+
 // ---- Checkout hook ----
 
 #[derive(Deserialize)]

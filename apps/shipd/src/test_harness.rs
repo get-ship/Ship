@@ -111,10 +111,17 @@ impl TestDaemon {
             )
             .with_state(api_state.clone());
 
+        let capabilities_routes = Router::new()
+            .route(
+                "/capabilities",
+                axum::routing::get(crate::rest_api::capabilities),
+            );
+
         // Inject a default CLI AuthContext so handlers can extract it.
         let default_auth = Self::cli_auth();
         let router = Router::new()
             .nest("/api", api_routes)
+            .nest("/api", capabilities_routes)
             .nest("/api/runtime", runtime_routes)
             .layer(axum::Extension(default_auth));
 
