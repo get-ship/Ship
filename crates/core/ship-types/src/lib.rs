@@ -4,6 +4,10 @@ pub mod event_types;
 pub mod identity;
 pub mod payload;
 
+pub use caller::{ActorConfig, CallerKind, EmitContext};
+pub use envelope::EventEnvelope;
+pub use identity::{ActorIdentity, ActorType};
+
 #[cfg(test)]
 mod tests {
     #[test]

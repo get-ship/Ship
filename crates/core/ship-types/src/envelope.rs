@@ -1,6 +1,22 @@
 use chrono::{DateTime, Utc};
 use serde::{Deserialize, Serialize};
 
+use std::cell::RefCell;
+use std::time::SystemTime;
+
+thread_local! {
+    static ULID_GEN: RefCell<ulid::Generator> = RefCell::new(ulid::Generator::new());
+}
+
+fn monotonic_ulid() -> String {
+    ULID_GEN.with(|g| {
+        g.borrow_mut()
+            .generate_from_datetime(SystemTime::now())
+            .expect("ULID generation failed")
+            .to_string()
+    })
+}
+
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct EventEnvelope {
     pub id: String,
@@ -19,7 +35,62 @@ pub struct EventEnvelope {
     pub created_at: DateTime<Utc>,
 }
 
-// impl EventEnvelope — not yet implemented; tests below define the contract.
+impl EventEnvelope {
+    pub fn new<P: Serialize>(
+        event_type: &str,
+        entity_id: &str,
+        payload: &P,
+    ) -> Result<Self, serde_json::Error> {
+        let payload_json = serde_json::to_string(payload)?;
+        Ok(Self {
+            id: monotonic_ulid(),
+            event_type: event_type.to_string(),
+            entity_id: entity_id.to_string(),
+            actor: "ship".to_string(),
+            payload_json,
+            version: 1,
+            causation_id: None,
+            workspace_id: None,
+            session_id: None,
+            actor_id: None,
+            parent_actor_id: None,
+            target_actor_id: None,
+            elevated: false,
+            created_at: Utc::now(),
+        })
+    }
+
+    pub fn with_causation(mut self, causation_id: &str) -> Self {
+        self.causation_id = Some(causation_id.to_string());
+        self
+    }
+
+    pub fn with_context(mut self, workspace_id: Option<&str>, session_id: Option<&str>) -> Self {
+        self.workspace_id = workspace_id.map(str::to_string);
+        self.session_id = session_id.map(str::to_string);
+        self
+    }
+
+    pub fn with_actor_id(mut self, actor_id: &str) -> Self {
+        self.actor_id = Some(actor_id.to_string());
+        self
+    }
+
+    pub fn with_parent_actor_id(mut self, parent_actor_id: &str) -> Self {
+        self.parent_actor_id = Some(parent_actor_id.to_string());
+        self
+    }
+
+    pub fn with_target(mut self, target_actor_id: &str) -> Self {
+        self.target_actor_id = Some(target_actor_id.to_string());
+        self
+    }
+
+    pub fn elevate(mut self) -> Self {
+        self.elevated = true;
+        self
+    }
+}
 
 #[cfg(test)]
 mod tests {
