@@ -63,3 +63,49 @@ pub(crate) async fn emit_job_dispatched_with_meta(
 
     tracing::info!(slug, "pipeline: job dispatched successfully");
 }
+
+/// Emit a `job.step_dispatched` event for a specific pipeline step.
+pub(crate) async fn emit_step_dispatched_event(
+    kernel: &Arc<Mutex<runtime::events::KernelRouter>>,
+    job_id: &str,
+    step_id: &str,
+    step_type: &str,
+    slug: &str,
+    ship_dir: Option<&std::path::Path>,
+) {
+    let payload = serde_json::json!({
+        "job_id": job_id, "slug": slug,
+        "step_id": step_id, "step_type": step_type,
+    });
+    let envelope = match EventEnvelope::new(
+        runtime::events::job::event_types::STEP_DISPATCHED,
+        job_id,
+        &payload,
+    ) {
+        Ok(e) => e.with_actor_id("service.job-dispatch"),
+        Err(e) => {
+            tracing::warn!(slug, "pipeline: failed to build step_dispatched: {e}");
+            return;
+        }
+    };
+
+    let store_result = match ship_dir {
+        Some(dir) => runtime::events::SqliteEventStore::new_at(dir),
+        None => runtime::events::SqliteEventStore::new(),
+    };
+    if let Ok(store) = store_result {
+        if let Err(e) = runtime::events::EventStore::append(&store, &envelope) {
+            tracing::warn!(slug, "pipeline: failed to persist step_dispatched: {e}");
+        }
+    }
+
+    let ctx = EmitContext {
+        caller_kind: CallerKind::Runtime,
+        skill_id: None,
+        workspace_id: None,
+        session_id: None,
+    };
+    if let Err(e) = kernel.lock().await.route(envelope, &ctx).await {
+        tracing::warn!(slug, "pipeline: step_dispatched routing failed: {e}");
+    }
+}

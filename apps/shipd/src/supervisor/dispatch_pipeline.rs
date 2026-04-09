@@ -2,7 +2,7 @@
 //!
 //! A pipeline is a DAG of steps. Each step declares dependencies via `after`.
 //! When a step completes, unblocked steps are found and dispatched.
-use runtime::events::job::{Pipeline, StepType};
+use runtime::events::job::StepType;
 use runtime::events::{CallerKind, EmitContext, EventEnvelope};
 use runtime::services::dispatch_ports::JobContext;
 use runtime::projections::job::{load_jobs, load_jobs_at};
@@ -10,152 +10,14 @@ use std::sync::Arc;
 use tokio::sync::Mutex;
 
 use super::agent_lifecycle::graceful_agent_exit;
-use super::dispatch_emit::emit_job_dispatched_with_meta;
+use super::dispatch_emit::{emit_job_dispatched_with_meta, emit_step_dispatched_event};
+use super::executors::run_step::execute_run_step;
 use super::helpers::{compile_agent_config, worktrees_dir};
 use super::job_dispatch::DispatchContext;
 use super::liveness;
 
 // Re-export for callers that import emit_job_dispatched from this module.
 pub(crate) use super::dispatch_emit::emit_job_dispatched;
-
-/// Enrich a job with a pipeline. Resolution order:
-/// 1. Already has `steps` → use it
-/// 2. Spec frontmatter has `pipeline: <name>` → load from `.ship/pipelines/<name>.yaml`
-/// 3. Spec frontmatter has inline `steps:` → use it
-/// 4. None → inject default (implement → gate → merge)
-pub(crate) fn ensure_pipeline(
-    mut payload: runtime::events::job::JobCreatedPayload,
-) -> runtime::events::job::JobCreatedPayload {
-    if payload.steps.is_some() {
-        return payload;
-    }
-
-    let spec_content = read_spec_content(&payload.spec_path);
-
-    // Try explicit pipeline_name from the create request first
-    let pipeline_ref = payload.pipeline_name.clone()
-        .or_else(|| parse_pipeline_name_from_frontmatter(&spec_content));
-
-    if let Some(name) = pipeline_ref {
-        if let Some(pipeline) = load_pipeline_file(&name) {
-            tracing::info!(
-                slug = payload.slug,
-                pipeline = name,
-                steps = pipeline.steps.len(),
-                "pipeline: loaded from .ship/pipelines/{name}.yaml"
-            );
-            if let Some(root) = pipeline.root_steps().first() {
-                if let Some(ref agent) = root.agent {
-                    payload.agent = agent.clone();
-                }
-            }
-            payload.steps = Some(pipeline);
-            return payload;
-        }
-        tracing::warn!(
-            slug = payload.slug,
-            pipeline = name,
-            "pipeline: referenced pipeline not found, falling back"
-        );
-    }
-
-    // Try inline steps from frontmatter
-    if let Some(pipeline) = parse_steps_from_frontmatter(&spec_content) {
-        if !pipeline.steps.is_empty() {
-            tracing::info!(
-                slug = payload.slug,
-                steps = pipeline.steps.len(),
-                "pipeline: loaded inline steps from spec frontmatter"
-            );
-            if let Some(root) = pipeline.root_steps().first() {
-                if let Some(ref agent) = root.agent {
-                    payload.agent = agent.clone();
-                }
-            }
-            payload.steps = Some(pipeline);
-            return payload;
-        }
-    }
-
-    // Default pipeline
-    tracing::info!(
-        slug = payload.slug,
-        agent = payload.agent,
-        "pipeline: no steps defined, injecting default pipeline"
-    );
-    payload.steps = Some(Pipeline::default_for_agent(&payload.agent));
-    payload
-}
-
-/// Load a named pipeline from `.ship/pipelines/<name>.yaml` in the project root.
-fn load_pipeline_file(name: &str) -> Option<Pipeline> {
-    // Walk up from cwd looking for .ship/ directory
-    let mut dir = std::env::current_dir().ok()?;
-    loop {
-        let ship_dir = dir.join(".ship");
-        if ship_dir.is_dir() {
-            let path = ship_dir.join("pipelines").join(format!("{name}.yaml"));
-            if path.exists() {
-                let content = std::fs::read_to_string(&path).ok()?;
-                let val: serde_json::Value = serde_yaml::from_str(&content).ok()?;
-                let steps_val = val.get("steps")?;
-                let steps: Vec<runtime::events::job::PipelineStep> =
-                    serde_json::from_value(steps_val.clone()).ok()?;
-                return Some(Pipeline { steps });
-            }
-            return None;
-        }
-        if !dir.pop() {
-            return None;
-        }
-    }
-}
-
-/// Extract `pipeline: <name>` from YAML frontmatter (string value, not array/object).
-fn parse_pipeline_name_from_frontmatter(content: &str) -> Option<String> {
-    let content = content.trim();
-    if !content.starts_with("---") {
-        return None;
-    }
-    let rest = &content[3..];
-    let end = rest.find("\n---")?;
-    let yaml_str = &rest[..end];
-    let fm: serde_json::Value = serde_yaml::from_str(yaml_str).ok()?;
-    fm.get("pipeline")?.as_str().map(str::to_string)
-}
-
-/// Read spec content, trying absolute path then relative to project root.
-fn read_spec_content(spec_path: &str) -> String {
-    let src = std::path::Path::new(spec_path);
-    if src.exists() {
-        return std::fs::read_to_string(src).unwrap_or_default();
-    }
-    if let Ok(ship_dir) = runtime::project::get_global_dir() {
-        if let Some(root) = ship_dir.parent() {
-            let alt = root.join(spec_path);
-            if alt.exists() {
-                return std::fs::read_to_string(&alt).unwrap_or_default();
-            }
-        }
-    }
-    String::new()
-}
-
-/// Parse pipeline steps from YAML frontmatter.
-fn parse_steps_from_frontmatter(content: &str) -> Option<Pipeline> {
-    let content = content.trim();
-    if !content.starts_with("---") {
-        return None;
-    }
-    let rest = &content[3..];
-    let end = rest.find("\n---")?;
-    let yaml_str = &rest[..end];
-
-    let fm: serde_json::Value = serde_yaml::from_str(yaml_str).ok()?;
-    let steps_val = fm.get("steps")?;
-    serde_json::from_value(steps_val.clone()).ok()
-}
-
 
 /// Advance the pipeline after a step completes. Returns true if a next step was dispatched.
 pub(crate) async fn advance_pipeline(
@@ -290,6 +152,28 @@ async fn advance_pipeline_inner(
         );
 
         match step.step_type {
+            StepType::Run => {
+                let command = match step.command {
+                    Some(ref c) => c.clone(),
+                    None => {
+                        tracing::error!(slug, step_id = step.id, "pipeline: run step missing command");
+                        continue;
+                    }
+                };
+                let kernel_clone = kernel.clone();
+                let job_id = job.job_id.clone();
+                let slug_clone = slug.clone();
+                let step_id = step.id.clone();
+                let work_dir = worktree_path.clone();
+                let ship_dir_owned = ship_dir_override.map(|p| p.to_path_buf());
+                tokio::spawn(async move {
+                    execute_run_step(
+                        &job_id, &slug_clone, &step_id, &command,
+                        &work_dir, &kernel_clone, ship_dir_owned.as_deref(),
+                    ).await;
+                });
+                dispatched_any = true;
+            }
             StepType::Agent | StepType::Gate => {
                 let agent = step.agent.as_deref().unwrap_or("reviewer");
 
@@ -338,6 +222,7 @@ async fn advance_pipeline_inner(
                 }
 
                 emit_job_dispatched_with_meta(kernel, &job.job_id, &worktree_path, slug, None, ship_dir_override).await;
+                emit_step_dispatched_event(kernel, &job.job_id, &step.id, "agent", slug, ship_dir_override).await;
                 dispatched_any = true;
             }
             StepType::Merge => {
