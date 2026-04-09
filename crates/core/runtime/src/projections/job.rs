@@ -62,6 +62,9 @@ pub struct JobRecord {
     /// ID of the currently running step.
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub current_step: Option<String>,
+    /// Job-level vars for pipeline step interpolation.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub vars: Option<HashMap<String, String>>,
 }
 
 /// Apply a single event to an existing `JobRecord`.
@@ -226,6 +229,7 @@ pub fn project(events: &[EventEnvelope]) -> HashMap<String, JobRecord> {
                     current_phase: None,
                     completed_steps: vec![],
                     current_step: None,
+                    vars: serde_json::from_value(p["vars"].clone()).ok(),
                 };
                 map.insert(job_id, record);
             }
