@@ -22,6 +22,9 @@ mod integration_tests;
 #[cfg(test)]
 #[path = "auth_tests.rs"]
 mod auth_tests;
+#[cfg(test)]
+#[path = "ship_runtime_tests.rs"]
+mod ship_runtime_tests;
 
 /// Test-only: build a minimal router with the CORS middleware for testing.
 #[cfg(test)]
