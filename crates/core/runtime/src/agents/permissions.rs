@@ -252,7 +252,9 @@ pub fn save_permissions(ship_dir: PathBuf, permissions: &Permissions) -> Result<
     {
         return Ok(());
     }
-    write_atomic(&path, toml::to_string(permissions)?)
+    // permissions_config_path returns *.jsonc — write JSON to match the reader
+    // dispatch in get_permissions (which parses .jsonc as JSON, not TOML).
+    write_atomic(&path, serde_json::to_string_pretty(permissions)?)
 }
 
 fn canonical_tool_ids() -> Vec<String> {
