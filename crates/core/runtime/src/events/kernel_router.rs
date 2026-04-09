@@ -16,6 +16,7 @@
 
 use std::collections::HashMap;
 use std::path::{Path, PathBuf};
+#[cfg(feature = "unstable")]
 use std::sync::Mutex;
 
 use anyhow::{Result, anyhow};
@@ -109,11 +110,13 @@ impl KernelRouter {
         self.actor_configs
             .insert(actor_id.to_string(), config.clone());
         for ns in &config.subscribe_namespaces {
-            self.subscriptions
-                .entry(ns.clone())
-                .or_default()
-                .push(actor_id.to_string());
+            let ids = self.subscriptions.entry(ns.clone()).or_default();
+            if !ids.contains(&actor_id.to_string()) {
+                ids.push(actor_id.to_string());
+            }
         }
+        #[cfg(feature = "unstable")]
+        self.actor_cursors.remove(actor_id);
         let store = ActorStore::new(
             actor_id,
             db_path,

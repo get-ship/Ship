@@ -9,6 +9,7 @@ use tokio::sync::mpsc;
 use crate::events::envelope::EventEnvelope;
 
 /// The receive end of a per-actor message channel.
+#[derive(Debug)]
 pub struct Mailbox {
     rx: mpsc::Receiver<EventEnvelope>,
 }
