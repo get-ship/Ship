@@ -365,3 +365,109 @@ async fn restart_recovery_finds_stale_jobs() {
     assert_eq!(stale_completed.len(), 1, "must detect stalled completed job");
     assert_eq!(stale_completed[0].slug, "stalled");
 }
+
+// ── E2E: Run step advances to agent step ──────────────────────────────────────
+
+/// A run step executes a shell command and advances the pipeline to the next
+/// agent step upon success.
+///
+/// Sequence:
+///   job.created (2-step: run "verify" → agent "implement")
+///   job.dispatched  (sets current_step to "verify")
+///   job.step_completed for "verify"  (simulates the run step finishing)
+///   advance_pipeline → dispatches "implement" (agent step)
+///
+/// The agent step does NOT need to complete in this test — we only verify
+/// that dispatch happened.
+#[tokio::test(flavor = "multi_thread", worker_threads = 2)]
+async fn run_step_advances_to_agent_step() {
+    let dir = TempDir::new().unwrap();
+    let ship_dir = dir.path().join(".ship");
+    let worktree_root = dir.path().join("worktrees");
+    let worktree_path = worktree_root.join("run-advance");
+    std::fs::create_dir_all(&ship_dir).unwrap();
+    std::fs::create_dir_all(worktree_path.join(".artifacts")).unwrap();
+    std::fs::write(
+        worktree_path.join(".artifacts/job-spec.md"),
+        "---\nslug: run-advance\n---\n# Run Step Test",
+    ).unwrap();
+
+    let store = SqliteEventStore::new_at(&ship_dir).unwrap();
+    let job_id = "j-run-advance";
+    let slug = "run-advance";
+
+    // Create job with 2-step pipeline: run step then agent step
+    store.append(&EventEnvelope::new(
+        event_types::JOB_CREATED,
+        job_id,
+        &serde_json::json!({
+            "job_id": job_id, "slug": slug,
+            "agent": "rust-lane", "branch": format!("job/{slug}"),
+            "spec_path": "spec.md", "plan_id": null,
+            "steps": { "steps": [
+                { "id": "verify", "type": "run", "command": "echo ok", "after": [] },
+                { "id": "implement", "type": "agent", "agent": "rust-lane", "after": ["verify"] },
+            ]}
+        }),
+    ).unwrap()).unwrap();
+
+    // Dispatch — sets current_step to the first step ("verify")
+    store.append(&EventEnvelope::new(
+        event_types::JOB_DISPATCHED,
+        job_id,
+        &serde_json::json!({
+            "job_id": job_id,
+            "worktree": worktree_path.to_string_lossy(),
+            "pid": null,
+        }),
+    ).unwrap()).unwrap();
+
+    // Simulate run step completing successfully: emit job.step_completed for "verify"
+    let step_completed_event = EventEnvelope::new(
+        event_types::STEP_COMPLETED,
+        job_id,
+        &serde_json::json!({
+            "job_id": job_id,
+            "slug": slug,
+            "step_id": "verify",
+        }),
+    ).unwrap();
+    store.append(&step_completed_event).unwrap();
+
+    // Set up kernel and dispatch context
+    let mut router = KernelRouter::new(ship_dir.clone()).unwrap();
+    let (_s, _mb) = router.spawn_actor("service.job-dispatch", dispatch_config()).unwrap();
+    let kernel = Arc::new(Mutex::new(router));
+
+    let executor = Arc::new(MockExecutor::new());
+    let dctx = DispatchContext {
+        isolation: Arc::new(MockIsolation { work_dir: worktree_path.clone() }),
+        executor: executor.clone(),
+        registry: Arc::new(Mutex::new(ProcessRegistry::new())),
+    };
+
+    // advance_pipeline with the step_completed event — should dispatch "implement"
+    let advanced = super::dispatch_pipeline::advance_pipeline_at(
+        &kernel, &step_completed_event, &dctx, &ship_dir,
+    ).await;
+
+    assert!(advanced, "pipeline must advance after run step completes");
+    assert!(
+        executor.spawn_count.load(Ordering::SeqCst) > 0,
+        "executor.spawn must be called to dispatch the agent step"
+    );
+
+    // Projection should show the verify step is in completed_steps
+    // and the implement step is now being dispatched
+    let jobs = load_jobs_at(&ship_dir).unwrap();
+    let rec = jobs.get(job_id).unwrap();
+    assert!(
+        rec.completed_steps.contains(&"verify".to_string()),
+        "verify (run step) must be in completed_steps"
+    );
+    assert_eq!(
+        rec.status,
+        JobStatus::Dispatched,
+        "job must be Dispatched for the implement step"
+    );
+}

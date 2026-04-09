@@ -12,7 +12,7 @@ use std::sync::Arc;
 use tokio::sync::Mutex;
 
 use super::adapters;
-use super::dispatch_handlers::{handle_job_cleanup, handle_job_update};
+use super::dispatch_handlers::{finalize_pipeline_if_done, handle_job_cleanup, handle_job_update};
 use super::dispatch_pipeline::{advance_pipeline, emit_job_dispatched};
 use super::pipeline_loader::ensure_pipeline;
 pub(crate) use super::registry::ProcessRegistry;
@@ -126,6 +126,21 @@ pub(crate) async fn handle_job_event(
             if !advance_pipeline(kernel, envelope, dctx).await {
                 // Pipeline done or no pipeline — scan projection for unblocked jobs
                 super::pending_dispatch::dispatch_ready_pending_jobs(kernel, dctx).await;
+            }
+        }
+        "job.step_completed" => {
+            tracing::info!(entity_id = %envelope.entity_id, "job-dispatch: handling job.step_completed");
+            if !advance_pipeline(kernel, envelope, dctx).await {
+                // No more steps to dispatch — finalize the job if all steps are done
+                finalize_pipeline_if_done(kernel, envelope).await;
+                super::pending_dispatch::dispatch_ready_pending_jobs(kernel, dctx).await;
+            }
+        }
+        "job.step_failed" => {
+            tracing::warn!(entity_id = %envelope.entity_id, "job-dispatch: pipeline step failed — advancement halted");
+            let payload: serde_json::Value = serde_json::from_str(&envelope.payload_json).unwrap_or_default();
+            if let Some(slug) = payload["slug"].as_str() {
+                dctx.registry.lock().await.unregister(slug);
             }
         }
         "job.merged" => {

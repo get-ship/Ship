@@ -146,6 +146,33 @@ pub fn apply(record: &mut JobRecord, event: &EventEnvelope) {
             record.status = JobStatus::Failed;
             record.updated_at = ts;
         }
+        event_types::STEP_DISPATCHED => {
+            if let Ok(p) = serde_json::from_str::<serde_json::Value>(&event.payload_json) {
+                record.current_step = p["step_id"].as_str().map(str::to_string);
+            }
+            record.status = JobStatus::Dispatched;
+            record.updated_at = ts;
+        }
+        event_types::STEP_COMPLETED => {
+            if let Ok(p) = serde_json::from_str::<serde_json::Value>(&event.payload_json) {
+                if let Some(step_id) = p["step_id"].as_str() {
+                    if record.current_step.as_deref() == Some(step_id) {
+                        record.current_step = None;
+                    }
+                    if !record.completed_steps.contains(&step_id.to_string()) {
+                        record.completed_steps.push(step_id.to_string());
+                    }
+                }
+            }
+            record.updated_at = ts;
+        }
+        event_types::STEP_FAILED => {
+            if let Ok(p) = serde_json::from_str::<serde_json::Value>(&event.payload_json) {
+                record.error = p["error"].as_str().map(str::to_string);
+            }
+            record.status = JobStatus::Failed;
+            record.updated_at = ts;
+        }
         _ => {}
     }
 }
