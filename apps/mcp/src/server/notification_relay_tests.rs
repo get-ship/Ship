@@ -40,10 +40,8 @@ fn system_peer(_id: &str, adapter: MockAdapter) -> PeerHandle {
     }
 }
 
-fn scoped_peer(id: &str, adapter: MockAdapter, branch: &str) -> PeerHandle {
+fn scoped_peer(_id: &str, adapter: MockAdapter, branch: &str) -> PeerHandle {
     PeerHandle {
-        id: id.into(),
-        actor_id: format!("actor-{id}"),
         adapter: Box::new(adapter),
         allowed_events: HashSet::new(),
         workspace_branch: Some(branch.to_string()),
