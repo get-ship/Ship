@@ -64,3 +64,7 @@ mod tests_process_exit;
 #[cfg(test)]
 #[path = "tests_pipeline_e2e.rs"]
 mod tests_pipeline_e2e;
+
+#[cfg(test)]
+#[path = "tests_pipeline_vars.rs"]
+mod tests_pipeline_vars;
