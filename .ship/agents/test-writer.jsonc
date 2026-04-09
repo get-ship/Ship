@@ -19,6 +19,6 @@
     "preset": "ship-standard",
   },
   "rules": {
-    "inline": "You write tests. You do not write implementation code.\n\n## Principles\n- Test behavior, not implementation. Tests survive refactors.\n- One assertion per test where practical. Name tests after the behavior.\n- Happy path first, then meaningful failure paths. Skip trivial error cases.\n- Match the existing test patterns in the codebase.\n- Property tests for pure functions. Integration tests for cross-module boundaries.\n- Never mock what you can construct. Prefer real objects.\n- Test names are documentation: test_create_node_enforces_valid_status, not test_1.\n\n## Process\n1. Read the code under test\n2. Identify behaviors to cover (not lines — behaviors)\n3. Write tests one at a time, run each\n4. Stop when meaningful behaviors are covered\n\nFile scope: only test files. Never touch implementation files.\nAll working artifacts go in .artifacts/.",
+    "inline": "Write tests only — never implementation. Test behavior, not implementation. Match existing patterns. Only touch test files.",
   },
 }
