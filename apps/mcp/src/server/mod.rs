@@ -13,8 +13,10 @@ use std::path::PathBuf;
 
 use crate::requests::*;
 use crate::tools::{
-    event, job as job_tools, project, session, session_files, skills, workspace, workspace_ops,
+    job as job_tools, project, session, session_files, skills, workspace, workspace_ops,
 };
+#[cfg(feature = "unstable")]
+use crate::tools::event;
 use skills::set_skill_var_tool;
 
 #[cfg(feature = "unstable")]
@@ -255,11 +257,11 @@ impl ShipServer {
     /// `agent.mcp.{branch}` if no agent config is set.
     async fn resolve_actor_id(&self) -> String {
         // SHIP_MESH_ID takes precedence — set by daemon when dispatching jobs.
-        if let Ok(mesh_id) = std::env::var("SHIP_MESH_ID") {
-            if !mesh_id.is_empty() {
-                tracing::info!(actor_id = %mesh_id, "resolved actor ID from SHIP_MESH_ID");
-                return mesh_id;
-            }
+        if let Ok(mesh_id) = std::env::var("SHIP_MESH_ID")
+            && !mesh_id.is_empty()
+        {
+            tracing::info!(actor_id = %mesh_id, "resolved actor ID from SHIP_MESH_ID");
+            return mesh_id;
         }
 
         let project_dir = self.get_effective_project_dir().await.ok();
@@ -325,15 +327,15 @@ impl ShipServer {
 
         // Try to resume a draining session for this workspace+agent.
         let agent_key = agent_id.as_deref().unwrap_or("mcp");
-        if let Ok(Some(draining)) = session_drain::find_draining_session(&branch, agent_key) {
-            if session_drain::resume_session(&draining.id).is_ok() {
-                tracing::info!(
-                    session_id = %draining.id,
-                    "resumed draining session"
-                );
-                *self.session_id.lock().await = Some(draining.id);
-                return;
-            }
+        if let Ok(Some(draining)) = session_drain::find_draining_session(&branch, agent_key)
+            && session_drain::resume_session(&draining.id).is_ok()
+        {
+            tracing::info!(
+                session_id = %draining.id,
+                "resumed draining session"
+            );
+            *self.session_id.lock().await = Some(draining.id);
+            return;
         }
 
         // Start a fresh session via the runtime.
@@ -379,14 +381,14 @@ impl ShipServer {
     /// Push a resource update notification if the client is subscribed to this URI.
     pub async fn notify_resource_updated(&self, uri: &str) {
         let subscribed = self.subscriptions.lock().await.contains(uri);
-        if subscribed {
-            if let Some(peer) = self.notification_peer.lock().await.as_ref() {
-                let _ = peer
-                    .notify_resource_updated(rmcp::model::ResourceUpdatedNotificationParam {
-                        uri: uri.to_string(),
-                    })
-                    .await;
-            }
+        if subscribed
+            && let Some(peer) = self.notification_peer.lock().await.as_ref()
+        {
+            let _ = peer
+                .notify_resource_updated(rmcp::model::ResourceUpdatedNotificationParam {
+                    uri: uri.to_string(),
+                })
+                .await;
         }
     }
 
@@ -561,6 +563,55 @@ impl ShipServer {
         job_tools::update_job(req).await
     }
 
+}
+
+// ---- Unstable tool registration ----
+
+#[cfg(feature = "unstable")]
+#[tool_router(router = unstable_tool_router)]
+impl ShipServer {
+    // ---- Dispatch ----
+
+    #[tool(
+        description = "Spawn an agent: creates a git worktree, compiles provider config via \
+        `ship use`, launches the agent process, and registers it on the mesh. \
+        Returns the agent_id for use with steer_agent, list_agents, stop_agent."
+    )]
+    async fn dispatch_agent(
+        &self,
+        Parameters(req): Parameters<DispatchAgentRequest>,
+    ) -> String {
+        let project_dir = match self.get_effective_project_dir().await {
+            Ok(d) => d,
+            Err(e) => return e,
+        };
+        dispatch_tools::dispatch_agent(&project_dir, req).await
+    }
+
+    #[tool(
+        description = "List all running agents managed by the dispatch service, \
+        with provider, pid, thread_id, and started_at."
+    )]
+    async fn list_agents(&self) -> String {
+        dispatch_tools::list_agents().await
+    }
+
+    #[tool(
+        description = "Stop a running agent by agent_id. Kills the process and \
+        deregisters it from the mesh."
+    )]
+    async fn stop_agent(&self, Parameters(req): Parameters<StopAgentRequest>) -> String {
+        dispatch_tools::stop_agent(req).await
+    }
+
+    #[tool(
+        description = "Inject a message into a running agent's stdin (Claude) or \
+        via turn/steer (Codex)."
+    )]
+    async fn steer_agent(&self, Parameters(req): Parameters<SteerAgentRequest>) -> String {
+        dispatch_tools::steer_agent(req).await
+    }
+
     // ---- Events ----
 
     #[tool(
@@ -615,55 +666,6 @@ impl ShipServer {
             Ok(json) => json,
             Err(_) => format!("Event emitted: {}", envelope.id),
         }
-    }
-
-}
-
-// ---- Unstable tool registration ----
-
-#[cfg(feature = "unstable")]
-#[tool_router(router = unstable_tool_router)]
-impl ShipServer {
-    // ---- Dispatch ----
-
-    #[tool(
-        description = "Spawn an agent: creates a git worktree, compiles provider config via \
-        `ship use`, launches the agent process, and registers it on the mesh. \
-        Returns the agent_id for use with steer_agent, list_agents, stop_agent."
-    )]
-    async fn dispatch_agent(
-        &self,
-        Parameters(req): Parameters<DispatchAgentRequest>,
-    ) -> String {
-        let project_dir = match self.get_effective_project_dir().await {
-            Ok(d) => d,
-            Err(e) => return e,
-        };
-        dispatch_tools::dispatch_agent(&project_dir, req).await
-    }
-
-    #[tool(
-        description = "List all running agents managed by the dispatch service, \
-        with provider, pid, thread_id, and started_at."
-    )]
-    async fn list_agents(&self) -> String {
-        dispatch_tools::list_agents().await
-    }
-
-    #[tool(
-        description = "Stop a running agent by agent_id. Kills the process and \
-        deregisters it from the mesh."
-    )]
-    async fn stop_agent(&self, Parameters(req): Parameters<StopAgentRequest>) -> String {
-        dispatch_tools::stop_agent(req).await
-    }
-
-    #[tool(
-        description = "Inject a message into a running agent's stdin (Claude) or \
-        via turn/steer (Codex)."
-    )]
-    async fn steer_agent(&self, Parameters(req): Parameters<SteerAgentRequest>) -> String {
-        dispatch_tools::steer_agent(req).await
     }
 }
 

@@ -1,6 +1,6 @@
-pub mod agent;
 #[cfg(feature = "unstable")]
 pub mod dispatch;
+#[cfg(feature = "unstable")]
 pub mod event;
 pub mod git_info;
 pub mod job;
