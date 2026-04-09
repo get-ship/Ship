@@ -34,13 +34,11 @@ export function WorkspaceIndicator() {
     : workspaces.find((w) => String(w.status).toLowerCase() === 'active')
 
   // Hydrate viewedWorkspace on first load or clear stale selection.
-  // viewedIsValid is a stable boolean — only flips when the branch leaves the list.
-  const viewedIsValid = !viewedWorkspace || workspaces.some((w) => w.branch === viewedWorkspace)
   useEffect(() => {
     if (!isWorkspaceView) return
     const next = resolveWorkspaceSelection(viewedWorkspace, workspaces)
     if (next !== undefined) setViewedWorkspace(next)
-  }, [isWorkspaceView, viewedIsValid]) // eslint-disable-line react-hooks/exhaustive-deps
+  }, [isWorkspaceView, viewedWorkspace, workspaces, setViewedWorkspace])
 
   if (!isWorkspaceView) return null
   if (!currentWs && connected) return null
