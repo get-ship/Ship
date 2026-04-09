@@ -13,7 +13,6 @@
   },
   "dependencies": {
     "github.com/better-auth/skills": "main",
-    "github.com/microsoft/playwright-cli": "main",
   },
   "exports": {
     // Publish-ready skills — added one by one after testing in Studio
