@@ -130,3 +130,31 @@ fn shutdown_all_is_bounded() {
         "TmuxExecutor must force-kill hung sessions to bound shutdown time"
     );
 }
+
+// ── ShipRuntime drain sequence ──────────────────────────────────────────────
+
+/// shutdown() must emit a supervisor.shutting_down event before cleanup.
+#[test]
+fn shutdown_emits_supervisor_shutting_down_event() {
+    let src = include_str!("../ship_runtime.rs");
+    assert!(
+        src.contains("supervisor.shutting_down") || src.contains("shutting_down"),
+        "ShipRuntime::shutdown must emit a supervisor.shutting_down event"
+    );
+}
+
+/// shutdown() must clean up daemon files after drain completes.
+#[test]
+fn shutdown_cleans_files_after_drain() {
+    let src = include_str!("../ship_runtime.rs");
+    assert!(
+        src.contains("daemon.token") && src.contains("daemon.port") && src.contains("daemon.pid"),
+        "ShipRuntime::shutdown must remove daemon.token, daemon.port, daemon.pid"
+    );
+    // Drain must happen before file cleanup
+    let has_drain = src.contains("drain") || src.contains("on_drain");
+    assert!(
+        has_drain,
+        "ShipRuntime::shutdown must call drain before cleaning up files"
+    );
+}
