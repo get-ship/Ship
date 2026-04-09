@@ -2805,6 +2805,16 @@ dependencies = [
 ]
 
 [[package]]
+name = "ship-types"
+version = "0.1.0"
+dependencies = [
+ "chrono",
+ "serde",
+ "serde_json",
+ "ulid",
+]
+
+[[package]]
 name = "shipd"
 version = "0.2.0"
 dependencies = [
