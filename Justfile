@@ -11,17 +11,17 @@ dev:
 
 # Watch and rebuild Rust on changes (unstable — includes all dev tools)
 watch:
-    cargo watch -x "build --features unstable -p ship-studio-cli -p mcp"
+    cargo watch -x "build --features unstable -p ship-cli -p mcp"
 
 # ── Build ──────────────────────────────────────────────────────────────────────
 
 # Build CLI + MCP + shipd (unstable dev build — default for development)
 build:
-    cargo build --features unstable -p ship-studio-cli -p mcp -p shipd
+    cargo build --features unstable -p ship-cli -p mcp -p shipd
 
 # Build release binary (stable — no unstable features, what users get)
 build-release:
-    cargo build --release -p ship-studio-cli -p mcp -p shipd
+    cargo build --release -p ship-cli -p mcp -p shipd
 
 # Install dev binaries to ~/.local/bin (ship + shipd)
 install-dev: build
@@ -31,7 +31,7 @@ install-dev: build
 
 # Install stable binary to ~/.cargo/bin
 install: build-release
-    cargo install --path apps/ship-studio-cli
+    cargo install --path apps/ship-cli
     cp -f target/release/shipd ~/.local/bin/shipd
 
 # Restart shipd with the latest dev build (build → install → hard restart)
@@ -168,8 +168,8 @@ rebuild: clean build wasm
 
 # Verify both stable and unstable compile (CI check)
 check-gates:
-    cargo build -p ship-studio-cli -p mcp
-    cargo build --features unstable -p ship-studio-cli -p mcp
+    cargo build -p ship-cli -p mcp
+    cargo build --features unstable -p ship-cli -p mcp
     just check-no-set-var-global-dir
     @echo "Both gates compile ✓"
 
