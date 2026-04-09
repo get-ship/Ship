@@ -46,6 +46,9 @@ mod mesh_tests;
 mod tests;
 #[cfg(test)]
 mod integration_tests;
+#[cfg(test)]
+#[path = "tests_drain.rs"]
+mod tests_drain;
 
 /// Trait implemented by headless service actors.
 ///
