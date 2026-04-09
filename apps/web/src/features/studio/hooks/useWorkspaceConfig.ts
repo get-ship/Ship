@@ -40,6 +40,12 @@ interface SkillsBody {
     description?: string | null
     content?: string
     files: string[]
+    artifacts?: string[]
+    tags?: string[]
+    authors?: string[]
+    vars_schema?: unknown
+    reference_docs?: Record<string, string>
+    evals?: unknown
   }>
 }
 
@@ -152,11 +158,13 @@ export function useProjectSkills() {
       description: s.description ?? null,
       content: s.content ?? '',
       source: 'custom' as const,
-      artifacts: [],
-      files: s.files,
-      tags: [],
-      authors: [],
-      reference_docs: {},
+      artifacts: s.artifacts ?? [],
+      files: s.files ?? [],
+      tags: s.tags ?? [],
+      authors: s.authors ?? [],
+      vars_schema: s.vars_schema ?? null,
+      reference_docs: s.reference_docs ?? {},
+      evals: s.evals ?? null,
     })) as PullSkill[] | undefined,
   }
 }
