@@ -19,6 +19,17 @@ pub mod supervisor;
 pub mod test_harness;
 #[cfg(test)]
 mod integration_tests;
+#[cfg(test)]
+#[path = "auth_tests.rs"]
+mod auth_tests;
+
+/// Test-only: build a minimal router with the CORS middleware for testing.
+#[cfg(test)]
+pub fn test_cors_router() -> Router {
+    Router::new()
+        .route("/test", axum::routing::get(|| async { "ok" }))
+        .layer(axum::middleware::from_fn(cors_middleware))
+}
 
 pub use server::NetworkServer;
 
