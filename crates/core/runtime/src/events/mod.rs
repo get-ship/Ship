@@ -55,6 +55,8 @@ mod kernel_security_tests;
 mod lifecycle_tests;
 #[cfg(test)]
 mod snapshot_edge_tests;
+#[cfg(test)]
+mod tests_mesh_scope;
 
 pub use actor_store::ActorStore;
 pub use envelope::EventEnvelope;
