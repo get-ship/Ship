@@ -3,8 +3,7 @@
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import { useCallback } from 'react'
 import { DAEMON_BASE_URL } from '#/lib/daemon-config'
-import { useDaemon } from '#/features/studio/hooks/useDaemonData'
-import { useStudioShell } from '#/features/studio/StudioShellContext'
+import { useActiveWorkspaceId } from '#/features/studio/hooks/useActiveWorkspaceId'
 import { sessionKeys } from './query-keys'
 import type { SessionFile, UploadResult } from './types'
 
@@ -14,16 +13,6 @@ const VALID_FILE_TYPES = new Set<string>(['html', 'image', 'markdown', 'url', 'o
 
 function toFileType(raw: string): SessionFile['type'] {
   return VALID_FILE_TYPES.has(raw) ? (raw as SessionFile['type']) : 'other'
-}
-
-function useActiveWorkspaceId(): string {
-  const { viewedWorkspace } = useStudioShell()
-  const { workspaces } = useDaemon()
-  if (viewedWorkspace) return viewedWorkspace
-  const active = workspaces
-    .filter((w) => String(w.status).toLowerCase() === 'active')
-    .sort((a, b) => (b.last_activated_at ?? '').localeCompare(a.last_activated_at ?? ''))
-  return active[0]?.branch ?? ''
 }
 
 interface RawFile {

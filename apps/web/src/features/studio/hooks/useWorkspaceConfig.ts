@@ -4,23 +4,13 @@
 import { useState, useMemo } from 'react'
 import { useShipQuery } from './useShipQuery'
 import { useShipClient } from '../ShipClientProvider'
-import { useStudioShell } from '../StudioShellContext'
-import { useDaemon } from './useDaemonData'
+import { useActiveWorkspaceId } from './useActiveWorkspaceId'
 import type {
   PullResponse,
   PullSkill,
   ListAgentsResponse,
   TransferBundle,
 } from '@ship/ui'
-
-// ── Active workspace helper ───────────────────────────────────────────────────
-
-function useActiveWorkspaceId(): string | null {
-  const { viewedWorkspace } = useStudioShell()
-  const { workspaces } = useDaemon()
-  if (viewedWorkspace) return viewedWorkspace
-  return workspaces.find((w) => String(w.status).toLowerCase() === 'active')?.branch ?? null
-}
 
 // ── Internal response types ───────────────────────────────────────────────────
 

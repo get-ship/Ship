@@ -116,6 +116,10 @@ cmd_start() {
       echo "Building + installing ship..."
       cargo install --path apps/ship-cli 2>&1 | tail -3
     fi
+
+    # Regenerate Specta types (Rust → TypeScript)
+    echo "Regenerating Specta types..."
+    cargo run -p xtask -- gen-types 2>&1 | tail -3
   '
 
   echo "Attaching tmux..."

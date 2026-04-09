@@ -235,12 +235,20 @@ pipeline?: PipelinePhase[] | null;
 /**
  * DAG pipeline. Takes precedence over `pipeline` if both are set.
  */
-steps?: Pipeline | null }
+steps?: Pipeline | null; 
+/**
+ * Pipeline name reference (e.g. "tdd"). Resolved by daemon from .ship/pipelines/.
+ */
+pipeline_name?: string | null }
 
 /**
  * Emitted when the job is assigned to a worktree and (optionally) a process.
  */
-export type JobDispatchedPayload = { job_id: string; worktree: string; pid: number | null }
+export type JobDispatchedPayload = { job_id: string; worktree: string; pid: number | null; 
+/**
+ * Provider-specific session metadata (e.g. Claude session ID for --resume).
+ */
+provider_meta?: JsonValue | null }
 
 /**
  * Emitted when the job terminates with an error.
@@ -270,7 +278,11 @@ export type JobMergedPayload = { job_id: string; slug: string }
 /**
  * Projected state of a single job.
  */
-export type JobRecord = { job_id: string; slug: string; agent: string; branch: string; spec_path: string; depends_on: string[] | null; status: JobStatus; worktree: string | null; blocker: string | null; error: string | null; created_at: string; updated_at: string; 
+export type JobRecord = { job_id: string; slug: string; agent: string; branch: string; spec_path: string; depends_on: string[] | null; status: JobStatus; worktree: string | null; blocker: string | null; error: string | null; model: string | null; provider: string | null; created_at: string; updated_at: string; 
+/**
+ * Provider-specific session metadata (e.g. Claude session ID for --resume).
+ */
+provider_meta?: JsonValue | null; 
 /**
  * Legacy linear pipeline phases.
  */

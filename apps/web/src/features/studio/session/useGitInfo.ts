@@ -2,8 +2,7 @@
 
 import { useQuery } from '@tanstack/react-query'
 import { DAEMON_BASE_URL } from '#/lib/daemon-config'
-import { useDaemon } from '#/features/studio/hooks/useDaemonData'
-import { useStudioShell } from '#/features/studio/StudioShellContext'
+import { useActiveWorkspaceId } from '#/features/studio/hooks/useActiveWorkspaceId'
 import { sessionKeys } from './query-keys'
 
 export interface GitStatusFile {
@@ -27,16 +26,6 @@ export interface GitLogEntry {
   subject?: string
   author: string
   date: string
-}
-
-function useActiveWorkspaceId(): string {
-  const { viewedWorkspace } = useStudioShell()
-  const { workspaces } = useDaemon()
-  if (viewedWorkspace) return viewedWorkspace
-  const active = workspaces
-    .filter((w) => String(w.status).toLowerCase() === 'active')
-    .sort((a, b) => (b.last_activated_at ?? '').localeCompare(a.last_activated_at ?? ''))
-  return active[0]?.branch ?? ''
 }
 
 function parseGitStatus(raw: string): GitStatusResult {

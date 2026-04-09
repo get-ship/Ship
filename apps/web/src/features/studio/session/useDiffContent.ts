@@ -4,19 +4,13 @@
 
 import { useQuery } from '@tanstack/react-query'
 import { DAEMON_BASE_URL } from '#/lib/daemon-config'
-import { useDaemon } from '#/features/studio/hooks/useDaemonData'
-import { useStudioShell } from '#/features/studio/StudioShellContext'
+import { useActiveWorkspaceId } from '#/features/studio/hooks/useActiveWorkspaceId'
 import { sessionKeys } from './query-keys'
 
 const DIFF_PATH = 'diff.txt'
 
 export function useDiffContent() {
-  const { viewedWorkspace } = useStudioShell()
-  const { workspaces } = useDaemon()
-
-  const wsId = viewedWorkspace
-    ?? workspaces.find((w) => String(w.status).toLowerCase() === 'active')?.branch
-    ?? ''
+  const wsId = useActiveWorkspaceId()
 
   const query = useQuery({
     queryKey: sessionKeys.diff(wsId),
