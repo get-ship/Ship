@@ -36,8 +36,11 @@ impl std::str::FromStr for WorkspaceStatus {
 pub(crate) fn parse_workspace_status_required(value: &str) -> Result<WorkspaceStatus> {
     match value.trim().to_lowercase().as_str() {
         "active" => Ok(WorkspaceStatus::Active),
-        // Any non-active status (archived, completed, idle, etc.) maps to Archived
-        _ => Ok(WorkspaceStatus::Archived),
+        "archived" => Ok(WorkspaceStatus::Archived),
+        other => anyhow::bail!(
+            "Invalid workspace status '{}'; expected one of: active, archived",
+            other
+        ),
     }
 }
 

@@ -102,6 +102,14 @@ pub fn apply(record: &mut JobRecord, event: &EventEnvelope) {
                     record.current_step = pipeline.root_steps().first().map(|s| s.id.clone());
                 }
             }
+            // Legacy pipeline phase tracking
+            if record.pipeline.is_some() {
+                if record.status == JobStatus::Completed {
+                    record.current_phase = Some(record.current_phase.map_or(1, |p| p + 1));
+                } else if record.current_phase.is_none() {
+                    record.current_phase = Some(0);
+                }
+            }
             record.status = JobStatus::Dispatched;
             record.updated_at = ts;
         }

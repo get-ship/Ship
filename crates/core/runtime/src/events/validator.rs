@@ -65,6 +65,7 @@ pub const KERNEL_NAMESPACES: &[&str] = &[
     "runtime.",
     "session.",
     "studio.",
+    "supervisor.",
     "sync.",
     "workspace.",
 ];
@@ -90,6 +91,7 @@ pub const RESERVED_NAMESPACES: &[&str] = &[
     "session.",
     "skill.",
     "studio.",
+    "supervisor.",
     "sync.",
     "workspace.",
 ];

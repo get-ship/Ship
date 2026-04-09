@@ -90,6 +90,8 @@ fn schema_for_event_type(
         "skill.started" => Some(check::<SkillStarted>),
         "skill.completed" => Some(check::<SkillCompleted>),
         "skill.failed" => Some(check::<SkillFailed>),
+        // supervisor
+        "supervisor.shutting_down" => Some(check::<SupervisorShuttingDown>),
         _ => None,
     }
 }
