@@ -113,7 +113,7 @@ pub async fn mesh_register(
 
     // Spawn (or re-spawn) an actor in the kernel for this remote agent
     // so messages with target_actor_id can be delivered to its mailbox.
-    {
+    let mailbox = {
         let mut kernel = state.kernel.lock().await;
         // Stop existing actor so we get a fresh mailbox for the SSE endpoint.
         let _ = kernel.stop_actor(&req.agent_id);
@@ -124,12 +124,25 @@ pub async fn mesh_register(
             subscribe_namespaces: vec!["mesh.".to_string()],
         };
         match kernel.spawn_actor(&req.agent_id, config) {
-            Ok((_store, mailbox)) => {
-                state.agent_mailboxes.lock().await
-                    .insert(req.agent_id.clone(), mailbox);
+            Ok((_store, mailbox)) => Some(mailbox),
+            Err(e) => {
+                tracing::warn!(agent_id = %req.agent_id, "actor spawn failed: {e}");
+                None
             }
-            Err(e) => tracing::warn!(agent_id = %req.agent_id, "actor spawn failed: {e}"),
         }
+    }; // kernel lock drops here
+
+    if let Some(mailbox) = mailbox {
+        state.agent_mailboxes.lock().await
+            .insert(req.agent_id.clone(), mailbox);
+    } else {
+        return (
+            StatusCode::INTERNAL_SERVER_ERROR,
+            Json(MeshResponse {
+                ok: false,
+                data: serde_json::json!(format!("actor spawn failed for '{}'", req.agent_id)),
+            }),
+        );
     }
 
     let envelope = match EventEnvelope::new(
