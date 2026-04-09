@@ -385,13 +385,13 @@ fn auth_token_is_per_instance() {
 // error return. Nothing swallowed silently.
 // ═══════════════════════════════════════════════════════════════════════════
 
-/// Relaunch failure must emit job.failed.
+/// Dead process reconciliation must emit step_failed.
 #[test]
-fn relaunch_failure_is_observable() {
+fn dead_process_recovery_is_observable() {
     let source = include_str!("dispatch_replay.rs");
     assert!(
-        source.contains("JOB_FAILED") || source.contains("job.failed"),
-        "relaunch failure must emit job.failed — no silent drops"
+        source.contains("STEP_FAILED") || source.contains("step_failed"),
+        "dead process reconciliation must emit step_failed — no silent drops"
     );
 }
 
