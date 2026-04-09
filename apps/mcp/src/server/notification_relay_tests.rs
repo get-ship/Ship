@@ -38,6 +38,17 @@ fn system_peer(id: &str, adapter: MockAdapter) -> PeerHandle {
         actor_id: format!("actor-{id}"),
         adapter: Box::new(adapter),
         allowed_events: HashSet::new(),
+        workspace_branch: None,
+    }
+}
+
+fn scoped_peer(id: &str, adapter: MockAdapter, branch: &str) -> PeerHandle {
+    PeerHandle {
+        id: id.into(),
+        actor_id: format!("actor-{id}"),
+        adapter: Box::new(adapter),
+        allowed_events: HashSet::new(),
+        workspace_branch: Some(branch.to_string()),
     }
 }
 
@@ -47,6 +58,7 @@ fn skill_peer(id: &str, adapter: MockAdapter, events: Vec<&str>) -> PeerHandle {
         actor_id: format!("actor-{id}"),
         adapter: Box::new(adapter),
         allowed_events: events.into_iter().map(String::from).collect(),
+        workspace_branch: None,
     }
 }
 
@@ -220,5 +232,49 @@ async fn studio_events_delivered_to_skill_peers_without_declaration() {
         vec![envelope("studio.message.visual")],
     )
     .await;
+    assert_eq!(log.lock().await.len(), 1);
+}
+
+// ── Workspace scoping tests ─────────────────────────────────
+
+#[tokio::test]
+async fn scoped_peer_receives_matching_workspace_events() {
+    let (adapter, log) = MockAdapter::new();
+    let relay = EventRelay::new();
+    relay.add_peer(scoped_peer("p1", adapter, "feature/auth")).await;
+    run_relay(relay, vec![envelope("workspace.activated")]).await;
+    // envelope() sets workspace_id to "feature/auth" — should match
+    assert_eq!(log.lock().await.len(), 1);
+}
+
+#[tokio::test]
+async fn scoped_peer_blocked_from_other_workspace_events() {
+    let (adapter, log) = MockAdapter::new();
+    let relay = EventRelay::new();
+    relay.add_peer(scoped_peer("p1", adapter, "feature/other")).await;
+    run_relay(relay, vec![envelope("workspace.activated")]).await;
+    // envelope() sets workspace_id to "feature/auth" — should NOT match
+    assert!(log.lock().await.is_empty());
+}
+
+#[tokio::test]
+async fn scoped_peer_receives_global_events_without_workspace_id() {
+    let (adapter, log) = MockAdapter::new();
+    let relay = EventRelay::new();
+    relay.add_peer(scoped_peer("p1", adapter, "feature/auth")).await;
+    let global_event = EventEnvelope::new("config.changed", "e-2", &serde_json::json!({}))
+        .unwrap();
+    run_relay(relay, vec![global_event]).await;
+    // No workspace_id on event — scoped peer should still receive it
+    assert_eq!(log.lock().await.len(), 1);
+}
+
+#[tokio::test]
+async fn unscoped_peer_receives_all_workspace_events() {
+    let (adapter, log) = MockAdapter::new();
+    let relay = EventRelay::new();
+    relay.add_peer(system_peer("p1", adapter)).await;
+    run_relay(relay, vec![envelope("workspace.activated")]).await;
+    // Unscoped peer (workspace_branch: None) should receive everything
     assert_eq!(log.lock().await.len(), 1);
 }

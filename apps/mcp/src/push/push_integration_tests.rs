@@ -63,6 +63,7 @@ async fn wire_agent(
             actor_id: actor_id.to_string(),
             adapter: Box::new(adapter),
             allowed_events: HashSet::new(), // system peer — receives all
+            workspace_branch: None,
         })
         .await;
     relay.spawn(mailbox);
