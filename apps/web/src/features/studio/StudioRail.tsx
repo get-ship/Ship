@@ -2,7 +2,7 @@ import { useState, useEffect } from 'react'
 import { useNavigate, useRouterState } from '@tanstack/react-router'
 import {
   Layers, Users, Zap, LayoutList, GitBranch, GitMerge,
-  Search, Settings, Sparkles, Sun, Moon,
+  Search, Settings, MessageSquare, Sun, Moon,
   type LucideIcon,
 } from 'lucide-react'
 import { Button } from '@ship/primitives'
@@ -118,7 +118,7 @@ export function StudioRail() {
               className={`size-8 ${drawerOpen ? 'bg-primary/10 text-primary' : ''}`}
               onClick={toggleDrawer}
             >
-              <Sparkles className="size-4" strokeWidth={drawerOpen ? 2.2 : 1.8} />
+              <MessageSquare className="size-4" strokeWidth={drawerOpen ? 2.2 : 1.8} />
             </Button>
           </TooltipTrigger>
           <TooltipContent side="right">Agent Panel (Cmd+/)</TooltipContent>

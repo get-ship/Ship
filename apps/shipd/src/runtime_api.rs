@@ -26,15 +26,24 @@ pub struct SessionsQuery {
 // ---- Handlers ----
 
 /// GET /api/runtime/workspaces
+///
+/// Returns only active workspaces. Archived/dead workspaces are excluded
+/// from the API surface — the reconciler handles cleanup internally.
 pub async fn list_workspaces(State(state): State<ApiState>) -> impl IntoResponse {
     match runtime::workspace::list_workspaces(&state.ship_dir) {
-        Ok(ws) => (
-            StatusCode::OK,
-            Json(MeshResponse {
-                ok: true,
-                data: serde_json::json!({ "workspaces": ws }),
-            }),
-        ),
+        Ok(ws) => {
+            let active: Vec<_> = ws
+                .into_iter()
+                .filter(|w| w.status == runtime::workspace::WorkspaceStatus::Active)
+                .collect();
+            (
+                StatusCode::OK,
+                Json(MeshResponse {
+                    ok: true,
+                    data: serde_json::json!({ "workspaces": active }),
+                }),
+            )
+        }
         Err(e) => (
             StatusCode::INTERNAL_SERVER_ERROR,
             Json(MeshResponse {
@@ -679,5 +688,34 @@ mod tests {
         let val = collect_body(response).await;
         let workspaces = val["data"]["workspaces"].as_array().unwrap();
         assert!(workspaces.len() >= 2);
+    }
+
+    #[tokio::test(flavor = "multi_thread")]
+    async fn list_workspaces_excludes_archived() {
+        let dir = TempDir::new().unwrap();
+        let state = make_api_state(&dir);
+        create_test_workspace(&state, "feature/active-ws");
+        create_test_workspace(&state, "feature/archived-ws");
+
+        // Archive one workspace
+        runtime::workspace::transition_workspace_status(
+            &state.ship_dir,
+            "feature/archived-ws",
+            runtime::workspace::WorkspaceStatus::Archived,
+        )
+        .unwrap();
+
+        let response = list_workspaces(State(state)).await.into_response();
+        let val = collect_body(response).await;
+        let workspaces = val["data"]["workspaces"].as_array().unwrap();
+
+        assert!(
+            workspaces.iter().any(|w| w["branch"] == "feature/active-ws"),
+            "active workspace should appear"
+        );
+        assert!(
+            !workspaces.iter().any(|w| w["branch"] == "feature/archived-ws"),
+            "archived workspace should be excluded"
+        );
     }
 }
