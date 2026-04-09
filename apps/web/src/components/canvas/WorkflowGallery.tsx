@@ -72,31 +72,6 @@ function SuperpowersPreview() {
   )
 }
 
-function GstackPreview() {
-  return (
-    <svg xmlns="http://www.w3.org/2000/svg" width="100%" height="100%" viewBox="0 0 230 170">
-      <circle cx="22" cy="80" r="12" fill="#7c3aed11" stroke="#7c3aed" strokeWidth="1.5"/>
-      <text x="22" y="84" textAnchor="middle" fontSize="9">👤</text>
-      <rect x="42" y="68" width="36" height="24" rx="4" fill="#38bdf80a" stroke="#38bdf844" strokeWidth="1"/>
-      <text x="60" y="78" textAnchor="middle" fontSize="6" fill="#38bdf8" fontWeight="700">spec</text>
-      <rect x="90" y="68" width="36" height="24" rx="4" fill="#a78bfa0a" stroke="#a78bfa44" strokeWidth="1"/>
-      <text x="108" y="78" textAnchor="middle" fontSize="6" fill="#a78bfa" fontWeight="700">design</text>
-      <rect x="138" y="68" width="36" height="24" rx="4" fill="#22c55e0a" stroke="#22c55e44" strokeWidth="1"/>
-      <text x="156" y="78" textAnchor="middle" fontSize="6" fill="#22c55e" fontWeight="700">impl</text>
-      <rect x="186" y="68" width="36" height="24" rx="4" fill="#f59e0b0a" stroke="#f59e0b44" strokeWidth="1"/>
-      <text x="204" y="78" textAnchor="middle" fontSize="6" fill="#f59e0b" fontWeight="700">review</text>
-      <rect x="138" y="120" width="68" height="22" rx="4" fill="#f43f5e0a" stroke="#f43f5e33" strokeWidth="1"/>
-      <text x="172" y="134" textAnchor="middle" fontSize="7" fill="#f43f5e88" fontWeight="700">deploy</text>
-      <line x1="34" y1="80" x2="42" y2="80" stroke="#7c3aed44" strokeWidth="1.5" strokeDasharray="3,2"/>
-      <line x1="78" y1="80" x2="90" y2="80" stroke="#38bdf844" strokeWidth="1.5"/>
-      <line x1="126" y1="80" x2="138" y2="80" stroke="#a78bfa44" strokeWidth="1.5"/>
-      <line x1="174" y1="80" x2="186" y2="80" stroke="#22c55e44" strokeWidth="1.5"/>
-      <line x1="204" y1="92" x2="190" y2="120" stroke="#f59e0b44" strokeWidth="1.5"/>
-      <path d="M186,74 C186,50 138,50 138,68" fill="none" stroke="#f43f5e33" strokeWidth="1" strokeDasharray="3,3"/>
-    </svg>
-  )
-}
-
 function ShipflowSoloPreview() {
   return (
     <svg xmlns="http://www.w3.org/2000/svg" width="100%" height="100%" viewBox="0 0 230 170">
@@ -149,7 +124,6 @@ function BlankPreview() {
 const PREVIEW_MAP: Record<string, () => React.ReactNode> = {
   shipflow: () => <ShipflowPreview />,
   superpowers: () => <SuperpowersPreview />,
-  gstack: () => <GstackPreview />,
   'shipflow-solo': () => <ShipflowSoloPreview />,
   'superpowers-solo': () => <SuperpowersSoloPreview />,
   blank: () => <BlankPreview />,
