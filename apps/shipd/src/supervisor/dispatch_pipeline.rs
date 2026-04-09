@@ -293,11 +293,3 @@ async fn advance_pipeline_inner(
 
     dispatched_any
 }
-
-#[cfg(test)]
-#[path = "tests_step_tracking.rs"]
-mod tests_step_tracking;
-
-#[cfg(test)]
-#[path = "tests_pipeline_reliability.rs"]
-mod tests_pipeline_reliability;

@@ -73,3 +73,11 @@ mod tests_pipeline_vars;
 #[cfg(test)]
 #[path = "tests_actor_registration.rs"]
 mod tests_actor_registration;
+
+#[cfg(test)]
+#[path = "tests_step_tracking.rs"]
+mod tests_step_tracking;
+
+#[cfg(test)]
+#[path = "tests_pipeline_reliability.rs"]
+mod tests_pipeline_reliability;

@@ -290,6 +290,14 @@ pub struct ProjectLog {
     pub details: String,
 }
 
+// -- Supervisor aggregate ------------------------------------------------------
+
+#[derive(Debug, Serialize, Deserialize)]
+pub struct SupervisorShuttingDown {
+    #[serde(default)]
+    pub reason: Option<String>,
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;

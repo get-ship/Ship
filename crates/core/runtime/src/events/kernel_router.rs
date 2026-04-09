@@ -126,8 +126,15 @@ impl KernelRouter {
         #[cfg(feature = "unstable")]
         self.enforce_emit_permissions(&event, ctx)?;
 
+        // Store in the kernel DB only if it's a kernel-routed namespace AND
+        // it doesn't belong to a registered actor's private namespace.
         if is_kernel_event(&event.event_type) {
-            raw_append(&self.kernel_store_path, &event)?;
+            let is_actor_owned = self.actor_configs.values().any(|cfg| {
+                event.event_type.starts_with(&format!("{}.", cfg.namespace))
+            });
+            if !is_actor_owned {
+                raw_append(&self.kernel_store_path, &event)?;
+            }
         }
 
         #[cfg(feature = "unstable")]
