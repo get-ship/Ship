@@ -97,7 +97,7 @@ pub async fn list_agents(
     State(state): State<ApiState>,
     Path(id): Path<String>,
 ) -> Result<(StatusCode, Json<MeshResponse>), (StatusCode, Json<MeshResponse>)> {
-    let worktree = resolve_worktree(&state.ship_dir, &id)?;
+    let worktree = resolve_worktree(state.ship_dir(), &id)?;
     let agents_dir = worktree.join(".ship").join("agents");
 
     if !agents_dir.exists() {
@@ -159,7 +159,7 @@ pub async fn list_skills(
     State(state): State<ApiState>,
     Path(id): Path<String>,
 ) -> Result<(StatusCode, Json<MeshResponse>), (StatusCode, Json<MeshResponse>)> {
-    let worktree = resolve_worktree(&state.ship_dir, &id)?;
+    let worktree = resolve_worktree(state.ship_dir(), &id)?;
     let skills_dir = worktree.join(".ship").join("skills");
 
     if !skills_dir.exists() {

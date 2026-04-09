@@ -8,11 +8,13 @@ pub mod auth;
 mod connections;
 mod handler;
 pub mod human_webhook;
+pub mod managers;
 pub mod project_api;
 pub mod pty_handler;
 pub mod rest_api;
 pub mod runtime_api;
 mod server;
+pub mod ship_runtime;
 pub mod supervisor;
 
 #[cfg(test)]
@@ -22,6 +24,9 @@ mod integration_tests;
 #[cfg(test)]
 #[path = "auth_tests.rs"]
 mod auth_tests;
+#[cfg(test)]
+#[path = "ship_runtime_tests.rs"]
+mod ship_runtime_tests;
 
 /// Test-only: build a minimal router with the CORS middleware for testing.
 #[cfg(test)]
@@ -51,216 +56,74 @@ use tokio_util::sync::CancellationToken;
 /// Start the network daemon and block until shutdown (SIGINT/SIGTERM).
 pub async fn run_network(host: String, port: u16) -> Result<()> {
     let global_dir = runtime::project::get_global_dir()?;
+    let meta = ship_runtime::AppMetadata { global_dir: global_dir.clone() };
+    let config = ship_runtime::RuntimeConfig { host: host.clone(), port, ..Default::default() };
+    let mut runtime = ship_runtime::ShipRuntime::new(meta, config).await?;
+    let mesh_registry = connections::spawn_mesh_service(runtime.kernel()).await?;
+    runtime.set_mesh_registry(mesh_registry);
+    let rt = Arc::new(runtime);
 
-    // Integrity check before anything touches the database.
-    if global_dir.join("platform.db").exists() {
-        match runtime::db::integrity::check_platform_integrity(&global_dir) {
-            Ok(runtime::db::integrity::IntegrityStatus::Ok) => {
-                tracing::info!("shipd: platform.db integrity check passed");
-            }
-            Ok(runtime::db::integrity::IntegrityStatus::ProjectionsCorrupt { details }) => {
-                tracing::warn!(
-                    "shipd: projection tables corrupt ({details}), will rebuild after startup"
-                );
-                // Projections will be rebuilt via rebuild_projections after kernel init.
-            }
-            Ok(runtime::db::integrity::IntegrityStatus::EventsCorrupt { details }) => {
-                return Err(anyhow!(
-                    "platform.db is corrupt and cannot be recovered: {details}. \
-                     Back up ~/.ship/platform.db and reinitialize with `ship init --global`."
-                ));
-            }
-            Err(e) => {
-                tracing::warn!("shipd: integrity check failed to run: {e}");
-            }
-        }
-    }
-
-    let kernel = runtime::events::init_kernel_router(global_dir.clone())
-        .map_err(|e| anyhow!("failed to initialize KernelRouter: {e}"))?;
-
-    let mesh_registry = connections::spawn_mesh_service(&kernel).await?;
-    supervisor::subscribe_workspace_events(kernel.clone(), global_dir.clone()).await;
-    let dispatch_handle = supervisor::job_dispatch::subscribe_job_events(kernel.clone(), global_dir.clone()).await;
-    spawn_human_gateway(&kernel).await;
+    supervisor::subscribe_workspace_events(rt.kernel().clone(), global_dir.clone()).await;
+    let dh = supervisor::job_dispatch::subscribe_job_events(rt.kernel().clone(), global_dir.clone()).await;
+    spawn_human_gateway(rt.kernel()).await;
 
     let token = Arc::new(auth::generate_token());
-    auth::write_token_file(&global_dir, &token)
-        .map_err(|e| anyhow!("failed to write daemon.token: {e}"))?;
-    tracing::info!("shipd: auth token written to daemon.token");
-
+    auth::write_token_file(&global_dir, &token).map_err(|e| anyhow!("write daemon.token: {e}"))?;
     write_port_file(&global_dir, port)?;
     write_pid_file(&global_dir)?;
 
     let ct = CancellationToken::new();
-    let ct_shutdown = ct.clone();
-    tokio::spawn(async move {
-        shutdown_signal().await;
-        ct_shutdown.cancel();
-    });
+    let ct2 = ct.clone();
+    tokio::spawn(async move { shutdown_signal().await; ct2.cancel(); });
 
-    let kernel_factory = kernel.clone();
+    let app = build_router(rt.clone(), token, ct.child_token());
+    let addr = format!("{host}:{port}");
+    tracing::info!("shipd: listening on http://{addr}/mcp");
+    let listener = tokio::net::TcpListener::bind(&addr).await.map_err(|e| anyhow!("bind {addr}: {e}"))?;
+    axum::serve(listener, app)
+        .with_graceful_shutdown(async move { ct.cancelled_owned().await })
+        .await.map_err(|e| anyhow!("server error: {e}"))?;
+
+    if let Some(dh) = dh {
+        supervisor::graceful_shutdown(rt.kernel(), &mut *dh.registry.lock().await, Arc::clone(&dh.executor)).await;
+    }
+    rt.shutdown().await;
+    Ok(())
+}
+
+/// Build the full Axum router with all route groups, auth, and CORS.
+fn build_router(
+    rt: Arc<ship_runtime::ShipRuntime>,
+    token: Arc<String>,
+    mcp_ct: CancellationToken,
+) -> Router {
+    let kernel_factory = rt.kernel().clone();
     let service: StreamableHttpService<NetworkServer, LocalSessionManager> =
         StreamableHttpService::new(
             move || Ok(NetworkServer::new(kernel_factory.clone())),
             Default::default(),
             StreamableHttpServerConfig {
-                cancellation_token: ct.child_token(),
+                cancellation_token: mcp_ct,
                 sse_retry: None,
                 sse_keep_alive: None,
                 ..Default::default()
             },
         );
 
-    let api_state = rest_api::ApiState {
-        kernel: kernel.clone(),
-        mesh_registry: mesh_registry.clone(),
-        agent_mailboxes: std::sync::Arc::new(tokio::sync::Mutex::new(
-            std::collections::HashMap::new(),
-        )),
-        pty_connections: std::sync::Arc::new(tokio::sync::Mutex::new(
-            std::collections::HashMap::new(),
-        )),
-        ship_dir: global_dir.clone(),
-    };
-    let webhook_routes = axum::Router::new()
-        .route(
-            "/webhook/telegram",
-            axum::routing::post(human_webhook::telegram_webhook),
-        )
-        .with_state(kernel.clone());
-
-    let hook_routes = axum::Router::new()
-        .route(
-            "/hooks/checkout",
-            axum::routing::post(rest_api::hooks_checkout),
-        );
-
-    let api_routes = axum::Router::new()
-        .route("/mesh/register", axum::routing::post(rest_api::mesh_register))
-        .route("/mesh/send", axum::routing::post(rest_api::mesh_send))
-        .route("/mesh/broadcast", axum::routing::post(rest_api::mesh_broadcast))
-        .route("/mesh/discover", axum::routing::get(rest_api::mesh_discover))
-        .route("/mesh/status", axum::routing::post(rest_api::mesh_status_update))
-        .route("/mesh/events/{agent_id}", axum::routing::get(rest_api::mesh_events))
-        .route("/actor/spawn", axum::routing::post(actor_api::actor_spawn))
-        .route("/events/route", axum::routing::post(actor_api::event_route))
-        .with_state(api_state.clone());
-
-    let runtime_routes = axum::Router::new()
-        .route("/workspaces", axum::routing::get(runtime_api::list_workspaces))
-        .route("/sessions", axum::routing::get(runtime_api::list_sessions))
-        .route("/agents", axum::routing::get(runtime_api::list_agents))
-        .route(
-            "/jobs",
-            axum::routing::get(runtime_api::list_jobs)
-                .post(runtime_api::create_job),
-        )
-        .route("/jobs/end", axum::routing::post(runtime_api::end_job))
-        .route("/views", axum::routing::get(runtime_api::list_views))
-        .route("/view/{name}", axum::routing::get(runtime_api::serve_view))
-        .route("/events", axum::routing::get(runtime_api::event_stream))
-        .route(
-            "/rebuild-projections",
-            axum::routing::post(runtime_api::rebuild_projections),
-        )
-        .route(
-            "/workspaces/{id}/pty",
-            axum::routing::get(pty_handler::workspace_pty),
-        )
-        .with_state(api_state.clone());
-
-    let supervisor_routes = axum::Router::new()
-        .route(
-            "/supervisor/workspaces/{id}/start",
-            axum::routing::post(supervisor::start_workspace),
-        )
-        .with_state(api_state.clone());
-
-    let project_routes = axum::Router::new()
-        .route(
-            "/workspaces/{id}/session-files",
-            axum::routing::get(project_api::list_session_files),
-        )
-        .route(
-            "/workspaces/{id}/session-files/{*path}",
-            axum::routing::get(project_api::read_session_file)
-                .put(project_api::write_session_file)
-                .delete(project_api::delete_session_file),
-        )
-        .route(
-            "/workspaces/{id}/git/status",
-            axum::routing::get(project_api::git_status),
-        )
-        .route(
-            "/workspaces/{id}/git/diff",
-            axum::routing::get(project_api::git_diff),
-        )
-        .route(
-            "/workspaces/{id}/git/log",
-            axum::routing::get(project_api::git_log),
-        )
-        .route(
-            "/workspaces/{id}/agents",
-            axum::routing::get(project_api::list_agents)
-                .post(project_api::write_agent),
-        )
-        .route(
-            "/workspaces/{id}/skills",
-            axum::routing::get(project_api::list_skills),
-        )
-        .route(
-            "/workspaces/{id}/skills/{skillId}/files/{*path}",
-            axum::routing::put(project_api::write_skill_file)
-                .delete(project_api::delete_skill_file),
-        )
-        .route(
-            "/workspaces/{id}/skills/{skillId}/vars",
-            axum::routing::get(project_api::get_skill_vars),
-        )
-        .route(
-            "/workspaces/{id}/skills/{skillId}/vars/{key}",
-            axum::routing::put(project_api::set_skill_var),
-        )
-        .route(
-            "/workspaces/{id}",
-            axum::routing::delete(project_api::delete_workspace),
-        )
-        .route(
-            "/workspaces/{id}/activate",
-            axum::routing::post(project_api::activate_workspace),
-        )
-        .route(
-            "/workspaces/{id}/pipelines",
-            axum::routing::get(project_api::list_pipelines),
-        )
-        .route(
-            "/workspaces/{id}/pipelines/{name}",
-            axum::routing::put(project_api::write_pipeline)
-                .delete(project_api::delete_pipeline),
-        )
-        .route(
-            "/events/emit",
-            axum::routing::post(project_api::emit_event),
-        )
-        .route(
-            "/workspaces/{id}/artifacts/status",
-            axum::routing::get(project_api::artifacts_status),
-        )
-        .route(
-            "/workspaces/{id}/artifacts/promote",
-            axum::routing::post(project_api::promote_artifact),
-        )
-        .route(
-            "/artifacts",
-            axum::routing::get(project_api::list_project_artifacts),
-        )
-        .with_state(api_state);
-
+    let st = rt.clone();
+    let webhook_routes = Router::new()
+        .route("/webhook/telegram", axum::routing::post(human_webhook::telegram_webhook))
+        .with_state(rt.kernel().clone());
+    let hook_routes = Router::new()
+        .route("/hooks/checkout", axum::routing::post(rest_api::hooks_checkout));
+    let api_routes = build_api_routes(st.clone());
+    let runtime_routes = build_runtime_routes(st.clone());
+    let supervisor_routes = build_supervisor_routes(st.clone());
+    let project_routes = build_project_routes(st);
     let capabilities_routes = Router::new()
         .route("/capabilities", axum::routing::get(rest_api::capabilities));
 
-    let auth_token = token.clone();
+    let auth_token = token;
     let authenticated_routes = Router::new()
         .nest("/api", api_routes)
         .nest("/api", hook_routes)
@@ -274,38 +137,66 @@ pub async fn run_network(host: String, port: u16) -> Result<()> {
             auth::auth_middleware(auth_token.clone(), req, next)
         }));
 
-    let app = Router::new()
+    Router::new()
         .merge(authenticated_routes)
-        .layer(axum::middleware::from_fn(cors_middleware));
+        .layer(axum::middleware::from_fn(cors_middleware))
+}
 
-    let addr = format!("{host}:{port}");
-    eprintln!("shipd: listening on http://{addr}/mcp");
-    tracing::info!("shipd: listening on http://{addr}/mcp");
+fn build_api_routes(st: rest_api::ApiState) -> Router {
+    Router::new()
+        .route("/mesh/register", axum::routing::post(rest_api::mesh_register))
+        .route("/mesh/send", axum::routing::post(rest_api::mesh_send))
+        .route("/mesh/broadcast", axum::routing::post(rest_api::mesh_broadcast))
+        .route("/mesh/discover", axum::routing::get(rest_api::mesh_discover))
+        .route("/mesh/status", axum::routing::post(rest_api::mesh_status_update))
+        .route("/mesh/events/{agent_id}", axum::routing::get(rest_api::mesh_events))
+        .route("/actor/spawn", axum::routing::post(actor_api::actor_spawn))
+        .route("/events/route", axum::routing::post(actor_api::event_route))
+        .with_state(st)
+}
 
-    let listener = tokio::net::TcpListener::bind(&addr)
-        .await
-        .map_err(|e| anyhow!("failed to bind {addr}: {e}"))?;
+fn build_runtime_routes(st: rest_api::ApiState) -> Router {
+    Router::new()
+        .route("/workspaces", axum::routing::get(runtime_api::list_workspaces))
+        .route("/sessions", axum::routing::get(runtime_api::list_sessions))
+        .route("/agents", axum::routing::get(runtime_api::list_agents))
+        .route("/jobs", axum::routing::get(runtime_api::list_jobs).post(runtime_api::create_job))
+        .route("/jobs/end", axum::routing::post(runtime_api::end_job))
+        .route("/views", axum::routing::get(runtime_api::list_views))
+        .route("/view/{name}", axum::routing::get(runtime_api::serve_view))
+        .route("/events", axum::routing::get(runtime_api::event_stream))
+        .route("/rebuild-projections", axum::routing::post(runtime_api::rebuild_projections))
+        .route("/workspaces/{id}/pty", axum::routing::get(pty_handler::workspace_pty))
+        .with_state(st)
+}
 
-    axum::serve(listener, app)
-        .with_graceful_shutdown(async move { ct.cancelled_owned().await })
-        .await
-        .map_err(|e| anyhow!("server error: {e}"))?;
+fn build_supervisor_routes(st: rest_api::ApiState) -> Router {
+    Router::new()
+        .route("/supervisor/workspaces/{id}/start", axum::routing::post(supervisor::start_workspace))
+        .with_state(st)
+}
 
-    // Graceful shutdown: stop all managed agent processes
-    if let Some(dh) = dispatch_handle {
-        supervisor::graceful_shutdown(
-            &kernel,
-            &mut *dh.registry.lock().await,
-            Arc::clone(&dh.executor),
-        )
-        .await;
-    }
-
-    let _ = std::fs::remove_file(global_dir.join("daemon.port"));
-    let _ = std::fs::remove_file(global_dir.join("daemon.pid"));
-    let _ = std::fs::remove_file(global_dir.join("daemon.token"));
-    tracing::info!("shipd: shutdown complete");
-    Ok(())
+fn build_project_routes(st: rest_api::ApiState) -> Router {
+    Router::new()
+        .route("/workspaces/{id}/session-files", axum::routing::get(project_api::list_session_files))
+        .route("/workspaces/{id}/session-files/{*path}", axum::routing::get(project_api::read_session_file).put(project_api::write_session_file).delete(project_api::delete_session_file))
+        .route("/workspaces/{id}/git/status", axum::routing::get(project_api::git_status))
+        .route("/workspaces/{id}/git/diff", axum::routing::get(project_api::git_diff))
+        .route("/workspaces/{id}/git/log", axum::routing::get(project_api::git_log))
+        .route("/workspaces/{id}/agents", axum::routing::get(project_api::list_agents).post(project_api::write_agent))
+        .route("/workspaces/{id}/skills", axum::routing::get(project_api::list_skills))
+        .route("/workspaces/{id}/skills/{skillId}/files/{*path}", axum::routing::put(project_api::write_skill_file).delete(project_api::delete_skill_file))
+        .route("/workspaces/{id}/skills/{skillId}/vars", axum::routing::get(project_api::get_skill_vars))
+        .route("/workspaces/{id}/skills/{skillId}/vars/{key}", axum::routing::put(project_api::set_skill_var))
+        .route("/workspaces/{id}", axum::routing::delete(project_api::delete_workspace))
+        .route("/workspaces/{id}/activate", axum::routing::post(project_api::activate_workspace))
+        .route("/workspaces/{id}/pipelines", axum::routing::get(project_api::list_pipelines))
+        .route("/workspaces/{id}/pipelines/{name}", axum::routing::put(project_api::write_pipeline).delete(project_api::delete_pipeline))
+        .route("/events/emit", axum::routing::post(project_api::emit_event))
+        .route("/workspaces/{id}/artifacts/status", axum::routing::get(project_api::artifacts_status))
+        .route("/workspaces/{id}/artifacts/promote", axum::routing::post(project_api::promote_artifact))
+        .route("/artifacts", axum::routing::get(project_api::list_project_artifacts))
+        .with_state(st)
 }
 
 /// Check whether the network daemon is running by inspecting ~/.ship/daemon.port.

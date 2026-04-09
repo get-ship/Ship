@@ -30,7 +30,7 @@ pub struct SessionsQuery {
 /// Returns only active workspaces. Archived/dead workspaces are excluded
 /// from the API surface — the reconciler handles cleanup internally.
 pub async fn list_workspaces(State(state): State<ApiState>) -> impl IntoResponse {
-    match runtime::workspace::list_workspaces(&state.ship_dir) {
+    match runtime::workspace::list_workspaces(state.ship_dir()) {
         Ok(ws) => {
             let active: Vec<_> = ws
                 .into_iter()
@@ -102,7 +102,7 @@ pub async fn list_sessions(
 
 /// GET /api/runtime/agents
 pub async fn list_agents(State(state): State<ApiState>) -> impl IntoResponse {
-    let registry = state.mesh_registry.read().await;
+    let registry = state.mesh_registry().read().await;
     let agents: Vec<serde_json::Value> = registry
         .values()
         .map(|e| {
@@ -392,7 +392,7 @@ pub async fn end_job(
 pub async fn rebuild_projections(
     State(state): State<ApiState>,
 ) -> impl IntoResponse {
-    match runtime::db::rebuild::rebuild_projections(&state.ship_dir) {
+    match runtime::db::rebuild::rebuild_projections(state.ship_dir()) {
         Ok(report) => (
             StatusCode::OK,
             Json(MeshResponse {
@@ -450,7 +450,7 @@ pub async fn event_stream(
     };
 
     let mailbox = {
-        let mut kernel = state.kernel.lock().await;
+        let mut kernel = state.kernel().lock().await;
         kernel.spawn_actor(&actor_id, config).map(|(_store, mb)| mb).map_err(|e| {
             tracing::warn!("event_stream: actor spawn failed: {e}");
             (StatusCode::INTERNAL_SERVER_ERROR, e.to_string())
@@ -459,7 +459,7 @@ pub async fn event_stream(
 
     let guard = ActorGuard {
         actor_id,
-        kernel: state.kernel.clone(),
+        kernel: state.kernel().clone(),
     };
 
     let stream = async_stream::stream! {
@@ -493,16 +493,7 @@ mod tests {
         std::fs::create_dir_all(&ship_dir).unwrap();
         runtime::db::ensure_db_at(&ship_dir).unwrap();
         let kernel = runtime::events::init_kernel_router(ship_dir.clone()).unwrap();
-        let mesh_registry = Arc::new(tokio::sync::RwLock::new(
-            std::collections::HashMap::new(),
-        ));
-        ApiState {
-            kernel,
-            mesh_registry,
-            agent_mailboxes: Arc::new(Mutex::new(std::collections::HashMap::new())),
-            pty_connections: Arc::new(Mutex::new(std::collections::HashMap::new())),
-            ship_dir,
-        }
+        Arc::new(crate::ship_runtime::ShipRuntime::new_test(ship_dir, kernel))
     }
 
     async fn collect_body(response: axum::response::Response) -> serde_json::Value {
@@ -563,7 +554,7 @@ mod tests {
 
     fn create_test_workspace(state: &ApiState, branch: &str) {
         runtime::workspace::create_workspace(
-            &state.ship_dir,
+            state.ship_dir(),
             runtime::workspace::CreateWorkspaceRequest {
                 branch: branch.into(),
                 ..Default::default()
@@ -593,7 +584,7 @@ mod tests {
         let state = make_api_state(&dir);
 
         {
-            let mut reg = state.mesh_registry.write().await;
+            let mut reg = state.mesh_registry().write().await;
             reg.insert(
                 "agent.test".into(),
                 runtime::services::mesh::MeshEntry {
@@ -619,7 +610,7 @@ mod tests {
         let state = make_api_state(&dir);
         create_test_workspace(&state, "feature/rt-sess-test");
 
-        let ws = runtime::workspace::get_workspace(&state.ship_dir, "feature/rt-sess-test")
+        let ws = runtime::workspace::get_workspace(state.ship_dir(), "feature/rt-sess-test")
             .unwrap()
             .unwrap();
         let payload = runtime::events::types::SessionStarted {
@@ -649,7 +640,7 @@ mod tests {
         create_test_workspace(&state, "feature/ws-filter-a");
         create_test_workspace(&state, "feature/ws-filter-b");
 
-        let ws_a = runtime::workspace::get_workspace(&state.ship_dir, "feature/ws-filter-a")
+        let ws_a = runtime::workspace::get_workspace(state.ship_dir(), "feature/ws-filter-a")
             .unwrap()
             .unwrap();
         let payload = runtime::events::types::SessionStarted {
@@ -666,7 +657,7 @@ mod tests {
         .unwrap();
 
         // Filter by workspace B — should return empty.
-        let ws_b = runtime::workspace::get_workspace(&state.ship_dir, "feature/ws-filter-b")
+        let ws_b = runtime::workspace::get_workspace(state.ship_dir(), "feature/ws-filter-b")
             .unwrap()
             .unwrap();
         let query = Query(SessionsQuery {
@@ -700,7 +691,7 @@ mod tests {
 
         // Archive one workspace
         runtime::workspace::transition_workspace_status(
-            &state.ship_dir,
+            state.ship_dir(),
             "feature/archived-ws",
             runtime::workspace::WorkspaceStatus::Archived,
         )

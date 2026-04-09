@@ -27,14 +27,7 @@ fn make_api_state(dir: &TempDir) -> ApiState {
     std::fs::create_dir_all(&ship_dir).unwrap();
     runtime::db::ensure_db_at(&ship_dir).unwrap();
     let kernel = Arc::new(Mutex::new(KernelRouter::new(ship_dir.clone()).unwrap()));
-    let mesh_registry = Arc::new(tokio::sync::RwLock::new(std::collections::HashMap::new()));
-    ApiState {
-        kernel,
-        mesh_registry,
-        agent_mailboxes: Arc::new(Mutex::new(std::collections::HashMap::new())),
-        pty_connections: Arc::new(Mutex::new(std::collections::HashMap::new())),
-        ship_dir,
-    }
+    Arc::new(crate::ship_runtime::ShipRuntime::new_test(ship_dir, kernel))
 }
 
 fn actor_config(id: &str) -> ActorConfig {
@@ -109,7 +102,7 @@ async fn mesh_register_idempotent() {
         .await;
     }
     assert!(
-        state.kernel.lock().await.has_actor("agent.idem"),
+        state.kernel().lock().await.has_actor("agent.idem"),
         "actor must be registered after double mesh_register — idempotent re-register must succeed"
     );
 }
@@ -124,7 +117,7 @@ async fn mesh_register_after_stop_actor() {
         Json(MeshRegisterReq { agent_id: "agent.reconnect".into(), capabilities: vec![] }),
     )
     .await;
-    state.kernel.lock().await.stop_actor("agent.reconnect").unwrap();
+    state.kernel().lock().await.stop_actor("agent.reconnect").unwrap();
     mesh_register(
         State(state.clone()),
         Extension(TestDaemon::cli_auth()),
@@ -132,7 +125,7 @@ async fn mesh_register_after_stop_actor() {
     )
     .await;
     assert!(
-        state.kernel.lock().await.has_actor("agent.reconnect"),
+        state.kernel().lock().await.has_actor("agent.reconnect"),
         "actor must be re-registered after external stop — reconnect must succeed"
     );
 }
@@ -169,7 +162,7 @@ async fn mesh_register_concurrent_same_agent() {
     .await;
     assert!(result.is_ok(), "concurrent registration must not deadlock — must complete within 2s");
     assert!(
-        state.kernel.lock().await.has_actor("agent.race"),
+        state.kernel().lock().await.has_actor("agent.race"),
         "actor must exist after concurrent registration — one registration must win"
     );
 }
@@ -200,7 +193,7 @@ async fn spawn_actor_error_is_not_silent() {
             .into_response()
         },
     );
-    let has = state.kernel.lock().await.has_actor("agent.silent");
+    let has = state.kernel().lock().await.has_actor("agent.silent");
     // Invariant: 200 OK is only valid when the actor is registered.
     // Silent failure: spawn_actor Err is swallowed, response is 200 but actor absent.
     assert!(
