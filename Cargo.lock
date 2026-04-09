@@ -2482,6 +2482,7 @@ dependencies = [
  "serde_json",
  "serde_yaml",
  "sha2",
+ "ship-jobs",
  "ship-types",
  "specta",
  "sqlx",
@@ -2803,6 +2804,15 @@ dependencies = [
  "tracing-appender",
  "tracing-subscriber",
  "ureq",
+]
+
+[[package]]
+name = "ship-jobs"
+version = "0.1.0"
+dependencies = [
+ "chrono",
+ "serde",
+ "serde_json",
 ]
 
 [[package]]
