@@ -4,7 +4,7 @@
 //! the agent via injected trait objects. When `job.completed` arrives, advances
 //! the pipeline DAG. When `job.merged` arrives, cleans up resources.
 
-use runtime::events::job::JobCreatedPayload;
+use runtime::events::job::{JobCreatedPayload, StepType};
 use runtime::events::{ActorConfig, EventEnvelope};
 use runtime::services::dispatch_ports::{IsolationStrategy, JobContext, JobExecutor};
 use std::path::PathBuf;
@@ -14,6 +14,7 @@ use tokio::sync::Mutex;
 use super::adapters;
 use super::dispatch_handlers::{finalize_pipeline_if_done, handle_job_cleanup, handle_job_update};
 use super::dispatch_pipeline::{advance_pipeline, emit_job_dispatched};
+use super::dispatch_run::dispatch_first_run_step;
 use super::pipeline_loader::ensure_pipeline;
 pub(crate) use super::registry::ProcessRegistry;
 #[cfg(test)]
@@ -209,6 +210,22 @@ pub(crate) async fn dispatch_job_internal(
 ) {
     let slug = &payload.slug;
     let branch = &payload.branch;
+
+    // Check if the first step is a run step — execute it directly without spawning an agent.
+    if let Some(ref steps) = payload.steps {
+        if let Some(first) = steps.root_steps().first() {
+            if first.step_type == StepType::Run {
+                let command = match &first.command {
+                    Some(c) => c.clone(),
+                    None => {
+                        tracing::error!(slug, step_id = first.id, "job-dispatch: run step missing command");
+                        return;
+                    }
+                };
+                return dispatch_first_run_step(kernel, payload, dctx, &first.id, &command).await;
+            }
+        }
+    }
 
     // Determine agent from pipeline root step or top-level agent field
     let agent = if let Some(ref steps) = payload.steps {

@@ -6,6 +6,7 @@ mod dispatch_handlers;
 pub(crate) mod dispatch_emit;
 pub(crate) mod dispatch_pipeline;
 mod dispatch_replay;
+mod dispatch_run;
 pub(crate) mod orphan_cleanup;
 pub(crate) mod executors;
 pub mod helpers;
