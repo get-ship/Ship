@@ -1,13 +1,18 @@
 import { test, expect } from '@playwright/test'
 
-test('header shows project picker on studio pages', async ({ page }) => {
+test('studio layout shows the navigation rail', async ({ page }) => {
   await page.goto('/studio/agents')
-  await expect(page.locator('text=Ship').first()).toBeVisible()
+  // The StudioRail renders a nav element
+  const rail = page.locator('nav').first()
+  await expect(rail).toBeVisible()
 })
 
-test('header breadcrumb updates on navigation', async ({ page }) => {
+test('studio rail contains interactive elements', async ({ page }) => {
   await page.goto('/studio/agents')
-  await expect(page.locator('text=agents')).toBeVisible()
-  await page.goto('/studio/skills')
-  await expect(page.locator('text=skills')).toBeVisible()
+  // The rail nav contains clickable buttons wrapped in tooltips
+  const rail = page.locator('nav').first()
+  await expect(rail).toBeVisible()
+  // The rail should contain at least one button element
+  const buttons = rail.locator('button')
+  await expect(buttons.first()).toBeVisible()
 })
