@@ -64,7 +64,8 @@ pub async fn run_network(host: String, port: u16) -> Result<()> {
     let rt = Arc::new(runtime);
 
     supervisor::subscribe_workspace_events(rt.kernel().clone(), global_dir.clone()).await;
-    let dh = supervisor::job_dispatch::subscribe_job_events(rt.kernel().clone(), global_dir.clone()).await;
+    let job_mgr = managers::JobManager::init(rt.kernel().clone(), global_dir.clone()).await;
+    let dh = job_mgr.dispatch_handle;
     spawn_human_gateway(rt.kernel()).await;
 
     let token = Arc::new(auth::generate_token());

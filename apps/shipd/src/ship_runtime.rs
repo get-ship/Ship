@@ -167,8 +167,15 @@ impl ShipRuntime {
     }
 
     /// Lazily initialize and return the job manager.
+    ///
+    /// On first call, subscribes to job events and reconciles orphaned
+    /// dispatched jobs from previous daemon runs.
     pub async fn jobs(&self) -> &JobManager {
-        self.jobs.get_or_init(|| async { JobManager::new() }).await
+        self.jobs
+            .get_or_init(|| async {
+                JobManager::init(self.kernel.clone(), self.ship_dir.clone()).await
+            })
+            .await
     }
 
     /// Persist event to platform.db then route through kernel.

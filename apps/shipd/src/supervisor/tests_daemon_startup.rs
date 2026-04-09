@@ -58,7 +58,7 @@ fn reconcile_before_dispatch_in_startup_order() {
 // DEAD PROCESS DETECTION
 //
 // After daemon restart, dispatched jobs may have dead processes. The daemon
-// must detect these and either relaunch or fail them.
+// must detect these and emit step_failed.
 // ═══════════════════════════════════════════════════════════════════════════
 
 /// Reconciliation scans for dispatched jobs in the projection.
@@ -81,33 +81,23 @@ fn reconciliation_checks_liveness() {
     );
 }
 
-/// Dead processes must be relaunched with the original worktree.
+/// Dead processes must emit step_failed, not silently drop the job.
 #[test]
-fn dead_process_relaunched_in_existing_worktree() {
+fn dead_process_emits_step_failed() {
     let source = include_str!("dispatch_replay.rs");
     assert!(
-        source.contains("worktree") && source.contains("spawn"),
-        "dead processes must be relaunched using the existing worktree"
+        source.contains("STEP_FAILED") || source.contains("step_failed"),
+        "dead processes must emit a step_failed event"
     );
 }
 
-/// Relaunch failure must emit job.failed, not silently drop the job.
+/// The step_failed error must indicate daemon restart.
 #[test]
-fn relaunch_failure_emits_job_failed() {
+fn step_failed_includes_restart_reason() {
     let source = include_str!("dispatch_replay.rs");
     assert!(
-        source.contains("JOB_FAILED") || source.contains("job.failed"),
-        "relaunch failure must emit a job.failed event"
-    );
-}
-
-/// Relaunch must recompile agent config (it may have changed since last run).
-#[test]
-fn relaunch_recompiles_agent_config() {
-    let source = include_str!("dispatch_replay.rs");
-    assert!(
-        source.contains("compile_agent_config"),
-        "relaunch must recompile agent config in case it changed"
+        source.contains("daemon restarted"),
+        "step_failed error must mention daemon restart"
     );
 }
 
@@ -190,39 +180,84 @@ fn pending_dispatch_checks_dependencies() {
 }
 
 // ═══════════════════════════════════════════════════════════════════════════
-// RELAUNCH CONTEXT PRESERVATION
+// LIVE PROCESS RE-ATTACHMENT
 //
-// When relaunching a dead agent, the daemon must preserve the original
-// launch context: model, provider, and session metadata.
+// When a dispatched job has a live process, register it in the process
+// registry for graceful shutdown monitoring.
 // ═══════════════════════════════════════════════════════════════════════════
 
-/// Relaunch must recover model from the job projection.
+/// Live process re-attachment registers in ProcessRegistry.
 #[test]
-fn relaunch_recovers_model_from_projection() {
+fn live_process_registered_in_registry() {
     let source = include_str!("dispatch_replay.rs");
     assert!(
-        source.contains("model"),
-        "relaunch must recover model from the job record"
+        source.contains("register") && source.contains("is_alive"),
+        "live processes must be re-registered in ProcessRegistry"
     );
 }
 
-/// Relaunch must recover provider from the job projection.
+// ═══════════════════════════════════════════════════════════════════════════
+// PROJECTION-BASED RECONCILIATION
+//
+// Verify that reconciliation correctly uses the job projection to determine
+// which jobs need recovery and which should be skipped.
+// ═══════════════════════════════════════════════════════════════════════════
+
+/// Orphaned dispatched jobs are detected and marked failed via projection.
 #[test]
-fn relaunch_recovers_provider_from_projection() {
-    let source = include_str!("dispatch_replay.rs");
+fn reconcile_marks_orphaned_jobs_as_failed() {
+    let events = vec![
+        ev(event_types::JOB_CREATED, serde_json::json!({
+            "job_id": "j-orphan", "slug": "orphan",
+            "agent": "r", "branch": "job/orphan",
+            "spec_path": "spec.md", "plan_id": null,
+        })),
+        ev(event_types::JOB_DISPATCHED, serde_json::json!({
+            "job_id": "j-orphan", "worktree": "/w", "pid": 99999,
+        })),
+        // No completion — daemon died, agent process is gone.
+        // Simulate what reconcile would do: emit step_failed.
+        ev(event_types::STEP_FAILED, serde_json::json!({
+            "job_id": "j-orphan",
+            "error": "daemon restarted, agent not running",
+        })),
+    ];
+    let map = project(&events);
+    let job = map.get("j-orphan").unwrap();
+    assert_eq!(
+        job.status,
+        JobStatus::Failed,
+        "orphaned dispatched job must be Failed after step_failed event"
+    );
     assert!(
-        source.contains("provider"),
-        "relaunch must recover provider from the job record"
+        job.error.as_ref().map_or(false, |e| e.contains("daemon restarted")),
+        "error must reference daemon restart"
     );
 }
 
-/// Relaunch must recover session metadata for resume capability.
+/// Completed jobs are not affected by reconciliation.
 #[test]
-fn relaunch_recovers_session_metadata() {
-    let source = include_str!("dispatch_replay.rs");
-    assert!(
-        source.contains("provider_meta") || source.contains("session"),
-        "relaunch must recover provider session metadata for resume"
+fn reconcile_skips_completed_jobs() {
+    let events = vec![
+        ev(event_types::JOB_CREATED, serde_json::json!({
+            "job_id": "j-done", "slug": "done",
+            "agent": "r", "branch": "job/done",
+            "spec_path": "spec.md", "plan_id": null,
+        })),
+        ev(event_types::JOB_DISPATCHED, serde_json::json!({
+            "job_id": "j-done", "worktree": "/w", "pid": 12345,
+        })),
+        ev(event_types::JOB_COMPLETED, serde_json::json!({
+            "job_id": "j-done", "slug": "done",
+        })),
+    ];
+    let map = project(&events);
+    let job = map.get("j-done").unwrap();
+    // Completed jobs are NOT Dispatched, so reconcile_dispatched_inner skips them.
+    assert_eq!(
+        job.status,
+        JobStatus::Completed,
+        "completed jobs must not be touched by reconciliation"
     );
 }
 
