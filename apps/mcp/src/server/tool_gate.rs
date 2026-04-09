@@ -18,29 +18,11 @@ impl ShipServer {
     }
 
     /// Core platform tools that always bypass gating.
-    const CORE_TOOLS: &[&str] = &[
-        "open_project",
-        "activate_workspace",
+    /// Only write operations that all roles need — reads are resources now.
+    pub const CORE_TOOLS: &[&str] = &[
         "create_workspace",
         "complete_workspace",
-        "list_stale_worktrees",
-        "list_workspaces",
-        "set_agent",
-        "start_session",
-        "end_session",
-        "get_session",
-        "list_sessions",
-        "list_skills",
-        "get_skill_vars",
         "set_skill_var",
-        "list_skill_vars",
-        "list_jobs",
-        "get_job",
-        "read_session_file",
-        "list_session_files",
-        "log_progress",
-        "update_job",
-        "write_session_file",
     ];
 
     #[cfg(feature = "unstable")]

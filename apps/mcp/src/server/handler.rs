@@ -106,7 +106,7 @@ impl ServerHandler for ShipServer {
                 self, request, context,
             ))
             .await?;
-        Ok(super::deprecation::prepend_deprecation_to_result(result, &tool_name))
+        Ok(result)
     }
 
     async fn list_tools(
@@ -128,9 +128,18 @@ impl ServerHandler for ShipServer {
                     if Self::is_project_workspace_tool(n) {
                         return true;
                     }
-                    active_agent
-                        .as_ref()
-                        .is_some_and(|m| Self::mode_allows_tool(n, &m.active_tools))
+                    let Some(ref agent) = active_agent else {
+                        return false;
+                    };
+                    // Explicit active_tools override role defaults.
+                    if !agent.active_tools.is_empty() {
+                        return Self::mode_allows_tool(n, &agent.active_tools);
+                    }
+                    // Fall back to role-based defaults.
+                    let role = agent.role.as_deref().unwrap_or("worker");
+                    let role_defaults = Self::default_tools_for_role(role);
+                    let normalized = Self::normalize_mode_tool_id(n);
+                    role_defaults.contains(&normalized.as_str())
                 })
                 .collect()
         } else {

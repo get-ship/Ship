@@ -1,10 +1,12 @@
 // Sessions tab — session history from the shipd daemon.
 import { Clock, Bot, GitBranch } from 'lucide-react'
 import { useDaemon, type SessionEntry } from '#/features/studio/hooks/useDaemonData'
+import { useStudioShell } from '#/features/studio/StudioShellContext'
 import type { Workspace } from '@ship/ui'
 
 export function SessionsTab() {
-  const { connected, workspaces, sessions } = useDaemon()
+  const { viewedWorkspace } = useStudioShell()
+  const { connected, workspaces, sessions } = useDaemon(viewedWorkspace)
 
   if (!connected) {
     return (
@@ -15,14 +17,16 @@ export function SessionsTab() {
     )
   }
 
-  const active = workspaces.find((w) => w.status === 'active')
+  const viewed = viewedWorkspace
+    ? workspaces.find((w) => w.branch === viewedWorkspace)
+    : workspaces.find((w) => w.status === 'active')
 
   return (
     <div className="py-1">
-      {active && (
+      {viewed && (
         <>
-          <SectionLabel>Active Workspace</SectionLabel>
-          <WorkspaceInfo workspace={active} />
+          <SectionLabel>{viewedWorkspace ? 'Viewed Workspace' : 'Active Workspace'}</SectionLabel>
+          <WorkspaceInfo workspace={viewed} />
         </>
       )}
       {sessions.length > 0 ? (

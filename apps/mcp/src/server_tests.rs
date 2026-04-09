@@ -32,6 +32,8 @@ fn mode_gate_normalizes_and_blocks_disallowed_tools() {
         .expect("create_workspace must be core");
     ShipServer::enforce_mode_tool_gate(&project_dir, "complete_workspace")
         .expect("complete_workspace must be core");
+    ShipServer::enforce_mode_tool_gate(&project_dir, "set_skill_var")
+        .expect("set_skill_var must be core");
 
     let blocked = ShipServer::enforce_mode_tool_gate(&project_dir, "create_spec")
         .expect_err("create_spec should be blocked");
@@ -156,20 +158,12 @@ fn trims_whitespace() {
 
 #[test]
 fn core_tools_are_recognized() {
-    let platform_tools = [
-        "open_project",
-        "activate_workspace",
+    let core_tools = [
         "create_workspace",
         "complete_workspace",
-        "set_agent",
-        "start_session",
-        "end_session",
-        "log_progress",
-        "get_session",
-        "list_sessions",
-        "list_skills",
+        "set_skill_var",
     ];
-    for tool in platform_tools {
+    for tool in core_tools {
         assert!(
             ShipServer::is_core_tool(tool),
             "{tool} should be a core tool"
@@ -180,7 +174,7 @@ fn core_tools_are_recognized() {
 #[test]
 fn core_tool_with_prefix_and_suffix() {
     assert!(ShipServer::is_core_tool("ship_create_workspace_tool"));
-    assert!(ShipServer::is_core_tool("ship_log_progress_tool"));
+    assert!(ShipServer::is_core_tool("ship_set_skill_var_tool"));
 }
 
 #[test]
@@ -235,33 +229,17 @@ fn normalization_applied_to_both_sides() {
 // ── tool registration surface ──────────────────────────────────────
 
 #[test]
-fn stable_build_registers_platform_tools() {
+fn stable_build_registers_expected_tools() {
     let server = ShipServer::new();
     let names = server.registered_tool_names();
     let expected: &[&str] = &[
-        "open_project",
-        "set_agent",
-        "activate_workspace",
-        "list_workspaces",
         "create_workspace",
         "complete_workspace",
-        "list_stale_worktrees",
-        "start_session",
-        "end_session",
         "log_progress",
-        "get_session",
-        "list_sessions",
-        "list_session_files",
-        "read_session_file",
-        "write_session_file",
-        "list_skills",
-        "get_skill_vars",
         "set_skill_var",
-        "list_skill_vars",
+        "write_session_file",
         "create_job",
         "update_job",
-        "list_jobs",
-        "get_job",
         "mesh_send",
         "mesh_broadcast",
         "mesh_discover",
@@ -271,6 +249,36 @@ fn stable_build_registers_platform_tools() {
         assert!(
             names.iter().any(|n| n == tool),
             "{tool} missing from router"
+        );
+    }
+}
+
+#[test]
+fn deprecated_tools_not_registered() {
+    let server = ShipServer::new();
+    let names = server.registered_tool_names();
+    let removed: &[&str] = &[
+        "open_project",
+        "set_agent",
+        "activate_workspace",
+        "list_workspaces",
+        "list_stale_worktrees",
+        "start_session",
+        "end_session",
+        "get_session",
+        "list_sessions",
+        "list_session_files",
+        "read_session_file",
+        "list_skills",
+        "get_skill_vars",
+        "list_skill_vars",
+        "list_jobs",
+        "get_job",
+    ];
+    for tool in removed {
+        assert!(
+            !names.iter().any(|n| n == tool),
+            "{tool} should be removed from router"
         );
     }
 }
