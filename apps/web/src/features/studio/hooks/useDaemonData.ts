@@ -76,7 +76,7 @@ function toError(e: unknown): Error {
 
 // ── Queries ───────────────────────────────────────────────────────────────────
 
-export function useDaemon(): UseDaemonReturn {
+export function useDaemon(viewedWorkspaceBranch?: string | null): UseDaemonReturn {
   const wsResult = useShipQuery<{ workspaces: Workspace[] }>('/runtime/workspaces')
   const agentsResult = useShipQuery<{ agents: AgentEntry[] }>('/runtime/agents')
   const jobsResult = useShipQuery<{ jobs: JobRecord[] }>('/runtime/jobs')
@@ -86,9 +86,10 @@ export function useDaemon(): UseDaemonReturn {
     .filter((ws) => !isTestWorkspace(ws))
     .sort((a, b) => a.branch.localeCompare(b.branch))
 
-  const activeWsId = allWorkspaces.find((w) => w.status === 'active')?.branch
-  const sessionsPath = activeWsId
-    ? `/runtime/sessions?workspace_id=${encodeURIComponent(activeWsId)}`
+  const resolvedWsId = viewedWorkspaceBranch
+    || allWorkspaces.find((w) => w.status === 'active')?.branch
+  const sessionsPath = resolvedWsId
+    ? `/runtime/sessions?workspace_id=${encodeURIComponent(resolvedWsId)}`
     : null
   const sessionsResult = useShipQuery<{ sessions: SessionEntry[] }>(sessionsPath)
 
