@@ -87,3 +87,4 @@ skills-lock.json
 opencode.json
 .ship-session/
 .playwright-cli/
+test-results/
