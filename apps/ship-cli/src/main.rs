@@ -26,6 +26,7 @@ mod mcp_serve;
 mod paths;
 mod profile;
 mod publish;
+mod ship_run;
 mod validate;
 mod vars;
 mod workspace_cmd;
@@ -137,6 +138,30 @@ fn dispatch(command: Option<Commands>) -> Result<()> {
             Commands::RebuildProjections => run_rebuild_projections(),
             #[cfg(feature = "unstable")]
             Commands::Top => run_top(),
+            Commands::Run {
+                pipeline,
+                spec_text,
+                spec,
+                workspace,
+                vars,
+                dry_run,
+            } => {
+                let parsed_vars: Vec<(String, String)> = vars
+                    .iter()
+                    .filter_map(|v| {
+                        let (k, val) = v.split_once('=')?;
+                        Some((k.to_string(), val.to_string()))
+                    })
+                    .collect();
+                ship_run::run(ship_run::RunOptions {
+                    pipeline_name: pipeline,
+                    spec_text,
+                    spec_file: spec,
+                    workspace,
+                    vars: parsed_vars,
+                    dry_run,
+                })
+            }
             Commands::Hook { action } => dispatch_hook(action),
             Commands::Network { action } => dispatch_network(action),
             Commands::Studio { port, open } => run_studio(port, open),

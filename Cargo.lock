@@ -2960,6 +2960,7 @@ dependencies = [
  "serde",
  "serde_json",
  "sha2",
+ "ship-jobs",
  "shipd",
  "tempfile",
  "tokio",
@@ -2978,6 +2979,7 @@ dependencies = [
  "chrono",
  "serde",
  "serde_json",
+ "serde_yaml",
 ]
 
 [[package]]

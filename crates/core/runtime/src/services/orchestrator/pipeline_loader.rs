@@ -6,7 +6,8 @@
 //! 3. Inline `steps:` in spec frontmatter
 //! 4. Default pipeline (`implement → gate → merge`)
 
-use crate::events::job::{JobCreatedPayload, Pipeline};
+use crate::events::job::{JobCreatedPayload, Pipeline, PipelineStep};
+use ship_jobs::pipeline::{PipelineMeta, normalize_pipeline_yaml};
 
 /// Enrich a job with a pipeline. Resolution order:
 /// 1. Already has `steps` → use it
@@ -22,7 +23,7 @@ pub fn ensure_pipeline(mut payload: JobCreatedPayload) -> JobCreatedPayload {
 
     // Try named pipeline reference: `pipeline: tdd`
     if let Some(name) = parse_pipeline_name_from_frontmatter(&spec_content) {
-        if let Some(pipeline) = load_pipeline_file(&name) {
+        if let Some((pipeline, meta)) = load_pipeline_file(&name) {
             tracing::info!(
                 slug = payload.slug,
                 pipeline = name,
@@ -30,10 +31,11 @@ pub fn ensure_pipeline(mut payload: JobCreatedPayload) -> JobCreatedPayload {
                 "pipeline: loaded from .ship/pipelines/{name}.yaml"
             );
             if let Some(root) = pipeline.root_steps().first() {
-                if let Some(ref agent) = root.agent {
+                if let Some(agent) = &root.agent {
                     payload.agent = agent.clone();
                 }
             }
+            merge_meta_vars(&mut payload, &meta);
             payload.steps = Some(pipeline);
             return payload;
         }
@@ -53,7 +55,7 @@ pub fn ensure_pipeline(mut payload: JobCreatedPayload) -> JobCreatedPayload {
                 "pipeline: loaded inline steps from spec frontmatter"
             );
             if let Some(root) = pipeline.root_steps().first() {
-                if let Some(ref agent) = root.agent {
+                if let Some(agent) = &root.agent {
                     payload.agent = agent.clone();
                 }
             }
@@ -73,8 +75,9 @@ pub fn ensure_pipeline(mut payload: JobCreatedPayload) -> JobCreatedPayload {
 }
 
 /// Load a named pipeline from `.ship/pipelines/<name>.yaml` in the project root.
-fn load_pipeline_file(name: &str) -> Option<Pipeline> {
-    // Walk up from cwd looking for .ship/ directory
+/// Supports both old format (explicit id/type/agent) and new format (agents list,
+/// simplified steps).
+fn load_pipeline_file(name: &str) -> Option<(Pipeline, PipelineMeta)> {
     let mut dir = std::env::current_dir().ok()?;
     loop {
         let ship_dir = dir.join(".ship");
@@ -82,16 +85,32 @@ fn load_pipeline_file(name: &str) -> Option<Pipeline> {
             let path = ship_dir.join("pipelines").join(format!("{name}.yaml"));
             if path.exists() {
                 let content = std::fs::read_to_string(&path).ok()?;
-                let val: serde_json::Value = serde_yaml::from_str(&content).ok()?;
-                let steps_val = val.get("steps")?;
-                let steps: Vec<crate::events::job::PipelineStep> =
-                    serde_json::from_value(steps_val.clone()).ok()?;
-                return Some(Pipeline { steps });
+                return parse_pipeline_content(&content);
             }
             return None;
         }
         if !dir.pop() {
             return None;
+        }
+    }
+}
+
+/// Parse pipeline YAML content into a Pipeline and metadata.
+/// Handles both old and new formats via ship_jobs normalization.
+fn parse_pipeline_content(content: &str) -> Option<(Pipeline, PipelineMeta)> {
+    let (normalized, meta) = normalize_pipeline_yaml(content).ok()?;
+    let steps_val = normalized.get("steps")?;
+    let steps: Vec<PipelineStep> = serde_json::from_value(steps_val.clone()).ok()?;
+    Some((Pipeline { steps }, meta))
+}
+
+/// Merge pipeline-level default vars into the job payload.
+/// CLI/payload vars take precedence over pipeline defaults.
+fn merge_meta_vars(payload: &mut JobCreatedPayload, meta: &PipelineMeta) {
+    if let Some(pipeline_vars) = &meta.vars {
+        let job_vars = payload.vars.get_or_insert_with(Default::default);
+        for (k, v) in pipeline_vars {
+            job_vars.entry(k.clone()).or_insert_with(|| v.clone());
         }
     }
 }
@@ -137,6 +156,14 @@ fn parse_steps_from_frontmatter(content: &str) -> Option<Pipeline> {
     let yaml_str = &rest[..end];
 
     let fm: serde_json::Value = serde_yaml::from_str(yaml_str).ok()?;
+
+    // Try new format first (has agents: or steps: with new-style entries)
+    if fm.get("agents").is_some() || fm.get("steps").is_some() {
+        let (pipeline, _) = parse_pipeline_content(yaml_str)?;
+        return Some(pipeline);
+    }
+
+    // Fallback: old format with bare steps array
     let steps_val = fm.get("steps")?;
     serde_json::from_value(steps_val.clone()).ok()
 }

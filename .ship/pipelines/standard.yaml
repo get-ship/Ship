@@ -1,0 +1,3 @@
+name: standard
+description: Implement then gate.
+agents: ["{{ impl_agent }}", reviewer]
