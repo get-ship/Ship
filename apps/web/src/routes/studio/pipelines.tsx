@@ -1,4 +1,5 @@
 import { createFileRoute } from '@tanstack/react-router'
+import { DaemonGuard } from '#/features/studio/DaemonGuard'
 import { useState } from 'react'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import { GitMerge, Plus, Save, ChevronRight, Trash2 } from 'lucide-react'
@@ -10,7 +11,7 @@ import { usePlatform } from '#/features/studio/PlatformProvider'
 import { useDaemon } from '#/features/studio/hooks/useDaemonData'
 
 export const Route = createFileRoute('/studio/pipelines')({
-  component: PipelinesPage,
+  component: () => <DaemonGuard><PipelinesPage /></DaemonGuard>,
   ssr: false,
 })
 

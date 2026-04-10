@@ -1,4 +1,5 @@
 import { createFileRoute } from '@tanstack/react-router'
+import { DaemonGuard } from '#/features/studio/DaemonGuard'
 import { GitBranch, ArrowLeft } from 'lucide-react'
 import { Button } from '@ship/primitives'
 import { GitTab } from '#/features/studio/session/GitTab'
@@ -8,7 +9,7 @@ import { useDiffContent } from '#/features/studio/session/useDiffContent'
 import { useState, useCallback } from 'react'
 
 export const Route = createFileRoute('/studio/git')({
-  component: GitPage,
+  component: () => <DaemonGuard><GitPage /></DaemonGuard>,
   ssr: false,
 })
 

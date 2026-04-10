@@ -1,4 +1,5 @@
 import { createFileRoute } from '@tanstack/react-router'
+import { DaemonGuard } from '#/features/studio/DaemonGuard'
 import { useState, useCallback, useRef } from 'react'
 import type { FrontmatterEntry } from '@ship/primitives'
 import { composeFrontmatterDocument, splitFrontmatterDocument } from '@ship/primitives'
@@ -24,7 +25,7 @@ interface SkillFeedbackEntry {
 
 
 export const Route = createFileRoute('/studio/skills')({
-  component: SkillsIDEPage,
+  component: () => <DaemonGuard><SkillsIDEPage /></DaemonGuard>,
   pendingComponent: SkillsIdeSkeleton,
 })
 

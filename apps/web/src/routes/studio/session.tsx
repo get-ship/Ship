@@ -20,9 +20,10 @@ import { ViewHost } from '#/features/studio/views/ViewHost'
 import { usePlatform } from '#/features/studio/PlatformProvider'
 import { useGlobalAnnotations } from '#/features/studio/AnnotationContext'
 import { SessionEmptyState } from '#/features/studio/session/SessionEmptyState'
+import { DaemonGuard } from '#/features/studio/DaemonGuard'
 
 export const Route = createFileRoute('/studio/session')({
-  component: SessionPage,
+  component: () => <DaemonGuard><SessionPage /></DaemonGuard>,
   pendingComponent: SessionSkeleton,
   ssr: false,
 })
