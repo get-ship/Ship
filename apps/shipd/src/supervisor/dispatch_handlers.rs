@@ -160,3 +160,54 @@ pub(crate) async fn finalize_pipeline_if_done(
     let _ = kernel.lock().await.route(env, &ctx).await;
 }
 
+/// Execute a merge step: git merge the job branch, emit `job.merged` on success.
+/// Returns `true` if the merge succeeded.
+pub(crate) async fn execute_merge_step(
+    kernel: &Arc<Mutex<runtime::events::KernelRouter>>,
+    job_id: &str,
+    slug: &str,
+    branch: &str,
+) -> bool {
+    let merge_result = std::process::Command::new("git")
+        .args(["merge", branch, "--no-edit"])
+        .current_dir(super::helpers::repo_dir())
+        .output();
+
+    match merge_result {
+        Ok(output) if output.status.success() => {
+            tracing::info!(slug, branch, "pipeline: merge successful");
+            let merged_payload = runtime::events::job::JobMergedPayload {
+                job_id: job_id.to_string(),
+                slug: slug.to_string(),
+            };
+            let merged_envelope = EventEnvelope::new(
+                event_types::JOB_MERGED,
+                job_id,
+                &merged_payload,
+            );
+            if let Ok(envelope) = merged_envelope {
+                if let Ok(store) = SqliteEventStore::new() {
+                    let _ = EventStore::append(&store, &envelope);
+                }
+                let ctx = EmitContext {
+                    caller_kind: CallerKind::Runtime,
+                    skill_id: None,
+                    workspace_id: None,
+                    session_id: None,
+                };
+                let _ = kernel.lock().await.route(envelope, &ctx).await;
+            }
+            true
+        }
+        Ok(output) => {
+            let stderr = String::from_utf8_lossy(&output.stderr);
+            tracing::error!(slug, branch, "pipeline: merge failed: {stderr}");
+            false
+        }
+        Err(e) => {
+            tracing::error!(slug, "pipeline: git merge command failed: {e}");
+            false
+        }
+    }
+}
+

@@ -3,7 +3,7 @@
 //! A pipeline is a DAG of steps. Each step declares dependencies via `after`.
 //! When a step completes, unblocked steps are found and dispatched.
 use runtime::events::job::StepType;
-use runtime::events::{CallerKind, EmitContext, EventEnvelope};
+use runtime::events::EventEnvelope;
 use runtime::services::dispatch_ports::JobContext;
 use runtime::projections::job::{load_jobs, load_jobs_at};
 use std::sync::Arc;
@@ -14,7 +14,7 @@ use super::dispatch_emit::{emit_job_dispatched_with_meta, emit_step_dispatched_e
 use super::executors::run_step::execute_run_step;
 use super::helpers::{compile_agent_config, worktrees_dir};
 use super::job_dispatch::DispatchContext;
-use super::liveness;
+use super::step_monitor::{StepMonitor, start_step_monitor};
 
 // Re-export for callers that import emit_job_dispatched from this module.
 pub(crate) use super::dispatch_emit::emit_job_dispatched;
@@ -143,7 +143,9 @@ async fn advance_pipeline_inner(
     // Dispatch each unblocked step
     let job_vars = job.vars.clone().unwrap_or_default();
     let mut dispatched_any = false;
-    for step in next_steps {
+    for (step_idx, step) in pipeline.steps.iter().enumerate().filter_map(|(i, s)| {
+        next_steps.iter().find(|ns| ns.id == s.id).map(|ns| (i, *ns))
+    }) {
         // Interpolate {{ var }} references before dispatch.
         let step = match super::pipeline_vars::interpolate_step(step, &job_vars, &Default::default()) {
             Ok(s) => s,
@@ -223,7 +225,24 @@ async fn advance_pipeline_inner(
                 match dctx.executor.spawn(&job_ctx).await {
                     Ok(handle) => {
                         dctx.registry.lock().await.register(slug, handle);
-                        liveness::start_exit_handler(kernel.clone(), dctx.registry.clone(), exit_rx);
+                        // Use step monitor for pipeline steps — tracks done_declared + exit
+                        let monitor = StepMonitor::new(
+                            job.job_id.clone(),
+                            step_idx,
+                            slug.clone(),
+                            step.id.clone(),
+                        );
+                        // Register done flag so step.done_declared events can set it
+                        dctx.done_flags.lock().await.insert(
+                            slug.clone(),
+                            monitor.done_flag(),
+                        );
+                        start_step_monitor(
+                            monitor,
+                            kernel.clone(),
+                            dctx.registry.clone(),
+                            exit_rx,
+                        );
                     }
                     Err(e) => {
                         tracing::error!(slug, step_id = step.id, "pipeline: spawn failed: {e}");
@@ -237,51 +256,11 @@ async fn advance_pipeline_inner(
             }
             StepType::Merge => {
                 tracing::info!(slug, branch = %job.branch, "pipeline: executing merge step");
-
-                // Gracefully end any running agent first
                 graceful_agent_exit(slug, None).await;
-
-                // Git merge the job branch into the current branch (v0.2.0 or whatever HEAD is)
-                let merge_result = std::process::Command::new("git")
-                    .args(["merge", &job.branch, "--no-edit"])
-                    .current_dir(super::helpers::repo_dir())
-                    .output();
-
-                match merge_result {
-                    Ok(output) if output.status.success() => {
-                        tracing::info!(slug, branch = %job.branch, "pipeline: merge successful");
-
-                        // Emit job.merged to trigger cleanup
-                        let merged_payload = runtime::events::job::JobMergedPayload {
-                            job_id: job.job_id.clone(),
-                            slug: slug.clone(),
-                        };
-                        let merged_envelope = EventEnvelope::new(
-                            runtime::events::job::event_types::JOB_MERGED,
-                            &job.job_id,
-                            &merged_payload,
-                        );
-                        if let Ok(envelope) = merged_envelope {
-                            if let Ok(store) = runtime::events::SqliteEventStore::new() {
-                                let _ = runtime::events::EventStore::append(&store, &envelope);
-                            }
-                            let ctx = EmitContext {
-                                caller_kind: CallerKind::Runtime,
-                                skill_id: None,
-                                workspace_id: None,
-                                session_id: None,
-                            };
-                            let _ = kernel.lock().await.route(envelope, &ctx).await;
-                        }
-                        dispatched_any = true;
-                    }
-                    Ok(output) => {
-                        let stderr = String::from_utf8_lossy(&output.stderr);
-                        tracing::error!(slug, branch = %job.branch, "pipeline: merge failed: {stderr}");
-                    }
-                    Err(e) => {
-                        tracing::error!(slug, "pipeline: git merge command failed: {e}");
-                    }
+                if super::dispatch_handlers::execute_merge_step(
+                    kernel, &job.job_id, slug, &job.branch,
+                ).await {
+                    dispatched_any = true;
                 }
             }
             StepType::Human => {

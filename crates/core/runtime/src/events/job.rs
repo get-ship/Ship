@@ -294,6 +294,30 @@ pub struct StepOutputPayload {
     pub stderr: Option<String>,
 }
 
+/// Emitted by an agent via the `step_done` MCP tool to declare step completion.
+#[derive(Debug, Clone, Serialize, Deserialize, Type)]
+pub struct StepDoneDeclaredPayload {
+    pub job_id: String,
+    pub slug: String,
+    pub step_id: String,
+    pub summary: Option<String>,
+}
+
+/// Emitted by the step monitor after observing process exit and/or step_done.
+/// This is the authoritative signal for pipeline advancement.
+#[derive(Debug, Clone, Serialize, Deserialize, Type)]
+pub struct StepObservedPayload {
+    pub job_id: String,
+    pub slug: String,
+    pub step_index: usize,
+    pub step_name: String,
+    pub succeeded: bool,
+    pub exit_code: Option<i32>,
+    pub duration_secs: u64,
+    pub done_declared: bool,
+    pub reason: Option<String>,
+}
+
 /// Event type constants for the `job.` namespace.
 pub mod event_types {
     pub const JOB_CREATED: &str = "job.created";
@@ -310,4 +334,6 @@ pub mod event_types {
     pub const STEP_COMPLETED: &str = "job.step_completed";
     pub const STEP_FAILED: &str = "job.step_failed";
     pub const STEP_OUTPUT: &str = "job.step_output";
+    pub const STEP_DONE_DECLARED: &str = "step.done_declared";
+    pub const STEP_OBSERVED: &str = "step.observed";
 }

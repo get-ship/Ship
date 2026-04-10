@@ -72,6 +72,7 @@ fn noop_dctx() -> DispatchContext {
         registry: Arc::new(tokio::sync::Mutex::new(
             super::ProcessRegistry::new(),
         )),
+        done_flags: Arc::new(tokio::sync::Mutex::new(std::collections::HashMap::new())),
     }
 }
 
@@ -413,6 +414,7 @@ mod ports {
             registry: Arc::new(tokio::sync::Mutex::new(
                 super::super::ProcessRegistry::new(),
             )),
+            done_flags: Arc::new(tokio::sync::Mutex::new(std::collections::HashMap::new())),
         };
 
         let (_dir2, router) = super::setup();
@@ -451,6 +453,7 @@ mod ports {
             registry: Arc::new(tokio::sync::Mutex::new(
                 super::super::ProcessRegistry::new(),
             )),
+            done_flags: Arc::new(tokio::sync::Mutex::new(std::collections::HashMap::new())),
         };
 
         let (_dir2, router) = super::setup();
@@ -493,6 +496,7 @@ mod ports {
             registry: Arc::new(tokio::sync::Mutex::new(
                 super::super::ProcessRegistry::new(),
             )),
+            done_flags: Arc::new(tokio::sync::Mutex::new(std::collections::HashMap::new())),
         };
 
         let worktree_root = dir.path().join("worktrees");
@@ -1169,6 +1173,7 @@ mod reliability {
             registry: Arc::new(tokio::sync::Mutex::new(
                 super::super::ProcessRegistry::new(),
             )),
+            done_flags: Arc::new(tokio::sync::Mutex::new(std::collections::HashMap::new())),
         };
 
         super::super::reconcile_dispatched_jobs_at(&kernel, &dctx, &ship_dir).await;
@@ -1214,6 +1219,7 @@ mod reliability {
             isolation: Arc::new(super::NoopIsolation),
             executor: Arc::new(super::NoopExecutor),
             registry: registry.clone(),
+            done_flags: Arc::new(tokio::sync::Mutex::new(std::collections::HashMap::new())),
         };
 
         super::super::reconcile_dispatched_jobs_at(&kernel, &dctx, &ship_dir).await;
@@ -1267,6 +1273,7 @@ mod reliability {
             registry: Arc::new(tokio::sync::Mutex::new(
                 super::super::ProcessRegistry::new(),
             )),
+            done_flags: Arc::new(tokio::sync::Mutex::new(std::collections::HashMap::new())),
         };
 
         super::super::reconcile_dispatched_jobs_at(&kernel, &dctx, &ship_dir).await;
@@ -1326,6 +1333,7 @@ mod reliability {
             isolation: Arc::new(super::NoopIsolation),
             executor: Arc::new(AliveProcessExecutor),
             registry: registry.clone(),
+            done_flags: Arc::new(tokio::sync::Mutex::new(std::collections::HashMap::new())),
         };
 
         assert!(registry.lock().await.is_empty());

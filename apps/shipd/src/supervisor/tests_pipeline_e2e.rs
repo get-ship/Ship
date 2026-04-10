@@ -204,6 +204,7 @@ async fn pipeline_advances_through_all_steps() {
         isolation: Arc::new(MockIsolation { work_dir: worktree_path.clone() }),
         executor: executor.clone(),
         registry: Arc::new(Mutex::new(ProcessRegistry::new())),
+        done_flags: Arc::new(Mutex::new(std::collections::HashMap::new())),
     };
 
     // First step completes — simulate agent finishing
@@ -444,6 +445,7 @@ async fn run_step_advances_to_agent_step() {
         isolation: Arc::new(MockIsolation { work_dir: worktree_path.clone() }),
         executor: executor.clone(),
         registry: Arc::new(Mutex::new(ProcessRegistry::new())),
+        done_flags: Arc::new(Mutex::new(std::collections::HashMap::new())),
     };
 
     // advance_pipeline with the step_completed event — should dispatch "implement"
@@ -525,6 +527,7 @@ async fn first_step_run_executes_without_agent() {
         isolation: Arc::new(MockIsolation { work_dir: worktree_path.clone() }),
         executor: executor.clone(),
         registry: Arc::new(Mutex::new(ProcessRegistry::new())),
+        done_flags: Arc::new(Mutex::new(std::collections::HashMap::new())),
     };
 
     // Dispatch the first run step directly — should execute without spawning an agent.

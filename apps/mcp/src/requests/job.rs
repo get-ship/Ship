@@ -52,3 +52,9 @@ pub struct GetJobRequest {
     /// Job ID to retrieve.
     pub job_id: String,
 }
+
+#[derive(Deserialize, JsonSchema)]
+pub struct StepDoneRequest {
+    /// What was accomplished in this step (optional summary).
+    pub summary: Option<String>,
+}
