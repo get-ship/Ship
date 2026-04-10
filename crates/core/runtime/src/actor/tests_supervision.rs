@@ -3,7 +3,7 @@ mod tests_supervision {
     use crate::actor::supervisor::{SupervisionAction, SupervisorPolicy, evaluate};
     use crate::actor::{create_actor, crash_actor, run_supervision};
     use crate::db::{block_on, db_path, ensure_db, open_db_at};
-    use crate::events::envelope::EventEnvelope;
+    use ship_types::envelope::EventEnvelope;
     use crate::events::types::{ActorCrashed, ActorWoke, event_types};
     use anyhow::Result;
     use tempfile::tempdir;

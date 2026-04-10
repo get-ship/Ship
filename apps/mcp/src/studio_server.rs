@@ -96,7 +96,7 @@ impl StudioServer {
         // Subscribe to all skill custom namespaces
         let mut subscribe_namespaces = vec!["studio.".to_string(), "agent.".to_string()];
         if let Ok(skills) = runtime::list_skills(&ship_dir) {
-            for ns in runtime::events::artifact_events::skill_custom_namespaces(&skills) {
+            for ns in runtime::workspace::artifact_events::skill_custom_namespaces(&skills) {
                 if !subscribe_namespaces.contains(&ns) {
                     subscribe_namespaces.push(ns);
                 }

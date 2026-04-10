@@ -1,8 +1,8 @@
 //! Tests for S2: connection pool handles concurrent access.
 
 use crate::db::{ensure_db_at, pool};
-use crate::events::envelope::EventEnvelope;
-use crate::events::store::{EventStore, SqliteEventStore};
+use ship_types::envelope::EventEnvelope;
+use crate::persistence::event_store::{EventStore, SqliteEventStore};
 use crate::project::init_project;
 use tempfile::tempdir;
 

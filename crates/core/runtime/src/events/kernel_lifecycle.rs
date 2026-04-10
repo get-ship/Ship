@@ -3,11 +3,11 @@
 use anyhow::{Result, anyhow};
 use chrono::Utc;
 
-use crate::events::actor_store::{ActorStore, raw_append};
-use crate::events::envelope::EventEnvelope;
+use crate::persistence::actor_store::{ActorStore, raw_append};
+use ship_types::envelope::EventEnvelope;
 use crate::events::kernel_router::{KernelRouter, flush_wal};
-use crate::events::mailbox::Mailbox;
-use crate::events::snapshot::{ActorSnapshot, event_stats};
+use ship_kernel::Mailbox;
+use crate::persistence::snapshot::{ActorSnapshot, event_stats};
 
 impl KernelRouter {
     /// Handle actor crash: close mailbox, emit `actor.crashed` event, clean up

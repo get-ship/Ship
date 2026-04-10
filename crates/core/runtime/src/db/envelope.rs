@@ -8,7 +8,7 @@ use anyhow::Result;
 use chrono::{DateTime, Utc};
 use sqlx::Row;
 
-use crate::events::envelope::EventEnvelope;
+use ship_types::envelope::EventEnvelope;
 
 /// Deserialize a SQLite row into an `EventEnvelope`.
 ///

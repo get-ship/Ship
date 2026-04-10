@@ -14,8 +14,8 @@ pub fn get_project_statuses(project_dir: Option<PathBuf>) -> Result<Vec<String>>
 
 fn emit_config_event(subject: &str, detail: Option<String>) -> Result<()> {
     use crate::db::block_on_anyhow;
-    use crate::events::envelope::EventEnvelope;
-    use crate::events::store::{EventStore, SqliteEventStore};
+    use ship_types::envelope::EventEnvelope;
+    use crate::persistence::event_store::{EventStore, SqliteEventStore};
     use crate::events::types::event_types;
     use crate::events::types::ConfigChanged;
     use crate::events::validator::{CallerKind, EmitContext};

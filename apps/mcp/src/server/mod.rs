@@ -128,7 +128,7 @@ impl ShipServer {
         let ship_dir = project_dir.join(".ship");
         let skills_list = runtime::list_skills(&ship_dir).unwrap_or_default();
         let skill_subs =
-            runtime::events::artifact_events::skill_event_subscriptions(&skills_list);
+            runtime::workspace::artifact_events::skill_event_subscriptions(&skills_list);
 
         let mut subscribe_namespaces = vec![
             "studio.".to_string(),

@@ -5,8 +5,8 @@
 //! A shared `envelope_from_row` must handle both schemas correctly.
 
 use crate::db::{block_on, ensure_db, open_db};
-use crate::events::envelope::EventEnvelope;
-use crate::events::store::{EventStore, SqliteEventStore};
+use ship_types::envelope::EventEnvelope;
+use crate::persistence::event_store::{EventStore, SqliteEventStore};
 use crate::project::init_project;
 use tempfile::tempdir;
 

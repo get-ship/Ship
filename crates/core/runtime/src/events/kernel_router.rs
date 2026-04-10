@@ -23,9 +23,9 @@ use anyhow::{Result, anyhow};
 use tokio::sync::mpsc;
 
 use crate::errors::KernelError;
-use crate::events::actor_store::{ActorStore, init_actor_db, raw_append};
-use crate::events::envelope::EventEnvelope;
-use crate::events::mailbox::Mailbox;
+use crate::persistence::actor_store::{ActorStore, init_actor_db, raw_append};
+use ship_types::envelope::EventEnvelope;
+use ship_kernel::Mailbox;
 use crate::events::validator::{EmitContext, EventValidator, is_kernel_event};
 
 #[cfg(feature = "unstable")]
@@ -56,7 +56,7 @@ impl KernelRouter {
         let kernel_store_path = base_dir.join("kernel").join("events.db");
         init_actor_db(&kernel_store_path)?;
         #[cfg(feature = "unstable")]
-        crate::events::cursor::init_cursor_table(&kernel_store_path)?;
+        crate::persistence::cursor::init_cursor_table(&kernel_store_path)?;
 
         Ok(Self {
             base_dir,

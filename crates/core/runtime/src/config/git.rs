@@ -40,8 +40,8 @@ pub fn set_category_committed(project_dir: &Path, category: &str, commit: bool) 
     set_git_config(project_dir, git)?;
     {
         use crate::db::block_on_anyhow;
-        use crate::events::envelope::EventEnvelope;
-        use crate::events::store::{EventStore, SqliteEventStore};
+        use ship_types::envelope::EventEnvelope;
+        use crate::persistence::event_store::{EventStore, SqliteEventStore};
         use crate::events::types::event_types;
         use crate::events::types::ConfigChanged;
         use crate::events::validator::{CallerKind, EmitContext};

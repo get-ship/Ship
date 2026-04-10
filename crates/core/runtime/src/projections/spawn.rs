@@ -11,7 +11,7 @@ use anyhow::Result;
 use sqlx::SqliteConnection;
 use tokio::task::JoinHandle;
 
-use crate::events::mailbox::Mailbox;
+use ship_kernel::Mailbox;
 use crate::projections::AsyncProjection;
 
 /// Handle for a running async projection task.
