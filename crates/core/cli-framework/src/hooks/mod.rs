@@ -6,6 +6,8 @@ use runtime::events::types::{
 };
 use serde::Deserialize;
 
+mod soft_delete;
+
 #[cfg(test)]
 mod hooks_tests;
 
@@ -23,6 +25,7 @@ pub fn extract_skill_id(tool_name: &str) -> Option<&str> {
 struct ProviderHook {
     tool_name: String,
     hook_event_name: Option<String>,
+    tool_input: Option<serde_json::Value>,
     tool_response: Option<serde_json::Value>,
     mcp_context: Option<serde_json::Value>,
 }
@@ -30,6 +33,8 @@ struct ProviderHook {
 /// Parses provider hook stdin JSON and emits skill.started.
 /// Returns Ok(None) for non-ship tools (ignore silently).
 /// Supports Claude PreToolUse, Gemini BeforeTool, Cursor beforeMCPExecution schemas.
+///
+/// Also performs soft-delete: copies files to trash before destructive tool calls.
 pub fn handle_before_tool(
     stdin_json: &str,
     actor_id: &str,
@@ -40,6 +45,15 @@ pub fn handle_before_tool(
     }
     let hook: ProviderHook = serde_json::from_str(stdin_json)
         .map_err(|e| anyhow!("invalid JSON in hook stdin: {e}"))?;
+
+    // Best-effort soft-delete for destructive tool calls.
+    // Errors are logged but never block tool execution.
+    soft_delete::maybe_trash_before_tool(
+        &hook.tool_name,
+        hook.tool_input.as_ref(),
+        workspace_id,
+    );
+
     let skill_id = match extract_skill_id(&hook.tool_name) {
         Some(id) => id.to_string(),
         None => return Ok(None),

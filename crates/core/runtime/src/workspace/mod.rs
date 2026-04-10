@@ -8,6 +8,7 @@ mod lifecycle_actors;
 mod reconcile;
 mod session;
 mod session_lifecycle;
+pub mod trash;
 pub(crate) mod types;
 pub(crate) mod types_session;
 
@@ -66,4 +67,5 @@ pub use session::{
 };
 pub use reconcile::{reconcile_all_workspaces, reconcile_workspace, resolve_project_root};
 pub use session_lifecycle::{end_workspace_session, start_workspace_session};
+pub use trash::{TrashEntry, list_trash, purge_old_trash, restore_file, trash_file};
 pub use crate::db::workspace_db::{open_workspace_db, workspace_db_path};

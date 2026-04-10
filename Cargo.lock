@@ -404,6 +404,8 @@ dependencies = [
  "runtime",
  "serde",
  "serde_json",
+ "tempfile",
+ "tracing",
 ]
 
 [[package]]

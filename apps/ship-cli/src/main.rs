@@ -28,9 +28,10 @@ mod profile;
 mod publish;
 mod validate;
 mod vars;
+mod workspace_cmd;
 
 use anyhow::Result;
-use cli::{Cli, Commands, ConfigCommands, HookCommands, McpCommands, NetworkCommands};
+use cli::{Cli, Commands, ConfigCommands, HookCommands, McpCommands, NetworkCommands, WorkspaceCommands};
 #[cfg(feature = "unstable")]
 use cli::EventsCommands;
 use std::path::PathBuf;
@@ -95,6 +96,7 @@ fn dispatch(command: Option<Commands>) -> Result<()> {
                 "vars",
                 "Manage skill variables in .ship/skills/ state files. See: ship docs skills",
             ),
+            Commands::Workspace { action } => dispatch_workspace(action),
             Commands::Mcp { action } => dispatch_mcp(action),
             Commands::Convert { source } => convert::run_convert(&source),
             Commands::Docs { topic } => help_topics::run(topic.as_deref()),
@@ -343,6 +345,23 @@ fn run_compile_cmd(provider: Option<&str>, dry_run: bool, path: Option<PathBuf>)
         active_agent: state.active_agent.as_deref(),
         extra_skills: vec![],
     })
+}
+
+// ── Workspace ────────────────────────────────────────────────────────────────
+
+fn dispatch_workspace(action: WorkspaceCommands) -> Result<()> {
+    match action {
+        WorkspaceCommands::Trash { purge } => {
+            if purge {
+                workspace_cmd::run_trash_purge()
+            } else {
+                workspace_cmd::run_trash_list()
+            }
+        }
+        WorkspaceCommands::Restore { filename, dest } => {
+            workspace_cmd::run_restore(&filename, dest)
+        }
+    }
 }
 
 // ── Subcommand dispatchers ────────────────────────────────────────────────────

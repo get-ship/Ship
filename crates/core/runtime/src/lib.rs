@@ -90,14 +90,14 @@ pub use errors::{KernelError, WorkspaceError};
 
 pub use workspace::{
     CreateWorkspaceRequest, EndWorkspaceSessionRequest, Environment, Process, ProcessStatus,
-    Workspace, WorkspaceProviderMatrix, WorkspaceRepairReport, WorkspaceSession,
+    TrashEntry, Workspace, WorkspaceProviderMatrix, WorkspaceRepairReport, WorkspaceSession,
     WorkspaceSessionRecord, WorkspaceSessionStatus, WorkspaceStatus,
     create_workspace, delete_workspace, end_workspace_session, get_active_workspace_session,
     get_workspace, get_workspace_provider_matrix, get_workspace_session_record,
-    list_workspace_sessions, list_workspaces, reconcile_workspace,
-    record_workspace_session_progress, repair_workspace,
-    set_workspace_active_agent, set_workspace_started, start_workspace_session,
-    workspace_status,
+    list_trash, list_workspace_sessions, list_workspaces, purge_old_trash,
+    reconcile_workspace, record_workspace_session_progress, repair_workspace,
+    restore_file, set_workspace_active_agent, set_workspace_started, start_workspace_session,
+    trash_file, workspace_status,
 };
 
 /// Generate a monotonic ULID string. Thread-safe via thread-local generator.
