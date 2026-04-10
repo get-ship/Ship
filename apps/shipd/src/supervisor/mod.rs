@@ -10,6 +10,7 @@ mod dispatch_replay;
 mod dispatch_run;
 pub(crate) mod orphan_cleanup;
 pub(crate) mod executors;
+pub(crate) mod gate_retry;
 pub mod helpers;
 pub mod job_dispatch;
 pub(crate) mod liveness;

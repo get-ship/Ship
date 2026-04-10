@@ -15,6 +15,7 @@ use tokio::sync::Mutex;
 
 use super::adapters;
 use super::dispatch_handlers::{finalize_pipeline_if_done, handle_job_cleanup, handle_job_update};
+use super::gate_retry::{try_gate_retry, emit_job_failed_for_gate};
 pub(crate) use super::dispatch_initial::handle_job_created;
 pub(crate) use super::dispatch_initial::dispatch_job_internal;
 use super::dispatch_pipeline::advance_pipeline;
@@ -206,6 +207,11 @@ pub(crate) async fn handle_job_event(
                 // Unregister if still present
                 if let Some(slug) = &slug {
                     dctx.registry.lock().await.unregister(slug);
+                }
+                // Check if this was a gate step — if so, try retrying the gated step
+                if !try_gate_retry(kernel, dctx, &payload).await {
+                    // No retry — emit job.failed
+                    emit_job_failed_for_gate(kernel, &payload).await;
                 }
             }
         }

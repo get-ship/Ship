@@ -266,6 +266,96 @@ fn project_pipeline_full_lifecycle() {
 }
 
 #[test]
+fn project_step_retry_tracks_attempt() {
+    let events = vec![
+        make_event(
+            event_types::JOB_CREATED,
+            serde_json::json!({
+                "job_id": "j-retry",
+                "slug": "retry-test",
+                "agent": "rust-lane",
+                "branch": "job/retry-test",
+                "spec_path": "spec.md",
+                "steps": {
+                    "steps": [
+                        { "id": "implement", "type": "agent", "agent": "rust-lane", "max_retries": 2 },
+                        { "id": "gate", "type": "gate", "agent": "reviewer", "after": ["implement"] }
+                    ]
+                }
+            }),
+        ),
+        make_event(
+            event_types::STEP_DISPATCHED,
+            serde_json::json!({"job_id": "j-retry", "slug": "retry-test", "step_id": "implement", "step_type": "agent"}),
+        ),
+        make_event(
+            event_types::STEP_COMPLETED,
+            serde_json::json!({"job_id": "j-retry", "slug": "retry-test", "step_id": "implement"}),
+        ),
+        // Gate fails — step.retry emitted for the gated step
+        make_event(
+            event_types::STEP_RETRY,
+            serde_json::json!({
+                "job_id": "j-retry",
+                "slug": "retry-test",
+                "step_id": "implement",
+                "step_name": "implement",
+                "attempt": 1,
+                "reason": "gate_failed"
+            }),
+        ),
+    ];
+    let map = project(&events);
+    let rec = map.get("j-retry").unwrap();
+    assert_eq!(rec.step_retries.get("implement"), Some(&1));
+    assert!(!rec.completed_steps.contains(&"implement".to_string()),
+        "step must be removed from completed on retry");
+    assert_eq!(rec.status, JobStatus::Dispatched);
+    assert!(rec.error.is_none(), "error must be cleared on retry");
+}
+
+#[test]
+fn project_step_retry_increments_on_second_retry() {
+    let events = vec![
+        make_event(
+            event_types::JOB_CREATED,
+            serde_json::json!({
+                "job_id": "j-retry2",
+                "slug": "retry-test-2",
+                "agent": "rust-lane",
+                "branch": "job/retry-test-2",
+                "spec_path": "spec.md",
+            }),
+        ),
+        make_event(
+            event_types::STEP_RETRY,
+            serde_json::json!({
+                "job_id": "j-retry2",
+                "slug": "retry-test-2",
+                "step_id": "implement",
+                "step_name": "implement",
+                "attempt": 1,
+                "reason": "gate_failed"
+            }),
+        ),
+        make_event(
+            event_types::STEP_RETRY,
+            serde_json::json!({
+                "job_id": "j-retry2",
+                "slug": "retry-test-2",
+                "step_id": "implement",
+                "step_name": "implement",
+                "attempt": 2,
+                "reason": "gate_failed"
+            }),
+        ),
+    ];
+    let map = project(&events);
+    let rec = map.get("j-retry2").unwrap();
+    assert_eq!(rec.step_retries.get("implement"), Some(&2));
+}
+
+#[test]
 fn project_non_pipeline_job_has_no_phase() {
     // A normal job (no pipeline) should have current_phase = None
     let events = vec![

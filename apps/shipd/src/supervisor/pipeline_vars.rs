@@ -50,5 +50,6 @@ pub fn interpolate_step(
         model: step.model.as_deref().map(interp).transpose()?,
         provider: step.provider.clone(),
         command: step.command.as_deref().map(interp).transpose()?,
+        max_retries: step.max_retries,
     })
 }
