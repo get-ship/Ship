@@ -1,5 +1,5 @@
 use crate::db::{block_on, open_db_at};
-use crate::events::envelope::EventEnvelope;
+use ship_types::envelope::EventEnvelope;
 use crate::events::filter::EventFilter;
 use crate::events::kernel_router::{ActorConfig, KernelRouter};
 use crate::events::validator::{CallerKind, EmitContext};

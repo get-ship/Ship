@@ -5,7 +5,7 @@ mod tests {
     };
     use crate::db::{block_on, ensure_db, open_db_at};
     use crate::events::filter::EventFilter;
-    use crate::events::store::{EventStore, SqliteEventStore};
+    use crate::persistence::event_store::{EventStore, SqliteEventStore};
     use crate::events::types::event_types;
     use anyhow::Result;
     use tempfile::tempdir;

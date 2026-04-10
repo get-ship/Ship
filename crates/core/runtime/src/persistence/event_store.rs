@@ -4,8 +4,8 @@ use std::path::{Path, PathBuf};
 
 use crate::db::envelope::envelope_from_row;
 use crate::db::{block_on, db_path, ensure_db, ensure_db_at, open_db_at};
-use crate::events::envelope::EventEnvelope;
-use crate::events::filter::EventFilter;
+use ship_types::envelope::EventEnvelope;
+use crate::events::EventFilter;
 
 pub trait EventStore: Send + Sync {
     fn append(&self, event: &EventEnvelope) -> Result<()>;

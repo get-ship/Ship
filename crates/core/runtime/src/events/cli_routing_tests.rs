@@ -7,7 +7,7 @@
 use tempfile::tempdir;
 
 use crate::db::{block_on, open_db_at};
-use crate::events::envelope::EventEnvelope;
+use ship_types::envelope::EventEnvelope;
 use crate::events::kernel_router::{ActorConfig, KernelRouter};
 use crate::events::types::event_types;
 use crate::events::validator::{CallerKind, EmitContext};
@@ -132,7 +132,7 @@ async fn gate_outcome_delivered_to_subscribed_mailbox() {
 #[test]
 fn event_persisted_to_platform_db_without_router() {
     use crate::db::ensure_db;
-    use crate::events::store::{EventStore, SqliteEventStore};
+    use crate::persistence::event_store::{EventStore, SqliteEventStore};
     use crate::project::init_project;
 
     let tmp = tempdir().unwrap();

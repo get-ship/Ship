@@ -5,7 +5,7 @@ use chrono::{DateTime, Utc};
 
 use crate::db::envelope::envelope_from_row;
 use crate::db::{block_on, db_path, ensure_db, open_db_at};
-use crate::events::envelope::EventEnvelope;
+use ship_types::envelope::EventEnvelope;
 
 const COLS: &str = "id, event_type, entity_id, actor, payload_json, version, \
     causation_id, workspace_id, session_id, \

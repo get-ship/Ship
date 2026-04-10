@@ -3,7 +3,7 @@
 
 #[cfg(feature = "unstable")]
 mod kernel_security {
-    use crate::events::envelope::EventEnvelope;
+    use ship_types::envelope::EventEnvelope;
     use crate::events::identity::{ActorIdentity, ActorType};
     use crate::events::kernel_router::KernelRouter;
     use crate::events::permissions::{ActorPermissions, DeliveryScope, PermittedSubscription};
@@ -497,7 +497,7 @@ mod kernel_security {
 
 #[cfg(feature = "unstable")]
 mod kernel_security_edge_cases {
-    use crate::events::envelope::EventEnvelope;
+    use ship_types::envelope::EventEnvelope;
     use crate::events::identity::{ActorIdentity, ActorType};
     use crate::events::kernel_router::{KernelRouter, MAILBOX_CAPACITY};
     use crate::events::permissions::{ActorPermissions, DeliveryScope, PermittedSubscription};

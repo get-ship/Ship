@@ -4,8 +4,8 @@ use super::events::{
     list_all_events, list_events_since_time, list_recent_events, query_events_since,
 };
 use crate::db::ensure_db;
-use crate::events::envelope::EventEnvelope;
-use crate::events::store::{EventStore, SqliteEventStore};
+use ship_types::envelope::EventEnvelope;
+use crate::persistence::event_store::{EventStore, SqliteEventStore};
 use crate::events::types::event_types;
 use crate::events::types::ProjectLog;
 use crate::project::init_project;

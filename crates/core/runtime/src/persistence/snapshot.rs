@@ -10,7 +10,7 @@ use anyhow::Result;
 use chrono::{DateTime, Utc};
 use serde::{Deserialize, Serialize};
 
-use crate::events::kernel_router::ActorConfig;
+use ship_types::ActorConfig;
 
 /// A portable snapshot of an actor's event store and configuration.
 ///

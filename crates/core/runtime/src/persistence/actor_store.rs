@@ -13,8 +13,8 @@ use std::str::FromStr;
 
 use crate::db::envelope::envelope_from_row;
 use crate::db::{block_on, open_db_at};
-use crate::events::envelope::EventEnvelope;
-use crate::events::filter::EventFilter;
+use ship_types::envelope::EventEnvelope;
+use crate::events::EventFilter;
 
 const COLS: &str = "id, event_type, entity_id, actor, payload_json, version, \
     causation_id, workspace_id, session_id, \

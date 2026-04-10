@@ -10,7 +10,7 @@ use anyhow::Result;
 use tempfile::tempdir;
 use tokio::sync::mpsc;
 
-use crate::events::actor_store::init_actor_db;
+use crate::persistence::actor_store::init_actor_db;
 use crate::events::{ActorStore, EventEnvelope, Mailbox};
 use crate::services::{run_service, HealthStatus, ServiceHandler};
 

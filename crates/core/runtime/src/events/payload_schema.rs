@@ -4,7 +4,7 @@
 //! type has a malformed payload, it is rejected before persistence. Unknown
 //! event types (custom skill events) pass through.
 
-use crate::events::envelope::EventEnvelope;
+use ship_types::envelope::EventEnvelope;
 use crate::events::validator::{EmitContext, EventValidator, ValidationError};
 
 /// Validates payloads for known event types at emit time. Unknown event types

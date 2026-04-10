@@ -10,7 +10,7 @@ use std::time::Instant;
 
 use crate::db::envelope::envelope_from_row;
 use crate::db::{block_on, ensure_db_at, open_db_at};
-use crate::events::envelope::EventEnvelope;
+use ship_types::envelope::EventEnvelope;
 use crate::projections::{
     ActorProjection, EventBus, SessionProjection, WorkspaceProjection,
 };

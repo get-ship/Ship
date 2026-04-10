@@ -9,7 +9,7 @@
 use anyhow::Result;
 
 use crate::db::block_on_anyhow;
-use crate::events::store::EventStore;
+use crate::persistence::event_store::EventStore;
 use crate::events::types::event_types;
 use crate::events::types::{ActorCrashed, ActorCreated, ActorSlept, ActorStopped, ActorWoke};
 use crate::events::validator::{CallerKind, EmitContext};

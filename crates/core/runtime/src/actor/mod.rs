@@ -9,7 +9,7 @@ use crate::db::actor_events::{
     emit_actor_created, emit_actor_crashed, emit_actor_slept, emit_actor_stopped, emit_actor_woke,
 };
 use crate::events::filter::EventFilter;
-use crate::events::store::{EventStore, SqliteEventStore};
+use crate::persistence::event_store::{EventStore, SqliteEventStore};
 use crate::events::types::ActorCreated;
 
 pub mod supervisor;

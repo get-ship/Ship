@@ -3,8 +3,8 @@
 #[cfg(test)]
 mod tests {
     use crate::db::{block_on, db_path, ensure_db, open_db_at};
-    use crate::events::envelope::EventEnvelope;
-    use crate::events::store::{EventStore, SqliteEventStore};
+    use ship_types::envelope::EventEnvelope;
+    use crate::persistence::event_store::{EventStore, SqliteEventStore};
     use crate::events::types::event_types;
     use crate::projections::{EventBus, WorkspaceProjection};
 

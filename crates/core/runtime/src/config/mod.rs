@@ -1,3 +1,7 @@
+pub mod catalog;
+pub mod hooks;
+pub mod security;
+
 mod artifact_registry;
 mod crud;
 mod discover;
