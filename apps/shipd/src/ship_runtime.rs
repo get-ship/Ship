@@ -120,7 +120,8 @@ impl ShipRuntime {
             Arc::new(tokio::sync::RwLock::new(HashMap::new()));
 
         // End all previously-active sessions from prior daemon run.
-        cleanup_active_sessions_on_startup();
+        // Uses spawn_blocking because the DB layer uses block_in_place.
+        let _ = tokio::task::spawn_blocking(cleanup_active_sessions_on_startup).await;
 
         Ok(Self {
             config,
