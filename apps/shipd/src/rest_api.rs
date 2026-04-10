@@ -70,21 +70,20 @@ pub async fn mesh_register(
         return e;
     }
     // MCP callers must register as their authenticated identity — no impersonation.
-    if auth.caller_kind == CallerKind::Mcp {
-        if let Some(ref bound_id) = auth.agent_id {
-            if bound_id != &req.agent_id {
-                return (
-                    StatusCode::FORBIDDEN,
-                    Json(MeshResponse {
-                        ok: false,
-                        data: serde_json::json!(format!(
-                            "identity mismatch: authenticated as '{}', cannot register as '{}'",
-                            bound_id, req.agent_id
-                        )),
-                    }),
-                );
-            }
-        }
+    if auth.caller_kind == CallerKind::Mcp
+        && let Some(ref bound_id) = auth.agent_id
+        && bound_id != &req.agent_id
+    {
+        return (
+            StatusCode::FORBIDDEN,
+            Json(MeshResponse {
+                ok: false,
+                data: serde_json::json!(format!(
+                    "identity mismatch: authenticated as '{}', cannot register as '{}'",
+                    bound_id, req.agent_id
+                )),
+            }),
+        );
     }
 
     // Spawn (or re-spawn) an actor in the kernel for this remote agent

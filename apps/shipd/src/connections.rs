@@ -134,10 +134,10 @@ pub struct ConnectionGuard {
 impl Drop for ConnectionGuard {
     fn drop(&mut self) {
         // Abort relay task
-        if let Ok(mut h) = self.relay_handle.lock() {
-            if let Some(handle) = h.take() {
-                handle.abort();
-            }
+        if let Ok(mut h) = self.relay_handle.lock()
+            && let Some(handle) = h.take()
+        {
+            handle.abort();
         }
         // Emit deregister + stop actor (requires tokio runtime)
         let id = match self.actor_id.lock().ok().and_then(|mut g| g.take()) {

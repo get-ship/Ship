@@ -140,17 +140,17 @@ fn reset_stale_migrations(conn: &mut SqliteConnection) {
             .fetch_one(&mut *conn)
             .await
     });
-    if let Ok(count) = db_count {
-        if count > disk_count {
-            tracing::warn!(
-                "platform.db has {count} migrations but disk has {disk_count} — resetting migration table"
-            );
-            let _ = block_on(async {
-                sqlx::query("DROP TABLE IF EXISTS _sqlx_migrations")
-                    .execute(&mut *conn)
-                    .await
-            });
-        }
+    if let Ok(count) = db_count
+        && count > disk_count
+    {
+        tracing::warn!(
+            "platform.db has {count} migrations but disk has {disk_count} — resetting migration table"
+        );
+        let _ = block_on(async {
+            sqlx::query("DROP TABLE IF EXISTS _sqlx_migrations")
+                .execute(&mut *conn)
+                .await
+        });
     }
     // If the table doesn't exist yet, that's fine — sqlx will create it.
 }

@@ -136,10 +136,10 @@ impl NetworkServer {
             if let Some(ref id) = old_id {
                 let _ = self.kernel.lock().await.stop_actor(id);
             }
-            if let Ok(mut h) = self.conn.relay_handle.lock() {
-                if let Some(handle) = h.take() {
-                    handle.abort();
-                }
+            if let Ok(mut h) = self.conn.relay_handle.lock()
+                && let Some(handle) = h.take()
+            {
+                handle.abort();
             }
         }
 

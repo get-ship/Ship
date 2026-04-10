@@ -30,10 +30,10 @@ pub fn ensure_pipeline(mut payload: JobCreatedPayload) -> JobCreatedPayload {
                 steps = pipeline.steps.len(),
                 "pipeline: loaded from .ship/pipelines/{name}.yaml"
             );
-            if let Some(root) = pipeline.root_steps().first() {
-                if let Some(agent) = &root.agent {
-                    payload.agent = agent.clone();
-                }
+            if let Some(root) = pipeline.root_steps().first()
+                && let Some(agent) = &root.agent
+            {
+                payload.agent = agent.clone();
             }
             merge_meta_vars(&mut payload, &meta);
             payload.steps = Some(pipeline);
@@ -47,21 +47,21 @@ pub fn ensure_pipeline(mut payload: JobCreatedPayload) -> JobCreatedPayload {
     }
 
     // Try inline steps from frontmatter
-    if let Some(pipeline) = parse_steps_from_frontmatter(&spec_content) {
-        if !pipeline.steps.is_empty() {
-            tracing::info!(
-                slug = payload.slug,
-                steps = pipeline.steps.len(),
-                "pipeline: loaded inline steps from spec frontmatter"
-            );
-            if let Some(root) = pipeline.root_steps().first() {
-                if let Some(agent) = &root.agent {
-                    payload.agent = agent.clone();
-                }
-            }
-            payload.steps = Some(pipeline);
-            return payload;
+    if let Some(pipeline) = parse_steps_from_frontmatter(&spec_content)
+        && !pipeline.steps.is_empty()
+    {
+        tracing::info!(
+            slug = payload.slug,
+            steps = pipeline.steps.len(),
+            "pipeline: loaded inline steps from spec frontmatter"
+        );
+        if let Some(root) = pipeline.root_steps().first()
+            && let Some(agent) = &root.agent
+        {
+            payload.agent = agent.clone();
         }
+        payload.steps = Some(pipeline);
+        return payload;
     }
 
     // Default pipeline
@@ -134,12 +134,12 @@ fn read_spec_content(spec_path: &str) -> String {
     if src.exists() {
         return std::fs::read_to_string(src).unwrap_or_default();
     }
-    if let Ok(ship_dir) = crate::project::get_global_dir() {
-        if let Some(root) = ship_dir.parent() {
-            let alt = root.join(spec_path);
-            if alt.exists() {
-                return std::fs::read_to_string(&alt).unwrap_or_default();
-            }
+    if let Ok(ship_dir) = crate::project::get_global_dir()
+        && let Some(root) = ship_dir.parent()
+    {
+        let alt = root.join(spec_path);
+        if alt.exists() {
+            return std::fs::read_to_string(&alt).unwrap_or_default();
         }
     }
     String::new()

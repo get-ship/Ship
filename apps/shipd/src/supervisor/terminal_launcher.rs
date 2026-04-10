@@ -125,10 +125,10 @@ pub(crate) fn detect_strategy_inner(
     if is_darwin {
         return TerminalStrategy::MacTerminal;
     }
-    if has_display {
-        if let Some(term) = terminal_env.filter(|t| !t.is_empty()) {
-            return TerminalStrategy::XdgTerminal(term.to_string());
-        }
+    if has_display
+        && let Some(term) = terminal_env.filter(|t| !t.is_empty())
+    {
+        return TerminalStrategy::XdgTerminal(term.to_string());
     }
     TerminalStrategy::Manual
 }

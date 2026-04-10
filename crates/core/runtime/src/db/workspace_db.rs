@@ -49,15 +49,15 @@ pub fn open_workspace_db(ship_dir: &Path, workspace_id: &str) -> Result<SqliteCo
                 .fetch_one(&mut conn)
                 .await
         });
-        if let Ok(count) = db_count {
-            if count > disk_count {
-                tracing::warn!("workspace db has {count} migrations but disk has {disk_count} — resetting");
-                let _ = block_on(async {
-                    sqlx::query("DROP TABLE IF EXISTS _sqlx_migrations")
-                        .execute(&mut conn)
-                        .await
-                });
-            }
+        if let Ok(count) = db_count
+            && count > disk_count
+        {
+            tracing::warn!("workspace db has {count} migrations but disk has {disk_count} — resetting");
+            let _ = block_on(async {
+                sqlx::query("DROP TABLE IF EXISTS _sqlx_migrations")
+                    .execute(&mut conn)
+                    .await
+            });
         }
     }
 

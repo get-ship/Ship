@@ -91,10 +91,10 @@ pub(crate) fn ensure_tmux_session(
         .args(["has-session", "-t", session_name])
         .status();
 
-    if let Ok(s) = check {
-        if s.success() {
-            return Ok(());
-        }
+    if let Ok(s) = check
+        && s.success()
+    {
+        return Ok(());
     }
 
     let path_str = worktree_path

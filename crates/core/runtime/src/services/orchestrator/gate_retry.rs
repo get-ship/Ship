@@ -91,10 +91,10 @@ pub async fn try_gate_retry(
         }
     };
 
-    if let Ok(store) = crate::events::SqliteEventStore::new() {
-        if let Err(e) = crate::events::EventStore::append(&store, &retry_envelope) {
-            tracing::warn!(slug = %payload.slug, "gate-retry: failed to persist: {e}");
-        }
+    if let Ok(store) = crate::events::SqliteEventStore::new()
+        && let Err(e) = crate::events::EventStore::append(&store, &retry_envelope)
+    {
+        tracing::warn!(slug = %payload.slug, "gate-retry: failed to persist: {e}");
     }
     let ctx = crate::events::EmitContext {
         caller_kind: crate::events::CallerKind::Runtime,

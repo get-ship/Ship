@@ -15,6 +15,7 @@ use crate::events::types::event_types;
 use crate::events::EventEnvelope;
 
 /// Projection that maintains the workspace_session table from session.* events.
+#[derive(Default)]
 pub struct SessionProjection;
 
 impl SessionProjection {

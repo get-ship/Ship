@@ -236,10 +236,10 @@ fn list_available_agents(project_root: &Path) -> Vec<String> {
     if let Ok(entries) = std::fs::read_dir(&agents_dir) {
         for entry in entries.flatten() {
             let path = entry.path();
-            if path.is_file() && crate::paths::is_config_ext(&path) && crate::paths::is_agent_config(&path) {
-                if let Some(stem) = path.file_stem().and_then(|s| s.to_str()) {
-                    ids.push(stem.to_string());
-                }
+            if path.is_file() && crate::paths::is_config_ext(&path) && crate::paths::is_agent_config(&path)
+                && let Some(stem) = path.file_stem().and_then(|s| s.to_str())
+            {
+                ids.push(stem.to_string());
             }
         }
     }

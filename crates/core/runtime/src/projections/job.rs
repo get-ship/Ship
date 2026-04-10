@@ -80,20 +80,19 @@ pub fn apply(record: &mut JobRecord, event: &EventEnvelope) {
             if let Ok(p) = serde_json::from_str::<serde_json::Value>(&event.payload_json) {
                 record.worktree = p["worktree"].as_str().map(str::to_string);
                 // Capture provider session metadata if present (latest dispatch wins).
-                if let Some(meta) = p.get("provider_meta") {
-                    if !meta.is_null() {
-                        record.provider_meta = Some(meta.clone());
-                    }
+                if let Some(meta) = p.get("provider_meta")
+                    && !meta.is_null()
+                {
+                    record.provider_meta = Some(meta.clone());
                 }
             }
             // DAG step tracking: on re-dispatch after completion, mark current step
             // as completed and advance to next unblocked step.
-            if record.status == JobStatus::Completed {
-                if let Some(ref current) = record.current_step.take() {
-                    if !record.completed_steps.contains(current) {
-                        record.completed_steps.push(current.clone());
-                    }
-                }
+            if record.status == JobStatus::Completed
+                && let Some(ref current) = record.current_step.take()
+                && !record.completed_steps.contains(current)
+            {
+                record.completed_steps.push(current.clone());
             }
             // Set current_step to the next unblocked step
             if let Some(ref pipeline) = record.steps {
@@ -134,10 +133,10 @@ pub fn apply(record: &mut JobRecord, event: &EventEnvelope) {
         event_types::JOB_COMPLETED => {
             // DAG step tracking: when the final step completes without a subsequent
             // JOB_DISPATCHED (e.g. merge follows immediately), record it now.
-            if let Some(ref current) = record.current_step.take() {
-                if !record.completed_steps.contains(current) {
-                    record.completed_steps.push(current.clone());
-                }
+            if let Some(ref current) = record.current_step.take()
+                && !record.completed_steps.contains(current)
+            {
+                record.completed_steps.push(current.clone());
             }
             record.status = JobStatus::Completed;
             record.updated_at = ts;
@@ -168,14 +167,14 @@ pub fn apply(record: &mut JobRecord, event: &EventEnvelope) {
             record.updated_at = ts;
         }
         event_types::STEP_COMPLETED => {
-            if let Ok(p) = serde_json::from_str::<serde_json::Value>(&event.payload_json) {
-                if let Some(step_id) = p["step_id"].as_str() {
-                    if record.current_step.as_deref() == Some(step_id) {
-                        record.current_step = None;
-                    }
-                    if !record.completed_steps.contains(&step_id.to_string()) {
-                        record.completed_steps.push(step_id.to_string());
-                    }
+            if let Ok(p) = serde_json::from_str::<serde_json::Value>(&event.payload_json)
+                && let Some(step_id) = p["step_id"].as_str()
+            {
+                if record.current_step.as_deref() == Some(step_id) {
+                    record.current_step = None;
+                }
+                if !record.completed_steps.contains(&step_id.to_string()) {
+                    record.completed_steps.push(step_id.to_string());
                 }
             }
             record.updated_at = ts;
@@ -188,15 +187,15 @@ pub fn apply(record: &mut JobRecord, event: &EventEnvelope) {
             record.updated_at = ts;
         }
         event_types::STEP_RETRY => {
-            if let Ok(p) = serde_json::from_str::<serde_json::Value>(&event.payload_json) {
-                if let Some(step_id) = p["step_id"].as_str() {
-                    let attempt = p["attempt"].as_u64().unwrap_or(1) as u32;
-                    record.step_retries.insert(step_id.to_string(), attempt);
-                    // Remove the step from completed so it can be re-dispatched
-                    record.completed_steps.retain(|s| s != step_id);
-                    record.error = None;
-                    record.status = JobStatus::Dispatched;
-                }
+            if let Ok(p) = serde_json::from_str::<serde_json::Value>(&event.payload_json)
+                && let Some(step_id) = p["step_id"].as_str()
+            {
+                let attempt = p["attempt"].as_u64().unwrap_or(1) as u32;
+                record.step_retries.insert(step_id.to_string(), attempt);
+                // Remove the step from completed so it can be re-dispatched
+                record.completed_steps.retain(|s| s != step_id);
+                record.error = None;
+                record.status = JobStatus::Dispatched;
             }
             record.updated_at = ts;
         }
@@ -280,12 +279,11 @@ pub fn project(events: &[EventEnvelope]) -> HashMap<String, JobRecord> {
         }
 
         // All other events reference an existing record via job_id in the payload.
-        if let Ok(p) = serde_json::from_str::<serde_json::Value>(&event.payload_json) {
-            if let Some(job_id) = p["job_id"].as_str() {
-                if let Some(record) = map.get_mut(job_id) {
-                    apply(record, event);
-                }
-            }
+        if let Ok(p) = serde_json::from_str::<serde_json::Value>(&event.payload_json)
+            && let Some(job_id) = p["job_id"].as_str()
+            && let Some(record) = map.get_mut(job_id)
+        {
+            apply(record, event);
         }
     }
 
@@ -299,7 +297,7 @@ pub fn load_jobs() -> Result<HashMap<String, JobRecord>> {
     ensure_db()?;
     let mut conn = open_db_at(&db_path()?)?;
 
-    Ok(load_jobs_from_conn(&mut conn)?)
+    load_jobs_from_conn(&mut conn)
 }
 
 /// Load jobs from an explicit `ship_dir` path.
@@ -311,7 +309,7 @@ pub fn load_jobs_at(ship_dir: &std::path::Path) -> Result<HashMap<String, JobRec
     ensure_db_at(ship_dir)?;
     let mut conn = open_db_at(&ship_dir.join("platform.db"))?;
 
-    Ok(load_jobs_from_conn(&mut conn)?)
+    load_jobs_from_conn(&mut conn)
 }
 
 fn load_jobs_from_conn(

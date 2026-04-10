@@ -17,6 +17,7 @@ use crate::events::types::event_types;
 use crate::events::EventEnvelope;
 
 /// Projection that maintains the workspace table from workspace.* events.
+#[derive(Default)]
 pub struct WorkspaceProjection;
 
 impl WorkspaceProjection {

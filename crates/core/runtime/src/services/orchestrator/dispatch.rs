@@ -25,14 +25,14 @@ pub async fn handle_job_created(
         }
     };
 
-    if let Some(deps) = &payload.depends_on {
-        if !deps.is_empty() {
-            tracing::info!(
-                slug = payload.slug, deps = ?deps,
-                "job-dispatch: deferring job until dependencies complete"
-            );
-            return;
-        }
+    if let Some(deps) = &payload.depends_on
+        && !deps.is_empty()
+    {
+        tracing::info!(
+            slug = payload.slug, deps = ?deps,
+            "job-dispatch: deferring job until dependencies complete"
+        );
+        return;
     }
 
     let payload = ensure_pipeline(payload);
@@ -48,19 +48,18 @@ pub async fn dispatch_job_internal(
     let branch = &payload.branch;
 
     // Check if the first step is a run step
-    if let Some(ref steps) = payload.steps {
-        if let Some(first) = steps.root_steps().first() {
-            if first.step_type == StepType::Run {
-                let command = match &first.command {
-                    Some(c) => c.clone(),
-                    None => {
-                        tracing::error!(slug, step_id = first.id, "job-dispatch: run step missing command");
-                        return;
-                    }
-                };
-                return dispatch_first_run_step(kernel, payload, octx, &first.id, &command).await;
+    if let Some(ref steps) = payload.steps
+        && let Some(first) = steps.root_steps().first()
+        && first.step_type == StepType::Run
+    {
+        let command = match &first.command {
+            Some(c) => c.clone(),
+            None => {
+                tracing::error!(slug, step_id = first.id, "job-dispatch: run step missing command");
+                return;
             }
-        }
+        };
+        return dispatch_first_run_step(kernel, payload, octx, &first.id, &command).await;
     }
 
     let agent = if let Some(ref steps) = payload.steps {

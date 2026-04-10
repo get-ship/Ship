@@ -105,7 +105,7 @@ pub fn gen_ulid() -> String {
     use std::cell::RefCell;
     use std::time::SystemTime;
     thread_local! {
-        static GEN: RefCell<ulid::Generator> = RefCell::new(ulid::Generator::new());
+        static GEN: RefCell<ulid::Generator> = const { RefCell::new(ulid::Generator::new()) };
     }
     GEN.with(|g| {
         g.borrow_mut()

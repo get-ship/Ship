@@ -104,7 +104,7 @@ pub(super) fn save_runtime_settings(ship_dir: &Path, config: &ProjectConfig) -> 
     kv::set(&ns, "hooks", &serde_json::to_value(&config.hooks)?)?;
     kv::set(&ns, "statuses", &serde_json::to_value(&config.statuses)?)?;
     kv::set(&ns, "ai", &serde_json::to_value(&config.ai)?)?;
-    kv::set(&ns, "git", &serde_json::to_value(&normalize_git_config(config.git.clone()))?)?;
+    kv::set(&ns, "git", &serde_json::to_value(normalize_git_config(config.git.clone()))?)?;
     kv::set(&ns, "namespaces", &serde_json::to_value(&config.namespaces)?)?;
     Ok(())
 }
