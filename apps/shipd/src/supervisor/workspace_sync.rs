@@ -218,7 +218,7 @@ mod tests {
         handle_workspace_event(&ship_dir, &envelope);
 
         let ws = runtime::workspace::list_workspaces(&ship_dir).unwrap();
-        assert_eq!(ws.iter().filter(|w| w.branch == "idempotent-branch").count(), 1);
+        assert_eq!(ws.iter().filter(|w| w.name == "idempotent-branch").count(), 1);
     }
 
     #[test]

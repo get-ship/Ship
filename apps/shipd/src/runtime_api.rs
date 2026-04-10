@@ -667,7 +667,7 @@ mod tests {
         let payload = runtime::events::types::SessionStarted {
             goal: Some("test".into()),
             workspace_id: ws.id.clone(),
-            workspace_branch: ws.branch.clone(),
+            workspace_branch: ws.name.clone(),
             ..Default::default()
         };
         runtime::db::session_events::insert_session_with_started_event(
@@ -697,7 +697,7 @@ mod tests {
         let payload = runtime::events::types::SessionStarted {
             goal: Some("a".into()),
             workspace_id: ws_a.id.clone(),
-            workspace_branch: ws_a.branch.clone(),
+            workspace_branch: ws_a.name.clone(),
             ..Default::default()
         };
         runtime::db::session_events::insert_session_with_started_event(

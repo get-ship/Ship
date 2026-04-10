@@ -25,8 +25,7 @@ fn create_test_workspace(dir: &TempDir) -> (String, crate::rest_api::ApiState) {
         &ship_dir,
         runtime::workspace::CreateWorkspaceRequest {
             branch: branch.clone(),
-            is_worktree: Some(true),
-            worktree_path: Some(dir.path().to_string_lossy().to_string()),
+            path: Some(dir.path().to_string_lossy().to_string()),
             ..Default::default()
         },
     )

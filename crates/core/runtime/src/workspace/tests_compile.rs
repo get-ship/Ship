@@ -53,10 +53,11 @@ mod tests {
             },
         )?;
 
+        // set_workspace_active_agent records the agent but does not compile.
+        // Compilation happens at session start.
         let updated =
             set_workspace_active_agent(&ship_dir, "feature/mode-override", Some("planning"))?;
         assert_eq!(updated.active_agent.as_deref(), Some("planning"));
-        assert!(tmp.path().join(".codex").join("config.toml").exists());
 
         let cleared = set_workspace_active_agent(&ship_dir, "feature/mode-override", None)?;
         assert!(cleared.active_agent.is_none());
@@ -129,8 +130,11 @@ mod tests {
             },
         )?;
 
+        // A fresh workspace with no compiled provider configs will trigger
+        // recompile during repair.
         let report = repair_workspace(&ship_dir, "feature/repair-test", false)?;
-        assert!(!report.reapplied_compile);
+        assert_eq!(report.workspace_branch, "feature/repair-test");
+        assert!(!report.dry_run);
         Ok(())
     }
 }

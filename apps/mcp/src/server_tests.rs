@@ -56,10 +56,7 @@ async fn mcp_workspace_control_plane_round_trip() {
         &project_dir,
         RuntimeCreateWorkspaceRequest {
             branch: "feature/mode-control-plane".to_string(),
-            status: None,
-            active_agent: None,
-            is_worktree: Some(false),
-            worktree_path: None,
+            ..Default::default()
         },
     )
     .expect("create workspace for test");

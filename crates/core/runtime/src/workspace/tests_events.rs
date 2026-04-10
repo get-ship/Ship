@@ -47,33 +47,29 @@ mod tests {
         Ok(())
     }
 
-    // ── test 2: compile emits workspace.compiled with correct payload ─────────
+    // ── test 2: set_agent emits workspace.agent_changed event ──────────────────
 
     #[test]
-    fn set_agent_emits_compiled_event_with_payload() -> Result<()> {
+    fn set_agent_emits_agent_changed_event() -> Result<()> {
         let (_tmp, ship_dir) = setup();
 
         create_workspace(
             &ship_dir,
             CreateWorkspaceRequest {
-                branch: "feature/evt-compiled".to_string(),
+                branch: "feature/evt-agent".to_string(),
                 ..Default::default()
             },
         )?;
-        let _ = set_workspace_active_agent(&ship_dir, "feature/evt-compiled", None)?;
+        let _ = set_workspace_active_agent(&ship_dir, "feature/evt-agent", None)?;
 
         let store = event_store();
         let events = store.query(&EventFilter {
-            entity_id: Some("feature/evt-compiled".to_string()),
-            event_type: Some(event_types::WORKSPACE_COMPILED.to_string()),
+            entity_id: Some("feature/evt-agent".to_string()),
+            event_type: Some(event_types::WORKSPACE_AGENT_CHANGED.to_string()),
             ..Default::default()
         })?;
 
-        assert!(!events.is_empty(), "expected workspace.compiled event after set_agent");
-        let ev = &events[0];
-        let payload: crate::events::types::WorkspaceCompiled =
-            serde_json::from_str(&ev.payload_json)?;
-        assert!(payload.duration_ms < 60_000, "duration_ms should be reasonable");
+        assert!(!events.is_empty(), "expected workspace.agent_changed event after set_agent");
         Ok(())
     }
 

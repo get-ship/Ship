@@ -260,7 +260,7 @@ mod tests {
 
         assert!(
             err.to_string()
-                .contains("Provider 'gemini' is not allowed for workspace")
+                .contains("Provider 'gemini' not allowed for workspace")
         );
         Ok(())
     }
@@ -469,7 +469,9 @@ mod tests {
         assert!(started.config_generation_at_start.is_some());
 
         // Trigger a recompile which bumps config_generation.
-        let _ = set_workspace_active_agent(&ship_dir, "feature/stale-session", None)?;
+        let workspace = get_workspace(&ship_dir, "feature/stale-session")?
+            .ok_or_else(|| anyhow::anyhow!("workspace missing"))?;
+        crate::workspace::compile::compile_workspace_context(&ship_dir, &workspace, None)?;
 
         let active = get_active_workspace_session(&ship_dir, "feature/stale-session")?
             .ok_or_else(|| anyhow::anyhow!("active session missing"))?;
