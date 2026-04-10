@@ -10,6 +10,63 @@ use chrono::Utc;
 use std::path::Path;
 use std::process::Command;
 
+// ---- Git metrics -----------------------------------------------------------
+
+#[derive(Debug, Default)]
+struct GitMetrics {
+    files_changed: Option<i64>,
+    lines_added: Option<i64>,
+    lines_removed: Option<i64>,
+}
+
+/// Collect git diff --stat metrics for the worktree rooted at `project_dir`.
+/// Compares HEAD against the session start commit (approximated by duration).
+/// Falls back gracefully — returns defaults if git is unavailable or errors.
+fn collect_git_metrics(ship_dir: &Path) -> GitMetrics {
+    let project_dir = ship_dir.parent().unwrap_or(ship_dir);
+    let output = Command::new("git")
+        .args(["diff", "--stat", "--stat-width=200", "HEAD"])
+        .current_dir(project_dir)
+        .output();
+
+    let output = match output {
+        Ok(o) if o.status.success() => o,
+        _ => return GitMetrics::default(),
+    };
+
+    let stdout = String::from_utf8_lossy(&output.stdout);
+    parse_git_diff_stat(&stdout)
+}
+
+/// Parse the summary line of `git diff --stat` output.
+/// Example: " 5 files changed, 120 insertions(+), 30 deletions(-)"
+fn parse_git_diff_stat(output: &str) -> GitMetrics {
+    let Some(summary) = output.lines().last() else {
+        return GitMetrics::default();
+    };
+
+    let mut files = None;
+    let mut added = None;
+    let mut removed = None;
+
+    for part in summary.split(',') {
+        let part = part.trim();
+        if part.contains("file") && part.contains("changed") {
+            files = part.split_whitespace().next().and_then(|n| n.parse().ok());
+        } else if part.contains("insertion") {
+            added = part.split_whitespace().next().and_then(|n| n.parse().ok());
+        } else if part.contains("deletion") {
+            removed = part.split_whitespace().next().and_then(|n| n.parse().ok());
+        }
+    }
+
+    GitMetrics {
+        files_changed: files,
+        lines_added: added,
+        lines_removed: removed,
+    }
+}
+
 use super::compile::{compile_workspace_context, resolve_session_providers};
 use super::crud::get_workspace;
 use super::helpers::*;
@@ -204,12 +261,33 @@ pub fn end_workspace_session(
         .map_err(|e| anyhow::anyhow!("invalid ended_at: {}", e))?;
     let duration_secs_val = (ended_ts - started_at).num_seconds();
 
+    // Collect git metrics from the worktree before closing out.
+    let git_metrics = collect_git_metrics(ship_dir);
+    let files_changed = request.files_changed.or(git_metrics.files_changed);
+    let lines_added = request.lines_added.or(git_metrics.lines_added);
+    let lines_removed = request.lines_removed.or(git_metrics.lines_removed);
+
+    // Read tool_call_count accumulated during the session.
+    let tool_calls = if active.tool_call_count > 0 {
+        Some(active.tool_call_count)
+    } else {
+        request.tool_calls
+    };
+
     let ended_payload = SessionEnded {
         summary: active.summary.clone(),
         duration_secs: Some(duration_secs_val as u64),
         gate_result: request.gate_result.clone(),
         updated_workspace_ids: active.updated_workspace_ids.clone(),
         compile_error: active.compile_error.clone(),
+        agent_id: active.agent_id.clone(),
+        provider: active.primary_provider.clone(),
+        model: request.model.clone(),
+        files_changed,
+        lines_added,
+        lines_removed,
+        tool_calls,
+        exit_reason: request.exit_reason.clone(),
     };
     let _end_envelope = update_session_with_ended_event(&active.id, &active.workspace_id, &ended_payload)?;
 
@@ -230,9 +308,13 @@ pub fn end_workspace_session(
         provider: ended.primary_provider.clone(),
         model: request.model,
         agent_id: ended.agent_id.clone(),
-        files_changed: request.files_changed,
+        files_changed,
         gate_result: request.gate_result,
         workspace_branch: ended.workspace_branch.clone(),
+        lines_added,
+        lines_removed,
+        tool_calls,
+        exit_reason: request.exit_reason,
     };
     let _recorded_envelope =
         insert_session_recorded_event(&ended.id, &ended.workspace_id, &recorded_payload)?;

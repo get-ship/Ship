@@ -110,7 +110,9 @@ pub fn get_workspace_session_record_db(
         sqlx::query(
             "SELECT id, session_id, workspace_id, workspace_branch, summary,
                     updated_workspace_ids_json, duration_secs, provider, model,
-                    agent_id, files_changed, gate_result, created_at
+                    agent_id, files_changed, gate_result,
+                    lines_added, lines_removed, tool_calls, exit_reason,
+                    created_at
              FROM workspace_session_record
              WHERE session_id = ?",
         )
@@ -132,6 +134,10 @@ pub fn get_workspace_session_record_db(
         agent_id: row.get(9),
         files_changed: row.get(10),
         gate_result: row.get(11),
-        created_at: row.get(12),
+        lines_added: row.get(12),
+        lines_removed: row.get(13),
+        tool_calls: row.get(14),
+        exit_reason: row.get(15),
+        created_at: row.get(16),
     }))
 }

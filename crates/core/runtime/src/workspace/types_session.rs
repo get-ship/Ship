@@ -95,6 +95,14 @@ pub struct WorkspaceSessionRecord {
     pub files_changed: Option<i64>,
     #[serde(skip_serializing_if = "Option::is_none")]
     pub gate_result: Option<String>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub lines_added: Option<i64>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub lines_removed: Option<i64>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub tool_calls: Option<i64>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub exit_reason: Option<String>,
     pub created_at: DateTime<Utc>,
 }
 
@@ -105,6 +113,10 @@ pub struct EndWorkspaceSessionRequest {
     pub model: Option<String>,
     pub files_changed: Option<i64>,
     pub gate_result: Option<String>,
+    pub lines_added: Option<i64>,
+    pub lines_removed: Option<i64>,
+    pub tool_calls: Option<i64>,
+    pub exit_reason: Option<String>,
 }
 
 #[derive(Serialize, Deserialize, Debug, Clone, Type)]

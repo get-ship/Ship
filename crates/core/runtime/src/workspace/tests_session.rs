@@ -42,9 +42,7 @@ mod tests {
             EndWorkspaceSessionRequest {
                 summary: Some("Implemented parser + tests".to_string()),
                 updated_workspace_ids: vec!["feat-parser".to_string()],
-                model: None,
-                files_changed: None,
-                gate_result: None,
+                ..Default::default()
             },
         )?;
         assert_eq!(ended.status, WorkspaceSessionStatus::Ended);
@@ -88,6 +86,7 @@ mod tests {
                 model: Some("claude-opus-4-20250514".to_string()),
                 files_changed: Some(5),
                 gate_result: Some("pass".to_string()),
+                ..Default::default()
             },
         )?;
 

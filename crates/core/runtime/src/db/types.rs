@@ -56,6 +56,10 @@ pub struct WorkspaceSessionRecordDb {
     pub agent_id: Option<String>,
     pub files_changed: Option<i64>,
     pub gate_result: Option<String>,
+    pub lines_added: Option<i64>,
+    pub lines_removed: Option<i64>,
+    pub tool_calls: Option<i64>,
+    pub exit_reason: Option<String>,
     pub created_at: String,
 }
 
