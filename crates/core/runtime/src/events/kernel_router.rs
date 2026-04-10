@@ -118,7 +118,7 @@ impl KernelRouter {
             config.write_namespaces,
             config.read_namespaces,
         );
-        Ok((store, Mailbox::new(rx)))
+        Ok((store, Mailbox::from_receiver(rx)))
     }
 
     pub async fn route(&self, event: EventEnvelope, ctx: &EmitContext) -> Result<()> {

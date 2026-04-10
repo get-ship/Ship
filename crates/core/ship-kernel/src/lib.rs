@@ -1,5 +1,36 @@
-// ship-kernel: pure event routing with no persistence implementation.
-// This crate defines the kernel interface. Implementation follows.
+//! ship-kernel: pure event routing with no persistence implementation.
+//!
+//! This crate defines the kernel's routing core — actor registration,
+//! namespace-based subscriptions, event validation, and sink-based persistence.
+//! It has zero filesystem or database dependencies.
+
+pub mod mailbox;
+pub mod router;
+pub mod sink;
+pub mod validator;
+
+pub use mailbox::Mailbox;
+pub use router::{ActorConfig, KernelRouter};
+pub use sink::EventSink;
+pub use validator::EventValidator;
+
+use thiserror::Error;
+
+#[derive(Debug, Error)]
+pub enum KernelError {
+    #[error("actor '{actor_id}' not found")]
+    ActorNotFound { actor_id: String },
+    #[error("actor '{actor_id}' already exists")]
+    ActorAlreadyExists { actor_id: String },
+    #[error("validation failed: {reason}")]
+    ValidationFailed { reason: String },
+    #[error("namespace violation: '{namespace}' not in write scope for '{actor_id}'")]
+    NamespaceViolation { namespace: String, actor_id: String },
+    #[error("mailbox full for actor '{actor_id}'")]
+    MailboxFull { actor_id: String },
+    #[error("persistence error: {0}")]
+    Persistence(#[from] anyhow::Error),
+}
 
 #[cfg(test)]
 mod tests {
