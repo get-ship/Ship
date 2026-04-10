@@ -73,6 +73,10 @@ pub use validator::{
 };
 pub use global_kernel_router::{init_kernel_router, kernel_router};
 
+// Re-export ship-kernel types at existing paths.
+pub use ship_kernel::EventSink;
+pub use ship_kernel::KernelError as PureKernelError;
+
 use anyhow::Result;
 use chrono::{DateTime, Utc};
 use std::path::Path;

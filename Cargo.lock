@@ -2483,6 +2483,7 @@ dependencies = [
  "serde_yaml",
  "sha2",
  "ship-jobs",
+ "ship-kernel",
  "ship-types",
  "specta",
  "sqlx",
@@ -2814,6 +2815,17 @@ dependencies = [
  "chrono",
  "serde",
  "serde_json",
+]
+
+[[package]]
+name = "ship-kernel"
+version = "0.1.0"
+dependencies = [
+ "anyhow",
+ "serde_json",
+ "ship-types",
+ "thiserror 2.0.18",
+ "tokio",
 ]
 
 [[package]]

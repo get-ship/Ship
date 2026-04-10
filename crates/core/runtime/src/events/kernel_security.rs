@@ -103,7 +103,7 @@ impl KernelRouter {
             permissions.emit.clone(),
             subs_to_namespaces(&permissions.subscribe),
         );
-        Ok((store, Mailbox::new(rx)))
+        Ok((store, Mailbox::from_receiver(rx)))
     }
 
     /// Check if an event matches an actor's subscription scope.
