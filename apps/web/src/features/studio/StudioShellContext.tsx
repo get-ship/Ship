@@ -1,7 +1,10 @@
+// Compatibility layer — delegates to PlatformProvider.
+// TODO: migrate all consumers to usePlatform() directly, then delete this file.
+
 import { createContext, useContext, useState, useCallback, useEffect, type ReactNode } from 'react'
+import { usePlatform } from './PlatformProvider'
 
 const DRAWER_LS_KEY = 'ship-studio:right-drawer-open'
-const VIEWED_WS_LS_KEY = 'ship-studio:viewed-workspace'
 
 function readDrawerInitial(): boolean {
   try {
@@ -9,14 +12,6 @@ function readDrawerInitial(): boolean {
     return stored === 'true'
   } catch {
     return false
-  }
-}
-
-function readViewedWorkspaceInitial(): string | null {
-  try {
-    return localStorage.getItem(VIEWED_WS_LS_KEY)
-  } catch {
-    return null
   }
 }
 
@@ -32,7 +27,6 @@ interface StudioShellState {
   drawerOpen: boolean
   toggleDrawer: () => void
 
-  /** Which workspace the UI is viewing (local state, no daemon mutation) */
   viewedWorkspace: string | null
   setViewedWorkspace: (branch: string | null) => void
 }
@@ -40,21 +34,9 @@ interface StudioShellState {
 const StudioShellContext = createContext<StudioShellState | null>(null)
 
 export function StudioShellProvider({ children }: { children: ReactNode }) {
-  const [commandPaletteOpen, setCommandPaletteOpen] = useState(false)
-  const [fileSidebarOpen, setFileSidebarOpen] = useState(true)
+  const platform = usePlatform()
   const [drawerOpen, setDrawerOpen] = useState(readDrawerInitial)
-  const [viewedWorkspace, _setViewedWorkspace] = useState<string | null>(readViewedWorkspaceInitial)
-  const setViewedWorkspace = useCallback((branch: string | null) => {
-    _setViewedWorkspace(branch)
-    try {
-      if (branch) localStorage.setItem(VIEWED_WS_LS_KEY, branch)
-      else localStorage.removeItem(VIEWED_WS_LS_KEY)
-    } catch { /* ignore */ }
-  }, [])
 
-  const toggleCommandPalette = useCallback(() => setCommandPaletteOpen((p) => !p), [])
-  const toggleFileSidebar = useCallback(() => setFileSidebarOpen((p) => !p), [])
-  const closeFileSidebar = useCallback(() => setFileSidebarOpen(false), [])
   const toggleDrawer = useCallback(() => {
     setDrawerOpen((prev) => {
       const next = !prev
@@ -66,24 +48,11 @@ export function StudioShellProvider({ children }: { children: ReactNode }) {
   useEffect(() => {
     function handleKey(e: KeyboardEvent) {
       const mod = e.metaKey || e.ctrlKey
-
-      if (e.key === 'k' && mod) {
-        e.preventDefault()
-        toggleCommandPalette()
-        return
-      }
-      if (e.key === 'b' && mod) {
-        e.preventDefault()
-        toggleFileSidebar()
-        return
-      }
-      if (e.key === '/' && mod) {
-        e.preventDefault()
-        toggleDrawer()
-        return
-      }
-      if (e.key === 'Escape' && commandPaletteOpen) {
-        setCommandPaletteOpen(false)
+      if (e.key === 'k' && mod) { e.preventDefault(); platform.toggleCommandPalette(); return }
+      if (e.key === 'b' && mod) { e.preventDefault(); platform.toggleSidebar(); return }
+      if (e.key === '/' && mod) { e.preventDefault(); toggleDrawer(); return }
+      if (e.key === 'Escape' && platform.commandPaletteOpen) {
+        platform.toggleCommandPalette()
       }
       if (e.key === 'F11') {
         e.preventDefault()
@@ -93,14 +62,20 @@ export function StudioShellProvider({ children }: { children: ReactNode }) {
     }
     window.addEventListener('keydown', handleKey)
     return () => window.removeEventListener('keydown', handleKey)
-  }, [toggleCommandPalette, toggleFileSidebar, toggleDrawer, commandPaletteOpen])
+  }, [platform, toggleDrawer])
 
   return (
     <StudioShellContext value={{
-      commandPaletteOpen, toggleCommandPalette, setCommandPaletteOpen,
-      fileSidebarOpen, toggleFileSidebar, closeFileSidebar,
-      drawerOpen, toggleDrawer,
-      viewedWorkspace, setViewedWorkspace,
+      commandPaletteOpen: platform.commandPaletteOpen,
+      toggleCommandPalette: platform.toggleCommandPalette,
+      setCommandPaletteOpen: () => platform.toggleCommandPalette(),
+      fileSidebarOpen: platform.sidebarOpen,
+      toggleFileSidebar: platform.toggleSidebar,
+      closeFileSidebar: () => {}, // TODO: add to platform if needed
+      drawerOpen,
+      toggleDrawer,
+      viewedWorkspace: platform.workspace?.branch ?? null,
+      setViewedWorkspace: (branch) => platform.setWorkspace(branch),
     }}>
       {children}
     </StudioShellContext>
@@ -113,13 +88,7 @@ export function useStudioShell(): StudioShellState {
   return ctx
 }
 
-/**
- * Returns the workspace branch the UI is currently viewing.
- * Uses viewedWorkspace if set, otherwise falls back to first active workspace.
- * All data-fetching hooks should use this instead of filtering for status=active.
- */
 export function useViewedWorkspaceId(): string {
   const { viewedWorkspace } = useStudioShell()
-  // Can't call useDaemon here (circular) — caller must pass workspaces if needed
   return viewedWorkspace ?? ''
 }

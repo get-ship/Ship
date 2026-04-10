@@ -2,12 +2,12 @@ import { createFileRoute, Outlet } from '@tanstack/react-router'
 import { StudioErrorBoundary } from '#/features/studio/StudioErrorBoundary'
 import { PanicSaveProvider } from '#/features/agents/PanicSaveContext'
 import { StudioRail } from '#/features/studio/StudioRail'
+import { PlatformProvider } from '#/features/studio/PlatformProvider'
 import { StudioShellProvider, useStudioShell } from '#/features/studio/StudioShellContext'
 import { CommandPalette } from '#/features/studio/CommandPalette'
 import { RightDrawer } from '#/features/studio/session/RightDrawer'
 import { WorkspaceIndicator } from '#/features/studio/WorkspaceIndicator'
 import { AnnotationProvider, useGlobalAnnotations } from '#/features/studio/AnnotationContext'
-import { ShipClientProvider } from '#/features/studio/ShipClientProvider'
 
 export const Route = createFileRoute('/studio')({
   component: StudioLayout,
@@ -17,15 +17,15 @@ export const Route = createFileRoute('/studio')({
 
 function StudioLayout() {
   return (
-    <ShipClientProvider>
-      <PanicSaveProvider>
-        <StudioShellProvider>
+    <PlatformProvider>
+      <StudioShellProvider>
+        <PanicSaveProvider>
           <AnnotationProvider>
             <StudioShell />
           </AnnotationProvider>
-        </StudioShellProvider>
-      </PanicSaveProvider>
-    </ShipClientProvider>
+        </PanicSaveProvider>
+      </StudioShellProvider>
+    </PlatformProvider>
   )
 }
 
