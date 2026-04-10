@@ -6,7 +6,6 @@
 mod tests {
     use crate::db::{block_on, db_path, ensure_db, open_db_at};
     use crate::workspace::*;
-    use crate::db::workspace_state::demote_other_active_workspaces_db;
     use anyhow::Result;
     use tempfile::tempdir;
 
@@ -78,95 +77,6 @@ mod tests {
     }
 
     #[test]
-    fn status_transition_to_idle_emits_status_changed_event() -> Result<()> {
-        let (_tmp, ship_dir) = setup();
-        let branch = "feature/es-status-idle-test";
-
-        create_workspace(
-            &ship_dir,
-            CreateWorkspaceRequest {
-                branch: branch.to_string(),
-                ..Default::default()
-            },
-        )?;
-
-        transition_workspace_status(&ship_dir, branch, WorkspaceStatus::Archived)?;
-        transition_workspace_status(&ship_dir, branch, WorkspaceStatus::Active)?;
-
-        let count = count_events_by_type_and_entity("workspace.status_changed", branch);
-        assert_eq!(
-            count, 1,
-            "transition to Active must emit a workspace.status_changed event, got {count} rows"
-        );
-        Ok(())
-    }
-
-    #[test]
-    fn status_transition_to_frozen_emits_status_changed_event() -> Result<()> {
-        let (_tmp, ship_dir) = setup();
-        let branch = "feature/es-status-frozen-test";
-
-        create_workspace(
-            &ship_dir,
-            CreateWorkspaceRequest {
-                branch: branch.to_string(),
-                ..Default::default()
-            },
-        )?;
-
-        transition_workspace_status(&ship_dir, branch, WorkspaceStatus::Archived)?;
-        transition_workspace_status(&ship_dir, branch, WorkspaceStatus::Active)?;
-        transition_workspace_status(&ship_dir, branch, WorkspaceStatus::Archived)?;
-        transition_workspace_status(&ship_dir, branch, WorkspaceStatus::Active)?;
-
-        let count = count_events_by_type_and_entity("workspace.status_changed", branch);
-        assert_eq!(
-            count, 2,
-            "each non-archive status transition must emit workspace.status_changed, got {count}"
-        );
-        Ok(())
-    }
-
-    #[test]
-    fn bulk_demotion_emits_archived_event_per_workspace() -> Result<()> {
-        let (_tmp, ship_dir) = setup();
-        let branch_a = "feature/es-demote-alpha";
-        let branch_b = "feature/es-demote-beta";
-        let branch_active = "feature/es-demote-keeper";
-
-        create_workspace(
-            &ship_dir,
-            CreateWorkspaceRequest {
-                branch: branch_a.to_string(),
-                ..Default::default()
-            },
-        )?;
-        create_workspace(
-            &ship_dir,
-            CreateWorkspaceRequest {
-                branch: branch_b.to_string(),
-                ..Default::default()
-            },
-        )?;
-        create_workspace(
-            &ship_dir,
-            CreateWorkspaceRequest {
-                branch: branch_active.to_string(),
-                ..Default::default()
-            },
-        )?;
-
-        demote_other_active_workspaces_db(branch_active)?;
-
-        let count_a = count_events_by_type_and_entity("workspace.archived", branch_a);
-        let count_b = count_events_by_type_and_entity("workspace.archived", branch_b);
-
-        assert_eq!(count_a, 1, "demoted workspace must have archived event");
-        assert_eq!(count_b, 1, "demoted workspace must have archived event");
-        Ok(())
-    }
-
-    #[test]
     fn seed_service_workspace_emits_created_event() -> Result<()> {
         let (_tmp, ship_dir) = setup();
 
@@ -181,7 +91,7 @@ mod tests {
     }
 
     #[test]
-    fn set_active_agent_on_inactive_workspace_emits_agent_changed_event() -> Result<()> {
+    fn set_active_agent_emits_agent_changed_event() -> Result<()> {
         let (_tmp, ship_dir) = setup();
 
         let req = CreateWorkspaceRequest {

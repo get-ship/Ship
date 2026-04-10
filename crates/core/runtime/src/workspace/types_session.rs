@@ -2,8 +2,6 @@ use chrono::{DateTime, Utc};
 use serde::{Deserialize, Serialize};
 use specta::Type;
 
-use super::types::WorkspaceStatus;
-
 // ---- Session types ---------------------------------------------------------
 
 #[derive(Serialize, Deserialize, Debug, Clone, Copy, PartialEq, Eq, Type, Default)]
@@ -137,7 +135,6 @@ pub struct WorkspaceRepairReport {
     pub dry_run: bool,
     #[serde(skip_serializing_if = "Option::is_none")]
     pub agent_id: Option<String>,
-    pub status: WorkspaceStatus,
     pub providers_expected: Vec<String>,
     pub missing_provider_configs: Vec<String>,
     pub had_compile_error: bool,
@@ -152,8 +149,6 @@ pub struct WorkspaceRepairReport {
 #[derive(Debug, Clone, Default)]
 pub struct CreateWorkspaceRequest {
     pub branch: String,
-    pub status: Option<WorkspaceStatus>,
     pub active_agent: Option<String>,
-    pub is_worktree: Option<bool>,
-    pub worktree_path: Option<String>,
+    pub path: Option<String>,
 }

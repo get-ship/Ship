@@ -501,15 +501,15 @@ fn resolve_inbox_root(project_dir: &std::path::Path, workspace_id: &str) -> std:
     let ship_dir = project_dir.join(".ship");
     match runtime::get_workspace(&ship_dir, workspace_id) {
         Ok(Some(ws)) => {
-            if let Some(ref wt_path) = ws.worktree_path {
-                let p = std::path::PathBuf::from(wt_path);
+            if let Some(ref ws_path) = ws.path {
+                let p = std::path::PathBuf::from(ws_path);
                 if p.is_dir() {
                     return p;
                 }
                 tracing::warn!(
-                    "studio: worktree_path '{}' for workspace '{}' does not exist — \
+                    "studio: path '{}' for workspace '{}' does not exist — \
                      falling back to project_dir",
-                    wt_path,
+                    ws_path,
                     workspace_id
                 );
             }

@@ -144,14 +144,23 @@ pub async fn delete_workspace(
     Ok(ok_response(serde_json::json!({ "branch": id })))
 }
 
-// ---- Workspace activate endpoint ----
+// ---- Workspace ensure endpoint (replaces activate) ----
 
 /// POST /api/workspaces/{id}/activate
+///
+/// Creates the workspace if it doesn't exist. No-op if it does.
+/// Kept as /activate for API backward compat.
 pub async fn activate_workspace(
     State(state): State<ApiState>,
     axum::extract::Path(id): axum::extract::Path<String>,
 ) -> Result<(StatusCode, Json<MeshResponse>), (StatusCode, Json<MeshResponse>)> {
-    runtime::workspace::activate_workspace(state.ship_dir(), &id).map_err(|e| {
+    runtime::workspace::create_workspace(
+        state.ship_dir(),
+        runtime::workspace::CreateWorkspaceRequest {
+            branch: id.clone(),
+            ..Default::default()
+        },
+    ).map_err(|e| {
         err_response(StatusCode::INTERNAL_SERVER_ERROR, &e.to_string())
     })?;
 

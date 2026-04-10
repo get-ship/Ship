@@ -1,5 +1,5 @@
 //! Tests for event_upserts — each workspace lifecycle function emits the
-//! correct event type via the transactional event → projection path.
+//! correct event type via the transactional event -> projection path.
 
 use anyhow::Result;
 use tempfile::tempdir;
@@ -33,34 +33,25 @@ fn events_of_type(event_type: &str) -> Vec<crate::events::EventEnvelope> {
 fn upsert_created_emits_workspace_created_event() -> Result<()> {
     let (_tmp, ship_dir) = init();
 
-    upsert_workspace_on_created(&ship_dir, "feat/test", false, None, None, "active")?;
+    upsert_workspace_on_created(&ship_dir, "feat/test", None, None)?;
     assert_eq!(last_event_type(), "workspace.created");
 
     let events = events_of_type("workspace.created");
     assert!(!events.is_empty());
     let payload: serde_json::Value = serde_json::from_str(&events[0].payload_json)?;
-    assert_eq!(payload["status"], "active");
     assert_eq!(payload["workspace_id"], workspace_id_from_branch("feat/test"));
     Ok(())
 }
 
 #[test]
-fn upsert_created_with_worktree() -> Result<()> {
+fn upsert_created_with_path() -> Result<()> {
     let (_tmp, ship_dir) = init();
 
-    upsert_workspace_on_created(
-        &ship_dir,
-        "feat/wt",
-        true,
-        Some("/worktrees/wt"),
-        None,
-        "active",
-    )?;
+    upsert_workspace_on_created(&ship_dir, "feat/wt", Some("/worktrees/wt"), None)?;
 
     let events = events_of_type("workspace.created");
     let payload: serde_json::Value = serde_json::from_str(&events[0].payload_json)?;
-    assert_eq!(payload["is_worktree"], true);
-    assert_eq!(payload["worktree_path"], "/worktrees/wt");
+    assert_eq!(payload["path"], "/worktrees/wt");
     Ok(())
 }
 
@@ -68,49 +59,11 @@ fn upsert_created_with_worktree() -> Result<()> {
 fn upsert_created_with_agent() -> Result<()> {
     let (_tmp, ship_dir) = init();
 
-    upsert_workspace_on_created(
-        &ship_dir,
-        "feat/agent",
-        false,
-        None,
-        Some("my-agent"),
-        "active",
-    )?;
+    upsert_workspace_on_created(&ship_dir, "feat/agent", None, Some("my-agent"))?;
 
     let events = events_of_type("workspace.created");
     let payload: serde_json::Value = serde_json::from_str(&events[0].payload_json)?;
     assert_eq!(payload["active_agent"], "my-agent");
-    Ok(())
-}
-
-// ── workspace.activated ─────────────────────────────────────────────────────
-
-#[test]
-fn upsert_activated_emits_event() -> Result<()> {
-    let (_tmp, ship_dir) = init();
-    // Need a workspace record first.
-    upsert_workspace_on_created(&ship_dir, "feat/act", false, None, None, "active")?;
-
-    upsert_workspace_on_activate(&ship_dir, "feat/act", Some("my-agent"), &["claude".into()])?;
-    assert_eq!(last_event_type(), "workspace.activated");
-
-    let events = events_of_type("workspace.activated");
-    let payload: serde_json::Value = serde_json::from_str(&events[0].payload_json)?;
-    assert_eq!(payload["agent_id"], "my-agent");
-    assert_eq!(payload["providers"][0], "claude");
-    Ok(())
-}
-
-#[test]
-fn upsert_activated_without_agent() -> Result<()> {
-    let (_tmp, ship_dir) = init();
-    upsert_workspace_on_created(&ship_dir, "feat/no-agent", false, None, None, "active")?;
-
-    upsert_workspace_on_activate(&ship_dir, "feat/no-agent", None, &[])?;
-
-    let events = events_of_type("workspace.activated");
-    let payload: serde_json::Value = serde_json::from_str(&events[0].payload_json)?;
-    assert!(payload["agent_id"].is_null());
     Ok(())
 }
 
@@ -119,7 +72,7 @@ fn upsert_activated_without_agent() -> Result<()> {
 #[test]
 fn upsert_compiled_emits_event() -> Result<()> {
     let (_tmp, ship_dir) = init();
-    upsert_workspace_on_created(&ship_dir, "feat/comp", false, None, None, "active")?;
+    upsert_workspace_on_created(&ship_dir, "feat/comp", None, None)?;
 
     upsert_workspace_on_compiled(&ship_dir, "feat/comp", 3, 150)?;
 
@@ -136,7 +89,7 @@ fn upsert_compiled_emits_event() -> Result<()> {
 #[test]
 fn upsert_compile_failed_emits_event() -> Result<()> {
     let (_tmp, ship_dir) = init();
-    upsert_workspace_on_created(&ship_dir, "feat/fail", false, None, None, "active")?;
+    upsert_workspace_on_created(&ship_dir, "feat/fail", None, None)?;
 
     upsert_workspace_on_compile_failed(&ship_dir, "feat/fail", "missing provider")?;
 
@@ -147,41 +100,12 @@ fn upsert_compile_failed_emits_event() -> Result<()> {
     Ok(())
 }
 
-// ── workspace.archived ──────────────────────────────────────────────────────
-
-#[test]
-fn upsert_archived_emits_event() -> Result<()> {
-    let (_tmp, ship_dir) = init();
-    upsert_workspace_on_created(&ship_dir, "feat/arch", false, None, None, "active")?;
-
-    upsert_workspace_on_archived(&ship_dir, "feat/arch")?;
-    assert_eq!(last_event_type(), "workspace.archived");
-    Ok(())
-}
-
-// ── workspace.status_changed ────────────────────────────────────────────────
-
-#[test]
-fn upsert_status_changed_emits_event() -> Result<()> {
-    let (_tmp, ship_dir) = init();
-    upsert_workspace_on_created(&ship_dir, "feat/status", false, None, None, "active")?;
-
-    upsert_workspace_on_status_changed(&ship_dir, "feat/status", "active", "archived")?;
-
-    let events = events_of_type("workspace.status_changed");
-    assert_eq!(events.len(), 1);
-    let payload: serde_json::Value = serde_json::from_str(&events[0].payload_json)?;
-    assert_eq!(payload["old_status"], "active");
-    assert_eq!(payload["new_status"], "archived");
-    Ok(())
-}
-
 // ── workspace.deleted ───────────────────────────────────────────────────────
 
 #[test]
 fn upsert_deleted_emits_event() -> Result<()> {
     let (_tmp, ship_dir) = init();
-    upsert_workspace_on_created(&ship_dir, "feat/del", false, None, None, "active")?;
+    upsert_workspace_on_created(&ship_dir, "feat/del", None, None)?;
 
     upsert_workspace_on_deleted(&ship_dir, "feat/del")?;
 
@@ -195,7 +119,7 @@ fn upsert_deleted_emits_event() -> Result<()> {
 #[test]
 fn emit_agent_changed_emits_event() -> Result<()> {
     let (_tmp, ship_dir) = init();
-    upsert_workspace_on_created(&ship_dir, "feat/agent-ch", false, None, None, "active")?;
+    upsert_workspace_on_created(&ship_dir, "feat/agent-ch", None, None)?;
 
     emit_workspace_agent_changed_event(&ship_dir, "feat/agent-ch", Some("new-agent"))?;
 
@@ -209,7 +133,7 @@ fn emit_agent_changed_emits_event() -> Result<()> {
 #[test]
 fn emit_agent_changed_with_clear() -> Result<()> {
     let (_tmp, ship_dir) = init();
-    upsert_workspace_on_created(&ship_dir, "feat/agent-clr", false, None, None, "active")?;
+    upsert_workspace_on_created(&ship_dir, "feat/agent-clr", None, None)?;
 
     emit_workspace_agent_changed_event(&ship_dir, "feat/agent-clr", None)?;
 
@@ -219,36 +143,12 @@ fn emit_agent_changed_with_clear() -> Result<()> {
     Ok(())
 }
 
-// ── workspace.reconciled ────────────────────────────────────────────────────
-
-#[test]
-fn upsert_reconciled_emits_event() -> Result<()> {
-    let (_tmp, ship_dir) = init();
-    upsert_workspace_on_created(&ship_dir, "feat/rec", false, None, None, "active")?;
-
-    crate::workspace::event_upserts::upsert_workspace_on_reconciled(
-        &ship_dir,
-        "feat/rec",
-        true,
-        Some("/new/path"),
-        "path changed",
-    )?;
-
-    let events = events_of_type("workspace.reconciled");
-    assert_eq!(events.len(), 1);
-    let payload: serde_json::Value = serde_json::from_str(&events[0].payload_json)?;
-    assert_eq!(payload["is_worktree"], true);
-    assert_eq!(payload["worktree_path"], "/new/path");
-    assert_eq!(payload["reason"], "path changed");
-    Ok(())
-}
-
 // ── workspace.tmux_assigned ─────────────────────────────────────────────────
 
 #[test]
 fn upsert_tmux_assigned_emits_event() -> Result<()> {
     let (_tmp, ship_dir) = init();
-    upsert_workspace_on_created(&ship_dir, "feat/tmux", false, None, None, "active")?;
+    upsert_workspace_on_created(&ship_dir, "feat/tmux", None, None)?;
 
     crate::workspace::event_upserts::upsert_workspace_on_tmux_assigned(
         &ship_dir,
@@ -266,7 +166,7 @@ fn upsert_tmux_assigned_emits_event() -> Result<()> {
 #[test]
 fn upsert_tmux_assigned_clear() -> Result<()> {
     let (_tmp, ship_dir) = init();
-    upsert_workspace_on_created(&ship_dir, "feat/tmux-clr", false, None, None, "active")?;
+    upsert_workspace_on_created(&ship_dir, "feat/tmux-clr", None, None)?;
 
     crate::workspace::event_upserts::upsert_workspace_on_tmux_assigned(
         &ship_dir,
@@ -285,7 +185,7 @@ fn upsert_tmux_assigned_clear() -> Result<()> {
 #[test]
 fn upsert_started_emits_event() -> Result<()> {
     let (_tmp, ship_dir) = init();
-    upsert_workspace_on_created(&ship_dir, "feat/start", false, None, None, "active")?;
+    upsert_workspace_on_created(&ship_dir, "feat/start", None, None)?;
 
     crate::workspace::event_upserts::upsert_workspace_on_started(
         &ship_dir,
@@ -307,7 +207,7 @@ fn upsert_started_emits_event() -> Result<()> {
 #[test]
 fn workspace_events_are_elevated() -> Result<()> {
     let (_tmp, ship_dir) = init();
-    upsert_workspace_on_created(&ship_dir, "feat/elev", false, None, None, "active")?;
+    upsert_workspace_on_created(&ship_dir, "feat/elev", None, None)?;
 
     let events = events_of_type("workspace.created");
     assert!(events[0].elevated, "workspace events must be elevated");
@@ -317,7 +217,7 @@ fn workspace_events_are_elevated() -> Result<()> {
 #[test]
 fn workspace_events_carry_workspace_context() -> Result<()> {
     let (_tmp, ship_dir) = init();
-    upsert_workspace_on_created(&ship_dir, "feat/ctx", false, None, None, "active")?;
+    upsert_workspace_on_created(&ship_dir, "feat/ctx", None, None)?;
 
     let events = events_of_type("workspace.created");
     assert_eq!(events[0].workspace_id.as_deref(), Some("feat/ctx"));

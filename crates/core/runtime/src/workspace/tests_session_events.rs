@@ -29,7 +29,6 @@ mod tests {
             &ship_dir,
             CreateWorkspaceRequest {
                 branch: "feature/se-started".to_string(),
-                status: Some(WorkspaceStatus::Active),
                 ..Default::default()
             },
         )?;
@@ -71,7 +70,6 @@ mod tests {
             &ship_dir,
             CreateWorkspaceRequest {
                 branch: "feature/se-progress".to_string(),
-                status: Some(WorkspaceStatus::Active),
                 ..Default::default()
             },
         )?;
@@ -117,7 +115,6 @@ mod tests {
             &ship_dir,
             CreateWorkspaceRequest {
                 branch: "feature/se-ended".to_string(),
-                status: Some(WorkspaceStatus::Active),
                 ..Default::default()
             },
         )?;
@@ -168,7 +165,6 @@ mod tests {
             &ship_dir,
             CreateWorkspaceRequest {
                 branch: branch.to_string(),
-                status: Some(WorkspaceStatus::Active),
                 ..Default::default()
             },
         )?;
@@ -249,7 +245,6 @@ mod tests {
             &ship_dir,
             CreateWorkspaceRequest {
                 branch: "feature/se-elevated".to_string(),
-                status: Some(WorkspaceStatus::Active),
                 ..Default::default()
             },
         )?;
@@ -304,7 +299,6 @@ mod tests {
             &ship_dir,
             CreateWorkspaceRequest {
                 branch: "feature/se-attach".to_string(),
-                status: Some(WorkspaceStatus::Active),
                 ..Default::default()
             },
         )?;
@@ -353,7 +347,6 @@ mod tests {
             &ship_dir,
             CreateWorkspaceRequest {
                 branch: "feature/se-escalate-blocker".to_string(),
-                status: Some(WorkspaceStatus::Active),
                 ..Default::default()
             },
         )?;
@@ -405,7 +398,6 @@ mod tests {
             &ship_dir,
             CreateWorkspaceRequest {
                 branch: "feature/se-escalate-warning".to_string(),
-                status: Some(WorkspaceStatus::Active),
                 ..Default::default()
             },
         )?;
@@ -455,7 +447,6 @@ mod tests {
             &ship_dir,
             CreateWorkspaceRequest {
                 branch: "feature/se-escalate-question".to_string(),
-                status: Some(WorkspaceStatus::Active),
                 ..Default::default()
             },
         )?;
@@ -505,7 +496,6 @@ mod tests {
             &ship_dir,
             CreateWorkspaceRequest {
                 branch: "feature/se-no-escalation".to_string(),
-                status: Some(WorkspaceStatus::Active),
                 ..Default::default()
             },
         )?;

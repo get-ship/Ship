@@ -58,7 +58,7 @@ pub async fn start_workspace(
         Err(e) => return err(StatusCode::INTERNAL_SERVER_ERROR, e.to_string()).into_response(),
     };
 
-    let branch = workspace.branch.clone();
+    let branch = workspace.name.clone();
     let worktree_path = worktrees_dir().join(&branch);
     let tmux_session = workspace_id.clone();
 

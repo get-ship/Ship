@@ -17,15 +17,12 @@ CREATE TABLE IF NOT EXISTS workspace (
   branch             TEXT PRIMARY KEY,
   id                 TEXT,
   workspace_type     TEXT NOT NULL DEFAULT 'feature',
-  status             TEXT NOT NULL DEFAULT 'active',
   active_agent       TEXT,
   active_preset      TEXT,
   providers_json     TEXT NOT NULL DEFAULT '[]',
   mcp_servers_json   TEXT NOT NULL DEFAULT '[]',
   skills_json        TEXT NOT NULL DEFAULT '[]',
-  is_worktree        INTEGER NOT NULL DEFAULT 0,
-  worktree_path      TEXT,
-  last_activated_at  TEXT,
+  path               TEXT,
   context_hash       TEXT,
   config_generation  INTEGER NOT NULL DEFAULT 0,
   compiled_at        TEXT,
@@ -34,7 +31,6 @@ CREATE TABLE IF NOT EXISTS workspace (
   created_at         TEXT,
   updated_at         TEXT
 );
-CREATE INDEX IF NOT EXISTS workspace_status_idx ON workspace(status);
 
 CREATE TABLE IF NOT EXISTS workspace_session (
   id                          TEXT PRIMARY KEY,

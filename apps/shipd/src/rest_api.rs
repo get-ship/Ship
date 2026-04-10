@@ -324,9 +324,8 @@ pub async fn hooks_checkout(
             Json(MeshResponse {
                 ok: true,
                 data: serde_json::json!({
-                    "branch": ws.branch,
-                    "is_worktree": ws.is_worktree,
-                    "worktree_path": ws.worktree_path,
+                    "name": ws.name,
+                    "path": ws.path,
                 }),
             }),
         ),

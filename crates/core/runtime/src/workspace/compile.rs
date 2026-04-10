@@ -43,7 +43,7 @@ pub(crate) fn resolve_session_providers(
     if resolved.providers.is_empty() {
         return Err(anyhow!(
             "No valid providers resolved for workspace '{}'",
-            workspace.branch
+            workspace.name
         ));
     }
     Ok(resolved.providers)
@@ -73,14 +73,14 @@ pub(crate) fn build_workspace_provider_matrix(
     let resolution_error = if providers.is_empty() {
         Some(format!(
             "No valid providers resolved for workspace '{}'",
-            workspace.branch
+            workspace.name
         ))
     } else {
         None
     };
 
     Ok(WorkspaceProviderMatrix {
-        workspace_branch: workspace.branch.clone(),
+        workspace_branch: workspace.name.clone(),
         agent_id: resolved_agent_id,
         source: if resolved.active_agent.is_some() {
             "agent/config".to_string()
@@ -99,9 +99,7 @@ pub(crate) fn resolve_workspace_context_root(
     ship_dir: &Path,
     workspace: &Workspace,
 ) -> PathBuf {
-    if workspace.is_worktree
-        && let Some(path) = workspace.worktree_path.as_deref()
-    {
+    if let Some(path) = workspace.path.as_deref() {
         let trimmed = path.trim();
         if !trimmed.is_empty() {
             return PathBuf::from(trimmed);
@@ -151,7 +149,7 @@ pub(crate) fn compile_workspace_context(
             Err(error) => {
                 upsert_workspace_on_compile_failed(
                     ship_dir,
-                    &workspace.branch,
+                    &workspace.name,
                     &error.to_string(),
                 )?;
                 return Err(error);
@@ -161,11 +159,11 @@ pub(crate) fn compile_workspace_context(
     if providers.is_empty() {
         let error = anyhow!(
             "No valid providers resolved for workspace '{}'",
-            workspace.branch
+            workspace.name
         );
         upsert_workspace_on_compile_failed(
             ship_dir,
-            &workspace.branch,
+            &workspace.name,
             &error.to_string(),
         )?;
         return Err(error);
@@ -196,11 +194,11 @@ pub(crate) fn compile_workspace_context(
         {
             let contextual = error.context(format!(
                 "Failed to compile provider '{}' for workspace '{}'",
-                provider, workspace.branch
+                provider, workspace.name
             ));
             upsert_workspace_on_compile_failed(
                 ship_dir,
-                &workspace.branch,
+                &workspace.name,
                 &contextual.to_string(),
             )?;
             return Err(contextual);
@@ -210,9 +208,9 @@ pub(crate) fn compile_workspace_context(
     let duration_ms = started.elapsed().as_millis() as u64;
     // Read current generation and compute next value for idempotent projection.
     let current_gen = crate::db::workspace_state::get_workspace_config_generation_db(
-        &workspace.branch,
+        &workspace.name,
     )?.unwrap_or(0);
     let next_gen = (current_gen as u32).wrapping_add(1);
-    upsert_workspace_on_compiled(ship_dir, &workspace.branch, next_gen, duration_ms)?;
+    upsert_workspace_on_compiled(ship_dir, &workspace.name, next_gen, duration_ms)?;
     Ok(providers)
 }

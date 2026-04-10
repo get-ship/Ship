@@ -79,15 +79,16 @@ fn refresh_workspaces(state: &mut TopState, ship_dir: &Path) {
     match runtime::list_workspaces(ship_dir) {
         Ok(ws_list) => {
             for ws in ws_list {
+                let status = runtime::workspace_status(&ws);
                 let session_status =
-                    match runtime::get_active_workspace_session(ship_dir, &ws.branch) {
+                    match runtime::get_active_workspace_session(ship_dir, &ws.name) {
                         Ok(Some(s)) => format!("{}", s.status),
                         Ok(None) => "—".into(),
                         Err(_) => "err".into(),
                     };
                 state.workspaces.push(WorkspaceRow {
-                    branch: ws.branch,
-                    status: format!("{}", ws.status),
+                    branch: ws.name,
+                    status: format!("{}", status),
                     agent: ws.active_agent.unwrap_or_else(|| "—".into()),
                     providers: "—".into(),
                     session_status,

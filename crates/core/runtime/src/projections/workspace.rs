@@ -52,16 +52,17 @@ impl Projection for WorkspaceProjection {
         let entity = &event.entity_id;
         match event.event_type.as_str() {
             event_types::WORKSPACE_CREATED => apply_created(entity, &event.payload_json, conn),
-            event_types::WORKSPACE_ACTIVATED => apply_activated(entity, &event.payload_json, conn),
             event_types::WORKSPACE_COMPILED => apply_compiled(entity, &event.payload_json, &event.created_at, conn),
             event_types::WORKSPACE_COMPILE_FAILED => apply_compile_failed(entity, &event.payload_json, &event.created_at, conn),
-            event_types::WORKSPACE_ARCHIVED => apply_status(entity, "archived", conn),
-            event_types::WORKSPACE_STATUS_CHANGED => apply_status_changed(entity, &event.payload_json, conn),
             event_types::WORKSPACE_AGENT_CHANGED => apply_agent_changed(entity, &event.payload_json, conn),
-            event_types::WORKSPACE_RECONCILED => apply_reconciled(entity, &event.payload_json, conn),
             event_types::WORKSPACE_TMUX_ASSIGNED => apply_tmux_assigned(entity, &event.payload_json, conn),
             event_types::WORKSPACE_STARTED => apply_started(entity, &event.payload_json, conn),
             event_types::WORKSPACE_DELETED => apply_deleted(entity, conn),
+            // Legacy events — no-op during replay (status/worktree state removed)
+            event_types::WORKSPACE_ACTIVATED
+            | event_types::WORKSPACE_ARCHIVED
+            | event_types::WORKSPACE_STATUS_CHANGED
+            | event_types::WORKSPACE_RECONCILED => Ok(()),
             _ => Ok(()),
         }
     }
