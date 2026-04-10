@@ -58,7 +58,7 @@ export function SessionTabBar({
       )}
 
       {openTabs.length === 0 && !showDiff && (
-        <span className="px-3 py-1.5 text-xs text-muted-foreground/40">No files open</span>
+        <span className="px-3 py-1.5 text-xs text-muted-foreground/60">No files open</span>
       )}
     </div>
   )

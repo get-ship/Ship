@@ -1,5 +1,5 @@
 // Right-side drawer: Chat + Events tabs.
-// State managed by StudioShellContext (Cmd+/ toggles, rail button toggles).
+// State managed by PlatformProvider (Cmd+/ toggles, rail button toggles).
 
 import { useState, useCallback } from 'react'
 import { MessageSquare, Activity } from 'lucide-react'

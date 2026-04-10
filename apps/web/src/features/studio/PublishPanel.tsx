@@ -130,7 +130,7 @@ function OutputSection({ compileState, hasContent }: {
           <div className="p-3 text-xs text-destructive">{compileState.message}</div>
         )}
         {compileState.status === 'ok' && text && (
-          <pre className="h-full overflow-auto p-3 font-mono text-[10px] leading-relaxed text-foreground/70 whitespace-pre-wrap break-all">
+          <pre className="h-full overflow-auto p-3 font-mono text-[10px] leading-relaxed text-foreground/80 whitespace-pre-wrap break-all">
             {text}
           </pre>
         )}

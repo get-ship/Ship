@@ -10,8 +10,10 @@ import { CreateWorkspaceDialog } from '#/features/studio/CreateWorkspaceDialog'
 import { toast } from 'sonner'
 import type { Workspace } from '@ship/ui'
 
+import { DaemonGuard } from '#/features/studio/DaemonGuard'
+
 export const Route = createFileRoute('/studio/')({
-  component: DashboardPage,
+  component: () => <DaemonGuard><DashboardPage /></DaemonGuard>,
   ssr: false,
 })
 

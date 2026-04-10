@@ -2,7 +2,7 @@
 // Extracted to keep session.tsx under the 300-line cap.
 
 import { useState, useCallback } from 'react'
-import { DAEMON_BASE_URL } from '#/lib/daemon-config'
+import { daemonFetch } from '#/lib/daemon-config'
 import type { useAnnotations } from './useAnnotations'
 import type { DiffComment } from './DiffViewer'
 
@@ -20,18 +20,16 @@ interface HandlerDeps {
 }
 
 async function daemonWriteSessionFile(wsId: string, path: string, content: string): Promise<void> {
-  const res = await fetch(`${DAEMON_BASE_URL}/api/workspaces/${encodeURIComponent(wsId)}/session-files/${encodeURIComponent(path)}`, {
+  const res = await daemonFetch(`/api/workspaces/${encodeURIComponent(wsId)}/session-files/${encodeURIComponent(path)}`, {
     method: 'PUT',
-    headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify({ content }),
   })
   if (!res.ok) throw new Error(`daemon: write session file ${res.status}`)
 }
 
 async function daemonEmitEvent(eventType: string, payload: Record<string, unknown>, workspaceId?: string): Promise<void> {
-  const res = await fetch(`${DAEMON_BASE_URL}/api/events/emit`, {
+  const res = await daemonFetch(`/api/events/emit`, {
     method: 'POST',
-    headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify({
       event_type: eventType,
       workspace_id: workspaceId,

@@ -160,19 +160,34 @@ fn dispatch(command: Option<Commands>) -> Result<()> {
 
 fn run_studio(port: u16, open: bool) -> Result<()> {
     eprintln!("Ship Studio MCP listening on http://localhost:{port}/mcp");
-    eprintln!("Open https://getship.dev/studio to connect");
+
     if open {
-        let url = "https://getship.dev/studio";
+        // Read daemon token and pass via URL fragment (anonymous auth path)
+        let token: Option<String> = read_daemon_token();
+        let url: String = match token {
+            Some(t) => format!("https://getship.dev/studio#token={t}"),
+            None => "https://getship.dev/studio".to_string(),
+        };
+        eprintln!("Opening {}", url.split('#').next().unwrap_or(&url));
         #[cfg(target_os = "macos")]
-        let _ = std::process::Command::new("open").arg(url).spawn();
+        let _ = std::process::Command::new("open").arg(&url).spawn();
         #[cfg(target_os = "linux")]
-        let _ = std::process::Command::new("xdg-open").arg(url).spawn();
+        let _ = std::process::Command::new("xdg-open").arg(&url).spawn();
         #[cfg(target_os = "windows")]
         let _ = std::process::Command::new("cmd")
-            .args(["/C", "start", url])
+            .args(["/C", "start", &url])
             .spawn();
+    } else {
+        eprintln!("Open https://getship.dev/studio to connect");
     }
     mcp_serve::run_studio(port)
+}
+
+fn read_daemon_token() -> Option<String> {
+    let global_dir: std::path::PathBuf = runtime::project::get_global_dir()
+        .unwrap_or_else(|_| dirs::home_dir().unwrap_or_default().join(".ship"));
+    let path: std::path::PathBuf = global_dir.join("daemon.token");
+    std::fs::read_to_string(path).ok().map(|s| s.trim().to_string())
 }
 
 #[cfg(feature = "unstable")]

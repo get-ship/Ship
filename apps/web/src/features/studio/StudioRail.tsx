@@ -8,7 +8,7 @@ import {
 import { Button } from '@ship/primitives'
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@ship/primitives'
 import { Separator } from '@ship/primitives'
-import { useStudioShell } from './StudioShellContext'
+import { usePlatform } from './PlatformProvider'
 import { ProjectPicker } from './ProjectPicker'
 import { ViewsOverlay } from './ViewsOverlay'
 import { useDaemon } from '#/features/studio/hooks/useDaemonData'
@@ -51,7 +51,7 @@ function useTheme() {
 export function StudioRail() {
   const pathname = useRouterState({ select: (s) => s.location.pathname })
   const navigate = useNavigate()
-  const { toggleCommandPalette, drawerOpen, toggleDrawer } = useStudioShell()
+  const { toggleCommandPalette, drawerOpen, toggleDrawer, daemon } = usePlatform()
   const { jobs } = useDaemon()
   const { isDark, toggle: toggleTheme } = useTheme()
 
@@ -108,6 +108,24 @@ export function StudioRail() {
         <div className="flex-1" />
 
         <Separator className="w-6 mb-1" />
+
+        {/* Daemon connection status */}
+        <Tooltip>
+          <TooltipTrigger asChild>
+            <div data-testid="daemon-status" className="flex items-center justify-center size-8">
+              <span className={`size-2 rounded-full ${
+                daemon === 'connected' ? 'bg-emerald-500' :
+                daemon === 'connecting' ? 'bg-amber-500 animate-pulse' :
+                'bg-red-500'
+              }`} />
+            </div>
+          </TooltipTrigger>
+          <TooltipContent side="right">
+            {daemon === 'connected' ? 'Daemon connected' :
+             daemon === 'connecting' ? 'Reconnecting...' :
+             'Daemon disconnected'}
+          </TooltipContent>
+        </Tooltip>
 
         {/* Agent drawer toggle */}
         <Tooltip>

@@ -211,7 +211,7 @@ function SkillSection({
                 e.preventDefault()
                 onContextMenu({ mode: 'folder', skill: ls, x: e.clientX, y: e.clientY })
               }}
-              className="flex w-full items-center gap-1.5 px-3 py-1 text-xs text-foreground/70 hover:text-foreground transition-colors"
+              className="flex w-full items-center gap-1.5 px-3 py-1 text-xs text-foreground/80 hover:text-foreground transition-colors"
             >
               {expanded ? <ChevronDown className="size-3 shrink-0" /> : <ChevronRight className="size-3 shrink-0" />}
               <Zap className="size-3 shrink-0 text-primary/80" />
@@ -275,7 +275,7 @@ function FileEntry({ skill, skillId, filePath, activeTabId, indent, onOpenFile, 
         e.preventDefault()
         onContextMenu({ mode: 'file', skill, filePath, x: e.clientX, y: e.clientY })
       }}
-      className={`flex w-full items-center gap-1.5 ${pl} pr-3 py-1 text-xs transition-colors border-l-2 ${isActive ? 'border-primary bg-primary/5 text-primary' : 'border-transparent text-foreground/70 hover:text-foreground hover:bg-muted/30'}`}
+      className={`flex w-full items-center gap-1.5 ${pl} pr-3 py-1 text-xs transition-colors border-l-2 ${isActive ? 'border-primary bg-primary/5 text-primary' : 'border-transparent text-foreground/80 hover:text-foreground hover:bg-muted/30'}`}
     >
       {fileIcon(filePath)}
       <span className="truncate">{filePath.split('/').pop() ?? filePath}</span>

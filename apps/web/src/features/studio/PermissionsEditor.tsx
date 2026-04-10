@@ -121,7 +121,7 @@ export function PermissionsEditor({ permissions, onChange }: PermissionsEditorPr
             onChange={(e) => setAllowInput(e.target.value)}
             onKeyDown={(e) => e.key === 'Enter' && addAllow()}
             placeholder="Bash(git:*)"
-            className="flex-1 bg-transparent font-mono text-[11px] text-foreground placeholder-muted-foreground/40 focus:outline-none focus-visible:ring-2 focus-visible:ring-primary/50"
+            className="flex-1 bg-transparent font-mono text-[11px] text-foreground placeholder-muted-foreground/60 focus:outline-none focus-visible:ring-2 focus-visible:ring-primary/50"
           />
           <button
             onClick={addAllow}
@@ -159,7 +159,7 @@ export function PermissionsEditor({ permissions, onChange }: PermissionsEditorPr
             onChange={(e) => setDenyInput(e.target.value)}
             onKeyDown={(e) => e.key === 'Enter' && addDeny()}
             placeholder="Bash(rm -rf:*)"
-            className="flex-1 bg-transparent font-mono text-[11px] text-foreground placeholder-muted-foreground/40 focus:outline-none focus-visible:ring-2 focus-visible:ring-primary/50"
+            className="flex-1 bg-transparent font-mono text-[11px] text-foreground placeholder-muted-foreground/60 focus:outline-none focus-visible:ring-2 focus-visible:ring-primary/50"
           />
           <button
             onClick={addDeny}

@@ -1,4 +1,5 @@
 import { createFileRoute } from '@tanstack/react-router'
+import { DaemonGuard } from '#/features/studio/DaemonGuard'
 import { useState, useCallback, useRef } from 'react'
 import type { FrontmatterEntry } from '@ship/primitives'
 import { composeFrontmatterDocument, splitFrontmatterDocument } from '@ship/primitives'
@@ -8,9 +9,9 @@ import { SkillsFileExplorer } from '#/features/studio/skills-ide/SkillsFileExplo
 import { SkillsEditor } from '#/features/studio/skills-ide/SkillsEditor'
 import { SkillsPreviewPanel } from '#/features/studio/skills-ide/SkillsPreviewPanel'
 import { CreateSkillDialog } from '#/features/studio/skills-ide/CreateSkillDialog'
-import { DAEMON_BASE_URL } from '#/lib/daemon-config'
+import { daemonFetch } from '#/lib/daemon-config'
 import { useDaemon } from '#/features/studio/hooks/useDaemonData'
-import { useStudioShell } from '#/features/studio/StudioShellContext'
+import { usePlatform } from '#/features/studio/PlatformProvider'
 
 import { SkillsIdeSkeleton } from '#/features/studio/StudioSkeleton'
 
@@ -24,14 +25,14 @@ interface SkillFeedbackEntry {
 
 
 export const Route = createFileRoute('/studio/skills')({
-  component: SkillsIDEPage,
+  component: () => <DaemonGuard><SkillsIDEPage /></DaemonGuard>,
   pendingComponent: SkillsIdeSkeleton,
 })
 
 function SkillsIDEPage() {
   const ide = useSkillsIDE()
   const [createOpen, setCreateOpen] = useState(false)
-  const { drawerOpen } = useStudioShell()
+  const { drawerOpen } = usePlatform()
   const { workspaces } = useDaemon()
   const wsId = workspaces.find((w) => w.status === 'active')?.branch ?? 'v0.2.0'
   const feedbackRef = useRef<SkillFeedbackEntry[]>([])
@@ -65,9 +66,8 @@ function SkillsIDEPage() {
       }
       feedbackRef.current = [...feedbackRef.current, entry]
 
-      fetch(`${DAEMON_BASE_URL}/api/workspaces/${encodeURIComponent(wsId)}/session-files/${encodeURIComponent('skill-feedback.json')}`, {
+      daemonFetch(`/api/workspaces/${encodeURIComponent(wsId)}/session-files/${encodeURIComponent('skill-feedback.json')}`, {
         method: 'PUT',
-        headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ content: JSON.stringify(feedbackRef.current, null, 2) }),
       }).catch(() => {
         // daemon write failed; feedback is still retained in memory

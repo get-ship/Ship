@@ -1,8 +1,8 @@
 // Hook for consuming the ship/event notification stream.
-// Events are sourced via ship.onEvent() from the ShipClient (connected in ShipClientProvider).
+// Events are sourced via ship.onEvent() from the ShipClient (connected in PlatformProvider).
 
 import { useState, useEffect, useCallback } from 'react'
-import { useShipClient } from '#/features/studio/ShipClientProvider'
+import { usePlatform } from '#/features/studio/PlatformProvider'
 import { useDaemon } from '#/features/studio/hooks/useDaemonData'
 
 /** Shape of a ship/event notification payload. */
@@ -29,7 +29,7 @@ const MAX_EVENTS = 200
  * Ring buffer: max 200 events, most-recent-first.
  */
 export function useEventStream(): UseEventStreamReturn {
-  const client = useShipClient()
+  const { client } = usePlatform()
   const { connected } = useDaemon()
   const [events, setEvents] = useState<EventEnvelope[]>([])
 

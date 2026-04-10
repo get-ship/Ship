@@ -69,7 +69,7 @@ export function ImageViewer({
   if (!content || !content.startsWith('data:')) {
     return (
       <div className="flex flex-col items-center justify-center h-full gap-3 p-8">
-        <ImageIcon className="size-12 text-muted-foreground/40" />
+        <ImageIcon className="size-12 text-muted-foreground/60" />
         <p className="text-sm text-muted-foreground">{file.name}</p>
       </div>
     )

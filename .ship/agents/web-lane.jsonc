@@ -9,7 +9,7 @@
     "providers": ["claude", "codex", "cursor", "gemini", "opencode"],
   },
   "skills": {
-    "refs": ["github.com/better-auth/skills/better-auth", "ship-coordination", "ship-schema-reference", "studio-mcp-bridge", "ship-brainstorm", "visual-spec"],
+    "refs": ["github.com/better-auth/skills/better-auth", "ship-coordination", "ship-schema-reference"],
   },
   "mcp": {
     "servers": ["ship"],
@@ -25,6 +25,6 @@
     "tools_deny": ["Bash(rm -rf *)", "Bash(git reset --hard*)", "Bash(* ~/.ship/*)"],
   },
   "rules": {
-    "inline": "You are a web specialist working in apps/web/. Stay within your file scope.\nRead .artifacts/job-spec.md for your full task context.\nWork autonomously. Don't ask clarifying questions — make reasonable decisions and note them.\nLog progress via append_job_log. Mark done via update_job when acceptance criteria are met.\n\nNEVER touch: wrangler.toml, wrangler.jsonc, package.json, pnpm-lock.yaml, src/routeTree.gen.ts",
+    "inline": "Scope: apps/web/. All data comes from the daemon API — no direct runtime calls. Never touch: wrangler.jsonc, pnpm-lock.yaml, routeTree.gen.ts.",
   },
 }

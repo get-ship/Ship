@@ -3,6 +3,6 @@
   "namespaces": {
     "@ship": "github.com/madvib/ship",
     "@better-auth": "github.com/better-auth/skills",
-    "@gstack": "github.com/garrytan/gstack"
+    "@unofficial": "github.com/madvib/ship-internal"
   }
 }

@@ -128,6 +128,13 @@ fn build_router(
     let capabilities_routes = Router::new()
         .route("/capabilities", axum::routing::get(rest_api::capabilities));
 
+    // Unauthenticated routes (before auth middleware)
+    let handshake_token = token.clone();
+    let public_routes = Router::new()
+        .route("/auth/handshake", axum::routing::post(move |body: axum::Json<auth::HandshakeRequest>| {
+            auth::handshake(body, handshake_token)
+        }));
+
     let auth_token = token;
     let authenticated_routes = Router::new()
         .nest("/api", api_routes)
@@ -143,6 +150,7 @@ fn build_router(
         }));
 
     Router::new()
+        .merge(public_routes)
         .route("/api/openapi.json", axum::routing::get(|| async {
             Json(openapi::ApiDoc::openapi())
         }))

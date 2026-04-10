@@ -1,16 +1,17 @@
 import { createFileRoute } from '@tanstack/react-router'
+import { DaemonGuard } from '#/features/studio/DaemonGuard'
 import { useState } from 'react'
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import { GitMerge, Plus, Save, ChevronRight, Trash2 } from 'lucide-react'
 import { Button } from '@ship/primitives'
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from '@ship/primitives'
 import { Input } from '@ship/primitives'
-import { DAEMON_BASE_URL } from '#/lib/daemon-config'
-import { useStudioShell } from '#/features/studio/StudioShellContext'
+import { daemonFetch } from '#/lib/daemon-config'
+import { usePlatform } from '#/features/studio/PlatformProvider'
 import { useDaemon } from '#/features/studio/hooks/useDaemonData'
 
 export const Route = createFileRoute('/studio/pipelines')({
-  component: PipelinesPage,
+  component: () => <DaemonGuard><PipelinesPage /></DaemonGuard>,
   ssr: false,
 })
 
@@ -30,7 +31,8 @@ interface PipelineDef {
 }
 
 function usePipelines() {
-  const { viewedWorkspace } = useStudioShell()
+  const { workspace } = usePlatform()
+  const viewedWorkspace = workspace?.branch ?? null
   const { workspaces } = useDaemon()
   const wsId = viewedWorkspace
     ?? workspaces.find((w) => String(w.status).toLowerCase() === 'active')?.branch
@@ -39,7 +41,7 @@ function usePipelines() {
   return useQuery({
     queryKey: ['pipelines', wsId],
     queryFn: async (): Promise<PipelineDef[]> => {
-      const res = await fetch(`${DAEMON_BASE_URL}/api/workspaces/${encodeURIComponent(wsId)}/pipelines`)
+      const res = await daemonFetch(`/api/workspaces/${encodeURIComponent(wsId)}/pipelines`)
       if (!res.ok) return []
       const body = await res.json() as { ok: boolean; data: { pipelines: PipelineDef[] } }
       return body.data.pipelines
@@ -50,7 +52,8 @@ function usePipelines() {
 }
 
 function useSavePipeline() {
-  const { viewedWorkspace } = useStudioShell()
+  const { workspace } = usePlatform()
+  const viewedWorkspace = workspace?.branch ?? null
   const { workspaces } = useDaemon()
   const wsId = viewedWorkspace
     ?? workspaces.find((w) => String(w.status).toLowerCase() === 'active')?.branch
@@ -59,9 +62,9 @@ function useSavePipeline() {
 
   return useMutation({
     mutationFn: async ({ name, content }: { name: string; content: string }) => {
-      const res = await fetch(
-        `${DAEMON_BASE_URL}/api/workspaces/${encodeURIComponent(wsId)}/pipelines/${encodeURIComponent(name)}`,
-        { method: 'PUT', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ content }) },
+      const res = await daemonFetch(
+        `/api/workspaces/${encodeURIComponent(wsId)}/pipelines/${encodeURIComponent(name)}`,
+        { method: 'PUT', body: JSON.stringify({ content }) },
       )
       if (!res.ok) throw new Error(`save pipeline: ${res.status}`)
     },
@@ -78,7 +81,8 @@ const STEP_TYPE_COLORS: Record<string, string> = {
 }
 
 function useDeletePipeline() {
-  const { viewedWorkspace } = useStudioShell()
+  const { workspace } = usePlatform()
+  const viewedWorkspace = workspace?.branch ?? null
   const { workspaces } = useDaemon()
   const wsId = viewedWorkspace
     ?? workspaces.find((w) => String(w.status).toLowerCase() === 'active')?.branch
@@ -87,8 +91,8 @@ function useDeletePipeline() {
 
   return useMutation({
     mutationFn: async (name: string) => {
-      const res = await fetch(
-        `${DAEMON_BASE_URL}/api/workspaces/${encodeURIComponent(wsId)}/pipelines/${encodeURIComponent(name)}`,
+      const res = await daemonFetch(
+        `/api/workspaces/${encodeURIComponent(wsId)}/pipelines/${encodeURIComponent(name)}`,
         { method: 'DELETE' },
       )
       if (!res.ok) throw new Error(`delete pipeline: ${res.status}`)

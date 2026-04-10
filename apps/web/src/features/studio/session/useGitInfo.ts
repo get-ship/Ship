@@ -1,9 +1,8 @@
 // Hooks for fetching git status, diff, and log via the shipd daemon.
 
 import { useQuery } from '@tanstack/react-query'
-import { DAEMON_BASE_URL } from '#/lib/daemon-config'
-import { useDaemon } from '#/features/studio/hooks/useDaemonData'
-import { useStudioShell } from '#/features/studio/StudioShellContext'
+import { daemonFetch } from '#/lib/daemon-config'
+import { useActiveWorkspaceId } from '#/features/studio/hooks/useWorkspaceConfig'
 import { sessionKeys } from './query-keys'
 
 export interface GitStatusFile {
@@ -27,16 +26,6 @@ export interface GitLogEntry {
   subject?: string
   author: string
   date: string
-}
-
-function useActiveWorkspaceId(): string {
-  const { viewedWorkspace } = useStudioShell()
-  const { workspaces } = useDaemon()
-  if (viewedWorkspace) return viewedWorkspace
-  const active = workspaces
-    .filter((w) => String(w.status).toLowerCase() === 'active')
-    .sort((a, b) => (b.last_activated_at ?? '').localeCompare(a.last_activated_at ?? ''))
-  return active[0]?.branch ?? ''
 }
 
 function parseGitStatus(raw: string): GitStatusResult {
@@ -80,7 +69,7 @@ export function useGitStatus() {
   return useQuery({
     queryKey: sessionKeys.gitStatus(wsId),
     queryFn: async (): Promise<GitStatusResult | null> => {
-      const res = await fetch(`${DAEMON_BASE_URL}/api/workspaces/${encodeURIComponent(wsId)}/git/status`)
+      const res = await daemonFetch(`/api/workspaces/${encodeURIComponent(wsId)}/git/status`)
       if (!res.ok) return null
       const body = (await res.json()) as { ok: boolean; data: { output: string } }
       return parseGitStatus(body.data.output)
@@ -98,7 +87,7 @@ export function useGitDiff(range?: string) {
     queryKey: sessionKeys.gitDiff(wsId, range),
     queryFn: async (): Promise<string | null> => {
       const params = range ? `?range=${encodeURIComponent(range)}` : ''
-      const res = await fetch(`${DAEMON_BASE_URL}/api/workspaces/${encodeURIComponent(wsId)}/git/diff${params}`)
+      const res = await daemonFetch(`/api/workspaces/${encodeURIComponent(wsId)}/git/diff${params}`)
       if (!res.ok) return null
       const body = (await res.json()) as { ok: boolean; data: { output: string } }
       if (!body.data.output.trim()) return null
@@ -116,7 +105,7 @@ export function useGitLog(limit = 10) {
   return useQuery({
     queryKey: sessionKeys.gitLog(wsId, limit),
     queryFn: async (): Promise<GitLogEntry[]> => {
-      const res = await fetch(`${DAEMON_BASE_URL}/api/workspaces/${encodeURIComponent(wsId)}/git/log?limit=${limit}`)
+      const res = await daemonFetch(`/api/workspaces/${encodeURIComponent(wsId)}/git/log?limit=${limit}`)
       if (!res.ok) return []
       const body = (await res.json()) as { ok: boolean; data: { output: string; commits: GitLogEntry[] } }
       return body.data.commits

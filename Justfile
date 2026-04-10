@@ -80,6 +80,10 @@ typecheck:
 db-migrate:
     cd apps/web && npx wrangler d1 migrations apply ship --local
 
+# Regenerate Specta types (Rust → packages/ui/src/generated.ts)
+gen-types:
+    cargo run -p xtask -- gen-types
+
 # Regenerate Cloudflare worker types from wrangler.jsonc
 cf-types:
     cd apps/web && npx wrangler types

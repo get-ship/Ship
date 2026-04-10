@@ -12,7 +12,6 @@
     "skill_paths": ["docs/", "skills/"],
   },
   "dependencies": {
-    "github.com/garrytan/gstack": "main",
     "github.com/better-auth/skills": "main",
   },
   "exports": {

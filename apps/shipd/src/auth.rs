@@ -94,18 +94,26 @@ pub async fn auth_middleware(
     mut req: Request<Body>,
     next: Next,
 ) -> Response {
-    let auth_header = req
+    // Extract token from Authorization header or ?token= query param (for SSE/EventSource)
+    let header_token = req
         .headers()
         .get("authorization")
-        .and_then(|v| v.to_str().ok());
+        .and_then(|v| v.to_str().ok())
+        .and_then(|h| h.strip_prefix("Bearer "))
+        .map(|s| s.to_string());
 
-    let token = match auth_header {
-        Some(h) if h.starts_with("Bearer ") => &h[7..],
-        _ => {
+    let query_token = req.uri().query()
+        .and_then(|q| q.split('&').find_map(|p| p.strip_prefix("token=")))
+        .map(|s| s.to_string());
+
+    let token_string = match header_token.or(query_token) {
+        Some(t) => t,
+        None => {
             return (StatusCode::UNAUTHORIZED, "missing or malformed Authorization header")
                 .into_response();
         }
     };
+    let token = token_string.as_str();
 
     if token != expected_token.as_str() {
         return (StatusCode::UNAUTHORIZED, "invalid token").into_response();
@@ -146,6 +154,38 @@ fn header_string(req: &Request<Body>, name: &str) -> Option<String> {
 /// Determine if a token is the local daemon token (64-char hex).
 pub fn is_daemon_token(token: &str) -> bool {
     token.len() == 64 && token.chars().all(|c| c.is_ascii_hexdigit())
+}
+
+// ---- Handshake endpoint (unauthenticated, localhost only) ----
+
+#[derive(serde::Deserialize)]
+pub struct HandshakeRequest {
+    #[serde(default)]
+    pub capabilities: Vec<String>,
+}
+
+#[derive(serde::Serialize)]
+pub struct HandshakeResponse {
+    pub token: String,
+    pub granted: Vec<String>,
+}
+
+/// POST /auth/handshake — returns the daemon token for localhost callers.
+/// No auth required. The SDK calls this to bootstrap authentication.
+pub async fn handshake(
+    body: axum::Json<HandshakeRequest>,
+    token: Arc<String>,
+) -> axum::Json<HandshakeResponse> {
+    let granted = if body.capabilities.contains(&"*".to_string()) {
+        vec!["*".to_string()]
+    } else {
+        body.capabilities.clone()
+    };
+
+    axum::Json(HandshakeResponse {
+        token: token.as_str().to_string(),
+        granted,
+    })
 }
 
 #[cfg(test)]

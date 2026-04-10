@@ -1,11 +1,9 @@
 // Workspace config hooks — replaces mcp-queries.ts + mcp-mutations.ts.
-// All data flows through @ship/sdk's ShipClient (available via useShipClient).
+// All data flows through @ship/sdk's ShipClient (available via usePlatform().client).
 
 import { useState, useMemo } from 'react'
 import { useShipQuery } from './useShipQuery'
-import { useShipClient } from '../ShipClientProvider'
-import { useStudioShell } from '../StudioShellContext'
-import { useDaemon } from './useDaemonData'
+import { usePlatform } from '../PlatformProvider'
 import type {
   PullResponse,
   PullSkill,
@@ -13,13 +11,11 @@ import type {
   TransferBundle,
 } from '@ship/ui'
 
-// ── Active workspace helper ───────────────────────────────────────────────────
+// ── Helpers ──────────────────────────────────────────────────────────────────
 
-function useActiveWorkspaceId(): string | null {
-  const { viewedWorkspace } = useStudioShell()
-  const { workspaces } = useDaemon()
-  if (viewedWorkspace) return viewedWorkspace
-  return workspaces.find((w) => String(w.status).toLowerCase() === 'active')?.branch ?? null
+export function useActiveWorkspaceId(): string {
+  const { workspace } = usePlatform()
+  return workspace?.branch ?? ''
 }
 
 // ── Internal response types ───────────────────────────────────────────────────
@@ -50,6 +46,12 @@ interface SkillsBody {
     description?: string | null
     content?: string
     files: string[]
+    artifacts?: string[]
+    tags?: string[]
+    authors?: string[]
+    vars_schema?: unknown
+    reference_docs?: Record<string, string>
+    evals?: unknown
   }>
 }
 
@@ -162,11 +164,13 @@ export function useProjectSkills() {
       description: s.description ?? null,
       content: s.content ?? '',
       source: 'custom' as const,
-      artifacts: [],
-      files: s.files,
-      tags: [],
-      authors: [],
-      reference_docs: {},
+      artifacts: s.artifacts ?? [],
+      files: s.files ?? [],
+      tags: s.tags ?? [],
+      authors: s.authors ?? [],
+      vars_schema: s.vars_schema ?? null,
+      reference_docs: s.reference_docs ?? {},
+      evals: s.evals ?? null,
     })) as PullSkill[] | undefined,
   }
 }
@@ -185,7 +189,7 @@ export function useSkillVars(skillId: string | null) {
 
 /** Push a transfer bundle to daemon (.ship/). */
 export function usePushBundle() {
-  const client = useShipClient()
+  const { client } = usePlatform()
   const wsId = useActiveWorkspaceId()
   const [isPending, setIsPending] = useState(false)
   function mutate(bundle: TransferBundle, opts?: MutateOpts<void>) {
@@ -201,7 +205,7 @@ export function usePushBundle() {
 
 /** Write a single skill file to disk via daemon. */
 export function useSaveSkillFile() {
-  const client = useShipClient()
+  const { client } = usePlatform()
   const wsId = useActiveWorkspaceId()
   const [isPending, setIsPending] = useState(false)
   function mutate(args: { skillId: string; filePath: string; content: string }, opts?: MutateOpts<void>) {
@@ -220,7 +224,7 @@ export function useSaveSkillFile() {
 
 /** Set a single skill variable value. */
 export function useSetSkillVar() {
-  const client = useShipClient()
+  const { client } = usePlatform()
   const wsId = useActiveWorkspaceId()
   const [isPending, setIsPending] = useState(false)
   function mutate(args: { skillId: string; key: string; valueJson: string }, opts?: MutateOpts<void>) {
@@ -242,7 +246,7 @@ export function useSetSkillVar() {
 
 /** Delete a single skill file from disk via daemon. */
 export function useDeleteSkillFile() {
-  const client = useShipClient()
+  const { client } = usePlatform()
   const wsId = useActiveWorkspaceId()
   const [isPending, setIsPending] = useState(false)
   function mutate(args: { skillId: string; filePath: string }, opts?: MutateOpts<void>) {

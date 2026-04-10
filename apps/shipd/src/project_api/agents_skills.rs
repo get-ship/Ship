@@ -160,31 +160,30 @@ pub async fn list_skills(
     Path(id): Path<String>,
 ) -> Result<(StatusCode, Json<MeshResponse>), (StatusCode, Json<MeshResponse>)> {
     let worktree = resolve_worktree(state.ship_dir(), &id)?;
-    let skills_dir = worktree.join(".ship").join("skills");
+    let ship_dir = worktree.join(".ship");
 
-    if !skills_dir.exists() {
-        return Ok(ok_response(serde_json::json!({ "skills": [] })));
-    }
-
-    let entries = std::fs::read_dir(&skills_dir).map_err(|e| {
-        err_response(
-            StatusCode::INTERNAL_SERVER_ERROR,
-            &format!("failed to read skills dir: {e}"),
-        )
-    })?;
+    // Use read_skill_paths to discover all skill directories (respects skill_paths config)
+    let skill_dirs = runtime::read_skill_paths(&ship_dir, &worktree);
 
     let mut skills = Vec::new();
-    for entry in entries {
+    let mut seen_ids = std::collections::HashSet::new();
+    for skills_dir in &skill_dirs {
+        if !skills_dir.exists() { continue; }
+        let dir_entries = match std::fs::read_dir(skills_dir) {
+            Ok(e) => e,
+            Err(_) => continue,
+        };
+        for entry in dir_entries {
         let entry = match entry {
             Ok(e) => e,
             Err(_) => continue,
         };
+        let dir_name = entry.file_name().to_string_lossy().to_string();
+        if !seen_ids.insert(dir_name.clone()) { continue; }
         let path = entry.path();
         if !path.is_dir() {
             continue;
         }
-
-        let dir_name = entry.file_name().to_string_lossy().to_string();
         let mut name = dir_name.clone();
         let mut stable_id: Option<String> = None;
         let mut description: Option<String> = None;
@@ -211,18 +210,57 @@ pub async fn list_skills(
             }
         }
 
-        // List files in the skill directory
-        let mut files = Vec::new();
-        if let Ok(dir_entries) = std::fs::read_dir(&path) {
-            for file_entry in dir_entries.flatten() {
-                if file_entry.path().is_file() {
-                    files.push(file_entry.file_name().to_string_lossy().to_string());
+        // Recursively list all files in the skill directory
+        let files = collect_files_recursive(&path, &path);
+
+        // Read SKILL.md content for the editor
+        let skill_content = std::fs::read_to_string(&skill_md).unwrap_or_default();
+
+        // Read vars.json if present
+        let vars_schema: Option<serde_json::Value> = std::fs::read_to_string(path.join("assets/vars.json"))
+            .ok()
+            .and_then(|s| serde_json::from_str(&s).ok());
+
+        // Read reference docs
+        let mut reference_docs = serde_json::Map::new();
+        let refs_dir = path.join("references");
+        if refs_dir.is_dir() {
+            for rel_path in collect_files_recursive(&path, &refs_dir) {
+                let full = path.join(&rel_path);
+                if let Ok(content) = std::fs::read_to_string(&full) {
+                    reference_docs.insert(rel_path, serde_json::Value::String(content));
                 }
             }
         }
 
-        // Read SKILL.md content for the editor
-        let skill_content = std::fs::read_to_string(&skill_md).unwrap_or_default();
+        // Read evals if present
+        let evals: Option<serde_json::Value> = std::fs::read_to_string(path.join("evals/evals.json"))
+            .ok()
+            .and_then(|s| serde_json::from_str(&s).ok());
+
+        // Parse tags and authors from frontmatter
+        let mut tags: Vec<String> = Vec::new();
+        let mut authors: Vec<String> = Vec::new();
+        let mut artifacts: Vec<String> = Vec::new();
+        if skill_md.is_file() {
+            if let Ok(content) = std::fs::read_to_string(&skill_md) {
+                if content.starts_with("---") {
+                    if let Some(end) = content[3..].find("---") {
+                        let fm = &content[3..3 + end];
+                        for line in fm.lines() {
+                            let line = line.trim();
+                            if let Some(val) = line.strip_prefix("tags:") {
+                                tags = parse_yaml_list(val);
+                            } else if let Some(val) = line.strip_prefix("authors:") {
+                                authors = parse_yaml_list(val);
+                            } else if let Some(val) = line.strip_prefix("artifacts:") {
+                                artifacts = parse_yaml_list(val);
+                            }
+                        }
+                    }
+                }
+            }
+        }
 
         skills.push(serde_json::json!({
             "id": dir_name,
@@ -231,10 +269,49 @@ pub async fn list_skills(
             "description": description,
             "content": skill_content,
             "files": files,
+            "vars_schema": vars_schema,
+            "reference_docs": reference_docs,
+            "evals": evals,
+            "tags": tags,
+            "authors": authors,
+            "artifacts": artifacts,
         }));
-    }
+    } // entry loop
+    } // skill_dirs loop
 
     Ok(ok_response(serde_json::json!({ "skills": skills })))
+}
+
+/// Recursively collect all file paths relative to `root`.
+fn collect_files_recursive(root: &std::path::Path, dir: &std::path::Path) -> Vec<String> {
+    let mut files = Vec::new();
+    let Ok(entries) = std::fs::read_dir(dir) else { return files };
+    for entry in entries.flatten() {
+        let p = entry.path();
+        if p.is_dir() {
+            files.extend(collect_files_recursive(root, &p));
+        } else if p.is_file() {
+            if let Ok(rel) = p.strip_prefix(root) {
+                files.push(rel.to_string_lossy().to_string());
+            }
+        }
+    }
+    files.sort();
+    files
+}
+
+/// Parse a YAML inline list like `[foo, bar]` or `[foo]`.
+fn parse_yaml_list(val: &str) -> Vec<String> {
+    let trimmed = val.trim();
+    if trimmed.starts_with('[') && trimmed.ends_with(']') {
+        trimmed[1..trimmed.len() - 1]
+            .split(',')
+            .map(|s| s.trim().trim_matches('"').trim_matches('\'').to_string())
+            .filter(|s| !s.is_empty())
+            .collect()
+    } else {
+        vec![trimmed.to_string()]
+    }
 }
 
 #[cfg(test)]

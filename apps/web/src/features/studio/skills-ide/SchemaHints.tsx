@@ -86,7 +86,7 @@ export function SchemaHints({ content }: { content: string }) {
             if (!v.invalidType && !v.invalidStorage && v.missingFields.length === 0) return null
             return (
               <div key={v.name} className="flex items-start gap-2">
-                <span className="font-mono text-foreground/70 shrink-0">{v.name}</span>
+                <span className="font-mono text-foreground/80 shrink-0">{v.name}</span>
                 <div className="flex flex-wrap items-center gap-1">
                   {v.invalidType && (
                     <span className="inline-flex items-center gap-0.5 px-1.5 py-0.5 rounded bg-red-500/10 text-red-600 dark:text-red-400">

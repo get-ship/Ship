@@ -2,7 +2,7 @@
 // Provides useShipQuery<T> for reactive queries backed by ShipClient's internal cache.
 
 import { useState, useEffect } from 'react'
-import { useShipClient } from '../ShipClientProvider'
+import { usePlatform } from '../PlatformProvider'
 
 export interface ShipQueryResult<T> {
   data: T | undefined
@@ -26,7 +26,7 @@ const EMPTY = Object.freeze({
  * Pass null to disable the query (returns empty state immediately).
  */
 export function useShipQuery<T>(path: string | null): ShipQueryResult<T> {
-  const client = useShipClient()
+  const { client } = usePlatform()
   const [result, setResult] = useState<ShipQueryResult<T>>(EMPTY as ShipQueryResult<T>)
 
   useEffect(() => {

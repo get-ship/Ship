@@ -1,7 +1,7 @@
 import { createFileRoute } from '@tanstack/react-router'
 import { useQuery } from '@tanstack/react-query'
 import { MonitorPlay } from 'lucide-react'
-import { DAEMON_BASE_URL } from '#/lib/daemon-config'
+import { daemonFetch } from '#/lib/daemon-config'
 import { ViewHost } from '#/features/studio/views/ViewHost'
 import { useDaemon } from '#/features/studio/hooks/useDaemonData'
 
@@ -18,7 +18,7 @@ function ExtensionViewPage() {
   const { data: html, isLoading, error } = useQuery({
     queryKey: ['view', name],
     queryFn: async () => {
-      const res = await fetch(`${DAEMON_BASE_URL}/api/runtime/view/${encodeURIComponent(name)}`)
+      const res = await daemonFetch(`/api/runtime/view/${encodeURIComponent(name)}`)
       if (!res.ok) throw new Error(`Failed to load view: ${res.status}`)
       const body = await res.json() as { ok: boolean; data: { html: string } }
       return body.data.html

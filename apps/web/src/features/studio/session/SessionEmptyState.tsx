@@ -1,5 +1,5 @@
 import { FolderOpen, Search, FileText } from 'lucide-react'
-import { useStudioShell } from '#/features/studio/StudioShellContext'
+import { usePlatform } from '#/features/studio/PlatformProvider'
 
 interface SessionFile {
   path: string
@@ -17,7 +17,7 @@ interface SessionEmptyStateProps {
 export function SessionEmptyState({
   workspaceName, activeAgent, files, onSelectFile,
 }: SessionEmptyStateProps) {
-  const { toggleFileSidebar, toggleCommandPalette } = useStudioShell()
+  const { toggleSidebar: toggleFileSidebar, toggleCommandPalette } = usePlatform()
   const recentFiles = files.slice(0, 5)
 
   return (
@@ -33,13 +33,13 @@ export function SessionEmptyState({
             )}
           </>
         ) : (
-          <p className="text-sm font-medium text-foreground/60">No active workspace</p>
+          <p className="text-sm font-medium text-foreground/80">No active workspace</p>
         )}
 
         <div className="flex items-center justify-center gap-2 mt-5">
           <button
             onClick={toggleFileSidebar}
-            className="inline-flex items-center gap-1.5 px-3 py-1.5 text-xs rounded-md border border-border bg-muted/30 hover:bg-muted/60 text-foreground/70 hover:text-foreground transition-colors"
+            className="inline-flex items-center gap-1.5 px-3 py-1.5 text-xs rounded-md border border-border bg-muted/30 hover:bg-muted/60 text-foreground/80 hover:text-foreground transition-colors"
           >
             <FolderOpen className="size-3.5" />
             <span>Open Files</span>
@@ -49,7 +49,7 @@ export function SessionEmptyState({
           </button>
           <button
             onClick={toggleCommandPalette}
-            className="inline-flex items-center gap-1.5 px-3 py-1.5 text-xs rounded-md border border-border bg-muted/30 hover:bg-muted/60 text-foreground/70 hover:text-foreground transition-colors"
+            className="inline-flex items-center gap-1.5 px-3 py-1.5 text-xs rounded-md border border-border bg-muted/30 hover:bg-muted/60 text-foreground/80 hover:text-foreground transition-colors"
           >
             <Search className="size-3.5" />
             <span>Search</span>
@@ -69,9 +69,9 @@ export function SessionEmptyState({
                 <button
                   key={file.path}
                   onClick={() => onSelectFile(file.path)}
-                  className="flex items-center gap-2 w-full px-2 py-1.5 text-xs rounded hover:bg-muted/40 text-foreground/60 hover:text-foreground transition-colors"
+                  className="flex items-center gap-2 w-full px-2 py-1.5 text-xs rounded hover:bg-muted/40 text-foreground/80 hover:text-foreground transition-colors"
                 >
-                  <FileText className="size-3.5 shrink-0 text-muted-foreground/40" />
+                  <FileText className="size-3.5 shrink-0 text-muted-foreground/60" />
                   <span className="truncate">{file.name}</span>
                 </button>
               ))}

@@ -108,6 +108,10 @@ export class ShipClient {
     this.token = token
   }
 
+  getToken(): string | null {
+    return this.token ?? null
+  }
+
   async authenticate(): Promise<boolean> {
     try {
       const res = await fetch(`${this.baseUrl}/auth/handshake`, {
@@ -127,6 +131,7 @@ export class ShipClient {
   async isConnected(): Promise<boolean> {
     try {
       const res = await fetch(`${this.baseUrl}/api/runtime/views`, {
+        headers: this.headers(),
         signal: AbortSignal.timeout(2000),
       })
       return res.ok
@@ -265,7 +270,9 @@ export class ShipClient {
   connectEvents(): void {
     if (this.eventSource) return
 
-    const url = `${this.baseUrl}/api/runtime/events`
+    let url = `${this.baseUrl}/api/runtime/events`
+    // EventSource doesn't support custom headers — pass token as query param
+    if (this.token) url += `?token=${encodeURIComponent(this.token)}`
     this.eventSource = new EventSource(url)
 
     this.eventSource.addEventListener('ship.event', (e: MessageEvent) => {

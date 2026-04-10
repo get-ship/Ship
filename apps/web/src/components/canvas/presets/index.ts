@@ -1,7 +1,6 @@
 import type { WorkflowPreset } from '../types'
 import { shipflow } from './shipflow'
 import { superpowers } from './superpowers'
-import { gstack } from './gstack'
 import { shipflowSolo } from './shipflow-solo'
 import { superpowersSolo } from './superpowers-solo'
 import { blank } from './blank'
@@ -46,22 +45,7 @@ export const PRESETS: PresetInfo[] = [
     ],
     load: () => superpowers,
   },
-  {
-    id: 'gstack',
-    name: 'G-Stack Pipeline',
-    description: 'Linear pipeline — spec, design, implement, review, deploy — with review reject loop.',
-    badge: 'community',
-    accentColor: '#10b981',
-    agents: [
-      { name: 'Spec Writer', color: '#7c3aed' },
-      { name: 'Designer', color: '#3b82f6' },
-      { name: 'Implementer', color: '#3b82f6' },
-      { name: 'Reviewer', color: '#10b981' },
-      { name: 'Deployer', color: '#3b82f6' },
-    ],
-    load: () => gstack,
-  },
-  {
+{
     id: 'shipflow-solo',
     name: 'Shipflow Solo',
     description: 'Minimal Ship setup — one human, one commander with all skills loaded.',

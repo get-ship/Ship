@@ -6,7 +6,7 @@ import { File, Save, ChevronDown, ChevronRight, MonitorPlay, ExternalLink } from
 import type { FrontmatterEntry } from '@ship/primitives'
 import { MarkdownPreview } from '#/features/studio/skills-ide/MarkdownPreview'
 import { ImageViewer } from './ImageViewer'
-import { DAEMON_BASE_URL } from '#/lib/daemon-config'
+import { daemonFetch } from '#/lib/daemon-config'
 import type { SessionFile, ClickAnnotation } from './types'
 
 const MarkdownEditor = lazy(() =>
@@ -201,9 +201,8 @@ function TextViewer({ content, file }: { content: string; file: SessionFile }) {
 
 async function tryLaunchUrl(url: string): Promise<void> {
   try {
-    const res = await fetch(`${DAEMON_BASE_URL}/api/runtime/open-url`, {
+    const res = await daemonFetch(`/api/runtime/open-url`, {
       method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ url }),
     })
     if (res.ok) return
@@ -217,7 +216,7 @@ function UrlViewer({ file, content }: { file: SessionFile; content: string }) {
   if (!url) {
     return (
       <div className="flex flex-col items-center justify-center h-full gap-3 p-8">
-        <MonitorPlay className="size-12 text-muted-foreground/40" />
+        <MonitorPlay className="size-12 text-muted-foreground/60" />
         <p className="text-sm text-muted-foreground">No URL</p>
       </div>
     )

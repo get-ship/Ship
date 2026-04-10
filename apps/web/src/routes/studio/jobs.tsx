@@ -1,4 +1,5 @@
 import { createFileRoute } from '@tanstack/react-router'
+import { DaemonGuard } from '#/features/studio/DaemonGuard'
 import { useState, useMemo } from 'react'
 import { LayoutList, Plus, Square } from 'lucide-react'
 import { Tabs, TabsList, TabsTrigger, TabsContent } from '@ship/primitives'
@@ -8,7 +9,7 @@ import { CreateJobDialog } from '#/features/studio/CreateJobDialog'
 import type { JobRecord, JobStatus } from '@ship/ui'
 
 export const Route = createFileRoute('/studio/jobs')({
-  component: JobsPage,
+  component: () => <DaemonGuard><JobsPage /></DaemonGuard>,
   ssr: false,
 })
 

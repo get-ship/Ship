@@ -4,7 +4,7 @@ import { GitBranch, Circle, Maximize, Minimize, PanelLeft, ChevronDown } from 'l
 import { Popover, PopoverContent, PopoverTrigger } from '@ship/primitives'
 import { Separator } from '@ship/primitives'
 import { useDaemon } from './hooks/useDaemonData'
-import { useStudioShell } from './StudioShellContext'
+import { usePlatform } from './PlatformProvider'
 import { resolveWorkspaceSelection } from './workspace-selection'
 
 const WORKSPACE_ROUTES = ['/studio/session', '/studio/git', '/studio/view/']
@@ -12,7 +12,11 @@ const WORKSPACE_ROUTES = ['/studio/session', '/studio/git', '/studio/view/']
 export function WorkspaceIndicator() {
   const pathname = useRouterState({ select: (s) => s.location.pathname })
   const { workspaces, connected } = useDaemon()
-  const { fileSidebarOpen, toggleFileSidebar, viewedWorkspace, setViewedWorkspace } = useStudioShell()
+  const platform = usePlatform()
+  const fileSidebarOpen = platform.sidebarOpen
+  const toggleFileSidebar = platform.toggleSidebar
+  const viewedWorkspace = platform.workspace?.branch ?? null
+  const setViewedWorkspace = platform.setWorkspace
   const [isFullscreen, setIsFullscreen] = useState(false)
 
   useEffect(() => {
@@ -34,13 +38,11 @@ export function WorkspaceIndicator() {
     : workspaces.find((w) => String(w.status).toLowerCase() === 'active')
 
   // Hydrate viewedWorkspace on first load or clear stale selection.
-  // viewedIsValid is a stable boolean — only flips when the branch leaves the list.
-  const viewedIsValid = !viewedWorkspace || workspaces.some((w) => w.branch === viewedWorkspace)
   useEffect(() => {
     if (!isWorkspaceView) return
     const next = resolveWorkspaceSelection(viewedWorkspace, workspaces)
     if (next !== undefined) setViewedWorkspace(next)
-  }, [isWorkspaceView, viewedIsValid]) // eslint-disable-line react-hooks/exhaustive-deps
+  }, [isWorkspaceView, viewedWorkspace, workspaces, setViewedWorkspace])
 
   if (!isWorkspaceView) return null
   if (!currentWs && connected) return null
@@ -54,7 +56,7 @@ export function WorkspaceIndicator() {
         <button
           onClick={toggleFileSidebar}
           className={`size-6 flex items-center justify-center rounded transition-colors ${
-            fileSidebarOpen ? 'text-foreground/70' : 'text-muted-foreground/50 hover:text-foreground/70'
+            fileSidebarOpen ? 'text-foreground/80' : 'text-muted-foreground/50 hover:text-foreground/80'
           }`}
           title="Toggle sidebar (Cmd+B)"
         >
@@ -79,7 +81,7 @@ export function WorkspaceIndicator() {
                   </span>
                 </>
               )}
-              <ChevronDown className="size-2.5 text-muted-foreground/40" />
+              <ChevronDown className="size-2.5 text-muted-foreground/60" />
             </button>
           }
         />
@@ -122,7 +124,7 @@ export function WorkspaceIndicator() {
 
       <button
         onClick={handleFullscreen}
-        className="size-6 flex items-center justify-center rounded text-muted-foreground/50 hover:text-foreground/70 transition-colors"
+        className="size-6 flex items-center justify-center rounded text-muted-foreground/50 hover:text-foreground/80 transition-colors"
         title={isFullscreen ? 'Exit fullscreen' : 'Fullscreen'}
       >
         {isFullscreen ? <Minimize className="size-3.5" /> : <Maximize className="size-3.5" />}
