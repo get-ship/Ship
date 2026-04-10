@@ -121,6 +121,24 @@ pub async fn create_job_via_daemon(body: serde_json::Value) -> Result<String> {
     post("/runtime/jobs", body).await
 }
 
+/// List running agents via the daemon's REST API.
+pub async fn list_agents_via_daemon() -> Result<String> {
+    get("/runtime/agents").await
+}
+
+/// Stop a running agent by slug via the daemon.
+pub async fn stop_agent_via_daemon(slug: &str) -> Result<String> {
+    post(&format!("/runtime/agents/{slug}/stop"), serde_json::json!({})).await
+}
+
+/// Inject a message into a running agent via the daemon.
+pub async fn steer_agent_via_daemon(slug: &str, message: &str) -> Result<String> {
+    post(
+        &format!("/runtime/agents/{slug}/steer"),
+        serde_json::json!({ "message": message }),
+    ).await
+}
+
 /// Route a pre-built EventEnvelope through the daemon's KernelRouter.
 /// This ensures events reach daemon subscribers (job-dispatch, workspace-sync, etc).
 pub async fn event_route(

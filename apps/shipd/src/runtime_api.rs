@@ -242,6 +242,11 @@ pub struct CreateJobRequest {
     pub spec_path: String,
     pub depends_on: Option<Vec<String>>,
     pub pipeline: Option<String>,
+    pub provider: Option<String>,
+    /// Inline spec content. When provided, written to `spec_path` in the
+    /// project root before dispatch so the isolation strategy can copy it
+    /// into the worktree.
+    pub spec_content: Option<String>,
 }
 
 /// GET /api/runtime/jobs
@@ -289,6 +294,18 @@ pub async fn create_job(
     State(state): State<ApiState>,
     Json(req): Json<CreateJobRequest>,
 ) -> impl IntoResponse {
+    // Write inline spec content to the project root so the isolation strategy
+    // can copy it into the worktree during dispatch.
+    if let Some(ref content) = req.spec_content {
+        if let Ok(project_dir) = runtime::project::get_project_dir(None) {
+            let spec_dest = project_dir.parent().unwrap_or(&project_dir).join(&req.spec_path);
+            if let Some(parent) = spec_dest.parent() {
+                let _ = std::fs::create_dir_all(parent);
+            }
+            let _ = std::fs::write(&spec_dest, content);
+        }
+    }
+
     let job_id = runtime::gen_ulid();
     let payload = JobCreatedPayload {
         job_id: job_id.clone(),
@@ -298,7 +315,7 @@ pub async fn create_job(
         spec_path: req.spec_path,
         plan_id: None,
         model: None,
-        provider: None,
+        provider: req.provider,
         depends_on: req.depends_on,
         pipeline: None,
         steps: None,
@@ -423,6 +440,107 @@ pub async fn end_job(
         Err(e) => (
             StatusCode::INTERNAL_SERVER_ERROR,
             Json(MeshResponse { ok: false, data: serde_json::json!(e.to_string()) }),
+        ),
+    }
+}
+
+// ---- Agent control ----
+
+#[derive(Deserialize, utoipa::ToSchema)]
+pub struct SteerAgentRequest {
+    pub message: String,
+}
+
+/// POST /api/runtime/agents/{slug}/stop — stop a running agent by slug.
+///
+/// Uses the process registry and executor to terminate the agent process.
+#[utoipa::path(
+    post,
+    path = "/api/runtime/agents/{slug}/stop",
+    responses((status = 200, body = MeshResponse)),
+    tag = "runtime"
+)]
+pub async fn stop_agent(
+    State(state): State<ApiState>,
+    Path(slug): Path<String>,
+) -> impl IntoResponse {
+    let dh = match state.dispatch_handle() {
+        Some(dh) => dh,
+        None => {
+            return (
+                StatusCode::SERVICE_UNAVAILABLE,
+                Json(MeshResponse { ok: false, data: serde_json::json!("dispatch service not initialized") }),
+            );
+        }
+    };
+
+    let handle = {
+        let mut reg = dh.registry.lock().await;
+        match reg.take(&slug) {
+            Some(h) => h,
+            None => {
+                return (
+                    StatusCode::NOT_FOUND,
+                    Json(MeshResponse { ok: false, data: serde_json::json!(format!("no running agent with slug '{slug}'")) }),
+                );
+            }
+        }
+    };
+
+    match dh.executor.stop(&handle).await {
+        Ok(()) => (
+            StatusCode::OK,
+            Json(MeshResponse { ok: true, data: serde_json::json!(format!("stopped: {slug}")) }),
+        ),
+        Err(e) => (
+            StatusCode::INTERNAL_SERVER_ERROR,
+            Json(MeshResponse { ok: false, data: serde_json::json!(format!("failed to stop agent: {e}")) }),
+        ),
+    }
+}
+
+/// POST /api/runtime/agents/{slug}/steer — inject a message into a running agent.
+#[utoipa::path(
+    post,
+    path = "/api/runtime/agents/{slug}/steer",
+    request_body = SteerAgentRequest,
+    responses((status = 200, body = MeshResponse)),
+    tag = "runtime"
+)]
+pub async fn steer_agent(
+    State(state): State<ApiState>,
+    Path(slug): Path<String>,
+    Json(req): Json<SteerAgentRequest>,
+) -> impl IntoResponse {
+    let dh = match state.dispatch_handle() {
+        Some(dh) => dh,
+        None => {
+            return (
+                StatusCode::SERVICE_UNAVAILABLE,
+                Json(MeshResponse { ok: false, data: serde_json::json!("dispatch service not initialized") }),
+            );
+        }
+    };
+
+    let reg = dh.registry.lock().await;
+    let handle = match reg.get(&slug) {
+        Some(h) => h,
+        None => {
+            return (
+                StatusCode::NOT_FOUND,
+                Json(MeshResponse { ok: false, data: serde_json::json!(format!("no running agent with slug '{slug}'")) }),
+            );
+        }
+    };
+
+    match dh.executor.send(handle, &req.message).await {
+        Ok(()) => (
+            StatusCode::OK,
+            Json(MeshResponse { ok: true, data: serde_json::json!(format!("steered: {slug}")) }),
+        ),
+        Err(e) => (
+            StatusCode::INTERNAL_SERVER_ERROR,
+            Json(MeshResponse { ok: false, data: serde_json::json!(format!("failed to steer agent: {e}")) }),
         ),
     }
 }
@@ -764,5 +882,26 @@ mod tests {
             !workspaces.iter().any(|w| w["branch"] == "feature/archived-ws"),
             "archived workspace should be excluded"
         );
+    }
+
+    #[tokio::test(flavor = "multi_thread")]
+    async fn stop_agent_no_dispatch_handle_returns_503() {
+        let dir = TempDir::new().unwrap();
+        let state = make_api_state(&dir);
+        let response = stop_agent(State(state), Path("test-slug".to_string()))
+            .await
+            .into_response();
+        assert_eq!(response.status(), StatusCode::SERVICE_UNAVAILABLE);
+    }
+
+    #[tokio::test(flavor = "multi_thread")]
+    async fn steer_agent_no_dispatch_handle_returns_503() {
+        let dir = TempDir::new().unwrap();
+        let state = make_api_state(&dir);
+        let req = SteerAgentRequest { message: "hello".to_string() };
+        let response = steer_agent(State(state), Path("test-slug".to_string()), Json(req))
+            .await
+            .into_response();
+        assert_eq!(response.status(), StatusCode::SERVICE_UNAVAILABLE);
     }
 }

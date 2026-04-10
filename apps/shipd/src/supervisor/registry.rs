@@ -33,6 +33,16 @@ impl ProcessRegistry {
         self.handles.remove(slug);
     }
 
+    /// Remove and return a handle — used when stopping an agent externally.
+    pub fn take(&mut self, slug: &str) -> Option<ExecutorHandle> {
+        self.handles.remove(slug)
+    }
+
+    /// Borrow a handle by slug — used for steer/send without removing.
+    pub fn get(&self, slug: &str) -> Option<&ExecutorHandle> {
+        self.handles.get(slug)
+    }
+
     pub fn len(&self) -> usize {
         self.handles.len()
     }
