@@ -3,6 +3,7 @@ pub mod agents;
 pub mod catalog;
 pub mod config;
 pub mod db;
+pub mod errors;
 pub mod events;
 pub mod fs_util;
 pub mod hooks;
@@ -85,6 +86,8 @@ pub use db::types::{
     AgentArtifactRegistryDb, WorkspaceSessionDb, WorkspaceSessionRecordDb,
 };
 pub use db::workspace_db::{open_workspace_db, workspace_db_path};
+
+pub use errors::{KernelError, WorkspaceError};
 
 pub use workspace::{
     CreateWorkspaceRequest, EndWorkspaceSessionRequest, Environment, Process, ProcessStatus,

@@ -453,7 +453,11 @@ pub async fn event_stream(
         let mut kernel = state.kernel().lock().await;
         kernel.spawn_actor(&actor_id, config).map(|(_store, mb)| mb).map_err(|e| {
             tracing::warn!("event_stream: actor spawn failed: {e}");
-            (StatusCode::INTERNAL_SERVER_ERROR, e.to_string())
+            let status = match &e {
+                runtime::KernelError::ActorAlreadyExists { .. } => StatusCode::CONFLICT,
+                _ => StatusCode::INTERNAL_SERVER_ERROR,
+            };
+            (status, e.to_string())
         })?
     };
 

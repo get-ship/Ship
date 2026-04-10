@@ -22,6 +22,7 @@ use std::sync::Mutex;
 use anyhow::{Result, anyhow};
 use tokio::sync::mpsc;
 
+use crate::errors::KernelError;
 use crate::events::actor_store::{ActorStore, init_actor_db, raw_append};
 use crate::events::envelope::EventEnvelope;
 use crate::events::mailbox::Mailbox;
@@ -86,9 +87,11 @@ impl KernelRouter {
         &mut self,
         actor_id: &str,
         config: ActorConfig,
-    ) -> Result<(ActorStore, Mailbox)> {
+    ) -> Result<(ActorStore, Mailbox), KernelError> {
         if self.mailboxes.contains_key(actor_id) {
-            return Err(anyhow!("actor '{}' already exists", actor_id));
+            return Err(KernelError::ActorAlreadyExists {
+                actor_id: actor_id.to_string(),
+            });
         }
         let db_path = self
             .base_dir
@@ -215,9 +218,11 @@ impl KernelRouter {
         }
     }
 
-    pub fn stop_actor(&mut self, actor_id: &str) -> Result<()> {
+    pub fn stop_actor(&mut self, actor_id: &str) -> Result<(), KernelError> {
         if self.mailboxes.remove(actor_id).is_none() {
-            return Err(anyhow!("actor '{}' not found", actor_id));
+            return Err(KernelError::ActorNotFound {
+                actor_id: actor_id.to_string(),
+            });
         }
         self.actor_configs.remove(actor_id);
 

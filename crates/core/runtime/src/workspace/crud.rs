@@ -2,6 +2,7 @@ use crate::db::branch_context::clear_branch_link;
 use crate::db::workspace_state::{
     get_workspace_by_id_db, get_workspace_db, list_workspaces_db,
 };
+use crate::errors::WorkspaceError;
 use super::event_upserts::upsert_workspace_on_deleted;
 use anyhow::{Result, anyhow};
 use std::path::Path;
@@ -85,7 +86,7 @@ pub(crate) fn list_workspaces_raw(_ship_dir: &Path) -> Result<Vec<Workspace>> {
     Ok(workspaces)
 }
 
-pub fn delete_workspace(ship_dir: &Path, id_or_branch: &str) -> Result<()> {
+pub fn delete_workspace(ship_dir: &Path, id_or_branch: &str) -> Result<(), WorkspaceError> {
     let id_or_branch = ensure_branch_key(id_or_branch)?;
     // Resolve: the caller may pass a workspace id (from the API path) or a
     // branch name.  The DB primary key is `branch`, so look up by id first.
@@ -104,21 +105,21 @@ pub fn get_workspace_provider_matrix(
     ship_dir: &Path,
     branch: &str,
     agent_id: Option<&str>,
-) -> Result<WorkspaceProviderMatrix> {
+) -> Result<WorkspaceProviderMatrix, WorkspaceError> {
     let branch = ensure_branch_key(branch)?;
     let workspace = get_workspace(ship_dir, branch)?
-        .ok_or_else(|| anyhow!("Workspace not found for branch '{}'", branch))?;
-    super::compile::build_workspace_provider_matrix(ship_dir, &workspace, agent_id)
+        .ok_or_else(|| WorkspaceError::NotFound { branch: branch.to_string() })?;
+    Ok(super::compile::build_workspace_provider_matrix(ship_dir, &workspace, agent_id)?)
 }
 
 pub fn repair_workspace(
     ship_dir: &Path,
     branch: &str,
     dry_run: bool,
-) -> Result<WorkspaceRepairReport> {
+) -> Result<WorkspaceRepairReport, WorkspaceError> {
     let branch = ensure_branch_key(branch)?;
     let workspace = get_workspace(ship_dir, branch)?
-        .ok_or_else(|| anyhow!("Workspace not found for branch '{}'", branch))?;
+        .ok_or_else(|| WorkspaceError::NotFound { branch: branch.to_string() })?;
     let mut matrix =
         get_workspace_provider_matrix(ship_dir, branch, workspace.active_agent.as_deref())?;
 

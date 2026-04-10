@@ -4,6 +4,7 @@ use crate::db::session::{
 use crate::db::workspace_state::get_workspace_config_generation_db;
 use crate::db::session_events::insert_session_progress_event;
 use crate::db::types::WorkspaceSessionDb;
+use crate::errors::WorkspaceError;
 use crate::events::types::SessionProgress;
 use crate::project::{get_global_dir, project_slug_from_ship_dir, sanitize_file_name};
 use anyhow::{Result, anyhow};
@@ -220,16 +221,16 @@ pub fn record_workspace_session_progress(
     branch: &str,
     note: &str,
     escalation: Option<&str>,
-) -> Result<()> {
+) -> Result<(), WorkspaceError> {
     let branch = ensure_branch_key(branch)?;
     let workspace = get_workspace(ship_dir, branch)?
-        .ok_or_else(|| anyhow::anyhow!("Workspace not found for branch '{}'", branch))?;
+        .ok_or_else(|| WorkspaceError::NotFound { branch: branch.to_string() })?;
     let active = get_active_workspace_session_db(&workspace.id)?
         .ok_or_else(|| anyhow::anyhow!("No active workspace session for '{}'", workspace.branch))?;
 
     let normalized_note = note.trim();
     if normalized_note.is_empty() {
-        return Err(anyhow!("Session note cannot be empty"));
+        return Err(WorkspaceError::Internal(anyhow::anyhow!("Session note cannot be empty")));
     }
 
     let progress_payload = SessionProgress {
