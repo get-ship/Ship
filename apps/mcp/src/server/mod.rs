@@ -170,6 +170,22 @@ impl ShipServer {
             capabilities
         };
 
+        // Register a scoped session before spawning the actor so subsequent
+        // requests (including actor_spawn) use the session token.
+        let active_agent = runtime::get_active_agent(Some(ship_dir.clone())).unwrap_or(None);
+        let agent_role = active_agent.as_ref().and_then(|a| a.role.as_deref());
+        let workspace_id = self.session_id.lock().await.clone();
+        match crate::network_client::register_session(
+            &actor_id,
+            agent_role,
+            workspace_id.as_deref(),
+        ).await {
+            Ok(_token) => tracing::info!(actor_id, "scoped session registered with daemon"),
+            Err(e) => {
+                tracing::debug!(actor_id, "session registration skipped (daemon may not be running): {e}");
+            }
+        }
+
         // Spawn actor in daemon's kernel (includes mesh registration)
         match crate::network_client::actor_spawn(&actor_id, &config, Some(capabilities)).await {
             Ok(_) => tracing::info!(actor_id, "actor spawned in daemon kernel"),

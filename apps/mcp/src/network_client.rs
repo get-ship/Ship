@@ -1,8 +1,16 @@
-//! HTTP client for forwarding mesh operations to the shipd daemon.
-//! Calls the REST API at /api/mesh/* (not the MCP endpoint).
+//! HTTP client for forwarding mesh/session operations to the shipd daemon.
 
 use anyhow::{Result, anyhow};
 use serde_json::Value;
+use std::sync::OnceLock;
+use tokio::sync::Mutex;
+
+/// Cached session token — set after register_session succeeds.
+static SESSION_TOKEN: OnceLock<Mutex<Option<String>>> = OnceLock::new();
+
+fn session_token_store() -> &'static Mutex<Option<String>> {
+    SESSION_TOKEN.get_or_init(|| Mutex::new(None))
+}
 
 /// Get the shipd port from ~/.ship/daemon.port
 fn get_network_port() -> Result<u16> {
@@ -24,6 +32,16 @@ fn get_network_token() -> Result<String> {
     Ok(token.trim().to_string())
 }
 
+/// Return the session token if registered, otherwise fall back to daemon token.
+async fn get_effective_token() -> Result<String> {
+    let store = session_token_store().lock().await;
+    if let Some(ref t) = *store {
+        return Ok(t.clone());
+    }
+    drop(store);
+    get_network_token()
+}
+
 fn base_url() -> Result<String> {
     Ok(format!("http://127.0.0.1:{}/api", get_network_port()?))
 }
@@ -31,7 +49,7 @@ fn base_url() -> Result<String> {
 /// POST JSON to a REST endpoint, return the response body.
 async fn post(path: &str, body: Value) -> Result<String> {
     let url = format!("{}{}", base_url()?, path);
-    let token = get_network_token()?;
+    let token = get_effective_token().await?;
     let resp = reqwest::Client::new()
         .post(&url)
         .bearer_auth(&token)
@@ -51,7 +69,7 @@ async fn post(path: &str, body: Value) -> Result<String> {
 /// GET from a REST endpoint.
 async fn get(path: &str) -> Result<String> {
     let url = format!("{}{}", base_url()?, path);
-    let token = get_network_token()?;
+    let token = get_effective_token().await?;
     let resp = reqwest::Client::new()
         .get(&url)
         .bearer_auth(&token)
@@ -151,6 +169,48 @@ pub async fn event_route(
         "workspace_id": workspace_id,
         "session_id": session_id,
     })).await
+}
+
+/// Register a scoped session with the daemon. On success, stores the session
+/// token so all subsequent requests use it instead of the daemon token.
+///
+/// If the daemon is not running or registration fails, returns an error
+/// but does not prevent the MCP server from operating (falls back to daemon token).
+pub async fn register_session(
+    agent_id: &str,
+    role: Option<&str>,
+    workspace_id: Option<&str>,
+) -> Result<String> {
+    let url = format!("{}/session/register", base_url()?);
+    let resp = reqwest::Client::new()
+        .post(&url)
+        .json(&serde_json::json!({
+            "agent_id": agent_id,
+            "role": role,
+            "workspace_id": workspace_id,
+        }))
+        .send()
+        .await
+        .map_err(|e| anyhow!("session register failed: {e}"))?;
+
+    let status = resp.status();
+    let text = resp.text().await.map_err(|e| anyhow!("failed to read response: {e}"))?;
+    if !status.is_success() {
+        return Err(anyhow!("session register error ({}): {}", status, text));
+    }
+
+    let parsed: serde_json::Value = serde_json::from_str(&text)
+        .map_err(|e| anyhow!("failed to parse session register response: {e}"))?;
+    let session_token = parsed["session_token"]
+        .as_str()
+        .ok_or_else(|| anyhow!("missing session_token in response"))?
+        .to_string();
+
+    // Store the session token for subsequent requests.
+    *session_token_store().lock().await = Some(session_token.clone());
+    tracing::info!(agent_id, "registered scoped session with daemon");
+
+    Ok(session_token)
 }
 
 /// Open an SSE stream for mesh events targeted at this agent.

@@ -415,10 +415,13 @@ async fn capabilities_returns_unauthenticated_without_token() {
     let token = crate::auth::generate_token();
     let token_arc = std::sync::Arc::new(token);
 
+    let registry: crate::auth::SessionRegistry = std::sync::Arc::new(
+        tokio::sync::Mutex::new(std::collections::HashMap::new()),
+    );
     let router = axum::Router::new()
         .route("/api/capabilities", axum::routing::get(|| async { "ok" }))
         .layer(axum::middleware::from_fn(move |req, next| {
-            crate::auth::auth_middleware(token_arc.clone(), req, next)
+            crate::auth::auth_middleware(token_arc.clone(), registry.clone(), req, next)
         }));
 
     // Simulate a browser request from localhost — no token.
@@ -508,6 +511,7 @@ async fn mcp_agent_without_agent_id_can_register() {
         agent_id: None,
         workspace_id: None,
         session_id: None,
+        scopes: vec![crate::auth::Scope::Full],
     };
     let resp = mesh_register(
         State(state),

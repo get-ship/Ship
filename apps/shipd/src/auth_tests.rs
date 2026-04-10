@@ -12,15 +12,18 @@ use http_body_util::BodyExt;
 use std::sync::Arc;
 use tower::ServiceExt;
 
-use crate::auth::{self, AuthContext};
+use crate::auth::{self, AuthContext, SessionRegistry};
 
 /// Build a minimal router with the auth middleware and a 200-OK handler.
 fn test_router(token: &str) -> Router {
     let token = Arc::new(token.to_string());
+    let registry: SessionRegistry = Arc::new(tokio::sync::Mutex::new(
+        std::collections::HashMap::new(),
+    ));
     Router::new()
         .route("/test", axum::routing::get(ok_handler))
         .layer(middleware::from_fn(move |req, next| {
-            auth::auth_middleware(token.clone(), req, next)
+            auth::auth_middleware(token.clone(), registry.clone(), req, next)
         }))
 }
 

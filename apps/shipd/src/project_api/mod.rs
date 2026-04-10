@@ -26,6 +26,7 @@ use axum::{Json, extract::State, http::StatusCode};
 use serde::Deserialize;
 use std::path::PathBuf;
 
+use crate::auth::{Scope, require_scope};
 use crate::rest_api::{ApiState, MeshResponse};
 
 // ---- Shared helpers ----
@@ -94,6 +95,9 @@ pub async fn emit_event(
     auth: Option<axum::Extension<crate::auth::AuthContext>>,
     Json(body): Json<EmitEventReq>,
 ) -> Result<(StatusCode, Json<MeshResponse>), (StatusCode, Json<MeshResponse>)> {
+    if let Some(axum::Extension(ref ac)) = auth {
+        require_scope(ac, Scope::EmitEvents)?;
+    }
     let mut envelope =
         runtime::events::EventEnvelope::new(&body.event_type, &body.entity_id, &body.payload)
             .map_err(|e| err_response(StatusCode::BAD_REQUEST, &e.to_string()))?;
@@ -135,8 +139,10 @@ pub async fn emit_event(
 /// DELETE /api/workspaces/{id}
 pub async fn delete_workspace(
     State(state): State<ApiState>,
+    axum::Extension(auth): axum::Extension<crate::auth::AuthContext>,
     axum::extract::Path(id): axum::extract::Path<String>,
 ) -> Result<(StatusCode, Json<MeshResponse>), (StatusCode, Json<MeshResponse>)> {
+    require_scope(&auth, Scope::WriteWorkspace)?;
     runtime::workspace::delete_workspace(state.ship_dir(), &id).map_err(|e| {
         err_response(StatusCode::INTERNAL_SERVER_ERROR, &e.to_string())
     })?;
@@ -152,8 +158,10 @@ pub async fn delete_workspace(
 /// Kept as /activate for API backward compat.
 pub async fn activate_workspace(
     State(state): State<ApiState>,
+    axum::Extension(auth): axum::Extension<crate::auth::AuthContext>,
     axum::extract::Path(id): axum::extract::Path<String>,
 ) -> Result<(StatusCode, Json<MeshResponse>), (StatusCode, Json<MeshResponse>)> {
+    require_scope(&auth, Scope::WriteWorkspace)?;
     runtime::workspace::create_workspace(
         state.ship_dir(),
         runtime::workspace::CreateWorkspaceRequest {

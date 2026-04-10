@@ -6,6 +6,16 @@ use tempfile::TempDir;
 
 use super::*;
 
+fn full_auth() -> axum::Extension<crate::auth::AuthContext> {
+    axum::Extension(crate::auth::AuthContext {
+        caller_kind: runtime::events::CallerKind::Cli,
+        agent_id: None,
+        workspace_id: None,
+        session_id: None,
+        scopes: vec![crate::auth::Scope::Full],
+    })
+}
+
 /// Unique branch name per test to avoid DB collisions across concurrent tests.
 fn test_branch(name: &str) -> String {
     use std::sync::atomic::{AtomicU64, Ordering};
@@ -376,7 +386,7 @@ async fn activate_creates_workspace() {
     let dir = TempDir::new().unwrap();
     let state = make_api_state(&dir);
     let branch = test_branch("activate-new");
-    let (status, body) = activate_workspace(State(state), Path(branch.clone())).await.unwrap();
+    let (status, body) = activate_workspace(State(state), full_auth(), Path(branch.clone())).await.unwrap();
     assert_eq!(status, StatusCode::OK);
     assert_eq!(body.0.data["branch"], branch);
 }
@@ -386,7 +396,7 @@ async fn activate_existing_workspace() {
     let dir = TempDir::new().unwrap();
     let (branch, state) = create_test_workspace(&dir);
 
-    let (status, body) = activate_workspace(State(state), Path(branch.clone())).await.unwrap();
+    let (status, body) = activate_workspace(State(state), full_auth(), Path(branch.clone())).await.unwrap();
     assert_eq!(status, StatusCode::OK);
     assert_eq!(body.0.data["branch"], branch);
 }

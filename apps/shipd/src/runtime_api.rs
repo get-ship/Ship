@@ -4,7 +4,7 @@
 //! All handlers are read-only and use the existing `ApiState`.
 
 use axum::{
-    Json,
+    Extension, Json,
     extract::{Path, Query, State},
     http::StatusCode,
     response::IntoResponse,
@@ -14,6 +14,7 @@ use runtime::events::{ActorConfig, EventEnvelope};
 use runtime::events::job::{JobCreatedPayload, event_types};
 use serde::Deserialize;
 
+use crate::auth::{AuthContext, Scope, require_scope};
 use crate::rest_api::{ApiState, MeshResponse};
 
 // ---- Query params ----
@@ -288,8 +289,12 @@ pub async fn list_jobs(State(_state): State<ApiState>) -> impl IntoResponse {
 )]
 pub async fn create_job(
     State(state): State<ApiState>,
+    Extension(auth): Extension<AuthContext>,
     Json(req): Json<CreateJobRequest>,
 ) -> impl IntoResponse {
+    if let Err(e) = require_scope(&auth, Scope::CreateJobs) {
+        return e;
+    }
     // Write inline spec content to the project root so the isolation strategy
     // can copy it into the worktree during dispatch.
     if let Some(ref content) = req.spec_content {
@@ -376,8 +381,12 @@ pub struct JobEndRequest {
 )]
 pub async fn end_job(
     State(state): State<ApiState>,
+    Extension(auth): Extension<AuthContext>,
     Json(req): Json<JobEndRequest>,
 ) -> impl IntoResponse {
+    if let Err(e) = require_scope(&auth, Scope::ManageJobs) {
+        return e;
+    }
     // Find the job by slug
     let jobs = match runtime::projections::job::load_jobs() {
         Ok(j) => j,
@@ -458,8 +467,12 @@ pub struct SteerAgentRequest {
 )]
 pub async fn stop_agent(
     State(state): State<ApiState>,
+    Extension(auth): Extension<AuthContext>,
     Path(slug): Path<String>,
 ) -> impl IntoResponse {
+    if let Err(e) = require_scope(&auth, Scope::ManageJobs) {
+        return e;
+    }
     let dh = match state.dispatch_handle() {
         Some(dh) => dh,
         None => {
@@ -505,9 +518,13 @@ pub async fn stop_agent(
 )]
 pub async fn steer_agent(
     State(state): State<ApiState>,
+    Extension(auth): Extension<AuthContext>,
     Path(slug): Path<String>,
     Json(req): Json<SteerAgentRequest>,
 ) -> impl IntoResponse {
+    if let Err(e) = require_scope(&auth, Scope::ManageJobs) {
+        return e;
+    }
     let dh = match state.dispatch_handle() {
         Some(dh) => dh,
         None => {
@@ -550,7 +567,11 @@ pub async fn steer_agent(
 )]
 pub async fn rebuild_projections(
     State(state): State<ApiState>,
+    Extension(auth): Extension<AuthContext>,
 ) -> impl IntoResponse {
+    if let Err(e) = require_scope(&auth, Scope::AdminDaemon) {
+        return e;
+    }
     match runtime::db::rebuild::rebuild_projections(state.ship_dir()) {
         Ok(report) => (
             StatusCode::OK,
@@ -651,11 +672,11 @@ pub async fn event_stream(
 #[cfg(test)]
 mod tests {
     use super::*;
+    use axum::Extension;
     use axum::extract::{Query, State};
     use axum::response::IntoResponse;
     use std::sync::Arc;
     use tempfile::TempDir;
-    use tokio::sync::Mutex;
 
     fn make_api_state(dir: &TempDir) -> ApiState {
         let ship_dir = dir.path().join(".ship");
@@ -872,11 +893,21 @@ mod tests {
         );
     }
 
+    fn full_auth() -> AuthContext {
+        AuthContext {
+            caller_kind: runtime::events::CallerKind::Cli,
+            agent_id: None,
+            workspace_id: None,
+            session_id: None,
+            scopes: vec![crate::auth::Scope::Full],
+        }
+    }
+
     #[tokio::test(flavor = "multi_thread")]
     async fn stop_agent_no_dispatch_handle_returns_503() {
         let dir = TempDir::new().unwrap();
         let state = make_api_state(&dir);
-        let response = stop_agent(State(state), Path("test-slug".to_string()))
+        let response = stop_agent(State(state), Extension(full_auth()), Path("test-slug".to_string()))
             .await
             .into_response();
         assert_eq!(response.status(), StatusCode::SERVICE_UNAVAILABLE);
@@ -887,7 +918,7 @@ mod tests {
         let dir = TempDir::new().unwrap();
         let state = make_api_state(&dir);
         let req = SteerAgentRequest { message: "hello".to_string() };
-        let response = steer_agent(State(state), Path("test-slug".to_string()), Json(req))
+        let response = steer_agent(State(state), Extension(full_auth()), Path("test-slug".to_string()), Json(req))
             .await
             .into_response();
         assert_eq!(response.status(), StatusCode::SERVICE_UNAVAILABLE);
