@@ -49,15 +49,15 @@ mod tests {
             &ship_dir,
             CreateWorkspaceRequest {
                 branch: "feature/mode-override".to_string(),
-                status: Some(WorkspaceStatus::Active),
                 ..Default::default()
             },
         )?;
 
+        // set_workspace_active_agent records the agent but does not compile.
+        // Compilation happens at session start.
         let updated =
             set_workspace_active_agent(&ship_dir, "feature/mode-override", Some("planning"))?;
         assert_eq!(updated.active_agent.as_deref(), Some("planning"));
-        assert!(tmp.path().join(".codex").join("config.toml").exists());
 
         let cleared = set_workspace_active_agent(&ship_dir, "feature/mode-override", None)?;
         assert!(cleared.active_agent.is_none());
@@ -98,7 +98,6 @@ mod tests {
         let tmp = tempdir()?;
         let ship_dir = crate::project::init_project(tmp.path().to_path_buf())?;
 
-        // No providers configured at all
         create_workspace(
             &ship_dir,
             CreateWorkspaceRequest {
@@ -112,7 +111,6 @@ mod tests {
             "feature/provider-invalid",
             None,
         )?;
-        // With no providers configured, resolution_error should be set
         if matrix.allowed_providers.is_empty() {
             assert!(matrix.resolution_error.is_some());
         }
@@ -120,26 +118,23 @@ mod tests {
     }
 
     #[test]
-    fn repair_workspace_on_archived_workspace_reports_activation_action() -> Result<()> {
+    fn repair_workspace_reports_status() -> Result<()> {
         let tmp = tempdir()?;
         let ship_dir = crate::project::init_project(tmp.path().to_path_buf())?;
 
         create_workspace(
             &ship_dir,
             CreateWorkspaceRequest {
-                branch: "feature/repair-idle".to_string(),
-                status: Some(WorkspaceStatus::Active),
+                branch: "feature/repair-test".to_string(),
                 ..Default::default()
             },
         )?;
-        transition_workspace_status(
-            &ship_dir,
-            "feature/repair-idle",
-            WorkspaceStatus::Archived,
-        )?;
 
-        let report = repair_workspace(&ship_dir, "feature/repair-idle", false)?;
-        assert!(!report.reapplied_compile);
+        // A fresh workspace with no compiled provider configs will trigger
+        // recompile during repair.
+        let report = repair_workspace(&ship_dir, "feature/repair-test", false)?;
+        assert_eq!(report.workspace_branch, "feature/repair-test");
+        assert!(!report.dry_run);
         Ok(())
     }
 }

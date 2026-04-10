@@ -37,22 +37,21 @@ fn start_session_auto_creates_workspace() -> Result<()> {
 }
 
 #[test]
-fn start_session_activates_archived_workspace() -> Result<()> {
+fn start_session_on_existing_workspace() -> Result<()> {
     let tmp = tempdir()?;
     let ship_dir = init_project_with_provider(&tmp)?;
 
     create_workspace(
         &ship_dir,
         CreateWorkspaceRequest {
-            branch: "feature/archived-session".into(),
-            status: Some(WorkspaceStatus::Archived),
+            branch: "feature/existing-session".into(),
             ..Default::default()
         },
     )?;
 
     let session = start_workspace_session(
         &ship_dir,
-        "feature/archived-session",
+        "feature/existing-session",
         None,
         None,
         None,

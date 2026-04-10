@@ -66,8 +66,7 @@ fn handle_workspace_event(ship_dir: &PathBuf, envelope: &EventEnvelope) {
                 Ok(None) => {
                     let req = runtime::workspace::CreateWorkspaceRequest {
                         branch: branch.clone(),
-                        is_worktree: Some(true),
-                        worktree_path: worktree_path.clone(),
+                        path: worktree_path.clone(),
                         ..Default::default()
                     };
                     if let Err(e) = runtime::workspace::create_workspace(ship_dir, req) {
@@ -219,7 +218,7 @@ mod tests {
         handle_workspace_event(&ship_dir, &envelope);
 
         let ws = runtime::workspace::list_workspaces(&ship_dir).unwrap();
-        assert_eq!(ws.iter().filter(|w| w.branch == "idempotent-branch").count(), 1);
+        assert_eq!(ws.iter().filter(|w| w.name == "idempotent-branch").count(), 1);
     }
 
     #[test]

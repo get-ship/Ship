@@ -21,13 +21,11 @@ fn workspace_created_event(branch: &str) -> EventEnvelope {
         &serde_json::json!({
             "workspace_id": branch,
             "workspace_type": "feature",
-            "status": "active",
             "active_agent": null,
             "providers": [],
             "mcp_servers": [],
             "skills": [],
-            "is_worktree": false,
-            "worktree_path": null
+            "path": null
         }),
     )
     .unwrap()
@@ -57,19 +55,19 @@ fn query_workspace_count(ship_dir: &std::path::Path) -> i64 {
     count
 }
 
-fn query_workspace_status(
+fn query_workspace_exists(
     ship_dir: &std::path::Path,
     branch: &str,
-) -> Option<String> {
+) -> bool {
     let mut conn = open_db_at(&ship_dir.join("platform.db")).unwrap();
-    let rows: Vec<(String,)> = block_on(async {
-        sqlx::query_as("SELECT status FROM workspace WHERE branch = ?")
+    let (count,): (i64,) = block_on(async {
+        sqlx::query_as("SELECT COUNT(*) FROM workspace WHERE branch = ?")
             .bind(branch)
-            .fetch_all(&mut conn)
+            .fetch_one(&mut conn)
             .await
     })
     .unwrap();
-    rows.first().map(|r| r.0.clone())
+    count > 0
 }
 
 #[test]
@@ -78,6 +76,8 @@ fn rebuild_from_events_produces_correct_state() {
     let store = SqliteEventStore::new_at(&ship_dir).unwrap();
 
     // Emit events through the store (bypassing projections).
+    // workspace.archived is now a no-op (status removed), so both workspaces
+    // survive rebuild — we just verify they exist.
     let events = vec![
         workspace_created_event("feature/rebuild-a"),
         workspace_created_event("feature/rebuild-b"),
@@ -87,23 +87,14 @@ fn rebuild_from_events_produces_correct_state() {
         store.append(ev).unwrap();
     }
 
-    // No projections applied yet — workspace table should be empty or stale.
-    // Run rebuild to reconstruct from events.
     let report = rebuild::rebuild_projections(&ship_dir).unwrap();
 
     assert_eq!(report.events_replayed, 3);
     assert!(report.projections_rebuilt.len() >= 3);
-    assert!(report.duration_ms < 10_000); // sanity check
+    assert!(report.duration_ms < 10_000);
 
-    // Verify rebuilt state matches what events describe.
-    assert_eq!(
-        query_workspace_status(&ship_dir, "feature/rebuild-a"),
-        Some("active".to_string())
-    );
-    assert_eq!(
-        query_workspace_status(&ship_dir, "feature/rebuild-b"),
-        Some("archived".to_string())
-    );
+    assert!(query_workspace_exists(&ship_dir, "feature/rebuild-a"));
+    assert!(query_workspace_exists(&ship_dir, "feature/rebuild-b"));
 }
 
 #[test]
@@ -122,18 +113,14 @@ fn rebuild_is_idempotent() {
     // First rebuild.
     rebuild::rebuild_projections(&ship_dir).unwrap();
     let count_before = query_workspace_count(&ship_dir);
-    let status_a = query_workspace_status(&ship_dir, "feature/idem-a");
-    let status_b = query_workspace_status(&ship_dir, "feature/idem-b");
 
     // Second rebuild — state must be identical.
     rebuild::rebuild_projections(&ship_dir).unwrap();
     let count_after = query_workspace_count(&ship_dir);
-    let status_a2 = query_workspace_status(&ship_dir, "feature/idem-a");
-    let status_b2 = query_workspace_status(&ship_dir, "feature/idem-b");
 
     assert_eq!(count_before, count_after, "row count must not change");
-    assert_eq!(status_a, status_a2, "workspace A status must be stable");
-    assert_eq!(status_b, status_b2, "workspace B status must be stable");
+    assert!(query_workspace_exists(&ship_dir, "feature/idem-a"));
+    assert!(query_workspace_exists(&ship_dir, "feature/idem-b"));
 }
 
 #[test]

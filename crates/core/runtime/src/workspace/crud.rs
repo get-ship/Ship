@@ -1,10 +1,10 @@
 use crate::db::branch_context::clear_branch_link;
 use crate::db::workspace_state::{
-    get_workspace_by_id_db, get_workspace_db, list_workspaces_db,
+    get_workspace_by_id_db, get_workspace_db, has_active_session_db, list_workspaces_db,
 };
 use crate::errors::WorkspaceError;
 use super::event_upserts::upsert_workspace_on_deleted;
-use anyhow::{Result, anyhow};
+use anyhow::Result;
 use std::path::Path;
 
 use super::helpers::*;
@@ -16,71 +16,56 @@ use super::types_session::*;
 /// Look up a workspace by its id (or branch as fallback).
 pub fn get_workspace_by_id(_ship_dir: &Path, id: &str) -> Result<Option<Workspace>> {
     let row = get_workspace_by_id_db(id)?;
-    let Some((branch, (ws_id, status, is_worktree, worktree_path, active_agent, last_activated_at))) = row else {
+    let Some((branch, (ws_id, path, active_agent, created_at))) = row else {
         return Ok(None);
     };
 
-    let status = parse_workspace_status_required(&status)
-        .map_err(|err| anyhow!("Workspace '{}' has invalid status value: {}", id, err))?;
-
     Ok(Some(Workspace {
         id: ws_id,
-        branch,
-        status,
-        is_worktree,
-        worktree_path,
+        name: branch,
+        path,
         active_agent,
-        last_activated_at: parse_datetime_opt(last_activated_at),
+        created_at: created_at
+            .map(|s| parse_datetime(&s))
+            .unwrap_or_else(chrono::Utc::now),
     }))
 }
 
 pub fn get_workspace(_ship_dir: &Path, branch: &str) -> Result<Option<Workspace>> {
     let row = get_workspace_db(branch)?;
-    let Some((id, status, is_worktree, worktree_path, active_agent, last_activated_at)) = row else {
+    let Some((id, path, active_agent, created_at)) = row else {
         return Ok(None);
     };
 
-    let status = parse_workspace_status_required(&status)
-        .map_err(|err| anyhow!("Workspace '{}' has invalid status value: {}", branch, err))?;
-
     Ok(Some(Workspace {
         id,
-        branch: branch.to_string(),
-        status,
-        is_worktree,
-        worktree_path,
+        name: branch.to_string(),
+        path,
         active_agent,
-        last_activated_at: parse_datetime_opt(last_activated_at),
+        created_at: created_at
+            .map(|s| parse_datetime(&s))
+            .unwrap_or_else(chrono::Utc::now),
     }))
 }
 
-/// List workspaces with reconciliation against git/filesystem state.
-///
-/// Stale workspaces whose worktree paths no longer exist on disk are
-/// corrected before results are returned, so callers always get clean data.
+/// List all workspaces.
 pub fn list_workspaces(ship_dir: &Path) -> Result<Vec<Workspace>> {
-    super::reconcile::reconcile_all_workspaces(ship_dir)
+    list_workspaces_raw(ship_dir)
 }
 
-/// List workspaces directly from DB without reconciliation.
-///
-/// Used by `reconcile_all_workspaces` to avoid recursion. All other
-/// callers should use `list_workspaces` which reconciles first.
+/// List workspaces directly from DB.
 pub(crate) fn list_workspaces_raw(_ship_dir: &Path) -> Result<Vec<Workspace>> {
     let rows = list_workspaces_db()?;
     let mut workspaces = Vec::with_capacity(rows.len());
-    for (branch, id, status, is_worktree, worktree_path, active_agent, last_activated_at) in rows {
-        let parsed_status = parse_workspace_status_required(&status)
-            .map_err(|err| anyhow!("Workspace '{}' has invalid status value: {}", branch, err))?;
-
+    for (branch, id, path, active_agent, created_at) in rows {
         workspaces.push(Workspace {
             id,
-            branch,
-            status: parsed_status,
-            is_worktree,
-            worktree_path,
+            name: branch,
+            path,
             active_agent,
-            last_activated_at: parse_datetime_opt(last_activated_at),
+            created_at: created_at
+                .map(|s| parse_datetime(&s))
+                .unwrap_or_else(chrono::Utc::now),
         });
     }
     Ok(workspaces)
@@ -88,8 +73,6 @@ pub(crate) fn list_workspaces_raw(_ship_dir: &Path) -> Result<Vec<Workspace>> {
 
 pub fn delete_workspace(ship_dir: &Path, id_or_branch: &str) -> Result<(), WorkspaceError> {
     let id_or_branch = ensure_branch_key(id_or_branch)?;
-    // Resolve: the caller may pass a workspace id (from the API path) or a
-    // branch name.  The DB primary key is `branch`, so look up by id first.
     let branch = match get_workspace_by_id_db(id_or_branch)? {
         Some((resolved_branch, _)) => resolved_branch,
         None => id_or_branch.to_string(),
@@ -97,6 +80,16 @@ pub fn delete_workspace(ship_dir: &Path, id_or_branch: &str) -> Result<(), Works
     clear_branch_link(&branch)?;
     upsert_workspace_on_deleted(ship_dir, &branch)?;
     Ok(())
+}
+
+// ---- Workspace status (computed from sessions) -----------------------------
+
+/// Compute workspace status from session state.
+pub fn workspace_status(workspace: &Workspace) -> WorkspaceStatus {
+    match has_active_session_db(&workspace.id) {
+        Ok(true) => WorkspaceStatus::Active,
+        _ => WorkspaceStatus::Idle,
+    }
 }
 
 // ---- Provider matrix / repair (public) -------------------------------------
@@ -140,29 +133,22 @@ pub fn repair_workspace(
     let needs_recompile = !missing_provider_configs.is_empty();
 
     if !dry_run && needs_recompile && matrix.resolution_error.is_none() {
-        if workspace.status == WorkspaceStatus::Active {
-            let active = workspace.active_agent.clone();
-            let _workspace =
-                super::lifecycle::set_workspace_active_agent(ship_dir, branch, active.as_deref())?;
-            matrix =
-                get_workspace_provider_matrix(ship_dir, branch, _workspace.active_agent.as_deref())?;
-            let context_root = super::compile::resolve_workspace_context_root(ship_dir, &_workspace);
-            missing_provider_configs =
-                super::compile::missing_provider_configs_for_workspace(&context_root, &matrix.allowed_providers);
-            reapplied_compile = true;
-            actions.push("recompiled active workspace context".to_string());
-        } else {
-            actions.push(
-                "workspace is not active; activate workspace to apply compile repair".to_string(),
-            );
-        }
+        let active = workspace.active_agent.clone();
+        let _workspace =
+            super::lifecycle::set_workspace_active_agent(ship_dir, branch, active.as_deref())?;
+        matrix =
+            get_workspace_provider_matrix(ship_dir, branch, _workspace.active_agent.as_deref())?;
+        let context_root = super::compile::resolve_workspace_context_root(ship_dir, &_workspace);
+        missing_provider_configs =
+            super::compile::missing_provider_configs_for_workspace(&context_root, &matrix.allowed_providers);
+        reapplied_compile = true;
+        actions.push("recompiled workspace context".to_string());
     }
 
     Ok(WorkspaceRepairReport {
-        workspace_branch: workspace.branch.clone(),
+        workspace_branch: workspace.name.clone(),
         dry_run,
         agent_id: workspace.active_agent.clone(),
-        status: workspace.status,
         providers_expected: matrix.allowed_providers,
         needs_recompile: !missing_provider_configs.is_empty(),
         missing_provider_configs,

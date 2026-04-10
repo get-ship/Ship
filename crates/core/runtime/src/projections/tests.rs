@@ -28,13 +28,11 @@ mod workspace_tests {
             &serde_json::json!({
                 "workspace_id": branch,
                 "workspace_type": "feature",
-                "status": "active",
                 "active_agent": null,
                 "providers": [],
                 "mcp_servers": [],
                 "skills": [],
-                "is_worktree": false,
-                "worktree_path": null
+                "path": null
             }),
         )
         .unwrap()
@@ -56,17 +54,6 @@ mod workspace_tests {
         .elevate()
     }
 
-    fn workspace_archived_event(branch: &str) -> EventEnvelope {
-        EventEnvelope::new(
-            event_types::WORKSPACE_ARCHIVED,
-            branch,
-            &serde_json::json!({}),
-        )
-        .unwrap()
-        .with_context(Some(branch), None)
-        .elevate()
-    }
-
     fn workspace_deleted_event(branch: &str) -> EventEnvelope {
         EventEnvelope::new(
             event_types::WORKSPACE_DELETED,
@@ -78,21 +65,17 @@ mod workspace_tests {
         .elevate()
     }
 
-    fn query_workspace_status(conn: &mut sqlx::SqliteConnection, branch: &str) -> Option<String> {
-        let rows: Vec<(String,)> = block_on(async {
-            sqlx::query_as(
-                "SELECT status FROM workspace WHERE branch = ?",
+    fn query_workspace_exists(conn: &mut sqlx::SqliteConnection, branch: &str) -> bool {
+        let count: i64 = block_on(async {
+            sqlx::query_scalar(
+                "SELECT COUNT(*) FROM workspace WHERE branch = ?",
             )
             .bind(branch)
-            .fetch_all(&mut *conn)
+            .fetch_one(&mut *conn)
             .await
         })
         .unwrap();
-        rows.first().map(|r| r.0.clone())
-    }
-
-    fn query_workspace_exists(conn: &mut sqlx::SqliteConnection, branch: &str) -> bool {
-        query_workspace_status(conn, branch).is_some()
+        count > 0
     }
 
     // ── Tests ──────────────────────────────────────────────────────────
@@ -105,20 +88,7 @@ mod workspace_tests {
 
         bus.dispatch(&event, &mut conn);
 
-        let status = query_workspace_status(&mut conn, "feature/proj-test-1");
-        assert_eq!(status.as_deref(), Some("active"), "created event must insert row");
-    }
-
-    #[test]
-    fn dispatch_archived_updates_status() {
-        let mut conn = setup();
-        let bus = bus();
-
-        bus.dispatch(&workspace_created_event("feature/proj-test-2"), &mut conn);
-        bus.dispatch(&workspace_archived_event("feature/proj-test-2"), &mut conn);
-
-        let status = query_workspace_status(&mut conn, "feature/proj-test-2");
-        assert_eq!(status.as_deref(), Some("archived"));
+        assert!(query_workspace_exists(&mut conn, "feature/proj-test-1"), "created event must insert row");
     }
 
     #[test]
@@ -142,23 +112,22 @@ mod workspace_tests {
             workspace_created_event("feature/rebuild-a"),
             workspace_compiled_event("feature/rebuild-a"),
             workspace_created_event("feature/rebuild-b"),
-            workspace_archived_event("feature/rebuild-b"),
         ];
 
         for event in &events {
             bus.dispatch(event, &mut conn);
         }
 
-        let status_a = query_workspace_status(&mut conn, "feature/rebuild-a");
-        let status_b = query_workspace_status(&mut conn, "feature/rebuild-b");
+        let exists_a = query_workspace_exists(&mut conn, "feature/rebuild-a");
+        let exists_b = query_workspace_exists(&mut conn, "feature/rebuild-b");
 
         let report = bus.rebuild(&events, &mut conn).unwrap();
-        assert_eq!(report.events_replayed, 4);
+        assert_eq!(report.events_replayed, 3);
 
-        let rebuilt_a = query_workspace_status(&mut conn, "feature/rebuild-a");
-        let rebuilt_b = query_workspace_status(&mut conn, "feature/rebuild-b");
-        assert_eq!(status_a, rebuilt_a, "rebuild must produce identical state for workspace A");
-        assert_eq!(status_b, rebuilt_b, "rebuild must produce identical state for workspace B");
+        let rebuilt_a = query_workspace_exists(&mut conn, "feature/rebuild-a");
+        let rebuilt_b = query_workspace_exists(&mut conn, "feature/rebuild-b");
+        assert_eq!(exists_a, rebuilt_a, "rebuild must produce identical state for workspace A");
+        assert_eq!(exists_b, rebuilt_b, "rebuild must produce identical state for workspace B");
     }
 
     #[test]
@@ -226,7 +195,7 @@ mod workspace_tests {
     }
 
     #[test]
-    fn started_projection_sets_worktree_fields() {
+    fn started_projection_sets_path_field() {
         let mut conn = setup();
         let bus = bus();
         let branch = "feature/started-test";
@@ -246,9 +215,9 @@ mod workspace_tests {
         .elevate();
         bus.dispatch(&event, &mut conn);
 
-        let row: Option<(i64, Option<String>, Option<String>)> = block_on(async {
+        let row: Option<(Option<String>, Option<String>)> = block_on(async {
             sqlx::query_as(
-                "SELECT is_worktree, worktree_path, tmux_session_name \
+                "SELECT path, tmux_session_name \
                  FROM workspace WHERE branch = ?",
             )
             .bind(branch)
@@ -256,23 +225,19 @@ mod workspace_tests {
             .await
         })
         .unwrap();
-        let (is_wt, wt_path, tmux) = row.unwrap();
-        assert_eq!(is_wt, 1);
-        assert_eq!(wt_path.as_deref(), Some("/tmp/worktrees/started-test"));
+        let (path, tmux) = row.unwrap();
+        assert_eq!(path.as_deref(), Some("/tmp/worktrees/started-test"));
         assert_eq!(tmux.as_deref(), Some("ship-started"));
     }
 
     #[test]
     fn event_versioning_v1_compiled_without_new_fields() {
-        // Scenario S7: v1 compiled event (with config_generation + duration_ms)
-        // replays correctly even if future v2 adds fields with serde defaults.
         let mut conn = setup();
         let bus = bus();
         let branch = "feature/versioning-test";
 
         bus.dispatch(&workspace_created_event(branch), &mut conn);
 
-        // Simulate a v1 event payload with only the original fields.
         let v1_event = EventEnvelope::new(
             event_types::WORKSPACE_COMPILED,
             branch,
@@ -298,7 +263,7 @@ mod workspace_tests {
     }
 
     #[test]
-    fn rebuild_preserves_tmux_and_worktree_state() {
+    fn rebuild_preserves_tmux_state() {
         let mut conn = setup();
         let bus = bus();
         let branch = "feature/rebuild-tmux";
@@ -323,10 +288,9 @@ mod workspace_tests {
             bus.dispatch(e, &mut conn);
         }
 
-        // Capture state before rebuild.
         let before: Option<(Option<String>, Option<String>, i64)> = block_on(async {
             sqlx::query_as(
-                "SELECT tmux_session_name, worktree_path, config_generation \
+                "SELECT tmux_session_name, path, config_generation \
                  FROM workspace WHERE branch = ?",
             )
             .bind(branch)
@@ -339,7 +303,7 @@ mod workspace_tests {
 
         let after: Option<(Option<String>, Option<String>, i64)> = block_on(async {
             sqlx::query_as(
-                "SELECT tmux_session_name, worktree_path, config_generation \
+                "SELECT tmux_session_name, path, config_generation \
                  FROM workspace WHERE branch = ?",
             )
             .bind(branch)
@@ -353,11 +317,6 @@ mod workspace_tests {
 
     #[test]
     fn transactional_rollback_on_projection_failure() {
-        // AC#4/S4: If projection fails, the event must also be rolled back.
-        // We emit a workspace.activated event for a nonexistent branch via
-        // the transactional path. The projection UPDATE affects 0 rows
-        // (not an error), so instead we craft a malformed payload that
-        // will fail deserialization in the projection handler.
         use crate::db::{ensure_db, open_db};
         use crate::persistence::event_store::append_event_with_conn;
         use crate::projections::{Projection, WorkspaceProjection};
@@ -367,10 +326,8 @@ mod workspace_tests {
         crate::project::init_project(base).unwrap();
         ensure_db().unwrap();
 
-        // Create an event with a payload that will fail projection apply
-        // (workspace.activated requires agent_id and providers fields).
         let bad_envelope = EventEnvelope::new(
-            event_types::WORKSPACE_ACTIVATED,
+            event_types::WORKSPACE_CREATED,
             "feature/txn-rollback-test",
             &serde_json::json!("not-a-valid-payload"),
         )
@@ -379,7 +336,6 @@ mod workspace_tests {
 
         let event_id = bad_envelope.id.clone();
 
-        // Simulate the transactional path.
         let mut conn = open_db().unwrap();
         block_on(async { sqlx::query("BEGIN IMMEDIATE").execute(&mut conn).await }).unwrap();
 
@@ -389,11 +345,9 @@ mod workspace_tests {
         let apply_result = proj.apply(&bad_envelope, &mut conn);
         assert!(apply_result.is_err(), "projection must fail on bad payload");
 
-        // Rollback since projection failed.
         block_on(async { sqlx::query("ROLLBACK").execute(&mut conn).await }).unwrap();
         drop(conn);
 
-        // Verify the event was NOT persisted.
         let mut check_conn = open_db().unwrap();
         let count: i64 = block_on(async {
             sqlx::query_scalar("SELECT COUNT(*) FROM events WHERE id = ?")

@@ -153,19 +153,18 @@ mod tests {
                 ..Default::default()
             },
         )?;
-        activate_workspace(&ship_dir, branch)?;
 
         let mut platform_conn = open_db_at(&db_path()?)?;
         let count: i64 = block_on(async {
             sqlx::query_scalar(
                 "SELECT COUNT(*) FROM events WHERE event_type = ? AND entity_id = ?",
             )
-            .bind(event_types::WORKSPACE_ACTIVATED)
+            .bind(event_types::WORKSPACE_CREATED)
             .bind(branch)
             .fetch_one(&mut platform_conn)
             .await
         })?;
-        assert_eq!(count, 1, "workspace.activated must be in platform.db, got {count} rows");
+        assert_eq!(count, 1, "workspace.created must be in platform.db, got {count} rows");
 
         Ok(())
     }

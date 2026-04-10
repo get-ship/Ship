@@ -2,21 +2,17 @@
 
 pub type WorkspaceDbRow = (
     String,         // 0: id
-    String,         // 1: status
-    bool,           // 2: is_worktree
-    Option<String>, // 3: worktree_path
-    Option<String>, // 4: active_agent
-    Option<String>, // 5: last_activated_at
+    Option<String>, // 1: path
+    Option<String>, // 2: active_agent
+    Option<String>, // 3: created_at
 );
 
 pub type WorkspaceDbListRow = (
-    String,         // 0: branch
+    String,         // 0: branch (name)
     String,         // 1: id
-    String,         // 2: status
-    bool,           // 3: is_worktree
-    Option<String>, // 4: worktree_path
-    Option<String>, // 5: active_agent
-    Option<String>, // 6: last_activated_at
+    Option<String>, // 2: path
+    Option<String>, // 3: active_agent
+    Option<String>, // 4: created_at
 );
 
 #[derive(Debug, Clone, PartialEq, Eq)]
@@ -72,4 +68,3 @@ pub struct AgentArtifactRegistryDb {
     pub source_path: String,
     pub content_hash: String,
 }
-

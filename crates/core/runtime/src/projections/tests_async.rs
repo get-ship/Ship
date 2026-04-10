@@ -22,27 +22,15 @@ mod tests {
             &serde_json::json!({
                 "workspace_id": branch,
                 "workspace_type": "feature",
-                "status": "active",
                 "providers": [],
                 "mcp_servers": [],
                 "skills": [],
-                "is_worktree": false
+                "path": null
             }),
         )
         .unwrap()
         .with_context(Some(branch), None)
         .with_actor_id(branch)
-        .elevate()
-    }
-
-    fn workspace_archived(branch: &str) -> EventEnvelope {
-        EventEnvelope::new(
-            event_types::WORKSPACE_ARCHIVED,
-            branch,
-            &serde_json::json!({}),
-        )
-        .unwrap()
-        .with_context(Some(branch), None)
         .elevate()
     }
 
@@ -55,7 +43,6 @@ mod tests {
         let store = SqliteEventStore::new().unwrap();
         let events = vec![
             workspace_created("feature/rebuild-src-a"),
-            workspace_archived("feature/rebuild-src-a"),
             workspace_created("feature/rebuild-src-b"),
         ];
         for ev in &events {
@@ -67,28 +54,28 @@ mod tests {
         bus.register(Box::new(WorkspaceProjection::new()));
         let report = bus.rebuild(&events, &mut conn).unwrap();
 
-        assert_eq!(report.events_replayed, 3);
+        assert_eq!(report.events_replayed, 2);
         assert!(
             report.projections_rebuilt.contains(&"workspace_state".to_string()),
             "rebuild report must list workspace_state"
         );
 
-        let status_a: Option<String> = block_on(async {
-            sqlx::query_scalar("SELECT status FROM workspace WHERE branch = ?")
+        let exists_a: bool = block_on(async {
+            sqlx::query_scalar::<_, i64>("SELECT COUNT(*) FROM workspace WHERE branch = ?")
                 .bind("feature/rebuild-src-a")
-                .fetch_optional(&mut conn)
+                .fetch_one(&mut conn)
                 .await
         })
-        .unwrap();
-        let status_b: Option<String> = block_on(async {
-            sqlx::query_scalar("SELECT status FROM workspace WHERE branch = ?")
+        .unwrap() > 0;
+        let exists_b: bool = block_on(async {
+            sqlx::query_scalar::<_, i64>("SELECT COUNT(*) FROM workspace WHERE branch = ?")
                 .bind("feature/rebuild-src-b")
-                .fetch_optional(&mut conn)
+                .fetch_one(&mut conn)
                 .await
         })
-        .unwrap();
+        .unwrap() > 0;
 
-        assert_eq!(status_a.as_deref(), Some("archived"), "archived status must be set");
-        assert_eq!(status_b.as_deref(), Some("active"), "workspace-b must be active");
+        assert!(exists_a, "workspace-a must exist after rebuild");
+        assert!(exists_b, "workspace-b must exist after rebuild");
     }
 }

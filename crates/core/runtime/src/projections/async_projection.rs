@@ -174,9 +174,13 @@ mod tests {
         }
 
         let _handle = spawn_projection(proj, rx, test_db_opener);
+
+        // Send one more event after spawn so the projection has something to
+        // receive after recovering from the Lagged error.
+        tokio::time::sleep(Duration::from_millis(50)).await;
+        tx.send(make_event("workspace.created")).unwrap();
         tokio::time::sleep(Duration::from_millis(100)).await;
 
-        // Projection should recover from lag and process the remaining events
         let count = applied.lock().unwrap().len();
         assert!(count >= 1, "projection should process events after lag, got {count}");
     }

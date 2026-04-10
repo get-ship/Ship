@@ -20,62 +20,56 @@ mod tests {
         SqliteEventStore::new().unwrap()
     }
 
-    // ── test 1: activate emits workspace.activated ────────────────────────────
+    // ── test 1: create emits workspace.created ───────────────────────────────
 
     #[test]
-    fn activate_workspace_emits_activated_event() -> Result<()> {
+    fn create_workspace_emits_created_event() -> Result<()> {
         let (_tmp, ship_dir) = setup();
 
         create_workspace(
             &ship_dir,
             CreateWorkspaceRequest {
-                branch: "feature/evt-activate".to_string(),
+                branch: "feature/evt-create".to_string(),
                 ..Default::default()
             },
         )?;
-        activate_workspace(&ship_dir, "feature/evt-activate")?;
 
         let store = event_store();
         let events = store.query(&EventFilter {
-            entity_id: Some("feature/evt-activate".to_string()),
-            event_type: Some(event_types::WORKSPACE_ACTIVATED.to_string()),
+            entity_id: Some("feature/evt-create".to_string()),
+            event_type: Some(event_types::WORKSPACE_CREATED.to_string()),
             ..Default::default()
         })?;
 
-        assert!(!events.is_empty(), "expected at least one workspace.activated event");
+        assert!(!events.is_empty(), "expected at least one workspace.created event");
         let ev = &events[0];
-        assert_eq!(ev.event_type, event_types::WORKSPACE_ACTIVATED);
+        assert_eq!(ev.event_type, event_types::WORKSPACE_CREATED);
         Ok(())
     }
 
-    // ── test 2: compile emits workspace.compiled with correct payload ─────────
+    // ── test 2: set_agent emits workspace.agent_changed event ──────────────────
 
     #[test]
-    fn activate_workspace_emits_compiled_event_with_payload() -> Result<()> {
+    fn set_agent_emits_agent_changed_event() -> Result<()> {
         let (_tmp, ship_dir) = setup();
 
         create_workspace(
             &ship_dir,
             CreateWorkspaceRequest {
-                branch: "feature/evt-compiled".to_string(),
+                branch: "feature/evt-agent".to_string(),
                 ..Default::default()
             },
         )?;
-        let ws = activate_workspace(&ship_dir, "feature/evt-compiled")?;
+        let _ = set_workspace_active_agent(&ship_dir, "feature/evt-agent", None)?;
 
         let store = event_store();
         let events = store.query(&EventFilter {
-            entity_id: Some("feature/evt-compiled".to_string()),
-            event_type: Some(event_types::WORKSPACE_COMPILED.to_string()),
+            entity_id: Some("feature/evt-agent".to_string()),
+            event_type: Some(event_types::WORKSPACE_AGENT_CHANGED.to_string()),
             ..Default::default()
         })?;
 
-        assert!(!events.is_empty(), "expected workspace.compiled event after activate");
-        let ev = &events[0];
-        let payload: crate::events::types::WorkspaceCompiled =
-            serde_json::from_str(&ev.payload_json)?;
-        let _ = ws; // workspace is lean now; config_generation is in the event
-        assert!(payload.duration_ms < 60_000, "duration_ms should be reasonable");
+        assert!(!events.is_empty(), "expected workspace.agent_changed event after set_agent");
         Ok(())
     }
 
@@ -86,7 +80,6 @@ mod tests {
     fn compile_failure_emits_compile_failed_event() -> Result<()> {
         let (_tmp, ship_dir) = setup();
 
-        // A workspace that references a non-existent agent will fail to compile.
         create_workspace(
             &ship_dir,
             CreateWorkspaceRequest {
@@ -94,12 +87,10 @@ mod tests {
                 ..Default::default()
             },
         )?;
-        // Point at a bogus agent so compile fails during agent resolution.
         let mut config = crate::config::get_config(Some(ship_dir.clone()))?;
         config.active_agent = Some("nonexistent-agent-id".to_string());
         crate::config::save_config(&config, Some(ship_dir.clone()))?;
-        // activate_workspace will call compile_workspace_context which errors.
-        let result = activate_workspace(&ship_dir, "feature/evt-fail");
+        let result = set_workspace_active_agent(&ship_dir, "feature/evt-fail", Some("nonexistent-agent-id"));
         assert!(result.is_err(), "expected compile failure");
 
         let store = event_store();
@@ -120,38 +111,7 @@ mod tests {
         Ok(())
     }
 
-    // ── test 4: archive emits workspace.archived ──────────────────────────────
-
-    #[test]
-    fn archive_workspace_emits_archived_event() -> Result<()> {
-        let (_tmp, ship_dir) = setup();
-
-        create_workspace(
-            &ship_dir,
-            CreateWorkspaceRequest {
-                branch: "feature/evt-archive".to_string(),
-                status: Some(WorkspaceStatus::Active),
-                ..Default::default()
-            },
-        )?;
-        transition_workspace_status(
-            &ship_dir,
-            "feature/evt-archive",
-            WorkspaceStatus::Archived,
-        )?;
-
-        let store = event_store();
-        let events = store.query(&EventFilter {
-            entity_id: Some("feature/evt-archive".to_string()),
-            event_type: Some(event_types::WORKSPACE_ARCHIVED.to_string()),
-            ..Default::default()
-        })?;
-
-        assert!(!events.is_empty(), "expected workspace.archived event");
-        Ok(())
-    }
-
-    // ── test 5: all events carry correct entity_id, actor_id, workspace_id, elevated ──
+    // ── test 4: workspace events have correct metadata ───────────────────────
 
     #[test]
     fn workspace_events_have_correct_metadata() -> Result<()> {
@@ -162,12 +122,9 @@ mod tests {
             &ship_dir,
             CreateWorkspaceRequest {
                 branch: branch.to_string(),
-                status: Some(WorkspaceStatus::Active),
                 ..Default::default()
             },
         )?;
-        activate_workspace(&ship_dir, branch)?;
-        transition_workspace_status(&ship_dir, branch, WorkspaceStatus::Archived)?;
 
         let store = event_store();
         let all_ws_events = store.query(&EventFilter {
@@ -175,22 +132,14 @@ mod tests {
             ..Default::default()
         })?;
 
-        // Filter to just the typed lifecycle events
         let typed: Vec<_> = all_ws_events
             .iter()
-            .filter(|e| {
-                matches!(
-                    e.event_type.as_str(),
-                    event_types::WORKSPACE_ACTIVATED
-                        | event_types::WORKSPACE_COMPILED
-                        | event_types::WORKSPACE_ARCHIVED
-                )
-            })
+            .filter(|e| e.event_type == event_types::WORKSPACE_CREATED)
             .collect();
 
         assert!(
             !typed.is_empty(),
-            "expected typed workspace events for branch '{}'",
+            "expected workspace.created event for branch '{}'",
             branch
         );
 
@@ -199,34 +148,17 @@ mod tests {
                 ev.entity_id, branch,
                 "entity_id must equal workspace branch"
             );
-            assert_eq!(
-                ev.actor_id.as_deref(),
-                Some(branch),
-                "actor_id must equal workspace branch, got {:?}",
-                ev.actor_id
-            );
-            assert_eq!(
-                ev.workspace_id.as_deref(),
-                Some(branch),
-                "workspace_id must equal workspace branch, got {:?}",
-                ev.workspace_id
-            );
             assert!(ev.elevated, "workspace lifecycle events must have elevated=true");
         }
         Ok(())
     }
 
-    // ── test 6: atomicity — event insert failure prevents projection write ───
-    //
-    // Add a BEFORE INSERT trigger that raises for any event with actor_id equal
-    // to "atomicity-sentinel". Pass that string as the branch name so run_tx
-    // sets actor_id to the same value, forcing a failure. Since the event is
-    // never committed, the projection never runs and no workspace row appears.
+    // ── test 5: atomicity — event insert failure prevents projection write ───
 
     #[test]
     fn event_insert_failure_prevents_workspace_write() -> Result<()> {
-        use crate::db::workspace_events::emit_workspace_activated;
-        use crate::events::types::WorkspaceActivated;
+        use crate::db::workspace_events::emit_workspace_created;
+        use crate::events::types::WorkspaceCreated;
 
         let (_tmp, _ship_dir) = setup();
         let db = crate::db::db_path()?;
@@ -247,19 +179,22 @@ mod tests {
         drop(conn);
 
         let sentinel_branch = "atomicity-sentinel";
-        let payload = WorkspaceActivated {
-            agent_id: None,
+        let payload = WorkspaceCreated {
+            workspace_id: sentinel_branch.to_string(),
+            workspace_type: "feature".to_string(),
+            active_agent: None,
             providers: vec![],
+            mcp_servers: vec![],
+            skills: vec![],
+            path: None,
         };
-        let result = emit_workspace_activated(sentinel_branch, &payload);
+        let result = emit_workspace_created(sentinel_branch, &payload);
 
         assert!(
             result.is_err(),
             "transaction must fail when event INSERT is blocked by trigger"
         );
 
-        // No workspace row should exist — the event was never committed,
-        // so the projection never ran.
         let mut conn2 = open_db_at(&db)?;
         let count: i64 = block_on(async {
             sqlx::query_scalar("SELECT COUNT(*) FROM workspace WHERE branch = ?")

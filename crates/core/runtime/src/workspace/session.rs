@@ -230,7 +230,7 @@ pub fn record_workspace_session_progress(
     let workspace = get_workspace(ship_dir, branch)?
         .ok_or_else(|| WorkspaceError::NotFound { branch: branch.to_string() })?;
     let active = get_active_workspace_session_db(&workspace.id)?
-        .ok_or_else(|| anyhow::anyhow!("No active workspace session for '{}'", workspace.branch))?;
+        .ok_or_else(|| anyhow::anyhow!("No active workspace session for '{}'", workspace.name))?;
 
     let normalized_note = note.trim();
     if normalized_note.is_empty() {

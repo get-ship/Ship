@@ -13,7 +13,6 @@ mod tests {
             &ship_dir,
             CreateWorkspaceRequest {
                 branch: "feature/session-flow".to_string(),
-                status: Some(WorkspaceStatus::Active),
                 ..Default::default()
             },
         )?;
@@ -64,7 +63,6 @@ mod tests {
             &ship_dir,
             CreateWorkspaceRequest {
                 branch: "feature/metrics".to_string(),
-                status: Some(WorkspaceStatus::Active),
                 ..Default::default()
             },
         )?;
@@ -113,7 +111,6 @@ mod tests {
             &ship_dir,
             CreateWorkspaceRequest {
                 branch: "feature/metrics-defaults".to_string(),
-                status: Some(WorkspaceStatus::Active),
                 ..Default::default()
             },
         )?;
@@ -147,7 +144,6 @@ mod tests {
             &ship_dir,
             CreateWorkspaceRequest {
                 branch: "feature/session-dupe".to_string(),
-                status: Some(WorkspaceStatus::Active),
                 ..Default::default()
             },
         )?;
@@ -182,7 +178,6 @@ mod tests {
             &ship_dir,
             CreateWorkspaceRequest {
                 branch: "feature/a".to_string(),
-                status: Some(WorkspaceStatus::Active),
                 ..Default::default()
             },
         )?;
@@ -190,7 +185,6 @@ mod tests {
             &ship_dir,
             CreateWorkspaceRequest {
                 branch: "feature/b".to_string(),
-                status: Some(WorkspaceStatus::Active),
                 ..Default::default()
             },
         )?;
@@ -227,7 +221,6 @@ mod tests {
             &ship_dir,
             CreateWorkspaceRequest {
                 branch: "feature/provider-ok".to_string(),
-                status: Some(WorkspaceStatus::Active),
                 ..Default::default()
             },
         )?;
@@ -252,7 +245,6 @@ mod tests {
             &ship_dir,
             CreateWorkspaceRequest {
                 branch: "feature/provider-deny".to_string(),
-                status: Some(WorkspaceStatus::Active),
                 ..Default::default()
             },
         )?;
@@ -268,7 +260,7 @@ mod tests {
 
         assert!(
             err.to_string()
-                .contains("Provider 'gemini' is not allowed for workspace")
+                .contains("Provider 'gemini' not allowed for workspace")
         );
         Ok(())
     }
@@ -325,42 +317,35 @@ mod tests {
         )?;
 
         assert_eq!(session.status, WorkspaceSessionStatus::Active);
-        let ws = get_workspace(&ship_dir, "feature/auto-create")?
-            .expect("workspace should have been auto-created");
-        assert_eq!(ws.status, WorkspaceStatus::Active);
+        let ws = get_workspace(&ship_dir, "feature/auto-create")?;
+        assert!(ws.is_some(), "workspace should have been auto-created");
         Ok(())
     }
 
     #[test]
-    fn start_session_auto_activates_archived_workspace() -> Result<()> {
+    fn start_session_on_existing_workspace() -> Result<()> {
         let tmp = tempdir()?;
         let ship_dir = crate::project::init_project(tmp.path().to_path_buf())?;
 
         create_workspace(
             &ship_dir,
             CreateWorkspaceRequest {
-                branch: "feature/archived".to_string(),
-                status: Some(WorkspaceStatus::Active),
+                branch: "feature/existing".to_string(),
                 ..Default::default()
             },
         )?;
-        transition_workspace_status(&ship_dir, "feature/archived", WorkspaceStatus::Archived)?;
-        let ws = get_workspace(&ship_dir, "feature/archived")?
-            .expect("workspace should exist");
-        assert_eq!(ws.status, WorkspaceStatus::Archived);
 
         let session = start_workspace_session(
             &ship_dir,
-            "feature/archived",
-            Some("reactivate".to_string()),
+            "feature/existing",
+            Some("test".to_string()),
             None,
             None,
         )?;
         assert_eq!(session.status, WorkspaceSessionStatus::Active);
 
-        let ws = get_workspace(&ship_dir, "feature/archived")?
-            .expect("workspace should exist");
-        assert_eq!(ws.status, WorkspaceStatus::Active);
+        let ws = get_workspace(&ship_dir, "feature/existing")?;
+        assert!(ws.is_some(), "workspace should exist");
         Ok(())
     }
 
@@ -373,7 +358,6 @@ mod tests {
             &ship_dir,
             CreateWorkspaceRequest {
                 branch: "feature/no-active".to_string(),
-                status: Some(WorkspaceStatus::Active),
                 ..Default::default()
             },
         )?;
@@ -422,7 +406,6 @@ mod tests {
             &ship_dir,
             CreateWorkspaceRequest {
                 branch: "feature/concurrent".to_string(),
-                status: Some(WorkspaceStatus::Active),
                 ..Default::default()
             },
         )?;
@@ -472,7 +455,6 @@ mod tests {
             &ship_dir,
             CreateWorkspaceRequest {
                 branch: "feature/stale-session".to_string(),
-                status: Some(WorkspaceStatus::Active),
                 ..Default::default()
             },
         )?;
@@ -487,7 +469,9 @@ mod tests {
         assert!(started.config_generation_at_start.is_some());
 
         // Trigger a recompile which bumps config_generation.
-        let _ = set_workspace_active_agent(&ship_dir, "feature/stale-session", None)?;
+        let workspace = get_workspace(&ship_dir, "feature/stale-session")?
+            .ok_or_else(|| anyhow::anyhow!("workspace missing"))?;
+        crate::workspace::compile::compile_workspace_context(&ship_dir, &workspace, None)?;
 
         let active = get_active_workspace_session(&ship_dir, "feature/stale-session")?
             .ok_or_else(|| anyhow::anyhow!("active session missing"))?;

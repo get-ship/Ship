@@ -1,23 +1,23 @@
-use anyhow::Result;
 use chrono::{DateTime, Utc};
 use serde::{Deserialize, Serialize};
 use specta::Type;
 
 // ---- Workspace status ------------------------------------------------------
 
+/// Workspace status — computed from sessions, never stored.
 #[derive(Serialize, Deserialize, Debug, Clone, Copy, PartialEq, Eq, Type, Default)]
 #[serde(rename_all = "kebab-case")]
 pub enum WorkspaceStatus {
     #[default]
+    Idle,
     Active,
-    Archived,
 }
 
 impl std::fmt::Display for WorkspaceStatus {
     fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
         match self {
+            WorkspaceStatus::Idle => write!(f, "idle"),
             WorkspaceStatus::Active => write!(f, "active"),
-            WorkspaceStatus::Archived => write!(f, "archived"),
         }
     }
 }
@@ -28,40 +28,26 @@ impl std::str::FromStr for WorkspaceStatus {
     fn from_str(value: &str) -> std::result::Result<Self, Self::Err> {
         match value.to_lowercase().as_str() {
             "active" => Ok(WorkspaceStatus::Active),
-            _ => Ok(WorkspaceStatus::Archived),
+            _ => Ok(WorkspaceStatus::Idle),
         }
-    }
-}
-
-pub(crate) fn parse_workspace_status_required(value: &str) -> Result<WorkspaceStatus> {
-    match value.trim().to_lowercase().as_str() {
-        "active" => Ok(WorkspaceStatus::Active),
-        "archived" => Ok(WorkspaceStatus::Archived),
-        other => anyhow::bail!(
-            "Invalid workspace status '{}'; expected one of: active, archived",
-            other
-        ),
     }
 }
 
 // ---- Workspace ------------------------------------------------------------
 
-/// Workspace runtime state -- SQLite only, no frontmatter file.
-/// `branch` is the workspace key and can represent either a git branch or a
-/// non-git runtime workspace identifier.
+/// Workspace — a resource container. Status is computed from sessions.
 #[derive(Serialize, Deserialize, Debug, Clone, Type)]
 pub struct Workspace {
     pub id: String,
-    pub branch: String,
-    #[serde(default)]
-    pub status: WorkspaceStatus,
-    pub is_worktree: bool,
-    #[serde(skip_serializing_if = "Option::is_none")]
-    pub worktree_path: Option<String>,
+    /// Workspace identifier (branch name or arbitrary key).
+    #[serde(alias = "branch")]
+    pub name: String,
+    /// Workspace directory path (if provisioned).
+    #[serde(skip_serializing_if = "Option::is_none", alias = "worktree_path")]
+    pub path: Option<String>,
     #[serde(skip_serializing_if = "Option::is_none")]
     pub active_agent: Option<String>,
-    #[serde(skip_serializing_if = "Option::is_none")]
-    pub last_activated_at: Option<DateTime<Utc>>,
+    pub created_at: DateTime<Utc>,
 }
 
 #[derive(Serialize, Deserialize, Debug, Clone, Type)]

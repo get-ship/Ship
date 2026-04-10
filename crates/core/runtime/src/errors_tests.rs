@@ -66,18 +66,6 @@ fn workspace_not_found_via_get_provider_matrix() {
     );
 }
 
-#[test]
-fn workspace_invalid_transition_returns_invalid_status() {
-    let err = crate::workspace::validate_workspace_transition(
-        crate::workspace::WorkspaceStatus::Active,
-        // There's no "deleted" status — Active can only go to Archived.
-        // But Active -> Active is allowed. Let's test an impossible transition
-        // by using a status that would fail.
-        crate::workspace::WorkspaceStatus::Active,
-    );
-    // Active -> Active is allowed, so let's verify a forbidden one
-    assert!(err.is_ok());
-}
 
 #[test]
 fn workspace_error_display_is_readable() {

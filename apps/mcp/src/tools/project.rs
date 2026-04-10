@@ -101,14 +101,13 @@ pub async fn get_project_info(project_dir: &Path) -> String {
     out.push_str("## Current Context\n");
 
     let workspaces = runtime_list_workspaces(project_dir).unwrap_or_default();
-    let active_workspace = workspaces
-        .iter()
-        .find(|w| matches!(w.status, runtime::WorkspaceStatus::Active));
+    let active_workspace = workspaces.first();
 
     if let Some(ws) = active_workspace {
+        let status = runtime::workspace_status(ws);
         out.push_str(&format!(
             "- Workspace: {} [{:?}]",
-            ws.branch, ws.status
+            ws.name, status
         ));
         if let Some(ref mode) = ws.active_agent {
             out.push_str(&format!(" mode={}", mode));
@@ -116,7 +115,7 @@ pub async fn get_project_info(project_dir: &Path) -> String {
 
         out.push('\n');
 
-        match runtime_get_active_workspace_session(project_dir, &ws.branch) {
+        match runtime_get_active_workspace_session(project_dir, &ws.name) {
             Ok(Some(session)) => {
                 out.push_str(&format!("- Session: ACTIVE (id: {})", session.id));
                 if let Some(ref goal) = session.goal {
@@ -131,7 +130,7 @@ pub async fn get_project_info(project_dir: &Path) -> String {
             Err(_) => {}
         }
     } else {
-        out.push_str("- Workspace: none active (call activate_workspace to begin)\n");
+        out.push_str("- Workspace: none (call start_session to begin)\n");
     }
 
     if let Some(active_id) = config.active_agent.as_deref() {

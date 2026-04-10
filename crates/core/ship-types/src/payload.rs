@@ -6,7 +6,6 @@ use serde::{Deserialize, Serialize};
 pub struct WorkspaceCreated {
     pub workspace_id: String,
     pub workspace_type: String,
-    pub status: String,
     #[serde(default)]
     pub active_agent: Option<String>,
     #[serde(default)]
@@ -16,9 +15,7 @@ pub struct WorkspaceCreated {
     #[serde(default)]
     pub skills: Vec<String>,
     #[serde(default)]
-    pub is_worktree: bool,
-    #[serde(default)]
-    pub worktree_path: Option<String>,
+    pub path: Option<String>,
 }
 
 #[derive(Debug, Serialize, Deserialize)]
@@ -59,8 +56,6 @@ pub struct WorkspaceAgentChanged {
 
 #[derive(Debug, Serialize, Deserialize)]
 pub struct WorkspaceReconciled {
-    pub is_worktree: bool,
-    pub worktree_path: Option<String>,
     pub reason: String,
 }
 
@@ -333,13 +328,11 @@ mod tests {
         let original = WorkspaceCreated {
             workspace_id: "ws-1".to_string(),
             workspace_type: "feature".to_string(),
-            status: "active".to_string(),
             active_agent: None,
             providers: vec![],
             mcp_servers: vec![],
             skills: vec![],
-            is_worktree: false,
-            worktree_path: None,
+            path: None,
         };
         let json = serde_json::to_string(&original).unwrap();
         let decoded: WorkspaceCreated = serde_json::from_str(&json).unwrap();
