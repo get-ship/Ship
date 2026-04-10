@@ -248,6 +248,27 @@ pub enum Commands {
     #[cfg(feature = "unstable")]
     Top,
 
+    /// Run a named pipeline (e.g. ship run tdd "implement auth")
+    Run {
+        /// Pipeline name (loaded from .ship/pipelines/<name>.yaml)
+        pipeline: String,
+        /// Inline spec text describing the work
+        #[arg(trailing_var_arg = false)]
+        spec_text: Option<String>,
+        /// Path to a spec file (alternative to inline text)
+        #[arg(long)]
+        spec: Option<std::path::PathBuf>,
+        /// Workspace to run in (auto-creates if needed)
+        #[arg(long)]
+        workspace: Option<String>,
+        /// Pipeline variable (repeatable: --var key=value)
+        #[arg(long = "var", value_name = "KEY=VALUE")]
+        vars: Vec<String>,
+        /// Show the resolved pipeline without executing
+        #[arg(long)]
+        dry_run: bool,
+    },
+
     /// Manage the Ship daemon (shipd) background process
     Daemon {
         #[command(subcommand)]

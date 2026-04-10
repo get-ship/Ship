@@ -5,4 +5,6 @@ pub mod record;
 pub mod step;
 
 #[cfg(test)]
+mod pipeline_tests;
+#[cfg(test)]
 mod tests;
