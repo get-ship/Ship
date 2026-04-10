@@ -148,6 +148,38 @@ pub fn is_daemon_token(token: &str) -> bool {
     token.len() == 64 && token.chars().all(|c| c.is_ascii_hexdigit())
 }
 
+// ---- Handshake endpoint (unauthenticated, localhost only) ----
+
+#[derive(serde::Deserialize)]
+pub struct HandshakeRequest {
+    #[serde(default)]
+    pub capabilities: Vec<String>,
+}
+
+#[derive(serde::Serialize)]
+pub struct HandshakeResponse {
+    pub token: String,
+    pub granted: Vec<String>,
+}
+
+/// POST /auth/handshake — returns the daemon token for localhost callers.
+/// No auth required. The SDK calls this to bootstrap authentication.
+pub async fn handshake(
+    body: axum::Json<HandshakeRequest>,
+    token: Arc<String>,
+) -> axum::Json<HandshakeResponse> {
+    let granted = if body.capabilities.contains(&"*".to_string()) {
+        vec!["*".to_string()]
+    } else {
+        body.capabilities.clone()
+    };
+
+    axum::Json(HandshakeResponse {
+        token: token.as_str().to_string(),
+        granted,
+    })
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
