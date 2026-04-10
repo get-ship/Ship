@@ -56,6 +56,24 @@ pub enum NetworkCommands {
 }
 
 #[derive(Subcommand, Debug)]
+pub enum WorkspaceCommands {
+    /// List trashed files for the current workspace
+    Trash {
+        /// Force purge all trash (ignores 24h retention)
+        #[arg(long)]
+        purge: bool,
+    },
+    /// Restore the most recent trashed version of a file
+    Restore {
+        /// File name to restore (as shown by `ship workspace trash`)
+        filename: String,
+        /// Restore to this path instead of the original location
+        #[arg(long)]
+        dest: Option<std::path::PathBuf>,
+    },
+}
+
+#[derive(Subcommand, Debug)]
 pub enum McpCommands {
     /// Run the Ship MCP server (stdio by default; --http for HTTP daemon)
     Serve {

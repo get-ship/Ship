@@ -115,6 +115,13 @@ impl ShipRuntime {
         .await
         .map_err(|e| anyhow!("spawn_blocking failed: {e}"))??;
 
+        // Best-effort auto-purge: remove trash entries older than 24 hours.
+        match runtime::workspace::trash::purge_old_trash(std::time::Duration::from_secs(86400)) {
+            Ok(0) => {}
+            Ok(n) => tracing::info!("auto-purged {n} expired trash entries"),
+            Err(e) => tracing::warn!("trash auto-purge failed: {e}"),
+        }
+
         let mesh_registry: SharedMeshRegistry =
             Arc::new(tokio::sync::RwLock::new(HashMap::new()));
 

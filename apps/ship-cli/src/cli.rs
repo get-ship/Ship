@@ -1,7 +1,7 @@
 use clap::{Parser, Subcommand};
 use std::path::PathBuf;
 
-pub use crate::commands::{HookCommands, McpCommands, NetworkCommands};
+pub use crate::commands::{HookCommands, McpCommands, NetworkCommands, WorkspaceCommands};
 #[cfg(feature = "unstable")]
 pub use crate::commands::EventsCommands;
 
@@ -134,6 +134,12 @@ pub enum Commands {
     Vars {
         #[arg(trailing_var_arg = true, allow_hyphen_values = true, num_args = 0..)]
         _args: Vec<String>,
+    },
+
+    /// Workspace utilities (trash, restore)
+    Workspace {
+        #[command(subcommand)]
+        action: WorkspaceCommands,
     },
 
     /// Manage MCP servers (serve, add, list, remove)
