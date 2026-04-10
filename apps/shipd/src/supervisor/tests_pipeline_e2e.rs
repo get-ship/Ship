@@ -11,17 +11,17 @@ use async_trait::async_trait;
 use runtime::events::job::event_types;
 use runtime::events::kernel_router::{ActorConfig, KernelRouter};
 use runtime::events::store::{EventStore, SqliteEventStore};
-use runtime::events::validator::{CallerKind, EmitContext};
 use runtime::events::EventEnvelope;
 use runtime::projections::job::{load_jobs_at, JobStatus};
 use runtime::services::dispatch_ports::{ExecutorHandle, IsolationStrategy, JobContext, JobExecutor};
+use runtime::services::orchestrator::OrchestratorContext;
 use std::path::PathBuf;
 use std::sync::atomic::{AtomicUsize, Ordering};
 use std::sync::Arc;
 use tempfile::TempDir;
 use tokio::sync::Mutex;
 
-use super::job_dispatch::DispatchContext;
+use super::platform::{MockPlatform, RegistryAdapter};
 use super::registry::ProcessRegistry;
 
 // ── Mock infrastructure ─────────────────────────────────────────────────────
@@ -60,15 +60,6 @@ impl JobExecutor for MockExecutor {
     async fn is_alive(&self, _handle: &ExecutorHandle) -> bool { true }
     async fn stop(&self, _handle: &ExecutorHandle) -> anyhow::Result<()> { Ok(()) }
     async fn send(&self, _handle: &ExecutorHandle, _message: &str) -> anyhow::Result<()> { Ok(()) }
-}
-
-fn runtime_ctx() -> EmitContext {
-    EmitContext {
-        caller_kind: CallerKind::Runtime,
-        skill_id: None,
-        workspace_id: None,
-        session_id: None,
-    }
 }
 
 fn dispatch_config() -> ActorConfig {
@@ -200,10 +191,11 @@ async fn pipeline_advances_through_all_steps() {
     let kernel = Arc::new(Mutex::new(router));
 
     let executor = Arc::new(MockExecutor::new());
-    let dctx = DispatchContext {
+    let dctx = OrchestratorContext {
         isolation: Arc::new(MockIsolation { work_dir: worktree_path.clone() }),
         executor: executor.clone(),
-        registry: Arc::new(Mutex::new(ProcessRegistry::new())),
+        platform: Arc::new(MockPlatform),
+        registry: Arc::new(RegistryAdapter(Arc::new(Mutex::new(ProcessRegistry::new())))),
         done_flags: Arc::new(Mutex::new(std::collections::HashMap::new())),
     };
 
@@ -218,7 +210,7 @@ async fn pipeline_advances_through_all_steps() {
     // Advance pipeline — should dispatch next step (gate).
     // The advance function loads the projection (which includes the completed
     // event), finds unblocked steps, and dispatches them via the executor.
-    let advanced = super::dispatch_pipeline::advance_pipeline_at(
+    let advanced = runtime::services::orchestrator::pipeline::advance_pipeline_at(
         &kernel, &completed_event, &dctx, &ship_dir,
     ).await;
 
@@ -441,15 +433,16 @@ async fn run_step_advances_to_agent_step() {
     let kernel = Arc::new(Mutex::new(router));
 
     let executor = Arc::new(MockExecutor::new());
-    let dctx = DispatchContext {
+    let dctx = OrchestratorContext {
         isolation: Arc::new(MockIsolation { work_dir: worktree_path.clone() }),
         executor: executor.clone(),
-        registry: Arc::new(Mutex::new(ProcessRegistry::new())),
+        platform: Arc::new(MockPlatform),
+        registry: Arc::new(RegistryAdapter(Arc::new(Mutex::new(ProcessRegistry::new())))),
         done_flags: Arc::new(Mutex::new(std::collections::HashMap::new())),
     };
 
     // advance_pipeline with the step_completed event — should dispatch "implement"
-    let advanced = super::dispatch_pipeline::advance_pipeline_at(
+    let advanced = runtime::services::orchestrator::pipeline::advance_pipeline_at(
         &kernel, &step_completed_event, &dctx, &ship_dir,
     ).await;
 
@@ -523,16 +516,17 @@ async fn first_step_run_executes_without_agent() {
     let kernel = Arc::new(Mutex::new(router));
 
     let executor = Arc::new(MockExecutor::new());
-    let dctx = DispatchContext {
+    let dctx = OrchestratorContext {
         isolation: Arc::new(MockIsolation { work_dir: worktree_path.clone() }),
         executor: executor.clone(),
-        registry: Arc::new(Mutex::new(ProcessRegistry::new())),
+        platform: Arc::new(MockPlatform),
+        registry: Arc::new(RegistryAdapter(Arc::new(Mutex::new(ProcessRegistry::new())))),
         done_flags: Arc::new(Mutex::new(std::collections::HashMap::new())),
     };
 
     // Dispatch the first run step directly — should execute without spawning an agent.
     // Use the _at variant so events persist to the test's temp store.
-    super::dispatch_run::dispatch_first_run_step_at(
+    runtime::services::orchestrator::dispatch::dispatch_first_run_step_at(
         &kernel, &payload, &dctx, "setup", "echo hello", &ship_dir,
     ).await;
 

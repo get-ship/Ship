@@ -23,7 +23,7 @@ fn ev(event_type: &str, payload: serde_json::Value) -> EventEnvelope {
 /// The startup sequence exists and runs three phases.
 #[test]
 fn startup_runs_three_reconciliation_phases() {
-    let source = include_str!("job_dispatch.rs");
+    let source = include_str!("../../../../crates/core/runtime/src/services/orchestrator/router.rs");
     assert!(
         source.contains("reconcile_dispatched") || source.contains("reconcile"),
         "startup must reconcile dispatched jobs"
@@ -42,7 +42,7 @@ fn startup_runs_three_reconciliation_phases() {
 /// If we dispatch first, we might exceed MAX_CONCURRENT.
 #[test]
 fn reconcile_before_dispatch_in_startup_order() {
-    let source = include_str!("job_dispatch.rs");
+    let source = include_str!("../../../../crates/core/runtime/src/services/orchestrator/router.rs");
     let reconcile_pos = source.find("reconcile_dispatched")
         .or_else(|| source.find("reconcile"));
     let dispatch_pos = source.find("dispatch_ready_pending");

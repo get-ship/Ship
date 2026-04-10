@@ -33,13 +33,14 @@ fn cleanup_handler_exists_for_merged_events() {
     );
 }
 
-/// The job_dispatch event loop must route job.merged to cleanup.
+/// The orchestrator event router must route job.merged to cleanup.
 #[test]
 fn job_merged_routes_to_cleanup() {
-    let source = include_str!("job_dispatch.rs");
+    // Orchestration logic moved to runtime::services::orchestrator::router
+    let source = include_str!("../../../../crates/core/runtime/src/services/orchestrator/router.rs");
     assert!(
         source.contains("job.merged"),
-        "job_dispatch must handle job.merged events"
+        "orchestrator router must handle job.merged events"
     );
     assert!(
         source.contains("cleanup") || source.contains("handle_job_cleanup"),
@@ -50,8 +51,7 @@ fn job_merged_routes_to_cleanup() {
 /// Cleanup must remove the process registry entry.
 #[test]
 fn job_merged_unregisters_from_process_registry() {
-    let source = include_str!("job_dispatch.rs");
-    // The merged handler should call registry.unregister
+    let source = include_str!("../../../../crates/core/runtime/src/services/orchestrator/router.rs");
     assert!(
         source.contains("unregister"),
         "job.merged handler must unregister from process registry"
@@ -92,7 +92,7 @@ fn cleanup_kills_tmux_session() {
 /// for post-mortem investigation.
 #[test]
 fn job_failed_does_not_trigger_cleanup() {
-    let source = include_str!("job_dispatch.rs");
+    let source = include_str!("../../../../crates/core/runtime/src/services/orchestrator/router.rs");
     // Find the job.failed handler and verify it doesn't call cleanup
     let lines: Vec<&str> = source.lines().collect();
     let failed_handler = lines.iter().enumerate()

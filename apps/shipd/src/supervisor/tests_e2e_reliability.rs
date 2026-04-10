@@ -254,7 +254,7 @@ fn all_non_terminal_states_recoverable() {
 /// The reconciliation loop must exist and handle all three phases.
 #[test]
 fn reconciliation_loop_handles_three_phases() {
-    let source = include_str!("job_dispatch.rs");
+    let source = include_str!("../../../../crates/core/runtime/src/services/orchestrator/router.rs");
     assert!(source.contains("reconcile"), "must reconcile stale dispatched jobs");
     assert!(source.contains("replay"), "must replay stale completions");
     assert!(
