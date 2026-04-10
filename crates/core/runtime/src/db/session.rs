@@ -28,8 +28,9 @@ fn parse_workspace_session_row(row: &sqlx::sqlite::SqliteRow) -> WorkspaceSessio
         tool_call_count: row.get(14),
         drained_at: row.get(15),
         mcp_provider: row.get(16),
-        created_at: row.get(17),
-        updated_at: row.get(18),
+        last_activity_at: row.get(17),
+        created_at: row.get(18),
+        updated_at: row.get(19),
     }
 }
 
@@ -37,7 +38,7 @@ pub fn get_workspace_session_db(session_id: &str) -> Result<Option<WorkspaceSess
     let mut conn = open_db()?;
     let row = block_on(async {
         sqlx::query(
-            "SELECT id, workspace_id, workspace_branch, status, started_at, ended_at, agent_id, primary_provider, goal, summary, updated_workspace_ids_json, compiled_at, compile_error, config_generation_at_start, tool_call_count, drained_at, mcp_provider, created_at, updated_at
+            "SELECT id, workspace_id, workspace_branch, status, started_at, ended_at, agent_id, primary_provider, goal, summary, updated_workspace_ids_json, compiled_at, compile_error, config_generation_at_start, tool_call_count, drained_at, mcp_provider, last_activity_at, created_at, updated_at
              FROM workspace_session
              WHERE id = ?",
         )
@@ -52,7 +53,7 @@ pub fn get_active_workspace_session_db(workspace_id: &str) -> Result<Option<Work
     let mut conn = open_db()?;
     let row = block_on(async {
         sqlx::query(
-            "SELECT id, workspace_id, workspace_branch, status, started_at, ended_at, agent_id, primary_provider, goal, summary, updated_workspace_ids_json, compiled_at, compile_error, config_generation_at_start, tool_call_count, drained_at, mcp_provider, created_at, updated_at
+            "SELECT id, workspace_id, workspace_branch, status, started_at, ended_at, agent_id, primary_provider, goal, summary, updated_workspace_ids_json, compiled_at, compile_error, config_generation_at_start, tool_call_count, drained_at, mcp_provider, last_activity_at, created_at, updated_at
              FROM workspace_session
              WHERE workspace_id = ? AND status = 'active'
              ORDER BY started_at DESC
@@ -74,7 +75,7 @@ pub fn list_workspace_sessions_db(
     let rows = if let Some(workspace_id) = workspace_id {
         block_on(async {
             sqlx::query(
-                "SELECT id, workspace_id, workspace_branch, status, started_at, ended_at, agent_id, primary_provider, goal, summary, updated_workspace_ids_json, compiled_at, compile_error, config_generation_at_start, tool_call_count, drained_at, mcp_provider, created_at, updated_at
+                "SELECT id, workspace_id, workspace_branch, status, started_at, ended_at, agent_id, primary_provider, goal, summary, updated_workspace_ids_json, compiled_at, compile_error, config_generation_at_start, tool_call_count, drained_at, mcp_provider, last_activity_at, created_at, updated_at
                  FROM workspace_session
                  WHERE workspace_id = ?
                  ORDER BY started_at DESC
@@ -88,7 +89,7 @@ pub fn list_workspace_sessions_db(
     } else {
         block_on(async {
             sqlx::query(
-                "SELECT id, workspace_id, workspace_branch, status, started_at, ended_at, agent_id, primary_provider, goal, summary, updated_workspace_ids_json, compiled_at, compile_error, config_generation_at_start, tool_call_count, drained_at, mcp_provider, created_at, updated_at
+                "SELECT id, workspace_id, workspace_branch, status, started_at, ended_at, agent_id, primary_provider, goal, summary, updated_workspace_ids_json, compiled_at, compile_error, config_generation_at_start, tool_call_count, drained_at, mcp_provider, last_activity_at, created_at, updated_at
                  FROM workspace_session
                  ORDER BY started_at DESC
                  LIMIT ?",

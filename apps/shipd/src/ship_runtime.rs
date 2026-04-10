@@ -11,7 +11,7 @@ use std::path::{Path, PathBuf};
 use std::sync::Arc;
 use tokio::sync::Mutex;
 
-use crate::managers::{JobManager, MeshManager};
+use crate::managers::{JobManager, MeshManager, SessionScanner};
 use crate::supervisor::job_dispatch::DispatchHandle;
 
 // ---- Config types ----
@@ -68,6 +68,7 @@ pub struct ShipRuntime {
     mesh: tokio::sync::OnceCell<MeshManager>,
     jobs: tokio::sync::OnceCell<JobManager>,
     dispatch_handle: std::sync::OnceLock<DispatchHandle>,
+    session_scanner: tokio::sync::OnceCell<SessionScanner>,
 }
 
 impl ShipRuntime {
@@ -118,6 +119,9 @@ impl ShipRuntime {
         let mesh_registry: SharedMeshRegistry =
             Arc::new(tokio::sync::RwLock::new(HashMap::new()));
 
+        // End all previously-active sessions from prior daemon run.
+        cleanup_active_sessions_on_startup();
+
         Ok(Self {
             config,
             kernel,
@@ -128,6 +132,7 @@ impl ShipRuntime {
             mesh: tokio::sync::OnceCell::new(),
             jobs: tokio::sync::OnceCell::new(),
             dispatch_handle: std::sync::OnceLock::new(),
+            session_scanner: tokio::sync::OnceCell::new(),
         })
     }
 
@@ -190,6 +195,17 @@ impl ShipRuntime {
             .await
     }
 
+    /// Lazily initialize and return the session scanner.
+    ///
+    /// On first call, starts a background task that scans for abandoned sessions.
+    pub async fn session_scanner(&self) -> &SessionScanner {
+        self.session_scanner
+            .get_or_init(|| async {
+                SessionScanner::start(self.kernel.clone())
+            })
+            .await
+    }
+
     /// Persist event to platform.db then route through kernel.
     pub async fn persist_and_route(&self, envelope: &EventEnvelope) -> anyhow::Result<()> {
         if let Ok(store) = runtime::events::SqliteEventStore::new() {
@@ -218,6 +234,7 @@ impl ShipRuntime {
             mesh: tokio::sync::OnceCell::new(),
             jobs: tokio::sync::OnceCell::new(),
             dispatch_handle: std::sync::OnceLock::new(),
+            session_scanner: tokio::sync::OnceCell::new(),
         }
     }
 
@@ -238,6 +255,7 @@ impl ShipRuntime {
             mesh: tokio::sync::OnceCell::new(),
             jobs: tokio::sync::OnceCell::new(),
             dispatch_handle: std::sync::OnceLock::new(),
+            session_scanner: tokio::sync::OnceCell::new(),
         }
     }
 
@@ -283,5 +301,45 @@ impl ShipRuntime {
         let _ = std::fs::remove_file(self.ship_dir.join("daemon.port"));
         let _ = std::fs::remove_file(self.ship_dir.join("daemon.pid"));
         tracing::info!("shipd: shutdown complete");
+    }
+}
+
+/// End all previously-active sessions on daemon startup.
+///
+/// Handles the case where the daemon crashed and sessions were never ended.
+fn cleanup_active_sessions_on_startup() {
+    let sessions = match runtime::db::session_drain::list_active_sessions() {
+        Ok(s) => s,
+        Err(e) => {
+            tracing::warn!("startup cleanup: failed to list active sessions: {e}");
+            return;
+        }
+    };
+
+    if sessions.is_empty() {
+        return;
+    }
+
+    tracing::info!(
+        count = sessions.len(),
+        "startup cleanup: ending stale active sessions from previous run"
+    );
+
+    for session in &sessions {
+        match runtime::db::session_drain::force_end_session(&session.id, "daemon_restart") {
+            Ok(()) => {
+                tracing::info!(
+                    session_id = %session.id,
+                    workspace = %session.workspace_branch,
+                    "startup cleanup: ended stale session"
+                );
+            }
+            Err(e) => {
+                tracing::warn!(
+                    session_id = %session.id,
+                    "startup cleanup: failed to end stale session: {e}"
+                );
+            }
+        }
     }
 }

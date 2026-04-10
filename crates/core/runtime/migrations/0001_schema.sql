@@ -51,6 +51,7 @@ CREATE TABLE IF NOT EXISTS workspace_session (
   tool_call_count             INTEGER NOT NULL DEFAULT 0,
   drained_at                  TEXT,
   mcp_provider                TEXT,
+  last_activity_at            TEXT,
   created_at                  TEXT NOT NULL,
   updated_at                  TEXT NOT NULL
 );

@@ -12,14 +12,15 @@ use super::{block_on, open_db};
 use crate::db::session_events::emit_session_drain_event;
 use crate::events::types::{
     SessionDrainAborted, SessionDrainCompleted, SessionDrainStarted,
-    SessionToolCountIncremented, event_types,
+    SessionHeartbeat, SessionToolCountIncremented, event_types,
 };
 
 const S_COLS: &str =
     "id, workspace_id, workspace_branch, status, started_at, ended_at, \
      agent_id, primary_provider, goal, summary, updated_workspace_ids_json, \
      compiled_at, compile_error, config_generation_at_start, \
-     tool_call_count, drained_at, mcp_provider, created_at, updated_at";
+     tool_call_count, drained_at, mcp_provider, last_activity_at, \
+     created_at, updated_at";
 
 fn parse_row(row: &sqlx::sqlite::SqliteRow) -> WorkspaceSessionDb {
     let uwids_json: String = row.get(10);
@@ -41,8 +42,9 @@ fn parse_row(row: &sqlx::sqlite::SqliteRow) -> WorkspaceSessionDb {
         tool_call_count: row.get(14),
         drained_at: row.get(15),
         mcp_provider: row.get(16),
-        created_at: row.get(17),
-        updated_at: row.get(18),
+        last_activity_at: row.get(17),
+        created_at: row.get(18),
+        updated_at: row.get(19),
     }
 }
 
@@ -137,6 +139,50 @@ pub fn increment_tool_count(session_id: &str) -> Result<()> {
         session_id,
         &workspace_id,
         &payload,
+    )?;
+    Ok(())
+}
+
+/// Update last_activity_at timestamp for a session via event emission.
+pub fn update_heartbeat(session_id: &str) -> Result<()> {
+    let workspace_id = lookup_session_workspace(session_id)?;
+    let now = Utc::now().to_rfc3339();
+    let payload = SessionHeartbeat {
+        last_activity_at: now,
+    };
+    emit_session_drain_event(
+        event_types::SESSION_HEARTBEAT,
+        session_id,
+        &workspace_id,
+        &payload,
+    )?;
+    Ok(())
+}
+
+/// Query all sessions with status = 'active'.
+pub fn list_active_sessions() -> Result<Vec<WorkspaceSessionDb>> {
+    let mut conn = open_db()?;
+    let rows = block_on(async {
+        sqlx::query(&format!(
+            "SELECT {S_COLS} FROM workspace_session WHERE status = 'active'"
+        ))
+        .fetch_all(&mut conn)
+        .await
+    })?;
+    Ok(rows.iter().map(parse_row).collect())
+}
+
+/// End a session directly with a given exit reason (used by daemon cleanup).
+pub fn force_end_session(session_id: &str, exit_reason: &str) -> Result<()> {
+    let workspace_id = lookup_session_workspace(session_id)?;
+    let ended = crate::events::types::SessionEnded {
+        exit_reason: Some(exit_reason.to_string()),
+        ..Default::default()
+    };
+    crate::db::session_events::update_session_with_ended_event(
+        session_id,
+        &workspace_id,
+        &ended,
     )?;
     Ok(())
 }

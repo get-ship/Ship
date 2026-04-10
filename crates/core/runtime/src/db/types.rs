@@ -34,6 +34,7 @@ pub struct WorkspaceSessionDb {
     pub tool_call_count: i64,
     pub drained_at: Option<String>,
     pub mcp_provider: Option<String>,
+    pub last_activity_at: Option<String>,
     pub created_at: String,
     pub updated_at: String,
 }

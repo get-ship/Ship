@@ -176,6 +176,11 @@ pub struct SessionDrainAborted {
 pub struct SessionToolCountIncremented {}
 
 #[derive(Debug, Serialize, Deserialize)]
+pub struct SessionHeartbeat {
+    pub last_activity_at: String,
+}
+
+#[derive(Debug, Serialize, Deserialize)]
 pub struct SessionAttached {
     pub existing_session_id: String,
     pub workspace_id: String,

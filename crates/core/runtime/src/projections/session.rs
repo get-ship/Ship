@@ -32,6 +32,7 @@ const HANDLED: &[&str] = &[
     event_types::SESSION_DRAIN_COMPLETED,
     event_types::SESSION_DRAIN_ABORTED,
     event_types::SESSION_TOOL_COUNT_INCREMENTED,
+    event_types::SESSION_HEARTBEAT,
 ];
 
 impl Projection for SessionProjection {
@@ -53,6 +54,7 @@ impl Projection for SessionProjection {
             event_types::SESSION_DRAIN_COMPLETED => apply_drain_completed(event, conn),
             event_types::SESSION_DRAIN_ABORTED => apply_drain_aborted(event, conn),
             event_types::SESSION_TOOL_COUNT_INCREMENTED => apply_tool_count_incremented(event, conn),
+            event_types::SESSION_HEARTBEAT => apply_heartbeat(event, conn),
             _ => Ok(()),
         }
     }
@@ -330,6 +332,26 @@ fn apply_tool_count_incremented(event: &EventEnvelope, conn: &mut SqliteConnecti
         sqlx::query(
             "UPDATE workspace_session SET tool_call_count = tool_call_count + 1 WHERE id = ?",
         )
+        .bind(&event.entity_id)
+        .execute(conn)
+        .await?;
+        Ok(())
+    })
+}
+
+fn apply_heartbeat(event: &EventEnvelope, conn: &mut SqliteConnection) -> Result<()> {
+    #[derive(serde::Deserialize)]
+    struct P {
+        last_activity_at: String,
+    }
+    let p: P = serde_json::from_str(&event.payload_json)?;
+    let now = event.created_at.to_rfc3339();
+    block_on(async {
+        sqlx::query(
+            "UPDATE workspace_session SET last_activity_at = ?, updated_at = ? WHERE id = ?",
+        )
+        .bind(&p.last_activity_at)
+        .bind(&now)
         .bind(&event.entity_id)
         .execute(conn)
         .await?;

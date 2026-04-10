@@ -4,6 +4,36 @@ use specta::Type;
 
 // ---- Session types ---------------------------------------------------------
 
+/// Computed liveness state derived from last_activity_at.
+#[derive(Serialize, Deserialize, Debug, Clone, Copy, PartialEq, Eq, Type)]
+#[serde(rename_all = "kebab-case")]
+pub enum SessionLiveness {
+    /// Tool calls within TTL window.
+    Active,
+    /// No tool calls for TTL period, process may be alive.
+    Idle,
+    /// Session ended by scanner due to process death.
+    Abandoned,
+}
+
+/// Default TTL for session liveness: 10 minutes.
+const SESSION_TTL_SECS: i64 = 600;
+
+impl SessionLiveness {
+    /// Compute liveness from last_activity_at for an active session.
+    pub fn from_activity(last_activity_at: Option<&DateTime<Utc>>) -> Self {
+        let Some(last_activity) = last_activity_at else {
+            return SessionLiveness::Active; // No heartbeat yet, just started
+        };
+        let elapsed = Utc::now().signed_duration_since(*last_activity);
+        if elapsed.num_seconds() > SESSION_TTL_SECS {
+            SessionLiveness::Idle
+        } else {
+            SessionLiveness::Active
+        }
+    }
+}
+
 #[derive(Serialize, Deserialize, Debug, Clone, Copy, PartialEq, Eq, Type, Default)]
 #[serde(rename_all = "kebab-case")]
 pub enum WorkspaceSessionStatus {
@@ -63,6 +93,10 @@ pub struct WorkspaceSession {
     pub compile_error: Option<String>,
     #[serde(skip_serializing_if = "Option::is_none")]
     pub config_generation_at_start: Option<i64>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub last_activity_at: Option<DateTime<Utc>>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub liveness: Option<SessionLiveness>,
     #[serde(default)]
     pub stale_context: bool,
     pub created_at: DateTime<Utc>,

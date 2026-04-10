@@ -22,6 +22,7 @@ pub const SESSION_DRAIN_COMPLETED: &str = "session.drain_completed";
 pub const SESSION_DRAIN_ABORTED: &str = "session.drain_aborted";
 pub const SESSION_TOOL_COUNT_INCREMENTED: &str = "session.tool_count_incremented";
 pub const SESSION_ATTACHED: &str = "session.attached";
+pub const SESSION_HEARTBEAT: &str = "session.heartbeat";
 pub const ACTOR_CREATED: &str = "actor.created";
 pub const ACTOR_WOKE: &str = "actor.woke";
 pub const ACTOR_SLEPT: &str = "actor.slept";
@@ -67,6 +68,7 @@ pub const ALL: &[&str] = &[
     SESSION_DRAIN_ABORTED,
     SESSION_TOOL_COUNT_INCREMENTED,
     SESSION_ATTACHED,
+    SESSION_HEARTBEAT,
     ACTOR_CREATED,
     ACTOR_WOKE,
     ACTOR_SLEPT,
