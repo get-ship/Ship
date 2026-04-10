@@ -1,8 +1,6 @@
 //! Step monitor — unified per-step execution tracker.
 //!
-//! Replaces the dual-path detection (exit handler + liveness sweep) for
-//! pipeline steps. Each dispatched step gets a `StepMonitor` that waits for:
-//!
+//! Each dispatched step gets a `StepMonitor` that waits for:
 //! 1. `step.done_declared` event (agent called `step_done`)
 //! 2. Process exit signal (executor sends `ExitSignal`)
 //! 3. Timeout (configurable, default 30 minutes)
@@ -10,16 +8,14 @@
 //! The monitor emits `step.observed` with the authoritative success/failure
 //! verdict for pipeline advancement.
 
-use runtime::events::job::{StepObservedPayload, event_types};
-use runtime::events::{CallerKind, EmitContext, EventEnvelope, EventStore, KernelRouter, SqliteEventStore};
-use runtime::services::dispatch_ports::ExitSignal;
+use crate::events::job::{StepObservedPayload, event_types};
+use crate::events::{CallerKind, EmitContext, EventEnvelope, EventStore, KernelRouter, SqliteEventStore};
+use crate::services::dispatch_ports::{ExitSignal, ProcessRegistryPort};
 use std::sync::atomic::{AtomicBool, Ordering};
 use std::sync::Arc;
 use std::time::{Duration, Instant};
 use tokio::sync::mpsc::UnboundedReceiver;
 use tokio::sync::Mutex;
-
-use super::registry::ProcessRegistry;
 
 /// Default step timeout: 30 minutes.
 const DEFAULT_TIMEOUT: Duration = Duration::from_secs(30 * 60);
@@ -66,10 +62,10 @@ impl StepMonitor {
 ///
 /// Waits for the process exit signal, then emits `step.observed` based on
 /// whether `step_done` was called before exit.
-pub(crate) fn start_step_monitor(
+pub fn start_step_monitor(
     monitor: StepMonitor,
     kernel: Arc<Mutex<KernelRouter>>,
-    registry: Arc<Mutex<ProcessRegistry>>,
+    registry: Arc<dyn ProcessRegistryPort>,
     mut exit_rx: UnboundedReceiver<ExitSignal>,
 ) {
     tokio::spawn(async move {
@@ -79,11 +75,10 @@ pub(crate) fn start_step_monitor(
         let done_declared = monitor.done_declared.load(Ordering::Acquire);
 
         // Unregister from process registry
-        registry.lock().await.unregister(&monitor.slug);
+        registry.unregister(&monitor.slug).await;
 
         let (succeeded, exit_code, reason) = match result {
             Ok(Some(signal)) => {
-                // Process exited — verdict depends on done_declared + exit code
                 let code = signal.exit_code;
                 match code {
                     Some(0) | None => {
@@ -102,12 +97,9 @@ pub(crate) fn start_step_monitor(
                 }
             }
             Ok(None) => {
-                // Channel closed without signal — treat as unexpected death
                 (false, None, Some("exit channel closed unexpectedly".to_string()))
             }
             Err(_) => {
-                // Timeout — kill via registry (already unregistered above, but
-                // the process may still be running; the executor handle was removed).
                 (false, None, Some("timeout".to_string()))
             }
         };

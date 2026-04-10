@@ -2,7 +2,7 @@
 //!
 //! Resolution order: job vars (highest priority) → step vars → Err (unresolved).
 
-use runtime::events::job::PipelineStep;
+use crate::events::job::PipelineStep;
 use std::collections::HashMap;
 
 /// Replace all `{{ var }}` references in `template` using `vars`.

@@ -20,7 +20,7 @@ fn ev(event_type: &str, payload: serde_json::Value) -> EventEnvelope {
 /// Startup sequence must include orphan cleanup.
 #[test]
 fn startup_includes_orphan_cleanup() {
-    let source = include_str!("job_dispatch.rs");
+    let source = include_str!("../../../../crates/core/runtime/src/services/orchestrator/router.rs");
     assert!(
         source.contains("cleanup_orphaned_worktrees"),
         "startup must call cleanup_orphaned_worktrees to remove stale disk state"
@@ -48,13 +48,13 @@ fn orphan_cleanup_filters_terminal_states_only() {
     );
 }
 
-/// Orphan cleanup must call handle_job_cleanup for consistency.
+/// Orphan cleanup calls cleanup_orphan for consistent cleanup behavior.
 #[test]
-fn orphan_cleanup_delegates_to_handle_job_cleanup() {
+fn orphan_cleanup_delegates_to_cleanup_orphan() {
     let source = include_str!("orphan_cleanup.rs");
     assert!(
-        source.contains("handle_job_cleanup"),
-        "orphan cleanup must reuse handle_job_cleanup for consistent cleanup behavior"
+        source.contains("cleanup_orphan"),
+        "orphan cleanup must call cleanup_orphan for consistent cleanup behavior"
     );
 }
 

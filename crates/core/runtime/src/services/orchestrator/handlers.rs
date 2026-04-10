@@ -1,15 +1,14 @@
-//! Secondary event handlers for job dispatch — update forwarding, cleanup, DAG unblocking.
+//! Secondary event handlers — update forwarding, cleanup, finalization, merge.
 
-use runtime::events::job::event_types;
-use runtime::events::{CallerKind, EmitContext, EventEnvelope, EventStore, SqliteEventStore};
+use crate::events::job::event_types;
+use crate::events::{CallerKind, EmitContext, EventEnvelope, EventStore, SqliteEventStore};
+use crate::services::dispatch_ports::AgentPlatform;
 use std::sync::Arc;
 use tokio::sync::Mutex;
 
-use super::helpers::{delete_branch, kill_tmux_session, remove_worktree, worktrees_dir};
-
 /// Forward `job.update` messages to the agent via mesh routing.
-pub(crate) async fn handle_job_update(
-    kernel: &Arc<Mutex<runtime::events::KernelRouter>>,
+pub async fn handle_job_update(
+    kernel: &Arc<Mutex<crate::events::KernelRouter>>,
     envelope: &EventEnvelope,
 ) {
     let entity_id = &envelope.entity_id;
@@ -59,7 +58,10 @@ pub(crate) async fn handle_job_update(
 }
 
 /// Clean up worktree, tmux session, and branch for a completed/merged job.
-pub(crate) async fn handle_job_cleanup(envelope: &EventEnvelope) {
+pub async fn handle_job_cleanup(
+    envelope: &EventEnvelope,
+    platform: &dyn AgentPlatform,
+) {
     let payload: serde_json::Value = match serde_json::from_str(&envelope.payload_json) {
         Ok(v) => v,
         Err(e) => {
@@ -71,10 +73,9 @@ pub(crate) async fn handle_job_cleanup(envelope: &EventEnvelope) {
     let job_id = payload["job_id"].as_str().unwrap_or(&envelope.entity_id);
     let payload_slug = payload["slug"].as_str().unwrap_or("");
 
-    // Resolve slug from job projection if not in payload
     let slug = if !payload_slug.is_empty() {
         payload_slug.to_string()
-    } else if let Ok(jobs) = runtime::projections::job::load_jobs() {
+    } else if let Ok(jobs) = crate::projections::job::load_jobs() {
         jobs.values()
             .find(|j| j.job_id == job_id || j.job_id == envelope.entity_id)
             .map(|j| j.slug.clone())
@@ -83,36 +84,16 @@ pub(crate) async fn handle_job_cleanup(envelope: &EventEnvelope) {
         job_id.to_string()
     };
 
-    let tmux_session = format!("job-{slug}");
-    let worktree_path = worktrees_dir().join(&slug);
     let branch = format!("job/{slug}");
-
-    tracing::info!(
-        slug,
-        job_id,
-        tmux_session = %tmux_session,
-        worktree = %worktree_path.display(),
-        branch = %branch,
-        "job-dispatch: cleaning up job resources"
-    );
-
-    if let Err(e) = kill_tmux_session(&tmux_session) {
-        tracing::warn!(slug, tmux_session = %tmux_session, "job-dispatch: tmux cleanup failed: {e}");
-    }
-    if let Err(e) = remove_worktree(&worktree_path) {
-        tracing::warn!(slug, worktree = %worktree_path.display(), "job-dispatch: worktree cleanup failed: {e}");
-    }
-    if let Err(e) = delete_branch(&branch) {
-        tracing::warn!(slug, branch = %branch, "job-dispatch: branch cleanup failed: {e}");
-    }
-
+    tracing::info!(slug, job_id, branch = %branch, "job-dispatch: cleaning up job resources");
+    platform.cleanup_job(&slug, &branch).await;
     tracing::info!(slug, job_id, "job-dispatch: cleanup complete");
 }
 
 /// After `advance_pipeline` returns false on a `job.step_completed` event, emit
 /// `job.completed` if all pipeline steps are now in `completed_steps`.
-pub(crate) async fn finalize_pipeline_if_done(
-    kernel: &Arc<Mutex<runtime::events::KernelRouter>>,
+pub async fn finalize_pipeline_if_done(
+    kernel: &Arc<Mutex<crate::events::KernelRouter>>,
     envelope: &EventEnvelope,
 ) {
     let payload: serde_json::Value =
@@ -125,7 +106,7 @@ pub(crate) async fn finalize_pipeline_if_done(
         None => return,
     };
 
-    let jobs = match runtime::projections::job::load_jobs() {
+    let jobs = match crate::projections::job::load_jobs() {
         Ok(j) => j,
         Err(_) => return,
     };
@@ -134,10 +115,9 @@ pub(crate) async fn finalize_pipeline_if_done(
         None => return,
     };
 
-    // Only emit job.completed when all pipeline steps are recorded as done.
     let all_done = match job.steps {
         Some(ref steps) => steps.steps.iter().all(|s| job.completed_steps.contains(&s.id)),
-        None => return, // No pipeline — liveness handler owns job.completed
+        None => return,
     };
     if !all_done {
         return;
@@ -162,21 +142,17 @@ pub(crate) async fn finalize_pipeline_if_done(
 
 /// Execute a merge step: git merge the job branch, emit `job.merged` on success.
 /// Returns `true` if the merge succeeded.
-pub(crate) async fn execute_merge_step(
-    kernel: &Arc<Mutex<runtime::events::KernelRouter>>,
+pub async fn execute_merge_step(
+    kernel: &Arc<Mutex<crate::events::KernelRouter>>,
     job_id: &str,
     slug: &str,
     branch: &str,
+    platform: &dyn AgentPlatform,
 ) -> bool {
-    let merge_result = std::process::Command::new("git")
-        .args(["merge", branch, "--no-edit"])
-        .current_dir(super::helpers::repo_dir())
-        .output();
-
-    match merge_result {
-        Ok(output) if output.status.success() => {
+    match platform.git_merge(branch) {
+        Ok(true) => {
             tracing::info!(slug, branch, "pipeline: merge successful");
-            let merged_payload = runtime::events::job::JobMergedPayload {
+            let merged_payload = crate::events::job::JobMergedPayload {
                 job_id: job_id.to_string(),
                 slug: slug.to_string(),
             };
@@ -199,9 +175,8 @@ pub(crate) async fn execute_merge_step(
             }
             true
         }
-        Ok(output) => {
-            let stderr = String::from_utf8_lossy(&output.stderr);
-            tracing::error!(slug, branch, "pipeline: merge failed: {stderr}");
+        Ok(false) => {
+            tracing::error!(slug, branch, "pipeline: merge failed");
             false
         }
         Err(e) => {
@@ -210,4 +185,3 @@ pub(crate) async fn execute_merge_step(
         }
     }
 }
-

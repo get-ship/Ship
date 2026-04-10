@@ -1,59 +1,32 @@
 //! Run step executor — executes shell commands as pipeline steps.
 //!
-//! A run step is a pipeline step with `type: run` (or `run: <command>` shorthand).
-//! It executes a shell command in the job's worktree directory, capturing output
-//! and emitting step lifecycle events to the kernel.
+//! A run step is a pipeline step with `type: run`. It executes a shell
+//! command in the job's worktree directory, capturing output and emitting
+//! step lifecycle events to the kernel.
 //!
 //! On exit 0: emits `job.step_output` then `job.step_completed`.
 //! On non-zero exit: emits `job.step_output` then `job.step_failed`.
 
-use runtime::events::job::event_types;
-use runtime::events::{CallerKind, EmitContext, EventEnvelope, EventStore, SqliteEventStore};
+use crate::events::job::event_types;
+use crate::events::EventEnvelope;
 use std::path::Path;
 use std::sync::Arc;
 use tokio::sync::Mutex;
 
-fn runtime_ctx() -> EmitContext {
-    EmitContext {
-        caller_kind: CallerKind::Runtime,
-        skill_id: None,
-        workspace_id: None,
-        session_id: None,
-    }
-}
-
-async fn persist_and_route(
-    kernel: &Arc<Mutex<runtime::events::KernelRouter>>,
-    envelope: EventEnvelope,
-    ship_dir: Option<&Path>,
-) {
-    let store_result = match ship_dir {
-        Some(dir) => SqliteEventStore::new_at(dir),
-        None => SqliteEventStore::new(),
-    };
-    if let Ok(store) = store_result {
-        if let Err(e) = EventStore::append(&store, &envelope) {
-            tracing::warn!("run-step: failed to persist event: {e}");
-        }
-    }
-    let ctx = runtime_ctx();
-    if let Err(e) = kernel.lock().await.route(envelope, &ctx).await {
-        tracing::warn!("run-step: failed to route event: {e}");
-    }
-}
+use super::emit::persist_and_route;
 
 /// Execute a shell command as a pipeline step.
 ///
 /// Emits `job.step_dispatched`, then runs `sh -c <command>` in `work_dir`.
 /// On success: emits `job.step_output` + `job.step_completed`.
 /// On failure: emits `job.step_output` + `job.step_failed`.
-pub(crate) async fn execute_run_step(
+pub async fn execute_run_step(
     job_id: &str,
     slug: &str,
     step_id: &str,
     command: &str,
     work_dir: &Path,
-    kernel: &Arc<Mutex<runtime::events::KernelRouter>>,
+    kernel: &Arc<Mutex<crate::events::KernelRouter>>,
     ship_dir: Option<&Path>,
 ) {
     tracing::info!(slug, step_id, %command, "run-step: executing");
@@ -64,7 +37,7 @@ pub(crate) async fn execute_run_step(
         "step_id": step_id, "step_type": "run",
     });
     if let Ok(env) = EventEnvelope::new(event_types::STEP_DISPATCHED, job_id, &dispatched_payload) {
-        persist_and_route(kernel, env.with_actor_id("service.job-dispatch"), ship_dir).await;
+        persist_and_route(kernel, env.with_actor_id("service.job-dispatch"), slug, ship_dir).await;
     }
 
     // Run the command
@@ -87,7 +60,7 @@ pub(crate) async fn execute_run_step(
                 "stderr": if stderr.is_empty() { serde_json::Value::Null } else { serde_json::Value::String(stderr) },
             });
             if let Ok(env) = EventEnvelope::new(event_types::STEP_OUTPUT, job_id, &output_payload) {
-                persist_and_route(kernel, env.with_actor_id("service.job-dispatch"), ship_dir).await;
+                persist_and_route(kernel, env.with_actor_id("service.job-dispatch"), slug, ship_dir).await;
             }
 
             if out.status.success() {
@@ -96,7 +69,7 @@ pub(crate) async fn execute_run_step(
                     "job_id": job_id, "slug": slug, "step_id": step_id,
                 });
                 if let Ok(env) = EventEnvelope::new(event_types::STEP_COMPLETED, job_id, &payload) {
-                    persist_and_route(kernel, env.with_actor_id("service.job-dispatch"), ship_dir).await;
+                    persist_and_route(kernel, env.with_actor_id("service.job-dispatch"), slug, ship_dir).await;
                 }
             } else {
                 let exit_code = out.status.code().unwrap_or(-1);
@@ -107,7 +80,7 @@ pub(crate) async fn execute_run_step(
                     "error": format!("command exited with code {exit_code}: {stderr_str}"),
                 });
                 if let Ok(env) = EventEnvelope::new(event_types::STEP_FAILED, job_id, &payload) {
-                    persist_and_route(kernel, env.with_actor_id("service.job-dispatch"), ship_dir).await;
+                    persist_and_route(kernel, env.with_actor_id("service.job-dispatch"), slug, ship_dir).await;
                 }
             }
         }
@@ -118,7 +91,7 @@ pub(crate) async fn execute_run_step(
                 "error": format!("failed to spawn sh: {e}"),
             });
             if let Ok(env) = EventEnvelope::new(event_types::STEP_FAILED, job_id, &payload) {
-                persist_and_route(kernel, env.with_actor_id("service.job-dispatch"), ship_dir).await;
+                persist_and_route(kernel, env.with_actor_id("service.job-dispatch"), slug, ship_dir).await;
             }
         }
     }

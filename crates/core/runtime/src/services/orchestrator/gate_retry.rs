@@ -4,24 +4,23 @@
 //! checks the retry policy on the gated step and either re-dispatches it or
 //! emits `job.failed` if retries are exhausted.
 
-use runtime::events::job::{StepObservedPayload, StepType};
-use runtime::events::EventEnvelope;
+use crate::events::job::{StepObservedPayload, StepType};
+use crate::events::EventEnvelope;
 use std::sync::Arc;
 use tokio::sync::Mutex;
 
-use super::dispatch_pipeline::advance_pipeline;
-use super::job_dispatch::DispatchContext;
+use super::pipeline::advance_pipeline;
+use super::OrchestratorContext;
 
 /// Attempt to retry a gated step after gate failure.
 ///
-/// Returns `true` if a retry was dispatched, `false` if no retry is possible
-/// (not a gate step, no retries configured, or retries exhausted).
-pub(crate) async fn try_gate_retry(
-    kernel: &Arc<Mutex<runtime::events::KernelRouter>>,
-    dctx: &DispatchContext,
+/// Returns `true` if a retry was dispatched, `false` if no retry is possible.
+pub async fn try_gate_retry(
+    kernel: &Arc<Mutex<crate::events::KernelRouter>>,
+    octx: &OrchestratorContext,
     payload: &StepObservedPayload,
 ) -> bool {
-    let jobs = match runtime::projections::job::load_jobs() {
+    let jobs = match crate::projections::job::load_jobs() {
         Ok(j) => j,
         Err(_) => return false,
     };
@@ -42,7 +41,6 @@ pub(crate) async fn try_gate_retry(
         return false;
     }
 
-    // The gated step is the gate's dependency (first entry in `after`).
     let gated_step_id = match gate_step.after.first() {
         Some(id) => id.clone(),
         None => return false,
@@ -73,7 +71,7 @@ pub(crate) async fn try_gate_retry(
     );
 
     // Emit step.retry event
-    let retry_payload = runtime::events::job::StepRetryPayload {
+    let retry_payload = crate::events::job::StepRetryPayload {
         job_id: payload.job_id.clone(),
         slug: payload.slug.clone(),
         step_id: gated_step_id.clone(),
@@ -82,7 +80,7 @@ pub(crate) async fn try_gate_retry(
         reason: "gate_failed".to_string(),
     };
     let retry_envelope = match EventEnvelope::new(
-        runtime::events::job::event_types::STEP_RETRY,
+        crate::events::job::event_types::STEP_RETRY,
         &payload.job_id,
         &retry_payload,
     ) {
@@ -93,22 +91,20 @@ pub(crate) async fn try_gate_retry(
         }
     };
 
-    if let Ok(store) = runtime::events::SqliteEventStore::new() {
-        if let Err(e) = runtime::events::EventStore::append(&store, &retry_envelope) {
+    if let Ok(store) = crate::events::SqliteEventStore::new() {
+        if let Err(e) = crate::events::EventStore::append(&store, &retry_envelope) {
             tracing::warn!(slug = %payload.slug, "gate-retry: failed to persist: {e}");
         }
     }
-    let ctx = runtime::events::EmitContext {
-        caller_kind: runtime::events::CallerKind::Runtime,
+    let ctx = crate::events::EmitContext {
+        caller_kind: crate::events::CallerKind::Runtime,
         skill_id: None,
         workspace_id: None,
         session_id: None,
     };
     let _ = kernel.lock().await.route(retry_envelope, &ctx).await;
 
-    // Build a synthetic envelope for advance_pipeline to find the job.
-    // The step.retry projection removes the gated step from completed_steps,
-    // so advance_pipeline will find it unblocked and dispatch it.
+    // Build synthetic envelope for advance_pipeline
     let synthetic = match EventEnvelope::new(
         "step.retry",
         &payload.job_id,
@@ -118,15 +114,15 @@ pub(crate) async fn try_gate_retry(
         Err(_) => return false,
     };
 
-    advance_pipeline(kernel, &synthetic, dctx).await
+    advance_pipeline(kernel, &synthetic, octx).await
 }
 
 /// Emit `job.failed` when a gate fails with no retries remaining.
-pub(crate) async fn emit_job_failed_for_gate(
-    kernel: &Arc<Mutex<runtime::events::KernelRouter>>,
+pub async fn emit_job_failed_for_gate(
+    kernel: &Arc<Mutex<crate::events::KernelRouter>>,
     payload: &StepObservedPayload,
 ) {
-    let jobs = match runtime::projections::job::load_jobs() {
+    let jobs = match crate::projections::job::load_jobs() {
         Ok(j) => j,
         Err(_) => return,
     };
@@ -151,23 +147,23 @@ pub(crate) async fn emit_job_failed_for_gate(
         .reason
         .clone()
         .unwrap_or_else(|| "gate failed".to_string());
-    let fail_payload = runtime::events::job::JobFailedPayload {
+    let fail_payload = crate::events::job::JobFailedPayload {
         job_id: payload.job_id.clone(),
         error: reason,
     };
     let env = match EventEnvelope::new(
-        runtime::events::job::event_types::JOB_FAILED,
+        crate::events::job::event_types::JOB_FAILED,
         &payload.job_id,
         &fail_payload,
     ) {
         Ok(e) => e.with_actor_id("service.job-dispatch"),
         Err(_) => return,
     };
-    if let Ok(store) = runtime::events::SqliteEventStore::new() {
-        let _ = runtime::events::EventStore::append(&store, &env);
+    if let Ok(store) = crate::events::SqliteEventStore::new() {
+        let _ = crate::events::EventStore::append(&store, &env);
     }
-    let ctx = runtime::events::EmitContext {
-        caller_kind: runtime::events::CallerKind::Runtime,
+    let ctx = crate::events::EmitContext {
+        caller_kind: crate::events::CallerKind::Runtime,
         skill_id: None,
         workspace_id: None,
         session_id: None,

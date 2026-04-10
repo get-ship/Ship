@@ -2,18 +2,19 @@
 //!
 //! Called on startup and after job.completed/job.merged to unblock queued jobs.
 
-use runtime::projections::job::{load_jobs, JobStatus};
+use crate::projections::job::{load_jobs, JobStatus};
 use std::sync::Arc;
 use tokio::sync::Mutex;
 
+use super::dispatch::dispatch_job_internal;
 use super::pipeline_loader::ensure_pipeline;
-use super::job_dispatch::DispatchContext;
+use super::OrchestratorContext;
 
 /// Scan the job projection for pending jobs whose dependencies are all resolved.
 /// Dispatch any that are ready. Called on startup and after job.completed/job.merged.
-pub(crate) async fn dispatch_ready_pending_jobs(
-    kernel: &Arc<Mutex<runtime::events::KernelRouter>>,
-    dctx: &DispatchContext,
+pub async fn dispatch_ready_pending_jobs(
+    kernel: &Arc<Mutex<crate::events::KernelRouter>>,
+    octx: &OrchestratorContext,
 ) {
     let jobs = match load_jobs() {
         Ok(j) => j,
@@ -23,18 +24,15 @@ pub(crate) async fn dispatch_ready_pending_jobs(
         }
     };
 
-    // Build set of completed/merged job slugs
     let done_slugs: std::collections::HashSet<&str> = jobs.values()
         .filter(|j| matches!(j.status, JobStatus::Completed | JobStatus::GatePending | JobStatus::Merged))
         .map(|j| j.slug.as_str())
         .collect();
 
-    // Count currently running jobs
     let running_count = jobs.values()
         .filter(|j| j.status == JobStatus::Dispatched)
         .count();
 
-    // Concurrency limit — don't overwhelm the machine
     const MAX_CONCURRENT: usize = 3;
     let slots = MAX_CONCURRENT.saturating_sub(running_count);
     if slots == 0 {
@@ -42,7 +40,6 @@ pub(crate) async fn dispatch_ready_pending_jobs(
         return;
     }
 
-    // Find pending jobs with all deps resolved
     let ready: Vec<_> = jobs.values()
         .filter(|j| j.status == JobStatus::Pending)
         .filter(|j| {
@@ -59,26 +56,18 @@ pub(crate) async fn dispatch_ready_pending_jobs(
         return;
     }
 
-    tracing::info!(
-        count = ready.len(),
-        "job-dispatch: found pending jobs with resolved dependencies"
-    );
+    tracing::info!(count = ready.len(), "job-dispatch: found pending jobs with resolved dependencies");
 
     for job in ready {
-        tracing::info!(
-            slug = job.slug,
-            job_id = job.job_id,
-            "job-dispatch: dispatching previously-pending job"
-        );
+        tracing::info!(slug = job.slug, job_id = job.job_id, "job-dispatch: dispatching previously-pending job");
 
-        // Build a JobCreatedPayload from the projection record
-        let payload = runtime::events::job::JobCreatedPayload {
+        let payload = crate::events::job::JobCreatedPayload {
             job_id: job.job_id.clone(),
             slug: job.slug.clone(),
             agent: job.agent.clone(),
             branch: job.branch.clone(),
             spec_path: job.spec_path.clone(),
-            depends_on: None, // deps are resolved
+            depends_on: None,
             pipeline: job.pipeline.clone(),
             steps: job.steps.clone(),
             plan_id: None,
@@ -89,6 +78,6 @@ pub(crate) async fn dispatch_ready_pending_jobs(
         };
 
         let payload = ensure_pipeline(payload);
-        super::job_dispatch::dispatch_job_internal(kernel, &payload, dctx).await;
+        dispatch_job_internal(kernel, &payload, octx).await;
     }
 }

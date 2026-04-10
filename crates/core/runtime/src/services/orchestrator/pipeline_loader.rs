@@ -6,14 +6,14 @@
 //! 3. Inline `steps:` in spec frontmatter
 //! 4. Default pipeline (`implement → gate → merge`)
 
-use runtime::events::job::{JobCreatedPayload, Pipeline};
+use crate::events::job::{JobCreatedPayload, Pipeline};
 
 /// Enrich a job with a pipeline. Resolution order:
 /// 1. Already has `steps` → use it
 /// 2. Spec frontmatter has `pipeline: <name>` → load from `.ship/pipelines/<name>.yaml`
 /// 3. Spec frontmatter has inline `steps:` → use it
 /// 4. None → inject default (implement → gate → merge)
-pub(crate) fn ensure_pipeline(mut payload: JobCreatedPayload) -> JobCreatedPayload {
+pub fn ensure_pipeline(mut payload: JobCreatedPayload) -> JobCreatedPayload {
     if payload.steps.is_some() {
         return payload;
     }
@@ -84,7 +84,7 @@ fn load_pipeline_file(name: &str) -> Option<Pipeline> {
                 let content = std::fs::read_to_string(&path).ok()?;
                 let val: serde_json::Value = serde_yaml::from_str(&content).ok()?;
                 let steps_val = val.get("steps")?;
-                let steps: Vec<runtime::events::job::PipelineStep> =
+                let steps: Vec<crate::events::job::PipelineStep> =
                     serde_json::from_value(steps_val.clone()).ok()?;
                 return Some(Pipeline { steps });
             }
@@ -115,7 +115,7 @@ fn read_spec_content(spec_path: &str) -> String {
     if src.exists() {
         return std::fs::read_to_string(src).unwrap_or_default();
     }
-    if let Ok(ship_dir) = runtime::project::get_global_dir() {
+    if let Ok(ship_dir) = crate::project::get_global_dir() {
         if let Some(root) = ship_dir.parent() {
             let alt = root.join(spec_path);
             if alt.exists() {

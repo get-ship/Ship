@@ -2,47 +2,46 @@
 //!
 //! A pipeline is a DAG of steps. Each step declares dependencies via `after`.
 //! When a step completes, unblocked steps are found and dispatched.
-use runtime::events::job::StepType;
-use runtime::events::EventEnvelope;
-use runtime::services::dispatch_ports::JobContext;
-use runtime::projections::job::{load_jobs, load_jobs_at};
+
+use crate::events::job::StepType;
+use crate::events::EventEnvelope;
+use crate::projections::job::{load_jobs, load_jobs_at};
+use crate::services::dispatch_ports::{JobContext, LaunchProfile};
 use std::sync::Arc;
 use tokio::sync::Mutex;
 
-use super::agent_lifecycle::graceful_agent_exit;
-use super::dispatch_emit::{emit_job_dispatched_with_meta, emit_step_dispatched_event};
-use super::executors::run_step::execute_run_step;
-use super::helpers::{compile_agent_config, worktrees_dir};
-use super::job_dispatch::DispatchContext;
+use super::emit::{emit_job_dispatched_with_meta, emit_step_dispatched_event};
+use super::handlers::execute_merge_step;
 use super::step_monitor::{StepMonitor, start_step_monitor};
+use super::OrchestratorContext;
 
 // Re-export for callers that import emit_job_dispatched from this module.
-pub(crate) use super::dispatch_emit::emit_job_dispatched;
+pub use super::emit::emit_job_dispatched;
 
 /// Advance the pipeline after a step completes. Returns true if a next step was dispatched.
-pub(crate) async fn advance_pipeline(
-    kernel: &Arc<Mutex<runtime::events::KernelRouter>>,
+pub async fn advance_pipeline(
+    kernel: &Arc<Mutex<crate::events::KernelRouter>>,
     envelope: &EventEnvelope,
-    dctx: &DispatchContext,
+    octx: &OrchestratorContext,
 ) -> bool {
-    advance_pipeline_inner(kernel, envelope, dctx, None, None).await
+    advance_pipeline_inner(kernel, envelope, octx, None, None).await
 }
 
 /// Test-friendly variant with explicit paths.
-#[cfg(test)]
-pub(crate) async fn advance_pipeline_at(
-    kernel: &Arc<Mutex<runtime::events::KernelRouter>>,
+pub async fn advance_pipeline_at(
+    kernel: &Arc<Mutex<crate::events::KernelRouter>>,
     envelope: &EventEnvelope,
-    dctx: &DispatchContext,
+    octx: &OrchestratorContext,
     ship_dir: &std::path::Path,
 ) -> bool {
     let worktree_root = ship_dir.parent().map(|p| p.join("worktrees"));
-    advance_pipeline_inner(kernel, envelope, dctx, Some(ship_dir), worktree_root.as_deref()).await
+    advance_pipeline_inner(kernel, envelope, octx, Some(ship_dir), worktree_root.as_deref()).await
 }
+
 async fn advance_pipeline_inner(
-    kernel: &Arc<Mutex<runtime::events::KernelRouter>>,
+    kernel: &Arc<Mutex<crate::events::KernelRouter>>,
     envelope: &EventEnvelope,
-    dctx: &DispatchContext,
+    octx: &OrchestratorContext,
     ship_dir_override: Option<&std::path::Path>,
     worktree_root_override: Option<&std::path::Path>,
 ) -> bool {
@@ -64,8 +63,6 @@ async fn advance_pipeline_inner(
     let payload_job_id = payload["job_id"].as_str().unwrap_or("");
     let entity_id = &envelope.entity_id;
 
-    // Look up by job_id first (exact), then fall back to slug (ambiguous).
-    // entity_id and payload job_id are authoritative; slug is a last resort.
     let job = jobs.values()
         .find(|j| j.job_id == *entity_id)
         .or_else(|| jobs.values().find(|j| !payload_job_id.is_empty() && j.job_id == payload_job_id))
@@ -88,18 +85,9 @@ async fn advance_pipeline_inner(
         }
     };
 
-    // Build the completed-steps set to use for finding the next step.
-    //
-    // Three cases:
-    // (a) current_step is Some — idempotency check, then add to completed.
-    // (b) current_step is None and completed_steps is non-empty — the projection
-    //     already moved the finished step into completed_steps on JOB_COMPLETED.
-    //     Use it as-is; no idempotency check needed.
-    // (c) current_step is None and completed_steps is empty — first step trigger;
-    //     treat the root step as just completed.
+    // Build the completed-steps set.
     let completed: Vec<String> = match &job.current_step {
         Some(id) => {
-            // Idempotency: duplicate completion event for a step already recorded.
             if job.completed_steps.contains(id) {
                 tracing::debug!(slug, step = %id, "pipeline: step already completed, skipping");
                 return false;
@@ -110,14 +98,11 @@ async fn advance_pipeline_inner(
             c
         }
         None if !job.completed_steps.is_empty() => {
-            // JOB_COMPLETED already moved current_step into completed_steps.
-            // Advance from the recorded set without re-checking idempotency.
             tracing::info!(slug, completed_count = job.completed_steps.len(),
                 "pipeline: advancing from projection-tracked completed_steps");
             job.completed_steps.clone()
         }
         None => {
-            // No completed steps recorded — treat the root step as just finished.
             match pipeline.root_steps().first() {
                 Some(root) => {
                     tracing::info!(slug, step = %root.id, "pipeline: first step completed");
@@ -137,7 +122,9 @@ async fn advance_pipeline_inner(
         return false;
     }
 
-    let wt_root = worktree_root_override.map(|p| p.to_path_buf()).unwrap_or_else(worktrees_dir);
+    let wt_root = worktree_root_override
+        .map(|p| p.to_path_buf())
+        .unwrap_or_else(|| octx.platform.worktrees_dir());
     let worktree_path = wt_root.join(slug);
 
     // Dispatch each unblocked step
@@ -156,11 +143,8 @@ async fn advance_pipeline_inner(
         };
         let step = &step;
         tracing::info!(
-            slug,
-            step_id = step.id,
-            step_type = ?step.step_type,
-            agent = ?step.agent,
-            "pipeline: dispatching next step"
+            slug, step_id = step.id, step_type = ?step.step_type,
+            agent = ?step.agent, "pipeline: dispatching next step"
         );
 
         match step.step_type {
@@ -179,7 +163,7 @@ async fn advance_pipeline_inner(
                 let work_dir = worktree_path.clone();
                 let ship_dir_owned = ship_dir_override.map(|p| p.to_path_buf());
                 tokio::spawn(async move {
-                    execute_run_step(
+                    super::run_step::execute_run_step(
                         &job_id, &slug_clone, &step_id, &command,
                         &work_dir, &kernel_clone, ship_dir_owned.as_deref(),
                     ).await;
@@ -194,16 +178,13 @@ async fn advance_pipeline_inner(
                     continue;
                 }
 
-                // Gracefully end the current agent (only needed for tmux reuse)
-                graceful_agent_exit(slug, step.provider.as_deref()).await;
+                octx.platform.graceful_agent_exit(slug, step.provider.as_deref()).await;
 
-                // Swap agent profile
                 tracing::info!(slug, agent, step_id = step.id, "pipeline: compiling agent config");
-                if let Err(e) = compile_agent_config(&worktree_path, agent) {
+                if let Err(e) = octx.platform.compile_agent_config(&worktree_path, agent) {
                     tracing::warn!(slug, agent, "pipeline: ship use failed (non-fatal): {e}");
                 }
 
-                // Launch the agent; gate steps are ephemeral.
                 let persist = step.step_type != StepType::Gate;
                 let (exit_tx, exit_rx) = tokio::sync::mpsc::unbounded_channel();
                 let job_ctx = JobContext {
@@ -215,32 +196,30 @@ async fn advance_pipeline_inner(
                     work_dir: worktree_path.clone(),
                     env: [("SHIP_MESH_ID".to_string(), slug.clone())].into(),
                     exit_tx: Some(exit_tx),
-                    launch: runtime::services::dispatch_ports::LaunchProfile {
+                    launch: LaunchProfile {
                         provider: step.provider.clone(),
                         model: step.model.clone(),
                         persist_session: persist,
                         ..Default::default()
                     },
                 };
-                match dctx.executor.spawn(&job_ctx).await {
+                match octx.executor.spawn(&job_ctx).await {
                     Ok(handle) => {
-                        dctx.registry.lock().await.register(slug, handle);
-                        // Use step monitor for pipeline steps — tracks done_declared + exit
+                        octx.registry.register(slug, handle).await;
                         let monitor = StepMonitor::new(
                             job.job_id.clone(),
                             step_idx,
                             slug.clone(),
                             step.id.clone(),
                         );
-                        // Register done flag so step.done_declared events can set it
-                        dctx.done_flags.lock().await.insert(
+                        octx.done_flags.lock().await.insert(
                             slug.clone(),
                             monitor.done_flag(),
                         );
                         start_step_monitor(
                             monitor,
                             kernel.clone(),
-                            dctx.registry.clone(),
+                            octx.registry.clone(),
                             exit_rx,
                         );
                     }
@@ -256,16 +235,15 @@ async fn advance_pipeline_inner(
             }
             StepType::Merge => {
                 tracing::info!(slug, branch = %job.branch, "pipeline: executing merge step");
-                graceful_agent_exit(slug, None).await;
-                if super::dispatch_handlers::execute_merge_step(
-                    kernel, &job.job_id, slug, &job.branch,
+                octx.platform.graceful_agent_exit(slug, None).await;
+                if execute_merge_step(
+                    kernel, &job.job_id, slug, &job.branch, &*octx.platform,
                 ).await {
                     dispatched_any = true;
                 }
             }
             StepType::Human => {
                 tracing::info!(slug, step_id = step.id, "pipeline: human step — pausing for human action");
-                // TODO: create inbox item. For now, the job stays in completed status.
             }
         }
     }

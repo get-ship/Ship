@@ -1,23 +1,20 @@
-//! Supervisor — workspace lifecycle management and job dispatch for shipd.
+//! Supervisor — process management for shipd.
+//!
+//! After the orchestrator extraction, this module contains ONLY platform-specific
+//! process management: executors, liveness monitoring, orphan cleanup, process
+//! registry, terminal launching, and the platform trait implementations.
+//!
+//! Job orchestration (pipeline advancement, step dispatch, event routing) lives
+//! in `runtime::services::orchestrator`.
 
 pub mod adapters;
 pub(crate) mod agent_lifecycle;
-mod dispatch_handlers;
-pub(crate) mod dispatch_emit;
-mod dispatch_initial;
-pub(crate) mod dispatch_pipeline;
-mod dispatch_replay;
-mod dispatch_run;
-pub(crate) mod orphan_cleanup;
 pub(crate) mod executors;
-pub(crate) mod gate_retry;
 pub mod helpers;
 pub mod job_dispatch;
 pub(crate) mod liveness;
-pub(crate) mod pending_dispatch;
-pub(crate) mod step_monitor;
-pub(crate) mod pipeline_loader;
-pub(crate) mod pipeline_vars;
+pub(crate) mod orphan_cleanup;
+pub(crate) mod platform;
 pub(crate) mod registry;
 pub mod terminal_launcher;
 mod workspace_api;

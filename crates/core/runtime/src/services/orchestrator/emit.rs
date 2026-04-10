@@ -1,11 +1,12 @@
-//! Helpers for emitting `job.dispatched` events to the store and kernel.
-use runtime::events::{CallerKind, EmitContext, EventEnvelope};
+//! Helpers for emitting job dispatch events to the store and kernel.
+
+use crate::events::{CallerKind, EmitContext, EventEnvelope};
 use std::sync::Arc;
 use tokio::sync::Mutex;
 
 /// Emit a `job.dispatched` event using the default store path.
-pub(crate) async fn emit_job_dispatched(
-    kernel: &Arc<Mutex<runtime::events::KernelRouter>>,
+pub async fn emit_job_dispatched(
+    kernel: &Arc<Mutex<crate::events::KernelRouter>>,
     job_id: &str,
     worktree_path: &std::path::Path,
     slug: &str,
@@ -15,22 +16,22 @@ pub(crate) async fn emit_job_dispatched(
 
 /// Emit a `job.dispatched` event with optional provider metadata.
 /// `ship_dir` overrides the default store path (used in tests).
-pub(crate) async fn emit_job_dispatched_with_meta(
-    kernel: &Arc<Mutex<runtime::events::KernelRouter>>,
+pub async fn emit_job_dispatched_with_meta(
+    kernel: &Arc<Mutex<crate::events::KernelRouter>>,
     job_id: &str,
     worktree_path: &std::path::Path,
     slug: &str,
     provider_meta: Option<serde_json::Value>,
     ship_dir: Option<&std::path::Path>,
 ) {
-    let dispatched_payload = runtime::events::job::JobDispatchedPayload {
+    let dispatched_payload = crate::events::job::JobDispatchedPayload {
         job_id: job_id.to_string(),
         worktree: worktree_path.to_string_lossy().into_owned(),
         pid: None,
         provider_meta,
     };
     let dispatched_envelope = match EventEnvelope::new(
-        runtime::events::job::event_types::JOB_DISPATCHED,
+        crate::events::job::event_types::JOB_DISPATCHED,
         job_id,
         &dispatched_payload,
     ) {
@@ -41,32 +42,13 @@ pub(crate) async fn emit_job_dispatched_with_meta(
         }
     };
 
-    let store_result = match ship_dir {
-        Some(dir) => runtime::events::SqliteEventStore::new_at(dir),
-        None => runtime::events::SqliteEventStore::new(),
-    };
-    if let Ok(store) = store_result {
-        if let Err(e) = runtime::events::EventStore::append(&store, &dispatched_envelope) {
-            tracing::warn!(slug, "pipeline: failed to persist job.dispatched: {e}");
-        }
-    }
-
-    let ctx = EmitContext {
-        caller_kind: CallerKind::Runtime,
-        skill_id: None,
-        workspace_id: None,
-        session_id: None,
-    };
-    if let Err(e) = kernel.lock().await.route(dispatched_envelope, &ctx).await {
-        tracing::warn!(slug, "pipeline: job.dispatched routing failed: {e}");
-    }
-
+    persist_and_route(kernel, dispatched_envelope, slug, ship_dir).await;
     tracing::info!(slug, "pipeline: job dispatched successfully");
 }
 
 /// Emit a `job.step_dispatched` event for a specific pipeline step.
-pub(crate) async fn emit_step_dispatched_event(
-    kernel: &Arc<Mutex<runtime::events::KernelRouter>>,
+pub async fn emit_step_dispatched_event(
+    kernel: &Arc<Mutex<crate::events::KernelRouter>>,
     job_id: &str,
     step_id: &str,
     step_type: &str,
@@ -78,7 +60,7 @@ pub(crate) async fn emit_step_dispatched_event(
         "step_id": step_id, "step_type": step_type,
     });
     let envelope = match EventEnvelope::new(
-        runtime::events::job::event_types::STEP_DISPATCHED,
+        crate::events::job::event_types::STEP_DISPATCHED,
         job_id,
         &payload,
     ) {
@@ -89,13 +71,23 @@ pub(crate) async fn emit_step_dispatched_event(
         }
     };
 
+    persist_and_route(kernel, envelope, slug, ship_dir).await;
+}
+
+/// Persist an event to the store and route through the kernel.
+pub(super) async fn persist_and_route(
+    kernel: &Arc<Mutex<crate::events::KernelRouter>>,
+    envelope: EventEnvelope,
+    slug: &str,
+    ship_dir: Option<&std::path::Path>,
+) {
     let store_result = match ship_dir {
-        Some(dir) => runtime::events::SqliteEventStore::new_at(dir),
-        None => runtime::events::SqliteEventStore::new(),
+        Some(dir) => crate::events::SqliteEventStore::new_at(dir),
+        None => crate::events::SqliteEventStore::new(),
     };
     if let Ok(store) = store_result {
-        if let Err(e) = runtime::events::EventStore::append(&store, &envelope) {
-            tracing::warn!(slug, "pipeline: failed to persist step_dispatched: {e}");
+        if let Err(e) = crate::events::EventStore::append(&store, &envelope) {
+            tracing::warn!(slug, "pipeline: failed to persist event: {e}");
         }
     }
 
@@ -106,6 +98,6 @@ pub(crate) async fn emit_step_dispatched_event(
         session_id: None,
     };
     if let Err(e) = kernel.lock().await.route(envelope, &ctx).await {
-        tracing::warn!(slug, "pipeline: step_dispatched routing failed: {e}");
+        tracing::warn!(slug, "pipeline: event routing failed: {e}");
     }
 }

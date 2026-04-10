@@ -5,10 +5,10 @@
 //!   2. Step-level vars (fallback defaults)
 //!   3. Unresolved → Err containing the missing var name
 //!
-//! All tests call `super::pipeline_vars::interpolate_step`, which does not yet
-//! exist. They will fail to compile until the implementation is written.
+//! All tests call `interpolate_step` from the runtime orchestrator.
 
 use runtime::events::job::{PipelineStep, StepType};
+use runtime::services::orchestrator::pipeline_vars::interpolate_step;
 use std::collections::HashMap;
 
 // ── Helpers ──────────────────────────────────────────────────────────────────
@@ -66,7 +66,7 @@ fn vars(pairs: &[(&str, &str)]) -> HashMap<String, String> {
 fn step_agent_interpolated_from_job_vars() {
     let step = agent_step("{{ impl_agent }}");
     let job_vars = vars(&[("impl_agent", "rust-lane")]);
-    let resolved = super::pipeline_vars::interpolate_step(&step, &job_vars, &HashMap::new())
+    let resolved = interpolate_step(&step, &job_vars, &HashMap::new())
         .expect("interpolation must succeed when var is provided");
     assert_eq!(resolved.agent.as_deref(), Some("rust-lane"));
 }
@@ -87,7 +87,7 @@ fn step_goal_interpolated_from_job_vars() {
         max_retries: None,
     };
     let job_vars = vars(&[("feature_name", "config split")]);
-    let resolved = super::pipeline_vars::interpolate_step(&step, &job_vars, &HashMap::new())
+    let resolved = interpolate_step(&step, &job_vars, &HashMap::new())
         .expect("interpolation must succeed when var is provided");
     assert_eq!(resolved.goal.as_deref(), Some("Implement config split"));
 }
@@ -97,7 +97,7 @@ fn step_goal_interpolated_from_job_vars() {
 fn step_model_interpolated_from_job_vars() {
     let step = agent_step_with_model("rust-lane", "{{ model }}");
     let job_vars = vars(&[("model", "opus")]);
-    let resolved = super::pipeline_vars::interpolate_step(&step, &job_vars, &HashMap::new())
+    let resolved = interpolate_step(&step, &job_vars, &HashMap::new())
         .expect("interpolation must succeed when var is provided");
     assert_eq!(resolved.model.as_deref(), Some("opus"));
 }
@@ -107,7 +107,7 @@ fn step_model_interpolated_from_job_vars() {
 fn step_command_interpolated_from_job_vars() {
     let step = run_step("cargo test {{ test_filter }}");
     let job_vars = vars(&[("test_filter", "config::")]);
-    let resolved = super::pipeline_vars::interpolate_step(&step, &job_vars, &HashMap::new())
+    let resolved = interpolate_step(&step, &job_vars, &HashMap::new())
         .expect("interpolation must succeed when var is provided");
     assert_eq!(resolved.command.as_deref(), Some("cargo test config::"));
 }
@@ -117,7 +117,7 @@ fn step_command_interpolated_from_job_vars() {
 fn step_vars_provide_defaults() {
     let step = agent_step("{{ impl_agent }}");
     let step_vars = vars(&[("impl_agent", "default")]);
-    let resolved = super::pipeline_vars::interpolate_step(&step, &HashMap::new(), &step_vars)
+    let resolved = interpolate_step(&step, &HashMap::new(), &step_vars)
         .expect("interpolation must succeed when step var provides the default");
     assert_eq!(resolved.agent.as_deref(), Some("default"));
 }
@@ -128,7 +128,7 @@ fn job_vars_override_step_vars() {
     let step = agent_step("{{ impl_agent }}");
     let job_vars = vars(&[("impl_agent", "rust-lane")]);
     let step_vars = vars(&[("impl_agent", "default")]);
-    let resolved = super::pipeline_vars::interpolate_step(&step, &job_vars, &step_vars)
+    let resolved = interpolate_step(&step, &job_vars, &step_vars)
         .expect("interpolation must succeed when job var is provided");
     assert_eq!(resolved.agent.as_deref(), Some("rust-lane"), "job var must win over step var");
 }
@@ -137,7 +137,7 @@ fn job_vars_override_step_vars() {
 #[test]
 fn missing_var_returns_error() {
     let step = agent_step("{{ impl_agent }}");
-    let result = super::pipeline_vars::interpolate_step(&step, &HashMap::new(), &HashMap::new());
+    let result = interpolate_step(&step, &HashMap::new(), &HashMap::new());
     let err = result.expect_err("interpolation must fail when var is missing");
     assert!(
         err.contains("impl_agent"),
@@ -149,7 +149,7 @@ fn missing_var_returns_error() {
 #[test]
 fn no_vars_passthrough() {
     let step = agent_step("rust-lane");
-    let resolved = super::pipeline_vars::interpolate_step(&step, &HashMap::new(), &HashMap::new())
+    let resolved = interpolate_step(&step, &HashMap::new(), &HashMap::new())
         .expect("passthrough step must not fail");
     assert_eq!(resolved.agent.as_deref(), Some("rust-lane"));
     assert_eq!(resolved.model, None);
