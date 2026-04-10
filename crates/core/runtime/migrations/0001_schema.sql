@@ -1,5 +1,5 @@
--- FROZEN at v0.1.0 release. Do not modify.
--- New schema changes go in 0002_v020.sql.
+-- Ship platform schema — single-file, pre-launch.
+-- When the schema changes, update this file and delete the DB.
 
 -- ═══════════════════════════════════════════════════════════════════
 -- Platform layer — portable runtime
@@ -30,6 +30,7 @@ CREATE TABLE IF NOT EXISTS workspace (
   config_generation  INTEGER NOT NULL DEFAULT 0,
   compiled_at        TEXT,
   compile_error      TEXT,
+  tmux_session_name  TEXT,
   created_at         TEXT,
   updated_at         TEXT
 );
@@ -51,6 +52,9 @@ CREATE TABLE IF NOT EXISTS workspace_session (
   compiled_at                 TEXT,
   compile_error               TEXT,
   config_generation_at_start  INTEGER,
+  tool_call_count             INTEGER NOT NULL DEFAULT 0,
+  drained_at                  TEXT,
+  mcp_provider                TEXT,
   created_at                  TEXT NOT NULL,
   updated_at                  TEXT NOT NULL
 );
@@ -58,6 +62,8 @@ CREATE INDEX IF NOT EXISTS workspace_session_workspace_idx
   ON workspace_session(workspace_id, started_at DESC);
 CREATE INDEX IF NOT EXISTS workspace_session_status_idx
   ON workspace_session(status, started_at DESC);
+CREATE INDEX IF NOT EXISTS idx_ws_session_drain
+  ON workspace_session(status, workspace_id, agent_id);
 
 CREATE TABLE IF NOT EXISTS workspace_session_record (
   id                         TEXT PRIMARY KEY,
@@ -72,6 +78,10 @@ CREATE TABLE IF NOT EXISTS workspace_session_record (
   agent_id                   TEXT,
   files_changed              INTEGER,
   gate_result                TEXT,
+  lines_added                INTEGER,
+  lines_removed              INTEGER,
+  tool_calls                 INTEGER,
+  exit_reason                TEXT,
   created_at                 TEXT NOT NULL
 );
 CREATE INDEX IF NOT EXISTS workspace_session_record_workspace_idx
@@ -114,17 +124,50 @@ CREATE INDEX IF NOT EXISTS idx_event_session ON event_log(session_id);
 CREATE INDEX IF NOT EXISTS idx_event_job ON event_log(job_id);
 CREATE INDEX IF NOT EXISTS idx_event_entity ON event_log(entity_type, entity_id);
 
-CREATE TABLE IF NOT EXISTS agent_runtime_settings (
-  id              INTEGER PRIMARY KEY CHECK(id = 1),
-  active_agent    TEXT,
-  providers_json  TEXT NOT NULL DEFAULT '[]',
-  hooks_json      TEXT NOT NULL DEFAULT '[]',
-  statuses_json   TEXT NOT NULL DEFAULT '[]',
-  ai_json         TEXT,
-  git_json        TEXT NOT NULL DEFAULT '{}',
-  namespaces_json TEXT NOT NULL DEFAULT '[]',
-  updated_at      TEXT NOT NULL
+CREATE TABLE IF NOT EXISTS events (
+  id               TEXT PRIMARY KEY NOT NULL,
+  event_type       TEXT NOT NULL,
+  entity_id        TEXT NOT NULL,
+  actor            TEXT NOT NULL DEFAULT 'ship',
+  payload_json     TEXT NOT NULL DEFAULT '{}',
+  version          INTEGER NOT NULL DEFAULT 1,
+  causation_id     TEXT,
+  workspace_id     TEXT,
+  session_id       TEXT,
+  actor_id         TEXT,
+  parent_actor_id  TEXT,
+  elevated         INTEGER NOT NULL DEFAULT 0,
+  job_id           TEXT,
+  agent_id         TEXT,
+  agent_version    TEXT,
+  target_actor_id  TEXT,
+  created_at       TEXT NOT NULL DEFAULT (datetime('now'))
 );
+CREATE INDEX IF NOT EXISTS idx_events_entity    ON events(entity_id, event_type);
+CREATE INDEX IF NOT EXISTS idx_events_workspace ON events(workspace_id, created_at);
+CREATE INDEX IF NOT EXISTS idx_events_session   ON events(session_id);
+CREATE INDEX IF NOT EXISTS idx_events_actor     ON events(actor_id, elevated);
+CREATE INDEX IF NOT EXISTS idx_events_job       ON events(job_id);
+
+CREATE TRIGGER IF NOT EXISTS events_immutable
+BEFORE UPDATE ON events
+BEGIN
+  SELECT RAISE(FAIL, 'events table is immutable -- use append only');
+END;
+
+CREATE TABLE IF NOT EXISTS actors (
+  id               TEXT PRIMARY KEY NOT NULL,
+  kind             TEXT NOT NULL,
+  environment_type TEXT NOT NULL DEFAULT 'local',
+  status           TEXT NOT NULL DEFAULT 'created',
+  workspace_id     TEXT,
+  parent_actor_id  TEXT,
+  restart_count    INTEGER NOT NULL DEFAULT 0,
+  created_at       TEXT NOT NULL DEFAULT (datetime('now')),
+  updated_at       TEXT NOT NULL DEFAULT (datetime('now'))
+);
+CREATE INDEX IF NOT EXISTS idx_actors_workspace ON actors(workspace_id);
+CREATE INDEX IF NOT EXISTS idx_actors_status    ON actors(status);
 
 CREATE TABLE IF NOT EXISTS agent_artifact_registry (
   uuid         TEXT PRIMARY KEY,
@@ -138,21 +181,6 @@ CREATE TABLE IF NOT EXISTS agent_artifact_registry (
 );
 CREATE INDEX IF NOT EXISTS agent_artifact_kind_idx
   ON agent_artifact_registry(kind);
-
-CREATE TABLE IF NOT EXISTS agent_config (
-  id                 TEXT PRIMARY KEY,
-  name               TEXT NOT NULL,
-  description        TEXT,
-  active_tools_json  TEXT NOT NULL DEFAULT '[]',
-  mcp_refs_json      TEXT NOT NULL DEFAULT '[]',
-  skill_refs_json    TEXT NOT NULL DEFAULT '[]',
-  rule_refs_json     TEXT NOT NULL DEFAULT '[]',
-  prompt_id          TEXT,
-  hooks_json         TEXT NOT NULL DEFAULT '[]',
-  permissions_json   TEXT NOT NULL DEFAULT '{}',
-  target_agents_json TEXT NOT NULL DEFAULT '[]',
-  updated_at         TEXT NOT NULL
-);
 
 CREATE TABLE IF NOT EXISTS managed_mcp_state (
   provider         TEXT PRIMARY KEY,
