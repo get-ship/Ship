@@ -65,6 +65,9 @@ pub struct JobRecord {
     /// Job-level vars for pipeline step interpolation.
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub vars: Option<HashMap<String, String>>,
+    /// Retry count per step ID — tracks how many times a step was retried after gate failure.
+    #[serde(default, skip_serializing_if = "HashMap::is_empty")]
+    pub step_retries: HashMap<String, u32>,
 }
 
 /// Apply a single event to an existing `JobRecord`.
@@ -184,6 +187,19 @@ pub fn apply(record: &mut JobRecord, event: &EventEnvelope) {
             record.status = JobStatus::Failed;
             record.updated_at = ts;
         }
+        event_types::STEP_RETRY => {
+            if let Ok(p) = serde_json::from_str::<serde_json::Value>(&event.payload_json) {
+                if let Some(step_id) = p["step_id"].as_str() {
+                    let attempt = p["attempt"].as_u64().unwrap_or(1) as u32;
+                    record.step_retries.insert(step_id.to_string(), attempt);
+                    // Remove the step from completed so it can be re-dispatched
+                    record.completed_steps.retain(|s| s != step_id);
+                    record.error = None;
+                    record.status = JobStatus::Dispatched;
+                }
+            }
+            record.updated_at = ts;
+        }
         event_types::STEP_OBSERVED => {
             if let Ok(p) = serde_json::from_str::<serde_json::Value>(&event.payload_json) {
                 let step_name = p["step_name"].as_str().unwrap_or("");
@@ -256,6 +272,7 @@ pub fn project(events: &[EventEnvelope]) -> HashMap<String, JobRecord> {
                     completed_steps: vec![],
                     current_step: None,
                     vars: serde_json::from_value(p["vars"].clone()).ok(),
+                    step_retries: HashMap::new(),
                 };
                 map.insert(job_id, record);
             }
