@@ -73,7 +73,7 @@ function MetadataTab({ skill, entries, raw, onUpdate }: {
           <h4 className="text-[10px] font-semibold uppercase tracking-wide text-muted-foreground mb-2">
             Files ({skill.files.length})
           </h4>
-          <div className="space-y-0.5 font-mono text-[10px] text-foreground/70">
+          <div className="space-y-0.5 font-mono text-[10px] text-foreground/80">
             {skill.files.map((f) => <div key={f}>{f}</div>)}
           </div>
         </div>
@@ -97,7 +97,7 @@ function ReadOnlyMetadata({ entries, skill }: { entries: FrontmatterEntry[]; ski
       )}
       {skill.description && (
         <div className="pt-2 border-t border-border/40">
-          <p className="text-[11px] text-foreground/70 leading-relaxed">{skill.description}</p>
+          <p className="text-[11px] text-foreground/80 leading-relaxed">{skill.description}</p>
         </div>
       )}
     </div>

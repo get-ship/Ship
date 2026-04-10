@@ -66,7 +66,7 @@ export function SimpleRulesEditor({ rules, onChange }: SimpleRulesEditorProps) {
                 else setEditIdx(null)
               }}
               onKeyDown={(e) => handleKey(e, idx)}
-              className="flex-1 bg-transparent text-foreground outline-none placeholder-muted-foreground/40"
+              className="flex-1 bg-transparent text-foreground outline-none placeholder-muted-foreground/60"
               placeholder="Enter rule..."
               spellCheck={false}
             />

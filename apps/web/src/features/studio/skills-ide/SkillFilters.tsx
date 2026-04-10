@@ -196,7 +196,7 @@ function TagsPopoverButton({ sortedTags, activeTags, open, onOpenChange, onTagTo
                       key={tag}
                       onClick={() => onTagToggle(tag)}
                       className={`flex items-center gap-2 w-full px-2 py-1 rounded text-left transition-colors ${
-                        isActive ? 'bg-primary/10 text-primary' : 'text-foreground/70 hover:bg-muted/50 hover:text-foreground'
+                        isActive ? 'bg-primary/10 text-primary' : 'text-foreground/80 hover:bg-muted/50 hover:text-foreground'
                       }`}
                     >
                       <span className={`flex size-3.5 shrink-0 items-center justify-center rounded border transition-colors ${

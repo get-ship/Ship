@@ -31,7 +31,7 @@ export function AnnotationCard({ staged, onRemove }: Props) {
         <TypeIcon className={`size-3 ${meta.color}`} />
       </span>
       <span className="flex-1 text-[11px] text-muted-foreground truncate min-w-0">
-        <span className="font-medium text-foreground/70">{meta.label}</span>
+        <span className="font-medium text-foreground/80">{meta.label}</span>
         {preview && <span className="ml-1 opacity-70">{preview}</span>}
       </span>
       <button

@@ -169,7 +169,7 @@ export function TerminalTab({ workspaceId, visible }: Props) {
   if (!workspaceId) {
     return (
       <div className="flex flex-col items-center justify-center flex-1 gap-3 px-4 text-center">
-        <TerminalIcon className="size-8 text-muted-foreground/40" />
+        <TerminalIcon className="size-8 text-muted-foreground/60" />
         <p className="text-xs text-muted-foreground">No active workspace</p>
       </div>
     )

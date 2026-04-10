@@ -12,7 +12,7 @@ export function SessionsTab() {
   if (!connected) {
     return (
       <div className="flex flex-col items-center gap-2 py-8 px-3 text-center">
-        <GitBranch className="size-5 text-muted-foreground/30" />
+        <GitBranch className="size-5 text-muted-foreground/60" />
         <p className="text-[11px] text-muted-foreground/50">Daemon offline. Start shipd to see sessions.</p>
       </div>
     )
@@ -39,7 +39,7 @@ export function SessionsTab() {
         </>
       ) : (
         <div className="px-3 py-4 text-center">
-          <p className="text-[10px] text-muted-foreground/40">No sessions recorded yet.</p>
+          <p className="text-[10px] text-muted-foreground/60">No sessions recorded yet.</p>
         </div>
       )}
     </div>
@@ -48,7 +48,7 @@ export function SessionsTab() {
 
 function SectionLabel({ children, className = '' }: { children: React.ReactNode; className?: string }) {
   return (
-    <div className={`px-3 py-1 text-[9.5px] font-semibold uppercase tracking-wider text-muted-foreground/35 ${className}`}>
+    <div className={`px-3 py-1 text-[9.5px] font-semibold uppercase tracking-wider text-muted-foreground/60 ${className}`}>
       {children}
     </div>
   )
@@ -56,15 +56,15 @@ function SectionLabel({ children, className = '' }: { children: React.ReactNode;
 
 function WorkspaceInfo({ workspace: ws }: { workspace: Workspace }) {
   return (
-    <div className="px-3 py-2 border-b border-border/15">
+    <div className="px-3 py-2 border-b border-border/30">
       <div className="flex items-center gap-1.5">
         <span className="w-1.5 h-1.5 rounded-full shrink-0 bg-emerald-500" />
         <span className="text-[10.5px] font-mono text-primary font-medium truncate flex-1">{ws.branch}</span>
       </div>
       {ws.active_agent && (
         <div className="flex items-center gap-1 ml-3 mt-0.5">
-          <Bot className="size-2.5 text-muted-foreground/40 shrink-0" />
-          <span className="text-[9px] text-muted-foreground/40 truncate">{ws.active_agent}</span>
+          <Bot className="size-2.5 text-muted-foreground/60 shrink-0" />
+          <span className="text-[9px] text-muted-foreground/60 truncate">{ws.active_agent}</span>
         </div>
       )}
     </div>
@@ -76,12 +76,12 @@ function SessionRow({ session: s }: { session: SessionEntry }) {
   const startedAt = s.started_at ? relativeTime(new Date(s.started_at).getTime()) : null
 
   return (
-    <div className="px-3 py-2 border-b border-border/15 last:border-0">
+    <div className="px-3 py-2 border-b border-border/30 last:border-0">
       <div className="flex items-center gap-1.5">
         <span
           className={`w-1.5 h-1.5 rounded-full shrink-0 ${isActive ? 'bg-emerald-500' : 'bg-muted-foreground/20'}`}
         />
-        <span className={`text-[10px] font-mono truncate flex-1 ${isActive ? 'text-foreground' : 'text-foreground/60'}`}>
+        <span className={`text-[10px] font-mono truncate flex-1 ${isActive ? 'text-foreground' : 'text-foreground/80'}`}>
           {s.agent_id ?? 'unknown agent'}
         </span>
         <span className={`text-[9px] px-1.5 py-0.5 rounded-sm ${isActive ? 'bg-emerald-500/10 text-emerald-600 dark:text-emerald-400' : 'bg-muted text-muted-foreground/50'}`}>
@@ -93,19 +93,19 @@ function SessionRow({ session: s }: { session: SessionEntry }) {
       )}
       <div className="flex items-center gap-2 ml-3 mt-0.5">
         {startedAt && (
-          <span className="flex items-center gap-0.5 text-[9px] text-muted-foreground/30">
+          <span className="flex items-center gap-0.5 text-[9px] text-muted-foreground/60">
             <Clock className="size-2.5" /> {startedAt}
           </span>
         )}
         {s.tool_call_count > 0 && (
-          <span className="text-[9px] text-muted-foreground/30 tabular-nums">{s.tool_call_count} tools</span>
+          <span className="text-[9px] text-muted-foreground/60 tabular-nums">{s.tool_call_count} tools</span>
         )}
         {s.primary_provider && (
-          <span className="text-[9px] text-muted-foreground/30">{s.primary_provider}</span>
+          <span className="text-[9px] text-muted-foreground/60">{s.primary_provider}</span>
         )}
       </div>
       {s.summary && (
-        <p className="text-[9px] text-muted-foreground/40 leading-snug mt-1 ml-3 line-clamp-2">{s.summary}</p>
+        <p className="text-[9px] text-muted-foreground/60 leading-snug mt-1 ml-3 line-clamp-2">{s.summary}</p>
       )}
     </div>
   )

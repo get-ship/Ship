@@ -40,8 +40,8 @@ export function highlightLines(content: string): HighlightedLine[] {
     if (line.startsWith('# ')) return { text: line, className: 'text-foreground font-bold text-sm' }
     if (line.startsWith('## ')) return { text: line, className: 'text-foreground font-semibold' }
     if (line.startsWith('### ')) return { text: line, className: 'text-foreground/80 font-semibold' }
-    if (line.startsWith('- ') || line.startsWith('* ')) return { text: line, className: 'text-foreground/70' }
-    if (/^\d+\.\s/.test(line)) return { text: line, className: 'text-foreground/70' }
+    if (line.startsWith('- ') || line.startsWith('* ')) return { text: line, className: 'text-foreground/80' }
+    if (/^\d+\.\s/.test(line)) return { text: line, className: 'text-foreground/80' }
     if (line.trim() === '') return { text: ' ', className: '' }
     return { text: line, className: 'text-foreground/80' }
   })

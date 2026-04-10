@@ -40,7 +40,7 @@ function EventRow({ envelope }: { envelope: EventEnvelope }) {
       </button>
       {expanded && (
         <div className="px-3 pb-2">
-          <pre className="text-[10px] font-mono text-foreground/70 bg-muted/30 rounded p-2 overflow-x-auto whitespace-pre-wrap break-all">
+          <pre className="text-[10px] font-mono text-foreground/80 bg-muted/30 rounded p-2 overflow-x-auto whitespace-pre-wrap break-all">
             {JSON.stringify({ id: envelope.id, workspace_id: envelope.workspace_id, payload }, null, 2)}
           </pre>
         </div>

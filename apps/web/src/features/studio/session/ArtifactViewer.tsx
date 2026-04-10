@@ -216,7 +216,7 @@ function UrlViewer({ file, content }: { file: SessionFile; content: string }) {
   if (!url) {
     return (
       <div className="flex flex-col items-center justify-center h-full gap-3 p-8">
-        <MonitorPlay className="size-12 text-muted-foreground/40" />
+        <MonitorPlay className="size-12 text-muted-foreground/60" />
         <p className="text-sm text-muted-foreground">No URL</p>
       </div>
     )

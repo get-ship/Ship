@@ -66,7 +66,7 @@ export function IconPicker({ icon, accentColor, name, onChange }: IconPickerProp
                 value={search}
                 onChange={(e) => setSearch(e.target.value)}
                 placeholder="Search icons... (react, rust, python...)"
-                className="w-full bg-muted/30 border border-border/60 rounded px-2 py-1 text-xs text-foreground placeholder:text-muted-foreground/40 focus:outline-none focus-visible:ring-2 focus-visible:ring-violet-500/50 focus:border-violet-500/50 transition-colors"
+                className="w-full bg-muted/30 border border-border/60 rounded px-2 py-1 text-xs text-foreground placeholder:text-muted-foreground/60 focus:outline-none focus-visible:ring-2 focus-visible:ring-violet-500/50 focus:border-violet-500/50 transition-colors"
               />
             </div>
 

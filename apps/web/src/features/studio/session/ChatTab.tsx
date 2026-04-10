@@ -121,7 +121,7 @@ export function ChatTab({
         <span className="text-[10px] font-medium text-muted-foreground truncate">
           {currentWs?.active_agent ?? 'No agent'}
         </span>
-        <span className="text-[10px] text-muted-foreground/40 truncate">
+        <span className="text-[10px] text-muted-foreground/60 truncate">
           {currentWs?.branch ?? 'No workspace'}
         </span>
       </div>
@@ -130,9 +130,9 @@ export function ChatTab({
       <div className="flex-1 overflow-y-auto min-h-0 px-3 py-2 space-y-2">
         {thread.length === 0 ? (
           <div className="flex flex-col items-center justify-center h-full gap-2 py-8 text-center">
-            <MessageSquare className="size-6 text-muted-foreground/30" />
+            <MessageSquare className="size-6 text-muted-foreground/60" />
             <p className="text-[11px] text-muted-foreground/50">No messages yet</p>
-            <p className="text-[10px] text-muted-foreground/30">
+            <p className="text-[10px] text-muted-foreground/60">
               Annotate artifacts and send to agent
             </p>
           </div>
@@ -158,7 +158,7 @@ function ChatBubble({ message }: { message: ChatMessage }) {
     return (
       <div className="flex items-center gap-2 py-1">
         <div className="flex-1 border-t border-border/20" />
-        <span className="text-[9px] text-muted-foreground/40 shrink-0">{message.content}</span>
+        <span className="text-[9px] text-muted-foreground/60 shrink-0">{message.content}</span>
         <div className="flex-1 border-t border-border/20" />
       </div>
     )
@@ -193,7 +193,7 @@ function ChatBubble({ message }: { message: ChatMessage }) {
             <span className="text-[9px] text-muted-foreground/60">{message.filePath}</span>
           </div>
         )}
-        <span className="text-[8px] text-muted-foreground/30 mt-0.5 block">{message.timestamp}</span>
+        <span className="text-[8px] text-muted-foreground/60 mt-0.5 block">{message.timestamp}</span>
       </div>
     </div>
   )

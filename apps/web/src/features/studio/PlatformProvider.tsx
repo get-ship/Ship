@@ -91,6 +91,7 @@ export function PlatformProvider({ children }: { children: ReactNode }) {
   )
   const retryCountRef = useRef(0)
   const retryTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null)
+  const workspaceRef = useRef<Workspace | null>(loadSavedWorkspace())
 
   const [daemon, setDaemon] = useState<DaemonState>('connecting')
   const [auth, setAuth] = useState<AuthState>('anonymous')
@@ -110,11 +111,14 @@ export function PlatformProvider({ children }: { children: ReactNode }) {
   const setWorkspace = useCallback(
     (branch: string | null) => {
       if (branch) {
-        setWorkspaceState({ branch })
+        const ws = { branch }
+        setWorkspaceState(ws)
+        workspaceRef.current = ws
         localStorage.setItem(WORKSPACE_KEY, branch)
         client.invalidatePrefix('/runtime/sessions')
       } else {
         setWorkspaceState(null)
+        workspaceRef.current = null
         localStorage.removeItem(WORKSPACE_KEY)
       }
     },
@@ -192,6 +196,18 @@ export function PlatformProvider({ children }: { children: ReactNode }) {
       if ('onSSEError' in client) {
         ;(client as any).onSSEError(() => scheduleReconnect())
       }
+      // Auto-select workspace if none set
+      if (!workspaceRef.current) {
+        client.get<{ workspaces: Array<{ branch: string; status: string; last_activated_at?: string }> }>('/runtime/workspaces').then((data) => {
+          if (cancelled) return
+          const active = data.workspaces
+            ?.filter((w: any) => String(w.status).toLowerCase() === 'active')
+            .sort((a: any, b: any) => (b.last_activated_at ?? '').localeCompare(a.last_activated_at ?? ''))
+          if (active?.length) {
+            setWorkspace(active[0].branch)
+          }
+        }).catch(() => {})
+      }
     }
 
     function checkDaemon() {
@@ -211,12 +227,21 @@ export function PlatformProvider({ children }: { children: ReactNode }) {
       setDaemonToken(fragToken)
       setToken(fragToken)
       setAuth('anonymous')
+      // Fragment token means daemon should be reachable — verify
       checkDaemon()
     } else {
+      // Handshake doubles as health check — if it succeeds, daemon is connected
       client.authenticate().then((authOk) => {
         if (cancelled) return
-        setAuth(authOk ? 'authenticated' : 'anonymous')
-        checkDaemon()
+        if (authOk) {
+          setAuth('authenticated')
+          setToken(client.getToken())
+          if (client.getToken()) setDaemonToken(client.getToken()!)
+          onConnected()
+        } else {
+          setAuth('anonymous')
+          setDaemon('disconnected')
+        }
       })
     }
 

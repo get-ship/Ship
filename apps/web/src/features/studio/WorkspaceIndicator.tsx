@@ -56,7 +56,7 @@ export function WorkspaceIndicator() {
         <button
           onClick={toggleFileSidebar}
           className={`size-6 flex items-center justify-center rounded transition-colors ${
-            fileSidebarOpen ? 'text-foreground/70' : 'text-muted-foreground/50 hover:text-foreground/70'
+            fileSidebarOpen ? 'text-foreground/80' : 'text-muted-foreground/50 hover:text-foreground/80'
           }`}
           title="Toggle sidebar (Cmd+B)"
         >
@@ -81,7 +81,7 @@ export function WorkspaceIndicator() {
                   </span>
                 </>
               )}
-              <ChevronDown className="size-2.5 text-muted-foreground/40" />
+              <ChevronDown className="size-2.5 text-muted-foreground/60" />
             </button>
           }
         />
@@ -124,7 +124,7 @@ export function WorkspaceIndicator() {
 
       <button
         onClick={handleFullscreen}
-        className="size-6 flex items-center justify-center rounded text-muted-foreground/50 hover:text-foreground/70 transition-colors"
+        className="size-6 flex items-center justify-center rounded text-muted-foreground/50 hover:text-foreground/80 transition-colors"
         title={isFullscreen ? 'Exit fullscreen' : 'Fullscreen'}
       >
         {isFullscreen ? <Minimize className="size-3.5" /> : <Maximize className="size-3.5" />}

@@ -229,7 +229,7 @@ function FilesTab({ todo, groups, root, activeFile, collapsedGroups, fileInputRe
         const urlFile = group.rootFiles.find((f) => f.type === 'url')
         const isRunning = isUrlSkill && !!urlFile
         return (
-          <div key={group.name} className="border-b border-border/15 last:border-0">
+          <div key={group.name} className="border-b border-border/30 last:border-0">
             {/* Tile header */}
             <div
               role="button" tabIndex={0}
@@ -242,7 +242,7 @@ function FilesTab({ todo, groups, root, activeFile, collapsedGroups, fileInputRe
                   <div className={`size-[5px] rounded-full shrink-0 ${isRunning ? 'bg-emerald-500' : 'bg-muted-foreground/20'}`} />
                 )}
                 <span className="text-[11px] font-semibold text-foreground/80 flex-1 truncate">{group.name}</span>
-                {nsCollapsed ? <ChevronRight className="size-[11px] text-muted-foreground/25 shrink-0" /> : <ChevronDown className="size-[11px] text-muted-foreground/25 shrink-0" />}
+                {nsCollapsed ? <ChevronRight className="size-[11px] text-muted-foreground/60 shrink-0" /> : <ChevronDown className="size-[11px] text-muted-foreground/60 shrink-0" />}
               </div>
               {meta?.description && (
                 <p className="text-[9.5px] text-muted-foreground/60 leading-snug truncate mb-1">{meta.description}</p>
@@ -252,7 +252,7 @@ function FilesTab({ todo, groups, root, activeFile, collapsedGroups, fileInputRe
                   <span key={a} className="text-[8.5px] font-medium px-1 py-0.5 rounded-sm bg-white/[0.06] text-white/[0.38] capitalize">{a}</span>
                 ))}
                 <span className="flex-1" />
-                <span className="text-[9px] text-muted-foreground/30 tabular-nums">{relativeTime(group.latestAt)}</span>
+                <span className="text-[9px] text-muted-foreground/60 tabular-nums">{relativeTime(group.latestAt)}</span>
                 {isRunning && urlFile && (
                   <button
                     onClick={(e) => { e.stopPropagation(); onSelectFile(urlFile.path) }}
@@ -277,8 +277,8 @@ function FilesTab({ todo, groups, root, activeFile, collapsedGroups, fileInputRe
                       <button onClick={() => onToggleGroup(subKey)} className="flex items-center gap-1.5 w-full px-1 py-1">
                         <Folder className="size-3 text-muted-foreground/50 shrink-0" />
                         <span className="text-[11px] text-muted-foreground/70 truncate flex-1">{sub.name}</span>
-                        <span className="text-[9px] text-muted-foreground/30 tabular-nums">{relativeTime(sub.latestAt)}</span>
-                        {subCollapsed ? <ChevronRight className="size-2.5 text-muted-foreground/30 shrink-0 ml-1" /> : <ChevronDown className="size-2.5 text-muted-foreground/30 shrink-0 ml-1" />}
+                        <span className="text-[9px] text-muted-foreground/60 tabular-nums">{relativeTime(sub.latestAt)}</span>
+                        {subCollapsed ? <ChevronRight className="size-2.5 text-muted-foreground/60 shrink-0 ml-1" /> : <ChevronDown className="size-2.5 text-muted-foreground/60 shrink-0 ml-1" />}
                       </button>
                       {!subCollapsed && (
                         <div className="pl-2.5 border-l border-border/30 ml-1.5 space-y-0.5">
@@ -297,7 +297,7 @@ function FilesTab({ todo, groups, root, activeFile, collapsedGroups, fileInputRe
       })}
 
       {root.length > 0 && (
-        <div className="px-3 space-y-0.5 mt-1 pt-1 border-t border-border/15">
+        <div className="px-3 space-y-0.5 mt-1 pt-1 border-t border-border/30">
           {root.map((f) => (
             <FileEntry key={f.path} file={f} isActive={activeFile === f.path} onClick={() => onSelectFile(f.path)} onContextMenu={(e) => onContextMenu(e, f)} saved={f.tier === "both" || f.tier === "project" ? true : false} onPromote={() => onPromote(f.path)} />
           ))}
@@ -358,7 +358,7 @@ function FileEntry({ file, isActive, onClick, onContextMenu, isTodo, stripPrefix
           tabIndex={0}
           onClick={(e) => { e.stopPropagation(); onPromote() }}
           onKeyDown={(e) => { if (e.key === 'Enter' || e.key === ' ') { e.stopPropagation(); onPromote() } }}
-          className="size-4 shrink-0 flex items-center justify-center rounded opacity-0 group-hover:opacity-100 text-muted-foreground/40 hover:text-primary transition-opacity"
+          className="size-4 shrink-0 flex items-center justify-center rounded opacity-0 group-hover:opacity-100 text-muted-foreground/60 hover:text-primary transition-opacity"
           title="Save to project"
         >
           <CloudUpload className="size-3" />
