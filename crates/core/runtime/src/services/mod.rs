@@ -38,8 +38,6 @@ pub mod providers;
 #[path = "tests_provider_adapter.rs"]
 mod tests_provider_adapter;
 #[cfg(feature = "unstable")]
-pub mod dispatch;
-#[cfg(feature = "unstable")]
 pub mod sync;
 #[cfg(test)]
 mod mesh_tests;

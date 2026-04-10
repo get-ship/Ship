@@ -584,30 +584,25 @@ impl ShipServer {
     #[tool(
         description = "Spawn an agent: creates a git worktree, compiles provider config via \
         `ship use`, launches the agent process, and registers it on the mesh. \
-        Returns the agent_id for use with steer_agent, list_agents, stop_agent."
+        Returns the job_id for use with steer_agent, list_agents, stop_agent."
     )]
     async fn dispatch_agent(
         &self,
         Parameters(req): Parameters<DispatchAgentRequest>,
     ) -> String {
-        let project_dir = match self.get_effective_project_dir().await {
-            Ok(d) => d,
-            Err(e) => return e,
-        };
-        dispatch_tools::dispatch_agent(&project_dir, req).await
+        dispatch_tools::dispatch_agent(req).await
     }
 
     #[tool(
-        description = "List all running agents managed by the dispatch service, \
-        with provider, pid, thread_id, and started_at."
+        description = "List all running agents with their status, capabilities, and labels."
     )]
     async fn list_agents(&self) -> String {
         dispatch_tools::list_agents().await
     }
 
     #[tool(
-        description = "Stop a running agent by agent_id. Kills the process and \
-        deregisters it from the mesh."
+        description = "Stop a running agent by slug. Terminates the process and \
+        removes it from the registry."
     )]
     async fn stop_agent(&self, Parameters(req): Parameters<StopAgentRequest>) -> String {
         dispatch_tools::stop_agent(req).await

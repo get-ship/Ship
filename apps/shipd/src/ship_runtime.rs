@@ -12,6 +12,7 @@ use std::sync::Arc;
 use tokio::sync::Mutex;
 
 use crate::managers::{JobManager, MeshManager};
+use crate::supervisor::job_dispatch::DispatchHandle;
 
 // ---- Config types ----
 
@@ -66,6 +67,7 @@ pub struct ShipRuntime {
     ship_dir: PathBuf,
     mesh: tokio::sync::OnceCell<MeshManager>,
     jobs: tokio::sync::OnceCell<JobManager>,
+    dispatch_handle: std::sync::OnceLock<DispatchHandle>,
 }
 
 impl ShipRuntime {
@@ -125,6 +127,7 @@ impl ShipRuntime {
             ship_dir: global_dir.clone(),
             mesh: tokio::sync::OnceCell::new(),
             jobs: tokio::sync::OnceCell::new(),
+            dispatch_handle: std::sync::OnceLock::new(),
         })
     }
 
@@ -147,6 +150,15 @@ impl ShipRuntime {
     /// Replace the mesh registry (used after spawning MeshService).
     pub fn set_mesh_registry(&mut self, registry: SharedMeshRegistry) {
         self.mesh_registry = registry;
+    }
+
+    /// Store the dispatch handle (set once after job manager init).
+    pub fn set_dispatch_handle(&self, handle: DispatchHandle) {
+        let _ = self.dispatch_handle.set(handle);
+    }
+
+    pub fn dispatch_handle(&self) -> Option<&DispatchHandle> {
+        self.dispatch_handle.get()
     }
 
     pub fn agent_mailboxes(&self) -> &AgentMailboxes {
@@ -205,6 +217,7 @@ impl ShipRuntime {
             ship_dir,
             mesh: tokio::sync::OnceCell::new(),
             jobs: tokio::sync::OnceCell::new(),
+            dispatch_handle: std::sync::OnceLock::new(),
         }
     }
 
@@ -224,6 +237,7 @@ impl ShipRuntime {
             ship_dir,
             mesh: tokio::sync::OnceCell::new(),
             jobs: tokio::sync::OnceCell::new(),
+            dispatch_handle: std::sync::OnceLock::new(),
         }
     }
 
