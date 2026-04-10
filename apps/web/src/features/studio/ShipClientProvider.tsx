@@ -1,11 +1,27 @@
 // React provider for @ship/sdk's ShipClient.
-// Creates one client instance, authenticates with daemon token, provides via context.
+// Two auth paths:
+// 1. Fragment token: ship studio → getship.dev/studio#token=xxx
+// 2. Session handshake: authenticated user → daemon returns scoped token
 
 import { createContext, useContext, useEffect, useRef, useState, type ReactNode } from 'react'
 import { ShipClient } from '@ship/sdk'
 import { DAEMON_BASE_URL, setDaemonToken } from '#/lib/daemon-config'
 
 const ShipClientContext = createContext<ShipClient | null>(null)
+
+/** Read token from URL fragment and clear it from the URL. */
+function extractFragmentToken(): string | null {
+  if (typeof window === 'undefined') return null
+  const hash = window.location.hash
+  const match = hash.match(/[#&]token=([^&]+)/)
+  if (!match) return null
+  const token = decodeURIComponent(match[1])
+  // Clear fragment from URL without triggering navigation
+  const url = new URL(window.location.href)
+  url.hash = ''
+  window.history.replaceState(null, '', url.toString())
+  return token
+}
 
 export function ShipClientProvider({ children }: { children: ReactNode }) {
   const clientRef = useRef<ShipClient | null>(null)
@@ -24,18 +40,22 @@ export function ShipClientProvider({ children }: { children: ReactNode }) {
     let cancelled = false
 
     async function init() {
-      try {
-        const res = await fetch('/api/daemon-token')
-        if (res.ok) {
-          const { token } = await res.json() as { token: string }
-          if (token && !cancelled) {
-            client.setToken(token)
-            setDaemonToken(token)
-          }
-        }
-      } catch {
-        // Token endpoint unavailable — continue without auth
+      // 1. Check URL fragment (anonymous path: ship studio)
+      const fragmentToken = extractFragmentToken()
+      if (fragmentToken) {
+        client.setToken(fragmentToken)
+        setDaemonToken(fragmentToken)
+        client.connectEvents()
+        if (!cancelled) setReady(true)
+        return
       }
+
+      // 2. Try daemon handshake (authenticated path: ship login)
+      const authenticated = await client.authenticate()
+      if (authenticated) {
+        setDaemonToken(client.getToken())
+      }
+
       if (!cancelled) {
         client.connectEvents()
         setReady(true)

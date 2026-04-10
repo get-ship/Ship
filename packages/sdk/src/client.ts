@@ -108,6 +108,10 @@ export class ShipClient {
     this.token = token
   }
 
+  getToken(): string | null {
+    return this.token ?? null
+  }
+
   async authenticate(): Promise<boolean> {
     try {
       const res = await fetch(`${this.baseUrl}/auth/handshake`, {
