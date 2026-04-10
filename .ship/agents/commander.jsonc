@@ -4,6 +4,7 @@
     "id": "commander",
     "name": "Commander",
     "version": "0.2.0",
+    "role": "commander",
     "description": "Ship orchestrator — captures intent, dispatches specialists, monitors via mesh, gates before merge",
     "providers": ["claude", "codex", "cursor", "gemini", "opencode"]
   },

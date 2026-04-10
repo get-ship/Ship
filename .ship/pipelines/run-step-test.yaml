@@ -1,8 +1,0 @@
-name: run-step-test
-steps:
-  - name: verify
-    run: echo "pipeline test ok"
-  - name: implement
-    agent: rust-lane
-    goal: "Placeholder - pipeline wiring test"
-    after: [verify]
