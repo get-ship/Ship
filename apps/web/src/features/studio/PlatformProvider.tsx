@@ -33,6 +33,8 @@ export interface PlatformState {
   toggleCommandPalette: () => void
   sidebarOpen: boolean
   toggleSidebar: () => void
+  drawerOpen: boolean
+  toggleDrawer: () => void
   client: ShipClient
   connection: ConnectionMeta
 }
@@ -52,6 +54,7 @@ export function usePlatform(): PlatformState {
 // ── Constants ───────────────────────────────────────────────────────────────
 
 const WORKSPACE_KEY = 'ship-studio:viewed-workspace'
+const DRAWER_LS_KEY = 'ship-studio:right-drawer-open'
 const MAX_RETRIES = 3
 const BASE_BACKOFF_MS = 1000
 
@@ -71,6 +74,15 @@ function loadSavedWorkspace(): Workspace | null {
   return branch ? { branch } : null
 }
 
+function readDrawerInitial(): boolean {
+  try {
+    const stored = localStorage.getItem(DRAWER_LS_KEY)
+    return stored === 'true'
+  } catch {
+    return false
+  }
+}
+
 // ── Provider ────────────────────────────────────────────────────────────────
 
 export function PlatformProvider({ children }: { children: ReactNode }) {
@@ -88,6 +100,7 @@ export function PlatformProvider({ children }: { children: ReactNode }) {
   )
   const [commandPaletteOpen, setCommandPaletteOpen] = useState(false)
   const [sidebarOpen, setSidebarOpen] = useState(true)
+  const [drawerOpen, setDrawerOpen] = useState(readDrawerInitial)
   const [reconnects, setReconnects] = useState(0)
 
   const client = clientRef.current
@@ -115,6 +128,34 @@ export function PlatformProvider({ children }: { children: ReactNode }) {
     [],
   )
   const toggleSidebar = useCallback(() => setSidebarOpen((v) => !v), [])
+  const toggleDrawer = useCallback(() => {
+    setDrawerOpen((prev) => {
+      const next = !prev
+      try { localStorage.setItem(DRAWER_LS_KEY, String(next)) } catch { /* ignore */ }
+      return next
+    })
+  }, [])
+
+  // ── Global keyboard shortcuts ────────────────────────────────────────
+
+  useEffect(() => {
+    function handleKey(e: KeyboardEvent) {
+      const mod = e.metaKey || e.ctrlKey
+      if (e.key === 'k' && mod) { e.preventDefault(); toggleCommandPalette(); return }
+      if (e.key === 'b' && mod) { e.preventDefault(); toggleSidebar(); return }
+      if (e.key === '/' && mod) { e.preventDefault(); toggleDrawer(); return }
+      if (e.key === 'Escape' && commandPaletteOpen) {
+        toggleCommandPalette()
+      }
+      if (e.key === 'F11') {
+        e.preventDefault()
+        if (document.fullscreenElement) void document.exitFullscreen()
+        else void document.documentElement.requestFullscreen()
+      }
+    }
+    window.addEventListener('keydown', handleKey)
+    return () => window.removeEventListener('keydown', handleKey)
+  }, [toggleCommandPalette, toggleSidebar, toggleDrawer, commandPaletteOpen])
 
   // ── SSE error handler (for reconnect) ─────────────────────────────────
 
@@ -198,6 +239,8 @@ export function PlatformProvider({ children }: { children: ReactNode }) {
     toggleCommandPalette,
     sidebarOpen,
     toggleSidebar,
+    drawerOpen,
+    toggleDrawer,
     client,
     connection: { reconnects },
   }

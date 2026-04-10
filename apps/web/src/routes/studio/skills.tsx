@@ -10,7 +10,7 @@ import { SkillsPreviewPanel } from '#/features/studio/skills-ide/SkillsPreviewPa
 import { CreateSkillDialog } from '#/features/studio/skills-ide/CreateSkillDialog'
 import { daemonFetch } from '#/lib/daemon-config'
 import { useDaemon } from '#/features/studio/hooks/useDaemonData'
-import { useStudioShell } from '#/features/studio/StudioShellContext'
+import { usePlatform } from '#/features/studio/PlatformProvider'
 
 import { SkillsIdeSkeleton } from '#/features/studio/StudioSkeleton'
 
@@ -31,7 +31,7 @@ export const Route = createFileRoute('/studio/skills')({
 function SkillsIDEPage() {
   const ide = useSkillsIDE()
   const [createOpen, setCreateOpen] = useState(false)
-  const { drawerOpen } = useStudioShell()
+  const { drawerOpen } = usePlatform()
   const { workspaces } = useDaemon()
   const wsId = workspaces.find((w) => w.status === 'active')?.branch ?? 'v0.2.0'
   const feedbackRef = useRef<SkillFeedbackEntry[]>([])

@@ -8,7 +8,7 @@ import {
 import { Button } from '@ship/primitives'
 import { Tooltip, TooltipContent, TooltipProvider, TooltipTrigger } from '@ship/primitives'
 import { Separator } from '@ship/primitives'
-import { useStudioShell } from './StudioShellContext'
+import { usePlatform } from './PlatformProvider'
 import { ProjectPicker } from './ProjectPicker'
 import { ViewsOverlay } from './ViewsOverlay'
 import { useDaemon } from '#/features/studio/hooks/useDaemonData'
@@ -51,7 +51,7 @@ function useTheme() {
 export function StudioRail() {
   const pathname = useRouterState({ select: (s) => s.location.pathname })
   const navigate = useNavigate()
-  const { toggleCommandPalette, drawerOpen, toggleDrawer } = useStudioShell()
+  const { toggleCommandPalette, drawerOpen, toggleDrawer } = usePlatform()
   const { jobs } = useDaemon()
   const { isDark, toggle: toggleTheme } = useTheme()
 

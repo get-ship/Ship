@@ -1,5 +1,5 @@
 import { FolderOpen, Search, FileText } from 'lucide-react'
-import { useStudioShell } from '#/features/studio/StudioShellContext'
+import { usePlatform } from '#/features/studio/PlatformProvider'
 
 interface SessionFile {
   path: string
@@ -17,7 +17,7 @@ interface SessionEmptyStateProps {
 export function SessionEmptyState({
   workspaceName, activeAgent, files, onSelectFile,
 }: SessionEmptyStateProps) {
-  const { toggleFileSidebar, toggleCommandPalette } = useStudioShell()
+  const { toggleSidebar: toggleFileSidebar, toggleCommandPalette } = usePlatform()
   const recentFiles = files.slice(0, 5)
 
   return (

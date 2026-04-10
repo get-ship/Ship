@@ -3,7 +3,7 @@
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import { useCallback } from 'react'
 import { daemonFetch } from '#/lib/daemon-config'
-import { useActiveWorkspaceId } from '#/features/studio/hooks/useActiveWorkspaceId'
+import { useActiveWorkspaceId } from '#/features/studio/hooks/useWorkspaceConfig'
 import { sessionKeys } from './query-keys'
 import type { SessionFile, UploadResult } from './types'
 

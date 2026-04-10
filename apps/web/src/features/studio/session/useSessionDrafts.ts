@@ -6,7 +6,7 @@ import { useState, useCallback, useEffect, useRef, useMemo } from 'react'
 import { useMutation, useQueryClient } from '@tanstack/react-query'
 import { daemonFetch } from '#/lib/daemon-config'
 import { useDaemon } from '#/features/studio/hooks/useDaemonData'
-import { useStudioShell } from '#/features/studio/StudioShellContext'
+import { usePlatform } from '#/features/studio/PlatformProvider'
 import { idbGet, idbSet } from '#/lib/idb-cache'
 import { sessionKeys } from './query-keys'
 
@@ -36,7 +36,8 @@ export interface UseSessionDraftsReturn {
 }
 
 export function useSessionDrafts(): UseSessionDraftsReturn {
-  const { viewedWorkspace } = useStudioShell()
+  const { workspace } = usePlatform()
+  const viewedWorkspace = workspace?.branch ?? null
   const { workspaces } = useDaemon()
   const wsId = viewedWorkspace
     ?? workspaces.find((w) => String(w.status).toLowerCase() === 'active')?.branch

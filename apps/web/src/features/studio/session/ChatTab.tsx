@@ -6,7 +6,7 @@ import { useRef, useEffect, useMemo } from 'react'
 import { MessageSquare, FileText, Bot, User, AlertTriangle } from 'lucide-react'
 import { useEventStream } from '../events/useEventStream'
 import { ChatDraftArea } from './ChatDraftArea'
-import { useStudioShell } from '#/features/studio/StudioShellContext'
+import { usePlatform } from '#/features/studio/PlatformProvider'
 import { useDaemon } from '#/features/studio/hooks/useDaemonData'
 import type { StagedAnnotation } from './types'
 import type { EventEnvelope } from '../events/useEventStream'
@@ -91,7 +91,8 @@ export function ChatTab({
   disabled = false,
 }: Props) {
   const { events } = useEventStream()
-  const { viewedWorkspace } = useStudioShell()
+  const { workspace } = usePlatform()
+  const viewedWorkspace = workspace?.branch ?? null
   const { workspaces } = useDaemon()
   const bottomRef = useRef<HTMLDivElement>(null)
 

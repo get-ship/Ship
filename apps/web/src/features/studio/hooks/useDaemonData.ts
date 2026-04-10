@@ -1,9 +1,9 @@
 // Daemon data hooks — replaces the legacy useDaemon.ts.
-// All data flows through @ship/sdk's ShipClient (available via useShipClient).
+// All data flows through @ship/sdk's ShipClient (available via usePlatform().client).
 
 import { useState } from 'react'
 import { useShipQuery } from './useShipQuery'
-import { useShipClient } from '../ShipClientProvider'
+import { usePlatform } from '../PlatformProvider'
 import type { Workspace, JobRecord } from '@ship/ui'
 
 // ── Types ──────────────────────────────────────────────────────────────────────
@@ -111,7 +111,7 @@ export function useViews() {
 // ── Mutations ─────────────────────────────────────────────────────────────────
 
 export function useCreateJob() {
-  const client = useShipClient()
+  const { client } = usePlatform()
   const [isPending, setIsPending] = useState(false)
   function mutate(input: CreateJobInput, opts?: MutateOpts<void>) {
     setIsPending(true)
@@ -124,7 +124,7 @@ export function useCreateJob() {
 }
 
 export function useUpdateJob() {
-  const client = useShipClient()
+  const { client } = usePlatform()
   const [isPending, setIsPending] = useState(false)
   function mutate(input: { job_id: string; status: string; error?: string }, opts?: MutateOpts<void>) {
     setIsPending(true)
@@ -137,7 +137,7 @@ export function useUpdateJob() {
 }
 
 export function useActivateWorkspace() {
-  const client = useShipClient()
+  const { client } = usePlatform()
   const [isPending, setIsPending] = useState(false)
   function mutate(branch: string, opts?: MutateOpts<void>) {
     setIsPending(true)
@@ -150,7 +150,7 @@ export function useActivateWorkspace() {
 }
 
 export function useCreateWorkspace() {
-  const client = useShipClient()
+  const { client } = usePlatform()
   const [isPending, setIsPending] = useState(false)
   function mutate(input: CreateWorkspaceInput, opts?: MutateOpts<void>) {
     setIsPending(true)
@@ -167,7 +167,7 @@ export function useCreateWorkspace() {
 }
 
 export function useDeleteWorkspace() {
-  const client = useShipClient()
+  const { client } = usePlatform()
   const [isPending, setIsPending] = useState(false)
   function mutate(branch: string, opts?: MutateOpts<void>) {
     setIsPending(true)

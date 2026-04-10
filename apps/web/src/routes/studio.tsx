@@ -2,8 +2,7 @@ import { createFileRoute, Outlet } from '@tanstack/react-router'
 import { StudioErrorBoundary } from '#/features/studio/StudioErrorBoundary'
 import { PanicSaveProvider } from '#/features/agents/PanicSaveContext'
 import { StudioRail } from '#/features/studio/StudioRail'
-import { PlatformProvider } from '#/features/studio/PlatformProvider'
-import { StudioShellProvider, useStudioShell } from '#/features/studio/StudioShellContext'
+import { PlatformProvider, usePlatform } from '#/features/studio/PlatformProvider'
 import { CommandPalette } from '#/features/studio/CommandPalette'
 import { RightDrawer } from '#/features/studio/session/RightDrawer'
 import { WorkspaceIndicator } from '#/features/studio/WorkspaceIndicator'
@@ -18,19 +17,17 @@ export const Route = createFileRoute('/studio')({
 function StudioLayout() {
   return (
     <PlatformProvider>
-      <StudioShellProvider>
-        <PanicSaveProvider>
-          <AnnotationProvider>
-            <StudioShell />
-          </AnnotationProvider>
-        </PanicSaveProvider>
-      </StudioShellProvider>
+      <PanicSaveProvider>
+        <AnnotationProvider>
+          <StudioShell />
+        </AnnotationProvider>
+      </PanicSaveProvider>
     </PlatformProvider>
   )
 }
 
 function StudioShell() {
-  const { drawerOpen } = useStudioShell()
+  const { drawerOpen } = usePlatform()
   const { staged, removeAnnotation, sendToAgent } = useGlobalAnnotations()
 
   return (

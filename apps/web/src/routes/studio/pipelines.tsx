@@ -6,7 +6,7 @@ import { Button } from '@ship/primitives'
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from '@ship/primitives'
 import { Input } from '@ship/primitives'
 import { daemonFetch } from '#/lib/daemon-config'
-import { useStudioShell } from '#/features/studio/StudioShellContext'
+import { usePlatform } from '#/features/studio/PlatformProvider'
 import { useDaemon } from '#/features/studio/hooks/useDaemonData'
 
 export const Route = createFileRoute('/studio/pipelines')({
@@ -30,7 +30,8 @@ interface PipelineDef {
 }
 
 function usePipelines() {
-  const { viewedWorkspace } = useStudioShell()
+  const { workspace } = usePlatform()
+  const viewedWorkspace = workspace?.branch ?? null
   const { workspaces } = useDaemon()
   const wsId = viewedWorkspace
     ?? workspaces.find((w) => String(w.status).toLowerCase() === 'active')?.branch
@@ -50,7 +51,8 @@ function usePipelines() {
 }
 
 function useSavePipeline() {
-  const { viewedWorkspace } = useStudioShell()
+  const { workspace } = usePlatform()
+  const viewedWorkspace = workspace?.branch ?? null
   const { workspaces } = useDaemon()
   const wsId = viewedWorkspace
     ?? workspaces.find((w) => String(w.status).toLowerCase() === 'active')?.branch
@@ -78,7 +80,8 @@ const STEP_TYPE_COLORS: Record<string, string> = {
 }
 
 function useDeletePipeline() {
-  const { viewedWorkspace } = useStudioShell()
+  const { workspace } = usePlatform()
+  const viewedWorkspace = workspace?.branch ?? null
   const { workspaces } = useDaemon()
   const wsId = viewedWorkspace
     ?? workspaces.find((w) => String(w.status).toLowerCase() === 'active')?.branch

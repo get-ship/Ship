@@ -4,7 +4,7 @@ import { GitBranch, Circle, Maximize, Minimize, PanelLeft, ChevronDown } from 'l
 import { Popover, PopoverContent, PopoverTrigger } from '@ship/primitives'
 import { Separator } from '@ship/primitives'
 import { useDaemon } from './hooks/useDaemonData'
-import { useStudioShell } from './StudioShellContext'
+import { usePlatform } from './PlatformProvider'
 import { resolveWorkspaceSelection } from './workspace-selection'
 
 const WORKSPACE_ROUTES = ['/studio/session', '/studio/git', '/studio/view/']
@@ -12,7 +12,11 @@ const WORKSPACE_ROUTES = ['/studio/session', '/studio/git', '/studio/view/']
 export function WorkspaceIndicator() {
   const pathname = useRouterState({ select: (s) => s.location.pathname })
   const { workspaces, connected } = useDaemon()
-  const { fileSidebarOpen, toggleFileSidebar, viewedWorkspace, setViewedWorkspace } = useStudioShell()
+  const platform = usePlatform()
+  const fileSidebarOpen = platform.sidebarOpen
+  const toggleFileSidebar = platform.toggleSidebar
+  const viewedWorkspace = platform.workspace?.branch ?? null
+  const setViewedWorkspace = platform.setWorkspace
   const [isFullscreen, setIsFullscreen] = useState(false)
 
   useEffect(() => {

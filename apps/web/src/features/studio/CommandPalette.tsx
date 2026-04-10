@@ -4,24 +4,28 @@ import {
   CommandDialog, CommandInput, CommandList, CommandEmpty,
   CommandGroup, CommandItem, CommandShortcut,
 } from '@ship/primitives'
-import { useStudioShell } from './StudioShellContext'
+import { usePlatform } from './PlatformProvider'
 
 export function CommandPalette() {
-  const { commandPaletteOpen, setCommandPaletteOpen, toggleFileSidebar } = useStudioShell()
+  const { commandPaletteOpen, toggleCommandPalette, toggleSidebar } = usePlatform()
   const navigate = useNavigate()
+
+  function close() {
+    if (commandPaletteOpen) toggleCommandPalette()
+  }
 
   function go(to: string) {
     void navigate({ to })
-    setCommandPaletteOpen(false)
+    close()
   }
 
   function run(fn: () => void) {
     fn()
-    setCommandPaletteOpen(false)
+    close()
   }
 
   return (
-    <CommandDialog open={commandPaletteOpen} onOpenChange={setCommandPaletteOpen}>
+    <CommandDialog open={commandPaletteOpen} onOpenChange={() => close()}>
       <CommandInput placeholder="Type a command..." />
       <CommandList>
         <CommandEmpty>No results found.</CommandEmpty>
@@ -54,7 +58,7 @@ export function CommandPalette() {
         </CommandGroup>
 
         <CommandGroup heading="Actions">
-          <CommandItem onSelect={() => run(toggleFileSidebar)}>
+          <CommandItem onSelect={() => run(toggleSidebar)}>
             <FolderTree className="size-4" />
             <span>Toggle file sidebar</span>
             <CommandShortcut>Cmd+B</CommandShortcut>

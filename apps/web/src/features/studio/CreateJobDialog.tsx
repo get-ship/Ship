@@ -7,7 +7,7 @@ import {
 import { Input } from '@ship/primitives'
 import { Button } from '@ship/primitives'
 import { useCreateJob, useDaemon } from '#/features/studio/hooks/useDaemonData'
-import { useStudioShell } from '#/features/studio/StudioShellContext'
+import { usePlatform } from '#/features/studio/PlatformProvider'
 import { daemonFetch } from '#/lib/daemon-config'
 import { toast } from 'sonner'
 
@@ -25,7 +25,8 @@ function slugify(text: string): string {
 }
 
 function usePipelineNames() {
-  const { viewedWorkspace } = useStudioShell()
+  const { workspace } = usePlatform()
+  const viewedWorkspace = workspace?.branch ?? null
   const { workspaces } = useDaemon()
   const wsId = viewedWorkspace
     ?? workspaces.find((w) => String(w.status).toLowerCase() === 'active')?.branch

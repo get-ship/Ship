@@ -2,7 +2,7 @@
 
 import { useQuery } from '@tanstack/react-query'
 import { daemonFetch } from '#/lib/daemon-config'
-import { useActiveWorkspaceId } from '#/features/studio/hooks/useActiveWorkspaceId'
+import { useActiveWorkspaceId } from '#/features/studio/hooks/useWorkspaceConfig'
 import { sessionKeys } from './query-keys'
 
 export interface GitStatusFile {

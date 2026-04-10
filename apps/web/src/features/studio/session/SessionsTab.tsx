@@ -1,11 +1,12 @@
 // Sessions tab — session history from the shipd daemon.
 import { Clock, Bot, GitBranch } from 'lucide-react'
 import { useDaemon, type SessionEntry } from '#/features/studio/hooks/useDaemonData'
-import { useStudioShell } from '#/features/studio/StudioShellContext'
+import { usePlatform } from '#/features/studio/PlatformProvider'
 import type { Workspace } from '@ship/ui'
 
 export function SessionsTab() {
-  const { viewedWorkspace } = useStudioShell()
+  const { workspace } = usePlatform()
+  const viewedWorkspace = workspace?.branch ?? null
   const { connected, workspaces, sessions } = useDaemon(viewedWorkspace)
 
   if (!connected) {

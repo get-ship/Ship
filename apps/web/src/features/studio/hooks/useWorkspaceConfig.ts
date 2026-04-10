@@ -1,16 +1,29 @@
 // Workspace config hooks — replaces mcp-queries.ts + mcp-mutations.ts.
-// All data flows through @ship/sdk's ShipClient (available via useShipClient).
+// All data flows through @ship/sdk's ShipClient (available via usePlatform().client).
 
 import { useState, useMemo } from 'react'
 import { useShipQuery } from './useShipQuery'
-import { useShipClient } from '../ShipClientProvider'
-import { useActiveWorkspaceId } from './useActiveWorkspaceId'
+import { usePlatform } from '../PlatformProvider'
+import { useDaemon } from './useDaemonData'
 import type {
   PullResponse,
   PullSkill,
   ListAgentsResponse,
   TransferBundle,
 } from '@ship/ui'
+
+// ── Helpers ──────────────────────────────────────────────────────────────────
+
+export function useActiveWorkspaceId(): string {
+  const { workspace } = usePlatform()
+  const { workspaces } = useDaemon()
+  const viewed = workspace?.branch ?? null
+  if (viewed && workspaces.some((w) => w.branch === viewed)) return viewed
+  const active = workspaces
+    .filter((w) => String(w.status).toLowerCase() === 'active')
+    .sort((a, b) => (b.last_activated_at ?? '').localeCompare(a.last_activated_at ?? ''))
+  return active[0]?.branch ?? ''
+}
 
 // ── Internal response types ───────────────────────────────────────────────────
 
@@ -183,7 +196,7 @@ export function useSkillVars(skillId: string | null) {
 
 /** Push a transfer bundle to daemon (.ship/). */
 export function usePushBundle() {
-  const client = useShipClient()
+  const { client } = usePlatform()
   const wsId = useActiveWorkspaceId()
   const [isPending, setIsPending] = useState(false)
   function mutate(bundle: TransferBundle, opts?: MutateOpts<void>) {
@@ -199,7 +212,7 @@ export function usePushBundle() {
 
 /** Write a single skill file to disk via daemon. */
 export function useSaveSkillFile() {
-  const client = useShipClient()
+  const { client } = usePlatform()
   const wsId = useActiveWorkspaceId()
   const [isPending, setIsPending] = useState(false)
   function mutate(args: { skillId: string; filePath: string; content: string }, opts?: MutateOpts<void>) {
@@ -218,7 +231,7 @@ export function useSaveSkillFile() {
 
 /** Set a single skill variable value. */
 export function useSetSkillVar() {
-  const client = useShipClient()
+  const { client } = usePlatform()
   const wsId = useActiveWorkspaceId()
   const [isPending, setIsPending] = useState(false)
   function mutate(args: { skillId: string; key: string; valueJson: string }, opts?: MutateOpts<void>) {
@@ -240,7 +253,7 @@ export function useSetSkillVar() {
 
 /** Delete a single skill file from disk via daemon. */
 export function useDeleteSkillFile() {
-  const client = useShipClient()
+  const { client } = usePlatform()
   const wsId = useActiveWorkspaceId()
   const [isPending, setIsPending] = useState(false)
   function mutate(args: { skillId: string; filePath: string }, opts?: MutateOpts<void>) {

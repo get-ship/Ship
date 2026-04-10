@@ -17,7 +17,7 @@ import { useGitStatus, useGitLog, useGitDiff } from '#/features/studio/session/u
 import { SessionSkeleton } from '#/features/studio/session/SessionSkeleton'
 import { DropZoneOverlay } from '#/features/studio/session/DropZoneOverlay'
 import { ViewHost } from '#/features/studio/views/ViewHost'
-import { useStudioShell } from '#/features/studio/StudioShellContext'
+import { usePlatform } from '#/features/studio/PlatformProvider'
 import { useGlobalAnnotations } from '#/features/studio/AnnotationContext'
 import { SessionEmptyState } from '#/features/studio/session/SessionEmptyState'
 
@@ -139,7 +139,7 @@ function SessionPage() {
   const showDiff = !showView && viewMode === 'diff'
   const activeDiffText = selectedCommitHash ? commitDiff : diffText
 
-  const { fileSidebarOpen, drawerOpen, toggleDrawer } = useStudioShell()
+  const { sidebarOpen: fileSidebarOpen, drawerOpen, toggleDrawer } = usePlatform()
   const globalAnn = useGlobalAnnotations()
 
   return (
