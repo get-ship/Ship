@@ -15,6 +15,7 @@ serde_yaml = "0.9"
 toml = { version = "0.8", features = ["preserve_order"] }
 home = "0.5"
 anyhow = "1.0"
+thiserror = "2"
 chrono = { version = "0.4", features = ["serde"] }
 nanoid = "0.4"
 ulid = "1"

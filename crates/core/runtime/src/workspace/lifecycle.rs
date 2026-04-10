@@ -2,6 +2,7 @@ use anyhow::Result;
 use chrono::Utc;
 use std::path::Path;
 
+use crate::errors::WorkspaceError;
 use super::compile::compile_workspace_context;
 use super::crud::{get_workspace, list_workspaces};
 use super::event_upserts::{
@@ -17,7 +18,7 @@ use super::types_session::*;
 
 /// Create or update a workspace record without requiring a git checkout.
 /// This is the runtime-native entrypoint for workspace lifecycle management.
-pub fn create_workspace(ship_dir: &Path, request: CreateWorkspaceRequest) -> Result<Workspace> {
+pub fn create_workspace(ship_dir: &Path, request: CreateWorkspaceRequest) -> Result<Workspace, WorkspaceError> {
     let branch = ensure_branch_key(&request.branch)?.to_string();
     let now = Utc::now();
 
@@ -39,9 +40,9 @@ pub fn create_workspace(ship_dir: &Path, request: CreateWorkspaceRequest) -> Res
         } else if workspace.is_worktree {
             workspace.worktree_path = Some(path.to_string());
         } else {
-            return Err(anyhow::anyhow!(
+            return Err(WorkspaceError::Internal(anyhow::anyhow!(
                 "Worktree path can only be set when is_worktree=true"
-            ));
+            )));
         }
     }
     if !workspace.is_worktree {
@@ -50,9 +51,9 @@ pub fn create_workspace(ship_dir: &Path, request: CreateWorkspaceRequest) -> Res
         workspace.worktree_path = default_worktree_path(ship_dir, &branch);
     }
     if workspace.is_worktree && workspace.worktree_path.is_none() {
-        return Err(anyhow::anyhow!(
+        return Err(WorkspaceError::Internal(anyhow::anyhow!(
             "Worktree workspace requires a worktree path"
-        ));
+        )));
     }
 
     let base_status = existing
@@ -86,9 +87,9 @@ pub fn transition_workspace_status(
     ship_dir: &Path,
     branch: &str,
     next_status: WorkspaceStatus,
-) -> Result<Workspace> {
+) -> Result<Workspace, WorkspaceError> {
     let mut workspace = get_workspace(ship_dir, branch)?
-        .ok_or_else(|| anyhow::anyhow!("Workspace not found for branch '{}'", branch))?;
+        .ok_or_else(|| WorkspaceError::NotFound { branch: branch.to_string() })?;
 
     validate_workspace_transition(workspace.status, next_status)?;
 
@@ -114,7 +115,7 @@ pub fn transition_workspace_status(
 }
 
 /// Activate a workspace by key (branch/id) as a runtime operation.
-pub fn activate_workspace(ship_dir: &Path, branch: &str) -> Result<Workspace> {
+pub fn activate_workspace(ship_dir: &Path, branch: &str) -> Result<Workspace, WorkspaceError> {
     let branch = ensure_branch_key(branch)?;
     let now = Utc::now();
 
@@ -166,10 +167,10 @@ pub fn set_workspace_active_agent(
     ship_dir: &Path,
     branch: &str,
     agent_id: Option<&str>,
-) -> Result<Workspace> {
+) -> Result<Workspace, WorkspaceError> {
     let branch = ensure_branch_key(branch)?;
     let mut workspace = get_workspace(ship_dir, branch)?
-        .ok_or_else(|| anyhow::anyhow!("Workspace not found for branch '{}'", branch))?;
+        .ok_or_else(|| WorkspaceError::NotFound { branch: branch.to_string() })?;
 
     workspace.active_agent = match agent_id {
         Some(a) => Some(validate_agent_exists(ship_dir, a)?),
@@ -195,7 +196,7 @@ pub fn set_workspace_active_agent(
 }
 
 /// Reconcile the current branch into an active workspace record.
-pub fn sync_workspace(ship_dir: &Path, branch: &str) -> Result<Workspace> {
+pub fn sync_workspace(ship_dir: &Path, branch: &str) -> Result<Workspace, WorkspaceError> {
     activate_workspace(ship_dir, branch)
 }
 
@@ -204,13 +205,13 @@ pub fn set_workspace_tmux_session(
     ship_dir: &Path,
     branch: &str,
     session_name: Option<&str>,
-) -> Result<Workspace> {
+) -> Result<Workspace, WorkspaceError> {
     let branch = ensure_branch_key(branch)?;
     get_workspace(ship_dir, branch)?
-        .ok_or_else(|| anyhow::anyhow!("Workspace not found for branch '{}'", branch))?;
+        .ok_or_else(|| WorkspaceError::NotFound { branch: branch.to_string() })?;
     upsert_workspace_on_tmux_assigned(ship_dir, branch, session_name)?;
     get_workspace(ship_dir, branch)?
-        .ok_or_else(|| anyhow::anyhow!("Workspace not found after tmux session update"))
+        .ok_or_else(|| WorkspaceError::NotFound { branch: branch.to_string() })
 }
 
 /// Write worktree_path and tmux_session_name to the workspace record.
@@ -220,10 +221,10 @@ pub fn set_workspace_started(
     branch: &str,
     worktree_path: &Path,
     tmux_session: &str,
-) -> Result<()> {
+) -> Result<(), WorkspaceError> {
     let branch = ensure_branch_key(branch)?;
     get_workspace(ship_dir, branch)?
-        .ok_or_else(|| anyhow::anyhow!("Workspace not found for branch '{}'", branch))?;
+        .ok_or_else(|| WorkspaceError::NotFound { branch: branch.to_string() })?;
     let path_str = worktree_path
         .to_str()
         .ok_or_else(|| anyhow::anyhow!("worktree_path contains non-UTF-8 characters"))?;
@@ -233,7 +234,7 @@ pub fn set_workspace_started(
 
 /// Create the default service workspace ("ship") if it doesn't already exist.
 /// Called from `init_project`.
-pub fn seed_service_workspace(ship_dir: &Path) -> Result<()> {
+pub fn seed_service_workspace(ship_dir: &Path) -> Result<(), WorkspaceError> {
     const PROJECT_BRANCH: &str = "ship";
 
     let existing = list_workspaces(ship_dir)?;

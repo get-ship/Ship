@@ -98,6 +98,10 @@ pub async fn mesh_register(
         };
         match kernel.spawn_actor(&req.agent_id, config) {
             Ok((_store, mailbox)) => Some(mailbox),
+            Err(runtime::KernelError::ActorAlreadyExists { .. }) => {
+                tracing::warn!(agent_id = %req.agent_id, "actor already exists after stop");
+                None
+            }
             Err(e) => {
                 tracing::warn!(agent_id = %req.agent_id, "actor spawn failed: {e}");
                 None

@@ -47,9 +47,16 @@ pub async fn actor_spawn(
                 state.agent_mailboxes().lock().await
                     .insert(req.actor_id.clone(), mailbox);
             }
-            Err(e) => return (StatusCode::INTERNAL_SERVER_ERROR, Json(MeshResponse {
-                ok: false, data: serde_json::json!(e.to_string()),
-            })),
+            Err(e) => {
+                let status = match &e {
+                    runtime::KernelError::ActorAlreadyExists { .. } => StatusCode::CONFLICT,
+                    runtime::KernelError::ActorNotFound { .. } => StatusCode::NOT_FOUND,
+                    _ => StatusCode::INTERNAL_SERVER_ERROR,
+                };
+                return (status, Json(MeshResponse {
+                    ok: false, data: serde_json::json!(e.to_string()),
+                }));
+            }
         }
     }
 
