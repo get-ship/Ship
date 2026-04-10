@@ -6,12 +6,12 @@
 use runtime::events::job::{
     JobBlockedPayload, JobCompletedPayload, JobDispatchedPayload,
     JobFailedPayload, JobGateFailedPayload, JobGatePassedPayload, JobGateRequestedPayload,
-    JobMergedPayload, event_types,
+    JobMergedPayload, StepDoneDeclaredPayload, event_types,
 };
 use runtime::events::{EventEnvelope, EventStore, SqliteEventStore};
 use runtime::projections::job::load_jobs;
 
-use crate::requests::{CreateJobRequest, UpdateJobRequest};
+use crate::requests::{CreateJobRequest, StepDoneRequest, UpdateJobRequest};
 
 /// Create a job by delegating to the daemon's REST API.
 ///
@@ -174,6 +174,60 @@ pub async fn update_job(req: UpdateJobRequest) -> String {
     }
 
     format!("Job {} updated to status '{}'", req.job_id, req.status)
+}
+
+/// Declare the current pipeline step complete.
+///
+/// Reads `SHIP_MESH_ID` to identify the job, resolves the current step from
+/// the projection, and emits a `step.done_declared` event via the daemon.
+pub async fn step_done(req: StepDoneRequest) -> String {
+    let slug = match std::env::var("SHIP_MESH_ID") {
+        Ok(id) if !id.is_empty() => id,
+        _ => return "Error: SHIP_MESH_ID not set — step_done can only be called from a dispatched job".to_string(),
+    };
+
+    let jobs = match load_jobs() {
+        Ok(j) => j,
+        Err(e) => return format!("Error loading jobs: {e}"),
+    };
+
+    let job = match jobs.values().find(|j| j.slug == slug) {
+        Some(j) => j.clone(),
+        None => return format!("Error: no job found for slug '{slug}'"),
+    };
+
+    let step_id = match &job.current_step {
+        Some(id) => id.clone(),
+        None => return format!("Error: no active step for job '{slug}'"),
+    };
+
+    let payload = StepDoneDeclaredPayload {
+        job_id: job.job_id.clone(),
+        slug: slug.clone(),
+        step_id: step_id.clone(),
+        summary: req.summary,
+    };
+
+    let envelope = match EventEnvelope::new(
+        event_types::STEP_DONE_DECLARED,
+        &job.job_id,
+        &payload,
+    ) {
+        Ok(e) => e,
+        Err(e) => return format!("Error building event: {e}"),
+    };
+
+    match crate::network_client::event_route(&envelope, None, None).await {
+        Ok(_) => format!("Step '{step_id}' marked done for job '{slug}'"),
+        Err(e) => {
+            // Fallback: persist locally
+            if let Ok(store) = SqliteEventStore::new() {
+                let _ = EventStore::append(&store, &envelope);
+            }
+            tracing::warn!("step_done daemon routing failed, persisted locally: {e}");
+            format!("Step '{step_id}' marked done (local fallback)")
+        }
+    }
 }
 
 /// Look up the slug for a job_id from the event store projection.

@@ -184,6 +184,24 @@ pub fn apply(record: &mut JobRecord, event: &EventEnvelope) {
             record.status = JobStatus::Failed;
             record.updated_at = ts;
         }
+        event_types::STEP_OBSERVED => {
+            if let Ok(p) = serde_json::from_str::<serde_json::Value>(&event.payload_json) {
+                let step_name = p["step_name"].as_str().unwrap_or("");
+                let succeeded = p["succeeded"].as_bool().unwrap_or(false);
+                if succeeded {
+                    if record.current_step.as_deref() == Some(step_name) {
+                        record.current_step = None;
+                    }
+                    if !step_name.is_empty() && !record.completed_steps.contains(&step_name.to_string()) {
+                        record.completed_steps.push(step_name.to_string());
+                    }
+                } else {
+                    record.error = p["reason"].as_str().map(str::to_string);
+                    record.status = JobStatus::Failed;
+                }
+            }
+            record.updated_at = ts;
+        }
         _ => {}
     }
 }
@@ -196,7 +214,7 @@ pub fn project(events: &[EventEnvelope]) -> HashMap<String, JobRecord> {
     let mut map: HashMap<String, JobRecord> = HashMap::new();
 
     for event in events {
-        if !event.event_type.starts_with("job.") {
+        if !event.event_type.starts_with("job.") && !event.event_type.starts_with("step.") {
             continue;
         }
         if event.event_type == event_types::JOB_CREATED {
@@ -244,7 +262,7 @@ pub fn project(events: &[EventEnvelope]) -> HashMap<String, JobRecord> {
             continue;
         }
 
-        // All other job events reference an existing record via job_id in the payload.
+        // All other events reference an existing record via job_id in the payload.
         if let Ok(p) = serde_json::from_str::<serde_json::Value>(&event.payload_json) {
             if let Some(job_id) = p["job_id"].as_str() {
                 if let Some(record) = map.get_mut(job_id) {
@@ -291,7 +309,7 @@ fn load_jobs_from_conn(
 
     let rows = block_on(async {
         sqlx::query(&format!(
-            "SELECT {COLS} FROM events WHERE event_type LIKE 'job.%' ORDER BY created_at ASC"
+            "SELECT {COLS} FROM events WHERE (event_type LIKE 'job.%' OR event_type LIKE 'step.%') ORDER BY created_at ASC"
         ))
         .fetch_all(&mut *conn)
         .await

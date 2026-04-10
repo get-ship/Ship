@@ -563,6 +563,15 @@ impl ShipServer {
         job_tools::update_job(req).await
     }
 
+    #[tool(
+        description = "Declare the current pipeline step complete. Call this \
+        as your last action before exiting. If you exit without calling step_done, \
+        the daemon treats the step as failed."
+    )]
+    async fn step_done(&self, Parameters(req): Parameters<StepDoneRequest>) -> String {
+        job_tools::step_done(req).await
+    }
+
 }
 
 // ---- Unstable tool registration ----

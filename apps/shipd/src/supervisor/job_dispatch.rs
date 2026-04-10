@@ -4,18 +4,20 @@
 //! the agent via injected trait objects. When `job.completed` arrives, advances
 //! the pipeline DAG. When `job.merged` arrives, cleans up resources.
 
-use runtime::events::job::{JobCreatedPayload, StepType};
+use runtime::events::job::StepObservedPayload;
 use runtime::events::{ActorConfig, EventEnvelope};
-use runtime::services::dispatch_ports::{IsolationStrategy, JobContext, JobExecutor};
+use runtime::services::dispatch_ports::{IsolationStrategy, JobExecutor};
+use std::collections::HashMap;
 use std::path::PathBuf;
+use std::sync::atomic::{AtomicBool, Ordering};
 use std::sync::Arc;
 use tokio::sync::Mutex;
 
 use super::adapters;
 use super::dispatch_handlers::{finalize_pipeline_if_done, handle_job_cleanup, handle_job_update};
-use super::dispatch_pipeline::{advance_pipeline, emit_job_dispatched};
-use super::dispatch_run::dispatch_first_run_step;
-use super::pipeline_loader::ensure_pipeline;
+pub(crate) use super::dispatch_initial::handle_job_created;
+pub(crate) use super::dispatch_initial::dispatch_job_internal;
+use super::dispatch_pipeline::advance_pipeline;
 pub(crate) use super::registry::ProcessRegistry;
 #[cfg(test)]
 pub(crate) use super::dispatch_pipeline::advance_pipeline_at;
@@ -23,7 +25,6 @@ pub(crate) use super::dispatch_pipeline::advance_pipeline_at;
 pub(crate) use super::dispatch_replay::reconcile_dispatched_jobs_at;
 #[cfg(test)]
 pub(crate) use super::graceful_shutdown;
-use super::helpers::worktrees_dir;
 
 /// Bundles the injected isolation and execution strategies for dispatch.
 #[derive(Clone)]
@@ -31,6 +32,8 @@ pub(crate) struct DispatchContext {
     pub isolation: Arc<dyn IsolationStrategy>,
     pub executor: Arc<dyn JobExecutor>,
     pub registry: Arc<Mutex<ProcessRegistry>>,
+    /// Maps `slug` → done_declared flag for active step monitors.
+    pub done_flags: Arc<Mutex<HashMap<String, Arc<AtomicBool>>>>,
 }
 
 /// Handle returned by `subscribe_job_events` — gives the shutdown path
@@ -51,9 +54,9 @@ pub async fn subscribe_job_events(
     let actor_id = "service.job-dispatch".to_string();
     let config = ActorConfig {
         namespace: actor_id.clone(),
-        write_namespaces: vec!["job.".to_string()],
+        write_namespaces: vec!["job.".to_string(), "step.".to_string()],
         read_namespaces: vec![],
-        subscribe_namespaces: vec!["job.".to_string()],
+        subscribe_namespaces: vec!["job.".to_string(), "step.".to_string()],
     };
 
     let mailbox = {
@@ -82,6 +85,7 @@ pub async fn subscribe_job_events(
         isolation: Arc::new(adapters::GitWorktreeIsolation),
         executor: executor.clone(),
         registry: registry.clone(),
+        done_flags: Arc::new(Mutex::new(HashMap::new())),
     });
 
     // Start the periodic liveness sweep (AC2 + AC3).
@@ -158,6 +162,51 @@ pub(crate) async fn handle_job_event(
             let slug = extract_slug(envelope);
             if let Some(slug) = &slug {
                 dctx.registry.lock().await.unregister(slug);
+                dctx.done_flags.lock().await.remove(slug.as_str());
+            }
+        }
+        "step.done_declared" => {
+            // Agent called step_done — set the done flag for the step monitor
+            let slug = extract_slug(envelope);
+            if let Some(slug) = &slug {
+                if let Some(flag) = dctx.done_flags.lock().await.get(slug.as_str()) {
+                    flag.store(true, Ordering::Release);
+                    tracing::info!(slug, "job-dispatch: step_done declared");
+                } else {
+                    tracing::warn!(slug, "job-dispatch: step.done_declared but no active monitor");
+                }
+            }
+        }
+        "step.observed" => {
+            tracing::info!(entity_id = %envelope.entity_id, "job-dispatch: handling step.observed");
+            let payload: StepObservedPayload = match serde_json::from_str(&envelope.payload_json) {
+                Ok(p) => p,
+                Err(e) => {
+                    tracing::warn!("job-dispatch: malformed step.observed payload: {e}");
+                    return;
+                }
+            };
+            // Clean up done flag
+            let slug = extract_slug(envelope);
+            if let Some(slug) = &slug {
+                dctx.done_flags.lock().await.remove(slug.as_str());
+            }
+            if payload.succeeded {
+                if !advance_pipeline(kernel, envelope, dctx).await {
+                    finalize_pipeline_if_done(kernel, envelope).await;
+                    super::pending_dispatch::dispatch_ready_pending_jobs(kernel, dctx).await;
+                }
+            } else {
+                tracing::warn!(
+                    entity_id = %envelope.entity_id,
+                    step = payload.step_name,
+                    reason = ?payload.reason,
+                    "job-dispatch: step failed"
+                );
+                // Unregister if still present
+                if let Some(slug) = &slug {
+                    dctx.registry.lock().await.unregister(slug);
+                }
             }
         }
         _ => {}
@@ -168,125 +217,6 @@ pub(crate) async fn handle_job_event(
 fn extract_slug(envelope: &EventEnvelope) -> Option<String> {
     let payload: serde_json::Value = serde_json::from_str(&envelope.payload_json).ok()?;
     payload["slug"].as_str().map(str::to_string)
-}
-
-pub(crate) async fn handle_job_created(
-    kernel: &Arc<Mutex<runtime::events::KernelRouter>>,
-    envelope: &EventEnvelope,
-    dctx: &DispatchContext,
-) {
-    let payload: JobCreatedPayload = match serde_json::from_str(&envelope.payload_json) {
-        Ok(p) => p,
-        Err(e) => {
-            tracing::warn!("job-dispatch: malformed job.created payload: {e}");
-            return;
-        }
-    };
-
-    // DAG-aware: defer if dependencies are unresolved.
-    // The job is already persisted in the event store as Pending.
-    // dispatch_ready_pending_jobs will pick it up when deps resolve.
-    if let Some(deps) = &payload.depends_on {
-        if !deps.is_empty() {
-            tracing::info!(
-                slug = payload.slug,
-                deps = ?deps,
-                "job-dispatch: deferring job until dependencies complete (projection-backed)"
-            );
-            return;
-        }
-    }
-
-    // Ensure job has a pipeline (inject default if none)
-    let payload = ensure_pipeline(payload);
-
-    dispatch_job_internal(kernel, &payload, dctx).await;
-}
-
-pub(crate) async fn dispatch_job_internal(
-    kernel: &Arc<Mutex<runtime::events::KernelRouter>>,
-    payload: &JobCreatedPayload,
-    dctx: &DispatchContext,
-) {
-    let slug = &payload.slug;
-    let branch = &payload.branch;
-
-    // Check if the first step is a run step — execute it directly without spawning an agent.
-    if let Some(ref steps) = payload.steps {
-        if let Some(first) = steps.root_steps().first() {
-            if first.step_type == StepType::Run {
-                let command = match &first.command {
-                    Some(c) => c.clone(),
-                    None => {
-                        tracing::error!(slug, step_id = first.id, "job-dispatch: run step missing command");
-                        return;
-                    }
-                };
-                return dispatch_first_run_step(kernel, payload, dctx, &first.id, &command).await;
-            }
-        }
-    }
-
-    // Determine agent from pipeline root step or top-level agent field
-    let agent = if let Some(ref steps) = payload.steps {
-        steps.root_steps().first()
-            .and_then(|s| s.agent.as_deref())
-            .unwrap_or(payload.agent.as_str())
-    } else {
-        payload.agent.as_str()
-    };
-
-    tracing::info!(slug, branch, agent, "job-dispatch: dispatching job");
-
-    let job_ctx = JobContext {
-        job_id: payload.job_id.clone(),
-        slug: slug.clone(),
-        agent: agent.to_string(),
-        branch: branch.clone(),
-        spec_path: payload.spec_path.clone(),
-        work_dir: worktrees_dir().join(slug),
-        env: [("SHIP_MESH_ID".to_string(), slug.to_string())].into(),
-        exit_tx: None, // replaced with Some(exit_tx) after channel creation below
-        launch: runtime::services::dispatch_ports::LaunchProfile {
-            provider: payload.provider.clone(),
-            model: payload.model.clone(),
-            persist_session: true,
-            ..Default::default()
-        },
-    };
-
-    // 1. Prepare isolation (worktree + spec + agent config)
-    let worktree_path = match dctx.isolation.prepare(&job_ctx).await {
-        Ok(p) => p,
-        Err(e) => {
-            tracing::error!(slug, "job-dispatch: isolation prepare failed: {e}");
-            return;
-        }
-    };
-
-    // 2. Spawn agent process with exit notification channel (AC1).
-    let (exit_tx, exit_rx) = tokio::sync::mpsc::unbounded_channel();
-    let job_ctx_with_dir = JobContext {
-        work_dir: worktree_path.clone(),
-        exit_tx: Some(exit_tx),
-        ..job_ctx
-    };
-    let handle = match dctx.executor.spawn(&job_ctx_with_dir).await {
-        Ok(h) => h,
-        Err(e) => {
-            tracing::error!(slug, "job-dispatch: executor spawn failed: {e}");
-            return;
-        }
-    };
-
-    // 3. Register handle in process registry for shutdown/liveness tracking
-    dctx.registry.lock().await.register(slug, handle);
-
-    // Start exit handler — emits job.completed/job.failed when process exits.
-    super::liveness::start_exit_handler(kernel.clone(), dctx.registry.clone(), exit_rx);
-
-    // 4. Emit job.dispatched
-    emit_job_dispatched(kernel, &payload.job_id, &worktree_path, slug).await;
 }
 
 #[cfg(test)]
