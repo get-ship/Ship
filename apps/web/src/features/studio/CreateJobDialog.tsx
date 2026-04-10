@@ -8,7 +8,7 @@ import { Input } from '@ship/primitives'
 import { Button } from '@ship/primitives'
 import { useCreateJob, useDaemon } from '#/features/studio/hooks/useDaemonData'
 import { useStudioShell } from '#/features/studio/StudioShellContext'
-import { DAEMON_BASE_URL } from '#/lib/daemon-config'
+import { daemonFetch } from '#/lib/daemon-config'
 import { toast } from 'sonner'
 
 interface CreateJobDialogProps {
@@ -34,7 +34,7 @@ function usePipelineNames() {
   return useQuery({
     queryKey: ['pipeline-names', wsId],
     queryFn: async (): Promise<string[]> => {
-      const res = await fetch(`${DAEMON_BASE_URL}/api/workspaces/${encodeURIComponent(wsId)}/pipelines`)
+      const res = await daemonFetch(`/api/workspaces/${encodeURIComponent(wsId)}/pipelines`)
       if (!res.ok) return []
       const body = await res.json() as { ok: boolean; data: { pipelines: Array<{ name: string }> } }
       return body.data.pipelines.map((p) => p.name)

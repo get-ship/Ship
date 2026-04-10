@@ -8,7 +8,7 @@ import { SkillsFileExplorer } from '#/features/studio/skills-ide/SkillsFileExplo
 import { SkillsEditor } from '#/features/studio/skills-ide/SkillsEditor'
 import { SkillsPreviewPanel } from '#/features/studio/skills-ide/SkillsPreviewPanel'
 import { CreateSkillDialog } from '#/features/studio/skills-ide/CreateSkillDialog'
-import { DAEMON_BASE_URL } from '#/lib/daemon-config'
+import { daemonFetch } from '#/lib/daemon-config'
 import { useDaemon } from '#/features/studio/hooks/useDaemonData'
 import { useStudioShell } from '#/features/studio/StudioShellContext'
 
@@ -65,9 +65,8 @@ function SkillsIDEPage() {
       }
       feedbackRef.current = [...feedbackRef.current, entry]
 
-      fetch(`${DAEMON_BASE_URL}/api/workspaces/${encodeURIComponent(wsId)}/session-files/${encodeURIComponent('skill-feedback.json')}`, {
+      daemonFetch(`/api/workspaces/${encodeURIComponent(wsId)}/session-files/${encodeURIComponent('skill-feedback.json')}`, {
         method: 'PUT',
-        headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ content: JSON.stringify(feedbackRef.current, null, 2) }),
       }).catch(() => {
         // daemon write failed; feedback is still retained in memory

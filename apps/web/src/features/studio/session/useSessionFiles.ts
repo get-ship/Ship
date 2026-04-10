@@ -2,7 +2,7 @@
 
 import { useQuery, useMutation, useQueryClient } from '@tanstack/react-query'
 import { useCallback } from 'react'
-import { DAEMON_BASE_URL } from '#/lib/daemon-config'
+import { daemonFetch } from '#/lib/daemon-config'
 import { useActiveWorkspaceId } from '#/features/studio/hooks/useActiveWorkspaceId'
 import { sessionKeys } from './query-keys'
 import type { SessionFile, UploadResult } from './types'
@@ -28,8 +28,8 @@ export function useSessionFiles() {
     queryFn: async (): Promise<SessionFile[]> => {
       // Fetch workspace + project files in parallel
       const [wsRes, projRes] = await Promise.all([
-        fetch(`${DAEMON_BASE_URL}/api/workspaces/${encodeURIComponent(wsId)}/session-files`),
-        fetch(`${DAEMON_BASE_URL}/api/artifacts`),
+        daemonFetch(`/api/workspaces/${encodeURIComponent(wsId)}/session-files`),
+        daemonFetch(`/api/artifacts`),
       ])
 
       const wsFiles: RawFile[] = wsRes.ok
@@ -88,7 +88,7 @@ export function useSessionFileContent(filePath: string | null) {
     queryKey: sessionKeys.fileContent(wsId, filePath ?? ''),
     queryFn: async (): Promise<string> => {
       if (!filePath) return ''
-      const res = await fetch(`${DAEMON_BASE_URL}/api/workspaces/${encodeURIComponent(wsId)}/session-files/${encodeURIComponent(filePath)}`)
+      const res = await daemonFetch(`/api/workspaces/${encodeURIComponent(wsId)}/session-files/${encodeURIComponent(filePath)}`)
       if (!res.ok) throw new Error(`daemon: read session file ${res.status}`)
       const body = (await res.json()) as { ok: boolean; data: { content: string } }
       return body.data.content
@@ -108,7 +108,7 @@ export function useSessionTodo() {
   const query = useQuery({
     queryKey: sessionKeys.fileContent(wsId, TODO_PATH),
     queryFn: async (): Promise<string | null> => {
-      const res = await fetch(`${DAEMON_BASE_URL}/api/workspaces/${encodeURIComponent(wsId)}/session-files/${encodeURIComponent(TODO_PATH)}`)
+      const res = await daemonFetch(`/api/workspaces/${encodeURIComponent(wsId)}/session-files/${encodeURIComponent(TODO_PATH)}`)
       if (!res.ok) return null
       const body = (await res.json()) as { ok: boolean; data: { content: string } }
       return body.data.content
@@ -120,9 +120,8 @@ export function useSessionTodo() {
 
   const writeMutation = useMutation({
     mutationFn: async (content: string) => {
-      const res = await fetch(`${DAEMON_BASE_URL}/api/workspaces/${encodeURIComponent(wsId)}/session-files/${encodeURIComponent(TODO_PATH)}`, {
+      const res = await daemonFetch(`/api/workspaces/${encodeURIComponent(wsId)}/session-files/${encodeURIComponent(TODO_PATH)}`, {
         method: 'PUT',
-        headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ content }),
       })
       if (!res.ok) throw new Error(`daemon: write todo ${res.status}`)
@@ -151,7 +150,7 @@ export function useDeleteSessionFile() {
   const queryClient = useQueryClient()
   return useMutation({
     mutationFn: async (path: string) => {
-      const res = await fetch(`${DAEMON_BASE_URL}/api/workspaces/${encodeURIComponent(wsId)}/session-files/${encodeURIComponent(path)}`, {
+      const res = await daemonFetch(`/api/workspaces/${encodeURIComponent(wsId)}/session-files/${encodeURIComponent(path)}`, {
         method: 'DELETE',
       })
       if (!res.ok) throw new Error(`daemon: delete session file ${res.status}`)
@@ -182,9 +181,8 @@ export function useUploadSessionFile() {
       } else {
         content = await file.text()
       }
-      const res = await fetch(`${DAEMON_BASE_URL}/api/workspaces/${encodeURIComponent(wsId)}/session-files/${encodeURIComponent(file.name)}`, {
+      const res = await daemonFetch(`/api/workspaces/${encodeURIComponent(wsId)}/session-files/${encodeURIComponent(file.name)}`, {
         method: 'PUT',
-        headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ content }),
       })
       if (!res.ok) throw new Error(`daemon: upload session file ${res.status}`)
@@ -203,7 +201,7 @@ export function useArtifactStatus() {
   const query = useQuery({
     queryKey: sessionKeys.artifactStatus(wsId),
     queryFn: async (): Promise<Map<string, boolean>> => {
-      const res = await fetch(`${DAEMON_BASE_URL}/api/workspaces/${encodeURIComponent(wsId)}/artifacts/status`)
+      const res = await daemonFetch(`/api/workspaces/${encodeURIComponent(wsId)}/artifacts/status`)
       if (!res.ok) return new Map()
       const body = (await res.json()) as { ok: boolean; data: { files: Array<{ path: string; saved: boolean }> } }
       return new Map(body.data.files.map((f) => [f.path, f.saved]))
@@ -222,9 +220,8 @@ export function usePromoteArtifact() {
 
   return useMutation({
     mutationFn: async (path: string) => {
-      const res = await fetch(`${DAEMON_BASE_URL}/api/workspaces/${encodeURIComponent(wsId)}/artifacts/promote`, {
+      const res = await daemonFetch(`/api/workspaces/${encodeURIComponent(wsId)}/artifacts/promote`, {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ path }),
       })
       if (!res.ok) throw new Error(`promote: ${res.status}`)

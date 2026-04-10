@@ -3,7 +3,7 @@
 // 2. .artifacts/diff.txt fallback (manual or agent-generated)
 
 import { useQuery } from '@tanstack/react-query'
-import { DAEMON_BASE_URL } from '#/lib/daemon-config'
+import { daemonFetch } from '#/lib/daemon-config'
 import { useActiveWorkspaceId } from '#/features/studio/hooks/useActiveWorkspaceId'
 import { sessionKeys } from './query-keys'
 
@@ -18,7 +18,7 @@ export function useDiffContent() {
     queryFn: async (): Promise<string | null> => {
       // Try git diff first
       try {
-        const res = await fetch(`${DAEMON_BASE_URL}/api/workspaces/${encodeURIComponent(wsId)}/git/diff`)
+        const res = await daemonFetch(`/api/workspaces/${encodeURIComponent(wsId)}/git/diff`)
         if (res.ok) {
           const body = (await res.json()) as { ok: boolean; data: { output: string } }
           if (body.data.output.trim().length > 0) return body.data.output
@@ -29,7 +29,7 @@ export function useDiffContent() {
 
       // Fall back to diff.txt session file
       try {
-        const res = await fetch(`${DAEMON_BASE_URL}/api/workspaces/${encodeURIComponent(wsId)}/session-files/${encodeURIComponent(DIFF_PATH)}`)
+        const res = await daemonFetch(`/api/workspaces/${encodeURIComponent(wsId)}/session-files/${encodeURIComponent(DIFF_PATH)}`)
         if (!res.ok) return null
         const body = (await res.json()) as { ok: boolean; data: { content: string } }
         return body.data.content

@@ -2,7 +2,7 @@
 // Handles request/response proxying, SSE event forwarding, and theme sync.
 
 import { useRef, useEffect, useCallback } from 'react'
-import { DAEMON_BASE_URL } from '#/lib/daemon-config'
+import { DAEMON_BASE_URL, daemonFetch } from '#/lib/daemon-config'
 import { getResolvedTheme } from '#/features/studio/session/canvas-helpers'
 
 interface ViewHostProps {
@@ -93,16 +93,15 @@ async function routeRequest(method: string, params: Record<string, unknown> | un
       return activeWsId ?? null
 
     case 'jobs.list': {
-      const res = await fetch(`${DAEMON_BASE_URL}/api/runtime/jobs`)
+      const res = await daemonFetch(`/api/runtime/jobs`)
       if (!res.ok) throw new Error(`jobs.list: ${res.status}`)
       const body = await res.json() as { ok: boolean; data: { jobs: unknown[] } }
       return body.data.jobs
     }
 
     case 'jobs.create': {
-      const res = await fetch(`${DAEMON_BASE_URL}/api/runtime/jobs`, {
+      const res = await daemonFetch(`/api/runtime/jobs`, {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(params),
       })
       if (!res.ok) throw new Error(`jobs.create: ${res.status}`)
@@ -111,9 +110,8 @@ async function routeRequest(method: string, params: Record<string, unknown> | un
 
     case 'events.emit': {
       const p = params as { event_type: string; entity_id: string; payload: unknown }
-      const res = await fetch(`${DAEMON_BASE_URL}/api/events/emit`, {
+      const res = await daemonFetch(`/api/events/emit`, {
         method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify(p),
       })
       if (!res.ok) throw new Error(`events.emit: ${res.status}`)
@@ -122,14 +120,14 @@ async function routeRequest(method: string, params: Record<string, unknown> | un
 
     case 'files.list': {
       const p = params as { workspace_id: string }
-      const res = await fetch(`${DAEMON_BASE_URL}/api/workspaces/${encodeURIComponent(p.workspace_id)}/session-files`)
+      const res = await daemonFetch(`/api/workspaces/${encodeURIComponent(p.workspace_id)}/session-files`)
       if (!res.ok) throw new Error(`files.list: ${res.status}`)
       return await res.json()
     }
 
     case 'files.read': {
       const p = params as { workspace_id: string; path: string }
-      const res = await fetch(`${DAEMON_BASE_URL}/api/workspaces/${encodeURIComponent(p.workspace_id)}/session-files/${p.path}`)
+      const res = await daemonFetch(`/api/workspaces/${encodeURIComponent(p.workspace_id)}/session-files/${p.path}`)
       if (!res.ok) throw new Error(`files.read: ${res.status}`)
       return await res.json()
     }

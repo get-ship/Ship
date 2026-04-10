@@ -2,7 +2,7 @@ import { createFileRoute } from '@tanstack/react-router'
 import { useState, useCallback, useEffect } from 'react'
 import { useQuery } from '@tanstack/react-query'
 import { useDaemon } from '#/features/studio/hooks/useDaemonData'
-import { DAEMON_BASE_URL } from '#/lib/daemon-config'
+import { daemonFetch } from '#/lib/daemon-config'
 import type { ClickAnnotation } from '#/features/studio/session/types'
 import { SessionCanvas } from '#/features/studio/session/SessionCanvas'
 import { ArtifactViewer } from '#/features/studio/session/ArtifactViewer'
@@ -55,7 +55,7 @@ function SessionPage() {
   const { data: viewHtml } = useQuery({
     queryKey: ['view', activeView],
     queryFn: async () => {
-      const res = await fetch(`${DAEMON_BASE_URL}/api/runtime/view/${activeView}`)
+      const res = await daemonFetch(`/api/runtime/view/${activeView}`)
       if (!res.ok) return null
       const body = await res.json() as { ok: boolean; data: { html: string } }
       return body.data.html

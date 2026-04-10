@@ -4,7 +4,7 @@
 
 import { createContext, useContext, useState, useCallback, type ReactNode } from 'react'
 import type { Annotation, StagedAnnotation } from './session/types'
-import { DAEMON_BASE_URL } from '#/lib/daemon-config'
+import { daemonFetch } from '#/lib/daemon-config'
 import { useDaemon } from './hooks/useDaemonData'
 
 let seq = 1
@@ -47,9 +47,8 @@ export function AnnotationProvider({ children }: { children: ReactNode }) {
       return { filePath, type: 'action', action: a.action, text: a.text }
     })
 
-    await fetch(`${DAEMON_BASE_URL}/api/events/emit`, {
+    await daemonFetch(`/api/events/emit`, {
       method: 'POST',
-      headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({
         event_type: 'studio.message',
         entity_id: activeWs?.branch ?? 'studio',

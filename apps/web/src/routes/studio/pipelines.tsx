@@ -5,7 +5,7 @@ import { GitMerge, Plus, Save, ChevronRight, Trash2 } from 'lucide-react'
 import { Button } from '@ship/primitives'
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogFooter } from '@ship/primitives'
 import { Input } from '@ship/primitives'
-import { DAEMON_BASE_URL } from '#/lib/daemon-config'
+import { daemonFetch } from '#/lib/daemon-config'
 import { useStudioShell } from '#/features/studio/StudioShellContext'
 import { useDaemon } from '#/features/studio/hooks/useDaemonData'
 
@@ -39,7 +39,7 @@ function usePipelines() {
   return useQuery({
     queryKey: ['pipelines', wsId],
     queryFn: async (): Promise<PipelineDef[]> => {
-      const res = await fetch(`${DAEMON_BASE_URL}/api/workspaces/${encodeURIComponent(wsId)}/pipelines`)
+      const res = await daemonFetch(`/api/workspaces/${encodeURIComponent(wsId)}/pipelines`)
       if (!res.ok) return []
       const body = await res.json() as { ok: boolean; data: { pipelines: PipelineDef[] } }
       return body.data.pipelines
@@ -59,9 +59,9 @@ function useSavePipeline() {
 
   return useMutation({
     mutationFn: async ({ name, content }: { name: string; content: string }) => {
-      const res = await fetch(
-        `${DAEMON_BASE_URL}/api/workspaces/${encodeURIComponent(wsId)}/pipelines/${encodeURIComponent(name)}`,
-        { method: 'PUT', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify({ content }) },
+      const res = await daemonFetch(
+        `/api/workspaces/${encodeURIComponent(wsId)}/pipelines/${encodeURIComponent(name)}`,
+        { method: 'PUT', body: JSON.stringify({ content }) },
       )
       if (!res.ok) throw new Error(`save pipeline: ${res.status}`)
     },
@@ -87,8 +87,8 @@ function useDeletePipeline() {
 
   return useMutation({
     mutationFn: async (name: string) => {
-      const res = await fetch(
-        `${DAEMON_BASE_URL}/api/workspaces/${encodeURIComponent(wsId)}/pipelines/${encodeURIComponent(name)}`,
+      const res = await daemonFetch(
+        `/api/workspaces/${encodeURIComponent(wsId)}/pipelines/${encodeURIComponent(name)}`,
         { method: 'DELETE' },
       )
       if (!res.ok) throw new Error(`delete pipeline: ${res.status}`)

@@ -4,7 +4,7 @@
 
 import { useState, useCallback, useEffect, useRef, useMemo } from 'react'
 import { useMutation, useQueryClient } from '@tanstack/react-query'
-import { DAEMON_BASE_URL } from '#/lib/daemon-config'
+import { daemonFetch } from '#/lib/daemon-config'
 import { useDaemon } from '#/features/studio/hooks/useDaemonData'
 import { useStudioShell } from '#/features/studio/StudioShellContext'
 import { idbGet, idbSet } from '#/lib/idb-cache'
@@ -108,9 +108,8 @@ export function useSessionDrafts(): UseSessionDraftsReturn {
   // Save to daemon
   const saveMutation = useMutation({
     mutationFn: async ({ path, content }: { path: string; content: string }) => {
-      const res = await fetch(`${DAEMON_BASE_URL}/api/workspaces/${encodeURIComponent(wsId)}/session-files/${encodeURIComponent(path)}`, {
+      const res = await daemonFetch(`/api/workspaces/${encodeURIComponent(wsId)}/session-files/${encodeURIComponent(path)}`, {
         method: 'PUT',
-        headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({ content }),
       })
       if (!res.ok) throw new Error(`daemon: write session file ${res.status}`)
