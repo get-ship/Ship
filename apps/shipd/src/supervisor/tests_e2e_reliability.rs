@@ -74,7 +74,7 @@ fn project_detection_handles_worktrees() {
 /// not rely on in-memory state that may not exist after a restart.
 #[test]
 fn cleanup_resolves_slug_from_event_payload() {
-    let source = include_str!("dispatch_handlers.rs");
+    let source = include_str!("../../../../crates/core/runtime/src/services/orchestrator/handlers.rs");
     assert!(
         source.contains("slug") && source.contains("payload"),
         "cleanup must resolve slug from event payload, not in-memory state"
@@ -388,7 +388,7 @@ fn auth_token_is_per_instance() {
 /// Dead process reconciliation must emit step_failed.
 #[test]
 fn dead_process_recovery_is_observable() {
-    let source = include_str!("dispatch_replay.rs");
+    let source = include_str!("../../../../crates/core/runtime/src/services/orchestrator/replay.rs");
     assert!(
         source.contains("STEP_FAILED") || source.contains("step_failed"),
         "dead process reconciliation must emit step_failed — no silent drops"
@@ -398,7 +398,7 @@ fn dead_process_recovery_is_observable() {
 /// Pipeline spawn failure must log and continue, not panic.
 #[test]
 fn pipeline_spawn_failure_does_not_panic() {
-    let source = include_str!("dispatch_pipeline.rs");
+    let source = include_str!("../../../../crates/core/runtime/src/services/orchestrator/pipeline.rs");
     assert!(
         source.contains("Err(e)") && source.contains("continue"),
         "pipeline spawn failure must log and continue to next step"
@@ -408,10 +408,11 @@ fn pipeline_spawn_failure_does_not_panic() {
 /// Cleanup failure must not prevent other cleanup operations.
 #[test]
 fn cleanup_failure_does_not_block_other_cleanup() {
-    let source = include_str!("dispatch_handlers.rs");
-    // Each cleanup operation (tmux, worktree, branch) must be independent
-    let has_independent_ops = source.contains("kill_tmux_session")
-        && source.contains("remove_worktree")
-        && source.contains("delete_branch");
-    assert!(has_independent_ops, "cleanup operations must be independent — one failure doesn't block others");
+    let source = include_str!("../../../../crates/core/runtime/src/services/orchestrator/handlers.rs");
+    // Cleanup is delegated to AgentPlatform::cleanup_job — a single call that
+    // internally runs tmux kill, worktree removal, and branch deletion independently.
+    assert!(
+        source.contains("cleanup_job"),
+        "cleanup must delegate to platform.cleanup_job — independent ops inside"
+    );
 }
