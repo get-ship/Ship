@@ -143,6 +143,23 @@ pub struct SessionEnded {
     pub updated_workspace_ids: Vec<String>,
     #[serde(default)]
     pub compile_error: Option<String>,
+    // Telemetry fields — populated at session end
+    #[serde(default)]
+    pub agent_id: Option<String>,
+    #[serde(default)]
+    pub provider: Option<String>,
+    #[serde(default)]
+    pub model: Option<String>,
+    #[serde(default)]
+    pub files_changed: Option<i64>,
+    #[serde(default)]
+    pub lines_added: Option<i64>,
+    #[serde(default)]
+    pub lines_removed: Option<i64>,
+    #[serde(default)]
+    pub tool_calls: Option<i64>,
+    #[serde(default)]
+    pub exit_reason: Option<String>,
 }
 
 #[derive(Debug, Serialize, Deserialize)]
@@ -183,6 +200,15 @@ pub struct SessionRecorded {
     pub files_changed: Option<i64>,
     pub gate_result: Option<String>,
     pub workspace_branch: String,
+    // Telemetry fields
+    #[serde(default)]
+    pub lines_added: Option<i64>,
+    #[serde(default)]
+    pub lines_removed: Option<i64>,
+    #[serde(default)]
+    pub tool_calls: Option<i64>,
+    #[serde(default)]
+    pub exit_reason: Option<String>,
 }
 
 // -- Skill aggregate -----------------------------------------------------------

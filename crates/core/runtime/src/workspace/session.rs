@@ -58,6 +58,10 @@ pub(super) fn hydrate_workspace_session_record(
         agent_id: row.agent_id,
         files_changed: row.files_changed,
         gate_result: row.gate_result,
+        lines_added: row.lines_added,
+        lines_removed: row.lines_removed,
+        tool_calls: row.tool_calls,
+        exit_reason: row.exit_reason,
         created_at: parse_datetime(&row.created_at),
     }
 }

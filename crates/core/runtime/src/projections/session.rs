@@ -207,6 +207,14 @@ struct RecordedPayload {
     #[serde(default)]
     gate_result: Option<String>,
     workspace_branch: String,
+    #[serde(default)]
+    lines_added: Option<i64>,
+    #[serde(default)]
+    lines_removed: Option<i64>,
+    #[serde(default)]
+    tool_calls: Option<i64>,
+    #[serde(default)]
+    exit_reason: Option<String>,
 }
 
 fn apply_recorded(event: &EventEnvelope, conn: &mut SqliteConnection) -> Result<()> {
@@ -221,8 +229,10 @@ fn apply_recorded(event: &EventEnvelope, conn: &mut SqliteConnection) -> Result<
             "INSERT INTO workspace_session_record \
              (id, session_id, workspace_id, workspace_branch, summary, \
               updated_workspace_ids_json, duration_secs, provider, model, \
-              agent_id, files_changed, gate_result, created_at) \
-             VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?) \
+              agent_id, files_changed, gate_result, \
+              lines_added, lines_removed, tool_calls, exit_reason, \
+              created_at) \
+             VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?) \
              ON CONFLICT(session_id) DO UPDATE SET \
                summary = excluded.summary, \
                updated_workspace_ids_json = excluded.updated_workspace_ids_json, \
@@ -231,7 +241,11 @@ fn apply_recorded(event: &EventEnvelope, conn: &mut SqliteConnection) -> Result<
                model = excluded.model, \
                agent_id = excluded.agent_id, \
                files_changed = excluded.files_changed, \
-               gate_result = excluded.gate_result",
+               gate_result = excluded.gate_result, \
+               lines_added = excluded.lines_added, \
+               lines_removed = excluded.lines_removed, \
+               tool_calls = excluded.tool_calls, \
+               exit_reason = excluded.exit_reason",
         )
         .bind(&p.record_id)
         .bind(session_id)
@@ -245,6 +259,10 @@ fn apply_recorded(event: &EventEnvelope, conn: &mut SqliteConnection) -> Result<
         .bind(&p.agent_id)
         .bind(p.files_changed)
         .bind(&p.gate_result)
+        .bind(p.lines_added)
+        .bind(p.lines_removed)
+        .bind(p.tool_calls)
+        .bind(&p.exit_reason)
         .bind(&now)
         .execute(conn)
         .await?;
