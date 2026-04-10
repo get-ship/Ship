@@ -10,8 +10,8 @@
 
 #[cfg(feature = "unstable")]
 mod cursor {
-    use crate::events::cursor::ActorCursor;
-    use crate::events::envelope::EventEnvelope;
+    use crate::persistence::cursor::ActorCursor;
+    use ship_types::envelope::EventEnvelope;
     use crate::events::identity::{ActorIdentity, ActorType};
     use crate::events::kernel_router::KernelRouter;
     use crate::events::permissions::{ActorPermissions, DeliveryScope, PermittedSubscription};

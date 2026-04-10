@@ -1,3 +1,4 @@
+pub mod artifact_events;
 pub(crate) mod compile;
 mod crud;
 pub(crate) mod event_upserts;

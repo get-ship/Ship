@@ -4,10 +4,8 @@
 //! may still have worktrees, branches, and tmux sessions on disk. This module
 //! scans the job projection on startup and cleans them up.
 
-use runtime::events::EventEnvelope;
 use runtime::projections::job::{load_jobs, JobStatus};
 
-use super::dispatch_handlers::handle_job_cleanup;
 use super::helpers::worktrees_dir;
 
 /// Scan for orphaned worktrees from previous daemon runs.
@@ -48,32 +46,32 @@ pub(crate) async fn cleanup_orphaned_worktrees() {
     );
 
     for job in orphans {
-        let payload = serde_json::json!({
-            "job_id": job.job_id,
-            "slug": job.slug,
-        });
-        let envelope = match EventEnvelope::new(
-            runtime::events::job::event_types::JOB_MERGED,
-            &job.job_id,
-            &payload,
-        ) {
-            Ok(e) => e,
-            Err(e) => {
-                tracing::warn!(
-                    slug = job.slug,
-                    "job-dispatch: orphan — failed to build envelope: {e}"
-                );
-                continue;
-            }
-        };
-
         tracing::info!(
             slug = job.slug,
             job_id = job.job_id,
             "job-dispatch: removing orphaned worktree"
         );
-        handle_job_cleanup(&envelope).await;
+        cleanup_orphan(&job.slug).await;
     }
 
     tracing::info!("job-dispatch: orphan cleanup complete");
+}
+
+/// Clean up a single orphaned job's resources.
+async fn cleanup_orphan(slug: &str) {
+    use super::helpers::{delete_branch, kill_tmux_session, remove_worktree};
+
+    let tmux_session = format!("job-{slug}");
+    let worktree_path = worktrees_dir().join(slug);
+    let branch = format!("job/{slug}");
+
+    if let Err(e) = kill_tmux_session(&tmux_session) {
+        tracing::warn!(slug, "orphan: tmux cleanup failed: {e}");
+    }
+    if let Err(e) = remove_worktree(&worktree_path) {
+        tracing::warn!(slug, "orphan: worktree cleanup failed: {e}");
+    }
+    if let Err(e) = delete_branch(&branch) {
+        tracing::warn!(slug, "orphan: branch cleanup failed: {e}");
+    }
 }

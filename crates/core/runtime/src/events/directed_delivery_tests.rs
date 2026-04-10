@@ -8,7 +8,7 @@
 
 #[cfg(feature = "unstable")]
 mod directed_delivery {
-    use crate::events::envelope::EventEnvelope;
+    use ship_types::envelope::EventEnvelope;
     use crate::events::identity::{ActorIdentity, ActorType};
     use crate::events::kernel_router::KernelRouter;
     use crate::events::permissions::{ActorPermissions, DeliveryScope, PermittedSubscription};

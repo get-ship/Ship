@@ -130,3 +130,56 @@ pub trait JobExecutor: Send + Sync {
     /// Inject a message into the running agent.
     async fn send(&self, handle: &ExecutorHandle, message: &str) -> Result<()>;
 }
+
+// ── Orchestrator port traits ────────────────────────────────────────────────
+
+/// Port: platform-specific agent operations that the orchestrator delegates
+/// to the host process (e.g. shipd).
+///
+/// These methods abstract over tmux, git worktree, and shell execution so
+/// the orchestration logic in runtime is testable without a real supervisor.
+#[async_trait]
+pub trait AgentPlatform: Send + Sync {
+    /// Base directory where job worktrees are created.
+    fn worktrees_dir(&self) -> PathBuf;
+
+    /// Compile agent configuration via `ship use <agent_id>`.
+    fn compile_agent_config(&self, worktree_path: &std::path::Path, agent_id: &str) -> Result<()>;
+
+    /// Gracefully exit the current agent in a tmux session.
+    async fn graceful_agent_exit(&self, slug: &str, provider: Option<&str>);
+
+    /// Clean up job resources (tmux session, worktree, branch).
+    async fn cleanup_job(&self, slug: &str, branch: &str);
+
+    /// Execute `git merge <branch>` in the repo directory. Returns true on success.
+    fn git_merge(&self, branch: &str) -> Result<bool>;
+
+    /// Start a single-step exit signal handler (non-pipeline jobs).
+    fn start_exit_handler(
+        &self,
+        kernel: std::sync::Arc<tokio::sync::Mutex<crate::events::KernelRouter>>,
+        exit_rx: tokio::sync::mpsc::UnboundedReceiver<ExitSignal>,
+    );
+
+    /// Start periodic liveness monitoring.
+    fn start_liveness_sweep(
+        &self,
+        kernel: std::sync::Arc<tokio::sync::Mutex<crate::events::KernelRouter>>,
+    );
+
+    /// Clean up orphaned worktrees from previous daemon runs.
+    async fn cleanup_orphaned_worktrees(&self);
+}
+
+/// Port: process handle registry for tracking spawned agents.
+///
+/// The orchestrator registers/unregisters handles as jobs are dispatched
+/// and completed. The host process owns the actual registry data structure.
+#[async_trait]
+pub trait ProcessRegistryPort: Send + Sync {
+    /// Store an executor handle for a dispatched job.
+    async fn register(&self, slug: &str, handle: ExecutorHandle);
+    /// Remove a handle (e.g. when a job completes).
+    async fn unregister(&self, slug: &str);
+}

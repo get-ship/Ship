@@ -7,6 +7,7 @@ publish = false
 
 [dependencies]
 compiler = { path = "../compiler", features = ["specta"] }
+ship-kernel = { path = "../ship-kernel" }
 ship-types = { path = "../ship-types" }
 ship-jobs = { path = "../ship-jobs" }
 serde = { version = "1.0", features = ["derive"] }
@@ -15,6 +16,7 @@ serde_yaml = "0.9"
 toml = { version = "0.8", features = ["preserve_order"] }
 home = "0.5"
 anyhow = "1.0"
+thiserror = "2"
 chrono = { version = "0.4", features = ["serde"] }
 nanoid = "0.4"
 ulid = "1"

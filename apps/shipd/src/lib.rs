@@ -9,6 +9,7 @@ mod connections;
 mod handler;
 pub mod human_webhook;
 pub mod managers;
+pub mod openapi;
 pub mod project_api;
 pub mod pty_handler;
 pub mod rest_api;
@@ -40,12 +41,13 @@ pub use server::NetworkServer;
 
 use anyhow::{Result, anyhow};
 use axum::{
-    Router,
+    Json, Router,
     body::Body,
     http::Request,
     middleware::Next,
     response::Response,
 };
+use utoipa::OpenApi;
 use rmcp::transport::streamable_http_server::{
     StreamableHttpServerConfig, StreamableHttpService, session::local::LocalSessionManager,
 };
@@ -64,7 +66,10 @@ pub async fn run_network(host: String, port: u16) -> Result<()> {
     let rt = Arc::new(runtime);
 
     supervisor::subscribe_workspace_events(rt.kernel().clone(), global_dir.clone()).await;
-    let dh = supervisor::job_dispatch::subscribe_job_events(rt.kernel().clone(), global_dir.clone()).await;
+    let job_mgr = managers::JobManager::init(rt.kernel().clone(), global_dir.clone()).await;
+    if let Some(dh) = job_mgr.dispatch_handle {
+        rt.set_dispatch_handle(dh);
+    }
     spawn_human_gateway(rt.kernel()).await;
 
     let token = Arc::new(auth::generate_token());
@@ -84,7 +89,7 @@ pub async fn run_network(host: String, port: u16) -> Result<()> {
         .with_graceful_shutdown(async move { ct.cancelled_owned().await })
         .await.map_err(|e| anyhow!("server error: {e}"))?;
 
-    if let Some(dh) = dh {
+    if let Some(dh) = rt.dispatch_handle() {
         supervisor::graceful_shutdown(rt.kernel(), &mut *dh.registry.lock().await, Arc::clone(&dh.executor)).await;
     }
     rt.shutdown().await;
@@ -146,6 +151,9 @@ fn build_router(
 
     Router::new()
         .merge(public_routes)
+        .route("/api/openapi.json", axum::routing::get(|| async {
+            Json(openapi::ApiDoc::openapi())
+        }))
         .merge(authenticated_routes)
         .layer(axum::middleware::from_fn(cors_middleware))
 }
@@ -168,6 +176,8 @@ fn build_runtime_routes(st: rest_api::ApiState) -> Router {
         .route("/workspaces", axum::routing::get(runtime_api::list_workspaces))
         .route("/sessions", axum::routing::get(runtime_api::list_sessions))
         .route("/agents", axum::routing::get(runtime_api::list_agents))
+        .route("/agents/{slug}/stop", axum::routing::post(runtime_api::stop_agent))
+        .route("/agents/{slug}/steer", axum::routing::post(runtime_api::steer_agent))
         .route("/jobs", axum::routing::get(runtime_api::list_jobs).post(runtime_api::create_job))
         .route("/jobs/end", axum::routing::post(runtime_api::end_job))
         .route("/views", axum::routing::get(runtime_api::list_views))

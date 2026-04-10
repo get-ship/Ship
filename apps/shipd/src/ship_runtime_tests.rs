@@ -108,7 +108,7 @@ async fn mesh_manager_accessible() {
     let _ = mesh;
 }
 
-#[tokio::test]
+#[tokio::test(flavor = "multi_thread", worker_threads = 2)]
 async fn job_manager_accessible() {
     let (_dir, rt) = make_runtime().await;
     let jobs = rt.jobs().await;

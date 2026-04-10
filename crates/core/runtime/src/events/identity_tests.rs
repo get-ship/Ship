@@ -7,7 +7,7 @@
 
 #[cfg(feature = "unstable")]
 mod identity {
-    use crate::events::identity::{ActorIdentity, ActorType};
+    use ship_types::identity::{ActorIdentity, ActorType};
     use crate::events::kernel_router::KernelRouter;
     use crate::events::permissions::{ActorPermissions, DeliveryScope, PermittedSubscription};
     use tempfile::tempdir;

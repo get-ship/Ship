@@ -4,7 +4,6 @@
 //! `ProcessExecutor` — spawns agents as direct child processes (headless).
 
 pub(crate) mod process;
-pub(crate) mod run_step;
 pub(crate) mod tmux;
 
 pub(crate) use process::ProcessExecutor;

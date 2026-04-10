@@ -359,7 +359,7 @@ mod workspace_tests {
         // (not an error), so instead we craft a malformed payload that
         // will fail deserialization in the projection handler.
         use crate::db::{ensure_db, open_db};
-        use crate::events::store::append_event_with_conn;
+        use crate::persistence::event_store::append_event_with_conn;
         use crate::projections::{Projection, WorkspaceProjection};
 
         let ship_dir = crate::project::get_global_dir().unwrap();

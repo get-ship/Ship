@@ -31,13 +31,12 @@ use crate::events::{ActorStore, EventEnvelope, Mailbox};
 pub mod mesh;
 pub mod human_gateway;
 pub mod dispatch_ports;
+pub mod orchestrator;
 pub mod provider_adapter;
 pub mod providers;
 #[cfg(test)]
 #[path = "tests_provider_adapter.rs"]
 mod tests_provider_adapter;
-#[cfg(feature = "unstable")]
-pub mod dispatch;
 #[cfg(feature = "unstable")]
 pub mod sync;
 #[cfg(test)]

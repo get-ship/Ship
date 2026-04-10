@@ -1,4 +1,5 @@
 use crate::db::branch_context::clear_branch_link;
+use crate::errors::WorkspaceError;
 use crate::project::{get_global_dir, project_slug_from_ship_dir, sanitize_file_name};
 use anyhow::Result;
 use chrono::{DateTime, Utc};
@@ -97,13 +98,12 @@ fn lifecycle_allows_transition(from: WorkspaceStatus, to: WorkspaceStatus) -> bo
 pub fn validate_workspace_transition(
     from: WorkspaceStatus,
     to: WorkspaceStatus,
-) -> Result<()> {
+) -> Result<(), WorkspaceError> {
     if !lifecycle_allows_transition(from, to) {
-        return Err(anyhow::anyhow!(
-            "Invalid workspace transition: {} -> {}",
-            from,
-            to
-        ));
+        return Err(WorkspaceError::InvalidStatus {
+            current: from.to_string(),
+            attempted: to.to_string(),
+        });
     }
     Ok(())
 }

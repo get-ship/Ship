@@ -5,6 +5,7 @@ members = [
     "crates/core/mcp-framework",
     "crates/core/runtime",
     "crates/core/ship-jobs",
+    "crates/core/ship-kernel",
     "crates/core/ship-types",
     "crates/xtask",
     "apps/mcp",

@@ -3,7 +3,7 @@
 use tempfile::tempdir;
 use tokio::sync::mpsc;
 
-use crate::events::actor_store::init_actor_db;
+use crate::persistence::actor_store::init_actor_db;
 use crate::events::{ActorStore, EventEnvelope};
 use crate::services::mesh::{AgentStatus, MeshService};
 use crate::services::ServiceHandler;

@@ -6,11 +6,11 @@
 use anyhow::{Result, anyhow};
 use tokio::sync::mpsc;
 
-use crate::events::actor_store::{ActorStore, init_actor_db};
-use crate::events::envelope::EventEnvelope;
-use crate::events::identity::ActorIdentity;
+use crate::persistence::actor_store::{ActorStore, init_actor_db};
+use ship_types::envelope::EventEnvelope;
+use ship_types::identity::ActorIdentity;
 use crate::events::kernel_router::{KernelRouter, MAILBOX_CAPACITY};
-use crate::events::mailbox::Mailbox;
+use ship_kernel::Mailbox;
 use crate::events::permissions::{ActorPermissions, DeliveryScope, PermittedSubscription};
 use crate::events::validator::{CallerKind, EmitContext};
 
@@ -103,7 +103,7 @@ impl KernelRouter {
             permissions.emit.clone(),
             subs_to_namespaces(&permissions.subscribe),
         );
-        Ok((store, Mailbox::new(rx)))
+        Ok((store, Mailbox::from_receiver(rx)))
     }
 
     /// Check if an event matches an actor's subscription scope.
@@ -274,7 +274,7 @@ impl KernelRouter {
                 "dropped_event_id": &event.id,
             });
             if let Ok(ev) = EventEnvelope::new("actor.mailbox_full", actor_id, &payload) {
-                let _ = crate::events::actor_store::raw_append(&self.kernel_store_path, &ev);
+                let _ = crate::persistence::actor_store::raw_append(&self.kernel_store_path, &ev);
             }
         }
     }

@@ -1,18 +1,14 @@
 pub mod actor;
 pub mod agents;
-pub mod catalog;
 pub mod config;
 pub mod db;
+pub mod errors;
 pub mod events;
 pub mod fs_util;
-pub mod hooks;
 pub mod log;
-pub mod plugin;
+pub mod persistence;
 pub mod project;
 pub mod registry;
-pub mod security;
-pub mod skill_paths;
-pub mod skill_vars;
 pub mod projections;
 pub mod workspace;
 
@@ -27,6 +23,11 @@ pub use agents::export as agent_export;
 pub use agents::permissions;
 pub use agents::rule;
 pub use agents::skill;
+pub use agents::skill_paths;
+pub use agents::skill_vars;
+pub use config::catalog;
+pub use config::hooks;
+pub use config::security;
 
 pub use agent_config::{
     ProviderSettings, WorkspaceAgentSettings, resolve_provider_settings,
@@ -36,7 +37,8 @@ pub use agent_export::{
     ModelInfo, ProviderInfo, autodetect_providers, detect_binary, detect_version, disable_provider,
     enable_provider, export_to, import_from_claude, list_models, list_providers, sync_active_agent,
 };
-pub use catalog::{CatalogEntry, CatalogKind, list_catalog, list_catalog_by_kind, search_catalog};
+pub use config::catalog::{CatalogEntry, CatalogKind, list_catalog, list_catalog_by_kind, search_catalog};
+pub use config::hooks::{DefaultRuntimeHooks, RuntimeHooks};
 pub use config::{
     AgentLayerConfig, AgentProfile, AiConfig, GitConfig, HookConfig, HookTrigger, McpServerConfig,
     McpServerType, NamespaceConfig, PermissionConfig, ProjectConfig, StatusConfig, add_agent,
@@ -51,13 +53,11 @@ pub use events::{
     EventEnvelope, list_events_since, query_events_since, read_events, read_recent_events,
 };
 pub use projections::job::{JobRecord, JobStatus, load_jobs, load_jobs_at, project as project_jobs};
-pub use hooks::{DefaultRuntimeHooks, RuntimeHooks};
 pub use log::{LogEntry, log_action, log_action_by, read_log, read_log_entries};
 pub use permissions::{
     AgentLimits, CommandPermissions, FsPermissions, NetworkPermissions, NetworkPolicy, Permissions,
     ToolPermissions, get_permissions, permission_tool_ids_for_provider, save_permissions,
 };
-pub use plugin::{Plugin, PluginRegistry};
 // NOTE: ship-specific project primitives stay under `runtime::project`.
 // Do not re-export them from the runtime root; this keeps the root API closer
 // to domain-agnostic runtime/engine concerns.
@@ -85,6 +85,8 @@ pub use db::types::{
     AgentArtifactRegistryDb, WorkspaceSessionDb, WorkspaceSessionRecordDb,
 };
 pub use db::workspace_db::{open_workspace_db, workspace_db_path};
+
+pub use errors::{KernelError, WorkspaceError};
 
 pub use workspace::{
     CreateWorkspaceRequest, EndWorkspaceSessionRequest, Environment, Process, ProcessStatus,
@@ -216,7 +218,6 @@ mod tests {
         let tmp = tempdir()?;
         let project_dir = init_project(tmp.path().to_path_buf())?;
         let gitignore = fs::read_to_string(project_dir.join(".gitignore"))?;
-        // Default config keeps project docs local unless explicitly included.
         assert!(!gitignore.contains("generated/"));
         assert!(gitignore.contains(".tmp-global/"));
         assert!(gitignore.contains("project/releases"));
@@ -229,7 +230,6 @@ mod tests {
         assert!(!gitignore.contains("\nrules\n") && !gitignore.contains("\nrules"));
         assert!(!gitignore.contains("mcp.jsonc"));
         assert!(!gitignore.contains("permissions.jsonc"));
-        // DB is at ~/.ship/platform.db — never inside project .ship/
         assert!(!gitignore.contains("platform.db"));
         assert!(!gitignore.contains("log.md"));
         Ok(())
@@ -278,7 +278,6 @@ mod tests {
         let tmp = tempdir()?;
         let ship_path = init_project(tmp.path().to_path_buf())?;
         assert!(ship_path.exists());
-        // project/ namespace
         assert!(ship_path.join("project/specs").is_dir());
         assert!(ship_path.join("project/features").is_dir());
         assert!(ship_path.join("project/releases").is_dir());
@@ -287,7 +286,6 @@ mod tests {
         assert!(ship_path.join("vision.md").is_file());
         let project_skills_dir = crate::project::skills_dir(&ship_path);
         assert!(project_skills_dir.is_dir());
-        // shared
         assert!(ship_path.join("project/releases/TEMPLATE.md").is_file());
         assert!(ship_path.join("project/features/TEMPLATE.md").is_file());
         assert!(ship_path.join("project/notes/TEMPLATE.md").is_file());
@@ -298,7 +296,6 @@ mod tests {
         );
         assert!(!ship_path.join("events.ndjson").is_file());
         assert!(ship_path.join("ship.jsonc").is_file());
-        // default skill seeded
         assert!(project_skills_dir.join("task-policy/SKILL.md").is_file());
         let skill_content = fs::read_to_string(project_skills_dir.join("task-policy/SKILL.md"))?;
         assert!(skill_content.contains("task-policy"));
@@ -309,26 +306,21 @@ mod tests {
     #[test]
     fn test_init_project_idempotent() -> anyhow::Result<()> {
         let tmp = tempdir()?;
-        // First init
         let ship_path = init_project(tmp.path().to_path_buf())?;
         let project_skills_dir = crate::project::skills_dir(&ship_path);
-        // Write a custom skill so we can verify it isn't clobbered
         let custom_skill = project_skills_dir.join("custom/SKILL.md");
         fs::create_dir_all(custom_skill.parent().expect("custom skill dir"))?;
         fs::write(
             &custom_skill,
             "---\nname: custom\ndescription: Custom test skill.\n---\n\nmy content",
         )?;
-        // Second init on the same directory
         let ship_path2 = init_project(tmp.path().to_path_buf())?;
         assert_eq!(ship_path, ship_path2);
-        // Custom skill must still be present and unchanged
         assert!(custom_skill.exists());
         assert_eq!(
             fs::read_to_string(&custom_skill)?,
             "---\nname: custom\ndescription: Custom test skill.\n---\n\nmy content"
         );
-        // Default skill still present
         assert!(project_skills_dir.join("task-policy/SKILL.md").is_file());
         Ok(())
     }
@@ -338,39 +330,15 @@ mod tests {
         let tmp = tempdir()?;
         let ship_path = init_project(tmp.path().to_path_buf())?;
         let template = fs::read_to_string(ship_path.join("project/features/TEMPLATE.md"))?;
-        // New lifecycle fields
-        // Status is directory-based, not in frontmatter
         assert!(template.contains("release_id"));
         assert!(template.contains("## Why"));
         assert!(template.contains("## Delivery Todos"));
         Ok(())
     }
 
-    struct DemoPlugin;
-    impl Plugin for DemoPlugin {
-        fn name(&self) -> &str {
-            "demo-plugin"
-        }
-        fn description(&self) -> &str {
-            "Demo plugin for tests"
-        }
-    }
-
-    #[test]
-    fn test_plugin_activation_creates_namespace() -> anyhow::Result<()> {
-        let tmp = tempdir()?;
-        let ship_path = init_project(tmp.path().to_path_buf())?;
-        let mut registry = PluginRegistry::new();
-        registry.register_with_project(&ship_path, Box::new(DemoPlugin))?;
-
-        let namespaces = get_config(Some(ship_path.clone()))?.namespaces;
-        assert!(namespaces.iter().any(|ns| ns.id == "plugin:demo-plugin"));
-        Ok(())
-    }
-
     #[test]
     fn test_event_stream_since() -> anyhow::Result<()> {
-        use crate::events::store::{EventStore, SqliteEventStore};
+        use crate::persistence::event_store::{EventStore, SqliteEventStore};
         use crate::events::types::{WorkspaceActivated, event_types};
         let tmp = tempdir()?;
         let ship_path = init_project(tmp.path().to_path_buf())?;
@@ -389,7 +357,7 @@ mod tests {
 
     #[test]
     fn test_event_append_and_read() -> anyhow::Result<()> {
-        use crate::events::store::{EventStore, SqliteEventStore};
+        use crate::persistence::event_store::{EventStore, SqliteEventStore};
         use crate::events::types::{ProjectLog, event_types};
         let tmp = tempdir()?;
         let ship_path = init_project(tmp.path().to_path_buf())?;

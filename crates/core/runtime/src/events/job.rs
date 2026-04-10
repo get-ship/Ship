@@ -56,6 +56,10 @@ pub struct PipelineStep {
     /// Shell command to run (populated for StepType::Run).
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub command: Option<String>,
+    /// Maximum number of retries when a gate fails on this step.
+    /// `None` or `0` means no retries — gate failure is terminal.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub max_retries: Option<u32>,
 }
 
 impl<'de> serde::Deserialize<'de> for PipelineStep {
@@ -79,6 +83,8 @@ impl<'de> serde::Deserialize<'de> for PipelineStep {
             /// Accept both `run:` (YAML shorthand) and `command:`.
             #[serde(alias = "run", default)]
             command: Option<String>,
+            #[serde(default)]
+            max_retries: Option<u32>,
         }
         let raw = Raw::deserialize(d)?;
         let step_type = raw.step_type.unwrap_or_else(|| {
@@ -97,6 +103,7 @@ impl<'de> serde::Deserialize<'de> for PipelineStep {
             model: raw.model,
             provider: raw.provider,
             command: raw.command,
+            max_retries: raw.max_retries,
         })
     }
 }
@@ -121,6 +128,7 @@ impl Pipeline {
                     model: None,
                     provider: None,
                     command: None,
+                    max_retries: None,
                 },
                 PipelineStep {
                     id: "gate".to_string(),
@@ -131,6 +139,7 @@ impl Pipeline {
                     model: Some("sonnet".to_string()),
                     provider: None,
                     command: None,
+                    max_retries: None,
                 },
                 PipelineStep {
                     id: "merge".to_string(),
@@ -141,6 +150,7 @@ impl Pipeline {
                     model: None,
                     provider: None,
                     command: None,
+                    max_retries: None,
                 },
             ],
         }
@@ -294,6 +304,41 @@ pub struct StepOutputPayload {
     pub stderr: Option<String>,
 }
 
+/// Emitted by an agent via the `step_done` MCP tool to declare step completion.
+#[derive(Debug, Clone, Serialize, Deserialize, Type)]
+pub struct StepDoneDeclaredPayload {
+    pub job_id: String,
+    pub slug: String,
+    pub step_id: String,
+    pub summary: Option<String>,
+}
+
+/// Emitted when a gated step is retried after gate failure.
+#[derive(Debug, Clone, Serialize, Deserialize, Type)]
+pub struct StepRetryPayload {
+    pub job_id: String,
+    pub slug: String,
+    pub step_id: String,
+    pub step_name: String,
+    pub attempt: u32,
+    pub reason: String,
+}
+
+/// Emitted by the step monitor after observing process exit and/or step_done.
+/// This is the authoritative signal for pipeline advancement.
+#[derive(Debug, Clone, Serialize, Deserialize, Type)]
+pub struct StepObservedPayload {
+    pub job_id: String,
+    pub slug: String,
+    pub step_index: usize,
+    pub step_name: String,
+    pub succeeded: bool,
+    pub exit_code: Option<i32>,
+    pub duration_secs: u64,
+    pub done_declared: bool,
+    pub reason: Option<String>,
+}
+
 /// Event type constants for the `job.` namespace.
 pub mod event_types {
     pub const JOB_CREATED: &str = "job.created";
@@ -310,4 +355,7 @@ pub mod event_types {
     pub const STEP_COMPLETED: &str = "job.step_completed";
     pub const STEP_FAILED: &str = "job.step_failed";
     pub const STEP_OUTPUT: &str = "job.step_output";
+    pub const STEP_RETRY: &str = "step.retry";
+    pub const STEP_DONE_DECLARED: &str = "step.done_declared";
+    pub const STEP_OBSERVED: &str = "step.observed";
 }

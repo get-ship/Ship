@@ -157,7 +157,7 @@ impl ServiceHandler for SyncServiceHandler {
 mod tests {
     use super::*;
     use crate::db::{block_on, db_path, ensure_db, open_db_at};
-    use crate::events::actor_store::init_actor_db;
+    use crate::persistence::actor_store::init_actor_db;
     use crate::project::init_project;
     use crate::sync::get_cursor;
     use tempfile::tempdir;

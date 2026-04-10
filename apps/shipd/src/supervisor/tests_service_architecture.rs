@@ -17,19 +17,19 @@ fn adapters_module_under_line_limit() {
 
 #[test]
 fn dispatch_pipeline_under_line_limit() {
-    let lines = include_str!("dispatch_pipeline.rs").lines().count();
+    let lines = include_str!("../../../../crates/core/runtime/src/services/orchestrator/pipeline.rs").lines().count();
     assert!(
         lines <= LINE_LIMIT,
-        "dispatch_pipeline.rs has {lines} lines (limit {LINE_LIMIT})"
+        "orchestrator/pipeline.rs has {lines} lines (limit {LINE_LIMIT})"
     );
 }
 
 #[test]
 fn dispatch_replay_under_line_limit() {
-    let lines = include_str!("dispatch_replay.rs").lines().count();
+    let lines = include_str!("../../../../crates/core/runtime/src/services/orchestrator/replay.rs").lines().count();
     assert!(
         lines <= LINE_LIMIT,
-        "dispatch_replay.rs has {lines} lines (limit {LINE_LIMIT})"
+        "orchestrator/replay.rs has {lines} lines (limit {LINE_LIMIT})"
     );
 }
 
@@ -46,10 +46,10 @@ fn supervisor_mod_under_line_limit() {
 
 #[test]
 fn dispatch_handlers_under_line_limit() {
-    let lines = include_str!("dispatch_handlers.rs").lines().count();
+    let lines = include_str!("../../../../crates/core/runtime/src/services/orchestrator/handlers.rs").lines().count();
     assert!(
         lines <= LINE_LIMIT,
-        "dispatch_handlers.rs has {lines} lines (limit {LINE_LIMIT})"
+        "orchestrator/handlers.rs has {lines} lines (limit {LINE_LIMIT})"
     );
 }
 
@@ -104,10 +104,10 @@ fn executors_process_under_line_limit() {
 
 #[test]
 fn pipeline_loader_under_line_limit() {
-    let lines = include_str!("pipeline_loader.rs").lines().count();
+    let lines = include_str!("../../../../crates/core/runtime/src/services/orchestrator/pipeline_loader.rs").lines().count();
     assert!(
         lines <= LINE_LIMIT,
-        "pipeline_loader.rs has {lines} lines (limit {LINE_LIMIT})"
+        "orchestrator/pipeline_loader.rs has {lines} lines (limit {LINE_LIMIT})"
     );
 }
 
@@ -122,10 +122,10 @@ fn agent_lifecycle_under_line_limit() {
 
 #[test]
 fn pending_dispatch_under_line_limit() {
-    let lines = include_str!("pending_dispatch.rs").lines().count();
+    let lines = include_str!("../../../../crates/core/runtime/src/services/orchestrator/pending.rs").lines().count();
     assert!(
         lines <= LINE_LIMIT,
-        "pending_dispatch.rs has {lines} lines (limit {LINE_LIMIT})"
+        "orchestrator/pending.rs has {lines} lines (limit {LINE_LIMIT})"
     );
 }
 

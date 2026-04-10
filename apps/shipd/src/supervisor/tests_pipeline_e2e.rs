@@ -11,17 +11,17 @@ use async_trait::async_trait;
 use runtime::events::job::event_types;
 use runtime::events::kernel_router::{ActorConfig, KernelRouter};
 use runtime::events::store::{EventStore, SqliteEventStore};
-use runtime::events::validator::{CallerKind, EmitContext};
 use runtime::events::EventEnvelope;
 use runtime::projections::job::{load_jobs_at, JobStatus};
 use runtime::services::dispatch_ports::{ExecutorHandle, IsolationStrategy, JobContext, JobExecutor};
+use runtime::services::orchestrator::OrchestratorContext;
 use std::path::PathBuf;
 use std::sync::atomic::{AtomicUsize, Ordering};
 use std::sync::Arc;
 use tempfile::TempDir;
 use tokio::sync::Mutex;
 
-use super::job_dispatch::DispatchContext;
+use super::platform::{MockPlatform, RegistryAdapter};
 use super::registry::ProcessRegistry;
 
 // ── Mock infrastructure ─────────────────────────────────────────────────────
@@ -60,15 +60,6 @@ impl JobExecutor for MockExecutor {
     async fn is_alive(&self, _handle: &ExecutorHandle) -> bool { true }
     async fn stop(&self, _handle: &ExecutorHandle) -> anyhow::Result<()> { Ok(()) }
     async fn send(&self, _handle: &ExecutorHandle, _message: &str) -> anyhow::Result<()> { Ok(()) }
-}
-
-fn runtime_ctx() -> EmitContext {
-    EmitContext {
-        caller_kind: CallerKind::Runtime,
-        skill_id: None,
-        workspace_id: None,
-        session_id: None,
-    }
 }
 
 fn dispatch_config() -> ActorConfig {
@@ -200,10 +191,12 @@ async fn pipeline_advances_through_all_steps() {
     let kernel = Arc::new(Mutex::new(router));
 
     let executor = Arc::new(MockExecutor::new());
-    let dctx = DispatchContext {
+    let dctx = OrchestratorContext {
         isolation: Arc::new(MockIsolation { work_dir: worktree_path.clone() }),
         executor: executor.clone(),
-        registry: Arc::new(Mutex::new(ProcessRegistry::new())),
+        platform: Arc::new(MockPlatform),
+        registry: Arc::new(RegistryAdapter(Arc::new(Mutex::new(ProcessRegistry::new())))),
+        done_flags: Arc::new(Mutex::new(std::collections::HashMap::new())),
     };
 
     // First step completes — simulate agent finishing
@@ -217,7 +210,7 @@ async fn pipeline_advances_through_all_steps() {
     // Advance pipeline — should dispatch next step (gate).
     // The advance function loads the projection (which includes the completed
     // event), finds unblocked steps, and dispatches them via the executor.
-    let advanced = super::dispatch_pipeline::advance_pipeline_at(
+    let advanced = runtime::services::orchestrator::pipeline::advance_pipeline_at(
         &kernel, &completed_event, &dctx, &ship_dir,
     ).await;
 
@@ -440,14 +433,16 @@ async fn run_step_advances_to_agent_step() {
     let kernel = Arc::new(Mutex::new(router));
 
     let executor = Arc::new(MockExecutor::new());
-    let dctx = DispatchContext {
+    let dctx = OrchestratorContext {
         isolation: Arc::new(MockIsolation { work_dir: worktree_path.clone() }),
         executor: executor.clone(),
-        registry: Arc::new(Mutex::new(ProcessRegistry::new())),
+        platform: Arc::new(MockPlatform),
+        registry: Arc::new(RegistryAdapter(Arc::new(Mutex::new(ProcessRegistry::new())))),
+        done_flags: Arc::new(Mutex::new(std::collections::HashMap::new())),
     };
 
     // advance_pipeline with the step_completed event — should dispatch "implement"
-    let advanced = super::dispatch_pipeline::advance_pipeline_at(
+    let advanced = runtime::services::orchestrator::pipeline::advance_pipeline_at(
         &kernel, &step_completed_event, &dctx, &ship_dir,
     ).await;
 
@@ -469,5 +464,86 @@ async fn run_step_advances_to_agent_step() {
         rec.status,
         JobStatus::Dispatched,
         "job must be Dispatched for the implement step"
+    );
+}
+
+// ── E2E: First step is run — dispatches without agent ────────────────────────
+
+/// When a pipeline's first step is a `run:` step, `dispatch_job_internal`
+/// must execute the command directly without spawning an agent process.
+///
+/// Sequence:
+///   dispatch_job_internal detects first step is StepType::Run →
+///   prepares isolation → emits job.dispatched → executes run step →
+///   run step emits step_dispatched + step_completed →
+///   advance_pipeline dispatches the next agent step.
+#[tokio::test(flavor = "multi_thread", worker_threads = 2)]
+async fn first_step_run_executes_without_agent() {
+    let dir = TempDir::new().unwrap();
+    let ship_dir = dir.path().join(".ship");
+    let worktree_root = dir.path().join("worktrees");
+    let worktree_path = worktree_root.join("run-first");
+    std::fs::create_dir_all(&ship_dir).unwrap();
+    std::fs::create_dir_all(&worktree_path).unwrap();
+
+    let store = SqliteEventStore::new_at(&ship_dir).unwrap();
+    let job_id = "j-run-first";
+    let slug = "run-first";
+
+    // Create job with pipeline: [run: "echo hello", agent: "rust-lane"]
+    let created_payload = serde_json::json!({
+        "job_id": job_id, "slug": slug,
+        "agent": "rust-lane", "branch": format!("job/{slug}"),
+        "spec_path": "spec.md", "plan_id": null,
+        "steps": { "steps": [
+            { "id": "setup", "type": "run", "command": "echo hello", "after": [] },
+            { "id": "implement", "type": "agent", "agent": "rust-lane", "after": ["setup"] },
+        ]}
+    });
+
+    // Persist job.created so the projection sees it
+    store.append(&EventEnvelope::new(
+        event_types::JOB_CREATED, job_id, &created_payload,
+    ).unwrap()).unwrap();
+
+    // Parse the payload for dispatch_job_internal
+    let payload: runtime::events::job::JobCreatedPayload =
+        serde_json::from_value(created_payload).unwrap();
+
+    // Set up kernel + dispatch context with mock executor
+    let mut router = KernelRouter::new(ship_dir.clone()).unwrap();
+    let (_s, _mb) = router.spawn_actor("service.job-dispatch", dispatch_config()).unwrap();
+    let kernel = Arc::new(Mutex::new(router));
+
+    let executor = Arc::new(MockExecutor::new());
+    let dctx = OrchestratorContext {
+        isolation: Arc::new(MockIsolation { work_dir: worktree_path.clone() }),
+        executor: executor.clone(),
+        platform: Arc::new(MockPlatform),
+        registry: Arc::new(RegistryAdapter(Arc::new(Mutex::new(ProcessRegistry::new())))),
+        done_flags: Arc::new(Mutex::new(std::collections::HashMap::new())),
+    };
+
+    // Dispatch the first run step directly — should execute without spawning an agent.
+    // Use the _at variant so events persist to the test's temp store.
+    runtime::services::orchestrator::dispatch::dispatch_first_run_step_at(
+        &kernel, &payload, &dctx, "setup", "echo hello", &ship_dir,
+    ).await;
+
+    // The executor should NOT have been called — run steps don't spawn agents
+    assert_eq!(
+        executor.spawn_count.load(Ordering::SeqCst), 0,
+        "executor.spawn must NOT be called for a first run step"
+    );
+
+    // The projection should show the job as dispatched with step events
+    let jobs = load_jobs_at(&ship_dir).unwrap();
+    let rec = jobs.get(job_id).unwrap();
+    assert_eq!(rec.status, JobStatus::Dispatched, "job must be dispatched");
+
+    // step_dispatched and step_completed events should exist for the run step
+    assert!(
+        rec.completed_steps.contains(&"setup".to_string()),
+        "setup (run step) must be in completed_steps after execution"
     );
 }

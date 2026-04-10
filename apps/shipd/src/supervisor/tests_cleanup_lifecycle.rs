@@ -26,20 +26,21 @@ fn ev(event_type: &str, payload: serde_json::Value) -> EventEnvelope {
 /// The cleanup handler receives the event and acts on it.
 #[test]
 fn cleanup_handler_exists_for_merged_events() {
-    let source = include_str!("dispatch_handlers.rs");
+    let source = include_str!("../../../../crates/core/runtime/src/services/orchestrator/handlers.rs");
     assert!(
         source.contains("job_cleanup") || source.contains("handle_job_cleanup"),
         "a cleanup handler must exist for merged job events"
     );
 }
 
-/// The job_dispatch event loop must route job.merged to cleanup.
+/// The orchestrator event router must route job.merged to cleanup.
 #[test]
 fn job_merged_routes_to_cleanup() {
-    let source = include_str!("job_dispatch.rs");
+    // Orchestration logic moved to runtime::services::orchestrator::router
+    let source = include_str!("../../../../crates/core/runtime/src/services/orchestrator/router.rs");
     assert!(
         source.contains("job.merged"),
-        "job_dispatch must handle job.merged events"
+        "orchestrator router must handle job.merged events"
     );
     assert!(
         source.contains("cleanup") || source.contains("handle_job_cleanup"),
@@ -50,41 +51,22 @@ fn job_merged_routes_to_cleanup() {
 /// Cleanup must remove the process registry entry.
 #[test]
 fn job_merged_unregisters_from_process_registry() {
-    let source = include_str!("job_dispatch.rs");
-    // The merged handler should call registry.unregister
+    let source = include_str!("../../../../crates/core/runtime/src/services/orchestrator/router.rs");
     assert!(
         source.contains("unregister"),
         "job.merged handler must unregister from process registry"
     );
 }
 
-/// Cleanup handler must attempt worktree removal.
+/// Cleanup handler must delegate resource cleanup to AgentPlatform.
+/// The platform implementation handles worktree removal, branch deletion,
+/// and tmux session cleanup independently.
 #[test]
-fn cleanup_removes_worktree() {
-    let source = include_str!("dispatch_handlers.rs");
+fn cleanup_delegates_to_platform() {
+    let source = include_str!("../../../../crates/core/runtime/src/services/orchestrator/handlers.rs");
     assert!(
-        source.contains("remove_worktree"),
-        "cleanup must call remove_worktree"
-    );
-}
-
-/// Cleanup handler must attempt branch deletion.
-#[test]
-fn cleanup_deletes_branch() {
-    let source = include_str!("dispatch_handlers.rs");
-    assert!(
-        source.contains("delete_branch"),
-        "cleanup must call delete_branch"
-    );
-}
-
-/// Cleanup handler must attempt tmux session kill.
-#[test]
-fn cleanup_kills_tmux_session() {
-    let source = include_str!("dispatch_handlers.rs");
-    assert!(
-        source.contains("kill_tmux_session"),
-        "cleanup must call kill_tmux_session"
+        source.contains("cleanup_job"),
+        "cleanup must delegate to platform.cleanup_job for resource cleanup"
     );
 }
 
@@ -92,7 +74,7 @@ fn cleanup_kills_tmux_session() {
 /// for post-mortem investigation.
 #[test]
 fn job_failed_does_not_trigger_cleanup() {
-    let source = include_str!("job_dispatch.rs");
+    let source = include_str!("../../../../crates/core/runtime/src/services/orchestrator/router.rs");
     // Find the job.failed handler and verify it doesn't call cleanup
     let lines: Vec<&str> = source.lines().collect();
     let failed_handler = lines.iter().enumerate()

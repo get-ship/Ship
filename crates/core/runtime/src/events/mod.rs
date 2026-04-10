@@ -1,28 +1,69 @@
-pub mod actor_store;
-pub mod artifact_events;
-pub mod envelope;
+// Re-exports from ship-types
+pub use ship_types::envelope::EventEnvelope;
+pub use ship_types::payload::*;
+pub use ship_types::{CallerKind, EmitContext, ActorConfig};
+pub mod types {
+    pub use ship_types::payload::*;
+    pub mod event_types {
+        pub use ship_types::event_types::*;
+    }
+
+    #[cfg(test)]
+    mod tests {
+        use super::event_types::*;
+
+        #[test]
+        fn event_type_constants_are_unique() {
+            let mut seen = std::collections::HashSet::new();
+            for &t in ALL {
+                assert!(seen.insert(t), "duplicate event type constant: {t}");
+            }
+        }
+
+        #[test]
+        fn all_constants_have_expected_count() {
+            assert_eq!(ALL.len(), 43, "exactly 43 event type constants required");
+        }
+    }
+}
+
+// Re-exports from ship-kernel
+pub use ship_kernel::EventSink;
+pub use ship_kernel::KernelError as PureKernelError;
+pub use ship_kernel::Mailbox;
+
+// Persistence (re-exported from crate::persistence)
+pub use crate::persistence::{
+    ActorStore, EventStore, SqliteEventStore, ActorSnapshot,
+    append_event_with_conn,
+};
+// Backward-compatible module aliases for consumers.
+pub use crate::persistence::event_store as store;
+// Modules kept here (implement runtime-specific logic)
 pub mod filter;
+pub mod global_kernel_router;
 pub mod job;
 pub mod kernel_lifecycle;
 pub mod kernel_router;
-pub mod mailbox;
 pub mod payload_schema;
-pub mod snapshot;
-pub mod store;
-pub mod types;
 pub mod validator;
 
-pub mod global_kernel_router;
-
-#[cfg(feature = "unstable")]
-pub mod identity;
 #[cfg(feature = "unstable")]
 pub mod permissions;
 #[cfg(feature = "unstable")]
-pub mod cursor;
-#[cfg(feature = "unstable")]
 pub mod kernel_security;
 
+pub use filter::EventFilter;
+pub use kernel_router::KernelRouter;
+pub use payload_schema::PayloadSchemaValidator;
+pub use validator::{
+    ElevatedValidator, EventValidator, KERNEL_NAMESPACES,
+    NamespaceValidator, PLATFORM_ONLY_NAMESPACES, RESERVED_NAMESPACES,
+    ReservedNamespaceValidator, ValidationError, is_kernel_event,
+};
+pub use global_kernel_router::{init_kernel_router, kernel_router};
+
+// Test modules
 #[cfg(test)]
 mod tests;
 #[cfg(test)]
@@ -57,21 +98,6 @@ mod lifecycle_tests;
 mod snapshot_edge_tests;
 #[cfg(test)]
 mod tests_mesh_scope;
-
-pub use actor_store::ActorStore;
-pub use envelope::EventEnvelope;
-pub use filter::EventFilter;
-pub use kernel_router::{ActorConfig, KernelRouter};
-pub use mailbox::Mailbox;
-pub use snapshot::ActorSnapshot;
-pub use store::{EventStore, SqliteEventStore};
-pub use payload_schema::PayloadSchemaValidator;
-pub use validator::{
-    CallerKind, ElevatedValidator, EmitContext, EventValidator, KERNEL_NAMESPACES,
-    NamespaceValidator, PLATFORM_ONLY_NAMESPACES, RESERVED_NAMESPACES, ReservedNamespaceValidator,
-    ValidationError, is_kernel_event,
-};
-pub use global_kernel_router::{init_kernel_router, kernel_router};
 
 use anyhow::Result;
 use chrono::{DateTime, Utc};

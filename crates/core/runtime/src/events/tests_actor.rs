@@ -1,7 +1,7 @@
 use crate::db::ensure_db;
-use crate::events::envelope::EventEnvelope;
+use ship_types::envelope::EventEnvelope;
 use crate::events::filter::EventFilter;
-use crate::events::store::{EventStore, SqliteEventStore};
+use crate::persistence::event_store::{EventStore, SqliteEventStore};
 use crate::events::types::event_types;
 use crate::events::types::{SessionEnded, SessionProgress, SessionStarted, WorkspaceActivated};
 use crate::project::init_project;

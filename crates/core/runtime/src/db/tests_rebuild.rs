@@ -1,8 +1,8 @@
 //! Tests for S5 and S6: projection rebuild from events, rebuild idempotency.
 
 use crate::db::{block_on, ensure_db_at, open_db_at, rebuild};
-use crate::events::envelope::EventEnvelope;
-use crate::events::store::{EventStore, SqliteEventStore};
+use ship_types::envelope::EventEnvelope;
+use crate::persistence::event_store::{EventStore, SqliteEventStore};
 use crate::events::types::event_types;
 use crate::project::init_project;
 use tempfile::tempdir;

@@ -12,7 +12,7 @@
 use anyhow::Result;
 
 use crate::db::{block_on, block_on_anyhow, open_db};
-use crate::events::store::append_event_with_conn;
+use crate::persistence::event_store::append_event_with_conn;
 use crate::events::types::event_types;
 use crate::events::types::{
     SessionAttached, SessionEnded, SessionProgress, SessionRecorded, SessionStarted,

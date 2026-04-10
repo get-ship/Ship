@@ -88,6 +88,10 @@ CREATE TABLE IF NOT EXISTS workspace_session_record (
   agent_id                 TEXT,
   files_changed            INTEGER,
   gate_result              TEXT,
+  lines_added              INTEGER,
+  lines_removed            INTEGER,
+  tool_calls               INTEGER,
+  exit_reason              TEXT,
   created_at               TEXT NOT NULL
 );
 CREATE INDEX IF NOT EXISTS workspace_session_record_workspace_idx

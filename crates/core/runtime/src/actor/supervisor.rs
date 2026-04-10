@@ -3,7 +3,7 @@
 //! The caller fetches elevated child events, passes them here, and executes
 //! whatever actions are returned.  No polling loop, no background thread.
 
-use crate::events::envelope::EventEnvelope;
+use ship_types::envelope::EventEnvelope;
 use crate::events::types::{ActorCrashed, event_types};
 
 // ── policy ────────────────────────────────────────────────────────────────────

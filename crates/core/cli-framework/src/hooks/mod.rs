@@ -1,5 +1,5 @@
 use anyhow::{Result, anyhow};
-use runtime::events::envelope::EventEnvelope;
+use runtime::events::EventEnvelope;
 use runtime::events::types::{
     SessionEnded, SessionStarted, SkillCompleted, SkillFailed, SkillStarted,
     event_types,
