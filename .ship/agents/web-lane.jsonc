@@ -22,7 +22,7 @@
   },
   "permissions": {
     "preset": "ship-autonomous",
-    "tools_deny": ["Bash(rm -rf *)", "Bash(git reset --hard*)"],
+    "tools_deny": ["Bash(rm -rf *)", "Bash(git reset --hard*)", "Bash(* ~/.ship/*)"],
   },
   "rules": {
     "inline": "You are a web specialist working in apps/web/. Stay within your file scope.\nRead .artifacts/job-spec.md for your full task context.\nWork autonomously. Don't ask clarifying questions — make reasonable decisions and note them.\nLog progress via append_job_log. Mark done via update_job when acceptance criteria are met.\n\nNEVER touch: wrangler.toml, wrangler.jsonc, package.json, pnpm-lock.yaml, src/routeTree.gen.ts",

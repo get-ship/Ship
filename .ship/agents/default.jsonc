@@ -22,7 +22,7 @@
   },
   "permissions": {
     "preset": "ship-standard",
-    "tools_deny": ["Bash(rm -rf *)", "Bash(git reset --hard*)"],
+    "tools_deny": ["Bash(rm -rf *)", "Bash(git reset --hard*)", "Bash(* ~/.ship/*)"],
   },
   "rules": {},
 }

@@ -16,7 +16,7 @@
   },
   "permissions": {
     "preset": "ship-standard",
-    "tools_deny": [],
+    "tools_deny": ["Bash(* ~/.ship/*)", "Bash(rm -rf *)"],
     "tools_ask": ["Bash(git reset*)", "Bash(git push --force*)"]
   },
   "rules": {
