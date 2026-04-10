@@ -3,6 +3,7 @@ import { defineConfig } from '@playwright/test'
 export default defineConfig({
   testDir: './e2e-playwright',
   timeout: 30_000,
+  retries: 1,
   webServer: {
     command: 'pnpm dev --port 3000',
     port: 3000,
