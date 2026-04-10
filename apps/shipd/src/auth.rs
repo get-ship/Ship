@@ -94,18 +94,26 @@ pub async fn auth_middleware(
     mut req: Request<Body>,
     next: Next,
 ) -> Response {
-    let auth_header = req
+    // Extract token from Authorization header or ?token= query param (for SSE/EventSource)
+    let header_token = req
         .headers()
         .get("authorization")
-        .and_then(|v| v.to_str().ok());
+        .and_then(|v| v.to_str().ok())
+        .and_then(|h| h.strip_prefix("Bearer "))
+        .map(|s| s.to_string());
 
-    let token = match auth_header {
-        Some(h) if h.starts_with("Bearer ") => &h[7..],
-        _ => {
+    let query_token = req.uri().query()
+        .and_then(|q| q.split('&').find_map(|p| p.strip_prefix("token=")))
+        .map(|s| s.to_string());
+
+    let token_string = match header_token.or(query_token) {
+        Some(t) => t,
+        None => {
             return (StatusCode::UNAUTHORIZED, "missing or malformed Authorization header")
                 .into_response();
         }
     };
+    let token = token_string.as_str();
 
     if token != expected_token.as_str() {
         return (StatusCode::UNAUTHORIZED, "invalid token").into_response();

@@ -4,7 +4,6 @@
 import { useState, useMemo } from 'react'
 import { useShipQuery } from './useShipQuery'
 import { usePlatform } from '../PlatformProvider'
-import { useDaemon } from './useDaemonData'
 import type {
   PullResponse,
   PullSkill,
@@ -16,13 +15,7 @@ import type {
 
 export function useActiveWorkspaceId(): string {
   const { workspace } = usePlatform()
-  const { workspaces } = useDaemon()
-  const viewed = workspace?.branch ?? null
-  if (viewed && workspaces.some((w) => w.branch === viewed)) return viewed
-  const active = workspaces
-    .filter((w) => String(w.status).toLowerCase() === 'active')
-    .sort((a, b) => (b.last_activated_at ?? '').localeCompare(a.last_activated_at ?? ''))
-  return active[0]?.branch ?? ''
+  return workspace?.branch ?? ''
 }
 
 // ── Internal response types ───────────────────────────────────────────────────

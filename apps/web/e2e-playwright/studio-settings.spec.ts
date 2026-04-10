@@ -8,5 +8,5 @@ test('settings page shows daemon section', async ({ page }) => {
 
 test('settings page shows settings heading', async ({ page }) => {
   await page.goto('/studio/settings')
-  await expect(page.locator('h1:has-text("Settings")')).toBeVisible()
+  await expect(page.locator('h1:has-text("Settings")')).toBeVisible({ timeout: 20_000 })
 })

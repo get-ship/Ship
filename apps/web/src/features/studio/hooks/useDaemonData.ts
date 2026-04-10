@@ -77,9 +77,13 @@ function toError(e: unknown): Error {
 // ── Queries ───────────────────────────────────────────────────────────────────
 
 export function useDaemon(viewedWorkspaceBranch?: string | null): UseDaemonReturn {
-  const wsResult = useShipQuery<{ workspaces: Workspace[] }>('/runtime/workspaces')
-  const agentsResult = useShipQuery<{ agents: AgentEntry[] }>('/runtime/agents')
-  const jobsResult = useShipQuery<{ jobs: JobRecord[] }>('/runtime/jobs')
+  const { daemon, workspace } = usePlatform()
+  const isConnected = daemon === 'connected'
+
+  // Only query when daemon is connected — prevents 401/network errors
+  const wsResult = useShipQuery<{ workspaces: Workspace[] }>(isConnected ? '/runtime/workspaces' : null)
+  const agentsResult = useShipQuery<{ agents: AgentEntry[] }>(isConnected ? '/runtime/agents' : null)
+  const jobsResult = useShipQuery<{ jobs: JobRecord[] }>(isConnected ? '/runtime/jobs' : null)
 
   const allWorkspaces = wsResult.data?.workspaces ?? []
   const workspaces = allWorkspaces
@@ -87,14 +91,15 @@ export function useDaemon(viewedWorkspaceBranch?: string | null): UseDaemonRetur
     .sort((a, b) => a.branch.localeCompare(b.branch))
 
   const resolvedWsId = viewedWorkspaceBranch
+    || workspace?.branch
     || allWorkspaces.find((w) => w.status === 'active')?.branch
-  const sessionsPath = resolvedWsId
+  const sessionsPath = isConnected && resolvedWsId
     ? `/runtime/sessions?workspace_id=${encodeURIComponent(resolvedWsId)}`
     : null
   const sessionsResult = useShipQuery<{ sessions: SessionEntry[] }>(sessionsPath)
 
   return {
-    connected: !wsResult.error && wsResult.data !== undefined,
+    connected: isConnected,
     workspaces,
     agents: agentsResult.data?.agents ?? [],
     sessions: sessionsResult.data?.sessions ?? [],

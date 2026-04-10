@@ -220,8 +220,21 @@ export function PlatformProvider({ children }: { children: ReactNode }) {
       })
     }
 
+    // Poll for daemon when disconnected (every 10s, starts after init)
+    let healthStarted = false
+    const healthInterval = setInterval(() => {
+      if (cancelled || !healthStarted) return
+      client.isConnected().then((ok) => {
+        if (cancelled) return
+        if (ok) onConnected()
+      })
+    }, 10_000)
+    // Delay health polling until init completes
+    setTimeout(() => { healthStarted = true }, 5_000)
+
     return () => {
       cancelled = true
+      clearInterval(healthInterval)
       if (retryTimerRef.current) clearTimeout(retryTimerRef.current)
       client.destroy()
     }

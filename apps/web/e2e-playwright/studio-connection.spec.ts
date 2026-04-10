@@ -21,17 +21,17 @@ test.describe('daemon connection', () => {
     await expect(fallback).toBeVisible({ timeout: 10_000 })
   })
 
-  test.skip('views recover after daemon reconnects', async ({ page }) => {
-    // TODO: requires PlatformProvider to periodically retry daemon health when disconnected
-    // Currently, reconnection only happens via SSE error handler, not health polling
+  test('views recover after daemon reconnects', async ({ page }) => {
+    // Block daemon, verify disconnected, unblock, wait for health poll to reconnect
     await page.route('**/localhost:9315/**', (route) => route.abort())
     await page.goto('/studio/agents')
     const fallback = page.locator('text=Daemon not connected')
     await expect(fallback).toBeVisible({ timeout: 10_000 })
+    // Unblock and reload — health poll will detect daemon on next check
     await page.unroute('**/localhost:9315/**')
     await page.reload()
     const content = page.locator('h1:has-text("Agents")')
-    await expect(content).toBeVisible({ timeout: 15_000 })
+    await expect(content).toBeVisible({ timeout: 20_000 })
   })
 })
 
