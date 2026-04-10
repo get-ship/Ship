@@ -7,7 +7,7 @@ use axum::{Extension, Json, extract::State, http::StatusCode, response::IntoResp
 use runtime::events::{EmitContext, EventEnvelope};
 use serde::Deserialize;
 
-use crate::auth::AuthContext;
+use crate::auth::{AuthContext, Scope, require_scope};
 use crate::rest_api::{ApiState, MeshResponse};
 
 #[derive(Deserialize, utoipa::ToSchema)]
@@ -39,6 +39,9 @@ pub async fn actor_spawn(
     Extension(auth): Extension<AuthContext>,
     Json(req): Json<ActorSpawnReq>,
 ) -> impl IntoResponse {
+    if let Err(e) = require_scope(&auth, Scope::MeshSend) {
+        return e;
+    }
     {
         let mut kernel = state.kernel().lock().await;
         let _ = kernel.stop_actor(&req.actor_id);
@@ -96,6 +99,9 @@ pub async fn event_route(
     Extension(auth): Extension<AuthContext>,
     Json(req): Json<EventRouteReq>,
 ) -> impl IntoResponse {
+    if let Err(e) = require_scope(&auth, Scope::EmitEvents) {
+        return e;
+    }
     // MCP tools route through the daemon's HTTP API. The MCP server is a
     // trusted Ship component — it validates caller permissions before emitting.
     // Use the authenticated caller kind but allow CLI callers (default) to route

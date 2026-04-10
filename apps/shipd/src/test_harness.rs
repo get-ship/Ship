@@ -138,6 +138,7 @@ impl TestDaemon {
             agent_id: None,
             workspace_id: None,
             session_id: None,
+            scopes: vec![crate::auth::Scope::Full],
         }
     }
 
@@ -148,6 +149,7 @@ impl TestDaemon {
             agent_id: Some(agent_id.to_string()),
             workspace_id: None,
             session_id: None,
+            scopes: vec![crate::auth::Scope::Full],
         }
     }
 

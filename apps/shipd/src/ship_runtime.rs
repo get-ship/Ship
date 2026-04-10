@@ -11,6 +11,7 @@ use std::path::{Path, PathBuf};
 use std::sync::Arc;
 use tokio::sync::Mutex;
 
+use crate::auth::SessionRegistry;
 use crate::managers::{JobManager, MeshManager, SessionScanner};
 use crate::supervisor::job_dispatch::DispatchHandle;
 
@@ -69,6 +70,8 @@ pub struct ShipRuntime {
     jobs: tokio::sync::OnceCell<JobManager>,
     dispatch_handle: std::sync::OnceLock<DispatchHandle>,
     session_scanner: tokio::sync::OnceCell<SessionScanner>,
+    /// Scoped session registry — maps session tokens to DaemonSession.
+    session_registry: SessionRegistry,
 }
 
 impl ShipRuntime {
@@ -141,6 +144,7 @@ impl ShipRuntime {
             jobs: tokio::sync::OnceCell::new(),
             dispatch_handle: std::sync::OnceLock::new(),
             session_scanner: tokio::sync::OnceCell::new(),
+            session_registry: Arc::new(Mutex::new(HashMap::new())),
         })
     }
 
@@ -180,6 +184,10 @@ impl ShipRuntime {
 
     pub fn pty_connections(&self) -> &PtyConnections {
         &self.pty_connections
+    }
+
+    pub fn session_registry(&self) -> &SessionRegistry {
+        &self.session_registry
     }
 
     /// Lazily initialize and return the mesh manager.
@@ -243,6 +251,7 @@ impl ShipRuntime {
             jobs: tokio::sync::OnceCell::new(),
             dispatch_handle: std::sync::OnceLock::new(),
             session_scanner: tokio::sync::OnceCell::new(),
+            session_registry: Arc::new(Mutex::new(HashMap::new())),
         }
     }
 
@@ -264,6 +273,7 @@ impl ShipRuntime {
             jobs: tokio::sync::OnceCell::new(),
             dispatch_handle: std::sync::OnceLock::new(),
             session_scanner: tokio::sync::OnceCell::new(),
+            session_registry: Arc::new(Mutex::new(HashMap::new())),
         }
     }
 

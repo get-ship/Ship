@@ -16,6 +16,13 @@ use runtime::events::CallerKind;
 use std::path::Path;
 use std::sync::Arc;
 
+// Re-export scope model from the split-out module.
+pub use crate::scopes::{
+    DaemonSession, Scope, SessionRegistry, SessionRegisterRequest,
+    SessionRegisterResponse, generate_session_token, is_session_token,
+    require_scope, scopes_for_role, session_register,
+};
+
 /// Authenticated caller context injected into request extensions by the
 /// auth middleware. Handlers extract this to build `EmitContext`.
 #[derive(Clone, Debug)]
@@ -24,6 +31,8 @@ pub struct AuthContext {
     pub agent_id: Option<String>,
     pub workspace_id: Option<String>,
     pub session_id: Option<String>,
+    /// Granted scopes for this request. Daemon token gets `[Full]`.
+    pub scopes: Vec<Scope>,
 }
 
 impl AuthContext {
@@ -35,6 +44,11 @@ impl AuthContext {
             workspace_id: self.workspace_id.clone(),
             session_id: self.session_id.clone(),
         }
+    }
+
+    /// Check whether this caller has the given scope.
+    pub fn has_scope(&self, scope: Scope) -> bool {
+        scope.is_granted_by(&self.scopes)
     }
 
     /// Create an emit context for daemon-mediated operations.
@@ -60,7 +74,7 @@ pub fn generate_token() -> String {
     hex_encode(&bytes)
 }
 
-fn hex_encode(bytes: &[u8]) -> String {
+pub(crate) fn hex_encode(bytes: &[u8]) -> String {
     let mut s = String::with_capacity(bytes.len() * 2);
     for b in bytes {
         s.push_str(&format!("{b:02x}"));
@@ -68,11 +82,10 @@ fn hex_encode(bytes: &[u8]) -> String {
     s
 }
 
-/// Write the daemon token to `<global_dir>/daemon.token`.
+/// Write the daemon token to `<global_dir>/daemon.token` with restricted permissions.
 pub fn write_token_file(global_dir: &Path, token: &str) -> std::io::Result<()> {
     let path = global_dir.join("daemon.token");
     std::fs::write(&path, token)?;
-    // Restrict permissions on Unix (owner read/write only).
     #[cfg(unix)]
     {
         use std::os::unix::fs::PermissionsExt;
@@ -81,20 +94,23 @@ pub fn write_token_file(global_dir: &Path, token: &str) -> std::io::Result<()> {
     Ok(())
 }
 
-/// Read the daemon token from `<global_dir>/daemon.token`.
 pub fn read_token(global_dir: &Path) -> std::io::Result<String> {
-    let content = std::fs::read_to_string(global_dir.join("daemon.token"))?;
-    Ok(content.trim().to_string())
+    Ok(std::fs::read_to_string(global_dir.join("daemon.token"))?.trim().to_string())
 }
 
 /// Axum middleware that validates `Authorization: Bearer <token>` on every
 /// request. Injects `AuthContext` into request extensions on success.
+///
+/// Accepts three token types:
+/// 1. **Daemon token** (64-char hex) — CLI/Studio, gets `Scope::Full`
+/// 2. **Session token** (`ship_sess_` prefix) — MCP agents, gets scoped access
+/// 3. **SDK token** (`ship_` prefix) — external SDK callers
 pub async fn auth_middleware(
     expected_token: Arc<String>,
+    session_registry: SessionRegistry,
     mut req: Request<Body>,
     next: Next,
 ) -> Response {
-    // Extract token from Authorization header or ?token= query param (for SSE/EventSource)
     let header_token = req
         .headers()
         .get("authorization")
@@ -115,18 +131,44 @@ pub async fn auth_middleware(
     };
     let token = token_string.as_str();
 
+    // Session tokens are validated against the session registry.
+    if is_session_token(token) {
+        let registry = session_registry.lock().await;
+        return match registry.get(token) {
+            Some(session) => {
+                let agent_id_header = header_string(&req, "x-ship-agent-id");
+                let workspace_id = header_string(&req, "x-ship-workspace-id")
+                    .or_else(|| session.workspace_id.clone());
+                let session_id = header_string(&req, "x-ship-session-id");
+
+                let auth = AuthContext {
+                    caller_kind: CallerKind::Mcp,
+                    agent_id: agent_id_header.or_else(|| Some(session.agent_id.clone())),
+                    workspace_id,
+                    session_id,
+                    scopes: session.scopes.clone(),
+                };
+                drop(registry);
+                req.extensions_mut().insert(auth);
+                next.run(req).await
+            }
+            None => {
+                (StatusCode::UNAUTHORIZED, "invalid session token").into_response()
+            }
+        };
+    }
+
+    // Daemon token and SDK tokens are validated against the expected token.
     if token != expected_token.as_str() {
         return (StatusCode::UNAUTHORIZED, "invalid token").into_response();
     }
 
-    // Derive CallerKind from token format, not from the x-ship-caller header.
-    // Runtime is never accepted from external callers — internal only.
-    let caller_kind = if is_daemon_token(token) {
-        CallerKind::Cli
+    let (caller_kind, scopes) = if is_daemon_token(token) {
+        (CallerKind::Cli, vec![Scope::Full])
     } else if token.starts_with("ship_") {
-        CallerKind::Sdk
+        (CallerKind::Sdk, vec![Scope::Full])
     } else {
-        CallerKind::Cli
+        (CallerKind::Cli, vec![Scope::Full])
     };
 
     let agent_id = header_string(&req, "x-ship-agent-id");
@@ -138,6 +180,7 @@ pub async fn auth_middleware(
         agent_id,
         workspace_id,
         session_id,
+        scopes,
     };
 
     req.extensions_mut().insert(auth);
@@ -234,10 +277,24 @@ mod tests {
             agent_id: Some("agent.test".into()),
             workspace_id: Some("ws-1".into()),
             session_id: Some("sess-1".into()),
+            scopes: vec![Scope::Full],
         };
         let ctx = auth.to_emit_context();
         assert_eq!(ctx.caller_kind, CallerKind::Mcp);
         assert_eq!(ctx.workspace_id, Some("ws-1".into()));
         assert_eq!(ctx.session_id, Some("sess-1".into()));
+    }
+
+    #[test]
+    fn has_scope_checks_granted() {
+        let auth = AuthContext {
+            caller_kind: CallerKind::Mcp,
+            agent_id: None,
+            workspace_id: None,
+            session_id: None,
+            scopes: vec![Scope::ReadWorkspace, Scope::LogProgress],
+        };
+        assert!(auth.has_scope(Scope::ReadWorkspace));
+        assert!(!auth.has_scope(Scope::CreateJobs));
     }
 }

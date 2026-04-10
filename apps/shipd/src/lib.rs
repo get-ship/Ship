@@ -6,6 +6,7 @@
 pub mod actor_api;
 pub mod auth;
 mod connections;
+pub mod scopes;
 mod handler;
 pub mod human_webhook;
 pub mod managers;
@@ -25,6 +26,9 @@ mod integration_tests;
 #[cfg(test)]
 #[path = "auth_tests.rs"]
 mod auth_tests;
+#[cfg(test)]
+#[path = "scope_tests.rs"]
+mod scope_tests;
 #[cfg(test)]
 #[path = "ship_runtime_tests.rs"]
 mod ship_runtime_tests;
@@ -83,7 +87,8 @@ pub async fn run_network(host: String, port: u16) -> Result<()> {
     let ct2 = ct.clone();
     tokio::spawn(async move { shutdown_signal().await; ct2.cancel(); });
 
-    let app = build_router(rt.clone(), token, ct.child_token());
+    let session_registry = rt.session_registry().clone();
+    let app = build_router(rt.clone(), token, session_registry, ct.child_token());
     let addr = format!("{host}:{port}");
     tracing::info!("shipd: listening on http://{addr}/mcp");
     let listener = tokio::net::TcpListener::bind(&addr).await.map_err(|e| anyhow!("bind {addr}: {e}"))?;
@@ -102,6 +107,7 @@ pub async fn run_network(host: String, port: u16) -> Result<()> {
 fn build_router(
     rt: Arc<ship_runtime::ShipRuntime>,
     token: Arc<String>,
+    session_registry: auth::SessionRegistry,
     mcp_ct: CancellationToken,
 ) -> Router {
     let kernel_factory = rt.kernel().clone();
@@ -132,12 +138,17 @@ fn build_router(
 
     // Unauthenticated routes (before auth middleware)
     let handshake_token = token.clone();
+    let register_registry = session_registry.clone();
     let public_routes = Router::new()
         .route("/auth/handshake", axum::routing::post(move |body: axum::Json<auth::HandshakeRequest>| {
             auth::handshake(body, handshake_token)
+        }))
+        .route("/api/session/register", axum::routing::post(move |body: axum::Json<auth::SessionRegisterRequest>| {
+            auth::session_register(register_registry, body)
         }));
 
     let auth_token = token;
+    let auth_registry = session_registry;
     let authenticated_routes = Router::new()
         .nest("/api", api_routes)
         .nest("/api", hook_routes)
@@ -148,7 +159,7 @@ fn build_router(
         .nest("/api", project_routes)
         .nest_service("/mcp", service)
         .layer(axum::middleware::from_fn(move |req, next| {
-            auth::auth_middleware(auth_token.clone(), req, next)
+            auth::auth_middleware(auth_token.clone(), auth_registry.clone(), req, next)
         }));
 
     Router::new()

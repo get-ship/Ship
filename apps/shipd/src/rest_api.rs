@@ -9,7 +9,7 @@ use runtime::events::{CallerKind, EventEnvelope};
 use serde::{Deserialize, Serialize};
 use std::sync::Arc;
 
-use crate::auth::AuthContext;
+use crate::auth::{AuthContext, Scope, require_scope};
 use crate::ship_runtime::ShipRuntime;
 
 /// Axum shared state — an Arc-wrapped ShipRuntime.
@@ -66,6 +66,9 @@ pub async fn mesh_register(
     Extension(auth): Extension<AuthContext>,
     Json(req): Json<MeshRegisterReq>,
 ) -> impl IntoResponse {
+    if let Err(e) = require_scope(&auth, Scope::MeshSend) {
+        return e;
+    }
     // MCP callers must register as their authenticated identity — no impersonation.
     if auth.caller_kind == CallerKind::Mcp {
         if let Some(ref bound_id) = auth.agent_id {
@@ -152,6 +155,9 @@ pub async fn mesh_send(
     Extension(auth): Extension<AuthContext>,
     Json(req): Json<MeshSendReq>,
 ) -> impl IntoResponse {
+    if let Err(e) = require_scope(&auth, Scope::MeshSend) {
+        return e;
+    }
     // Route through MeshService via mesh.send event type so it validates
     // the target and sets target_actor_id for directed delivery.
     let envelope = match EventEnvelope::new(
@@ -184,6 +190,9 @@ pub async fn mesh_broadcast(
     Extension(auth): Extension<AuthContext>,
     Json(req): Json<MeshBroadcastReq>,
 ) -> impl IntoResponse {
+    if let Err(e) = require_scope(&auth, Scope::MeshBroadcast) {
+        return e;
+    }
     let mut payload = serde_json::json!({ "from": &req.from, "body": req.body });
     if let Some(ref cap) = req.capability_filter {
         payload["capability_filter"] = serde_json::json!(cap);
