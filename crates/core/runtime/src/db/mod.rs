@@ -88,6 +88,11 @@ pub fn ensure_db() -> Result<()> {
             .await
     })?;
 
+    // Pre-launch: if the migration table has stale entries from before
+    // consolidation, drop it so sqlx re-runs from the single schema file.
+    // This is safe because there are no production databases to preserve.
+    reset_stale_migrations(&mut conn);
+
     // Run migrations. sqlx manages its own `_sqlx_migrations` table.
     block_on_migrate(async { sqlx::migrate!("./migrations").run(&mut conn).await })?;
 
@@ -119,8 +124,35 @@ pub fn ensure_db_at(ship_dir: &Path) -> Result<()> {
             .execute(&mut conn)
             .await
     })?;
+    reset_stale_migrations(&mut conn);
     block_on_migrate(async { sqlx::migrate!("./migrations").run(&mut conn).await })?;
     Ok(())
+}
+
+/// Pre-launch safety: if the DB has more migrations recorded than exist on
+/// disk (e.g. after consolidating 7 migrations into 1), drop the tracking
+/// table and let sqlx rebuild. The schema tables already exist so the single
+/// consolidated migration will be a no-op for CREATE IF NOT EXISTS.
+fn reset_stale_migrations(conn: &mut SqliteConnection) {
+    let disk_count = sqlx::migrate!("./migrations").migrations.len() as i64;
+    let db_count: Result<i64> = block_on(async {
+        sqlx::query_scalar("SELECT COUNT(*) FROM _sqlx_migrations")
+            .fetch_one(&mut *conn)
+            .await
+    });
+    if let Ok(count) = db_count {
+        if count > disk_count {
+            tracing::warn!(
+                "platform.db has {count} migrations but disk has {disk_count} — resetting migration table"
+            );
+            let _ = block_on(async {
+                sqlx::query("DROP TABLE IF EXISTS _sqlx_migrations")
+                    .execute(&mut *conn)
+                    .await
+            });
+        }
+    }
+    // If the table doesn't exist yet, that's fine — sqlx will create it.
 }
 
 /// Open a connection to a specific database path (no migration run).

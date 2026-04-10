@@ -41,7 +41,7 @@ async fn ship_runtime_creates_from_config() {
     let (_dir, meta) = temp_metadata();
     let config = RuntimeConfig {
         host: "127.0.0.1".to_string(),
-        port: 7825,
+        port: 9315,
         auth_mode: AuthMode::Local,
     };
     let result = ShipRuntime::new(meta, config).await;
@@ -81,7 +81,7 @@ async fn ship_runtime_exposes_config() {
 fn runtime_config_from_defaults() {
     let config = RuntimeConfig::default();
     assert_eq!(config.host, "127.0.0.1");
-    assert_eq!(config.port, 7825);
+    assert_eq!(config.port, 9315);
     assert!(
         matches!(config.auth_mode, AuthMode::Local),
         "default auth_mode should be Local"
