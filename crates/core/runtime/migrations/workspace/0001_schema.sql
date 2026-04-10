@@ -1,7 +1,5 @@
--- v0.2.0 working schema -- accumulates changes during the release cycle.
--- Do not squash until v0.2.0 is released.
-
--- Event store -- typed, append-only, correlation/causation-chained
+-- Per-workspace DB schema.
+-- Each workspace gets its own events.db with this schema.
 
 CREATE TABLE IF NOT EXISTS events (
   id               TEXT PRIMARY KEY NOT NULL,
@@ -16,6 +14,7 @@ CREATE TABLE IF NOT EXISTS events (
   actor_id         TEXT,
   parent_actor_id  TEXT,
   elevated         INTEGER NOT NULL DEFAULT 0,
+  target_actor_id  TEXT,
   created_at       TEXT NOT NULL DEFAULT (datetime('now'))
 );
 
@@ -29,9 +28,6 @@ BEFORE UPDATE ON events
 BEGIN
   SELECT RAISE(FAIL, 'events table is immutable -- use append only');
 END;
-
--- Actor operational table (v0.2.0 kernel)
--- Status values: created | active | sleeping | stopped | crashed
 
 CREATE TABLE IF NOT EXISTS actors (
   id               TEXT PRIMARY KEY NOT NULL,
@@ -48,9 +44,27 @@ CREATE TABLE IF NOT EXISTS actors (
 CREATE INDEX IF NOT EXISTS idx_actors_workspace ON actors(workspace_id);
 CREATE INDEX IF NOT EXISTS idx_actors_status    ON actors(status);
 
--- Add job correlation and agent metadata columns to events (v0.2.0 consolidation).
-ALTER TABLE events ADD COLUMN job_id TEXT;
-ALTER TABLE events ADD COLUMN agent_id TEXT;
-ALTER TABLE events ADD COLUMN agent_version TEXT;
+CREATE TABLE IF NOT EXISTS workspace_session (
+  id                          TEXT PRIMARY KEY,
+  workspace_id                TEXT NOT NULL,
+  workspace_branch            TEXT NOT NULL,
+  status                      TEXT NOT NULL DEFAULT 'active',
+  started_at                  TEXT NOT NULL,
+  ended_at                    TEXT,
+  agent_id                    TEXT,
+  preset_id                   TEXT,
+  primary_provider            TEXT,
+  goal                        TEXT,
+  summary                     TEXT,
+  updated_workspace_ids_json  TEXT NOT NULL DEFAULT '[]',
+  compiled_at                 TEXT,
+  compile_error               TEXT,
+  config_generation_at_start  INTEGER,
+  created_at                  TEXT NOT NULL,
+  updated_at                  TEXT NOT NULL
+);
 
-CREATE INDEX IF NOT EXISTS idx_events_job ON events(job_id);
+CREATE INDEX IF NOT EXISTS workspace_session_workspace_idx
+  ON workspace_session(workspace_id, started_at DESC);
+CREATE INDEX IF NOT EXISTS workspace_session_status_idx
+  ON workspace_session(status, started_at DESC);
