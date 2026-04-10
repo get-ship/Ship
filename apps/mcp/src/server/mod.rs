@@ -9,6 +9,7 @@ use rmcp::{
     handler::server::{router::tool::ToolRouter, wrapper::Parameters},
     tool, tool_router,
 };
+use std::sync::atomic::AtomicU64;
 use std::path::PathBuf;
 
 use crate::requests::*;
@@ -47,6 +48,10 @@ pub struct ShipServer {
     pub mcp_provider: std::sync::Arc<tokio::sync::Mutex<Option<String>>>,
     /// Active session ID for this connection (set by auto_session_start).
     pub session_id: std::sync::Arc<tokio::sync::Mutex<Option<String>>>,
+    /// Epoch millis of last tool call — used for heartbeat tracking.
+    last_activity: std::sync::Arc<AtomicU64>,
+    /// Tool call counter for heartbeat cadence (emit every N calls).
+    heartbeat_counter: std::sync::Arc<AtomicU64>,
 }
 
 impl std::fmt::Debug for ShipServer {
@@ -92,6 +97,8 @@ impl ShipServer {
             actor_store: std::sync::Arc::new(tokio::sync::Mutex::new(None)),
             mcp_provider: std::sync::Arc::new(tokio::sync::Mutex::new(None)),
             session_id: std::sync::Arc::new(tokio::sync::Mutex::new(None)),
+            last_activity: std::sync::Arc::new(AtomicU64::new(0)),
+            heartbeat_counter: std::sync::Arc::new(AtomicU64::new(0)),
         }
     }
 

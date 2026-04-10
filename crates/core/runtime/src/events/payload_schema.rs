@@ -67,6 +67,7 @@ fn schema_for_event_type(
         "session.drain_completed" => Some(check::<SessionDrainCompleted>),
         "session.drain_aborted" => Some(check::<SessionDrainAborted>),
         "session.tool_count_incremented" => Some(check::<SessionToolCountIncremented>),
+        "session.heartbeat" => Some(check::<SessionHeartbeat>),
         // actor
         "actor.created" => Some(check::<ActorCreated>),
         "actor.woke" => Some(check::<ActorWoke>),

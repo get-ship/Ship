@@ -10,6 +10,7 @@ use rmcp::{
 };
 use runtime::get_active_agent;
 use std::path::Path;
+use std::sync::atomic::Ordering;
 
 use crate::resource_resolver;
 use crate::resources;
@@ -96,9 +97,20 @@ impl ServerHandler for ShipServer {
         {
             return Ok(CallToolResult::error(vec![Content::text(message)]));
         }
-        // Increment tool call count for session analytics.
+        // Track activity and increment tool call count for session analytics.
         if let Some(sid) = self.session_id.lock().await.as_deref() {
+            let now_ms = std::time::SystemTime::now()
+                .duration_since(std::time::UNIX_EPOCH)
+                .unwrap_or_default()
+                .as_millis() as u64;
+            self.last_activity.store(now_ms, Ordering::Relaxed);
             let _ = runtime::db::session_drain::increment_tool_count(sid);
+
+            // Emit heartbeat every 10 tool calls.
+            let count = self.heartbeat_counter.fetch_add(1, Ordering::Relaxed) + 1;
+            if count % 10 == 0 {
+                let _ = runtime::db::session_drain::update_heartbeat(sid);
+            }
         }
         let result = self
             .tool_router

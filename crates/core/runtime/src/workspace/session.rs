@@ -20,11 +20,18 @@ use super::types_session::*;
 // ---- Hydration helpers -----------------------------------------------------
 
 pub(super) fn hydrate_workspace_session(row: WorkspaceSessionDb) -> WorkspaceSession {
+    let last_activity_at = parse_datetime_opt(row.last_activity_at);
+    let status = row.status.parse().unwrap_or(WorkspaceSessionStatus::Active);
+    let liveness = if status == WorkspaceSessionStatus::Active {
+        Some(SessionLiveness::from_activity(last_activity_at.as_ref()))
+    } else {
+        None
+    };
     WorkspaceSession {
         id: row.id,
         workspace_id: row.workspace_id,
         workspace_branch: row.workspace_branch,
-        status: row.status.parse().unwrap_or(WorkspaceSessionStatus::Active),
+        status,
         started_at: parse_datetime(&row.started_at),
         ended_at: parse_datetime_opt(row.ended_at),
         agent_id: row.agent_id,
@@ -36,6 +43,8 @@ pub(super) fn hydrate_workspace_session(row: WorkspaceSessionDb) -> WorkspaceSes
         compiled_at: parse_datetime_opt(row.compiled_at),
         compile_error: row.compile_error,
         config_generation_at_start: row.config_generation_at_start,
+        last_activity_at,
+        liveness,
         stale_context: false,
         created_at: parse_datetime(&row.created_at),
         updated_at: parse_datetime(&row.updated_at),

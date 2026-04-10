@@ -70,6 +70,8 @@ pub async fn run_network(host: String, port: u16) -> Result<()> {
     if let Some(dh) = job_mgr.dispatch_handle {
         rt.set_dispatch_handle(dh);
     }
+    // Start the abandoned session scanner.
+    rt.session_scanner().await;
     spawn_human_gateway(rt.kernel()).await;
 
     let token = Arc::new(auth::generate_token());
