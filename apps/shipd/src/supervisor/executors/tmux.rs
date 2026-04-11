@@ -42,6 +42,10 @@ impl JobExecutor for TmuxExecutor {
         let job_id = ctx.job_id.clone();
         let exit_tx = ctx.exit_tx.clone();
         std::thread::spawn(move || {
+            // Dismiss Claude's development channels confirmation if present.
+            // Poll for up to 15 seconds, matching dispatch.sh's auto_kickstart_tmux.
+            dismiss_channels_prompt(&session, 15);
+
             if wait_for_ready(&session, &ready_pat, 30) {
                 let _ = std::process::Command::new("tmux")
                     .args(["send-keys", "-t", &session, &autostart, "Enter"])
@@ -132,6 +136,32 @@ impl JobExecutor for TmuxExecutor {
             return Err(anyhow::anyhow!("tmux send-keys returned non-zero"));
         }
         Ok(())
+    }
+}
+
+/// Dismiss Claude's development channels confirmation prompt if present.
+/// Polls the tmux pane for the confirmation text and sends Enter to accept.
+/// Mirrors dispatch.sh's auto_kickstart_tmux behavior.
+fn dismiss_channels_prompt(session: &str, timeout_secs: u64) {
+    for _ in 0..timeout_secs {
+        std::thread::sleep(std::time::Duration::from_secs(1));
+        let output = std::process::Command::new("tmux")
+            .args(["capture-pane", "-t", session, "-p"])
+            .output();
+        if let Ok(out) = output {
+            let text = String::from_utf8_lossy(&out.stdout);
+            if text.contains("I am using this for local development") {
+                tracing::info!(session, "dismissing channels confirmation prompt");
+                let _ = std::process::Command::new("tmux")
+                    .args(["send-keys", "-t", session, "", "Enter"])
+                    .status();
+                return;
+            }
+            // If we see the real prompt already, no confirmation was needed.
+            if text.contains("bypass permissions") {
+                return;
+            }
+        }
     }
 }
 
