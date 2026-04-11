@@ -41,13 +41,24 @@ pub fn open_workspace_db(ship_dir: &Path, workspace_id: &str) -> Result<SqliteCo
     block_on(async { sqlx::query("PRAGMA journal_mode = WAL").execute(&mut conn).await })?;
     block_on(async { sqlx::query("PRAGMA foreign_keys = ON").execute(&mut conn).await })?;
 
-    // Pre-launch: always reset migration tracking. CREATE IF NOT EXISTS
-    // makes re-running safe. Eliminates all checksum/count mismatches.
-    let _ = block_on(async {
-        sqlx::query("DROP TABLE IF EXISTS _sqlx_migrations")
-            .execute(&mut conn)
+    // Pre-launch: drop all tables and re-create from schema.
+    // Same approach as platform.db — no production data to preserve.
+    {
+        let tables: Vec<String> = block_on(async {
+            sqlx::query_scalar::<_, String>(
+                "SELECT name FROM sqlite_master WHERE type='table' AND name NOT LIKE 'sqlite_%'"
+            )
+            .fetch_all(&mut conn)
             .await
-    });
+        }).unwrap_or_default();
+        for table in &tables {
+            let _ = block_on(async {
+                sqlx::query(&format!("DROP TABLE IF EXISTS \"{}\"", table))
+                    .execute(&mut conn)
+                    .await
+            });
+        }
+    }
 
     let migrate_result = if let Ok(handle) = tokio::runtime::Handle::try_current() {
         tokio::task::block_in_place(|| {

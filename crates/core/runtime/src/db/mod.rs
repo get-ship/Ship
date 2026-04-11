@@ -129,16 +129,28 @@ pub fn ensure_db_at(ship_dir: &Path) -> Result<()> {
     Ok(())
 }
 
-/// Pre-launch: always drop the migration tracking table so sqlx re-applies
-/// from scratch. There are no production databases — the schema uses
-/// CREATE IF NOT EXISTS so re-running is safe. This eliminates every possible
-/// migration mismatch (count, checksum, renamed files).
+/// Pre-launch: drop ALL tables and re-create from the schema file.
+/// There are no production databases — the DB is fully disposable.
+/// This is the only way to handle schema changes (new columns, renamed
+/// tables) without real migrations. When Ship has users with data,
+/// this function gets deleted and replaced with proper migrations.
 fn reset_stale_migrations(conn: &mut SqliteConnection) {
-    let _ = block_on(async {
-        sqlx::query("DROP TABLE IF EXISTS _sqlx_migrations")
-            .execute(&mut *conn)
-            .await
-    });
+    // Get all user tables.
+    let tables: Vec<String> = block_on(async {
+        sqlx::query_scalar::<_, String>(
+            "SELECT name FROM sqlite_master WHERE type='table' AND name NOT LIKE 'sqlite_%'"
+        )
+        .fetch_all(&mut *conn)
+        .await
+    }).unwrap_or_default();
+    // Drop them all.
+    for table in &tables {
+        let _ = block_on(async {
+            sqlx::query(&format!("DROP TABLE IF EXISTS \"{}\"", table))
+                .execute(&mut *conn)
+                .await
+        });
+    }
 }
 
 /// Open a connection to a specific database path (no migration run).
