@@ -45,6 +45,8 @@ export interface CreateJobInput {
   spec_path: string
   depends_on: string[] | null
   pipeline?: string
+  provider?: string
+  model?: string
 }
 
 export interface CreateWorkspaceInput {

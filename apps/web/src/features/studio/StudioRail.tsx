@@ -1,7 +1,7 @@
 import { useState, useEffect } from 'react'
 import { useNavigate, useRouterState } from '@tanstack/react-router'
 import {
-  Layers, Users, Zap, LayoutList, GitBranch, GitMerge,
+  Layers, Users, Zap, GitBranch, Workflow,
   Search, Settings, MessageSquare, Sun, Moon,
   type LucideIcon,
 } from 'lucide-react'
@@ -18,8 +18,7 @@ const PINNED_VIEWS: { to: string; icon: LucideIcon; label: string }[] = [
   { to: '/studio/git', icon: GitBranch, label: 'Git' },
   { to: '/studio/agents', icon: Users, label: 'Agents' },
   { to: '/studio/skills', icon: Zap, label: 'Skills' },
-  { to: '/studio/jobs', icon: LayoutList, label: 'Jobs' },
-  { to: '/studio/pipelines', icon: GitMerge, label: 'Pipelines' },
+  { to: '/studio/workflows', icon: Workflow, label: 'Workflows' },
 ]
 
 function useTheme() {
@@ -67,7 +66,7 @@ export function StudioRail() {
         {PINNED_VIEWS.map((item) => {
           const isActive = pathname.startsWith(item.to)
           const Icon = item.icon
-          const isJobs = item.to === '/studio/jobs'
+          const isWorkflows = item.to === '/studio/workflows'
           return (
             <Tooltip key={item.to}>
               <TooltipTrigger asChild>
@@ -80,7 +79,7 @@ export function StudioRail() {
                   >
                     <Icon className="size-4" strokeWidth={isActive ? 2.2 : 1.8} />
                   </Button>
-                  {isJobs && runningJobs > 0 && (
+                  {isWorkflows && runningJobs > 0 && (
                     <span className="absolute -top-0.5 -right-0.5 flex size-3.5 items-center justify-center rounded-full bg-sky-500 text-[8px] font-bold text-white leading-none">
                       {runningJobs > 9 ? '9+' : runningJobs}
                     </span>

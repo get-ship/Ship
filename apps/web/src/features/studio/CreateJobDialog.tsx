@@ -123,6 +123,8 @@ export function CreateJobDialog({ open, onOpenChange }: CreateJobDialogProps) {
   const [specPath, setSpecPath] = useState('.artifacts/job-spec.md')
   const [dependsOn, setDependsOn] = useState<string[]>([])
   const [pipeline, setPipeline] = useState('')
+  const [provider, setProvider] = useState('')
+  const [model, setModel] = useState('')
   const [branchEdited, setBranchEdited] = useState(false)
 
   useEffect(() => {
@@ -148,6 +150,8 @@ export function CreateJobDialog({ open, onOpenChange }: CreateJobDialogProps) {
         spec_path: specPath.trim() || '.artifacts/job-spec.md',
         depends_on: dependsOn.length > 0 ? dependsOn : null,
         pipeline: pipeline || undefined,
+        provider: provider.trim() || undefined,
+        model: model.trim() || undefined,
       },
       {
         onSuccess: () => {
@@ -169,6 +173,8 @@ export function CreateJobDialog({ open, onOpenChange }: CreateJobDialogProps) {
     setSpecPath('.artifacts/job-spec.md')
     setDependsOn([])
     setPipeline('')
+    setProvider('')
+    setModel('')
     setBranchEdited(false)
   }
 
@@ -216,6 +222,25 @@ export function CreateJobDialog({ open, onOpenChange }: CreateJobDialogProps) {
                 <option key={name} value={name}>{name}</option>
               ))}
             </select>
+          </div>
+
+          <div className="grid grid-cols-2 gap-3">
+            <div>
+              <label className="text-xs font-medium text-foreground mb-1.5 block">Provider</label>
+              <Input
+                value={provider}
+                onChange={(e) => setProvider(e.target.value)}
+                placeholder="e.g. anthropic, openai"
+              />
+            </div>
+            <div>
+              <label className="text-xs font-medium text-foreground mb-1.5 block">Model</label>
+              <Input
+                value={model}
+                onChange={(e) => setModel(e.target.value)}
+                placeholder="e.g. claude-sonnet-4-6"
+              />
+            </div>
           </div>
 
           <div>

@@ -1,5 +1,5 @@
 import { useNavigate } from '@tanstack/react-router'
-import { Layers, Users, Zap, Briefcase, GitMerge, Settings, FolderTree } from 'lucide-react'
+import { Layers, Users, Zap, Briefcase, Settings, FolderTree } from 'lucide-react'
 import {
   CommandDialog, CommandInput, CommandList, CommandEmpty,
   CommandGroup, CommandItem, CommandShortcut,
@@ -43,13 +43,9 @@ export function CommandPalette() {
             <Zap className="size-4" />
             <span>Skills</span>
           </CommandItem>
-          <CommandItem onSelect={() => go('/studio/jobs')}>
+          <CommandItem onSelect={() => go('/studio/workflows')}>
             <Briefcase className="size-4" />
-            <span>Jobs</span>
-          </CommandItem>
-          <CommandItem onSelect={() => go('/studio/pipelines')}>
-            <GitMerge className="size-4" />
-            <span>Pipelines</span>
+            <span>Workflows</span>
           </CommandItem>
           <CommandItem onSelect={() => go('/studio/settings')}>
             <Settings className="size-4" />
