@@ -195,7 +195,7 @@ pub fn inject_ship_lifecycle_hooks(
 
     for (trigger, target) in lifecycle {
         let hook_obj = if has_daemon {
-            serde_json::json!({ "type": "url", "url": target })
+            serde_json::json!({ "type": "http", "url": target })
         } else {
             serde_json::json!({ "type": "command", "command": target })
         };
