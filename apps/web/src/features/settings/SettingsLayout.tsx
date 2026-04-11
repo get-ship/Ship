@@ -1,5 +1,5 @@
-import type { ReactNode } from 'react'
-import { X } from 'lucide-react'
+import { type ReactNode, useState, useRef } from 'react'
+import { X, ChevronDown } from 'lucide-react'
 
 // ── Section wrapper ──────────────────────────────────────────────────────────
 
@@ -91,6 +91,78 @@ export function SettingsSelect({
         </option>
       ))}
     </select>
+  )
+}
+
+// ── Text input (save on blur / Enter) ───────────────────────────────────────
+
+export function SettingsInput({
+  value,
+  onSave,
+  placeholder,
+}: {
+  value: string
+  onSave: (value: string) => void
+  placeholder?: string
+}) {
+  const [draft, setDraft] = useState(value)
+  const ref = useRef<HTMLInputElement>(null)
+
+  function commit() {
+    const trimmed = draft.trim()
+    if (trimmed !== value) onSave(trimmed)
+  }
+
+  return (
+    <input
+      ref={ref}
+      value={draft}
+      onChange={(e) => setDraft(e.target.value)}
+      onBlur={commit}
+      onKeyDown={(e) => {
+        if (e.key === 'Enter') {
+          e.preventDefault()
+          commit()
+          ref.current?.blur()
+        }
+      }}
+      placeholder={placeholder}
+      className="w-40 rounded-md border border-border/60 bg-muted/30 px-2 py-1 text-[11px] text-foreground outline-none focus:border-ring font-mono"
+    />
+  )
+}
+
+// ── Collapsible section ─────────────────────────────────────────────────────
+
+export function CollapsibleSection({
+  icon,
+  title,
+  defaultOpen = false,
+  children,
+}: {
+  icon: ReactNode
+  title: string
+  defaultOpen?: boolean
+  children: ReactNode
+}) {
+  const [open, setOpen] = useState(defaultOpen)
+
+  return (
+    <div className="mb-4 overflow-hidden rounded-xl border border-border/60 bg-card">
+      <button
+        onClick={() => setOpen((v) => !v)}
+        className="flex w-full items-center justify-between px-4 py-3 border-b border-border/40"
+      >
+        <div className="flex items-center gap-2 text-[13px] font-semibold text-muted-foreground">
+          <span className="text-muted-foreground">{icon}</span>
+          {title}
+        </div>
+        <ChevronDown
+          className={`size-4 text-muted-foreground transition-transform ${open ? 'rotate-180' : ''}`}
+        />
+      </button>
+      {open && <div className="px-4 py-3">{children}</div>}
+    </div>
   )
 }
 

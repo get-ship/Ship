@@ -1,6 +1,8 @@
 import { createFileRoute } from '@tanstack/react-router'
 import { DaemonGuard } from '#/features/studio/DaemonGuard'
-import { CLIConnectionSection, IntegrationsSection, AboutSection } from '#/features/settings/sections'
+import {
+  ProvidersSection, TerminalSection, AdvancedSection, AboutSection,
+} from '#/features/settings/sections'
 import { SettingsSkeleton } from '#/features/studio/StudioSkeleton'
 
 export const Route = createFileRoute('/studio/settings')({
@@ -17,8 +19,9 @@ function SettingsPage() {
         <p className="text-[13px] text-muted-foreground">CLI and studio configuration</p>
       </div>
 
-      <CLIConnectionSection />
-      <IntegrationsSection />
+      <ProvidersSection />
+      <TerminalSection />
+      <AdvancedSection />
       <AboutSection />
     </div>
   )
