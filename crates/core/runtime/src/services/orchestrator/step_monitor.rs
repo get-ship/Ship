@@ -135,10 +135,10 @@ async fn emit_step_observed(
         }
     };
 
-    if let Ok(store) = SqliteEventStore::new() {
-        if let Err(e) = EventStore::append(&store, &envelope) {
-            tracing::warn!(slug, "step-monitor: failed to persist event: {e}");
-        }
+    if let Ok(store) = SqliteEventStore::new()
+        && let Err(e) = EventStore::append(&store, &envelope)
+    {
+        tracing::warn!(slug, "step-monitor: failed to persist event: {e}");
     }
 
     let ctx = EmitContext {

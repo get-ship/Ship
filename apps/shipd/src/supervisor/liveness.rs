@@ -191,10 +191,10 @@ async fn emit_job_event(
         }
     };
 
-    if let Ok(store) = SqliteEventStore::new() {
-        if let Err(e) = EventStore::append(&store, &envelope) {
-            tracing::warn!(slug, event_type, "liveness: failed to persist event: {e}");
-        }
+    if let Ok(store) = SqliteEventStore::new()
+        && let Err(e) = EventStore::append(&store, &envelope)
+    {
+        tracing::warn!(slug, event_type, "liveness: failed to persist event: {e}");
     }
 
     let ctx = EmitContext {

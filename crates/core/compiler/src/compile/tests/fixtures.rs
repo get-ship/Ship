@@ -103,5 +103,7 @@ pub fn resolved(servers: Vec<McpServerConfig>) -> ResolvedConfig {
         claude_auto_updates: None,
         claude_include_co_authored_by: None,
         studio_mcp_url: None,
+        daemon_port: None,
+        daemon_token: None,
     }
 }

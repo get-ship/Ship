@@ -263,7 +263,7 @@ impl ProviderDescriptor {
             },
             "codex" => ProviderFeatureFlags {
                 supports_mcp: true,
-                supports_hooks: false,
+                supports_hooks: true,
                 supports_tool_permissions: false,
                 supports_memory: true,
             },
@@ -275,7 +275,7 @@ impl ProviderDescriptor {
             },
             "opencode" => ProviderFeatureFlags {
                 supports_mcp: true,
-                supports_hooks: false, // Not documented in OpenCode config reference
+                supports_hooks: true,
                 supports_tool_permissions: true,
                 supports_memory: true,
             },

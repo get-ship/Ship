@@ -297,14 +297,14 @@ pub async fn create_job(
     }
     // Write inline spec content to the project root so the isolation strategy
     // can copy it into the worktree during dispatch.
-    if let Some(ref content) = req.spec_content {
-        if let Ok(project_dir) = runtime::project::get_project_dir(None) {
-            let spec_dest = project_dir.parent().unwrap_or(&project_dir).join(&req.spec_path);
-            if let Some(parent) = spec_dest.parent() {
-                let _ = std::fs::create_dir_all(parent);
-            }
-            let _ = std::fs::write(&spec_dest, content);
+    if let Some(ref content) = req.spec_content
+        && let Ok(project_dir) = runtime::project::get_project_dir(None)
+    {
+        let spec_dest = project_dir.parent().unwrap_or(&project_dir).join(&req.spec_path);
+        if let Some(parent) = spec_dest.parent() {
+            let _ = std::fs::create_dir_all(parent);
         }
+        let _ = std::fs::write(&spec_dest, content);
     }
 
     let job_id = runtime::gen_ulid();

@@ -14,6 +14,7 @@ use crate::events::types::event_types;
 use crate::events::EventEnvelope;
 
 /// Projection that maintains the actors table from actor.* events.
+#[derive(Default)]
 pub struct ActorProjection;
 
 impl ActorProjection {

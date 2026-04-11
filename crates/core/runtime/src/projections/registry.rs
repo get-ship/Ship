@@ -54,15 +54,15 @@ impl EventBus {
     /// the event is already persisted.
     pub fn dispatch(&self, event: &EventEnvelope, conn: &mut SqliteConnection) {
         for proj in &self.projections {
-            if proj.event_types().contains(&event.event_type.as_str()) {
-                if let Err(e) = proj.apply(event, conn) {
-                    eprintln!(
-                        "[projection:{}] handler failed for {}: {}",
-                        proj.name(),
-                        event.event_type,
-                        e,
-                    );
-                }
+            if proj.event_types().contains(&event.event_type.as_str())
+                && let Err(e) = proj.apply(event, conn)
+            {
+                eprintln!(
+                    "[projection:{}] handler failed for {}: {}",
+                    proj.name(),
+                    event.event_type,
+                    e,
+                );
             }
         }
     }

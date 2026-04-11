@@ -8,6 +8,7 @@ pub mod auth;
 mod connections;
 pub mod scopes;
 mod handler;
+pub mod hooks_api;
 pub mod human_webhook;
 pub mod managers;
 pub mod openapi;
@@ -16,6 +17,7 @@ pub mod pty_handler;
 pub mod rest_api;
 pub mod runtime_api;
 mod server;
+pub mod settings_api;
 pub mod ship_runtime;
 pub mod supervisor;
 
@@ -128,10 +130,15 @@ fn build_router(
         .route("/webhook/telegram", axum::routing::post(human_webhook::telegram_webhook))
         .with_state(rt.kernel().clone());
     let hook_routes = Router::new()
-        .route("/hooks/checkout", axum::routing::post(rest_api::hooks_checkout));
+        .route("/hooks/checkout", axum::routing::post(rest_api::hooks_checkout))
+        .route("/hooks/session-start", axum::routing::post(hooks_api::hook_session_start))
+        .route("/hooks/before-tool", axum::routing::post(hooks_api::hook_before_tool))
+        .route("/hooks/after-tool", axum::routing::post(hooks_api::hook_after_tool))
+        .route("/hooks/session-end", axum::routing::post(hooks_api::hook_session_end));
     let api_routes = build_api_routes(st.clone());
     let runtime_routes = build_runtime_routes(st.clone());
     let supervisor_routes = build_supervisor_routes(st.clone());
+    let settings_routes = build_settings_routes(st.clone());
     let project_routes = build_project_routes(st);
     let capabilities_routes = Router::new()
         .route("/capabilities", axum::routing::get(rest_api::capabilities));
@@ -156,6 +163,7 @@ fn build_router(
         .nest("/api", capabilities_routes)
         .nest("/api/runtime", runtime_routes)
         .nest("/api", supervisor_routes)
+        .nest("/api", settings_routes)
         .nest("/api", project_routes)
         .nest_service("/mcp", service)
         .layer(axum::middleware::from_fn(move |req, next| {
@@ -198,6 +206,14 @@ fn build_runtime_routes(st: rest_api::ApiState) -> Router {
         .route("/events", axum::routing::get(runtime_api::event_stream))
         .route("/rebuild-projections", axum::routing::post(runtime_api::rebuild_projections))
         .route("/workspaces/{id}/pty", axum::routing::get(pty_handler::workspace_pty))
+        .with_state(st)
+}
+
+fn build_settings_routes(st: rest_api::ApiState) -> Router {
+    Router::new()
+        .route("/settings", axum::routing::get(settings_api::list_settings).put(settings_api::update_setting))
+        .route("/settings/{key}", axum::routing::get(settings_api::get_setting))
+        .route("/providers", axum::routing::get(settings_api::list_providers))
         .with_state(st)
 }
 

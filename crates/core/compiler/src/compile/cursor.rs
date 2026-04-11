@@ -59,6 +59,29 @@ pub(super) fn build_cursor_hooks_patch(hooks: &[HookConfig]) -> Option<Json> {
     Some(Json::Object(obj))
 }
 
+/// Inject Ship lifecycle hooks into Cursor's hooks.json patch.
+///
+/// Cursor always gets command hooks (via `ship hook`).
+pub(super) fn inject_ship_lifecycle_hooks(patch: &mut Json) {
+    let lifecycle = [
+        ("beforeMCPExecution", "ship hook before-tool"),
+        ("beforeShellExecution", "ship hook before-tool"),
+        ("afterMCPExecution", "ship hook after-tool"),
+        ("afterShellExecution", "ship hook after-tool"),
+        ("sessionEnd", "ship hook session-end"),
+    ];
+
+    let obj = patch.as_object_mut().expect("cursor hooks patch must be an object");
+    for (event, command) in lifecycle {
+        let entry = serde_json::json!({ "command": command });
+        if let Some(arr) = obj.get_mut(event).and_then(|v| v.as_array_mut()) {
+            arr.push(entry);
+        } else {
+            obj.insert(event.to_string(), serde_json::json!([entry]));
+        }
+    }
+}
+
 // ─── Cursor permissions ───────────────────────────────────────────────────────
 
 /// Translate a pattern to Cursor's typed permission format.

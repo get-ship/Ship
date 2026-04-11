@@ -5,7 +5,7 @@ use std::cell::RefCell;
 use std::time::SystemTime;
 
 thread_local! {
-    static ULID_GEN: RefCell<ulid::Generator> = RefCell::new(ulid::Generator::new());
+    static ULID_GEN: RefCell<ulid::Generator> = const { RefCell::new(ulid::Generator::new()) };
 }
 
 fn monotonic_ulid() -> String {

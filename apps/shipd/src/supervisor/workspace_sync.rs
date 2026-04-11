@@ -44,7 +44,7 @@ pub async fn subscribe_workspace_events(
     });
 }
 
-fn handle_workspace_event(ship_dir: &PathBuf, envelope: &EventEnvelope) {
+fn handle_workspace_event(ship_dir: &std::path::Path, envelope: &EventEnvelope) {
     match envelope.event_type.as_str() {
         "workspace.activated" => {
             let branch = &envelope.entity_id;

@@ -234,6 +234,11 @@ pub(super) fn build_opencode_config_patch(resolved: &ResolvedConfig) -> Option<J
         root["permission"] = perms;
     }
 
+    // Ship hooks — reference the JS plugin for lifecycle integration.
+    root["hooks"] = serde_json::json!({
+        "file": "contrib/opencode-ship-hooks.js"
+    });
+
     // settings_extra — merged verbatim last (provider_settings.opencode passthrough).
     if let Some(extra) = &resolved.opencode_settings_extra
         && let Some(obj) = extra.as_object()

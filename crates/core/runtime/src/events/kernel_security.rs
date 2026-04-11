@@ -153,16 +153,15 @@ impl KernelRouter {
             return Ok(());
         }
 
-        if let Some(ref actor_id) = event.actor_id {
-            if let Some(meta) = self.actor_meta.get(actor_id) {
-                if !meta.permissions.can_emit(&event.event_type) {
-                    return Err(anyhow!(
-                        "actor '{}' not permitted to emit '{}'",
-                        actor_id,
-                        event.event_type
-                    ));
-                }
-            }
+        if let Some(ref actor_id) = event.actor_id
+            && let Some(meta) = self.actor_meta.get(actor_id)
+            && !meta.permissions.can_emit(&event.event_type)
+        {
+            return Err(anyhow!(
+                "actor '{}' not permitted to emit '{}'",
+                actor_id,
+                event.event_type
+            ));
         }
 
         Ok(())
@@ -170,10 +169,8 @@ impl KernelRouter {
 
     /// Should this actor receive this event?
     pub(crate) fn should_deliver(&self, event: &EventEnvelope, actor_id: &str) -> bool {
-        match self.event_matches_actor_scope(event, actor_id) {
-            Some(matches) => matches,
-            None => true, // Legacy actor — namespace match already done by caller
-        }
+        self.event_matches_actor_scope(event, actor_id)
+            .unwrap_or(true) // Legacy actor — namespace match already done by caller
     }
 
     /// Deliver event to matching subscribers respecting scope and directed delivery.
@@ -184,26 +181,26 @@ impl KernelRouter {
         let mut full_actors: Vec<String> = Vec::new();
 
         if let Some(ref target) = event.target_actor_id {
-            if let Some(tx) = self.mailboxes.get(target) {
-                if self.should_deliver(event, target) {
-                    match tx.try_send(event.clone()) {
-                        Ok(()) => {
-                            tracing::debug!(
-                                actor_id = target,
-                                event_type = %event.event_type,
-                                "kernel-router: targeted event delivered"
-                            );
-                        }
-                        Err(mpsc::error::TrySendError::Full(_)) => {
-                            full_actors.push(target.clone());
-                        }
-                        Err(mpsc::error::TrySendError::Closed(_)) => {
-                            tracing::warn!(
-                                actor_id = target,
-                                event_type = %event.event_type,
-                                "kernel-router: targeted delivery failed, mailbox closed"
-                            );
-                        }
+            if let Some(tx) = self.mailboxes.get(target)
+                && self.should_deliver(event, target)
+            {
+                match tx.try_send(event.clone()) {
+                    Ok(()) => {
+                        tracing::debug!(
+                            actor_id = target,
+                            event_type = %event.event_type,
+                            "kernel-router: targeted event delivered"
+                        );
+                    }
+                    Err(mpsc::error::TrySendError::Full(_)) => {
+                        full_actors.push(target.clone());
+                    }
+                    Err(mpsc::error::TrySendError::Closed(_)) => {
+                        tracing::warn!(
+                            actor_id = target,
+                            event_type = %event.event_type,
+                            "kernel-router: targeted delivery failed, mailbox closed"
+                        );
                     }
                 }
             }
@@ -221,26 +218,26 @@ impl KernelRouter {
         for (ns, actor_ids) in &self.subscriptions {
             if event.event_type.starts_with(ns.as_str()) {
                 for actor_id in actor_ids {
-                    if self.should_deliver(event, actor_id) {
-                        if let Some(tx) = self.mailboxes.get(actor_id) {
-                            match tx.try_send(event.clone()) {
-                                Ok(()) => {
-                                    tracing::debug!(
-                                        actor_id,
-                                        event_type = %event.event_type,
-                                        "kernel-router: event delivered"
-                                    );
-                                }
-                                Err(mpsc::error::TrySendError::Full(_)) => {
-                                    full_actors.push(actor_id.clone());
-                                }
-                                Err(mpsc::error::TrySendError::Closed(_)) => {
-                                    tracing::warn!(
-                                        actor_id,
-                                        event_type = %event.event_type,
-                                        "kernel-router: delivery failed, mailbox closed"
-                                    );
-                                }
+                    if self.should_deliver(event, actor_id)
+                        && let Some(tx) = self.mailboxes.get(actor_id)
+                    {
+                        match tx.try_send(event.clone()) {
+                            Ok(()) => {
+                                tracing::debug!(
+                                    actor_id,
+                                    event_type = %event.event_type,
+                                    "kernel-router: event delivered"
+                                );
+                            }
+                            Err(mpsc::error::TrySendError::Full(_)) => {
+                                full_actors.push(actor_id.clone());
+                            }
+                            Err(mpsc::error::TrySendError::Closed(_)) => {
+                                tracing::warn!(
+                                    actor_id,
+                                    event_type = %event.event_type,
+                                    "kernel-router: delivery failed, mailbox closed"
+                                );
                             }
                         }
                     }

@@ -6,6 +6,7 @@ pub enum DaemonCommand {
     Stop,
     Status,
     Cleanup,
+    Run { host: String, port: u16 },
 }
 
 const SHIPD_PORT: u16 = 9315;
@@ -56,38 +57,13 @@ fn is_process_alive(pid: u32) -> bool {
     matches!(status, Ok(s) if s.success())
 }
 
-/// Locate the shipd binary. Looks for a sibling of the current executable first,
-/// then falls back to PATH via `which`.
-fn find_shipd() -> Result<PathBuf> {
-    // Try sibling of the running ship binary.
-    if let Ok(exe) = std::env::current_exe() {
-        let sibling = exe.parent().unwrap_or(std::path::Path::new(".")).join("shipd");
-        if sibling.exists() {
-            return Ok(sibling);
-        }
-    }
-    // Fall back to PATH.
-    let output = std::process::Command::new("which")
-        .arg("shipd")
-        .output()
-        .context("cannot invoke `which shipd`")?;
-    if output.status.success() {
-        let path = String::from_utf8_lossy(&output.stdout).trim().to_string();
-        if !path.is_empty() {
-            return Ok(PathBuf::from(path));
-        }
-    }
-    anyhow::bail!(
-        "shipd binary not found. Make sure it is installed alongside the ship CLI or on PATH."
-    )
-}
-
 pub fn run_daemon(cmd: DaemonCommand) -> Result<()> {
     match cmd {
         DaemonCommand::Start { host } => daemon_start(host),
         DaemonCommand::Stop => daemon_stop(),
         DaemonCommand::Status => daemon_status(),
         DaemonCommand::Cleanup => daemon_cleanup(),
+        DaemonCommand::Run { host, port } => daemon_run(host, port),
     }
 }
 
@@ -105,7 +81,7 @@ fn daemon_start(host: String) -> Result<()> {
         let _ = std::fs::remove_file(&pid_path);
     }
 
-    let shipd = find_shipd()?;
+    let self_exe = std::env::current_exe().context("cannot determine own executable path")?;
 
     // Ensure ~/.ship/ exists.
     std::fs::create_dir_all(ship_dir()?)
@@ -120,18 +96,13 @@ fn daemon_start(host: String) -> Result<()> {
     let stdout = log_handle.try_clone().context("cannot clone log file handle")?;
     let stderr = log_handle;
 
-    let args: Vec<String> = vec![
-        "--port".into(), SHIPD_PORT.to_string(),
-        "--host".into(), host.clone(),
-    ];
-
-    let child = std::process::Command::new(&shipd)
-        .args(&args)
+    let child = std::process::Command::new(&self_exe)
+        .args(["daemon", "run", "--host", &host, "--port", &SHIPD_PORT.to_string()])
         .stdout(stdout)
         .stderr(stderr)
         .stdin(std::process::Stdio::null())
         .spawn()
-        .with_context(|| format!("cannot spawn {}", shipd.display()))?;
+        .with_context(|| format!("cannot spawn {}", self_exe.display()))?;
 
     let pid = child.id();
     write_pid(&pid_path, pid)?;
@@ -145,6 +116,14 @@ fn daemon_start(host: String) -> Result<()> {
         log_path.display()
     );
     Ok(())
+}
+
+fn daemon_run(host: String, port: u16) -> Result<()> {
+    let rt = tokio::runtime::Builder::new_multi_thread()
+        .enable_all()
+        .build()
+        .context("cannot build tokio runtime")?;
+    rt.block_on(shipd::run_network(host, port))
 }
 
 fn daemon_stop() -> Result<()> {

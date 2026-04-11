@@ -109,43 +109,41 @@ fn normalize_steps(steps: &[Value]) -> Result<Vec<Value>, String> {
 
     for (i, step_val) in steps.iter().enumerate() {
         // Old format detection: has `id` field → pass through
-        if let Some(obj) = step_val.as_object() {
-            if obj.contains_key("id") || obj.contains_key("name") {
-                result.push(step_val.clone());
-                // Track ID for sequential chaining of subsequent new-format steps
-                let id = obj.get("id").or_else(|| obj.get("name"))
-                    .and_then(|v| v.as_str())
-                    .map(str::to_string);
-                if let Some(id) = id {
-                    prev_id = Some(id);
-                }
-                continue;
+        if let Some(obj) = step_val.as_object()
+            && (obj.contains_key("id") || obj.contains_key("name"))
+        {
+            result.push(step_val.clone());
+            // Track ID for sequential chaining of subsequent new-format steps
+            let id = obj.get("id").or_else(|| obj.get("name"))
+                .and_then(|v| v.as_str())
+                .map(str::to_string);
+            if let Some(id) = id {
+                prev_id = Some(id);
             }
+            continue;
         }
 
         // Parallel group
-        if let Some(obj) = step_val.as_object() {
-            if let Some(parallel_val) = obj.get("parallel") {
-                let group = parallel_val.as_array().ok_or_else(|| {
-                    format!("steps[{i}].parallel: expected array")
-                })?;
-                let group_ids = normalize_parallel_group(
-                    group,
-                    &prev_id,
-                    &mut step_counter,
-                    &mut result,
-                )?;
-                // All parallel steps share the same "after", and the next
-                // sequential step depends on all of them.
-                prev_id = None; // Cleared — next step sets after to all group IDs
-                // Store group IDs for the next step's `after`
-                if !group_ids.is_empty() {
-                    // We'll create a synthetic join point for the next step.
-                    // Actually, simpler: the next step just depends on all group members.
-                    prev_id = Some(group_ids.join(","));
-                }
-                continue;
+        if let Some(obj) = step_val.as_object()
+            && let Some(parallel_val) = obj.get("parallel")
+        {
+            let group = parallel_val.as_array().ok_or_else(|| {
+                format!("steps[{i}].parallel: expected array")
+            })?;
+            let group_ids = normalize_parallel_group(
+                group,
+                &prev_id,
+                &mut step_counter,
+                &mut result,
+            )?;
+            // All parallel steps share the same "after", and the next
+            // sequential step depends on all of them.
+            prev_id = None; // Cleared — next step sets after to all group IDs
+            // Store group IDs for the next step's `after`
+            if !group_ids.is_empty() {
+                prev_id = Some(group_ids.join(","));
             }
+            continue;
         }
 
         step_counter += 1;
@@ -214,12 +212,11 @@ fn normalize_single_step(
     }
 
     // Wire sequential dependency
-    if let Some(prev) = prev_id {
-        if !step.contains_key("after") {
-            // Handle multi-ID from parallel groups
-            let after: Vec<&str> = prev.split(',').collect();
-            step.insert("after".to_string(), json!(after));
-        }
+    if let Some(prev) = prev_id
+        && !step.contains_key("after")
+    {
+        let after: Vec<&str> = prev.split(',').collect();
+        step.insert("after".to_string(), json!(after));
     }
 
     Ok(Value::Object(step))

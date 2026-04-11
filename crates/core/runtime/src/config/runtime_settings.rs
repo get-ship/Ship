@@ -4,8 +4,59 @@ use super::types::{
 };
 use crate::db::kv;
 use anyhow::Result;
+use std::collections::HashMap;
 use std::fs;
 use std::path::{Path, PathBuf};
+
+// ─── User-facing settings API (namespace = "settings") ──────────────────────
+
+const SETTINGS_NS: &str = "settings";
+
+/// Return the default value for a well-known setting key.
+pub fn setting_default(key: &str) -> Option<&'static str> {
+    match key {
+        "defaults.provider" => Some("claude"),
+        "defaults.model" => Some("sonnet"),
+        "terminal.program" => Some("tmux"),
+        "daemon.port" => Some("9315"),
+        _ => None,
+    }
+}
+
+/// Get a single setting, falling back to the default.
+pub fn get_setting(key: &str) -> Result<Option<serde_json::Value>> {
+    if let Some(val) = kv::get(SETTINGS_NS, key)? {
+        return Ok(Some(val));
+    }
+    Ok(setting_default(key).map(|d| serde_json::Value::String(d.to_string())))
+}
+
+/// Set a single setting.
+pub fn set_setting(key: &str, value: serde_json::Value) -> Result<()> {
+    kv::set(SETTINGS_NS, key, &value)
+}
+
+/// Return all persisted settings merged with defaults.
+pub fn get_all_settings() -> Result<HashMap<String, serde_json::Value>> {
+    let mut map = HashMap::new();
+    // Seed with defaults.
+    for (key, default) in &[
+        ("defaults.provider", "claude"),
+        ("defaults.model", "sonnet"),
+        ("terminal.program", "tmux"),
+        ("daemon.port", "9315"),
+    ] {
+        map.insert(
+            (*key).to_string(),
+            serde_json::Value::String((*default).to_string()),
+        );
+    }
+    // Overlay persisted values.
+    for (key, value) in kv::list_all(SETTINGS_NS)? {
+        map.insert(key, value);
+    }
+    Ok(map)
+}
 
 /// Derive a project-scoped KV namespace from the ship_dir path.
 /// Each project gets its own namespace so settings don't leak across projects.
@@ -104,7 +155,7 @@ pub(super) fn save_runtime_settings(ship_dir: &Path, config: &ProjectConfig) -> 
     kv::set(&ns, "hooks", &serde_json::to_value(&config.hooks)?)?;
     kv::set(&ns, "statuses", &serde_json::to_value(&config.statuses)?)?;
     kv::set(&ns, "ai", &serde_json::to_value(&config.ai)?)?;
-    kv::set(&ns, "git", &serde_json::to_value(&normalize_git_config(config.git.clone()))?)?;
+    kv::set(&ns, "git", &serde_json::to_value(normalize_git_config(config.git.clone()))?)?;
     kv::set(&ns, "namespaces", &serde_json::to_value(&config.namespaces)?)?;
     Ok(())
 }

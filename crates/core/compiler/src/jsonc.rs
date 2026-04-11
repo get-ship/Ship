@@ -55,7 +55,7 @@ pub fn strip_jsonc_comments(input: &str) -> String {
                         // Block comment — skip to */
                         chars.next();
                         let mut prev = '\0';
-                        while let Some((_, c)) = chars.next() {
+                        for (_, c) in chars.by_ref() {
                             if prev == '*' && c == '/' {
                                 break;
                             }

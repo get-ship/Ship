@@ -1,84 +1,131 @@
 ---
 name: ship-cli-reference
 stable-id: ship-cli-reference
-description: Use when working with Ship CLI commands — init, use, compile, agents, skills, mcp, vars, validate. Complete command reference with flags and examples.
+description: Use when working with Ship CLI commands — init, use, compile, run, status, validate, mcp, workspace, daemon, and package management. Complete command reference with flags and examples.
 tags: [ship, cli, reference]
 authors: [ship]
 ---
 
 # Ship CLI Reference
 
-Ship compiles declarative agent configuration (`.ship/`) into provider-native files. The workflow is: `init` a project, `use` an agent, `compile` to emit outputs.
-
-For full details see `references/docs/`.
+Ship compiles declarative agent configuration (`.ship/`) into provider-native files. The core workflow: `init` a project, `use` an agent, `compile` to emit outputs, `run` to execute pipelines.
 
 ## Core Workflow
 
 ```
 ship init                         # scaffold .ship/ in current project
+ship init --global                # configure ~/.ship/ identity and defaults
 ship use <agent-id>               # activate agent and compile
+ship use <agent-id> --with <skill># inject extra skills at compile time
 ship compile                      # recompile after config changes
+ship compile --dry-run            # preview output without writing files
+ship compile --provider claude    # compile for a specific provider only
 ship status                       # show active agent and compilation state
 ship validate                     # check config for errors
+ship validate --agent <name>      # validate a single agent
+ship validate --json              # emit errors as JSON array
 ```
 
-## Agent Management
+## Pipelines
 
 ```
-ship agents list [--local] [--project]
-ship agents create <name> [--global]
-ship agents edit <name>
-ship agents clone <source> <target>
-ship agents delete <name>
+ship run <pipeline> [spec]        # run a named pipeline
+ship run tdd "my task"            # run tdd pipeline with inline spec
+ship run standard "task" --var impl_agent=rust-lane
+                                  # pass pipeline variables
+ship run tdd "task" --spec path/to/spec.md
+                                  # use a spec file instead of inline text
+ship run tdd "task" --workspace my-branch
+                                  # run in a specific workspace
+ship run tdd "task" --dry-run     # show resolved pipeline without executing
 ```
 
-## Skills
+Pipelines are loaded from `.ship/pipelines/<name>.yaml`. Built-in pipelines: `simple`, `standard`, `tdd`.
+
+## Workspace
 
 ```
-ship skills list
-ship skills create <id>
-ship skills add <source> [--skill <id>] [--global]
-ship skills remove <id> [--global]
+ship workspace trash              # list trashed files for current workspace
+ship workspace trash --purge      # force purge all trash (ignores 24h retention)
+ship workspace restore <filename> # restore most recent trashed version
+ship workspace restore <f> --dest <path>
+                                  # restore to a custom path
 ```
 
 ## MCP Servers
 
 ```
-ship mcp serve [--http] [--port <n>]
-ship mcp add <id> --url <url>
-ship mcp add-stdio <id> <command> [args...]
-ship mcp list
-ship mcp remove <id>
+ship mcp serve                    # run Ship MCP server (stdio)
+ship mcp serve --http --port 3000 # run over HTTP
+ship mcp add <id> --url <url>     # register an HTTP/SSE MCP server
+ship mcp add-stdio <id> <cmd> [args...]
+                                  # register a stdio MCP server
+ship mcp list                     # list configured MCP servers
+ship mcp remove <id>              # remove an MCP server
 ```
 
-## Variables
+## Daemon
 
 ```
-ship vars get <skill-id> [key]
-ship vars set <skill-id> <key> <value>
-ship vars append <skill-id> <key> '<json-value>'
-ship vars reset <skill-id>
+ship daemon start                 # start shipd in the background
+ship daemon start --host 0.0.0.0  # bind to a specific address
+ship daemon stop                  # stop the running daemon
+ship daemon status                # show daemon status
+ship daemon cleanup               # remove orphaned worktrees for merged/failed jobs
 ```
 
-## Registry, Auth, and Other Commands
+## Package Management
 
 ```
-ship install [--frozen]                  # install all deps from ship.toml
-ship add <package>[@version]             # add and install a dependency
-ship publish [--dry-run] [--tag]         # publish to registry
-ship login / logout / whoami             # authentication
-ship convert <source>                    # convert provider configs to .ship/
-ship events list [--since] [--json]      # query event log
-ship docs <topic>                        # extended help
-ship view                                # terminal UI
+ship install                      # install all deps from .ship/ship.toml
+ship install --frozen             # fail if lockfile would change
+ship install --offline            # skip install tracking (no network)
+ship add <package>[@version]      # add and install a dependency
+ship add --from <url>             # import from a Studio share link
+ship publish                      # publish to Ship registry
+ship publish --dry-run            # preview without publishing
+ship publish --tag beta           # publish with a dist-tag
+ship audit                        # scan for hidden Unicode (security)
+ship audit --json                 # emit findings as JSON
+```
+
+## Authentication
+
+```
+ship login                        # authenticate with getship.dev
+ship logout                       # sign out
+ship whoami                       # show current identity
+```
+
+## Configuration
+
+```
+ship config get <key>             # get a config value
+ship config set <key> <value>     # set a config value
+ship config list                  # list all set config values
+ship config path                  # show config file path
+```
+
+## Other Commands
+
+```
+ship convert <source>             # convert provider configs to .ship/ format
+ship docs topics                  # list help topics
+ship docs <topic>                 # detailed help for a topic
+ship studio                       # launch Ship Studio visual IDE
+ship studio --open                # open Studio in default browser
+ship hook session-start           # provider hook: session start
+ship hook before-tool             # provider hook: before tool
+ship hook after-tool              # provider hook: after tool
+ship hook session-end             # provider hook: session end
 ```
 
 ## Provider Outputs
 
-All outputs are gitignored build artifacts. See `references/docs/providers.md`.
+All outputs are gitignored build artifacts produced by `ship compile` / `ship use`.
 
-| Provider | Context | MCP config | Skills |
-|----------|---------|------------|--------|
+| Provider | Context file | MCP config | Skills dir |
+|----------|-------------|------------|------------|
 | `claude` | `CLAUDE.md` | `.mcp.json` | `.claude/skills/` |
 | `gemini` | `GEMINI.md` | `.gemini/settings.json` | `.gemini/skills/` |
 | `codex` | `AGENTS.md` | `.codex/config.toml` | `.agents/skills/` |

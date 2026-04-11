@@ -43,10 +43,10 @@ pub use config::{
     AgentLayerConfig, AgentProfile, AiConfig, GitConfig, HookConfig, HookTrigger, McpServerConfig,
     McpServerType, NamespaceConfig, PermissionConfig, ProjectConfig, StatusConfig, add_agent,
     add_hook, add_mcp_server, add_status, ensure_registered_namespaces, generate_gitignore,
-    get_active_agent, get_config, get_effective_config, get_git_config, get_project_statuses,
-    is_category_committed, list_hooks, list_mcp_servers, remove_agent, remove_hook,
-    remove_mcp_server, remove_status, save_config, set_active_agent, set_category_committed,
-    set_git_config,
+    get_active_agent, get_all_settings, get_config, get_effective_config, get_git_config,
+    get_project_statuses, get_setting, is_category_committed, list_hooks, list_mcp_servers,
+    remove_agent, remove_hook, remove_mcp_server, remove_status, save_config, set_active_agent,
+    set_category_committed, set_git_config, set_setting, setting_default,
 };
 
 pub use events::{
@@ -105,7 +105,7 @@ pub fn gen_ulid() -> String {
     use std::cell::RefCell;
     use std::time::SystemTime;
     thread_local! {
-        static GEN: RefCell<ulid::Generator> = RefCell::new(ulid::Generator::new());
+        static GEN: RefCell<ulid::Generator> = const { RefCell::new(ulid::Generator::new()) };
     }
     GEN.with(|g| {
         g.borrow_mut()

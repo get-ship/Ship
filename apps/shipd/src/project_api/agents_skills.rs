@@ -190,22 +190,20 @@ pub async fn list_skills(
 
         // Try to read SKILL.md frontmatter for metadata
         let skill_md = path.join("SKILL.md");
-        if skill_md.is_file() {
-            if let Ok(content) = std::fs::read_to_string(&skill_md) {
-                if content.starts_with("---") {
-                    if let Some(end) = content[3..].find("---") {
-                        let frontmatter = &content[3..3 + end];
-                        for line in frontmatter.lines() {
-                            let line = line.trim();
-                            if let Some(val) = line.strip_prefix("name:") {
-                                name = val.trim().trim_matches('"').to_string();
-                            } else if let Some(val) = line.strip_prefix("stable_id:") {
-                                stable_id = Some(val.trim().trim_matches('"').to_string());
-                            } else if let Some(val) = line.strip_prefix("description:") {
-                                description = Some(val.trim().trim_matches('"').to_string());
-                            }
-                        }
-                    }
+        if skill_md.is_file()
+            && let Ok(content) = std::fs::read_to_string(&skill_md)
+            && content.starts_with("---")
+            && let Some(end) = content[3..].find("---")
+        {
+            let frontmatter = &content[3..3 + end];
+            for line in frontmatter.lines() {
+                let line = line.trim();
+                if let Some(val) = line.strip_prefix("name:") {
+                    name = val.trim().trim_matches('"').to_string();
+                } else if let Some(val) = line.strip_prefix("stable_id:") {
+                    stable_id = Some(val.trim().trim_matches('"').to_string());
+                } else if let Some(val) = line.strip_prefix("description:") {
+                    description = Some(val.trim().trim_matches('"').to_string());
                 }
             }
         }
@@ -242,22 +240,20 @@ pub async fn list_skills(
         let mut tags: Vec<String> = Vec::new();
         let mut authors: Vec<String> = Vec::new();
         let mut artifacts: Vec<String> = Vec::new();
-        if skill_md.is_file() {
-            if let Ok(content) = std::fs::read_to_string(&skill_md) {
-                if content.starts_with("---") {
-                    if let Some(end) = content[3..].find("---") {
-                        let fm = &content[3..3 + end];
-                        for line in fm.lines() {
-                            let line = line.trim();
-                            if let Some(val) = line.strip_prefix("tags:") {
-                                tags = parse_yaml_list(val);
-                            } else if let Some(val) = line.strip_prefix("authors:") {
-                                authors = parse_yaml_list(val);
-                            } else if let Some(val) = line.strip_prefix("artifacts:") {
-                                artifacts = parse_yaml_list(val);
-                            }
-                        }
-                    }
+        if skill_md.is_file()
+            && let Ok(content) = std::fs::read_to_string(&skill_md)
+            && content.starts_with("---")
+            && let Some(end) = content[3..].find("---")
+        {
+            let fm = &content[3..3 + end];
+            for line in fm.lines() {
+                let line = line.trim();
+                if let Some(val) = line.strip_prefix("tags:") {
+                    tags = parse_yaml_list(val);
+                } else if let Some(val) = line.strip_prefix("authors:") {
+                    authors = parse_yaml_list(val);
+                } else if let Some(val) = line.strip_prefix("artifacts:") {
+                    artifacts = parse_yaml_list(val);
                 }
             }
         }
@@ -290,10 +286,10 @@ fn collect_files_recursive(root: &std::path::Path, dir: &std::path::Path) -> Vec
         let p = entry.path();
         if p.is_dir() {
             files.extend(collect_files_recursive(root, &p));
-        } else if p.is_file() {
-            if let Ok(rel) = p.strip_prefix(root) {
-                files.push(rel.to_string_lossy().to_string());
-            }
+        } else if p.is_file()
+            && let Ok(rel) = p.strip_prefix(root)
+        {
+            files.push(rel.to_string_lossy().to_string());
         }
     }
     files.sort();

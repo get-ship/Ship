@@ -8,65 +8,124 @@ authors: [ship]
 
 # Ship Workflow
 
-Use this skill when working with Ship's workflow primitives. Workspaces and sessions form the runtime state machine that tracks what agents are doing, where they are doing it, and what happened.
-
-See `references/docs/` for the full reference:
-
-- **Overview** -- How workspaces, sessions, and multi-agent coordination fit together.
-- **Workspaces** -- Branch-based identity, creation, activation, worktrees, and file scoping.
-- **Sessions** -- The session lifecycle, progress logging, events, and drain.
-- **Pipelines** -- DAG-based job execution: define steps, dependencies, and agent handoffs.
+Ship's workflow layer manages workspaces, sessions, pipelines, and multi-agent coordination. Workspaces are branch-keyed containers for agent work. Sessions track individual units of work within a workspace. Pipelines define multi-step agent workflows.
 
 ## Workspaces
 
 A workspace is a branch-based identity for a unit of work. Every workspace is keyed by its git branch name and tracks:
 
-- **Status** -- `active` or `archived`. Only active workspaces accept sessions.
-- **Active agent** -- The agent profile compiled into this workspace's provider configs.
-- **Worktree** -- Whether the workspace has a dedicated git worktree and its filesystem path.
+- **Active agent** — the agent profile compiled into this workspace's provider configs
+- **Worktree** — whether the workspace has a dedicated git worktree and its filesystem path
 
-Workspaces are created implicitly when a session starts on a branch, or explicitly via `create_workspace`. Activation compiles the agent's config into provider-specific output files.
+Workspaces are created implicitly when a session starts on a branch, or explicitly via `create_workspace`. Workspaces are resource containers, not state machines — they are created, hold sessions, and get archived.
+
+### Workspace Trash
+
+Workspaces support soft-delete via `ship workspace trash`. Trashed files are retained for 24 hours and auto-purged on daemon startup. Restore with `ship workspace restore <filename>`.
 
 ## Sessions
 
-A session is a heartbeat within a workspace. It represents one continuous unit of agent work. The lifecycle is:
+A session represents one continuous unit of agent work within a workspace. The lifecycle:
 
-1. **Start** -- `start_session` creates a session record, auto-creates the workspace if needed, compiles agent config, and resolves providers.
-2. **Work** -- The agent performs its task, logging progress with `log_progress`.
-3. **End** -- `end_session` closes the session, computes duration, creates an immutable session record, persists artifacts, and runs post-session hooks.
+1. **Start** — `start_session` creates a session record, auto-creates the workspace if needed, compiles agent config, and resolves providers.
+2. **Work** — the agent performs its task, logging progress with `log_progress`.
+3. **End** — `end_session` closes the session, computes duration, creates an immutable session record, persists artifacts, and runs post-session hooks.
 
 Only one active session per workspace at a time. Starting a session on a workspace that already has one returns the existing session (attach semantics).
 
-## Pipelines
+### Session Artifacts
 
-Pipelines define how a job executes — a DAG of typed steps that the runtime walks automatically. Define them in `.ship/pipelines/<name>.yaml` and reference from spec frontmatter with `pipeline: <name>`.
+Sessions persist artifacts to `~/.ship/projects/<slug>/sessions/<session-id>/`:
 
-Step types: `agent` (spawn an agent), `gate` (review step), `merge` (git merge), `human` (pause for human). Steps declare dependencies with `after` — the engine dispatches unblocked steps when predecessors complete.
+- `session.json` — current session snapshot
+- `timeline.ndjson` — append-only log of phase transitions (start, attach, end)
+- `notes.ndjson` — append-only log of progress notes
 
-Default pipeline when none specified: `implement → gate → merge`.
+## Pipelines (v2)
 
-See `references/docs/pipelines.md` for the full reference.
+Pipelines define multi-step agent workflows. Define them in `.ship/pipelines/<name>.yaml`.
 
-### Capability Map
+### Short Form
 
-| Capability | Status |
-|-----------|--------|
-| Pipeline DAG types (steps, after deps) | actual |
-| Named pipelines from `.ship/pipelines/` | actual |
-| Default pipeline injection | actual |
-| Step advancement on job.completed | actual |
-| Graceful agent exit between steps | actual |
-| Agent profile swap (`ship use`) between steps | actual |
-| Concurrency-limited pending job dispatch | actual |
-| Daemon startup replay of stale completions | actual |
-| Projection tracking (current_step, completed_steps) | actual |
-| gate step type | partial — dispatches reviewer, no retry loop |
-| merge step type | actual — git merge + job.merged + cleanup |
-| human step type | aspirational — no inbox item yet |
-| Conditional steps (when:) | aspirational |
-| Retry loops (on_failure) | aspirational |
-| Parallel agent steps | aspirational |
-| Pipeline registry | aspirational |
+The simplest format — list agents to run sequentially:
+
+```yaml
+name: tdd
+description: Test-driven development — tests first, implement second, gate.
+agents: [test-writer, "{{ impl_agent }}", reviewer]
+```
+
+Each agent becomes a sequential step. The last agent named `reviewer` or `gate` automatically becomes a gate step.
+
+### Long Form
+
+For mixed step types, use the `steps:` key:
+
+```yaml
+name: custom
+steps:
+  - my-agent                           # agent step (bare string)
+  - agent: builder                     # agent step with overrides
+    model: opus
+    provider: claude
+    max_retries: 2
+    goal: "Build the feature"
+  - run: "cargo test"                  # shell command (exit 0 = pass)
+  - human: "Review the PR"            # pause for human action
+  - parallel:                          # fan-out group
+      - test-writer
+      - lint-agent
+  - reviewer                           # gate step
+```
+
+### Step Types
+
+| Type | Syntax | Behavior |
+|------|--------|----------|
+| `Agent` | bare string or `agent:` object | Spawns an agent process in the workspace worktree |
+| `Gate` | agent named `reviewer`/`gate`, or explicit | Review step — can retry failed reviews up to `max_retries` |
+| `Run` | `run: "<command>"` | Executes a shell command; exit 0 = success |
+| `Human` | `human: "<prompt>"` | Pauses pipeline for human action |
+| `Parallel` | `parallel: [...]` | Fan-out: all items run concurrently, next step waits for all |
+
+### Pipeline Variables
+
+Use `{{ var }}` template syntax in agent names and goals. Variables are interpolated at dispatch time.
+
+Define defaults in the YAML:
+
+```yaml
+name: standard
+vars:
+  impl_agent: default-agent
+agents: ["{{ impl_agent }}", reviewer]
+```
+
+Override from the CLI:
+
+```bash
+ship run standard "my task" --var impl_agent=rust-lane
+```
+
+CLI/payload vars take precedence over YAML defaults.
+
+### Gate Retry
+
+When a gate step (`StepType::Gate`) observes a failure, the orchestrator checks `max_retries` on the gated step. If retries remain, the failed step is re-dispatched. If exhausted, the pipeline emits `job.failed`.
+
+### Step Done Mechanism
+
+The `StepMonitor` watches the agent process exit. When the process exits, the monitor sets a done flag and the orchestrator calls `advance_pipeline`, which finds newly unblocked steps in the DAG and dispatches them.
+
+### Built-in Pipelines
+
+Ship includes three pipelines:
+
+| Pipeline | Steps | Use case |
+|----------|-------|----------|
+| `simple` | `{{ agent }}` | Single agent, no gate |
+| `standard` | `{{ impl_agent }}` -> `reviewer` | Implement then gate |
+| `tdd` | `test-writer` -> `{{ impl_agent }}` -> `reviewer` | Tests first, implement, gate |
 
 ## Multi-Agent Coordination
 
@@ -77,28 +136,31 @@ Ship supports multiple agents working in parallel through git worktrees:
 - `create_workspace` sets up a git worktree, writes a `workspace.jsonc` config, and optionally assigns a preset and file scope.
 - Each workspace tracks which agent is active and which providers are compiled.
 
+### Session Scopes
+
+The daemon enforces per-agent capabilities via scoped sessions. When an MCP server registers with the daemon, it receives a session token with role-based scopes:
+
+| Role | Capabilities |
+|------|-------------|
+| `commander` | Read/write workspaces, read/create/manage jobs, emit events, mesh send/broadcast, log progress |
+| `lead` | Read/write workspaces, read/create jobs, log progress, step done, mesh send, emit events |
+| `contributor` | Full access (bypass all scope checks) |
+| `worker` | Read workspaces, read jobs, log progress, step done, mesh send, emit events |
+
+## Events
+
+All state changes emit append-only events. Session events include `session.started`, `session.progress`, `session.ended`, and `session.recorded`. Pipeline events include `job.dispatched`, `job.completed`, `job.failed`, `step.observed`. Events are never updated or deleted.
+
 ## MCP Tools
 
 | Tool | Purpose |
 |------|---------|
-| `start_session` | Start or attach to a session. Params: `branch`, `goal`, `agent_id`, `provider_id`. |
-| `log_progress` | Append a progress note to the active session. Params: `note`, `branch`. |
-| `end_session` | End the active session with summary and metadata. Params: `branch`, `summary`, `model`, `files_changed`, `gate_result`. |
-| `get_session` | Get the active session for a workspace. |
-| `list_sessions` | List sessions, optionally filtered by branch. Params: `branch`, `limit`. |
-| `create_workspace` | Create a workspace with a git worktree. Params: `name`, `branch`, `base_branch`, `preset_id`, `file_scope`. |
-| `activate_workspace` | Activate a workspace and compile its agent config. Params: `branch`, `agent_id`. |
-| `list_workspaces` | List all workspaces, optionally filtered by status. |
-| `complete_workspace` | Archive a workspace after work is done. |
-
-## Events
-
-All state changes emit append-only events. Session events include `session.started`, `session.progress`, `session.ended`, and `session.recorded`. These are never updated or deleted.
-
-## Session Artifacts
-
-Sessions persist artifacts to `~/.ship/projects/<slug>/sessions/<session-id>/`:
-
-- `session.json` -- Current session snapshot.
-- `timeline.ndjson` -- Append-only log of phase transitions (start, attach, end).
-- `notes.ndjson` -- Append-only log of progress notes.
+| `start_session` | Start or attach to a session. Params: `branch`, `goal`, `agent_id`, `provider_id` |
+| `log_progress` | Append a progress note to the active session. Params: `note`, `branch` |
+| `end_session` | End the active session with summary and metadata. Params: `branch`, `summary`, `model`, `files_changed`, `gate_result` |
+| `get_session` | Get the active session for a workspace |
+| `list_sessions` | List sessions, optionally filtered by branch. Params: `branch`, `limit` |
+| `create_workspace` | Create a workspace with a git worktree. Params: `name`, `branch`, `base_branch`, `preset_id`, `file_scope` |
+| `activate_workspace` | Activate a workspace and compile its agent config. Params: `branch`, `agent_id` |
+| `list_workspaces` | List all workspaces, optionally filtered by status |
+| `complete_workspace` | Archive a workspace after work is done |

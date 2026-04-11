@@ -154,61 +154,54 @@ fn refresh_agents(state: &mut TopState) {
     state.agents.clear();
 
     // Reconstruct mesh agents from event log.
-    match runtime::query_events_since(None, false) {
-        Ok(events) => {
-            let mut agents: std::collections::HashMap<String, AgentRow> =
-                std::collections::HashMap::new();
-            for e in &events {
-                if e.event_type == "mesh.register" {
-                    if let Ok(p) = serde_json::from_str::<serde_json::Value>(&e.payload_json) {
-                        let agent_id = p["agent_id"].as_str().unwrap_or("unknown");
-                        let caps: Vec<&str> = p["capabilities"]
-                            .as_array()
-                            .map(|a| a.iter().filter_map(|v| v.as_str()).collect())
-                            .unwrap_or_default();
-                        agents.insert(
-                            agent_id.to_string(),
-                            AgentRow {
-                                agent_id: agent_id.to_string(),
-                                capabilities: if caps.is_empty() {
-                                    "—".into()
-                                } else {
-                                    caps.join(", ")
-                                },
-                                status: "active".into(),
-                                registered: format_time(&e.created_at.to_rfc3339()),
-                            },
-                        );
-                    }
-                } else if e.event_type == "mesh.deregister" {
-                    if let Ok(p) = serde_json::from_str::<serde_json::Value>(&e.payload_json) {
-                        if let Some(id) = p["agent_id"].as_str() {
-                            agents.remove(id);
-                        }
-                    }
-                } else if e.event_type == "mesh.status" {
-                    if let Ok(p) = serde_json::from_str::<serde_json::Value>(&e.payload_json) {
-                        if let (Some(id), Some(status)) =
-                            (p["agent_id"].as_str(), p["status"].as_str())
-                        {
-                            if let Some(entry) = agents.get_mut(id) {
-                                entry.status = status.to_string();
-                            }
-                        }
-                    }
-                }
+    if let Ok(events) = runtime::query_events_since(None, false) {
+        let mut agents: std::collections::HashMap<String, AgentRow> =
+            std::collections::HashMap::new();
+        for e in &events {
+            if e.event_type == "mesh.register"
+                && let Ok(p) = serde_json::from_str::<serde_json::Value>(&e.payload_json)
+            {
+                let agent_id = p["agent_id"].as_str().unwrap_or("unknown");
+                let caps: Vec<&str> = p["capabilities"]
+                    .as_array()
+                    .map(|a| a.iter().filter_map(|v| v.as_str()).collect())
+                    .unwrap_or_default();
+                agents.insert(
+                    agent_id.to_string(),
+                    AgentRow {
+                        agent_id: agent_id.to_string(),
+                        capabilities: if caps.is_empty() {
+                            "—".into()
+                        } else {
+                            caps.join(", ")
+                        },
+                        status: "active".into(),
+                        registered: format_time(&e.created_at.to_rfc3339()),
+                    },
+                );
+            } else if e.event_type == "mesh.deregister"
+                && let Ok(p) = serde_json::from_str::<serde_json::Value>(&e.payload_json)
+                && let Some(id) = p["agent_id"].as_str()
+            {
+                agents.remove(id);
+            } else if e.event_type == "mesh.status"
+                && let Ok(p) = serde_json::from_str::<serde_json::Value>(&e.payload_json)
+                && let (Some(id), Some(status)) =
+                    (p["agent_id"].as_str(), p["status"].as_str())
+                && let Some(entry) = agents.get_mut(id)
+            {
+                entry.status = status.to_string();
             }
-            state.agents = agents.into_values().collect();
-            state.agents.sort_by(|a, b| a.agent_id.cmp(&b.agent_id));
         }
-        Err(_) => {}
+        state.agents = agents.into_values().collect();
+        state.agents.sort_by(|a, b| a.agent_id.cmp(&b.agent_id));
     }
 
     // Actor count from KernelRouter (if initialized).
-    if let Some(kr) = runtime::events::kernel_router() {
-        if let Ok(kr_guard) = kr.try_lock() {
-            state.actor_count = kr_guard.actor_count();
-        }
+    if let Some(kr) = runtime::events::kernel_router()
+        && let Ok(kr_guard) = kr.try_lock()
+    {
+        state.actor_count = kr_guard.actor_count();
     }
 }
 

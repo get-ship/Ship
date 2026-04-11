@@ -165,6 +165,14 @@ pub fn compile(resolved: &ResolvedConfig, provider_id: &str) -> Option<CompileOu
             resolved.claude_auto_updates,
             resolved.claude_include_co_authored_by,
         );
+        // Inject Ship lifecycle hooks (HTTP when daemon is running, command otherwise).
+        if let Some(ref mut patch) = out.claude_settings_patch {
+            claude::inject_ship_lifecycle_hooks(
+                patch,
+                resolved.daemon_port,
+                resolved.daemon_token.as_deref(),
+            );
+        }
         // Legacy team agents (passthrough from .ship/agents/teams/claude/)
         if let Some(base) = desc.agents_dir.base_path() {
             for (filename, content) in &resolved.claude_team_agents {
@@ -181,12 +189,18 @@ pub fn compile(resolved: &ResolvedConfig, provider_id: &str) -> Option<CompileOu
 
     if provider_id == "gemini" {
         out.gemini_settings_patch = gemini::build_gemini_settings_patch(resolved);
+        // Ensure a patch exists so we can inject lifecycle hooks.
+        let patch = out.gemini_settings_patch.get_or_insert_with(|| serde_json::json!({}));
+        gemini::inject_ship_lifecycle_hooks(patch);
         out.gemini_policy_patch = gemini::build_gemini_policy_patch(&resolved.permissions);
     }
 
     if provider_id == "cursor" {
         out.rule_files = cursor::build_cursor_rule_files(&resolved.rules);
         out.cursor_hooks_patch = cursor::build_cursor_hooks_patch(&resolved.hooks);
+        // Inject Ship lifecycle hooks (always command-based for Cursor).
+        let patch = out.cursor_hooks_patch.get_or_insert_with(|| serde_json::json!({}));
+        cursor::inject_ship_lifecycle_hooks(patch);
         // cursor_cli_permissions is now merged with cursor_settings_extra via build_cursor_cli_json
         out.cursor_cli_permissions = cursor::build_cursor_cli_json(resolved);
         out.cursor_environment_json = cursor::build_cursor_environment(resolved);

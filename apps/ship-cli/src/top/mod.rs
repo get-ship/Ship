@@ -99,12 +99,11 @@ fn run_loop(terminal: &mut DefaultTerminal, ship_dir: std::path::PathBuf) -> Res
             .checked_sub(last_tick.elapsed())
             .unwrap_or(Duration::ZERO);
 
-        if event::poll(timeout)? {
-            if let Event::Key(key) = event::read()? {
-                if key.kind == event::KeyEventKind::Press {
-                    app.handle_key(key.code, key.modifiers);
-                }
-            }
+        if event::poll(timeout)?
+            && let Event::Key(key) = event::read()?
+            && key.kind == event::KeyEventKind::Press
+        {
+            app.handle_key(key.code, key.modifiers);
         }
 
         if last_tick.elapsed() >= TICK_RATE {

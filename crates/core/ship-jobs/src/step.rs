@@ -35,17 +35,17 @@ pub fn infer_step_type(val: &serde_json::Value) -> &'static str {
         if obj.contains_key("human") {
             return "human";
         }
-        if obj.contains_key("type") {
-            if let Some(t) = obj["type"].as_str() {
-                return match t {
-                    "agent" => "agent",
-                    "gate" => "gate",
-                    "merge" => "merge",
-                    "human" => "human",
-                    "run" => "run",
-                    _ => "agent",
-                };
-            }
+        if obj.contains_key("type")
+            && let Some(t) = obj["type"].as_str()
+        {
+            return match t {
+                "agent" => "agent",
+                "gate" => "gate",
+                "merge" => "merge",
+                "human" => "human",
+                "run" => "run",
+                _ => "agent",
+            };
         }
     }
     "agent"

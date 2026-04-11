@@ -85,10 +85,10 @@ pub(super) async fn persist_and_route(
         Some(dir) => crate::events::SqliteEventStore::new_at(dir),
         None => crate::events::SqliteEventStore::new(),
     };
-    if let Ok(store) = store_result {
-        if let Err(e) = crate::events::EventStore::append(&store, &envelope) {
-            tracing::warn!(slug, "pipeline: failed to persist event: {e}");
-        }
+    if let Ok(store) = store_result
+        && let Err(e) = crate::events::EventStore::append(&store, &envelope)
+    {
+        tracing::warn!(slug, "pipeline: failed to persist event: {e}");
     }
 
     let ctx = EmitContext {

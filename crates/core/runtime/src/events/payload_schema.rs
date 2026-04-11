@@ -29,12 +29,15 @@ impl EventValidator for PayloadSchemaValidator {
     }
 }
 
+/// Validation function that checks a JSON payload string against an expected schema.
+type PayloadValidator = fn(&str) -> Result<(), serde_json::Error>;
+
 /// Returns a payload validation function for known event types.
 /// The function attempts to deserialize the JSON payload into the expected
 /// struct. Returns `None` for unknown/custom event types.
 fn schema_for_event_type(
     event_type: &str,
-) -> Option<fn(&str) -> Result<(), serde_json::Error>> {
+) -> Option<PayloadValidator> {
     use crate::events::types::*;
 
     fn check<T: serde::de::DeserializeOwned>(json: &str) -> Result<(), serde_json::Error> {

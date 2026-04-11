@@ -108,7 +108,7 @@ impl ServerHandler for ShipServer {
 
             // Emit heartbeat every 10 tool calls.
             let count = self.heartbeat_counter.fetch_add(1, Ordering::Relaxed) + 1;
-            if count % 10 == 0 {
+            if count.is_multiple_of(10) {
                 let _ = runtime::db::session_drain::update_heartbeat(sid);
             }
         }

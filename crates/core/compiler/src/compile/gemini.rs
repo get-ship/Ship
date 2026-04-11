@@ -153,6 +153,33 @@ pub(super) fn build_gemini_settings_patch(resolved: &ResolvedConfig) -> Option<J
     Some(patch)
 }
 
+/// Inject Ship lifecycle hooks into an existing Gemini settings patch.
+///
+/// Gemini always gets command hooks (via `ship hook`).
+pub(super) fn inject_ship_lifecycle_hooks(patch: &mut Json) {
+    let hooks_obj = patch
+        .as_object_mut()
+        .unwrap()
+        .entry("hooks")
+        .or_insert_with(|| serde_json::json!({}));
+
+    let lifecycle = [
+        ("BeforeTool", "ship hook before-tool"),
+        ("AfterTool", "ship hook after-tool"),
+        ("SessionEnd", "ship hook session-end"),
+    ];
+
+    for (trigger, command) in lifecycle {
+        let hook_obj = serde_json::json!({ "type": "command", "command": command });
+        let entry = serde_json::json!({ "hooks": [hook_obj] });
+        if let Some(arr) = hooks_obj.get_mut(trigger).and_then(|v| v.as_array_mut()) {
+            arr.push(entry);
+        } else {
+            hooks_obj[trigger] = serde_json::json!([entry]);
+        }
+    }
+}
+
 // ── MCP server entry (Gemini-specific fields) ─────────────────────────────────
 
 /// Build a Gemini MCP server entry with Gemini-specific per-server fields.

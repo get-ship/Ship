@@ -236,7 +236,7 @@ pub(crate) fn init_actor_db(path: &Path) -> Result<()> {
             .await
     })?;
 
-    let migrate_result = if let Ok(handle) = tokio::runtime::Handle::try_current() {
+    if let Ok(handle) = tokio::runtime::Handle::try_current() {
         tokio::task::block_in_place(|| {
             handle
                 .block_on(sqlx::migrate!("./migrations/actor").run(&mut conn))
@@ -249,6 +249,5 @@ pub(crate) fn init_actor_db(path: &Path) -> Result<()> {
             .map_err(|e| anyhow!("failed to create runtime: {e}"))?;
         rt.block_on(sqlx::migrate!("./migrations/actor").run(&mut conn))
             .map_err(|e| anyhow!("actor migration failed: {e}"))
-    };
-    migrate_result
+    }
 }

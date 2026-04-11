@@ -201,10 +201,10 @@ impl MeshService {
             if agent_id == sender {
                 continue;
             }
-            if let Some(cap) = cap_filter {
-                if !entry.capabilities.iter().any(|c| c == cap) {
-                    continue;
-                }
+            if let Some(cap) = cap_filter
+                && !entry.capabilities.iter().any(|c| c == cap)
+            {
+                continue;
             }
             let msg = EventEnvelope::new(
                 "mesh.message",
@@ -230,8 +230,8 @@ impl MeshService {
 
         let matches: Vec<serde_json::Value> = self.agents.values()
             .filter(|e| {
-                cap_filter.map_or(true, |cap| e.capabilities.iter().any(|c| c == cap))
-                    && status_filter.map_or(true, |st| status_str(&e.status) == st)
+                cap_filter.is_none_or(|cap| e.capabilities.iter().any(|c| c == cap))
+                    && status_filter.is_none_or(|st| status_str(&e.status) == st)
             })
             .map(|e| serde_json::json!({
                 "agent_id": e.agent_id,
