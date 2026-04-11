@@ -4,14 +4,12 @@ use cli_framework::hooks::{
 };
 use std::io::Read;
 
-fn actor_id() -> Result<String> {
-    std::env::var("SHIP_ACTOR_ID")
-        .map_err(|_| anyhow!("SHIP_ACTOR_ID env var is not set"))
+fn actor_id() -> Option<String> {
+    std::env::var("SHIP_ACTOR_ID").ok().filter(|s| !s.is_empty())
 }
 
-fn workspace_id() -> Result<String> {
-    std::env::var("SHIP_WORKSPACE_ID")
-        .map_err(|_| anyhow!("SHIP_WORKSPACE_ID env var is not set"))
+fn workspace_id() -> Option<String> {
+    std::env::var("SHIP_WORKSPACE_ID").ok().filter(|s| !s.is_empty())
 }
 
 fn read_stdin() -> Result<String> {
@@ -143,24 +141,24 @@ fn try_daemon_or_local(
 }
 
 pub fn run_session_start() -> Result<()> {
-    let actor = actor_id()?;
-    let workspace = workspace_id()?;
     let body = normalize_stdin("", "session-start");
     try_daemon_or_local("session-start", &body, || {
-        let event = handle_session_start(&actor, &workspace)?;
-        println!("{}", serde_json::to_string(&event)?);
+        if let (Some(actor), Some(workspace)) = (actor_id(), workspace_id()) {
+            let event = handle_session_start(&actor, &workspace)?;
+            println!("{}", serde_json::to_string(&event)?);
+        }
         Ok(())
     })
 }
 
 pub fn run_before_tool() -> Result<()> {
     let stdin = read_stdin()?;
-    let actor = actor_id()?;
-    let workspace = workspace_id()?;
     let body = normalize_stdin(&stdin, "before-tool");
     try_daemon_or_local("before-tool", &body, || {
-        if let Some(event) = handle_before_tool(&stdin, &actor, &workspace)? {
-            println!("{}", serde_json::to_string(&event)?);
+        if let (Some(actor), Some(workspace)) = (actor_id(), workspace_id()) {
+            if let Some(event) = handle_before_tool(&stdin, &actor, &workspace)? {
+                println!("{}", serde_json::to_string(&event)?);
+            }
         }
         Ok(())
     })
@@ -168,29 +166,25 @@ pub fn run_before_tool() -> Result<()> {
 
 pub fn run_after_tool() -> Result<()> {
     let stdin = read_stdin()?;
-    let actor = actor_id()?;
-    let workspace = workspace_id()?;
     let body = normalize_stdin(&stdin, "after-tool");
     try_daemon_or_local("after-tool", &body, || {
-        if let Some(event) = handle_after_tool(&stdin, &actor, &workspace)? {
-            println!("{}", serde_json::to_string(&event)?);
+        if let (Some(actor), Some(workspace)) = (actor_id(), workspace_id()) {
+            if let Some(event) = handle_after_tool(&stdin, &actor, &workspace)? {
+                println!("{}", serde_json::to_string(&event)?);
+            }
         }
         Ok(())
     })
 }
 
 pub fn run_session_end() -> Result<()> {
-    let actor = actor_id()?;
-    let workspace = workspace_id()?;
     let body = normalize_stdin("", "session-end");
     try_daemon_or_local("session-end", &body, || {
-        let event = handle_session_end(&actor, &workspace)?;
-        println!("{}", serde_json::to_string(&event)?);
-        // Best-effort: broadcast session.ended via ship CLI (MCP bridge path).
-        broadcast_session_ended(&actor, &workspace);
-        // Fallback: if running inside a job (SHIP_MESH_ID set), signal completion
-        // to the daemon so the pipeline can advance even if the agent didn't
-        // explicitly call update_job.
+        if let (Some(actor), Some(workspace)) = (actor_id(), workspace_id()) {
+            let event = handle_session_end(&actor, &workspace)?;
+            println!("{}", serde_json::to_string(&event)?);
+            broadcast_session_ended(&actor, &workspace);
+        }
         if let Ok(slug) = std::env::var("SHIP_MESH_ID") {
             signal_job_completed(&slug);
         }
