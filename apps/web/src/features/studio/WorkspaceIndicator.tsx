@@ -45,7 +45,15 @@ export function WorkspaceIndicator() {
   }, [isWorkspaceView, viewedWorkspace, workspaces, setViewedWorkspace])
 
   if (!isWorkspaceView) return null
-  if (!currentWs && connected) return null
+  if (!currentWs && connected) {
+    return (
+      <div className="flex items-center gap-1.5 px-2 py-1 border-b border-border/40 shrink-0 bg-card/30">
+        <GitBranch className="size-3 text-muted-foreground/60" />
+        <span className="text-[10px] text-muted-foreground/60">No workspaces</span>
+        <div className="flex-1" />
+      </div>
+    )
+  }
 
   const otherWorkspaces = workspaces.filter((w) => w.branch !== currentWs?.branch)
   const isArtifacts = pathname.startsWith('/studio/session')
