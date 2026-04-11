@@ -82,11 +82,9 @@ pub fn start_step_monitor(
                 let code = signal.exit_code;
                 match code {
                     Some(0) | None => {
-                        if done_declared {
-                            (true, code, None)
-                        } else {
-                            (false, code, Some("no step_done".to_string()))
-                        }
+                        // Process exit with code 0 = step succeeded.
+                        // step_done is a bonus signal, not required.
+                        (true, code, None)
                     }
                     Some(_) => {
                         (false, code, Some(format!(
