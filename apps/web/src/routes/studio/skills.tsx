@@ -34,7 +34,9 @@ function SkillsIDEPage() {
   const [createOpen, setCreateOpen] = useState(false)
   const { drawerOpen } = usePlatform()
   const { workspaces } = useDaemon()
-  const wsId = workspaces.find((w) => w.status === 'active')?.branch ?? 'v0.2.0'
+  const wsId = workspaces.find((w) => String(w.status).toLowerCase() === 'active')?.branch
+    ?? workspaces[0]?.branch
+    ?? 'main'
   const feedbackRef = useRef<SkillFeedbackEntry[]>([])
 
   // Frontmatter state — shared between editor and preview panel
