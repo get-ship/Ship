@@ -157,6 +157,57 @@ pub fn build_claude_settings_patch(
     Some(patch)
 }
 
+/// Inject Ship lifecycle hooks for the daemon into Claude's hooks patch.
+///
+/// When `daemon_port` + `daemon_token` are available, emits HTTP hooks that
+/// POST directly to the daemon. Otherwise emits command hooks via `ship hook`.
+pub fn inject_ship_lifecycle_hooks(
+    patch: &mut Json,
+    daemon_port: Option<u16>,
+    daemon_token: Option<&str>,
+) {
+    let hooks_obj = patch
+        .as_object_mut()
+        .unwrap()
+        .entry("hooks")
+        .or_insert_with(|| serde_json::json!({}));
+
+    let lifecycle = match (daemon_port, daemon_token) {
+        (Some(port), Some(token)) => {
+            let base = format!("http://127.0.0.1:{port}/api/hooks");
+            let auth = format!("token={token}");
+            vec![
+                ("PreToolUse", format!("{base}/before-tool?{auth}")),
+                ("PostToolUse", format!("{base}/after-tool?{auth}")),
+                ("Stop", format!("{base}/session-end?{auth}")),
+            ]
+        }
+        _ => {
+            vec![
+                ("PreToolUse", "ship hook before-tool".to_string()),
+                ("PostToolUse", "ship hook after-tool".to_string()),
+                ("Stop", "ship hook session-end".to_string()),
+            ]
+        }
+    };
+
+    let has_daemon = daemon_port.is_some() && daemon_token.is_some();
+
+    for (trigger, target) in lifecycle {
+        let hook_obj = if has_daemon {
+            serde_json::json!({ "type": "url", "url": target })
+        } else {
+            serde_json::json!({ "type": "command", "command": target })
+        };
+        let entry = serde_json::json!({ "hooks": [hook_obj] });
+        if let Some(arr) = hooks_obj.get_mut(trigger).and_then(|v| v.as_array_mut()) {
+            arr.push(entry);
+        } else {
+            hooks_obj[trigger] = serde_json::json!([entry]);
+        }
+    }
+}
+
 /// Returns `true` when the permissions object contains any tool-level overrides
 /// that deviate from "allow everything" defaults. Filesystem, command, network,
 /// and agent limits are checked separately in the caller.

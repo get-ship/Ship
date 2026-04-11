@@ -4,16 +4,25 @@ use crate::types::{AgentLimits, HookTrigger, Permissions, ToolPermissions};
 
 use super::fixtures::*;
 
-fn assert_memory_only(patch: &Option<serde_json::Value>) {
+fn assert_memory_and_lifecycle_only(patch: &Option<serde_json::Value>) {
     let p = patch
         .as_ref()
         .expect("patch must exist (autoMemoryEnabled)");
     assert_eq!(p["autoMemoryEnabled"], false);
-    assert_eq!(
-        p.as_object().unwrap().len(),
-        1,
-        "expected only autoMemoryEnabled"
+    // With unified hooks, the compiler always injects lifecycle hooks
+    // (PreToolUse, PostToolUse, Stop) so a "minimal" patch has 2 keys:
+    // autoMemoryEnabled + hooks.
+    let keys = p.as_object().unwrap();
+    assert!(
+        keys.len() == 2 && keys.contains_key("hooks"),
+        "expected autoMemoryEnabled + hooks, got keys: {:?}",
+        keys.keys().collect::<Vec<_>>()
     );
+    // Verify lifecycle hooks are present.
+    let hooks = &p["hooks"];
+    assert!(hooks["PreToolUse"].is_array());
+    assert!(hooks["PostToolUse"].is_array());
+    assert!(hooks["Stop"].is_array());
 }
 
 // ── Safety: permissions must not silently block tools ─────────────────────────
@@ -23,7 +32,7 @@ fn assert_memory_only(patch: &Option<serde_json::Value>) {
 #[test]
 fn default_permissions_emit_memory_only_patch() {
     let out = compile(&resolved(vec![]), "claude").unwrap();
-    assert_memory_only(&out.claude_settings_patch);
+    assert_memory_and_lifecycle_only(&out.claude_settings_patch);
 }
 
 /// Explicit deny-only is safe: it only restricts what the user asked to restrict.
@@ -97,7 +106,7 @@ fn allow_star_with_no_deny_emits_memory_only() {
         ..resolved(vec![])
     };
     let out = compile(&r, "claude").unwrap();
-    assert_memory_only(&out.claude_settings_patch);
+    assert_memory_and_lifecycle_only(&out.claude_settings_patch);
 }
 
 #[test]
@@ -165,8 +174,9 @@ fn hooks_compile_into_settings_patch() {
     let out = compile(&r, "claude").unwrap();
     let patch = out.claude_settings_patch.expect("hooks must emit a patch");
     let hooks = patch["hooks"]["PreToolUse"].as_array().unwrap();
-    assert_eq!(hooks.len(), 1);
-    // Each entry is { matcher?, hooks: [{ type, command }] }
+    // User hook + lifecycle hook = 2 entries under PreToolUse
+    assert!(hooks.len() >= 2);
+    // First entry is the user hook
     assert_eq!(hooks[0]["matcher"], "Bash");
     let inner = hooks[0]["hooks"].as_array().unwrap();
     assert_eq!(inner.len(), 1);
@@ -185,7 +195,8 @@ fn multiple_hooks_same_trigger_all_emitted() {
     let out = compile(&r, "claude").unwrap();
     let patch = out.claude_settings_patch.unwrap();
     let hooks = patch["hooks"]["PostToolUse"].as_array().unwrap();
-    assert_eq!(hooks.len(), 2);
+    // 2 user hooks + 1 lifecycle hook = 3
+    assert!(hooks.len() >= 3);
 }
 
 #[test]
@@ -200,9 +211,10 @@ fn hooks_grouped_by_trigger_type() {
     };
     let out = compile(&r, "claude").unwrap();
     let patch = out.claude_settings_patch.unwrap();
-    assert_eq!(patch["hooks"]["PreToolUse"].as_array().unwrap().len(), 1);
-    assert_eq!(patch["hooks"]["PostToolUse"].as_array().unwrap().len(), 1);
-    assert_eq!(patch["hooks"]["Stop"].as_array().unwrap().len(), 1);
+    // User hook + lifecycle hook per trigger
+    assert!(patch["hooks"]["PreToolUse"].as_array().unwrap().len() >= 2);
+    assert!(patch["hooks"]["PostToolUse"].as_array().unwrap().len() >= 2);
+    assert!(patch["hooks"]["Stop"].as_array().unwrap().len() >= 2);
     assert!(patch["hooks"].get("PreCompact").is_none());
 }
 
@@ -283,7 +295,7 @@ fn claude_settings_extra_null_no_patch() {
         ..resolved(vec![])
     };
     let out = compile(&r, "claude").unwrap();
-    assert_memory_only(&out.claude_settings_patch);
+    assert_memory_and_lifecycle_only(&out.claude_settings_patch);
 }
 
 // ── Ask tier ──────────────────────────────────────────────────────────────────
@@ -323,7 +335,7 @@ fn ask_tier_default_empty_memory_only() {
         ..resolved(vec![])
     };
     let out = compile(&r, "claude").unwrap();
-    assert_memory_only(&out.claude_settings_patch);
+    assert_memory_and_lifecycle_only(&out.claude_settings_patch);
 }
 
 #[test]

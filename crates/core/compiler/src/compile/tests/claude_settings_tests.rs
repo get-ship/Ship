@@ -4,17 +4,18 @@ use crate::types::Permissions;
 
 use super::fixtures::*;
 
-/// Ship always emits autoMemoryEnabled: false. When no other settings are
-/// configured, the patch contains only that field.
-fn assert_memory_only(patch: &Option<serde_json::Value>) {
+/// Ship always emits autoMemoryEnabled: false and lifecycle hooks.
+/// When no other settings are configured, the patch contains those two keys.
+fn assert_memory_and_lifecycle_only(patch: &Option<serde_json::Value>) {
     let p = patch
         .as_ref()
         .expect("patch must exist (autoMemoryEnabled)");
     assert_eq!(p["autoMemoryEnabled"], false);
-    assert_eq!(
-        p.as_object().unwrap().len(),
-        1,
-        "expected only autoMemoryEnabled"
+    let keys = p.as_object().unwrap();
+    assert!(
+        keys.len() == 2 && keys.contains_key("hooks"),
+        "expected autoMemoryEnabled + hooks, got keys: {:?}",
+        keys.keys().collect::<Vec<_>>()
     );
 }
 
@@ -39,7 +40,7 @@ fn default_mode_compiles_to_permissions_default_mode() {
 #[test]
 fn default_mode_none_omitted_from_patch() {
     let out = compile(&resolved(vec![]), "claude").unwrap();
-    assert_memory_only(&out.claude_settings_patch);
+    assert_memory_and_lifecycle_only(&out.claude_settings_patch);
 }
 
 // ── model ─────────────────────────────────────────────────────────────────────
@@ -62,7 +63,7 @@ fn model_none_omits_field() {
         ..resolved(vec![])
     };
     let out = compile(&r, "claude").unwrap();
-    assert_memory_only(&out.claude_settings_patch);
+    assert_memory_and_lifecycle_only(&out.claude_settings_patch);
 }
 
 #[test]
@@ -123,7 +124,7 @@ fn additional_directories_empty_omitted() {
         ..resolved(vec![])
     };
     let out = compile(&r, "claude").unwrap();
-    assert_memory_only(&out.claude_settings_patch);
+    assert_memory_and_lifecycle_only(&out.claude_settings_patch);
 }
 
 // ── Env vars ──────────────────────────────────────────────────────────────────
@@ -152,7 +153,7 @@ fn env_vars_emitted_in_claude_settings_patch() {
 #[test]
 fn empty_env_no_settings_patch() {
     let out = compile(&resolved(vec![]), "claude").unwrap();
-    assert_memory_only(&out.claude_settings_patch);
+    assert_memory_and_lifecycle_only(&out.claude_settings_patch);
 }
 
 #[test]
@@ -199,7 +200,7 @@ fn available_models_emitted_in_claude_settings_patch() {
 #[test]
 fn empty_available_models_no_patch() {
     let out = compile(&resolved(vec![]), "claude").unwrap();
-    assert_memory_only(&out.claude_settings_patch);
+    assert_memory_and_lifecycle_only(&out.claude_settings_patch);
 }
 
 // ── Agent profiles & team agents ──────────────────────────────────────────────
@@ -346,7 +347,8 @@ fn claude_hooks_wrapped_in_hooks_array() {
     let patch = out.claude_settings_patch.unwrap();
     // Structure: { "Stop": [{ "hooks": [{ "type": "command", "command": "..." }] }] }
     let stop_arr = patch["hooks"]["Stop"].as_array().unwrap();
-    assert_eq!(stop_arr.len(), 1);
+    // User hook + lifecycle hook
+    assert!(stop_arr.len() >= 2);
     let entry = &stop_arr[0];
     assert!(
         entry.get("hooks").is_some(),

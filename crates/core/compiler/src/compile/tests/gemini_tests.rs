@@ -59,13 +59,19 @@ fn gemini_hooks_subagent_stop_dropped() {
         ..resolved(vec![])
     };
     let out = compile(&r, "gemini").unwrap();
-    assert!(out.gemini_settings_patch.is_none());
+    // SubagentStop has no Gemini equivalent, but lifecycle hooks are still present.
+    let patch = out.gemini_settings_patch.expect("lifecycle hooks must exist");
+    assert!(patch["hooks"].get("SubagentStop").is_none());
 }
 
 #[test]
-fn gemini_no_hooks_no_patch() {
+fn gemini_no_user_hooks_has_lifecycle_hooks() {
     let out = compile(&resolved(vec![]), "gemini").unwrap();
-    assert!(out.gemini_settings_patch.is_none());
+    // Even with no user hooks, lifecycle hooks are injected.
+    let patch = out.gemini_settings_patch.expect("lifecycle hooks must exist");
+    assert!(patch["hooks"]["BeforeTool"].is_array());
+    assert!(patch["hooks"]["AfterTool"].is_array());
+    assert!(patch["hooks"]["SessionEnd"].is_array());
 }
 
 #[test]
@@ -111,10 +117,12 @@ fn gemini_model_emitted_in_settings_patch() {
 }
 
 #[test]
-fn gemini_no_model_no_hooks_no_patch() {
+fn gemini_no_model_still_has_lifecycle_hooks() {
     let r = resolved(vec![]);
     let out = compile(&r, "gemini").unwrap();
-    assert!(out.gemini_settings_patch.is_none());
+    // Lifecycle hooks are always injected even without model or user hooks.
+    let patch = out.gemini_settings_patch.expect("lifecycle hooks must exist");
+    assert!(patch["hooks"]["BeforeTool"].is_array());
 }
 
 // ── Phase 4: new Gemini fields ────────────────────────────────────────────────
@@ -235,13 +243,18 @@ fn gemini_raw_event_bypasses_trigger_mapping() {
         patch["hooks"]["SessionStart"].is_array(),
         "raw gemini_event must emit under SessionStart"
     );
-    // SessionEnd must NOT have an entry (trigger mapping bypassed).
-    assert!(
-        patch["hooks"].get("SessionEnd").is_none()
-            || patch["hooks"]["SessionEnd"]
-                .as_array()
-                .is_none_or(|a| a.is_empty())
-    );
+    // SessionEnd should only contain lifecycle hooks, not user hooks
+    // (trigger mapping for the user hook was bypassed to SessionStart).
+    if let Some(session_end) = patch["hooks"].get("SessionEnd").and_then(|v| v.as_array()) {
+        // Only lifecycle hooks should be here (ship hook session-end)
+        for entry in session_end {
+            let cmd = entry["hooks"][0]["command"].as_str().unwrap_or("");
+            assert!(
+                cmd.starts_with("ship hook"),
+                "SessionEnd should only have lifecycle hooks, found: {cmd}"
+            );
+        }
+    }
 }
 
 #[test]

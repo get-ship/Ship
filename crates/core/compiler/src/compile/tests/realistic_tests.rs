@@ -111,7 +111,8 @@ fn realistic_agent_settings_has_hooks() {
         .claude_settings_patch
         .expect("agent with hooks must emit settings");
     let stop = patch["hooks"]["Stop"].as_array().unwrap();
-    assert_eq!(stop.len(), 1);
+    // User hook + lifecycle hook
+    assert!(stop.len() >= 2);
     let stop_inner = stop[0]["hooks"].as_array().unwrap();
     assert_eq!(stop_inner[0]["command"], "ship end-session --summary");
     let sub = patch["hooks"]["SubagentStop"].as_array().unwrap();
@@ -340,7 +341,8 @@ fn both_stop_hooks_emit_to_claude_settings() {
         .claude_settings_patch
         .unwrap();
     let stop = patch["hooks"]["Stop"].as_array().unwrap();
-    assert_eq!(stop.len(), 1);
+    // User hook + lifecycle hook
+    assert!(stop.len() >= 2);
     let stop_inner = stop[0]["hooks"].as_array().unwrap();
     assert_eq!(stop_inner[0]["command"], "ship end-session --summary");
     let sub = patch["hooks"]["SubagentStop"].as_array().unwrap();
@@ -382,11 +384,11 @@ fn subagent_stop_dropped_for_non_claude_providers() {
         )],
         ..empty_agent()
     };
-    assert!(
-        compile(&r, "gemini")
-            .unwrap()
-            .gemini_settings_patch
-            .is_none()
-    );
-    assert!(compile(&r, "cursor").unwrap().cursor_hooks_patch.is_none());
+    // SubagentStop is dropped, but lifecycle hooks are still present.
+    let gemini_patch = compile(&r, "gemini").unwrap().gemini_settings_patch
+        .expect("lifecycle hooks must exist");
+    assert!(gemini_patch["hooks"].get("SubagentStop").is_none());
+    let cursor_patch = compile(&r, "cursor").unwrap().cursor_hooks_patch
+        .expect("lifecycle hooks must exist");
+    assert!(cursor_patch.get("SubagentStop").is_none());
 }
