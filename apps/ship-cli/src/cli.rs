@@ -281,18 +281,25 @@ pub enum Commands {
 
 #[derive(Subcommand, Debug)]
 pub enum DaemonCommands {
-    /// Start shipd in the background
+    /// Start the daemon in the background
     Start {
         /// Bind address (default: 0.0.0.0)
         #[arg(long, default_value = "0.0.0.0")]
         host: String,
     },
-    /// Stop the running shipd process
+    /// Stop the running daemon process
     Stop,
     /// Show daemon status
     Status,
     /// Remove orphaned worktrees for merged and failed jobs
     Cleanup,
+    /// Run the daemon in the foreground (used by `start` internally, also useful for Docker/systemd)
+    Run {
+        #[arg(long, default_value = "0.0.0.0")]
+        host: String,
+        #[arg(long, default_value_t = 9315)]
+        port: u16,
+    },
 }
 
 #[derive(Subcommand, Debug)]
