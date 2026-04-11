@@ -32,10 +32,10 @@ export function WorkspaceIndicator() {
 
   const isWorkspaceView = WORKSPACE_ROUTES.some((r) => pathname.startsWith(r))
 
-  // Use viewedWorkspace if set, otherwise default to first active workspace
+  // Use viewedWorkspace if set, otherwise default to first active or first workspace
   const currentWs = viewedWorkspace
     ? workspaces.find((w) => w.branch === viewedWorkspace)
-    : workspaces.find((w) => String(w.status).toLowerCase() === 'active')
+    : workspaces.find((w) => String(w.status).toLowerCase() === 'active') ?? workspaces[0]
 
   // Hydrate viewedWorkspace on first load or clear stale selection.
   useEffect(() => {

@@ -79,7 +79,9 @@ impl ProviderAdapter for ClaudeAdapter {
     }
 
     fn ready_pattern(&self) -> &str { "❯" }
-    fn autostart_input(&self) -> &str { "go" }
+    fn autostart_input(&self) -> &str {
+        "Read .artifacts/job-spec.md and execute it autonomously. When you are done, run /exit."
+    }
     fn exit_command(&self) -> &str { "/exit" }
 
     fn parse_output(&self, line: &str) -> Option<ProviderEvent> {

@@ -80,8 +80,16 @@ pub async fn run_network(host: String, port: u16) -> Result<()> {
     rt.session_scanner().await;
     spawn_human_gateway(rt.kernel()).await;
 
-    let token = Arc::new(auth::generate_token());
-    auth::write_token_file(&global_dir, &token).map_err(|e| anyhow!("write daemon.token: {e}"))?;
+    // Reuse existing token if present — prevents invalidating compiled hooks on restart.
+    let token = match auth::read_token(&global_dir) {
+        Ok(existing) if !existing.is_empty() => Arc::new(existing),
+        _ => {
+            let new_token = auth::generate_token();
+            auth::write_token_file(&global_dir, &new_token)
+                .map_err(|e| anyhow!("write daemon.token: {e}"))?;
+            Arc::new(new_token)
+        }
+    };
     write_port_file(&global_dir, port)?;
     write_pid_file(&global_dir)?;
 
