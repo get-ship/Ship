@@ -80,7 +80,7 @@ impl ProviderAdapter for ClaudeAdapter {
 
     fn ready_pattern(&self) -> &str { "❯" }
     fn autostart_input(&self) -> &str {
-        "Read .artifacts/job-spec.md and execute it autonomously. When you are done, run /exit."
+        "Read .artifacts/job-spec.md and execute it autonomously."
     }
     fn exit_command(&self) -> &str { "/exit" }
 
