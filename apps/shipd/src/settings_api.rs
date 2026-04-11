@@ -1,0 +1,170 @@
+//! Settings and provider-detection endpoints for the Ship daemon.
+
+use axum::{Json, extract::{Path, State}, http::StatusCode, response::IntoResponse};
+use serde::{Deserialize, Serialize};
+use std::sync::Mutex;
+use std::time::{Duration, Instant};
+
+use crate::rest_api::{ApiState, MeshResponse};
+
+// ─── Types ──────────────────────────────────────────────────────────────────
+
+#[derive(Deserialize, utoipa::ToSchema)]
+pub struct SettingsUpdateReq {
+    pub key: String,
+    pub value: serde_json::Value,
+}
+
+#[derive(Clone, Serialize, utoipa::ToSchema)]
+pub struct ProviderStatus {
+    pub id: String,
+    pub available: bool,
+    pub binary: String,
+    pub version: Option<String>,
+}
+
+// ─── Provider cache ─────────────────────────────────────────────────────────
+
+static PROVIDER_CACHE: Mutex<Option<(Instant, Vec<ProviderStatus>)>> = Mutex::new(None);
+const PROVIDER_CACHE_TTL: Duration = Duration::from_secs(300);
+
+fn cached_providers() -> Vec<ProviderStatus> {
+    let mut guard = PROVIDER_CACHE.lock().unwrap();
+    if let Some((ts, ref cached)) = *guard {
+        if ts.elapsed() < PROVIDER_CACHE_TTL {
+            return cached.clone();
+        }
+    }
+    let providers: Vec<ProviderStatus> = runtime::agent_export::PROVIDERS
+        .iter()
+        .map(|d| {
+            let available = runtime::detect_binary(d.binary);
+            let version = if available {
+                runtime::detect_version(d.binary)
+            } else {
+                None
+            };
+            ProviderStatus {
+                id: d.id.to_string(),
+                available,
+                binary: d.binary.to_string(),
+                version,
+            }
+        })
+        .collect();
+    *guard = Some((Instant::now(), providers.clone()));
+    providers
+}
+
+// ─── Handlers ───────────────────────────────────────────────────────────────
+
+#[utoipa::path(
+    get,
+    path = "/api/settings",
+    responses((status = 200, body = MeshResponse)),
+    tag = "settings"
+)]
+pub async fn list_settings(
+    State(_state): State<ApiState>,
+) -> impl IntoResponse {
+    match runtime::get_all_settings() {
+        Ok(settings) => (
+            StatusCode::OK,
+            Json(MeshResponse {
+                ok: true,
+                data: serde_json::json!(settings),
+            }),
+        ),
+        Err(e) => (
+            StatusCode::INTERNAL_SERVER_ERROR,
+            Json(MeshResponse {
+                ok: false,
+                data: serde_json::json!(e.to_string()),
+            }),
+        ),
+    }
+}
+
+#[utoipa::path(
+    put,
+    path = "/api/settings",
+    request_body = SettingsUpdateReq,
+    responses((status = 200, body = MeshResponse)),
+    tag = "settings"
+)]
+pub async fn update_setting(
+    State(_state): State<ApiState>,
+    Json(req): Json<SettingsUpdateReq>,
+) -> impl IntoResponse {
+    match runtime::set_setting(&req.key, req.value.clone()) {
+        Ok(()) => (
+            StatusCode::OK,
+            Json(MeshResponse {
+                ok: true,
+                data: serde_json::json!({ "key": req.key, "value": req.value }),
+            }),
+        ),
+        Err(e) => (
+            StatusCode::INTERNAL_SERVER_ERROR,
+            Json(MeshResponse {
+                ok: false,
+                data: serde_json::json!(e.to_string()),
+            }),
+        ),
+    }
+}
+
+#[utoipa::path(
+    get,
+    path = "/api/settings/{key}",
+    params(("key" = String, Path, description = "Setting key (e.g. defaults.provider)")),
+    responses((status = 200, body = MeshResponse)),
+    tag = "settings"
+)]
+pub async fn get_setting(
+    State(_state): State<ApiState>,
+    Path(key): Path<String>,
+) -> impl IntoResponse {
+    match runtime::get_setting(&key) {
+        Ok(Some(value)) => (
+            StatusCode::OK,
+            Json(MeshResponse {
+                ok: true,
+                data: serde_json::json!({ "key": key, "value": value }),
+            }),
+        ),
+        Ok(None) => (
+            StatusCode::NOT_FOUND,
+            Json(MeshResponse {
+                ok: false,
+                data: serde_json::json!(format!("setting '{}' not found", key)),
+            }),
+        ),
+        Err(e) => (
+            StatusCode::INTERNAL_SERVER_ERROR,
+            Json(MeshResponse {
+                ok: false,
+                data: serde_json::json!(e.to_string()),
+            }),
+        ),
+    }
+}
+
+#[utoipa::path(
+    get,
+    path = "/api/providers",
+    responses((status = 200, body = MeshResponse)),
+    tag = "settings"
+)]
+pub async fn list_providers(
+    State(_state): State<ApiState>,
+) -> impl IntoResponse {
+    let providers = cached_providers();
+    (
+        StatusCode::OK,
+        Json(MeshResponse {
+            ok: true,
+            data: serde_json::json!(providers),
+        }),
+    )
+}
