@@ -156,8 +156,9 @@ fn claude_roundtrip_preserves_key_fields() {
             .additional_directories
             .contains(&"/tmp/shared".to_string())
     );
-    assert_eq!(decompiled.hooks.len(), 1);
-    assert_eq!(decompiled.hooks[0].command, "echo done");
+    // User hook + lifecycle hooks (ship hook before-tool, after-tool, session-end)
+    assert!(decompiled.hooks.len() >= 4);
+    assert!(decompiled.hooks.iter().any(|h| h.command == "echo done"));
     assert_eq!(
         decompiled.env.get("API_KEY").map(String::as_str),
         Some("test-key")

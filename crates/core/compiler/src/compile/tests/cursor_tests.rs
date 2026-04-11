@@ -161,7 +161,7 @@ fn cursor_stop_maps_to_session_end() {
 }
 
 #[test]
-fn cursor_unmapped_triggers_produce_no_patch() {
+fn cursor_unmapped_user_triggers_only_lifecycle_hooks() {
     let r = ResolvedConfig {
         hooks: vec![
             make_hook(HookTrigger::Notification, "cmd", None),
@@ -171,7 +171,10 @@ fn cursor_unmapped_triggers_produce_no_patch() {
         ..resolved(vec![])
     };
     let out = compile(&r, "cursor").unwrap();
-    assert!(out.cursor_hooks_patch.is_none());
+    // No user hooks mapped, but lifecycle hooks are injected.
+    let patch = out.cursor_hooks_patch.expect("lifecycle hooks must exist");
+    assert!(patch["beforeMCPExecution"].is_array());
+    assert!(patch["sessionEnd"].is_array());
 }
 
 #[test]

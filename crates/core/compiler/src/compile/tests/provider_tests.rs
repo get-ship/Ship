@@ -95,7 +95,7 @@ fn gemini_feature_flags() {
 fn codex_feature_flags() {
     let flags = get_provider("codex").unwrap().feature_flags();
     assert!(flags.supports_mcp);
-    assert!(!flags.supports_hooks);
+    assert!(flags.supports_hooks);
     assert!(!flags.supports_tool_permissions);
     assert!(flags.supports_memory);
 }
