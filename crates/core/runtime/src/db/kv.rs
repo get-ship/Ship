@@ -108,6 +108,25 @@ pub fn list_keys(namespace: &str) -> Result<Vec<String>> {
     Ok(rows.iter().map(|r| r.get(0)).collect())
 }
 
+/// Return all (key, value) pairs in a namespace.
+pub fn list_all(namespace: &str) -> Result<Vec<(String, serde_json::Value)>> {
+    let mut conn = open_db()?;
+    let rows = block_on(async {
+        sqlx::query("SELECT key, value_json FROM kv_state WHERE namespace = ? ORDER BY key")
+            .bind(namespace)
+            .fetch_all(&mut conn)
+            .await
+    })?;
+    let mut pairs = Vec::with_capacity(rows.len());
+    for r in &rows {
+        let key: String = r.get(0);
+        let json_str: String = r.get(1);
+        let value: serde_json::Value = serde_json::from_str(&json_str)?;
+        pairs.push((key, value));
+    }
+    Ok(pairs)
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;

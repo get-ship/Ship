@@ -23,6 +23,10 @@ use utoipa::OpenApi;
         crate::runtime_api::rebuild_projections,
         crate::actor_api::actor_spawn,
         crate::actor_api::event_route,
+        crate::settings_api::list_settings,
+        crate::settings_api::update_setting,
+        crate::settings_api::get_setting,
+        crate::settings_api::list_providers,
     ),
     components(schemas(
         crate::rest_api::MeshRegisterReq,
@@ -36,6 +40,8 @@ use utoipa::OpenApi;
         crate::runtime_api::JobEndRequest,
         crate::actor_api::ActorSpawnReq,
         crate::actor_api::EventRouteReq,
+        crate::settings_api::SettingsUpdateReq,
+        crate::settings_api::ProviderStatus,
     ))
 )]
 pub struct ApiDoc;
