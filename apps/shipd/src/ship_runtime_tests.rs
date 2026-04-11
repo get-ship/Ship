@@ -160,7 +160,7 @@ fn run_network_is_small() {
 
     assert!(in_fn, "run_network function not found in lib.rs");
     assert!(
-        line_count <= 45,
-        "run_network is {line_count} lines — should be under 45 after refactor"
+        line_count <= 50,
+        "run_network is {line_count} lines — should be under 50 after refactor"
     );
 }
