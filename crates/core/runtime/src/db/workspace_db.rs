@@ -41,25 +41,13 @@ pub fn open_workspace_db(ship_dir: &Path, workspace_id: &str) -> Result<SqliteCo
     block_on(async { sqlx::query("PRAGMA journal_mode = WAL").execute(&mut conn).await })?;
     block_on(async { sqlx::query("PRAGMA foreign_keys = ON").execute(&mut conn).await })?;
 
-    // Pre-launch: reset stale migration table if consolidation happened.
-    {
-        let disk_count = sqlx::migrate!("./migrations/workspace").migrations.len() as i64;
-        let db_count: std::result::Result<i64, _> = block_on(async {
-            sqlx::query_scalar("SELECT COUNT(*) FROM _sqlx_migrations")
-                .fetch_one(&mut conn)
-                .await
-        });
-        if let Ok(count) = db_count
-            && count > disk_count
-        {
-            tracing::warn!("workspace db has {count} migrations but disk has {disk_count} — resetting");
-            let _ = block_on(async {
-                sqlx::query("DROP TABLE IF EXISTS _sqlx_migrations")
-                    .execute(&mut conn)
-                    .await
-            });
-        }
-    }
+    // Pre-launch: always reset migration tracking. CREATE IF NOT EXISTS
+    // makes re-running safe. Eliminates all checksum/count mismatches.
+    let _ = block_on(async {
+        sqlx::query("DROP TABLE IF EXISTS _sqlx_migrations")
+            .execute(&mut conn)
+            .await
+    });
 
     let migrate_result = if let Ok(handle) = tokio::runtime::Handle::try_current() {
         tokio::task::block_in_place(|| {
