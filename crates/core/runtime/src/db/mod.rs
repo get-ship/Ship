@@ -67,34 +67,38 @@ pub fn open_db() -> Result<SqliteConnection> {
 /// Connection-level PRAGMAs are set on every call.
 pub fn ensure_db() -> Result<()> {
     let path = db_path()?;
+    ensure_db_at_path(&path)
+}
+
+fn ensure_db_at_path(path: &std::path::Path) -> Result<()> {
     if let Some(parent) = path.parent() {
         std::fs::create_dir_all(parent)?;
     }
-    let url = sqlite_url(&path);
+    let url = sqlite_url(path);
     let opts = SqliteConnectOptions::from_str(&url)
         .with_context(|| format!("invalid sqlite url: {url}"))?
         .create_if_missing(true);
     let mut conn = block_on(async { SqliteConnection::connect_with(&opts).await })?;
 
-    // Connection-level PRAGMAs — not persisted in schema.
-    block_on(async {
-        sqlx::query("PRAGMA journal_mode = WAL")
-            .execute(&mut conn)
-            .await
-    })?;
-    block_on(async {
-        sqlx::query("PRAGMA foreign_keys = ON")
-            .execute(&mut conn)
-            .await
-    })?;
+    block_on(async { sqlx::query("PRAGMA journal_mode = WAL").execute(&mut conn).await })?;
+    block_on(async { sqlx::query("PRAGMA foreign_keys = ON").execute(&mut conn).await })?;
 
-    // Pre-launch: if the migration table has stale entries from before
-    // consolidation, drop it so sqlx re-runs from the single schema file.
-    // This is safe because there are no production databases to preserve.
-    reset_stale_migrations(&mut conn);
-
-    // Run migrations. sqlx manages its own `_sqlx_migrations` table.
-    block_on_migrate(async { sqlx::migrate!("./migrations").run(&mut conn).await })?;
+    // Try running migrations. If they fail (schema mismatch), delete DB and retry once.
+    let migrate_result = block_on_migrate(async {
+        sqlx::migrate!("./migrations").run(&mut conn).await
+    });
+    if migrate_result.is_err() {
+        tracing::warn!("migrations failed on {}, deleting and retrying", path.display());
+        drop(conn);
+        let _ = std::fs::remove_file(path);
+        let _ = std::fs::remove_file(format!("{}-wal", path.display()));
+        let _ = std::fs::remove_file(format!("{}-shm", path.display()));
+        // Reconnect to fresh DB.
+        let mut conn2 = block_on(async { SqliteConnection::connect_with(&opts).await })?;
+        block_on(async { sqlx::query("PRAGMA journal_mode = WAL").execute(&mut conn2).await })?;
+        block_on(async { sqlx::query("PRAGMA foreign_keys = ON").execute(&mut conn2).await })?;
+        block_on_migrate(async { sqlx::migrate!("./migrations").run(&mut conn2).await })?;
+    }
 
     Ok(())
 }
@@ -105,52 +109,7 @@ pub fn ensure_db() -> Result<()> {
 /// `get_global_dir()`. Use this in tests and handlers that receive `ship_dir`
 /// through `ApiState` to avoid env-var races.
 pub fn ensure_db_at(ship_dir: &Path) -> Result<()> {
-    let path = ship_dir.join("platform.db");
-    if let Some(parent) = path.parent() {
-        std::fs::create_dir_all(parent)?;
-    }
-    let url = sqlite_url(&path);
-    let opts = SqliteConnectOptions::from_str(&url)
-        .with_context(|| format!("invalid sqlite url: {url}"))?
-        .create_if_missing(true);
-    let mut conn = block_on(async { SqliteConnection::connect_with(&opts).await })?;
-    block_on(async {
-        sqlx::query("PRAGMA journal_mode = WAL")
-            .execute(&mut conn)
-            .await
-    })?;
-    block_on(async {
-        sqlx::query("PRAGMA foreign_keys = ON")
-            .execute(&mut conn)
-            .await
-    })?;
-    reset_stale_migrations(&mut conn);
-    block_on_migrate(async { sqlx::migrate!("./migrations").run(&mut conn).await })?;
-    Ok(())
-}
-
-/// Pre-launch: drop ALL tables and re-create from the schema file.
-/// There are no production databases — the DB is fully disposable.
-/// This is the only way to handle schema changes (new columns, renamed
-/// tables) without real migrations. When Ship has users with data,
-/// this function gets deleted and replaced with proper migrations.
-fn reset_stale_migrations(conn: &mut SqliteConnection) {
-    // Get all user tables.
-    let tables: Vec<String> = block_on(async {
-        sqlx::query_scalar::<_, String>(
-            "SELECT name FROM sqlite_master WHERE type='table' AND name NOT LIKE 'sqlite_%'"
-        )
-        .fetch_all(&mut *conn)
-        .await
-    }).unwrap_or_default();
-    // Drop them all.
-    for table in &tables {
-        let _ = block_on(async {
-            sqlx::query(&format!("DROP TABLE IF EXISTS \"{}\"", table))
-                .execute(&mut *conn)
-                .await
-        });
-    }
+    ensure_db_at_path(&ship_dir.join("platform.db"))
 }
 
 /// Open a connection to a specific database path (no migration run).
