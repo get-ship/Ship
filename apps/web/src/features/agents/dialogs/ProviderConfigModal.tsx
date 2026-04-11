@@ -6,8 +6,6 @@ import { ProviderGeneralTab } from './ProviderGeneralTab'
 import { ProviderHooksTab } from './ProviderHooksTab'
 import { ProviderPassthroughTab } from './ProviderPassthroughTab'
 
-const HOOK_PROVIDERS = new Set(['claude', 'gemini'])
-
 const PROVIDER_LABELS: Record<string, string> = {
   claude: 'Claude', gemini: 'Gemini', codex: 'Codex', cursor: 'Cursor', opencode: 'OpenCode',
 }
@@ -21,6 +19,7 @@ export interface ProviderConfigModalProps {
   model: string | null
   hooks: HookConfig[]
   providerSettings: Record<string, unknown>
+  defaultModel: string
   onSave: (config: {
     model: string | null
     hooks: HookConfig[]
@@ -35,14 +34,13 @@ export function ProviderConfigModal({
   model,
   hooks,
   providerSettings,
+  defaultModel,
   onSave,
 }: ProviderConfigModalProps) {
   const [activeTab, setActiveTab] = useState<TabId>('general')
   const [localModel, setLocalModel] = useState<string>(model ?? '')
   const [localHooks, setLocalHooks] = useState<HookConfig[]>(hooks)
   const [localSettings, setLocalSettings] = useState<Record<string, unknown>>(providerSettings)
-
-  const supportsHooks = HOOK_PROVIDERS.has(provider)
 
   useEffect(() => {
     if (open) {
@@ -75,7 +73,7 @@ export function ProviderConfigModal({
 
   const tabs: { id: TabId; label: string }[] = [
     { id: 'general', label: 'General' },
-    ...(supportsHooks ? [{ id: 'hooks' as const, label: 'Hooks' }] : []),
+    { id: 'hooks', label: 'Hooks' },
     { id: 'passthrough', label: 'Passthrough' },
   ]
 
@@ -125,10 +123,11 @@ export function ProviderConfigModal({
               <ProviderGeneralTab
                 provider={provider}
                 model={localModel}
+                defaultModel={defaultModel}
                 onModelChange={setLocalModel}
               />
             )}
-            {activeTab === 'hooks' && supportsHooks && (
+            {activeTab === 'hooks' && (
               <ProviderHooksTab hooks={localHooks} onChange={setLocalHooks} />
             )}
             {activeTab === 'passthrough' && (

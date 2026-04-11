@@ -37,6 +37,7 @@ const baseProps = {
   model: null as string | null,
   hooks: [],
   providerSettings: {} as Record<string, unknown>,
+  defaultModel: 'sonnet',
   onSave: vi.fn(),
 }
 
@@ -57,20 +58,12 @@ describe('ProviderConfigModal', () => {
     expect(screen.getByText('Model override')).toBeTruthy()
   })
 
-  it('shows Hooks tab for claude provider', () => {
-    render(<ProviderConfigModal {...baseProps} provider="claude" />)
-    const hooksTab = screen.getByText('Hooks')
-    expect(hooksTab).toBeTruthy()
-  })
-
-  it('does not show Hooks tab for codex provider', () => {
-    render(<ProviderConfigModal {...baseProps} provider="codex" />)
-    expect(screen.queryByText('Hooks')).toBeNull()
-  })
-
-  it('shows Hooks tab for gemini provider', () => {
-    render(<ProviderConfigModal {...baseProps} provider="gemini" />)
-    expect(screen.getByText('Hooks')).toBeTruthy()
+  it('shows Hooks tab for all providers', () => {
+    for (const provider of ['claude', 'gemini', 'codex', 'cursor', 'opencode']) {
+      const { unmount } = render(<ProviderConfigModal {...baseProps} provider={provider} />)
+      expect(screen.getByText('Hooks')).toBeTruthy()
+      unmount()
+    }
   })
 
   it('shows Passthrough tab button', () => {
@@ -110,14 +103,5 @@ describe('ProviderConfigModal', () => {
     render(<ProviderConfigModal {...baseProps} onOpenChange={onOpenChange} />)
     fireEvent.click(screen.getByText('Cancel'))
     expect(onOpenChange).toHaveBeenCalledWith(false)
-  })
-
-  it('does not show Hooks tab for cursor or opencode', () => {
-    const { unmount } = render(<ProviderConfigModal {...baseProps} provider="cursor" />)
-    expect(screen.queryByText('Hooks')).toBeNull()
-    unmount()
-
-    render(<ProviderConfigModal {...baseProps} provider="opencode" />)
-    expect(screen.queryByText('Hooks')).toBeNull()
   })
 })
