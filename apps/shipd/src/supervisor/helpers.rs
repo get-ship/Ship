@@ -65,7 +65,11 @@ pub(crate) fn compile_agent_config(
     worktree_path: &std::path::Path,
     agent_id: &str,
 ) -> Result<()> {
-    let output = std::process::Command::new("ship")
+    // Use the same binary that's running the daemon, not whatever's on PATH.
+    // This prevents stale binary issues when the installed copy can't be updated.
+    let self_exe = std::env::current_exe()
+        .unwrap_or_else(|_| std::path::PathBuf::from("ship"));
+    let output = std::process::Command::new(&self_exe)
         .args(["use", agent_id])
         .current_dir(worktree_path)
         .output()
