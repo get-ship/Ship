@@ -107,9 +107,9 @@ function DashboardPage() {
             }
           />
           <NavCard
-            to="/studio/jobs"
+            to="/studio/workflows"
             icon={Briefcase}
-            label="Jobs"
+            label="Workflows"
             detail={runningJobs.length > 0
               ? `${runningJobs.length} running`
               : pendingJobs.length > 0
