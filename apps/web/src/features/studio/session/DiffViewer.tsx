@@ -16,7 +16,9 @@ interface DiffComment {
 
 interface DiffViewerProps {
   diffText: string
+  comments?: DiffComment[]
   onComment?: (comment: DiffComment) => void
+  onRemoveComment?: (timestamp: string) => void
 }
 
 function FileHeader({ file, isOpen, onToggle }: { file: DiffFile; isOpen: boolean; onToggle: () => void }) {
@@ -41,10 +43,12 @@ function HunkHeader({ header }: { header: string }) {
   )
 }
 
-function DiffLineRow({ line, filePath, onComment }: {
+function DiffLineRow({ line, filePath, existingComments, onComment, onRemoveComment }: {
   line: DiffLine
   filePath: string
+  existingComments?: DiffComment[]
   onComment?: (comment: DiffComment) => void
+  onRemoveComment?: (timestamp: string) => void
 }) {
   const [showInput, setShowInput] = useState(false)
   const [commentText, setCommentText] = useState('')
@@ -89,6 +93,25 @@ function DiffLineRow({ line, filePath, onComment }: {
           </span>
         )}
       </div>
+      {existingComments?.map((c) => (
+        <div key={c.timestamp} className="flex items-start gap-2 px-3 py-2 bg-primary/5 border-l-2 border-primary/40">
+          <div className="flex-1 min-w-0">
+            <p className="text-xs text-foreground">{c.comment}</p>
+            <time className="text-[10px] text-muted-foreground/60">
+              {new Date(c.timestamp).toLocaleTimeString()}
+            </time>
+          </div>
+          {onRemoveComment && (
+            <button
+              onClick={() => onRemoveComment(c.timestamp)}
+              className="shrink-0 rounded p-0.5 text-muted-foreground/50 hover:text-destructive transition text-[10px]"
+              aria-label="Remove comment"
+            >
+              &times;
+            </button>
+          )}
+        </div>
+      ))}
       {showInput && (
         <div className="flex items-start gap-2 px-3 py-2 bg-muted/30 border-y border-border/30">
           <textarea
@@ -117,22 +140,40 @@ function DiffLineRow({ line, filePath, onComment }: {
   )
 }
 
-function FileSection({ file, onComment }: { file: DiffFile; onComment?: (c: DiffComment) => void }) {
+function FileSection({ file, comments, onComment, onRemoveComment }: {
+  file: DiffFile
+  comments?: DiffComment[]
+  onComment?: (c: DiffComment) => void
+  onRemoveComment?: (timestamp: string) => void
+}) {
   return (
     <div className="border-b border-border/20">
       {file.hunks.map((hunk: DiffHunk, hi: number) => (
         <div key={hi}>
           <HunkHeader header={hunk.header} />
-          {hunk.lines.map((line: DiffLine, li: number) => (
-            <DiffLineRow key={li} line={line} filePath={file.path} onComment={onComment} />
-          ))}
+          {hunk.lines.map((line: DiffLine, li: number) => {
+            const lineNum = line.newNum ?? line.oldNum ?? 0
+            const lineComments = comments?.filter(
+              (c) => c.file === file.path && c.lineNum === lineNum && c.lineType === line.type,
+            )
+            return (
+              <DiffLineRow
+                key={li}
+                line={line}
+                filePath={file.path}
+                existingComments={lineComments?.length ? lineComments : undefined}
+                onComment={onComment}
+                onRemoveComment={onRemoveComment}
+              />
+            )
+          })}
         </div>
       ))}
     </div>
   )
 }
 
-export function DiffViewer({ diffText, onComment }: DiffViewerProps) {
+export function DiffViewer({ diffText, comments, onComment, onRemoveComment }: DiffViewerProps) {
   const parsed = useMemo(() => parseDiff(diffText), [diffText])
   const [collapsed, setCollapsed] = useState<Set<string>>(new Set())
 
@@ -185,7 +226,14 @@ export function DiffViewer({ diffText, onComment }: DiffViewerProps) {
         {parsed.files.map((file) => (
           <div key={file.path}>
             <FileHeader file={file} isOpen={!collapsed.has(file.path)} onToggle={() => toggleFile(file.path)} />
-            {!collapsed.has(file.path) && <FileSection file={file} onComment={onComment} />}
+            {!collapsed.has(file.path) && (
+              <FileSection
+                file={file}
+                comments={comments}
+                onComment={onComment}
+                onRemoveComment={onRemoveComment}
+              />
+            )}
           </div>
         ))}
       </div>

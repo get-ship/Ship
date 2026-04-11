@@ -17,7 +17,7 @@ pub use agents_skills_write::{
 };
 pub use artifacts::{artifacts_status, list_project_artifacts, promote_artifact};
 pub use pipelines::{list_pipelines, write_pipeline, delete_pipeline};
-pub use git::{git_diff, git_log, git_status};
+pub use git::{git_diff, git_log, git_status, project_git_diff, project_git_log, project_git_status};
 pub use session_files::{
     delete_session_file, list_session_files, read_session_file, write_session_file,
 };

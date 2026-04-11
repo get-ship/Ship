@@ -1,8 +1,9 @@
 // Hooks for fetching git status, diff, and log via the shipd daemon.
+// Project-level hooks hit /api/project/git/* (no workspace scope).
+// Workspace-level hooks hit /api/workspaces/{id}/git/* (legacy, still available).
 
 import { useQuery } from '@tanstack/react-query'
 import { daemonFetch } from '#/lib/daemon-config'
-import { useActiveWorkspaceId } from '#/features/studio/hooks/useWorkspaceConfig'
 import { sessionKeys } from './query-keys'
 
 export interface GitStatusFile {
@@ -63,54 +64,48 @@ function parseGitStatus(raw: string): GitStatusResult {
   return { branch, clean, staged, modified, untracked }
 }
 
-export function useGitStatus() {
-  const wsId = useActiveWorkspaceId()
+// ── Project-level hooks ─────────────────────────────────────────────────────
 
+export function useGitStatus() {
   return useQuery({
-    queryKey: sessionKeys.gitStatus(wsId),
+    queryKey: sessionKeys.projectGitStatus(),
     queryFn: async (): Promise<GitStatusResult | null> => {
-      const res = await daemonFetch(`/api/workspaces/${encodeURIComponent(wsId)}/git/status`)
+      const res = await daemonFetch('/api/project/git/status')
       if (!res.ok) return null
       const body = (await res.json()) as { ok: boolean; data: { output: string } }
       return parseGitStatus(body.data.output)
     },
-    enabled: wsId.length > 0,
     staleTime: 10_000,
     refetchInterval: 15_000,
   })
 }
 
 export function useGitDiff(range?: string) {
-  const wsId = useActiveWorkspaceId()
-
   return useQuery({
-    queryKey: sessionKeys.gitDiff(wsId, range),
+    queryKey: sessionKeys.projectGitDiff(range),
     queryFn: async (): Promise<string | null> => {
       const params = range ? `?range=${encodeURIComponent(range)}` : ''
-      const res = await daemonFetch(`/api/workspaces/${encodeURIComponent(wsId)}/git/diff${params}`)
+      const res = await daemonFetch(`/api/project/git/diff${params}`)
       if (!res.ok) return null
       const body = (await res.json()) as { ok: boolean; data: { output: string } }
       if (!body.data.output.trim()) return null
       return body.data.output
     },
-    enabled: range !== undefined && wsId.length > 0,
+    enabled: range !== undefined,
     staleTime: 10_000,
     refetchInterval: 15_000,
   })
 }
 
 export function useGitLog(limit = 10) {
-  const wsId = useActiveWorkspaceId()
-
   return useQuery({
-    queryKey: sessionKeys.gitLog(wsId, limit),
+    queryKey: sessionKeys.projectGitLog(limit),
     queryFn: async (): Promise<GitLogEntry[]> => {
-      const res = await daemonFetch(`/api/workspaces/${encodeURIComponent(wsId)}/git/log?limit=${limit}`)
+      const res = await daemonFetch(`/api/project/git/log?limit=${limit}`)
       if (!res.ok) return []
       const body = (await res.json()) as { ok: boolean; data: { output: string; commits: GitLogEntry[] } }
       return body.data.commits
     },
-    enabled: wsId.length > 0,
     staleTime: 15_000,
     refetchInterval: 30_000,
   })
