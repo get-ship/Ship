@@ -12,6 +12,20 @@ vi.mock('../dialogs/ProviderConfigModal', () => ({
   ProviderConfigModal: () => <div data-testid="config-modal" />,
 }))
 
+// Mock useProviderData to avoid daemon queries
+vi.mock('#/features/agents/useProviderData', () => ({
+  useProviderData: () => ({
+    providers: [
+      { id: 'claude', available: true, binary: 'claude', version: '1.0.0' },
+      { id: 'gemini', available: true, binary: 'gemini', version: '2.1.0' },
+      { id: 'codex', available: false, binary: 'codex', version: null },
+    ],
+    defaultProvider: 'claude',
+    defaultModel: 'sonnet',
+    isLoading: false,
+  }),
+}))
+
 afterEach(cleanup)
 
 const baseProps = {
@@ -50,7 +64,7 @@ describe('ProvidersSection', () => {
     expect(defaults.length).toBe(3)
   })
 
-  it('shows hook count for claude and gemini only', () => {
+  it('shows hook count for all providers', () => {
     render(
       <ProvidersSection
         {...baseProps}
@@ -60,9 +74,8 @@ describe('ProvidersSection', () => {
         ]}
       />,
     )
-    // Claude and Gemini show hook counts, Codex shows defaults
     const hookTexts = screen.getAllByText(/2 hooks/)
-    expect(hookTexts.length).toBe(2)
+    expect(hookTexts.length).toBe(3)
   })
 
   it('derives provider count from props, not hardcoded', () => {
@@ -90,5 +103,17 @@ describe('ProvidersSection', () => {
   it('renders singular provider text', () => {
     render(<ProvidersSection {...baseProps} providers={['claude']} />)
     expect(screen.getByText('1 provider')).toBeTruthy()
+  })
+
+  it('shows default badge on default provider', () => {
+    render(<ProvidersSection {...baseProps} />)
+    expect(screen.getByText('default')).toBeTruthy()
+  })
+
+  it('shows availability status from API data', () => {
+    render(<ProvidersSection {...baseProps} />)
+    expect(screen.getByText('not installed')).toBeTruthy()
+    expect(screen.getByText('1.0.0')).toBeTruthy()
+    expect(screen.getByText('2.1.0')).toBeTruthy()
   })
 })

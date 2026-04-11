@@ -1,15 +1,20 @@
 import { useState, useMemo } from 'react'
 import { PROVIDER_MODELS } from '#/features/agents/provider-models'
 
+// Static model list is sufficient for autocomplete at launch.
+// TODO: Replace with dynamic model discovery from a provider API endpoint.
+
 interface ProviderGeneralTabProps {
   provider: string
   model: string
+  defaultModel: string
   onModelChange: (model: string) => void
 }
 
 export function ProviderGeneralTab({
   provider,
   model,
+  defaultModel,
   onModelChange,
 }: ProviderGeneralTabProps) {
   const [showSuggestions, setShowSuggestions] = useState(false)
@@ -42,7 +47,7 @@ export function ProviderGeneralTab({
             onChange={(e) => { onModelChange(e.target.value); setShowSuggestions(true) }}
             onFocus={() => setShowSuggestions(true)}
             onBlur={() => { setTimeout(() => setShowSuggestions(false), 150) }}
-            placeholder="Leave empty for provider default"
+            placeholder={`Using default: ${defaultModel}`}
             className="w-full rounded-lg border border-border/60 bg-background px-3 py-2 font-mono text-xs text-foreground placeholder:text-muted-foreground/40 outline-none focus:border-primary/50 focus:ring-1 focus:ring-primary/25 transition"
           />
           {showSuggestions && filteredModels.length > 0 && (

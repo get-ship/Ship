@@ -2,6 +2,7 @@ import { useState } from 'react'
 import { SlidersHorizontal } from 'lucide-react'
 import type { HookConfig } from '@ship/ui'
 import { ProviderLogo } from '#/features/compiler/ProviderLogo'
+import { useProviderData, type ProviderStatus } from '#/features/agents/useProviderData'
 import { SectionShell } from './SectionShell'
 import { ProviderConfigModal } from '../dialogs/ProviderConfigModal'
 
@@ -12,8 +13,6 @@ const PROVIDER_LABELS: Record<string, string> = {
   cursor: 'Cursor',
   opencode: 'OpenCode',
 }
-
-const HOOK_PROVIDERS = new Set(['claude', 'gemini'])
 
 export interface ProvidersSectionProps {
   providers: string[]
@@ -35,8 +34,11 @@ export function ProvidersSection({
   onChangeProviderSettings,
 }: ProvidersSectionProps) {
   const [activeProvider, setActiveProvider] = useState<string | null>(null)
+  const { providers: apiProviders, defaultProvider, defaultModel } = useProviderData()
 
   if (providers.length === 0) return null
+
+  const statusMap = new Map(apiProviders.map((p) => [p.id, p]))
 
   const handleSave = (config: {
     model: string | null
@@ -63,8 +65,10 @@ export function ProvidersSection({
               key={provider}
               provider={provider}
               model={model}
-              hookCount={HOOK_PROVIDERS.has(provider) ? hooks.length : 0}
+              hookCount={hooks.length}
               settingsCount={Object.keys(providerSettings[provider] ?? {}).length}
+              status={statusMap.get(provider)}
+              isDefault={provider === defaultProvider}
               onClick={() => setActiveProvider(provider)}
             />
           ))}
@@ -79,6 +83,7 @@ export function ProvidersSection({
           model={model ?? null}
           hooks={hooks}
           providerSettings={providerSettings[activeProvider] ?? {}}
+          defaultModel={defaultModel}
           onSave={handleSave}
         />
       )}
@@ -91,12 +96,16 @@ function ProviderCard({
   model,
   hookCount,
   settingsCount,
+  status,
+  isDefault,
   onClick,
 }: {
   provider: string
   model?: string | null
   hookCount: number
   settingsCount: number
+  status?: ProviderStatus
+  isDefault: boolean
   onClick: () => void
 }) {
   const parts: string[] = []
@@ -112,13 +121,45 @@ function ProviderCard({
     >
       <ProviderLogo provider={provider} size="md" />
       <div className="flex-1 min-w-0">
-        <div className="text-xs font-medium text-foreground/80">
-          {PROVIDER_LABELS[provider] ?? provider}
+        <div className="flex items-center gap-1.5">
+          <span className="text-xs font-medium text-foreground/80">
+            {PROVIDER_LABELS[provider] ?? provider}
+          </span>
+          {isDefault && (
+            <span className="rounded bg-primary/10 px-1.5 py-0.5 text-[9px] font-medium text-primary">
+              default
+            </span>
+          )}
         </div>
-        <div className="text-[10px] text-muted-foreground/50 truncate mt-0.5">
-          {summary}
+        <div className="flex items-center gap-1.5 mt-0.5">
+          <AvailabilityDot status={status} />
+          <span className="text-[10px] text-muted-foreground/50 truncate">
+            {summary}
+          </span>
         </div>
       </div>
     </button>
+  )
+}
+
+function AvailabilityDot({ status }: { status?: ProviderStatus }) {
+  if (!status) return null
+
+  if (status.available) {
+    return (
+      <span className="flex items-center gap-1 shrink-0">
+        <span className="size-1.5 rounded-full bg-emerald-500" />
+        {status.version && (
+          <span className="text-[9px] text-muted-foreground/40">{status.version}</span>
+        )}
+      </span>
+    )
+  }
+
+  return (
+    <span className="flex items-center gap-1 shrink-0">
+      <span className="size-1.5 rounded-full bg-muted-foreground/30" />
+      <span className="text-[9px] text-muted-foreground/30">not installed</span>
+    </span>
   )
 }
