@@ -1,4 +1,4 @@
-//! Git endpoints — status, diff, log for workspace worktrees.
+//! Git endpoints — status, diff, log for workspace worktrees and project root.
 
 use axum::{Json, extract::{Path, Query, State}, http::StatusCode};
 use serde::Deserialize;
@@ -78,6 +78,81 @@ pub async fn git_log(
     let limit_arg = format!("-{limit}");
     let output = run_git(
         &worktree,
+        &[
+            "log",
+            "--format=%H%x1f%s%x1f%an%x1f%ad",
+            "--date=short",
+            &limit_arg,
+        ],
+    )?;
+
+    let commits: Vec<serde_json::Value> = output
+        .lines()
+        .filter(|l| !l.is_empty())
+        .filter_map(|line| {
+            let parts: Vec<&str> = line.split('\x1f').collect();
+            if parts.len() >= 4 {
+                Some(serde_json::json!({
+                    "hash": parts[0],
+                    "subject": parts[1],
+                    "author": parts[2],
+                    "date": parts[3],
+                }))
+            } else {
+                None
+            }
+        })
+        .collect();
+
+    Ok(ok_response(serde_json::json!({
+        "output": output,
+        "commits": commits,
+    })))
+}
+
+// ── Project-level endpoints (run against project root, not a workspace) ──
+
+fn resolve_project_root(
+    ship_dir: &std::path::Path,
+) -> Result<std::path::PathBuf, (StatusCode, Json<MeshResponse>)> {
+    let root = ship_dir.parent().ok_or_else(|| {
+        err_response(StatusCode::INTERNAL_SERVER_ERROR, "cannot resolve project root")
+    })?;
+    Ok(root.to_path_buf())
+}
+
+/// GET /api/project/git/status
+pub async fn project_git_status(
+    State(state): State<ApiState>,
+) -> Result<(StatusCode, Json<MeshResponse>), (StatusCode, Json<MeshResponse>)> {
+    let root = resolve_project_root(state.ship_dir())?;
+    let output = run_git(&root, &["status"])?;
+    Ok(ok_response(serde_json::json!({ "output": output })))
+}
+
+/// GET /api/project/git/diff
+pub async fn project_git_diff(
+    State(state): State<ApiState>,
+    Query(params): Query<DiffQuery>,
+) -> Result<(StatusCode, Json<MeshResponse>), (StatusCode, Json<MeshResponse>)> {
+    let root = resolve_project_root(state.ship_dir())?;
+    let output = match &params.range {
+        Some(range) => run_git(&root, &["diff", range])?,
+        None => run_git(&root, &["diff"])?,
+    };
+    Ok(ok_response(serde_json::json!({ "output": output })))
+}
+
+/// GET /api/project/git/log
+pub async fn project_git_log(
+    State(state): State<ApiState>,
+    Query(params): Query<LogQuery>,
+) -> Result<(StatusCode, Json<MeshResponse>), (StatusCode, Json<MeshResponse>)> {
+    let root = resolve_project_root(state.ship_dir())?;
+    let limit = params.limit.unwrap_or(20);
+    let limit_arg = format!("-{limit}");
+    let output = run_git(
+        &root,
         &[
             "log",
             "--format=%H%x1f%s%x1f%an%x1f%ad",

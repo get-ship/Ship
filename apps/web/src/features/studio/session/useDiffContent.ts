@@ -16,9 +16,9 @@ export function useDiffContent() {
     queryKey: sessionKeys.diff(wsId),
     enabled: wsId.length > 0,
     queryFn: async (): Promise<string | null> => {
-      // Try git diff first
+      // Try project-level git diff first
       try {
-        const res = await daemonFetch(`/api/workspaces/${encodeURIComponent(wsId)}/git/diff`)
+        const res = await daemonFetch('/api/project/git/diff')
         if (res.ok) {
           const body = (await res.json()) as { ok: boolean; data: { output: string } }
           if (body.data.output.trim().length > 0) return body.data.output
