@@ -2,7 +2,7 @@
 // Handles request/response proxying, SSE event forwarding, and theme sync.
 
 import { useRef, useEffect, useCallback } from 'react'
-import { DAEMON_BASE_URL, daemonFetch } from '#/lib/daemon-config'
+import { daemonFetch, daemonUrlWithToken } from '#/lib/daemon-config'
 import { getResolvedTheme } from '#/features/studio/session/canvas-helpers'
 
 interface ViewHostProps {
@@ -45,7 +45,7 @@ export function ViewHost({ html, workspaceId }: ViewHostProps) {
     const iframe = iframeRef.current
     if (!iframe) return
 
-    const es = new EventSource(`${DAEMON_BASE_URL}/api/runtime/events`)
+    const es = new EventSource(daemonUrlWithToken('/api/runtime/events'))
     es.addEventListener('ship.event', (e: MessageEvent) => {
       try {
         const envelope = JSON.parse(e.data as string)

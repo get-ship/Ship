@@ -6,7 +6,7 @@ import type { IDisposable } from '@xterm/xterm'
 import { Terminal as XTerm } from '@xterm/xterm'
 import { FitAddon } from '@xterm/addon-fit'
 import { RefreshCw, TerminalIcon } from 'lucide-react'
-import { DAEMON_BASE_URL } from '#/lib/daemon-config'
+import { daemonUrlWithToken } from '#/lib/daemon-config'
 import '@xterm/xterm/css/xterm.css'
 
 interface Props {
@@ -17,8 +17,10 @@ interface Props {
 type ConnectionState = 'idle' | 'connecting' | 'connected' | 'disconnected' | 'error'
 
 function buildWsUrl(workspaceId: string): string {
-  const base = DAEMON_BASE_URL.replace(/^http/, 'ws')
-  return `${base}/api/runtime/workspaces/${workspaceId}/pty`
+  // daemonUrlWithToken adds ?token=... which the daemon accepts on GET
+  // (including WebSocket upgrades). Then convert the scheme to ws://.
+  const httpUrl = daemonUrlWithToken(`/api/runtime/workspaces/${workspaceId}/pty`)
+  return httpUrl.replace(/^http/, 'ws')
 }
 
 export function TerminalTab({ workspaceId, visible }: Props) {
