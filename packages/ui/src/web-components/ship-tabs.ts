@@ -29,19 +29,22 @@
  */
 
 import { LitElement, css, html } from 'lit'
-import { customElement, property } from 'lit/decorators.js'
 
-@customElement('ship-tab')
 export class ShipTab extends LitElement {
   static styles = css`:host { display: none; }`
-  @property() name = ''
-  @property() label = ''
-  @property({ type: Number }) count: number | null = null
-  @property({ type: Boolean }) disabled = false
+  static properties = {
+    name: { type: String },
+    label: { type: String },
+    count: { type: Number },
+    disabled: { type: Boolean },
+  }
+  name = ''
+  label = ''
+  count: number | null = null
+  disabled = false
   render() { return html`` }
 }
 
-@customElement('ship-tab-panel')
 export class ShipTabPanel extends LitElement {
   static styles = css`
     :host { display: none; }
@@ -51,12 +54,15 @@ export class ShipTabPanel extends LitElement {
       to { opacity: 1; transform: translateY(0); }
     }
   `
-  @property() name = ''
-  @property({ type: Boolean, reflect: true }) active = false
+  static properties = {
+    name: { type: String },
+    active: { type: Boolean, reflect: true },
+  }
+  name = ''
+  active = false
   render() { return html`<slot></slot>` }
 }
 
-@customElement('ship-tabs')
 export class ShipTabs extends LitElement {
   static styles = css`
     :host { display: block; font-family: var(--font-body); }
@@ -140,9 +146,15 @@ export class ShipTabs extends LitElement {
     .panels { display: block; }
   `
 
-  @property({ reflect: true }) active = ''
-  @property({ reflect: true }) variant: 'underline' | 'segmented' = 'underline'
-  @property({ type: Boolean, reflect: true }) sticky = false
+  static properties = {
+    active: { type: String, reflect: true },
+    variant: { type: String, reflect: true },
+    sticky: { type: Boolean, reflect: true },
+  }
+
+  active = ''
+  variant: 'underline' | 'segmented' = 'underline'
+  sticky = false
 
   private get tabs(): ShipTab[] {
     return Array.from(this.querySelectorAll(':scope > ship-tab')) as ShipTab[]
@@ -202,6 +214,12 @@ export class ShipTabs extends LitElement {
       <div class="panels"><slot></slot></div>
     `
   }
+}
+
+if (typeof customElements !== 'undefined') {
+  if (!customElements.get('ship-tab')) customElements.define('ship-tab', ShipTab)
+  if (!customElements.get('ship-tab-panel')) customElements.define('ship-tab-panel', ShipTabPanel)
+  if (!customElements.get('ship-tabs')) customElements.define('ship-tabs', ShipTabs)
 }
 
 declare global {

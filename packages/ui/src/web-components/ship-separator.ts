@@ -9,9 +9,7 @@
  */
 
 import { LitElement, css, html } from 'lit'
-import { customElement, property } from 'lit/decorators.js'
 
-@customElement('ship-separator')
 export class ShipSeparator extends LitElement {
   static styles = css`
     :host { display: block; background: var(--border); }
@@ -29,14 +27,23 @@ export class ShipSeparator extends LitElement {
     }
   `
 
-  @property({ reflect: true }) orientation: 'horizontal' | 'vertical' = 'horizontal'
-  @property({ reflect: true }) variant: 'solid' | 'dashed' = 'solid'
+  static properties = {
+    orientation: { type: String, reflect: true },
+    variant: { type: String, reflect: true },
+  }
+
+  orientation: 'horizontal' | 'vertical' = 'horizontal'
+  variant: 'solid' | 'dashed' = 'solid'
 
   render() {
     this.setAttribute('role', 'separator')
     this.setAttribute('aria-orientation', this.orientation)
     return html``
   }
+}
+
+if (typeof customElements !== 'undefined' && !customElements.get('ship-separator')) {
+  customElements.define('ship-separator', ShipSeparator)
 }
 
 declare global {

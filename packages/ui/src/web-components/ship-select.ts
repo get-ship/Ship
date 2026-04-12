@@ -21,9 +21,6 @@
  */
 
 import { LitElement, css, html } from 'lit'
-import { customElement, property, query } from 'lit/decorators.js'
-
-@customElement('ship-select')
 export class ShipSelect extends LitElement {
   static styles = css`
     :host { display: inline-flex; }
@@ -41,13 +38,20 @@ export class ShipSelect extends LitElement {
     :host([size='sm']) select { font-size: 11px; padding: 3px 6px; }
   `
 
-  @property() value = ''
-  @property() name = ''
-  @property({ type: Boolean, reflect: true }) required = false
-  @property({ type: Boolean, reflect: true }) disabled = false
-  @property({ reflect: true }) size: 'sm' | 'md' = 'md'
+  static properties = {
+    value: { type: String },
+    name: { type: String },
+    required: { type: Boolean, reflect: true },
+    disabled: { type: Boolean, reflect: true },
+    size: { type: String, reflect: true },
+  }
 
-  @query('select') private selectEl!: HTMLSelectElement
+  value = ''
+  name = ''
+  required = false
+  disabled = false
+  size: 'sm' | 'md' = 'md'
+  get selectEl(): HTMLSelectElement { return this.renderRoot.querySelector('select')! as HTMLSelectElement }
 
   firstUpdated() { this.syncOptions() }
   updated() { this.syncOptions() }
@@ -80,6 +84,11 @@ export class ShipSelect extends LitElement {
       <span hidden><slot @slotchange=${this.syncOptions}></slot></span>
     `
   }
+}
+
+
+if (typeof customElements !== 'undefined' && !customElements.get('ship-select')) {
+  customElements.define('ship-select', ShipSelect)
 }
 
 declare global {

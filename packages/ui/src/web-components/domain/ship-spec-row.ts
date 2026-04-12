@@ -14,7 +14,6 @@
  */
 
 import { LitElement, css, html } from 'lit'
-import { customElement, property } from 'lit/decorators.js'
 import '../ship-badge'
 import '../ship-list-item'
 import { MONO } from '../util'
@@ -30,7 +29,6 @@ const STATUS_TO_TONE: Record<SpecStatus, Tone> = {
   failed: 'destructive',
 }
 
-@customElement('ship-spec-row')
 export class ShipSpecRow extends LitElement {
   static styles = css`
     :host { display: block; }
@@ -41,11 +39,17 @@ export class ShipSpecRow extends LitElement {
     }
   `
 
-  @property({ reflect: true, attribute: 'item-title' }) itemTitle = ''
-  @property({ reflect: true }) status: SpecStatus = 'draft'
-  @property({ reflect: true }) pipeline = ''
-  @property({ type: Boolean, reflect: true }) selected = false
+  static properties = {
+    itemTitle: { type: String, reflect: true, attribute: 'item-title' },
+    status: { type: String, reflect: true },
+    pipeline: { type: String, reflect: true },
+    selected: { type: Boolean, reflect: true },
+  }
 
+  itemTitle = ''
+  status: SpecStatus = 'draft'
+  pipeline = ''
+  selected = false
   render() {
     const tone = STATUS_TO_TONE[this.status] ?? 'muted'
     return html`
@@ -58,6 +62,11 @@ export class ShipSpecRow extends LitElement {
       </ship-list-item>
     `
   }
+}
+
+
+if (typeof customElements !== 'undefined' && !customElements.get('ship-spec-row')) {
+  customElements.define('ship-spec-row', ShipSpecRow)
 }
 
 declare global {

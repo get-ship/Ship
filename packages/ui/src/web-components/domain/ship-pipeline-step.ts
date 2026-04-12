@@ -18,14 +18,12 @@
  */
 
 import { LitElement, css, html } from 'lit'
-import { customElement, property } from 'lit/decorators.js'
 import '../ship-spinner'
 import { MONO } from '../util'
 
 type StepState = 'pending' | 'running' | 'completed' | 'failed'
 type StepType = 'agent' | 'gate' | 'merge' | 'run' | 'human'
 
-@customElement('ship-pipeline-step')
 export class ShipPipelineStep extends LitElement {
   static styles = css`
     :host {
@@ -84,11 +82,17 @@ export class ShipPipelineStep extends LitElement {
     }
   `
 
-  @property({ reflect: true }) name = ''
-  @property({ attribute: 'step-type', reflect: true }) stepType: StepType = 'agent'
-  @property({ reflect: true }) state: StepState = 'pending'
-  @property({ reflect: true }) agent = ''
+  static properties = {
+    name: { type: String, reflect: true },
+    stepType: { type: String, reflect: true, attribute: 'step-type' },
+    state: { type: String, reflect: true },
+    agent: { type: String, reflect: true },
+  }
 
+  name = ''
+  stepType: StepType = 'agent'
+  state: StepState = 'pending'
+  agent = ''
   private glyphFor(state: StepState): string {
     switch (state) {
       case 'completed': return '\u2713' // ✓
@@ -111,6 +115,11 @@ export class ShipPipelineStep extends LitElement {
       <span class="status">${this.state}</span>
     `
   }
+}
+
+
+if (typeof customElements !== 'undefined' && !customElements.get('ship-pipeline-step')) {
+  customElements.define('ship-pipeline-step', ShipPipelineStep)
 }
 
 declare global {

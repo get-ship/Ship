@@ -16,11 +16,8 @@
  */
 
 import { LitElement, css, html } from 'lit'
-import { customElement, property } from 'lit/decorators.js'
-
 type StatAccent = 'default' | 'primary' | 'info' | 'success' | 'destructive' | 'warning' | 'accent'
 
-@customElement('ship-stat')
 export class ShipStat extends LitElement {
   static styles = css`
     :host {
@@ -66,9 +63,13 @@ export class ShipStat extends LitElement {
     }
   `
 
-  @property({ reflect: true }) accent: StatAccent = 'default'
-  @property({ type: Boolean, reflect: true }) interactive = false
+  static properties = {
+    accent: { type: String, reflect: true },
+    interactive: { type: Boolean, reflect: true },
+  }
 
+  accent: StatAccent = 'default'
+  interactive = false
   render() {
     return html`
       <span class="label"><slot name="label"></slot></span>
@@ -76,6 +77,11 @@ export class ShipStat extends LitElement {
       <span class="hint"><slot name="hint"></slot></span>
     `
   }
+}
+
+
+if (typeof customElements !== 'undefined' && !customElements.get('ship-stat')) {
+  customElements.define('ship-stat', ShipStat)
 }
 
 declare global {

@@ -12,11 +12,9 @@
  */
 
 import { LitElement, css, html } from 'lit'
-import { customElement, property } from 'lit/decorators.js'
 import { toneVars } from './util'
 import type { Tone } from './util'
 
-@customElement('ship-status-dot')
 export class ShipStatusDot extends LitElement {
   static styles = [
     toneVars,
@@ -38,13 +36,30 @@ export class ShipStatusDot extends LitElement {
     `,
   ]
 
-  @property({ reflect: true }) tone: Tone = 'success'
-  @property({ type: Boolean, reflect: true }) pulse = false
-  @property({ reflect: true }) size: 'sm' | 'md' = 'md'
+  static properties = {
+    tone: { type: String, reflect: true },
+    pulse: { type: Boolean, reflect: true },
+    size: { type: String, reflect: true },
+  }
+
+  tone: Tone
+  pulse: boolean
+  size: 'sm' | 'md'
+
+  constructor() {
+    super()
+    this.tone = 'success'
+    this.pulse = false
+    this.size = 'md'
+  }
 
   render() {
     return html`<span class="dot" part="dot" aria-hidden="true"></span>`
   }
+}
+
+if (typeof customElements !== 'undefined' && !customElements.get('ship-status-dot')) {
+  customElements.define('ship-status-dot', ShipStatusDot)
 }
 
 declare global {

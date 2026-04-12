@@ -18,9 +18,6 @@
  */
 
 import { LitElement, css, html } from 'lit'
-import { customElement, property, query } from 'lit/decorators.js'
-
-@customElement('ship-dialog')
 export class ShipDialog extends LitElement {
   static styles = css`
     :host { display: contents; }
@@ -62,11 +59,16 @@ export class ShipDialog extends LitElement {
     }
   `
 
-  @property({ type: Boolean, reflect: true }) open = false
-  @property({ reflect: true }) size: 'sm' | 'md' | 'lg' = 'md'
-  @property({ type: Boolean }) dismissible = true
+  static properties = {
+    open: { type: Boolean, reflect: true },
+    size: { type: String, reflect: true },
+    dismissible: { type: Boolean },
+  }
 
-  @query('dialog') private dialogEl!: HTMLDialogElement
+  open = false
+  size: 'sm' | 'md' | 'lg' = 'md'
+  dismissible = true
+  get dialogEl(): HTMLDialogElement { return this.renderRoot.querySelector('dialog')! as HTMLDialogElement }
 
   updated(changed: Map<string, unknown>) {
     if (changed.has('open') && this.dialogEl) {
@@ -107,6 +109,11 @@ export class ShipDialog extends LitElement {
       </dialog>
     `
   }
+}
+
+
+if (typeof customElements !== 'undefined' && !customElements.get('ship-dialog')) {
+  customElements.define('ship-dialog', ShipDialog)
 }
 
 declare global {

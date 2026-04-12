@@ -19,10 +19,8 @@
  */
 
 import { LitElement, css, html } from 'lit'
-import { customElement, property } from 'lit/decorators.js'
 import { MONO } from './util'
 
-@customElement('ship-textarea')
 export class ShipTextarea extends LitElement {
   static styles = css`
     :host { display: block; }
@@ -56,17 +54,29 @@ export class ShipTextarea extends LitElement {
     }
   `
 
-  @property() value = ''
-  @property() placeholder = ''
-  @property() name = ''
-  @property({ type: Number }) rows = 4
-  @property({ type: Boolean, reflect: true }) required = false
-  @property({ type: Boolean, reflect: true }) disabled = false
-  @property({ type: Boolean, reflect: true }) readonly = false
-  @property({ reflect: true }) variant: 'default' | 'code' = 'default'
-  @property({ reflect: true }) size: 'sm' | 'md' = 'md'
-  @property() resize: 'none' | 'vertical' | 'horizontal' | 'both' = 'vertical'
+  static properties = {
+    value: { type: String },
+    placeholder: { type: String },
+    name: { type: String },
+    rows: { type: Number },
+    required: { type: Boolean, reflect: true },
+    disabled: { type: Boolean, reflect: true },
+    readonly: { type: Boolean, reflect: true },
+    variant: { type: String, reflect: true },
+    size: { type: String, reflect: true },
+    resize: { type: String },
+  }
 
+  value = ''
+  placeholder = ''
+  name = ''
+  rows = 4
+  required = false
+  disabled = false
+  readonly = false
+  variant: 'default' | 'code' = 'default'
+  size: 'sm' | 'md' = 'md'
+  resize: 'none' | 'vertical' | 'horizontal' | 'both' = 'vertical'
   private onInput(e: Event) {
     this.value = (e.target as HTMLTextAreaElement).value
     this.dispatchEvent(new CustomEvent('ship-input', {
@@ -90,6 +100,11 @@ export class ShipTextarea extends LitElement {
       ></textarea>
     `
   }
+}
+
+
+if (typeof customElements !== 'undefined' && !customElements.get('ship-textarea')) {
+  customElements.define('ship-textarea', ShipTextarea)
 }
 
 declare global {

@@ -19,9 +19,6 @@
  */
 
 import { LitElement, css, html } from 'lit'
-import { customElement, property, query } from 'lit/decorators.js'
-
-@customElement('ship-checkbox')
 export class ShipCheckbox extends LitElement {
   static styles = css`
     :host { display: inline-flex; align-items: center; gap: 8px; cursor: pointer; font: inherit; font-size: 13px; color: var(--foreground); }
@@ -31,14 +28,22 @@ export class ShipCheckbox extends LitElement {
     input:focus-visible { outline: 2px solid var(--primary); outline-offset: 2px; }
   `
 
-  @property({ type: Boolean, reflect: true }) checked = false
-  @property({ type: Boolean }) indeterminate = false
-  @property() name = ''
-  @property() value = 'on'
-  @property({ type: Boolean, reflect: true }) disabled = false
-  @property({ type: Boolean, reflect: true }) required = false
+  static properties = {
+    checked: { type: Boolean, reflect: true },
+    indeterminate: { type: Boolean },
+    name: { type: String },
+    value: { type: String },
+    disabled: { type: Boolean, reflect: true },
+    required: { type: Boolean, reflect: true },
+  }
 
-  @query('input') private input!: HTMLInputElement
+  checked = false
+  indeterminate = false
+  name = ''
+  value = 'on'
+  disabled = false
+  required = false
+  get input(): HTMLInputElement { return this.renderRoot.querySelector('input')! as HTMLInputElement }
 
   updated() {
     if (this.input) this.input.indeterminate = this.indeterminate
@@ -70,6 +75,11 @@ export class ShipCheckbox extends LitElement {
       </label>
     `
   }
+}
+
+
+if (typeof customElements !== 'undefined' && !customElements.get('ship-checkbox')) {
+  customElements.define('ship-checkbox', ShipCheckbox)
 }
 
 declare global {

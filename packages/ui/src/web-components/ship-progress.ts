@@ -12,11 +12,9 @@
  */
 
 import { LitElement, css, html } from 'lit'
-import { customElement, property } from 'lit/decorators.js'
 import { toneVars } from './util'
 import type { Tone } from './util'
 
-@customElement('ship-progress')
 export class ShipProgress extends LitElement {
   static styles = [
     toneVars,
@@ -47,10 +45,25 @@ export class ShipProgress extends LitElement {
     `,
   ]
 
-  @property({ type: Number, reflect: true }) value: number | null = null
-  @property({ type: Number }) max = 100
-  @property({ reflect: true }) tone: Tone = 'info'
-  @property({ reflect: true }) size: 'sm' | 'md' = 'md'
+  static properties = {
+    value: { type: Number, reflect: true },
+    max: { type: Number },
+    tone: { type: String, reflect: true },
+    size: { type: String, reflect: true },
+  }
+
+  value: number | null
+  max: number
+  tone: Tone
+  size: 'sm' | 'md'
+
+  constructor() {
+    super()
+    this.value = null
+    this.max = 100
+    this.tone = 'info'
+    this.size = 'md'
+  }
 
   render() {
     const pct = this.value == null ? null : Math.max(0, Math.min(100, (this.value / this.max) * 100))
@@ -64,6 +77,10 @@ export class ShipProgress extends LitElement {
       </div>
     `
   }
+}
+
+if (typeof customElements !== 'undefined' && !customElements.get('ship-progress')) {
+  customElements.define('ship-progress', ShipProgress)
 }
 
 declare global {

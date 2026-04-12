@@ -26,10 +26,8 @@
  */
 
 import { LitElement, css, html } from 'lit'
-import { customElement, property } from 'lit/decorators.js'
 import type { Size, Variant } from './util'
 
-@customElement('ship-input')
 export class ShipInput extends LitElement {
   static styles = css`
     :host { display: inline-flex; width: 100%; }
@@ -79,18 +77,31 @@ export class ShipInput extends LitElement {
     :host([size='lg']) input { font-size: 16px; line-height: 28px; font-weight: 600; }
   `
 
-  @property() type = 'text'
-  @property() value = ''
-  @property() placeholder = ''
-  @property() name = ''
-  @property() autocomplete = ''
-  @property({ type: Boolean, reflect: true }) required = false
-  @property({ type: Boolean, reflect: true }) disabled = false
-  @property({ type: Boolean, reflect: true }) readonly = false
-  @property({ type: Boolean, reflect: true }) invalid = false
-  @property({ reflect: true }) variant: Variant | 'default' = 'default'
-  @property({ reflect: true }) size: Size = 'md'
+  static properties = {
+    type: { type: String },
+    value: { type: String },
+    placeholder: { type: String },
+    name: { type: String },
+    autocomplete: { type: String },
+    required: { type: Boolean, reflect: true },
+    disabled: { type: Boolean, reflect: true },
+    readonly: { type: Boolean, reflect: true },
+    invalid: { type: Boolean, reflect: true },
+    variant: { type: String, reflect: true },
+    size: { type: String, reflect: true },
+  }
 
+  type = 'text'
+  value = ''
+  placeholder = ''
+  name = ''
+  autocomplete = ''
+  required = false
+  disabled = false
+  readonly = false
+  invalid = false
+  variant: Variant | 'default' = 'default'
+  size: Size = 'md'
   private onInput(e: Event) {
     const target = e.target as HTMLInputElement
     this.value = target.value
@@ -120,6 +131,11 @@ export class ShipInput extends LitElement {
       </div>
     `
   }
+}
+
+
+if (typeof customElements !== 'undefined' && !customElements.get('ship-input')) {
+  customElements.define('ship-input', ShipInput)
 }
 
 declare global {

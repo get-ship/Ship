@@ -11,9 +11,6 @@
  */
 
 import { LitElement, css, html } from 'lit'
-import { customElement } from 'lit/decorators.js'
-
-@customElement('ship-pipeline-dag')
 export class ShipPipelineDag extends LitElement {
   static styles = css`
     :host {
@@ -33,6 +30,11 @@ export class ShipPipelineDag extends LitElement {
   `
 
   render() { return html`<slot></slot>` }
+}
+
+
+if (typeof customElements !== 'undefined' && !customElements.get('ship-pipeline-dag')) {
+  customElements.define('ship-pipeline-dag', ShipPipelineDag)
 }
 
 declare global {

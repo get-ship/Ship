@@ -19,11 +19,9 @@
  */
 
 import { LitElement, css, html } from 'lit'
-import { customElement, property } from 'lit/decorators.js'
 import { toneVars } from './util'
 import type { Tone } from './util'
 
-@customElement('ship-alert')
 export class ShipAlert extends LitElement {
   static styles = [
     toneVars,
@@ -57,8 +55,19 @@ export class ShipAlert extends LitElement {
     `,
   ]
 
-  @property({ reflect: true }) tone: Tone = 'info'
-  @property({ type: Boolean, reflect: true }) dismissible = false
+  static properties = {
+    tone: { type: String, reflect: true },
+    dismissible: { type: Boolean, reflect: true },
+  }
+
+  tone: Tone
+  dismissible: boolean
+
+  constructor() {
+    super()
+    this.tone = 'info'
+    this.dismissible = false
+  }
 
   private onDismiss() {
     this.dispatchEvent(new CustomEvent('ship-dismiss', {
@@ -82,6 +91,10 @@ export class ShipAlert extends LitElement {
       </div>
     `
   }
+}
+
+if (typeof customElements !== 'undefined' && !customElements.get('ship-alert')) {
+  customElements.define('ship-alert', ShipAlert)
 }
 
 declare global {

@@ -15,9 +15,6 @@
  */
 
 import { LitElement, css, html } from 'lit'
-import { customElement, property } from 'lit/decorators.js'
-
-@customElement('ship-tooltip')
 export class ShipTooltip extends LitElement {
   static styles = css`
     :host { position: relative; display: inline-flex; }
@@ -62,14 +59,22 @@ export class ShipTooltip extends LitElement {
     }
   `
 
-  @property({ reflect: true }) placement: 'top' | 'bottom' | 'left' | 'right' = 'top'
+  static properties = {
+    placement: { type: String, reflect: true },
+  }
 
+  placement: 'top' | 'bottom' | 'left' | 'right' = 'top'
   render() {
     return html`
       <slot></slot>
       <span class="bubble" role="tooltip"><slot name="content"></slot></span>
     `
   }
+}
+
+
+if (typeof customElements !== 'undefined' && !customElements.get('ship-tooltip')) {
+  customElements.define('ship-tooltip', ShipTooltip)
 }
 
 declare global {

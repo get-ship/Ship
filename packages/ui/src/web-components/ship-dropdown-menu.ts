@@ -18,9 +18,6 @@
  */
 
 import { LitElement, css, html } from 'lit'
-import { customElement, property } from 'lit/decorators.js'
-
-@customElement('ship-dropdown-menu')
 export class ShipDropdownMenu extends LitElement {
   static styles = css`
     :host { position: relative; display: inline-flex; }
@@ -54,8 +51,11 @@ export class ShipDropdownMenu extends LitElement {
     }
   `
 
-  @property({ type: Boolean, reflect: true }) open = false
+  static properties = {
+    open: { type: Boolean, reflect: true },
+  }
 
+  open = false
   private onTriggerClick = () => { this.open = !this.open }
 
   private onItemClick = (e: Event) => {
@@ -85,6 +85,11 @@ export class ShipDropdownMenu extends LitElement {
       </div>
     `
   }
+}
+
+
+if (typeof customElements !== 'undefined' && !customElements.get('ship-dropdown-menu')) {
+  customElements.define('ship-dropdown-menu', ShipDropdownMenu)
 }
 
 declare global {

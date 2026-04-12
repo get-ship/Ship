@@ -14,9 +14,6 @@
  */
 
 import { LitElement, css, html } from 'lit'
-import { customElement, property } from 'lit/decorators.js'
-
-@customElement('ship-label')
 export class ShipLabel extends LitElement {
   static styles = css`
     :host { display: inline-block; }
@@ -33,10 +30,15 @@ export class ShipLabel extends LitElement {
     .req { color: var(--destructive); margin-left: 2px; }
   `
 
-  @property({ attribute: 'for' }) htmlFor = ''
-  @property({ reflect: true }) size: 'sm' | 'md' = 'sm'
-  @property({ type: Boolean, reflect: true }) required = false
+  static properties = {
+    htmlFor: { type: String, attribute: 'for' },
+    size: { type: String, reflect: true },
+    required: { type: Boolean, reflect: true },
+  }
 
+  htmlFor = ''
+  size: 'sm' | 'md' = 'sm'
+  required = false
   render() {
     return html`
       <label for=${this.htmlFor}>
@@ -44,6 +46,11 @@ export class ShipLabel extends LitElement {
       </label>
     `
   }
+}
+
+
+if (typeof customElements !== 'undefined' && !customElements.get('ship-label')) {
+  customElements.define('ship-label', ShipLabel)
 }
 
 declare global {

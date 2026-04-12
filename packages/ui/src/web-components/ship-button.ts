@@ -25,10 +25,8 @@
  */
 
 import { LitElement, css, html } from 'lit'
-import { customElement, property } from 'lit/decorators.js'
 import type { Size, Tone, Variant } from './util'
 
-@customElement('ship-button')
 export class ShipButton extends LitElement {
   static styles = css`
     :host {
@@ -150,13 +148,21 @@ export class ShipButton extends LitElement {
     }
   `
 
-  @property({ reflect: true }) tone?: Tone
-  @property({ reflect: true }) variant: Variant = 'solid'
-  @property({ reflect: true }) size: Size = 'md'
-  @property({ type: Boolean, reflect: true }) disabled = false
-  @property({ type: Boolean, reflect: true }) loading = false
-  @property({ reflect: true }) type: 'button' | 'submit' | 'reset' = 'button'
+  static properties = {
+    tone: { type: String, reflect: true },
+    variant: { type: String, reflect: true },
+    size: { type: String, reflect: true },
+    disabled: { type: Boolean, reflect: true },
+    loading: { type: Boolean, reflect: true },
+    type: { type: String, reflect: true },
+  }
 
+  tone?: Tone
+  variant: Variant = 'solid'
+  size: Size = 'md'
+  disabled = false
+  loading = false
+  type: 'button' | 'submit' | 'reset' = 'button'
   render() {
     return html`
       <button
@@ -173,6 +179,11 @@ export class ShipButton extends LitElement {
       </button>
     `
   }
+}
+
+
+if (typeof customElements !== 'undefined' && !customElements.get('ship-button')) {
+  customElements.define('ship-button', ShipButton)
 }
 
 declare global {

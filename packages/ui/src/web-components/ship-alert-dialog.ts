@@ -18,22 +18,26 @@
  */
 
 import { LitElement, css, html } from 'lit'
-import { customElement, property } from 'lit/decorators.js'
 import './ship-dialog'
 import './ship-button'
 import type { Tone } from './util'
 
-@customElement('ship-alert-dialog')
 export class ShipAlertDialog extends LitElement {
   static styles = css`
     :host { display: contents; }
   `
 
-  @property({ type: Boolean, reflect: true }) open = false
-  @property({ reflect: true }) tone: Extract<Tone, 'default' | 'destructive'> = 'default'
-  @property({ attribute: 'confirm-label' }) confirmLabel = 'Confirm'
-  @property({ attribute: 'cancel-label' }) cancelLabel = 'Cancel'
+  static properties = {
+    open: { type: Boolean, reflect: true },
+    tone: { type: String, reflect: true },
+    confirmLabel: { type: String, attribute: 'confirm-label' },
+    cancelLabel: { type: String, attribute: 'cancel-label' },
+  }
 
+  open = false
+  tone: Extract<Tone, 'default' | 'destructive'> = 'default'
+  confirmLabel = 'Confirm'
+  cancelLabel = 'Cancel'
   private emit(name: 'ship-confirm' | 'ship-cancel') {
     this.dispatchEvent(new CustomEvent(name, { bubbles: true, composed: true }))
     this.open = false
@@ -61,6 +65,11 @@ export class ShipAlertDialog extends LitElement {
       </ship-dialog>
     `
   }
+}
+
+
+if (typeof customElements !== 'undefined' && !customElements.get('ship-alert-dialog')) {
+  customElements.define('ship-alert-dialog', ShipAlertDialog)
 }
 
 declare global {

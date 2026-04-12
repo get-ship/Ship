@@ -14,9 +14,6 @@
  */
 
 import { LitElement, css, html } from 'lit'
-import { customElement, property } from 'lit/decorators.js'
-
-@customElement('ship-toolbar')
 export class ShipToolbar extends LitElement {
   static styles = css`
     :host { display: flex; align-items: center; gap: 8px; }
@@ -35,14 +32,25 @@ export class ShipToolbar extends LitElement {
     ::slotted([slot='spacer']) { flex: 1; }
   `
 
-  @property({ reflect: true }) justify: 'start' | 'center' | 'end' | 'between' = 'start'
-  @property({ reflect: true }) align: 'center' | 'start' | 'end' | 'baseline' = 'center'
-  @property({ reflect: true }) gap: 'sm' | 'md' | 'lg' = 'md'
-  @property({ reflect: true }) variant: 'default' | 'bordered' = 'default'
+  static properties = {
+    justify: { type: String, reflect: true },
+    align: { type: String, reflect: true },
+    gap: { type: String, reflect: true },
+    variant: { type: String, reflect: true },
+  }
 
+  justify: 'start' | 'center' | 'end' | 'between' = 'start'
+  align: 'center' | 'start' | 'end' | 'baseline' = 'center'
+  gap: 'sm' | 'md' | 'lg' = 'md'
+  variant: 'default' | 'bordered' = 'default'
   render() {
     return html`<slot name="spacer"></slot><slot></slot>`
   }
+}
+
+
+if (typeof customElements !== 'undefined' && !customElements.get('ship-toolbar')) {
+  customElements.define('ship-toolbar', ShipToolbar)
 }
 
 declare global {

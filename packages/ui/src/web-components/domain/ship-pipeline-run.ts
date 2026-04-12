@@ -19,7 +19,6 @@
  */
 
 import { LitElement, css, html } from 'lit'
-import { customElement, property } from 'lit/decorators.js'
 import '../ship-badge'
 import '../ship-card'
 import { MONO } from '../util'
@@ -44,7 +43,6 @@ const STATE_TO_TONE: Record<RunState, Tone> = {
   pending: 'muted',
 }
 
-@customElement('ship-pipeline-run')
 export class ShipPipelineRun extends LitElement {
   static styles = css`
     :host { display: block; }
@@ -73,10 +71,15 @@ export class ShipPipelineRun extends LitElement {
     }
   `
 
-  @property({ reflect: true }) state: RunState = 'pending'
-  @property({ reflect: true }) slug = ''
-  @property({ reflect: true }) agent = ''
+  static properties = {
+    state: { type: String, reflect: true },
+    slug: { type: String, reflect: true },
+    agent: { type: String, reflect: true },
+  }
 
+  state: RunState = 'pending'
+  slug = ''
+  agent = ''
   render() {
     const tone = STATE_TO_TONE[this.state] ?? 'muted'
     return html`
@@ -98,6 +101,11 @@ export class ShipPipelineRun extends LitElement {
       </ship-card>
     `
   }
+}
+
+
+if (typeof customElements !== 'undefined' && !customElements.get('ship-pipeline-run')) {
+  customElements.define('ship-pipeline-run', ShipPipelineRun)
 }
 
 declare global {

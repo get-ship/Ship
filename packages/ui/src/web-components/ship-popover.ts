@@ -18,9 +18,6 @@
  */
 
 import { LitElement, css, html } from 'lit'
-import { customElement, property } from 'lit/decorators.js'
-
-@customElement('ship-popover')
 export class ShipPopover extends LitElement {
   static styles = css`
     :host { position: relative; display: inline-flex; }
@@ -45,9 +42,13 @@ export class ShipPopover extends LitElement {
     :host([placement='left']) .panel { right: calc(100% + 6px); top: 0; }
   `
 
-  @property({ type: Boolean, reflect: true }) open = false
-  @property({ reflect: true }) placement: 'top' | 'bottom' | 'left' | 'right' = 'bottom'
+  static properties = {
+    open: { type: Boolean, reflect: true },
+    placement: { type: String, reflect: true },
+  }
 
+  open = false
+  placement: 'top' | 'bottom' | 'left' | 'right' = 'bottom'
   show() { this.open = true; this.emit('ship-open') }
   hide() { this.open = false; this.emit('ship-close') }
   toggle() { this.open ? this.hide() : this.show() }
@@ -71,6 +72,11 @@ export class ShipPopover extends LitElement {
       <div class="panel" role="dialog"><slot></slot></div>
     `
   }
+}
+
+
+if (typeof customElements !== 'undefined' && !customElements.get('ship-popover')) {
+  customElements.define('ship-popover', ShipPopover)
 }
 
 declare global {

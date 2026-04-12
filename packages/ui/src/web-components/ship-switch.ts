@@ -14,9 +14,6 @@
  */
 
 import { LitElement, css, html } from 'lit'
-import { customElement, property } from 'lit/decorators.js'
-
-@customElement('ship-switch')
 export class ShipSwitch extends LitElement {
   static styles = css`
     :host { display: inline-flex; align-items: center; gap: 8px; font-size: 13px; color: var(--foreground); }
@@ -53,11 +50,17 @@ export class ShipSwitch extends LitElement {
     input:focus-visible + .thumb { outline: 2px solid var(--primary); outline-offset: 2px; }
   `
 
-  @property({ type: Boolean, reflect: true }) checked = false
-  @property({ type: Boolean, reflect: true }) disabled = false
-  @property() name = ''
-  @property() value = 'on'
+  static properties = {
+    checked: { type: Boolean, reflect: true },
+    disabled: { type: Boolean, reflect: true },
+    name: { type: String },
+    value: { type: String },
+  }
 
+  checked = false
+  disabled = false
+  name = ''
+  value = 'on'
   private onChange(e: Event) {
     const c = (e.target as HTMLInputElement).checked
     this.checked = c
@@ -87,6 +90,11 @@ export class ShipSwitch extends LitElement {
       </label>
     `
   }
+}
+
+
+if (typeof customElements !== 'undefined' && !customElements.get('ship-switch')) {
+  customElements.define('ship-switch', ShipSwitch)
 }
 
 declare global {

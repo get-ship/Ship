@@ -11,11 +11,9 @@
  */
 
 import { LitElement, css, html } from 'lit'
-import { customElement, property } from 'lit/decorators.js'
 import { toneVars } from './util'
 import type { Size, Tone } from './util'
 
-@customElement('ship-spinner')
 export class ShipSpinner extends LitElement {
   static styles = [
     toneVars,
@@ -34,13 +32,30 @@ export class ShipSpinner extends LitElement {
     `,
   ]
 
-  @property({ reflect: true }) tone: Tone = 'info'
-  @property({ reflect: true }) size: Size = 'md'
-  @property() label = 'Loading'
+  static properties = {
+    tone: { type: String, reflect: true },
+    size: { type: String, reflect: true },
+    label: { type: String },
+  }
+
+  tone: Tone
+  size: Size
+  label: string
+
+  constructor() {
+    super()
+    this.tone = 'info'
+    this.size = 'md'
+    this.label = 'Loading'
+  }
 
   render() {
     return html`<span class="spin" part="spinner" role="status" aria-label=${this.label}></span>`
   }
+}
+
+if (typeof customElements !== 'undefined' && !customElements.get('ship-spinner')) {
+  customElements.define('ship-spinner', ShipSpinner)
 }
 
 declare global {

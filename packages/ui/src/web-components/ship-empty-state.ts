@@ -19,9 +19,6 @@
  */
 
 import { LitElement, css, html } from 'lit'
-import { customElement, property } from 'lit/decorators.js'
-
-@customElement('ship-empty-state')
 export class ShipEmptyState extends LitElement {
   static styles = css`
     :host { display: block; }
@@ -70,8 +67,11 @@ export class ShipEmptyState extends LitElement {
     ::slotted([slot='icon']) { display: inline-flex; }
   `
 
-  @property({ reflect: true }) variant: 'default' | 'connecting' | 'placeholder' = 'default'
+  static properties = {
+    variant: { type: String, reflect: true },
+  }
 
+  variant: 'default' | 'connecting' | 'placeholder' = 'default'
   render() {
     return html`
       <div class="box">
@@ -82,6 +82,11 @@ export class ShipEmptyState extends LitElement {
       </div>
     `
   }
+}
+
+
+if (typeof customElements !== 'undefined' && !customElements.get('ship-empty-state')) {
+  customElements.define('ship-empty-state', ShipEmptyState)
 }
 
 declare global {

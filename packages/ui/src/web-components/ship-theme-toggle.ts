@@ -14,11 +14,8 @@
  */
 
 import { LitElement, css, html } from 'lit'
-import { customElement, property } from 'lit/decorators.js'
-
 const STORAGE_KEY = 'ship-theme'
 
-@customElement('ship-theme-toggle')
 export class ShipThemeToggle extends LitElement {
   static styles = css`
     :host { display: inline-flex; }
@@ -36,8 +33,11 @@ export class ShipThemeToggle extends LitElement {
     button:hover { background: var(--muted); }
   `
 
-  @property({ reflect: true }) theme: 'light' | 'dark' | 'auto' = 'auto'
+  static properties = {
+    theme: { type: String, reflect: true },
+  }
 
+  theme: 'light' | 'dark' | 'auto' = 'auto'
   connectedCallback() {
     super.connectedCallback()
     if (typeof window === 'undefined') return
@@ -73,6 +73,11 @@ export class ShipThemeToggle extends LitElement {
       </button>
     `
   }
+}
+
+
+if (typeof customElements !== 'undefined' && !customElements.get('ship-theme-toggle')) {
+  customElements.define('ship-theme-toggle', ShipThemeToggle)
 }
 
 declare global {

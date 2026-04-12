@@ -18,9 +18,6 @@
  */
 
 import { LitElement, css, html } from 'lit'
-import { customElement, property } from 'lit/decorators.js'
-
-@customElement('ship-history-row')
 export class ShipHistoryRow extends LitElement {
   static styles = css`
     :host {
@@ -36,8 +33,11 @@ export class ShipHistoryRow extends LitElement {
     .cell { display: table-cell; padding: 12px 16px; }
   `
 
-  @property({ reflect: true }) state = ''
+  static properties = {
+    state: { type: String, reflect: true },
+  }
 
+  state = ''
   render() {
     return html`
       <span class="cell"><slot name="slug"></slot></span>
@@ -47,6 +47,11 @@ export class ShipHistoryRow extends LitElement {
       <span class="cell"><slot name="completed"></slot></span>
     `
   }
+}
+
+
+if (typeof customElements !== 'undefined' && !customElements.get('ship-history-row')) {
+  customElements.define('ship-history-row', ShipHistoryRow)
 }
 
 declare global {

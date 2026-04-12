@@ -16,11 +16,9 @@
  */
 
 import { LitElement, css, html } from 'lit'
-import { customElement, property } from 'lit/decorators.js'
 import { toneVars } from './util'
 import type { Tone } from './util'
 
-@customElement('ship-badge')
 export class ShipBadge extends LitElement {
   static styles = [
     toneVars,
@@ -53,12 +51,27 @@ export class ShipBadge extends LitElement {
     `,
   ]
 
-  @property({ reflect: true }) tone: Tone = 'muted'
-  @property({ reflect: true }) size: 'sm' | 'md' = 'md'
+  static properties = {
+    tone: { type: String, reflect: true },
+    size: { type: String, reflect: true },
+  }
+
+  tone: Tone
+  size: 'sm' | 'md'
+
+  constructor() {
+    super()
+    this.tone = 'muted'
+    this.size = 'md'
+  }
 
   render() {
     return html`<span class="badge" part="badge"><slot></slot></span>`
   }
+}
+
+if (typeof customElements !== 'undefined' && !customElements.get('ship-badge')) {
+  customElements.define('ship-badge', ShipBadge)
 }
 
 declare global {

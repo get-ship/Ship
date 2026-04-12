@@ -16,9 +16,6 @@
  */
 
 import { LitElement, css, html } from 'lit'
-import { customElement, property } from 'lit/decorators.js'
-
-@customElement('ship-field')
 export class ShipField extends LitElement {
   static styles = css`
     :host { display: flex; flex-direction: column; gap: 6px; }
@@ -29,8 +26,11 @@ export class ShipField extends LitElement {
     :host([invalid]) .hint { display: none; }
   `
 
-  @property({ type: Boolean, reflect: true }) invalid = false
+  static properties = {
+    invalid: { type: Boolean, reflect: true },
+  }
 
+  invalid = false
   render() {
     return html`
       <slot name="label"></slot>
@@ -39,6 +39,11 @@ export class ShipField extends LitElement {
       <div class="error"><slot name="error"></slot></div>
     `
   }
+}
+
+
+if (typeof customElements !== 'undefined' && !customElements.get('ship-field')) {
+  customElements.define('ship-field', ShipField)
 }
 
 declare global {

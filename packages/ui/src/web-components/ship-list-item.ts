@@ -19,9 +19,6 @@
  */
 
 import { LitElement, css, html } from 'lit'
-import { customElement, property } from 'lit/decorators.js'
-
-@customElement('ship-list-item')
 export class ShipListItem extends LitElement {
   static styles = css`
     :host { display: block; }
@@ -58,9 +55,13 @@ export class ShipListItem extends LitElement {
     }
   `
 
-  @property({ type: Boolean, reflect: true }) selected = false
-  @property({ type: Boolean, reflect: true }) disabled = false
+  static properties = {
+    selected: { type: Boolean, reflect: true },
+    disabled: { type: Boolean, reflect: true },
+  }
 
+  selected = false
+  disabled = false
   private onClick(e: Event) {
     if (this.disabled) return
     this.dispatchEvent(new CustomEvent('ship-select', {
@@ -88,6 +89,11 @@ export class ShipListItem extends LitElement {
       </button>
     `
   }
+}
+
+
+if (typeof customElements !== 'undefined' && !customElements.get('ship-list-item')) {
+  customElements.define('ship-list-item', ShipListItem)
 }
 
 declare global {

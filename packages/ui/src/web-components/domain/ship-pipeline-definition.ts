@@ -15,10 +15,8 @@
  */
 
 import { LitElement, css, html } from 'lit'
-import { customElement, property } from 'lit/decorators.js'
 import '../ship-card'
 
-@customElement('ship-pipeline-definition')
 export class ShipPipelineDefinition extends LitElement {
   static styles = css`
     :host { display: block; }
@@ -52,10 +50,15 @@ export class ShipPipelineDefinition extends LitElement {
     ship-card { display: block; padding: 18px 20px; }
   `
 
-  @property({ reflect: true }) name = ''
-  @property({ type: Number, reflect: true }) steps = 0
-  @property({ reflect: true }) description = ''
+  static properties = {
+    name: { type: String, reflect: true },
+    steps: { type: Number, reflect: true },
+    description: { type: String, reflect: true },
+  }
 
+  name = ''
+  steps = 0
+  description = ''
   render() {
     const s = this.steps
     const suffix = s === 1 ? '' : 's'
@@ -74,6 +77,11 @@ export class ShipPipelineDefinition extends LitElement {
       </ship-card>
     `
   }
+}
+
+
+if (typeof customElements !== 'undefined' && !customElements.get('ship-pipeline-definition')) {
+  customElements.define('ship-pipeline-definition', ShipPipelineDefinition)
 }
 
 declare global {

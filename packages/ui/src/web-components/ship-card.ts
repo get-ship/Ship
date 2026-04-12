@@ -21,11 +21,9 @@
  */
 
 import { LitElement, css, html } from 'lit'
-import { customElement, property } from 'lit/decorators.js'
 import { toneVars } from './util'
 import type { Tone } from './util'
 
-@customElement('ship-card')
 export class ShipCard extends LitElement {
   static styles = [
     toneVars,
@@ -70,11 +68,27 @@ export class ShipCard extends LitElement {
     `,
   ]
 
-  @property({ reflect: true }) tone?: Tone
-  @property({ reflect: true }) variant: 'default' | 'outline' = 'default'
-  @property({ type: Boolean, reflect: true }) interactive = false
-  @property({ type: Boolean, reflect: true, attribute: 'accent-bar' }) accentBar = false
-  @property({ type: Boolean, reflect: true, attribute: 'status-rail' }) statusRail = false
+  static properties = {
+    tone: { type: String, reflect: true },
+    variant: { type: String, reflect: true },
+    interactive: { type: Boolean, reflect: true },
+    accentBar: { type: Boolean, reflect: true, attribute: 'accent-bar' },
+    statusRail: { type: Boolean, reflect: true, attribute: 'status-rail' },
+  }
+
+  tone?: Tone
+  variant: 'default' | 'outline'
+  interactive: boolean
+  accentBar: boolean
+  statusRail: boolean
+
+  constructor() {
+    super()
+    this.variant = 'default'
+    this.interactive = false
+    this.accentBar = false
+    this.statusRail = false
+  }
 
   render() {
     return html`
@@ -83,6 +97,10 @@ export class ShipCard extends LitElement {
       <div class="footer"><slot name="footer"></slot></div>
     `
   }
+}
+
+if (typeof customElements !== 'undefined' && !customElements.get('ship-card')) {
+  customElements.define('ship-card', ShipCard)
 }
 
 declare global {
