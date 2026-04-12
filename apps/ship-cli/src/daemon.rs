@@ -2,13 +2,13 @@ use anyhow::{Context, Result};
 use std::path::{Path, PathBuf};
 
 pub enum DaemonCommand {
-    Start { host: String },
+    Start { host: String, dev: bool },
     Stop,
     Status,
     Cleanup,
-    Run { host: String, port: u16 },
+    Run { host: String, port: u16, dev: bool },
     /// Internal: supervisor loop that watches and restarts the daemon.
-    Supervise { host: String },
+    Supervise { host: String, dev: bool },
 }
 
 const SHIPD_PORT: u16 = 9315;
@@ -61,12 +61,12 @@ fn is_process_alive(pid: u32) -> bool {
 
 pub fn run_daemon(cmd: DaemonCommand) -> Result<()> {
     match cmd {
-        DaemonCommand::Start { host } => daemon_start(host),
+        DaemonCommand::Start { host, dev } => daemon_start(host, dev),
         DaemonCommand::Stop => daemon_stop(),
         DaemonCommand::Status => daemon_status(),
         DaemonCommand::Cleanup => daemon_cleanup(),
-        DaemonCommand::Run { host, port } => daemon_run(host, port),
-        DaemonCommand::Supervise { host } => daemon_supervise(host),
+        DaemonCommand::Run { host, port, dev } => daemon_run(host, port, dev),
+        DaemonCommand::Supervise { host, dev } => daemon_supervise(host, dev),
     }
 }
 
@@ -79,9 +79,11 @@ const INITIAL_BACKOFF: std::time::Duration = std::time::Duration::from_secs(1);
 /// Maximum backoff between restarts.
 const MAX_BACKOFF: std::time::Duration = std::time::Duration::from_secs(60);
 
-fn daemon_start(host: String) -> Result<()> {
+fn daemon_start(host: String, dev: bool) -> Result<()> {
     let pid_path = pid_file()?;
     let log_path = log_file()?;
+    // Dev mode forces localhost bind regardless of --host.
+    let host = if dev { "127.0.0.1".to_string() } else { host };
 
     // Check if already running.
     if let Some(pid) = read_pid(&pid_path)? {
@@ -112,8 +114,12 @@ fn daemon_start(host: String) -> Result<()> {
     let stdout = log_handle.try_clone().context("cannot clone log file handle")?;
     let stderr = log_handle;
 
+    let mut sup_args: Vec<&str> = vec!["daemon", "supervise", "--host", &host];
+    if dev {
+        sup_args.push("--dev");
+    }
     let supervisor = std::process::Command::new(&self_exe)
-        .args(["daemon", "supervise", "--host", &host])
+        .args(&sup_args)
         .stdout(stdout)
         .stderr(stderr)
         .stdin(std::process::Stdio::null())
@@ -123,6 +129,9 @@ fn daemon_start(host: String) -> Result<()> {
     let supervisor_pid = supervisor.id();
     write_pid(&pid_path, supervisor_pid)?;
 
+    if dev {
+        eprintln!("\x1b[1;33m⚠ SHIPD DEV MODE ENABLED — auth relaxed, localhost only. Not for production.\x1b[0m");
+    }
     println!(
         "shipd supervisor started (pid {}, http://{}:{}, log {})",
         supervisor_pid, host, SHIPD_PORT, log_path.display()
@@ -133,9 +142,11 @@ fn daemon_start(host: String) -> Result<()> {
 /// The supervisor loop — spawns the daemon, watches it, restarts on crash.
 ///
 /// Called via `ship daemon supervise`. Not meant to be called directly by users.
-fn daemon_supervise(host: String) -> Result<()> {
+fn daemon_supervise(host: String, dev: bool) -> Result<()> {
     let self_exe = std::env::current_exe().context("cannot determine own executable path")?;
     let crashes_dir = ship_dir()?.join("crashes");
+    // Dev mode forces localhost bind.
+    let host = if dev { "127.0.0.1".to_string() } else { host };
 
     // Relay SIGTERM/SIGINT to the child, then exit cleanly.
     let child_pid: std::sync::Arc<std::sync::atomic::AtomicU32> =
@@ -180,8 +191,13 @@ fn daemon_supervise(host: String) -> Result<()> {
         }
 
         // Spawn the daemon child.
+        let port_str = SHIPD_PORT.to_string();
+        let mut child_args: Vec<&str> = vec!["daemon", "run", "--host", &host, "--port", &port_str];
+        if dev {
+            child_args.push("--dev");
+        }
         let mut child = std::process::Command::new(&self_exe)
-            .args(["daemon", "run", "--host", &host, "--port", &SHIPD_PORT.to_string()])
+            .args(&child_args)
             .stdin(std::process::Stdio::null())
             .spawn()
             .with_context(|| "supervisor: cannot spawn daemon")?;
@@ -275,12 +291,12 @@ extern "C" fn signal_handler(_sig: libc::c_int) {
     }
 }
 
-fn daemon_run(host: String, port: u16) -> Result<()> {
+fn daemon_run(host: String, port: u16, dev: bool) -> Result<()> {
     let rt = tokio::runtime::Builder::new_multi_thread()
         .enable_all()
         .build()
         .context("cannot build tokio runtime")?;
-    rt.block_on(shipd::run_network(host, port))
+    rt.block_on(shipd::run_network(host, port, dev))
 }
 
 fn daemon_stop() -> Result<()> {
@@ -446,7 +462,7 @@ pub fn ensure_daemon() -> Result<(u16, String)> {
 
     // Start the daemon.
     eprintln!("shipd: starting daemon...");
-    daemon_start("0.0.0.0".to_string())?;
+    daemon_start("0.0.0.0".to_string(), false)?;
 
     // Wait for the daemon to become healthy (up to 5 seconds).
     let deadline = std::time::Instant::now() + std::time::Duration::from_secs(5);

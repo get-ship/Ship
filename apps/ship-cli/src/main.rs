@@ -73,6 +73,12 @@ fn dispatch(command: Option<Commands>) -> Result<()> {
             Commands::Login => auth::run_login(),
             Commands::Logout => auth::run_logout(),
             Commands::Whoami => auth::run_whoami(),
+            Commands::Auth { action } => {
+                use cli::AuthCommands;
+                match action {
+                    AuthCommands::Pair { code } => auth::run_auth_pair(&code),
+                }
+            }
             Commands::Use {
                 agent_id,
                 path,
@@ -154,12 +160,12 @@ fn dispatch(command: Option<Commands>) -> Result<()> {
                 use cli::DaemonCommands;
                 use daemon::{DaemonCommand, run_daemon};
                 let cmd = match action {
-                    DaemonCommands::Start { host } => DaemonCommand::Start { host },
+                    DaemonCommands::Start { host, dev } => DaemonCommand::Start { host, dev },
                     DaemonCommands::Stop => DaemonCommand::Stop,
                     DaemonCommands::Status => DaemonCommand::Status,
                     DaemonCommands::Cleanup => DaemonCommand::Cleanup,
-                    DaemonCommands::Run { host, port } => DaemonCommand::Run { host, port },
-                    DaemonCommands::Supervise { host } => DaemonCommand::Supervise { host },
+                    DaemonCommands::Run { host, port, dev } => DaemonCommand::Run { host, port, dev },
+                    DaemonCommands::Supervise { host, dev } => DaemonCommand::Supervise { host, dev },
                 };
                 run_daemon(cmd)
             }

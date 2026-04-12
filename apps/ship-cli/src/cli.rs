@@ -63,6 +63,12 @@ pub enum Commands {
     /// Show current identity
     Whoami,
 
+    /// Pair a browser session (Studio) with the local daemon
+    Auth {
+        #[command(subcommand)]
+        action: AuthCommands,
+    },
+
     /// Read or write user preferences (~/.ship/config.toml)
     Config {
         #[command(subcommand)]
@@ -258,6 +264,10 @@ pub enum DaemonCommands {
         /// Bind address (default: 0.0.0.0)
         #[arg(long, default_value = "0.0.0.0")]
         host: String,
+        /// DEV mode — auto-pair on first localhost request, force 127.0.0.1 bind.
+        /// Not for production. Logs a loud warning on startup.
+        #[arg(long)]
+        dev: bool,
     },
     /// Stop the running daemon process
     Stop,
@@ -272,12 +282,25 @@ pub enum DaemonCommands {
         host: String,
         #[arg(long, default_value_t = 9315)]
         port: u16,
+        #[arg(long)]
+        dev: bool,
     },
     /// Internal: supervisor loop that watches and restarts the daemon on crash
     #[command(hide = true)]
     Supervise {
         #[arg(long, default_value = "0.0.0.0")]
         host: String,
+        #[arg(long)]
+        dev: bool,
+    },
+}
+
+#[derive(Subcommand, Debug)]
+pub enum AuthCommands {
+    /// Confirm a pairing code displayed by Studio (or another browser client)
+    Pair {
+        /// The pairing code shown in Studio (e.g. "4F8-2K9")
+        code: String,
     },
 }
 

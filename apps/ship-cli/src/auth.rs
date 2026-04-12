@@ -138,6 +138,54 @@ pub fn run_login() -> Result<()> {
     Ok(())
 }
 
+/// `ship auth pair <code>` — confirm a pairing code from Studio.
+///
+/// Reads the daemon token from disk (proving local filesystem access),
+/// POSTs to `/api/auth/pair/confirm`, and prints success or the daemon's error.
+pub fn run_auth_pair(code: &str) -> Result<()> {
+    let code = code.trim().to_uppercase();
+    if code.is_empty() {
+        anyhow::bail!("empty pairing code");
+    }
+
+    let home = dirs::home_dir()
+        .ok_or_else(|| anyhow::anyhow!("cannot determine home directory"))?
+        .join(".ship");
+    let port_str = std::fs::read_to_string(home.join("daemon.port"))
+        .map_err(|_| anyhow::anyhow!("daemon is not running — start it with: ship daemon start"))?;
+    let port: u16 = port_str
+        .trim()
+        .parse()
+        .map_err(|_| anyhow::anyhow!("invalid daemon.port file"))?;
+    let token = std::fs::read_to_string(home.join("daemon.token"))
+        .map_err(|_| anyhow::anyhow!("daemon.token not readable — is the daemon running?"))?;
+    let token = token.trim().to_string();
+
+    let url = format!("http://127.0.0.1:{port}/api/auth/pair/confirm");
+    let resp = reqwest::blocking::Client::new()
+        .post(&url)
+        .bearer_auth(&token)
+        .json(&serde_json::json!({ "code": code }))
+        .timeout(std::time::Duration::from_secs(5))
+        .send()
+        .map_err(|e| anyhow::anyhow!("daemon request failed: {e}"))?;
+
+    let status = resp.status();
+    let body_text = resp.text().unwrap_or_default();
+
+    if status.is_success() {
+        println!("Paired. Return to Studio — it should connect automatically.");
+        return Ok(());
+    }
+
+    let parsed: serde_json::Value = serde_json::from_str(&body_text).unwrap_or_default();
+    let err_msg = parsed
+        .get("error")
+        .and_then(|v| v.as_str())
+        .unwrap_or(&body_text);
+    anyhow::bail!("pairing failed ({status}): {err_msg}");
+}
+
 /// `ship logout` — remove the stored auth token.
 pub fn run_logout() -> Result<()> {
     let mut creds = Credentials::load();
