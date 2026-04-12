@@ -222,7 +222,6 @@ fn build_runtime_routes(st: rest_api::ApiState) -> Router {
         .route("/view/{name}/manifest", axum::routing::get(views::serve_view_manifest))
         .route("/view/{name}/bundle", axum::routing::get(views::serve_view_bundle))
         .route("/view/{name}/raw", axum::routing::get(views::serve_view_raw))
-        .route("/view/pipeline-monitor/sse", axum::routing::get(views::pipeline_monitor_sse))
         .route("/view/pipelines/sse", axum::routing::get(views_pipelines::pipelines_sse))
         .route("/view/specs/sse", axum::routing::get(specs_view::specs_view_sse))
         .route("/specs", axum::routing::get(specs_api::list_specs).post(specs_api::create_spec))

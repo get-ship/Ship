@@ -1,7 +1,7 @@
 import { createFileRoute } from '@tanstack/react-router'
 import { useEffect, useRef, useState } from 'react'
 import { MonitorPlay } from 'lucide-react'
-import { DAEMON_BASE_URL, daemonFetch } from '#/lib/daemon-config'
+import { daemonFetch } from '#/lib/daemon-config'
 import { usePlatform } from '#/features/studio/PlatformProvider'
 
 export const Route = createFileRoute('/studio/view/$name')({
@@ -12,7 +12,7 @@ export const Route = createFileRoute('/studio/view/$name')({
 function ExtensionViewPage() {
   const { name } = Route.useParams()
   const { client, daemon } = usePlatform()
-  const containerRef = useRef<HTMLDivElement>(null)
+  const hostRef = useRef<HTMLDivElement>(null)
   const [status, setStatus] = useState<'loading' | 'ready' | 'error'>('loading')
   const [errorMsg, setErrorMsg] = useState('')
 
@@ -21,8 +21,12 @@ function ExtensionViewPage() {
     const token = client.getToken()
     if (!token) return
 
+    const host = hostRef.current
+    if (!host) return
+
     let cancelled = false
-    let loadedScripts: HTMLScriptElement[] = []
+    let ownedScripts: HTMLScriptElement[] = []
+    let ownedStyleLinks: HTMLLinkElement[] = []
 
     ;(async () => {
       try {
@@ -31,50 +35,49 @@ function ExtensionViewPage() {
         const html = await res.text()
         if (cancelled) return
 
-        const container = containerRef.current
-        if (!container) return
-
-        // Parse the HTML and extract body + scripts
+        // Parse the view document.
         const doc = new DOMParser().parseFromString(html, 'text/html')
 
-        // Inject styles
-        doc.querySelectorAll('style').forEach((s) => {
-          const clone = document.createElement('style')
-          clone.textContent = s.textContent
-          container.appendChild(clone)
-        })
-
-        // Inject body content (with data-* attributes intact) BEFORE scripts
-        // so Datastar finds the attributes when it initializes.
-        const bodyClone = document.createElement('div')
-        bodyClone.innerHTML = doc.body.innerHTML
-        while (bodyClone.firstChild) container.appendChild(bodyClone.firstChild)
-
-        // Inject stylesheet links (for /api/runtime/assets/view-tokens.css etc.)
+        // Link stylesheets — inject into host head, tagged so we can clean up.
         doc.querySelectorAll('link[rel="stylesheet"]').forEach((l) => {
           const href = l.getAttribute('href')
           if (!href) return
           const clone = document.createElement('link')
           clone.rel = 'stylesheet'
           clone.href = href
+          clone.dataset.shipViewOwned = name
           document.head.appendChild(clone)
+          ownedStyleLinks.push(clone)
         })
 
-        // Now execute scripts — Datastar will scan the DOM on startup.
-        // Copy src when present, otherwise inline textContent.
-        const scripts = Array.from(doc.querySelectorAll('script'))
-        for (const src of scripts) {
+        // Scoped <style> — inject into host container itself, not head, so
+        // browser still applies selectors but we can isolate by wrapping in
+        // the .ship-view container class which is the only element the
+        // shared view-tokens.css global rules target.
+        host.className = 'ship-view flex-1 min-h-0 overflow-auto'
+        doc.querySelectorAll('style').forEach((s) => {
+          const clone = document.createElement('style')
+          clone.textContent = s.textContent
+          host.appendChild(clone)
+        })
+
+        // Body content.
+        host.insertAdjacentHTML('beforeend', doc.body.innerHTML)
+
+        // Scripts — load into document.head (required for module execution).
+        doc.querySelectorAll('script').forEach((old) => {
           const s = document.createElement('script')
-          if (src.type) s.type = src.type
-          const srcAttr = src.getAttribute('src')
-          if (srcAttr) {
-            s.src = srcAttr
+          if (old.type) s.type = old.type
+          const src = old.getAttribute('src')
+          if (src) {
+            s.src = src
           } else {
-            s.textContent = src.textContent
+            s.textContent = old.textContent
           }
+          s.dataset.shipViewOwned = name
           document.head.appendChild(s)
-          loadedScripts.push(s)
-        }
+          ownedScripts.push(s)
+        })
 
         setStatus('ready')
       } catch (err) {
@@ -87,8 +90,12 @@ function ExtensionViewPage() {
 
     return () => {
       cancelled = true
-      loadedScripts.forEach((s) => s.remove())
-      if (containerRef.current) containerRef.current.innerHTML = ''
+      ownedScripts.forEach((s) => s.remove())
+      ownedStyleLinks.forEach((l) => l.remove())
+      if (host) {
+        host.innerHTML = ''
+        host.className = 'flex-1 min-h-0 overflow-auto'
+      }
     }
   }, [name, client, daemon])
 
@@ -104,5 +111,5 @@ function ExtensionViewPage() {
     )
   }
 
-  return <div ref={containerRef} className="flex-1 overflow-auto" />
+  return <div ref={hostRef} className="flex-1 min-h-0 overflow-auto" />
 }

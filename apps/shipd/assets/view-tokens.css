@@ -46,12 +46,13 @@
   }
 }
 
-*, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
-body {
+/* Scope resets and defaults to the view container — do not leak into Studio. */
+.ship-view, .ship-view *, .ship-view *::before, .ship-view *::after { box-sizing: border-box; margin: 0; padding: 0; }
+.ship-view {
   font-family: var(--font-body);
   background: var(--background);
   color: var(--foreground);
   font-size: 13px;
   line-height: 1.5;
-  min-height: 100vh;
+  min-height: 100%;
 }

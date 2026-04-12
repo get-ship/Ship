@@ -1,5 +1,0 @@
-name: pipeline-monitor
-type: component
-element: ship-pipeline-monitor
-claims: [pipeline]
-entry: index.js

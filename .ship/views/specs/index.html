@@ -15,7 +15,7 @@
     --muted-fg: var(--muted-foreground);
     --danger: var(--destructive);
   }
-  html, body { height: 100%; }
+  /* Scoped to .ship-view container — NOT html/body which would leak into Studio. */
   .app { display: grid; grid-template-columns: 280px 1fr; height: 100vh; }
 
   /* Left rail */
