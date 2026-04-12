@@ -128,6 +128,7 @@ async fn write_session_file_creates() {
 
     let (status, _) = write_session_file(
         State(state.clone()),
+        full_auth(),
         Path((branch.clone(), "new.txt".to_string())),
         axum::Json(session_files::WriteFileReq {
             content: "created".to_string(),
@@ -150,6 +151,7 @@ async fn write_session_file_creates_directory() {
 
     let (status, _) = write_session_file(
         State(state.clone()),
+        full_auth(),
         Path((branch.clone(), "sub/dir/file.txt".to_string())),
         axum::Json(session_files::WriteFileReq {
             content: "nested".to_string(),
@@ -175,7 +177,7 @@ async fn delete_session_file() {
 
     let (branch, state) = create_test_workspace(&dir);
 
-    let (status, _) = super::delete_session_file(State(state.clone()), Path((branch.clone(), "doomed.txt".to_string())))
+    let (status, _) = super::delete_session_file(State(state.clone()), full_auth(), Path((branch.clone(), "doomed.txt".to_string())))
         .await
         .unwrap();
     assert_eq!(status, StatusCode::OK);
@@ -463,6 +465,7 @@ async fn session_file_path_traversal_blocked() {
     // Verify write traversal also goes through (same bug)
     let result = write_session_file(
         State(state),
+        full_auth(),
         Path((branch, "../traversed.txt".to_string())),
         axum::Json(session_files::WriteFileReq {
             content: "escaped".to_string(),

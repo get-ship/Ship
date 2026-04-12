@@ -7,6 +7,7 @@ use axum::{Json, extract::{Path, State}, http::StatusCode};
 use serde::Deserialize;
 use std::path::PathBuf;
 
+use crate::auth::{AuthContext, Scope, require_scope};
 use crate::rest_api::{ApiState, MeshResponse};
 use super::{err_response, ok_response, resolve_worktree};
 
@@ -70,9 +71,11 @@ pub struct SetVarReq {
 /// Write an agent transfer bundle to `{worktree}/.ship/agents/{agent_id}.jsonc`.
 pub async fn write_agent(
     State(state): State<ApiState>,
+    axum::Extension(auth): axum::Extension<AuthContext>,
     Path(id): Path<String>,
     Json(body): Json<WriteAgentReq>,
 ) -> Result<(StatusCode, Json<MeshResponse>), (StatusCode, Json<MeshResponse>)> {
+    require_scope(&auth, Scope::WriteWorkspace)?;
     let worktree = resolve_worktree(state.ship_dir(), &id)?;
     let agents_dir = worktree.join(".ship").join("agents");
 
@@ -119,9 +122,11 @@ pub async fn write_agent(
 /// Write content to `{worktree}/.ship/skills/{skillId}/{path}`.
 pub async fn write_skill_file(
     State(state): State<ApiState>,
+    axum::Extension(auth): axum::Extension<AuthContext>,
     Path((id, skill_id, file_path)): Path<(String, String, String)>,
     Json(body): Json<WriteFileReq>,
 ) -> Result<(StatusCode, Json<MeshResponse>), (StatusCode, Json<MeshResponse>)> {
+    require_scope(&auth, Scope::WriteWorkspace)?;
     let worktree = resolve_worktree(state.ship_dir(), &id)?;
 
     validate_skill_id(&skill_id)?;
@@ -153,8 +158,10 @@ pub async fn write_skill_file(
 /// Delete `{worktree}/.ship/skills/{skillId}/{path}`.
 pub async fn delete_skill_file(
     State(state): State<ApiState>,
+    axum::Extension(auth): axum::Extension<AuthContext>,
     Path((id, skill_id, file_path)): Path<(String, String, String)>,
 ) -> Result<(StatusCode, Json<MeshResponse>), (StatusCode, Json<MeshResponse>)> {
+    require_scope(&auth, Scope::WriteWorkspace)?;
     let worktree = resolve_worktree(state.ship_dir(), &id)?;
 
     validate_skill_id(&skill_id)?;
@@ -210,9 +217,11 @@ pub async fn get_skill_vars(
 /// Set a single skill variable. Body: `{ value_json: "<json-encoded-value>" }`.
 pub async fn set_skill_var(
     State(state): State<ApiState>,
+    axum::Extension(auth): axum::Extension<AuthContext>,
     Path((id, skill_id, key)): Path<(String, String, String)>,
     Json(body): Json<SetVarReq>,
 ) -> Result<(StatusCode, Json<MeshResponse>), (StatusCode, Json<MeshResponse>)> {
+    require_scope(&auth, Scope::WriteWorkspace)?;
     let worktree = resolve_worktree(state.ship_dir(), &id)?;
     let ship_dir = worktree.join(".ship");
 
@@ -294,6 +303,16 @@ mod tests {
 
     // ── write_agent ───────────────────────────────────────────────────────────
 
+    fn full_auth() -> axum::Extension<AuthContext> {
+        axum::Extension(AuthContext {
+            caller_kind: runtime::events::CallerKind::Cli,
+            agent_id: None,
+            workspace_id: None,
+            session_id: None,
+            scopes: vec![Scope::Full],
+        })
+    }
+
     #[tokio::test(flavor = "multi_thread")]
     async fn write_agent_nonexistent_workspace_returns_404() {
         let (state, _dir) = make_test_state();
@@ -305,7 +324,7 @@ mod tests {
             rules: serde_json::json!([]),
             hooks: serde_json::json!([]),
         };
-        let result = write_agent(State(state), Path("no-such-ws".to_string()), Json(req)).await;
+        let result = write_agent(State(state), full_auth(), Path("no-such-ws".to_string()), Json(req)).await;
         let (status, _) = result.unwrap_err();
         assert_eq!(status, StatusCode::NOT_FOUND);
     }

@@ -6,6 +6,7 @@ use serde::Deserialize;
 use std::path::PathBuf;
 
 use super::{err_response, ok_response, resolve_worktree};
+use crate::auth::{AuthContext, Scope, require_scope};
 use crate::rest_api::{ApiState, MeshResponse};
 
 fn project_artifacts_dir(ship_dir: &std::path::Path) -> Result<PathBuf, (StatusCode, Json<MeshResponse>)> {
@@ -74,9 +75,11 @@ pub struct PromoteReq {
 /// POST /api/workspaces/{id}/artifacts/promote
 pub async fn promote_artifact(
     State(state): State<ApiState>,
+    axum::Extension(auth): axum::Extension<AuthContext>,
     Path(id): Path<String>,
     Json(body): Json<PromoteReq>,
 ) -> Result<(StatusCode, Json<MeshResponse>), (StatusCode, Json<MeshResponse>)> {
+    require_scope(&auth, Scope::WriteWorkspace)?;
     let worktree = resolve_worktree(state.ship_dir(), &id)?;
     let source = worktree.join(".artifacts").join(&body.path);
     let project_dir = project_artifacts_dir(state.ship_dir())?;

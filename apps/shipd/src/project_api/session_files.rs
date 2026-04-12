@@ -3,6 +3,7 @@
 use axum::{Json, extract::{Path, State}, http::StatusCode};
 use serde::Deserialize;
 
+use crate::auth::{AuthContext, Scope, require_scope};
 use crate::rest_api::{ApiState, MeshResponse};
 
 use super::{err_response, ok_response, resolve_worktree};
@@ -153,9 +154,11 @@ pub struct WriteFileReq {
 /// PUT /api/workspaces/{id}/session-files/*path
 pub async fn write_session_file(
     State(state): State<ApiState>,
+    axum::Extension(auth): axum::Extension<AuthContext>,
     Path((id, file_path)): Path<(String, String)>,
     Json(body): Json<WriteFileReq>,
 ) -> Result<(StatusCode, Json<MeshResponse>), (StatusCode, Json<MeshResponse>)> {
+    require_scope(&auth, Scope::WriteWorkspace)?;
     let worktree = resolve_worktree(state.ship_dir(), &id)?;
     let session_dir = worktree.join(".artifacts");
     let target = session_dir.join(&file_path);
@@ -188,8 +191,10 @@ pub async fn write_session_file(
 /// DELETE /api/workspaces/{id}/session-files/*path
 pub async fn delete_session_file(
     State(state): State<ApiState>,
+    axum::Extension(auth): axum::Extension<AuthContext>,
     Path((id, file_path)): Path<(String, String)>,
 ) -> Result<(StatusCode, Json<MeshResponse>), (StatusCode, Json<MeshResponse>)> {
+    require_scope(&auth, Scope::WriteWorkspace)?;
     let worktree = resolve_worktree(state.ship_dir(), &id)?;
     let target = worktree.join(".artifacts").join(&file_path);
 
