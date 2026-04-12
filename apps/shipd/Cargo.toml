@@ -37,6 +37,8 @@ notify = { version = "7", default-features = false, features = ["macos_fsevent"]
 tower = { version = "0.5", features = ["timeout"] }
 tower-http = { version = "0.6", features = ["catch-panic", "limit", "timeout"] }
 utoipa = { version = "5", features = ["axum_extras"] }
+jsonwebtoken = "9"
+reqwest = { version = "0.12", default-features = false, features = ["rustls-tls", "json"] }
 
 [features]
 unstable = ["runtime/unstable"]

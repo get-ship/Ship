@@ -18,6 +18,7 @@ pub mod rest_api;
 pub mod runtime_api;
 mod server;
 pub mod settings_api;
+pub mod attest;
 pub mod pairing;
 pub mod ship_runtime;
 pub mod supervised;
@@ -131,12 +132,14 @@ pub async fn run_network(host: String, port: u16, dev: bool) -> Result<()> {
         auth::hydrate_sessions(&session_registry).await;
     }
     let pairing_registry = pairing::new_shared();
+    let attestation_verifier = attest::AttestationVerifier::new();
     let app = build_router(
         rt.clone(),
         token,
         hook_token,
         session_registry,
         pairing_registry,
+        attestation_verifier,
         ct.child_token(),
     );
     let addr = format!("{host}:{port}");
@@ -160,6 +163,7 @@ fn build_router(
     hook_token: Arc<String>,
     session_registry: auth::SessionRegistry,
     pairing_registry: pairing::SharedPairingRegistry,
+    attestation_verifier: attest::AttestationVerifier,
     mcp_ct: CancellationToken,
 ) -> Router {
     let kernel_factory = rt.kernel().clone();
@@ -199,6 +203,8 @@ fn build_router(
     let pair_init_reg = pairing_registry.clone();
     let pair_init_sessions = session_registry.clone();
     let pair_status_reg = pairing_registry.clone();
+    let attest_verifier = attestation_verifier.clone();
+    let attest_sessions = session_registry.clone();
     let public_routes = Router::new()
         .route(
             "/auth/pair/init",
@@ -210,6 +216,12 @@ fn build_router(
             "/auth/pair/status",
             axum::routing::get(move |q: axum::extract::Query<auth::PairStatusQuery>| {
                 auth::pair_status(pair_status_reg.clone(), q)
+            }),
+        )
+        .route(
+            "/auth/server-attest",
+            axum::routing::post(move |body: axum::Json<auth::AttestRequest>| {
+                auth::server_attest(attest_verifier.clone(), attest_sessions.clone(), body)
             }),
         )
         .route("/api/session/register", axum::routing::post(move |body: axum::Json<auth::SessionRegisterRequest>| {
