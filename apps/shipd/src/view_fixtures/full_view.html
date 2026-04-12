@@ -1,69 +1,33 @@
 <div id="pipelines-content">
   <div class="stats">
-    <div class="stat stat-accent-primary"><span class="stat-label">Definitions</span><span class="stat-value">2</span></div>
-    <div class="stat stat-accent-info"><span class="stat-label">Active</span><span class="stat-value">2</span></div>
-    <div class="stat stat-accent-success"><span class="stat-label">Completed</span><span class="stat-value">1</span></div>
-    <div class="stat stat-accent-destructive"><span class="stat-label">Failed</span><span class="stat-value">1</span></div>
-    <div class="stat"><span class="stat-label">Total runs</span><span class="stat-value">4</span></div>
+    <ship-stat accent="primary"><span slot="label">Definitions</span>2</ship-stat>
+    <ship-stat accent="info"><span slot="label">Active</span>2</ship-stat>
+    <ship-stat accent="success"><span slot="label">Completed</span>1</ship-stat>
+    <ship-stat accent="destructive"><span slot="label">Failed</span>1</ship-stat>
+    <ship-stat><span slot="label">Total runs</span>4</ship-stat>
   </div>
 
-  <div class="tabs-bar" role="tablist">
-    <button class="tab-btn" role="tab" data-on:click="$tab = 'active'" data-attr-aria-selected="$tab === 'active' ? 'true' : 'false'">
-      Active <span class="tab-count">2</span>
-    </button>
-    <button class="tab-btn" role="tab" data-on:click="$tab = 'definitions'" data-attr-aria-selected="$tab === 'definitions' ? 'true' : 'false'">
-      Definitions <span class="tab-count">2</span>
-    </button>
-    <button class="tab-btn" role="tab" data-on:click="$tab = 'history'" data-attr-aria-selected="$tab === 'history' ? 'true' : 'false'">
-      History <span class="tab-count">2</span>
-    </button>
-  </div>
+  <ship-tabs sticky data-attr-active="$tab" data-on-ship-tab-change="$tab = evt.detail.name">
+    <ship-tab name="active" label="Active" count="2"></ship-tab>
+    <ship-tab name="definitions" label="Definitions" count="2"></ship-tab>
+    <ship-tab name="history" label="History" count="2"></ship-tab>
 
-  <section class="panel" data-show="$tab === 'active'"><div class="run-list"><article class="run-card" id="run-gate-wait">
-  <header>
-    <div><span class="run-slug">gate-wait</span><span class="run-agent">coder</span></div>
-    <span class="badge badge-gatepending">gatepending</span>
-  </header>
-  <div class="pipeline"><div class="step step-completed">
-  <div class="step-name">&#10003; impl</div>
-  <div class="step-type">agent &middot; coder</div>
-  <div class="step-status">completed</div>
-</div><span class="arrow">&rarr;</span><div class="step step-running">
-  <div class="step-name">&#10227; gate</div>
-  <div class="step-type">gate &middot; reviewer</div>
-  <div class="step-status">running</div>
-</div></div>
-</article><article class="run-card" id="run-fix-bug">
-  <header>
-    <div><span class="run-slug">fix-bug</span><span class="run-agent">coder</span></div>
-    <span class="badge badge-dispatched">dispatched</span>
-  </header>
-  <div class="pipeline"><div class="step step-running">
-  <div class="step-name">&#10227; impl</div>
-  <div class="step-type">agent &middot; coder</div>
-  <div class="step-status">running</div>
-</div><span class="arrow">&rarr;</span><div class="step">
-  <div class="step-name">&#9675; gate</div>
-  <div class="step-type">gate &middot; reviewer</div>
-  <div class="step-status">pending</div>
-</div></div>
-</article></div></section>
-  <section class="panel" data-show="$tab === 'definitions'"><div class="def-grid"><article class="def-card">
-  <header><span class="def-name">tdd</span><span class="def-steps">3 steps</span></header>
-  <p class="def-desc">Test-driven dev loop</p>
-</article><article class="def-card">
-  <header><span class="def-name">ship-it</span><span class="def-steps">0 steps</span></header>
-  <p class="def-desc"><span style="opacity:0.5">No description</span></p>
-</article></div></section>
-  <section class="panel" data-show="$tab === 'history'"><div class="history-wrap"><table class="history-table"><thead><tr>
+    <ship-tab-panel name="active"><div class="run-list"><ship-pipeline-run id="run-gate-wait" state="gatepending" slug="gate-wait" agent="coder"><ship-pipeline-dag><ship-pipeline-step name="impl" step-type="agent" state="completed" agent="coder"></ship-pipeline-step><span class="arrow">&rarr;</span><ship-pipeline-step name="gate" step-type="gate" state="running" agent="reviewer"></ship-pipeline-step></ship-pipeline-dag></ship-pipeline-run><ship-pipeline-run id="run-fix-bug" state="dispatched" slug="fix-bug" agent="coder"><ship-pipeline-dag><ship-pipeline-step name="impl" step-type="agent" state="running" agent="coder"></ship-pipeline-step><span class="arrow">&rarr;</span><ship-pipeline-step name="gate" step-type="gate" state="pending" agent="reviewer"></ship-pipeline-step></ship-pipeline-dag></ship-pipeline-run></div></ship-tab-panel>
+    <ship-tab-panel name="definitions"><div class="def-grid"><ship-pipeline-definition name="tdd" steps="3" description="Test-driven dev loop"></ship-pipeline-definition><ship-pipeline-definition name="ship-it" steps="0" description=""></ship-pipeline-definition></div></ship-tab-panel>
+    <ship-tab-panel name="history"><div class="history-wrap"><table class="history-table"><thead><tr>
 <th>Slug</th><th>Pipeline</th><th>Status</th><th>Duration</th><th>Completed</th>
-</tr></thead><tbody><tr>
-<td>feat-x</td><td>2 steps</td>
-<td><span class="badge badge-completed">completed</span></td>
-<td>0s</td><td>2025-01-02 03:04</td>
-</tr><tr>
-<td>regress</td><td>2 steps</td>
-<td><span class="badge badge-failed">failed</span></td>
-<td>0s</td><td>2025-01-02 03:04</td>
-</tr></tbody></table></div></section>
+</tr></thead><tbody><ship-history-row state="failed">
+<span slot="slug">regress</span>
+<span slot="pipeline">2 steps</span>
+<span slot="status"><ship-badge tone="destructive">failed</ship-badge></span>
+<span slot="duration">0s</span>
+<span slot="completed">2025-01-02 03:47</span>
+</ship-history-row><ship-history-row state="completed">
+<span slot="slug">feat-x</span>
+<span slot="pipeline">2 steps</span>
+<span slot="status"><ship-badge tone="success">completed</ship-badge></span>
+<span slot="duration">0s</span>
+<span slot="completed">2025-01-02 03:45</span>
+</ship-history-row></tbody></table></div></ship-tab-panel>
+  </ship-tabs>
 </div>

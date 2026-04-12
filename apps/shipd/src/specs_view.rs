@@ -74,7 +74,7 @@ pub async fn specs_view_sse(
 fn render_spec_list() -> String {
     let specs = specs::list_specs().unwrap_or_default();
     if specs.is_empty() {
-        return r#"<div id="spec-list" class="spec-list"><div class="empty">No specs yet. Click New Spec to start.</div></div>"#.to_string();
+        return r##"<div id="spec-list" class="spec-list"><ship-empty-state variant="placeholder">No specs yet. Click New Spec to start.</ship-empty-state></div>"##.to_string();
     }
 
     let rows: String = specs.iter().map(render_spec_row).collect();
@@ -84,12 +84,16 @@ fn render_spec_list() -> String {
 fn render_spec_row(s: &Spec) -> String {
     let status = html_escape(&s.status);
     let title = if s.title.is_empty() { "(untitled)".to_string() } else { html_escape(&s.title) };
-    let pipeline = s.pipeline.as_deref().map(html_escape).unwrap_or_else(|| "&mdash;".into());
+    let pipeline = s.pipeline.as_deref().map(html_escape).unwrap_or_default();
+    let pipeline_attr = if pipeline.is_empty() {
+        String::new()
+    } else {
+        format!(r#" pipeline="{pipeline}""#)
+    };
+    // Spec open click handler: fetch spec body and populate all editor signals.
+    // Kept as a single inline expression so it travels with the SSE fragment.
     format!(
-        r##"<button class="spec-row" data-show="$filter === '{status}'" data-on:click="$selectedId = '{id}'; fetch('/api/runtime/specs/{id}', {{headers: {{authorization: 'Bearer ' + window.__shipToken}}}}).then(r => r.json()).then(j => {{ const d = j.data || {{}}; $title = d.title || ''; $body = d.body || ''; $pipeline = d.pipeline || ''; $status = d.status || 'draft'; $criteria = d.criteria || []; $criteriaText = ($criteria).join('\\n'); $scope = d.scope || []; $scopeText = ($scope).join('\\n'); $vars = d.vars || {{}}; $varsText = Object.entries($vars).map(([k,v]) => k+'='+v).join('\\n'); $dirty = false; }})">
-  <div class="spec-row-title">{title}</div>
-  <div class="spec-row-meta"><span class="badge badge-{status}">{status}</span><span class="pipeline-tag">{pipeline}</span></div>
-</button>"##,
+        r##"<ship-spec-row item-title="{title}" status="{status}"{pipeline_attr} data-show="$filter === '{status}'" data-on:click="$selectedId = '{id}'; fetch('/api/runtime/specs/{id}', {{headers: {{authorization: 'Bearer ' + window.__shipToken}}}}).then(r => r.json()).then(j => {{ const d = j.data || {{}}; $title = d.title || ''; $body = d.body || ''; $pipeline = d.pipeline || ''; $status = d.status || 'draft'; $criteria = d.criteria || []; $criteriaText = ($criteria).join('\\n'); $scope = d.scope || []; $scopeText = ($scope).join('\\n'); $vars = d.vars || {{}}; $varsText = Object.entries($vars).map(([k,v]) => k+'='+v).join('\\n'); $dirty = false; }})"></ship-spec-row>"##,
         id = html_escape(&s.id),
     )
 }
@@ -116,5 +120,33 @@ mod tests {
         let out = render_spec_list();
         assert!(out.contains("No specs yet"));
         assert!(out.starts_with(r#"<div id="spec-list""#));
+        assert!(out.contains("<ship-empty-state"));
+    }
+
+    #[test]
+    fn render_spec_row_emits_ship_spec_row_element() {
+        use chrono::Utc;
+        use std::collections::HashMap;
+        let s = Spec {
+            id: "abc".into(),
+            title: "Draft thing".into(),
+            body_path: String::new(),
+            status: "draft".into(),
+            pipeline: Some("tdd".into()),
+            vars: HashMap::new(),
+            criteria: vec![],
+            scope: vec![],
+            priority: None,
+            created_at: Utc::now(),
+            updated_at: Utc::now(),
+        };
+        let out = render_spec_row(&s);
+        assert!(out.contains("<ship-spec-row"));
+        assert!(out.contains(r#"item-title="Draft thing""#));
+        assert!(out.contains(r#"status="draft""#));
+        assert!(out.contains(r#"pipeline="tdd""#));
+        // Datastar wiring preserved verbatim.
+        assert!(out.contains(r#"data-show="$filter === 'draft'""#));
+        assert!(out.contains("$selectedId = 'abc'"));
     }
 }

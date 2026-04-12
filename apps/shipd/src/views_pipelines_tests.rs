@@ -111,9 +111,9 @@ fn render_definitions_tab_shows_empty_state() {
 fn render_definitions_tab_lists_pipelines() {
     let defs = vec![("tdd".into(), "test-driven".into(), 3usize)];
     let html = render_definitions_tab(&defs);
-    assert!(html.contains("tdd"));
-    assert!(html.contains("test-driven"));
-    assert!(html.contains("3 step"));
+    assert!(html.contains(r#"name="tdd""#));
+    assert!(html.contains(r#"description="test-driven""#));
+    assert!(html.contains(r#"steps="3""#));
 }
 
 #[test]
@@ -182,8 +182,13 @@ fn format_duration_variants() {
 
 /// Deterministic job for fixture capture — no Utc::now so output is stable.
 fn mk_fixture_job(slug: &str, status: JobStatus, current: Option<&str>, completed: &[&str]) -> JobRecord {
+    // Derive a stable ordering for fixture tests: hash the slug into a minute
+    // offset so HashMap iteration + sort_by(updated_at) yields a deterministic
+    // order regardless of HashMap hash seed randomization.
     use chrono::TimeZone;
-    let t = Utc.with_ymd_and_hms(2025, 1, 2, 3, 4, 5).unwrap();
+    let offset_mins = slug.bytes().map(|b| b as i64).sum::<i64>() % 60;
+    let t = Utc.with_ymd_and_hms(2025, 1, 2, 3, 4, 5).unwrap()
+        + chrono::Duration::minutes(offset_mins);
     JobRecord {
         job_id: format!("j-{slug}"),
         slug: slug.into(),

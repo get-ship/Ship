@@ -2,6 +2,11 @@
 //!
 //! Renders: definitions (from `.ship/pipelines/*.yaml`), active runs, and history.
 //! Subscribes to `job.*` / `step.*` kernel events and re-renders on change.
+//!
+//! All visible UI is emitted as `<ship-*>` elements from `@ship/ui/elements`.
+//! The view shell (`.ship/views/pipelines/index.html`) is responsible for
+//! loading tokens + the element bundle; this module emits only content
+//! fragments that plug into the shell's SSE target `#pipelines-content`.
 
 use axum::extract::State;
 use axum::response::sse::{Event, KeepAlive, Sse};
@@ -140,61 +145,47 @@ pub fn render_pipelines_view(
     let completed_count = jobs.values().filter(|j| matches!(j.status, JobStatus::Completed | JobStatus::Merged)).count();
     let failed_count = jobs.values().filter(|j| matches!(j.status, JobStatus::Failed)).count();
     let total_runs = jobs.len();
+    let history_count = completed_count + failed_count;
 
     format!(
         r##"<div id="pipelines-content">
   <div class="stats">
-    <div class="stat stat-accent-primary"><span class="stat-label">Definitions</span><span class="stat-value">{def_count}</span></div>
-    <div class="stat stat-accent-info"><span class="stat-label">Active</span><span class="stat-value">{active_count}</span></div>
-    <div class="stat stat-accent-success"><span class="stat-label">Completed</span><span class="stat-value">{completed_count}</span></div>
-    <div class="stat stat-accent-destructive"><span class="stat-label">Failed</span><span class="stat-value">{failed_count}</span></div>
-    <div class="stat"><span class="stat-label">Total runs</span><span class="stat-value">{total_runs}</span></div>
+    <ship-stat accent="primary"><span slot="label">Definitions</span>{def_count}</ship-stat>
+    <ship-stat accent="info"><span slot="label">Active</span>{active_count}</ship-stat>
+    <ship-stat accent="success"><span slot="label">Completed</span>{completed_count}</ship-stat>
+    <ship-stat accent="destructive"><span slot="label">Failed</span>{failed_count}</ship-stat>
+    <ship-stat><span slot="label">Total runs</span>{total_runs}</ship-stat>
   </div>
 
-  <div class="tabs-bar" role="tablist">
-    <button class="tab-btn" role="tab" data-on:click="$tab = 'active'" data-attr-aria-selected="$tab === 'active' ? 'true' : 'false'">
-      Active <span class="tab-count">{active_count}</span>
-    </button>
-    <button class="tab-btn" role="tab" data-on:click="$tab = 'definitions'" data-attr-aria-selected="$tab === 'definitions' ? 'true' : 'false'">
-      Definitions <span class="tab-count">{def_count}</span>
-    </button>
-    <button class="tab-btn" role="tab" data-on:click="$tab = 'history'" data-attr-aria-selected="$tab === 'history' ? 'true' : 'false'">
-      History <span class="tab-count">{h}</span>
-    </button>
-  </div>
+  <ship-tabs sticky data-attr-active="$tab" data-on-ship-tab-change="$tab = evt.detail.name">
+    <ship-tab name="active" label="Active" count="{active_count}"></ship-tab>
+    <ship-tab name="definitions" label="Definitions" count="{def_count}"></ship-tab>
+    <ship-tab name="history" label="History" count="{history_count}"></ship-tab>
 
-  <section class="panel" data-show="$tab === 'active'">{active}</section>
-  <section class="panel" data-show="$tab === 'definitions'">{defs}</section>
-  <section class="panel" data-show="$tab === 'history'">{history}</section>
+    <ship-tab-panel name="active">{active}</ship-tab-panel>
+    <ship-tab-panel name="definitions">{defs}</ship-tab-panel>
+    <ship-tab-panel name="history">{history}</ship-tab-panel>
+  </ship-tabs>
 </div>"##,
-        h = completed_count + failed_count,
     )
 }
 
 pub fn render_definitions_tab(pipelines: &[PipelineDef]) -> String {
     if pipelines.is_empty() {
-        return r##"<div class="empty">
-  <span class="empty-icon">⬡</span>
-  <div class="empty-title">No pipelines defined</div>
-  <div class="empty-desc">Add YAML files to <code>.ship/pipelines/</code> to define repeatable multi-step workflows.</div>
-</div>"##
+        return r##"<ship-empty-state>
+  <span slot="icon">⬡</span>
+  <span slot="title">No pipelines defined</span>
+  Add YAML files to <code>.ship/pipelines/</code> to define repeatable multi-step workflows.
+</ship-empty-state>"##
             .to_string();
     }
     let rows: String = pipelines
         .iter()
         .map(|(name, desc, n)| {
-            let desc_html = if desc.is_empty() {
-                r#"<span style="opacity:0.5">No description</span>"#.to_string()
-            } else {
-                html_escape(desc)
-            };
             format!(
-                r##"<article class="def-card">
-  <header><span class="def-name">{name}</span><span class="def-steps">{n} step{s}</span></header>
-  <p class="def-desc">{desc_html}</p>
-</article>"##,
+                r##"<ship-pipeline-definition name="{name}" steps="{n}" description="{desc}"></ship-pipeline-definition>"##,
                 name = html_escape(name),
-                s = if *n == 1 { "" } else { "s" },
+                desc = html_escape(desc),
             )
         })
         .collect();
@@ -209,11 +200,11 @@ pub fn render_active_tab(jobs: &HashMap<String, JobRecord>) -> String {
     active.sort_by(|a, b| b.updated_at.cmp(&a.updated_at));
 
     if active.is_empty() {
-        return r##"<div class="empty">
-  <span class="empty-icon">◎</span>
-  <div class="empty-title">No active runs</div>
-  <div class="empty-desc">Kick off a pipeline with <code>ship run &lt;pipeline&gt; &lt;spec&gt;</code> or from the Specs view.</div>
-</div>"##.to_string();
+        return r##"<ship-empty-state>
+  <span slot="icon">◎</span>
+  <span slot="title">No active runs</span>
+  Kick off a pipeline with <code>ship run &lt;pipeline&gt; &lt;spec&gt;</code> or from the Specs view.
+</ship-empty-state>"##.to_string();
     }
     let rows: String = active.iter().map(|j| render_run_card(j, true)).collect();
     format!(r#"<div class="run-list">{rows}</div>"#)
@@ -233,11 +224,11 @@ pub fn render_history_tab(jobs: &HashMap<String, JobRecord>) -> String {
     history.truncate(50);
 
     if history.is_empty() {
-        return r##"<div class="empty">
-  <span class="empty-icon">✦</span>
-  <div class="empty-title">No run history yet</div>
-  <div class="empty-desc">Completed, failed, and merged runs will appear here.</div>
-</div>"##.to_string();
+        return r##"<ship-empty-state>
+  <span slot="icon">✦</span>
+  <span slot="title">No run history yet</span>
+  Completed, failed, and merged runs will appear here.
+</ship-empty-state>"##.to_string();
     }
     let rows: String = history.iter().map(|j| render_history_row(j)).collect();
     format!(
@@ -247,17 +238,37 @@ pub fn render_history_tab(jobs: &HashMap<String, JobRecord>) -> String {
     )
 }
 
+/// Normalized run-state token for ship-pipeline-run (kebab-case).
+fn job_state_token(s: &JobStatus) -> &'static str {
+    match s {
+        JobStatus::Dispatched => "dispatched",
+        JobStatus::GatePending => "gatepending",
+        JobStatus::Completed => "completed",
+        JobStatus::Failed => "failed",
+        JobStatus::Merged => "merged",
+        JobStatus::Blocked => "blocked",
+        JobStatus::Pending => "pending",
+    }
+}
+
+/// Tone mapping for badges that only show a JobStatus label.
+fn job_status_tone(s: &JobStatus) -> &'static str {
+    match s {
+        JobStatus::Dispatched => "info",
+        JobStatus::GatePending => "warning",
+        JobStatus::Completed => "success",
+        JobStatus::Failed => "destructive",
+        JobStatus::Merged => "accent",
+        JobStatus::Blocked => "warning",
+        JobStatus::Pending => "muted",
+    }
+}
+
 fn render_run_card(job: &JobRecord, show_dag: bool) -> String {
-    let status = format!("{:?}", job.status).to_lowercase();
+    let state = job_state_token(&job.status);
     let dag = if show_dag { render_mini_dag(job) } else { String::new() };
     format!(
-        r##"<article class="run-card" id="run-{slug}">
-  <header>
-    <div><span class="run-slug">{slug}</span><span class="run-agent">{agent}</span></div>
-    <span class="badge badge-{status}">{status}</span>
-  </header>
-  {dag}
-</article>"##,
+        r##"<ship-pipeline-run id="run-{slug}" state="{state}" slug="{slug}" agent="{agent}">{dag}</ship-pipeline-run>"##,
         slug = html_escape(&job.slug),
         agent = html_escape(&job.agent),
     )
@@ -270,27 +281,23 @@ fn render_mini_dag(job: &JobRecord) -> String {
     };
     let completed = &job.completed_steps;
     let current = job.current_step.as_deref();
-    let job_status = format!("{:?}", job.status).to_lowercase();
+    let job_failed = matches!(job.status, JobStatus::Failed);
 
     let steps_html: String = steps
         .iter()
         .enumerate()
         .map(|(i, step)| {
-            let (cls, status, icon) = if completed.contains(&step.id) {
-                ("step step-completed", "completed", "&#10003;")
+            let state = if completed.contains(&step.id) {
+                "completed"
             } else if current == Some(step.id.as_str()) {
-                if job_status == "failed" {
-                    ("step step-failed", "failed", "&#10007;")
-                } else {
-                    ("step step-running", "running", "&#10227;")
-                }
+                if job_failed { "failed" } else { "running" }
             } else {
-                ("step", "pending", "&#9675;")
+                "pending"
             };
-            let agent_label = step
+            let agent_attr = step
                 .agent
                 .as_deref()
-                .map(|a| format!(" &middot; {}", html_escape(a)))
+                .map(|a| format!(r#" agent="{}""#, html_escape(a)))
                 .unwrap_or_default();
             let step_type = format!("{:?}", step.step_type).to_lowercase();
             let arrow = if i < steps.len() - 1 {
@@ -299,21 +306,18 @@ fn render_mini_dag(job: &JobRecord) -> String {
                 ""
             };
             format!(
-                r#"<div class="{cls}">
-  <div class="step-name">{icon} {id}</div>
-  <div class="step-type">{step_type}{agent_label}</div>
-  <div class="step-status">{status}</div>
-</div>{arrow}"#,
+                r#"<ship-pipeline-step name="{id}" step-type="{step_type}" state="{state}"{agent_attr}></ship-pipeline-step>{arrow}"#,
                 id = html_escape(&step.id),
             )
         })
         .collect();
 
-    format!(r#"<div class="pipeline">{steps_html}</div>"#)
+    format!("<ship-pipeline-dag>{steps_html}</ship-pipeline-dag>")
 }
 
 fn render_history_row(job: &JobRecord) -> String {
-    let status = format!("{:?}", job.status).to_lowercase();
+    let state = job_state_token(&job.status);
+    let tone = job_status_tone(&job.status);
     let duration_ms = (job.updated_at - job.created_at).num_seconds();
     let duration = format_duration(duration_ms);
     let pipeline_name = job
@@ -324,11 +328,13 @@ fn render_history_row(job: &JobRecord) -> String {
     let completed = job.updated_at.format("%Y-%m-%d %H:%M").to_string();
 
     format!(
-        r##"<tr>
-<td>{slug}</td><td>{pipeline}</td>
-<td><span class="badge badge-{status}">{status}</span></td>
-<td>{duration}</td><td>{completed}</td>
-</tr>"##,
+        r##"<ship-history-row state="{state}">
+<span slot="slug">{slug}</span>
+<span slot="pipeline">{pipeline}</span>
+<span slot="status"><ship-badge tone="{tone}">{state}</ship-badge></span>
+<span slot="duration">{duration}</span>
+<span slot="completed">{completed}</span>
+</ship-history-row>"##,
         slug = html_escape(&job.slug),
         pipeline = html_escape(&pipeline_name),
     )

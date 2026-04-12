@@ -7,74 +7,32 @@
 <script>window.__shipToken = "{{SHIP_TOKEN}}";</script>
 <link rel="stylesheet" href="http://localhost:9315/api/runtime/assets/view-tokens.css">
 <script type="module" src="http://localhost:9315/api/runtime/assets/datastar.js"></script>
+<script type="module" src="http://localhost:9315/api/runtime/assets/ship-elements.js"></script>
 <style>
-  /* Aliases for specs-specific shorthand — canonical tokens loaded from view-tokens.css */
-  :root {
-    --bg: var(--background);
-    --fg: var(--foreground);
-    --muted-fg: var(--muted-foreground);
-    --danger: var(--destructive);
-  }
-  /* Scoped to .ship-view container — NOT html/body which would leak into Studio. */
+  /* View-local layout only — visual primitives live inside <ship-*> shadow DOM. */
   .app { display: grid; grid-template-columns: 280px 1fr; height: 100vh; }
 
   /* Left rail */
   .rail { border-right: 1px solid var(--border); display: flex; flex-direction: column; min-height: 0; }
   .rail-header { padding: 12px 14px; border-bottom: 1px solid var(--border); display: flex; gap: 8px; align-items: center; justify-content: space-between; }
   .rail-title { font-size: 13px; font-weight: 600; }
-  .btn { border: 1px solid var(--border); background: var(--bg); color: var(--fg); padding: 5px 10px; border-radius: 6px; font-size: 12px; cursor: pointer; }
-  .btn:hover { background: var(--muted); }
-  .btn-primary { background: var(--primary); border-color: var(--primary); color: white; }
-  .btn-primary:hover { filter: brightness(1.05); }
-  .btn-danger { color: var(--danger); border-color: var(--danger); background: transparent; }
-  .tabs { display: flex; gap: 2px; padding: 8px 10px; border-bottom: 1px solid var(--border); background: var(--muted); }
-  .tab { flex: 1; padding: 6px 8px; border: none; background: transparent; color: var(--muted-fg); font-size: 11px; font-weight: 500; cursor: pointer; border-radius: 4px; text-transform: uppercase; letter-spacing: 0.04em; }
-  .tab.active { background: var(--bg); color: var(--fg); box-shadow: 0 1px 2px rgba(0,0,0,0.05); }
   .spec-list { flex: 1; overflow-y: auto; padding: 6px; display: flex; flex-direction: column; gap: 4px; }
-  .spec-row { width: 100%; text-align: left; background: transparent; border: 1px solid transparent; border-radius: 6px; padding: 8px 10px; cursor: pointer; display: flex; flex-direction: column; gap: 4px; color: inherit; font: inherit; }
-  .spec-row:hover { background: var(--muted); border-color: var(--border); }
-  .spec-row-title { font-weight: 500; font-size: 13px; }
-  .spec-row-meta { display: flex; gap: 6px; align-items: center; font-size: 10px; color: var(--muted-fg); }
-  .empty { padding: 20px; text-align: center; color: var(--muted-fg); font-size: 12px; }
-
-  /* Badges */
-  .badge { font-size: 9px; padding: 1px 6px; border-radius: 3px; font-weight: 600; text-transform: uppercase; letter-spacing: 0.05em; background: var(--muted); color: var(--muted-fg); }
-  .badge-draft { background: oklch(0.9 0.02 106); color: oklch(0.35 0.02 106); }
-  .badge-ready { background: oklch(0.9 0.12 150); color: oklch(0.3 0.1 150); }
-  .badge-launched { background: oklch(0.9 0.1 58); color: oklch(0.35 0.15 58); }
-  .badge-completed { background: oklch(0.9 0.1 150); color: oklch(0.3 0.15 150); }
-  .badge-failed { background: oklch(0.9 0.1 27); color: oklch(0.35 0.18 27); }
-  .pipeline-tag { font-family: ui-monospace, monospace; color: var(--accent); }
 
   /* Main pane */
   .main { display: flex; flex-direction: column; min-height: 0; overflow: hidden; }
   .main-header { padding: 14px 20px; border-bottom: 1px solid var(--border); display: flex; gap: 10px; align-items: center; }
-  .title-input { flex: 1; font-size: 16px; font-weight: 600; border: 1px solid transparent; border-radius: 6px; padding: 6px 10px; background: transparent; color: var(--fg); }
-  .title-input:focus { outline: none; border-color: var(--border); background: var(--bg); }
-  .pipeline-select { border: 1px solid var(--border); border-radius: 6px; padding: 5px 8px; font-size: 12px; background: var(--bg); color: var(--fg); }
   .main-body { flex: 1; display: grid; grid-template-columns: 1fr 320px; min-height: 0; }
   .editor-wrap { padding: 16px 20px; display: flex; flex-direction: column; gap: 8px; min-height: 0; }
-  .editor-label { font-size: 10px; text-transform: uppercase; letter-spacing: 0.06em; color: var(--muted-fg); font-weight: 600; }
-  .editor { flex: 1; width: 100%; resize: none; border: 1px solid var(--border); border-radius: 6px; padding: 12px; font-family: ui-monospace, SFMono-Regular, Menlo, monospace; font-size: 13px; line-height: 1.5; background: var(--bg); color: var(--fg); }
-  .editor:focus { outline: 2px solid var(--primary); outline-offset: -1px; border-color: transparent; }
+  ship-textarea.editor { flex: 1; display: flex; min-height: 0; }
+  ship-textarea.editor::part(textarea) { height: 100%; min-height: 0; }
 
   /* Metadata panel */
   .meta { border-left: 1px solid var(--border); padding: 16px; overflow-y: auto; display: flex; flex-direction: column; gap: 16px; background: var(--muted); }
-  .meta-section { display: flex; flex-direction: column; gap: 6px; }
-  .meta-title { font-size: 10px; text-transform: uppercase; letter-spacing: 0.06em; color: var(--muted-fg); font-weight: 600; }
-  .meta-list { display: flex; flex-direction: column; gap: 4px; }
-  .meta-row { display: flex; gap: 4px; align-items: center; }
-  .meta-input { flex: 1; border: 1px solid var(--border); border-radius: 4px; padding: 4px 8px; font-size: 12px; background: var(--bg); color: var(--fg); }
-  .meta-input:focus { outline: 1px solid var(--primary); }
-  .icon-btn { width: 22px; height: 22px; border: 1px solid var(--border); background: var(--bg); color: var(--muted-fg); border-radius: 4px; cursor: pointer; font-size: 14px; line-height: 1; display: inline-flex; align-items: center; justify-content: center; }
-  .icon-btn:hover { color: var(--danger); border-color: var(--danger); }
+  .meta-hint { font-size: 11px; color: var(--muted-foreground); margin-bottom: 4px; }
 
-  /* Footer actions */
-  .footer { padding: 12px 20px; border-top: 1px solid var(--border); display: flex; gap: 8px; justify-content: flex-end; align-items: center; }
-  .footer-spacer { flex: 1; }
+  /* Inline status text */
   .dirty-indicator { font-size: 11px; color: var(--primary); font-weight: 500; }
-
-  .placeholder { display: flex; align-items: center; justify-content: center; flex: 1; color: var(--muted-fg); font-size: 13px; }
+  .placeholder { display: flex; align-items: center; justify-content: center; flex: 1; color: var(--muted-foreground); font-size: 13px; }
 </style>
 </head>
 <body>
@@ -92,25 +50,28 @@
      data-signals-scope-text="''"
      data-signals-vars="{}"
      data-signals-vars-text="''"
+     data-signals-confirm-delete="false"
      data-init="@get('http://localhost:9315/api/runtime/view/specs/sse?token={{SHIP_TOKEN}}', {requestCancellation: 'disabled'})">
 
   <!-- Left rail -->
   <aside class="rail">
     <div class="rail-header">
       <div class="rail-title">Specs</div>
-      <button class="btn btn-primary"
-              data-on:click="@post('/api/runtime/specs', {contentType: 'json', body: JSON.stringify({title: 'New spec', body: '# New spec\n\n'})})">
+      <ship-button variant="solid" size="sm"
+                   data-on:click="@post('/api/runtime/specs', {contentType: 'json', body: JSON.stringify({title: 'New spec', body: '# New spec\n\n'})})">
         + New
-      </button>
+      </ship-button>
     </div>
-    <div class="tabs" role="tablist">
-      <button class="tab" data-class-active="$filter === 'draft'" data-on:click="$filter = 'draft'">Draft</button>
-      <button class="tab" data-class-active="$filter === 'ready'" data-on:click="$filter = 'ready'">Ready</button>
-      <button class="tab" data-class-active="$filter === 'launched'" data-on:click="$filter = 'launched'">Launched</button>
-      <button class="tab" data-class-active="$filter === 'completed'" data-on:click="$filter = 'completed'">Completed</button>
-    </div>
+    <ship-tabs variant="segmented" role="tablist" active="draft"
+               data-attr-active="$filter"
+               data-on-ship-tab-change="$filter = evt.detail.name">
+      <ship-tab name="draft" label="Draft"></ship-tab>
+      <ship-tab name="ready" label="Ready"></ship-tab>
+      <ship-tab name="launched" label="Launched"></ship-tab>
+      <ship-tab name="completed" label="Completed"></ship-tab>
+    </ship-tabs>
     <div id="spec-list" class="spec-list">
-      <div class="empty">Connecting...</div>
+      <ship-empty-state variant="placeholder">Connecting...</ship-empty-state>
     </div>
   </aside>
 
@@ -120,67 +81,81 @@
 
     <div data-show="$selectedId" style="display: flex; flex-direction: column; flex: 1; min-height: 0;">
       <header class="main-header">
-        <input class="title-input" type="text" placeholder="Spec title"
-               data-bind-title data-on:input="$dirty = true">
-        <select class="pipeline-select" data-bind-pipeline data-on:change="$dirty = true">
+        <ship-input variant="ghost" size="lg" placeholder="Spec title"
+                    style="flex: 1;"
+                    data-bind-title data-on:ship-input="$dirty = true"></ship-input>
+        <ship-select data-bind-pipeline data-on:ship-change="$dirty = true">
           <option value="">No pipeline</option>
           <option value="tdd">tdd</option>
           <option value="plan-then-build">plan-then-build</option>
           <option value="ship-it">ship-it</option>
-        </select>
-        <span data-text="$status" data-class="'badge badge-' + $status"></span>
+        </ship-select>
+        <ship-badge data-attr-tone="$status === 'failed' ? 'destructive' : ($status === 'completed' || $status === 'ready' ? 'success' : ($status === 'launched' ? 'warning' : 'muted'))"
+                    data-text="$status"></ship-badge>
       </header>
 
       <div class="main-body">
         <div class="editor-wrap">
-          <div class="editor-label">Markdown body</div>
-          <textarea class="editor" placeholder="# Spec body..."
-                    data-bind-body data-on:input="$dirty = true"></textarea>
+          <ship-label>Markdown body</ship-label>
+          <ship-textarea class="editor" variant="code" placeholder="# Spec body..."
+                         data-bind-body data-on:ship-input="$dirty = true"></ship-textarea>
         </div>
 
         <aside class="meta">
-          <div class="meta-section">
-            <div class="meta-title">Acceptance criteria</div>
-            <div style="font-size: 11px; color: var(--muted-fg); margin-bottom: 4px;">One per line</div>
-            <textarea class="meta-input" rows="4"
-                      data-bind-criteria-text
-                      data-on:input="$dirty = true; $criteria = $criteriaText.split('\n').filter(l => l.trim())"
-                      placeholder="Tests pass&#10;Docs updated"></textarea>
-          </div>
+          <ship-field>
+            <ship-label slot="label">Acceptance criteria</ship-label>
+            <div class="meta-hint">One per line</div>
+            <ship-textarea size="sm" rows="4"
+                           data-bind-criteria-text
+                           data-on:ship-input="$dirty = true; $criteria = $criteriaText.split('\n').filter(l => l.trim())"
+                           placeholder="Tests pass&#10;Docs updated"></ship-textarea>
+          </ship-field>
 
-          <div class="meta-section">
-            <div class="meta-title">Scope</div>
-            <div style="font-size: 11px; color: var(--muted-fg); margin-bottom: 4px;">One path per line</div>
-            <textarea class="meta-input" rows="3"
-                      data-bind-scope-text
-                      data-on:input="$dirty = true; $scope = $scopeText.split('\n').filter(l => l.trim())"
-                      placeholder="crates/core/runtime/&#10;apps/shipd/"></textarea>
-          </div>
+          <ship-field>
+            <ship-label slot="label">Scope</ship-label>
+            <div class="meta-hint">One path per line</div>
+            <ship-textarea size="sm" rows="3"
+                           data-bind-scope-text
+                           data-on:ship-input="$dirty = true; $scope = $scopeText.split('\n').filter(l => l.trim())"
+                           placeholder="crates/core/runtime/&#10;apps/shipd/"></ship-textarea>
+          </ship-field>
 
-          <div class="meta-section">
-            <div class="meta-title">Variables</div>
-            <div style="font-size: 11px; color: var(--muted-fg); margin-bottom: 4px;">KEY=value per line</div>
-            <textarea class="meta-input" rows="3"
-                      data-bind-vars-text
-                      data-on:input="$dirty = true; $vars = Object.fromEntries($varsText.split('\n').filter(l => l.includes('=')).map(l => { const i = l.indexOf('='); return [l.slice(0, i).trim(), l.slice(i+1).trim()]; }))"
-                      placeholder="TARGET=stable&#10;VERSION=1.0"></textarea>
-          </div>
+          <ship-field>
+            <ship-label slot="label">Variables</ship-label>
+            <div class="meta-hint">KEY=value per line</div>
+            <ship-textarea size="sm" rows="3"
+                           data-bind-vars-text
+                           data-on:ship-input="$dirty = true; $vars = Object.fromEntries($varsText.split('\n').filter(l => l.includes('=')).map(l => { const i = l.indexOf('='); return [l.slice(0, i).trim(), l.slice(i+1).trim()]; }))"
+                           placeholder="TARGET=stable&#10;VERSION=1.0"></ship-textarea>
+          </ship-field>
         </aside>
       </div>
 
-      <footer class="footer">
+      <ship-toolbar variant="bordered" justify="end">
         <span class="dirty-indicator" data-show="$dirty">Unsaved changes</span>
-        <div class="footer-spacer"></div>
-        <button class="btn btn-danger"
-                data-on:click="if (confirm('Delete this spec?')) @delete('/api/runtime/specs/' + $selectedId); $selectedId = ''"
-                data-show="$selectedId">Delete</button>
-        <button class="btn"
-                data-show="$status === 'ready' || $status === 'draft'"
-                data-on:click="@post('/api/runtime/specs/' + $selectedId + '/launch')">Launch Pipeline</button>
-        <button class="btn btn-primary"
-                data-show="$dirty"
-                data-on:click="@put('/api/runtime/specs/' + $selectedId, {contentType: 'json', body: JSON.stringify({title: $title, body: $body, pipeline: $pipeline ? $pipeline : null, status: $status, criteria: $criteria, scope: $scope, vars: $vars})}); $dirty = false">Save</button>
-      </footer>
+        <span slot="spacer"></span>
+        <ship-button variant="outline" tone="destructive" size="sm"
+                     data-show="$selectedId"
+                     data-on:click="$confirmDelete = true">Delete</ship-button>
+        <ship-button variant="outline" size="sm"
+                     data-show="$status === 'ready' || $status === 'draft'"
+                     data-on:click="@post('/api/runtime/specs/' + $selectedId + '/launch')">Launch Pipeline</ship-button>
+        <ship-button variant="solid" size="sm"
+                     data-show="$dirty"
+                     data-on:click="@put('/api/runtime/specs/' + $selectedId, {contentType: 'json', body: JSON.stringify({title: $title, body: $body, pipeline: $pipeline ? $pipeline : null, status: $status, criteria: $criteria, scope: $scope, vars: $vars})}); $dirty = false">Save</ship-button>
+      </ship-toolbar>
+
+      <!-- Delete confirmation — replaces window.confirm() -->
+      <ship-alert-dialog
+        tone="destructive"
+        confirm-label="Delete"
+        cancel-label="Cancel"
+        data-attr-open="$confirmDelete"
+        data-on-ship-cancel="$confirmDelete = false"
+        data-on-ship-confirm="@delete('/api/runtime/specs/' + $selectedId); $selectedId = ''; $confirmDelete = false">
+        <span slot="title">Delete spec</span>
+        This removes the spec from the project. This cannot be undone.
+      </ship-alert-dialog>
     </div>
   </section>
 </div>
