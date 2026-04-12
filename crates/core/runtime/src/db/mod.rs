@@ -27,7 +27,6 @@ pub mod specs;
 #[cfg(test)]
 pub mod session_events_testutil;
 pub mod types;
-pub mod workspace_db;
 pub mod workspace_events;
 pub mod workspace_state;
 
