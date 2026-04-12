@@ -6,7 +6,7 @@ import { useDaemon } from './hooks/useDaemonData'
 export function ProjectPicker() {
   const { connected, workspaces } = useDaemon()
   const navigate = useNavigate()
-  const activeWs = workspaces.find((w) => String(w.status).toLowerCase() === 'active')
+  const activeWs = workspaces.find((w) => String(w.status).toLowerCase() === 'active') ?? workspaces[0]
 
   return (
     <Tooltip>
@@ -26,7 +26,7 @@ export function ProjectPicker() {
       <TooltipContent side="right">
         <div className="text-xs">
           <div className="font-medium">{connected ? 'Ship Studio' : 'Disconnected'}</div>
-          {activeWs && <div className="text-muted-foreground">{activeWs.branch}</div>}
+          {activeWs && <div className="text-muted-foreground">{activeWs.name}</div>}
         </div>
       </TooltipContent>
     </Tooltip>

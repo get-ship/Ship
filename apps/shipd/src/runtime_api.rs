@@ -37,24 +37,77 @@ pub struct SessionsQuery {
     tag = "runtime"
 )]
 pub async fn list_workspaces(State(state): State<ApiState>) -> impl IntoResponse {
-    match runtime::workspace::list_workspaces(state.ship_dir()) {
-        Ok(ws) => {
-            (
-                StatusCode::OK,
-                Json(MeshResponse {
-                    ok: true,
-                    data: serde_json::json!({ "workspaces": ws }),
-                }),
-            )
+    // Source of truth: git worktrees. DB rows overlay metadata when present.
+    let mut workspaces: Vec<serde_json::Value> = Vec::new();
+    let mut seen_names: std::collections::HashSet<String> = std::collections::HashSet::new();
+
+    // 1. Git worktrees (one per branch checked out).
+    if let Some(wt) = git_worktrees() {
+        for (branch, path) in wt {
+            if seen_names.contains(&branch) { continue; }
+            seen_names.insert(branch.clone());
+            workspaces.push(serde_json::json!({
+                "id": branch.replace('/', "-"),
+                "name": branch,
+                "path": path,
+                "active_agent": null,
+                "created_at": chrono::Utc::now().to_rfc3339(),
+            }));
         }
-        Err(e) => (
-            StatusCode::INTERNAL_SERVER_ERROR,
-            Json(MeshResponse {
-                ok: false,
-                data: serde_json::json!(e.to_string()),
-            }),
-        ),
     }
+
+    // 2. DB-tracked workspaces not already listed (defensive — any rows remaining
+    //    from a prior run that still correspond to something meaningful).
+    if let Ok(db_ws) = runtime::workspace::list_workspaces(state.ship_dir()) {
+        for w in db_ws {
+            if seen_names.contains(&w.name) { continue; }
+            seen_names.insert(w.name.clone());
+            workspaces.push(serde_json::to_value(&w).unwrap_or(serde_json::json!({})));
+        }
+    }
+
+    (
+        StatusCode::OK,
+        Json(MeshResponse {
+            ok: true,
+            data: serde_json::json!({ "workspaces": workspaces }),
+        }),
+    )
+}
+
+/// Parse `git worktree list --porcelain` from the active project root.
+/// Returns (branch, path) pairs, skipping detached and bare entries.
+fn git_worktrees() -> Option<Vec<(String, String)>> {
+    let project_ship = runtime::project::get_project_dir(None).ok()?;
+    let project_root = project_ship.parent()?;
+    let output = std::process::Command::new("git")
+        .args(["worktree", "list", "--porcelain"])
+        .current_dir(project_root)
+        .output()
+        .ok()?;
+    if !output.status.success() { return None; }
+
+    let text = String::from_utf8_lossy(&output.stdout);
+    let mut out = Vec::new();
+    for block in text.split("\n\n") {
+        let mut path: Option<String> = None;
+        let mut branch: Option<String> = None;
+        let mut skip = false;
+        for line in block.lines() {
+            if let Some(p) = line.strip_prefix("worktree ") {
+                path = Some(p.trim().to_string());
+            } else if let Some(b) = line.strip_prefix("branch refs/heads/") {
+                branch = Some(b.trim().to_string());
+            } else if line == "bare" || line == "detached" {
+                skip = true;
+            }
+        }
+        if skip { continue; }
+        if let (Some(p), Some(b)) = (path, branch) {
+            out.push((b, p));
+        }
+    }
+    Some(out)
 }
 
 /// GET /api/runtime/sessions[?workspace_id=<id>]

@@ -34,8 +34,8 @@ function SkillsIDEPage() {
   const [createOpen, setCreateOpen] = useState(false)
   const { drawerOpen } = usePlatform()
   const { workspaces } = useDaemon()
-  const wsId = workspaces.find((w) => String(w.status).toLowerCase() === 'active')?.branch
-    ?? workspaces[0]?.branch
+  const wsId = workspaces.find((w) => String(w.status).toLowerCase() === 'active')?.name
+    ?? workspaces[0]?.name
     ?? 'main'
   const feedbackRef = useRef<SkillFeedbackEntry[]>([])
 

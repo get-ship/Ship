@@ -15,7 +15,7 @@ import type {
 
 export function useActiveWorkspaceId(): string {
   const { workspace } = usePlatform()
-  return workspace?.branch ?? ''
+  return workspace?.name ?? ''
 }
 
 // ── Internal response types ───────────────────────────────────────────────────

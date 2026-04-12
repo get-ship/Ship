@@ -92,13 +92,13 @@ export function ChatTab({
 }: Props) {
   const { events } = useEventStream()
   const { workspace } = usePlatform()
-  const viewedWorkspace = workspace?.branch ?? null
+  const viewedWorkspace = workspace?.name ?? null
   const { workspaces } = useDaemon()
   const bottomRef = useRef<HTMLDivElement>(null)
 
   const currentWs = viewedWorkspace
-    ? workspaces.find((w) => w.branch === viewedWorkspace)
-    : workspaces.find((w) => String(w.status).toLowerCase() === 'active')
+    ? workspaces.find((w) => w.name === viewedWorkspace)
+    : workspaces.find((w) => String(w.status).toLowerCase() === 'active') ?? workspaces[0]
 
   const messages = useMemo(() => {
     return events
@@ -122,7 +122,7 @@ export function ChatTab({
           {currentWs?.active_agent ?? 'No agent'}
         </span>
         <span className="text-[10px] text-muted-foreground/60 truncate">
-          {currentWs?.branch ?? 'No workspace'}
+          {currentWs?.name ?? 'No workspace'}
         </span>
       </div>
 

@@ -115,6 +115,15 @@ pub async fn git_log(
 fn resolve_project_root(
     ship_dir: &std::path::Path,
 ) -> Result<std::path::PathBuf, (StatusCode, Json<MeshResponse>)> {
+    // Walk CWD up to find a real project's .ship/. Follows git worktree
+    // redirects to the main checkout. This is the correct source — NOT
+    // ship_dir.parent(), which on the daemon is ~/ (since ship_dir = ~/.ship).
+    if let Ok(project_ship) = runtime::project::get_project_dir(None) {
+        if let Some(root) = project_ship.parent() {
+            return Ok(root.to_path_buf());
+        }
+    }
+    // Fallback for when ship_dir IS a project .ship/ (e.g. tests).
     let root = ship_dir.parent().ok_or_else(|| {
         err_response(StatusCode::INTERNAL_SERVER_ERROR, "cannot resolve project root")
     })?;

@@ -1,8 +1,8 @@
 import { describe, it, expect } from 'vitest'
 import { resolveWorkspaceSelection } from '../workspace-selection'
 
-const active = (branch: string) => ({ branch, status: 'active' })
-const archived = (branch: string) => ({ branch, status: 'archived' })
+const active = (name: string) => ({ name, status: 'active' })
+const archived = (name: string) => ({ name, status: 'archived' })
 
 describe('resolveWorkspaceSelection', () => {
   it('returns undefined (no change) when selection is valid', () => {

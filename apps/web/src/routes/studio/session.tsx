@@ -33,11 +33,16 @@ interface OpenTab { path: string; name: string; type: string }
 
 function SessionPage() {
   const { workspaces } = useDaemon()
-  const active = workspaces
-    .filter((w) => w.status === 'active')
-    .sort((a, b) => (b.last_activated_at ?? '').localeCompare(a.last_activated_at ?? ''))
-  const activeWs = active[0]
-  const workspaceId = activeWs?.branch ?? ''
+  const sorted = workspaces
+    .slice()
+    .sort((a, b) => {
+      const aActive = a.status === 'active' ? 1 : 0
+      const bActive = b.status === 'active' ? 1 : 0
+      if (bActive !== aActive) return bActive - aActive
+      return (b.last_activated_at ?? '').localeCompare(a.last_activated_at ?? '')
+    })
+  const activeWs = sorted[0]
+  const workspaceId = activeWs?.name ?? ''
 
   const { files } = useSessionFiles()
   const uploadMutation = useUploadSessionFile()
@@ -234,7 +239,7 @@ function SessionPage() {
                 )}
                 {!showView && !showCanvas && !showArtifact && !showDiff && (
                   <SessionEmptyState
-                    workspaceName={activeWs?.branch ?? null}
+                    workspaceName={activeWs?.name ?? null}
                     activeAgent={activeWs?.active_agent ?? null}
                     files={files}
                     onSelectFile={openFile}

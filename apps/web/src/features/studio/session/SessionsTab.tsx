@@ -6,7 +6,7 @@ import type { Workspace } from '@ship/ui'
 
 export function SessionsTab() {
   const { workspace } = usePlatform()
-  const viewedWorkspace = workspace?.branch ?? null
+  const viewedWorkspace = workspace?.name ?? null
   const { connected, workspaces, sessions } = useDaemon(viewedWorkspace)
 
   if (!connected) {
@@ -19,8 +19,8 @@ export function SessionsTab() {
   }
 
   const viewed = viewedWorkspace
-    ? workspaces.find((w) => w.branch === viewedWorkspace)
-    : workspaces.find((w) => w.status === 'active')
+    ? workspaces.find((w) => w.name === viewedWorkspace)
+    : workspaces.find((w) => w.status === 'active') ?? workspaces[0]
 
   return (
     <div className="py-1">
@@ -59,7 +59,7 @@ function WorkspaceInfo({ workspace: ws }: { workspace: Workspace }) {
     <div className="px-3 py-2 border-b border-border/30">
       <div className="flex items-center gap-1.5">
         <span className="w-1.5 h-1.5 rounded-full shrink-0 bg-emerald-500" />
-        <span className="text-[10.5px] font-mono text-primary font-medium truncate flex-1">{ws.branch}</span>
+        <span className="text-[10.5px] font-mono text-primary font-medium truncate flex-1">{ws.name}</span>
       </div>
       {ws.active_agent && (
         <div className="flex items-center gap-1 ml-3 mt-0.5">

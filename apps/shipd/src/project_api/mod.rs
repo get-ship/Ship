@@ -37,29 +37,66 @@ pub(crate) fn resolve_worktree(
     ship_dir: &std::path::Path,
     id: &str,
 ) -> Result<PathBuf, (StatusCode, Json<MeshResponse>)> {
-    let (root, _ws) = runtime::workspace::resolve_project_root(ship_dir, id)
-        .map_err(|e| {
-            let msg = e.to_string();
-            if msg.contains("not found") {
-                (
-                    StatusCode::NOT_FOUND,
-                    Json(MeshResponse {
-                        ok: false,
-                        data: serde_json::json!("workspace not found"),
-                    }),
-                )
-            } else {
-                (
-                    StatusCode::INTERNAL_SERVER_ERROR,
-                    Json(MeshResponse {
-                        ok: false,
-                        data: serde_json::json!(msg),
-                    }),
-                )
-            }
-        })?;
+    // 1. DB-backed workspace resolution (honors explicit path if set).
+    if let Ok((root, _ws)) = runtime::workspace::resolve_project_root(ship_dir, id) {
+        if root.join(".ship").exists() || root.join(".git").exists() {
+            return Ok(root);
+        }
+    }
 
-    Ok(root)
+    // 2. Workspace name is a branch — resolve to its actual worktree path
+    //    via `git worktree list`. This gives artifact scope per worktree:
+    //    /home/user/ship/.artifacts/ for main
+    //    /home/user/ship-worktrees/fix/.artifacts/ for fix branch
+    if let Some(path) = worktree_path_for_branch(id) {
+        return Ok(path);
+    }
+
+    // 3. Last resort: the daemon's active project root. Only correct when
+    //    the requested workspace IS the active one (e.g. id = current branch).
+    if let Ok(project_ship) = runtime::project::get_project_dir(None) {
+        if let Some(root) = project_ship.parent() {
+            return Ok(root.to_path_buf());
+        }
+    }
+
+    Err((
+        StatusCode::NOT_FOUND,
+        Json(MeshResponse {
+            ok: false,
+            data: serde_json::json!(format!("workspace '{id}' not found")),
+        }),
+    ))
+}
+
+/// Look up the worktree path for a branch via `git worktree list --porcelain`.
+/// Returns None if the branch isn't a checked-out worktree.
+fn worktree_path_for_branch(branch: &str) -> Option<PathBuf> {
+    let project_ship = runtime::project::get_project_dir(None).ok()?;
+    let project_root = project_ship.parent()?;
+    let output = std::process::Command::new("git")
+        .args(["worktree", "list", "--porcelain"])
+        .current_dir(project_root)
+        .output()
+        .ok()?;
+    if !output.status.success() { return None; }
+
+    let text = String::from_utf8_lossy(&output.stdout);
+    for block in text.split("\n\n") {
+        let mut path: Option<String> = None;
+        let mut found_branch: Option<String> = None;
+        for line in block.lines() {
+            if let Some(p) = line.strip_prefix("worktree ") {
+                path = Some(p.trim().to_string());
+            } else if let Some(b) = line.strip_prefix("branch refs/heads/") {
+                found_branch = Some(b.trim().to_string());
+            }
+        }
+        if let (Some(p), Some(b)) = (path, found_branch) {
+            if b == branch { return Some(PathBuf::from(p)); }
+        }
+    }
+    None
 }
 
 pub(crate) fn ok_response(data: serde_json::Value) -> (StatusCode, Json<MeshResponse>) {

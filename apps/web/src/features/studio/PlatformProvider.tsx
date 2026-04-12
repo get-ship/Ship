@@ -16,7 +16,7 @@ type DaemonState = 'connected' | 'disconnected' | 'connecting'
 type AuthState = 'anonymous' | 'authenticated'
 
 interface Workspace {
-  branch: string
+  name: string
 }
 
 interface ConnectionMeta {
@@ -28,7 +28,7 @@ export interface PlatformState {
   auth: AuthState
   token: string | null
   workspace: Workspace | null
-  setWorkspace: (branch: string | null) => void
+  setWorkspace: (name: string | null) => void
   commandPaletteOpen: boolean
   toggleCommandPalette: () => void
   sidebarOpen: boolean
@@ -70,8 +70,8 @@ function extractFragmentToken(): string | null {
 }
 
 function loadSavedWorkspace(): Workspace | null {
-  const branch = localStorage.getItem(WORKSPACE_KEY)
-  return branch ? { branch } : null
+  const name = localStorage.getItem(WORKSPACE_KEY)
+  return name ? { name } : null
 }
 
 function readDrawerInitial(): boolean {
@@ -109,12 +109,12 @@ export function PlatformProvider({ children }: { children: ReactNode }) {
   // ── Workspace management ──────────────────────────────────────────────
 
   const setWorkspace = useCallback(
-    (branch: string | null) => {
-      if (branch) {
-        const ws = { branch }
+    (name: string | null) => {
+      if (name) {
+        const ws = { name }
         setWorkspaceState(ws)
         workspaceRef.current = ws
-        localStorage.setItem(WORKSPACE_KEY, branch)
+        localStorage.setItem(WORKSPACE_KEY, name)
         client.invalidatePrefix('/runtime/sessions')
       } else {
         setWorkspaceState(null)
@@ -198,13 +198,14 @@ export function PlatformProvider({ children }: { children: ReactNode }) {
       }
       // Auto-select workspace if none set
       if (!workspaceRef.current) {
-        client.get<{ workspaces: Array<{ branch: string; status: string; last_activated_at?: string }> }>('/runtime/workspaces').then((data) => {
+        client.get<{ workspaces: Array<{ name: string; status: string; last_activated_at?: string }> }>('/runtime/workspaces').then((data) => {
           if (cancelled) return
-          const active = data.workspaces
-            ?.filter((w: any) => String(w.status).toLowerCase() === 'active')
+          const sorted = data.workspaces
+            ?.slice()
             .sort((a: any, b: any) => (b.last_activated_at ?? '').localeCompare(a.last_activated_at ?? ''))
-          if (active?.length) {
-            setWorkspace(active[0].branch)
+          const best = sorted?.find((w: any) => String(w.status).toLowerCase() === 'active') ?? sorted?.[0]
+          if (best) {
+            setWorkspace(best.name)
           }
         }).catch(() => {})
       }

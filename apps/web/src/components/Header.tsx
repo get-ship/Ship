@@ -164,7 +164,7 @@ function WorkspacePicker() {
           {activating ? (
             <Loader2 className="size-3 animate-spin text-muted-foreground" />
           ) : null}
-          <span>{activating ?? activeWorkspace?.branch ?? (connected ? 'no workspace' : 'offline')}</span>
+          <span>{activating ?? activeWorkspace?.name ?? (connected ? 'no workspace' : 'offline')}</span>
           <ChevronDown className="size-3 opacity-50" />
         </button>
         {open && (
@@ -182,14 +182,14 @@ function WorkspacePicker() {
             ) : (
               workspaces.map((ws) => (
                 <button
-                  key={ws.branch}
-                  onClick={() => activate(ws.branch)}
+                  key={ws.name}
+                  onClick={() => activate(ws.name)}
                   className="w-full flex items-center gap-2 px-3 py-2 text-left text-xs hover:bg-muted transition-colors"
                 >
                   <span
                     className={`w-1.5 h-1.5 rounded-full shrink-0 ${ws.status === 'active' ? 'bg-emerald-500' : 'bg-muted-foreground/30'}`}
                   />
-                  <span className="font-mono truncate flex-1 text-foreground/80">{ws.branch}</span>
+                  <span className="font-mono truncate flex-1 text-foreground/80">{ws.name}</span>
                   {ws.active_agent && (
                     <span className="text-[9px] text-muted-foreground/50 truncate max-w-[60px]">{ws.active_agent}</span>
                   )}

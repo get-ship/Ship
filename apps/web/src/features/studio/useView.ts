@@ -4,7 +4,7 @@ import type { ShipClient } from '@ship/sdk'
 interface ViewContext {
   daemon: 'connected' | 'disconnected' | 'connecting'
   auth: 'anonymous' | 'authenticated'
-  workspace: { branch: string } | null
+  workspace: { name: string } | null
   client: ShipClient
   requireDaemon: () => ShipClient | null
 }
