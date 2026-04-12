@@ -131,11 +131,49 @@ pub fn run_login() -> Result<()> {
     let token = exchange_code_for_token(&code, &verifier, port)?;
 
     let mut creds = Credentials::load();
-    creds.account = Some(CredentialsAccount { token: Some(token) });
+    creds.account = Some(CredentialsAccount { token: Some(token.clone()) });
     creds.save()?;
 
-    println!("Logged in. Token stored in ~/.ship/credentials (0600).");
+    // Bind this machine's daemon to the logged-in user. Enables zero-click
+    // browser auth via server attestation (Studio → daemon) while ensuring
+    // a stolen JWT from a different user can't unlock this daemon.
+    match bind_daemon_owner(&token) {
+        Ok(Some(user_id)) => {
+            println!("Logged in as {user_id}. Daemon bound to this account.");
+        }
+        Ok(None) => {
+            println!("Logged in. (Could not fetch user profile to bind daemon — run `ship daemon status`.)");
+        }
+        Err(e) => {
+            println!("Logged in. (Daemon binding failed: {e})");
+        }
+    }
+    println!("Token stored in ~/.ship/credentials (0600).");
     Ok(())
+}
+
+/// Fetch the authenticated user's id and record it as the daemon owner in
+/// platform.db. The daemon checks this on every server-attest call.
+fn bind_daemon_owner(token: &str) -> Result<Option<String>> {
+    let mut resp = ureq::get("https://getship.dev/api/me")
+        .header("Authorization", &format!("Bearer {token}"))
+        .call()
+        .map_err(|e| anyhow::anyhow!("fetch user profile: {e}"))?;
+    let body: serde_json::Value = resp
+        .body_mut()
+        .read_json()
+        .map_err(|e| anyhow::anyhow!("parse user profile: {e}"))?;
+    let user_id = body
+        .get("user")
+        .and_then(|u| u.get("id"))
+        .and_then(|v| v.as_str())
+        .map(String::from);
+    if let Some(ref id) = user_id {
+        let value = serde_json::Value::String(id.clone());
+        runtime::db::kv::set("auth.daemon_owner", "user_id", &value)
+            .map_err(|e| anyhow::anyhow!("write daemon owner: {e}"))?;
+    }
+    Ok(user_id)
 }
 
 /// `ship auth pair <code>` — confirm a pairing code from Studio.
@@ -277,6 +315,8 @@ pub fn run_logout() -> Result<()> {
     }
     creds.account = None;
     creds.save()?;
+    // Clear the daemon-owner binding so the next ship login can bind fresh.
+    let _ = runtime::db::kv::delete("auth.daemon_owner", "user_id");
     println!("Logged out.");
     Ok(())
 }

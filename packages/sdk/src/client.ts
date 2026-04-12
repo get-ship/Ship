@@ -127,6 +127,28 @@ export class ShipClient {
     return this.token ?? null
   }
 
+  /**
+   * Try server-side attestation: exchange a getship.dev-signed JWT for a
+   * daemon session token. Returns the session token or null if attestation
+   * isn't available (daemon doesn't trust issuer, user not signed in, etc.).
+   *
+   * `jwt` should come from getship.dev's /api/auth/daemon-attest endpoint.
+   */
+  async serverAttest(jwt: string): Promise<string | null> {
+    try {
+      const res = await fetch(`${this.baseUrl}/auth/server-attest`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ jwt }),
+      })
+      if (!res.ok) return null
+      const body = await res.json() as { ok: boolean; session_token?: string }
+      return body.session_token ?? null
+    } catch {
+      return null
+    }
+  }
+
   /** Start a new pairing flow. Returns the code the user must paste into their CLI. */
   async pairInit(clientLabel?: string): Promise<PairInit | null> {
     try {

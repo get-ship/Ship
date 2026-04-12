@@ -276,10 +276,10 @@ export function PlatformProvider({ children }: { children: ReactNode }) {
         }
       })
     } else {
-      startPairing()
+      startAuth()
     }
 
-    // Expose startPairing to beginPairing/401-handlers via a ref.
+    // Expose startAuth to beginPairing/401-handlers via a ref.
     restartPairingRef.current = () => {
       try { localStorage.removeItem(SESSION_TOKEN_KEY) } catch { /* ignore */ }
       client.setToken('')
@@ -287,6 +287,41 @@ export function PlatformProvider({ children }: { children: ReactNode }) {
       setToken(null)
       setAuth('anonymous')
       setPairing(null)
+      startAuth()
+    }
+
+    /** Try zero-click server attestation first; fall back to pair flow. */
+    async function startAuth() {
+      if (cancelled) return
+      setDaemon('disconnected')
+
+      // Attempt server attestation: fetch a JWT from getship.dev (requires
+      // Better Auth session cookie), then exchange with the daemon.
+      try {
+        const res = await fetch('/api/auth/daemon-attest', {
+          method: 'POST',
+          credentials: 'include',
+        })
+        if (res.ok) {
+          const body = await res.json() as { jwt?: string }
+          if (body.jwt) {
+            const sessionToken = await client.serverAttest(body.jwt)
+            if (sessionToken) {
+              try { localStorage.setItem(SESSION_TOKEN_KEY, sessionToken) } catch { /* ignore */ }
+              client.setToken(sessionToken)
+              setDaemonToken(sessionToken)
+              setToken(sessionToken)
+              setAuth('authenticated')
+              setPairing(null)
+              onConnected()
+              return
+            }
+          }
+        }
+      } catch {
+        /* no getship.dev session, or offline — fall through to pairing */
+      }
+
       startPairing()
     }
 
