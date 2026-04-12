@@ -147,20 +147,7 @@ pub fn run_auth_pair(code: &str) -> Result<()> {
     if code.is_empty() {
         anyhow::bail!("empty pairing code");
     }
-
-    let home = dirs::home_dir()
-        .ok_or_else(|| anyhow::anyhow!("cannot determine home directory"))?
-        .join(".ship");
-    let port_str = std::fs::read_to_string(home.join("daemon.port"))
-        .map_err(|_| anyhow::anyhow!("daemon is not running — start it with: ship daemon start"))?;
-    let port: u16 = port_str
-        .trim()
-        .parse()
-        .map_err(|_| anyhow::anyhow!("invalid daemon.port file"))?;
-    let token = std::fs::read_to_string(home.join("daemon.token"))
-        .map_err(|_| anyhow::anyhow!("daemon.token not readable — is the daemon running?"))?;
-    let token = token.trim().to_string();
-
+    let (port, token) = daemon_connect()?;
     let url = format!("http://127.0.0.1:{port}/api/auth/pair/confirm");
     let resp = reqwest::blocking::Client::new()
         .post(&url)
@@ -184,6 +171,101 @@ pub fn run_auth_pair(code: &str) -> Result<()> {
         .and_then(|v| v.as_str())
         .unwrap_or(&body_text);
     anyhow::bail!("pairing failed ({status}): {err_msg}");
+}
+
+/// Read daemon connection info (port + daemon.token) from ~/.ship/.
+fn daemon_connect() -> Result<(u16, String)> {
+    let home = dirs::home_dir()
+        .ok_or_else(|| anyhow::anyhow!("cannot determine home directory"))?
+        .join(".ship");
+    let port: u16 = std::fs::read_to_string(home.join("daemon.port"))
+        .map_err(|_| anyhow::anyhow!("daemon is not running — start it with: ship daemon start"))?
+        .trim()
+        .parse()
+        .map_err(|_| anyhow::anyhow!("invalid daemon.port file"))?;
+    let token = std::fs::read_to_string(home.join("daemon.token"))
+        .map_err(|_| anyhow::anyhow!("daemon.token not readable — is the daemon running?"))?
+        .trim()
+        .to_string();
+    Ok((port, token))
+}
+
+/// `ship auth status` — list active paired sessions.
+pub fn run_auth_status() -> Result<()> {
+    let (port, token) = daemon_connect()?;
+    let url = format!("http://127.0.0.1:{port}/api/auth/sessions");
+    let resp = reqwest::blocking::Client::new()
+        .get(&url)
+        .bearer_auth(&token)
+        .timeout(std::time::Duration::from_secs(5))
+        .send()
+        .map_err(|e| anyhow::anyhow!("daemon request failed: {e}"))?;
+    let status = resp.status();
+    let body: serde_json::Value = resp.json()
+        .map_err(|e| anyhow::anyhow!("invalid daemon response: {e}"))?;
+    if !status.is_success() {
+        anyhow::bail!("failed ({status}): {body}");
+    }
+
+    let sessions = body.get("sessions").and_then(|v| v.as_array())
+        .ok_or_else(|| anyhow::anyhow!("missing sessions field"))?;
+    if sessions.is_empty() {
+        println!("No active paired sessions.");
+        return Ok(());
+    }
+
+    let now = chrono::Utc::now().timestamp();
+    println!("{:<18}  {:<20}  {:<10}  {}", "TOKEN", "AGENT", "KIND", "EXPIRES");
+    for s in sessions {
+        let prefix = s.get("token_prefix").and_then(|v| v.as_str()).unwrap_or("");
+        let agent = s.get("agent_id").and_then(|v| v.as_str()).unwrap_or("");
+        let ephemeral = s.get("ephemeral").and_then(|v| v.as_bool()).unwrap_or(false);
+        let kind = if ephemeral { "ephemeral" } else { "persisted" };
+        let expires = match s.get("expires_at_unix").and_then(|v| v.as_i64()) {
+            Some(ts) => {
+                let remaining = ts - now;
+                if remaining <= 0 {
+                    "expired".to_string()
+                } else {
+                    let days = remaining / 86400;
+                    let hours = (remaining % 86400) / 3600;
+                    if days > 0 { format!("in {days}d {hours}h") } else { format!("in {hours}h") }
+                }
+            }
+            None => "never".to_string(),
+        };
+        println!("{prefix:<18}  {agent:<20}  {kind:<10}  {expires}");
+    }
+    Ok(())
+}
+
+/// `ship auth revoke --token <prefix>` or `ship auth revoke --all` — revoke sessions.
+pub fn run_auth_revoke(token: Option<&str>, all: bool) -> Result<()> {
+    if token.is_none() && !all {
+        anyhow::bail!("pass --token <prefix> or --all");
+    }
+    let (port, daemon_token) = daemon_connect()?;
+    let url = format!("http://127.0.0.1:{port}/api/auth/sessions/revoke");
+    let body = serde_json::json!({
+        "token_prefix": token,
+        "all": all,
+    });
+    let resp = reqwest::blocking::Client::new()
+        .post(&url)
+        .bearer_auth(&daemon_token)
+        .json(&body)
+        .timeout(std::time::Duration::from_secs(5))
+        .send()
+        .map_err(|e| anyhow::anyhow!("daemon request failed: {e}"))?;
+    let status = resp.status();
+    let body_text = resp.text().unwrap_or_default();
+    if !status.is_success() {
+        anyhow::bail!("revoke failed ({status}): {body_text}");
+    }
+    let parsed: serde_json::Value = serde_json::from_str(&body_text).unwrap_or_default();
+    let revoked = parsed.get("revoked").and_then(|v| v.as_u64()).unwrap_or(0);
+    println!("Revoked {revoked} session(s).");
+    Ok(())
 }
 
 /// `ship logout` — remove the stored auth token.

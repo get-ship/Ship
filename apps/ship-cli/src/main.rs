@@ -77,6 +77,8 @@ fn dispatch(command: Option<Commands>) -> Result<()> {
                 use cli::AuthCommands;
                 match action {
                     AuthCommands::Pair { code } => auth::run_auth_pair(&code),
+                    AuthCommands::Status => auth::run_auth_status(),
+                    AuthCommands::Revoke { token, all } => auth::run_auth_revoke(token.as_deref(), all),
                 }
             }
             Commands::Use {
