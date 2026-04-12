@@ -37,7 +37,101 @@ On every request the middleware:
    session registry, **not** from client-supplied `x-ship-*` headers. This is intentional
    defense against session-token-wielding agents impersonating other agents.
 
-## Pairing flow (browser clients)
+## Three auth paths for browser clients
+
+Studio (and any other browser client) tries three authentication methods, in order:
+
+1. **URL fragment token** — `ship studio` launches the browser with `#token=...`
+2. **Server attestation** — zero-click via getship.dev JWT
+3. **Pair code** — one-time CLI confirmation; offline-capable
+
+All three produce the same `ship_sess_*` session token format with 30-day TTL. The daemon
+doesn't distinguish how the session was issued — every session is just a row in the
+registry with scopes and an expiry.
+
+## Server attestation
+
+getship.dev signs short-lived (1h) JWTs claiming "this authenticated user is X." The
+daemon verifies the signature against getship.dev's published JWKS and binds the claim
+to a local user record set at `ship login` time.
+
+**Flow:**
+
+```
+ Browser (signed in to getship.dev)
+   │
+   │  1. POST /api/auth/daemon-attest  (cookie auth via Better Auth)
+   ▼
+ getship.dev Worker
+   │
+   │  2. requireSession() → user.id
+   │  3. signDaemonJwt({ sub: user.id, aud: "ship-daemon", exp: +1h, plan, caps })
+   │
+   ▼ returns { jwt, expires_at }
+ Browser
+   │
+   │  4. POST /auth/server-attest { jwt }
+   ▼
+ shipd (local daemon)
+   │
+   │  5. Fetch /api/jwks from configured issuer (cached 1h)
+   │  6. decode+verify: alg=EdDSA, aud=ship-daemon, exp>now, iss matches config
+   │  7. Compare claims.sub with stored daemon_owner (set by ship login)
+   │  8. Issue session token, persist to KV
+   │
+   ▼ returns { session_token, expires_at_unix }
+ Browser stores session_token, uses it for 30 days
+```
+
+**JWT claim structure:**
+
+```json
+{
+  "iss": "https://getship.dev",
+  "sub": "user-abc123",
+  "aud": "ship-daemon",
+  "iat": 1700000000,
+  "exp": 1700003600,
+  "plan": "pro",
+  "caps": ["pro"]
+}
+```
+
+Extra claims are ignored. The daemon's scope enforcement uses `paired_session_scopes()`
+(currently `[Full]`); richer scope derivation from `caps` is a future extension.
+
+**Key rotation:**
+
+The gateway publishes its public key at `/api/jwks`. During rotation, both the outgoing
+and incoming keys appear in the JWKS briefly. Signing uses `SHIP_JWT_PRIVATE_KEY`
+(Cloudflare secret, Ed25519 PKCS8 PEM) and stamps the `kid` header from
+`SHIP_JWT_PRIVATE_KEY_ID`. The daemon's JWKS cache invalidates on signature failure,
+forcing a refetch — so rotation takes effect within seconds.
+
+**User-daemon binding:**
+
+`ship login` fetches `user.id` from `/api/me` and writes it to `platform.db` KV as
+`auth.daemon_owner.user_id`. On every server-attest, the daemon compares this stored
+owner against the JWT's `sub`. If they don't match → 403. If no owner is set (first
+login on this machine) → bind to the first successful attest's `sub`.
+
+This prevents "attacker signs in at getship.dev, attempts to hijack my local daemon"
+via a stolen JWT. The attacker would need both a valid JWT **and** a daemon whose owner
+binding matches — which requires physical access to run `ship login`.
+
+**Configurable issuer:**
+
+The daemon's trust root is configurable via `auth.attestation_issuer` in runtime
+settings (defaults to `https://getship.dev`). This enables:
+
+- Local dev of ship-cloud: point daemon at `http://localhost:3000`
+- Self-hosted getship.dev: point daemon at your own domain
+- Multiple environments: staging vs production keys
+
+## Pairing flow (browser clients, fallback)
+
+Used when server attestation isn't available (user not signed in, offline, self-hosted
+without getship.dev account).
 
 The browser can't read `~/.ship/daemon.token` (cross-origin, no filesystem access). The
 pairing flow proves physical control of the machine instead:
@@ -118,15 +212,13 @@ because it's spawned by the daemon itself, but this trust boundary isn't enforce
 `ship use` time; `session_register` looks up the approved role instead of trusting the
 request.
 
-### No server-side attestation (Phase B)
-The pairing flow works for any user, but requires a one-time CLI step. Users logged into
-getship.dev could get zero-click attestation via a signed JWT issued by the getship.dev
-server. This is planned as Phase B and is strictly additive to the pairing flow —
-pairing remains the offline / self-hosted escape hatch.
-
 ## File layout
 
-- `apps/shipd/src/auth.rs` — middleware, token types, pair/session endpoints, audit log
+- `apps/shipd/src/auth.rs` — middleware, token types, pair/attest/session endpoints, audit log
 - `apps/shipd/src/scopes.rs` — `Scope` enum, `SessionRegistry`, persistence helpers
 - `apps/shipd/src/pairing.rs` — `PairingRegistry`, code generation, dev mode flag
+- `apps/shipd/src/attest.rs` — JWKS fetch+cache, JWT verify, daemon-owner binding
 - `apps/shipd/src/pairing_integration_tests.rs` — end-to-end pair flow tests
+- `apps/web/src/lib/daemon-jwt.ts` — JWT signing (jose library), JWKS builder
+- `apps/web/src/routes/api/jwks.ts` — public JWKS endpoint
+- `apps/web/src/routes/api/auth/daemon-attest.ts` — authenticated JWT minting

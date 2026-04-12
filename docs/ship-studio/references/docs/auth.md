@@ -3,6 +3,30 @@
 Studio runs in your browser. The Ship daemon runs on your computer. Authentication binds
 the two together so only you can control your daemon from Studio.
 
+Studio tries three auth methods in this order:
+
+1. **URL fragment token** — included when you run `ship studio` in a terminal
+2. **Server attestation** — zero-click if you're signed in at getship.dev
+3. **Pairing code** — one-time setup, works offline and self-hosted
+
+## Zero-click: sign in at getship.dev
+
+If you're signed in at getship.dev and have run `ship login` on this machine, Studio
+connects automatically — no code to copy, nothing to type.
+
+**How it works:**
+- Studio asks getship.dev for a signed attestation token (JWT)
+- Studio forwards the token to your local daemon
+- Your daemon verifies the signature against getship.dev's public key
+- The daemon checks: is the signed user the same user who ran `ship login` on this
+  machine? If yes, it issues a session token.
+
+The daemon caches getship.dev's public key for an hour. Verification works offline once
+cached — you only need internet when the JWT expires (every hour) to fetch a fresh one.
+
+If the daemon rejects the attestation (different user, or you never ran `ship login`
+here), Studio falls back to the pairing code flow.
+
 ## First time: pair this machine
 
 When you open Studio and the daemon is running, Studio shows a **pairing code**:
