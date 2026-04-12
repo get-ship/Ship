@@ -14,7 +14,7 @@
 
 use chrono::Utc;
 use runtime::events::job::event_types;
-use runtime::events::{CallerKind, EmitContext, EventEnvelope, EventStore, KernelRouter, SqliteEventStore};
+use runtime::events::{EventEnvelope, KernelRouter};
 use runtime::services::dispatch_ports::{ExitSignal, JobExecutor};
 use std::sync::Arc;
 use std::time::Duration;

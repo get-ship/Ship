@@ -11,7 +11,7 @@
 //! checks outputs (git commits, step_done) before deciding.
 
 use crate::events::job::{StepObservedPayload, StepTrigger, StepVerdict, event_types};
-use crate::events::{CallerKind, EmitContext, EventEnvelope, EventStore, KernelRouter, SqliteEventStore};
+use crate::events::{EventEnvelope, KernelRouter};
 use crate::services::dispatch_ports::{ExitSignal, ProcessRegistryPort};
 use std::path::PathBuf;
 use std::sync::atomic::{AtomicBool, Ordering};
