@@ -83,21 +83,34 @@ fn ensure_db_at_path(path: &std::path::Path) -> Result<()> {
     block_on(async { sqlx::query("PRAGMA journal_mode = WAL").execute(&mut conn).await })?;
     block_on(async { sqlx::query("PRAGMA foreign_keys = ON").execute(&mut conn).await })?;
 
-    // Try running migrations. If they fail (schema mismatch), delete DB and retry once.
+    // Try running migrations. If they fail (schema mismatch), back up the DB and retry once.
     let migrate_result = block_on_migrate(async {
         sqlx::migrate!("./migrations").run(&mut conn).await
     });
-    if migrate_result.is_err() {
-        tracing::warn!("migrations failed on {}, deleting and retrying", path.display());
+    if let Err(ref e) = migrate_result {
+        tracing::error!("platform.db migration failed: {e}");
         drop(conn);
-        let _ = std::fs::remove_file(path);
+
+        // Back up the old DB instead of deleting it.
+        let backup_path = path.with_extension("db.bak");
+        if let Err(backup_err) = std::fs::rename(path, &backup_path) {
+            tracing::warn!(
+                "failed to back up {} to {}: {backup_err} — removing instead",
+                path.display(), backup_path.display()
+            );
+            let _ = std::fs::remove_file(path);
+        } else {
+            tracing::info!("backed up old platform.db to {}", backup_path.display());
+        }
         let _ = std::fs::remove_file(format!("{}-wal", path.display()));
         let _ = std::fs::remove_file(format!("{}-shm", path.display()));
+
         // Reconnect to fresh DB.
         let mut conn2 = block_on(async { SqliteConnection::connect_with(&opts).await })?;
         block_on(async { sqlx::query("PRAGMA journal_mode = WAL").execute(&mut conn2).await })?;
         block_on(async { sqlx::query("PRAGMA foreign_keys = ON").execute(&mut conn2).await })?;
-        block_on_migrate(async { sqlx::migrate!("./migrations").run(&mut conn2).await })?;
+        block_on_migrate(async { sqlx::migrate!("./migrations").run(&mut conn2).await })
+            .with_context(|| "platform.db migration failed on fresh DB — this is a bug")?;
     }
 
     Ok(())

@@ -236,10 +236,41 @@ pub(crate) fn init_actor_db(path: &Path) -> Result<()> {
             .await
     })?;
 
+    let migrate_result = run_actor_migrate(&mut conn);
+    if let Err(ref e) = migrate_result {
+        tracing::error!("actor migration failed for {}: {e}", path.display());
+        drop(conn);
+
+        // Back up the old DB and retry with a fresh one.
+        let backup_path = path.with_extension("db.bak");
+        if let Err(backup_err) = std::fs::rename(path, &backup_path) {
+            tracing::warn!(
+                "failed to back up {} to {}: {backup_err} — removing instead",
+                path.display(), backup_path.display()
+            );
+            let _ = std::fs::remove_file(path);
+        } else {
+            tracing::info!("backed up old actor db to {}", backup_path.display());
+        }
+        let _ = std::fs::remove_file(format!("{}-wal", path.display()));
+        let _ = std::fs::remove_file(format!("{}-shm", path.display()));
+
+        // Reconnect to fresh DB and retry.
+        let mut conn2 = block_on(async { sqlx::SqliteConnection::connect_with(&opts).await })?;
+        block_on(async { sqlx::query("PRAGMA journal_mode = WAL").execute(&mut conn2).await })?;
+        block_on(async { sqlx::query("PRAGMA foreign_keys = ON").execute(&mut conn2).await })?;
+        run_actor_migrate(&mut conn2)
+            .with_context(|| format!("actor migration failed on fresh DB at {}", path.display()))?;
+    }
+    Ok(())
+}
+
+/// Run actor migrations on a connection.
+fn run_actor_migrate(conn: &mut sqlx::SqliteConnection) -> Result<()> {
     if let Ok(handle) = tokio::runtime::Handle::try_current() {
         tokio::task::block_in_place(|| {
             handle
-                .block_on(sqlx::migrate!("./migrations/actor").run(&mut conn))
+                .block_on(sqlx::migrate!("./migrations/actor").run(conn))
                 .map_err(|e| anyhow!("actor migration failed: {e}"))
         })
     } else {
@@ -247,7 +278,7 @@ pub(crate) fn init_actor_db(path: &Path) -> Result<()> {
             .enable_time()
             .build()
             .map_err(|e| anyhow!("failed to create runtime: {e}"))?;
-        rt.block_on(sqlx::migrate!("./migrations/actor").run(&mut conn))
+        rt.block_on(sqlx::migrate!("./migrations/actor").run(conn))
             .map_err(|e| anyhow!("actor migration failed: {e}"))
     }
 }
