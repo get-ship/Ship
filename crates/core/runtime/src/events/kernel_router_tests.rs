@@ -188,7 +188,8 @@ async fn route_delivers_to_multiple_subscribers() {
 async fn kernel_store_receives_system_events() {
     let (_tmp, router) = setup();
     let event = ev("session.started");
-    router.route(event.clone(), &runtime_ctx()).await.unwrap();
+    // emit persists + delivers. route is delivery-only.
+    router.emit(event.clone(), &runtime_ctx()).await.unwrap();
 
     // Verify via raw SQL — kernel store has the event.
     let mut conn = open_db_at(router.kernel_store_path()).unwrap();

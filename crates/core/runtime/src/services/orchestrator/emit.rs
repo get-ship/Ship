@@ -74,41 +74,24 @@ pub async fn emit_step_dispatched_event(
     persist_and_route(kernel, envelope, slug, ship_dir).await;
 }
 
-/// Persist an event to the store and route through the kernel.
+/// Persist an event to platform.db and deliver it through the kernel.
 ///
-/// Phase 0 visibility: every failure is logged at ERROR level with enough
-/// context to diagnose. Phase 2 will make this return `Result` and callers
-/// will propagate. Today the return type is unit so existing callsites don't
-/// ripple — but errors will never be silent again.
+/// Thin wrapper around `KernelRouter::emit` that logs failures at ERROR
+/// with slug/event_type/entity_id context. The unit return type matches
+/// the call-site contract (most orchestrator callers don't propagate);
+/// when callers are rewritten to propagate, they should call `kernel.emit`
+/// directly and delete their use of this helper.
+///
+/// `ship_dir` is accepted for backward compatibility and ignored — the
+/// kernel always writes to the platform.db under its own `base_dir`.
 pub async fn persist_and_route(
     kernel: &Arc<Mutex<crate::events::KernelRouter>>,
     envelope: EventEnvelope,
     slug: &str,
-    ship_dir: Option<&std::path::Path>,
+    _ship_dir: Option<&std::path::Path>,
 ) {
     let event_type = envelope.event_type.clone();
     let entity_id = envelope.entity_id.clone();
-
-    let store_result = match ship_dir {
-        Some(dir) => crate::events::SqliteEventStore::new_at(dir),
-        None => crate::events::SqliteEventStore::new(),
-    };
-    match store_result {
-        Ok(store) => {
-            if let Err(e) = crate::events::EventStore::append(&store, &envelope) {
-                tracing::error!(
-                    slug, event_type = %event_type, entity_id = %entity_id,
-                    "persist_and_route: append to platform.db failed: {e}"
-                );
-            }
-        }
-        Err(e) => {
-            tracing::error!(
-                slug, event_type = %event_type, entity_id = %entity_id,
-                "persist_and_route: could not open event store: {e}"
-            );
-        }
-    }
 
     let ctx = EmitContext {
         caller_kind: CallerKind::Runtime,
@@ -116,10 +99,10 @@ pub async fn persist_and_route(
         workspace_id: envelope.workspace_id.clone(),
         session_id: envelope.session_id.clone(),
     };
-    if let Err(e) = kernel.lock().await.route(envelope, &ctx).await {
+    if let Err(e) = kernel.lock().await.emit(envelope, &ctx).await {
         tracing::error!(
             slug, event_type = %event_type, entity_id = %entity_id,
-            "persist_and_route: kernel routing failed: {e}"
+            "persist_and_route: kernel emit failed: {e}"
         );
     }
 }

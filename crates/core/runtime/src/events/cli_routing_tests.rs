@@ -55,7 +55,8 @@ async fn workspace_event_reaches_kernel_store() {
     let router = KernelRouter::new(tmp.path().join(".ship")).unwrap();
 
     let event = ev(event_types::WORKSPACE_CREATED);
-    router.route(event.clone(), &runtime_ctx()).await.unwrap();
+    // emit persists + delivers. route is delivery-only.
+    router.emit(event.clone(), &runtime_ctx()).await.unwrap();
 
     let mut conn = open_db_at(router.kernel_store_path()).unwrap();
     let count: i64 = block_on(async {
@@ -94,7 +95,7 @@ async fn gate_outcome_with_cli_context_reaches_kernel_store() {
 
     let event = ev(event_types::GATE_PASSED);
     // CallerKind::Cli is trusted — must not be rejected by validators.
-    router.route(event.clone(), &cli_ctx()).await.unwrap();
+    router.emit(event.clone(), &cli_ctx()).await.unwrap();
 
     let mut conn = open_db_at(router.kernel_store_path()).unwrap();
     let count: i64 = block_on(async {

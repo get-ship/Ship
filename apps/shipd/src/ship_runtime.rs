@@ -222,16 +222,12 @@ impl ShipRuntime {
             .await
     }
 
-    /// Persist event to platform.db then route through kernel.
+    /// Persist event to platform.db and deliver through the kernel.
     ///
-    /// Both steps are required for an emit to count. If either fails, the caller
-    /// gets an error — no silent drops. A successful return means the event is
-    /// durable on disk AND delivered to in-memory subscribers.
+    /// Delegates to `KernelRouter::emit` — the single write path. A successful
+    /// return means the event is durable on disk AND delivered to in-memory
+    /// subscribers.
     pub async fn persist_and_route(&self, envelope: &EventEnvelope) -> anyhow::Result<()> {
-        let store = runtime::events::SqliteEventStore::new()
-            .context("open event store for persist")?;
-        runtime::events::EventStore::append(&store, envelope)
-            .context("append event to platform.db")?;
         let ctx = EmitContext {
             caller_kind: CallerKind::Runtime,
             skill_id: None,
@@ -241,9 +237,9 @@ impl ShipRuntime {
         self.kernel
             .lock()
             .await
-            .route(envelope.clone(), &ctx)
+            .emit(envelope.clone(), &ctx)
             .await
-            .context("route event through kernel")
+            .context("kernel emit")
     }
 
     /// Build a ShipRuntime for tests — synchronous, takes a pre-initialized
