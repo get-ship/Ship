@@ -94,6 +94,7 @@ fn collect_types() -> TypeCollection {
 
     // events/job.rs (job event payloads)
     c.register::<runtime::events::job::JobCreatedPayload>();
+    c.register::<runtime::events::job::JobCompletedPayload>();
     c.register::<runtime::events::job::JobDispatchedPayload>();
     c.register::<runtime::events::job::JobGateRequestedPayload>();
     c.register::<runtime::events::job::JobGatePassedPayload>();
@@ -102,6 +103,17 @@ fn collect_types() -> TypeCollection {
     c.register::<runtime::events::job::JobMergedPayload>();
     c.register::<runtime::events::job::JobFailedPayload>();
     c.register::<runtime::events::job::JobUpdatePayload>();
+
+    // events/job.rs (step event payloads + evidence types)
+    c.register::<runtime::events::job::StepObservedPayload>();
+    c.register::<runtime::events::job::StepTrigger>();
+    c.register::<runtime::events::job::StepVerdict>();
+    c.register::<runtime::events::job::StepRetryPayload>();
+
+    // events/job.rs (pipeline types — already exported via JobRecord, but explicit for clarity)
+    c.register::<runtime::events::job::Pipeline>();
+    c.register::<runtime::events::job::PipelineStep>();
+    c.register::<runtime::events::job::StepType>();
 
     // workspace/types.rs
     c.register::<runtime::Workspace>();

@@ -225,6 +225,11 @@ export type JobBlockedPayload = { job_id: string;
 blocker: string; needs_human: boolean }
 
 /**
+ * Emitted when the agent signals the job is done but before gate/merge.
+ */
+export type JobCompletedPayload = { job_id: string; slug: string }
+
+/**
  * Emitted when a job is created. `entity_id` in the envelope is the job_id.
  */
 export type JobCreatedPayload = { job_id: string; slug: string; agent: string; branch: string; spec_path: string; plan_id: string | null; model: string | null; provider: string | null; depends_on?: string[] | null; 
@@ -239,7 +244,11 @@ steps?: Pipeline | null;
 /**
  * Pipeline name reference (e.g. "tdd"). Resolved by daemon from .ship/pipelines/.
  */
-pipeline_name?: string | null }
+pipeline_name?: string | null; 
+/**
+ * Job-level variables for pipeline step interpolation. Override step-level vars.
+ */
+vars?: Partial<{ [key in string]: string }> | null }
 
 /**
  * Emitted when the job is assigned to a worktree and (optionally) a process.
@@ -302,7 +311,15 @@ completed_steps: string[];
 /**
  * ID of the currently running step.
  */
-current_step?: string | null }
+current_step?: string | null; 
+/**
+ * Job-level vars for pipeline step interpolation.
+ */
+vars?: Partial<{ [key in string]: string }> | null; 
+/**
+ * Retry count per step ID — tracks how many times a step was retried after gate failure.
+ */
+step_retries: Partial<{ [key in string]: number }> }
 
 /**
  * Current status of a job, derived from its event sequence.
@@ -393,6 +410,9 @@ export type PipelinePhase = { agent: string; goal: string; model?: string | null
 
 /**
  * A single step in a pipeline DAG.
+ * 
+ * Custom `Deserialize` allows YAML shorthand: `run: <command>` implies
+ * `type: run` and `name:` is accepted as an alias for `id:`.
  */
 export type PipelineStep = { 
 /**
@@ -408,6 +428,10 @@ type: StepType;
  */
 agent?: string | null; 
 /**
+ * Goal or instruction for the agent step.
+ */
+goal?: string | null; 
+/**
  * Steps that must complete before this one runs.
  */
 after?: string[]; 
@@ -418,7 +442,16 @@ model?: string | null;
 /**
  * Provider override for this step.
  */
-provider?: string | null }
+provider?: string | null; 
+/**
+ * Shell command to run (populated for StepType::Run).
+ */
+command?: string | null; 
+/**
+ * Maximum number of retries when a gate fails on this step.
+ * `None` or `0` means no retries — gate failure is terminal.
+ */
+max_retries?: number | null }
 
 /**
  * A single plugin to install.
@@ -662,6 +695,23 @@ globs?: string[];
 description?: string | null }
 
 /**
+ * Computed liveness state derived from last_activity_at.
+ */
+export type SessionLiveness = 
+/**
+ * Tool calls within TTL window.
+ */
+"active" | 
+/**
+ * No tool calls for TTL period, process may be alive.
+ */
+"idle" | 
+/**
+ * Session ended by scanner due to process death.
+ */
+"abandoned"
+
+/**
  * A skill / slash command. Stored as `agents/skills/<id>/SKILL.md` (agentskills.io spec).
  * The compiler receives pre-loaded `Skill` values — it does not read files.
  */
@@ -706,9 +756,110 @@ export type SkillSource = "custom" | "builtin" | "ai-generated" | "community" | 
 export type StatusConfig = { id: string; name: string; color?: string }
 
 /**
+ * Emitted by the step monitor after gathering evidence about a step's outcome.
+ * 
+ * This is evidence-based, not verdict-based. The step monitor collects all
+ * available signals (process exit, step_done, git state) and the pipeline
+ * router decides what to do based on the full picture.
+ */
+export type StepObservedPayload = { job_id: string; slug: string; step_index: number; step_name: string; 
+/**
+ * What triggered this observation.
+ */
+trigger: StepTrigger; 
+/**
+ * Agent explicitly called step_done (strongest signal).
+ */
+done_declared: boolean; 
+/**
+ * Value passed to step_done, if called. True = agent says success.
+ */
+done_result?: boolean | null; 
+/**
+ * Process exit code, if available. None for tmux (no exit code exposed).
+ */
+exit_code: number | null; 
+/**
+ * Number of git commits on the branch since the step started.
+ */
+commits_since_start?: number; 
+/**
+ * Number of files with uncommitted changes in the worktree.
+ */
+uncommitted_files?: number; 
+/**
+ * Wall-clock duration of the step.
+ */
+duration_secs: number; 
+/**
+ * Human-readable reason (e.g. "timeout", error message).
+ */
+reason: string | null; 
+/**
+ * Verdict computed from evidence. Used by pipeline router.
+ */
+verdict: StepVerdict; 
+/**
+ * Back-compat: true when verdict == Advance. Existing consumers and
+ * projections that read `succeeded` continue to work.
+ */
+succeeded?: boolean }
+
+/**
+ * Emitted when a gated step is retried after gate failure.
+ */
+export type StepRetryPayload = { job_id: string; slug: string; step_id: string; step_name: string; attempt: number; reason: string }
+
+/**
+ * What triggered the step observation.
+ */
+export type StepTrigger = 
+/**
+ * Agent explicitly called step_done
+ */
+"done_declared" | 
+/**
+ * Process/session exited
+ */
+"process_exit" | 
+/**
+ * Activity settled — turns ended, evidence accumulated, no new activity
+ */
+"turn_settled" | 
+/**
+ * Step timed out
+ */
+"timeout" | 
+/**
+ * Exit channel closed unexpectedly
+ */
+"channel_closed"
+
+/**
  * Step type in a pipeline DAG.
  */
-export type StepType = "agent" | "gate" | "merge" | "human"
+export type StepType = "agent" | "gate" | "merge" | "human" | 
+/**
+ * Execute a shell command. Exit 0 = success, non-zero = failure.
+ */
+"run"
+
+/**
+ * Verdict derived from accumulated evidence.
+ */
+export type StepVerdict = 
+/**
+ * Strong evidence of success — advance pipeline
+ */
+"advance" | 
+/**
+ * Strong evidence of failure — halt pipeline
+ */
+"failed" | 
+/**
+ * Inconclusive — needs human review or gate
+ */
+"inconclusive"
 
 export type ToolPermissions = { allow?: string[]; 
 /**
@@ -726,21 +877,30 @@ export type TransferBundle = { agent: AgentBundle; dependencies?: Partial<{ [key
 rules?: Partial<{ [key in string]: string }> }
 
 /**
- * Workspace runtime state -- SQLite only, no frontmatter file.
- * `branch` is the workspace key and can represent either a git branch or a
- * non-git runtime workspace identifier.
+ * Workspace — a resource container. Status is computed from sessions.
  */
-export type Workspace = { id: string; branch: string; status?: WorkspaceStatus; is_worktree: boolean; worktree_path?: string | null; active_agent?: string | null; last_activated_at?: string | null }
+export type Workspace = { id: string; 
+/**
+ * Workspace identifier (branch name or arbitrary key).
+ */
+name: string; 
+/**
+ * Workspace directory path (if provisioned).
+ */
+path?: string | null; active_agent?: string | null; created_at: string }
 
 export type WorkspaceProviderMatrix = { workspace_branch: string; agent_id?: string | null; source: string; allowed_providers: string[]; supported_providers: string[]; resolution_error?: string | null }
 
-export type WorkspaceRepairReport = { workspace_branch: string; dry_run: boolean; agent_id?: string | null; status: WorkspaceStatus; providers_expected: string[]; missing_provider_configs: string[]; had_compile_error: boolean; needs_recompile: boolean; reapplied_compile: boolean; resolution_error?: string | null; actions: string[] }
+export type WorkspaceRepairReport = { workspace_branch: string; dry_run: boolean; agent_id?: string | null; providers_expected: string[]; missing_provider_configs: string[]; had_compile_error: boolean; needs_recompile: boolean; reapplied_compile: boolean; resolution_error?: string | null; actions: string[] }
 
-export type WorkspaceSession = { id: string; workspace_id: string; workspace_branch: string; status: WorkspaceSessionStatus; started_at: string; ended_at?: string | null; agent_id?: string | null; primary_provider?: string | null; goal?: string | null; summary?: string | null; updated_workspace_ids?: string[]; session_record_id?: string | null; compiled_at?: string | null; compile_error?: string | null; config_generation_at_start?: number | null; stale_context?: boolean; created_at: string; updated_at: string }
+export type WorkspaceSession = { id: string; workspace_id: string; workspace_branch: string; status: WorkspaceSessionStatus; started_at: string; ended_at?: string | null; agent_id?: string | null; primary_provider?: string | null; goal?: string | null; summary?: string | null; updated_workspace_ids?: string[]; session_record_id?: string | null; compiled_at?: string | null; compile_error?: string | null; config_generation_at_start?: number | null; last_activity_at?: string | null; liveness?: SessionLiveness | null; stale_context?: boolean; created_at: string; updated_at: string }
 
-export type WorkspaceSessionRecord = { id: string; session_id: string; workspace_id: string; workspace_branch: string; summary?: string | null; updated_workspace_ids?: string[]; duration_secs?: number | null; provider?: string | null; model?: string | null; agent_id?: string | null; files_changed?: number | null; gate_result?: string | null; created_at: string }
+export type WorkspaceSessionRecord = { id: string; session_id: string; workspace_id: string; workspace_branch: string; summary?: string | null; updated_workspace_ids?: string[]; duration_secs?: number | null; provider?: string | null; model?: string | null; agent_id?: string | null; files_changed?: number | null; gate_result?: string | null; lines_added?: number | null; lines_removed?: number | null; tool_calls?: number | null; exit_reason?: string | null; created_at: string }
 
 export type WorkspaceSessionStatus = "active" | "ended"
 
-export type WorkspaceStatus = "active" | "archived"
+/**
+ * Workspace status — computed from sessions, never stored.
+ */
+export type WorkspaceStatus = "idle" | "active"
 

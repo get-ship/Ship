@@ -185,9 +185,12 @@ fn ready_pattern_is_prompt_char() {
 }
 
 #[test]
-fn autostart_input_is_go() {
+fn autostart_input_reads_job_spec() {
     let adapter = ClaudeAdapter;
-    assert_eq!(adapter.autostart_input(), "go");
+    assert_eq!(
+        adapter.autostart_input(),
+        "Read .artifacts/job-spec.md and execute it autonomously."
+    );
 }
 
 #[test]

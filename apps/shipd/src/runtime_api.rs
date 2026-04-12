@@ -117,116 +117,37 @@ pub async fn list_sessions(
     responses((status = 200, body = MeshResponse)),
     tag = "runtime"
 )]
-pub async fn list_agents(State(state): State<ApiState>) -> impl IntoResponse {
-    let registry = state.mesh_registry().read().await;
-    let agents: Vec<serde_json::Value> = registry
-        .values()
-        .map(|e| {
-            serde_json::json!({
-                "agent_id": e.agent_id,
-                "label": e.label,
-                "capabilities": e.capabilities,
-                "status": e.status,
-            })
-        })
-        .collect();
-    (
-        StatusCode::OK,
-        Json(MeshResponse {
-            ok: true,
-            data: serde_json::json!({ "agents": agents }),
-        }),
-    )
-}
-
-// ---- Views ----
-
-/// GET /api/runtime/views — list available views from .ship/views/.
-pub async fn list_views() -> impl IntoResponse {
+pub async fn list_agents(State(_state): State<ApiState>) -> impl IntoResponse {
     let project_dir = match runtime::project::get_project_dir(None) {
-        Ok(p) => p,
+        Ok(d) => d,
         Err(_) => {
-            return (
-                StatusCode::OK,
-                Json(MeshResponse { ok: true, data: serde_json::json!({ "views": [] }) }),
-            );
+            return (StatusCode::OK, Json(MeshResponse { ok: true, data: serde_json::json!({ "agents": [] }) }));
         }
     };
 
-    let views_dir = project_dir.join("views");
-    let mut views = Vec::new();
+    let agents_dir = project_dir.join("agents");
+    let mut agents = Vec::new();
 
-    if let Ok(entries) = std::fs::read_dir(&views_dir) {
+    if let Ok(entries) = std::fs::read_dir(&agents_dir) {
         for entry in entries.flatten() {
-            if entry.file_type().map(|t| t.is_dir()).unwrap_or(false) {
-                let name = entry.file_name().to_string_lossy().to_string();
-                let index = entry.path().join("index.html");
-                if index.exists() {
-                    views.push(serde_json::json!({ "name": name }));
-                }
-            }
+            let name = entry.file_name().to_string_lossy().to_string();
+            if !name.ends_with(".jsonc") && !name.ends_with(".toml") { continue; }
+            let id = name.trim_end_matches(".jsonc").trim_end_matches(".toml").to_string();
+            let label = std::fs::read_to_string(entry.path()).ok()
+                .and_then(|content| {
+                    let cleaned: String = content.lines()
+                        .map(|l| if l.trim_start().starts_with("//") { "" } else { l })
+                        .collect::<Vec<_>>().join("\n");
+                    serde_json::from_str::<serde_json::Value>(&cleaned).ok()
+                })
+                .and_then(|v| v["name"].as_str().map(str::to_string))
+                .unwrap_or_else(|| id.clone());
+            agents.push(serde_json::json!({ "agent_id": id, "label": label }));
         }
     }
 
-    (
-        StatusCode::OK,
-        Json(MeshResponse { ok: true, data: serde_json::json!({ "views": views }) }),
-    )
-}
-
-/// GET /api/runtime/view/{name} — serve a view's index.html from .ship/views/{name}/.
-///
-/// Reads the view HTML and inlines the ship-sdk script so the view can
-/// communicate with Studio via postMessage.
-pub async fn serve_view(
-    Path(name): Path<String>,
-) -> impl IntoResponse {
-    let project_dir = match runtime::project::get_project_dir(None) {
-        Ok(p) => p,
-        Err(_) => {
-            return (
-                StatusCode::NOT_FOUND,
-                Json(MeshResponse { ok: false, data: serde_json::json!("no project root found") }),
-            );
-        }
-    };
-
-    // Reject path traversal attempts
-    if name.contains("..") || name.contains('/') || name.contains('\\') {
-        return (
-            StatusCode::BAD_REQUEST,
-            Json(MeshResponse { ok: false, data: serde_json::json!("invalid view name") }),
-        );
-    }
-
-    // get_project_dir returns the .ship/ directory
-    let view_path = project_dir.join("views").join(&name).join("index.html");
-    let sdk_path = project_dir.join("views/ship-sdk.js");
-
-    let html = match std::fs::read_to_string(&view_path) {
-        Ok(h) => h,
-        Err(_) => {
-            return (
-                StatusCode::NOT_FOUND,
-                Json(MeshResponse { ok: false, data: serde_json::json!(format!("view '{name}' not found")) }),
-            );
-        }
-    };
-
-    // Inline the SDK script so the view doesn't need to resolve relative paths
-    let html = if let Ok(sdk) = std::fs::read_to_string(&sdk_path) {
-        html.replace(
-            r#"<script src="../ship-sdk.js"></script>"#,
-            &format!("<script>\n{sdk}\n</script>"),
-        )
-    } else {
-        html
-    };
-
-    (
-        StatusCode::OK,
-        Json(MeshResponse { ok: true, data: serde_json::json!({ "html": html }) }),
-    )
+    agents.sort_by(|a, b| a["agent_id"].as_str().cmp(&b["agent_id"].as_str()));
+    (StatusCode::OK, Json(MeshResponse { ok: true, data: serde_json::json!({ "agents": agents }) }))
 }
 
 // ---- Job request types ----
@@ -273,6 +194,99 @@ pub async fn list_jobs(State(_state): State<ApiState>) -> impl IntoResponse {
             }),
         ),
     }
+}
+
+// ---- Job detail response types ----
+
+#[derive(serde::Serialize)]
+pub struct JobDetailResponse {
+    job: runtime::projections::job::JobRecord,
+    step_observations: Vec<runtime::events::job::StepObservedPayload>,
+    recent_events: Vec<EventSummary>,
+}
+
+#[derive(serde::Serialize)]
+pub struct EventSummary {
+    event_type: String,
+    created_at: String,
+    payload_preview: String,
+}
+
+/// GET /api/runtime/jobs/{job_id}
+#[utoipa::path(
+    get,
+    path = "/api/runtime/jobs/{job_id}",
+    responses((status = 200, body = MeshResponse)),
+    tag = "runtime"
+)]
+pub async fn get_job_detail(
+    State(_state): State<ApiState>,
+    Path(job_id): Path<String>,
+) -> impl IntoResponse {
+    let jobs = match runtime::projections::job::load_jobs() {
+        Ok(j) => j,
+        Err(e) => {
+            return (
+                StatusCode::INTERNAL_SERVER_ERROR,
+                Json(MeshResponse { ok: false, data: serde_json::json!(e.to_string()) }),
+            );
+        }
+    };
+
+    let job = match jobs.get(&job_id) {
+        Some(j) => j.clone(),
+        None => {
+            return (
+                StatusCode::NOT_FOUND,
+                Json(MeshResponse {
+                    ok: false,
+                    data: serde_json::json!(format!("job '{job_id}' not found")),
+                }),
+            );
+        }
+    };
+
+    let step_observations = runtime::db::events::query_events_by_entity_and_type(
+        &job_id, "step.observed",
+    )
+    .unwrap_or_default()
+    .into_iter()
+    .filter_map(|env| {
+        serde_json::from_str::<runtime::events::job::StepObservedPayload>(&env.payload_json).ok()
+    })
+    .collect::<Vec<_>>();
+
+    let recent_events = runtime::db::events::query_recent_events_for_entity(&job_id, 50)
+        .unwrap_or_default()
+        .into_iter()
+        .map(|env| {
+            let preview = if env.payload_json.len() > 200 {
+                let boundary = env.payload_json
+                    .char_indices()
+                    .take_while(|(i, _)| *i < 200)
+                    .last()
+                    .map(|(i, c)| i + c.len_utf8())
+                    .unwrap_or(0);
+                format!("{}...", &env.payload_json[..boundary])
+            } else {
+                env.payload_json.clone()
+            };
+            EventSummary {
+                event_type: env.event_type.clone(),
+                created_at: env.created_at.to_rfc3339(),
+                payload_preview: preview,
+            }
+        })
+        .collect::<Vec<_>>();
+
+    let detail = JobDetailResponse { job, step_observations, recent_events };
+    (
+        StatusCode::OK,
+        Json(MeshResponse {
+            ok: true,
+            data: serde_json::json!(detail),
+        }),
+    )
 }
 
 /// POST /api/runtime/jobs — emit job.created event through the kernel.
@@ -367,11 +381,12 @@ pub struct JobEndRequest {
     pub slug: String,
 }
 
-/// POST /api/runtime/jobs/end — mark a job as completed by slug.
+/// POST /api/runtime/jobs/end — signal that a provider turn ended for a job.
 ///
-/// Called by the session Stop hook when an agent's session ends.
-/// Resolves the job by slug, emits job.completed through the kernel.
-/// The job_dispatch subscriber handles cleanup and unblocking dependents.
+/// Called by the session Stop hook when an agent finishes a response turn.
+/// For multi-step pipeline jobs, this sends a TurnEnded signal to the step
+/// monitor (which accumulates evidence before deciding to advance).
+/// For single-step jobs, emits job.completed directly.
 #[utoipa::path(
     post,
     path = "/api/runtime/jobs/end",
@@ -387,7 +402,6 @@ pub async fn end_job(
     if let Err(e) = require_scope(&auth, Scope::ManageJobs) {
         return e;
     }
-    // Find the job by slug
     let jobs = match runtime::projections::job::load_jobs() {
         Ok(j) => j,
         Err(e) => {
@@ -398,7 +412,6 @@ pub async fn end_job(
         }
     };
 
-    // Find the dispatched job with this slug — prefer dispatched over other statuses
     let job = match jobs.values()
         .filter(|j| j.slug == req.slug)
         .find(|j| j.status == runtime::projections::job::JobStatus::Dispatched)
@@ -412,14 +425,26 @@ pub async fn end_job(
         }
     };
 
-    // Guard: should always be dispatched given the filter above, but keep for clarity
-    if job.status != runtime::projections::job::JobStatus::Dispatched {
-        return (
-            StatusCode::OK,
-            Json(MeshResponse { ok: true, data: serde_json::json!(format!("job '{}' is {:?}, not dispatched — skipping", req.slug, job.status)) }),
-        );
+    let is_pipeline = job.steps.as_ref().is_some_and(|s| s.steps.len() > 1);
+
+    // Multi-step pipeline: send TurnEnded to the step monitor.
+    // The monitor accumulates evidence and decides when to advance.
+    if is_pipeline {
+        if let Some(dh) = state.dispatch_handle() {
+            let txs = dh.activity_txs.lock().await;
+            if let Some(tx) = txs.get(&req.slug) {
+                let _ = tx.send(runtime::services::orchestrator::StepActivity::TurnEnded);
+                return (
+                    StatusCode::OK,
+                    Json(MeshResponse { ok: true, data: serde_json::json!(format!("turn ended for pipeline step '{}'", req.slug)) }),
+                );
+            }
+        }
+        // No active step monitor — fall through to job.completed for safety.
+        tracing::warn!(slug = req.slug, "end_job: pipeline step has no active step monitor, falling through to job.completed");
     }
 
+    // Single-step job or fallback: emit job.completed directly.
     let payload = runtime::events::job::JobCompletedPayload {
         job_id: job.job_id.clone(),
         slug: job.slug.clone(),
@@ -595,9 +620,9 @@ pub async fn rebuild_projections(
 }
 
 /// Stops an actor when dropped — used to clean up the SSE stream actor.
-struct ActorGuard {
-    actor_id: String,
-    kernel: crate::rest_api::SharedKernel,
+pub(crate) struct ActorGuard {
+    pub(crate) actor_id: String,
+    pub(crate) kernel: crate::rest_api::SharedKernel,
 }
 
 impl Drop for ActorGuard {
@@ -911,6 +936,63 @@ mod tests {
             .await
             .into_response();
         assert_eq!(response.status(), StatusCode::SERVICE_UNAVAILABLE);
+    }
+
+    #[tokio::test(flavor = "multi_thread")]
+    async fn get_job_detail_not_found() {
+        let dir = TempDir::new().unwrap();
+        let state = make_api_state(&dir);
+        let response = get_job_detail(State(state), Path("nonexistent-job-id".to_string()))
+            .await
+            .into_response();
+        assert_eq!(response.status(), StatusCode::NOT_FOUND);
+        let val = collect_body(response).await;
+        assert_eq!(val["ok"], serde_json::json!(false));
+    }
+
+    #[tokio::test(flavor = "multi_thread")]
+    async fn get_job_detail_returns_job() {
+        let dir = TempDir::new().unwrap();
+        let state = make_api_state(&dir);
+
+        // Emit a job.created event so load_jobs() finds it.
+        let job_id = runtime::gen_ulid();
+        let payload = runtime::events::job::JobCreatedPayload {
+            job_id: job_id.clone(),
+            slug: "test-detail".into(),
+            agent: "agent-1".into(),
+            branch: "feature/detail".into(),
+            spec_path: ".artifacts/job-spec.md".into(),
+            plan_id: None,
+            model: None,
+            provider: None,
+            depends_on: None,
+            pipeline: None,
+            steps: None,
+            pipeline_name: None,
+            vars: None,
+        };
+        let envelope = runtime::events::EventEnvelope::new(
+            runtime::events::job::event_types::JOB_CREATED,
+            &job_id,
+            &payload,
+        )
+        .unwrap()
+        .with_actor_id("test");
+        state.persist_and_route(&envelope).await.unwrap();
+
+        let response = get_job_detail(State(state), Path(job_id.clone()))
+            .await
+            .into_response();
+        assert_eq!(response.status(), StatusCode::OK);
+        let val = collect_body(response).await;
+        assert_eq!(val["ok"], serde_json::json!(true));
+        assert_eq!(val["data"]["job"]["job_id"], job_id);
+        assert_eq!(val["data"]["job"]["slug"], "test-detail");
+        assert!(val["data"]["step_observations"].is_array());
+        assert!(val["data"]["recent_events"].is_array());
+        // The job.created event should appear in recent_events
+        assert!(val["data"]["recent_events"].as_array().unwrap().len() >= 1);
     }
 
     #[tokio::test(flavor = "multi_thread")]

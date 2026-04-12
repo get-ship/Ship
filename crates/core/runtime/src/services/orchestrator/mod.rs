@@ -35,6 +35,14 @@ use std::sync::atomic::AtomicBool;
 use std::sync::Arc;
 use tokio::sync::Mutex;
 
+/// Activity signal sent to a step monitor from external sources (hooks, API).
+#[derive(Debug, Clone)]
+pub enum StepActivity {
+    /// A provider Stop hook fired — the agent finished a response turn.
+    /// In interactive mode this does NOT mean the task is done.
+    TurnEnded,
+}
+
 /// Bundles the injected strategies for job orchestration.
 ///
 /// Created by the host process (e.g. shipd) and passed to the orchestrator
@@ -48,4 +56,10 @@ pub struct OrchestratorContext {
     pub registry: Arc<dyn ProcessRegistryPort>,
     /// Maps `slug` → done_declared flag for active step monitors.
     pub done_flags: Arc<Mutex<HashMap<String, Arc<AtomicBool>>>>,
+    /// Maps `slug` → activity sender for active step monitors.
+    /// External signals (Stop hook, etc.) send here instead of emitting job.completed.
+    pub activity_txs: Arc<Mutex<HashMap<String, tokio::sync::mpsc::UnboundedSender<StepActivity>>>>,
+    /// Per-job advancement lock. Prevents two concurrent events from
+    /// double-dispatching the same next step.
+    pub job_locks: Arc<Mutex<HashMap<String, Arc<tokio::sync::Mutex<()>>>>>,
 }

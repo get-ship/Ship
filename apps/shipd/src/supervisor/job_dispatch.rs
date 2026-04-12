@@ -17,9 +17,14 @@ pub(crate) use super::registry::ProcessRegistry;
 
 /// Handle returned by `subscribe_job_events` — gives the shutdown path
 /// access to the process registry and executor for graceful shutdown.
+/// Also exposes the activity channel map so the API can send signals
+/// to active step monitors.
 pub struct DispatchHandle {
     pub(crate) registry: Arc<Mutex<ProcessRegistry>>,
     pub executor: Arc<dyn JobExecutor>,
+    /// Shared with OrchestratorContext — allows API handlers to send
+    /// activity signals (e.g. TurnEnded from Stop hook) to step monitors.
+    pub activity_txs: Arc<Mutex<HashMap<String, tokio::sync::mpsc::UnboundedSender<runtime::services::orchestrator::StepActivity>>>>,
 }
 
 /// Subscribe to `job.*` kernel events and dispatch jobs to worktrees.
@@ -47,12 +52,16 @@ pub async fn subscribe_job_events(
         executor: executor.clone(),
     });
 
+    let activity_txs = Arc::new(Mutex::new(HashMap::new()));
+
     let octx = Arc::new(OrchestratorContext {
         isolation: Arc::new(adapters::GitWorktreeIsolation),
         executor: executor.clone(),
         platform,
         registry: Arc::new(RegistryAdapter(registry.clone())),
         done_flags: Arc::new(Mutex::new(HashMap::new())),
+        activity_txs: activity_txs.clone(),
+        job_locks: Arc::new(Mutex::new(HashMap::new())),
     });
 
     let kr = kernel.clone();
@@ -60,6 +69,6 @@ pub async fn subscribe_job_events(
         runtime::services::orchestrator::router::start_orchestrator(kr, octx).await;
     });
 
-    Some(DispatchHandle { registry, executor })
+    Some(DispatchHandle { registry, executor, activity_txs })
 }
 

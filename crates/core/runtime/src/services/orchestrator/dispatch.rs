@@ -123,13 +123,17 @@ pub async fn dispatch_job_internal(
             0,
             slug.clone(),
             step_name,
+            worktree_path.clone(),
         );
+        let (activity_tx, activity_rx) = tokio::sync::mpsc::unbounded_channel();
         octx.done_flags.lock().await.insert(slug.clone(), monitor.done_flag());
+        octx.activity_txs.lock().await.insert(slug.clone(), activity_tx);
         super::step_monitor::start_step_monitor(
             monitor,
             kernel.clone(),
             octx.registry.clone(),
             exit_rx,
+            activity_rx,
         );
     } else {
         octx.platform.start_exit_handler(kernel.clone(), exit_rx);

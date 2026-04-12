@@ -81,6 +81,7 @@ pub async fn handle_job_event(
                 octx.registry.unregister(slug).await;
             }
             if !advance_pipeline(kernel, envelope, octx).await {
+                octx.job_locks.lock().await.remove(&envelope.entity_id);
                 super::pending::dispatch_ready_pending_jobs(kernel, octx).await;
             }
         }
@@ -104,6 +105,7 @@ pub async fn handle_job_event(
             if let Some(slug) = &slug {
                 octx.registry.unregister(slug).await;
             }
+            octx.job_locks.lock().await.remove(&envelope.entity_id);
             handle_job_cleanup(envelope, &*octx.platform).await;
             super::pending::dispatch_ready_pending_jobs(kernel, octx).await;
         }
@@ -112,7 +114,9 @@ pub async fn handle_job_event(
             if let Some(slug) = &slug {
                 octx.registry.unregister(slug).await;
                 octx.done_flags.lock().await.remove(slug.as_str());
+                octx.activity_txs.lock().await.remove(slug.as_str());
             }
+            octx.job_locks.lock().await.remove(&envelope.entity_id);
         }
         "step.done_declared" => {
             let slug = extract_slug(envelope);
@@ -137,24 +141,56 @@ pub async fn handle_job_event(
             let slug = extract_slug(envelope);
             if let Some(slug) = &slug {
                 octx.done_flags.lock().await.remove(slug.as_str());
+                octx.activity_txs.lock().await.remove(slug.as_str());
             }
-            if payload.succeeded {
-                if !advance_pipeline(kernel, envelope, octx).await {
-                    finalize_pipeline_if_done(kernel, envelope).await;
-                    super::pending::dispatch_ready_pending_jobs(kernel, octx).await;
+
+            use crate::events::job::StepVerdict;
+            match &payload.verdict {
+                StepVerdict::Advance => {
+                    tracing::info!(
+                        entity_id = %envelope.entity_id,
+                        step = payload.step_name,
+                        trigger = ?payload.trigger,
+                        commits = payload.commits_since_start,
+                        done_declared = payload.done_declared,
+                        "job-dispatch: step evidence → advance"
+                    );
+                    if !advance_pipeline(kernel, envelope, octx).await {
+                        finalize_pipeline_if_done(kernel, envelope).await;
+                        super::pending::dispatch_ready_pending_jobs(kernel, octx).await;
+                    }
                 }
-            } else {
-                tracing::warn!(
-                    entity_id = %envelope.entity_id,
-                    step = payload.step_name,
-                    reason = ?payload.reason,
-                    "job-dispatch: step failed"
-                );
-                if let Some(slug) = &slug {
-                    octx.registry.unregister(slug).await;
+                StepVerdict::Inconclusive => {
+                    // No strong signal either way. Advance rather than hang —
+                    // the gate step (if any) will catch problems.
+                    tracing::warn!(
+                        entity_id = %envelope.entity_id,
+                        step = payload.step_name,
+                        trigger = ?payload.trigger,
+                        commits = payload.commits_since_start,
+                        done_declared = payload.done_declared,
+                        "job-dispatch: step evidence inconclusive — advancing (gate will review)"
+                    );
+                    if !advance_pipeline(kernel, envelope, octx).await {
+                        finalize_pipeline_if_done(kernel, envelope).await;
+                        super::pending::dispatch_ready_pending_jobs(kernel, octx).await;
+                    }
                 }
-                if !try_gate_retry(kernel, octx, &payload).await {
-                    emit_job_failed_for_gate(kernel, &payload).await;
+                StepVerdict::Failed => {
+                    tracing::warn!(
+                        entity_id = %envelope.entity_id,
+                        step = payload.step_name,
+                        trigger = ?payload.trigger,
+                        reason = ?payload.reason,
+                        ?payload.exit_code,
+                        "job-dispatch: step failed"
+                    );
+                    if let Some(slug) = &slug {
+                        octx.registry.unregister(slug).await;
+                    }
+                    if !try_gate_retry(kernel, octx, &payload).await {
+                        emit_job_failed_for_gate(kernel, &payload).await;
+                    }
                 }
             }
         }

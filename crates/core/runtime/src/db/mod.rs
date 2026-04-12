@@ -83,21 +83,18 @@ fn ensure_db_at_path(path: &std::path::Path) -> Result<()> {
     block_on(async { sqlx::query("PRAGMA journal_mode = WAL").execute(&mut conn).await })?;
     block_on(async { sqlx::query("PRAGMA foreign_keys = ON").execute(&mut conn).await })?;
 
-    // Try running migrations. If they fail (schema mismatch), delete DB and retry once.
-    let migrate_result = block_on_migrate(async {
+    // Run migrations. If they fail, refuse to start — never delete user data.
+    if let Err(e) = block_on_migrate(async {
         sqlx::migrate!("./migrations").run(&mut conn).await
-    });
-    if migrate_result.is_err() {
-        tracing::warn!("migrations failed on {}, deleting and retrying", path.display());
-        drop(conn);
-        let _ = std::fs::remove_file(path);
-        let _ = std::fs::remove_file(format!("{}-wal", path.display()));
-        let _ = std::fs::remove_file(format!("{}-shm", path.display()));
-        // Reconnect to fresh DB.
-        let mut conn2 = block_on(async { SqliteConnection::connect_with(&opts).await })?;
-        block_on(async { sqlx::query("PRAGMA journal_mode = WAL").execute(&mut conn2).await })?;
-        block_on(async { sqlx::query("PRAGMA foreign_keys = ON").execute(&mut conn2).await })?;
-        block_on_migrate(async { sqlx::migrate!("./migrations").run(&mut conn2).await })?;
+    }) {
+        tracing::error!(
+            "migrations failed on {}: {e}\n\
+             This usually means a different Ship binary created this database.\n\
+             To reset: ship daemon reset-db (backs up first)\n\
+             To keep data: use the same Ship binary that created this database.",
+            path.display()
+        );
+        return Err(anyhow!("migration failed on {}: {e}", path.display()));
     }
 
     Ok(())

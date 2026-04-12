@@ -202,8 +202,14 @@ pub fn apply(record: &mut JobRecord, event: &EventEnvelope) {
         event_types::STEP_OBSERVED => {
             if let Ok(p) = serde_json::from_str::<serde_json::Value>(&event.payload_json) {
                 let step_name = p["step_name"].as_str().unwrap_or("");
-                let succeeded = p["succeeded"].as_bool().unwrap_or(false);
-                if succeeded {
+                // Use verdict if present, fall back to succeeded for back-compat.
+                let verdict = p["verdict"].as_str().unwrap_or("");
+                let should_advance = match verdict {
+                    "advance" | "inconclusive" => true,
+                    "failed" => false,
+                    _ => p["succeeded"].as_bool().unwrap_or(false),
+                };
+                if should_advance {
                     if record.current_step.as_deref() == Some(step_name) {
                         record.current_step = None;
                     }

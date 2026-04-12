@@ -324,19 +324,109 @@ pub struct StepRetryPayload {
     pub reason: String,
 }
 
-/// Emitted by the step monitor after observing process exit and/or step_done.
-/// This is the authoritative signal for pipeline advancement.
+/// What triggered the step observation.
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Type)]
+#[serde(rename_all = "snake_case")]
+pub enum StepTrigger {
+    /// Agent explicitly called step_done
+    DoneDeclared,
+    /// Process/session exited
+    ProcessExit,
+    /// Activity settled — turns ended, evidence accumulated, no new activity
+    TurnSettled,
+    /// Step timed out
+    Timeout,
+    /// Exit channel closed unexpectedly
+    ChannelClosed,
+}
+
+/// Verdict derived from accumulated evidence.
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Type)]
+#[serde(rename_all = "snake_case")]
+pub enum StepVerdict {
+    /// Strong evidence of success — advance pipeline
+    Advance,
+    /// Strong evidence of failure — halt pipeline
+    Failed,
+    /// Inconclusive — needs human review or gate
+    Inconclusive,
+}
+
+/// Emitted by the step monitor after gathering evidence about a step's outcome.
+///
+/// This is evidence-based, not verdict-based. The step monitor collects all
+/// available signals (process exit, step_done, git state) and the pipeline
+/// router decides what to do based on the full picture.
 #[derive(Debug, Clone, Serialize, Deserialize, Type)]
 pub struct StepObservedPayload {
     pub job_id: String,
     pub slug: String,
     pub step_index: usize,
     pub step_name: String,
-    pub succeeded: bool,
-    pub exit_code: Option<i32>,
-    pub duration_secs: u64,
+    /// What triggered this observation.
+    pub trigger: StepTrigger,
+    // ── Evidence fields ──────────────────────────────────────────────
+    /// Agent explicitly called step_done (strongest signal).
     pub done_declared: bool,
+    /// Value passed to step_done, if called. True = agent says success.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub done_result: Option<bool>,
+    /// Process exit code, if available. None for tmux (no exit code exposed).
+    pub exit_code: Option<i32>,
+    /// Number of git commits on the branch since the step started.
+    #[serde(default)]
+    pub commits_since_start: u32,
+    /// Number of files with uncommitted changes in the worktree.
+    #[serde(default)]
+    pub uncommitted_files: u32,
+    /// Wall-clock duration of the step.
+    pub duration_secs: u64,
+    /// Human-readable reason (e.g. "timeout", error message).
     pub reason: Option<String>,
+    // ── Derived ──────────────────────────────────────────────────────
+    /// Verdict computed from evidence. Used by pipeline router.
+    pub verdict: StepVerdict,
+    /// Back-compat: true when verdict == Advance. Existing consumers and
+    /// projections that read `succeeded` continue to work.
+    #[serde(default)]
+    pub succeeded: bool,
+}
+
+impl StepObservedPayload {
+    /// Derive a verdict from the collected evidence.
+    pub fn compute_verdict(
+        done_declared: bool,
+        done_result: Option<bool>,
+        exit_code: Option<i32>,
+        commits: u32,
+        trigger: &StepTrigger,
+    ) -> StepVerdict {
+        // 1. Agent explicitly declared outcome — strongest signal.
+        if done_declared {
+            return match done_result {
+                Some(true) => StepVerdict::Advance,
+                Some(false) => StepVerdict::Failed,
+                None => StepVerdict::Advance, // called step_done without explicit false
+            };
+        }
+        // 2. Non-zero exit code — likely failure.
+        if let Some(code) = exit_code {
+            if code != 0 {
+                return StepVerdict::Failed;
+            }
+        }
+        // 3. Timeout or channel closed with no step_done — failure.
+        if matches!(trigger, StepTrigger::Timeout | StepTrigger::ChannelClosed) {
+            return StepVerdict::Failed;
+        }
+        // 4. Activity settled or process exited — check for evidence of work.
+        if commits > 0 {
+            return StepVerdict::Advance;
+        }
+        // 5. No commits, no step_done, no error — inconclusive.
+        //    Pipeline router should advance anyway (with gate) rather than hang.
+        StepVerdict::Inconclusive
+    }
 }
 
 /// Event type constants for the `job.` namespace.
