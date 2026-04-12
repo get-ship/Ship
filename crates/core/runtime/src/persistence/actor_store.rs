@@ -228,14 +228,10 @@ pub(crate) fn init_actor_db(path: &Path) -> Result<()> {
             .await
     })?;
 
-    // Reset migration tracking so checksum changes don't block startup.
-    // Actor migrations are idempotent (CREATE TABLE IF NOT EXISTS).
-    block_on(async {
-        sqlx::query("DROP TABLE IF EXISTS _sqlx_migrations")
-            .execute(&mut conn)
-            .await
-    })?;
-
+    // Migrations are run by sqlx with version tracking. If migration files
+    // on disk don't match what was previously applied, let sqlx fail loudly —
+    // do NOT drop _sqlx_migrations. Silent schema resets are how data gets
+    // lost. Phase 4 adds a dedicated `ship daemon reset-db` escape hatch.
     if let Ok(handle) = tokio::runtime::Handle::try_current() {
         tokio::task::block_in_place(|| {
             handle

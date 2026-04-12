@@ -3,7 +3,7 @@
 //! Replaces the ad-hoc `ApiState` struct with a structured runtime that
 //! owns the kernel, config, and lazily-initialized managers.
 
-use anyhow::{Result, anyhow};
+use anyhow::{Context, Result, anyhow};
 use runtime::events::{CallerKind, EmitContext, EventEnvelope};
 use runtime::services::mesh::SharedMeshRegistry;
 use std::collections::HashMap;
@@ -223,17 +223,27 @@ impl ShipRuntime {
     }
 
     /// Persist event to platform.db then route through kernel.
+    ///
+    /// Both steps are required for an emit to count. If either fails, the caller
+    /// gets an error — no silent drops. A successful return means the event is
+    /// durable on disk AND delivered to in-memory subscribers.
     pub async fn persist_and_route(&self, envelope: &EventEnvelope) -> anyhow::Result<()> {
-        if let Ok(store) = runtime::events::SqliteEventStore::new() {
-            runtime::events::EventStore::append(&store, envelope)?;
-        }
+        let store = runtime::events::SqliteEventStore::new()
+            .context("open event store for persist")?;
+        runtime::events::EventStore::append(&store, envelope)
+            .context("append event to platform.db")?;
         let ctx = EmitContext {
             caller_kind: CallerKind::Runtime,
             skill_id: None,
-            workspace_id: None,
-            session_id: None,
+            workspace_id: envelope.workspace_id.clone(),
+            session_id: envelope.session_id.clone(),
         };
-        self.kernel.lock().await.route(envelope.clone(), &ctx).await
+        self.kernel
+            .lock()
+            .await
+            .route(envelope.clone(), &ctx)
+            .await
+            .context("route event through kernel")
     }
 
     /// Build a ShipRuntime for tests — synchronous, takes a pre-initialized

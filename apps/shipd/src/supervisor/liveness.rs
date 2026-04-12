@@ -191,19 +191,7 @@ async fn emit_job_event(
         }
     };
 
-    if let Ok(store) = SqliteEventStore::new()
-        && let Err(e) = EventStore::append(&store, &envelope)
-    {
-        tracing::warn!(slug, event_type, "liveness: failed to persist event: {e}");
-    }
-
-    let ctx = EmitContext {
-        caller_kind: CallerKind::Runtime,
-        skill_id: None,
-        workspace_id: None,
-        session_id: None,
-    };
-    if let Err(e) = kernel.lock().await.route(envelope, &ctx).await {
-        tracing::warn!(slug, event_type, "liveness: failed to route event: {e}");
-    }
+    runtime::services::orchestrator::emit::persist_and_route(
+        kernel, envelope, slug, None,
+    ).await;
 }

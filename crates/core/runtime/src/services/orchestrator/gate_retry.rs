@@ -91,18 +91,9 @@ pub async fn try_gate_retry(
         }
     };
 
-    if let Ok(store) = crate::events::SqliteEventStore::new()
-        && let Err(e) = crate::events::EventStore::append(&store, &retry_envelope)
-    {
-        tracing::warn!(slug = %payload.slug, "gate-retry: failed to persist: {e}");
-    }
-    let ctx = crate::events::EmitContext {
-        caller_kind: crate::events::CallerKind::Runtime,
-        skill_id: None,
-        workspace_id: None,
-        session_id: None,
-    };
-    let _ = kernel.lock().await.route(retry_envelope, &ctx).await;
+    crate::services::orchestrator::emit::persist_and_route(
+        kernel, retry_envelope, &payload.slug, None,
+    ).await;
 
     // Build synthetic envelope for advance_pipeline
     let synthetic = match EventEnvelope::new(
@@ -159,14 +150,7 @@ pub async fn emit_job_failed_for_gate(
         Ok(e) => e.with_actor_id("service.job-dispatch"),
         Err(_) => return,
     };
-    if let Ok(store) = crate::events::SqliteEventStore::new() {
-        let _ = crate::events::EventStore::append(&store, &env);
-    }
-    let ctx = crate::events::EmitContext {
-        caller_kind: crate::events::CallerKind::Runtime,
-        skill_id: None,
-        workspace_id: None,
-        session_id: None,
-    };
-    let _ = kernel.lock().await.route(env, &ctx).await;
+    crate::services::orchestrator::emit::persist_and_route(
+        kernel, env, &payload.slug, None,
+    ).await;
 }

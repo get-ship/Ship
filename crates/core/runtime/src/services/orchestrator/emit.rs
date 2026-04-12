@@ -75,29 +75,51 @@ pub async fn emit_step_dispatched_event(
 }
 
 /// Persist an event to the store and route through the kernel.
-pub(super) async fn persist_and_route(
+///
+/// Phase 0 visibility: every failure is logged at ERROR level with enough
+/// context to diagnose. Phase 2 will make this return `Result` and callers
+/// will propagate. Today the return type is unit so existing callsites don't
+/// ripple — but errors will never be silent again.
+pub async fn persist_and_route(
     kernel: &Arc<Mutex<crate::events::KernelRouter>>,
     envelope: EventEnvelope,
     slug: &str,
     ship_dir: Option<&std::path::Path>,
 ) {
+    let event_type = envelope.event_type.clone();
+    let entity_id = envelope.entity_id.clone();
+
     let store_result = match ship_dir {
         Some(dir) => crate::events::SqliteEventStore::new_at(dir),
         None => crate::events::SqliteEventStore::new(),
     };
-    if let Ok(store) = store_result
-        && let Err(e) = crate::events::EventStore::append(&store, &envelope)
-    {
-        tracing::warn!(slug, "pipeline: failed to persist event: {e}");
+    match store_result {
+        Ok(store) => {
+            if let Err(e) = crate::events::EventStore::append(&store, &envelope) {
+                tracing::error!(
+                    slug, event_type = %event_type, entity_id = %entity_id,
+                    "persist_and_route: append to platform.db failed: {e}"
+                );
+            }
+        }
+        Err(e) => {
+            tracing::error!(
+                slug, event_type = %event_type, entity_id = %entity_id,
+                "persist_and_route: could not open event store: {e}"
+            );
+        }
     }
 
     let ctx = EmitContext {
         caller_kind: CallerKind::Runtime,
         skill_id: None,
-        workspace_id: None,
-        session_id: None,
+        workspace_id: envelope.workspace_id.clone(),
+        session_id: envelope.session_id.clone(),
     };
     if let Err(e) = kernel.lock().await.route(envelope, &ctx).await {
-        tracing::warn!(slug, "pipeline: event routing failed: {e}");
+        tracing::error!(
+            slug, event_type = %event_type, entity_id = %entity_id,
+            "persist_and_route: kernel routing failed: {e}"
+        );
     }
 }

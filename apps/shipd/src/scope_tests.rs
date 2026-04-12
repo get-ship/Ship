@@ -124,6 +124,7 @@ async fn worker_cannot_create_jobs() {
             pipeline: None,
             provider: None,
             spec_content: None,
+            vars: None,
         }),
     )
     .await
@@ -149,6 +150,7 @@ async fn commander_can_create_jobs() {
             pipeline: None,
             provider: None,
             spec_content: None,
+            vars: None,
         }),
     )
     .await

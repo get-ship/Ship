@@ -414,22 +414,27 @@ impl StepObservedPayload {
                 None => StepVerdict::Advance, // called step_done without explicit false
             };
         }
-        // 2. Non-zero exit code — likely failure.
-        if let Some(code) = exit_code {
-            if code != 0 {
-                return StepVerdict::Failed;
-            }
-        }
-        // 3. Timeout or channel closed with no step_done — failure.
-        if matches!(trigger, StepTrigger::Timeout | StepTrigger::ChannelClosed) {
+        // 2. Non-zero exit code — unambiguous failure.
+        if let Some(code) = exit_code
+            && code != 0
+        {
             return StepVerdict::Failed;
         }
-        // 4. Activity settled or process exited — check for evidence of work.
+        // 3. Evidence beats trigger. If the agent committed work, that's
+        //    advancement — regardless of how the monitor found out the agent
+        //    was done (exit signal, turn-settled, channel closed, timeout).
+        //    The tmux executor normally drops exit_tx after sending one signal,
+        //    so ChannelClosed is a routine cleanup path, not a failure mode.
         if commits > 0 {
             return StepVerdict::Advance;
         }
-        // 5. No commits, no step_done, no error — inconclusive.
-        //    Pipeline router should advance anyway (with gate) rather than hang.
+        // 4. No commits + timeout/channel-closed → real failure. Agent ran out
+        //    of time or died without producing anything.
+        if matches!(trigger, StepTrigger::Timeout | StepTrigger::ChannelClosed) {
+            return StepVerdict::Failed;
+        }
+        // 5. No commits, no step_done, no error, clean settle — inconclusive.
+        //    Pipeline router advances anyway (gate will catch problems).
         StepVerdict::Inconclusive
     }
 }
@@ -453,4 +458,100 @@ pub mod event_types {
     pub const STEP_RETRY: &str = "step.retry";
     pub const STEP_DONE_DECLARED: &str = "step.done_declared";
     pub const STEP_OBSERVED: &str = "step.observed";
+}
+
+#[cfg(test)]
+mod verdict_tests {
+    use super::*;
+
+    fn verdict(
+        done: bool,
+        done_result: Option<bool>,
+        exit: Option<i32>,
+        commits: u32,
+        trigger: StepTrigger,
+    ) -> StepVerdict {
+        StepObservedPayload::compute_verdict(done, done_result, exit, commits, &trigger)
+    }
+
+    // Regression test for the original bug: tmux executor drops exit_tx after
+    // sending one ExitSignal. The step monitor sees the channel close and
+    // treats it as `ChannelClosed`. With commits present, that is SUCCESS —
+    // the agent did the work then cleaned up. Previous code returned Failed
+    // here, breaking every tmux-backed pipeline.
+    #[test]
+    fn channel_closed_with_commits_advances() {
+        assert_eq!(
+            verdict(false, None, None, 5, StepTrigger::ChannelClosed),
+            StepVerdict::Advance,
+        );
+    }
+
+    #[test]
+    fn channel_closed_without_commits_fails() {
+        assert_eq!(
+            verdict(false, None, None, 0, StepTrigger::ChannelClosed),
+            StepVerdict::Failed,
+        );
+    }
+
+    #[test]
+    fn timeout_with_commits_advances() {
+        assert_eq!(
+            verdict(false, None, None, 3, StepTrigger::Timeout),
+            StepVerdict::Advance,
+        );
+    }
+
+    #[test]
+    fn timeout_without_commits_fails() {
+        assert_eq!(
+            verdict(false, None, None, 0, StepTrigger::Timeout),
+            StepVerdict::Failed,
+        );
+    }
+
+    #[test]
+    fn done_declared_true_wins_over_everything() {
+        // Even with 0 commits and a timeout, explicit success is success.
+        assert_eq!(
+            verdict(true, Some(true), Some(1), 0, StepTrigger::Timeout),
+            StepVerdict::Advance,
+        );
+    }
+
+    #[test]
+    fn done_declared_false_wins_over_commits() {
+        // Agent said it failed. Trust the agent over the git state.
+        assert_eq!(
+            verdict(true, Some(false), None, 10, StepTrigger::DoneDeclared),
+            StepVerdict::Failed,
+        );
+    }
+
+    #[test]
+    fn nonzero_exit_code_fails() {
+        assert_eq!(
+            verdict(false, None, Some(127), 5, StepTrigger::ProcessExit),
+            StepVerdict::Failed,
+        );
+    }
+
+    #[test]
+    fn turn_settled_with_commits_advances() {
+        assert_eq!(
+            verdict(false, None, None, 2, StepTrigger::TurnSettled),
+            StepVerdict::Advance,
+        );
+    }
+
+    #[test]
+    fn clean_settle_no_evidence_is_inconclusive() {
+        // Agent exited 0 with no commits and didn't call step_done — we have
+        // no evidence either way. Router will advance through gate.
+        assert_eq!(
+            verdict(false, None, Some(0), 0, StepTrigger::ProcessExit),
+            StepVerdict::Inconclusive,
+        );
+    }
 }
