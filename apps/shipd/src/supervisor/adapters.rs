@@ -20,7 +20,7 @@ impl IsolationStrategy for GitWorktreeIsolation {
         create_worktree(&worktree_path, &job.branch, None)?;
         let session_dir = worktree_path.join(".artifacts");
         std::fs::create_dir_all(&session_dir)?;
-        write_phase_spec_from_context(&worktree_path, job);
+        write_phase_spec_from_context(&worktree_path, job)?;
         compile_agent_config(&worktree_path, &job.agent)?;
         Ok(worktree_path)
     }
@@ -35,19 +35,53 @@ impl IsolationStrategy for GitWorktreeIsolation {
     }
 }
 
-fn write_phase_spec_from_context(worktree_path: &std::path::Path, job: &JobContext) {
-    let dst_spec = worktree_path.join(".artifacts").join("job-spec.md");
+/// Materialize the job spec inside the worktree.
+///
+/// Priority:
+/// 1. `job.spec_content` — inline content from the JobCreatedPayload event.
+///    The preferred path: specs travel in events, not via shared disk.
+/// 2. Legacy fallback: read `job.spec_path` from the main checkout (manual
+///    dispatch where a lead agent wrote the spec to disk).
+///
+/// Returns Err when a spec was expected but neither source produced content,
+/// so agents never launch against an empty spec silently.
+fn write_phase_spec_from_context(worktree_path: &std::path::Path, job: &JobContext) -> Result<()> {
+    let dst_spec = worktree_path.join(&job.spec_path);
+    if let Some(parent) = dst_spec.parent() {
+        std::fs::create_dir_all(parent)
+            .map_err(|e| anyhow::anyhow!("create spec dir {}: {e}", parent.display()))?;
+    }
+
+    if let Some(content) = &job.spec_content {
+        std::fs::write(&dst_spec, content)
+            .map_err(|e| anyhow::anyhow!("write inline spec to {}: {e}", dst_spec.display()))?;
+        return Ok(());
+    }
+
+    // Legacy: read from the project root on disk.
     let src = std::path::Path::new(&job.spec_path);
-    let content = if src.exists() {
-        std::fs::read_to_string(src).unwrap_or_default()
+    let content = if src.is_absolute() && src.exists() {
+        std::fs::read_to_string(src)
+            .map_err(|e| anyhow::anyhow!("read spec {}: {e}", src.display()))?
     } else {
-        let parent = worktree_path.parent().and_then(|p| p.parent());
-        if let Some(root) = parent {
-            let alt = root.join(&job.spec_path);
-            std::fs::read_to_string(&alt).unwrap_or_default()
-        } else {
-            String::new()
+        let root = worktree_path
+            .parent()
+            .and_then(|p| p.parent())
+            .ok_or_else(|| anyhow::anyhow!("cannot locate project root from {}", worktree_path.display()))?;
+        let alt = root.join(&job.spec_path);
+        if !alt.exists() {
+            tracing::warn!(
+                slug = job.slug,
+                spec_path = job.spec_path,
+                "no inline spec_content and no spec on disk — worktree will have empty spec"
+            );
+            return Ok(());
         }
+        std::fs::read_to_string(&alt)
+            .map_err(|e| anyhow::anyhow!("read spec {}: {e}", alt.display()))?
     };
-    let _ = std::fs::write(&dst_spec, &content);
+
+    std::fs::write(&dst_spec, &content)
+        .map_err(|e| anyhow::anyhow!("write spec to {}: {e}", dst_spec.display()))?;
+    Ok(())
 }

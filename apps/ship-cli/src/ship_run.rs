@@ -67,7 +67,8 @@ pub fn run(opts: RunOptions) -> Result<()> {
         "branch": branch,
         "spec_path": spec_path,
         "pipeline": pipeline_name,
-        "spec_content": spec_content,
+        "spec_content": if spec_content.is_empty() { None } else { Some(&spec_content) },
+        "vars": if vars.is_empty() { None } else { Some(&vars) },
     });
 
     match post_to_daemon("/api/runtime/jobs", &body) {

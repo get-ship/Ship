@@ -195,6 +195,11 @@ pub struct JobCreatedPayload {
     /// Job-level variables for pipeline step interpolation. Override step-level vars.
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub vars: Option<std::collections::HashMap<String, String>>,
+    /// Inline spec content. When present, the worktree adapter writes this to
+    /// `spec_path` at dispatch time. Makes jobs self-contained across worktree
+    /// boundaries — no reliance on gitignored files existing in the main checkout.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub spec_content: Option<String>,
 }
 
 /// Emitted when the job is assigned to a worktree and (optionally) a process.

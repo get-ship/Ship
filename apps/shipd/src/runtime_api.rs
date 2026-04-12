@@ -214,10 +214,13 @@ pub struct CreateJobRequest {
     pub depends_on: Option<Vec<String>>,
     pub pipeline: Option<String>,
     pub provider: Option<String>,
-    /// Inline spec content. When provided, written to `spec_path` in the
-    /// project root before dispatch so the isolation strategy can copy it
-    /// into the worktree.
+    /// Inline spec content. Travels in the JobCreated event; the worktree
+    /// adapter writes it to `spec_path` at dispatch time.
     pub spec_content: Option<String>,
+    /// Pipeline variables for `{{ var }}` interpolation in step fields.
+    /// Merged over pipeline-file defaults; CLI `--var` flags land here.
+    #[serde(default)]
+    pub vars: Option<std::collections::HashMap<String, String>>,
 }
 
 /// GET /api/runtime/jobs
@@ -362,18 +365,6 @@ pub async fn create_job(
     if let Err(e) = require_scope(&auth, Scope::CreateJobs) {
         return e;
     }
-    // Write inline spec content to the project root so the isolation strategy
-    // can copy it into the worktree during dispatch.
-    if let Some(ref content) = req.spec_content
-        && let Ok(project_dir) = runtime::project::get_project_dir(None)
-    {
-        let spec_dest = project_dir.parent().unwrap_or(&project_dir).join(&req.spec_path);
-        if let Some(parent) = spec_dest.parent() {
-            let _ = std::fs::create_dir_all(parent);
-        }
-        let _ = std::fs::write(&spec_dest, content);
-    }
-
     let job_id = runtime::gen_ulid();
     let payload = JobCreatedPayload {
         job_id: job_id.clone(),
@@ -388,7 +379,8 @@ pub async fn create_job(
         pipeline: None,
         steps: None,
         pipeline_name: req.pipeline,
-        vars: None,
+        vars: req.vars,
+        spec_content: req.spec_content,
     };
 
     // Enrich with pipeline BEFORE persisting — the persisted event must include steps
@@ -1024,6 +1016,7 @@ mod tests {
             steps: None,
             pipeline_name: None,
             vars: None,
+            spec_content: None,
         };
         let envelope = runtime::events::EventEnvelope::new(
             runtime::events::job::event_types::JOB_CREATED,
