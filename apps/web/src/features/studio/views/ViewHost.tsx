@@ -1,8 +1,18 @@
-// ViewHost — iframe container that bridges ship-sdk postMessage to daemon APIs.
-// Handles request/response proxying, SSE event forwarding, and theme sync.
+// ViewHost — iframe container that bridges ship-sdk postMessage to the
+// daemon via a parent-side ShipClient. Handles request/response proxying,
+// SSE event forwarding, and theme sync.
+//
+// NOTE: Phase 6 punts on formalizing `BridgeTransport` — the wire protocol
+// used between the iframe and this host is still the ad-hoc one defined
+// here (`{__ship, type:'request', method, params, seq}`). A follow-up
+// can move both sides onto a `BridgeTransport`-shaped client. For now
+// this component owns a real ShipClient (DirectTransport) and maps
+// postMessage methods onto its surface — so the daemon HTTP calls are
+// no longer duplicated between ViewMount and ViewHost.
 
-import { useRef, useEffect, useCallback } from 'react'
-import { DAEMON_BASE_URL, daemonFetch } from '#/lib/daemon-config'
+import { useRef, useEffect, useCallback, useMemo } from 'react'
+import { ShipClient } from '@ship/sdk'
+import { DAEMON_BASE_URL } from '#/lib/daemon-config'
 import { getResolvedTheme } from '#/features/studio/session/canvas-helpers'
 
 interface ViewHostProps {
@@ -15,46 +25,47 @@ interface ViewHostProps {
 export function ViewHost({ html, workspaceId }: ViewHostProps) {
   const iframeRef = useRef<HTMLIFrameElement>(null)
 
-  // Bridge postMessage requests from the view to daemon HTTP APIs.
+  const client = useMemo(
+    () => new ShipClient({ baseUrl: DAEMON_BASE_URL, activeWorkspace: workspaceId }),
+    [workspaceId],
+  )
+
+  useEffect(() => () => client.destroy(), [client])
+
+  // Bridge postMessage requests from the view to the parent ShipClient.
   const handleMessage = useCallback(async (e: MessageEvent) => {
-    const msg = e.data
+    const msg = e.data as
+      | { __ship?: boolean; type?: string; method?: string; params?: Record<string, unknown>; seq?: number }
+      | undefined
     if (!msg || !msg.__ship || msg.type !== 'request') return
 
     const iframe = iframeRef.current
     if (!iframe?.contentWindow) return
-    // Only handle messages from our iframe
     if (e.source !== iframe.contentWindow) return
 
     const { method, params, seq } = msg
     try {
-      const data = await routeRequest(method, params, workspaceId)
+      const data = await routeRequest(client, method ?? '', params, workspaceId)
       iframe.contentWindow.postMessage({ __ship: true, type: 'response', seq, data }, '*')
     } catch (err) {
       const error = err instanceof Error ? err.message : String(err)
       iframe.contentWindow.postMessage({ __ship: true, type: 'response', seq, error }, '*')
     }
-  }, [workspaceId])
+  }, [client, workspaceId])
 
   useEffect(() => {
     window.addEventListener('message', handleMessage)
     return () => window.removeEventListener('message', handleMessage)
   }, [handleMessage])
 
-  // Forward SSE events from daemon to the view iframe.
+  // Forward SSE events from the ShipClient to the view iframe.
   useEffect(() => {
     const iframe = iframeRef.current
     if (!iframe) return
-
-    const es = new EventSource(`${DAEMON_BASE_URL}/api/runtime/events`)
-    es.addEventListener('ship.event', (e: MessageEvent) => {
-      try {
-        const envelope = JSON.parse(e.data as string)
-        iframe.contentWindow?.postMessage({ __ship: true, type: 'event', envelope }, '*')
-      } catch { /* ignore malformed */ }
+    return client.onEvent((envelope) => {
+      iframe.contentWindow?.postMessage({ __ship: true, type: 'event', envelope }, '*')
     })
-
-    return () => es.close()
-  }, [])
+  }, [client])
 
   // Sync theme to iframe on load and on host theme changes.
   const postTheme = useCallback(() => {
@@ -86,52 +97,32 @@ export function ViewHost({ html, workspaceId }: ViewHostProps) {
   )
 }
 
-// Route SDK method calls to daemon HTTP endpoints.
-async function routeRequest(method: string, params: Record<string, unknown> | undefined, activeWsId?: string): Promise<unknown> {
+// Route SDK method calls to the parent-side ShipClient.
+async function routeRequest(
+  client: ShipClient,
+  method: string,
+  params: Record<string, unknown> | undefined,
+  activeWsId?: string,
+): Promise<unknown> {
   switch (method) {
     case 'workspace.active':
       return activeWsId ?? null
-
-    case 'jobs.list': {
-      const res = await daemonFetch(`/api/runtime/jobs`)
-      if (!res.ok) throw new Error(`jobs.list: ${res.status}`)
-      const body = await res.json() as { ok: boolean; data: { jobs: unknown[] } }
-      return body.data.jobs
-    }
-
-    case 'jobs.create': {
-      const res = await daemonFetch(`/api/runtime/jobs`, {
-        method: 'POST',
-        body: JSON.stringify(params),
-      })
-      if (!res.ok) throw new Error(`jobs.create: ${res.status}`)
-      return await res.json()
-    }
-
+    case 'jobs.list':
+      return client.getJobs()
+    case 'jobs.create':
+      return client.createJob(params ?? {})
     case 'events.emit': {
       const p = params as { event_type: string; entity_id: string; payload: unknown }
-      const res = await daemonFetch(`/api/events/emit`, {
-        method: 'POST',
-        body: JSON.stringify(p),
-      })
-      if (!res.ok) throw new Error(`events.emit: ${res.status}`)
-      return await res.json()
+      return client.emitEvent(p.event_type, p.entity_id, p.payload)
     }
-
     case 'files.list': {
       const p = params as { workspace_id: string }
-      const res = await daemonFetch(`/api/workspaces/${encodeURIComponent(p.workspace_id)}/session-files`)
-      if (!res.ok) throw new Error(`files.list: ${res.status}`)
-      return await res.json()
+      return client.getSessionFiles(p.workspace_id)
     }
-
     case 'files.read': {
       const p = params as { workspace_id: string; path: string }
-      const res = await daemonFetch(`/api/workspaces/${encodeURIComponent(p.workspace_id)}/session-files/${p.path}`)
-      if (!res.ok) throw new Error(`files.read: ${res.status}`)
-      return await res.json()
+      return client.readFile(p.workspace_id, p.path)
     }
-
     default:
       throw new Error(`unknown method: ${method}`)
   }
