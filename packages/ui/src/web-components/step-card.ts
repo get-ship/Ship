@@ -1,21 +1,21 @@
-import { TOKENS, FONT_STACK, MONO_STACK, defineOnce } from './tokens'
+import { MONO_STACK, defineOnce } from './util'
 
 type Status = 'pending' | 'running' | 'completed' | 'failed'
 type StepType = 'agent' | 'gate' | 'merge' | 'run' | 'human'
 
 const STATUS_ICON: Record<Status, { glyph: string; color: string }> = {
-  pending:   { glyph: '○', color: TOKENS.mutedForeground },
-  running:   { glyph: '◐', color: TOKENS.primary },
-  completed: { glyph: '●', color: TOKENS.success },
-  failed:    { glyph: '✕', color: TOKENS.destructive },
+  pending:   { glyph: '○', color: 'var(--muted-foreground)' },
+  running:   { glyph: '◐', color: 'var(--primary)' },
+  completed: { glyph: '●', color: 'var(--success)' },
+  failed:    { glyph: '✕', color: 'var(--destructive)' },
 }
 
 const TYPE_COLOR: Record<StepType, string> = {
-  agent: TOKENS.accent,
-  gate: TOKENS.warning,
-  merge: TOKENS.info,
-  run: TOKENS.primary,
-  human: TOKENS.mutedForeground,
+  agent: 'var(--accent)',
+  gate: 'var(--warning)',
+  merge: 'var(--info)',
+  run: 'var(--primary)',
+  human: 'var(--muted-foreground)',
 }
 
 export class ShipStepCard extends HTMLElement {
@@ -45,7 +45,7 @@ export class ShipStepCard extends HTMLElement {
     const selected = this.hasAttribute('selected')
 
     const icon = STATUS_ICON[status] || STATUS_ICON.pending
-    const typeColor = TYPE_COLOR[type] || TOKENS.mutedForeground
+    const typeColor = TYPE_COLOR[type] || 'var(--muted-foreground)'
 
     const evidence: string[] = []
     if (agent) evidence.push(`<span class="evi">${agent}</span>`)
@@ -61,13 +61,13 @@ export class ShipStepCard extends HTMLElement {
         .card {
           display: flex; align-items: center; gap: 10px;
           padding: 10px 12px;
-          background: ${TOKENS.card};
-          color: ${TOKENS.cardForeground};
-          border: 1px solid ${selected ? TOKENS.primary : TOKENS.border};
-          border-radius: ${TOKENS.radius};
-          font-family: ${FONT_STACK};
+          background: var(--card);
+          color: var(--card-foreground);
+          border: 1px solid ${selected ? 'var(--primary)' : 'var(--border)'};
+          border-radius: var(--radius);
+          font-family: var(--font-body);
           font-size: 13px;
-          box-shadow: ${selected ? `0 0 0 1px ${TOKENS.primary}` : 'none'};
+          box-shadow: ${selected ? '0 0 0 1px var(--primary)' : 'none'};
           transition: border-color 120ms ease, box-shadow 120ms ease;
         }
         .icon {
@@ -90,7 +90,7 @@ export class ShipStepCard extends HTMLElement {
           border-radius: 999px;
           background: color-mix(in oklch, ${typeColor} 10%, transparent);
         }
-        .evidence { display: flex; gap: 8px; color: ${TOKENS.mutedForeground}; font-size: 11px; }
+        .evidence { display: flex; gap: 8px; color: var(--muted-foreground); font-size: 11px; }
         .evi:not(:last-child)::after { content: '·'; margin-left: 8px; }
         @keyframes spin { to { transform: rotate(360deg); } }
       </style>

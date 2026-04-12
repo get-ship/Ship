@@ -124,7 +124,14 @@ fn scan_views_dir(dir: &PathBuf, source: &'static str, out: &mut HashMap<String,
 const DATASTAR_JS: &str = include_str!("../assets/datastar.js");
 
 /// Shared design tokens + base styles for all daemon-served views.
-const VIEW_TOKENS_CSS: &str = include_str!("../assets/view-tokens.css");
+/// Canonical OKLCH palette is sourced from `@ship/ui/tokens.css` so Studio,
+/// daemon views, and web components can never drift. View-scoped base rules
+/// live alongside in `assets/view-tokens.css`.
+const VIEW_TOKENS_CSS: &str = concat!(
+    include_str!("../../../packages/ui/src/tokens.css"),
+    "\n",
+    include_str!("../assets/view-tokens.css"),
+);
 
 /// GET /api/runtime/assets/datastar.js
 pub async fn serve_datastar_js() -> axum::response::Response {

@@ -1,4 +1,4 @@
-import { TOKENS, FONT_STACK, defineOnce } from './tokens'
+import { defineOnce } from './util'
 
 export class ShipTabs extends HTMLElement {
   static get observedAttributes() { return ['active'] }
@@ -46,10 +46,10 @@ export class ShipTabs extends HTMLElement {
 
     this.root.innerHTML = `
       <style>
-        :host { display: block; font-family: ${FONT_STACK}; }
+        :host { display: block; font-family: var(--font-body); }
         .tablist {
           display: flex; gap: 2px;
-          border-bottom: 1px solid ${TOKENS.border};
+          border-bottom: 1px solid var(--border);
           margin-bottom: 12px;
         }
         button {
@@ -57,20 +57,20 @@ export class ShipTabs extends HTMLElement {
           font-size: 13px; font-weight: 500;
           padding: 8px 14px;
           background: transparent;
-          color: ${TOKENS.mutedForeground};
+          color: var(--muted-foreground);
           border: none;
           border-bottom: 2px solid transparent;
           margin-bottom: -1px;
           cursor: pointer;
           transition: color 120ms ease, border-color 120ms ease;
         }
-        button:hover { color: ${TOKENS.foreground}; }
+        button:hover { color: var(--foreground); }
         button[aria-selected='true'] {
-          color: ${TOKENS.foreground};
-          border-bottom-color: ${TOKENS.primary};
+          color: var(--foreground);
+          border-bottom-color: var(--primary);
         }
         button:focus-visible {
-          outline: 2px solid ${TOKENS.primary};
+          outline: 2px solid var(--primary);
           outline-offset: -2px;
           border-radius: 4px;
         }

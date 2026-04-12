@@ -1,13 +1,13 @@
-import { TOKENS, FONT_STACK, MONO_STACK, defineOnce } from './tokens'
+import { MONO_STACK, defineOnce } from './util'
 
 type FileStatus = 'M' | 'A' | 'D' | 'R' | '?'
 
 const STATUS_META: Record<FileStatus, { label: string; color: string; title: string }> = {
-  M: { label: 'M', color: TOKENS.warning, title: 'Modified' },
-  A: { label: 'A', color: TOKENS.success, title: 'Added' },
-  D: { label: 'D', color: TOKENS.destructive, title: 'Deleted' },
-  R: { label: 'R', color: TOKENS.info, title: 'Renamed' },
-  '?': { label: '?', color: TOKENS.mutedForeground, title: 'Untracked' },
+  M: { label: 'M', color: 'var(--warning)', title: 'Modified' },
+  A: { label: 'A', color: 'var(--success)', title: 'Added' },
+  D: { label: 'D', color: 'var(--destructive)', title: 'Deleted' },
+  R: { label: 'R', color: 'var(--info)', title: 'Renamed' },
+  '?': { label: '?', color: 'var(--muted-foreground)', title: 'Untracked' },
 }
 
 export class ShipFileRow extends HTMLElement {
@@ -43,12 +43,12 @@ export class ShipFileRow extends HTMLElement {
         .row {
           display: flex; align-items: center; gap: 8px;
           padding: 6px 10px;
-          font-family: ${FONT_STACK};
+          font-family: var(--font-body);
           font-size: 13px;
-          color: ${TOKENS.foreground};
-          border-radius: calc(${TOKENS.radius} - 4px);
+          color: var(--foreground);
+          border-radius: calc(var(--radius) - 4px);
         }
-        .row:hover { background: ${TOKENS.muted}; }
+        .row:hover { background: var(--muted); }
         .status {
           flex-shrink: 0;
           width: 18px; height: 18px;
@@ -72,8 +72,8 @@ export class ShipFileRow extends HTMLElement {
           font-family: ${MONO_STACK};
           font-size: 11.5px;
         }
-        .add { color: ${TOKENS.success}; }
-        .del { color: ${TOKENS.destructive}; }
+        .add { color: var(--success); }
+        .del { color: var(--destructive); }
       </style>
       <div class="row">
         <span class="status" title="${meta.title}">${meta.label}</span>

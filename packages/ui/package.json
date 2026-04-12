@@ -9,7 +9,8 @@
   "exports": {
     ".": "./src/index.ts",
     "./types": "./src/types.ts",
-    "./web-components": "./src/web-components/index.ts"
+    "./web-components": "./src/web-components/index.ts",
+    "./tokens.css": "./src/tokens.css"
   },
   "peerDependencies": {
     "react": "^19.0.0",

@@ -1,4 +1,4 @@
-import { TOKENS, FONT_STACK, defineOnce } from './tokens'
+import { defineOnce } from './util'
 
 /**
  * Icon name maps to a unicode/text glyph. Kept tiny and dependency-free;
@@ -37,23 +37,23 @@ export class ShipEmptyState extends HTMLElement {
           justify-content: center; gap: 10px;
           padding: 32px 16px;
           text-align: center;
-          font-family: ${FONT_STACK};
-          color: ${TOKENS.mutedForeground};
-          border: 1px dashed ${TOKENS.border};
-          border-radius: ${TOKENS.radius};
-          background: color-mix(in oklch, ${TOKENS.muted} 40%, transparent);
+          font-family: var(--font-body);
+          color: var(--muted-foreground);
+          border: 1px dashed var(--border);
+          border-radius: var(--radius);
+          background: color-mix(in oklch, var(--muted) 40%, transparent);
         }
         .icon {
           width: 44px; height: 44px;
           display: inline-flex; align-items: center; justify-content: center;
           font-size: 22px;
-          color: ${TOKENS.mutedForeground};
-          background: ${TOKENS.muted};
+          color: var(--muted-foreground);
+          background: var(--muted);
           border-radius: 999px;
         }
         .title {
           font-size: 14px; font-weight: 600;
-          color: ${TOKENS.foreground};
+          color: var(--foreground);
         }
         .desc { font-size: 13px; max-width: 42ch; line-height: 1.5; }
         .actions { margin-top: 4px; display: flex; gap: 8px; justify-content: center; }
