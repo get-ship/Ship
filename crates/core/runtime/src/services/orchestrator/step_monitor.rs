@@ -173,20 +173,21 @@ pub fn start_step_monitor(
                             turns += 1;
                             tracing::info!(
                                 slug = monitor.slug, turns,
-                                "step-monitor: turn ended (Stop hook)"
+                                "step-monitor: turn ended (Stop hook), starting settle"
                             );
-                            // Check for evidence. If we see commits, start
-                            // the settle timer. If not, just note the turn.
-                            let (commits, _) = scan_git_evidence(
-                                &monitor.work_dir, monitor.start_sha.as_deref(),
+                            // Turn ended — always start the settle timer.
+                            // Evidence determines the verdict at settle time
+                            // (commits, step_done, etc.). Previously this was
+                            // gated on `commits > 0`, which meant agents that
+                            // wrote files but didn't commit hung the pipeline
+                            // forever. Evidence is for the verdict; the
+                            // trigger is "agent stopped responding."
+                            //
+                            // Late activity resets the deadline: if the agent
+                            // starts talking again, we wait again.
+                            settle_deadline = Some(
+                                tokio::time::Instant::now() + SETTLE_DURATION
                             );
-                            if commits > 0 || monitor.done_declared.load(Ordering::Acquire) {
-                                settle_deadline = Some(
-                                    tokio::time::Instant::now() + SETTLE_DURATION
-                                );
-                            }
-                            // If no commits yet, don't start settling —
-                            // the agent may still be working.
                         }
                         None => {
                             // Activity channel closed — continue waiting
