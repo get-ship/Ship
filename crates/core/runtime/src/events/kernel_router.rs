@@ -23,7 +23,7 @@ use anyhow::{Result, anyhow};
 use tokio::sync::mpsc;
 
 use crate::errors::KernelError;
-use crate::persistence::actor_store::{ActorStore, init_actor_db, raw_append};
+use crate::persistence::actor_store::{ActorStore, raw_append};
 use ship_types::envelope::EventEnvelope;
 use ship_kernel::Mailbox;
 use crate::events::validator::{EmitContext, EventValidator, is_kernel_event};
@@ -53,8 +53,15 @@ pub struct KernelRouter {
 
 impl KernelRouter {
     pub fn new(base_dir: PathBuf) -> Result<Self> {
-        let kernel_store_path = base_dir.join("kernel").join("events.db");
-        init_actor_db(&kernel_store_path)?;
+        // Kernel events land in platform.db alongside every other event.
+        // Actor isolation is a logical boundary (actor_id column), not a
+        // physical one. Ensure platform.db is initialised — this is the
+        // single event log for the whole runtime.
+        if !base_dir.exists() {
+            std::fs::create_dir_all(&base_dir)?;
+        }
+        crate::db::ensure_db_at(&base_dir)?;
+        let kernel_store_path = base_dir.join("platform.db");
         #[cfg(feature = "unstable")]
         crate::persistence::cursor::init_cursor_table(&kernel_store_path)?;
 
@@ -93,12 +100,9 @@ impl KernelRouter {
                 actor_id: actor_id.to_string(),
             });
         }
-        let db_path = self
-            .base_dir
-            .join("actors")
-            .join(actor_id)
-            .join("events.db");
-        init_actor_db(&db_path)?;
+        // Every actor queries the shared platform.db events table filtered
+        // by its own actor_id. No per-actor file is created.
+        let db_path = self.base_dir.join("platform.db");
 
         let (tx, rx) = mpsc::channel(MAILBOX_CAPACITY);
         self.mailboxes.insert(actor_id.to_string(), tx);
@@ -259,11 +263,11 @@ impl KernelRouter {
         &self.kernel_store_path
     }
 
-    pub(crate) fn actor_db_path(&self, actor_id: &str) -> PathBuf {
-        self.base_dir
-            .join("actors")
-            .join(actor_id)
-            .join("events.db")
+    /// Path for an actor's events. In the single-event-log architecture this
+    /// always returns platform.db — actor isolation is by `actor_id` column,
+    /// not by file. The helper exists so callers can switch in tests.
+    pub(crate) fn actor_db_path(&self, _actor_id: &str) -> PathBuf {
+        self.base_dir.join("platform.db")
     }
 
     /// Enforce write namespace permissions using actor_configs.

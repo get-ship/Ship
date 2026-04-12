@@ -44,22 +44,28 @@ impl ActorSnapshot {
     }
 }
 
-/// Count events and return the last event ID from a DB path.
+/// Count events and return the last event ID for a specific actor.
 ///
-/// Used by `KernelRouter::snapshot` to populate snapshot metadata.
-pub(crate) fn event_stats(db_path: &Path) -> Result<(u64, Option<String>)> {
+/// Used by `KernelRouter::snapshot` to populate snapshot metadata. Filters
+/// by `actor_id` so counts reflect this actor's log only — kernel-emitted
+/// events ABOUT the actor (e.g. `kernel.actor.snapshot`) are not included.
+pub(crate) fn event_stats(db_path: &Path, actor_id: &str) -> Result<(u64, Option<String>)> {
     use crate::db::{block_on, open_db_at};
 
     let mut conn = open_db_at(db_path)?;
     let count: i64 = block_on(async {
-        sqlx::query_scalar("SELECT COUNT(*) FROM events")
+        sqlx::query_scalar("SELECT COUNT(*) FROM events WHERE actor_id = ?")
+            .bind(actor_id)
             .fetch_one(&mut conn)
             .await
     })?;
     let last_id: Option<String> = block_on(async {
-        sqlx::query_scalar("SELECT id FROM events ORDER BY id DESC LIMIT 1")
-            .fetch_optional(&mut conn)
-            .await
+        sqlx::query_scalar(
+            "SELECT id FROM events WHERE actor_id = ? ORDER BY id DESC LIMIT 1",
+        )
+        .bind(actor_id)
+        .fetch_optional(&mut conn)
+        .await
     })?;
     Ok((count as u64, last_id))
 }

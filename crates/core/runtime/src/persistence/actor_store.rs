@@ -1,15 +1,16 @@
 //! ActorStore — scoped event handle for a single actor.
 //!
-//! Wraps an isolated SQLite DB file in the actor's directory. Enforces
-//! namespace boundaries on writes and typed-filter reads. The kernel creates
-//! `ActorStore` instances via `KernelRouter::spawn_actor`; actors never
-//! construct their own.
+//! Writes and queries delegate to the shared platform.db `events` table. The
+//! `ActorStore` enforces namespace boundaries on writes and filters reads by
+//! the owning actor's `actor_id`. No per-actor SQLite files are created —
+//! the actor is a logical boundary over a shared log.
+//!
+//! The kernel creates `ActorStore` instances via `KernelRouter::spawn_actor`;
+//! actors never construct their own.
 
 use anyhow::{Result, anyhow};
-use sqlx::{Connection, QueryBuilder};
-use sqlx::sqlite::SqliteConnectOptions;
+use sqlx::QueryBuilder;
 use std::path::{Path, PathBuf};
-use std::str::FromStr;
 
 use crate::db::envelope::envelope_from_row;
 use crate::db::{block_on, open_db_at};
@@ -48,18 +49,17 @@ impl ActorStore {
         }
     }
 
-    /// Open (or create) an ActorStore for the given actor.
+    /// Open an ActorStore for the given actor, backed by platform.db.
     ///
-    /// `base_dir` is the global Ship directory (e.g. `~/.ship`).
-    /// The DB is created at `{base_dir}/actors/{actor_id}/events.db`.
+    /// `base_dir` is the global Ship directory (e.g. `~/.ship`). Platform.db
+    /// must have been initialised already (via `runtime::db::ensure_db_at`).
     pub fn open(
         actor_id: &str,
         base_dir: &Path,
         write_namespaces: Vec<String>,
         read_namespaces: Vec<String>,
     ) -> Result<Self> {
-        let db_path = base_dir.join("actors").join(actor_id).join("events.db");
-        init_actor_db(&db_path)?;
+        let db_path = base_dir.join("platform.db");
         Ok(Self::new(actor_id, db_path, write_namespaces, read_namespaces))
     }
 
@@ -72,20 +72,33 @@ impl ActorStore {
     }
 
     /// Persist an event. Rejects `event_type` outside `write_namespaces`.
+    ///
+    /// The event is stamped with this actor's `actor_id` before writing —
+    /// logical isolation requires every row in the shared events table know
+    /// which actor wrote it. Any pre-existing `actor_id` on the envelope is
+    /// overwritten so a store can't launder events for another actor.
     pub fn append(&self, event: &EventEnvelope) -> Result<()> {
         self.check_write_namespace(&event.event_type)?;
-        raw_append(&self.db_path, event)
+        let mut stamped = event.clone();
+        stamped.actor_id = Some(self.actor_id.clone());
+        raw_append(&self.db_path, &stamped)
     }
 
-    /// Query this actor's store only.
+    /// Query events owned by this actor.
     ///
-    /// If `filter.event_type` is set it must be covered by `read_namespaces`.
-    /// Unfiltered queries return all events in this actor's DB.
+    /// All queries against platform.db are scoped to `actor_id = self.actor_id`
+    /// — an ActorStore is a filter view over the shared log, not a private
+    /// store. If `filter.event_type` is set it must be covered by
+    /// `read_namespaces`.
     pub fn query(&self, filter: &EventFilter) -> Result<Vec<EventEnvelope>> {
         if let Some(ref et) = filter.event_type {
             self.check_read_namespace(et)?;
         }
-        query_db(&self.db_path, filter)
+        // Override any caller-supplied actor_id filter with our own — an
+        // ActorStore is the actor's view, not a general query API.
+        let mut scoped = filter.clone();
+        scoped.actor_id = Some(self.actor_id.clone());
+        query_db(&self.db_path, &scoped)
     }
 
     fn check_write_namespace(&self, event_type: &str) -> Result<()> {
@@ -122,8 +135,10 @@ impl ActorStore {
 // ── Internal helpers ──────────────────────────────────────────────────────────
 
 /// Write an event to a DB path without namespace enforcement.
-/// Used by `ActorStore::append` (after it has already checked namespaces)
-/// and by `KernelRouter::route` for the kernel store.
+/// Used by `ActorStore::append` (after namespace check) and by
+/// `KernelRouter::route` for kernel-namespace events. In the single-event-log
+/// architecture the `db_path` is always platform.db; the parameter is kept
+/// so tests can target a temp DB.
 pub(crate) fn raw_append(db_path: &Path, event: &EventEnvelope) -> Result<()> {
     let mut conn = open_db_at(db_path)?;
     let created_at = event.created_at.to_rfc3339();
@@ -193,57 +208,3 @@ fn query_db(db_path: &Path, filter: &EventFilter) -> Result<Vec<EventEnvelope>> 
     rows.iter().map(|r| envelope_from_row(r, true)).collect()
 }
 
-/// Initialise an actor's SQLite DB at `path`, running actor-scoped migrations.
-/// Idempotent — safe to call on an already-initialised DB.
-pub(crate) fn init_actor_db(path: &Path) -> Result<()> {
-    use anyhow::Context;
-
-    if let Some(parent) = path.parent() {
-        std::fs::create_dir_all(parent)
-            .with_context(|| format!("failed to create actor db dir: {parent:?}"))?;
-    }
-
-    let raw_cow = path.to_string_lossy();
-    let raw_str = raw_cow.replace('\\', "/");
-    let raw = if raw_str.starts_with('/') {
-        raw_str
-    } else {
-        format!("/{raw_str}")
-    };
-    let url = format!("sqlite://{raw}");
-
-    let opts = SqliteConnectOptions::from_str(&url)
-        .with_context(|| format!("invalid sqlite url: {url}"))?
-        .create_if_missing(true);
-    let mut conn = block_on(async { sqlx::SqliteConnection::connect_with(&opts).await })?;
-
-    block_on(async {
-        sqlx::query("PRAGMA journal_mode = WAL")
-            .execute(&mut conn)
-            .await
-    })?;
-    block_on(async {
-        sqlx::query("PRAGMA foreign_keys = ON")
-            .execute(&mut conn)
-            .await
-    })?;
-
-    // Migrations are run by sqlx with version tracking. If migration files
-    // on disk don't match what was previously applied, let sqlx fail loudly —
-    // do NOT drop _sqlx_migrations. Silent schema resets are how data gets
-    // lost. Phase 4 adds a dedicated `ship daemon reset-db` escape hatch.
-    if let Ok(handle) = tokio::runtime::Handle::try_current() {
-        tokio::task::block_in_place(|| {
-            handle
-                .block_on(sqlx::migrate!("./migrations/actor").run(&mut conn))
-                .map_err(|e| anyhow!("actor migration failed: {e}"))
-        })
-    } else {
-        let rt = tokio::runtime::Builder::new_current_thread()
-            .enable_time()
-            .build()
-            .map_err(|e| anyhow!("failed to create runtime: {e}"))?;
-        rt.block_on(sqlx::migrate!("./migrations/actor").run(&mut conn))
-            .map_err(|e| anyhow!("actor migration failed: {e}"))
-    }
-}

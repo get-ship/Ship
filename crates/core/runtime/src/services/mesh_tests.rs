@@ -3,19 +3,18 @@
 use tempfile::tempdir;
 use tokio::sync::mpsc;
 
-use crate::persistence::actor_store::init_actor_db;
 use crate::events::{ActorStore, EventEnvelope};
 use crate::services::mesh::{AgentStatus, MeshService};
 use crate::services::ServiceHandler;
 
-fn setup() -> (MeshService, mpsc::UnboundedReceiver<EventEnvelope>, ActorStore) {
+fn setup() -> (MeshService, mpsc::UnboundedReceiver<EventEnvelope>, ActorStore, tempfile::TempDir) {
     let (tx, rx) = mpsc::unbounded_channel();
     let svc = MeshService::new(tx);
     let tmp = tempdir().unwrap();
-    let db_path = tmp.path().join("events.db");
-    init_actor_db(&db_path).unwrap();
+    crate::db::ensure_db_at(tmp.path()).unwrap();
+    let db_path = tmp.path().join("platform.db");
     let store = ActorStore::new("mesh", db_path, vec!["mesh.".into()], vec!["mesh.".into()]);
-    (svc, rx, store)
+    (svc, rx, store, tmp)
 }
 
 fn ev(event_type: &str, entity: &str, payload: serde_json::Value) -> EventEnvelope {
@@ -59,7 +58,7 @@ fn drain(rx: &mut mpsc::UnboundedReceiver<EventEnvelope>) {
 
 #[test]
 fn register_adds_agent() {
-    let (mut svc, _rx, store) = setup();
+    let (mut svc, _rx, store, _tmp) = setup();
     svc.handle(&register_event("agent.rust", &["rust", "testing"]), &store)
         .unwrap();
     assert_eq!(svc.agent_count(), 1);
@@ -70,7 +69,7 @@ fn register_adds_agent() {
 
 #[test]
 fn deregister_removes_agent() {
-    let (mut svc, _rx, store) = setup();
+    let (mut svc, _rx, store, _tmp) = setup();
     svc.handle(&register_event("agent.rust", &["rust"]), &store)
         .unwrap();
     svc.handle(&deregister_event("agent.rust"), &store).unwrap();
@@ -79,7 +78,7 @@ fn deregister_removes_agent() {
 
 #[test]
 fn duplicate_register_updates_entry() {
-    let (mut svc, _rx, store) = setup();
+    let (mut svc, _rx, store, _tmp) = setup();
     svc.handle(&register_event("agent.rust", &["rust"]), &store)
         .unwrap();
     svc.handle(&register_event("agent.rust", &["rust", "wasm"]), &store)
@@ -91,7 +90,7 @@ fn duplicate_register_updates_entry() {
 
 #[test]
 fn status_updates_agent() {
-    let (mut svc, _rx, store) = setup();
+    let (mut svc, _rx, store, _tmp) = setup();
     svc.handle(&register_event("agent.rust", &["rust"]), &store)
         .unwrap();
     svc.handle(&status_event("agent.rust", "busy"), &store)
@@ -101,7 +100,7 @@ fn status_updates_agent() {
 
 #[test]
 fn status_unknown_agent_is_noop() {
-    let (mut svc, _rx, store) = setup();
+    let (mut svc, _rx, store, _tmp) = setup();
     svc.handle(&status_event("agent.ghost", "idle"), &store)
         .unwrap();
     assert_eq!(svc.agent_count(), 0);
@@ -109,7 +108,7 @@ fn status_unknown_agent_is_noop() {
 
 #[test]
 fn send_to_registered_agent_emits_message() {
-    let (mut svc, mut rx, store) = setup();
+    let (mut svc, mut rx, store, _tmp) = setup();
     svc.handle(&register_event("agent.reviewer", &["review"]), &store)
         .unwrap();
     drain(&mut rx);
@@ -129,7 +128,7 @@ fn send_to_registered_agent_emits_message() {
 
 #[test]
 fn send_to_unknown_agent_emits_failed() {
-    let (mut svc, mut rx, store) = setup();
+    let (mut svc, mut rx, store, _tmp) = setup();
     svc.handle(
         &send_event("agent.rust", "agent.ghost", serde_json::json!({})),
         &store,
@@ -145,7 +144,7 @@ fn send_to_unknown_agent_emits_failed() {
 
 #[test]
 fn broadcast_delivers_to_all_except_sender() {
-    let (mut svc, mut rx, store) = setup();
+    let (mut svc, mut rx, store, _tmp) = setup();
     svc.handle(&register_event("agent.a", &["rust"]), &store).unwrap();
     svc.handle(&register_event("agent.b", &["rust"]), &store).unwrap();
     svc.handle(&register_event("agent.c", &["go"]), &store).unwrap();
@@ -168,7 +167,7 @@ fn broadcast_delivers_to_all_except_sender() {
 
 #[test]
 fn broadcast_with_capability_filter() {
-    let (mut svc, mut rx, store) = setup();
+    let (mut svc, mut rx, store, _tmp) = setup();
     svc.handle(&register_event("agent.a", &["rust"]), &store).unwrap();
     svc.handle(&register_event("agent.b", &["rust"]), &store).unwrap();
     svc.handle(&register_event("agent.c", &["go"]), &store).unwrap();
@@ -189,7 +188,7 @@ fn broadcast_with_capability_filter() {
 
 #[test]
 fn broadcast_without_filter_excludes_sender() {
-    let (mut svc, mut rx, store) = setup();
+    let (mut svc, mut rx, store, _tmp) = setup();
     svc.handle(&register_event("agent.only", &[]), &store).unwrap();
     drain(&mut rx);
 
@@ -204,7 +203,7 @@ fn broadcast_without_filter_excludes_sender() {
 
 #[test]
 fn discover_returns_all_agents() {
-    let (mut svc, mut rx, store) = setup();
+    let (mut svc, mut rx, store, _tmp) = setup();
     svc.handle(&register_event("agent.a", &["rust"]), &store).unwrap();
     svc.handle(&register_event("agent.b", &["go"]), &store).unwrap();
     drain(&mut rx);
@@ -221,7 +220,7 @@ fn discover_returns_all_agents() {
 
 #[test]
 fn discover_filters_by_capability() {
-    let (mut svc, mut rx, store) = setup();
+    let (mut svc, mut rx, store, _tmp) = setup();
     svc.handle(&register_event("agent.a", &["rust"]), &store).unwrap();
     svc.handle(&register_event("agent.b", &["go"]), &store).unwrap();
     drain(&mut rx);
@@ -238,7 +237,7 @@ fn discover_filters_by_capability() {
 
 #[test]
 fn discover_filters_by_status() {
-    let (mut svc, mut rx, store) = setup();
+    let (mut svc, mut rx, store, _tmp) = setup();
     svc.handle(&register_event("agent.a", &["rust"]), &store).unwrap();
     svc.handle(&register_event("agent.b", &["rust"]), &store).unwrap();
     svc.handle(&status_event("agent.b", "busy"), &store).unwrap();
@@ -256,7 +255,7 @@ fn discover_filters_by_status() {
 
 #[test]
 fn discover_filters_by_capability_and_status() {
-    let (mut svc, mut rx, store) = setup();
+    let (mut svc, mut rx, store, _tmp) = setup();
     svc.handle(&register_event("agent.a", &["rust"]), &store).unwrap();
     svc.handle(&register_event("agent.b", &["rust"]), &store).unwrap();
     svc.handle(&status_event("agent.a", "idle"), &store).unwrap();
@@ -284,7 +283,7 @@ fn service_name_is_mesh() {
 
 #[test]
 fn unknown_mesh_event_is_ignored() {
-    let (mut svc, _rx, store) = setup();
+    let (mut svc, _rx, store, _tmp) = setup();
     let event = EventEnvelope::new("mesh.unknown.thing", "x", &serde_json::json!({})).unwrap();
     svc.handle(&event, &store).unwrap();
     assert_eq!(svc.agent_count(), 0);
@@ -292,7 +291,7 @@ fn unknown_mesh_event_is_ignored() {
 
 #[test]
 fn registered_agent_survives_malformed_events() {
-    let (mut svc, _rx, store) = setup();
+    let (mut svc, _rx, store, _tmp) = setup();
     svc.handle(&register_event("agent.rust", &["rust"]), &store).unwrap();
     // Malformed send (missing "to" field) — mesh should handle gracefully
     let bad = EventEnvelope::new("mesh.send", "agent.rust", &serde_json::json!({})).unwrap();
@@ -306,7 +305,7 @@ fn registered_agent_survives_malformed_events() {
 
 #[test]
 fn register_emits_mesh_registered_event() {
-    let (mut svc, mut rx, store) = setup();
+    let (mut svc, mut rx, store, _tmp) = setup();
     svc.handle(&register_event("agent.rust", &["rust", "testing"]), &store)
         .unwrap();
 
@@ -328,7 +327,7 @@ fn register_emits_mesh_registered_event() {
 
 #[test]
 fn deregister_emits_mesh_deregistered_event() {
-    let (mut svc, mut rx, store) = setup();
+    let (mut svc, mut rx, store, _tmp) = setup();
     svc.handle(&register_event("agent.rust", &["rust"]), &store)
         .unwrap();
     // Drain register event
@@ -349,7 +348,7 @@ fn deregister_emits_mesh_deregistered_event() {
 
 #[test]
 fn re_register_emits_mesh_registered_event_with_updated_capabilities() {
-    let (mut svc, mut rx, store) = setup();
+    let (mut svc, mut rx, store, _tmp) = setup();
     svc.handle(&register_event("agent.rust", &["rust"]), &store).unwrap();
     while rx.try_recv().is_ok() {}
 
@@ -369,7 +368,7 @@ fn re_register_emits_mesh_registered_event_with_updated_capabilities() {
 
 #[test]
 fn deregister_unknown_agent_does_not_emit_event() {
-    let (mut svc, mut rx, store) = setup();
+    let (mut svc, mut rx, store, _tmp) = setup();
     svc.handle(&deregister_event("agent.ghost"), &store).unwrap();
 
     // No mesh.deregistered event for unknown agent
@@ -382,7 +381,7 @@ fn deregister_unknown_agent_does_not_emit_event() {
 
 #[test]
 fn send_to_agent_with_full_mailbox_returns_mailbox_full() {
-    let (mut svc, mut rx, store) = setup();
+    let (mut svc, mut rx, store, _tmp) = setup();
     svc.handle(&register_event("agent.target", &[]), &store).unwrap();
 
     // The mesh service needs a way to detect that the target's mailbox is full.
@@ -418,7 +417,7 @@ fn send_to_agent_with_full_mailbox_returns_mailbox_full() {
 
 #[test]
 fn list_services_returns_all_registered() {
-    let (mut svc, _rx, store) = setup();
+    let (mut svc, _rx, store, _tmp) = setup();
     svc.handle(&register_event("agent.a", &["rust"]), &store).unwrap();
     svc.handle(&register_event("agent.b", &["go"]), &store).unwrap();
     svc.handle(&register_event("agent.c", &["typescript"]), &store).unwrap();
@@ -434,13 +433,13 @@ fn list_services_returns_all_registered() {
 
 #[test]
 fn list_services_returns_empty_when_none_registered() {
-    let (svc, _rx, _store) = setup();
+    let (svc, _rx, _store, _tmp) = setup();
     assert!(svc.list_agents().is_empty());
 }
 
 #[test]
 fn list_services_excludes_deregistered_agents() {
-    let (mut svc, _rx, store) = setup();
+    let (mut svc, _rx, store, _tmp) = setup();
     svc.handle(&register_event("agent.a", &["rust"]), &store).unwrap();
     svc.handle(&register_event("agent.b", &["go"]), &store).unwrap();
     svc.handle(&deregister_event("agent.a"), &store).unwrap();
@@ -452,13 +451,13 @@ fn list_services_excludes_deregistered_agents() {
 
 #[test]
 fn get_agent_returns_none_for_unknown() {
-    let (svc, _rx, _store) = setup();
+    let (svc, _rx, _store, _tmp) = setup();
     assert!(svc.get_agent("agent.ghost").is_none());
 }
 
 #[test]
 fn get_agent_returns_entry_with_current_status() {
-    let (mut svc, _rx, store) = setup();
+    let (mut svc, _rx, store, _tmp) = setup();
     svc.handle(&register_event("agent.rust", &["rust", "testing"]), &store)
         .unwrap();
     svc.handle(&status_event("agent.rust", "busy"), &store).unwrap();

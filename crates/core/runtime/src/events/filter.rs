@@ -1,6 +1,6 @@
 use chrono::{DateTime, Utc};
 
-#[derive(Debug, Default)]
+#[derive(Debug, Default, Clone)]
 pub struct EventFilter {
     pub entity_id: Option<String>,
     pub event_type: Option<String>,

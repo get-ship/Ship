@@ -157,7 +157,6 @@ impl ServiceHandler for SyncServiceHandler {
 mod tests {
     use super::*;
     use crate::db::{block_on, db_path, ensure_db, open_db_at};
-    use crate::persistence::actor_store::init_actor_db;
     use crate::project::init_project;
     use crate::sync::get_cursor;
     use tempfile::tempdir;
@@ -216,10 +215,14 @@ mod tests {
         .unwrap();
     }
 
-    fn make_store(tmp: &tempfile::TempDir) -> ActorStore {
-        let db = tmp.path().join("sync.db");
-        init_actor_db(&db).unwrap();
-        ActorStore::new("sync", db, vec!["sync.".into()], vec![])
+    fn make_store(_tmp: &tempfile::TempDir) -> ActorStore {
+        // Backed by the already-initialised global platform.db (setup_global_db).
+        ActorStore::new(
+            "sync",
+            db_path().unwrap(),
+            vec!["sync.".into()],
+            vec![],
+        )
     }
 
     #[test]
