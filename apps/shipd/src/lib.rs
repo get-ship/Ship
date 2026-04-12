@@ -18,6 +18,7 @@ pub mod rest_api;
 pub mod runtime_api;
 mod server;
 pub mod settings_api;
+pub mod pairing;
 pub mod ship_runtime;
 pub mod supervised;
 pub mod supervisor;
@@ -63,7 +64,28 @@ use std::sync::Arc;
 use tokio_util::sync::CancellationToken;
 
 /// Start the network daemon and block until shutdown (SIGINT/SIGTERM).
-pub async fn run_network(host: String, port: u16) -> Result<()> {
+///
+/// `dev` enables relaxed auth for local development (auto-pair, localhost-only).
+/// Never set `dev = true` in production.
+pub async fn run_network(host: String, port: u16, dev: bool) -> Result<()> {
+    if dev {
+        tracing::warn!(
+            "╔══════════════════════════════════════════════════════════════════╗"
+        );
+        tracing::warn!(
+            "║  SHIPD DEV MODE — auth relaxed, browser clients auto-pair        ║"
+        );
+        tracing::warn!(
+            "║  Listening on localhost only. NOT FOR PRODUCTION.                ║"
+        );
+        tracing::warn!(
+            "╚══════════════════════════════════════════════════════════════════╝"
+        );
+    }
+    // Dev mode forces localhost bind. Agents can set SHIP_HOST env vars,
+    // but they can't flip the --dev flag on the daemon process they didn't start.
+    let host = if dev { "127.0.0.1".to_string() } else { host };
+    pairing::set_dev_mode(dev);
     let global_dir = runtime::project::get_global_dir()?;
     cleanup_stale_daemon_files(&global_dir);
     let meta = ship_runtime::AppMetadata { global_dir: global_dir.clone() };
@@ -100,7 +122,15 @@ pub async fn run_network(host: String, port: u16) -> Result<()> {
     tokio::spawn(async move { shutdown_signal().await; ct2.cancel(); });
 
     let session_registry = rt.session_registry().clone();
-    let app = build_router(rt.clone(), token, hook_token, session_registry, ct.child_token());
+    let pairing_registry = pairing::new_shared();
+    let app = build_router(
+        rt.clone(),
+        token,
+        hook_token,
+        session_registry,
+        pairing_registry,
+        ct.child_token(),
+    );
     let addr = format!("{host}:{port}");
     tracing::info!("shipd: listening on http://{addr}/mcp");
     let listener = tokio::net::TcpListener::bind(&addr).await.map_err(|e| anyhow!("bind {addr}: {e}"))?;
@@ -121,6 +151,7 @@ fn build_router(
     token: Arc<String>,
     hook_token: Arc<String>,
     session_registry: auth::SessionRegistry,
+    pairing_registry: pairing::SharedPairingRegistry,
     mcp_ct: CancellationToken,
 ) -> Router {
     let kernel_factory = rt.kernel().clone();
@@ -155,13 +186,24 @@ fn build_router(
         .route("/capabilities", axum::routing::get(rest_api::capabilities));
 
     // Unauthenticated routes (before auth middleware)
-    let handshake_token = token.clone();
     let register_registry = session_registry.clone();
     let health_rt = rt.clone();
+    let pair_init_reg = pairing_registry.clone();
+    let pair_init_sessions = session_registry.clone();
+    let pair_status_reg = pairing_registry.clone();
     let public_routes = Router::new()
-        .route("/auth/handshake", axum::routing::post(move |body: axum::Json<auth::HandshakeRequest>| {
-            auth::handshake(body, handshake_token)
-        }))
+        .route(
+            "/auth/pair/init",
+            axum::routing::post(move |body: Option<axum::Json<auth::PairInitRequest>>| {
+                auth::pair_init(pair_init_reg.clone(), pair_init_sessions.clone(), body)
+            }),
+        )
+        .route(
+            "/auth/pair/status",
+            axum::routing::get(move |q: axum::extract::Query<auth::PairStatusQuery>| {
+                auth::pair_status(pair_status_reg.clone(), q)
+            }),
+        )
         .route("/api/session/register", axum::routing::post(move |body: axum::Json<auth::SessionRegisterRequest>| {
             auth::session_register(register_registry, body)
         }))
@@ -172,7 +214,23 @@ fn build_router(
     let auth_token = token;
     let auth_hook_token = hook_token;
     let auth_registry = session_registry;
+    // Authenticated pair confirm — requires daemon.token bearer.
+    let pair_confirm_reg = pairing_registry.clone();
+    let pair_confirm_sessions = auth_registry.clone();
+    let pair_confirm_routes = Router::new().route(
+        "/auth/pair/confirm",
+        axum::routing::post(move |auth_ext: axum::Extension<auth::AuthContext>, body: axum::Json<auth::PairConfirmRequest>| {
+            auth::pair_confirm(
+                pair_confirm_reg.clone(),
+                pair_confirm_sessions.clone(),
+                auth_ext,
+                body,
+            )
+        }),
+    );
+
     let authenticated_routes = Router::new()
+        .nest("/api", pair_confirm_routes)
         .nest("/api", api_routes)
         .nest("/api", hook_routes)
         .nest("/api", webhook_routes)
@@ -467,6 +525,7 @@ async fn health_check(rt: Arc<ship_runtime::ShipRuntime>) -> Json<serde_json::Va
     Json(serde_json::json!({
         "healthy": all_healthy,
         "pid": std::process::id(),
+        "dev_mode": pairing::is_dev_mode(),
         "tasks": tasks,
     }))
 }

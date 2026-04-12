@@ -277,35 +277,187 @@ pub fn is_daemon_token(token: &str) -> bool {
     token.len() == 64 && token.chars().all(|c| c.is_ascii_hexdigit())
 }
 
-// ---- Handshake endpoint (unauthenticated, localhost only) ----
+// ---- Pairing endpoints ----
 
-#[derive(serde::Deserialize)]
-pub struct HandshakeRequest {
+use crate::pairing::{ClaimResult, ConfirmError, SharedPairingRegistry};
+
+#[derive(serde::Deserialize, Default)]
+pub struct PairInitRequest {
     #[serde(default)]
-    pub capabilities: Vec<String>,
+    pub client_label: Option<String>,
 }
 
 #[derive(serde::Serialize)]
-pub struct HandshakeResponse {
-    pub token: String,
-    pub granted: Vec<String>,
+pub struct PairInitResponse {
+    pub code: String,
+    pub claim_token: String,
+    pub code_expires_in_secs: u64,
+    pub dev_mode: bool,
 }
 
-/// POST /auth/handshake — returns the daemon token for localhost callers.
-/// No auth required. The SDK calls this to bootstrap authentication.
-pub async fn handshake(
-    body: axum::Json<HandshakeRequest>,
-    token: Arc<String>,
-) -> axum::Json<HandshakeResponse> {
-    let granted = if body.capabilities.contains(&"*".to_string()) {
-        vec!["*".to_string()]
-    } else {
-        body.capabilities.clone()
+#[derive(serde::Deserialize)]
+pub struct PairConfirmRequest {
+    pub code: String,
+}
+
+#[derive(serde::Serialize)]
+pub struct PairConfirmResponse {
+    pub ok: bool,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub error: Option<String>,
+}
+
+#[derive(serde::Deserialize)]
+pub struct PairStatusQuery {
+    pub claim_token: String,
+}
+
+#[derive(serde::Serialize)]
+#[serde(tag = "status", rename_all = "lowercase")]
+pub enum PairStatusResponse {
+    Pending,
+    Approved { session_token: String },
+    Expired,
+    Unknown,
+}
+
+/// POST /auth/pair/init — start a new pairing (unauthenticated).
+///
+/// In dev mode, the pairing is auto-approved: the response includes the
+/// session token directly via the pending approval, and the client can skip
+/// the confirmation step. This is signaled via `dev_mode: true`.
+pub async fn pair_init(
+    registry: SharedPairingRegistry,
+    session_registry: SessionRegistry,
+    body: Option<axum::Json<PairInitRequest>>,
+) -> Result<axum::Json<PairInitResponse>, (axum::http::StatusCode, &'static str)> {
+    let label = body.and_then(|b| b.0.client_label);
+    let dev_mode = crate::pairing::is_dev_mode();
+
+    let mut reg = registry.lock().await;
+    let pairing = reg
+        .init(label)
+        .map_err(|e| (axum::http::StatusCode::INTERNAL_SERVER_ERROR, e))?;
+
+    if dev_mode {
+        // Auto-approve: mint a session and bind it to the claim token.
+        let session_token = generate_session_token()
+            .map_err(|_| (axum::http::StatusCode::INTERNAL_SERVER_ERROR, "token gen failed"))?;
+        let _ = reg.confirm(&pairing.code, session_token.clone());
+        drop(reg);
+        use crate::scopes::DaemonSession;
+        let session = DaemonSession {
+            token: session_token,
+            agent_id: "studio-dev".to_string(),
+            scopes: crate::pairing::paired_session_scopes(),
+            workspace_id: None,
+            created_at: std::time::Instant::now(),
+        };
+        tracing::warn!(
+            "dev-mode: auto-paired browser client {:?}",
+            pairing.client_label
+        );
+        session_registry.lock().await.insert(session.token.clone(), session);
+    }
+
+    Ok(axum::Json(PairInitResponse {
+        code: pairing.code,
+        claim_token: pairing.claim_token,
+        code_expires_in_secs: crate::pairing::CODE_TTL.as_secs(),
+        dev_mode,
+    }))
+}
+
+/// POST /api/auth/pair/confirm — confirm a pending pairing (requires daemon
+/// token via auth middleware).
+pub async fn pair_confirm(
+    registry: SharedPairingRegistry,
+    session_registry: SessionRegistry,
+    axum::Extension(auth): axum::Extension<AuthContext>,
+    axum::Json(body): axum::Json<PairConfirmRequest>,
+) -> (axum::http::StatusCode, axum::Json<PairConfirmResponse>) {
+    // Only callers with Full scope (CLI via daemon token) may confirm.
+    if !auth.has_scope(Scope::Full) {
+        return (
+            axum::http::StatusCode::FORBIDDEN,
+            axum::Json(PairConfirmResponse {
+                ok: false,
+                error: Some("insufficient scope: daemon token required".into()),
+            }),
+        );
+    }
+
+    // Issue a session token up front; the registry binds it on success.
+    let session_token = match generate_session_token() {
+        Ok(t) => t,
+        Err(e) => {
+            return (
+                axum::http::StatusCode::INTERNAL_SERVER_ERROR,
+                axum::Json(PairConfirmResponse {
+                    ok: false,
+                    error: Some(format!("token generation failed: {e}")),
+                }),
+            );
+        }
     };
 
-    axum::Json(HandshakeResponse {
-        token: token.as_str().to_string(),
-        granted,
+    let mut reg = registry.lock().await;
+    match reg.confirm(&body.code, session_token.clone()) {
+        Ok(_claim) => {
+            drop(reg);
+            // Bind session in the auth registry so it's honored on subsequent requests.
+            use crate::scopes::DaemonSession;
+            let session = DaemonSession {
+                token: session_token,
+                agent_id: "studio".to_string(),
+                scopes: crate::pairing::paired_session_scopes(),
+                workspace_id: None,
+                created_at: std::time::Instant::now(),
+            };
+            session_registry.lock().await.insert(session.token.clone(), session);
+            (
+                axum::http::StatusCode::OK,
+                axum::Json(PairConfirmResponse { ok: true, error: None }),
+            )
+        }
+        Err(ConfirmError::UnknownCode) => (
+            axum::http::StatusCode::NOT_FOUND,
+            axum::Json(PairConfirmResponse {
+                ok: false,
+                error: Some("unknown or already-used code".into()),
+            }),
+        ),
+        Err(ConfirmError::CodeExpired) => (
+            axum::http::StatusCode::GONE,
+            axum::Json(PairConfirmResponse {
+                ok: false,
+                error: Some("pairing code expired".into()),
+            }),
+        ),
+        Err(ConfirmError::AlreadyApproved) => (
+            axum::http::StatusCode::CONFLICT,
+            axum::Json(PairConfirmResponse {
+                ok: false,
+                error: Some("pairing already approved".into()),
+            }),
+        ),
+    }
+}
+
+/// GET /auth/pair/status?claim_token=... — poll for approval (unauthenticated;
+/// the claim_token itself is the secret).
+pub async fn pair_status(
+    registry: SharedPairingRegistry,
+    axum::extract::Query(q): axum::extract::Query<PairStatusQuery>,
+) -> axum::Json<PairStatusResponse> {
+    let result = registry.lock().await.claim(&q.claim_token);
+    axum::Json(match result {
+        ClaimResult::Pending => PairStatusResponse::Pending,
+        ClaimResult::Approved { session_token } => {
+            PairStatusResponse::Approved { session_token }
+        }
+        ClaimResult::Expired => PairStatusResponse::Expired,
+        ClaimResult::Unknown => PairStatusResponse::Unknown,
     })
 }
 
