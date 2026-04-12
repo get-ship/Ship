@@ -32,7 +32,7 @@ mod vars;
 mod workspace_cmd;
 
 use anyhow::Result;
-use cli::{Cli, Commands, ConfigCommands, HookCommands, McpCommands, NetworkCommands, WorkspaceCommands};
+use cli::{Cli, Commands, ConfigCommands, HookCommands, McpCommands, WorkspaceCommands};
 #[cfg(feature = "unstable")]
 use cli::EventsCommands;
 use std::path::PathBuf;
@@ -80,29 +80,15 @@ fn dispatch(command: Option<Commands>) -> Result<()> {
                 with_skills,
             } => run_use(Some(&agent_id), path, with_skills),
             Commands::Status { path } => run_status(path),
-            Commands::Agents { .. } => removed_command(
-                "agents",
-                "Edit .ship/agents/ directly. See: ship docs agents",
-            ),
             Commands::Compile {
                 provider,
                 dry_run,
                 path,
             } => run_compile_cmd(provider.as_deref(), dry_run, path),
-            Commands::Skills { .. } => removed_command(
-                "skills",
-                "Edit .ship/skills/ directly or use ship.jsonc. See: ship docs skills",
-            ),
-            Commands::Vars { .. } => removed_command(
-                "vars",
-                "Manage skill variables in .ship/skills/ state files. See: ship docs skills",
-            ),
             Commands::Workspace { action } => dispatch_workspace(action),
             Commands::Mcp { action } => dispatch_mcp(action),
             Commands::Convert { source } => convert::run_convert(&source),
             Commands::Docs { topic } => help_topics::run(topic.as_deref()),
-            #[cfg(feature = "unstable")]
-            Commands::Adrs => run_adrs(),
             Commands::Publish {
                 export_path,
                 dry_run,
@@ -163,7 +149,6 @@ fn dispatch(command: Option<Commands>) -> Result<()> {
                 })
             }
             Commands::Hook { action } => dispatch_hook(action),
-            Commands::Network { action } => dispatch_network(action),
             Commands::Studio { port, open } => run_studio(port, open),
             Commands::Daemon { action } => {
                 use cli::DaemonCommands;
@@ -174,6 +159,7 @@ fn dispatch(command: Option<Commands>) -> Result<()> {
                     DaemonCommands::Status => DaemonCommand::Status,
                     DaemonCommands::Cleanup => DaemonCommand::Cleanup,
                     DaemonCommands::Run { host, port } => DaemonCommand::Run { host, port },
+                    DaemonCommands::Supervise { host } => DaemonCommand::Supervise { host },
                 };
                 run_daemon(cmd)
             }
@@ -341,14 +327,6 @@ fn run_status(path: Option<PathBuf>) -> Result<()> {
     Ok(())
 }
 
-// ── Removed commands ─────────────────────────────────────────────────────────
-
-fn removed_command(name: &str, guidance: &str) -> Result<()> {
-    eprintln!("Removed: `ship {name}` commands have been removed.");
-    eprintln!("{guidance}");
-    std::process::exit(1);
-}
-
 // ── Compile ───────────────────────────────────────────────────────────────────
 
 fn run_compile_cmd(provider: Option<&str>, dry_run: bool, path: Option<PathBuf>) -> Result<()> {
@@ -412,33 +390,7 @@ fn dispatch_mcp(action: McpCommands) -> Result<()> {
     }
 }
 
-// ── Network (deprecated) ─────────────────────────────────────────────────────
-
-fn dispatch_network(action: NetworkCommands) -> Result<()> {
-    let replacement = match action {
-        NetworkCommands::Serve { .. } => "ship daemon start",
-        NetworkCommands::Status => "ship daemon status",
-        NetworkCommands::Stop => "ship daemon stop",
-    };
-    eprintln!("`ship network` has been removed. Use `{replacement}` instead.");
-    std::process::exit(1);
-}
-
-// ── Hidden / legacy ──────────────────────────────────────────────────────────
-
-#[cfg(feature = "unstable")]
-fn run_adrs() -> Result<()> {
-    let _ship_dir = paths::project_ship_dir_required()?;
-    let adrs = runtime::db::adrs::list_adrs()?;
-    if adrs.is_empty() {
-        println!("No ADRs found.");
-    } else {
-        for entry in &adrs {
-            println!("{}\t[{}]\t{}", entry.id, entry.status, entry.title);
-        }
-    }
-    Ok(())
-}
+// ── Internal (not user-facing) ───────────────────────────────────────────────
 
 fn dispatch_hook(action: HookCommands) -> Result<()> {
     try_init_kernel_router();

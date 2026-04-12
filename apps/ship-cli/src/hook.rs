@@ -92,6 +92,9 @@ fn normalize_stdin(stdin: &str, hook_type: &str) -> serde_json::Value {
 }
 
 /// Read daemon connection info. Returns `(port, token)` if available.
+///
+/// For hooks, we don't auto-start — hooks must be fast and non-blocking.
+/// Use `crate::daemon::ensure_daemon()` for commands that can afford the wait.
 fn daemon_info() -> Option<(u16, String)> {
     let home = dirs::home_dir()?.join(".ship");
     let port_str = std::fs::read_to_string(home.join("daemon.port")).ok()?;

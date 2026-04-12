@@ -89,7 +89,7 @@ pub fn run(opts: RunOptions) -> Result<()> {
             }
         }
         Err(e) => {
-            bail!("failed to reach daemon: {e}\nIs `shipd` running? Try: ship daemon start");
+            bail!("failed to reach daemon: {e}\nTry: ship daemon start");
         }
     }
 
@@ -254,17 +254,9 @@ fn print_dry_run(
     }
 }
 
-/// POST JSON to the daemon API.
+/// POST JSON to the daemon API, auto-starting the daemon if needed.
 fn post_to_daemon(path: &str, body: &serde_json::Value) -> Result<serde_json::Value> {
-    let home = dirs::home_dir().unwrap_or_default().join(".ship");
-    let port = std::fs::read_to_string(home.join("daemon.port"))
-        .map_err(|_| anyhow::anyhow!("daemon port file not found"))?
-        .trim()
-        .to_string();
-    let token = std::fs::read_to_string(home.join("daemon.token"))
-        .map_err(|_| anyhow::anyhow!("daemon token file not found"))?
-        .trim()
-        .to_string();
+    let (port, token) = crate::daemon::ensure_daemon()?;
 
     let url = format!("http://127.0.0.1:{port}{path}");
     let resp: serde_json::Value = ureq::post(&url)
