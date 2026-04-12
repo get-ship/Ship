@@ -232,7 +232,7 @@ async fn emit_and_finish(
 
     let done_result = if done_declared { Some(true) } else { None };
     let verdict = StepObservedPayload::compute_verdict(
-        done_declared, done_result, exit_code, commits, &trigger,
+        done_declared, done_result, exit_code, commits, uncommitted, &trigger,
     );
     let duration_secs = monitor.started_at.elapsed().as_secs();
     let succeeded = verdict == StepVerdict::Advance;
