@@ -418,10 +418,11 @@ async fn capabilities_returns_unauthenticated_without_token() {
     let registry: crate::auth::SessionRegistry = std::sync::Arc::new(
         tokio::sync::Mutex::new(std::collections::HashMap::new()),
     );
+    let hook_token_arc = std::sync::Arc::new("ship_hook_test".to_string());
     let router = axum::Router::new()
         .route("/api/capabilities", axum::routing::get(|| async { "ok" }))
         .layer(axum::middleware::from_fn(move |req, next| {
-            crate::auth::auth_middleware(token_arc.clone(), registry.clone(), req, next)
+            crate::auth::auth_middleware(token_arc.clone(), hook_token_arc.clone(), registry.clone(), req, next)
         }));
 
     // Simulate a browser request from localhost — no token.

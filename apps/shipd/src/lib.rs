@@ -91,6 +91,7 @@ pub async fn run_network(host: String, port: u16) -> Result<()> {
             Arc::new(new_token)
         }
     };
+    let hook_token = Arc::new(auth::ensure_hook_token(&global_dir)?);
     write_port_file(&global_dir, port)?;
     write_pid_file(&global_dir)?;
 
@@ -99,7 +100,7 @@ pub async fn run_network(host: String, port: u16) -> Result<()> {
     tokio::spawn(async move { shutdown_signal().await; ct2.cancel(); });
 
     let session_registry = rt.session_registry().clone();
-    let app = build_router(rt.clone(), token, session_registry, ct.child_token());
+    let app = build_router(rt.clone(), token, hook_token, session_registry, ct.child_token());
     let addr = format!("{host}:{port}");
     tracing::info!("shipd: listening on http://{addr}/mcp");
     let listener = tokio::net::TcpListener::bind(&addr).await.map_err(|e| anyhow!("bind {addr}: {e}"))?;
@@ -118,6 +119,7 @@ pub async fn run_network(host: String, port: u16) -> Result<()> {
 fn build_router(
     rt: Arc<ship_runtime::ShipRuntime>,
     token: Arc<String>,
+    hook_token: Arc<String>,
     session_registry: auth::SessionRegistry,
     mcp_ct: CancellationToken,
 ) -> Router {
@@ -168,6 +170,7 @@ fn build_router(
         }));
 
     let auth_token = token;
+    let auth_hook_token = hook_token;
     let auth_registry = session_registry;
     let authenticated_routes = Router::new()
         .nest("/api", api_routes)
@@ -180,7 +183,7 @@ fn build_router(
         .nest("/api", project_routes)
         .nest_service("/mcp", service)
         .layer(axum::middleware::from_fn(move |req, next| {
-            auth::auth_middleware(auth_token.clone(), auth_registry.clone(), req, next)
+            auth::auth_middleware(auth_token.clone(), auth_hook_token.clone(), auth_registry.clone(), req, next)
         }));
 
     Router::new()
