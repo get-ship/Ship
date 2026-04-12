@@ -281,6 +281,33 @@ Then write the component, then write the tests, then wire the export
 through `packages/ui/src/web-components/index.ts` and
 `packages/ui/src/index.ts`.
 
+## Machine-readable catalog (Custom Elements Manifest)
+
+The full, current list of `<ship-*>` elements — with every attribute's
+type and default, every slot, every event's `detail` shape, and every
+exposed CSS custom property — is generated at build time and lives at:
+
+- **Repo:** `packages/ui/custom-elements.json`
+- **Daemon URL:** `GET /api/runtime/assets/custom-elements.json`
+
+This is the canonical reference for both humans and agents. IDE tooling
+(VS Code, JetBrains, lit-plugin, lsp-cem) consumes it for attribute
+autocomplete and type checking of HTML. Agents authoring daemon views
+should read it to ensure emitted markup is valid.
+
+**Regenerate** after any change to a `<ship-*>` element:
+
+```
+pnpm -F @ship/ui manifest
+```
+
+The `build` script runs this automatically.
+
+The manifest is bundled into this skill's context so agents reading the
+skill can answer "what attrs does `ship-button` accept?" without a
+network round-trip. When the manifest diverges from what you see here,
+trust the manifest — it's the source of truth.
+
 ## When this charter changes
 
 - Changes require a design discussion, not an inline edit.

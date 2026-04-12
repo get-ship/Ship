@@ -14,7 +14,8 @@
     "./tokens.css": "./src/tokens.css"
   },
   "scripts": {
-    "build": "tsc -p tsconfig.build.json",
+    "build": "tsc -p tsconfig.build.json && pnpm manifest",
+    "manifest": "custom-elements-manifest analyze --config custom-elements-manifest.config.mjs",
     "bundle:elements": "esbuild src/web-components/index.ts --bundle --format=esm --target=es2020 --outfile=../../apps/shipd/assets/ship-elements.js --log-level=warning",
     "test": "vitest run",
     "test:watch": "vitest",
@@ -29,10 +30,12 @@
     "lucide-react": "^0.575.0"
   },
   "devDependencies": {
+    "@custom-elements-manifest/analyzer": "^0.11.0",
     "@types/react": "^19.2.14",
     "@types/react-dom": "^19.1.6",
     "jsdom": "^28.1.0",
     "typescript": "~5.8.3",
     "vitest": "^3.2.4"
-  }
+  },
+  "customElements": "custom-elements.json"
 }

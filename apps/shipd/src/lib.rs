@@ -168,7 +168,8 @@ fn build_router(
         // Shared static assets — no user-specific data, safe to serve unauth.
         .route("/api/runtime/assets/datastar.js", axum::routing::get(views::serve_datastar_js))
         .route("/api/runtime/assets/view-tokens.css", axum::routing::get(views::serve_view_tokens))
-        .route("/api/runtime/assets/ship-elements.js", axum::routing::get(views::serve_ship_elements));
+        .route("/api/runtime/assets/ship-elements.js", axum::routing::get(views::serve_ship_elements))
+        .route("/api/runtime/assets/custom-elements.json", axum::routing::get(views::serve_elements_manifest));
 
     let auth_token = token;
     let auth_registry = session_registry;
