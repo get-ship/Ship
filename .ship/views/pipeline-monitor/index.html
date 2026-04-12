@@ -1,0 +1,42 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+<meta charset="UTF-8">
+<meta name="viewport" content="width=device-width, initial-scale=1.0">
+<title>Pipeline Monitor</title>
+<link rel="stylesheet" href="http://localhost:9315/api/runtime/assets/view-tokens.css">
+<script type="module" src="http://localhost:9315/api/runtime/assets/datastar.js"></script>
+<style>
+  *, *::before, *::after { box-sizing: border-box; margin: 0; padding: 0; }
+  body { font-family: system-ui, -apple-system, sans-serif; background: #0a0a0f; color: #d1d5db; padding: 16px; }
+  .title { font-size: 14px; font-weight: 600; margin-bottom: 16px; color: #e4e4e7; }
+  .job { border: 1px solid #27272a; border-radius: 8px; padding: 12px 16px; margin-bottom: 12px; }
+  .job-header { display: flex; justify-content: space-between; align-items: center; margin-bottom: 10px; }
+  .job-slug { font-size: 13px; font-weight: 600; color: #e4e4e7; }
+  .job-agent { font-size: 11px; color: #71717a; margin-left: 8px; }
+  .badge { font-size: 10px; padding: 2px 8px; border-radius: 4px; font-weight: 500; text-transform: uppercase; }
+  .badge-dispatched { background: #0c4a6e; color: #7dd3fc; }
+  .badge-completed { background: #064e3b; color: #6ee7b7; }
+  .badge-failed { background: #7f1d1d; color: #fca5a5; }
+  .badge-pending { background: #27272a; color: #a1a1aa; }
+  .badge-merged { background: #3b0764; color: #c4b5fd; }
+  .pipeline { display: flex; align-items: center; gap: 0; overflow-x: auto; padding: 4px 0; }
+  .step { display: flex; flex-direction: column; gap: 3px; border: 1px solid #27272a; border-radius: 6px; padding: 8px 12px; min-width: 110px; }
+  .step-completed { border-color: #059669; background: rgba(5,150,105,0.06); }
+  .step-running { border-color: #0284c7; background: rgba(2,132,199,0.06); animation: pulse 2s infinite; }
+  .step-failed { border-color: #dc2626; background: rgba(220,38,38,0.06); }
+  .step-name { font-size: 12px; font-weight: 600; color: #e4e4e7; }
+  .step-type { font-size: 9px; text-transform: uppercase; letter-spacing: 0.05em; color: #71717a; }
+  .step-status { font-size: 10px; color: #a1a1aa; }
+  .arrow { padding: 0 6px; color: #3f3f46; font-size: 14px; flex-shrink: 0; }
+  @keyframes pulse { 0%, 100% { opacity: 1; } 50% { opacity: 0.7; } }
+</style>
+</head>
+<body>
+<div class="title">Pipeline Monitor</div>
+<div id="pipeline-content"
+     data-on-load="@get('http://localhost:9315/api/runtime/view/pipeline-monitor/sse?token={{SHIP_TOKEN}}')">
+  <p style="color:#71717a;text-align:center;padding:24px 0">Connecting...</p>
+</div>
+</body>
+</html>

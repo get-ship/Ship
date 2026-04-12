@@ -23,6 +23,7 @@ pub mod schema;
 pub mod session;
 pub mod session_drain;
 pub mod session_events;
+pub mod specs;
 #[cfg(test)]
 pub mod session_events_testutil;
 pub mod types;
