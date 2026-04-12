@@ -15,4 +15,17 @@ export type {
   ShipEvent,
 } from './client'
 
+export {
+  DirectTransport,
+  InjectedTransport,
+  BridgeTransport,
+} from './transport'
+export type {
+  Transport,
+  TransportRequestInit,
+  HttpMethod,
+  DirectTransportOptions,
+  ShipEventEnvelope,
+} from './transport'
+
 export type * from './types'
