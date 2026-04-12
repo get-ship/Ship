@@ -21,7 +21,19 @@ struct TmuxState {
 impl JobExecutor for TmuxExecutor {
     async fn spawn(&self, ctx: &JobContext) -> Result<ExecutorHandle> {
         let tmux_session = format!("job-{}", ctx.slug);
-        ensure_tmux_session(&tmux_session, &ctx.work_dir)?;
+
+        // On step advance within the same pipeline, the tmux session from
+        // the previous step is already running and the user already has a
+        // terminal tab attached to it. The previous claude has exited (via
+        // graceful_agent_exit before we got here) leaving a shell prompt.
+        // We still need to launch the new agent inside the session, but
+        // we MUST NOT open a new terminal tab — that's what was creating
+        // duplicates.
+        let reuse_session = tmux_session_exists(&tmux_session);
+
+        if !reuse_session {
+            ensure_tmux_session(&tmux_session, &ctx.work_dir)?;
+        }
 
         let adapter = adapter_for(ctx.launch.provider.as_deref());
         let cmd = adapter.build_interactive(&ctx.slug, &ctx.launch);
@@ -34,7 +46,6 @@ impl JobExecutor for TmuxExecutor {
             tracing::warn!(session = tmux_session, "tmux send-keys failed: {e}");
         }
 
-        // Wait for the agent to be ready, send autostart, then monitor liveness.
         let session = tmux_session.clone();
         let ready_pat = adapter.ready_pattern().to_string();
         let autostart = adapter.autostart_input().to_string();
@@ -42,26 +53,32 @@ impl JobExecutor for TmuxExecutor {
         let job_id = ctx.job_id.clone();
         let exit_tx = ctx.exit_tx.clone();
         std::thread::spawn(move || {
-            // Dismiss Claude's development channels confirmation if present.
-            // Poll for up to 15 seconds, matching dispatch.sh's auto_kickstart_tmux.
             dismiss_channels_prompt(&session, 15);
-
             if wait_for_ready(&session, &ready_pat, 30) {
                 let _ = std::process::Command::new("tmux")
                     .args(["send-keys", "-t", &session, &autostart, "Enter"])
                     .status();
             }
-            // After readiness (or timeout), monitor for session death.
             if let Some(tx) = exit_tx {
                 monitor_tmux_session(&session, &slug, &job_id, tx);
             }
         });
 
-        let (strategy, launched) = terminal_launcher::launch(&tmux_session);
-        tracing::info!(
-            slug = ctx.slug, strategy, launched,
-            "job-dispatch: terminal launch attempted"
-        );
+        // Terminal tab only on fresh dispatch. On step advance the user
+        // already has the tab open; a second `terminal_launcher::launch`
+        // opens a duplicate that attaches to the same session.
+        if !reuse_session {
+            let (strategy, launched) = terminal_launcher::launch(&tmux_session);
+            tracing::info!(
+                slug = ctx.slug, strategy, launched,
+                "job-dispatch: terminal launch attempted"
+            );
+        } else {
+            tracing::info!(
+                slug = ctx.slug, session = tmux_session,
+                "job-dispatch: reusing existing tmux session, no new terminal tab"
+            );
+        }
 
         Ok(ExecutorHandle {
             pid: None,
@@ -139,28 +156,45 @@ impl JobExecutor for TmuxExecutor {
     }
 }
 
+/// True when a tmux session with this name already exists.
+fn tmux_session_exists(session: &str) -> bool {
+    std::process::Command::new("tmux")
+        .args(["has-session", "-t", session])
+        .status()
+        .map(|s| s.success())
+        .unwrap_or(false)
+}
+
 /// Dismiss Claude's development channels confirmation prompt if present.
-/// Polls the tmux pane for the confirmation text and sends Enter to accept.
+/// Polls the tmux pane for the confirmation text and presses Enter to accept.
 /// Mirrors dispatch.sh's auto_kickstart_tmux behavior.
+///
+/// The tmux `send-keys` syntax requires the literal key name `Enter` as its
+/// own argument — `send-keys "" Enter` sends an empty string *then* Enter,
+/// which sometimes confuses the prompt. Use just `Enter` so it's a plain
+/// keypress. After accepting, sleep briefly so claude has time to redraw
+/// before `wait_for_ready` starts matching.
 fn dismiss_channels_prompt(session: &str, timeout_secs: u64) {
     for _ in 0..timeout_secs {
         std::thread::sleep(std::time::Duration::from_secs(1));
         let output = std::process::Command::new("tmux")
             .args(["capture-pane", "-t", session, "-p"])
             .output();
-        if let Ok(out) = output {
-            let text = String::from_utf8_lossy(&out.stdout);
-            if text.contains("I am using this for local development") {
-                tracing::info!(session, "dismissing channels confirmation prompt");
-                let _ = std::process::Command::new("tmux")
-                    .args(["send-keys", "-t", session, "", "Enter"])
-                    .status();
-                return;
-            }
-            // If we see the real prompt already, no confirmation was needed.
-            if text.contains("bypass permissions") {
-                return;
-            }
+        let Ok(out) = output else { continue };
+        let text = String::from_utf8_lossy(&out.stdout);
+        if text.contains("I am using this for local development") {
+            tracing::info!(session, "dismissing channels confirmation prompt");
+            let _ = std::process::Command::new("tmux")
+                .args(["send-keys", "-t", session, "Enter"])
+                .status();
+            // Let claude transition from the confirmation screen into the
+            // real prompt before wait_for_ready starts matching ❯.
+            std::thread::sleep(std::time::Duration::from_secs(1));
+            return;
+        }
+        // Prompt pre-accepted — nothing to do.
+        if text.contains("bypass permissions") {
+            return;
         }
     }
 }
