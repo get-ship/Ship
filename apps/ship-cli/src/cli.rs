@@ -283,8 +283,8 @@ pub enum Commands {
 pub enum DaemonCommands {
     /// Start the daemon in the background
     Start {
-        /// Bind address (default: 0.0.0.0)
-        #[arg(long, default_value = "0.0.0.0")]
+        /// Bind address (default: 127.0.0.1)
+        #[arg(long, default_value = "127.0.0.1")]
         host: String,
     },
     /// Stop the running daemon process
@@ -295,7 +295,7 @@ pub enum DaemonCommands {
     Cleanup,
     /// Run the daemon in the foreground (used by `start` internally, also useful for Docker/systemd)
     Run {
-        #[arg(long, default_value = "0.0.0.0")]
+        #[arg(long, default_value = "127.0.0.1")]
         host: String,
         #[arg(long, default_value_t = 9315)]
         port: u16,
