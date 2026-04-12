@@ -45,6 +45,35 @@ use sqlx::{Connection, SqliteConnection};
 use std::path::{Path, PathBuf};
 use std::str::FromStr;
 
+/// Summary of event-log state for startup logging.
+pub struct EventLogSummary {
+    pub event_count: i64,
+    pub latest_event_id: Option<String>,
+}
+
+/// Cheap COUNT + MAX query to report event-log health. Never fails — on any
+/// error returns a summary with count=-1 to signal "unavailable" so startup
+/// proceeds.
+pub fn event_log_summary(ship_dir: &Path) -> EventLogSummary {
+    let path = ship_dir.join("platform.db");
+    let Ok(mut conn) = open_db_at(&path) else {
+        return EventLogSummary { event_count: -1, latest_event_id: None };
+    };
+    let count: i64 = block_on(async {
+        sqlx::query_scalar("SELECT COUNT(*) FROM events")
+            .fetch_one(&mut conn)
+            .await
+    })
+    .unwrap_or(-1);
+    let latest: Option<String> = block_on(async {
+        sqlx::query_scalar("SELECT id FROM events ORDER BY id DESC LIMIT 1")
+            .fetch_optional(&mut conn)
+            .await
+    })
+    .unwrap_or(None);
+    EventLogSummary { event_count: count, latest_event_id: latest }
+}
+
 /// Platform database path: `~/.ship/platform.db`.
 ///
 /// Never inside a project directory. Per-actor event stores are managed
