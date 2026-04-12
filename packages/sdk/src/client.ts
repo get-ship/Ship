@@ -173,6 +173,14 @@ export class ShipClient {
     return h
   }
 
+  /** Callback fired when the daemon returns 401/403. Used to trigger re-pairing. */
+  private onAuthFailure: (() => void) | null = null
+
+  /** Register a callback for auth failures (401/403). Called at most once per failure. */
+  setAuthFailureHandler(cb: (() => void) | null): void {
+    this.onAuthFailure = cb
+  }
+
   async fetch<T = unknown>(path: string, init?: RequestInit): Promise<T> {
     const url = `${this.baseUrl}/api${path}`
     const res = await fetch(url, {
@@ -180,6 +188,12 @@ export class ShipClient {
       headers: { ...this.headers(), ...init?.headers },
       signal: init?.signal ?? AbortSignal.timeout(this.timeout),
     })
+    if (res.status === 401 || res.status === 403) {
+      // Notify the app so it can clear the cached token and re-pair.
+      try { this.onAuthFailure?.() } catch { /* ignore */ }
+      const text = await res.text().catch(() => res.statusText)
+      throw new Error(`Ship API ${res.status}: ${text}`)
+    }
     if (!res.ok) {
       const text = await res.text().catch(() => res.statusText)
       throw new Error(`Ship API ${res.status}: ${text}`)

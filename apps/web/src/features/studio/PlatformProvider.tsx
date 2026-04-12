@@ -110,6 +110,7 @@ export function PlatformProvider({ children }: { children: ReactNode }) {
   const [token, setToken] = useState<string | null>(null)
   const [pairing, setPairing] = useState<PairingState | null>(null)
   const pairPollRef = useRef<ReturnType<typeof setInterval> | null>(null)
+  const restartPairingRef = useRef<(() => void) | null>(null)
   const [workspace, setWorkspaceState] = useState<Workspace | null>(
     loadSavedWorkspace,
   )
@@ -204,6 +205,15 @@ export function PlatformProvider({ children }: { children: ReactNode }) {
   useEffect(() => {
     let cancelled = false
 
+    // If the daemon starts returning 401/403, the session was revoked or
+    // the daemon regenerated state. Drop the cached token and re-pair.
+    if ('setAuthFailureHandler' in client) {
+      ;(client as any).setAuthFailureHandler(() => {
+        if (cancelled) return
+        restartPairingRef.current?.()
+      })
+    }
+
     function onConnected() {
       setDaemon('connected')
       client.connectEvents()
@@ -269,6 +279,17 @@ export function PlatformProvider({ children }: { children: ReactNode }) {
       startPairing()
     }
 
+    // Expose startPairing to beginPairing/401-handlers via a ref.
+    restartPairingRef.current = () => {
+      try { localStorage.removeItem(SESSION_TOKEN_KEY) } catch { /* ignore */ }
+      client.setToken('')
+      setDaemonToken(null)
+      setToken(null)
+      setAuth('anonymous')
+      setPairing(null)
+      startPairing()
+    }
+
     function startPairing() {
       if (cancelled) return
       setDaemon('disconnected')
@@ -323,16 +344,9 @@ export function PlatformProvider({ children }: { children: ReactNode }) {
   // ── Manual pairing restart ────────────────────────────────────────────
 
   const beginPairing = useCallback(() => {
-    // Clear any cached session and kick off a fresh pair flow on next tick.
-    try { localStorage.removeItem(SESSION_TOKEN_KEY) } catch { /* ignore */ }
-    client.setToken('')
-    setDaemonToken(null)
-    setToken(null)
-    setAuth('anonymous')
-    setDaemon('disconnected')
-    // Trigger the init effect by reloading — simpler than re-entering the effect graph.
-    window.location.reload()
-  }, [client])
+    // Restart the pair flow in-place (no page reload).
+    restartPairingRef.current?.()
+  }, [])
 
   // ── Context value ─────────────────────────────────────────────────────
 
