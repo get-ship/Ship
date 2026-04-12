@@ -179,3 +179,89 @@ fn format_duration_variants() {
     assert_eq!(format_duration(90), "1m 30s");
     assert_eq!(format_duration(3700), "1h 1m");
 }
+
+/// Deterministic job for fixture capture — no Utc::now so output is stable.
+fn mk_fixture_job(slug: &str, status: JobStatus, current: Option<&str>, completed: &[&str]) -> JobRecord {
+    use chrono::TimeZone;
+    let t = Utc.with_ymd_and_hms(2025, 1, 2, 3, 4, 5).unwrap();
+    JobRecord {
+        job_id: format!("j-{slug}"),
+        slug: slug.into(),
+        agent: "coder".into(),
+        branch: "main".into(),
+        spec_path: String::new(),
+        depends_on: None,
+        status,
+        worktree: None,
+        blocker: None,
+        error: None,
+        model: None,
+        provider: None,
+        created_at: t,
+        updated_at: t,
+        provider_meta: None,
+        pipeline: None,
+        steps: Some(Pipeline {
+            steps: vec![
+                PipelineStep { id: "impl".into(), step_type: StepType::Agent, agent: Some("coder".into()), goal: None, after: vec![], model: None, provider: None, command: None, max_retries: None },
+                PipelineStep { id: "gate".into(), step_type: StepType::Gate, agent: Some("reviewer".into()), goal: None, after: vec!["impl".into()], model: None, provider: None, command: None, max_retries: None },
+            ],
+        }),
+        current_phase: None,
+        completed_steps: completed.iter().map(|s| (*s).into()).collect(),
+        current_step: current.map(|s| s.into()),
+        vars: None,
+        step_retries: HashMap::new(),
+    }
+}
+
+/// Produce a representative set of rendered HTML fixtures. Tests compare
+/// against committed snapshots under `src/view_fixtures/`. To regenerate
+/// after an intentional change, set SHIP_UPDATE_FIXTURES=1 when running.
+#[test]
+fn fixtures_match_snapshots() {
+    use std::fs;
+    use std::path::PathBuf;
+
+    let defs = vec![
+        ("tdd".to_string(), "Test-driven dev loop".to_string(), 3usize),
+        ("ship-it".to_string(), String::new(), 0usize),
+    ];
+
+    let mut jobs: HashMap<String, JobRecord> = HashMap::new();
+    jobs.insert("a".into(), mk_fixture_job("fix-bug", JobStatus::Dispatched, Some("impl"), &[]));
+    jobs.insert("b".into(), mk_fixture_job("feat-x", JobStatus::Completed, None, &["impl", "gate"]));
+    jobs.insert("c".into(), mk_fixture_job("regress", JobStatus::Failed, Some("gate"), &["impl"]));
+    jobs.insert("d".into(), mk_fixture_job("gate-wait", JobStatus::GatePending, Some("gate"), &["impl"]));
+
+    let fixtures: Vec<(&str, String)> = vec![
+        ("definitions_tab.html", render_definitions_tab(&defs)),
+        ("definitions_tab_empty.html", render_definitions_tab(&[])),
+        ("active_tab.html", render_active_tab(&jobs)),
+        ("active_tab_empty.html", render_active_tab(&HashMap::new())),
+        ("history_tab.html", render_history_tab(&jobs)),
+        ("history_tab_empty.html", render_history_tab(&HashMap::new())),
+        ("full_view.html", render_pipelines_view(&jobs, &defs)),
+    ];
+
+    let dir = PathBuf::from(env!("CARGO_MANIFEST_DIR")).join("src/view_fixtures");
+    let update = std::env::var("SHIP_UPDATE_FIXTURES").is_ok();
+    if update {
+        fs::create_dir_all(&dir).unwrap();
+    }
+
+    for (name, actual) in fixtures {
+        let path = dir.join(name);
+        if update {
+            fs::write(&path, &actual).unwrap();
+            continue;
+        }
+        let expected = fs::read_to_string(&path)
+            .unwrap_or_else(|_| panic!("missing fixture {}; regenerate with SHIP_UPDATE_FIXTURES=1", path.display()));
+        assert_eq!(
+            expected.trim_end(), actual.trim_end(),
+            "fixture {} drifted. Regenerate with SHIP_UPDATE_FIXTURES=1 after reviewing.",
+            name,
+        );
+    }
+}

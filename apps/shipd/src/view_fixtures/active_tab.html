@@ -1,0 +1,29 @@
+<div class="run-list"><article class="run-card" id="run-gate-wait">
+  <header>
+    <div><span class="run-slug">gate-wait</span><span class="run-agent">coder</span></div>
+    <span class="badge badge-gatepending">gatepending</span>
+  </header>
+  <div class="pipeline"><div class="step step-completed">
+  <div class="step-name">&#10003; impl</div>
+  <div class="step-type">agent &middot; coder</div>
+  <div class="step-status">completed</div>
+</div><span class="arrow">&rarr;</span><div class="step step-running">
+  <div class="step-name">&#10227; gate</div>
+  <div class="step-type">gate &middot; reviewer</div>
+  <div class="step-status">running</div>
+</div></div>
+</article><article class="run-card" id="run-fix-bug">
+  <header>
+    <div><span class="run-slug">fix-bug</span><span class="run-agent">coder</span></div>
+    <span class="badge badge-dispatched">dispatched</span>
+  </header>
+  <div class="pipeline"><div class="step step-running">
+  <div class="step-name">&#10227; impl</div>
+  <div class="step-type">agent &middot; coder</div>
+  <div class="step-status">running</div>
+</div><span class="arrow">&rarr;</span><div class="step">
+  <div class="step-name">&#9675; gate</div>
+  <div class="step-type">gate &middot; reviewer</div>
+  <div class="step-status">pending</div>
+</div></div>
+</article></div>
