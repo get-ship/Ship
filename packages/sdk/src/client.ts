@@ -2,15 +2,28 @@
  * ShipClient — typed, capability-scoped client for the Ship daemon.
  *
  * Framework-agnostic. Uses @tanstack/query-core for caching internally.
- * Works over direct fetch with CORS + token auth.
+ * Transport is pluggable (see ./transport.ts). Default = DirectTransport.
+ *
+ * This client is the single entry point for every caller — the Studio
+ * shell, trusted web component views (via ViewMount injection), and
+ * (future) sandboxed iframe extensions via BridgeTransport.
  *
  * Usage:
  *   const ship = new ShipClient({ token: '...' })
  *   const q = ship.query('/runtime/workspaces')
  *   q.subscribe(state => console.log(state.data))
+ *
+ *   // createShipApi-style surface (for view authors):
+ *   await ship.getJobs()
+ *   const unsub = ship.onEvent(e => console.log(e))
  */
 
 import { QueryClient, QueryObserver } from '@tanstack/query-core'
+import {
+  DirectTransport,
+  type Transport,
+  type ShipEventEnvelope,
+} from './transport'
 
 // ── Capabilities ────────────────────────────────────────────
 
@@ -26,16 +39,20 @@ export type Capability =
 // ── Options ─────────────────────────────────────────────────
 
 export interface ShipClientOptions {
-  /** Daemon base URL. Default: http://localhost:9315 */
+  /** Daemon base URL. Default: http://localhost:9315. Ignored if transport is provided. */
   baseUrl?: string
-  /** Auth token. */
+  /** Auth token. Ignored if transport is provided. */
   token?: string
   /** Requested capabilities. */
   capabilities?: Capability[]
-  /** Request timeout in ms. Default: 10000 */
+  /** Request timeout in ms. Ignored if transport is provided. */
   timeout?: number
   /** Default stale time in ms. Default: 5000 */
   staleTime?: number
+  /** Active workspace branch id — surfaced as `client.activeWorkspace`. */
+  activeWorkspace?: string
+  /** Custom transport. If omitted, a DirectTransport is constructed. */
+  transport?: Transport
 }
 
 // ── Query types ─────────────────────────────────────────────
@@ -58,43 +75,43 @@ export interface ShipQuery<T> extends ShipQueryState<T> {
 
 // ── SSE Event types ─────────────────────────────────────────
 
-export interface ShipEvent {
-  id: string
-  event_type: string
-  entity_id: string
-  actor_id?: string
-  workspace_id?: string
-  payload_json?: string
-  created_at: string
-}
+export type ShipEvent = ShipEventEnvelope
 
 type EventListener = (event: ShipEvent) => void
 
 // ── Client ──────────────────────────────────────────────────
 
 export class ShipClient {
-  private baseUrl: string
-  private token: string | undefined
+  private transport: Transport
   private capabilities: Capability[]
-  private timeout: number
   private staleTime: number
   private queryClient: QueryClient
-  private eventSource: EventSource | null = null
   private eventListeners = new Set<EventListener>()
   private namespaceListeners = new Map<string, Set<EventListener>>()
+  private streamUnsub: (() => void) | null = null
+  private token: string | undefined
+  private baseUrl: string
+
+  /** Active workspace branch id (surfaced to view authors). */
+  public activeWorkspace: string | undefined
 
   constructor(options?: ShipClientOptions) {
     this.baseUrl = options?.baseUrl ?? 'http://localhost:9315'
     this.token = options?.token
+    this.transport = options?.transport ?? new DirectTransport({
+      baseUrl: this.baseUrl,
+      token: this.token,
+      timeout: options?.timeout,
+    })
     this.capabilities = options?.capabilities ?? []
-    this.timeout = options?.timeout ?? 10000
     this.staleTime = options?.staleTime ?? 5000
+    this.activeWorkspace = options?.activeWorkspace
 
     this.queryClient = new QueryClient({
       defaultOptions: {
         queries: {
           staleTime: this.staleTime,
-          gcTime: 5 * 60 * 1000, // 5 min garbage collection
+          gcTime: 5 * 60 * 1000,
           retry: 1,
           refetchOnWindowFocus: false,
         },
@@ -106,6 +123,8 @@ export class ShipClient {
 
   setToken(token: string): void {
     this.token = token
+    const t = this.transport as unknown as { setToken?: (t: string) => void }
+    if (typeof t.setToken === 'function') t.setToken(token)
   }
 
   getToken(): string | null {
@@ -120,8 +139,8 @@ export class ShipClient {
         body: JSON.stringify({ capabilities: this.capabilities }),
       })
       if (!res.ok) return false
-      const body = await res.json() as { token: string; granted: Capability[] }
-      this.token = body.token
+      const body = (await res.json()) as { token: string; granted: Capability[] }
+      this.setToken(body.token)
       return true
     } catch {
       return false
@@ -130,69 +149,43 @@ export class ShipClient {
 
   async isConnected(): Promise<boolean> {
     try {
-      const res = await fetch(`${this.baseUrl}/api/runtime/views`, {
-        headers: this.headers(),
+      await this.transport.request('/runtime/views', {
         signal: AbortSignal.timeout(2000),
       })
-      return res.ok
+      return true
     } catch {
       return false
     }
   }
 
-  // ── Fetch ───────────────────────────────────────────────
-
-  private headers(): Record<string, string> {
-    const h: Record<string, string> = { 'Content-Type': 'application/json' }
-    if (this.token) h['Authorization'] = `Bearer ${this.token}`
-    return h
-  }
+  // ── HTTP helpers ────────────────────────────────────────
 
   async fetch<T = unknown>(path: string, init?: RequestInit): Promise<T> {
-    const url = `${this.baseUrl}/api${path}`
-    const res = await fetch(url, {
-      ...init,
-      headers: { ...this.headers(), ...init?.headers },
-      signal: init?.signal ?? AbortSignal.timeout(this.timeout),
-    })
-    if (!res.ok) {
-      const text = await res.text().catch(() => res.statusText)
-      throw new Error(`Ship API ${res.status}: ${text}`)
-    }
-    const body = await res.json() as { ok: boolean; data: T }
-    return body.data
+    const method = (init?.method ?? 'GET').toUpperCase() as 'GET' | 'POST' | 'PUT' | 'DELETE'
+    const body = init?.body !== undefined && typeof init.body === 'string'
+      ? JSON.parse(init.body as string) as unknown
+      : init?.body as unknown
+    return this.transport.request<T>(path, { method, body, signal: init?.signal ?? undefined })
   }
 
-  async get<T = unknown>(path: string): Promise<T> {
-    return this.fetch<T>(path)
+  get<T = unknown>(path: string): Promise<T> {
+    return this.transport.request<T>(path, { method: 'GET' })
   }
 
-  async post<T = unknown>(path: string, body?: unknown): Promise<T> {
-    return this.fetch<T>(path, {
-      method: 'POST',
-      body: body !== undefined ? JSON.stringify(body) : undefined,
-    })
+  post<T = unknown>(path: string, body?: unknown): Promise<T> {
+    return this.transport.request<T>(path, { method: 'POST', body })
   }
 
-  async put<T = unknown>(path: string, body?: unknown): Promise<T> {
-    return this.fetch<T>(path, {
-      method: 'PUT',
-      body: body !== undefined ? JSON.stringify(body) : undefined,
-    })
+  put<T = unknown>(path: string, body?: unknown): Promise<T> {
+    return this.transport.request<T>(path, { method: 'PUT', body })
   }
 
-  async del<T = unknown>(path: string): Promise<T> {
-    return this.fetch<T>(path, { method: 'DELETE' })
+  del<T = unknown>(path: string): Promise<T> {
+    return this.transport.request<T>(path, { method: 'DELETE' })
   }
 
   // ── Queries ─────────────────────────────────────────────
 
-  /**
-   * Create a reactive query with built-in caching.
-   *
-   * Deduplicates concurrent requests. Stale-while-revalidate.
-   * Auto-invalidated by SSE events. Subscribe from any framework.
-   */
   query<T>(path: string, options?: { staleTime?: number }): ShipQuery<T> {
     const queryKey = ['ship', path]
 
@@ -226,9 +219,6 @@ export class ShipClient {
     return query
   }
 
-  /**
-   * Execute a mutation — write operation that invalidates related queries.
-   */
   async mutate<T = unknown>(
     method: 'POST' | 'PUT' | 'DELETE',
     path: string,
@@ -250,12 +240,10 @@ export class ShipClient {
     return result
   }
 
-  /** Invalidate a query by path, forcing refetch on next access. */
   invalidate(path: string): void {
     void this.queryClient.invalidateQueries({ queryKey: ['ship', path] })
   }
 
-  /** Invalidate all queries matching a prefix. */
   invalidatePrefix(prefix: string): void {
     void this.queryClient.invalidateQueries({
       predicate: (q) => {
@@ -267,31 +255,26 @@ export class ShipClient {
 
   // ── SSE Events ──────────────────────────────────────────
 
+  /** Open the event stream. Idempotent. */
   connectEvents(): void {
-    if (this.eventSource) return
-
-    let url = `${this.baseUrl}/api/runtime/events`
-    // EventSource doesn't support custom headers — pass token as query param
-    if (this.token) url += `?token=${encodeURIComponent(this.token)}`
-    this.eventSource = new EventSource(url)
-
-    this.eventSource.addEventListener('ship.event', (e: MessageEvent) => {
-      try {
-        const event = JSON.parse(e.data as string) as ShipEvent
-        this.eventListeners.forEach((fn) => fn(event))
-        for (const [ns, fns] of this.namespaceListeners) {
-          if (event.event_type.startsWith(ns)) {
-            fns.forEach((fn) => fn(event))
-          }
-        }
-        this.autoInvalidate(event)
-      } catch { /* malformed */ }
+    if (this.streamUnsub) return
+    this.streamUnsub = this.transport.subscribeEvents((event) => {
+      this.eventListeners.forEach((fn) => fn(event))
+      for (const [ns, fns] of this.namespaceListeners) {
+        if (event.event_type.startsWith(ns)) fns.forEach((fn) => fn(event))
+      }
+      this.autoInvalidate(event)
     })
   }
 
+  /** Subscribe to all events. Opens the stream lazily. Returns unsubscribe. */
   onEvent(fn: EventListener): Unsubscribe {
     this.eventListeners.add(fn)
-    return () => { this.eventListeners.delete(fn) }
+    this.connectEvents()
+    return () => {
+      this.eventListeners.delete(fn)
+      this.maybeCloseStream()
+    }
   }
 
   onNamespace(namespace: string, fn: EventListener): Unsubscribe {
@@ -300,12 +283,24 @@ export class ShipClient {
     }
     const fns = this.namespaceListeners.get(namespace)!
     fns.add(fn)
-    return () => { fns.delete(fn) }
+    this.connectEvents()
+    return () => {
+      fns.delete(fn)
+      this.maybeCloseStream()
+    }
   }
 
   disconnectEvents(): void {
-    this.eventSource?.close()
-    this.eventSource = null
+    this.streamUnsub?.()
+    this.streamUnsub = null
+  }
+
+  private maybeCloseStream(): void {
+    if (this.eventListeners.size > 0) return
+    for (const fns of this.namespaceListeners.values()) {
+      if (fns.size > 0) return
+    }
+    this.disconnectEvents()
   }
 
   private autoInvalidate(event: ShipEvent): void {
@@ -321,10 +316,61 @@ export class ShipClient {
     }
   }
 
+  // ── View-author surface (ex-createShipApi) ──────────────
+
+  /** List all jobs. */
+  async getJobs(): Promise<unknown[]> {
+    const data = await this.get<{ jobs: unknown[] }>('/runtime/jobs')
+    return data.jobs
+  }
+
+  /** Fetch a single job by id. Returns the raw envelope for back-compat. */
+  getJob(jobId: string): Promise<unknown> {
+    return this.transport.request(
+      `/runtime/jobs/${encodeURIComponent(jobId)}`,
+      { method: 'GET', raw: true },
+    )
+  }
+
+  /** Create a new job. Returns the raw response envelope for back-compat. */
+  createJob(params: Record<string, unknown>): Promise<unknown> {
+    return this.transport.request('/runtime/jobs', {
+      method: 'POST',
+      body: params,
+      raw: true,
+    })
+  }
+
+  /** Emit a ship event. Returns the raw response envelope. */
+  emitEvent(eventType: string, entityId: string, payload: unknown): Promise<unknown> {
+    return this.transport.request('/events/emit', {
+      method: 'POST',
+      body: { event_type: eventType, entity_id: entityId, payload },
+      raw: true,
+    })
+  }
+
+  /** List session files for a workspace. */
+  getSessionFiles(workspaceId: string): Promise<unknown> {
+    return this.transport.request(
+      `/workspaces/${encodeURIComponent(workspaceId)}/session-files`,
+      { method: 'GET', raw: true },
+    )
+  }
+
+  /** Read a single session file. */
+  readFile(workspaceId: string, path: string): Promise<unknown> {
+    return this.transport.request(
+      `/workspaces/${encodeURIComponent(workspaceId)}/session-files/${path}`,
+      { method: 'GET', raw: true },
+    )
+  }
+
   // ── Cleanup ─────────────────────────────────────────────
 
   destroy(): void {
     this.disconnectEvents()
+    this.transport.destroy()
     this.queryClient.clear()
     this.eventListeners.clear()
     this.namespaceListeners.clear()
