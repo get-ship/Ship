@@ -20,6 +20,7 @@ pub mod pipeline;
 pub mod pipeline_loader;
 pub mod pipeline_vars;
 pub mod pending;
+pub mod prompt_composer;
 pub mod replay;
 pub mod router;
 pub mod run_step;

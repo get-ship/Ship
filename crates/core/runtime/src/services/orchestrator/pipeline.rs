@@ -214,6 +214,32 @@ async fn advance_pipeline_inner(
                     tracing::warn!(slug, agent, "pipeline: ship use failed (non-fatal): {e}");
                 }
 
+                // State-machine prompt: compose a fresh spec for this step
+                // from pipeline metadata + predecessor summaries + user body.
+                // Replaces the "replay the same static spec" behavior that
+                // made step 2+ agents run with step 1's prompt.
+                if let Some(pipeline) = &job.steps {
+                    let ctx = super::prompt_composer::load_job_context(&job.job_id);
+                    match super::prompt_composer::write_step_spec(
+                        &worktree_path,
+                        &job.spec_path,
+                        &job.job_id,
+                        ctx.pipeline_name.as_deref(),
+                        pipeline,
+                        step,
+                        &ctx.user_spec_body,
+                    ) {
+                        Ok(path) => tracing::info!(
+                            slug, step_id = step.id,
+                            "pipeline: wrote step spec to {}", path.display()
+                        ),
+                        Err(e) => tracing::error!(
+                            slug, step_id = step.id,
+                            "pipeline: failed to write step spec: {e}"
+                        ),
+                    }
+                }
+
                 let persist = step.step_type != StepType::Gate;
                 let (exit_tx, exit_rx) = tokio::sync::mpsc::unbounded_channel();
                 let job_ctx = JobContext {
