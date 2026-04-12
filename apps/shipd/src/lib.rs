@@ -36,6 +36,9 @@ mod scope_tests;
 #[cfg(test)]
 #[path = "ship_runtime_tests.rs"]
 mod ship_runtime_tests;
+#[cfg(test)]
+#[path = "pairing_integration_tests.rs"]
+mod pairing_integration_tests;
 
 /// Test-only: build a minimal router with the CORS middleware for testing.
 #[cfg(test)]
@@ -122,6 +125,11 @@ pub async fn run_network(host: String, port: u16, dev: bool) -> Result<()> {
     tokio::spawn(async move { shutdown_signal().await; ct2.cancel(); });
 
     let session_registry = rt.session_registry().clone();
+    // Hydrate any persisted paired sessions from a previous daemon lifetime.
+    // Dev mode starts fresh — don't carry prior sessions across dev restarts.
+    if !dev {
+        auth::hydrate_sessions(&session_registry).await;
+    }
     let pairing_registry = pairing::new_shared();
     let app = build_router(
         rt.clone(),
@@ -214,20 +222,35 @@ fn build_router(
     let auth_token = token;
     let auth_hook_token = hook_token;
     let auth_registry = session_registry;
-    // Authenticated pair confirm — requires daemon.token bearer.
+    // Authenticated pair confirm + session management — require daemon.token bearer.
     let pair_confirm_reg = pairing_registry.clone();
     let pair_confirm_sessions = auth_registry.clone();
-    let pair_confirm_routes = Router::new().route(
-        "/auth/pair/confirm",
-        axum::routing::post(move |auth_ext: axum::Extension<auth::AuthContext>, body: axum::Json<auth::PairConfirmRequest>| {
-            auth::pair_confirm(
-                pair_confirm_reg.clone(),
-                pair_confirm_sessions.clone(),
-                auth_ext,
-                body,
-            )
-        }),
-    );
+    let list_sessions_registry = auth_registry.clone();
+    let revoke_sessions_registry = auth_registry.clone();
+    let pair_confirm_routes = Router::new()
+        .route(
+            "/auth/pair/confirm",
+            axum::routing::post(move |auth_ext: axum::Extension<auth::AuthContext>, body: axum::Json<auth::PairConfirmRequest>| {
+                auth::pair_confirm(
+                    pair_confirm_reg.clone(),
+                    pair_confirm_sessions.clone(),
+                    auth_ext,
+                    body,
+                )
+            }),
+        )
+        .route(
+            "/auth/sessions",
+            axum::routing::get(move |auth_ext: axum::Extension<auth::AuthContext>| {
+                auth::list_sessions(list_sessions_registry.clone(), auth_ext)
+            }),
+        )
+        .route(
+            "/auth/sessions/revoke",
+            axum::routing::post(move |auth_ext: axum::Extension<auth::AuthContext>, body: axum::Json<auth::RevokeSessionsRequest>| {
+                auth::revoke_sessions(revoke_sessions_registry.clone(), auth_ext, body)
+            }),
+        );
 
     let authenticated_routes = Router::new()
         .nest("/api", pair_confirm_routes)

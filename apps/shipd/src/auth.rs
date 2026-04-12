@@ -19,7 +19,8 @@ use std::sync::Arc;
 // Re-export scope model from the split-out module.
 pub use crate::scopes::{
     DaemonSession, Scope, SessionRegistry, SessionRegisterRequest,
-    SessionRegisterResponse, generate_session_token, is_session_token,
+    SessionRegisterResponse, generate_session_token, hydrate_sessions,
+    is_session_token, persist_session, remove_persisted_session,
     require_scope, scopes_for_role, session_register,
 };
 
@@ -312,7 +313,7 @@ pub struct PairStatusQuery {
     pub claim_token: String,
 }
 
-#[derive(serde::Serialize)]
+#[derive(Debug, serde::Serialize)]
 #[serde(tag = "status", rename_all = "lowercase")]
 pub enum PairStatusResponse {
     Pending,
@@ -335,12 +336,18 @@ pub async fn pair_init(
     let dev_mode = crate::pairing::is_dev_mode();
 
     let mut reg = registry.lock().await;
-    let pairing = reg
-        .init(label)
-        .map_err(|e| (axum::http::StatusCode::INTERNAL_SERVER_ERROR, e))?;
+    let pairing = reg.init(label).map_err(|e| {
+        // Rate limit → 429. Other errors (entropy) → 500.
+        if e.contains("too many") {
+            (axum::http::StatusCode::TOO_MANY_REQUESTS, e)
+        } else {
+            (axum::http::StatusCode::INTERNAL_SERVER_ERROR, e)
+        }
+    })?;
 
     if dev_mode {
         // Auto-approve: mint a session and bind it to the claim token.
+        // Dev sessions are ephemeral — not persisted to KV.
         let session_token = generate_session_token()
             .map_err(|_| (axum::http::StatusCode::INTERNAL_SERVER_ERROR, "token gen failed"))?;
         let _ = reg.confirm(&pairing.code, session_token.clone());
@@ -352,6 +359,8 @@ pub async fn pair_init(
             scopes: crate::pairing::paired_session_scopes(),
             workspace_id: None,
             created_at: std::time::Instant::now(),
+            expires_at_unix: None,
+            ephemeral: true,
         };
         tracing::warn!(
             "dev-mode: auto-paired browser client {:?}",
@@ -405,15 +414,21 @@ pub async fn pair_confirm(
     match reg.confirm(&body.code, session_token.clone()) {
         Ok(_claim) => {
             drop(reg);
-            // Bind session in the auth registry so it's honored on subsequent requests.
+            // Bind session in the auth registry — persisted so it survives daemon restart.
             use crate::scopes::DaemonSession;
+            let expires_at_unix = chrono::Utc::now().timestamp()
+                + crate::pairing::SESSION_TTL.as_secs() as i64;
             let session = DaemonSession {
-                token: session_token,
+                token: session_token.clone(),
                 agent_id: "studio".to_string(),
                 scopes: crate::pairing::paired_session_scopes(),
                 workspace_id: None,
                 created_at: std::time::Instant::now(),
+                expires_at_unix: Some(expires_at_unix),
+                ephemeral: false,
             };
+            crate::scopes::persist_session(&session);
+            write_audit_log("pair_confirmed", &session_token, Some(&session.agent_id));
             session_registry.lock().await.insert(session.token.clone(), session);
             (
                 axum::http::StatusCode::OK,
@@ -459,6 +474,127 @@ pub async fn pair_status(
         ClaimResult::Expired => PairStatusResponse::Expired,
         ClaimResult::Unknown => PairStatusResponse::Unknown,
     })
+}
+
+// ---- Audit log ----
+
+const AUDIT_NAMESPACE: &str = "auth.audit";
+
+/// Write an auth audit row to platform.db's kv_state.
+///
+/// Keys are timestamp-sortable: `{unix_ts}-{token_prefix}`.
+/// Persisted on every pair confirm and revoke so operators can reconstruct
+/// what paired when and what was revoked when.
+pub(crate) fn write_audit_log(event: &str, token: &str, agent_id: Option<&str>) {
+    let now_unix = chrono::Utc::now().timestamp();
+    let token_prefix: String = token.chars().take(16).collect();
+    let key = format!("{now_unix:010}-{token_prefix}");
+    let value = serde_json::json!({
+        "event": event,
+        "timestamp": chrono::Utc::now().to_rfc3339(),
+        "token_prefix": token_prefix,
+        "agent_id": agent_id,
+    });
+    if let Err(e) = runtime::db::kv::set(AUDIT_NAMESPACE, &key, &value) {
+        tracing::warn!("auth audit: write failed: {e}");
+    }
+}
+
+// ---- Session listing / revoke ----
+
+#[derive(serde::Serialize)]
+pub struct SessionSummary {
+    /// First 12 chars of the token for display — never the full value.
+    pub token_prefix: String,
+    pub agent_id: String,
+    pub workspace_id: Option<String>,
+    pub scopes: Vec<Scope>,
+    pub expires_at_unix: Option<i64>,
+    pub ephemeral: bool,
+}
+
+#[derive(serde::Serialize)]
+pub struct ListSessionsResponse {
+    pub sessions: Vec<SessionSummary>,
+}
+
+/// GET /api/auth/sessions — list active sessions. Requires Scope::Full.
+pub async fn list_sessions(
+    session_registry: SessionRegistry,
+    axum::Extension(auth): axum::Extension<AuthContext>,
+) -> Result<axum::Json<ListSessionsResponse>, (axum::http::StatusCode, &'static str)> {
+    if !auth.has_scope(Scope::Full) {
+        return Err((axum::http::StatusCode::FORBIDDEN, "requires daemon token"));
+    }
+    let reg = session_registry.lock().await;
+    let mut sessions: Vec<SessionSummary> = reg
+        .values()
+        .map(|s| SessionSummary {
+            token_prefix: s.token.chars().take(16).collect(),
+            agent_id: s.agent_id.clone(),
+            workspace_id: s.workspace_id.clone(),
+            scopes: s.scopes.clone(),
+            expires_at_unix: s.expires_at_unix,
+            ephemeral: s.ephemeral,
+        })
+        .collect();
+    sessions.sort_by(|a, b| a.token_prefix.cmp(&b.token_prefix));
+    Ok(axum::Json(ListSessionsResponse { sessions }))
+}
+
+#[derive(serde::Deserialize)]
+pub struct RevokeSessionsRequest {
+    /// If set, revoke only sessions whose token starts with this prefix.
+    /// If unset AND `all` is true, revoke every non-ephemeral session.
+    #[serde(default)]
+    pub token_prefix: Option<String>,
+    #[serde(default)]
+    pub all: bool,
+}
+
+#[derive(serde::Serialize)]
+pub struct RevokeSessionsResponse {
+    pub revoked: usize,
+}
+
+/// POST /api/auth/sessions/revoke — revoke sessions. Requires Scope::Full.
+pub async fn revoke_sessions(
+    session_registry: SessionRegistry,
+    axum::Extension(auth): axum::Extension<AuthContext>,
+    axum::Json(body): axum::Json<RevokeSessionsRequest>,
+) -> Result<axum::Json<RevokeSessionsResponse>, (axum::http::StatusCode, &'static str)> {
+    if !auth.has_scope(Scope::Full) {
+        return Err((axum::http::StatusCode::FORBIDDEN, "requires daemon token"));
+    }
+
+    let mut reg = session_registry.lock().await;
+    let targets: Vec<String> = if let Some(prefix) = body.token_prefix.as_deref() {
+        if prefix.is_empty() {
+            return Err((axum::http::StatusCode::BAD_REQUEST, "empty token_prefix"));
+        }
+        reg.keys().filter(|k| k.starts_with(prefix)).cloned().collect()
+    } else if body.all {
+        // Revoke all persisted (non-ephemeral) sessions.
+        reg.iter()
+            .filter(|(_, s)| !s.ephemeral)
+            .map(|(k, _)| k.clone())
+            .collect()
+    } else {
+        return Err((axum::http::StatusCode::BAD_REQUEST, "provide token_prefix or all=true"));
+    };
+
+    let revoked = targets.len();
+    for token in &targets {
+        if let Some(session) = reg.remove(token) {
+            if !session.ephemeral {
+                remove_persisted_session(token);
+                write_audit_log("pair_revoked", token, Some(&session.agent_id));
+            }
+        }
+    }
+    drop(reg);
+
+    Ok(axum::Json(RevokeSessionsResponse { revoked }))
 }
 
 #[cfg(test)]

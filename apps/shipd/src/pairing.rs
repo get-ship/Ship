@@ -50,6 +50,10 @@ pub const CLAIM_TTL: Duration = Duration::from_secs(1800); // 30 minutes
 /// TTL for paired session tokens (server issues, client stores).
 pub const SESSION_TTL: Duration = Duration::from_secs(30 * 24 * 60 * 60); // 30 days
 
+/// Maximum number of active pending pairings at any time. Prevents an attacker
+/// on localhost from exhausting memory or saturating the code namespace.
+pub const MAX_PENDING: usize = 100;
+
 #[derive(Debug, Clone)]
 pub struct PendingPairing {
     pub code: String,
@@ -100,8 +104,13 @@ impl PairingRegistry {
     }
 
     /// Create a new pending pairing and return it.
+    ///
+    /// Returns an error if too many pairings are in flight (rate limit).
     pub fn init(&mut self, label: Option<String>) -> Result<PendingPairing, &'static str> {
         self.gc();
+        if self.by_claim.len() >= MAX_PENDING {
+            return Err("too many pending pairings");
+        }
         let code = generate_code().map_err(|_| "entropy error generating code")?;
         let claim_token = generate_claim_token().map_err(|_| "entropy error generating claim token")?;
         let pairing = PendingPairing {
@@ -286,5 +295,15 @@ mod tests {
         let token = generate_claim_token().unwrap();
         assert!(token.starts_with("claim_"));
         assert_eq!(token.len(), 6 + 64); // prefix + 32 bytes hex
+    }
+
+    #[test]
+    fn init_rejects_after_max_pending() {
+        let mut reg = PairingRegistry::new();
+        for _ in 0..MAX_PENDING {
+            reg.init(None).unwrap();
+        }
+        let err = reg.init(None).unwrap_err();
+        assert!(err.contains("too many"), "expected rate-limit error, got: {err}");
     }
 }
