@@ -132,8 +132,16 @@ async fn handle_pty_socket(
         }
     };
 
-    let mut stdin = child.stdin.take().unwrap();
-    let mut stdout = child.stdout.take().unwrap();
+    let Some(mut stdin) = child.stdin.take() else {
+        tracing::error!("pty: child process has no stdin");
+        let _ = child.kill().await;
+        return;
+    };
+    let Some(mut stdout) = child.stdout.take() else {
+        tracing::error!("pty: child process has no stdout");
+        let _ = child.kill().await;
+        return;
+    };
 
     let mut stdout_buf = vec![0u8; 4096];
     let ping_interval = Duration::from_secs(30);

@@ -30,6 +30,7 @@ pub struct DispatchHandle {
 pub async fn subscribe_job_events(
     kernel: Arc<Mutex<runtime::events::KernelRouter>>,
     _ship_dir: PathBuf,
+    health_registry: &crate::supervised::HealthRegistry,
 ) -> Option<DispatchHandle> {
     let executor: Arc<dyn JobExecutor> =
         if std::env::var("SHIP_EXECUTOR").as_deref() == Ok("process") {
@@ -45,6 +46,7 @@ pub async fn subscribe_job_events(
     let platform = Arc::new(ShipdPlatform {
         registry: registry.clone(),
         executor: executor.clone(),
+        health_registry: health_registry.clone(),
     });
 
     let octx = Arc::new(OrchestratorContext {
@@ -56,7 +58,7 @@ pub async fn subscribe_job_events(
     });
 
     let kr = kernel.clone();
-    tokio::spawn(async move {
+    crate::supervised::spawn_monitored(health_registry, "job-orchestrator", async move {
         runtime::services::orchestrator::router::start_orchestrator(kr, octx).await;
     });
 

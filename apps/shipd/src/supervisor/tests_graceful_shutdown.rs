@@ -147,9 +147,10 @@ fn shutdown_emits_supervisor_shutting_down_event() {
 #[test]
 fn shutdown_cleans_files_after_drain() {
     let src = include_str!("../ship_runtime.rs");
+    // Token is preserved across restarts; only port and pid are cleaned up.
     assert!(
-        src.contains("daemon.token") && src.contains("daemon.port") && src.contains("daemon.pid"),
-        "ShipRuntime::shutdown must remove daemon.token, daemon.port, daemon.pid"
+        src.contains("daemon.port") && src.contains("daemon.pid"),
+        "ShipRuntime::shutdown must remove daemon.port and daemon.pid"
     );
     // Drain must happen before file cleanup
     let has_drain = src.contains("drain") || src.contains("on_drain");

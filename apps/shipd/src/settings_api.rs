@@ -5,6 +5,7 @@ use serde::{Deserialize, Serialize};
 use std::sync::Mutex;
 use std::time::{Duration, Instant};
 
+use crate::auth::{AuthContext, Scope};
 use crate::rest_api::{ApiState, MeshResponse};
 
 // ─── Types ──────────────────────────────────────────────────────────────────
@@ -29,7 +30,13 @@ static PROVIDER_CACHE: Mutex<Option<(Instant, Vec<ProviderStatus>)>> = Mutex::ne
 const PROVIDER_CACHE_TTL: Duration = Duration::from_secs(300);
 
 fn cached_providers() -> Vec<ProviderStatus> {
-    let mut guard = PROVIDER_CACHE.lock().unwrap();
+    let mut guard = match PROVIDER_CACHE.lock() {
+        Ok(g) => g,
+        Err(poisoned) => {
+            tracing::warn!("provider cache lock was poisoned, recovering");
+            poisoned.into_inner()
+        }
+    };
     if let Some((ts, ref cached)) = *guard {
         if ts.elapsed() < PROVIDER_CACHE_TTL {
             return cached.clone();
@@ -94,8 +101,18 @@ pub async fn list_settings(
 )]
 pub async fn update_setting(
     State(_state): State<ApiState>,
+    axum::Extension(auth): axum::Extension<AuthContext>,
     Json(req): Json<SettingsUpdateReq>,
 ) -> impl IntoResponse {
+    if !auth.has_scope(Scope::AdminDaemon) {
+        return (
+            StatusCode::FORBIDDEN,
+            Json(MeshResponse {
+                ok: false,
+                data: serde_json::json!("insufficient scope: AdminDaemon required"),
+            }),
+        );
+    }
     match runtime::set_setting(&req.key, req.value.clone()) {
         Ok(()) => (
             StatusCode::OK,

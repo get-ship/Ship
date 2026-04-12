@@ -129,7 +129,9 @@ async fn shutdown_cleans_files() {
 
     rt.shutdown().await;
 
-    assert!(!base.join("daemon.token").exists(), "daemon.token should be removed after shutdown");
+    // Token is intentionally preserved across restarts so CLI clients
+    // don't need to re-handshake. Only PID and port (liveness indicators) are removed.
+    assert!(base.join("daemon.token").exists(), "daemon.token should be preserved after shutdown");
     assert!(!base.join("daemon.port").exists(), "daemon.port should be removed after shutdown");
     assert!(!base.join("daemon.pid").exists(), "daemon.pid should be removed after shutdown");
 }

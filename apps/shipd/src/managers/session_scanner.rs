@@ -7,6 +7,8 @@ use std::sync::Arc;
 use tokio::sync::Mutex;
 use tokio::task::JoinHandle;
 
+use crate::supervised::HealthRegistry;
+
 /// TTL in seconds — sessions idle beyond this are considered abandoned.
 const ABANDONED_TTL_SECS: i64 = 600;
 
@@ -19,15 +21,24 @@ pub struct SessionScanner {
 }
 
 impl SessionScanner {
-    /// Start the scanner. Spawns a background tokio task.
-    pub fn start(kernel: Arc<Mutex<runtime::events::KernelRouter>>) -> Self {
-        let handle = tokio::spawn(async move {
-            let _kernel = kernel; // held for lifetime
-            loop {
-                tokio::time::sleep(std::time::Duration::from_secs(SCAN_INTERVAL_SECS)).await;
-                scan_abandoned_sessions();
-            }
-        });
+    /// Start the scanner. Spawns a supervised background task that restarts on panic.
+    pub fn start(
+        kernel: Arc<Mutex<runtime::events::KernelRouter>>,
+        health_registry: &HealthRegistry,
+    ) -> Self {
+        let handle = crate::supervised::spawn_supervised(
+            health_registry,
+            "session-scanner",
+            move || {
+                let _kernel = kernel.clone(); // held for lifetime
+                async move {
+                    loop {
+                        tokio::time::sleep(std::time::Duration::from_secs(SCAN_INTERVAL_SECS)).await;
+                        scan_abandoned_sessions();
+                    }
+                }
+            },
+        );
         Self { _handle: handle }
     }
 }

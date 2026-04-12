@@ -89,10 +89,12 @@ pub struct DaemonSession {
 pub type SessionRegistry = Arc<Mutex<HashMap<String, DaemonSession>>>;
 
 /// Generate a session token with the `ship_sess_` prefix.
-pub fn generate_session_token() -> String {
+///
+/// Returns an error if the OS entropy source is unavailable.
+pub fn generate_session_token() -> Result<String, getrandom::Error> {
     let mut bytes = [0u8; 16];
-    getrandom::getrandom(&mut bytes).expect("failed to generate random session token");
-    format!("ship_sess_{}", super::auth::hex_encode(&bytes))
+    getrandom::getrandom(&mut bytes)?;
+    Ok(format!("ship_sess_{}", super::auth::hex_encode(&bytes)))
 }
 
 /// Returns true if the token is a session token (ship_sess_ prefix).
@@ -145,7 +147,15 @@ pub async fn session_register(
     axum::Json(req): axum::Json<SessionRegisterRequest>,
 ) -> axum::Json<SessionRegisterResponse> {
     let scopes = scopes_for_role(req.role.as_deref());
-    let token = generate_session_token();
+    let token = match generate_session_token() {
+        Ok(t) => t,
+        Err(e) => {
+            return axum::Json(SessionRegisterResponse {
+                session_token: format!("error: {e}"),
+                scopes: vec![],
+            });
+        }
+    };
 
     let session = DaemonSession {
         token: token.clone(),
@@ -216,7 +226,7 @@ mod tests {
 
     #[test]
     fn session_token_format() {
-        let token = generate_session_token();
+        let token = generate_session_token().unwrap();
         assert!(is_session_token(&token));
         assert!(!super::super::auth::is_daemon_token(&token));
     }

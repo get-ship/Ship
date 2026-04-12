@@ -412,7 +412,7 @@ async fn capabilities_returns_unauthenticated_without_token() {
     std::fs::create_dir_all(&ship_dir).unwrap();
     runtime::db::ensure_db_at(&ship_dir).unwrap();
 
-    let token = crate::auth::generate_token();
+    let token = crate::auth::generate_token().unwrap();
     let token_arc = std::sync::Arc::new(token);
 
     let registry: crate::auth::SessionRegistry = std::sync::Arc::new(

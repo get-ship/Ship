@@ -68,10 +68,12 @@ impl AuthContext {
 }
 
 /// Generate a cryptographically random 256-bit token as a hex string.
-pub fn generate_token() -> String {
+///
+/// Returns an error if the OS entropy source is unavailable.
+pub fn generate_token() -> Result<String, getrandom::Error> {
     let mut bytes = [0u8; 32];
-    getrandom::getrandom(&mut bytes).expect("failed to generate random token");
-    hex_encode(&bytes)
+    getrandom::getrandom(&mut bytes)?;
+    Ok(hex_encode(&bytes))
 }
 
 pub(crate) fn hex_encode(bytes: &[u8]) -> String {
@@ -237,15 +239,15 @@ mod tests {
 
     #[test]
     fn generate_token_is_64_hex_chars() {
-        let token = generate_token();
+        let token = generate_token().unwrap();
         assert_eq!(token.len(), 64);
         assert!(token.chars().all(|c| c.is_ascii_hexdigit()));
     }
 
     #[test]
     fn generate_token_is_unique() {
-        let a = generate_token();
-        let b = generate_token();
+        let a = generate_token().unwrap();
+        let b = generate_token().unwrap();
         assert_ne!(a, b);
     }
 
@@ -260,7 +262,7 @@ mod tests {
 
     #[test]
     fn is_daemon_token_valid() {
-        let token = generate_token();
+        let token = generate_token().unwrap();
         assert!(is_daemon_token(&token));
     }
 

@@ -23,6 +23,7 @@ use tracing;
 pub async fn spawn_workspace_watcher(
     kernel: Arc<Mutex<runtime::events::KernelRouter>>,
     ship_dir: PathBuf,
+    health_registry: &crate::supervised::HealthRegistry,
 ) -> Option<RecommendedWatcher> {
     let project_root = match ship_dir.parent() {
         Some(p) => p.to_path_buf(),
@@ -81,7 +82,7 @@ pub async fn spawn_workspace_watcher(
 
     // Spawn the event processing loop.
     let ship_dir_handler = ship_dir.clone();
-    tokio::spawn(async move {
+    crate::supervised::spawn_monitored(health_registry, "workspace-watcher", async move {
         // Debounce: collect events for 500ms then process.
         let debounce = Duration::from_millis(500);
         loop {

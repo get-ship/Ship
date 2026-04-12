@@ -53,7 +53,8 @@ async fn mesh_register_sets_actor_id() {
     let dir = TempDir::new().unwrap();
     let kernel = make_kernel(&dir);
     // Spawn mesh service for routing to work
-    crate::connections::spawn_mesh_service(&kernel).await.unwrap();
+    let hr = crate::supervised::HealthRegistry::new();
+    crate::connections::spawn_mesh_service(&kernel, &hr).await.unwrap();
 
     let server = NetworkServer::new(kernel);
 
