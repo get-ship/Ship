@@ -9,36 +9,18 @@ use std::path::PathBuf;
 
 use crate::auth::{AuthContext, Scope, require_scope};
 use crate::rest_api::{ApiState, MeshResponse};
-use super::{err_response, ok_response, resolve_worktree};
+use super::{err_response, ok_response, resolve_worktree, safe_resolve};
 
 // ── Path safety ──────────────────────────────────────────────────────────────
 
-/// Resolve `relative` under `base`, refusing any path that escapes `base`.
+/// Resolve `relative` under `base`, refusing any path that escapes `base`
+/// via `..` components or symlinks. Creates `base` if it doesn't exist.
 fn safe_join(base: &std::path::Path, relative: &str) -> Result<PathBuf, (StatusCode, Json<MeshResponse>)> {
+    std::fs::create_dir_all(base).map_err(|e| {
+        err_response(StatusCode::INTERNAL_SERVER_ERROR, &format!("failed to ensure base dir: {e}"))
+    })?;
     let joined = base.join(relative);
-    let canonical_base = base
-        .canonicalize()
-        .unwrap_or_else(|_| base.to_path_buf());
-    // Normalize without requiring the path to exist yet
-    let normalized = normalize_path(&joined);
-    if !normalized.starts_with(&canonical_base) {
-        return Err(err_response(StatusCode::BAD_REQUEST, "path escapes base directory"));
-    }
-    Ok(joined)
-}
-
-/// Collapse `..` components without requiring the path to exist.
-fn normalize_path(path: &std::path::Path) -> PathBuf {
-    let mut out = PathBuf::new();
-    for component in path.components() {
-        use std::path::Component;
-        match component {
-            Component::ParentDir => { out.pop(); }
-            Component::CurDir => {}
-            c => out.push(c),
-        }
-    }
-    out
+    safe_resolve(base, &joined)
 }
 
 // ── Request bodies ────────────────────────────────────────────────────────────
@@ -279,12 +261,6 @@ mod tests {
     // ── Path safety ──────────────────────────────────────────────────────────
 
     #[test]
-    fn normalize_path_collapses_dotdot() {
-        let p = normalize_path(std::path::Path::new("/base/skills/../agents"));
-        assert_eq!(p, PathBuf::from("/base/agents"));
-    }
-
-    #[test]
     fn safe_join_rejects_escape() {
         let base = tempfile::tempdir().unwrap();
         let base_path = base.path().to_path_buf();
@@ -299,6 +275,23 @@ mod tests {
         let base_path = base.path().to_path_buf();
         let result = safe_join(&base_path, "subdir/file.md");
         assert!(result.is_ok());
+    }
+
+    #[test]
+    #[cfg(unix)]
+    fn safe_join_rejects_symlink_escape() {
+        use std::os::unix::fs::symlink;
+        let outside = tempfile::tempdir().unwrap();
+        let secret = outside.path().join("secret.txt");
+        std::fs::write(&secret, "leaked").unwrap();
+
+        let base = tempfile::tempdir().unwrap();
+        // Plant a symlink inside base that points to a file outside base.
+        symlink(&secret, base.path().join("trap")).unwrap();
+
+        // Attempting to resolve through the symlink must fail.
+        let result = safe_join(&base.path().to_path_buf(), "trap");
+        assert!(result.is_err(), "symlink targeting outside base must be rejected");
     }
 
     // ── write_agent ───────────────────────────────────────────────────────────

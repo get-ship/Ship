@@ -79,6 +79,57 @@ pub(crate) fn err_response(
     )
 }
 
+/// Resolve `target` under `base` safely, rejecting any path that escapes `base`
+/// via `..` components or symlinks.
+///
+/// Handles both existing and not-yet-created files: canonicalizes the longest
+/// existing ancestor and logically extends with the remaining components.
+///
+/// If `base` doesn't exist, returns 404 — since nothing can exist under a
+/// nonexistent base, this is always the correct answer for reads/deletes, and
+/// writers should create the base first.
+pub(crate) fn safe_resolve(
+    base: &std::path::Path,
+    target: &std::path::Path,
+) -> Result<std::path::PathBuf, (StatusCode, Json<MeshResponse>)> {
+    let canonical_base = std::fs::canonicalize(base)
+        .map_err(|_| err_response(StatusCode::NOT_FOUND, "file not found"))?;
+
+    // Walk up until we find an existing ancestor we can canonicalize, then
+    // append the non-existent remainder. This prevents symlink-based escape:
+    // any symlink inside `base` that points outside it will be resolved by
+    // canonicalize() and fail the starts_with check.
+    let mut existing = target.to_path_buf();
+    let mut tail: Vec<std::ffi::OsString> = Vec::new();
+    let resolved = loop {
+        match std::fs::canonicalize(&existing) {
+            Ok(p) => break p,
+            Err(_) => match existing.file_name() {
+                Some(name) => {
+                    tail.push(name.to_os_string());
+                    if !existing.pop() {
+                        // No more components — target is outside anything that exists.
+                        return Err(err_response(StatusCode::BAD_REQUEST, "invalid path"));
+                    }
+                }
+                None => {
+                    return Err(err_response(StatusCode::BAD_REQUEST, "invalid path"));
+                }
+            },
+        }
+    };
+    let mut full = resolved;
+    for segment in tail.into_iter().rev() {
+        full.push(segment);
+    }
+
+    if !full.starts_with(&canonical_base) {
+        return Err(err_response(StatusCode::BAD_REQUEST, "path escapes base directory"));
+    }
+
+    Ok(full)
+}
+
 // ---- Event emit endpoint ----
 
 #[derive(Deserialize)]

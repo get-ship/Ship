@@ -167,9 +167,20 @@ pub async fn auth_middleware(
         .and_then(|h| h.strip_prefix("Bearer "))
         .map(|s| s.to_string());
 
-    let query_token = req.uri().query()
-        .and_then(|q| q.split('&').find_map(|p| p.strip_prefix("token=")))
-        .map(|s| s.to_string());
+    // Query-param tokens are accepted ONLY on GET requests (for browser
+    // EventSource / WebSocket upgrade, which can't set headers). POST/PUT/DELETE
+    // must use the Authorization header — otherwise the token would leak into
+    // server access logs.
+    let query_token = if req.method() == axum::http::Method::GET {
+        req.uri().query()
+            .and_then(|q| q.split('&').find_map(|p| p.strip_prefix("token=")))
+            .map(|s| {
+                tracing::debug!("auth: query-param token used on GET {}", req.uri().path());
+                s.to_string()
+            })
+    } else {
+        None
+    };
 
     let token_string = match header_token.or(query_token) {
         Some(t) => t,
@@ -202,15 +213,16 @@ pub async fn auth_middleware(
         let registry = session_registry.lock().await;
         return match registry.get(token) {
             Some(session) => {
-                let agent_id_header = header_string(&req, "x-ship-agent-id");
-                let workspace_id = header_string(&req, "x-ship-workspace-id")
-                    .or_else(|| session.workspace_id.clone());
+                // Identity is bound to the session at registration time and
+                // cannot be overridden by client headers. x-ship-session-id
+                // remains freely settable — it's the agent's own session context,
+                // not a privilege claim.
                 let session_id = header_string(&req, "x-ship-session-id");
 
                 let auth = AuthContext {
                     caller_kind: CallerKind::Mcp,
-                    agent_id: agent_id_header.or_else(|| Some(session.agent_id.clone())),
-                    workspace_id,
+                    agent_id: Some(session.agent_id.clone()),
+                    workspace_id: session.workspace_id.clone(),
                     session_id,
                     scopes: session.scopes.clone(),
                 };

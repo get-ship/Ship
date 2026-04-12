@@ -439,11 +439,7 @@ async fn workspace_not_found_returns_404() {
     assert!(!body.0.ok);
 }
 
-// BUG: Path traversal via `..` is NOT blocked by the current `starts_with` check.
-// `Path::starts_with` does component-level comparison but does not resolve `..`,
-// so `/.artifacts/../secret.txt` passes the check because `.artifacts` is
-// still a prefix component. The implementation needs `canonicalize()` or manual
-// `..` rejection to fix this. Filed as a known vulnerability.
+/// Path traversal via `..` must be blocked by canonicalization in safe_resolve.
 #[tokio::test(flavor = "multi_thread")]
 async fn session_file_path_traversal_blocked() {
     let dir = TempDir::new().unwrap();
@@ -454,15 +450,15 @@ async fn session_file_path_traversal_blocked() {
 
     let (branch, state) = create_test_workspace(&dir);
 
-    // Currently the traversal is NOT blocked — this documents the existing bug.
-    // When the fix lands, flip this test to assert Err with 400/404.
-    let result = read_session_file(State(state.clone()), Path((branch.clone(), "../secret.txt".to_string()))).await;
-    assert!(
-        result.is_ok(),
-        "traversal currently bypasses starts_with check (known bug)"
-    );
+    // Read traversal must be rejected.
+    let result = read_session_file(
+        State(state.clone()),
+        Path((branch.clone(), "../secret.txt".to_string())),
+    )
+    .await;
+    assert!(result.is_err(), "read traversal must be rejected");
 
-    // Verify write traversal also goes through (same bug)
+    // Write traversal must be rejected.
     let result = write_session_file(
         State(state),
         full_auth(),
@@ -472,13 +468,9 @@ async fn session_file_path_traversal_blocked() {
         }),
     )
     .await;
+    assert!(result.is_err(), "write traversal must be rejected");
     assert!(
-        result.is_ok(),
-        "write traversal currently bypasses starts_with check (known bug)"
-    );
-    // Confirm the file was written outside .artifacts/
-    assert!(
-        dir.path().join("traversed.txt").exists(),
-        "write traversal created file outside session dir (known bug)"
+        !dir.path().join("traversed.txt").exists(),
+        "write traversal must not create file outside session dir"
     );
 }

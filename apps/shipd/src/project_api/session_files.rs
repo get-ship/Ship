@@ -6,7 +6,7 @@ use serde::Deserialize;
 use crate::auth::{AuthContext, Scope, require_scope};
 use crate::rest_api::{ApiState, MeshResponse};
 
-use super::{err_response, ok_response, resolve_worktree};
+use super::{err_response, ok_response, resolve_worktree, safe_resolve};
 
 pub(crate) fn file_type_from_ext(path: &std::path::Path) -> &'static str {
     match path.extension().and_then(|e| e.to_str()) {
@@ -100,12 +100,9 @@ pub async fn read_session_file(
     Path((id, file_path)): Path<(String, String)>,
 ) -> Result<(StatusCode, Json<MeshResponse>), (StatusCode, Json<MeshResponse>)> {
     let worktree = resolve_worktree(state.ship_dir(), &id)?;
-    let target = worktree.join(".artifacts").join(&file_path);
-
-    // Prevent path traversal
-    if !target.starts_with(worktree.join(".artifacts")) {
-        return Err(err_response(StatusCode::BAD_REQUEST, "invalid path"));
-    }
+    let session_dir = worktree.join(".artifacts");
+    let requested = session_dir.join(&file_path);
+    let target = safe_resolve(&session_dir, &requested)?;
 
     let file_type = file_type_from_ext(&target);
 
@@ -161,12 +158,12 @@ pub async fn write_session_file(
     require_scope(&auth, Scope::WriteWorkspace)?;
     let worktree = resolve_worktree(state.ship_dir(), &id)?;
     let session_dir = worktree.join(".artifacts");
-    let target = session_dir.join(&file_path);
-
-    // Prevent path traversal
-    if !target.starts_with(&session_dir) {
-        return Err(err_response(StatusCode::BAD_REQUEST, "invalid path"));
-    }
+    // session_dir may not exist yet; create it first so canonicalize succeeds.
+    std::fs::create_dir_all(&session_dir).map_err(|e| {
+        err_response(StatusCode::INTERNAL_SERVER_ERROR, &format!("failed to create session dir: {e}"))
+    })?;
+    let requested = session_dir.join(&file_path);
+    let target = safe_resolve(&session_dir, &requested)?;
 
     // Ensure parent directories exist
     if let Some(parent) = target.parent() {
@@ -196,12 +193,9 @@ pub async fn delete_session_file(
 ) -> Result<(StatusCode, Json<MeshResponse>), (StatusCode, Json<MeshResponse>)> {
     require_scope(&auth, Scope::WriteWorkspace)?;
     let worktree = resolve_worktree(state.ship_dir(), &id)?;
-    let target = worktree.join(".artifacts").join(&file_path);
-
-    // Prevent path traversal
-    if !target.starts_with(worktree.join(".artifacts")) {
-        return Err(err_response(StatusCode::BAD_REQUEST, "invalid path"));
-    }
+    let session_dir = worktree.join(".artifacts");
+    let requested = session_dir.join(&file_path);
+    let target = safe_resolve(&session_dir, &requested)?;
 
     std::fs::remove_file(&target).map_err(|e| {
         if e.kind() == std::io::ErrorKind::NotFound {
