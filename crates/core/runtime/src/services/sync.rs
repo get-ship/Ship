@@ -145,9 +145,12 @@ impl ServiceHandler for SyncServiceHandler {
 
     fn on_tick(&mut self, store: &ActorStore) -> Result<()> {
         if let Err(e) = self.push_cycle(store) {
-            eprintln!("[sync] push_cycle error: {e}");
+            tracing::warn!("sync push_cycle error: {e}");
             let payload = serde_json::json!({"error": e.to_string()});
-            let _ = store.append(&EventEnvelope::new("sync.push.failed", "sync", &payload)?);
+            let envelope = EventEnvelope::new("sync.push.failed", "sync", &payload)?;
+            if let Err(persist_err) = store.append(&envelope) {
+                tracing::error!("sync: failed to persist sync.push.failed event: {persist_err}");
+            }
         }
         Ok(())
     }

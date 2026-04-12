@@ -54,15 +54,18 @@ fn emit_session(envelope: EventEnvelope, workspace_id: &str) -> Result<EventEnve
 
     block_on(async { sqlx::query("COMMIT").execute(&mut conn).await })?;
 
-    // Route to actor mailboxes after commit (fire-and-forget).
+    // Route to actor mailboxes after commit. Event is already durable; a
+    // failed delivery just means live subscribers will catch up on replay.
     let ctx = EmitContext {
         caller_kind: CallerKind::Runtime,
         skill_id: None,
         workspace_id: Some(workspace_id.to_string()),
         session_id: envelope.session_id.clone(),
     };
-    if let Some(kr) = crate::events::kernel_router() {
-        let _ = block_on_anyhow(async { kr.lock().await.route(envelope.clone(), &ctx).await });
+    if let Some(kr) = crate::events::kernel_router()
+        && let Err(e) = block_on_anyhow(async { kr.lock().await.route(envelope.clone(), &ctx).await })
+    {
+        tracing::warn!("db::session_events: kernel route after commit failed: {e}");
     }
 
     Ok(envelope)
@@ -122,8 +125,10 @@ pub fn insert_session_progress_event(
         workspace_id: Some(workspace_id.to_string()),
         session_id: Some(session_id.to_string()),
     };
-    if let Some(kr) = crate::events::kernel_router() {
-        let _ = block_on_anyhow(async { kr.lock().await.route(envelope, &ctx).await });
+    if let Some(kr) = crate::events::kernel_router()
+        && let Err(e) = block_on_anyhow(async { kr.lock().await.route(envelope, &ctx).await })
+    {
+        tracing::warn!("db::session_events: kernel route of progress failed: {e}");
     }
 
     Ok(())

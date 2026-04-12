@@ -33,8 +33,10 @@ fn emit_config_event(subject: &str, detail: Option<String>) -> Result<()> {
         workspace_id: None,
         session_id: None,
     };
-    if let Some(kr) = crate::events::kernel_router() {
-        let _ = block_on_anyhow(async { kr.lock().await.route(envelope, &ctx).await });
+    if let Some(kr) = crate::events::kernel_router()
+        && let Err(e) = block_on_anyhow(async { kr.lock().await.route(envelope, &ctx).await })
+    {
+        tracing::warn!("config::crud: kernel route failed: {e}");
     }
     Ok(())
 }
