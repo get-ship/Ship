@@ -56,6 +56,21 @@ export interface ShipQuery<T> extends ShipQueryState<T> {
   subscribe: (fn: ShipQueryListener<T>) => Unsubscribe
 }
 
+// ── Pairing types ───────────────────────────────────────────
+
+export interface PairInit {
+  code: string
+  claim_token: string
+  code_expires_in_secs: number
+  dev_mode: boolean
+}
+
+export type PairStatus =
+  | { status: 'pending' }
+  | { status: 'approved'; session_token: string }
+  | { status: 'expired' }
+  | { status: 'unknown' }
+
 // ── SSE Event types ─────────────────────────────────────────
 
 export interface ShipEvent {
@@ -112,19 +127,29 @@ export class ShipClient {
     return this.token ?? null
   }
 
-  async authenticate(): Promise<boolean> {
+  /** Start a new pairing flow. Returns the code the user must paste into their CLI. */
+  async pairInit(clientLabel?: string): Promise<PairInit | null> {
     try {
-      const res = await fetch(`${this.baseUrl}/auth/handshake`, {
+      const res = await fetch(`${this.baseUrl}/auth/pair/init`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ capabilities: this.capabilities }),
+        body: JSON.stringify({ client_label: clientLabel ?? null }),
       })
-      if (!res.ok) return false
-      const body = await res.json() as { token: string; granted: Capability[] }
-      this.token = body.token
-      return true
+      if (!res.ok) return null
+      return await res.json() as PairInit
     } catch {
-      return false
+      return null
+    }
+  }
+
+  /** Poll for pairing approval. Returns the session token when approved. */
+  async pairStatus(claimToken: string): Promise<PairStatus> {
+    try {
+      const res = await fetch(`${this.baseUrl}/auth/pair/status?claim_token=${encodeURIComponent(claimToken)}`)
+      if (!res.ok) return { status: 'unknown' }
+      return await res.json() as PairStatus
+    } catch {
+      return { status: 'unknown' }
     }
   }
 
