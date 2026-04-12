@@ -367,3 +367,127 @@ fn project_non_pipeline_job_has_no_phase() {
     let rec = map.get("j-nopipe").unwrap();
     assert_eq!(rec.current_phase, None, "non-pipeline job must not track current_phase");
 }
+
+// ── Idempotency ─────────────────────────────────────────────────────────────
+//
+// Each projection's `apply` must produce the same terminal state regardless
+// of how many times each event in the stream is processed. These tests
+// concatenate the full event list with itself and assert the result equals
+// single-pass projection. Property: for events E, project(E) == project(E ++ E).
+
+mod idempotent {
+    use super::*;
+    use crate::projections::job::apply;
+
+    fn pipeline_events(job_id: &str) -> Vec<EventEnvelope> {
+        vec![
+            created_event(job_id),
+            make_event(
+                event_types::JOB_DISPATCHED,
+                serde_json::json!({"job_id": job_id, "worktree": "/tmp/w", "pid": 1}),
+            ),
+            make_event(
+                event_types::STEP_COMPLETED,
+                serde_json::json!({"job_id": job_id, "step_id": "step-1"}),
+            ),
+            make_event(
+                event_types::STEP_DISPATCHED,
+                serde_json::json!({"job_id": job_id, "step_id": "step-2", "step_type": "agent"}),
+            ),
+            make_event(
+                event_types::STEP_COMPLETED,
+                serde_json::json!({"job_id": job_id, "step_id": "step-2"}),
+            ),
+            make_event(
+                event_types::JOB_COMPLETED,
+                serde_json::json!({"job_id": job_id, "slug": "auth-tests"}),
+            ),
+        ]
+    }
+
+    fn project_and_get(events: &[EventEnvelope], job_id: &str) -> super::super::JobRecord {
+        super::super::project(events).get(job_id).cloned().unwrap()
+    }
+
+    #[test]
+    fn replay_entire_stream_is_noop() {
+        // project(E) == project(E ++ E). Rebuilding projections from a log
+        // with duplicated events must produce identical state.
+        let events = pipeline_events("j-idem");
+        let single = project_and_get(&events, "j-idem");
+
+        let mut doubled_events = events.clone();
+        doubled_events.extend(events.iter().cloned());
+        let doubled = project_and_get(&doubled_events, "j-idem");
+
+        assert_eq!(single.status, doubled.status);
+        assert_eq!(single.completed_steps, doubled.completed_steps);
+        assert_eq!(single.current_step, doubled.current_step);
+        assert_eq!(single.worktree, doubled.worktree);
+        assert_eq!(single.error, doubled.error);
+    }
+
+    #[test]
+    fn step_completed_push_is_idempotent() {
+        // Apply STEP_COMPLETED for the same step twice. Must not produce
+        // duplicates in completed_steps.
+        let events = vec![
+            created_event("j-sc"),
+            make_event(
+                event_types::STEP_COMPLETED,
+                serde_json::json!({"job_id": "j-sc", "step_id": "step-1"}),
+            ),
+            make_event(
+                event_types::STEP_COMPLETED,
+                serde_json::json!({"job_id": "j-sc", "step_id": "step-1"}),
+            ),
+        ];
+        let rec = project_and_get(&events, "j-sc");
+        assert_eq!(
+            rec.completed_steps.iter().filter(|s| *s == "step-1").count(),
+            1,
+            "duplicate STEP_COMPLETED must not produce duplicate completed_steps entries"
+        );
+    }
+
+    #[test]
+    fn job_dispatched_replay_does_not_corrupt_completed_steps() {
+        // The old `.take()` pattern would destructively read current_step on
+        // the first pass, then silently skip the "move to completed" block
+        // on replay, producing a different final state. This test guards the
+        // idempotent rewrite.
+        let events = vec![
+            created_event("j-dis"),
+            make_event(
+                event_types::STEP_COMPLETED,
+                serde_json::json!({"job_id": "j-dis", "step_id": "step-1"}),
+            ),
+            make_event(
+                event_types::JOB_COMPLETED,
+                serde_json::json!({"job_id": "j-dis", "slug": "auth-tests"}),
+            ),
+            make_event(
+                event_types::JOB_DISPATCHED,
+                serde_json::json!({"job_id": "j-dis", "worktree": "/w", "pid": 1}),
+            ),
+        ];
+
+        let first = project_and_get(&events, "j-dis");
+
+        // Build state, then apply events again on top.
+        let mut map = super::super::project(&events);
+        let rec = map.get_mut("j-dis").unwrap();
+        for e in &events {
+            apply(rec, e);
+        }
+
+        assert_eq!(
+            first.completed_steps, rec.completed_steps,
+            "completed_steps must not change across replay"
+        );
+        assert_eq!(
+            first.status, rec.status,
+            "status must not change across replay"
+        );
+    }
+}

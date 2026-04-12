@@ -86,23 +86,26 @@ pub fn apply(record: &mut JobRecord, event: &EventEnvelope) {
                     record.provider_meta = Some(meta.clone());
                 }
             }
-            // DAG step tracking: on re-dispatch after completion, mark current step
-            // as completed and advance to next unblocked step.
+            // DAG step tracking: on re-dispatch after completion, mark current
+            // step as completed and advance to next unblocked step.
+            //
+            // Idempotent by construction: `.clone()` (not `.take()`) so a
+            // replayed JOB_DISPATCHED doesn't destructively read state on the
+            // first pass and see None on the second. The `.contains` guard on
+            // push prevents duplicate completed entries.
             if record.status == JobStatus::Completed
-                && let Some(ref current) = record.current_step.take()
-                && !record.completed_steps.contains(current)
+                && let Some(current) = record.current_step.clone()
             {
-                record.completed_steps.push(current.clone());
+                if !record.completed_steps.contains(&current) {
+                    record.completed_steps.push(current);
+                }
+                record.current_step = None;
             }
-            // Set current_step to the next unblocked step
+            // Set current_step to the next unblocked step based on what's
+            // actually completed. Deterministic — same inputs, same output.
             if let Some(ref pipeline) = record.steps {
                 let next = pipeline.unblocked_steps(&record.completed_steps);
                 record.current_step = next.first().map(|s| s.id.clone());
-            } else if record.current_step.is_none() {
-                // First dispatch — set to first root step
-                if let Some(ref pipeline) = record.steps {
-                    record.current_step = pipeline.root_steps().first().map(|s| s.id.clone());
-                }
             }
             // Legacy pipeline phase tracking
             if record.pipeline.is_some() {
@@ -131,12 +134,14 @@ pub fn apply(record: &mut JobRecord, event: &EventEnvelope) {
             record.updated_at = ts;
         }
         event_types::JOB_COMPLETED => {
-            // DAG step tracking: when the final step completes without a subsequent
-            // JOB_DISPATCHED (e.g. merge follows immediately), record it now.
-            if let Some(ref current) = record.current_step.take()
-                && !record.completed_steps.contains(current)
-            {
-                record.completed_steps.push(current.clone());
+            // DAG step tracking: when the final step completes without a
+            // subsequent JOB_DISPATCHED (e.g. merge follows immediately),
+            // record it now. Idempotent: clone the value, guard the push.
+            if let Some(current) = record.current_step.clone() {
+                if !record.completed_steps.contains(&current) {
+                    record.completed_steps.push(current);
+                }
+                record.current_step = None;
             }
             record.status = JobStatus::Completed;
             record.updated_at = ts;
