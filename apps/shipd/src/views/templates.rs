@@ -39,6 +39,12 @@ const TEMPLATES: &[(&str, &str)] = &[
         "_breadcrumb.html.j2",
         include_str!("../../templates/_breadcrumb.html.j2"),
     ),
+    // Auto-generated URL macros. Written to disk by `apps/shipd/build.rs`
+    // at compile time and included here like any other template.
+    (
+        "_urls.html.j2",
+        include_str!("../../templates/_urls.html.j2"),
+    ),
     (
         "_empty.html.j2",
         include_str!("../../templates/_empty.html.j2"),

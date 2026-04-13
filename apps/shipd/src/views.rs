@@ -236,20 +236,36 @@ pub async fn list_views() -> impl IntoResponse {
     mesh_ok(serde_json::json!({ "views": list }))
 }
 
-/// GET /api/runtime/view/{name}/raw?token=... — raw HTML directly, not JSON-wrapped.
+/// GET /api/runtime/view/{name}/raw — raw HTML directly, not JSON-wrapped.
 /// Used as iframe src so scripts load normally from the daemon origin.
-/// Token is in the query string because iframes can't set auth headers.
+///
+/// Cookie-first auth: when the caller presents a valid daemon token via
+/// `?token=` (iframes cannot set `Authorization` headers), we mint a
+/// `ship_session` browser cookie and return it alongside the HTML. The
+/// bootstrap `@get(...)` call inside the HTML fires with the cookie
+/// attached and never sees the token.
+///
+/// If the auth middleware has already run (cookie-authenticated caller) we
+/// skip cookie issuance — the caller already has one.
+///
+/// `{{SHIP_TOKEN}}` placeholders in the bootstrap HTML are replaced with an
+/// empty string. Views must use relative URLs; the cookie handles auth.
 pub async fn serve_view_raw(
+    State(state): State<crate::rest_api::ApiState>,
     Path(name): Path<String>,
-    axum::extract::Query(query): axum::extract::Query<std::collections::HashMap<String, String>>,
 ) -> axum::response::Response {
     use axum::http::header;
 
     let err = |status: StatusCode, msg: String| {
-        axum::response::Response::builder().status(status).body(axum::body::Body::from(msg)).unwrap()
+        axum::response::Response::builder()
+            .status(status)
+            .body(axum::body::Body::from(msg))
+            .unwrap()
     };
 
-    if !is_valid_view_name(&name) { return err(StatusCode::BAD_REQUEST, "invalid view name".into()); }
+    if !is_valid_view_name(&name) {
+        return err(StatusCode::BAD_REQUEST, "invalid view name".into());
+    }
     let (view_dir, _) = match resolve_view_dir(&name) {
         Some(v) => v,
         None => return err(StatusCode::NOT_FOUND, format!("view '{name}' not found")),
@@ -259,16 +275,26 @@ pub async fn serve_view_raw(
         Err(_) => return err(StatusCode::NOT_FOUND, format!("no index.html for '{name}'")),
     };
 
-    let token = query.get("token").cloned().unwrap_or_default();
-    // Only token templating now. Views reference shared assets via HTTP:
-    //   <link rel="stylesheet" href="/api/runtime/assets/view-tokens.css">
-    //   <script type="module" src="/api/runtime/assets/datastar.js"></script>
-    let html = html.replace("{{SHIP_TOKEN}}", &token);
+    // Strip legacy placeholders; cookie auth replaces query-string tokens.
+    let html = html.replace("{{SHIP_TOKEN}}", "");
+
+    // Mint a browser-session cookie so subsequent fetches authenticate via
+    // cookie. The auth middleware has already validated the caller's
+    // token/session, so this is safe to unconditionally issue here.
+    let session_id =
+        crate::session::issue_browser_session(state.session_registry()).await;
+    let cookie = format!(
+        "{name}={id}; HttpOnly; SameSite=Strict; Path=/api/runtime; Max-Age={ttl}",
+        name = crate::session::COOKIE_NAME,
+        id = session_id,
+        ttl = crate::session::BROWSER_SESSION_TTL_SECS,
+    );
 
     axum::response::Response::builder()
         .status(StatusCode::OK)
         .header(header::CONTENT_TYPE, "text/html; charset=utf-8")
         .header(header::CACHE_CONTROL, "no-cache")
+        .header(header::SET_COOKIE, cookie)
         .body(axum::body::Body::from(html))
         .unwrap()
 }
@@ -329,15 +355,12 @@ pub async fn serve_view(
         Ok(h) => h,
         Err(_) => return mesh_err(StatusCode::NOT_FOUND, format!("view '{name}' has no index.html")),
     };
-    let token = headers.get("authorization")
-        .and_then(|v| v.to_str().ok())
-        .and_then(|h| h.strip_prefix("Bearer "))
-        .unwrap_or("")
-        .to_string();
-    // Views reference shared assets via HTTP:
+    let _ = headers; // cookie-first auth; headers unused here
+    // Views reference shared assets via relative URLs:
     //   <link rel="stylesheet" href="/api/runtime/assets/view-tokens.css">
     //   <script type="module" src="/api/runtime/assets/datastar.js"></script>
-    let html = html.replace("{{SHIP_TOKEN}}", &token);
+    // Legacy `{{SHIP_TOKEN}}` placeholders are stripped — cookie handles auth.
+    let html = html.replace("{{SHIP_TOKEN}}", "");
     mesh_ok(serde_json::json!({ "html": html }))
 }
 
