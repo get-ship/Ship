@@ -40,6 +40,7 @@ import './domain/ship-pipeline-definition'
 import './domain/ship-pipeline-dag'
 import './domain/ship-history-row'
 import './domain/ship-spec-row'
+import './domain/ship-git-diff'
 
 // Observability, charts, utility (each subdir index registers its own)
 export * from './observability'
@@ -79,6 +80,7 @@ export { ShipPipelineDefinition } from './domain/ship-pipeline-definition'
 export { ShipPipelineDag } from './domain/ship-pipeline-dag'
 export { ShipHistoryRow } from './domain/ship-history-row'
 export { ShipSpecRow } from './domain/ship-spec-row'
+export { ShipGitDiff, ShipGitDiffFile, ShipGitDiffHunk, ShipGitDiffLine } from './domain/ship-git-diff'
 
 export type { Tone, Variant, Size } from './util'
 

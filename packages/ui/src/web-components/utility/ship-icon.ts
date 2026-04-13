@@ -42,6 +42,10 @@ export const ICONS: Record<string, string> = {
   'arrow-left': 'M19 12H5M12 19l-7-7 7-7',
   'arrow-right': 'M5 12h14M12 5l7 7-7 7',
   sparkles: 'M12 3l2 5 5 2-5 2-2 5-2-5-5-2 5-2 2-5zM19 14l1 2 2 1-2 1-1 2-1-2-2-1 2-1 1-2z',
+  'file-code': 'M14 2H6a2 2 0 00-2 2v16a2 2 0 002 2h12a2 2 0 002-2V8l-6-6zM14 2v6h6M10 13l-2 2 2 2M14 13l2 2-2 2',
+  'chevrons-down-up': 'M7 20l5-5 5 5M7 4l5 5 5-5',
+  'chevrons-up-down': 'M7 15l5 5 5-5M7 9l5-5 5 5',
+  'message-square-plus': 'M21 15a2 2 0 01-2 2H7l-4 4V5a2 2 0 012-2h9M18 3v6M15 6h6',
 }
 
 export class ShipIcon extends LitElement {
