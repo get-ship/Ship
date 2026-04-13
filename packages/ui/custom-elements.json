@@ -7494,6 +7494,93 @@
     },
     {
       "kind": "javascript-module",
+      "path": "src/web-components/utility/ship-step-segments.ts",
+      "declarations": [
+        {
+          "kind": "class",
+          "description": "",
+          "name": "ShipStepSegments",
+          "members": [
+            {
+              "kind": "field",
+              "name": "values",
+              "privacy": "public",
+              "type": {
+                "text": "string"
+              },
+              "default": "''",
+              "attribute": "values",
+              "reflects": true
+            },
+            {
+              "kind": "field",
+              "name": "size",
+              "privacy": "public",
+              "type": {
+                "text": "'sm' | 'md'"
+              },
+              "default": "'sm'",
+              "attribute": "size",
+              "reflects": true
+            },
+            {
+              "kind": "method",
+              "name": "parsed",
+              "privacy": "private",
+              "return": {
+                "type": {
+                  "text": "SegmentState[]"
+                }
+              }
+            }
+          ],
+          "attributes": [
+            {
+              "name": "values",
+              "type": {
+                "text": "string"
+              },
+              "default": "''",
+              "fieldName": "values"
+            },
+            {
+              "name": "size",
+              "type": {
+                "text": "'sm' | 'md'"
+              },
+              "default": "'sm'",
+              "fieldName": "size"
+            }
+          ],
+          "superclass": {
+            "name": "LitElement",
+            "package": "lit"
+          },
+          "tagName": "ship-step-segments",
+          "customElement": true
+        }
+      ],
+      "exports": [
+        {
+          "kind": "js",
+          "name": "ShipStepSegments",
+          "declaration": {
+            "name": "ShipStepSegments",
+            "module": "src/web-components/utility/ship-step-segments.ts"
+          }
+        },
+        {
+          "kind": "custom-element-definition",
+          "name": "ship-step-segments",
+          "declaration": {
+            "name": "ShipStepSegments",
+            "module": "src/web-components/utility/ship-step-segments.ts"
+          }
+        }
+      ]
+    },
+    {
+      "kind": "javascript-module",
       "path": "src/web-components/utility/ship-toast.ts",
       "declarations": [
         {

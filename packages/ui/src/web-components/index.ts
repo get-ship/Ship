@@ -81,6 +81,7 @@ export { ShipPipelineDag } from './domain/ship-pipeline-dag'
 export { ShipHistoryRow } from './domain/ship-history-row'
 export { ShipSpecRow } from './domain/ship-spec-row'
 export { ShipGitDiff, ShipGitDiffFile, ShipGitDiffHunk, ShipGitDiffLine } from './domain/ship-git-diff'
+export { ShipStepSegments } from './utility/ship-step-segments'
 
 export type { Tone, Variant, Size } from './util'
 
