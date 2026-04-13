@@ -1,0 +1,30 @@
+{#- Workspace tab: defaults.provider + working-dir hints. Read from runtime settings. -#}
+{% if workspace_available %}
+<ship-card class="ship-settings-card" accent-bar>
+  <span slot="header">Defaults</span>
+  <div class="ship-settings-group">
+    <ship-field class="ship-settings-row">
+      <ship-label for="defaults-provider">
+        Default provider
+        <ship-tooltip slot="hint">Provider used when a new agent is created without an explicit choice.</ship-tooltip>
+      </ship-label>
+      <ship-select id="defaults-provider" value="{{ defaults.provider | default('claude') }}"
+        data-on:ship-change="@put('/api/settings', {contentType: 'json', body: JSON.stringify({key: 'defaults.provider', value: evt.detail.value})})">
+        {% for p in providers %}
+        <option value="{{ p.id }}" {% if defaults.provider == p.id %}selected{% endif %}>{{ p.id }}{% if not p.available %} (not installed){% endif %}</option>
+        {% endfor %}
+      </ship-select>
+    </ship-field>
+
+    <ship-field class="ship-settings-row">
+      <ship-label for="workspace-root">
+        Workspace root
+        <ship-tooltip slot="hint">Directory where worktrees are created. Read-only; edit in `.ship/project.yaml`.</ship-tooltip>
+      </ship-label>
+      <ship-input id="workspace-root" value="{{ workspace_root }}" disabled></ship-input>
+    </ship-field>
+  </div>
+</ship-card>
+{% else %}
+{% include 'settings/partials/_not_configured.html.j2' %}
+{% endif %}

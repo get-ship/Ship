@@ -1,0 +1,20 @@
+{#- Agents tab: list of configured agent profiles from ProjectConfig.modes. -#}
+{% if agents and agents | length > 0 %}
+<ship-card class="ship-settings-card">
+  <span slot="header">Configured agents</span>
+  {% for a in agents %}
+  <ship-list-item>
+    <span slot="leading"><ship-status-dot tone="{% if a.is_active %}success{% else %}muted{% endif %}"></ship-status-dot></span>
+    <span slot="title">{{ a.name }}</span>
+    <span slot="subtitle">{{ a.role | default('worker') }}{% if a.description %} — {{ a.description }}{% endif %}</span>
+    {% if a.is_active %}<ship-badge slot="trailing" tone="accent">active</ship-badge>{% endif %}
+  </ship-list-item>
+  {% endfor %}
+</ship-card>
+{% else %}
+<ship-empty-state variant="placeholder">
+  <ship-icon slot="icon" name="users"></ship-icon>
+  <span slot="title">No agents configured</span>
+  Define agents in <ship-code inline>.ship/project.yaml</ship-code> under <ship-code inline>modes</ship-code>.
+</ship-empty-state>
+{% endif %}

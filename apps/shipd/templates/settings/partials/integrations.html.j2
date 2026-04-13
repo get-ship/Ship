@@ -1,0 +1,24 @@
+{#- Integrations tab: env-driven third-party hooks (Telegram, GitHub). -#}
+{% if integrations and integrations | length > 0 %}
+<div class="ship-settings-group">
+  {% for i in integrations %}
+  <ship-card class="ship-settings-card" accent-bar>
+    <span slot="header">
+      {{ i.name }}
+      {% if i.connected %}
+      <ship-badge tone="success">connected</ship-badge>
+      {% else %}
+      <ship-badge tone="muted">not connected</ship-badge>
+      {% endif %}
+    </span>
+    <p style="margin:6px 0;color:var(--muted-fg)">{{ i.hint }}</p>
+  </ship-card>
+  {% endfor %}
+</div>
+{% else %}
+<ship-empty-state variant="placeholder">
+  <ship-icon slot="icon" name="plug"></ship-icon>
+  <span slot="title">No integrations</span>
+  Third-party integrations are configured via environment variables.
+</ship-empty-state>
+{% endif %}

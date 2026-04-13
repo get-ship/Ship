@@ -1,0 +1,32 @@
+{#- Providers tab: LLM provider binary detection + cred hints. -#}
+{% if providers and providers | length > 0 %}
+<div class="ship-settings-group">
+  {% for p in providers %}
+  <ship-card class="ship-settings-card" accent-bar>
+    <span slot="header">
+      {{ p.id }}
+      {% if p.available %}
+      <ship-badge tone="success">installed</ship-badge>
+      {% else %}
+      <ship-badge tone="muted">missing</ship-badge>
+      {% endif %}
+    </span>
+    <ship-field class="ship-settings-row">
+      <ship-label>Binary</ship-label>
+      <ship-input value="{{ p.binary }}" disabled></ship-input>
+    </ship-field>
+    {% if p.version %}
+    <ship-field class="ship-settings-row" style="margin-top:8px">
+      <ship-label>Version</ship-label>
+      <ship-input value="{{ p.version }}" disabled></ship-input>
+    </ship-field>
+    {% endif %}
+    <ship-alert tone="muted" style="margin-top:10px">
+      API credentials are read from environment variables — edit your shell profile or keychain, not Ship.
+    </ship-alert>
+  </ship-card>
+  {% endfor %}
+</div>
+{% else %}
+{% include 'settings/partials/_not_configured.html.j2' %}
+{% endif %}

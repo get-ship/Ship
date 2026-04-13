@@ -1,0 +1,8 @@
+{#- Settings view header + live status dot. -#}
+<div class="ship-pipelines-header" style="margin-bottom:12px">
+  <h1 style="font-family:var(--font-display);font-size:28px;font-weight:600;letter-spacing:-0.02em;margin:0">Settings</h1>
+  <ship-status-dot tone="success" pulse title="Live"></ship-status-dot>
+  {% if project.name %}
+  <ship-badge tone="muted">{{ project.name }}</ship-badge>
+  {% endif %}
+</div>

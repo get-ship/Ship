@@ -1,0 +1,41 @@
+{#- Project tab: name, description, pipelines dir, skills dir. All read-only
+    until a project/config mutation endpoint ships. -#}
+{% if project.loaded %}
+<ship-card class="ship-settings-card" accent-bar>
+  <span slot="header">Identity</span>
+  <div class="ship-settings-group">
+    <ship-field class="ship-settings-row">
+      <ship-label for="project-name">Name</ship-label>
+      <ship-input id="project-name" value="{{ project.name | default('') }}" disabled></ship-input>
+    </ship-field>
+    <ship-field class="ship-settings-row">
+      <ship-label for="project-id">Project ID</ship-label>
+      <ship-input id="project-id" value="{{ project.id | default('') }}" disabled></ship-input>
+    </ship-field>
+  </div>
+  <ship-field class="ship-settings-row" style="margin-top:10px">
+    <ship-label for="project-desc">Description</ship-label>
+    <ship-textarea id="project-desc" variant="prose" rows="3" disabled>{{ project.description | default('') }}</ship-textarea>
+  </ship-field>
+</ship-card>
+
+<ship-card class="ship-settings-card">
+  <span slot="header">Layout</span>
+  <div class="ship-settings-group">
+    <ship-field class="ship-settings-row">
+      <ship-label for="project-pipelines">Pipelines directory</ship-label>
+      <ship-input id="project-pipelines" value=".ship/pipelines" disabled></ship-input>
+    </ship-field>
+    <ship-field class="ship-settings-row">
+      <ship-label for="project-skills">Skills directory</ship-label>
+      <ship-input id="project-skills" value=".ship/skills" disabled></ship-input>
+    </ship-field>
+  </div>
+  <ship-alert tone="info" style="margin-top:10px">
+    <span slot="title">Read-only</span>
+    Project identity edits go through <ship-code inline>.ship/project.yaml</ship-code>. A direct-edit endpoint is not yet available.
+  </ship-alert>
+</ship-card>
+{% else %}
+{% include 'settings/partials/_not_configured.html.j2' %}
+{% endif %}
