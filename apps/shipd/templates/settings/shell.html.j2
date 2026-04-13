@@ -1,34 +1,31 @@
-{%- extends '_page_shell.html.j2' -%}
-{% block title %}Settings{% endblock %}
-{% block head %}
-<style>
-  .ship-settings-layout { max-width: 960px; margin: 0 auto; padding: 0 4px; }
-  .ship-settings-body { display: flex; flex-direction: column; gap: 16px; }
-  .ship-settings-group { display: grid; grid-template-columns: repeat(auto-fit, minmax(260px, 1fr)); gap: 14px; }
-  .ship-settings-row { display: flex; flex-direction: column; gap: 6px; }
-  .ship-settings-card + .ship-settings-card { margin-top: 14px; }
-  .ship-settings-save-bar { position: sticky; bottom: 0; margin-top: 16px; padding-top: 10px; background: var(--surface-1, transparent); }
-</style>
-{% endblock %}
-{% block body_class %}ship-view-settings{% endblock %}
-{% block body %}
-<div class="ship-settings-layout">
-  {% include 'settings/partials/header.html.j2' %}
+{#- Fragment for Studio inline-mount. Root div matches bootstrap's data-init div by ID. -#}
+<div id="settings-root" class="ship-view ship-view-settings">
+  <style>
+    .ship-settings-layout { max-width: 960px; margin: 0 auto; padding: 0 4px; }
+    .ship-settings-body { display: flex; flex-direction: column; gap: 16px; }
+    .ship-settings-group { display: grid; grid-template-columns: repeat(auto-fit, minmax(260px, 1fr)); gap: 14px; }
+    .ship-settings-row { display: flex; flex-direction: column; gap: 6px; }
+    .ship-settings-card + .ship-settings-card { margin-top: 14px; }
+    .ship-settings-save-bar { position: sticky; bottom: 0; margin-top: 16px; padding-top: 10px; background: var(--surface-1, transparent); }
+  </style>
 
-  <ship-tabs variant="underline" active="{{ active_tab }}"
-    data-on:ship-tab-change="@get('/api/runtime/view/settings?tab=' + evt.detail.name)">
-    <ship-tab name="workspace" label="Workspace"></ship-tab>
-    <ship-tab name="project" label="Project"></ship-tab>
-    <ship-tab name="agents" label="Agents" count="{{ agents | length }}"></ship-tab>
-    <ship-tab name="providers" label="Providers" count="{{ providers | length }}"></ship-tab>
-    <ship-tab name="mcp" label="MCP" count="{{ mcp_servers | length }}"></ship-tab>
-    <ship-tab name="permissions" label="Permissions"></ship-tab>
-    <ship-tab name="integrations" label="Integrations"></ship-tab>
-  </ship-tabs>
+  <div class="ship-settings-layout">
+    {% include 'settings/partials/header.html.j2' %}
 
-  <div id="settings-panel"
-       data-init="@get('/api/runtime/view/settings/sse?tab={{ active_tab }}', {requestCancellation: 'disabled'})">
-    {% include 'settings/content.html.j2' %}
+    <ship-tabs variant="underline" active="{{ active_tab }}"
+      data-on:ship-tab-change="@get('{{ daemon_origin | safe }}/api/runtime/view/settings?tab=' + evt.detail.name)">
+      <ship-tab name="workspace" label="Workspace"></ship-tab>
+      <ship-tab name="project" label="Project"></ship-tab>
+      <ship-tab name="agents" label="Agents" count="{{ agents | length }}"></ship-tab>
+      <ship-tab name="providers" label="Providers" count="{{ providers | length }}"></ship-tab>
+      <ship-tab name="mcp" label="MCP" count="{{ mcp_servers | length }}"></ship-tab>
+      <ship-tab name="permissions" label="Permissions"></ship-tab>
+      <ship-tab name="integrations" label="Integrations"></ship-tab>
+    </ship-tabs>
+
+    <div id="settings-panel"
+         data-init="@get('{{ daemon_origin | safe }}/api/runtime/view/settings/sse?tab={{ active_tab }}', {requestCancellation: 'disabled'})">
+      {% include 'settings/content.html.j2' %}
+    </div>
   </div>
 </div>
-{% endblock %}

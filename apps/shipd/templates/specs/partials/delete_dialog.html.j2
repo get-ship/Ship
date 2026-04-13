@@ -4,7 +4,7 @@
                    cancel-label="Cancel"
                    data-attr-open="$confirmDelete"
                    data-on:ship-cancel="$confirmDelete = false"
-                   data-on:ship-confirm="@delete('/api/runtime/specs/' + ($selectedId || '')); $confirmDelete = false">
+                   data-on:ship-confirm="@delete('{{ daemon_origin | safe }}/api/runtime/specs/' + ($selectedId || '')); $confirmDelete = false">
   <span slot="title">Delete spec</span>
   This removes the spec from the project. This cannot be undone.
 </ship-alert-dialog>

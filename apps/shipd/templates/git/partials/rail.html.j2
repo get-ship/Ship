@@ -2,7 +2,7 @@
 {%- set ws_qs = '' -%}
 {%- if workspace_id %}{%- set ws_qs = '&workspace_id=' ~ workspace_id -%}{%- endif -%}
 <ship-tabs variant="segmented" active="{{ active_tab }}"
-  data-on:ship-tab-change="@get('/api/runtime/view/git?tab=' + evt.detail.name + '{{ ws_qs }}')">
+  data-on:ship-tab-change="@get('{{ daemon_origin | safe }}/api/runtime/view/git?tab=' + evt.detail.name + '{{ ws_qs }}')">
   <ship-tab name="status" label="Status" count="{{ status_files | length }}"></ship-tab>
   <ship-tab name="log" label="Log" count="{{ commits | length }}"></ship-tab>
 </ship-tabs>

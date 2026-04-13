@@ -15,7 +15,7 @@
   <div slot="footer">
     <ship-button variant="ghost" data-on:click="$newOpen = false">Cancel</ship-button>
     <ship-button variant="solid" tone="accent"
-                 data-on:click="@post('/api/runtime/specs', {contentType: 'json', body: JSON.stringify({title: $newTitle, body: $newBody})}); $newOpen = false">
+                 data-on:click="@post('{{ daemon_origin | safe }}/api/runtime/specs', {contentType: 'json', body: JSON.stringify({title: $newTitle, body: $newBody})}); $newOpen = false">
       Create
     </ship-button>
   </div>

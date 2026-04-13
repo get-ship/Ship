@@ -1,34 +1,31 @@
-{%- extends '_page_shell.html.j2' -%}
-{% block title %}Git{% endblock %}
-{% block head %}
-<style>
-  .ship-git-header { display: flex; align-items: center; gap: 14px; margin: 0 0 20px; }
-  .ship-git-header h1 { font-family: var(--font-display); font-size: 28px; font-weight: 600; letter-spacing: -0.02em; margin: 0; }
-  .git-layout { display: grid; grid-template-columns: 320px 1fr; gap: 20px; align-items: start; }
-  .git-rail { position: sticky; top: 8px; display: flex; flex-direction: column; gap: 12px; }
-  .git-rail-section { display: flex; flex-direction: column; gap: 6px; max-height: 60vh; overflow-y: auto; }
-  .git-commit-sha { font-family: var(--font-mono, monospace); font-size: 11px; }
-  .git-file-row { display: flex; align-items: center; gap: 8px; }
-  .git-file-row .path { flex: 1; font-family: var(--font-mono, monospace); font-size: 12px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
-  .git-commit-header { display: flex; flex-direction: column; gap: 8px; margin-bottom: 18px; }
-  .git-commit-meta { display: flex; gap: 12px; flex-wrap: wrap; color: var(--color-muted, #888); font-size: 13px; }
-  .git-file-diff { margin-bottom: 16px; }
-  .git-file-diff header { display: flex; align-items: center; gap: 8px; margin-bottom: 6px; }
-</style>
-{% endblock %}
-{% block body_class %}ship-view-git{% endblock %}
-{% block body %}
-<div class="ship-git-header">
-  <h1>Git</h1>
-  {% if branch %}<ship-badge tone="accent">{{ branch }}</ship-badge>{% endif %}
-  <ship-status-dot tone="success" pulse title="Live"></ship-status-dot>
-</div>
+{#- Fragment for Studio inline-mount. Root div matches bootstrap's data-init div by ID. -#}
+<div id="git-root" class="ship-view ship-view-git">
+  <style>
+    .ship-git-header { display: flex; align-items: center; gap: 14px; margin: 0 0 20px; }
+    .ship-git-header h1 { font-family: var(--font-display); font-size: 28px; font-weight: 600; letter-spacing: -0.02em; margin: 0; }
+    .git-layout { display: grid; grid-template-columns: 320px 1fr; gap: 20px; align-items: start; }
+    .git-rail { position: sticky; top: 8px; display: flex; flex-direction: column; gap: 12px; }
+    .git-rail-section { display: flex; flex-direction: column; gap: 6px; max-height: 60vh; overflow-y: auto; }
+    .git-commit-sha { font-family: var(--font-mono, monospace); font-size: 11px; }
+    .git-file-row { display: flex; align-items: center; gap: 8px; }
+    .git-file-row .path { flex: 1; font-family: var(--font-mono, monospace); font-size: 12px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+    .git-commit-header { display: flex; flex-direction: column; gap: 8px; margin-bottom: 18px; }
+    .git-commit-meta { display: flex; gap: 12px; flex-wrap: wrap; color: var(--color-muted, #888); font-size: 13px; }
+    .git-file-diff { margin-bottom: 16px; }
+    .git-file-diff header { display: flex; align-items: center; gap: 8px; margin-bottom: 6px; }
+  </style>
 
-<div class="git-layout">
-  <aside class="git-rail">{% include 'git/partials/rail.html.j2' %}</aside>
-  <main id="git-main"
-     data-init="@get('/api/runtime/view/git/sse?tab={{ active_tab }}{% if selected_commit %}&commit={{ selected_commit.sha }}{% endif %}{% if workspace_id %}&workspace_id={{ workspace_id }}{% endif %}', {requestCancellation: 'disabled'})">
-    {% include 'git/content.html.j2' %}
-  </main>
+  <div class="ship-git-header">
+    <h1>Git</h1>
+    {% if branch %}<ship-badge tone="accent">{{ branch }}</ship-badge>{% endif %}
+    <ship-status-dot tone="success" pulse title="Live"></ship-status-dot>
+  </div>
+
+  <div class="git-layout">
+    <aside class="git-rail">{% include 'git/partials/rail.html.j2' %}</aside>
+    <main id="git-main"
+       data-init="@get('{{ daemon_origin | safe }}/api/runtime/view/git/sse?tab={{ active_tab }}{% if selected_commit %}&commit={{ selected_commit.sha }}{% endif %}{% if workspace_id %}&workspace_id={{ workspace_id }}{% endif %}', {requestCancellation: 'disabled'})">
+      {% include 'git/content.html.j2' %}
+    </main>
+  </div>
 </div>
-{% endblock %}

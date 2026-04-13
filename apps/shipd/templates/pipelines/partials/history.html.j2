@@ -1,11 +1,11 @@
 {%- set statuses = ['completed', 'failed', 'merged', 'blocked'] -%}
 <div class="ship-pipelines-filters">
   <ship-chip {% if not filter.status %}selected{% endif %}
-    data-on:click="@get('/api/runtime/view/pipelines?tab=history')">All</ship-chip>
+    data-on:click="@get('{{ daemon_origin | safe }}/api/runtime/view/pipelines?tab=history')">All</ship-chip>
   {% for s in statuses %}
   <ship-chip tone="{% if s == 'failed' %}destructive{% elif s == 'completed' %}success{% else %}muted{% endif %}"
     {% if filter.status == s %}selected{% endif %}
-    data-on:click="@get('/api/runtime/view/pipelines?tab=history&status={{ s }}')">{{ s }}</ship-chip>
+    data-on:click="@get('{{ daemon_origin | safe }}/api/runtime/view/pipelines?tab=history&status={{ s }}')">{{ s }}</ship-chip>
   {% endfor %}
 </div>
 

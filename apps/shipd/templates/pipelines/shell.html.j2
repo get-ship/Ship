@@ -1,38 +1,35 @@
-{%- extends '_page_shell.html.j2' -%}
-{% block title %}Pipelines{% endblock %}
-{% block head %}
-<style>
-  .ship-pipelines-header { display: flex; align-items: center; gap: 14px; margin: 0 0 20px; }
-  .ship-pipelines-header h1 { font-family: var(--font-display); font-size: 28px; font-weight: 600; letter-spacing: -0.02em; margin: 0; }
-  .ship-pipelines-stats { display: grid; grid-template-columns: repeat(auto-fit, minmax(160px, 1fr)); gap: 12px; margin-bottom: 24px; }
-  .ship-pipelines-def-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(300px, 1fr)); gap: 14px; }
-  .ship-pipelines-run-list { display: flex; flex-direction: column; gap: 12px; }
-  .ship-pipelines-filters { display: flex; gap: 8px; flex-wrap: wrap; margin-bottom: 14px; }
-</style>
-{% endblock %}
-{% block body_class %}ship-view-pipelines{% endblock %}
-{% block body %}
-<div class="ship-pipelines-header">
-  <h1>Pipelines</h1>
-  <ship-status-dot tone="success" pulse title="Live"></ship-status-dot>
-</div>
+{#- Fragment for Studio inline-mount. Root div matches bootstrap's data-init div by ID. -#}
+<div id="pipelines-root" class="ship-view ship-view-pipelines">
+  <style>
+    .ship-pipelines-header { display: flex; align-items: center; gap: 14px; margin: 0 0 20px; }
+    .ship-pipelines-header h1 { font-family: var(--font-display); font-size: 28px; font-weight: 600; letter-spacing: -0.02em; margin: 0; }
+    .ship-pipelines-stats { display: grid; grid-template-columns: repeat(auto-fit, minmax(160px, 1fr)); gap: 12px; margin-bottom: 24px; }
+    .ship-pipelines-def-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(300px, 1fr)); gap: 14px; }
+    .ship-pipelines-run-list { display: flex; flex-direction: column; gap: 12px; }
+    .ship-pipelines-filters { display: flex; gap: 8px; flex-wrap: wrap; margin-bottom: 14px; }
+  </style>
 
-<div class="ship-pipelines-stats">
-  <ship-stat accent="primary"><span slot="label">Definitions</span>{{ stats.definitions }}</ship-stat>
-  <ship-stat accent="info"><span slot="label">Active</span>{{ stats.active }}</ship-stat>
-  <ship-stat accent="success"><span slot="label">Completed</span>{{ stats.completed }}</ship-stat>
-  <ship-stat accent="destructive"><span slot="label">Failed</span>{{ stats.failed }}</ship-stat>
-</div>
+  <div class="ship-pipelines-header">
+    <h1>Pipelines</h1>
+    <ship-status-dot tone="success" pulse title="Live"></ship-status-dot>
+  </div>
 
-<ship-tabs variant="underline" sticky active="{{ active_tab }}"
-  data-on:ship-tab-change="@get('/api/runtime/view/pipelines?tab=' + evt.detail.name)">
-  <ship-tab name="active" label="Active" count="{{ stats.active }}"></ship-tab>
-  <ship-tab name="definitions" label="Definitions" count="{{ stats.definitions }}"></ship-tab>
-  <ship-tab name="history" label="History" count="{{ stats.history }}"></ship-tab>
-</ship-tabs>
+  <div class="ship-pipelines-stats">
+    <ship-stat accent="primary"><span slot="label">Definitions</span>{{ stats.definitions }}</ship-stat>
+    <ship-stat accent="info"><span slot="label">Active</span>{{ stats.active }}</ship-stat>
+    <ship-stat accent="success"><span slot="label">Completed</span>{{ stats.completed }}</ship-stat>
+    <ship-stat accent="destructive"><span slot="label">Failed</span>{{ stats.failed }}</ship-stat>
+  </div>
 
-<div id="pipelines-content"
-     data-init="@get('/api/runtime/view/pipelines/sse?tab={{ active_tab }}', {requestCancellation: 'disabled'})">
-  {% include 'pipelines/content.html.j2' %}
+  <ship-tabs variant="underline" sticky active="{{ active_tab }}"
+    data-on:ship-tab-change="@get('{{ daemon_origin | safe }}/api/runtime/view/pipelines?tab=' + evt.detail.name)">
+    <ship-tab name="active" label="Active" count="{{ stats.active }}"></ship-tab>
+    <ship-tab name="definitions" label="Definitions" count="{{ stats.definitions }}"></ship-tab>
+    <ship-tab name="history" label="History" count="{{ stats.history }}"></ship-tab>
+  </ship-tabs>
+
+  <div id="pipelines-content"
+       data-init="@get('{{ daemon_origin | safe }}/api/runtime/view/pipelines/sse?tab={{ active_tab }}', {requestCancellation: 'disabled'})">
+    {% include 'pipelines/content.html.j2' %}
+  </div>
 </div>
-{% endblock %}
