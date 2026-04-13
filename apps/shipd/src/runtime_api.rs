@@ -36,7 +36,13 @@ pub struct SessionsQuery {
     responses((status = 200, body = MeshResponse)),
     tag = "runtime"
 )]
-pub async fn list_workspaces(State(state): State<ApiState>) -> impl IntoResponse {
+pub async fn list_workspaces(
+    State(state): State<ApiState>,
+    Extension(auth): Extension<AuthContext>,
+) -> impl IntoResponse {
+    if let Err(e) = require_scope(&auth, Scope::ReadWorkspace) {
+        return e.into_response();
+    }
     // Source of truth: git worktrees. DB rows overlay metadata when present.
     let mut workspaces: Vec<serde_json::Value> = Vec::new();
     let mut seen_names: std::collections::HashSet<String> = std::collections::HashSet::new();
@@ -73,6 +79,7 @@ pub async fn list_workspaces(State(state): State<ApiState>) -> impl IntoResponse
             data: serde_json::json!({ "workspaces": workspaces }),
         }),
     )
+        .into_response()
 }
 
 /// Parse `git worktree list --porcelain` from the active project root.
@@ -120,8 +127,12 @@ fn git_worktrees() -> Option<Vec<(String, String)>> {
 )]
 pub async fn list_sessions(
     State(_state): State<ApiState>,
+    Extension(auth): Extension<AuthContext>,
     Query(params): Query<SessionsQuery>,
 ) -> impl IntoResponse {
+    if let Err(e) = require_scope(&auth, Scope::ReadWorkspace) {
+        return e.into_response();
+    }
     let workspace_id = params.workspace_id.as_deref();
     match runtime::db::session::list_workspace_sessions_db(workspace_id, 100) {
         Ok(sessions) => {
@@ -161,6 +172,7 @@ pub async fn list_sessions(
             }),
         ),
     }
+        .into_response()
 }
 
 /// GET /api/runtime/agents
@@ -170,7 +182,13 @@ pub async fn list_sessions(
     responses((status = 200, body = MeshResponse)),
     tag = "runtime"
 )]
-pub async fn list_agents(State(state): State<ApiState>) -> impl IntoResponse {
+pub async fn list_agents(
+    State(state): State<ApiState>,
+    Extension(auth): Extension<AuthContext>,
+) -> impl IntoResponse {
+    if let Err(e) = require_scope(&auth, Scope::ReadWorkspace) {
+        return e.into_response();
+    }
     // An agent is either (a) defined on disk as a .ship/agents/<id> profile,
     // (b) live in the mesh registry (registered via REST/MCP), or both.
     // Return the union keyed by agent_id so tests that populate only the
@@ -220,6 +238,7 @@ pub async fn list_agents(State(state): State<ApiState>) -> impl IntoResponse {
 
     let agents: Vec<serde_json::Value> = by_id.into_values().collect();
     (StatusCode::OK, Json(MeshResponse { ok: true, data: serde_json::json!({ "agents": agents }) }))
+        .into_response()
 }
 
 // ---- Job request types ----
@@ -249,7 +268,13 @@ pub struct CreateJobRequest {
     responses((status = 200, body = MeshResponse)),
     tag = "runtime"
 )]
-pub async fn list_jobs(State(_state): State<ApiState>) -> impl IntoResponse {
+pub async fn list_jobs(
+    State(_state): State<ApiState>,
+    Extension(auth): Extension<AuthContext>,
+) -> impl IntoResponse {
+    if let Err(e) = require_scope(&auth, Scope::ReadJobs) {
+        return e.into_response();
+    }
     match runtime::projections::job::load_jobs() {
         Ok(jobs) => {
             let data: Vec<_> = jobs.into_values().collect();
@@ -269,6 +294,7 @@ pub async fn list_jobs(State(_state): State<ApiState>) -> impl IntoResponse {
             }),
         ),
     }
+        .into_response()
 }
 
 // ---- Job detail response types ----
@@ -296,15 +322,19 @@ pub struct EventSummary {
 )]
 pub async fn get_job_detail(
     State(state): State<ApiState>,
+    Extension(auth): Extension<AuthContext>,
     Path(job_id): Path<String>,
-) -> impl IntoResponse {
+) -> axum::response::Response {
+    if let Err(e) = require_scope(&auth, Scope::ReadJobs) {
+        return e.into_response();
+    }
     let jobs = match runtime::projections::job::load_jobs_at(state.ship_dir()) {
         Ok(j) => j,
         Err(e) => {
             return (
                 StatusCode::INTERNAL_SERVER_ERROR,
                 Json(MeshResponse { ok: false, data: serde_json::json!(e.to_string()) }),
-            );
+            ).into_response();
         }
     };
 
@@ -317,7 +347,7 @@ pub async fn get_job_detail(
                     ok: false,
                     data: serde_json::json!(format!("job '{job_id}' not found")),
                 }),
-            );
+            ).into_response();
         }
     };
 
@@ -363,6 +393,7 @@ pub async fn get_job_detail(
             data: serde_json::json!(detail),
         }),
     )
+        .into_response()
 }
 
 /// POST /api/runtime/jobs — emit job.created event through the kernel.
