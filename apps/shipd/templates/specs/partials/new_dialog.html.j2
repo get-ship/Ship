@@ -1,0 +1,22 @@
+{#- Create-spec dialog. Posts to /api/runtime/specs and lets the server respond. -#}
+<ship-dialog size="md"
+             data-attr-open="$newOpen"
+             data-on:ship-dismiss="$newOpen = false">
+  <span slot="header">New spec</span>
+  <ship-field>
+    <ship-label slot="label">Title</ship-label>
+    <ship-input placeholder="Short title" data-bind-new-title></ship-input>
+  </ship-field>
+  <ship-field>
+    <ship-label slot="label">Body</ship-label>
+    <ship-textarea variant="code" rows="8" placeholder="# Spec body..."
+                   data-bind-new-body></ship-textarea>
+  </ship-field>
+  <div slot="footer">
+    <ship-button variant="ghost" data-on:click="$newOpen = false">Cancel</ship-button>
+    <ship-button variant="solid" tone="accent"
+                 data-on:click="@post('/api/runtime/specs', {contentType: 'json', body: JSON.stringify({title: $newTitle, body: $newBody})}); $newOpen = false">
+      Create
+    </ship-button>
+  </div>
+</ship-dialog>

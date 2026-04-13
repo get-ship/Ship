@@ -1,0 +1,13 @@
+{#- No-spec-selected placeholder in the main pane. -#}
+<div class="specs-main-empty">
+  <ship-empty-state variant="placeholder">
+    <ship-icon slot="icon" name="file-text"></ship-icon>
+    <span slot="title">No spec selected</span>
+    Select a spec from the list, or click
+    <ship-button slot="actions" variant="solid" tone="accent" size="sm"
+                 data-on:click="$newOpen = true; $newTitle = ''; $newBody = ''">
+      + New
+    </ship-button>
+    to create one.
+  </ship-empty-state>
+</div>

@@ -1,0 +1,11 @@
+{#- Expects `spec` in scope, and `selected_id` / `active_tab` in outer ctx. -#}
+<ship-list-item
+  {% if selected_id == spec.id %}selected{% endif %}
+  title="{{ spec.title }}"
+  data-on:click="@get('/api/runtime/view/specs?tab={{ active_tab }}&selected={{ spec.id }}')">
+  <span slot="title">{{ spec.title if spec.title else '(untitled)' }}</span>
+  <span slot="meta">
+    {% if spec.pipeline %}{{ spec.pipeline }}{% else %}no pipeline{% endif %}
+  </span>
+  <ship-badge slot="trailing" tone="{{ spec.tone }}">{{ spec.status }}</ship-badge>
+</ship-list-item>

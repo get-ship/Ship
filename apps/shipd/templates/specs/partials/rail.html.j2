@@ -1,0 +1,16 @@
+{#-
+  Left rail list body. Wraps the spec list in `#specs-rail-list-inner`
+  so SSE patches have a stable morph target.
+-#}
+<div id="specs-rail-list-inner" style="display: flex; flex-direction: column; gap: 2px;">
+  {% if specs and specs | length > 0 %}
+    {% for spec in specs %}
+      {% include 'specs/partials/rail_item.html.j2' %}
+    {% endfor %}
+  {% else %}
+    <ship-empty-state variant="placeholder">
+      <span slot="title">No specs in {{ active_tab }}</span>
+      Click + New to start one.
+    </ship-empty-state>
+  {% endif %}
+</div>

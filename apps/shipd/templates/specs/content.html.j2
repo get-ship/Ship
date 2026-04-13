@@ -1,0 +1,12 @@
+{#-
+  Main-pane dispatcher. Renders either the empty placeholder or the full
+  detail editor depending on whether a spec is selected. Always wrapped in
+  `#specs-main` so SSE patches can morph.
+-#}
+<div id="specs-main-inner" style="display: flex; flex-direction: column; flex: 1; min-height: 0;">
+  {% if selected %}
+    {% include 'specs/partials/detail.html.j2' %}
+  {% else %}
+    {% include 'specs/partials/empty.html.j2' %}
+  {% endif %}
+</div>

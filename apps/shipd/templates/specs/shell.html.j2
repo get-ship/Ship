@@ -1,0 +1,142 @@
+{%- extends '_page_shell.html.j2' -%}
+{% block title %}Specs{% endblock %}
+{% block head %}
+<style>
+  .ship-view-specs { padding: 0; }
+  .specs-layout {
+    display: grid;
+    grid-template-columns: 300px 1fr;
+    height: 100vh;
+    min-height: 0;
+  }
+  .specs-rail {
+    border-right: 1px solid var(--border);
+    display: flex;
+    flex-direction: column;
+    min-height: 0;
+    background: var(--background);
+  }
+  .specs-rail-header {
+    padding: 14px 14px 10px;
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 8px;
+    border-bottom: 1px solid var(--border);
+  }
+  .specs-rail-header h1 {
+    font-family: var(--font-display);
+    font-size: 16px;
+    font-weight: 600;
+    letter-spacing: -0.01em;
+    margin: 0;
+  }
+  .specs-rail-tabs { padding: 10px 12px 4px; border-bottom: 1px solid var(--border); }
+  .specs-rail-list {
+    flex: 1;
+    overflow-y: auto;
+    padding: 6px;
+    display: flex;
+    flex-direction: column;
+    gap: 2px;
+  }
+  .specs-main {
+    display: flex;
+    flex-direction: column;
+    min-height: 0;
+    overflow: hidden;
+  }
+  .specs-main-empty {
+    flex: 1;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    padding: 48px;
+  }
+  .specs-detail { display: flex; flex-direction: column; flex: 1; min-height: 0; }
+  .specs-detail-header {
+    padding: 14px 20px;
+    border-bottom: 1px solid var(--border);
+    display: flex;
+    gap: 10px;
+    align-items: center;
+  }
+  .specs-detail-body {
+    flex: 1;
+    display: grid;
+    grid-template-columns: minmax(0, 1fr) 320px;
+    min-height: 0;
+  }
+  .specs-editor-wrap {
+    padding: 16px 20px;
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+    min-height: 0;
+  }
+  .specs-editor-wrap ship-textarea {
+    flex: 1;
+    display: flex;
+    min-height: 0;
+  }
+  .specs-meta {
+    border-left: 1px solid var(--border);
+    padding: 16px;
+    overflow-y: auto;
+    display: flex;
+    flex-direction: column;
+    gap: 16px;
+    background: var(--muted);
+  }
+  .specs-meta-hint { font-size: 11px; color: var(--muted-foreground); margin-bottom: 4px; }
+  .specs-footer { border-top: 1px solid var(--border); }
+  .specs-dirty { font-size: 11px; color: var(--primary); font-weight: 500; margin-right: auto; padding-left: 12px; }
+</style>
+{% endblock %}
+{% block body_class %}ship-view-specs{% endblock %}
+{% block body %}
+<div class="specs-layout"
+     data-signals-title="''"
+     data-signals-body="''"
+     data-signals-pipeline="''"
+     data-signals-status="'draft'"
+     data-signals-criteria-text="''"
+     data-signals-scope-text="''"
+     data-signals-vars-text="''"
+     data-signals-dirty="false"
+     data-signals-new-open="false"
+     data-signals-new-title="''"
+     data-signals-new-body="''"
+     data-signals-confirm-delete="false">
+
+  <aside class="specs-rail">
+    <div class="specs-rail-header">
+      <h1>Specs</h1>
+      <ship-button variant="solid" tone="accent" size="sm"
+                   data-on:click="$newOpen = true; $newTitle = ''; $newBody = ''">
+        + New
+      </ship-button>
+    </div>
+    <div class="specs-rail-tabs">
+      <ship-tabs variant="segmented" active="{{ active_tab }}"
+        data-on:ship-tab-change="@get('/api/runtime/view/specs?tab=' + evt.detail.name{% if selected_id %} + '&selected={{ selected_id }}'{% endif %})">
+        <ship-tab name="draft" label="Draft" count="{{ counts.draft }}"></ship-tab>
+        <ship-tab name="ready" label="Ready" count="{{ counts.ready }}"></ship-tab>
+        <ship-tab name="launched" label="Launched" count="{{ counts.launched }}"></ship-tab>
+        <ship-tab name="completed" label="Completed" count="{{ counts.completed }}"></ship-tab>
+      </ship-tabs>
+    </div>
+    <div id="specs-rail-list" class="specs-rail-list"
+         data-init="@get('/api/runtime/view/specs/sse?tab={{ active_tab }}{% if selected_id %}&selected={{ selected_id }}{% endif %}', {requestCancellation: 'disabled'})">
+      {% include 'specs/partials/rail.html.j2' %}
+    </div>
+  </aside>
+
+  <main id="specs-main" class="specs-main">
+    {% include 'specs/content.html.j2' %}
+  </main>
+
+  {% include 'specs/partials/new_dialog.html.j2' %}
+  {% include 'specs/partials/delete_dialog.html.j2' %}
+</div>
+{% endblock %}
