@@ -16,11 +16,19 @@ cd your-project
 ship init
 ```
 
-This creates a `.ship/` directory with a project manifest and default configuration.
+This creates a `.ship/` directory with a project manifest, a `dev` agent, and compiles immediately. Your project is ready to use with your AI tools.
+
+## What just happened
+
+`ship init` did three things:
+
+1. **Scaffolded `.ship/`** — project manifest, default agent (`dev.jsonc`), and directory structure
+2. **Compiled** — generated provider-native config (CLAUDE.md, .mcp.json, etc.) from the dev agent
+3. **Gitignored** — compiled output is added to `.gitignore` automatically
 
 ## Open Studio
 
-The fastest way to get going:
+For a visual interface:
 
 ```bash
 ship studio --open
@@ -29,56 +37,62 @@ ship studio --open
 Studio opens in your browser. From there you can:
 
 - Browse and install skills from the registry
-- Create and configure agent profiles
+- Configure agent profiles
 - Set skill variables (preferences that personalize behavior)
 - See everything update in real time
 
-## Or use the CLI
+## Edit your agent
 
-If you prefer the terminal:
+Your agent lives at `.ship/agents/dev.jsonc`. Open it and add skills, change permissions, or add more providers:
 
-```bash
-# Install a skill from the registry
-ship add github.com/some/skill-pack
-
-# Create an agent profile
-ship agents create my-agent
-
-# Activate it
-ship use my-agent
+```jsonc
+{
+  "agent": {
+    "id": "dev",
+    "name": "Dev",
+    "providers": ["claude", "gemini"]
+  },
+  "skills": {
+    "refs": ["tdd", "code-review"]
+  },
+  "permissions": {
+    "preset": "ship-autonomous"
+  }
+}
 ```
 
-When you run `ship use`, Ship compiles your agent's full configuration — skills, MCP servers, permissions, rules — into whatever format your AI tool expects. Claude Code gets CLAUDE.md, Cursor gets .cursor/rules, and so on.
-
-## Add skills
-
-Skills teach your agent how to do specific things. Install them from the registry or create your own:
+After editing, recompile:
 
 ```bash
-# Install from the registry
-ship add github.com/some/tdd-skill
-
-# Or create a local skill
-ship skills create code-review
+ship compile
 ```
 
-Each skill can have typed variables that you personalize:
+## Add more agents
+
+Copy your dev agent and customize:
 
 ```bash
-ship vars set tdd test_runner vitest
-ship vars set tdd commit_at_green false
+cp .ship/agents/dev.jsonc .ship/agents/backend.jsonc
 ```
 
-These preferences are stored per-user and per-project. The same skill produces different output for different people.
+Edit `backend.jsonc` — change the `id` to `"backend"`, update the name, skills, and permissions. Then activate:
 
-## What happens under the hood
+```bash
+ship use backend
+```
 
-When you run `ship use`, Ship reads your `.ship/` directory, resolves everything, and writes provider-native config files. These output files are gitignored — they're build artifacts, not source.
+## Install packages
 
-You don't need to think about this most of the time. Install skills, configure agents, and let Ship handle the rest.
+Add skills from the registry:
+
+```bash
+ship add github.com/owner/skill-pack
+```
+
+This updates `ship.jsonc`, resolves dependencies, writes `ship.lock`, and recompiles.
 
 ## Next steps
 
-- [Agents](/reference/agents/) — create and configure agent profiles
+- [Schema Reference](/reference/schema/) — full field reference for all config files
 - [Smart Skills](/reference/smart-skills/) — understand how skills and variables work
 - [Registry](/reference/registry/) — browse and publish packages
