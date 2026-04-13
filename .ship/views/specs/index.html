@@ -8,7 +8,7 @@
   <script type="module" src="http://localhost:9315/api/runtime/assets/ship-elements.js"></script>
 </head>
 <body>
-  <div data-init="@get('http://localhost:9315/api/runtime/view/specs?token={{SHIP_TOKEN}}', {requestCancellation: 'disabled'})">
+  <div id="specs-root" data-init="@get('http://localhost:9315/api/runtime/view/specs?token={{SHIP_TOKEN}}', {requestCancellation: 'disabled'})">
     <p style="text-align:center;padding:48px;color:var(--muted-foreground)">Connecting&hellip;</p>
   </div>
 </body>
