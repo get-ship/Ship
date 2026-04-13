@@ -13,15 +13,19 @@ async function mount(markup: string) {
 describe('ship-stat', () => {
   afterEach(cleanupTestDom)
 
-  it('renders label + value + hint slots', async () => {
+  it('renders label + value + trend + hint slots', async () => {
     const el = await mount(`
       <ship-stat accent="primary">
         <span slot="label">Active</span>
         42
+        <span slot="trend">+12%</span>
         <span slot="hint">live</span>
       </ship-stat>
     `)
-    expect(el.shadowRoot!.querySelectorAll('slot').length).toBe(3)
+    const slotNames = Array.from(el.shadowRoot!.querySelectorAll('slot')).map(
+      (s) => s.getAttribute('name') ?? '',
+    )
+    expect(slotNames).toEqual(expect.arrayContaining(['label', 'trend', 'hint', '']))
     expect(el.accent).toBe('primary')
   })
 })

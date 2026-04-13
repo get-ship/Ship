@@ -31,4 +31,10 @@ describe('ship-card', () => {
     expect(el.statusRail).toBe(true)
     expect(el.accentBar).toBe(true)
   })
+
+  it('reflects fill attribute for tone-tinted wash', async () => {
+    const el = await mount('<ship-card tone="warning" fill>x</ship-card>')
+    expect(el.fill).toBe(true)
+    expect(el.hasAttribute('fill')).toBe(true)
+  })
 })

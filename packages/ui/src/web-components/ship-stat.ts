@@ -12,6 +12,8 @@
  * Slots:
  *   - label — micro-kicker label (uppercase)
  *   - (default) — the big numeric value
+ *   - trend — optional delta adornment (e.g. <ship-badge tone="success">+12%</ship-badge>)
+ *             rendered inline to the right of the value.
  *   - hint — optional small text below the value
  */
 
@@ -28,27 +30,42 @@ export class ShipStat extends LitElement {
       border: 1px solid var(--border);
       border-radius: var(--radius);
       padding: 16px 18px;
-      transition: border-color 160ms, transform 160ms;
+      transition:
+        border-color var(--duration-medium) var(--ease-out),
+        transform var(--duration-fast) var(--ease-out),
+        box-shadow var(--duration-fast) var(--ease-out);
     }
+    :host([interactive]) { cursor: pointer; }
     :host([interactive]:hover) {
       border-color: color-mix(in oklch, var(--border) 180%, transparent);
       transform: translateY(-1px);
+      box-shadow: var(--shadow-sm);
     }
     .label {
-      font-size: 10.5px;
-      font-weight: 500;
+      font-size: var(--text-xs);
+      font-weight: var(--font-weight-medium);
       text-transform: uppercase;
       letter-spacing: 0.08em;
       color: var(--muted-foreground);
       font-family: var(--font-body);
     }
+    .value-row {
+      display: flex;
+      align-items: baseline;
+      gap: 8px;
+      flex-wrap: wrap;
+    }
     .value {
       font-family: var(--font-display);
-      font-size: 28px;
-      font-weight: 600;
+      font-size: var(--text-3xl);
+      font-weight: var(--font-weight-semibold);
       font-variant-numeric: tabular-nums;
       letter-spacing: -0.02em;
       color: var(--foreground);
+    }
+    .trend {
+      display: inline-flex;
+      align-items: center;
     }
     :host([accent='primary']) .value { color: var(--primary); }
     :host([accent='info']) .value { color: var(--info); }
@@ -61,6 +78,7 @@ export class ShipStat extends LitElement {
       font-size: 11px;
       color: var(--muted-foreground);
     }
+    ::slotted([slot='trend']) { font-size: var(--text-sm); }
   `
 
   static properties = {
@@ -73,7 +91,10 @@ export class ShipStat extends LitElement {
   render() {
     return html`
       <span class="label"><slot name="label"></slot></span>
-      <span class="value"><slot></slot></span>
+      <span class="value-row">
+        <span class="value"><slot></slot></span>
+        <span class="trend"><slot name="trend"></slot></span>
+      </span>
       <span class="hint"><slot name="hint"></slot></span>
     `
   }

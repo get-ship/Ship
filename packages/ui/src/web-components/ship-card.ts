@@ -13,6 +13,8 @@
  *   - interactive: boolean — hover lift + cursor:pointer (matches .def-card)
  *   - status-rail: boolean — left colored rail (3px), tone-driven (matches
  *     .run-card.is-{status})
+ *   - fill: boolean — tone-tinted background wash (uses --tone-bg). Pairs
+ *     with `status-rail` or `tone` for an alert-style card.
  *
  * Slots:
  *   - header
@@ -36,20 +38,23 @@ export class ShipCard extends LitElement {
         border-radius: var(--radius);
         padding: 16px 20px;
         position: relative;
-        transition: border-color 140ms, transform 140ms, box-shadow 140ms;
+        transition:
+          border-color var(--duration-medium) var(--ease-out),
+          transform var(--duration-fast) var(--ease-out),
+          box-shadow var(--duration-fast) var(--ease-out);
       }
       :host([interactive]) { cursor: pointer; }
       :host([interactive]:hover) {
         border-color: color-mix(in oklch, var(--border) 180%, transparent);
-        transform: translateY(-2px);
-        box-shadow: 0 8px 24px -8px oklch(0.147 0.004 49.25 / 10%);
+        transform: translateY(-1px);
+        box-shadow: var(--shadow-md);
       }
       :host([accent-bar])::before {
         content: '';
         position: absolute; top: 0; left: 0; right: 0; height: 2px;
         background: linear-gradient(90deg, var(--primary), var(--accent));
         opacity: 0;
-        transition: opacity 160ms;
+        transition: opacity var(--duration-medium) var(--ease-out);
         border-radius: var(--radius) var(--radius) 0 0;
       }
       :host([accent-bar]:hover)::before { opacity: 1; }
@@ -59,6 +64,9 @@ export class ShipCard extends LitElement {
         border-left: 3px solid var(--tone-fg);
         padding-left: 17px;
       }
+
+      /* fill — tone-tinted background wash. Pairs well with status-rail. */
+      :host([fill]) { background: var(--tone-bg); }
 
       :host([variant='outline']) { background: transparent; }
 
@@ -74,6 +82,7 @@ export class ShipCard extends LitElement {
     interactive: { type: Boolean, reflect: true },
     accentBar: { type: Boolean, reflect: true, attribute: 'accent-bar' },
     statusRail: { type: Boolean, reflect: true, attribute: 'status-rail' },
+    fill: { type: Boolean, reflect: true },
   }
 
   tone?: Tone
@@ -81,6 +90,7 @@ export class ShipCard extends LitElement {
   interactive: boolean
   accentBar: boolean
   statusRail: boolean
+  fill: boolean
 
   constructor() {
     super()
@@ -88,6 +98,7 @@ export class ShipCard extends LitElement {
     this.interactive = false
     this.accentBar = false
     this.statusRail = false
+    this.fill = false
   }
 
   render() {
