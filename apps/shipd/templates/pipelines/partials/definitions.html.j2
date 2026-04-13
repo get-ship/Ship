@@ -1,0 +1,13 @@
+{% if defs and defs | length > 0 %}
+<div class="ship-pipelines-def-grid">
+  {% for def in defs %}
+    {% include 'pipelines/partials/def_card.html.j2' %}
+  {% endfor %}
+</div>
+{% else %}
+<ship-empty-state>
+  <ship-icon slot="icon" name="grid"></ship-icon>
+  <span slot="title">No pipelines defined</span>
+  Add YAML files to <ship-code inline>.ship/pipelines/</ship-code> to define repeatable multi-step workflows.
+</ship-empty-state>
+{% endif %}

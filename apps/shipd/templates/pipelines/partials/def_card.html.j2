@@ -1,0 +1,7 @@
+{#- Expects `def` in scope. -#}
+<ship-pipeline-definition name="{{ def.name }}" steps="{{ def.step_count }}" description="{{ def.description }}">
+  <ship-button slot="actions" size="sm" tone="accent" variant="solid"
+    data-on:click="@post('/api/runtime/jobs', {contentType: 'json', body: JSON.stringify({pipeline: '{{ def.name }}'})})">
+    Launch
+  </ship-button>
+</ship-pipeline-definition>

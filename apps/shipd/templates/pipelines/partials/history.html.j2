@@ -1,0 +1,33 @@
+{%- set statuses = ['completed', 'failed', 'merged', 'blocked'] -%}
+<div class="ship-pipelines-filters">
+  <ship-chip {% if not filter.status %}selected{% endif %}
+    data-on:click="@get('/api/runtime/view/pipelines?tab=history')">All</ship-chip>
+  {% for s in statuses %}
+  <ship-chip tone="{% if s == 'failed' %}destructive{% elif s == 'completed' %}success{% else %}muted{% endif %}"
+    {% if filter.status == s %}selected{% endif %}
+    data-on:click="@get('/api/runtime/view/pipelines?tab=history&status={{ s }}')">{{ s }}</ship-chip>
+  {% endfor %}
+</div>
+
+{% if history_runs and history_runs | length > 0 %}
+<ship-table hoverable>
+  <tr slot="head">
+    <th>Slug</th><th>Agent</th><th>Status</th><th>Duration</th><th>Completed</th>
+  </tr>
+  {% for run in history_runs %}
+  <ship-history-row state="{{ run.state }}">
+    <span slot="slug">{{ run.slug }}</span>
+    <span slot="agent">{{ run.agent }}</span>
+    <span slot="status"><ship-badge tone="{{ run.tone }}">{{ run.state }}</ship-badge></span>
+    <span slot="duration">{{ run.duration }}</span>
+    <span slot="completed"><ship-timestamp value="{{ run.updated_at }}"></ship-timestamp></span>
+  </ship-history-row>
+  {% endfor %}
+</ship-table>
+{% else %}
+<ship-empty-state>
+  <ship-icon slot="icon" name="archive"></ship-icon>
+  <span slot="title">No run history yet</span>
+  Completed, failed, and merged runs will appear here.
+</ship-empty-state>
+{% endif %}
