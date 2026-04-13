@@ -317,6 +317,49 @@ pnpm -F @ship/ui manifest   # CEM only
 pnpm -F @ship/ui catalog    # compact catalog only (requires fresh CEM)
 ```
 
+## Daemon-rendered views (minijinja + Datastar SSE)
+
+First-party views (`apps/shipd/templates/<view>/`) render `<ship-*>`
+elements from the daemon via minijinja, then patch live updates over
+Datastar SSE. The pattern is two endpoints per view:
+
+- `GET /api/runtime/view/<name>` — full shell. Extends
+  `_page_shell.html.j2`, overrides `title`/`head`/`body_class`/`body`.
+  Returns text/html.
+- `GET /api/runtime/view/<name>/sse` — `ViewSse` response. On connect
+  it renders the content partial and emits
+  `vs.patch("#<name>-content", html)`. It then subscribes to kernel
+  events via `state.kernel().spawn_actor(...)` and re-renders on each
+  event. A `vs.heartbeat_every(Duration::from_secs(15))` handle keeps
+  the connection alive; drop it when the task ends.
+
+Write new templates under `apps/shipd/templates/<view>/`:
+
+```
+<view>/shell.html.j2             # extends _page_shell, full page
+<view>/content.html.j2           # tab dispatcher, target of SSE patches
+<view>/partials/<tab>.html.j2    # one per tab
+<view>/partials/<card>.html.j2   # reusable row/card fragments
+```
+
+Register each template in the `TEMPLATES` array of
+`apps/shipd/src/views/templates.rs` (alphabetized). Render with
+`templates::render("<view>/<file>.html.j2", &ctx)`; context structs
+derive `Serialize`.
+
+State reads go through `crate::views::state`: `list_pipeline_defs`,
+`list_pipeline_runs`, `partition_runs`, `status_token`, plus the
+query-deserializable `Filter`. Do not re-walk the filesystem inside
+handlers.
+
+Filter persistence is URL-based: tab switches and chip clicks emit
+`@get('/api/runtime/view/<name>?tab=...&status=...')`. The server
+re-renders and Datastar morphs the page; the browser URL updates from
+`@get`'s fetch. No client-side state machine.
+
+For wire-level details (SSE framing, selectors, signal patches) see
+`.ship/skills/datastar-views/SKILL.md`.
+
 ## When this charter changes
 
 - Changes require a design discussion, not an inline edit.
