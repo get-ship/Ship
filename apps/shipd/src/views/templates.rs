@@ -104,8 +104,16 @@ const TEMPLATES: &[(&str, &str)] = &[
         include_str!("../../templates/pipelines/partials/history.html.j2"),
     ),
     (
+        "pipelines/partials/history_row.html.j2",
+        include_str!("../../templates/pipelines/partials/history_row.html.j2"),
+    ),
+    (
         "pipelines/partials/run_card.html.j2",
         include_str!("../../templates/pipelines/partials/run_card.html.j2"),
+    ),
+    (
+        "pipelines/partials/step_card.html.j2",
+        include_str!("../../templates/pipelines/partials/step_card.html.j2"),
     ),
     (
         "pipelines/shell.html.j2",

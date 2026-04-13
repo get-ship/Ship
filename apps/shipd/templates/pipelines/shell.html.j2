@@ -1,35 +1,88 @@
-{#- Fragment for Studio inline-mount. Root div matches bootstrap's data-init div by ID. -#}
+{#-
+  Pipelines view — single-column, token-driven layout matching the
+  mockup at `.artifacts/ui-proposal/pipelines.html`. Fragment-only
+  (no doctype / html / body); mounted into the Studio shell which
+  wraps us in its own `.ship-view`.
+
+  Structure:
+    header (title + subtitle + "+ Run") → tabs with counts →
+    agent-filter chip row → #pipelines-content (SSE target).
+-#}
 <div id="pipelines-root" class="ship-view ship-view-pipelines">
   <style>
-    .ship-pipelines-header { display: flex; align-items: center; gap: 14px; margin: 0 0 20px; }
-    .ship-pipelines-header h1 { font-family: var(--font-display); font-size: 28px; font-weight: 600; letter-spacing: -0.02em; margin: 0; }
-    .ship-pipelines-stats { display: grid; grid-template-columns: repeat(auto-fit, minmax(160px, 1fr)); gap: 12px; margin-bottom: 24px; }
-    .ship-pipelines-def-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(300px, 1fr)); gap: 14px; }
-    .ship-pipelines-run-list { display: flex; flex-direction: column; gap: 12px; }
-    .ship-pipelines-filters { display: flex; gap: 8px; flex-wrap: wrap; margin-bottom: 14px; }
+    .ship-view-pipelines { color: var(--foreground); }
+    .ship-pipelines-wrap { max-width: 56rem; margin: 0 auto; padding: 24px 16px; }
+    .ship-pipelines-head { display: flex; align-items: flex-end; justify-content: space-between; gap: 16px; margin: 0 0 20px; padding: 0 12px; }
+    .ship-pipelines-title { font-family: var(--font-display); font-size: 20px; font-weight: 600; letter-spacing: -0.01em; margin: 0; }
+    .ship-pipelines-sub { font-size: 12px; color: var(--muted-foreground); margin-top: 4px; }
+    .ship-pipelines-tabs-row { padding: 0 12px; margin-bottom: 12px; }
+    .ship-pipelines-filters { display: flex; flex-wrap: wrap; gap: 6px; padding: 0 12px; margin-bottom: 16px; }
+    .ship-pipelines-content { padding: 0 12px; }
+    .ship-run-card { border: 1px solid var(--border); background: var(--card); border-radius: var(--radius-lg); padding: 14px 16px; margin-bottom: 12px; }
+    .ship-run-head { display: flex; align-items: center; flex-wrap: wrap; gap: 10px; }
+    .ship-run-slug { font-family: var(--font-mono); font-size: 12px; font-weight: 500; color: var(--foreground); }
+    .ship-run-sep { color: color-mix(in oklch, var(--muted-foreground) 50%, transparent); }
+    .ship-run-meta { font-size: 11px; color: var(--muted-foreground); display: inline-flex; align-items: center; gap: 4px; }
+    .ship-run-dur { margin-left: auto; font-size: 11px; color: var(--muted-foreground); font-variant-numeric: tabular-nums; }
+    .ship-run-dur.running { color: var(--warning); }
+    .ship-run-actions { display: inline-flex; gap: 6px; }
+    .ship-run-dag { display: flex; gap: 10px; overflow-x: auto; margin-top: 14px; padding-bottom: 4px; }
+    .ship-step-card { flex: 0 0 auto; min-width: 160px; border: 1px solid var(--border); border-radius: var(--radius-md); padding: 10px 12px; background: color-mix(in oklch, var(--muted) 30%, transparent); }
+    .ship-step-card.done { border-color: color-mix(in oklch, var(--success) 35%, var(--border)); }
+    .ship-step-card.running { border-color: color-mix(in oklch, var(--warning) 45%, var(--border)); background: color-mix(in oklch, var(--warning) 8%, transparent); }
+    .ship-step-card.failed { border-color: color-mix(in oklch, var(--destructive) 45%, var(--border)); background: color-mix(in oklch, var(--destructive) 8%, transparent); }
+    .ship-step-head { display: flex; align-items: center; gap: 6px; margin-bottom: 4px; }
+    .ship-step-id { font-family: var(--font-mono); font-size: 11px; font-weight: 500; }
+    .ship-step-agent { font-size: 11px; color: var(--muted-foreground); }
+    .ship-step-state { font-size: 10px; text-transform: uppercase; letter-spacing: 0.06em; color: var(--muted-foreground); margin-top: 6px; }
+    .ship-step-state.done { color: var(--success); }
+    .ship-step-state.running { color: var(--warning); }
+    .ship-step-state.failed { color: var(--destructive); }
+    .ship-history-card { border: 1px solid var(--border); background: var(--card); border-radius: var(--radius-lg); overflow: hidden; }
+    .ship-history-row { display: flex; align-items: center; gap: 12px; padding: 10px 14px; border-bottom: 1px solid color-mix(in oklch, var(--border) 60%, transparent); font-size: 12px; }
+    .ship-history-row:last-child { border-bottom: 0; }
+    .ship-history-slug { font-family: var(--font-mono); font-size: 12px; color: var(--foreground); }
+    .ship-history-pipeline { font-size: 11px; color: var(--muted-foreground); margin-left: 8px; }
+    .ship-history-when { font-size: 11px; color: var(--muted-foreground); margin-left: auto; font-variant-numeric: tabular-nums; }
+    .ship-history-dur { font-size: 11px; color: var(--muted-foreground); font-variant-numeric: tabular-nums; }
+    .ship-recent-heading { font-size: 10px; font-weight: 600; text-transform: uppercase; letter-spacing: 0.08em; color: color-mix(in oklch, var(--muted-foreground) 75%, transparent); padding: 0 12px; margin: 24px 0 8px; }
+    .ship-pipelines-def-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(280px, 1fr)); gap: 12px; }
+    .ship-pipelines-load-more { text-align: center; margin: 16px 0 4px; }
   </style>
 
-  <div class="ship-pipelines-header">
-    <h1>Pipelines</h1>
-    <ship-status-dot tone="success" pulse title="Live"></ship-status-dot>
-  </div>
+  <div class="ship-pipelines-wrap">
+    <div class="ship-pipelines-head">
+      <div>
+        <h1 class="ship-pipelines-title">Pipelines</h1>
+        <div class="ship-pipelines-sub">{{ stats_subtitle }}</div>
+      </div>
+      <ship-button size="sm" tone="accent" variant="solid"
+        data-on:click="@post('{{ daemon_origin | safe }}/api/runtime/jobs?token={{ token | safe }}', {contentType: 'json', body: JSON.stringify({})})">
+        + Run
+      </ship-button>
+    </div>
 
-  <div class="ship-pipelines-stats">
-    <ship-stat accent="primary"><span slot="label">Definitions</span>{{ stats.definitions }}</ship-stat>
-    <ship-stat accent="info"><span slot="label">Active</span>{{ stats.active }}</ship-stat>
-    <ship-stat accent="success"><span slot="label">Completed</span>{{ stats.completed }}</ship-stat>
-    <ship-stat accent="destructive"><span slot="label">Failed</span>{{ stats.failed }}</ship-stat>
-  </div>
+    <div class="ship-pipelines-tabs-row">
+      <ship-tabs variant="underline" active="{{ active_tab }}"
+        data-on:ship-tab-change="@get('{{ daemon_origin | safe }}/api/runtime/view/pipelines?tab=' + evt.detail.name + '&token={{ token | safe }}')">
+        <ship-tab name="active" label="Active" count="{{ stats.active }}"></ship-tab>
+        <ship-tab name="definitions" label="Definitions" count="{{ stats.definitions }}"></ship-tab>
+        <ship-tab name="history" label="History" count="{{ stats.history }}"></ship-tab>
+      </ship-tabs>
+    </div>
 
-  <ship-tabs variant="underline" sticky active="{{ active_tab }}"
-    data-on:ship-tab-change="@get('{{ daemon_origin | safe }}/api/runtime/view/pipelines?tab=' + evt.detail.name + '&token={{ token | safe }}')">
-    <ship-tab name="active" label="Active" count="{{ stats.active }}"></ship-tab>
-    <ship-tab name="definitions" label="Definitions" count="{{ stats.definitions }}"></ship-tab>
-    <ship-tab name="history" label="History" count="{{ stats.history }}"></ship-tab>
-  </ship-tabs>
+    <div class="ship-pipelines-filters" role="group" aria-label="Filter by agent">
+      <ship-chip size="sm" {% if not agent_filter %}selected{% endif %}
+        data-on:click="@get('{{ daemon_origin | safe }}/api/runtime/view/pipelines?tab={{ active_tab }}&token={{ token | safe }}')">All agents</ship-chip>
+      {% for a in agents %}
+      <ship-chip size="sm" {% if agent_filter == a %}selected{% endif %}
+        data-on:click="@get('{{ daemon_origin | safe }}/api/runtime/view/pipelines?tab={{ active_tab }}&agent={{ a }}&token={{ token | safe }}')">{{ a }}</ship-chip>
+      {% endfor %}
+    </div>
 
-  <div id="pipelines-content"
-       data-init="@get('{{ daemon_origin | safe }}/api/runtime/view/pipelines/sse?tab={{ active_tab }}&token={{ token | safe }}', {requestCancellation: 'disabled'})">
-    {% include 'pipelines/content.html.j2' %}
+    <div id="pipelines-content" class="ship-pipelines-content"
+         data-init="@get('{{ daemon_origin | safe }}/api/runtime/view/pipelines/sse?tab={{ active_tab }}{% if agent_filter %}&agent={{ agent_filter }}{% endif %}&token={{ token | safe }}', {requestCancellation: 'disabled'})">
+      {% include 'pipelines/content.html.j2' %}
+    </div>
   </div>
 </div>

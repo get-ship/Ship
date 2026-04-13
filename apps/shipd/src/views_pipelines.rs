@@ -3,20 +3,23 @@
 //! Two endpoints:
 //!
 //! - `GET /api/runtime/view/pipelines` — full-page HTML shell. Delivered
-//!   once on load; contains the tab strip, stats, and an empty
-//!   `#pipelines-content` that bootstraps an SSE subscription.
+//!   once on load; contains the header, tab strip, agent-filter chip row,
+//!   and an empty `#pipelines-content` that bootstraps an SSE
+//!   subscription.
 //! - `GET /api/runtime/view/pipelines/sse` — Datastar SSE stream that
 //!   pushes `#pipelines-content` fragments whenever the underlying
 //!   state changes (kernel `job.*` / `step.*` events).
 //!
 //! All rendering goes through `crate::views::templates`; all state reads
-//! go through `crate::views::state`. No inline HTML lives here.
+//! go through `crate::views::state` + `crate::views_pipelines_data`.
 
 use axum::extract::{Query, State};
 use axum::response::Html;
 use runtime::events::ActorConfig;
 use runtime::projections::job::{JobRecord, JobStatus};
 use serde::{Deserialize, Serialize};
+use std::collections::BTreeSet;
+use std::path::PathBuf;
 use std::time::Duration;
 
 use crate::views::state::{
@@ -24,9 +27,10 @@ use crate::views::state::{
 };
 use crate::views::stream::{ViewSse, ViewStream};
 use crate::views::templates;
+use crate::views_pipelines_data::{BranchStats, branch_stats};
 
 /// Query string for both shell + SSE endpoints. `tab` drives the content
-/// dispatch; the flattened `Filter` fields drive the history filter chips.
+/// dispatch; the flattened `Filter` fields drive filter chips.
 #[derive(Clone, Debug, Default, Deserialize)]
 pub struct PipelinesParams {
     #[serde(default)]
@@ -44,47 +48,65 @@ impl PipelinesParams {
             .filter(|s| !s.is_empty())
             .unwrap_or_else(|| "active".to_string())
     }
+
+    /// Selected agent filter (empty string = "All agents").
+    pub fn agent_filter(&self) -> String {
+        self.filter.agent.clone().unwrap_or_default()
+    }
 }
 
 #[derive(Serialize)]
-struct Stats {
-    definitions: usize,
-    active: usize,
-    completed: usize,
-    failed: usize,
-    history: usize,
+pub struct Stats {
+    pub definitions: usize,
+    pub active: usize,
+    pub completed: usize,
+    pub failed: usize,
+    pub history: usize,
 }
 
 #[derive(Serialize)]
-struct StepView {
-    id: String,
-    step_type: String,
-    state: &'static str,
-    agent: Option<String>,
+pub struct StepView {
+    pub id: String,
+    pub step_type: String,
+    pub state: &'static str,
+    pub agent: Option<String>,
 }
 
 #[derive(Serialize)]
-struct RunView {
-    job_id: String,
-    slug: String,
-    agent: String,
-    state: &'static str,
-    tone: &'static str,
-    duration: String,
-    updated_at: String,
-    steps: Vec<StepView>,
+pub struct RunView {
+    pub job_id: String,
+    pub slug: String,
+    pub agent: String,
+    pub branch: String,
+    pub state: &'static str,
+    pub tone: &'static str,
+    pub duration: String,
+    pub updated_at: String,
+    pub steps: Vec<StepView>,
+    /// Per-run git stats (active runs only; history gets defaults).
+    pub branch_stats: BranchStats,
+    /// Outcome segment tokens, one per defined step: `done | failed |
+    /// pending | running`. Populated for history rows.
+    pub segments: Vec<&'static str>,
 }
 
 #[derive(Serialize)]
-struct PipelinesCtx {
-    active_tab: String,
-    filter: Filter,
-    stats: Stats,
-    defs: Vec<PipelineDef>,
-    active_runs: Vec<RunView>,
-    history_runs: Vec<RunView>,
-    daemon_origin: String,
-    token: String,
+pub struct PipelinesCtx {
+    pub active_tab: String,
+    pub filter: Filter,
+    pub stats: Stats,
+    /// Subtitle string for the view header, e.g.
+    /// `"3 definitions · 2 active · 14 in history"`.
+    pub stats_subtitle: String,
+    /// Currently-selected agent-filter chip (empty = "All agents").
+    pub agent_filter: String,
+    /// Distinct agent names observed across all runs, sorted.
+    pub agents: Vec<String>,
+    pub defs: Vec<PipelineDef>,
+    pub active_runs: Vec<RunView>,
+    pub history_runs: Vec<RunView>,
+    pub daemon_origin: String,
+    pub token: String,
 }
 
 fn run_state_token(s: &JobStatus) -> &'static str {
@@ -121,7 +143,53 @@ fn format_duration(secs: i64) -> String {
     }
 }
 
-fn to_run_view(job: &JobRecord) -> RunView {
+/// Derive per-step outcome segment tokens from the projection fields we
+/// actually have: `steps.len()`, `completed_steps`, and overall
+/// `status`. No per-step verdict required.
+pub fn derive_segments(job: &JobRecord) -> Vec<&'static str> {
+    let total = job
+        .steps
+        .as_ref()
+        .map(|p| p.steps.len())
+        .unwrap_or(job.completed_steps.len());
+    if total == 0 {
+        return Vec::new();
+    }
+    let completed = job.completed_steps.len().min(total);
+    let remaining = total - completed;
+    let mut out: Vec<&'static str> = (0..completed).map(|_| "done").collect();
+    match job.status {
+        JobStatus::Completed | JobStatus::Merged => {
+            for _ in 0..remaining {
+                out.push("done");
+            }
+        }
+        JobStatus::Failed => {
+            if remaining > 0 {
+                out.push("failed");
+                for _ in 1..remaining {
+                    out.push("pending");
+                }
+            }
+        }
+        JobStatus::Dispatched | JobStatus::GatePending => {
+            if remaining > 0 {
+                out.push("running");
+                for _ in 1..remaining {
+                    out.push("pending");
+                }
+            }
+        }
+        JobStatus::Pending | JobStatus::Blocked => {
+            for _ in 0..remaining {
+                out.push("pending");
+            }
+        }
+    }
+    out
+}
+
+fn to_run_view(job: &JobRecord, include_stats: bool) -> RunView {
     let job_failed = matches!(job.status, JobStatus::Failed);
     let steps = job
         .steps
@@ -148,26 +216,64 @@ fn to_run_view(job: &JobRecord) -> RunView {
         })
         .unwrap_or_default();
 
+    let stats = if include_stats {
+        job.worktree
+            .as_deref()
+            .filter(|s| !s.is_empty())
+            .map(|p| branch_stats(&PathBuf::from(p)))
+            .unwrap_or_default()
+    } else {
+        BranchStats::default()
+    };
+
     RunView {
         job_id: job.job_id.clone(),
         slug: job.slug.clone(),
         agent: job.agent.clone(),
+        branch: job.branch.clone(),
         state: run_state_token(&job.status),
         tone: tone_for(&job.status),
         duration: format_duration((job.updated_at - job.created_at).num_seconds()),
         updated_at: job.updated_at.to_rfc3339(),
         steps,
+        branch_stats: stats,
+        segments: derive_segments(job),
     }
+}
+
+fn pluralize(n: usize, word: &str) -> String {
+    if n == 1 {
+        format!("1 {word}")
+    } else {
+        format!("{n} {word}s")
+    }
+}
+
+fn build_subtitle(stats: &Stats) -> String {
+    format!(
+        "{} · {} · {} in history",
+        pluralize(stats.definitions, "definition"),
+        pluralize(stats.active, "active"),
+        stats.history
+    )
 }
 
 fn build_ctx(params: &PipelinesParams, daemon_origin: String) -> PipelinesCtx {
     let defs = list_pipeline_defs();
+    // Unfiltered pass populates the agent-chip row; the active
+    // filter only narrows rendered runs, not the chip options.
+    let all_runs = list_pipeline_runs(&Filter::default());
+    let agents: Vec<String> = all_runs
+        .iter()
+        .map(|j| j.agent.clone())
+        .filter(|s| !s.is_empty())
+        .collect::<BTreeSet<_>>()
+        .into_iter()
+        .collect();
+
     let runs = list_pipeline_runs(&params.filter);
     let (active, history) = partition_runs(runs);
 
-    // History can be further narrowed by `status` if set. `list_pipeline_runs`
-    // already applied the filter, but partition_runs doesn't know about it —
-    // the filter restricts history to matching statuses via status_token.
     let history_runs: Vec<RunView> = history
         .iter()
         .take(50)
@@ -180,9 +286,9 @@ fn build_ctx(params: &PipelinesParams, daemon_origin: String) -> PipelinesCtx {
                 .map(|s| status_token(&j.status) == s)
                 .unwrap_or(true)
         })
-        .map(to_run_view)
+        .map(|j| to_run_view(j, false))
         .collect();
-    let active_runs: Vec<RunView> = active.iter().map(to_run_view).collect();
+    let active_runs: Vec<RunView> = active.iter().map(|j| to_run_view(j, true)).collect();
 
     let completed = history
         .iter()
@@ -200,11 +306,15 @@ fn build_ctx(params: &PipelinesParams, daemon_origin: String) -> PipelinesCtx {
         failed,
         history: history.len(),
     };
+    let stats_subtitle = build_subtitle(&stats);
 
     PipelinesCtx {
         active_tab: params.active_tab(),
         filter: params.filter.clone(),
         stats,
+        stats_subtitle,
+        agent_filter: params.agent_filter(),
+        agents,
         defs,
         active_runs,
         history_runs,
@@ -263,7 +373,6 @@ pub async fn pipelines_sse(
         let _guard = guard;
         let _hb = vs.heartbeat_every(Duration::from_secs(15));
 
-        // Initial render.
         let html = render_content(&params, origin.clone());
         if vs.patch("#pipelines-content", html).await.is_err() {
             return;

@@ -1,29 +1,19 @@
-{%- set statuses = ['completed', 'failed', 'merged', 'blocked'] -%}
-<div class="ship-pipelines-filters">
-  <ship-chip {% if not filter.status %}selected{% endif %}
-    data-on:click="@get('{{ daemon_origin | safe }}/api/runtime/view/pipelines?tab=history&token={{ token | safe }}')">All</ship-chip>
-  {% for s in statuses %}
-  <ship-chip tone="{% if s == 'failed' %}destructive{% elif s == 'completed' %}success{% else %}muted{% endif %}"
-    {% if filter.status == s %}selected{% endif %}
-    data-on:click="@get('{{ daemon_origin | safe }}/api/runtime/view/pipelines?tab=history&status={{ s }}&token={{ token | safe }}')">{{ s }}</ship-chip>
-  {% endfor %}
-</div>
-
+{#- History tab — compact row list + Load more pagination. -#}
 {% if history_runs and history_runs | length > 0 %}
-<ship-table hoverable>
-  <tr slot="head">
-    <th>Slug</th><th>Agent</th><th>Status</th><th>Duration</th><th>Completed</th>
-  </tr>
+<h2 class="ship-recent-heading">Recent history</h2>
+<section class="ship-history-card">
   {% for run in history_runs %}
-  <ship-history-row state="{{ run.state }}">
-    <span slot="slug">{{ run.slug }}</span>
-    <span slot="agent">{{ run.agent }}</span>
-    <span slot="status"><ship-badge tone="{{ run.tone }}">{{ run.state }}</ship-badge></span>
-    <span slot="duration">{{ run.duration }}</span>
-    <span slot="completed"><ship-timestamp value="{{ run.updated_at }}"></ship-timestamp></span>
-  </ship-history-row>
+    {% include 'pipelines/partials/history_row.html.j2' %}
   {% endfor %}
-</ship-table>
+</section>
+{% if stats.history > history_runs | length %}
+<p class="ship-pipelines-load-more">
+  <ship-chip size="sm"
+    data-on:click="@get('{{ daemon_origin | safe }}/api/runtime/view/pipelines?tab=history&token={{ token | safe }}')">
+    Load {{ stats.history - (history_runs | length) }} more
+  </ship-chip>
+</p>
+{% endif %}
 {% else %}
 <ship-empty-state>
   <ship-icon slot="icon" name="archive"></ship-icon>

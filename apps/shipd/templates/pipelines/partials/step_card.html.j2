@@ -1,0 +1,13 @@
+{#-
+  Minimal step card. Expects `step` (StepView) in scope.
+  No evidence line — per-step commits/dirty/verdict aren't projected.
+-#}
+<div class="ship-step-card {{ step.state }}" role="listitem">
+  <div class="ship-step-head">
+    <span class="ship-step-id">{{ step.id }}</span>
+  </div>
+  {% if step.agent %}
+  <div class="ship-step-agent">{{ step.agent }}</div>
+  {% endif %}
+  <div class="ship-step-state {{ step.state }}">{{ step.state }}</div>
+</div>

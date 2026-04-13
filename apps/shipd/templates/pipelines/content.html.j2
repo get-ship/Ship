@@ -2,7 +2,7 @@
   Dispatches on `active_tab` to render the appropriate partial. Always
   wrapped in `#pipelines-content` so SSE morph targets match.
 -#}
-<div id="pipelines-content">
+<div id="pipelines-content" class="ship-pipelines-content">
   {% if active_tab == 'definitions' %}
     {% include 'pipelines/partials/definitions.html.j2' %}
   {% elif active_tab == 'history' %}
