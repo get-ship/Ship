@@ -1,20 +1,19 @@
 //! Git view — minijinja-rendered shell + Datastar SSE content patches.
 //!
-//! Two endpoints:
+//! Single-column, information-dense layout matching the React `/studio/git`
+//! page. Two endpoints:
 //!
-//! - `GET /api/runtime/view/git` — full-page HTML shell. Delivered once on
-//!   load; contains the two-pane layout (rail + main) and bootstraps an
-//!   SSE subscription on the main pane.
+//! - `GET /api/runtime/view/git` — renders the full shell as a fragment.
+//!   Dispatches on `commit`: absent → status + log sections; present →
+//!   full-pane diff viewer (pass `commit=WORKING` for the working tree
+//!   diff against HEAD).
 //! - `GET /api/runtime/view/git/sse` — Datastar SSE stream that re-renders
-//!   `#git-main` on a polling cadence. Git state is polled rather than
-//!   event-driven — there is no kernel topic for FS-level VCS changes
-//!   today.
-//!
-//! All rendering goes through `crate::views::templates`. Git data loading
-//! and porcelain parsing live in `crate::views_git_data`.
+//!   the shell on a polling cadence (there is no kernel topic for
+//!   FS-level VCS changes today) and morphs `#git-root` in place.
 
 use axum::extract::{Query, State};
 use axum::response::Html;
+use runtime::projections::job::{JobStatus, load_jobs};
 use serde::{Deserialize, Serialize};
 use std::path::Path;
 use std::time::Duration;
@@ -22,8 +21,8 @@ use std::time::Duration;
 use crate::views::stream::{ViewSse, ViewStream};
 use crate::views::templates;
 use crate::views_git_data::{
-    CommitDetail, CommitSummary, StatusFile, load_branch, load_commit_detail, load_log,
-    load_status, resolve_root,
+    CommitSummary, StatusFile, load_branch, load_commit_diff, load_log, load_status_buckets,
+    load_working_diff, resolve_root,
 };
 
 /// Query string for both shell + SSE endpoints.
@@ -32,22 +31,11 @@ pub struct GitParams {
     #[serde(default)]
     pub workspace_id: Option<String>,
     #[serde(default)]
-    pub tab: Option<String>,
-    #[serde(default)]
     pub commit: Option<String>,
     #[serde(default)]
     pub file: Option<String>,
     #[serde(default)]
     pub token: String,
-}
-
-impl GitParams {
-    pub fn active_tab(&self) -> String {
-        self.tab
-            .clone()
-            .filter(|s| !s.is_empty())
-            .unwrap_or_else(|| "log".to_string())
-    }
 }
 
 #[derive(Serialize)]
@@ -57,29 +45,92 @@ pub(crate) struct ErrorView {
 }
 
 #[derive(Serialize)]
+pub(crate) struct CompletedJob {
+    pub slug: String,
+    pub branch: String,
+}
+
+#[derive(Serialize)]
+pub(crate) struct DiffView {
+    pub sha: String,
+    pub short_sha: String,
+    pub is_working: bool,
+    pub diff_text: String,
+}
+
+#[derive(Serialize)]
 pub(crate) struct GitCtx {
-    pub active_tab: String,
     pub workspace_id: Option<String>,
     pub branch: Option<String>,
-    pub status_files: Vec<StatusFile>,
+    pub clean: bool,
+    pub total_changed: usize,
+    pub staged: Vec<StatusFile>,
+    pub modified: Vec<StatusFile>,
+    pub untracked: Vec<StatusFile>,
     pub commits: Vec<CommitSummary>,
-    pub selected_commit: Option<CommitDetail>,
+    pub selected_commit: Option<DiffView>,
+    pub completed_jobs: Vec<CompletedJob>,
     pub error: Option<ErrorView>,
     pub daemon_origin: String,
     pub token: String,
 }
 
+fn load_completed_jobs() -> Vec<CompletedJob> {
+    let jobs = load_jobs().unwrap_or_default();
+    let mut out: Vec<CompletedJob> = jobs
+        .into_values()
+        .filter(|j| matches!(j.status, JobStatus::Completed))
+        .map(|j| CompletedJob {
+            slug: j.slug.clone(),
+            branch: j.branch.clone(),
+        })
+        .collect();
+    out.sort_by(|a, b| a.slug.cmp(&b.slug));
+    out
+}
+
+fn resolve_selected(params: &GitParams, root: &Path) -> Option<DiffView> {
+    let raw = params.commit.as_deref()?.trim();
+    if raw.is_empty() {
+        return None;
+    }
+    if raw.eq_ignore_ascii_case("WORKING") {
+        return Some(DiffView {
+            sha: "WORKING".into(),
+            short_sha: "working".into(),
+            is_working: true,
+            diff_text: load_working_diff(root),
+        });
+    }
+    let diff_text = load_commit_diff(root, raw);
+    if diff_text.is_empty() {
+        return None;
+    }
+    let short_sha: String = raw.chars().take(7).collect();
+    Some(DiffView {
+        sha: raw.to_string(),
+        short_sha,
+        is_working: false,
+        diff_text,
+    })
+}
+
 pub(crate) fn build_ctx(params: &GitParams, ship_dir: &Path, daemon_origin: String) -> GitCtx {
+    let completed_jobs = load_completed_jobs();
     let root = match resolve_root(ship_dir, params.workspace_id.as_deref()) {
         Ok(r) => r,
         Err(e) => {
             return GitCtx {
-                active_tab: params.active_tab(),
                 workspace_id: params.workspace_id.clone(),
                 branch: None,
-                status_files: vec![],
+                clean: true,
+                total_changed: 0,
+                staged: vec![],
+                modified: vec![],
+                untracked: vec![],
                 commits: vec![],
                 selected_commit: None,
+                completed_jobs,
                 error: Some(ErrorView {
                     title: "Git unavailable".into(),
                     body: e,
@@ -91,25 +142,31 @@ pub(crate) fn build_ctx(params: &GitParams, ship_dir: &Path, daemon_origin: Stri
     };
 
     let branch = load_branch(&root);
-    let status_files = load_status(&root);
+    let buckets = load_status_buckets(&root);
     let commits = load_log(&root);
-    let selected_commit = params
-        .commit
-        .as_deref()
-        .filter(|s| !s.is_empty())
-        .and_then(|sha| load_commit_detail(&root, sha));
+    let selected_commit = resolve_selected(params, &root);
 
     GitCtx {
-        active_tab: params.active_tab(),
         workspace_id: params.workspace_id.clone(),
         branch,
-        status_files,
+        clean: buckets.clean,
+        total_changed: buckets.total,
+        staged: buckets.staged,
+        modified: buckets.modified,
+        untracked: buckets.untracked,
         commits,
         selected_commit,
+        completed_jobs,
         error: None,
         daemon_origin,
         token: params.token.clone(),
     }
+}
+
+fn render_shell(params: &GitParams, ship_dir: &Path, daemon_origin: String) -> String {
+    let ctx = build_ctx(params, ship_dir, daemon_origin);
+    templates::render("git/shell.html.j2", &ctx)
+        .unwrap_or_else(|e| format!("<div id=\"git-root\"><pre>{e}</pre></div>"))
 }
 
 /// GET /api/runtime/view/git — full shell, minijinja-rendered.
@@ -117,13 +174,10 @@ pub async fn git_shell(
     State(state): State<crate::rest_api::ApiState>,
     Query(params): Query<GitParams>,
 ) -> Html<String> {
-    let ctx = build_ctx(&params, state.ship_dir(), state.daemon_origin());
-    let html = templates::render("git/shell.html.j2", &ctx)
-        .unwrap_or_else(|e| format!("<pre>shell render error: {e}</pre>"));
-    Html(html)
+    Html(render_shell(&params, state.ship_dir(), state.daemon_origin()))
 }
 
-/// GET /api/runtime/view/git/sse — periodic patches for `#git-main`.
+/// GET /api/runtime/view/git/sse — periodic patches for `#git-root`.
 pub async fn git_sse(
     State(state): State<crate::rest_api::ApiState>,
     Query(params): Query<GitParams>,
@@ -135,13 +189,11 @@ pub async fn git_sse(
     tokio::spawn(async move {
         let _hb = vs.heartbeat_every(Duration::from_secs(15));
 
-        let html = render_content(&params, &ship_dir, origin.clone());
-        if vs.patch("#git-main", html).await.is_err() {
+        let html = render_shell(&params, &ship_dir, origin.clone());
+        if vs.patch("#git-root", html).await.is_err() {
             return;
         }
 
-        // Poll the working tree every 5s. No kernel topic exists for VCS
-        // writes today — a timed re-render is the simplest correct option.
         let mut ticker = tokio::time::interval(Duration::from_secs(5));
         ticker.tick().await;
         loop {
@@ -149,20 +201,14 @@ pub async fn git_sse(
             if vs.is_closed() {
                 break;
             }
-            let html = render_content(&params, &ship_dir, origin.clone());
-            if vs.patch("#git-main", html).await.is_err() {
+            let html = render_shell(&params, &ship_dir, origin.clone());
+            if vs.patch("#git-root", html).await.is_err() {
                 break;
             }
         }
     });
 
     sse
-}
-
-fn render_content(params: &GitParams, ship_dir: &Path, daemon_origin: String) -> String {
-    let ctx = build_ctx(params, ship_dir, daemon_origin);
-    templates::render("git/content.html.j2", &ctx)
-        .unwrap_or_else(|e| format!("<div id=\"git-main\"><pre>{e}</pre></div>"))
 }
 
 #[cfg(test)]

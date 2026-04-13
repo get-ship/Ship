@@ -18,31 +18,21 @@ pub struct CommitSummary {
 #[derive(Clone, Serialize)]
 pub struct StatusFile {
     pub path: String,
+    pub basename: String,
     pub status: String,
     pub tone: String,
     pub label: String,
 }
 
-#[derive(Clone, Serialize)]
-pub struct CommitFile {
-    pub path: String,
-    pub additions: u32,
-    pub deletions: u32,
-    pub status: String,
-    pub tone: String,
-    pub label: String,
-    pub diff: String,
-}
-
-#[derive(Clone, Serialize)]
-pub struct CommitDetail {
-    pub sha: String,
-    pub short_sha: String,
-    pub author: String,
-    pub committer: String,
-    pub date: String,
-    pub message: String,
-    pub files: Vec<CommitFile>,
+/// Working-tree status bucketed by the categories the UI cares about:
+/// staged (index vs HEAD), modified (worktree vs index), untracked (new).
+#[derive(Clone, Default, Serialize)]
+pub struct StatusBuckets {
+    pub clean: bool,
+    pub total: usize,
+    pub staged: Vec<StatusFile>,
+    pub modified: Vec<StatusFile>,
+    pub untracked: Vec<StatusFile>,
 }
 
 pub fn run_git(root: &Path, args: &[&str]) -> Result<String, String> {
@@ -92,6 +82,10 @@ fn status_label(code: char) -> (&'static str, &'static str) {
     }
 }
 
+fn basename_of(path: &str) -> String {
+    path.rsplit('/').next().unwrap_or(path).to_string()
+}
+
 pub fn parse_status_porcelain(text: &str) -> Vec<StatusFile> {
     text.lines()
         .filter(|l| l.len() >= 4)
@@ -103,14 +97,64 @@ pub fn parse_status_porcelain(text: &str) -> Vec<StatusFile> {
             let code = if code == ' ' { x } else { code };
             let (label, tone) = status_label(code);
             let path = line[3..].trim_end().to_string();
+            let basename = basename_of(&path);
             StatusFile {
                 path,
+                basename,
                 status: code.to_string(),
                 tone: tone.to_string(),
                 label: label.to_string(),
             }
         })
         .collect()
+}
+
+/// Bucket porcelain output into staged / modified / untracked. Column X is
+/// the index state, Y is the worktree state (`git status --porcelain` format).
+/// `??` → untracked, `X≠' '` → staged, else `Y≠' '` → modified.
+pub fn bucket_status_porcelain(text: &str) -> StatusBuckets {
+    let mut buckets = StatusBuckets::default();
+    for line in text.lines() {
+        if line.len() < 4 {
+            continue;
+        }
+        let bytes = line.as_bytes();
+        let x = bytes[0] as char;
+        let y = bytes[1] as char;
+        let path = line[3..].trim_end().to_string();
+        let basename = basename_of(&path);
+
+        if x == '?' && y == '?' {
+            buckets.untracked.push(StatusFile {
+                path,
+                basename,
+                status: "?".into(),
+                tone: "destructive".into(),
+                label: "?".into(),
+            });
+        } else if x != ' ' && x != '?' {
+            let (label, tone) = status_label(x);
+            buckets.staged.push(StatusFile {
+                path,
+                basename,
+                status: x.to_string(),
+                tone: tone.into(),
+                label: label.into(),
+            });
+        } else if y != ' ' {
+            let (label, tone) = status_label(y);
+            buckets.modified.push(StatusFile {
+                path,
+                basename,
+                status: y.to_string(),
+                tone: tone.into(),
+                label: label.into(),
+            });
+        }
+    }
+    buckets.total = buckets.staged.len() + buckets.modified.len() + buckets.untracked.len();
+    buckets.clean = buckets.total == 0;
+    buckets
 }
 
 pub fn parse_log(text: &str) -> Vec<CommitSummary> {
@@ -147,6 +191,25 @@ pub fn load_status(root: &Path) -> Vec<StatusFile> {
         .unwrap_or_default()
 }
 
+pub fn load_status_buckets(root: &Path) -> StatusBuckets {
+    run_git(root, &["status", "--porcelain"])
+        .map(|s| bucket_status_porcelain(&s))
+        .unwrap_or_else(|_| StatusBuckets {
+            clean: true,
+            ..Default::default()
+        })
+}
+
+/// Load the full working-tree diff against HEAD (staged + unstaged combined).
+pub fn load_working_diff(root: &Path) -> String {
+    run_git(root, &["diff", "--no-color", "HEAD"]).unwrap_or_default()
+}
+
+/// Load the textual diff for a single commit (what `git show` produces).
+pub fn load_commit_diff(root: &Path, sha: &str) -> String {
+    run_git(root, &["show", "--no-color", "--format=", sha]).unwrap_or_default()
+}
+
 pub fn load_log(root: &Path) -> Vec<CommitSummary> {
     run_git(
         root,
@@ -159,72 +222,4 @@ pub fn load_log(root: &Path) -> Vec<CommitSummary> {
     )
     .map(|s| parse_log(&s))
     .unwrap_or_default()
-}
-
-pub fn load_commit_detail(root: &Path, sha: &str) -> Option<CommitDetail> {
-    let header = run_git(
-        root,
-        &[
-            "show",
-            "--no-patch",
-            "--format=%H%x1f%an%x1f%cn%x1f%ad%x1f%B",
-            "--date=iso-strict",
-            sha,
-        ],
-    )
-    .ok()?;
-    let parts: Vec<&str> = header.splitn(5, '\x1f').collect();
-    if parts.len() < 5 {
-        return None;
-    }
-    let full_sha = parts[0].to_string();
-    let short_sha = full_sha.chars().take(7).collect::<String>();
-
-    let numstat = run_git(root, &["show", "--numstat", "--format=", sha]).unwrap_or_default();
-    let mut files: Vec<CommitFile> = numstat
-        .lines()
-        .filter(|l| !l.is_empty())
-        .filter_map(|line| {
-            let mut it = line.splitn(3, '\t');
-            let adds = it.next()?.trim();
-            let dels = it.next()?.trim();
-            let path = it.next()?.trim();
-            let additions: u32 = adds.parse().unwrap_or(0);
-            let deletions: u32 = dels.parse().unwrap_or(0);
-            let (label, tone) = if additions > 0 && deletions == 0 {
-                ("A", "success")
-            } else if deletions > 0 && additions == 0 {
-                ("D", "destructive")
-            } else {
-                ("M", "warning")
-            };
-            Some(CommitFile {
-                path: path.to_string(),
-                additions,
-                deletions,
-                status: label.to_string(),
-                tone: tone.to_string(),
-                label: label.to_string(),
-                diff: String::new(),
-            })
-        })
-        .collect();
-
-    for f in files.iter_mut() {
-        f.diff = run_git(
-            root,
-            &["show", sha, "--format=", "--no-color", "--", f.path.as_str()],
-        )
-        .unwrap_or_default();
-    }
-
-    Some(CommitDetail {
-        sha: full_sha,
-        short_sha,
-        author: parts[1].to_string(),
-        committer: parts[2].to_string(),
-        date: parts[3].to_string(),
-        message: parts[4].trim_end().to_string(),
-        files,
-    })
 }
