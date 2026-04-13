@@ -35,8 +35,6 @@ pub struct GitParams {
     pub commit: Option<String>,
     #[serde(default)]
     pub file: Option<String>,
-    #[serde(default)]
-    pub token: String,
 }
 
 #[derive(Serialize)]
@@ -73,8 +71,6 @@ pub(crate) struct GitCtx {
     pub selected_commit: Option<DiffView>,
     pub completed_jobs: Vec<CompletedJob>,
     pub error: Option<ErrorView>,
-    pub daemon_origin: String,
-    pub token: String,
 }
 
 fn load_completed_jobs() -> Vec<CompletedJob> {
@@ -122,7 +118,7 @@ fn resolve_selected(params: &GitParams, root: &Path) -> Option<DiffView> {
     })
 }
 
-pub(crate) fn build_ctx(params: &GitParams, ship_dir: &Path, daemon_origin: String) -> GitCtx {
+pub(crate) fn build_ctx(params: &GitParams, ship_dir: &Path) -> GitCtx {
     let completed_jobs = load_completed_jobs();
     let root = match resolve_root(ship_dir, params.workspace_id.as_deref()) {
         Ok(r) => r,
@@ -142,8 +138,6 @@ pub(crate) fn build_ctx(params: &GitParams, ship_dir: &Path, daemon_origin: Stri
                     title: "Git unavailable".into(),
                     body: e,
                 }),
-                daemon_origin,
-                token: params.token.clone(),
             };
         }
     };
@@ -165,13 +159,11 @@ pub(crate) fn build_ctx(params: &GitParams, ship_dir: &Path, daemon_origin: Stri
         selected_commit,
         completed_jobs,
         error: None,
-        daemon_origin,
-        token: params.token.clone(),
     }
 }
 
-fn render_shell(params: &GitParams, ship_dir: &Path, daemon_origin: String) -> String {
-    let ctx = build_ctx(params, ship_dir, daemon_origin);
+fn render_shell(params: &GitParams, ship_dir: &Path) -> String {
+    let ctx = build_ctx(params, ship_dir);
     templates::render("git/shell.html.j2", &ctx)
         .unwrap_or_else(|e| format!("<div id=\"git-root\"><pre>{e}</pre></div>"))
 }
@@ -181,7 +173,7 @@ pub async fn git_shell(
     State(state): State<crate::rest_api::ApiState>,
     Query(params): Query<GitParams>,
 ) -> Html<String> {
-    Html(render_shell(&params, state.ship_dir(), state.daemon_origin()))
+    Html(render_shell(&params, state.ship_dir()))
 }
 
 /// GET /api/runtime/view/git/sse — periodic patches for `#git-root`.
@@ -191,12 +183,11 @@ pub async fn git_sse(
 ) -> ViewSse {
     let (vs, sse) = ViewStream::new();
     let ship_dir = state.ship_dir().to_path_buf();
-    let origin = state.daemon_origin();
 
     tokio::spawn(async move {
         let _hb = vs.heartbeat_every(Duration::from_secs(15));
 
-        let html = render_shell(&params, &ship_dir, origin.clone());
+        let html = render_shell(&params, &ship_dir);
         if vs.patch("#git-root", html).await.is_err() {
             return;
         }
@@ -208,7 +199,7 @@ pub async fn git_sse(
             if vs.is_closed() {
                 break;
             }
-            let html = render_shell(&params, &ship_dir, origin.clone());
+            let html = render_shell(&params, &ship_dir);
             if vs.patch("#git-root", html).await.is_err() {
                 break;
             }

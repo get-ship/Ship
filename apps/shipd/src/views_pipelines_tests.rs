@@ -25,8 +25,6 @@ fn empty_ctx(active_tab: &str) -> PipelinesCtx {
         defs: vec![],
         active_runs: vec![],
         history_runs: vec![],
-        daemon_origin: "http://localhost:9315".to_string(),
-        token: "test-token".to_string(),
     }
 }
 
@@ -104,12 +102,12 @@ fn shell_renders_as_fragment_with_root_id() {
     assert!(html.contains("id=\"pipelines-root\""), "missing root id: {html}");
     assert!(html.contains("<ship-tabs"), "missing ship-tabs: {html}");
     assert!(
-        html.contains("http://localhost:9315/api/runtime/view/pipelines"),
-        "expected absolute daemon URL: {html}"
+        html.contains("/api/runtime/view/pipelines"),
+        "expected relative daemon URL: {html}"
     );
     assert!(
-        html.contains("token=test-token"),
-        "token must thread into URLs: {html}"
+        !html.contains("token="),
+        "cookie auth: URLs must not carry ?token=: {html}"
     );
     assert!(
         html.contains("0 definitions · 0 active · 0 in history"),

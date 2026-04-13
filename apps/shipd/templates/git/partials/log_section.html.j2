@@ -1,4 +1,5 @@
-{#- Expects commits[], daemon_origin, token, workspace_id, branch, total_changed. -#}
+{#- Expects commits[], workspace_id, branch, total_changed. -#}
+{% from '_urls.html.j2' import view_git %}
 {%- set ws_qs = '' -%}
 {%- if workspace_id %}{%- set ws_qs = '&workspace_id=' ~ workspace_id -%}{%- endif -%}
 
@@ -10,7 +11,7 @@
   <div class="ship-git-log">
     {% for c in commits[:10] %}
       <button type="button" class="ship-git-commit"
-        data-on:click="@get('{{ daemon_origin | safe }}/api/runtime/view/git?commit={{ c.sha }}{{ ws_qs }}&token={{ token | safe }}')">
+        data-on:click="@get('{{ view_git() }}?commit={{ c.sha }}{{ ws_qs }}')">
         <div class="ship-git-commit-subject">{{ c.subject | truncate(60) }}</div>
         <div class="ship-git-commit-meta">
           <span class="ship-git-commit-sha">{{ c.short_sha }}</span>

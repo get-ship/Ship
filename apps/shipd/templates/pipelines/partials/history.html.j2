@@ -8,8 +8,9 @@
 </section>
 {% if stats.history > history_runs | length %}
 <p class="ship-pipelines-load-more">
+  {% from '_urls.html.j2' import view_pipelines %}
   <ship-chip size="sm"
-    data-on:click="@get('{{ daemon_origin | safe }}/api/runtime/view/pipelines?tab=history&token={{ token | safe }}')">
+    data-on:click="@get('{{ view_pipelines() }}?tab=history')">
     Load {{ stats.history - (history_runs | length) }} more
   </ship-chip>
 </p>

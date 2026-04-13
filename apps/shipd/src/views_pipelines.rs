@@ -35,8 +35,6 @@ use crate::views_pipelines_data::{BranchStats, branch_stats};
 pub struct PipelinesParams {
     #[serde(default)]
     pub tab: Option<String>,
-    #[serde(default)]
-    pub token: String,
     #[serde(flatten)]
     pub filter: Filter,
 }
@@ -105,8 +103,6 @@ pub struct PipelinesCtx {
     pub defs: Vec<PipelineDef>,
     pub active_runs: Vec<RunView>,
     pub history_runs: Vec<RunView>,
-    pub daemon_origin: String,
-    pub token: String,
 }
 
 fn run_state_token(s: &JobStatus) -> &'static str {
@@ -258,7 +254,7 @@ fn build_subtitle(stats: &Stats) -> String {
     )
 }
 
-fn build_ctx(params: &PipelinesParams, daemon_origin: String) -> PipelinesCtx {
+fn build_ctx(params: &PipelinesParams) -> PipelinesCtx {
     let defs = list_pipeline_defs();
     // Unfiltered pass populates the agent-chip row; the active
     // filter only narrows rendered runs, not the chip options.
@@ -318,17 +314,15 @@ fn build_ctx(params: &PipelinesParams, daemon_origin: String) -> PipelinesCtx {
         defs,
         active_runs,
         history_runs,
-        daemon_origin,
-        token: params.token.clone(),
     }
 }
 
 /// GET /api/runtime/view/pipelines — full shell, minijinja-rendered.
 pub async fn pipelines_shell(
-    State(state): State<crate::rest_api::ApiState>,
+    State(_state): State<crate::rest_api::ApiState>,
     Query(params): Query<PipelinesParams>,
 ) -> Html<String> {
-    let ctx = build_ctx(&params, state.daemon_origin());
+    let ctx = build_ctx(&params);
     let html = templates::render("pipelines/shell.html.j2", &ctx)
         .unwrap_or_else(|e| format!("<pre>shell render error: {e}</pre>"));
     Html(html)
@@ -367,13 +361,12 @@ pub async fn pipelines_sse(
         actor_id,
         kernel: state.kernel().clone(),
     };
-    let origin = state.daemon_origin();
 
     tokio::spawn(async move {
         let _guard = guard;
         let _hb = vs.heartbeat_every(Duration::from_secs(15));
 
-        let html = render_content(&params, origin.clone());
+        let html = render_content(&params);
         if vs.patch("#pipelines-content", html).await.is_err() {
             return;
         }
@@ -383,7 +376,7 @@ pub async fn pipelines_sse(
             if vs.is_closed() {
                 break;
             }
-            let html = render_content(&params, origin.clone());
+            let html = render_content(&params);
             if vs.patch("#pipelines-content", html).await.is_err() {
                 break;
             }
@@ -393,8 +386,8 @@ pub async fn pipelines_sse(
     sse
 }
 
-fn render_content(params: &PipelinesParams, daemon_origin: String) -> String {
-    let ctx = build_ctx(params, daemon_origin);
+fn render_content(params: &PipelinesParams) -> String {
+    let ctx = build_ctx(params);
     templates::render("pipelines/content.html.j2", &ctx)
         .unwrap_or_else(|e| format!("<div id=\"pipelines-content\"><pre>{e}</pre></div>"))
 }

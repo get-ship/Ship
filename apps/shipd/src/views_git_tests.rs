@@ -21,8 +21,6 @@ fn empty_ctx() -> GitCtx {
         selected_commit: None,
         completed_jobs: vec![],
         error: None,
-        daemon_origin: "http://localhost:9315".to_string(),
-        token: "test-token".to_string(),
     }
 }
 
@@ -102,7 +100,7 @@ fn shell_shows_change_breakdown_and_files() {
     assert!(html.contains("new.txt"));
     assert!(html.contains("View diff"));
     assert!(html.contains("commit=WORKING"));
-    assert!(html.contains("token=test-token"));
+    assert!(!html.contains("token="), "cookie auth: URLs must not carry ?token=");
 }
 
 #[test]

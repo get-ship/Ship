@@ -1,4 +1,5 @@
 {#- Grouped spec list. Morph target: #specs-rail-list-inner. -#}
+{% from '_urls.html.j2' import view_specs %}
 <div id="specs-rail-list-inner">
   {% if total == 0 %}
     <ship-empty-state variant="placeholder" style="padding: 24px 14px;">
@@ -17,7 +18,7 @@
             {% for spec in group.items %}
               <ship-list-item
                 {% if selected_id == spec.id %}selected{% endif %}
-                data-on:click="@get('{{ daemon_origin | safe }}/api/runtime/view/specs?selected={{ spec.id }}&q=' + encodeURIComponent($q || '') + '&token={{ token | safe }}')">
+                data-on:click="@get('{{ view_specs() }}?selected={{ spec.id }}&q=' + encodeURIComponent($q || ''))">
                 <ship-status-dot slot="leading" size="sm" tone="{{ spec.tone }}"
                   {% if group.key == 'launched' %}pulse{% endif %}></ship-status-dot>
                 <div class="spec-row-main">

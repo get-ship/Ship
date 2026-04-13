@@ -1,12 +1,13 @@
 {#-
   Working-tree status block. Expects:
     branch, clean (bool), total_changed, staged[], modified[], untracked[]
-    daemon_origin, token, workspace_id
+    workspace_id
   Each file row drills into the working-tree diff (commit="" → unstaged HEAD diff).
 -#}
+{% from '_urls.html.j2' import view_git %}
 {%- set ws_qs = '' -%}
 {%- if workspace_id %}{%- set ws_qs = '&workspace_id=' ~ workspace_id -%}{%- endif -%}
-{%- set diff_url = daemon_origin ~ '/api/runtime/view/git?commit=WORKING' ~ ws_qs ~ '&token=' ~ token -%}
+{%- set diff_url = view_git() ~ '?commit=WORKING' ~ ws_qs -%}
 
 <div class="ship-git-section">
   {% if branch %}

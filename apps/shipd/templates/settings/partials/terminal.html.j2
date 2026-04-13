@@ -1,4 +1,5 @@
 {#- Terminal section. Shell / launcher integration. -#}
+{% from '_urls.html.j2' import update_setting %}
 <section class="settings-section" aria-labelledby="settings-terminal-head">
   <div id="settings-terminal-head" class="settings-section-head">TERMINAL</div>
   <p class="settings-section-desc">
@@ -13,7 +14,7 @@
     </div>
     <div class="settings-row-control">
       <ship-select size="sm" value="{{ terminal.program }}"
-        data-on:ship-select-change="@put('{{ daemon_origin | safe }}/api/settings?token={{ token | safe }}', {contentType: 'json', body: JSON.stringify({key: 'terminal.program', value: evt.detail.value})})">
+        data-on:ship-select-change="@put('{{ update_setting() }}', {contentType: 'json', body: JSON.stringify({key: 'terminal.program', value: evt.detail.value})})">
         {% for opt in terminal.options %}
           <ship-option value="{{ opt.value }}" {% if opt.value == terminal.program %}selected{% endif %}>{{ opt.label }}</ship-option>
         {% endfor %}
@@ -28,7 +29,7 @@
     </div>
     <div class="settings-row-control">
       <ship-input size="sm" placeholder="/path/to/worktrees" value="{{ terminal.worktree_base }}"
-        data-on:ship-input__debounce.500ms="@put('{{ daemon_origin | safe }}/api/settings?token={{ token | safe }}', {contentType: 'json', body: JSON.stringify({key: 'worktree.base_dir', value: evt.detail.value})})"></ship-input>
+        data-on:ship-input__debounce.500ms="@put('{{ update_setting() }}', {contentType: 'json', body: JSON.stringify({key: 'worktree.base_dir', value: evt.detail.value})})"></ship-input>
     </div>
   </div>
 </section>

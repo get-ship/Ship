@@ -49,8 +49,6 @@ fn sample_ctx() -> SettingsCtx {
             docs: "https://getship.dev/docs".into(),
             source: "https://github.com/madvib/Ship".into(),
         },
-        daemon_origin: "http://localhost:9315".into(),
-        token: "test-token".into(),
     }
 }
 
@@ -63,8 +61,6 @@ fn empty_ctx() -> SettingsCtx {
         advanced: vec![],
         advanced_registry: String::new(),
         about: AboutInfo::default(),
-        daemon_origin: "http://localhost:9315".into(),
-        token: "t".into(),
     }
 }
 
@@ -131,8 +127,8 @@ fn url_token_baked_in() {
     let ctx = sample_ctx();
     let html = templates::render("settings/shell.html.j2", &ctx).expect("render");
     assert!(
-        html.contains("http://localhost:9315/api/runtime/view/settings/sse"),
-        "expected absolute daemon SSE URL"
+        html.contains("/api/runtime/view/settings/sse"),
+        "expected relative daemon SSE URL"
     );
-    assert!(html.contains("token=test-token"), "token should be threaded");
+    assert!(!html.contains("token="), "cookie auth: URLs must not carry ?token=");
 }

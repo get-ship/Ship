@@ -31,12 +31,13 @@
     {% endif %}
     <span class="ship-run-dur {% if run.state == 'dispatched' or run.state == 'gate-pending' %}running{% endif %}">{{ run.duration }}</span>
     <span class="ship-run-actions">
+      {% from '_urls.html.j2' import get_job, end_job %}
       <ship-button size="sm" variant="ghost"
-        data-on:click="@get('{{ daemon_origin | safe }}/api/runtime/jobs/{{ run.job_id }}?token={{ token | safe }}')">
+        data-on:click="@get('{{ get_job(run.job_id) }}')">
         Attach
       </ship-button>
       <ship-button size="sm" variant="ghost" tone="destructive"
-        data-on:click="@post('{{ daemon_origin | safe }}/api/runtime/jobs/end?token={{ token | safe }}', {contentType: 'json', body: JSON.stringify({job_id: '{{ run.job_id }}'})})">
+        data-on:click="@post('{{ end_job() }}', {contentType: 'json', body: JSON.stringify({job_id: '{{ run.job_id }}'})})">
         Stop
       </ship-button>
     </span>

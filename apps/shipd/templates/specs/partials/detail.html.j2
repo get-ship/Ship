@@ -1,11 +1,12 @@
 {#- Full spec detail: head, metachip row, prose sections, launch bar. -#}
+{% from '_urls.html.j2' import create_spec, delete_spec %}
 <div class="specs-detail-inner">
   <header class="specs-detail-head">
     <div class="specs-detail-title-row">
       <h1>{{ selected.title if selected.title else '(untitled)' }}</h1>
       <div class="specs-detail-actions">
         <ship-button variant="outline" size="sm"
-          data-on:click="@post('{{ daemon_origin | safe }}/api/runtime/specs?token={{ token | safe }}', {contentType: 'json', body: JSON.stringify({title: '{{ selected.title_js }} (copy)', body: '{{ selected.body_js }}'})})">
+          data-on:click="@post('{{ create_spec() }}', {contentType: 'json', body: JSON.stringify({title: '{{ selected.title_js }} (copy)', body: '{{ selected.body_js }}'})})">
           Duplicate
         </ship-button>
         <ship-button variant="outline" size="sm" tone="destructive"
@@ -65,7 +66,7 @@
                    cancel-label="Cancel"
                    data-attr-open="$confirmDelete"
                    data-on:ship-cancel="$confirmDelete = false"
-                   data-on:ship-confirm="@delete('{{ daemon_origin | safe }}/api/runtime/specs/{{ selected.id }}?token={{ token | safe }}'); $confirmDelete = false">
+                   data-on:ship-confirm="@delete('{{ delete_spec(selected.id) }}'); $confirmDelete = false">
   <span slot="title">Delete spec</span>
   This removes the spec from the project. This cannot be undone.
 </ship-alert-dialog>

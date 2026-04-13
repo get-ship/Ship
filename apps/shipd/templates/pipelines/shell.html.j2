@@ -8,6 +8,7 @@
     header (title + subtitle + "+ Run") → tabs with counts →
     agent-filter chip row → #pipelines-content (SSE target).
 -#}
+{% from '_urls.html.j2' import create_job, view_pipelines, view_pipelines_sse %}
 <div id="pipelines-root" class="ship-view ship-view-pipelines">
   <style>
     .ship-view-pipelines { color: var(--foreground); }
@@ -57,14 +58,14 @@
         <div class="ship-pipelines-sub">{{ stats_subtitle }}</div>
       </div>
       <ship-button size="sm" tone="accent" variant="solid"
-        data-on:click="@post('{{ daemon_origin | safe }}/api/runtime/jobs?token={{ token | safe }}', {contentType: 'json', body: JSON.stringify({})})">
+        data-on:click="@post('{{ create_job() }}', {contentType: 'json', body: JSON.stringify({})})">
         + Run
       </ship-button>
     </div>
 
     <div class="ship-pipelines-tabs-row">
       <ship-tabs variant="underline" active="{{ active_tab }}"
-        data-on:ship-tab-change="@get('{{ daemon_origin | safe }}/api/runtime/view/pipelines?tab=' + evt.detail.name + '&token={{ token | safe }}')">
+        data-on:ship-tab-change="@get('{{ view_pipelines() }}?tab=' + evt.detail.name)">
         <ship-tab name="active" label="Active" count="{{ stats.active }}"></ship-tab>
         <ship-tab name="definitions" label="Definitions" count="{{ stats.definitions }}"></ship-tab>
         <ship-tab name="history" label="History" count="{{ stats.history }}"></ship-tab>
@@ -73,15 +74,15 @@
 
     <div class="ship-pipelines-filters" role="group" aria-label="Filter by agent">
       <ship-chip size="sm" {% if not agent_filter %}selected{% endif %}
-        data-on:click="@get('{{ daemon_origin | safe }}/api/runtime/view/pipelines?tab={{ active_tab }}&token={{ token | safe }}')">All agents</ship-chip>
+        data-on:click="@get('{{ view_pipelines() }}?tab={{ active_tab }}')">All agents</ship-chip>
       {% for a in agents %}
       <ship-chip size="sm" {% if agent_filter == a %}selected{% endif %}
-        data-on:click="@get('{{ daemon_origin | safe }}/api/runtime/view/pipelines?tab={{ active_tab }}&agent={{ a }}&token={{ token | safe }}')">{{ a }}</ship-chip>
+        data-on:click="@get('{{ view_pipelines() }}?tab={{ active_tab }}&agent={{ a }}')">{{ a }}</ship-chip>
       {% endfor %}
     </div>
 
     <div id="pipelines-content" class="ship-pipelines-content"
-         data-init="@get('{{ daemon_origin | safe }}/api/runtime/view/pipelines/sse?tab={{ active_tab }}{% if agent_filter %}&agent={{ agent_filter }}{% endif %}&token={{ token | safe }}', {requestCancellation: 'disabled'})">
+         data-init="@get('{{ view_pipelines_sse() }}?tab={{ active_tab }}{% if agent_filter %}&agent={{ agent_filter }}{% endif %}', {requestCancellation: 'disabled'})">
       {% include 'pipelines/content.html.j2' %}
     </div>
   </div>

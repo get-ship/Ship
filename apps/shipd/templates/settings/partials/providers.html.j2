@@ -1,6 +1,7 @@
 {#- Providers section. Lists detected LLM provider CLIs with install
     status and default indicator. Default provider / model are editable
     inline via the existing `/api/settings` endpoint. -#}
+{% from '_urls.html.j2' import update_setting %}
 <section class="settings-section" aria-labelledby="settings-providers-head">
   <div id="settings-providers-head" class="settings-section-head">PROVIDERS</div>
   <p class="settings-section-desc">
@@ -13,7 +14,7 @@
     <div class="settings-row-control">
       {% if providers and providers | length > 0 %}
       <ship-select size="sm" value="{{ default_provider }}"
-        data-on:ship-select-change="@put('{{ daemon_origin | safe }}/api/settings?token={{ token | safe }}', {contentType: 'json', body: JSON.stringify({key: 'defaults.provider', value: evt.detail.value})})">
+        data-on:ship-select-change="@put('{{ update_setting() }}', {contentType: 'json', body: JSON.stringify({key: 'defaults.provider', value: evt.detail.value})})">
         {% for p in providers %}
           <ship-option value="{{ p.id }}" {% if p.is_default %}selected{% endif %}>{{ p.id }}</ship-option>
         {% endfor %}
@@ -28,7 +29,7 @@
     <div class="settings-row-label">Default model</div>
     <div class="settings-row-control">
       <ship-input size="sm" placeholder="sonnet" value="{{ default_model }}"
-        data-on:ship-input__debounce.500ms="@put('{{ daemon_origin | safe }}/api/settings?token={{ token | safe }}', {contentType: 'json', body: JSON.stringify({key: 'defaults.model', value: evt.detail.value})})"></ship-input>
+        data-on:ship-input__debounce.500ms="@put('{{ update_setting() }}', {contentType: 'json', body: JSON.stringify({key: 'defaults.model', value: evt.detail.value})})"></ship-input>
     </div>
   </div>
 

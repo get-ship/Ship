@@ -1,15 +1,15 @@
 {#-
   Full-screen diff mode. Expects:
     selected_commit: {sha, short_sha, label, is_working, diff_text, parsed{files[],total_additions,total_deletions}}
-    completed_jobs, daemon_origin, token, workspace_id
+    completed_jobs, workspace_id
 -#}
+{% from '_urls.html.j2' import view_git %}
 {%- set ws_qs = '' -%}
-{%- if workspace_id %}{%- set ws_qs = '&workspace_id=' ~ workspace_id -%}{%- endif -%}
-{%- set back_url = daemon_origin ~ '/api/runtime/view/git?token=' ~ token ~ ws_qs -%}
+{%- if workspace_id %}{%- set ws_qs = '?workspace_id=' ~ workspace_id -%}{%- endif -%}
 
 <div class="ship-git-diff-header">
   <button type="button" class="ship-git-back" aria-label="Back"
-    data-on:click="@get('{{ back_url | safe }}')">
+    data-on:click="@get('{{ view_git() }}{{ ws_qs }}')">
     <ship-icon name="arrow-left" size="sm"></ship-icon>
   </button>
   <ship-icon name="git-branch" size="sm" class="ship-git-header-icon"></ship-icon>
@@ -19,7 +19,7 @@
   </span>
   {% if not selected_commit.is_working %}
     <button type="button" class="ship-git-show-working"
-      data-on:click="@get('{{ daemon_origin | safe }}/api/runtime/view/git?commit=WORKING{{ ws_qs }}&token={{ token | safe }}')">
+      data-on:click="@get('{{ view_git() }}?commit=WORKING{% if workspace_id %}&workspace_id={{ workspace_id }}{% endif %}')">
       Show working tree
     </button>
   {% endif %}

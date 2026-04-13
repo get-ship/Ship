@@ -1,4 +1,5 @@
 {#- Specs view shell. Two-pane: left rail (grouped by status) + right detail. -#}
+{% from '_urls.html.j2' import create_spec, view_specs, view_specs_sse %}
 <div id="specs-root" class="ship-view ship-view-specs">
   <style>
     .ship-view-specs { padding: 0; color: var(--foreground); }
@@ -185,17 +186,17 @@
       <div class="specs-rail-head">
         <h1>Specs</h1>
         <ship-button variant="solid" tone="accent" size="sm"
-                     data-on:click="@post('{{ daemon_origin | safe }}/api/runtime/specs?token={{ token | safe }}', {contentType: 'json', body: JSON.stringify({title: 'New spec', body: '## Goal\n\n## Acceptance\n- [ ] '})})">
+                     data-on:click="@post('{{ create_spec() }}', {contentType: 'json', body: JSON.stringify({title: 'New spec', body: '## Goal\n\n## Acceptance\n- [ ] '})})">
           + New
         </ship-button>
       </div>
       <div class="specs-rail-filter">
         <ship-input size="sm" placeholder="Filter…" value="{{ q }}"
                     data-bind-q
-                    data-on:ship-input__debounce.200ms="@get('{{ daemon_origin | safe }}/api/runtime/view/specs?q=' + encodeURIComponent($q){% if selected_id %} + '&selected={{ selected_id }}'{% endif %} + '&token={{ token | safe }}')"></ship-input>
+                    data-on:ship-input__debounce.200ms="@get('{{ view_specs() }}?q=' + encodeURIComponent($q){% if selected_id %} + '&selected={{ selected_id }}'{% endif %})"></ship-input>
       </div>
       <div id="specs-rail-list"
-           data-init="@get('{{ daemon_origin | safe }}/api/runtime/view/specs/sse?q={{ q }}{% if selected_id %}&selected={{ selected_id }}{% endif %}&token={{ token | safe }}', {requestCancellation: 'disabled'})">
+           data-init="@get('{{ view_specs_sse() }}?q={{ q }}{% if selected_id %}&selected={{ selected_id }}{% endif %}', {requestCancellation: 'disabled'})">
         {% include 'specs/partials/rail.html.j2' %}
       </div>
     </aside>

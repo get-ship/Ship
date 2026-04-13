@@ -12,8 +12,6 @@ fn empty_ctx() -> SpecsCtx {
         total: 0,
         selected: None,
         pipelines: vec![],
-        daemon_origin: "http://localhost:9315".to_string(),
-        token: "test-token".to_string(),
     }
 }
 
@@ -74,7 +72,7 @@ fn shell_renders_as_fragment_with_root_id() {
     assert!(html.contains("specs-grid"));
     assert!(html.contains("id=\"specs-rail-list\""));
     assert!(html.contains("Filter…"));
-    assert!(html.contains("token=test-token"));
+    assert!(!html.contains("token="), "cookie auth: URLs must not carry ?token=");
 }
 
 #[test]

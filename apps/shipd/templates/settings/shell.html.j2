@@ -149,8 +149,9 @@
       <p>CLI and studio configuration</p>
     </header>
 
+    {% from '_urls.html.j2' import view_settings_sse %}
     <div id="settings-panel"
-         data-init="@get('{{ daemon_origin | safe }}/api/runtime/view/settings/sse?token={{ token | safe }}', {requestCancellation: 'disabled'})">
+         data-init="@get('{{ view_settings_sse() }}', {requestCancellation: 'disabled'})">
       {% include 'settings/partials/providers.html.j2' %}
       {% include 'settings/partials/terminal.html.j2' %}
       {% include 'settings/partials/advanced.html.j2' %}

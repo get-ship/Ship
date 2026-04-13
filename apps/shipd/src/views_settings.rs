@@ -19,10 +19,7 @@ use crate::views::stream::{ViewSse, ViewStream};
 use crate::views::templates;
 
 #[derive(Clone, Debug, Default, Deserialize)]
-pub struct SettingsParams {
-    #[serde(default)]
-    pub token: String,
-}
+pub struct SettingsParams {}
 
 // ─── Context structs ──────────────────────────────────────────────────────────
 
@@ -85,8 +82,6 @@ pub struct SettingsCtx {
     pub advanced: Vec<FeatureFlag>,
     pub advanced_registry: String,
     pub about: AboutInfo,
-    pub daemon_origin: String,
-    pub token: String,
 }
 
 // ─── State helpers ────────────────────────────────────────────────────────────
@@ -169,7 +164,7 @@ fn build_about() -> AboutInfo {
     }
 }
 
-fn build_ctx(params: &SettingsParams, daemon_origin: String) -> SettingsCtx {
+fn build_ctx(_params: &SettingsParams) -> SettingsCtx {
     let default_provider = runtime::config::get_setting("defaults.provider")
         .ok()
         .flatten()
@@ -187,13 +182,11 @@ fn build_ctx(params: &SettingsParams, daemon_origin: String) -> SettingsCtx {
         advanced: Vec::new(),
         advanced_registry,
         about: build_about(),
-        daemon_origin,
-        token: params.token.clone(),
     }
 }
 
-fn render_panel(params: &SettingsParams, daemon_origin: String) -> String {
-    let ctx = build_ctx(params, daemon_origin);
+fn render_panel(params: &SettingsParams) -> String {
+    let ctx = build_ctx(params);
     let inner = render_sections(&ctx);
     format!("<div id=\"settings-panel\">{inner}</div>")
 }
@@ -216,10 +209,10 @@ fn render_sections(ctx: &SettingsCtx) -> String {
 
 /// GET /api/runtime/view/settings — full shell, minijinja-rendered.
 pub async fn settings_shell(
-    State(state): State<crate::rest_api::ApiState>,
+    State(_state): State<crate::rest_api::ApiState>,
     Query(params): Query<SettingsParams>,
 ) -> Html<String> {
-    let ctx = build_ctx(&params, state.daemon_origin());
+    let ctx = build_ctx(&params);
     let html = templates::render("settings/shell.html.j2", &ctx)
         .unwrap_or_else(|e| format!("<pre>shell render error: {e}</pre>"));
     Html(html)
@@ -256,13 +249,12 @@ pub async fn settings_sse(
         actor_id,
         kernel: state.kernel().clone(),
     };
-    let origin = state.daemon_origin();
 
     tokio::spawn(async move {
         let _guard = guard;
         let _hb = vs.heartbeat_every(Duration::from_secs(15));
 
-        let html = render_panel(&params, origin.clone());
+        let html = render_panel(&params);
         if vs.patch("#settings-panel", html).await.is_err() {
             return;
         }
@@ -272,7 +264,7 @@ pub async fn settings_sse(
             if vs.is_closed() {
                 break;
             }
-            let html = render_panel(&params, origin.clone());
+            let html = render_panel(&params);
             if vs.patch("#settings-panel", html).await.is_err() {
                 break;
             }
