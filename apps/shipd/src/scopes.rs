@@ -83,6 +83,19 @@ pub struct DaemonSession {
     pub scopes: Vec<Scope>,
     pub workspace_id: Option<String>,
     pub created_at: std::time::Instant,
+    /// Optional expiry. `None` = never expires (default for MCP sessions).
+    /// `Some(t)` = browser sessions; rejected after `t`.
+    pub expires_at: Option<std::time::Instant>,
+}
+
+impl DaemonSession {
+    /// Returns true if this session has passed its expiry.
+    pub fn is_expired(&self) -> bool {
+        match self.expires_at {
+            Some(t) => std::time::Instant::now() >= t,
+            None => false,
+        }
+    }
 }
 
 /// Thread-safe session registry shared across the daemon.
@@ -153,6 +166,7 @@ pub async fn session_register(
         scopes: scopes.clone(),
         workspace_id: req.workspace_id,
         created_at: std::time::Instant::now(),
+        expires_at: None,
     };
 
     registry.lock().await.insert(token.clone(), session);

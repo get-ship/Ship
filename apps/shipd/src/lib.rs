@@ -7,6 +7,7 @@ pub mod actor_api;
 pub mod auth;
 mod connections;
 pub mod scopes;
+pub mod session;
 mod handler;
 pub mod hooks_api;
 pub mod human_webhook;
@@ -179,7 +180,18 @@ fn build_router(
 
     let auth_token = token;
     let auth_registry = session_registry;
+    let session_issue_registry = auth_registry.clone();
+    let session_issue_route = Router::new()
+        .route(
+            "/session",
+            axum::routing::post(move |auth: axum::Extension<auth::AuthContext>| {
+                let reg = session_issue_registry.clone();
+                async move { session::issue_session_handler(reg, auth.0).await }
+            }),
+        );
+
     let authenticated_routes = Router::new()
+        .nest("/api/runtime", session_issue_route)
         .nest("/api", api_routes)
         .nest("/api", hook_routes)
         .nest("/api", webhook_routes)
@@ -476,6 +488,12 @@ async fn cors_middleware(req: Request<Body>, next: Next) -> Response {
         h.insert(
             "access-control-allow-origin",
             HeaderValue::from_str(&origin_header).unwrap(),
+        );
+        // Required for credentialed (cookie-bearing) cross-origin requests.
+        // Must never pair with `Access-Control-Allow-Origin: *`.
+        h.insert(
+            "access-control-allow-credentials",
+            HeaderValue::from_static("true"),
         );
     }
     h.insert(
