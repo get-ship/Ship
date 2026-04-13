@@ -516,6 +516,17 @@
               "default": "false",
               "attribute": "status-rail",
               "reflects": true
+            },
+            {
+              "kind": "field",
+              "name": "fill",
+              "privacy": "public",
+              "type": {
+                "text": "boolean"
+              },
+              "default": "false",
+              "attribute": "fill",
+              "reflects": true
             }
           ],
           "attributes": [
@@ -557,6 +568,14 @@
               },
               "default": "false",
               "fieldName": "statusRail"
+            },
+            {
+              "name": "fill",
+              "type": {
+                "text": "boolean"
+              },
+              "default": "false",
+              "fieldName": "fill"
             }
           ],
           "superclass": {
@@ -808,6 +827,17 @@
             },
             {
               "kind": "field",
+              "name": "noCloseButton",
+              "privacy": "public",
+              "type": {
+                "text": "boolean"
+              },
+              "default": "false",
+              "attribute": "no-close-button",
+              "reflects": true
+            },
+            {
+              "kind": "field",
               "name": "dialogEl",
               "type": {
                 "text": "HTMLDialogElement"
@@ -830,6 +860,11 @@
             {
               "kind": "field",
               "name": "onBackdropClick",
+              "privacy": "private"
+            },
+            {
+              "kind": "field",
+              "name": "onDismiss",
               "privacy": "private"
             }
           ],
@@ -865,6 +900,14 @@
               },
               "default": "true",
               "fieldName": "dismissible"
+            },
+            {
+              "name": "no-close-button",
+              "type": {
+                "text": "boolean"
+              },
+              "default": "false",
+              "fieldName": "noCloseButton"
             }
           ],
           "superclass": {
@@ -1188,6 +1231,17 @@
             },
             {
               "kind": "field",
+              "name": "loading",
+              "privacy": "public",
+              "type": {
+                "text": "boolean"
+              },
+              "default": "false",
+              "attribute": "loading",
+              "reflects": true
+            },
+            {
+              "kind": "field",
               "name": "variant",
               "privacy": "public",
               "type": {
@@ -1302,6 +1356,14 @@
               },
               "default": "false",
               "fieldName": "invalid"
+            },
+            {
+              "name": "loading",
+              "type": {
+                "text": "boolean"
+              },
+              "default": "false",
+              "fieldName": "loading"
             },
             {
               "name": "variant",

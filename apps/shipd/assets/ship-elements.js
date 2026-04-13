@@ -664,6 +664,7 @@ var ShipDialog = class extends i4 {
     this.open = false;
     this.size = "md";
     this.dismissible = true;
+    this.noCloseButton = false;
     this.onClose = () => {
       this.open = false;
       this.dispatchEvent(new CustomEvent("ship-close", { bubbles: true, composed: true }));
@@ -671,6 +672,10 @@ var ShipDialog = class extends i4 {
     this.onBackdropClick = (e4) => {
       if (!this.dismissible) return;
       if (e4.target === this.dialogEl) this.close();
+    };
+    this.onDismiss = () => {
+      this.dispatchEvent(new CustomEvent("ship-dismiss", { bubbles: true, composed: true }));
+      this.close();
     };
   }
   get dialogEl() {
@@ -701,6 +706,12 @@ var ShipDialog = class extends i4 {
     return b2`
       <dialog @close=${this.onClose} @click=${this.onBackdropClick}>
         <div class="wrap">
+          <button
+            class="close"
+            type="button"
+            aria-label="Close dialog"
+            @click=${this.onDismiss}
+          >×</button>
           <div class="header"><slot name="header"></slot></div>
           <div class="body"><slot></slot></div>
           <div class="footer"><slot name="footer"></slot></div>
@@ -714,44 +725,82 @@ ShipDialog.styles = i`
     dialog {
       padding: 0;
       border: 1px solid var(--border);
-      border-radius: var(--radius);
+      border-radius: var(--radius-lg);
       background: var(--card);
       color: var(--card-foreground);
       max-width: 560px;
       width: 100%;
       max-height: calc(100vh - 64px);
-      box-shadow: 0 24px 64px -16px oklch(0 0 0 / 30%);
+      box-shadow: var(--shadow-xl);
       font-family: var(--font-body);
+      opacity: 0;
+      transform: translateY(4px);
+      transition:
+        opacity var(--duration-medium) var(--ease-out),
+        transform var(--duration-medium) var(--ease-out);
+    }
+    dialog[open] {
+      opacity: 1;
+      transform: translateY(0);
     }
     dialog::backdrop {
       background: oklch(0 0 0 / 40%);
       backdrop-filter: blur(2px);
+      -webkit-backdrop-filter: blur(2px);
     }
     :host([size='sm']) dialog { max-width: 400px; }
     :host([size='lg']) dialog { max-width: 800px; }
 
-    .wrap { display: flex; flex-direction: column; max-height: inherit; }
+    .wrap { display: flex; flex-direction: column; max-height: inherit; position: relative; }
     .header {
       padding: 14px 20px;
+      padding-right: 44px;
       border-bottom: 1px solid var(--border);
-      font-size: 14px; font-weight: 600;
+      font-size: var(--text-md);
+      font-weight: var(--font-weight-semibold);
     }
     .body {
       padding: 16px 20px;
       overflow-y: auto;
-      font-size: 13px;
-      line-height: 1.5;
+      font-size: var(--text-base);
+      line-height: var(--leading-normal);
     }
     .footer {
       padding: 12px 20px;
       border-top: 1px solid var(--border);
       display: flex; gap: 8px; justify-content: flex-end;
     }
+    .close {
+      position: absolute;
+      top: 10px; right: 10px;
+      width: 28px; height: 28px;
+      display: inline-flex; align-items: center; justify-content: center;
+      background: transparent;
+      border: 1px solid transparent;
+      border-radius: var(--radius-md);
+      color: var(--muted-foreground);
+      cursor: pointer;
+      font: inherit;
+      font-size: 18px; line-height: 1;
+      transition:
+        background-color var(--duration-fast) var(--ease-out),
+        color var(--duration-fast) var(--ease-out);
+    }
+    .close:hover { background: var(--muted); color: var(--foreground); }
+    .close:focus-visible {
+      outline: none;
+      box-shadow:
+        0 0 0 var(--ring-offset) var(--card),
+        0 0 0 calc(var(--ring-offset) + var(--ring-width))
+          color-mix(in oklch, var(--ring-color) var(--ring-opacity), transparent);
+    }
+    :host([no-close-button]) .close { display: none; }
   `;
 ShipDialog.properties = {
   open: { type: Boolean, reflect: true },
   size: { type: String, reflect: true },
-  dismissible: { type: Boolean }
+  dismissible: { type: Boolean },
+  noCloseButton: { type: Boolean, reflect: true, attribute: "no-close-button" }
 };
 if (typeof customElements !== "undefined" && !customElements.get("ship-dialog")) {
   customElements.define("ship-dialog", ShipDialog);
@@ -793,29 +842,39 @@ ShipButton.styles = i`
       display: inline-flex;
       align-items: center;
       justify-content: center;
-      gap: 6px;
+      gap: var(--radius-sm);
       font-family: var(--font-body);
-      font-weight: 500;
+      font-weight: var(--font-weight-medium);
       line-height: 1;
-      border-radius: 6px;
+      border-radius: var(--radius-md);
       cursor: pointer;
       border: 1px solid transparent;
       background: transparent;
       color: var(--foreground);
-      transition: background-color 120ms ease, border-color 120ms ease, filter 120ms ease, color 120ms ease;
+      transition:
+        background-color var(--duration-fast) var(--ease-out),
+        border-color var(--duration-fast) var(--ease-out),
+        box-shadow var(--duration-fast) var(--ease-out),
+        filter var(--duration-fast) var(--ease-out),
+        color var(--duration-fast) var(--ease-out);
       white-space: nowrap;
     }
+    :host([loading]) button { min-width: var(--ship-button-min-width, 2.5em); }
+    button:hover:not(:disabled) { box-shadow: var(--shadow-sm); }
     button:focus-visible {
-      outline: 2px solid var(--primary);
-      outline-offset: 2px;
+      outline: none;
+      box-shadow:
+        0 0 0 var(--ring-offset) var(--background),
+        0 0 0 calc(var(--ring-offset) + var(--ring-width))
+          color-mix(in oklch, var(--ring-color) var(--ring-opacity), transparent);
     }
     button:disabled { cursor: not-allowed; opacity: 0.6; }
 
     /* sizes — match specs .btn (sm) and a slightly larger md/lg for Studio use */
     :host([size='sm']) button { font-size: 11px; padding: 4px 8px; }
     :host(:not([size])) button,
-    :host([size='md']) button { font-size: 12px; padding: 5px 10px; }
-    :host([size='lg']) button { font-size: 13px; padding: 8px 14px; }
+    :host([size='md']) button { font-size: var(--text-sm); padding: 5px 10px; }
+    :host([size='lg']) button { font-size: var(--text-base); padding: 8px 14px; }
 
     /* default (tone=default): neutral bordered button matching specs .btn */
     :host(:not([tone])) button,
@@ -928,7 +987,7 @@ var ShipAlertDialog = class extends i4 {
   }
   render() {
     return b2`
-      <ship-dialog size="sm" ?open=${this.open}
+      <ship-dialog size="sm" no-close-button ?open=${this.open}
         @ship-close=${() => {
       this.open = false;
     }}
@@ -1021,6 +1080,7 @@ var ShipCard = class extends i4 {
     this.interactive = false;
     this.accentBar = false;
     this.statusRail = false;
+    this.fill = false;
   }
   render() {
     return b2`
@@ -1041,20 +1101,23 @@ ShipCard.styles = [
         border-radius: var(--radius);
         padding: 16px 20px;
         position: relative;
-        transition: border-color 140ms, transform 140ms, box-shadow 140ms;
+        transition:
+          border-color var(--duration-medium) var(--ease-out),
+          transform var(--duration-fast) var(--ease-out),
+          box-shadow var(--duration-fast) var(--ease-out);
       }
       :host([interactive]) { cursor: pointer; }
       :host([interactive]:hover) {
         border-color: color-mix(in oklch, var(--border) 180%, transparent);
-        transform: translateY(-2px);
-        box-shadow: 0 8px 24px -8px oklch(0.147 0.004 49.25 / 10%);
+        transform: translateY(-1px);
+        box-shadow: var(--shadow-md);
       }
       :host([accent-bar])::before {
         content: '';
         position: absolute; top: 0; left: 0; right: 0; height: 2px;
         background: linear-gradient(90deg, var(--primary), var(--accent));
         opacity: 0;
-        transition: opacity 160ms;
+        transition: opacity var(--duration-medium) var(--ease-out);
         border-radius: var(--radius) var(--radius) 0 0;
       }
       :host([accent-bar]:hover)::before { opacity: 1; }
@@ -1064,6 +1127,9 @@ ShipCard.styles = [
         border-left: 3px solid var(--tone-fg);
         padding-left: 17px;
       }
+
+      /* fill — tone-tinted background wash. Pairs well with status-rail. */
+      :host([fill]) { background: var(--tone-bg); }
 
       :host([variant='outline']) { background: transparent; }
 
@@ -1077,7 +1143,8 @@ ShipCard.properties = {
   variant: { type: String, reflect: true },
   interactive: { type: Boolean, reflect: true },
   accentBar: { type: Boolean, reflect: true, attribute: "accent-bar" },
-  statusRail: { type: Boolean, reflect: true, attribute: "status-rail" }
+  statusRail: { type: Boolean, reflect: true, attribute: "status-rail" },
+  fill: { type: Boolean, reflect: true }
 };
 if (typeof customElements !== "undefined" && !customElements.get("ship-card")) {
   customElements.define("ship-card", ShipCard);
@@ -1193,7 +1260,7 @@ ShipDropdownMenu.styles = i`
     :host { position: relative; display: inline-flex; }
     .menu {
       position: absolute;
-      z-index: 30;
+      z-index: var(--z-dropdown);
       top: calc(100% + 4px);
       left: 0;
       min-width: 160px;
@@ -1202,19 +1269,30 @@ ShipDropdownMenu.styles = i`
       color: var(--popover-foreground);
       border: 1px solid var(--border);
       border-radius: var(--radius);
-      box-shadow: 0 8px 24px -8px oklch(0 0 0 / 25%);
+      box-shadow: var(--shadow-lg);
       display: flex; flex-direction: column;
       font-family: var(--font-body);
-      font-size: 13px;
+      font-size: var(--text-base);
+      opacity: 0;
+      transform: translateY(-4px);
+      pointer-events: none;
+      transition:
+        opacity var(--duration-medium) var(--ease-out),
+        transform var(--duration-medium) var(--ease-out);
     }
-    :host(:not([open])) .menu { display: none; }
+    :host([open]) .menu {
+      opacity: 1;
+      transform: translateY(0);
+      pointer-events: auto;
+    }
     ::slotted(button), ::slotted([role='menuitem']) {
       text-align: left;
       background: transparent; border: 0;
       padding: 6px 10px;
-      border-radius: 4px;
+      border-radius: var(--radius-sm);
       color: inherit; font: inherit;
       cursor: pointer;
+      transition: background-color var(--duration-fast) var(--ease-out);
     }
     ::slotted(button:hover), ::slotted([role='menuitem']:hover) {
       background: var(--muted);
@@ -1340,6 +1418,7 @@ var ShipInput = class extends i4 {
     this.disabled = false;
     this.readonly = false;
     this.invalid = false;
+    this.loading = false;
     this.variant = "default";
     this.size = "md";
   }
@@ -1369,7 +1448,7 @@ var ShipInput = class extends i4 {
           aria-invalid=${this.invalid ? "true" : "false"}
           @input=${this.onInput}
         />
-        <slot name="trailing"></slot>
+        ${this.loading ? b2`<span class="spinner" aria-hidden="true"></span>` : b2`<slot name="trailing"></slot>`}
       </div>
     `;
   }
@@ -1377,20 +1456,40 @@ var ShipInput = class extends i4 {
 ShipInput.styles = i`
     :host { display: inline-flex; width: 100%; }
     .field {
-      display: inline-flex; align-items: center; gap: 6px;
+      display: inline-flex; align-items: center; gap: var(--radius-sm);
       width: 100%;
       background: var(--background);
       color: var(--foreground);
       border: 1px solid var(--border);
-      border-radius: 6px;
+      border-radius: var(--radius-md);
       padding: 0 10px;
-      transition: border-color 120ms, box-shadow 120ms;
+      transition:
+        border-color var(--duration-fast) var(--ease-out),
+        box-shadow var(--duration-fast) var(--ease-out);
     }
     .field:focus-within {
-      outline: 2px solid var(--primary);
-      outline-offset: -1px;
-      border-color: transparent;
+      outline: none;
+      border-color: var(--primary);
+      box-shadow:
+        0 0 0 var(--ring-width)
+          color-mix(in oklch, var(--ring-color) var(--ring-opacity), transparent);
     }
+    :host([invalid]) .field:focus-within {
+      border-color: var(--destructive);
+      box-shadow:
+        0 0 0 var(--ring-width)
+          color-mix(in oklch, var(--destructive) var(--ring-opacity), transparent);
+    }
+    .spinner {
+      width: 12px; height: 12px;
+      border: 1.5px solid var(--muted-foreground);
+      border-right-color: transparent;
+      border-radius: 50%;
+      animation: spin 0.8s linear infinite;
+      display: inline-block;
+      flex-shrink: 0;
+    }
+    @keyframes spin { to { transform: rotate(360deg); } }
     :host([variant='ghost']) .field {
       background: transparent;
       border-color: transparent;
@@ -1431,6 +1530,7 @@ ShipInput.properties = {
   disabled: { type: Boolean, reflect: true },
   readonly: { type: Boolean, reflect: true },
   invalid: { type: Boolean, reflect: true },
+  loading: { type: Boolean, reflect: true },
   variant: { type: String, reflect: true },
   size: { type: String, reflect: true }
 };
@@ -1519,7 +1619,7 @@ ShipListItem.styles = i`
       text-align: left;
       background: transparent;
       border: 1px solid transparent;
-      border-radius: 6px;
+      border-radius: var(--radius-md);
       padding: 8px 10px;
       cursor: pointer;
       display: flex;
@@ -1527,9 +1627,18 @@ ShipListItem.styles = i`
       gap: 4px;
       color: inherit;
       font: inherit;
+      transition:
+        background-color var(--duration-fast) var(--ease-out),
+        border-color var(--duration-fast) var(--ease-out);
     }
     button:hover:not(:disabled) { background: var(--muted); border-color: var(--border); }
-    button:focus-visible { outline: 2px solid var(--primary); outline-offset: 1px; }
+    button:focus-visible {
+      outline: none;
+      box-shadow:
+        0 0 0 var(--ring-offset) var(--background),
+        0 0 0 calc(var(--ring-offset) + var(--ring-width))
+          color-mix(in oklch, var(--ring-color) var(--ring-opacity), transparent);
+    }
     :host([selected]) button {
       background: var(--muted);
       border-color: var(--primary);
@@ -1537,7 +1646,7 @@ ShipListItem.styles = i`
     button:disabled { opacity: 0.6; cursor: not-allowed; }
 
     .row { display: flex; align-items: center; gap: 8px; }
-    .primary { flex: 1; min-width: 0; font-weight: 500; font-size: 13px; }
+    .primary { flex: 1; min-width: 0; font-weight: var(--font-weight-medium); font-size: var(--text-base); }
     .meta {
       display: flex; gap: 6px; align-items: center;
       font-size: 10px; color: var(--muted-foreground);
@@ -1599,18 +1708,28 @@ ShipPopover.styles = i`
     :host { position: relative; display: inline-flex; }
     .panel {
       position: absolute;
-      z-index: 30;
+      z-index: var(--z-popover);
       min-width: 180px;
       padding: 6px;
       background: var(--popover);
       color: var(--popover-foreground);
       border: 1px solid var(--border);
       border-radius: var(--radius);
-      box-shadow: 0 8px 24px -8px oklch(0 0 0 / 25%);
+      box-shadow: var(--shadow-lg);
       font-family: var(--font-body);
-      font-size: 13px;
+      font-size: var(--text-base);
+      opacity: 0;
+      transform: translateY(-4px);
+      pointer-events: none;
+      transition:
+        opacity var(--duration-medium) var(--ease-out),
+        transform var(--duration-medium) var(--ease-out);
     }
-    :host(:not([open])) .panel { display: none; }
+    :host([open]) .panel {
+      opacity: 1;
+      transform: translateY(0);
+      pointer-events: auto;
+    }
     :host([placement='bottom']) .panel,
     :host(:not([placement])) .panel { top: calc(100% + 6px); left: 0; }
     :host([placement='top']) .panel { bottom: calc(100% + 6px); left: 0; }
@@ -1842,7 +1961,10 @@ var ShipStat = class extends i4 {
   render() {
     return b2`
       <span class="label"><slot name="label"></slot></span>
-      <span class="value"><slot></slot></span>
+      <span class="value-row">
+        <span class="value"><slot></slot></span>
+        <span class="trend"><slot name="trend"></slot></span>
+      </span>
       <span class="hint"><slot name="hint"></slot></span>
     `;
   }
@@ -1856,27 +1978,42 @@ ShipStat.styles = i`
       border: 1px solid var(--border);
       border-radius: var(--radius);
       padding: 16px 18px;
-      transition: border-color 160ms, transform 160ms;
+      transition:
+        border-color var(--duration-medium) var(--ease-out),
+        transform var(--duration-fast) var(--ease-out),
+        box-shadow var(--duration-fast) var(--ease-out);
     }
+    :host([interactive]) { cursor: pointer; }
     :host([interactive]:hover) {
       border-color: color-mix(in oklch, var(--border) 180%, transparent);
       transform: translateY(-1px);
+      box-shadow: var(--shadow-sm);
     }
     .label {
-      font-size: 10.5px;
-      font-weight: 500;
+      font-size: var(--text-xs);
+      font-weight: var(--font-weight-medium);
       text-transform: uppercase;
       letter-spacing: 0.08em;
       color: var(--muted-foreground);
       font-family: var(--font-body);
     }
+    .value-row {
+      display: flex;
+      align-items: baseline;
+      gap: 8px;
+      flex-wrap: wrap;
+    }
     .value {
       font-family: var(--font-display);
-      font-size: 28px;
-      font-weight: 600;
+      font-size: var(--text-3xl);
+      font-weight: var(--font-weight-semibold);
       font-variant-numeric: tabular-nums;
       letter-spacing: -0.02em;
       color: var(--foreground);
+    }
+    .trend {
+      display: inline-flex;
+      align-items: center;
     }
     :host([accent='primary']) .value { color: var(--primary); }
     :host([accent='info']) .value { color: var(--info); }
@@ -1889,6 +2026,7 @@ ShipStat.styles = i`
       font-size: 11px;
       color: var(--muted-foreground);
     }
+    ::slotted([slot='trend']) { font-size: var(--text-sm); }
   `;
 ShipStat.properties = {
   accent: { type: String, reflect: true },
@@ -2431,22 +2569,25 @@ ShipTooltip.styles = i`
     :host { position: relative; display: inline-flex; }
     .bubble {
       position: absolute;
-      z-index: 20;
+      z-index: var(--z-popover);
       padding: 4px 8px;
       background: var(--foreground);
       color: var(--background);
       font-family: var(--font-body);
       font-size: 11px;
-      font-weight: 500;
-      border-radius: 4px;
+      font-weight: var(--font-weight-medium);
+      border-radius: var(--radius-sm);
       white-space: nowrap;
       pointer-events: none;
       opacity: 0;
-      transition: opacity 120ms ease;
-      box-shadow: 0 2px 4px oklch(0 0 0 / 20%);
+      transition: opacity var(--duration-fast) var(--ease-out) var(--tooltip-hide-delay);
+      box-shadow: var(--shadow-sm);
     }
     :host(:hover) .bubble,
-    :host(:focus-within) .bubble { opacity: 1; }
+    :host(:focus-within) .bubble {
+      opacity: 1;
+      transition-delay: var(--tooltip-show-delay);
+    }
     :host([placement='top']) .bubble,
     :host(:not([placement])) .bubble {
       bottom: calc(100% + 6px);
