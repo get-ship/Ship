@@ -4479,6 +4479,404 @@
     },
     {
       "kind": "javascript-module",
+      "path": "src/web-components/domain/ship-git-diff.ts",
+      "declarations": [
+        {
+          "kind": "class",
+          "description": "",
+          "name": "ShipGitDiff",
+          "members": [
+            {
+              "kind": "field",
+              "name": "files",
+              "privacy": "public",
+              "type": {
+                "text": "number"
+              },
+              "default": "0",
+              "attribute": "files",
+              "reflects": true
+            },
+            {
+              "kind": "field",
+              "name": "additions",
+              "privacy": "public",
+              "type": {
+                "text": "number"
+              },
+              "default": "0",
+              "attribute": "additions",
+              "reflects": true
+            },
+            {
+              "kind": "field",
+              "name": "deletions",
+              "privacy": "public",
+              "type": {
+                "text": "number"
+              },
+              "default": "0",
+              "attribute": "deletions",
+              "reflects": true
+            },
+            {
+              "kind": "field",
+              "name": "empty",
+              "privacy": "public",
+              "type": {
+                "text": "boolean"
+              },
+              "default": "false",
+              "attribute": "empty",
+              "reflects": true
+            },
+            {
+              "kind": "field",
+              "name": "allCollapsed",
+              "privacy": "public",
+              "type": {
+                "text": "boolean"
+              },
+              "default": "false",
+              "attribute": "allCollapsed"
+            },
+            {
+              "kind": "method",
+              "name": "toggleAll",
+              "privacy": "private"
+            }
+          ],
+          "attributes": [
+            {
+              "name": "files",
+              "type": {
+                "text": "number"
+              },
+              "default": "0",
+              "fieldName": "files"
+            },
+            {
+              "name": "additions",
+              "type": {
+                "text": "number"
+              },
+              "default": "0",
+              "fieldName": "additions"
+            },
+            {
+              "name": "deletions",
+              "type": {
+                "text": "number"
+              },
+              "default": "0",
+              "fieldName": "deletions"
+            },
+            {
+              "name": "empty",
+              "type": {
+                "text": "boolean"
+              },
+              "default": "false",
+              "fieldName": "empty"
+            },
+            {
+              "name": "allCollapsed",
+              "type": {
+                "text": "boolean"
+              },
+              "default": "false",
+              "fieldName": "allCollapsed"
+            }
+          ],
+          "superclass": {
+            "name": "LitElement",
+            "package": "lit"
+          },
+          "tagName": "ship-git-diff",
+          "customElement": true
+        },
+        {
+          "kind": "class",
+          "description": "",
+          "name": "ShipGitDiffFile",
+          "members": [
+            {
+              "kind": "field",
+              "name": "path",
+              "privacy": "public",
+              "type": {
+                "text": "string"
+              },
+              "default": "''",
+              "attribute": "path",
+              "reflects": true
+            },
+            {
+              "kind": "field",
+              "name": "additions",
+              "privacy": "public",
+              "type": {
+                "text": "number"
+              },
+              "default": "0",
+              "attribute": "additions",
+              "reflects": true
+            },
+            {
+              "kind": "field",
+              "name": "deletions",
+              "privacy": "public",
+              "type": {
+                "text": "number"
+              },
+              "default": "0",
+              "attribute": "deletions",
+              "reflects": true
+            },
+            {
+              "kind": "field",
+              "name": "collapsed",
+              "privacy": "public",
+              "type": {
+                "text": "boolean"
+              },
+              "default": "false",
+              "attribute": "collapsed",
+              "reflects": true
+            },
+            {
+              "kind": "method",
+              "name": "toggle",
+              "privacy": "private"
+            }
+          ],
+          "attributes": [
+            {
+              "name": "path",
+              "type": {
+                "text": "string"
+              },
+              "default": "''",
+              "fieldName": "path"
+            },
+            {
+              "name": "additions",
+              "type": {
+                "text": "number"
+              },
+              "default": "0",
+              "fieldName": "additions"
+            },
+            {
+              "name": "deletions",
+              "type": {
+                "text": "number"
+              },
+              "default": "0",
+              "fieldName": "deletions"
+            },
+            {
+              "name": "collapsed",
+              "type": {
+                "text": "boolean"
+              },
+              "default": "false",
+              "fieldName": "collapsed"
+            }
+          ],
+          "superclass": {
+            "name": "LitElement",
+            "package": "lit"
+          },
+          "tagName": "ship-git-diff-file",
+          "customElement": true
+        },
+        {
+          "kind": "class",
+          "description": "",
+          "name": "ShipGitDiffHunk",
+          "members": [
+            {
+              "kind": "field",
+              "name": "header",
+              "privacy": "public",
+              "type": {
+                "text": "string"
+              },
+              "default": "''",
+              "attribute": "header",
+              "reflects": true
+            }
+          ],
+          "attributes": [
+            {
+              "name": "header",
+              "type": {
+                "text": "string"
+              },
+              "default": "''",
+              "fieldName": "header"
+            }
+          ],
+          "superclass": {
+            "name": "LitElement",
+            "package": "lit"
+          },
+          "tagName": "ship-git-diff-hunk",
+          "customElement": true
+        },
+        {
+          "kind": "class",
+          "description": "",
+          "name": "ShipGitDiffLine",
+          "members": [
+            {
+              "kind": "field",
+              "name": "type",
+              "privacy": "public",
+              "type": {
+                "text": "LineType"
+              },
+              "default": "'context'",
+              "attribute": "type",
+              "reflects": true
+            },
+            {
+              "kind": "field",
+              "name": "old",
+              "privacy": "public",
+              "type": {
+                "text": "string"
+              },
+              "default": "''",
+              "attribute": "old",
+              "reflects": true
+            },
+            {
+              "kind": "field",
+              "name": "new",
+              "privacy": "public",
+              "type": {
+                "text": "string"
+              },
+              "default": "''",
+              "attribute": "new",
+              "reflects": true
+            },
+            {
+              "kind": "method",
+              "name": "sig",
+              "privacy": "private",
+              "return": {
+                "type": {
+                  "text": "string"
+                }
+              }
+            }
+          ],
+          "attributes": [
+            {
+              "name": "type",
+              "type": {
+                "text": "LineType"
+              },
+              "default": "'context'",
+              "fieldName": "type"
+            },
+            {
+              "name": "old",
+              "type": {
+                "text": "string"
+              },
+              "default": "''",
+              "fieldName": "old"
+            },
+            {
+              "name": "new",
+              "type": {
+                "text": "string"
+              },
+              "default": "''",
+              "fieldName": "new"
+            }
+          ],
+          "superclass": {
+            "name": "LitElement",
+            "package": "lit"
+          },
+          "tagName": "ship-git-diff-line",
+          "customElement": true
+        }
+      ],
+      "exports": [
+        {
+          "kind": "js",
+          "name": "ShipGitDiff",
+          "declaration": {
+            "name": "ShipGitDiff",
+            "module": "src/web-components/domain/ship-git-diff.ts"
+          }
+        },
+        {
+          "kind": "js",
+          "name": "ShipGitDiffFile",
+          "declaration": {
+            "name": "ShipGitDiffFile",
+            "module": "src/web-components/domain/ship-git-diff.ts"
+          }
+        },
+        {
+          "kind": "js",
+          "name": "ShipGitDiffHunk",
+          "declaration": {
+            "name": "ShipGitDiffHunk",
+            "module": "src/web-components/domain/ship-git-diff.ts"
+          }
+        },
+        {
+          "kind": "js",
+          "name": "ShipGitDiffLine",
+          "declaration": {
+            "name": "ShipGitDiffLine",
+            "module": "src/web-components/domain/ship-git-diff.ts"
+          }
+        },
+        {
+          "kind": "custom-element-definition",
+          "name": "ship-git-diff",
+          "declaration": {
+            "name": "ShipGitDiff",
+            "module": "src/web-components/domain/ship-git-diff.ts"
+          }
+        },
+        {
+          "kind": "custom-element-definition",
+          "name": "ship-git-diff-file",
+          "declaration": {
+            "name": "ShipGitDiffFile",
+            "module": "src/web-components/domain/ship-git-diff.ts"
+          }
+        },
+        {
+          "kind": "custom-element-definition",
+          "name": "ship-git-diff-hunk",
+          "declaration": {
+            "name": "ShipGitDiffHunk",
+            "module": "src/web-components/domain/ship-git-diff.ts"
+          }
+        },
+        {
+          "kind": "custom-element-definition",
+          "name": "ship-git-diff-line",
+          "declaration": {
+            "name": "ShipGitDiffLine",
+            "module": "src/web-components/domain/ship-git-diff.ts"
+          }
+        }
+      ]
+    },
+    {
+      "kind": "javascript-module",
       "path": "src/web-components/domain/ship-history-row.ts",
       "declarations": [
         {
@@ -6641,7 +7039,7 @@
           "type": {
             "text": "Record<string, string>"
           },
-          "default": "{ 'chevron-down': 'M6 9l6 6 6-6', 'chevron-right': 'M9 6l6 6-6 6', 'chevron-left': 'M15 6l-6 6 6 6', 'chevron-up': 'M6 15l6-6 6 6', check: 'M20 6L9 17l-5-5', x: 'M18 6L6 18M6 6l12 12', plus: 'M12 5v14M5 12h14', minus: 'M5 12h14', search: 'M11 4a7 7 0 100 14 7 7 0 000-14zM21 21l-4.3-4.3', 'alert-circle': 'M12 2a10 10 0 100 20 10 10 0 000-20zM12 8v4M12 16h.01', info: 'M12 2a10 10 0 100 20 10 10 0 000-20zM12 16v-4M12 8h.01', star: 'M12 2l3.09 6.26L22 9.27l-5 4.87 1.18 6.88L12 17.77l-6.18 3.25L7 14.14 2 9.27l6.91-1.01L12 2z', folder: 'M3 7a2 2 0 012-2h4l2 2h8a2 2 0 012 2v9a2 2 0 01-2 2H5a2 2 0 01-2-2V7z', file: 'M14 2H6a2 2 0 00-2 2v16a2 2 0 002 2h12a2 2 0 002-2V8l-6-6zM14 2v6h6', trash: 'M3 6h18M8 6V4a2 2 0 012-2h4a2 2 0 012 2v2M6 6l1 14a2 2 0 002 2h6a2 2 0 002-2l1-14', edit: 'M11 4H4a2 2 0 00-2 2v14a2 2 0 002 2h14a2 2 0 002-2v-7M18.5 2.5a2.12 2.12 0 113 3L12 15l-4 1 1-4 9.5-9.5z', copy: 'M9 9h10a2 2 0 012 2v10a2 2 0 01-2 2H9a2 2 0 01-2-2V11a2 2 0 012-2zM5 15H4a2 2 0 01-2-2V3a2 2 0 012-2h10a2 2 0 012 2v1', 'external-link': 'M18 13v6a2 2 0 01-2 2H5a2 2 0 01-2-2V8a2 2 0 012-2h6M15 3h6v6M10 14L21 3', 'arrow-up': 'M12 19V5M5 12l7-7 7 7', 'arrow-down': 'M12 5v14M19 12l-7 7-7-7', 'arrow-left': 'M19 12H5M12 19l-7-7 7-7', 'arrow-right': 'M5 12h14M12 5l7 7-7 7', sparkles: 'M12 3l2 5 5 2-5 2-2 5-2-5-5-2 5-2 2-5zM19 14l1 2 2 1-2 1-1 2-1-2-2-1 2-1 1-2z', }"
+          "default": "{ 'chevron-down': 'M6 9l6 6 6-6', 'chevron-right': 'M9 6l6 6-6 6', 'chevron-left': 'M15 6l-6 6 6 6', 'chevron-up': 'M6 15l6-6 6 6', check: 'M20 6L9 17l-5-5', x: 'M18 6L6 18M6 6l12 12', plus: 'M12 5v14M5 12h14', minus: 'M5 12h14', search: 'M11 4a7 7 0 100 14 7 7 0 000-14zM21 21l-4.3-4.3', 'alert-circle': 'M12 2a10 10 0 100 20 10 10 0 000-20zM12 8v4M12 16h.01', info: 'M12 2a10 10 0 100 20 10 10 0 000-20zM12 16v-4M12 8h.01', star: 'M12 2l3.09 6.26L22 9.27l-5 4.87 1.18 6.88L12 17.77l-6.18 3.25L7 14.14 2 9.27l6.91-1.01L12 2z', folder: 'M3 7a2 2 0 012-2h4l2 2h8a2 2 0 012 2v9a2 2 0 01-2 2H5a2 2 0 01-2-2V7z', file: 'M14 2H6a2 2 0 00-2 2v16a2 2 0 002 2h12a2 2 0 002-2V8l-6-6zM14 2v6h6', trash: 'M3 6h18M8 6V4a2 2 0 012-2h4a2 2 0 012 2v2M6 6l1 14a2 2 0 002 2h6a2 2 0 002-2l1-14', edit: 'M11 4H4a2 2 0 00-2 2v14a2 2 0 002 2h14a2 2 0 002-2v-7M18.5 2.5a2.12 2.12 0 113 3L12 15l-4 1 1-4 9.5-9.5z', copy: 'M9 9h10a2 2 0 012 2v10a2 2 0 01-2 2H9a2 2 0 01-2-2V11a2 2 0 012-2zM5 15H4a2 2 0 01-2-2V3a2 2 0 012-2h10a2 2 0 012 2v1', 'external-link': 'M18 13v6a2 2 0 01-2 2H5a2 2 0 01-2-2V8a2 2 0 012-2h6M15 3h6v6M10 14L21 3', 'arrow-up': 'M12 19V5M5 12l7-7 7 7', 'arrow-down': 'M12 5v14M19 12l-7 7-7-7', 'arrow-left': 'M19 12H5M12 19l-7-7 7-7', 'arrow-right': 'M5 12h14M12 5l7 7-7 7', sparkles: 'M12 3l2 5 5 2-5 2-2 5-2-5-5-2 5-2 2-5zM19 14l1 2 2 1-2 1-1 2-1-2-2-1 2-1 1-2z', 'file-code': 'M14 2H6a2 2 0 00-2 2v16a2 2 0 002 2h12a2 2 0 002-2V8l-6-6zM14 2v6h6M10 13l-2 2 2 2M14 13l2 2-2 2', 'chevrons-down-up': 'M7 20l5-5 5 5M7 4l5 5 5-5', 'chevrons-up-down': 'M7 15l5 5 5-5M7 9l5-5 5 5', 'message-square-plus': 'M21 15a2 2 0 01-2 2H7l-4 4V5a2 2 0 012-2h9M18 3v6M15 6h6', }"
         },
         {
           "kind": "class",

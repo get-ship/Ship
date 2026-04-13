@@ -38,6 +38,10 @@ Convention: `attr=value|value` = enum, bare `attr` = boolean.
 
 ## Pipeline domain
 
+- `<ship-git-diff>` [files additions deletions empty allCollapsed]
+- `<ship-git-diff-file>` [path additions deletions collapsed]
+- `<ship-git-diff-hunk>` [header]
+- `<ship-git-diff-line>` [type old new]
 - `<ship-history-row>` [state]
 - `<ship-pipeline-dag>`
 - `<ship-pipeline-definition>` [name steps description]

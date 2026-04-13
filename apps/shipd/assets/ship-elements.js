@@ -2965,6 +2965,327 @@ if (typeof customElements !== "undefined" && !customElements.get("ship-spec-row"
   customElements.define("ship-spec-row", ShipSpecRow);
 }
 
+// src/web-components/utility/ship-icon.ts
+var ICONS = {
+  "chevron-down": "M6 9l6 6 6-6",
+  "chevron-right": "M9 6l6 6-6 6",
+  "chevron-left": "M15 6l-6 6 6 6",
+  "chevron-up": "M6 15l6-6 6 6",
+  check: "M20 6L9 17l-5-5",
+  x: "M18 6L6 18M6 6l12 12",
+  plus: "M12 5v14M5 12h14",
+  minus: "M5 12h14",
+  search: "M11 4a7 7 0 100 14 7 7 0 000-14zM21 21l-4.3-4.3",
+  "alert-circle": "M12 2a10 10 0 100 20 10 10 0 000-20zM12 8v4M12 16h.01",
+  info: "M12 2a10 10 0 100 20 10 10 0 000-20zM12 16v-4M12 8h.01",
+  star: "M12 2l3.09 6.26L22 9.27l-5 4.87 1.18 6.88L12 17.77l-6.18 3.25L7 14.14 2 9.27l6.91-1.01L12 2z",
+  folder: "M3 7a2 2 0 012-2h4l2 2h8a2 2 0 012 2v9a2 2 0 01-2 2H5a2 2 0 01-2-2V7z",
+  file: "M14 2H6a2 2 0 00-2 2v16a2 2 0 002 2h12a2 2 0 002-2V8l-6-6zM14 2v6h6",
+  trash: "M3 6h18M8 6V4a2 2 0 012-2h4a2 2 0 012 2v2M6 6l1 14a2 2 0 002 2h6a2 2 0 002-2l1-14",
+  edit: "M11 4H4a2 2 0 00-2 2v14a2 2 0 002 2h14a2 2 0 002-2v-7M18.5 2.5a2.12 2.12 0 113 3L12 15l-4 1 1-4 9.5-9.5z",
+  copy: "M9 9h10a2 2 0 012 2v10a2 2 0 01-2 2H9a2 2 0 01-2-2V11a2 2 0 012-2zM5 15H4a2 2 0 01-2-2V3a2 2 0 012-2h10a2 2 0 012 2v1",
+  "external-link": "M18 13v6a2 2 0 01-2 2H5a2 2 0 01-2-2V8a2 2 0 012-2h6M15 3h6v6M10 14L21 3",
+  "arrow-up": "M12 19V5M5 12l7-7 7 7",
+  "arrow-down": "M12 5v14M19 12l-7 7-7-7",
+  "arrow-left": "M19 12H5M12 19l-7-7 7-7",
+  "arrow-right": "M5 12h14M12 5l7 7-7 7",
+  sparkles: "M12 3l2 5 5 2-5 2-2 5-2-5-5-2 5-2 2-5zM19 14l1 2 2 1-2 1-1 2-1-2-2-1 2-1 1-2z",
+  "file-code": "M14 2H6a2 2 0 00-2 2v16a2 2 0 002 2h12a2 2 0 002-2V8l-6-6zM14 2v6h6M10 13l-2 2 2 2M14 13l2 2-2 2",
+  "chevrons-down-up": "M7 20l5-5 5 5M7 4l5 5 5-5",
+  "chevrons-up-down": "M7 15l5 5 5-5M7 9l5-5 5 5",
+  "message-square-plus": "M21 15a2 2 0 01-2 2H7l-4 4V5a2 2 0 012-2h9M18 3v6M15 6h6"
+};
+var ShipIcon = class extends i4 {
+  constructor() {
+    super(...arguments);
+    this.name = "";
+    this.size = "md";
+    this.tone = "default";
+  }
+  render() {
+    const d3 = this.name ? ICONS[this.name] : void 0;
+    return b2`
+      <slot>
+        ${d3 ? b2`<svg viewBox="0 0 24 24" fill="none" stroke="currentColor"
+              stroke-width="2" stroke-linecap="round" stroke-linejoin="round"
+              aria-hidden="true" part="svg">
+              <path d=${d3}></path>
+            </svg>` : null}
+      </slot>
+    `;
+  }
+};
+ShipIcon.styles = [
+  toneVars,
+  i`
+      :host { display: inline-flex; align-items: center; justify-content: center; color: var(--tone-fg); }
+      svg { width: 16px; height: 16px; display: block; }
+      :host([size='sm']) svg { width: 12px; height: 12px; }
+      :host([size='lg']) svg { width: 20px; height: 20px; }
+      ::slotted(svg) { width: 100%; height: 100%; }
+    `
+];
+ShipIcon.properties = {
+  name: { type: String, reflect: true },
+  size: { type: String, reflect: true },
+  tone: { type: String, reflect: true }
+};
+if (typeof customElements !== "undefined" && !customElements.get("ship-icon")) {
+  customElements.define("ship-icon", ShipIcon);
+}
+
+// src/web-components/domain/ship-git-diff.ts
+var ShipGitDiff = class extends i4 {
+  constructor() {
+    super(...arguments);
+    this.files = 0;
+    this.additions = 0;
+    this.deletions = 0;
+    this.empty = false;
+    this.allCollapsed = false;
+  }
+  toggleAll() {
+    const next = !this.allCollapsed;
+    this.allCollapsed = next;
+    const kids = this.querySelectorAll("ship-git-diff-file");
+    kids.forEach((f3) => {
+      f3.collapsed = next;
+    });
+  }
+  render() {
+    if (this.empty || this.files === 0) {
+      return b2`<div class="empty">No changes to display</div>`;
+    }
+    return b2`
+      <div class="toolbar">
+        <span class="count">${this.files} file${this.files !== 1 ? "s" : ""} changed</span>
+        ${this.additions > 0 ? b2`<span class="adds">+${this.additions}</span>` : null}
+        ${this.deletions > 0 ? b2`<span class="dels">-${this.deletions}</span>` : null}
+        <span class="spacer"></span>
+        <button class="toggle" type="button" @click=${this.toggleAll}
+          title=${this.allCollapsed ? "Expand all files" : "Collapse all files"}>
+          <ship-icon size="sm" name=${this.allCollapsed ? "chevrons-up-down" : "chevrons-down-up"}></ship-icon>
+          ${this.allCollapsed ? "Expand all" : "Collapse all"}
+        </button>
+      </div>
+      <div class="body"><slot></slot></div>
+    `;
+  }
+};
+ShipGitDiff.styles = i`
+    :host {
+      display: flex;
+      flex-direction: column;
+      min-height: 0;
+      font-family: var(--font-body);
+      background: var(--background);
+      color: var(--foreground);
+      border: 1px solid color-mix(in oklch, var(--border) 60%, transparent);
+      border-radius: var(--radius-lg);
+      overflow: hidden;
+    }
+    .toolbar {
+      display: flex; align-items: center; gap: 12px;
+      padding: 6px 16px;
+      border-bottom: 1px solid color-mix(in oklch, var(--border) 60%, transparent);
+      background: color-mix(in oklch, var(--card) 50%, transparent);
+      flex-shrink: 0;
+    }
+    .count { font-size: 12px; color: var(--muted-foreground); }
+    .adds { font-size: 11px; color: var(--success); }
+    .dels { font-size: 11px; color: var(--destructive); }
+    .spacer { flex: 1; }
+    .toggle {
+      display: inline-flex; align-items: center; gap: 4px;
+      padding: 2px 8px;
+      border-radius: var(--radius-md);
+      background: transparent; border: 0;
+      font-family: inherit; font-size: 11px;
+      color: var(--muted-foreground);
+      cursor: pointer;
+      transition: background var(--duration-fast) ease, color var(--duration-fast) ease;
+    }
+    .toggle:hover { background: var(--muted); color: var(--foreground); }
+    .body { flex: 1; overflow: auto; }
+    :host([empty]) .toolbar { display: none; }
+    .empty {
+      display: flex; align-items: center; justify-content: center;
+      padding: 48px 16px;
+      color: var(--muted-foreground);
+      font-size: 13px;
+    }
+  `;
+ShipGitDiff.properties = {
+  files: { type: Number, reflect: true },
+  additions: { type: Number, reflect: true },
+  deletions: { type: Number, reflect: true },
+  empty: { type: Boolean, reflect: true },
+  allCollapsed: { type: Boolean, state: true }
+};
+var ShipGitDiffFile = class extends i4 {
+  constructor() {
+    super(...arguments);
+    this.path = "";
+    this.additions = 0;
+    this.deletions = 0;
+    this.collapsed = false;
+  }
+  toggle() {
+    this.collapsed = !this.collapsed;
+  }
+  render() {
+    return b2`
+      <button class="header" type="button" @click=${this.toggle}
+        aria-expanded=${this.collapsed ? "false" : "true"}>
+        <ship-icon class="chev" size="sm" name=${this.collapsed ? "chevron-right" : "chevron-down"}></ship-icon>
+        <ship-icon class="fileicon" size="sm" name="file-code"></ship-icon>
+        <span class="path">${this.path}</span>
+        <span class="stats">
+          ${this.additions > 0 ? b2`<span class="adds"><ship-icon size="sm" name="plus"></ship-icon>${this.additions}</span>` : null}
+          ${this.deletions > 0 ? b2`<span class="dels"><ship-icon size="sm" name="minus"></ship-icon>${this.deletions}</span>` : null}
+        </span>
+      </button>
+      <div class="body"><slot></slot></div>
+    `;
+  }
+};
+ShipGitDiffFile.styles = i`
+    :host {
+      display: block;
+      border-bottom: 1px solid color-mix(in oklch, var(--border) 35%, transparent);
+    }
+    .header {
+      display: flex; align-items: center; gap: 8px;
+      width: 100%;
+      padding: 6px 12px;
+      background: transparent;
+      border: 0;
+      border-bottom: 1px solid color-mix(in oklch, var(--border) 40%, transparent);
+      text-align: left;
+      cursor: pointer;
+      color: var(--foreground);
+      transition: background var(--duration-fast) ease;
+      font-family: inherit;
+    }
+    .header:hover { background: color-mix(in oklch, var(--muted) 40%, transparent); }
+    .chev { color: var(--muted-foreground); flex-shrink: 0; }
+    .fileicon { color: var(--muted-foreground); flex-shrink: 0; }
+    .path {
+      flex: 1;
+      font-family: ${MONO};
+      font-size: 12px;
+      color: var(--foreground);
+      white-space: nowrap;
+      overflow: hidden;
+      text-overflow: ellipsis;
+    }
+    .stats { display: inline-flex; align-items: center; gap: 8px; flex-shrink: 0; }
+    .adds, .dels {
+      display: inline-flex; align-items: center; gap: 2px;
+      font-size: 10px; font-family: ${MONO};
+    }
+    .adds { color: var(--success); }
+    .dels { color: var(--destructive); }
+    .body { display: block; }
+    :host([collapsed]) .body { display: none; }
+  `;
+ShipGitDiffFile.properties = {
+  path: { type: String, reflect: true },
+  additions: { type: Number, reflect: true },
+  deletions: { type: Number, reflect: true },
+  collapsed: { type: Boolean, reflect: true }
+};
+var ShipGitDiffHunk = class extends i4 {
+  constructor() {
+    super(...arguments);
+    this.header = "";
+  }
+  render() {
+    return b2`${this.header}`;
+  }
+};
+ShipGitDiffHunk.styles = i`
+    :host {
+      display: block;
+      padding: 2px 12px;
+      background: color-mix(in oklch, var(--info) 10%, transparent);
+      border-top: 1px solid color-mix(in oklch, var(--info) 20%, transparent);
+      border-bottom: 1px solid color-mix(in oklch, var(--info) 20%, transparent);
+      font-family: ${MONO};
+      font-size: 11px;
+      color: var(--info);
+      user-select: none;
+    }
+  `;
+ShipGitDiffHunk.properties = { header: { type: String, reflect: true } };
+var ShipGitDiffLine = class extends i4 {
+  constructor() {
+    super(...arguments);
+    this.type = "context";
+    this.old = "";
+    this.new = "";
+  }
+  sig() {
+    return this.type === "add" ? "+" : this.type === "del" ? "-" : " ";
+  }
+  render() {
+    return b2`
+      <span class="num">${this.old}</span>
+      <span class="num">${this.new}</span>
+      <span class="sig">${this.sig()}</span>
+      <span class="content"><slot></slot></span>
+    `;
+  }
+};
+ShipGitDiffLine.styles = i`
+    :host {
+      display: flex;
+      font-family: ${MONO};
+      font-size: 11px;
+      line-height: 1.45;
+    }
+    :host([type='add']) { background: color-mix(in oklch, var(--success) 12%, transparent); }
+    :host([type='del']) { background: color-mix(in oklch, var(--destructive) 12%, transparent); }
+    .num {
+      width: 42px;
+      flex-shrink: 0;
+      padding-right: 8px;
+      text-align: right;
+      color: color-mix(in oklch, var(--muted-foreground) 60%, transparent);
+      user-select: none;
+      border-right: 1px solid color-mix(in oklch, var(--border) 20%, transparent);
+    }
+    .sig {
+      width: 16px;
+      flex-shrink: 0;
+      text-align: center;
+      user-select: none;
+      color: var(--muted-foreground);
+    }
+    .content {
+      flex: 1;
+      padding-right: 12px;
+      white-space: pre-wrap;
+      word-break: break-all;
+      color: var(--muted-foreground);
+    }
+    :host([type='add']) .sig,
+    :host([type='add']) .content { color: var(--success); }
+    :host([type='del']) .sig,
+    :host([type='del']) .content { color: var(--destructive); }
+  `;
+ShipGitDiffLine.properties = {
+  type: { type: String, reflect: true },
+  old: { type: String, reflect: true },
+  new: { type: String, reflect: true }
+};
+if (typeof customElements !== "undefined") {
+  if (!customElements.get("ship-git-diff")) customElements.define("ship-git-diff", ShipGitDiff);
+  if (!customElements.get("ship-git-diff-file")) customElements.define("ship-git-diff-file", ShipGitDiffFile);
+  if (!customElements.get("ship-git-diff-hunk")) customElements.define("ship-git-diff-hunk", ShipGitDiffHunk);
+  if (!customElements.get("ship-git-diff-line")) customElements.define("ship-git-diff-line", ShipGitDiffLine);
+}
+
 // src/web-components/observability/ship-log-line.ts
 var ShipLogLine = class extends i4 {
   constructor() {
@@ -4702,71 +5023,6 @@ if (typeof customElements !== "undefined" && !customElements.get("ship-meter")) 
   customElements.define("ship-meter", ShipMeter);
 }
 
-// src/web-components/utility/ship-icon.ts
-var ICONS = {
-  "chevron-down": "M6 9l6 6 6-6",
-  "chevron-right": "M9 6l6 6-6 6",
-  "chevron-left": "M15 6l-6 6 6 6",
-  "chevron-up": "M6 15l6-6 6 6",
-  check: "M20 6L9 17l-5-5",
-  x: "M18 6L6 18M6 6l12 12",
-  plus: "M12 5v14M5 12h14",
-  minus: "M5 12h14",
-  search: "M11 4a7 7 0 100 14 7 7 0 000-14zM21 21l-4.3-4.3",
-  "alert-circle": "M12 2a10 10 0 100 20 10 10 0 000-20zM12 8v4M12 16h.01",
-  info: "M12 2a10 10 0 100 20 10 10 0 000-20zM12 16v-4M12 8h.01",
-  star: "M12 2l3.09 6.26L22 9.27l-5 4.87 1.18 6.88L12 17.77l-6.18 3.25L7 14.14 2 9.27l6.91-1.01L12 2z",
-  folder: "M3 7a2 2 0 012-2h4l2 2h8a2 2 0 012 2v9a2 2 0 01-2 2H5a2 2 0 01-2-2V7z",
-  file: "M14 2H6a2 2 0 00-2 2v16a2 2 0 002 2h12a2 2 0 002-2V8l-6-6zM14 2v6h6",
-  trash: "M3 6h18M8 6V4a2 2 0 012-2h4a2 2 0 012 2v2M6 6l1 14a2 2 0 002 2h6a2 2 0 002-2l1-14",
-  edit: "M11 4H4a2 2 0 00-2 2v14a2 2 0 002 2h14a2 2 0 002-2v-7M18.5 2.5a2.12 2.12 0 113 3L12 15l-4 1 1-4 9.5-9.5z",
-  copy: "M9 9h10a2 2 0 012 2v10a2 2 0 01-2 2H9a2 2 0 01-2-2V11a2 2 0 012-2zM5 15H4a2 2 0 01-2-2V3a2 2 0 012-2h10a2 2 0 012 2v1",
-  "external-link": "M18 13v6a2 2 0 01-2 2H5a2 2 0 01-2-2V8a2 2 0 012-2h6M15 3h6v6M10 14L21 3",
-  "arrow-up": "M12 19V5M5 12l7-7 7 7",
-  "arrow-down": "M12 5v14M19 12l-7 7-7-7",
-  "arrow-left": "M19 12H5M12 19l-7-7 7-7",
-  "arrow-right": "M5 12h14M12 5l7 7-7 7",
-  sparkles: "M12 3l2 5 5 2-5 2-2 5-2-5-5-2 5-2 2-5zM19 14l1 2 2 1-2 1-1 2-1-2-2-1 2-1 1-2z"
-};
-var ShipIcon = class extends i4 {
-  constructor() {
-    super(...arguments);
-    this.name = "";
-    this.size = "md";
-    this.tone = "default";
-  }
-  render() {
-    const d3 = this.name ? ICONS[this.name] : void 0;
-    return b2`
-      <slot>
-        ${d3 ? b2`<svg viewBox="0 0 24 24" fill="none" stroke="currentColor"
-              stroke-width="2" stroke-linecap="round" stroke-linejoin="round"
-              aria-hidden="true" part="svg">
-              <path d=${d3}></path>
-            </svg>` : null}
-      </slot>
-    `;
-  }
-};
-ShipIcon.styles = [
-  toneVars,
-  i`
-      :host { display: inline-flex; align-items: center; justify-content: center; color: var(--tone-fg); }
-      svg { width: 16px; height: 16px; display: block; }
-      :host([size='sm']) svg { width: 12px; height: 12px; }
-      :host([size='lg']) svg { width: 20px; height: 20px; }
-      ::slotted(svg) { width: 100%; height: 100%; }
-    `
-];
-ShipIcon.properties = {
-  name: { type: String, reflect: true },
-  size: { type: String, reflect: true },
-  tone: { type: String, reflect: true }
-};
-if (typeof customElements !== "undefined" && !customElements.get("ship-icon")) {
-  customElements.define("ship-icon", ShipIcon);
-}
-
 // src/web-components/utility/ship-avatar.ts
 function initialsFromName(name) {
   const parts = name.trim().split(/\s+/).filter(Boolean);
@@ -5305,6 +5561,10 @@ export {
   ShipEventRow,
   ShipField,
   ShipGauge,
+  ShipGitDiff,
+  ShipGitDiffFile,
+  ShipGitDiffHunk,
+  ShipGitDiffLine,
   ShipHeatmap,
   ShipHistoryRow,
   ShipIcon,
