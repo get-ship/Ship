@@ -56,6 +56,21 @@ export interface ShipQuery<T> extends ShipQueryState<T> {
   subscribe: (fn: ShipQueryListener<T>) => Unsubscribe
 }
 
+// ── Pairing types ───────────────────────────────────────────
+
+export interface PairInit {
+  code: string
+  claim_token: string
+  code_expires_in_secs: number
+  dev_mode: boolean
+}
+
+export type PairStatus =
+  | { status: 'pending' }
+  | { status: 'approved'; session_token: string }
+  | { status: 'expired' }
+  | { status: 'unknown' }
+
 // ── SSE Event types ─────────────────────────────────────────
 
 export interface ShipEvent {
@@ -112,19 +127,51 @@ export class ShipClient {
     return this.token ?? null
   }
 
-  async authenticate(): Promise<boolean> {
+  /**
+   * Try server-side attestation: exchange a getship.dev-signed JWT for a
+   * daemon session token. Returns the session token or null if attestation
+   * isn't available (daemon doesn't trust issuer, user not signed in, etc.).
+   *
+   * `jwt` should come from getship.dev's /api/auth/daemon-attest endpoint.
+   */
+  async serverAttest(jwt: string): Promise<string | null> {
     try {
-      const res = await fetch(`${this.baseUrl}/auth/handshake`, {
+      const res = await fetch(`${this.baseUrl}/auth/server-attest`, {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ capabilities: this.capabilities }),
+        body: JSON.stringify({ jwt }),
       })
-      if (!res.ok) return false
-      const body = await res.json() as { token: string; granted: Capability[] }
-      this.token = body.token
-      return true
+      if (!res.ok) return null
+      const body = await res.json() as { ok: boolean; session_token?: string }
+      return body.session_token ?? null
     } catch {
-      return false
+      return null
+    }
+  }
+
+  /** Start a new pairing flow. Returns the code the user must paste into their CLI. */
+  async pairInit(clientLabel?: string): Promise<PairInit | null> {
+    try {
+      const res = await fetch(`${this.baseUrl}/auth/pair/init`, {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ client_label: clientLabel ?? null }),
+      })
+      if (!res.ok) return null
+      return await res.json() as PairInit
+    } catch {
+      return null
+    }
+  }
+
+  /** Poll for pairing approval. Returns the session token when approved. */
+  async pairStatus(claimToken: string): Promise<PairStatus> {
+    try {
+      const res = await fetch(`${this.baseUrl}/auth/pair/status?claim_token=${encodeURIComponent(claimToken)}`)
+      if (!res.ok) return { status: 'unknown' }
+      return await res.json() as PairStatus
+    } catch {
+      return { status: 'unknown' }
     }
   }
 
@@ -148,6 +195,14 @@ export class ShipClient {
     return h
   }
 
+  /** Callback fired when the daemon returns 401/403. Used to trigger re-pairing. */
+  private onAuthFailure: (() => void) | null = null
+
+  /** Register a callback for auth failures (401/403). Called at most once per failure. */
+  setAuthFailureHandler(cb: (() => void) | null): void {
+    this.onAuthFailure = cb
+  }
+
   async fetch<T = unknown>(path: string, init?: RequestInit): Promise<T> {
     const url = `${this.baseUrl}/api${path}`
     const res = await fetch(url, {
@@ -155,6 +210,12 @@ export class ShipClient {
       headers: { ...this.headers(), ...init?.headers },
       signal: init?.signal ?? AbortSignal.timeout(this.timeout),
     })
+    if (res.status === 401 || res.status === 403) {
+      // Notify the app so it can clear the cached token and re-pair.
+      try { this.onAuthFailure?.() } catch { /* ignore */ }
+      const text = await res.text().catch(() => res.statusText)
+      throw new Error(`Ship API ${res.status}: ${text}`)
+    }
     if (!res.ok) {
       const text = await res.text().catch(() => res.statusText)
       throw new Error(`Ship API ${res.status}: ${text}`)

@@ -4,6 +4,7 @@ use axum::{Json, extract::Path, http::StatusCode};
 use serde::Deserialize;
 
 use super::{err_response, ok_response, resolve_worktree};
+use crate::auth::{AuthContext, Scope, require_scope};
 use crate::rest_api::{ApiState, MeshResponse};
 
 /// GET /api/workspaces/{id}/pipelines
@@ -70,9 +71,11 @@ pub struct WritePipelineReq {
 /// PUT /api/workspaces/{id}/pipelines/{name}
 pub async fn write_pipeline(
     axum::extract::State(state): axum::extract::State<ApiState>,
+    axum::Extension(auth): axum::Extension<AuthContext>,
     Path((id, name)): Path<(String, String)>,
     Json(body): Json<WritePipelineReq>,
 ) -> Result<(StatusCode, Json<MeshResponse>), (StatusCode, Json<MeshResponse>)> {
+    require_scope(&auth, Scope::WriteWorkspace)?;
     let worktree = resolve_worktree(state.ship_dir(), &id)?;
     let pipelines_dir = worktree.join(".ship").join("pipelines");
 
@@ -98,8 +101,10 @@ pub async fn write_pipeline(
 /// DELETE /api/workspaces/{id}/pipelines/{name}
 pub async fn delete_pipeline(
     axum::extract::State(state): axum::extract::State<ApiState>,
+    axum::Extension(auth): axum::Extension<AuthContext>,
     Path((id, name)): Path<(String, String)>,
 ) -> Result<(StatusCode, Json<MeshResponse>), (StatusCode, Json<MeshResponse>)> {
+    require_scope(&auth, Scope::WriteWorkspace)?;
     let worktree = resolve_worktree(state.ship_dir(), &id)?;
     let path = worktree.join(".ship").join("pipelines").join(format!("{name}.yaml"));
 

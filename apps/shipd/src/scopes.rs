@@ -83,16 +83,124 @@ pub struct DaemonSession {
     pub scopes: Vec<Scope>,
     pub workspace_id: Option<String>,
     pub created_at: std::time::Instant,
+    /// Unix seconds when this session expires. None = never expires (in-memory only).
+    pub expires_at_unix: Option<i64>,
+    /// If true, the session lives only in memory (dev-mode auto-pair). Not persisted.
+    pub ephemeral: bool,
+}
+
+/// Serializable form of DaemonSession for KV persistence.
+#[derive(serde::Serialize, serde::Deserialize)]
+struct PersistedSession {
+    token: String,
+    agent_id: String,
+    scopes: Vec<Scope>,
+    workspace_id: Option<String>,
+    created_at_unix: i64,
+    expires_at_unix: i64,
+}
+
+/// KV namespace for paired session tokens.
+pub(crate) const SESSIONS_NAMESPACE: &str = "auth.sessions";
+
+fn now_unix() -> i64 {
+    chrono::Utc::now().timestamp()
+}
+
+/// Persist a session to KV, or do nothing for ephemeral sessions.
+pub fn persist_session(session: &DaemonSession) {
+    if session.ephemeral {
+        return;
+    }
+    let Some(expires_at_unix) = session.expires_at_unix else {
+        return; // No expiry = no persist (conservative).
+    };
+    let created_unix = now_unix()
+        .saturating_sub(session.created_at.elapsed().as_secs() as i64);
+    let persisted = PersistedSession {
+        token: session.token.clone(),
+        agent_id: session.agent_id.clone(),
+        scopes: session.scopes.clone(),
+        workspace_id: session.workspace_id.clone(),
+        created_at_unix: created_unix,
+        expires_at_unix,
+    };
+    let value = match serde_json::to_value(&persisted) {
+        Ok(v) => v,
+        Err(e) => {
+            tracing::warn!("session persist: serialize failed: {e}");
+            return;
+        }
+    };
+    if let Err(e) = runtime::db::kv::set(SESSIONS_NAMESPACE, &session.token, &value) {
+        tracing::warn!("session persist: kv write failed: {e}");
+    }
+}
+
+/// Remove a session from KV.
+pub fn remove_persisted_session(token: &str) {
+    if let Err(e) = runtime::db::kv::delete(SESSIONS_NAMESPACE, token) {
+        tracing::warn!("session remove: kv delete failed: {e}");
+    }
+}
+
+/// Load all non-expired persisted sessions from KV into the registry.
+/// Expired sessions are deleted from KV on the way through.
+pub async fn hydrate_sessions(registry: &SessionRegistry) {
+    let entries = match runtime::db::kv::list_all(SESSIONS_NAMESPACE) {
+        Ok(rows) => rows,
+        Err(e) => {
+            tracing::warn!("session hydrate: list_all failed: {e}");
+            return;
+        }
+    };
+    let now = now_unix();
+    let mut loaded = 0usize;
+    let mut expired = 0usize;
+    let mut reg = registry.lock().await;
+    for (token, value) in entries {
+        let persisted: PersistedSession = match serde_json::from_value(value) {
+            Ok(p) => p,
+            Err(e) => {
+                tracing::warn!(token = %token, "session hydrate: deserialize failed: {e}");
+                let _ = runtime::db::kv::delete(SESSIONS_NAMESPACE, &token);
+                continue;
+            }
+        };
+        if persisted.expires_at_unix <= now {
+            expired += 1;
+            let _ = runtime::db::kv::delete(SESSIONS_NAMESPACE, &token);
+            continue;
+        }
+        // Approximate created_at Instant: we lose absolute time on restart, but
+        // created_at Instant is only used for ordering/display, not auth.
+        let session = DaemonSession {
+            token: persisted.token.clone(),
+            agent_id: persisted.agent_id,
+            scopes: persisted.scopes,
+            workspace_id: persisted.workspace_id,
+            created_at: std::time::Instant::now(),
+            expires_at_unix: Some(persisted.expires_at_unix),
+            ephemeral: false,
+        };
+        reg.insert(persisted.token, session);
+        loaded += 1;
+    }
+    if loaded > 0 || expired > 0 {
+        tracing::info!(loaded, expired, "auth: hydrated paired sessions from KV");
+    }
 }
 
 /// Thread-safe session registry shared across the daemon.
 pub type SessionRegistry = Arc<Mutex<HashMap<String, DaemonSession>>>;
 
 /// Generate a session token with the `ship_sess_` prefix.
-pub fn generate_session_token() -> String {
+///
+/// Returns an error if the OS entropy source is unavailable.
+pub fn generate_session_token() -> Result<String, getrandom::Error> {
     let mut bytes = [0u8; 16];
-    getrandom::getrandom(&mut bytes).expect("failed to generate random session token");
-    format!("ship_sess_{}", super::auth::hex_encode(&bytes))
+    getrandom::getrandom(&mut bytes)?;
+    Ok(format!("ship_sess_{}", super::auth::hex_encode(&bytes)))
 }
 
 /// Returns true if the token is a session token (ship_sess_ prefix).
@@ -145,7 +253,15 @@ pub async fn session_register(
     axum::Json(req): axum::Json<SessionRegisterRequest>,
 ) -> axum::Json<SessionRegisterResponse> {
     let scopes = scopes_for_role(req.role.as_deref());
-    let token = generate_session_token();
+    let token = match generate_session_token() {
+        Ok(t) => t,
+        Err(e) => {
+            return axum::Json(SessionRegisterResponse {
+                session_token: format!("error: {e}"),
+                scopes: vec![],
+            });
+        }
+    };
 
     let session = DaemonSession {
         token: token.clone(),
@@ -153,6 +269,9 @@ pub async fn session_register(
         scopes: scopes.clone(),
         workspace_id: req.workspace_id,
         created_at: std::time::Instant::now(),
+        // MCP session tokens live with the MCP process — no persistence.
+        expires_at_unix: None,
+        ephemeral: true,
     };
 
     registry.lock().await.insert(token.clone(), session);
@@ -216,7 +335,7 @@ mod tests {
 
     #[test]
     fn session_token_format() {
-        let token = generate_session_token();
+        let token = generate_session_token().unwrap();
         assert!(is_session_token(&token));
         assert!(!super::super::auth::is_daemon_token(&token));
     }

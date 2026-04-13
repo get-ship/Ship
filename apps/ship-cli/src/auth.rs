@@ -131,10 +131,178 @@ pub fn run_login() -> Result<()> {
     let token = exchange_code_for_token(&code, &verifier, port)?;
 
     let mut creds = Credentials::load();
-    creds.account = Some(CredentialsAccount { token: Some(token) });
+    creds.account = Some(CredentialsAccount { token: Some(token.clone()) });
     creds.save()?;
 
-    println!("Logged in. Token stored in ~/.ship/credentials (0600).");
+    // Bind this machine's daemon to the logged-in user. Enables zero-click
+    // browser auth via server attestation (Studio → daemon) while ensuring
+    // a stolen JWT from a different user can't unlock this daemon.
+    match bind_daemon_owner(&token) {
+        Ok(Some(user_id)) => {
+            println!("Logged in as {user_id}. Daemon bound to this account.");
+        }
+        Ok(None) => {
+            println!("Logged in. (Could not fetch user profile to bind daemon — run `ship daemon status`.)");
+        }
+        Err(e) => {
+            println!("Logged in. (Daemon binding failed: {e})");
+        }
+    }
+    println!("Token stored in ~/.ship/credentials (0600).");
+    Ok(())
+}
+
+/// Fetch the authenticated user's id and record it as the daemon owner in
+/// platform.db. The daemon checks this on every server-attest call.
+fn bind_daemon_owner(token: &str) -> Result<Option<String>> {
+    let mut resp = ureq::get("https://getship.dev/api/me")
+        .header("Authorization", &format!("Bearer {token}"))
+        .call()
+        .map_err(|e| anyhow::anyhow!("fetch user profile: {e}"))?;
+    let body: serde_json::Value = resp
+        .body_mut()
+        .read_json()
+        .map_err(|e| anyhow::anyhow!("parse user profile: {e}"))?;
+    let user_id = body
+        .get("user")
+        .and_then(|u| u.get("id"))
+        .and_then(|v| v.as_str())
+        .map(String::from);
+    if let Some(ref id) = user_id {
+        let value = serde_json::Value::String(id.clone());
+        runtime::db::kv::set("auth.daemon_owner", "user_id", &value)
+            .map_err(|e| anyhow::anyhow!("write daemon owner: {e}"))?;
+    }
+    Ok(user_id)
+}
+
+/// `ship auth pair <code>` — confirm a pairing code from Studio.
+///
+/// Reads the daemon token from disk (proving local filesystem access),
+/// POSTs to `/api/auth/pair/confirm`, and prints success or the daemon's error.
+pub fn run_auth_pair(code: &str) -> Result<()> {
+    let code = code.trim().to_uppercase();
+    if code.is_empty() {
+        anyhow::bail!("empty pairing code");
+    }
+    let (port, token) = daemon_connect()?;
+    let url = format!("http://127.0.0.1:{port}/api/auth/pair/confirm");
+    let resp = reqwest::blocking::Client::new()
+        .post(&url)
+        .bearer_auth(&token)
+        .json(&serde_json::json!({ "code": code }))
+        .timeout(std::time::Duration::from_secs(5))
+        .send()
+        .map_err(|e| anyhow::anyhow!("daemon request failed: {e}"))?;
+
+    let status = resp.status();
+    let body_text = resp.text().unwrap_or_default();
+
+    if status.is_success() {
+        println!("Paired. Return to Studio — it should connect automatically.");
+        return Ok(());
+    }
+
+    let parsed: serde_json::Value = serde_json::from_str(&body_text).unwrap_or_default();
+    let err_msg = parsed
+        .get("error")
+        .and_then(|v| v.as_str())
+        .unwrap_or(&body_text);
+    anyhow::bail!("pairing failed ({status}): {err_msg}");
+}
+
+/// Read daemon connection info (port + daemon.token) from ~/.ship/.
+fn daemon_connect() -> Result<(u16, String)> {
+    let home = dirs::home_dir()
+        .ok_or_else(|| anyhow::anyhow!("cannot determine home directory"))?
+        .join(".ship");
+    let port: u16 = std::fs::read_to_string(home.join("daemon.port"))
+        .map_err(|_| anyhow::anyhow!("daemon is not running — start it with: ship daemon start"))?
+        .trim()
+        .parse()
+        .map_err(|_| anyhow::anyhow!("invalid daemon.port file"))?;
+    let token = std::fs::read_to_string(home.join("daemon.token"))
+        .map_err(|_| anyhow::anyhow!("daemon.token not readable — is the daemon running?"))?
+        .trim()
+        .to_string();
+    Ok((port, token))
+}
+
+/// `ship auth status` — list active paired sessions.
+pub fn run_auth_status() -> Result<()> {
+    let (port, token) = daemon_connect()?;
+    let url = format!("http://127.0.0.1:{port}/api/auth/sessions");
+    let resp = reqwest::blocking::Client::new()
+        .get(&url)
+        .bearer_auth(&token)
+        .timeout(std::time::Duration::from_secs(5))
+        .send()
+        .map_err(|e| anyhow::anyhow!("daemon request failed: {e}"))?;
+    let status = resp.status();
+    let body: serde_json::Value = resp.json()
+        .map_err(|e| anyhow::anyhow!("invalid daemon response: {e}"))?;
+    if !status.is_success() {
+        anyhow::bail!("failed ({status}): {body}");
+    }
+
+    let sessions = body.get("sessions").and_then(|v| v.as_array())
+        .ok_or_else(|| anyhow::anyhow!("missing sessions field"))?;
+    if sessions.is_empty() {
+        println!("No active paired sessions.");
+        return Ok(());
+    }
+
+    let now = chrono::Utc::now().timestamp();
+    println!("{:<18}  {:<20}  {:<10}  {}", "TOKEN", "AGENT", "KIND", "EXPIRES");
+    for s in sessions {
+        let prefix = s.get("token_prefix").and_then(|v| v.as_str()).unwrap_or("");
+        let agent = s.get("agent_id").and_then(|v| v.as_str()).unwrap_or("");
+        let ephemeral = s.get("ephemeral").and_then(|v| v.as_bool()).unwrap_or(false);
+        let kind = if ephemeral { "ephemeral" } else { "persisted" };
+        let expires = match s.get("expires_at_unix").and_then(|v| v.as_i64()) {
+            Some(ts) => {
+                let remaining = ts - now;
+                if remaining <= 0 {
+                    "expired".to_string()
+                } else {
+                    let days = remaining / 86400;
+                    let hours = (remaining % 86400) / 3600;
+                    if days > 0 { format!("in {days}d {hours}h") } else { format!("in {hours}h") }
+                }
+            }
+            None => "never".to_string(),
+        };
+        println!("{prefix:<18}  {agent:<20}  {kind:<10}  {expires}");
+    }
+    Ok(())
+}
+
+/// `ship auth revoke --token <prefix>` or `ship auth revoke --all` — revoke sessions.
+pub fn run_auth_revoke(token: Option<&str>, all: bool) -> Result<()> {
+    if token.is_none() && !all {
+        anyhow::bail!("pass --token <prefix> or --all");
+    }
+    let (port, daemon_token) = daemon_connect()?;
+    let url = format!("http://127.0.0.1:{port}/api/auth/sessions/revoke");
+    let body = serde_json::json!({
+        "token_prefix": token,
+        "all": all,
+    });
+    let resp = reqwest::blocking::Client::new()
+        .post(&url)
+        .bearer_auth(&daemon_token)
+        .json(&body)
+        .timeout(std::time::Duration::from_secs(5))
+        .send()
+        .map_err(|e| anyhow::anyhow!("daemon request failed: {e}"))?;
+    let status = resp.status();
+    let body_text = resp.text().unwrap_or_default();
+    if !status.is_success() {
+        anyhow::bail!("revoke failed ({status}): {body_text}");
+    }
+    let parsed: serde_json::Value = serde_json::from_str(&body_text).unwrap_or_default();
+    let revoked = parsed.get("revoked").and_then(|v| v.as_u64()).unwrap_or(0);
+    println!("Revoked {revoked} session(s).");
     Ok(())
 }
 
@@ -147,6 +315,8 @@ pub fn run_logout() -> Result<()> {
     }
     creds.account = None;
     creds.save()?;
+    // Clear the daemon-owner binding so the next ship login can bind fresh.
+    let _ = runtime::db::kv::delete("auth.daemon_owner", "user_id");
     println!("Logged out.");
     Ok(())
 }

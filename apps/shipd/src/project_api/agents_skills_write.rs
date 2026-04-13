@@ -7,37 +7,20 @@ use axum::{Json, extract::{Path, State}, http::StatusCode};
 use serde::Deserialize;
 use std::path::PathBuf;
 
+use crate::auth::{AuthContext, Scope, require_scope};
 use crate::rest_api::{ApiState, MeshResponse};
-use super::{err_response, ok_response, resolve_worktree};
+use super::{err_response, ok_response, resolve_worktree, safe_resolve};
 
 // ── Path safety ──────────────────────────────────────────────────────────────
 
-/// Resolve `relative` under `base`, refusing any path that escapes `base`.
+/// Resolve `relative` under `base`, refusing any path that escapes `base`
+/// via `..` components or symlinks. Creates `base` if it doesn't exist.
 fn safe_join(base: &std::path::Path, relative: &str) -> Result<PathBuf, (StatusCode, Json<MeshResponse>)> {
+    std::fs::create_dir_all(base).map_err(|e| {
+        err_response(StatusCode::INTERNAL_SERVER_ERROR, &format!("failed to ensure base dir: {e}"))
+    })?;
     let joined = base.join(relative);
-    let canonical_base = base
-        .canonicalize()
-        .unwrap_or_else(|_| base.to_path_buf());
-    // Normalize without requiring the path to exist yet
-    let normalized = normalize_path(&joined);
-    if !normalized.starts_with(&canonical_base) {
-        return Err(err_response(StatusCode::BAD_REQUEST, "path escapes base directory"));
-    }
-    Ok(joined)
-}
-
-/// Collapse `..` components without requiring the path to exist.
-fn normalize_path(path: &std::path::Path) -> PathBuf {
-    let mut out = PathBuf::new();
-    for component in path.components() {
-        use std::path::Component;
-        match component {
-            Component::ParentDir => { out.pop(); }
-            Component::CurDir => {}
-            c => out.push(c),
-        }
-    }
-    out
+    safe_resolve(base, &joined)
 }
 
 // ── Request bodies ────────────────────────────────────────────────────────────
@@ -70,9 +53,11 @@ pub struct SetVarReq {
 /// Write an agent transfer bundle to `{worktree}/.ship/agents/{agent_id}.jsonc`.
 pub async fn write_agent(
     State(state): State<ApiState>,
+    axum::Extension(auth): axum::Extension<AuthContext>,
     Path(id): Path<String>,
     Json(body): Json<WriteAgentReq>,
 ) -> Result<(StatusCode, Json<MeshResponse>), (StatusCode, Json<MeshResponse>)> {
+    require_scope(&auth, Scope::WriteWorkspace)?;
     let worktree = resolve_worktree(state.ship_dir(), &id)?;
     let agents_dir = worktree.join(".ship").join("agents");
 
@@ -119,9 +104,11 @@ pub async fn write_agent(
 /// Write content to `{worktree}/.ship/skills/{skillId}/{path}`.
 pub async fn write_skill_file(
     State(state): State<ApiState>,
+    axum::Extension(auth): axum::Extension<AuthContext>,
     Path((id, skill_id, file_path)): Path<(String, String, String)>,
     Json(body): Json<WriteFileReq>,
 ) -> Result<(StatusCode, Json<MeshResponse>), (StatusCode, Json<MeshResponse>)> {
+    require_scope(&auth, Scope::WriteWorkspace)?;
     let worktree = resolve_worktree(state.ship_dir(), &id)?;
 
     validate_skill_id(&skill_id)?;
@@ -153,8 +140,10 @@ pub async fn write_skill_file(
 /// Delete `{worktree}/.ship/skills/{skillId}/{path}`.
 pub async fn delete_skill_file(
     State(state): State<ApiState>,
+    axum::Extension(auth): axum::Extension<AuthContext>,
     Path((id, skill_id, file_path)): Path<(String, String, String)>,
 ) -> Result<(StatusCode, Json<MeshResponse>), (StatusCode, Json<MeshResponse>)> {
+    require_scope(&auth, Scope::WriteWorkspace)?;
     let worktree = resolve_worktree(state.ship_dir(), &id)?;
 
     validate_skill_id(&skill_id)?;
@@ -210,9 +199,11 @@ pub async fn get_skill_vars(
 /// Set a single skill variable. Body: `{ value_json: "<json-encoded-value>" }`.
 pub async fn set_skill_var(
     State(state): State<ApiState>,
+    axum::Extension(auth): axum::Extension<AuthContext>,
     Path((id, skill_id, key)): Path<(String, String, String)>,
     Json(body): Json<SetVarReq>,
 ) -> Result<(StatusCode, Json<MeshResponse>), (StatusCode, Json<MeshResponse>)> {
+    require_scope(&auth, Scope::WriteWorkspace)?;
     let worktree = resolve_worktree(state.ship_dir(), &id)?;
     let ship_dir = worktree.join(".ship");
 
@@ -270,12 +261,6 @@ mod tests {
     // ── Path safety ──────────────────────────────────────────────────────────
 
     #[test]
-    fn normalize_path_collapses_dotdot() {
-        let p = normalize_path(std::path::Path::new("/base/skills/../agents"));
-        assert_eq!(p, PathBuf::from("/base/agents"));
-    }
-
-    #[test]
     fn safe_join_rejects_escape() {
         let base = tempfile::tempdir().unwrap();
         let base_path = base.path().to_path_buf();
@@ -292,7 +277,34 @@ mod tests {
         assert!(result.is_ok());
     }
 
+    #[test]
+    #[cfg(unix)]
+    fn safe_join_rejects_symlink_escape() {
+        use std::os::unix::fs::symlink;
+        let outside = tempfile::tempdir().unwrap();
+        let secret = outside.path().join("secret.txt");
+        std::fs::write(&secret, "leaked").unwrap();
+
+        let base = tempfile::tempdir().unwrap();
+        // Plant a symlink inside base that points to a file outside base.
+        symlink(&secret, base.path().join("trap")).unwrap();
+
+        // Attempting to resolve through the symlink must fail.
+        let result = safe_join(&base.path().to_path_buf(), "trap");
+        assert!(result.is_err(), "symlink targeting outside base must be rejected");
+    }
+
     // ── write_agent ───────────────────────────────────────────────────────────
+
+    fn full_auth() -> axum::Extension<AuthContext> {
+        axum::Extension(AuthContext {
+            caller_kind: runtime::events::CallerKind::Cli,
+            agent_id: None,
+            workspace_id: None,
+            session_id: None,
+            scopes: vec![Scope::Full],
+        })
+    }
 
     #[tokio::test(flavor = "multi_thread")]
     async fn write_agent_nonexistent_workspace_returns_404() {
@@ -305,7 +317,7 @@ mod tests {
             rules: serde_json::json!([]),
             hooks: serde_json::json!([]),
         };
-        let result = write_agent(State(state), Path("no-such-ws".to_string()), Json(req)).await;
+        let result = write_agent(State(state), full_auth(), Path("no-such-ws".to_string()), Json(req)).await;
         let (status, _) = result.unwrap_err();
         assert_eq!(status, StatusCode::NOT_FOUND);
     }

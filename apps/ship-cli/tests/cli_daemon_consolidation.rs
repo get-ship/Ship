@@ -24,50 +24,6 @@ fn ship() -> Command {
     Command::cargo_bin("ship").unwrap()
 }
 
-// ── Network commands show deprecation ────────────────────────────────────────
-
-#[test]
-fn test_network_serve_shows_deprecation() {
-    let tmp = TempDir::new().unwrap();
-
-    ship_in(&tmp)
-        .args(["network", "serve"])
-        .assert()
-        .failure()
-        .stderr(
-            predicate::str::contains("ship daemon start")
-                .or(predicate::str::contains("moved to")),
-        );
-}
-
-#[test]
-fn test_network_status_shows_deprecation() {
-    let tmp = TempDir::new().unwrap();
-
-    ship_in(&tmp)
-        .args(["network", "status"])
-        .assert()
-        .failure()
-        .stderr(
-            predicate::str::contains("ship daemon status")
-                .or(predicate::str::contains("moved to")),
-        );
-}
-
-#[test]
-fn test_network_stop_shows_deprecation() {
-    let tmp = TempDir::new().unwrap();
-
-    ship_in(&tmp)
-        .args(["network", "stop"])
-        .assert()
-        .failure()
-        .stderr(
-            predicate::str::contains("ship daemon stop")
-                .or(predicate::str::contains("moved to")),
-        );
-}
-
 // ── Daemon commands are the single control surface ───────────────────────────
 
 #[test]

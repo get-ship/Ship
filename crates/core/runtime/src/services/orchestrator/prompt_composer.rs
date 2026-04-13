@@ -41,6 +41,39 @@ pub fn compose_step_spec(
     ))
 }
 
+/// Compose + write the step spec for a job advance, logging the outcome at
+/// INFO/ERROR. Encapsulates the common dispatch-site boilerplate so callers
+/// don't have to reproduce the load_job_context + write_step_spec + match
+/// dance inline.
+pub fn compose_and_write_for_step(
+    worktree_path: &std::path::Path,
+    slug: &str,
+    job_id: &str,
+    spec_path: &str,
+    pipeline: &Pipeline,
+    current_step: &PipelineStep,
+) {
+    let ctx = load_job_context(job_id);
+    match write_step_spec(
+        worktree_path,
+        spec_path,
+        job_id,
+        ctx.pipeline_name.as_deref(),
+        pipeline,
+        current_step,
+        &ctx.user_spec_body,
+    ) {
+        Ok(path) => tracing::info!(
+            slug, step_id = current_step.id,
+            "pipeline: wrote step spec to {}", path.display()
+        ),
+        Err(e) => tracing::error!(
+            slug, step_id = current_step.id,
+            "pipeline: failed to write step spec: {e}"
+        ),
+    }
+}
+
 /// Compose and write `.artifacts/job-spec.md` for the given step. Creates the
 /// parent directory if needed. Returns the absolute path written.
 pub fn write_step_spec(

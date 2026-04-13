@@ -20,6 +20,7 @@ use super::registry::ProcessRegistry;
 pub struct ShipdPlatform {
     pub registry: Arc<Mutex<ProcessRegistry>>,
     pub executor: Arc<dyn JobExecutor>,
+    pub health_registry: crate::supervised::HealthRegistry,
 }
 
 #[async_trait]
@@ -79,7 +80,7 @@ impl AgentPlatform for ShipdPlatform {
         &self,
         kernel: Arc<Mutex<runtime::events::KernelRouter>>,
     ) {
-        super::liveness::start_liveness_sweep(kernel, self.registry.clone(), self.executor.clone());
+        super::liveness::start_liveness_sweep(kernel, self.registry.clone(), self.executor.clone(), &self.health_registry);
     }
 
     async fn cleanup_orphaned_worktrees(&self) {

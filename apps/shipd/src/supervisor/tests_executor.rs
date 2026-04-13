@@ -85,8 +85,10 @@ fn provider_launchers_module_does_not_exist() {
 
 #[test]
 fn adapter_for_none_defaults_to_claude_ready_pattern() {
+    // Mode-marker line at the real input prompt — not the menu selector `❯`
+    // which false-matched the channels-menu row and broke dispatch.
     let adapter = adapter_for(None);
-    assert_eq!(adapter.ready_pattern(), "❯");
+    assert_eq!(adapter.ready_pattern(), "bypass permissions on");
 }
 
 #[test]

@@ -35,6 +35,7 @@ pub struct DispatchHandle {
 pub async fn subscribe_job_events(
     kernel: Arc<Mutex<runtime::events::KernelRouter>>,
     _ship_dir: PathBuf,
+    health_registry: &crate::supervised::HealthRegistry,
 ) -> Option<DispatchHandle> {
     // ProcessExecutor is the default for pipeline jobs: headless claude child
     // process, stdout → log file, exit code drives the step monitor. No tmux
@@ -56,6 +57,7 @@ pub async fn subscribe_job_events(
     let platform = Arc::new(ShipdPlatform {
         registry: registry.clone(),
         executor: executor.clone(),
+        health_registry: health_registry.clone(),
     });
 
     let activity_txs = Arc::new(Mutex::new(HashMap::new()));
@@ -71,7 +73,7 @@ pub async fn subscribe_job_events(
     });
 
     let kr = kernel.clone();
-    tokio::spawn(async move {
+    crate::supervised::spawn_monitored(health_registry, "job-orchestrator", async move {
         runtime::services::orchestrator::router::start_orchestrator(kr, octx).await;
     });
 

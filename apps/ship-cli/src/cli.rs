@@ -1,7 +1,7 @@
 use clap::{Parser, Subcommand};
 use std::path::PathBuf;
 
-pub use crate::commands::{HookCommands, McpCommands, NetworkCommands, WorkspaceCommands};
+pub use crate::commands::{HookCommands, McpCommands, WorkspaceCommands};
 #[cfg(feature = "unstable")]
 pub use crate::commands::EventsCommands;
 
@@ -63,6 +63,12 @@ pub enum Commands {
     /// Show current identity
     Whoami,
 
+    /// Pair a browser session (Studio) with the local daemon
+    Auth {
+        #[command(subcommand)]
+        action: AuthCommands,
+    },
+
     /// Read or write user preferences (~/.ship/config.toml)
     Config {
         #[command(subcommand)]
@@ -115,25 +121,6 @@ pub enum Commands {
         /// Path to project root (defaults to current directory)
         #[arg(long)]
         path: Option<PathBuf>,
-    },
-
-    // ── Removed (helpful deprecation messages) ────────────────────────────────
-    #[command(name = "agents", hide = true)]
-    Agents {
-        #[arg(trailing_var_arg = true, allow_hyphen_values = true, num_args = 0..)]
-        _args: Vec<String>,
-    },
-
-    #[command(name = "skills", hide = true)]
-    Skills {
-        #[arg(trailing_var_arg = true, allow_hyphen_values = true, num_args = 0..)]
-        _args: Vec<String>,
-    },
-
-    #[command(name = "vars", hide = true)]
-    Vars {
-        #[arg(trailing_var_arg = true, allow_hyphen_values = true, num_args = 0..)]
-        _args: Vec<String>,
     },
 
     /// Workspace utilities (trash, restore)
@@ -198,8 +185,9 @@ pub enum Commands {
     },
 
     // ── Inspection ───────────────────────────────────────────────────────────
-    /// Query the project event log
+    /// Query the project event log (dev tool — not part of the user-facing CLI)
     #[cfg(feature = "unstable")]
+    #[command(hide = true)]
     Events {
         #[command(subcommand)]
         action: EventsCommands,
@@ -211,22 +199,11 @@ pub enum Commands {
         topic: Option<String>,
     },
 
-    #[cfg(feature = "unstable")]
-    #[command(hide = true)]
-    Adrs,
-
     /// Provider hook integration (before-tool, after-tool, session-end)
     #[command(hide = true)]
     Hook {
         #[command(subcommand)]
         action: HookCommands,
-    },
-
-    /// Deprecated: use `ship daemon` instead
-    #[command(hide = true)]
-    Network {
-        #[command(subcommand)]
-        action: NetworkCommands,
     },
 
     /// Launch Ship Studio -- visual IDE for agent configuration
@@ -240,8 +217,9 @@ pub enum Commands {
     },
 
 
-    /// Rebuild projection tables from the event log
+    /// Rebuild projection tables from the event log (dev tool — not part of the user-facing CLI)
     #[cfg(feature = "unstable")]
+    #[command(hide = true)]
     RebuildProjections,
 
     /// Real-time dashboard — workspaces, sessions, events (htop for Ship)
@@ -286,6 +264,10 @@ pub enum DaemonCommands {
         /// Bind address (default: 127.0.0.1)
         #[arg(long, default_value = "127.0.0.1")]
         host: String,
+        /// DEV mode — auto-pair on first localhost request, force 127.0.0.1 bind.
+        /// Not for production. Logs a loud warning on startup.
+        #[arg(long)]
+        dev: bool,
     },
     /// Stop the running daemon process
     Stop,
@@ -293,12 +275,43 @@ pub enum DaemonCommands {
     Status,
     /// Remove orphaned worktrees for merged and failed jobs
     Cleanup,
-    /// Run the daemon in the foreground (used by `start` internally, also useful for Docker/systemd)
+    /// Run the daemon in the foreground (internal — used by `start`, also useful for Docker/systemd)
+    #[command(hide = true)]
     Run {
         #[arg(long, default_value = "127.0.0.1")]
         host: String,
         #[arg(long, default_value_t = 9315)]
         port: u16,
+        #[arg(long)]
+        dev: bool,
+    },
+    /// Internal: supervisor loop that watches and restarts the daemon on crash
+    #[command(hide = true)]
+    Supervise {
+        #[arg(long, default_value = "0.0.0.0")]
+        host: String,
+        #[arg(long)]
+        dev: bool,
+    },
+}
+
+#[derive(Subcommand, Debug)]
+pub enum AuthCommands {
+    /// Confirm a pairing code displayed by Studio (or another browser client)
+    Pair {
+        /// The pairing code shown in Studio (e.g. "4F8-2K9")
+        code: String,
+    },
+    /// List active paired sessions
+    Status,
+    /// Revoke paired sessions
+    Revoke {
+        /// Revoke only sessions whose token starts with this prefix
+        #[arg(long, conflicts_with = "all")]
+        token: Option<String>,
+        /// Revoke all persisted sessions
+        #[arg(long, conflicts_with = "token")]
+        all: bool,
     },
 }
 

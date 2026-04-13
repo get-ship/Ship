@@ -20,3 +20,16 @@ export function daemonFetch(path: string, init?: RequestInit): Promise<Response>
   const headers = { ...daemonHeaders(), ...init?.headers }
   return fetch(`${DAEMON_BASE_URL}${path}`, { ...init, headers })
 }
+
+/** Build a daemon URL with the auth token as a query param.
+ *
+ * Use only for browser APIs that can't set Authorization headers (EventSource,
+ * WebSocket). Regular fetch calls should use daemonFetch() instead — the
+ * daemon accepts query-param tokens on GET only and logs a warning.
+ */
+export function daemonUrlWithToken(path: string): string {
+  const base = `${DAEMON_BASE_URL}${path}`
+  if (!_cachedToken) return base
+  const sep = path.includes('?') ? '&' : '?'
+  return `${base}${sep}token=${encodeURIComponent(_cachedToken)}`
+}

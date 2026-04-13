@@ -6,6 +6,9 @@ import { File, Save, ChevronDown, ChevronRight, MonitorPlay, ExternalLink } from
 import type { FrontmatterEntry } from '@ship/primitives'
 import { MarkdownPreview } from '#/features/studio/skills-ide/MarkdownPreview'
 import { ImageViewer } from './ImageViewer'
+import { SpecRenderer } from './SpecRenderer'
+import { AdrRenderer } from './AdrRenderer'
+import { classifyArtifact } from './classify-artifact'
 import { daemonFetch } from '#/lib/daemon-config'
 import type { SessionFile, ClickAnnotation } from './types'
 
@@ -267,6 +270,32 @@ export function ArtifactViewer({
     )
   }
   if (file.type === 'url') return <UrlViewer file={file} content={content} />
+
+  // Route typed markdown artifacts to specialized renderers
+  const kind = classifyArtifact(file, content)
+  if (kind === 'spec') {
+    return (
+      <SpecRenderer
+        file={file}
+        content={content}
+        isDirty={isDirty}
+        onContentChange={onContentChange}
+        onSave={onSave}
+      />
+    )
+  }
+  if (kind === 'adr') {
+    return (
+      <AdrRenderer
+        file={file}
+        content={content}
+        isDirty={isDirty}
+        onContentChange={onContentChange}
+        onSave={onSave}
+      />
+    )
+  }
+
   if (file.type === 'markdown') {
     return (
       <MarkdownFileEditor

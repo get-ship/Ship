@@ -11,6 +11,7 @@ use axum::{
 use runtime::events::{CallerKind, EmitContext, EventEnvelope};
 use serde::{Deserialize, Serialize};
 
+use crate::auth::{AuthContext, Scope};
 use crate::rest_api::ApiState;
 use super::helpers::{
     compile_agent_config, create_worktree, ensure_tmux_session, send_agent_command, worktrees_dir,
@@ -41,8 +42,12 @@ fn err(status: StatusCode, msg: impl Into<String>) -> (StatusCode, Json<serde_js
 pub async fn start_workspace(
     Path(workspace_id): Path<String>,
     State(state): State<ApiState>,
+    axum::Extension(auth): axum::Extension<AuthContext>,
     Json(req): Json<StartWorkspaceRequest>,
 ) -> impl IntoResponse {
+    if !auth.has_scope(Scope::WriteWorkspace) {
+        return err(StatusCode::FORBIDDEN, "insufficient scope: WriteWorkspace required").into_response();
+    }
     let ship_dir = match runtime::project::get_global_dir() {
         Ok(p) => p,
         Err(e) => return err(StatusCode::INTERNAL_SERVER_ERROR, e.to_string()).into_response(),

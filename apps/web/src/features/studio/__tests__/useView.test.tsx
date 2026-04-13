@@ -10,7 +10,8 @@ function createMockClient(overrides?: Partial<ShipClient>): ShipClient {
   return {
     setToken: vi.fn(),
     getToken: vi.fn(() => null),
-    authenticate: vi.fn(async () => true),
+    pairInit: vi.fn(async () => ({ code: 'A-B', claim_token: 'x', code_expires_in_secs: 300, dev_mode: false })),
+    pairStatus: vi.fn(async () => ({ status: 'approved', session_token: 'ship_sess_test' })),
     isConnected: vi.fn(async () => true),
     connectEvents: vi.fn(),
     disconnectEvents: vi.fn(),

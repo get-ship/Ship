@@ -92,11 +92,20 @@ fn normalize_stdin(stdin: &str, hook_type: &str) -> serde_json::Value {
 }
 
 /// Read daemon connection info. Returns `(port, token)` if available.
+///
+/// Hooks use the hook.token (long-lived, doesn't rotate with daemon token)
+/// so provider webhook configs stay valid across daemon restarts.
+/// Falls back to daemon.token for older daemons without hook.token.
+///
+/// For hooks, we don't auto-start — hooks must be fast and non-blocking.
+/// Use `crate::daemon::ensure_daemon()` for commands that can afford the wait.
 fn daemon_info() -> Option<(u16, String)> {
     let home = dirs::home_dir()?.join(".ship");
     let port_str = std::fs::read_to_string(home.join("daemon.port")).ok()?;
     let port = port_str.trim().parse::<u16>().ok()?;
-    let token = std::fs::read_to_string(home.join("daemon.token")).ok()?;
+    let token = std::fs::read_to_string(home.join("hook.token"))
+        .or_else(|_| std::fs::read_to_string(home.join("daemon.token")))
+        .ok()?;
     Some((port, token.trim().to_string()))
 }
 
@@ -122,6 +131,10 @@ fn post_to_daemon(endpoint: &str, body: &serde_json::Value) -> Result<serde_json
 }
 
 /// Try to POST to daemon; fall back to local event emission on failure.
+///
+/// Logs the daemon error to stderr so provider hook logs capture the reason.
+/// Distinguishes between "daemon unreachable" (expected fallback) and
+/// "daemon rejected request" (auth or other issue that needs attention).
 fn try_daemon_or_local(
     endpoint: &str,
     body: &serde_json::Value,
@@ -133,8 +146,18 @@ fn try_daemon_or_local(
             println!("{}", serde_json::to_string(&resp)?);
             Ok(())
         }
-        Err(_) => {
-            // Daemon unavailable — fall back to local event emission.
+        Err(e) => {
+            let msg = e.to_string();
+            // "connection refused" or missing port/token file → expected fallback.
+            // Anything else (401, 403, 500) means the daemon is up but rejected us.
+            let is_unreachable = msg.contains("connection refused")
+                || msg.contains("no port/token file")
+                || msg.contains("not running");
+            if is_unreachable {
+                eprintln!("ship hook: daemon unreachable ({msg}) — using local fallback");
+            } else {
+                eprintln!("ship hook: daemon rejected /{endpoint} ({msg}) — using local fallback");
+            }
             local_fallback()
         }
     }

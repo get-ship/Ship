@@ -179,6 +179,7 @@ static MESH_SPAWNED: std::sync::OnceLock<()> = std::sync::OnceLock::new();
 /// Idempotent — safe to call multiple times (returns new empty registry on re-call).
 pub async fn spawn_mesh_service(
     kernel: &Arc<tokio::sync::Mutex<runtime::events::KernelRouter>>,
+    health_registry: &crate::supervised::HealthRegistry,
 ) -> Result<runtime::services::mesh::SharedMeshRegistry> {
     let registry: runtime::services::mesh::SharedMeshRegistry =
         Arc::new(tokio::sync::RwLock::new(std::collections::HashMap::new()));
@@ -213,7 +214,7 @@ pub async fn spawn_mesh_service(
 
     // Drain outbox → kernel (directed delivery to agent mailboxes)
     let kr = kernel.clone();
-    tokio::spawn(async move {
+    crate::supervised::spawn_monitored(health_registry, "mesh-outbox", async move {
         let ctx = runtime::events::EmitContext {
             caller_kind: runtime::events::CallerKind::Mcp,
             skill_id: None,

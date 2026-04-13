@@ -21,6 +21,7 @@ use tokio::process::Command;
 use tokio::sync::Mutex;
 use tokio::time::{Duration, timeout};
 
+use crate::auth::{AuthContext, Scope};
 use crate::rest_api::ApiState;
 
 /// Maximum concurrent tmux attach processes per workspace.
@@ -35,8 +36,18 @@ const MAX_PTY_CONNECTIONS: usize = 5;
 pub async fn workspace_pty(
     Path(workspace_id): Path<String>,
     State(state): State<ApiState>,
+    axum::Extension(auth): axum::Extension<AuthContext>,
     request: Request,
 ) -> Response {
+    // PTY access is shell access — require workspace write scope.
+    if !auth.has_scope(Scope::WriteWorkspace) {
+        return (
+            StatusCode::FORBIDDEN,
+            Json(json!({"error": "insufficient scope: WriteWorkspace required"})),
+        )
+            .into_response();
+    }
+
     // Resolve workspace and tmux session name.
     let ship_dir = state.ship_dir();
 
@@ -132,8 +143,16 @@ async fn handle_pty_socket(
         }
     };
 
-    let mut stdin = child.stdin.take().unwrap();
-    let mut stdout = child.stdout.take().unwrap();
+    let Some(mut stdin) = child.stdin.take() else {
+        tracing::error!("pty: child process has no stdin");
+        let _ = child.kill().await;
+        return;
+    };
+    let Some(mut stdout) = child.stdout.take() else {
+        tracing::error!("pty: child process has no stdout");
+        let _ = child.kill().await;
+        return;
+    };
 
     let mut stdout_buf = vec![0u8; 4096];
     let ping_interval = Duration::from_secs(30);

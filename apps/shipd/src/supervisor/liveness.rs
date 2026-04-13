@@ -82,12 +82,18 @@ pub(crate) fn start_liveness_sweep(
     kernel: Arc<Mutex<KernelRouter>>,
     registry: Arc<Mutex<ProcessRegistry>>,
     executor: Arc<dyn JobExecutor>,
+    health_registry: &crate::supervised::HealthRegistry,
 ) {
-    tokio::spawn(async move {
-        loop {
-            tokio::time::sleep(Duration::from_secs(30)).await;
-            sweep_registered(&kernel, &registry, &*executor).await;
-            sweep_stale_dispatched(&kernel, &registry).await;
+    crate::supervised::spawn_supervised(health_registry, "liveness-sweep", move || {
+        let kernel = kernel.clone();
+        let registry = registry.clone();
+        let executor = executor.clone();
+        async move {
+            loop {
+                tokio::time::sleep(Duration::from_secs(30)).await;
+                sweep_registered(&kernel, &registry, &*executor).await;
+                sweep_stale_dispatched(&kernel, &registry).await;
+            }
         }
     });
 }

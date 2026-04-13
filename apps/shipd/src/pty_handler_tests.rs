@@ -1,4 +1,5 @@
 use super::{workspace_pty, MAX_PTY_CONNECTIONS};
+use crate::auth::{AuthContext, Scope};
 use crate::rest_api::ApiState;
 use std::sync::Arc;
 use tempfile::TempDir;
@@ -11,6 +12,16 @@ fn make_api_state() -> (ApiState, TempDir) {
     let kernel = runtime::events::init_kernel_router(ship_dir.clone()).unwrap();
     let state = Arc::new(crate::ship_runtime::ShipRuntime::new_test(ship_dir, kernel));
     (state, tmp)
+}
+
+fn full_auth() -> AuthContext {
+    AuthContext {
+        caller_kind: runtime::events::CallerKind::Cli,
+        agent_id: None,
+        workspace_id: None,
+        session_id: None,
+        scopes: vec![Scope::Full],
+    }
 }
 
 #[tokio::test(flavor = "multi_thread")]
@@ -33,6 +44,7 @@ async fn pty_returns_404_for_unknown_workspace() {
             "/api/runtime/workspaces/{id}/pty",
             axum::routing::get(workspace_pty),
         )
+        .layer(axum::Extension(full_auth()))
         .with_state(state);
 
     let response = tower::ServiceExt::oneshot(app, req).await.unwrap();
@@ -76,6 +88,7 @@ async fn pty_returns_404_when_no_tmux_session() {
             "/api/runtime/workspaces/{id}/pty",
             axum::routing::get(workspace_pty),
         )
+        .layer(axum::Extension(full_auth()))
         .with_state(state);
 
     let response = tower::ServiceExt::oneshot(app, req).await.unwrap();
@@ -132,6 +145,7 @@ async fn pty_returns_429_when_over_connection_limit() {
             "/api/runtime/workspaces/{id}/pty",
             axum::routing::get(workspace_pty),
         )
+        .layer(axum::Extension(full_auth()))
         .with_state(state);
 
     let response = tower::ServiceExt::oneshot(app, req).await.unwrap();

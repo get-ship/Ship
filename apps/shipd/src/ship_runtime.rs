@@ -13,6 +13,7 @@ use tokio::sync::Mutex;
 
 use crate::auth::SessionRegistry;
 use crate::managers::{JobManager, MeshManager, SessionScanner};
+use crate::supervised::HealthRegistry;
 use crate::supervisor::job_dispatch::DispatchHandle;
 
 // ---- Config types ----
@@ -72,6 +73,8 @@ pub struct ShipRuntime {
     session_scanner: tokio::sync::OnceCell<SessionScanner>,
     /// Scoped session registry — maps session tokens to DaemonSession.
     session_registry: SessionRegistry,
+    /// Health registry for supervised background tasks.
+    health_registry: HealthRegistry,
 }
 
 impl ShipRuntime {
@@ -173,6 +176,7 @@ impl ShipRuntime {
             dispatch_handle: std::sync::OnceLock::new(),
             session_scanner: tokio::sync::OnceCell::new(),
             session_registry: Arc::new(Mutex::new(HashMap::new())),
+            health_registry: HealthRegistry::new(),
         })
     }
 
@@ -218,6 +222,10 @@ impl ShipRuntime {
         &self.session_registry
     }
 
+    pub fn health_registry(&self) -> &HealthRegistry {
+        &self.health_registry
+    }
+
     /// Lazily initialize and return the mesh manager.
     pub async fn mesh(&self) -> &MeshManager {
         self.mesh
@@ -232,9 +240,10 @@ impl ShipRuntime {
     /// On first call, subscribes to job events and reconciles orphaned
     /// dispatched jobs from previous daemon runs.
     pub async fn jobs(&self) -> &JobManager {
+        let hr = self.health_registry.clone();
         self.jobs
             .get_or_init(|| async {
-                JobManager::init(self.kernel.clone(), self.ship_dir.clone()).await
+                JobManager::init(self.kernel.clone(), self.ship_dir.clone(), &hr).await
             })
             .await
     }
@@ -243,9 +252,10 @@ impl ShipRuntime {
     ///
     /// On first call, starts a background task that scans for abandoned sessions.
     pub async fn session_scanner(&self) -> &SessionScanner {
+        let hr = self.health_registry.clone();
         self.session_scanner
             .get_or_init(|| async {
-                SessionScanner::start(self.kernel.clone())
+                SessionScanner::start(self.kernel.clone(), &hr)
             })
             .await
     }
@@ -286,6 +296,7 @@ impl ShipRuntime {
             dispatch_handle: std::sync::OnceLock::new(),
             session_scanner: tokio::sync::OnceCell::new(),
             session_registry: Arc::new(Mutex::new(HashMap::new())),
+            health_registry: HealthRegistry::new(),
         }
     }
 
@@ -308,6 +319,7 @@ impl ShipRuntime {
             dispatch_handle: std::sync::OnceLock::new(),
             session_scanner: tokio::sync::OnceCell::new(),
             session_registry: Arc::new(Mutex::new(HashMap::new())),
+            health_registry: HealthRegistry::new(),
         }
     }
 
@@ -349,7 +361,9 @@ impl ShipRuntime {
         // Drain — allow managers to finish in-flight work.
         tracing::info!("shipd: drain complete, cleaning up daemon files");
 
-        let _ = std::fs::remove_file(self.ship_dir.join("daemon.token"));
+        // Remove PID and port (liveness indicators) but keep the token.
+        // Preserving the token across restarts means CLI clients that cached
+        // it don't need to re-handshake after a daemon restart.
         let _ = std::fs::remove_file(self.ship_dir.join("daemon.port"));
         let _ = std::fs::remove_file(self.ship_dir.join("daemon.pid"));
         tracing::info!("shipd: shutdown complete");

@@ -7,6 +7,8 @@ use std::path::PathBuf;
 use std::sync::Arc;
 use tokio::sync::Mutex;
 
+use crate::supervised::HealthRegistry;
+
 /// Subscribe to `workspace.*` kernel events and upsert workspace DB records.
 ///
 /// Spawns an actor in the KernelRouter subscribed to the `workspace.` namespace.
@@ -15,6 +17,7 @@ use tokio::sync::Mutex;
 pub async fn subscribe_workspace_events(
     kernel: Arc<Mutex<runtime::events::KernelRouter>>,
     ship_dir: PathBuf,
+    health_registry: &HealthRegistry,
 ) {
     let actor_id = "service.workspace-sync".to_string();
     let config = ActorConfig {
@@ -35,7 +38,7 @@ pub async fn subscribe_workspace_events(
         }
     };
 
-    tokio::spawn(async move {
+    crate::supervised::spawn_monitored(health_registry, "workspace-sync", async move {
         let mut mb = mailbox;
         while let Some(envelope) = mb.recv().await {
             handle_workspace_event(&ship_dir, &envelope);

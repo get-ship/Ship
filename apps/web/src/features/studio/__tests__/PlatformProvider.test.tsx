@@ -9,7 +9,8 @@ function createMockClient(overrides?: Partial<ShipClient>): ShipClient {
   return {
     setToken: vi.fn(),
     getToken: vi.fn(() => null),
-    authenticate: vi.fn(async () => true),
+    pairInit: vi.fn(async () => ({ code: 'ABC-DEF', claim_token: 'claim_x', code_expires_in_secs: 300, dev_mode: false })),
+    pairStatus: vi.fn(async () => ({ status: 'approved', session_token: 'ship_sess_test' })),
     isConnected: vi.fn(async () => true),
     connectEvents: vi.fn(),
     disconnectEvents: vi.fn(),
@@ -26,6 +27,7 @@ function createMockClient(overrides?: Partial<ShipClient>): ShipClient {
     invalidate: vi.fn(),
     invalidatePrefix: vi.fn(),
     onEvent: vi.fn(() => vi.fn()),
+    get: vi.fn(async () => ({ workspaces: [] })),
     ...overrides,
   } as unknown as ShipClient
 }
@@ -147,11 +149,13 @@ describe('PlatformProvider', () => {
     })
   })
 
-  // ── Handshake auth ─────────────────────────────────────────────────────
+  // ── Pair auth ──────────────────────────────────────────────────────────
 
-  describe('handshake auth', () => {
-    it('calls authenticate when no fragment token is present', async () => {
-      const mockClient = createMockClient()
+  describe('pair auth', () => {
+    it('calls pairInit when no fragment token is present', async () => {
+      const mockClient = createMockClient({
+        pairStatus: vi.fn(async () => ({ status: 'pending' })) as any,
+      })
       vi.mocked(await import('@ship/sdk')).ShipClient.mockImplementation(
         () => mockClient as any,
       )
@@ -161,13 +165,13 @@ describe('PlatformProvider', () => {
         </PlatformProvider>,
       )
       await waitFor(() => {
-        expect(mockClient.authenticate).toHaveBeenCalled()
+        expect(mockClient.pairInit).toHaveBeenCalled()
       })
     })
 
-    it('sets auth to authenticated after successful handshake', async () => {
+    it('sets auth to authenticated after pair approval', async () => {
       vi.mocked(await import('@ship/sdk')).ShipClient.mockImplementation(
-        () => createMockClient({ authenticate: vi.fn(async () => true) }) as any,
+        () => createMockClient() as any,
       )
       render(
         <PlatformProvider>
@@ -179,9 +183,11 @@ describe('PlatformProvider', () => {
       })
     })
 
-    it('sets auth to anonymous when handshake fails', async () => {
+    it('remains anonymous while pairing is pending', async () => {
       vi.mocked(await import('@ship/sdk')).ShipClient.mockImplementation(
-        () => createMockClient({ authenticate: vi.fn(async () => false) }) as any,
+        () => createMockClient({
+          pairStatus: vi.fn(async () => ({ status: 'pending' })) as any,
+        }) as any,
       )
       render(
         <PlatformProvider>
