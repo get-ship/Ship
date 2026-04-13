@@ -211,6 +211,15 @@ fn build_env() -> Environment<'static> {
     // naturally. Strict mode errors on any undefined lookup — too noisy for
     // partials whose context fields are documented as optional.
     env.set_undefined_behavior(minijinja::UndefinedBehavior::Lenient);
+    env.add_filter("truncate", |value: String, length: usize| -> String {
+        if value.chars().count() <= length {
+            value
+        } else {
+            let mut s: String = value.chars().take(length.saturating_sub(1)).collect();
+            s.push('…');
+            s
+        }
+    });
     for (name, src) in TEMPLATES {
         // The registered `TEMPLATES` list is a compile-time constant of
         // valid minijinja sources — a parse failure here is a programmer
