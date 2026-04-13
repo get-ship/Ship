@@ -14,8 +14,9 @@
     "./tokens.css": "./src/tokens.css"
   },
   "scripts": {
-    "build": "tsc -p tsconfig.build.json && pnpm manifest",
+    "build": "tsc -p tsconfig.build.json && pnpm manifest && pnpm catalog",
     "manifest": "custom-elements-manifest analyze --config custom-elements-manifest.config.mjs",
+    "catalog": "node scripts/generate-catalog.mjs",
     "bundle:elements": "esbuild src/web-components/index.ts --bundle --format=esm --target=es2020 --outfile=../../apps/shipd/assets/ship-elements.js --log-level=warning",
     "test": "vitest run",
     "test:watch": "vitest",

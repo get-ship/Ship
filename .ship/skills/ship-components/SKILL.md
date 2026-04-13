@@ -281,32 +281,41 @@ Then write the component, then write the tests, then wire the export
 through `packages/ui/src/web-components/index.ts` and
 `packages/ui/src/index.ts`.
 
-## Machine-readable catalog (Custom Elements Manifest)
+## Element catalog — two tiers
 
-The full, current list of `<ship-*>` elements — with every attribute's
-type and default, every slot, every event's `detail` shape, and every
-exposed CSS custom property — is generated at build time and lives at:
+### Compact catalog (agent default)
 
-- **Repo:** `packages/ui/custom-elements.json`
+Start here. Machine-generated, 66 elements in ~4KB. One line per
+element: tag, attrs (enums as `attr=a|b|c`, booleans as bare names),
+slots, events.
+
+- **Repo:** `packages/ui/catalog.md`
+- **Daemon URL:** `GET /api/runtime/assets/ship-elements.md`
+
+Agents authoring daemon views should read this first. It's small
+enough to sit in-context at all times. For ~95% of emission work
+(pick a tag, pick attr values, slot content) this is all you need.
+
+### Full CEM (depth reference)
+
+When you need types, defaults, descriptions, or CSS custom properties,
+load the full manifest.
+
+- **Repo:** `packages/ui/custom-elements.json` (~190KB)
 - **Daemon URL:** `GET /api/runtime/assets/custom-elements.json`
 
-This is the canonical reference for both humans and agents. IDE tooling
-(VS Code, JetBrains, lit-plugin, lsp-cem) consumes it for attribute
-autocomplete and type checking of HTML. Agents authoring daemon views
-should read it to ensure emitted markup is valid.
+IDE tooling (lit-plugin, lsp-cem, VS Code) consumes this for
+attribute autocomplete and type checking.
 
-**Regenerate** after any change to a `<ship-*>` element:
+### Regenerate
+
+Both files regenerate from source automatically on build:
 
 ```
-pnpm -F @ship/ui manifest
+pnpm -F @ship/ui build      # full pipeline: tsc → manifest → catalog
+pnpm -F @ship/ui manifest   # CEM only
+pnpm -F @ship/ui catalog    # compact catalog only (requires fresh CEM)
 ```
-
-The `build` script runs this automatically.
-
-The manifest is bundled into this skill's context so agents reading the
-skill can answer "what attrs does `ship-button` accept?" without a
-network round-trip. When the manifest diverges from what you see here,
-trust the manifest — it's the source of truth.
 
 ## When this charter changes
 
