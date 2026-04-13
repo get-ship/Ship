@@ -24,6 +24,7 @@ use crate::views_git_data::{
     CommitSummary, StatusFile, load_branch, load_commit_diff, load_log, load_status_buckets,
     load_working_diff, resolve_root,
 };
+use crate::views_git_diff::{ParsedDiff, parse_unified_diff};
 
 /// Query string for both shell + SSE endpoints.
 #[derive(Clone, Debug, Default, Deserialize)]
@@ -56,6 +57,7 @@ pub(crate) struct DiffView {
     pub short_sha: String,
     pub is_working: bool,
     pub diff_text: String,
+    pub parsed: ParsedDiff,
 }
 
 #[derive(Serialize)]
@@ -95,23 +97,28 @@ fn resolve_selected(params: &GitParams, root: &Path) -> Option<DiffView> {
         return None;
     }
     if raw.eq_ignore_ascii_case("WORKING") {
+        let diff_text = load_working_diff(root);
+        let parsed = parse_unified_diff(&diff_text);
         return Some(DiffView {
             sha: "WORKING".into(),
             short_sha: "working".into(),
             is_working: true,
-            diff_text: load_working_diff(root),
+            diff_text,
+            parsed,
         });
     }
     let diff_text = load_commit_diff(root, raw);
     if diff_text.is_empty() {
         return None;
     }
+    let parsed = parse_unified_diff(&diff_text);
     let short_sha: String = raw.chars().take(7).collect();
     Some(DiffView {
         sha: raw.to_string(),
         short_sha,
         is_working: false,
         diff_text,
+        parsed,
     })
 }
 

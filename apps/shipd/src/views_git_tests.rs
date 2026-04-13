@@ -6,6 +6,7 @@
 use super::*;
 use crate::views::templates;
 use crate::views_git_data::{CommitSummary, StatusFile, bucket_status_porcelain};
+use crate::views_git_diff::parse_unified_diff;
 
 fn empty_ctx() -> GitCtx {
     GitCtx {
@@ -124,15 +125,21 @@ fn shell_renders_recent_commits_section() {
 #[test]
 fn shell_switches_to_diff_viewer_on_selected_commit() {
     let mut ctx = empty_ctx();
+    let diff_text = "diff --git a/x b/x\n--- a/x\n+++ b/x\n@@ -1 +1 @@\n-old\n+new\n".to_string();
+    let parsed = parse_unified_diff(&diff_text);
     ctx.selected_commit = Some(DiffView {
         sha: "deadbeefcafebabe".into(),
         short_sha: "deadbee".into(),
         is_working: false,
-        diff_text: "diff --git a/x b/x\n@@ -1 +1 @@\n-old\n+new\n".into(),
+        diff_text,
+        parsed,
     });
     let html = templates::render("git/shell.html.j2", &ctx).expect("render");
     assert!(html.contains("Commit deadbee"));
-    assert!(html.contains("<ship-diff"));
+    assert!(html.contains("<ship-git-diff"), "emits structured diff: {html}");
+    assert!(html.contains("<ship-git-diff-file"));
+    assert!(html.contains("<ship-git-diff-line"));
+    assert!(html.contains("path=\"x\""));
     assert!(html.contains("Show working tree"));
     assert!(!html.contains("Recent Commits"));
 }
@@ -140,11 +147,14 @@ fn shell_switches_to_diff_viewer_on_selected_commit() {
 #[test]
 fn shell_working_tree_diff_hides_show_working_link() {
     let mut ctx = empty_ctx();
+    let diff_text = "diff --git a/x b/x\n".to_string();
+    let parsed = parse_unified_diff(&diff_text);
     ctx.selected_commit = Some(DiffView {
         sha: "WORKING".into(),
         short_sha: "working".into(),
         is_working: true,
-        diff_text: "diff --git a/x b/x\n".into(),
+        diff_text,
+        parsed,
     });
     let html = templates::render("git/shell.html.j2", &ctx).expect("render");
     assert!(html.contains("Working tree diff"));

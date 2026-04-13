@@ -1,6 +1,6 @@
 {#-
   Full-screen diff mode. Expects:
-    selected_commit: {sha, short_sha, label, is_working, diff_text, files[]}
+    selected_commit: {sha, short_sha, label, is_working, diff_text, parsed{files[],total_additions,total_deletions}}
     completed_jobs, daemon_origin, token, workspace_id
 -#}
 {%- set ws_qs = '' -%}
@@ -28,8 +28,29 @@
 {% include 'git/partials/review_banner.html.j2' %}
 
 <div class="ship-git-diff-body">
-  {% if selected_commit.diff_text %}
-    <ship-diff value="{{ selected_commit.diff_text }}"></ship-diff>
+  {% set parsed = selected_commit.parsed %}
+  {% if parsed and parsed.files and parsed.files | length > 0 %}
+    <ship-git-diff
+      files="{{ parsed.files | length }}"
+      additions="{{ parsed.total_additions }}"
+      deletions="{{ parsed.total_deletions }}">
+      {% for file in parsed.files %}
+        <ship-git-diff-file
+          path="{{ file.path }}"
+          additions="{{ file.additions }}"
+          deletions="{{ file.deletions }}">
+          {% for hunk in file.hunks %}
+            <ship-git-diff-hunk header="{{ hunk.header }}"></ship-git-diff-hunk>
+            {% for line in hunk.lines %}
+              <ship-git-diff-line
+                type="{{ line.kind }}"
+                old="{% if line.old_num %}{{ line.old_num }}{% endif %}"
+                new="{% if line.new_num %}{{ line.new_num }}{% endif %}">{{ line.content }}</ship-git-diff-line>
+            {% endfor %}
+          {% endfor %}
+        </ship-git-diff-file>
+      {% endfor %}
+    </ship-git-diff>
   {% else %}
     <ship-empty-state>
       <ship-icon slot="icon" name="check"></ship-icon>
