@@ -81,6 +81,7 @@ struct PipelinesCtx {
     defs: Vec<PipelineDef>,
     active_runs: Vec<RunView>,
     history_runs: Vec<RunView>,
+    daemon_origin: String,
 }
 
 fn run_state_token(s: &JobStatus) -> &'static str {
@@ -156,7 +157,7 @@ fn to_run_view(job: &JobRecord) -> RunView {
     }
 }
 
-fn build_ctx(params: &PipelinesParams) -> PipelinesCtx {
+fn build_ctx(params: &PipelinesParams, daemon_origin: String) -> PipelinesCtx {
     let defs = list_pipeline_defs();
     let runs = list_pipeline_runs(&params.filter);
     let (active, history) = partition_runs(runs);
@@ -204,15 +205,16 @@ fn build_ctx(params: &PipelinesParams) -> PipelinesCtx {
         defs,
         active_runs,
         history_runs,
+        daemon_origin,
     }
 }
 
 /// GET /api/runtime/view/pipelines — full shell, minijinja-rendered.
 pub async fn pipelines_shell(
-    State(_state): State<crate::rest_api::ApiState>,
+    State(state): State<crate::rest_api::ApiState>,
     Query(params): Query<PipelinesParams>,
 ) -> Html<String> {
-    let ctx = build_ctx(&params);
+    let ctx = build_ctx(&params, state.daemon_origin());
     let html = templates::render("pipelines/shell.html.j2", &ctx)
         .unwrap_or_else(|e| format!("<pre>shell render error: {e}</pre>"));
     Html(html)
@@ -251,13 +253,14 @@ pub async fn pipelines_sse(
         actor_id,
         kernel: state.kernel().clone(),
     };
+    let origin = state.daemon_origin();
 
     tokio::spawn(async move {
         let _guard = guard;
         let _hb = vs.heartbeat_every(Duration::from_secs(15));
 
         // Initial render.
-        let html = render_content(&params);
+        let html = render_content(&params, origin.clone());
         if vs.patch("#pipelines-content", html).await.is_err() {
             return;
         }
@@ -267,7 +270,7 @@ pub async fn pipelines_sse(
             if vs.is_closed() {
                 break;
             }
-            let html = render_content(&params);
+            let html = render_content(&params, origin.clone());
             if vs.patch("#pipelines-content", html).await.is_err() {
                 break;
             }
@@ -277,8 +280,8 @@ pub async fn pipelines_sse(
     sse
 }
 
-fn render_content(params: &PipelinesParams) -> String {
-    let ctx = build_ctx(params);
+fn render_content(params: &PipelinesParams, daemon_origin: String) -> String {
+    let ctx = build_ctx(params, daemon_origin);
     templates::render("pipelines/content.html.j2", &ctx)
         .unwrap_or_else(|e| format!("<div id=\"pipelines-content\"><pre>{e}</pre></div>"))
 }

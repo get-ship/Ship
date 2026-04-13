@@ -90,6 +90,7 @@ struct SpecsCtx {
     specs: Vec<SpecSummary>,
     selected: Option<SpecDetail>,
     pipelines: Vec<String>,
+    daemon_origin: String,
 }
 
 fn tone_for(status: &str) -> &'static str {
@@ -191,7 +192,7 @@ fn counts_of(all: &[Spec]) -> Counts {
     c
 }
 
-fn build_ctx(params: &SpecsParams) -> SpecsCtx {
+fn build_ctx(params: &SpecsParams, daemon_origin: String) -> SpecsCtx {
     let all = specs::list_specs().unwrap_or_default();
     let active_tab = params.active_tab();
     let selected_id = params.selected_id();
@@ -214,15 +215,16 @@ fn build_ctx(params: &SpecsParams) -> SpecsCtx {
         specs,
         selected,
         pipelines: list_pipelines(),
+        daemon_origin,
     }
 }
 
 /// GET /api/runtime/view/specs — full shell, minijinja-rendered.
 pub async fn specs_shell(
-    State(_state): State<crate::rest_api::ApiState>,
+    State(state): State<crate::rest_api::ApiState>,
     Query(params): Query<SpecsParams>,
 ) -> Html<String> {
-    let ctx = build_ctx(&params);
+    let ctx = build_ctx(&params, state.daemon_origin());
     let html = templates::render("specs/shell.html.j2", &ctx)
         .unwrap_or_else(|e| format!("<pre>shell render error: {e}</pre>"));
     Html(html)
@@ -261,13 +263,14 @@ pub async fn specs_view_sse(
         actor_id,
         kernel: state.kernel().clone(),
     };
+    let origin = state.daemon_origin();
 
     tokio::spawn(async move {
         let _guard = guard;
         let _hb = vs.heartbeat_every(Duration::from_secs(15));
 
         // Initial render.
-        let html = render_rail(&params);
+        let html = render_rail(&params, origin.clone());
         if vs.patch("#specs-rail-list", html).await.is_err() {
             return;
         }
@@ -277,7 +280,7 @@ pub async fn specs_view_sse(
             if vs.is_closed() {
                 break;
             }
-            let html = render_rail(&params);
+            let html = render_rail(&params, origin.clone());
             if vs.patch("#specs-rail-list", html).await.is_err() {
                 break;
             }
@@ -287,8 +290,8 @@ pub async fn specs_view_sse(
     sse
 }
 
-fn render_rail(params: &SpecsParams) -> String {
-    let ctx = build_ctx(params);
+fn render_rail(params: &SpecsParams, daemon_origin: String) -> String {
+    let ctx = build_ctx(params, daemon_origin);
     templates::render("specs/partials/rail.html.j2", &ctx)
         .unwrap_or_else(|e| format!("<div id=\"specs-rail-list-inner\"><pre>{e}</pre></div>"))
 }

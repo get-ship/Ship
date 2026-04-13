@@ -105,6 +105,7 @@ struct SettingsCtx {
     mcp_servers: Vec<McpView>,
     permissions: PermissionsView,
     integrations: Vec<IntegrationView>,
+    daemon_origin: String,
 }
 
 // ─── State helpers (inline per scope rules) ───────────────────────────────────
@@ -169,7 +170,7 @@ fn detect_integrations() -> Vec<IntegrationView> {
     ]
 }
 
-fn build_ctx(params: &SettingsParams) -> SettingsCtx {
+fn build_ctx(params: &SettingsParams, daemon_origin: String) -> SettingsCtx {
     let active_tab = params.active_tab();
     let cfg = load_project_config();
 
@@ -236,21 +237,22 @@ fn build_ctx(params: &SettingsParams) -> SettingsCtx {
         mcp_servers,
         permissions,
         integrations: detect_integrations(),
+        daemon_origin,
     }
 }
 
-fn render_content(params: &SettingsParams) -> String {
-    let ctx = build_ctx(params);
+fn render_content(params: &SettingsParams, daemon_origin: String) -> String {
+    let ctx = build_ctx(params, daemon_origin);
     templates::render("settings/content.html.j2", &ctx)
         .unwrap_or_else(|e| format!("<div id=\"settings-panel\"><pre>{e}</pre></div>"))
 }
 
 /// GET /api/runtime/view/settings — full shell, minijinja-rendered.
 pub async fn settings_shell(
-    State(_state): State<crate::rest_api::ApiState>,
+    State(state): State<crate::rest_api::ApiState>,
     Query(params): Query<SettingsParams>,
 ) -> Html<String> {
-    let ctx = build_ctx(&params);
+    let ctx = build_ctx(&params, state.daemon_origin());
     let html = templates::render("settings/shell.html.j2", &ctx)
         .unwrap_or_else(|e| format!("<pre>shell render error: {e}</pre>"));
     Html(html)
@@ -288,12 +290,13 @@ pub async fn settings_sse(
         actor_id,
         kernel: state.kernel().clone(),
     };
+    let origin = state.daemon_origin();
 
     tokio::spawn(async move {
         let _guard = guard;
         let _hb = vs.heartbeat_every(Duration::from_secs(15));
 
-        let html = render_content(&params);
+        let html = render_content(&params, origin.clone());
         if vs.patch("#settings-panel", html).await.is_err() {
             return;
         }
@@ -303,7 +306,7 @@ pub async fn settings_sse(
             if vs.is_closed() {
                 break;
             }
-            let html = render_content(&params);
+            let html = render_content(&params, origin.clone());
             if vs.patch("#settings-panel", html).await.is_err() {
                 break;
             }

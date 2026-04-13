@@ -63,9 +63,10 @@ pub(crate) struct GitCtx {
     pub commits: Vec<CommitSummary>,
     pub selected_commit: Option<CommitDetail>,
     pub error: Option<ErrorView>,
+    pub daemon_origin: String,
 }
 
-pub(crate) fn build_ctx(params: &GitParams, ship_dir: &Path) -> GitCtx {
+pub(crate) fn build_ctx(params: &GitParams, ship_dir: &Path, daemon_origin: String) -> GitCtx {
     let root = match resolve_root(ship_dir, params.workspace_id.as_deref()) {
         Ok(r) => r,
         Err(e) => {
@@ -80,6 +81,7 @@ pub(crate) fn build_ctx(params: &GitParams, ship_dir: &Path) -> GitCtx {
                     title: "Git unavailable".into(),
                     body: e,
                 }),
+                daemon_origin,
             };
         }
     };
@@ -101,6 +103,7 @@ pub(crate) fn build_ctx(params: &GitParams, ship_dir: &Path) -> GitCtx {
         commits,
         selected_commit,
         error: None,
+        daemon_origin,
     }
 }
 
@@ -109,7 +112,7 @@ pub async fn git_shell(
     State(state): State<crate::rest_api::ApiState>,
     Query(params): Query<GitParams>,
 ) -> Html<String> {
-    let ctx = build_ctx(&params, state.ship_dir());
+    let ctx = build_ctx(&params, state.ship_dir(), state.daemon_origin());
     let html = templates::render("git/shell.html.j2", &ctx)
         .unwrap_or_else(|e| format!("<pre>shell render error: {e}</pre>"));
     Html(html)
@@ -122,11 +125,12 @@ pub async fn git_sse(
 ) -> ViewSse {
     let (vs, sse) = ViewStream::new();
     let ship_dir = state.ship_dir().to_path_buf();
+    let origin = state.daemon_origin();
 
     tokio::spawn(async move {
         let _hb = vs.heartbeat_every(Duration::from_secs(15));
 
-        let html = render_content(&params, &ship_dir);
+        let html = render_content(&params, &ship_dir, origin.clone());
         if vs.patch("#git-main", html).await.is_err() {
             return;
         }
@@ -140,7 +144,7 @@ pub async fn git_sse(
             if vs.is_closed() {
                 break;
             }
-            let html = render_content(&params, &ship_dir);
+            let html = render_content(&params, &ship_dir, origin.clone());
             if vs.patch("#git-main", html).await.is_err() {
                 break;
             }
@@ -150,8 +154,8 @@ pub async fn git_sse(
     sse
 }
 
-fn render_content(params: &GitParams, ship_dir: &Path) -> String {
-    let ctx = build_ctx(params, ship_dir);
+fn render_content(params: &GitParams, ship_dir: &Path, daemon_origin: String) -> String {
+    let ctx = build_ctx(params, ship_dir, daemon_origin);
     templates::render("git/content.html.j2", &ctx)
         .unwrap_or_else(|e| format!("<div id=\"git-main\"><pre>{e}</pre></div>"))
 }

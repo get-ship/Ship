@@ -16,6 +16,7 @@ fn empty_ctx(active_tab: &str) -> GitCtx {
         commits: vec![],
         selected_commit: None,
         error: None,
+        daemon_origin: "http://localhost:9315".to_string(),
     }
 }
 
@@ -49,16 +50,19 @@ fn params_flatten_from_query() {
 }
 
 #[test]
-fn shell_renders_with_page_shell() {
+fn shell_renders_as_fragment_with_root_id() {
     let ctx = empty_ctx("log");
     let html = templates::render("git/shell.html.j2", &ctx).expect("render");
-    assert!(
-        html.contains("<div class=\"ship-view"),
-        "missing page shell wrapper: {html}"
-    );
+    assert!(!html.contains("<!DOCTYPE"), "shell must be a fragment: {html}");
+    assert!(!html.contains("<html"), "no <html>");
+    assert!(!html.contains("<body"), "no <body>");
+    assert!(html.contains("id=\"git-root\""), "missing root id: {html}");
     assert!(html.contains("<ship-tabs"), "missing ship-tabs: {html}");
     assert!(html.contains("git-layout"), "missing layout: {html}");
-    assert!(html.contains("main"));
+    assert!(
+        html.contains("http://localhost:9315/api/runtime/view/git"),
+        "expected absolute daemon URL: {html}"
+    );
 }
 
 #[test]

@@ -21,6 +21,7 @@ fn empty_ctx(active_tab: &str) -> PipelinesCtx {
         defs: vec![],
         active_runs: vec![],
         history_runs: vec![],
+        daemon_origin: "http://localhost:9315".to_string(),
     }
 }
 
@@ -60,12 +61,25 @@ fn filter_flattens_from_query() {
 }
 
 #[test]
-fn shell_renders_with_page_shell() {
+fn shell_renders_as_fragment_with_root_id() {
     let ctx = empty_ctx("active");
     let html = templates::render("pipelines/shell.html.j2", &ctx).expect("render");
-    assert!(html.contains("<div class=\"ship-view"), "missing page shell wrapper: {html}");
+    assert!(
+        !html.contains("<!DOCTYPE"),
+        "shell must be a fragment (no doctype): {html}"
+    );
+    assert!(!html.contains("<html"), "shell must not contain <html>");
+    assert!(!html.contains("<body"), "shell must not contain <body>");
+    assert!(
+        html.contains("id=\"pipelines-root\""),
+        "missing root id: {html}"
+    );
     assert!(html.contains("<ship-stat"), "missing ship-stat element: {html}");
     assert!(html.contains("<ship-tabs"), "missing ship-tabs element: {html}");
+    assert!(
+        html.contains("http://localhost:9315/api/runtime/view/pipelines"),
+        "expected absolute daemon URL baked in: {html}"
+    );
 }
 
 #[test]

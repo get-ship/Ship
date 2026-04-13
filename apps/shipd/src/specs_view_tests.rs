@@ -14,6 +14,7 @@ fn empty_ctx(active_tab: &str) -> SpecsCtx {
         specs: vec![],
         selected: None,
         pipelines: vec![],
+        daemon_origin: "http://localhost:9315".to_string(),
     }
 }
 
@@ -61,13 +62,20 @@ fn filter_flattens_from_query() {
 }
 
 #[test]
-fn shell_renders_with_page_shell() {
+fn shell_renders_as_fragment_with_root_id() {
     let ctx = empty_ctx("draft");
     let html = templates::render("specs/shell.html.j2", &ctx).expect("render");
-    assert!(html.contains("<div class=\"ship-view"), "missing page shell: {html}");
+    assert!(!html.contains("<!DOCTYPE"), "shell must be a fragment: {html}");
+    assert!(!html.contains("<html"), "no <html> in fragment");
+    assert!(!html.contains("<body"), "no <body> in fragment");
+    assert!(html.contains("id=\"specs-root\""), "missing root id: {html}");
     assert!(html.contains("<ship-tabs"), "missing tabs");
     assert!(html.contains("specs-layout"), "missing layout");
     assert!(html.contains("id=\"specs-main\""), "missing main pane anchor");
+    assert!(
+        html.contains("http://localhost:9315/api/runtime/view/specs"),
+        "expected absolute daemon URL: {html}"
+    );
 }
 
 #[test]
