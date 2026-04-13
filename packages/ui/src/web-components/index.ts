@@ -41,6 +41,11 @@ import './domain/ship-pipeline-dag'
 import './domain/ship-history-row'
 import './domain/ship-spec-row'
 
+// Observability, charts, utility (each subdir index registers its own)
+export * from './observability'
+export * from './charts'
+export * from './utility'
+
 export { ShipAlert } from './ship-alert'
 export { ShipAlertDialog } from './ship-alert-dialog'
 export { ShipBadge } from './ship-badge'

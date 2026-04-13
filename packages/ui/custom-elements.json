@@ -3288,6 +3288,1197 @@
     },
     {
       "kind": "javascript-module",
+      "path": "src/web-components/charts/ship-area-chart.ts",
+      "declarations": [
+        {
+          "kind": "class",
+          "description": "",
+          "name": "ShipAreaChart",
+          "members": [
+            {
+              "kind": "field",
+              "name": "series",
+              "privacy": "public",
+              "type": {
+                "text": "string"
+              },
+              "default": "''",
+              "attribute": "series",
+              "reflects": true
+            },
+            {
+              "kind": "field",
+              "name": "labels",
+              "privacy": "public",
+              "type": {
+                "text": "string"
+              },
+              "default": "''",
+              "attribute": "labels"
+            },
+            {
+              "kind": "field",
+              "name": "width",
+              "privacy": "public",
+              "type": {
+                "text": "number"
+              },
+              "default": "300",
+              "attribute": "width"
+            },
+            {
+              "kind": "field",
+              "name": "height",
+              "privacy": "public",
+              "type": {
+                "text": "number"
+              },
+              "default": "200",
+              "attribute": "height"
+            },
+            {
+              "kind": "field",
+              "name": "points",
+              "privacy": "public",
+              "type": {
+                "text": "boolean"
+              },
+              "default": "false",
+              "attribute": "points",
+              "reflects": true
+            },
+            {
+              "kind": "field",
+              "name": "grid",
+              "privacy": "public",
+              "type": {
+                "text": "boolean"
+              },
+              "default": "false",
+              "attribute": "grid",
+              "reflects": true
+            }
+          ],
+          "attributes": [
+            {
+              "name": "series",
+              "type": {
+                "text": "string"
+              },
+              "default": "''",
+              "fieldName": "series"
+            },
+            {
+              "name": "labels",
+              "type": {
+                "text": "string"
+              },
+              "default": "''",
+              "fieldName": "labels"
+            },
+            {
+              "name": "width",
+              "type": {
+                "text": "number"
+              },
+              "default": "300",
+              "fieldName": "width"
+            },
+            {
+              "name": "height",
+              "type": {
+                "text": "number"
+              },
+              "default": "200",
+              "fieldName": "height"
+            },
+            {
+              "name": "points",
+              "type": {
+                "text": "boolean"
+              },
+              "default": "false",
+              "fieldName": "points"
+            },
+            {
+              "name": "grid",
+              "type": {
+                "text": "boolean"
+              },
+              "default": "false",
+              "fieldName": "grid"
+            }
+          ],
+          "superclass": {
+            "name": "LitElement",
+            "package": "lit"
+          },
+          "tagName": "ship-area-chart",
+          "customElement": true
+        }
+      ],
+      "exports": [
+        {
+          "kind": "js",
+          "name": "ShipAreaChart",
+          "declaration": {
+            "name": "ShipAreaChart",
+            "module": "src/web-components/charts/ship-area-chart.ts"
+          }
+        },
+        {
+          "kind": "custom-element-definition",
+          "name": "ship-area-chart",
+          "declaration": {
+            "name": "ShipAreaChart",
+            "module": "src/web-components/charts/ship-area-chart.ts"
+          }
+        }
+      ]
+    },
+    {
+      "kind": "javascript-module",
+      "path": "src/web-components/charts/ship-bar-chart.ts",
+      "declarations": [
+        {
+          "kind": "class",
+          "description": "",
+          "name": "ShipBarChart",
+          "members": [
+            {
+              "kind": "field",
+              "name": "data",
+              "privacy": "public",
+              "type": {
+                "text": "string"
+              },
+              "default": "''",
+              "attribute": "data",
+              "reflects": true
+            },
+            {
+              "kind": "field",
+              "name": "labels",
+              "privacy": "public",
+              "type": {
+                "text": "string"
+              },
+              "default": "''",
+              "attribute": "labels"
+            },
+            {
+              "kind": "field",
+              "name": "tone",
+              "privacy": "public",
+              "type": {
+                "text": "string"
+              },
+              "default": "'primary'",
+              "attribute": "tone",
+              "reflects": true
+            },
+            {
+              "kind": "field",
+              "name": "orientation",
+              "privacy": "public",
+              "type": {
+                "text": "'vertical' | 'horizontal'"
+              },
+              "default": "'vertical'",
+              "attribute": "orientation",
+              "reflects": true
+            },
+            {
+              "kind": "field",
+              "name": "width",
+              "privacy": "public",
+              "type": {
+                "text": "number"
+              },
+              "default": "300",
+              "attribute": "width"
+            },
+            {
+              "kind": "field",
+              "name": "height",
+              "privacy": "public",
+              "type": {
+                "text": "number"
+              },
+              "default": "200",
+              "attribute": "height"
+            },
+            {
+              "kind": "field",
+              "name": "max",
+              "privacy": "public",
+              "type": {
+                "text": "number | null"
+              },
+              "default": "null",
+              "attribute": "max"
+            }
+          ],
+          "attributes": [
+            {
+              "name": "data",
+              "type": {
+                "text": "string"
+              },
+              "default": "''",
+              "fieldName": "data"
+            },
+            {
+              "name": "labels",
+              "type": {
+                "text": "string"
+              },
+              "default": "''",
+              "fieldName": "labels"
+            },
+            {
+              "name": "tone",
+              "type": {
+                "text": "string"
+              },
+              "default": "'primary'",
+              "fieldName": "tone"
+            },
+            {
+              "name": "orientation",
+              "type": {
+                "text": "'vertical' | 'horizontal'"
+              },
+              "default": "'vertical'",
+              "fieldName": "orientation"
+            },
+            {
+              "name": "width",
+              "type": {
+                "text": "number"
+              },
+              "default": "300",
+              "fieldName": "width"
+            },
+            {
+              "name": "height",
+              "type": {
+                "text": "number"
+              },
+              "default": "200",
+              "fieldName": "height"
+            },
+            {
+              "name": "max",
+              "type": {
+                "text": "number | null"
+              },
+              "default": "null",
+              "fieldName": "max"
+            }
+          ],
+          "superclass": {
+            "name": "LitElement",
+            "package": "lit"
+          },
+          "tagName": "ship-bar-chart",
+          "customElement": true
+        }
+      ],
+      "exports": [
+        {
+          "kind": "js",
+          "name": "ShipBarChart",
+          "declaration": {
+            "name": "ShipBarChart",
+            "module": "src/web-components/charts/ship-bar-chart.ts"
+          }
+        },
+        {
+          "kind": "custom-element-definition",
+          "name": "ship-bar-chart",
+          "declaration": {
+            "name": "ShipBarChart",
+            "module": "src/web-components/charts/ship-bar-chart.ts"
+          }
+        }
+      ]
+    },
+    {
+      "kind": "javascript-module",
+      "path": "src/web-components/charts/ship-donut.ts",
+      "declarations": [
+        {
+          "kind": "class",
+          "description": "",
+          "name": "ShipDonut",
+          "members": [
+            {
+              "kind": "field",
+              "name": "data",
+              "privacy": "public",
+              "type": {
+                "text": "string"
+              },
+              "default": "''",
+              "attribute": "data",
+              "reflects": true
+            },
+            {
+              "kind": "field",
+              "name": "size",
+              "privacy": "public",
+              "type": {
+                "text": "number"
+              },
+              "default": "120",
+              "attribute": "size"
+            },
+            {
+              "kind": "field",
+              "name": "thickness",
+              "privacy": "public",
+              "type": {
+                "text": "number"
+              },
+              "default": "16",
+              "attribute": "thickness"
+            }
+          ],
+          "attributes": [
+            {
+              "name": "data",
+              "type": {
+                "text": "string"
+              },
+              "default": "''",
+              "fieldName": "data"
+            },
+            {
+              "name": "size",
+              "type": {
+                "text": "number"
+              },
+              "default": "120",
+              "fieldName": "size"
+            },
+            {
+              "name": "thickness",
+              "type": {
+                "text": "number"
+              },
+              "default": "16",
+              "fieldName": "thickness"
+            }
+          ],
+          "superclass": {
+            "name": "LitElement",
+            "package": "lit"
+          },
+          "tagName": "ship-donut",
+          "customElement": true
+        }
+      ],
+      "exports": [
+        {
+          "kind": "js",
+          "name": "ShipDonut",
+          "declaration": {
+            "name": "ShipDonut",
+            "module": "src/web-components/charts/ship-donut.ts"
+          }
+        },
+        {
+          "kind": "custom-element-definition",
+          "name": "ship-donut",
+          "declaration": {
+            "name": "ShipDonut",
+            "module": "src/web-components/charts/ship-donut.ts"
+          }
+        }
+      ]
+    },
+    {
+      "kind": "javascript-module",
+      "path": "src/web-components/charts/ship-gauge.ts",
+      "declarations": [
+        {
+          "kind": "class",
+          "description": "",
+          "name": "ShipGauge",
+          "members": [
+            {
+              "kind": "field",
+              "name": "value",
+              "privacy": "public",
+              "type": {
+                "text": "number"
+              },
+              "default": "0",
+              "attribute": "value",
+              "reflects": true
+            },
+            {
+              "kind": "field",
+              "name": "min",
+              "privacy": "public",
+              "type": {
+                "text": "number"
+              },
+              "default": "0",
+              "attribute": "min"
+            },
+            {
+              "kind": "field",
+              "name": "max",
+              "privacy": "public",
+              "type": {
+                "text": "number"
+              },
+              "default": "100",
+              "attribute": "max"
+            },
+            {
+              "kind": "field",
+              "name": "tone",
+              "privacy": "public",
+              "type": {
+                "text": "string | null"
+              },
+              "default": "null",
+              "attribute": "tone",
+              "reflects": true
+            },
+            {
+              "kind": "field",
+              "name": "lowThreshold",
+              "privacy": "public",
+              "type": {
+                "text": "number | null"
+              },
+              "default": "null",
+              "attribute": "low-threshold"
+            },
+            {
+              "kind": "field",
+              "name": "highThreshold",
+              "privacy": "public",
+              "type": {
+                "text": "number | null"
+              },
+              "default": "null",
+              "attribute": "high-threshold"
+            },
+            {
+              "kind": "field",
+              "name": "size",
+              "privacy": "public",
+              "type": {
+                "text": "number"
+              },
+              "default": "140",
+              "attribute": "size"
+            },
+            {
+              "kind": "field",
+              "name": "thickness",
+              "privacy": "public",
+              "type": {
+                "text": "number"
+              },
+              "default": "12",
+              "attribute": "thickness"
+            },
+            {
+              "kind": "method",
+              "name": "resolveTone",
+              "privacy": "private",
+              "return": {
+                "type": {
+                  "text": "string"
+                }
+              }
+            }
+          ],
+          "attributes": [
+            {
+              "name": "value",
+              "type": {
+                "text": "number"
+              },
+              "default": "0",
+              "fieldName": "value"
+            },
+            {
+              "name": "min",
+              "type": {
+                "text": "number"
+              },
+              "default": "0",
+              "fieldName": "min"
+            },
+            {
+              "name": "max",
+              "type": {
+                "text": "number"
+              },
+              "default": "100",
+              "fieldName": "max"
+            },
+            {
+              "name": "tone",
+              "type": {
+                "text": "string | null"
+              },
+              "default": "null",
+              "fieldName": "tone"
+            },
+            {
+              "name": "low-threshold",
+              "type": {
+                "text": "number | null"
+              },
+              "default": "null",
+              "fieldName": "lowThreshold"
+            },
+            {
+              "name": "high-threshold",
+              "type": {
+                "text": "number | null"
+              },
+              "default": "null",
+              "fieldName": "highThreshold"
+            },
+            {
+              "name": "size",
+              "type": {
+                "text": "number"
+              },
+              "default": "140",
+              "fieldName": "size"
+            },
+            {
+              "name": "thickness",
+              "type": {
+                "text": "number"
+              },
+              "default": "12",
+              "fieldName": "thickness"
+            }
+          ],
+          "superclass": {
+            "name": "LitElement",
+            "package": "lit"
+          },
+          "tagName": "ship-gauge",
+          "customElement": true
+        }
+      ],
+      "exports": [
+        {
+          "kind": "js",
+          "name": "ShipGauge",
+          "declaration": {
+            "name": "ShipGauge",
+            "module": "src/web-components/charts/ship-gauge.ts"
+          }
+        },
+        {
+          "kind": "custom-element-definition",
+          "name": "ship-gauge",
+          "declaration": {
+            "name": "ShipGauge",
+            "module": "src/web-components/charts/ship-gauge.ts"
+          }
+        }
+      ]
+    },
+    {
+      "kind": "javascript-module",
+      "path": "src/web-components/charts/ship-heatmap.ts",
+      "declarations": [
+        {
+          "kind": "class",
+          "description": "",
+          "name": "ShipHeatmap",
+          "members": [
+            {
+              "kind": "field",
+              "name": "data",
+              "privacy": "public",
+              "type": {
+                "text": "string"
+              },
+              "default": "''",
+              "attribute": "data",
+              "reflects": true
+            },
+            {
+              "kind": "field",
+              "name": "rows",
+              "privacy": "public",
+              "type": {
+                "text": "string"
+              },
+              "default": "''",
+              "attribute": "rows"
+            },
+            {
+              "kind": "field",
+              "name": "cols",
+              "privacy": "public",
+              "type": {
+                "text": "string"
+              },
+              "default": "''",
+              "attribute": "cols"
+            },
+            {
+              "kind": "field",
+              "name": "tone",
+              "privacy": "public",
+              "type": {
+                "text": "string"
+              },
+              "default": "'primary'",
+              "attribute": "tone",
+              "reflects": true
+            }
+          ],
+          "attributes": [
+            {
+              "name": "data",
+              "type": {
+                "text": "string"
+              },
+              "default": "''",
+              "fieldName": "data"
+            },
+            {
+              "name": "rows",
+              "type": {
+                "text": "string"
+              },
+              "default": "''",
+              "fieldName": "rows"
+            },
+            {
+              "name": "cols",
+              "type": {
+                "text": "string"
+              },
+              "default": "''",
+              "fieldName": "cols"
+            },
+            {
+              "name": "tone",
+              "type": {
+                "text": "string"
+              },
+              "default": "'primary'",
+              "fieldName": "tone"
+            }
+          ],
+          "superclass": {
+            "name": "LitElement",
+            "package": "lit"
+          },
+          "tagName": "ship-heatmap",
+          "customElement": true
+        }
+      ],
+      "exports": [
+        {
+          "kind": "js",
+          "name": "ShipHeatmap",
+          "declaration": {
+            "name": "ShipHeatmap",
+            "module": "src/web-components/charts/ship-heatmap.ts"
+          }
+        },
+        {
+          "kind": "custom-element-definition",
+          "name": "ship-heatmap",
+          "declaration": {
+            "name": "ShipHeatmap",
+            "module": "src/web-components/charts/ship-heatmap.ts"
+          }
+        }
+      ]
+    },
+    {
+      "kind": "javascript-module",
+      "path": "src/web-components/charts/ship-line-chart.ts",
+      "declarations": [
+        {
+          "kind": "class",
+          "description": "",
+          "name": "ShipLineChart",
+          "members": [
+            {
+              "kind": "field",
+              "name": "series",
+              "privacy": "public",
+              "type": {
+                "text": "string"
+              },
+              "default": "''",
+              "attribute": "series",
+              "reflects": true
+            },
+            {
+              "kind": "field",
+              "name": "labels",
+              "privacy": "public",
+              "type": {
+                "text": "string"
+              },
+              "default": "''",
+              "attribute": "labels"
+            },
+            {
+              "kind": "field",
+              "name": "width",
+              "privacy": "public",
+              "type": {
+                "text": "number"
+              },
+              "default": "300",
+              "attribute": "width"
+            },
+            {
+              "kind": "field",
+              "name": "height",
+              "privacy": "public",
+              "type": {
+                "text": "number"
+              },
+              "default": "200",
+              "attribute": "height"
+            },
+            {
+              "kind": "field",
+              "name": "points",
+              "privacy": "public",
+              "type": {
+                "text": "boolean"
+              },
+              "default": "false",
+              "attribute": "points",
+              "reflects": true
+            },
+            {
+              "kind": "field",
+              "name": "grid",
+              "privacy": "public",
+              "type": {
+                "text": "boolean"
+              },
+              "default": "false",
+              "attribute": "grid",
+              "reflects": true
+            }
+          ],
+          "attributes": [
+            {
+              "name": "series",
+              "type": {
+                "text": "string"
+              },
+              "default": "''",
+              "fieldName": "series"
+            },
+            {
+              "name": "labels",
+              "type": {
+                "text": "string"
+              },
+              "default": "''",
+              "fieldName": "labels"
+            },
+            {
+              "name": "width",
+              "type": {
+                "text": "number"
+              },
+              "default": "300",
+              "fieldName": "width"
+            },
+            {
+              "name": "height",
+              "type": {
+                "text": "number"
+              },
+              "default": "200",
+              "fieldName": "height"
+            },
+            {
+              "name": "points",
+              "type": {
+                "text": "boolean"
+              },
+              "default": "false",
+              "fieldName": "points"
+            },
+            {
+              "name": "grid",
+              "type": {
+                "text": "boolean"
+              },
+              "default": "false",
+              "fieldName": "grid"
+            }
+          ],
+          "superclass": {
+            "name": "LitElement",
+            "package": "lit"
+          },
+          "tagName": "ship-line-chart",
+          "customElement": true
+        }
+      ],
+      "exports": [
+        {
+          "kind": "js",
+          "name": "ShipLineChart",
+          "declaration": {
+            "name": "ShipLineChart",
+            "module": "src/web-components/charts/ship-line-chart.ts"
+          }
+        },
+        {
+          "kind": "custom-element-definition",
+          "name": "ship-line-chart",
+          "declaration": {
+            "name": "ShipLineChart",
+            "module": "src/web-components/charts/ship-line-chart.ts"
+          }
+        }
+      ]
+    },
+    {
+      "kind": "javascript-module",
+      "path": "src/web-components/charts/ship-meter.ts",
+      "declarations": [
+        {
+          "kind": "class",
+          "description": "",
+          "name": "ShipMeter",
+          "members": [
+            {
+              "kind": "field",
+              "name": "segments",
+              "privacy": "public",
+              "type": {
+                "text": "string"
+              },
+              "default": "''",
+              "attribute": "segments",
+              "reflects": true
+            },
+            {
+              "kind": "field",
+              "name": "total",
+              "privacy": "public",
+              "type": {
+                "text": "number | null"
+              },
+              "default": "null",
+              "attribute": "total"
+            }
+          ],
+          "attributes": [
+            {
+              "name": "segments",
+              "type": {
+                "text": "string"
+              },
+              "default": "''",
+              "fieldName": "segments"
+            },
+            {
+              "name": "total",
+              "type": {
+                "text": "number | null"
+              },
+              "default": "null",
+              "fieldName": "total"
+            }
+          ],
+          "superclass": {
+            "name": "LitElement",
+            "package": "lit"
+          },
+          "tagName": "ship-meter",
+          "customElement": true
+        }
+      ],
+      "exports": [
+        {
+          "kind": "js",
+          "name": "ShipMeter",
+          "declaration": {
+            "name": "ShipMeter",
+            "module": "src/web-components/charts/ship-meter.ts"
+          }
+        },
+        {
+          "kind": "custom-element-definition",
+          "name": "ship-meter",
+          "declaration": {
+            "name": "ShipMeter",
+            "module": "src/web-components/charts/ship-meter.ts"
+          }
+        }
+      ]
+    },
+    {
+      "kind": "javascript-module",
+      "path": "src/web-components/charts/ship-progress-ring.ts",
+      "declarations": [
+        {
+          "kind": "class",
+          "description": "",
+          "name": "ShipProgressRing",
+          "members": [
+            {
+              "kind": "field",
+              "name": "value",
+              "privacy": "public",
+              "type": {
+                "text": "number"
+              },
+              "default": "0",
+              "attribute": "value",
+              "reflects": true
+            },
+            {
+              "kind": "field",
+              "name": "size",
+              "privacy": "public",
+              "type": {
+                "text": "number"
+              },
+              "default": "48",
+              "attribute": "size"
+            },
+            {
+              "kind": "field",
+              "name": "thickness",
+              "privacy": "public",
+              "type": {
+                "text": "number"
+              },
+              "default": "4",
+              "attribute": "thickness"
+            },
+            {
+              "kind": "field",
+              "name": "tone",
+              "privacy": "public",
+              "type": {
+                "text": "string"
+              },
+              "default": "'primary'",
+              "attribute": "tone",
+              "reflects": true
+            }
+          ],
+          "attributes": [
+            {
+              "name": "value",
+              "type": {
+                "text": "number"
+              },
+              "default": "0",
+              "fieldName": "value"
+            },
+            {
+              "name": "size",
+              "type": {
+                "text": "number"
+              },
+              "default": "48",
+              "fieldName": "size"
+            },
+            {
+              "name": "thickness",
+              "type": {
+                "text": "number"
+              },
+              "default": "4",
+              "fieldName": "thickness"
+            },
+            {
+              "name": "tone",
+              "type": {
+                "text": "string"
+              },
+              "default": "'primary'",
+              "fieldName": "tone"
+            }
+          ],
+          "superclass": {
+            "name": "LitElement",
+            "package": "lit"
+          },
+          "tagName": "ship-progress-ring",
+          "customElement": true
+        }
+      ],
+      "exports": [
+        {
+          "kind": "js",
+          "name": "ShipProgressRing",
+          "declaration": {
+            "name": "ShipProgressRing",
+            "module": "src/web-components/charts/ship-progress-ring.ts"
+          }
+        },
+        {
+          "kind": "custom-element-definition",
+          "name": "ship-progress-ring",
+          "declaration": {
+            "name": "ShipProgressRing",
+            "module": "src/web-components/charts/ship-progress-ring.ts"
+          }
+        }
+      ]
+    },
+    {
+      "kind": "javascript-module",
+      "path": "src/web-components/charts/ship-sparkline.ts",
+      "declarations": [
+        {
+          "kind": "class",
+          "description": "",
+          "name": "ShipSparkline",
+          "members": [
+            {
+              "kind": "field",
+              "name": "data",
+              "privacy": "public",
+              "type": {
+                "text": "string"
+              },
+              "default": "''",
+              "attribute": "data",
+              "reflects": true
+            },
+            {
+              "kind": "field",
+              "name": "tone",
+              "privacy": "public",
+              "type": {
+                "text": "string"
+              },
+              "default": "'primary'",
+              "attribute": "tone",
+              "reflects": true
+            },
+            {
+              "kind": "field",
+              "name": "width",
+              "privacy": "public",
+              "type": {
+                "text": "number"
+              },
+              "default": "80",
+              "attribute": "width"
+            },
+            {
+              "kind": "field",
+              "name": "height",
+              "privacy": "public",
+              "type": {
+                "text": "number"
+              },
+              "default": "20",
+              "attribute": "height"
+            },
+            {
+              "kind": "field",
+              "name": "fill",
+              "privacy": "public",
+              "type": {
+                "text": "boolean"
+              },
+              "default": "false",
+              "attribute": "fill",
+              "reflects": true
+            }
+          ],
+          "attributes": [
+            {
+              "name": "data",
+              "type": {
+                "text": "string"
+              },
+              "default": "''",
+              "fieldName": "data"
+            },
+            {
+              "name": "tone",
+              "type": {
+                "text": "string"
+              },
+              "default": "'primary'",
+              "fieldName": "tone"
+            },
+            {
+              "name": "width",
+              "type": {
+                "text": "number"
+              },
+              "default": "80",
+              "fieldName": "width"
+            },
+            {
+              "name": "height",
+              "type": {
+                "text": "number"
+              },
+              "default": "20",
+              "fieldName": "height"
+            },
+            {
+              "name": "fill",
+              "type": {
+                "text": "boolean"
+              },
+              "default": "false",
+              "fieldName": "fill"
+            }
+          ],
+          "superclass": {
+            "name": "LitElement",
+            "package": "lit"
+          },
+          "tagName": "ship-sparkline",
+          "customElement": true
+        }
+      ],
+      "exports": [
+        {
+          "kind": "js",
+          "name": "ShipSparkline",
+          "declaration": {
+            "name": "ShipSparkline",
+            "module": "src/web-components/charts/ship-sparkline.ts"
+          }
+        },
+        {
+          "kind": "custom-element-definition",
+          "name": "ship-sparkline",
+          "declaration": {
+            "name": "ShipSparkline",
+            "module": "src/web-components/charts/ship-sparkline.ts"
+          }
+        }
+      ]
+    },
+    {
+      "kind": "javascript-module",
       "path": "src/web-components/domain/ship-history-row.ts",
       "declarations": [
         {
@@ -3816,6 +5007,2178 @@
           "declaration": {
             "name": "ShipSpecRow",
             "module": "src/web-components/domain/ship-spec-row.ts"
+          }
+        }
+      ]
+    },
+    {
+      "kind": "javascript-module",
+      "path": "src/web-components/observability/ship-code.ts",
+      "declarations": [
+        {
+          "kind": "class",
+          "description": "",
+          "name": "ShipCode",
+          "members": [
+            {
+              "kind": "field",
+              "name": "language",
+              "privacy": "public",
+              "type": {
+                "text": "string | undefined"
+              },
+              "attribute": "lang",
+              "reflects": true
+            },
+            {
+              "kind": "field",
+              "name": "block",
+              "privacy": "public",
+              "type": {
+                "text": "boolean"
+              },
+              "default": "false",
+              "attribute": "block",
+              "reflects": true
+            }
+          ],
+          "attributes": [
+            {
+              "name": "lang",
+              "type": {
+                "text": "string | undefined"
+              },
+              "fieldName": "language"
+            },
+            {
+              "name": "block",
+              "type": {
+                "text": "boolean"
+              },
+              "default": "false",
+              "fieldName": "block"
+            }
+          ],
+          "superclass": {
+            "name": "LitElement",
+            "package": "lit"
+          },
+          "tagName": "ship-code",
+          "customElement": true
+        }
+      ],
+      "exports": [
+        {
+          "kind": "js",
+          "name": "ShipCode",
+          "declaration": {
+            "name": "ShipCode",
+            "module": "src/web-components/observability/ship-code.ts"
+          }
+        },
+        {
+          "kind": "custom-element-definition",
+          "name": "ship-code",
+          "declaration": {
+            "name": "ShipCode",
+            "module": "src/web-components/observability/ship-code.ts"
+          }
+        }
+      ]
+    },
+    {
+      "kind": "javascript-module",
+      "path": "src/web-components/observability/ship-copy-button.ts",
+      "declarations": [
+        {
+          "kind": "class",
+          "description": "",
+          "name": "ShipCopyButton",
+          "members": [
+            {
+              "kind": "field",
+              "name": "value",
+              "privacy": "public",
+              "type": {
+                "text": "string"
+              },
+              "default": "''",
+              "attribute": "value",
+              "reflects": true
+            },
+            {
+              "kind": "field",
+              "name": "label",
+              "privacy": "public",
+              "type": {
+                "text": "string"
+              },
+              "default": "'Copy'",
+              "attribute": "label",
+              "reflects": true
+            },
+            {
+              "kind": "field",
+              "name": "copied",
+              "privacy": "public",
+              "type": {
+                "text": "boolean"
+              },
+              "default": "false",
+              "attribute": "copied",
+              "reflects": true
+            },
+            {
+              "kind": "field",
+              "name": "_resetTimer",
+              "type": {
+                "text": "ReturnType<typeof setTimeout> | undefined"
+              },
+              "privacy": "private"
+            },
+            {
+              "kind": "method",
+              "name": "_copy",
+              "privacy": "private"
+            }
+          ],
+          "events": [
+            {
+              "name": "ship-copy",
+              "type": {
+                "text": "CustomEvent"
+              }
+            }
+          ],
+          "attributes": [
+            {
+              "name": "value",
+              "type": {
+                "text": "string"
+              },
+              "default": "''",
+              "fieldName": "value"
+            },
+            {
+              "name": "label",
+              "type": {
+                "text": "string"
+              },
+              "default": "'Copy'",
+              "fieldName": "label"
+            },
+            {
+              "name": "copied",
+              "type": {
+                "text": "boolean"
+              },
+              "default": "false",
+              "fieldName": "copied"
+            }
+          ],
+          "superclass": {
+            "name": "LitElement",
+            "package": "lit"
+          },
+          "tagName": "ship-copy-button",
+          "customElement": true
+        }
+      ],
+      "exports": [
+        {
+          "kind": "js",
+          "name": "ShipCopyButton",
+          "declaration": {
+            "name": "ShipCopyButton",
+            "module": "src/web-components/observability/ship-copy-button.ts"
+          }
+        },
+        {
+          "kind": "custom-element-definition",
+          "name": "ship-copy-button",
+          "declaration": {
+            "name": "ShipCopyButton",
+            "module": "src/web-components/observability/ship-copy-button.ts"
+          }
+        }
+      ]
+    },
+    {
+      "kind": "javascript-module",
+      "path": "src/web-components/observability/ship-diff.ts",
+      "declarations": [
+        {
+          "kind": "class",
+          "description": "",
+          "name": "ShipDiff",
+          "members": [
+            {
+              "kind": "field",
+              "name": "from",
+              "privacy": "public",
+              "type": {
+                "text": "string"
+              },
+              "default": "''",
+              "attribute": "from",
+              "reflects": true
+            },
+            {
+              "kind": "field",
+              "name": "to",
+              "privacy": "public",
+              "type": {
+                "text": "string"
+              },
+              "default": "''",
+              "attribute": "to",
+              "reflects": true
+            },
+            {
+              "kind": "field",
+              "name": "value",
+              "privacy": "public",
+              "type": {
+                "text": "string"
+              },
+              "default": "''",
+              "attribute": "value",
+              "reflects": true
+            },
+            {
+              "kind": "method",
+              "name": "_lines",
+              "privacy": "private",
+              "return": {
+                "type": {
+                  "text": "Line[]"
+                }
+              }
+            }
+          ],
+          "attributes": [
+            {
+              "name": "from",
+              "type": {
+                "text": "string"
+              },
+              "default": "''",
+              "fieldName": "from"
+            },
+            {
+              "name": "to",
+              "type": {
+                "text": "string"
+              },
+              "default": "''",
+              "fieldName": "to"
+            },
+            {
+              "name": "value",
+              "type": {
+                "text": "string"
+              },
+              "default": "''",
+              "fieldName": "value"
+            }
+          ],
+          "superclass": {
+            "name": "LitElement",
+            "package": "lit"
+          },
+          "tagName": "ship-diff",
+          "customElement": true
+        }
+      ],
+      "exports": [
+        {
+          "kind": "js",
+          "name": "ShipDiff",
+          "declaration": {
+            "name": "ShipDiff",
+            "module": "src/web-components/observability/ship-diff.ts"
+          }
+        },
+        {
+          "kind": "custom-element-definition",
+          "name": "ship-diff",
+          "declaration": {
+            "name": "ShipDiff",
+            "module": "src/web-components/observability/ship-diff.ts"
+          }
+        }
+      ]
+    },
+    {
+      "kind": "javascript-module",
+      "path": "src/web-components/observability/ship-event-row.ts",
+      "declarations": [
+        {
+          "kind": "class",
+          "description": "",
+          "name": "ShipEventRow",
+          "members": [
+            {
+              "kind": "field",
+              "name": "actor",
+              "privacy": "public",
+              "type": {
+                "text": "string | undefined"
+              },
+              "attribute": "actor",
+              "reflects": true
+            },
+            {
+              "kind": "field",
+              "name": "verb",
+              "privacy": "public",
+              "type": {
+                "text": "string | undefined"
+              },
+              "attribute": "verb",
+              "reflects": true
+            },
+            {
+              "kind": "field",
+              "name": "target",
+              "privacy": "public",
+              "type": {
+                "text": "string | undefined"
+              },
+              "attribute": "target",
+              "reflects": true
+            },
+            {
+              "kind": "field",
+              "name": "at",
+              "privacy": "public",
+              "type": {
+                "text": "string | undefined"
+              },
+              "attribute": "at",
+              "reflects": true
+            }
+          ],
+          "attributes": [
+            {
+              "name": "actor",
+              "type": {
+                "text": "string | undefined"
+              },
+              "fieldName": "actor"
+            },
+            {
+              "name": "verb",
+              "type": {
+                "text": "string | undefined"
+              },
+              "fieldName": "verb"
+            },
+            {
+              "name": "target",
+              "type": {
+                "text": "string | undefined"
+              },
+              "fieldName": "target"
+            },
+            {
+              "name": "at",
+              "type": {
+                "text": "string | undefined"
+              },
+              "fieldName": "at"
+            }
+          ],
+          "superclass": {
+            "name": "LitElement",
+            "package": "lit"
+          },
+          "tagName": "ship-event-row",
+          "customElement": true
+        }
+      ],
+      "exports": [
+        {
+          "kind": "js",
+          "name": "ShipEventRow",
+          "declaration": {
+            "name": "ShipEventRow",
+            "module": "src/web-components/observability/ship-event-row.ts"
+          }
+        },
+        {
+          "kind": "custom-element-definition",
+          "name": "ship-event-row",
+          "declaration": {
+            "name": "ShipEventRow",
+            "module": "src/web-components/observability/ship-event-row.ts"
+          }
+        }
+      ]
+    },
+    {
+      "kind": "javascript-module",
+      "path": "src/web-components/observability/ship-json-view.ts",
+      "declarations": [
+        {
+          "kind": "class",
+          "description": "",
+          "name": "ShipJsonView",
+          "members": [
+            {
+              "kind": "field",
+              "name": "data",
+              "privacy": "public",
+              "type": {
+                "text": "string"
+              },
+              "default": "''",
+              "attribute": "data",
+              "reflects": true
+            },
+            {
+              "kind": "field",
+              "name": "expanded",
+              "privacy": "public",
+              "type": {
+                "text": "boolean"
+              },
+              "default": "false",
+              "attribute": "expanded",
+              "reflects": true
+            },
+            {
+              "kind": "field",
+              "name": "depth",
+              "privacy": "public",
+              "type": {
+                "text": "number"
+              },
+              "default": "1",
+              "attribute": "depth",
+              "reflects": true
+            },
+            {
+              "kind": "method",
+              "name": "_renderValue",
+              "privacy": "private",
+              "return": {
+                "type": {
+                  "text": "unknown"
+                }
+              },
+              "parameters": [
+                {
+                  "name": "v",
+                  "type": {
+                    "text": "JsonValue"
+                  }
+                },
+                {
+                  "name": "key",
+                  "type": {
+                    "text": "string | null"
+                  }
+                },
+                {
+                  "name": "level",
+                  "type": {
+                    "text": "number"
+                  }
+                }
+              ]
+            }
+          ],
+          "attributes": [
+            {
+              "name": "data",
+              "type": {
+                "text": "string"
+              },
+              "default": "''",
+              "fieldName": "data"
+            },
+            {
+              "name": "expanded",
+              "type": {
+                "text": "boolean"
+              },
+              "default": "false",
+              "fieldName": "expanded"
+            },
+            {
+              "name": "depth",
+              "type": {
+                "text": "number"
+              },
+              "default": "1",
+              "fieldName": "depth"
+            }
+          ],
+          "superclass": {
+            "name": "LitElement",
+            "package": "lit"
+          },
+          "tagName": "ship-json-view",
+          "customElement": true
+        }
+      ],
+      "exports": [
+        {
+          "kind": "js",
+          "name": "ShipJsonView",
+          "declaration": {
+            "name": "ShipJsonView",
+            "module": "src/web-components/observability/ship-json-view.ts"
+          }
+        },
+        {
+          "kind": "custom-element-definition",
+          "name": "ship-json-view",
+          "declaration": {
+            "name": "ShipJsonView",
+            "module": "src/web-components/observability/ship-json-view.ts"
+          }
+        }
+      ]
+    },
+    {
+      "kind": "javascript-module",
+      "path": "src/web-components/observability/ship-log-line.ts",
+      "declarations": [
+        {
+          "kind": "class",
+          "description": "",
+          "name": "ShipLogLine",
+          "members": [
+            {
+              "kind": "field",
+              "name": "level",
+              "privacy": "public",
+              "type": {
+                "text": "Level"
+              },
+              "default": "'info'",
+              "attribute": "level",
+              "reflects": true
+            },
+            {
+              "kind": "field",
+              "name": "timestamp",
+              "privacy": "public",
+              "type": {
+                "text": "string | undefined"
+              },
+              "attribute": "timestamp",
+              "reflects": true
+            },
+            {
+              "kind": "field",
+              "name": "source",
+              "privacy": "public",
+              "type": {
+                "text": "string | undefined"
+              },
+              "attribute": "source",
+              "reflects": true
+            }
+          ],
+          "attributes": [
+            {
+              "name": "level",
+              "type": {
+                "text": "Level"
+              },
+              "default": "'info'",
+              "fieldName": "level"
+            },
+            {
+              "name": "timestamp",
+              "type": {
+                "text": "string | undefined"
+              },
+              "fieldName": "timestamp"
+            },
+            {
+              "name": "source",
+              "type": {
+                "text": "string | undefined"
+              },
+              "fieldName": "source"
+            }
+          ],
+          "superclass": {
+            "name": "LitElement",
+            "package": "lit"
+          },
+          "tagName": "ship-log-line",
+          "customElement": true
+        }
+      ],
+      "exports": [
+        {
+          "kind": "js",
+          "name": "ShipLogLine",
+          "declaration": {
+            "name": "ShipLogLine",
+            "module": "src/web-components/observability/ship-log-line.ts"
+          }
+        },
+        {
+          "kind": "custom-element-definition",
+          "name": "ship-log-line",
+          "declaration": {
+            "name": "ShipLogLine",
+            "module": "src/web-components/observability/ship-log-line.ts"
+          }
+        }
+      ]
+    },
+    {
+      "kind": "javascript-module",
+      "path": "src/web-components/observability/ship-markdown.ts",
+      "declarations": [
+        {
+          "kind": "function",
+          "name": "renderMarkdown",
+          "return": {
+            "type": {
+              "text": "string"
+            }
+          },
+          "parameters": [
+            {
+              "name": "src",
+              "type": {
+                "text": "string"
+              }
+            }
+          ]
+        },
+        {
+          "kind": "class",
+          "description": "",
+          "name": "ShipMarkdown",
+          "members": [
+            {
+              "kind": "field",
+              "name": "value",
+              "privacy": "public",
+              "type": {
+                "text": "string"
+              },
+              "default": "''",
+              "attribute": "value",
+              "reflects": true
+            }
+          ],
+          "attributes": [
+            {
+              "name": "value",
+              "type": {
+                "text": "string"
+              },
+              "default": "''",
+              "fieldName": "value"
+            }
+          ],
+          "superclass": {
+            "name": "LitElement",
+            "package": "lit"
+          },
+          "tagName": "ship-markdown",
+          "customElement": true
+        }
+      ],
+      "exports": [
+        {
+          "kind": "js",
+          "name": "renderMarkdown",
+          "declaration": {
+            "name": "renderMarkdown",
+            "module": "src/web-components/observability/ship-markdown.ts"
+          }
+        },
+        {
+          "kind": "js",
+          "name": "ShipMarkdown",
+          "declaration": {
+            "name": "ShipMarkdown",
+            "module": "src/web-components/observability/ship-markdown.ts"
+          }
+        },
+        {
+          "kind": "custom-element-definition",
+          "name": "ship-markdown",
+          "declaration": {
+            "name": "ShipMarkdown",
+            "module": "src/web-components/observability/ship-markdown.ts"
+          }
+        }
+      ]
+    },
+    {
+      "kind": "javascript-module",
+      "path": "src/web-components/observability/ship-table.ts",
+      "declarations": [
+        {
+          "kind": "class",
+          "description": "",
+          "name": "ShipTable",
+          "members": [
+            {
+              "kind": "field",
+              "name": "dense",
+              "privacy": "public",
+              "type": {
+                "text": "boolean"
+              },
+              "default": "false",
+              "attribute": "dense",
+              "reflects": true
+            },
+            {
+              "kind": "field",
+              "name": "hoverable",
+              "privacy": "public",
+              "type": {
+                "text": "boolean"
+              },
+              "default": "true",
+              "attribute": "hoverable",
+              "reflects": true
+            }
+          ],
+          "attributes": [
+            {
+              "name": "dense",
+              "type": {
+                "text": "boolean"
+              },
+              "default": "false",
+              "fieldName": "dense"
+            },
+            {
+              "name": "hoverable",
+              "type": {
+                "text": "boolean"
+              },
+              "default": "true",
+              "fieldName": "hoverable"
+            }
+          ],
+          "superclass": {
+            "name": "LitElement",
+            "package": "lit"
+          },
+          "tagName": "ship-table",
+          "customElement": true
+        }
+      ],
+      "exports": [
+        {
+          "kind": "js",
+          "name": "ShipTable",
+          "declaration": {
+            "name": "ShipTable",
+            "module": "src/web-components/observability/ship-table.ts"
+          }
+        },
+        {
+          "kind": "custom-element-definition",
+          "name": "ship-table",
+          "declaration": {
+            "name": "ShipTable",
+            "module": "src/web-components/observability/ship-table.ts"
+          }
+        }
+      ]
+    },
+    {
+      "kind": "javascript-module",
+      "path": "src/web-components/observability/ship-timeline.ts",
+      "declarations": [
+        {
+          "kind": "class",
+          "description": "",
+          "name": "ShipTimeline",
+          "members": [],
+          "superclass": {
+            "name": "LitElement",
+            "package": "lit"
+          },
+          "tagName": "ship-timeline",
+          "customElement": true
+        },
+        {
+          "kind": "class",
+          "description": "",
+          "name": "ShipTimelineItem",
+          "members": [
+            {
+              "kind": "field",
+              "name": "tone",
+              "privacy": "public",
+              "type": {
+                "text": "Tone"
+              },
+              "default": "'default'",
+              "attribute": "tone",
+              "reflects": true
+            },
+            {
+              "kind": "field",
+              "name": "at",
+              "privacy": "public",
+              "type": {
+                "text": "string | undefined"
+              },
+              "attribute": "at",
+              "reflects": true
+            },
+            {
+              "kind": "field",
+              "name": "interactive",
+              "privacy": "public",
+              "type": {
+                "text": "boolean"
+              },
+              "default": "false",
+              "attribute": "interactive",
+              "reflects": true
+            },
+            {
+              "kind": "method",
+              "name": "_emit",
+              "privacy": "private"
+            },
+            {
+              "kind": "field",
+              "name": "_onClick",
+              "privacy": "private"
+            },
+            {
+              "kind": "field",
+              "name": "_onKey",
+              "privacy": "private"
+            }
+          ],
+          "events": [
+            {
+              "name": "ship-select",
+              "type": {
+                "text": "CustomEvent"
+              }
+            }
+          ],
+          "attributes": [
+            {
+              "name": "tone",
+              "type": {
+                "text": "Tone"
+              },
+              "default": "'default'",
+              "fieldName": "tone"
+            },
+            {
+              "name": "at",
+              "type": {
+                "text": "string | undefined"
+              },
+              "fieldName": "at"
+            },
+            {
+              "name": "interactive",
+              "type": {
+                "text": "boolean"
+              },
+              "default": "false",
+              "fieldName": "interactive"
+            }
+          ],
+          "superclass": {
+            "name": "LitElement",
+            "package": "lit"
+          },
+          "tagName": "ship-timeline-item",
+          "customElement": true
+        }
+      ],
+      "exports": [
+        {
+          "kind": "js",
+          "name": "ShipTimeline",
+          "declaration": {
+            "name": "ShipTimeline",
+            "module": "src/web-components/observability/ship-timeline.ts"
+          }
+        },
+        {
+          "kind": "js",
+          "name": "ShipTimelineItem",
+          "declaration": {
+            "name": "ShipTimelineItem",
+            "module": "src/web-components/observability/ship-timeline.ts"
+          }
+        },
+        {
+          "kind": "custom-element-definition",
+          "name": "ship-timeline",
+          "declaration": {
+            "name": "ShipTimeline",
+            "module": "src/web-components/observability/ship-timeline.ts"
+          }
+        },
+        {
+          "kind": "custom-element-definition",
+          "name": "ship-timeline-item",
+          "declaration": {
+            "name": "ShipTimelineItem",
+            "module": "src/web-components/observability/ship-timeline.ts"
+          }
+        }
+      ]
+    },
+    {
+      "kind": "javascript-module",
+      "path": "src/web-components/observability/ship-timestamp.ts",
+      "declarations": [
+        {
+          "kind": "function",
+          "name": "formatRelative",
+          "return": {
+            "type": {
+              "text": "string"
+            }
+          },
+          "parameters": [
+            {
+              "name": "iso",
+              "type": {
+                "text": "string"
+              }
+            },
+            {
+              "name": "now",
+              "default": "Date.now()"
+            }
+          ]
+        },
+        {
+          "kind": "class",
+          "description": "",
+          "name": "ShipTimestamp",
+          "members": [
+            {
+              "kind": "field",
+              "name": "value",
+              "privacy": "public",
+              "type": {
+                "text": "string"
+              },
+              "default": "''",
+              "attribute": "value",
+              "reflects": true
+            },
+            {
+              "kind": "field",
+              "name": "format",
+              "privacy": "public",
+              "type": {
+                "text": "Format"
+              },
+              "default": "'relative'",
+              "attribute": "format",
+              "reflects": true
+            },
+            {
+              "kind": "field",
+              "name": "_timer",
+              "type": {
+                "text": "ReturnType<typeof setInterval> | undefined"
+              },
+              "privacy": "private"
+            }
+          ],
+          "attributes": [
+            {
+              "name": "value",
+              "type": {
+                "text": "string"
+              },
+              "default": "''",
+              "fieldName": "value"
+            },
+            {
+              "name": "format",
+              "type": {
+                "text": "Format"
+              },
+              "default": "'relative'",
+              "fieldName": "format"
+            }
+          ],
+          "superclass": {
+            "name": "LitElement",
+            "package": "lit"
+          },
+          "tagName": "ship-timestamp",
+          "customElement": true
+        }
+      ],
+      "exports": [
+        {
+          "kind": "js",
+          "name": "formatRelative",
+          "declaration": {
+            "name": "formatRelative",
+            "module": "src/web-components/observability/ship-timestamp.ts"
+          }
+        },
+        {
+          "kind": "js",
+          "name": "ShipTimestamp",
+          "declaration": {
+            "name": "ShipTimestamp",
+            "module": "src/web-components/observability/ship-timestamp.ts"
+          }
+        },
+        {
+          "kind": "custom-element-definition",
+          "name": "ship-timestamp",
+          "declaration": {
+            "name": "ShipTimestamp",
+            "module": "src/web-components/observability/ship-timestamp.ts"
+          }
+        }
+      ]
+    },
+    {
+      "kind": "javascript-module",
+      "path": "src/web-components/observability/ship-tree-view.ts",
+      "declarations": [
+        {
+          "kind": "class",
+          "description": "",
+          "name": "ShipTreeView",
+          "members": [],
+          "superclass": {
+            "name": "LitElement",
+            "package": "lit"
+          },
+          "tagName": "ship-tree-view",
+          "customElement": true
+        },
+        {
+          "kind": "class",
+          "description": "",
+          "name": "ShipTreeNode",
+          "members": [
+            {
+              "kind": "field",
+              "name": "label",
+              "privacy": "public",
+              "type": {
+                "text": "string"
+              },
+              "default": "''",
+              "attribute": "label",
+              "reflects": true
+            },
+            {
+              "kind": "field",
+              "name": "expanded",
+              "privacy": "public",
+              "type": {
+                "text": "boolean"
+              },
+              "default": "false",
+              "attribute": "expanded",
+              "reflects": true
+            },
+            {
+              "kind": "field",
+              "name": "selected",
+              "privacy": "public",
+              "type": {
+                "text": "boolean"
+              },
+              "default": "false",
+              "attribute": "selected",
+              "reflects": true
+            },
+            {
+              "kind": "field",
+              "name": "leaf",
+              "privacy": "public",
+              "type": {
+                "text": "boolean"
+              },
+              "default": "false",
+              "attribute": "leaf",
+              "reflects": true
+            },
+            {
+              "kind": "field",
+              "name": "_toggle",
+              "privacy": "private"
+            },
+            {
+              "kind": "field",
+              "name": "_select",
+              "privacy": "private"
+            },
+            {
+              "kind": "field",
+              "name": "_onKey",
+              "privacy": "private"
+            }
+          ],
+          "attributes": [
+            {
+              "name": "label",
+              "type": {
+                "text": "string"
+              },
+              "default": "''",
+              "fieldName": "label"
+            },
+            {
+              "name": "expanded",
+              "type": {
+                "text": "boolean"
+              },
+              "default": "false",
+              "fieldName": "expanded"
+            },
+            {
+              "name": "selected",
+              "type": {
+                "text": "boolean"
+              },
+              "default": "false",
+              "fieldName": "selected"
+            },
+            {
+              "name": "leaf",
+              "type": {
+                "text": "boolean"
+              },
+              "default": "false",
+              "fieldName": "leaf"
+            }
+          ],
+          "superclass": {
+            "name": "LitElement",
+            "package": "lit"
+          },
+          "tagName": "ship-tree-node",
+          "customElement": true
+        }
+      ],
+      "exports": [
+        {
+          "kind": "js",
+          "name": "ShipTreeView",
+          "declaration": {
+            "name": "ShipTreeView",
+            "module": "src/web-components/observability/ship-tree-view.ts"
+          }
+        },
+        {
+          "kind": "js",
+          "name": "ShipTreeNode",
+          "declaration": {
+            "name": "ShipTreeNode",
+            "module": "src/web-components/observability/ship-tree-view.ts"
+          }
+        },
+        {
+          "kind": "custom-element-definition",
+          "name": "ship-tree-view",
+          "declaration": {
+            "name": "ShipTreeView",
+            "module": "src/web-components/observability/ship-tree-view.ts"
+          }
+        },
+        {
+          "kind": "custom-element-definition",
+          "name": "ship-tree-node",
+          "declaration": {
+            "name": "ShipTreeNode",
+            "module": "src/web-components/observability/ship-tree-view.ts"
+          }
+        }
+      ]
+    },
+    {
+      "kind": "javascript-module",
+      "path": "src/web-components/utility/ship-avatar.ts",
+      "declarations": [
+        {
+          "kind": "function",
+          "name": "initialsFromName",
+          "return": {
+            "type": {
+              "text": "string"
+            }
+          },
+          "parameters": [
+            {
+              "name": "name",
+              "type": {
+                "text": "string"
+              }
+            }
+          ]
+        },
+        {
+          "kind": "class",
+          "description": "",
+          "name": "ShipAvatar",
+          "members": [
+            {
+              "kind": "field",
+              "name": "src",
+              "privacy": "public",
+              "type": {
+                "text": "string"
+              },
+              "default": "''",
+              "attribute": "src"
+            },
+            {
+              "kind": "field",
+              "name": "name",
+              "privacy": "public",
+              "type": {
+                "text": "string"
+              },
+              "default": "''",
+              "attribute": "name"
+            },
+            {
+              "kind": "field",
+              "name": "size",
+              "privacy": "public",
+              "type": {
+                "text": "AvatarSize"
+              },
+              "default": "'md'",
+              "attribute": "size",
+              "reflects": true
+            },
+            {
+              "kind": "field",
+              "name": "tone",
+              "privacy": "public",
+              "type": {
+                "text": "Tone"
+              },
+              "default": "'muted'",
+              "attribute": "tone",
+              "reflects": true
+            },
+            {
+              "kind": "field",
+              "name": "_errored",
+              "privacy": "private",
+              "type": {
+                "text": "boolean"
+              },
+              "default": "false",
+              "attribute": "_errored"
+            },
+            {
+              "kind": "field",
+              "name": "onError",
+              "privacy": "private"
+            }
+          ],
+          "attributes": [
+            {
+              "name": "src",
+              "type": {
+                "text": "string"
+              },
+              "default": "''",
+              "fieldName": "src"
+            },
+            {
+              "name": "name",
+              "type": {
+                "text": "string"
+              },
+              "default": "''",
+              "fieldName": "name"
+            },
+            {
+              "name": "size",
+              "type": {
+                "text": "AvatarSize"
+              },
+              "default": "'md'",
+              "fieldName": "size"
+            },
+            {
+              "name": "tone",
+              "type": {
+                "text": "Tone"
+              },
+              "default": "'muted'",
+              "fieldName": "tone"
+            },
+            {
+              "name": "_errored",
+              "type": {
+                "text": "boolean"
+              },
+              "default": "false",
+              "fieldName": "_errored"
+            }
+          ],
+          "superclass": {
+            "name": "LitElement",
+            "package": "lit"
+          },
+          "tagName": "ship-avatar",
+          "customElement": true
+        }
+      ],
+      "exports": [
+        {
+          "kind": "js",
+          "name": "initialsFromName",
+          "declaration": {
+            "name": "initialsFromName",
+            "module": "src/web-components/utility/ship-avatar.ts"
+          }
+        },
+        {
+          "kind": "js",
+          "name": "ShipAvatar",
+          "declaration": {
+            "name": "ShipAvatar",
+            "module": "src/web-components/utility/ship-avatar.ts"
+          }
+        },
+        {
+          "kind": "custom-element-definition",
+          "name": "ship-avatar",
+          "declaration": {
+            "name": "ShipAvatar",
+            "module": "src/web-components/utility/ship-avatar.ts"
+          }
+        }
+      ]
+    },
+    {
+      "kind": "javascript-module",
+      "path": "src/web-components/utility/ship-breadcrumb.ts",
+      "declarations": [
+        {
+          "kind": "class",
+          "description": "",
+          "name": "ShipBreadcrumbItem",
+          "members": [
+            {
+              "kind": "field",
+              "name": "href",
+              "privacy": "public",
+              "type": {
+                "text": "string"
+              },
+              "default": "''",
+              "attribute": "href"
+            },
+            {
+              "kind": "field",
+              "name": "active",
+              "privacy": "public",
+              "type": {
+                "text": "boolean"
+              },
+              "default": "false",
+              "attribute": "active",
+              "reflects": true
+            }
+          ],
+          "attributes": [
+            {
+              "name": "href",
+              "type": {
+                "text": "string"
+              },
+              "default": "''",
+              "fieldName": "href"
+            },
+            {
+              "name": "active",
+              "type": {
+                "text": "boolean"
+              },
+              "default": "false",
+              "fieldName": "active"
+            }
+          ],
+          "superclass": {
+            "name": "LitElement",
+            "package": "lit"
+          },
+          "tagName": "ship-breadcrumb-item",
+          "customElement": true
+        },
+        {
+          "kind": "class",
+          "description": "",
+          "name": "ShipBreadcrumb",
+          "members": [
+            {
+              "kind": "field",
+              "name": "items",
+              "type": {
+                "text": "ShipBreadcrumbItem[]"
+              },
+              "privacy": "private",
+              "readonly": true
+            },
+            {
+              "kind": "field",
+              "name": "_observer",
+              "type": {
+                "text": "MutationObserver | null"
+              },
+              "privacy": "private",
+              "default": "null"
+            }
+          ],
+          "superclass": {
+            "name": "LitElement",
+            "package": "lit"
+          },
+          "tagName": "ship-breadcrumb",
+          "customElement": true
+        }
+      ],
+      "exports": [
+        {
+          "kind": "js",
+          "name": "ShipBreadcrumbItem",
+          "declaration": {
+            "name": "ShipBreadcrumbItem",
+            "module": "src/web-components/utility/ship-breadcrumb.ts"
+          }
+        },
+        {
+          "kind": "js",
+          "name": "ShipBreadcrumb",
+          "declaration": {
+            "name": "ShipBreadcrumb",
+            "module": "src/web-components/utility/ship-breadcrumb.ts"
+          }
+        },
+        {
+          "kind": "custom-element-definition",
+          "name": "ship-breadcrumb-item",
+          "declaration": {
+            "name": "ShipBreadcrumbItem",
+            "module": "src/web-components/utility/ship-breadcrumb.ts"
+          }
+        },
+        {
+          "kind": "custom-element-definition",
+          "name": "ship-breadcrumb",
+          "declaration": {
+            "name": "ShipBreadcrumb",
+            "module": "src/web-components/utility/ship-breadcrumb.ts"
+          }
+        }
+      ]
+    },
+    {
+      "kind": "javascript-module",
+      "path": "src/web-components/utility/ship-chip.ts",
+      "declarations": [
+        {
+          "kind": "class",
+          "description": "",
+          "name": "ShipChip",
+          "members": [
+            {
+              "kind": "field",
+              "name": "tone",
+              "privacy": "public",
+              "type": {
+                "text": "Tone"
+              },
+              "default": "'muted'",
+              "attribute": "tone",
+              "reflects": true
+            },
+            {
+              "kind": "field",
+              "name": "size",
+              "privacy": "public",
+              "type": {
+                "text": "'sm' | 'md'"
+              },
+              "default": "'md'",
+              "attribute": "size",
+              "reflects": true
+            },
+            {
+              "kind": "field",
+              "name": "removable",
+              "privacy": "public",
+              "type": {
+                "text": "boolean"
+              },
+              "default": "false",
+              "attribute": "removable",
+              "reflects": true
+            },
+            {
+              "kind": "field",
+              "name": "selected",
+              "privacy": "public",
+              "type": {
+                "text": "boolean"
+              },
+              "default": "false",
+              "attribute": "selected",
+              "reflects": true
+            },
+            {
+              "kind": "method",
+              "name": "onRemove",
+              "privacy": "private",
+              "parameters": [
+                {
+                  "name": "e",
+                  "type": {
+                    "text": "Event"
+                  }
+                }
+              ]
+            }
+          ],
+          "events": [
+            {
+              "name": "ship-remove",
+              "type": {
+                "text": "CustomEvent"
+              }
+            }
+          ],
+          "attributes": [
+            {
+              "name": "tone",
+              "type": {
+                "text": "Tone"
+              },
+              "default": "'muted'",
+              "fieldName": "tone"
+            },
+            {
+              "name": "size",
+              "type": {
+                "text": "'sm' | 'md'"
+              },
+              "default": "'md'",
+              "fieldName": "size"
+            },
+            {
+              "name": "removable",
+              "type": {
+                "text": "boolean"
+              },
+              "default": "false",
+              "fieldName": "removable"
+            },
+            {
+              "name": "selected",
+              "type": {
+                "text": "boolean"
+              },
+              "default": "false",
+              "fieldName": "selected"
+            }
+          ],
+          "superclass": {
+            "name": "LitElement",
+            "package": "lit"
+          },
+          "tagName": "ship-chip",
+          "customElement": true
+        }
+      ],
+      "exports": [
+        {
+          "kind": "js",
+          "name": "ShipChip",
+          "declaration": {
+            "name": "ShipChip",
+            "module": "src/web-components/utility/ship-chip.ts"
+          }
+        },
+        {
+          "kind": "custom-element-definition",
+          "name": "ship-chip",
+          "declaration": {
+            "name": "ShipChip",
+            "module": "src/web-components/utility/ship-chip.ts"
+          }
+        }
+      ]
+    },
+    {
+      "kind": "javascript-module",
+      "path": "src/web-components/utility/ship-icon.ts",
+      "declarations": [
+        {
+          "kind": "variable",
+          "name": "ICONS",
+          "type": {
+            "text": "Record<string, string>"
+          },
+          "default": "{ 'chevron-down': 'M6 9l6 6 6-6', 'chevron-right': 'M9 6l6 6-6 6', 'chevron-left': 'M15 6l-6 6 6 6', 'chevron-up': 'M6 15l6-6 6 6', check: 'M20 6L9 17l-5-5', x: 'M18 6L6 18M6 6l12 12', plus: 'M12 5v14M5 12h14', minus: 'M5 12h14', search: 'M11 4a7 7 0 100 14 7 7 0 000-14zM21 21l-4.3-4.3', 'alert-circle': 'M12 2a10 10 0 100 20 10 10 0 000-20zM12 8v4M12 16h.01', info: 'M12 2a10 10 0 100 20 10 10 0 000-20zM12 16v-4M12 8h.01', star: 'M12 2l3.09 6.26L22 9.27l-5 4.87 1.18 6.88L12 17.77l-6.18 3.25L7 14.14 2 9.27l6.91-1.01L12 2z', folder: 'M3 7a2 2 0 012-2h4l2 2h8a2 2 0 012 2v9a2 2 0 01-2 2H5a2 2 0 01-2-2V7z', file: 'M14 2H6a2 2 0 00-2 2v16a2 2 0 002 2h12a2 2 0 002-2V8l-6-6zM14 2v6h6', trash: 'M3 6h18M8 6V4a2 2 0 012-2h4a2 2 0 012 2v2M6 6l1 14a2 2 0 002 2h6a2 2 0 002-2l1-14', edit: 'M11 4H4a2 2 0 00-2 2v14a2 2 0 002 2h14a2 2 0 002-2v-7M18.5 2.5a2.12 2.12 0 113 3L12 15l-4 1 1-4 9.5-9.5z', copy: 'M9 9h10a2 2 0 012 2v10a2 2 0 01-2 2H9a2 2 0 01-2-2V11a2 2 0 012-2zM5 15H4a2 2 0 01-2-2V3a2 2 0 012-2h10a2 2 0 012 2v1', 'external-link': 'M18 13v6a2 2 0 01-2 2H5a2 2 0 01-2-2V8a2 2 0 012-2h6M15 3h6v6M10 14L21 3', 'arrow-up': 'M12 19V5M5 12l7-7 7 7', 'arrow-down': 'M12 5v14M19 12l-7 7-7-7', 'arrow-left': 'M19 12H5M12 19l-7-7 7-7', 'arrow-right': 'M5 12h14M12 5l7 7-7 7', sparkles: 'M12 3l2 5 5 2-5 2-2 5-2-5-5-2 5-2 2-5zM19 14l1 2 2 1-2 1-1 2-1-2-2-1 2-1 1-2z', }"
+        },
+        {
+          "kind": "class",
+          "description": "",
+          "name": "ShipIcon",
+          "members": [
+            {
+              "kind": "field",
+              "name": "name",
+              "privacy": "public",
+              "type": {
+                "text": "string"
+              },
+              "default": "''",
+              "attribute": "name",
+              "reflects": true
+            },
+            {
+              "kind": "field",
+              "name": "size",
+              "privacy": "public",
+              "type": {
+                "text": "Size"
+              },
+              "default": "'md'",
+              "attribute": "size",
+              "reflects": true
+            },
+            {
+              "kind": "field",
+              "name": "tone",
+              "privacy": "public",
+              "type": {
+                "text": "Tone"
+              },
+              "default": "'default'",
+              "attribute": "tone",
+              "reflects": true
+            }
+          ],
+          "attributes": [
+            {
+              "name": "name",
+              "type": {
+                "text": "string"
+              },
+              "default": "''",
+              "fieldName": "name"
+            },
+            {
+              "name": "size",
+              "type": {
+                "text": "Size"
+              },
+              "default": "'md'",
+              "fieldName": "size"
+            },
+            {
+              "name": "tone",
+              "type": {
+                "text": "Tone"
+              },
+              "default": "'default'",
+              "fieldName": "tone"
+            }
+          ],
+          "superclass": {
+            "name": "LitElement",
+            "package": "lit"
+          },
+          "tagName": "ship-icon",
+          "customElement": true
+        }
+      ],
+      "exports": [
+        {
+          "kind": "js",
+          "name": "ICONS",
+          "declaration": {
+            "name": "ICONS",
+            "module": "src/web-components/utility/ship-icon.ts"
+          }
+        },
+        {
+          "kind": "js",
+          "name": "ShipIcon",
+          "declaration": {
+            "name": "ShipIcon",
+            "module": "src/web-components/utility/ship-icon.ts"
+          }
+        },
+        {
+          "kind": "custom-element-definition",
+          "name": "ship-icon",
+          "declaration": {
+            "name": "ShipIcon",
+            "module": "src/web-components/utility/ship-icon.ts"
+          }
+        }
+      ]
+    },
+    {
+      "kind": "javascript-module",
+      "path": "src/web-components/utility/ship-kbd.ts",
+      "declarations": [
+        {
+          "kind": "class",
+          "description": "",
+          "name": "ShipKbd",
+          "members": [
+            {
+              "kind": "field",
+              "name": "keys",
+              "privacy": "public",
+              "type": {
+                "text": "string"
+              },
+              "default": "''",
+              "attribute": "keys"
+            }
+          ],
+          "attributes": [
+            {
+              "name": "keys",
+              "type": {
+                "text": "string"
+              },
+              "default": "''",
+              "fieldName": "keys"
+            }
+          ],
+          "superclass": {
+            "name": "LitElement",
+            "package": "lit"
+          },
+          "tagName": "ship-kbd",
+          "customElement": true
+        }
+      ],
+      "exports": [
+        {
+          "kind": "js",
+          "name": "ShipKbd",
+          "declaration": {
+            "name": "ShipKbd",
+            "module": "src/web-components/utility/ship-kbd.ts"
+          }
+        },
+        {
+          "kind": "custom-element-definition",
+          "name": "ship-kbd",
+          "declaration": {
+            "name": "ShipKbd",
+            "module": "src/web-components/utility/ship-kbd.ts"
+          }
+        }
+      ]
+    },
+    {
+      "kind": "javascript-module",
+      "path": "src/web-components/utility/ship-link.ts",
+      "declarations": [
+        {
+          "kind": "class",
+          "description": "",
+          "name": "ShipLink",
+          "members": [
+            {
+              "kind": "field",
+              "name": "href",
+              "privacy": "public",
+              "type": {
+                "text": "string"
+              },
+              "default": "''",
+              "attribute": "href"
+            },
+            {
+              "kind": "field",
+              "name": "external",
+              "privacy": "public",
+              "type": {
+                "text": "boolean"
+              },
+              "default": "false",
+              "attribute": "external",
+              "reflects": true
+            },
+            {
+              "kind": "field",
+              "name": "tone",
+              "privacy": "public",
+              "type": {
+                "text": "LinkTone"
+              },
+              "default": "'default'",
+              "attribute": "tone",
+              "reflects": true
+            }
+          ],
+          "attributes": [
+            {
+              "name": "href",
+              "type": {
+                "text": "string"
+              },
+              "default": "''",
+              "fieldName": "href"
+            },
+            {
+              "name": "external",
+              "type": {
+                "text": "boolean"
+              },
+              "default": "false",
+              "fieldName": "external"
+            },
+            {
+              "name": "tone",
+              "type": {
+                "text": "LinkTone"
+              },
+              "default": "'default'",
+              "fieldName": "tone"
+            }
+          ],
+          "superclass": {
+            "name": "LitElement",
+            "package": "lit"
+          },
+          "tagName": "ship-link",
+          "customElement": true
+        }
+      ],
+      "exports": [
+        {
+          "kind": "js",
+          "name": "ShipLink",
+          "declaration": {
+            "name": "ShipLink",
+            "module": "src/web-components/utility/ship-link.ts"
+          }
+        },
+        {
+          "kind": "custom-element-definition",
+          "name": "ship-link",
+          "declaration": {
+            "name": "ShipLink",
+            "module": "src/web-components/utility/ship-link.ts"
+          }
+        }
+      ]
+    },
+    {
+      "kind": "javascript-module",
+      "path": "src/web-components/utility/ship-skeleton.ts",
+      "declarations": [
+        {
+          "kind": "class",
+          "description": "",
+          "name": "ShipSkeleton",
+          "members": [
+            {
+              "kind": "field",
+              "name": "variant",
+              "privacy": "public",
+              "type": {
+                "text": "SkeletonVariant"
+              },
+              "default": "'text'",
+              "attribute": "variant",
+              "reflects": true
+            },
+            {
+              "kind": "field",
+              "name": "width",
+              "privacy": "public",
+              "type": {
+                "text": "string"
+              },
+              "default": "''",
+              "attribute": "width"
+            },
+            {
+              "kind": "field",
+              "name": "height",
+              "privacy": "public",
+              "type": {
+                "text": "string"
+              },
+              "default": "''",
+              "attribute": "height"
+            },
+            {
+              "kind": "field",
+              "name": "lines",
+              "privacy": "public",
+              "type": {
+                "text": "number"
+              },
+              "default": "1",
+              "attribute": "lines"
+            },
+            {
+              "kind": "method",
+              "name": "styleFor",
+              "privacy": "private",
+              "return": {
+                "type": {
+                  "text": "string"
+                }
+              }
+            }
+          ],
+          "attributes": [
+            {
+              "name": "variant",
+              "type": {
+                "text": "SkeletonVariant"
+              },
+              "default": "'text'",
+              "fieldName": "variant"
+            },
+            {
+              "name": "width",
+              "type": {
+                "text": "string"
+              },
+              "default": "''",
+              "fieldName": "width"
+            },
+            {
+              "name": "height",
+              "type": {
+                "text": "string"
+              },
+              "default": "''",
+              "fieldName": "height"
+            },
+            {
+              "name": "lines",
+              "type": {
+                "text": "number"
+              },
+              "default": "1",
+              "fieldName": "lines"
+            }
+          ],
+          "superclass": {
+            "name": "LitElement",
+            "package": "lit"
+          },
+          "tagName": "ship-skeleton",
+          "customElement": true
+        }
+      ],
+      "exports": [
+        {
+          "kind": "js",
+          "name": "ShipSkeleton",
+          "declaration": {
+            "name": "ShipSkeleton",
+            "module": "src/web-components/utility/ship-skeleton.ts"
+          }
+        },
+        {
+          "kind": "custom-element-definition",
+          "name": "ship-skeleton",
+          "declaration": {
+            "name": "ShipSkeleton",
+            "module": "src/web-components/utility/ship-skeleton.ts"
+          }
+        }
+      ]
+    },
+    {
+      "kind": "javascript-module",
+      "path": "src/web-components/utility/ship-toast.ts",
+      "declarations": [
+        {
+          "kind": "class",
+          "description": "",
+          "name": "ShipToastContainer",
+          "members": [
+            {
+              "kind": "field",
+              "name": "position",
+              "privacy": "public",
+              "type": {
+                "text": "ToastPosition"
+              },
+              "default": "'top-right'",
+              "attribute": "position",
+              "reflects": true
+            }
+          ],
+          "attributes": [
+            {
+              "name": "position",
+              "type": {
+                "text": "ToastPosition"
+              },
+              "default": "'top-right'",
+              "fieldName": "position"
+            }
+          ],
+          "superclass": {
+            "name": "LitElement",
+            "package": "lit"
+          },
+          "tagName": "ship-toast-container",
+          "customElement": true
+        },
+        {
+          "kind": "class",
+          "description": "",
+          "name": "ShipToast",
+          "members": [
+            {
+              "kind": "field",
+              "name": "tone",
+              "privacy": "public",
+              "type": {
+                "text": "Tone"
+              },
+              "default": "'info'",
+              "attribute": "tone",
+              "reflects": true
+            },
+            {
+              "kind": "field",
+              "name": "duration",
+              "privacy": "public",
+              "type": {
+                "text": "number"
+              },
+              "default": "5000",
+              "attribute": "duration"
+            },
+            {
+              "kind": "field",
+              "name": "dismissible",
+              "privacy": "public",
+              "type": {
+                "text": "boolean"
+              },
+              "default": "true",
+              "attribute": "dismissible",
+              "reflects": true
+            },
+            {
+              "kind": "field",
+              "name": "_timer",
+              "type": {
+                "text": "ReturnType<typeof setTimeout> | null"
+              },
+              "privacy": "private",
+              "default": "null"
+            },
+            {
+              "kind": "method",
+              "name": "dismiss"
+            }
+          ],
+          "events": [
+            {
+              "name": "ship-dismiss",
+              "type": {
+                "text": "CustomEvent"
+              }
+            }
+          ],
+          "attributes": [
+            {
+              "name": "tone",
+              "type": {
+                "text": "Tone"
+              },
+              "default": "'info'",
+              "fieldName": "tone"
+            },
+            {
+              "name": "duration",
+              "type": {
+                "text": "number"
+              },
+              "default": "5000",
+              "fieldName": "duration"
+            },
+            {
+              "name": "dismissible",
+              "type": {
+                "text": "boolean"
+              },
+              "default": "true",
+              "fieldName": "dismissible"
+            }
+          ],
+          "superclass": {
+            "name": "LitElement",
+            "package": "lit"
+          },
+          "tagName": "ship-toast",
+          "customElement": true
+        }
+      ],
+      "exports": [
+        {
+          "kind": "js",
+          "name": "ShipToastContainer",
+          "declaration": {
+            "name": "ShipToastContainer",
+            "module": "src/web-components/utility/ship-toast.ts"
+          }
+        },
+        {
+          "kind": "js",
+          "name": "ShipToast",
+          "declaration": {
+            "name": "ShipToast",
+            "module": "src/web-components/utility/ship-toast.ts"
+          }
+        },
+        {
+          "kind": "custom-element-definition",
+          "name": "ship-toast-container",
+          "declaration": {
+            "name": "ShipToastContainer",
+            "module": "src/web-components/utility/ship-toast.ts"
+          }
+        },
+        {
+          "kind": "custom-element-definition",
+          "name": "ship-toast",
+          "declaration": {
+            "name": "ShipToast",
+            "module": "src/web-components/utility/ship-toast.ts"
           }
         }
       ]
