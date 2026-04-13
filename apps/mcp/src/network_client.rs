@@ -182,8 +182,10 @@ pub async fn register_session(
     workspace_id: Option<&str>,
 ) -> Result<String> {
     let url = format!("{}/session/register", base_url()?);
+    let daemon_token = get_network_token()?;
     let resp = reqwest::Client::new()
         .post(&url)
+        .bearer_auth(&daemon_token)
         .json(&serde_json::json!({
             "agent_id": agent_id,
             "role": role,

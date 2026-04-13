@@ -255,14 +255,40 @@ pub struct SessionRegisterResponse {
 
 /// POST /api/session/register — issue a scoped session token for an MCP agent.
 ///
-/// The MCP server calls this during startup. The daemon computes scopes from
-/// the agent's role and returns a session token the MCP server uses for all
-/// subsequent requests (instead of the daemon token).
+/// Requires daemon token authentication. The MCP server calls this during
+/// startup. The daemon computes scopes from the agent's role and returns a
+/// session token the MCP server uses for all subsequent requests.
+///
+/// Role escalation is prevented: only callers with `Scope::Full` (daemon
+/// token holders) can issue sessions, and the "contributor" role (which
+/// grants Full) is blocked — agents must use "worker", "lead", or
+/// "commander".
 pub async fn session_register(
     registry: SessionRegistry,
+    axum::Extension(auth): axum::Extension<crate::auth::AuthContext>,
     axum::Json(req): axum::Json<SessionRegisterRequest>,
 ) -> axum::Json<SessionRegisterResponse> {
-    let scopes = scopes_for_role(req.role.as_deref());
+    // Only daemon-token holders can issue session tokens.
+    if !auth.has_scope(Scope::Full) {
+        return axum::Json(SessionRegisterResponse {
+            session_token: "error: insufficient privileges".to_string(),
+            scopes: vec![],
+        });
+    }
+
+    // Prevent role escalation: agents cannot claim "contributor" (which
+    // grants Scope::Full). If they try, downgrade to "worker".
+    let effective_role = match req.role.as_deref() {
+        Some("contributor") => {
+            tracing::warn!(
+                agent_id = %req.agent_id,
+                "session_register: blocked role escalation to 'contributor', downgraded to 'worker'"
+            );
+            Some("worker")
+        }
+        other => other,
+    };
+    let scopes = scopes_for_role(effective_role);
     let token = match generate_session_token() {
         Ok(t) => t,
         Err(e) => {

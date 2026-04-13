@@ -234,9 +234,6 @@ fn build_router(
                 auth::server_attest(attest_verifier.clone(), attest_sessions.clone(), body)
             }),
         )
-        .route("/api/session/register", axum::routing::post(move |body: axum::Json<auth::SessionRegisterRequest>| {
-            auth::session_register(register_registry, body)
-        }))
         .route("/api/health", axum::routing::get(move || {
             health_check(health_rt)
         }))
@@ -288,6 +285,12 @@ fn build_router(
 
     let authenticated_routes = Router::new()
         .nest("/api", pair_confirm_routes)
+        .route("/api/session/register", axum::routing::post(move |
+            auth_ext: axum::Extension<auth::AuthContext>,
+            body: axum::Json<auth::SessionRegisterRequest>,
+        | {
+            auth::session_register(register_registry, auth_ext, body)
+        }))
         .ship_route(Route::IssueSession, session_issue_handler)
         .merge(api_ship_routes)
         .nest("/api", hook_routes)

@@ -29,7 +29,7 @@ fn main() -> anyhow::Result<()> {
 
     let args: Vec<String> = std::env::args().collect();
     let port = extract_u16_arg(&args, "--port").unwrap_or(9315);
-    let host = extract_str_arg(&args, "--host").unwrap_or_else(|| "0.0.0.0".to_string());
+    let host = extract_str_arg(&args, "--host").unwrap_or_else(|| "127.0.0.1".to_string());
     let dev = args.iter().any(|a| a == "--dev");
 
     let rt = tokio::runtime::Builder::new_multi_thread()
