@@ -75,6 +75,8 @@ pub struct ShipRuntime {
     session_registry: SessionRegistry,
     /// Health registry for supervised background tasks.
     health_registry: HealthRegistry,
+    /// Agent-owned view sessions (Phase 1 canvas framework).
+    view_sessions: crate::views::session::SharedViewSessionRegistry,
 }
 
 impl ShipRuntime {
@@ -177,6 +179,7 @@ impl ShipRuntime {
             session_scanner: tokio::sync::OnceCell::new(),
             session_registry: Arc::new(Mutex::new(HashMap::new())),
             health_registry: HealthRegistry::new(),
+            view_sessions: Arc::new(crate::views::session::ViewSessionRegistry::default()),
         })
     }
 
@@ -238,6 +241,10 @@ impl ShipRuntime {
 
     pub fn health_registry(&self) -> &HealthRegistry {
         &self.health_registry
+    }
+
+    pub fn view_sessions(&self) -> &crate::views::session::SharedViewSessionRegistry {
+        &self.view_sessions
     }
 
     /// Lazily initialize and return the mesh manager.
@@ -311,6 +318,7 @@ impl ShipRuntime {
             session_scanner: tokio::sync::OnceCell::new(),
             session_registry: Arc::new(Mutex::new(HashMap::new())),
             health_registry: HealthRegistry::new(),
+            view_sessions: Arc::new(crate::views::session::ViewSessionRegistry::default()),
         }
     }
 
@@ -334,6 +342,7 @@ impl ShipRuntime {
             session_scanner: tokio::sync::OnceCell::new(),
             session_registry: Arc::new(Mutex::new(HashMap::new())),
             health_registry: HealthRegistry::new(),
+            view_sessions: Arc::new(crate::views::session::ViewSessionRegistry::default()),
         }
     }
 

@@ -139,12 +139,14 @@ fn worker_effective_tool_set_is_six_tools() {
     all.extend(role_defaults.iter().copied());
     all.sort_unstable();
     all.dedup();
-    // create_workspace, complete_workspace, set_skill_var, log_progress, update_job, write_session_file
-    assert_eq!(
-        all.len(),
-        6,
-        "worker should see exactly 6 tools, got: {all:?}"
-    );
+    // Stable: create_workspace, complete_workspace, set_skill_var,
+    //         log_progress, update_job, write_session_file (= 6).
+    // Unstable adds the 5 view.* canvas tools on top (= 11).
+    #[cfg(not(feature = "unstable"))]
+    let expected = 6;
+    #[cfg(feature = "unstable")]
+    let expected = 11;
+    assert_eq!(all.len(), expected, "worker tool set mismatch: {all:?}");
 }
 
 // ── commander role sees exactly 9 tools ────────────────────────────
@@ -157,12 +159,11 @@ fn commander_effective_tool_set_is_nine_tools() {
     all.extend(role_defaults.iter().copied());
     all.sort_unstable();
     all.dedup();
-    // create_workspace, complete_workspace, set_skill_var,
-    // log_progress, update_job, write_session_file,
-    // create_job, mesh_discover, mesh_status
-    assert_eq!(
-        all.len(),
-        9,
-        "commander should see exactly 9 tools, got: {all:?}"
-    );
+    // Stable: 9 (6 worker + create_job + mesh_discover + mesh_status).
+    // Unstable: 9 + 5 view.* = 14.
+    #[cfg(not(feature = "unstable"))]
+    let expected = 9;
+    #[cfg(feature = "unstable")]
+    let expected = 14;
+    assert_eq!(all.len(), expected, "commander tool set mismatch: {all:?}");
 }

@@ -46,6 +46,11 @@ datastar = { version = "0.3.1", features = ["axum"] }
 jsonwebtoken = "9"
 reqwest = { version = "0.12", default-features = false, features = ["rustls-tls", "json"] }
 minijinja = { version = "2", features = ["loader"] }
+ulid = "1"
+thiserror = "2"
+# HTML sanitizer — allowlist-based DOM cleaner used for agent-supplied
+# canvas HTML (see apps/shipd/src/views/sanitize.rs).
+ammonia = "4"
 
 [features]
 unstable = ["runtime/unstable"]

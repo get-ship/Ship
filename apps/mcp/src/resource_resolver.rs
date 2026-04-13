@@ -29,6 +29,17 @@ pub async fn resolve_resource_uri(
     if uri == "ship://project_info" {
         return Some(project_info.await);
     }
+
+    // MCP Apps bridge: resolve `ui://ship/view-session/{id}` by fetching
+    // the daemon's iframe shell. Parsing is delegated to shipd to keep the
+    // URI format in one place. Only called when an MCP Apps host requests
+    // the session resource — standard MCP clients never hit this path.
+    if let Some(rest) = uri.strip_prefix("ui://ship/view-session/")
+        && !rest.is_empty()
+        && rest.chars().all(|c| c.is_ascii_alphanumeric())
+    {
+        return crate::network_client::view_session_raw(rest).await.ok();
+    }
     if uri == "ship://specs" {
         return resolve_specs_list(&ship_dir);
     }
