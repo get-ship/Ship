@@ -160,28 +160,16 @@ const TEMPLATES: &[(&str, &str)] = &[
         include_str!("../../templates/specs/content.html.j2"),
     ),
     (
-        "specs/partials/delete_dialog.html.j2",
-        include_str!("../../templates/specs/partials/delete_dialog.html.j2"),
-    ),
-    (
         "specs/partials/detail.html.j2",
         include_str!("../../templates/specs/partials/detail.html.j2"),
     ),
     (
-        "specs/partials/empty.html.j2",
-        include_str!("../../templates/specs/partials/empty.html.j2"),
-    ),
-    (
-        "specs/partials/new_dialog.html.j2",
-        include_str!("../../templates/specs/partials/new_dialog.html.j2"),
+        "specs/partials/launch_bar.html.j2",
+        include_str!("../../templates/specs/partials/launch_bar.html.j2"),
     ),
     (
         "specs/partials/rail.html.j2",
         include_str!("../../templates/specs/partials/rail.html.j2"),
-    ),
-    (
-        "specs/partials/rail_item.html.j2",
-        include_str!("../../templates/specs/partials/rail_item.html.j2"),
     ),
     (
         "specs/shell.html.j2",

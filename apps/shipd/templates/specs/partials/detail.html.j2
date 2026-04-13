@@ -1,88 +1,71 @@
-{#-
-  Full spec editor. Expects `selected` (SpecDetail) in scope. Initializes
-  datastar signals from the server-rendered context via data-signals-*
-  attributes on a wrapper element.
--#}
-<div class="specs-detail"
-     data-signals-title="'{{ selected.title_js }}'"
-     data-signals-body="'{{ selected.body_js }}'"
-     data-signals-pipeline="'{{ selected.pipeline_js }}'"
-     data-signals-status="'{{ selected.status }}'"
-     data-signals-criteria-text="'{{ selected.criteria_text_js }}'"
-     data-signals-scope-text="'{{ selected.scope_text_js }}'"
-     data-signals-vars-text="'{{ selected.vars_text_js }}'"
-     data-signals-dirty="false">
-
-  <header class="specs-detail-header">
-    <ship-input variant="ghost" size="lg" placeholder="Spec title"
-                style="flex: 1;"
-                value="{{ selected.title }}"
-                data-bind-title
-                data-on:ship-input="$dirty = true"></ship-input>
-    <ship-select value="{{ selected.pipeline | default('') }}"
-                 data-bind-pipeline
-                 data-on:ship-change="$dirty = true">
-      <option value="">No pipeline</option>
-      {% for name in pipelines %}
-        <option value="{{ name }}" {% if selected.pipeline == name %}selected{% endif %}>{{ name }}</option>
-      {% endfor %}
-    </ship-select>
-    <ship-badge tone="{{ selected.tone }}">{{ selected.status }}</ship-badge>
-  </header>
-
-  <div class="specs-detail-body">
-    <div class="specs-editor-wrap">
-      <ship-label>Markdown body</ship-label>
-      <ship-textarea variant="code" placeholder="# Spec body..."
-                     data-bind-body
-                     data-on:ship-input="$dirty = true"></ship-textarea>
+{#- Full spec detail: head, metachip row, prose sections, launch bar. -#}
+<div class="specs-detail-inner">
+  <header class="specs-detail-head">
+    <div class="specs-detail-title-row">
+      <h1>{{ selected.title if selected.title else '(untitled)' }}</h1>
+      <div class="specs-detail-actions">
+        <ship-button variant="outline" size="sm"
+          data-on:click="@post('{{ daemon_origin | safe }}/api/runtime/specs?token={{ token | safe }}', {contentType: 'json', body: JSON.stringify({title: '{{ selected.title_js }} (copy)', body: '{{ selected.body_js }}'})})">
+          Duplicate
+        </ship-button>
+        <ship-button variant="outline" size="sm" tone="destructive"
+          data-on:click="$confirmDelete = true">
+          Delete
+        </ship-button>
+      </div>
     </div>
 
-    <aside class="specs-meta">
-      <ship-field>
-        <ship-label slot="label">Acceptance criteria</ship-label>
-        <div class="specs-meta-hint">One per line</div>
-        <ship-textarea size="sm" rows="4"
-                       data-bind-criteria-text
-                       data-on:ship-input="$dirty = true"
-                       placeholder="Tests pass&#10;Docs updated"></ship-textarea>
-      </ship-field>
+    <div class="specs-metachips">
+      <ship-metachip label="Status" value="{{ selected.status_label }}"></ship-metachip>
+      <ship-metachip label="Pipeline" value="{{ selected.pipeline_label }}"></ship-metachip>
+      <ship-metachip label="Agent" value="{{ selected.agent }}"></ship-metachip>
+      <ship-metachip label="Vars" value="{{ selected.vars_display }}"></ship-metachip>
+      <ship-metachip label="Branch" value="{{ selected.branch }}"></ship-metachip>
+    </div>
+  </header>
 
-      <ship-field>
-        <ship-label slot="label">Scope</ship-label>
-        <div class="specs-meta-hint">One path per line</div>
-        <ship-textarea size="sm" rows="3"
-                       data-bind-scope-text
-                       data-on:ship-input="$dirty = true"
-                       placeholder="crates/core/runtime/&#10;apps/shipd/"></ship-textarea>
-      </ship-field>
+  <article class="specs-prose">
+    {% if selected.goal_md %}
+      <h2>Goal</h2>
+      <ship-markdown value="{{ selected.goal_md }}"></ship-markdown>
+    {% endif %}
 
-      <ship-field>
-        <ship-label slot="label">Variables</ship-label>
-        <div class="specs-meta-hint">KEY=value per line</div>
-        <ship-textarea size="sm" rows="3"
-                       data-bind-vars-text
-                       data-on:ship-input="$dirty = true"
-                       placeholder="TARGET=stable&#10;VERSION=1.0"></ship-textarea>
-      </ship-field>
-    </aside>
-  </div>
+    {% if selected.acceptance | length > 0 %}
+      <h2>Acceptance</h2>
+      <ul class="specs-acceptance">
+        {% for item in selected.acceptance %}
+          <li{% if item.done %} class="done"{% endif %}>
+            <ship-checkbox {% if item.done %}checked{% endif %} disabled></ship-checkbox>
+            <span class="acc-text">{{ item.text }}</span>
+          </li>
+        {% endfor %}
+      </ul>
+    {% endif %}
 
-  <div class="specs-footer">
-    <ship-toolbar variant="bordered" justify="end">
-      <span class="specs-dirty" data-show="$dirty">Unsaved changes</span>
-      <ship-button variant="outline" tone="destructive" size="sm"
-                   data-on:click="$confirmDelete = true">Delete</ship-button>
-      <ship-button variant="outline" size="sm"
-                   data-show="$status === 'draft' || $status === 'ready'"
-                   data-on:click="@post('{{ daemon_origin | safe }}/api/runtime/specs/{{ selected.id }}/launch?token={{ token | safe }}')">
-        Launch
-      </ship-button>
-      <ship-button variant="solid" tone="accent" size="sm"
-                   data-attr-loading="$dirty ? null : null"
-                   data-on:click="@put('{{ daemon_origin | safe }}/api/runtime/specs/{{ selected.id }}?token={{ token | safe }}', {contentType: 'json', body: JSON.stringify({title: $title, body: $body, pipeline: $pipeline ? $pipeline : null, status: $status, criteria: ($criteriaText || '').split('\n').filter(l => l.trim()), scope: ($scopeText || '').split('\n').filter(l => l.trim()), vars: Object.fromEntries(($varsText || '').split('\n').filter(l => l.includes('=')).map(l => { const i = l.indexOf('='); return [l.slice(0,i).trim(), l.slice(i+1).trim()]; }))})}); $dirty = false">
-        Save
-      </ship-button>
-    </ship-toolbar>
-  </div>
+    {% if selected.scope_md %}
+      <h2>Scope</h2>
+      <ship-markdown value="{{ selected.scope_md }}"></ship-markdown>
+    {% endif %}
+
+    {% if selected.linked_md %}
+      <h2>Linked</h2>
+      <ship-markdown value="{{ selected.linked_md }}"></ship-markdown>
+    {% endif %}
+
+    {% if selected.other_md %}
+      <ship-markdown value="{{ selected.other_md }}"></ship-markdown>
+    {% endif %}
+  </article>
 </div>
+
+{% include 'specs/partials/launch_bar.html.j2' %}
+
+<ship-alert-dialog tone="destructive"
+                   confirm-label="Delete"
+                   cancel-label="Cancel"
+                   data-attr-open="$confirmDelete"
+                   data-on:ship-cancel="$confirmDelete = false"
+                   data-on:ship-confirm="@delete('{{ daemon_origin | safe }}/api/runtime/specs/{{ selected.id }}?token={{ token | safe }}'); $confirmDelete = false">
+  <span slot="title">Delete spec</span>
+  This removes the spec from the project. This cannot be undone.
+</ship-alert-dialog>
