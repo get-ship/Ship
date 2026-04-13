@@ -45,7 +45,7 @@ export class ShipAlertDialog extends LitElement {
 
   render() {
     return html`
-      <ship-dialog size="sm" ?open=${this.open}
+      <ship-dialog size="sm" no-close-button ?open=${this.open}
         @ship-close=${() => { this.open = false }}
       >
         <span slot="header"><slot name="title"></slot></span>

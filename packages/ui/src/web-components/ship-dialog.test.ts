@@ -36,4 +36,21 @@ describe('ship-dialog', () => {
     el.close()
     expect(el.open).toBe(false)
   })
+
+  it('renders a close button that fires ship-dismiss and closes', async () => {
+    const el = await mount('<ship-dialog open></ship-dialog>')
+    const btn = el.shadowRoot!.querySelector('.close') as HTMLButtonElement
+    expect(btn).toBeTruthy()
+    let dismissed = 0
+    el.addEventListener('ship-dismiss', () => dismissed++)
+    btn.click()
+    expect(dismissed).toBe(1)
+    expect(el.open).toBe(false)
+  })
+
+  it('hides the close button when no-close-button is set', async () => {
+    const el = await mount('<ship-dialog no-close-button></ship-dialog>')
+    expect(el.noCloseButton).toBe(true)
+    expect(el.hasAttribute('no-close-button')).toBe(true)
+  })
 })
