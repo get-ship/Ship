@@ -3,12 +3,12 @@
 <head>
   <meta charset="UTF-8">
   <title>Pipelines</title>
-  <link rel="stylesheet" href="http://localhost:9315/api/runtime/assets/view-tokens.css">
-  <script type="module" src="http://localhost:9315/api/runtime/assets/datastar.js"></script>
-  <script type="module" src="http://localhost:9315/api/runtime/assets/ship-elements.js"></script>
+  <link rel="stylesheet" href="/api/runtime/assets/view-tokens.css">
+  <script type="module" src="/api/runtime/assets/datastar.js"></script>
+  <script type="module" src="/api/runtime/assets/ship-elements.js"></script>
 </head>
 <body>
-  <div id="pipelines-root" data-init="@get('http://localhost:9315/api/runtime/view/pipelines?token={{SHIP_TOKEN}}', {requestCancellation: 'disabled'})">
+  <div id="pipelines-root" data-init="@get('/api/runtime/view/pipelines', {requestCancellation: 'disabled'})">
     <p style="text-align:center;padding:48px;color:var(--muted-foreground)">Connecting&hellip;</p>
   </div>
 </body>
