@@ -117,9 +117,13 @@ struct RawShipManifest {
 // ── Root manifest ──────────────────────────────────────────────────────────────
 
 /// Parsed and validated Ship manifest.
+///
+/// `module` is optional — only required for `ship publish`. Consumer-only
+/// projects (no `[module]`) can still declare dependencies and run
+/// `ship install` / `ship add`.
 #[derive(Debug, Clone, Serialize, Deserialize, PartialEq)]
 pub struct ShipManifest {
-    pub module: ManifestModule,
+    pub module: Option<ManifestModule>,
     #[serde(default)]
     pub dependencies: IndexMap<String, ManifestDepValue>,
     #[serde(default)]
@@ -130,52 +134,68 @@ impl ShipManifest {
     /// Parse from a TOML string and validate required fields and semver.
     pub fn from_toml_str(s: &str) -> anyhow::Result<Self> {
         let raw: RawShipManifest =
-            toml::from_str(s).map_err(|e| anyhow::anyhow!("Failed to parse ship.toml: {e}"))?;
+            toml::from_str(s).map_err(|e| anyhow::anyhow!("Failed to parse ship manifest: {e}"))?;
         Self::from_raw(raw)
+    }
+
+    /// Return the module section, or error if absent.
+    /// Use this in paths that require a publishable package (e.g. `ship publish`).
+    pub fn require_module(&self) -> anyhow::Result<&ManifestModule> {
+        self.module.as_ref().ok_or_else(|| {
+            anyhow::anyhow!(
+                "[module] section is required for this operation. \
+                 Add module.name and module.version to ship.jsonc."
+            )
+        })
     }
 
     /// Validate a raw manifest and produce a [`ShipManifest`].
     fn from_raw(raw: RawShipManifest) -> anyhow::Result<Self> {
-        let raw_module = raw
-            .module
-            .ok_or_else(|| anyhow::anyhow!("[module] section is required in ship manifest"))?;
+        let module = if let Some(raw_module) = raw.module {
+            let name = raw_module
+                .name
+                .filter(|n| !n.is_empty())
+                .ok_or_else(|| anyhow::anyhow!("[module].name is required when module section is present"))?;
 
-        let name = raw_module
-            .name
-            .filter(|n| !n.is_empty())
-            .ok_or_else(|| anyhow::anyhow!("[module].name is required in ship manifest"))?;
+            if !is_valid_package_name(&name) {
+                anyhow::bail!(
+                    "[module].name '{}' contains invalid characters — \
+                     must match [a-z0-9._/@-]+",
+                    name
+                );
+            }
 
-        // Validate name: lowercase alphanumeric, dots, hyphens, underscores, slashes, @.
-        if !is_valid_package_name(&name) {
-            anyhow::bail!(
-                "[module].name '{}' contains invalid characters — \
-                 must match [a-z0-9._/@-]+",
-                name
-            );
-        }
+            let version = raw_module
+                .version
+                .filter(|v| !v.is_empty())
+                .ok_or_else(|| anyhow::anyhow!("[module].version is required when module section is present"))?;
 
-        let version = raw_module
-            .version
-            .filter(|v| !v.is_empty())
-            .ok_or_else(|| anyhow::anyhow!("[module].version is required in ship manifest"))?;
-
-        // Validate semver (strip optional v-prefix).
-        let ver_str = version.trim_start_matches('v');
-        semver::Version::parse(ver_str).map_err(|e| {
-            anyhow::anyhow!("[module].version '{}' is not valid semver: {e}", version)
-        })?;
-
-        // Validate SPDX license if provided.
-        if let Some(ref lic) = raw_module.license
-            && !lic.is_empty()
-        {
-            validate_spdx(lic).map_err(|e| {
-                anyhow::anyhow!(
-                    "[module].license '{}' is not a valid SPDX expression: {e}",
-                    lic
-                )
+            let ver_str = version.trim_start_matches('v');
+            semver::Version::parse(ver_str).map_err(|e| {
+                anyhow::anyhow!("[module].version '{}' is not valid semver: {e}", version)
             })?;
-        }
+
+            if let Some(ref lic) = raw_module.license
+                && !lic.is_empty()
+            {
+                validate_spdx(lic).map_err(|e| {
+                    anyhow::anyhow!(
+                        "[module].license '{}' is not a valid SPDX expression: {e}",
+                        lic
+                    )
+                })?;
+            }
+
+            Some(ManifestModule {
+                name,
+                version,
+                description: raw_module.description,
+                license: raw_module.license,
+                authors: raw_module.authors,
+            })
+        } else {
+            None
+        };
 
         // Validate dependency version strings.
         for (path, dep_val) in &raw.dependencies {
@@ -192,13 +212,7 @@ impl ShipManifest {
         }
 
         Ok(ShipManifest {
-            module: ManifestModule {
-                name,
-                version,
-                description: raw_module.description,
-                license: raw_module.license,
-                authors: raw_module.authors,
-            },
+            module,
             dependencies: raw.dependencies,
             exports: raw.exports,
         })

@@ -11,10 +11,10 @@ version = "1.0.0"
 #[test]
 fn parse_minimal_manifest() {
     let m = ShipManifest::from_toml_str(minimal_toml()).unwrap();
-    assert_eq!(m.module.name, "github.com/owner/repo");
-    assert_eq!(m.module.version, "1.0.0");
-    assert!(m.module.description.is_none());
-    assert!(m.module.license.is_none());
+    assert_eq!(m.module.as_ref().unwrap().name, "github.com/owner/repo");
+    assert_eq!(m.module.as_ref().unwrap().version, "1.0.0");
+    assert!(m.module.as_ref().unwrap().description.is_none());
+    assert!(m.module.as_ref().unwrap().license.is_none());
     assert!(m.dependencies.is_empty());
     assert!(m.exports.skills.is_empty());
     assert!(m.exports.agents.is_empty());
@@ -38,8 +38,8 @@ skills = ["agents/skills/my-skill"]
 agents = ["agents/profiles/my-agent.toml"]
 "#;
     let m = ShipManifest::from_toml_str(toml_str).unwrap();
-    assert_eq!(m.module.description.as_deref(), Some("A great library"));
-    assert_eq!(m.module.license.as_deref(), Some("MIT"));
+    assert_eq!(m.module.as_ref().unwrap().description.as_deref(), Some("A great library"));
+    assert_eq!(m.module.as_ref().unwrap().license.as_deref(), Some("MIT"));
     assert_eq!(m.dependencies.len(), 2);
 
     let (_, dep_b) = m.resolved_deps().next().unwrap();
@@ -80,12 +80,24 @@ name = "github.com/owner/repo"
 }
 
 #[test]
-fn missing_module_section_is_error() {
+fn missing_module_section_is_valid() {
     let toml_str = r#"
 [dependencies]
 "github.com/a/b" = "^1.0.0"
 "#;
-    let err = ShipManifest::from_toml_str(toml_str).unwrap_err();
+    let m = ShipManifest::from_toml_str(toml_str).unwrap();
+    assert!(m.module.is_none());
+    assert_eq!(m.dependencies.len(), 1);
+}
+
+#[test]
+fn require_module_errors_when_absent() {
+    let toml_str = r#"
+[dependencies]
+"github.com/a/b" = "^1.0.0"
+"#;
+    let m = ShipManifest::from_toml_str(toml_str).unwrap();
+    let err = m.require_module().unwrap_err();
     assert!(err.to_string().contains("[module]"), "{err}");
 }
 
@@ -108,7 +120,7 @@ name = "github.com/owner/repo"
 version = "v1.2.3"
 "#;
     let m = ShipManifest::from_toml_str(toml_str).unwrap();
-    assert_eq!(m.module.version, "v1.2.3");
+    assert_eq!(m.module.as_ref().unwrap().version, "v1.2.3");
 }
 
 #[test]
@@ -196,7 +208,7 @@ name = "@myorg/my-agent"
 version = "1.0.0"
 "#;
     let m = ShipManifest::from_toml_str(toml_str).unwrap();
-    assert_eq!(m.module.name, "@myorg/my-agent");
+    assert_eq!(m.module.as_ref().unwrap().name, "@myorg/my-agent");
 }
 
 #[test]
@@ -207,7 +219,7 @@ name = "gitlab.com/owner/repo"
 version = "1.0.0"
 "#;
     let m = ShipManifest::from_toml_str(toml_str).unwrap();
-    assert_eq!(m.module.name, "gitlab.com/owner/repo");
+    assert_eq!(m.module.as_ref().unwrap().name, "gitlab.com/owner/repo");
 }
 
 #[test]
@@ -219,7 +231,7 @@ version = "1.0.0"
 license = "MIT"
 "#;
     let m = ShipManifest::from_toml_str(toml_str).unwrap();
-    assert_eq!(m.module.license.as_deref(), Some("MIT"));
+    assert_eq!(m.module.as_ref().unwrap().license.as_deref(), Some("MIT"));
 }
 
 #[test]
@@ -231,7 +243,7 @@ version = "1.0.0"
 license = "MIT OR Apache-2.0"
 "#;
     let m = ShipManifest::from_toml_str(toml_str).unwrap();
-    assert_eq!(m.module.license.as_deref(), Some("MIT OR Apache-2.0"));
+    assert_eq!(m.module.as_ref().unwrap().license.as_deref(), Some("MIT OR Apache-2.0"));
 }
 
 #[test]
@@ -255,14 +267,14 @@ version = "1.0.0"
 authors = ["Alice <alice@example.com>", "Bob"]
 "#;
     let m = ShipManifest::from_toml_str(toml_str).unwrap();
-    assert_eq!(m.module.authors.len(), 2);
-    assert_eq!(m.module.authors[0], "Alice <alice@example.com>");
+    assert_eq!(m.module.as_ref().unwrap().authors.len(), 2);
+    assert_eq!(m.module.as_ref().unwrap().authors[0], "Alice <alice@example.com>");
 }
 
 #[test]
 fn authors_defaults_to_empty() {
     let m = ShipManifest::from_toml_str(minimal_toml()).unwrap();
-    assert!(m.module.authors.is_empty());
+    assert!(m.module.as_ref().unwrap().authors.is_empty());
 }
 
 #[test]
@@ -304,9 +316,9 @@ fn parse_jsonc_manifest() {
   },
 }"#;
     let m = ShipManifest::from_jsonc_str(jsonc).unwrap();
-    assert_eq!(m.module.name, "github.com/owner/repo");
-    assert_eq!(m.module.version, "1.0.0");
-    assert_eq!(m.module.description.as_deref(), Some("A library"));
+    assert_eq!(m.module.as_ref().unwrap().name, "github.com/owner/repo");
+    assert_eq!(m.module.as_ref().unwrap().version, "1.0.0");
+    assert_eq!(m.module.as_ref().unwrap().description.as_deref(), Some("A library"));
     assert_eq!(m.dependencies.len(), 1);
 }
 
@@ -322,10 +334,10 @@ fn from_file_dispatches_by_extension() {
     )
     .unwrap();
     let m = ShipManifest::from_file(&jsonc_path).unwrap();
-    assert_eq!(m.module.name, "github.com/test/repo");
+    assert_eq!(m.module.as_ref().unwrap().name, "github.com/test/repo");
 
     let toml_path = dir.path().join("ship.toml");
     std::fs::write(&toml_path, minimal_toml()).unwrap();
     let m2 = ShipManifest::from_file(&toml_path).unwrap();
-    assert_eq!(m2.module.name, "github.com/owner/repo");
+    assert_eq!(m2.module.as_ref().unwrap().name, "github.com/owner/repo");
 }

@@ -1,10 +1,10 @@
-//! `ship add <package>[@version]` — add a registry dependency to ship.toml.
+//! `ship add <package>[@version]` — add a registry dependency.
 //!
 //! Parses the package spec, validates it's not already present, appends to
-//! `.ship/ship.toml`, resolves and fetches only the new dep, updates
+//! `.ship/ship.jsonc`, resolves and fetches only the new dep, updates
 //! `.ship/ship.lock`, and re-compiles.
 //!
-//! On any error after modifying ship.toml, the file is restored from backup.
+//! On any error after modifying the manifest, the file is restored from backup.
 
 use std::path::Path;
 
@@ -40,8 +40,7 @@ pub fn run_add(project_root: &Path, package_spec: &str) -> Result<()> {
 
     if !manifest_path.exists() {
         anyhow::bail!(
-            "No .ship/ship.jsonc or .ship/ship.toml found. Run `ship init` first, then add \
-             a [module]/\"module\" section to use ship add."
+            "No .ship/ship.jsonc or .ship/ship.toml found. Run `ship init` first."
         );
     }
 
@@ -51,9 +50,8 @@ pub fn run_add(project_root: &Path, package_spec: &str) -> Result<()> {
 
     // Read and parse current manifest to check for duplicates.
     let raw_content = std::fs::read_to_string(&manifest_path).context("reading ship manifest")?;
-    let manifest = ShipManifest::from_file(&manifest_path).with_context(
-        || "Failed to parse ship manifest. Ensure it has a module section with name and version.",
-    )?;
+    let manifest = ShipManifest::from_file(&manifest_path)
+        .context("Failed to parse ship manifest")?;
 
     // Check duplicate.
     if manifest.dependencies.contains_key(&pkg_path) {
@@ -384,24 +382,21 @@ mod tests {
     }
 
     #[test]
-    fn add_invalid_manifest_errors_without_modifying() {
+    fn add_without_module_section_parses_ok() {
         let tmp = TempDir::new().unwrap();
-        // No [module] section — will fail manifest parsing
+        // No [module] section — should parse fine, fail on network (not module)
         write(
             tmp.path(),
             ".ship/ship.toml",
             "[defaults]\nproviders = [\"claude\"]\n",
         );
-        let original = std::fs::read_to_string(tmp.path().join(".ship/ship.toml")).unwrap();
-        let err = run_add(tmp.path(), "github.com/owner/pkg").unwrap_err();
-        assert!(
-            err.to_string().contains("[module]") || err.to_string().contains("module section"),
-            "got: {err}"
-        );
-        let after = std::fs::read_to_string(tmp.path().join(".ship/ship.toml")).unwrap();
-        assert_eq!(
-            original, after,
-            "ship.toml must be unchanged on parse error"
-        );
+        let result = run_add(tmp.path(), "github.com/owner/pkg");
+        if let Err(e) = &result {
+            let msg = format!("{:#}", e);
+            assert!(
+                !msg.contains("[module]"),
+                "should not require module section, got: {msg}"
+            );
+        }
     }
 }
