@@ -1,0 +1,39 @@
+{#-
+  Full-screen diff mode. Expects:
+    selected_commit: {sha, short_sha, label, is_working, diff_text, files[]}
+    completed_jobs, daemon_origin, token, workspace_id
+-#}
+{%- set ws_qs = '' -%}
+{%- if workspace_id %}{%- set ws_qs = '&workspace_id=' ~ workspace_id -%}{%- endif -%}
+{%- set back_url = daemon_origin ~ '/api/runtime/view/git?token=' ~ token ~ ws_qs -%}
+
+<div class="ship-git-diff-header">
+  <button type="button" class="ship-git-back" aria-label="Back"
+    data-on:click="@get('{{ back_url | safe }}')">
+    <ship-icon name="arrow-left" size="sm"></ship-icon>
+  </button>
+  <ship-icon name="git-branch" size="sm" class="ship-git-header-icon"></ship-icon>
+  <span class="ship-git-diff-title">
+    {% if selected_commit.is_working %}Working tree diff
+    {% else %}Commit {{ selected_commit.short_sha }}{% endif %}
+  </span>
+  {% if not selected_commit.is_working %}
+    <button type="button" class="ship-git-show-working"
+      data-on:click="@get('{{ daemon_origin | safe }}/api/runtime/view/git?commit=WORKING{{ ws_qs }}&token={{ token | safe }}')">
+      Show working tree
+    </button>
+  {% endif %}
+</div>
+
+{% include 'git/partials/review_banner.html.j2' %}
+
+<div class="ship-git-diff-body">
+  {% if selected_commit.diff_text %}
+    <ship-diff value="{{ selected_commit.diff_text }}"></ship-diff>
+  {% else %}
+    <ship-empty-state>
+      <ship-icon slot="icon" name="check"></ship-icon>
+      <span slot="title">No changes to display</span>
+    </ship-empty-state>
+  {% endif %}
+</div>

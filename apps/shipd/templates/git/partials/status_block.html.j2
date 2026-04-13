@@ -1,0 +1,64 @@
+{#-
+  Working-tree status block. Expects:
+    branch, clean (bool), total_changed, staged[], modified[], untracked[]
+    daemon_origin, token, workspace_id
+  Each file row drills into the working-tree diff (commit="" → unstaged HEAD diff).
+-#}
+{%- set ws_qs = '' -%}
+{%- if workspace_id %}{%- set ws_qs = '&workspace_id=' ~ workspace_id -%}{%- endif -%}
+{%- set diff_url = daemon_origin ~ '/api/runtime/view/git?commit=WORKING' ~ ws_qs ~ '&token=' ~ token -%}
+
+<div class="ship-git-section">
+  {% if branch %}
+  <div class="ship-git-branch-line">
+    <span class="ship-git-branch">{{ branch }}</span>
+    <span class="ship-git-dot {% if clean %}ok{% else %}warn{% endif %}"></span>
+    {% if total_changed and total_changed > 0 %}
+      <span class="ship-git-changed-count">
+        <ship-icon name="file-text" size="xs"></ship-icon>
+        {{ total_changed }} file{% if total_changed != 1 %}s{% endif %} changed
+      </span>
+    {% endif %}
+  </div>
+  {% endif %}
+
+  {% if not clean %}
+    <div class="ship-git-breakdown">
+      {% if staged | length > 0 %}<span><span class="ship-git-dot ok"></span>{{ staged | length }} staged</span>{% endif %}
+      {% if modified | length > 0 %}<span><span class="ship-git-dot warn"></span>{{ modified | length }} modified</span>{% endif %}
+      {% if untracked | length > 0 %}<span><span class="ship-git-dot err"></span>{{ untracked | length }} untracked</span>{% endif %}
+    </div>
+
+    <div class="ship-git-file-list">
+      {% for f in staged %}
+        <button type="button" class="ship-git-file-row"
+          data-on:click="@get('{{ diff_url | safe }}')">
+          <span class="ship-git-file-badge stg">S</span>
+          <span class="ship-git-file-name" title="{{ f.path }}">{{ f.basename }}</span>
+        </button>
+      {% endfor %}
+      {% for f in modified %}
+        <button type="button" class="ship-git-file-row"
+          data-on:click="@get('{{ diff_url | safe }}')">
+          <span class="ship-git-file-badge mod">M</span>
+          <span class="ship-git-file-name" title="{{ f.path }}">{{ f.basename }}</span>
+        </button>
+      {% endfor %}
+      {% for f in untracked %}
+        <button type="button" class="ship-git-file-row"
+          data-on:click="@get('{{ diff_url | safe }}')">
+          <span class="ship-git-file-badge unt">?</span>
+          <span class="ship-git-file-name" title="{{ f.path }}">{{ f.basename }}</span>
+        </button>
+      {% endfor %}
+    </div>
+  {% endif %}
+
+  {% if total_changed and total_changed > 0 %}
+    <button type="button" class="ship-git-view-diff"
+      data-on:click="@get('{{ diff_url | safe }}')">
+      <ship-icon name="git-compare" size="xs"></ship-icon>
+      View diff
+    </button>
+  {% endif %}
+</div>

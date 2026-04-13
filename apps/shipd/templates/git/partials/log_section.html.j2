@@ -1,0 +1,26 @@
+{#- Expects commits[], daemon_origin, token, workspace_id, branch, total_changed. -#}
+{%- set ws_qs = '' -%}
+{%- if workspace_id %}{%- set ws_qs = '&workspace_id=' ~ workspace_id -%}{%- endif -%}
+
+{% if commits and commits | length > 0 %}
+  {% if branch or (total_changed and total_changed > 0) %}
+    <div class="ship-git-divider"></div>
+  {% endif %}
+  <div class="ship-git-log-heading">Recent Commits</div>
+  <div class="ship-git-log">
+    {% for c in commits[:10] %}
+      <button type="button" class="ship-git-commit"
+        data-on:click="@get('{{ daemon_origin | safe }}/api/runtime/view/git?commit={{ c.sha }}{{ ws_qs }}&token={{ token | safe }}')">
+        <div class="ship-git-commit-subject">{{ c.subject | truncate(60) }}</div>
+        <div class="ship-git-commit-meta">
+          <span class="ship-git-commit-sha">{{ c.short_sha }}</span>
+          <span>{{ c.date }}</span>
+          <span class="spacer"></span>
+          <ship-icon class="hint" name="message-square" size="xs"></ship-icon>
+        </div>
+      </button>
+    {% endfor %}
+  </div>
+{% elif not branch %}
+  <p class="ship-git-empty">Connect CLI to see git info.</p>
+{% endif %}

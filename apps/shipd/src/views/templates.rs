@@ -64,28 +64,20 @@ const TEMPLATES: &[(&str, &str)] = &[
         include_str!("../../templates/_toolbar.html.j2"),
     ),
     (
-        "git/content.html.j2",
-        include_str!("../../templates/git/content.html.j2"),
+        "git/partials/diff_viewer.html.j2",
+        include_str!("../../templates/git/partials/diff_viewer.html.j2"),
     ),
     (
-        "git/partials/commit_detail.html.j2",
-        include_str!("../../templates/git/partials/commit_detail.html.j2"),
+        "git/partials/log_section.html.j2",
+        include_str!("../../templates/git/partials/log_section.html.j2"),
     ),
     (
-        "git/partials/file_diff.html.j2",
-        include_str!("../../templates/git/partials/file_diff.html.j2"),
+        "git/partials/review_banner.html.j2",
+        include_str!("../../templates/git/partials/review_banner.html.j2"),
     ),
     (
-        "git/partials/log_timeline.html.j2",
-        include_str!("../../templates/git/partials/log_timeline.html.j2"),
-    ),
-    (
-        "git/partials/rail.html.j2",
-        include_str!("../../templates/git/partials/rail.html.j2"),
-    ),
-    (
-        "git/partials/status_list.html.j2",
-        include_str!("../../templates/git/partials/status_list.html.j2"),
+        "git/partials/status_block.html.j2",
+        include_str!("../../templates/git/partials/status_block.html.j2"),
     ),
     (
         "git/shell.html.j2",
