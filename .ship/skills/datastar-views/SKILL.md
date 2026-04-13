@@ -137,25 +137,25 @@ yielder.yield_item(Ok(patch.write_as_axum_sse_event())).await;
 
 ## Auth for SSE streams
 
-Browser `EventSource` / fetch streams can't set headers. Pass the auth token via query string:
+Browser `EventSource` / fetch streams can't set headers. Ship uses **cookie-first
+auth**: the `/raw` iframe endpoint mints a short-lived `ship_session` cookie
+(HttpOnly, SameSite=Strict, Path=/api/runtime) when the caller presents a valid
+daemon token via `?token=`. Every subsequent fetch from the iframe — including
+SSE — flies under that cookie. Views never see or echo tokens.
 
-```
-/api/my-sse?token=...
-```
+Flow:
 
-Template the token into the HTML server-side when rendering the view:
+1. Parent loads the iframe: `<iframe src="/api/runtime/view/{name}/raw?token=..." />`
+2. Daemon validates the token, issues `ship_session` cookie, returns HTML
+3. HTML uses relative URLs: `data-init="@get('/api/my-sse', {requestCancellation: 'disabled'})"`
+4. Browser attaches the cookie automatically; SSE authenticates
 
-```rust
-let html = template_html.replace("{{SHIP_TOKEN}}", &caller_token);
-```
+Rules:
 
-Then in the view:
-
-```html
-data-init="@get('/api/my-sse?token={{SHIP_TOKEN}}', {requestCancellation: 'disabled'})"
-```
-
-Ship's auth middleware already accepts `?token=...` as a query fallback for Bearer.
+- Views **must** use relative URLs for daemon calls (`/api/...`). Absolute URLs to other origins break cookie scope.
+- Never reference `{{SHIP_TOKEN}}` — the placeholder is stripped to empty string. Legacy templates using it will silently emit no token; migrate to cookie flow.
+- If a view is loaded outside an iframe (e.g., direct `curl`), the cookie isn't
+  minted; the caller must supply the token via header or query each request.
 
 ## CORS
 
@@ -219,9 +219,11 @@ Disable compression (`.no_gzip().no_brotli().no_deflate()`) — some servers buf
 
 ## Ship's reference implementation
 
-- **`apps/shipd/src/views.rs`** — `pipeline_monitor_sse` shows the full pattern: subscribes to kernel events, renders HTML on each event, pushes via PatchElements
-- **`.ship/views/pipeline-monitor/`** — the client view with data-init + requestCancellation
-- **Token inlining** — see `serve_view` which templates `{{SHIP_TOKEN}}` into the HTML
+- **`apps/shipd/src/views/stream.rs`** — `ViewStream` primitive: mpsc-backed SSE producer with `patch()`, `patch_html()`, `signal()`, `heartbeat_every()` helpers. Use this instead of building your own stream.
+- **`apps/shipd/src/views/templates.rs`** — minijinja env with `_page_shell.html.j2` and friends. `render(template, ctx)` is the entry point.
+- **`apps/shipd/src/views/state.rs`** — centralized read helpers (pipeline defs, job projections). Add new state accessors here rather than re-walking the filesystem in handlers.
+- **`apps/shipd/src/views.rs`** — `serve_view_raw` for iframe src (cookie minting); `serve_view_asset` for static files; `serve_view_bundle` for web-component entries.
+- **`apps/shipd/src/views_pipelines.rs`, `views_git.rs`, `views_specs.rs`, `views_settings.rs`** — reference first-party views using the framework end-to-end.
 
 ## Future directions (not built yet)
 
