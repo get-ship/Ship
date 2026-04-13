@@ -31,6 +31,8 @@ pub struct SpecsParams {
     pub tab: Option<String>,
     #[serde(default)]
     pub selected: Option<String>,
+    #[serde(default)]
+    pub token: String,
 }
 
 impl SpecsParams {
@@ -91,6 +93,7 @@ struct SpecsCtx {
     selected: Option<SpecDetail>,
     pipelines: Vec<String>,
     daemon_origin: String,
+    token: String,
 }
 
 fn tone_for(status: &str) -> &'static str {
@@ -216,6 +219,7 @@ fn build_ctx(params: &SpecsParams, daemon_origin: String) -> SpecsCtx {
         selected,
         pipelines: list_pipelines(),
         daemon_origin,
+        token: params.token.clone(),
     }
 }
 

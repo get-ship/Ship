@@ -31,6 +31,8 @@ use crate::views::templates;
 pub struct PipelinesParams {
     #[serde(default)]
     pub tab: Option<String>,
+    #[serde(default)]
+    pub token: String,
     #[serde(flatten)]
     pub filter: Filter,
 }
@@ -82,6 +84,7 @@ struct PipelinesCtx {
     active_runs: Vec<RunView>,
     history_runs: Vec<RunView>,
     daemon_origin: String,
+    token: String,
 }
 
 fn run_state_token(s: &JobStatus) -> &'static str {
@@ -206,6 +209,7 @@ fn build_ctx(params: &PipelinesParams, daemon_origin: String) -> PipelinesCtx {
         active_runs,
         history_runs,
         daemon_origin,
+        token: params.token.clone(),
     }
 }
 

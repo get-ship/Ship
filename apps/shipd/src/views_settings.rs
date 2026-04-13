@@ -27,6 +27,8 @@ use crate::views::templates;
 pub struct SettingsParams {
     #[serde(default)]
     pub tab: Option<String>,
+    #[serde(default)]
+    pub token: String,
 }
 
 impl SettingsParams {
@@ -106,6 +108,7 @@ struct SettingsCtx {
     permissions: PermissionsView,
     integrations: Vec<IntegrationView>,
     daemon_origin: String,
+    token: String,
 }
 
 // ─── State helpers (inline per scope rules) ───────────────────────────────────
@@ -238,6 +241,7 @@ fn build_ctx(params: &SettingsParams, daemon_origin: String) -> SettingsCtx {
         permissions,
         integrations: detect_integrations(),
         daemon_origin,
+        token: params.token.clone(),
     }
 }
 

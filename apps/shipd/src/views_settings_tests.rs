@@ -21,6 +21,7 @@ fn empty_ctx(active_tab: &str) -> SettingsCtx {
         permissions: PermissionsView::default(),
         integrations: vec![],
         daemon_origin: "http://localhost:9315".to_string(),
+        token: "test-token".to_string(),
     }
 }
 
@@ -52,6 +53,10 @@ fn shell_renders_as_fragment_with_root_id_and_tabs() {
     assert!(
         html.contains("http://localhost:9315/api/runtime/view/settings"),
         "expected absolute daemon URL: {html}"
+    );
+    assert!(
+        html.contains("token=test-token"),
+        "expected token threaded into URLs: {html}"
     );
 }
 

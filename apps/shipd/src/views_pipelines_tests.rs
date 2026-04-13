@@ -22,6 +22,7 @@ fn empty_ctx(active_tab: &str) -> PipelinesCtx {
         active_runs: vec![],
         history_runs: vec![],
         daemon_origin: "http://localhost:9315".to_string(),
+        token: "test-token".to_string(),
     }
 }
 
@@ -79,6 +80,10 @@ fn shell_renders_as_fragment_with_root_id() {
     assert!(
         html.contains("http://localhost:9315/api/runtime/view/pipelines"),
         "expected absolute daemon URL baked in: {html}"
+    );
+    assert!(
+        html.contains("token=test-token"),
+        "expected token threaded into URLs: {html}"
     );
 }
 

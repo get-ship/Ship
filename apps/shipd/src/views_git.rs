@@ -37,6 +37,8 @@ pub struct GitParams {
     pub commit: Option<String>,
     #[serde(default)]
     pub file: Option<String>,
+    #[serde(default)]
+    pub token: String,
 }
 
 impl GitParams {
@@ -64,6 +66,7 @@ pub(crate) struct GitCtx {
     pub selected_commit: Option<CommitDetail>,
     pub error: Option<ErrorView>,
     pub daemon_origin: String,
+    pub token: String,
 }
 
 pub(crate) fn build_ctx(params: &GitParams, ship_dir: &Path, daemon_origin: String) -> GitCtx {
@@ -82,6 +85,7 @@ pub(crate) fn build_ctx(params: &GitParams, ship_dir: &Path, daemon_origin: Stri
                     body: e,
                 }),
                 daemon_origin,
+                token: params.token.clone(),
             };
         }
     };
@@ -104,6 +108,7 @@ pub(crate) fn build_ctx(params: &GitParams, ship_dir: &Path, daemon_origin: Stri
         selected_commit,
         error: None,
         daemon_origin,
+        token: params.token.clone(),
     }
 }
 
