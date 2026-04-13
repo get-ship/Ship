@@ -161,6 +161,31 @@ pub async fn auth_middleware(
     mut req: Request<Body>,
     next: Next,
 ) -> Response {
+    // 1. Cookie check — browser sessions.
+    if let Some(cookie_header) = req.headers().get("cookie").and_then(|v| v.to_str().ok()) {
+        if let Some(session_id) = crate::session::parse_session_cookie(cookie_header) {
+            if crate::session::is_browser_session_id(&session_id) {
+                match crate::session::lookup_browser_session(&session_registry, &session_id).await {
+                    Some(session) => {
+                        let auth = AuthContext {
+                            caller_kind: CallerKind::Cli,
+                            agent_id: None,
+                            workspace_id: session.workspace_id.clone(),
+                            session_id: None,
+                            scopes: session.scopes.clone(),
+                        };
+                        req.extensions_mut().insert(auth);
+                        return next.run(req).await;
+                    }
+                    None => {
+                        return (StatusCode::UNAUTHORIZED, "invalid or expired session cookie")
+                            .into_response();
+                    }
+                }
+            }
+        }
+    }
+
     let header_token = req
         .headers()
         .get("authorization")

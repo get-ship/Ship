@@ -1,0 +1,19 @@
+{#-
+  One history row. Expects `run` (RunView) in scope.
+  Status dot + slug + pipeline tag + segments bar + duration + relative time.
+-#}
+<div class="ship-history-row" data-state="{{ run.state }}">
+  <ship-status-dot tone="{{ run.tone }}"></ship-status-dot>
+  <span class="ship-history-slug">{{ run.slug }}</span>
+  {% if run.branch %}
+  <span class="ship-history-pipeline">{{ run.branch }}</span>
+  {% endif %}
+  {% if run.segments and run.segments | length > 0 %}
+  <ship-step-segments values="{{ run.segments | join(',') }}" size="sm"
+    aria-label="{{ run.segments | length }} step outcomes"></ship-step-segments>
+  {% endif %}
+  <span class="ship-history-dur">{{ run.duration }}</span>
+  <span class="ship-history-when">
+    <ship-timestamp value="{{ run.updated_at }}" relative></ship-timestamp>
+  </span>
+</div>

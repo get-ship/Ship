@@ -1,0 +1,37 @@
+{#- Advanced section. Experimental toggles + low-level endpoints. -#}
+{% from '_urls.html.j2' import update_setting %}
+<section class="settings-section" aria-labelledby="settings-advanced-head">
+  <div id="settings-advanced-head" class="settings-section-head">ADVANCED</div>
+  <p class="settings-section-desc">
+    Low-level endpoints and experimental toggles. Change only if you know
+    what you're doing.
+  </p>
+
+  <div class="settings-row">
+    <div class="settings-row-label">
+      Registry endpoint
+      <span class="settings-row-sub">Package registry URL</span>
+    </div>
+    <div class="settings-row-control">
+      <ship-input size="sm" placeholder="https://registry.getship.dev" value="{{ advanced_registry }}"
+        data-on:ship-input__debounce.500ms="@put('{{ update_setting() }}', {contentType: 'json', body: JSON.stringify({key: 'registry.endpoint', value: evt.detail.value})})"></ship-input>
+    </div>
+  </div>
+
+  {% if advanced and advanced | length > 0 %}
+    {% for flag in advanced %}
+    <div class="settings-row">
+      <div class="settings-row-label">
+        {{ flag.label }}
+        <span class="settings-row-sub">{{ flag.description }}</span>
+      </div>
+      <div class="settings-row-control">
+        <ship-switch {% if flag.enabled %}checked{% endif %}
+          data-on:ship-switch-change="@put('{{ update_setting() }}', {contentType: 'json', body: JSON.stringify({key: '{{ flag.key }}', value: evt.detail.checked})})"></ship-switch>
+      </div>
+    </div>
+    {% endfor %}
+  {% else %}
+    <div class="settings-empty">No experimental features available.</div>
+  {% endif %}
+</section>

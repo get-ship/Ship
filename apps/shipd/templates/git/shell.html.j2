@@ -1,0 +1,93 @@
+{#-
+  Git view — single-column, information-dense layout matching the React
+  `/studio/git` page. Root element is `#git-root` so the view host mounts
+  this fragment inside an outer `.ship-view` container and so SSE patches
+  target the same id the client bootstrap wires up.
+-#}
+<div id="git-root" class="ship-view-git">
+  <style>
+    .ship-view-git { color: var(--foreground); }
+    .ship-git-wrap { max-width: 56rem; margin: 0 auto; padding: 24px 16px; }
+    .ship-git-wrap.ship-git-wrap-detail { max-width: none; padding: 0; }
+    .ship-git-header { display: flex; align-items: center; gap: 8px; padding: 0 12px; margin-bottom: 16px; }
+    .ship-git-header h1 { font-family: var(--font-display); font-size: 18px; font-weight: 600; letter-spacing: -0.01em; margin: 0; }
+    .ship-git-header-icon { color: var(--muted-foreground); }
+    .ship-git-state { font-size: 11px; margin-left: 8px; }
+    .ship-git-state.clean { color: var(--success); }
+    .ship-git-state.dirty { color: var(--warning); }
+
+    .ship-git-review-banner { display: flex; align-items: flex-start; gap: 8px; margin: 0 16px 12px; padding: 8px 12px; border-radius: var(--radius-lg); border: 1px solid color-mix(in oklch, var(--success) 35%, transparent); background: color-mix(in oklch, var(--success) 10%, transparent); }
+    .ship-git-review-banner ship-icon { color: var(--success); flex-shrink: 0; margin-top: 1px; }
+    .ship-git-review-banner p { font-size: 12px; color: var(--foreground); margin: 0; }
+    .ship-git-review-banner strong { font-weight: 500; }
+
+    .ship-git-section { padding: 0 12px; margin-bottom: 12px; }
+    .ship-git-branch-line { display: flex; align-items: center; gap: 8px; margin-bottom: 10px; }
+    .ship-git-branch { font-family: var(--font-mono); font-size: 12px; font-weight: 500; color: var(--foreground); }
+    .ship-git-dot { width: 6px; height: 6px; border-radius: 9999px; flex-shrink: 0; }
+    .ship-git-dot.ok { background: var(--success); }
+    .ship-git-dot.warn { background: var(--warning); }
+    .ship-git-dot.err { background: var(--destructive); }
+    .ship-git-changed-count { margin-left: auto; font-size: 10px; color: var(--muted-foreground); display: inline-flex; align-items: center; gap: 4px; }
+
+    .ship-git-breakdown { display: flex; gap: 12px; font-size: 10px; color: var(--muted-foreground); margin-bottom: 10px; }
+    .ship-git-breakdown span { display: inline-flex; align-items: center; gap: 4px; }
+
+    .ship-git-file-list { display: flex; flex-direction: column; gap: 2px; margin-bottom: 8px; }
+    .ship-git-file-row { display: flex; align-items: center; gap: 8px; width: 100%; padding: 4px 8px; border-radius: var(--radius-md); background: transparent; border: 0; font-size: 12px; color: var(--muted-foreground); cursor: pointer; text-align: left; transition: background var(--duration-fast) ease, color var(--duration-fast) ease; }
+    .ship-git-file-row:hover { background: color-mix(in oklch, var(--muted) 50%, transparent); color: var(--foreground); }
+    .ship-git-file-badge { font-family: var(--font-mono); font-size: 9px; line-height: 1; padding: 2px 4px; border-radius: 3px; font-weight: 700; letter-spacing: 0.02em; }
+    .ship-git-file-badge.mod { background: color-mix(in oklch, var(--warning) 18%, transparent); color: var(--warning); }
+    .ship-git-file-badge.stg { background: color-mix(in oklch, var(--success) 18%, transparent); color: var(--success); }
+    .ship-git-file-badge.unt { background: color-mix(in oklch, var(--destructive) 18%, transparent); color: var(--destructive); }
+    .ship-git-file-badge.add { background: color-mix(in oklch, var(--success) 18%, transparent); color: var(--success); }
+    .ship-git-file-name { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+
+    .ship-git-view-diff { display: flex; align-items: center; justify-content: center; gap: 6px; width: 100%; padding: 6px 8px; border-radius: var(--radius-md); border: 1px solid color-mix(in oklch, var(--primary) 25%, transparent); background: transparent; color: var(--primary); font-size: 10px; font-weight: 500; cursor: pointer; transition: background var(--duration-fast) ease; }
+    .ship-git-view-diff:hover { background: color-mix(in oklch, var(--primary) 8%, transparent); }
+
+    .ship-git-divider { border-top: 1px solid color-mix(in oklch, var(--border) 60%, transparent); margin: 0 12px 12px; }
+    .ship-git-log-heading { font-size: 10px; font-weight: 600; text-transform: uppercase; letter-spacing: 0.08em; color: color-mix(in oklch, var(--muted-foreground) 75%, transparent); padding: 0 12px; margin-bottom: 8px; }
+    .ship-git-log { display: flex; flex-direction: column; gap: 2px; padding: 0 8px; }
+    .ship-git-commit { display: block; width: 100%; text-align: left; background: transparent; border: 0; padding: 8px; border-radius: var(--radius-md); cursor: pointer; transition: background var(--duration-fast) ease; }
+    .ship-git-commit:hover { background: color-mix(in oklch, var(--muted) 50%, transparent); }
+    .ship-git-commit-subject { font-size: 13px; color: var(--muted-foreground); line-height: 1.35; transition: color var(--duration-fast) ease; }
+    .ship-git-commit:hover .ship-git-commit-subject { color: var(--foreground); }
+    .ship-git-commit-meta { display: flex; align-items: center; gap: 8px; margin-top: 4px; font-size: 10px; color: color-mix(in oklch, var(--muted-foreground) 65%, transparent); }
+    .ship-git-commit-sha { font-family: var(--font-mono); }
+    .ship-git-commit-meta .spacer { flex: 1; }
+    .ship-git-commit-meta .hint { opacity: 0; transition: opacity var(--duration-fast) ease; color: var(--muted-foreground); }
+    .ship-git-commit:hover .ship-git-commit-meta .hint { opacity: 0.6; }
+
+    .ship-git-empty { font-size: 10px; color: color-mix(in oklch, var(--muted-foreground) 65%, transparent); padding: 0 12px; }
+
+    .ship-git-diff-header { display: flex; align-items: center; gap: 8px; padding: 0 12px; margin-bottom: 12px; }
+    .ship-git-back { display: inline-flex; align-items: center; justify-content: center; width: 28px; height: 28px; border-radius: var(--radius-md); background: transparent; border: 0; color: var(--foreground); cursor: pointer; transition: background var(--duration-fast) ease; }
+    .ship-git-back:hover { background: color-mix(in oklch, var(--muted) 60%, transparent); }
+    .ship-git-diff-title { font-size: 12px; font-weight: 500; }
+    .ship-git-show-working { background: transparent; border: 0; font-size: 10px; color: var(--muted-foreground); cursor: pointer; margin-left: 8px; transition: color var(--duration-fast) ease; }
+    .ship-git-show-working:hover { color: var(--foreground); }
+
+    .ship-git-diff-body { padding: 0 12px; }
+  </style>
+
+  <div class="ship-git-wrap{% if selected_commit %} ship-git-wrap-detail{% endif %}">
+    {% if selected_commit %}
+      {% include 'git/partials/diff_viewer.html.j2' %}
+    {% else %}
+      <div class="ship-git-header">
+        <ship-icon name="git-branch" size="md" class="ship-git-header-icon"></ship-icon>
+        <h1>Git</h1>
+        {% if branch %}
+          <span class="ship-git-state {% if clean %}clean{% else %}dirty{% endif %}">
+            {% if clean %}Clean{% else %}Changes{% endif %}
+          </span>
+        {% endif %}
+      </div>
+
+      {% include 'git/partials/review_banner.html.j2' %}
+      {% include 'git/partials/status_block.html.j2' %}
+      {% include 'git/partials/log_section.html.j2' %}
+    {% endif %}
+  </div>
+</div>

@@ -183,3 +183,131 @@ fn ensure_hook_token_generates_if_missing() {
     assert_eq!(token1, token2, "ensure_hook_token must be idempotent");
     assert!(auth::is_hook_token(&token1));
 }
+
+// ── Cookie-based session auth (phase 1) ─────────────────────────────────
+
+use crate::session;
+
+/// Valid 64-hex daemon token (distinct from TEST_TOKEN above which intentionally
+/// contains a non-hex `]`).
+const VALID_DAEMON_TOKEN: &str =
+    "a1b2c3d4e5f6a1b2c3d4e5f6a1b2c3d4e5f6a1b2c3d4e5f6a1b2c3d4e5f6a1b2";
+
+fn router_with_session(token: &str) -> (Router, SessionRegistry) {
+    let token = Arc::new(token.to_string());
+    let hook_token = Arc::new("ship_hook_test".to_string());
+    let registry: SessionRegistry = Arc::new(tokio::sync::Mutex::new(
+        std::collections::HashMap::new(),
+    ));
+    let reg_for_endpoint = registry.clone();
+    let router = Router::new()
+        .route("/test", axum::routing::get(ok_handler))
+        .route(
+            "/api/runtime/session",
+            axum::routing::post(move |auth: axum::Extension<AuthContext>| {
+                let reg = reg_for_endpoint.clone();
+                async move { session::issue_session_handler(reg, auth.0).await }
+            }),
+        )
+        .layer(middleware::from_fn({
+            let registry = registry.clone();
+            move |req, next| auth::auth_middleware(token.clone(), hook_token.clone(), registry.clone(), req, next)
+        }));
+    (router, registry)
+}
+
+#[tokio::test]
+async fn session_endpoint_issues_cookie_with_valid_daemon_token() {
+    let (router, _reg) = router_with_session(VALID_DAEMON_TOKEN);
+    let req = Request::builder()
+        .method("POST")
+        .uri("/api/runtime/session")
+        .header("authorization", format!("Bearer {VALID_DAEMON_TOKEN}"))
+        .body(Body::empty())
+        .unwrap();
+    let resp = router.oneshot(req).await.unwrap();
+    assert_eq!(resp.status(), StatusCode::OK);
+    let cookie = resp
+        .headers()
+        .get("set-cookie")
+        .expect("set-cookie header present")
+        .to_str()
+        .unwrap()
+        .to_string();
+    assert!(cookie.contains("ship_session="));
+    assert!(cookie.contains("HttpOnly"));
+    assert!(cookie.contains("SameSite=Strict"));
+    assert!(cookie.contains("Path=/api/runtime"));
+    assert!(cookie.contains("Max-Age=86400"));
+    let body = resp.into_body().collect().await.unwrap().to_bytes();
+    let parsed: serde_json::Value = serde_json::from_slice(&body).unwrap();
+    assert_eq!(parsed["ok"], serde_json::json!(true));
+    assert_eq!(parsed["expires_in"], serde_json::json!(86400));
+}
+
+#[tokio::test]
+async fn session_endpoint_rejects_missing_auth() {
+    let (router, _reg) = router_with_session(VALID_DAEMON_TOKEN);
+    let req = Request::builder()
+        .method("POST")
+        .uri("/api/runtime/session")
+        .body(Body::empty())
+        .unwrap();
+    let resp = router.oneshot(req).await.unwrap();
+    assert_eq!(resp.status(), StatusCode::UNAUTHORIZED);
+}
+
+#[tokio::test]
+async fn auth_middleware_accepts_valid_session_cookie() {
+    let (router, reg) = router_with_session(VALID_DAEMON_TOKEN);
+    let id = session::issue_browser_session(&reg).await;
+    let req = Request::builder()
+        .uri("/test")
+        .header("cookie", format!("ship_session={id}"))
+        .body(Body::empty())
+        .unwrap();
+    let (status, body) = send(router, req).await;
+    assert_eq!(status, StatusCode::OK);
+    assert_eq!(body, "Cli");
+}
+
+#[tokio::test]
+async fn auth_middleware_rejects_expired_session_cookie() {
+    let (router, reg) = router_with_session(VALID_DAEMON_TOKEN);
+    let id = session::issue_browser_session_with_ttl(
+        &reg,
+        std::time::Duration::from_millis(1),
+    )
+    .await;
+    tokio::time::sleep(std::time::Duration::from_millis(5)).await;
+    let req = Request::builder()
+        .uri("/test")
+        .header("cookie", format!("ship_session={id}"))
+        .body(Body::empty())
+        .unwrap();
+    let (status, _) = send(router, req).await;
+    assert_eq!(status, StatusCode::UNAUTHORIZED);
+}
+
+#[tokio::test]
+async fn auth_middleware_falls_through_to_bearer_when_cookie_missing() {
+    let (router, _reg) = router_with_session(VALID_DAEMON_TOKEN);
+    let req = Request::builder()
+        .uri("/test")
+        .header("authorization", format!("Bearer {VALID_DAEMON_TOKEN}"))
+        .body(Body::empty())
+        .unwrap();
+    let (status, _) = send(router, req).await;
+    assert_eq!(status, StatusCode::OK);
+}
+
+#[tokio::test]
+async fn auth_middleware_falls_through_to_query_token_when_both_missing() {
+    let (router, _reg) = router_with_session(VALID_DAEMON_TOKEN);
+    let req = Request::builder()
+        .uri(format!("/test?token={VALID_DAEMON_TOKEN}"))
+        .body(Body::empty())
+        .unwrap();
+    let (status, _) = send(router, req).await;
+    assert_eq!(status, StatusCode::OK);
+}

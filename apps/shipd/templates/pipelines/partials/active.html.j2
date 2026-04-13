@@ -1,0 +1,14 @@
+{#- Active runs list. Each run is a detailed card with run head + DAG. -#}
+{% if active_runs and active_runs | length > 0 %}
+<div class="ship-pipelines-run-list">
+  {% for run in active_runs %}
+    {% include 'pipelines/partials/run_card.html.j2' %}
+  {% endfor %}
+</div>
+{% else %}
+<ship-empty-state>
+  <ship-icon slot="icon" name="activity"></ship-icon>
+  <span slot="title">No active runs</span>
+  Kick off a pipeline with <ship-code inline>ship run &lt;pipeline&gt; &lt;spec&gt;</ship-code> or from the Specs view.
+</ship-empty-state>
+{% endif %}

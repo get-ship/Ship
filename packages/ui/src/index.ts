@@ -4,17 +4,7 @@ export { PermissionsEditor } from './components/PermissionsEditor'
 export { SkillListEditor } from './components/SkillListEditor'
 export { RuleListEditor } from './components/RuleListEditor'
 export { McpRegistryBrowser } from './components/McpRegistryBrowser'
-export {
-  registerShipComponents,
-  registerBadge,
-  registerStepCard,
-  registerFileRow,
-  registerEmptyState,
-  registerTabs,
-  ShipBadge,
-  ShipStepCard,
-  ShipFileRow,
-  ShipEmptyState,
-  ShipTabs,
-  ShipTab,
-} from './web-components'
+
+// Web components (re-exported as a convenience; importing this module
+// side-effect-registers them via their Lit @customElement decorators).
+export * from './web-components'

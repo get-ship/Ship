@@ -7,6 +7,7 @@ pub mod actor_api;
 pub mod auth;
 mod connections;
 pub mod scopes;
+pub mod session;
 mod handler;
 pub mod hooks_api;
 pub mod human_webhook;
@@ -15,10 +16,16 @@ pub mod openapi;
 pub mod project_api;
 pub mod pty_handler;
 pub mod rest_api;
+pub mod routes;
 pub mod runtime_api;
 mod server;
 pub mod views;
+pub mod views_git;
+pub mod views_git_data;
+pub mod views_git_diff;
 pub mod views_pipelines;
+pub mod views_pipelines_data;
+pub mod views_settings;
 pub mod specs_api;
 pub mod specs_view;
 pub mod settings_api;
@@ -170,6 +177,7 @@ fn build_router(
     attestation_verifier: attest::AttestationVerifier,
     mcp_ct: CancellationToken,
 ) -> Router {
+    use crate::routes::{Route, ShipRouterExt};
     let kernel_factory = rt.kernel().clone();
     let service: StreamableHttpService<NetworkServer, LocalSessionManager> =
         StreamableHttpService::new(
@@ -184,6 +192,8 @@ fn build_router(
         );
 
     let st = rt.clone();
+    // Non-enumerated third-party routes (telegram webhook + hooks) stay on
+    // `.route()` — they predate the canonical `Route` enum. Leave flat.
     let webhook_routes = Router::new()
         .route("/webhook/telegram", axum::routing::post(human_webhook::telegram_webhook))
         .with_state(rt.kernel().clone());
@@ -193,13 +203,9 @@ fn build_router(
         .route("/hooks/before-tool", axum::routing::post(hooks_api::hook_before_tool))
         .route("/hooks/after-tool", axum::routing::post(hooks_api::hook_after_tool))
         .route("/hooks/session-end", axum::routing::post(hooks_api::hook_session_end));
-    let api_routes = build_api_routes(st.clone());
-    let runtime_routes = build_runtime_routes(st.clone());
-    let supervisor_routes = build_supervisor_routes(st.clone());
-    let settings_routes = build_settings_routes(st.clone());
-    let project_routes = build_project_routes(st);
-    let capabilities_routes = Router::new()
-        .route("/capabilities", axum::routing::get(rest_api::capabilities));
+    // Enumerated routes — one `ApiState`-typed router, registered via
+    // `ship_route(Route::X, handler)` against the canonical full paths.
+    let api_ship_routes = build_ship_routes(st);
 
     // Unauthenticated routes (before auth middleware)
     let register_registry = session_registry.clone();
@@ -235,8 +241,11 @@ fn build_router(
             health_check(health_rt)
         }))
         // Shared static assets — no user-specific data, safe to serve unauth.
-        .route("/api/runtime/assets/datastar.js", axum::routing::get(views::serve_datastar_js))
-        .route("/api/runtime/assets/view-tokens.css", axum::routing::get(views::serve_view_tokens));
+        .ship_route(Route::AssetDatastarJs, views::serve_datastar_js)
+        .ship_route(Route::AssetViewTokensCss, views::serve_view_tokens)
+        .ship_route(Route::AssetShipElementsJs, views::serve_ship_elements)
+        .ship_route(Route::AssetElementsManifest, views::serve_elements_manifest)
+        .ship_route(Route::AssetElementsCatalog, views::serve_elements_catalog);
 
     let auth_token = token;
     let auth_hook_token = hook_token;
@@ -271,16 +280,18 @@ fn build_router(
             }),
         );
 
+    let session_issue_registry = auth_registry.clone();
+    let session_issue_handler = move |auth: axum::Extension<auth::AuthContext>| {
+        let reg = session_issue_registry.clone();
+        async move { session::issue_session_handler(reg, auth.0).await }
+    };
+
     let authenticated_routes = Router::new()
         .nest("/api", pair_confirm_routes)
-        .nest("/api", api_routes)
+        .ship_route(Route::IssueSession, session_issue_handler)
+        .merge(api_ship_routes)
         .nest("/api", hook_routes)
         .nest("/api", webhook_routes)
-        .nest("/api", capabilities_routes)
-        .nest("/api/runtime", runtime_routes)
-        .nest("/api", supervisor_routes)
-        .nest("/api", settings_routes)
-        .nest("/api", project_routes)
         .nest_service("/mcp", service)
         .layer(axum::middleware::from_fn(move |req, next| {
             auth::auth_middleware(auth_token.clone(), auth_hook_token.clone(), auth_registry.clone(), req, next)
@@ -299,82 +310,106 @@ fn build_router(
         .layer(tower_http::catch_panic::CatchPanicLayer::custom(handle_panic))
 }
 
-fn build_api_routes(st: rest_api::ApiState) -> Router {
+/// All enumerated routes, registered via `ShipRouterExt::ship_route` against
+/// the canonical `Route` enum. Paths come from `routes.rs` — this function
+/// only binds handlers.
+///
+/// Two preserved non-enum `.route()` paths:
+/// - `/api/workspaces/{id}/session-files/{*path}` — glob param, specific to
+///   project_api's recursive file handler. Kept alongside the enum variant
+///   that exposes the non-glob listing endpoint.
+/// - `/api/workspaces/{id}/skills/{skillId}/files/{*path}` — same reason.
+fn build_ship_routes(st: rest_api::ApiState) -> Router {
+    use crate::routes::{Route, ShipRouterExt};
     Router::new()
-        .route("/mesh/register", axum::routing::post(rest_api::mesh_register))
-        .route("/mesh/send", axum::routing::post(rest_api::mesh_send))
-        .route("/mesh/broadcast", axum::routing::post(rest_api::mesh_broadcast))
-        .route("/mesh/discover", axum::routing::get(rest_api::mesh_discover))
-        .route("/mesh/status", axum::routing::post(rest_api::mesh_status_update))
-        .route("/mesh/events/{agent_id}", axum::routing::get(rest_api::mesh_events))
-        .route("/actor/spawn", axum::routing::post(actor_api::actor_spawn))
-        .route("/events/route", axum::routing::post(actor_api::event_route))
-        .with_state(st)
-}
-
-fn build_runtime_routes(st: rest_api::ApiState) -> Router {
-    Router::new()
-        .route("/workspaces", axum::routing::get(runtime_api::list_workspaces))
-        .route("/sessions", axum::routing::get(runtime_api::list_sessions))
-        .route("/agents", axum::routing::get(runtime_api::list_agents))
-        .route("/agents/{slug}/stop", axum::routing::post(runtime_api::stop_agent))
-        .route("/agents/{slug}/steer", axum::routing::post(runtime_api::steer_agent))
-        .route("/jobs", axum::routing::get(runtime_api::list_jobs).post(runtime_api::create_job))
-        .route("/jobs/{job_id}", axum::routing::get(runtime_api::get_job_detail))
-        .route("/jobs/end", axum::routing::post(runtime_api::end_job))
-        .route("/views", axum::routing::get(views::list_views))
-        .route("/view/{name}", axum::routing::get(views::serve_view))
-        .route("/view/{name}/manifest", axum::routing::get(views::serve_view_manifest))
-        .route("/view/{name}/bundle", axum::routing::get(views::serve_view_bundle))
-        .route("/view/{name}/raw", axum::routing::get(views::serve_view_raw))
-        .route("/view/pipelines/sse", axum::routing::get(views_pipelines::pipelines_sse))
-        .route("/view/specs/sse", axum::routing::get(specs_view::specs_view_sse))
-        .route("/specs", axum::routing::get(specs_api::list_specs).post(specs_api::create_spec))
-        .route("/specs/{id}", axum::routing::get(specs_api::get_spec).put(specs_api::update_spec).delete(specs_api::delete_spec))
-        .route("/specs/{id}/launch", axum::routing::post(specs_api::launch_spec))
-        .route("/events", axum::routing::get(runtime_api::event_stream))
-        .route("/rebuild-projections", axum::routing::post(runtime_api::rebuild_projections))
-        .route("/workspaces/{id}/pty", axum::routing::get(pty_handler::workspace_pty))
-        .with_state(st)
-}
-
-fn build_settings_routes(st: rest_api::ApiState) -> Router {
-    Router::new()
-        .route("/settings", axum::routing::get(settings_api::list_settings).put(settings_api::update_setting))
-        .route("/settings/{key}", axum::routing::get(settings_api::get_setting))
-        .route("/providers", axum::routing::get(settings_api::list_providers))
-        .with_state(st)
-}
-
-fn build_supervisor_routes(st: rest_api::ApiState) -> Router {
-    Router::new()
-        .route("/supervisor/workspaces/{id}/start", axum::routing::post(supervisor::start_workspace))
-        .with_state(st)
-}
-
-fn build_project_routes(st: rest_api::ApiState) -> Router {
-    Router::new()
-        .route("/workspaces/{id}/session-files", axum::routing::get(project_api::list_session_files))
-        .route("/workspaces/{id}/session-files/{*path}", axum::routing::get(project_api::read_session_file).put(project_api::write_session_file).delete(project_api::delete_session_file))
-        .route("/workspaces/{id}/git/status", axum::routing::get(project_api::git_status))
-        .route("/workspaces/{id}/git/diff", axum::routing::get(project_api::git_diff))
-        .route("/workspaces/{id}/git/log", axum::routing::get(project_api::git_log))
-        .route("/workspaces/{id}/agents", axum::routing::get(project_api::list_agents).post(project_api::write_agent))
-        .route("/workspaces/{id}/skills", axum::routing::get(project_api::list_skills))
-        .route("/workspaces/{id}/skills/{skillId}/files/{*path}", axum::routing::put(project_api::write_skill_file).delete(project_api::delete_skill_file))
-        .route("/workspaces/{id}/skills/{skillId}/vars", axum::routing::get(project_api::get_skill_vars))
-        .route("/workspaces/{id}/skills/{skillId}/vars/{key}", axum::routing::put(project_api::set_skill_var))
-        .route("/workspaces/{id}", axum::routing::delete(project_api::delete_workspace))
-        .route("/workspaces/{id}/activate", axum::routing::post(project_api::activate_workspace))
-        .route("/workspaces/{id}/pipelines", axum::routing::get(project_api::list_pipelines))
-        .route("/workspaces/{id}/pipelines/{name}", axum::routing::put(project_api::write_pipeline).delete(project_api::delete_pipeline))
-        .route("/project/git/status", axum::routing::get(project_api::project_git_status))
-        .route("/project/git/diff", axum::routing::get(project_api::project_git_diff))
-        .route("/project/git/log", axum::routing::get(project_api::project_git_log))
-        .route("/events/emit", axum::routing::post(project_api::emit_event))
-        .route("/workspaces/{id}/artifacts/status", axum::routing::get(project_api::artifacts_status))
-        .route("/workspaces/{id}/artifacts/promote", axum::routing::post(project_api::promote_artifact))
-        .route("/artifacts", axum::routing::get(project_api::list_project_artifacts))
+        // Mesh / actors
+        .ship_route(Route::MeshRegister, rest_api::mesh_register)
+        .ship_route(Route::MeshSend, rest_api::mesh_send)
+        .ship_route(Route::MeshBroadcast, rest_api::mesh_broadcast)
+        .ship_route(Route::MeshDiscover, rest_api::mesh_discover)
+        .ship_route(Route::MeshStatusUpdate, rest_api::mesh_status_update)
+        .ship_route(Route::MeshEvents_template(), rest_api::mesh_events)
+        .ship_route(Route::ActorSpawn, actor_api::actor_spawn)
+        .ship_route(Route::EventRoute, actor_api::event_route)
+        // Capabilities (no state required; ok against a stateful router)
+        .ship_route(Route::Capabilities, rest_api::capabilities)
+        // Runtime
+        .ship_route(Route::ListWorkspaces, runtime_api::list_workspaces)
+        .ship_route(Route::ListSessions, runtime_api::list_sessions)
+        .ship_route(Route::ListAgents, runtime_api::list_agents)
+        .ship_route(Route::StopAgent_template(), runtime_api::stop_agent)
+        .ship_route(Route::SteerAgent_template(), runtime_api::steer_agent)
+        .ship_route(Route::ListJobs, runtime_api::list_jobs)
+        .ship_route(Route::CreateJob, runtime_api::create_job)
+        .ship_route(Route::GetJob_template(), runtime_api::get_job_detail)
+        .ship_route(Route::EndJob, runtime_api::end_job)
+        // Views
+        .ship_route(Route::ListViews, views::list_views)
+        .ship_route(Route::ServeView_template(), views::serve_view)
+        .ship_route(Route::ServeViewManifest_template(), views::serve_view_manifest)
+        .ship_route(Route::ServeViewBundle_template(), views::serve_view_bundle)
+        .ship_route(Route::ServeViewRaw_template(), views::serve_view_raw)
+        .ship_route(Route::ViewGit, views_git::git_shell)
+        .ship_route(Route::ViewGitSse, views_git::git_sse)
+        .ship_route(Route::ViewPipelines, views_pipelines::pipelines_shell)
+        .ship_route(Route::ViewPipelinesSse, views_pipelines::pipelines_sse)
+        .ship_route(Route::ViewSettings, views_settings::settings_shell)
+        .ship_route(Route::ViewSettingsSse, views_settings::settings_sse)
+        .ship_route(Route::ViewSpecs, specs_view::specs_shell)
+        .ship_route(Route::ViewSpecsSse, specs_view::specs_view_sse)
+        // Specs REST
+        .ship_route(Route::ListSpecs, specs_api::list_specs)
+        .ship_route(Route::CreateSpec, specs_api::create_spec)
+        .ship_route(Route::GetSpec_template(), specs_api::get_spec)
+        .ship_route(Route::UpdateSpec_template(), specs_api::update_spec)
+        .ship_route(Route::DeleteSpec_template(), specs_api::delete_spec)
+        .ship_route(Route::LaunchSpec_template(), specs_api::launch_spec)
+        // Events / projections
+        .ship_route(Route::EventStream, runtime_api::event_stream)
+        .ship_route(Route::RebuildProjections, runtime_api::rebuild_projections)
+        .ship_route(Route::WorkspacePty_template(), pty_handler::workspace_pty)
+        // Settings
+        .ship_route(Route::ListSettings, settings_api::list_settings)
+        .ship_route(Route::UpdateSetting, settings_api::update_setting)
+        .ship_route(Route::GetSetting_template(), settings_api::get_setting)
+        .ship_route(Route::ListProviders, settings_api::list_providers)
+        // Supervisor
+        .ship_route(Route::StartWorkspace_template(), supervisor::start_workspace)
+        // Project
+        .ship_route(Route::ListSessionFiles_template(), project_api::list_session_files)
+        .ship_route(Route::WorkspaceGitStatus_template(), project_api::git_status)
+        .ship_route(Route::WorkspaceGitDiff_template(), project_api::git_diff)
+        .ship_route(Route::WorkspaceGitLog_template(), project_api::git_log)
+        .ship_route(Route::ListWorkspaceAgents_template(), project_api::list_agents)
+        .ship_route(Route::WriteWorkspaceAgent_template(), project_api::write_agent)
+        .ship_route(Route::ListWorkspaceSkills_template(), project_api::list_skills)
+        .ship_route(Route::GetSkillVars_template(), project_api::get_skill_vars)
+        .ship_route(Route::SetSkillVar_template(), project_api::set_skill_var)
+        .ship_route(Route::DeleteWorkspace_template(), project_api::delete_workspace)
+        .ship_route(Route::ActivateWorkspace_template(), project_api::activate_workspace)
+        .ship_route(Route::ListWorkspacePipelines_template(), project_api::list_pipelines)
+        .ship_route(Route::WritePipeline_template(), project_api::write_pipeline)
+        .ship_route(Route::DeletePipeline_template(), project_api::delete_pipeline)
+        .ship_route(Route::ProjectGitStatus, project_api::project_git_status)
+        .ship_route(Route::ProjectGitDiff, project_api::project_git_diff)
+        .ship_route(Route::ProjectGitLog, project_api::project_git_log)
+        .ship_route(Route::EmitEvent, project_api::emit_event)
+        .ship_route(Route::ArtifactsStatus_template(), project_api::artifacts_status)
+        .ship_route(Route::PromoteArtifact_template(), project_api::promote_artifact)
+        .ship_route(Route::ListProjectArtifacts, project_api::list_project_artifacts)
+        // Glob-param file handlers (not in enum — glob syntax is project_api
+        // internal; keep flat).
+        .route(
+            "/api/workspaces/{id}/session-files/{*path}",
+            axum::routing::get(project_api::read_session_file)
+                .put(project_api::write_session_file)
+                .delete(project_api::delete_session_file),
+        )
+        .route(
+            "/api/workspaces/{id}/skills/{skillId}/files/{*path}",
+            axum::routing::put(project_api::write_skill_file)
+                .delete(project_api::delete_skill_file),
+        )
         .with_state(st)
 }
 
@@ -682,6 +717,12 @@ async fn cors_middleware(req: Request<Body>, next: Next) -> Response {
         if let Ok(val) = HeaderValue::from_str(&origin_header) {
             h.insert("access-control-allow-origin", val);
         }
+        // Required for credentialed (cookie-bearing) cross-origin requests.
+        // Must never pair with `Access-Control-Allow-Origin: *`.
+        h.insert(
+            "access-control-allow-credentials",
+            HeaderValue::from_static("true"),
+        );
     }
     h.insert(
         "access-control-expose-headers",

@@ -1,0 +1,12 @@
+{#- Sticky launch bar. Disabled when spec has no pipeline. -#}
+{% from '_urls.html.j2' import launch_spec %}
+<div class="specs-launch-bar">
+  <div class="specs-launch-bar-inner">
+    <ship-button variant="solid" tone="accent" size="lg"
+      {% if not selected.pipeline %}disabled{% endif %}
+      data-on:click="@post('{{ launch_spec(selected.id) }}')">
+      {{ selected.launch_label }}
+    </ship-button>
+    <span class="specs-launch-hint">{{ selected.launch_hint }}</span>
+  </div>
+</div>

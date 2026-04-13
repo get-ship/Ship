@@ -1,0 +1,53 @@
+{#-
+  One active run. Expects `run` (RunView) in scope.
+
+  Structure:
+    run-head  — status dot + slug + agent + branch + duration + git stats + actions
+    run-dag   — horizontal row of step cards
+-#}
+<section class="ship-run-card" aria-label="Pipeline run {{ run.slug }}">
+  <div class="ship-run-head">
+    <ship-status-dot tone="{{ run.tone }}"{% if run.state == 'dispatched' or run.state == 'gate-pending' %} pulse{% endif %}></ship-status-dot>
+    <span class="ship-run-slug">{{ run.slug }}</span>
+    <span class="ship-run-sep">·</span>
+    <span class="ship-run-meta">{{ run.agent }}</span>
+    {% if run.branch %}
+    <span class="ship-run-sep">·</span>
+    <span class="ship-run-meta">{{ run.branch }}</span>
+    {% endif %}
+    {% if run.branch_stats.commits_ahead > 0 %}
+    <span class="ship-run-sep">·</span>
+    <span class="ship-run-meta" title="commits ahead of main">
+      <ship-icon name="git-commit" size="sm"></ship-icon>
+      {{ run.branch_stats.commits_ahead }}
+    </span>
+    {% endif %}
+    {% if run.branch_stats.dirty_files > 0 %}
+    <span class="ship-run-sep">·</span>
+    <span class="ship-run-meta" title="uncommitted files">
+      <ship-icon name="file-diff" size="sm"></ship-icon>
+      {{ run.branch_stats.dirty_files }} dirty
+    </span>
+    {% endif %}
+    <span class="ship-run-dur {% if run.state == 'dispatched' or run.state == 'gate-pending' %}running{% endif %}">{{ run.duration }}</span>
+    <span class="ship-run-actions">
+      {% from '_urls.html.j2' import get_job, end_job %}
+      <ship-button size="sm" variant="ghost"
+        data-on:click="@get('{{ get_job(run.job_id) }}')">
+        Attach
+      </ship-button>
+      <ship-button size="sm" variant="ghost" tone="destructive"
+        data-on:click="@post('{{ end_job() }}', {contentType: 'json', body: JSON.stringify({job_id: '{{ run.job_id }}'})})">
+        Stop
+      </ship-button>
+    </span>
+  </div>
+
+  {% if run.steps and run.steps | length > 0 %}
+  <div class="ship-run-dag" role="list" aria-label="Pipeline steps">
+    {% for step in run.steps %}
+      {% include 'pipelines/partials/step_card.html.j2' %}
+    {% endfor %}
+  </div>
+  {% endif %}
+</section>

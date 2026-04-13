@@ -89,6 +89,16 @@ pub struct DaemonSession {
     pub ephemeral: bool,
 }
 
+impl DaemonSession {
+    /// Returns true if this session has passed its expiry.
+    pub fn is_expired(&self) -> bool {
+        match self.expires_at_unix {
+            Some(t) => chrono::Utc::now().timestamp() >= t,
+            None => false,
+        }
+    }
+}
+
 /// Serializable form of DaemonSession for KV persistence.
 #[derive(serde::Serialize, serde::Deserialize)]
 struct PersistedSession {

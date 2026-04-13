@@ -1,9 +1,15 @@
 // ViewMount — React wrapper that loads a trusted web component view bundle,
-// creates the custom element, and injects the Ship API handle.
+// creates the custom element, and injects a ShipClient instance built on
+// DirectTransport (loopback fetch + EventSource).
+//
+// The injected client carries the same surface that the old `createShipApi`
+// handle exposed — getJobs/getJob/createJob/emitEvent/getSessionFiles/
+// readFile/onEvent plus an `activeWorkspace` property — so view-author code
+// continues to run unchanged.
 
 import { useRef, useEffect, useState, useMemo } from 'react'
-import { createShipApi, type ShipApi } from './createShipApi'
-import { daemonFetch } from '#/lib/daemon-config'
+import { ShipClient, DirectTransport } from '@ship/sdk'
+import { DAEMON_BASE_URL, daemonFetch, daemonHeaders } from '#/lib/daemon-config'
 import { getResolvedTheme } from '#/features/studio/session/canvas-helpers'
 
 export interface ViewMountProps {
@@ -17,11 +23,52 @@ export interface ViewMountProps {
   workspaceId?: string
 }
 
-/** Custom element with Ship injected properties. */
+/** Custom element with Ship-injected properties. */
 interface ShipElement extends HTMLElement {
-  shipApi?: ShipApi
+  shipApi?: ShipClient
   shipData?: Record<string, unknown>
   shipTheme?: string
+}
+
+/**
+ * Build a DirectTransport that honors the app's daemon-config auth token.
+ * We forward through `daemonFetch` so the shared cached token is used and
+ * stays in sync when `setDaemonToken` is called by PlatformProvider.
+ */
+function buildTransport(): DirectTransport {
+  const transport = new DirectTransport({ baseUrl: DAEMON_BASE_URL })
+  // Monkey-patch the request method to route through daemonFetch so we
+  // pick up the cached auth header. This keeps a single auth source of
+  // truth without lifting the token into SDK construction.
+  const original = transport.request.bind(transport)
+  transport.request = async <T,>(path: string, init?: Parameters<typeof original>[1]) => {
+    const url = path.startsWith('http')
+      ? path
+      : `${path.startsWith('/api') ? '' : '/api'}${path}`
+    const res = await daemonFetch(url, {
+      method: init?.method ?? 'GET',
+      headers: daemonHeaders(),
+      body: init?.body !== undefined ? JSON.stringify(init.body) : undefined,
+      signal: init?.signal,
+    })
+    if (!res.ok) {
+      const text = await res.text().catch(() => res.statusText)
+      throw new Error(`Ship API ${res.status}: ${text}`)
+    }
+    if (res.status === 204) return undefined as T
+    const json = (await res.json()) as unknown
+    if (init?.raw) return json as T
+    if (
+      json &&
+      typeof json === 'object' &&
+      'ok' in (json as Record<string, unknown>) &&
+      'data' in (json as Record<string, unknown>)
+    ) {
+      return (json as { data: T }).data
+    }
+    return json as T
+  }
+  return transport
 }
 
 export function ViewMount({
@@ -37,10 +84,19 @@ export function ViewMount({
   )
   const [errorMsg, setErrorMsg] = useState<string>('')
 
-  const shipApi = useMemo(
-    () => createShipApi(workspaceId),
+  const shipClient = useMemo(
+    () => new ShipClient({
+      baseUrl: DAEMON_BASE_URL,
+      activeWorkspace: workspaceId,
+      transport: buildTransport(),
+    }),
     [workspaceId],
   )
+
+  // Tear down the client when it changes (workspace switch) or on unmount.
+  useEffect(() => {
+    return () => shipClient.destroy()
+  }, [shipClient])
 
   // Load the bundle script and create the custom element.
   useEffect(() => {
@@ -51,7 +107,6 @@ export function ViewMount({
     let cancelled = false
     let blobUrl: string | null = null
 
-    // Fetch bundle with auth, create blob URL, load as module script.
     ;(async () => {
       try {
         const res = await daemonFetch(bundleUrl.replace(/^https?:\/\/[^/]+/, ''))
@@ -69,7 +124,7 @@ export function ViewMount({
           if (cancelled) return
           try {
             const el = document.createElement(elementName) as ShipElement
-            el.shipApi = shipApi
+            el.shipApi = shipClient
             el.shipData = data
             el.shipTheme = getResolvedTheme()
             container.appendChild(el)
@@ -101,7 +156,7 @@ export function ViewMount({
         elementRef.current = null
       }
     }
-  }, [bundleUrl, elementName, shipApi, data])
+  }, [bundleUrl, elementName, shipClient, data])
 
   // Keep shipData in sync when data prop changes.
   useEffect(() => {

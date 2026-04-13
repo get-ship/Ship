@@ -1,0 +1,19 @@
+{#-
+  Toast container partial.
+
+  Context fields consumed:
+    - position : top|bottom|top-right|bottom-right|top-left|bottom-left
+                 (default: top-right)
+    - toasts   : list of { tone, duration?, dismissible?, body }
+                 Each toast is rendered as a child <ship-toast>.
+-#}
+<ship-toast-container position="{{ position | default('top-right') }}">
+  {% for toast in toasts | default([]) %}
+    <ship-toast
+      tone="{{ toast.tone | default('default') }}"
+      {% if toast.duration is defined %} duration="{{ toast.duration }}"{% endif %}
+      {% if toast.dismissible | default(true) %} dismissible{% endif %}>
+      {{ toast.body | safe }}
+    </ship-toast>
+  {% endfor %}
+</ship-toast-container>

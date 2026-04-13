@@ -1,0 +1,24 @@
+{#- History tab — compact row list + Load more pagination. -#}
+{% if history_runs and history_runs | length > 0 %}
+<h2 class="ship-recent-heading">Recent history</h2>
+<section class="ship-history-card">
+  {% for run in history_runs %}
+    {% include 'pipelines/partials/history_row.html.j2' %}
+  {% endfor %}
+</section>
+{% if stats.history > history_runs | length %}
+<p class="ship-pipelines-load-more">
+  {% from '_urls.html.j2' import view_pipelines %}
+  <ship-chip size="sm"
+    data-on:click="@get('{{ view_pipelines() }}?tab=history')">
+    Load {{ stats.history - (history_runs | length) }} more
+  </ship-chip>
+</p>
+{% endif %}
+{% else %}
+<ship-empty-state>
+  <ship-icon slot="icon" name="archive"></ship-icon>
+  <span slot="title">No run history yet</span>
+  Completed, failed, and merged runs will appear here.
+</ship-empty-state>
+{% endif %}

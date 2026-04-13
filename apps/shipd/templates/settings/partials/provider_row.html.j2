@@ -1,0 +1,19 @@
+{#- Single provider row. Expects `p` from the parent loop. -#}
+<div class="provider-row" data-provider-id="{{ p.id }}">
+  <div class="provider-glyph" aria-hidden="true">{{ p.glyph }}</div>
+  <div class="provider-main">
+    <span class="provider-name">
+      {{ p.label }}
+      {% if p.is_default %}<ship-badge tone="accent" size="sm">default</ship-badge>{% endif %}
+    </span>
+    <span class="provider-meta">
+      <span class="provider-dot {% if p.available %}on{% endif %}"></span>
+      <span>{{ p.binary }}</span>
+      {% if p.available %}
+        <span>{% if p.version %}v{{ p.version }}{% else %}installed{% endif %}</span>
+      {% else %}
+        <span>not found</span>
+      {% endif %}
+    </span>
+  </div>
+</div>

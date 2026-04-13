@@ -1,0 +1,8 @@
+{#- Expects `def` in scope. -#}
+{% from '_urls.html.j2' import create_job %}
+<ship-pipeline-definition name="{{ def.name }}" steps="{{ def.step_count }}" description="{{ def.description }}">
+  <ship-button slot="actions" size="sm" tone="accent" variant="solid"
+    data-on:click="@post('{{ create_job() }}', {contentType: 'json', body: JSON.stringify({pipeline: '{{ def.name }}'})})">
+    Launch
+  </ship-button>
+</ship-pipeline-definition>
