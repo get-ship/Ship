@@ -9,10 +9,24 @@ use std::path::{Path, PathBuf};
 use crate::agent_config::AgentConfig;
 use crate::compile::{CompileOptions, run_compile};
 
-const NS: &str = "workspace";
 const KEY_ACTIVE_AGENT: &str = "active_agent";
 const KEY_COMPILED_AT: &str = "compiled_at";
 const KEY_PLUGINS_INSTALLED: &str = "plugins_installed";
+
+/// Build a project-scoped namespace for workspace state.
+/// Uses the canonical path of .ship/ to differentiate projects so that
+/// `ship status` in one project doesn't show another project's active agent.
+fn workspace_ns(ship_dir: &Path) -> String {
+    let canonical = std::fs::canonicalize(ship_dir)
+        .unwrap_or_else(|_| ship_dir.to_path_buf());
+    let hash = {
+        use std::hash::{Hash, Hasher};
+        let mut hasher = std::collections::hash_map::DefaultHasher::new();
+        canonical.hash(&mut hasher);
+        format!("{:016x}", hasher.finish())
+    };
+    format!("workspace:{}", hash)
+}
 
 // ── WorkspaceState ────────────────────────────────────────────────────────────
 
@@ -26,26 +40,29 @@ pub struct WorkspaceState {
 }
 
 impl WorkspaceState {
-    /// Load from platform.db.
-    pub fn load(_ship_dir: &Path) -> Self {
+    /// Load from platform.db, scoped to the project at `ship_dir`.
+    pub fn load(ship_dir: &Path) -> Self {
         let mut state = WorkspaceState::default();
         if let Err(e) = runtime::db::ensure_db() {
             eprintln!("warning: could not open platform.db: {}", e);
             return state;
         }
-        if let Ok(Some(v)) = runtime::db::kv::get(NS, KEY_ACTIVE_AGENT) {
+        let ns = workspace_ns(ship_dir);
+        if let Ok(Some(v)) = runtime::db::kv::get(&ns, KEY_ACTIVE_AGENT) {
             state.active_agent = v.as_str().map(str::to_string);
         }
-        // Compat: also check the old key name for projects that haven't re-activated yet
+        // Compat: check the old global namespace for projects that haven't re-activated yet
         if state.active_agent.is_none()
-            && let Ok(Some(v)) = runtime::db::kv::get(NS, "active_profile")
+            && let Ok(Some(v)) = runtime::db::kv::get("workspace", KEY_ACTIVE_AGENT)
         {
+            // Only use the old value if this looks like it could be for this project
+            // (i.e. no project-scoped state exists yet). On next save, it will be scoped.
             state.active_agent = v.as_str().map(str::to_string);
         }
-        if let Ok(Some(v)) = runtime::db::kv::get(NS, KEY_COMPILED_AT) {
+        if let Ok(Some(v)) = runtime::db::kv::get(&ns, KEY_COMPILED_AT) {
             state.compiled_at = v.as_str().map(str::to_string);
         }
-        if let Ok(Some(v)) = runtime::db::kv::get(NS, KEY_PLUGINS_INSTALLED)
+        if let Ok(Some(v)) = runtime::db::kv::get(&ns, KEY_PLUGINS_INSTALLED)
             && let Some(arr) = v.as_array()
         {
             state.plugins_installed = arr
@@ -56,17 +73,18 @@ impl WorkspaceState {
         state
     }
 
-    /// Persist workspace state to platform.db.
-    pub fn save(&self, _ship_dir: &Path) -> Result<()> {
+    /// Persist workspace state to platform.db, scoped to the project.
+    pub fn save(&self, ship_dir: &Path) -> Result<()> {
         runtime::db::ensure_db().context("failed to open platform.db")?;
+        let ns = workspace_ns(ship_dir);
         if let Some(ref p) = self.active_agent {
-            runtime::db::kv::set(NS, KEY_ACTIVE_AGENT, &serde_json::json!(p))?;
+            runtime::db::kv::set(&ns, KEY_ACTIVE_AGENT, &serde_json::json!(p))?;
         }
         if let Some(ref t) = self.compiled_at {
-            runtime::db::kv::set(NS, KEY_COMPILED_AT, &serde_json::json!(t))?;
+            runtime::db::kv::set(&ns, KEY_COMPILED_AT, &serde_json::json!(t))?;
         }
         runtime::db::kv::set(
-            NS,
+            &ns,
             KEY_PLUGINS_INSTALLED,
             &serde_json::json!(self.plugins_installed),
         )?;
