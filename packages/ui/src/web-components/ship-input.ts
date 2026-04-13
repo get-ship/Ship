@@ -11,10 +11,11 @@
  *     until focus, matching specs .title-input
  *   - size: sm | md | lg (default: md)
  *   - invalid: boolean — reflects aria-invalid + destructive border
+ *   - loading: boolean — shows an inline spinner in the trailing slot
  *
  * Slots:
  *   - leading — icon/adornment before the input
- *   - trailing — icon/adornment after the input
+ *   - trailing — icon/adornment after the input (replaced by spinner when loading)
  *
  * Parts:
  *   - field — wrapper
@@ -32,20 +33,40 @@ export class ShipInput extends LitElement {
   static styles = css`
     :host { display: inline-flex; width: 100%; }
     .field {
-      display: inline-flex; align-items: center; gap: 6px;
+      display: inline-flex; align-items: center; gap: var(--radius-sm);
       width: 100%;
       background: var(--background);
       color: var(--foreground);
       border: 1px solid var(--border);
-      border-radius: 6px;
+      border-radius: var(--radius-md);
       padding: 0 10px;
-      transition: border-color 120ms, box-shadow 120ms;
+      transition:
+        border-color var(--duration-fast) var(--ease-out),
+        box-shadow var(--duration-fast) var(--ease-out);
     }
     .field:focus-within {
-      outline: 2px solid var(--primary);
-      outline-offset: -1px;
-      border-color: transparent;
+      outline: none;
+      border-color: var(--primary);
+      box-shadow:
+        0 0 0 var(--ring-width)
+          color-mix(in oklch, var(--ring-color) var(--ring-opacity), transparent);
     }
+    :host([invalid]) .field:focus-within {
+      border-color: var(--destructive);
+      box-shadow:
+        0 0 0 var(--ring-width)
+          color-mix(in oklch, var(--destructive) var(--ring-opacity), transparent);
+    }
+    .spinner {
+      width: 12px; height: 12px;
+      border: 1.5px solid var(--muted-foreground);
+      border-right-color: transparent;
+      border-radius: 50%;
+      animation: spin 0.8s linear infinite;
+      display: inline-block;
+      flex-shrink: 0;
+    }
+    @keyframes spin { to { transform: rotate(360deg); } }
     :host([variant='ghost']) .field {
       background: transparent;
       border-color: transparent;
@@ -87,6 +108,7 @@ export class ShipInput extends LitElement {
     disabled: { type: Boolean, reflect: true },
     readonly: { type: Boolean, reflect: true },
     invalid: { type: Boolean, reflect: true },
+    loading: { type: Boolean, reflect: true },
     variant: { type: String, reflect: true },
     size: { type: String, reflect: true },
   }
@@ -100,6 +122,7 @@ export class ShipInput extends LitElement {
   disabled = false
   readonly = false
   invalid = false
+  loading = false
   variant: Variant | 'default' = 'default'
   size: Size = 'md'
   private onInput(e: Event) {
@@ -127,7 +150,9 @@ export class ShipInput extends LitElement {
           aria-invalid=${this.invalid ? 'true' : 'false'}
           @input=${this.onInput}
         />
-        <slot name="trailing"></slot>
+        ${this.loading
+          ? html`<span class="spinner" aria-hidden="true"></span>`
+          : html`<slot name="trailing"></slot>`}
       </div>
     `
   }

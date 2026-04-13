@@ -37,4 +37,11 @@ describe('ship-input', () => {
     const el = await mount('<ship-input invalid></ship-input>')
     expect(el.shadowRoot!.querySelector('input')!.getAttribute('aria-invalid')).toBe('true')
   })
+
+  it('renders inline spinner in loading state, replacing trailing slot', async () => {
+    const el = await mount('<ship-input loading></ship-input>')
+    expect(el.loading).toBe(true)
+    expect(el.shadowRoot!.querySelector('.spinner')).toBeTruthy()
+    expect(el.shadowRoot!.querySelector('slot[name="trailing"]')).toBeNull()
+  })
 })
