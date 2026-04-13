@@ -100,7 +100,7 @@ pub fn start_step_monitor(
             if done {
                 let (commits, uncommitted) = scan_git_evidence(
                     &monitor.work_dir, monitor.start_sha.as_deref(),
-                );
+                ).await;
                 emit_and_finish(
                     &monitor, &kernel, &registry,
                     StepTrigger::DoneDeclared, None,
@@ -114,7 +114,7 @@ pub fn start_step_monitor(
                 if tokio::time::Instant::now() >= sd {
                     let (commits, uncommitted) = scan_git_evidence(
                         &monitor.work_dir, monitor.start_sha.as_deref(),
-                    );
+                    ).await;
                     let trigger = if exit_signal.is_some() {
                         StepTrigger::ProcessExit
                     } else {
@@ -156,7 +156,7 @@ pub fn start_step_monitor(
                             // Channel closed — emit with what we have.
                             let (commits, uncommitted) = scan_git_evidence(
                                 &monitor.work_dir, monitor.start_sha.as_deref(),
-                            );
+                            ).await;
                             emit_and_finish(
                                 &monitor, &kernel, &registry,
                                 StepTrigger::ChannelClosed, None,
@@ -201,7 +201,7 @@ pub fn start_step_monitor(
                     if tokio::time::Instant::now() >= deadline {
                         let (commits, uncommitted) = scan_git_evidence(
                             &monitor.work_dir, monitor.start_sha.as_deref(),
-                        );
+                        ).await;
                         emit_and_finish(
                             &monitor, &kernel, &registry,
                             StepTrigger::Timeout, None,
@@ -273,9 +273,34 @@ async fn emit_and_finish(
 
 /// Scan git state in a worktree, counting commits since `start_sha`.
 ///
+/// Async wrapper around scan_git_evidence_sync with a 10-second timeout.
+/// If git hangs (lock file, corrupt repo), returns (0, 0) instead of blocking.
+async fn scan_git_evidence(work_dir: &std::path::Path, start_sha: Option<&str>) -> (u32, u32) {
+    let dir = work_dir.to_path_buf();
+    let sha = start_sha.map(str::to_string);
+    match tokio::time::timeout(
+        std::time::Duration::from_secs(10),
+        tokio::task::spawn_blocking(move || {
+            scan_git_evidence_sync(&dir, sha.as_deref())
+        }),
+    )
+    .await
+    {
+        Ok(Ok(result)) => result,
+        Ok(Err(e)) => {
+            tracing::warn!("scan_git_evidence: spawn_blocking failed: {e}");
+            (0, 0)
+        }
+        Err(_) => {
+            tracing::warn!(dir = %work_dir.display(), "scan_git_evidence: timed out after 10s");
+            (0, 0)
+        }
+    }
+}
+
 /// Returns (commits_since_start, uncommitted_files).
 /// Falls back to (0, 0) if git commands fail — never crashes.
-fn scan_git_evidence(work_dir: &std::path::Path, start_sha: Option<&str>) -> (u32, u32) {
+fn scan_git_evidence_sync(work_dir: &std::path::Path, start_sha: Option<&str>) -> (u32, u32) {
     let commits = match start_sha {
         Some(sha) => {
             std::process::Command::new("git")

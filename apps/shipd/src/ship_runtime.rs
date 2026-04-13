@@ -358,7 +358,7 @@ impl ShipRuntime {
             };
             let kernel = self.kernel.clone();
             let result = tokio::task::spawn(async move {
-                kernel.lock().await.route(envelope, &ctx).await
+                kernel.lock().await.emit(envelope, &ctx).await
             })
             .await;
             match result {

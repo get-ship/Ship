@@ -151,11 +151,12 @@ impl KernelRouter {
         self.deliver(event).await
     }
 
-    /// Delivery-only path. Persistence is the caller's responsibility.
+    /// Delivery-only path — **deprecated**.
     ///
-    /// Retained for callers that already persisted (e.g. the orchestrator's
-    /// `emit::persist_and_route` helper, which phase 2b will unify with
-    /// `KernelRouter::emit`). New code should use `emit`.
+    /// All production callers have been migrated to `emit()` (Phase 2b).
+    /// This method is retained only for test code that needs delivery
+    /// without persistence. It will be removed in a future release.
+    #[cfg(test)]
     pub async fn route(&self, event: EventEnvelope, ctx: &EmitContext) -> Result<()> {
         for v in &self.validators {
             v.validate(&event, ctx).map_err(|e| anyhow!("{e}"))?;

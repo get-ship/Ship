@@ -110,6 +110,7 @@ fn ensure_db_at_path(path: &std::path::Path) -> Result<()> {
     let mut conn = block_on(async { SqliteConnection::connect_with(&opts).await })?;
 
     block_on(async { sqlx::query("PRAGMA journal_mode = WAL").execute(&mut conn).await })?;
+    block_on(async { sqlx::query("PRAGMA busy_timeout = 5000").execute(&mut conn).await })?;
     block_on(async { sqlx::query("PRAGMA foreign_keys = ON").execute(&mut conn).await })?;
 
     // Run migrations. If they fail, refuse to start — never delete user data.
@@ -147,7 +148,8 @@ pub fn open_db_at(path: &Path) -> Result<SqliteConnection> {
 fn connect(path: &Path) -> Result<SqliteConnection> {
     let url = sqlite_url(path);
     let opts = SqliteConnectOptions::from_str(&url)
-        .with_context(|| format!("invalid sqlite url: {url}"))?;
+        .with_context(|| format!("invalid sqlite url: {url}"))?
+        .busy_timeout(std::time::Duration::from_secs(5));
     block_on(async { SqliteConnection::connect_with(&opts).await })
 }
 

@@ -494,8 +494,8 @@ async fn spawn_human_gateway(
             session_id: None,
         };
         while let Some(event) = outbox_rx.recv().await {
-            if let Err(e) = kr.lock().await.route(event, &ctx).await {
-                tracing::warn!("human-gateway outbox routing error: {e}");
+            if let Err(e) = kr.lock().await.emit(event, &ctx).await {
+                tracing::warn!("human-gateway outbox emit error: {e}");
             }
         }
     });

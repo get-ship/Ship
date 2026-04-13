@@ -74,6 +74,33 @@ pub async fn emit_step_dispatched_event(
     persist_and_route(kernel, envelope, slug, ship_dir).await;
 }
 
+/// Emit a `job.failed` event when a job cannot be dispatched or encounters a fatal error.
+pub async fn emit_job_failed(
+    kernel: &Arc<Mutex<crate::events::KernelRouter>>,
+    job_id: &str,
+    slug: &str,
+    error: &str,
+) {
+    let payload = crate::events::job::JobFailedPayload {
+        job_id: job_id.to_string(),
+        error: error.to_string(),
+    };
+    let envelope = match EventEnvelope::new(
+        crate::events::job::event_types::JOB_FAILED,
+        job_id,
+        &payload,
+    ) {
+        Ok(e) => e.with_actor_id("service.job-dispatch"),
+        Err(e) => {
+            tracing::error!(slug, "emit_job_failed: failed to build event: {e}");
+            return;
+        }
+    };
+
+    persist_and_route(kernel, envelope, slug, None).await;
+    tracing::error!(slug, error, "job failed");
+}
+
 /// Persist an event to platform.db and deliver it through the kernel.
 ///
 /// Thin wrapper around `KernelRouter::emit` that logs failures at ERROR

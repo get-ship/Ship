@@ -180,7 +180,7 @@ async fn emit_step_failed(
         workspace_id: None,
         session_id: None,
     };
-    if let Err(e) = kernel.lock().await.route(envelope, &ctx).await {
+    if let Err(e) = kernel.lock().await.emit(envelope, &ctx).await {
         tracing::warn!(slug, "job-dispatch: reconcile — failed to emit step_failed: {e}");
     }
 }

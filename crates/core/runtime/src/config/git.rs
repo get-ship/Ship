@@ -61,7 +61,7 @@ pub fn set_category_committed(project_dir: &Path, category: &str, commit: bool) 
             session_id: None,
         };
         if let Some(kr) = crate::events::kernel_router()
-            && let Err(e) = block_on_anyhow(async { kr.lock().await.route(envelope, &ctx).await })
+            && let Err(e) = block_on_anyhow(async { kr.lock().await.emit(envelope, &ctx).await })
         {
             tracing::warn!("config::git: kernel route failed: {e}");
         }

@@ -134,7 +134,7 @@ pub(crate) async fn graceful_shutdown(
         workspace_id: None,
         session_id: None,
     };
-    if let Err(e) = kernel.lock().await.route(envelope, &ctx).await {
+    if let Err(e) = kernel.lock().await.emit(envelope, &ctx).await {
         tracing::warn!("graceful_shutdown: failed to emit shutting_down event: {e}");
     }
 

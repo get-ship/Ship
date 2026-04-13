@@ -81,7 +81,7 @@ pub struct TaskSnapshot {
 }
 
 /// Maximum restarts before giving up.
-const MAX_RESTARTS: u64 = 10;
+const MAX_RESTARTS: u64 = 50;
 
 /// Initial backoff delay after a panic.
 const INITIAL_BACKOFF: Duration = Duration::from_secs(1);

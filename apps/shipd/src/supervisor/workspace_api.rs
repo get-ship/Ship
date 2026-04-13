@@ -139,7 +139,7 @@ async fn register_on_mesh(state: &crate::ship_runtime::ShipRuntime, agent_id: &s
         session_id: None,
     };
 
-    if let Err(e) = state.kernel().lock().await.route(envelope, &ctx).await {
-        tracing::warn!(agent_id, "mesh.register routing error: {e}");
+    if let Err(e) = state.kernel().lock().await.emit(envelope, &ctx).await {
+        tracing::warn!(agent_id, "mesh.register emit error: {e}");
     }
 }

@@ -161,8 +161,8 @@ impl Drop for ConnectionGuard {
                     workspace_id: None,
                     session_id: None,
                 };
-                if let Err(e) = kernel.lock().await.route(env, &ctx).await {
-                    tracing::warn!(actor_id = %id_clone, "connection close: kernel route failed: {e}");
+                if let Err(e) = kernel.lock().await.emit(env, &ctx).await {
+                    tracing::warn!(actor_id = %id_clone, "connection close: kernel emit failed: {e}");
                 }
             }
             let _ = kernel.lock().await.stop_actor(&id_clone);
@@ -222,8 +222,8 @@ pub async fn spawn_mesh_service(
             session_id: None,
         };
         while let Some(event) = outbox_rx.recv().await {
-            if let Err(e) = kr.lock().await.route(event, &ctx).await {
-                tracing::warn!("mesh outbox routing error: {e}");
+            if let Err(e) = kr.lock().await.emit(event, &ctx).await {
+                tracing::warn!("mesh outbox emit error: {e}");
             }
         }
     });

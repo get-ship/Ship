@@ -45,7 +45,7 @@ pub fn log_action_by(
         session_id: None,
     };
     if let Some(kr) = crate::events::kernel_router()
-        && let Err(e) = block_on_anyhow(async { kr.lock().await.route(envelope, &ctx).await })
+        && let Err(e) = block_on_anyhow(async { kr.lock().await.emit(envelope, &ctx).await })
     {
         tracing::warn!("log: kernel route of project.log failed: {e}");
     }

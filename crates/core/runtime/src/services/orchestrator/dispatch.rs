@@ -7,7 +7,7 @@ use crate::services::dispatch_ports::{JobContext, LaunchProfile};
 use std::sync::Arc;
 use tokio::sync::Mutex;
 
-use super::emit::{emit_job_dispatched, emit_job_dispatched_with_meta};
+use super::emit::{emit_job_dispatched, emit_job_dispatched_with_meta, emit_job_failed};
 use super::pipeline_loader::ensure_pipeline;
 use super::step_monitor::StepMonitor;
 use super::OrchestratorContext;
@@ -56,6 +56,7 @@ pub async fn dispatch_job_internal(
             Some(c) => c.clone(),
             None => {
                 tracing::error!(slug, step_id = first.id, "job-dispatch: run step missing command");
+                emit_job_failed(kernel, &payload.job_id, slug, "run step missing command").await;
                 return;
             }
         };
@@ -94,6 +95,7 @@ pub async fn dispatch_job_internal(
         Ok(p) => p,
         Err(e) => {
             tracing::error!(slug, "job-dispatch: isolation prepare failed: {e}");
+            emit_job_failed(kernel, &payload.job_id, slug, &format!("isolation prepare failed: {e}")).await;
             return;
         }
     };
@@ -134,6 +136,7 @@ pub async fn dispatch_job_internal(
         Ok(h) => h,
         Err(e) => {
             tracing::error!(slug, "job-dispatch: executor spawn failed: {e}");
+            emit_job_failed(kernel, &payload.job_id, slug, &format!("executor spawn failed: {e}")).await;
             return;
         }
     };
@@ -226,6 +229,7 @@ async fn dispatch_first_run_step_inner(
         Ok(p) => p,
         Err(e) => {
             tracing::error!(slug, "job-dispatch: isolation prepare failed: {e}");
+            emit_job_failed(kernel, &payload.job_id, slug, &format!("isolation prepare failed: {e}")).await;
             return;
         }
     };

@@ -233,7 +233,7 @@ pub async fn emit_event(
         .kernel()
         .lock()
         .await
-        .route(envelope, &ctx)
+        .emit(envelope, &ctx)
         .await
         .map_err(|e| {
             err_response(StatusCode::INTERNAL_SERVER_ERROR, &e.to_string())
