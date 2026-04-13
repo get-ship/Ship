@@ -63,6 +63,34 @@ const TEMPLATES: &[(&str, &str)] = &[
         "_toolbar.html.j2",
         include_str!("../../templates/_toolbar.html.j2"),
     ),
+    (
+        "pipelines/content.html.j2",
+        include_str!("../../templates/pipelines/content.html.j2"),
+    ),
+    (
+        "pipelines/partials/active.html.j2",
+        include_str!("../../templates/pipelines/partials/active.html.j2"),
+    ),
+    (
+        "pipelines/partials/def_card.html.j2",
+        include_str!("../../templates/pipelines/partials/def_card.html.j2"),
+    ),
+    (
+        "pipelines/partials/definitions.html.j2",
+        include_str!("../../templates/pipelines/partials/definitions.html.j2"),
+    ),
+    (
+        "pipelines/partials/history.html.j2",
+        include_str!("../../templates/pipelines/partials/history.html.j2"),
+    ),
+    (
+        "pipelines/partials/run_card.html.j2",
+        include_str!("../../templates/pipelines/partials/run_card.html.j2"),
+    ),
+    (
+        "pipelines/shell.html.j2",
+        include_str!("../../templates/pipelines/shell.html.j2"),
+    ),
 ];
 
 static ENV: OnceLock<Environment<'static>> = OnceLock::new();
