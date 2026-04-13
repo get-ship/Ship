@@ -1,0 +1,12 @@
+{#- Expects `f` in scope: {path, diff, tone, label}. -#}
+<div class="git-file-diff">
+  <header>
+    <ship-badge tone="{{ f.tone }}" size="sm">{{ f.label }}</ship-badge>
+    <ship-code inline>{{ f.path }}</ship-code>
+  </header>
+  {% if f.diff %}
+    <ship-diff value="{{ f.diff }}"></ship-diff>
+  {% else %}
+    <ship-alert tone="info"><span slot="title">No textual diff</span>Binary or empty change.</ship-alert>
+  {% endif %}
+</div>
