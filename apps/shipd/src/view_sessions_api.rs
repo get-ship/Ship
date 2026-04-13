@@ -68,6 +68,9 @@ fn session_err(e: SessionError) -> Response {
         SessionError::UnknownTemplate { .. } => StatusCode::BAD_REQUEST,
     };
     // `SessionError` serializes to `{code, ...fields}` via `#[serde(tag="code")]`.
+    // `to_value` on a plain serde-derived enum with owned `String` fields is
+    // infallible; the `unwrap_or_else` guards against future variants that
+    // introduce custom `Serialize` impls which could return an error.
     err_json(
         status,
         serde_json::to_value(&e).unwrap_or_else(|_| serde_json::json!({"code": "serialize_failed"})),
@@ -207,6 +210,9 @@ pub async fn raw_session(
                 // local iframe and external host renderings align.
                 .header("content-security-policy", crate::mcp_apps_bridge::IFRAME_CSP)
                 .body(axum::body::Body::from(html))
+                // Infallible: status + static header names/values above are
+                // all valid; `Response::builder` only errors on malformed
+                // header construction, none of which applies here.
                 .unwrap()
         }
         Err(msg) => err_json(
