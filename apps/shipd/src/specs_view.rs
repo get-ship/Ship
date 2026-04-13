@@ -13,10 +13,12 @@
 //! live in `specs_api.rs` and are untouched by this module.
 
 use axum::extract::{Query, State};
+use axum::http::StatusCode;
 use axum::response::Html;
 use chrono::{DateTime, Utc};
 use runtime::db::specs::{self, Spec};
 use runtime::events::ActorConfig;
+use runtime::gen_ulid;
 use serde::{Deserialize, Serialize};
 use std::time::Duration;
 
@@ -452,11 +454,14 @@ fn build_ctx(params: &SpecsParams) -> SpecsCtx {
 pub async fn specs_shell(
     State(_state): State<crate::rest_api::ApiState>,
     Query(params): Query<SpecsParams>,
-) -> Html<String> {
+) -> Result<Html<String>, StatusCode> {
     let ctx = build_ctx(&params);
-    let html = templates::render("specs/shell.html.j2", &ctx)
-        .unwrap_or_else(|e| format!("<pre>shell render error: {e}</pre>"));
-    Html(html)
+    templates::render("specs/shell.html.j2", &ctx)
+        .map(Html)
+        .map_err(|e| {
+            tracing::error!(error = %e, "specs shell render failed");
+            StatusCode::INTERNAL_SERVER_ERROR
+        })
 }
 
 /// GET /api/runtime/view/specs/sse — Datastar patches for the rail list on
@@ -467,26 +472,20 @@ pub async fn specs_view_sse(
 ) -> ViewSse {
     let (vs, sse) = ViewStream::new();
 
-    let actor_id = format!(
-        "specs-sse-{}",
-        std::time::SystemTime::now()
-            .duration_since(std::time::UNIX_EPOCH)
-            .map(|d| d.as_nanos())
-            .unwrap_or(0)
-    );
+    let actor_id = format!("specs-sse-{}", gen_ulid());
     let config = ActorConfig {
         namespace: actor_id.clone(),
         write_namespaces: vec![],
         read_namespaces: vec![],
         subscribe_namespaces: vec!["spec.".to_string(), "job.".to_string()],
     };
-    let mailbox = state
-        .kernel()
-        .lock()
-        .await
-        .spawn_actor(&actor_id, config)
-        .ok()
-        .map(|(_store, mb)| mb);
+    let mailbox = match state.kernel().lock().await.spawn_actor(&actor_id, config) {
+        Ok((_store, mb)) => Some(mb),
+        Err(e) => {
+            tracing::error!(error = %e, actor = %actor_id, "spawn_actor failed for specs SSE");
+            None
+        }
+    };
     let guard = crate::runtime_api::ActorGuard {
         actor_id,
         kernel: state.kernel().clone(),
@@ -497,9 +496,10 @@ pub async fn specs_view_sse(
         let _hb = vs.heartbeat_every(Duration::from_secs(15));
 
         // Initial render.
-        let html = render_rail(&params);
-        if vs.patch("#specs-rail-list", html).await.is_err() {
-            return;
+        if let Some(html) = render_rail(&params) {
+            if vs.patch("#specs-rail-list", html).await.is_err() {
+                return;
+            }
         }
 
         let Some(mut mb) = mailbox else { return };
@@ -507,7 +507,7 @@ pub async fn specs_view_sse(
             if vs.is_closed() {
                 break;
             }
-            let html = render_rail(&params);
+            let Some(html) = render_rail(&params) else { continue };
             if vs.patch("#specs-rail-list", html).await.is_err() {
                 break;
             }
@@ -517,10 +517,15 @@ pub async fn specs_view_sse(
     sse
 }
 
-fn render_rail(params: &SpecsParams) -> String {
+fn render_rail(params: &SpecsParams) -> Option<String> {
     let ctx = build_ctx(params);
-    templates::render("specs/partials/rail.html.j2", &ctx)
-        .unwrap_or_else(|e| format!("<div id=\"specs-rail-list-inner\"><pre>{e}</pre></div>"))
+    match templates::render("specs/partials/rail.html.j2", &ctx) {
+        Ok(html) => Some(html),
+        Err(e) => {
+            tracing::error!(error = %e, "specs rail render failed");
+            None
+        }
+    }
 }
 
 #[cfg(test)]

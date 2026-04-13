@@ -19,6 +19,8 @@
 use runtime::projections::job::{JobRecord, JobStatus};
 use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
+use std::io::ErrorKind;
+use std::path::Path;
 
 /// Definition of a pipeline parsed from a `.ship/pipelines/*.yaml` file.
 #[derive(Clone, Debug, Serialize)]
@@ -112,19 +114,20 @@ pub fn status_token(s: &JobStatus) -> &'static str {
     }
 }
 
-/// List pipeline definitions from `.ship/pipelines/*.yaml`, sorted by name.
+/// List pipeline definitions from `<ship_dir>/pipelines/*.yaml`, sorted by name.
 ///
 /// Missing directories return an empty vec — having no pipelines is a
-/// valid project state, not an error.
-pub fn list_pipeline_defs() -> Vec<PipelineDef> {
-    let project_dir = match runtime::project::get_project_dir(None) {
-        Ok(d) => d,
-        Err(_) => return Vec::new(),
-    };
-    let dir = project_dir.join("pipelines");
+/// valid project state, not an error. Other IO errors are logged and
+/// produce an empty vec rather than propagating to the view handler.
+pub fn list_pipeline_defs(ship_dir: &Path) -> Vec<PipelineDef> {
+    let dir = ship_dir.join("pipelines");
     let entries = match std::fs::read_dir(&dir) {
         Ok(e) => e,
-        Err(_) => return Vec::new(),
+        Err(e) if e.kind() == ErrorKind::NotFound => return Vec::new(),
+        Err(e) => {
+            tracing::error!(error = %e, dir = %dir.display(), "read pipelines dir failed");
+            return Vec::new();
+        }
     };
 
     let mut out = Vec::new();
@@ -174,8 +177,14 @@ fn parse_pipeline_meta(yaml: &str) -> (String, usize) {
 }
 
 /// All known job records, filtered, sorted by `updated_at` descending.
-pub fn list_pipeline_runs(filter: &Filter) -> Vec<JobRecord> {
-    let jobs = runtime::projections::job::load_jobs().unwrap_or_default();
+pub fn list_pipeline_runs(ship_dir: &Path, filter: &Filter) -> Vec<JobRecord> {
+    let jobs = match runtime::projections::job::load_jobs_at(ship_dir) {
+        Ok(j) => j,
+        Err(e) => {
+            tracing::error!(error = %e, "load_jobs_at failed");
+            HashMap::new()
+        }
+    };
     filter_and_sort(jobs, filter)
 }
 

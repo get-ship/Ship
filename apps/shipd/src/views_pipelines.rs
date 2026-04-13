@@ -14,8 +14,10 @@
 //! go through `crate::views::state` + `crate::views_pipelines_data`.
 
 use axum::extract::{Query, State};
+use axum::http::StatusCode;
 use axum::response::Html;
 use runtime::events::ActorConfig;
+use runtime::gen_ulid;
 use runtime::projections::job::{JobRecord, JobStatus};
 use serde::{Deserialize, Serialize};
 use std::collections::BTreeSet;
@@ -254,11 +256,11 @@ fn build_subtitle(stats: &Stats) -> String {
     )
 }
 
-fn build_ctx(params: &PipelinesParams) -> PipelinesCtx {
-    let defs = list_pipeline_defs();
+fn build_ctx(params: &PipelinesParams, ship_dir: &std::path::Path) -> PipelinesCtx {
+    let defs = list_pipeline_defs(ship_dir);
     // Unfiltered pass populates the agent-chip row; the active
     // filter only narrows rendered runs, not the chip options.
-    let all_runs = list_pipeline_runs(&Filter::default());
+    let all_runs = list_pipeline_runs(ship_dir, &Filter::default());
     let agents: Vec<String> = all_runs
         .iter()
         .map(|j| j.agent.clone())
@@ -267,7 +269,7 @@ fn build_ctx(params: &PipelinesParams) -> PipelinesCtx {
         .into_iter()
         .collect();
 
-    let runs = list_pipeline_runs(&params.filter);
+    let runs = list_pipeline_runs(ship_dir, &params.filter);
     let (active, history) = partition_runs(runs);
 
     let history_runs: Vec<RunView> = history
@@ -319,13 +321,16 @@ fn build_ctx(params: &PipelinesParams) -> PipelinesCtx {
 
 /// GET /api/runtime/view/pipelines — full shell, minijinja-rendered.
 pub async fn pipelines_shell(
-    State(_state): State<crate::rest_api::ApiState>,
+    State(state): State<crate::rest_api::ApiState>,
     Query(params): Query<PipelinesParams>,
-) -> Html<String> {
-    let ctx = build_ctx(&params);
-    let html = templates::render("pipelines/shell.html.j2", &ctx)
-        .unwrap_or_else(|e| format!("<pre>shell render error: {e}</pre>"));
-    Html(html)
+) -> Result<Html<String>, StatusCode> {
+    let ctx = build_ctx(&params, state.ship_dir());
+    templates::render("pipelines/shell.html.j2", &ctx)
+        .map(Html)
+        .map_err(|e| {
+            tracing::error!(error = %e, "pipelines shell render failed");
+            StatusCode::INTERNAL_SERVER_ERROR
+        })
 }
 
 /// GET /api/runtime/view/pipelines/sse — Datastar patches for the
@@ -336,27 +341,22 @@ pub async fn pipelines_sse(
     Query(params): Query<PipelinesParams>,
 ) -> ViewSse {
     let (vs, sse) = ViewStream::new();
+    let ship_dir = state.ship_dir().to_path_buf();
 
-    let actor_id = format!(
-        "pipelines-sse-{}",
-        std::time::SystemTime::now()
-            .duration_since(std::time::UNIX_EPOCH)
-            .map(|d| d.as_nanos())
-            .unwrap_or(0)
-    );
+    let actor_id = format!("pipelines-sse-{}", gen_ulid());
     let config = ActorConfig {
         namespace: actor_id.clone(),
         write_namespaces: vec![],
         read_namespaces: vec![],
         subscribe_namespaces: vec!["job.".to_string(), "step.".to_string()],
     };
-    let mailbox = state
-        .kernel()
-        .lock()
-        .await
-        .spawn_actor(&actor_id, config)
-        .ok()
-        .map(|(_store, mb)| mb);
+    let mailbox = match state.kernel().lock().await.spawn_actor(&actor_id, config) {
+        Ok((_store, mb)) => Some(mb),
+        Err(e) => {
+            tracing::error!(error = %e, actor = %actor_id, "spawn_actor failed for pipelines SSE");
+            None
+        }
+    };
     let guard = crate::runtime_api::ActorGuard {
         actor_id,
         kernel: state.kernel().clone(),
@@ -366,9 +366,10 @@ pub async fn pipelines_sse(
         let _guard = guard;
         let _hb = vs.heartbeat_every(Duration::from_secs(15));
 
-        let html = render_content(&params);
-        if vs.patch("#pipelines-content", html).await.is_err() {
-            return;
+        if let Some(html) = render_content(&params, &ship_dir) {
+            if vs.patch("#pipelines-content", html).await.is_err() {
+                return;
+            }
         }
 
         let Some(mut mb) = mailbox else { return };
@@ -376,7 +377,7 @@ pub async fn pipelines_sse(
             if vs.is_closed() {
                 break;
             }
-            let html = render_content(&params);
+            let Some(html) = render_content(&params, &ship_dir) else { continue };
             if vs.patch("#pipelines-content", html).await.is_err() {
                 break;
             }
@@ -386,10 +387,15 @@ pub async fn pipelines_sse(
     sse
 }
 
-fn render_content(params: &PipelinesParams) -> String {
-    let ctx = build_ctx(params);
-    templates::render("pipelines/content.html.j2", &ctx)
-        .unwrap_or_else(|e| format!("<div id=\"pipelines-content\"><pre>{e}</pre></div>"))
+fn render_content(params: &PipelinesParams, ship_dir: &std::path::Path) -> Option<String> {
+    let ctx = build_ctx(params, ship_dir);
+    match templates::render("pipelines/content.html.j2", &ctx) {
+        Ok(html) => Some(html),
+        Err(e) => {
+            tracing::error!(error = %e, "pipelines content render failed");
+            None
+        }
+    }
 }
 
 #[cfg(test)]

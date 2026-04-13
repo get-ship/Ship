@@ -12,8 +12,9 @@
 //!   FS-level VCS changes today) and morphs `#git-root` in place.
 
 use axum::extract::{Query, State};
+use axum::http::StatusCode;
 use axum::response::Html;
-use runtime::projections::job::{JobStatus, load_jobs};
+use runtime::projections::job::{JobStatus, load_jobs_at};
 use serde::{Deserialize, Serialize};
 use std::path::Path;
 use std::time::Duration;
@@ -73,8 +74,14 @@ pub(crate) struct GitCtx {
     pub error: Option<ErrorView>,
 }
 
-fn load_completed_jobs() -> Vec<CompletedJob> {
-    let jobs = load_jobs().unwrap_or_default();
+fn load_completed_jobs(ship_dir: &Path) -> Vec<CompletedJob> {
+    let jobs = match load_jobs_at(ship_dir) {
+        Ok(j) => j,
+        Err(e) => {
+            tracing::error!(error = %e, "load_jobs_at failed for git view");
+            std::collections::HashMap::new()
+        }
+    };
     let mut out: Vec<CompletedJob> = jobs
         .into_values()
         .filter(|j| matches!(j.status, JobStatus::Completed))
@@ -119,7 +126,7 @@ fn resolve_selected(params: &GitParams, root: &Path) -> Option<DiffView> {
 }
 
 pub(crate) fn build_ctx(params: &GitParams, ship_dir: &Path) -> GitCtx {
-    let completed_jobs = load_completed_jobs();
+    let completed_jobs = load_completed_jobs(ship_dir);
     let root = match resolve_root(ship_dir, params.workspace_id.as_deref()) {
         Ok(r) => r,
         Err(e) => {
@@ -162,18 +169,25 @@ pub(crate) fn build_ctx(params: &GitParams, ship_dir: &Path) -> GitCtx {
     }
 }
 
-fn render_shell(params: &GitParams, ship_dir: &Path) -> String {
+fn render_shell(params: &GitParams, ship_dir: &Path) -> Option<String> {
     let ctx = build_ctx(params, ship_dir);
-    templates::render("git/shell.html.j2", &ctx)
-        .unwrap_or_else(|e| format!("<div id=\"git-root\"><pre>{e}</pre></div>"))
+    match templates::render("git/shell.html.j2", &ctx) {
+        Ok(html) => Some(html),
+        Err(e) => {
+            tracing::error!(error = %e, "git shell render failed");
+            None
+        }
+    }
 }
 
 /// GET /api/runtime/view/git — full shell, minijinja-rendered.
 pub async fn git_shell(
     State(state): State<crate::rest_api::ApiState>,
     Query(params): Query<GitParams>,
-) -> Html<String> {
-    Html(render_shell(&params, state.ship_dir()))
+) -> Result<Html<String>, StatusCode> {
+    render_shell(&params, state.ship_dir())
+        .map(Html)
+        .ok_or(StatusCode::INTERNAL_SERVER_ERROR)
 }
 
 /// GET /api/runtime/view/git/sse — periodic patches for `#git-root`.
@@ -187,9 +201,10 @@ pub async fn git_sse(
     tokio::spawn(async move {
         let _hb = vs.heartbeat_every(Duration::from_secs(15));
 
-        let html = render_shell(&params, &ship_dir);
-        if vs.patch("#git-root", html).await.is_err() {
-            return;
+        if let Some(html) = render_shell(&params, &ship_dir) {
+            if vs.patch("#git-root", html).await.is_err() {
+                return;
+            }
         }
 
         let mut ticker = tokio::time::interval(Duration::from_secs(5));
@@ -199,7 +214,7 @@ pub async fn git_sse(
             if vs.is_closed() {
                 break;
             }
-            let html = render_shell(&params, &ship_dir);
+            let Some(html) = render_shell(&params, &ship_dir) else { continue };
             if vs.patch("#git-root", html).await.is_err() {
                 break;
             }

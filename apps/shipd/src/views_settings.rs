@@ -11,7 +11,9 @@
 //! via the existing `/api/settings` REST endpoint that forms post to.
 
 use axum::extract::{Query, State};
+use axum::http::StatusCode;
 use axum::response::Html;
+use runtime::gen_ulid;
 use serde::{Deserialize, Serialize};
 use std::time::Duration;
 
@@ -185,13 +187,18 @@ fn build_ctx(_params: &SettingsParams) -> SettingsCtx {
     }
 }
 
-fn render_panel(params: &SettingsParams) -> String {
+fn render_panel(params: &SettingsParams) -> Option<String> {
     let ctx = build_ctx(params);
-    let inner = render_sections(&ctx);
-    format!("<div id=\"settings-panel\">{inner}</div>")
+    match render_sections(&ctx) {
+        Ok(inner) => Some(format!("<div id=\"settings-panel\">{inner}</div>")),
+        Err(e) => {
+            tracing::error!(error = %e, "settings panel render failed");
+            None
+        }
+    }
 }
 
-fn render_sections(ctx: &SettingsCtx) -> String {
+fn render_sections(ctx: &SettingsCtx) -> Result<String, String> {
     let mut out = String::new();
     for tpl in [
         "settings/partials/providers.html.j2",
@@ -199,23 +206,23 @@ fn render_sections(ctx: &SettingsCtx) -> String {
         "settings/partials/advanced.html.j2",
         "settings/partials/about.html.j2",
     ] {
-        match templates::render(tpl, ctx) {
-            Ok(s) => out.push_str(&s),
-            Err(e) => out.push_str(&format!("<pre>{e}</pre>")),
-        }
+        out.push_str(&templates::render(tpl, ctx)?);
     }
-    out
+    Ok(out)
 }
 
 /// GET /api/runtime/view/settings — full shell, minijinja-rendered.
 pub async fn settings_shell(
     State(_state): State<crate::rest_api::ApiState>,
     Query(params): Query<SettingsParams>,
-) -> Html<String> {
+) -> Result<Html<String>, StatusCode> {
     let ctx = build_ctx(&params);
-    let html = templates::render("settings/shell.html.j2", &ctx)
-        .unwrap_or_else(|e| format!("<pre>shell render error: {e}</pre>"));
-    Html(html)
+    templates::render("settings/shell.html.j2", &ctx)
+        .map(Html)
+        .map_err(|e| {
+            tracing::error!(error = %e, "settings shell render failed");
+            StatusCode::INTERNAL_SERVER_ERROR
+        })
 }
 
 /// GET /api/runtime/view/settings/sse — Datastar patches for `#settings-panel`.
@@ -225,26 +232,20 @@ pub async fn settings_sse(
 ) -> ViewSse {
     let (vs, sse) = ViewStream::new();
 
-    let actor_id = format!(
-        "settings-sse-{}",
-        std::time::SystemTime::now()
-            .duration_since(std::time::UNIX_EPOCH)
-            .map(|d| d.as_nanos())
-            .unwrap_or(0)
-    );
+    let actor_id = format!("settings-sse-{}", gen_ulid());
     let config = runtime::events::ActorConfig {
         namespace: actor_id.clone(),
         write_namespaces: vec![],
         read_namespaces: vec![],
         subscribe_namespaces: vec!["workspace.".to_string()],
     };
-    let mailbox = state
-        .kernel()
-        .lock()
-        .await
-        .spawn_actor(&actor_id, config)
-        .ok()
-        .map(|(_store, mb)| mb);
+    let mailbox = match state.kernel().lock().await.spawn_actor(&actor_id, config) {
+        Ok((_store, mb)) => Some(mb),
+        Err(e) => {
+            tracing::error!(error = %e, actor = %actor_id, "spawn_actor failed for settings SSE");
+            None
+        }
+    };
     let guard = crate::runtime_api::ActorGuard {
         actor_id,
         kernel: state.kernel().clone(),
@@ -254,9 +255,10 @@ pub async fn settings_sse(
         let _guard = guard;
         let _hb = vs.heartbeat_every(Duration::from_secs(15));
 
-        let html = render_panel(&params);
-        if vs.patch("#settings-panel", html).await.is_err() {
-            return;
+        if let Some(html) = render_panel(&params) {
+            if vs.patch("#settings-panel", html).await.is_err() {
+                return;
+            }
         }
 
         let Some(mut mb) = mailbox else { return };
@@ -264,7 +266,7 @@ pub async fn settings_sse(
             if vs.is_closed() {
                 break;
             }
-            let html = render_panel(&params);
+            let Some(html) = render_panel(&params) else { continue };
             if vs.patch("#settings-panel", html).await.is_err() {
                 break;
             }
