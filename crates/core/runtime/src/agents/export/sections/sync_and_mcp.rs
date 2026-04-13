@@ -324,7 +324,7 @@ pub fn sync_active_agent_with_override(
             continue;
         }
         if get_provider(&normalized).is_none() {
-            eprintln!("[ship] warning: skipping unknown target agent '{}'", target);
+            tracing::warn!("skipping unknown target agent '{target}'");
             continue;
         }
         export_to_with_mode_override(project_dir.to_path_buf(), &normalized, active_agent_override)?;
@@ -421,7 +421,7 @@ pub fn import_skills_from_provider(provider_id: &str, project_dir: PathBuf) -> R
                 Ok(Some(draft)) => draft,
                 Ok(None) => continue,
                 Err(error) => {
-                    eprintln!(
+                    tracing::warn!(
                         "[ship] warning: skipped invalid skill import '{}': {}",
                         skill_md.display(),
                         error

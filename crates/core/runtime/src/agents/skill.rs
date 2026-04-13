@@ -694,7 +694,7 @@ fn list_skills_from_dir(dir: &Path) -> Result<Vec<Skill>> {
         if path.is_dir() {
             match parse_skill(&path) {
                 Ok(s) => skills.push(s),
-                Err(e) => eprintln!("warn: skipping {}: {}", path.display(), e),
+                Err(e) => tracing::warn!("skipping {}: {e}", path.display()),
             }
         }
     }

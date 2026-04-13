@@ -170,7 +170,7 @@ pub fn set_active_agent(project_dir: Option<PathBuf>, id: Option<&str>) -> Resul
     if let Some(ref dir) = project_dir
         && let Err(error) = crate::agents::export::sync_active_agent(dir)
     {
-        eprintln!("[ship] warning: active mode sync failed: {}", error);
+        tracing::warn!("active mode sync failed: {error}");
     }
     emit_config_event(
         "active_agent",

@@ -253,7 +253,7 @@ pub fn record_workspace_session_progress(
     insert_session_progress_event(&active.id, &workspace.id, &progress_payload, escalation.is_some())?;
 
     if let Err(error) = append_session_note_artifact(ship_dir, &active.id, normalized_note) {
-        eprintln!("Failed to persist session note artifact: {}", error);
+        tracing::warn!("failed to persist session note artifact: {error}");
     }
     Ok(())
 }

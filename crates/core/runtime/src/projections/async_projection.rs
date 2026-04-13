@@ -44,7 +44,7 @@ pub fn spawn_projection<P: AsyncProjection>(
                     match db_opener() {
                         Ok(mut conn) => {
                             if let Err(e) = projection.apply(&event, &mut conn) {
-                                eprintln!(
+                                tracing::warn!(
                                     "[async-projection:{}] apply error for {}: {}",
                                     projection.name(),
                                     event.event_type,
@@ -53,7 +53,7 @@ pub fn spawn_projection<P: AsyncProjection>(
                             }
                         }
                         Err(e) => {
-                            eprintln!(
+                            tracing::warn!(
                                 "[async-projection:{}] db_opener error: {}",
                                 projection.name(),
                                 e,
@@ -62,7 +62,7 @@ pub fn spawn_projection<P: AsyncProjection>(
                     }
                 }
                 Err(broadcast::error::RecvError::Lagged(n)) => {
-                    eprintln!(
+                    tracing::warn!(
                         "[async-projection:{}] lagged by {} events, continuing",
                         projection.name(),
                         n,

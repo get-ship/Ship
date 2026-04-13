@@ -42,7 +42,7 @@ pub fn spawn_with_failure_counter<P: AsyncProjection>(
                 Ok(mut conn) => {
                     if let Err(e) = projection.apply(&event, &mut conn) {
                         counter.fetch_add(1, Ordering::Relaxed);
-                        eprintln!(
+                        tracing::warn!(
                             "[projection:{}] apply error for {}: {}",
                             projection.name(),
                             event.event_type,
@@ -52,7 +52,7 @@ pub fn spawn_with_failure_counter<P: AsyncProjection>(
                 }
                 Err(e) => {
                     counter.fetch_add(1, Ordering::Relaxed);
-                    eprintln!(
+                    tracing::warn!(
                         "[projection:{}] db_opener error: {}",
                         projection.name(),
                         e,
