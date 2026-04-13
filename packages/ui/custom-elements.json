@@ -7295,6 +7295,83 @@
     },
     {
       "kind": "javascript-module",
+      "path": "src/web-components/utility/ship-metachip.ts",
+      "declarations": [
+        {
+          "kind": "class",
+          "description": "",
+          "name": "ShipMetachip",
+          "members": [
+            {
+              "kind": "field",
+              "name": "label",
+              "privacy": "public",
+              "type": {
+                "text": "string"
+              },
+              "default": "''",
+              "attribute": "label",
+              "reflects": true
+            },
+            {
+              "kind": "field",
+              "name": "value",
+              "privacy": "public",
+              "type": {
+                "text": "string"
+              },
+              "default": "''",
+              "attribute": "value",
+              "reflects": true
+            }
+          ],
+          "attributes": [
+            {
+              "name": "label",
+              "type": {
+                "text": "string"
+              },
+              "default": "''",
+              "fieldName": "label"
+            },
+            {
+              "name": "value",
+              "type": {
+                "text": "string"
+              },
+              "default": "''",
+              "fieldName": "value"
+            }
+          ],
+          "superclass": {
+            "name": "LitElement",
+            "package": "lit"
+          },
+          "tagName": "ship-metachip",
+          "customElement": true
+        }
+      ],
+      "exports": [
+        {
+          "kind": "js",
+          "name": "ShipMetachip",
+          "declaration": {
+            "name": "ShipMetachip",
+            "module": "src/web-components/utility/ship-metachip.ts"
+          }
+        },
+        {
+          "kind": "custom-element-definition",
+          "name": "ship-metachip",
+          "declaration": {
+            "name": "ShipMetachip",
+            "module": "src/web-components/utility/ship-metachip.ts"
+          }
+        }
+      ]
+    },
+    {
+      "kind": "javascript-module",
       "path": "src/web-components/utility/ship-skeleton.ts",
       "declarations": [
         {

@@ -5534,6 +5534,107 @@ if (typeof customElements !== "undefined" && !customElements.get("ship-link")) {
   customElements.define("ship-link", ShipLink);
 }
 
+// src/web-components/utility/ship-metachip.ts
+var ShipMetachip = class extends i4 {
+  constructor() {
+    super(...arguments);
+    this.label = "";
+    this.value = "";
+  }
+  render() {
+    return b2`
+      <span class="k" part="label"><slot name="label">${this.label}</slot></span>
+      <span class="v" part="value"><slot>${this.value}</slot></span>
+    `;
+  }
+};
+ShipMetachip.styles = i`
+    :host {
+      display: inline-flex;
+      align-items: baseline;
+      gap: 8px;
+      padding: 4px 14px;
+      border-right: 1px solid color-mix(in oklch, var(--border) 70%, transparent);
+      font-size: var(--text-xs);
+      line-height: var(--leading-tight);
+    }
+    :host(:last-of-type) { border-right: 0; padding-right: 0; }
+    :host(:first-of-type) { padding-left: 0; }
+    .k {
+      font-size: 10px;
+      font-weight: var(--font-weight-semibold);
+      color: var(--muted-foreground);
+      text-transform: uppercase;
+      letter-spacing: 0.06em;
+    }
+    .v {
+      font-family: var(--font-mono);
+      color: var(--foreground);
+      font-size: var(--text-xs);
+    }
+    ::slotted(*) { color: inherit; }
+  `;
+ShipMetachip.properties = {
+  label: { type: String, reflect: true },
+  value: { type: String, reflect: true }
+};
+if (typeof customElements !== "undefined" && !customElements.get("ship-metachip")) {
+  customElements.define("ship-metachip", ShipMetachip);
+}
+
+// src/web-components/utility/ship-step-segments.ts
+var KNOWN = /* @__PURE__ */ new Set(["done", "failed", "pending", "running"]);
+var ShipStepSegments = class extends i4 {
+  constructor() {
+    super(...arguments);
+    this.values = "";
+    this.size = "sm";
+  }
+  parsed() {
+    return this.values.split(",").map((s4) => s4.trim().toLowerCase()).filter((s4) => s4.length > 0).map((s4) => KNOWN.has(s4) ? s4 : "pending");
+  }
+  render() {
+    const segs = this.parsed();
+    if (segs.length === 0) return b2``;
+    return b2`
+      <span class="row" part="row" role="img"
+            aria-label="${segs.length} step outcome${segs.length === 1 ? "" : "s"}">
+        ${segs.map(
+      (s4) => b2`<span class="seg ${s4}" part="seg" data-state=${s4}></span>`
+    )}
+      </span>
+    `;
+  }
+};
+ShipStepSegments.styles = i`
+    :host { display: inline-flex; vertical-align: middle; }
+    .row { display: inline-flex; gap: 3px; align-items: center; }
+    .seg {
+      display: inline-block;
+      width: 18px; height: 6px;
+      border-radius: 2px;
+      background: color-mix(in oklch, var(--muted-foreground) 28%, transparent);
+    }
+    :host([size='md']) .seg { width: 24px; height: 8px; border-radius: 3px; }
+    .seg.done { background: var(--success); }
+    .seg.failed { background: var(--destructive); }
+    .seg.running {
+      background: var(--warning);
+      animation: pulse var(--duration-slow, 1200ms) ease-in-out infinite;
+    }
+    @keyframes pulse {
+      0%, 100% { opacity: 1; }
+      50% { opacity: 0.55; }
+    }
+  `;
+ShipStepSegments.properties = {
+  values: { type: String, reflect: true },
+  size: { type: String, reflect: true }
+};
+if (typeof customElements !== "undefined" && !customElements.get("ship-step-segments")) {
+  customElements.define("ship-step-segments", ShipStepSegments);
+}
+
 // src/web-components/index.ts
 function registerShipComponents() {
 }
@@ -5577,6 +5678,7 @@ export {
   ShipListItem,
   ShipLogLine,
   ShipMarkdown,
+  ShipMetachip,
   ShipMeter,
   ShipPipelineDag,
   ShipPipelineDefinition,
@@ -5593,6 +5695,7 @@ export {
   ShipSpinner,
   ShipStat,
   ShipStatusDot,
+  ShipStepSegments,
   ShipSwitch,
   ShipTab,
   ShipTabPanel,

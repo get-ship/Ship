@@ -86,6 +86,7 @@ Convention: `attr=value|value` = enum, bare `attr` = boolean.
 - `<ship-icon>` [name size tone]
 - `<ship-kbd>` [keys]
 - `<ship-link>` [href external tone]
+- `<ship-metachip>` [label value]
 - `<ship-skeleton>` [variant width height lines]
 - `<ship-toast>` [tone duration dismissible] events: ship-dismiss
 - `<ship-toast-container>` [position]
