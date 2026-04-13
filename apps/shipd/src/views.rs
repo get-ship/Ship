@@ -3,6 +3,28 @@
 //! Supports HTML views (index.html) and web component views (JS bundles with
 //! optional manifests). Resolution checks project `.ship/views/` first, then
 //! falls back to global `~/.ship/views/`.
+//!
+//! ## R0a foundation submodules
+//!
+//! The `stream`, `state`, and `templates` submodules provide infrastructure
+//! for daemon-rendered views built on minijinja + Datastar SSE. They are
+//! scaffolding for the pipelines pilot (R0b) and subsequent view rewrites.
+//! R0a intentionally does not change any existing route behavior.
+//!
+//! - [`stream`] — `ViewStream` helper wrapping Datastar's `PatchElements` /
+//!   `PatchSignals` with an `mpsc`-backed SSE response.
+//! - [`state`] — read helpers that centralize runtime state access for views.
+//!   R0a ships only the subset the pipelines pilot will need (pipelines +
+//!   workspace resolution). Helpers for specs, git, and settings are
+//!   deliberately not included yet — they will be added by the agents that
+//!   implement those pilots, alongside the handlers that consume them.
+//! - [`templates`] — minijinja `Environment` loaded from
+//!   `apps/shipd/templates/` via the `loader` feature, plus `render`
+//!   convenience helpers.
+
+pub mod stream;
+pub mod state;
+pub mod templates;
 
 use axum::{Json, extract::{Path, State}, http::StatusCode, response::IntoResponse};
 use serde::{Deserialize, Serialize};
