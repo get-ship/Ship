@@ -25,10 +25,10 @@ interface PipelineDef {
 
 function useWorkspaceId() {
   const { workspace } = usePlatform()
-  const viewedWorkspace = workspace?.branch ?? null
+  const viewedWorkspace = workspace?.name ?? null
   const { workspaces } = useDaemon()
   return viewedWorkspace
-    ?? workspaces.find((w) => String(w.status).toLowerCase() === 'active')?.branch
+    ?? (workspaces.find((w) => String(w.status).toLowerCase() === 'active') ?? workspaces[0])?.name
     ?? ''
 }
 

@@ -33,7 +33,7 @@ export function SessionEmptyState({
             )}
           </>
         ) : (
-          <p className="text-sm font-medium text-foreground/80">No active workspace</p>
+          <p className="text-sm font-medium text-foreground/80">Select a workspace to get started</p>
         )}
 
         <div className="flex items-center justify-center gap-2 mt-5">

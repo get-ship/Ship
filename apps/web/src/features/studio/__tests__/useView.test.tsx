@@ -52,7 +52,7 @@ function ViewConsumer() {
     <div>
       <span data-testid="daemon">{view.daemon}</span>
       <span data-testid="auth">{view.auth}</span>
-      <span data-testid="workspace">{view.workspace?.branch ?? 'none'}</span>
+      <span data-testid="workspace">{view.workspace?.name ?? 'none'}</span>
       <span data-testid="has-client">{String(!!view.client)}</span>
       <span data-testid="require-daemon">{String(view.requireDaemon() !== null)}</span>
     </div>

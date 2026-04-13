@@ -21,11 +21,38 @@ struct TmuxState {
 impl JobExecutor for TmuxExecutor {
     async fn spawn(&self, ctx: &JobContext) -> Result<ExecutorHandle> {
         let tmux_session = format!("job-{}", ctx.slug);
-        ensure_tmux_session(&tmux_session, &ctx.work_dir)?;
+
+        // On step advance within the same pipeline, the tmux session from
+        // the previous step is already running and the user already has a
+        // terminal tab attached to it. The previous claude has exited (via
+        // graceful_agent_exit before we got here) leaving a shell prompt.
+        // We still need to launch the new agent inside the session, but
+        // we MUST NOT open a new terminal tab — that's what was creating
+        // duplicates.
+        let reuse_session = tmux_session_exists(&tmux_session);
+
+        if !reuse_session {
+            ensure_tmux_session(&tmux_session, &ctx.work_dir)?;
+        }
 
         let adapter = adapter_for(ctx.launch.provider.as_deref());
         let cmd = adapter.build_interactive(&ctx.slug, &ctx.launch);
         let shell_cmd = cmd.to_shell_string();
+
+        // Clear residual output from any prior agent before the new one
+        // launches. On step advance the pane still shows "bypass permissions
+        // on" from the previous claude's prompt — which matches the ready
+        // pattern and makes drive_agent_to_ready fire autostart into the
+        // shell before the new claude even starts. `clear` + clear-history
+        // gives a clean slate.
+        if reuse_session {
+            let _ = std::process::Command::new("tmux")
+                .args(["send-keys", "-t", &tmux_session, "clear", "C-m"])
+                .status();
+            let _ = std::process::Command::new("tmux")
+                .args(["clear-history", "-t", &tmux_session])
+                .status();
+        }
 
         let result = std::process::Command::new("tmux")
             .args(["send-keys", "-t", &tmux_session, &shell_cmd, "Enter"])
@@ -34,7 +61,6 @@ impl JobExecutor for TmuxExecutor {
             tracing::warn!(session = tmux_session, "tmux send-keys failed: {e}");
         }
 
-        // Wait for the agent to be ready, send autostart, then monitor liveness.
         let session = tmux_session.clone();
         let ready_pat = adapter.ready_pattern().to_string();
         let autostart = adapter.autostart_input().to_string();
@@ -42,26 +68,27 @@ impl JobExecutor for TmuxExecutor {
         let job_id = ctx.job_id.clone();
         let exit_tx = ctx.exit_tx.clone();
         std::thread::spawn(move || {
-            // Dismiss Claude's development channels confirmation if present.
-            // Poll for up to 15 seconds, matching dispatch.sh's auto_kickstart_tmux.
-            dismiss_channels_prompt(&session, 15);
-
-            if wait_for_ready(&session, &ready_pat, 30) {
-                let _ = std::process::Command::new("tmux")
-                    .args(["send-keys", "-t", &session, &autostart, "Enter"])
-                    .status();
-            }
-            // After readiness (or timeout), monitor for session death.
+            drive_agent_to_ready(&session, &ready_pat, &autostart);
             if let Some(tx) = exit_tx {
                 monitor_tmux_session(&session, &slug, &job_id, tx);
             }
         });
 
-        let (strategy, launched) = terminal_launcher::launch(&tmux_session);
-        tracing::info!(
-            slug = ctx.slug, strategy, launched,
-            "job-dispatch: terminal launch attempted"
-        );
+        // Terminal tab only on fresh dispatch. On step advance the user
+        // already has the tab open; a second `terminal_launcher::launch`
+        // opens a duplicate that attaches to the same session.
+        if !reuse_session {
+            let (strategy, launched) = terminal_launcher::launch(&tmux_session);
+            tracing::info!(
+                slug = ctx.slug, strategy, launched,
+                "job-dispatch: terminal launch attempted"
+            );
+        } else {
+            tracing::info!(
+                slug = ctx.slug, session = tmux_session,
+                "job-dispatch: reusing existing tmux session, no new terminal tab"
+            );
+        }
 
         Ok(ExecutorHandle {
             pid: None,
@@ -139,48 +166,78 @@ impl JobExecutor for TmuxExecutor {
     }
 }
 
-/// Dismiss Claude's development channels confirmation prompt if present.
-/// Polls the tmux pane for the confirmation text and sends Enter to accept.
-/// Mirrors dispatch.sh's auto_kickstart_tmux behavior.
-fn dismiss_channels_prompt(session: &str, timeout_secs: u64) {
-    for _ in 0..timeout_secs {
-        std::thread::sleep(std::time::Duration::from_secs(1));
-        let output = std::process::Command::new("tmux")
-            .args(["capture-pane", "-t", session, "-p"])
-            .output();
-        if let Ok(out) = output {
-            let text = String::from_utf8_lossy(&out.stdout);
-            if text.contains("I am using this for local development") {
-                tracing::info!(session, "dismissing channels confirmation prompt");
-                let _ = std::process::Command::new("tmux")
-                    .args(["send-keys", "-t", session, "", "Enter"])
-                    .status();
-                return;
-            }
-            // If we see the real prompt already, no confirmation was needed.
-            if text.contains("bypass permissions") {
-                return;
-            }
-        }
-    }
+/// True when a tmux session with this name already exists.
+fn tmux_session_exists(session: &str) -> bool {
+    std::process::Command::new("tmux")
+        .args(["has-session", "-t", session])
+        .status()
+        .map(|s| s.success())
+        .unwrap_or(false)
 }
 
-/// Poll tmux pane until the ready pattern appears or timeout expires.
-fn wait_for_ready(session: &str, pattern: &str, timeout_secs: u64) -> bool {
-    for _ in 0..timeout_secs {
+/// Drive the agent from "just launched" to "ready and autostarted" by polling
+/// the tmux pane and reacting to every state we see along the way.
+///
+/// Replaces the previous two-stage `dismiss_channels_prompt` → `wait_for_ready`
+/// that raced and timed out independently. Those were brittle:
+///
+///   - claude can take 20+ seconds to render the channels menu on a second
+///     launch in an existing shell, past the old 15s dismiss window
+///   - `❯` appears both in the menu and at the real prompt, so a naive
+///     `wait_for_ready("❯")` false-matched the menu
+///   - dismiss sent `tmux send-keys Enter` which claude's menu widget ignores;
+///     only `C-m` (literal carriage return) confirms the selection
+///
+/// Single loop, one deadline, re-evaluate every second:
+///   - if the channels menu is on screen → send `C-m`, continue polling
+///   - if `ready_pat` shows AND the menu text is gone → send autostart, done
+///   - timeout → log and bail, monitor_tmux_session still takes over
+///
+/// We poll pane state every 1s for up to `READY_DEADLINE`. The agent typically
+/// transitions within 5-15s on fresh launch and 15-30s on reuse.
+fn drive_agent_to_ready(session: &str, ready_pat: &str, autostart: &str) {
+    const READY_DEADLINE: u64 = 60;
+    const MENU_TEXT: &str = "I am using this for local development";
+
+    for tick in 0..READY_DEADLINE {
         std::thread::sleep(std::time::Duration::from_secs(1));
-        let output = std::process::Command::new("tmux")
+
+        let Ok(out) = std::process::Command::new("tmux")
             .args(["capture-pane", "-t", session, "-p"])
-            .output();
-        if let Ok(out) = output {
-            let text = String::from_utf8_lossy(&out.stdout);
-            if text.contains(pattern) {
-                return true;
-            }
+            .output()
+        else {
+            continue;
+        };
+        let text = String::from_utf8_lossy(&out.stdout);
+
+        // Channels menu on screen → dismiss, keep polling for the real prompt.
+        if text.contains(MENU_TEXT) {
+            tracing::info!(session, tick, "agent: dismissing channels confirmation");
+            let _ = std::process::Command::new("tmux")
+                .args(["send-keys", "-t", session, "C-m"])
+                .status();
+            // Give claude a beat to redraw before the next poll matches the
+            // ready pattern — otherwise we might send autostart into a
+            // transitioning UI.
+            std::thread::sleep(std::time::Duration::from_secs(1));
+            continue;
+        }
+
+        // Real prompt visible AND menu gone → send autostart and we're done.
+        if text.contains(ready_pat) {
+            tracing::info!(session, tick, "agent: ready, sending autostart");
+            let _ = std::process::Command::new("tmux")
+                .args(["send-keys", "-t", session, autostart, "Enter"])
+                .status();
+            return;
         }
     }
-    tracing::warn!(session, "agent: timed out waiting for ready pattern");
-    false
+
+    tracing::warn!(
+        session,
+        "agent: did not reach ready state within {READY_DEADLINE}s — \
+         autostart was not sent, pipeline may stall"
+    );
 }
 
 /// Poll the tmux session every 5s; send ExitSignal when it dies.

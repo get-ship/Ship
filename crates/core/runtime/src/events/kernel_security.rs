@@ -6,7 +6,7 @@
 use anyhow::{Result, anyhow};
 use tokio::sync::mpsc;
 
-use crate::persistence::actor_store::{ActorStore, init_actor_db};
+use crate::persistence::actor_store::ActorStore;
 use ship_types::envelope::EventEnvelope;
 use ship_types::identity::ActorIdentity;
 use crate::events::kernel_router::{KernelRouter, MAILBOX_CAPACITY};
@@ -61,7 +61,6 @@ impl KernelRouter {
         let cursor_pos = self.actor_cursors.get(label).copied();
 
         let db_path = self.actor_db_path(label);
-        init_actor_db(&db_path)?;
 
         let (tx, rx) = mpsc::channel(MAILBOX_CAPACITY);
         self.mailboxes.insert(label.to_string(), tx.clone());

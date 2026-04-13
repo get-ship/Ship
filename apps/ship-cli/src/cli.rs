@@ -261,8 +261,8 @@ pub enum Commands {
 pub enum DaemonCommands {
     /// Start the daemon in the background
     Start {
-        /// Bind address (default: 0.0.0.0)
-        #[arg(long, default_value = "0.0.0.0")]
+        /// Bind address (default: 127.0.0.1)
+        #[arg(long, default_value = "127.0.0.1")]
         host: String,
         /// DEV mode — auto-pair on first localhost request, force 127.0.0.1 bind.
         /// Not for production. Logs a loud warning on startup.
@@ -278,7 +278,7 @@ pub enum DaemonCommands {
     /// Run the daemon in the foreground (internal — used by `start`, also useful for Docker/systemd)
     #[command(hide = true)]
     Run {
-        #[arg(long, default_value = "0.0.0.0")]
+        #[arg(long, default_value = "127.0.0.1")]
         host: String,
         #[arg(long, default_value_t = 9315)]
         port: u16,

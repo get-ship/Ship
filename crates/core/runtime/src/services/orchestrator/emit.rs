@@ -74,30 +74,35 @@ pub async fn emit_step_dispatched_event(
     persist_and_route(kernel, envelope, slug, ship_dir).await;
 }
 
-/// Persist an event to the store and route through the kernel.
-pub(super) async fn persist_and_route(
+/// Persist an event to platform.db and deliver it through the kernel.
+///
+/// Thin wrapper around `KernelRouter::emit` that logs failures at ERROR
+/// with slug/event_type/entity_id context. The unit return type matches
+/// the call-site contract (most orchestrator callers don't propagate);
+/// when callers are rewritten to propagate, they should call `kernel.emit`
+/// directly and delete their use of this helper.
+///
+/// `ship_dir` is accepted for backward compatibility and ignored — the
+/// kernel always writes to the platform.db under its own `base_dir`.
+pub async fn persist_and_route(
     kernel: &Arc<Mutex<crate::events::KernelRouter>>,
     envelope: EventEnvelope,
     slug: &str,
-    ship_dir: Option<&std::path::Path>,
+    _ship_dir: Option<&std::path::Path>,
 ) {
-    let store_result = match ship_dir {
-        Some(dir) => crate::events::SqliteEventStore::new_at(dir),
-        None => crate::events::SqliteEventStore::new(),
-    };
-    if let Ok(store) = store_result
-        && let Err(e) = crate::events::EventStore::append(&store, &envelope)
-    {
-        tracing::warn!(slug, "pipeline: failed to persist event: {e}");
-    }
+    let event_type = envelope.event_type.clone();
+    let entity_id = envelope.entity_id.clone();
 
     let ctx = EmitContext {
         caller_kind: CallerKind::Runtime,
         skill_id: None,
-        workspace_id: None,
-        session_id: None,
+        workspace_id: envelope.workspace_id.clone(),
+        session_id: envelope.session_id.clone(),
     };
-    if let Err(e) = kernel.lock().await.route(envelope, &ctx).await {
-        tracing::warn!(slug, "pipeline: event routing failed: {e}");
+    if let Err(e) = kernel.lock().await.emit(envelope, &ctx).await {
+        tracing::error!(
+            slug, event_type = %event_type, entity_id = %entity_id,
+            "persist_and_route: kernel emit failed: {e}"
+        );
     }
 }

@@ -26,8 +26,8 @@ function DashboardPage() {
   const [createOpen, setCreateOpen] = useState(false)
   const [confirmDelete, setConfirmDelete] = useState<string | null>(null)
 
-  const activeWs = workspaces.find((w) => String(w.status).toLowerCase() === 'active')
-  const activeWsId = activeWs?.branch ?? null
+  const activeWs = workspaces.find((w) => String(w.status).toLowerCase() === 'active') ?? workspaces[0]
+  const activeWsId = activeWs?.name ?? null
 
   // Config counts from active workspace
   const agentsPath = activeWsId ? `/workspaces/${encodeURIComponent(activeWsId)}/agents` : null
@@ -42,7 +42,7 @@ function DashboardPage() {
   const pendingJobs = jobs.filter((j) => j.status === 'pending')
 
   // Hide job/* branches — those are agent work branches, not user workspaces
-  const displayWorkspaces = workspaces.filter((ws) => !ws.branch.startsWith('job/'))
+  const displayWorkspaces = workspaces.filter((ws) => !ws.name.startsWith('job/'))
 
   const handleDelete = (branch: string) => {
     deleteMutation.mutate(branch, {
@@ -69,7 +69,7 @@ function DashboardPage() {
                 <span className="flex items-center gap-1.5">
                   <Circle className="size-1.5 fill-emerald-500 text-emerald-500" />
                   Connected
-                  {activeWs && <> &middot; {activeWs.branch}</>}
+                  {activeWs && <> &middot; {activeWs.name}</>}
                   {activeWs?.active_agent && <> &middot; {activeWs.active_agent}</>}
                 </span>
               ) : (
@@ -103,7 +103,7 @@ function DashboardPage() {
             detail={
               agentCount > 0 || skillCount > 0
                 ? `${agentCount} agent${agentCount !== 1 ? 's' : ''} · ${skillCount} skill${skillCount !== 1 ? 's' : ''}`
-                : activeWsId ? 'No agents configured' : 'No active workspace'
+                : activeWsId ? 'No agents configured' : 'Select a workspace to get started'
             }
           />
           <NavCard
@@ -137,18 +137,18 @@ function DashboardPage() {
               {displayWorkspaces.map((ws) => {
                 const status = String(ws.status).toLowerCase()
                 const isActive = status === 'active'
-                const isDeleting = deleteMutation.isPending && confirmDelete === ws.branch
+                const isDeleting = deleteMutation.isPending && confirmDelete === ws.name
                 return (
                   <WorkspaceRow
-                    key={ws.branch}
+                    key={ws.name}
                     ws={ws}
                     isActive={isActive}
                     isDeleting={isDeleting}
-                    isConfirmDelete={confirmDelete === ws.branch}
+                    isConfirmDelete={confirmDelete === ws.name}
                     activatePending={activateMutation.isPending}
-                    onActivate={() => activateMutation.mutate(ws.branch)}
-                    onDelete={() => handleDelete(ws.branch)}
-                    onConfirmDelete={() => setConfirmDelete(ws.branch)}
+                    onActivate={() => activateMutation.mutate(ws.name)}
+                    onDelete={() => handleDelete(ws.name)}
+                    onConfirmDelete={() => setConfirmDelete(ws.name)}
                     onCancelDelete={() => setConfirmDelete(null)}
                   />
                 )
@@ -184,7 +184,7 @@ function WorkspaceRow({
   onActivate, onDelete, onConfirmDelete, onCancelDelete,
 }: WorkspaceRowProps) {
   const gitPath = ws.is_worktree
-    ? `/workspaces/${encodeURIComponent(ws.branch)}/git/status`
+    ? `/workspaces/${encodeURIComponent(ws.name)}/git/status`
     : null
   const { data: gitRaw } = useShipQuery<{ output: string }>(gitPath)
   const gitClean = gitRaw ? isGitOutputClean(gitRaw.output) : null
@@ -192,7 +192,7 @@ function WorkspaceRow({
   return (
     <div className="flex items-center gap-3 px-3 py-2 rounded-lg hover:bg-muted/30 transition-colors group">
       <span className={`size-2 rounded-full shrink-0 ${isActive ? 'bg-emerald-500' : 'bg-muted-foreground/30'}`} />
-      <span className="text-sm font-medium flex-1 truncate">{ws.branch}</span>
+      <span className="text-sm font-medium flex-1 truncate">{ws.name}</span>
 
       {/* Git status badge */}
       {ws.is_worktree && gitRaw && (

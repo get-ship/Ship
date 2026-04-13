@@ -17,6 +17,10 @@ pub mod pty_handler;
 pub mod rest_api;
 pub mod runtime_api;
 mod server;
+pub mod views;
+pub mod views_pipelines;
+pub mod specs_api;
+pub mod specs_view;
 pub mod settings_api;
 pub mod attest;
 pub mod pairing;
@@ -229,7 +233,10 @@ fn build_router(
         }))
         .route("/api/health", axum::routing::get(move || {
             health_check(health_rt)
-        }));
+        }))
+        // Shared static assets — no user-specific data, safe to serve unauth.
+        .route("/api/runtime/assets/datastar.js", axum::routing::get(views::serve_datastar_js))
+        .route("/api/runtime/assets/view-tokens.css", axum::routing::get(views::serve_view_tokens));
 
     let auth_token = token;
     let auth_hook_token = hook_token;
@@ -313,9 +320,18 @@ fn build_runtime_routes(st: rest_api::ApiState) -> Router {
         .route("/agents/{slug}/stop", axum::routing::post(runtime_api::stop_agent))
         .route("/agents/{slug}/steer", axum::routing::post(runtime_api::steer_agent))
         .route("/jobs", axum::routing::get(runtime_api::list_jobs).post(runtime_api::create_job))
+        .route("/jobs/{job_id}", axum::routing::get(runtime_api::get_job_detail))
         .route("/jobs/end", axum::routing::post(runtime_api::end_job))
-        .route("/views", axum::routing::get(runtime_api::list_views))
-        .route("/view/{name}", axum::routing::get(runtime_api::serve_view))
+        .route("/views", axum::routing::get(views::list_views))
+        .route("/view/{name}", axum::routing::get(views::serve_view))
+        .route("/view/{name}/manifest", axum::routing::get(views::serve_view_manifest))
+        .route("/view/{name}/bundle", axum::routing::get(views::serve_view_bundle))
+        .route("/view/{name}/raw", axum::routing::get(views::serve_view_raw))
+        .route("/view/pipelines/sse", axum::routing::get(views_pipelines::pipelines_sse))
+        .route("/view/specs/sse", axum::routing::get(specs_view::specs_view_sse))
+        .route("/specs", axum::routing::get(specs_api::list_specs).post(specs_api::create_spec))
+        .route("/specs/{id}", axum::routing::get(specs_api::get_spec).put(specs_api::update_spec).delete(specs_api::delete_spec))
+        .route("/specs/{id}/launch", axum::routing::post(specs_api::launch_spec))
         .route("/events", axum::routing::get(runtime_api::event_stream))
         .route("/rebuild-projections", axum::routing::post(runtime_api::rebuild_projections))
         .route("/workspaces/{id}/pty", axum::routing::get(pty_handler::workspace_pty))
@@ -647,7 +663,7 @@ async fn cors_middleware(req: Request<Body>, next: Next) -> Response {
         );
         h.insert(
             "access-control-allow-headers",
-            HeaderValue::from_static("content-type, authorization, accept, mcp-session-id, x-ship-caller, x-ship-agent-id, x-ship-workspace-id, x-ship-session-id"),
+            HeaderValue::from_static("content-type, authorization, accept, mcp-session-id, x-ship-caller, x-ship-agent-id, x-ship-workspace-id, x-ship-session-id, datastar-request"),
         );
         h.insert(
             "access-control-expose-headers",

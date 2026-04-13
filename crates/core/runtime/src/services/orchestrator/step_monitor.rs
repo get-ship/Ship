@@ -1,37 +1,47 @@
-//! Step monitor — unified per-step execution tracker.
+//! Step monitor — evidence-based per-step execution tracker.
 //!
-//! Each dispatched step gets a `StepMonitor` that waits for:
-//! 1. `step.done_declared` event (agent called `step_done`)
-//! 2. Process exit signal (executor sends `ExitSignal`)
-//! 3. Timeout (configurable, default 30 minutes)
+//! Each dispatched step gets a `StepMonitor` that listens for multiple signals:
+//! 1. `step.done_declared` event (agent called `step_done`) — strongest signal
+//! 2. Activity signals (provider Stop hook, turn ended) — scan triggers
+//! 3. Process exit signal (executor sends `ExitSignal`)
+//! 4. Timeout (configurable, default 30 minutes)
 //!
-//! The monitor emits `step.observed` with the authoritative success/failure
-//! verdict for pipeline advancement.
+//! The monitor accumulates evidence across signals. It does not advance
+//! the pipeline on a single event — it waits for activity to settle and
+//! checks outputs (git commits, step_done) before deciding.
 
-use crate::events::job::{StepObservedPayload, event_types};
-use crate::events::{CallerKind, EmitContext, EventEnvelope, EventStore, KernelRouter, SqliteEventStore};
+use crate::events::job::{StepObservedPayload, StepTrigger, StepVerdict, event_types};
+use crate::events::{EventEnvelope, KernelRouter};
 use crate::services::dispatch_ports::{ExitSignal, ProcessRegistryPort};
+use std::path::PathBuf;
 use std::sync::atomic::{AtomicBool, Ordering};
 use std::sync::Arc;
 use std::time::{Duration, Instant};
 use tokio::sync::mpsc::UnboundedReceiver;
 use tokio::sync::Mutex;
 
+use super::StepActivity;
+
 /// Default step timeout: 30 minutes.
 const DEFAULT_TIMEOUT: Duration = Duration::from_secs(30 * 60);
 
+/// After evidence appears (commits, turn ended), wait this long for more
+/// activity before declaring the step done. Prevents advancing mid-task
+/// when the agent is just between tool-call loops.
+const SETTLE_DURATION: Duration = Duration::from_secs(15);
+
 /// Per-step execution monitor.
-///
-/// Spawned as a tokio task when a pipeline step begins executing.
-/// Tracks whether `step_done` was called and correlates it with process exit.
 pub struct StepMonitor {
     pub job_id: String,
     pub step_index: usize,
     pub slug: String,
     pub step_name: String,
+    pub work_dir: PathBuf,
     pub started_at: Instant,
     pub timeout: Duration,
     pub done_declared: Arc<AtomicBool>,
+    /// HEAD SHA at step start — baseline for counting this step's commits.
+    pub start_sha: Option<String>,
 }
 
 impl StepMonitor {
@@ -40,15 +50,19 @@ impl StepMonitor {
         step_index: usize,
         slug: String,
         step_name: String,
+        work_dir: PathBuf,
     ) -> Self {
+        let start_sha = resolve_head_sha(&work_dir);
         Self {
             job_id,
             step_index,
             slug,
             step_name,
+            work_dir,
             started_at: Instant::now(),
             timeout: DEFAULT_TIMEOUT,
             done_declared: Arc::new(AtomicBool::new(false)),
+            start_sha,
         }
     }
 
@@ -60,62 +74,257 @@ impl StepMonitor {
 
 /// Spawn the step monitor task.
 ///
-/// Waits for the process exit signal, then emits `step.observed` based on
-/// whether `step_done` was called before exit.
+/// Listens on three channels simultaneously:
+/// - `exit_rx`: process/session death
+/// - `activity_rx`: turn-ended signals from Stop hook
+/// - timeout: global step timeout
+///
+/// On each signal, gathers git evidence and decides whether to advance.
 pub fn start_step_monitor(
     monitor: StepMonitor,
     kernel: Arc<Mutex<KernelRouter>>,
     registry: Arc<dyn ProcessRegistryPort>,
     mut exit_rx: UnboundedReceiver<ExitSignal>,
+    mut activity_rx: UnboundedReceiver<StepActivity>,
 ) {
     tokio::spawn(async move {
-        let result = tokio::time::timeout(monitor.timeout, exit_rx.recv()).await;
+        let deadline = tokio::time::Instant::now() + monitor.timeout;
+        let mut settle_deadline: Option<tokio::time::Instant> = None;
+        let mut exit_signal: Option<ExitSignal> = None;
+        let mut turns: u32 = 0;
 
-        let duration_secs = monitor.started_at.elapsed().as_secs();
-        let done_declared = monitor.done_declared.load(Ordering::Acquire);
+        loop {
+            let done = monitor.done_declared.load(Ordering::Acquire);
 
-        // Unregister from process registry
-        registry.unregister(&monitor.slug).await;
+            // If step_done was called, emit immediately.
+            if done {
+                let (commits, uncommitted) = scan_git_evidence(
+                    &monitor.work_dir, monitor.start_sha.as_deref(),
+                );
+                emit_and_finish(
+                    &monitor, &kernel, &registry,
+                    StepTrigger::DoneDeclared, None,
+                    true, None, commits, uncommitted, turns,
+                ).await;
+                return;
+            }
 
-        let (succeeded, exit_code, reason) = match result {
-            Ok(Some(signal)) => {
-                let code = signal.exit_code;
-                match code {
-                    Some(0) | None => {
-                        // Process exit with code 0 = step succeeded.
-                        // step_done is a bonus signal, not required.
-                        (true, code, None)
+            // If we're settling and the deadline passed, emit.
+            if let Some(sd) = settle_deadline {
+                if tokio::time::Instant::now() >= sd {
+                    let (commits, uncommitted) = scan_git_evidence(
+                        &monitor.work_dir, monitor.start_sha.as_deref(),
+                    );
+                    let trigger = if exit_signal.is_some() {
+                        StepTrigger::ProcessExit
+                    } else {
+                        StepTrigger::TurnSettled
+                    };
+                    let exit_code = exit_signal.as_ref().and_then(|s| s.exit_code);
+                    emit_and_finish(
+                        &monitor, &kernel, &registry,
+                        trigger, exit_code,
+                        false, None, commits, uncommitted, turns,
+                    ).await;
+                    return;
+                }
+            }
+
+            // Compute how long until the next interesting deadline.
+            let sleep_until = match settle_deadline {
+                Some(sd) => sd.min(deadline),
+                None => deadline,
+            };
+
+            tokio::select! {
+                signal = exit_rx.recv() => {
+                    match signal {
+                        Some(sig) => {
+                            tracing::info!(
+                                slug = monitor.slug,
+                                exit_code = ?sig.exit_code,
+                                "step-monitor: process exit signal"
+                            );
+                            exit_signal = Some(sig);
+                            // Process died — scan immediately, but use settle
+                            // to avoid racing with a near-simultaneous step_done.
+                            settle_deadline = Some(
+                                tokio::time::Instant::now() + Duration::from_secs(3)
+                            );
+                        }
+                        None => {
+                            // Channel closed — emit with what we have.
+                            let (commits, uncommitted) = scan_git_evidence(
+                                &monitor.work_dir, monitor.start_sha.as_deref(),
+                            );
+                            emit_and_finish(
+                                &monitor, &kernel, &registry,
+                                StepTrigger::ChannelClosed, None,
+                                false, Some("exit channel closed".into()),
+                                commits, uncommitted, turns,
+                            ).await;
+                            return;
+                        }
                     }
-                    Some(_) => {
-                        (false, code, Some(format!(
-                            "process exited with code {}",
-                            code.unwrap_or(-1)
-                        )))
+                }
+                activity = activity_rx.recv() => {
+                    match activity {
+                        Some(StepActivity::TurnEnded) => {
+                            turns += 1;
+                            tracing::info!(
+                                slug = monitor.slug, turns,
+                                "step-monitor: turn ended (Stop hook), starting settle"
+                            );
+                            // Turn ended — always start the settle timer.
+                            // Evidence determines the verdict at settle time
+                            // (commits, step_done, etc.). Previously this was
+                            // gated on `commits > 0`, which meant agents that
+                            // wrote files but didn't commit hung the pipeline
+                            // forever. Evidence is for the verdict; the
+                            // trigger is "agent stopped responding."
+                            //
+                            // Late activity resets the deadline: if the agent
+                            // starts talking again, we wait again.
+                            settle_deadline = Some(
+                                tokio::time::Instant::now() + SETTLE_DURATION
+                            );
+                        }
+                        None => {
+                            // Activity channel closed — continue waiting
+                            // on exit_rx and timeout.
+                        }
+                    }
+                }
+                _ = tokio::time::sleep_until(sleep_until) => {
+                    // Either settle deadline or global timeout fired.
+                    // The loop body above handles both cases.
+                    if tokio::time::Instant::now() >= deadline {
+                        let (commits, uncommitted) = scan_git_evidence(
+                            &monitor.work_dir, monitor.start_sha.as_deref(),
+                        );
+                        emit_and_finish(
+                            &monitor, &kernel, &registry,
+                            StepTrigger::Timeout, None,
+                            false, Some("timeout".into()),
+                            commits, uncommitted, turns,
+                        ).await;
+                        return;
                     }
                 }
             }
-            Ok(None) => {
-                (false, None, Some("exit channel closed unexpectedly".to_string()))
-            }
-            Err(_) => {
-                (false, None, Some("timeout".to_string()))
-            }
-        };
-
-        let payload = StepObservedPayload {
-            job_id: monitor.job_id.clone(),
-            slug: monitor.slug.clone(),
-            step_index: monitor.step_index,
-            step_name: monitor.step_name.clone(),
-            succeeded,
-            exit_code,
-            duration_secs,
-            done_declared,
-            reason,
-        };
-
-        emit_step_observed(&kernel, &monitor.job_id, &monitor.slug, &payload).await;
+        }
     });
+}
+
+/// Build the payload, emit step.observed, and unregister from the registry.
+async fn emit_and_finish(
+    monitor: &StepMonitor,
+    kernel: &Arc<Mutex<KernelRouter>>,
+    registry: &Arc<dyn ProcessRegistryPort>,
+    trigger: StepTrigger,
+    exit_code: Option<i32>,
+    done_declared: bool,
+    reason: Option<String>,
+    commits: u32,
+    uncommitted: u32,
+    turns: u32,
+) {
+    registry.unregister(&monitor.slug).await;
+
+    let done_result = if done_declared { Some(true) } else { None };
+    let verdict = StepObservedPayload::compute_verdict(
+        done_declared, done_result, exit_code, commits, uncommitted, &trigger,
+    );
+    let duration_secs = monitor.started_at.elapsed().as_secs();
+    let succeeded = verdict == StepVerdict::Advance;
+
+    tracing::info!(
+        slug = monitor.slug,
+        step = monitor.step_name,
+        ?trigger,
+        ?verdict,
+        done_declared,
+        ?exit_code,
+        commits,
+        uncommitted,
+        turns,
+        "step-monitor: emitting observation"
+    );
+
+    let payload = StepObservedPayload {
+        job_id: monitor.job_id.clone(),
+        slug: monitor.slug.clone(),
+        step_index: monitor.step_index,
+        step_name: monitor.step_name.clone(),
+        trigger,
+        done_declared,
+        done_result,
+        exit_code,
+        commits_since_start: commits,
+        uncommitted_files: uncommitted,
+        duration_secs,
+        reason,
+        verdict,
+        succeeded,
+    };
+
+    emit_step_observed(kernel, &monitor.job_id, &monitor.slug, &payload).await;
+}
+
+/// Scan git state in a worktree, counting commits since `start_sha`.
+///
+/// Returns (commits_since_start, uncommitted_files).
+/// Falls back to (0, 0) if git commands fail — never crashes.
+fn scan_git_evidence(work_dir: &std::path::Path, start_sha: Option<&str>) -> (u32, u32) {
+    let commits = match start_sha {
+        Some(sha) => {
+            std::process::Command::new("git")
+                .args(["rev-list", "--count", &format!("{sha}..HEAD")])
+                .current_dir(work_dir)
+                .output()
+                .ok()
+                .and_then(|o| String::from_utf8_lossy(&o.stdout).trim().parse::<u32>().ok())
+                .unwrap_or(0)
+        }
+        None => {
+            // No baseline — count all local-only commits as fallback.
+            std::process::Command::new("git")
+                .args(["rev-list", "--count", "HEAD", "--not", "--remotes"])
+                .current_dir(work_dir)
+                .output()
+                .ok()
+                .and_then(|o| String::from_utf8_lossy(&o.stdout).trim().parse::<u32>().ok())
+                .unwrap_or(0)
+        }
+    };
+
+    let uncommitted = std::process::Command::new("git")
+        .args(["status", "--porcelain"])
+        .current_dir(work_dir)
+        .output()
+        .ok()
+        .map(|o| {
+            String::from_utf8_lossy(&o.stdout)
+                .lines()
+                .filter(|l| !l.is_empty())
+                .count() as u32
+        })
+        .unwrap_or(0);
+
+    (commits, uncommitted)
+}
+
+/// Resolve HEAD SHA in a worktree. Returns None if git fails.
+fn resolve_head_sha(work_dir: &std::path::Path) -> Option<String> {
+    std::process::Command::new("git")
+        .args(["rev-parse", "HEAD"])
+        .current_dir(work_dir)
+        .output()
+        .ok()
+        .and_then(|o| {
+            let s = String::from_utf8_lossy(&o.stdout).trim().to_string();
+            if s.is_empty() { None } else { Some(s) }
+        })
 }
 
 /// Emit a `step.observed` event through the kernel.
@@ -133,19 +342,7 @@ async fn emit_step_observed(
         }
     };
 
-    if let Ok(store) = SqliteEventStore::new()
-        && let Err(e) = EventStore::append(&store, &envelope)
-    {
-        tracing::warn!(slug, "step-monitor: failed to persist event: {e}");
-    }
-
-    let ctx = EmitContext {
-        caller_kind: CallerKind::Runtime,
-        skill_id: None,
-        workspace_id: None,
-        session_id: None,
-    };
-    if let Err(e) = kernel.lock().await.route(envelope, &ctx).await {
-        tracing::warn!(slug, "step-monitor: failed to route event: {e}");
-    }
+    crate::services::orchestrator::emit::persist_and_route(
+        kernel, envelope, slug, None,
+    ).await;
 }

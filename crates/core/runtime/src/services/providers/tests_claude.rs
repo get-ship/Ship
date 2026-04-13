@@ -179,15 +179,21 @@ fn persistent_session_omits_no_persistence_flag() {
 // ── Lifecycle hooks ─────────────────────────────────────────────────────────
 
 #[test]
-fn ready_pattern_is_prompt_char() {
+fn ready_pattern_is_prompt_mode_marker() {
+    // Must NOT be "❯" alone — that matches the channels-menu selector and
+    // fires autostart into a menu that hasn't been dismissed. Instead use
+    // the mode-marker line that only appears at the real input prompt.
     let adapter = ClaudeAdapter;
-    assert_eq!(adapter.ready_pattern(), "❯");
+    assert_eq!(adapter.ready_pattern(), "bypass permissions on");
 }
 
 #[test]
-fn autostart_input_is_go() {
+fn autostart_input_reads_job_spec() {
     let adapter = ClaudeAdapter;
-    assert_eq!(adapter.autostart_input(), "go");
+    assert_eq!(
+        adapter.autostart_input(),
+        "Read .artifacts/job-spec.md and execute it autonomously."
+    );
 }
 
 #[test]

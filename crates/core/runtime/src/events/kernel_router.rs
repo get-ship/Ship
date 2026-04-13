@@ -23,10 +23,10 @@ use anyhow::{Result, anyhow};
 use tokio::sync::mpsc;
 
 use crate::errors::KernelError;
-use crate::persistence::actor_store::{ActorStore, init_actor_db, raw_append};
+use crate::persistence::actor_store::{ActorStore, raw_append};
 use ship_types::envelope::EventEnvelope;
 use ship_kernel::Mailbox;
-use crate::events::validator::{EmitContext, EventValidator, is_kernel_event};
+use crate::events::validator::{EmitContext, EventValidator};
 
 #[cfg(feature = "unstable")]
 use crate::events::kernel_security::ActorMeta;
@@ -53,8 +53,15 @@ pub struct KernelRouter {
 
 impl KernelRouter {
     pub fn new(base_dir: PathBuf) -> Result<Self> {
-        let kernel_store_path = base_dir.join("kernel").join("events.db");
-        init_actor_db(&kernel_store_path)?;
+        // Kernel events land in platform.db alongside every other event.
+        // Actor isolation is a logical boundary (actor_id column), not a
+        // physical one. Ensure platform.db is initialised — this is the
+        // single event log for the whole runtime.
+        if !base_dir.exists() {
+            std::fs::create_dir_all(&base_dir)?;
+        }
+        crate::db::ensure_db_at(&base_dir)?;
+        let kernel_store_path = base_dir.join("platform.db");
         #[cfg(feature = "unstable")]
         crate::persistence::cursor::init_cursor_table(&kernel_store_path)?;
 
@@ -93,12 +100,9 @@ impl KernelRouter {
                 actor_id: actor_id.to_string(),
             });
         }
-        let db_path = self
-            .base_dir
-            .join("actors")
-            .join(actor_id)
-            .join("events.db");
-        init_actor_db(&db_path)?;
+        // Every actor queries the shared platform.db events table filtered
+        // by its own actor_id. No per-actor file is created.
+        let db_path = self.base_dir.join("platform.db");
 
         let (tx, rx) = mpsc::channel(MAILBOX_CAPACITY);
         self.mailboxes.insert(actor_id.to_string(), tx);
@@ -121,27 +125,49 @@ impl KernelRouter {
         Ok((store, Mailbox::from_receiver(rx)))
     }
 
+    /// Persist an event to platform.db and deliver it to subscribed mailboxes.
+    ///
+    /// This is THE write path for the runtime. Every event is:
+    ///   1. Validated (namespace checks, permission checks)
+    ///   2. Persisted to platform.db via raw_append
+    ///   3. Delivered to in-memory mailboxes (post-commit)
+    ///
+    /// If persistence fails, the event is not delivered and the caller gets
+    /// an Err. If delivery to a particular mailbox fails (closed, full), the
+    /// event is already durable — a future replay or sweep can redeliver.
+    pub async fn emit(&self, event: EventEnvelope, ctx: &EmitContext) -> Result<()> {
+        for v in &self.validators {
+            v.validate(&event, ctx).map_err(|e| anyhow!("{e}"))?;
+        }
+        self.enforce_write_namespaces(&event, ctx)?;
+        #[cfg(feature = "unstable")]
+        self.enforce_emit_permissions(&event, ctx)?;
+
+        // Single write: persist to platform.db.
+        raw_append(&self.kernel_store_path, &event)?;
+
+        // Best-effort in-memory delivery. If it fails, the event is still
+        // durable — subscribers can catch up via replay.
+        self.deliver(event).await
+    }
+
+    /// Delivery-only path. Persistence is the caller's responsibility.
+    ///
+    /// Retained for callers that already persisted (e.g. the orchestrator's
+    /// `emit::persist_and_route` helper, which phase 2b will unify with
+    /// `KernelRouter::emit`). New code should use `emit`.
     pub async fn route(&self, event: EventEnvelope, ctx: &EmitContext) -> Result<()> {
         for v in &self.validators {
             v.validate(&event, ctx).map_err(|e| anyhow!("{e}"))?;
         }
-
         self.enforce_write_namespaces(&event, ctx)?;
-
         #[cfg(feature = "unstable")]
         self.enforce_emit_permissions(&event, ctx)?;
+        self.deliver(event).await
+    }
 
-        // Store in the kernel DB only if it's a kernel-routed namespace AND
-        // it doesn't belong to a registered actor's private namespace.
-        if is_kernel_event(&event.event_type) {
-            let is_actor_owned = self.actor_configs.values().any(|cfg| {
-                event.event_type.starts_with(&format!("{}.", cfg.namespace))
-            });
-            if !is_actor_owned {
-                raw_append(&self.kernel_store_path, &event)?;
-            }
-        }
-
+    /// Deliver an event to in-memory subscribers. No validation, no persistence.
+    async fn deliver(&self, event: EventEnvelope) -> Result<()> {
         #[cfg(feature = "unstable")]
         {
             self.event_log.lock().unwrap().push(event.clone());
@@ -185,12 +211,26 @@ impl KernelRouter {
                                         "dropped_event_type": &event.event_type,
                                         "dropped_event_id": &event.id,
                                     });
-                                    if let Ok(ev) = EventEnvelope::new(
+                                    match EventEnvelope::new(
                                         "actor.mailbox_full",
                                         actor_id,
                                         &payload,
                                     ) {
-                                        let _ = raw_append(&self.kernel_store_path, &ev);
+                                        Ok(ev) => {
+                                            if let Err(e) = raw_append(&self.kernel_store_path, &ev) {
+                                                tracing::error!(
+                                                    actor_id,
+                                                    dropped_event_id = %event.id,
+                                                    "kernel-router: failed to persist mailbox_full event: {e}"
+                                                );
+                                            }
+                                        }
+                                        Err(e) => {
+                                            tracing::error!(
+                                                actor_id,
+                                                "kernel-router: failed to build mailbox_full envelope: {e}"
+                                            );
+                                        }
                                     }
                                     full_actors.push(actor_id.clone());
                                 }
@@ -259,11 +299,11 @@ impl KernelRouter {
         &self.kernel_store_path
     }
 
-    pub(crate) fn actor_db_path(&self, actor_id: &str) -> PathBuf {
-        self.base_dir
-            .join("actors")
-            .join(actor_id)
-            .join("events.db")
+    /// Path for an actor's events. In the single-event-log architecture this
+    /// always returns platform.db — actor isolation is by `actor_id` column,
+    /// not by file. The helper exists so callers can switch in tests.
+    pub(crate) fn actor_db_path(&self, _actor_id: &str) -> PathBuf {
+        self.base_dir.join("platform.db")
     }
 
     /// Enforce write namespace permissions using actor_configs.

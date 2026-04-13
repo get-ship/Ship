@@ -57,7 +57,7 @@ impl KernelRouter {
         let db_path = self.actor_db_path(actor_id);
         flush_wal(&db_path)?;
         let db_bytes = std::fs::read(&db_path)?;
-        let (event_count, last_event_id) = event_stats(&db_path)?;
+        let (event_count, last_event_id) = event_stats(&db_path, actor_id)?;
         let snap = ActorSnapshot {
             actor_id: actor_id.to_string(),
             namespace: config.namespace.clone(),

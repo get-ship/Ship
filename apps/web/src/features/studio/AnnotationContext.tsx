@@ -26,7 +26,7 @@ const AnnotationCtx = createContext<AnnotationState | null>(null)
 export function AnnotationProvider({ children }: { children: ReactNode }) {
   const [staged, setStaged] = useState<StagedAnnotation[]>([])
   const { workspaces } = useDaemon()
-  const activeWs = workspaces.find((w) => String(w.status).toLowerCase() === 'active')
+  const activeWs = workspaces.find((w) => String(w.status).toLowerCase() === 'active') ?? workspaces[0]
 
   const addAnnotation = useCallback((filePath: string, ann: Annotation) => {
     const id = ann.id || genId()
@@ -51,7 +51,7 @@ export function AnnotationProvider({ children }: { children: ReactNode }) {
       method: 'POST',
       body: JSON.stringify({
         event_type: 'studio.message',
-        entity_id: activeWs?.branch ?? 'studio',
+        entity_id: activeWs?.name ?? 'studio',
         workspace_id: activeWs?.id,
         payload: {
           summary: message || undefined,

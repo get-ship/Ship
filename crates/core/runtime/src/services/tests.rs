@@ -7,7 +7,6 @@ use anyhow::Result;
 use tempfile::tempdir;
 use tokio::sync::mpsc;
 
-use crate::persistence::actor_store::init_actor_db;
 use crate::events::kernel_router::{ActorConfig, KernelRouter};
 use crate::events::{ActorStore, EventEnvelope, Mailbox};
 use crate::services::{ServiceHandle, ServiceHandler, spawn_service, run_service};
@@ -31,8 +30,19 @@ fn sync_actor_config() -> ActorConfig {
 
 fn setup_router() -> (tempfile::TempDir, KernelRouter) {
     let tmp = tempdir().unwrap();
-    let router = KernelRouter::new(tmp.path().join(".ship")).unwrap();
+    let base = tmp.path().join(".ship");
+    std::fs::create_dir_all(&base).unwrap();
+    crate::db::ensure_db_at(&base).unwrap();
+    let router = KernelRouter::new(base).unwrap();
     (tmp, router)
+}
+
+fn setup_store(actor_id: &str, write_ns: Vec<String>, read_ns: Vec<String>) -> (tempfile::TempDir, ActorStore) {
+    let tmp = tempdir().unwrap();
+    crate::db::ensure_db_at(tmp.path()).unwrap();
+    let db_path = tmp.path().join("platform.db");
+    let store = ActorStore::new(actor_id, db_path, write_ns, read_ns);
+    (tmp, store)
 }
 
 /// Minimal service handler that records lifecycle calls for inspection.
@@ -96,10 +106,7 @@ async fn service_handle_called_for_each_mailbox_event() {
     let (tx, rx) = mpsc::channel(10);
     let mailbox = Mailbox::from_receiver(rx);
 
-    let tmp = tempdir().unwrap();
-    let db_path = tmp.path().join("events.db");
-    init_actor_db(&db_path).unwrap();
-    let store = ActorStore::new("test-svc", db_path, vec!["sync.".into()], vec![]);
+    let (_tmp, store) = setup_store("test-svc", vec!["sync.".into()], vec![]);
 
     let (handler, calls) = RecordingHandler::new("test");
     let task = tokio::spawn(run_service(Box::new(handler), store, mailbox));
@@ -121,10 +128,7 @@ async fn service_exits_cleanly_when_mailbox_closes() {
     let (tx, rx) = mpsc::channel(4);
     let mailbox = Mailbox::from_receiver(rx);
 
-    let tmp = tempdir().unwrap();
-    let db_path = tmp.path().join("events.db");
-    init_actor_db(&db_path).unwrap();
-    let store = ActorStore::new("test-svc", db_path, vec!["sync.".into()], vec![]);
+    let (_tmp, store) = setup_store("test-svc", vec!["sync.".into()], vec![]);
 
     let (handler, _calls) = RecordingHandler::new("test");
     let task = tokio::spawn(run_service(Box::new(handler), store, mailbox));

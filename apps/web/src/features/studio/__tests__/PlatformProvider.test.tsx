@@ -52,7 +52,7 @@ function PlatformConsumer() {
     <div>
       <span data-testid="daemon">{platform.daemon}</span>
       <span data-testid="auth">{platform.auth}</span>
-      <span data-testid="workspace">{platform.workspace?.branch ?? 'none'}</span>
+      <span data-testid="workspace">{platform.workspace?.name ?? 'none'}</span>
       <span data-testid="command-palette">{String(platform.commandPaletteOpen)}</span>
       <span data-testid="sidebar">{String(platform.sidebarOpen)}</span>
     </div>
@@ -323,7 +323,7 @@ describe('PlatformProvider', () => {
         const { workspace, setWorkspace } = usePlatform()
         return (
           <div>
-            <span data-testid="ws">{workspace?.branch ?? 'none'}</span>
+            <span data-testid="ws">{workspace?.name ?? 'none'}</span>
             <button onClick={() => setWorkspace('feature/test')}>switch</button>
           </div>
         )

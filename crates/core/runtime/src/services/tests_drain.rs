@@ -10,7 +10,6 @@ use anyhow::Result;
 use tempfile::tempdir;
 use tokio::sync::mpsc;
 
-use crate::persistence::actor_store::init_actor_db;
 use crate::events::{ActorStore, EventEnvelope, Mailbox};
 use crate::services::{run_service, HealthStatus, ServiceHandler};
 
@@ -100,9 +99,13 @@ async fn run_service_calls_on_drain_when_mailbox_closes() {
     let mailbox = Mailbox::from_receiver(rx);
 
     let tmp = tempdir().unwrap();
-    let db_path = tmp.path().join("events.db");
-    init_actor_db(&db_path).unwrap();
-    let store = ActorStore::new("drain-svc", db_path, vec!["test.".into()], vec![]);
+    crate::db::ensure_db_at(tmp.path()).unwrap();
+    let store = ActorStore::new(
+        "drain-svc",
+        tmp.path().join("platform.db"),
+        vec!["test.".into()],
+        vec![],
+    );
 
     let calls = Arc::new(Mutex::new(Vec::new()));
     let handler = DrainOrderRecorder { calls: calls.clone() };

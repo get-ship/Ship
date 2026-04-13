@@ -1,8 +1,9 @@
 //! Secondary event handlers — update forwarding, cleanup, finalization, merge.
 
 use crate::events::job::event_types;
-use crate::events::{CallerKind, EmitContext, EventEnvelope, EventStore, SqliteEventStore};
+use crate::events::{CallerKind, EmitContext, EventEnvelope};
 use crate::services::dispatch_ports::AgentPlatform;
+use crate::services::orchestrator::emit::persist_and_route;
 use std::sync::Arc;
 use tokio::sync::Mutex;
 
@@ -133,11 +134,7 @@ pub async fn finalize_pipeline_if_done(
         Ok(e) => e.with_actor_id("service.job-dispatch"),
         Err(_) => return,
     };
-    if let Ok(store) = SqliteEventStore::new() {
-        let _ = EventStore::append(&store, &env);
-    }
-    let ctx = EmitContext { caller_kind: CallerKind::Runtime, skill_id: None, workspace_id: None, session_id: None };
-    let _ = kernel.lock().await.route(env, &ctx).await;
+    persist_and_route(kernel, env, &slug, None).await;
 }
 
 /// Execute a merge step: git merge the job branch, emit `job.merged` on success.
@@ -161,17 +158,13 @@ pub async fn execute_merge_step(
                 job_id,
                 &merged_payload,
             );
-            if let Ok(envelope) = merged_envelope {
-                if let Ok(store) = SqliteEventStore::new() {
-                    let _ = EventStore::append(&store, &envelope);
+            match merged_envelope {
+                Ok(envelope) => {
+                    persist_and_route(kernel, envelope, slug, None).await;
                 }
-                let ctx = EmitContext {
-                    caller_kind: CallerKind::Runtime,
-                    skill_id: None,
-                    workspace_id: None,
-                    session_id: None,
-                };
-                let _ = kernel.lock().await.route(envelope, &ctx).await;
+                Err(e) => {
+                    tracing::error!(slug, "pipeline: failed to build job.merged envelope: {e}");
+                }
             }
             true
         }

@@ -78,6 +78,7 @@ pub async fn dispatch_job_internal(
         agent: agent.to_string(),
         branch: branch.clone(),
         spec_path: payload.spec_path.clone(),
+        spec_content: payload.spec_content.clone(),
         work_dir: octx.platform.worktrees_dir().join(slug),
         env: [("SHIP_MESH_ID".to_string(), slug.to_string())].into(),
         exit_tx: None,
@@ -96,6 +97,32 @@ pub async fn dispatch_job_internal(
             return;
         }
     };
+
+    // Compose the per-step spec from pipeline metadata + user's body.
+    // The isolation adapter creates the worktree; the orchestrator owns
+    // what the agent actually reads. One place, one contract.
+    if let Some(pipeline) = &payload.steps
+        && let Some(root) = pipeline.root_steps().first()
+    {
+        let body = payload.spec_content.clone().unwrap_or_default();
+        match super::prompt_composer::write_step_spec(
+            &worktree_path,
+            &payload.spec_path,
+            &payload.job_id,
+            payload.pipeline_name.as_deref(),
+            pipeline,
+            root,
+            &body,
+        ) {
+            Ok(path) => tracing::info!(
+                slug, step_id = root.id,
+                "job-dispatch: wrote initial step spec to {}", path.display()
+            ),
+            Err(e) => tracing::error!(
+                slug, "job-dispatch: failed to write initial step spec: {e}"
+            ),
+        }
+    }
 
     let (exit_tx, exit_rx) = tokio::sync::mpsc::unbounded_channel();
     let job_ctx_with_dir = JobContext {
@@ -123,13 +150,17 @@ pub async fn dispatch_job_internal(
             0,
             slug.clone(),
             step_name,
+            worktree_path.clone(),
         );
+        let (activity_tx, activity_rx) = tokio::sync::mpsc::unbounded_channel();
         octx.done_flags.lock().await.insert(slug.clone(), monitor.done_flag());
+        octx.activity_txs.lock().await.insert(slug.clone(), activity_tx);
         super::step_monitor::start_step_monitor(
             monitor,
             kernel.clone(),
             octx.registry.clone(),
             exit_rx,
+            activity_rx,
         );
     } else {
         octx.platform.start_exit_handler(kernel.clone(), exit_rx);
@@ -179,6 +210,7 @@ async fn dispatch_first_run_step_inner(
         agent: payload.agent.to_string(),
         branch: branch.clone(),
         spec_path: payload.spec_path.clone(),
+        spec_content: payload.spec_content.clone(),
         work_dir: octx.platform.worktrees_dir().join(slug),
         env: [("SHIP_MESH_ID".to_string(), slug.to_string())].into(),
         exit_tx: None,

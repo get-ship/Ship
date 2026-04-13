@@ -26,10 +26,10 @@ function slugify(text: string): string {
 
 function usePipelineNames() {
   const { workspace } = usePlatform()
-  const viewedWorkspace = workspace?.branch ?? null
+  const viewedWorkspace = workspace?.name ?? null
   const { workspaces } = useDaemon()
   const wsId = viewedWorkspace
-    ?? workspaces.find((w) => String(w.status).toLowerCase() === 'active')?.branch
+    ?? (workspaces.find((w) => String(w.status).toLowerCase() === 'active') ?? workspaces[0])?.name
     ?? ''
 
   return useQuery({

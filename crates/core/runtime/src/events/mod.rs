@@ -61,7 +61,7 @@ pub use validator::{
     NamespaceValidator, PLATFORM_ONLY_NAMESPACES, RESERVED_NAMESPACES,
     ReservedNamespaceValidator, ValidationError, is_kernel_event,
 };
-pub use global_kernel_router::{init_kernel_router, kernel_router};
+pub use global_kernel_router::{init_kernel_router, kernel_router, new_isolated_for_test};
 
 // Test modules
 #[cfg(test)]

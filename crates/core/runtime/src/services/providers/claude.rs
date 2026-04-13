@@ -78,7 +78,11 @@ impl ProviderAdapter for ClaudeAdapter {
         LaunchCommand { bin: "claude".to_string(), args, env }
     }
 
-    fn ready_pattern(&self) -> &str { "❯" }
+    // `bypass permissions on` appears under the real input prompt and NOT in
+    // any of claude's startup menus (channels confirmation, model picker,
+    // etc.). Using `❯` alone false-matched the menu selector and fired
+    // autostart before the menu was dismissed. Lost a real e2e run to this.
+    fn ready_pattern(&self) -> &str { "bypass permissions on" }
     fn autostart_input(&self) -> &str {
         "Read .artifacts/job-spec.md and execute it autonomously."
     }

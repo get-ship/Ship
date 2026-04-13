@@ -23,10 +23,10 @@ pub mod schema;
 pub mod session;
 pub mod session_drain;
 pub mod session_events;
+pub mod specs;
 #[cfg(test)]
 pub mod session_events_testutil;
 pub mod types;
-pub mod workspace_db;
 pub mod workspace_events;
 pub mod workspace_state;
 
@@ -44,6 +44,35 @@ use sqlx::sqlite::SqliteConnectOptions;
 use sqlx::{Connection, SqliteConnection};
 use std::path::{Path, PathBuf};
 use std::str::FromStr;
+
+/// Summary of event-log state for startup logging.
+pub struct EventLogSummary {
+    pub event_count: i64,
+    pub latest_event_id: Option<String>,
+}
+
+/// Cheap COUNT + MAX query to report event-log health. Never fails — on any
+/// error returns a summary with count=-1 to signal "unavailable" so startup
+/// proceeds.
+pub fn event_log_summary(ship_dir: &Path) -> EventLogSummary {
+    let path = ship_dir.join("platform.db");
+    let Ok(mut conn) = open_db_at(&path) else {
+        return EventLogSummary { event_count: -1, latest_event_id: None };
+    };
+    let count: i64 = block_on(async {
+        sqlx::query_scalar("SELECT COUNT(*) FROM events")
+            .fetch_one(&mut conn)
+            .await
+    })
+    .unwrap_or(-1);
+    let latest: Option<String> = block_on(async {
+        sqlx::query_scalar("SELECT id FROM events ORDER BY id DESC LIMIT 1")
+            .fetch_optional(&mut conn)
+            .await
+    })
+    .unwrap_or(None);
+    EventLogSummary { event_count: count, latest_event_id: latest }
+}
 
 /// Platform database path: `~/.ship/platform.db`.
 ///
@@ -83,34 +112,18 @@ fn ensure_db_at_path(path: &std::path::Path) -> Result<()> {
     block_on(async { sqlx::query("PRAGMA journal_mode = WAL").execute(&mut conn).await })?;
     block_on(async { sqlx::query("PRAGMA foreign_keys = ON").execute(&mut conn).await })?;
 
-    // Try running migrations. If they fail (schema mismatch), back up the DB and retry once.
-    let migrate_result = block_on_migrate(async {
+    // Run migrations. If they fail, refuse to start — never delete user data.
+    if let Err(e) = block_on_migrate(async {
         sqlx::migrate!("./migrations").run(&mut conn).await
-    });
-    if let Err(ref e) = migrate_result {
-        tracing::error!("platform.db migration failed: {e}");
-        drop(conn);
-
-        // Back up the old DB instead of deleting it.
-        let backup_path = path.with_extension("db.bak");
-        if let Err(backup_err) = std::fs::rename(path, &backup_path) {
-            tracing::warn!(
-                "failed to back up {} to {}: {backup_err} — removing instead",
-                path.display(), backup_path.display()
-            );
-            let _ = std::fs::remove_file(path);
-        } else {
-            tracing::info!("backed up old platform.db to {}", backup_path.display());
-        }
-        let _ = std::fs::remove_file(format!("{}-wal", path.display()));
-        let _ = std::fs::remove_file(format!("{}-shm", path.display()));
-
-        // Reconnect to fresh DB.
-        let mut conn2 = block_on(async { SqliteConnection::connect_with(&opts).await })?;
-        block_on(async { sqlx::query("PRAGMA journal_mode = WAL").execute(&mut conn2).await })?;
-        block_on(async { sqlx::query("PRAGMA foreign_keys = ON").execute(&mut conn2).await })?;
-        block_on_migrate(async { sqlx::migrate!("./migrations").run(&mut conn2).await })
-            .with_context(|| "platform.db migration failed on fresh DB — this is a bug")?;
+    }) {
+        tracing::error!(
+            "migrations failed on {}: {e}\n\
+             This usually means a different Ship binary created this database.\n\
+             To reset: ship daemon reset-db (backs up first)\n\
+             To keep data: use the same Ship binary that created this database.",
+            path.display()
+        );
+        return Err(anyhow!("migration failed on {}: {e}", path.display()));
     }
 
     Ok(())

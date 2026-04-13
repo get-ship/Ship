@@ -195,6 +195,11 @@ pub struct JobCreatedPayload {
     /// Job-level variables for pipeline step interpolation. Override step-level vars.
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub vars: Option<std::collections::HashMap<String, String>>,
+    /// Inline spec content. When present, the worktree adapter writes this to
+    /// `spec_path` at dispatch time. Makes jobs self-contained across worktree
+    /// boundaries — no reliance on gitignored files existing in the main checkout.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub spec_content: Option<String>,
 }
 
 /// Emitted when the job is assigned to a worktree and (optionally) a process.
@@ -324,19 +329,142 @@ pub struct StepRetryPayload {
     pub reason: String,
 }
 
-/// Emitted by the step monitor after observing process exit and/or step_done.
-/// This is the authoritative signal for pipeline advancement.
+/// What triggered the step observation.
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Type)]
+#[serde(rename_all = "snake_case")]
+pub enum StepTrigger {
+    /// Agent explicitly called step_done
+    DoneDeclared,
+    /// Process/session exited
+    ProcessExit,
+    /// Activity settled — turns ended, evidence accumulated, no new activity
+    TurnSettled,
+    /// Step timed out
+    Timeout,
+    /// Exit channel closed unexpectedly
+    ChannelClosed,
+}
+
+/// Verdict derived from accumulated evidence.
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Type)]
+#[serde(rename_all = "snake_case")]
+pub enum StepVerdict {
+    /// Strong evidence of success — advance pipeline
+    Advance,
+    /// Strong evidence of failure — halt pipeline
+    Failed,
+    /// Inconclusive — needs human review or gate
+    Inconclusive,
+}
+
+/// Emitted by the step monitor after gathering evidence about a step's outcome.
+///
+/// This is evidence-based, not verdict-based. The step monitor collects all
+/// available signals (process exit, step_done, git state) and the pipeline
+/// router decides what to do based on the full picture.
 #[derive(Debug, Clone, Serialize, Deserialize, Type)]
 pub struct StepObservedPayload {
     pub job_id: String,
     pub slug: String,
     pub step_index: usize,
     pub step_name: String,
-    pub succeeded: bool,
-    pub exit_code: Option<i32>,
-    pub duration_secs: u64,
+    /// What triggered this observation.
+    pub trigger: StepTrigger,
+    // ── Evidence fields ──────────────────────────────────────────────
+    /// Agent explicitly called step_done (strongest signal).
     pub done_declared: bool,
+    /// Value passed to step_done, if called. True = agent says success.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub done_result: Option<bool>,
+    /// Process exit code, if available. None for tmux (no exit code exposed).
+    pub exit_code: Option<i32>,
+    /// Number of git commits on the branch since the step started.
+    #[serde(default)]
+    pub commits_since_start: u32,
+    /// Number of files with uncommitted changes in the worktree.
+    #[serde(default)]
+    pub uncommitted_files: u32,
+    /// Wall-clock duration of the step.
+    pub duration_secs: u64,
+    /// Human-readable reason (e.g. "timeout", error message).
     pub reason: Option<String>,
+    // ── Derived ──────────────────────────────────────────────────────
+    /// Verdict computed from evidence. Used by pipeline router.
+    pub verdict: StepVerdict,
+    /// Back-compat: true when verdict == Advance. Existing consumers and
+    /// projections that read `succeeded` continue to work.
+    #[serde(default)]
+    pub succeeded: bool,
+}
+
+impl StepObservedPayload {
+    /// Derive a verdict from the collected evidence.
+    ///
+    /// Philosophy: no single signal maps to a verdict. Triggers, exit codes,
+    /// commits, uncommitted files, and step_done are evidence to weigh. The
+    /// verdict is Advance only when evidence is clearly positive, Failed only
+    /// when clearly negative, Inconclusive otherwise — the router will push
+    /// Inconclusive outcomes through a gate step where the reviewer decides.
+    ///
+    /// The only signal that maps 1-1 to a verdict is `step_done(bool)` —
+    /// an explicit declaration from the agent itself.
+    pub fn compute_verdict(
+        done_declared: bool,
+        done_result: Option<bool>,
+        exit_code: Option<i32>,
+        commits: u32,
+        uncommitted_files: u32,
+        trigger: &StepTrigger,
+    ) -> StepVerdict {
+        // Agent explicitly declared outcome. Trust it. Only authoritative rule.
+        if done_declared {
+            return match done_result {
+                Some(true) | None => StepVerdict::Advance,
+                Some(false) => StepVerdict::Failed,
+            };
+        }
+
+        let nonzero_exit = matches!(exit_code, Some(c) if c != 0);
+        let has_commits = commits > 0;
+        let has_uncommitted = uncommitted_files > 0;
+
+        // Committed work present. The agent produced something durable.
+        // Non-zero exit modifies — agent committed but died angry, gate reviews.
+        if has_commits {
+            return if nonzero_exit {
+                StepVerdict::Inconclusive
+            } else {
+                StepVerdict::Advance
+            };
+        }
+
+        // No commits. Uncommitted work means the agent was actively doing
+        // something — might have been cut short. Never fail on mid-flight
+        // work; let a human or gate decide.
+        if has_uncommitted {
+            return StepVerdict::Inconclusive;
+        }
+
+        // Nothing produced. Weigh the trigger and exit code together.
+        match trigger {
+            StepTrigger::Timeout => StepVerdict::Failed,
+            StepTrigger::ChannelClosed | StepTrigger::ProcessExit => {
+                if nonzero_exit {
+                    StepVerdict::Failed
+                } else {
+                    // Clean exit with no output — might be a noop task, let
+                    // the gate decide rather than hang the pipeline.
+                    StepVerdict::Inconclusive
+                }
+            }
+            StepTrigger::DoneDeclared => {
+                // done_declared == false already handled above. If we get here
+                // with DoneDeclared trigger, something is off.
+                StepVerdict::Inconclusive
+            }
+            StepTrigger::TurnSettled => StepVerdict::Inconclusive,
+        }
+    }
 }
 
 /// Event type constants for the `job.` namespace.
@@ -358,4 +486,216 @@ pub mod event_types {
     pub const STEP_RETRY: &str = "step.retry";
     pub const STEP_DONE_DECLARED: &str = "step.done_declared";
     pub const STEP_OBSERVED: &str = "step.observed";
+}
+
+#[cfg(test)]
+mod verdict_tests {
+    use super::*;
+
+    /// Shorthand for compute_verdict with named args, so each test reads as
+    /// a sentence about the evidence, not a pile of positional arguments.
+    struct Evidence {
+        done: bool,
+        done_result: Option<bool>,
+        exit: Option<i32>,
+        commits: u32,
+        uncommitted: u32,
+        trigger: StepTrigger,
+    }
+
+    impl Default for Evidence {
+        fn default() -> Self {
+            Self {
+                done: false,
+                done_result: None,
+                exit: None,
+                commits: 0,
+                uncommitted: 0,
+                trigger: StepTrigger::TurnSettled,
+            }
+        }
+    }
+
+    fn verdict(e: Evidence) -> StepVerdict {
+        StepObservedPayload::compute_verdict(
+            e.done, e.done_result, e.exit, e.commits, e.uncommitted, &e.trigger,
+        )
+    }
+
+    // ─── The one authoritative signal: step_done ───────────────────────────
+
+    #[test]
+    fn done_declared_true_wins_over_everything() {
+        // Even with timeout + non-zero exit + no commits, the agent said yes.
+        assert_eq!(
+            verdict(Evidence {
+                done: true, done_result: Some(true),
+                exit: Some(1), trigger: StepTrigger::Timeout,
+                ..Default::default()
+            }),
+            StepVerdict::Advance,
+        );
+    }
+
+    #[test]
+    fn done_declared_false_wins_over_commits() {
+        // Agent said it failed. Trust over git state.
+        assert_eq!(
+            verdict(Evidence {
+                done: true, done_result: Some(false),
+                commits: 10, trigger: StepTrigger::DoneDeclared,
+                ..Default::default()
+            }),
+            StepVerdict::Failed,
+        );
+    }
+
+    #[test]
+    fn done_declared_without_result_is_advance() {
+        assert_eq!(
+            verdict(Evidence {
+                done: true, done_result: None,
+                trigger: StepTrigger::DoneDeclared,
+                ..Default::default()
+            }),
+            StepVerdict::Advance,
+        );
+    }
+
+    // ─── Commits are strong positive evidence ──────────────────────────────
+
+    // Regression: tmux drops exit_tx after sending one ExitSignal. The monitor
+    // sees the channel close next recv. With commits present, that's success —
+    // agent did the work then cleaned up. Pre-fix code failed here.
+    #[test]
+    fn commits_with_channel_closed_advance() {
+        assert_eq!(
+            verdict(Evidence {
+                commits: 5, trigger: StepTrigger::ChannelClosed,
+                ..Default::default()
+            }),
+            StepVerdict::Advance,
+        );
+    }
+
+    #[test]
+    fn commits_with_timeout_advance() {
+        // Agent timed out but had produced committed work. Advance — the gate
+        // can reject if what it did is wrong.
+        assert_eq!(
+            verdict(Evidence {
+                commits: 3, trigger: StepTrigger::Timeout,
+                ..Default::default()
+            }),
+            StepVerdict::Advance,
+        );
+    }
+
+    #[test]
+    fn commits_with_nonzero_exit_is_inconclusive() {
+        // Agent committed work then died with an error. Gate decides — maybe
+        // the implementation is fine and a final test run bailed.
+        assert_eq!(
+            verdict(Evidence {
+                commits: 5, exit: Some(127),
+                trigger: StepTrigger::ProcessExit,
+                ..Default::default()
+            }),
+            StepVerdict::Inconclusive,
+        );
+    }
+
+    // ─── Uncommitted work means "in flight" — never fail ───────────────────
+
+    #[test]
+    fn uncommitted_files_with_timeout_is_inconclusive() {
+        // Agent was doing something — we cut it off. Don't punish work in
+        // progress; let a human decide.
+        assert_eq!(
+            verdict(Evidence {
+                uncommitted: 4, trigger: StepTrigger::Timeout,
+                ..Default::default()
+            }),
+            StepVerdict::Inconclusive,
+        );
+    }
+
+    #[test]
+    fn uncommitted_files_with_channel_close_is_inconclusive() {
+        assert_eq!(
+            verdict(Evidence {
+                uncommitted: 2, trigger: StepTrigger::ChannelClosed,
+                ..Default::default()
+            }),
+            StepVerdict::Inconclusive,
+        );
+    }
+
+    // ─── No evidence of work: trigger + exit code decide ───────────────────
+
+    #[test]
+    fn timeout_with_no_evidence_fails() {
+        // Nothing produced, nothing dirty, we timed out. Real failure.
+        assert_eq!(
+            verdict(Evidence {
+                trigger: StepTrigger::Timeout,
+                ..Default::default()
+            }),
+            StepVerdict::Failed,
+        );
+    }
+
+    #[test]
+    fn channel_close_no_evidence_nonzero_exit_fails() {
+        assert_eq!(
+            verdict(Evidence {
+                exit: Some(1), trigger: StepTrigger::ChannelClosed,
+                ..Default::default()
+            }),
+            StepVerdict::Failed,
+        );
+    }
+
+    #[test]
+    fn process_exit_no_evidence_zero_exit_is_inconclusive() {
+        // Agent exited cleanly without producing anything. Maybe the task
+        // was a noop. Gate decides rather than the pipeline hanging.
+        assert_eq!(
+            verdict(Evidence {
+                exit: Some(0), trigger: StepTrigger::ProcessExit,
+                ..Default::default()
+            }),
+            StepVerdict::Inconclusive,
+        );
+    }
+
+    #[test]
+    fn turn_settled_with_no_evidence_is_inconclusive() {
+        // Agent stopped talking, no commits, no dirty files. Ambiguous.
+        assert_eq!(
+            verdict(Evidence {
+                trigger: StepTrigger::TurnSettled,
+                ..Default::default()
+            }),
+            StepVerdict::Inconclusive,
+        );
+    }
+
+    // ─── Exit code alone is not a verdict ──────────────────────────────────
+
+    #[test]
+    fn nonzero_exit_with_commits_does_not_fail() {
+        // Specifically asserts: non-zero exit is a signal to weigh, not a
+        // verdict. Earlier code short-circuited Failed here; that violated
+        // the evidence-based principle.
+        let v = verdict(Evidence {
+            exit: Some(2), commits: 1,
+            trigger: StepTrigger::ProcessExit,
+            ..Default::default()
+        });
+        assert!(
+            matches!(v, StepVerdict::Inconclusive | StepVerdict::Advance),
+            "non-zero exit with commits must not short-circuit to Failed, got {v:?}",
+        );
+    }
 }

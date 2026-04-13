@@ -15,13 +15,50 @@ use ship_jobs::pipeline::{PipelineMeta, normalize_pipeline_yaml};
 /// 3. Spec frontmatter has inline `steps:` → use it
 /// 4. None → inject default (implement → gate → merge)
 pub fn ensure_pipeline(mut payload: JobCreatedPayload) -> JobCreatedPayload {
+    resolve_steps(&mut payload);
+    interpolate_pipeline(&mut payload);
+    // Re-sync payload.agent with the (possibly now-interpolated) first step's agent.
+    if let Some(pipeline) = &payload.steps
+        && let Some(root) = pipeline.root_steps().first()
+        && let Some(agent) = &root.agent
+    {
+        payload.agent = agent.clone();
+    }
+    payload
+}
+
+/// Attach a `Pipeline` to `payload.steps` without any template interpolation.
+/// Interpolation is a second pass so every resolution path goes through the same
+/// substitution logic.
+fn resolve_steps(payload: &mut JobCreatedPayload) {
     if payload.steps.is_some() {
-        return payload;
+        return;
     }
 
-    let spec_content = read_spec_content(&payload.spec_path);
+    // Explicit pipeline name on the payload (e.g. `ship run tdd`) takes precedence
+    // over anything in the spec — the caller asked for a specific template by name.
+    if let Some(name) = payload.pipeline_name.clone() {
+        if let Some((pipeline, meta)) = load_pipeline_file(&name) {
+            tracing::info!(
+                slug = payload.slug,
+                pipeline = name,
+                steps = pipeline.steps.len(),
+                "pipeline: loaded by name from payload"
+            );
+            merge_meta_vars(payload, &meta);
+            payload.steps = Some(pipeline);
+            return;
+        }
+        tracing::warn!(
+            slug = payload.slug,
+            pipeline = name,
+            "pipeline: name on payload did not resolve to a file, continuing resolution"
+        );
+    }
 
-    // Try named pipeline reference: `pipeline: tdd`
+    let spec_content = spec_content_for_resolution(payload);
+
+    // Try named pipeline reference: `pipeline: tdd` in spec frontmatter
     if let Some(name) = parse_pipeline_name_from_frontmatter(&spec_content) {
         if let Some((pipeline, meta)) = load_pipeline_file(&name) {
             tracing::info!(
@@ -30,14 +67,9 @@ pub fn ensure_pipeline(mut payload: JobCreatedPayload) -> JobCreatedPayload {
                 steps = pipeline.steps.len(),
                 "pipeline: loaded from .ship/pipelines/{name}.yaml"
             );
-            if let Some(root) = pipeline.root_steps().first()
-                && let Some(agent) = &root.agent
-            {
-                payload.agent = agent.clone();
-            }
-            merge_meta_vars(&mut payload, &meta);
+            merge_meta_vars(payload, &meta);
             payload.steps = Some(pipeline);
-            return payload;
+            return;
         }
         tracing::warn!(
             slug = payload.slug,
@@ -55,13 +87,8 @@ pub fn ensure_pipeline(mut payload: JobCreatedPayload) -> JobCreatedPayload {
             steps = pipeline.steps.len(),
             "pipeline: loaded inline steps from spec frontmatter"
         );
-        if let Some(root) = pipeline.root_steps().first()
-            && let Some(agent) = &root.agent
-        {
-            payload.agent = agent.clone();
-        }
         payload.steps = Some(pipeline);
-        return payload;
+        return;
     }
 
     // Default pipeline
@@ -71,7 +98,34 @@ pub fn ensure_pipeline(mut payload: JobCreatedPayload) -> JobCreatedPayload {
         "pipeline: no steps defined, injecting default pipeline"
     );
     payload.steps = Some(Pipeline::default_for_agent(&payload.agent));
-    payload
+}
+
+/// Substitute `{{ var }}` references in every step field using `payload.vars`.
+/// Covers agent, model, provider, goal, command — anything that can carry a template.
+fn interpolate_pipeline(payload: &mut JobCreatedPayload) {
+    let Some(pipeline) = payload.steps.as_mut() else { return };
+    let Some(vars) = payload.vars.as_ref() else { return };
+    if vars.is_empty() {
+        return;
+    }
+    let jinja_vars: std::collections::HashMap<String, serde_json::Value> = vars
+        .iter()
+        .map(|(k, v)| (k.clone(), serde_json::Value::String(v.clone())))
+        .collect();
+    let render = |s: &mut Option<String>| {
+        if let Some(v) = s
+            && (v.contains("{{") || v.contains("{%"))
+        {
+            *v = compiler::vars::resolve_template(v, &jinja_vars);
+        }
+    };
+    for step in &mut pipeline.steps {
+        render(&mut step.agent);
+        render(&mut step.model);
+        render(&mut step.provider);
+        render(&mut step.goal);
+        render(&mut step.command);
+    }
 }
 
 /// Load a named pipeline from `.ship/pipelines/<name>.yaml` in the project root.
@@ -126,6 +180,16 @@ fn parse_pipeline_name_from_frontmatter(content: &str) -> Option<String> {
     let yaml_str = &rest[..end];
     let fm: serde_json::Value = serde_yaml::from_str(yaml_str).ok()?;
     fm.get("pipeline")?.as_str().map(str::to_string)
+}
+
+/// Resolve spec content for frontmatter parsing.
+/// Prefers the inline `spec_content` on the payload (authoritative, event-carried)
+/// over reading from disk (which may not have the spec at all).
+fn spec_content_for_resolution(payload: &JobCreatedPayload) -> String {
+    if let Some(content) = &payload.spec_content {
+        return content.clone();
+    }
+    read_spec_content(&payload.spec_path)
 }
 
 /// Read spec content, trying absolute path then relative to project root.

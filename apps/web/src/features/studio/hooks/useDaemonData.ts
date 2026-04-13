@@ -64,7 +64,7 @@ export interface ViewEntry {
 const TEST_BRANCH_PREFIXES = ['feature/evt-', 'feature/rebuild-src-', 'feature/test-', 'test/']
 
 function isTestWorkspace(ws: Workspace): boolean {
-  return TEST_BRANCH_PREFIXES.some((p) => ws.branch.startsWith(p))
+  return TEST_BRANCH_PREFIXES.some((p) => ws.name.startsWith(p))
 }
 
 interface MutateOpts<T> {
@@ -90,11 +90,11 @@ export function useDaemon(viewedWorkspaceBranch?: string | null): UseDaemonRetur
   const allWorkspaces = wsResult.data?.workspaces ?? []
   const workspaces = allWorkspaces
     .filter((ws) => !isTestWorkspace(ws))
-    .sort((a, b) => a.branch.localeCompare(b.branch))
+    .sort((a, b) => a.name.localeCompare(b.name))
 
   const resolvedWsId = viewedWorkspaceBranch
-    || workspace?.branch
-    || allWorkspaces.find((w) => w.status === 'active')?.branch
+    || workspace?.name
+    || allWorkspaces.find((w) => w.status === 'active')?.name
   const sessionsPath = isConnected && resolvedWsId
     ? `/runtime/sessions?workspace_id=${encodeURIComponent(resolvedWsId)}`
     : null

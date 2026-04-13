@@ -260,7 +260,7 @@ async fn kernel_store_records_system_events_for_audit() {
     let router = KernelRouter::new(tmp.path().join(".ship")).unwrap();
 
     let event = ev("session.started");
-    router.route(event.clone(), &runtime_ctx()).await.unwrap();
+    router.emit(event.clone(), &runtime_ctx()).await.unwrap();
 
     let mut conn = open_db_at(router.kernel_store_path()).unwrap();
     let count: i64 = block_on(async {

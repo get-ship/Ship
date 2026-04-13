@@ -30,6 +30,10 @@ pub struct JobContext {
     pub agent: String,
     pub branch: String,
     pub spec_path: String,
+    /// Inline spec content. When `Some`, the isolation strategy writes this to
+    /// `{work_dir}/{spec_path}` during `prepare`. `None` = fall back to copying
+    /// from the project root (legacy manual-dispatch path).
+    pub spec_content: Option<String>,
     pub work_dir: PathBuf,
     pub env: HashMap<String, String>,
     /// How to launch the provider CLI for this job.

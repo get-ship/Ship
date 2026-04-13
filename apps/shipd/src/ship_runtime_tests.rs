@@ -36,7 +36,7 @@ async fn make_runtime() -> (TempDir, ShipRuntime) {
 
 // ── Construction ────────────────────────────────────────────────────────
 
-#[tokio::test]
+#[tokio::test(flavor = "multi_thread")]
 async fn ship_runtime_creates_from_config() {
     let (_dir, meta) = temp_metadata();
     let config = RuntimeConfig {
@@ -50,7 +50,7 @@ async fn ship_runtime_creates_from_config() {
 
 // ── Accessors ───────────────────────────────────────────────────────────
 
-#[tokio::test]
+#[tokio::test(flavor = "multi_thread")]
 async fn ship_runtime_exposes_kernel() {
     let (_dir, rt) = make_runtime().await;
     let kernel = rt.kernel();
@@ -58,7 +58,7 @@ async fn ship_runtime_exposes_kernel() {
     assert!(!has, "empty kernel should not contain a random actor");
 }
 
-#[tokio::test]
+#[tokio::test(flavor = "multi_thread")]
 async fn ship_runtime_exposes_ship_dir() {
     let (dir, rt) = make_runtime().await;
     assert_eq!(
@@ -68,7 +68,7 @@ async fn ship_runtime_exposes_ship_dir() {
     );
 }
 
-#[tokio::test]
+#[tokio::test(flavor = "multi_thread")]
 async fn ship_runtime_exposes_config() {
     let (_dir, rt) = make_runtime().await;
     let config = rt.config();
@@ -90,7 +90,7 @@ fn runtime_config_from_defaults() {
 
 // ── AppState type alias ─────────────────────────────────────────────────
 
-#[tokio::test]
+#[tokio::test(flavor = "multi_thread")]
 async fn api_state_is_arc_ship_runtime() {
     let (_dir, rt) = make_runtime().await;
     // Verify the AppState type alias compiles and can be constructed.
@@ -99,7 +99,7 @@ async fn api_state_is_arc_ship_runtime() {
 
 // ── Manager access ──────────────────────────────────────────────────────
 
-#[tokio::test]
+#[tokio::test(flavor = "multi_thread")]
 async fn mesh_manager_accessible() {
     let (_dir, rt) = make_runtime().await;
     let mesh = rt.mesh().await;
@@ -117,7 +117,7 @@ async fn job_manager_accessible() {
 
 // ── Shutdown ────────────────────────────────────────────────────────────
 
-#[tokio::test]
+#[tokio::test(flavor = "multi_thread")]
 async fn shutdown_cleans_files() {
     let (dir, rt) = make_runtime().await;
     let base = dir.path();

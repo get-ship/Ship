@@ -88,3 +88,5 @@ opencode.json
 .ship-session/
 .playwright-cli/
 test-results/
+.ship/views/datastar.min.js
+.ship/views/*.min.js

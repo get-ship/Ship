@@ -51,8 +51,10 @@ fn run_tx<P: serde::Serialize>(
         workspace_id: Some(branch.to_string()),
         session_id: None,
     };
-    if let Some(kr) = crate::events::kernel_router() {
-        let _ = block_on_anyhow(async { kr.lock().await.route(envelope.clone(), &ctx).await });
+    if let Some(kr) = crate::events::kernel_router()
+        && let Err(e) = block_on_anyhow(async { kr.lock().await.route(envelope.clone(), &ctx).await })
+    {
+        tracing::warn!("db::workspace_events: kernel route failed: {e}");
     }
 
     Ok(envelope)

@@ -3,7 +3,7 @@
 //! Replaces the ad-hoc `ApiState` struct with a structured runtime that
 //! owns the kernel, config, and lazily-initialized managers.
 
-use anyhow::{Result, anyhow};
+use anyhow::{Context, Result, anyhow};
 use runtime::events::{CallerKind, EmitContext, EventEnvelope};
 use runtime::services::mesh::SharedMeshRegistry;
 use std::collections::HashMap;
@@ -83,7 +83,12 @@ impl ShipRuntime {
     pub async fn new(meta: AppMetadata, config: RuntimeConfig) -> Result<Self> {
         let global_dir = &meta.global_dir;
 
-        // Integrity check (skip if no DB yet).
+        // Integrity check + rebuild if needed.
+        //
+        // On startup: check platform.db integrity. If projections drift from
+        // the event log, replay events into fresh projection tables. If the
+        // event log itself is corrupt, refuse to start — the user needs to
+        // intervene rather than lose data silently.
         if global_dir.join("platform.db").exists() {
             match runtime::db::integrity::check_platform_integrity(global_dir) {
                 Ok(runtime::db::integrity::IntegrityStatus::Ok) => {
@@ -93,19 +98,37 @@ impl ShipRuntime {
                     details,
                 }) => {
                     tracing::warn!(
-                        "shipd: projection tables corrupt ({details}), will rebuild"
+                        "shipd: projection tables drifted from event log ({details}), rebuilding"
+                    );
+                    let dir = global_dir.clone();
+                    let report = tokio::task::spawn_blocking(move || {
+                        runtime::db::rebuild::rebuild_projections(&dir)
+                    })
+                    .await
+                    .map_err(|e| anyhow!("projection rebuild task failed: {e}"))??;
+                    tracing::info!(
+                        events = report.events_replayed,
+                        projections = report.projections_rebuilt.len(),
+                        duration_ms = report.duration_ms,
+                        "shipd: projection rebuild complete"
                     );
                 }
                 Ok(runtime::db::integrity::IntegrityStatus::EventsCorrupt {
                     details,
                 }) => {
                     return Err(anyhow!(
-                        "platform.db is corrupt and cannot be recovered: {details}. \
-                         Back up ~/.ship/platform.db and reinitialize with `ship init --global`."
+                        "platform.db events table is corrupt and cannot be recovered: \
+                         {details}. Back up ~/.ship/platform.db, then either restore \
+                         from a known-good copy or remove it (destroys all workspace \
+                         and job history) and restart the daemon."
                     ));
                 }
                 Err(e) => {
-                    tracing::warn!("shipd: integrity check failed to run: {e}");
+                    return Err(anyhow!(
+                        "shipd: integrity check failed: {e}. \
+                         Refusing to start with unknown database health. \
+                         Inspect ~/.ship/platform.db manually or remove it to reset."
+                    ));
                 }
             }
         }
@@ -121,6 +144,11 @@ impl ShipRuntime {
         })
         .await
         .map_err(|e| anyhow!("spawn_blocking failed: {e}"))??;
+
+        // One-line startup status: events persisted, latest event id. Makes
+        // it easy to spot if a restart "lost" events (a mismatched count vs.
+        // a known-good baseline is the first signal of database trouble).
+        log_event_log_summary(global_dir);
 
         // Best-effort auto-purge: remove trash entries older than 24 hours.
         match runtime::workspace::trash::purge_old_trash(std::time::Duration::from_secs(86400)) {
@@ -232,18 +260,24 @@ impl ShipRuntime {
             .await
     }
 
-    /// Persist event to platform.db then route through kernel.
+    /// Persist event to platform.db and deliver through the kernel.
+    ///
+    /// Delegates to `KernelRouter::emit` — the single write path. A successful
+    /// return means the event is durable on disk AND delivered to in-memory
+    /// subscribers.
     pub async fn persist_and_route(&self, envelope: &EventEnvelope) -> anyhow::Result<()> {
-        if let Ok(store) = runtime::events::SqliteEventStore::new() {
-            runtime::events::EventStore::append(&store, envelope)?;
-        }
         let ctx = EmitContext {
             caller_kind: CallerKind::Runtime,
             skill_id: None,
-            workspace_id: None,
-            session_id: None,
+            workspace_id: envelope.workspace_id.clone(),
+            session_id: envelope.session_id.clone(),
         };
-        self.kernel.lock().await.route(envelope.clone(), &ctx).await
+        self.kernel
+            .lock()
+            .await
+            .emit(envelope.clone(), &ctx)
+            .await
+            .context("kernel emit")
     }
 
     /// Build a ShipRuntime for tests — synchronous, takes a pre-initialized
@@ -374,4 +408,21 @@ fn cleanup_active_sessions_on_startup() {
             }
         }
     }
+}
+
+/// Emit a single INFO line with event-log health at startup. Gives operators
+/// an immediate signal: how many events persisted, the newest id. If the
+/// count ever drops between restarts without a reset, that's the first
+/// thing to investigate.
+fn log_event_log_summary(global_dir: &Path) {
+    if !global_dir.join("platform.db").exists() {
+        tracing::info!("shipd: fresh install, no events yet");
+        return;
+    }
+    let summary = runtime::db::event_log_summary(global_dir);
+    tracing::info!(
+        events = summary.event_count,
+        latest_event_id = summary.latest_event_id.as_deref().unwrap_or("-"),
+        "shipd: event-log summary"
+    );
 }

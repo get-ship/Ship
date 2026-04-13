@@ -84,8 +84,6 @@ pub use db::session::get_workspace_session_record_db;
 pub use db::types::{
     AgentArtifactRegistryDb, WorkspaceSessionDb, WorkspaceSessionRecordDb,
 };
-pub use db::workspace_db::{open_workspace_db, workspace_db_path};
-
 pub use errors::{KernelError, WorkspaceError};
 
 pub use workspace::{

@@ -37,10 +37,10 @@ export interface UseSessionDraftsReturn {
 
 export function useSessionDrafts(): UseSessionDraftsReturn {
   const { workspace } = usePlatform()
-  const viewedWorkspace = workspace?.branch ?? null
+  const viewedWorkspace = workspace?.name ?? null
   const { workspaces } = useDaemon()
   const wsId = viewedWorkspace
-    ?? workspaces.find((w) => String(w.status).toLowerCase() === 'active')?.branch
+    ?? (workspaces.find((w) => String(w.status).toLowerCase() === 'active') ?? workspaces[0])?.name
     ?? ''
   const queryClient = useQueryClient()
   const [drafts, setDrafts] = useState<Record<string, SessionDraft>>({})

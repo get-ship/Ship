@@ -15,7 +15,7 @@ export function WorkspaceIndicator() {
   const platform = usePlatform()
   const fileSidebarOpen = platform.sidebarOpen
   const toggleFileSidebar = platform.toggleSidebar
-  const viewedWorkspace = platform.workspace?.branch ?? null
+  const viewedWorkspace = platform.workspace?.name ?? null
   const setViewedWorkspace = platform.setWorkspace
   const [isFullscreen, setIsFullscreen] = useState(false)
 
@@ -34,7 +34,7 @@ export function WorkspaceIndicator() {
 
   // Use viewedWorkspace if set, otherwise default to first active or first workspace
   const currentWs = viewedWorkspace
-    ? workspaces.find((w) => w.branch === viewedWorkspace)
+    ? workspaces.find((w) => w.name === viewedWorkspace)
     : workspaces.find((w) => String(w.status).toLowerCase() === 'active') ?? workspaces[0]
 
   // Hydrate viewedWorkspace on first load or clear stale selection.
@@ -55,7 +55,7 @@ export function WorkspaceIndicator() {
     )
   }
 
-  const otherWorkspaces = workspaces.filter((w) => w.branch !== currentWs?.branch)
+  const otherWorkspaces = workspaces.filter((w) => w.name !== currentWs?.name)
   const isArtifacts = pathname.startsWith('/studio/session')
 
   return (
@@ -79,7 +79,7 @@ export function WorkspaceIndicator() {
             <button className="flex items-center gap-1 rounded px-1 py-0.5 hover:bg-muted/40 transition-colors">
               <GitBranch className="size-3 text-muted-foreground/60" />
               <span className="text-[10px] font-medium text-muted-foreground">
-                {currentWs?.branch ?? 'No workspace'}
+                {currentWs?.name ?? 'No workspace'}
               </span>
               {currentWs?.active_agent && (
                 <>
@@ -99,7 +99,7 @@ export function WorkspaceIndicator() {
               <div className="text-[10px] text-muted-foreground/50 uppercase tracking-wider mb-1">Viewing</div>
               <div className="flex items-center gap-2">
                 <span className="size-1.5 rounded-full bg-emerald-500 shrink-0" />
-                <span className="text-xs font-medium truncate">{currentWs.branch}</span>
+                <span className="text-xs font-medium truncate">{currentWs.name}</span>
               </div>
               {currentWs.active_agent && (
                 <div className="text-[10px] text-muted-foreground/60 mt-0.5 pl-3.5">{currentWs.active_agent}</div>
@@ -114,12 +114,12 @@ export function WorkspaceIndicator() {
                 <div className="px-3 py-1 text-[10px] text-muted-foreground/50 uppercase tracking-wider">Switch view to</div>
                 {otherWorkspaces.map((ws) => (
                   <button
-                    key={ws.branch}
-                    onClick={() => setViewedWorkspace(ws.branch)}
+                    key={ws.name}
+                    onClick={() => setViewedWorkspace(ws.name)}
                     className="w-full flex items-center gap-2 px-3 py-1.5 text-xs text-muted-foreground hover:bg-muted hover:text-foreground transition-colors"
                   >
                     <span className={`size-1.5 rounded-full shrink-0 ${String(ws.status).toLowerCase() === 'active' ? 'bg-emerald-500' : 'bg-muted-foreground/30'}`} />
-                    <span className="truncate">{ws.branch}</span>
+                    <span className="truncate">{ws.name}</span>
                   </button>
                 ))}
               </div>

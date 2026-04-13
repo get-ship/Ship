@@ -42,3 +42,20 @@ pub fn init_kernel_router(base_dir: PathBuf) -> anyhow::Result<Arc<Mutex<KernelR
 pub fn kernel_router() -> Option<Arc<Mutex<KernelRouter>>> {
     KERNEL_ROUTER.get().cloned()
 }
+
+/// Build an isolated KernelRouter for tests — does NOT populate the global
+/// OnceLock, so each test gets its own instance rooted at its own tempdir.
+///
+/// Without this, tests sharing a process (cargo test default) race on the
+/// OnceLock: whichever test runs first wins and subsequent tests get a
+/// kernel pointing at the first test's now-dropped tempdir, producing
+/// `unable to open database file` when they try to write.
+#[doc(hidden)]
+pub fn new_isolated_for_test(base_dir: PathBuf) -> anyhow::Result<Arc<Mutex<KernelRouter>>> {
+    let router = KernelRouter::new(base_dir)?
+        .with_validator(Box::new(NamespaceValidator))
+        .with_validator(Box::new(ReservedNamespaceValidator))
+        .with_validator(Box::new(ElevatedValidator))
+        .with_validator(Box::new(PayloadSchemaValidator));
+    Ok(Arc::new(Mutex::new(router)))
+}

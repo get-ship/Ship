@@ -17,9 +17,14 @@ pub(crate) use super::registry::ProcessRegistry;
 
 /// Handle returned by `subscribe_job_events` — gives the shutdown path
 /// access to the process registry and executor for graceful shutdown.
+/// Also exposes the activity channel map so the API can send signals
+/// to active step monitors.
 pub struct DispatchHandle {
     pub(crate) registry: Arc<Mutex<ProcessRegistry>>,
     pub executor: Arc<dyn JobExecutor>,
+    /// Shared with OrchestratorContext — allows API handlers to send
+    /// activity signals (e.g. TurnEnded from Stop hook) to step monitors.
+    pub activity_txs: Arc<Mutex<HashMap<String, tokio::sync::mpsc::UnboundedSender<runtime::services::orchestrator::StepActivity>>>>,
 }
 
 /// Subscribe to `job.*` kernel events and dispatch jobs to worktrees.
@@ -32,13 +37,19 @@ pub async fn subscribe_job_events(
     _ship_dir: PathBuf,
     health_registry: &crate::supervised::HealthRegistry,
 ) -> Option<DispatchHandle> {
+    // ProcessExecutor is the default for pipeline jobs: headless claude child
+    // process, stdout → log file, exit code drives the step monitor. No tmux
+    // pane scraping, no channels-menu dismissal, no key-name fiddling —
+    // every one of those was a fragile coordination channel that broke in
+    // production. Tmux stays available via SHIP_EXECUTOR=tmux for users who
+    // want to attach to a running agent interactively (debugging, pairing).
     let executor: Arc<dyn JobExecutor> =
-        if std::env::var("SHIP_EXECUTOR").as_deref() == Ok("process") {
+        if std::env::var("SHIP_EXECUTOR").as_deref() == Ok("tmux") {
+            tracing::info!("job-dispatch: using TmuxExecutor (SHIP_EXECUTOR=tmux)");
+            Arc::new(super::executors::TmuxExecutor)
+        } else {
             tracing::info!("job-dispatch: using ProcessExecutor");
             Arc::new(super::executors::ProcessExecutor)
-        } else {
-            tracing::info!("job-dispatch: using TmuxExecutor");
-            Arc::new(super::executors::TmuxExecutor)
         };
 
     let registry = Arc::new(Mutex::new(ProcessRegistry::new()));
@@ -49,12 +60,16 @@ pub async fn subscribe_job_events(
         health_registry: health_registry.clone(),
     });
 
+    let activity_txs = Arc::new(Mutex::new(HashMap::new()));
+
     let octx = Arc::new(OrchestratorContext {
         isolation: Arc::new(adapters::GitWorktreeIsolation),
         executor: executor.clone(),
         platform,
         registry: Arc::new(RegistryAdapter(registry.clone())),
         done_flags: Arc::new(Mutex::new(HashMap::new())),
+        activity_txs: activity_txs.clone(),
+        job_locks: Arc::new(Mutex::new(HashMap::new())),
     });
 
     let kr = kernel.clone();
@@ -62,6 +77,6 @@ pub async fn subscribe_job_events(
         runtime::services::orchestrator::router::start_orchestrator(kr, octx).await;
     });
 
-    Some(DispatchHandle { registry, executor })
+    Some(DispatchHandle { registry, executor, activity_txs })
 }
 

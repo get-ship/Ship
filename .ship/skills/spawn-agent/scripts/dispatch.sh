@@ -165,7 +165,10 @@ auto_kickstart_tmux() {
     for i in $(seq 1 15); do
       sleep 1
       if tmux capture-pane -t "$session" -p 2>/dev/null | grep -q "I am using this for local development"; then
-        tmux send-keys -t "$session" Enter
+        # C-m (literal CR), not Enter — claude's menu widget does not respond
+        # to the tmux Enter key name. Verified experimentally against a stuck
+        # session where `Enter` was a no-op and `C-m` advanced past the menu.
+        tmux send-keys -t "$session" C-m
         sleep 1
         tmux send-keys -t "$session" "Read .artifacts/job-spec.md and execute it autonomously." Enter
         exit 0

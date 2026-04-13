@@ -161,7 +161,9 @@ impl Drop for ConnectionGuard {
                     workspace_id: None,
                     session_id: None,
                 };
-                let _ = kernel.lock().await.route(env, &ctx).await;
+                if let Err(e) = kernel.lock().await.route(env, &ctx).await {
+                    tracing::warn!(actor_id = %id_clone, "connection close: kernel route failed: {e}");
+                }
             }
             let _ = kernel.lock().await.stop_actor(&id_clone);
         });

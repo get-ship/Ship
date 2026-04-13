@@ -70,6 +70,12 @@ export type {
   WorkspaceSessionRecord,
   WorkspaceSessionStatus,
   WorkspaceStatus,
+  Pipeline,
+  PipelineStep,
+  StepObservedPayload,
+  StepTrigger,
+  StepType,
+  StepVerdict,
 } from './generated'
 
 // ── MCP Registry types (not from Rust — external schema) ─────────────────────

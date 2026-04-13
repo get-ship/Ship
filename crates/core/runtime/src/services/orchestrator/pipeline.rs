@@ -45,6 +45,46 @@ async fn advance_pipeline_inner(
     ship_dir_override: Option<&std::path::Path>,
     worktree_root_override: Option<&std::path::Path>,
 ) -> bool {
+    // First pass: resolve the job_id so we can acquire the per-job lock.
+    let job_id = {
+        let jobs = match ship_dir_override {
+            Some(dir) => load_jobs_at(dir),
+            None => load_jobs(),
+        };
+        let jobs = match jobs {
+            Ok(j) => j,
+            Err(e) => {
+                tracing::warn!(entity_id = %envelope.entity_id, "pipeline: failed to load jobs: {e}");
+                return false;
+            }
+        };
+        let payload: serde_json::Value = serde_json::from_str(&envelope.payload_json).unwrap_or_default();
+        let payload_slug = payload["slug"].as_str().unwrap_or("");
+        let payload_job_id = payload["job_id"].as_str().unwrap_or("");
+        let entity_id = &envelope.entity_id;
+
+        let job = jobs.values()
+            .find(|j| j.job_id == *entity_id)
+            .or_else(|| jobs.values().find(|j| !payload_job_id.is_empty() && j.job_id == payload_job_id))
+            .or_else(|| jobs.values().find(|j| !payload_slug.is_empty() && j.slug == payload_slug));
+        match job {
+            Some(j) => j.job_id.clone(),
+            None => {
+                tracing::warn!(entity_id = %entity_id, "pipeline: job not found in projection");
+                return false;
+            }
+        }
+    };
+
+    // Acquire per-job lock to prevent double-dispatch when concurrent events
+    // (e.g. step.observed + job.completed) both try to advance the same job.
+    let job_lock = {
+        let mut locks = octx.job_locks.lock().await;
+        locks.entry(job_id.clone()).or_insert_with(|| Arc::new(tokio::sync::Mutex::new(()))).clone()
+    };
+    let _guard = job_lock.lock().await;
+
+    // Reload projection under lock so we see the latest state.
     let jobs = match ship_dir_override {
         Some(dir) => load_jobs_at(dir),
         None => load_jobs(),
@@ -52,26 +92,15 @@ async fn advance_pipeline_inner(
     let jobs = match jobs {
         Ok(j) => j,
         Err(e) => {
-            tracing::warn!(entity_id = %envelope.entity_id, "pipeline: failed to load jobs: {e}");
+            tracing::warn!(entity_id = %envelope.entity_id, "pipeline: failed to reload jobs: {e}");
             return false;
         }
     };
 
-    // Find the job
-    let payload: serde_json::Value = serde_json::from_str(&envelope.payload_json).unwrap_or_default();
-    let payload_slug = payload["slug"].as_str().unwrap_or("");
-    let payload_job_id = payload["job_id"].as_str().unwrap_or("");
-    let entity_id = &envelope.entity_id;
-
-    let job = jobs.values()
-        .find(|j| j.job_id == *entity_id)
-        .or_else(|| jobs.values().find(|j| !payload_job_id.is_empty() && j.job_id == payload_job_id))
-        .or_else(|| jobs.values().find(|j| !payload_slug.is_empty() && j.slug == payload_slug))
-        .cloned();
-    let job = match job {
-        Some(j) => j,
+    let job = match jobs.get(&job_id) {
+        Some(j) => j.clone(),
         None => {
-            tracing::warn!(entity_id = %entity_id, "pipeline: job not found in projection");
+            tracing::warn!(job_id, "pipeline: job disappeared between lock acquire and reload");
             return false;
         }
     };
@@ -185,6 +214,14 @@ async fn advance_pipeline_inner(
                     tracing::warn!(slug, agent, "pipeline: ship use failed (non-fatal): {e}");
                 }
 
+                // State-machine prompt: compose a fresh spec for this step.
+                if let Some(pipeline) = &job.steps {
+                    super::prompt_composer::compose_and_write_for_step(
+                        &worktree_path, slug, &job.job_id,
+                        &job.spec_path, pipeline, step,
+                    );
+                }
+
                 let persist = step.step_type != StepType::Gate;
                 let (exit_tx, exit_rx) = tokio::sync::mpsc::unbounded_channel();
                 let job_ctx = JobContext {
@@ -193,6 +230,7 @@ async fn advance_pipeline_inner(
                     agent: agent.to_string(),
                     branch: job.branch.clone(),
                     spec_path: job.spec_path.clone(),
+                    spec_content: None,
                     work_dir: worktree_path.clone(),
                     env: [("SHIP_MESH_ID".to_string(), slug.clone())].into(),
                     exit_tx: Some(exit_tx),
@@ -211,16 +249,20 @@ async fn advance_pipeline_inner(
                             step_idx,
                             slug.clone(),
                             step.id.clone(),
+                            worktree_path.clone(),
                         );
+                        let (activity_tx, activity_rx) = tokio::sync::mpsc::unbounded_channel();
                         octx.done_flags.lock().await.insert(
                             slug.clone(),
                             monitor.done_flag(),
                         );
+                        octx.activity_txs.lock().await.insert(slug.clone(), activity_tx);
                         start_step_monitor(
                             monitor,
                             kernel.clone(),
                             octx.registry.clone(),
                             exit_rx,
+                            activity_rx,
                         );
                     }
                     Err(e) => {

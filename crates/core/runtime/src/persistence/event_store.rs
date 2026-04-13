@@ -133,25 +133,6 @@ fn query_one_db(path: &Path, filter: &EventFilter) -> Result<Vec<EventEnvelope>>
     rows.iter().map(|r| envelope_from_row(r, true)).collect()
 }
 
-/// Enumerate all workspace DB files under `{global_dir}/workspaces/*/events.db`.
-fn workspace_db_paths() -> Vec<PathBuf> {
-    let Ok(global_dir) = crate::project::get_global_dir() else {
-        return Vec::new();
-    };
-    let ws_root = global_dir.join("workspaces");
-    if !ws_root.is_dir() {
-        return Vec::new();
-    }
-    let Ok(entries) = std::fs::read_dir(&ws_root) else {
-        return Vec::new();
-    };
-    entries
-        .flatten()
-        .map(|e| e.path().join("events.db"))
-        .filter(|p| p.is_file())
-        .collect()
-}
-
 impl EventStore for SqliteEventStore {
     fn append(&self, event: &EventEnvelope) -> Result<()> {
         if let Some(ref pool) = self.pool {
@@ -214,7 +195,6 @@ impl EventStore for SqliteEventStore {
     }
 
     fn get(&self, id: &str) -> Result<Option<EventEnvelope>> {
-        // Try platform DB first, using pool if available.
         let row = if let Some(ref pool) = self.pool {
             block_on(async {
                 sqlx::query(&format!("SELECT {COLS} FROM events WHERE id = ?"))
@@ -231,44 +211,14 @@ impl EventStore for SqliteEventStore {
                     .await
             })?
         };
-        if let Some(r) = row {
-            return envelope_from_row(&r, true).map(Some);
+        match row {
+            Some(r) => envelope_from_row(&r, true).map(Some),
+            None => Ok(None),
         }
-
-        // Fall back to workspace DBs.
-        let id = id.to_string();
-        for ws_path in workspace_db_paths() {
-            if let Ok(mut ws_conn) = open_db_at(&ws_path) {
-                let row = block_on(async {
-                    sqlx::query(&format!("SELECT {COLS} FROM events WHERE id = ?"))
-                        .bind(&id)
-                        .fetch_optional(&mut ws_conn)
-                        .await
-                });
-                if let Ok(Some(r)) = row {
-                    return envelope_from_row(&r, true).map(Some);
-                }
-            }
-        }
-        Ok(None)
     }
 
     fn query(&self, filter: &EventFilter) -> Result<Vec<EventEnvelope>> {
-        let mut results = query_one_db(&self.db_path, filter)?;
-
-        // Also query all workspace DBs so workspace-local events are visible.
-        for ws_path in workspace_db_paths() {
-            if let Ok(ws_events) = query_one_db(&ws_path, filter) {
-                results.extend(ws_events);
-            }
-        }
-
-        // Re-sort by ULID id (encodes insertion time) and deduplicate.
-        // Events written to both platform.db and workspace DBs share the same
-        // ID, so dedup removes the duplicates.
-        results.sort_by(|a, b| a.id.cmp(&b.id));
-        results.dedup_by(|a, b| a.id == b.id);
-        Ok(results)
+        query_one_db(&self.db_path, filter)
     }
 
     fn query_aggregate(&self, entity_id: &str) -> Result<Vec<EventEnvelope>> {

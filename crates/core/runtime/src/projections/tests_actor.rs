@@ -2,8 +2,7 @@
 
 #[cfg(test)]
 mod actor_tests {
-    use crate::db::block_on;
-    use crate::db::workspace_db::open_workspace_db;
+    use crate::db::{block_on, open_db};
     use crate::events::types::event_types;
     use crate::events::EventEnvelope;
     use crate::projections::{ActorProjection, EventBus};
@@ -13,7 +12,8 @@ mod actor_tests {
         let base = ship_dir.parent().unwrap().to_path_buf();
         crate::project::init_project(base).unwrap();
         crate::db::ensure_db().unwrap();
-        let conn = open_workspace_db(&ship_dir, "ws-proj-actor").unwrap();
+        // actors table lives in platform.db.
+        let conn = open_db().unwrap();
         (ship_dir, conn)
     }
 

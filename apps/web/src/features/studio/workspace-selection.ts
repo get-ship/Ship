@@ -1,4 +1,4 @@
-type MinimalWorkspace = { branch: string; status?: string }
+type MinimalWorkspace = { name: string; status?: string }
 
 /**
  * Determine if the workspace selection needs updating, and if so, what the
@@ -9,8 +9,8 @@ export function resolveWorkspaceSelection(
   workspaces: MinimalWorkspace[],
 ): string | null | undefined {
   if (workspaces.length === 0) return undefined // no change
-  const isValid = viewedWorkspace && workspaces.some((w) => w.branch === viewedWorkspace)
+  const isValid = viewedWorkspace && workspaces.some((w) => w.name === viewedWorkspace)
   if (isValid) return undefined // selection is good
   const fallback = workspaces.find((w) => String(w.status).toLowerCase() === 'active')
-  return fallback?.branch ?? workspaces[0]?.branch ?? null
+  return fallback?.name ?? workspaces[0]?.name ?? null
 }

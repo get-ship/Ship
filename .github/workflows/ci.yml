@@ -17,6 +17,8 @@ jobs:
       - uses: actions/checkout@v4
       - uses: dtolnay/rust-toolchain@stable
       - uses: Swatinem/rust-cache@v2
+      - name: Check silent-error patterns
+        run: bash scripts/check-silent-errors.sh
       - name: Clippy
         run: cargo clippy --workspace --features unstable -- -D warnings
       - name: Build (stable)
