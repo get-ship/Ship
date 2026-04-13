@@ -1,0 +1,15 @@
+{#-
+  Error banner partial.
+
+  Context fields consumed:
+    - tone       : destructive|warning|info     (default: destructive)
+    - title      : short heading                (required)
+    - body       : supporting text / HTML       (optional)
+    - dismissible: boolean                      (default: false)
+-#}
+<ship-alert
+  tone="{{ tone | default('destructive') }}"
+  {% if dismissible %} dismissible{% endif %}>
+  <span slot="title">{{ title }}</span>
+  {% if body is defined %}{{ body | safe }}{% endif %}
+</ship-alert>

@@ -1,0 +1,16 @@
+{#-
+  Breadcrumb partial.
+
+  Context fields consumed:
+    - crumbs : list of { label, href?, active? }
+              active=true renders as the current-page item and omits href.
+-#}
+<ship-breadcrumb>
+  {% for crumb in crumbs %}
+    <ship-breadcrumb-item
+      {% if crumb.href is defined and not crumb.active %} href="{{ crumb.href }}"{% endif %}
+      {% if crumb.active %} active{% endif %}>
+      {{ crumb.label }}
+    </ship-breadcrumb-item>
+  {% endfor %}
+</ship-breadcrumb>

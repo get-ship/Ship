@@ -1,0 +1,29 @@
+{#-
+  Base page shell for daemon-rendered views.
+
+  Blocks:
+    - title       : document <title> (default "Ship")
+    - head        : extra <link>/<style>/<meta>
+    - body_class  : extra class names on the .ship-view wrapper
+    - body        : primary content (required)
+
+  Required context: none. Extending templates may pass whatever they
+  need; only `title` is consumed at the shell level and it is optional.
+-#}
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>{% block title %}Ship{% endblock %}</title>
+  <link rel="stylesheet" href="/api/runtime/assets/view-tokens.css">
+  <script type="module" src="/api/runtime/assets/datastar.js"></script>
+  <script type="module" src="/api/runtime/assets/ship-elements.js"></script>
+  {% block head %}{% endblock %}
+</head>
+<body>
+  <div class="ship-view {% block body_class %}{% endblock %}">
+    {% block body %}{% endblock %}
+  </div>
+</body>
+</html>

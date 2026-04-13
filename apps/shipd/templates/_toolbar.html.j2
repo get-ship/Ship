@@ -1,0 +1,25 @@
+{#-
+  Standard top-toolbar partial.
+
+  Context fields consumed:
+    - toolbar.justify  : start|center|end|between  (default: between)
+    - toolbar.variant  : default|bordered          (default: default)
+    - toolbar.gap      : sm|md|lg                  (default: md)
+
+  Slots expected in the surrounding template via named <template>
+  fragments are not supported in j2; instead, the caller includes this
+  partial inside their own <ship-toolbar> when they need custom slots.
+
+  This partial is the "simple case": title + optional trailing text.
+-#}
+<ship-toolbar
+  justify="{{ toolbar.justify | default('between') }}"
+  variant="{{ toolbar.variant | default('default') }}"
+  gap="{{ toolbar.gap | default('md') }}">
+  {% if toolbar.title is defined %}
+    <span slot="leading">{{ toolbar.title }}</span>
+  {% endif %}
+  {% if toolbar.trailing is defined %}
+    <span slot="trailing">{{ toolbar.trailing }}</span>
+  {% endif %}
+</ship-toolbar>
