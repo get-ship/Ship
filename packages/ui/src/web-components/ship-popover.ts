@@ -23,18 +23,28 @@ export class ShipPopover extends LitElement {
     :host { position: relative; display: inline-flex; }
     .panel {
       position: absolute;
-      z-index: 30;
+      z-index: var(--z-popover);
       min-width: 180px;
       padding: 6px;
       background: var(--popover);
       color: var(--popover-foreground);
       border: 1px solid var(--border);
       border-radius: var(--radius);
-      box-shadow: 0 8px 24px -8px oklch(0 0 0 / 25%);
+      box-shadow: var(--shadow-lg);
       font-family: var(--font-body);
-      font-size: 13px;
+      font-size: var(--text-base);
+      opacity: 0;
+      transform: translateY(-4px);
+      pointer-events: none;
+      transition:
+        opacity var(--duration-medium) var(--ease-out),
+        transform var(--duration-medium) var(--ease-out);
     }
-    :host(:not([open])) .panel { display: none; }
+    :host([open]) .panel {
+      opacity: 1;
+      transform: translateY(0);
+      pointer-events: auto;
+    }
     :host([placement='bottom']) .panel,
     :host(:not([placement])) .panel { top: calc(100% + 6px); left: 0; }
     :host([placement='top']) .panel { bottom: calc(100% + 6px); left: 0; }

@@ -23,7 +23,7 @@ export class ShipDropdownMenu extends LitElement {
     :host { position: relative; display: inline-flex; }
     .menu {
       position: absolute;
-      z-index: 30;
+      z-index: var(--z-dropdown);
       top: calc(100% + 4px);
       left: 0;
       min-width: 160px;
@@ -32,19 +32,30 @@ export class ShipDropdownMenu extends LitElement {
       color: var(--popover-foreground);
       border: 1px solid var(--border);
       border-radius: var(--radius);
-      box-shadow: 0 8px 24px -8px oklch(0 0 0 / 25%);
+      box-shadow: var(--shadow-lg);
       display: flex; flex-direction: column;
       font-family: var(--font-body);
-      font-size: 13px;
+      font-size: var(--text-base);
+      opacity: 0;
+      transform: translateY(-4px);
+      pointer-events: none;
+      transition:
+        opacity var(--duration-medium) var(--ease-out),
+        transform var(--duration-medium) var(--ease-out);
     }
-    :host(:not([open])) .menu { display: none; }
+    :host([open]) .menu {
+      opacity: 1;
+      transform: translateY(0);
+      pointer-events: auto;
+    }
     ::slotted(button), ::slotted([role='menuitem']) {
       text-align: left;
       background: transparent; border: 0;
       padding: 6px 10px;
-      border-radius: 4px;
+      border-radius: var(--radius-sm);
       color: inherit; font: inherit;
       cursor: pointer;
+      transition: background-color var(--duration-fast) var(--ease-out);
     }
     ::slotted(button:hover), ::slotted([role='menuitem']:hover) {
       background: var(--muted);
