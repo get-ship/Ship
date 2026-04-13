@@ -8,7 +8,10 @@
 //! Types are split into `session_types.rs` to stay under the 300-line cap.
 //! See `.artifacts/phase-1-agent-canvas-views-spec.md` for the full contract.
 
-use super::session_types::{RegistryConfig, SessionError, SessionInfo, TokenBucket, ViewId};
+pub use super::session_types::{
+    AgentId, RegistryConfig, SessionError, SessionInfo, ViewId,
+};
+use super::session_types::TokenBucket;
 use super::stream::{ViewSse, ViewStream};
 use serde_json::Value;
 use std::collections::HashMap;
@@ -16,8 +19,6 @@ use std::sync::Arc;
 use std::time::Instant;
 use tokio::sync::Mutex;
 use ulid::Ulid;
-
-pub use super::session_types::{AgentId, RegistryConfig as Config, SessionError as Error, SessionInfo as Info};
 
 pub(crate) struct SessionEntry {
     pub(crate) owner_agent_id: AgentId,

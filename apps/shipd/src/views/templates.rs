@@ -70,12 +70,8 @@ const TEMPLATES: &[(&str, &str)] = &[
         include_str!("../../templates/_toolbar.html.j2"),
     ),
     (
-        "canvas/test-ping.html.j2",
-        include_str!("../../templates/canvas/test-ping.html.j2"),
-    ),
-    (
-        "canvas/test-ping",
-        include_str!("../../templates/canvas/test-ping.html.j2"),
+        "canvas/blank.html.j2",
+        include_str!("../../templates/canvas/blank.html.j2"),
     ),
     (
         "git/partials/diff_viewer.html.j2",

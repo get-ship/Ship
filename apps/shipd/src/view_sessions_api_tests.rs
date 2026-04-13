@@ -97,7 +97,7 @@ async fn open_surfaces_mcp_apps_meta() {
         &router,
         "POST",
         "/api/runtime/view-sessions",
-        serde_json::json!({"template": "canvas/test-ping"}),
+        serde_json::json!({"template": "canvas/blank"}),
     )
     .await;
     assert_eq!(status, 200);
@@ -117,7 +117,7 @@ async fn open_then_patch_then_close_succeeds() {
         &router,
         "POST",
         "/api/runtime/view-sessions",
-        serde_json::json!({ "template": "canvas/test-ping" }),
+        serde_json::json!({ "template": "canvas/blank" }),
     )
     .await;
     assert_eq!(status, 200, "open returned {body}");
@@ -151,7 +151,7 @@ async fn non_owner_patch_returns_403() {
         &router_owner,
         "POST",
         "/api/runtime/view-sessions",
-        serde_json::json!({"template": "canvas/test-ping"}),
+        serde_json::json!({"template": "canvas/blank"}),
     )
     .await;
     let view_id = body["data"]["view_id"].as_str().unwrap().to_string();
@@ -183,7 +183,7 @@ async fn open_without_agent_is_unauthenticated() {
         &router,
         "POST",
         "/api/runtime/view-sessions",
-        serde_json::json!({"template": "canvas/test-ping"}),
+        serde_json::json!({"template": "canvas/blank"}),
     )
     .await;
     assert_eq!(status, 401);
@@ -201,7 +201,7 @@ async fn quota_returns_structured_conflict() {
             &router,
             "POST",
             "/api/runtime/view-sessions",
-            serde_json::json!({"template": "canvas/test-ping"}),
+            serde_json::json!({"template": "canvas/blank"}),
         )
         .await;
         assert_eq!(s, 200);
@@ -210,7 +210,7 @@ async fn quota_returns_structured_conflict() {
         &router,
         "POST",
         "/api/runtime/view-sessions",
-        serde_json::json!({"template": "canvas/test-ping"}),
+        serde_json::json!({"template": "canvas/blank"}),
     )
     .await;
     assert_eq!(status, 409);
@@ -226,7 +226,7 @@ async fn subscribe_receives_broadcast_patches() {
         &router,
         "POST",
         "/api/runtime/view-sessions",
-        serde_json::json!({"template": "canvas/test-ping"}),
+        serde_json::json!({"template": "canvas/blank"}),
     )
     .await;
     let view_id = body["data"]["view_id"].as_str().unwrap().to_string();

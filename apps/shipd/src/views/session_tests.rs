@@ -16,16 +16,16 @@ fn fast_cfg() -> RegistryConfig {
 async fn open_returns_unique_ids_and_enforces_quota() {
     let reg = ViewSessionRegistry::with_config(fast_cfg());
     let a = reg
-        .open("agent.a".into(), "canvas/test-ping".into(), None, serde_json::json!({}))
+        .open("agent.a".into(), "canvas/blank".into(), None, serde_json::json!({}))
         .await
         .unwrap();
     let b = reg
-        .open("agent.a".into(), "canvas/test-ping".into(), None, serde_json::json!({}))
+        .open("agent.a".into(), "canvas/blank".into(), None, serde_json::json!({}))
         .await
         .unwrap();
     assert_ne!(a, b, "view_ids must be unique");
     let err = reg
-        .open("agent.a".into(), "canvas/test-ping".into(), None, serde_json::json!({}))
+        .open("agent.a".into(), "canvas/blank".into(), None, serde_json::json!({}))
         .await
         .unwrap_err();
     assert!(matches!(err, SessionError::QuotaExceeded { limit: 2, .. }));

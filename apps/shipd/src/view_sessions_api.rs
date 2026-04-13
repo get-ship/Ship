@@ -24,7 +24,7 @@ use serde_json::Value;
 
 use crate::auth::AuthContext;
 use crate::rest_api::ApiState;
-use crate::views::session::Error as SessionError;
+use crate::views::session::SessionError;
 
 #[derive(Deserialize)]
 pub struct OpenReq {
@@ -162,8 +162,16 @@ pub async fn close_session(
 
 pub async fn subscribe_session(
     State(state): State<ApiState>,
+    Extension(auth): Extension<AuthContext>,
     Path(id): Path<String>,
 ) -> Response {
+    // Subscribe is read-only but still agent-scoped: anonymous MCP
+    // callers have no business tailing another agent's canvas. The
+    // daemon's bearer auth has already run; this rejects connections
+    // that lack an agent id.
+    if let Err(r) = require_agent(&auth) {
+        return r;
+    }
     match state.view_sessions().subscribe(&id).await {
         Ok(sse) => sse.into_response(),
         Err(e) => session_err(e),

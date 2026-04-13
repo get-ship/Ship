@@ -20,7 +20,7 @@ steps:
         -H "Authorization: Bearer $SHIP_DAEMON_TOKEN" \
         -H "x-ship-agent-id: pipeline.e2e" \
         -H "content-type: application/json" \
-        -d '{"template":"canvas/test-ping","title":"e2e"}')
+        -d '{"template":"canvas/blank","title":"e2e"}')
       echo "$resp" | tee .artifacts/view-session-open.json
       view_id=$(echo "$resp" | sed -n 's/.*"view_id":"\([^"]*\)".*/\1/p')
       test -n "$view_id" || { echo "open: no view_id in response"; exit 1; }
