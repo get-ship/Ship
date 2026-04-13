@@ -1,8 +1,23 @@
 //! ProcessExecutor — spawns agents as direct child processes.
 //!
-//! No tmux dependency. The runtime owns the PID and detects exit.
-//! Output is logged to `.artifacts/agent.log` in the worktree.
-//! The agent runs non-interactively via `--print -p "go"`.
+//! No tmux dependency. The runtime owns the PID and detects exit. Output
+//! (stdout + stderr, including the streamed-JSON event log from claude) is
+//! written to `.artifacts/agent-<slug>.log` per step so steps don't clobber
+//! each other's logs.
+//!
+//! This is the PREFERRED executor for pipeline jobs. The tmux path is
+//! retained for interactive sessions where the user wants to attach and
+//! watch/chat with the agent. Pipelines are hands-off by definition — they
+//! should not require a TUI to coordinate.
+//!
+//! What we gain over tmux:
+//!   - No channels-prompt dismissal (CLI flags bypass the interactive menu)
+//!   - No pane scraping / ready-pattern detection / key-name fiddling
+//!   - Deterministic exit codes map cleanly to verdict evidence
+//!   - Each step is its own process — no residual state from the prior step
+//!
+//! Coordination with the agent (send messages, broadcast events) continues
+//! to use the mesh channel via `server:ship`, not the process stdin.
 
 use anyhow::Result;
 use async_trait::async_trait;
@@ -21,15 +36,28 @@ impl JobExecutor for ProcessExecutor {
     async fn spawn(&self, ctx: &JobContext) -> Result<ExecutorHandle> {
         let log_dir = ctx.work_dir.join(".artifacts");
         std::fs::create_dir_all(&log_dir)?;
-        let log_path = log_dir.join("agent.log");
+        // Per-step log so step-2+ doesn't overwrite step-1's output.
+        let log_path = log_dir.join(format!("agent-{}.log", ctx.slug));
         let log_file = std::fs::File::create(&log_path)?;
         let err_file = log_file.try_clone()?;
 
+        // Non-interactive launch. The `-p` prompt is the instruction the
+        // agent receives on invocation — it points at the composed spec so
+        // the agent reads current-step role + predecessor summaries + job
+        // body + runtime contract.
+        //
+        // Claude CLI's `stream-json` output format requires `--verbose` (it
+        // refuses otherwise, which previously caused the process to exit
+        // immediately and the pipeline to "complete" in 19s doing nothing).
+        // We're not currently parsing stream-json events, so use the default
+        // human-readable format. Switching to stream-json later means adding
+        // `--verbose` and a stdout parser.
+        let prompt = "Read .artifacts/job-spec.md and execute it autonomously.";
         let mut args = vec![
             "--dangerously-skip-permissions",
             "--dangerously-load-development-channels", "server:ship",
             "--print",
-            "-p", "go",
+            "-p", prompt,
         ];
         if let Some(ref m) = ctx.launch.model {
             args.push("--model");

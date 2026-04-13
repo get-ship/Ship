@@ -36,13 +36,19 @@ pub async fn subscribe_job_events(
     kernel: Arc<Mutex<runtime::events::KernelRouter>>,
     _ship_dir: PathBuf,
 ) -> Option<DispatchHandle> {
+    // ProcessExecutor is the default for pipeline jobs: headless claude child
+    // process, stdout → log file, exit code drives the step monitor. No tmux
+    // pane scraping, no channels-menu dismissal, no key-name fiddling —
+    // every one of those was a fragile coordination channel that broke in
+    // production. Tmux stays available via SHIP_EXECUTOR=tmux for users who
+    // want to attach to a running agent interactively (debugging, pairing).
     let executor: Arc<dyn JobExecutor> =
-        if std::env::var("SHIP_EXECUTOR").as_deref() == Ok("process") {
+        if std::env::var("SHIP_EXECUTOR").as_deref() == Ok("tmux") {
+            tracing::info!("job-dispatch: using TmuxExecutor (SHIP_EXECUTOR=tmux)");
+            Arc::new(super::executors::TmuxExecutor)
+        } else {
             tracing::info!("job-dispatch: using ProcessExecutor");
             Arc::new(super::executors::ProcessExecutor)
-        } else {
-            tracing::info!("job-dispatch: using TmuxExecutor");
-            Arc::new(super::executors::TmuxExecutor)
         };
 
     let registry = Arc::new(Mutex::new(ProcessRegistry::new()));
