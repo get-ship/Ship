@@ -170,13 +170,16 @@ auto_kickstart_tmux() {
         # session where `Enter` was a no-op and `C-m` advanced past the menu.
         tmux send-keys -t "$session" C-m
         sleep 1
-        tmux send-keys -t "$session" "Read .artifacts/job-spec.md and execute it autonomously." Enter
+        # C-m (not Enter) for the input widget too — same reason as the menu
+        # above. Claude Code's multi-line textarea treats `Enter` as newline;
+        # submit requires a literal CR.
+        tmux send-keys -t "$session" "Read .artifacts/job-spec.md and execute it autonomously." C-m
         exit 0
       fi
     done
     # Prompt not found (non-claude provider or --dangerously-skip-permissions accepted it) —
     # still send the autostart message.
-    tmux send-keys -t "$session" "Read .artifacts/job-spec.md and execute it autonomously." Enter
+    tmux send-keys -t "$session" "Read .artifacts/job-spec.md and execute it autonomously." C-m
   ) &
 }
 
