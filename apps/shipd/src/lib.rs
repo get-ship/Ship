@@ -18,6 +18,7 @@ pub mod pty_handler;
 pub mod rest_api;
 pub mod routes;
 pub mod runtime_api;
+pub mod view_sessions_api;
 mod server;
 pub mod views;
 pub mod views_git;
@@ -349,6 +350,14 @@ fn build_ship_routes(st: rest_api::ApiState) -> Router {
         .ship_route(Route::ServeViewManifest_template(), views::serve_view_manifest)
         .ship_route(Route::ServeViewBundle_template(), views::serve_view_bundle)
         .ship_route(Route::ServeViewRaw_template(), views::serve_view_raw)
+        // Agent-owned view sessions
+        .ship_route(Route::OpenViewSession, view_sessions_api::open_session)
+        .ship_route(Route::PatchViewSession_template(), view_sessions_api::patch_session)
+        .ship_route(Route::AppendViewSession_template(), view_sessions_api::append_session)
+        .ship_route(Route::SignalViewSession_template(), view_sessions_api::signal_session)
+        .ship_route(Route::CloseViewSession_template(), view_sessions_api::close_session)
+        .ship_route(Route::SubscribeViewSession_template(), view_sessions_api::subscribe_session)
+        .ship_route(Route::ViewSessionRaw_template(), view_sessions_api::raw_session)
         .ship_route(Route::ViewGit, views_git::git_shell)
         .ship_route(Route::ViewGitSse, views_git::git_sse)
         .ship_route(Route::ViewPipelines, views_pipelines::pipelines_shell)

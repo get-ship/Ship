@@ -110,6 +110,29 @@ pub enum Route {
     /// @route GET "/api/runtime/view/{name}/raw"
     ServeViewRaw { name: String },
 
+    // ── Agent-owned view sessions (Phase 1 canvas framework) ─────────────
+
+    /// @route POST "/api/runtime/view-sessions"
+    OpenViewSession,
+
+    /// @route POST "/api/runtime/view-sessions/{id}/patch"
+    PatchViewSession { id: String },
+
+    /// @route POST "/api/runtime/view-sessions/{id}/append"
+    AppendViewSession { id: String },
+
+    /// @route POST "/api/runtime/view-sessions/{id}/signal"
+    SignalViewSession { id: String },
+
+    /// @route DELETE "/api/runtime/view-sessions/{id}"
+    CloseViewSession { id: String },
+
+    /// @route GET "/api/runtime/view-sessions/{id}"
+    SubscribeViewSession { id: String },
+
+    /// @route GET "/api/runtime/view-sessions/{id}/raw"
+    ViewSessionRaw { id: String },
+
     // ── Runtime listings ─────────────────────────────────────────────────
 
     /// @route GET "/api/runtime/workspaces"
