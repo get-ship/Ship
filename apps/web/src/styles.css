@@ -5,7 +5,10 @@
 @import "shadcn/tailwind.css";
 @import "@fontsource-variable/syne";
 @import "@fontsource-variable/dm-sans";
-@import "@ship/ui/tokens.css";
+/* Relative path — Tailwind v4's CSS resolver does not honor package.json
+   exports maps, so `@import "@ship/ui/tokens.css"` resolves the scope
+   to ./src/index.ts and then ENOTDIRs appending tokens.css. */
+@import "../../../packages/ui/src/tokens.css";
 
 @custom-variant dark (&:is(.dark *));
 
