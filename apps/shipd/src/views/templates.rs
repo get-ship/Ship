@@ -120,44 +120,24 @@ const TEMPLATES: &[(&str, &str)] = &[
         include_str!("../../templates/pipelines/shell.html.j2"),
     ),
     (
-        "settings/content.html.j2",
-        include_str!("../../templates/settings/content.html.j2"),
+        "settings/partials/about.html.j2",
+        include_str!("../../templates/settings/partials/about.html.j2"),
     ),
     (
-        "settings/partials/_not_configured.html.j2",
-        include_str!("../../templates/settings/partials/_not_configured.html.j2"),
+        "settings/partials/advanced.html.j2",
+        include_str!("../../templates/settings/partials/advanced.html.j2"),
     ),
     (
-        "settings/partials/agents.html.j2",
-        include_str!("../../templates/settings/partials/agents.html.j2"),
-    ),
-    (
-        "settings/partials/header.html.j2",
-        include_str!("../../templates/settings/partials/header.html.j2"),
-    ),
-    (
-        "settings/partials/integrations.html.j2",
-        include_str!("../../templates/settings/partials/integrations.html.j2"),
-    ),
-    (
-        "settings/partials/mcp.html.j2",
-        include_str!("../../templates/settings/partials/mcp.html.j2"),
-    ),
-    (
-        "settings/partials/permissions.html.j2",
-        include_str!("../../templates/settings/partials/permissions.html.j2"),
-    ),
-    (
-        "settings/partials/project.html.j2",
-        include_str!("../../templates/settings/partials/project.html.j2"),
+        "settings/partials/provider_row.html.j2",
+        include_str!("../../templates/settings/partials/provider_row.html.j2"),
     ),
     (
         "settings/partials/providers.html.j2",
         include_str!("../../templates/settings/partials/providers.html.j2"),
     ),
     (
-        "settings/partials/workspace.html.j2",
-        include_str!("../../templates/settings/partials/workspace.html.j2"),
+        "settings/partials/terminal.html.j2",
+        include_str!("../../templates/settings/partials/terminal.html.j2"),
     ),
     (
         "settings/shell.html.j2",

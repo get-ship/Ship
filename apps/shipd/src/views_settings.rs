@@ -1,22 +1,17 @@
 //! Settings view — minijinja shell + Datastar SSE content patches.
 //!
-//! Two endpoints:
+//! Single endpoint pair:
 //!
-//! - `GET /api/runtime/view/settings` — full-page HTML shell with tab strip
-//!   + embedded initial panel. Bootstraps the SSE subscription.
+//! - `GET /api/runtime/view/settings` — full-page HTML shell, single column,
+//!   four stacked sections (Providers / Terminal / Advanced / About).
 //! - `GET /api/runtime/view/settings/sse` — patches `#settings-panel` on
-//!   workspace/config change events.
+//!   workspace / config-changed events.
 //!
-//! All config reads go through the `runtime::config` public surface. No
-//! mutations happen here: forms are wired to the existing `/api/settings`
-//! and `/api/providers` endpoints where applicable, and rendered as
-//! `disabled` placeholders otherwise (CLAUDE.md: no placeholders in code,
-//! but rendered "not configured" is honest signal).
+//! All reads go through the `runtime::config` public surface. Writes happen
+//! via the existing `/api/settings` REST endpoint that forms post to.
 
 use axum::extract::{Query, State};
 use axum::response::Html;
-use runtime::config::{McpServerConfig, ProjectConfig};
-use runtime::events::ActorConfig;
 use serde::{Deserialize, Serialize};
 use std::time::Duration;
 
@@ -26,229 +21,197 @@ use crate::views::templates;
 #[derive(Clone, Debug, Default, Deserialize)]
 pub struct SettingsParams {
     #[serde(default)]
-    pub tab: Option<String>,
-    #[serde(default)]
     pub token: String,
-}
-
-impl SettingsParams {
-    pub fn active_tab(&self) -> String {
-        self.tab
-            .clone()
-            .filter(|s| !s.is_empty())
-            .unwrap_or_else(|| "workspace".to_string())
-    }
 }
 
 // ─── Context structs ──────────────────────────────────────────────────────────
 
-#[derive(Serialize, Default)]
-struct ProjectView {
-    loaded: bool,
-    id: String,
-    name: String,
-    description: String,
+#[derive(Serialize, Clone)]
+pub struct ProviderRow {
+    /// Stable id (e.g. "claude", "openai", "gemini").
+    pub id: String,
+    /// Human label.
+    pub label: String,
+    /// Single-glyph emblem to stand in for a logo.
+    pub glyph: String,
+    /// CLI binary we probe for.
+    pub binary: String,
+    /// Detected CLI version, if available.
+    pub version: Option<String>,
+    /// Whether the CLI is installed on PATH.
+    pub available: bool,
+    /// Whether this is the default provider per runtime settings.
+    pub is_default: bool,
 }
 
-#[derive(Serialize, Default)]
-struct Defaults {
-    provider: String,
+#[derive(Serialize, Default, Clone)]
+pub struct TerminalConfig {
+    pub program: String,
+    pub worktree_base: String,
+    pub options: Vec<SelectOption>,
 }
 
-#[derive(Serialize)]
-struct AgentView {
-    name: String,
-    role: String,
-    description: String,
-    is_active: bool,
+#[derive(Serialize, Clone)]
+pub struct SelectOption {
+    pub value: String,
+    pub label: String,
 }
 
-#[derive(Serialize)]
-struct ProviderView {
-    id: String,
-    binary: String,
-    version: Option<String>,
-    available: bool,
+#[derive(Serialize, Clone)]
+pub struct FeatureFlag {
+    pub key: String,
+    pub label: String,
+    pub description: String,
+    pub enabled: bool,
 }
 
-#[derive(Serialize)]
-struct McpView {
-    name: String,
-    command: String,
-    url: Option<String>,
-    scope: String,
-    server_type: String,
-    disabled: bool,
-}
-
-#[derive(Serialize, Default)]
-struct PermissionsView {
-    loaded: bool,
-    allow: Vec<String>,
-    deny: Vec<String>,
-}
-
-#[derive(Serialize)]
-struct IntegrationView {
-    name: String,
-    connected: bool,
-    hint: String,
+#[derive(Serialize, Default, Clone)]
+pub struct AboutInfo {
+    pub ship_version: String,
+    pub daemon_version: String,
+    pub cli_version: String,
+    pub license: String,
+    pub homepage: String,
+    pub docs: String,
+    pub source: String,
 }
 
 #[derive(Serialize)]
-struct SettingsCtx {
-    active_tab: String,
-    workspace_available: bool,
-    workspace_root: String,
-    defaults: Defaults,
-    project: ProjectView,
-    agents: Vec<AgentView>,
-    providers: Vec<ProviderView>,
-    mcp_servers: Vec<McpView>,
-    permissions: PermissionsView,
-    integrations: Vec<IntegrationView>,
-    daemon_origin: String,
-    token: String,
+pub struct SettingsCtx {
+    pub providers: Vec<ProviderRow>,
+    pub default_provider: String,
+    pub default_model: String,
+    pub terminal: TerminalConfig,
+    pub advanced: Vec<FeatureFlag>,
+    pub advanced_registry: String,
+    pub about: AboutInfo,
+    pub daemon_origin: String,
+    pub token: String,
 }
 
-// ─── State helpers (inline per scope rules) ───────────────────────────────────
+// ─── State helpers ────────────────────────────────────────────────────────────
 
-fn load_project_config() -> Option<ProjectConfig> {
-    runtime::config::get_effective_config(None).ok()
+fn provider_meta(id: &str) -> (&'static str, &'static str) {
+    // (human label, glyph)
+    match id {
+        "claude" => ("Anthropic Claude", "✦"),
+        "openai" | "codex" => ("OpenAI", "◆"),
+        "gemini" => ("Google Gemini", "◇"),
+        "grok" => ("xAI Grok", "◈"),
+        "opencode" => ("OpenCode", "◉"),
+        _ => ("Provider", "○"),
+    }
 }
 
-fn load_mcp_servers() -> Vec<McpServerConfig> {
-    runtime::config::list_mcp_servers(None).unwrap_or_default()
-}
-
-fn detect_providers() -> Vec<ProviderView> {
+fn detect_providers(default_id: &str) -> Vec<ProviderRow> {
+    // Availability-only: `which <binary>` is sub-millisecond. Version
+    // detection spawns the binary (~1–2s each) and blocks the shell render;
+    // defer it to the SSE path when/if we want to show versions live.
     runtime::agent_export::PROVIDERS
         .iter()
         .map(|d| {
             let available = runtime::detect_binary(d.binary);
-            let version = if available {
-                runtime::detect_version(d.binary)
-            } else {
-                None
-            };
-            ProviderView {
+            let (label, glyph) = provider_meta(d.id);
+            ProviderRow {
                 id: d.id.to_string(),
+                label: label.to_string(),
+                glyph: glyph.to_string(),
                 binary: d.binary.to_string(),
-                version,
+                version: None,
                 available,
+                is_default: d.id == default_id,
             }
         })
         .collect()
 }
 
-fn detect_default_provider() -> String {
-    runtime::config::get_setting("defaults.provider")
+fn setting_string(key: &str) -> String {
+    runtime::config::get_setting(key)
         .ok()
         .flatten()
         .and_then(|v| v.as_str().map(|s| s.to_string()))
-        .unwrap_or_else(|| "claude".to_string())
-}
-
-fn workspace_root_display() -> String {
-    runtime::project::get_global_dir()
-        .ok()
-        .map(|p| p.display().to_string())
         .unwrap_or_default()
 }
 
-fn detect_integrations() -> Vec<IntegrationView> {
-    vec![
-        IntegrationView {
-            name: "Telegram".to_string(),
-            connected: std::env::var("SHIP_TELEGRAM_TOKEN").is_ok()
-                && std::env::var("SHIP_TELEGRAM_CHAT_ID").is_ok(),
-            hint: "Set SHIP_TELEGRAM_TOKEN and SHIP_TELEGRAM_CHAT_ID to enable the human gateway."
-                .to_string(),
-        },
-        IntegrationView {
-            name: "GitHub".to_string(),
-            connected: std::env::var("GITHUB_TOKEN").is_ok(),
-            hint: "Set GITHUB_TOKEN for PR/issue integrations.".to_string(),
-        },
-    ]
+fn build_terminal() -> TerminalConfig {
+    TerminalConfig {
+        program: setting_string("terminal.program"),
+        worktree_base: setting_string("worktree.base_dir"),
+        options: vec![
+            ("tmux", "tmux"),
+            ("iterm", "iTerm"),
+            ("wezterm", "WezTerm"),
+            ("alacritty", "Alacritty"),
+            ("terminal", "Terminal.app"),
+            ("wt", "Windows Terminal"),
+            ("gnome", "GNOME Terminal"),
+            ("vscode", "VS Code"),
+        ]
+        .into_iter()
+        .map(|(v, l)| SelectOption {
+            value: v.to_string(),
+            label: l.to_string(),
+        })
+        .collect(),
+    }
+}
+
+fn build_about() -> AboutInfo {
+    let ship_version = env!("CARGO_PKG_VERSION").to_string();
+    AboutInfo {
+        ship_version: ship_version.clone(),
+        daemon_version: ship_version.clone(),
+        cli_version: ship_version,
+        license: "MIT".to_string(),
+        homepage: "https://getship.dev".to_string(),
+        docs: "https://getship.dev/docs".to_string(),
+        source: "https://github.com/madvib/Ship".to_string(),
+    }
 }
 
 fn build_ctx(params: &SettingsParams, daemon_origin: String) -> SettingsCtx {
-    let active_tab = params.active_tab();
-    let cfg = load_project_config();
-
-    let project = cfg
-        .as_ref()
-        .map(|c| ProjectView {
-            loaded: true,
-            id: c.id.clone(),
-            name: c.name.clone().unwrap_or_default(),
-            description: c.description.clone().unwrap_or_default(),
-        })
-        .unwrap_or_default();
-
-    let agents: Vec<AgentView> = cfg
-        .as_ref()
-        .map(|c| {
-            c.modes
-                .iter()
-                .map(|m| AgentView {
-                    name: m.name.clone(),
-                    role: m.role.clone().unwrap_or_else(|| "worker".to_string()),
-                    description: m.description.clone().unwrap_or_default(),
-                    is_active: c.active_agent.as_deref() == Some(&m.id),
-                })
-                .collect()
-        })
-        .unwrap_or_default();
-
-    let mcp_servers: Vec<McpView> = load_mcp_servers()
-        .into_iter()
-        .map(|s| McpView {
-            name: s.name,
-            command: s.command,
-            url: s.url,
-            scope: s.scope,
-            server_type: format!("{:?}", s.server_type).to_lowercase(),
-            disabled: s.disabled,
-        })
-        .collect();
-
-    // Permissions: from active agent profile if present, otherwise unloaded.
-    let permissions = cfg
-        .as_ref()
-        .and_then(|c| {
-            let active = c.active_agent.as_ref()?;
-            c.modes.iter().find(|m| &m.id == active).map(|m| PermissionsView {
-                loaded: true,
-                allow: m.permissions.allow.clone(),
-                deny: m.permissions.deny.clone(),
-            })
-        })
-        .unwrap_or_default();
+    let default_provider = runtime::config::get_setting("defaults.provider")
+        .ok()
+        .flatten()
+        .and_then(|v| v.as_str().map(|s| s.to_string()))
+        .unwrap_or_else(|| "claude".to_string());
+    let default_model = setting_string("defaults.model");
+    let providers = detect_providers(&default_provider);
+    let advanced_registry = setting_string("registry.endpoint");
 
     SettingsCtx {
-        active_tab,
-        workspace_available: cfg.is_some(),
-        workspace_root: workspace_root_display(),
-        defaults: Defaults {
-            provider: detect_default_provider(),
-        },
-        project,
-        agents,
-        providers: detect_providers(),
-        mcp_servers,
-        permissions,
-        integrations: detect_integrations(),
+        providers,
+        default_provider,
+        default_model,
+        terminal: build_terminal(),
+        advanced: Vec::new(),
+        advanced_registry,
+        about: build_about(),
         daemon_origin,
         token: params.token.clone(),
     }
 }
 
-fn render_content(params: &SettingsParams, daemon_origin: String) -> String {
+fn render_panel(params: &SettingsParams, daemon_origin: String) -> String {
     let ctx = build_ctx(params, daemon_origin);
-    templates::render("settings/content.html.j2", &ctx)
-        .unwrap_or_else(|e| format!("<div id=\"settings-panel\"><pre>{e}</pre></div>"))
+    let inner = render_sections(&ctx);
+    format!("<div id=\"settings-panel\">{inner}</div>")
+}
+
+fn render_sections(ctx: &SettingsCtx) -> String {
+    let mut out = String::new();
+    for tpl in [
+        "settings/partials/providers.html.j2",
+        "settings/partials/terminal.html.j2",
+        "settings/partials/advanced.html.j2",
+        "settings/partials/about.html.j2",
+    ] {
+        match templates::render(tpl, ctx) {
+            Ok(s) => out.push_str(&s),
+            Err(e) => out.push_str(&format!("<pre>{e}</pre>")),
+        }
+    }
+    out
 }
 
 /// GET /api/runtime/view/settings — full shell, minijinja-rendered.
@@ -262,8 +225,7 @@ pub async fn settings_shell(
     Html(html)
 }
 
-/// GET /api/runtime/view/settings/sse — Datastar patches for `#settings-panel`
-/// re-rendered on `workspace.config-changed` events.
+/// GET /api/runtime/view/settings/sse — Datastar patches for `#settings-panel`.
 pub async fn settings_sse(
     State(state): State<crate::rest_api::ApiState>,
     Query(params): Query<SettingsParams>,
@@ -277,7 +239,7 @@ pub async fn settings_sse(
             .map(|d| d.as_nanos())
             .unwrap_or(0)
     );
-    let config = ActorConfig {
+    let config = runtime::events::ActorConfig {
         namespace: actor_id.clone(),
         write_namespaces: vec![],
         read_namespaces: vec![],
@@ -300,7 +262,7 @@ pub async fn settings_sse(
         let _guard = guard;
         let _hb = vs.heartbeat_every(Duration::from_secs(15));
 
-        let html = render_content(&params, origin.clone());
+        let html = render_panel(&params, origin.clone());
         if vs.patch("#settings-panel", html).await.is_err() {
             return;
         }
@@ -310,7 +272,7 @@ pub async fn settings_sse(
             if vs.is_closed() {
                 break;
             }
-            let html = render_content(&params, origin.clone());
+            let html = render_panel(&params, origin.clone());
             if vs.patch("#settings-panel", html).await.is_err() {
                 break;
             }

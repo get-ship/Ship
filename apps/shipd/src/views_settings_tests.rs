@@ -1,92 +1,138 @@
 //! Tests for the settings view context + template rendering.
 //!
-//! These synthesize `SettingsCtx` directly and call `templates::render` — no
-//! `ApiState`, no runtime.
+//! These synthesize `SettingsCtx` directly and render templates — no
+//! `ApiState`, no runtime initialization.
 
 use super::*;
 use crate::views::templates;
 
-fn empty_ctx(active_tab: &str) -> SettingsCtx {
+fn sample_ctx() -> SettingsCtx {
     SettingsCtx {
-        active_tab: active_tab.to_string(),
-        workspace_available: false,
-        workspace_root: String::new(),
-        defaults: Defaults {
-            provider: "claude".into(),
+        providers: vec![
+            ProviderRow {
+                id: "claude".into(),
+                label: "Anthropic Claude".into(),
+                glyph: "✦".into(),
+                binary: "claude".into(),
+                version: Some("1.2.3".into()),
+                available: true,
+                is_default: true,
+            },
+            ProviderRow {
+                id: "openai".into(),
+                label: "OpenAI".into(),
+                glyph: "◆".into(),
+                binary: "codex".into(),
+                version: None,
+                available: false,
+                is_default: false,
+            },
+        ],
+        default_provider: "claude".into(),
+        default_model: "sonnet".into(),
+        terminal: TerminalConfig {
+            program: "tmux".into(),
+            worktree_base: "/tmp/worktrees".into(),
+            options: vec![
+                SelectOption { value: "tmux".into(), label: "tmux".into() },
+                SelectOption { value: "iterm".into(), label: "iTerm".into() },
+            ],
         },
-        project: ProjectView::default(),
-        agents: vec![],
+        advanced: vec![],
+        advanced_registry: "https://registry.getship.dev".into(),
+        about: AboutInfo {
+            ship_version: "0.0.1".into(),
+            daemon_version: "0.0.1".into(),
+            cli_version: "0.0.1".into(),
+            license: "MIT".into(),
+            homepage: "https://getship.dev".into(),
+            docs: "https://getship.dev/docs".into(),
+            source: "https://github.com/madvib/Ship".into(),
+        },
+        daemon_origin: "http://localhost:9315".into(),
+        token: "test-token".into(),
+    }
+}
+
+fn empty_ctx() -> SettingsCtx {
+    SettingsCtx {
         providers: vec![],
-        mcp_servers: vec![],
-        permissions: PermissionsView::default(),
-        integrations: vec![],
-        daemon_origin: "http://localhost:9315".to_string(),
-        token: "test-token".to_string(),
+        default_provider: "claude".into(),
+        default_model: String::new(),
+        terminal: TerminalConfig::default(),
+        advanced: vec![],
+        advanced_registry: String::new(),
+        about: AboutInfo::default(),
+        daemon_origin: "http://localhost:9315".into(),
+        token: "t".into(),
     }
 }
 
 #[test]
-fn ctx_defaults_to_workspace_tab() {
-    let params = SettingsParams::default();
-    assert_eq!(params.active_tab(), "workspace");
+fn ctx_has_providers_terminal_advanced_about() {
+    let ctx = sample_ctx();
+    assert_eq!(ctx.providers.len(), 2);
+    assert_eq!(ctx.terminal.program, "tmux");
+    assert_eq!(ctx.advanced.len(), 0);
+    assert_eq!(ctx.about.license, "MIT");
 }
 
 #[test]
-fn params_flatten_from_query() {
-    let json = serde_json::json!({ "tab": "providers" });
-    let params: SettingsParams = serde_json::from_value(json).expect("parse");
-    assert_eq!(params.active_tab(), "providers");
-}
-
-#[test]
-fn shell_renders_as_fragment_with_root_id_and_tabs() {
-    let ctx = empty_ctx("workspace");
+fn shell_renders_single_column_four_sections() {
+    let ctx = sample_ctx();
     let html = templates::render("settings/shell.html.j2", &ctx).expect("render");
-    assert!(!html.contains("<!DOCTYPE"), "shell must be a fragment: {html}");
+
+    // Fragment, not a full document.
+    assert!(!html.contains("<!DOCTYPE"), "shell must be a fragment");
     assert!(!html.contains("<html"), "no <html>");
-    assert!(!html.contains("<body"), "no <body>");
-    assert!(html.contains("id=\"settings-root\""), "missing root id: {html}");
-    assert!(html.contains("<ship-tabs"), "missing ship-tabs element");
-    assert!(html.contains("name=\"workspace\""));
-    assert!(html.contains("name=\"providers\""));
-    assert!(html.contains("id=\"settings-panel\""));
-    assert!(
-        html.contains("http://localhost:9315/api/runtime/view/settings"),
-        "expected absolute daemon URL: {html}"
-    );
-    assert!(
-        html.contains("token=test-token"),
-        "expected token threaded into URLs: {html}"
-    );
+    // Root id + single column max-width 768.
+    assert!(html.contains("id=\"settings-root\""), "missing root id");
+    assert!(html.contains("max-width: 768px"), "missing 768px column");
+    // Header content.
+    assert!(html.contains(">Settings<"), "missing h1");
+    assert!(html.contains("CLI and studio configuration"), "missing subtitle");
+    // All four section headers present in order.
+    let p = html.find("PROVIDERS").expect("PROVIDERS");
+    let t = html.find("TERMINAL").expect("TERMINAL");
+    let a = html.find("ADVANCED").expect("ADVANCED");
+    let b = html.find("ABOUT").expect("ABOUT");
+    assert!(p < t && t < a && a < b, "sections out of order");
+    // No tabs control in the new IA.
+    assert!(!html.contains("<ship-tabs"), "tabs control should be gone");
+    assert!(html.contains("id=\"settings-panel\""), "missing sse target");
 }
 
 #[test]
-fn workspace_panel_renders_fields() {
-    let mut ctx = empty_ctx("workspace");
-    ctx.workspace_available = true;
-    ctx.providers = vec![ProviderView {
-        id: "claude".into(),
-        binary: "claude".into(),
-        version: Some("1.2.3".into()),
-        available: true,
-    }];
-    ctx.defaults.provider = "claude".into();
-    let html = templates::render("settings/content.html.j2", &ctx).expect("render");
-    assert!(
-        html.contains("id=\"defaults-provider\""),
-        "expected defaults-provider select: {html}"
-    );
-    assert!(html.contains("id=\"workspace-root\""));
+fn providers_renders_provider_rows() {
+    let ctx = sample_ctx();
+    let html = templates::render("settings/partials/providers.html.j2", &ctx).expect("render");
+    assert!(html.contains("Anthropic Claude"), "missing provider label");
+    assert!(html.contains("OpenAI"), "missing second provider");
+    assert!(html.contains("provider-dot on"), "installed provider should have on dot");
+    assert!(html.contains("v1.2.3"), "version should render");
+    assert!(html.contains("not found"), "unavailable provider should say 'not found'");
 }
 
 #[test]
-fn empty_state_when_tab_data_unavailable() {
-    // workspace tab with workspace_available=false → placeholder empty-state.
-    let ctx = empty_ctx("workspace");
-    let html = templates::render("settings/content.html.j2", &ctx).expect("render");
+fn empty_state_when_no_providers_configured() {
+    let ctx = empty_ctx();
+    let html = templates::render("settings/partials/providers.html.j2", &ctx).expect("render");
     assert!(
-        html.contains("<ship-empty-state"),
-        "expected empty-state: {html}"
+        html.contains("No provider CLIs found"),
+        "expected empty-state message: {html}"
     );
-    assert!(html.contains("Not configured"));
+    // Advanced also empty-states cleanly.
+    let adv = templates::render("settings/partials/advanced.html.j2", &ctx).expect("render");
+    assert!(adv.contains("No experimental features available."));
+}
+
+#[test]
+fn url_token_baked_in() {
+    let ctx = sample_ctx();
+    let html = templates::render("settings/shell.html.j2", &ctx).expect("render");
+    assert!(
+        html.contains("http://localhost:9315/api/runtime/view/settings/sse"),
+        "expected absolute daemon SSE URL"
+    );
+    assert!(html.contains("token=test-token"), "token should be threaded");
 }
