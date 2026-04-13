@@ -128,7 +128,8 @@ impl ViewSessionRegistry {
         html: String,
     ) -> Result<(), SessionError> {
         self.authorize(id, caller).await?;
-        self.broadcast(id, Broadcast::Patch(selector.to_string(), html)).await
+        let clean = super::sanitize::sanitize(&html);
+        self.broadcast(id, Broadcast::Patch(selector.to_string(), clean)).await
     }
 
     pub async fn append(
@@ -139,11 +140,12 @@ impl ViewSessionRegistry {
         html: String,
     ) -> Result<(), SessionError> {
         self.authorize(id, caller).await?;
+        let clean = super::sanitize::sanitize(&html);
         // Datastar append mode (ElementPatchMode::After) is not yet wired
         // through ViewStream; Phase 1 delivers as a morph patch against the
         // same selector. Upstream template authors use `<ship-feed>` or an
         // explicit list + append-shaped selector.
-        self.broadcast(id, Broadcast::Patch(selector.to_string(), html)).await
+        self.broadcast(id, Broadcast::Patch(selector.to_string(), clean)).await
     }
 
     pub async fn signal(
