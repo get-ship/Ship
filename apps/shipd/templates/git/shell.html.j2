@@ -7,7 +7,8 @@
 <div id="git-root" class="ship-view-git">
   <style>
     .ship-view-git { color: var(--foreground); }
-    .ship-git-wrap { max-width: 42rem; margin: 0 auto; padding: 24px 16px; }
+    .ship-git-wrap { max-width: 56rem; margin: 0 auto; padding: 24px 16px; }
+    .ship-git-wrap.ship-git-wrap-detail { max-width: none; padding: 0; }
     .ship-git-header { display: flex; align-items: center; gap: 8px; padding: 0 12px; margin-bottom: 16px; }
     .ship-git-header h1 { font-family: var(--font-display); font-size: 18px; font-weight: 600; letter-spacing: -0.01em; margin: 0; }
     .ship-git-header-icon { color: var(--muted-foreground); }
@@ -70,7 +71,7 @@
     .ship-git-diff-body { padding: 0 12px; }
   </style>
 
-  <div class="ship-git-wrap">
+  <div class="ship-git-wrap{% if selected_commit %} ship-git-wrap-detail{% endif %}">
     {% if selected_commit %}
       {% include 'git/partials/diff_viewer.html.j2' %}
     {% else %}
