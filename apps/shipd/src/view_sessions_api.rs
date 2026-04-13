@@ -98,7 +98,12 @@ pub async fn open_session(
     {
         Ok(view_id) => {
             let url = format!("/api/runtime/view-sessions/{view_id}/raw");
-            ok_json(serde_json::json!({"view_id": view_id, "url": url}))
+            let meta = crate::mcp_apps_bridge::view_session_meta(&view_id);
+            ok_json(serde_json::json!({
+                "view_id": view_id,
+                "url": url,
+                "_meta": meta,
+            }))
         }
         Err(e) => session_err(e),
     }
@@ -190,13 +195,9 @@ pub async fn raw_session(
                 .status(StatusCode::OK)
                 .header(axum::http::header::CONTENT_TYPE, "text/html; charset=utf-8")
                 .header(axum::http::header::CACHE_CONTROL, "no-cache")
-                // Phase 1 CSP: scripts self-only; matches `_meta.ui.csp` in
-                // the MCP Apps bridge so local iframe and external host
-                // renderings share the same policy.
-                .header(
-                    "content-security-policy",
-                    "default-src 'self'; script-src 'self'; style-src 'self' 'unsafe-inline'; connect-src 'self'; img-src 'self' data:",
-                )
+                // CSP shared with `_meta.ui.csp` in the MCP Apps bridge so
+                // local iframe and external host renderings align.
+                .header("content-security-policy", crate::mcp_apps_bridge::IFRAME_CSP)
                 .body(axum::body::Body::from(html))
                 .unwrap()
         }

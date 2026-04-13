@@ -90,6 +90,26 @@ async fn send_empty(router: &Router, method: &str, path: &str) -> (u16, serde_js
 }
 
 #[tokio::test(flavor = "multi_thread", worker_threads = 2)]
+async fn open_surfaces_mcp_apps_meta() {
+    let (state, _tmp) = fresh_state();
+    let router = router_for(state, mcp_auth("agent.owner"));
+    let (status, body) = send_json(
+        &router,
+        "POST",
+        "/api/runtime/view-sessions",
+        serde_json::json!({"template": "canvas/test-ping"}),
+    )
+    .await;
+    assert_eq!(status, 200);
+    let view_id = body["data"]["view_id"].as_str().unwrap();
+    assert_eq!(
+        body["data"]["_meta"]["ui"]["resourceUri"],
+        serde_json::json!(format!("ui://ship/view-session/{view_id}"))
+    );
+    assert_eq!(body["data"]["_meta"]["ui"]["csp"]["script-src"][0], "'self'");
+}
+
+#[tokio::test(flavor = "multi_thread", worker_threads = 2)]
 async fn open_then_patch_then_close_succeeds() {
     let (state, _tmp) = fresh_state();
     let router = router_for(state, mcp_auth("agent.owner"));

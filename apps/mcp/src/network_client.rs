@@ -244,6 +244,12 @@ pub async fn view_close(agent_id: &str, view_id: &str) -> Result<String> {
     delete_as_agent(&format!("/runtime/view-sessions/{view_id}"), agent_id).await
 }
 
+/// Fetch the iframe shell HTML for a view session. Used by the MCP resource
+/// resolver when an external host asks for `ui://ship/view-session/{id}`.
+pub async fn view_session_raw(view_id: &str) -> Result<String> {
+    get(&format!("/runtime/view-sessions/{view_id}/raw")).await
+}
+
 /// Route a pre-built EventEnvelope through the daemon's KernelRouter.
 /// This ensures events reach daemon subscribers (job-dispatch, workspace-sync, etc).
 pub async fn event_route(
