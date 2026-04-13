@@ -157,6 +157,93 @@ pub async fn steer_agent_via_daemon(slug: &str, message: &str) -> Result<String>
     ).await
 }
 
+/// POST with explicit `x-ship-agent-id` header so the daemon's auth layer
+/// attributes the call to the calling agent (ownership enforcement). Used
+/// by the `view.*` tool family.
+async fn post_as_agent(path: &str, agent_id: &str, body: Value) -> Result<String> {
+    let url = format!("{}{}", base_url()?, path);
+    let token = get_effective_token().await?;
+    let resp = reqwest::Client::new()
+        .post(&url)
+        .bearer_auth(&token)
+        .header("x-ship-agent-id", agent_id)
+        .json(&body)
+        .send()
+        .await
+        .map_err(|e| anyhow!("ship daemon unavailable: {e}"))?;
+    let status = resp.status();
+    let text = resp.text().await.map_err(|e| anyhow!("failed to read response: {e}"))?;
+    if !status.is_success() {
+        return Err(anyhow!("ship daemon error ({}): {}", status, text));
+    }
+    Ok(text)
+}
+
+async fn delete_as_agent(path: &str, agent_id: &str) -> Result<String> {
+    let url = format!("{}{}", base_url()?, path);
+    let token = get_effective_token().await?;
+    let resp = reqwest::Client::new()
+        .delete(&url)
+        .bearer_auth(&token)
+        .header("x-ship-agent-id", agent_id)
+        .send()
+        .await
+        .map_err(|e| anyhow!("ship daemon unavailable: {e}"))?;
+    let status = resp.status();
+    let text = resp.text().await.map_err(|e| anyhow!("failed to read response: {e}"))?;
+    if !status.is_success() {
+        return Err(anyhow!("ship daemon error ({}): {}", status, text));
+    }
+    Ok(text)
+}
+
+pub async fn view_open(
+    agent_id: &str,
+    template: &str,
+    title: Option<&str>,
+    initial_context: Option<&Value>,
+) -> Result<String> {
+    let mut body = serde_json::json!({ "template": template });
+    if let Some(t) = title {
+        body["title"] = serde_json::Value::String(t.to_string());
+    }
+    if let Some(c) = initial_context {
+        body["initial_context"] = c.clone();
+    }
+    post_as_agent("/runtime/view-sessions", agent_id, body).await
+}
+
+pub async fn view_patch(agent_id: &str, view_id: &str, selector: &str, html: &str) -> Result<String> {
+    post_as_agent(
+        &format!("/runtime/view-sessions/{view_id}/patch"),
+        agent_id,
+        serde_json::json!({ "selector": selector, "html": html }),
+    )
+    .await
+}
+
+pub async fn view_append(agent_id: &str, view_id: &str, selector: &str, html: &str) -> Result<String> {
+    post_as_agent(
+        &format!("/runtime/view-sessions/{view_id}/append"),
+        agent_id,
+        serde_json::json!({ "selector": selector, "html": html }),
+    )
+    .await
+}
+
+pub async fn view_signal(agent_id: &str, view_id: &str, name: &str, value: &Value) -> Result<String> {
+    post_as_agent(
+        &format!("/runtime/view-sessions/{view_id}/signal"),
+        agent_id,
+        serde_json::json!({ "name": name, "value": value }),
+    )
+    .await
+}
+
+pub async fn view_close(agent_id: &str, view_id: &str) -> Result<String> {
+    delete_as_agent(&format!("/runtime/view-sessions/{view_id}"), agent_id).await
+}
+
 /// Route a pre-built EventEnvelope through the daemon's KernelRouter.
 /// This ensures events reach daemon subscribers (job-dispatch, workspace-sync, etc).
 pub async fn event_route(
