@@ -72,8 +72,18 @@ pub fn query_events_by_entity_and_type(
     entity_id: &str,
     event_type: &str,
 ) -> Result<Vec<EventEnvelope>> {
-    ensure_db()?;
-    let mut conn = open_db_at(&db_path()?)?;
+    query_events_by_entity_and_type_at(&db_path()?, entity_id, event_type)
+}
+
+/// Same as `query_events_by_entity_and_type` but against an explicit platform.db.
+/// Handlers with access to `state.ship_dir()` should use this so test harnesses
+/// don't leak state across isolated tempdirs.
+pub fn query_events_by_entity_and_type_at(
+    db_path: &std::path::Path,
+    entity_id: &str,
+    event_type: &str,
+) -> Result<Vec<EventEnvelope>> {
+    let mut conn = open_db_at(db_path)?;
     let rows = block_on(async {
         sqlx::query(&format!(
             "SELECT {COLS} FROM events WHERE entity_id = ? AND event_type = ? ORDER BY id ASC"
@@ -91,8 +101,16 @@ pub fn query_recent_events_for_entity(
     entity_id: &str,
     limit: usize,
 ) -> Result<Vec<EventEnvelope>> {
-    ensure_db()?;
-    let mut conn = open_db_at(&db_path()?)?;
+    query_recent_events_for_entity_at(&db_path()?, entity_id, limit)
+}
+
+/// Same as `query_recent_events_for_entity` but against an explicit platform.db.
+pub fn query_recent_events_for_entity_at(
+    db_path: &std::path::Path,
+    entity_id: &str,
+    limit: usize,
+) -> Result<Vec<EventEnvelope>> {
+    let mut conn = open_db_at(db_path)?;
     let rows = block_on(async {
         sqlx::query(&format!(
             "SELECT {COLS} FROM events WHERE entity_id = ? ORDER BY id DESC LIMIT ?"

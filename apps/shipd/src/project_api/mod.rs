@@ -52,12 +52,17 @@ pub(crate) fn resolve_worktree(
         return Ok(path);
     }
 
-    // 3. Last resort: the daemon's active project root. Only correct when
-    //    the requested workspace IS the active one (e.g. id = current branch).
-    if let Ok(project_ship) = runtime::project::get_project_dir(None) {
-        if let Some(root) = project_ship.parent() {
-            return Ok(root.to_path_buf());
-        }
+    // 3. Last resort: the daemon's active project root, but ONLY when the
+    //    requested id actually matches the active project's current branch.
+    //    Previously this fell through for any id, which meant random
+    //    workspace names silently resolved to the main repo and endpoints
+    //    returned 200 for workspaces that don't exist.
+    if let Ok(project_ship) = runtime::project::get_project_dir(None)
+        && let Some(root) = project_ship.parent()
+        && let Some(current_branch) = current_branch_at(root)
+        && current_branch == id
+    {
+        return Ok(root.to_path_buf());
     }
 
     Err((
@@ -67,6 +72,21 @@ pub(crate) fn resolve_worktree(
             data: serde_json::json!(format!("workspace '{id}' not found")),
         }),
     ))
+}
+
+/// Read the current branch name at `root` via `git rev-parse`. None on any
+/// failure (not a git repo, detached HEAD, git missing).
+fn current_branch_at(root: &std::path::Path) -> Option<String> {
+    let output = std::process::Command::new("git")
+        .args(["rev-parse", "--abbrev-ref", "HEAD"])
+        .current_dir(root)
+        .output()
+        .ok()?;
+    if !output.status.success() {
+        return None;
+    }
+    let name = String::from_utf8_lossy(&output.stdout).trim().to_string();
+    if name.is_empty() || name == "HEAD" { None } else { Some(name) }
 }
 
 /// Look up the worktree path for a branch via `git worktree list --porcelain`.

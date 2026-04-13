@@ -170,36 +170,55 @@ pub async fn list_sessions(
     responses((status = 200, body = MeshResponse)),
     tag = "runtime"
 )]
-pub async fn list_agents(State(_state): State<ApiState>) -> impl IntoResponse {
-    let project_dir = match runtime::project::get_project_dir(None) {
-        Ok(d) => d,
-        Err(_) => {
-            return (StatusCode::OK, Json(MeshResponse { ok: true, data: serde_json::json!({ "agents": [] }) }));
-        }
-    };
+pub async fn list_agents(State(state): State<ApiState>) -> impl IntoResponse {
+    // An agent is either (a) defined on disk as a .ship/agents/<id> profile,
+    // (b) live in the mesh registry (registered via REST/MCP), or both.
+    // Return the union keyed by agent_id so tests that populate only the
+    // mesh see live entries, and production users see their compiled profiles.
+    //
+    // Uses state.ship_dir() — walking up from CWD bleeds the main repo's
+    // agents into isolated test harnesses or any caller running from a
+    // different working directory.
+    let mut by_id: std::collections::BTreeMap<String, serde_json::Value> =
+        std::collections::BTreeMap::new();
 
-    let agents_dir = project_dir.join("agents");
-    let mut agents = Vec::new();
-
+    let agents_dir = state.ship_dir().join("agents");
     if let Ok(entries) = std::fs::read_dir(&agents_dir) {
         for entry in entries.flatten() {
             let name = entry.file_name().to_string_lossy().to_string();
-            if !name.ends_with(".jsonc") && !name.ends_with(".toml") { continue; }
+            if !name.ends_with(".jsonc") && !name.ends_with(".toml") {
+                continue;
+            }
             let id = name.trim_end_matches(".jsonc").trim_end_matches(".toml").to_string();
-            let label = std::fs::read_to_string(entry.path()).ok()
+            let label = std::fs::read_to_string(entry.path())
+                .ok()
                 .and_then(|content| {
-                    let cleaned: String = content.lines()
+                    let cleaned: String = content
+                        .lines()
                         .map(|l| if l.trim_start().starts_with("//") { "" } else { l })
-                        .collect::<Vec<_>>().join("\n");
+                        .collect::<Vec<_>>()
+                        .join("\n");
                     serde_json::from_str::<serde_json::Value>(&cleaned).ok()
                 })
                 .and_then(|v| v["name"].as_str().map(str::to_string))
                 .unwrap_or_else(|| id.clone());
-            agents.push(serde_json::json!({ "agent_id": id, "label": label }));
+            by_id.insert(id.clone(), serde_json::json!({ "agent_id": id, "label": label }));
         }
     }
 
-    agents.sort_by(|a, b| a["agent_id"].as_str().cmp(&b["agent_id"].as_str()));
+    // Mesh registry entries. If an id already has a profile, mesh adds
+    // status/capabilities to the existing entry; otherwise a fresh row.
+    let mesh = state.mesh_registry().read().await;
+    for (id, entry) in mesh.iter() {
+        let mut merged = by_id.remove(id).unwrap_or_else(|| {
+            serde_json::json!({ "agent_id": id, "label": entry.label.clone() })
+        });
+        merged["status"] = serde_json::json!(format!("{:?}", entry.status).to_lowercase());
+        merged["capabilities"] = serde_json::json!(entry.capabilities);
+        by_id.insert(id.clone(), merged);
+    }
+
+    let agents: Vec<serde_json::Value> = by_id.into_values().collect();
     (StatusCode::OK, Json(MeshResponse { ok: true, data: serde_json::json!({ "agents": agents }) }))
 }
 
@@ -276,10 +295,10 @@ pub struct EventSummary {
     tag = "runtime"
 )]
 pub async fn get_job_detail(
-    State(_state): State<ApiState>,
+    State(state): State<ApiState>,
     Path(job_id): Path<String>,
 ) -> impl IntoResponse {
-    let jobs = match runtime::projections::job::load_jobs() {
+    let jobs = match runtime::projections::job::load_jobs_at(state.ship_dir()) {
         Ok(j) => j,
         Err(e) => {
             return (
@@ -302,8 +321,9 @@ pub async fn get_job_detail(
         }
     };
 
-    let step_observations = runtime::db::events::query_events_by_entity_and_type(
-        &job_id, "step.observed",
+    let platform_db = state.ship_dir().join("platform.db");
+    let step_observations = runtime::db::events::query_events_by_entity_and_type_at(
+        &platform_db, &job_id, "step.observed",
     )
     .unwrap_or_default()
     .into_iter()
@@ -312,7 +332,7 @@ pub async fn get_job_detail(
     })
     .collect::<Vec<_>>();
 
-    let recent_events = runtime::db::events::query_recent_events_for_entity(&job_id, 50)
+    let recent_events = runtime::db::events::query_recent_events_for_entity_at(&platform_db, &job_id, 50)
         .unwrap_or_default()
         .into_iter()
         .map(|env| {
@@ -752,7 +772,10 @@ mod tests {
         let ship_dir = dir.path().join(".ship");
         std::fs::create_dir_all(&ship_dir).unwrap();
         runtime::db::ensure_db_at(&ship_dir).unwrap();
-        let kernel = runtime::events::init_kernel_router(ship_dir.clone()).unwrap();
+        // Isolated per-test kernel — init_kernel_router uses a OnceLock that
+        // pins the first test's ship_dir globally, breaking all subsequent
+        // tests with "unable to open database file" when they try to write.
+        let kernel = runtime::events::new_isolated_for_test(ship_dir.clone()).unwrap();
         Arc::new(crate::ship_runtime::ShipRuntime::new_test(ship_dir, kernel))
     }
 
