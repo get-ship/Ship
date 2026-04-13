@@ -11,7 +11,6 @@ mod config;
 mod convert;
 mod daemon;
 mod dep_skills;
-#[cfg(feature = "unstable")]
 mod events_cmd;
 #[cfg(feature = "unstable")]
 mod top;
@@ -32,9 +31,7 @@ mod vars;
 mod workspace_cmd;
 
 use anyhow::Result;
-use cli::{Cli, Commands, ConfigCommands, HookCommands, McpCommands, WorkspaceCommands};
-#[cfg(feature = "unstable")]
-use cli::EventsCommands;
+use cli::{Cli, Commands, ConfigCommands, EventsCommands, HookCommands, McpCommands, WorkspaceCommands};
 use std::path::PathBuf;
 
 /// Initialize the global KernelRouter for CLI commands that emit events.
@@ -53,11 +50,17 @@ pub fn build_version() -> &'static str {
     }
 }
 
-fn main() -> Result<()> {
+fn main() {
     use clap::Parser;
     let _log_guard = logging::init();
     let cli = Cli::parse();
-    dispatch(cli.command)
+    if let Err(e) = dispatch(cli.command) {
+        eprintln!("Error: {:#}", e);
+        eprintln!();
+        eprintln!("  Logs:   ~/.ship/logs/ship.log");
+        eprintln!("  Events: ship events list --since 5m");
+        std::process::exit(1);
+    }
 }
 
 fn dispatch(command: Option<Commands>) -> Result<()> {
@@ -126,7 +129,6 @@ fn dispatch(command: Option<Commands>) -> Result<()> {
                     .unwrap_or_else(|| std::env::current_dir().unwrap());
                 validate::run_validate(agent.as_deref(), json, &root)
             }
-            #[cfg(feature = "unstable")]
             Commands::Events { action } => dispatch_events(action),
             #[cfg(feature = "unstable")]
             Commands::RebuildProjections => run_rebuild_projections(),
@@ -410,7 +412,6 @@ fn dispatch_hook(action: HookCommands) -> Result<()> {
     }
 }
 
-#[cfg(feature = "unstable")]
 fn dispatch_events(action: EventsCommands) -> Result<()> {
     let ship_dir = paths::project_ship_dir_required()?;
     match action {
