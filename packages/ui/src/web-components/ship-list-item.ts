@@ -27,7 +27,7 @@ export class ShipListItem extends LitElement {
       text-align: left;
       background: transparent;
       border: 1px solid transparent;
-      border-radius: 6px;
+      border-radius: var(--radius-md);
       padding: 8px 10px;
       cursor: pointer;
       display: flex;
@@ -35,9 +35,18 @@ export class ShipListItem extends LitElement {
       gap: 4px;
       color: inherit;
       font: inherit;
+      transition:
+        background-color var(--duration-fast) var(--ease-out),
+        border-color var(--duration-fast) var(--ease-out);
     }
     button:hover:not(:disabled) { background: var(--muted); border-color: var(--border); }
-    button:focus-visible { outline: 2px solid var(--primary); outline-offset: 1px; }
+    button:focus-visible {
+      outline: none;
+      box-shadow:
+        0 0 0 var(--ring-offset) var(--background),
+        0 0 0 calc(var(--ring-offset) + var(--ring-width))
+          color-mix(in oklch, var(--ring-color) var(--ring-opacity), transparent);
+    }
     :host([selected]) button {
       background: var(--muted);
       border-color: var(--primary);
@@ -45,7 +54,7 @@ export class ShipListItem extends LitElement {
     button:disabled { opacity: 0.6; cursor: not-allowed; }
 
     .row { display: flex; align-items: center; gap: 8px; }
-    .primary { flex: 1; min-width: 0; font-weight: 500; font-size: 13px; }
+    .primary { flex: 1; min-width: 0; font-weight: var(--font-weight-medium); font-size: var(--text-base); }
     .meta {
       display: flex; gap: 6px; align-items: center;
       font-size: 10px; color: var(--muted-foreground);

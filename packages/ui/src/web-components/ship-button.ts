@@ -39,29 +39,39 @@ export class ShipButton extends LitElement {
       display: inline-flex;
       align-items: center;
       justify-content: center;
-      gap: 6px;
+      gap: var(--radius-sm);
       font-family: var(--font-body);
-      font-weight: 500;
+      font-weight: var(--font-weight-medium);
       line-height: 1;
-      border-radius: 6px;
+      border-radius: var(--radius-md);
       cursor: pointer;
       border: 1px solid transparent;
       background: transparent;
       color: var(--foreground);
-      transition: background-color 120ms ease, border-color 120ms ease, filter 120ms ease, color 120ms ease;
+      transition:
+        background-color var(--duration-fast) var(--ease-out),
+        border-color var(--duration-fast) var(--ease-out),
+        box-shadow var(--duration-fast) var(--ease-out),
+        filter var(--duration-fast) var(--ease-out),
+        color var(--duration-fast) var(--ease-out);
       white-space: nowrap;
     }
+    :host([loading]) button { min-width: var(--ship-button-min-width, 2.5em); }
+    button:hover:not(:disabled) { box-shadow: var(--shadow-sm); }
     button:focus-visible {
-      outline: 2px solid var(--primary);
-      outline-offset: 2px;
+      outline: none;
+      box-shadow:
+        0 0 0 var(--ring-offset) var(--background),
+        0 0 0 calc(var(--ring-offset) + var(--ring-width))
+          color-mix(in oklch, var(--ring-color) var(--ring-opacity), transparent);
     }
     button:disabled { cursor: not-allowed; opacity: 0.6; }
 
     /* sizes — match specs .btn (sm) and a slightly larger md/lg for Studio use */
     :host([size='sm']) button { font-size: 11px; padding: 4px 8px; }
     :host(:not([size])) button,
-    :host([size='md']) button { font-size: 12px; padding: 5px 10px; }
-    :host([size='lg']) button { font-size: 13px; padding: 8px 14px; }
+    :host([size='md']) button { font-size: var(--text-sm); padding: 5px 10px; }
+    :host([size='lg']) button { font-size: var(--text-base); padding: 8px 14px; }
 
     /* default (tone=default): neutral bordered button matching specs .btn */
     :host(:not([tone])) button,
