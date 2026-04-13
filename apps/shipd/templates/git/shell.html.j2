@@ -24,7 +24,7 @@
   <div class="git-layout">
     <aside class="git-rail">{% include 'git/partials/rail.html.j2' %}</aside>
     <main id="git-main"
-       data-init="@get('{{ daemon_origin | safe }}/api/runtime/view/git/sse?tab={{ active_tab }}{% if selected_commit %}&commit={{ selected_commit.sha }}{% endif %}{% if workspace_id %}&workspace_id={{ workspace_id }}{% endif %}', {requestCancellation: 'disabled'})">
+       data-init="@get('{{ daemon_origin | safe }}/api/runtime/view/git/sse?tab={{ active_tab }}{% if selected_commit %}&commit={{ selected_commit.sha }}{% endif %}{% if workspace_id %}&workspace_id={{ workspace_id }}{% endif %}&token={{ token | safe }}', {requestCancellation: 'disabled'})">
       {% include 'git/content.html.j2' %}
     </main>
   </div>

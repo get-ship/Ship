@@ -75,12 +75,12 @@
                    data-on:click="$confirmDelete = true">Delete</ship-button>
       <ship-button variant="outline" size="sm"
                    data-show="$status === 'draft' || $status === 'ready'"
-                   data-on:click="@post('{{ daemon_origin | safe }}/api/runtime/specs/{{ selected.id }}/launch')">
+                   data-on:click="@post('{{ daemon_origin | safe }}/api/runtime/specs/{{ selected.id }}/launch?token={{ token | safe }}')">
         Launch
       </ship-button>
       <ship-button variant="solid" tone="accent" size="sm"
                    data-attr-loading="$dirty ? null : null"
-                   data-on:click="@put('{{ daemon_origin | safe }}/api/runtime/specs/{{ selected.id }}', {contentType: 'json', body: JSON.stringify({title: $title, body: $body, pipeline: $pipeline ? $pipeline : null, status: $status, criteria: ($criteriaText || '').split('\n').filter(l => l.trim()), scope: ($scopeText || '').split('\n').filter(l => l.trim()), vars: Object.fromEntries(($varsText || '').split('\n').filter(l => l.includes('=')).map(l => { const i = l.indexOf('='); return [l.slice(0,i).trim(), l.slice(i+1).trim()]; }))})}); $dirty = false">
+                   data-on:click="@put('{{ daemon_origin | safe }}/api/runtime/specs/{{ selected.id }}?token={{ token | safe }}', {contentType: 'json', body: JSON.stringify({title: $title, body: $body, pipeline: $pipeline ? $pipeline : null, status: $status, criteria: ($criteriaText || '').split('\n').filter(l => l.trim()), scope: ($scopeText || '').split('\n').filter(l => l.trim()), vars: Object.fromEntries(($varsText || '').split('\n').filter(l => l.includes('=')).map(l => { const i = l.indexOf('='); return [l.slice(0,i).trim(), l.slice(i+1).trim()]; }))})}); $dirty = false">
         Save
       </ship-button>
     </ship-toolbar>

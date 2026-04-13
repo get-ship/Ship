@@ -116,7 +116,7 @@
       </div>
       <div class="specs-rail-tabs">
         <ship-tabs variant="segmented" active="{{ active_tab }}"
-          data-on:ship-tab-change="@get('{{ daemon_origin | safe }}/api/runtime/view/specs?tab=' + evt.detail.name{% if selected_id %} + '&selected={{ selected_id }}'{% endif %})">
+          data-on:ship-tab-change="@get('{{ daemon_origin | safe }}/api/runtime/view/specs?tab=' + evt.detail.name{% if selected_id %} + '&selected={{ selected_id }}'{% endif %} + '&token={{ token | safe }}')">
           <ship-tab name="draft" label="Draft" count="{{ counts.draft }}"></ship-tab>
           <ship-tab name="ready" label="Ready" count="{{ counts.ready }}"></ship-tab>
           <ship-tab name="launched" label="Launched" count="{{ counts.launched }}"></ship-tab>
@@ -124,7 +124,7 @@
         </ship-tabs>
       </div>
       <div id="specs-rail-list" class="specs-rail-list"
-           data-init="@get('{{ daemon_origin | safe }}/api/runtime/view/specs/sse?tab={{ active_tab }}{% if selected_id %}&selected={{ selected_id }}{% endif %}', {requestCancellation: 'disabled'})">
+           data-init="@get('{{ daemon_origin | safe }}/api/runtime/view/specs/sse?tab={{ active_tab }}{% if selected_id %}&selected={{ selected_id }}{% endif %}&token={{ token | safe }}', {requestCancellation: 'disabled'})">
         {% include 'specs/partials/rail.html.j2' %}
       </div>
     </aside>

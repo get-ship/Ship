@@ -2,7 +2,7 @@
 <ship-list-item
   {% if selected_id == spec.id %}selected{% endif %}
   title="{{ spec.title }}"
-  data-on:click="@get('{{ daemon_origin | safe }}/api/runtime/view/specs?tab={{ active_tab }}&selected={{ spec.id }}')">
+  data-on:click="@get('{{ daemon_origin | safe }}/api/runtime/view/specs?tab={{ active_tab }}&selected={{ spec.id }}&token={{ token | safe }}')">
   <span slot="title">{{ spec.title if spec.title else '(untitled)' }}</span>
   <span slot="meta">
     {% if spec.pipeline %}{{ spec.pipeline }}{% else %}no pipeline{% endif %}

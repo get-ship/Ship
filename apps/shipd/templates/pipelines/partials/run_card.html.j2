@@ -2,7 +2,7 @@
 <ship-pipeline-run id="run-{{ run.slug }}" state="{{ run.state }}" slug="{{ run.slug }}" agent="{{ run.agent }}">
   <div slot="header-actions">
     <ship-button size="sm" variant="ghost"
-      data-on:click="@post('{{ daemon_origin | safe }}/api/runtime/jobs/end', {contentType: 'json', body: JSON.stringify({job_id: '{{ run.job_id }}'})})">
+      data-on:click="@post('{{ daemon_origin | safe }}/api/runtime/jobs/end?token={{ token | safe }}', {contentType: 'json', body: JSON.stringify({job_id: '{{ run.job_id }}'})})">
       Stop
     </ship-button>
   </div>

@@ -13,7 +13,7 @@
     {% include 'settings/partials/header.html.j2' %}
 
     <ship-tabs variant="underline" active="{{ active_tab }}"
-      data-on:ship-tab-change="@get('{{ daemon_origin | safe }}/api/runtime/view/settings?tab=' + evt.detail.name)">
+      data-on:ship-tab-change="@get('{{ daemon_origin | safe }}/api/runtime/view/settings?tab=' + evt.detail.name + '&token={{ token | safe }}')">
       <ship-tab name="workspace" label="Workspace"></ship-tab>
       <ship-tab name="project" label="Project"></ship-tab>
       <ship-tab name="agents" label="Agents" count="{{ agents | length }}"></ship-tab>
@@ -24,7 +24,7 @@
     </ship-tabs>
 
     <div id="settings-panel"
-         data-init="@get('{{ daemon_origin | safe }}/api/runtime/view/settings/sse?tab={{ active_tab }}', {requestCancellation: 'disabled'})">
+         data-init="@get('{{ daemon_origin | safe }}/api/runtime/view/settings/sse?tab={{ active_tab }}&token={{ token | safe }}', {requestCancellation: 'disabled'})">
       {% include 'settings/content.html.j2' %}
     </div>
   </div>

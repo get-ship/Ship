@@ -22,14 +22,14 @@
   </div>
 
   <ship-tabs variant="underline" sticky active="{{ active_tab }}"
-    data-on:ship-tab-change="@get('{{ daemon_origin | safe }}/api/runtime/view/pipelines?tab=' + evt.detail.name)">
+    data-on:ship-tab-change="@get('{{ daemon_origin | safe }}/api/runtime/view/pipelines?tab=' + evt.detail.name + '&token={{ token | safe }}')">
     <ship-tab name="active" label="Active" count="{{ stats.active }}"></ship-tab>
     <ship-tab name="definitions" label="Definitions" count="{{ stats.definitions }}"></ship-tab>
     <ship-tab name="history" label="History" count="{{ stats.history }}"></ship-tab>
   </ship-tabs>
 
   <div id="pipelines-content"
-       data-init="@get('{{ daemon_origin | safe }}/api/runtime/view/pipelines/sse?tab={{ active_tab }}', {requestCancellation: 'disabled'})">
+       data-init="@get('{{ daemon_origin | safe }}/api/runtime/view/pipelines/sse?tab={{ active_tab }}&token={{ token | safe }}', {requestCancellation: 'disabled'})">
     {% include 'pipelines/content.html.j2' %}
   </div>
 </div>

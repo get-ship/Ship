@@ -3,7 +3,7 @@
 <ship-timeline>
   {% for c in commits %}
   <ship-timeline-item interactive tone="muted" at="{{ c.date }}"
-    data-on:click="@get('{{ daemon_origin | safe }}/api/runtime/view/git?tab=log&commit={{ c.sha }}{% if workspace_id %}&workspace_id={{ workspace_id }}{% endif %}')">
+    data-on:click="@get('{{ daemon_origin | safe }}/api/runtime/view/git?tab=log&commit={{ c.sha }}{% if workspace_id %}&workspace_id={{ workspace_id }}{% endif %}&token={{ token | safe }}')">
     <div slot="header">
       <ship-code inline class="git-commit-sha">{{ c.short_sha }}</ship-code>
       <ship-copy-button value="{{ c.sha }}" size="sm"></ship-copy-button>

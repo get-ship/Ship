@@ -2,7 +2,7 @@
 {% if status_files and status_files | length > 0 %}
   {% for f in status_files %}
     <ship-list-item interactive
-      data-on:click="@get('{{ daemon_origin | safe }}/api/runtime/view/git?tab=status&file={{ f.path }}{% if workspace_id %}&workspace_id={{ workspace_id }}{% endif %}')">
+      data-on:click="@get('{{ daemon_origin | safe }}/api/runtime/view/git?tab=status&file={{ f.path }}{% if workspace_id %}&workspace_id={{ workspace_id }}{% endif %}&token={{ token | safe }}')">
       <div class="git-file-row">
         <ship-badge tone="{{ f.tone }}" size="sm">{{ f.label }}</ship-badge>
         <span class="path" title="{{ f.path }}">{{ f.path }}</span>
