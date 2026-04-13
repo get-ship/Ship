@@ -64,6 +64,34 @@ const TEMPLATES: &[(&str, &str)] = &[
         include_str!("../../templates/_toolbar.html.j2"),
     ),
     (
+        "git/content.html.j2",
+        include_str!("../../templates/git/content.html.j2"),
+    ),
+    (
+        "git/partials/commit_detail.html.j2",
+        include_str!("../../templates/git/partials/commit_detail.html.j2"),
+    ),
+    (
+        "git/partials/file_diff.html.j2",
+        include_str!("../../templates/git/partials/file_diff.html.j2"),
+    ),
+    (
+        "git/partials/log_timeline.html.j2",
+        include_str!("../../templates/git/partials/log_timeline.html.j2"),
+    ),
+    (
+        "git/partials/rail.html.j2",
+        include_str!("../../templates/git/partials/rail.html.j2"),
+    ),
+    (
+        "git/partials/status_list.html.j2",
+        include_str!("../../templates/git/partials/status_list.html.j2"),
+    ),
+    (
+        "git/shell.html.j2",
+        include_str!("../../templates/git/shell.html.j2"),
+    ),
+    (
         "pipelines/content.html.j2",
         include_str!("../../templates/pipelines/content.html.j2"),
     ),
@@ -90,6 +118,82 @@ const TEMPLATES: &[(&str, &str)] = &[
     (
         "pipelines/shell.html.j2",
         include_str!("../../templates/pipelines/shell.html.j2"),
+    ),
+    (
+        "settings/content.html.j2",
+        include_str!("../../templates/settings/content.html.j2"),
+    ),
+    (
+        "settings/partials/_not_configured.html.j2",
+        include_str!("../../templates/settings/partials/_not_configured.html.j2"),
+    ),
+    (
+        "settings/partials/agents.html.j2",
+        include_str!("../../templates/settings/partials/agents.html.j2"),
+    ),
+    (
+        "settings/partials/header.html.j2",
+        include_str!("../../templates/settings/partials/header.html.j2"),
+    ),
+    (
+        "settings/partials/integrations.html.j2",
+        include_str!("../../templates/settings/partials/integrations.html.j2"),
+    ),
+    (
+        "settings/partials/mcp.html.j2",
+        include_str!("../../templates/settings/partials/mcp.html.j2"),
+    ),
+    (
+        "settings/partials/permissions.html.j2",
+        include_str!("../../templates/settings/partials/permissions.html.j2"),
+    ),
+    (
+        "settings/partials/project.html.j2",
+        include_str!("../../templates/settings/partials/project.html.j2"),
+    ),
+    (
+        "settings/partials/providers.html.j2",
+        include_str!("../../templates/settings/partials/providers.html.j2"),
+    ),
+    (
+        "settings/partials/workspace.html.j2",
+        include_str!("../../templates/settings/partials/workspace.html.j2"),
+    ),
+    (
+        "settings/shell.html.j2",
+        include_str!("../../templates/settings/shell.html.j2"),
+    ),
+    (
+        "specs/content.html.j2",
+        include_str!("../../templates/specs/content.html.j2"),
+    ),
+    (
+        "specs/partials/delete_dialog.html.j2",
+        include_str!("../../templates/specs/partials/delete_dialog.html.j2"),
+    ),
+    (
+        "specs/partials/detail.html.j2",
+        include_str!("../../templates/specs/partials/detail.html.j2"),
+    ),
+    (
+        "specs/partials/empty.html.j2",
+        include_str!("../../templates/specs/partials/empty.html.j2"),
+    ),
+    (
+        "specs/partials/new_dialog.html.j2",
+        include_str!("../../templates/specs/partials/new_dialog.html.j2"),
+    ),
+    (
+        "specs/partials/rail.html.j2",
+        include_str!("../../templates/specs/partials/rail.html.j2"),
+    ),
+    (
+        "specs/partials/rail_item.html.j2",
+        include_str!("../../templates/specs/partials/rail_item.html.j2"),
+    ),
+    (
+        "specs/shell.html.j2",
+        include_str!("../../templates/specs/shell.html.j2"),
     ),
 ];
 

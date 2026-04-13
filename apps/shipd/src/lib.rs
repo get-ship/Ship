@@ -18,6 +18,7 @@ pub mod rest_api;
 pub mod runtime_api;
 mod server;
 pub mod views;
+pub mod views_git;
 pub mod views_pipelines;
 pub mod specs_api;
 pub mod specs_view;
@@ -225,8 +226,11 @@ fn build_runtime_routes(st: rest_api::ApiState) -> Router {
         .route("/view/{name}/manifest", axum::routing::get(views::serve_view_manifest))
         .route("/view/{name}/bundle", axum::routing::get(views::serve_view_bundle))
         .route("/view/{name}/raw", axum::routing::get(views::serve_view_raw))
+        .route("/view/git", axum::routing::get(views_git::git_shell))
+        .route("/view/git/sse", axum::routing::get(views_git::git_sse))
         .route("/view/pipelines", axum::routing::get(views_pipelines::pipelines_shell))
         .route("/view/pipelines/sse", axum::routing::get(views_pipelines::pipelines_sse))
+        .route("/view/specs", axum::routing::get(specs_view::specs_shell))
         .route("/view/specs/sse", axum::routing::get(specs_view::specs_view_sse))
         .route("/specs", axum::routing::get(specs_api::list_specs).post(specs_api::create_spec))
         .route("/specs/{id}", axum::routing::get(specs_api::get_spec).put(specs_api::update_spec).delete(specs_api::delete_spec))
