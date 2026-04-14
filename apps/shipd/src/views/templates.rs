@@ -182,6 +182,10 @@ const TEMPLATES: &[(&str, &str)] = &[
         "data/partials/row.html.j2",
         include_str!("../../templates/data/partials/row.html.j2"),
     ),
+    (
+        "data/partials/create_form.html.j2",
+        include_str!("../../templates/data/partials/create_form.html.j2"),
+    ),
 ];
 
 static ENV: OnceLock<Environment<'static>> = OnceLock::new();

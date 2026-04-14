@@ -12,6 +12,7 @@
         <th>{{ field_name }}</th>
         {% endfor %}
         <th style="width:140px">Updated</th>
+        <th style="width:50px"></th>
       </tr>
     </thead>
     <tbody>
@@ -23,7 +24,7 @@
   {% elif schema %}
   <div class="ship-data-empty">
     <p>No items in <strong>{{ active_collection }}</strong></p>
-    <p style="font-size:11px;margin-top:8px">Create items via the REST API or MCP tools</p>
+    <p style="font-size:11px;margin-top:8px">Click <strong>+ New</strong> to create one</p>
   </div>
   {% else %}
   <div class="ship-data-empty">

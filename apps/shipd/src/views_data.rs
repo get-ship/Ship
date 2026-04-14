@@ -51,6 +51,9 @@ struct SchemaContext {
 #[derive(Serialize)]
 struct FieldContext {
     field_type: String,
+    required: bool,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    values: Option<Vec<String>>,
 }
 
 fn build_context(ship_dir: &std::path::Path, collection: Option<&str>) -> DataContext {
@@ -84,6 +87,8 @@ fn build_context(ship_dir: &std::path::Path, collection: Option<&str>) -> DataCo
                             k.clone(),
                             FieldContext {
                                 field_type: format!("{:?}", v.field_type).to_lowercase(),
+                                required: v.required,
+                                values: v.values.clone(),
                             },
                         )
                     })
