@@ -136,7 +136,6 @@ pub async fn run_network(host: String, port: u16, dev: bool) -> Result<()> {
             Arc::new(new_token)
         }
     };
-    let hook_token = Arc::new(auth::ensure_hook_token(&global_dir)?);
     write_port_file(&global_dir, port)?;
     write_pid_file(&global_dir)?;
 
@@ -155,7 +154,6 @@ pub async fn run_network(host: String, port: u16, dev: bool) -> Result<()> {
     let app = build_router(
         rt.clone(),
         token,
-        hook_token,
         session_registry,
         pairing_registry,
         attestation_verifier,
@@ -179,7 +177,6 @@ pub async fn run_network(host: String, port: u16, dev: bool) -> Result<()> {
 fn build_router(
     rt: Arc<ship_runtime::ShipRuntime>,
     token: Arc<String>,
-    hook_token: Arc<String>,
     session_registry: auth::SessionRegistry,
     pairing_registry: pairing::SharedPairingRegistry,
     attestation_verifier: attest::AttestationVerifier,
@@ -256,7 +253,6 @@ fn build_router(
         .ship_route(Route::AssetElementsCatalog, views::serve_elements_catalog);
 
     let auth_token = token;
-    let auth_hook_token = hook_token;
     let auth_registry = session_registry;
     // Authenticated pair confirm + session management — require daemon.token bearer.
     let pair_confirm_reg = pairing_registry.clone();
@@ -304,7 +300,7 @@ fn build_router(
         .nest_service("/mcp", service)
         .layer(axum::Extension(annotation_guard))
         .layer(axum::middleware::from_fn(move |req, next| {
-            auth::auth_middleware(auth_token.clone(), auth_hook_token.clone(), auth_registry.clone(), req, next)
+            auth::auth_middleware(auth_token.clone(), auth_registry.clone(), req, next)
         }));
 
     Router::new()

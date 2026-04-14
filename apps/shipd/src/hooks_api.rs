@@ -145,7 +145,7 @@ mod tests {
     }
 
     #[test]
-    fn ship_hook_event_deserializes_minimal() {
+    fn hook_event_deserializes_minimal() {
         let json = r#"{}"#;
         let event: ShipHookEvent = serde_json::from_str(json).unwrap();
         assert!(event.tool_name.is_none());
@@ -153,7 +153,7 @@ mod tests {
     }
 
     #[test]
-    fn ship_hook_event_deserializes_full() {
+    fn hook_event_deserializes_full() {
         let json = r#"{
             "tool_name": "Bash",
             "tool_input": {"command": "cargo test"},

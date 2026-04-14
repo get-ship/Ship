@@ -101,62 +101,15 @@ pub fn read_token(global_dir: &Path) -> std::io::Result<String> {
     Ok(std::fs::read_to_string(global_dir.join("daemon.token"))?.trim().to_string())
 }
 
-/// Generate a hook token — a long-lived credential for provider hooks.
-///
-/// Prefixed with `ship_hook_` so it's distinguishable from the daemon token.
-/// The daemon never rotates this automatically; the user rotates via CLI.
-pub fn generate_hook_token() -> Result<String, getrandom::Error> {
-    let mut bytes = [0u8; 16];
-    getrandom::getrandom(&mut bytes)?;
-    Ok(format!("ship_hook_{}", hex_encode(&bytes)))
-}
-
-/// Write the hook token to `<global_dir>/hook.token` with restricted permissions.
-pub fn write_hook_token(global_dir: &Path, token: &str) -> std::io::Result<()> {
-    let path = global_dir.join("hook.token");
-    std::fs::write(&path, token)?;
-    #[cfg(unix)]
-    {
-        use std::os::unix::fs::PermissionsExt;
-        std::fs::set_permissions(&path, std::fs::Permissions::from_mode(0o600))?;
-    }
-    Ok(())
-}
-
-pub fn read_hook_token(global_dir: &Path) -> std::io::Result<String> {
-    Ok(std::fs::read_to_string(global_dir.join("hook.token"))?.trim().to_string())
-}
-
-/// Load the hook token, generating and writing it if missing.
-pub fn ensure_hook_token(global_dir: &Path) -> anyhow::Result<String> {
-    match read_hook_token(global_dir) {
-        Ok(existing) if !existing.is_empty() => Ok(existing),
-        _ => {
-            let new_token = generate_hook_token()
-                .map_err(|e| anyhow::anyhow!("failed to generate hook token: {e}"))?;
-            write_hook_token(global_dir, &new_token)
-                .map_err(|e| anyhow::anyhow!("failed to write hook.token: {e}"))?;
-            Ok(new_token)
-        }
-    }
-}
-
-/// Determine if a token is a hook token (ship_hook_ prefix).
-pub fn is_hook_token(token: &str) -> bool {
-    token.starts_with("ship_hook_")
-}
-
 /// Axum middleware that validates `Authorization: Bearer <token>` on every
 /// request. Injects `AuthContext` into request extensions on success.
 ///
-/// Accepts four token types:
-/// 1. **Daemon token** (64-char hex) — CLI/Studio, gets `Scope::Full`
+/// Accepts three token types:
+/// 1. **Daemon token** (64-char hex) — CLI/Studio/hooks, gets `Scope::Full`
 /// 2. **Session token** (`ship_sess_` prefix) — MCP agents, gets scoped access
-/// 3. **Hook token** (`ship_hook_` prefix) — provider hooks, gets EmitEvents + LogProgress
-/// 4. **SDK token** (`ship_` prefix) — external SDK callers
+/// 3. **SDK token** (`ship_` prefix) — external SDK callers
 pub async fn auth_middleware(
     expected_token: Arc<String>,
-    expected_hook_token: Arc<String>,
     session_registry: SessionRegistry,
     mut req: Request<Body>,
     next: Next,
@@ -216,23 +169,6 @@ pub async fn auth_middleware(
         }
     };
     let token = token_string.as_str();
-
-    // Hook tokens: validated against the expected hook token, granted
-    // a narrow scope set for emitting hook events.
-    if is_hook_token(token) {
-        if token != expected_hook_token.as_str() {
-            return (StatusCode::UNAUTHORIZED, "invalid hook token").into_response();
-        }
-        let auth = AuthContext {
-            caller_kind: CallerKind::Cli,
-            agent_id: header_string(&req, "x-ship-agent-id"),
-            workspace_id: header_string(&req, "x-ship-workspace-id"),
-            session_id: header_string(&req, "x-ship-session-id"),
-            scopes: vec![Scope::EmitEvents, Scope::LogProgress],
-        };
-        req.extensions_mut().insert(auth);
-        return next.run(req).await;
-    }
 
     // Session tokens are validated against the session registry.
     if is_session_token(token) {

@@ -4,8 +4,8 @@ use cli_framework::hooks::{
 };
 use std::io::Read;
 
-fn actor_id() -> Option<String> {
-    std::env::var("SHIP_ACTOR_ID").ok().filter(|s| !s.is_empty())
+fn agent_id() -> Option<String> {
+    std::env::var("SHIP_AGENT_ID").ok().filter(|s| !s.is_empty())
 }
 
 fn workspace_id() -> Option<String> {
@@ -62,7 +62,7 @@ fn normalize_stdin(stdin: &str, hook_type: &str) -> serde_json::Value {
         .or_else(|| parsed.get("output"))
         .cloned();
 
-    let actor = std::env::var("SHIP_ACTOR_ID").ok();
+    let agent = std::env::var("SHIP_AGENT_ID").ok();
     let workspace = std::env::var("SHIP_WORKSPACE_ID").ok();
     let session = std::env::var("SHIP_SESSION_ID").ok();
 
@@ -79,7 +79,7 @@ fn normalize_stdin(stdin: &str, hook_type: &str) -> serde_json::Value {
     if let Some(v) = tool_response {
         event["tool_response"] = v;
     }
-    if let Some(v) = actor {
+    if let Some(v) = agent {
         event["actor_id"] = serde_json::json!(v);
     }
     if let Some(v) = workspace {
@@ -93,9 +93,8 @@ fn normalize_stdin(stdin: &str, hook_type: &str) -> serde_json::Value {
 
 /// Read daemon connection info. Returns `(port, token)` if available.
 ///
-/// Hooks use the hook.token (long-lived, doesn't rotate with daemon token)
-/// so provider webhook configs stay valid across daemon restarts.
-/// Falls back to daemon.token for older daemons without hook.token.
+/// Hooks authenticate with the local `~/.ship/daemon.token` — the same trust
+/// boundary as every other CLI call. No separate hook-token class.
 ///
 /// For hooks, we don't auto-start — hooks must be fast and non-blocking.
 /// Use `crate::daemon::ensure_daemon()` for commands that can afford the wait.
@@ -103,9 +102,7 @@ fn daemon_info() -> Option<(u16, String)> {
     let home = dirs::home_dir()?.join(".ship");
     let port_str = std::fs::read_to_string(home.join("daemon.port")).ok()?;
     let port = port_str.trim().parse::<u16>().ok()?;
-    let token = std::fs::read_to_string(home.join("hook.token"))
-        .or_else(|_| std::fs::read_to_string(home.join("daemon.token")))
-        .ok()?;
+    let token = std::fs::read_to_string(home.join("daemon.token")).ok()?;
     Some((port, token.trim().to_string()))
 }
 
@@ -166,7 +163,7 @@ fn try_daemon_or_local(
 pub fn run_session_start() -> Result<()> {
     let body = normalize_stdin("", "session-start");
     try_daemon_or_local("session-start", &body, || {
-        if let (Some(actor), Some(workspace)) = (actor_id(), workspace_id()) {
+        if let (Some(actor), Some(workspace)) = (agent_id(), workspace_id()) {
             let event = handle_session_start(&actor, &workspace)?;
             println!("{}", serde_json::to_string(&event)?);
         }
@@ -178,7 +175,7 @@ pub fn run_before_tool() -> Result<()> {
     let stdin = read_stdin()?;
     let body = normalize_stdin(&stdin, "before-tool");
     try_daemon_or_local("before-tool", &body, || {
-        if let (Some(actor), Some(workspace)) = (actor_id(), workspace_id()) {
+        if let (Some(actor), Some(workspace)) = (agent_id(), workspace_id()) {
             if let Some(event) = handle_before_tool(&stdin, &actor, &workspace)? {
                 println!("{}", serde_json::to_string(&event)?);
             }
@@ -191,7 +188,7 @@ pub fn run_after_tool() -> Result<()> {
     let stdin = read_stdin()?;
     let body = normalize_stdin(&stdin, "after-tool");
     try_daemon_or_local("after-tool", &body, || {
-        if let (Some(actor), Some(workspace)) = (actor_id(), workspace_id()) {
+        if let (Some(actor), Some(workspace)) = (agent_id(), workspace_id()) {
             if let Some(event) = handle_after_tool(&stdin, &actor, &workspace)? {
                 println!("{}", serde_json::to_string(&event)?);
             }
@@ -203,7 +200,7 @@ pub fn run_after_tool() -> Result<()> {
 pub fn run_session_end() -> Result<()> {
     let body = normalize_stdin("", "session-end");
     try_daemon_or_local("session-end", &body, || {
-        if let (Some(actor), Some(workspace)) = (actor_id(), workspace_id()) {
+        if let (Some(actor), Some(workspace)) = (agent_id(), workspace_id()) {
             let event = handle_session_end(&actor, &workspace)?;
             println!("{}", serde_json::to_string(&event)?);
             broadcast_session_ended(&actor, &workspace);
@@ -234,6 +231,42 @@ fn signal_job_completed(slug: &str) {
         .json(&serde_json::json!({"slug": slug}))
         .timeout(std::time::Duration::from_secs(5))
         .send();
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn normalize_stdin_carries_env_identity() {
+        // SAFETY: single-threaded test, no other threads read env here.
+        unsafe {
+            std::env::set_var("SHIP_AGENT_ID", "agent.rust-lane");
+            std::env::set_var("SHIP_SESSION_ID", "job-abc");
+            std::env::set_var("SHIP_WORKSPACE_ID", "ws-1");
+        }
+        let stdin = r#"{"tool_name":"Bash","tool_input":{"command":"ls"}}"#;
+        let event = normalize_stdin(stdin, "before-tool");
+        assert_eq!(event["tool_name"], "Bash");
+        assert_eq!(event["actor_id"], "agent.rust-lane");
+        assert_eq!(event["session_id"], "job-abc");
+        assert_eq!(event["workspace"], "ws-1");
+        assert_eq!(event["hook_type"], "before-tool");
+        unsafe {
+            std::env::remove_var("SHIP_AGENT_ID");
+            std::env::remove_var("SHIP_SESSION_ID");
+            std::env::remove_var("SHIP_WORKSPACE_ID");
+        }
+    }
+
+    #[test]
+    fn normalize_stdin_accepts_provider_variants() {
+        // cursor-style camelCase keys
+        let stdin = r#"{"toolName":"Edit","toolInput":{"path":"f"}}"#;
+        let event = normalize_stdin(stdin, "before-tool");
+        assert_eq!(event["tool_name"], "Edit");
+        assert_eq!(event["tool_input"]["path"], "f");
+    }
 }
 
 /// Broadcast agent.session.ended via `ship mesh broadcast` CLI.
