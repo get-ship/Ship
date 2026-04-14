@@ -37,19 +37,23 @@ pub async fn subscribe_job_events(
     _ship_dir: PathBuf,
     health_registry: &crate::supervised::HealthRegistry,
 ) -> Option<DispatchHandle> {
-    // ProcessExecutor is the default for pipeline jobs: headless claude child
-    // process, stdout → log file, exit code drives the step monitor. No tmux
-    // pane scraping, no channels-menu dismissal, no key-name fiddling —
-    // every one of those was a fragile coordination channel that broke in
-    // production. Tmux stays available via SHIP_EXECUTOR=tmux for users who
-    // want to attach to a running agent interactively (debugging, pairing).
+    // Default: RoutingExecutor picks PtyExecutor (tmux-attached PTY) or
+    // ProcessExecutor (headless) per-job based on the `headless` flag set
+    // by `ship run [--headless]`. If tmux is unavailable (Windows, not
+    // installed, etc.) PtyExecutor construction fails and RoutingExecutor
+    // transparently falls back to ProcessExecutor for every job with a
+    // single warning line.
+    //
+    // Legacy `SHIP_EXECUTOR=tmux` escape hatch still forces the old
+    // single-session interactive TmuxExecutor for users pairing with an
+    // agent in a workspace session.
     let executor: Arc<dyn JobExecutor> =
         if std::env::var("SHIP_EXECUTOR").as_deref() == Ok("tmux") {
             tracing::info!("job-dispatch: using TmuxExecutor (SHIP_EXECUTOR=tmux)");
             Arc::new(super::executors::TmuxExecutor)
         } else {
-            tracing::info!("job-dispatch: using ProcessExecutor");
-            Arc::new(super::executors::ProcessExecutor)
+            tracing::info!("job-dispatch: using RoutingExecutor (pty default, headless on flag)");
+            Arc::new(super::executors::RoutingExecutor::new())
         };
 
     let registry = Arc::new(Mutex::new(ProcessRegistry::new()));

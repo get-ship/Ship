@@ -68,6 +68,9 @@ pub struct JobRecord {
     /// Retry count per step ID — tracks how many times a step was retried after gate failure.
     #[serde(default, skip_serializing_if = "HashMap::is_empty")]
     pub step_retries: HashMap<String, u32>,
+    /// When true, pipeline steps were dispatched with the headless flag.
+    #[serde(default)]
+    pub headless: bool,
 }
 
 /// Apply a single event to an existing `JobRecord`.
@@ -283,6 +286,7 @@ pub fn project(events: &[EventEnvelope]) -> HashMap<String, JobRecord> {
                     current_step: None,
                     vars: serde_json::from_value(p["vars"].clone()).ok(),
                     step_retries: HashMap::new(),
+                    headless: p["headless"].as_bool().unwrap_or(false),
                 };
                 map.insert(job_id, record);
             }

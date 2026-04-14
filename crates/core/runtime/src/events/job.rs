@@ -220,6 +220,11 @@ pub struct JobCreatedPayload {
     /// present. Written to `.artifacts/pipeline/NN-<step_id>.md` at launch.
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub step_specs: Option<Vec<String>>,
+    /// When true, run steps headless (ProcessExecutor). When false (default),
+    /// run steps in a tmux PTY session (PtyExecutor) so users can `tmux attach`
+    /// and watch the agent live.
+    #[serde(default)]
+    pub headless: bool,
 }
 
 /// Emitted when the job is assigned to a worktree and (optionally) a process.

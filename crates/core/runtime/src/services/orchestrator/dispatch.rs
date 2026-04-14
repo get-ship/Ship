@@ -79,6 +79,13 @@ pub async fn dispatch_job_internal(
 
     tracing::info!(slug, branch, agent, "job-dispatch: dispatching job");
 
+    let first_step_info = payload.steps.as_ref().and_then(|p| {
+        p.root_steps().first().map(|s| crate::services::dispatch_ports::StepInfo {
+            index: 0,
+            id: s.id.clone(),
+        })
+    });
+
     let job_ctx = JobContext {
         job_id: payload.job_id.clone(),
         slug: slug.clone(),
@@ -95,6 +102,8 @@ pub async fn dispatch_job_internal(
             persist_session: true,
             ..Default::default()
         },
+        step: first_step_info,
+        headless: payload.headless,
     };
 
     let worktree_path = match octx.isolation.prepare(&job_ctx).await {
@@ -234,6 +243,11 @@ async fn dispatch_first_run_step_inner(
             persist_session: true,
             ..Default::default()
         },
+        step: Some(crate::services::dispatch_ports::StepInfo {
+            index: 0,
+            id: step_id.to_string(),
+        }),
+        headless: payload.headless,
     };
 
     let worktree_path = match octx.isolation.prepare(&job_ctx).await {

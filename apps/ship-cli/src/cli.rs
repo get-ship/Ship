@@ -245,6 +245,11 @@ pub enum Commands {
         /// Show the resolved pipeline without executing
         #[arg(long)]
         dry_run: bool,
+        /// Run steps headless (no tmux) — current CI behavior. Default is
+        /// to launch each step in a tmux PTY window so you can
+        /// `tmux attach` and watch the agent live.
+        #[arg(long, alias = "no-tmux")]
+        headless: bool,
     },
 
     /// Manage the Ship daemon (shipd) background process

@@ -209,6 +209,7 @@ pub async fn launch_spec(
         vars: if spec.vars.is_empty() { None } else { Some(spec.vars.clone()) },
         spec_content: std::fs::read_to_string(&spec.body_path).ok(),
         step_specs: None,
+        headless: false,
     };
 
     let payload = match runtime::services::orchestrator::pipeline_loader::ensure_pipeline(payload) {

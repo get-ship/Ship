@@ -244,6 +244,8 @@ async fn advance_pipeline_inner(
                         persist_session: persist,
                         ..Default::default()
                     },
+                    step: Some(crate::services::dispatch_ports::StepInfo { index: step_idx, id: step.id.clone() }),
+                    headless: job.headless,
                 };
                 match octx.executor.spawn(&job_ctx).await {
                     Ok(handle) => {

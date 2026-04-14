@@ -240,6 +240,10 @@ pub struct CreateJobRequest {
     /// Merged over pipeline-file defaults; CLI `--var` flags land here.
     #[serde(default)]
     pub vars: Option<std::collections::HashMap<String, String>>,
+    /// When true, force the headless (ProcessExecutor) path. When false or
+    /// absent, the default PtyExecutor (tmux) path is used.
+    #[serde(default)]
+    pub headless: bool,
 }
 
 /// GET /api/runtime/jobs
@@ -402,6 +406,7 @@ pub async fn create_job(
         vars: req.vars,
         spec_content: req.spec_content,
         step_specs: None,
+        headless: req.headless,
     };
 
     // Enrich with pipeline BEFORE persisting — the persisted event must include steps
@@ -1050,6 +1055,7 @@ mod tests {
             vars: None,
             spec_content: None,
             step_specs: None,
+            headless: false,
         };
         let envelope = runtime::events::EventEnvelope::new(
             runtime::events::job::event_types::JOB_CREATED,
