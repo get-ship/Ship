@@ -26,6 +26,32 @@ fn tdd_pipeline() -> Pipeline {
 }
 
 #[test]
+fn second_call_preserves_existing_step_files() {
+    let tmp = tempfile::tempdir().unwrap();
+    let pipeline = tdd_pipeline();
+    let specs = vec![
+        "original 1".to_string(),
+        "original 2".to_string(),
+        "original 3".to_string(),
+    ];
+    write_pipeline_specs(tmp.path(), "slug", &pipeline, "overall", Some(&specs)).unwrap();
+
+    let replacements = vec![
+        "replaced 1".to_string(),
+        "replaced 2".to_string(),
+        "replaced 3".to_string(),
+    ];
+    write_pipeline_specs(tmp.path(), "slug", &pipeline, "new overall", Some(&replacements))
+        .unwrap();
+
+    let dir = tmp.path().join(".artifacts/pipeline");
+    assert_eq!(std::fs::read_to_string(dir.join("spec.md")).unwrap(), "overall");
+    assert_eq!(std::fs::read_to_string(dir.join("01-step-1.md")).unwrap(), "original 1");
+    assert_eq!(std::fs::read_to_string(dir.join("02-step-2.md")).unwrap(), "original 2");
+    assert_eq!(std::fs::read_to_string(dir.join("03-step-3.md")).unwrap(), "original 3");
+}
+
+#[test]
 fn step_specs_block_writes_per_stage_files() {
     let tmp = tempfile::tempdir().unwrap();
     let pipeline = tdd_pipeline();

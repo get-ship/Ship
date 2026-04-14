@@ -30,7 +30,8 @@ pub const PIPELINE_DIR: &str = ".artifacts/pipeline";
 pub const OVERALL_SPEC_FILE: &str = "spec.md";
 
 /// Write the overall `spec.md` and every `NN-<step_id>.md` under
-/// `<worktree>/.artifacts/pipeline/`. Idempotent — safe to call on replay.
+/// `<worktree>/.artifacts/pipeline/`. Write-once: existing per-step files are
+/// preserved so a later stage cannot overwrite an earlier stage's spec.
 pub fn write_pipeline_specs(
     worktree_path: &Path,
     slug: &str,
@@ -42,14 +43,21 @@ pub fn write_pipeline_specs(
     std::fs::create_dir_all(&dir)
         .with_context(|| format!("create pipeline spec dir {}", dir.display()))?;
 
-    std::fs::write(dir.join(OVERALL_SPEC_FILE), user_spec_body)
-        .with_context(|| format!("write {OVERALL_SPEC_FILE}"))?;
+    let overall = dir.join(OVERALL_SPEC_FILE);
+    if !overall.exists() {
+        std::fs::write(&overall, user_spec_body)
+            .with_context(|| format!("write {OVERALL_SPEC_FILE}"))?;
+    }
 
     let bodies = resolve_step_bodies(slug, pipeline, user_spec_body, step_specs);
     for (idx, step) in pipeline.steps.iter().enumerate() {
         let fname = step_spec_filename(idx, step);
+        let path = dir.join(&fname);
+        if path.exists() {
+            continue;
+        }
         let body = bodies.get(idx).cloned().unwrap_or_default();
-        std::fs::write(dir.join(&fname), body)
+        std::fs::write(&path, body)
             .with_context(|| format!("write {fname}"))?;
     }
     Ok(dir)
