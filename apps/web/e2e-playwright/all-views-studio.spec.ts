@@ -13,6 +13,8 @@ const VIEWS: Array<{ name: string; rootId: string }> = [
   { name: 'settings', rootId: 'settings-root' },
   { name: 'agents', rootId: 'agents-root' },
   { name: 'skills', rootId: 'skills-root' },
+  { name: 'chat', rootId: 'chat-root' },
+  { name: 'events', rootId: 'events-root' },
 ]
 
 for (const { name, rootId } of VIEWS) {

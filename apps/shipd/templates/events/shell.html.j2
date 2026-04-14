@@ -1,0 +1,38 @@
+{#- Events view shell. Filter chips + live event stream. Fragment only. -#}
+{% from '_urls.html.j2' import view_events, view_events_sse %}
+<div id="events-root" class="ship-view ship-view-events">
+  <style>
+    .ship-view-events { color: var(--foreground); }
+    .events-wrap { max-width: 960px; margin: 0 auto; padding: 20px 16px 40px; }
+    .events-head { display: flex; align-items: flex-end; justify-content: space-between; margin-bottom: 12px; }
+    .events-title { font-family: var(--font-display); font-size: 20px; font-weight: 600; margin: 0; }
+    .events-sub { font-size: 11px; color: var(--muted-foreground); margin-top: 2px; font-variant-numeric: tabular-nums; }
+    .events-filters { display: flex; flex-wrap: wrap; gap: 6px; margin-bottom: 12px; padding: 8px 0; border-bottom: 1px solid var(--border); }
+    .events-content details { margin-bottom: 8px; border: 1px solid var(--border); border-radius: var(--radius-md); overflow: hidden; background: var(--card); }
+    .events-content summary { list-style: none; cursor: pointer; padding: 8px 12px; font-size: 12px; display: flex; align-items: center; gap: 8px; background: color-mix(in oklch, var(--muted) 25%, transparent); }
+    .events-content summary::-webkit-details-marker { display: none; }
+    .events-content summary .entity { font-family: var(--font-mono); color: var(--foreground); }
+    .events-content summary .count { font-size: 10px; color: var(--muted-foreground); margin-left: auto; }
+    .events-row { display: grid; grid-template-columns: 90px 1fr 140px 140px; gap: 10px; padding: 6px 12px; border-top: 1px solid var(--border); font-size: 11px; align-items: baseline; }
+    .events-row .ts { color: var(--muted-foreground); font-variant-numeric: tabular-nums; }
+    .events-row .kind { font-family: var(--font-mono); color: var(--foreground); }
+    .events-row .actor { color: var(--muted-foreground); }
+    .events-row .id { color: var(--muted-foreground); font-family: var(--font-mono); font-size: 10px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+    .events-row pre { grid-column: 1 / -1; margin: 4px 0 0; background: color-mix(in oklch, var(--muted) 30%, transparent); padding: 8px; border-radius: var(--radius-sm); font-size: 10px; overflow-x: auto; }
+  </style>
+  <div class="events-wrap">
+    <div class="events-head">
+      <div>
+        <h1 class="events-title">Events</h1>
+        <div class="events-sub">{{ total }} events{% if filter.event_type %} · filtered by <code>{{ filter.event_type }}</code>{% endif %}</div>
+      </div>
+    </div>
+
+    {% include 'events/partials/filters.html.j2' %}
+
+    <div id="events-content" class="events-content"
+         data-init="@get('{{ view_events_sse() }}', {requestCancellation: 'disabled'})">
+      {% include 'events/content.html.j2' %}
+    </div>
+  </div>
+</div>
