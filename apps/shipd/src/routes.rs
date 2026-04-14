@@ -133,6 +133,11 @@ pub enum Route {
     /// @route GET "/api/runtime/view-sessions/{id}/raw"
     ViewSessionRaw { id: String },
 
+    // ── Annotations (Phase 2 overlay ingress) ─────────────────────────────
+
+    /// @route POST "/api/runtime/annotations"
+    PostAnnotation,
+
     // ── Runtime listings ─────────────────────────────────────────────────
 
     /// @route GET "/api/runtime/workspaces"

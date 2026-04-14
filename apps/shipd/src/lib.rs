@@ -19,6 +19,7 @@ pub mod rest_api;
 pub mod routes;
 pub mod runtime_api;
 pub mod view_sessions_api;
+pub mod annotations_api;
 pub mod mcp_apps_bridge;
 mod server;
 pub mod views;
@@ -288,6 +289,7 @@ fn build_router(
         async move { session::issue_session_handler(reg, auth.0).await }
     };
 
+    let annotation_guard = annotations_api::AnnotationGuard::new();
     let authenticated_routes = Router::new()
         .nest("/api", pair_confirm_routes)
         .ship_route(Route::IssueSession, session_issue_handler)
@@ -295,6 +297,7 @@ fn build_router(
         .nest("/api", hook_routes)
         .nest("/api", webhook_routes)
         .nest_service("/mcp", service)
+        .layer(axum::Extension(annotation_guard))
         .layer(axum::middleware::from_fn(move |req, next| {
             auth::auth_middleware(auth_token.clone(), auth_hook_token.clone(), auth_registry.clone(), req, next)
         }));
@@ -359,6 +362,8 @@ fn build_ship_routes(st: rest_api::ApiState) -> Router {
         .ship_route(Route::CloseViewSession_template(), view_sessions_api::close_session)
         .ship_route(Route::SubscribeViewSession_template(), view_sessions_api::subscribe_session)
         .ship_route(Route::ViewSessionRaw_template(), view_sessions_api::raw_session)
+        // Annotations ingress
+        .ship_route(Route::PostAnnotation, annotations_api::post_annotation)
         .ship_route(Route::ViewGit, views_git::git_shell)
         .ship_route(Route::ViewGitSse, views_git::git_sse)
         .ship_route(Route::ViewPipelines, views_pipelines::pipelines_shell)
