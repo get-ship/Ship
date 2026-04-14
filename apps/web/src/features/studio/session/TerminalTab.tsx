@@ -17,8 +17,8 @@ interface Props {
 type ConnectionState = 'idle' | 'connecting' | 'connected' | 'disconnected' | 'error'
 
 function buildWsUrl(workspaceId: string): string {
-  // daemonUrlWithToken adds ?token=... which the daemon accepts on GET
-  // (including WebSocket upgrades). Then convert the scheme to ws://.
+  // daemonUrlWithToken appends the session token as a query param — the only
+  // auth channel WebSocket upgrades have. Then convert the scheme to ws://.
   const httpUrl = daemonUrlWithToken(`/api/runtime/workspaces/${workspaceId}/pty`)
   return httpUrl.replace(/^http/, 'ws')
 }
