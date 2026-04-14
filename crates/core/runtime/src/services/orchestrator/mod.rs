@@ -28,6 +28,7 @@ pub mod prompt_composer;
 pub mod replay;
 pub mod router;
 pub mod run_step;
+pub mod step_executor;
 pub mod step_monitor;
 
 pub mod dispatch;

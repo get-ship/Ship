@@ -373,6 +373,8 @@ mod ports {
             env: [("SHIP_MESH_ID".to_string(), slug.to_string())].into(),
             launch: Default::default(),
             exit_tx: None,
+            step: None,
+            headless: false,
         }
     }
 
@@ -1099,6 +1101,8 @@ mod reliability {
             env: Default::default(),
             launch: Default::default(),
             exit_tx: None,
+            step: None,
+            headless: false,
         }
     }
 

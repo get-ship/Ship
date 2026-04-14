@@ -141,6 +141,7 @@ fn dispatch(command: Option<Commands>) -> Result<()> {
                 workspace,
                 vars,
                 dry_run,
+                headless,
             } => {
                 let parsed_vars: Vec<(String, String)> = vars
                     .iter()
@@ -156,6 +157,7 @@ fn dispatch(command: Option<Commands>) -> Result<()> {
                     workspace,
                     vars: parsed_vars,
                     dry_run,
+                    headless,
                 })
             }
             Commands::Hook { action } => dispatch_hook(action),

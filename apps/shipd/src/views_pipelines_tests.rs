@@ -202,6 +202,7 @@ fn derive_segments_handles_no_pipeline() {
         current_step: None,
         vars: None,
         step_retries: Default::default(),
+        headless: false,
     };
     assert_eq!(derive_segments(&job), Vec::<&str>::new());
 }

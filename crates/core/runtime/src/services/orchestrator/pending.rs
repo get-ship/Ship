@@ -77,6 +77,7 @@ pub async fn dispatch_ready_pending_jobs(
             vars: None,
             spec_content: None,
             step_specs: None,
+            headless: job.headless,
         };
 
         let slug_for_err = payload.slug.clone();

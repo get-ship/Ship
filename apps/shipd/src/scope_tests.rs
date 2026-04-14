@@ -125,6 +125,7 @@ async fn worker_cannot_create_jobs() {
             provider: None,
             spec_content: None,
             vars: None,
+            headless: false,
         }),
     )
     .await
@@ -151,6 +152,7 @@ async fn commander_can_create_jobs() {
             provider: None,
             spec_content: None,
             vars: None,
+            headless: false,
         }),
     )
     .await
