@@ -1,0 +1,25 @@
+{#-
+  Wrapper shell for `/api/runtime/view/{name}/raw`. Renders a full HTML
+  document around an already-rendered SDK view fragment. Asset URLs are
+  absolute (via _urls.html.j2 macros) so Studio can inject this markup
+  into its own DOM and still load CSS/JS from the daemon origin.
+
+  Required context:
+    - title : string
+    - inner : string (pre-rendered HTML, injected verbatim via |safe)
+-#}
+{% from '_urls.html.j2' import asset_view_tokens_css, asset_datastar_js, asset_ship_elements_js %}
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>{{ title }}</title>
+  <link rel="stylesheet" href="{{ asset_view_tokens_css() }}">
+  <script type="module" src="{{ asset_datastar_js() }}"></script>
+  <script type="module" src="{{ asset_ship_elements_js() }}"></script>
+</head>
+<body>
+{{ inner | safe }}
+</body>
+</html>

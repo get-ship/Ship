@@ -62,6 +62,10 @@ const TEMPLATES: &[(&str, &str)] = &[
         include_str!("../../templates/_page_shell.html.j2"),
     ),
     (
+        "_raw_shell.html.j2",
+        include_str!("../../templates/_raw_shell.html.j2"),
+    ),
+    (
         "_toast.html.j2",
         include_str!("../../templates/_toast.html.j2"),
     ),
