@@ -434,6 +434,69 @@ export class ShipClient {
     )
   }
 
+  // ── Collections ────────────────────────────────────────
+
+  /** List registered collection schemas. */
+  async listCollections(): Promise<unknown[]> {
+    const data = await this.get<{ data: unknown[] }>('/collections')
+    return data.data ?? []
+  }
+
+  /** Get a collection schema definition. */
+  getCollectionSchema(collection: string): Promise<unknown> {
+    return this.transport.request(
+      `/collections/${encodeURIComponent(collection)}/schema`,
+      { method: 'GET', raw: true },
+    )
+  }
+
+  /** Create an item in a collection. */
+  createCollectionItem(collection: string, data: Record<string, unknown>, id?: string): Promise<unknown> {
+    const body: Record<string, unknown> = { data }
+    if (id) body.id = id
+    return this.transport.request(
+      `/collections/${encodeURIComponent(collection)}/items`,
+      { method: 'POST', body, raw: true },
+    )
+  }
+
+  /** Get a single collection item. */
+  getCollectionItem(collection: string, itemId: string): Promise<unknown> {
+    return this.transport.request(
+      `/collections/${encodeURIComponent(collection)}/items/${encodeURIComponent(itemId)}`,
+      { method: 'GET', raw: true },
+    )
+  }
+
+  /** Update a collection item (partial merge). */
+  updateCollectionItem(collection: string, itemId: string, data: Record<string, unknown>): Promise<unknown> {
+    return this.transport.request(
+      `/collections/${encodeURIComponent(collection)}/items/${encodeURIComponent(itemId)}`,
+      { method: 'PUT', body: { data }, raw: true },
+    )
+  }
+
+  /** Delete a collection item. */
+  deleteCollectionItem(collection: string, itemId: string): Promise<unknown> {
+    return this.transport.request(
+      `/collections/${encodeURIComponent(collection)}/items/${encodeURIComponent(itemId)}`,
+      { method: 'DELETE', raw: true },
+    )
+  }
+
+  /** Query items in a collection with filters, sorting, and pagination. */
+  queryCollection(collection: string, params: {
+    filter?: Record<string, unknown>,
+    sort?: Record<string, number>,
+    limit?: number,
+    offset?: number,
+  } = {}): Promise<unknown> {
+    return this.transport.request(
+      `/collections/${encodeURIComponent(collection)}/query`,
+      { method: 'POST', body: { collection, ...params }, raw: true },
+    )
+  }
+
   // ── Cleanup ─────────────────────────────────────────────
 
   destroy(): void {
