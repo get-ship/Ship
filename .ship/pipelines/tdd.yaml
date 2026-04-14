@@ -1,6 +1,19 @@
 name: tdd
 description: Test-driven development — tests first, implement second, gate.
-agents: [test-writer, "{{ impl_agent }}", reviewer]
+steps:
+  - id: tests
+    agent: test-writer
+  - id: impl
+    agent: "{{ impl_agent }}"
+    after: [tests]
+    gate:
+      require_changed:
+        match: "**/*.{rs,ts,tsx,py}"
+        not_match: "**/tests/**|**/*.test.*|**/*.spec.*"
+        min: 1
+  - id: review
+    agent: reviewer
+    after: [impl]
 step_specs:
   - |
     # Test writer — step 1 of 3

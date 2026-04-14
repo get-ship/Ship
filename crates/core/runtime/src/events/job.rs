@@ -60,7 +60,60 @@ pub struct PipelineStep {
     /// `None` or `0` means no retries — gate failure is terminal.
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub max_retries: Option<u32>,
+    /// Post-step diff gate. Declarative structural checks evaluated against
+    /// the files changed by this step's commits. See `services::orchestrator::gate_rules`.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub gate: Option<GateSpec>,
 }
+
+/// Declarative diff-based gate attached to a step. Runtime evaluates after the
+/// step's commits are sealed, before the next step is dispatched.
+#[derive(Debug, Clone, Serialize, Deserialize, Type, Default)]
+pub struct GateSpec {
+    /// Every entry must match at least `min` changed paths.
+    #[serde(default, skip_serializing_if = "Vec::is_empty",
+            deserialize_with = "deserialize_rules")]
+    pub require_changed: Vec<GateRule>,
+    /// Any match across entries fails the gate.
+    #[serde(default, skip_serializing_if = "Vec::is_empty",
+            deserialize_with = "deserialize_rules")]
+    pub forbid_changed: Vec<GateRule>,
+}
+
+/// A single gate rule. `match` is pipe-separated globs (or a YAML list).
+#[derive(Debug, Clone, Serialize, Deserialize, Type)]
+pub struct GateRule {
+    #[serde(rename = "match", deserialize_with = "deserialize_patterns")]
+    pub match_patterns: Vec<String>,
+    #[serde(default, rename = "not_match",
+            deserialize_with = "deserialize_patterns")]
+    pub not_match: Vec<String>,
+    #[serde(default = "default_min")]
+    pub min: u32,
+}
+
+fn default_min() -> u32 { 1 }
+
+fn deserialize_rules<'de, D: serde::Deserializer<'de>>(d: D) -> Result<Vec<GateRule>, D::Error> {
+    #[derive(serde::Deserialize)]
+    #[serde(untagged)]
+    enum OneOrMany { One(GateRule), Many(Vec<GateRule>) }
+    Ok(match OneOrMany::deserialize(d)? {
+        OneOrMany::One(r) => vec![r],
+        OneOrMany::Many(v) => v,
+    })
+}
+
+fn deserialize_patterns<'de, D: serde::Deserializer<'de>>(d: D) -> Result<Vec<String>, D::Error> {
+    #[derive(serde::Deserialize)]
+    #[serde(untagged)]
+    enum V { S(String), L(Vec<String>) }
+    Ok(match V::deserialize(d)? {
+        V::S(s) => s.split('|').map(|p| p.trim().to_string()).filter(|p| !p.is_empty()).collect(),
+        V::L(v) => v.into_iter().flat_map(|s| s.split('|').map(|p| p.trim().to_string()).collect::<Vec<_>>()).filter(|p| !p.is_empty()).collect(),
+    })
+}
+
 
 impl<'de> serde::Deserialize<'de> for PipelineStep {
     fn deserialize<D: serde::Deserializer<'de>>(d: D) -> Result<Self, D::Error> {
@@ -85,6 +138,8 @@ impl<'de> serde::Deserialize<'de> for PipelineStep {
             command: Option<String>,
             #[serde(default)]
             max_retries: Option<u32>,
+            #[serde(default)]
+            gate: Option<GateSpec>,
         }
         let raw = Raw::deserialize(d)?;
         let step_type = raw.step_type.unwrap_or_else(|| {
@@ -104,6 +159,7 @@ impl<'de> serde::Deserialize<'de> for PipelineStep {
             provider: raw.provider,
             command: raw.command,
             max_retries: raw.max_retries,
+            gate: raw.gate,
         })
     }
 }
@@ -129,6 +185,7 @@ impl Pipeline {
                     provider: None,
                     command: None,
                     max_retries: None,
+                    gate: None,
                 },
                 PipelineStep {
                     id: "gate".to_string(),
@@ -140,6 +197,7 @@ impl Pipeline {
                     provider: None,
                     command: None,
                     max_retries: None,
+                    gate: None,
                 },
                 PipelineStep {
                     id: "merge".to_string(),
@@ -151,6 +209,7 @@ impl Pipeline {
                     provider: None,
                     command: None,
                     max_retries: None,
+                    gate: None,
                 },
             ],
         }
@@ -400,6 +459,9 @@ pub struct StepObservedPayload {
     /// projections that read `succeeded` continue to work.
     #[serde(default)]
     pub succeeded: bool,
+    /// HEAD SHA at step start — baseline for post-step diff gate evaluation.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub start_sha: Option<String>,
 }
 
 impl StepObservedPayload {

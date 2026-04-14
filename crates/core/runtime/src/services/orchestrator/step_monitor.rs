@@ -266,6 +266,7 @@ async fn emit_and_finish(
         reason,
         verdict,
         succeeded,
+        start_sha: monitor.start_sha.clone(),
     };
 
     emit_step_observed(kernel, &monitor.job_id, &monitor.slug, &payload).await;

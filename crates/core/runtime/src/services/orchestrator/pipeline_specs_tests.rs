@@ -12,6 +12,7 @@ fn step(id: &str, agent: &str) -> PipelineStep {
         provider: None,
         command: None,
         max_retries: None,
+        gate: None,
     }
 }
 
