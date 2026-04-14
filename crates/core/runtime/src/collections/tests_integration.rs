@@ -8,15 +8,15 @@ mod tests {
         create_item, delete_item, get_item, open_docs_db, query_items, update_item,
         ensure_indexes,
     };
+    use crate::data::DataService;
     use serde_json::json;
     use std::collections::BTreeMap;
 
-    fn setup() -> (sqlx::SqliteConnection, crate::collections::schema::CollectionSchema) {
+    fn setup() -> (DataService, crate::collections::schema::CollectionSchema, tempfile::TempDir) {
         let tmp = tempfile::tempdir().unwrap();
         let ship_dir = tmp.path().join(".ship");
         std::fs::create_dir_all(&ship_dir).unwrap();
-        let ship_dir = Box::leak(Box::new(ship_dir));
-        let conn = open_docs_db(ship_dir).unwrap();
+        let conn = open_docs_db(&ship_dir).unwrap();
         let schema = parse_schema(r#"{
             "id": "task",
             "fields": {
@@ -26,10 +26,10 @@ mod tests {
                 "tags": { "type": "array" }
             }
         }"#).unwrap();
-        (conn, schema)
+        (conn, schema, tmp)
     }
 
-    fn seed(conn: &mut sqlx::SqliteConnection, schema: &crate::collections::schema::CollectionSchema) {
+    fn seed(conn: &mut DataService, schema: &crate::collections::schema::CollectionSchema) {
         create_item(conn, schema, "t1", &json!({"title": "Write tests", "status": "todo", "priority": 1}), Some("alice")).unwrap();
         create_item(conn, schema, "t2", &json!({"title": "Fix bug", "status": "doing", "priority": 3}), Some("bob")).unwrap();
         create_item(conn, schema, "t3", &json!({"title": "Ship release", "status": "done", "priority": 2}), None).unwrap();
@@ -38,7 +38,7 @@ mod tests {
 
     #[test]
     fn query_all_items() {
-        let (mut conn, schema) = setup();
+        let (mut conn, schema, _tmp) = setup();
         seed(&mut conn, &schema);
 
         let req = QueryRequest {
@@ -54,7 +54,7 @@ mod tests {
 
     #[test]
     fn query_by_equality() {
-        let (mut conn, schema) = setup();
+        let (mut conn, schema, _tmp) = setup();
         seed(&mut conn, &schema);
 
         let mut filter = BTreeMap::new();
@@ -73,7 +73,7 @@ mod tests {
 
     #[test]
     fn query_by_gte() {
-        let (mut conn, schema) = setup();
+        let (mut conn, schema, _tmp) = setup();
         seed(&mut conn, &schema);
 
         let mut filter = BTreeMap::new();
@@ -91,7 +91,7 @@ mod tests {
 
     #[test]
     fn query_by_in() {
-        let (mut conn, schema) = setup();
+        let (mut conn, schema, _tmp) = setup();
         seed(&mut conn, &schema);
 
         let mut filter = BTreeMap::new();
@@ -109,7 +109,7 @@ mod tests {
 
     #[test]
     fn query_with_sort() {
-        let (mut conn, schema) = setup();
+        let (mut conn, schema, _tmp) = setup();
         seed(&mut conn, &schema);
 
         let mut sort = BTreeMap::new();
@@ -127,7 +127,7 @@ mod tests {
 
     #[test]
     fn query_with_limit_and_offset() {
-        let (mut conn, schema) = setup();
+        let (mut conn, schema, _tmp) = setup();
         seed(&mut conn, &schema);
 
         let req = QueryRequest {
@@ -143,7 +143,7 @@ mod tests {
 
     #[test]
     fn query_empty_collection() {
-        let (mut conn, _) = setup();
+        let (mut conn, _, _tmp) = setup();
 
         let req = QueryRequest {
             collection: "task".to_string(),
@@ -158,7 +158,7 @@ mod tests {
 
     #[test]
     fn query_wrong_collection() {
-        let (mut conn, schema) = setup();
+        let (mut conn, schema, _tmp) = setup();
         seed(&mut conn, &schema);
 
         let req = QueryRequest {
@@ -174,7 +174,7 @@ mod tests {
 
     #[test]
     fn full_crud_lifecycle() {
-        let (mut conn, schema) = setup();
+        let (mut conn, schema, _tmp) = setup();
 
         // Create
         let item = create_item(&mut conn, &schema, "lifecycle-1",
@@ -211,7 +211,7 @@ mod tests {
 
     #[test]
     fn indexes_improve_queries() {
-        let (mut conn, schema) = setup();
+        let (mut conn, schema, _tmp) = setup();
         ensure_indexes(&mut conn, &schema).unwrap();
         seed(&mut conn, &schema);
 

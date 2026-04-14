@@ -9,6 +9,7 @@ use serde::Deserialize;
 use crate::auth::{AuthContext, Scope, require_scope};
 use crate::rest_api::ApiState;
 use runtime::collections::{query::QueryRequest, schema, service, store};
+use runtime::data::DataService;
 
 /// GET /api/collections — list registered schemas.
 pub async fn list_collections(

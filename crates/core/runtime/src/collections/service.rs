@@ -5,7 +5,7 @@
 //! and re-emitting the same event type for the same entity is harmless.
 
 use anyhow::Result;
-use sqlx::SqliteConnection;
+use crate::data::DataService;
 use std::sync::Arc;
 use tokio::sync::Mutex;
 
@@ -16,14 +16,14 @@ use super::store::{self, Item};
 
 /// Create an item and emit `collection.item_created`.
 pub async fn create_item(
-    conn: &mut SqliteConnection,
+    svc: &mut DataService,
     kernel: &Arc<Mutex<KernelRouter>>,
     schema: &CollectionSchema,
     id: &str,
     data: &serde_json::Value,
     created_by: Option<&str>,
 ) -> Result<Item> {
-    let item = store::create_item(conn, schema, id, data, created_by)?;
+    let item = store::create_item(svc, schema, id, data, created_by)?;
     emit_collection_event(kernel, "collection.item_created", &schema.id, id, &serde_json::json!({
         "collection": schema.id,
         "item_id": id,
@@ -35,13 +35,13 @@ pub async fn create_item(
 
 /// Update an item and emit `collection.item_updated`.
 pub async fn update_item(
-    conn: &mut SqliteConnection,
+    svc: &mut DataService,
     kernel: &Arc<Mutex<KernelRouter>>,
     schema: &CollectionSchema,
     id: &str,
     updates: &serde_json::Value,
 ) -> Result<Item> {
-    let item = store::update_item(conn, schema, id, updates)?;
+    let item = store::update_item(svc, schema, id, updates)?;
     emit_collection_event(kernel, "collection.item_updated", &schema.id, id, &serde_json::json!({
         "collection": schema.id,
         "item_id": id,
@@ -53,12 +53,12 @@ pub async fn update_item(
 
 /// Delete an item and emit `collection.item_deleted`.
 pub async fn delete_item(
-    conn: &mut SqliteConnection,
+    svc: &mut DataService,
     kernel: &Arc<Mutex<KernelRouter>>,
     collection: &str,
     id: &str,
 ) -> Result<bool> {
-    let deleted = store::delete_item(conn, collection, id)?;
+    let deleted = store::delete_item(svc, collection, id)?;
     if deleted {
         emit_collection_event(kernel, "collection.item_deleted", collection, id, &serde_json::json!({
             "collection": collection,
@@ -70,19 +70,19 @@ pub async fn delete_item(
 
 /// Read-only operations delegate directly to the store (no events).
 pub fn get_item(
-    conn: &mut SqliteConnection,
+    svc: &mut DataService,
     collection: &str,
     id: &str,
 ) -> Result<Option<Item>> {
-    store::get_item(conn, collection, id)
+    store::get_item(svc, collection, id)
 }
 
 /// Read-only query delegates directly to the store (no events).
 pub fn query_items(
-    conn: &mut SqliteConnection,
+    svc: &mut DataService,
     req: &QueryRequest,
 ) -> Result<Vec<Item>> {
-    store::query_items(conn, req)
+    store::query_items(svc, req)
 }
 
 async fn emit_collection_event(
@@ -134,12 +134,12 @@ mod tests {
         }"#).unwrap()
     }
 
-    fn test_db() -> SqliteConnection {
+    fn test_db() -> (DataService, tempfile::TempDir) {
         let tmp = tempfile::tempdir().unwrap();
         let ship_dir = tmp.path().join(".ship");
         std::fs::create_dir_all(&ship_dir).unwrap();
-        let ship_dir = Box::leak(Box::new(ship_dir));
-        open_docs_db(ship_dir).unwrap()
+        let svc = open_docs_db(&ship_dir).unwrap();
+        (svc, tmp)
     }
 
     fn test_kernel() -> Arc<Mutex<KernelRouter>> {
@@ -154,7 +154,7 @@ mod tests {
 
     #[tokio::test(flavor = "multi_thread", worker_threads = 2)]
     async fn create_emits_event() {
-        let mut conn = test_db();
+        let (mut conn, _tmp) = test_db();
         let kernel = test_kernel();
         let schema = test_schema();
 
@@ -170,7 +170,7 @@ mod tests {
 
     #[tokio::test(flavor = "multi_thread", worker_threads = 2)]
     async fn update_emits_event() {
-        let mut conn = test_db();
+        let (mut conn, _tmp) = test_db();
         let kernel = test_kernel();
         let schema = test_schema();
 
@@ -188,7 +188,7 @@ mod tests {
 
     #[tokio::test(flavor = "multi_thread", worker_threads = 2)]
     async fn delete_emits_event() {
-        let mut conn = test_db();
+        let (mut conn, _tmp) = test_db();
         let kernel = test_kernel();
         let schema = test_schema();
 
@@ -201,7 +201,7 @@ mod tests {
 
     #[tokio::test(flavor = "multi_thread", worker_threads = 2)]
     async fn delete_nonexistent_no_event() {
-        let mut conn = test_db();
+        let (mut conn, _tmp) = test_db();
         let kernel = test_kernel();
 
         assert!(!delete_item(&mut conn, &kernel, "note", "nope").await.unwrap());

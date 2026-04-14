@@ -2,6 +2,7 @@ pub mod actor;
 pub mod agents;
 pub mod collections;
 pub mod config;
+pub mod data;
 pub mod db;
 pub mod errors;
 pub mod events;
