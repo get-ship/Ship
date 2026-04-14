@@ -70,6 +70,22 @@ const TEMPLATES: &[(&str, &str)] = &[
         include_str!("../../templates/_toolbar.html.j2"),
     ),
     (
+        "agents/shell.html.j2",
+        include_str!("../../templates/agents/shell.html.j2"),
+    ),
+    (
+        "agents/detail.html.j2",
+        include_str!("../../templates/agents/detail.html.j2"),
+    ),
+    (
+        "agents/partials/card.html.j2",
+        include_str!("../../templates/agents/partials/card.html.j2"),
+    ),
+    (
+        "agents/partials/config_section.html.j2",
+        include_str!("../../templates/agents/partials/config_section.html.j2"),
+    ),
+    (
         "canvas/blank.html.j2",
         include_str!("../../templates/canvas/blank.html.j2"),
     ),
@@ -152,6 +168,22 @@ const TEMPLATES: &[(&str, &str)] = &[
     (
         "settings/shell.html.j2",
         include_str!("../../templates/settings/shell.html.j2"),
+    ),
+    (
+        "skills/shell.html.j2",
+        include_str!("../../templates/skills/shell.html.j2"),
+    ),
+    (
+        "skills/partials/rail.html.j2",
+        include_str!("../../templates/skills/partials/rail.html.j2"),
+    ),
+    (
+        "skills/partials/detail_pane.html.j2",
+        include_str!("../../templates/skills/partials/detail_pane.html.j2"),
+    ),
+    (
+        "skills/partials/metadata_sidebar.html.j2",
+        include_str!("../../templates/skills/partials/metadata_sidebar.html.j2"),
     ),
     (
         "specs/content.html.j2",

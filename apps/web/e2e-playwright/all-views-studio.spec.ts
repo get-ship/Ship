@@ -3,7 +3,7 @@ import fs from 'node:fs'
 
 const TOKEN = fs.readFileSync(`${process.env.HOME}/.ship/daemon.token`, 'utf8').trim()
 
-const VIEWS = ['pipelines', 'specs', 'git', 'settings']
+const VIEWS = ['pipelines', 'specs', 'git', 'settings', 'agents', 'skills']
 
 for (const name of VIEWS) {
   test(`${name} via Studio`, async ({ page }) => {

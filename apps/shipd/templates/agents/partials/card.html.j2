@@ -1,0 +1,18 @@
+{#- One agent card. Context: `a` = AgentSummary -#}
+{% from '_urls.html.j2' import view_agent_detail %}
+<div class="agent-card"
+     data-on:click="@get('{{ view_agent_detail(a.id) }}')">
+  <div class="agent-avatar">{{ a.letter }}</div>
+  <div class="agent-body">
+    <div class="agent-name">{{ a.name }}</div>
+    <div class="agent-desc">{{ a.description | truncate(80) }}</div>
+    <div class="agent-meta">
+      <ship-badge size="sm" tone="neutral">{{ a.skills_count }} skill{% if a.skills_count != 1 %}s{% endif %}</ship-badge>
+      <ship-badge size="sm" tone="neutral">{{ a.mcp_count }} MCP</ship-badge>
+      <ship-badge size="sm" tone="neutral">{{ a.providers_count }} provider{% if a.providers_count != 1 %}s{% endif %}</ship-badge>
+      {% if a.rules_count > 0 %}
+        <ship-badge size="sm" tone="neutral">{{ a.rules_count }} rule{% if a.rules_count != 1 %}s{% endif %}</ship-badge>
+      {% endif %}
+    </div>
+  </div>
+</div>

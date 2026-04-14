@@ -1,0 +1,113 @@
+//! Agents view — minijinja-rendered shells for index + detail pages.
+//!
+//! Routes:
+//!
+//! - `GET /api/runtime/view/agents` — card grid of every agent discovered
+//!   under `.ship/agents/*.{jsonc,json}`.
+//! - `GET /api/runtime/view/agents/detail/{id}` — full config page for a
+//!   single agent (Skills, MCP, Permissions, Rules, Providers).
+//! - `POST /api/runtime/view/agents/new` — returns a structured
+//!   `not_implemented` error. The "New agent" button in the mockup
+//!   renders but does not invent an add flow.
+//!
+//! No SSE stream yet — agent configs change rarely and are file-backed;
+//! a plain full-page reload is sufficient until we have a concrete
+//! interaction that needs live updates.
+
+use axum::extract::{Path, State};
+use axum::http::StatusCode;
+use axum::response::Html;
+use axum::Json;
+use serde::Serialize;
+
+use crate::rest_api::ApiState;
+use crate::views::state::{AgentDetail, AgentSummary, list_agents, load_agent};
+use crate::views::templates;
+
+#[derive(Serialize)]
+pub struct AgentsIndexCtx {
+    pub agents: Vec<AgentSummary>,
+    pub total: usize,
+}
+
+#[derive(Serialize)]
+pub struct AgentDetailCtx {
+    pub agent: AgentDetail,
+    /// The canonical permission tiers, rendered as a radio-card triad.
+    pub tiers: Vec<TierRow>,
+}
+
+#[derive(Serialize, Clone)]
+pub struct TierRow {
+    pub id: &'static str,
+    pub label: &'static str,
+    pub description: &'static str,
+    pub selected: bool,
+}
+
+fn build_tiers(selected: &str) -> Vec<TierRow> {
+    [
+        ("standard", "Standard", "Human confirms risky actions before they run."),
+        ("autonomous", "Autonomous", "Agent acts end-to-end; safety rails still apply."),
+        ("read-only", "Read Only", "Agent inspects and reports. No writes."),
+    ]
+    .iter()
+    .map(|(id, label, desc)| TierRow {
+        id,
+        label,
+        description: desc,
+        selected: *id == selected,
+    })
+    .collect()
+}
+
+/// GET /api/runtime/view/agents — index shell.
+pub async fn agents_shell(
+    State(state): State<ApiState>,
+) -> Result<Html<String>, StatusCode> {
+    let agents = list_agents(state.ship_dir());
+    let total = agents.len();
+    let ctx = AgentsIndexCtx { agents, total };
+    templates::render("agents/shell.html.j2", &ctx)
+        .map(Html)
+        .map_err(|e| {
+            tracing::error!(error = %e, "agents shell render failed");
+            StatusCode::INTERNAL_SERVER_ERROR
+        })
+}
+
+/// GET /api/runtime/view/agents/detail/{id} — detail shell.
+pub async fn agent_detail(
+    State(state): State<ApiState>,
+    Path(id): Path<String>,
+) -> Result<Html<String>, StatusCode> {
+    let Some(agent) = load_agent(state.ship_dir(), &id) else {
+        return Err(StatusCode::NOT_FOUND);
+    };
+    let tiers = build_tiers(&agent.permissions_tier);
+    let ctx = AgentDetailCtx { agent, tiers };
+    templates::render("agents/detail.html.j2", &ctx)
+        .map(Html)
+        .map_err(|e| {
+            tracing::error!(error = %e, "agent detail render failed");
+            StatusCode::INTERNAL_SERVER_ERROR
+        })
+}
+
+/// POST /api/runtime/view/agents/new — structured not-implemented response.
+pub async fn agents_create(
+    State(_state): State<ApiState>,
+) -> (StatusCode, Json<serde_json::Value>) {
+    (
+        StatusCode::NOT_IMPLEMENTED,
+        Json(serde_json::json!({
+            "ok": false,
+            "error": "not_implemented",
+            "message": "Creating agents from the view is not implemented yet. Add a file under .ship/agents/<id>.jsonc."
+        })),
+    )
+}
+
+#[cfg(test)]
+#[path = "views_agents_tests.rs"]
+mod tests;
