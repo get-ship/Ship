@@ -23,6 +23,7 @@ pub mod annotations_api;
 pub mod mcp_apps_bridge;
 mod server;
 pub mod views;
+pub mod views_raw;
 pub mod views_git;
 pub mod views_git_data;
 pub mod views_git_diff;
@@ -355,7 +356,7 @@ fn build_ship_routes(st: rest_api::ApiState) -> Router {
         .ship_route(Route::ServeView_template(), views::serve_view)
         .ship_route(Route::ServeViewManifest_template(), views::serve_view_manifest)
         .ship_route(Route::ServeViewBundle_template(), views::serve_view_bundle)
-        .ship_route(Route::ServeViewRaw_template(), views::serve_view_raw)
+        .ship_route(Route::ServeViewRaw_template(), views_raw::serve_view_raw)
         // Agent-owned view sessions
         .ship_route(Route::OpenViewSession, view_sessions_api::open_session)
         .ship_route(Route::PatchViewSession_template(), view_sessions_api::patch_session)

@@ -31,7 +31,7 @@ pub mod session;
 pub mod session_types;
 pub mod sanitize;
 
-use axum::{Json, extract::{Path, State}, http::StatusCode, response::IntoResponse};
+use axum::{Json, extract::Path, http::StatusCode, response::IntoResponse};
 use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
 use std::path::PathBuf;
@@ -85,12 +85,12 @@ fn mesh_err(status: StatusCode, msg: impl Into<String>) -> MeshResult {
 
 // ---- Resolution ----
 
-fn is_valid_view_name(name: &str) -> bool {
+pub(crate) fn is_valid_view_name(name: &str) -> bool {
     !name.is_empty() && !name.contains("..") && !name.contains('/') && !name.contains('\\')
 }
 
 /// Resolve a view directory by name. Checks project then global dirs.
-fn resolve_view_dir(name: &str) -> Option<(PathBuf, &'static str)> {
+pub(crate) fn resolve_view_dir(name: &str) -> Option<(PathBuf, &'static str)> {
     if !is_valid_view_name(name) { return None; }
     if let Ok(d) = runtime::project::get_project_dir(None) {
         let c = d.join("views").join(name);
@@ -239,69 +239,6 @@ pub async fn list_views() -> impl IntoResponse {
     let mut list: Vec<ViewListEntry> = views.into_values().collect();
     list.sort_by(|a, b| a.name.cmp(&b.name));
     mesh_ok(serde_json::json!({ "views": list }))
-}
-
-/// GET /api/runtime/view/{name}/raw — raw HTML directly, not JSON-wrapped.
-/// Used as iframe src so scripts load normally from the daemon origin.
-///
-/// Cookie-first auth: when the caller presents a valid daemon token via
-/// `?token=` (iframes cannot set `Authorization` headers), we mint a
-/// `ship_session` browser cookie and return it alongside the HTML. The
-/// bootstrap `@get(...)` call inside the HTML fires with the cookie
-/// attached and never sees the token.
-///
-/// If the auth middleware has already run (cookie-authenticated caller) we
-/// skip cookie issuance — the caller already has one.
-///
-/// `{{SHIP_TOKEN}}` placeholders in the bootstrap HTML are replaced with an
-/// empty string. Views must use relative URLs; the cookie handles auth.
-pub async fn serve_view_raw(
-    State(state): State<crate::rest_api::ApiState>,
-    Path(name): Path<String>,
-) -> axum::response::Response {
-    use axum::http::header;
-
-    let err = |status: StatusCode, msg: String| {
-        axum::response::Response::builder()
-            .status(status)
-            .body(axum::body::Body::from(msg))
-            .unwrap()
-    };
-
-    if !is_valid_view_name(&name) {
-        return err(StatusCode::BAD_REQUEST, "invalid view name".into());
-    }
-    let (view_dir, _) = match resolve_view_dir(&name) {
-        Some(v) => v,
-        None => return err(StatusCode::NOT_FOUND, format!("view '{name}' not found")),
-    };
-    let html = match std::fs::read_to_string(view_dir.join("index.html")) {
-        Ok(h) => h,
-        Err(_) => return err(StatusCode::NOT_FOUND, format!("no index.html for '{name}'")),
-    };
-
-    // Strip legacy placeholders; cookie auth replaces query-string tokens.
-    let html = html.replace("{{SHIP_TOKEN}}", "");
-
-    // Mint a browser-session cookie so subsequent fetches authenticate via
-    // cookie. The auth middleware has already validated the caller's
-    // token/session, so this is safe to unconditionally issue here.
-    let session_id =
-        crate::session::issue_browser_session(state.session_registry()).await;
-    let cookie = format!(
-        "{name}={id}; HttpOnly; SameSite=Strict; Path=/api/runtime; Max-Age={ttl}",
-        name = crate::session::COOKIE_NAME,
-        id = session_id,
-        ttl = crate::session::BROWSER_SESSION_TTL_SECS,
-    );
-
-    axum::response::Response::builder()
-        .status(StatusCode::OK)
-        .header(header::CONTENT_TYPE, "text/html; charset=utf-8")
-        .header(header::CACHE_CONTROL, "no-cache")
-        .header(header::SET_COOKIE, cookie)
-        .body(axum::body::Body::from(html))
-        .unwrap()
 }
 
 /// GET /api/runtime/view/{name}/asset/{file} — serve static assets from view dir.
