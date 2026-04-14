@@ -844,18 +844,19 @@ export type StepType = "agent" | "gate" | "merge" | "human" |
  */
 "run"
 
+
 /**
  * Verdict derived from accumulated evidence.
  */
-export type StepVerdict = 
+export type StepVerdict =
 /**
  * Strong evidence of success — advance pipeline
  */
-"advance" | 
+"advance" |
 /**
  * Strong evidence of failure — halt pipeline
  */
-"failed" | 
+"failed" |
 /**
  * Inconclusive — needs human review or gate
  */

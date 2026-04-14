@@ -114,6 +114,13 @@ pub async fn get_item(
     if let Err(e) = require_scope(&auth, Scope::ReadWorkspace) {
         return e.into_response();
     }
+    let schema = match load_schema(state.ship_dir(), &collection) {
+        Ok(s) => s,
+        Err(e) => return (
+            StatusCode::NOT_FOUND,
+            Json(serde_json::json!({ "ok": false, "error": e.to_string() })),
+        ).into_response(),
+    };
     let mut conn = match store::open_docs_db(state.ship_dir()) {
         Ok(c) => c,
         Err(e) => return (
@@ -122,7 +129,7 @@ pub async fn get_item(
         ).into_response(),
     };
 
-    match service::get_item(&mut conn, &collection, &item_id) {
+    match service::get_item(&mut conn, &schema, &item_id) {
         Ok(Some(item)) => (StatusCode::OK, Json(serde_json::json!({ "ok": true, "data": item })))
             .into_response(),
         Ok(None) => (
@@ -226,7 +233,15 @@ pub async fn query_items(
         return e.into_response();
     }
     // Override collection from path (ignore any collection field in body).
-    req.collection = collection;
+    req.collection = collection.clone();
+
+    let col_schema = match load_schema(state.ship_dir(), &collection) {
+        Ok(s) => s,
+        Err(e) => return (
+            StatusCode::NOT_FOUND,
+            Json(serde_json::json!({ "ok": false, "error": e.to_string() })),
+        ).into_response(),
+    };
 
     let mut conn = match store::open_docs_db(state.ship_dir()) {
         Ok(c) => c,
@@ -236,7 +251,7 @@ pub async fn query_items(
         ).into_response(),
     };
 
-    match service::query_items(&mut conn, &req) {
+    match service::query_items(&mut conn, &col_schema, &req) {
         Ok(items) => (StatusCode::OK, Json(serde_json::json!({
             "ok": true,
             "data": items,

@@ -42,6 +42,18 @@ impl DataService {
         &self.db_path
     }
 
+    /// Execute a write from a sea-query built statement.
+    pub fn execute_sea(&mut self, sql: &str, values: sea_query::Values) -> Result<u64> {
+        let params: Vec<SqlParam> = values.0.into_iter().map(sea_value_to_param).collect();
+        self.execute(sql, &params)
+    }
+
+    /// Execute a read from a sea-query built statement.
+    pub fn query_sea(&mut self, sql: &str, values: sea_query::Values) -> Result<Vec<DataRow>> {
+        let params: Vec<SqlParam> = values.0.into_iter().map(sea_value_to_param).collect();
+        self.query(sql, &params)
+    }
+
     /// Execute a write statement (CREATE, INSERT, UPDATE, DELETE).
     /// Returns the number of rows affected.
     pub fn execute(&mut self, sql: &str, params: &[SqlParam]) -> Result<u64> {
@@ -72,18 +84,39 @@ impl DataService {
             let mut map = serde_json::Map::new();
             for col in row.columns() {
                 let name = col.name();
-                let val: Option<String> = row.try_get(name).ok();
-                match val {
-                    Some(s) => {
-                        // Try to parse as JSON first (for JSON columns), fall back to string.
-                        if let Ok(v) = serde_json::from_str::<serde_json::Value>(&s) {
-                            map.insert(name.to_string(), v);
-                        } else {
-                            map.insert(name.to_string(), serde_json::Value::String(s));
-                        }
+                // Try types in order: string, integer, float, boolean, null.
+                // SQLite is dynamically typed — column type hints aren't reliable.
+                // Use sqlx's raw value to detect NULL, then decode by type.
+                use sqlx::ValueRef;
+                let raw = row.try_get_raw(name).ok();
+                let is_null = raw.as_ref().map(|r| r.is_null()).unwrap_or(true);
+                let val = if is_null {
+                    serde_json::Value::Null
+                } else if let Ok(i) = row.try_get::<i64, _>(name) {
+                    serde_json::Value::Number(i.into())
+                } else if let Ok(f) = row.try_get::<f64, _>(name) {
+                    serde_json::Number::from_f64(f)
+                        .map(serde_json::Value::Number)
+                        .unwrap_or(serde_json::Value::Null)
+                } else if let Ok(s) = row.try_get::<String, _>(name) {
+                    // Try to parse as JSON first (for JSON columns), fall back to string.
+                    if let Ok(v) = serde_json::from_str::<serde_json::Value>(&s) {
+                        v
+                    } else {
+                        serde_json::Value::String(s)
                     }
-                    None => { map.insert(name.to_string(), serde_json::Value::Null); }
-                }
+                } else if let Ok(i) = row.try_get::<i64, _>(name) {
+                    serde_json::Value::Number(i.into())
+                } else if let Ok(f) = row.try_get::<f64, _>(name) {
+                    serde_json::Number::from_f64(f)
+                        .map(serde_json::Value::Number)
+                        .unwrap_or(serde_json::Value::Null)
+                } else if let Ok(b) = row.try_get::<bool, _>(name) {
+                    serde_json::Value::Bool(b)
+                } else {
+                    serde_json::Value::Null
+                };
+                map.insert(name.to_string(), val);
             }
             result.push(DataRow(serde_json::Value::Object(map)));
         }
@@ -176,6 +209,30 @@ fn bind_param<'q>(
         SqlParam::Float(n) => query.bind(*n),
         SqlParam::Bool(b) => query.bind(*b),
         SqlParam::Null => query.bind(None::<String>),
+    }
+}
+
+fn sea_value_to_param(v: sea_query::Value) -> SqlParam {
+    match v {
+        sea_query::Value::String(Some(s)) => SqlParam::Text(*s),
+        sea_query::Value::String(None) => SqlParam::Null,
+        sea_query::Value::Int(Some(i)) => SqlParam::Int(i as i64),
+        sea_query::Value::Int(None) => SqlParam::Null,
+        sea_query::Value::BigInt(Some(i)) => SqlParam::Int(i),
+        sea_query::Value::BigInt(None) => SqlParam::Null,
+        sea_query::Value::Float(Some(f)) => SqlParam::Float(f as f64),
+        sea_query::Value::Float(None) => SqlParam::Null,
+        sea_query::Value::Double(Some(f)) => SqlParam::Float(f),
+        sea_query::Value::Double(None) => SqlParam::Null,
+        sea_query::Value::Bool(Some(b)) => SqlParam::Bool(b),
+        sea_query::Value::Bool(None) => SqlParam::Null,
+        sea_query::Value::TinyInt(Some(i)) => SqlParam::Int(i as i64),
+        sea_query::Value::SmallInt(Some(i)) => SqlParam::Int(i as i64),
+        sea_query::Value::TinyUnsigned(Some(i)) => SqlParam::Int(i as i64),
+        sea_query::Value::SmallUnsigned(Some(i)) => SqlParam::Int(i as i64),
+        sea_query::Value::Unsigned(Some(i)) => SqlParam::Int(i as i64),
+        sea_query::Value::BigUnsigned(Some(i)) => SqlParam::Int(i as i64),
+        _ => SqlParam::Null,
     }
 }
 

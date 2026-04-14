@@ -356,17 +356,23 @@ export function PlatformProvider({ children }: { children: ReactNode }) {
       })
     }
 
-    // Poll for daemon when disconnected (every 10s, starts after init)
-    let healthStarted = false
+    // Poll for daemon recovery when disconnected (every 10s, starts after init)
+    let initDone = false
     const healthInterval = setInterval(() => {
-      if (cancelled || !healthStarted) return
-      client.isConnected().then((ok) => {
+      if (cancelled || !initDone) return
+      // Only poll when not already connected
+      if (client.getToken()) return
+      client.authenticate().then((ok) => {
         if (cancelled) return
-        if (ok) onConnected()
+        if (ok) {
+          setToken(client.getToken())
+          if (client.getToken()) setDaemonToken(client.getToken()!)
+          onConnected()
+        }
       })
     }, 10_000)
     // Delay health polling until init completes
-    setTimeout(() => { healthStarted = true }, 5_000)
+    setTimeout(() => { initDone = true }, 3_000)
 
     return () => {
       cancelled = true

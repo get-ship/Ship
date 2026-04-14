@@ -6,17 +6,16 @@ mod tests {
     use crate::collections::schema::parse_schema;
     use crate::collections::store::{
         create_item, delete_item, get_item, open_docs_db, query_items, update_item,
-        ensure_indexes,
+        ensure_collection_table,
     };
-    use crate::data::DataService;
     use serde_json::json;
     use std::collections::BTreeMap;
 
-    fn setup() -> (DataService, crate::collections::schema::CollectionSchema, tempfile::TempDir) {
+    fn setup() -> (crate::data::DataService, crate::collections::schema::CollectionSchema, tempfile::TempDir) {
         let tmp = tempfile::tempdir().unwrap();
         let ship_dir = tmp.path().join(".ship");
         std::fs::create_dir_all(&ship_dir).unwrap();
-        let conn = open_docs_db(&ship_dir).unwrap();
+        let mut conn = open_docs_db(&ship_dir).unwrap();
         let schema = parse_schema(r#"{
             "id": "task",
             "fields": {
@@ -26,10 +25,11 @@ mod tests {
                 "tags": { "type": "array" }
             }
         }"#).unwrap();
+        ensure_collection_table(&mut conn, &schema).unwrap();
         (conn, schema, tmp)
     }
 
-    fn seed(conn: &mut DataService, schema: &crate::collections::schema::CollectionSchema) {
+    fn seed(conn: &mut crate::data::DataService, schema: &crate::collections::schema::CollectionSchema) {
         create_item(conn, schema, "t1", &json!({"title": "Write tests", "status": "todo", "priority": 1}), Some("alice")).unwrap();
         create_item(conn, schema, "t2", &json!({"title": "Fix bug", "status": "doing", "priority": 3}), Some("bob")).unwrap();
         create_item(conn, schema, "t3", &json!({"title": "Ship release", "status": "done", "priority": 2}), None).unwrap();
@@ -48,7 +48,7 @@ mod tests {
             limit: 50,
             offset: 0,
         };
-        let results = query_items(&mut conn, &req).unwrap();
+        let results = query_items(&mut conn, &schema, &req).unwrap();
         assert_eq!(results.len(), 4);
     }
 
@@ -66,7 +66,7 @@ mod tests {
             limit: 50,
             offset: 0,
         };
-        let results = query_items(&mut conn, &req).unwrap();
+        let results = query_items(&mut conn, &schema, &req).unwrap();
         assert_eq!(results.len(), 2);
         assert!(results.iter().all(|r| r.data["status"] == "todo"));
     }
@@ -85,7 +85,7 @@ mod tests {
             limit: 50,
             offset: 0,
         };
-        let results = query_items(&mut conn, &req).unwrap();
+        let results = query_items(&mut conn, &schema, &req).unwrap();
         assert_eq!(results.len(), 2); // priority 2 and 3
     }
 
@@ -103,7 +103,7 @@ mod tests {
             limit: 50,
             offset: 0,
         };
-        let results = query_items(&mut conn, &req).unwrap();
+        let results = query_items(&mut conn, &schema, &req).unwrap();
         assert_eq!(results.len(), 3);
     }
 
@@ -121,8 +121,9 @@ mod tests {
             limit: 50,
             offset: 0,
         };
-        let results = query_items(&mut conn, &req).unwrap();
-        assert_eq!(results[0].data["priority"], 3);
+        let results = query_items(&mut conn, &schema, &req).unwrap();
+        // Numbers round-trip as f64 through REAL columns.
+        assert_eq!(results[0].data["priority"], json!(3.0));
     }
 
     #[test]
@@ -137,22 +138,21 @@ mod tests {
             limit: 2,
             offset: 1,
         };
-        let results = query_items(&mut conn, &req).unwrap();
+        let results = query_items(&mut conn, &schema, &req).unwrap();
         assert_eq!(results.len(), 2);
     }
 
     #[test]
     fn query_empty_collection() {
-        let (mut conn, _, _tmp) = setup();
+        let (mut conn, schema, _tmp) = setup();
 
-        let req = QueryRequest {
+        let results = query_items(&mut conn, &schema, &QueryRequest {
             collection: "task".to_string(),
             filter: BTreeMap::new(),
             sort: BTreeMap::new(),
             limit: 50,
             offset: 0,
-        };
-        let results = query_items(&mut conn, &req).unwrap();
+        }).unwrap();
         assert!(results.is_empty());
     }
 
@@ -168,7 +168,10 @@ mod tests {
             limit: 50,
             offset: 0,
         };
-        let results = query_items(&mut conn, &req).unwrap();
+        let dummy = crate::collections::schema::parse_schema(
+            r#"{ "id": "nonexistent", "fields": { "x": { "type": "string" } } }"#
+        ).unwrap();
+        let results = query_items(&mut conn, &dummy, &req).unwrap();
         assert!(results.is_empty());
     }
 
@@ -182,7 +185,7 @@ mod tests {
         assert_eq!(item.data["status"], "todo");
 
         // Read
-        let fetched = get_item(&mut conn, "task", "lifecycle-1").unwrap().unwrap();
+        let fetched = get_item(&mut conn, &schema, "lifecycle-1").unwrap().unwrap();
         assert_eq!(fetched.data["title"], "Lifecycle test");
 
         // Update
@@ -194,7 +197,7 @@ mod tests {
         // Query
         let mut filter = BTreeMap::new();
         filter.insert("status".to_string(), json!("done"));
-        let results = query_items(&mut conn, &QueryRequest {
+        let results = query_items(&mut conn, &schema, &QueryRequest {
             collection: "task".to_string(),
             filter,
             sort: BTreeMap::new(),
@@ -206,19 +209,19 @@ mod tests {
 
         // Delete
         assert!(delete_item(&mut conn, "task", "lifecycle-1").unwrap());
-        assert!(get_item(&mut conn, "task", "lifecycle-1").unwrap().is_none());
+        assert!(get_item(&mut conn, &schema, "lifecycle-1").unwrap().is_none());
     }
 
     #[test]
     fn indexes_improve_queries() {
         let (mut conn, schema, _tmp) = setup();
-        ensure_indexes(&mut conn, &schema).unwrap();
+        // Indexes already created by ensure_collection_table in setup().
         seed(&mut conn, &schema);
 
         // Query should still work with indexes
         let mut filter = BTreeMap::new();
         filter.insert("status".to_string(), json!("done"));
-        let results = query_items(&mut conn, &QueryRequest {
+        let results = query_items(&mut conn, &schema, &QueryRequest {
             collection: "task".to_string(),
             filter,
             sort: BTreeMap::new(),

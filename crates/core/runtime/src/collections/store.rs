@@ -1,57 +1,113 @@
-//! Collection storage — CRUD and queries built on the data service.
+//! Collection storage — real tables with sea-query DDL, built on the data service.
 //!
-//! Items are stored in `data.db` as JSON blobs. The schema validates
-//! on write; the database enforces nothing beyond NOT NULL. Queries use
-//! `json_extract()` to filter/sort by field values.
+//! Each collection gets its own table (`collection_<id>`) with real columns
+//! derived from the schema. Schema changes add columns via ALTER TABLE.
 
 use anyhow::{Context, Result, anyhow};
+use sea_query::{
+    Alias, ColumnDef, Expr, Index, Query, SqliteQueryBuilder, Table,
+};
 use std::path::Path;
 
 use crate::data::DataService;
-use super::query::{QueryRequest, translate_query};
-use super::schema::CollectionSchema;
+use super::query::{self, QueryRequest, collection_table};
+use super::schema::{CollectionSchema, FieldType};
 
-/// Name of the items table in data.db.
-const ITEMS_TABLE: &str = "items";
+/// System columns present on every collection table.
+const SYSTEM_COLS: &[&str] = &["id", "created_by", "created_at", "updated_at"];
 
-/// Open a DataService and ensure the items table exists.
+/// Open a DataService for collections.
 pub fn open_docs_db(ship_dir: &Path) -> Result<DataService> {
-    let mut svc = DataService::open(ship_dir)?;
-    svc.ensure_table(&format!(
-        "CREATE TABLE IF NOT EXISTS {ITEMS_TABLE} (
-            id TEXT PRIMARY KEY,
-            collection TEXT NOT NULL,
-            data TEXT NOT NULL,
-            created_by TEXT,
-            created_at TEXT NOT NULL,
-            updated_at TEXT NOT NULL
-        )"
-    ))?;
-    svc.ensure_index(
-        &format!("CREATE INDEX IF NOT EXISTS idx_items_collection ON {ITEMS_TABLE}(collection)")
-    )?;
-    Ok(svc)
+    DataService::open(ship_dir)
 }
 
-/// Ensure indexes exist for filterable/enum fields in a schema.
+/// Ensure a collection table exists matching the schema.
+/// Creates the table if missing, adds columns for new fields.
+pub fn ensure_collection_table(svc: &mut DataService, schema: &CollectionSchema) -> Result<()> {
+    let table_name = format!("collection_{}", schema.id);
+
+    // Check if table exists.
+    let rows = svc.query(
+        "SELECT name FROM sqlite_master WHERE type='table' AND name = ?",
+        &[crate::data::SqlParam::from(table_name.as_str())],
+    )?;
+
+    if rows.is_empty() {
+        // Create table from schema.
+        let ddl = build_create_table(schema);
+        svc.execute(&ddl, &[])?;
+    } else {
+        // Table exists — add any missing columns.
+        let existing_cols = get_existing_columns(svc, &table_name)?;
+        for (field_name, _field_def) in &schema.fields {
+            if !existing_cols.contains(&field_name.to_string()) {
+                let alter = format!(
+                    "ALTER TABLE `{table_name}` ADD COLUMN `{field_name}` TEXT"
+                );
+                svc.execute(&alter, &[])
+                    .with_context(|| format!("adding column '{field_name}' to '{table_name}'"))?;
+            }
+        }
+    }
+
+    // Ensure indexes for filterable/enum fields.
+    ensure_indexes(svc, schema)?;
+    Ok(())
+}
+
+fn build_create_table(schema: &CollectionSchema) -> String {
+    let table = collection_table(&schema.id);
+    let mut stmt = Table::create();
+    stmt.table(table)
+        .if_not_exists()
+        .col(ColumnDef::new(Alias::new("id")).text().primary_key().not_null())
+        .col(ColumnDef::new(Alias::new("created_by")).text())
+        .col(ColumnDef::new(Alias::new("created_at")).text().not_null())
+        .col(ColumnDef::new(Alias::new("updated_at")).text().not_null());
+
+    for (name, field) in &schema.fields {
+        let mut col = ColumnDef::new(Alias::new(name.as_str()));
+        match field.field_type {
+            FieldType::Number => { col.double(); }
+            FieldType::Boolean => { col.boolean(); }
+            _ => { col.text(); }
+        };
+        if field.required {
+            col.not_null();
+        }
+        stmt.col(&mut col);
+    }
+
+    stmt.to_string(SqliteQueryBuilder)
+}
+
+fn get_existing_columns(svc: &mut DataService, table_name: &str) -> Result<Vec<String>> {
+    let rows = svc.query(
+        &format!("PRAGMA table_info(`{table_name}`)"),
+        &[],
+    )?;
+    Ok(rows.iter().filter_map(|r| r.get_str("name").map(str::to_string)).collect())
+}
+
+/// Ensure indexes for filterable/enum fields.
 pub fn ensure_indexes(svc: &mut DataService, schema: &CollectionSchema) -> Result<()> {
+    let table_name = format!("collection_{}", schema.id);
     for (name, field) in &schema.fields {
         let should_index = field.filterable
-            || matches!(field.field_type, super::schema::FieldType::Enum);
+            || matches!(field.field_type, FieldType::Enum);
         if !should_index {
             continue;
         }
-        // Sanitize identifiers for SQL interpolation.
         if !name.bytes().all(|b| b.is_ascii_alphanumeric() || b == b'_' || b == b'-') {
-            tracing::warn!(field = name, "skipping index for unsafe field name");
             continue;
         }
-        let idx_name = format!("idx_{}_{}", schema.id, name);
-        svc.ensure_index(&format!(
-            "CREATE INDEX IF NOT EXISTS {idx_name} ON {ITEMS_TABLE}(json_extract(data, '$.{name}')) WHERE collection = '{}'",
-            schema.id
-        ))
-        .with_context(|| format!("creating index {idx_name}"))?;
+        let idx = Index::create()
+            .name(&format!("idx_{}_{}", schema.id, name))
+            .table(Alias::new(table_name.as_str()))
+            .col(Alias::new(name.as_str()))
+            .if_not_exists()
+            .to_string(SqliteQueryBuilder);
+        svc.execute(&idx, &[])?;
     }
     Ok(())
 }
@@ -67,7 +123,7 @@ pub struct Item {
     pub updated_at: String,
 }
 
-/// Insert a new item. Validates against the schema before writing.
+/// Insert a new item.
 pub fn create_item(
     svc: &mut DataService,
     schema: &CollectionSchema,
@@ -79,23 +135,34 @@ pub fn create_item(
         .map_err(|errors| anyhow!("validation failed: {}", errors.join("; ")))?;
 
     let now = chrono::Utc::now().to_rfc3339();
-    let data_str = serde_json::to_string(data)?;
+    let table = collection_table(&schema.id);
+    let obj = data.as_object().ok_or_else(|| anyhow!("data must be an object"))?;
 
-    crate::db::block_on(async {
-        sqlx::query(
-            "INSERT INTO items (id, collection, data, created_by, created_at, updated_at)
-             VALUES (?, ?, ?, ?, ?, ?)"
-        )
-        .bind(id)
-        .bind(&schema.id)
-        .bind(&data_str)
-        .bind(created_by)
-        .bind(&now)
-        .bind(&now)
-        .execute(svc.conn())
-        .await
-    })
-    .with_context(|| format!("inserting item {id} into {}", schema.id))?;
+    // Build INSERT with sea-query.
+    let mut cols = vec![
+        Alias::new("id"), Alias::new("created_by"),
+        Alias::new("created_at"), Alias::new("updated_at"),
+    ];
+    let mut vals: Vec<sea_query::SimpleExpr> = vec![
+        id.into(),
+        created_by.map(|s| s.to_string()).into(),
+        now.clone().into(),
+        now.clone().into(),
+    ];
+
+    for (field_name, field_val) in obj {
+        cols.push(Alias::new(field_name.as_str()));
+        vals.push(json_to_sql_value(field_val).into());
+    }
+
+    let (sql, values) = Query::insert()
+        .into_table(table)
+        .columns(cols)
+        .values_panic(vals)
+        .build(SqliteQueryBuilder);
+
+    svc.execute_sea(&sql, values)
+        .with_context(|| format!("inserting item {id} into {}", schema.id))?;
 
     Ok(Item {
         id: id.to_string(),
@@ -107,48 +174,38 @@ pub fn create_item(
     })
 }
 
-/// Get a single item by ID and collection.
+/// Get a single item by ID.
 pub fn get_item(
     svc: &mut DataService,
-    collection: &str,
+    schema: &CollectionSchema,
     id: &str,
 ) -> Result<Option<Item>> {
-    let row = crate::db::block_on(async {
-        sqlx::query("SELECT id, collection, data, created_by, created_at, updated_at FROM items WHERE id = ? AND collection = ?")
-            .bind(id)
-            .bind(collection)
-            .fetch_optional(svc.conn())
-            .await
-    })?;
+    let table = collection_table(&schema.id);
+    let (sql, values) = Query::select()
+        .expr(Expr::asterisk())
+        .from(table)
+        .and_where(Expr::col(Alias::new("id")).eq(id))
+        .build(SqliteQueryBuilder);
 
-    match row {
-        Some(r) => {
-            use sqlx::Row;
-            let data_str: String = r.get("data");
-            Ok(Some(Item {
-                id: r.get("id"),
-                collection: r.get("collection"),
-                data: serde_json::from_str(&data_str)?,
-                created_by: r.get("created_by"),
-                created_at: r.get("created_at"),
-                updated_at: r.get("updated_at"),
-            }))
-        }
-        None => Ok(None),
+    let rows = svc.query_sea(&sql, values)?;
+    if rows.is_empty() {
+        return Ok(None);
     }
+
+    Ok(Some(row_to_item(&rows[0], schema)))
 }
 
-/// Update an item's fields. Merges `updates` into existing data.
-/// Validates the merged result against the schema.
+/// Update item fields (partial merge).
 pub fn update_item(
     svc: &mut DataService,
     schema: &CollectionSchema,
     id: &str,
     updates: &serde_json::Value,
 ) -> Result<Item> {
-    let existing = get_item(svc, &schema.id, id)?
+    let existing = get_item(svc, schema, id)?
         .ok_or_else(|| anyhow!("item '{}' not found in '{}'", id, schema.id))?;
 
+    // Merge for validation.
     let mut merged = existing.data.clone();
     if let (Some(base), Some(patch)) = (merged.as_object_mut(), updates.as_object()) {
         for (k, v) in patch {
@@ -159,18 +216,22 @@ pub fn update_item(
     super::schema::validate_item(schema, &merged)
         .map_err(|errors| anyhow!("validation failed after merge: {}", errors.join("; ")))?;
 
+    let table = collection_table(&schema.id);
     let now = chrono::Utc::now().to_rfc3339();
-    let data_str = serde_json::to_string(&merged)?;
 
-    crate::db::block_on(async {
-        sqlx::query("UPDATE items SET data = ?, updated_at = ? WHERE id = ? AND collection = ?")
-            .bind(&data_str)
-            .bind(&now)
-            .bind(id)
-            .bind(&schema.id)
-            .execute(svc.conn())
-            .await
-    })?;
+    let mut stmt = Query::update();
+    stmt.table(table)
+        .value(Alias::new("updated_at"), now.clone())
+        .and_where(Expr::col(Alias::new("id")).eq(id));
+
+    if let Some(obj) = updates.as_object() {
+        for (field_name, field_val) in obj {
+            stmt.value(Alias::new(field_name.as_str()), json_to_sql_value(field_val));
+        }
+    }
+
+    let (sql, values) = stmt.build(SqliteQueryBuilder);
+    svc.execute_sea(&sql, values)?;
 
     Ok(Item {
         id: id.to_string(),
@@ -188,59 +249,72 @@ pub fn delete_item(
     collection: &str,
     id: &str,
 ) -> Result<bool> {
-    let result = crate::db::block_on(async {
-        sqlx::query("DELETE FROM items WHERE id = ? AND collection = ?")
-            .bind(id)
-            .bind(collection)
-            .execute(svc.conn())
-            .await
-    })?;
-    Ok(result.rows_affected() > 0)
+    let table = collection_table(collection);
+    let (sql, values) = Query::delete()
+        .from_table(table)
+        .and_where(Expr::col(Alias::new("id")).eq(id))
+        .build(SqliteQueryBuilder);
+
+    let affected = svc.execute_sea(&sql, values)?;
+    Ok(affected > 0)
 }
 
-/// Execute a query against a collection. Returns matching items.
+/// Query items using structured filters.
 pub fn query_items(
     svc: &mut DataService,
+    schema: &CollectionSchema,
     req: &QueryRequest,
 ) -> Result<Vec<Item>> {
-    let (sql, params) = translate_query(req);
-
-    let mut query = sqlx::query(&sql);
-    for p in &params {
-        query = match p {
-            serde_json::Value::String(s) => query.bind(s.as_str()),
-            serde_json::Value::Number(n) => {
-                if let Some(i) = n.as_i64() {
-                    query.bind(i)
-                } else if let Some(f) = n.as_f64() {
-                    query.bind(f)
-                } else {
-                    query.bind(n.to_string())
-                }
+    let (sql, values) = query::build_select(req);
+    let rows = match svc.query_sea(&sql, values) {
+        Ok(r) => r,
+        Err(e) => {
+            if format!("{e:#}").contains("no such table") {
+                return Ok(vec![]);
             }
-            serde_json::Value::Bool(b) => query.bind(*b),
-            _ => query.bind(p.to_string()),
-        };
+            return Err(e);
+        }
+    };
+
+    Ok(rows.iter().map(|r| row_to_item(r, schema)).collect())
+}
+
+// ── Helpers ──────────────────────────────────────────────────────────────────
+
+/// Reconstruct an Item from a DataRow, packing schema fields into the data JSON object.
+fn row_to_item(row: &crate::data::DataRow, schema: &CollectionSchema) -> Item {
+    let mut data = serde_json::Map::new();
+    for (field_name, _) in &schema.fields {
+        if let Some(val) = row.get(field_name) {
+            if !val.is_null() {
+                data.insert(field_name.clone(), val.clone());
+            }
+        }
     }
 
-    let rows = crate::db::block_on(async {
-        query.fetch_all(svc.conn()).await
-    })?;
-
-    let mut items = Vec::with_capacity(rows.len());
-    for r in rows {
-        use sqlx::Row;
-        let data_str: String = r.get("data");
-        items.push(Item {
-            id: r.get("id"),
-            collection: r.get("collection"),
-            data: serde_json::from_str(&data_str)?,
-            created_by: r.get("created_by"),
-            created_at: r.get("created_at"),
-            updated_at: r.get("updated_at"),
-        });
+    Item {
+        id: row.get_str("id").unwrap_or("").to_string(),
+        collection: schema.id.clone(),
+        data: serde_json::Value::Object(data),
+        created_by: row.get_str("created_by").map(str::to_string),
+        created_at: row.get_str("created_at").unwrap_or("").to_string(),
+        updated_at: row.get_str("updated_at").unwrap_or("").to_string(),
     }
-    Ok(items)
+}
+
+fn json_to_sql_value(v: &serde_json::Value) -> sea_query::Value {
+    match v {
+        serde_json::Value::String(s) => s.clone().into(),
+        serde_json::Value::Number(n) => {
+            // Always store as double to match REAL column affinity.
+            if let Some(f) = n.as_f64() { f.into() }
+            else { n.to_string().into() }
+        }
+        serde_json::Value::Bool(b) => (*b).into(),
+        serde_json::Value::Null => sea_query::Value::String(None),
+        // Arrays/objects stored as JSON strings.
+        other => other.to_string().into(),
+    }
 }
 
 #[cfg(test)]
@@ -260,18 +334,19 @@ mod tests {
         }"#).unwrap()
     }
 
-    fn test_db() -> (DataService, tempfile::TempDir) {
+    fn test_db() -> (DataService, CollectionSchema, tempfile::TempDir) {
         let tmp = tempfile::tempdir().unwrap();
         let ship_dir = tmp.path().join(".ship");
         std::fs::create_dir_all(&ship_dir).unwrap();
-        let svc = open_docs_db(&ship_dir).unwrap();
-        (svc, tmp)
+        let mut svc = open_docs_db(&ship_dir).unwrap();
+        let schema = test_schema();
+        ensure_collection_table(&mut svc, &schema).unwrap();
+        (svc, schema, tmp)
     }
 
     #[test]
     fn create_and_get_item() {
-        let (mut svc, _tmp) = test_db();
-        let schema = test_schema();
+        let (mut svc, schema, _tmp) = test_db();
         let data = json!({ "title": "Write tests", "status": "todo", "priority": 1 });
 
         let item = create_item(&mut svc, &schema, "t1", &data, Some("user")).unwrap();
@@ -279,15 +354,14 @@ mod tests {
         assert_eq!(item.data["title"], "Write tests");
         assert_eq!(item.created_by.as_deref(), Some("user"));
 
-        let fetched = get_item(&mut svc, "task", "t1").unwrap().unwrap();
+        let fetched = get_item(&mut svc, &schema, "t1").unwrap().unwrap();
         assert_eq!(fetched.data["title"], "Write tests");
     }
 
     #[test]
     fn create_rejects_invalid_data() {
-        let (mut svc, _tmp) = test_db();
-        let schema = test_schema();
-        let data = json!({ "status": "todo" }); // missing required title
+        let (mut svc, schema, _tmp) = test_db();
+        let data = json!({ "status": "todo" });
 
         let err = create_item(&mut svc, &schema, "t1", &data, None).unwrap_err();
         assert!(err.to_string().contains("'title' is required"), "{err}");
@@ -295,26 +369,24 @@ mod tests {
 
     #[test]
     fn get_nonexistent_returns_none() {
-        let (mut svc, _tmp) = test_db();
-        let result = get_item(&mut svc, "task", "nope").unwrap();
+        let (mut svc, schema, _tmp) = test_db();
+        let result = get_item(&mut svc, &schema, "nope").unwrap();
         assert!(result.is_none());
     }
 
     #[test]
     fn update_merges_fields() {
-        let (mut svc, _tmp) = test_db();
-        let schema = test_schema();
+        let (mut svc, schema, _tmp) = test_db();
         create_item(&mut svc, &schema, "t1", &json!({ "title": "Original", "status": "todo" }), None).unwrap();
 
         let updated = update_item(&mut svc, &schema, "t1", &json!({ "status": "done" })).unwrap();
-        assert_eq!(updated.data["title"], "Original"); // preserved
-        assert_eq!(updated.data["status"], "done"); // updated
+        assert_eq!(updated.data["title"], "Original");
+        assert_eq!(updated.data["status"], "done");
     }
 
     #[test]
     fn update_validates_merged_result() {
-        let (mut svc, _tmp) = test_db();
-        let schema = test_schema();
+        let (mut svc, schema, _tmp) = test_db();
         create_item(&mut svc, &schema, "t1", &json!({ "title": "Test", "status": "todo" }), None).unwrap();
 
         let err = update_item(&mut svc, &schema, "t1", &json!({ "status": "invalid" })).unwrap_err();
@@ -323,32 +395,54 @@ mod tests {
 
     #[test]
     fn update_nonexistent_errors() {
-        let (mut svc, _tmp) = test_db();
-        let schema = test_schema();
+        let (mut svc, schema, _tmp) = test_db();
         let err = update_item(&mut svc, &schema, "nope", &json!({ "title": "X" })).unwrap_err();
         assert!(err.to_string().contains("not found"), "{err}");
     }
 
     #[test]
     fn delete_existing_item() {
-        let (mut svc, _tmp) = test_db();
-        let schema = test_schema();
+        let (mut svc, schema, _tmp) = test_db();
         create_item(&mut svc, &schema, "t1", &json!({ "title": "Delete me" }), None).unwrap();
 
         assert!(delete_item(&mut svc, "task", "t1").unwrap());
-        assert!(get_item(&mut svc, "task", "t1").unwrap().is_none());
+        assert!(get_item(&mut svc, &schema, "t1").unwrap().is_none());
     }
 
     #[test]
     fn delete_nonexistent_returns_false() {
-        let (mut svc, _tmp) = test_db();
+        let (mut svc, _, _tmp) = test_db();
         assert!(!delete_item(&mut svc, "task", "nope").unwrap());
     }
 
     #[test]
-    fn ensure_indexes_creates_for_enum() {
-        let (mut svc, _tmp) = test_db();
+    fn schema_migration_adds_column() {
+        let (mut svc, _, _tmp) = test_db();
+
+        // Create an item with the original schema.
         let schema = test_schema();
-        ensure_indexes(&mut svc, &schema).unwrap();
+        create_item(&mut svc, &schema, "t1", &json!({ "title": "Before migration" }), None).unwrap();
+
+        // "Migrate" — add a new field to the schema.
+        let schema_v2 = parse_schema(r#"{
+            "id": "task",
+            "fields": {
+                "title": { "type": "string", "required": true },
+                "status": { "type": "enum", "values": ["todo", "doing", "done"] },
+                "priority": { "type": "number" },
+                "assignee": { "type": "string" }
+            }
+        }"#).unwrap();
+        ensure_collection_table(&mut svc, &schema_v2).unwrap();
+
+        // Old item should still be readable.
+        let item = get_item(&mut svc, &schema_v2, "t1").unwrap().unwrap();
+        assert_eq!(item.data["title"], "Before migration");
+
+        // New field should work.
+        create_item(&mut svc, &schema_v2, "t2",
+            &json!({ "title": "After migration", "assignee": "alice" }), None).unwrap();
+        let item2 = get_item(&mut svc, &schema_v2, "t2").unwrap().unwrap();
+        assert_eq!(item2.data["assignee"], "alice");
     }
 }

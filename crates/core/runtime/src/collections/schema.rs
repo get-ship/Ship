@@ -74,6 +74,16 @@ pub fn load_schemas(ship_dir: &Path) -> anyhow::Result<Vec<CollectionSchema>> {
     Ok(schemas)
 }
 
+/// Load schemas from the parent directory of a database path.
+/// Given `/path/.ship/data.db`, looks for `/path/.ship/schemas/`.
+pub fn load_schemas_from_parent(db_path: &std::path::Path) -> anyhow::Result<Vec<CollectionSchema>> {
+    if let Some(ship_dir) = db_path.parent() {
+        load_schemas(ship_dir)
+    } else {
+        Ok(vec![])
+    }
+}
+
 /// Validate a schema definition itself (not an item against a schema).
 fn validate_schema(schema: &CollectionSchema) -> anyhow::Result<()> {
     if schema.id.is_empty() {
