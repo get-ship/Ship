@@ -49,6 +49,15 @@ fn main() {
     let jinja_path = manifest_dir.join("templates").join("_urls.html.j2");
     write_if_changed(&jinja_path, &emit_jinja(&variants));
 
+    // Ensure `apps/shell/dist/` exists so `include_dir!` in shell_assets.rs
+    // can compile when the shell hasn't been built yet. Embeds an empty dir;
+    // shell_assets returns a friendly "run `pnpm -F shell build`" page in
+    // that case.
+    let shell_dist = manifest_dir.join("..").join("shell").join("dist");
+    if let Err(e) = fs::create_dir_all(&shell_dist) {
+        panic!("build.rs: mkdir {shell_dist:?}: {e}");
+    }
+
     // SDK TypeScript catalog. apps/shipd → ../../packages/sdk/src/generated/routes.ts
     let sdk_dir = manifest_dir
         .join("..")

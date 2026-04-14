@@ -1,0 +1,25 @@
+/*
+ * Daemon-view base styles.
+ *
+ * Design tokens themselves come from `packages/ui/src/tokens.css` and are
+ * concatenated in front of this file at compile time (see views.rs).
+ * Only view-container-scoped resets and defaults belong here.
+ */
+
+.ship-view,
+.ship-view *,
+.ship-view *::before,
+.ship-view *::after {
+  box-sizing: border-box;
+  margin: 0;
+  padding: 0;
+}
+
+.ship-view {
+  font-family: var(--font-body);
+  background: var(--background);
+  color: var(--foreground);
+  font-size: 13px;
+  line-height: 1.5;
+  min-height: 100%;
+}

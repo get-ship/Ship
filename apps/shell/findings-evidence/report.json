@@ -1,0 +1,34 @@
+{
+  "consoleLog": [
+    "[debug] [vite] connecting...",
+    "[debug] [vite] connected.",
+    "[debug] [vite] connecting...",
+    "[debug] [vite] connected.",
+    "[error] Failed to load resource: the server responded with a status of 401 (Unauthorized)",
+    "[warning] [sse] error — see findings §3",
+    "[debug] [vite] connecting...",
+    "[debug] [vite] connected.",
+    "[error] Failed to load resource: the server responded with a status of 401 (Unauthorized)",
+    "[warning] [sse] error — see findings §3",
+    "[debug] [vite] connecting...",
+    "[debug] [vite] connected.",
+    "[error] Failed to load resource: the server responded with a status of 401 (Unauthorized)",
+    "[warning] [sse] error — see findings §3",
+    "[debug] [vite] connecting...",
+    "[debug] [vite] connected.",
+    "[error] Failed to load resource: the server responded with a status of 401 (Unauthorized)",
+    "[error] Failed to load resource: the server responded with a status of 401 (Unauthorized)"
+  ],
+  "hydration": [
+    {
+      "tag": "SHIP-BUTTON",
+      "hasShadowRoot": true,
+      "connected": true
+    },
+    {
+      "tag": "SHIP-TABS",
+      "hasShadowRoot": true,
+      "connected": true
+    }
+  ]
+}
