@@ -170,7 +170,7 @@ fn dispatch(command: Option<Commands>) -> Result<()> {
                     DaemonCommands::Stop => DaemonCommand::Stop,
                     DaemonCommands::Status => DaemonCommand::Status,
                     DaemonCommands::Cleanup => DaemonCommand::Cleanup,
-                    DaemonCommands::Run { host, port, dev } => DaemonCommand::Run { host, port, dev },
+                    DaemonCommands::Run { host, port, dev, with_ui } => DaemonCommand::Run { host, port, dev, with_ui },
                     DaemonCommands::Supervise { host, dev } => DaemonCommand::Supervise { host, dev },
                 };
                 run_daemon(cmd)

@@ -94,3 +94,6 @@ opencode.json
 test-results/
 .ship/views/datastar.min.js
 .ship/views/*.min.js
+
+# Shell build output — populated by `pnpm -F shell build`.
+apps/shell/dist/

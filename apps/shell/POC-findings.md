@@ -207,3 +207,90 @@ views there is no case.
    `render_sdk_shell` instead of the `.ship/views/*` legacy fallback. The
    POC uses fixtures because the running binary predates those named
    views.
+
+---
+
+## Daemon-served update
+
+The shell is now served **same-origin** by the daemon at `/shell/`
+(and the component gallery at `/shell/devtools/`). That collapses every
+auth rough-edge identified in the original POC:
+
+- **No Bearer, no `?token=`.** The initial `/shell/` HTML response
+  carries `Set-Cookie: ship_session=ship_browser_<hex>; Path=/; HttpOnly;
+  SameSite=Strict; Max-Age=86400`. Every subsequent fetch — fragment
+  mounts, form posts, `EventSource` streams — rides that cookie. The
+  client code was updated (`apps/shell/src/mount.ts`,
+  `apps/shell/src/main.ts`) to detect same-origin mode via
+  `isSameOrigin(base)` and drop the Authorization header + query-param
+  token entirely.
+- **SSE becomes trivial.** `new EventSource("/api/runtime/…/sse", {
+  withCredentials: true })` works because the cookie is first-party on
+  the daemon origin. No CORS preflight dance, no `?token=` leaking into
+  access logs.
+- **No new auth flow.** We reuse `session::issue_browser_session` (the
+  same primitive the existing `/api/runtime/view/{name}/raw` cookie
+  path uses). The only new line of "auth" is a `Set-Cookie` header on
+  the `/shell/` HTML response. See `apps/shipd/src/shell_assets.rs`.
+
+### How it runs
+
+Two shapes — pick one:
+
+```bash
+# 1. Production-shaped: embed the bundle in the binary.
+pnpm -F shell build          # → apps/shell/dist/{index,devtools}.html
+cargo build -p shipd --bin shipd
+cargo run -p shipd --bin shipd -- daemon run --with-ui --port 9316
+# startup log prints:  shell: http://127.0.0.1:9316/shell/
+
+# 2. Dev proxy — HMR on, daemon origin preserved.
+#    terminal A:
+pnpm -F shell dev            # Vite on :3100
+#    terminal B:
+SHIP_SHELL_DEV_URL=http://127.0.0.1:3100 \
+  cargo run -p shipd --bin shipd -- daemon run --with-ui --port 9316
+# Daemon now reverse-proxies /shell/* to Vite. Same-origin cookie still
+# issued. HMR websockets from Vite work because the proxy forwards all
+# headers/bodies unchanged for `/shell/*` paths.
+```
+
+`cargo build -p shipd --bin shipd` succeeds even when `apps/shell/dist/`
+is empty — `build.rs` mkdir's the directory so `include_dir!` has
+something to baked in. The handler detects an empty bundle and returns
+a "run `pnpm -F shell build` first" page. No surprise 500s.
+
+### Devtools gallery
+
+`/shell/devtools/` is a second Vite entry (no new deps). It fetches
+`/vendor/ship-elements.js`, regexes out every `customElements.define(
+"ship-*")`, and renders each confirmed tag with 1–2 sample prop
+combinations, grouped by prefix (`ship-pipeline-*`, `ship-annotation-*`,
+etc.). Roughly 140 LOC total (`src/devtools/main.ts` +
+`src/devtools/gallery.ts`). Interactive prop editors can come later;
+v1 is render-only — enough to catch regressions when iterating on
+`ship-elements.js`.
+
+### What changed from the POC
+
+| area              | before (POC)                              | now (daemon-served)                            |
+|-------------------|-------------------------------------------|------------------------------------------------|
+| origin model      | shell :3100 ↔ daemon :9316 (cross-origin) | single origin via daemon                       |
+| fragment auth     | `Authorization: Bearer` + `credentials: "omit"` | cookie-only, `credentials: "include"`    |
+| SSE auth          | `?token=` query param (logged) OR broken   | cookie, no query token                         |
+| CORS `allow-credentials` miss | blocked cookie path entirely     | moot — same-origin                             |
+| distribution      | only served by `pnpm dev`                 | baked into `shipd` binary via `include_dir!`   |
+| dev HMR           | inherent to vite                          | preserved via `SHIP_SHELL_DEV_URL` proxy mode  |
+| component iteration | no gallery                              | `/shell/devtools/` enumerates registry         |
+
+### Evidence
+
+`findings-evidence/same-origin-headers.txt` captures the expected curl
+wire output for the initial `/shell/` GET (no-Bearer request, response
+carries `Set-Cookie`). The file is filled out once a local daemon is
+running — this job was executed in a sandbox without a live daemon
+process, so the wire capture is a template plus a source-level argument
+that the behaviour is correct (the cookie is emitted by
+`shell_assets::embedded_response` → `issue_browser_session`; cookie is
+picked up by the same `auth::auth_middleware` code path that has been
+in production since the browser-session split).

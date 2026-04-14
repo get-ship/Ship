@@ -289,6 +289,10 @@ pub enum DaemonCommands {
         port: u16,
         #[arg(long)]
         dev: bool,
+        /// Serve the bundled Ship dev shell at `/shell/` (same-origin cookie auth).
+        /// Off by default so the daemon stays useful headless.
+        #[arg(long = "with-ui")]
+        with_ui: bool,
     },
     /// Internal: supervisor loop that watches and restarts the daemon on crash
     #[command(hide = true)]

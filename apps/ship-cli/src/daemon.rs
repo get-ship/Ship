@@ -6,7 +6,7 @@ pub enum DaemonCommand {
     Stop,
     Status,
     Cleanup,
-    Run { host: String, port: u16, dev: bool },
+    Run { host: String, port: u16, dev: bool, with_ui: bool },
     /// Internal: supervisor loop that watches and restarts the daemon.
     Supervise { host: String, dev: bool },
 }
@@ -65,7 +65,7 @@ pub fn run_daemon(cmd: DaemonCommand) -> Result<()> {
         DaemonCommand::Stop => daemon_stop(),
         DaemonCommand::Status => daemon_status(),
         DaemonCommand::Cleanup => daemon_cleanup(),
-        DaemonCommand::Run { host, port, dev } => daemon_run(host, port, dev),
+        DaemonCommand::Run { host, port, dev, with_ui } => daemon_run(host, port, dev, with_ui),
         DaemonCommand::Supervise { host, dev } => daemon_supervise(host, dev),
     }
 }
@@ -291,12 +291,12 @@ extern "C" fn signal_handler(_sig: libc::c_int) {
     }
 }
 
-fn daemon_run(host: String, port: u16, dev: bool) -> Result<()> {
+fn daemon_run(host: String, port: u16, dev: bool, with_ui: bool) -> Result<()> {
     let rt = tokio::runtime::Builder::new_multi_thread()
         .enable_all()
         .build()
         .context("cannot build tokio runtime")?;
-    rt.block_on(shipd::run_network(host, port, dev))
+    rt.block_on(shipd::run_network(host, port, dev, with_ui))
 }
 
 fn daemon_stop() -> Result<()> {

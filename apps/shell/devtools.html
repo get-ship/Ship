@@ -1,0 +1,78 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Ship Shell Devtools — Gallery</title>
+    <link rel="stylesheet" href="/vendor/view-tokens.css" />
+    <script type="module" src="/vendor/datastar.js"></script>
+    <script type="module" src="/vendor/ship-elements.js"></script>
+    <style>
+      * { box-sizing: border-box; }
+      body {
+        margin: 0;
+        font-family: system-ui, sans-serif;
+        background: #fafafa;
+      }
+      header {
+        padding: 12px 20px;
+        border-bottom: 1px solid #ddd;
+        background: #fff;
+        display: flex;
+        gap: 12px;
+        align-items: baseline;
+      }
+      header h1 { font-size: 16px; margin: 0; }
+      header small { color: #666; }
+      main { padding: 20px; max-width: 1200px; margin: 0 auto; }
+      section.group { margin-bottom: 32px; }
+      section.group > h2 {
+        font-size: 14px;
+        text-transform: uppercase;
+        letter-spacing: 0.04em;
+        color: #444;
+        border-bottom: 1px solid #e0e0e0;
+        padding-bottom: 4px;
+        margin-bottom: 12px;
+      }
+      .card {
+        background: #fff;
+        border: 1px solid #e0e0e0;
+        border-radius: 6px;
+        padding: 14px;
+        margin-bottom: 12px;
+      }
+      .card-title {
+        font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
+        font-size: 12px;
+        color: #0366d6;
+        margin-bottom: 8px;
+      }
+      .card-props {
+        font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
+        font-size: 11px;
+        color: #888;
+        margin-bottom: 10px;
+      }
+      .card-render {
+        padding: 12px;
+        border: 1px dashed #ddd;
+        border-radius: 4px;
+        background: #fbfbfb;
+      }
+      .card-error {
+        color: #a33;
+        font-size: 12px;
+        font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
+      }
+    </style>
+  </head>
+  <body>
+    <header>
+      <h1>ship-elements gallery</h1>
+      <small id="count">loading…</small>
+    </header>
+    <main id="gallery"></main>
+    <script type="module" src="/src/devtools/main.ts"></script>
+  </body>
+</html>

@@ -39,6 +39,7 @@ pub mod specs_view;
 pub mod settings_api;
 pub mod attest;
 pub mod pairing;
+pub mod shell_assets;
 pub mod ship_runtime;
 pub mod supervised;
 pub mod supervisor;
@@ -90,7 +91,7 @@ use tokio_util::sync::CancellationToken;
 ///
 /// `dev` enables relaxed auth for local development (auto-pair, localhost-only).
 /// Never set `dev = true` in production.
-pub async fn run_network(host: String, port: u16, dev: bool) -> Result<()> {
+pub async fn run_network(host: String, port: u16, dev: bool, with_ui: bool) -> Result<()> {
     if dev {
         tracing::warn!(
             "╔══════════════════════════════════════════════════════════════════╗"
@@ -158,9 +159,14 @@ pub async fn run_network(host: String, port: u16, dev: bool) -> Result<()> {
         pairing_registry,
         attestation_verifier,
         ct.child_token(),
+        with_ui,
     );
     let addr = format!("{host}:{port}");
     tracing::info!("shipd: listening on http://{addr}/mcp");
+    if with_ui {
+        tracing::info!("shipd: shell: http://{addr}/shell/");
+        eprintln!("shell: http://{addr}/shell/");
+    }
     let listener = tokio::net::TcpListener::bind(&addr).await.map_err(|e| anyhow!("bind {addr}: {e}"))?;
     axum::serve(listener, app)
         .with_graceful_shutdown(async move { ct.cancelled_owned().await })
@@ -181,6 +187,7 @@ fn build_router(
     pairing_registry: pairing::SharedPairingRegistry,
     attestation_verifier: attest::AttestationVerifier,
     mcp_ct: CancellationToken,
+    with_ui: bool,
 ) -> Router {
     use crate::routes::{Route, ShipRouterExt};
     let kernel_factory = rt.kernel().clone();
@@ -284,6 +291,7 @@ fn build_router(
             }),
         );
 
+    let shell_registry = auth_registry.clone();
     let session_issue_registry = auth_registry.clone();
     let session_issue_handler = move |auth: axum::Extension<auth::AuthContext>| {
         let reg = session_issue_registry.clone();
@@ -303,12 +311,19 @@ fn build_router(
             auth::auth_middleware(auth_token.clone(), auth_registry.clone(), req, next)
         }));
 
-    Router::new()
+    let mut root = Router::new()
         .merge(public_routes)
         .route("/api/openapi.json", axum::routing::get(|| async {
             Json(openapi::ApiDoc::openapi())
         }))
-        .merge(authenticated_routes)
+        .merge(authenticated_routes);
+    if with_ui {
+        // Shell routes are registered OUTSIDE the auth middleware — the
+        // initial `/shell/` GET is what mints the browser cookie that
+        // everything else uses. Put before any catch-all.
+        root = root.merge(shell_assets::router(shell_registry));
+    }
+    root
         .layer(axum::middleware::from_fn(cors_middleware))
         // Request body limit: 1 MB for all non-streaming endpoints.
         .layer(tower_http::limit::RequestBodyLimitLayer::new(1024 * 1024))

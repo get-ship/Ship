@@ -1,9 +1,15 @@
-import { mountDaemonFragment, openDaemonSSE } from "./mount";
+import { mountDaemonFragment, openDaemonSSE, isSameOrigin } from "./mount";
 
-const DAEMON_BASE = (import.meta.env.VITE_DAEMON_URL as string) ?? "http://127.0.0.1:9316";
-const TOKEN = (import.meta.env.VITE_DAEMON_TOKEN as string) ?? "";
+// Same-origin detection: when served by the daemon under /shell/, the daemon
+// base URL either matches window.location.origin or is deliberately empty so
+// fetches stay relative. In that mode we drop Bearer entirely and ride the
+// ship_session cookie.
+const RAW_BASE = (import.meta.env.VITE_DAEMON_URL as string) ?? "http://127.0.0.1:9316";
+const SAME_ORIGIN = isSameOrigin(RAW_BASE);
+const DAEMON_BASE = SAME_ORIGIN ? "" : RAW_BASE;
+const TOKEN = SAME_ORIGIN ? "" : ((import.meta.env.VITE_DAEMON_TOKEN as string) ?? "");
 
-if (!TOKEN) {
+if (!SAME_ORIGIN && !TOKEN) {
   console.warn(
     "[shell] VITE_DAEMON_TOKEN not set. " +
       "Export it from ~/.ship/daemon.token before running `pnpm dev`.",
@@ -53,15 +59,16 @@ view.addEventListener("submit", (ev) => {
 async function submitFragmentForm(form: HTMLFormElement) {
   const action = form.getAttribute("action") || form.dataset.action || "";
   const url = /^https?:/.test(action) ? action : `${DAEMON_BASE}${action}`;
+  const headers: Record<string, string> = {
+    "Content-Type": "application/x-www-form-urlencoded",
+    Accept: "text/html",
+  };
+  if (!SAME_ORIGIN && TOKEN) headers.Authorization = `Bearer ${TOKEN}`;
   const body = new URLSearchParams(new FormData(form) as unknown as Record<string, string>);
   const res = await fetch(url, {
     method: form.method || "POST",
-    credentials: "omit",
-    headers: {
-      Authorization: `Bearer ${TOKEN}`,
-      "Content-Type": "application/x-www-form-urlencoded",
-      Accept: "text/html",
-    },
+    credentials: SAME_ORIGIN ? "include" : "omit",
+    headers,
     body: body.toString(),
   });
   const html = await res.text();
