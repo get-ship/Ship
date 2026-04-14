@@ -170,6 +170,14 @@ fn parse_pipeline_content(content: &str) -> Option<(Pipeline, PipelineMeta)> {
     let (normalized, meta) = normalize_pipeline_yaml(content).ok()?;
     let steps_val = normalized.get("steps")?;
     let steps: Vec<PipelineStep> = serde_json::from_value(steps_val.clone()).ok()?;
+    for step in &steps {
+        if let Some(gate) = &step.gate
+            && let Err(e) = super::gate_rules::validate(gate)
+        {
+            tracing::error!(step = step.id, "pipeline: malformed gate block: {e}");
+            return None;
+        }
+    }
     Some((Pipeline { steps }, meta))
 }
 

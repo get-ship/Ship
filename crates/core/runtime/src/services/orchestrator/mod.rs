@@ -15,6 +15,7 @@
 
 pub mod emit;
 pub mod gate_retry;
+pub mod gate_rules;
 pub mod handlers;
 pub mod pipeline;
 pub mod pipeline_loader;
