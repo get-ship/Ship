@@ -1,0 +1,28 @@
+{
+  "consoleLog": [
+    "[debug] [vite] connecting...",
+    "[debug] [vite] connected.",
+    "[debug] [vite] connecting...",
+    "[debug] [vite] connected.",
+    "[debug] [vite] connecting...",
+    "[debug] [vite] connected.",
+    "[error] Access to resource at 'http://127.0.0.1:51742/api/runtime/view/poc-chat/events?token=9cd043b71e303cb2c8a3e99d29a45cd0d6027f56fa213a70ee615cffbfa211fc' from origin 'http://127.0.0.1:3100' has been blocked by CORS policy: The value of the 'Access-Control-Allow-Credentials' header in the response is '' which must be 'true' when the request's credentials mode is 'include'.",
+    "[error] Failed to load resource: net::ERR_FAILED",
+    "[debug] [vite] connecting...",
+    "[debug] [vite] connected.",
+    "[debug] [vite] connecting...",
+    "[debug] [vite] connected."
+  ],
+  "hydration": [
+    {
+      "tag": "SHIP-CARD",
+      "hasShadowRoot": true,
+      "connected": true
+    },
+    {
+      "tag": "SHIP-CARD",
+      "hasShadowRoot": true,
+      "connected": true
+    }
+  ]
+}
