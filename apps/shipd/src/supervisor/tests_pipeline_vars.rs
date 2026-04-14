@@ -24,6 +24,7 @@ fn agent_step(agent: &str) -> PipelineStep {
         provider: None,
         command: None,
         max_retries: None,
+        gate: None,
     }
 }
 
@@ -38,6 +39,7 @@ fn agent_step_with_model(agent: &str, model: &str) -> PipelineStep {
         provider: None,
         command: None,
         max_retries: None,
+        gate: None,
     }
 }
 
@@ -52,6 +54,7 @@ fn run_step(command: &str) -> PipelineStep {
         provider: None,
         command: Some(command.to_string()),
         max_retries: None,
+        gate: None,
     }
 }
 
@@ -85,6 +88,7 @@ fn step_goal_interpolated_from_job_vars() {
         provider: None,
         command: None,
         max_retries: None,
+        gate: None,
     };
     let job_vars = vars(&[("feature_name", "config split")]);
     let resolved = interpolate_step(&step, &job_vars, &HashMap::new())
