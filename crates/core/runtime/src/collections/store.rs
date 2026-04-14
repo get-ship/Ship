@@ -282,13 +282,31 @@ pub fn query_items(
 // ── Helpers ──────────────────────────────────────────────────────────────────
 
 /// Reconstruct an Item from a DataRow, packing schema fields into the data JSON object.
+/// Applies type coercion for boolean fields (SQLite stores as 0/1) and default values.
 fn row_to_item(row: &crate::data::DataRow, schema: &CollectionSchema) -> Item {
     let mut data = serde_json::Map::new();
-    for (field_name, _) in &schema.fields {
+    for (field_name, field_def) in &schema.fields {
         if let Some(val) = row.get(field_name) {
-            if !val.is_null() {
-                data.insert(field_name.clone(), val.clone());
+            if val.is_null() {
+                // Apply default if defined.
+                if let Some(ref default) = field_def.default {
+                    data.insert(field_name.clone(), default.clone());
+                }
+                continue;
             }
+            // Coerce SQLite integer 0/1 back to boolean for boolean fields.
+            let coerced = if field_def.field_type == FieldType::Boolean {
+                match val.as_i64() {
+                    Some(0) => serde_json::Value::Bool(false),
+                    Some(1) => serde_json::Value::Bool(true),
+                    _ => val.clone(),
+                }
+            } else {
+                val.clone()
+            };
+            data.insert(field_name.clone(), coerced);
+        } else if let Some(ref default) = field_def.default {
+            data.insert(field_name.clone(), default.clone());
         }
     }
 
