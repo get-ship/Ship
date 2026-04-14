@@ -284,6 +284,29 @@ pub enum Route {
     /// @route POST "/api/events/route"
     EventRoute,
 
+    // ── Collections ──────────────────────────────────────────────────────
+
+    /// @route GET "/api/collections"
+    ListCollections,
+
+    /// @route GET "/api/collections/{collection}/schema"
+    GetCollectionSchema { collection: String },
+
+    /// @route POST "/api/collections/{collection}/items"
+    CreateCollectionItem { collection: String },
+
+    /// @route GET "/api/collections/{collection}/items/{item_id}"
+    GetCollectionItem { collection: String, item_id: String },
+
+    /// @route PUT "/api/collections/{collection}/items/{item_id}"
+    UpdateCollectionItem { collection: String, item_id: String },
+
+    /// @route DELETE "/api/collections/{collection}/items/{item_id}"
+    DeleteCollectionItem { collection: String, item_id: String },
+
+    /// @route POST "/api/collections/{collection}/query"
+    QueryCollection { collection: String },
+
     // ── Capabilities ─────────────────────────────────────────────────────
 
     /// @route GET "/api/capabilities"

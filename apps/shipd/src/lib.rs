@@ -5,6 +5,7 @@
 
 pub mod actor_api;
 pub mod auth;
+pub mod collection_api;
 mod connections;
 pub mod scopes;
 pub mod session;
@@ -400,6 +401,14 @@ fn build_ship_routes(st: rest_api::ApiState) -> Router {
         .ship_route(Route::ArtifactsStatus_template(), project_api::artifacts_status)
         .ship_route(Route::PromoteArtifact_template(), project_api::promote_artifact)
         .ship_route(Route::ListProjectArtifacts, project_api::list_project_artifacts)
+        // Collections
+        .ship_route(Route::ListCollections, collection_api::list_collections)
+        .ship_route(Route::GetCollectionSchema_template(), collection_api::get_schema)
+        .ship_route(Route::CreateCollectionItem_template(), collection_api::create_item)
+        .ship_route(Route::GetCollectionItem_template(), collection_api::get_item)
+        .ship_route(Route::UpdateCollectionItem_template(), collection_api::update_item)
+        .ship_route(Route::DeleteCollectionItem_template(), collection_api::delete_item)
+        .ship_route(Route::QueryCollection_template(), collection_api::query_items)
         // Glob-param file handlers (not in enum — glob syntax is project_api
         // internal; keep flat).
         .route(
