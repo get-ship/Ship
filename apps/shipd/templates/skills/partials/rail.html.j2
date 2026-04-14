@@ -1,0 +1,33 @@
+{#- Left rail. Context field: `rail` (RailCtx). -#}
+{% from '_urls.html.j2' import view_skills_rail, view_skill_detail %}
+<div id="skills-rail" class="skills-rail">
+  <div class="skills-rail-head">
+    <ship-input
+      size="sm"
+      placeholder="Search skills…"
+      value="{{ rail.q }}"
+      data-on:input__debounce.250ms="@get('{{ view_skills_rail() }}?q=' + encodeURIComponent(evt.target.value) + '&kind={{ rail.active_kind }}')"></ship-input>
+    <div class="skills-filter-row" role="group" aria-label="Filter by kind">
+      {% for kc in rail.kind_counts %}
+        <ship-chip size="sm" {% if kc.selected %}selected{% endif %}
+          data-on:click="@get('{{ view_skills_rail() }}?kind={{ kc.id }}{% if rail.q %}&q={{ rail.q }}{% endif %}')">{{ kc.label }} · {{ kc.count }}</ship-chip>
+      {% endfor %}
+    </div>
+  </div>
+  {% if rail.groups|length == 0 %}
+    <div class="skills-empty-hint">No skills match.</div>
+  {% else %}
+    {% for g in rail.groups %}
+      <div class="skills-group">
+        <div class="skills-group-head">{{ g.source }}</div>
+        {% for s in g.skills %}
+          <div class="skills-row" data-on:click="@get('{{ view_skill_detail(s.id) }}')">
+            <span class="skills-caret">›</span>
+            <span>{{ s.name }}</span>
+            <span class="skills-dot {% if s.kind == 'docs' %}docs{% endif %}" aria-hidden="true"></span>
+          </div>
+        {% endfor %}
+      </div>
+    {% endfor %}
+  {% endif %}
+</div>

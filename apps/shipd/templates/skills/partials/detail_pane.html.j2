@@ -1,0 +1,8 @@
+{#- Middle pane: skill header + SKILL.md body. Context: `skill`, `body_html`. -#}
+<div class="skill-detail">
+  <header class="skill-detail-head">
+    <h1>{{ skill.name }}</h1>
+  </header>
+  <div class="skill-detail-desc">{{ skill.description }}</div>
+  <pre class="skill-body"><code>{{ body_html | safe }}</code></pre>
+</div>

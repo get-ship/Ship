@@ -93,6 +93,24 @@ pub enum Route {
     /// @route GET "/api/runtime/view/settings/sse"
     ViewSettingsSse,
 
+    /// @route GET "/api/runtime/view/agents"
+    ViewAgents,
+
+    /// @route GET "/api/runtime/view/agents/detail/{id}"
+    ViewAgentDetail { id: String },
+
+    /// @route POST "/api/runtime/view/agents/new"
+    ViewAgentsCreate,
+
+    /// @route GET "/api/runtime/view/skills"
+    ViewSkills,
+
+    /// @route GET "/api/runtime/view/skills/rail"
+    ViewSkillsRail,
+
+    /// @route GET "/api/runtime/view/skills/detail/{id}"
+    ViewSkillDetail { id: String },
+
     // ── Generic view serving ─────────────────────────────────────────────
 
     /// @route GET "/api/runtime/views"

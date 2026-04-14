@@ -1,0 +1,43 @@
+{#- Right sidebar: metadata with Variables / Runs / Used by tabs.
+    Context: `skill` (SkillDetail), `tabs` (Vec<TabRow>). -#}
+<div class="meta-sidebar">
+  <h3 class="meta-head">Scope</h3>
+  <div class="meta-chips">
+    <ship-badge size="sm" tone="neutral">{{ skill.source }}</ship-badge>
+    <ship-badge size="sm" tone="neutral">{{ skill.kind }}</ship-badge>
+  </div>
+
+  {% if skill.tags|length > 0 %}
+    <h3 class="meta-head">Tags</h3>
+    <div class="meta-chips">
+      {% for t in skill.tags %}
+        <ship-badge size="sm" tone="neutral">{{ t }}</ship-badge>
+      {% endfor %}
+    </div>
+  {% endif %}
+
+  <div class="meta-tab-row" role="tablist">
+    {% for t in tabs %}
+      <div class="meta-tab {% if loop.first %}active{% endif %}" role="tab"
+           data-tab="{{ t.id }}">{{ t.label }}{% if t.count > 0 %} · {{ t.count }}{% endif %}</div>
+    {% endfor %}
+  </div>
+
+  <div class="meta-tab-panel" data-panel="variables">
+    {% if skill.variables|length == 0 %}
+      <ship-empty-state icon="sliders" title="No variables" body="This skill has no tunable inputs."></ship-empty-state>
+    {% else %}
+      <ul class="meta-list">
+        {% for v in skill.variables %}<li>{{ v }}</li>{% endfor %}
+      </ul>
+    {% endif %}
+  </div>
+
+  <div class="meta-tab-panel" data-panel="runs" hidden>
+    <ship-empty-state icon="play" title="No runs" body="Runs involving this skill will appear here."></ship-empty-state>
+  </div>
+
+  <div class="meta-tab-panel" data-panel="used-by" hidden>
+    <ship-empty-state icon="link" title="Not wired up" body="No agents reference this skill yet."></ship-empty-state>
+  </div>
+</div>

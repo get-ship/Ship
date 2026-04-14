@@ -1,0 +1,45 @@
+{#- Agents index — card grid. Fragment mounted into the Studio shell. -#}
+{% from '_urls.html.j2' import view_agents_create %}
+<div id="agents-root" class="ship-view ship-view-agents">
+  <style>
+    .ship-view-agents { color: var(--foreground); }
+    .agents-wrap { max-width: 1200px; margin: 0 auto; padding: 24px 20px 48px; }
+    .agents-head { display: flex; align-items: flex-end; justify-content: space-between; gap: 16px; margin: 0 0 24px; }
+    .agents-title { font-family: var(--font-display); font-size: 22px; font-weight: 700; letter-spacing: -0.01em; margin: 0; }
+    .agents-sub { font-size: 12px; color: var(--muted-foreground); margin-top: 4px; }
+    .agents-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(320px, 1fr)); gap: 14px; }
+    .agent-card { border: 1px solid var(--border); background: var(--card); border-radius: var(--radius-lg); padding: 16px; display: flex; gap: 12px; align-items: flex-start; transition: border-color 0.12s ease; cursor: pointer; }
+    .agent-card:hover { border-color: color-mix(in oklch, var(--primary) 40%, var(--border)); }
+    .agent-avatar { width: 36px; height: 36px; border-radius: 10px; background: var(--primary, #f97316); color: var(--primary-foreground, #fff); display: inline-flex; align-items: center; justify-content: center; font-weight: 700; font-size: 15px; flex-shrink: 0; }
+    .agent-body { min-width: 0; flex: 1; }
+    .agent-name { font-size: 14px; font-weight: 600; color: var(--foreground); margin: 0 0 4px; }
+    .agent-desc { font-size: 12px; color: var(--muted-foreground); margin: 0 0 10px; line-height: 1.45; }
+    .agent-meta { display: flex; flex-wrap: wrap; gap: 6px; }
+  </style>
+
+  <div class="agents-wrap">
+    <div class="agents-head">
+      <div>
+        <h1 class="agents-title">Agents</h1>
+        <div class="agents-sub">{{ total }} {% if total == 1 %}agent configured{% else %}agents configured{% endif %}</div>
+      </div>
+      <ship-button size="sm" tone="accent" variant="solid"
+        data-on:click="@post('{{ view_agents_create() }}', {contentType: 'json', body: JSON.stringify({})})">
+        + New agent
+      </ship-button>
+    </div>
+
+    {% if agents|length == 0 %}
+      <ship-empty-state
+        icon="bot"
+        title="No agents yet"
+        body="Drop a JSONC file under .ship/agents/ to configure one."></ship-empty-state>
+    {% else %}
+      <div class="agents-grid">
+        {% for a in agents %}
+          {% include 'agents/partials/card.html.j2' %}
+        {% endfor %}
+      </div>
+    {% endif %}
+  </div>
+</div>

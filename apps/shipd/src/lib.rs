@@ -29,6 +29,8 @@ pub mod views_git_diff;
 pub mod views_pipelines;
 pub mod views_pipelines_data;
 pub mod views_settings;
+pub mod views_agents;
+pub mod views_skills;
 pub mod specs_api;
 pub mod specs_view;
 pub mod settings_api;
@@ -370,6 +372,12 @@ fn build_ship_routes(st: rest_api::ApiState) -> Router {
         .ship_route(Route::ViewPipelinesSse, views_pipelines::pipelines_sse)
         .ship_route(Route::ViewSettings, views_settings::settings_shell)
         .ship_route(Route::ViewSettingsSse, views_settings::settings_sse)
+        .ship_route(Route::ViewAgents, views_agents::agents_shell)
+        .ship_route(Route::ViewAgentDetail_template(), views_agents::agent_detail)
+        .ship_route(Route::ViewAgentsCreate, views_agents::agents_create)
+        .ship_route(Route::ViewSkills, views_skills::skills_shell)
+        .ship_route(Route::ViewSkillsRail, views_skills::skills_rail)
+        .ship_route(Route::ViewSkillDetail_template(), views_skills::skill_detail)
         .ship_route(Route::ViewSpecs, specs_view::specs_shell)
         .ship_route(Route::ViewSpecsSse, specs_view::specs_view_sse)
         // Specs REST

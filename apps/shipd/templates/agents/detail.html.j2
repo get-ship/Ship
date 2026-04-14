@@ -1,0 +1,89 @@
+{#- Agent detail — rich config page. Context: `agent`, `tiers`. -#}
+{% from '_urls.html.j2' import view_agents %}
+<div id="agent-detail-root" class="ship-view ship-view-agent-detail">
+  <style>
+    .ship-view-agent-detail { color: var(--foreground); }
+    .ad-wrap { max-width: 960px; margin: 0 auto; padding: 24px 20px 64px; }
+    .ad-back { font-size: 12px; color: var(--muted-foreground); text-decoration: none; display: inline-flex; align-items: center; gap: 4px; margin-bottom: 12px; cursor: pointer; }
+    .ad-back:hover { color: var(--foreground); }
+    .ad-head { display: flex; align-items: center; gap: 14px; margin: 0 0 28px; }
+    .ad-avatar { width: 48px; height: 48px; border-radius: 12px; background: var(--primary, #f97316); color: var(--primary-foreground, #fff); display: inline-flex; align-items: center; justify-content: center; font-weight: 700; font-size: 20px; }
+    .ad-name { font-family: var(--font-display); font-size: 22px; font-weight: 700; margin: 0; }
+    .ad-desc { font-size: 12px; color: var(--muted-foreground); margin-top: 2px; }
+    .agent-section { margin: 0 0 28px; border: 1px solid var(--border); border-radius: var(--radius-lg); background: var(--card); padding: 16px 18px; }
+    .agent-section-head { display: flex; align-items: center; justify-content: space-between; margin-bottom: 10px; }
+    .agent-section-head h2 { font-size: 13px; font-weight: 600; margin: 0; text-transform: uppercase; letter-spacing: 0.06em; color: var(--muted-foreground); }
+    .agent-section-empty { font-size: 12px; color: var(--muted-foreground); padding: 4px 0; }
+    .agent-section-list { list-style: none; padding: 0; margin: 0; }
+    .agent-section-item { display: flex; align-items: center; justify-content: space-between; padding: 8px 0; border-top: 1px solid color-mix(in oklch, var(--border) 60%, transparent); font-size: 13px; }
+    .agent-section-item:first-child { border-top: 0; }
+    .agent-section-item-name { font-family: var(--font-mono); font-size: 12px; }
+    .agent-section-chevron { color: var(--muted-foreground); font-size: 16px; }
+    .tier-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: 10px; }
+    .tier-card { border: 1px solid var(--border); border-radius: var(--radius-md); padding: 12px; cursor: pointer; background: var(--card); }
+    .tier-card[data-tier-selected="true"], .tier-card[aria-checked="true"] { border-color: var(--primary, #f97316); box-shadow: 0 0 0 2px color-mix(in oklch, var(--primary) 18%, transparent); }
+    .tier-label { font-weight: 600; font-size: 13px; margin-bottom: 4px; }
+    .tier-desc { font-size: 11px; color: var(--muted-foreground); line-height: 1.4; }
+    .provider-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(140px, 1fr)); gap: 10px; }
+    .provider-tile { border: 1px solid var(--border); border-radius: var(--radius-md); padding: 12px; text-align: center; font-size: 12px; background: var(--card); }
+    .provider-tile.default { border-color: var(--primary, #f97316); }
+    .provider-default-chip { font-size: 10px; color: var(--primary, #f97316); text-transform: uppercase; letter-spacing: 0.08em; margin-top: 4px; }
+  </style>
+
+  <div class="ad-wrap">
+    <a class="ad-back" data-on:click="@get('{{ view_agents() }}')">← Back to agents</a>
+    <header class="ad-head">
+      <div class="ad-avatar">{{ agent.letter }}</div>
+      <div>
+        <h1 class="ad-name">{{ agent.name }}</h1>
+        <div class="ad-desc">{{ agent.description }}</div>
+      </div>
+    </header>
+
+    {% with title="Skills", items=agent.skills, empty="No skills attached. Add one to extend this agent.", add_label="+ Add skill" %}
+      {% include 'agents/partials/config_section.html.j2' %}
+    {% endwith %}
+
+    {% with title="MCP Servers", items=agent.mcp_servers, empty="No MCP servers connected.", add_label="+ Add server" %}
+      {% include 'agents/partials/config_section.html.j2' %}
+    {% endwith %}
+
+    <section class="agent-section">
+      <header class="agent-section-head"><h2>Permissions</h2></header>
+      <div class="tier-grid" role="radiogroup" aria-label="Permission tier">
+        {% for t in tiers %}
+          <div class="tier-card"
+               role="radio"
+               aria-checked="{% if t.selected %}true{% else %}false{% endif %}"
+               data-tier-selected="{% if t.selected %}{{ t.id }}{% else %}none{% endif %}">
+            <div class="tier-label">{{ t.label }}</div>
+            <div class="tier-desc">{{ t.description }}</div>
+          </div>
+        {% endfor %}
+      </div>
+    </section>
+
+    {% with title="Rules", items=agent.rules, empty="No rules. The agent uses project defaults.", add_label="+ Add rule" %}
+      {% include 'agents/partials/config_section.html.j2' %}
+    {% endwith %}
+
+    <section class="agent-section">
+      <header class="agent-section-head">
+        <h2>Providers</h2>
+        <ship-button size="sm" tone="neutral" variant="ghost" disabled>+ Add provider</ship-button>
+      </header>
+      {% if agent.providers|length == 0 %}
+        <div class="agent-section-empty">No providers configured. Add one to run this agent.</div>
+      {% else %}
+        <div class="provider-grid">
+          {% for p in agent.providers %}
+            <div class="provider-tile {% if agent.default_provider == p %}default{% endif %}">
+              <div>{{ p }}</div>
+              {% if agent.default_provider == p %}<div class="provider-default-chip">Default</div>{% endif %}
+            </div>
+          {% endfor %}
+        </div>
+      {% endif %}
+    </section>
+  </div>
+</div>

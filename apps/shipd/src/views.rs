@@ -24,6 +24,8 @@
 
 pub mod stream;
 pub mod state;
+pub mod agents_state;
+pub mod skills_state;
 pub mod templates;
 pub mod session;
 pub mod session_types;
