@@ -1,6 +1,6 @@
 import { mountDaemonFragment, openDaemonSSE } from "./mount";
 
-const DAEMON_BASE = (import.meta.env.VITE_DAEMON_URL as string) ?? "http://127.0.0.1:51742";
+const DAEMON_BASE = (import.meta.env.VITE_DAEMON_URL as string) ?? "http://127.0.0.1:9316";
 const TOKEN = (import.meta.env.VITE_DAEMON_TOKEN as string) ?? "";
 
 if (!TOKEN) {
@@ -14,7 +14,14 @@ const view = document.getElementById("view") as HTMLElement;
 const drawerContent = document.getElementById("drawer-content") as HTMLElement;
 const drawerBtn = document.getElementById("toggle-drawer") as HTMLButtonElement;
 
-type Route = { path: string; render: () => Promise<void> };
+type Route = { path: string; mount: string; sse?: string };
+
+const routes: Route[] = [
+  { path: "/", mount: "/api/runtime/view/agents" },
+  { path: "/pipelines", mount: "/api/runtime/view/pipelines", sse: "/api/runtime/view/pipelines/sse" },
+  { path: "/chat", mount: "/api/runtime/view/chat", sse: "/api/runtime/view/chat/sse" },
+  { path: "/events", mount: "/api/runtime/view/events", sse: "/api/runtime/view/events/sse" },
+];
 
 let currentSSE: EventSource | null = null;
 function closeSSE() {
@@ -24,78 +31,30 @@ function closeSSE() {
   }
 }
 
-const routes: Route[] = [
-  {
-    path: "/",
-    render: async () => {
-      closeSSE();
-      await mountDaemonFragment(view, "/api/runtime/view/poc-home/raw", {
-        token: TOKEN,
-        base: DAEMON_BASE,
-      });
-    },
-  },
-  {
-    path: "/pipelines",
-    render: async () => {
-      closeSSE();
-      await mountDaemonFragment(view, "/api/runtime/view/poc-pipelines/raw", {
-        token: TOKEN,
-        base: DAEMON_BASE,
-      });
-    },
-  },
-  {
-    path: "/chat",
-    render: async () => {
-      closeSSE();
-      await mountDaemonFragment(view, "/api/runtime/view/poc-chat/raw", {
-        token: TOKEN,
-        base: DAEMON_BASE,
-      });
-      // Exercise #3 — SSE update into the mounted fragment. The fragment
-      // contains an element with id="sse-target" that we push messages into.
-      currentSSE = openDaemonSSE("/api/runtime/view/poc-chat/events", {
-        token: TOKEN,
-        base: DAEMON_BASE,
-      });
-      currentSSE.onmessage = (ev) => {
-        const el = document.getElementById("sse-target");
-        if (el) el.insertAdjacentHTML("afterbegin", `<li>${ev.data}</li>`);
-      };
-      currentSSE.onerror = () => {
-        const el = document.getElementById("sse-target");
-        if (el)
-          el.insertAdjacentHTML(
-            "afterbegin",
-            `<li style="color:#a00">[SSE error — see findings §3]</li>`,
-          );
-      };
-    },
-  },
-  {
-    path: "/form",
-    render: async () => {
-      closeSSE();
-      await mountDaemonFragment(view, "/api/runtime/view/poc-form/raw", {
-        token: TOKEN,
-        base: DAEMON_BASE,
-      });
-      // Intercept form submits inside the mounted fragment so the daemon
-      // response becomes a fragment replacement. This mimics what
-      // `<ship-form>` / datastar would do; we wire it manually here to
-      // keep the POC dependency-light.
-      view.addEventListener("submit", onFragmentSubmit, { once: true });
-    },
-  },
-];
+async function renderRoute(r: Route) {
+  closeSSE();
+  await mountDaemonFragment(view, r.mount, { token: TOKEN, base: DAEMON_BASE });
+  if (r.sse) {
+    currentSSE = openDaemonSSE(r.sse, { token: TOKEN, base: DAEMON_BASE });
+    // Datastar normally consumes SSE frames directly against the mounted
+    // fragment. Here we just log events so the POC is observable.
+    currentSSE.onmessage = (ev) => console.log("[sse]", ev.data);
+    currentSSE.onerror = () => console.warn("[sse] error — see findings §3");
+  }
+}
 
-async function onFragmentSubmit(ev: Event) {
-  const form = ev.target as HTMLFormElement;
+view.addEventListener("submit", (ev) => {
+  const form = ev.target;
   if (!(form instanceof HTMLFormElement)) return;
   ev.preventDefault();
+  void submitFragmentForm(form);
+});
+
+async function submitFragmentForm(form: HTMLFormElement) {
+  const action = form.getAttribute("action") || form.dataset.action || "";
+  const url = /^https?:/.test(action) ? action : `${DAEMON_BASE}${action}`;
   const body = new URLSearchParams(new FormData(form) as unknown as Record<string, string>);
-  const res = await fetch(form.action || form.getAttribute("data-action") || "", {
+  const res = await fetch(url, {
     method: form.method || "POST",
     credentials: "omit",
     headers: {
@@ -117,7 +76,7 @@ function match(path: string): Route {
 async function navigate(path: string) {
   history.pushState({}, "", path);
   updateNav();
-  await match(path).render();
+  await renderRoute(match(path));
 }
 
 function updateNav() {
@@ -135,20 +94,19 @@ document.querySelectorAll<HTMLAnchorElement>("header a[data-route]").forEach((a)
 
 window.addEventListener("popstate", () => {
   updateNav();
-  void match(location.pathname).render();
+  void renderRoute(match(location.pathname));
 });
 
-// Drawer — exercise #6: two daemon-served fragments mounted simultaneously.
+// Drawer — multi-mount: a second daemon fragment alongside the main region.
 drawerBtn.addEventListener("click", async () => {
   document.body.classList.toggle("drawer-open");
   if (document.body.classList.contains("drawer-open")) {
-    await mountDaemonFragment(drawerContent, "/api/runtime/view/poc-drawer/raw", {
+    await mountDaemonFragment(drawerContent, "/api/runtime/view/events", {
       token: TOKEN,
       base: DAEMON_BASE,
     });
   }
 });
 
-// Boot.
 updateNav();
-void match(location.pathname).render();
+void renderRoute(match(location.pathname));

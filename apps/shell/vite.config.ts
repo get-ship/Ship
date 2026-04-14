@@ -19,7 +19,7 @@ function resolveToken(envToken: string | undefined): string {
 
 export default defineConfig(({ mode }) => {
   const env = loadEnv(mode, process.cwd(), "");
-  const daemon = env.VITE_DAEMON_URL ?? "http://127.0.0.1:51742";
+  const daemon = env.VITE_DAEMON_URL ?? "http://127.0.0.1:9316";
   const token = resolveToken(env.VITE_DAEMON_TOKEN);
   if (!token) {
     console.warn(

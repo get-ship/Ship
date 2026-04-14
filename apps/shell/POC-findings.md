@@ -19,6 +19,20 @@ Bearer auth. **SSE is the one sharp edge** — `EventSource` cannot set
 
 ---
 
+## Update — real ship views work
+
+The shell now mounts **real** first-party views (`pipelines`, `agents`,
+`chat`, `events`) via `/api/runtime/view/{name}` (no `/raw` suffix — that
+endpoint wraps the view in a full `<!DOCTYPE html>` for iframe/standalone
+use). The non-suffixed endpoint returns the inner shell fragment exactly as
+fragment-mount wants. Evidence in `findings-evidence/01-*.png` through
+`04-*.png`; the hydration probe observed `<ship-button>` and `<ship-tabs>`
+with live shadow roots, coming from daemon markup.
+
+Requires running the daemon from this tree
+(`target/debug/shipd --port 9316 --dev`); the older binary on :51742
+predates `render_sdk_shell` and returns 404.
+
 ## Setup
 
 ```bash
