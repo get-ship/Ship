@@ -1,0 +1,34 @@
+{#-
+  Data content — table of items for the active collection.
+  Pushed via SSE as a full replacement of #data-content.
+-#}
+<div id="data-content">
+  {% if schema and items | length > 0 %}
+  <table class="ship-data-table">
+    <thead>
+      <tr>
+        <th style="width:100px">ID</th>
+        {% for field_name, field_def in schema.fields.items() %}
+        <th>{{ field_name }}</th>
+        {% endfor %}
+        <th style="width:140px">Updated</th>
+      </tr>
+    </thead>
+    <tbody>
+      {% for item in items %}
+      {% include 'data/partials/row.html.j2' %}
+      {% endfor %}
+    </tbody>
+  </table>
+  {% elif schema %}
+  <div class="ship-data-empty">
+    <p>No items in <strong>{{ active_collection }}</strong></p>
+    <p style="font-size:11px;margin-top:8px">Create items via the REST API or MCP tools</p>
+  </div>
+  {% else %}
+  <div class="ship-data-empty">
+    <p>No collections defined</p>
+    <p style="font-size:11px;margin-top:8px">Add a schema to <code>.ship/schemas/</code></p>
+  </div>
+  {% endif %}
+</div>

@@ -169,6 +169,19 @@ const TEMPLATES: &[(&str, &str)] = &[
         "specs/shell.html.j2",
         include_str!("../../templates/specs/shell.html.j2"),
     ),
+    // Data browser
+    (
+        "data/shell.html.j2",
+        include_str!("../../templates/data/shell.html.j2"),
+    ),
+    (
+        "data/content.html.j2",
+        include_str!("../../templates/data/content.html.j2"),
+    ),
+    (
+        "data/partials/row.html.j2",
+        include_str!("../../templates/data/partials/row.html.j2"),
+    ),
 ];
 
 static ENV: OnceLock<Environment<'static>> = OnceLock::new();
