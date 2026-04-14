@@ -101,6 +101,39 @@ async fn render_sdk_shell(state: &ApiState, name: &str) -> Option<String> {
             .ok()?
             .0
         }
+        "agents" => {
+            crate::views_agents::agents_shell(State(state.clone()))
+                .await
+                .ok()?
+                .0
+        }
+        "skills" => {
+            crate::views_skills::skills_shell(
+                State(state.clone()),
+                Query(Default::default()),
+            )
+            .await
+            .ok()?
+            .0
+        }
+        "chat" => {
+            crate::views_chat::chat_shell(
+                State(state.clone()),
+                Query(Default::default()),
+            )
+            .await
+            .ok()?
+            .0
+        }
+        "events" => {
+            crate::views_events::events_shell(
+                State(state.clone()),
+                Query(Default::default()),
+            )
+            .await
+            .ok()?
+            .0
+        }
         _ => return None,
     };
     let title = match name {
@@ -108,6 +141,10 @@ async fn render_sdk_shell(state: &ApiState, name: &str) -> Option<String> {
         "git" => "Git",
         "specs" => "Specs",
         "settings" => "Settings",
+        "agents" => "Agents",
+        "skills" => "Skills",
+        "chat" => "Chat",
+        "events" => "Events",
         _ => "Ship",
     };
     wrap(title, &inner)

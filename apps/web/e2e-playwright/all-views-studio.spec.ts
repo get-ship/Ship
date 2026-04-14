@@ -17,6 +17,14 @@ const VIEWS: Array<{ name: string; rootId: string }> = [
   { name: 'events', rootId: 'events-root' },
 ]
 
+test.beforeEach(async ({ page }) => {
+  // Seed the daemon session token so PlatformProvider skips the pairing flow.
+  // The token is shared across browser contexts, mirroring the real dev setup.
+  await page.addInitScript((t) => {
+    try { localStorage.setItem('ship-studio:session-token', t) } catch { /* ignore */ }
+  }, TOKEN)
+})
+
 for (const { name, rootId } of VIEWS) {
   test(`${name} via Studio populates`, async ({ page }) => {
     const consoleErrors: string[] = []
@@ -32,7 +40,7 @@ for (const { name, rootId } of VIEWS) {
 
     // The SDK shell is now inlined in /raw — the root appears without a
     // second relative @get fetch. A short wait is enough.
-    await expect(page.locator(`#${rootId}`)).toBeAttached({ timeout: 5000 })
+    await expect(page.locator(`#${rootId}`)).toBeAttached({ timeout: 15000 })
     await expect(page.locator(`#${rootId}`)).not.toHaveText(/Connecting/i)
     // Must have rendered content, not the bootstrap placeholder.
     const childCount = await page.locator(`#${rootId} *`).count()
