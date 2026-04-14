@@ -75,6 +75,8 @@ pub struct ShipRuntime {
     session_registry: SessionRegistry,
     /// Health registry for supervised background tasks.
     health_registry: HealthRegistry,
+    /// Shared data service for collections and extensions.
+    data_service: tokio::sync::Mutex<Option<runtime::data::DataService>>,
 }
 
 impl ShipRuntime {
@@ -177,6 +179,7 @@ impl ShipRuntime {
             session_scanner: tokio::sync::OnceCell::new(),
             session_registry: Arc::new(Mutex::new(HashMap::new())),
             health_registry: HealthRegistry::new(),
+            data_service: tokio::sync::Mutex::new(None),
         })
     }
 
@@ -234,6 +237,16 @@ impl ShipRuntime {
 
     pub fn session_registry(&self) -> &SessionRegistry {
         &self.session_registry
+    }
+
+    /// Get or lazily create the shared DataService for collections.
+    pub async fn data_service(&self) -> Result<tokio::sync::MutexGuard<'_, Option<runtime::data::DataService>>> {
+        let mut guard = self.data_service.lock().await;
+        if guard.is_none() {
+            let svc = runtime::data::DataService::open(&self.ship_dir)?;
+            *guard = Some(svc);
+        }
+        Ok(guard)
     }
 
     pub fn health_registry(&self) -> &HealthRegistry {
@@ -311,6 +324,7 @@ impl ShipRuntime {
             session_scanner: tokio::sync::OnceCell::new(),
             session_registry: Arc::new(Mutex::new(HashMap::new())),
             health_registry: HealthRegistry::new(),
+            data_service: tokio::sync::Mutex::new(None),
         }
     }
 
@@ -334,6 +348,7 @@ impl ShipRuntime {
             session_scanner: tokio::sync::OnceCell::new(),
             session_registry: Arc::new(Mutex::new(HashMap::new())),
             health_registry: HealthRegistry::new(),
+            data_service: tokio::sync::Mutex::new(None),
         }
     }
 
