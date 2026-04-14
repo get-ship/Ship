@@ -29,18 +29,9 @@ pub fn resolve_project_root(
         }
     }
 
-    // 2. Discover the active project via CWD walk. This follows git worktree
-    //    redirects and returns the main checkout's .ship/ when called from a
-    //    linked worktree. Correct source for "where are this workspace's files"
-    //    when ship_dir is the daemon's ~/.ship/ (global), not a project .ship/.
-    if let Ok(project_ship) = crate::project::get_project_dir(None) {
-        if let Some(root) = project_ship.parent() {
-            return Ok((root.to_path_buf(), ws));
-        }
-    }
-
-    // 3. Last-resort: ship_dir.parent() — only correct if ship_dir is itself
-    //    a project .ship/, not the global daemon dir.
+    // 2. Fall back to ship_dir.parent() — the project root when ship_dir is
+    //    a project `.ship/`. Callers that pass a non-project ship_dir must set
+    //    the workspace's `path` explicitly.
     let fallback = ship_dir.parent().unwrap_or(ship_dir).to_path_buf();
     Ok((fallback, ws))
 }
