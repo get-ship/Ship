@@ -58,6 +58,7 @@ pub trait EventValidator: Send + Sync {
 /// Actors can subscribe to events in these namespaces.
 pub const KERNEL_NAMESPACES: &[&str] = &[
     "actor.",
+    "collection.",
     "config.",
     "gate.",
     "job.",
