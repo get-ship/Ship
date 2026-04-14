@@ -88,14 +88,6 @@ pub struct ResolvedConfig {
     /// set to the Studio MCP URL (e.g. `http://localhost:51741/agent`).
     /// The compiler uses it to emit HTTP transport config instead of stdio.
     pub studio_mcp_url: Option<String>,
-    // ── Daemon info (populated by caller, not the compiler) ───────────────────
-    /// Daemon HTTP port (from `~/.ship/daemon.port`). When set, Claude gets
-    /// HTTP hooks pointing directly at the daemon; when absent, all providers
-    /// get command hooks via `ship hook`.
-    pub daemon_port: Option<u16>,
-    /// Daemon bearer token (from `~/.ship/daemon.token`). Included in HTTP
-    /// hook URLs as `?token=<value>` for auth.
-    pub daemon_token: Option<String>,
 }
 
 /// Resolve the effective agent config from pre-loaded project data.
@@ -456,8 +448,6 @@ pub fn resolve(
         claude_auto_updates: None,
         claude_include_co_authored_by: None,
         studio_mcp_url: None,
-        daemon_port: None,
-        daemon_token: None,
     }
 }
 

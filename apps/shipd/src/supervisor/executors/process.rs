@@ -66,6 +66,8 @@ impl JobExecutor for ProcessExecutor {
         let child = std::process::Command::new("claude")
             .args(&args)
             .env("SHIP_MESH_ID", &ctx.slug)
+            .env("SHIP_AGENT_ID", &ctx.agent)
+            .env("SHIP_SESSION_ID", &ctx.slug)
             .current_dir(&ctx.work_dir)
             .stdout(log_file)
             .stderr(err_file)
