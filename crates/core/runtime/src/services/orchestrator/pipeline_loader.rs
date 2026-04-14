@@ -4,17 +4,20 @@
 //! 1. Already-set `steps` on the payload
 //! 2. Named pipeline reference in spec frontmatter (`pipeline: <name>`)
 //! 3. Inline `steps:` in spec frontmatter
-//! 4. Default pipeline (`implement → gate → merge`)
+//! 4. None → single `Agent` step using the job's declared agent
 
-use crate::events::job::{JobCreatedPayload, Pipeline, PipelineStep};
+use crate::events::job::{JobCreatedPayload, Pipeline, PipelineStep, StepType};
 use ship_jobs::pipeline::{PipelineMeta, normalize_pipeline_yaml};
 
-/// Enrich a job with a pipeline. Resolution order:
+/// Enrich a job with a pipeline and validate it. Resolution order:
 /// 1. Already has `steps` → use it
 /// 2. Spec frontmatter has `pipeline: <name>` → load from `.ship/pipelines/<name>.yaml`
 /// 3. Spec frontmatter has inline `steps:` → use it
-/// 4. None → inject default (implement → gate → merge)
-pub fn ensure_pipeline(mut payload: JobCreatedPayload) -> JobCreatedPayload {
+/// 4. None → single `Agent` step from `payload.agent`
+///
+/// Returns `Err` if the resolved pipeline fails validation — currently, any
+/// agent/gate step without an `agent` declared.
+pub fn ensure_pipeline(mut payload: JobCreatedPayload) -> Result<JobCreatedPayload, String> {
     resolve_steps(&mut payload);
     interpolate_pipeline(&mut payload);
     // Re-sync payload.agent with the (possibly now-interpolated) first step's agent.
@@ -24,7 +27,26 @@ pub fn ensure_pipeline(mut payload: JobCreatedPayload) -> JobCreatedPayload {
     {
         payload.agent = agent.clone();
     }
-    payload
+    if let Some(pipeline) = &payload.steps {
+        validate_pipeline(pipeline)?;
+    }
+    Ok(payload)
+}
+
+/// Enforce platform invariants on a resolved pipeline. Currently: any step
+/// whose type requires an agent (`Agent`, `Gate`) must declare one. No silent
+/// fallbacks — naming the step id makes misconfigured pipelines fail loud.
+fn validate_pipeline(pipeline: &Pipeline) -> Result<(), String> {
+    for step in &pipeline.steps {
+        let needs_agent = matches!(step.step_type, StepType::Agent | StepType::Gate);
+        if needs_agent && step.agent.as_deref().map(str::is_empty).unwrap_or(true) {
+            return Err(format!(
+                "pipeline step '{}' of type {:?} requires an agent but none was declared",
+                step.id, step.step_type
+            ));
+        }
+    }
+    Ok(())
 }
 
 /// Attach a `Pipeline` to `payload.steps` without any template interpolation.
@@ -91,13 +113,27 @@ fn resolve_steps(payload: &mut JobCreatedPayload) {
         return;
     }
 
-    // Default pipeline
+    // No pipeline declared anywhere — construct a single Agent step from the
+    // job's declared agent. No review, no merge, no hardcoded model.
     tracing::info!(
         slug = payload.slug,
         agent = payload.agent,
-        "pipeline: no steps defined, injecting default pipeline"
+        "pipeline: no steps defined, constructing single-step pipeline from job agent"
     );
-    payload.steps = Some(Pipeline::default_for_agent(&payload.agent));
+    payload.steps = Some(Pipeline {
+        steps: vec![PipelineStep {
+            id: "implement".to_string(),
+            step_type: StepType::Agent,
+            agent: Some(payload.agent.clone()),
+            goal: None,
+            after: vec![],
+            model: None,
+            provider: None,
+            command: None,
+            max_retries: None,
+            gate: None,
+        }],
+    });
 }
 
 /// Substitute `{{ var }}` references in every step field using `payload.vars`.

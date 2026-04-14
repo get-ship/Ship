@@ -171,50 +171,6 @@ pub struct Pipeline {
 }
 
 impl Pipeline {
-    /// Default pipeline: implement → gate → merge.
-    pub fn default_for_agent(agent: &str) -> Self {
-        Self {
-            steps: vec![
-                PipelineStep {
-                    id: "implement".to_string(),
-                    step_type: StepType::Agent,
-                    agent: Some(agent.to_string()),
-                    goal: None,
-                    after: vec![],
-                    model: None,
-                    provider: None,
-                    command: None,
-                    max_retries: None,
-                    gate: None,
-                },
-                PipelineStep {
-                    id: "gate".to_string(),
-                    step_type: StepType::Gate,
-                    agent: Some("reviewer".to_string()),
-                    goal: None,
-                    after: vec!["implement".to_string()],
-                    model: Some("sonnet".to_string()),
-                    provider: None,
-                    command: None,
-                    max_retries: None,
-                    gate: None,
-                },
-                PipelineStep {
-                    id: "merge".to_string(),
-                    step_type: StepType::Merge,
-                    agent: None,
-                    goal: None,
-                    after: vec!["gate".to_string()],
-                    model: None,
-                    provider: None,
-                    command: None,
-                    max_retries: None,
-                    gate: None,
-                },
-            ],
-        }
-    }
-
     /// Find root steps (no dependencies).
     pub fn root_steps(&self) -> Vec<&PipelineStep> {
         self.steps.iter().filter(|s| s.after.is_empty()).collect()

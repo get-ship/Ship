@@ -35,7 +35,14 @@ pub async fn handle_job_created(
         return;
     }
 
-    let payload = ensure_pipeline(payload);
+    let slug_for_err = payload.slug.clone();
+    let payload = match ensure_pipeline(payload) {
+        Ok(p) => p,
+        Err(e) => {
+            tracing::error!(slug = slug_for_err, "pipeline: load failed: {e}");
+            return;
+        }
+    };
     dispatch_job_internal(kernel, &payload, octx).await;
 }
 
