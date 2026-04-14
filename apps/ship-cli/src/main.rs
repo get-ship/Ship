@@ -21,6 +21,7 @@ mod init;
 mod install;
 mod loader;
 mod logging;
+mod skill_loader;
 mod mcp;
 mod mcp_serve;
 mod paths;
