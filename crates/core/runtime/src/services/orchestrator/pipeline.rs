@@ -200,7 +200,12 @@ async fn advance_pipeline_inner(
                 dispatched_any = true;
             }
             StepType::Agent | StepType::Gate => {
-                let agent = step.agent.as_deref().unwrap_or("reviewer");
+                // Load-time validation guarantees an agent here; defensively skip
+                // on the impossible path rather than substituting a role name.
+                let Some(agent) = step.agent.as_deref().filter(|a| !a.is_empty()) else {
+                    tracing::error!(slug, step_id = step.id, "pipeline: step missing agent");
+                    continue;
+                };
 
                 if !worktree_path.exists() {
                     tracing::error!(slug, "pipeline: worktree missing");

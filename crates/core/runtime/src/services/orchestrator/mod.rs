@@ -19,6 +19,8 @@ pub mod gate_rules;
 pub mod handlers;
 pub mod pipeline;
 pub mod pipeline_loader;
+#[cfg(test)]
+mod pipeline_loader_tests;
 pub mod pipeline_vars;
 pub mod pending;
 pub mod pipeline_specs;
