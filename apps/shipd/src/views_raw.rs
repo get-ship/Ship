@@ -3,15 +3,12 @@
 //!
 //! For SDK-backed first-party views (pipelines, git, specs, settings)
 //! this renders the canonical shell template inline and wraps it in
-//! `_raw_shell.html.j2`. Asset URLs in the wrapper are absolute (via
-//! the `_urls.html.j2` macros) so Studio — which injects this markup
-//! into its own DOM — still loads CSS/JS from the daemon origin.
+//! `_raw_shell.html.j2`. Asset URLs in the wrapper are absolute so the
+//! document works identically when opened directly in a browser or when
+//! embedded by Studio as an `<iframe>` source.
 //!
 //! For user-defined views under `.ship/views/{name}/index.html` the
 //! handler falls back to reading that file verbatim (legacy path).
-//! The four SDK-backed names no longer have on-disk bootstraps; they
-//! were a parallel system whose relative `@get()` URLs broke when
-//! Studio injected the markup into its cross-origin document.
 
 use axum::{
     extract::{Path, Query, State},

@@ -1,8 +1,8 @@
 {#-
   Wrapper shell for `/api/runtime/view/{name}/raw`. Renders a full HTML
-  document around an already-rendered SDK view fragment. Asset URLs are
-  absolute (via _urls.html.j2 macros) so Studio can inject this markup
-  into its own DOM and still load CSS/JS from the daemon origin.
+  document around an already-rendered SDK view fragment. Served both to
+  direct-browser visitors and to Studio, which embeds it via <iframe>
+  so cross-origin concerns stay inside a single request per mount.
 
   Required context:
     - title : string
@@ -18,6 +18,21 @@
   <link rel="stylesheet" href="{{ asset_view_tokens_css() }}">
   <script type="module" src="{{ asset_datastar_js() }}"></script>
   <script type="module" src="{{ asset_ship_elements_js() }}"></script>
+  <script>
+    // Forward Studio-level keybindings to the parent window when embedded.
+    // Only fires when this document is in a frame; standalone loads are
+    // unaffected.
+    (function () {
+      if (window.parent === window) return;
+      window.addEventListener('keydown', function (e) {
+        var mod = e.metaKey || e.ctrlKey;
+        if (mod && (e.key === 'k' || e.key === 'K')) {
+          e.preventDefault();
+          window.parent.postMessage({ source: 'ship-view', type: 'cmdk' }, '*');
+        }
+      });
+    })();
+  </script>
 </head>
 <body>
 {{ inner | safe }}

@@ -44,7 +44,7 @@ async fn pipelines_raw_returns_wrapped_sdk_shell() {
     let body = body_string(resp).await;
     assert!(body.contains("<!DOCTYPE html>"), "must be full document");
     assert!(body.contains("</html>"));
-    // Absolute asset URLs so Studio's DOM-injection host loads from daemon.
+    // Absolute asset URLs so the document works embedded as an iframe src.
     assert!(
         body.contains("http://127.0.0.1:9315/api/runtime/assets/view-tokens.css"),
         "asset URL must be absolute"

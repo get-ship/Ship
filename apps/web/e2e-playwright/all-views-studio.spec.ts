@@ -38,12 +38,11 @@ for (const { name, rootId } of VIEWS) {
 
     await page.goto(`/studio/view/${name}`)
 
-    // The SDK shell is now inlined in /raw — the root appears without a
-    // second relative @get fetch. A short wait is enough.
-    await expect(page.locator(`#${rootId}`)).toBeAttached({ timeout: 15000 })
-    await expect(page.locator(`#${rootId}`)).not.toHaveText(/Connecting/i)
-    // Must have rendered content, not the bootstrap placeholder.
-    const childCount = await page.locator(`#${rootId} *`).count()
+    // Studio embeds each view as an iframe sourced from the daemon.
+    const frame = page.frameLocator(`iframe[title="${name}"]`)
+    await expect(frame.locator(`#${rootId}`)).toBeAttached({ timeout: 15000 })
+    await expect(frame.locator(`#${rootId}`)).not.toHaveText(/Connecting/i)
+    const childCount = await frame.locator(`#${rootId} *`).count()
     expect(childCount, `${name} root must have children`).toBeGreaterThan(0)
 
     await page.screenshot({ path: `../../.artifacts/qa-screenshots/studio-${name}.png`, fullPage: true })
