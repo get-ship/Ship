@@ -14,11 +14,13 @@
 {% block body_class %}ship-canvas{% endblock %}
 
 {% block body %}
-<div
-  id="root"
-  class="ship-canvas-root"
-  data-init="@get('/api/runtime/view-sessions/{{ view_id }}', {requestCancellation: 'disabled'})"
->
-  <p class="ship-canvas-empty">awaiting first patch…</p>
-</div>
+<ship-annotation-layer view-id="{{ view_id }}" mode="point" staging>
+  <div
+    id="root"
+    class="ship-canvas-root"
+    data-init="@get('/api/runtime/view-sessions/{{ view_id }}', {requestCancellation: 'disabled'})"
+  >
+    <p class="ship-canvas-empty">awaiting first patch…</p>
+  </div>
+</ship-annotation-layer>
 {% endblock %}
