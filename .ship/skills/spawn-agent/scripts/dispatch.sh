@@ -170,16 +170,22 @@ auto_kickstart_tmux() {
         # session where `Enter` was a no-op and `C-m` advanced past the menu.
         tmux send-keys -t "$session" C-m
         sleep 1
-        # C-m (not Enter) for the input widget too — same reason as the menu
-        # above. Claude Code's multi-line textarea treats `Enter` as newline;
-        # submit requires a literal CR.
-        tmux send-keys -t "$session" "Read .artifacts/job-spec.md and execute it autonomously." C-m
+        # Send text and the submit key in SEPARATE send-keys invocations with
+        # a pause between. Combined into one call, Claude Code's paste handler
+        # collapses the trailing CR into the input buffer instead of firing
+        # submit — observed across multiple dispatches where the user had to
+        # press Enter manually. Splitting mimics human typing and submits.
+        tmux send-keys -t "$session" "Read .artifacts/job-spec.md and execute it autonomously."
+        sleep 1
+        tmux send-keys -t "$session" Enter
         exit 0
       fi
     done
     # Prompt not found (non-claude provider or --dangerously-skip-permissions accepted it) —
-    # still send the autostart message.
-    tmux send-keys -t "$session" "Read .artifacts/job-spec.md and execute it autonomously." C-m
+    # still send the autostart message (same split-send pattern).
+    tmux send-keys -t "$session" "Read .artifacts/job-spec.md and execute it autonomously."
+    sleep 1
+    tmux send-keys -t "$session" Enter
   ) &
 }
 
