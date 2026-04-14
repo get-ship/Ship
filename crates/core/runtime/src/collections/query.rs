@@ -30,6 +30,12 @@ pub fn build_select(req: &QueryRequest) -> (String, sea_query::Values) {
     query.expr(Expr::asterisk()).from(table.clone());
 
     for (field, value) in &req.filter {
+        if field == "$or" {
+            if let Some(conditions) = value.as_array() {
+                apply_or(&mut query, conditions);
+            }
+            continue;
+        }
         if !is_safe_identifier(field) {
             tracing::warn!(field, "query: skipping unsafe field name");
             continue;
@@ -56,6 +62,45 @@ pub fn build_select(req: &QueryRequest) -> (String, sea_query::Values) {
     query.limit(limit as u64).offset(req.offset as u64);
 
     query.build(SqliteQueryBuilder)
+}
+
+/// Apply an $or condition: array of filter objects joined with OR.
+fn apply_or(query: &mut SelectStatement, conditions: &[serde_json::Value]) {
+    use sea_query::Condition;
+    let mut or_cond = Condition::any();
+    for condition in conditions {
+        if let Some(obj) = condition.as_object() {
+            let mut and_cond = Condition::all();
+            for (field, value) in obj {
+                if !is_safe_identifier(field) {
+                    continue;
+                }
+                // Build the condition expression manually for each field.
+                let col = Alias::new(field.as_str());
+                match value {
+                    serde_json::Value::String(s) => {
+                        and_cond = and_cond.add(Expr::col(col).eq(s.as_str()));
+                    }
+                    serde_json::Value::Number(n) => {
+                        if let Some(i) = n.as_i64() {
+                            and_cond = and_cond.add(Expr::col(col).eq(i));
+                        } else if let Some(f) = n.as_f64() {
+                            and_cond = and_cond.add(Expr::col(col).eq(f));
+                        }
+                    }
+                    serde_json::Value::Bool(b) => {
+                        and_cond = and_cond.add(Expr::col(col).eq(*b));
+                    }
+                    serde_json::Value::Null => {
+                        and_cond = and_cond.add(Expr::col(col).is_null());
+                    }
+                    _ => {}
+                }
+            }
+            or_cond = or_cond.add(and_cond);
+        }
+    }
+    query.cond_where(or_cond);
 }
 
 fn apply_filter(
@@ -120,11 +165,27 @@ fn apply_filter(
                             }
                         }
                     }
+                    "$nin" => {
+                        if let Some(arr) = val.as_array() {
+                            let sea_vals: Vec<sea_query::Value> = arr
+                                .iter()
+                                .filter_map(json_to_sea_value)
+                                .collect();
+                            if !sea_vals.is_empty() {
+                                query.and_where(Expr::col(col.clone()).is_not_in(sea_vals));
+                            }
+                        }
+                    }
                     "$exists" => {
                         if val.as_bool() == Some(true) {
                             query.and_where(Expr::col(col.clone()).is_not_null());
                         } else {
                             query.and_where(Expr::col(col.clone()).is_null());
+                        }
+                    }
+                    "$contains" | "$like" => {
+                        if let Some(s) = val.as_str() {
+                            query.and_where(Expr::col(col.clone()).like(format!("%{s}%")));
                         }
                     }
                     _ => {
@@ -272,6 +333,28 @@ mod tests {
         let req = query(json!({ "assignee": null }));
         let (sql, _) = build_select(&req);
         assert!(sql.contains("IS NULL"));
+    }
+
+    #[test]
+    fn nin_operator() {
+        let req = query(json!({ "status": { "$nin": ["done", "doing"] } }));
+        let (sql, _) = build_select(&req);
+        assert!(sql.contains("NOT IN"), "sql: {sql}");
+    }
+
+    #[test]
+    fn contains_operator() {
+        let req = query(json!({ "title": { "$contains": "test" } }));
+        let (sql, _) = build_select(&req);
+        assert!(sql.contains("LIKE"), "sql: {sql}");
+        assert!(sql.contains("%test%") || sql.contains("?"), "sql: {sql}");
+    }
+
+    #[test]
+    fn or_operator() {
+        let req = query(json!({ "$or": [{"status": "todo"}, {"status": "doing"}] }));
+        let (sql, _) = build_select(&req);
+        assert!(sql.contains("OR"), "sql: {sql}");
     }
 
     #[test]

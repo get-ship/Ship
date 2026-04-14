@@ -9,7 +9,64 @@ use serde::Deserialize;
 use crate::auth::{AuthContext, Scope, require_scope};
 use crate::rest_api::ApiState;
 use runtime::collections::{query::QueryRequest, schema, service, store};
-use runtime::data::DataService;
+
+// ── Helpers ──────────────────────────────────────────────────────────────────
+
+fn err(status: StatusCode, msg: &str) -> axum::response::Response {
+    (status, Json(serde_json::json!({ "ok": false, "error": msg }))).into_response()
+}
+
+fn err_owned(status: StatusCode, msg: String) -> axum::response::Response {
+    (status, Json(serde_json::json!({ "ok": false, "error": msg }))).into_response()
+}
+
+/// Get the shared DataService, ensuring collection table exists.
+async fn get_svc_and_schema<'a>(
+    state: &'a ApiState,
+    collection: &str,
+) -> Result<
+    (tokio::sync::MutexGuard<'a, Option<runtime::data::DataService>>, schema::CollectionSchema),
+    axum::response::Response,
+> {
+    let schema = load_schema(state.ship_dir(), collection)
+        .map_err(|e| err_owned(StatusCode::NOT_FOUND, e.to_string()))?;
+
+    let mut guard = state.data_service().await
+        .map_err(|e| err_owned(StatusCode::INTERNAL_SERVER_ERROR, e.to_string()))?;
+
+    // Ensure table exists for this schema.
+    {
+        let svc = guard.as_mut().unwrap();
+        store::ensure_collection_table(svc, &schema)
+            .map_err(|e| err_owned(StatusCode::INTERNAL_SERVER_ERROR, e.to_string()))?;
+    }
+
+    Ok((guard, schema))
+}
+
+fn load_schema(
+    ship_dir: &std::path::Path,
+    collection: &str,
+) -> anyhow::Result<schema::CollectionSchema> {
+    let schemas = schema::load_schemas(ship_dir)?;
+    schemas
+        .into_iter()
+        .find(|s| s.id == collection)
+        .ok_or_else(|| anyhow::anyhow!("collection '{}' not found", collection))
+}
+
+fn generate_item_id() -> String {
+    use std::time::{SystemTime, UNIX_EPOCH};
+    let ts = SystemTime::now()
+        .duration_since(UNIX_EPOCH)
+        .unwrap_or_default()
+        .as_millis();
+    let mut buf = [0u8; 4];
+    getrandom::getrandom(&mut buf).ok();
+    format!("{ts:x}-{:08x}", u32::from_le_bytes(buf))
+}
+
+// ── Handlers ─────────────────────────────────────────────────────────────────
 
 /// GET /api/collections — list registered schemas.
 pub async fn list_collections(
@@ -29,10 +86,7 @@ pub async fn list_collections(
             (StatusCode::OK, Json(serde_json::json!({ "ok": true, "data": summaries })))
                 .into_response()
         }
-        Err(e) => (
-            StatusCode::INTERNAL_SERVER_ERROR,
-            Json(serde_json::json!({ "ok": false, "error": e.to_string() })),
-        ).into_response(),
+        Err(e) => err_owned(StatusCode::INTERNAL_SERVER_ERROR, e.to_string()),
     }
 }
 
@@ -48,10 +102,7 @@ pub async fn get_schema(
     match load_schema(state.ship_dir(), &collection) {
         Ok(s) => (StatusCode::OK, Json(serde_json::json!({ "ok": true, "data": s })))
             .into_response(),
-        Err(e) => (
-            StatusCode::NOT_FOUND,
-            Json(serde_json::json!({ "ok": false, "error": e.to_string() })),
-        ).into_response(),
+        Err(e) => err_owned(StatusCode::NOT_FOUND, e.to_string()),
     }
 }
 
@@ -71,26 +122,16 @@ pub async fn create_item(
     if let Err(e) = require_scope(&auth, Scope::WriteWorkspace) {
         return e.into_response();
     }
-    let schema = match load_schema(state.ship_dir(), &collection) {
-        Ok(s) => s,
-        Err(e) => return (
-            StatusCode::NOT_FOUND,
-            Json(serde_json::json!({ "ok": false, "error": e.to_string() })),
-        ).into_response(),
+    let (mut guard, schema) = match get_svc_and_schema(&state, &collection).await {
+        Ok(pair) => pair,
+        Err(resp) => return resp,
     };
+    let svc = guard.as_mut().unwrap();
 
     let id = req.id.unwrap_or_else(generate_item_id);
     let created_by = auth.agent_id.as_deref();
 
-    let mut conn = match store::open_docs_db(state.ship_dir()) {
-        Ok(c) => c,
-        Err(e) => return (
-            StatusCode::INTERNAL_SERVER_ERROR,
-            Json(serde_json::json!({ "ok": false, "error": e.to_string() })),
-        ).into_response(),
-    };
-
-    match service::create_item(&mut conn, state.kernel(), &schema, &id, &req.data, created_by).await {
+    match service::create_item(svc, state.kernel(), &schema, &id, &req.data, created_by).await {
         Ok(item) => (StatusCode::CREATED, Json(serde_json::json!({ "ok": true, "data": item })))
             .into_response(),
         Err(e) => {
@@ -99,8 +140,7 @@ pub async fn create_item(
             } else {
                 StatusCode::INTERNAL_SERVER_ERROR
             };
-            (status, Json(serde_json::json!({ "ok": false, "error": e.to_string() })))
-                .into_response()
+            err_owned(status, e.to_string())
         }
     }
 }
@@ -114,32 +154,17 @@ pub async fn get_item(
     if let Err(e) = require_scope(&auth, Scope::ReadWorkspace) {
         return e.into_response();
     }
-    let schema = match load_schema(state.ship_dir(), &collection) {
-        Ok(s) => s,
-        Err(e) => return (
-            StatusCode::NOT_FOUND,
-            Json(serde_json::json!({ "ok": false, "error": e.to_string() })),
-        ).into_response(),
+    let (mut guard, schema) = match get_svc_and_schema(&state, &collection).await {
+        Ok(pair) => pair,
+        Err(resp) => return resp,
     };
-    let mut conn = match store::open_docs_db(state.ship_dir()) {
-        Ok(c) => c,
-        Err(e) => return (
-            StatusCode::INTERNAL_SERVER_ERROR,
-            Json(serde_json::json!({ "ok": false, "error": e.to_string() })),
-        ).into_response(),
-    };
+    let svc = guard.as_mut().unwrap();
 
-    match service::get_item(&mut conn, &schema, &item_id) {
+    match service::get_item(svc, &schema, &item_id) {
         Ok(Some(item)) => (StatusCode::OK, Json(serde_json::json!({ "ok": true, "data": item })))
             .into_response(),
-        Ok(None) => (
-            StatusCode::NOT_FOUND,
-            Json(serde_json::json!({ "ok": false, "error": format!("item '{item_id}' not found") })),
-        ).into_response(),
-        Err(e) => (
-            StatusCode::INTERNAL_SERVER_ERROR,
-            Json(serde_json::json!({ "ok": false, "error": e.to_string() })),
-        ).into_response(),
+        Ok(None) => err_owned(StatusCode::NOT_FOUND, format!("item '{item_id}' not found")),
+        Err(e) => err_owned(StatusCode::INTERNAL_SERVER_ERROR, e.to_string()),
     }
 }
 
@@ -158,23 +183,13 @@ pub async fn update_item(
     if let Err(e) = require_scope(&auth, Scope::WriteWorkspace) {
         return e.into_response();
     }
-    let schema = match load_schema(state.ship_dir(), &collection) {
-        Ok(s) => s,
-        Err(e) => return (
-            StatusCode::NOT_FOUND,
-            Json(serde_json::json!({ "ok": false, "error": e.to_string() })),
-        ).into_response(),
+    let (mut guard, schema) = match get_svc_and_schema(&state, &collection).await {
+        Ok(pair) => pair,
+        Err(resp) => return resp,
     };
+    let svc = guard.as_mut().unwrap();
 
-    let mut conn = match store::open_docs_db(state.ship_dir()) {
-        Ok(c) => c,
-        Err(e) => return (
-            StatusCode::INTERNAL_SERVER_ERROR,
-            Json(serde_json::json!({ "ok": false, "error": e.to_string() })),
-        ).into_response(),
-    };
-
-    match service::update_item(&mut conn, state.kernel(), &schema, &item_id, &req.data).await {
+    match service::update_item(svc, state.kernel(), &schema, &item_id, &req.data).await {
         Ok(item) => (StatusCode::OK, Json(serde_json::json!({ "ok": true, "data": item })))
             .into_response(),
         Err(e) => {
@@ -185,8 +200,7 @@ pub async fn update_item(
             } else {
                 StatusCode::INTERNAL_SERVER_ERROR
             };
-            (status, Json(serde_json::json!({ "ok": false, "error": e.to_string() })))
-                .into_response()
+            err_owned(status, e.to_string())
         }
     }
 }
@@ -200,25 +214,17 @@ pub async fn delete_item(
     if let Err(e) = require_scope(&auth, Scope::WriteWorkspace) {
         return e.into_response();
     }
-    let mut conn = match store::open_docs_db(state.ship_dir()) {
-        Ok(c) => c,
-        Err(e) => return (
-            StatusCode::INTERNAL_SERVER_ERROR,
-            Json(serde_json::json!({ "ok": false, "error": e.to_string() })),
-        ).into_response(),
+    let mut guard = match state.data_service().await {
+        Ok(g) => g,
+        Err(e) => return err_owned(StatusCode::INTERNAL_SERVER_ERROR, e.to_string()),
     };
+    let svc = guard.as_mut().unwrap();
 
-    match service::delete_item(&mut conn, state.kernel(), &collection, &item_id).await {
+    match service::delete_item(svc, state.kernel(), &collection, &item_id).await {
         Ok(true) => (StatusCode::OK, Json(serde_json::json!({ "ok": true })))
             .into_response(),
-        Ok(false) => (
-            StatusCode::NOT_FOUND,
-            Json(serde_json::json!({ "ok": false, "error": format!("item '{item_id}' not found") })),
-        ).into_response(),
-        Err(e) => (
-            StatusCode::INTERNAL_SERVER_ERROR,
-            Json(serde_json::json!({ "ok": false, "error": e.to_string() })),
-        ).into_response(),
+        Ok(false) => err_owned(StatusCode::NOT_FOUND, format!("item '{item_id}' not found")),
+        Err(e) => err_owned(StatusCode::INTERNAL_SERVER_ERROR, e.to_string()),
     }
 }
 
@@ -232,58 +238,23 @@ pub async fn query_items(
     if let Err(e) = require_scope(&auth, Scope::ReadWorkspace) {
         return e.into_response();
     }
-    // Override collection from path (ignore any collection field in body).
     req.collection = collection.clone();
 
-    let col_schema = match load_schema(state.ship_dir(), &collection) {
-        Ok(s) => s,
-        Err(e) => return (
-            StatusCode::NOT_FOUND,
-            Json(serde_json::json!({ "ok": false, "error": e.to_string() })),
-        ).into_response(),
+    let (mut guard, schema) = match get_svc_and_schema(&state, &collection).await {
+        Ok(pair) => pair,
+        Err(resp) => return resp,
     };
+    let svc = guard.as_mut().unwrap();
 
-    let mut conn = match store::open_docs_db(state.ship_dir()) {
-        Ok(c) => c,
-        Err(e) => return (
-            StatusCode::INTERNAL_SERVER_ERROR,
-            Json(serde_json::json!({ "ok": false, "error": e.to_string() })),
-        ).into_response(),
-    };
-
-    match service::query_items(&mut conn, &col_schema, &req) {
-        Ok(items) => (StatusCode::OK, Json(serde_json::json!({
-            "ok": true,
-            "data": items,
-            "count": items.len(),
-        }))).into_response(),
-        Err(e) => (
-            StatusCode::INTERNAL_SERVER_ERROR,
-            Json(serde_json::json!({ "ok": false, "error": e.to_string() })),
-        ).into_response(),
+    match service::query_items(svc, &schema, &req) {
+        Ok(items) => {
+            let count = items.len();
+            (StatusCode::OK, Json(serde_json::json!({
+                "ok": true,
+                "data": items,
+                "count": count,
+            }))).into_response()
+        }
+        Err(e) => err_owned(StatusCode::INTERNAL_SERVER_ERROR, e.to_string()),
     }
-}
-
-// ── Helpers ──────────────────────────────────────────────────────────────────
-
-fn generate_item_id() -> String {
-    use std::time::{SystemTime, UNIX_EPOCH};
-    let ts = SystemTime::now()
-        .duration_since(UNIX_EPOCH)
-        .unwrap_or_default()
-        .as_millis();
-    let mut buf = [0u8; 4];
-    getrandom::getrandom(&mut buf).ok();
-    format!("{ts:x}-{:08x}", u32::from_le_bytes(buf))
-}
-
-fn load_schema(
-    ship_dir: &std::path::Path,
-    collection: &str,
-) -> anyhow::Result<runtime::collections::schema::CollectionSchema> {
-    let schemas = schema::load_schemas(ship_dir)?;
-    schemas
-        .into_iter()
-        .find(|s| s.id == collection)
-        .ok_or_else(|| anyhow::anyhow!("collection '{}' not found", collection))
 }

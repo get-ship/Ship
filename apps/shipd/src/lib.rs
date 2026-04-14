@@ -7,7 +7,6 @@ pub mod actor_api;
 pub mod auth;
 pub mod collection_api;
 mod connections;
-pub mod views_data;
 pub mod scopes;
 pub mod session;
 mod handler;
@@ -402,9 +401,6 @@ fn build_ship_routes(st: rest_api::ApiState) -> Router {
         .ship_route(Route::ArtifactsStatus_template(), project_api::artifacts_status)
         .ship_route(Route::PromoteArtifact_template(), project_api::promote_artifact)
         .ship_route(Route::ListProjectArtifacts, project_api::list_project_artifacts)
-        // Data browser view
-        .ship_route(Route::ViewData, views_data::data_shell)
-        .ship_route(Route::ViewDataSse, views_data::data_sse)
         // Collections
         .ship_route(Route::ListCollections, collection_api::list_collections)
         .ship_route(Route::GetCollectionSchema_template(), collection_api::get_schema)

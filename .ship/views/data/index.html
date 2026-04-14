@@ -6,10 +6,251 @@
   <link rel="stylesheet" href="/api/runtime/assets/view-tokens.css">
   <script type="module" src="/api/runtime/assets/datastar.js"></script>
   <script type="module" src="/api/runtime/assets/ship-elements.js"></script>
+  <style>
+    .ship-view { color: var(--foreground); }
+    .data-wrap { max-width: 72rem; margin: 0 auto; padding: 24px 16px; }
+    .data-head { display: flex; align-items: flex-end; justify-content: space-between; gap: 16px; margin-bottom: 20px; }
+    .data-title { font-family: var(--font-display); font-size: 20px; font-weight: 600; letter-spacing: -0.01em; margin: 0; }
+    .data-sub { font-size: 12px; color: var(--muted-foreground); margin-top: 4px; }
+    .data-toolbar { display: flex; align-items: center; gap: 10px; margin-bottom: 16px; flex-wrap: wrap; }
+    .data-select { font-size: 13px; padding: 6px 10px; border-radius: var(--radius-md); border: 1px solid var(--border); background: var(--card); color: var(--foreground); }
+    .data-btn { font-size: 12px; padding: 5px 12px; border-radius: var(--radius-md); border: 1px solid var(--border); background: var(--primary); color: var(--primary-foreground); cursor: pointer; font-weight: 500; }
+    .data-btn:hover { opacity: 0.9; }
+    .data-btn-ghost { background: transparent; color: var(--foreground); }
+    .data-btn-danger { background: transparent; color: var(--destructive); border-color: var(--destructive); }
+    .data-btn-danger:hover { background: var(--destructive); color: var(--destructive-foreground); }
+    .data-btn-sm { padding: 3px 8px; font-size: 11px; }
+    .data-table { width: 100%; border-collapse: collapse; font-size: 13px; }
+    .data-table th { text-align: left; padding: 8px 12px; border-bottom: 2px solid var(--border); font-weight: 600; font-size: 11px; text-transform: uppercase; letter-spacing: 0.04em; color: var(--muted-foreground); }
+    .data-table td { padding: 8px 12px; border-bottom: 1px solid var(--border); vertical-align: top; }
+    .data-table tr:hover td { background: color-mix(in oklch, var(--muted) 30%, transparent); }
+    .data-cell-id { font-family: var(--font-mono); font-size: 11px; color: var(--muted-foreground); }
+    .data-empty { text-align: center; padding: 48px 16px; color: var(--muted-foreground); }
+    .data-count { font-size: 11px; color: var(--muted-foreground); margin-left: auto; }
+    .data-form { border: 1px solid var(--border); border-radius: var(--radius-lg); padding: 16px; margin-bottom: 16px; background: var(--card); }
+    .data-form-title { font-size: 14px; font-weight: 600; margin: 0 0 12px; }
+    .data-form-row { display: flex; align-items: flex-start; gap: 8px; margin-bottom: 8px; }
+    .data-form-label { font-size: 12px; font-weight: 500; min-width: 100px; padding-top: 6px; color: var(--muted-foreground); }
+    .data-form-input { font-size: 13px; padding: 5px 8px; border-radius: var(--radius-md); border: 1px solid var(--border); background: var(--background); color: var(--foreground); flex: 1; font-family: inherit; }
+    .data-form-select { font-size: 13px; padding: 5px 8px; border-radius: var(--radius-md); border: 1px solid var(--border); background: var(--background); color: var(--foreground); }
+    .data-form-actions { display: flex; gap: 8px; margin-top: 12px; }
+  </style>
 </head>
 <body>
-  <div id="data-root" data-init="@get('/api/runtime/view/data', {requestCancellation: 'disabled'})">
-    <p style="text-align:center;padding:48px;color:var(--muted-foreground)">Connecting&hellip;</p>
+  <div class="ship-view">
+    <div class="data-wrap">
+      <div class="data-head">
+        <div>
+          <h2 class="data-title">Data</h2>
+          <p class="data-sub" id="data-subtitle">Loading...</p>
+        </div>
+      </div>
+
+      <div class="data-toolbar">
+        <select class="data-select" id="collection-picker" onchange="loadCollection(this.value)">
+          <option disabled selected>Loading...</option>
+        </select>
+        <button class="data-btn" id="btn-new" onclick="toggleCreateForm()" style="display:none">+ New</button>
+        <span class="data-count" id="data-count"></span>
+      </div>
+
+      <div id="create-form-container" style="display:none"></div>
+      <div id="data-content">
+        <div class="data-empty">Connecting...</div>
+      </div>
+    </div>
   </div>
+
+  <script type="module">
+    let currentSchema = null;
+    let currentCollection = null;
+
+    // Make functions available globally for onclick handlers.
+    window.loadCollection = loadCollection;
+    window.toggleCreateForm = toggleCreateForm;
+    window.submitCreate = submitCreate;
+    window.deleteItem = deleteItem;
+
+    async function api(path, opts = {}) {
+      const resp = await fetch(path, {
+        credentials: 'include',
+        ...opts,
+        headers: { 'Content-Type': 'application/json', ...(opts.headers || {}) },
+      });
+      return resp.json();
+    }
+
+    // ── Init ────────────────────────────────────────────────────────
+    async function init() {
+      const result = await api('/api/collections');
+      if (!result.ok || !result.data.length) {
+        document.getElementById('data-subtitle').textContent = 'No collections defined';
+        document.getElementById('data-content').innerHTML =
+          '<div class="data-empty"><p>Add a schema to <code>.ship/schemas/</code></p></div>';
+        return;
+      }
+
+      const picker = document.getElementById('collection-picker');
+      picker.innerHTML = result.data
+        .map(c => `<option value="${c.id}">${c.name || c.id} (${c.field_count})</option>`)
+        .join('');
+
+      document.getElementById('btn-new').style.display = '';
+      await loadCollection(result.data[0].id);
+    }
+
+    // ── Load collection ─────────────────────────────────────────────
+    async function loadCollection(id) {
+      currentCollection = id;
+      const [schemaResult, queryResult] = await Promise.all([
+        api(`/api/collections/${id}/schema`),
+        api(`/api/collections/${id}/query`, {
+          method: 'POST',
+          body: JSON.stringify({ collection: id, limit: 200 }),
+        }),
+      ]);
+
+      if (!schemaResult.ok) {
+        document.getElementById('data-content').innerHTML =
+          `<div class="data-empty">${schemaResult.error}</div>`;
+        return;
+      }
+
+      currentSchema = schemaResult.data;
+      const items = queryResult.ok ? queryResult.data : [];
+
+      document.getElementById('data-subtitle').textContent =
+        `${items.length} item${items.length !== 1 ? 's' : ''}`;
+      document.getElementById('data-count').textContent =
+        `${items.length} item${items.length !== 1 ? 's' : ''}`;
+
+      renderTable(items);
+      hideCreateForm();
+    }
+
+    // ── Render table ────────────────────────────────────────────────
+    function renderTable(items) {
+      const fields = Object.entries(currentSchema.fields);
+      if (!items.length) {
+        document.getElementById('data-content').innerHTML =
+          `<div class="data-empty"><p>No items in <strong>${currentCollection}</strong></p>
+           <p style="font-size:11px;margin-top:8px">Click <strong>+ New</strong> to create one</p></div>`;
+        return;
+      }
+
+      const headers = ['ID', ...fields.map(([k]) => k), 'Updated', ''].map(h =>
+        `<th>${h}</th>`
+      ).join('');
+
+      const rows = items.map(item => {
+        const cells = fields.map(([name, def]) => {
+          const val = item.data[name];
+          if (val == null) return '<td><span style="color:var(--muted-foreground)">—</span></td>';
+          if (def.field_type === 'enum') return `<td><ship-chip>${val}</ship-chip></td>`;
+          if (def.field_type === 'boolean') return `<td>${val ? 'Yes' : 'No'}</td>`;
+          if (def.field_type === 'markdown') {
+            const preview = String(val).slice(0, 80);
+            return `<td title="${val}">${preview}${val.length > 80 ? '...' : ''}</td>`;
+          }
+          return `<td>${val}</td>`;
+        }).join('');
+
+        const idCell = `<td class="data-cell-id" title="${item.id}">${item.id.slice(0, 12)}</td>`;
+        const updated = `<td style="font-size:11px;color:var(--muted-foreground)">${(item.updated_at || '').slice(0, 16)}</td>`;
+        const actions = `<td><button class="data-btn data-btn-danger data-btn-sm" onclick="deleteItem('${item.id}')" title="Delete">✕</button></td>`;
+
+        return `<tr id="item-${item.id}">${idCell}${cells}${updated}${actions}</tr>`;
+      }).join('');
+
+      document.getElementById('data-content').innerHTML =
+        `<table class="data-table"><thead><tr>${headers}</tr></thead><tbody>${rows}</tbody></table>`;
+    }
+
+    // ── Create form ─────────────────────────────────────────────────
+    function toggleCreateForm() {
+      const container = document.getElementById('create-form-container');
+      if (container.style.display === 'none') {
+        showCreateForm();
+      } else {
+        hideCreateForm();
+      }
+    }
+
+    function showCreateForm() {
+      const fields = Object.entries(currentSchema.fields);
+      const rows = fields.map(([name, def]) => {
+        let input;
+        if (def.field_type === 'enum' && def.values) {
+          const opts = ['<option value="">—</option>',
+            ...def.values.map(v => `<option value="${v}">${v}</option>`)].join('');
+          input = `<select class="data-form-select" id="create-${name}">${opts}</select>`;
+        } else if (def.field_type === 'boolean') {
+          input = `<label style="display:flex;align-items:center;gap:6px"><input type="checkbox" id="create-${name}"> Yes</label>`;
+        } else if (def.field_type === 'number') {
+          input = `<input type="number" step="any" class="data-form-input" id="create-${name}" placeholder="${name}">`;
+        } else if (def.field_type === 'markdown') {
+          input = `<textarea class="data-form-input" rows="3" id="create-${name}" placeholder="${name}"></textarea>`;
+        } else {
+          input = `<input type="text" class="data-form-input" id="create-${name}" placeholder="${name}">`;
+        }
+        const req = def.required ? '<span style="color:var(--destructive)"> *</span>' : '';
+        return `<div class="data-form-row"><label class="data-form-label">${name}${req}</label>${input}</div>`;
+      }).join('');
+
+      document.getElementById('create-form-container').innerHTML =
+        `<div class="data-form">
+          <div class="data-form-title">New ${currentCollection}</div>
+          ${rows}
+          <div class="data-form-actions">
+            <button class="data-btn" onclick="submitCreate()">Create</button>
+            <button class="data-btn data-btn-ghost" onclick="hideCreateForm()">Cancel</button>
+          </div>
+        </div>`;
+      document.getElementById('create-form-container').style.display = '';
+    }
+
+    function hideCreateForm() {
+      document.getElementById('create-form-container').style.display = 'none';
+    }
+
+    async function submitCreate() {
+      const data = {};
+      for (const [name, def] of Object.entries(currentSchema.fields)) {
+        const el = document.getElementById(`create-${name}`);
+        if (!el) continue;
+        if (def.field_type === 'boolean') {
+          data[name] = el.checked;
+        } else if (def.field_type === 'number') {
+          if (el.value) data[name] = Number(el.value);
+        } else {
+          if (el.value) data[name] = el.value;
+        }
+      }
+
+      const result = await api(`/api/collections/${currentCollection}/items`, {
+        method: 'POST',
+        body: JSON.stringify({ data }),
+      });
+
+      if (result.ok) {
+        await loadCollection(currentCollection);
+      } else {
+        alert(result.error || 'Failed to create item');
+      }
+    }
+
+    // ── Delete ───────────────────────────────────────────────────────
+    async function deleteItem(id) {
+      const result = await api(`/api/collections/${currentCollection}/items/${id}`, {
+        method: 'DELETE',
+      });
+      if (result.ok) {
+        await loadCollection(currentCollection);
+      }
+    }
+
+    // ── Start ────────────────────────────────────────────────────────
+    init();
+  </script>
 </body>
 </html>

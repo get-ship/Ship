@@ -284,14 +284,6 @@ pub enum Route {
     /// @route POST "/api/events/route"
     EventRoute,
 
-    // ── Data browser view ──────────────────────────────────────────────
-
-    /// @route GET "/api/runtime/view/data"
-    ViewData,
-
-    /// @route GET "/api/runtime/view/data/sse"
-    ViewDataSse,
-
     // ── Collections ──────────────────────────────────────────────────────
 
     /// @route GET "/api/collections"
