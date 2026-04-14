@@ -6,4 +6,13 @@
 export {
   getCSSSelector,
   getElementsInRect,
+  buildAnnotationEvent,
+  newUlid,
+} from '../../../../../../packages/ui/src/utils/annotation-helpers'
+export type {
+  AnnotationEvent,
+  AnnotationKind,
+  AnnotationIntent,
+  AuthorKind,
+  BuildAnnotationInput,
 } from '../../../../../../packages/ui/src/utils/annotation-helpers'
