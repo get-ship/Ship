@@ -1,0 +1,192 @@
+{#-
+  Data browser — collection viewer/editor.
+  Processed by the daemon's Jinja engine on serve. Uses URL macros,
+  ship-elements for all UI, Datastar data-on: for actions.
+-#}
+{% from '_urls.html.j2' import list_collections, get_collection_schema, create_collection_item, update_collection_item, delete_collection_item, query_collection %}
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <title>Data</title>
+  <link rel="stylesheet" href="/api/runtime/assets/view-tokens.css">
+  <script type="module" src="/api/runtime/assets/datastar.js"></script>
+  <script type="module" src="/api/runtime/assets/ship-elements.js"></script>
+  <link rel="stylesheet" href="styles.css">
+</head>
+<body>
+  <div class="ship-view" id="data-app">
+    <div class="data-wrap">
+      <div class="data-head">
+        <div>
+          <h2 class="data-title">Data</h2>
+          <p class="data-sub" id="data-subtitle">Loading...</p>
+        </div>
+      </div>
+      <div class="data-toolbar" id="data-toolbar"></div>
+      <div id="data-create-form"></div>
+      <div id="data-content"><ship-spinner></ship-spinner></div>
+      <div id="data-edit-panel"></div>
+    </div>
+  </div>
+
+  <script type="module">
+    {#- Typed endpoints injected by Jinja from URL macros. -#}
+    const API = {
+      listCollections: '{{ list_collections() }}',
+      schema: (c) => '{{ get_collection_schema("__COL__") }}'.replace('__COL__', c),
+      createItem: (c) => '{{ create_collection_item("__COL__") }}'.replace('__COL__', c),
+      updateItem: (c, id) => '{{ update_collection_item("__COL__", "__ID__") }}'.replace('__COL__', c).replace('__ID__', id),
+      deleteItem: (c, id) => '{{ delete_collection_item("__COL__", "__ID__") }}'.replace('__COL__', c).replace('__ID__', id),
+      query: (c) => '{{ query_collection("__COL__") }}'.replace('__COL__', c),
+    };
+
+    let S = { collections: [], active: '', schema: null, items: [] };
+
+    const http = {
+      get: (u) => fetch(u, { credentials: 'include' }).then(r => r.json()),
+      post: (u, b) => fetch(u, { method: 'POST', credentials: 'include', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(b) }).then(r => r.json()),
+      put: (u, b) => fetch(u, { method: 'PUT', credentials: 'include', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(b) }).then(r => r.json()),
+      del: (u) => fetch(u, { method: 'DELETE', credentials: 'include' }).then(r => r.json()),
+    };
+
+    async function init() {
+      const r = await http.get(API.listCollections);
+      S.collections = r.data || [];
+      if (!S.collections.length) {
+        Q('#data-content').innerHTML = '<ship-empty-state><span slot="title">No collections</span><span slot="description">Add a schema to .ship/schemas/</span></ship-empty-state>';
+        return;
+      }
+      S.active = S.collections[0].id;
+      renderToolbar();
+      await load(S.active);
+      sse();
+    }
+
+    async function load(id) {
+      S.active = id; Q('#data-create-form').innerHTML = ''; Q('#data-edit-panel').innerHTML = '';
+      const [sr, qr] = await Promise.all([ http.get(API.schema(id)), http.post(API.query(id), { collection: id, limit: 200 }) ]);
+      S.schema = sr.ok ? sr.data : null;
+      S.items = qr.ok ? qr.data : [];
+      Q('#data-subtitle').textContent = `${S.items.length} item${S.items.length !== 1 ? 's' : ''} in ${id}`;
+      renderTable();
+    }
+
+    function renderToolbar() {
+      const opts = S.collections.map(c => `<ship-option value="${c.id}" ${c.id === S.active ? 'selected' : ''}>${c.name || c.id} (${c.field_count})</ship-option>`).join('');
+      Q('#data-toolbar').innerHTML = `
+        <ship-select size="sm" value="${S.active}" data-on:ship-select-change="window.__load(evt.detail.value)">${opts}</ship-select>
+        <ship-button size="sm" data-on:click="window.__newItem()">+ New</ship-button>
+        <span class="data-count" id="data-count">${S.items.length} items</span>`;
+    }
+
+    function renderTable() {
+      if (!S.schema || !S.items.length) {
+        if (S.schema) Q('#data-content').innerHTML = '<ship-empty-state><span slot="title">No items</span><span slot="description">Click + New</span><ship-button slot="action" size="sm" data-on:click="window.__newItem()">+ New</ship-button></ship-empty-state>';
+        return;
+      }
+      const F = Object.entries(S.schema.fields);
+      const ths = F.map(([n]) => `<th class="data-th" data-on:click="window.__sort('${n}')">${n} <span class="data-sort-icon">↕</span></th>`).join('');
+      const rows = S.items.map(item => {
+        const cells = F.map(([n, d]) => cell(item, n, d)).join('');
+        return `<tr class="data-row" data-on:click="window.__edit('${item.id}')"><td class="data-cell data-cell-id" title="${item.id}">${item.id.slice(0, 10)}</td>${cells}<td class="data-cell data-cell-time">${fmt(item.updated_at)}</td></tr>`;
+      }).join('');
+      Q('#data-content').innerHTML = `<table class="data-table"><thead><tr><th class="data-th" style="width:90px">ID</th>${ths}<th class="data-th" style="width:100px">Updated</th></tr></thead><tbody>${rows}</tbody></table>`;
+      Q('#data-count').textContent = `${S.items.length} items`;
+    }
+
+    function cell(item, name, def) {
+      const v = item.data?.[name] ?? def.default ?? null;
+      if (v === null) return '<td class="data-cell data-cell-null">—</td>';
+      switch (def.field_type) {
+        case 'enum': return `<td class="data-cell"><ship-chip>${h(v)}</ship-chip></td>`;
+        case 'boolean': return `<td class="data-cell"><ship-badge variant="${v === true || v === 1 ? 'success' : 'secondary'}">${v === true || v === 1 ? 'Yes' : 'No'}</ship-badge></td>`;
+        case 'number': return `<td class="data-cell data-cell-number">${v}</td>`;
+        case 'date': return `<td class="data-cell">${String(v).slice(0, 10)}</td>`;
+        case 'file': return `<td class="data-cell data-cell-file" title="${h(v)}">📎 ${h(String(v).split('/').pop())}</td>`;
+        case 'markdown': return `<td class="data-cell" title="${h(v)}">${h(String(v).slice(0, 100))}${v.length > 100 ? '…' : ''}</td>`;
+        case 'array': return Array.isArray(v) ? `<td class="data-cell">${v.slice(0, 4).map(x => `<ship-chip>${h(x)}</ship-chip>`).join(' ')}${v.length > 4 ? ` <ship-badge variant="secondary">+${v.length - 4}</ship-badge>` : ''}</td>` : '<td class="data-cell data-cell-null">—</td>';
+        case 'object': return v && typeof v === 'object' ? `<td class="data-cell data-cell-object" title="${h(JSON.stringify(v, null, 2))}">{ ${Object.keys(v).slice(0, 3).join(', ')}${Object.keys(v).length > 3 ? ' …' : ''} }</td>` : '<td class="data-cell data-cell-null">—</td>';
+        default: return `<td class="data-cell">${h(String(v))}</td>`;
+      }
+    }
+
+    // ── Forms (ship-input, ship-select, ship-switch) ──────────
+    function newItem() { const el = Q('#data-create-form'); el.innerHTML = el.innerHTML ? '' : form('create', {}); }
+
+    function form(pfx, vals) {
+      const fields = Object.entries(S.schema.fields).map(([n, d]) => {
+        const v = vals[n], req = d.required ? '<span class="data-req">*</span>' : '';
+        let inp;
+        if (d.field_type === 'enum' && d.values) {
+          inp = `<ship-select size="sm" id="${pfx}-${n}" value="${v || ''}"><ship-option value="">—</ship-option>${d.values.map(x => `<ship-option value="${x}" ${v === x ? 'selected' : ''}>${x}</ship-option>`).join('')}</ship-select>`;
+        } else if (d.field_type === 'boolean') {
+          inp = `<ship-switch id="${pfx}-${n}" ${(v === true || v === 1) ? 'checked' : ''}></ship-switch>`;
+        } else if (d.field_type === 'number') {
+          inp = `<ship-input size="sm" type="number" id="${pfx}-${n}" value="${v ?? ''}" placeholder="0"></ship-input>`;
+        } else if (d.field_type === 'markdown') {
+          inp = `<ship-textarea size="sm" id="${pfx}-${n}" rows="4" placeholder="${n}">${h(v || '')}</ship-textarea>`;
+        } else if (d.field_type === 'array' || d.field_type === 'object') {
+          inp = `<ship-input size="sm" id="${pfx}-${n}" value="${h(v ? JSON.stringify(v) : '')}" placeholder='${d.field_type === 'array' ? '["a","b"]' : '{"k":"v"}'}'></ship-input>`;
+        } else {
+          inp = `<ship-input size="sm" id="${pfx}-${n}" value="${h(v || '')}" placeholder="${n}"></ship-input>`;
+        }
+        return `<div class="data-field-row"><label class="data-field-label">${n}${req}</label><div class="data-field-input">${inp}</div></div>`;
+      }).join('');
+      const close = pfx === 'create' ? '__newItem' : '__closeEdit';
+      const submit = pfx === 'create' ? '__submitCreate' : '__submitEdit';
+      const del = pfx === 'edit' ? `<ship-button size="sm" variant="destructive" data-on:click="window.__delEdit()" style="margin-left:auto">Delete</ship-button>` : '';
+      return `<ship-card class="data-form"><div class="data-form-head"><span class="data-form-title">${pfx === 'create' ? 'New ' + S.active : 'Edit'}</span><ship-button size="sm" variant="ghost" data-on:click="window.${close}()">✕</ship-button></div>${fields}<div class="data-form-actions"><ship-button size="sm" data-on:click="window.${submit}()">${pfx === 'create' ? 'Create' : 'Save'}</ship-button><ship-button size="sm" variant="ghost" data-on:click="window.${close}()">Cancel</ship-button>${del}</div></ship-card>`;
+    }
+
+    function collect(pfx) {
+      const data = {};
+      for (const [n, d] of Object.entries(S.schema.fields)) {
+        const el = document.getElementById(`${pfx}-${n}`);
+        if (!el) continue;
+        if (d.field_type === 'boolean') data[n] = el.checked ?? false;
+        else if (d.field_type === 'number') { if (el.value !== '' && el.value != null) data[n] = Number(el.value); }
+        else if (d.field_type === 'array' || d.field_type === 'object') { try { if (el.value) data[n] = JSON.parse(el.value); } catch {} }
+        else { if (el.value) data[n] = el.value; }
+      }
+      return data;
+    }
+
+    async function submitCreate() {
+      const r = await http.post(API.createItem(S.active), { data: collect('create') });
+      if (r.ok) { Q('#data-create-form').innerHTML = ''; await load(S.active); } else alert(r.error || 'Failed');
+    }
+
+    let editId = null;
+    function edit(id) {
+      editId = id;
+      const item = S.items.find(i => i.id === id);
+      if (!item) return;
+      Q('#data-edit-panel').innerHTML = `<div class="data-edit-overlay" data-on:click="window.__closeEdit()"></div><div class="data-edit-drawer">${form('edit', item.data || {})}</div>`;
+    }
+    async function submitEdit() {
+      const r = await http.put(API.updateItem(S.active, editId), { data: collect('edit') });
+      if (r.ok) { closeEdit(); await load(S.active); } else alert(r.error || 'Failed');
+    }
+    async function delEdit() { if (!confirm('Delete?')) return; await http.del(API.deleteItem(S.active, editId)); closeEdit(); await load(S.active); }
+    function closeEdit() { editId = null; Q('#data-edit-panel').innerHTML = ''; }
+    function sort(f) { S.items.sort((a, b) => { const va = a.data?.[f], vb = b.data?.[f]; if (va == null) return 1; if (vb == null) return -1; return va < vb ? -1 : va > vb ? 1 : 0; }); renderTable(); }
+
+    function sse() {
+      const es = new EventSource('/api/runtime/events', { withCredentials: true });
+      es.onmessage = e => { try { if (JSON.parse(e.data).event_type?.startsWith('collection.')) load(S.active); } catch {} };
+      es.onerror = () => setTimeout(sse, 5000);
+    }
+
+    function Q(s) { return document.querySelector(s); }
+    function h(s) { return String(s).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;'); }
+    function fmt(t) { return t ? t.slice(0, 16).replace('T', ' ') : '—'; }
+
+    window.__load = load; window.__newItem = newItem; window.__submitCreate = submitCreate;
+    window.__edit = edit; window.__submitEdit = submitEdit; window.__delEdit = delEdit;
+    window.__closeEdit = closeEdit; window.__sort = sort;
+
+    init();
+  </script>
+</body>
+</html>

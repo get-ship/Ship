@@ -220,6 +220,45 @@ pub fn render<C: Serialize>(template: &str, ctx: &C) -> Result<String, String> {
         .map_err(|e| format!("template '{template}' render error: {e}"))
 }
 
+/// Render an ad-hoc template string with access to all registered macros.
+///
+/// Used for `.ship/views/` HTML files that contain Jinja syntax. The
+/// template inherits the same environment as daemon-internal views —
+/// URL macros, filters, lenient undefined behavior — so views in
+/// `.ship/views/` can use `{% from '_urls.html.j2' import ... %}`.
+pub fn render_view_source<C: Serialize>(name: &str, source: &str, ctx: &C) -> Result<String, String> {
+    // If the source contains no Jinja syntax, return it as-is (fast path).
+    if !source.contains("{%") && !source.contains("{{") {
+        return Ok(source.to_string());
+    }
+
+    // Create a child environment that inherits all registered templates
+    // (macros, partials) but can also compile an ad-hoc source string.
+    // minijinja doesn't support child envs, so we add the source as a
+    // temporary template to the shared env — but the env is immutable
+    // (OnceLock). Instead, create a fresh env per call with the same
+    // templates plus the ad-hoc one.
+    let mut local_env = Environment::new();
+    local_env.set_undefined_behavior(minijinja::UndefinedBehavior::Lenient);
+    local_env.add_filter("truncate", |value: String, length: usize| -> String {
+        if value.chars().count() <= length { value }
+        else { let mut s: String = value.chars().take(length.saturating_sub(1)).collect(); s.push('…'); s }
+    });
+    // Copy all registered templates (macros, partials).
+    for (tpl_name, tpl_src) in TEMPLATES {
+        let _ = local_env.add_template(tpl_name, tpl_src);
+    }
+    // Add the view source as a named template.
+    local_env.add_template(name, source)
+        .map_err(|e| format!("view '{name}' template parse error: {e}"))?;
+
+    let tpl = local_env.get_template(name)
+        .map_err(|e| format!("view '{name}' not found after add: {e}"))?;
+    let value = Value::from_serialize(ctx);
+    tpl.render(value)
+        .map_err(|e| format!("view '{name}' render error: {e}"))
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;

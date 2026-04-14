@@ -351,16 +351,39 @@ pub async fn serve_view(
         Some(v) => v,
         None => return mesh_err(StatusCode::NOT_FOUND, format!("view '{name}' not found")),
     };
-    let html = match std::fs::read_to_string(view_dir.join("index.html")) {
-        Ok(h) => h,
-        Err(_) => return mesh_err(StatusCode::NOT_FOUND, format!("view '{name}' has no index.html")),
+    // Try index.html.j2 first (Jinja-processed), then index.html (raw).
+    let (source, is_template) = if view_dir.join("index.html.j2").exists() {
+        match std::fs::read_to_string(view_dir.join("index.html.j2")) {
+            Ok(h) => (h, true),
+            Err(_) => return mesh_err(StatusCode::NOT_FOUND, format!("view '{name}' cannot read index.html.j2")),
+        }
+    } else {
+        match std::fs::read_to_string(view_dir.join("index.html")) {
+            Ok(h) => { let has_jinja = h.contains("{%") || h.contains("{{"); (h, has_jinja) },
+            Err(_) => return mesh_err(StatusCode::NOT_FOUND, format!("view '{name}' has no index.html")),
+        }
     };
-    let _ = headers; // cookie-first auth; headers unused here
-    // Views reference shared assets via relative URLs:
-    //   <link rel="stylesheet" href="/api/runtime/assets/view-tokens.css">
-    //   <script type="module" src="/api/runtime/assets/datastar.js"></script>
-    // Legacy `{{SHIP_TOKEN}}` placeholders are stripped — cookie handles auth.
-    let html = html.replace("{{SHIP_TOKEN}}", "");
+
+    let _ = headers;
+
+    let html = if is_template {
+        // Render through Jinja with access to URL macros, filters, etc.
+        // Views get the same template environment as daemon-internal views.
+        let ctx = serde_json::json!({
+            "view_name": name,
+        });
+        match templates::render_view_source(&name, &source, &ctx) {
+            Ok(h) => h,
+            Err(e) => {
+                tracing::warn!(view = %name, "view template render failed: {e}");
+                // Fall back to raw source so the view at least loads.
+                source.replace("{{SHIP_TOKEN}}", "")
+            }
+        }
+    } else {
+        source.replace("{{SHIP_TOKEN}}", "")
+    };
+
     mesh_ok(serde_json::json!({ "html": html }))
 }
 
