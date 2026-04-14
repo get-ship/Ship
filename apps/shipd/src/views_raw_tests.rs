@@ -75,6 +75,10 @@ async fn each_sdk_view_renders_its_root() {
         ("git", "id=\"git-root\""),
         ("specs", "id=\"specs-"),
         ("settings", "id=\"settings-"),
+        ("agents", "id=\"agents-root\""),
+        ("skills", "id=\"skills-root\""),
+        ("chat", "id=\"chat-root\""),
+        ("events", "id=\"events-root\""),
     ] {
         let resp =
             serve_view_raw(State(state.clone()), AxPath(name.into())).await;
