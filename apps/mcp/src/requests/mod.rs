@@ -1,5 +1,6 @@
 #![allow(dead_code)]
 
+pub mod collections;
 #[cfg(feature = "unstable")]
 mod dispatch;
 mod job;
