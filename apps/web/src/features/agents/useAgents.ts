@@ -1,15 +1,12 @@
 // Merged agent hook: combines pull data with draft overlays.
 // This is the primary read path for agent data in the UI.
 
-import { useMemo, useState, useEffect } from 'react'
+import { useMemo } from 'react'
 import { usePullAgents } from '#/features/studio/hooks/useWorkspaceConfig'
 import { useDaemon } from '#/features/studio/hooks/useDaemonData'
 import { useAgentDrafts } from './useAgentDrafts'
 import { pullAgentToResolved } from './pull-adapter'
-import { idbGet, idbSet, migrateFromLocalStorage } from '#/lib/idb-cache'
 import type { ResolvedAgentProfile } from './types'
-
-const CACHE_KEY = 'ship-agents-pull-cache'
 
 export interface UseAgentsReturn {
   agents: ResolvedAgentProfile[]
@@ -22,54 +19,21 @@ export function useAgents(): UseAgentsReturn {
   const { connected } = useDaemon()
   const pullQuery = usePullAgents()
   const { drafts } = useAgentDrafts()
-  const [cachedAgents, setCachedAgents] = useState<ResolvedAgentProfile[]>([])
 
-  // Load cache from IndexedDB on mount (migrate from localStorage if needed)
-  useEffect(() => {
-    let cancelled = false
-    async function load() {
-      try {
-        const migrated = await migrateFromLocalStorage<ResolvedAgentProfile[]>(CACHE_KEY)
-        if (migrated && !cancelled) { setCachedAgents(migrated); return }
-        const data = await idbGet<ResolvedAgentProfile[]>(CACHE_KEY)
-        if (data && !cancelled) setCachedAgents(data)
-      } catch { /* IDB unavailable */ }
-    }
-    void load()
-    return () => { cancelled = true }
-  }, [])
-
-  // Convert pull data to resolved format
   const pulledAgents = useMemo(() => {
     if (!pullQuery.data?.agents) return []
     return pullQuery.data.agents.map(pullAgentToResolved)
   }, [pullQuery.data])
 
-  // Cache pulled agents to IndexedDB
-  useEffect(() => {
-    if (pulledAgents.length > 0) {
-      setCachedAgents(pulledAgents)
-      idbSet(CACHE_KEY, pulledAgents).catch(() => {})
-    }
-  }, [pulledAgents])
-
-  // Use pulled agents when available, fall back to cache when disconnected
-  const baseAgents = useMemo(() => {
-    if (pulledAgents.length > 0) return pulledAgents
-    if (!connected) return cachedAgents
-    return []
-  }, [pulledAgents, connected, cachedAgents])
-
-  // Merge drafts on top of base agents
   const agents = useMemo(() => {
     const draftKeys = Object.keys(drafts)
-    if (draftKeys.length === 0) return baseAgents
-    return baseAgents.map((agent) => {
+    if (draftKeys.length === 0) return pulledAgents
+    return pulledAgents.map((agent) => {
       const draft = drafts[agent.profile.id]
       if (!draft) return agent
       return mergeAgentWithDraft(agent, draft)
     })
-  }, [baseAgents, drafts])
+  }, [pulledAgents, drafts])
 
   const getAgent = useMemo(() => {
     const map = new Map(agents.map((a) => [a.profile.id, a]))

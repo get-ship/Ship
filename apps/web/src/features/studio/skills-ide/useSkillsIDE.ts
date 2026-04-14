@@ -3,7 +3,6 @@ import { useSkillsLibrary } from './useSkillsLibrary'
 import type { LibrarySkill } from './useSkillsLibrary'
 import { newSkillTemplate } from './skill-frontmatter'
 import { useSaveSkillFile, useDeleteSkillFile } from '#/features/studio/hooks/useWorkspaceConfig'
-import { idbGet, idbSet } from '#/lib/idb-cache'
 import {
   SKILL_MD,
   makeTabId,
@@ -17,8 +16,6 @@ import {
 export { SKILL_MD, makeTabId, parseTabId } from './skill-drafts'
 
 const IDE_STATE_KEY = 'ship-skills-ide-v1'
-const DRAFTS_IDB_KEY = 'ship-skills-ide-drafts'
-const DRAFTS_SAVE_DELAY = 800
 
 interface IDEState {
   openTabIds: string[]
@@ -84,34 +81,8 @@ export function useSkillsIDE() {
   const [previewTab, setPreviewTab] = useState('vars')
   const [previewOpen, setPreviewOpen] = useState(true)
 
-  // Single drafts map replaces contentBuffers + unsavedIds + localFiles
+  // In-memory drafts — lost on reload by design.
   const [drafts, setDrafts] = useState<Record<string, SkillDraft>>({})
-  const draftsLoadedRef = useRef(false)
-  const draftsSaveTimerRef = useRef<ReturnType<typeof setTimeout> | null>(null)
-
-  // Load drafts from IndexedDB on mount
-  useEffect(() => {
-    let cancelled = false
-    async function load() {
-      try {
-        const stored = await idbGet<Record<string, SkillDraft>>(DRAFTS_IDB_KEY)
-        if (stored && !cancelled) setDrafts(stored)
-      } catch { /* IDB unavailable */ }
-      draftsLoadedRef.current = true
-    }
-    void load()
-    return () => { cancelled = true }
-  }, [])
-
-  // Debounced persist drafts to IndexedDB
-  useEffect(() => {
-    if (!draftsLoadedRef.current) return
-    if (draftsSaveTimerRef.current) clearTimeout(draftsSaveTimerRef.current)
-    draftsSaveTimerRef.current = setTimeout(() => {
-      idbSet(DRAFTS_IDB_KEY, drafts).catch(() => {})
-    }, DRAFTS_SAVE_DELAY)
-    return () => { if (draftsSaveTimerRef.current) clearTimeout(draftsSaveTimerRef.current) }
-  }, [drafts])
 
   const unsavedIds = useMemo(() => deriveUnsavedIds(drafts), [drafts])
   const localFiles = useMemo(() => deriveLocalFiles(drafts), [drafts])
