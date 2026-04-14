@@ -39,6 +39,8 @@ pub mod supervisor;
 #[cfg(test)]
 pub mod test_harness;
 #[cfg(test)]
+mod collection_tests;
+#[cfg(test)]
 mod integration_tests;
 #[cfg(test)]
 #[path = "auth_tests.rs"]

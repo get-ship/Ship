@@ -154,9 +154,9 @@ impl KernelRouter {
     /// Delivery-only path — **deprecated**.
     ///
     /// All production callers have been migrated to `emit()` (Phase 2b).
-    /// This method is retained only for test code that needs delivery
-    /// without persistence. It will be removed in a future release.
-    #[cfg(test)]
+    /// Retained for test code in dependent crates. Will be removed in a
+    /// future release.
+    #[deprecated(note = "use emit() instead — route() skips persistence")]
     pub async fn route(&self, event: EventEnvelope, ctx: &EmitContext) -> Result<()> {
         for v in &self.validators {
             v.validate(&event, ctx).map_err(|e| anyhow!("{e}"))?;

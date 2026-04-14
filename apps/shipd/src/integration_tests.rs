@@ -78,7 +78,7 @@ async fn sse_delivers_routed_event_to_registered_agent() {
             workspace_id: None,
             session_id: None,
         };
-        daemon.kernel.lock().await.route(envelope, &ctx).await.unwrap();
+        daemon.kernel.lock().await.emit(envelope, &ctx).await.unwrap();
     }
 
     // Give delivery time.
@@ -361,7 +361,7 @@ async fn broadcast_routes_to_subscribed_actors() {
         workspace_id: None,
         session_id: None,
     };
-    kernel.route(ev.clone(), &ctx).await.unwrap();
+    kernel.emit(ev.clone(), &ctx).await.unwrap();
     drop(kernel);
 
     tokio::time::sleep(std::time::Duration::from_millis(50)).await;

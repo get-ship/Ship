@@ -810,6 +810,16 @@ mod tests {
         Arc::new(crate::ship_runtime::ShipRuntime::new_test(ship_dir, kernel))
     }
 
+    fn test_auth() -> Extension<AuthContext> {
+        Extension(AuthContext {
+            caller_kind: runtime::events::CallerKind::Cli,
+            agent_id: None,
+            workspace_id: None,
+            session_id: None,
+            scopes: vec![Scope::Full],
+        })
+    }
+
     async fn collect_body(response: axum::response::Response) -> serde_json::Value {
         use http_body_util::BodyExt;
         let bytes = response.into_body().collect().await.unwrap().to_bytes();
@@ -820,7 +830,7 @@ mod tests {
     async fn list_workspaces_returns_ok_with_array() {
         let dir = TempDir::new().unwrap();
         let state = make_api_state(&dir);
-        let response = list_workspaces(State(state)).await.into_response();
+        let response = list_workspaces(State(state), test_auth()).await.into_response();
         assert_eq!(response.status(), axum::http::StatusCode::OK);
         let val = collect_body(response).await;
         assert_eq!(val["ok"], serde_json::json!(true));
@@ -832,7 +842,7 @@ mod tests {
         let dir = TempDir::new().unwrap();
         let state = make_api_state(&dir);
         let query = Query(SessionsQuery { workspace_id: None });
-        let response = list_sessions(State(state), query).await.into_response();
+        let response = list_sessions(State(state), test_auth(), query).await.into_response();
         assert_eq!(response.status(), axum::http::StatusCode::OK);
         let val = collect_body(response).await;
         assert_eq!(val["ok"], serde_json::json!(true));
@@ -846,7 +856,7 @@ mod tests {
         let query = Query(SessionsQuery {
             workspace_id: Some("nonexistent-workspace".to_string()),
         });
-        let response = list_sessions(State(state), query).await.into_response();
+        let response = list_sessions(State(state), test_auth(), query).await.into_response();
         assert_eq!(response.status(), axum::http::StatusCode::OK);
         let val = collect_body(response).await;
         assert_eq!(val["ok"], serde_json::json!(true));
@@ -858,7 +868,7 @@ mod tests {
     async fn list_agents_returns_ok_empty_registry() {
         let dir = TempDir::new().unwrap();
         let state = make_api_state(&dir);
-        let response = list_agents(State(state)).await.into_response();
+        let response = list_agents(State(state), test_auth()).await.into_response();
         assert_eq!(response.status(), axum::http::StatusCode::OK);
         let val = collect_body(response).await;
         assert_eq!(val["ok"], serde_json::json!(true));
@@ -883,7 +893,7 @@ mod tests {
         let state = make_api_state(&dir);
         create_test_workspace(&state, "feature/rt-ws-test");
 
-        let response = list_workspaces(State(state)).await.into_response();
+        let response = list_workspaces(State(state), test_auth()).await.into_response();
         let val = collect_body(response).await;
         let workspaces = val["data"]["workspaces"].as_array().unwrap();
         assert!(
@@ -911,7 +921,7 @@ mod tests {
             );
         }
 
-        let response = list_agents(State(state)).await.into_response();
+        let response = list_agents(State(state), test_auth()).await.into_response();
         let val = collect_body(response).await;
         let agents = val["data"]["agents"].as_array().unwrap();
         assert_eq!(agents.len(), 1);
@@ -941,7 +951,7 @@ mod tests {
         .unwrap();
 
         let query = Query(SessionsQuery { workspace_id: None });
-        let response = list_sessions(State(state), query).await.into_response();
+        let response = list_sessions(State(state), test_auth(), query).await.into_response();
         let val = collect_body(response).await;
         let sessions = val["data"]["sessions"].as_array().unwrap();
         assert!(sessions.len() >= 1, "created session should appear");
@@ -977,7 +987,7 @@ mod tests {
         let query = Query(SessionsQuery {
             workspace_id: Some(ws_b.id),
         });
-        let response = list_sessions(State(state), query).await.into_response();
+        let response = list_sessions(State(state), test_auth(), query).await.into_response();
         let val = collect_body(response).await;
         let sessions = val["data"]["sessions"].as_array().unwrap();
         assert_eq!(sessions.len(), 0, "no sessions for workspace B");
@@ -990,7 +1000,7 @@ mod tests {
         create_test_workspace(&state, "feature/multi-a");
         create_test_workspace(&state, "feature/multi-b");
 
-        let response = list_workspaces(State(state)).await.into_response();
+        let response = list_workspaces(State(state), test_auth()).await.into_response();
         let val = collect_body(response).await;
         let workspaces = val["data"]["workspaces"].as_array().unwrap();
         assert!(workspaces.len() >= 2);
@@ -1003,7 +1013,7 @@ mod tests {
         create_test_workspace(&state, "feature/ws-a");
         create_test_workspace(&state, "feature/ws-b");
 
-        let response = list_workspaces(State(state)).await.into_response();
+        let response = list_workspaces(State(state), test_auth()).await.into_response();
         let val = collect_body(response).await;
         let workspaces = val["data"]["workspaces"].as_array().unwrap();
 
@@ -1041,7 +1051,7 @@ mod tests {
     async fn get_job_detail_not_found() {
         let dir = TempDir::new().unwrap();
         let state = make_api_state(&dir);
-        let response = get_job_detail(State(state), Path("nonexistent-job-id".to_string()))
+        let response = get_job_detail(State(state), test_auth(), Path("nonexistent-job-id".to_string()))
             .await
             .into_response();
         assert_eq!(response.status(), StatusCode::NOT_FOUND);
@@ -1081,7 +1091,7 @@ mod tests {
         .with_actor_id("test");
         state.persist_and_route(&envelope).await.unwrap();
 
-        let response = get_job_detail(State(state), Path(job_id.clone()))
+        let response = get_job_detail(State(state), test_auth(), Path(job_id.clone()))
             .await
             .into_response();
         assert_eq!(response.status(), StatusCode::OK);

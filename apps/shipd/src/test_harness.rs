@@ -115,11 +115,37 @@ impl TestDaemon {
                 axum::routing::get(crate::rest_api::capabilities),
             );
 
+        let collection_routes = Router::new()
+            .route(
+                "/collections",
+                axum::routing::get(crate::collection_api::list_collections),
+            )
+            .route(
+                "/collections/{collection}/schema",
+                axum::routing::get(crate::collection_api::get_schema),
+            )
+            .route(
+                "/collections/{collection}/items",
+                axum::routing::post(crate::collection_api::create_item),
+            )
+            .route(
+                "/collections/{collection}/items/{item_id}",
+                axum::routing::get(crate::collection_api::get_item)
+                    .put(crate::collection_api::update_item)
+                    .delete(crate::collection_api::delete_item),
+            )
+            .route(
+                "/collections/{collection}/query",
+                axum::routing::post(crate::collection_api::query_items),
+            )
+            .with_state(api_state.clone());
+
         // Inject a default CLI AuthContext so handlers can extract it.
         let default_auth = Self::cli_auth();
         let router = Router::new()
             .nest("/api", api_routes)
             .nest("/api", capabilities_routes)
+            .nest("/api", collection_routes)
             .nest("/api/runtime", runtime_routes)
             .layer(axum::Extension(default_auth));
 
@@ -192,6 +218,45 @@ impl TestDaemon {
             .await
             .unwrap();
 
+        let status = resp.status().as_u16();
+        let bytes = resp.into_body().collect().await.unwrap().to_bytes();
+        let body: serde_json::Value =
+            serde_json::from_slice(&bytes).unwrap_or(serde_json::json!(null));
+        TestResponse { status, body }
+    }
+
+    /// Alias for `post` — clearer name for JSON body requests.
+    pub async fn post_json(&self, path: &str, body: &impl serde::Serialize) -> TestResponse {
+        self.post(path, body).await
+    }
+
+    /// Send a PUT request with a JSON body and parse the response.
+    pub async fn put_json(&self, path: &str, body: &impl serde::Serialize) -> TestResponse {
+        let json = serde_json::to_vec(body).unwrap();
+        let req = Request::builder()
+            .method("PUT")
+            .uri(path)
+            .header("content-type", "application/json")
+            .body(Body::from(json))
+            .unwrap();
+
+        let resp = self.router.clone().oneshot(req).await.unwrap();
+        let status = resp.status().as_u16();
+        let bytes = resp.into_body().collect().await.unwrap().to_bytes();
+        let body: serde_json::Value =
+            serde_json::from_slice(&bytes).unwrap_or(serde_json::json!(null));
+        TestResponse { status, body }
+    }
+
+    /// Send a DELETE request and parse the response.
+    pub async fn delete(&self, path: &str) -> TestResponse {
+        let req = Request::builder()
+            .method("DELETE")
+            .uri(path)
+            .body(Body::empty())
+            .unwrap();
+
+        let resp = self.router.clone().oneshot(req).await.unwrap();
         let status = resp.status().as_u16();
         let bytes = resp.into_body().collect().await.unwrap().to_bytes();
         let body: serde_json::Value =
