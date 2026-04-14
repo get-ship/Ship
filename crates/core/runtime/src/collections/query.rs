@@ -21,12 +21,24 @@ fn default_limit() -> u32 {
     50
 }
 
+/// Validate a field name is a safe identifier for SQL interpolation.
+/// Allows alphanumeric, underscores, hyphens, and dots (for nested paths).
+fn is_safe_field_name(name: &str) -> bool {
+    !name.is_empty()
+        && name.len() <= 128
+        && name.bytes().all(|b| b.is_ascii_alphanumeric() || b == b'_' || b == b'-' || b == b'.')
+}
+
 /// Translate a QueryRequest into a SQL string and bound parameters.
 pub fn translate_query(req: &QueryRequest) -> (String, Vec<serde_json::Value>) {
     let mut clauses = vec!["collection = ?".to_string()];
     let mut params: Vec<serde_json::Value> = vec![serde_json::Value::String(req.collection.clone())];
 
     for (field, value) in &req.filter {
+        if !is_safe_field_name(field) {
+            tracing::warn!(field, "query: skipping unsafe field name");
+            continue;
+        }
         let (clause, field_params) = translate_filter(field, value);
         clauses.push(clause);
         params.extend(field_params);
@@ -39,6 +51,13 @@ pub fn translate_query(req: &QueryRequest) -> (String, Vec<serde_json::Value>) {
     } else {
         req.sort
             .iter()
+            .filter(|(field, _)| {
+                if !is_safe_field_name(field) {
+                    tracing::warn!(field, "query: skipping unsafe sort field");
+                    return false;
+                }
+                true
+            })
             .map(|(field, dir)| {
                 let direction = if *dir >= 0 { "ASC" } else { "DESC" };
                 format!("json_extract(data, '$.{}') {}", field, direction)
@@ -261,5 +280,34 @@ mod tests {
         let req = query(json!({}));
         let (sql, _) = translate_query(&req);
         assert!(sql.contains("ORDER BY created_at DESC"));
+    }
+
+    #[test]
+    fn injection_in_field_name_is_rejected() {
+        let req = query(json!({ "'); DROP TABLE items; --": "gotcha" }));
+        let (sql, _) = translate_query(&req);
+        // Unsafe field should be skipped — no json_extract for it
+        assert!(!sql.contains("DROP TABLE"));
+        assert!(!sql.contains("json_extract"));
+    }
+
+    #[test]
+    fn injection_in_sort_key_is_rejected() {
+        let mut req = query(json!({}));
+        req.sort.insert("'; DROP TABLE items; --".to_string(), -1);
+        let (sql, _) = translate_query(&req);
+        assert!(!sql.contains("DROP TABLE"));
+    }
+
+    #[test]
+    fn safe_field_name_validation() {
+        assert!(is_safe_field_name("status"));
+        assert!(is_safe_field_name("created_at"));
+        assert!(is_safe_field_name("nested.field"));
+        assert!(is_safe_field_name("my-field"));
+        assert!(!is_safe_field_name(""));
+        assert!(!is_safe_field_name("field; DROP TABLE"));
+        assert!(!is_safe_field_name("field'"));
+        assert!(!is_safe_field_name("field\""));
     }
 }

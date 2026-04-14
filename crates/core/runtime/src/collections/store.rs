@@ -41,6 +41,11 @@ pub fn ensure_indexes(svc: &mut DataService, schema: &CollectionSchema) -> Resul
         if !should_index {
             continue;
         }
+        // Sanitize identifiers for SQL interpolation.
+        if !name.bytes().all(|b| b.is_ascii_alphanumeric() || b == b'_' || b == b'-') {
+            tracing::warn!(field = name, "skipping index for unsafe field name");
+            continue;
+        }
         let idx_name = format!("idx_{}_{}", schema.id, name);
         svc.ensure_index(&format!(
             "CREATE INDEX IF NOT EXISTS {idx_name} ON {ITEMS_TABLE}(json_extract(data, '$.{name}')) WHERE collection = '{}'",
