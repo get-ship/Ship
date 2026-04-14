@@ -214,9 +214,8 @@ async fn advance_pipeline_inner(
                     tracing::warn!(slug, agent, "pipeline: ship use failed (non-fatal): {e}");
                 }
 
-                // State-machine prompt: compose a fresh spec for this step.
                 if let Some(pipeline) = &job.steps {
-                    super::prompt_composer::compose_and_write_for_step(
+                    super::pipeline_specs::prepare_step_for_dispatch(
                         &worktree_path, slug, &job.job_id,
                         &job.spec_path, pipeline, step,
                     );

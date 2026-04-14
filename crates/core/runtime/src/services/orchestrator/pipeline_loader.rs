@@ -126,6 +126,21 @@ fn interpolate_pipeline(payload: &mut JobCreatedPayload) {
         render(&mut step.goal);
         render(&mut step.command);
     }
+    if let Some(step_specs) = payload.step_specs.as_mut() {
+        for spec in step_specs.iter_mut() {
+            if spec.contains("{{") || spec.contains("{%") {
+                *spec = compiler::vars::resolve_template(spec, &jinja_vars);
+            }
+        }
+    }
+}
+
+/// Reload the `step_specs` block for a named pipeline from disk. Used by
+/// `advance_pipeline` so every step dispatch (including replay) can re-write
+/// `.artifacts/pipeline/` idempotently without mutating the event store.
+pub fn load_step_specs_by_name(name: &str) -> Option<Vec<String>> {
+    let (_, meta) = load_pipeline_file(name)?;
+    meta.step_specs
 }
 
 /// Load a named pipeline from `.ship/pipelines/<name>.yaml` in the project root.
@@ -166,6 +181,11 @@ fn merge_meta_vars(payload: &mut JobCreatedPayload, meta: &PipelineMeta) {
         for (k, v) in pipeline_vars {
             job_vars.entry(k.clone()).or_insert_with(|| v.clone());
         }
+    }
+    if payload.step_specs.is_none()
+        && let Some(specs) = &meta.step_specs
+    {
+        payload.step_specs = Some(specs.clone());
     }
 }
 
