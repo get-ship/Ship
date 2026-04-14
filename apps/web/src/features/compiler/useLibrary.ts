@@ -4,7 +4,6 @@ import { useCompiler } from '#/features/compiler/useCompiler'
 import { PROVIDERS } from '#/features/compiler/types'
 import type { ProjectLibrary, McpServerConfig, Skill } from '@ship/ui'
 import { DEFAULT_LIBRARY } from '@ship/ui'
-import { idbGet, idbSet, migrateFromLocalStorage } from '#/lib/idb-cache'
 
 const STORAGE_KEY = 'ship-studio-v1'
 
@@ -17,44 +16,34 @@ interface StoredLibrary {
   selectedProviders: string[]
 }
 
+function loadStored(): StoredLibrary | null {
+  if (typeof window === 'undefined') return null
+  try {
+    const raw = window.localStorage.getItem(STORAGE_KEY)
+    if (!raw) return null
+    return JSON.parse(raw) as StoredLibrary
+  } catch {
+    return null
+  }
+}
+
 export function useLibrary() {
-  const [library, setLibrary] = useState<ProjectLibrary>(DEFAULT_LIBRARY)
-  const [modeName, setModeName] = useState('untitled-mode')
-  const [selectedProviders, setSelectedProviders] = useState<string[]>(DEFAULT_PROVIDER_IDS)
-  const [loaded, setLoaded] = useState(false)
+  const initial = useRef(loadStored())
+  const [library, setLibrary] = useState<ProjectLibrary>(initial.current?.library ?? DEFAULT_LIBRARY)
+  const [modeName, setModeName] = useState(initial.current?.modeName ?? 'untitled-mode')
+  const [selectedProviders, setSelectedProviders] = useState<string[]>(
+    initial.current?.selectedProviders ?? DEFAULT_PROVIDER_IDS,
+  )
   const { state, compile } = useCompiler()
 
-  // Load from IndexedDB on mount (migrate from localStorage if needed)
   useEffect(() => {
-    let cancelled = false
-    async function load() {
-      try {
-        const migrated = await migrateFromLocalStorage<StoredLibrary>(STORAGE_KEY)
-        if (migrated && !cancelled) {
-          setLibrary(migrated.library ?? DEFAULT_LIBRARY)
-          setModeName(migrated.modeName ?? 'untitled-mode')
-          setSelectedProviders(migrated.selectedProviders ?? DEFAULT_PROVIDER_IDS)
-          setLoaded(true)
-          return
-        }
-        const data = await idbGet<StoredLibrary>(STORAGE_KEY)
-        if (data && !cancelled) {
-          setLibrary(data.library ?? DEFAULT_LIBRARY)
-          setModeName(data.modeName ?? 'untitled-mode')
-          setSelectedProviders(data.selectedProviders ?? DEFAULT_PROVIDER_IDS)
-        }
-      } catch { /* IDB unavailable */ }
-      if (!cancelled) setLoaded(true)
-    }
-    void load()
-    return () => { cancelled = true }
-  }, [])
-
-  // Persist to IndexedDB on change (skip initial render before load completes)
-  useEffect(() => {
-    if (!loaded) return
-    idbSet(STORAGE_KEY, { library, modeName, selectedProviders } as StoredLibrary).catch(() => {})
-  }, [library, modeName, selectedProviders, loaded])
+    try {
+      window.localStorage.setItem(
+        STORAGE_KEY,
+        JSON.stringify({ library, modeName, selectedProviders } satisfies StoredLibrary),
+      )
+    } catch { /* quota or unavailable */ }
+  }, [library, modeName, selectedProviders])
 
   // Auto-compile on change (debounced 600ms)
   const timerRef = useRef<ReturnType<typeof setTimeout> | null>(null)

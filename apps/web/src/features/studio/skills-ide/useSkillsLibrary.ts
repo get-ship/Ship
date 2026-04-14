@@ -2,13 +2,10 @@
 // Skills come from pulled agents (PullAgent.skills). Each skill tracks which
 // agents reference it and its origin (project vs library).
 
-import { useMemo, useState, useEffect } from 'react'
+import { useMemo } from 'react'
 import { usePullAgents, useProjectSkills } from '#/features/studio/hooks/useWorkspaceConfig'
 import { useDaemon } from '#/features/studio/hooks/useDaemonData'
-import { idbGet, idbSet, migrateFromLocalStorage } from '#/lib/idb-cache'
 import type { Skill, PullSkill, JsonValue } from '@ship/ui'
-
-const CACHE_KEY = 'ship-skills-library-cache-v2'
 
 export interface LibrarySkill extends Skill {
   /** 'project' = from .ship/, 'library' = from ~/.ship/ */
@@ -118,22 +115,6 @@ export function useSkillsLibrary(): UseSkillsLibraryReturn {
   const { connected: isConnected } = useDaemon()
   const pullQuery = usePullAgents()
   const projectQuery = useProjectSkills()
-  const [cachedSkills, setCachedSkills] = useState<LibrarySkill[]>([])
-
-  // Load cache from IndexedDB on mount (migrate from localStorage if needed)
-  useEffect(() => {
-    let cancelled = false
-    async function load() {
-      try {
-        const migrated = await migrateFromLocalStorage<LibrarySkill[]>(CACHE_KEY)
-        if (migrated && !cancelled) { setCachedSkills(migrated); return }
-        const data = await idbGet<LibrarySkill[]>(CACHE_KEY)
-        if (data && !cancelled) setCachedSkills(data)
-      } catch { /* IDB unavailable */ }
-    }
-    void load()
-    return () => { cancelled = true }
-  }, [])
 
   const pulledSkills = useMemo(() => {
     if (!pullQuery.data?.agents) return []
@@ -145,15 +126,6 @@ export function useSkillsLibrary(): UseSkillsLibraryReturn {
     return aggregateSkills(agentInputs)
   }, [pullQuery.data])
 
-  // Cache pulled skills to IndexedDB
-  useEffect(() => {
-    if (pulledSkills.length > 0) {
-      setCachedSkills(pulledSkills)
-      idbSet(CACHE_KEY, pulledSkills).catch(() => {})
-    }
-  }, [pulledSkills])
-
-  // Build a usedBy lookup from agent data so we can enrich project skills.
   const agentUsageMap = useMemo(() => {
     const map = new Map<string, string[]>()
     if (!pullQuery.data?.agents) return map
@@ -172,7 +144,7 @@ export function useSkillsLibrary(): UseSkillsLibraryReturn {
 
   // Primary source: list_project_skills. This is the canonical skill list.
   // Agent data enriches skills with usedBy metadata but does not define the list.
-  // Fall back to agent-derived skills only when project skills haven't loaded yet.
+  // Fall back to agent-derived skills only while project query loads.
   const skills = useMemo(() => {
     const projectSkills = projectQuery.data ?? []
     if (projectSkills.length > 0) {
@@ -180,10 +152,8 @@ export function useSkillsLibrary(): UseSkillsLibraryReturn {
         pullToLibrarySkill(ps, 'project', agentUsageMap.get(ps.id) ?? []),
       )
     }
-    // Fallback: use agent-derived skills or cache while project query loads
-    const base = pulledSkills.length > 0 ? pulledSkills : cachedSkills
-    return base
-  }, [projectQuery.data, agentUsageMap, pulledSkills, cachedSkills])
+    return pulledSkills
+  }, [projectQuery.data, agentUsageMap, pulledSkills])
 
   return {
     skills,
