@@ -1,0 +1,34 @@
+{#- Event filter chips — clicking a chip re-fetches #events-content with the
+   filter applied. Uses the `fragment=1` param so only the content partial
+   renders on the round-trip. -#}
+{% from '_urls.html.j2' import view_events %}
+<div class="events-filters" role="group" aria-label="Filter events">
+  <ship-chip size="sm" {% if not filter.event_type %}selected{% endif %}
+    data-on:click="@get('{{ view_events() }}?fragment=1', {target: '#events-content'})">
+    All types
+  </ship-chip>
+  {% for t in types %}
+    <ship-chip size="sm" {% if filter.event_type == t %}selected{% endif %}
+      data-on:click="@get('{{ view_events() }}?fragment=1&event_type={{ t }}', {target: '#events-content'})">
+      {{ t }}
+    </ship-chip>
+  {% endfor %}
+  {% if actors|length > 0 %}
+    <span style="width:1px;background:var(--border);margin:0 4px"></span>
+    <ship-chip size="sm" {% if not filter.actor %}selected{% endif %}
+      data-on:click="@get('{{ view_events() }}?fragment=1{% if filter.event_type %}&event_type={{ filter.event_type }}{% endif %}', {target: '#events-content'})">
+      All actors
+    </ship-chip>
+    {% for a in actors %}
+      <ship-chip size="sm" {% if filter.actor == a %}selected{% endif %}
+        data-on:click="@get('{{ view_events() }}?fragment=1&actor={{ a }}{% if filter.event_type %}&event_type={{ filter.event_type }}{% endif %}', {target: '#events-content'})">
+        {{ a }}
+      </ship-chip>
+    {% endfor %}
+  {% endif %}
+  <input class="events-search"
+         placeholder="Search events…"
+         value="{{ filter.q or '' }}"
+         data-on:input.debounce.300ms="@get('{{ view_events() }}?fragment=1&q=' + encodeURIComponent(evt.target.value), {target: '#events-content'})"
+         style="margin-left:auto;padding:4px 8px;border:1px solid var(--border);border-radius:var(--radius-sm);background:var(--background);color:var(--foreground);font-size:11px;min-width:160px" />
+</div>

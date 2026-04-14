@@ -90,6 +90,38 @@ const TEMPLATES: &[(&str, &str)] = &[
         include_str!("../../templates/canvas/blank.html.j2"),
     ),
     (
+        "chat/shell.html.j2",
+        include_str!("../../templates/chat/shell.html.j2"),
+    ),
+    (
+        "chat/partials/composer.html.j2",
+        include_str!("../../templates/chat/partials/composer.html.j2"),
+    ),
+    (
+        "chat/partials/message.html.j2",
+        include_str!("../../templates/chat/partials/message.html.j2"),
+    ),
+    (
+        "chat/partials/messages.html.j2",
+        include_str!("../../templates/chat/partials/messages.html.j2"),
+    ),
+    (
+        "events/shell.html.j2",
+        include_str!("../../templates/events/shell.html.j2"),
+    ),
+    (
+        "events/content.html.j2",
+        include_str!("../../templates/events/content.html.j2"),
+    ),
+    (
+        "events/partials/event_row.html.j2",
+        include_str!("../../templates/events/partials/event_row.html.j2"),
+    ),
+    (
+        "events/partials/filters.html.j2",
+        include_str!("../../templates/events/partials/filters.html.j2"),
+    ),
+    (
         "git/partials/diff_viewer.html.j2",
         include_str!("../../templates/git/partials/diff_viewer.html.j2"),
     ),

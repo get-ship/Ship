@@ -51,6 +51,30 @@ pub fn list_events_since_time(
     rows.iter().map(|r| envelope_from_row(r, true)).collect()
 }
 
+/// Like [`list_recent_events`] but against an explicit platform.db under
+/// `ship_dir`. View handlers should prefer this so test harnesses stay
+/// isolated from the global `~/.ship/platform.db`.
+pub fn list_recent_events_at(
+    ship_dir: &std::path::Path,
+    limit: usize,
+) -> Result<Vec<EventEnvelope>> {
+    crate::db::ensure_db_at(ship_dir)?;
+    let path = ship_dir.join("platform.db");
+    let mut conn = open_db_at(&path)?;
+    let rows = block_on(async {
+        sqlx::query(&format!(
+            "SELECT {COLS} FROM events ORDER BY id DESC LIMIT ?"
+        ))
+        .bind(limit as i64)
+        .fetch_all(&mut conn)
+        .await
+    })?;
+    let mut envs: Vec<EventEnvelope> =
+        rows.iter().map(|r| envelope_from_row(r, true)).collect::<Result<_>>()?;
+    envs.reverse();
+    Ok(envs)
+}
+
 pub fn list_recent_events(limit: usize) -> Result<Vec<EventEnvelope>> {
     ensure_db()?;
     let mut conn = open_db_at(&db_path()?)?;

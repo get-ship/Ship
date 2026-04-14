@@ -111,6 +111,21 @@ pub enum Route {
     /// @route GET "/api/runtime/view/skills/detail/{id}"
     ViewSkillDetail { id: String },
 
+    /// @route GET "/api/runtime/view/chat"
+    ViewChat,
+
+    /// @route GET "/api/runtime/view/chat/sse"
+    ViewChatSse,
+
+    /// @route POST "/api/runtime/view/chat/send"
+    ViewChatSend,
+
+    /// @route GET "/api/runtime/view/events"
+    ViewEvents,
+
+    /// @route GET "/api/runtime/view/events/sse"
+    ViewEventsSse,
+
     // ── Generic view serving ─────────────────────────────────────────────
 
     /// @route GET "/api/runtime/views"

@@ -1,0 +1,21 @@
+{#- Events content — grouped by entity, live-patched over SSE. -#}
+<div id="events-content-inner">
+  {% if groups|length == 0 %}
+    <ship-empty-state
+      icon="activity"
+      title="Waiting for events…"
+      body="No events match the current filter yet."></ship-empty-state>
+  {% else %}
+    {% for g in groups %}
+      <details {% if not g.collapsed %}open{% endif %}>
+        <summary>
+          <span class="entity">{{ g.entity_id }}</span>
+          <span class="count">{{ g.count }} event{% if g.count != 1 %}s{% endif %}</span>
+        </summary>
+        {% for r in g.rows %}
+          {% include 'events/partials/event_row.html.j2' %}
+        {% endfor %}
+      </details>
+    {% endfor %}
+  {% endif %}
+</div>
