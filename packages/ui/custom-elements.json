@@ -228,6 +228,646 @@
     },
     {
       "kind": "javascript-module",
+      "path": "src/web-components/ship-annotation-layer.internals.ts",
+      "declarations": [
+        {
+          "kind": "variable",
+          "name": "layerStyles",
+          "default": "css` :host { position: relative; display: block; font-family: var(--font-body); } .surface { position: relative; width: 100%; height: 100%; } .overlay { position: absolute; inset: 0; z-index: 10; } :host([mode='point']) .overlay, :host([mode='region']) .overlay { cursor: crosshair; } :host(:not([mode='point']):not([mode='region'])) .overlay { pointer-events: none; } .drag-rect { position: absolute; border: 2px dashed var(--primary); background: color-mix(in oklch, var(--primary) 10%, transparent); pointer-events: none; border-radius: var(--radius-sm); } .popover { position: absolute; z-index: 20; min-width: 220px; padding: 8px; background: var(--popover, var(--background)); color: var(--popover-foreground, var(--foreground)); border: 1px solid var(--border); border-radius: var(--radius-md); box-shadow: var(--shadow-lg); display: flex; flex-direction: column; gap: 6px; } .popover textarea { font: inherit; width: 100%; min-height: 60px; resize: vertical; padding: 4px 6px; border: 1px solid var(--border); border-radius: var(--radius-sm); background: var(--background); color: var(--foreground); box-sizing: border-box; } .popover-actions { display: flex; justify-content: flex-end; gap: 6px; } .popover button { font: inherit; font-size: var(--text-sm); padding: 4px 10px; border-radius: var(--radius-sm); border: 1px solid var(--border); background: var(--background); color: var(--foreground); cursor: pointer; } .popover button[data-primary] { background: var(--primary); color: var(--primary-foreground); border-color: var(--primary); } `"
+        },
+        {
+          "kind": "function",
+          "name": "renderPopover",
+          "return": {
+            "type": {
+              "text": "TemplateResult"
+            }
+          },
+          "parameters": [
+            {
+              "name": "host",
+              "type": {
+                "text": "PopoverHost"
+              }
+            },
+            {
+              "name": "at",
+              "type": {
+                "text": "{ x: number; y: number }"
+              }
+            }
+          ]
+        }
+      ],
+      "exports": [
+        {
+          "kind": "js",
+          "name": "layerStyles",
+          "declaration": {
+            "name": "layerStyles",
+            "module": "src/web-components/ship-annotation-layer.internals.ts"
+          }
+        },
+        {
+          "kind": "js",
+          "name": "renderPopover",
+          "declaration": {
+            "name": "renderPopover",
+            "module": "src/web-components/ship-annotation-layer.internals.ts"
+          }
+        }
+      ]
+    },
+    {
+      "kind": "javascript-module",
+      "path": "src/web-components/ship-annotation-layer.ts",
+      "declarations": [
+        {
+          "kind": "class",
+          "description": "",
+          "name": "ShipAnnotationLayer",
+          "members": [
+            {
+              "kind": "field",
+              "name": "viewId",
+              "privacy": "public",
+              "type": {
+                "text": "string"
+              },
+              "default": "''",
+              "attribute": "view-id",
+              "reflects": true
+            },
+            {
+              "kind": "field",
+              "name": "mode",
+              "privacy": "public",
+              "type": {
+                "text": "Mode"
+              },
+              "default": "'off'",
+              "attribute": "mode",
+              "reflects": true
+            },
+            {
+              "kind": "field",
+              "name": "endpoint",
+              "privacy": "public",
+              "type": {
+                "text": "string"
+              },
+              "default": "'/api/runtime/annotations'",
+              "attribute": "endpoint",
+              "reflects": true
+            },
+            {
+              "kind": "field",
+              "name": "staging",
+              "privacy": "public",
+              "type": {
+                "text": "boolean"
+              },
+              "default": "false",
+              "attribute": "staging",
+              "reflects": true
+            },
+            {
+              "kind": "field",
+              "name": "staged",
+              "privacy": "public",
+              "type": {
+                "text": "AnnotationEvent[]"
+              },
+              "default": "[]",
+              "attribute": "staged"
+            },
+            {
+              "kind": "field",
+              "name": "_pending",
+              "privacy": "private",
+              "type": {
+                "text": "Pending | null"
+              },
+              "default": "null",
+              "attribute": "_pending"
+            },
+            {
+              "kind": "field",
+              "name": "_drag",
+              "privacy": "private",
+              "type": {
+                "text": "{ startX: number; startY: number; curX: number; curY: number } | null"
+              },
+              "default": "null",
+              "attribute": "_drag"
+            },
+            {
+              "kind": "field",
+              "name": "_overlayEl",
+              "type": {
+                "text": "HTMLDivElement | null"
+              },
+              "privacy": "private",
+              "default": "null"
+            },
+            {
+              "kind": "field",
+              "name": "_positions",
+              "type": {
+                "text": "Record<string, { x: number; y: number }>"
+              },
+              "privacy": "private",
+              "default": "{}"
+            },
+            {
+              "kind": "method",
+              "name": "overlayPos",
+              "privacy": "private",
+              "return": {
+                "type": {
+                  "text": "{ x: number; y: number }"
+                }
+              },
+              "parameters": [
+                {
+                  "name": "e",
+                  "type": {
+                    "text": "PointerEvent"
+                  }
+                }
+              ]
+            },
+            {
+              "kind": "field",
+              "name": "onPointerDown",
+              "privacy": "private"
+            },
+            {
+              "kind": "field",
+              "name": "onPointerMove",
+              "privacy": "private"
+            },
+            {
+              "kind": "field",
+              "name": "onPointerUp",
+              "privacy": "private"
+            },
+            {
+              "kind": "method",
+              "name": "pickElementAt",
+              "privacy": "private",
+              "return": {
+                "type": {
+                  "text": "Element | null"
+                }
+              },
+              "parameters": [
+                {
+                  "name": "x",
+                  "type": {
+                    "text": "number"
+                  }
+                },
+                {
+                  "name": "y",
+                  "type": {
+                    "text": "number"
+                  }
+                }
+              ]
+            },
+            {
+              "kind": "method",
+              "name": "confirmNote",
+              "return": {
+                "type": {
+                  "text": "void"
+                }
+              },
+              "parameters": [
+                {
+                  "name": "note",
+                  "type": {
+                    "text": "string"
+                  }
+                }
+              ]
+            },
+            {
+              "kind": "method",
+              "name": "cancelNote",
+              "return": {
+                "type": {
+                  "text": "void"
+                }
+              }
+            },
+            {
+              "kind": "method",
+              "name": "send",
+              "return": {
+                "type": {
+                  "text": "Promise<void>"
+                }
+              }
+            },
+            {
+              "kind": "method",
+              "name": "clear",
+              "return": {
+                "type": {
+                  "text": "void"
+                }
+              }
+            },
+            {
+              "kind": "method",
+              "name": "sendOne",
+              "privacy": "private",
+              "return": {
+                "type": {
+                  "text": "Promise<void>"
+                }
+              },
+              "parameters": [
+                {
+                  "name": "ev",
+                  "type": {
+                    "text": "AnnotationEvent"
+                  }
+                }
+              ]
+            },
+            {
+              "kind": "method",
+              "name": "renderMarker",
+              "privacy": "private",
+              "parameters": [
+                {
+                  "name": "a",
+                  "type": {
+                    "text": "AnnotationEvent"
+                  }
+                },
+                {
+                  "name": "i",
+                  "type": {
+                    "text": "number"
+                  }
+                }
+              ]
+            }
+          ],
+          "events": [
+            {
+              "name": "ship-annotation-staged",
+              "type": {
+                "text": "CustomEvent"
+              }
+            },
+            {
+              "name": "ship-annotation-error",
+              "type": {
+                "text": "CustomEvent"
+              }
+            },
+            {
+              "name": "ship-annotation-sent",
+              "type": {
+                "text": "CustomEvent"
+              }
+            }
+          ],
+          "attributes": [
+            {
+              "name": "view-id",
+              "type": {
+                "text": "string"
+              },
+              "default": "''",
+              "fieldName": "viewId"
+            },
+            {
+              "name": "mode",
+              "type": {
+                "text": "Mode"
+              },
+              "default": "'off'",
+              "fieldName": "mode"
+            },
+            {
+              "name": "endpoint",
+              "type": {
+                "text": "string"
+              },
+              "default": "DEFAULT_ENDPOINT",
+              "fieldName": "endpoint"
+            },
+            {
+              "name": "staging",
+              "type": {
+                "text": "boolean"
+              },
+              "default": "false",
+              "fieldName": "staging"
+            },
+            {
+              "name": "staged",
+              "type": {
+                "text": "AnnotationEvent[]"
+              },
+              "default": "[]",
+              "fieldName": "staged"
+            },
+            {
+              "name": "_pending",
+              "type": {
+                "text": "Pending | null"
+              },
+              "default": "null",
+              "fieldName": "_pending"
+            },
+            {
+              "name": "_drag",
+              "type": {
+                "text": "{ startX: number; startY: number; curX: number; curY: number } | null"
+              },
+              "default": "null",
+              "fieldName": "_drag"
+            }
+          ],
+          "superclass": {
+            "name": "LitElement",
+            "package": "lit"
+          },
+          "tagName": "ship-annotation-layer",
+          "customElement": true
+        }
+      ],
+      "exports": [
+        {
+          "kind": "js",
+          "name": "ShipAnnotationLayer",
+          "declaration": {
+            "name": "ShipAnnotationLayer",
+            "module": "src/web-components/ship-annotation-layer.ts"
+          }
+        },
+        {
+          "kind": "custom-element-definition",
+          "name": "ship-annotation-layer",
+          "declaration": {
+            "name": "ShipAnnotationLayer",
+            "module": "src/web-components/ship-annotation-layer.ts"
+          }
+        }
+      ]
+    },
+    {
+      "kind": "javascript-module",
+      "path": "src/web-components/ship-annotation-list.ts",
+      "declarations": [
+        {
+          "kind": "class",
+          "description": "",
+          "name": "ShipAnnotationList",
+          "members": [
+            {
+              "kind": "field",
+              "name": "staged",
+              "privacy": "public",
+              "type": {
+                "text": "AnnotationEvent[]"
+              },
+              "default": "[]",
+              "attribute": "staged"
+            },
+            {
+              "kind": "method",
+              "name": "emitRemove",
+              "privacy": "private",
+              "return": {
+                "type": {
+                  "text": "void"
+                }
+              },
+              "parameters": [
+                {
+                  "name": "id",
+                  "type": {
+                    "text": "string"
+                  }
+                }
+              ]
+            }
+          ],
+          "events": [
+            {
+              "name": "ship-annotation-remove",
+              "type": {
+                "text": "CustomEvent"
+              }
+            }
+          ],
+          "attributes": [
+            {
+              "name": "staged",
+              "type": {
+                "text": "AnnotationEvent[]"
+              },
+              "default": "[]",
+              "fieldName": "staged"
+            }
+          ],
+          "superclass": {
+            "name": "LitElement",
+            "package": "lit"
+          },
+          "tagName": "ship-annotation-list",
+          "customElement": true
+        }
+      ],
+      "exports": [
+        {
+          "kind": "js",
+          "name": "ShipAnnotationList",
+          "declaration": {
+            "name": "ShipAnnotationList",
+            "module": "src/web-components/ship-annotation-list.ts"
+          }
+        },
+        {
+          "kind": "custom-element-definition",
+          "name": "ship-annotation-list",
+          "declaration": {
+            "name": "ShipAnnotationList",
+            "module": "src/web-components/ship-annotation-list.ts"
+          }
+        }
+      ]
+    },
+    {
+      "kind": "javascript-module",
+      "path": "src/web-components/ship-annotation-marker.ts",
+      "declarations": [
+        {
+          "kind": "class",
+          "description": "",
+          "name": "ShipAnnotationMarker",
+          "members": [
+            {
+              "kind": "field",
+              "name": "kind",
+              "privacy": "public",
+              "type": {
+                "text": "Kind"
+              },
+              "default": "'point'",
+              "attribute": "kind",
+              "reflects": true
+            },
+            {
+              "kind": "field",
+              "name": "x",
+              "privacy": "public",
+              "type": {
+                "text": "number"
+              },
+              "default": "0",
+              "attribute": "x"
+            },
+            {
+              "kind": "field",
+              "name": "y",
+              "privacy": "public",
+              "type": {
+                "text": "number"
+              },
+              "default": "0",
+              "attribute": "y"
+            },
+            {
+              "kind": "field",
+              "name": "rect",
+              "privacy": "public",
+              "type": {
+                "text": "string | null"
+              },
+              "default": "null",
+              "attribute": "rect",
+              "reflects": true
+            },
+            {
+              "kind": "field",
+              "name": "active",
+              "privacy": "public",
+              "type": {
+                "text": "boolean"
+              },
+              "default": "false",
+              "attribute": "active",
+              "reflects": true
+            },
+            {
+              "kind": "field",
+              "name": "index",
+              "privacy": "public",
+              "type": {
+                "text": "number"
+              },
+              "default": "0",
+              "attribute": "index"
+            },
+            {
+              "kind": "method",
+              "name": "parsedRect",
+              "privacy": "private",
+              "return": {
+                "type": {
+                  "text": "[number, number, number, number] | null"
+                }
+              }
+            }
+          ],
+          "attributes": [
+            {
+              "name": "kind",
+              "type": {
+                "text": "Kind"
+              },
+              "default": "'point'",
+              "fieldName": "kind"
+            },
+            {
+              "name": "x",
+              "type": {
+                "text": "number"
+              },
+              "default": "0",
+              "fieldName": "x"
+            },
+            {
+              "name": "y",
+              "type": {
+                "text": "number"
+              },
+              "default": "0",
+              "fieldName": "y"
+            },
+            {
+              "name": "rect",
+              "type": {
+                "text": "string | null"
+              },
+              "default": "null",
+              "fieldName": "rect"
+            },
+            {
+              "name": "active",
+              "type": {
+                "text": "boolean"
+              },
+              "default": "false",
+              "fieldName": "active"
+            },
+            {
+              "name": "index",
+              "type": {
+                "text": "number"
+              },
+              "default": "0",
+              "fieldName": "index"
+            }
+          ],
+          "superclass": {
+            "name": "LitElement",
+            "package": "lit"
+          },
+          "tagName": "ship-annotation-marker",
+          "customElement": true
+        }
+      ],
+      "exports": [
+        {
+          "kind": "js",
+          "name": "ShipAnnotationMarker",
+          "declaration": {
+            "name": "ShipAnnotationMarker",
+            "module": "src/web-components/ship-annotation-marker.ts"
+          }
+        },
+        {
+          "kind": "custom-element-definition",
+          "name": "ship-annotation-marker",
+          "declaration": {
+            "name": "ShipAnnotationMarker",
+            "module": "src/web-components/ship-annotation-marker.ts"
+          }
+        }
+      ]
+    },
+    {
+      "kind": "javascript-module",
       "path": "src/web-components/ship-badge.ts",
       "declarations": [
         {
