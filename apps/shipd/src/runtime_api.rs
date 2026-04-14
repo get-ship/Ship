@@ -401,6 +401,7 @@ pub async fn create_job(
         pipeline_name: req.pipeline,
         vars: req.vars,
         spec_content: req.spec_content,
+        step_specs: None,
     };
 
     // Enrich with pipeline BEFORE persisting — the persisted event must include steps
@@ -1040,6 +1041,7 @@ mod tests {
             pipeline_name: None,
             vars: None,
             spec_content: None,
+            step_specs: None,
         };
         let envelope = runtime::events::EventEnvelope::new(
             runtime::events::job::event_types::JOB_CREATED,

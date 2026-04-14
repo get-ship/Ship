@@ -52,11 +52,11 @@ fn write_phase_spec_from_context(worktree_path: &std::path::Path, job: &JobConte
             .map_err(|e| anyhow::anyhow!("create spec dir {}: {e}", parent.display()))?;
     }
 
-    // Write a placeholder body only. The orchestrator's prompt composer
-    // (services::orchestrator::prompt_composer::write_step_spec) overwrites
-    // this with the real per-step spec right after `prepare` returns. The
-    // placeholder is kept so legacy manual-dispatch flows that call only the
-    // adapter see something sensible.
+    // Write a placeholder body only. The orchestrator's pipeline-specs writer
+    // (services::orchestrator::pipeline_specs) overwrites this with a fresh
+    // dispatch prompt right after `prepare` returns. The placeholder is kept
+    // so legacy manual-dispatch flows that call only the adapter see
+    // something sensible.
     let body = if let Some(content) = &job.spec_content {
         content.clone()
     } else {

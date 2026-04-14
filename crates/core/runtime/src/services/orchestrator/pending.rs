@@ -76,6 +76,7 @@ pub async fn dispatch_ready_pending_jobs(
             pipeline_name: None,
             vars: None,
             spec_content: None,
+            step_specs: None,
         };
 
         let payload = ensure_pipeline(payload);

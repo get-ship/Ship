@@ -253,6 +253,7 @@ fn pipeline_step_count(name: &str) -> (usize, Option<String>) {
         pipeline_name: Some(name.to_string()),
         vars: None,
         spec_content: None,
+        step_specs: None,
     };
     let resolved = pipeline_loader::ensure_pipeline(payload);
     let steps = match resolved.steps.as_ref() {

@@ -98,28 +98,35 @@ pub async fn dispatch_job_internal(
         }
     };
 
-    // Compose the per-step spec from pipeline metadata + user's body.
-    // The isolation adapter creates the worktree; the orchestrator owns
-    // what the agent actually reads. One place, one contract.
+    // Materialize `.artifacts/pipeline/` once at launch — overall spec plus
+    // one pre-written body per step — then drop a dispatch prompt at
+    // `spec_path` pointing the first agent at its own step file.
     if let Some(pipeline) = &payload.steps
         && let Some(root) = pipeline.root_steps().first()
     {
         let body = payload.spec_content.clone().unwrap_or_default();
-        match super::prompt_composer::write_step_spec(
+        if let Err(e) = super::pipeline_specs::write_pipeline_specs(
+            &worktree_path,
+            slug,
+            pipeline,
+            &body,
+            payload.step_specs.as_deref(),
+        ) {
+            tracing::error!(slug, "job-dispatch: failed to write pipeline specs: {e}");
+        }
+        match super::pipeline_specs::write_dispatch_prompt(
             &worktree_path,
             &payload.spec_path,
-            &payload.job_id,
             payload.pipeline_name.as_deref(),
             pipeline,
             root,
-            &body,
         ) {
             Ok(path) => tracing::info!(
                 slug, step_id = root.id,
-                "job-dispatch: wrote initial step spec to {}", path.display()
+                "job-dispatch: wrote dispatch prompt to {}", path.display()
             ),
             Err(e) => tracing::error!(
-                slug, "job-dispatch: failed to write initial step spec: {e}"
+                slug, "job-dispatch: failed to write dispatch prompt: {e}"
             ),
         }
     }
