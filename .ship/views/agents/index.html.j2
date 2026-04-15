@@ -2,10 +2,7 @@
   Agents index — self-contained card grid with SSE live updates.
   Context: agents (Vec<AgentSummary>), total (usize).
 -#}
-{#- SDK gap: no macro for navigation links between views -#}
-{#- SDK gap: ship_agents() function would avoid context injection for agent list -#}
-{#- SDK gap: no macro for POST-on-click with JSON body (create agent pattern) -#}
-{% from '_ship.html.j2' import head, signal, live, styles %}
+{% from '_ship.html.j2' import head, signal, live, styles, post %}
 {% from '_urls.html.j2' import view_agents_create %}
 <!DOCTYPE html>
 <html lang="en">
@@ -72,7 +69,7 @@
         <div class="agents-sub">{{ total }} {% if total == 1 %}agent configured{% else %}agents configured{% endif %}</div>
       </div>
       <ship-button size="sm" tone="accent" variant="solid"
-        data-on:click="@post('{{ view_agents_create() }}', {contentType: 'json', body: JSON.stringify({})})">
+        {{ post(view_agents_create(), '{}') }}>
         + New Agent
       </ship-button>
     </div>

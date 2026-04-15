@@ -157,12 +157,56 @@ fn parse_sort_string(val: &serde_json::Value, sort: &mut std::collections::BTree
     }
 }
 
+/// Global function: `ship_agents()`.
+/// Returns all agents as a list of serialized AgentSummary objects.
+pub fn ship_agents() -> Vec<Value> {
+    let ship_dir = match runtime::project::get_global_dir() {
+        Ok(d) => d,
+        Err(_) => return vec![],
+    };
+    let agents = crate::views::state::list_agents(&ship_dir);
+    agents
+        .into_iter()
+        .map(|a| Value::from_serialize(&a))
+        .collect()
+}
+
+/// Global function: `ship_agent(id)`.
+/// Returns a single agent detail, or UNDEFINED if not found.
+pub fn ship_agent(id: String) -> Value {
+    let ship_dir = match runtime::project::get_global_dir() {
+        Ok(d) => d,
+        Err(_) => return Value::UNDEFINED,
+    };
+    match crate::views::state::load_agent(&ship_dir, &id) {
+        Some(a) => Value::from_serialize(&a),
+        None => Value::UNDEFINED,
+    }
+}
+
+/// Global function: `ship_skills()`.
+/// Returns all skills as a list of serialized SkillSummary objects.
+pub fn ship_skills() -> Vec<Value> {
+    let ship_dir = match runtime::project::get_global_dir() {
+        Ok(d) => d,
+        Err(_) => return vec![],
+    };
+    let skills = crate::views::state::list_skills(&ship_dir);
+    skills
+        .into_iter()
+        .map(|s| Value::from_serialize(&s))
+        .collect()
+}
+
 /// Register all SDK filters and functions on a minijinja Environment.
 pub fn register_all(env: &mut minijinja::Environment) {
     env.add_function("ship_items", ship_items);
     env.add_function("ship_schema", ship_schema);
     env.add_function("ship_query", ship_query);
     env.add_function("ship_collections", ship_collections);
+    env.add_function("ship_agents", ship_agents);
+    env.add_function("ship_agent", ship_agent);
+    env.add_function("ship_skills", ship_skills);
     env.add_filter("where", filter_where);
     env.add_filter("sort_by", filter_sort_by);
     env.add_filter("take", filter_take);

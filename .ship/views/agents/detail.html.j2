@@ -2,10 +2,8 @@
   Agent detail — self-contained tabbed config page.
   Context: agent (AgentDetail), tiers (Vec<TierRow>).
 -#}
-{#- SDK gap: no macro for navigation links between views (back link) -#}
 {#- SDK gap: no macro for tabs layout -#}
-{#- SDK gap: ship_agent(id) function would avoid context injection -#}
-{% from '_ship.html.j2' import head, styles %}
+{% from '_ship.html.j2' import head, styles, get %}
 {% from '_urls.html.j2' import view_agents %}
 <!DOCTYPE html>
 <html lang="en">
@@ -95,7 +93,7 @@
 <body>
 <div id="agent-detail-root" class="ship-view ship-view-agent-detail">
   <div class="ad-wrap">
-    <a class="ad-back" data-on:click="@get('{{ view_agents() }}')">&#8592; Back to agents</a>
+    <a class="ad-back" {{ get(view_agents()) }}>&#8592; Back to agents</a>
     <header class="ad-head">
       <div class="ad-avatar">{{ agent.letter }}</div>
       <div>

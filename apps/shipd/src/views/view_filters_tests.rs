@@ -172,3 +172,23 @@ fn build_query_request_defaults_without_opts() {
     assert!(req.filter.is_empty());
     assert!(req.sort.is_empty());
 }
+
+#[test]
+fn ship_agents_returns_vec_without_panic() {
+    // Even if no agents exist, should return empty vec (not panic).
+    let result = ship_agents();
+    let _ = result.len();
+}
+
+#[test]
+fn ship_agent_missing_returns_undefined() {
+    let result = ship_agent("nonexistent_agent_xyz".into());
+    assert!(result.is_undefined());
+}
+
+#[test]
+fn ship_skills_returns_vec_without_panic() {
+    // Even if no skills exist, should return empty vec (not panic).
+    let result = ship_skills();
+    let _ = result.len();
+}

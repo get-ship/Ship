@@ -54,10 +54,38 @@
 {# Delete an item from a collection #}
 {% macro delete(collection, id) %}data-on:click="@delete('/api/collections/{{ collection }}/items/{{ id }}')"{% endmacro %}
 
+{#- === Navigation === -#}
+
+{# Navigate to another view via GET (replaces content via Datastar morph) #}
+{% macro navigate(url) %}data-on:click="@get('{{ url }}')"{% endmacro %}
+
+{# Navigate to a named view #}
+{% macro view(name) %}data-on:click="@get('/api/runtime/view/{{ name }}')"{% endmacro %}
+
+{#- === Generic Actions === -#}
+
+{# GET request on click #}
+{% macro get(url) %}data-on:click="@get('{{ url }}')"{% endmacro %}
+
+{# POST request on click with payload #}
+{% macro post(url, payload='{}') %}data-on:click="@post('{{ url }}', {payload: {{ payload }}})"{% endmacro %}
+
+{# PUT request on click with payload #}
+{% macro put(url, payload='{}') %}data-on:click="@put('{{ url }}', {payload: {{ payload }}})"{% endmacro %}
+
+{# PUT request on change (for settings/config updates) #}
+{% macro put_on_change(url, payload='{}') %}data-on:change="@put('{{ url }}', {payload: {{ payload }}})"{% endmacro %}
+
+{# POST on submit (for forms) #}
+{% macro submit(url, payload='{}') %}data-on:submit="@post('{{ url }}', {payload: {{ payload }}})"{% endmacro %}
+
+{# Bind a signal to an input element's value #}
+{% macro bind(signal_name) %}data-bind="{{ signal_name }}"{% endmacro %}
+
 {#- === Job Actions === -#}
 
-{# Create a new job #}
-{% macro create_job(agent_expr) %}data-on:click="@post('/api/runtime/jobs', {payload: {agent: {{ agent_expr }}}})"{% endmacro %}
+{# Create a new job. agent_expr is a signal expression, pipeline is optional. #}
+{% macro create_job(agent_expr, pipeline='') %}data-on:click="@post('/api/runtime/jobs', {payload: {agent: {{ agent_expr }}{% if pipeline %}, pipeline: '{{ pipeline }}'{% endif %}}})"{% endmacro %}
 
 {# Emit a kernel event #}
 {% macro emit(event_type, data_expr='{}') %}data-on:click="@post('/api/events/emit', {payload: {event_type: '{{ event_type }}', data: {{ data_expr }}}})"{% endmacro %}

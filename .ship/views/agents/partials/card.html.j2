@@ -1,8 +1,8 @@
 {#- One agent card. Context: `a` = AgentSummary -#}
-{#- SDK gap: no macro for GET-on-click navigation (view_agent_detail pattern) -#}
+{% from '_ship.html.j2' import get %}
 {% from '_urls.html.j2' import view_agent_detail %}
 <div class="agent-card"
-     data-on:click="@get('{{ view_agent_detail(a.id) }}')">
+     {{ get(view_agent_detail(a.id)) }}>
   <div class="agent-card-head">
     <div class="agent-avatar" data-letter="{{ a.letter }}">{{ a.letter }}</div>
     <div class="agent-card-title">
