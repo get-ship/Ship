@@ -1,18 +1,20 @@
+{#- SDK gaps:
+    - no panel/layout macro for two-pane rail+detail layout
+    - no confirmation dialog macro for destructive actions
+    - no navigation macro for linking between views
+    - no search/filter input macro with debounce
+-#}
 {#-
   Specs view — two-pane layout: left rail (grouped by status) + right detail.
   Daemon passes: selected_id, q, counts, groups, total, selected, pipelines.
   Datastar for all interactions. ZERO script tags.
 -#}
+{% from '_ship.html.j2' import head, signal %}
 {% from '_urls.html.j2' import create_spec, view_specs, view_specs_sse %}
 <!DOCTYPE html>
 <html lang="en">
 <head>
-  <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Specs</title>
-  <link rel="stylesheet" href="/api/runtime/assets/view-tokens.css">
-  <script type="module" src="/api/runtime/assets/datastar.js"></script>
-  <script type="module" src="/api/runtime/assets/ship-elements.js"></script>
+  {{ head('Specs') }}
   <style>
   .ship-view-specs { padding: 0; color: var(--foreground); }
   .specs-grid {
@@ -185,7 +187,8 @@
 <body>
 <div id="specs-root" class="ship-view ship-view-specs">
   <div class="specs-grid"
-       data-signals="{q: '{{ q }}', confirmDelete: false}">
+       {{ signal('q', q) }}
+       {{ signal('confirmDelete', false) }}>
 
     <aside class="specs-rail" aria-label="Spec list">
       <div class="specs-rail-head">

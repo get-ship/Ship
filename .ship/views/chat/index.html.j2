@@ -1,17 +1,18 @@
+{#- SDK gaps:
+    - no submit() macro — must use raw data-on:submit for form submission
+    - no bind() macro — must use raw data-bind for two-way input binding
+    - no keyboard shortcut macro (Enter-to-submit pattern)
+-#}
 {#-
   Chat view -- conversation + composer.
   The daemon passes workspace_id, messages, total as Jinja context.
   Datastar for all interactions. ZERO script tags.
 -#}
+{% from '_ship.html.j2' import head, signal, show, live, loading, attr %}
 <!DOCTYPE html>
 <html lang="en">
 <head>
-  <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Chat</title>
-  <link rel="stylesheet" href="/api/runtime/assets/view-tokens.css">
-  <script type="module" src="/api/runtime/assets/datastar.js"></script>
-  <script type="module" src="/api/runtime/assets/ship-elements.js"></script>
+  {{ head('Chat') }}
   <style>
   .ship-view-chat { color: var(--foreground); display: flex; flex-direction: column; height: 100%; min-height: 420px; }
   .chat-wrap { display: flex; flex-direction: column; flex: 1; min-height: 0; max-width: 720px; width: 100%; margin: 0 auto; }
@@ -32,7 +33,9 @@
 </head>
 <body>
 <div id="chat-root" class="ship-view ship-view-chat"
-     data-signals="{draft: '', workspace_id: '{{ workspace_id }}', sending: false}">
+     {{ signal('draft', '') }}
+     {{ signal('workspace_id', workspace_id) }}
+     {{ signal('sending', false) }}>
   <div class="chat-wrap">
     <div class="chat-header">
       <span class="dot"></span>
@@ -49,10 +52,10 @@
           data-on:submit="event.preventDefault(); $sending = true; @post('/api/runtime/view/chat/send', {contentType: 'json', body: JSON.stringify({text: $draft, workspace_id: $workspace_id || null})}); $draft = ''; $sending = false">
       <textarea name="text" placeholder="Message the agent..."
                 data-bind="draft"
-                data-indicator="sending"
+                {{ loading('sending') }}
                 data-on:keydown="if (evt.key === 'Enter' && !evt.shiftKey) { evt.preventDefault(); evt.target.form.requestSubmit(); }"></textarea>
       <ship-button type="submit" tone="accent" variant="solid" size="sm"
-                   data-attr:disabled="$sending">Send</ship-button>
+                   {{ attr('disabled', '$sending') }}>Send</ship-button>
     </form>
   </div>
 </div>

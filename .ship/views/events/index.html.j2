@@ -1,17 +1,18 @@
+{#- SDK gaps:
+    - no filter_chip() macro — must use raw data-attr/data-on:click for filter chip selection + SSE re-fetch
+    - no search_input() macro — must use raw data-bind + data-on:input for debounced search
+    - no navigation macro for linking between views
+-#}
 {#-
   Events browser — live event-stream feed with filter chips and entity groupings.
   The daemon passes rows, types, actors, groups, total as Jinja context.
   Datastar for all interactions. ZERO script tags.
 -#}
+{% from '_ship.html.j2' import head, signal, show, live %}
 <!DOCTYPE html>
 <html lang="en">
 <head>
-  <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Events</title>
-  <link rel="stylesheet" href="/api/runtime/assets/view-tokens.css">
-  <script type="module" src="/api/runtime/assets/datastar.js"></script>
-  <script type="module" src="/api/runtime/assets/ship-elements.js"></script>
+  {{ head('Events') }}
   <style>
   .ship-view-events { color: var(--foreground); }
   .events-wrap { max-width: 960px; margin: 0 auto; padding: 20px 16px 40px; }
@@ -72,7 +73,10 @@
 </head>
 <body>
 <div id="events-root" class="ship-view ship-view-events"
-     data-signals="{eventType: '', actor: '', entity: '', q: ''}">
+     {{ signal('eventType', '') }}
+     {{ signal('actor', '') }}
+     {{ signal('entity', '') }}
+     {{ signal('q', '') }}>
   <div class="events-wrap">
     <div class="events-head">
       <div>
@@ -117,7 +121,7 @@
     </div>
 
     {# -- Content (SSE-driven) -- #}
-    <div data-init="@get('/api/runtime/view/events/sse')">
+    <div {{ live('events') }}>
       <div id="events-content" class="events-content">
         <p style="padding: 16px 0; font-size: 11px; color: var(--muted-foreground)">Loading...</p>
       </div>

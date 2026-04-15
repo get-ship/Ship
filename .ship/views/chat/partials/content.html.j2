@@ -1,3 +1,7 @@
+{#- SDK gaps:
+    - no message_bubble() macro for chat message rendering
+    - no empty_state variant for chat-specific empty states
+-#}
 {#- Chat content -- message list, live-patched over SSE.
    Root element MUST have id="chat-content" for Datastar patching. -#}
 <div id="chat-content" class="chat-messages-inner">

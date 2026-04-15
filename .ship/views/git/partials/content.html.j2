@@ -1,3 +1,10 @@
+{#- SDK gaps:
+    - no diff_viewer() macro — must render ship-git-diff elements manually
+    - no toolbar() macro for branch/status bar
+    - no file_list() macro for staged/modified/untracked file rows
+    - no commit_log() macro for recent commits listing
+    - no review_banner() macro for completed job notifications
+-#}
 {#-
   Git content partial — live-patched over SSE into #git-content.
   Context: branch, clean, total_changed, staged, modified, untracked,

@@ -1,19 +1,22 @@
+{#- SDK gaps:
+    - no diff_viewer() macro for git diff rendering
+    - no toolbar() macro for branch/status toolbar
+    - no file_list() macro for changed file listings
+    - no commit_log() macro for git log display
+    - live() macro does not support query string passthrough (workspace_id)
+-#}
 {#-
   Git view — single-column, information-dense layout.
   The daemon passes branch, clean, total_changed, staged, modified,
   untracked, commits, selected_commit, completed_jobs, error as Jinja context.
   Datastar for all interactions. ZERO script tags.
 -#}
+{% from '_ship.html.j2' import head, signal %}
 {% from '_urls.html.j2' import view_git, view_git_sse %}
 <!DOCTYPE html>
 <html lang="en">
 <head>
-  <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Git</title>
-  <link rel="stylesheet" href="/api/runtime/assets/view-tokens.css">
-  <script type="module" src="/api/runtime/assets/datastar.js"></script>
-  <script type="module" src="/api/runtime/assets/ship-elements.js"></script>
+  {{ head('Git') }}
   <style>
   .ship-view-git { color: var(--foreground); }
   .ship-git-wrap { width: 100%; max-width: none; margin: 0; padding: 16px 20px; }
@@ -156,7 +159,7 @@
 </head>
 <body>
 <div id="git-root" class="ship-view ship-view-git"
-     data-signals="{commit: '{% if selected_commit %}{{ selected_commit.sha }}{% endif %}'}">
+     {{ signal('commit', selected_commit.sha if selected_commit else '') }}>
   <div class="ship-git-wrap{% if selected_commit %} ship-git-wrap-detail{% endif %}">
     <div data-init="@get('{{ view_git_sse() }}{% if workspace_id %}?workspace_id={{ workspace_id }}{% endif %}')">
       <div id="git-content">

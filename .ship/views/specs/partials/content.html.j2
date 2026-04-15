@@ -1,5 +1,12 @@
+{#- SDK gaps:
+    - no confirmation_dialog() macro — must use raw ship-alert-dialog + signal toggling
+    - no metachip_row() macro for metadata display
+    - no launch_bar() macro for sticky bottom action bar
+    - no markdown_section() macro for prose rendering
+-#}
 {#- Specs content — detail pane or empty state, live-patched over SSE.
    Root element MUST have id="specs-content" for Datastar patching. -#}
+{% from '_ship.html.j2' import show %}
 {% from '_urls.html.j2' import create_spec, delete_spec, launch_spec %}
 <div id="specs-content">
   {% if selected %}
