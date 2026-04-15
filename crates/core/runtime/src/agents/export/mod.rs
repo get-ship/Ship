@@ -1,5 +1,10 @@
 include!("sections/provider_registry.rs");
 include!("sections/managed_state.rs");
 include!("sections/sync_and_mcp.rs");
+include!("sections/sync_imports.rs");
+include!("sections/sync_skills_import.rs");
+include!("sections/sync_engines.rs");
+include!("sections/sync_mcp_entries.rs");
+include!("sections/sync_skills_export.rs");
 include!("sections/permissions.rs");
 include!("sections/tests.rs");
