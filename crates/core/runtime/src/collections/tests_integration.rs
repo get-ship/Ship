@@ -175,7 +175,7 @@ mod tests {
         seed(&mut svc, &schema);
 
         let results = query_items(&mut svc, &schema,
-            &make_query("task", json!({"priority": {"$gte": 2}}))).unwrap();
+            &make_query("task", json!({"priority__gte": 2}))).unwrap();
         assert_eq!(results.len(), 2, "priority 2 and 3");
     }
 
@@ -185,7 +185,7 @@ mod tests {
         seed(&mut svc, &schema);
 
         let results = query_items(&mut svc, &schema,
-            &make_query("task", json!({"status": {"$in": ["todo", "doing"]}}))).unwrap();
+            &make_query("task", json!({"status__in": ["todo", "doing"]}))).unwrap();
         assert_eq!(results.len(), 3);
     }
 

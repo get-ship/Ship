@@ -2,23 +2,15 @@
   Data browser — server-rendered collection viewer/editor.
   Uses Ship View SDK macros. Datastar for all interactions.
 -#}
-{% from '_ship.html.j2' import head, signal, show, live, create, delete, loading, spinner %}
+{% from '_ship.html.j2' import head, signal, show, live, create, loading, spinner, form, styles %}
 <!DOCTYPE html>
 <html lang="en">
 <head>{{ head('Data') }}
+  {{ styles() }}
   <style>
   .data-wrap { max-width: 76rem; margin: 0 auto; padding: var(--space-6, 24px) var(--space-4, 16px); }
   .data-toolbar { display: flex; align-items: center; gap: var(--space-3, 10px); margin-bottom: var(--space-4, 16px); flex-wrap: wrap; }
   .data-count { font-size: var(--text-xs, 11px); color: var(--muted-foreground); margin-left: auto; }
-  table { width: 100%; border-collapse: collapse; font-size: var(--text-sm, 13px); }
-  th { text-align: left; padding: var(--space-2, 8px) var(--space-3, 12px); border-bottom: 2px solid var(--border); font-weight: 600; font-size: var(--text-xs, 11px); text-transform: uppercase; letter-spacing: 0.04em; color: var(--muted-foreground); }
-  td { padding: var(--space-2, 8px) var(--space-3, 12px); border-bottom: 1px solid var(--border); vertical-align: top; }
-  tr:hover td { background: color-mix(in oklch, var(--muted) 40%, transparent); }
-  .mono { font-family: var(--font-mono); font-size: var(--text-xs, 11px); }
-  .muted { color: var(--muted-foreground); }
-  .null { color: var(--muted-foreground); font-style: italic; }
-  .field-row { display: flex; align-items: flex-start; gap: var(--space-3, 12px); margin-bottom: var(--space-3, 10px); }
-  .field-label { font-size: var(--text-xs, 12px); font-weight: 500; min-width: 110px; padding-top: 7px; color: var(--muted-foreground); }
   </style>
 </head>
 <body>
@@ -61,7 +53,7 @@
     </div>
     {% endif %}
 
-    {# -- Create form -- #}
+    {# -- Create form (uses SDK form macro) -- #}
     {% if schema is defined %}
     <ship-card {{ show('$_showForm') }} style="display:none; margin-bottom: var(--space-4, 16px)">
       <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:var(--space-3,12px)">
@@ -69,44 +61,15 @@
         <ship-button size="sm" variant="ghost"
           data-on:click="$_showForm = false">x</ship-button>
       </div>
-      <div>
-        {% for field_name, field_def in schema.fields %}
-        <div class="field-row">
-          <label class="field-label" for="create-{{ field_name }}">
-            {{ field_name }}{% if field_def.required %}<span style="color:var(--destructive)"> *</span>{% endif %}
-          </label>
-          {% if field_def.field_type == "enum" and field_def.values %}
-          <ship-select size="sm" id="create-{{ field_name }}"
-            data-bind="form.{{ field_name }}">
-            <ship-option value="">--</ship-option>
-            {% for v in field_def.values %}
-            <ship-option value="{{ v }}">{{ v }}</ship-option>
-            {% endfor %}
-          </ship-select>
-          {% elif field_def.field_type == "boolean" %}
-          <ship-switch id="create-{{ field_name }}"
-            data-bind="form.{{ field_name }}"></ship-switch>
-          {% elif field_def.field_type == "number" %}
-          <ship-input size="sm" type="number" id="create-{{ field_name }}"
-            data-bind="form.{{ field_name }}" placeholder="0"></ship-input>
-          {% elif field_def.field_type == "markdown" %}
-          <ship-textarea size="sm" id="create-{{ field_name }}"
-            data-bind="form.{{ field_name }}" rows="3" placeholder="{{ field_name }}"></ship-textarea>
-          {% else %}
-          <ship-input size="sm" id="create-{{ field_name }}"
-            data-bind="form.{{ field_name }}" placeholder="{{ field_name }}"></ship-input>
-          {% endif %}
-        </div>
-        {% endfor %}
-        <ship-separator></ship-separator>
-        <div style="display:flex;gap:var(--space-2,8px);margin-top:var(--space-3,12px);align-items:center">
-          <ship-button size="sm"
-            {{ create(active_collection, '$form') }}
-            {{ loading('_creating') }}>Create</ship-button>
-          <ship-button size="sm" variant="ghost"
-            data-on:click="$_showForm = false">Cancel</ship-button>
-          {{ spinner('_creating') }}
-        </div>
+      {{ form(schema, active_collection) }}
+      <ship-separator></ship-separator>
+      <div style="display:flex;gap:var(--space-2,8px);margin-top:var(--space-3,12px);align-items:center">
+        <ship-button size="sm"
+          {{ create(active_collection, '$form') }}
+          {{ loading('_creating') }}>Create</ship-button>
+        <ship-button size="sm" variant="ghost"
+          data-on:click="$_showForm = false">Cancel</ship-button>
+        {{ spinner('_creating') }}
       </div>
     </ship-card>
     {% endif %}

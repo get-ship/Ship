@@ -126,3 +126,49 @@ fn where_ne_operator() {
     );
     assert_eq!(result.len(), 1);
 }
+
+#[test]
+fn ship_query_nonexistent_returns_empty() {
+    let result = ship_query("nonexistent_collection_xyz".into(), None);
+    assert!(result.is_empty());
+}
+
+#[test]
+fn ship_collections_returns_vec() {
+    // Even if no schemas exist, it should return an empty vec (not panic).
+    let result = ship_collections();
+    // Result may or may not be empty depending on test environment.
+    // Just verify it returns without panicking.
+    let _ = result.len();
+}
+
+#[test]
+fn build_query_request_parses_opts() {
+    use super::build_query_request;
+    let opts = Value::from_serialize(&serde_json::json!({
+        "status": "active",
+        "priority__gte": 3,
+        "_sort": "-priority,created_at",
+        "_limit": 20,
+        "_offset": 5,
+    }));
+    let req = build_query_request("task", &Some(opts));
+    assert_eq!(req.collection, "task");
+    assert_eq!(req.limit, 20);
+    assert_eq!(req.offset, 5);
+    assert_eq!(req.filter.get("status").unwrap(), "active");
+    assert_eq!(req.filter.get("priority__gte").unwrap(), 3);
+    assert_eq!(req.sort.get("priority"), Some(&-1));
+    assert_eq!(req.sort.get("created_at"), Some(&1));
+}
+
+#[test]
+fn build_query_request_defaults_without_opts() {
+    use super::build_query_request;
+    let req = build_query_request("task", &None);
+    assert_eq!(req.collection, "task");
+    assert_eq!(req.limit, 200);
+    assert_eq!(req.offset, 0);
+    assert!(req.filter.is_empty());
+    assert!(req.sort.is_empty());
+}

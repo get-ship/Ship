@@ -61,3 +61,79 @@
 
 {# Emit a kernel event #}
 {% macro emit(event_type, data_expr='{}') %}data-on:click="@post('/api/events/emit', {payload: {event_type: '{{ event_type }}', data: {{ data_expr }}}})"{% endmacro %}
+
+{#- === Data Macros === -#}
+
+{# Auto-form: generate typed form fields from a collection schema #}
+{% macro form(schema, collection, form_signal='form') %}
+<div class="ship-form">
+  {% for field_name, field_def in schema.fields %}
+  <div class="ship-form-field">
+    <label class="ship-form-label">
+      {{ field_name }}{% if field_def.required %}<span style="color:var(--destructive)"> *</span>{% endif %}
+    </label>
+    {% if field_def.field_type == "enum" and field_def.values %}
+    <ship-select size="sm" data-bind="{{ form_signal }}.{{ field_name }}">
+      <ship-option value="">--</ship-option>
+      {% for v in field_def.values %}<ship-option value="{{ v }}">{{ v }}</ship-option>{% endfor %}
+    </ship-select>
+    {% elif field_def.field_type == "boolean" %}
+    <ship-switch data-bind="{{ form_signal }}.{{ field_name }}"></ship-switch>
+    {% elif field_def.field_type == "number" %}
+    <ship-input size="sm" type="number" data-bind="{{ form_signal }}.{{ field_name }}" placeholder="0"></ship-input>
+    {% elif field_def.field_type == "markdown" %}
+    <ship-textarea size="sm" data-bind="{{ form_signal }}.{{ field_name }}" rows="3" placeholder="{{ field_name }}"></ship-textarea>
+    {% else %}
+    <ship-input size="sm" data-bind="{{ form_signal }}.{{ field_name }}" placeholder="{{ field_name }}"></ship-input>
+    {% endif %}
+  </div>
+  {% endfor %}
+</div>
+{% endmacro %}
+
+{# Auto-table: generate a data table from schema + items #}
+{% macro table(schema, items, collection) %}
+<table class="ship-table">
+  <thead><tr>
+    <th style="width:90px">ID</th>
+    {% for field_name, _ in schema.fields %}<th>{{ field_name }}</th>{% endfor %}
+    <th style="width:100px">Updated</th>
+    <th style="width:40px"></th>
+  </tr></thead>
+  <tbody>
+    {% for item in items %}
+    <tr id="item-{{ item.id }}">
+      <td class="mono muted" title="{{ item.id }}">{{ item.id[:10] }}</td>
+      {% for field_name, field_def in schema.fields %}
+      <td>
+        {% set val = item.data[field_name] if item.data[field_name] is defined else none %}
+        {% if val is none or val == "" %}<span class="null">--</span>
+        {% elif field_def.field_type == "enum" %}<ship-chip>{{ val }}</ship-chip>
+        {% elif field_def.field_type == "boolean" %}<ship-badge variant="{{ 'success' if val else 'secondary' }}">{{ "Yes" if val else "No" }}</ship-badge>
+        {% elif field_def.field_type == "number" %}<span class="mono">{{ val }}</span>
+        {% elif field_def.field_type == "array" and val is iterable and val is not string %}{% for v in val[:4] %}<ship-chip>{{ v }}</ship-chip> {% endfor %}{% if val | length > 4 %}<ship-badge variant="secondary">+{{ val | length - 4 }}</ship-badge>{% endif %}
+        {% else %}{{ val }}{% endif %}
+      </td>
+      {% endfor %}
+      <td class="mono muted">{{ item.updated_at[:16] if item.updated_at else "--" }}</td>
+      <td><ship-button size="sm" variant="destructive" {{ delete(collection, item.id) }} {{ loading('_deleting') }}>x</ship-button></td>
+    </tr>
+    {% endfor %}
+  </tbody>
+</table>
+{% endmacro %}
+
+{# Shared styles for ship-form and ship-table #}
+{% macro styles() %}
+<style>
+.ship-form-field { display: flex; align-items: flex-start; gap: 12px; margin-bottom: 10px; }
+.ship-form-label { font-size: 12px; font-weight: 500; min-width: 110px; padding-top: 7px; color: var(--muted-foreground); }
+.ship-table { width: 100%; border-collapse: collapse; font-size: 13px; }
+.ship-table th { text-align: left; padding: 8px 12px; border-bottom: 2px solid var(--border); font-weight: 600; font-size: 11px; text-transform: uppercase; letter-spacing: 0.04em; color: var(--muted-foreground); }
+.ship-table td { padding: 8px 12px; border-bottom: 1px solid var(--border); vertical-align: top; }
+.ship-table tr:hover td { background: color-mix(in oklch, var(--muted) 40%, transparent); }
+.mono { font-family: var(--font-mono); font-size: 11px; }
+.muted { color: var(--muted-foreground); }
+.null { color: var(--muted-foreground); font-style: italic; }
+</style>
+{% endmacro %}

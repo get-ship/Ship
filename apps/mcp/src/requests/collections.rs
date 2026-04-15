@@ -41,9 +41,9 @@ pub struct DeleteDocRequest {
 pub struct QueryDocsRequest {
     /// Collection ID.
     pub collection: String,
-    /// Filter object: field names mapped to values or operator objects.
-    /// Operators: $eq, $ne, $gt, $gte, $lt, $lte, $in, $exists.
-    /// Example: {"status": "accepted", "priority": {"$gte": 2}}
+    /// Filter object using Django-style `field__op` keys.
+    /// Operators: __ne, __gt, __gte, __lt, __lte, __in, __nin, __contains, __exists.
+    /// Example: {"status": "accepted", "priority__gte": 2}
     #[serde(default)]
     pub filter: std::collections::BTreeMap<String, serde_json::Value>,
     /// Sort object: field names mapped to 1 (ascending) or -1 (descending).

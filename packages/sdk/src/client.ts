@@ -484,7 +484,12 @@ export class ShipClient {
     )
   }
 
-  /** Query items in a collection with filters, sorting, and pagination. */
+  /**
+   * Query items in a collection with filters, sorting, and pagination.
+   * Filters use Django-style `field__op` keys:
+   *   { status: 'active', priority__gte: 3 }
+   * Operators: __ne, __gt, __gte, __lt, __lte, __in, __nin, __contains, __exists
+   */
   queryCollection(collection: string, params: {
     filter?: Record<string, unknown>,
     sort?: Record<string, number>,

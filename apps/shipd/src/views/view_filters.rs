@@ -5,6 +5,8 @@
 
 use minijinja::Value;
 
+pub use super::view_filters_list::{filter_sort_by, filter_take, filter_where};
+
 /// Global function: `ship_items(collection_name)`.
 /// Returns all items from a collection as a list of objects with
 /// `id`, `data`, `created_at`, `updated_at`. Returns empty list on error.
@@ -54,144 +56,113 @@ pub fn ship_schema(collection: String) -> Value {
     }
 }
 
-/// Filter: `items | where('field', 'value')` or `items | where('field', '>=', 3)`.
-pub fn filter_where(
-    items: Vec<Value>,
-    field: String,
-    op_or_value: Value,
-    value: Option<Value>,
-) -> Vec<Value> {
+/// Global function: `ship_query('task', {status: 'active', priority__gte: 3, _sort: '-priority'})`.
+/// SQL pushdown through query.rs. Keys starting with `_` are query options.
+pub fn ship_query(collection: String, opts: Option<Value>) -> Vec<Value> {
+    let ship_dir = match runtime::project::get_global_dir() {
+        Ok(d) => d,
+        Err(_) => return vec![],
+    };
+    let schemas = runtime::collections::schema::load_schemas(&ship_dir).unwrap_or_default();
+    let schema = match schemas.iter().find(|s| s.id == collection) {
+        Some(s) => s,
+        None => return vec![],
+    };
+    let mut svc = match runtime::collections::store::open_docs_db(&ship_dir) {
+        Ok(s) => s,
+        Err(_) => return vec![],
+    };
+    let _ = runtime::collections::store::ensure_collection_table(&mut svc, schema);
+    let req = build_query_request(&collection, &opts);
+    let items = match runtime::collections::store::query_items(&mut svc, schema, &req) {
+        Ok(items) => items,
+        Err(_) => return vec![],
+    };
     items
         .into_iter()
-        .filter(|item| matches_where(item, &field, &op_or_value, &value))
+        .map(|item| Value::from_serialize(&item))
         .collect()
 }
 
-fn matches_where(
-    item: &Value,
-    field: &str,
-    op_or_value: &Value,
-    value: &Option<Value>,
-) -> bool {
-    // Resolve field from item.data (items have {id, data, ...})
-    let field_val = item
-        .get_attr("data")
-        .ok()
-        .and_then(|d| d.get_attr(field).ok())
-        .filter(|v| !v.is_undefined());
-    let field_val = match field_val {
-        Some(v) => v,
-        None => return false,
+/// Global function: `ship_collections()`.
+/// Returns all collection schemas as `[{id, name, field_count, fields}]`.
+pub fn ship_collections() -> Vec<Value> {
+    let ship_dir = match runtime::project::get_global_dir() {
+        Ok(d) => d,
+        Err(_) => return vec![],
     };
-
-    match value {
-        None => {
-            // Equality: | where('status', 'active')
-            val_eq(&field_val, op_or_value)
-        }
-        Some(cmp_val) => {
-            // Comparison: | where('priority', '>=', 3)
-            let op = op_or_value.to_string();
-            val_cmp(&field_val, op.trim_matches('\''), cmp_val)
-        }
-    }
+    let schemas = runtime::collections::schema::load_schemas(&ship_dir).unwrap_or_default();
+    schemas
+        .iter()
+        .map(|s| {
+            Value::from_serialize(&serde_json::json!({
+                "id": s.id,
+                "name": s.name,
+                "field_count": s.fields.len(),
+                "fields": s.fields,
+            }))
+        })
+        .collect()
 }
 
-fn val_eq(a: &Value, b: &Value) -> bool {
-    // Compare as strings if either is a string, otherwise structural
-    if let (Some(sa), Some(sb)) = (a.as_str(), b.as_str()) {
-        return sa == sb;
-    }
-    if let (Ok(fa), Ok(fb)) = (f64_from_val(a), f64_from_val(b)) {
-        return (fa - fb).abs() < f64::EPSILON;
-    }
-    a.to_string() == b.to_string()
-}
+/// Parse a minijinja Value opts object into a QueryRequest.
+fn build_query_request(
+    collection: &str,
+    opts: &Option<Value>,
+) -> runtime::collections::query::QueryRequest {
+    let mut filter = std::collections::BTreeMap::new();
+    let mut sort = std::collections::BTreeMap::new();
+    let mut limit: u32 = 200;
+    let mut offset: u32 = 0;
 
-fn val_cmp(field_val: &Value, op: &str, cmp_val: &Value) -> bool {
-    // Try numeric comparison first
-    if let (Ok(fv), Ok(cv)) = (f64_from_val(field_val), f64_from_val(cmp_val)) {
-        return match op {
-            "==" | "=" => (fv - cv).abs() < f64::EPSILON,
-            "!=" | "<>" => (fv - cv).abs() >= f64::EPSILON,
-            ">" => fv > cv,
-            ">=" => fv >= cv,
-            "<" => fv < cv,
-            "<=" => fv <= cv,
-            _ => false,
-        };
-    }
-    // Fall back to string comparison
-    let sv = field_val.to_string();
-    let cv = cmp_val.to_string();
-    match op {
-        "==" | "=" => sv == cv,
-        "!=" | "<>" => sv != cv,
-        ">" => sv > cv,
-        ">=" => sv >= cv,
-        "<" => sv < cv,
-        "<=" => sv <= cv,
-        _ => false,
-    }
-}
-
-fn f64_from_val(v: &Value) -> Result<f64, ()> {
-    // Try i64 first, then parse from string representation
-    if let Some(i) = v.as_i64() {
-        return Ok(i as f64);
-    }
-    v.to_string()
-        .trim_matches('\'')
-        .trim_matches('"')
-        .parse::<f64>()
-        .map_err(|_| ())
-}
-
-/// Filter: `items | sort_by('field')` or `items | sort_by('field', true)` (reverse).
-pub fn filter_sort_by(
-    mut items: Vec<Value>,
-    field: String,
-    reverse: Option<bool>,
-) -> Vec<Value> {
-    let rev = reverse.unwrap_or(false);
-    items.sort_by(|a, b| {
-        let va = a
-            .get_attr("data")
-            .ok()
-            .and_then(|d| d.get_attr(&field).ok());
-        let vb = b
-            .get_attr("data")
-            .ok()
-            .and_then(|d| d.get_attr(&field).ok());
-        let cmp = cmp_values(&va, &vb);
-        if rev { cmp.reverse() } else { cmp }
-    });
-    items
-}
-
-fn cmp_values(a: &Option<Value>, b: &Option<Value>) -> std::cmp::Ordering {
-    match (a, b) {
-        (None, None) => std::cmp::Ordering::Equal,
-        (None, Some(_)) => std::cmp::Ordering::Greater,
-        (Some(_), None) => std::cmp::Ordering::Less,
-        (Some(va), Some(vb)) => {
-            if let (Ok(fa), Ok(fb)) = (f64_from_val(va), f64_from_val(vb)) {
-                return fa.partial_cmp(&fb).unwrap_or(std::cmp::Ordering::Equal);
+    if let Some(opts_val) = opts {
+        if let Ok(obj) = serde_json::to_value(opts_val.clone()) {
+            if let Some(map) = obj.as_object() {
+                for (key, val) in map {
+                    match key.as_str() {
+                        "_sort" => parse_sort_string(val, &mut sort),
+                        "_limit" => {
+                            if let Some(n) = val.as_u64() { limit = n as u32; }
+                        }
+                        "_offset" => {
+                            if let Some(n) = val.as_u64() { offset = n as u32; }
+                        }
+                        _ if key.starts_with('_') => {}
+                        _ => { filter.insert(key.clone(), val.clone()); }
+                    }
+                }
             }
-            va.to_string().cmp(&vb.to_string())
         }
+    }
+
+    runtime::collections::query::QueryRequest {
+        collection: collection.to_string(),
+        filter,
+        sort,
+        limit,
+        offset,
     }
 }
 
-/// Filter: `items | take(n)` — limits to first n items.
-pub fn filter_take(items: Vec<Value>, n: usize) -> Vec<Value> {
-    items.into_iter().take(n).collect()
+fn parse_sort_string(val: &serde_json::Value, sort: &mut std::collections::BTreeMap<String, i8>) {
+    if let Some(s) = val.as_str() {
+        for part in s.split(',') {
+            let part = part.trim();
+            if let Some(field) = part.strip_prefix('-') {
+                sort.insert(field.to_string(), -1);
+            } else {
+                sort.insert(part.to_string(), 1);
+            }
+        }
+    }
 }
 
 /// Register all SDK filters and functions on a minijinja Environment.
 pub fn register_all(env: &mut minijinja::Environment) {
     env.add_function("ship_items", ship_items);
     env.add_function("ship_schema", ship_schema);
+    env.add_function("ship_query", ship_query);
+    env.add_function("ship_collections", ship_collections);
     env.add_filter("where", filter_where);
     env.add_filter("sort_by", filter_sort_by);
     env.add_filter("take", filter_take);
