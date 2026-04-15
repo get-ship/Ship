@@ -46,6 +46,12 @@ impl Default for RuntimeConfig {
 /// Paths and metadata for the daemon process.
 pub struct AppMetadata {
     pub global_dir: PathBuf,
+    /// Optional project workspace. When set, view handlers and job dispatch
+    /// read from `<workspace>/.ship/` instead of `<global>/`. Without this
+    /// the daemon is workspace-agnostic and serves only global config —
+    /// that surface bled into project views more than once. Projects pass
+    /// the flag explicitly.
+    pub workspace_dir: Option<PathBuf>,
 }
 
 /// Type alias used as axum shared state.
@@ -172,7 +178,11 @@ impl ShipRuntime {
             mesh_registry,
             agent_mailboxes: Arc::new(Mutex::new(HashMap::new())),
             pty_connections: Arc::new(Mutex::new(HashMap::new())),
-            ship_dir: global_dir.clone(),
+            ship_dir: meta
+                .workspace_dir
+                .as_ref()
+                .map(|w| w.join(".ship"))
+                .unwrap_or_else(|| global_dir.clone()),
             mesh: tokio::sync::OnceCell::new(),
             jobs: tokio::sync::OnceCell::new(),
             dispatch_handle: std::sync::OnceLock::new(),

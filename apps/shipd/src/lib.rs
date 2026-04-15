@@ -91,7 +91,13 @@ use tokio_util::sync::CancellationToken;
 ///
 /// `dev` enables relaxed auth for local development (auto-pair, localhost-only).
 /// Never set `dev = true` in production.
-pub async fn run_network(host: String, port: u16, dev: bool, with_ui: bool) -> Result<()> {
+pub async fn run_network(
+    host: String,
+    port: u16,
+    dev: bool,
+    with_ui: bool,
+    workspace_dir: Option<std::path::PathBuf>,
+) -> Result<()> {
     if dev {
         tracing::warn!(
             "╔══════════════════════════════════════════════════════════════════╗"
@@ -112,7 +118,15 @@ pub async fn run_network(host: String, port: u16, dev: bool, with_ui: bool) -> R
     pairing::set_dev_mode(dev);
     let global_dir = runtime::project::get_global_dir()?;
     cleanup_stale_daemon_files(&global_dir);
-    let meta = ship_runtime::AppMetadata { global_dir: global_dir.clone() };
+    if let Some(ref w) = workspace_dir {
+        tracing::info!(workspace = %w.display(), "shipd: project-scoped mode");
+    } else {
+        tracing::info!("shipd: global-only mode (no --workspace given)");
+    }
+    let meta = ship_runtime::AppMetadata {
+        global_dir: global_dir.clone(),
+        workspace_dir: workspace_dir.clone(),
+    };
     let config = ship_runtime::RuntimeConfig { host: host.clone(), port, ..Default::default() };
     let mut runtime = ship_runtime::ShipRuntime::new(meta, config).await?;
     let mesh_registry = connections::spawn_mesh_service(runtime.kernel(), runtime.health_registry()).await?;

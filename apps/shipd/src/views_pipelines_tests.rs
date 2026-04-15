@@ -26,7 +26,6 @@ fn empty_ctx(active_tab: &str) -> PipelinesCtx {
         defs: vec![],
         active_runs: vec![],
         history_runs: vec![],
-        status_pills: vec![],
     }
 }
 
