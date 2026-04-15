@@ -200,7 +200,12 @@ async fn advance_pipeline_inner(
                 dispatched_any = true;
             }
             StepType::Agent | StepType::Gate => {
-                let agent = step.agent.as_deref().unwrap_or("reviewer");
+                // Load-time validation guarantees an agent here; defensively skip
+                // on the impossible path rather than substituting a role name.
+                let Some(agent) = step.agent.as_deref().filter(|a| !a.is_empty()) else {
+                    tracing::error!(slug, step_id = step.id, "pipeline: step missing agent");
+                    continue;
+                };
 
                 if !worktree_path.exists() {
                     tracing::error!(slug, "pipeline: worktree missing");
@@ -214,9 +219,8 @@ async fn advance_pipeline_inner(
                     tracing::warn!(slug, agent, "pipeline: ship use failed (non-fatal): {e}");
                 }
 
-                // State-machine prompt: compose a fresh spec for this step.
                 if let Some(pipeline) = &job.steps {
-                    super::prompt_composer::compose_and_write_for_step(
+                    super::pipeline_specs::prepare_step_for_dispatch(
                         &worktree_path, slug, &job.job_id,
                         &job.spec_path, pipeline, step,
                     );
@@ -240,6 +244,8 @@ async fn advance_pipeline_inner(
                         persist_session: persist,
                         ..Default::default()
                     },
+                    step: Some(crate::services::dispatch_ports::StepInfo { index: step_idx, id: step.id.clone() }),
+                    headless: job.headless,
                 };
                 match octx.executor.spawn(&job_ctx).await {
                     Ok(handle) => {

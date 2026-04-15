@@ -1,0 +1,77 @@
+name: view-session-e2e
+description: >
+  End-to-end validation of the Phase 1 agent-canvas-views framework.
+  Exercises open → subscribe → patch → receive → close through the daemon's
+  REST surface. Shell steps call the daemon directly via curl because the
+  pipeline runner does not yet understand a first-class `tool:` step kind.
+
+  Required env: SHIP_DAEMON_TOKEN (bearer token for the daemon REST API).
+  Optional env: SHIP_DAEMON_URL (default http://127.0.0.1:9315).
+
+  Run with `ship pipelines run view-session-e2e` while the daemon is up.
+
+steps:
+  - run: |
+      set -euo pipefail
+      : "${SHIP_DAEMON_TOKEN:?SHIP_DAEMON_TOKEN must be set}"
+      url="${SHIP_DAEMON_URL:-http://127.0.0.1:9315}"
+
+      resp=$(curl -fsS -X POST "$url/api/runtime/view-sessions" \
+        -H "Authorization: Bearer $SHIP_DAEMON_TOKEN" \
+        -H "x-ship-agent-id: pipeline.e2e" \
+        -H "content-type: application/json" \
+        -d '{"template":"canvas/blank","title":"e2e"}')
+      echo "$resp" | tee .artifacts/view-session-open.json
+      view_id=$(echo "$resp" | sed -n 's/.*"view_id":"\([^"]*\)".*/\1/p')
+      test -n "$view_id" || { echo "open: no view_id in response"; exit 1; }
+      echo "$resp" | grep -q 'ui://ship/view-session/' \
+        || { echo "open: _meta.ui.resourceUri missing"; exit 1; }
+      echo "$view_id" > .artifacts/view-session-id
+
+  - run: |
+      set -euo pipefail
+      : "${SHIP_DAEMON_TOKEN:?SHIP_DAEMON_TOKEN must be set}"
+      url="${SHIP_DAEMON_URL:-http://127.0.0.1:9315}"
+      view_id=$(cat .artifacts/view-session-id)
+
+      # Subscribe in the background, capture SSE body, look for the beacon.
+      ( timeout 5 curl -sS -N "$url/api/runtime/view-sessions/$view_id" \
+          -H "Authorization: Bearer $SHIP_DAEMON_TOKEN" \
+          -H "x-ship-agent-id: pipeline.e2e" \
+          > .artifacts/view-session-sse.log ) &
+      sub_pid=$!
+      sleep 1
+
+      curl -fsS -X POST "$url/api/runtime/view-sessions/$view_id/patch" \
+        -H "Authorization: Bearer $SHIP_DAEMON_TOKEN" \
+        -H "x-ship-agent-id: pipeline.e2e" \
+        -H "content-type: application/json" \
+        -d '{"selector":"#root","html":"<p>beacon-e2e-ok</p>"}'
+
+      # Let the SSE process capture the patch, then stop.
+      sleep 1
+      kill "$sub_pid" 2>/dev/null || true
+      wait "$sub_pid" 2>/dev/null || true
+
+      grep -q 'beacon-e2e-ok' .artifacts/view-session-sse.log \
+        || { echo "subscribe: beacon not received"; cat .artifacts/view-session-sse.log; exit 1; }
+      grep -q 'datastar-patch-elements' .artifacts/view-session-sse.log \
+        || { echo "subscribe: expected datastar-patch-elements event"; exit 1; }
+
+  - run: |
+      set -euo pipefail
+      : "${SHIP_DAEMON_TOKEN:?SHIP_DAEMON_TOKEN must be set}"
+      url="${SHIP_DAEMON_URL:-http://127.0.0.1:9315}"
+      view_id=$(cat .artifacts/view-session-id)
+
+      curl -fsS -X DELETE "$url/api/runtime/view-sessions/$view_id" \
+        -H "Authorization: Bearer $SHIP_DAEMON_TOKEN" \
+        -H "x-ship-agent-id: pipeline.e2e"
+
+      # Owner-validation smoke: a different agent id must get 403 on close.
+      status=$(curl -s -o /dev/null -w '%{http_code}' \
+        -X DELETE "$url/api/runtime/view-sessions/$view_id" \
+        -H "Authorization: Bearer $SHIP_DAEMON_TOKEN" \
+        -H "x-ship-agent-id: someone.else")
+      test "$status" = "404" \
+        || { echo "close: expected 404 after prior close, got $status"; exit 1; }

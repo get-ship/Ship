@@ -167,11 +167,7 @@ pub fn compile(resolved: &ResolvedConfig, provider_id: &str) -> Option<CompileOu
         );
         // Inject Ship lifecycle hooks (HTTP when daemon is running, command otherwise).
         if let Some(ref mut patch) = out.claude_settings_patch {
-            claude::inject_ship_lifecycle_hooks(
-                patch,
-                resolved.daemon_port,
-                resolved.daemon_token.as_deref(),
-            );
+            claude::inject_ship_lifecycle_hooks(patch);
         }
         // Legacy team agents (passthrough from .ship/agents/teams/claude/)
         if let Some(base) = desc.agents_dir.base_path() {

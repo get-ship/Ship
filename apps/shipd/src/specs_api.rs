@@ -208,9 +208,14 @@ pub async fn launch_spec(
         pipeline_name: spec.pipeline.clone(),
         vars: if spec.vars.is_empty() { None } else { Some(spec.vars.clone()) },
         spec_content: std::fs::read_to_string(&spec.body_path).ok(),
+        step_specs: None,
+        headless: false,
     };
 
-    let payload = runtime::services::orchestrator::pipeline_loader::ensure_pipeline(payload);
+    let payload = match runtime::services::orchestrator::pipeline_loader::ensure_pipeline(payload) {
+        Ok(p) => p,
+        Err(e) => return err(StatusCode::BAD_REQUEST, e),
+    };
 
     let envelope = match EventEnvelope::new(event_types::JOB_CREATED, &job_id, &payload)
         .map(|e| e.with_actor_id("studio"))

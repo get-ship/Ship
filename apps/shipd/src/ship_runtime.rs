@@ -46,6 +46,12 @@ impl Default for RuntimeConfig {
 /// Paths and metadata for the daemon process.
 pub struct AppMetadata {
     pub global_dir: PathBuf,
+    /// Optional project workspace. When set, view handlers and job dispatch
+    /// read from `<workspace>/.ship/` instead of `<global>/`. Without this
+    /// the daemon is workspace-agnostic and serves only global config —
+    /// that surface bled into project views more than once. Projects pass
+    /// the flag explicitly.
+    pub workspace_dir: Option<PathBuf>,
 }
 
 /// Type alias used as axum shared state.
@@ -77,6 +83,9 @@ pub struct ShipRuntime {
     health_registry: HealthRegistry,
     /// Shared data service for collections and extensions.
     data_service: tokio::sync::Mutex<Option<runtime::data::DataService>>,
+    /// Agent-owned view sessions (Phase 1 canvas framework).
+    view_sessions: crate::views::session::SharedViewSessionRegistry,
+
 }
 
 impl ShipRuntime {
@@ -172,6 +181,9 @@ impl ShipRuntime {
             mesh_registry,
             agent_mailboxes: Arc::new(Mutex::new(HashMap::new())),
             pty_connections: Arc::new(Mutex::new(HashMap::new())),
+            // Platform DB lives at ~/.ship/platform.db only. A workspace
+            // attachment does NOT fork a second db into <workspace>/.ship/.
+            // See crates/core/runtime/src/db/mod.rs:77 ("Never inside a project directory").
             ship_dir: global_dir.clone(),
             mesh: tokio::sync::OnceCell::new(),
             jobs: tokio::sync::OnceCell::new(),
@@ -180,6 +192,8 @@ impl ShipRuntime {
             session_registry: Arc::new(Mutex::new(HashMap::new())),
             health_registry: HealthRegistry::new(),
             data_service: tokio::sync::Mutex::new(None),
+            view_sessions: Arc::new(crate::views::session::ViewSessionRegistry::default()),
+
         })
     }
 
@@ -251,6 +265,10 @@ impl ShipRuntime {
 
     pub fn health_registry(&self) -> &HealthRegistry {
         &self.health_registry
+    }
+
+    pub fn view_sessions(&self) -> &crate::views::session::SharedViewSessionRegistry {
+        &self.view_sessions
     }
 
     /// Lazily initialize and return the mesh manager.
@@ -325,6 +343,8 @@ impl ShipRuntime {
             session_registry: Arc::new(Mutex::new(HashMap::new())),
             health_registry: HealthRegistry::new(),
             data_service: tokio::sync::Mutex::new(None),
+            view_sessions: Arc::new(crate::views::session::ViewSessionRegistry::default()),
+
         }
     }
 
@@ -349,6 +369,8 @@ impl ShipRuntime {
             session_registry: Arc::new(Mutex::new(HashMap::new())),
             health_registry: HealthRegistry::new(),
             data_service: tokio::sync::Mutex::new(None),
+            view_sessions: Arc::new(crate::views::session::ViewSessionRegistry::default()),
+
         }
     }
 

@@ -259,6 +259,10 @@ pub struct CreateJobRequest {
     /// Merged over pipeline-file defaults; CLI `--var` flags land here.
     #[serde(default)]
     pub vars: Option<std::collections::HashMap<String, String>>,
+    /// When true, force the headless (ProcessExecutor) path. When false or
+    /// absent, the default PtyExecutor (tmux) path is used.
+    #[serde(default)]
+    pub headless: bool,
 }
 
 /// GET /api/runtime/jobs
@@ -432,11 +436,21 @@ pub async fn create_job(
         pipeline_name: req.pipeline,
         vars: req.vars,
         spec_content: req.spec_content,
+        step_specs: None,
+        headless: req.headless,
     };
 
     // Enrich with pipeline BEFORE persisting — the persisted event must include steps
     // so projections can track pipeline state.
-    let payload = runtime::services::orchestrator::pipeline_loader::ensure_pipeline(payload);
+    let payload = match runtime::services::orchestrator::pipeline_loader::ensure_pipeline(payload) {
+        Ok(p) => p,
+        Err(e) => {
+            return (
+                StatusCode::BAD_REQUEST,
+                Json(MeshResponse { ok: false, data: serde_json::json!(e) }),
+            );
+        }
+    };
 
     let envelope = match EventEnvelope::new(event_types::JOB_CREATED, &job_id, &payload)
         .map(|e| e.with_actor_id("studio"))
@@ -1081,6 +1095,8 @@ mod tests {
             pipeline_name: None,
             vars: None,
             spec_content: None,
+            step_specs: None,
+            headless: false,
         };
         let envelope = runtime::events::EventEnvelope::new(
             runtime::events::job::event_types::JOB_CREATED,

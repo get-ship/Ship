@@ -253,8 +253,13 @@ fn pipeline_step_count(name: &str) -> (usize, Option<String>) {
         pipeline_name: Some(name.to_string()),
         vars: None,
         spec_content: None,
+        step_specs: None,
+        headless: false,
     };
-    let resolved = pipeline_loader::ensure_pipeline(payload);
+    let resolved = match pipeline_loader::ensure_pipeline(payload) {
+        Ok(p) => p,
+        Err(_) => return (0, None),
+    };
     let steps = match resolved.steps.as_ref() {
         Some(p) => &p.steps,
         None => return (0, None),

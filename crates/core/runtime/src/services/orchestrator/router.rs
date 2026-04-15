@@ -145,6 +145,26 @@ pub async fn handle_job_event(
             }
 
             use crate::events::job::StepVerdict;
+
+            // Evaluate any declared post-step diff gate. This short-circuits
+            // positive verdicts into a structured pipeline halt when the
+            // step's diff violates its declared contract.
+            if !matches!(payload.verdict, StepVerdict::Failed)
+                && let Some(reason) = evaluate_step_gate(&payload, octx).await
+            {
+                tracing::warn!(
+                    entity_id = %envelope.entity_id,
+                    step = payload.step_name,
+                    "job-dispatch: step diff gate failed"
+                );
+                emit_step_gate_failure(kernel, &payload, &reason).await;
+                if let Some(slug) = &slug {
+                    octx.registry.unregister(slug).await;
+                }
+                octx.job_locks.lock().await.remove(&payload.job_id);
+                return;
+            }
+
             match &payload.verdict {
                 StepVerdict::Advance => {
                     tracing::info!(
@@ -202,4 +222,68 @@ pub async fn handle_job_event(
 fn extract_slug(envelope: &EventEnvelope) -> Option<String> {
     let payload: serde_json::Value = serde_json::from_str(&envelope.payload_json).ok()?;
     payload["slug"].as_str().map(str::to_string)
+}
+
+/// Evaluate the step's declared `gate:` block against its diff. Returns a
+/// failure reason if the gate halts the pipeline, `None` to continue.
+async fn evaluate_step_gate(
+    payload: &StepObservedPayload,
+    octx: &OrchestratorContext,
+) -> Option<String> {
+    use super::gate_rules::{diff_paths, evaluate, GateOutcome};
+
+    let jobs = crate::projections::job::load_jobs().ok()?;
+    let job = jobs.values().find(|j| j.job_id == payload.job_id)?.clone();
+    let pipeline = job.steps.as_ref()?;
+    let step = pipeline.steps.iter().find(|s| s.id == payload.step_name)?;
+    let gate = step.gate.as_ref()?;
+
+    let start_sha = payload.start_sha.clone().unwrap_or_default();
+    let commit_range = if start_sha.is_empty() {
+        "<no baseline>..HEAD".to_string()
+    } else {
+        format!("{start_sha}..HEAD")
+    };
+
+    let work_dir = octx.platform.worktrees_dir().join(&payload.slug);
+    let changed = if start_sha.is_empty() {
+        Vec::new()
+    } else {
+        diff_paths(&work_dir, &start_sha)
+    };
+
+    match evaluate(Some(gate), &changed, &commit_range) {
+        GateOutcome::Pass => None,
+        GateOutcome::Fail(reason) => Some(reason),
+    }
+}
+
+/// Emit `job.step_failed` + `job.failed` for a gate violation. Mirrors the
+/// existing pipeline-halt shape — no new error taxonomy.
+async fn emit_step_gate_failure(
+    kernel: &Arc<Mutex<crate::events::KernelRouter>>,
+    payload: &StepObservedPayload,
+    reason: &str,
+) {
+    use crate::events::job::{event_types, JobFailedPayload, StepFailedPayload};
+
+    let step_fail = StepFailedPayload {
+        job_id: payload.job_id.clone(),
+        slug: payload.slug.clone(),
+        step_id: payload.step_name.clone(),
+        error: reason.to_string(),
+    };
+    if let Ok(env) = EventEnvelope::new(event_types::STEP_FAILED, &payload.job_id, &step_fail) {
+        let env = env.with_actor_id("service.job-dispatch");
+        super::emit::persist_and_route(kernel, env, &payload.slug, None).await;
+    }
+
+    let job_fail = JobFailedPayload {
+        job_id: payload.job_id.clone(),
+        error: format!("step `{}` gate failed: {reason}", payload.step_name),
+    };
+    if let Ok(env) = EventEnvelope::new(event_types::JOB_FAILED, &payload.job_id, &job_fail) {
+        let env = env.with_actor_id("service.job-dispatch");
+        super::emit::persist_and_route(kernel, env, &payload.slug, None).await;
+    }
 }

@@ -65,11 +65,16 @@ pub(crate) fn compile_agent_config(
     worktree_path: &std::path::Path,
     agent_id: &str,
 ) -> Result<()> {
-    // Use the same binary that's running the daemon, not whatever's on PATH.
-    // This prevents stale binary issues when the installed copy can't be updated.
+    // Invoke the `ship` CLI sitting next to `shipd`. Using current_exe()
+    // directly spawns another daemon (shipd has no `use` subcommand and
+    // ignores argv) — that produced a fork bomb in the supervisor.
     let self_exe = std::env::current_exe()
-        .unwrap_or_else(|_| std::path::PathBuf::from("ship"));
-    let output = std::process::Command::new(&self_exe)
+        .map_err(|e| anyhow::anyhow!("current_exe failed: {e}"))?;
+    let ship_bin = self_exe
+        .parent()
+        .map(|dir| dir.join("ship"))
+        .unwrap_or_else(|| std::path::PathBuf::from("ship"));
+    let output = std::process::Command::new(&ship_bin)
         .args(["use", agent_id])
         .current_dir(worktree_path)
         .output()

@@ -771,6 +771,44 @@ impl ShipServer {
             Err(_) => format!("Event emitted: {}", envelope.id),
         }
     }
+
+    // ---- Views (Phase 1 canvas framework) ----
+
+    #[tool(
+        description = "Open a new agent-owned view session. Returns `view_id` + `url`.\n\
+        `_meta.ui.resourceUri` → `ui://ship/view-session/{view_id}` — MCP Apps \
+        hosts can render the returned id natively.\n\
+        Arguments: `template` (required, registered minijinja template), \
+        `title` (optional), `initial_context` (optional JSON)."
+    )]
+    async fn view_open(&self, Parameters(req): Parameters<crate::requests::ViewOpenRequest>) -> String {
+        let actor_id = self.resolve_actor_id().await;
+        crate::tools::view::view_open(&actor_id, req).await
+    }
+
+    #[tool(description = "Patch (morph) a selector inside an open view session with new HTML.")]
+    async fn view_patch(&self, Parameters(req): Parameters<crate::requests::ViewPatchRequest>) -> String {
+        let actor_id = self.resolve_actor_id().await;
+        crate::tools::view::view_patch(&actor_id, req).await
+    }
+
+    #[tool(description = "Append HTML at a selector inside an open view session.")]
+    async fn view_append(&self, Parameters(req): Parameters<crate::requests::ViewAppendRequest>) -> String {
+        let actor_id = self.resolve_actor_id().await;
+        crate::tools::view::view_append(&actor_id, req).await
+    }
+
+    #[tool(description = "Set a reactive signal in an open view session.")]
+    async fn view_signal(&self, Parameters(req): Parameters<crate::requests::ViewSignalRequest>) -> String {
+        let actor_id = self.resolve_actor_id().await;
+        crate::tools::view::view_signal(&actor_id, req).await
+    }
+
+    #[tool(description = "Close a view session. Only the owning agent may close.")]
+    async fn view_close(&self, Parameters(req): Parameters<crate::requests::ViewCloseRequest>) -> String {
+        let actor_id = self.resolve_actor_id().await;
+        crate::tools::view::view_close(&actor_id, req).await
+    }
 }
 
 

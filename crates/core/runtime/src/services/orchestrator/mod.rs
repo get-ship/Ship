@@ -15,15 +15,20 @@
 
 pub mod emit;
 pub mod gate_retry;
+pub mod gate_rules;
 pub mod handlers;
 pub mod pipeline;
 pub mod pipeline_loader;
+#[cfg(test)]
+mod pipeline_loader_tests;
 pub mod pipeline_vars;
 pub mod pending;
+pub mod pipeline_specs;
 pub mod prompt_composer;
 pub mod replay;
 pub mod router;
 pub mod run_step;
+pub mod step_executor;
 pub mod step_monitor;
 
 pub mod dispatch;

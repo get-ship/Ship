@@ -9,6 +9,9 @@ Convention: `attr=value|value` = enum, bare `attr` = boolean.
 
 - `<ship-alert>` [tone dismissible] events: ship-dismiss
 - `<ship-alert-dialog>` [open tone=default|destructive confirm-label cancel-label] events: name
+- `<ship-annotation-layer>` [view-id mode endpoint staging staged _pending _drag] events: ship-annotation-staged, ship-annotation-error, ship-annotation-sent
+- `<ship-annotation-list>` [staged] events: ship-annotation-remove
+- `<ship-annotation-marker>` [kind x y rect active index]
 - `<ship-badge>` [tone size=sm|md]
 - `<ship-button>` [tone variant size disabled loading type=button|submit|reset]
 - `<ship-card>` [tone variant=default|outline interactive accent-bar status-rail fill]

@@ -108,19 +108,7 @@ pub fn run_compile(opts: CompileOptions<'_>) -> Result<()> {
     }
 
     // 3. Resolve (mode filtering, provider selection)
-    let mut resolved = resolve_library(&library, None, opts.active_agent);
-
-    // 3b. Populate daemon info for HTTP hook emission (Claude).
-    if let Ok(global_dir) = runtime::project::get_global_dir() {
-        if let Ok(port_str) = std::fs::read_to_string(global_dir.join("daemon.port"))
-            && let Ok(port) = port_str.trim().parse::<u16>()
-        {
-            resolved.daemon_port = Some(port);
-        }
-        if let Ok(token) = std::fs::read_to_string(global_dir.join("daemon.token")) {
-            resolved.daemon_token = Some(token.trim().to_string());
-        }
-    }
+    let resolved = resolve_library(&library, None, opts.active_agent);
 
     // 4. Determine providers to compile for
     let providers: Vec<String> = match opts.provider {

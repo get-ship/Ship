@@ -40,6 +40,7 @@ pub use crate::persistence::{
 // Backward-compatible module aliases for consumers.
 pub use crate::persistence::event_store as store;
 // Modules kept here (implement runtime-specific logic)
+pub mod annotation;
 pub mod filter;
 pub mod global_kernel_router;
 pub mod job;
@@ -47,6 +48,10 @@ pub mod kernel_lifecycle;
 pub mod kernel_router;
 pub mod payload_schema;
 pub mod validator;
+
+pub use annotation::{
+    AnnotationEvent, AnnotationIntent, AnnotationKind, AnnotationTarget, AuthorKind, Selection,
+};
 
 #[cfg(feature = "unstable")]
 pub mod permissions;

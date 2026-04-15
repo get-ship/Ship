@@ -31,11 +31,18 @@ fn main() -> anyhow::Result<()> {
     let port = extract_u16_arg(&args, "--port").unwrap_or(9315);
     let host = extract_str_arg(&args, "--host").unwrap_or_else(|| "127.0.0.1".to_string());
     let dev = args.iter().any(|a| a == "--dev");
+    let with_ui = args.iter().any(|a| a == "--with-ui");
+    // Workspace resolution: explicit flag wins; otherwise walk up from CWD
+    // looking for `.ship/` like git discovers the repo root. Only fall back
+    // to global-only when the daemon genuinely isn't inside a project.
+    let workspace = extract_str_arg(&args, "--workspace")
+        .map(std::path::PathBuf::from)
+        .or_else(discover_workspace);
 
     let rt = tokio::runtime::Builder::new_multi_thread()
         .enable_all()
         .build()?;
-    rt.block_on(shipd::run_network(host, port, dev))
+    rt.block_on(shipd::run_network(host, port, dev, with_ui, workspace))
 }
 
 fn extract_u16_arg(args: &[String], flag: &str) -> Option<u16> {
@@ -48,4 +55,26 @@ fn extract_str_arg(args: &[String], flag: &str) -> Option<String> {
     args.windows(2)
         .find(|w| w[0] == flag)
         .map(|w| w[1].clone())
+}
+
+/// Walk up from CWD looking for a `.ship/` directory. Returns the project
+/// root (the dir containing `.ship/`), not `.ship/` itself. Stops at the
+/// filesystem root or the home directory — the latter prevents `~/.ship/`
+/// from being auto-selected as a "project" for global contexts.
+fn discover_workspace() -> Option<std::path::PathBuf> {
+    let home = dirs::home_dir();
+    let cwd = std::env::current_dir().ok()?;
+    let mut cur = cwd.as_path();
+    loop {
+        if Some(cur) == home.as_deref() {
+            return None;
+        }
+        if cur.join(".ship").is_dir() {
+            return Some(cur.to_path_buf());
+        }
+        match cur.parent() {
+            Some(p) => cur = p,
+            None => return None,
+        }
+    }
 }

@@ -27,18 +27,6 @@ async function daemonWriteSessionFile(wsId: string, path: string, content: strin
   if (!res.ok) throw new Error(`daemon: write session file ${res.status}`)
 }
 
-async function daemonEmitEvent(eventType: string, payload: Record<string, unknown>, workspaceId?: string): Promise<void> {
-  const res = await daemonFetch(`/api/events/emit`, {
-    method: 'POST',
-    body: JSON.stringify({
-      event_type: eventType,
-      workspace_id: workspaceId,
-      payload,
-    }),
-  })
-  if (!res.ok) throw new Error(`daemon: emit event ${res.status}`)
-}
-
 export function useSessionHandlers({
   workspaceId, ann,
   openFile, closeTab, setViewMode, setSelectedCommitHash,
@@ -95,16 +83,6 @@ export function useSessionHandlers({
     ann.toggleActiveId(annotationId)
   }, [openFile, ann])
 
-  const handleSendToAgent = useCallback(async (summary: string) => {
-    const annotations = ann.allStaged.map(({ filePath, ann: a }) => {
-      if (a.type === 'click') return { filePath, type: 'click', selector: a.selector, text: a.text, note: a.note, x: a.x, y: a.y, timestamp: a.timestamp }
-      if (a.type === 'box') return { filePath, type: 'box', rect: a.rect, elements: a.elements, note: a.note, timestamp: a.timestamp }
-      return { filePath, type: 'action', action: a.action, text: a.text, timestamp: a.timestamp }
-    })
-    await daemonEmitEvent('studio.message', { summary: summary || undefined, annotations }, workspaceId)
-    ann.clearAllAnnotations()
-  }, [workspaceId, ann])
-
   const handleDragOver = useCallback((e: React.DragEvent) => {
     e.preventDefault()
     if (e.dataTransfer.types.includes('Files')) setIsDragging(true)
@@ -133,7 +111,6 @@ export function useSessionHandlers({
     handleShowDiff,
     handleSelectCommit,
     handleNavigateToAnnotation,
-    handleSendToAgent,
     handleDragOver,
     handleDragLeave,
     handleDrop,

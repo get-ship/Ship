@@ -11,7 +11,7 @@ fn executor_sources() -> String {
     let base = std::path::Path::new(env!("CARGO_MANIFEST_DIR"))
         .join("src/supervisor/executors");
     let mut combined = String::new();
-    for name in &["tmux.rs", "process.rs", "mod.rs"] {
+    for name in &["tmux.rs", "process.rs", "pty.rs", "routing.rs", "mod.rs"] {
         let path = base.join(name);
         if path.exists() {
             combined.push_str(&std::fs::read_to_string(&path).unwrap_or_default());

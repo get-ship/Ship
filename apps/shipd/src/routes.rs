@@ -93,6 +93,39 @@ pub enum Route {
     /// @route GET "/api/runtime/view/settings/sse"
     ViewSettingsSse,
 
+    /// @route GET "/api/runtime/view/agents"
+    ViewAgents,
+
+    /// @route GET "/api/runtime/view/agents/detail/{id}"
+    ViewAgentDetail { id: String },
+
+    /// @route POST "/api/runtime/view/agents/new"
+    ViewAgentsCreate,
+
+    /// @route GET "/api/runtime/view/skills"
+    ViewSkills,
+
+    /// @route GET "/api/runtime/view/skills/rail"
+    ViewSkillsRail,
+
+    /// @route GET "/api/runtime/view/skills/detail/{id}"
+    ViewSkillDetail { id: String },
+
+    /// @route GET "/api/runtime/view/chat"
+    ViewChat,
+
+    /// @route GET "/api/runtime/view/chat/sse"
+    ViewChatSse,
+
+    /// @route POST "/api/runtime/view/chat/send"
+    ViewChatSend,
+
+    /// @route GET "/api/runtime/view/events"
+    ViewEvents,
+
+    /// @route GET "/api/runtime/view/events/sse"
+    ViewEventsSse,
+
     // ── Generic view serving ─────────────────────────────────────────────
 
     /// @route GET "/api/runtime/views"
@@ -109,6 +142,34 @@ pub enum Route {
 
     /// @route GET "/api/runtime/view/{name}/raw"
     ServeViewRaw { name: String },
+
+    // ── Agent-owned view sessions (Phase 1 canvas framework) ─────────────
+
+    /// @route POST "/api/runtime/view-sessions"
+    OpenViewSession,
+
+    /// @route POST "/api/runtime/view-sessions/{id}/patch"
+    PatchViewSession { id: String },
+
+    /// @route POST "/api/runtime/view-sessions/{id}/append"
+    AppendViewSession { id: String },
+
+    /// @route POST "/api/runtime/view-sessions/{id}/signal"
+    SignalViewSession { id: String },
+
+    /// @route DELETE "/api/runtime/view-sessions/{id}"
+    CloseViewSession { id: String },
+
+    /// @route GET "/api/runtime/view-sessions/{id}"
+    SubscribeViewSession { id: String },
+
+    /// @route GET "/api/runtime/view-sessions/{id}/raw"
+    ViewSessionRaw { id: String },
+
+    // ── Annotations (Phase 2 overlay ingress) ─────────────────────────────
+
+    /// @route POST "/api/runtime/annotations"
+    PostAnnotation,
 
     // ── Runtime listings ─────────────────────────────────────────────────
 

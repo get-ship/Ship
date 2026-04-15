@@ -72,6 +72,14 @@ dist/
 # Ship worktrees — ephemeral, never commit
 .ship/worktrees/
 
+# Ship runtime state — local-only, never commit
+.ship/platform.db
+.ship/platform.db-*
+.ship/*.db
+.ship/*.db-journal
+.ship/*.db-wal
+.ship/*.db-shm
+
 # Ship — generated agent config (never commit these)
 CLAUDE.md
 GEMINI.md
@@ -94,3 +102,6 @@ opencode.json
 test-results/
 .ship/views/datastar.min.js
 .ship/views/*.min.js
+
+# Shell build output — populated by `pnpm -F shell build`.
+apps/shell/dist/

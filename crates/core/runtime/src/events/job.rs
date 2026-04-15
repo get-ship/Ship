@@ -60,7 +60,60 @@ pub struct PipelineStep {
     /// `None` or `0` means no retries — gate failure is terminal.
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub max_retries: Option<u32>,
+    /// Post-step diff gate. Declarative structural checks evaluated against
+    /// the files changed by this step's commits. See `services::orchestrator::gate_rules`.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub gate: Option<GateSpec>,
 }
+
+/// Declarative diff-based gate attached to a step. Runtime evaluates after the
+/// step's commits are sealed, before the next step is dispatched.
+#[derive(Debug, Clone, Serialize, Deserialize, Type, Default)]
+pub struct GateSpec {
+    /// Every entry must match at least `min` changed paths.
+    #[serde(default, skip_serializing_if = "Vec::is_empty",
+            deserialize_with = "deserialize_rules")]
+    pub require_changed: Vec<GateRule>,
+    /// Any match across entries fails the gate.
+    #[serde(default, skip_serializing_if = "Vec::is_empty",
+            deserialize_with = "deserialize_rules")]
+    pub forbid_changed: Vec<GateRule>,
+}
+
+/// A single gate rule. `match` is pipe-separated globs (or a YAML list).
+#[derive(Debug, Clone, Serialize, Deserialize, Type)]
+pub struct GateRule {
+    #[serde(rename = "match", deserialize_with = "deserialize_patterns")]
+    pub match_patterns: Vec<String>,
+    #[serde(default, rename = "not_match",
+            deserialize_with = "deserialize_patterns")]
+    pub not_match: Vec<String>,
+    #[serde(default = "default_min")]
+    pub min: u32,
+}
+
+fn default_min() -> u32 { 1 }
+
+fn deserialize_rules<'de, D: serde::Deserializer<'de>>(d: D) -> Result<Vec<GateRule>, D::Error> {
+    #[derive(serde::Deserialize)]
+    #[serde(untagged)]
+    enum OneOrMany { One(GateRule), Many(Vec<GateRule>) }
+    Ok(match OneOrMany::deserialize(d)? {
+        OneOrMany::One(r) => vec![r],
+        OneOrMany::Many(v) => v,
+    })
+}
+
+fn deserialize_patterns<'de, D: serde::Deserializer<'de>>(d: D) -> Result<Vec<String>, D::Error> {
+    #[derive(serde::Deserialize)]
+    #[serde(untagged)]
+    enum V { S(String), L(Vec<String>) }
+    Ok(match V::deserialize(d)? {
+        V::S(s) => s.split('|').map(|p| p.trim().to_string()).filter(|p| !p.is_empty()).collect(),
+        V::L(v) => v.into_iter().flat_map(|s| s.split('|').map(|p| p.trim().to_string()).collect::<Vec<_>>()).filter(|p| !p.is_empty()).collect(),
+    })
+}
+
 
 impl<'de> serde::Deserialize<'de> for PipelineStep {
     fn deserialize<D: serde::Deserializer<'de>>(d: D) -> Result<Self, D::Error> {
@@ -85,6 +138,8 @@ impl<'de> serde::Deserialize<'de> for PipelineStep {
             command: Option<String>,
             #[serde(default)]
             max_retries: Option<u32>,
+            #[serde(default)]
+            gate: Option<GateSpec>,
         }
         let raw = Raw::deserialize(d)?;
         let step_type = raw.step_type.unwrap_or_else(|| {
@@ -104,6 +159,7 @@ impl<'de> serde::Deserialize<'de> for PipelineStep {
             provider: raw.provider,
             command: raw.command,
             max_retries: raw.max_retries,
+            gate: raw.gate,
         })
     }
 }
@@ -115,47 +171,6 @@ pub struct Pipeline {
 }
 
 impl Pipeline {
-    /// Default pipeline: implement → gate → merge.
-    pub fn default_for_agent(agent: &str) -> Self {
-        Self {
-            steps: vec![
-                PipelineStep {
-                    id: "implement".to_string(),
-                    step_type: StepType::Agent,
-                    agent: Some(agent.to_string()),
-                    goal: None,
-                    after: vec![],
-                    model: None,
-                    provider: None,
-                    command: None,
-                    max_retries: None,
-                },
-                PipelineStep {
-                    id: "gate".to_string(),
-                    step_type: StepType::Gate,
-                    agent: Some("reviewer".to_string()),
-                    goal: None,
-                    after: vec!["implement".to_string()],
-                    model: Some("sonnet".to_string()),
-                    provider: None,
-                    command: None,
-                    max_retries: None,
-                },
-                PipelineStep {
-                    id: "merge".to_string(),
-                    step_type: StepType::Merge,
-                    agent: None,
-                    goal: None,
-                    after: vec!["gate".to_string()],
-                    model: None,
-                    provider: None,
-                    command: None,
-                    max_retries: None,
-                },
-            ],
-        }
-    }
-
     /// Find root steps (no dependencies).
     pub fn root_steps(&self) -> Vec<&PipelineStep> {
         self.steps.iter().filter(|s| s.after.is_empty()).collect()
@@ -200,6 +215,16 @@ pub struct JobCreatedPayload {
     /// boundaries — no reliance on gitignored files existing in the main checkout.
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub spec_content: Option<String>,
+    /// Per-step spec bodies, indexed by step position. Populated by
+    /// `ensure_pipeline` from the pipeline YAML's `step_specs:` block when
+    /// present. Written to `.artifacts/pipeline/NN-<step_id>.md` at launch.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub step_specs: Option<Vec<String>>,
+    /// When true, run steps headless (ProcessExecutor). When false (default),
+    /// run steps in a tmux PTY session (PtyExecutor) so users can `tmux attach`
+    /// and watch the agent live.
+    #[serde(default)]
+    pub headless: bool,
 }
 
 /// Emitted when the job is assigned to a worktree and (optionally) a process.
@@ -395,6 +420,9 @@ pub struct StepObservedPayload {
     /// projections that read `succeeded` continue to work.
     #[serde(default)]
     pub succeeded: bool,
+    /// HEAD SHA at step start — baseline for post-step diff gate evaluation.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub start_sha: Option<String>,
 }
 
 impl StepObservedPayload {

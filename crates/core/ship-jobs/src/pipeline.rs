@@ -22,6 +22,11 @@ pub struct PipelineMeta {
     pub vars: Option<std::collections::HashMap<String, String>>,
     pub timeout: Option<String>,
     pub max_retries: Option<u32>,
+    /// Optional per-step spec bodies, indexed by step position (0-based).
+    /// When present, the orchestrator writes each into
+    /// `.artifacts/pipeline/NN-<step_id>.md` at job launch instead of sharing
+    /// a single spec across every step.
+    pub step_specs: Option<Vec<String>>,
 }
 
 /// Parse a pipeline YAML file and normalize it into the old-format steps array.
@@ -65,6 +70,11 @@ fn extract_meta(val: &Value) -> PipelineMeta {
         }),
         timeout: val.get("timeout").and_then(|v| v.as_str()).map(str::to_string),
         max_retries: val.get("max_retries").and_then(|v| v.as_u64()).map(|n| n as u32),
+        step_specs: val.get("step_specs").and_then(|v| v.as_array()).map(|arr| {
+            arr.iter()
+                .map(|entry| entry.as_str().unwrap_or_default().to_string())
+                .collect()
+        }),
     }
 }
 

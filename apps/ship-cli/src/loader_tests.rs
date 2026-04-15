@@ -1,4 +1,5 @@
 use super::*;
+use crate::skill_loader::parse_skill;
 use tempfile::TempDir;
 
 fn write(dir: &Path, rel: &str, content: &str) {

@@ -43,9 +43,7 @@ function eventToMessage(e: EventEnvelope, viewedWs: string | null): ChatMessage 
   // User messages
   if (e.event_type === 'studio.message') {
     const summary = payload?.summary as string | undefined
-    const annCount = (payload?.annotations as unknown[])?.length ?? 0
-    const content = summary || (annCount > 0 ? `Sent ${annCount} annotation${annCount !== 1 ? 's' : ''}` : 'Message sent')
-    return { id: e.id, sender: 'user', content, timestamp: ts, eventType: e.event_type }
+    return { id: e.id, sender: 'user', content: summary || 'Message sent', timestamp: ts, eventType: e.event_type }
   }
 
   // Agent progress

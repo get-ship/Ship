@@ -62,12 +62,64 @@ const TEMPLATES: &[(&str, &str)] = &[
         include_str!("../../templates/_page_shell.html.j2"),
     ),
     (
+        "_raw_shell.html.j2",
+        include_str!("../../templates/_raw_shell.html.j2"),
+    ),
+    (
         "_toast.html.j2",
         include_str!("../../templates/_toast.html.j2"),
     ),
     (
         "_toolbar.html.j2",
         include_str!("../../templates/_toolbar.html.j2"),
+    ),
+    (
+        "agents/shell.html.j2",
+        include_str!("../../templates/agents/shell.html.j2"),
+    ),
+    (
+        "agents/detail.html.j2",
+        include_str!("../../templates/agents/detail.html.j2"),
+    ),
+    (
+        "agents/partials/card.html.j2",
+        include_str!("../../templates/agents/partials/card.html.j2"),
+    ),
+    (
+        "canvas/blank.html.j2",
+        include_str!("../../templates/canvas/blank.html.j2"),
+    ),
+    (
+        "chat/shell.html.j2",
+        include_str!("../../templates/chat/shell.html.j2"),
+    ),
+    (
+        "chat/partials/composer.html.j2",
+        include_str!("../../templates/chat/partials/composer.html.j2"),
+    ),
+    (
+        "chat/partials/message.html.j2",
+        include_str!("../../templates/chat/partials/message.html.j2"),
+    ),
+    (
+        "chat/partials/messages.html.j2",
+        include_str!("../../templates/chat/partials/messages.html.j2"),
+    ),
+    (
+        "events/shell.html.j2",
+        include_str!("../../templates/events/shell.html.j2"),
+    ),
+    (
+        "events/content.html.j2",
+        include_str!("../../templates/events/content.html.j2"),
+    ),
+    (
+        "events/partials/event_row.html.j2",
+        include_str!("../../templates/events/partials/event_row.html.j2"),
+    ),
+    (
+        "events/partials/filters.html.j2",
+        include_str!("../../templates/events/partials/filters.html.j2"),
     ),
     (
         "git/partials/diff_viewer.html.j2",
@@ -148,6 +200,18 @@ const TEMPLATES: &[(&str, &str)] = &[
     (
         "settings/shell.html.j2",
         include_str!("../../templates/settings/shell.html.j2"),
+    ),
+    (
+        "skills/shell.html.j2",
+        include_str!("../../templates/skills/shell.html.j2"),
+    ),
+    (
+        "skills/partials/rail.html.j2",
+        include_str!("../../templates/skills/partials/rail.html.j2"),
+    ),
+    (
+        "skills/partials/detail_pane.html.j2",
+        include_str!("../../templates/skills/partials/detail_pane.html.j2"),
     ),
     (
         "specs/content.html.j2",

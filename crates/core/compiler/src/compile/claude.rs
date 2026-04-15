@@ -159,46 +159,24 @@ pub fn build_claude_settings_patch(
 
 /// Inject Ship lifecycle hooks for the daemon into Claude's hooks patch.
 ///
-/// When `daemon_port` + `daemon_token` are available, emits HTTP hooks that
-/// POST directly to the daemon. Otherwise emits command hooks via `ship hook`.
-pub fn inject_ship_lifecycle_hooks(
-    patch: &mut Json,
-    daemon_port: Option<u16>,
-    daemon_token: Option<&str>,
-) {
+/// Always emits command hooks via `ship hook <phase>`. The CLI authenticates
+/// to the daemon using the local `~/.ship/daemon.token`, so provider settings
+/// stay stable across daemon restarts.
+pub fn inject_ship_lifecycle_hooks(patch: &mut Json) {
     let hooks_obj = patch
         .as_object_mut()
         .unwrap()
         .entry("hooks")
         .or_insert_with(|| serde_json::json!({}));
 
-    let lifecycle = match (daemon_port, daemon_token) {
-        (Some(port), Some(token)) => {
-            let base = format!("http://127.0.0.1:{port}/api/hooks");
-            let auth = format!("token={token}");
-            vec![
-                ("PreToolUse", format!("{base}/before-tool?{auth}")),
-                ("PostToolUse", format!("{base}/after-tool?{auth}")),
-                ("Stop", format!("{base}/session-end?{auth}")),
-            ]
-        }
-        _ => {
-            vec![
-                ("PreToolUse", "ship hook before-tool".to_string()),
-                ("PostToolUse", "ship hook after-tool".to_string()),
-                ("Stop", "ship hook session-end".to_string()),
-            ]
-        }
-    };
+    let lifecycle = [
+        ("PreToolUse", "ship hook before-tool"),
+        ("PostToolUse", "ship hook after-tool"),
+        ("Stop", "ship hook session-end"),
+    ];
 
-    let has_daemon = daemon_port.is_some() && daemon_token.is_some();
-
-    for (trigger, target) in lifecycle {
-        let hook_obj = if has_daemon {
-            serde_json::json!({ "type": "http", "url": target })
-        } else {
-            serde_json::json!({ "type": "command", "command": target })
-        };
+    for (trigger, command) in lifecycle {
+        let hook_obj = serde_json::json!({ "type": "command", "command": command });
         let entry = serde_json::json!({ "hooks": [hook_obj] });
         if let Some(arr) = hooks_obj.get_mut(trigger).and_then(|v| v.as_array_mut()) {
             arr.push(entry);

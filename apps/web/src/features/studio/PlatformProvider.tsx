@@ -8,12 +8,12 @@ import {
   type ReactNode,
 } from 'react'
 import { ShipClient } from '@ship/sdk'
-import { DAEMON_BASE_URL, setDaemonToken } from '#/lib/daemon-config'
+import { DAEMON_BASE_URL } from '#/lib/daemon-config'
+import { useAuth, type AuthState, type PairingState } from './hooks/useAuth'
 
 // ── Types ───────────────────────────────────────────────────────────────────
 
 type DaemonState = 'connected' | 'disconnected' | 'connecting'
-type AuthState = 'anonymous' | 'authenticated'
 
 interface Workspace {
   name: string
@@ -23,19 +23,13 @@ interface ConnectionMeta {
   reconnects: number
 }
 
-export interface PairingState {
-  code: string
-  claimToken: string
-  devMode: boolean
-}
+export type { PairingState }
 
 export interface PlatformState {
   daemon: DaemonState
   auth: AuthState
   token: string | null
-  /** Active pairing request (when auth is pending). Consumers can render the code. */
   pairing: PairingState | null
-  /** Start a new pairing flow (cancels any in-progress one). */
   beginPairing: () => void
   workspace: Workspace | null
   setWorkspace: (name: string | null) => void
@@ -65,21 +59,10 @@ export function usePlatform(): PlatformState {
 
 const WORKSPACE_KEY = 'ship-studio:viewed-workspace'
 const DRAWER_LS_KEY = 'ship-studio:right-drawer-open'
-const SESSION_TOKEN_KEY = 'ship-studio:session-token'
 const MAX_RETRIES = 3
 const BASE_BACKOFF_MS = 1000
-const PAIR_POLL_MS = 2000
 
 // ── Helpers ─────────────────────────────────────────────────────────────────
-
-function extractFragmentToken(): string | null {
-  const hash = window.location.hash
-  if (!hash) return null
-  const match = hash.match(/token=([^&]+)/)
-  if (!match) return null
-  window.location.hash = ''
-  return match[1]
-}
 
 function loadSavedWorkspace(): Workspace | null {
   const name = localStorage.getItem(WORKSPACE_KEY)
@@ -106,11 +89,6 @@ export function PlatformProvider({ children }: { children: ReactNode }) {
   const workspaceRef = useRef<Workspace | null>(loadSavedWorkspace())
 
   const [daemon, setDaemon] = useState<DaemonState>('connecting')
-  const [auth, setAuth] = useState<AuthState>('anonymous')
-  const [token, setToken] = useState<string | null>(null)
-  const [pairing, setPairing] = useState<PairingState | null>(null)
-  const pairPollRef = useRef<ReturnType<typeof setInterval> | null>(null)
-  const restartPairingRef = useRef<(() => void) | null>(null)
   const [workspace, setWorkspaceState] = useState<Workspace | null>(
     loadSavedWorkspace,
   )
@@ -200,195 +178,54 @@ export function PlatformProvider({ children }: { children: ReactNode }) {
     }, delay)
   }, [client])
 
-  // ── Init lifecycle ────────────────────────────────────────────────────
+  // ── Connection handler ────────────────────────────────────────────────
+
+  const handleConnected = useCallback(() => {
+    setDaemon('connected')
+    client.connectEvents()
+    if ('onSSEError' in client) {
+      ;(client as any).onSSEError(() => scheduleReconnect())
+    }
+    if (!workspaceRef.current) {
+      client.get<{ workspaces: Array<{ name: string; status: string; last_activated_at?: string }> }>('/runtime/workspaces').then((data) => {
+        const sorted = data.workspaces
+          ?.slice()
+          .sort((a: any, b: any) => (b.last_activated_at ?? '').localeCompare(a.last_activated_at ?? ''))
+        const best = sorted?.find((w: any) => String(w.status).toLowerCase() === 'active') ?? sorted?.[0]
+        if (best) setWorkspace(best.name)
+      }).catch(() => {})
+    }
+  }, [client, scheduleReconnect, setWorkspace])
+
+  // ── Auth lifecycle (extracted) ────────────────────────────────────────
+
+  const { auth, token, pairing, beginPairing } = useAuth(client, handleConnected)
+
+  // Set daemon to disconnected when auth falls through to pairing
+  useEffect(() => {
+    if (pairing) setDaemon('disconnected')
+  }, [pairing])
+
+  // ── Health polling ────────────────────────────────────────────────────
 
   useEffect(() => {
     let cancelled = false
-
-    // If the daemon starts returning 401/403, the session was revoked or
-    // the daemon regenerated state. Drop the cached token and re-pair.
-    if ('setAuthFailureHandler' in client) {
-      ;(client as any).setAuthFailureHandler(() => {
-        if (cancelled) return
-        restartPairingRef.current?.()
-      })
-    }
-
-    function onConnected() {
-      setDaemon('connected')
-      client.connectEvents()
-      if ('onSSEError' in client) {
-        ;(client as any).onSSEError(() => scheduleReconnect())
-      }
-      // Auto-select workspace if none set
-      if (!workspaceRef.current) {
-        client.get<{ workspaces: Array<{ name: string; status: string; last_activated_at?: string }> }>('/runtime/workspaces').then((data) => {
-          if (cancelled) return
-          const sorted = data.workspaces
-            ?.slice()
-            .sort((a: any, b: any) => (b.last_activated_at ?? '').localeCompare(a.last_activated_at ?? ''))
-          const best = sorted?.find((w: any) => String(w.status).toLowerCase() === 'active') ?? sorted?.[0]
-          if (best) {
-            setWorkspace(best.name)
-          }
-        }).catch(() => {})
-      }
-    }
-
-    function checkDaemon() {
-      client.isConnected().then((ok) => {
-        if (cancelled) return
-        if (ok) {
-          onConnected()
-        } else {
-          setDaemon('disconnected')
-        }
-      })
-    }
-
-    // Try tokens in priority order:
-    //   1. URL fragment (`#token=...` from `ship studio` command)
-    //   2. Cached session token from a previous pairing
-    //   3. Start a fresh pairing flow
-    const fragToken = extractFragmentToken()
-    const cachedSession = (() => {
-      try { return localStorage.getItem(SESSION_TOKEN_KEY) } catch { return null }
-    })()
-    const initialToken = fragToken ?? cachedSession
-
-    if (initialToken) {
-      client.setToken(initialToken)
-      setDaemonToken(initialToken)
-      setToken(initialToken)
-      setAuth(fragToken ? 'anonymous' : 'authenticated')
-      // Verify the token actually works; on failure, fall through to pairing.
-      client.isConnected().then((ok) => {
-        if (cancelled) return
-        if (ok) {
-          onConnected()
-        } else {
-          // Cached token is stale — drop it and pair again.
-          try { localStorage.removeItem(SESSION_TOKEN_KEY) } catch { /* ignore */ }
-          client.setToken('')
-          setDaemonToken(null)
-          setToken(null)
-          setAuth('anonymous')
-          startPairing()
-        }
-      })
-    } else {
-      startAuth()
-    }
-
-    // Expose startAuth to beginPairing/401-handlers via a ref.
-    restartPairingRef.current = () => {
-      try { localStorage.removeItem(SESSION_TOKEN_KEY) } catch { /* ignore */ }
-      client.setToken('')
-      setDaemonToken(null)
-      setToken(null)
-      setAuth('anonymous')
-      setPairing(null)
-      startAuth()
-    }
-
-    /** Try zero-click server attestation first; fall back to pair flow. */
-    async function startAuth() {
-      if (cancelled) return
-      setDaemon('disconnected')
-
-      // Attempt server attestation: fetch a JWT from getship.dev (requires
-      // Better Auth session cookie), then exchange with the daemon.
-      try {
-        const res = await fetch('/api/auth/daemon-attest', {
-          method: 'POST',
-          credentials: 'include',
-        })
-        if (res.ok) {
-          const body = await res.json() as { jwt?: string }
-          if (body.jwt) {
-            const sessionToken = await client.serverAttest(body.jwt)
-            if (sessionToken) {
-              try { localStorage.setItem(SESSION_TOKEN_KEY, sessionToken) } catch { /* ignore */ }
-              client.setToken(sessionToken)
-              setDaemonToken(sessionToken)
-              setToken(sessionToken)
-              setAuth('authenticated')
-              setPairing(null)
-              onConnected()
-              return
-            }
-          }
-        }
-      } catch {
-        /* no getship.dev session, or offline — fall through to pairing */
-      }
-
-      startPairing()
-    }
-
-    function startPairing() {
-      if (cancelled) return
-      setDaemon('disconnected')
-      client.pairInit('studio').then((init) => {
-        if (cancelled || !init) return
-        setPairing({ code: init.code, claimToken: init.claim_token, devMode: init.dev_mode })
-        // Poll for approval.
-        if (pairPollRef.current) clearInterval(pairPollRef.current)
-        pairPollRef.current = setInterval(async () => {
-          if (cancelled) return
-          const status = await client.pairStatus(init.claim_token)
-          if (status.status === 'approved') {
-            if (pairPollRef.current) clearInterval(pairPollRef.current)
-            pairPollRef.current = null
-            try { localStorage.setItem(SESSION_TOKEN_KEY, status.session_token) } catch { /* ignore */ }
-            client.setToken(status.session_token)
-            setDaemonToken(status.session_token)
-            setToken(status.session_token)
-            setAuth('authenticated')
-            setPairing(null)
-            onConnected()
-          } else if (status.status === 'expired' || status.status === 'unknown') {
-            if (pairPollRef.current) clearInterval(pairPollRef.current)
-            pairPollRef.current = null
-            startPairing()  // restart with a fresh code
-          }
-        }, PAIR_POLL_MS)
-      })
-    }
-
-    // Poll for daemon recovery when disconnected (every 10s, starts after init)
-    let initDone = false
+    let healthStarted = false
     const healthInterval = setInterval(() => {
-      if (cancelled || !initDone) return
-      // Only poll when not already connected
-      if (client.getToken()) return
-      client.authenticate().then((ok) => {
+      if (cancelled || !healthStarted) return
+      client.isConnected().then((ok) => {
         if (cancelled) return
-        if (ok) {
-          setToken(client.getToken())
-          if (client.getToken()) setDaemonToken(client.getToken()!)
-          onConnected()
-        }
+        if (ok) handleConnected()
       })
     }, 10_000)
-    // Delay health polling until init completes
-    setTimeout(() => { initDone = true }, 3_000)
-
+    setTimeout(() => { healthStarted = true }, 5_000)
     return () => {
       cancelled = true
       clearInterval(healthInterval)
       if (retryTimerRef.current) clearTimeout(retryTimerRef.current)
-      if (pairPollRef.current) clearInterval(pairPollRef.current)
       client.destroy()
     }
   }, []) // eslint-disable-line react-hooks/exhaustive-deps
-
-  // ── Manual pairing restart ────────────────────────────────────────────
-
-  const beginPairing = useCallback(() => {
-    // Restart the pair flow in-place (no page reload).
-    restartPairingRef.current?.()
-  }, [])
 
   // ── Context value ─────────────────────────────────────────────────────
 

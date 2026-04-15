@@ -1,4 +1,4 @@
-import { describe, it, expect, vi, afterEach } from 'vitest'
+import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest'
 import { render, screen, cleanup } from '@testing-library/react'
 import { useView } from '../useView'
 import { PlatformProvider } from '../PlatformProvider'
@@ -10,6 +10,8 @@ function createMockClient(overrides?: Partial<ShipClient>): ShipClient {
   return {
     setToken: vi.fn(),
     getToken: vi.fn(() => null),
+    serverAttest: vi.fn(async () => 'ship_sess_attested'),
+    get: vi.fn(async () => ({ workspaces: [] })),
     pairInit: vi.fn(async () => ({ code: 'A-B', claim_token: 'x', code_expires_in_secs: 300, dev_mode: false })),
     pairStatus: vi.fn(async () => ({ status: 'approved', session_token: 'ship_sess_test' })),
     isConnected: vi.fn(async () => true),
@@ -42,7 +44,25 @@ vi.mock('#/lib/daemon-config', () => ({
   daemonFetch: vi.fn(),
 }))
 
-afterEach(cleanup)
+const originalFetch = globalThis.fetch
+
+beforeEach(() => {
+  globalThis.fetch = vi.fn(async (input: RequestInfo | URL) => {
+    const url = typeof input === 'string' ? input : input instanceof URL ? input.href : input.url
+    if (url.includes('/api/auth/daemon-attest')) {
+      return new Response(JSON.stringify({ jwt: 'test-jwt' }), {
+        status: 200,
+        headers: { 'Content-Type': 'application/json' },
+      })
+    }
+    return new Response('', { status: 404 })
+  }) as typeof fetch
+})
+
+afterEach(() => {
+  globalThis.fetch = originalFetch
+  cleanup()
+})
 
 // ── Test helper ──────────────────────────────────────────────────────────────
 
@@ -62,14 +82,16 @@ function ViewConsumer() {
 // ── Tests ────────────────────────────────────────────────────────────────────
 
 describe('useView', () => {
-  it('returns daemon connection state from platform', () => {
+  it('settles to connected after server-attest succeeds', async () => {
+    const { waitFor } = await import('@testing-library/react')
     render(
       <PlatformProvider>
         <ViewConsumer />
       </PlatformProvider>,
     )
-    // Initial state should be connecting
-    expect(screen.getByTestId('daemon').textContent).toBe('connecting')
+    await waitFor(() => {
+      expect(screen.getByTestId('daemon').textContent).toBe('connected')
+    })
   })
 
   it('returns auth state from platform', () => {
@@ -99,8 +121,10 @@ describe('useView', () => {
     expect(screen.getByTestId('has-client').textContent).toBe('true')
   })
 
-  it('requireDaemon returns null when daemon is disconnected', () => {
-    // When daemon is connecting (initial state), requireDaemon should return null
+  it('requireDaemon returns null when daemon is not yet connected', () => {
+    globalThis.fetch = vi.fn(async () =>
+      new Response('', { status: 401 }),
+    ) as typeof fetch
     render(
       <PlatformProvider>
         <ViewConsumer />

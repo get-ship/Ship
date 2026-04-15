@@ -92,7 +92,7 @@ async fn list_views_finds_component_view() {
 
 #[tokio::test]
 async fn serve_view_rejects_traversal() {
-    let response = serve_view(Path("../etc".to_string()), axum::http::HeaderMap::new()).await.into_response();
+    let response = serve_view(Path("../etc".to_string()), axum::extract::Query(std::collections::HashMap::new()), axum::http::HeaderMap::new()).await.into_response();
     assert_eq!(response.status(), StatusCode::BAD_REQUEST);
 }
 
@@ -103,7 +103,7 @@ async fn serve_view_returns_html() {
     std::fs::write(view_dir.join("index.html"), "<h1>hello</h1>").unwrap();
 
     unsafe { std::env::set_var("SHIP_DIR", dir.path().join(".ship").to_str().unwrap()) };
-    let response = serve_view(Path("test-html".to_string()), axum::http::HeaderMap::new()).await.into_response();
+    let response = serve_view(Path("test-html".to_string()), axum::extract::Query(std::collections::HashMap::new()), axum::http::HeaderMap::new()).await.into_response();
     unsafe { std::env::remove_var("SHIP_DIR") };
 
     assert_eq!(response.status(), StatusCode::OK);

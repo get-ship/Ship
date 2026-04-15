@@ -1,0 +1,76 @@
+import { defineConfig, loadEnv } from "vite";
+import { readFileSync } from "node:fs";
+import { homedir } from "node:os";
+import { join, resolve } from "node:path";
+
+/**
+ * Resolve the daemon bearer token. Precedence:
+ *   1. VITE_DAEMON_TOKEN env var
+ *   2. ~/.ship/daemon.token file (auto, so `pnpm dev` Just Works)
+ *
+ * Only used for the cross-origin dev path (vite on :3100 → daemon on :9315).
+ * When the daemon serves the shell same-origin (cookie auth), no token is read
+ * at runtime — the client code drops the Authorization header entirely.
+ */
+function resolveToken(envToken: string | undefined): string {
+  if (envToken && envToken.length > 0) return envToken;
+  try {
+    return readFileSync(join(homedir(), ".ship", "daemon.token"), "utf8").trim();
+  } catch {
+    return "";
+  }
+}
+
+export default defineConfig(({ mode }) => {
+  const env = loadEnv(mode, process.cwd(), "");
+  const daemon = env.VITE_DAEMON_URL ?? "http://127.0.0.1:9315";
+  // Token resolved per-request in the proxy below so daemon restarts (which
+  // mint a new token) don't require a Vite restart.
+  function currentToken(): string {
+    return resolveToken(env.VITE_DAEMON_TOKEN);
+  }
+  return {
+    base: "/",
+    define: {
+      // Client sees empty string → relative URLs → Vite proxy forwards to
+      // daemon with fresh token. The `daemon` var above is the proxy target
+      // only (server-side), never exposed to the browser.
+      "import.meta.env.VITE_DAEMON_URL": JSON.stringify(""),
+      "import.meta.env.VITE_DAEMON_TOKEN": JSON.stringify(""),
+    },
+    server: {
+      port: 3100,
+      strictPort: true,
+      proxy: {
+        // Forward daemon API + view endpoints so the browser sees everything
+        // as same-origin on :3100. Bearer token injected by the proxy so the
+        // client code can run with credentials: "include" + cookie only.
+        "/api": {
+          target: daemon,
+          changeOrigin: true,
+          configure: (proxy) => {
+            proxy.on("proxyReq", (proxyReq) => {
+              const t = currentToken();
+              if (t) proxyReq.setHeader("Authorization", `Bearer ${t}`);
+            });
+          },
+        },
+        "/daemon": {
+          target: daemon,
+          changeOrigin: true,
+          rewrite: (p) => p.replace(/^\/daemon/, ""),
+        },
+      },
+    },
+    build: {
+      target: "es2022",
+      outDir: "dist",
+      rollupOptions: {
+        input: {
+          main: resolve(__dirname, "index.html"),
+          devtools: resolve(__dirname, "devtools.html"),
+        },
+      },
+    },
+  };
+});

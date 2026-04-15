@@ -1,6 +1,7 @@
 packages:
   - "apps/docs"
   - "apps/web"
+  - "apps/shell"
   - "packages/*"
 
 enableGlobalVirtualStore: false

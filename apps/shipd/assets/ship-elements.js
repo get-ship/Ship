@@ -1,7 +1,7 @@
-// ../../node_modules/.pnpm/@lit+reactive-element@2.1.2/node_modules/@lit/reactive-element/css-tag.js
+// node_modules/.pnpm/@lit+reactive-element@2.1.2/node_modules/@lit/reactive-element/css-tag.js
 var t = globalThis;
 var e = t.ShadowRoot && (void 0 === t.ShadyCSS || t.ShadyCSS.nativeShadow) && "adoptedStyleSheets" in Document.prototype && "replace" in CSSStyleSheet.prototype;
-var s = /* @__PURE__ */ Symbol();
+var s = Symbol();
 var o = /* @__PURE__ */ new WeakMap();
 var n = class {
   constructor(t4, e6, o6) {
@@ -43,7 +43,7 @@ var c = e ? (t4) => t4 : (t4) => t4 instanceof CSSStyleSheet ? ((t5) => {
   return r(e6);
 })(t4) : t4;
 
-// ../../node_modules/.pnpm/@lit+reactive-element@2.1.2/node_modules/@lit/reactive-element/reactive-element.js
+// node_modules/.pnpm/@lit+reactive-element@2.1.2/node_modules/@lit/reactive-element/reactive-element.js
 var { is: i2, defineProperty: e2, getOwnPropertyDescriptor: h, getOwnPropertyNames: r2, getOwnPropertySymbols: o2, getPrototypeOf: n2 } = Object;
 var a = globalThis;
 var c2 = a.trustedTypes;
@@ -81,7 +81,7 @@ var u = { toAttribute(t4, s4) {
 } };
 var f = (t4, s4) => !i2(t4, s4);
 var b = { attribute: true, type: String, converter: u, reflect: false, useDefault: false, hasChanged: f };
-Symbol.metadata ?? (Symbol.metadata = /* @__PURE__ */ Symbol("metadata")), a.litPropertyMetadata ?? (a.litPropertyMetadata = /* @__PURE__ */ new WeakMap());
+Symbol.metadata ?? (Symbol.metadata = Symbol("metadata")), a.litPropertyMetadata ?? (a.litPropertyMetadata = /* @__PURE__ */ new WeakMap());
 var y = class extends HTMLElement {
   static addInitializer(t4) {
     this._$Ei(), (this.l ?? (this.l = [])).push(t4);
@@ -91,7 +91,7 @@ var y = class extends HTMLElement {
   }
   static createProperty(t4, s4 = b) {
     if (s4.state && (s4.attribute = false), this._$Ei(), this.prototype.hasOwnProperty(t4) && ((s4 = Object.create(s4)).wrapped = true), this.elementProperties.set(t4, s4), !s4.noAccessor) {
-      const i6 = /* @__PURE__ */ Symbol(), h3 = this.getPropertyDescriptor(t4, i6, s4);
+      const i6 = Symbol(), h3 = this.getPropertyDescriptor(t4, i6, s4);
       void 0 !== h3 && e2(this.prototype, t4, h3);
     }
   }
@@ -265,7 +265,7 @@ var y = class extends HTMLElement {
 };
 y.elementStyles = [], y.shadowRootOptions = { mode: "open" }, y[d("elementProperties")] = /* @__PURE__ */ new Map(), y[d("finalized")] = /* @__PURE__ */ new Map(), p?.({ ReactiveElement: y }), (a.reactiveElementVersions ?? (a.reactiveElementVersions = [])).push("2.1.2");
 
-// ../../node_modules/.pnpm/lit-html@3.3.2/node_modules/lit-html/lit-html.js
+// node_modules/.pnpm/lit-html@3.3.2/node_modules/lit-html/lit-html.js
 var t2 = globalThis;
 var i3 = (t4) => t4;
 var s2 = t2.trustedTypes;
@@ -292,8 +292,8 @@ var x = (t4) => (i6, ...s4) => ({ _$litType$: t4, strings: i6, values: s4 });
 var b2 = x(1);
 var w = x(2);
 var T = x(3);
-var E = /* @__PURE__ */ Symbol.for("lit-noChange");
-var A = /* @__PURE__ */ Symbol.for("lit-nothing");
+var E = Symbol.for("lit-noChange");
+var A = Symbol.for("lit-nothing");
 var C = /* @__PURE__ */ new WeakMap();
 var P = l2.createTreeWalker(l2, 129);
 function V(t4, i6) {
@@ -519,7 +519,7 @@ var D = (t4, i6, s4) => {
   return h3._$AI(t4), h3;
 };
 
-// ../../node_modules/.pnpm/lit-element@4.2.2/node_modules/lit-element/lit-element.js
+// node_modules/.pnpm/lit-element@4.2.2/node_modules/lit-element/lit-element.js
 var s3 = globalThis;
 var i4 = class extends y {
   constructor() {
@@ -549,7 +549,7 @@ var o4 = s3.litElementPolyfillSupport;
 o4?.({ LitElement: i4 });
 (s3.litElementVersions ?? (s3.litElementVersions = [])).push("4.2.2");
 
-// src/web-components/util.ts
+// packages/ui/src/web-components/util.ts
 var MONO_STACK = "ui-monospace, SFMono-Regular, 'SF Mono', Menlo, Consolas, monospace";
 var MONO = r(MONO_STACK);
 var toneVars = i`
@@ -590,7 +590,7 @@ var toneVars = i`
   }
 `;
 
-// src/web-components/ship-alert.ts
+// packages/ui/src/web-components/ship-alert.ts
 var ShipAlert = class extends i4 {
   constructor() {
     super();
@@ -657,7 +657,7 @@ if (typeof customElements !== "undefined" && !customElements.get("ship-alert")) 
   customElements.define("ship-alert", ShipAlert);
 }
 
-// src/web-components/ship-dialog.ts
+// packages/ui/src/web-components/ship-dialog.ts
 var ShipDialog = class extends i4 {
   constructor() {
     super(...arguments);
@@ -806,7 +806,7 @@ if (typeof customElements !== "undefined" && !customElements.get("ship-dialog"))
   customElements.define("ship-dialog", ShipDialog);
 }
 
-// src/web-components/ship-button.ts
+// packages/ui/src/web-components/ship-button.ts
 var ShipButton = class extends i4 {
   constructor() {
     super(...arguments);
@@ -972,7 +972,7 @@ if (typeof customElements !== "undefined" && !customElements.get("ship-button"))
   customElements.define("ship-button", ShipButton);
 }
 
-// src/web-components/ship-alert-dialog.ts
+// packages/ui/src/web-components/ship-alert-dialog.ts
 var ShipAlertDialog = class extends i4 {
   constructor() {
     super(...arguments);
@@ -1023,7 +1023,596 @@ if (typeof customElements !== "undefined" && !customElements.get("ship-alert-dia
   customElements.define("ship-alert-dialog", ShipAlertDialog);
 }
 
-// src/web-components/ship-badge.ts
+// packages/ui/src/utils/annotation-helpers.ts
+function getCSSSelector(el) {
+  if (el.id) return `#${el.id}`;
+  const tag = el.tagName.toLowerCase();
+  if (el.className && typeof el.className === "string") {
+    const classes = el.className.trim().split(/\s+/).slice(0, 3).join(".");
+    if (classes) return `${tag}.${classes}`;
+  }
+  return tag;
+}
+function getElementsInRect(doc, rect) {
+  const [rx, ry, rw, rh] = rect;
+  const selectors = [];
+  const all = doc.querySelectorAll("*");
+  for (const el of all) {
+    const r4 = el.getBoundingClientRect();
+    if (r4.left >= rx && r4.top >= ry && r4.right <= rx + rw && r4.bottom <= ry + rh) {
+      selectors.push(getCSSSelector(el));
+    }
+    if (selectors.length >= 10) break;
+  }
+  return selectors;
+}
+var CROCKFORD = "0123456789ABCDEFGHJKMNPQRSTVWXYZ";
+function newUlid(now = Date.now()) {
+  let ts = now;
+  const time = new Array(10);
+  for (let i6 = 9; i6 >= 0; i6--) {
+    time[i6] = CROCKFORD[ts % 32];
+    ts = Math.floor(ts / 32);
+  }
+  const rand = new Array(16);
+  const cryptoObj = typeof globalThis !== "undefined" ? globalThis.crypto : void 0;
+  if (cryptoObj?.getRandomValues) {
+    const buf = new Uint8Array(16);
+    cryptoObj.getRandomValues(buf);
+    for (let i6 = 0; i6 < 16; i6++) rand[i6] = CROCKFORD[buf[i6] % 32];
+  } else {
+    for (let i6 = 0; i6 < 16; i6++) rand[i6] = CROCKFORD[Math.floor(Math.random() * 32)];
+  }
+  return time.join("") + rand.join("");
+}
+function buildAnnotationEvent(input) {
+  const target = {};
+  if (input.viewId !== void 0) target.view_id = input.viewId;
+  if (input.filePath !== void 0) target.file_path = input.filePath;
+  if (input.selector !== void 0) target.selector = input.selector;
+  if (input.rect !== void 0) target.rect = input.rect;
+  if (input.viewport !== void 0) target.viewport = input.viewport;
+  const ev = {
+    id: input.id ?? newUlid(),
+    kind: input.kind,
+    target,
+    created_at: input.createdAt ?? (/* @__PURE__ */ new Date()).toISOString(),
+    author_kind: input.authorKind ?? "human"
+  };
+  if (input.intent !== void 0) ev.intent = input.intent;
+  if (input.note !== void 0) ev.note = input.note;
+  if (input.selection !== void 0) ev.selection = input.selection;
+  return ev;
+}
+
+// packages/ui/src/web-components/ship-annotation-layer.internals.ts
+var layerStyles = i`
+  :host {
+    position: relative;
+    display: block;
+    font-family: var(--font-body);
+  }
+  .surface { position: relative; width: 100%; height: 100%; }
+  .overlay { position: absolute; inset: 0; z-index: 10; }
+  :host([mode='point']) .overlay,
+  :host([mode='region']) .overlay { cursor: crosshair; }
+  :host(:not([mode='point']):not([mode='region'])) .overlay { pointer-events: none; }
+
+  .drag-rect {
+    position: absolute;
+    border: 2px dashed var(--primary);
+    background: color-mix(in oklch, var(--primary) 10%, transparent);
+    pointer-events: none;
+    border-radius: var(--radius-sm);
+  }
+  .popover {
+    position: absolute;
+    z-index: 20;
+    min-width: 220px;
+    padding: 8px;
+    background: var(--popover, var(--background));
+    color: var(--popover-foreground, var(--foreground));
+    border: 1px solid var(--border);
+    border-radius: var(--radius-md);
+    box-shadow: var(--shadow-lg);
+    display: flex;
+    flex-direction: column;
+    gap: 6px;
+  }
+  .popover textarea {
+    font: inherit;
+    width: 100%;
+    min-height: 60px;
+    resize: vertical;
+    padding: 4px 6px;
+    border: 1px solid var(--border);
+    border-radius: var(--radius-sm);
+    background: var(--background);
+    color: var(--foreground);
+    box-sizing: border-box;
+  }
+  .popover-actions { display: flex; justify-content: flex-end; gap: 6px; }
+  .popover button {
+    font: inherit;
+    font-size: var(--text-sm);
+    padding: 4px 10px;
+    border-radius: var(--radius-sm);
+    border: 1px solid var(--border);
+    background: var(--background);
+    color: var(--foreground);
+    cursor: pointer;
+  }
+  .popover button[data-primary] {
+    background: var(--primary);
+    color: var(--primary-foreground);
+    border-color: var(--primary);
+  }
+`;
+function renderPopover(host, at) {
+  const left = Math.min(at.x + 12, 1e4);
+  const top = Math.min(at.y + 12, 1e4);
+  return b2`
+    <div
+      class="popover"
+      data-annotation-popover
+      style=${`left:${left}px;top:${top}px`}
+      @pointerdown=${(e6) => e6.stopPropagation()}
+    >
+      <textarea
+        part="note-input"
+        placeholder="Add a note…"
+        @keydown=${(e6) => {
+    if (e6.key === "Escape") host.cancelNote();
+    if (e6.key === "Enter" && (e6.metaKey || e6.ctrlKey)) {
+      host.confirmNote(e6.currentTarget.value);
+    }
+  }}
+      ></textarea>
+      <div class="popover-actions">
+        <button type="button" @click=${() => host.cancelNote()}>Cancel</button>
+        <button
+          type="button"
+          data-primary
+          @click=${(e6) => {
+    const ta = e6.currentTarget.closest(".popover").querySelector("textarea");
+    host.confirmNote(ta.value);
+  }}
+        >Send</button>
+      </div>
+    </div>
+  `;
+}
+
+// packages/ui/src/web-components/ship-annotation-marker.ts
+var ShipAnnotationMarker = class extends i4 {
+  constructor() {
+    super(...arguments);
+    this.kind = "point";
+    this.x = 0;
+    this.y = 0;
+    this.rect = null;
+    this.active = false;
+    this.index = 0;
+  }
+  parsedRect() {
+    if (!this.rect) return null;
+    const parts = this.rect.split(",").map((s4) => Number(s4.trim()));
+    if (parts.length !== 4 || parts.some((n4) => !Number.isFinite(n4))) return null;
+    return parts;
+  }
+  render() {
+    if (this.kind === "region") {
+      const r4 = this.parsedRect();
+      if (!r4) return null;
+      const [x2, y3, w2, h3] = r4;
+      return b2`<div
+        part="box"
+        role="button"
+        tabindex="0"
+        style=${`left:${x2}px;top:${y3}px;width:${w2}px;height:${h3}px`}
+      ></div>`;
+    }
+    return b2`<div
+      part="pin"
+      role="button"
+      tabindex="0"
+      style=${`left:${this.x}px;top:${this.y}px`}
+    >${this.index + 1}</div>`;
+  }
+};
+ShipAnnotationMarker.styles = i`
+    :host {
+      position: absolute;
+      pointer-events: auto;
+      font-family: var(--font-body);
+      font-size: var(--text-xs);
+    }
+    :host([hidden]) { display: none; }
+
+    [part='pin'] {
+      position: absolute;
+      width: 20px;
+      height: 20px;
+      border-radius: 50%;
+      background: var(--primary);
+      color: var(--primary-foreground);
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      font-weight: var(--font-weight-medium);
+      box-shadow: var(--shadow-sm);
+      cursor: pointer;
+      transform: translate(-50%, -50%);
+      border: 2px solid var(--background);
+      transition: filter var(--duration-fast) var(--ease-out);
+    }
+    :host([active]) [part='pin'] {
+      filter: brightness(1.2);
+      outline: 2px solid var(--ring-color);
+      outline-offset: 2px;
+    }
+
+    [part='box'] {
+      position: absolute;
+      border: 2px dashed var(--primary);
+      background: color-mix(in oklch, var(--primary) 10%, transparent);
+      border-radius: var(--radius-sm);
+      cursor: pointer;
+      box-sizing: border-box;
+    }
+    :host([active]) [part='box'] {
+      background: color-mix(in oklch, var(--primary) 18%, transparent);
+    }
+  `;
+ShipAnnotationMarker.properties = {
+  kind: { type: String, reflect: true },
+  x: { type: Number },
+  y: { type: Number },
+  rect: { type: String, reflect: true },
+  active: { type: Boolean, reflect: true },
+  index: { type: Number }
+};
+if (typeof customElements !== "undefined" && !customElements.get("ship-annotation-marker")) {
+  customElements.define("ship-annotation-marker", ShipAnnotationMarker);
+}
+
+// packages/ui/src/web-components/ship-annotation-layer.ts
+var DEFAULT_ENDPOINT = "/api/runtime/annotations";
+var ShipAnnotationLayer = class extends i4 {
+  constructor() {
+    super(...arguments);
+    this.viewId = "";
+    this.mode = "off";
+    this.endpoint = DEFAULT_ENDPOINT;
+    this.staging = false;
+    this.staged = [];
+    this._pending = null;
+    this._drag = null;
+    this._overlayEl = null;
+    this._positions = {};
+    this.onPointerDown = (e6) => {
+      if (this.mode === "off") return;
+      const t4 = e6.target;
+      if (t4.closest("[data-annotation-popover]") || t4.closest("ship-annotation-marker")) return;
+      if (this._pending) {
+        this._pending = null;
+        return;
+      }
+      e6.preventDefault();
+      const p3 = this.overlayPos(e6);
+      this._drag = { startX: p3.x, startY: p3.y, curX: p3.x, curY: p3.y };
+      e6.target.setPointerCapture?.(e6.pointerId);
+    };
+    this.onPointerMove = (e6) => {
+      if (!this._drag) return;
+      const p3 = this.overlayPos(e6);
+      this._drag = { ...this._drag, curX: p3.x, curY: p3.y };
+    };
+    this.onPointerUp = (e6) => {
+      if (!this._drag) return;
+      const p3 = this.overlayPos(e6);
+      const dx = Math.abs(p3.x - this._drag.startX);
+      const dy = Math.abs(p3.y - this._drag.startY);
+      if (this.mode === "point" || this.mode === "region" && dx < 8 && dy < 8) {
+        let selector = "body";
+        const el = this.pickElementAt(p3.x, p3.y);
+        if (el) selector = getCSSSelector(el);
+        this._pending = { kind: "point", x: p3.x, y: p3.y, selector };
+      } else if (this.mode === "region") {
+        const x2 = Math.min(this._drag.startX, p3.x);
+        const y3 = Math.min(this._drag.startY, p3.y);
+        const rect = [
+          Math.round(x2),
+          Math.round(y3),
+          Math.round(dx),
+          Math.round(dy)
+        ];
+        this._pending = { kind: "region", x: x2 + dx / 2, y: y3 + dy / 2, rect };
+      }
+      this._drag = null;
+      void e6;
+    };
+  }
+  // ─── gestures ───
+  overlayPos(e6) {
+    const el = this._overlayEl;
+    if (!el) return { x: 0, y: 0 };
+    const r4 = el.getBoundingClientRect();
+    return { x: e6.clientX - r4.left, y: e6.clientY - r4.top };
+  }
+  pickElementAt(x2, y3) {
+    const slot = this.shadowRoot?.querySelector("slot");
+    const assigned = slot?.assignedElements({ flatten: true }) ?? [];
+    if (!this._overlayEl) return null;
+    const overlayR = this._overlayEl.getBoundingClientRect();
+    const clientX = overlayR.left + x2;
+    const clientY = overlayR.top + y3;
+    for (const root of assigned) {
+      const host = root;
+      const r4 = host.getBoundingClientRect();
+      if (clientX < r4.left || clientX > r4.right || clientY < r4.top || clientY > r4.bottom) continue;
+      const el = host.ownerDocument.elementFromPoint(clientX, clientY);
+      if (el && host.contains(el)) return el;
+    }
+    return null;
+  }
+  // ─── staging / send ───
+  confirmNote(note) {
+    const p3 = this._pending;
+    if (!p3) return;
+    const trimmed = note.trim();
+    if (!trimmed) {
+      this._pending = null;
+      return;
+    }
+    const elements = p3.kind === "region" && p3.rect && this.ownerDocument ? getElementsInRect(this.ownerDocument, p3.rect) : void 0;
+    const ev = buildAnnotationEvent({
+      viewId: this.viewId || void 0,
+      kind: p3.kind,
+      selector: p3.kind === "point" ? p3.selector : void 0,
+      rect: p3.kind === "region" ? p3.rect : void 0,
+      note: trimmed,
+      selection: elements && elements.length > 0 ? { kind: "elements", text: elements.join(",") } : void 0
+    });
+    this._positions[ev.id] = { x: p3.x, y: p3.y };
+    this.staged = [...this.staged, ev];
+    this.dispatchEvent(
+      new CustomEvent("ship-annotation-staged", { detail: ev, bubbles: true, composed: true })
+    );
+    this._pending = null;
+    if (!this.staging) void this.sendOne(ev);
+  }
+  cancelNote() {
+    this._pending = null;
+  }
+  async send() {
+    const queue = [...this.staged];
+    for (const ev of queue) await this.sendOne(ev);
+  }
+  clear() {
+    this.staged = [];
+  }
+  async sendOne(ev) {
+    try {
+      const resp = await fetch(this.endpoint || DEFAULT_ENDPOINT, {
+        method: "POST",
+        credentials: "include",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(ev)
+      });
+      if (!resp.ok) {
+        const body = await resp.json().catch(() => ({}));
+        this.dispatchEvent(
+          new CustomEvent("ship-annotation-error", {
+            detail: {
+              code: body?.error?.code ?? `http_${resp.status}`,
+              message: body?.error?.message ?? resp.statusText,
+              id: ev.id
+            },
+            bubbles: true,
+            composed: true
+          })
+        );
+        return;
+      }
+      this.dispatchEvent(
+        new CustomEvent("ship-annotation-sent", {
+          detail: { id: ev.id, status: resp.status },
+          bubbles: true,
+          composed: true
+        })
+      );
+      this.staged = this.staged.filter((s4) => s4.id !== ev.id);
+    } catch (e6) {
+      this.dispatchEvent(
+        new CustomEvent("ship-annotation-error", {
+          detail: { code: "network_error", message: String(e6), id: ev.id },
+          bubbles: true,
+          composed: true
+        })
+      );
+    }
+  }
+  // ─── render ───
+  firstUpdated() {
+    this._overlayEl = this.shadowRoot.querySelector(".overlay");
+  }
+  render() {
+    const d3 = this._drag;
+    const dragRect = d3 && (Math.abs(d3.curX - d3.startX) > 4 || Math.abs(d3.curY - d3.startY) > 4) ? {
+      x: Math.min(d3.startX, d3.curX),
+      y: Math.min(d3.startY, d3.curY),
+      w: Math.abs(d3.curX - d3.startX),
+      h: Math.abs(d3.curY - d3.startY)
+    } : null;
+    return b2`
+      <div class="surface">
+        <slot></slot>
+        <div
+          class="overlay"
+          @pointerdown=${this.onPointerDown}
+          @pointermove=${this.onPointerMove}
+          @pointerup=${this.onPointerUp}
+        >
+          ${this.staged.map((a3, i6) => this.renderMarker(a3, i6))}
+          ${dragRect ? b2`<div
+                class="drag-rect"
+                style=${`left:${dragRect.x}px;top:${dragRect.y}px;width:${dragRect.w}px;height:${dragRect.h}px`}
+              ></div>` : null}
+          ${this._pending ? renderPopover(this, this._pending) : null}
+        </div>
+      </div>
+    `;
+  }
+  renderMarker(a3, i6) {
+    if (a3.kind === "region" && a3.target.rect) {
+      return b2`<ship-annotation-marker
+        kind="region"
+        rect=${a3.target.rect.join(",")}
+        index=${i6}
+      ></ship-annotation-marker>`;
+    }
+    if (a3.kind === "point") {
+      const pos = this._positions[a3.id] ?? { x: 0, y: 0 };
+      return b2`<ship-annotation-marker
+        kind="point"
+        .x=${pos.x}
+        .y=${pos.y}
+        index=${i6}
+      ></ship-annotation-marker>`;
+    }
+    return null;
+  }
+};
+ShipAnnotationLayer.styles = layerStyles;
+ShipAnnotationLayer.properties = {
+  viewId: { type: String, attribute: "view-id", reflect: true },
+  mode: { type: String, reflect: true },
+  endpoint: { type: String, reflect: true },
+  staging: { type: Boolean, reflect: true },
+  staged: { state: true },
+  _pending: { state: true },
+  _drag: { state: true }
+};
+if (typeof customElements !== "undefined" && !customElements.get("ship-annotation-layer")) {
+  customElements.define("ship-annotation-layer", ShipAnnotationLayer);
+}
+
+// packages/ui/src/web-components/ship-annotation-list.ts
+var ShipAnnotationList = class extends i4 {
+  constructor() {
+    super(...arguments);
+    this.staged = [];
+  }
+  /**
+   * When the `staged` attribute is set directly (rather than the
+   * property), parse it as JSON so consumers can hydrate from markup.
+   */
+  attributeChangedCallback(name, old, value) {
+    if (name === "staged" && value !== null) {
+      try {
+        const parsed = JSON.parse(value);
+        if (Array.isArray(parsed)) {
+          this.staged = parsed;
+          return;
+        }
+      } catch {
+      }
+    }
+    super.attributeChangedCallback(name, old, value);
+  }
+  emitRemove(id) {
+    this.dispatchEvent(
+      new CustomEvent("ship-annotation-remove", {
+        detail: { id },
+        bubbles: true,
+        composed: true
+      })
+    );
+  }
+  render() {
+    if (!this.staged || this.staged.length === 0) {
+      return b2`<div class="empty" part="empty">No staged annotations.</div>`;
+    }
+    return b2`
+      <ol part="list">
+        ${this.staged.map(
+      (a3) => b2`
+            <li part="item" data-id=${a3.id}>
+              <span class="kind">${a3.kind}</span>
+              <span class="note" title=${a3.note ?? ""}>${a3.note ?? "(no note)"}</span>
+              <button
+                type="button"
+                aria-label="Remove annotation"
+                @click=${() => this.emitRemove(a3.id)}
+              >Remove</button>
+            </li>
+          `
+    )}
+      </ol>
+    `;
+  }
+};
+ShipAnnotationList.styles = i`
+    :host {
+      display: block;
+      font-family: var(--font-body);
+      font-size: var(--text-sm);
+      color: var(--foreground);
+    }
+    ol {
+      list-style: none;
+      margin: 0;
+      padding: 0;
+      display: flex;
+      flex-direction: column;
+      gap: 4px;
+    }
+    li {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      padding: 4px 8px;
+      border: 1px solid var(--border);
+      border-radius: var(--radius-sm);
+      background: var(--background);
+    }
+    .kind {
+      font-size: var(--text-xs);
+      text-transform: uppercase;
+      letter-spacing: 0.04em;
+      color: var(--muted-foreground);
+      min-width: 48px;
+    }
+    .note {
+      flex: 1;
+      overflow: hidden;
+      text-overflow: ellipsis;
+      white-space: nowrap;
+    }
+    .empty {
+      color: var(--muted-foreground);
+      padding: 4px 8px;
+    }
+    button {
+      background: transparent;
+      border: 1px solid var(--border);
+      border-radius: var(--radius-sm);
+      color: var(--muted-foreground);
+      cursor: pointer;
+      font-size: var(--text-xs);
+      padding: 2px 6px;
+    }
+    button:hover { color: var(--destructive); border-color: var(--destructive); }
+  `;
+ShipAnnotationList.properties = {
+  staged: { type: Array }
+};
+if (typeof customElements !== "undefined" && !customElements.get("ship-annotation-list")) {
+  customElements.define("ship-annotation-list", ShipAnnotationList);
+}
+
+// packages/ui/src/web-components/ship-badge.ts
 var ShipBadge = class extends i4 {
   constructor() {
     super();
@@ -1072,7 +1661,7 @@ if (typeof customElements !== "undefined" && !customElements.get("ship-badge")) 
   customElements.define("ship-badge", ShipBadge);
 }
 
-// src/web-components/ship-card.ts
+// packages/ui/src/web-components/ship-card.ts
 var ShipCard = class extends i4 {
   constructor() {
     super();
@@ -1150,7 +1739,7 @@ if (typeof customElements !== "undefined" && !customElements.get("ship-card")) {
   customElements.define("ship-card", ShipCard);
 }
 
-// src/web-components/ship-checkbox.ts
+// packages/ui/src/web-components/ship-checkbox.ts
 var ShipCheckbox = class extends i4 {
   constructor() {
     super(...arguments);
@@ -1214,7 +1803,7 @@ if (typeof customElements !== "undefined" && !customElements.get("ship-checkbox"
   customElements.define("ship-checkbox", ShipCheckbox);
 }
 
-// src/web-components/ship-dropdown-menu.ts
+// packages/ui/src/web-components/ship-dropdown-menu.ts
 var ShipDropdownMenu = class extends i4 {
   constructor() {
     super(...arguments);
@@ -1305,7 +1894,7 @@ if (typeof customElements !== "undefined" && !customElements.get("ship-dropdown-
   customElements.define("ship-dropdown-menu", ShipDropdownMenu);
 }
 
-// src/web-components/ship-empty-state.ts
+// packages/ui/src/web-components/ship-empty-state.ts
 var ShipEmptyState = class extends i4 {
   constructor() {
     super(...arguments);
@@ -1375,7 +1964,7 @@ if (typeof customElements !== "undefined" && !customElements.get("ship-empty-sta
   customElements.define("ship-empty-state", ShipEmptyState);
 }
 
-// src/web-components/ship-field.ts
+// packages/ui/src/web-components/ship-field.ts
 var ShipField = class extends i4 {
   constructor() {
     super(...arguments);
@@ -1405,7 +1994,7 @@ if (typeof customElements !== "undefined" && !customElements.get("ship-field")) 
   customElements.define("ship-field", ShipField);
 }
 
-// src/web-components/ship-input.ts
+// packages/ui/src/web-components/ship-input.ts
 var ShipInput = class extends i4 {
   constructor() {
     super(...arguments);
@@ -1538,7 +2127,7 @@ if (typeof customElements !== "undefined" && !customElements.get("ship-input")) 
   customElements.define("ship-input", ShipInput);
 }
 
-// src/web-components/ship-label.ts
+// packages/ui/src/web-components/ship-label.ts
 var ShipLabel = class extends i4 {
   constructor() {
     super(...arguments);
@@ -1577,7 +2166,7 @@ if (typeof customElements !== "undefined" && !customElements.get("ship-label")) 
   customElements.define("ship-label", ShipLabel);
 }
 
-// src/web-components/ship-list-item.ts
+// packages/ui/src/web-components/ship-list-item.ts
 var ShipListItem = class extends i4 {
   constructor() {
     super(...arguments);
@@ -1663,7 +2252,7 @@ if (typeof customElements !== "undefined" && !customElements.get("ship-list-item
   customElements.define("ship-list-item", ShipListItem);
 }
 
-// src/web-components/ship-popover.ts
+// packages/ui/src/web-components/ship-popover.ts
 var ShipPopover = class extends i4 {
   constructor() {
     super(...arguments);
@@ -1744,7 +2333,7 @@ if (typeof customElements !== "undefined" && !customElements.get("ship-popover")
   customElements.define("ship-popover", ShipPopover);
 }
 
-// src/web-components/ship-progress.ts
+// packages/ui/src/web-components/ship-progress.ts
 var ShipProgress = class extends i4 {
   constructor() {
     super();
@@ -1804,7 +2393,7 @@ if (typeof customElements !== "undefined" && !customElements.get("ship-progress"
   customElements.define("ship-progress", ShipProgress);
 }
 
-// src/web-components/ship-select.ts
+// packages/ui/src/web-components/ship-select.ts
 var ShipSelect = class extends i4 {
   constructor() {
     super(...arguments);
@@ -1878,7 +2467,7 @@ if (typeof customElements !== "undefined" && !customElements.get("ship-select"))
   customElements.define("ship-select", ShipSelect);
 }
 
-// src/web-components/ship-separator.ts
+// packages/ui/src/web-components/ship-separator.ts
 var ShipSeparator = class extends i4 {
   constructor() {
     super(...arguments);
@@ -1914,7 +2503,7 @@ if (typeof customElements !== "undefined" && !customElements.get("ship-separator
   customElements.define("ship-separator", ShipSeparator);
 }
 
-// src/web-components/ship-spinner.ts
+// packages/ui/src/web-components/ship-spinner.ts
 var ShipSpinner = class extends i4 {
   constructor() {
     super();
@@ -1951,7 +2540,7 @@ if (typeof customElements !== "undefined" && !customElements.get("ship-spinner")
   customElements.define("ship-spinner", ShipSpinner);
 }
 
-// src/web-components/ship-stat.ts
+// packages/ui/src/web-components/ship-stat.ts
 var ShipStat = class extends i4 {
   constructor() {
     super(...arguments);
@@ -2036,7 +2625,7 @@ if (typeof customElements !== "undefined" && !customElements.get("ship-stat")) {
   customElements.define("ship-stat", ShipStat);
 }
 
-// src/web-components/ship-status-dot.ts
+// packages/ui/src/web-components/ship-status-dot.ts
 var ShipStatusDot = class extends i4 {
   constructor() {
     super();
@@ -2076,7 +2665,7 @@ if (typeof customElements !== "undefined" && !customElements.get("ship-status-do
   customElements.define("ship-status-dot", ShipStatusDot);
 }
 
-// src/web-components/ship-switch.ts
+// packages/ui/src/web-components/ship-switch.ts
 var ShipSwitch = class extends i4 {
   constructor() {
     super(...arguments);
@@ -2160,7 +2749,7 @@ if (typeof customElements !== "undefined" && !customElements.get("ship-switch"))
   customElements.define("ship-switch", ShipSwitch);
 }
 
-// src/web-components/ship-tabs.ts
+// packages/ui/src/web-components/ship-tabs.ts
 var ShipTab = class extends i4 {
   constructor() {
     super(...arguments);
@@ -2359,7 +2948,7 @@ if (typeof customElements !== "undefined") {
   if (!customElements.get("ship-tabs")) customElements.define("ship-tabs", ShipTabs);
 }
 
-// src/web-components/ship-textarea.ts
+// packages/ui/src/web-components/ship-textarea.ts
 var ShipTextarea = class extends i4 {
   constructor() {
     super(...arguments);
@@ -2446,7 +3035,7 @@ if (typeof customElements !== "undefined" && !customElements.get("ship-textarea"
   customElements.define("ship-textarea", ShipTextarea);
 }
 
-// src/web-components/ship-theme-toggle.ts
+// packages/ui/src/web-components/ship-theme-toggle.ts
 var STORAGE_KEY = "ship-theme";
 var ShipThemeToggle = class extends i4 {
   constructor() {
@@ -2513,7 +3102,7 @@ if (typeof customElements !== "undefined" && !customElements.get("ship-theme-tog
   customElements.define("ship-theme-toggle", ShipThemeToggle);
 }
 
-// src/web-components/ship-toolbar.ts
+// packages/ui/src/web-components/ship-toolbar.ts
 var ShipToolbar = class extends i4 {
   constructor() {
     super(...arguments);
@@ -2552,7 +3141,7 @@ if (typeof customElements !== "undefined" && !customElements.get("ship-toolbar")
   customElements.define("ship-toolbar", ShipToolbar);
 }
 
-// src/web-components/ship-tooltip.ts
+// packages/ui/src/web-components/ship-tooltip.ts
 var ShipTooltip = class extends i4 {
   constructor() {
     super(...arguments);
@@ -2617,7 +3206,7 @@ if (typeof customElements !== "undefined" && !customElements.get("ship-tooltip")
   customElements.define("ship-tooltip", ShipTooltip);
 }
 
-// src/web-components/domain/ship-pipeline-step.ts
+// packages/ui/src/web-components/domain/ship-pipeline-step.ts
 var ShipPipelineStep = class extends i4 {
   constructor() {
     super(...arguments);
@@ -2719,7 +3308,7 @@ if (typeof customElements !== "undefined" && !customElements.get("ship-pipeline-
   customElements.define("ship-pipeline-step", ShipPipelineStep);
 }
 
-// src/web-components/domain/ship-pipeline-run.ts
+// packages/ui/src/web-components/domain/ship-pipeline-run.ts
 var STATE_TO_TONE = {
   dispatched: "info",
   running: "info",
@@ -2791,7 +3380,7 @@ if (typeof customElements !== "undefined" && !customElements.get("ship-pipeline-
   customElements.define("ship-pipeline-run", ShipPipelineRun);
 }
 
-// src/web-components/domain/ship-pipeline-definition.ts
+// packages/ui/src/web-components/domain/ship-pipeline-definition.ts
 var ShipPipelineDefinition = class extends i4 {
   constructor() {
     super(...arguments);
@@ -2856,7 +3445,7 @@ if (typeof customElements !== "undefined" && !customElements.get("ship-pipeline-
   customElements.define("ship-pipeline-definition", ShipPipelineDefinition);
 }
 
-// src/web-components/domain/ship-pipeline-dag.ts
+// packages/ui/src/web-components/domain/ship-pipeline-dag.ts
 var ShipPipelineDag = class extends i4 {
   render() {
     return b2`<slot></slot>`;
@@ -2882,7 +3471,7 @@ if (typeof customElements !== "undefined" && !customElements.get("ship-pipeline-
   customElements.define("ship-pipeline-dag", ShipPipelineDag);
 }
 
-// src/web-components/domain/ship-history-row.ts
+// packages/ui/src/web-components/domain/ship-history-row.ts
 var ShipHistoryRow = class extends i4 {
   constructor() {
     super(...arguments);
@@ -2918,7 +3507,7 @@ if (typeof customElements !== "undefined" && !customElements.get("ship-history-r
   customElements.define("ship-history-row", ShipHistoryRow);
 }
 
-// src/web-components/domain/ship-spec-row.ts
+// packages/ui/src/web-components/domain/ship-spec-row.ts
 var STATUS_TO_TONE = {
   draft: "muted",
   ready: "success",
@@ -2965,7 +3554,7 @@ if (typeof customElements !== "undefined" && !customElements.get("ship-spec-row"
   customElements.define("ship-spec-row", ShipSpecRow);
 }
 
-// src/web-components/utility/ship-icon.ts
+// packages/ui/src/web-components/utility/ship-icon.ts
 var ICONS = {
   "chevron-down": "M6 9l6 6 6-6",
   "chevron-right": "M9 6l6 6-6 6",
@@ -3034,7 +3623,7 @@ if (typeof customElements !== "undefined" && !customElements.get("ship-icon")) {
   customElements.define("ship-icon", ShipIcon);
 }
 
-// src/web-components/domain/ship-git-diff.ts
+// packages/ui/src/web-components/domain/ship-git-diff.ts
 var ShipGitDiff = class extends i4 {
   constructor() {
     super(...arguments);
@@ -3286,7 +3875,7 @@ if (typeof customElements !== "undefined") {
   if (!customElements.get("ship-git-diff-line")) customElements.define("ship-git-diff-line", ShipGitDiffLine);
 }
 
-// src/web-components/observability/ship-log-line.ts
+// packages/ui/src/web-components/observability/ship-log-line.ts
 var ShipLogLine = class extends i4 {
   constructor() {
     super(...arguments);
@@ -3340,7 +3929,7 @@ if (typeof customElements !== "undefined" && !customElements.get("ship-log-line"
   customElements.define("ship-log-line", ShipLogLine);
 }
 
-// src/web-components/observability/ship-event-row.ts
+// packages/ui/src/web-components/observability/ship-event-row.ts
 var ShipEventRow = class extends i4 {
   render() {
     return b2`
@@ -3386,7 +3975,7 @@ if (typeof customElements !== "undefined" && !customElements.get("ship-event-row
   customElements.define("ship-event-row", ShipEventRow);
 }
 
-// src/web-components/observability/ship-timestamp.ts
+// packages/ui/src/web-components/observability/ship-timestamp.ts
 var MINUTE = 6e4;
 var HOUR = 36e5;
 var DAY = 864e5;
@@ -3448,7 +4037,7 @@ if (typeof customElements !== "undefined" && !customElements.get("ship-timestamp
   customElements.define("ship-timestamp", ShipTimestamp);
 }
 
-// src/web-components/observability/ship-json-view.ts
+// packages/ui/src/web-components/observability/ship-json-view.ts
 var ShipJsonView = class extends i4 {
   constructor() {
     super(...arguments);
@@ -3538,7 +4127,7 @@ if (typeof customElements !== "undefined" && !customElements.get("ship-json-view
   customElements.define("ship-json-view", ShipJsonView);
 }
 
-// src/web-components/observability/ship-diff.ts
+// packages/ui/src/web-components/observability/ship-diff.ts
 function diffLines(a3, b3) {
   const A2 = a3.split("\n");
   const B2 = b3.split("\n");
@@ -3632,7 +4221,7 @@ if (typeof customElements !== "undefined" && !customElements.get("ship-diff")) {
   customElements.define("ship-diff", ShipDiff);
 }
 
-// src/web-components/observability/ship-code.ts
+// packages/ui/src/web-components/observability/ship-code.ts
 var ShipCode = class extends i4 {
   constructor() {
     super(...arguments);
@@ -3702,7 +4291,7 @@ if (typeof customElements !== "undefined" && !customElements.get("ship-code")) {
   customElements.define("ship-code", ShipCode);
 }
 
-// src/web-components/observability/ship-copy-button.ts
+// packages/ui/src/web-components/observability/ship-copy-button.ts
 var ShipCopyButton = class extends i4 {
   constructor() {
     super(...arguments);
@@ -3796,7 +4385,7 @@ if (typeof customElements !== "undefined" && !customElements.get("ship-copy-butt
   customElements.define("ship-copy-button", ShipCopyButton);
 }
 
-// ../../node_modules/.pnpm/lit-html@3.3.2/node_modules/lit-html/directive.js
+// node_modules/.pnpm/lit-html@3.3.2/node_modules/lit-html/directive.js
 var t3 = { ATTRIBUTE: 1, CHILD: 2, PROPERTY: 3, BOOLEAN_ATTRIBUTE: 4, EVENT: 5, ELEMENT: 6 };
 var e4 = (t4) => (...e6) => ({ _$litDirective$: t4, values: e6 });
 var i5 = class {
@@ -3816,7 +4405,7 @@ var i5 = class {
   }
 };
 
-// ../../node_modules/.pnpm/lit-html@3.3.2/node_modules/lit-html/directives/unsafe-html.js
+// node_modules/.pnpm/lit-html@3.3.2/node_modules/lit-html/directives/unsafe-html.js
 var e5 = class extends i5 {
   constructor(i6) {
     if (super(i6), this.it = A, i6.type !== t3.CHILD) throw Error(this.constructor.directiveName + "() can only be used in child bindings");
@@ -3834,7 +4423,7 @@ var e5 = class extends i5 {
 e5.directiveName = "unsafeHTML", e5.resultType = 1;
 var o5 = e4(e5);
 
-// src/web-components/observability/ship-markdown.ts
+// packages/ui/src/web-components/observability/ship-markdown.ts
 function escape(s4) {
   return s4.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;").replace(/"/g, "&quot;");
 }
@@ -3971,7 +4560,7 @@ if (typeof customElements !== "undefined" && !customElements.get("ship-markdown"
   customElements.define("ship-markdown", ShipMarkdown);
 }
 
-// src/web-components/observability/ship-table.ts
+// packages/ui/src/web-components/observability/ship-table.ts
 var ShipTable = class extends i4 {
   constructor() {
     super(...arguments);
@@ -4027,7 +4616,7 @@ if (typeof customElements !== "undefined" && !customElements.get("ship-table")) 
   customElements.define("ship-table", ShipTable);
 }
 
-// src/web-components/observability/ship-timeline.ts
+// packages/ui/src/web-components/observability/ship-timeline.ts
 var ShipTimeline = class extends i4 {
   render() {
     return b2`<div class="list" part="list"><slot></slot></div>`;
@@ -4155,7 +4744,7 @@ if (typeof customElements !== "undefined") {
   if (!customElements.get("ship-timeline-item")) customElements.define("ship-timeline-item", ShipTimelineItem);
 }
 
-// src/web-components/observability/ship-tree-view.ts
+// packages/ui/src/web-components/observability/ship-tree-view.ts
 var ShipTreeView = class extends i4 {
   connectedCallback() {
     super.connectedCallback();
@@ -4283,7 +4872,7 @@ if (typeof customElements !== "undefined") {
   if (!customElements.get("ship-tree-node")) customElements.define("ship-tree-node", ShipTreeNode);
 }
 
-// src/web-components/charts/util.ts
+// packages/ui/src/web-components/charts/util.ts
 var TONE_VARS = {
   default: "var(--foreground)",
   primary: "var(--primary)",
@@ -4340,7 +4929,7 @@ function arcPath(cx, cy, r4, startAngle, endAngle) {
   return `M${x1.toFixed(2)},${y1.toFixed(2)} A${r4},${r4} 0 ${large} ${sweep} ${x2.toFixed(2)},${y22.toFixed(2)}`;
 }
 
-// src/web-components/charts/ship-sparkline.ts
+// packages/ui/src/web-components/charts/ship-sparkline.ts
 var ShipSparkline = class extends i4 {
   constructor() {
     super(...arguments);
@@ -4404,7 +4993,7 @@ if (typeof customElements !== "undefined" && !customElements.get("ship-sparkline
   customElements.define("ship-sparkline", ShipSparkline);
 }
 
-// src/web-components/charts/ship-bar-chart.ts
+// packages/ui/src/web-components/charts/ship-bar-chart.ts
 var ShipBarChart = class extends i4 {
   constructor() {
     super(...arguments);
@@ -4486,7 +5075,7 @@ if (typeof customElements !== "undefined" && !customElements.get("ship-bar-chart
   customElements.define("ship-bar-chart", ShipBarChart);
 }
 
-// src/web-components/charts/ship-line-chart.ts
+// packages/ui/src/web-components/charts/ship-line-chart.ts
 var ShipLineChart = class extends i4 {
   constructor() {
     super(...arguments);
@@ -4565,7 +5154,7 @@ if (typeof customElements !== "undefined" && !customElements.get("ship-line-char
   customElements.define("ship-line-chart", ShipLineChart);
 }
 
-// src/web-components/charts/ship-area-chart.ts
+// packages/ui/src/web-components/charts/ship-area-chart.ts
 var ShipAreaChart = class extends i4 {
   constructor() {
     super(...arguments);
@@ -4645,7 +5234,7 @@ if (typeof customElements !== "undefined" && !customElements.get("ship-area-char
   customElements.define("ship-area-chart", ShipAreaChart);
 }
 
-// src/web-components/charts/ship-donut.ts
+// packages/ui/src/web-components/charts/ship-donut.ts
 var ShipDonut = class extends i4 {
   constructor() {
     super(...arguments);
@@ -4722,7 +5311,7 @@ if (typeof customElements !== "undefined" && !customElements.get("ship-donut")) 
   customElements.define("ship-donut", ShipDonut);
 }
 
-// src/web-components/charts/ship-gauge.ts
+// packages/ui/src/web-components/charts/ship-gauge.ts
 var ShipGauge = class extends i4 {
   constructor() {
     super(...arguments);
@@ -4803,7 +5392,7 @@ if (typeof customElements !== "undefined" && !customElements.get("ship-gauge")) 
   customElements.define("ship-gauge", ShipGauge);
 }
 
-// src/web-components/charts/ship-progress-ring.ts
+// packages/ui/src/web-components/charts/ship-progress-ring.ts
 var ShipProgressRing = class extends i4 {
   constructor() {
     super(...arguments);
@@ -4870,7 +5459,7 @@ if (typeof customElements !== "undefined" && !customElements.get("ship-progress-
   customElements.define("ship-progress-ring", ShipProgressRing);
 }
 
-// src/web-components/charts/ship-heatmap.ts
+// packages/ui/src/web-components/charts/ship-heatmap.ts
 var TONE_CSS_VAR = {
   default: "--foreground",
   primary: "--primary",
@@ -4953,7 +5542,7 @@ if (typeof customElements !== "undefined" && !customElements.get("ship-heatmap")
   customElements.define("ship-heatmap", ShipHeatmap);
 }
 
-// src/web-components/charts/ship-meter.ts
+// packages/ui/src/web-components/charts/ship-meter.ts
 var ShipMeter = class extends i4 {
   constructor() {
     super(...arguments);
@@ -5023,7 +5612,7 @@ if (typeof customElements !== "undefined" && !customElements.get("ship-meter")) 
   customElements.define("ship-meter", ShipMeter);
 }
 
-// src/web-components/utility/ship-avatar.ts
+// packages/ui/src/web-components/utility/ship-avatar.ts
 function initialsFromName(name) {
   const parts = name.trim().split(/\s+/).filter(Boolean);
   if (parts.length === 0) return "";
@@ -5091,7 +5680,7 @@ if (typeof customElements !== "undefined" && !customElements.get("ship-avatar"))
   customElements.define("ship-avatar", ShipAvatar);
 }
 
-// src/web-components/utility/ship-chip.ts
+// packages/ui/src/web-components/utility/ship-chip.ts
 var ShipChip = class extends i4 {
   constructor() {
     super(...arguments);
@@ -5166,7 +5755,7 @@ if (typeof customElements !== "undefined" && !customElements.get("ship-chip")) {
   customElements.define("ship-chip", ShipChip);
 }
 
-// src/web-components/utility/ship-kbd.ts
+// packages/ui/src/web-components/utility/ship-kbd.ts
 var ShipKbd = class extends i4 {
   constructor() {
     super(...arguments);
@@ -5205,7 +5794,7 @@ if (typeof customElements !== "undefined" && !customElements.get("ship-kbd")) {
   customElements.define("ship-kbd", ShipKbd);
 }
 
-// src/web-components/utility/ship-skeleton.ts
+// packages/ui/src/web-components/utility/ship-skeleton.ts
 var ShipSkeleton = class extends i4 {
   constructor() {
     super(...arguments);
@@ -5263,7 +5852,7 @@ if (typeof customElements !== "undefined" && !customElements.get("ship-skeleton"
   customElements.define("ship-skeleton", ShipSkeleton);
 }
 
-// src/web-components/utility/ship-toast.ts
+// packages/ui/src/web-components/utility/ship-toast.ts
 var ShipToastContainer = class extends i4 {
   constructor() {
     super(...arguments);
@@ -5379,7 +5968,7 @@ if (typeof customElements !== "undefined") {
     customElements.define("ship-toast", ShipToast);
 }
 
-// src/web-components/utility/ship-breadcrumb.ts
+// packages/ui/src/web-components/utility/ship-breadcrumb.ts
 var ShipBreadcrumbItem = class extends i4 {
   constructor() {
     super(...arguments);
@@ -5471,7 +6060,7 @@ if (typeof customElements !== "undefined") {
     customElements.define("ship-breadcrumb", ShipBreadcrumb);
 }
 
-// src/web-components/utility/ship-link.ts
+// packages/ui/src/web-components/utility/ship-link.ts
 var ShipLink = class extends i4 {
   constructor() {
     super(...arguments);
@@ -5534,7 +6123,7 @@ if (typeof customElements !== "undefined" && !customElements.get("ship-link")) {
   customElements.define("ship-link", ShipLink);
 }
 
-// src/web-components/utility/ship-metachip.ts
+// packages/ui/src/web-components/utility/ship-metachip.ts
 var ShipMetachip = class extends i4 {
   constructor() {
     super(...arguments);
@@ -5582,7 +6171,7 @@ if (typeof customElements !== "undefined" && !customElements.get("ship-metachip"
   customElements.define("ship-metachip", ShipMetachip);
 }
 
-// src/web-components/utility/ship-step-segments.ts
+// packages/ui/src/web-components/utility/ship-step-segments.ts
 var KNOWN = /* @__PURE__ */ new Set(["done", "failed", "pending", "running"]);
 var ShipStepSegments = class extends i4 {
   constructor() {
@@ -5635,13 +6224,16 @@ if (typeof customElements !== "undefined" && !customElements.get("ship-step-segm
   customElements.define("ship-step-segments", ShipStepSegments);
 }
 
-// src/web-components/index.ts
+// packages/ui/src/web-components/index.ts
 function registerShipComponents() {
 }
 export {
   ICONS,
   ShipAlert,
   ShipAlertDialog,
+  ShipAnnotationLayer,
+  ShipAnnotationList,
+  ShipAnnotationMarker,
   ShipAreaChart,
   ShipAvatar,
   ShipBadge,

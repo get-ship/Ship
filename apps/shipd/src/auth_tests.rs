@@ -17,14 +17,13 @@ use crate::auth::{self, AuthContext, SessionRegistry};
 /// Build a minimal router with the auth middleware and a 200-OK handler.
 fn test_router(token: &str) -> Router {
     let token = Arc::new(token.to_string());
-    let hook_token = Arc::new("ship_hook_test".to_string());
     let registry: SessionRegistry = Arc::new(tokio::sync::Mutex::new(
         std::collections::HashMap::new(),
     ));
     Router::new()
         .route("/test", axum::routing::get(ok_handler))
         .layer(middleware::from_fn(move |req, next| {
-            auth::auth_middleware(token.clone(), hook_token.clone(), registry.clone(), req, next)
+            auth::auth_middleware(token.clone(), registry.clone(), req, next)
         }))
 }
 
@@ -137,51 +136,23 @@ fn is_daemon_token(token: &str) -> bool {
     token.len() == 64 && token.chars().all(|c| c.is_ascii_hexdigit())
 }
 
-// ── Hook token tests ─────────────────────────────────────────────────────
+// ── ship_hook_ tokens must be rejected ──────────────────────────────────
 
 #[tokio::test]
-async fn valid_hook_token_returns_200() {
+async fn ship_hook_prefixed_token_returns_401() {
     let router = test_router(TEST_TOKEN);
     let req = Request::builder()
         .uri("/test")
-        .header("authorization", "Bearer ship_hook_test")
+        .header("authorization", "Bearer ship_hook_anything")
         .body(Body::empty())
         .unwrap();
 
     let (status, _) = send(router, req).await;
-    assert_eq!(status, StatusCode::OK, "valid hook token must be accepted");
-}
-
-#[tokio::test]
-async fn wrong_hook_token_returns_401() {
-    let router = test_router(TEST_TOKEN);
-    let req = Request::builder()
-        .uri("/test")
-        .header("authorization", "Bearer ship_hook_wrong")
-        .body(Body::empty())
-        .unwrap();
-
-    let (status, _) = send(router, req).await;
-    assert_eq!(status, StatusCode::UNAUTHORIZED, "invalid hook token must be rejected");
-}
-
-#[test]
-fn hook_token_roundtrips() {
-    let dir = tempfile::TempDir::new().unwrap();
-    let token = auth::generate_hook_token().unwrap();
-    auth::write_hook_token(dir.path(), &token).unwrap();
-    let read = auth::read_hook_token(dir.path()).unwrap();
-    assert_eq!(read, token);
-    assert!(auth::is_hook_token(&token));
-}
-
-#[test]
-fn ensure_hook_token_generates_if_missing() {
-    let dir = tempfile::TempDir::new().unwrap();
-    let token1 = auth::ensure_hook_token(dir.path()).unwrap();
-    let token2 = auth::ensure_hook_token(dir.path()).unwrap();
-    assert_eq!(token1, token2, "ensure_hook_token must be idempotent");
-    assert!(auth::is_hook_token(&token1));
+    assert_eq!(
+        status,
+        StatusCode::UNAUTHORIZED,
+        "hook-token class is removed; ship_hook_ prefix must be rejected"
+    );
 }
 
 // ── Cookie-based session auth (phase 1) ─────────────────────────────────
@@ -195,7 +166,6 @@ const VALID_DAEMON_TOKEN: &str =
 
 fn router_with_session(token: &str) -> (Router, SessionRegistry) {
     let token = Arc::new(token.to_string());
-    let hook_token = Arc::new("ship_hook_test".to_string());
     let registry: SessionRegistry = Arc::new(tokio::sync::Mutex::new(
         std::collections::HashMap::new(),
     ));
@@ -211,7 +181,7 @@ fn router_with_session(token: &str) -> (Router, SessionRegistry) {
         )
         .layer(middleware::from_fn({
             let registry = registry.clone();
-            move |req, next| auth::auth_middleware(token.clone(), hook_token.clone(), registry.clone(), req, next)
+            move |req, next| auth::auth_middleware(token.clone(), registry.clone(), req, next)
         }));
     (router, registry)
 }
@@ -302,10 +272,35 @@ async fn auth_middleware_falls_through_to_bearer_when_cookie_missing() {
 }
 
 #[tokio::test]
-async fn auth_middleware_falls_through_to_query_token_when_both_missing() {
+async fn query_token_rejected_on_non_raw_paths() {
+    // `?token=` is only accepted for the iframe `/raw` flow. Everywhere
+    // else it must be ignored so tokens don't leak into access logs.
     let (router, _reg) = router_with_session(VALID_DAEMON_TOKEN);
     let req = Request::builder()
         .uri(format!("/test?token={VALID_DAEMON_TOKEN}"))
+        .body(Body::empty())
+        .unwrap();
+    let (status, _) = send(router, req).await;
+    assert_eq!(status, StatusCode::UNAUTHORIZED);
+}
+
+#[tokio::test]
+async fn query_token_accepted_on_raw_view_path() {
+    let token = Arc::new(VALID_DAEMON_TOKEN.to_string());
+    let registry: SessionRegistry = Arc::new(tokio::sync::Mutex::new(
+        std::collections::HashMap::new(),
+    ));
+    let router = Router::new()
+        .route(
+            "/api/runtime/view/{name}/raw",
+            axum::routing::get(ok_handler),
+        )
+        .layer(middleware::from_fn({
+            let registry = registry.clone();
+            move |req, next| auth::auth_middleware(token.clone(), registry.clone(), req, next)
+        }));
+    let req = Request::builder()
+        .uri(format!("/api/runtime/view/pipelines/raw?token={VALID_DAEMON_TOKEN}"))
         .body(Body::empty())
         .unwrap();
     let (status, _) = send(router, req).await;

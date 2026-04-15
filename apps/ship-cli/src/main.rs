@@ -20,6 +20,8 @@ mod init;
 mod install;
 mod loader;
 mod logging;
+mod skill_loader;
+mod skill_parse;
 mod mcp;
 mod mcp_serve;
 mod paths;
@@ -141,6 +143,7 @@ fn dispatch(command: Option<Commands>) -> Result<()> {
                 workspace,
                 vars,
                 dry_run,
+                headless,
             } => {
                 let parsed_vars: Vec<(String, String)> = vars
                     .iter()
@@ -156,6 +159,7 @@ fn dispatch(command: Option<Commands>) -> Result<()> {
                     workspace,
                     vars: parsed_vars,
                     dry_run,
+                    headless,
                 })
             }
             Commands::Hook { action } => dispatch_hook(action),
@@ -168,7 +172,7 @@ fn dispatch(command: Option<Commands>) -> Result<()> {
                     DaemonCommands::Stop => DaemonCommand::Stop,
                     DaemonCommands::Status => DaemonCommand::Status,
                     DaemonCommands::Cleanup => DaemonCommand::Cleanup,
-                    DaemonCommands::Run { host, port, dev } => DaemonCommand::Run { host, port, dev },
+                    DaemonCommands::Run { host, port, dev, with_ui } => DaemonCommand::Run { host, port, dev, with_ui },
                     DaemonCommands::Supervise { host, dev } => DaemonCommand::Supervise { host, dev },
                 };
                 run_daemon(cmd)

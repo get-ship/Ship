@@ -1,0 +1,26 @@
+{#-
+  Minimal canvas template used by the Phase 1 e2e pipeline and as a
+  sanity reference for agent-opened view sessions.
+
+  Context:
+    - view_id : ULID assigned by the registry (required)
+    - title   : optional human-facing title
+    - context : optional JSON object rendered as a hidden debug blob
+-#}
+{% extends '_page_shell.html.j2' %}
+
+{% block title %}{{ title | default('Ship canvas') }}{% endblock %}
+
+{% block body_class %}ship-canvas{% endblock %}
+
+{% block body %}
+<ship-annotation-layer view-id="{{ view_id }}" mode="point" staging>
+  <div
+    id="root"
+    class="ship-canvas-root"
+    data-init="@get('/api/runtime/view-sessions/{{ view_id }}', {requestCancellation: 'disabled'})"
+  >
+    <p class="ship-canvas-empty">awaiting first patch…</p>
+  </div>
+</ship-annotation-layer>
+{% endblock %}

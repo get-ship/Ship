@@ -30,6 +30,7 @@ fn mk(slug: &str, agent: &str, status: JobStatus, ts_secs: i64) -> JobRecord {
         current_step: None,
         vars: None,
         step_retries: HashMap::new(),
+        headless: false,
     }
 }
 

@@ -11,6 +11,9 @@ pub struct RunOptions {
     pub workspace: Option<String>,
     pub vars: Vec<(String, String)>,
     pub dry_run: bool,
+    /// When true, send `headless: true` to the daemon so steps run as
+    /// direct child processes instead of tmux PTY windows.
+    pub headless: bool,
 }
 
 pub fn run(opts: RunOptions) -> Result<()> {
@@ -69,7 +72,19 @@ pub fn run(opts: RunOptions) -> Result<()> {
         "pipeline": pipeline_name,
         "spec_content": if spec_content.is_empty() { None } else { Some(&spec_content) },
         "vars": if vars.is_empty() { None } else { Some(&vars) },
+        "headless": opts.headless,
     });
+
+    // Short tmux session name the PtyExecutor uses. Mirrors
+    // `runtime::services::orchestrator::step_executor::tmux_session_name`.
+    let tmux_short: String = {
+        let sanitized: String = slug
+            .chars()
+            .map(|c| if c == '.' || c == ':' { '_' } else { c })
+            .collect();
+        let short: String = sanitized.chars().take(8).collect();
+        format!("ship-{short}")
+    };
 
     match post_to_daemon("/api/runtime/jobs", &body) {
         Ok(resp) => {
@@ -80,6 +95,11 @@ pub fn run(opts: RunOptions) -> Result<()> {
             if let Some(ok) = resp.get("ok").and_then(|v| v.as_bool()) {
                 if ok {
                     eprintln!("Status:   dispatched");
+                    if opts.headless {
+                        eprintln!("Mode:     headless (no tmux)");
+                    } else {
+                        eprintln!("Attach:   tmux attach -t {tmux_short}");
+                    }
                 } else {
                     let err = resp
                         .get("data")

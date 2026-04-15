@@ -1,9 +1,8 @@
 // Draft overlay store: holds unsaved edits keyed by agent ID.
 // Only stores deltas -- not full agent objects.
-// Persists to IndexedDB for offline resilience (no 5 MB limit).
+// Persisted to localStorage so in-progress edits survive reloads.
 
 import { useSyncExternalStore, useCallback } from 'react'
-import { idbGet, idbSet, migrateFromLocalStorage } from '#/lib/idb-cache'
 import type { ResolvedAgentProfile } from './types'
 
 const STORAGE_KEY = 'ship-agent-drafts-v1'
@@ -14,58 +13,49 @@ interface DraftState {
   drafts: Record<string, AgentPatch>
 }
 
-// ── Store singleton ──────────────────────────────────────────────────────────
+function loadInitial(): DraftState {
+  if (typeof window === 'undefined') return { drafts: {} }
+  try {
+    const raw = window.localStorage.getItem(STORAGE_KEY)
+    if (!raw) return { drafts: {} }
+    const parsed = JSON.parse(raw) as DraftState
+    return parsed?.drafts ? parsed : { drafts: {} }
+  } catch {
+    return { drafts: {} }
+  }
+}
 
-let state: DraftState = { drafts: {} }
+let state: DraftState = loadInitial()
 const listeners = new Set<() => void>()
 
 function emit() {
   for (const fn of listeners) fn()
 }
 
-// Async init: migrate from localStorage then load from IDB
-function initFromIdb() {
-  migrateFromLocalStorage<DraftState>(STORAGE_KEY)
-    .then(async (migrated) => {
-      if (migrated?.drafts) {
-        state = migrated
-        emit()
-        return
-      }
-      const data = await idbGet<DraftState>(STORAGE_KEY)
-      if (data?.drafts) {
-        state = data
-        emit()
-      }
-    })
-    .catch(() => {})
+function persist() {
+  if (typeof window === 'undefined') return
+  try {
+    window.localStorage.setItem(STORAGE_KEY, JSON.stringify(state))
+  } catch { /* quota or unavailable — in-memory state is still valid */ }
 }
-
-if (typeof window !== 'undefined') initFromIdb()
-
-function persistToIdb() {
-  idbSet(STORAGE_KEY, state).catch(() => {})
-}
-
-// ── Public mutations ─────────────────────────────────────────────────────────
 
 export function setDraft(agentId: string, patch: AgentPatch) {
   const existing = state.drafts[agentId] ?? {}
   state = { drafts: { ...state.drafts, [agentId]: { ...existing, ...patch } } }
-  persistToIdb()
+  persist()
   emit()
 }
 
 export function clearDraft(agentId: string) {
   const { [agentId]: _, ...rest } = state.drafts
   state = { drafts: rest }
-  persistToIdb()
+  persist()
   emit()
 }
 
 export function clearAllDrafts() {
   state = { drafts: {} }
-  persistToIdb()
+  persist()
   emit()
 }
 
@@ -76,8 +66,6 @@ export function getDrafts(): Record<string, AgentPatch> {
 export function hasDraft(agentId: string): boolean {
   return agentId in state.drafts
 }
-
-// ── React hook ───────────────────────────────────────────────────────────────
 
 function subscribe(cb: () => void) {
   listeners.add(cb)

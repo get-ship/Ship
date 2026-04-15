@@ -241,6 +241,11 @@ pub enum Commands {
         /// Show the resolved pipeline without executing
         #[arg(long)]
         dry_run: bool,
+        /// Run steps headless (no tmux) — current CI behavior. Default is
+        /// to launch each step in a tmux PTY window so you can
+        /// `tmux attach` and watch the agent live.
+        #[arg(long, alias = "no-tmux")]
+        headless: bool,
     },
 
     /// Manage the Ship daemon (shipd) background process
@@ -280,6 +285,10 @@ pub enum DaemonCommands {
         port: u16,
         #[arg(long)]
         dev: bool,
+        /// Serve the bundled Ship dev shell at `/shell/` (same-origin cookie auth).
+        /// Off by default so the daemon stays useful headless.
+        #[arg(long = "with-ui")]
+        with_ui: bool,
     },
     /// Internal: supervisor loop that watches and restarts the daemon on crash
     #[command(hide = true)]

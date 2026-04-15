@@ -7,9 +7,9 @@
 <div id="git-root" class="ship-view-git">
   <style>
     .ship-view-git { color: var(--foreground); }
-    .ship-git-wrap { max-width: 56rem; margin: 0 auto; padding: 24px 16px; }
-    .ship-git-wrap.ship-git-wrap-detail { max-width: none; padding: 0; }
-    .ship-git-header { display: flex; align-items: center; gap: 8px; padding: 0 12px; margin-bottom: 16px; }
+    .ship-git-wrap { width: 100%; max-width: none; margin: 0; padding: 16px 20px; }
+    .ship-git-wrap.ship-git-wrap-detail { padding: 0; }
+    .ship-git-header { display: flex; align-items: center; gap: 8px; padding: 0 4px; margin-bottom: 12px; }
     .ship-git-header h1 { font-family: var(--font-display); font-size: 18px; font-weight: 600; letter-spacing: -0.01em; margin: 0; }
     .ship-git-header-icon { color: var(--muted-foreground); }
     .ship-git-state { font-size: 11px; margin-left: 8px; }
@@ -21,7 +21,13 @@
     .ship-git-review-banner p { font-size: 12px; color: var(--foreground); margin: 0; }
     .ship-git-review-banner strong { font-weight: 500; }
 
-    .ship-git-section { padding: 0 12px; margin-bottom: 12px; }
+    .ship-git-section { padding: 0 4px; margin-bottom: 12px; }
+    .ship-git-toolbar { display: flex; align-items: center; gap: 8px; padding: 6px 10px; margin-bottom: 12px; border: 1px solid color-mix(in oklch, var(--border) 60%, transparent); border-radius: var(--radius-md); background: color-mix(in oklch, var(--muted) 25%, transparent); }
+    .ship-git-toolbar-chip { display: inline-flex; align-items: center; gap: 6px; font-family: var(--font-mono); font-size: 11px; font-weight: 500; color: var(--foreground); padding: 2px 8px; border-radius: 9999px; border: 1px solid color-mix(in oklch, var(--border) 70%, transparent); background: var(--background); }
+    .ship-git-toolbar-meta { font-size: 11px; color: var(--muted-foreground); }
+    .ship-git-toolbar-spacer { flex: 1; }
+    .ship-git-toolbar-link { display: inline-flex; align-items: center; gap: 4px; font-size: 11px; color: var(--primary); background: transparent; border: 0; cursor: pointer; padding: 2px 6px; border-radius: var(--radius-sm); }
+    .ship-git-toolbar-link:hover { background: color-mix(in oklch, var(--primary) 10%, transparent); }
     .ship-git-branch-line { display: flex; align-items: center; gap: 8px; margin-bottom: 10px; }
     .ship-git-branch { font-family: var(--font-mono); font-size: 12px; font-weight: 500; color: var(--foreground); }
     .ship-git-dot { width: 6px; height: 6px; border-radius: 9999px; flex-shrink: 0; }
@@ -33,9 +39,10 @@
     .ship-git-breakdown { display: flex; gap: 12px; font-size: 10px; color: var(--muted-foreground); margin-bottom: 10px; }
     .ship-git-breakdown span { display: inline-flex; align-items: center; gap: 4px; }
 
-    .ship-git-file-list { display: flex; flex-direction: column; gap: 2px; margin-bottom: 8px; }
-    .ship-git-file-row { display: flex; align-items: center; gap: 8px; width: 100%; padding: 4px 8px; border-radius: var(--radius-md); background: transparent; border: 0; font-size: 12px; color: var(--muted-foreground); cursor: pointer; text-align: left; transition: background var(--duration-fast) ease, color var(--duration-fast) ease; }
-    .ship-git-file-row:hover { background: color-mix(in oklch, var(--muted) 50%, transparent); color: var(--foreground); }
+    .ship-git-file-list { display: flex; flex-direction: column; gap: 1px; margin-bottom: 12px; border: 1px solid color-mix(in oklch, var(--border) 50%, transparent); border-radius: var(--radius-md); overflow: hidden; }
+    .ship-git-file-row { display: flex; align-items: center; gap: 10px; width: 100%; padding: 5px 10px; min-height: 26px; background: transparent; border: 0; font-family: var(--font-mono); font-size: 12px; color: var(--foreground); cursor: pointer; text-align: left; transition: background var(--duration-fast) ease; }
+    .ship-git-file-row + .ship-git-file-row { border-top: 1px solid color-mix(in oklch, var(--border) 35%, transparent); }
+    .ship-git-file-row:hover { background: color-mix(in oklch, var(--muted) 50%, transparent); }
     .ship-git-file-badge { font-family: var(--font-mono); font-size: 9px; line-height: 1; padding: 2px 4px; border-radius: 3px; font-weight: 700; letter-spacing: 0.02em; }
     .ship-git-file-badge.mod { background: color-mix(in oklch, var(--warning) 18%, transparent); color: var(--warning); }
     .ship-git-file-badge.stg { background: color-mix(in oklch, var(--success) 18%, transparent); color: var(--success); }
@@ -43,8 +50,9 @@
     .ship-git-file-badge.add { background: color-mix(in oklch, var(--success) 18%, transparent); color: var(--success); }
     .ship-git-file-name { overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
 
-    .ship-git-view-diff { display: flex; align-items: center; justify-content: center; gap: 6px; width: 100%; padding: 6px 8px; border-radius: var(--radius-md); border: 1px solid color-mix(in oklch, var(--primary) 25%, transparent); background: transparent; color: var(--primary); font-size: 10px; font-weight: 500; cursor: pointer; transition: background var(--duration-fast) ease; }
-    .ship-git-view-diff:hover { background: color-mix(in oklch, var(--primary) 8%, transparent); }
+    .ship-git-view-diff { width: 100%; }
+    .ship-git-view-diff ship-button { width: 100%; display: block; }
+    .ship-git-view-diff ship-button::part(button) { width: 100%; justify-content: center; }
 
     .ship-git-divider { border-top: 1px solid color-mix(in oklch, var(--border) 60%, transparent); margin: 0 12px 12px; }
     .ship-git-log-heading { font-size: 10px; font-weight: 600; text-transform: uppercase; letter-spacing: 0.08em; color: color-mix(in oklch, var(--muted-foreground) 75%, transparent); padding: 0 12px; margin-bottom: 8px; }

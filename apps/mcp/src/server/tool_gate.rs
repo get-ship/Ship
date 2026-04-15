@@ -34,6 +34,19 @@ impl ShipServer {
         "log_progress",
         "update_job",
         "write_session_file",
+        // Phase 1 canvas framework: agents in dispatch/worker modes can open
+        // and patch their own view sessions. Gate/review modes that want to
+        // block this set explicit active_tools that omit these.
+        #[cfg(feature = "unstable")]
+        "view_open",
+        #[cfg(feature = "unstable")]
+        "view_patch",
+        #[cfg(feature = "unstable")]
+        "view_append",
+        #[cfg(feature = "unstable")]
+        "view_signal",
+        #[cfg(feature = "unstable")]
+        "view_close",
     ];
 
     const LEAD_TOOLS: &[&str] = &["create_job"];

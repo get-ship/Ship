@@ -6,6 +6,44 @@ import { createContext, useContext, useState, useCallback, type ReactNode } from
 import type { Annotation, StagedAnnotation } from './session/types'
 import { daemonFetch } from '#/lib/daemon-config'
 import { useDaemon } from './hooks/useDaemonData'
+import { buildAnnotationEvent, type AnnotationEvent } from './session/annotation-helpers'
+
+function stagedToEvent({ filePath, ann: a }: StagedAnnotation): AnnotationEvent {
+  if (a.type === 'click') {
+    return buildAnnotationEvent({
+      kind: 'point',
+      filePath,
+      selector: a.selector,
+      note: a.note || undefined,
+      selection: a.text ? { kind: 'text', text: a.text } : undefined,
+      createdAt: a.timestamp,
+    })
+  }
+  if (a.type === 'box') {
+    return buildAnnotationEvent({
+      kind: 'region',
+      filePath,
+      rect: a.rect,
+      note: a.note || undefined,
+      selection: a.elements.length ? { kind: 'elements', text: a.elements.join(', ') } : undefined,
+      createdAt: a.timestamp,
+    })
+  }
+  return buildAnnotationEvent({
+    kind: 'action',
+    filePath,
+    note: a.text ? `${a.action}: ${a.text}` : a.action,
+    createdAt: a.timestamp,
+  })
+}
+
+async function postAnnotation(ev: AnnotationEvent): Promise<void> {
+  const res = await daemonFetch('/api/runtime/annotations', {
+    method: 'POST',
+    body: JSON.stringify(ev),
+  })
+  if (!res.ok) throw new Error(`daemon: post annotation ${res.status}`)
+}
 
 let seq = 1
 function genId(): string {
@@ -41,25 +79,22 @@ export function AnnotationProvider({ children }: { children: ReactNode }) {
   const clearAll = useCallback(() => setStaged([]), [])
 
   const sendToAgent = useCallback(async (message: string) => {
-    const annotations = staged.map(({ filePath, ann: a }) => {
-      if (a.type === 'click') return { filePath, type: 'click', selector: a.selector, text: a.text, note: a.note, x: a.x, y: a.y }
-      if (a.type === 'box') return { filePath, type: 'box', rect: a.rect, elements: a.elements, note: a.note }
-      return { filePath, type: 'action', action: a.action, text: a.text }
-    })
+    for (const s of staged) {
+      await postAnnotation(stagedToEvent(s))
+    }
 
-    await daemonFetch(`/api/events/emit`, {
-      method: 'POST',
-      body: JSON.stringify({
-        event_type: 'studio.message',
-        entity_id: activeWs?.name ?? 'studio',
-        workspace_id: activeWs?.id,
-        payload: {
-          summary: message || undefined,
-          annotations,
-          annotation_count: annotations.length,
-        },
-      }),
-    })
+    const text = message.trim()
+    if (text) {
+      await daemonFetch(`/api/events/emit`, {
+        method: 'POST',
+        body: JSON.stringify({
+          event_type: 'studio.message',
+          entity_id: activeWs?.name ?? 'studio',
+          workspace_id: activeWs?.id,
+          payload: { summary: text },
+        }),
+      })
+    }
 
     setStaged([])
   }, [staged, activeWs])

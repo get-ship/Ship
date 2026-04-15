@@ -2,6 +2,8 @@
 pub mod dispatch;
 #[cfg(feature = "unstable")]
 pub mod event;
+#[cfg(feature = "unstable")]
+pub mod view;
 pub mod git_info;
 pub mod job;
 pub mod project;

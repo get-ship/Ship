@@ -117,62 +117,15 @@ pub fn read_token(global_dir: &Path) -> std::io::Result<String> {
     Ok(std::fs::read_to_string(global_dir.join("daemon.token"))?.trim().to_string())
 }
 
-/// Generate a hook token — a long-lived credential for provider hooks.
-///
-/// Prefixed with `ship_hook_` so it's distinguishable from the daemon token.
-/// The daemon never rotates this automatically; the user rotates via CLI.
-pub fn generate_hook_token() -> Result<String, getrandom::Error> {
-    let mut bytes = [0u8; 16];
-    getrandom::getrandom(&mut bytes)?;
-    Ok(format!("ship_hook_{}", hex_encode(&bytes)))
-}
-
-/// Write the hook token to `<global_dir>/hook.token` with restricted permissions.
-pub fn write_hook_token(global_dir: &Path, token: &str) -> std::io::Result<()> {
-    let path = global_dir.join("hook.token");
-    std::fs::write(&path, token)?;
-    #[cfg(unix)]
-    {
-        use std::os::unix::fs::PermissionsExt;
-        std::fs::set_permissions(&path, std::fs::Permissions::from_mode(0o600))?;
-    }
-    Ok(())
-}
-
-pub fn read_hook_token(global_dir: &Path) -> std::io::Result<String> {
-    Ok(std::fs::read_to_string(global_dir.join("hook.token"))?.trim().to_string())
-}
-
-/// Load the hook token, generating and writing it if missing.
-pub fn ensure_hook_token(global_dir: &Path) -> anyhow::Result<String> {
-    match read_hook_token(global_dir) {
-        Ok(existing) if !existing.is_empty() => Ok(existing),
-        _ => {
-            let new_token = generate_hook_token()
-                .map_err(|e| anyhow::anyhow!("failed to generate hook token: {e}"))?;
-            write_hook_token(global_dir, &new_token)
-                .map_err(|e| anyhow::anyhow!("failed to write hook.token: {e}"))?;
-            Ok(new_token)
-        }
-    }
-}
-
-/// Determine if a token is a hook token (ship_hook_ prefix).
-pub fn is_hook_token(token: &str) -> bool {
-    token.starts_with("ship_hook_")
-}
-
 /// Axum middleware that validates `Authorization: Bearer <token>` on every
 /// request. Injects `AuthContext` into request extensions on success.
 ///
-/// Accepts four token types:
-/// 1. **Daemon token** (64-char hex) — CLI/Studio, gets `Scope::Full`
+/// Accepts three token types:
+/// 1. **Daemon token** (64-char hex) — CLI/Studio/hooks, gets `Scope::Full`
 /// 2. **Session token** (`ship_sess_` prefix) — MCP agents, gets scoped access
-/// 3. **Hook token** (`ship_hook_` prefix) — provider hooks, gets EmitEvents + LogProgress
-/// 4. **SDK token** (`ship_` prefix) — external SDK callers
+/// 3. **SDK token** (`ship_` prefix) — external SDK callers
 pub async fn auth_middleware(
     expected_token: Arc<String>,
-    expected_hook_token: Arc<String>,
     session_registry: SessionRegistry,
     mut req: Request<Body>,
     next: Next,
@@ -209,18 +162,32 @@ pub async fn auth_middleware(
         .and_then(|h| h.strip_prefix("Bearer "))
         .map(|s| s.to_string());
 
-    // Query-param tokens are accepted ONLY on GET requests (for browser
-    // EventSource / WebSocket upgrade, which can't set headers). POST/PUT/DELETE
-    // must use the Authorization header — otherwise the token would leak into
-    // server access logs.
-    let query_token = if req.method() == axum::http::Method::GET {
+    // Query-param tokens are accepted ONLY for the iframe raw-serve flow
+    // (`/api/runtime/view/*/raw` and `/api/runtime/view-sessions/*/raw`).
+    // Iframes cannot set Authorization headers or share cookies reliably
+    // across origins, so `?token=` is the only option there. Every other
+    // endpoint must use the `Authorization: Bearer` header or the
+    // `ship_session` cookie — otherwise the token leaks into access logs.
+    let path = req.uri().path();
+    let is_raw_iframe = req.method() == axum::http::Method::GET
+        && (path.starts_with("/api/runtime/view/") && path.ends_with("/raw")
+            || path.starts_with("/api/runtime/view-sessions/") && path.ends_with("/raw"));
+    let query_has_token = req
+        .uri()
+        .query()
+        .map(|q| q.split('&').any(|p| p.starts_with("token=")))
+        .unwrap_or(false);
+    let query_token = if is_raw_iframe {
         req.uri().query()
             .and_then(|q| q.split('&').find_map(|p| p.strip_prefix("token=")))
-            .map(|s| {
-                tracing::debug!("auth: query-param token used on GET {}", req.uri().path());
-                s.to_string()
-            })
+            .map(|s| s.to_string())
     } else {
+        if query_has_token {
+            tracing::warn!(
+                "auth: rejected ?token= on non-raw path {} (use Authorization header or cookie)",
+                path
+            );
+        }
         None
     };
 
@@ -232,23 +199,6 @@ pub async fn auth_middleware(
         }
     };
     let token = token_string.as_str();
-
-    // Hook tokens: validated against the expected hook token, granted
-    // a narrow scope set for emitting hook events.
-    if is_hook_token(token) {
-        if !tokens_equal(token, expected_hook_token.as_str()) {
-            return (StatusCode::UNAUTHORIZED, "invalid hook token").into_response();
-        }
-        let auth = AuthContext {
-            caller_kind: CallerKind::Cli,
-            agent_id: header_string(&req, "x-ship-agent-id"),
-            workspace_id: header_string(&req, "x-ship-workspace-id"),
-            session_id: header_string(&req, "x-ship-session-id"),
-            scopes: vec![Scope::EmitEvents, Scope::LogProgress],
-        };
-        req.extensions_mut().insert(auth);
-        return next.run(req).await;
-    }
 
     // Session tokens are validated against the session registry.
     if is_session_token(token) {

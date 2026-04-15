@@ -51,5 +51,6 @@ pub fn interpolate_step(
         provider: step.provider.clone(),
         command: step.command.as_deref().map(interp).transpose()?,
         max_retries: step.max_retries,
+        gate: step.gate.clone(),
     })
 }

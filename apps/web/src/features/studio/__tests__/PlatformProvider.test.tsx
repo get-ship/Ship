@@ -9,6 +9,7 @@ function createMockClient(overrides?: Partial<ShipClient>): ShipClient {
   return {
     setToken: vi.fn(),
     getToken: vi.fn(() => null),
+    serverAttest: vi.fn(async () => 'ship_sess_attested'),
     pairInit: vi.fn(async () => ({ code: 'ABC-DEF', claim_token: 'claim_x', code_expires_in_secs: 300, dev_mode: false })),
     pairStatus: vi.fn(async () => ({ status: 'approved', session_token: 'ship_sess_test' })),
     isConnected: vi.fn(async () => true),
@@ -91,8 +92,11 @@ describe('PlatformProvider', () => {
     })
 
     it('transitions to disconnected when daemon health check fails', async () => {
+      globalThis.fetch = vi.fn(async () =>
+        new Response('', { status: 401 }),
+      ) as typeof fetch
       vi.mocked(await import('@ship/sdk')).ShipClient.mockImplementation(
-        () => createMockClient({ isConnected: vi.fn(async () => false) }) as any,
+        () => createMockClient({ isConnected: vi.fn(async () => false), serverAttest: vi.fn(async () => null) }) as any,
       )
       render(
         <PlatformProvider>
@@ -288,9 +292,13 @@ describe('PlatformProvider', () => {
     })
 
     it('transitions to disconnected after max SSE reconnection retries', async () => {
+      globalThis.fetch = vi.fn(async () =>
+        new Response('', { status: 401 }),
+      ) as typeof fetch
       const mockClient = createMockClient({
         connectEvents: vi.fn(),
         isConnected: vi.fn(async () => false),
+        serverAttest: vi.fn(async () => null),
       })
       vi.mocked(await import('@ship/sdk')).ShipClient.mockImplementation(
         () => mockClient as any,
