@@ -1,20 +1,14 @@
 //! PtyExecutor — spawns pipeline steps in tmux PTY windows.
 //!
-//! This is the default executor for `ship run`. A pipeline run gets one
-//! tmux session named `ship-<short>` (8-char hash of the slug/run id).
-//! Each step becomes a window named after its step id, running the
-//! provider command teed to `.artifacts/pipeline/<NN>-<step>.log`.
+//! A pipeline run gets one tmux session named `ship-<slug>` (full slug,
+//! sanitized for tmux-forbidden chars). Each step becomes a window whose
+//! internal id we track by tmux's `@N` window id (not by name) so that
+//! send-keys can never collide with leftover windows of the same name
+//! from prior runs. The session outlives the run so retrospection is
+//! possible; a periodic sweep (not this module's concern) handles TTL.
 //!
-//! Users attach with `tmux attach -t ship-<short>` to watch the agent
-//! work in real time. The session outlives the run so retrospection is
-//! possible; a periodic sweep (not this module's concern) cleans up
-//! sessions older than a TTL.
-//!
-//! Fallback behavior:
-//!   - Windows: `PtyExecutor::new()` returns Err — dispatch falls back
-//!     to ProcessExecutor.
-//!   - tmux binary missing: same — Err at construction.
-//!   - Per-job `headless` flag set: caller routes to ProcessExecutor.
+//! Fallback: `PtyExecutor::new()` returns Err on Windows or when tmux is
+//! absent, and dispatch falls back to ProcessExecutor.
 
 use anyhow::{anyhow, Result};
 use async_trait::async_trait;
@@ -27,14 +21,16 @@ use runtime::services::provider_adapter::adapter_for;
 pub(crate) struct PtyExecutor;
 
 /// State stored on the ExecutorHandle.
+///
+/// `window` is a tmux window id (`@N`) — NOT a name. Targeting by id is
+/// unambiguous even if other windows in the session share a name.
 struct PtyState {
     session: String,
     window: String,
 }
 
 impl PtyExecutor {
-    /// Construct a PtyExecutor. Returns Err when tmux is not usable
-    /// (Windows host, binary missing, or non-zero version probe).
+    /// Construct a PtyExecutor. Returns Err when tmux is not usable.
     pub fn new() -> Result<Self> {
         if cfg!(windows) {
             return Err(anyhow!("PtyExecutor is unavailable on Windows"));
@@ -46,16 +42,15 @@ impl PtyExecutor {
     }
 }
 
-/// Short tmux session name derived from a run slug. tmux disallows `.`
-/// and `:` in names — we sanitize to `_` and take 8 chars for a name the
-/// user can reasonably type.
-pub(crate) fn short_session_name(slug: &str) -> String {
+/// tmux session name derived from a run slug. tmux disallows `.` and `:`
+/// in session names — sanitize to `_`. We use the full slug (no truncation)
+/// so concurrent jobs with similar-looking slug prefixes don't collide.
+pub(crate) fn session_name(slug: &str) -> String {
     let sanitized: String = slug
         .chars()
         .map(|c| if c == '.' || c == ':' { '_' } else { c })
         .collect();
-    let short: String = sanitized.chars().take(8).collect();
-    format!("ship-{short}")
+    format!("ship-{sanitized}")
 }
 
 /// Log file path (relative to the worktree) for a given step.
@@ -82,10 +77,86 @@ fn session_exists(name: &str) -> bool {
         .unwrap_or(false)
 }
 
+/// Create the session (or a new window in an existing session) for this
+/// step and return the tmux window id (`@N`) of the newly created window.
+///
+/// We use `-P -F '#{window_id}'` to capture the id on stdout. This id is
+/// globally unique within a tmux server — the safe target for subsequent
+/// send-keys, list-windows, and kill-window calls.
+fn create_window(session: &str, step_id: &str, work_dir: &str) -> Result<String> {
+    let (args, label): (&[&str], &str) = if !session_exists(session) {
+        (
+            &["new-session", "-d", "-P", "-F", "#{window_id}",
+              "-s", session, "-n", step_id, "-c", work_dir],
+            "tmux new-session",
+        )
+    } else {
+        (
+            &["new-window", "-d", "-P", "-F", "#{window_id}",
+              "-t", session, "-n", step_id, "-c", work_dir],
+            "tmux new-window",
+        )
+    };
+    let out = std::process::Command::new("tmux")
+        .args(args)
+        .output()
+        .map_err(|e| anyhow!("{label} failed: {e}"))?;
+    if !out.status.success() {
+        return Err(anyhow!("{label} returned non-zero"));
+    }
+    let id = String::from_utf8_lossy(&out.stdout).trim().to_string();
+    if !id.starts_with('@') {
+        return Err(anyhow!("{label} did not print a window id (got {id:?})"));
+    }
+    Ok(id)
+}
+
+/// True if `window_id` (e.g. `@29`) is still listed in `session`.
+fn window_id_exists(session: &str, window_id: &str) -> bool {
+    let Ok(out) = std::process::Command::new("tmux")
+        .args(["list-windows", "-t", session, "-F", "#{window_id}"])
+        .output()
+    else {
+        return false;
+    };
+    if !out.status.success() {
+        return false;
+    }
+    String::from_utf8_lossy(&out.stdout)
+        .lines()
+        .any(|l| l == window_id)
+}
+
+/// Find a window id by name in the session. Returns `None` if there are
+/// zero or multiple matches — on rehydration we would rather mark the job
+/// failed than risk attaching to the wrong window.
+fn find_unique_window_by_name(session: &str, name: &str) -> Option<String> {
+    let out = std::process::Command::new("tmux")
+        .args(["list-windows", "-t", session,
+               "-F", "#{window_id} #{window_name}"])
+        .output()
+        .ok()?;
+    if !out.status.success() {
+        return None;
+    }
+    let text = String::from_utf8_lossy(&out.stdout);
+    let mut matches = text.lines().filter_map(|l| {
+        let (id, n) = l.split_once(' ')?;
+        if n == name { Some(id.to_string()) } else { None }
+    });
+    let first = matches.next()?;
+    if matches.next().is_some() {
+        tracing::warn!(session, name,
+            "pty-executor: multiple windows share this name — refusing to rehydrate");
+        return None;
+    }
+    Some(first)
+}
+
 #[async_trait]
 impl JobExecutor for PtyExecutor {
     async fn spawn(&self, ctx: &JobContext) -> Result<ExecutorHandle> {
-        let session = short_session_name(&ctx.slug);
+        let session = session_name(&ctx.slug);
         let (step_idx, step_id) = ctx
             .step
             .as_ref()
@@ -102,37 +173,9 @@ impl JobExecutor for PtyExecutor {
         let log_dir = ctx.work_dir.join(".artifacts/pipeline");
         std::fs::create_dir_all(&log_dir)?;
 
-        // Create the session lazily (first step) or a new window (subsequent steps).
-        if !session_exists(&session) {
-            let status = std::process::Command::new("tmux")
-                .args([
-                    "new-session", "-d",
-                    "-s", &session,
-                    "-n", &step_id,
-                    "-c", &work_dir,
-                ])
-                .status()
-                .map_err(|e| anyhow!("tmux new-session failed: {e}"))?;
-            if !status.success() {
-                return Err(anyhow!("tmux new-session returned non-zero"));
-            }
-        } else {
-            // New window for this step. `-d` = don't switch focus.
-            let status = std::process::Command::new("tmux")
-                .args([
-                    "new-window", "-d",
-                    "-t", &session,
-                    "-n", &step_id,
-                    "-c", &work_dir,
-                ])
-                .status()
-                .map_err(|e| anyhow!("tmux new-window failed: {e}"))?;
-            if !status.success() {
-                return Err(anyhow!("tmux new-window returned non-zero"));
-            }
-        }
+        let window_id = create_window(&session, &step_id, &work_dir)?;
+        let window_target = format!("{session}:{window_id}");
 
-        let window_target = format!("{session}:{step_id}");
         let adapter = adapter_for(ctx.launch.provider.as_deref());
         let cmd = adapter.build_headless(&ctx.slug, &ctx.launch);
         let shell_cmd = cmd.to_shell_string();
@@ -148,25 +191,23 @@ impl JobExecutor for PtyExecutor {
         }
 
         tracing::info!(
-            slug = ctx.slug, session, window = step_id,
-            log = log_rel, "pty-executor: step launched"
+            slug = ctx.slug, session, window = window_id,
+            window_name = step_id, log = log_rel,
+            "pty-executor: step launched"
         );
 
-        // Monitor the window: once the command completes, the pane closes
-        // (remain-on-exit off) but tmux may keep the window if other panes
-        // exist. We poll `list-windows` for the named window.
         let slug = ctx.slug.clone();
         let job_id = ctx.job_id.clone();
         let exit_tx = ctx.exit_tx.clone();
         let session_mon = session.clone();
-        let window_mon = step_id.clone();
+        let window_mon = window_id.clone();
         std::thread::spawn(move || {
             monitor_window(&session_mon, &window_mon, &slug, &job_id, exit_tx);
         });
 
         Ok(ExecutorHandle {
             pid: None,
-            inner: Box::new(PtyState { session, window: step_id }),
+            inner: Box::new(PtyState { session, window: window_id }),
         })
     }
 
@@ -175,7 +216,7 @@ impl JobExecutor for PtyExecutor {
             Some(s) => s,
             None => return false,
         };
-        window_exists(&state.session, &state.window)
+        window_id_exists(&state.session, &state.window)
     }
 
     async fn stop(&self, handle: &ExecutorHandle) -> Result<()> {
@@ -212,13 +253,12 @@ impl JobExecutor for PtyExecutor {
         _provider: Option<&str>,
         current_step: Option<&str>,
     ) -> Option<ExecutorHandle> {
-        let session = short_session_name(slug);
-        // Prefer the active step's window; fall back to the slug-named
-        // window used for pre-pipeline single-step jobs.
-        let window = current_step.map(str::to_string).unwrap_or_else(|| slug.to_string());
-        if !window_exists(&session, &window) {
-            return None;
-        }
+        let session = session_name(slug);
+        // After a restart the in-memory window id is gone; look it up by
+        // name. Prefer the active step's window; fall back to the slug-
+        // named window used for pre-pipeline single-step jobs.
+        let name = current_step.map(str::to_string).unwrap_or_else(|| slug.to_string());
+        let window = find_unique_window_by_name(&session, &name)?;
         Some(ExecutorHandle {
             pid: None,
             inner: Box::new(PtyState { session, window }),
@@ -226,32 +266,18 @@ impl JobExecutor for PtyExecutor {
     }
 }
 
-fn window_exists(session: &str, window: &str) -> bool {
-    let Ok(out) = std::process::Command::new("tmux")
-        .args(["list-windows", "-t", session, "-F", "#{window_name}"])
-        .output()
-    else {
-        return false;
-    };
-    if !out.status.success() {
-        return false;
-    }
-    String::from_utf8_lossy(&out.stdout)
-        .lines()
-        .any(|l| l == window)
-}
-
 fn monitor_window(
     session: &str,
-    window: &str,
+    window_id: &str,
     slug: &str,
     job_id: &str,
     exit_tx: Option<tokio::sync::mpsc::UnboundedSender<ExitSignal>>,
 ) {
     loop {
         std::thread::sleep(std::time::Duration::from_secs(5));
-        if !window_exists(session, window) {
-            tracing::info!(session, window, slug, "pty-executor: window closed, signalling exit");
+        if !window_id_exists(session, window_id) {
+            tracing::info!(session, window = window_id, slug,
+                "pty-executor: window closed, signalling exit");
             if let Some(tx) = exit_tx {
                 let _ = tx.send(ExitSignal {
                     slug: slug.to_string(),
@@ -265,82 +291,5 @@ fn monitor_window(
 }
 
 #[cfg(test)]
-mod tests {
-    use super::*;
-
-    #[test]
-    fn short_session_name_sanitizes_dots_and_colons() {
-        let name = short_session_name("ab.cd:ef12345");
-        assert_eq!(name, "ship-ab_cd_ef");
-        assert!(!name.contains('.'));
-        assert!(!name.contains(':'));
-    }
-
-    #[test]
-    fn short_session_name_is_stable_for_known_slug() {
-        assert_eq!(short_session_name("pipeline-abcdef12"), "ship-pipeline");
-    }
-
-    #[test]
-    fn step_log_rel_is_zero_padded() {
-        assert_eq!(
-            step_log_rel(0, "test-writer"),
-            ".artifacts/pipeline/01-test-writer.log"
-        );
-        assert_eq!(
-            step_log_rel(9, "impl"),
-            ".artifacts/pipeline/10-impl.log"
-        );
-    }
-
-    #[test]
-    fn pty_new_fails_when_tmux_absent_or_windows() {
-        // On Windows, always fails. Elsewhere, depends on host.
-        let result = PtyExecutor::new();
-        if cfg!(windows) {
-            assert!(result.is_err(), "PtyExecutor must fail on Windows");
-        } else if !tmux_available() {
-            assert!(result.is_err(), "must fail when tmux is absent");
-        } else {
-            assert!(result.is_ok(), "must succeed when tmux is present");
-        }
-    }
-
-    #[tokio::test]
-    async fn pty_spawn_creates_session_and_window() {
-        if !tmux_available() {
-            eprintln!("skipping: tmux not available");
-            return;
-        }
-        use runtime::services::dispatch_ports::{LaunchProfile, StepInfo};
-        let tmp = tempfile::tempdir().unwrap();
-        let slug = format!("ptytest-{}", &runtime::gen_ulid()[..8].to_lowercase());
-        let ctx = JobContext {
-            job_id: "j1".into(),
-            slug: slug.clone(),
-            agent: "noop".into(),
-            branch: "job/test".into(),
-            spec_path: "spec.md".into(),
-            spec_content: None,
-            work_dir: tmp.path().to_path_buf(),
-            env: Default::default(),
-            exit_tx: None,
-            launch: LaunchProfile {
-                provider: Some("echo-only".into()),
-                ..Default::default()
-            },
-            step: Some(StepInfo { index: 0, id: "step-a".into() }),
-            headless: false,
-        };
-        let exec = PtyExecutor::new().unwrap();
-        let handle = exec.spawn(&ctx).await.expect("spawn");
-        let session = short_session_name(&slug);
-        assert!(session_exists(&session), "session should exist after spawn");
-        assert!(window_exists(&session, "step-a"), "window should exist");
-        // Cleanup.
-        let _ = std::process::Command::new("tmux")
-            .args(["kill-session", "-t", &session])
-            .status();
-        drop(handle);
-    }
-}
+#[path = "pty_tests.rs"]
+mod tests;

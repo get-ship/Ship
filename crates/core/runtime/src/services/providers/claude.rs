@@ -70,11 +70,12 @@ impl ProviderAdapter for ClaudeAdapter {
 
     fn build_headless(&self, slug: &str, profile: &LaunchProfile) -> LaunchCommand {
         let (mut args, env) = Self::base_args(slug, profile);
-        args.push("--output-format".to_string());
-        args.push("stream-json".to_string());
-        args.push("--print".to_string());
-        args.push("-p".to_string());
-        args.push("go".to_string());
+        args.extend([
+            "--verbose",
+            "--output-format", "stream-json",
+            "--print",
+            "-p", "go",
+        ].iter().map(|s| s.to_string()));
         LaunchCommand { bin: "claude".to_string(), args, env }
     }
 
