@@ -20,6 +20,7 @@ fn empty_ctx(active_tab: &str) -> PipelinesCtx {
             history: 0,
         },
         stats_subtitle: "0 definitions · 0 active · 0 in history".to_string(),
+        status_pills: vec![],
         agent_filter: String::new(),
         agents: vec![],
         defs: vec![],
