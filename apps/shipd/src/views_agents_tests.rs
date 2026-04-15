@@ -43,7 +43,7 @@ fn shell_renders_card_grid_and_new_button() {
     assert!(html.contains("id=\"agents-root\""), "root id");
     assert!(html.contains("Coder"));
     assert!(html.contains("Reviewer"));
-    assert!(html.contains("+ New agent"));
+    assert!(html.contains("+ New Agent"));
     assert!(html.contains("2 agents") || html.contains("2 configured"));
 }
 

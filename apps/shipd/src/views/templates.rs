@@ -86,10 +86,6 @@ const TEMPLATES: &[(&str, &str)] = &[
         include_str!("../../templates/agents/partials/card.html.j2"),
     ),
     (
-        "agents/partials/config_section.html.j2",
-        include_str!("../../templates/agents/partials/config_section.html.j2"),
-    ),
-    (
         "canvas/blank.html.j2",
         include_str!("../../templates/canvas/blank.html.j2"),
     ),
