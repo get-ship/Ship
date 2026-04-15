@@ -13,6 +13,7 @@
 //! the orchestration logic testable without a real supervisor (tmux, git
 //! worktree, etc.).
 
+pub mod dedup;
 pub mod emit;
 pub mod gate_retry;
 pub mod gate_rules;
@@ -68,4 +69,8 @@ pub struct OrchestratorContext {
     /// Per-job advancement lock. Prevents two concurrent events from
     /// double-dispatching the same next step.
     pub job_locks: Arc<Mutex<HashMap<String, Arc<tokio::sync::Mutex<()>>>>>,
+    /// Event-id dedup at the router entry point. Prevents a replayed
+    /// envelope (mailbox redelivery, startup replay race, test replay)
+    /// from advancing the pipeline twice.
+    pub event_dedup: Arc<dedup::EventDedup>,
 }

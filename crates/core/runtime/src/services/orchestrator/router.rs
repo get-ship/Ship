@@ -71,6 +71,17 @@ pub async fn handle_job_event(
     envelope: &EventEnvelope,
     octx: &OrchestratorContext,
 ) {
+    // Dedup by event id. Prevents a replayed envelope — mailbox
+    // redelivery, startup replay racing live delivery, test harness
+    // replays — from advancing the pipeline twice.
+    if octx.event_dedup.record(&envelope.id) == super::dedup::Seen::Duplicate {
+        tracing::debug!(
+            event_id = %envelope.id,
+            event_type = %envelope.event_type,
+            "job-dispatch: duplicate event — skipping"
+        );
+        return;
+    }
     match envelope.event_type.as_str() {
         "job.created" => handle_job_created(kernel, envelope, octx).await,
         "job.update" => handle_job_update(kernel, envelope).await,
