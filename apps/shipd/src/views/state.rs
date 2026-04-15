@@ -43,7 +43,8 @@ impl RunCategory {
             JobStatus::Completed
             | JobStatus::Failed
             | JobStatus::Merged
-            | JobStatus::Blocked => RunCategory::History,
+            | JobStatus::Blocked
+            | JobStatus::Cancelled => RunCategory::History,
         }
     }
 }
@@ -98,6 +99,7 @@ pub fn status_token(s: &JobStatus) -> &'static str {
         JobStatus::Failed => "failed",
         JobStatus::Merged => "merged",
         JobStatus::Blocked => "blocked",
+        JobStatus::Cancelled => "cancelled",
     }
 }
 

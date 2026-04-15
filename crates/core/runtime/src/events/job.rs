@@ -297,6 +297,34 @@ pub struct JobFailedPayload {
     pub error: String,
 }
 
+/// Emitted when an executor's spawn() returns Err — i.e. the agent
+/// process never started. Distinct from JobFailedPayload because it
+/// carries the *stage* of dispatch that failed (isolation prepare,
+/// agent compile, executor spawn) so the operator can debug the
+/// right layer.
+#[derive(Debug, Clone, Serialize, Deserialize, Type)]
+pub struct JobSpawnFailedPayload {
+    pub job_id: String,
+    pub slug: String,
+    /// Which dispatch phase failed: "isolation_prepare" |
+    /// "agent_compile" | "executor_spawn".
+    pub stage: String,
+    /// Error message captured at the failure site.
+    pub error: String,
+}
+
+/// Emitted when an operator (or system policy) cancels a job. Terminal.
+#[derive(Debug, Clone, Serialize, Deserialize, Type)]
+pub struct JobCancelledPayload {
+    pub job_id: String,
+    pub slug: String,
+    /// Free-form reason. UI surfaces this verbatim.
+    pub reason: String,
+    /// Who/what initiated the cancellation: "operator", "supervisor",
+    /// "policy:timeout", etc. Open-vocabulary string.
+    pub requested_by: String,
+}
+
 /// Emitted by either side (human, commander, or agent) to send a mid-flight
 /// update, instruction, or course correction. The daemon routes these to the
 /// agent's mailbox.
@@ -515,6 +543,8 @@ pub mod event_types {
     pub const JOB_COMPLETED: &str = "job.completed";
     pub const JOB_MERGED: &str = "job.merged";
     pub const JOB_FAILED: &str = "job.failed";
+    pub const JOB_SPAWN_FAILED: &str = "job.spawn_failed";
+    pub const JOB_CANCELLED: &str = "job.cancelled";
     pub const JOB_UPDATE: &str = "job.update";
     pub const STEP_DISPATCHED: &str = "job.step_dispatched";
     pub const STEP_COMPLETED: &str = "job.step_completed";

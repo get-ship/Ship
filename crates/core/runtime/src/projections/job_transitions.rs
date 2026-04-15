@@ -26,6 +26,8 @@ pub fn status_for(event_type: &str) -> Option<JobStatus> {
         event_types::JOB_BLOCKED => Some(JobStatus::Blocked),
         event_types::JOB_MERGED => Some(JobStatus::Merged),
         event_types::JOB_FAILED => Some(JobStatus::Failed),
+        event_types::JOB_SPAWN_FAILED => Some(JobStatus::Failed),
+        event_types::JOB_CANCELLED => Some(JobStatus::Cancelled),
         event_types::STEP_DISPATCHED => Some(JobStatus::Dispatched),
         event_types::STEP_FAILED => Some(JobStatus::Failed),
         event_types::STEP_RETRY => Some(JobStatus::Dispatched),
@@ -85,6 +87,16 @@ mod tests {
     #[test]
     fn step_failed_sets_failed() {
         assert_eq!(status_for(event_types::STEP_FAILED), Some(JobStatus::Failed));
+    }
+
+    #[test]
+    fn job_spawn_failed_sets_failed() {
+        assert_eq!(status_for(event_types::JOB_SPAWN_FAILED), Some(JobStatus::Failed));
+    }
+
+    #[test]
+    fn job_cancelled_sets_cancelled() {
+        assert_eq!(status_for(event_types::JOB_CANCELLED), Some(JobStatus::Cancelled));
     }
 
     #[test]

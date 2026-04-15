@@ -125,6 +125,7 @@ fn run_state_token(s: &JobStatus) -> &'static str {
         JobStatus::Failed => "failed",
         JobStatus::Merged => "merged",
         JobStatus::Blocked => "blocked",
+        JobStatus::Cancelled => "cancelled",
     }
 }
 
@@ -137,6 +138,7 @@ fn tone_for(s: &JobStatus) -> &'static str {
         JobStatus::Merged => "accent",
         JobStatus::Blocked => "warning",
         JobStatus::Pending => "muted",
+        JobStatus::Cancelled => "muted",
     }
 }
 
@@ -171,7 +173,7 @@ pub fn derive_segments(job: &JobRecord) -> Vec<&'static str> {
                 out.push("done");
             }
         }
-        JobStatus::Failed => {
+        JobStatus::Failed | JobStatus::Cancelled => {
             if remaining > 0 {
                 out.push("failed");
                 for _ in 1..remaining {
