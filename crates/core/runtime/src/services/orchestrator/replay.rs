@@ -116,27 +116,36 @@ async fn reconcile_dispatched_inner(
     tracing::info!(count = stale.len(), "job-dispatch: reconciling stale dispatched jobs");
 
     for job in stale {
-        let handle = crate::services::dispatch_ports::ExecutorHandle {
-            pid: None,
-            inner: Box::new(()),
-        };
-
-        if octx.executor.is_alive(&handle).await {
-            tracing::info!(slug = job.slug, "job-dispatch: reconcile — process still alive, re-attaching");
-            let resume_handle = crate::services::dispatch_ports::ExecutorHandle {
-                pid: None,
-                inner: Box::new(()),
-            };
-            octx.registry.register(&job.slug, resume_handle).await;
-            continue;
+        // Ask the executor to rehydrate a real handle from out-of-band
+        // state (tmux session names, window names, etc). `Some` means
+        // the agent survived the restart — re-attach. `None` means no
+        // live process exists — mark the step failed.
+        //
+        // The prior pattern constructed a placeholder handle with
+        // `pid: None` and `inner: Box::new(())` then called `is_alive`,
+        // which always returned false because the inner type couldn't
+        // be downcast — killing live agents on every restart.
+        match octx
+            .executor
+            .resume_handle(&job.slug, job.provider.as_deref())
+            .await
+        {
+            Some(handle) => {
+                tracing::info!(
+                    slug = job.slug,
+                    "job-dispatch: reconcile — process still alive, re-attaching"
+                );
+                octx.registry.register(&job.slug, handle).await;
+                continue;
+            }
+            None => {
+                tracing::info!(
+                    slug = job.slug, job_id = job.job_id,
+                    "job-dispatch: reconcile — no live process found, marking step failed"
+                );
+                emit_step_failed(kernel, &job.job_id, &job.slug, "daemon restarted, agent not running", store_dir).await;
+            }
         }
-
-        tracing::info!(
-            slug = job.slug, job_id = job.job_id,
-            "job-dispatch: reconcile — process dead, marking step failed"
-        );
-
-        emit_step_failed(kernel, &job.job_id, &job.slug, "daemon restarted, agent not running", store_dir).await;
     }
 
     tracing::info!("job-dispatch: reconciliation complete");

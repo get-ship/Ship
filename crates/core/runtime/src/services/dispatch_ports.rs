@@ -150,6 +150,23 @@ pub trait JobExecutor: Send + Sync {
     async fn stop(&self, handle: &ExecutorHandle) -> Result<()>;
     /// Inject a message into the running agent.
     async fn send(&self, handle: &ExecutorHandle, message: &str) -> Result<()>;
+
+    /// Rehydrate a handle for a still-running process after a daemon
+    /// restart. Returns `Some(handle)` if the executor can locate a live
+    /// process for `slug` (e.g. a tmux session still exists), `None`
+    /// otherwise. Default: `None` — conservative; callers treat that as
+    /// "no live process" and the job gets marked failed on reconciliation.
+    ///
+    /// Replaces the historic pattern of constructing a fake `pid: None`
+    /// handle and calling `is_alive` on it, which always returned false
+    /// because the inner opaque state couldn't be downcast.
+    async fn resume_handle(
+        &self,
+        _slug: &str,
+        _provider: Option<&str>,
+    ) -> Option<ExecutorHandle> {
+        None
+    }
 }
 
 // ── Orchestrator port traits ────────────────────────────────────────────────

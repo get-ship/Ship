@@ -150,6 +150,24 @@ impl JobExecutor for TmuxExecutor {
         kill_tmux_session(&state.session)
     }
 
+    async fn resume_handle(
+        &self,
+        slug: &str,
+        provider: Option<&str>,
+    ) -> Option<ExecutorHandle> {
+        let session = format!("job-{slug}");
+        if !tmux_session_exists(&session) {
+            return None;
+        }
+        Some(ExecutorHandle {
+            pid: None,
+            inner: Box::new(TmuxState {
+                session,
+                provider: provider.map(str::to_string),
+            }),
+        })
+    }
+
     async fn send(&self, handle: &ExecutorHandle, message: &str) -> Result<()> {
         let state = match handle.inner.downcast_ref::<TmuxState>() {
             Some(s) => s,
