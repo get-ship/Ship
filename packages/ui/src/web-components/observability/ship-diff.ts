@@ -93,11 +93,18 @@ export class ShipDiff extends LitElement {
     return []
   }
 
+  connectedCallback() {
+    super.connectedCallback()
+    if (!this.hasAttribute('role')) this.setAttribute('role', 'region')
+    if (!this.hasAttribute('aria-label')) this.setAttribute('aria-label', 'diff')
+  }
+
   render() {
     const lines = this._lines()
     return html`${lines.map((l) => {
       const sign = l.kind === 'add' ? '+' : l.kind === 'del' ? '-' : l.kind === 'hunk' ? '@' : ' '
-      return html`<div class="line ${l.kind}" part="line"><span class="sign">${sign}</span><span>${l.text}</span></div>`
+      const kindLabel = l.kind === 'add' ? 'added' : l.kind === 'del' ? 'removed' : l.kind === 'hunk' ? 'hunk' : 'context'
+      return html`<div class="line ${l.kind}" part="line" role="listitem" aria-label=${`${kindLabel}: ${l.text}`}><span class="sign" aria-hidden="true">${sign}</span><span>${l.text}</span></div>`
     })}`
   }
 }

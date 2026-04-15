@@ -51,6 +51,11 @@ export class ShipEventRow extends LitElement {
   target?: string
   at?: string
 
+  connectedCallback() {
+    super.connectedCallback()
+    if (!this.hasAttribute('role')) this.setAttribute('role', 'listitem')
+  }
+
   render() {
     return html`
       <div class="head" part="head">

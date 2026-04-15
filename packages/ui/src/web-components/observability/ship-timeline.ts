@@ -31,6 +31,10 @@ export class ShipTimeline extends LitElement {
     .list { display: flex; flex-direction: column; gap: 4px; }
   `
 
+  connectedCallback() {
+    super.connectedCallback()
+    if (!this.hasAttribute('role')) this.setAttribute('role', 'list')
+  }
   render() {
     return html`<div class="list" part="list"><slot></slot></div>`
   }
@@ -95,6 +99,9 @@ export class ShipTimelineItem extends LitElement {
           0 0 0 calc(var(--ring-offset) + var(--ring-width))
             color-mix(in oklch, var(--ring-color) var(--ring-opacity), transparent);
       }
+      @media (forced-colors: active) {
+        :host([interactive]:focus-visible) { outline: 2px solid CanvasText; outline-offset: 2px; }
+      }
     `,
   ]
 
@@ -110,6 +117,7 @@ export class ShipTimelineItem extends LitElement {
 
   connectedCallback(): void {
     super.connectedCallback()
+    if (!this.hasAttribute('role')) this.setAttribute('role', 'listitem')
     this.addEventListener('keydown', this._onKey)
     this.addEventListener('click', this._onClick)
   }
@@ -131,7 +139,7 @@ export class ShipTimelineItem extends LitElement {
 
   updated() {
     if (this.interactive) {
-      if (!this.hasAttribute('role')) this.setAttribute('role', 'button')
+      this.setAttribute('role', 'button')
       if (!this.hasAttribute('tabindex')) this.setAttribute('tabindex', '0')
     }
   }

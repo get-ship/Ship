@@ -68,7 +68,12 @@ export class ShipThemeToggle extends LitElement {
   render() {
     const isDark = this.theme === 'dark'
     return html`
-      <button @click=${this.toggle} aria-label="Toggle theme" title="Toggle theme">
+      <button
+        @click=${this.toggle}
+        aria-label="Toggle theme"
+        aria-pressed=${isDark ? 'true' : 'false'}
+        title="Toggle theme"
+      >
         ${isDark ? '🌙' : '☀'} <slot>${isDark ? 'Dark' : 'Light'}</slot>
       </button>
     `

@@ -88,6 +88,24 @@ export class ShipStat extends LitElement {
 
   accent: StatAccent = 'default'
   interactive = false
+
+  connectedCallback() {
+    super.connectedCallback()
+    if (this.interactive) {
+      if (!this.hasAttribute('role')) this.setAttribute('role', 'button')
+      if (!this.hasAttribute('tabindex')) this.setAttribute('tabindex', '0')
+      this.addEventListener('keydown', this.onKey)
+    }
+  }
+  disconnectedCallback() {
+    super.disconnectedCallback()
+    this.removeEventListener('keydown', this.onKey)
+  }
+  private onKey = (e: KeyboardEvent) => {
+    if (!this.interactive) return
+    if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); this.click() }
+  }
+
   render() {
     return html`
       <span class="label"><slot name="label"></slot></span>

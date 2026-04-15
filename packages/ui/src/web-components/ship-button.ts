@@ -24,11 +24,12 @@
  *   - (native `click` bubbles out of the host)
  */
 
-import { LitElement, css, html } from 'lit'
+import { LitElement, css, html, nothing } from 'lit'
+import { reducedMotion } from './util'
 import type { Size, Tone, Variant } from './util'
 
 export class ShipButton extends LitElement {
-  static styles = css`
+  static styles = [reducedMotion, css`
     :host {
       display: inline-flex;
       vertical-align: middle;
@@ -64,6 +65,9 @@ export class ShipButton extends LitElement {
         0 0 0 var(--ring-offset) var(--background),
         0 0 0 calc(var(--ring-offset) + var(--ring-width))
           color-mix(in oklch, var(--ring-color) var(--ring-opacity), transparent);
+    }
+    @media (forced-colors: active) {
+      button:focus-visible { outline: 2px solid CanvasText; outline-offset: 2px; }
     }
     button:disabled { cursor: not-allowed; opacity: 0.6; }
 
@@ -156,7 +160,7 @@ export class ShipButton extends LitElement {
     ::slotted([slot='leading']), ::slotted([slot='trailing']) {
       display: inline-flex; align-items: center;
     }
-  `
+  `]
 
   static properties = {
     tone: { type: String, reflect: true },
@@ -165,6 +169,9 @@ export class ShipButton extends LitElement {
     disabled: { type: Boolean, reflect: true },
     loading: { type: Boolean, reflect: true },
     type: { type: String, reflect: true },
+    label: { type: String },
+    pressed: { type: String, reflect: true },
+    expanded: { type: String, reflect: true },
   }
 
   tone?: Tone
@@ -173,6 +180,9 @@ export class ShipButton extends LitElement {
   disabled = false
   loading = false
   type: 'button' | 'submit' | 'reset' = 'button'
+  label = ''
+  pressed: 'true' | 'false' | '' = ''
+  expanded: 'true' | 'false' | '' = ''
   render() {
     return html`
       <button
@@ -180,6 +190,10 @@ export class ShipButton extends LitElement {
         type=${this.type}
         ?disabled=${this.disabled || this.loading}
         aria-busy=${this.loading ? 'true' : 'false'}
+        aria-disabled=${(this.disabled || this.loading) ? 'true' : 'false'}
+        aria-label=${this.label || nothing}
+        aria-pressed=${this.pressed || nothing}
+        aria-expanded=${this.expanded || nothing}
       >
         ${this.loading
           ? html`<span class="spinner" aria-hidden="true"></span>`

@@ -12,11 +12,12 @@
  */
 
 import { LitElement, css, html } from 'lit'
-import { toneVars } from './util'
+import { reducedMotion, toneVars } from './util'
 import type { Tone } from './util'
 
 export class ShipStatusDot extends LitElement {
   static styles = [
+    reducedMotion,
     toneVars,
     css`
       :host { display: inline-flex; vertical-align: middle; }
@@ -40,20 +41,26 @@ export class ShipStatusDot extends LitElement {
     tone: { type: String, reflect: true },
     pulse: { type: Boolean, reflect: true },
     size: { type: String, reflect: true },
+    label: { type: String },
   }
 
   tone: Tone
   pulse: boolean
   size: 'sm' | 'md'
+  label: string
 
   constructor() {
     super()
     this.tone = 'success'
     this.pulse = false
     this.size = 'md'
+    this.label = ''
   }
 
   render() {
+    if (this.label) {
+      return html`<span class="dot" part="dot" role="img" aria-label=${this.label}></span>`
+    }
     return html`<span class="dot" part="dot" aria-hidden="true"></span>`
   }
 }

@@ -29,6 +29,7 @@
  */
 
 import { LitElement, css, html } from 'lit'
+import { reducedMotion } from './util'
 
 export class ShipTab extends LitElement {
   static styles = css`:host { display: none; }`
@@ -46,20 +47,27 @@ export class ShipTab extends LitElement {
 }
 
 export class ShipTabPanel extends LitElement {
-  static styles = css`
+  static styles = [reducedMotion, css`
     :host { display: none; }
     :host([active]) { display: block; animation: fade 180ms ease; }
     @keyframes fade {
       from { opacity: 0; transform: translateY(4px); }
       to { opacity: 1; transform: translateY(0); }
     }
-  `
+  `]
   static properties = {
     name: { type: String },
     active: { type: Boolean, reflect: true },
   }
   name = ''
   active = false
+  connectedCallback() {
+    super.connectedCallback()
+    if (!this.hasAttribute('role')) this.setAttribute('role', 'tabpanel')
+    if (!this.hasAttribute('tabindex')) this.setAttribute('tabindex', '0')
+    if (this.name && !this.id) this.id = `ship-tabpanel-${this.name}`
+    if (this.name) this.setAttribute('aria-labelledby', `ship-tab-${this.name}`)
+  }
   render() { return html`<slot></slot>` }
 }
 
@@ -144,17 +152,50 @@ export class ShipTabs extends LitElement {
     }
 
     .panels { display: block; }
+
+    /* Vertical orientation — tablist on the left, panels on the right. */
+    :host([orientation='vertical']) {
+      display: grid;
+      grid-template-columns: max-content 1fr;
+      gap: 24px;
+    }
+    :host([orientation='vertical']) .tablist.underline {
+      flex-direction: column;
+      align-items: stretch;
+      border-bottom: 0;
+      border-right: 1px solid var(--border);
+      margin-bottom: 0;
+      gap: 0;
+    }
+    :host([orientation='vertical']) .tablist.underline button {
+      border-bottom: 0;
+      border-right: 2px solid transparent;
+      margin-bottom: 0;
+      margin-right: -1px;
+      text-align: left;
+      justify-content: flex-start;
+    }
+    :host([orientation='vertical']) .tablist.underline button[aria-selected='true'] {
+      border-right-color: var(--primary);
+    }
+    :host([orientation='vertical']) .tablist.segmented {
+      flex-direction: column;
+      border-bottom: 0;
+      border-right: 1px solid var(--border);
+    }
   `
 
   static properties = {
     active: { type: String, reflect: true },
     variant: { type: String, reflect: true },
     sticky: { type: Boolean, reflect: true },
+    orientation: { type: String, reflect: true },
   }
 
   active = ''
   variant: 'underline' | 'segmented' = 'underline'
   sticky = false
+  orientation: 'horizontal' | 'vertical' = 'horizontal'
 
   private get tabs(): ShipTab[] {
     return Array.from(this.querySelectorAll(':scope > ship-tab')) as ShipTab[]
@@ -177,15 +218,26 @@ export class ShipTabs extends LitElement {
   }
 
   private onKeydown(e: KeyboardEvent) {
-    if (e.key !== 'ArrowRight' && e.key !== 'ArrowLeft') return
+    const vertical = this.orientation === 'vertical'
+    const nextKey = vertical ? 'ArrowDown' : 'ArrowRight'
+    const prevKey = vertical ? 'ArrowUp' : 'ArrowLeft'
+    const keys = [nextKey, prevKey, 'Home', 'End']
+    if (!keys.includes(e.key)) return
     e.preventDefault()
     const tabs = this.tabs.filter(t => !t.disabled)
     const names = tabs.map(t => t.name)
+    if (!names.length) return
     const i = names.indexOf(this.active)
-    const next = e.key === 'ArrowRight'
-      ? (i + 1) % names.length
-      : (i - 1 + names.length) % names.length
+    let next = i
+    if (e.key === nextKey) next = (i + 1) % names.length
+    else if (e.key === prevKey) next = (i - 1 + names.length) % names.length
+    else if (e.key === 'Home') next = 0
+    else if (e.key === 'End') next = names.length - 1
     this.activate(names[next])
+    queueMicrotask(() => {
+      const btn = this.renderRoot.querySelector<HTMLButtonElement>(`button[data-name="${names[next]}"]`)
+      btn?.focus()
+    })
   }
 
   render() {
@@ -197,11 +249,16 @@ export class ShipTabs extends LitElement {
     }))
 
     return html`
-      <div class="tablist ${this.variant}" role="tablist" @keydown=${this.onKeydown}>
+      <div class="tablist ${this.variant}" role="tablist"
+           aria-orientation=${this.orientation}
+           @keydown=${this.onKeydown}>
         ${tabs.map(t => html`
           <button
             role="tab"
+            id=${`ship-tab-${t.name}`}
+            data-name=${t.name}
             aria-selected=${t.name === this.active ? 'true' : 'false'}
+            aria-controls=${`ship-tabpanel-${t.name}`}
             tabindex=${t.name === this.active ? '0' : '-1'}
             ?disabled=${t.disabled}
             @click=${() => this.activate(t.name)}

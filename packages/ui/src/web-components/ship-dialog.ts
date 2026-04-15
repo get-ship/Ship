@@ -103,15 +103,22 @@ export class ShipDialog extends LitElement {
     size: { type: String, reflect: true },
     dismissible: { type: Boolean },
     noCloseButton: { type: Boolean, reflect: true, attribute: 'no-close-button' },
+    dialogRole: { type: String, attribute: 'role-override' },
   }
 
   open = false
   size: 'sm' | 'md' | 'lg' = 'md'
   dismissible = true
   noCloseButton = false
+  dialogRole: 'dialog' | 'alertdialog' = 'dialog'
+  private static _idSeq = 0
+  private uid = ++ShipDialog._idSeq
+  private get headerId() { return `ship-dialog-header-${this.uid}` }
+  private get bodyId() { return `ship-dialog-body-${this.uid}` }
   get dialogEl(): HTMLDialogElement { return this.renderRoot.querySelector('dialog')! as HTMLDialogElement }
 
   updated(changed: Map<string, unknown>) {
+    this.setAttribute('data-state', this.open ? 'open' : 'closed')
     if (changed.has('open') && this.dialogEl) {
       if (this.open && !this.dialogEl.open) {
         // jsdom / older browsers without <dialog>: gracefully skip.
@@ -146,7 +153,14 @@ export class ShipDialog extends LitElement {
 
   render() {
     return html`
-      <dialog @close=${this.onClose} @click=${this.onBackdropClick}>
+      <dialog
+        role=${this.dialogRole}
+        aria-modal="true"
+        aria-labelledby=${this.headerId}
+        aria-describedby=${this.bodyId}
+        @close=${this.onClose}
+        @click=${this.onBackdropClick}
+      >
         <div class="wrap">
           <button
             class="close"
@@ -154,8 +168,8 @@ export class ShipDialog extends LitElement {
             aria-label="Close dialog"
             @click=${this.onDismiss}
           >×</button>
-          <div class="header"><slot name="header"></slot></div>
-          <div class="body"><slot></slot></div>
+          <div class="header" id=${this.headerId}><slot name="header"></slot></div>
+          <div class="body" id=${this.bodyId}><slot></slot></div>
           <div class="footer"><slot name="footer"></slot></div>
         </div>
       </dialog>

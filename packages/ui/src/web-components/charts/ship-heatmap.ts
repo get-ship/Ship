@@ -65,12 +65,14 @@ export class ShipHeatmap extends LitElement {
     rows: { type: String },
     cols: { type: String },
     tone: { type: String, reflect: true },
+    label: { type: String },
   }
 
   data = ''
   rows = ''
   cols = ''
   tone = 'primary'
+  label = 'heatmap'
 
   render() {
     const rows = parseLabels(this.rows)
@@ -81,7 +83,7 @@ export class ShipHeatmap extends LitElement {
     for (const c of cells) lookup.set(`${c.y}\u0000${c.x}`, c.value)
     const gridStyle = `grid-template-columns: auto repeat(${cols.length}, 1fr);`
     return html`
-      <div class="grid" style=${gridStyle} role="table" aria-label="heatmap">
+      <div class="grid" style=${gridStyle} role="table" aria-label=${this.label}>
         <div></div>
         ${cols.map((c) => html`<div class="col-label">${c}</div>`)}
         ${rows.map(

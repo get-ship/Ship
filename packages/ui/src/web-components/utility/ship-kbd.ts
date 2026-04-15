@@ -37,6 +37,11 @@ export class ShipKbd extends LitElement {
 
   keys = ''
 
+  updated() {
+    if (!this.hasAttribute('role')) this.setAttribute('role', 'group')
+    if (this.keys) this.setAttribute('aria-label', `Keyboard shortcut: ${this.keys}`)
+  }
+
   render() {
     const tokens = this.keys.split('+').map(s => s.trim()).filter(Boolean)
     return html`${tokens.map((t, i) => html`

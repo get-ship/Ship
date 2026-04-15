@@ -53,6 +53,14 @@ export class ShipSkeleton extends LitElement {
   height = ''
   lines = 1
 
+  connectedCallback() {
+    super.connectedCallback()
+    if (!this.hasAttribute('role')) this.setAttribute('role', 'status')
+    if (!this.hasAttribute('aria-live')) this.setAttribute('aria-live', 'polite')
+    if (!this.hasAttribute('aria-busy')) this.setAttribute('aria-busy', 'true')
+    if (!this.hasAttribute('aria-label')) this.setAttribute('aria-label', 'Loading')
+  }
+
   private styleFor(): string {
     const parts: string[] = []
     if (this.width) parts.push(`width:${this.width}`)

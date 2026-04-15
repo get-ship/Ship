@@ -20,8 +20,15 @@
  *   - ship-change — CustomEvent { detail: { value } }
  */
 
-import { LitElement, css, html } from 'lit'
+import { LitElement, css, html, nothing } from 'lit'
 export class ShipSelect extends LitElement {
+  static formAssociated = true
+  private internals: ElementInternals
+  private defaultValue = ''
+  constructor() {
+    super()
+    this.internals = this.attachInternals()
+  }
   static styles = css`
     :host { display: inline-flex; }
     select {
@@ -43,18 +50,36 @@ export class ShipSelect extends LitElement {
     name: { type: String },
     required: { type: Boolean, reflect: true },
     disabled: { type: Boolean, reflect: true },
+    invalid: { type: Boolean, reflect: true },
     size: { type: String, reflect: true },
+    label: { type: String },
+    describedBy: { type: String, attribute: 'described-by' },
   }
 
   value = ''
   name = ''
   required = false
   disabled = false
+  invalid = false
   size: 'sm' | 'md' = 'md'
+  label = ''
+  describedBy = ''
   get selectEl(): HTMLSelectElement { return this.renderRoot.querySelector('select')! as HTMLSelectElement }
 
+  connectedCallback() {
+    super.connectedCallback()
+    this.defaultValue = this.value
+  }
   firstUpdated() { this.syncOptions() }
-  updated() { this.syncOptions() }
+  updated() {
+    this.syncOptions()
+    this.setFormValue(this.value)
+  }
+  formResetCallback() { this.value = this.defaultValue }
+  formStateRestoreCallback(state: string | null) { this.value = state ?? '' }
+  private setFormValue(v: string) {
+    if (typeof this.internals.setFormValue === 'function') this.internals.setFormValue(v)
+  }
 
   private syncOptions() {
     if (!this.selectEl) return
@@ -68,6 +93,7 @@ export class ShipSelect extends LitElement {
 
   private onChange(e: Event) {
     this.value = (e.target as HTMLSelectElement).value
+    this.setFormValue(this.value)
     this.dispatchEvent(new CustomEvent('ship-change', {
       detail: { value: this.value }, bubbles: true, composed: true,
     }))
@@ -79,6 +105,9 @@ export class ShipSelect extends LitElement {
         name=${this.name}
         ?required=${this.required}
         ?disabled=${this.disabled}
+        aria-invalid=${this.invalid ? 'true' : 'false'}
+        aria-label=${this.label || nothing}
+        aria-describedby=${this.describedBy || nothing}
         @change=${this.onChange}
       ></select>
       <span hidden><slot @slotchange=${this.syncOptions}></slot></span>

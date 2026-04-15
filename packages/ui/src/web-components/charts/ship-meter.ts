@@ -56,10 +56,12 @@ export class ShipMeter extends LitElement {
   static properties = {
     segments: { type: String, reflect: true },
     total: { type: Number },
+    label: { type: String },
   }
 
   segments = ''
   total: number | null = null
+  label = 'meter'
 
   render() {
     const segs = parseJson<Segment[]>(this.segments, [])
@@ -68,7 +70,7 @@ export class ShipMeter extends LitElement {
     const safeDenom = denom <= 0 ? 1 : denom
     return html`
       <div class="wrap">
-        <div class="bar" role="img" aria-label="meter">
+        <div class="bar" role="img" aria-label=${this.label}>
           ${segs.map((s) => {
             const pct = (Math.max(0, s.count) / safeDenom) * 100
             if (pct <= 0) return null

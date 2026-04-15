@@ -48,6 +48,7 @@ export class ShipLineChart extends LitElement {
     height: { type: Number },
     points: { type: Boolean, reflect: true },
     grid: { type: Boolean, reflect: true },
+    label: { type: String },
   }
 
   series = ''
@@ -56,6 +57,7 @@ export class ShipLineChart extends LitElement {
   height = 200
   points = false
   grid = false
+  label = 'line chart'
 
   render() {
     const allSeries = parseJson<Series[]>(this.series, [])
@@ -72,7 +74,7 @@ export class ShipLineChart extends LitElement {
       : []
     return html`
       <div class="wrap">
-        <svg viewBox="0 0 ${w} ${h}" preserveAspectRatio="none" role="img" aria-label="line chart">
+        <svg viewBox="0 0 ${w} ${h}" preserveAspectRatio="none" role="img" aria-label=${this.label}>
           ${gridLines.map(
             (y) => svg`<line class="grid-line" x1="0" x2=${w} y1=${y.toFixed(2)} y2=${y.toFixed(2)}></line>`,
           )}

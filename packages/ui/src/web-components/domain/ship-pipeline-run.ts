@@ -80,6 +80,10 @@ export class ShipPipelineRun extends LitElement {
   state: RunState = 'pending'
   slug = ''
   agent = ''
+  updated() {
+    this.setAttribute('role', 'article')
+    this.setAttribute('aria-label', `Pipeline run ${this.slug || ''}${this.agent ? ` on ${this.agent}` : ''}: ${this.state}`)
+  }
   render() {
     const tone = STATE_TO_TONE[this.state] ?? 'muted'
     return html`

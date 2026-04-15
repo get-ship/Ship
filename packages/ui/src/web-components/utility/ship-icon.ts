@@ -13,7 +13,7 @@
  *   - (default) raw SVG passthrough; if present, takes precedence over `name`.
  */
 
-import { LitElement, css, html } from 'lit'
+import { LitElement, css, html, nothing } from 'lit'
 import { toneVars } from '../util'
 import type { Size, Tone } from '../util'
 
@@ -64,20 +64,35 @@ export class ShipIcon extends LitElement {
     name: { type: String, reflect: true },
     size: { type: String, reflect: true },
     tone: { type: String, reflect: true },
+    label: { type: String, reflect: true },
   }
 
   name = ''
   size: Size = 'md'
   tone: Tone = 'default'
+  label = ''
+
+  updated() {
+    if (this.label) {
+      this.setAttribute('role', 'img')
+      this.setAttribute('aria-label', this.label)
+      this.removeAttribute('aria-hidden')
+    } else {
+      this.setAttribute('aria-hidden', 'true')
+      this.removeAttribute('role')
+      this.removeAttribute('aria-label')
+    }
+  }
 
   render() {
     const d = this.name ? ICONS[this.name] : undefined
+    const hidden = this.label ? nothing : 'true'
     return html`
       <slot>
         ${d
           ? html`<svg viewBox="0 0 24 24" fill="none" stroke="currentColor"
               stroke-width="2" stroke-linecap="round" stroke-linejoin="round"
-              aria-hidden="true" part="svg">
+              aria-hidden=${hidden} part="svg">
               <path d=${d}></path>
             </svg>`
           : null}

@@ -36,6 +36,7 @@ export class ShipBarChart extends LitElement {
     width: { type: Number },
     height: { type: Number },
     max: { type: Number },
+    label: { type: String },
   }
 
   data = ''
@@ -45,6 +46,7 @@ export class ShipBarChart extends LitElement {
   width = 300
   height = 200
   max: number | null = null
+  label = 'bar chart'
 
   render() {
     const nums = parseNums(this.data)
@@ -76,7 +78,7 @@ export class ShipBarChart extends LitElement {
       return { x, y, w: barW, h: barH }
     })
     return html`
-      <svg viewBox="0 0 ${w} ${h}" preserveAspectRatio="none" role="img" aria-label="bar chart">
+      <svg viewBox="0 0 ${w} ${h}" preserveAspectRatio="none" role="img" aria-label=${this.label}>
         ${bars.map(
           (b, i) => svg`
           <rect
