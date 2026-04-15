@@ -7,113 +7,113 @@ order: 4
 
 # Building views with collections
 
-Views in `.ship/views/` can consume collection data using the same tools as daemon-internal views: Jinja URL macros, ship-elements, and Datastar.
+Views in `.ship/views/` render collection data server-side. The daemon passes
+schemas and items as Jinja context — no JavaScript data fetching needed.
 
-## The view SDK
+## How it works
 
-There is no separate SDK library. The SDK is:
+1. Create `.ship/views/my-view/index.html.j2`
+2. The daemon renders it through Jinja, injecting collection data as context
+3. Ship-elements render as custom elements in the browser
+4. Datastar handles mutations (`@post`, `@delete`)
+5. SSE subscription reloads on changes (4 lines of JS)
 
-1. **Jinja URL macros** — typed endpoint builders injected at serve time
-2. **Ship-elements** — web components for UI (inputs, selects, buttons, chips)
-3. **Datastar** — declarative data binding and SSE
+## Template context
 
-Views are `.html.j2` files processed by the daemon's Jinja engine. They inherit all registered template macros.
+Every `.ship/views/` Jinja template receives:
 
-## Using URL macros
+| Variable | Type | Description |
+|----------|------|-------------|
+| `view_name` | string | The view's directory name |
+| `collections` | array | All registered schemas with id, name, field_count, fields |
+| `active_collection` | string | ID of the first collection |
+| `schema` | object | Full schema for the active collection |
+| `items` | array | Items in the active collection (up to 200) |
+| `total_items` | number | Item count |
 
-Import endpoint builders at the top of your view:
+## URL macros
+
+Import typed endpoint builders:
 
 ```jinja
-{% from '_urls.html.j2' import create_collection_item, query_collection %}
+{% raw %}{% from '_urls.html.j2' import create_collection_item, delete_collection_item %}{% endraw %}
 ```
 
-Use them in JavaScript for data fetching:
+Use in Datastar actions:
 
 ```html
-<script type="module">
-  const QUERY_URL = '{{ query_collection("task") }}';
-  const items = await fetch(QUERY_URL, {
-    method: 'POST',
-    credentials: 'include',
-    headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({ collection: 'task', limit: 100 }),
-  }).then(r => r.json());
+{% raw %}<ship-button data-on:click="@delete('{{ delete_collection_item(active_collection, item.id) }}')">
+  Delete
+</ship-button>{% endraw %}
+```
+
+Available macros:
+
+| Macro | Method | Path |
+|-------|--------|------|
+| `list_collections()` | GET | `/api/collections` |
+| `get_collection_schema(collection)` | GET | `/api/collections/{collection}/schema` |
+| `create_collection_item(collection)` | POST | `/api/collections/{collection}/items` |
+| `update_collection_item(collection, item_id)` | PUT | `/api/collections/{collection}/items/{item_id}` |
+| `delete_collection_item(collection, item_id)` | DELETE | `/api/collections/{collection}/items/{item_id}` |
+| `query_collection(collection)` | POST | `/api/collections/{collection}/query` |
+
+## Rendering fields
+
+```html
+{% raw %}{% if field_def.field_type == "enum" %}
+  <ship-chip>{{ val }}</ship-chip>
+{% elif field_def.field_type == "boolean" %}
+  <ship-badge variant="{{ 'success' if val else 'secondary' }}">{{ "Yes" if val else "No" }}</ship-badge>
+{% elif field_def.field_type == "number" %}
+  <span class="mono">{{ val }}</span>
+{% elif field_def.field_type == "array" and val is iterable and val is not string %}
+  {% for v in val[:4] %}<ship-chip>{{ v }}</ship-chip> {% endfor %}
+{% else %}
+  {{ val }}
+{% endif %}{% endraw %}
+```
+
+## Create forms
+
+Ship-elements for typed inputs, Datastar `@post` for submission:
+
+```html
+{% raw %}<form data-on:submit__prevent="@post('{{ create_collection_item(active_collection) }}',
+  {contentType:'json', body: JSON.stringify({data: Object.fromEntries(new FormData(this))})})">
+  <ship-input name="title" placeholder="Title"></ship-input>
+  <ship-select name="status">
+    {% for v in schema.fields.status.values %}
+    <ship-option value="{{ v }}">{{ v }}</ship-option>
+    {% endfor %}
+  </ship-select>
+  <ship-button type="submit">Create</ship-button>
+</form>{% endraw %}
+```
+
+## SSE live updates
+
+```html
+<script>
+const es = new EventSource('/api/runtime/events', { withCredentials: true });
+es.onmessage = e => {
+  try { if (JSON.parse(e.data).event_type?.startsWith('collection.')) location.reload(); }
+  catch {}
+};
 </script>
 ```
 
-Or in Datastar actions for mutations:
+## Design tokens
 
-```html
-<ship-button
-  data-on:click="@post('{{ create_collection_item("task") }}',
-    {contentType: 'json', body: JSON.stringify({data: {title: 'New task'}})})">
-  Create
-</ship-button>
+Use tokens from `view-tokens.css` — never hardcode colors or spacing:
+
+```css
+color: var(--foreground);
+border: 1px solid var(--border);
+font-family: var(--font-mono);
+padding: var(--space-3);
 ```
 
-## Dynamic URLs
+## Example
 
-For collection/item IDs known at runtime, use placeholder substitution:
-
-```jinja
-const API = {
-  create: (col) => '{{ create_collection_item("__COL__") }}'.replace('__COL__', col),
-  update: (col, id) => '{{ update_collection_item("__COL__", "__ID__") }}'
-    .replace('__COL__', col).replace('__ID__', id),
-};
-```
-
-## Ship-elements in forms
-
-Use ship-elements for typed inputs that match collection field types:
-
-| Field type | Component | Event |
-|-----------|-----------|-------|
-| string | `<ship-input>` | `ship-input` |
-| markdown | `<ship-textarea>` | `ship-input` |
-| number | `<ship-input type="number">` | `ship-input` |
-| boolean | `<ship-switch>` | `ship-switch-change` |
-| enum | `<ship-select>` + `<ship-option>` | `ship-select-change` |
-| date | `<ship-input type="date">` | `ship-input` |
-| file | `<ship-input>` | `ship-input` |
-| array | `<ship-input>` (JSON string) | `ship-input` |
-| object | `<ship-input>` (JSON string) | `ship-input` |
-
-## Live updates via SSE
-
-Subscribe to collection events for real-time updates:
-
-```javascript
-const es = new EventSource('/api/runtime/events', { withCredentials: true });
-es.onmessage = (e) => {
-  const event = JSON.parse(e.data);
-  if (event.event_type?.startsWith('collection.')) {
-    // Refresh data — the event payload includes collection, item_id, and data
-    reload();
-  }
-};
-```
-
-Events emitted on mutations:
-
-| Event type | When |
-|-----------|------|
-| `collection.item_created` | New item created |
-| `collection.item_updated` | Item fields changed |
-| `collection.item_deleted` | Item removed |
-
-## Example view
-
-See `.ship/views/data/index.html.j2` for a complete example — a collection browser with table rendering, create/edit forms, and SSE live updates.
-
-## Available URL macros for collections
-
-| Macro | Path |
-|-------|------|
-| `list_collections()` | `GET /api/collections` |
-| `get_collection_schema(collection)` | `GET /api/collections/{collection}/schema` |
-| `create_collection_item(collection)` | `POST /api/collections/{collection}/items` |
-| `get_collection_item(collection, item_id)` | `GET /api/collections/{collection}/items/{item_id}` |
-| `update_collection_item(collection, item_id)` | `PUT /api/collections/{collection}/items/{item_id}` |
-| `delete_collection_item(collection, item_id)` | `DELETE /api/collections/{collection}/items/{item_id}` |
-| `query_collection(collection)` | `POST /api/collections/{collection}/query` |
+See `.ship/views/data/index.html.j2` for a complete collection browser.
