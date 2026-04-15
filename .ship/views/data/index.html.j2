@@ -69,8 +69,7 @@
         <strong>New {{ active_collection }}</strong>
         <ship-button size="sm" variant="ghost" data-on:click="document.getElementById('create-form').hidden=true">✕</ship-button>
       </div>
-      <form id="create-data"
-            data-on:submit__prevent="@post('{{ create_collection_item(active_collection) }}', {contentType:'json', body: JSON.stringify({data: Object.fromEntries(new FormData(document.getElementById('create-data')))})})">
+      <div id="create-data">
         {% for field_name, field_def in schema.fields | items %}
         <div class="field-row">
           <label class="field-label" for="create-{{ field_name }}">
@@ -96,10 +95,10 @@
         {% endfor %}
         <ship-separator></ship-separator>
         <div style="display:flex;gap:var(--space-2,8px);margin-top:var(--space-3,12px)">
-          <ship-button size="sm" type="submit">Create</ship-button>
+          <ship-button size="sm" data-on:click="window.__createItem()">Create</ship-button>
           <ship-button size="sm" variant="ghost" data-on:click="document.getElementById('create-form').hidden=true">Cancel</ship-button>
         </div>
-      </form>
+      </div>
     </ship-card>
     {% endif %}
 
@@ -173,7 +172,30 @@
   </div>
 </div>
 <script>
-// SSE: reload on collection changes. This is the only JS in the view.
+// Minimal JS for: create form submission, collection switching, SSE reload.
+// All rendering is server-side Jinja. This only handles interactions that
+// can't be expressed in Datastar attributes alone.
+
+// Create item: collect values from ship-elements (shadow DOM, no FormData).
+window.__createItem = async () => {
+  const data = {};
+  document.querySelectorAll('#create-data [id^="create-"]').forEach(el => {
+    const name = el.id.replace('create-', '');
+    if (el.tagName === 'SHIP-SWITCH') data[name] = el.checked ?? false;
+    else if (el.getAttribute('type') === 'number') {
+      if (el.value !== '' && el.value != null) data[name] = Number(el.value);
+    } else if (el.value) data[name] = el.value;
+  });
+  const resp = await fetch('{{ create_collection_item(active_collection) }}', {
+    method: 'POST', credentials: 'include',
+    headers: { 'Content-Type': 'application/json' },
+    body: JSON.stringify({ data }),
+  });
+  if (resp.ok) location.reload();
+  else alert((await resp.json()).error || 'Failed to create');
+};
+
+// SSE: reload on collection changes.
 const es = new EventSource('/api/runtime/events', { withCredentials: true });
 es.onmessage = e => {
   try { if (JSON.parse(e.data).event_type?.startsWith('collection.')) location.reload(); }

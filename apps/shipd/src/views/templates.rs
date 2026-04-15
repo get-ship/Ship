@@ -240,6 +240,8 @@ pub fn render_view_source<C: Serialize>(name: &str, source: &str, ctx: &C) -> Re
     // templates plus the ad-hoc one.
     let mut local_env = Environment::new();
     local_env.set_undefined_behavior(minijinja::UndefinedBehavior::Lenient);
+    // Auto-escape HTML in user views to prevent XSS from collection data.
+    local_env.set_auto_escape_callback(|_| minijinja::AutoEscape::Html);
     local_env.add_filter("truncate", |value: String, length: usize| -> String {
         if value.chars().count() <= length { value }
         else { let mut s: String = value.chars().take(length.saturating_sub(1)).collect(); s.push('…'); s }
