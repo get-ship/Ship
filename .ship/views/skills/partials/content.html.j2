@@ -1,6 +1,7 @@
 {#- Skills content — SSE-patchable region.
    Root element MUST have id="skills-content" for Datastar patching.
    Context: skills (Vec<SkillSummary>), total (usize). -#}
+{#- SDK gap: ship_skills() function would avoid context injection -#}
 <div id="skills-content">
   {% if skills|length == 0 %}
     <main class="skills-detail empty">

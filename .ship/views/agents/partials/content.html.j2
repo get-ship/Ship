@@ -1,5 +1,6 @@
 {#- Agents content — SSE-patchable region.
    Root element MUST have id="agents-content" for Datastar patching. -#}
+{#- SDK gap: no macro for GET-on-click navigation (view_agent_detail pattern) -#}
 {% from '_urls.html.j2' import view_agent_detail %}
 <div id="agents-content">
   {% if agents|length == 0 %}

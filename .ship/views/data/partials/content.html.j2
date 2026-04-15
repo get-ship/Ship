@@ -1,5 +1,6 @@
 {#- Data content partial — rendered by the generic SSE handler.
    Root element MUST have id="data-content" for Datastar patching. -#}
+{#- SDK gap: no macro for inline-edit of item fields -#}
 {% from '_ship.html.j2' import table, loading, delete %}
 <div id="data-content">
   {% if schema is defined and items is defined and items | length > 0 %}

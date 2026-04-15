@@ -3,16 +3,15 @@
   Loaded by the daemon via .ship/views/settings/. The Rust handler
   supplies SettingsCtx (providers, terminal, advanced, about).
 -#}
+{#- SDK gap: no macro for navigation links between views -#}
+{#- SDK gap: no macro for settings PUT actions (update_setting URL pattern) -#}
+{#- SDK gap: live() macro does not support requestCancellation option -#}
+{% from '_ship.html.j2' import head, signal, live, styles %}
 {% from '_urls.html.j2' import view_settings_sse %}
 <!DOCTYPE html>
 <html lang="en">
-<head>
-  <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Settings</title>
-  <link rel="stylesheet" href="/api/runtime/assets/view-tokens.css">
-  <script type="module" src="/api/runtime/assets/datastar.js"></script>
-  <script type="module" src="/api/runtime/assets/ship-elements.js"></script>
+<head>{{ head('Settings') }}
+  {{ styles() }}
   <style>
     .ship-view-settings { color: var(--foreground); }
     .settings-wrap {
@@ -39,7 +38,7 @@
 </head>
 <body>
 <div id="settings-root" class="ship-view ship-view-settings"
-     data-signals="{section: 'all'}">
+     {{ signal('section', 'all') }}>
   <main class="settings-wrap">
     <header class="settings-header">
       <h1>Settings</h1>
@@ -47,7 +46,7 @@
     </header>
 
     <div id="settings-panel"
-         data-init="@get('{{ view_settings_sse() }}', {requestCancellation: 'disabled'})">
+         {{ live('settings') }}>
       <div id="settings-content">
         <p style="font-size: 12px; color: var(--muted-foreground); padding: 12px 0">Loading...</p>
       </div>

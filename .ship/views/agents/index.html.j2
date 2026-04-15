@@ -2,16 +2,15 @@
   Agents index — self-contained card grid with SSE live updates.
   Context: agents (Vec<AgentSummary>), total (usize).
 -#}
+{#- SDK gap: no macro for navigation links between views -#}
+{#- SDK gap: ship_agents() function would avoid context injection for agent list -#}
+{#- SDK gap: no macro for POST-on-click with JSON body (create agent pattern) -#}
+{% from '_ship.html.j2' import head, signal, live, styles %}
 {% from '_urls.html.j2' import view_agents_create %}
 <!DOCTYPE html>
 <html lang="en">
-<head>
-  <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Agents</title>
-  <link rel="stylesheet" href="/api/runtime/assets/view-tokens.css">
-  <script type="module" src="/api/runtime/assets/datastar.js"></script>
-  <script type="module" src="/api/runtime/assets/ship-elements.js"></script>
+<head>{{ head('Agents') }}
+  {{ styles() }}
   <style>
   .ship-view-agents { color: var(--foreground); }
   .agents-wrap { max-width: 1280px; margin: 0 auto; padding: 28px 24px 56px; }
@@ -65,7 +64,7 @@
 </head>
 <body>
 <div id="agents-root" class="ship-view ship-view-agents"
-     data-signals="{search: ''}">
+     {{ signal('search', '') }}>
   <div class="agents-wrap">
     <div class="agents-head">
       <div>
@@ -78,7 +77,7 @@
       </ship-button>
     </div>
 
-    <div data-init="@get('/api/runtime/view/agents/sse')">
+    <div {{ live('agents') }}>
       <div id="agents-content">
         <p class="agents-sub" style="padding: 16px 0">Loading...</p>
       </div>

@@ -2,16 +2,15 @@
   Agent detail — self-contained tabbed config page.
   Context: agent (AgentDetail), tiers (Vec<TierRow>).
 -#}
+{#- SDK gap: no macro for navigation links between views (back link) -#}
+{#- SDK gap: no macro for tabs layout -#}
+{#- SDK gap: ship_agent(id) function would avoid context injection -#}
+{% from '_ship.html.j2' import head, styles %}
 {% from '_urls.html.j2' import view_agents %}
 <!DOCTYPE html>
 <html lang="en">
-<head>
-  <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>{{ agent.name }}</title>
-  <link rel="stylesheet" href="/api/runtime/assets/view-tokens.css">
-  <script type="module" src="/api/runtime/assets/datastar.js"></script>
-  <script type="module" src="/api/runtime/assets/ship-elements.js"></script>
+<head>{{ head(agent.name) }}
+  {{ styles() }}
   <style>
   .ship-view-agent-detail { color: var(--foreground); }
   .ad-wrap { max-width: 1024px; margin: 0 auto; padding: 28px 24px 64px; }

@@ -2,16 +2,16 @@
   Skills index — two-pane layout (rail + detail) with SSE live updates.
   Context: rail (RailCtx), optionally skill (SkillDetail).
 -#}
+{#- SDK gap: no macro for navigation links between views -#}
+{#- SDK gap: ship_skills() function would avoid context injection for skill list -#}
+{#- SDK gap: no macro for debounced search input with SSE refresh -#}
+{#- SDK gap: live() macro does not support requestCancellation option -#}
+{% from '_ship.html.j2' import head, signal, live, attr, styles %}
 {% from '_urls.html.j2' import view_skills_rail, view_skill_detail %}
 <!DOCTYPE html>
 <html lang="en">
-<head>
-  <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Skills</title>
-  <link rel="stylesheet" href="/api/runtime/assets/view-tokens.css">
-  <script type="module" src="/api/runtime/assets/datastar.js"></script>
-  <script type="module" src="/api/runtime/assets/ship-elements.js"></script>
+<head>{{ head('Skills') }}
+  {{ styles() }}
   <style>
   .ship-view-skills { color: var(--foreground); height: 100%; }
   .skills-layout {
@@ -82,7 +82,7 @@
 </head>
 <body>
 <div id="skills-root" class="ship-view ship-view-skills"
-     data-signals="{activeSkill: '{{ active_skill_id | default('') }}'}">
+     {{ signal('activeSkill', active_skill_id | default('')) }}>
   <div class="skills-layout">
     <aside class="skills-left">
       <div class="skills-rail-head">
@@ -107,7 +107,7 @@
               <div class="skills-group-head">{{ g.source }}</div>
               {% for s in g.skills %}
                 <div class="skills-row"
-                     data-attr:aria-selected="$activeSkill == '{{ s.id }}'"
+                     {{ attr('aria-selected', "$activeSkill == '" ~ s.id ~ "'") }}
                      data-on:click="$activeSkill = '{{ s.id }}'; @get('/api/runtime/view/skills/sse')">
                   <span class="skills-caret">&#8250;</span>
                   <span class="skills-name">{{ s.name }}</span>
@@ -121,7 +121,7 @@
       </div>
     </aside>
 
-    <div data-init="@get('/api/runtime/view/skills/sse')">
+    <div {{ live('skills') }}>
       <div id="skills-content">
         <main class="skills-detail empty">
           <ship-empty-state
