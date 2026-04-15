@@ -1,4 +1,4 @@
-{#- Settings view — single column, four stacked sections.
+{#- Settings view — grouped sections with two-column label/control rows.
     Fragment mounted inline in Studio. -#}
 <div id="settings-root" class="ship-view ship-view-settings">
   <style>
@@ -23,19 +23,19 @@
       color: var(--muted-foreground);
       margin: 4px 0 0;
     }
-    .settings-section { margin: 24px 0 0; }
+    .settings-section { margin: 24px 0 0; display: flex; flex-direction: column; gap: 8px; }
     .settings-section-head {
       font-size: 10px;
       font-weight: 600;
       text-transform: uppercase;
       letter-spacing: 0.08em;
       color: var(--muted-foreground);
-      margin: 0 0 6px;
+      margin: 0;
     }
     .settings-section-desc {
       font-size: 12px;
       color: var(--muted-foreground);
-      margin: 0 0 12px;
+      margin: 0 0 4px;
     }
     .settings-section-desc code {
       font-family: var(--font-mono);
@@ -44,19 +44,21 @@
       padding: 1px 4px;
       border-radius: 3px;
     }
+    ship-card.settings-card { display: block; }
+    .settings-card-inner { padding: 4px 16px; }
     .settings-row {
-      display: flex;
+      display: grid;
+      grid-template-columns: minmax(180px, 220px) 1fr;
+      gap: 16px;
       align-items: center;
-      gap: 12px;
-      padding: 10px 0;
+      padding: 12px 0;
       border-bottom: 1px solid color-mix(in oklch, var(--border) 60%, transparent);
     }
     .settings-row:last-child { border-bottom: 0; }
     .settings-row-label {
       font-size: 12px;
       color: var(--foreground);
-      flex: 0 0 auto;
-      min-width: 180px;
+      min-width: 0;
     }
     .settings-row-sub {
       display: block;
@@ -65,39 +67,38 @@
       margin-top: 2px;
     }
     .settings-row-control {
-      margin-left: auto;
       display: flex;
       align-items: center;
       gap: 8px;
-      min-width: 240px;
       justify-content: flex-end;
+      min-width: 0;
+    }
+    @media (max-width: 700px) {
+      .settings-row { grid-template-columns: 1fr; gap: 6px; }
+      .settings-row-control { justify-content: flex-start; }
     }
     .provider-row {
-      display: flex;
-      align-items: center;
+      display: grid;
+      grid-template-columns: auto 1fr auto;
       gap: 12px;
+      align-items: center;
       padding: 10px 0;
       border-bottom: 1px solid color-mix(in oklch, var(--border) 60%, transparent);
     }
     .provider-row:last-child { border-bottom: 0; }
-    .provider-glyph {
-      font-size: 16px;
-      width: 24px;
-      text-align: center;
-      color: var(--muted-foreground);
-      flex-shrink: 0;
-    }
     .provider-main {
       display: flex;
       flex-direction: column;
       gap: 2px;
       min-width: 0;
-      flex: 1;
     }
     .provider-name {
-      font-size: 12px;
+      font-size: 13px;
       font-weight: 500;
       color: var(--foreground);
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
     }
     .provider-meta {
       font-family: var(--font-mono);
@@ -114,12 +115,36 @@
       display: inline-block;
       background: color-mix(in oklch, var(--muted-foreground) 40%, transparent);
     }
-    .provider-dot.on { background: var(--success, #22c55e); }
+    .provider-dot.on { background: var(--success); }
+    .provider-radio {
+      appearance: none;
+      width: 16px;
+      height: 16px;
+      border-radius: 50%;
+      border: 1.5px solid color-mix(in oklch, var(--border) 80%, transparent);
+      background: transparent;
+      cursor: pointer;
+      display: inline-block;
+      position: relative;
+      margin: 0;
+    }
+    .provider-radio:checked {
+      border-color: var(--primary);
+    }
+    .provider-radio:checked::after {
+      content: '';
+      position: absolute;
+      inset: 3px;
+      border-radius: 50%;
+      background: var(--primary);
+    }
     .about-list {
       display: grid;
       grid-template-columns: 160px 1fr;
       gap: 8px 16px;
       font-size: 12px;
+      margin: 0;
+      padding: 12px 0;
     }
     .about-list dt {
       color: var(--muted-foreground);
@@ -132,7 +157,7 @@
       font-size: 11px;
     }
     .about-list a {
-      color: var(--primary, currentColor);
+      color: var(--primary);
       text-decoration: none;
     }
     .about-list a:hover { text-decoration: underline; }
