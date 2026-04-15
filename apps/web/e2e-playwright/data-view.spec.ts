@@ -20,7 +20,7 @@ test.describe('data browser view (server-rendered)', () => {
 
   test('server-renders the page with no JS data fetching', async ({ page }) => {
     await page.setExtraHTTPHeaders({ 'Authorization': `Bearer ${TOKEN}` });
-    await page.goto(`${BASE}/api/runtime/view/data/raw`, { waitUntil: 'domcontentloaded' });
+    await page.goto(`${BASE}/api/runtime/view/data/raw?collection=task`, { waitUntil: 'domcontentloaded' });
     await page.waitForTimeout(1000);
 
     // Title rendered server-side
@@ -38,7 +38,7 @@ test.describe('data browser view (server-rendered)', () => {
 
   test('renders ship-elements in the HTML', async ({ page }) => {
     await page.setExtraHTTPHeaders({ 'Authorization': `Bearer ${TOKEN}` });
-    await page.goto(`${BASE}/api/runtime/view/data/raw`, { waitUntil: 'domcontentloaded' });
+    await page.goto(`${BASE}/api/runtime/view/data/raw?collection=task`, { waitUntil: 'domcontentloaded' });
 
     const html = await page.content();
     expect(html).toContain('<ship-select');
@@ -48,7 +48,7 @@ test.describe('data browser view (server-rendered)', () => {
 
   test('has create form with typed inputs', async ({ page }) => {
     await page.setExtraHTTPHeaders({ 'Authorization': `Bearer ${TOKEN}` });
-    await page.goto(`${BASE}/api/runtime/view/data/raw`, { waitUntil: 'domcontentloaded' });
+    await page.goto(`${BASE}/api/runtime/view/data/raw?collection=task`, { waitUntil: 'domcontentloaded' });
 
     const html = await page.content();
     // Create form exists (hidden by default)
@@ -60,7 +60,7 @@ test.describe('data browser view (server-rendered)', () => {
 
   test('has delete buttons with Datastar actions', async ({ page }) => {
     await page.setExtraHTTPHeaders({ 'Authorization': `Bearer ${TOKEN}` });
-    await page.goto(`${BASE}/api/runtime/view/data/raw`, { waitUntil: 'domcontentloaded' });
+    await page.goto(`${BASE}/api/runtime/view/data/raw?collection=task`, { waitUntil: 'domcontentloaded' });
 
     const html = await page.content();
     expect(html).toContain("@delete(");
@@ -69,7 +69,7 @@ test.describe('data browser view (server-rendered)', () => {
 
   test('has SSE subscription for live updates', async ({ page }) => {
     await page.setExtraHTTPHeaders({ 'Authorization': `Bearer ${TOKEN}` });
-    await page.goto(`${BASE}/api/runtime/view/data/raw`, { waitUntil: 'domcontentloaded' });
+    await page.goto(`${BASE}/api/runtime/view/data/raw?collection=task`, { waitUntil: 'domcontentloaded' });
 
     const html = await page.content();
     expect(html).toContain('EventSource');
@@ -78,7 +78,7 @@ test.describe('data browser view (server-rendered)', () => {
 
   test('screenshot', async ({ page }) => {
     await page.setExtraHTTPHeaders({ 'Authorization': `Bearer ${TOKEN}` });
-    await page.goto(`${BASE}/api/runtime/view/data/raw`, { waitUntil: 'domcontentloaded' });
+    await page.goto(`${BASE}/api/runtime/view/data/raw?collection=task`, { waitUntil: 'domcontentloaded' });
     await page.waitForTimeout(2000);
     await page.screenshot({ path: 'test-results/data-view-final.png', fullPage: true });
   });

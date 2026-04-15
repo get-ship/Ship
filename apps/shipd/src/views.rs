@@ -72,7 +72,7 @@ type MeshResult = (StatusCode, Json<MeshResponse>);
 
 /// Build a rich context for Jinja view rendering.
 /// Includes collection schemas and items so views can render server-side.
-fn build_view_context(view_name: &str) -> serde_json::Value {
+fn build_view_context(view_name: &str, params: &std::collections::HashMap<String, String>) -> serde_json::Value {
     let mut ctx = serde_json::json!({ "view_name": view_name });
 
     // Load collection schemas if available.
@@ -98,20 +98,27 @@ fn build_view_context(view_name: &str) -> serde_json::Value {
 
         ctx["collections"] = serde_json::json!(summaries);
 
-        // Load items for the first collection (default active).
-        if let Some(first) = schemas.first() {
+        // Active collection: from ?collection= param, or first schema.
+        let active_schema = params.get("collection")
+            .and_then(|id| schemas.iter().find(|s| s.id == *id))
+            .or_else(|| schemas.first());
+
+        if let Some(first) = active_schema {
             ctx["active_collection"] = serde_json::json!(first.id);
+            // Fields as ordered array of [name, def] pairs — preserves schema order.
+            // Jinja maps sort keys; arrays don't.
+            let fields_list: Vec<serde_json::Value> = first.fields.iter().map(|(k, v)| {
+                serde_json::json!([k, {
+                    "field_type": format!("{:?}", v.field_type).to_lowercase(),
+                    "required": v.required,
+                    "values": v.values,
+                    "default": v.default,
+                }])
+            }).collect();
             ctx["schema"] = serde_json::json!({
                 "id": first.id,
                 "name": first.name,
-                "fields": first.fields.iter().map(|(k, v)| {
-                    (k.clone(), serde_json::json!({
-                        "field_type": format!("{:?}", v.field_type).to_lowercase(),
-                        "required": v.required,
-                        "values": v.values,
-                        "default": v.default,
-                    }))
-                }).collect::<serde_json::Map<String, serde_json::Value>>(),
+                "fields": fields_list,
             });
 
             if let Ok(mut svc) = runtime::collections::store::open_docs_db(&ship_dir) {
@@ -320,6 +327,7 @@ pub async fn list_views() -> impl IntoResponse {
 pub async fn serve_view_raw(
     State(state): State<crate::rest_api::ApiState>,
     Path(name): Path<String>,
+    axum::extract::Query(query_params): axum::extract::Query<std::collections::HashMap<String, String>>,
 ) -> axum::response::Response {
     use axum::http::header;
 
@@ -351,7 +359,7 @@ pub async fn serve_view_raw(
     };
 
     let html = if needs_jinja {
-        let ctx = build_view_context(&name);
+        let ctx = build_view_context(&name, &query_params);
         match templates::render_view_source(&name, &source, &ctx) {
             Ok(h) => h,
             Err(e) => {
@@ -429,6 +437,7 @@ pub async fn serve_view_asset(Path((name, file)): Path<(String, String)>) -> axu
 /// GET /api/runtime/view/{name}
 pub async fn serve_view(
     Path(name): Path<String>,
+    axum::extract::Query(query_params): axum::extract::Query<std::collections::HashMap<String, String>>,
     headers: axum::http::HeaderMap,
 ) -> impl IntoResponse {
     if !is_valid_view_name(&name) { return mesh_err(StatusCode::BAD_REQUEST, "invalid view name"); }
@@ -455,7 +464,7 @@ pub async fn serve_view(
         // Render through Jinja with access to URL macros, filters, etc.
         // Views get the same template environment as daemon-internal views.
         // Context includes collection data so views can render server-side.
-        let ctx = build_view_context(&name);
+        let ctx = build_view_context(&name, &query_params);
         match templates::render_view_source(&name, &source, &ctx) {
             Ok(h) => h,
             Err(e) => {

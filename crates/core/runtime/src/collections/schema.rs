@@ -4,7 +4,7 @@
 //! defaults, and validation constraints. Schemas live in `.ship/schemas/<id>.jsonc`.
 
 use serde::{Deserialize, Serialize};
-use std::collections::BTreeMap;
+use indexmap::IndexMap;
 use std::path::Path;
 
 /// A collection schema parsed from `.ship/schemas/<id>.jsonc`.
@@ -13,7 +13,7 @@ pub struct CollectionSchema {
     pub id: String,
     #[serde(default)]
     pub name: Option<String>,
-    pub fields: BTreeMap<String, FieldDef>,
+    pub fields: IndexMap<String, FieldDef>,
 }
 
 /// Definition of a single field in a collection schema.

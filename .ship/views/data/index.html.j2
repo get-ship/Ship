@@ -46,7 +46,8 @@
     {# ── Toolbar ────────────────────────────────────────────── #}
     {% if collections is defined and collections | length > 0 %}
     <div class="data-toolbar">
-      <ship-select size="sm" value="{{ active_collection }}">
+      <ship-select size="sm" value="{{ active_collection }}"
+        data-on:ship-select-change="location.search = '?collection=' + evt.detail.value">
         {% for c in collections %}
         <ship-option value="{{ c.id }}" {% if c.id == active_collection %}selected{% endif %}>
           {{ c.name or c.id }} ({{ c.field_count }})
@@ -70,7 +71,7 @@
         <ship-button size="sm" variant="ghost" data-on:click="document.getElementById('create-form').hidden=true">✕</ship-button>
       </div>
       <div id="create-data">
-        {% for field_name, field_def in schema.fields | items %}
+        {% for field_name, field_def in schema.fields %}
         <div class="field-row">
           <label class="field-label" for="create-{{ field_name }}">
             {{ field_name }}{% if field_def.required %}<span style="color:var(--destructive)"> *</span>{% endif %}
@@ -108,7 +109,7 @@
       <thead>
         <tr>
           <th style="width:90px">ID</th>
-          {% for field_name, field_def in schema.fields | items %}
+          {% for field_name, field_def in schema.fields %}
           <th>{{ field_name }}</th>
           {% endfor %}
           <th style="width:100px">Updated</th>
@@ -119,7 +120,7 @@
         {% for item in items %}
         <tr id="item-{{ item.id }}">
           <td class="mono muted" title="{{ item.id }}">{{ item.id[:10] }}</td>
-          {% for field_name, field_def in schema.fields | items %}
+          {% for field_name, field_def in schema.fields %}
           <td>
             {% set val = item.data[field_name] if item.data[field_name] is defined else none %}
             {% if val is none or val == "" %}
