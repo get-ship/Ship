@@ -1,0 +1,18 @@
+{#- Chat content -- message list, live-patched over SSE.
+   Root element MUST have id="chat-content" for Datastar patching. -#}
+<div id="chat-content" class="chat-messages-inner">
+  {% if messages|length == 0 %}
+    <div class="chat-empty">
+      <p>No messages yet</p>
+      <p style="font-size:10px;opacity:0.7">Send a message to the agent to get started.</p>
+    </div>
+  {% else %}
+    {% for m in messages %}
+    <div class="chat-bubble" data-sender="{{ m.sender }}" data-event-type="{{ m.event_type }}">
+      <span class="content">{{ m.content }}</span>
+      {% if m.detail %}<span class="detail">{{ m.detail }}</span>{% endif %}
+      <span class="meta">{{ m.timestamp }}</span>
+    </div>
+    {% endfor %}
+  {% endif %}
+</div>

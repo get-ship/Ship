@@ -1,0 +1,12 @@
+name: chat
+type: html
+data:
+  chat: true
+events:
+  - studio.message
+  - session.progress
+  - session.started
+  - session.ended
+  - job.created
+  - job.completed
+  - job.failed

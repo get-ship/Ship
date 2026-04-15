@@ -1,0 +1,7 @@
+name: specs
+type: html
+data:
+  specs: true
+events:
+  - "spec."
+  - "job."
