@@ -205,6 +205,25 @@ impl JobExecutor for PtyExecutor {
         }
         Ok(())
     }
+
+    async fn resume_handle(
+        &self,
+        slug: &str,
+        _provider: Option<&str>,
+        current_step: Option<&str>,
+    ) -> Option<ExecutorHandle> {
+        let session = short_session_name(slug);
+        // Prefer the active step's window; fall back to the slug-named
+        // window used for pre-pipeline single-step jobs.
+        let window = current_step.map(str::to_string).unwrap_or_else(|| slug.to_string());
+        if !window_exists(&session, &window) {
+            return None;
+        }
+        Some(ExecutorHandle {
+            pid: None,
+            inner: Box::new(PtyState { session, window }),
+        })
+    }
 }
 
 fn window_exists(session: &str, window: &str) -> bool {

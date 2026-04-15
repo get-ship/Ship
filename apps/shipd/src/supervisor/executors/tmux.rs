@@ -154,6 +154,7 @@ impl JobExecutor for TmuxExecutor {
         &self,
         slug: &str,
         provider: Option<&str>,
+        _current_step: Option<&str>,
     ) -> Option<ExecutorHandle> {
         let session = format!("job-{slug}");
         if !tmux_session_exists(&session) {

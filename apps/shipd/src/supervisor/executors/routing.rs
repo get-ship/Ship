@@ -80,4 +80,21 @@ impl JobExecutor for RoutingExecutor {
         }
         self.process.send(handle, message).await
     }
+
+    async fn resume_handle(
+        &self,
+        slug: &str,
+        provider: Option<&str>,
+        current_step: Option<&str>,
+    ) -> Option<ExecutorHandle> {
+        // PTY-attached jobs rehydrate from tmux window state. Process
+        // executor has no out-of-band handle (headless jobs can't be
+        // re-attached — the child process is gone with the daemon).
+        if let Some(ref pty) = self.pty
+            && let Some(h) = pty.resume_handle(slug, provider, current_step).await
+        {
+            return Some(h);
+        }
+        None
+    }
 }

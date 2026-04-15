@@ -153,9 +153,10 @@ pub trait JobExecutor: Send + Sync {
 
     /// Rehydrate a handle for a still-running process after a daemon
     /// restart. Returns `Some(handle)` if the executor can locate a live
-    /// process for `slug` (e.g. a tmux session still exists), `None`
-    /// otherwise. Default: `None` — conservative; callers treat that as
-    /// "no live process" and the job gets marked failed on reconciliation.
+    /// process for the given `slug` (and optionally `current_step` for
+    /// executors that spawn per-step processes), `None` otherwise.
+    /// Default: `None` — conservative; callers treat that as "no live
+    /// process" and the job gets marked failed on reconciliation.
     ///
     /// Replaces the historic pattern of constructing a fake `pid: None`
     /// handle and calling `is_alive` on it, which always returned false
@@ -164,6 +165,7 @@ pub trait JobExecutor: Send + Sync {
         &self,
         _slug: &str,
         _provider: Option<&str>,
+        _current_step: Option<&str>,
     ) -> Option<ExecutorHandle> {
         None
     }

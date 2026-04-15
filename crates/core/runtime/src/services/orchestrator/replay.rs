@@ -127,7 +127,11 @@ async fn reconcile_dispatched_inner(
         // be downcast — killing live agents on every restart.
         match octx
             .executor
-            .resume_handle(&job.slug, job.provider.as_deref())
+            .resume_handle(
+                &job.slug,
+                job.provider.as_deref(),
+                job.current_step.as_deref(),
+            )
             .await
         {
             Some(handle) => {
