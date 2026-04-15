@@ -12,15 +12,18 @@
 <div id="pipelines-root" class="ship-view ship-view-pipelines">
   <style>
     .ship-view-pipelines { color: var(--foreground); }
-    .ship-pipelines-wrap { max-width: 56rem; margin: 0 auto; padding: 24px 16px; }
-    .ship-pipelines-head { display: flex; align-items: flex-end; justify-content: space-between; gap: 16px; margin: 0 0 20px; padding: 0 12px; }
+    .ship-pipelines-wrap { width: 100%; max-width: 1400px; margin: 0 auto; padding: 12px 24px; }
+    .ship-pipelines-head { display: flex; align-items: flex-end; justify-content: space-between; gap: 16px; margin: 0 0 14px; padding: 0; }
     .ship-pipelines-title { font-family: var(--font-display); font-size: 20px; font-weight: 600; letter-spacing: -0.01em; margin: 0; }
     .ship-pipelines-sub { font-size: 12px; color: var(--muted-foreground); margin-top: 4px; }
-    .ship-pipelines-tabs-row { padding: 0 12px; margin-bottom: 12px; }
-    .ship-pipelines-filters { display: flex; flex-wrap: wrap; gap: 6px; padding: 0 12px; margin-bottom: 16px; }
-    .ship-pipelines-content { padding: 0 12px; }
-    .ship-run-card { border: 1px solid var(--border); background: var(--card); border-radius: var(--radius-lg); padding: 14px 16px; margin-bottom: 12px; }
-    .ship-run-head { display: flex; align-items: center; flex-wrap: wrap; gap: 10px; }
+    .ship-pipelines-status { display: flex; flex-wrap: wrap; align-items: center; gap: 14px; padding: 8px 0; margin: 0 0 10px; border-top: 1px solid color-mix(in oklch, var(--border) 60%, transparent); border-bottom: 1px solid color-mix(in oklch, var(--border) 60%, transparent); }
+    .ship-pipelines-status-pill { display: inline-flex; align-items: center; gap: 6px; font-size: 11px; color: var(--muted-foreground); }
+    .ship-pipelines-status-pill .count { font-variant-numeric: tabular-nums; color: var(--foreground); font-weight: 500; }
+    .ship-pipelines-tabs-row { padding: 0; margin-bottom: 10px; }
+    .ship-pipelines-filters { display: flex; flex-wrap: wrap; gap: 6px; padding: 0; margin-bottom: 12px; }
+    .ship-pipelines-content { padding: 0; }
+    .ship-run-card { display: flex; align-items: center; gap: 10px; border: 1px solid var(--border); background: var(--card); border-radius: var(--radius-md); padding: 10px 14px; margin-bottom: 6px; min-height: 48px; }
+    .ship-run-head { display: flex; align-items: center; flex-wrap: nowrap; gap: 10px; width: 100%; }
     .ship-run-slug { font-family: var(--font-mono); font-size: 12px; font-weight: 500; color: var(--foreground); }
     .ship-run-sep { color: color-mix(in oklch, var(--muted-foreground) 50%, transparent); }
     .ship-run-meta { font-size: 11px; color: var(--muted-foreground); display: inline-flex; align-items: center; gap: 4px; }
@@ -61,6 +64,16 @@
         data-on:click="@post('{{ create_job() }}', {contentType: 'json', body: JSON.stringify({})})">
         + Run
       </ship-button>
+    </div>
+
+    <div class="ship-pipelines-status" role="group" aria-label="Run status summary">
+      {% for pill in status_pills %}
+      <span class="ship-pipelines-status-pill">
+        <ship-status-dot tone="{{ pill.tone }}"></ship-status-dot>
+        <span>{{ pill.label }}</span>
+        <span class="count">{{ pill.count }}</span>
+      </span>
+      {% endfor %}
     </div>
 
     <div class="ship-pipelines-tabs-row">
