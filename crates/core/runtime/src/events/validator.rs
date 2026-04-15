@@ -83,6 +83,7 @@ pub const PLATFORM_ONLY_NAMESPACES: &[&str] = &[
 /// PLATFORM_ONLY_NAMESPACES — enforced by `namespace_lists_are_aligned` test.
 pub const RESERVED_NAMESPACES: &[&str] = &[
     "actor.",
+    "collection.",
     "config.",
     "gate.",
     "job.",
