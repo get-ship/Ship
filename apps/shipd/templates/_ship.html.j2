@@ -18,8 +18,8 @@
 
 {#- === Signals & Reactivity === -#}
 
-{# Declare a reactive signal with a default value #}
-{% macro signal(name, default='') %}data-signals:{{ name }}="{{ default | tojson if default is not string else "'" ~ default ~ "'" }}"{% endmacro %}
+{# Declare a reactive signal. String defaults get quoted, others pass through. #}
+{% macro signal(name, default='') %}data-signals:{{ name }}="{% if default is string %}'{{ default }}'{% elif default is none %}null{% else %}{{ default }}{% endif %}"{% endmacro %}
 
 {# Show element only when expression is true (hidden by default to prevent flash) #}
 {% macro show(expr) %}data-show="{{ expr }}" style="display:none"{% endmacro %}
