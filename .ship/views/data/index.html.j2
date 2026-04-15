@@ -1,10 +1,9 @@
 {#-
   Data browser — server-rendered collection viewer/editor.
   The daemon passes schemas + items as Jinja context.
-  No client-side data fetching. Ship design tokens for styling.
-  Datastar for actions and SSE live updates.
+  Datastar for all interactions. ZERO script tags.
 -#}
-{% from '_urls.html.j2' import create_collection_item, delete_collection_item, view_data %}
+{% from '_urls.html.j2' import create_collection_item, delete_collection_item %}
 <!DOCTYPE html>
 <html lang="en">
 <head>
@@ -14,7 +13,6 @@
   <script type="module" src="/api/runtime/assets/datastar.js"></script>
   <script type="module" src="/api/runtime/assets/ship-elements.js"></script>
   <style>
-  /* Layout only — visual tokens come from view-tokens.css */
   .data-wrap { max-width: 76rem; margin: 0 auto; padding: var(--space-6, 24px) var(--space-4, 16px); }
   .data-toolbar { display: flex; align-items: center; gap: var(--space-3, 10px); margin-bottom: var(--space-4, 16px); flex-wrap: wrap; }
   .data-count { font-size: var(--text-xs, 11px); color: var(--muted-foreground); margin-left: auto; }
@@ -27,13 +25,16 @@
   .null { color: var(--muted-foreground); font-style: italic; }
   .field-row { display: flex; align-items: flex-start; gap: var(--space-3, 12px); margin-bottom: var(--space-3, 10px); }
   .field-label { font-size: var(--text-xs, 12px); font-weight: 500; min-width: 110px; padding-top: 7px; color: var(--muted-foreground); }
+  .spinner { display: inline-block; width: 14px; height: 14px; border: 2px solid var(--muted); border-top-color: var(--foreground); border-radius: 50%; animation: spin 0.6s linear infinite; }
+  @keyframes spin { to { transform: rotate(360deg); } }
   </style>
 </head>
 <body>
-<div class="ship-view">
+<div class="ship-view"
+     data-signals="{collection: '{{ active_collection }}', _showForm: false, _creating: false, _deleting: false, form: {}}">
   <div class="data-wrap">
 
-    {# ── Header ─────────────────────────────────────────────── #}
+    {# -- Header -- #}
     <div style="margin-bottom: var(--space-5, 20px)">
       <h2 style="font-size: var(--text-xl, 20px); font-weight: 600; margin: 0">Data</h2>
       <p class="muted" style="font-size: var(--text-xs, 12px); margin-top: 4px">
@@ -43,11 +44,11 @@
       </p>
     </div>
 
-    {# ── Toolbar ────────────────────────────────────────────── #}
+    {# -- Toolbar -- #}
     {% if collections is defined and collections | length > 0 %}
     <div class="data-toolbar">
       <ship-select size="sm" value="{{ active_collection }}"
-        data-on:ship-select-change="location.search = '?collection=' + evt.detail.value">
+        data-on:ship-select-change="$collection = evt.detail.value; @get('/api/runtime/view/data/sse')">
         {% for c in collections %}
         <ship-option value="{{ c.id }}" {% if c.id == active_collection %}selected{% endif %}>
           {{ c.name or c.id }} ({{ c.field_count }})
@@ -55,7 +56,8 @@
         {% endfor %}
       </ship-select>
       {% if schema is defined %}
-      <ship-button size="sm" data-on:click="document.getElementById('create-form').toggleAttribute('hidden')">
+      <ship-button size="sm"
+        data-on:click="$_showForm = !$_showForm">
         + New
       </ship-button>
       {% endif %}
@@ -63,145 +65,64 @@
     </div>
     {% endif %}
 
-    {# ── Create form ────────────────────────────────────────── #}
+    {# -- Create form -- #}
     {% if schema is defined %}
-    <ship-card id="create-form" hidden style="margin-bottom: var(--space-4, 16px)">
+    <ship-card data-show="$_showForm" style="display:none; margin-bottom: var(--space-4, 16px)">
       <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:var(--space-3,12px)">
         <strong>New {{ active_collection }}</strong>
-        <ship-button size="sm" variant="ghost" data-on:click="document.getElementById('create-form').hidden=true">✕</ship-button>
+        <ship-button size="sm" variant="ghost"
+          data-on:click="$_showForm = false">x</ship-button>
       </div>
-      <div id="create-data">
+      <div>
         {% for field_name, field_def in schema.fields %}
         <div class="field-row">
           <label class="field-label" for="create-{{ field_name }}">
             {{ field_name }}{% if field_def.required %}<span style="color:var(--destructive)"> *</span>{% endif %}
           </label>
           {% if field_def.field_type == "enum" and field_def.values %}
-          <ship-select size="sm" name="{{ field_name }}" id="create-{{ field_name }}">
-            <ship-option value="">—</ship-option>
+          <ship-select size="sm" id="create-{{ field_name }}"
+            data-bind="form.{{ field_name }}">
+            <ship-option value="">--</ship-option>
             {% for v in field_def.values %}
             <ship-option value="{{ v }}">{{ v }}</ship-option>
             {% endfor %}
           </ship-select>
           {% elif field_def.field_type == "boolean" %}
-          <ship-switch name="{{ field_name }}" id="create-{{ field_name }}"></ship-switch>
+          <ship-switch id="create-{{ field_name }}"
+            data-bind="form.{{ field_name }}"></ship-switch>
           {% elif field_def.field_type == "number" %}
-          <ship-input size="sm" type="number" name="{{ field_name }}" id="create-{{ field_name }}" placeholder="0"></ship-input>
+          <ship-input size="sm" type="number" id="create-{{ field_name }}"
+            data-bind="form.{{ field_name }}" placeholder="0"></ship-input>
           {% elif field_def.field_type == "markdown" %}
-          <ship-textarea size="sm" name="{{ field_name }}" id="create-{{ field_name }}" rows="3" placeholder="{{ field_name }}"></ship-textarea>
+          <ship-textarea size="sm" id="create-{{ field_name }}"
+            data-bind="form.{{ field_name }}" rows="3" placeholder="{{ field_name }}"></ship-textarea>
           {% else %}
-          <ship-input size="sm" name="{{ field_name }}" id="create-{{ field_name }}" placeholder="{{ field_name }}"></ship-input>
+          <ship-input size="sm" id="create-{{ field_name }}"
+            data-bind="form.{{ field_name }}" placeholder="{{ field_name }}"></ship-input>
           {% endif %}
         </div>
         {% endfor %}
         <ship-separator></ship-separator>
-        <div style="display:flex;gap:var(--space-2,8px);margin-top:var(--space-3,12px)">
-          <ship-button size="sm" data-on:click="window.__createItem()">Create</ship-button>
-          <ship-button size="sm" variant="ghost" data-on:click="document.getElementById('create-form').hidden=true">Cancel</ship-button>
+        <div style="display:flex;gap:var(--space-2,8px);margin-top:var(--space-3,12px);align-items:center">
+          <ship-button size="sm"
+            data-on:click="@post('{{ create_collection_item(active_collection) }}', {payload: {data: $form}})"
+            data-indicator="_creating">Create</ship-button>
+          <ship-button size="sm" variant="ghost"
+            data-on:click="$_showForm = false">Cancel</ship-button>
+          <span data-show="$_creating" style="display:none"><span class="spinner"></span></span>
         </div>
       </div>
     </ship-card>
     {% endif %}
 
-    {# ── Table ──────────────────────────────────────────────── #}
-    {% if schema is defined and items is defined and items | length > 0 %}
-    <table>
-      <thead>
-        <tr>
-          <th style="width:90px">ID</th>
-          {% for field_name, field_def in schema.fields %}
-          <th>{{ field_name }}</th>
-          {% endfor %}
-          <th style="width:100px">Updated</th>
-          <th style="width:40px"></th>
-        </tr>
-      </thead>
-      <tbody>
-        {% for item in items %}
-        <tr id="item-{{ item.id }}">
-          <td class="mono muted" title="{{ item.id }}">{{ item.id[:10] }}</td>
-          {% for field_name, field_def in schema.fields %}
-          <td>
-            {% set val = item.data[field_name] if item.data[field_name] is defined else none %}
-            {% if val is none or val == "" %}
-              <span class="null">—</span>
-            {% elif field_def.field_type == "enum" %}
-              <ship-chip>{{ val }}</ship-chip>
-            {% elif field_def.field_type == "boolean" %}
-              <ship-badge variant="{{ 'success' if val else 'secondary' }}">{{ "Yes" if val else "No" }}</ship-badge>
-            {% elif field_def.field_type == "number" %}
-              <span class="mono">{{ val }}</span>
-            {% elif field_def.field_type == "date" %}
-              {{ val[:10] if val else "—" }}
-            {% elif field_def.field_type == "file" %}
-              <span class="mono" title="{{ val }}">📎 {{ val.split("/")[-1] if "/" in val else val }}</span>
-            {% elif field_def.field_type == "markdown" %}
-              {{ val[:80] }}{{ "…" if val | length > 80 else "" }}
-            {% elif field_def.field_type == "array" and val is iterable and val is not string %}
-              {% for v in val[:4] %}<ship-chip>{{ v }}</ship-chip> {% endfor %}
-              {% if val | length > 4 %}<ship-badge variant="secondary">+{{ val | length - 4 }}</ship-badge>{% endif %}
-            {% elif field_def.field_type == "object" and val is mapping %}
-              <span class="mono" title="{{ val }}">{ {{ val.keys() | list | join(", ") | truncate(30) }} }</span>
-            {% else %}
-              {{ val }}
-            {% endif %}
-          </td>
-          {% endfor %}
-          <td class="mono muted">{{ item.updated_at[:16] if item.updated_at else "—" }}</td>
-          <td>
-            <ship-button size="sm" variant="destructive"
-              data-on:click="@delete('{{ delete_collection_item(active_collection, item.id) }}')">✕</ship-button>
-          </td>
-        </tr>
-        {% endfor %}
-      </tbody>
-    </table>
-
-    {% elif schema is defined %}
-    <ship-empty-state>
-      <span slot="title">No items in {{ active_collection }}</span>
-      <span slot="description">Click + New to create one</span>
-    </ship-empty-state>
-
-    {% else %}
-    <ship-empty-state>
-      <span slot="title">No collections defined</span>
-      <span slot="description">Add a schema to .ship/schemas/</span>
-    </ship-empty-state>
-    {% endif %}
+    {# -- Content (SSE-driven) -- #}
+    <div data-init="@get('/api/runtime/view/data/sse')">
+      <div id="data-content">
+        <p class="muted" style="padding: var(--space-4, 16px) 0">Loading...</p>
+      </div>
+    </div>
 
   </div>
 </div>
-<script>
-// Minimal JS for: create form submission, collection switching, SSE reload.
-// All rendering is server-side Jinja. This only handles interactions that
-// can't be expressed in Datastar attributes alone.
-
-// Create item: collect values from ship-elements (shadow DOM, no FormData).
-window.__createItem = async () => {
-  const data = {};
-  document.querySelectorAll('#create-data [id^="create-"]').forEach(el => {
-    const name = el.id.replace('create-', '');
-    if (el.tagName === 'SHIP-SWITCH') data[name] = el.checked ?? false;
-    else if (el.getAttribute('type') === 'number') {
-      if (el.value !== '' && el.value != null) data[name] = Number(el.value);
-    } else if (el.value) data[name] = el.value;
-  });
-  const resp = await fetch('{{ create_collection_item(active_collection) }}', {
-    method: 'POST', credentials: 'include',
-    headers: { 'Content-Type': 'application/json' },
-    body: JSON.stringify({ data }),
-  });
-  if (resp.ok) location.reload();
-  else alert((await resp.json()).error || 'Failed to create');
-};
-
-// SSE: reload on collection changes.
-const es = new EventSource('/api/runtime/events', { withCredentials: true });
-es.onmessage = e => {
-  try { if (JSON.parse(e.data).event_type?.startsWith('collection.')) location.reload(); }
-  catch {}
-};
-</script>
 </body>
 </html>

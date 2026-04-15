@@ -51,6 +51,7 @@ thiserror = "2"
 # HTML sanitizer — allowlist-based DOM cleaner used for agent-supplied
 # canvas HTML (see apps/shipd/src/views/sanitize.rs).
 ammonia = "4"
+form_urlencoded = "1"
 include_dir = "0.7"
 
 [features]

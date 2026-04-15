@@ -215,6 +215,7 @@ fn build_ship_routes(st: rest_api::ApiState) -> Router {
         .ship_route(Route::ServeViewManifest_template(), views::serve_view_manifest)
         .ship_route(Route::ServeViewBundle_template(), views::serve_view_bundle)
         .ship_route(Route::ServeViewRaw_template(), views_raw::serve_view_raw)
+        .ship_route(Route::ServeViewSse_template(), views::generic_sse::serve_view_sse)
         // Agent-owned view sessions
         .ship_route(Route::OpenViewSession, view_sessions_api::open_session)
         .ship_route(Route::PatchViewSession_template(), view_sessions_api::patch_session)

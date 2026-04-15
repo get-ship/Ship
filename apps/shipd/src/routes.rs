@@ -143,6 +143,9 @@ pub enum Route {
     /// @route GET "/api/runtime/view/{name}/raw"
     ServeViewRaw { name: String },
 
+    /// @route GET "/api/runtime/view/{name}/sse"
+    ServeViewSse { name: String },
+
     // ── Agent-owned view sessions (Phase 1 canvas framework) ─────────────
 
     /// @route POST "/api/runtime/view-sessions"

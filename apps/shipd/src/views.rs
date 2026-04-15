@@ -33,6 +33,8 @@ pub mod session;
 pub mod session_types;
 pub mod sanitize;
 
+pub mod generic_sse;
+
 mod assets;
 mod handlers;
 mod resolve;
@@ -53,7 +55,7 @@ pub use assets::{
 pub use handlers::{
     list_views, serve_view, serve_view_asset, serve_view_bundle, serve_view_manifest,
 };
-pub(crate) use resolve::{is_valid_view_name, resolve_view_dir};
+pub(crate) use resolve::{is_valid_view_name, read_raw_manifest, resolve_view_dir};
 
 #[derive(Serialize, Clone)]
 pub struct ViewManifest {

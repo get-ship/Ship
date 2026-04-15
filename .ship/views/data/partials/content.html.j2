@@ -1,0 +1,71 @@
+{#- Data content partial — rendered by the generic SSE handler.
+   Root element MUST have id="data-content" for Datastar patching. -#}
+{% from '_urls.html.j2' import create_collection_item, delete_collection_item %}
+<div id="data-content">
+  {% if schema is defined and items is defined and items | length > 0 %}
+  <table>
+    <thead>
+      <tr>
+        <th style="width:90px">ID</th>
+        {% for field_name, field_def in schema.fields %}
+        <th>{{ field_name }}</th>
+        {% endfor %}
+        <th style="width:100px">Updated</th>
+        <th style="width:40px"></th>
+      </tr>
+    </thead>
+    <tbody>
+      {% for item in items %}
+      <tr id="item-{{ item.id }}">
+        <td class="mono muted" title="{{ item.id }}">{{ item.id[:10] }}</td>
+        {% for field_name, field_def in schema.fields %}
+        <td>
+          {% set val = item.data[field_name] if item.data[field_name] is defined else none %}
+          {% if val is none or val == "" %}
+            <span class="null">--</span>
+          {% elif field_def.field_type == "enum" %}
+            <ship-chip>{{ val }}</ship-chip>
+          {% elif field_def.field_type == "boolean" %}
+            <ship-badge variant="{{ 'success' if val else 'secondary' }}">{{ "Yes" if val else "No" }}</ship-badge>
+          {% elif field_def.field_type == "number" %}
+            <span class="mono">{{ val }}</span>
+          {% elif field_def.field_type == "date" %}
+            {{ val[:10] if val else "--" }}
+          {% elif field_def.field_type == "file" %}
+            <span class="mono" title="{{ val }}">{{ val }}</span>
+          {% elif field_def.field_type == "markdown" %}
+            {{ val[:80] }}{{ "..." if val | length > 80 else "" }}
+          {% elif field_def.field_type == "array" and val is iterable and val is not string %}
+            {% for v in val[:4] %}<ship-chip>{{ v }}</ship-chip> {% endfor %}
+            {% if val | length > 4 %}<ship-badge variant="secondary">+{{ val | length - 4 }}</ship-badge>{% endif %}
+          {% elif field_def.field_type == "object" and val is mapping %}
+            <span class="mono" title="{{ val }}">{ {{ val.keys() | list | join(", ") | truncate(30) }} }</span>
+          {% else %}
+            {{ val }}
+          {% endif %}
+        </td>
+        {% endfor %}
+        <td class="mono muted">{{ item.updated_at[:16] if item.updated_at else "--" }}</td>
+        <td>
+          <ship-button size="sm" variant="destructive"
+            data-on:click="@delete('{{ delete_collection_item(active_collection, item.id) }}')"
+            data-indicator="_deleting">x</ship-button>
+        </td>
+      </tr>
+      {% endfor %}
+    </tbody>
+  </table>
+
+  {% elif schema is defined %}
+  <ship-empty-state>
+    <span slot="title">No items in {{ active_collection }}</span>
+    <span slot="description">Click + New to create one</span>
+  </ship-empty-state>
+
+  {% else %}
+  <ship-empty-state>
+    <span slot="title">No collections defined</span>
+    <span slot="description">Add a schema to .ship/schemas/</span>
+  </ship-empty-state>
+  {% endif %}
+</div>

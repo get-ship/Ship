@@ -10,7 +10,7 @@ authors: [ship]
 
 Datastar is a tiny (~14KB) hypermedia client that morphs the DOM from server-sent HTML, patches reactive signals from server JSON, and lets templates express interactivity via `data-*` attributes — no framework, no npm. Paired with Ship's axum daemon and minijinja templates, it gives us push-based UIs with zero client-side code for most views.
 
-**Scope note.** This skill is the day-to-day reference. For the author-facing SDK shape (manifest-driven signals/topics/actions, codegen, dogfooding) see `SDK_DESIGN.md` next to this file.
+**Scope note.** This skill is the day-to-day reference. For the author-facing SDK shape (manifest-driven signals/topics/actions, codegen, dogfooding) see `.artifacts/specs/view-sdk-design.md`.
 
 ## When to use this
 
@@ -303,6 +303,6 @@ Disable compression (`.no_gzip().no_brotli().no_deflate()`) — some servers buf
 
 ## Further reading
 
-- `SDK_DESIGN.md` (next to this file) — proposed manifest-driven author surface, typed signals/topics/actions, dogfooding migration.
+- `.artifacts/specs/view-sdk-design.md` — proposed manifest-driven author surface, typed signals/topics/actions, dogfooding migration.
 - [data-star.dev/docs](https://data-star.dev/docs) — full attribute and action reference.
 - Tao of Datastar (on the docs site) — re-read whenever you're tempted to reach for client-side state.
