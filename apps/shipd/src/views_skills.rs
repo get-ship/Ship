@@ -65,17 +65,8 @@ pub struct SkillsShellCtx {
 }
 
 #[derive(Serialize)]
-pub struct TabRow {
-    pub id: &'static str,
-    pub label: &'static str,
-    pub count: usize,
-}
-
-#[derive(Serialize)]
 pub struct SkillDetailCtx {
     pub skill: SkillDetail,
-    pub body_html: String,
-    pub tabs: Vec<TabRow>,
     pub rail: RailCtx,
 }
 
@@ -209,52 +200,13 @@ pub async fn skill_detail(
         return Err(StatusCode::NOT_FOUND);
     };
     let rail = build_rail(state.ship_dir(), &params);
-    // No markdown dep in the workspace — render raw body inside <pre>.
-    // Template does the <pre> wrapping; body_html is HTML-escaped.
-    let body_html = html_escape(&skill.body);
-    let tabs = vec![
-        TabRow {
-            id: "variables",
-            label: "Variables",
-            count: skill.variables.len(),
-        },
-        TabRow {
-            id: "runs",
-            label: "Runs",
-            count: 0,
-        },
-        TabRow {
-            id: "used-by",
-            label: "Used by",
-            count: 0,
-        },
-    ];
-    let ctx = SkillDetailCtx {
-        skill,
-        body_html,
-        tabs,
-        rail,
-    };
+    let ctx = SkillDetailCtx { skill, rail };
     templates::render("skills/shell.html.j2", &ctx)
         .map(Html)
         .map_err(|e| {
             tracing::error!(error = %e, "skill detail render failed");
             StatusCode::INTERNAL_SERVER_ERROR
         })
-}
-
-fn html_escape(s: &str) -> String {
-    let mut out = String::with_capacity(s.len());
-    for c in s.chars() {
-        match c {
-            '<' => out.push_str("&lt;"),
-            '>' => out.push_str("&gt;"),
-            '&' => out.push_str("&amp;"),
-            '"' => out.push_str("&quot;"),
-            _ => out.push(c),
-        }
-    }
-    out
 }
 
 #[cfg(test)]

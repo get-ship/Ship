@@ -1,8 +1,19 @@
-{#- Middle pane: skill header + SKILL.md body. Context: `skill`, `body_html`. -#}
+{#- Detail pane: header + frontmatter chips + SKILL.md markdown.
+    Context: `skill` (SkillDetail). -#}
 <div class="skill-detail">
   <header class="skill-detail-head">
     <h1>{{ skill.name }}</h1>
+    {% if skill.description %}
+      <p class="skill-detail-desc">{{ skill.description }}</p>
+    {% endif %}
   </header>
-  <div class="skill-detail-desc">{{ skill.description }}</div>
-  <pre class="skill-body"><code>{{ body_html | safe }}</code></pre>
+  {% if skill.tags|length > 0 or skill.kind %}
+    <div class="skill-frontmatter-chips">
+      <ship-chip size="sm">{{ skill.kind }}</ship-chip>
+      {% for t in skill.tags %}
+        <ship-chip size="sm" variant="outline">{{ t }}</ship-chip>
+      {% endfor %}
+    </div>
+  {% endif %}
+  <ship-markdown value="{{ skill.body }}"></ship-markdown>
 </div>

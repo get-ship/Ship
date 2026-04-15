@@ -86,24 +86,12 @@ fn rail_partial_shows_empty_when_no_groups() {
 }
 
 #[test]
-fn detail_renders_markdown_body_and_metadata() {
-    let ctx = SkillDetailCtx {
-        skill: sample_detail(),
-        body_html: "# Hello\nBody text.".into(),
-        tabs: vec![
-            TabRow { id: "variables", label: "Variables", count: 2 },
-            TabRow { id: "runs", label: "Runs", count: 0 },
-            TabRow { id: "used-by", label: "Used by", count: 0 },
-        ],
-        rail: sample_rail(),
-    };
+fn detail_renders_markdown_body_and_chips() {
+    let ctx = SkillDetailCtx { skill: sample_detail(), rail: sample_rail() };
     let html = templates::render("skills/shell.html.j2", &ctx).expect("render");
+    assert!(html.contains("<ship-markdown"), "markdown element: {html}");
     assert!(html.contains("Body text"), "body rendered: {html}");
-    assert!(html.contains("Variables"));
-    assert!(html.contains("Runs"));
-    assert!(html.contains("Used by"));
-    // Variables list comes through
-    assert!(html.contains("foo"));
+    assert!(html.contains("testing"), "tag chip rendered: {html}");
 }
 
 #[test]

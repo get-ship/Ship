@@ -23,8 +23,9 @@
         {% for s in g.skills %}
           <div class="skills-row" data-on:click="@get('{{ view_skill_detail(s.id) }}')">
             <span class="skills-caret">›</span>
-            <span>{{ s.name }}</span>
+            <span class="skills-name">{{ s.name }}</span>
             <span class="skills-dot {% if s.kind == 'docs' %}docs{% endif %}" aria-hidden="true"></span>
+            <span class="skills-source-tag" aria-hidden="true"></span>
           </div>
         {% endfor %}
       </div>
