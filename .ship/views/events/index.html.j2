@@ -1,6 +1,4 @@
 {#- SDK gaps:
-    - no filter_chip() macro — must use raw data-attr/data-on:click for filter chip selection + SSE re-fetch
-    - no search_input() macro — must use raw data-bind + data-on:input for debounced search
     - no navigation macro for linking between views
 -#}
 {#-
@@ -8,7 +6,7 @@
   The daemon passes rows, types, actors, groups, total as Jinja context.
   Datastar for all interactions. ZERO script tags.
 -#}
-{% from '_ship.html.j2' import head, signal, show, live %}
+{% from '_ship.html.j2' import head, signal, show, live, chip, chip_all, search %}
 <!DOCTYPE html>
 <html lang="en">
 <head>
@@ -87,37 +85,19 @@
 
     {# -- Filter chips -- #}
     <div class="events-filters" role="group" aria-label="Filter events">
-      <ship-chip size="sm"
-        data-attr:selected="$eventType == ''"
-        data-on:click="$eventType = ''; @get('/api/runtime/view/events/sse')">
-        All types
-      </ship-chip>
+      <ship-chip size="sm" {{ chip_all('eventType', 'events') }}>All types</ship-chip>
       {% for t in types %}
-      <ship-chip size="sm"
-        data-attr:selected="$eventType == '{{ t }}'"
-        data-on:click="$eventType = '{{ t }}'; @get('/api/runtime/view/events/sse')">
-        {{ t }}
-      </ship-chip>
+      <ship-chip size="sm" {{ chip('eventType', t, 'events') }}>{{ t }}</ship-chip>
       {% endfor %}
       {% if actors|length > 0 %}
       <span style="width:1px;background:var(--border);margin:0 4px"></span>
-      <ship-chip size="sm"
-        data-attr:selected="$actor == ''"
-        data-on:click="$actor = ''; @get('/api/runtime/view/events/sse')">
-        All actors
-      </ship-chip>
+      <ship-chip size="sm" {{ chip_all('actor', 'events') }}>All actors</ship-chip>
       {% for a in actors %}
-      <ship-chip size="sm"
-        data-attr:selected="$actor == '{{ a }}'"
-        data-on:click="$actor = '{{ a }}'; @get('/api/runtime/view/events/sse')">
-        {{ a }}
-      </ship-chip>
+      <ship-chip size="sm" {{ chip('actor', a, 'events') }}>{{ a }}</ship-chip>
       {% endfor %}
       {% endif %}
-      <input class="events-search"
-             placeholder="Search events..."
-             data-bind="q"
-             data-on:input.debounce.300ms="@get('/api/runtime/view/events/sse')" />
+      <input class="events-search" placeholder="Search events..."
+             {{ search('q', 'events') }} />
     </div>
 
     {# -- Content (SSE-driven) -- #}

@@ -1,6 +1,4 @@
 {#- SDK gaps:
-    - no tab_bar() macro — must use raw ship-tabs + data-on:ship-tab-change
-    - no filter_chip() macro — must use raw data-attr:selected + data-on:click for agent filter chips
     - no status_summary() macro for status pill row
 -#}
 {#-
@@ -8,7 +6,7 @@
   All state is managed via signals (tab, agent). ZERO URL query strings.
   The daemon passes PipelinesCtx as Jinja context.
 -#}
-{% from '_ship.html.j2' import head, signal, show, live, loading, spinner, attr %}
+{% from '_ship.html.j2' import head, signal, show, live, loading, spinner, chip, chip_all %}
 {% from '_urls.html.j2' import create_job, view_pipelines_sse, get_job, end_job %}
 <!DOCTYPE html>
 <html lang="en">
@@ -67,13 +65,9 @@
     </div>
 
     <div class="ship-pipelines-filters" role="group" aria-label="Filter by agent">
-      <ship-chip size="sm"
-        {{ attr('selected', "$agent == ''") }}
-        data-on:click="$agent = ''; @get('/api/runtime/view/pipelines/sse')">All agents</ship-chip>
+      <ship-chip size="sm" {{ chip_all('agent', 'pipelines') }}>All agents</ship-chip>
       {% for a in agents %}
-      <ship-chip size="sm"
-        {{ attr('selected', "$agent == '" ~ a ~ "'") }}
-        data-on:click="$agent = '{{ a }}'; @get('/api/runtime/view/pipelines/sse')">{{ a }}</ship-chip>
+      <ship-chip size="sm" {{ chip('agent', a, 'pipelines') }}>{{ a }}</ship-chip>
       {% endfor %}
     </div>
 

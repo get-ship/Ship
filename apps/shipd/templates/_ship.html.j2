@@ -90,6 +90,48 @@
 {# Emit a kernel event #}
 {% macro emit(event_type, data_expr='{}') %}data-on:click="@post('/api/events/emit', {payload: {event_type: '{{ event_type }}', data: {{ data_expr }}}})"{% endmacro %}
 
+{#- === Tabs === -#}
+
+{# Tab button — sets a signal and optionally re-fetches SSE #}
+{% macro tab(signal_name, value, label='') %}data-on:click="${{ signal_name }} = '{{ value }}'" data-attr:aria-selected="${{ signal_name }} == '{{ value }}'"{% endmacro %}
+
+{# Tab panel — visible when signal matches value #}
+{% macro tab_panel(signal_name, value) %}data-show="${{ signal_name }} == '{{ value }}'" style="display:none"{% endmacro %}
+
+{#- === Filter Chips === -#}
+
+{# Chip that sets a signal value and refreshes SSE #}
+{% macro chip(signal_name, value, view_name='') %}data-on:click="${{ signal_name }} = '{{ value }}'{% if view_name %}; @get('/api/runtime/view/{{ view_name }}/sse'){% endif %}" data-attr:selected="${{ signal_name }} == '{{ value }}'"{% endmacro %}
+
+{# Chip to clear/reset a signal (show all) #}
+{% macro chip_all(signal_name, view_name='') %}data-on:click="${{ signal_name }} = ''{% if view_name %}; @get('/api/runtime/view/{{ view_name }}/sse'){% endif %}" data-attr:selected="${{ signal_name }} == ''"{% endmacro %}
+
+{#- === Search & Debounce === -#}
+
+{# Debounced input that refreshes SSE after typing stops #}
+{% macro search(signal_name, view_name, delay='300ms') %}data-bind="{{ signal_name }}" data-on:input__debounce.{{ delay }}="@get('/api/runtime/view/{{ view_name }}/sse')"{% endmacro %}
+
+{# Debounced action on change (e.g., settings auto-save) #}
+{% macro on_change_debounced(expr, delay='300ms') %}data-on:change__debounce.{{ delay }}="{{ expr }}"{% endmacro %}
+
+{#- === Radio / Selection === -#}
+
+{# Radio-style selection — sets a signal, marks as checked #}
+{% macro radio(signal_name, value) %}data-on:click="${{ signal_name }} = '{{ value }}'" data-attr:aria-checked="${{ signal_name }} == '{{ value }}'"{% endmacro %}
+
+{#- === Confirmation === -#}
+
+{# Confirm before action — shows browser confirm dialog #}
+{% macro confirm_delete(collection, id) %}data-on:click="confirm('Delete this item?') && @delete('/api/collections/{{ collection }}/items/{{ id }}')"{% endmacro %}
+
+{# Generic confirm before action #}
+{% macro confirm(message, action_expr) %}data-on:click="confirm('{{ message }}') && {{ action_expr }}"{% endmacro %}
+
+{#- === Extended Live === -#}
+
+{# SSE subscription with requestCancellation disabled (for persistent connections) #}
+{% macro live_persistent(view_name) %}data-init="@get('/api/runtime/view/{{ view_name }}/sse', {requestCancellation: 'disabled'})"{% endmacro %}
+
 {#- === Data Macros === -#}
 
 {# Auto-form: generate typed form fields from a collection schema #}
