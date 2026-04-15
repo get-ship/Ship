@@ -1,9 +1,10 @@
 {#-
-  Data browser — server-rendered collection viewer.
+  Data browser — server-rendered collection viewer/editor.
   The daemon passes schemas + items as Jinja context.
-  No client-side data fetching. Datastar handles actions + SSE updates.
+  No client-side data fetching. Ship design tokens for styling.
+  Datastar for actions and SSE live updates.
 -#}
-{% from '_urls.html.j2' import create_collection_item, update_collection_item, delete_collection_item %}
+{% from '_urls.html.j2' import create_collection_item, delete_collection_item, view_data %}
 <!DOCTYPE html>
 <html lang="en">
 <head>
@@ -13,29 +14,19 @@
   <script type="module" src="/api/runtime/assets/datastar.js"></script>
   <script type="module" src="/api/runtime/assets/ship-elements.js"></script>
   <style>
-  .ship-view{color:var(--foreground);font-family:var(--font-sans,system-ui,sans-serif)}
-  .data-wrap{max-width:76rem;margin:0 auto;padding:24px 16px}
-  .data-title{font-family:var(--font-display,var(--font-sans));font-size:20px;font-weight:600;letter-spacing:-0.01em;margin:0}
-  .data-sub{font-size:12px;color:var(--muted-foreground);margin-top:4px}
-  .data-toolbar{display:flex;align-items:center;gap:10px;margin-bottom:16px;flex-wrap:wrap}
-  .data-count{font-size:11px;color:var(--muted-foreground);margin-left:auto}
-  .data-table{width:100%;border-collapse:collapse;font-size:13px}
-  .data-th{text-align:left;padding:8px 12px;border-bottom:2px solid var(--border);font-weight:600;font-size:11px;text-transform:uppercase;letter-spacing:0.04em;color:var(--muted-foreground)}
-  .data-row:hover td{background:color-mix(in oklch,var(--muted) 40%,transparent)}
-  .data-cell{padding:8px 12px;border-bottom:1px solid var(--border);vertical-align:top}
-  .data-cell-id{font-family:var(--font-mono,monospace);font-size:11px;color:var(--muted-foreground);width:90px}
-  .data-cell-time{font-size:11px;color:var(--muted-foreground);white-space:nowrap}
-  .data-cell-null{color:var(--muted-foreground);font-style:italic}
-  .data-cell-number{font-variant-numeric:tabular-nums;font-family:var(--font-mono,monospace)}
-  .data-cell-mono{font-family:var(--font-mono,monospace);font-size:11px;color:var(--muted-foreground)}
-  .data-empty{text-align:center;padding:48px 16px;color:var(--muted-foreground)}
-  .data-form{border:1px solid var(--border);border-radius:8px;padding:16px;margin-bottom:16px;background:var(--card)}
-  .data-form-head{display:flex;align-items:center;justify-content:space-between;margin-bottom:12px}
-  .data-form-title{font-size:14px;font-weight:600}
-  .data-form-actions{display:flex;gap:8px;margin-top:14px;padding-top:14px;border-top:1px solid var(--border)}
-  .data-field-row{display:flex;align-items:flex-start;gap:12px;margin-bottom:10px}
-  .data-field-label{font-size:12px;font-weight:500;min-width:110px;padding-top:7px;color:var(--muted-foreground)}
-  .data-req{color:var(--destructive);margin-left:2px}
+  /* Layout only — visual tokens come from view-tokens.css */
+  .data-wrap { max-width: 76rem; margin: 0 auto; padding: var(--space-6, 24px) var(--space-4, 16px); }
+  .data-toolbar { display: flex; align-items: center; gap: var(--space-3, 10px); margin-bottom: var(--space-4, 16px); flex-wrap: wrap; }
+  .data-count { font-size: var(--text-xs, 11px); color: var(--muted-foreground); margin-left: auto; }
+  table { width: 100%; border-collapse: collapse; font-size: var(--text-sm, 13px); }
+  th { text-align: left; padding: var(--space-2, 8px) var(--space-3, 12px); border-bottom: 2px solid var(--border); font-weight: 600; font-size: var(--text-xs, 11px); text-transform: uppercase; letter-spacing: 0.04em; color: var(--muted-foreground); }
+  td { padding: var(--space-2, 8px) var(--space-3, 12px); border-bottom: 1px solid var(--border); vertical-align: top; }
+  tr:hover td { background: color-mix(in oklch, var(--muted) 40%, transparent); }
+  .mono { font-family: var(--font-mono); font-size: var(--text-xs, 11px); }
+  .muted { color: var(--muted-foreground); }
+  .null { color: var(--muted-foreground); font-style: italic; }
+  .field-row { display: flex; align-items: flex-start; gap: var(--space-3, 12px); margin-bottom: var(--space-3, 10px); }
+  .field-label { font-size: var(--text-xs, 12px); font-weight: 500; min-width: 110px; padding-top: 7px; color: var(--muted-foreground); }
   </style>
 </head>
 <body>
@@ -43,10 +34,11 @@
   <div class="data-wrap">
 
     {# ── Header ─────────────────────────────────────────────── #}
-    <div style="margin-bottom:20px">
-      <h2 class="data-title">Data</h2>
-      <p class="data-sub">
-        {% if items is defined %}{{ items | length }}{% else %}0{% endif %} item{{ "s" if not items or items | length != 1 else "" }}
+    <div style="margin-bottom: var(--space-5, 20px)">
+      <h2 style="font-size: var(--text-xl, 20px); font-weight: 600; margin: 0">Data</h2>
+      <p class="muted" style="font-size: var(--text-xs, 12px); margin-top: 4px">
+        {% if items is defined %}{{ items | length }}{% else %}0{% endif %}
+        item{{ "s" if not items or items | length != 1 else "" }}
         {% if active_collection is defined %} in {{ active_collection }}{% endif %}
       </p>
     </div>
@@ -56,59 +48,107 @@
     <div class="data-toolbar">
       <ship-select size="sm" value="{{ active_collection }}">
         {% for c in collections %}
-        <ship-option value="{{ c.id }}" {% if c.id == active_collection %}selected{% endif %}>{{ c.name or c.id }} ({{ c.field_count }})</ship-option>
+        <ship-option value="{{ c.id }}" {% if c.id == active_collection %}selected{% endif %}>
+          {{ c.name or c.id }} ({{ c.field_count }})
+        </ship-option>
         {% endfor %}
       </ship-select>
+      {% if schema is defined %}
+      <ship-button size="sm" data-on:click="document.getElementById('create-form').toggleAttribute('hidden')">
+        + New
+      </ship-button>
+      {% endif %}
       <span class="data-count">{{ items | length if items is defined else 0 }} items</span>
     </div>
     {% endif %}
 
+    {# ── Create form ────────────────────────────────────────── #}
+    {% if schema is defined %}
+    <ship-card id="create-form" hidden style="margin-bottom: var(--space-4, 16px)">
+      <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:var(--space-3,12px)">
+        <strong>New {{ active_collection }}</strong>
+        <ship-button size="sm" variant="ghost" data-on:click="document.getElementById('create-form').hidden=true">✕</ship-button>
+      </div>
+      <form id="create-data"
+            data-on:submit__prevent="@post('{{ create_collection_item(active_collection) }}', {contentType:'json', body: JSON.stringify({data: Object.fromEntries(new FormData(document.getElementById('create-data')))})})">
+        {% for field_name, field_def in schema.fields | items %}
+        <div class="field-row">
+          <label class="field-label" for="create-{{ field_name }}">
+            {{ field_name }}{% if field_def.required %}<span style="color:var(--destructive)"> *</span>{% endif %}
+          </label>
+          {% if field_def.field_type == "enum" and field_def.values %}
+          <ship-select size="sm" name="{{ field_name }}" id="create-{{ field_name }}">
+            <ship-option value="">—</ship-option>
+            {% for v in field_def.values %}
+            <ship-option value="{{ v }}">{{ v }}</ship-option>
+            {% endfor %}
+          </ship-select>
+          {% elif field_def.field_type == "boolean" %}
+          <ship-switch name="{{ field_name }}" id="create-{{ field_name }}"></ship-switch>
+          {% elif field_def.field_type == "number" %}
+          <ship-input size="sm" type="number" name="{{ field_name }}" id="create-{{ field_name }}" placeholder="0"></ship-input>
+          {% elif field_def.field_type == "markdown" %}
+          <ship-textarea size="sm" name="{{ field_name }}" id="create-{{ field_name }}" rows="3" placeholder="{{ field_name }}"></ship-textarea>
+          {% else %}
+          <ship-input size="sm" name="{{ field_name }}" id="create-{{ field_name }}" placeholder="{{ field_name }}"></ship-input>
+          {% endif %}
+        </div>
+        {% endfor %}
+        <ship-separator></ship-separator>
+        <div style="display:flex;gap:var(--space-2,8px);margin-top:var(--space-3,12px)">
+          <ship-button size="sm" type="submit">Create</ship-button>
+          <ship-button size="sm" variant="ghost" data-on:click="document.getElementById('create-form').hidden=true">Cancel</ship-button>
+        </div>
+      </form>
+    </ship-card>
+    {% endif %}
+
     {# ── Table ──────────────────────────────────────────────── #}
     {% if schema is defined and items is defined and items | length > 0 %}
-    <table class="data-table">
+    <table>
       <thead>
         <tr>
-          <th class="data-th" style="width:90px">ID</th>
+          <th style="width:90px">ID</th>
           {% for field_name, field_def in schema.fields | items %}
-          <th class="data-th">{{ field_name }}</th>
+          <th>{{ field_name }}</th>
           {% endfor %}
-          <th class="data-th" style="width:100px">Updated</th>
-          <th class="data-th" style="width:50px"></th>
+          <th style="width:100px">Updated</th>
+          <th style="width:40px"></th>
         </tr>
       </thead>
       <tbody>
         {% for item in items %}
-        <tr class="data-row" id="item-{{ item.id }}">
-          <td class="data-cell data-cell-id" title="{{ item.id }}">{{ item.id[:10] }}</td>
+        <tr id="item-{{ item.id }}">
+          <td class="mono muted" title="{{ item.id }}">{{ item.id[:10] }}</td>
           {% for field_name, field_def in schema.fields | items %}
-          <td class="data-cell">
+          <td>
             {% set val = item.data[field_name] if item.data[field_name] is defined else none %}
             {% if val is none or val == "" %}
-              <span class="data-cell-null">—</span>
+              <span class="null">—</span>
             {% elif field_def.field_type == "enum" %}
               <ship-chip>{{ val }}</ship-chip>
             {% elif field_def.field_type == "boolean" %}
               <ship-badge variant="{{ 'success' if val else 'secondary' }}">{{ "Yes" if val else "No" }}</ship-badge>
             {% elif field_def.field_type == "number" %}
-              <span class="data-cell-number">{{ val }}</span>
+              <span class="mono">{{ val }}</span>
             {% elif field_def.field_type == "date" %}
               {{ val[:10] if val else "—" }}
             {% elif field_def.field_type == "file" %}
-              <span class="data-cell-mono" title="{{ val }}">📎 {{ val.split("/")[-1] if "/" in val else val }}</span>
+              <span class="mono" title="{{ val }}">📎 {{ val.split("/")[-1] if "/" in val else val }}</span>
             {% elif field_def.field_type == "markdown" %}
               {{ val[:80] }}{{ "…" if val | length > 80 else "" }}
             {% elif field_def.field_type == "array" and val is iterable and val is not string %}
               {% for v in val[:4] %}<ship-chip>{{ v }}</ship-chip> {% endfor %}
               {% if val | length > 4 %}<ship-badge variant="secondary">+{{ val | length - 4 }}</ship-badge>{% endif %}
             {% elif field_def.field_type == "object" and val is mapping %}
-              <span class="data-cell-mono" title="{{ val }}">{ {{ val.keys() | list | join(", ") | truncate(30) }} }</span>
+              <span class="mono" title="{{ val }}">{ {{ val.keys() | list | join(", ") | truncate(30) }} }</span>
             {% else %}
               {{ val }}
             {% endif %}
           </td>
           {% endfor %}
-          <td class="data-cell data-cell-time">{{ item.updated_at[:16] if item.updated_at else "—" }}</td>
-          <td class="data-cell">
+          <td class="mono muted">{{ item.updated_at[:16] if item.updated_at else "—" }}</td>
+          <td>
             <ship-button size="sm" variant="destructive"
               data-on:click="@delete('{{ delete_collection_item(active_collection, item.id) }}')">✕</ship-button>
           </td>
@@ -118,16 +158,16 @@
     </table>
 
     {% elif schema is defined %}
-    <div class="data-empty">
-      <p>No items in <strong>{{ active_collection }}</strong></p>
-      <p style="font-size:11px;margin-top:8px">Create items via the REST API or MCP tools</p>
-    </div>
+    <ship-empty-state>
+      <span slot="title">No items in {{ active_collection }}</span>
+      <span slot="description">Click + New to create one</span>
+    </ship-empty-state>
 
     {% else %}
-    <div class="data-empty">
-      <p>No collections defined</p>
-      <p style="font-size:11px;margin-top:8px">Add a schema to <code>.ship/schemas/</code></p>
-    </div>
+    <ship-empty-state>
+      <span slot="title">No collections defined</span>
+      <span slot="description">Add a schema to .ship/schemas/</span>
+    </ship-empty-state>
     {% endif %}
 
   </div>
