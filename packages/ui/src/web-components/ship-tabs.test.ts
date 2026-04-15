@@ -49,6 +49,22 @@ describe('ship-tabs', () => {
     expect(panelB.active).toBe(true)
   })
 
+  it('vertical orientation: aria-orientation set, ArrowDown moves to next tab', async () => {
+    document.body.insertAdjacentHTML('beforeend', `
+      <ship-tabs orientation="vertical" active="a">
+        <ship-tab name="a" label="A"></ship-tab>
+        <ship-tab name="b" label="B"></ship-tab>
+      </ship-tabs>
+    `)
+    const el = document.body.lastElementChild as ShipTabs
+    await el.updateComplete
+    const tablist = el.shadowRoot!.querySelector('[role=tablist]')!
+    expect(tablist.getAttribute('aria-orientation')).toBe('vertical')
+    tablist.dispatchEvent(new KeyboardEvent('keydown', { key: 'ArrowDown', bubbles: true }))
+    await el.updateComplete
+    expect(el.active).toBe('b')
+  })
+
   it('supports segmented variant', async () => {
     document.body.insertAdjacentHTML('beforeend', `
       <ship-tabs variant="segmented" active="x">

@@ -20,6 +20,13 @@
 
 import { LitElement, css, html } from 'lit'
 export class ShipCheckbox extends LitElement {
+  static formAssociated = true
+  private internals: ElementInternals
+  private defaultChecked = false
+  constructor() {
+    super()
+    this.internals = this.attachInternals()
+  }
   static styles = css`
     :host { display: inline-flex; align-items: center; gap: 8px; cursor: pointer; font: inherit; font-size: 13px; color: var(--foreground); }
     :host([disabled]) { cursor: not-allowed; opacity: 0.6; }
@@ -35,6 +42,7 @@ export class ShipCheckbox extends LitElement {
     value: { type: String },
     disabled: { type: Boolean, reflect: true },
     required: { type: Boolean, reflect: true },
+    invalid: { type: Boolean, reflect: true },
   }
 
   checked = false
@@ -43,16 +51,37 @@ export class ShipCheckbox extends LitElement {
   value = 'on'
   disabled = false
   required = false
+  invalid = false
   get input(): HTMLInputElement { return this.renderRoot.querySelector('input')! as HTMLInputElement }
+
+  connectedCallback() {
+    super.connectedCallback()
+    this.defaultChecked = this.checked
+  }
+
+  private setFormValue(v: string | null) {
+    if (typeof this.internals.setFormValue === 'function') this.internals.setFormValue(v)
+  }
 
   updated() {
     if (this.input) this.input.indeterminate = this.indeterminate
+    this.setFormValue(this.checked ? this.value : null)
+  }
+
+  formResetCallback() {
+    this.checked = this.defaultChecked
+    this.indeterminate = false
+  }
+
+  formStateRestoreCallback(state: string | null) {
+    this.checked = state === this.value
   }
 
   private onChange(e: Event) {
     const c = (e.target as HTMLInputElement).checked
     this.checked = c
     this.indeterminate = false
+    this.setFormValue(c ? this.value : null)
     this.dispatchEvent(new CustomEvent('ship-change', {
       detail: { checked: c }, bubbles: true, composed: true,
     }))
@@ -69,6 +98,8 @@ export class ShipCheckbox extends LitElement {
           value=${this.value}
           ?disabled=${this.disabled}
           ?required=${this.required}
+          aria-checked=${this.indeterminate ? 'mixed' : (this.checked ? 'true' : 'false')}
+          aria-invalid=${this.invalid ? 'true' : 'false'}
           @change=${this.onChange}
         />
         <slot></slot>

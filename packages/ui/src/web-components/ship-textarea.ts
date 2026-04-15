@@ -18,10 +18,17 @@
  *   - ship-input — CustomEvent { detail: { value } }
  */
 
-import { LitElement, css, html } from 'lit'
+import { LitElement, css, html, nothing } from 'lit'
 import { MONO } from './util'
 
 export class ShipTextarea extends LitElement {
+  static formAssociated = true
+  private internals: ElementInternals
+  private defaultValue = ''
+  constructor() {
+    super()
+    this.internals = this.attachInternals()
+  }
   static styles = css`
     :host { display: block; }
     textarea {
@@ -65,6 +72,9 @@ export class ShipTextarea extends LitElement {
     variant: { type: String, reflect: true },
     size: { type: String, reflect: true },
     resize: { type: String },
+    invalid: { type: Boolean, reflect: true },
+    label: { type: String },
+    describedBy: { type: String, attribute: 'described-by' },
   }
 
   value = ''
@@ -77,8 +87,23 @@ export class ShipTextarea extends LitElement {
   variant: 'default' | 'code' = 'default'
   size: 'sm' | 'md' = 'md'
   resize: 'none' | 'vertical' | 'horizontal' | 'both' = 'vertical'
+  invalid = false
+  label = ''
+  describedBy = ''
+  connectedCallback() {
+    super.connectedCallback()
+    this.defaultValue = this.value
+  }
+  updated() { this.setFormValue(this.value) }
+  formResetCallback() { this.value = this.defaultValue }
+  formStateRestoreCallback(state: string | null) { this.value = state ?? '' }
+  private setFormValue(v: string) {
+    if (typeof this.internals.setFormValue === 'function') this.internals.setFormValue(v)
+  }
+
   private onInput(e: Event) {
     this.value = (e.target as HTMLTextAreaElement).value
+    this.setFormValue(this.value)
     this.dispatchEvent(new CustomEvent('ship-input', {
       detail: { value: this.value }, bubbles: true, composed: true,
     }))
@@ -95,6 +120,10 @@ export class ShipTextarea extends LitElement {
         ?required=${this.required}
         ?disabled=${this.disabled}
         ?readonly=${this.readonly}
+        aria-invalid=${this.invalid ? 'true' : 'false'}
+        aria-required=${this.required ? 'true' : 'false'}
+        aria-label=${this.label || nothing}
+        aria-describedby=${this.describedBy || nothing}
         style="resize: ${this.resize}"
         @input=${this.onInput}
       ></textarea>

@@ -24,7 +24,7 @@
  *     - trailing — trailing content (badge, count, etc.)
  */
 
-import { LitElement, css, html } from 'lit'
+import { LitElement, css, html, nothing } from 'lit'
 
 export class ShipTreeView extends LitElement {
   static styles = css`
@@ -67,6 +67,9 @@ export class ShipTreeNode extends LitElement {
         0 0 0 var(--ring-offset) var(--background),
         0 0 0 calc(var(--ring-offset) + var(--ring-width))
           color-mix(in oklch, var(--ring-color) var(--ring-opacity), transparent);
+    }
+    @media (forced-colors: active) {
+      .row:focus-visible { outline: 2px solid CanvasText; outline-offset: 2px; }
     }
     .caret {
       display: inline-flex;
@@ -128,7 +131,7 @@ export class ShipTreeNode extends LitElement {
         class="row"
         part="row"
         tabindex="0"
-        aria-expanded=${this.leaf ? 'false' : String(this.expanded)}
+        aria-expanded=${this.leaf ? nothing : String(this.expanded)}
         aria-selected=${String(this.selected)}
         @click=${this._select}
         @keydown=${this._onKey}

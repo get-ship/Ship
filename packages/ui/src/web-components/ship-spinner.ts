@@ -11,11 +11,12 @@
  */
 
 import { LitElement, css, html } from 'lit'
-import { toneVars } from './util'
+import { reducedMotion, toneVars } from './util'
 import type { Size, Tone } from './util'
 
 export class ShipSpinner extends LitElement {
   static styles = [
+    reducedMotion,
     toneVars,
     css`
       :host { display: inline-flex; vertical-align: middle; }

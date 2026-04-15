@@ -71,7 +71,7 @@ export class ShipCode extends LitElement {
   render() {
     if (this.block) {
       return html`
-        <div class="block" part="block">
+        <div class="block" part="block" role="region" aria-label=${this.language ? `${this.language} code block` : 'code block'}>
           ${this.language ? html`<header part="label">${this.language}</header>` : null}
           <pre part="pre"><slot></slot></pre>
         </div>

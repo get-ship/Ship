@@ -1,22 +1,9 @@
 /**
  * <ship-git-diff>, <ship-git-diff-file>, <ship-git-diff-hunk>, <ship-git-diff-line>
  *
- * Token-for-token port of the React `DiffViewer` (apps/web/.../DiffViewer.tsx).
- * Server pre-parses the unified-diff text into structured markup and emits a
- * tree of these elements; client handles interactivity (per-file collapse,
- * expand-all / collapse-all) purely in Lit reactive state. The daemon does
- * the parsing, the browser does the rendering — matches our "daemon does
- * the work, client renders" principle.
- *
- * Composition:
- *   <ship-git-diff files="N" additions="A" deletions="D">
- *     <ship-git-diff-file path="src/x.rs" additions="2" deletions="1">
- *       <ship-git-diff-hunk header="@@ -1,5 +1,7 @@"></ship-git-diff-hunk>
- *       <ship-git-diff-line type="context" old="1" new="1">   foo</ship-git-diff-line>
- *       <ship-git-diff-line type="add" new="2">+   bar</ship-git-diff-line>
- *       <ship-git-diff-line type="del" old="2">-   baz</ship-git-diff-line>
- *     </ship-git-diff-file>
- *   </ship-git-diff>
+ * Port of the React DiffViewer. Daemon pre-parses the unified-diff into a tree
+ * of these elements; client handles interactivity (per-file + expand/collapse
+ * all) in Lit reactive state.
  */
 
 import { LitElement, css, html } from 'lit'
@@ -83,6 +70,9 @@ export class ShipGitDiff extends LitElement {
   deletions = 0
   empty = false
   allCollapsed = false
+
+  connectedCallback() { super.connectedCallback(); if (!this.hasAttribute('role')) this.setAttribute('role', 'region') }
+  updated() { this.setAttribute('aria-label', `Diff: ${this.files} file${this.files === 1 ? '' : 's'} changed, ${this.additions} additions, ${this.deletions} deletions`) }
 
   private toggleAll() {
     const next = !this.allCollapsed
@@ -168,6 +158,8 @@ export class ShipGitDiffFile extends LitElement {
   deletions = 0
   collapsed = false
 
+  connectedCallback() { super.connectedCallback(); if (!this.hasAttribute('role')) this.setAttribute('role', 'group') }
+  updated() { this.setAttribute('aria-label', `${this.path}: +${this.additions} -${this.deletions}`) }
   private toggle() { this.collapsed = !this.collapsed }
 
   render() {
@@ -260,6 +252,11 @@ export class ShipGitDiffLine extends LitElement {
   type: LineType = 'context'
   old = ''
   new = ''
+
+  updated() {
+    const verb = this.type === 'add' ? 'added' : this.type === 'del' ? 'removed' : 'context'
+    this.setAttribute('aria-label', `line ${this.new || this.old} ${verb}`)
+  }
 
   private sig(): string {
     return this.type === 'add' ? '+' : this.type === 'del' ? '-' : ' '

@@ -77,8 +77,11 @@ export class ShipAlert extends LitElement {
   }
 
   render() {
+    const assertive = this.tone === 'destructive' || this.tone === 'warning'
+    const role = assertive ? 'alert' : 'status'
+    const live = assertive ? 'assertive' : 'polite'
     return html`
-      <div class="box" role="status">
+      <div class="box" role=${role} aria-live=${live} aria-atomic="true">
         <span><slot name="icon"></slot></span>
         <div class="content">
           <div class="title"><slot name="title"></slot></div>

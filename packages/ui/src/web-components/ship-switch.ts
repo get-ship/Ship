@@ -14,8 +14,16 @@
  */
 
 import { LitElement, css, html } from 'lit'
+import { reducedMotion } from './util'
 export class ShipSwitch extends LitElement {
-  static styles = css`
+  static formAssociated = true
+  private internals: ElementInternals
+  private defaultChecked = false
+  constructor() {
+    super()
+    this.internals = this.attachInternals()
+  }
+  static styles = [reducedMotion, css`
     :host { display: inline-flex; align-items: center; gap: 8px; font-size: 13px; color: var(--foreground); }
     :host([disabled]) { opacity: 0.6; cursor: not-allowed; }
     label { display: inline-flex; align-items: center; gap: 8px; cursor: inherit; }
@@ -48,7 +56,7 @@ export class ShipSwitch extends LitElement {
       inset: 0;
     }
     input:focus-visible + .thumb { outline: 2px solid var(--primary); outline-offset: 2px; }
-  `
+  `]
 
   static properties = {
     checked: { type: Boolean, reflect: true },
@@ -61,9 +69,22 @@ export class ShipSwitch extends LitElement {
   disabled = false
   name = ''
   value = 'on'
+
+  connectedCallback() {
+    super.connectedCallback()
+    this.defaultChecked = this.checked
+  }
+  updated() { this.setFormValue(this.checked ? this.value : null) }
+  formResetCallback() { this.checked = this.defaultChecked }
+  formStateRestoreCallback(state: string | null) { this.checked = state === this.value }
+  private setFormValue(v: string | null) {
+    if (typeof this.internals.setFormValue === 'function') this.internals.setFormValue(v)
+  }
+
   private onChange(e: Event) {
     const c = (e.target as HTMLInputElement).checked
     this.checked = c
+    this.setFormValue(c ? this.value : null)
     this.dispatchEvent(new CustomEvent('ship-change', {
       detail: { checked: c }, bubbles: true, composed: true,
     }))

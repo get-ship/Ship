@@ -89,13 +89,19 @@ export class ShipJsonView extends LitElement {
     `
   }
 
+  connectedCallback() {
+    super.connectedCallback()
+    if (!this.hasAttribute('role')) this.setAttribute('role', 'tree')
+    if (!this.hasAttribute('aria-label')) this.setAttribute('aria-label', 'JSON tree')
+  }
+
   render() {
     if (!this.data) return html``
     let parsed: JsonValue
     try {
       parsed = JSON.parse(this.data)
     } catch (e) {
-      return html`<span class="error" part="error">Invalid JSON: ${(e as Error).message}</span>`
+      return html`<span class="error" part="error" role="alert">Invalid JSON: ${(e as Error).message}</span>`
     }
     return html`<div part="root">${this._renderValue(parsed, null, 0)}</div>`
   }

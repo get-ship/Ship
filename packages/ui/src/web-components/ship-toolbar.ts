@@ -43,6 +43,35 @@ export class ShipToolbar extends LitElement {
   align: 'center' | 'start' | 'end' | 'baseline' = 'center'
   gap: 'sm' | 'md' | 'lg' = 'md'
   variant: 'default' | 'bordered' = 'default'
+
+  connectedCallback() {
+    super.connectedCallback()
+    if (!this.hasAttribute('role')) this.setAttribute('role', 'toolbar')
+    if (!this.hasAttribute('aria-orientation')) this.setAttribute('aria-orientation', 'horizontal')
+    this.addEventListener('keydown', this.onKey)
+  }
+  disconnectedCallback() {
+    super.disconnectedCallback()
+    this.removeEventListener('keydown', this.onKey)
+  }
+
+  private focusable(): HTMLElement[] {
+    const slot = this.renderRoot.querySelector('slot:not([name])') as HTMLSlotElement | null
+    const els = (slot?.assignedElements({ flatten: true }) ?? []) as HTMLElement[]
+    return els.filter(el => !el.hasAttribute('disabled'))
+  }
+
+  private onKey = (e: KeyboardEvent) => {
+    if (e.key !== 'ArrowRight' && e.key !== 'ArrowLeft') return
+    const items = this.focusable()
+    if (!items.length) return
+    const active = (e.composedPath().find(n => items.includes(n as HTMLElement)) as HTMLElement) || null
+    const i = active ? items.indexOf(active) : -1
+    const next = e.key === 'ArrowRight' ? (i + 1) % items.length : (i - 1 + items.length) % items.length
+    items[next].focus()
+    e.preventDefault()
+  }
+
   render() {
     return html`<slot name="spacer"></slot><slot></slot>`
   }

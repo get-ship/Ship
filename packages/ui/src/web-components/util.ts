@@ -86,6 +86,51 @@ export const toneVars = css`
 `
 
 /**
+ * Focus-ring recipe. Apply to an interactive element on `:focus-visible`
+ * via `${focusRing}` template interpolation, or reference the CSS custom
+ * properties directly. Includes a `forced-colors: active` CanvasText
+ * outline fallback so the ring stays visible in high-contrast mode.
+ *
+ * Usage:
+ *   static styles = [focusRingVars, css`
+ *     button:focus-visible { ${focusRingStyle} }
+ *     @media (forced-colors: active) {
+ *       button:focus-visible { ${focusRingForcedColors} }
+ *     }
+ *   `]
+ */
+export const focusRingStyle = unsafeCSS(`
+  outline: none;
+  box-shadow:
+    0 0 0 var(--ring-offset) var(--background),
+    0 0 0 calc(var(--ring-offset) + var(--ring-width))
+      color-mix(in oklch, var(--ring-color) var(--ring-opacity), transparent);
+`)
+
+export const focusRingForcedColors = unsafeCSS(`
+  outline: 2px solid CanvasText;
+  outline-offset: 2px;
+`)
+
+/**
+ * Shadow-DOM-local `prefers-reduced-motion` override. Add as the first entry
+ * in a component's `static styles = [reducedMotion, css\`…\`]` so user-level
+ * reduced-motion collapses every transition/animation inside the shadow tree.
+ * Outer custom-property durations are *also* respected via tokens.css, but
+ * hard-coded ms values need this nuclear rule to be neutralized.
+ */
+export const reducedMotion = css`
+  @media (prefers-reduced-motion: reduce) {
+    :host, :host *, ::slotted(*) {
+      animation-duration: 0.01ms !important;
+      animation-iteration-count: 1 !important;
+      transition-duration: 0.01ms !important;
+      scroll-behavior: auto !important;
+    }
+  }
+`
+
+/**
  * Flush the test DOM between assertions. Use in tests as
  * `afterEach(cleanupTestDom)`.
  */

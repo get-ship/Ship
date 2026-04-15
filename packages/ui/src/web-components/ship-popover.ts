@@ -59,6 +59,8 @@ export class ShipPopover extends LitElement {
 
   open = false
   placement: 'top' | 'bottom' | 'left' | 'right' = 'bottom'
+  private static _idSeq = 0
+  private panelId = `ship-popover-panel-${++ShipPopover._idSeq}`
   show() { this.open = true; this.emit('ship-open') }
   hide() { this.open = false; this.emit('ship-close') }
   toggle() { this.open ? this.hide() : this.show() }
@@ -67,19 +69,60 @@ export class ShipPopover extends LitElement {
     this.dispatchEvent(new CustomEvent(name, { bubbles: true, composed: true }))
   }
 
+  private triggerEl(): HTMLElement | null {
+    const slot = this.renderRoot.querySelector('slot[name="trigger"]') as HTMLSlotElement | null
+    const assigned = slot?.assignedElements({ flatten: true }) as HTMLElement[] | undefined
+    return assigned?.[0] ?? null
+  }
+
+  private setupTrigger = () => {
+    const t = this.triggerEl()
+    if (!t) return
+    t.setAttribute('aria-haspopup', 'dialog')
+    t.setAttribute('aria-expanded', this.open ? 'true' : 'false')
+    t.setAttribute('aria-controls', this.panelId)
+  }
+
+  updated() {
+    this.setAttribute('data-state', this.open ? 'open' : 'closed')
+    this.setupTrigger()
+  }
+
   private onDocClick = (e: MouseEvent) => {
     if (!this.open) return
     const target = e.composedPath()[0] as Node
     if (!this.contains(target) && target !== this) this.hide()
   }
 
-  connectedCallback() { super.connectedCallback(); document.addEventListener('click', this.onDocClick) }
-  disconnectedCallback() { super.disconnectedCallback(); document.removeEventListener('click', this.onDocClick) }
+  private onKeydown = (e: KeyboardEvent) => {
+    if (this.open && e.key === 'Escape') {
+      e.preventDefault()
+      this.hide()
+      this.triggerEl()?.focus()
+    }
+  }
+
+  connectedCallback() {
+    super.connectedCallback()
+    document.addEventListener('click', this.onDocClick)
+    this.addEventListener('keydown', this.onKeydown)
+  }
+  disconnectedCallback() {
+    super.disconnectedCallback()
+    document.removeEventListener('click', this.onDocClick)
+    this.removeEventListener('keydown', this.onKeydown)
+  }
 
   render() {
     return html`
-      <span @click=${() => this.toggle()}><slot name="trigger"></slot></span>
-      <div class="panel" role="dialog"><slot></slot></div>
+      <span @click=${() => this.toggle()}><slot name="trigger" @slotchange=${this.setupTrigger}></slot></span>
+      <div
+        id=${this.panelId}
+        class="panel"
+        role="dialog"
+        aria-modal="false"
+        aria-hidden=${this.open ? 'false' : 'true'}
+      ><slot></slot></div>
     `
   }
 }

@@ -13,7 +13,7 @@
  *   - (default) — slot for tbody rows
  */
 
-import { LitElement, css, html } from 'lit'
+import { LitElement, css, html, nothing } from 'lit'
 
 export class ShipTable extends LitElement {
   static styles = css`
@@ -50,15 +50,17 @@ export class ShipTable extends LitElement {
   static properties = {
     dense: { type: Boolean, reflect: true },
     hoverable: { type: Boolean, reflect: true },
+    label: { type: String },
   }
 
   dense = false
   hoverable = true
+  label = ''
 
   render() {
     return html`
       <div class="wrap" part="wrap">
-        <table part="table">
+        <table part="table" aria-label=${this.label || nothing}>
           <thead part="thead"><slot name="head"></slot></thead>
           <tbody part="tbody"><slot></slot></tbody>
         </table>

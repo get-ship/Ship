@@ -73,8 +73,9 @@ export class ShipEmptyState extends LitElement {
 
   variant: 'default' | 'connecting' | 'placeholder' = 'default'
   render() {
+    const live = this.variant === 'connecting' ? 'polite' : 'off'
     return html`
-      <div class="box">
+      <div class="box" role="status" aria-live=${live}>
         <div class="icon"><slot name="icon"></slot></div>
         <div class="title"><slot name="title"></slot></div>
         <div class="desc"><slot></slot></div>

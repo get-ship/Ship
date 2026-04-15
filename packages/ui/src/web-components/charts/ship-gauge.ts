@@ -52,11 +52,13 @@ export class ShipGauge extends LitElement {
     highThreshold: { type: Number, attribute: 'high-threshold' },
     size: { type: Number },
     thickness: { type: Number },
+    label: { type: String },
   }
 
   value = 0
   min = 0
   max = 100
+  label = 'gauge'
   tone: string | null = null
   lowThreshold: number | null = null
   highThreshold: number | null = null
@@ -93,7 +95,7 @@ export class ShipGauge extends LitElement {
     const valueD = ratio > 0 ? arcPath(c, c, r, start, valueEnd) : ''
     const color = toneColor(this.resolveTone())
     return html`
-      <svg viewBox="0 0 ${s} ${s}" role="img" aria-label="gauge">
+      <svg viewBox="0 0 ${s} ${s}" role="img" aria-label=${this.label}>
         <path class="track" d=${trackD} fill="none" stroke-width=${t} stroke-linecap="round"></path>
         ${valueD
           ? svg`<path d=${valueD} fill="none" stroke=${color} stroke-width=${t} stroke-linecap="round"></path>`

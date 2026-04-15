@@ -29,6 +29,11 @@ export class ShipPipelineDag extends LitElement {
     }
   `
 
+  connectedCallback() {
+    super.connectedCallback()
+    if (!this.hasAttribute('role')) this.setAttribute('role', 'list')
+    if (!this.hasAttribute('aria-label')) this.setAttribute('aria-label', 'pipeline steps')
+  }
   render() { return html`<slot></slot>` }
 }
 

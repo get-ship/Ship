@@ -31,12 +31,35 @@ export class ShipField extends LitElement {
   }
 
   invalid = false
+  private static _idSeq = 0
+  private uid = ++ShipField._idSeq
+  private hintId = `ship-field-hint-${this.uid}`
+  private errorId = `ship-field-error-${this.uid}`
+
+  private wireControl = () => {
+    const slot = this.renderRoot.querySelector('slot:not([name])') as HTMLSlotElement | null
+    const first = slot?.assignedElements({ flatten: true })[0] as HTMLElement | undefined
+    if (!first) return
+    const ids: string[] = []
+    if (this.invalid) ids.push(this.errorId)
+    else ids.push(this.hintId)
+    const prior = (first.getAttribute('aria-describedby') || '')
+      .split(/\s+/)
+      .filter(id => id && id !== this.hintId && id !== this.errorId)
+    const final = [...prior, ...ids].join(' ').trim()
+    if (final) first.setAttribute('aria-describedby', final)
+    if ('invalid' in first) (first as unknown as { invalid: boolean }).invalid = this.invalid
+    else first.setAttribute('aria-invalid', this.invalid ? 'true' : 'false')
+  }
+
+  updated() { this.wireControl() }
+
   render() {
     return html`
       <slot name="label"></slot>
-      <slot></slot>
-      <div class="hint"><slot name="hint"></slot></div>
-      <div class="error"><slot name="error"></slot></div>
+      <slot @slotchange=${this.wireControl}></slot>
+      <div id=${this.hintId} class="hint"><slot name="hint"></slot></div>
+      <div id=${this.errorId} class="error" role="alert" aria-live="polite"><slot name="error"></slot></div>
     `
   }
 }

@@ -49,6 +49,12 @@ export class ShipToastContainer extends LitElement {
   static properties = { position: { type: String, reflect: true } }
   position: ToastPosition = 'top-right'
 
+  connectedCallback() {
+    super.connectedCallback()
+    if (!this.hasAttribute('role')) this.setAttribute('role', 'region')
+    if (!this.hasAttribute('aria-label')) this.setAttribute('aria-label', 'Notifications')
+  }
+
   render() {
     return html`<slot></slot>`
   }
@@ -128,8 +134,11 @@ export class ShipToast extends LitElement {
   }
 
   render() {
+    const assertive = this.tone === 'destructive' || this.tone === 'warning'
+    const role = assertive ? 'alert' : 'status'
+    const live = assertive ? 'assertive' : 'polite'
     return html`
-      <div class="toast" role="status" part="toast">
+      <div class="toast" role=${role} aria-live=${live} aria-atomic="true" part="toast">
         <span><slot name="icon"></slot></span>
         <div class="content">
           <div class="title"><slot name="title"></slot></div>

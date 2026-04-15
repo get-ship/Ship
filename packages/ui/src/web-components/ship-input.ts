@@ -26,11 +26,19 @@
  *   - (native `input` and `change` also bubble out composed)
  */
 
-import { LitElement, css, html } from 'lit'
+import { LitElement, css, html, nothing } from 'lit'
+import { reducedMotion } from './util'
 import type { Size, Variant } from './util'
 
 export class ShipInput extends LitElement {
-  static styles = css`
+  static formAssociated = true
+  private internals: ElementInternals
+  private defaultValue = ''
+  constructor() {
+    super()
+    this.internals = this.attachInternals()
+  }
+  static styles = [reducedMotion, css`
     :host { display: inline-flex; width: 100%; }
     .field {
       display: inline-flex; align-items: center; gap: var(--radius-sm);
@@ -96,7 +104,7 @@ export class ShipInput extends LitElement {
     :host([size='md']) input { font-size: 13px; line-height: 22px; }
     :host([size='lg']) .field { padding: 6px 12px; }
     :host([size='lg']) input { font-size: 16px; line-height: 28px; font-weight: 600; }
-  `
+  `]
 
   static properties = {
     type: { type: String },
@@ -111,6 +119,9 @@ export class ShipInput extends LitElement {
     loading: { type: Boolean, reflect: true },
     variant: { type: String, reflect: true },
     size: { type: String, reflect: true },
+    label: { type: String },
+    describedBy: { type: String, attribute: 'described-by' },
+    errorMessage: { type: String, attribute: 'error-message' },
   }
 
   type = 'text'
@@ -125,9 +136,27 @@ export class ShipInput extends LitElement {
   loading = false
   variant: Variant | 'default' = 'default'
   size: Size = 'md'
+  label = ''
+  describedBy = ''
+  errorMessage = ''
+  private static _idSeq = 0
+  private errId = `ship-input-err-${++ShipInput._idSeq}`
+
+  connectedCallback() {
+    super.connectedCallback()
+    this.defaultValue = this.value
+  }
+  updated() { this.setFormValue(this.value) }
+  formResetCallback() { this.value = this.defaultValue }
+  formStateRestoreCallback(state: string | null) { this.value = state ?? '' }
+  private setFormValue(v: string) {
+    if (typeof this.internals.setFormValue === 'function') this.internals.setFormValue(v)
+  }
+
   private onInput(e: Event) {
     const target = e.target as HTMLInputElement
     this.value = target.value
+    this.setFormValue(this.value)
     this.dispatchEvent(new CustomEvent('ship-input', {
       detail: { value: this.value }, bubbles: true, composed: true,
     }))
@@ -148,12 +177,21 @@ export class ShipInput extends LitElement {
           ?disabled=${this.disabled}
           ?readonly=${this.readonly}
           aria-invalid=${this.invalid ? 'true' : 'false'}
+          aria-required=${this.required ? 'true' : 'false'}
+          aria-busy=${this.loading ? 'true' : 'false'}
+          aria-label=${this.label || nothing}
+          aria-describedby=${this.invalid && this.errorMessage
+            ? `${this.errId}${this.describedBy ? ' ' + this.describedBy : ''}`
+            : (this.describedBy || nothing)}
           @input=${this.onInput}
         />
         ${this.loading
           ? html`<span class="spinner" aria-hidden="true"></span>`
           : html`<slot name="trailing"></slot>`}
       </div>
+      ${this.invalid && this.errorMessage
+        ? html`<span id=${this.errId} role="alert" style="display:none">${this.errorMessage}</span>`
+        : nothing}
     `
   }
 }
