@@ -25,6 +25,9 @@ pub enum JobStatus {
     Blocked,
     Merged,
     Failed,
+    /// Operator-initiated termination. Distinct from Failed so post-mortems
+    /// can distinguish intentional cancellation from execution failure.
+    Cancelled,
 }
 
 /// Projected state of a single job.
@@ -165,6 +168,18 @@ pub fn apply(record: &mut JobRecord, event: &EventEnvelope) {
         event_types::JOB_FAILED => {
             if let Ok(p) = serde_json::from_str::<serde_json::Value>(&event.payload_json) {
                 record.error = p["error"].as_str().map(str::to_string);
+            }
+            record.updated_at = ts;
+        }
+        event_types::JOB_SPAWN_FAILED => {
+            if let Ok(p) = serde_json::from_str::<serde_json::Value>(&event.payload_json) {
+                record.error = p["error"].as_str().map(str::to_string);
+            }
+            record.updated_at = ts;
+        }
+        event_types::JOB_CANCELLED => {
+            if let Ok(p) = serde_json::from_str::<serde_json::Value>(&event.payload_json) {
+                record.error = p["reason"].as_str().map(str::to_string);
             }
             record.updated_at = ts;
         }

@@ -490,4 +490,44 @@ mod idempotent {
             "status must not change across replay"
         );
     }
+
+    #[test]
+    fn project_spawn_failed_sets_failed_with_error() {
+        let events = vec![
+            created_event("js1"),
+            make_event(
+                event_types::JOB_SPAWN_FAILED,
+                serde_json::json!({
+                    "job_id": "js1",
+                    "slug": "auth-tests",
+                    "stage": "executor_spawn",
+                    "error": "tmux: command not found",
+                }),
+            ),
+        ];
+        let map = project(&events);
+        let rec = map.get("js1").unwrap();
+        assert_eq!(rec.status, JobStatus::Failed);
+        assert_eq!(rec.error.as_deref(), Some("tmux: command not found"));
+    }
+
+    #[test]
+    fn project_cancelled_sets_cancelled_with_reason() {
+        let events = vec![
+            created_event("jc1"),
+            make_event(
+                event_types::JOB_CANCELLED,
+                serde_json::json!({
+                    "job_id": "jc1",
+                    "slug": "auth-tests",
+                    "reason": "superseded by rerun",
+                    "requested_by": "operator",
+                }),
+            ),
+        ];
+        let map = project(&events);
+        let rec = map.get("jc1").unwrap();
+        assert_eq!(rec.status, JobStatus::Cancelled);
+        assert_eq!(rec.error.as_deref(), Some("superseded by rerun"));
+    }
 }
