@@ -85,6 +85,7 @@ const routes: Route[] = [
   { path: "/skills", mount: "/api/runtime/view/skills" },
   { path: "/chat", mount: "/api/runtime/view/chat", sse: "/api/runtime/view/chat/sse" },
   { path: "/events", mount: "/api/runtime/view/events", sse: "/api/runtime/view/events/sse" },
+  { path: "/data", mount: "/api/runtime/view/data", sse: "/api/runtime/view/data/sse" },
 ];
 
 let currentSSE: EventSource | null = null;
