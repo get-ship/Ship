@@ -1,0 +1,7 @@
+name: skills
+type: html
+data:
+  skills: true
+events:
+  - config.changed
+  - workspace.changed

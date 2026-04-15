@@ -11,7 +11,6 @@ use std::collections::HashMap;
 use std::time::Duration;
 
 use crate::rest_api::ApiState;
-use crate::views::resolve::ManifestData;
 use crate::views::stream::{ViewSse, ViewStream};
 
 /// Parse Datastar signals from the raw query string.
@@ -48,113 +47,6 @@ fn event_namespaces(events: &Option<Vec<String>>) -> Vec<String> {
         ns.push(String::new());
     }
     ns
-}
-
-/// Build the Jinja context for a view based on manifest data declarations.
-fn build_generic_context(
-    view_name: &str,
-    signals: &serde_json::Value,
-    manifest_data: &Option<ManifestData>,
-    query_params: &HashMap<String, String>,
-) -> serde_json::Value {
-    let mut ctx = serde_json::json!({ "view_name": view_name });
-    let Ok(ship_dir) = runtime::project::get_global_dir() else { return ctx };
-    let schemas = runtime::collections::schema::load_schemas(&ship_dir).unwrap_or_default();
-    let active_id = signals.get("collection").and_then(|v| v.as_str()).map(String::from)
-        .or_else(|| query_params.get("collection").cloned());
-    let should_load = manifest_data.as_ref().and_then(|d| d.collections.as_ref()).is_some();
-    if should_load {
-        let summaries: Vec<serde_json::Value> = schemas
-            .iter()
-            .map(|s| {
-                let fields: Vec<serde_json::Value> = s
-                    .fields
-                    .iter()
-                    .map(|(k, v)| {
-                        serde_json::json!([k, {
-                            "field_type": format!("{:?}", v.field_type).to_lowercase(),
-                            "required": v.required,
-                            "values": v.values,
-                            "default": v.default,
-                        }])
-                    })
-                    .collect();
-                serde_json::json!({
-                    "id": s.id,
-                    "name": s.name,
-                    "field_count": s.fields.len(),
-                    "fields": fields,
-                })
-            })
-            .collect();
-        ctx["collections"] = serde_json::json!(summaries);
-
-        let active_schema = active_id
-            .as_deref()
-            .and_then(|id| schemas.iter().find(|s| s.id == id))
-            .or_else(|| schemas.first());
-
-        if let Some(first) = active_schema {
-            ctx["active_collection"] = serde_json::json!(first.id);
-            let fields_list: Vec<serde_json::Value> = first
-                .fields
-                .iter()
-                .map(|(k, v)| {
-                    serde_json::json!([k, {
-                        "field_type": format!("{:?}", v.field_type).to_lowercase(),
-                        "required": v.required,
-                        "values": v.values,
-                        "default": v.default,
-                    }])
-                })
-                .collect();
-            ctx["schema"] = serde_json::json!({
-                "id": first.id,
-                "name": first.name,
-                "fields": fields_list,
-            });
-
-            if let Ok(mut svc) =
-                runtime::collections::store::open_docs_db(&ship_dir)
-            {
-                let _ = runtime::collections::store::ensure_collection_table(
-                    &mut svc, first,
-                );
-                let req = runtime::collections::query::QueryRequest {
-                    collection: first.id.clone(),
-                    filter: std::collections::BTreeMap::new(),
-                    sort: std::collections::BTreeMap::new(),
-                    limit: 200,
-                    offset: 0,
-                };
-                if let Ok(items) =
-                    runtime::collections::store::query_items(&mut svc, first, &req)
-                {
-                    let items_json: Vec<serde_json::Value> = items
-                        .into_iter()
-                        .map(|i| serde_json::to_value(i).unwrap_or_default())
-                        .collect();
-                    ctx["total_items"] = serde_json::json!(items_json.len());
-                    ctx["items"] = serde_json::json!(items_json);
-                }
-            }
-        }
-    }
-
-    // Agents data loader.
-    if manifest_data.as_ref().and_then(|d| d.agents).unwrap_or(false) {
-        let agents = crate::views::state::list_agents(&ship_dir);
-        let total = agents.len();
-        ctx["agents"] = serde_json::to_value(&agents).unwrap_or_default();
-        ctx["total"] = serde_json::json!(total);
-    }
-
-    // Settings data loader.
-    if manifest_data.as_ref().and_then(|d| d.settings).unwrap_or(false) {
-        ctx["settings"] = serde_json::json!(true);
-    }
-
-    ctx
 }
 
 /// Render the content partial for a view from disk (hot-reload friendly).
@@ -216,7 +108,7 @@ pub async fn serve_view_sse(
         let selector = format!("#{name}-content");
 
         // Initial render.
-        let ctx = build_generic_context(&name, &signals, &manifest_data, &query_params);
+        let ctx = super::context::build_generic_context(&name, &signals, &manifest_data, &query_params);
         if let Some(html) = render_partial(&name, &view_dir, &ctx) {
             if vs.patch(&selector, html).await.is_err() {
                 return;
@@ -249,7 +141,7 @@ pub async fn serve_view_sse(
                 break;
             }
             let ctx =
-                build_generic_context(&name, &signals, &manifest_data, &query_params);
+                super::context::build_generic_context(&name, &signals, &manifest_data, &query_params);
             let Some(html) = render_partial(&name, &view_dir, &ctx) else {
                 continue;
             };

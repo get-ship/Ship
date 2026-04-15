@@ -1,0 +1,6 @@
+name: events
+type: html
+data:
+  events_data: true
+events:
+  - ""

@@ -1,0 +1,20 @@
+{#- Skills content — SSE-patchable region.
+   Root element MUST have id="skills-content" for Datastar patching.
+   Context: skills (Vec<SkillSummary>), total (usize). -#}
+<div id="skills-content">
+  {% if skills|length == 0 %}
+    <main class="skills-detail empty">
+      <ship-empty-state
+        icon="sparkles"
+        title="No skills found"
+        body="Add skills under .ship/skills/ to get started."></ship-empty-state>
+    </main>
+  {% else %}
+    <main class="skills-detail empty">
+      <ship-empty-state
+        icon="sparkles"
+        title="No skill open"
+        body="Select a skill from the rail to start reading."></ship-empty-state>
+    </main>
+  {% endif %}
+</div>

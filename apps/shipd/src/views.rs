@@ -33,6 +33,7 @@ pub mod session;
 pub mod session_types;
 pub mod sanitize;
 
+pub mod context;
 pub mod generic_sse;
 
 mod assets;

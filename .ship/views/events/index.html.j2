@@ -1,0 +1,129 @@
+{#-
+  Events browser — live event-stream feed with filter chips and entity groupings.
+  The daemon passes rows, types, actors, groups, total as Jinja context.
+  Datastar for all interactions. ZERO script tags.
+-#}
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Events</title>
+  <link rel="stylesheet" href="/api/runtime/assets/view-tokens.css">
+  <script type="module" src="/api/runtime/assets/datastar.js"></script>
+  <script type="module" src="/api/runtime/assets/ship-elements.js"></script>
+  <style>
+  .ship-view-events { color: var(--foreground); }
+  .events-wrap { max-width: 960px; margin: 0 auto; padding: 20px 16px 40px; }
+  .events-head {
+    display: flex; align-items: flex-end; justify-content: space-between;
+    margin-bottom: 12px;
+  }
+  .events-title {
+    font-family: var(--font-display); font-size: 20px; font-weight: 600; margin: 0;
+  }
+  .events-sub {
+    font-size: 11px; color: var(--muted-foreground); margin-top: 2px;
+    font-variant-numeric: tabular-nums;
+  }
+  .events-filters {
+    display: flex; flex-wrap: wrap; gap: 6px; margin-bottom: 12px;
+    padding: 8px 0; border-bottom: 1px solid var(--border);
+  }
+  .events-content details {
+    margin-bottom: 8px; border: 1px solid var(--border);
+    border-radius: var(--radius-md); overflow: hidden; background: var(--card);
+  }
+  .events-content summary {
+    list-style: none; cursor: pointer; padding: 8px 12px; font-size: 12px;
+    display: flex; align-items: center; gap: 8px;
+    background: color-mix(in oklch, var(--muted) 25%, transparent);
+  }
+  .events-content summary::-webkit-details-marker { display: none; }
+  .events-content summary .entity {
+    font-family: var(--font-mono); color: var(--foreground);
+  }
+  .events-content summary .count {
+    font-size: 10px; color: var(--muted-foreground); margin-left: auto;
+  }
+  .events-row {
+    display: grid; grid-template-columns: 90px 1fr 140px 140px;
+    gap: 10px; padding: 6px 12px; border-top: 1px solid var(--border);
+    font-size: 11px; align-items: baseline;
+  }
+  .events-row .ts { color: var(--muted-foreground); font-variant-numeric: tabular-nums; }
+  .events-row .kind { font-family: var(--font-mono); color: var(--foreground); }
+  .events-row .actor { color: var(--muted-foreground); }
+  .events-row .id {
+    color: var(--muted-foreground); font-family: var(--font-mono);
+    font-size: 10px; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
+  }
+  .events-row pre {
+    grid-column: 1 / -1; margin: 4px 0 0;
+    background: color-mix(in oklch, var(--muted) 30%, transparent);
+    padding: 8px; border-radius: var(--radius-sm); font-size: 10px; overflow-x: auto;
+  }
+  .events-search {
+    margin-left: auto; padding: 4px 8px; border: 1px solid var(--border);
+    border-radius: var(--radius-sm); background: var(--background);
+    color: var(--foreground); font-size: 11px; min-width: 160px;
+  }
+  </style>
+</head>
+<body>
+<div id="events-root" class="ship-view ship-view-events"
+     data-signals="{eventType: '', actor: '', entity: '', q: ''}">
+  <div class="events-wrap">
+    <div class="events-head">
+      <div>
+        <h1 class="events-title">Events</h1>
+        <div class="events-sub">{{ total }} events</div>
+      </div>
+    </div>
+
+    {# -- Filter chips -- #}
+    <div class="events-filters" role="group" aria-label="Filter events">
+      <ship-chip size="sm"
+        data-attr:selected="$eventType == ''"
+        data-on:click="$eventType = ''; @get('/api/runtime/view/events/sse')">
+        All types
+      </ship-chip>
+      {% for t in types %}
+      <ship-chip size="sm"
+        data-attr:selected="$eventType == '{{ t }}'"
+        data-on:click="$eventType = '{{ t }}'; @get('/api/runtime/view/events/sse')">
+        {{ t }}
+      </ship-chip>
+      {% endfor %}
+      {% if actors|length > 0 %}
+      <span style="width:1px;background:var(--border);margin:0 4px"></span>
+      <ship-chip size="sm"
+        data-attr:selected="$actor == ''"
+        data-on:click="$actor = ''; @get('/api/runtime/view/events/sse')">
+        All actors
+      </ship-chip>
+      {% for a in actors %}
+      <ship-chip size="sm"
+        data-attr:selected="$actor == '{{ a }}'"
+        data-on:click="$actor = '{{ a }}'; @get('/api/runtime/view/events/sse')">
+        {{ a }}
+      </ship-chip>
+      {% endfor %}
+      {% endif %}
+      <input class="events-search"
+             placeholder="Search events..."
+             data-bind="q"
+             data-on:input.debounce.300ms="@get('/api/runtime/view/events/sse')" />
+    </div>
+
+    {# -- Content (SSE-driven) -- #}
+    <div data-init="@get('/api/runtime/view/events/sse')">
+      <div id="events-content" class="events-content">
+        <p style="padding: 16px 0; font-size: 11px; color: var(--muted-foreground)">Loading...</p>
+      </div>
+    </div>
+
+  </div>
+</div>
+</body>
+</html>

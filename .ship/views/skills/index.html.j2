@@ -1,0 +1,137 @@
+{#-
+  Skills index — two-pane layout (rail + detail) with SSE live updates.
+  Context: rail (RailCtx), optionally skill (SkillDetail).
+-#}
+{% from '_urls.html.j2' import view_skills_rail, view_skill_detail %}
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Skills</title>
+  <link rel="stylesheet" href="/api/runtime/assets/view-tokens.css">
+  <script type="module" src="/api/runtime/assets/datastar.js"></script>
+  <script type="module" src="/api/runtime/assets/ship-elements.js"></script>
+  <style>
+  .ship-view-skills { color: var(--foreground); height: 100%; }
+  .skills-layout {
+    display: grid; grid-template-columns: 260px 1fr;
+    height: 100%; min-height: 500px;
+  }
+  .skills-left {
+    border-right: 1px solid var(--border); display: flex;
+    flex-direction: column; min-height: 0; background: var(--card);
+    overflow: hidden;
+  }
+  .skills-left > :nth-child(2) { overflow: auto; flex: 1 1 auto; }
+  .skills-detail {
+    padding: 24px 28px; overflow: auto; display: flex;
+    flex-direction: column; gap: 16px;
+  }
+  .skills-detail.empty {
+    padding: 0; align-items: center; justify-content: center;
+  }
+  .skills-rail-head {
+    padding: 10px 12px; border-bottom: 1px solid var(--border);
+    display: flex; flex-direction: column; gap: 8px;
+  }
+  .skills-filter-row { display: flex; flex-wrap: wrap; gap: 4px; }
+  .skills-group { padding: 6px 0; }
+  .skills-group-head {
+    font-size: 10px; font-weight: 600; text-transform: uppercase;
+    letter-spacing: 0.08em; color: var(--muted-foreground); padding: 6px 12px;
+  }
+  .skills-row {
+    display: flex; align-items: center; gap: 6px; padding: 4px 12px;
+    min-height: 28px; font-size: 12px; cursor: pointer;
+  }
+  .skills-row:hover {
+    background: color-mix(in oklch, var(--muted) 40%, transparent);
+  }
+  .skills-row[aria-selected="true"] {
+    background: color-mix(in oklch, var(--primary) 12%, transparent);
+  }
+  .skills-caret {
+    color: var(--muted-foreground); font-size: 10px; width: 10px;
+  }
+  .skills-row > .skills-name {
+    overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
+  }
+  .skills-dot {
+    width: 6px; height: 6px; border-radius: 50%;
+    background: var(--success); margin-left: auto; flex-shrink: 0;
+  }
+  .skills-dot.docs { background: var(--muted-foreground); }
+  .skills-source-tag {
+    width: 8px; height: 8px; border-radius: 2px;
+    background: var(--primary); flex-shrink: 0;
+  }
+  .skills-empty-hint {
+    font-size: 12px; color: var(--muted-foreground);
+    padding: 16px; text-align: center;
+  }
+  .skill-detail-head h1 {
+    font-family: var(--font-display); font-size: 22px;
+    font-weight: 700; margin: 0;
+  }
+  .skill-detail-desc {
+    font-size: 13px; color: var(--muted-foreground); margin: 4px 0 0;
+  }
+  .skill-frontmatter-chips { display: flex; flex-wrap: wrap; gap: 6px; }
+  </style>
+</head>
+<body>
+<div id="skills-root" class="ship-view ship-view-skills"
+     data-signals="{activeSkill: '{{ active_skill_id | default('') }}'}">
+  <div class="skills-layout">
+    <aside class="skills-left">
+      <div class="skills-rail-head">
+        <ship-input
+          size="sm"
+          placeholder="Search skills..."
+          value="{{ rail.q }}"
+          data-on:input__debounce.250ms="@get('{{ view_skills_rail() }}?q=' + encodeURIComponent(evt.target.value) + '&kind={{ rail.active_kind }}')"></ship-input>
+        <div class="skills-filter-row" role="group" aria-label="Filter by kind">
+          {% for kc in rail.kind_counts %}
+            <ship-chip size="sm" {% if kc.selected %}selected{% endif %}
+              data-on:click="@get('{{ view_skills_rail() }}?kind={{ kc.id }}{% if rail.q %}&q={{ rail.q }}{% endif %}')">{{ kc.label }} &middot; {{ kc.count }}</ship-chip>
+          {% endfor %}
+        </div>
+      </div>
+      <div id="skills-rail">
+        {% if rail.groups|length == 0 %}
+          <div class="skills-empty-hint">No skills match.</div>
+        {% else %}
+          {% for g in rail.groups %}
+            <div class="skills-group">
+              <div class="skills-group-head">{{ g.source }}</div>
+              {% for s in g.skills %}
+                <div class="skills-row"
+                     data-attr:aria-selected="$activeSkill == '{{ s.id }}'"
+                     data-on:click="$activeSkill = '{{ s.id }}'; @get('/api/runtime/view/skills/sse')">
+                  <span class="skills-caret">&#8250;</span>
+                  <span class="skills-name">{{ s.name }}</span>
+                  <span class="skills-dot {% if s.kind == 'docs' %}docs{% endif %}" aria-hidden="true"></span>
+                  <span class="skills-source-tag" aria-hidden="true"></span>
+                </div>
+              {% endfor %}
+            </div>
+          {% endfor %}
+        {% endif %}
+      </div>
+    </aside>
+
+    <div data-init="@get('/api/runtime/view/skills/sse')">
+      <div id="skills-content">
+        <main class="skills-detail empty">
+          <ship-empty-state
+            icon="sparkles"
+            title="No skill open"
+            body="Select a skill from the rail to start reading."></ship-empty-state>
+        </main>
+      </div>
+    </div>
+  </div>
+</div>
+</body>
+</html>
