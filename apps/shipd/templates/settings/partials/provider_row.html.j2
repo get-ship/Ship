@@ -16,4 +16,12 @@
       {% endif %}
     </span>
   </div>
+  <input
+    type="radio"
+    name="default-provider"
+    class="provider-radio"
+    value="{{ p.id }}"
+    {% if p.is_default %}checked{% endif %}
+    aria-label="Use {{ p.label }} as default provider"
+  />
 </div>
