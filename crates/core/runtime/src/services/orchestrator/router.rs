@@ -10,7 +10,7 @@ use std::sync::Arc;
 use tokio::sync::Mutex;
 
 use super::dispatch::handle_job_created;
-use super::gate_retry::{emit_job_failed_for_gate, try_gate_retry};
+use super::review_retry::{emit_job_failed_for_review, try_review_retry};
 use super::handlers::{finalize_pipeline_if_done, handle_job_cleanup, handle_job_update};
 use super::pipeline::advance_pipeline;
 use super::OrchestratorContext;
@@ -226,8 +226,8 @@ pub async fn handle_job_event(
                     if let Some(slug) = &slug {
                         octx.registry.unregister(slug).await;
                     }
-                    if !try_gate_retry(kernel, octx, &payload).await {
-                        emit_job_failed_for_gate(kernel, &payload).await;
+                    if !try_review_retry(kernel, octx, &payload).await {
+                        emit_job_failed_for_review(kernel, &payload).await;
                     }
                 }
             }

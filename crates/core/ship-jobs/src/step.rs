@@ -2,7 +2,9 @@
 #[derive(Debug, Clone, PartialEq)]
 pub enum StepType {
     Agent,
-    Gate,
+    /// Agent-backed reviewer for the previous step. Not to be confused
+    /// with the `gate:` attribute — that's a diff-rule check on any step.
+    Review,
     Run { command: String },
 }
 
@@ -34,7 +36,10 @@ pub fn infer_step_type(val: &serde_json::Value) -> &'static str {
         {
             return match t {
                 "agent" => "agent",
-                "gate" => "gate",
+                // `gate` is the legacy alias for `review` (agent-backed
+                // reviewer). A step's declarative diff-rule gate is the
+                // `gate:` attribute on any step, not a step type.
+                "review" | "gate" => "review",
                 "run" => "run",
                 _ => "agent",
             };

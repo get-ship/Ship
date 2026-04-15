@@ -169,7 +169,7 @@ async fn pipeline_advances_through_all_steps() {
             "spec_path": "spec.md", "plan_id": null,
             "steps": { "steps": [
                 { "id": "implement", "type": "agent", "agent": "rust-runtime", "after": [] },
-                { "id": "gate", "type": "gate", "agent": "reviewer", "after": ["implement"] },
+                { "id": "gate", "type": "review", "agent": "reviewer", "after": ["implement"] },
             ]}
         }),
     ).unwrap()).unwrap();

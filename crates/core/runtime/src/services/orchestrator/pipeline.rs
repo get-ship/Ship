@@ -198,7 +198,7 @@ async fn advance_pipeline_inner(
                 });
                 dispatched_any = true;
             }
-            StepType::Agent | StepType::Gate => {
+            StepType::Agent | StepType::Review => {
                 // Load-time validation guarantees an agent here; defensively skip
                 // on the impossible path rather than substituting a role name.
                 let Some(agent) = step.agent.as_deref().filter(|a| !a.is_empty()) else {
@@ -225,7 +225,7 @@ async fn advance_pipeline_inner(
                     );
                 }
 
-                let persist = step.step_type != StepType::Gate;
+                let persist = step.step_type != StepType::Review;
                 let (exit_tx, exit_rx) = tokio::sync::mpsc::unbounded_channel();
                 let job_ctx = JobContext {
                     job_id: job.job_id.clone(),

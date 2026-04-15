@@ -122,13 +122,13 @@ fn job_record_default_has_no_steps() {
 fn step_type_variants_exhaustive() {
     let variants = [
         StepType::Agent,
-        StepType::Gate,
+        StepType::Review,
         StepType::Run { command: "true".into() },
     ];
     for v in &variants {
         match v {
             StepType::Agent => {}
-            StepType::Gate => {}
+            StepType::Review => {}
             StepType::Run { .. } => {}
         }
     }

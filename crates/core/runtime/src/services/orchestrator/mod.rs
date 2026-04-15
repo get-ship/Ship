@@ -15,7 +15,7 @@
 
 pub mod dedup;
 pub mod emit;
-pub mod gate_retry;
+pub mod review_retry;
 pub mod gate_rules;
 pub mod handlers;
 pub mod pipeline;

@@ -1,8 +1,8 @@
-//! Gate retry logic — re-dispatches gated steps after gate failure.
+//! Review retry logic — re-dispatches the reviewed step when a review
+//! agent's verdict is Failed.
 //!
-//! When a gate step fails (`step.observed` with `succeeded: false`), this module
-//! checks the retry policy on the gated step and either re-dispatches it or
-//! emits `job.failed` if retries are exhausted.
+//! Distinct from the diff-rule gate (`GateSpec` attribute on any step).
+//! This module only handles `StepType::Review` — the agent-backed reviewer.
 
 use crate::events::job::{StepObservedPayload, StepType};
 use crate::events::EventEnvelope;
@@ -12,10 +12,10 @@ use tokio::sync::Mutex;
 use super::pipeline::advance_pipeline;
 use super::OrchestratorContext;
 
-/// Attempt to retry a gated step after gate failure.
+/// Attempt to retry a reviewed step after the review agent fails it.
 ///
 /// Returns `true` if a retry was dispatched, `false` if no retry is possible.
-pub async fn try_gate_retry(
+pub async fn try_review_retry(
     kernel: &Arc<Mutex<crate::events::KernelRouter>>,
     octx: &OrchestratorContext,
     payload: &StepObservedPayload,
@@ -33,15 +33,15 @@ pub async fn try_gate_retry(
         None => return false,
     };
 
-    let gate_step = match pipeline.steps.iter().find(|s| s.id == payload.step_name) {
+    let review_step = match pipeline.steps.iter().find(|s| s.id == payload.step_name) {
         Some(s) => s,
         None => return false,
     };
-    if gate_step.step_type != StepType::Gate {
+    if review_step.step_type != StepType::Review {
         return false;
     }
 
-    let gated_step_id = match gate_step.after.first() {
+    let gated_step_id = match review_step.after.first() {
         Some(id) => id.clone(),
         None => return false,
     };
@@ -108,8 +108,8 @@ pub async fn try_gate_retry(
     advance_pipeline(kernel, &synthetic, octx).await
 }
 
-/// Emit `job.failed` when a gate fails with no retries remaining.
-pub async fn emit_job_failed_for_gate(
+/// Emit `job.failed` when a review fails with no retries remaining.
+pub async fn emit_job_failed_for_review(
     kernel: &Arc<Mutex<crate::events::KernelRouter>>,
     payload: &StepObservedPayload,
 ) {
@@ -126,18 +126,18 @@ pub async fn emit_job_failed_for_gate(
         None => return,
     };
 
-    let is_gate = pipeline
+    let is_review = pipeline
         .steps
         .iter()
-        .any(|s| s.id == payload.step_name && s.step_type == StepType::Gate);
-    if !is_gate {
+        .any(|s| s.id == payload.step_name && s.step_type == StepType::Review);
+    if !is_review {
         return;
     }
 
     let reason = payload
         .reason
         .clone()
-        .unwrap_or_else(|| "gate failed".to_string());
+        .unwrap_or_else(|| "review failed".to_string());
     let fail_payload = crate::events::job::JobFailedPayload {
         job_id: payload.job_id.clone(),
         error: reason,

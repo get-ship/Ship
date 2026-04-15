@@ -301,7 +301,7 @@ fn pipeline_full_lifecycle_all_steps_tracked() {
                 "steps": [
                     { "id": "test", "type": "agent", "agent": "test-writer", "after": [] },
                     { "id": "impl", "type": "agent", "agent": "rust-runtime", "after": ["test"] },
-                    { "id": "gate", "type": "gate", "agent": "reviewer", "after": ["impl"] },
+                    { "id": "gate", "type": "review", "agent": "reviewer", "after": ["impl"] },
                 ]
             }
         })),

@@ -279,7 +279,7 @@ fn project_step_retry_tracks_attempt() {
                 "steps": {
                     "steps": [
                         { "id": "implement", "type": "agent", "agent": "rust-lane", "max_retries": 2 },
-                        { "id": "gate", "type": "gate", "agent": "reviewer", "after": ["implement"] }
+                        { "id": "gate", "type": "review", "agent": "reviewer", "after": ["implement"] }
                     ]
                 }
             }),

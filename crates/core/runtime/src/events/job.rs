@@ -20,7 +20,12 @@ pub struct PipelinePhase {
 #[serde(rename_all = "snake_case")]
 pub enum StepType {
     Agent,
-    Gate,
+    /// Agent-backed review of the previous step. Distinct from a
+    /// step's declarative `gate:` attribute (a pure diff-rule check,
+    /// see `GateSpec`). A `Review` step spawns a reviewer agent that
+    /// inspects the previous step's work and emits a verdict; on
+    /// failure, the gated step is retried up to its `max_retries`.
+    Review,
     /// Execute a shell command. Exit 0 = success, non-zero = failure.
     Run,
 }

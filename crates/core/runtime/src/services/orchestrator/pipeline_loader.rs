@@ -38,7 +38,7 @@ pub fn ensure_pipeline(mut payload: JobCreatedPayload) -> Result<JobCreatedPaylo
 /// fallbacks — naming the step id makes misconfigured pipelines fail loud.
 fn validate_pipeline(pipeline: &Pipeline) -> Result<(), String> {
     for step in &pipeline.steps {
-        let needs_agent = matches!(step.step_type, StepType::Agent | StepType::Gate);
+        let needs_agent = matches!(step.step_type, StepType::Agent | StepType::Review);
         if needs_agent && step.agent.as_deref().map(str::is_empty).unwrap_or(true) {
             return Err(format!(
                 "pipeline step '{}' of type {:?} requires an agent but none was declared",

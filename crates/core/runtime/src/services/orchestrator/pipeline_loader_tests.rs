@@ -54,7 +54,7 @@ fn missing_agent_on_agent_step_fails_at_load() {
 }
 
 #[test]
-fn missing_agent_on_gate_step_fails_at_load() {
+fn missing_agent_on_review_step_fails_at_load() {
     let mut payload = base_payload("coder");
     payload.steps = Some(Pipeline {
         steps: vec![
@@ -72,7 +72,7 @@ fn missing_agent_on_gate_step_fails_at_load() {
             },
             PipelineStep {
                 id: "naked-gate".into(),
-                step_type: StepType::Gate,
+                step_type: StepType::Review,
                 agent: None,
                 goal: None,
                 after: vec!["impl".into()],
@@ -86,7 +86,7 @@ fn missing_agent_on_gate_step_fails_at_load() {
         auto_merge: false,
     });
 
-    let err = ensure_pipeline(payload).expect_err("gate step without agent must fail");
+    let err = ensure_pipeline(payload).expect_err("review step without agent must fail");
     assert!(err.contains("naked-gate"), "error must name the step id: {err}");
 }
 
