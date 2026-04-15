@@ -270,13 +270,31 @@ pub async fn serve_view_raw(
         Some(v) => v,
         None => return err(StatusCode::NOT_FOUND, format!("view '{name}' not found")),
     };
-    let html = match std::fs::read_to_string(view_dir.join("index.html")) {
-        Ok(h) => h,
-        Err(_) => return err(StatusCode::NOT_FOUND, format!("no index.html for '{name}'")),
+    // Try index.html.j2 (Jinja-processed) first, then index.html.
+    let (source, needs_jinja) = if view_dir.join("index.html.j2").exists() {
+        match std::fs::read_to_string(view_dir.join("index.html.j2")) {
+            Ok(h) => (h, true),
+            Err(_) => return err(StatusCode::NOT_FOUND, format!("cannot read index.html.j2 for '{name}'")),
+        }
+    } else {
+        match std::fs::read_to_string(view_dir.join("index.html")) {
+            Ok(h) => { let j = h.contains("{%") || h.contains("{{"); (h, j) },
+            Err(_) => return err(StatusCode::NOT_FOUND, format!("no index.html for '{name}'")),
+        }
     };
 
-    // Strip legacy placeholders; cookie auth replaces query-string tokens.
-    let html = html.replace("{{SHIP_TOKEN}}", "");
+    let html = if needs_jinja {
+        let ctx = serde_json::json!({ "view_name": name });
+        match templates::render_view_source(&name, &source, &ctx) {
+            Ok(h) => h,
+            Err(e) => {
+                tracing::warn!(view = %name, "raw view template render failed: {e}");
+                source.replace("{{SHIP_TOKEN}}", "")
+            }
+        }
+    } else {
+        source.replace("{{SHIP_TOKEN}}", "")
+    };
 
     // Mint a browser-session cookie so subsequent fetches authenticate via
     // cookie. The auth middleware has already validated the caller's
