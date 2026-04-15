@@ -34,6 +34,9 @@ pub mod step_monitor;
 
 pub mod dispatch;
 
+#[cfg(test)]
+mod tests_spawn_failed;
+
 use crate::services::dispatch_ports::{
     AgentPlatform, IsolationStrategy, JobExecutor, ProcessRegistryPort,
 };

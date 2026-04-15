@@ -7,7 +7,7 @@ use crate::services::dispatch_ports::{JobContext, LaunchProfile};
 use std::sync::Arc;
 use tokio::sync::Mutex;
 
-use super::emit::{emit_job_dispatched, emit_job_dispatched_with_meta};
+use super::emit::{emit_job_dispatched, emit_job_dispatched_with_meta, emit_spawn_failed};
 use super::pipeline_loader::ensure_pipeline;
 use super::step_monitor::StepMonitor;
 use super::OrchestratorContext;
@@ -110,6 +110,7 @@ pub async fn dispatch_job_internal(
         Ok(p) => p,
         Err(e) => {
             tracing::error!(slug, "job-dispatch: isolation prepare failed: {e}");
+            emit_spawn_failed(kernel, &payload.job_id, slug, "isolation_prepare", &e).await;
             return;
         }
     };
@@ -157,6 +158,7 @@ pub async fn dispatch_job_internal(
         Ok(h) => h,
         Err(e) => {
             tracing::error!(slug, "job-dispatch: executor spawn failed: {e}");
+            emit_spawn_failed(kernel, &payload.job_id, slug, "executor_spawn", &e).await;
             return;
         }
     };
@@ -254,6 +256,7 @@ async fn dispatch_first_run_step_inner(
         Ok(p) => p,
         Err(e) => {
             tracing::error!(slug, "job-dispatch: isolation prepare failed: {e}");
+            emit_spawn_failed(kernel, &payload.job_id, slug, "isolation_prepare", &e).await;
             return;
         }
     };

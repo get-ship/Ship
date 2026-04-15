@@ -46,6 +46,38 @@ pub async fn emit_job_dispatched_with_meta(
     tracing::info!(slug, "pipeline: job dispatched successfully");
 }
 
+/// Emit a `job.spawn_failed` event for a dispatch failure.
+///
+/// `stage` identifies which phase of dispatch failed:
+/// `"isolation_prepare"`, `"agent_compile"`, or `"executor_spawn"`.
+/// Distinct from `job.failed` (agent ran and produced a failure).
+pub async fn emit_spawn_failed(
+    kernel: &Arc<Mutex<crate::events::KernelRouter>>,
+    job_id: &str,
+    slug: &str,
+    stage: &str,
+    err: &anyhow::Error,
+) {
+    let payload = crate::events::job::JobSpawnFailedPayload {
+        job_id: job_id.to_string(),
+        slug: slug.to_string(),
+        stage: stage.to_string(),
+        error: format!("{err:#}"),
+    };
+    let envelope = match EventEnvelope::new(
+        crate::events::job::event_types::JOB_SPAWN_FAILED,
+        job_id,
+        &payload,
+    ) {
+        Ok(e) => e.with_actor_id("service.job-dispatch"),
+        Err(e) => {
+            tracing::warn!(slug, "pipeline: failed to build job.spawn_failed event: {e}");
+            return;
+        }
+    };
+    persist_and_route(kernel, envelope, slug, None).await;
+}
+
 /// Emit a `job.step_dispatched` event for a specific pipeline step.
 pub async fn emit_step_dispatched_event(
     kernel: &Arc<Mutex<crate::events::KernelRouter>>,
