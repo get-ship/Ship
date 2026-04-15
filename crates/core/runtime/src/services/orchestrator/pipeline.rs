@@ -290,9 +290,6 @@ async fn advance_pipeline_inner(
                     dispatched_any = true;
                 }
             }
-            StepType::Human => {
-                tracing::info!(slug, step_id = step.id, "pipeline: human step — pausing for human action");
-            }
         }
     }
 

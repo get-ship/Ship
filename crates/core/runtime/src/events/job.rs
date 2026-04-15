@@ -22,7 +22,6 @@ pub enum StepType {
     Agent,
     Gate,
     Merge,
-    Human,
     /// Execute a shell command. Exit 0 = success, non-zero = failure.
     Run,
 }

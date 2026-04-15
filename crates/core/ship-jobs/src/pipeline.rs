@@ -191,12 +191,6 @@ fn normalize_single_step(
                 step.insert("id".to_string(), json!(id));
                 step.insert("type".to_string(), json!("run"));
                 step.insert("command".to_string(), json!(cmd));
-            } else if let Some(prompt) = obj.get("human").and_then(|v| v.as_str()) {
-                // human: <prompt>
-                let id = format!("human-{counter}");
-                step.insert("id".to_string(), json!(id));
-                step.insert("type".to_string(), json!("human"));
-                step.insert("goal".to_string(), json!(prompt));
             } else if let Some(agent) = obj.get("agent").and_then(|v| v.as_str()) {
                 // agent: <id> with overrides
                 let id = format!("step-{counter}");

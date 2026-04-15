@@ -4,7 +4,6 @@ pub enum StepType {
     Agent,
     Gate,
     Merge,
-    Human,
     Run { command: String },
 }
 
@@ -22,7 +21,6 @@ pub struct PipelineStep {
 ///
 /// Returns the `type` field value that the runtime PipelineStep deserializer expects:
 /// - Has `run` key → "run"
-/// - Has `human` key → "human"
 /// - Has `agent` key or is a string → "agent"
 pub fn infer_step_type(val: &serde_json::Value) -> &'static str {
     if val.is_string() {
@@ -32,9 +30,6 @@ pub fn infer_step_type(val: &serde_json::Value) -> &'static str {
         if obj.contains_key("run") {
             return "run";
         }
-        if obj.contains_key("human") {
-            return "human";
-        }
         if obj.contains_key("type")
             && let Some(t) = obj["type"].as_str()
         {
@@ -42,7 +37,6 @@ pub fn infer_step_type(val: &serde_json::Value) -> &'static str {
                 "agent" => "agent",
                 "gate" => "gate",
                 "merge" => "merge",
-                "human" => "human",
                 "run" => "run",
                 _ => "agent",
             };

@@ -124,7 +124,6 @@ fn step_type_variants_exhaustive() {
         StepType::Agent,
         StepType::Gate,
         StepType::Merge,
-        StepType::Human,
         StepType::Run { command: "true".into() },
     ];
     for v in &variants {
@@ -132,7 +131,6 @@ fn step_type_variants_exhaustive() {
             StepType::Agent => {}
             StepType::Gate => {}
             StepType::Merge => {}
-            StepType::Human => {}
             StepType::Run { .. } => {}
         }
     }
