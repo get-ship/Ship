@@ -140,6 +140,20 @@ fn build_generic_context(
             }
         }
     }
+
+    // Agents data loader.
+    if manifest_data.as_ref().and_then(|d| d.agents).unwrap_or(false) {
+        let agents = crate::views::state::list_agents(&ship_dir);
+        let total = agents.len();
+        ctx["agents"] = serde_json::to_value(&agents).unwrap_or_default();
+        ctx["total"] = serde_json::json!(total);
+    }
+
+    // Settings data loader.
+    if manifest_data.as_ref().and_then(|d| d.settings).unwrap_or(false) {
+        ctx["settings"] = serde_json::json!(true);
+    }
+
     ctx
 }
 

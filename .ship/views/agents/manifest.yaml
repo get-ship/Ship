@@ -1,0 +1,7 @@
+name: agents
+type: html
+data:
+  agents: true
+events:
+  - config.changed
+  - workspace.changed

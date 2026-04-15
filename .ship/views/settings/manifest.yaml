@@ -1,0 +1,7 @@
+name: settings
+type: html
+claims: []
+data:
+  settings: true
+events:
+  - workspace.config_changed

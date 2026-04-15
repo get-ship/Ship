@@ -1,0 +1,58 @@
+{#-
+  Settings view -- self-contained shell with Datastar live updates.
+  Loaded by the daemon via .ship/views/settings/. The Rust handler
+  supplies SettingsCtx (providers, terminal, advanced, about).
+-#}
+{% from '_urls.html.j2' import view_settings_sse %}
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Settings</title>
+  <link rel="stylesheet" href="/api/runtime/assets/view-tokens.css">
+  <script type="module" src="/api/runtime/assets/datastar.js"></script>
+  <script type="module" src="/api/runtime/assets/ship-elements.js"></script>
+  <style>
+    .ship-view-settings { color: var(--foreground); }
+    .settings-wrap {
+      max-width: 768px;
+      margin: 0 auto;
+      padding: 24px 20px 48px;
+      width: 100%;
+    }
+    .settings-header { margin-bottom: 20px; }
+    .settings-header h1 {
+      font-family: var(--font-display);
+      font-size: 20px;
+      font-weight: 700;
+      letter-spacing: -0.01em;
+      margin: 0;
+      color: var(--foreground);
+    }
+    .settings-header p {
+      font-size: 13px;
+      color: var(--muted-foreground);
+      margin: 4px 0 0;
+    }
+  </style>
+</head>
+<body>
+<div id="settings-root" class="ship-view ship-view-settings"
+     data-signals="{section: 'all'}">
+  <main class="settings-wrap">
+    <header class="settings-header">
+      <h1>Settings</h1>
+      <p>CLI and studio configuration</p>
+    </header>
+
+    <div id="settings-panel"
+         data-init="@get('{{ view_settings_sse() }}', {requestCancellation: 'disabled'})">
+      <div id="settings-content">
+        <p style="font-size: 12px; color: var(--muted-foreground); padding: 12px 0">Loading...</p>
+      </div>
+    </div>
+  </main>
+</div>
+</body>
+</html>

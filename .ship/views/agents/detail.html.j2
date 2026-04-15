@@ -1,0 +1,202 @@
+{#-
+  Agent detail — self-contained tabbed config page.
+  Context: agent (AgentDetail), tiers (Vec<TierRow>).
+-#}
+{% from '_urls.html.j2' import view_agents %}
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>{{ agent.name }}</title>
+  <link rel="stylesheet" href="/api/runtime/assets/view-tokens.css">
+  <script type="module" src="/api/runtime/assets/datastar.js"></script>
+  <script type="module" src="/api/runtime/assets/ship-elements.js"></script>
+  <style>
+  .ship-view-agent-detail { color: var(--foreground); }
+  .ad-wrap { max-width: 1024px; margin: 0 auto; padding: 28px 24px 64px; }
+  .ad-back {
+    font-size: 12px; color: var(--muted-foreground); text-decoration: none;
+    display: inline-flex; align-items: center; gap: 4px;
+    margin-bottom: 16px; cursor: pointer;
+  }
+  .ad-back:hover { color: var(--foreground); }
+  .ad-head { display: flex; align-items: center; gap: 16px; margin: 0 0 20px; }
+  .ad-avatar {
+    width: 56px; height: 56px; border-radius: 50%;
+    background: color-mix(in oklch, var(--primary) 18%, var(--card));
+    color: var(--primary);
+    display: inline-flex; align-items: center; justify-content: center;
+    font-weight: 600; font-size: 22px;
+  }
+  .ad-name {
+    font-family: var(--font-display); font-size: 24px; font-weight: 700;
+    margin: 0; letter-spacing: -0.01em;
+  }
+  .ad-desc { font-size: 13px; color: var(--muted-foreground); margin-top: 4px; }
+  .ad-meta {
+    margin-top: 6px; font-size: 12px; color: var(--muted-foreground);
+    display: flex; align-items: center; gap: 6px; flex-wrap: wrap;
+  }
+  .ad-meta-sep { opacity: 0.6; }
+  .ad-tabs { margin-top: 8px; }
+  .ad-panel-inner {
+    border: 1px solid var(--border); border-radius: var(--radius-lg);
+    background: var(--card); padding: 18px 20px; margin-top: 12px;
+  }
+  .ad-panel-head {
+    display: flex; align-items: center; justify-content: space-between;
+    margin-bottom: 10px;
+  }
+  .ad-panel-head h2 {
+    font-size: 12px; font-weight: 600; margin: 0;
+    text-transform: uppercase; letter-spacing: 0.08em;
+    color: var(--muted-foreground);
+  }
+  .ad-empty { font-size: 13px; color: var(--muted-foreground); padding: 8px 0; }
+  .ad-list { list-style: none; padding: 0; margin: 0; }
+  .ad-list-item {
+    display: flex; align-items: center; justify-content: space-between;
+    padding: 10px 0;
+    border-top: 1px solid color-mix(in oklch, var(--border) 60%, transparent);
+    font-size: 13px;
+  }
+  .ad-list-item:first-child { border-top: 0; }
+  .ad-list-name { font-family: var(--font-mono); font-size: 12px; }
+  .ad-chevron { color: var(--muted-foreground); font-size: 14px; }
+  .tier-grid {
+    display: grid; grid-template-columns: repeat(3, 1fr);
+    gap: 10px; margin-top: 12px;
+  }
+  .tier-card {
+    border: 1px solid var(--border); border-radius: var(--radius-md);
+    padding: 12px; cursor: pointer; background: var(--card);
+  }
+  .tier-card[aria-checked="true"] {
+    border-color: var(--primary);
+    box-shadow: 0 0 0 2px color-mix(in oklch, var(--primary) 18%, transparent);
+  }
+  .tier-label { font-weight: 600; font-size: 13px; margin-bottom: 4px; }
+  .tier-desc { font-size: 11px; color: var(--muted-foreground); line-height: 1.4; }
+  .provider-grid {
+    display: grid; grid-template-columns: repeat(auto-fill, minmax(160px, 1fr));
+    gap: 10px;
+  }
+  .provider-tile {
+    border: 1px solid var(--border); border-radius: var(--radius-md);
+    padding: 14px; text-align: center; font-size: 13px; background: var(--card);
+  }
+  .provider-tile.default { border-color: var(--primary); }
+  .provider-default-chip {
+    font-size: 10px; color: var(--primary); text-transform: uppercase;
+    letter-spacing: 0.08em; margin-top: 4px;
+  }
+  </style>
+</head>
+<body>
+<div id="agent-detail-root" class="ship-view ship-view-agent-detail">
+  <div class="ad-wrap">
+    <a class="ad-back" data-on:click="@get('{{ view_agents() }}')">&#8592; Back to agents</a>
+    <header class="ad-head">
+      <div class="ad-avatar">{{ agent.letter }}</div>
+      <div>
+        <h1 class="ad-name">{{ agent.name }}</h1>
+        <div class="ad-desc">{{ agent.description }}</div>
+        <div class="ad-meta">
+          <span>{{ agent.skills|length }} skill{% if agent.skills|length != 1 %}s{% endif %}</span>
+          <span class="ad-meta-sep">&#183;</span>
+          <span>{{ agent.mcp_servers|length }} MCP</span>
+          <span class="ad-meta-sep">&#183;</span>
+          <span>{{ agent.rules|length }} rule{% if agent.rules|length != 1 %}s{% endif %}</span>
+          <span class="ad-meta-sep">&#183;</span>
+          <span>{{ agent.providers|length }} provider{% if agent.providers|length != 1 %}s{% endif %}</span>
+        </div>
+      </div>
+    </header>
+
+    <ship-tabs class="ad-tabs" variant="underline" active="skills">
+      <ship-tab name="skills" label="Skills" count="{{ agent.skills|length }}"></ship-tab>
+      <ship-tab name="mcp" label="MCP" count="{{ agent.mcp_servers|length }}"></ship-tab>
+      <ship-tab name="rules" label="Rules" count="{{ agent.rules|length }}"></ship-tab>
+      <ship-tab name="provider" label="Provider" count="{{ agent.providers|length }}"></ship-tab>
+
+      <ship-tab-panel name="skills">
+        <div class="ad-panel-inner">
+          <div class="ad-panel-head"><h2>Skills</h2><ship-button size="sm" tone="neutral" variant="ghost" disabled>+ Add skill</ship-button></div>
+          {% if agent.skills|length == 0 %}
+            <div class="ad-empty">No skills attached. Add one to extend this agent.</div>
+          {% else %}
+            <ul class="ad-list">
+              {% for item in agent.skills %}
+                <li class="ad-list-item"><span class="ad-list-name">{{ item.name | default(item) }}</span><span class="ad-chevron">&#8250;</span></li>
+              {% endfor %}
+            </ul>
+          {% endif %}
+        </div>
+      </ship-tab-panel>
+
+      <ship-tab-panel name="mcp">
+        <div class="ad-panel-inner">
+          <div class="ad-panel-head"><h2>MCP Servers</h2><ship-button size="sm" tone="neutral" variant="ghost" disabled>+ Add server</ship-button></div>
+          {% if agent.mcp_servers|length == 0 %}
+            <div class="ad-empty">No MCP servers connected.</div>
+          {% else %}
+            <ul class="ad-list">
+              {% for item in agent.mcp_servers %}
+                <li class="ad-list-item"><span class="ad-list-name">{{ item.name | default(item) }}</span><span class="ad-chevron">&#8250;</span></li>
+              {% endfor %}
+            </ul>
+          {% endif %}
+        </div>
+      </ship-tab-panel>
+
+      <ship-tab-panel name="rules">
+        <div class="ad-panel-inner">
+          <div class="ad-panel-head"><h2>Rules</h2><ship-button size="sm" tone="neutral" variant="ghost" disabled>+ Add rule</ship-button></div>
+          {% if agent.rules|length == 0 %}
+            <div class="ad-empty">No rules. The agent uses project defaults.</div>
+          {% else %}
+            <ul class="ad-list">
+              {% for item in agent.rules %}
+                <li class="ad-list-item"><span class="ad-list-name">{{ item.name | default(item) }}</span><span class="ad-chevron">&#8250;</span></li>
+              {% endfor %}
+            </ul>
+          {% endif %}
+        </div>
+        <div class="ad-panel-inner">
+          <div class="ad-panel-head"><h2>Permissions</h2></div>
+          <div class="tier-grid" role="radiogroup" aria-label="Permission tier">
+            {% for t in tiers %}
+              <div class="tier-card" role="radio"
+                   aria-checked="{% if t.selected %}true{% else %}false{% endif %}"
+                   data-attr-aria-checked="{% if t.selected %}true{% else %}false{% endif %}">
+                <div class="tier-label">{{ t.label }}</div>
+                <div class="tier-desc">{{ t.description }}</div>
+              </div>
+            {% endfor %}
+          </div>
+        </div>
+      </ship-tab-panel>
+
+      <ship-tab-panel name="provider">
+        <div class="ad-panel-inner">
+          <div class="ad-panel-head"><h2>Providers</h2><ship-button size="sm" tone="neutral" variant="ghost" disabled>+ Add provider</ship-button></div>
+          {% if agent.providers|length == 0 %}
+            <div class="ad-empty">No providers configured. Add one to run this agent.</div>
+          {% else %}
+            <div class="provider-grid">
+              {% for p in agent.providers %}
+                <div class="provider-tile {% if agent.default_provider == p %}default{% endif %}">
+                  <div>{{ p }}</div>
+                  {% if agent.default_provider == p %}<div class="provider-default-chip">Default</div>{% endif %}
+                </div>
+              {% endfor %}
+            </div>
+          {% endif %}
+        </div>
+      </ship-tab-panel>
+    </ship-tabs>
+  </div>
+</div>
+</body>
+</html>

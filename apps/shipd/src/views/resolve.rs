@@ -23,6 +23,9 @@ pub(crate) struct ManifestFile {
 pub(crate) struct ManifestData {
     pub collections: Option<ManifestCollections>,
     pub items: Option<String>,
+    pub settings: Option<bool>,
+    pub agents: Option<bool>,
+    pub skills: Option<bool>,
 }
 
 #[derive(Deserialize, Clone)]
