@@ -1,0 +1,63 @@
+{#- Ship View SDK — import macros to build views without raw Datastar/URLs.
+    Usage: {% from '_ship.html.j2' import head, signal, show, live %}
+    Macros output HTML attributes so they compose on elements:
+      <button {{ create('tasks', '$form') }} {{ loading('_saving') }}>Save</button>
+-#}
+
+{#- === Page Setup === -#}
+
+{# Emit standard <head> contents: meta, title, CSS, Datastar, ship-elements #}
+{% macro head(title='Ship View') %}
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>{{ title }}</title>
+  <link rel="stylesheet" href="/api/runtime/assets/view-tokens.css">
+  <script type="module" src="/api/runtime/assets/datastar.js"></script>
+  <script type="module" src="/api/runtime/assets/ship-elements.js"></script>
+{% endmacro %}
+
+{#- === Signals & Reactivity === -#}
+
+{# Declare a reactive signal with a default value #}
+{% macro signal(name, default='') %}data-signals:{{ name }}="{{ default | tojson if default is not string else "'" ~ default ~ "'" }}"{% endmacro %}
+
+{# Show element only when expression is true (hidden by default to prevent flash) #}
+{% macro show(expr) %}data-show="{{ expr }}" style="display:none"{% endmacro %}
+
+{# Toggle class based on expression #}
+{% macro toggle_class(cls, expr) %}data-class:{{ cls }}="{{ expr }}"{% endmacro %}
+
+{# Bind an attribute reactively #}
+{% macro attr(name, expr) %}data-attr:{{ name }}="{{ expr }}"{% endmacro %}
+
+{#- === SSE & Live Updates === -#}
+
+{# Subscribe to SSE stream for a view (long-lived read connection) #}
+{% macro live(view_name) %}data-init="@get('/api/runtime/view/{{ view_name }}/sse')"{% endmacro %}
+
+{#- === Loading & Indicators === -#}
+
+{# Mark an element as having a loading indicator signal #}
+{% macro loading(signal_name) %}data-indicator="{{ signal_name }}"{% endmacro %}
+
+{# Render a spinner that shows during loading #}
+{% macro spinner(signal_name) %}<span data-show="${{ signal_name }}" style="display:none"><span class="ship-spinner"></span></span>{% endmacro %}
+
+{#- === Collection Actions === -#}
+
+{# Create an item in a collection. data is a Datastar signal expression (e.g. '$form') #}
+{% macro create(collection, data) %}data-on:click="@post('/api/collections/{{ collection }}/items', {payload: {data: {{ data }}}})"{% endmacro %}
+
+{# Update an item in a collection #}
+{% macro update(collection, id, data) %}data-on:click="@put('/api/collections/{{ collection }}/items/{{ id }}', {payload: {data: {{ data }}}})"{% endmacro %}
+
+{# Delete an item from a collection #}
+{% macro delete(collection, id) %}data-on:click="@delete('/api/collections/{{ collection }}/items/{{ id }}')"{% endmacro %}
+
+{#- === Job Actions === -#}
+
+{# Create a new job #}
+{% macro create_job(agent_expr) %}data-on:click="@post('/api/runtime/jobs', {payload: {agent: {{ agent_expr }}}})"{% endmacro %}
+
+{# Emit a kernel event #}
+{% macro emit(event_type, data_expr='{}') %}data-on:click="@post('/api/events/emit', {payload: {event_type: '{{ event_type }}', data: {{ data_expr }}}})"{% endmacro %}

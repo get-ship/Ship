@@ -1,17 +1,11 @@
 {#-
   Data browser — server-rendered collection viewer/editor.
-  The daemon passes schemas + items as Jinja context.
-  Datastar for all interactions. ZERO script tags.
+  Uses Ship View SDK macros. Datastar for all interactions.
 -#}
-{% from '_urls.html.j2' import create_collection_item, delete_collection_item %}
+{% from '_ship.html.j2' import head, signal, show, live, create, delete, loading, spinner %}
 <!DOCTYPE html>
 <html lang="en">
-<head>
-  <meta charset="UTF-8">
-  <title>Data</title>
-  <link rel="stylesheet" href="/api/runtime/assets/view-tokens.css">
-  <script type="module" src="/api/runtime/assets/datastar.js"></script>
-  <script type="module" src="/api/runtime/assets/ship-elements.js"></script>
+<head>{{ head('Data') }}
   <style>
   .data-wrap { max-width: 76rem; margin: 0 auto; padding: var(--space-6, 24px) var(--space-4, 16px); }
   .data-toolbar { display: flex; align-items: center; gap: var(--space-3, 10px); margin-bottom: var(--space-4, 16px); flex-wrap: wrap; }
@@ -25,13 +19,15 @@
   .null { color: var(--muted-foreground); font-style: italic; }
   .field-row { display: flex; align-items: flex-start; gap: var(--space-3, 12px); margin-bottom: var(--space-3, 10px); }
   .field-label { font-size: var(--text-xs, 12px); font-weight: 500; min-width: 110px; padding-top: 7px; color: var(--muted-foreground); }
-  .spinner { display: inline-block; width: 14px; height: 14px; border: 2px solid var(--muted); border-top-color: var(--foreground); border-radius: 50%; animation: spin 0.6s linear infinite; }
-  @keyframes spin { to { transform: rotate(360deg); } }
   </style>
 </head>
 <body>
 <div class="ship-view"
-     data-signals="{collection: '{{ active_collection }}', _showForm: false, _creating: false, _deleting: false, form: {}}">
+     {{ signal('collection', active_collection) }}
+     {{ signal('_showForm', false) }}
+     {{ signal('_creating', false) }}
+     {{ signal('_deleting', false) }}
+     {{ signal('form', {}) }}>
   <div class="data-wrap">
 
     {# -- Header -- #}
@@ -67,7 +63,7 @@
 
     {# -- Create form -- #}
     {% if schema is defined %}
-    <ship-card data-show="$_showForm" style="display:none; margin-bottom: var(--space-4, 16px)">
+    <ship-card {{ show('$_showForm') }} style="display:none; margin-bottom: var(--space-4, 16px)">
       <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:var(--space-3,12px)">
         <strong>New {{ active_collection }}</strong>
         <ship-button size="sm" variant="ghost"
@@ -105,18 +101,18 @@
         <ship-separator></ship-separator>
         <div style="display:flex;gap:var(--space-2,8px);margin-top:var(--space-3,12px);align-items:center">
           <ship-button size="sm"
-            data-on:click="@post('{{ create_collection_item(active_collection) }}', {payload: {data: $form}})"
-            data-indicator="_creating">Create</ship-button>
+            {{ create(active_collection, '$form') }}
+            {{ loading('_creating') }}>Create</ship-button>
           <ship-button size="sm" variant="ghost"
             data-on:click="$_showForm = false">Cancel</ship-button>
-          <span data-show="$_creating" style="display:none"><span class="spinner"></span></span>
+          {{ spinner('_creating') }}
         </div>
       </div>
     </ship-card>
     {% endif %}
 
     {# -- Content (SSE-driven) -- #}
-    <div data-init="@get('/api/runtime/view/data/sse')">
+    <div {{ live('data') }}>
       <div id="data-content">
         <p class="muted" style="padding: var(--space-4, 16px) 0">Loading...</p>
       </div>

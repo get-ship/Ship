@@ -39,6 +39,11 @@ const TEMPLATES: &[(&str, &str)] = &[
         "_breadcrumb.html.j2",
         include_str!("../../templates/_breadcrumb.html.j2"),
     ),
+    // Ship View SDK — user-facing macros for Datastar + collection actions.
+    (
+        "_ship.html.j2",
+        include_str!("../../templates/_ship.html.j2"),
+    ),
     // Auto-generated URL macros. Written to disk by `apps/shipd/build.rs`
     // at compile time and included here like any other template.
     (
@@ -310,6 +315,8 @@ pub fn render_view_source<C: Serialize>(name: &str, source: &str, ctx: &C) -> Re
         if value.chars().count() <= length { value }
         else { let mut s: String = value.chars().take(length.saturating_sub(1)).collect(); s.push('…'); s }
     });
+    // Register SDK filters and functions for user views.
+    super::view_filters::register_all(&mut local_env);
     // Copy all registered templates (macros, partials).
     for (tpl_name, tpl_src) in TEMPLATES {
         let _ = local_env.add_template(tpl_name, tpl_src);
@@ -326,48 +333,5 @@ pub fn render_view_source<C: Serialize>(name: &str, source: &str, ctx: &C) -> Re
 }
 
 #[cfg(test)]
-mod tests {
-    use super::*;
-    use serde::Serialize;
-
-    #[derive(Serialize)]
-    struct EmptyCtx {
-        icon: &'static str,
-        title: &'static str,
-        body: &'static str,
-    }
-
-    #[test]
-    fn env_initializes_and_registers_every_template() {
-        let e = env();
-        for (name, _) in TEMPLATES {
-            assert!(
-                e.get_template(name).is_ok(),
-                "template '{name}' must be registered"
-            );
-        }
-    }
-
-    #[test]
-    fn render_empty_partial_produces_ship_empty_state() {
-        let html = render(
-            "_empty.html.j2",
-            &EmptyCtx {
-                icon: "inbox",
-                title: "Nothing here",
-                body: "Create one to get started.",
-            },
-        )
-        .expect("render must succeed");
-        assert!(html.contains("ship-empty-state"));
-        assert!(html.contains("Nothing here"));
-    }
-
-    #[test]
-    fn missing_template_yields_error() {
-        #[derive(Serialize)]
-        struct Empty {}
-        let err = render("does-not-exist.html.j2", &Empty {}).unwrap_err();
-        assert!(err.contains("not found"));
-    }
-}
+#[path = "templates_tests.rs"]
+mod tests;

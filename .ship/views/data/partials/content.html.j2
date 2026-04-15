@@ -1,6 +1,6 @@
 {#- Data content partial — rendered by the generic SSE handler.
    Root element MUST have id="data-content" for Datastar patching. -#}
-{% from '_urls.html.j2' import create_collection_item, delete_collection_item %}
+{% from '_ship.html.j2' import delete, loading %}
 <div id="data-content">
   {% if schema is defined and items is defined and items | length > 0 %}
   <table>
@@ -48,8 +48,8 @@
         <td class="mono muted">{{ item.updated_at[:16] if item.updated_at else "--" }}</td>
         <td>
           <ship-button size="sm" variant="destructive"
-            data-on:click="@delete('{{ delete_collection_item(active_collection, item.id) }}')"
-            data-indicator="_deleting">x</ship-button>
+            {{ delete(active_collection, item.id) }}
+            {{ loading('_deleting') }}>x</ship-button>
         </td>
       </tr>
       {% endfor %}

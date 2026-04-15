@@ -35,6 +35,7 @@ pub mod sanitize;
 
 pub mod context;
 pub mod generic_sse;
+pub mod view_filters;
 
 mod assets;
 mod handlers;
