@@ -296,12 +296,14 @@ fn pipeline_full_lifecycle_all_steps_tracked() {
             "job_id": "j1", "slug": "pipe",
             "agent": "test-writer", "branch": "job/pipe",
             "spec_path": "spec.md", "plan_id": null,
-            "steps": { "steps": [
-                { "id": "test", "type": "agent", "agent": "test-writer", "after": [] },
-                { "id": "impl", "type": "agent", "agent": "rust-runtime", "after": ["test"] },
-                { "id": "gate", "type": "gate", "agent": "reviewer", "after": ["impl"] },
-                { "id": "merge", "type": "merge", "after": ["gate"] },
-            ]}
+            "steps": {
+                "auto_merge": true,
+                "steps": [
+                    { "id": "test", "type": "agent", "agent": "test-writer", "after": [] },
+                    { "id": "impl", "type": "agent", "agent": "rust-runtime", "after": ["test"] },
+                    { "id": "gate", "type": "gate", "agent": "reviewer", "after": ["impl"] },
+                ]
+            }
         })),
         dispatched("j1"), completed("j1", "pipe"),  // test
         dispatched("j1"), completed("j1", "pipe"),  // impl

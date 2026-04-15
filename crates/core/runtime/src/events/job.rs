@@ -21,7 +21,6 @@ pub struct PipelinePhase {
 pub enum StepType {
     Agent,
     Gate,
-    Merge,
     /// Execute a shell command. Exit 0 = success, non-zero = failure.
     Run,
 }
@@ -167,6 +166,12 @@ impl<'de> serde::Deserialize<'de> for PipelineStep {
 #[derive(Debug, Clone, Serialize, Deserialize, Type)]
 pub struct Pipeline {
     pub steps: Vec<PipelineStep>,
+    /// When true, the orchestrator runs `git merge` on the job branch
+    /// after the final step completes and emits `job.merged`. Replaces
+    /// the former `StepType::Merge` step kind — merging is a property
+    /// of the pipeline, not a step type.
+    #[serde(default)]
+    pub auto_merge: bool,
 }
 
 impl Pipeline {

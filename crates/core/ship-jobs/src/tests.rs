@@ -123,14 +123,12 @@ fn step_type_variants_exhaustive() {
     let variants = [
         StepType::Agent,
         StepType::Gate,
-        StepType::Merge,
         StepType::Run { command: "true".into() },
     ];
     for v in &variants {
         match v {
             StepType::Agent => {}
             StepType::Gate => {}
-            StepType::Merge => {}
             StepType::Run { .. } => {}
         }
     }

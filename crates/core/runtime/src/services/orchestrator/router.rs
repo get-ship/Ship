@@ -92,8 +92,15 @@ pub async fn handle_job_event(
                 octx.registry.unregister(slug).await;
             }
             if !advance_pipeline(kernel, envelope, octx).await {
-                octx.job_locks.lock().await.remove(&envelope.entity_id);
-                super::pending::dispatch_ready_pending_jobs(kernel, octx).await;
+                // No more steps to dispatch. If the pipeline declared
+                // `auto_merge: true`, run the merge now and emit
+                // `job.merged`. Otherwise the job sits in Completed.
+                if maybe_auto_merge(kernel, envelope, octx).await {
+                    // Merge dispatched — lock stays held until job.merged arrives.
+                } else {
+                    octx.job_locks.lock().await.remove(&envelope.entity_id);
+                    super::pending::dispatch_ready_pending_jobs(kernel, octx).await;
+                }
             }
         }
         "job.step_completed" => {
@@ -227,6 +234,45 @@ pub async fn handle_job_event(
         }
         _ => {}
     }
+}
+
+/// Run `git merge` on the job's branch if the pipeline was declared with
+/// `auto_merge: true`. Called from the job.completed handler when no more
+/// steps are available to dispatch. Returns `true` when a merge was
+/// dispatched (whether it succeeded or not).
+async fn maybe_auto_merge(
+    kernel: &Arc<Mutex<crate::events::KernelRouter>>,
+    envelope: &EventEnvelope,
+    octx: &OrchestratorContext,
+) -> bool {
+    let payload: serde_json::Value = serde_json::from_str(&envelope.payload_json).unwrap_or_default();
+    let job_id = payload["job_id"].as_str().unwrap_or(envelope.entity_id.as_str()).to_string();
+    let jobs = match crate::projections::job::load_jobs() {
+        Ok(j) => j,
+        Err(_) => return false,
+    };
+    let Some(job) = jobs.values().find(|j| j.job_id == job_id).cloned() else {
+        return false;
+    };
+    let Some(pipeline) = job.steps.as_ref() else {
+        return false;
+    };
+    if !pipeline.auto_merge {
+        return false;
+    }
+    tracing::info!(
+        job_id = %job.job_id, slug = %job.slug, branch = %job.branch,
+        "job-dispatch: auto_merge — running merge after final step"
+    );
+    octx.platform.graceful_agent_exit(&job.slug, None).await;
+    super::handlers::execute_merge_step(
+        kernel,
+        &job.job_id,
+        &job.slug,
+        &job.branch,
+        &*octx.platform,
+    )
+    .await
 }
 
 /// Extract the slug from an event envelope payload.

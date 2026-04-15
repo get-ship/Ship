@@ -133,6 +133,7 @@ fn resolve_steps(payload: &mut JobCreatedPayload) {
             max_retries: None,
             gate: None,
         }],
+        auto_merge: false,
     });
 }
 
@@ -214,7 +215,8 @@ fn parse_pipeline_content(content: &str) -> Option<(Pipeline, PipelineMeta)> {
             return None;
         }
     }
-    Some((Pipeline { steps }, meta))
+    let auto_merge = meta.auto_merge.unwrap_or(false);
+    Some((Pipeline { steps, auto_merge }, meta))
 }
 
 /// Merge pipeline-level default vars into the job payload.

@@ -11,7 +11,6 @@ use std::sync::Arc;
 use tokio::sync::Mutex;
 
 use super::emit::{emit_job_dispatched_with_meta, emit_step_dispatched_event};
-use super::handlers::execute_merge_step;
 use super::step_monitor::{StepMonitor, start_step_monitor};
 use super::OrchestratorContext;
 
@@ -280,15 +279,6 @@ async fn advance_pipeline_inner(
                 emit_job_dispatched_with_meta(kernel, &job.job_id, &worktree_path, slug, None, ship_dir_override).await;
                 emit_step_dispatched_event(kernel, &job.job_id, &step.id, "agent", slug, ship_dir_override).await;
                 dispatched_any = true;
-            }
-            StepType::Merge => {
-                tracing::info!(slug, branch = %job.branch, "pipeline: executing merge step");
-                octx.platform.graceful_agent_exit(slug, None).await;
-                if execute_merge_step(
-                    kernel, &job.job_id, slug, &job.branch, &*octx.platform,
-                ).await {
-                    dispatched_any = true;
-                }
             }
         }
     }

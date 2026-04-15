@@ -45,6 +45,7 @@ fn missing_agent_on_agent_step_fails_at_load() {
             max_retries: None,
             gate: None,
         }],
+        auto_merge: false,
     });
 
     let err = ensure_pipeline(payload).expect_err("agent step without agent must fail");
@@ -82,6 +83,7 @@ fn missing_agent_on_gate_step_fails_at_load() {
                 gate: None,
             },
         ],
+        auto_merge: false,
     });
 
     let err = ensure_pipeline(payload).expect_err("gate step without agent must fail");
@@ -105,8 +107,8 @@ fn no_pipeline_declared_yields_single_agent_step() {
         "default pipeline must not inject a reviewer step",
     );
     assert!(
-        pipeline.steps.iter().all(|s| s.step_type != StepType::Merge),
-        "default pipeline must not inject a merge step",
+        !pipeline.auto_merge,
+        "default pipeline must not auto-merge",
     );
 }
 
@@ -126,6 +128,7 @@ fn run_step_without_agent_is_fine() {
             max_retries: None,
             gate: None,
         }],
+        auto_merge: false,
     });
     ensure_pipeline(payload).expect("run steps need no agent");
 }

@@ -27,6 +27,9 @@ pub struct PipelineMeta {
     /// `.artifacts/pipeline/NN-<step_id>.md` at job launch instead of sharing
     /// a single spec across every step.
     pub step_specs: Option<Vec<String>>,
+    /// When true, the runtime runs `git merge` on the job branch after the
+    /// final step completes. Replaces the former `type: merge` step.
+    pub auto_merge: Option<bool>,
 }
 
 /// Parse a pipeline YAML file and normalize it into the old-format steps array.
@@ -75,6 +78,7 @@ fn extract_meta(val: &Value) -> PipelineMeta {
                 .map(|entry| entry.as_str().unwrap_or_default().to_string())
                 .collect()
         }),
+        auto_merge: val.get("auto_merge").and_then(|v| v.as_bool()),
     }
 }
 

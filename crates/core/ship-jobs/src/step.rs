@@ -3,7 +3,6 @@
 pub enum StepType {
     Agent,
     Gate,
-    Merge,
     Run { command: String },
 }
 
@@ -36,7 +35,6 @@ pub fn infer_step_type(val: &serde_json::Value) -> &'static str {
             return match t {
                 "agent" => "agent",
                 "gate" => "gate",
-                "merge" => "merge",
                 "run" => "run",
                 _ => "agent",
             };
