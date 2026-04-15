@@ -172,5 +172,13 @@
 
   </div>
 </div>
+<script>
+// SSE: reload on collection changes. This is the only JS in the view.
+const es = new EventSource('/api/runtime/events', { withCredentials: true });
+es.onmessage = e => {
+  try { if (JSON.parse(e.data).event_type?.startsWith('collection.')) location.reload(); }
+  catch {}
+};
+</script>
 </body>
 </html>
