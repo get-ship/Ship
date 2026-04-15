@@ -70,6 +70,73 @@ struct ViewListEntry {
 
 type MeshResult = (StatusCode, Json<MeshResponse>);
 
+/// Build a rich context for Jinja view rendering.
+/// Includes collection schemas and items so views can render server-side.
+fn build_view_context(view_name: &str) -> serde_json::Value {
+    let mut ctx = serde_json::json!({ "view_name": view_name });
+
+    // Load collection schemas if available.
+    if let Ok(ship_dir) = runtime::project::get_global_dir() {
+        let schemas = runtime::collections::schema::load_schemas(&ship_dir).unwrap_or_default();
+        let summaries: Vec<serde_json::Value> = schemas.iter().map(|s| {
+            let fields: serde_json::Value = s.fields.iter().map(|(k, v)| {
+                (k.clone(), serde_json::json!({
+                    "field_type": format!("{:?}", v.field_type).to_lowercase(),
+                    "required": v.required,
+                    "values": v.values,
+                    "default": v.default,
+                }))
+            }).collect::<serde_json::Map<String, serde_json::Value>>().into();
+
+            serde_json::json!({
+                "id": s.id,
+                "name": s.name,
+                "field_count": s.fields.len(),
+                "fields": fields,
+            })
+        }).collect();
+
+        ctx["collections"] = serde_json::json!(summaries);
+
+        // Load items for the first collection (default active).
+        if let Some(first) = schemas.first() {
+            ctx["active_collection"] = serde_json::json!(first.id);
+            ctx["schema"] = serde_json::json!({
+                "id": first.id,
+                "name": first.name,
+                "fields": first.fields.iter().map(|(k, v)| {
+                    (k.clone(), serde_json::json!({
+                        "field_type": format!("{:?}", v.field_type).to_lowercase(),
+                        "required": v.required,
+                        "values": v.values,
+                        "default": v.default,
+                    }))
+                }).collect::<serde_json::Map<String, serde_json::Value>>(),
+            });
+
+            if let Ok(mut svc) = runtime::collections::store::open_docs_db(&ship_dir) {
+                let _ = runtime::collections::store::ensure_collection_table(&mut svc, first);
+                let req = runtime::collections::query::QueryRequest {
+                    collection: first.id.clone(),
+                    filter: std::collections::BTreeMap::new(),
+                    sort: std::collections::BTreeMap::new(),
+                    limit: 200,
+                    offset: 0,
+                };
+                if let Ok(items) = runtime::collections::store::query_items(&mut svc, first, &req) {
+                    let items_json: Vec<serde_json::Value> = items.into_iter()
+                        .map(|i| serde_json::to_value(i).unwrap_or_default())
+                        .collect();
+                    ctx["items"] = serde_json::json!(items_json);
+                    ctx["total_items"] = serde_json::json!(items_json.len());
+                }
+            }
+        }
+    }
+
+    ctx
+}
+
 fn mesh_ok(data: serde_json::Value) -> MeshResult {
     (StatusCode::OK, Json(MeshResponse { ok: true, data }))
 }
@@ -284,7 +351,7 @@ pub async fn serve_view_raw(
     };
 
     let html = if needs_jinja {
-        let ctx = serde_json::json!({ "view_name": name });
+        let ctx = build_view_context(&name);
         match templates::render_view_source(&name, &source, &ctx) {
             Ok(h) => h,
             Err(e) => {
@@ -387,9 +454,8 @@ pub async fn serve_view(
     let html = if is_template {
         // Render through Jinja with access to URL macros, filters, etc.
         // Views get the same template environment as daemon-internal views.
-        let ctx = serde_json::json!({
-            "view_name": name,
-        });
+        // Context includes collection data so views can render server-side.
+        let ctx = build_view_context(&name);
         match templates::render_view_source(&name, &source, &ctx) {
             Ok(h) => h,
             Err(e) => {

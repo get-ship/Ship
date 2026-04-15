@@ -1,9 +1,9 @@
 {#-
-  Data browser — collection viewer/editor.
-  Processed by the daemon's Jinja engine on serve. Uses URL macros,
-  ship-elements for all UI, Datastar data-on: for actions.
+  Data browser — server-rendered collection viewer.
+  The daemon passes schemas + items as Jinja context.
+  No client-side data fetching. Datastar handles actions + SSE updates.
 -#}
-{% from '_urls.html.j2' import list_collections, get_collection_schema, create_collection_item, update_collection_item, delete_collection_item, query_collection %}
+{% from '_urls.html.j2' import create_collection_item, update_collection_item, delete_collection_item %}
 <!DOCTYPE html>
 <html lang="en">
 <head>
@@ -15,212 +15,122 @@
   <style>
   .ship-view{color:var(--foreground);font-family:var(--font-sans,system-ui,sans-serif)}
   .data-wrap{max-width:76rem;margin:0 auto;padding:24px 16px}
-  .data-head{display:flex;align-items:flex-end;justify-content:space-between;gap:16px;margin-bottom:20px}
   .data-title{font-family:var(--font-display,var(--font-sans));font-size:20px;font-weight:600;letter-spacing:-0.01em;margin:0}
   .data-sub{font-size:12px;color:var(--muted-foreground);margin-top:4px}
   .data-toolbar{display:flex;align-items:center;gap:10px;margin-bottom:16px;flex-wrap:wrap}
   .data-count{font-size:11px;color:var(--muted-foreground);margin-left:auto}
   .data-table{width:100%;border-collapse:collapse;font-size:13px}
-  .data-th{text-align:left;padding:8px 12px;border-bottom:2px solid var(--border);font-weight:600;font-size:11px;text-transform:uppercase;letter-spacing:0.04em;color:var(--muted-foreground);cursor:pointer;user-select:none;white-space:nowrap}
-  .data-th:hover{color:var(--foreground)}
-  .data-sort-icon{margin-left:4px;opacity:0.3;font-size:10px}
-  .data-th:hover .data-sort-icon{opacity:0.7}
-  .data-row{cursor:pointer;transition:background 0.1s}
+  .data-th{text-align:left;padding:8px 12px;border-bottom:2px solid var(--border);font-weight:600;font-size:11px;text-transform:uppercase;letter-spacing:0.04em;color:var(--muted-foreground)}
   .data-row:hover td{background:color-mix(in oklch,var(--muted) 40%,transparent)}
-  .data-cell{padding:8px 12px;border-bottom:1px solid var(--border);vertical-align:top;max-width:300px;overflow:hidden;text-overflow:ellipsis}
+  .data-cell{padding:8px 12px;border-bottom:1px solid var(--border);vertical-align:top}
   .data-cell-id{font-family:var(--font-mono,monospace);font-size:11px;color:var(--muted-foreground);width:90px}
-  .data-cell-time{font-size:11px;color:var(--muted-foreground);font-variant-numeric:tabular-nums;white-space:nowrap}
+  .data-cell-time{font-size:11px;color:var(--muted-foreground);white-space:nowrap}
   .data-cell-null{color:var(--muted-foreground);font-style:italic}
   .data-cell-number{font-variant-numeric:tabular-nums;font-family:var(--font-mono,monospace)}
-  .data-cell-file{font-family:var(--font-mono,monospace);font-size:11px}
-  .data-cell-object{font-family:var(--font-mono,monospace);font-size:11px;color:var(--muted-foreground)}
+  .data-cell-mono{font-family:var(--font-mono,monospace);font-size:11px;color:var(--muted-foreground)}
   .data-empty{text-align:center;padding:48px 16px;color:var(--muted-foreground)}
-  .data-form{border:1px solid var(--border);border-radius:var(--radius-lg,8px);padding:16px;margin-bottom:16px;background:var(--card);animation:slideDown 0.15s ease-out}
-  @keyframes slideDown{from{opacity:0;transform:translateY(-8px)}to{opacity:1;transform:translateY(0)}}
+  .data-form{border:1px solid var(--border);border-radius:8px;padding:16px;margin-bottom:16px;background:var(--card)}
   .data-form-head{display:flex;align-items:center;justify-content:space-between;margin-bottom:12px}
   .data-form-title{font-size:14px;font-weight:600}
   .data-form-actions{display:flex;gap:8px;margin-top:14px;padding-top:14px;border-top:1px solid var(--border)}
   .data-field-row{display:flex;align-items:flex-start;gap:12px;margin-bottom:10px}
   .data-field-label{font-size:12px;font-weight:500;min-width:110px;padding-top:7px;color:var(--muted-foreground)}
   .data-req{color:var(--destructive);margin-left:2px}
-  .data-edit-overlay{position:fixed;inset:0;background:rgba(0,0,0,0.3);z-index:99}
-  .data-edit-drawer{position:fixed;top:0;right:0;bottom:0;width:min(480px,90vw);background:var(--card);border-left:1px solid var(--border);padding:20px;overflow-y:auto;box-shadow:-4px 0 24px rgba(0,0,0,0.1);animation:slideIn 0.2s ease-out;z-index:100}
-  @keyframes slideIn{from{transform:translateX(100%)}to{transform:translateX(0)}}
   </style>
 </head>
 <body>
-  <div class="ship-view" id="data-app">
-    <div class="data-wrap">
-      <div class="data-head">
-        <div>
-          <h2 class="data-title">Data</h2>
-          <p class="data-sub" id="data-subtitle">Loading...</p>
-        </div>
-      </div>
-      <div class="data-toolbar" id="data-toolbar"></div>
-      <div id="data-create-form"></div>
-      <div id="data-content"><ship-spinner></ship-spinner></div>
-      <div id="data-edit-panel"></div>
+<div class="ship-view">
+  <div class="data-wrap">
+
+    {# ── Header ─────────────────────────────────────────────── #}
+    <div style="margin-bottom:20px">
+      <h2 class="data-title">Data</h2>
+      <p class="data-sub">
+        {% if items is defined %}{{ items | length }}{% else %}0{% endif %} item{{ "s" if not items or items | length != 1 else "" }}
+        {% if active_collection is defined %} in {{ active_collection }}{% endif %}
+      </p>
     </div>
+
+    {# ── Toolbar ────────────────────────────────────────────── #}
+    {% if collections is defined and collections | length > 0 %}
+    <div class="data-toolbar">
+      <ship-select size="sm" value="{{ active_collection }}">
+        {% for c in collections %}
+        <ship-option value="{{ c.id }}" {% if c.id == active_collection %}selected{% endif %}>{{ c.name or c.id }} ({{ c.field_count }})</ship-option>
+        {% endfor %}
+      </ship-select>
+      <span class="data-count">{{ items | length if items is defined else 0 }} items</span>
+    </div>
+    {% endif %}
+
+    {# ── Table ──────────────────────────────────────────────── #}
+    {% if schema is defined and items is defined and items | length > 0 %}
+    <table class="data-table">
+      <thead>
+        <tr>
+          <th class="data-th" style="width:90px">ID</th>
+          {% for field_name, field_def in schema.fields | items %}
+          <th class="data-th">{{ field_name }}</th>
+          {% endfor %}
+          <th class="data-th" style="width:100px">Updated</th>
+          <th class="data-th" style="width:50px"></th>
+        </tr>
+      </thead>
+      <tbody>
+        {% for item in items %}
+        <tr class="data-row" id="item-{{ item.id }}">
+          <td class="data-cell data-cell-id" title="{{ item.id }}">{{ item.id[:10] }}</td>
+          {% for field_name, field_def in schema.fields | items %}
+          <td class="data-cell">
+            {% set val = item.data[field_name] if item.data[field_name] is defined else none %}
+            {% if val is none or val == "" %}
+              <span class="data-cell-null">—</span>
+            {% elif field_def.field_type == "enum" %}
+              <ship-chip>{{ val }}</ship-chip>
+            {% elif field_def.field_type == "boolean" %}
+              <ship-badge variant="{{ 'success' if val else 'secondary' }}">{{ "Yes" if val else "No" }}</ship-badge>
+            {% elif field_def.field_type == "number" %}
+              <span class="data-cell-number">{{ val }}</span>
+            {% elif field_def.field_type == "date" %}
+              {{ val[:10] if val else "—" }}
+            {% elif field_def.field_type == "file" %}
+              <span class="data-cell-mono" title="{{ val }}">📎 {{ val.split("/")[-1] if "/" in val else val }}</span>
+            {% elif field_def.field_type == "markdown" %}
+              {{ val[:80] }}{{ "…" if val | length > 80 else "" }}
+            {% elif field_def.field_type == "array" and val is iterable and val is not string %}
+              {% for v in val[:4] %}<ship-chip>{{ v }}</ship-chip> {% endfor %}
+              {% if val | length > 4 %}<ship-badge variant="secondary">+{{ val | length - 4 }}</ship-badge>{% endif %}
+            {% elif field_def.field_type == "object" and val is mapping %}
+              <span class="data-cell-mono" title="{{ val }}">{ {{ val.keys() | list | join(", ") | truncate(30) }} }</span>
+            {% else %}
+              {{ val }}
+            {% endif %}
+          </td>
+          {% endfor %}
+          <td class="data-cell data-cell-time">{{ item.updated_at[:16] if item.updated_at else "—" }}</td>
+          <td class="data-cell">
+            <ship-button size="sm" variant="destructive"
+              data-on:click="@delete('{{ delete_collection_item(active_collection, item.id) }}')">✕</ship-button>
+          </td>
+        </tr>
+        {% endfor %}
+      </tbody>
+    </table>
+
+    {% elif schema is defined %}
+    <div class="data-empty">
+      <p>No items in <strong>{{ active_collection }}</strong></p>
+      <p style="font-size:11px;margin-top:8px">Create items via the REST API or MCP tools</p>
+    </div>
+
+    {% else %}
+    <div class="data-empty">
+      <p>No collections defined</p>
+      <p style="font-size:11px;margin-top:8px">Add a schema to <code>.ship/schemas/</code></p>
+    </div>
+    {% endif %}
+
   </div>
-
-  <script type="module">
-    {#- Typed endpoints injected by Jinja from URL macros. -#}
-    const API = {
-      listCollections: '{{ list_collections() }}',
-      schema: (c) => '{{ get_collection_schema("__COL__") }}'.replace('__COL__', c),
-      createItem: (c) => '{{ create_collection_item("__COL__") }}'.replace('__COL__', c),
-      updateItem: (c, id) => '{{ update_collection_item("__COL__", "__ID__") }}'.replace('__COL__', c).replace('__ID__', id),
-      deleteItem: (c, id) => '{{ delete_collection_item("__COL__", "__ID__") }}'.replace('__COL__', c).replace('__ID__', id),
-      query: (c) => '{{ query_collection("__COL__") }}'.replace('__COL__', c),
-    };
-
-    let S = { collections: [], active: '', schema: null, items: [] };
-
-    const http = {
-      get: (u) => fetch(u, { credentials: 'include' }).then(r => r.json()),
-      post: (u, b) => fetch(u, { method: 'POST', credentials: 'include', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(b) }).then(r => r.json()),
-      put: (u, b) => fetch(u, { method: 'PUT', credentials: 'include', headers: { 'Content-Type': 'application/json' }, body: JSON.stringify(b) }).then(r => r.json()),
-      del: (u) => fetch(u, { method: 'DELETE', credentials: 'include' }).then(r => r.json()),
-    };
-
-    async function init() {
-      const r = await http.get(API.listCollections);
-      S.collections = r.data || [];
-      if (!S.collections.length) {
-        Q('#data-content').innerHTML = '<ship-empty-state><span slot="title">No collections</span><span slot="description">Add a schema to .ship/schemas/</span></ship-empty-state>';
-        return;
-      }
-      S.active = S.collections[0].id;
-      renderToolbar();
-      await load(S.active);
-      sse();
-    }
-
-    async function load(id) {
-      S.active = id; Q('#data-create-form').innerHTML = ''; Q('#data-edit-panel').innerHTML = '';
-      const [sr, qr] = await Promise.all([ http.get(API.schema(id)), http.post(API.query(id), { collection: id, limit: 200 }) ]);
-      S.schema = sr.ok ? sr.data : null;
-      S.items = qr.ok ? qr.data : [];
-      Q('#data-subtitle').textContent = `${S.items.length} item${S.items.length !== 1 ? 's' : ''} in ${id}`;
-      renderTable();
-    }
-
-    function renderToolbar() {
-      const opts = S.collections.map(c => `<ship-option value="${c.id}" ${c.id === S.active ? 'selected' : ''}>${c.name || c.id} (${c.field_count})</ship-option>`).join('');
-      Q('#data-toolbar').innerHTML = `
-        <ship-select size="sm" value="${S.active}" data-on:ship-select-change="window.__load(evt.detail.value)">${opts}</ship-select>
-        <ship-button size="sm" data-on:click="window.__newItem()">+ New</ship-button>
-        <span class="data-count" id="data-count">${S.items.length} items</span>`;
-    }
-
-    function renderTable() {
-      if (!S.schema || !S.items.length) {
-        if (S.schema) Q('#data-content').innerHTML = '<ship-empty-state><span slot="title">No items</span><span slot="description">Click + New</span><ship-button slot="action" size="sm" data-on:click="window.__newItem()">+ New</ship-button></ship-empty-state>';
-        return;
-      }
-      const F = Object.entries(S.schema.fields);
-      const ths = F.map(([n]) => `<th class="data-th" data-on:click="window.__sort('${n}')">${n} <span class="data-sort-icon">↕</span></th>`).join('');
-      const rows = S.items.map(item => {
-        const cells = F.map(([n, d]) => cell(item, n, d)).join('');
-        return `<tr class="data-row" data-on:click="window.__edit('${item.id}')"><td class="data-cell data-cell-id" title="${item.id}">${item.id.slice(0, 10)}</td>${cells}<td class="data-cell data-cell-time">${fmt(item.updated_at)}</td></tr>`;
-      }).join('');
-      Q('#data-content').innerHTML = `<table class="data-table"><thead><tr><th class="data-th" style="width:90px">ID</th>${ths}<th class="data-th" style="width:100px">Updated</th></tr></thead><tbody>${rows}</tbody></table>`;
-      Q('#data-count').textContent = `${S.items.length} items`;
-    }
-
-    function cell(item, name, def) {
-      const v = item.data?.[name] ?? def.default ?? null;
-      if (v === null) return '<td class="data-cell data-cell-null">—</td>';
-      switch (def.field_type) {
-        case 'enum': return `<td class="data-cell"><ship-chip>${h(v)}</ship-chip></td>`;
-        case 'boolean': return `<td class="data-cell"><ship-badge variant="${v === true || v === 1 ? 'success' : 'secondary'}">${v === true || v === 1 ? 'Yes' : 'No'}</ship-badge></td>`;
-        case 'number': return `<td class="data-cell data-cell-number">${v}</td>`;
-        case 'date': return `<td class="data-cell">${String(v).slice(0, 10)}</td>`;
-        case 'file': return `<td class="data-cell data-cell-file" title="${h(v)}">📎 ${h(String(v).split('/').pop())}</td>`;
-        case 'markdown': return `<td class="data-cell" title="${h(v)}">${h(String(v).slice(0, 100))}${v.length > 100 ? '…' : ''}</td>`;
-        case 'array': return Array.isArray(v) ? `<td class="data-cell">${v.slice(0, 4).map(x => `<ship-chip>${h(x)}</ship-chip>`).join(' ')}${v.length > 4 ? ` <ship-badge variant="secondary">+${v.length - 4}</ship-badge>` : ''}</td>` : '<td class="data-cell data-cell-null">—</td>';
-        case 'object': return v && typeof v === 'object' ? `<td class="data-cell data-cell-object" title="${h(JSON.stringify(v, null, 2))}">{ ${Object.keys(v).slice(0, 3).join(', ')}${Object.keys(v).length > 3 ? ' …' : ''} }</td>` : '<td class="data-cell data-cell-null">—</td>';
-        default: return `<td class="data-cell">${h(String(v))}</td>`;
-      }
-    }
-
-    // ── Forms (ship-input, ship-select, ship-switch) ──────────
-    function newItem() { const el = Q('#data-create-form'); el.innerHTML = el.innerHTML ? '' : form('create', {}); }
-
-    function form(pfx, vals) {
-      const fields = Object.entries(S.schema.fields).map(([n, d]) => {
-        const v = vals[n], req = d.required ? '<span class="data-req">*</span>' : '';
-        let inp;
-        if (d.field_type === 'enum' && d.values) {
-          inp = `<ship-select size="sm" id="${pfx}-${n}" value="${v || ''}"><ship-option value="">—</ship-option>${d.values.map(x => `<ship-option value="${x}" ${v === x ? 'selected' : ''}>${x}</ship-option>`).join('')}</ship-select>`;
-        } else if (d.field_type === 'boolean') {
-          inp = `<ship-switch id="${pfx}-${n}" ${(v === true || v === 1) ? 'checked' : ''}></ship-switch>`;
-        } else if (d.field_type === 'number') {
-          inp = `<ship-input size="sm" type="number" id="${pfx}-${n}" value="${v ?? ''}" placeholder="0"></ship-input>`;
-        } else if (d.field_type === 'markdown') {
-          inp = `<ship-textarea size="sm" id="${pfx}-${n}" rows="4" placeholder="${n}">${h(v || '')}</ship-textarea>`;
-        } else if (d.field_type === 'array' || d.field_type === 'object') {
-          inp = `<ship-input size="sm" id="${pfx}-${n}" value="${h(v ? JSON.stringify(v) : '')}" placeholder='${d.field_type === 'array' ? '["a","b"]' : '{"k":"v"}'}'></ship-input>`;
-        } else {
-          inp = `<ship-input size="sm" id="${pfx}-${n}" value="${h(v || '')}" placeholder="${n}"></ship-input>`;
-        }
-        return `<div class="data-field-row"><label class="data-field-label">${n}${req}</label><div class="data-field-input">${inp}</div></div>`;
-      }).join('');
-      const close = pfx === 'create' ? '__newItem' : '__closeEdit';
-      const submit = pfx === 'create' ? '__submitCreate' : '__submitEdit';
-      const del = pfx === 'edit' ? `<ship-button size="sm" variant="destructive" data-on:click="window.__delEdit()" style="margin-left:auto">Delete</ship-button>` : '';
-      return `<ship-card class="data-form"><div class="data-form-head"><span class="data-form-title">${pfx === 'create' ? 'New ' + S.active : 'Edit'}</span><ship-button size="sm" variant="ghost" data-on:click="window.${close}()">✕</ship-button></div>${fields}<div class="data-form-actions"><ship-button size="sm" data-on:click="window.${submit}()">${pfx === 'create' ? 'Create' : 'Save'}</ship-button><ship-button size="sm" variant="ghost" data-on:click="window.${close}()">Cancel</ship-button>${del}</div></ship-card>`;
-    }
-
-    function collect(pfx) {
-      const data = {};
-      for (const [n, d] of Object.entries(S.schema.fields)) {
-        const el = document.getElementById(`${pfx}-${n}`);
-        if (!el) continue;
-        if (d.field_type === 'boolean') data[n] = el.checked ?? false;
-        else if (d.field_type === 'number') { if (el.value !== '' && el.value != null) data[n] = Number(el.value); }
-        else if (d.field_type === 'array' || d.field_type === 'object') { try { if (el.value) data[n] = JSON.parse(el.value); } catch {} }
-        else { if (el.value) data[n] = el.value; }
-      }
-      return data;
-    }
-
-    async function submitCreate() {
-      const r = await http.post(API.createItem(S.active), { data: collect('create') });
-      if (r.ok) { Q('#data-create-form').innerHTML = ''; await load(S.active); } else alert(r.error || 'Failed');
-    }
-
-    let editId = null;
-    function edit(id) {
-      editId = id;
-      const item = S.items.find(i => i.id === id);
-      if (!item) return;
-      Q('#data-edit-panel').innerHTML = `<div class="data-edit-overlay" data-on:click="window.__closeEdit()"></div><div class="data-edit-drawer">${form('edit', item.data || {})}</div>`;
-    }
-    async function submitEdit() {
-      const r = await http.put(API.updateItem(S.active, editId), { data: collect('edit') });
-      if (r.ok) { closeEdit(); await load(S.active); } else alert(r.error || 'Failed');
-    }
-    async function delEdit() { if (!confirm('Delete?')) return; await http.del(API.deleteItem(S.active, editId)); closeEdit(); await load(S.active); }
-    function closeEdit() { editId = null; Q('#data-edit-panel').innerHTML = ''; }
-    function sort(f) { S.items.sort((a, b) => { const va = a.data?.[f], vb = b.data?.[f]; if (va == null) return 1; if (vb == null) return -1; return va < vb ? -1 : va > vb ? 1 : 0; }); renderTable(); }
-
-    function sse() {
-      const es = new EventSource('/api/runtime/events', { withCredentials: true });
-      es.onmessage = e => { try { if (JSON.parse(e.data).event_type?.startsWith('collection.')) load(S.active); } catch {} };
-      es.onerror = () => setTimeout(sse, 5000);
-    }
-
-    function Q(s) { return document.querySelector(s); }
-    function h(s) { return String(s).replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;').replace(/"/g, '&quot;'); }
-    function fmt(t) { return t ? t.slice(0, 16).replace('T', ' ') : '—'; }
-
-    window.__load = load; window.__newItem = newItem; window.__submitCreate = submitCreate;
-    window.__edit = edit; window.__submitEdit = submitEdit; window.__delEdit = delEdit;
-    window.__closeEdit = closeEdit; window.__sort = sort;
-
-    init();
-  </script>
+</div>
 </body>
 </html>
