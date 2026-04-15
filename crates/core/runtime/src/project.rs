@@ -1,1183 +1,54 @@
-use anyhow::{Context, Result, anyhow};
-use serde::{Deserialize, Serialize};
-use specta::Type;
-use std::env;
-use std::fs;
-use std::path::{Component, Path, PathBuf};
-use std::sync::OnceLock;
+//! Project layout, identity, discovery, registry, global state, and init.
+//!
+//! Re-exports the public surface from the submodules below so that
+//! `runtime::project::*` continues to work unchanged.
 
 pub const SHIP_DIR_NAME: &str = ".ship";
-const TEST_GLOBAL_DIR_PREFIX: &str = "ship-test-global-";
 
-static TEST_GLOBAL_CLEANUP_PATH: OnceLock<PathBuf> = OnceLock::new();
-#[cfg(unix)]
-static TEST_GLOBAL_CLEANUP_REGISTERED: OnceLock<()> = OnceLock::new();
-
-#[cfg(unix)]
-unsafe extern "C" {
-    fn atexit(cb: extern "C" fn()) -> i32;
-    fn kill(pid: i32, sig: i32) -> i32;
-}
-
-// ── Namespace path helpers ────────────────────────────────────────────────────
-// All document paths are derived from these. Never construct paths with raw
-// string joins outside of these helpers.
-
-/// `.ship/project/` — specs, features, releases, notes, ADRs
-pub fn project_ns(ship_dir: &Path) -> PathBuf {
-    ship_dir.join("project")
-}
-
-/// `.ship/agents/` — agent profile `.jsonc` files only.
-/// Rules, skills, permissions, MCP config, and teams live at the `.ship/` root.
-pub fn agents_ns(ship_dir: &Path) -> PathBuf {
-    ship_dir.join("agents")
-}
-
-pub fn teams_dir(ship_dir: &Path) -> PathBuf {
-    ship_dir.join("teams")
-}
-
-pub fn adrs_dir(ship_dir: &Path) -> PathBuf {
-    project_ns(ship_dir).join("adrs")
-}
-
-pub fn releases_dir(ship_dir: &Path) -> PathBuf {
-    project_ns(ship_dir).join("releases")
-}
-
-/// `.ship/project/releases/upcoming/` — planned/active release plans.
-pub fn upcoming_releases_dir(ship_dir: &Path) -> PathBuf {
-    releases_dir(ship_dir).join("upcoming")
-}
-
-pub fn notes_dir(ship_dir: &Path) -> PathBuf {
-    project_ns(ship_dir).join("notes")
-}
-
-pub fn specs_dir(ship_dir: &Path) -> PathBuf {
-    project_ns(ship_dir).join("specs")
-}
-
-pub fn features_dir(ship_dir: &Path) -> PathBuf {
-    project_ns(ship_dir).join("features")
-}
-
-pub fn modes_dir(ship_dir: &Path) -> PathBuf {
-    agents_ns(ship_dir).join("modes")
-}
-
-pub fn skills_dir(ship_dir: &Path) -> PathBuf {
-    project_skills_dir(ship_dir)
-}
-
-pub fn rules_dir(ship_dir: &Path) -> PathBuf {
-    ship_dir.join("rules")
-}
-
-pub fn mcp_config_path(ship_dir: &Path) -> PathBuf {
-    ship_dir.join("mcp.jsonc")
-}
-
-pub fn permissions_config_path(ship_dir: &Path) -> PathBuf {
-    ship_dir.join("permissions.jsonc")
-}
-
-/// `.ship/vision.md` — project north-star document
-pub fn vision_doc_path(ship_dir: &Path) -> PathBuf {
-    ship_dir.join("vision.md")
-}
-
-/// Legacy path for vision template (`.ship/TEMPLATE.md`).
-/// New projects should rely on `.ship/vision.md` as the canonical document.
-pub fn vision_template_path(ship_dir: &Path) -> PathBuf {
-    ship_dir.join("TEMPLATE.md")
-}
-
-/// Derive a stable, filesystem-safe project slug from a .ship path.
-/// Uses "<project-name>-<project-id>" (or "tmp-..." for transient test projects).
-pub fn project_slug_from_ship_dir(ship_dir: &Path) -> String {
-    project_namespace_slug(ship_dir)
-}
-
-fn project_namespace_slug(ship_dir: &Path) -> String {
-    let project_root = project_root_from_ship_dir(ship_dir);
-    let mut identity = read_project_identity(ship_dir).unwrap_or_default();
-
-    if identity.id.is_none()
-        && let Ok(id) = ensure_project_id(ship_dir)
-    {
-        identity.id = Some(id);
-    }
-
-    let name_token = project_name_token(project_root, identity.name.as_deref());
-    let id_token = project_id_token(ship_dir, identity.id.as_deref());
-    let transient_prefix = if is_transient_project_root(project_root) {
-        "tmp-"
-    } else {
-        ""
-    };
-
-    format!("{transient_prefix}{name_token}-{id_token}")
-}
-
-fn project_root_from_ship_dir(ship_dir: &Path) -> &Path {
-    if ship_dir
-        .file_name()
-        .and_then(|name| name.to_str())
-        .is_some_and(|name| name == SHIP_DIR_NAME)
-    {
-        ship_dir.parent().unwrap_or(ship_dir)
-    } else {
-        ship_dir
-    }
-}
-
-#[derive(Debug, Default)]
-struct ProjectIdentity {
-    id: Option<String>,
-    name: Option<String>,
-}
-
-fn read_project_identity(ship_dir: &Path) -> Option<ProjectIdentity> {
-    let primary = ship_dir.join(crate::config::PRIMARY_CONFIG_FILE);
-    let legacy = ship_dir.join(crate::config::LEGACY_CONFIG_FILE);
-    let (path, is_jsonc) = if primary.exists() {
-        (primary, true)
-    } else if legacy.exists() {
-        (legacy, false)
-    } else {
-        return None;
-    };
-    let content = fs::read_to_string(path).ok()?;
-    let parsed: serde_json::Value = if is_jsonc {
-        compiler::jsonc::from_jsonc_str(&content).ok()?
-    } else {
-        let tv: toml::Value = toml::from_str(&content).ok()?;
-        serde_json::to_value(&tv).ok()?
-    };
-
-    let id = parsed
-        .get("id")
-        .and_then(|value| value.as_str())
-        .map(str::trim)
-        .filter(|value| !value.is_empty())
-        .map(ToOwned::to_owned);
-    let name = parsed
-        .get("name")
-        .and_then(|value| value.as_str())
-        .map(str::trim)
-        .filter(|value| !value.is_empty())
-        .map(ToOwned::to_owned);
-
-    Some(ProjectIdentity { id, name })
-}
-
-fn project_name_token(project_root: &Path, configured_name: Option<&str>) -> String {
-    let raw = configured_name
-        .map(str::trim)
-        .filter(|value| !value.is_empty())
-        .map(ToOwned::to_owned)
-        .or_else(|| {
-            project_root
-                .file_name()
-                .and_then(|name| name.to_str())
-                .map(ToOwned::to_owned)
-        })
-        .unwrap_or_else(|| "project".to_string());
-
-    let mut token = sanitize_file_name(&raw);
-    if token.len() > 40 {
-        token.truncate(40);
-        token = token.trim_end_matches('-').to_string();
-    }
-    if token.is_empty() {
-        "project".to_string()
-    } else {
-        token
-    }
-}
-
-fn project_id_token(ship_dir: &Path, configured_id: Option<&str>) -> String {
-    let raw = configured_id
-        .map(str::trim)
-        .filter(|value| !value.is_empty())
-        .map(ToOwned::to_owned)
-        .unwrap_or_else(|| legacy_path_slug_from_ship_dir(ship_dir));
-
-    let mut token = sanitize_file_name(&raw);
-    if token.len() > 16 {
-        token.truncate(16);
-        token = token.trim_end_matches('-').to_string();
-    }
-    if token.is_empty() {
-        "unknown".to_string()
-    } else {
-        token
-    }
-}
-
-fn project_components(path: &Path) -> Vec<String> {
-    path.components()
-        .filter_map(|component| match component {
-            Component::Normal(value) => Some(value.to_string_lossy().to_ascii_lowercase()),
-            _ => None,
-        })
-        .collect()
-}
-
-fn starts_with_components(path: &Path, components: &[&str]) -> bool {
-    let normalized = project_components(path);
-    if normalized.len() < components.len() {
-        return false;
-    }
-    normalized
-        .iter()
-        .take(components.len())
-        .zip(components.iter())
-        .all(|(lhs, rhs)| lhs == rhs)
-}
-
-fn contains_component_sequence(path: &Path, sequence: &[&str]) -> bool {
-    let normalized = project_components(path);
-    if sequence.is_empty() || normalized.len() < sequence.len() {
-        return false;
-    }
-    normalized.windows(sequence.len()).any(|window| {
-        window
-            .iter()
-            .zip(sequence.iter())
-            .all(|(lhs, rhs)| lhs == rhs)
-    })
-}
-
-fn is_transient_project_root(project_root: &Path) -> bool {
-    let canonical = fs::canonicalize(project_root).unwrap_or_else(|_| project_root.to_path_buf());
-    starts_with_components(&canonical, &["tmp"])
-        || starts_with_components(&canonical, &["private", "tmp"])
-        || starts_with_components(&canonical, &["var", "folders"])
-        || starts_with_components(&canonical, &["private", "var", "folders"])
-        || contains_component_sequence(&canonical, &["appdata", "local", "temp"])
-        || contains_component_sequence(&canonical, &["examples", "e2e"])
-        || contains_component_sequence(&canonical, &["examples", "projects-e2e"])
-        || contains_component_sequence(&canonical, &["target", "tmp"])
-}
-
-fn legacy_path_slug_from_ship_dir(ship_dir: &Path) -> String {
-    let project_root = project_root_from_ship_dir(ship_dir);
-    let canonical =
-        std::fs::canonicalize(project_root).unwrap_or_else(|_| project_root.to_path_buf());
-    let raw = canonical.to_string_lossy();
-    let slug: String = raw
-        .trim_start_matches('/')
-        .chars()
-        .map(|c| {
-            if c.is_alphanumeric() || c == '_' {
-                c
-            } else {
-                '-'
-            }
-        })
-        .collect();
-    let slug = slug
-        .split('-')
-        .filter(|s| !s.is_empty())
-        .collect::<Vec<_>>()
-        .join("-");
-    if slug.is_empty() {
-        "unknown-project".to_string()
-    } else {
-        slug
-    }
-}
-
-/// Ensure a project has a persistent id in ship.jsonc and return it.
-pub fn ensure_project_id(ship_dir: &Path) -> Result<String> {
-    if let Some(identity) = read_project_identity(ship_dir)
-        && let Some(id) = identity.id
-    {
-        return Ok(id);
-    }
-
-    let path = ship_dir.join(crate::config::PRIMARY_CONFIG_FILE);
-    let content = fs::read_to_string(&path).with_context(|| {
-        format!(
-            "Project at {} has no readable ship.jsonc. Re-run `ship init` to initialize it.",
-            ship_dir.display()
-        )
-    })?;
-
-    let mut parsed: serde_json::Value =
-        compiler::jsonc::from_jsonc_str(&content).with_context(|| {
-            format!(
-                "Project at {} has an invalid ship.jsonc. Re-run `ship init` or fix the file.",
-                ship_dir.display()
-            )
-        })?;
-
-    let obj = parsed
-        .as_object_mut()
-        .ok_or_else(|| anyhow!("ship.jsonc must contain a top-level object."))?;
-
-    let generated_id = crate::gen_nanoid();
-    obj.insert(
-        "id".to_string(),
-        serde_json::Value::String(generated_id.clone()),
-    );
-
-    let updated = serde_json::to_string_pretty(&parsed)?;
-    crate::fs_util::write_atomic(&path, updated)?;
-
-    Ok(generated_id)
-}
-
-/// Global/shared skills store: `~/.ship/skills/`
-pub fn user_skills_dir() -> PathBuf {
-    get_global_dir()
-        .unwrap_or_else(|_| PathBuf::from(".ship"))
-        .join("skills")
-}
-
-/// Project-scoped skills store: `.ship/skills/`
-pub fn project_skills_dir(ship_dir: &Path) -> PathBuf {
-    ship_dir.join("skills")
-}
-
-/// Legacy skills path from pre-flatten layout: `.ship/agents/skills/`
-pub fn legacy_agents_skills_dir(ship_dir: &Path) -> PathBuf {
-    agents_ns(ship_dir).join("skills")
-}
-
-/// Legacy project-scoped skills store used by pre-release builds:
-/// `~/.ship/projects/<project-slug>/skills/`
-pub fn legacy_project_skills_dir(ship_dir: &Path) -> PathBuf {
-    legacy_project_skills_dir_candidates(ship_dir)
-        .into_iter()
-        .next()
-        .unwrap_or_else(|| {
-            PathBuf::from(".ship")
-                .join("projects")
-                .join("unknown-project")
-                .join("skills")
-        })
-}
-
-/// Candidate legacy project skill roots in preferred order.
-/// First candidate is the new sync-safe namespace key.
-/// Second candidate (if different) preserves migration from historic path-derived slugs.
-pub fn legacy_project_skills_dir_candidates(ship_dir: &Path) -> Vec<PathBuf> {
-    let global_dir = get_global_dir().unwrap_or_else(|_| PathBuf::from(".ship"));
-    let preferred = global_dir
-        .join("projects")
-        .join(project_slug_from_ship_dir(ship_dir))
-        .join("skills");
-    let legacy = global_dir
-        .join("projects")
-        .join(legacy_path_slug_from_ship_dir(ship_dir))
-        .join("skills");
-
-    if preferred == legacy {
-        vec![preferred]
-    } else {
-        vec![preferred, legacy]
-    }
-}
-
-/// Resolve the enclosing `.ship` directory from any descendant path.
-pub fn ship_dir_from_path(path: &Path) -> Option<PathBuf> {
-    path.ancestors()
-        .find(|ancestor| {
-            ancestor
-                .file_name()
-                .and_then(|name| name.to_str())
-                .is_some_and(|name| name == SHIP_DIR_NAME)
-        })
-        .map(Path::to_path_buf)
-}
-
-fn canonicalize_lossy(path: &Path) -> PathBuf {
-    fs::canonicalize(path).unwrap_or_else(|_| path.to_path_buf())
-}
-
-fn parse_gitdir_pointer(dot_git_file: &Path) -> Option<PathBuf> {
-    let content = fs::read_to_string(dot_git_file).ok()?;
-    let line = content.lines().next()?.trim();
-    let raw = line.strip_prefix("gitdir:")?.trim();
-    if raw.is_empty() {
-        return None;
-    }
-
-    let parsed = PathBuf::from(raw);
-    if parsed.is_absolute() {
-        Some(parsed)
-    } else {
-        let base = dot_git_file.parent()?;
-        Some(base.join(parsed))
-    }
-}
-
-fn git_common_dir_from(dot_git_path: &Path) -> Option<PathBuf> {
-    if dot_git_path.is_dir() {
-        return Some(canonicalize_lossy(dot_git_path));
-    }
-
-    let gitdir = canonicalize_lossy(&parse_gitdir_pointer(dot_git_path)?);
-    // Worktree pointers usually target: <main>/.git/worktrees/<name>
-    // In that case, the common git dir is <main>/.git.
-    let worktrees = gitdir.parent()?;
-    let marker = worktrees.file_name()?.to_str()?;
-    if marker == "worktrees" {
-        return worktrees.parent().map(canonicalize_lossy);
-    }
-    Some(gitdir)
-}
-
-fn ship_dir_from_git_worktree(start_dir: &Path) -> Option<PathBuf> {
-    for ancestor in start_dir.ancestors() {
-        let dot_git = ancestor.join(".git");
-        if !dot_git.exists() {
-            continue;
-        }
-
-        let common_git = git_common_dir_from(&dot_git)?;
-        let main_root = common_git.parent()?;
-        let ship_candidate = main_root.join(SHIP_DIR_NAME);
-        if ship_candidate.exists() && ship_candidate.is_dir() {
-            return Some(canonicalize_lossy(&ship_candidate));
-        }
-    }
-    None
-}
-
-fn ship_dir_from_git_worktree_pointer(start_dir: &Path) -> Option<PathBuf> {
-    for ancestor in start_dir.ancestors() {
-        let dot_git = ancestor.join(".git");
-        if !dot_git.exists() {
-            continue;
-        }
-
-        if dot_git.is_dir() {
-            return None;
-        }
-
-        let gitdir = canonicalize_lossy(&parse_gitdir_pointer(&dot_git)?);
-        let worktrees = gitdir.parent()?;
-        if worktrees.file_name()?.to_str()? != "worktrees" {
-            return None;
-        }
-        let common_git = canonicalize_lossy(worktrees.parent()?);
-        let main_root = common_git.parent()?;
-        let ship_candidate = main_root.join(SHIP_DIR_NAME);
-        if ship_candidate.exists() && ship_candidate.is_dir() {
-            return Some(canonicalize_lossy(&ship_candidate));
-        }
-        return None;
-    }
-    None
-}
-
-/// Parse `git worktree list --porcelain` output and return the main working
-/// tree root if `current_dir` is a linked worktree, or `None` if it is the
-/// main worktree (or the output is unparseable).
-fn parse_main_worktree_root(porcelain: &str, current_dir: &Path) -> Option<PathBuf> {
-    let dir_canonical = canonicalize_lossy(current_dir);
-    let worktree_paths: Vec<PathBuf> = porcelain
-        .split("\n\n")
-        .filter_map(|block| {
-            let block = block.trim();
-            if block.is_empty() {
-                return None;
-            }
-            let path_str = block
-                .lines()
-                .find(|l| l.starts_with("worktree "))?
-                .strip_prefix("worktree ")?
-                .trim();
-            Some(canonicalize_lossy(PathBuf::from(path_str).as_path()))
-        })
-        .collect();
-
-    let main_path = worktree_paths.first()?.clone();
-
-    // Determine which worktree current_dir lives under.
-    let current_wt = worktree_paths
-        .iter()
-        .find(|wt| dir_canonical.starts_with(wt.as_path()))?;
-
-    if *current_wt == main_path {
-        return None; // already in the main working tree
-    }
-
-    Some(main_path)
-}
-
-/// If `dir` is a linked git worktree, return the main working tree root.
-/// Uses `git worktree list --porcelain` for detection.
-fn main_worktree_root_for(dir: &Path) -> Option<PathBuf> {
-    let output = std::process::Command::new("git")
-        .args(["worktree", "list", "--porcelain"])
-        .current_dir(dir)
-        .output()
-        .ok()?;
-
-    if !output.status.success() {
-        return None;
-    }
-
-    let text = std::str::from_utf8(&output.stdout).ok()?;
-    parse_main_worktree_root(text, dir)
-}
-
-fn resolve_project_dir_from_start(
-    start_dir: &Path,
-    migrate_legacy: bool,
-) -> Result<Option<PathBuf>> {
-    // 1. Walk up from CWD looking for .ship/ — this finds the current
-    //    worktree's own .ship/ before reaching any parent.
-    let mut current_dir = start_dir.to_path_buf();
-    loop {
-        let ship_path = current_dir.join(SHIP_DIR_NAME);
-        if ship_path.exists() && ship_path.is_dir() {
-            // If this .ship/ lives inside a linked git worktree, redirect to
-            // the main working tree's .ship/ so worktrees never register as
-            // separate projects in ~/.ship/projects/.
-            // Primary detection: git worktree list --porcelain.
-            // Fallback: parse the .git file pointer directly (no subprocess).
-            let redirected = main_worktree_root_for(&current_dir)
-                .and_then(|main_root| {
-                    let s = main_root.join(SHIP_DIR_NAME);
-                    if s.exists() && s.is_dir() {
-                        Some(canonicalize_lossy(&s))
-                    } else {
-                        None
-                    }
-                })
-                .or_else(|| ship_dir_from_git_worktree_pointer(&current_dir));
-
-            if let Some(main_ship) = redirected {
-                return Ok(Some(main_ship));
-            }
-            return Ok(Some(canonicalize_lossy(&ship_path)));
-        }
-
-        if migrate_legacy {
-            let legacy_path = current_dir.join(".project");
-            if legacy_path.exists() && legacy_path.is_dir() {
-                fs::rename(&legacy_path, &ship_path)
-                    .context("Failed to migrate .project to .ship")?;
-                return Ok(Some(canonicalize_lossy(&ship_path)));
-            }
-        }
-
-        if let Some(parent) = current_dir.parent() {
-            current_dir = parent.to_path_buf();
-        } else {
-            break;
-        }
-    }
-
-    // 2. Fallback: if no .ship/ found in ancestors, try resolving via git
-    //    worktree pointer to the main checkout's .ship/.
-    if let Some(ship_path) = ship_dir_from_git_worktree_pointer(start_dir) {
-        return Ok(Some(ship_path));
-    }
-
-    Ok(ship_dir_from_git_worktree(start_dir))
-}
-
-/// Resolve the canonical `.ship` directory for a given path without using env
-/// overrides and without mutating legacy folders.
-pub fn resolve_project_ship_dir(start_dir: &Path) -> Option<PathBuf> {
-    resolve_project_dir_from_start(start_dir, false)
-        .ok()
-        .flatten()
-}
-
-/// Resolves the .ship directory by searching upwards from the given directory.
-/// Also checks for legacy `.project` and migrates it to `.ship` if found.
-/// Supports `SHIP_DIR` environment variable override.
-pub fn get_project_dir(start_dir: Option<PathBuf>) -> Result<PathBuf> {
-    // 1. Check for environment variable override
-    if let Ok(env_path) = env::var("SHIP_DIR") {
-        let path = PathBuf::from(env_path);
-        if path.exists() && path.is_dir() {
-            return Ok(path);
-        }
-    }
-
-    // 2. Traversal logic — any directory containing a .ship folder is a project.
-    // If none is found, attempt git-worktree resolution back to the main checkout.
-    let start = start_dir.unwrap_or(env::current_dir()?);
-    if let Some(project_dir) = resolve_project_dir_from_start(&start, true)? {
-        return Ok(project_dir);
-    }
-
-    Err(anyhow!(
-        "Project tracking not initialized in this directory or its parents. Run `ship init` to create a .ship directory."
-    ))
-}
-
-#[derive(Serialize, Deserialize, Debug, Clone, Type)]
-pub struct ProjectRegistry {
-    pub projects: Vec<ProjectEntry>,
-}
-
-#[derive(Serialize, Deserialize, Debug, Clone, PartialEq, Type)]
-pub struct ProjectEntry {
-    pub name: String,
-    #[specta(type = String)]
-    pub path: PathBuf,
-}
-
-pub fn get_registry_path() -> Result<PathBuf> {
-    Ok(get_global_dir()?.join("projects.json"))
-}
-
-pub fn load_registry() -> Result<ProjectRegistry> {
-    let path = get_registry_path()?;
-    if !path.exists() {
-        return Ok(ProjectRegistry {
-            projects: Vec::new(),
-        });
-    }
-    let content = fs::read_to_string(path)?;
-    let registry: ProjectRegistry = serde_json::from_str(&content)?;
-    Ok(registry)
-}
-
-pub fn save_registry(registry: &ProjectRegistry) -> Result<()> {
-    let path = get_registry_path()?;
-    if let Some(parent) = path.parent() {
-        fs::create_dir_all(parent)?;
-    }
-    let json = serde_json::to_string_pretty(registry)?;
-    fs::write(path, json)?;
-    Ok(())
-}
-
-pub fn register_project(name: String, path: PathBuf) -> Result<()> {
-    let mut registry = load_registry()?;
-    let canonical_path = normalize_registry_project_path(&path);
-
-    // De-duplicate entries by canonical path and keep first occurrence.
-    let mut seen_target = false;
-    registry.projects.retain(|project| {
-        let project_path = normalize_registry_project_path(&project.path);
-        if project_path == canonical_path {
-            if seen_target {
-                false
-            } else {
-                seen_target = true;
-                true
-            }
-        } else {
-            true
-        }
-    });
-
-    if let Some(existing) = registry
-        .projects
-        .iter_mut()
-        .find(|project| normalize_registry_project_path(&project.path) == canonical_path)
-    {
-        existing.name = name;
-        existing.path = canonical_path;
-    } else {
-        registry.projects.push(ProjectEntry {
-            name,
-            path: canonical_path,
-        });
-    }
-
-    save_registry(&registry)?;
-    Ok(())
-}
-
-pub fn unregister_project(path: PathBuf) -> Result<()> {
-    let mut registry = load_registry()?;
-    let path = normalize_registry_project_path(&path);
-    registry
-        .projects
-        .retain(|p| normalize_registry_project_path(&p.path) != path);
-    save_registry(&registry)?;
-    Ok(())
-}
-
-pub fn list_registered_projects() -> Result<Vec<ProjectEntry>> {
-    let registry = load_registry()?;
-    // A git worktree has a `.git` FILE (not a directory) at its root.
-    // We never want worktrees to appear as separate projects in the UI,
-    // because they share the same `.ship/` data as their main checkout.
-    Ok(registry
-        .projects
-        .into_iter()
-        .filter(|entry| {
-            let git_path = entry.path.join(".git");
-            // Keep: no .git at all (non-git project) OR .git is a directory (real repo)
-            !git_path.exists() || git_path.is_dir()
-        })
-        .collect())
-}
-/// Returns the global config directory (~/.ship)
-pub fn get_global_dir() -> Result<PathBuf> {
-    let is_test_ctx = cfg!(test)
-        || env::var_os("SHIP_TEST").is_some()
-        || std::env::current_exe()
-            .ok()
-            .as_deref()
-            .is_some_and(is_likely_rust_test_binary);
-
-    // Auto-isolation takes priority — prevents env-var races in parallel tests.
-    if let Some(test_dir) = auto_test_global_dir() {
-        fs::create_dir_all(&test_dir).with_context(|| {
-            format!(
-                "Failed to create auto-isolated test global dir at {}",
-                test_dir.display()
-            )
-        })?;
-        return Ok(test_dir);
-    }
-
-    if let Ok(env_path) = env::var("SHIP_GLOBAL_DIR") {
-        let path = PathBuf::from(env_path.trim());
-        if !path.as_os_str().is_empty() {
-            // Guard: reject production paths from test code.  Developers must
-            // either unset SHIP_GLOBAL_DIR or point it at a temp directory.
-            if is_test_ctx && !path.starts_with(std::env::temp_dir()) {
-                panic!(
-                    "Test attempted to use production database via SHIP_GLOBAL_DIR={}. \
-                     Set SHIP_GLOBAL_DIR to a temp directory in test setup.",
-                    path.display()
-                );
-            }
-            return Ok(path);
-        }
-    }
-
-    // Safety net: if auto_test_global_dir() returned None but we are still in a
-    // test context, refuse to return the production path.
-    #[cfg(debug_assertions)]
-    if is_test_ctx {
-        panic!(
-            "Test binary detected without explicit DB isolation. \
-             Use `ensure_db_at()` with an explicit path or set SHIP_GLOBAL_DIR \
-             to a temp directory in test setup."
-        );
-    }
-
-    home::home_dir()
-        .map(|h| h.join(SHIP_DIR_NAME))
-        .ok_or_else(|| anyhow!("Could not find home directory"))
-}
-
-fn auto_test_global_dir() -> Option<PathBuf> {
-    if std::env::var_os("SHIP_DISABLE_AUTO_TEST_GLOBAL_DIR").is_some() {
-        return None;
-    }
-
-    let exe = std::env::current_exe().ok()?;
-    if !is_likely_rust_test_binary(&exe) {
-        return None;
-    }
-
-    thread_local! {
-        static TEST_GLOBAL_DIR: std::cell::RefCell<Option<PathBuf>> = const { std::cell::RefCell::new(None) };
-    }
-    let dir = TEST_GLOBAL_DIR.with(|cell| {
-        let mut slot = cell.borrow_mut();
-        slot.get_or_insert_with(|| {
-            let thread_suffix = format!("{:?}", std::thread::current().id())
-                .chars()
-                .filter(|c| c.is_ascii_alphanumeric())
-                .collect::<String>();
-            std::env::temp_dir()
-                .join(format!(
-                    "{}{}-{}",
-                    TEST_GLOBAL_DIR_PREFIX,
-                    std::process::id(),
-                    thread_suffix
-                ))
-                .join(SHIP_DIR_NAME)
-        })
-        .clone()
-    });
-    register_test_global_cleanup(&dir);
-    cleanup_stale_test_global_dirs();
-    Some(dir)
-}
-
-fn is_likely_rust_test_binary(path: &Path) -> bool {
-    let path_str = path.to_string_lossy();
-    // Match both standard target dirs and custom CARGO_TARGET_DIR layouts
-    let in_test_deps = path_str.contains("/debug/deps/")
-        || path_str.contains("/release/deps/")
-        || path_str.contains("\\debug\\deps\\")
-        || path_str.contains("\\release\\deps\\");
-    if !in_test_deps {
-        return false;
-    }
-    path.file_name()
-        .and_then(|name| name.to_str())
-        .is_some_and(|name| name.contains('-'))
-}
-
-#[cfg(unix)]
-extern "C" fn cleanup_test_global_dir_on_exit() {
-    // Remove all per-thread test dirs for this PID.
-    let prefix = format!("{}{}-", TEST_GLOBAL_DIR_PREFIX, std::process::id());
-    if let Ok(entries) = fs::read_dir(std::env::temp_dir()) {
-        for entry in entries.flatten() {
-            if let Some(name) = entry.file_name().to_str()
-                && name.starts_with(&prefix)
-                && entry.path().is_dir()
-            {
-                let _ = fs::remove_dir_all(entry.path());
-            }
-        }
-    }
-}
-
-fn register_test_global_cleanup(path: &Path) {
-    let _ = TEST_GLOBAL_CLEANUP_PATH.set(path.to_path_buf());
-    #[cfg(unix)]
-    if TEST_GLOBAL_CLEANUP_REGISTERED.get().is_none() {
-        // SAFETY: registering a process-exit callback once is safe here; callback
-        // does best-effort cleanup and ignores failures.
-        let _ = unsafe { atexit(cleanup_test_global_dir_on_exit) };
-        let _ = TEST_GLOBAL_CLEANUP_REGISTERED.set(());
-    }
-}
-
-fn cleanup_stale_test_global_dirs() {
-    let Ok(entries) = fs::read_dir(std::env::temp_dir()) else {
-        return;
-    };
-    for entry in entries.flatten() {
-        let path = entry.path();
-        let Some(name) = path.file_name().and_then(|name| name.to_str()) else {
-            continue;
-        };
-        let Some(pid) = parse_test_global_dir_pid(name) else {
-            continue;
-        };
-        if pid == std::process::id() {
-            continue;
-        }
-        if is_process_alive(pid) {
-            continue;
-        }
-        if path.is_dir() {
-            let _ = fs::remove_dir_all(path);
-        }
-    }
-}
-
-fn parse_test_global_dir_pid(name: &str) -> Option<u32> {
-    name.strip_prefix(TEST_GLOBAL_DIR_PREFIX)?
-        .split('-')
-        .next()?
-        .parse()
-        .ok()
-}
-
-#[cfg(unix)]
-fn is_process_alive(pid: u32) -> bool {
-    // SAFETY: kill(pid, 0) is a read-only existence/permission probe.
-    let rc = unsafe { kill(pid as i32, 0) };
-    if rc == 0 {
-        return true;
-    }
-    // ESRCH (3) => process does not exist.
-    std::io::Error::last_os_error().raw_os_error() != Some(3)
-}
-
-#[cfg(not(unix))]
-fn is_process_alive(_pid: u32) -> bool {
-    false
-}
-
-// ─── Global App State ─────────────────────────────────────────────────────────
-
-#[derive(Serialize, Deserialize, Debug, Clone, Default, Type)]
-pub struct AppState {
-    pub active_project: Option<PathBuf>,
-    pub recent_projects: Vec<PathBuf>,
-}
-
-pub fn load_app_state() -> Result<AppState> {
-    let path = get_global_dir()?.join("app_state.json");
-    if !path.exists() {
-        return Ok(AppState::default());
-    }
-    let content = fs::read_to_string(path)?;
-    let mut state: AppState =
-        serde_json::from_str(&content).context("Failed to parse app state")?;
-    if normalize_app_state_paths(&mut state) {
-        let _ = save_app_state(&state);
-    }
-    Ok(state)
-}
-
-pub fn save_app_state(state: &AppState) -> Result<()> {
-    let path = get_global_dir()?.join("app_state.json");
-    if let Some(parent) = path.parent() {
-        fs::create_dir_all(parent)?;
-    }
-    let json = serde_json::to_string_pretty(state)?;
-    fs::write(path, json)?;
-    Ok(())
-}
-
-pub fn set_active_project_global(path: PathBuf) -> Result<()> {
-    let mut state = load_app_state()?;
-    state.active_project = Some(path.clone());
-
-    // Add to recent projects if not already there
-    if !state.recent_projects.contains(&path) {
-        state.recent_projects.insert(0, path);
-        // Keep only last 10
-        state.recent_projects.truncate(10);
-    }
-    save_app_state(&state)
-}
-
-pub fn get_active_project_global() -> Result<Option<PathBuf>> {
-    let state = load_app_state()?;
-    Ok(state.active_project)
-}
-
-pub fn get_recent_projects_global() -> Result<Vec<PathBuf>> {
-    let state = load_app_state()?;
-    Ok(state.recent_projects)
-}
-
-fn normalize_app_state_paths(state: &mut AppState) -> bool {
-    let mut changed = false;
-
-    if let Some(active) = state.active_project.clone() {
-        let normalized = normalize_registry_project_path(&active);
-        if normalized != active {
-            state.active_project = Some(normalized);
-            changed = true;
-        }
-    }
-
-    let mut normalized_recent = Vec::with_capacity(state.recent_projects.len());
-    for path in &state.recent_projects {
-        let normalized = normalize_registry_project_path(path);
-        if normalized != *path {
-            changed = true;
-        }
-        if !normalized_recent.contains(&normalized) {
-            normalized_recent.push(normalized);
-        } else {
-            changed = true;
-        }
-    }
-
-    if normalized_recent != state.recent_projects {
-        state.recent_projects = normalized_recent;
-        changed = true;
-    }
-
-    changed
-}
-
-fn normalize_registry_project_path(path: &Path) -> PathBuf {
-    let canonical = fs::canonicalize(path).unwrap_or_else(|_| path.to_path_buf());
-    if canonical
-        .file_name()
-        .and_then(|name| name.to_str())
-        .is_some_and(|name| name == SHIP_DIR_NAME)
-    {
-        return canonical;
-    }
-    let ship_candidate = canonical.join(SHIP_DIR_NAME);
-    if ship_candidate.exists() && ship_candidate.is_dir() {
-        fs::canonicalize(&ship_candidate).unwrap_or(ship_candidate)
-    } else {
-        canonical
-    }
-}
-
-pub fn sanitize_file_name(name: &str) -> String {
-    let mut sanitized = name
-        .chars()
-        .map(|c| {
-            if c.is_ascii_alphanumeric() || c == '-' || c == '_' {
-                c.to_ascii_lowercase()
-            } else {
-                '-'
-            }
-        })
-        .collect::<String>();
-
-    while sanitized.contains("--") {
-        sanitized = sanitized.replace("--", "-");
-    }
-
-    sanitized = sanitized.trim_matches('-').to_string();
-
-    if sanitized.len() > 60 {
-        sanitized.truncate(60);
-        sanitized = sanitized.trim_end_matches('-').to_string();
-    }
-
-    sanitized
-}
-
-pub fn get_project_name(ship_path: &Path) -> String {
-    ship_path
-        .parent()
-        .and_then(|parent| parent.file_name())
-        .and_then(|name| name.to_str())
-        .unwrap_or("Unknown")
-        .to_string()
-}
-
-pub fn register_ship_namespace(
-    ship_path: &Path,
-    namespace: crate::config::NamespaceConfig,
-) -> Result<()> {
-    let mut config = crate::config::get_config(Some(ship_path.to_path_buf()))?;
-    if let Some(existing) = config
-        .namespaces
-        .iter_mut()
-        .find(|entry| entry.id == namespace.id)
-    {
-        *existing = namespace;
-    } else {
-        config.namespaces.push(namespace);
-    }
-    crate::config::save_config(&config, Some(ship_path.to_path_buf()))?;
-    crate::config::ensure_registered_namespaces(ship_path, &config.namespaces)
-}
-
-fn write_if_missing(path: &Path, content: &str) -> Result<()> {
-    if path.exists() {
-        return Ok(());
-    }
-    if let Some(parent) = path.parent() {
-        fs::create_dir_all(parent)?;
-    }
-    fs::write(path, content)?;
-    Ok(())
-}
-
-/// Lightweight project bootstrap for runtime unit tests.
-/// The full production project scaffolding lives in `ship-module-project`.
-pub fn init_project(base_dir: PathBuf) -> Result<PathBuf> {
-    let ship_path = base_dir.join(SHIP_DIR_NAME);
-    fs::create_dir_all(&ship_path)?;
-
-    for rel in [
-        "project/adrs",
-        "project/specs",
-        "project/features",
-        "project/releases",
-        "project/notes",
-        "skills",
-        "rules",
-    ] {
-        fs::create_dir_all(ship_path.join(rel))?;
-    }
-
-    write_if_missing(
-        &ship_path.join("project/features/TEMPLATE.md"),
-        "+++\nrelease_id = \"\"\n+++\n\n## Why\n\n## Delivery Todos\n",
-    )?;
-    write_if_missing(
-        &ship_path.join("project/releases/TEMPLATE.md"),
-        "+++\nversion = \"\"\n+++\n\n## Scope\n",
-    )?;
-    write_if_missing(
-        &ship_path.join("project/notes/TEMPLATE.md"),
-        "+++\ntitle = \"\"\n+++\n\n",
-    )?;
-    write_if_missing(
-        &vision_doc_path(&ship_path),
-        "# Vision\n\nDescribe what this project is trying to achieve.\n",
-    )?;
-
-    // Write ship.toml (with a stable project ID) BEFORE any DB access so that
-    // project_db_key can read the ID and derive a stable state directory path.
-    if !ship_path.join(crate::config::PRIMARY_CONFIG_FILE).exists() {
-        let config = crate::config::ProjectConfig {
-            id: crate::gen_nanoid(),
-            ..Default::default()
-        };
-        crate::config::save_config(&config, Some(ship_path.clone()))?;
-    }
-
-    write_if_missing(
-        &skills_dir(&ship_path).join("task-policy").join("SKILL.md"),
-        r#"---
-name: task-policy
-description: Ship workflow policy and execution guardrails for daily delivery.
-metadata:
-  display_name: Ship Workflow Policy
-  source: builtin
----
-
-# Ship Workflow Policy
-
-Use Ship as the system of record for workflow state changes.
-
-## Canonical Flow
-
-Vision -> Release -> Feature -> Spec -> Close Feature -> Ship Release
-"#,
-    )?;
-
-    let config = crate::config::get_config(Some(ship_path.clone()))?;
-    crate::config::ensure_registered_namespaces(&ship_path, &config.namespaces)?;
-    crate::config::generate_gitignore(&ship_path, &config.git)?;
-
-    Ok(ship_path)
-}
-
-/// Result of [`init_project_with_registry`].
-#[derive(Debug)]
-pub struct InitWithRegistryResult {
-    pub ship_dir: PathBuf,
-    /// Number of default dependencies seeded into ship.jsonc.
-    pub deps_seeded: usize,
-    /// Whether registry install succeeded. `false` means offline fallback was used.
-    pub registry_installed: bool,
-}
-
-/// Full project init with registry-backed default dependencies.
-///
-/// 1. Scaffold `.ship/` directories and default files via [`init_project`].
-/// 2. Seed `@ship/*` default dependencies into `ship.jsonc`.
-/// 3. Attempt to install them via the registry.
-/// 4. If install fails (offline/unreachable), the bare scaffold skills from
-///    step 1 remain as fallback.
-///
-/// Idempotent: safe to call multiple times on the same directory.
-pub fn init_project_with_registry(base_dir: PathBuf) -> Result<InitWithRegistryResult> {
-    let ship_dir = init_project(base_dir)?;
-
-    // Seed default dependencies — idempotent, skips if deps already present.
-    let seed = crate::registry::init_deps::seed_default_dependencies(&ship_dir)?;
-    let deps_seeded = seed.added;
-
-    // Best-effort install. Failure is not an error — bare scaffold skills
-    // remain as the offline fallback.
-    let registry_installed =
-        crate::registry::init_deps::try_install_init_deps(&ship_dir).unwrap_or_default();
-
-    Ok(InitWithRegistryResult {
-        ship_dir,
-        deps_seeded,
-        registry_installed,
-    })
-}
+mod app_state;
+mod discovery;
+mod global;
+mod identity;
+mod init;
+mod paths;
+mod registry;
+
+pub use app_state::{
+    AppState, get_active_project_global, get_recent_projects_global, load_app_state,
+    save_app_state, set_active_project_global,
+};
+pub use discovery::{get_project_dir, resolve_project_ship_dir, ship_dir_from_path};
+pub use global::get_global_dir;
+pub use identity::{
+    ensure_project_id, get_project_name, project_slug_from_ship_dir, sanitize_file_name,
+};
+pub use init::{
+    InitWithRegistryResult, init_project, init_project_with_registry, register_ship_namespace,
+};
+pub use paths::{
+    adrs_dir, agents_ns, features_dir, legacy_agents_skills_dir, legacy_project_skills_dir,
+    legacy_project_skills_dir_candidates, mcp_config_path, modes_dir, notes_dir,
+    permissions_config_path, project_ns, project_skills_dir, releases_dir, rules_dir, skills_dir,
+    specs_dir, teams_dir, upcoming_releases_dir, user_skills_dir, vision_doc_path,
+    vision_template_path,
+};
+pub use registry::{
+    ProjectEntry, ProjectRegistry, get_registry_path, list_registered_projects, load_registry,
+    register_project, save_registry, unregister_project,
+};
 
 #[cfg(test)]
 mod tests {
     use super::*;
+    use anyhow::Result;
+    use std::fs;
+    use std::path::{Path, PathBuf};
     use tempfile::tempdir;
+
+    use super::app_state::normalize_app_state_paths;
+    use super::discovery::{canonicalize_lossy, parse_main_worktree_root};
+    use super::global::{is_likely_rust_test_binary, parse_test_global_dir_pid};
+    use super::identity::is_transient_project_root;
 
     #[test]
     fn resolve_project_ship_dir_follows_git_worktree_pointer() -> Result<()> {
@@ -1240,8 +111,6 @@ mod tests {
         fs::create_dir_all(&worktree_git)?;
         fs::create_dir_all(&wt_nested)?;
 
-        // Use a relative pointer to mirror setups where worktree metadata is not
-        // expressed as an absolute path.
         fs::write(
             wt_root.join(".git"),
             "gitdir: ../../main/.git/worktrees/feature-auth\n",
@@ -1255,7 +124,6 @@ mod tests {
     #[test]
     fn parse_main_worktree_root_returns_none_for_main_checkout() {
         let porcelain = "worktree /home/user/ship\nHEAD abc123\nbranch refs/heads/main\n\nworktree /home/user/ship-worktrees/fix-auth\nHEAD def456\nbranch refs/heads/fix-auth\n";
-        // current_dir IS the main worktree — no redirect expected
         let result = parse_main_worktree_root(porcelain, Path::new("/home/user/ship"));
         assert!(result.is_none());
     }
@@ -1271,7 +139,6 @@ mod tests {
     #[test]
     fn parse_main_worktree_root_handles_subdirectory_of_linked_worktree() {
         let porcelain = "worktree /home/user/ship\nHEAD abc123\nbranch refs/heads/main\n\nworktree /home/user/ship-worktrees/fix-auth\nHEAD def456\nbranch refs/heads/fix-auth\n";
-        // current_dir is a subdirectory of the linked worktree
         let result = parse_main_worktree_root(
             porcelain,
             Path::new("/home/user/ship-worktrees/fix-auth/src/app"),
@@ -1282,32 +149,26 @@ mod tests {
     #[test]
     fn parse_main_worktree_root_returns_none_for_unrecognized_dir() {
         let porcelain = "worktree /home/user/ship\nHEAD abc123\nbranch refs/heads/main\n";
-        // dir is not under any listed worktree
         let result = parse_main_worktree_root(porcelain, Path::new("/home/other/project"));
         assert!(result.is_none());
     }
 
     #[test]
     fn resolve_ship_dir_uses_git_worktree_list_for_linked_worktree() -> Result<()> {
-        // Integration test: set up a real git repo with a linked worktree and
-        // verify that resolve_project_ship_dir redirects to the main .ship/.
         let tmp = tempdir()?;
         let main_root = tmp.path().join("main");
         let wt_root = tmp.path().join("wt");
 
         fs::create_dir_all(&main_root)?;
 
-        // git init
         let status = std::process::Command::new("git")
             .args(["init"])
             .current_dir(&main_root)
             .output();
         if status.is_err() || !status.unwrap().status.success() {
-            // git not available — skip
             return Ok(());
         }
 
-        // Minimal git config so commit works
         for (key, val) in [("user.email", "test@test.com"), ("user.name", "Test")] {
             std::process::Command::new("git")
                 .args(["config", key, val])
@@ -1315,7 +176,6 @@ mod tests {
                 .output()?;
         }
 
-        // Need an initial commit before worktree add
         fs::write(main_root.join("README"), "init")?;
         std::process::Command::new("git")
             .args(["add", "."])
@@ -1326,13 +186,11 @@ mod tests {
             .current_dir(&main_root)
             .output()?;
 
-        // Create a branch for the worktree
         std::process::Command::new("git")
             .args(["branch", "fix-auth"])
             .current_dir(&main_root)
             .output()?;
 
-        // Add a linked worktree
         let wt_out = std::process::Command::new("git")
             .args([
                 "worktree",
@@ -1343,14 +201,12 @@ mod tests {
             .current_dir(&main_root)
             .output()?;
         if !wt_out.status.success() {
-            return Ok(()); // worktree add failed — skip
+            return Ok(());
         }
 
-        // Create .ship/ only in the main checkout
         let main_ship = main_root.join(".ship");
         fs::create_dir_all(&main_ship)?;
 
-        // Also copy .ship/ into the worktree (mirrors real git worktree behaviour)
         let wt_ship = wt_root.join(".ship");
         fs::create_dir_all(&wt_ship)?;
 
@@ -1394,6 +250,7 @@ mod tests {
         assert_eq!(parse_test_global_dir_pid("other-prefix-123"), None);
         Ok(())
     }
+
     #[test]
     fn project_slug_uses_name_and_id_tokens() -> Result<()> {
         let tmp = tempdir()?;
@@ -1490,7 +347,6 @@ mod tests {
         let tmp = tempdir()?;
         let result = init_project_with_registry(tmp.path().to_path_buf())?;
 
-        // Bare scaffold should exist (fallback).
         assert!(
             skills_dir(&result.ship_dir)
                 .join("task-policy/SKILL.md")
@@ -1498,7 +354,6 @@ mod tests {
             "task-policy skill must be present as offline fallback"
         );
 
-        // Dependencies should be seeded in ship.jsonc.
         let content = fs::read_to_string(result.ship_dir.join(crate::config::PRIMARY_CONFIG_FILE))?;
         let doc: serde_json::Value = compiler::jsonc::from_jsonc_str(&content)?;
         assert!(
@@ -1506,7 +361,6 @@ mod tests {
             "ship.jsonc must contain dependencies after init_project_with_registry"
         );
 
-        // Registry install should have failed (no real registry in tests).
         assert!(!result.registry_installed);
         assert_eq!(
             result.deps_seeded,
@@ -1519,16 +373,13 @@ mod tests {
     fn init_with_registry_is_idempotent() -> Result<()> {
         let tmp = tempdir()?;
 
-        // First init.
         let r1 = init_project_with_registry(tmp.path().to_path_buf())?;
         assert!(r1.deps_seeded > 0);
 
-        // Second init -- deps already present, nothing added.
         let r2 = init_project_with_registry(tmp.path().to_path_buf())?;
         assert_eq!(r2.deps_seeded, 0, "second init must not re-add deps");
         assert_eq!(r1.ship_dir, r2.ship_dir);
 
-        // ship.jsonc should still have dependencies from first init.
         let content = fs::read_to_string(r2.ship_dir.join(crate::config::PRIMARY_CONFIG_FILE))?;
         let doc: serde_json::Value = compiler::jsonc::from_jsonc_str(&content)?;
         assert!(doc.get("dependencies").is_some());
