@@ -15,6 +15,7 @@ fn temp_metadata() -> (TempDir, AppMetadata) {
     let dir = TempDir::new().unwrap();
     let meta = AppMetadata {
         global_dir: dir.path().to_path_buf(),
+        workspace_dir: None,
     };
     (dir, meta)
 }
