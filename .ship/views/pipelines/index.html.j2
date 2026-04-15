@@ -1,0 +1,86 @@
+{#-
+  Pipelines view — self-contained, Datastar-driven.
+  All state is managed via signals (tab, agent). ZERO URL query strings.
+  The daemon passes PipelinesCtx as Jinja context.
+-#}
+{% from '_urls.html.j2' import create_job, view_pipelines_sse, get_job, end_job %}
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8">
+  <title>Pipelines</title>
+  <link rel="stylesheet" href="/api/runtime/assets/view-tokens.css">
+  <script type="module" src="/api/runtime/assets/datastar.js"></script>
+  <script type="module" src="/api/runtime/assets/ship-elements.js"></script>
+  <style>
+  .ship-view-pipelines { color: var(--foreground); }
+  .ship-pipelines-wrap { width: 100%; max-width: 1400px; margin: 0 auto; padding: 12px 24px; }
+  .ship-pipelines-head { display: flex; align-items: flex-end; justify-content: space-between; gap: 16px; margin: 0 0 14px; }
+  .ship-pipelines-title { font-family: var(--font-display); font-size: 20px; font-weight: 600; letter-spacing: -0.01em; margin: 0; }
+  .ship-pipelines-sub { font-size: 12px; color: var(--muted-foreground); margin-top: 4px; }
+  .ship-pipelines-status { display: flex; flex-wrap: wrap; align-items: center; gap: 14px; padding: 8px 0; margin: 0 0 10px; border-top: 1px solid color-mix(in oklch, var(--border) 60%, transparent); border-bottom: 1px solid color-mix(in oklch, var(--border) 60%, transparent); }
+  .ship-pipelines-status-pill { display: inline-flex; align-items: center; gap: 6px; font-size: 11px; color: var(--muted-foreground); }
+  .ship-pipelines-status-pill .count { font-variant-numeric: tabular-nums; color: var(--foreground); font-weight: 500; }
+  .ship-pipelines-tabs-row { padding: 0; margin-bottom: 10px; }
+  .ship-pipelines-filters { display: flex; flex-wrap: wrap; gap: 6px; padding: 0; margin-bottom: 12px; }
+  .ship-pipelines-content { padding: 0; }
+  .spinner { display: inline-block; width: 14px; height: 14px; border: 2px solid var(--muted); border-top-color: var(--foreground); border-radius: 50%; animation: spin 0.6s linear infinite; }
+  @keyframes spin { to { transform: rotate(360deg); } }
+  </style>
+</head>
+<body>
+<div id="pipelines-root" class="ship-view ship-view-pipelines"
+     data-signals="{tab: '{{ active_tab }}', agent: '{{ agent_filter }}', _creating: false}">
+  <div class="ship-pipelines-wrap">
+    <div class="ship-pipelines-head">
+      <div>
+        <h1 class="ship-pipelines-title">Pipelines</h1>
+        <div class="ship-pipelines-sub">{{ stats_subtitle }}</div>
+      </div>
+      <ship-button size="sm" tone="accent" variant="solid"
+        data-on:click="@post('{{ create_job() }}', {contentType: 'json', body: JSON.stringify({})})"
+        data-indicator="_creating">
+        + Run
+      </ship-button>
+      <span data-show="$_creating" style="display:none"><span class="spinner"></span></span>
+    </div>
+
+    <div class="ship-pipelines-status" role="group" aria-label="Run status summary">
+      {% for pill in status_pills %}
+      <span class="ship-pipelines-status-pill">
+        <ship-status-dot tone="{{ pill.tone }}"></ship-status-dot>
+        <span>{{ pill.label }}</span>
+        <span class="count">{{ pill.count }}</span>
+      </span>
+      {% endfor %}
+    </div>
+
+    <div class="ship-pipelines-tabs-row">
+      <ship-tabs variant="underline" active="{{ active_tab }}"
+        data-on:ship-tab-change="$tab = evt.detail.name; @get('/api/runtime/view/pipelines/sse')">
+        <ship-tab name="active" label="Active" count="{{ stats.active }}"></ship-tab>
+        <ship-tab name="definitions" label="Definitions" count="{{ stats.definitions }}"></ship-tab>
+        <ship-tab name="history" label="History" count="{{ stats.history }}"></ship-tab>
+      </ship-tabs>
+    </div>
+
+    <div class="ship-pipelines-filters" role="group" aria-label="Filter by agent">
+      <ship-chip size="sm"
+        data-attr:selected="$agent == ''"
+        data-on:click="$agent = ''; @get('/api/runtime/view/pipelines/sse')">All agents</ship-chip>
+      {% for a in agents %}
+      <ship-chip size="sm"
+        data-attr:selected="$agent == '{{ a }}'"
+        data-on:click="$agent = '{{ a }}'; @get('/api/runtime/view/pipelines/sse')">{{ a }}</ship-chip>
+      {% endfor %}
+    </div>
+
+    <div data-init="@get('/api/runtime/view/pipelines/sse')">
+      <div id="pipelines-content" class="ship-pipelines-content">
+        <p style="padding: 16px 0; font-size: 11px; color: var(--muted-foreground)">Loading...</p>
+      </div>
+    </div>
+  </div>
+</div>
+</body>
+</html>

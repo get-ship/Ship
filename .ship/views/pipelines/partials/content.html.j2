@@ -1,0 +1,118 @@
+{#- Pipelines content — dispatches on active_tab signal.
+   Root element MUST have id="pipelines-content" for Datastar patching.
+   All sub-partials are inlined since external views render as a single file. -#}
+{% from '_urls.html.j2' import create_job, get_job, end_job %}
+<div id="pipelines-content" class="ship-pipelines-content">
+  {% if active_tab == 'definitions' %}
+    {# -- Definitions grid -- #}
+    {% if defs and defs | length > 0 %}
+    <div class="ship-pipelines-def-grid">
+      {% for def in defs %}
+      <ship-pipeline-definition name="{{ def.name }}" steps="{{ def.step_count }}" description="{{ def.description }}">
+        <ship-button slot="actions" size="sm" tone="accent" variant="solid"
+          data-on:click="@post('{{ create_job() }}', {contentType: 'json', body: JSON.stringify({pipeline: '{{ def.name }}'})})">
+          Launch
+        </ship-button>
+      </ship-pipeline-definition>
+      {% endfor %}
+    </div>
+    {% else %}
+    <ship-empty-state>
+      <ship-icon slot="icon" name="grid"></ship-icon>
+      <span slot="title">No pipelines defined</span>
+      Add YAML files to <ship-code inline>.ship/pipelines/</ship-code> to define repeatable multi-step workflows.
+    </ship-empty-state>
+    {% endif %}
+
+  {% elif active_tab == 'history' %}
+    {# -- History tab -- #}
+    {% if history_runs and history_runs | length > 0 %}
+    <h2 class="ship-recent-heading">Recent history</h2>
+    <section class="ship-history-card">
+      {% for run in history_runs %}
+      <div class="ship-history-row" data-state="{{ run.state }}">
+        <ship-status-dot tone="{{ run.tone }}"></ship-status-dot>
+        <span class="ship-history-slug">{{ run.slug }}</span>
+        {% if run.branch %}
+        <span class="ship-history-pipeline">{{ run.branch }}</span>
+        {% endif %}
+        {% if run.segments and run.segments | length > 0 %}
+        <ship-step-segments values="{{ run.segments | join(',') }}" size="sm"
+          aria-label="{{ run.segments | length }} step outcomes"></ship-step-segments>
+        {% endif %}
+        <span class="ship-history-dur">{{ run.duration }}</span>
+        <span class="ship-history-when">
+          <ship-timestamp value="{{ run.updated_at }}" relative></ship-timestamp>
+        </span>
+      </div>
+      {% endfor %}
+    </section>
+    {% if stats.history > history_runs | length %}
+    <p class="ship-pipelines-load-more">
+      <ship-chip size="sm"
+        data-on:click="@get('/api/runtime/view/pipelines/sse')">
+        Load {{ stats.history - (history_runs | length) }} more
+      </ship-chip>
+    </p>
+    {% endif %}
+    {% else %}
+    <ship-empty-state>
+      <ship-icon slot="icon" name="archive"></ship-icon>
+      <span slot="title">No run history yet</span>
+      Completed, failed, and merged runs will appear here.
+    </ship-empty-state>
+    {% endif %}
+
+  {% else %}
+    {# -- Active runs (default) -- #}
+    {% if active_runs and active_runs | length > 0 %}
+    <div class="ship-pipelines-run-list">
+      {% for run in active_runs %}
+      <section class="ship-run-card" aria-label="Pipeline run {{ run.slug }}">
+        <div class="ship-run-head">
+          <ship-status-dot tone="{{ run.tone }}"{% if run.state == 'dispatched' or run.state == 'gate-pending' %} pulse{% endif %}></ship-status-dot>
+          <span class="ship-run-slug">{{ run.slug }}</span>
+          <span class="ship-run-sep">&middot;</span>
+          <span class="ship-run-meta">{{ run.agent }}</span>
+          {% if run.branch %}
+          <span class="ship-run-sep">&middot;</span>
+          <span class="ship-run-meta">{{ run.branch }}</span>
+          {% endif %}
+          {% if run.branch_stats.commits_ahead > 0 %}
+          <span class="ship-run-sep">&middot;</span>
+          <span class="ship-run-meta" title="commits ahead of main">
+            <ship-icon name="git-commit" size="sm"></ship-icon>
+            {{ run.branch_stats.commits_ahead }}
+          </span>
+          {% endif %}
+          {% if run.branch_stats.dirty_files > 0 %}
+          <span class="ship-run-sep">&middot;</span>
+          <span class="ship-run-meta" title="uncommitted files">
+            <ship-icon name="file-diff" size="sm"></ship-icon>
+            {{ run.branch_stats.dirty_files }} dirty
+          </span>
+          {% endif %}
+          <span class="ship-run-dur {% if run.state == 'dispatched' or run.state == 'gate-pending' %}running{% endif %}">{{ run.duration }}</span>
+          <span class="ship-run-actions">
+            <ship-button size="sm" variant="ghost"
+              data-on:click="@get('{{ get_job(run.job_id) }}')">
+              Attach
+            </ship-button>
+            <ship-button size="sm" variant="ghost" tone="destructive"
+              data-on:click="@post('{{ end_job() }}', {contentType: 'json', body: JSON.stringify({job_id: '{{ run.job_id }}'})})">
+              Stop
+            </ship-button>
+          </span>
+        </div>
+      </section>
+      {% endfor %}
+    </div>
+    {% else %}
+    <ship-empty-state>
+      <ship-icon slot="icon" name="activity"></ship-icon>
+      <span slot="title">No active runs</span>
+      Kick off a pipeline with <ship-code inline>ship run &lt;pipeline&gt; &lt;spec&gt;</ship-code> or from the Specs view.
+    </ship-empty-state>
+    {% endif %}
+  {% endif %}
+</div>

@@ -29,6 +29,8 @@ pub(crate) struct ManifestData {
     pub events_data: Option<bool>,
     pub chat: Option<bool>,
     pub specs: Option<bool>,
+    pub pipelines: Option<bool>,
+    pub git: Option<bool>,
 }
 
 #[derive(Deserialize, Clone)]

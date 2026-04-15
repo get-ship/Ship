@@ -25,6 +25,8 @@ pub(crate) fn build_generic_context(
     load_events(&mut ctx, manifest_data, &ship_dir);
     load_specs(&mut ctx, manifest_data);
     load_chat(&mut ctx, manifest_data, query_params, &ship_dir);
+    load_pipelines(&mut ctx, signals, manifest_data, &ship_dir);
+    load_git(&mut ctx, manifest_data, query_params, &ship_dir);
 
     ctx
 }
@@ -181,6 +183,37 @@ fn load_specs(ctx: &mut serde_json::Value, manifest_data: &Option<ManifestData>)
     ctx["specs"] = serde_json::to_value(&all).unwrap_or_default();
 }
 
+fn load_pipelines(
+    ctx: &mut serde_json::Value,
+    signals: &serde_json::Value,
+    manifest_data: &Option<ManifestData>,
+    ship_dir: &Path,
+) {
+    if !manifest_data.as_ref().and_then(|d| d.pipelines).unwrap_or(false) {
+        return;
+    }
+    let params = crate::views_pipelines::PipelinesParams {
+        tab: signals.get("tab").and_then(|v| v.as_str()).map(String::from),
+        filter: crate::views::state::Filter {
+            q: None,
+            agent: signals
+                .get("agent")
+                .and_then(|v| v.as_str())
+                .filter(|s| !s.is_empty())
+                .map(String::from),
+            pipeline: None,
+            status: signals.get("status").and_then(|v| v.as_str()).map(String::from),
+        },
+    };
+    let pipelines_ctx = crate::views_pipelines::build_ctx(&params, ship_dir);
+    let val = serde_json::to_value(&pipelines_ctx).unwrap_or_default();
+    if let serde_json::Value::Object(map) = val {
+        for (k, v) in map {
+            ctx[k] = v;
+        }
+    }
+}
+
 fn load_chat(
     ctx: &mut serde_json::Value,
     manifest_data: &Option<ManifestData>,
@@ -199,4 +232,27 @@ fn load_chat(
     ctx["workspace_id"] = serde_json::json!(ws.unwrap_or_default());
     ctx["total"] = serde_json::json!(messages.len());
     ctx["messages"] = serde_json::to_value(&messages).unwrap_or_default();
+}
+
+fn load_git(
+    ctx: &mut serde_json::Value,
+    manifest_data: &Option<ManifestData>,
+    query_params: &HashMap<String, String>,
+    ship_dir: &Path,
+) {
+    if !manifest_data.as_ref().and_then(|d| d.git).unwrap_or(false) {
+        return;
+    }
+    let params = crate::views_git::GitParams {
+        workspace_id: query_params.get("workspace_id").cloned(),
+        commit: query_params.get("commit").cloned(),
+        file: query_params.get("file").cloned(),
+    };
+    let git_ctx = crate::views_git::build_ctx(&params, ship_dir);
+    let val = serde_json::to_value(&git_ctx).unwrap_or_default();
+    if let serde_json::Value::Object(map) = val {
+        for (k, v) in map {
+            ctx[k] = v;
+        }
+    }
 }
