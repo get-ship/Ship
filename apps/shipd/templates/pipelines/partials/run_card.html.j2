@@ -43,11 +43,4 @@
     </span>
   </div>
 
-  {% if run.steps and run.steps | length > 0 %}
-  <div class="ship-run-dag" role="list" aria-label="Pipeline steps">
-    {% for step in run.steps %}
-      {% include 'pipelines/partials/step_card.html.j2' %}
-    {% endfor %}
-  </div>
-  {% endif %}
 </section>

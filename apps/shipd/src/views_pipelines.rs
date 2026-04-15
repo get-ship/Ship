@@ -65,6 +65,13 @@ pub struct Stats {
 }
 
 #[derive(Serialize)]
+pub struct StatusPill {
+    pub label: &'static str,
+    pub tone: &'static str,
+    pub count: usize,
+}
+
+#[derive(Serialize)]
 pub struct StepView {
     pub id: String,
     pub step_type: String,
@@ -105,6 +112,8 @@ pub struct PipelinesCtx {
     pub defs: Vec<PipelineDef>,
     pub active_runs: Vec<RunView>,
     pub history_runs: Vec<RunView>,
+    /// Status pill row shown above tabs — one per state.
+    pub status_pills: Vec<StatusPill>,
 }
 
 fn run_state_token(s: &JobStatus) -> &'static str {
@@ -306,6 +315,25 @@ fn build_ctx(params: &PipelinesParams, ship_dir: &std::path::Path) -> PipelinesC
     };
     let stats_subtitle = build_subtitle(&stats);
 
+    // Per-state counts across all runs (active + history) for the
+    // pill row above the tabs.
+    let all_by_status = |want: JobStatus| -> usize {
+        active
+            .iter()
+            .chain(history.iter())
+            .filter(|j| std::mem::discriminant(&j.status) == std::mem::discriminant(&want))
+            .count()
+    };
+    let status_pills = vec![
+        StatusPill { label: "Pending", tone: "muted", count: all_by_status(JobStatus::Pending) },
+        StatusPill { label: "Running", tone: "info", count: all_by_status(JobStatus::Dispatched) },
+        StatusPill { label: "Gate", tone: "warning", count: all_by_status(JobStatus::GatePending) },
+        StatusPill { label: "Done", tone: "success", count: all_by_status(JobStatus::Completed) },
+        StatusPill { label: "Merged", tone: "accent", count: all_by_status(JobStatus::Merged) },
+        StatusPill { label: "Blocked", tone: "warning", count: all_by_status(JobStatus::Blocked) },
+        StatusPill { label: "Failed", tone: "destructive", count: all_by_status(JobStatus::Failed) },
+    ];
+
     PipelinesCtx {
         active_tab: params.active_tab(),
         filter: params.filter.clone(),
@@ -316,6 +344,7 @@ fn build_ctx(params: &PipelinesParams, ship_dir: &std::path::Path) -> PipelinesC
         defs,
         active_runs,
         history_runs,
+        status_pills,
     }
 }
 
