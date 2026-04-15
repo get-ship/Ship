@@ -272,10 +272,35 @@ async fn auth_middleware_falls_through_to_bearer_when_cookie_missing() {
 }
 
 #[tokio::test]
-async fn auth_middleware_falls_through_to_query_token_when_both_missing() {
+async fn query_token_rejected_on_non_raw_paths() {
+    // `?token=` is only accepted for the iframe `/raw` flow. Everywhere
+    // else it must be ignored so tokens don't leak into access logs.
     let (router, _reg) = router_with_session(VALID_DAEMON_TOKEN);
     let req = Request::builder()
         .uri(format!("/test?token={VALID_DAEMON_TOKEN}"))
+        .body(Body::empty())
+        .unwrap();
+    let (status, _) = send(router, req).await;
+    assert_eq!(status, StatusCode::UNAUTHORIZED);
+}
+
+#[tokio::test]
+async fn query_token_accepted_on_raw_view_path() {
+    let token = Arc::new(VALID_DAEMON_TOKEN.to_string());
+    let registry: SessionRegistry = Arc::new(tokio::sync::Mutex::new(
+        std::collections::HashMap::new(),
+    ));
+    let router = Router::new()
+        .route(
+            "/api/runtime/view/{name}/raw",
+            axum::routing::get(ok_handler),
+        )
+        .layer(middleware::from_fn({
+            let registry = registry.clone();
+            move |req, next| auth::auth_middleware(token.clone(), registry.clone(), req, next)
+        }));
+    let req = Request::builder()
+        .uri(format!("/api/runtime/view/pipelines/raw?token={VALID_DAEMON_TOKEN}"))
         .body(Body::empty())
         .unwrap();
     let (status, _) = send(router, req).await;
