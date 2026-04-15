@@ -76,6 +76,12 @@ pub struct JobRecord {
 /// Apply a single event to an existing `JobRecord`.
 ///
 /// Unknown event types are silently ignored so the projection remains forward-compatible.
+///
+/// Status transitions are table-driven via [`super::job_transitions::status_for`].
+/// Match arms below own only payload extraction and field-level bookkeeping;
+/// the final `if let Some(next) = status_for(...)` applies the new status.
+/// STEP_OBSERVED is the one payload-conditional case — its `Failed` branch
+/// is set inline, and `status_for` returns `None` for it to avoid overriding.
 pub fn apply(record: &mut JobRecord, event: &EventEnvelope) {
     let ts = event.created_at;
     match event.event_type.as_str() {
@@ -96,6 +102,9 @@ pub fn apply(record: &mut JobRecord, event: &EventEnvelope) {
             // replayed JOB_DISPATCHED doesn't destructively read state on the
             // first pass and see None on the second. The `.contains` guard on
             // push prevents duplicate completed entries.
+            //
+            // Note: these checks read `record.status` BEFORE the table-driven
+            // transition at the bottom of `apply` updates it.
             if record.status == JobStatus::Completed
                 && let Some(current) = record.current_step.clone()
             {
@@ -118,22 +127,18 @@ pub fn apply(record: &mut JobRecord, event: &EventEnvelope) {
                     record.current_phase = Some(0);
                 }
             }
-            record.status = JobStatus::Dispatched;
             record.updated_at = ts;
         }
         event_types::JOB_GATE_REQUESTED => {
-            record.status = JobStatus::GatePending;
             record.updated_at = ts;
         }
         event_types::JOB_GATE_PASSED => {
-            record.status = JobStatus::Pending;
             record.updated_at = ts;
         }
         event_types::JOB_GATE_FAILED => {
             if let Ok(p) = serde_json::from_str::<serde_json::Value>(&event.payload_json) {
                 record.error = p["reason"].as_str().map(str::to_string);
             }
-            record.status = JobStatus::Failed;
             record.updated_at = ts;
         }
         event_types::JOB_COMPLETED => {
@@ -146,32 +151,27 @@ pub fn apply(record: &mut JobRecord, event: &EventEnvelope) {
                 }
                 record.current_step = None;
             }
-            record.status = JobStatus::Completed;
             record.updated_at = ts;
         }
         event_types::JOB_BLOCKED => {
             if let Ok(p) = serde_json::from_str::<serde_json::Value>(&event.payload_json) {
                 record.blocker = p["blocker"].as_str().map(str::to_string);
             }
-            record.status = JobStatus::Blocked;
             record.updated_at = ts;
         }
         event_types::JOB_MERGED => {
-            record.status = JobStatus::Merged;
             record.updated_at = ts;
         }
         event_types::JOB_FAILED => {
             if let Ok(p) = serde_json::from_str::<serde_json::Value>(&event.payload_json) {
                 record.error = p["error"].as_str().map(str::to_string);
             }
-            record.status = JobStatus::Failed;
             record.updated_at = ts;
         }
         event_types::STEP_DISPATCHED => {
             if let Ok(p) = serde_json::from_str::<serde_json::Value>(&event.payload_json) {
                 record.current_step = p["step_id"].as_str().map(str::to_string);
             }
-            record.status = JobStatus::Dispatched;
             record.updated_at = ts;
         }
         event_types::STEP_COMPLETED => {
@@ -191,7 +191,6 @@ pub fn apply(record: &mut JobRecord, event: &EventEnvelope) {
             if let Ok(p) = serde_json::from_str::<serde_json::Value>(&event.payload_json) {
                 record.error = p["error"].as_str().map(str::to_string);
             }
-            record.status = JobStatus::Failed;
             record.updated_at = ts;
         }
         event_types::STEP_RETRY => {
@@ -203,7 +202,6 @@ pub fn apply(record: &mut JobRecord, event: &EventEnvelope) {
                 // Remove the step from completed so it can be re-dispatched
                 record.completed_steps.retain(|s| s != step_id);
                 record.error = None;
-                record.status = JobStatus::Dispatched;
             }
             record.updated_at = ts;
         }
@@ -225,6 +223,8 @@ pub fn apply(record: &mut JobRecord, event: &EventEnvelope) {
                         record.completed_steps.push(step_name.to_string());
                     }
                 } else {
+                    // Payload-conditional transition — `status_for` returns
+                    // `None` for STEP_OBSERVED so this assignment survives.
                     record.error = p["reason"].as_str().map(str::to_string);
                     record.status = JobStatus::Failed;
                 }
@@ -232,6 +232,12 @@ pub fn apply(record: &mut JobRecord, event: &EventEnvelope) {
             record.updated_at = ts;
         }
         _ => {}
+    }
+
+    // Table-driven unconditional status transitions. Events with no listed
+    // transition (STEP_COMPLETED, STEP_OBSERVED, unknowns) are untouched.
+    if let Some(next) = super::job_transitions::status_for(&event.event_type) {
+        record.status = next;
     }
 }
 
