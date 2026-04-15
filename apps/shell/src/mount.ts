@@ -25,7 +25,7 @@ export async function mountDaemonFragment(
     headers,
   });
   if (!res.ok) {
-    target.innerHTML = `<pre>mount failed: ${res.status} ${res.statusText}\nGET ${url}</pre>`;
+    target.innerHTML = `<div class="mount-error">mount failed: ${res.status} ${res.statusText}\nGET ${url}</div>`;
     return;
   }
   const html = await res.text();

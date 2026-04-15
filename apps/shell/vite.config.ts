@@ -23,25 +23,38 @@ function resolveToken(envToken: string | undefined): string {
 
 export default defineConfig(({ mode }) => {
   const env = loadEnv(mode, process.cwd(), "");
-  const daemon = env.VITE_DAEMON_URL ?? "http://127.0.0.1:9316";
-  const token = resolveToken(env.VITE_DAEMON_TOKEN);
-  if (!token) {
-    console.warn(
-      "[shell] no daemon token — set VITE_DAEMON_TOKEN or create ~/.ship/daemon.token",
-    );
+  const daemon = env.VITE_DAEMON_URL ?? "http://127.0.0.1:9315";
+  // Token resolved per-request in the proxy below so daemon restarts (which
+  // mint a new token) don't require a Vite restart.
+  function currentToken(): string {
+    return resolveToken(env.VITE_DAEMON_TOKEN);
   }
   return {
-    // Serve at /shell/ so that, when proxied through the daemon, HTML
-    // references like /vendor/* and /src/* resolve correctly.
-    base: "/shell/",
+    base: "/",
     define: {
-      "import.meta.env.VITE_DAEMON_URL": JSON.stringify(daemon),
-      "import.meta.env.VITE_DAEMON_TOKEN": JSON.stringify(token),
+      // Client sees empty string → relative URLs → Vite proxy forwards to
+      // daemon with fresh token. The `daemon` var above is the proxy target
+      // only (server-side), never exposed to the browser.
+      "import.meta.env.VITE_DAEMON_URL": JSON.stringify(""),
+      "import.meta.env.VITE_DAEMON_TOKEN": JSON.stringify(""),
     },
     server: {
       port: 3100,
       strictPort: true,
       proxy: {
+        // Forward daemon API + view endpoints so the browser sees everything
+        // as same-origin on :3100. Bearer token injected by the proxy so the
+        // client code can run with credentials: "include" + cookie only.
+        "/api": {
+          target: daemon,
+          changeOrigin: true,
+          configure: (proxy) => {
+            proxy.on("proxyReq", (proxyReq) => {
+              const t = currentToken();
+              if (t) proxyReq.setHeader("Authorization", `Bearer ${t}`);
+            });
+          },
+        },
         "/daemon": {
           target: daemon,
           changeOrigin: true,

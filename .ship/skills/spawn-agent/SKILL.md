@@ -81,6 +81,8 @@ These are personal configuration — set in your shell profile, not in project f
 <numbered verifiable outcomes>
 
 ---
+> Execute this job yourself. Do not delegate the implementation to a subagent — subagents are only for read-only parallel research, never for writing the code this job asks for.
+>
 > If you notice a bug or problem outside your file scope, log it via
 > `mcp__ship__log_progress` and continue your work.
 >

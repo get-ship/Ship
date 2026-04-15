@@ -3,76 +3,161 @@
   <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <title>Ship Shell Devtools — Gallery</title>
+    <title>Ship Shell — Component Gallery</title>
+    <link rel="stylesheet" href="/vendor/tokens.css" />
     <link rel="stylesheet" href="/vendor/view-tokens.css" />
     <script type="module" src="/vendor/datastar.js"></script>
     <script type="module" src="/vendor/ship-elements.js"></script>
+    <script>
+      (() => {
+        const saved = localStorage.getItem("ship-shell-theme");
+        const prefers = matchMedia("(prefers-color-scheme: dark)").matches;
+        const dark = saved ? saved === "dark" : prefers;
+        document.documentElement.classList.toggle("dark", dark);
+      })();
+    </script>
     <style>
+      html, body { height: 100%; margin: 0; }
       * { box-sizing: border-box; }
       body {
-        margin: 0;
-        font-family: system-ui, sans-serif;
-        background: #fafafa;
+        font-family: var(--font-body);
+        background: var(--background);
+        color: var(--foreground);
+        font-size: var(--text-base);
+        line-height: var(--leading-normal);
       }
       header {
-        padding: 12px 20px;
-        border-bottom: 1px solid #ddd;
-        background: #fff;
+        padding: 10px 20px;
+        border-bottom: 1px solid var(--border);
+        background: var(--sidebar);
         display: flex;
-        gap: 12px;
-        align-items: baseline;
+        gap: 14px;
+        align-items: center;
       }
-      header h1 { font-size: 16px; margin: 0; }
-      header small { color: #666; }
-      main { padding: 20px; max-width: 1200px; margin: 0 auto; }
-      section.group { margin-bottom: 32px; }
+      header .brand {
+        font-family: var(--font-display);
+        font-weight: var(--font-weight-semibold);
+        font-size: var(--text-md);
+        letter-spacing: -0.01em;
+        color: var(--foreground);
+      }
+      header h1 {
+        margin: 0;
+        font-size: var(--text-sm);
+        font-weight: var(--font-weight-medium);
+        color: var(--muted-foreground);
+      }
+      header #count { color: var(--muted-foreground); font-size: var(--text-xs); }
+      .spacer { flex: 1; }
+      .icon-btn {
+        background: transparent;
+        border: 1px solid var(--border);
+        color: var(--muted-foreground);
+        padding: 5px 10px;
+        border-radius: var(--radius-md);
+        cursor: pointer;
+        font-family: inherit;
+        font-size: var(--text-sm);
+        text-decoration: none;
+        transition: background var(--duration-fast) var(--ease-out),
+                    color var(--duration-fast) var(--ease-out),
+                    border-color var(--duration-fast) var(--ease-out);
+      }
+      .icon-btn:hover {
+        background: var(--sidebar-accent);
+        color: var(--foreground);
+        border-color: color-mix(in oklch, var(--foreground) 20%, var(--border));
+      }
+      main { padding: 20px 24px 40px; max-width: 1600px; margin: 0 auto; }
+      section.group { margin-bottom: 28px; }
       section.group > h2 {
-        font-size: 14px;
+        font-family: var(--font-display);
+        font-size: var(--text-xs);
+        font-weight: var(--font-weight-semibold);
         text-transform: uppercase;
-        letter-spacing: 0.04em;
-        color: #444;
-        border-bottom: 1px solid #e0e0e0;
-        padding-bottom: 4px;
-        margin-bottom: 12px;
+        letter-spacing: 0.08em;
+        color: var(--muted-foreground);
+        border-bottom: 1px solid var(--border);
+        padding-bottom: 5px;
+        margin: 0 0 12px;
+      }
+      .group-grid {
+        display: grid;
+        grid-template-columns: repeat(auto-fill, minmax(260px, 1fr));
+        gap: 10px;
       }
       .card {
-        background: #fff;
-        border: 1px solid #e0e0e0;
-        border-radius: 6px;
-        padding: 14px;
-        margin-bottom: 12px;
-      }
-      .card-title {
-        font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
-        font-size: 12px;
-        color: #0366d6;
-        margin-bottom: 8px;
-      }
-      .card-props {
-        font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
-        font-size: 11px;
-        color: #888;
-        margin-bottom: 10px;
+        background: var(--card);
+        border: 1px solid var(--border);
+        border-radius: var(--radius-md);
+        overflow: hidden;
+        display: flex;
+        flex-direction: column;
+        min-height: 140px;
       }
       .card-render {
-        padding: 12px;
-        border: 1px dashed #ddd;
-        border-radius: 4px;
-        background: #fbfbfb;
+        flex: 1;
+        min-height: 88px;
+        padding: 16px;
+        background:
+          linear-gradient(var(--background), var(--background)) padding-box,
+          repeating-linear-gradient(
+            45deg,
+            color-mix(in oklch, var(--border) 30%, transparent) 0 1px,
+            transparent 1px 8px
+          );
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        gap: 10px;
+        flex-wrap: wrap;
+      }
+      .card-meta {
+        border-top: 1px solid var(--border);
+        padding: 6px 10px;
+        display: flex;
+        gap: 8px;
+        align-items: baseline;
+        font-family: var(--font-mono, ui-monospace, monospace);
+        font-size: var(--text-xs);
+        background: color-mix(in oklch, var(--muted) 25%, transparent);
+      }
+      .card-tag {
+        color: var(--primary);
+        font-weight: var(--font-weight-medium);
+      }
+      .card-props {
+        color: var(--muted-foreground);
+        overflow: hidden;
+        text-overflow: ellipsis;
+        white-space: nowrap;
+        flex: 1;
+        min-width: 0;
       }
       .card-error {
-        color: #a33;
-        font-size: 12px;
-        font-family: ui-monospace, SFMono-Regular, Menlo, monospace;
+        color: var(--destructive);
+        font-size: var(--text-xs);
+        font-family: var(--font-mono, ui-monospace, monospace);
       }
     </style>
   </head>
   <body>
     <header>
-      <h1>ship-elements gallery</h1>
+      <span class="brand">Ship</span>
+      <h1>Component Gallery</h1>
       <small id="count">loading…</small>
+      <span class="spacer"></span>
+      <a class="icon-btn" href="/" title="Back to shell">← shell</a>
+      <button class="icon-btn" id="toggle-theme" title="Toggle theme">◐</button>
     </header>
     <main id="gallery"></main>
     <script type="module" src="/src/devtools/main.ts"></script>
+    <script type="module">
+      const btn = document.getElementById("toggle-theme");
+      btn?.addEventListener("click", () => {
+        const isDark = document.documentElement.classList.toggle("dark");
+        localStorage.setItem("ship-shell-theme", isDark ? "dark" : "light");
+      });
+    </script>
   </body>
 </html>

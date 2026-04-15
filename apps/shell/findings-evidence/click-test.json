@@ -1,0 +1,109 @@
+{
+  "clickables": [
+    {
+      "i": 0,
+      "tag": "ship-button",
+      "text": "+ Run",
+      "hasDataOn": false,
+      "href": null,
+      "selector": "main ship-button:nth-of-type(1)"
+    }
+  ],
+  "clickResults": [
+    {
+      "i": 0,
+      "tag": "ship-button",
+      "text": "+ Run",
+      "hasDataOn": false,
+      "href": null,
+      "selector": "main ship-button:nth-of-type(1)",
+      "newRequests": [
+        {
+          "method": "POST",
+          "url": "http://127.0.0.1:9315/api/runtime/jobs"
+        }
+      ],
+      "newLogs": [
+        {
+          "type": "error",
+          "text": "Failed to load resource: the server responded with a status of 401 (Unauthorized)"
+        }
+      ],
+      "urlChanged": false,
+      "urlAfter": "http://127.0.0.1:3100/pipelines",
+      "domDelta": 0
+    }
+  ],
+  "logs": [
+    {
+      "type": "debug",
+      "text": "[vite] connecting..."
+    },
+    {
+      "type": "debug",
+      "text": "[vite] connected."
+    },
+    {
+      "type": "error",
+      "text": "Failed to load resource: the server responded with a status of 401 (Unauthorized)"
+    },
+    {
+      "type": "error",
+      "text": "Failed to load resource: the server responded with a status of 401 (Unauthorized)"
+    }
+  ],
+  "net": [
+    {
+      "method": "GET",
+      "url": "http://127.0.0.1:3100/pipelines"
+    },
+    {
+      "method": "GET",
+      "url": "http://127.0.0.1:3100/@vite/client"
+    },
+    {
+      "method": "GET",
+      "url": "http://127.0.0.1:3100/vendor/tokens.css"
+    },
+    {
+      "method": "GET",
+      "url": "http://127.0.0.1:3100/vendor/view-tokens.css"
+    },
+    {
+      "method": "GET",
+      "url": "http://127.0.0.1:3100/vendor/datastar.js"
+    },
+    {
+      "method": "GET",
+      "url": "http://127.0.0.1:3100/vendor/ship-elements.js"
+    },
+    {
+      "method": "GET",
+      "url": "http://127.0.0.1:3100/src/main.ts?t=1776217742109"
+    },
+    {
+      "method": "GET",
+      "url": "http://127.0.0.1:3100/@fs/home/madvib/dev/ship/node_modules/.pnpm/vite@7.3.1_@types+node@25.3.3_jiti@2.6.1_lightningcss@1.31.1_tsx@4.21.0/node_modules/vite/dist/client/env.mjs"
+    },
+    {
+      "method": "GET",
+      "url": "http://127.0.0.1:3100/src/mount.ts?t=1776217742109"
+    },
+    {
+      "method": "GET",
+      "url": "http://127.0.0.1:3100/api/runtime/view/pipelines"
+    },
+    {
+      "method": "GET",
+      "url": "http://127.0.0.1:9315/api/runtime/view/pipelines/sse?tab=active&datastar=%7B%7D"
+    },
+    {
+      "method": "GET",
+      "url": "http://127.0.0.1:3100/api/runtime/view/pipelines/sse"
+    },
+    {
+      "method": "POST",
+      "url": "http://127.0.0.1:9315/api/runtime/jobs"
+    }
+  ]
+}
