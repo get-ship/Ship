@@ -178,11 +178,10 @@ impl ShipRuntime {
             mesh_registry,
             agent_mailboxes: Arc::new(Mutex::new(HashMap::new())),
             pty_connections: Arc::new(Mutex::new(HashMap::new())),
-            ship_dir: meta
-                .workspace_dir
-                .as_ref()
-                .map(|w| w.join(".ship"))
-                .unwrap_or_else(|| global_dir.clone()),
+            // Platform DB lives at ~/.ship/platform.db only. A workspace
+            // attachment does NOT fork a second db into <workspace>/.ship/.
+            // See crates/core/runtime/src/db/mod.rs:77 ("Never inside a project directory").
+            ship_dir: global_dir.clone(),
             mesh: tokio::sync::OnceCell::new(),
             jobs: tokio::sync::OnceCell::new(),
             dispatch_handle: std::sync::OnceLock::new(),
