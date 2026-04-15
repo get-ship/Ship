@@ -9,6 +9,7 @@
 
 pub mod async_projection;
 pub mod job;
+pub mod job_transitions;
 pub mod spawn;
 mod actor;
 mod registry;

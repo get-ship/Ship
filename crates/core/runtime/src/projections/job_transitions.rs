@@ -1,0 +1,112 @@
+//! Status transition table for job events.
+//!
+//! The single place that says "which events change `JobStatus`, and to
+//! what." Payload extraction stays in [`super::job::apply`]. This module
+//! only answers: given an event type, what is the new status?
+//!
+//! Events not listed here either don't mutate status, or the transition
+//! is conditional on payload (e.g. `STEP_OBSERVED`). Those stay inline
+//! in `apply` until a follow-up pass extracts them too.
+
+use super::job::JobStatus;
+use crate::events::job::event_types;
+
+/// Unconditional status transition for an event type.
+///
+/// Returns `None` if the event does not mutate status, or if the
+/// transition depends on payload. Callers that care about payload-driven
+/// transitions (STEP_OBSERVED, STEP_COMPLETED) handle them separately.
+pub fn status_for(event_type: &str) -> Option<JobStatus> {
+    match event_type {
+        event_types::JOB_DISPATCHED => Some(JobStatus::Dispatched),
+        event_types::JOB_GATE_REQUESTED => Some(JobStatus::GatePending),
+        event_types::JOB_GATE_PASSED => Some(JobStatus::Pending),
+        event_types::JOB_GATE_FAILED => Some(JobStatus::Failed),
+        event_types::JOB_COMPLETED => Some(JobStatus::Completed),
+        event_types::JOB_BLOCKED => Some(JobStatus::Blocked),
+        event_types::JOB_MERGED => Some(JobStatus::Merged),
+        event_types::JOB_FAILED => Some(JobStatus::Failed),
+        event_types::STEP_DISPATCHED => Some(JobStatus::Dispatched),
+        event_types::STEP_FAILED => Some(JobStatus::Failed),
+        event_types::STEP_RETRY => Some(JobStatus::Dispatched),
+        _ => None,
+    }
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+
+    #[test]
+    fn job_dispatched_sets_dispatched() {
+        assert_eq!(status_for(event_types::JOB_DISPATCHED), Some(JobStatus::Dispatched));
+    }
+
+    #[test]
+    fn job_gate_requested_sets_gate_pending() {
+        assert_eq!(status_for(event_types::JOB_GATE_REQUESTED), Some(JobStatus::GatePending));
+    }
+
+    #[test]
+    fn job_gate_passed_sets_pending() {
+        assert_eq!(status_for(event_types::JOB_GATE_PASSED), Some(JobStatus::Pending));
+    }
+
+    #[test]
+    fn job_gate_failed_sets_failed() {
+        assert_eq!(status_for(event_types::JOB_GATE_FAILED), Some(JobStatus::Failed));
+    }
+
+    #[test]
+    fn job_completed_sets_completed() {
+        assert_eq!(status_for(event_types::JOB_COMPLETED), Some(JobStatus::Completed));
+    }
+
+    #[test]
+    fn job_blocked_sets_blocked() {
+        assert_eq!(status_for(event_types::JOB_BLOCKED), Some(JobStatus::Blocked));
+    }
+
+    #[test]
+    fn job_merged_sets_merged() {
+        assert_eq!(status_for(event_types::JOB_MERGED), Some(JobStatus::Merged));
+    }
+
+    #[test]
+    fn job_failed_sets_failed() {
+        assert_eq!(status_for(event_types::JOB_FAILED), Some(JobStatus::Failed));
+    }
+
+    #[test]
+    fn step_dispatched_sets_dispatched() {
+        assert_eq!(status_for(event_types::STEP_DISPATCHED), Some(JobStatus::Dispatched));
+    }
+
+    #[test]
+    fn step_failed_sets_failed() {
+        assert_eq!(status_for(event_types::STEP_FAILED), Some(JobStatus::Failed));
+    }
+
+    #[test]
+    fn step_retry_sets_dispatched() {
+        assert_eq!(status_for(event_types::STEP_RETRY), Some(JobStatus::Dispatched));
+    }
+
+    #[test]
+    fn step_completed_is_none() {
+        // STEP_COMPLETED mutates completed_steps but not status unconditionally.
+        assert_eq!(status_for(event_types::STEP_COMPLETED), None);
+    }
+
+    #[test]
+    fn step_observed_is_none() {
+        // STEP_OBSERVED's status mutation is payload-conditional (verdict).
+        assert_eq!(status_for(event_types::STEP_OBSERVED), None);
+    }
+
+    #[test]
+    fn unknown_event_is_none() {
+        assert_eq!(status_for("job.never_heard_of_it"), None);
+        assert_eq!(status_for(""), None);
+    }
+}
