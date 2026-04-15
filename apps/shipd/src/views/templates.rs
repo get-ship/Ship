@@ -214,10 +214,6 @@ const TEMPLATES: &[(&str, &str)] = &[
         include_str!("../../templates/skills/partials/detail_pane.html.j2"),
     ),
     (
-        "skills/partials/metadata_sidebar.html.j2",
-        include_str!("../../templates/skills/partials/metadata_sidebar.html.j2"),
-    ),
-    (
         "specs/content.html.j2",
         include_str!("../../templates/specs/content.html.j2"),
     ),
