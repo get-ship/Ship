@@ -146,18 +146,32 @@ pub async fn auth_middleware(
         .and_then(|h| h.strip_prefix("Bearer "))
         .map(|s| s.to_string());
 
-    // Query-param tokens are accepted ONLY on GET requests (for browser
-    // EventSource / WebSocket upgrade, which can't set headers). POST/PUT/DELETE
-    // must use the Authorization header — otherwise the token would leak into
-    // server access logs.
-    let query_token = if req.method() == axum::http::Method::GET {
+    // Query-param tokens are accepted ONLY for the iframe raw-serve flow
+    // (`/api/runtime/view/*/raw` and `/api/runtime/view-sessions/*/raw`).
+    // Iframes cannot set Authorization headers or share cookies reliably
+    // across origins, so `?token=` is the only option there. Every other
+    // endpoint must use the `Authorization: Bearer` header or the
+    // `ship_session` cookie — otherwise the token leaks into access logs.
+    let path = req.uri().path();
+    let is_raw_iframe = req.method() == axum::http::Method::GET
+        && (path.starts_with("/api/runtime/view/") && path.ends_with("/raw")
+            || path.starts_with("/api/runtime/view-sessions/") && path.ends_with("/raw"));
+    let query_has_token = req
+        .uri()
+        .query()
+        .map(|q| q.split('&').any(|p| p.starts_with("token=")))
+        .unwrap_or(false);
+    let query_token = if is_raw_iframe {
         req.uri().query()
             .and_then(|q| q.split('&').find_map(|p| p.strip_prefix("token=")))
-            .map(|s| {
-                tracing::debug!("auth: query-param token used on GET {}", req.uri().path());
-                s.to_string()
-            })
+            .map(|s| s.to_string())
     } else {
+        if query_has_token {
+            tracing::warn!(
+                "auth: rejected ?token= on non-raw path {} (use Authorization header or cookie)",
+                path
+            );
+        }
         None
     };
 
