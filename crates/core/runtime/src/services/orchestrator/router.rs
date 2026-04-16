@@ -82,6 +82,31 @@ pub async fn handle_job_event(
         );
         return;
     }
+
+    // Terminal-state guard. Once a job is Failed/Merged/Cancelled the
+    // router ignores subsequent pipeline events for it — late-arriving
+    // step.observed signals (kill-session firing after teardown,
+    // replayed deliveries) cannot resurrect a dead job. Operator events
+    // (job.created/update/cancelled) are exempt: those are signals FROM
+    // the operator, not pipeline progression.
+    if !is_operator_event(&envelope.event_type)
+        && let Some(record) = load_job_record(&envelope.entity_id)
+        && matches!(
+            record.status,
+            crate::projections::job::JobStatus::Failed
+                | crate::projections::job::JobStatus::Merged
+                | crate::projections::job::JobStatus::Cancelled
+        )
+    {
+        tracing::warn!(
+            entity_id = %envelope.entity_id,
+            event_type = %envelope.event_type,
+            status = ?record.status,
+            "job-dispatch: ignoring event for terminal job"
+        );
+        return;
+    }
+
     match envelope.event_type.as_str() {
         "job.created" => handle_job_created(kernel, envelope, octx).await,
         "job.update" => handle_job_update(kernel, envelope).await,
@@ -273,6 +298,29 @@ async fn maybe_auto_merge(
         &*octx.platform,
     )
     .await
+}
+
+/// Events originating from the operator (or system policy), not from
+/// pipeline progression. These are exempt from the terminal-state guard
+/// so operators can still issue signals about a finalized job.
+fn is_operator_event(event_type: &str) -> bool {
+    matches!(
+        event_type,
+        "job.created" | "job.update" | "job.cancelled"
+    )
+}
+
+/// Load the projected record for a single job by entity_id.
+///
+/// Used by the terminal-state guard. Returns `None` if the projection
+/// can't be loaded or the job doesn't exist — callers treat that as
+/// "not terminal, proceed" so startup races don't drop events.
+fn load_job_record(entity_id: &str) -> Option<crate::projections::job::JobRecord> {
+    crate::projections::job::load_jobs()
+        .ok()?
+        .into_iter()
+        .map(|(_, v)| v)
+        .find(|r| r.job_id == entity_id)
 }
 
 /// Extract the slug from an event envelope payload.
