@@ -181,6 +181,7 @@ fn dispatch(command: Option<Commands>) -> Result<()> {
                 let cmd = match action {
                     DaemonCommands::Start { host, dev } => DaemonCommand::Start { host, dev },
                     DaemonCommands::Stop => DaemonCommand::Stop,
+                    DaemonCommands::Restart { host, dev } => DaemonCommand::Restart { host, dev },
                     DaemonCommands::Status => DaemonCommand::Status,
                     DaemonCommands::Cleanup => DaemonCommand::Cleanup,
                     DaemonCommands::Run { host, port, dev, with_ui } => DaemonCommand::Run { host, port, dev, with_ui },

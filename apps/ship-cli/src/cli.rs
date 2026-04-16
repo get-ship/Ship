@@ -323,6 +323,15 @@ pub enum DaemonCommands {
     },
     /// Stop the running daemon process
     Stop,
+    /// Restart the daemon (stop + start, or `systemctl restart` under systemd)
+    Restart {
+        /// Bind address (default: 127.0.0.1). Ignored under systemd — the unit controls host.
+        #[arg(long, default_value = "127.0.0.1")]
+        host: String,
+        /// DEV mode — auto-pair on first localhost request, force 127.0.0.1 bind.
+        #[arg(long)]
+        dev: bool,
+    },
     /// Show daemon status
     Status,
     /// Remove orphaned worktrees for merged and failed jobs
