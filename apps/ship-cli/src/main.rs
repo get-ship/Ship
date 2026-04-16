@@ -20,6 +20,9 @@ mod hook;
 mod init;
 mod install;
 mod job;
+mod jobs;
+mod procs;
+mod tail;
 mod loader;
 mod logging;
 mod skill_loader;
@@ -168,6 +171,9 @@ fn dispatch(command: Option<Commands>) -> Result<()> {
                     JobCommands::Cancel { slug, reason } => job::cancel(&slug, &reason),
                 }
             }
+            Commands::Jobs { json } => jobs::run(json),
+            Commands::Procs { slug, limit, json } => procs::run(slug.as_deref(), limit, json),
+            Commands::Tail { slug, namespace } => tail::run(&slug, namespace.as_deref()),
             Commands::Studio { port, open } => run_studio(port, open),
             Commands::Daemon { action } => {
                 use cli::DaemonCommands;

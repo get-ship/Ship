@@ -83,6 +83,8 @@ pub struct ShipRuntime {
     health_registry: HealthRegistry,
     /// Agent-owned view sessions (Phase 1 canvas framework).
     view_sessions: crate::views::session::SharedViewSessionRegistry,
+    /// Wall-clock instant the daemon process started — used for uptime.
+    started_at: std::time::Instant,
 }
 
 impl ShipRuntime {
@@ -189,7 +191,13 @@ impl ShipRuntime {
             session_registry: Arc::new(Mutex::new(HashMap::new())),
             health_registry: HealthRegistry::new(),
             view_sessions: Arc::new(crate::views::session::ViewSessionRegistry::default()),
+            started_at: std::time::Instant::now(),
         })
+    }
+
+    /// Process uptime since the runtime was constructed.
+    pub fn uptime(&self) -> std::time::Duration {
+        self.started_at.elapsed()
     }
 
     pub fn kernel(&self) -> &SharedKernel {
@@ -328,6 +336,7 @@ impl ShipRuntime {
             session_registry: Arc::new(Mutex::new(HashMap::new())),
             health_registry: HealthRegistry::new(),
             view_sessions: Arc::new(crate::views::session::ViewSessionRegistry::default()),
+            started_at: std::time::Instant::now(),
         }
     }
 
@@ -352,6 +361,7 @@ impl ShipRuntime {
             session_registry: Arc::new(Mutex::new(HashMap::new())),
             health_registry: HealthRegistry::new(),
             view_sessions: Arc::new(crate::views::session::ViewSessionRegistry::default()),
+            started_at: std::time::Instant::now(),
         }
     }
 

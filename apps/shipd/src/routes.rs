@@ -205,6 +205,17 @@ pub enum Route {
     /// @route POST "/api/runtime/jobs/{slug}/cancel"
     CancelJob { slug: String },
 
+    // ── Process projection / events polling / daemon status (slice 6) ────
+
+    /// @route GET "/api/runtime/procs"
+    ListProcs,
+
+    /// @route GET "/api/runtime/events/poll"
+    PollEvents,
+
+    /// @route GET "/api/runtime/daemon/status"
+    DaemonStatus,
+
     // ── Specs ────────────────────────────────────────────────────────────
 
     /// @route GET "/api/runtime/specs"

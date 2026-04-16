@@ -258,6 +258,35 @@ pub enum Commands {
         action: JobCommands,
     },
 
+    /// List current jobs with projected status, current step, and live process state
+    Jobs {
+        /// Emit jobs as JSON instead of a table
+        #[arg(long)]
+        json: bool,
+    },
+
+    /// List process records (lifecycle view from the ProcessRecord projection)
+    Procs {
+        /// Filter to a single job slug
+        #[arg(long)]
+        slug: Option<String>,
+        /// Cap the number of rows returned (default 100)
+        #[arg(long)]
+        limit: Option<usize>,
+        /// Emit records as JSON instead of a table
+        #[arg(long)]
+        json: bool,
+    },
+
+    /// Stream events for a slug in real time (1s polling)
+    Tail {
+        /// Job slug to follow
+        slug: String,
+        /// Filter to a single event namespace (e.g. "job", "process", "supervisor")
+        #[arg(long)]
+        namespace: Option<String>,
+    },
+
     /// Manage the Ship daemon (shipd) background process
     Daemon {
         #[command(subcommand)]
