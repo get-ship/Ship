@@ -222,4 +222,8 @@ pub trait ProcessRegistryPort: Send + Sync {
     async fn register(&self, slug: &str, handle: ExecutorHandle);
     /// Remove a handle (e.g. when a job completes).
     async fn unregister(&self, slug: &str);
+    /// Remove and return a handle so the caller can stop the process.
+    /// Default `None` — tests and registries that don't track handles
+    /// can leave this unimplemented.
+    async fn take(&self, _slug: &str) -> Option<ExecutorHandle> { None }
 }

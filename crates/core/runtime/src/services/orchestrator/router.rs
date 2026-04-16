@@ -11,7 +11,9 @@ use tokio::sync::Mutex;
 
 use super::dispatch::handle_job_created;
 use super::review_retry::{emit_job_failed_for_review, try_review_retry};
-use super::handlers::{finalize_pipeline_if_done, handle_job_cleanup, handle_job_update};
+use super::handlers::{
+    finalize_pipeline_if_done, handle_job_cancelled, handle_job_cleanup, handle_job_update,
+};
 use super::pipeline::advance_pipeline;
 use super::OrchestratorContext;
 
@@ -110,6 +112,7 @@ pub async fn handle_job_event(
     match envelope.event_type.as_str() {
         "job.created" => handle_job_created(kernel, envelope, octx).await,
         "job.update" => handle_job_update(kernel, envelope).await,
+        "job.cancelled" => handle_job_cancelled(kernel, envelope, octx).await,
         "job.completed" => {
             tracing::info!(entity_id = %envelope.entity_id, "job-dispatch: handling job.completed");
             let slug = extract_slug(envelope);

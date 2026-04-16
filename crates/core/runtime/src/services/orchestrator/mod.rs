@@ -35,6 +35,8 @@ pub mod step_monitor;
 pub mod dispatch;
 
 #[cfg(test)]
+mod tests_cancel;
+#[cfg(test)]
 mod tests_spawn_failed;
 #[cfg(test)]
 mod tests_terminal_guard;

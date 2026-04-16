@@ -202,6 +202,9 @@ pub enum Route {
     /// @route POST "/api/runtime/jobs/end"
     EndJob,
 
+    /// @route POST "/api/runtime/jobs/{slug}/cancel"
+    CancelJob { slug: String },
+
     // ── Specs ────────────────────────────────────────────────────────────
 
     /// @route GET "/api/runtime/specs"
