@@ -82,12 +82,13 @@ fn is_process_alive(pid: u32) -> bool {
 pub fn run_daemon(cmd: DaemonCommand) -> Result<()> {
     match cmd {
         DaemonCommand::Start { host, dev } => {
-            let ctx = start_context(host, dev);
+            let ctx = start_context(host, dev)?;
+            check_version_mismatch(&ctx.global_dir)?;
             supervision::select().start(&ctx)
         }
         DaemonCommand::Stop => supervision::select().stop(),
         DaemonCommand::Restart { host, dev } => {
-            let ctx = start_context(host, dev);
+            let ctx = start_context(host, dev)?;
             supervision::select().restart(&ctx)
         }
         DaemonCommand::Status => daemon_status(),
@@ -97,12 +98,42 @@ pub fn run_daemon(cmd: DaemonCommand) -> Result<()> {
     }
 }
 
-fn start_context(host: String, dev: bool) -> StartContext {
+fn start_context(host: String, dev: bool) -> Result<StartContext> {
     // Dev mode pins the bind to localhost regardless of --host so that
     // the relaxed auth surface is never exposed on a LAN. Applied here
     // so both adapters see the same final host.
     let host = if dev { "127.0.0.1".to_string() } else { host };
-    StartContext { host, dev }
+    Ok(StartContext {
+        host,
+        dev,
+        global_dir: ship_dir()?,
+    })
+}
+
+/// Refuse `ship daemon start` when a live daemon is running a different
+/// version than the CLI we're invoking. This catches the "copy a fresh
+/// shipd into ~/.local/bin and forget to restart" footgun, where the
+/// stale process keeps serving old code while the operator thinks the
+/// new one is live.
+///
+/// Only `start` checks. `restart` is the remediation, so version mismatch
+/// during restart is expected — we *want* to replace the old process.
+/// `stop` doesn't care: shutting down a stale daemon is never wrong.
+fn check_version_mismatch(global_dir: &Path) -> Result<()> {
+    let Some((record, true)) = pidfile::read(global_dir)? else {
+        return Ok(());
+    };
+    let installed = env!("CARGO_PKG_VERSION");
+    if record.version != installed {
+        anyhow::bail!(
+            "shipd version mismatch: running {} (pid {}), installed {}.\n\
+             Use `ship daemon restart` to replace the running daemon.",
+            record.version,
+            record.pid,
+            installed
+        );
+    }
+    Ok(())
 }
 
 /// Maximum restart attempts within the window before giving up.
@@ -811,7 +842,7 @@ pub fn ensure_daemon() -> Result<(u16, String)> {
     // Start the daemon via the adapter so systemd-managed installs use
     // `systemctl --user start` instead of the legacy supervisor spawn.
     eprintln!("shipd: starting daemon...");
-    let ctx = start_context("0.0.0.0".to_string(), false);
+    let ctx = start_context("0.0.0.0".to_string(), false)?;
     supervision::select().start(&ctx)?;
 
     // Wait for the daemon to become healthy (up to 5 seconds).
