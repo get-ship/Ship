@@ -44,6 +44,7 @@ pub mod annotation;
 pub mod filter;
 pub mod global_kernel_router;
 pub mod job;
+pub mod process;
 pub mod kernel_lifecycle;
 pub mod kernel_router;
 pub mod payload_schema;
