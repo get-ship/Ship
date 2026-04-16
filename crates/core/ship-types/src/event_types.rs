@@ -42,6 +42,10 @@ pub const SKILL_STARTED: &str = "skill.started";
 pub const SKILL_COMPLETED: &str = "skill.completed";
 pub const SKILL_FAILED: &str = "skill.failed";
 pub const SUPERVISOR_SHUTTING_DOWN: &str = "supervisor.shutting_down";
+pub const SUPERVISOR_SWEEP_STARTED: &str = "supervisor.sweep_started";
+pub const SUPERVISOR_SWEEP_COMPLETED: &str = "supervisor.sweep_completed";
+pub const SUPERVISOR_DRIFT_DETECTED: &str = "supervisor.drift_detected";
+pub const SUPERVISOR_COHERENCE_RESTORED: &str = "supervisor.coherence_restored";
 pub const PROCESS_SPAWNED: &str = "process.spawned";
 pub const PROCESS_EXITED: &str = "process.exited";
 pub const PROCESS_SIGNAL_SENT: &str = "process.signal_sent";
@@ -92,6 +96,10 @@ pub const ALL: &[&str] = &[
     SKILL_COMPLETED,
     SKILL_FAILED,
     SUPERVISOR_SHUTTING_DOWN,
+    SUPERVISOR_SWEEP_STARTED,
+    SUPERVISOR_SWEEP_COMPLETED,
+    SUPERVISOR_DRIFT_DETECTED,
+    SUPERVISOR_COHERENCE_RESTORED,
     PROCESS_SPAWNED,
     PROCESS_EXITED,
     PROCESS_SIGNAL_SENT,
