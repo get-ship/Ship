@@ -1,0 +1,51 @@
+name: ship-dev
+description: >
+  Ship's own dev loop as a Ship pipeline. Implement → verify → review,
+  one shared worktree, auto-merge on success.
+auto_merge: true
+steps:
+  - id: implement
+    agent: rust-lane
+  - id: verify
+    run: |
+      cargo check --workspace 2>&1 | tail -5
+      cargo test --workspace --no-fail-fast 2>&1 | tail -10
+    after: [implement]
+  - id: review
+    agent: gatekeeper
+    after: [verify]
+    gate:
+      require_changed:
+        match: "**/*.rs"
+        min: 1
+      forbid_changed:
+        match: ".artifacts/**"
+        min: 0
+step_specs:
+  - |
+    # Implementer — step 1 of 3
+
+    Execute the spec at `.artifacts/pipeline/spec.md`. Make the requested
+    change, write tests if behavior is changing, ensure `cargo check`
+    passes locally before signalling done.
+
+    Signal completion with `mcp__ship__step_done({ summary })` citing the
+    files you changed and the test count if applicable.
+
+  - |
+    # Verify — step 2 of 3 (shell only, no agent)
+
+    `cargo check` and `cargo test` run in the same worktree the implementer
+    used. Reuses the implementer's compiled artifacts (target/ is shared).
+    Exit non-zero on any test failure — pipeline halts before review.
+
+  - |
+    # Reviewer — step 3 of 3
+
+    Grade the implementer's work against `.artifacts/pipeline/spec.md`:
+    1. Did the change accomplish the spec's stated goal?
+    2. Are tests present where behavior changed?
+    3. Diff stays inside the spec's allowed file scope?
+
+    Verdict: `mcp__ship__step_done` with pass/fail + evidence. On fail,
+    quote the offending diff hunk.
