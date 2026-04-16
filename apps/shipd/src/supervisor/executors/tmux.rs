@@ -2,7 +2,9 @@
 
 use anyhow::Result;
 use async_trait::async_trait;
-use runtime::services::dispatch_ports::{ExecutorHandle, ExitSignal, JobContext, JobExecutor};
+use runtime::services::dispatch_ports::{
+    ExecutorHandle, ExitCause, ExitSignal, JobContext, JobExecutor,
+};
 use runtime::services::provider_adapter::adapter_for;
 
 use super::super::helpers::{ensure_tmux_session, kill_tmux_session};
@@ -283,6 +285,7 @@ fn monitor_tmux_session(
                 slug: slug.to_string(),
                 job_id: job_id.to_string(),
                 exit_code: None, // tmux does not expose the agent's exit code
+                cause: ExitCause::SessionDestroyed,
             });
             return;
         }

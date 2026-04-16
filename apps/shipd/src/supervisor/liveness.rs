@@ -13,9 +13,10 @@
 //!    Dispatched jobs with no activity in >5 minutes.
 
 use chrono::Utc;
+use runtime::events::executor::DestructionCause;
 use runtime::events::job::event_types;
 use runtime::events::{EventEnvelope, KernelRouter};
-use runtime::services::dispatch_ports::{ExitSignal, JobExecutor};
+use runtime::services::dispatch_ports::{ExitCause, ExitSignal, JobExecutor};
 use std::sync::Arc;
 use std::time::Duration;
 use tokio::sync::mpsc::UnboundedReceiver;
@@ -40,37 +41,99 @@ pub(crate) fn start_exit_handler(
             tracing::info!(
                 slug = signal.slug,
                 exit_code = ?signal.exit_code,
+                cause = ?signal.cause,
                 "liveness: exit signal received"
             );
             registry.lock().await.unregister(&signal.slug);
 
-            // Emit process.exited for observability.
-            let exit_signal = signal.exit_code.and_then(|c| if c != 0 { Some("non-zero") } else { None });
-            runtime::services::orchestrator::emit::emit_process_exited(
-                &kernel, &signal.slug, None, signal.exit_code,
-                exit_signal.as_deref(), 0, "unknown",
-            ).await;
+            match signal.cause {
+                ExitCause::AgentExited => {
+                    // Emit process.exited for observability.
+                    let exit_signal = signal
+                        .exit_code
+                        .and_then(|c| if c != 0 { Some("non-zero") } else { None });
+                    runtime::services::orchestrator::emit::emit_process_exited(
+                        &kernel,
+                        &signal.slug,
+                        None,
+                        signal.exit_code,
+                        exit_signal.as_deref(),
+                        0,
+                        "unknown",
+                    )
+                    .await;
 
-            match signal.exit_code {
-                Some(0) | None => {
-                    // Single-step or no-pipeline job — original behavior.
-                    let payload = serde_json::json!({
-                        "job_id": signal.job_id, "slug": signal.slug,
-                    });
-                    emit_job_event(
-                        &kernel, event_types::JOB_COMPLETED,
-                        &signal.job_id, &signal.slug, payload,
-                    ).await;
+                    match signal.exit_code {
+                        Some(0) => {
+                            let payload = serde_json::json!({
+                                "job_id": signal.job_id, "slug": signal.slug,
+                            });
+                            emit_job_event(
+                                &kernel,
+                                event_types::JOB_COMPLETED,
+                                &signal.job_id,
+                                &signal.slug,
+                                payload,
+                            )
+                            .await;
+                        }
+                        Some(code) => {
+                            let payload = serde_json::json!({
+                                "job_id": signal.job_id,
+                                "error": format!("process exited with code {code}"),
+                            });
+                            emit_job_event(
+                                &kernel,
+                                event_types::JOB_FAILED,
+                                &signal.job_id,
+                                &signal.slug,
+                                payload,
+                            )
+                            .await;
+                        }
+                        None => {
+                            // Process gone, no exit code captured — treat as
+                            // failure. Pre-slice this was silently marked
+                            // completed; that was the bug.
+                            let payload = serde_json::json!({
+                                "job_id": signal.job_id,
+                                "error": "agent process exited with no captured exit code",
+                            });
+                            emit_job_event(
+                                &kernel,
+                                event_types::JOB_FAILED,
+                                &signal.job_id,
+                                &signal.slug,
+                                payload,
+                            )
+                            .await;
+                        }
+                    }
                 }
-                Some(code) => {
+                ExitCause::SessionDestroyed => {
+                    // Record the substrate teardown, then fail the job.
+                    // Without cause-awareness this path would have silently
+                    // emitted job.completed — the exact bug this slice closes.
+                    runtime::services::orchestrator::emit::emit_executor_session_destroyed(
+                        &kernel,
+                        &signal.slug,
+                        "tmux_window",
+                        &signal.slug,
+                        DestructionCause::External,
+                    )
+                    .await;
                     let payload = serde_json::json!({
                         "job_id": signal.job_id,
-                        "error": format!("process exited with code {code}"),
+                        "error": "executor session destroyed externally (operator kill or substrate failure)",
                     });
                     emit_job_event(
-                        &kernel, event_types::JOB_FAILED,
-                        &signal.job_id, &signal.slug, payload,
-                    ).await;
+                        &kernel,
+                        event_types::JOB_FAILED,
+                        &signal.job_id,
+                        &signal.slug,
+                        payload,
+                    )
+                    .await;
                 }
             }
         }

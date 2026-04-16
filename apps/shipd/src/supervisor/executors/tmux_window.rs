@@ -16,7 +16,7 @@
 use anyhow::{anyhow, Result};
 use async_trait::async_trait;
 use runtime::services::dispatch_ports::{
-    ExecutorHandle, ExitSignal, JobContext, JobExecutor,
+    ExecutorHandle, ExitCause, ExitSignal, JobContext, JobExecutor,
 };
 use runtime::services::provider_adapter::adapter_for;
 
@@ -286,6 +286,7 @@ fn monitor_window(
                     slug: slug.to_string(),
                     job_id: job_id.to_string(),
                     exit_code: None,
+                    cause: ExitCause::SessionDestroyed,
                 });
             }
             return;
