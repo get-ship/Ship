@@ -1,28 +1,152 @@
 {#- Settings content partial -- rendered by the SSE handler.
    Root element MUST have id="settings-content" for Datastar patching. -#}
-{% from '_ship.html.j2' import on %}
 {% from '_urls.html.j2' import update_setting %}
 <div id="settings-content">
   <style>
-  .settings-section { margin: var(--space-5) 0 0; display: flex; flex-direction: column; gap: var(--space-2); }
-  .settings-section:first-child { margin-top: 0; }
-  .settings-section-head { font-size: var(--text-xs); font-weight: var(--font-weight-semibold); text-transform: uppercase; letter-spacing: 0.08em; color: var(--muted-foreground); }
-  .settings-section-desc { font-size: var(--text-sm); color: var(--muted-foreground); }
-  .settings-row { display: grid; grid-template-columns: minmax(180px, 220px) 1fr; gap: var(--space-4); align-items: center; padding: var(--space-3) 0; border-bottom: 1px solid var(--border); }
-  .settings-row:last-child { border-bottom: 0; }
-  .settings-row-label { font-size: var(--text-sm); }
-  .settings-row-sub { display: block; font-size: var(--text-xs); color: var(--muted-foreground); margin-top: 2px; }
-  .settings-row-control { display: flex; align-items: center; gap: var(--space-2); justify-content: flex-end; }
-  @media (max-width: 700px) { .settings-row { grid-template-columns: 1fr; } .settings-row-control { justify-content: flex-start; } }
-  .provider-row { display: grid; grid-template-columns: auto 1fr auto; gap: var(--space-3); align-items: center; padding: var(--space-3) 0; border-bottom: 1px solid var(--border); }
-  .provider-row:last-child { border-bottom: 0; }
-  .provider-name { font-size: var(--text-sm); font-weight: var(--font-weight-medium); display: inline-flex; align-items: center; gap: var(--space-2); }
-  .provider-meta { font-family: var(--font-mono); font-size: var(--text-xs); color: var(--muted-foreground); display: inline-flex; align-items: center; gap: var(--space-2); }
-  .about-list { display: grid; grid-template-columns: 160px 1fr; gap: var(--space-2) var(--space-4); font-size: var(--text-sm); padding: var(--space-3) 0; }
-  .about-list dt { color: var(--muted-foreground); font-weight: var(--font-weight-medium); }
-  .about-list dd { margin: 0; font-family: var(--font-mono); font-size: var(--text-xs); }
-  .about-list a { color: var(--primary); text-decoration: none; }
-  .about-list a:hover { text-decoration: underline; }
+    .settings-section { margin: 24px 0 0; display: flex; flex-direction: column; gap: 8px; }
+    .settings-section:first-child { margin-top: 0; }
+    .settings-section-head {
+      font-size: 10px;
+      font-weight: 600;
+      text-transform: uppercase;
+      letter-spacing: 0.08em;
+      color: var(--muted-foreground);
+      margin: 0;
+    }
+    .settings-section-desc {
+      font-size: 12px;
+      color: var(--muted-foreground);
+      margin: 0 0 4px;
+    }
+    .settings-section-desc code {
+      font-family: var(--font-mono);
+      font-size: 11px;
+      background: color-mix(in oklch, var(--muted) 45%, transparent);
+      padding: 1px 4px;
+      border-radius: 3px;
+    }
+    ship-card.settings-card { display: block; }
+    .settings-card-inner { padding: 4px 16px; }
+    .settings-row {
+      display: grid;
+      grid-template-columns: minmax(180px, 220px) 1fr;
+      gap: 16px;
+      align-items: center;
+      padding: 12px 0;
+      border-bottom: 1px solid color-mix(in oklch, var(--border) 60%, transparent);
+    }
+    .settings-row:last-child { border-bottom: 0; }
+    .settings-row-label {
+      font-size: 12px;
+      color: var(--foreground);
+      min-width: 0;
+    }
+    .settings-row-sub {
+      display: block;
+      font-size: 11px;
+      color: var(--muted-foreground);
+      margin-top: 2px;
+    }
+    .settings-row-control {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      justify-content: flex-end;
+      min-width: 0;
+    }
+    @media (max-width: 700px) {
+      .settings-row { grid-template-columns: 1fr; gap: 6px; }
+      .settings-row-control { justify-content: flex-start; }
+    }
+    .provider-row {
+      display: grid;
+      grid-template-columns: auto 1fr auto;
+      gap: 12px;
+      align-items: center;
+      padding: 10px 0;
+      border-bottom: 1px solid color-mix(in oklch, var(--border) 60%, transparent);
+    }
+    .provider-row:last-child { border-bottom: 0; }
+    .provider-main {
+      display: flex;
+      flex-direction: column;
+      gap: 2px;
+      min-width: 0;
+    }
+    .provider-name {
+      font-size: 13px;
+      font-weight: 500;
+      color: var(--foreground);
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+    }
+    .provider-meta {
+      font-family: var(--font-mono);
+      font-size: 10px;
+      color: var(--muted-foreground);
+      display: inline-flex;
+      align-items: center;
+      gap: 8px;
+    }
+    .provider-dot {
+      width: 6px;
+      height: 6px;
+      border-radius: 50%;
+      display: inline-block;
+      background: color-mix(in oklch, var(--muted-foreground) 40%, transparent);
+    }
+    .provider-dot.on { background: var(--success); }
+    .provider-radio {
+      appearance: none;
+      width: 16px;
+      height: 16px;
+      border-radius: 50%;
+      border: 1.5px solid color-mix(in oklch, var(--border) 80%, transparent);
+      background: transparent;
+      cursor: pointer;
+      display: inline-block;
+      position: relative;
+      margin: 0;
+    }
+    .provider-radio:checked {
+      border-color: var(--primary);
+    }
+    .provider-radio:checked::after {
+      content: '';
+      position: absolute;
+      inset: 3px;
+      border-radius: 50%;
+      background: var(--primary);
+    }
+    .about-list {
+      display: grid;
+      grid-template-columns: 160px 1fr;
+      gap: 8px 16px;
+      font-size: 12px;
+      margin: 0;
+      padding: 12px 0;
+    }
+    .about-list dt {
+      color: var(--muted-foreground);
+      font-weight: 500;
+    }
+    .about-list dd {
+      margin: 0;
+      color: var(--foreground);
+      font-family: var(--font-mono);
+      font-size: 11px;
+    }
+    .about-list a {
+      color: var(--primary);
+      text-decoration: none;
+    }
+    .about-list a:hover { text-decoration: underline; }
+    .settings-empty {
+      font-size: 12px;
+      color: var(--muted-foreground);
+      padding: 12px 0;
+    }
   </style>
 
   {# -- PROVIDERS -- #}
@@ -32,46 +156,51 @@
       LLM provider CLIs detected on PATH. Configuration lives in
       <code>.ship/</code> and keys, when used, in <code>.ship/secrets/</code>.
     </p>
-    <ship-card>
-      {% if providers and providers | length > 0 %}
-        {% for p in providers %}
-        <div class="provider-row" data-provider-id="{{ p.id }}">
-          <span aria-hidden="true">{{ p.glyph }}</span>
-          <div>
-            <span class="provider-name">
-              {{ p.label }}
-              {% if p.is_default %}<ship-badge tone="accent" size="sm">default</ship-badge>{% endif %}
-            </span>
-            <span class="provider-meta">
-              <ship-status-dot tone="{% if p.available %}success{% else %}muted{% endif %}" size="sm"></ship-status-dot>
-              <span>{{ p.binary }}</span>
-              <span>{% if p.available %}{% if p.version %}v{{ p.version }}{% else %}installed{% endif %}{% else %}not found{% endif %}</span>
-            </span>
+    <ship-card class="settings-card">
+      <div class="settings-card-inner">
+        {% if providers and providers | length > 0 %}
+          {% for p in providers %}
+          <div class="provider-row" data-provider-id="{{ p.id }}">
+            <div class="provider-glyph" aria-hidden="true">{{ p.glyph }}</div>
+            <div class="provider-main">
+              <span class="provider-name">
+                {{ p.label }}
+                {% if p.is_default %}<ship-badge tone="accent" size="sm">default</ship-badge>{% endif %}
+              </span>
+              <span class="provider-meta">
+                <span class="provider-dot {% if p.available %}on{% endif %}"></span>
+                <span>{{ p.binary }}</span>
+                {% if p.available %}
+                  <span>{% if p.version %}v{{ p.version }}{% else %}installed{% endif %}</span>
+                {% else %}
+                  <span>not found</span>
+                {% endif %}
+              </span>
+            </div>
+            <input
+              type="radio"
+              name="default-provider"
+              class="provider-radio"
+              value="{{ p.id }}"
+              {% if p.is_default %}checked{% endif %}
+              aria-label="Use {{ p.label }} as default provider"
+              data-on:click="@put('{{ update_setting() }}', {contentType: 'json', body: JSON.stringify({key: 'defaults.provider', value: '{{ p.id }}'})})"
+            />
           </div>
-          <input
-            type="radio"
-            name="default-provider"
-            value="{{ p.id }}"
-            {% if p.is_default %}checked{% endif %}
-            aria-label="Use {{ p.label }} as default provider"
-            {{ on('click', "@put('" ~ update_setting() ~ "', {contentType: 'json', body: JSON.stringify({key: 'defaults.provider', value: '" ~ p.id ~ "'})})") }}
-          />
-        </div>
-        {% endfor %}
-      {% else %}
-        <ship-empty-state>
-          <span slot="title">No provider CLIs found on PATH</span>
-        </ship-empty-state>
-      {% endif %}
+          {% endfor %}
+        {% else %}
+          <div class="settings-empty">No provider CLIs found on PATH.</div>
+        {% endif %}
 
-      <div class="settings-row">
-        <div class="settings-row-label">
-          Default model
-          <span class="settings-row-sub">Model id passed to the default provider</span>
-        </div>
-        <div class="settings-row-control">
-          <ship-input size="sm" placeholder="sonnet" value="{{ default_model }}"
-            {{ on('ship-input__debounce.500ms', "@put('" ~ update_setting() ~ "', {contentType: 'json', body: JSON.stringify({key: 'defaults.model', value: evt.detail.value})})") }}></ship-input>
+        <div class="settings-row">
+          <div class="settings-row-label">
+            Default model
+            <span class="settings-row-sub">Model id passed to the default provider</span>
+          </div>
+          <div class="settings-row-control">
+            <ship-input size="sm" placeholder="sonnet" value="{{ default_model }}"
+              data-on:ship-input__debounce.500ms="@put('{{ update_setting() }}', {contentType: 'json', body: JSON.stringify({key: 'defaults.model', value: evt.detail.value})})"></ship-input>
+          </div>
         </div>
       </div>
     </ship-card>
@@ -91,7 +220,7 @@
       </div>
       <div class="settings-row-control">
         <ship-select size="sm" value="{{ terminal.program }}"
-          {{ on('ship-select-change', "@put('" ~ update_setting() ~ "', {contentType: 'json', body: JSON.stringify({key: 'terminal.program', value: evt.detail.value})})") }}>
+          data-on:ship-select-change="@put('{{ update_setting() }}', {contentType: 'json', body: JSON.stringify({key: 'terminal.program', value: evt.detail.value})})">
           {% for opt in terminal.options %}
             <ship-option value="{{ opt.value }}" {% if opt.value == terminal.program %}selected{% endif %}>{{ opt.label }}</ship-option>
           {% endfor %}
@@ -105,7 +234,7 @@
       </div>
       <div class="settings-row-control">
         <ship-input size="sm" placeholder="/path/to/worktrees" value="{{ terminal.worktree_base }}"
-          {{ on('ship-input__debounce.500ms', "@put('" ~ update_setting() ~ "', {contentType: 'json', body: JSON.stringify({key: 'worktree.base_dir', value: evt.detail.value})})") }}></ship-input>
+          data-on:ship-input__debounce.500ms="@put('{{ update_setting() }}', {contentType: 'json', body: JSON.stringify({key: 'worktree.base_dir', value: evt.detail.value})})"></ship-input>
       </div>
     </div>
   </section>
@@ -124,7 +253,7 @@
       </div>
       <div class="settings-row-control">
         <ship-input size="sm" placeholder="https://registry.getship.dev" value="{{ advanced_registry }}"
-          {{ on('ship-input__debounce.500ms', "@put('" ~ update_setting() ~ "', {contentType: 'json', body: JSON.stringify({key: 'registry.endpoint', value: evt.detail.value})})") }}></ship-input>
+          data-on:ship-input__debounce.500ms="@put('{{ update_setting() }}', {contentType: 'json', body: JSON.stringify({key: 'registry.endpoint', value: evt.detail.value})})"></ship-input>
       </div>
     </div>
     {% if advanced and advanced | length > 0 %}
@@ -136,12 +265,12 @@
         </div>
         <div class="settings-row-control">
           <ship-switch {% if flag.enabled %}checked{% endif %}
-            {{ on('ship-switch-change', "@put('" ~ update_setting() ~ "', {contentType: 'json', body: JSON.stringify({key: '" ~ flag.key ~ "', value: evt.detail.checked})})") }}></ship-switch>
+            data-on:ship-switch-change="@put('{{ update_setting() }}', {contentType: 'json', body: JSON.stringify({key: '{{ flag.key }}', value: evt.detail.checked})})"></ship-switch>
         </div>
       </div>
       {% endfor %}
     {% else %}
-      <ship-empty-state><span slot="title">No experimental features available</span></ship-empty-state>
+      <div class="settings-empty">No experimental features available.</div>
     {% endif %}
   </section>
 

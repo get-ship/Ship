@@ -5,16 +5,15 @@
 {#- SDK gaps:
     - no navigation macro for linking between views
 -#}
-{% from '_ship.html.j2' import head, signal, show, live, create, loading, spinner, form, styles, on %}
+{% from '_ship.html.j2' import head, signal, show, live, create, loading, spinner, form, styles %}
 <!DOCTYPE html>
 <html lang="en">
 <head>{{ head('Data') }}
   {{ styles() }}
   <style>
-  .data-wrap { max-width: 76rem; margin: 0 auto; padding: var(--space-6) var(--space-4); }
-  .data-header { margin-bottom: var(--space-5); }
-  .data-header h2 { font-size: var(--text-xl); font-weight: var(--font-weight-semibold); }
-  .data-header p { font-size: var(--text-xs); color: var(--muted-foreground); margin-top: var(--space-1); }
+  .data-wrap { max-width: 76rem; margin: 0 auto; padding: var(--space-6, 24px) var(--space-4, 16px); }
+  .data-toolbar { display: flex; align-items: center; gap: var(--space-3, 10px); margin-bottom: var(--space-4, 16px); flex-wrap: wrap; }
+  .data-count { font-size: var(--text-xs, 11px); color: var(--muted-foreground); margin-left: auto; }
   </style>
 </head>
 <body>
@@ -27,9 +26,9 @@
   <div class="data-wrap">
 
     {# -- Header -- #}
-    <div class="data-header">
-      <h2>Data</h2>
-      <p>
+    <div style="margin-bottom: var(--space-5, 20px)">
+      <h2 style="font-size: var(--text-xl, 20px); font-weight: 600; margin: 0">Data</h2>
+      <p class="muted" style="font-size: var(--text-xs, 12px); margin-top: 4px">
         {% if items is defined %}{{ items | length }}{% else %}0{% endif %}
         item{{ "s" if not items or items | length != 1 else "" }}
         {% if active_collection is defined %} in {{ active_collection }}{% endif %}
@@ -39,9 +38,9 @@
     {# -- Toolbar (uses ship_collections() instead of context-injected collections) -- #}
     {% set sdk_collections = ship_collections() %}
     {% if sdk_collections | length > 0 %}
-    <ship-toolbar>
+    <div class="data-toolbar">
       <ship-select size="sm" value="{{ active_collection }}"
-        {{ on('ship-select-change', "$collection = evt.detail.value; @get('/api/runtime/view/data/sse')") }}>
+        data-on:ship-select-change="$collection = evt.detail.value; @get('/api/runtime/view/data/sse')">
         {% for c in sdk_collections %}
         <ship-option value="{{ c.id }}" {% if c.id == active_collection %}selected{% endif %}>
           {{ c.name or c.id }} ({{ c.field_count }})
@@ -50,38 +49,39 @@
       </ship-select>
       {% if schema is defined %}
       <ship-button size="sm"
-        {{ on('click', "$_showForm = !$_showForm") }}>
+        data-on:click="$_showForm = !$_showForm">
         + New
       </ship-button>
       {% endif %}
-    </ship-toolbar>
+      <span class="data-count">{{ items | length if items is defined else 0 }} items</span>
+    </div>
     {% endif %}
 
     {# -- Create form (uses SDK form macro) -- #}
     {% if schema is defined %}
-    <ship-card {{ show('$_showForm') }}>
-      <ship-toolbar>
+    <ship-card {{ show('$_showForm') }} style="display:none; margin-bottom: var(--space-4, 16px)">
+      <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:var(--space-3,12px)">
         <strong>New {{ active_collection }}</strong>
         <ship-button size="sm" variant="ghost"
-          {{ on('click', "$_showForm = false") }}>x</ship-button>
-      </ship-toolbar>
+          data-on:click="$_showForm = false">x</ship-button>
+      </div>
       {{ form(schema, active_collection) }}
       <ship-separator></ship-separator>
-      <ship-toolbar>
+      <div style="display:flex;gap:var(--space-2,8px);margin-top:var(--space-3,12px);align-items:center">
         <ship-button size="sm"
           {{ create(active_collection, '$form') }}
           {{ loading('_creating') }}>Create</ship-button>
         <ship-button size="sm" variant="ghost"
-          {{ on('click', "$_showForm = false") }}>Cancel</ship-button>
+          data-on:click="$_showForm = false">Cancel</ship-button>
         {{ spinner('_creating') }}
-      </ship-toolbar>
+      </div>
     </ship-card>
     {% endif %}
 
     {# -- Content (SSE-driven) -- #}
     <div {{ live('data') }}>
       <div id="data-content">
-        <p>Loading...</p>
+        <p class="muted" style="padding: var(--space-4, 16px) 0">Loading...</p>
       </div>
     </div>
 

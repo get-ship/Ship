@@ -27,6 +27,16 @@
   --shadow-lg: 0 12px 24px -4px oklch(0 0 0 / 10%), 0 4px 8px -4px oklch(0 0 0 / 6%);
   --shadow-xl: 0 20px 40px -8px oklch(0 0 0 / 12%);
 
+  /* Spacing scale — 4px base, consistent across views and components. */
+  --space-1: 4px;
+  --space-2: 8px;
+  --space-3: 12px;
+  --space-4: 16px;
+  --space-5: 20px;
+  --space-6: 24px;
+  --space-7: 32px;
+  --space-8: 40px;
+
   /* Z-index scale */
   --z-base: 0;
   --z-elevated: 1;

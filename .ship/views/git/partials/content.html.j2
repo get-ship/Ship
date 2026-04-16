@@ -18,33 +18,33 @@
 
 <div id="git-content">
 {% if error %}
-  <ship-alert tone="destructive">
-    <span slot="title">{{ error.title }}</span>
-    {{ error.body }}
-  </ship-alert>
+  <div style="padding: 16px;">
+    <h2 style="font-size: 14px; color: var(--destructive);">{{ error.title }}</h2>
+    <p style="font-size: 12px; color: var(--muted-foreground);">{{ error.body }}</p>
+  </div>
 {% elif selected_commit %}
   {# -- Diff viewer mode -- #}
-  <ship-toolbar>
-    <ship-button variant="ghost" size="sm" aria-label="Back"
+  <div class="ship-git-diff-header">
+    <button type="button" class="ship-git-back" aria-label="Back"
       data-on:click="@get('{{ sse_url }}{% if workspace_id %}?workspace_id={{ workspace_id }}{% endif %}')">
       <ship-icon name="arrow-left" size="sm"></ship-icon>
-    </ship-button>
-    <ship-icon name="git-branch" size="sm"></ship-icon>
-    <span>
+    </button>
+    <ship-icon name="git-branch" size="sm" class="ship-git-header-icon"></ship-icon>
+    <span class="ship-git-diff-title">
       {% if selected_commit.is_working %}Working tree diff
       {% else %}Commit {{ selected_commit.short_sha }}{% endif %}
     </span>
     {% if not selected_commit.is_working %}
-      <ship-button variant="ghost" size="sm"
+      <button type="button" class="ship-git-show-working"
         data-on:click="@get('{{ sse_url }}?commit=WORKING{{ ws_qs }}')">
         Show working tree
-      </ship-button>
+      </button>
     {% endif %}
-  </ship-toolbar>
+  </div>
 
   {# Review banner #}
   {% if completed_jobs and completed_jobs|length > 0 %}
-  <div class="git-review-banner" role="status">
+  <div class="ship-git-review-banner" role="status">
     <ship-icon name="check-circle" size="sm"></ship-icon>
     <div>
       {% for j in completed_jobs %}
@@ -54,7 +54,7 @@
   </div>
   {% endif %}
 
-  <div>
+  <div class="ship-git-diff-body">
     {% set parsed = selected_commit.parsed %}
     {% if parsed and parsed.files and parsed.files|length > 0 %}
       <ship-git-diff
@@ -88,19 +88,19 @@
 
 {% else %}
   {# -- Status overview mode -- #}
-  <div class="git-header">
-    <ship-icon name="git-branch" size="md"></ship-icon>
+  <div class="ship-git-header">
+    <ship-icon name="git-branch" size="md" class="ship-git-header-icon"></ship-icon>
     <h1>Git</h1>
     {% if branch %}
-      <ship-badge tone="{% if clean %}success{% else %}warning{% endif %}">
+      <span class="ship-git-state {% if clean %}clean{% else %}dirty{% endif %}">
         {% if clean %}Clean{% else %}Changes{% endif %}
-      </ship-badge>
+      </span>
     {% endif %}
   </div>
 
   {# Review banner #}
   {% if completed_jobs and completed_jobs|length > 0 %}
-  <div class="git-review-banner" role="status">
+  <div class="ship-git-review-banner" role="status">
     <ship-icon name="check-circle" size="sm"></ship-icon>
     <div>
       {% for j in completed_jobs %}
@@ -111,77 +111,96 @@
   {% endif %}
 
   {# Status block #}
-  <div class="git-section">
+  <div class="ship-git-section">
     {% if branch %}
-    <ship-toolbar role="toolbar" aria-label="Branch">
-      <ship-chip>
+    <div class="ship-git-toolbar" role="toolbar" aria-label="Branch">
+      <span class="ship-git-toolbar-chip">
         <ship-icon name="git-branch" size="xs"></ship-icon>
         {{ branch }}
-      </ship-chip>
-      <span>{{ modified|length }} modified / {{ untracked|length }} untracked</span>
+      </span>
+      <span class="ship-git-toolbar-meta">
+        {{ modified|length }} modified / {{ untracked|length }} untracked
+      </span>
       {% if total_changed and total_changed > 0 %}
-        <span>&#183; {{ total_changed }} file{% if total_changed != 1 %}s{% endif %} changed</span>
-        <ship-button variant="ghost" size="sm"
+        <span class="ship-git-toolbar-meta">·</span>
+        <span class="ship-git-toolbar-meta">{{ total_changed }} file{% if total_changed != 1 %}s{% endif %} changed</span>
+      {% endif %}
+      <span class="ship-git-toolbar-spacer"></span>
+      {% if total_changed and total_changed > 0 %}
+        <button type="button" class="ship-git-toolbar-link"
           data-on:click="@get('{{ sse_url }}?commit=WORKING{{ ws_qs }}')">
           <ship-icon name="git-compare" size="xs"></ship-icon>
           View diff
-        </ship-button>
+        </button>
       {% endif %}
-    </ship-toolbar>
+    </div>
     {% endif %}
 
     {% if not clean %}
-      <div class="git-breakdown">
+      <div class="ship-git-breakdown">
         {% if staged|length > 0 %}<span><ship-status-dot tone="success" size="sm"></ship-status-dot>{{ staged|length }} staged</span>{% endif %}
         {% if modified|length > 0 %}<span><ship-status-dot tone="warning" size="sm"></ship-status-dot>{{ modified|length }} modified</span>{% endif %}
         {% if untracked|length > 0 %}<span><ship-status-dot tone="destructive" size="sm"></ship-status-dot>{{ untracked|length }} untracked</span>{% endif %}
       </div>
 
-      <ship-card>
+      <div class="ship-git-file-list" role="list">
         {% for f in staged %}
-          <ship-file-row path="{{ f.path }}" tone="{{ f.tone }}"
-            data-on:click="@get('{{ sse_url }}?commit=WORKING{{ ws_qs }}')"></ship-file-row>
+          <button type="button" role="listitem" class="ship-git-file-row"
+            data-on:click="@get('{{ sse_url }}?commit=WORKING{{ ws_qs }}')">
+            <ship-status-dot tone="{{ f.tone }}" size="sm"></ship-status-dot>
+            <span class="ship-git-file-name" title="{{ f.path }}">{{ f.path }}</span>
+          </button>
         {% endfor %}
         {% for f in modified %}
-          <ship-file-row path="{{ f.path }}" tone="{{ f.tone }}"
-            data-on:click="@get('{{ sse_url }}?commit=WORKING{{ ws_qs }}')"></ship-file-row>
+          <button type="button" role="listitem" class="ship-git-file-row"
+            data-on:click="@get('{{ sse_url }}?commit=WORKING{{ ws_qs }}')">
+            <ship-status-dot tone="{{ f.tone }}" size="sm"></ship-status-dot>
+            <span class="ship-git-file-name" title="{{ f.path }}">{{ f.path }}</span>
+          </button>
         {% endfor %}
         {% for f in untracked %}
-          <ship-file-row path="{{ f.path }}" tone="{{ f.tone }}"
-            data-on:click="@get('{{ sse_url }}?commit=WORKING{{ ws_qs }}')"></ship-file-row>
+          <button type="button" role="listitem" class="ship-git-file-row"
+            data-on:click="@get('{{ sse_url }}?commit=WORKING{{ ws_qs }}')">
+            <ship-status-dot tone="{{ f.tone }}" size="sm"></ship-status-dot>
+            <span class="ship-git-file-name" title="{{ f.path }}">{{ f.path }}</span>
+          </button>
         {% endfor %}
-      </ship-card>
+      </div>
     {% endif %}
 
     {% if total_changed and total_changed > 0 %}
-      <ship-button tone="accent" variant="solid" size="md"
-        data-on:click="@get('{{ sse_url }}?commit=WORKING{{ ws_qs }}')">
-        <ship-icon name="git-compare" size="xs"></ship-icon>
-        View diff
-      </ship-button>
+      <div class="ship-git-view-diff">
+        <ship-button tone="accent" variant="solid" size="md"
+          data-on:click="@get('{{ sse_url }}?commit=WORKING{{ ws_qs }}')">
+          <ship-icon name="git-compare" size="xs"></ship-icon>
+          View diff
+        </ship-button>
+      </div>
     {% endif %}
   </div>
 
   {# Log section #}
   {% if commits and commits|length > 0 %}
     {% if branch or (total_changed and total_changed > 0) %}
-      <ship-separator></ship-separator>
+      <div class="ship-git-divider"></div>
     {% endif %}
-    <div class="git-log-heading">Recent Commits</div>
-    <div class="git-log">
+    <div class="ship-git-log-heading">Recent Commits</div>
+    <div class="ship-git-log">
       {% for c in commits[:10] %}
-        <button type="button" class="git-commit"
+        <button type="button" class="ship-git-commit"
           data-on:click="@get('{{ sse_url }}?commit={{ c.sha }}{{ ws_qs }}')">
-          <div class="git-commit-subject">{{ c.subject|truncate(60) }}</div>
-          <div class="git-commit-meta">
-            <span class="git-commit-sha">{{ c.short_sha }}</span>
+          <div class="ship-git-commit-subject">{{ c.subject|truncate(60) }}</div>
+          <div class="ship-git-commit-meta">
+            <span class="ship-git-commit-sha">{{ c.short_sha }}</span>
             <span>{{ c.date }}</span>
+            <span class="spacer"></span>
+            <ship-icon class="hint" name="message-square" size="xs"></ship-icon>
           </div>
         </button>
       {% endfor %}
     </div>
   {% elif not branch %}
-    <ship-empty-state><span slot="title">Connect CLI to see git info.</span></ship-empty-state>
+    <p class="ship-git-empty">Connect CLI to see git info.</p>
   {% endif %}
 {% endif %}
 </div>
