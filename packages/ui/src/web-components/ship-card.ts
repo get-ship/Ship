@@ -1,84 +1,54 @@
 /**
  * <ship-card>
  *
- * Generic container matching pipelines `.def-card` / `.run-card` base
- * surface (bg: var(--card), 1px border, var(--radius)). Layout is handled
- * via slots; callers can add their own accent treatments via `tone`.
+ * Generic container surface — matches shadcn/ui's Card visual weight:
+ * soft border, --radius-lg corners, --shadow-xs at rest, --shadow-sm on
+ * hover for interactive cards, clean header/content/footer composition.
  *
  * Attributes:
  *   - tone: default | info | success | warning | destructive | accent | muted
+ *     Tints the border and (when `interactive`) the focus ring. Pairs with
+ *     `fill` or `status-rail` for alert/callout-style cards.
  *   - variant: default | outline (default: default)
- *     - accent-bar: boolean — renders a 2-stop gradient top-bar on hover
- *       (matches .def-card::before behavior)
- *   - interactive: boolean — hover lift + cursor:pointer (matches .def-card)
- *   - status-rail: boolean — left colored rail (3px), tone-driven (matches
- *     .run-card.is-{status})
- *   - fill: boolean — tone-tinted background wash (uses --tone-bg). Pairs
- *     with `status-rail` or `tone` for an alert-style card.
+ *     `outline` drops the solid fill + shadow; useful for cards nested
+ *     inside another panel.
+ *   - padding: none | sm | md | lg (default: md)
+ *     Density channel. `md` matches the pre-polish 16px/20px padding so
+ *     existing composites (pipeline-definition, pipeline-run, settings
+ *     cards) keep their weight. `none` hands spacing back to the caller.
+ *   - interactive: boolean
+ *     Turns the card into a button-like affordance — cursor, hover lift,
+ *     active press, focus-visible ring, Enter/Space key activation, and
+ *     role="button" / tabindex="0" set automatically.
+ *   - accent-bar: boolean
+ *     Renders a 2-stop gradient top-bar that fades in on hover (matches
+ *     `.def-card::before`).
+ *   - status-rail: boolean
+ *     Tone-driven 3px left rail (matches `.run-card.is-{status}`).
+ *   - fill: boolean
+ *     Tone-tinted background wash. Pairs with `status-rail` or `tone`
+ *     for an alert-style card.
  *
  * Slots:
- *   - header
- *   - (default)
- *   - footer
+ *   - header — optional; gets a border-bottom separator when filled
+ *   - (default) — primary content
+ *   - footer — optional; gets a border-top separator when filled
  */
 
-import { LitElement, css, html } from 'lit'
-import { toneVars } from './util'
+import { LitElement, html } from 'lit'
+import { shipCardStyles } from './ship-card.styles'
 import type { Tone } from './util'
 
+type CardPadding = 'none' | 'sm' | 'md' | 'lg'
+type CardVariant = 'default' | 'outline'
+
 export class ShipCard extends LitElement {
-  static styles = [
-    toneVars,
-    css`
-      :host {
-        display: block;
-        background: var(--card);
-        color: var(--card-foreground);
-        border: 1px solid var(--border);
-        border-radius: var(--radius);
-        padding: 16px 20px;
-        position: relative;
-        transition:
-          border-color var(--duration-medium) var(--ease-out),
-          transform var(--duration-fast) var(--ease-out),
-          box-shadow var(--duration-fast) var(--ease-out);
-      }
-      :host([interactive]) { cursor: pointer; }
-      :host([interactive]:hover) {
-        border-color: color-mix(in oklch, var(--border) 180%, transparent);
-        transform: translateY(-1px);
-        box-shadow: var(--shadow-md);
-      }
-      :host([accent-bar])::before {
-        content: '';
-        position: absolute; top: 0; left: 0; right: 0; height: 2px;
-        background: linear-gradient(90deg, var(--primary), var(--accent));
-        opacity: 0;
-        transition: opacity var(--duration-medium) var(--ease-out);
-        border-radius: var(--radius) var(--radius) 0 0;
-      }
-      :host([accent-bar]:hover)::before { opacity: 1; }
-
-      /* status-rail — 3px left border tinted by tone */
-      :host([status-rail]) {
-        border-left: 3px solid var(--tone-fg);
-        padding-left: 17px;
-      }
-
-      /* fill — tone-tinted background wash. Pairs well with status-rail. */
-      :host([fill]) { background: var(--tone-bg); }
-
-      :host([variant='outline']) { background: transparent; }
-
-      .header { margin-bottom: 10px; }
-      .footer { margin-top: 10px; }
-      ::slotted([slot='header']) { display: block; }
-    `,
-  ]
+  static styles = shipCardStyles
 
   static properties = {
     tone: { type: String, reflect: true },
     variant: { type: String, reflect: true },
+    padding: { type: String, reflect: true },
     interactive: { type: Boolean, reflect: true },
     accentBar: { type: Boolean, reflect: true, attribute: 'accent-bar' },
     statusRail: { type: Boolean, reflect: true, attribute: 'status-rail' },
@@ -86,31 +56,35 @@ export class ShipCard extends LitElement {
   }
 
   tone?: Tone
-  variant: 'default' | 'outline'
-  interactive: boolean
-  accentBar: boolean
-  statusRail: boolean
-  fill: boolean
-
-  constructor() {
-    super()
-    this.variant = 'default'
-    this.interactive = false
-    this.accentBar = false
-    this.statusRail = false
-    this.fill = false
-  }
+  variant: CardVariant = 'default'
+  padding: CardPadding = 'md'
+  interactive = false
+  accentBar = false
+  statusRail = false
+  fill = false
 
   connectedCallback() {
     super.connectedCallback()
-    if (this.interactive) {
-      if (!this.hasAttribute('role')) this.setAttribute('role', 'button')
-      if (!this.hasAttribute('tabindex')) this.setAttribute('tabindex', '0')
-      this.addEventListener('keydown', this.onKey)
-    }
+    if (this.interactive) this.activateInteractiveRole()
   }
   disconnectedCallback() {
     super.disconnectedCallback()
+    this.removeEventListener('keydown', this.onKey)
+  }
+  updated(changed: Map<string, unknown>) {
+    if (changed.has('interactive')) {
+      if (this.interactive) this.activateInteractiveRole()
+      else this.deactivateInteractiveRole()
+    }
+  }
+  private activateInteractiveRole() {
+    if (!this.hasAttribute('role')) this.setAttribute('role', 'button')
+    if (!this.hasAttribute('tabindex')) this.setAttribute('tabindex', '0')
+    this.addEventListener('keydown', this.onKey)
+  }
+  private deactivateInteractiveRole() {
+    if (this.getAttribute('role') === 'button') this.removeAttribute('role')
+    if (this.getAttribute('tabindex') === '0') this.removeAttribute('tabindex')
     this.removeEventListener('keydown', this.onKey)
   }
   private onKey = (e: KeyboardEvent) => {
@@ -121,11 +95,31 @@ export class ShipCard extends LitElement {
     }
   }
 
+  /** Reflect projected content onto the wrapper so CSS can render a
+   * separator only when the header/footer slot actually has content. */
+  private syncFilled = (e: Event) => {
+    const slot = e.target as HTMLSlotElement
+    const wrapper = slot.parentElement as HTMLElement | null
+    if (!wrapper) return
+    const filled = slot.assignedNodes({ flatten: true }).some((n) => {
+      if (n.nodeType === Node.TEXT_NODE) return (n.textContent || '').trim().length > 0
+      return n.nodeType === Node.ELEMENT_NODE
+    })
+    if (filled) wrapper.setAttribute('data-filled', '')
+    else wrapper.removeAttribute('data-filled')
+  }
+
   render() {
     return html`
-      <div class="header"><slot name="header"></slot></div>
-      <slot></slot>
-      <div class="footer"><slot name="footer"></slot></div>
+      <div class="header" part="header">
+        <slot name="header" @slotchange=${this.syncFilled}></slot>
+      </div>
+      <div class="content" part="content">
+        <slot></slot>
+      </div>
+      <div class="footer" part="footer">
+        <slot name="footer" @slotchange=${this.syncFilled}></slot>
+      </div>
     `
   }
 }
