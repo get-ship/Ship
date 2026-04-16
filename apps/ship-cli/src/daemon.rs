@@ -18,11 +18,12 @@ pub mod supervision_systemd;
 mod supervision_tests;
 
 use pidfile::{AcquireResult, PidfileRecord, PidfileRole};
-use supervision::{AdapterKind, SupervisionStatus};
+use supervision::{AdapterKind, StartContext, SupervisionStatus};
 
 pub enum DaemonCommand {
     Start { host: String, dev: bool },
     Stop,
+    Restart { host: String, dev: bool },
     Status,
     Cleanup,
     Run { host: String, port: u16, dev: bool, with_ui: bool },
@@ -80,13 +81,28 @@ fn is_process_alive(pid: u32) -> bool {
 
 pub fn run_daemon(cmd: DaemonCommand) -> Result<()> {
     match cmd {
-        DaemonCommand::Start { host, dev } => daemon_start(host, dev),
-        DaemonCommand::Stop => daemon_stop(),
+        DaemonCommand::Start { host, dev } => {
+            let ctx = start_context(host, dev);
+            supervision::select().start(&ctx)
+        }
+        DaemonCommand::Stop => supervision::select().stop(),
+        DaemonCommand::Restart { host, dev } => {
+            let ctx = start_context(host, dev);
+            supervision::select().restart(&ctx)
+        }
         DaemonCommand::Status => daemon_status(),
         DaemonCommand::Cleanup => daemon_cleanup(),
         DaemonCommand::Run { host, port, dev, with_ui } => daemon_run(host, port, dev, with_ui),
         DaemonCommand::Supervise { host, dev } => daemon_supervise(host, dev),
     }
+}
+
+fn start_context(host: String, dev: bool) -> StartContext {
+    // Dev mode pins the bind to localhost regardless of --host so that
+    // the relaxed auth surface is never exposed on a LAN. Applied here
+    // so both adapters see the same final host.
+    let host = if dev { "127.0.0.1".to_string() } else { host };
+    StartContext { host, dev }
 }
 
 /// Maximum restart attempts within the window before giving up.
@@ -98,12 +114,16 @@ const INITIAL_BACKOFF: std::time::Duration = std::time::Duration::from_secs(1);
 /// Maximum backoff between restarts.
 const MAX_BACKOFF: std::time::Duration = std::time::Duration::from_secs(60);
 
-fn daemon_start(host: String, dev: bool) -> Result<()> {
+/// Legacy start path wired to the pidfile adapter. Spawns the supervisor
+/// process, which in turn owns the actual `shipd` child. Reachable only
+/// through `PidfileAdapter::start` (or `ensure_daemon` in-process) —
+/// `run_daemon` never calls this directly.
+pub(super) fn daemon_start_inner(host: &str, dev: bool) -> Result<()> {
     let pid_path = pid_file()?;
     let log_path = log_file()?;
     let global_dir = ship_dir()?;
     // Dev mode forces localhost bind regardless of --host.
-    let host = if dev { "127.0.0.1".to_string() } else { host };
+    let host = if dev { "127.0.0.1".to_string() } else { host.to_string() };
 
     // Check if already running. The pidfile lock is the source of truth;
     // a held lock means a live supervisor exists. Falling back to the legacy
@@ -486,7 +506,11 @@ fn daemon_run(host: String, port: u16, dev: bool, with_ui: bool) -> Result<()> {
     rt.block_on(shipd::run_network(host, port, dev, with_ui, None))
 }
 
-fn daemon_stop() -> Result<()> {
+/// Legacy stop path wired to the pidfile adapter. Reads the supervisor
+/// pid from `~/.ship/daemon.pid` and sends SIGTERM. Only the pidfile
+/// adapter invokes this — systemd-managed installations go through
+/// `systemctl --user stop`.
+pub(super) fn daemon_stop_inner() -> Result<()> {
     let pid_path = pid_file()?;
 
     let pid = match read_pid(&pid_path)? {
@@ -784,9 +808,11 @@ pub fn ensure_daemon() -> Result<(u16, String)> {
         return Ok((port, token));
     }
 
-    // Start the daemon.
+    // Start the daemon via the adapter so systemd-managed installs use
+    // `systemctl --user start` instead of the legacy supervisor spawn.
     eprintln!("shipd: starting daemon...");
-    daemon_start("0.0.0.0".to_string(), false)?;
+    let ctx = start_context("0.0.0.0".to_string(), false);
+    supervision::select().start(&ctx)?;
 
     // Wait for the daemon to become healthy (up to 5 seconds).
     let deadline = std::time::Instant::now() + std::time::Duration::from_secs(5);

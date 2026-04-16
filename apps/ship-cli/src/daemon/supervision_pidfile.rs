@@ -4,7 +4,7 @@ use anyhow::Result;
 use std::path::Path;
 
 use super::pidfile;
-use super::supervision::{AdapterKind, SupervisionAdapter, SupervisionStatus};
+use super::supervision::{AdapterKind, StartContext, SupervisionAdapter, SupervisionStatus};
 
 pub struct PidfileAdapter;
 
@@ -49,5 +49,13 @@ impl SupervisionAdapter for PidfileAdapter {
             uptime_secs,
             extras,
         })
+    }
+
+    fn start(&self, ctx: &StartContext) -> Result<()> {
+        super::daemon_start_inner(&ctx.host, ctx.dev)
+    }
+
+    fn stop(&self) -> Result<()> {
+        super::daemon_stop_inner()
     }
 }

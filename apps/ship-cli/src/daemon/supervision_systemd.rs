@@ -5,7 +5,7 @@ use anyhow::{Context, Result};
 use std::path::Path;
 use std::process::Command;
 
-use super::supervision::{AdapterKind, SupervisionAdapter, SupervisionStatus};
+use super::supervision::{AdapterKind, StartContext, SupervisionAdapter, SupervisionStatus};
 
 const UNIT_NAME: &str = "shipd.service";
 
@@ -64,6 +64,49 @@ impl SupervisionAdapter for SystemdAdapter {
             extras,
         })
     }
+
+    fn start(&self, _ctx: &StartContext) -> Result<()> {
+        systemctl(&["start", UNIT_NAME])
+    }
+
+    fn stop(&self) -> Result<()> {
+        systemctl(&["stop", UNIT_NAME])
+    }
+
+    fn restart(&self, _ctx: &StartContext) -> Result<()> {
+        systemctl(&["restart", UNIT_NAME])
+    }
+}
+
+/// Run `systemctl --user <args...>` and surface a useful error on failure.
+///
+/// We inherit stdin but capture stdout/stderr so the caller sees
+/// systemd's real complaint (e.g. "Unit shipd.service not found") rather
+/// than a generic non-zero exit.
+fn systemctl(args: &[&str]) -> Result<()> {
+    let mut full_args: Vec<&str> = vec!["--user"];
+    full_args.extend_from_slice(args);
+    let output = Command::new("systemctl")
+        .args(&full_args)
+        .output()
+        .with_context(|| format!("cannot invoke systemctl {}", args.join(" ")))?;
+    if !output.status.success() {
+        let stderr = String::from_utf8_lossy(&output.stderr);
+        let msg = stderr.trim();
+        if msg.is_empty() {
+            anyhow::bail!(
+                "systemctl --user {} failed (exit {})",
+                args.join(" "),
+                output
+                    .status
+                    .code()
+                    .map(|c| c.to_string())
+                    .unwrap_or_else(|| "signal".to_string())
+            );
+        }
+        anyhow::bail!("systemctl --user {} failed: {msg}", args.join(" "));
+    }
+    Ok(())
 }
 
 /// Run `systemctl --user is-enabled <unit>` silently. Exit 0 ⇒ managed.

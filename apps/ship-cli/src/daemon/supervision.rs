@@ -45,10 +45,29 @@ impl AdapterKind {
     }
 }
 
+/// Inputs the pidfile adapter needs to spawn shipd. The systemd adapter
+/// largely ignores this — host/dev for a systemd-managed unit come from
+/// the unit file, not flags. Kept on the trait so both adapters present
+/// the same surface.
+#[derive(Debug, Clone)]
+pub struct StartContext {
+    pub host: String,
+    pub dev: bool,
+}
+
 pub trait SupervisionAdapter: Send + Sync {
     #[cfg_attr(not(test), allow(dead_code))]
     fn name(&self) -> AdapterKind;
     fn status(&self, global_dir: &Path) -> Result<SupervisionStatus>;
+    fn start(&self, ctx: &StartContext) -> Result<()>;
+    fn stop(&self) -> Result<()>;
+    /// Default: stop then start. Systemd overrides with a single
+    /// `systemctl --user restart` so the unit never transitions through
+    /// `inactive` (keeps ExecStopPost, dependencies, etc. coherent).
+    fn restart(&self, ctx: &StartContext) -> Result<()> {
+        self.stop()?;
+        self.start(ctx)
+    }
 }
 
 /// Pick the right adapter for this machine. Systemd takes precedence
