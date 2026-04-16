@@ -59,6 +59,7 @@ pub trait EventValidator: Send + Sync {
 pub const KERNEL_NAMESPACES: &[&str] = &[
     "actor.",
     "config.",
+    "daemon.",
     "gate.",
     "job.",
     "mesh.",
@@ -83,6 +84,7 @@ pub const PLATFORM_ONLY_NAMESPACES: &[&str] = &[
 pub const RESERVED_NAMESPACES: &[&str] = &[
     "actor.",
     "config.",
+    "daemon.",
     "gate.",
     "job.",
     "mesh.",

@@ -59,13 +59,27 @@ pub fn pidfile_path(global_dir: &Path) -> PathBuf {
     global_dir.join(PIDFILE_NAME)
 }
 
+/// Outcome of [`acquire`]. `Fresh` and `StaleTaken` both yield a held lock;
+/// `Held` means another live process holds it.
+pub enum AcquireResult {
+    /// Lock acquired and the pidfile had no prior record.
+    Fresh(PidfileGuard),
+    /// Lock acquired by taking over a prior pidfile whose owner had died
+    /// without releasing the lock cleanly. Slice 2 emits this for forensics.
+    StaleTaken {
+        guard: PidfileGuard,
+        prior: PidfileRecord,
+    },
+    /// Another live process holds the lock — caller should print the
+    /// existing record (via [`read`]) and exit cleanly.
+    Held,
+}
+
 /// Try to acquire the singleton lock.
 ///
-/// * `Ok(Some(guard))` — we hold the lock; `record` has been written.
-/// * `Ok(None)` — another live daemon holds the lock; caller should print
-///   the existing record (via [`read`]) and exit.
-/// * `Err(_)` — IO or serialization failure.
-pub fn acquire(global_dir: &Path, mut record: PidfileRecord) -> Result<Option<PidfileGuard>> {
+/// Returns [`AcquireResult`] so callers can distinguish a fresh lock from
+/// a stale-pidfile takeover and emit the right `daemon.pidfile_*` event.
+pub fn acquire(global_dir: &Path, mut record: PidfileRecord) -> Result<AcquireResult> {
     std::fs::create_dir_all(global_dir)
         .with_context(|| format!("cannot create directory {}", global_dir.display()))?;
     let path = pidfile_path(global_dir);
@@ -79,13 +93,21 @@ pub fn acquire(global_dir: &Path, mut record: PidfileRecord) -> Result<Option<Pi
         .open(&path)
         .with_context(|| format!("cannot open pidfile {}", path.display()))?;
 
+    // Snapshot prior contents BEFORE taking the lock so we can tell a
+    // fresh acquisition apart from a stale takeover. A parse failure is
+    // treated as no prior record — the next write overwrites garbage.
+    let mut prior_buf = String::new();
+    let _ = file.read_to_string(&mut prior_buf);
+    let prior: Option<PidfileRecord> =
+        serde_json::from_str(prior_buf.trim()).ok();
+
     // SAFETY: flock(2) is a well-defined system call on the file descriptor
     // owned by `file`. The fd outlives this call.
     let rc = unsafe { libc::flock(file.as_raw_fd(), libc::LOCK_EX | libc::LOCK_NB) };
     if rc != 0 {
         let err = std::io::Error::last_os_error();
         return match err.raw_os_error() {
-            Some(libc::EWOULDBLOCK) => Ok(None),
+            Some(libc::EWOULDBLOCK) => Ok(AcquireResult::Held),
             _ => Err(err).with_context(|| format!("flock {}", path.display())),
         };
     }
@@ -101,10 +123,14 @@ pub fn acquire(global_dir: &Path, mut record: PidfileRecord) -> Result<Option<Pi
     let _ = file.write_all(b"\n");
     let _ = file.sync_all();
 
-    Ok(Some(PidfileGuard {
+    let guard = PidfileGuard {
         file: Some(file),
         path,
-    }))
+    };
+    Ok(match prior {
+        Some(prior) => AcquireResult::StaleTaken { guard, prior },
+        None => AcquireResult::Fresh(guard),
+    })
 }
 
 /// Read the pidfile without acquiring the lock.

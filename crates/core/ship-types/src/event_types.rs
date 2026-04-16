@@ -50,6 +50,12 @@ pub const PROCESS_SPAWNED: &str = "process.spawned";
 pub const PROCESS_EXITED: &str = "process.exited";
 pub const PROCESS_SIGNAL_SENT: &str = "process.signal_sent";
 pub const PROCESS_ORPHANED: &str = "process.orphaned";
+pub const DAEMON_STARTUP_COMPLETED: &str = "daemon.startup_completed";
+pub const DAEMON_SHUTDOWN_COMPLETED: &str = "daemon.shutdown_completed";
+pub const DAEMON_CRASHED: &str = "daemon.crashed";
+pub const DAEMON_PORT_BIND_FAILED: &str = "daemon.port_bind_failed";
+pub const DAEMON_PIDFILE_ACQUIRED: &str = "daemon.pidfile_acquired";
+pub const DAEMON_PIDFILE_STALE_TAKEN: &str = "daemon.pidfile_stale_taken";
 
 pub const ALL: &[&str] = &[
     WORKSPACE_CREATED,
@@ -104,6 +110,12 @@ pub const ALL: &[&str] = &[
     PROCESS_EXITED,
     PROCESS_SIGNAL_SENT,
     PROCESS_ORPHANED,
+    DAEMON_STARTUP_COMPLETED,
+    DAEMON_SHUTDOWN_COMPLETED,
+    DAEMON_CRASHED,
+    DAEMON_PORT_BIND_FAILED,
+    DAEMON_PIDFILE_ACQUIRED,
+    DAEMON_PIDFILE_STALE_TAKEN,
 ];
 
 #[cfg(test)]
