@@ -2,7 +2,7 @@
   Skills index — two-pane layout (rail + detail) with SSE live updates.
   Context: rail (RailCtx), optionally skill (SkillDetail).
 -#}
-{% from '_ship.html.j2' import head, signal, live, attr, styles %}
+{% from '_ship.html.j2' import head, signal, live, attr, styles, on %}
 {% from '_urls.html.j2' import view_skills_rail, view_skill_detail %}
 <!DOCTYPE html>
 <html lang="en">
@@ -34,7 +34,7 @@
         <ship-toolbar role="group" aria-label="Filter by kind">
           {% for kc in rail.kind_counts %}
             <ship-chip size="sm" {% if kc.selected %}selected{% endif %}
-              {{ on('click', "@get('" ~ view_skills_rail() ~ "?kind=" ~ kc.id ~ "{% if rail.q %}&q=" ~ rail.q ~ "{% endif %}')") }}>{{ kc.label }} &middot; {{ kc.count }}</ship-chip>
+              {{ on('click', "@get('" ~ view_skills_rail() ~ "?kind=" ~ kc.id ~ ("&q=" ~ rail.q if rail.q else "") ~ "')") }}>{{ kc.label }} &middot; {{ kc.count }}</ship-chip>
           {% endfor %}
         </ship-toolbar>
       </div>

@@ -50,7 +50,7 @@
       <div class="specs-rail-filter">
         <ship-input size="sm" placeholder="Filter..." value="{{ q }}"
                     {{ bind('q') }}
-                    {{ on('input.debounce.200ms', "@get('" ~ view_specs() ~ "?q=' + encodeURIComponent($q){% if selected_id %} + '&selected=" ~ selected_id ~ "'{% endif %})") }}></ship-input>
+                    {{ on('input.debounce.200ms', "@get('" ~ view_specs() ~ "?q=' + encodeURIComponent($q)" ~ ("+ '&selected=" ~ selected_id ~ "'" if selected_id else "") ~ ")") }}></ship-input>
       </div>
       <div id="specs-rail-list"
            data-init="@get('{{ view_specs_sse() }}?q={{ q }}{% if selected_id %}&selected={{ selected_id }}{% endif %}', {requestCancellation: 'disabled'})">

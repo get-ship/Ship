@@ -29,7 +29,13 @@ fn try_render_view<C: Serialize>(view: &str, file: &str, ctx: &C) -> Option<Stri
     let (view_dir, _source) = resolve_view_dir(view)?;
     let source = std::fs::read_to_string(view_dir.join(file)).ok()?;
     let template_name = format!("{view}/{file}");
-    templates::render_view_source(&template_name, &source, ctx).ok()
+    match templates::render_view_source(&template_name, &source, ctx) {
+        Ok(html) => Some(html),
+        Err(e) => {
+            tracing::warn!(view = %view, file = %file, "view render failed, falling back: {e}");
+            None
+        }
+    }
 }
 
 #[derive(Clone, Debug, Default, Deserialize)]
