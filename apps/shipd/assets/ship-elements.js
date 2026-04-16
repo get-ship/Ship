@@ -1,7 +1,7 @@
-// node_modules/.pnpm/@lit+reactive-element@2.1.2/node_modules/@lit/reactive-element/css-tag.js
+// ../../../node_modules/.pnpm/@lit+reactive-element@2.1.2/node_modules/@lit/reactive-element/css-tag.js
 var t = globalThis;
 var e = t.ShadowRoot && (void 0 === t.ShadyCSS || t.ShadyCSS.nativeShadow) && "adoptedStyleSheets" in Document.prototype && "replace" in CSSStyleSheet.prototype;
-var s = /* @__PURE__ */ Symbol();
+var s = Symbol();
 var o = /* @__PURE__ */ new WeakMap();
 var n = class {
   constructor(t4, e6, o6) {
@@ -43,7 +43,7 @@ var c = e ? (t4) => t4 : (t4) => t4 instanceof CSSStyleSheet ? ((t5) => {
   return r(e6);
 })(t4) : t4;
 
-// node_modules/.pnpm/@lit+reactive-element@2.1.2/node_modules/@lit/reactive-element/reactive-element.js
+// ../../../node_modules/.pnpm/@lit+reactive-element@2.1.2/node_modules/@lit/reactive-element/reactive-element.js
 var { is: i2, defineProperty: e2, getOwnPropertyDescriptor: h, getOwnPropertyNames: r2, getOwnPropertySymbols: o2, getPrototypeOf: n2 } = Object;
 var a = globalThis;
 var c2 = a.trustedTypes;
@@ -81,7 +81,7 @@ var u = { toAttribute(t4, s4) {
 } };
 var f = (t4, s4) => !i2(t4, s4);
 var b = { attribute: true, type: String, converter: u, reflect: false, useDefault: false, hasChanged: f };
-Symbol.metadata ?? (Symbol.metadata = /* @__PURE__ */ Symbol("metadata")), a.litPropertyMetadata ?? (a.litPropertyMetadata = /* @__PURE__ */ new WeakMap());
+Symbol.metadata ?? (Symbol.metadata = Symbol("metadata")), a.litPropertyMetadata ?? (a.litPropertyMetadata = /* @__PURE__ */ new WeakMap());
 var y = class extends HTMLElement {
   static addInitializer(t4) {
     this._$Ei(), (this.l ?? (this.l = [])).push(t4);
@@ -91,7 +91,7 @@ var y = class extends HTMLElement {
   }
   static createProperty(t4, s4 = b) {
     if (s4.state && (s4.attribute = false), this._$Ei(), this.prototype.hasOwnProperty(t4) && ((s4 = Object.create(s4)).wrapped = true), this.elementProperties.set(t4, s4), !s4.noAccessor) {
-      const i6 = /* @__PURE__ */ Symbol(), h3 = this.getPropertyDescriptor(t4, i6, s4);
+      const i6 = Symbol(), h3 = this.getPropertyDescriptor(t4, i6, s4);
       void 0 !== h3 && e2(this.prototype, t4, h3);
     }
   }
@@ -265,7 +265,7 @@ var y = class extends HTMLElement {
 };
 y.elementStyles = [], y.shadowRootOptions = { mode: "open" }, y[d("elementProperties")] = /* @__PURE__ */ new Map(), y[d("finalized")] = /* @__PURE__ */ new Map(), p?.({ ReactiveElement: y }), (a.reactiveElementVersions ?? (a.reactiveElementVersions = [])).push("2.1.2");
 
-// node_modules/.pnpm/lit-html@3.3.2/node_modules/lit-html/lit-html.js
+// ../../../node_modules/.pnpm/lit-html@3.3.2/node_modules/lit-html/lit-html.js
 var t2 = globalThis;
 var i3 = (t4) => t4;
 var s2 = t2.trustedTypes;
@@ -292,8 +292,8 @@ var x = (t4) => (i6, ...s4) => ({ _$litType$: t4, strings: i6, values: s4 });
 var b2 = x(1);
 var w = x(2);
 var T = x(3);
-var E = /* @__PURE__ */ Symbol.for("lit-noChange");
-var A = /* @__PURE__ */ Symbol.for("lit-nothing");
+var E = Symbol.for("lit-noChange");
+var A = Symbol.for("lit-nothing");
 var C = /* @__PURE__ */ new WeakMap();
 var P = l2.createTreeWalker(l2, 129);
 function V(t4, i6) {
@@ -519,7 +519,7 @@ var D = (t4, i6, s4) => {
   return h3._$AI(t4), h3;
 };
 
-// node_modules/.pnpm/lit-element@4.2.2/node_modules/lit-element/lit-element.js
+// ../../../node_modules/.pnpm/lit-element@4.2.2/node_modules/lit-element/lit-element.js
 var s3 = globalThis;
 var i4 = class extends y {
   constructor() {
@@ -549,7 +549,7 @@ var o4 = s3.litElementPolyfillSupport;
 o4?.({ LitElement: i4 });
 (s3.litElementVersions ?? (s3.litElementVersions = [])).push("4.2.2");
 
-// packages/ui/src/web-components/util.ts
+// ../../../packages/ui/src/web-components/util.ts
 var MONO_STACK = "ui-monospace, SFMono-Regular, 'SF Mono', Menlo, Consolas, monospace";
 var MONO = r(MONO_STACK);
 var toneVars = i`
@@ -611,7 +611,7 @@ var reducedMotion = i`
   }
 `;
 
-// packages/ui/src/web-components/ship-alert.ts
+// ../../../packages/ui/src/web-components/ship-alert.ts
 var ShipAlert = class extends i4 {
   constructor() {
     super();
@@ -681,7 +681,7 @@ if (typeof customElements !== "undefined" && !customElements.get("ship-alert")) 
   customElements.define("ship-alert", ShipAlert);
 }
 
-// packages/ui/src/web-components/ship-dialog.styles.ts
+// ../../../packages/ui/src/web-components/ship-dialog.styles.ts
 var shipDialogStyles = [reducedMotion, i`
   :host { display: contents; }
   :host([hidden]) { display: none; }
@@ -922,7 +922,7 @@ var shipDialogStyles = [reducedMotion, i`
   }
 `];
 
-// packages/ui/src/web-components/focus.ts
+// ../../../packages/ui/src/web-components/focus.ts
 var FOCUSABLE_SELECTOR = [
   "a[href]",
   "area[href]",
@@ -962,7 +962,7 @@ var FocusReturn = class {
   }
 };
 
-// packages/ui/src/web-components/ship-dialog.ts
+// ../../../packages/ui/src/web-components/ship-dialog.ts
 var scrollLockCount = 0;
 var savedBodyOverflow = null;
 var savedBodyPaddingRight = null;
@@ -1175,7 +1175,7 @@ if (typeof customElements !== "undefined" && !customElements.get("ship-dialog"))
   customElements.define("ship-dialog", ShipDialog);
 }
 
-// packages/ui/src/web-components/ship-button.ts
+// ../../../packages/ui/src/web-components/ship-button.ts
 var ShipButton = class extends i4 {
   constructor() {
     super(...arguments);
@@ -1639,7 +1639,7 @@ if (typeof customElements !== "undefined" && !customElements.get("ship-button"))
   customElements.define("ship-button", ShipButton);
 }
 
-// packages/ui/src/web-components/ship-alert-dialog.ts
+// ../../../packages/ui/src/web-components/ship-alert-dialog.ts
 var ShipAlertDialog = class extends i4 {
   constructor() {
     super(...arguments);
@@ -1690,7 +1690,7 @@ if (typeof customElements !== "undefined" && !customElements.get("ship-alert-dia
   customElements.define("ship-alert-dialog", ShipAlertDialog);
 }
 
-// packages/ui/src/utils/annotation-helpers.ts
+// ../../../packages/ui/src/utils/annotation-helpers.ts
 function getCSSSelector(el) {
   if (el.id) return `#${el.id}`;
   const tag = el.tagName.toLowerCase();
@@ -1752,7 +1752,7 @@ function buildAnnotationEvent(input) {
   return ev;
 }
 
-// packages/ui/src/web-components/ship-annotation-layer.internals.ts
+// ../../../packages/ui/src/web-components/ship-annotation-layer.internals.ts
 var layerStyles = i`
   :host {
     position: relative;
@@ -1850,7 +1850,7 @@ function renderPopover(host, at) {
   `;
 }
 
-// packages/ui/src/web-components/ship-annotation-marker.ts
+// ../../../packages/ui/src/web-components/ship-annotation-marker.ts
 var ShipAnnotationMarker = class extends i4 {
   constructor() {
     super(...arguments);
@@ -1943,7 +1943,7 @@ if (typeof customElements !== "undefined" && !customElements.get("ship-annotatio
   customElements.define("ship-annotation-marker", ShipAnnotationMarker);
 }
 
-// packages/ui/src/web-components/ship-annotation-layer.ts
+// ../../../packages/ui/src/web-components/ship-annotation-layer.ts
 var DEFAULT_ENDPOINT = "/api/runtime/feedback";
 var ShipAnnotationLayer = class extends i4 {
   constructor() {
@@ -2165,7 +2165,7 @@ if (typeof customElements !== "undefined" && !customElements.get("ship-annotatio
   customElements.define("ship-annotation-layer", ShipAnnotationLayer);
 }
 
-// packages/ui/src/web-components/ship-annotation-list.ts
+// ../../../packages/ui/src/web-components/ship-annotation-list.ts
 var ShipAnnotationList = class extends i4 {
   constructor() {
     super(...arguments);
@@ -2279,7 +2279,7 @@ if (typeof customElements !== "undefined" && !customElements.get("ship-annotatio
   customElements.define("ship-annotation-list", ShipAnnotationList);
 }
 
-// packages/ui/src/web-components/ship-badge.styles.ts
+// ../../../packages/ui/src/web-components/ship-badge.styles.ts
 var shipBadgeStyles = [
   reducedMotion,
   i`
@@ -2483,7 +2483,7 @@ var shipBadgeStyles = [
   `
 ];
 
-// packages/ui/src/web-components/ship-badge.ts
+// ../../../packages/ui/src/web-components/ship-badge.ts
 var ShipBadge = class extends i4 {
   constructor() {
     super();
@@ -2512,7 +2512,7 @@ if (typeof customElements !== "undefined" && !customElements.get("ship-badge")) 
   customElements.define("ship-badge", ShipBadge);
 }
 
-// packages/ui/src/web-components/ship-card.styles.ts
+// ../../../packages/ui/src/web-components/ship-card.styles.ts
 var shipCardStyles = [
   reducedMotion,
   toneVars,
@@ -2706,7 +2706,7 @@ var shipCardStyles = [
   `
 ];
 
-// packages/ui/src/web-components/ship-card.ts
+// ../../../packages/ui/src/web-components/ship-card.ts
 var ShipCard = class extends i4 {
   constructor() {
     super(...arguments);
@@ -2789,7 +2789,7 @@ if (typeof customElements !== "undefined" && !customElements.get("ship-card")) {
   customElements.define("ship-card", ShipCard);
 }
 
-// packages/ui/src/web-components/ship-checkbox.styles.ts
+// ../../../packages/ui/src/web-components/ship-checkbox.styles.ts
 var shipCheckboxStyles = [
   reducedMotion,
   i`
@@ -3027,7 +3027,7 @@ var shipCheckboxStyles = [
   `
 ];
 
-// packages/ui/src/web-components/ship-checkbox.ts
+// ../../../packages/ui/src/web-components/ship-checkbox.ts
 var ShipCheckbox = class extends i4 {
   constructor() {
     super();
@@ -3129,7 +3129,7 @@ if (typeof customElements !== "undefined" && !customElements.get("ship-checkbox"
   customElements.define("ship-checkbox", ShipCheckbox);
 }
 
-// packages/ui/src/web-components/typeahead.ts
+// ../../../packages/ui/src/web-components/typeahead.ts
 var Typeahead = class {
   constructor(timeout = 500) {
     this.timeout = timeout;
@@ -3172,7 +3172,7 @@ function isTypeaheadKey(e6) {
   return e6.key.length === 1 && /\S/.test(e6.key);
 }
 
-// packages/ui/src/web-components/ship-dropdown-menu.ts
+// ../../../packages/ui/src/web-components/ship-dropdown-menu.ts
 var ShipDropdownMenu = class extends i4 {
   constructor() {
     super(...arguments);
@@ -3344,78 +3344,422 @@ if (typeof customElements !== "undefined" && !customElements.get("ship-dropdown-
   customElements.define("ship-dropdown-menu", ShipDropdownMenu);
 }
 
-// packages/ui/src/web-components/ship-empty-state.ts
+// ../../../packages/ui/src/web-components/ship-empty-state.styles.ts
+var shipEmptyStateStyles = [
+  reducedMotion,
+  toneVars,
+  i`
+    :host {
+      display: block;
+      font-family: var(--font-body);
+      color: var(--muted-foreground);
+
+      /* Size channel — overridden per :host([size=…]) below. md is the
+       * default and matches the pre-polish 64px/16px card so every existing
+       * caller keeps the same visual weight. --es-icon sizes the inner
+       * glyph; --es-tile sizes the circular wrapper around it. Keeping
+       * those on separate channels means the tile can stay generous while
+       * the glyph itself reads at the same optical size as the copy. */
+      --es-pad-y: 64px;
+      --es-pad-x: 16px;
+      --es-gap: var(--space-3);
+      --es-icon: 22px;
+      --es-tile: 48px;
+      --es-title-fs: var(--text-md);
+      --es-desc-fs: var(--text-sm);
+      --es-title-weight: var(--font-weight-semibold);
+
+      /* Variant channel — default is the dashed card; inline/placeholder/
+       * connecting override below. */
+      --es-radius: var(--radius-lg);
+      --es-border: 1px dashed var(--border);
+      --es-bg: var(--card);
+    }
+    :host([hidden]) { display: none; }
+
+    /* ------------------------------------------------------------------
+     * Size channel. Padding scales roughly 1.4× between steps so lg feels
+     * hero-sized without dwarfing its container; sm tightens to fit list
+     * sub-sections. Icon + type sizes travel together so the composition
+     * stays optically balanced across sizes.
+     * ------------------------------------------------------------------ */
+    :host([size='sm']) {
+      --es-pad-y: var(--space-7);
+      --es-pad-x: var(--space-4);
+      --es-gap: var(--space-2);
+      --es-icon: 16px;
+      --es-tile: 36px;
+      --es-title-fs: var(--text-base);
+      --es-desc-fs: var(--text-sm);
+    }
+    :host([size='lg']) {
+      --es-pad-y: 96px;
+      --es-pad-x: var(--space-6);
+      --es-gap: var(--space-4);
+      --es-icon: 28px;
+      --es-tile: 64px;
+      --es-title-fs: var(--text-lg);
+      --es-desc-fs: var(--text-base);
+    }
+
+    /* ------------------------------------------------------------------
+     * Variant channel. Every variant only touches surface + radius +
+     * border + internal padding density. Typography and icon sizing stay
+     * controlled by the size channel, so size=lg variant=placeholder and
+     * size=lg variant=default share the exact same type scale.
+     * ------------------------------------------------------------------ */
+    :host([variant='placeholder']),
+    :host([variant='connecting']) {
+      --es-border: 0;
+      --es-bg: transparent;
+      --es-radius: 0;
+      --es-pad-y: var(--space-6);
+    }
+    :host([variant='placeholder'][size='sm']),
+    :host([variant='connecting'][size='sm']) {
+      --es-pad-y: var(--space-4);
+    }
+    :host([variant='placeholder'][size='lg']),
+    :host([variant='connecting'][size='lg']) {
+      --es-pad-y: var(--space-8);
+    }
+
+    :host([variant='inline']) {
+      --es-border: 1px dashed var(--border);
+      --es-bg: color-mix(in oklch, var(--muted) 55%, transparent);
+      --es-radius: var(--radius-md);
+      --es-pad-y: var(--space-3);
+      --es-pad-x: var(--space-4);
+      --es-gap: var(--space-3);
+    }
+
+    /* ------------------------------------------------------------------
+     * Box — the outer chrome. Flex column by default; inline flips to a
+     * horizontal row with left-aligned text so it slots cleanly into list
+     * sub-sections without forcing a full-bleed empty card.
+     * ------------------------------------------------------------------ */
+    .box {
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      gap: var(--es-gap);
+      padding: var(--es-pad-y) var(--es-pad-x);
+      text-align: center;
+      background: var(--es-bg);
+      border: var(--es-border);
+      border-radius: var(--es-radius);
+      animation: es-in var(--duration-medium) var(--ease-out) both;
+    }
+    :host([variant='inline']) .box {
+      flex-direction: row;
+      align-items: center;
+      justify-content: flex-start;
+      text-align: left;
+      gap: var(--space-3);
+    }
+
+    @keyframes es-in {
+      from { opacity: 0; transform: translateY(4px); }
+      to   { opacity: 1; transform: translateY(0); }
+    }
+
+    /* ------------------------------------------------------------------
+     * Icon tile. The tile is a muted circle wrapping the glyph — reads
+     * as deliberate, not just "missing content". sm uses a 36px tile,
+     * md 48px, lg 64px. Inline variant drops the tile so the icon sits
+     * bare beside the title in dense row chrome.
+     * ------------------------------------------------------------------ */
+    .icon {
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      flex-shrink: 0;
+      width: var(--es-tile);
+      height: var(--es-tile);
+      border-radius: var(--radius-full);
+      /* Tile wash reads deeper than a plain muted surface so the tone is
+       * legible without overpowering the surrounding card. Neutral tones
+       * fall back to plain muted via the explicit selector below. */
+      background: color-mix(in oklch, var(--tone-fg) 18%, var(--muted));
+      color: var(--tone-fg);
+      line-height: 1;
+    }
+    :host(:not([tone])) .icon,
+    :host([tone='default']) .icon {
+      background: var(--muted);
+      color: var(--muted-foreground);
+    }
+    .icon:empty,
+    .icon[data-empty] { display: none; }
+    /* Inline compact row drops the tile — icon sits bare at the icon-channel
+     * size so dense row chrome doesn't get a full-height circle. */
+    :host([variant='inline']) .icon {
+      width: var(--es-icon);
+      height: var(--es-icon);
+      background: transparent;
+    }
+    /* Built-in glyph — inline SVG rendered by the component when the
+     * icon attr is set and no slot content is present. Sized off the
+     * icon channel so it scales with size=[sm|md|lg]. */
+    .glyph {
+      width: var(--es-icon);
+      height: var(--es-icon);
+      display: block;
+    }
+    /* Slotted glyphs get a display + color nudge. We can't reliably set
+     * width/height on a slotted <ship-icon> (its internal SVG is pinned
+     * to ship-icon's own size attr), so callers using ship-icon as a
+     * slot should set size="lg" when pairing with an md/lg empty state.
+     * Raw <svg slot="icon"> scales to the icon channel via the direct
+     * selector below. */
+    ::slotted([slot='icon']) {
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      color: currentColor;
+    }
+    ::slotted(svg[slot='icon']) {
+      width: var(--es-icon);
+      height: var(--es-icon);
+    }
+
+    /* ------------------------------------------------------------------
+     * Typography. Title sits foreground-weight, description picks up
+     * muted-foreground + an ~40ch max-width so long copy wraps at a
+     * comfortable reading measure rather than stretching to the card.
+     * ------------------------------------------------------------------ */
+    .copy {
+      display: flex;
+      flex-direction: column;
+      gap: 4px;
+      align-items: center;
+      min-width: 0;
+    }
+    :host([variant='inline']) .copy {
+      align-items: flex-start;
+    }
+    .title {
+      font-size: var(--es-title-fs);
+      font-weight: var(--es-title-weight);
+      color: var(--foreground);
+      line-height: var(--leading-tight);
+      letter-spacing: -0.005em;
+    }
+    .title:empty { display: none; }
+
+    .desc {
+      font-size: var(--es-desc-fs);
+      line-height: var(--leading-normal);
+      max-width: 40ch;
+      color: var(--muted-foreground);
+    }
+    :host([variant='inline']) .desc {
+      max-width: 60ch;
+    }
+    .desc:empty { display: none; }
+
+    /* connecting / placeholder soften the title weight slightly so these
+     * quieter states don't compete with actual content headers. */
+    :host([variant='connecting']) .title,
+    :host([variant='placeholder']) .title {
+      font-weight: var(--font-weight-medium);
+      color: var(--muted-foreground);
+    }
+
+    /* ------------------------------------------------------------------
+     * Actions row. Centered below the copy; on inline, pushed to the
+     * far right of the row so a CTA slots naturally on the trailing edge.
+     * ------------------------------------------------------------------ */
+    .actions {
+      display: flex;
+      gap: var(--space-2);
+      justify-content: center;
+      margin-top: 4px;
+      flex-wrap: wrap;
+    }
+    .actions:empty { display: none; }
+    :host([variant='inline']) .actions {
+      margin-top: 0;
+      margin-left: auto;
+      justify-content: flex-end;
+    }
+
+    /* Forced-colors — keep the dashed border visible in high-contrast
+     * modes where color-mix'd tokens collapse. */
+    @media (forced-colors: active) {
+      .box { border-color: CanvasText; }
+      .icon { background: Canvas; color: CanvasText; }
+    }
+  `
+];
+
+// ../../../packages/ui/src/web-components/utility/ship-icon.ts
+var ICONS = {
+  "chevron-down": "M6 9l6 6 6-6",
+  "chevron-right": "M9 6l6 6-6 6",
+  "chevron-left": "M15 6l-6 6 6 6",
+  "chevron-up": "M6 15l6-6 6 6",
+  check: "M20 6L9 17l-5-5",
+  x: "M18 6L6 18M6 6l12 12",
+  plus: "M12 5v14M5 12h14",
+  minus: "M5 12h14",
+  search: "M11 4a7 7 0 100 14 7 7 0 000-14zM21 21l-4.3-4.3",
+  "alert-circle": "M12 2a10 10 0 100 20 10 10 0 000-20zM12 8v4M12 16h.01",
+  info: "M12 2a10 10 0 100 20 10 10 0 000-20zM12 16v-4M12 8h.01",
+  star: "M12 2l3.09 6.26L22 9.27l-5 4.87 1.18 6.88L12 17.77l-6.18 3.25L7 14.14 2 9.27l6.91-1.01L12 2z",
+  folder: "M3 7a2 2 0 012-2h4l2 2h8a2 2 0 012 2v9a2 2 0 01-2 2H5a2 2 0 01-2-2V7z",
+  file: "M14 2H6a2 2 0 00-2 2v16a2 2 0 002 2h12a2 2 0 002-2V8l-6-6zM14 2v6h6",
+  trash: "M3 6h18M8 6V4a2 2 0 012-2h4a2 2 0 012 2v2M6 6l1 14a2 2 0 002 2h6a2 2 0 002-2l1-14",
+  edit: "M11 4H4a2 2 0 00-2 2v14a2 2 0 002 2h14a2 2 0 002-2v-7M18.5 2.5a2.12 2.12 0 113 3L12 15l-4 1 1-4 9.5-9.5z",
+  copy: "M9 9h10a2 2 0 012 2v10a2 2 0 01-2 2H9a2 2 0 01-2-2V11a2 2 0 012-2zM5 15H4a2 2 0 01-2-2V3a2 2 0 012-2h10a2 2 0 012 2v1",
+  "external-link": "M18 13v6a2 2 0 01-2 2H5a2 2 0 01-2-2V8a2 2 0 012-2h6M15 3h6v6M10 14L21 3",
+  "arrow-up": "M12 19V5M5 12l7-7 7 7",
+  "arrow-down": "M12 5v14M19 12l-7 7-7-7",
+  "arrow-left": "M19 12H5M12 19l-7-7 7-7",
+  "arrow-right": "M5 12h14M12 5l7 7-7 7",
+  sparkles: "M12 3l2 5 5 2-5 2-2 5-2-5-5-2 5-2 2-5zM19 14l1 2 2 1-2 1-1 2-1-2-2-1 2-1 1-2z",
+  "file-code": "M14 2H6a2 2 0 00-2 2v16a2 2 0 002 2h12a2 2 0 002-2V8l-6-6zM14 2v6h6M10 13l-2 2 2 2M14 13l2 2-2 2",
+  "chevrons-down-up": "M7 20l5-5 5 5M7 4l5 5 5-5",
+  "chevrons-up-down": "M7 15l5 5 5-5M7 9l5-5 5 5",
+  "message-square-plus": "M21 15a2 2 0 01-2 2H7l-4 4V5a2 2 0 012-2h9M18 3v6M15 6h6"
+};
+var ShipIcon = class extends i4 {
+  constructor() {
+    super(...arguments);
+    this.name = "";
+    this.size = "md";
+    this.tone = "default";
+    this.label = "";
+  }
+  updated() {
+    if (this.label) {
+      this.setAttribute("role", "img");
+      this.setAttribute("aria-label", this.label);
+      this.removeAttribute("aria-hidden");
+    } else {
+      this.setAttribute("aria-hidden", "true");
+      this.removeAttribute("role");
+      this.removeAttribute("aria-label");
+    }
+  }
+  render() {
+    const d3 = this.name ? ICONS[this.name] : void 0;
+    const hidden = this.label ? A : "true";
+    return b2`
+      <slot>
+        ${d3 ? b2`<svg viewBox="0 0 24 24" fill="none" stroke="currentColor"
+              stroke-width="2" stroke-linecap="round" stroke-linejoin="round"
+              aria-hidden=${hidden} part="svg">
+              <path d=${d3}></path>
+            </svg>` : null}
+      </slot>
+    `;
+  }
+};
+ShipIcon.styles = [
+  toneVars,
+  i`
+      :host { display: inline-flex; align-items: center; justify-content: center; color: var(--tone-fg); }
+      svg { width: 16px; height: 16px; display: block; }
+      :host([size='sm']) svg { width: 12px; height: 12px; }
+      :host([size='lg']) svg { width: 20px; height: 20px; }
+      ::slotted(svg) { width: 100%; height: 100%; }
+    `
+];
+ShipIcon.properties = {
+  name: { type: String, reflect: true },
+  size: { type: String, reflect: true },
+  tone: { type: String, reflect: true },
+  label: { type: String, reflect: true }
+};
+if (typeof customElements !== "undefined" && !customElements.get("ship-icon")) {
+  customElements.define("ship-icon", ShipIcon);
+}
+
+// ../../../packages/ui/src/web-components/ship-empty-state.ts
 var ShipEmptyState = class extends i4 {
   constructor() {
     super(...arguments);
     this.variant = "default";
+    this.size = "md";
+    this.icon = "";
+    /** Track whether the icon slot has projected content so the `icon` attr
+     * fallback only renders when the slot is genuinely empty. Slot always
+     * wins — matches the charter rule "slots over attrs for content". */
+    this.iconSlotFilled = false;
+    this.onIconSlotChange = (e6) => {
+      const slot = e6.target;
+      const filled = slot.assignedNodes({ flatten: true }).some((n4) => {
+        if (n4.nodeType === Node.TEXT_NODE) {
+          return (n4.textContent || "").trim().length > 0;
+        }
+        return n4.nodeType === Node.ELEMENT_NODE;
+      });
+      if (filled !== this.iconSlotFilled) {
+        this.iconSlotFilled = filled;
+        this.requestUpdate();
+      }
+    };
   }
   render() {
     const live = this.variant === "connecting" ? "polite" : "off";
+    const role = this.variant === "connecting" ? "status" : "note";
+    const fallbackPath = this.icon ? ICONS[this.icon] : void 0;
+    const hasFallback = !this.iconSlotFilled && !!fallbackPath;
+    const tileHasContent = this.iconSlotFilled || hasFallback;
     return b2`
-      <div class="box" role="status" aria-live=${live}>
-        <div class="icon"><slot name="icon"></slot></div>
-        <div class="title"><slot name="title"></slot></div>
-        <div class="desc"><slot></slot></div>
-        <div class="actions"><slot name="action"></slot></div>
+      <div class="box" part="box" role=${role} aria-live=${live}>
+        <div
+          class="icon"
+          part="icon"
+          aria-hidden="true"
+          ?data-empty=${!tileHasContent}
+        >
+          <slot name="icon" @slotchange=${this.onIconSlotChange}>
+            ${hasFallback ? b2`<svg
+                  class="glyph"
+                  viewBox="0 0 24 24"
+                  fill="none"
+                  stroke="currentColor"
+                  stroke-width="1.75"
+                  stroke-linecap="round"
+                  stroke-linejoin="round"
+                  aria-hidden="true"
+                >
+                  <path d=${fallbackPath}></path>
+                </svg>` : A}
+          </slot>
+        </div>
+
+        <div class="copy">
+          <div class="title" part="title">
+            <slot name="title"></slot>
+          </div>
+          <div class="desc" part="desc">
+            <slot></slot>
+          </div>
+        </div>
+
+        <div class="actions" part="actions">
+          <slot name="action"></slot>
+        </div>
       </div>
     `;
   }
 };
-ShipEmptyState.styles = i`
-    :host { display: block; }
-    .box {
-      display: flex; flex-direction: column;
-      align-items: center; justify-content: center;
-      gap: 10px;
-      padding: 64px 16px;
-      text-align: center;
-      font-family: var(--font-body);
-      color: var(--muted-foreground);
-      background: var(--card);
-      border: 1px dashed var(--border);
-      border-radius: var(--radius);
-    }
-    :host([variant='connecting']) .box {
-      padding: 48px 0;
-      background: transparent;
-      border: 0;
-      font-size: 13px;
-    }
-    :host([variant='placeholder']) .box {
-      padding: 24px 16px;
-      background: transparent;
-      border: 0;
-      font-size: 13px;
-    }
-    .icon {
-      font-size: 36px; opacity: 0.35;
-      display: inline-flex; align-items: center; justify-content: center;
-    }
-    .title {
-      font-size: 14px; font-weight: 600;
-      color: var(--foreground);
-    }
-    .desc {
-      font-size: 12px;
-      max-width: 420px;
-      margin: 0 auto;
-      line-height: 1.55;
-    }
-    .actions {
-      display: flex; gap: 8px; justify-content: center;
-      margin-top: 4px;
-    }
-    ::slotted([slot='icon']) { display: inline-flex; }
-  `;
+ShipEmptyState.styles = shipEmptyStateStyles;
 ShipEmptyState.properties = {
-  variant: { type: String, reflect: true }
+  variant: { type: String, reflect: true },
+  size: { type: String, reflect: true },
+  tone: { type: String, reflect: true },
+  icon: { type: String, reflect: true }
 };
 if (typeof customElements !== "undefined" && !customElements.get("ship-empty-state")) {
   customElements.define("ship-empty-state", ShipEmptyState);
 }
 
-// packages/ui/src/web-components/ship-field.ts
+// ../../../packages/ui/src/web-components/ship-field.ts
 var _ShipField = class _ShipField extends i4 {
   constructor() {
     super(...arguments);
@@ -3466,7 +3810,7 @@ if (typeof customElements !== "undefined" && !customElements.get("ship-field")) 
   customElements.define("ship-field", ShipField);
 }
 
-// packages/ui/src/web-components/ship-input.styles.ts
+// ../../../packages/ui/src/web-components/ship-input.styles.ts
 var shipInputStyles = [reducedMotion, i`
   :host {
     display: inline-flex;
@@ -3665,7 +4009,7 @@ var shipInputStyles = [reducedMotion, i`
   }
 `];
 
-// packages/ui/src/web-components/ship-input.ts
+// ../../../packages/ui/src/web-components/ship-input.ts
 var _ShipInput = class _ShipInput extends i4 {
   constructor() {
     super();
@@ -3767,7 +4111,7 @@ if (typeof customElements !== "undefined" && !customElements.get("ship-input")) 
   customElements.define("ship-input", ShipInput);
 }
 
-// packages/ui/src/web-components/ship-label.ts
+// ../../../packages/ui/src/web-components/ship-label.ts
 var ShipLabel = class extends i4 {
   constructor() {
     super(...arguments);
@@ -3806,7 +4150,7 @@ if (typeof customElements !== "undefined" && !customElements.get("ship-label")) 
   customElements.define("ship-label", ShipLabel);
 }
 
-// packages/ui/src/web-components/ship-list-item.ts
+// ../../../packages/ui/src/web-components/ship-list-item.ts
 var ShipListItem = class extends i4 {
   constructor() {
     super(...arguments);
@@ -3896,7 +4240,7 @@ if (typeof customElements !== "undefined" && !customElements.get("ship-list-item
   customElements.define("ship-list-item", ShipListItem);
 }
 
-// packages/ui/src/web-components/ship-popover.ts
+// ../../../packages/ui/src/web-components/ship-popover.ts
 var _ShipPopover = class _ShipPopover extends i4 {
   constructor() {
     super(...arguments);
@@ -4011,7 +4355,7 @@ if (typeof customElements !== "undefined" && !customElements.get("ship-popover")
   customElements.define("ship-popover", ShipPopover);
 }
 
-// packages/ui/src/web-components/ship-progress.ts
+// ../../../packages/ui/src/web-components/ship-progress.ts
 var ShipProgress = class extends i4 {
   constructor() {
     super();
@@ -4076,7 +4420,7 @@ if (typeof customElements !== "undefined" && !customElements.get("ship-progress"
   customElements.define("ship-progress", ShipProgress);
 }
 
-// packages/ui/src/web-components/ship-select.styles.ts
+// ../../../packages/ui/src/web-components/ship-select.styles.ts
 var shipSelectStyles = [reducedMotion, i`
   :host {
     display: inline-flex;
@@ -4311,7 +4655,7 @@ var shipSelectStyles = [reducedMotion, i`
   }
 `];
 
-// packages/ui/src/web-components/ship-select.ts
+// ../../../packages/ui/src/web-components/ship-select.ts
 var ShipSelect = class extends i4 {
   constructor() {
     super();
@@ -4441,7 +4785,7 @@ if (typeof customElements !== "undefined" && !customElements.get("ship-select"))
   customElements.define("ship-select", ShipSelect);
 }
 
-// packages/ui/src/web-components/ship-separator.ts
+// ../../../packages/ui/src/web-components/ship-separator.ts
 var ShipSeparator = class extends i4 {
   constructor() {
     super(...arguments);
@@ -4477,7 +4821,7 @@ if (typeof customElements !== "undefined" && !customElements.get("ship-separator
   customElements.define("ship-separator", ShipSeparator);
 }
 
-// packages/ui/src/web-components/ship-spinner.ts
+// ../../../packages/ui/src/web-components/ship-spinner.ts
 var ShipSpinner = class extends i4 {
   constructor() {
     super();
@@ -4515,7 +4859,7 @@ if (typeof customElements !== "undefined" && !customElements.get("ship-spinner")
   customElements.define("ship-spinner", ShipSpinner);
 }
 
-// packages/ui/src/web-components/ship-stat.ts
+// ../../../packages/ui/src/web-components/ship-stat.ts
 var ShipStat = class extends i4 {
   constructor() {
     super(...arguments);
@@ -4619,7 +4963,7 @@ if (typeof customElements !== "undefined" && !customElements.get("ship-stat")) {
   customElements.define("ship-stat", ShipStat);
 }
 
-// packages/ui/src/web-components/ship-status-dot.ts
+// ../../../packages/ui/src/web-components/ship-status-dot.ts
 var ShipStatusDot = class extends i4 {
   constructor() {
     super();
@@ -4665,7 +5009,7 @@ if (typeof customElements !== "undefined" && !customElements.get("ship-status-do
   customElements.define("ship-status-dot", ShipStatusDot);
 }
 
-// packages/ui/src/web-components/ship-switch.styles.ts
+// ../../../packages/ui/src/web-components/ship-switch.styles.ts
 var shipSwitchStyles = [
   reducedMotion,
   i`
@@ -4867,7 +5211,7 @@ var shipSwitchStyles = [
   `
 ];
 
-// packages/ui/src/web-components/ship-switch.ts
+// ../../../packages/ui/src/web-components/ship-switch.ts
 var ShipSwitch = class extends i4 {
   constructor() {
     super();
@@ -4946,7 +5290,7 @@ if (typeof customElements !== "undefined" && !customElements.get("ship-switch"))
   customElements.define("ship-switch", ShipSwitch);
 }
 
-// packages/ui/src/web-components/ship-tabs.styles.ts
+// ../../../packages/ui/src/web-components/ship-tabs.styles.ts
 var shipTabsStyles = [reducedMotion, i`
   :host {
     display: block;
@@ -5217,7 +5561,7 @@ var shipTabPanelStyles = [reducedMotion, i`
   }
 `];
 
-// packages/ui/src/web-components/ship-tabs.ts
+// ../../../packages/ui/src/web-components/ship-tabs.ts
 var ShipTab = class extends i4 {
   constructor() {
     super(...arguments);
@@ -5426,7 +5770,7 @@ if (typeof customElements !== "undefined") {
   if (!customElements.get("ship-tabs")) customElements.define("ship-tabs", ShipTabs);
 }
 
-// packages/ui/src/web-components/ship-textarea.styles.ts
+// ../../../packages/ui/src/web-components/ship-textarea.styles.ts
 var shipTextareaStyles = [reducedMotion, i`
   :host {
     display: block;
@@ -5539,7 +5883,7 @@ var shipTextareaStyles = [reducedMotion, i`
   }
 `];
 
-// packages/ui/src/web-components/ship-textarea.ts
+// ../../../packages/ui/src/web-components/ship-textarea.ts
 var ShipTextarea = class extends i4 {
   constructor() {
     super();
@@ -5627,7 +5971,7 @@ if (typeof customElements !== "undefined" && !customElements.get("ship-textarea"
   customElements.define("ship-textarea", ShipTextarea);
 }
 
-// packages/ui/src/web-components/ship-theme-toggle.ts
+// ../../../packages/ui/src/web-components/ship-theme-toggle.ts
 var STORAGE_KEY = "ship-theme";
 var ShipThemeToggle = class extends i4 {
   constructor() {
@@ -5699,7 +6043,7 @@ if (typeof customElements !== "undefined" && !customElements.get("ship-theme-tog
   customElements.define("ship-theme-toggle", ShipThemeToggle);
 }
 
-// packages/ui/src/web-components/ship-toolbar.ts
+// ../../../packages/ui/src/web-components/ship-toolbar.ts
 var ShipToolbar = class extends i4 {
   constructor() {
     super(...arguments);
@@ -5763,7 +6107,7 @@ if (typeof customElements !== "undefined" && !customElements.get("ship-toolbar")
   customElements.define("ship-toolbar", ShipToolbar);
 }
 
-// packages/ui/src/web-components/ship-tooltip.ts
+// ../../../packages/ui/src/web-components/ship-tooltip.ts
 var _ShipTooltip = class _ShipTooltip extends i4 {
   constructor() {
     super(...arguments);
@@ -5851,7 +6195,7 @@ if (typeof customElements !== "undefined" && !customElements.get("ship-tooltip")
   customElements.define("ship-tooltip", ShipTooltip);
 }
 
-// packages/ui/src/web-components/domain/ship-pipeline-step.ts
+// ../../../packages/ui/src/web-components/domain/ship-pipeline-step.ts
 var ShipPipelineStep = class extends i4 {
   constructor() {
     super(...arguments);
@@ -5961,7 +6305,7 @@ if (typeof customElements !== "undefined" && !customElements.get("ship-pipeline-
   customElements.define("ship-pipeline-step", ShipPipelineStep);
 }
 
-// packages/ui/src/web-components/domain/ship-pipeline-run.ts
+// ../../../packages/ui/src/web-components/domain/ship-pipeline-run.ts
 var STATE_TO_TONE = {
   dispatched: "info",
   running: "info",
@@ -6037,7 +6381,7 @@ if (typeof customElements !== "undefined" && !customElements.get("ship-pipeline-
   customElements.define("ship-pipeline-run", ShipPipelineRun);
 }
 
-// packages/ui/src/web-components/domain/ship-pipeline-definition.ts
+// ../../../packages/ui/src/web-components/domain/ship-pipeline-definition.ts
 var ShipPipelineDefinition = class extends i4 {
   constructor() {
     super(...arguments);
@@ -6107,7 +6451,7 @@ if (typeof customElements !== "undefined" && !customElements.get("ship-pipeline-
   customElements.define("ship-pipeline-definition", ShipPipelineDefinition);
 }
 
-// packages/ui/src/web-components/domain/ship-pipeline-dag.ts
+// ../../../packages/ui/src/web-components/domain/ship-pipeline-dag.ts
 var ShipPipelineDag = class extends i4 {
   connectedCallback() {
     super.connectedCallback();
@@ -6138,7 +6482,7 @@ if (typeof customElements !== "undefined" && !customElements.get("ship-pipeline-
   customElements.define("ship-pipeline-dag", ShipPipelineDag);
 }
 
-// packages/ui/src/web-components/domain/ship-history-row.ts
+// ../../../packages/ui/src/web-components/domain/ship-history-row.ts
 var ShipHistoryRow = class extends i4 {
   constructor() {
     super(...arguments);
@@ -6178,7 +6522,7 @@ if (typeof customElements !== "undefined" && !customElements.get("ship-history-r
   customElements.define("ship-history-row", ShipHistoryRow);
 }
 
-// packages/ui/src/web-components/domain/ship-spec-row.ts
+// ../../../packages/ui/src/web-components/domain/ship-spec-row.ts
 var STATUS_TO_TONE = {
   draft: "muted",
   ready: "success",
@@ -6225,90 +6569,7 @@ if (typeof customElements !== "undefined" && !customElements.get("ship-spec-row"
   customElements.define("ship-spec-row", ShipSpecRow);
 }
 
-// packages/ui/src/web-components/utility/ship-icon.ts
-var ICONS = {
-  "chevron-down": "M6 9l6 6 6-6",
-  "chevron-right": "M9 6l6 6-6 6",
-  "chevron-left": "M15 6l-6 6 6 6",
-  "chevron-up": "M6 15l6-6 6 6",
-  check: "M20 6L9 17l-5-5",
-  x: "M18 6L6 18M6 6l12 12",
-  plus: "M12 5v14M5 12h14",
-  minus: "M5 12h14",
-  search: "M11 4a7 7 0 100 14 7 7 0 000-14zM21 21l-4.3-4.3",
-  "alert-circle": "M12 2a10 10 0 100 20 10 10 0 000-20zM12 8v4M12 16h.01",
-  info: "M12 2a10 10 0 100 20 10 10 0 000-20zM12 16v-4M12 8h.01",
-  star: "M12 2l3.09 6.26L22 9.27l-5 4.87 1.18 6.88L12 17.77l-6.18 3.25L7 14.14 2 9.27l6.91-1.01L12 2z",
-  folder: "M3 7a2 2 0 012-2h4l2 2h8a2 2 0 012 2v9a2 2 0 01-2 2H5a2 2 0 01-2-2V7z",
-  file: "M14 2H6a2 2 0 00-2 2v16a2 2 0 002 2h12a2 2 0 002-2V8l-6-6zM14 2v6h6",
-  trash: "M3 6h18M8 6V4a2 2 0 012-2h4a2 2 0 012 2v2M6 6l1 14a2 2 0 002 2h6a2 2 0 002-2l1-14",
-  edit: "M11 4H4a2 2 0 00-2 2v14a2 2 0 002 2h14a2 2 0 002-2v-7M18.5 2.5a2.12 2.12 0 113 3L12 15l-4 1 1-4 9.5-9.5z",
-  copy: "M9 9h10a2 2 0 012 2v10a2 2 0 01-2 2H9a2 2 0 01-2-2V11a2 2 0 012-2zM5 15H4a2 2 0 01-2-2V3a2 2 0 012-2h10a2 2 0 012 2v1",
-  "external-link": "M18 13v6a2 2 0 01-2 2H5a2 2 0 01-2-2V8a2 2 0 012-2h6M15 3h6v6M10 14L21 3",
-  "arrow-up": "M12 19V5M5 12l7-7 7 7",
-  "arrow-down": "M12 5v14M19 12l-7 7-7-7",
-  "arrow-left": "M19 12H5M12 19l-7-7 7-7",
-  "arrow-right": "M5 12h14M12 5l7 7-7 7",
-  sparkles: "M12 3l2 5 5 2-5 2-2 5-2-5-5-2 5-2 2-5zM19 14l1 2 2 1-2 1-1 2-1-2-2-1 2-1 1-2z",
-  "file-code": "M14 2H6a2 2 0 00-2 2v16a2 2 0 002 2h12a2 2 0 002-2V8l-6-6zM14 2v6h6M10 13l-2 2 2 2M14 13l2 2-2 2",
-  "chevrons-down-up": "M7 20l5-5 5 5M7 4l5 5 5-5",
-  "chevrons-up-down": "M7 15l5 5 5-5M7 9l5-5 5 5",
-  "message-square-plus": "M21 15a2 2 0 01-2 2H7l-4 4V5a2 2 0 012-2h9M18 3v6M15 6h6"
-};
-var ShipIcon = class extends i4 {
-  constructor() {
-    super(...arguments);
-    this.name = "";
-    this.size = "md";
-    this.tone = "default";
-    this.label = "";
-  }
-  updated() {
-    if (this.label) {
-      this.setAttribute("role", "img");
-      this.setAttribute("aria-label", this.label);
-      this.removeAttribute("aria-hidden");
-    } else {
-      this.setAttribute("aria-hidden", "true");
-      this.removeAttribute("role");
-      this.removeAttribute("aria-label");
-    }
-  }
-  render() {
-    const d3 = this.name ? ICONS[this.name] : void 0;
-    const hidden = this.label ? A : "true";
-    return b2`
-      <slot>
-        ${d3 ? b2`<svg viewBox="0 0 24 24" fill="none" stroke="currentColor"
-              stroke-width="2" stroke-linecap="round" stroke-linejoin="round"
-              aria-hidden=${hidden} part="svg">
-              <path d=${d3}></path>
-            </svg>` : null}
-      </slot>
-    `;
-  }
-};
-ShipIcon.styles = [
-  toneVars,
-  i`
-      :host { display: inline-flex; align-items: center; justify-content: center; color: var(--tone-fg); }
-      svg { width: 16px; height: 16px; display: block; }
-      :host([size='sm']) svg { width: 12px; height: 12px; }
-      :host([size='lg']) svg { width: 20px; height: 20px; }
-      ::slotted(svg) { width: 100%; height: 100%; }
-    `
-];
-ShipIcon.properties = {
-  name: { type: String, reflect: true },
-  size: { type: String, reflect: true },
-  tone: { type: String, reflect: true },
-  label: { type: String, reflect: true }
-};
-if (typeof customElements !== "undefined" && !customElements.get("ship-icon")) {
-  customElements.define("ship-icon", ShipIcon);
-}
-
-// packages/ui/src/web-components/domain/ship-git-diff.ts
+// ../../../packages/ui/src/web-components/domain/ship-git-diff.ts
 var ShipGitDiff = class extends i4 {
   constructor() {
     super(...arguments);
@@ -6578,7 +6839,7 @@ if (typeof customElements !== "undefined") {
   if (!customElements.get("ship-git-diff-line")) customElements.define("ship-git-diff-line", ShipGitDiffLine);
 }
 
-// packages/ui/src/web-components/observability/ship-log-line.ts
+// ../../../packages/ui/src/web-components/observability/ship-log-line.ts
 var ShipLogLine = class extends i4 {
   constructor() {
     super(...arguments);
@@ -6636,7 +6897,7 @@ if (typeof customElements !== "undefined" && !customElements.get("ship-log-line"
   customElements.define("ship-log-line", ShipLogLine);
 }
 
-// packages/ui/src/web-components/observability/ship-event-row.ts
+// ../../../packages/ui/src/web-components/observability/ship-event-row.ts
 var ShipEventRow = class extends i4 {
   connectedCallback() {
     super.connectedCallback();
@@ -6686,7 +6947,7 @@ if (typeof customElements !== "undefined" && !customElements.get("ship-event-row
   customElements.define("ship-event-row", ShipEventRow);
 }
 
-// packages/ui/src/web-components/observability/ship-timestamp.ts
+// ../../../packages/ui/src/web-components/observability/ship-timestamp.ts
 var MINUTE = 6e4;
 var HOUR = 36e5;
 var DAY = 864e5;
@@ -6748,7 +7009,7 @@ if (typeof customElements !== "undefined" && !customElements.get("ship-timestamp
   customElements.define("ship-timestamp", ShipTimestamp);
 }
 
-// packages/ui/src/web-components/observability/ship-json-view.ts
+// ../../../packages/ui/src/web-components/observability/ship-json-view.ts
 var ShipJsonView = class extends i4 {
   constructor() {
     super(...arguments);
@@ -6843,7 +7104,7 @@ if (typeof customElements !== "undefined" && !customElements.get("ship-json-view
   customElements.define("ship-json-view", ShipJsonView);
 }
 
-// packages/ui/src/web-components/observability/ship-diff.ts
+// ../../../packages/ui/src/web-components/observability/ship-diff.ts
 function diffLines(a3, b3) {
   const A2 = a3.split("\n");
   const B2 = b3.split("\n");
@@ -6943,7 +7204,7 @@ if (typeof customElements !== "undefined" && !customElements.get("ship-diff")) {
   customElements.define("ship-diff", ShipDiff);
 }
 
-// packages/ui/src/web-components/observability/ship-code.ts
+// ../../../packages/ui/src/web-components/observability/ship-code.ts
 var ShipCode = class extends i4 {
   constructor() {
     super(...arguments);
@@ -7013,7 +7274,7 @@ if (typeof customElements !== "undefined" && !customElements.get("ship-code")) {
   customElements.define("ship-code", ShipCode);
 }
 
-// packages/ui/src/web-components/observability/ship-copy-button.ts
+// ../../../packages/ui/src/web-components/observability/ship-copy-button.ts
 var ShipCopyButton = class extends i4 {
   constructor() {
     super(...arguments);
@@ -7110,7 +7371,7 @@ if (typeof customElements !== "undefined" && !customElements.get("ship-copy-butt
   customElements.define("ship-copy-button", ShipCopyButton);
 }
 
-// node_modules/.pnpm/lit-html@3.3.2/node_modules/lit-html/directive.js
+// ../../../node_modules/.pnpm/lit-html@3.3.2/node_modules/lit-html/directive.js
 var t3 = { ATTRIBUTE: 1, CHILD: 2, PROPERTY: 3, BOOLEAN_ATTRIBUTE: 4, EVENT: 5, ELEMENT: 6 };
 var e4 = (t4) => (...e6) => ({ _$litDirective$: t4, values: e6 });
 var i5 = class {
@@ -7130,7 +7391,7 @@ var i5 = class {
   }
 };
 
-// node_modules/.pnpm/lit-html@3.3.2/node_modules/lit-html/directives/unsafe-html.js
+// ../../../node_modules/.pnpm/lit-html@3.3.2/node_modules/lit-html/directives/unsafe-html.js
 var e5 = class extends i5 {
   constructor(i6) {
     if (super(i6), this.it = A, i6.type !== t3.CHILD) throw Error(this.constructor.directiveName + "() can only be used in child bindings");
@@ -7148,7 +7409,7 @@ var e5 = class extends i5 {
 e5.directiveName = "unsafeHTML", e5.resultType = 1;
 var o5 = e4(e5);
 
-// packages/ui/src/web-components/observability/ship-markdown.ts
+// ../../../packages/ui/src/web-components/observability/ship-markdown.ts
 function escape(s4) {
   return s4.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;").replace(/"/g, "&quot;");
 }
@@ -7285,7 +7546,7 @@ if (typeof customElements !== "undefined" && !customElements.get("ship-markdown"
   customElements.define("ship-markdown", ShipMarkdown);
 }
 
-// packages/ui/src/web-components/observability/ship-table.styles.ts
+// ../../../packages/ui/src/web-components/observability/ship-table.styles.ts
 var shipTableStyles = [
   reducedMotion,
   i`
@@ -7527,7 +7788,7 @@ var shipTableLightDomCss = `
   }
 `;
 
-// packages/ui/src/web-components/observability/ship-table.ts
+// ../../../packages/ui/src/web-components/observability/ship-table.ts
 var lightDomInstalled = /* @__PURE__ */ new WeakSet();
 function installLightDomStyles(doc) {
   if (lightDomInstalled.has(doc)) return;
@@ -7706,7 +7967,7 @@ if (typeof customElements !== "undefined" && !customElements.get("ship-table")) 
   customElements.define("ship-table", ShipTable);
 }
 
-// packages/ui/src/web-components/observability/ship-timeline.ts
+// ../../../packages/ui/src/web-components/observability/ship-timeline.ts
 var ShipTimeline = class extends i4 {
   connectedCallback() {
     super.connectedCallback();
@@ -7842,7 +8103,7 @@ if (typeof customElements !== "undefined") {
   if (!customElements.get("ship-timeline-item")) customElements.define("ship-timeline-item", ShipTimelineItem);
 }
 
-// packages/ui/src/web-components/observability/ship-tree-view.ts
+// ../../../packages/ui/src/web-components/observability/ship-tree-view.ts
 var ShipTreeView = class extends i4 {
   connectedCallback() {
     super.connectedCallback();
@@ -7973,7 +8234,7 @@ if (typeof customElements !== "undefined") {
   if (!customElements.get("ship-tree-node")) customElements.define("ship-tree-node", ShipTreeNode);
 }
 
-// packages/ui/src/web-components/charts/util.ts
+// ../../../packages/ui/src/web-components/charts/util.ts
 var TONE_VARS = {
   default: "var(--foreground)",
   primary: "var(--primary)",
@@ -8030,7 +8291,7 @@ function arcPath(cx, cy, r4, startAngle, endAngle) {
   return `M${x1.toFixed(2)},${y1.toFixed(2)} A${r4},${r4} 0 ${large} ${sweep} ${x2.toFixed(2)},${y22.toFixed(2)}`;
 }
 
-// packages/ui/src/web-components/charts/ship-sparkline.ts
+// ../../../packages/ui/src/web-components/charts/ship-sparkline.ts
 var ShipSparkline = class extends i4 {
   constructor() {
     super(...arguments);
@@ -8096,7 +8357,7 @@ if (typeof customElements !== "undefined" && !customElements.get("ship-sparkline
   customElements.define("ship-sparkline", ShipSparkline);
 }
 
-// packages/ui/src/web-components/charts/ship-bar-chart.ts
+// ../../../packages/ui/src/web-components/charts/ship-bar-chart.ts
 var ShipBarChart = class extends i4 {
   constructor() {
     super(...arguments);
@@ -8180,7 +8441,7 @@ if (typeof customElements !== "undefined" && !customElements.get("ship-bar-chart
   customElements.define("ship-bar-chart", ShipBarChart);
 }
 
-// packages/ui/src/web-components/charts/ship-line-chart.ts
+// ../../../packages/ui/src/web-components/charts/ship-line-chart.ts
 var ShipLineChart = class extends i4 {
   constructor() {
     super(...arguments);
@@ -8261,7 +8522,7 @@ if (typeof customElements !== "undefined" && !customElements.get("ship-line-char
   customElements.define("ship-line-chart", ShipLineChart);
 }
 
-// packages/ui/src/web-components/charts/ship-area-chart.ts
+// ../../../packages/ui/src/web-components/charts/ship-area-chart.ts
 var ShipAreaChart = class extends i4 {
   constructor() {
     super(...arguments);
@@ -8343,7 +8604,7 @@ if (typeof customElements !== "undefined" && !customElements.get("ship-area-char
   customElements.define("ship-area-chart", ShipAreaChart);
 }
 
-// packages/ui/src/web-components/charts/ship-donut.ts
+// ../../../packages/ui/src/web-components/charts/ship-donut.ts
 var ShipDonut = class extends i4 {
   constructor() {
     super(...arguments);
@@ -8422,7 +8683,7 @@ if (typeof customElements !== "undefined" && !customElements.get("ship-donut")) 
   customElements.define("ship-donut", ShipDonut);
 }
 
-// packages/ui/src/web-components/charts/ship-gauge.ts
+// ../../../packages/ui/src/web-components/charts/ship-gauge.ts
 var ShipGauge = class extends i4 {
   constructor() {
     super(...arguments);
@@ -8505,7 +8766,7 @@ if (typeof customElements !== "undefined" && !customElements.get("ship-gauge")) 
   customElements.define("ship-gauge", ShipGauge);
 }
 
-// packages/ui/src/web-components/charts/ship-progress-ring.ts
+// ../../../packages/ui/src/web-components/charts/ship-progress-ring.ts
 var ShipProgressRing = class extends i4 {
   constructor() {
     super(...arguments);
@@ -8575,7 +8836,7 @@ if (typeof customElements !== "undefined" && !customElements.get("ship-progress-
   customElements.define("ship-progress-ring", ShipProgressRing);
 }
 
-// packages/ui/src/web-components/charts/ship-heatmap.ts
+// ../../../packages/ui/src/web-components/charts/ship-heatmap.ts
 var TONE_CSS_VAR = {
   default: "--foreground",
   primary: "--primary",
@@ -8660,7 +8921,7 @@ if (typeof customElements !== "undefined" && !customElements.get("ship-heatmap")
   customElements.define("ship-heatmap", ShipHeatmap);
 }
 
-// packages/ui/src/web-components/charts/ship-meter.ts
+// ../../../packages/ui/src/web-components/charts/ship-meter.ts
 var ShipMeter = class extends i4 {
   constructor() {
     super(...arguments);
@@ -8732,7 +8993,7 @@ if (typeof customElements !== "undefined" && !customElements.get("ship-meter")) 
   customElements.define("ship-meter", ShipMeter);
 }
 
-// packages/ui/src/web-components/utility/ship-avatar.ts
+// ../../../packages/ui/src/web-components/utility/ship-avatar.ts
 function initialsFromName(name) {
   const parts = name.trim().split(/\s+/).filter(Boolean);
   if (parts.length === 0) return "";
@@ -8800,7 +9061,7 @@ if (typeof customElements !== "undefined" && !customElements.get("ship-avatar"))
   customElements.define("ship-avatar", ShipAvatar);
 }
 
-// packages/ui/src/web-components/utility/ship-chip.styles.ts
+// ../../../packages/ui/src/web-components/utility/ship-chip.styles.ts
 var shipChipStyles = [
   reducedMotion,
   i`
@@ -9071,7 +9332,7 @@ var shipChipStyles = [
   `
 ];
 
-// packages/ui/src/web-components/utility/ship-chip.ts
+// ../../../packages/ui/src/web-components/utility/ship-chip.ts
 var ShipChip = class extends i4 {
   constructor() {
     super();
@@ -9173,7 +9434,7 @@ if (typeof customElements !== "undefined" && !customElements.get("ship-chip")) {
   customElements.define("ship-chip", ShipChip);
 }
 
-// packages/ui/src/web-components/utility/ship-kbd.ts
+// ../../../packages/ui/src/web-components/utility/ship-kbd.ts
 var ShipKbd = class extends i4 {
   constructor() {
     super(...arguments);
@@ -9216,7 +9477,7 @@ if (typeof customElements !== "undefined" && !customElements.get("ship-kbd")) {
   customElements.define("ship-kbd", ShipKbd);
 }
 
-// packages/ui/src/web-components/utility/ship-skeleton.ts
+// ../../../packages/ui/src/web-components/utility/ship-skeleton.ts
 var ShipSkeleton = class extends i4 {
   constructor() {
     super(...arguments);
@@ -9281,131 +9542,663 @@ if (typeof customElements !== "undefined" && !customElements.get("ship-skeleton"
   customElements.define("ship-skeleton", ShipSkeleton);
 }
 
-// packages/ui/src/web-components/utility/ship-toast.ts
+// ../../../packages/ui/src/web-components/utility/ship-toast-container.styles.ts
+var shipToastContainerStyles = i`
+  :host {
+    position: fixed;
+    z-index: var(--z-toast);
+    display: flex;
+    flex-direction: column;
+    gap: var(--space-2);
+    pointer-events: none;
+    max-width: min(440px, calc(100vw - 32px));
+    /* Nudge inwards from the viewport edge uniformly; per-position blocks
+     * below override which sides are anchored. */
+    --toast-edge: 16px;
+    padding: 0;
+    margin: 0;
+    box-sizing: border-box;
+  }
+  :host([hidden]) { display: none; }
+
+  /* Default (unset) matches the legacy ship-toast-container contract:
+   * top-right. Newly-appended toasts land at the bottom of the stack. */
+  :host(:not([position])),
+  :host([position='top-right']) {
+    top: var(--toast-edge);
+    right: var(--toast-edge);
+    bottom: auto;
+    left: auto;
+    flex-direction: column;
+    align-items: flex-end;
+  }
+  :host([position='bottom-right']) {
+    bottom: var(--toast-edge);
+    right: var(--toast-edge);
+    top: auto;
+    left: auto;
+    flex-direction: column-reverse;
+    align-items: flex-end;
+  }
+  :host([position='bottom-left']) {
+    bottom: var(--toast-edge);
+    left: var(--toast-edge);
+    top: auto;
+    right: auto;
+    flex-direction: column-reverse;
+    align-items: flex-start;
+  }
+  :host([position='bottom-center']) {
+    bottom: var(--toast-edge);
+    left: 50%;
+    transform: translateX(-50%);
+    top: auto;
+    right: auto;
+    flex-direction: column-reverse;
+    align-items: center;
+  }
+  :host([position='top-left']) {
+    top: var(--toast-edge);
+    left: var(--toast-edge);
+    bottom: auto;
+    right: auto;
+    flex-direction: column;
+    align-items: flex-start;
+  }
+  :host([position='top-center']) {
+    top: var(--toast-edge);
+    left: 50%;
+    transform: translateX(-50%);
+    bottom: auto;
+    right: auto;
+    flex-direction: column;
+    align-items: center;
+  }
+
+  /* Every child toast manages its own pointer-events, but allow pointer
+   * interactions on slotted content so hover-to-pause works across the
+   * shadow boundary. */
+  ::slotted(ship-toast) {
+    pointer-events: auto;
+    width: auto;
+  }
+`;
+
+// ../../../packages/ui/src/web-components/utility/ship-toast-container.ts
+var SLIDE_FROM = {
+  "top-left": "top",
+  "top-center": "top",
+  "top-right": "top",
+  "bottom-left": "bottom",
+  "bottom-center": "bottom",
+  "bottom-right": "bottom"
+};
 var ShipToastContainer = class extends i4 {
   constructor() {
     super(...arguments);
     this.position = "top-right";
+    this.maxVisible = 5;
+    /** Propagate slide-direction hints to every child so animations are
+     *  position-aware, and enforce max-visible. */
+    this._onSlotChange = (e6) => {
+      const slot = e6.target;
+      const dir = SLIDE_FROM[this.position] ?? "bottom";
+      const children = slot.assignedElements({ flatten: true }).filter((n4) => n4.tagName?.toLowerCase() === "ship-toast");
+      for (const t4 of children) {
+        t4.setAttribute("data-slide-from", dir);
+      }
+      this._enforceMaxVisible(children);
+    };
   }
   connectedCallback() {
     super.connectedCallback();
     if (!this.hasAttribute("role")) this.setAttribute("role", "region");
-    if (!this.hasAttribute("aria-label")) this.setAttribute("aria-label", "Notifications");
+    if (!this.hasAttribute("aria-label"))
+      this.setAttribute("aria-label", "Notifications");
+    if (!this.hasAttribute("aria-live")) this.setAttribute("aria-live", "polite");
+  }
+  _enforceMaxVisible(children) {
+    if (this.maxVisible <= 0 || children.length <= this.maxVisible) return;
+    const overflow = children.length - this.maxVisible;
+    for (let i6 = 0; i6 < overflow; i6++) {
+      const victim = children[i6];
+      if (typeof victim.close === "function") victim.close("programmatic");
+      else victim.dismiss?.("programmatic");
+    }
+  }
+  updated(changed) {
+    if (changed.has("position")) {
+      const dir = SLIDE_FROM[this.position] ?? "bottom";
+      for (const child of this.querySelectorAll("ship-toast")) {
+        child.setAttribute("data-slide-from", dir);
+      }
+    }
+  }
+  /**
+   * Programmatic toast API. Creates a <ship-toast>, populates slots from
+   * the options, appends to the container, and returns the element so
+   * call-sites can `await toast.close()` or subscribe to ship-dismiss.
+   *
+   * Matches the sonner/shadcn ergonomics while staying framework-free so
+   * daemon-rendered views can call it from Datastar-emitted inline scripts.
+   */
+  show(opts = {}) {
+    const doc = this.ownerDocument ?? document;
+    const t4 = doc.createElement("ship-toast");
+    if (opts.tone) t4.setAttribute("tone", opts.tone);
+    if (opts.size) t4.setAttribute("size", opts.size);
+    if (typeof opts.duration === "number") t4.duration = opts.duration;
+    t4.dismissible = opts.dismissible !== false;
+    if (opts.dismissible === false) t4.removeAttribute("dismissible");
+    else t4.setAttribute("dismissible", "");
+    if (opts.showProgress) t4.setAttribute("show-progress", "");
+    if (opts.title) {
+      const title = doc.createElement("span");
+      title.setAttribute("slot", "title");
+      title.textContent = opts.title;
+      t4.appendChild(title);
+    }
+    if (opts.description) {
+      t4.appendChild(doc.createTextNode(opts.description));
+    }
+    if (opts.actionHtml) {
+      const wrap = doc.createElement("span");
+      wrap.setAttribute("slot", "actions");
+      wrap.innerHTML = opts.actionHtml;
+      t4.appendChild(wrap);
+    }
+    this.appendChild(t4);
+    return t4;
   }
   render() {
-    return b2`<slot></slot>`;
+    return b2`<slot @slotchange=${this._onSlotChange}></slot>`;
   }
 };
-ShipToastContainer.styles = i`
+ShipToastContainer.styles = shipToastContainerStyles;
+ShipToastContainer.properties = {
+  position: { type: String, reflect: true },
+  maxVisible: { type: Number, reflect: true, attribute: "max-visible" }
+};
+if (typeof customElements !== "undefined" && !customElements.get("ship-toast-container")) {
+  customElements.define("ship-toast-container", ShipToastContainer);
+}
+
+// ../../../packages/ui/src/web-components/utility/ship-toast.styles.ts
+var shipToastStyles = [
+  reducedMotion,
+  toneVars,
+  i`
     :host {
-      position: fixed;
-      top: 16px; right: 16px;
-      display: flex; flex-direction: column; gap: 8px;
-      z-index: var(--z-toast);
-      pointer-events: none;
-      max-width: min(420px, calc(100vw - 32px));
+      display: block;
+      /* Size channel defaults (= md). Overridden per :host([size=…]) below. */
+      --toast-px: 14px;
+      --toast-py: 12px;
+      --toast-fs: var(--text-base);
+      --toast-title-fs: var(--text-base);
+      --toast-gap: 10px;
+      --toast-min-w: 280px;
+      --toast-max-w: 420px;
+      /* Default slide direction (right edge). Container sets
+       * data-slide-from so positions on the left/top slide in from the
+       * correct edge. */
+      --toast-slide-x: 16px;
+      --toast-slide-y: 0;
+      pointer-events: auto;
+      will-change: transform, opacity, max-height, margin;
     }
-    :host([position='bottom-right']) { top: auto; bottom: 16px; right: 16px; flex-direction: column-reverse; }
-    :host([position='bottom-left']) { top: auto; bottom: 16px; left: 16px; right: auto; flex-direction: column-reverse; }
-    :host([position='top-left']) { left: 16px; right: auto; }
-    ::slotted(ship-toast) { pointer-events: auto; }
-  `;
-ShipToastContainer.properties = { position: { type: String, reflect: true } };
+    :host([hidden]) { display: none; }
+
+    :host([size='sm']) {
+      --toast-px: 12px;
+      --toast-py: 10px;
+      --toast-fs: var(--text-sm);
+      --toast-title-fs: var(--text-sm);
+      --toast-gap: 8px;
+      --toast-min-w: 240px;
+      --toast-max-w: 360px;
+    }
+    :host([size='lg']) {
+      --toast-px: 16px;
+      --toast-py: 14px;
+      --toast-fs: var(--text-md);
+      --toast-title-fs: var(--text-md);
+      --toast-gap: 12px;
+      --toast-min-w: 320px;
+      --toast-max-w: 460px;
+    }
+
+    /* Container tells us which edge to slide from via data-slide-from.
+     * Matches the six container positions with a small set of transforms. */
+    :host([data-slide-from='right'])  { --toast-slide-x: 16px;  --toast-slide-y: 0; }
+    :host([data-slide-from='left'])   { --toast-slide-x: -16px; --toast-slide-y: 0; }
+    :host([data-slide-from='top'])    { --toast-slide-x: 0;     --toast-slide-y: -12px; }
+    :host([data-slide-from='bottom']) { --toast-slide-x: 0;     --toast-slide-y: 12px; }
+
+    /* Entrance animation — runs once on mount. Uses the slide channel so
+     * position-aware direction comes for free. */
+    @keyframes ship-toast-in {
+      from {
+        opacity: 0;
+        transform: translate3d(var(--toast-slide-x), var(--toast-slide-y), 0)
+          scale(0.98);
+      }
+      to {
+        opacity: 1;
+        transform: translate3d(0, 0, 0) scale(1);
+      }
+    }
+
+    .toast {
+      display: grid;
+      grid-template-columns: auto 1fr auto;
+      column-gap: var(--toast-gap);
+      row-gap: 4px;
+      align-items: start;
+      padding: var(--toast-py) var(--toast-px);
+      padding-right: calc(var(--toast-px) + 24px);
+      min-width: var(--toast-min-w);
+      max-width: var(--toast-max-w);
+      border-radius: var(--radius-md);
+      border: 1px solid var(--tone-border);
+      background: var(--card);
+      color: var(--card-foreground);
+      box-shadow:
+        0 0 0 1px color-mix(in oklch, black 3%, transparent),
+        var(--shadow-md);
+      font-family: var(--font-body);
+      font-size: var(--toast-fs);
+      line-height: var(--leading-normal);
+      position: relative;
+      overflow: hidden;
+      isolation: isolate;
+      animation: ship-toast-in var(--duration-medium) var(--ease-out) both;
+    }
+
+    /* Default (no tone) keeps the neutral card surface but drops a subtle
+     * 2px accent rail on the leading edge so the toast reads as a card,
+     * not a sticky note. */
+    :host(:not([tone])) .toast,
+    :host([tone='default']) .toast {
+      border-color: color-mix(in oklch, var(--border) 160%, transparent);
+    }
+
+    /* Tone-tinted variants — blend the tone wash with the card surface so
+     * text keeps its contrast. The rail (::before) renders the tone at full
+     * saturation for a crisp visual anchor. One combined selector covers
+     * every semantic tone; the muted/default tones keep the neutral card. */
+    :host([tone='info']) .toast, :host([tone='success']) .toast,
+    :host([tone='warning']) .toast, :host([tone='destructive']) .toast,
+    :host([tone='accent']) .toast {
+      background: color-mix(in oklch, var(--tone-bg) 70%, var(--card));
+      border-color: var(--tone-border);
+    }
+
+    /* Leading accent rail — 3px tinted stripe. Renders as ::before so the
+     * rail follows the border-radius automatically. */
+    .toast::before {
+      content: '';
+      position: absolute;
+      inset-inline-start: 0;
+      top: 0; bottom: 0;
+      width: 3px;
+      background: var(--tone-fg);
+      opacity: 0;
+      transition: opacity var(--duration-fast) var(--ease-out);
+    }
+    :host([tone='info']) .toast::before, :host([tone='success']) .toast::before,
+    :host([tone='warning']) .toast::before, :host([tone='destructive']) .toast::before,
+    :host([tone='accent']) .toast::before { opacity: 1; }
+
+    /* Icon slot — sits top-left, sized to harmonize with the title line. */
+    .icon {
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      width: 18px;
+      height: 18px;
+      flex: 0 0 auto;
+      color: var(--tone-fg);
+      margin-top: 1px;
+    }
+    :host(:not([tone])) .icon,
+    :host([tone='default']) .icon { color: var(--muted-foreground); }
+    .icon svg { width: 18px; height: 18px; display: block; }
+    :host([size='sm']) .icon,
+    :host([size='sm']) .icon svg { width: 16px; height: 16px; }
+    :host([size='lg']) .icon,
+    :host([size='lg']) .icon svg { width: 20px; height: 20px; }
+
+    /* When the consumer doesn't slot an icon and we have no tone icon to
+     * auto-fill (tone=default without data-has-icon), collapse the column
+     * so the content flows to the leading edge. */
+    :host([data-no-icon]) .toast {
+      grid-template-columns: 1fr auto;
+    }
+    :host([data-no-icon]) .icon { display: none; }
+
+    .content {
+      display: flex;
+      flex-direction: column;
+      gap: 2px;
+      min-width: 0;
+      color: var(--card-foreground);
+    }
+    .title {
+      font-weight: var(--font-weight-semibold);
+      font-size: var(--toast-title-fs);
+      letter-spacing: -0.005em;
+      line-height: var(--leading-tight);
+      color: var(--foreground);
+    }
+    .body {
+      font-size: var(--toast-fs);
+      color: var(--muted-foreground);
+      line-height: var(--leading-normal);
+      word-break: break-word;
+    }
+    /* When there's no title the body promotes to the stronger color so a
+     * single-line toast still reads as the primary message. */
+    :host([data-no-title]) .body { color: var(--card-foreground); }
+    :host([data-no-title]) .title { display: none; }
+
+    .actions {
+      display: flex;
+      gap: var(--space-2);
+      margin-top: 6px;
+      grid-column: 2;
+    }
+    :host([data-no-actions]) .actions { display: none; margin-top: 0; }
+
+    /* Close button — top-right, ghost affordance that picks up tone on
+     * hover. Matches the ship-dialog close in size and motion. */
+    .close {
+      position: absolute;
+      top: 8px;
+      inset-inline-end: 8px;
+      width: 22px;
+      height: 22px;
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      background: transparent;
+      border: 1px solid transparent;
+      border-radius: var(--radius-sm);
+      color: var(--muted-foreground);
+      cursor: pointer;
+      padding: 0;
+      font: inherit;
+      z-index: 1;
+      transition:
+        background-color var(--duration-fast) var(--ease-out),
+        color var(--duration-fast) var(--ease-out),
+        transform var(--duration-fast) var(--ease-out);
+    }
+    .close:hover {
+      background: color-mix(in oklch, var(--foreground) 8%, transparent);
+      color: var(--foreground);
+    }
+    .close:active { transform: scale(0.94); }
+    .close:focus-visible {
+      outline: none;
+      box-shadow:
+        0 0 0 var(--ring-offset) var(--card),
+        0 0 0 calc(var(--ring-offset) + var(--ring-width))
+          color-mix(in oklch, var(--ring-color) var(--ring-opacity), transparent);
+    }
+    .close svg { width: 12px; height: 12px; display: block; }
+    :host(:not([dismissible])) .close { display: none; }
+
+    /* Progress bar — 2px strip at the bottom that counts down from full to
+     * empty over the configured duration. Opt-in via [show-progress].
+     * Paused on host hover (CSS) and host-level data-paused (JS driven). */
+    .progress {
+      position: absolute;
+      left: 0;
+      right: 0;
+      bottom: 0;
+      height: 2px;
+      background: var(--tone-fg);
+      transform: scaleX(1);
+      transform-origin: left center;
+      animation: ship-toast-progress var(--toast-duration, 5000ms) linear forwards;
+    }
+    :host(:not([tone])) .progress,
+    :host([tone='default']) .progress { background: var(--muted-foreground); }
+    :host(:hover) .progress,
+    :host([data-paused]) .progress { animation-play-state: paused; }
+    @keyframes ship-toast-progress {
+      from { transform: scaleX(1); }
+      to   { transform: scaleX(0); }
+    }
+    :host(:not([show-progress])) .progress { display: none; }
+
+    /* Closing state — opt-in exit animation. Consumers invoke .close() to
+     * fade + collapse the toast before final removal. The sync dismiss()
+     * path skips this so existing unit tests keep their synchronous
+     * isConnected === false expectation. */
+    :host([data-closing]) {
+      animation: ship-toast-out var(--duration-medium) var(--ease-in) forwards;
+    }
+    @keyframes ship-toast-out {
+      to {
+        opacity: 0;
+        transform: translate3d(var(--toast-slide-x), var(--toast-slide-y), 0)
+          scale(0.96);
+      }
+    }
+
+    /* Forced-colors — restore a visible edge when color-mix is flattened. */
+    @media (forced-colors: active) {
+      .toast { border: 1px solid CanvasText; }
+      .close:focus-visible { outline: 2px solid CanvasText; outline-offset: 2px; }
+    }
+  `
+];
+
+// ../../../packages/ui/src/web-components/utility/ship-toast.ts
+var TONE_ICON = {
+  info: '<circle cx="12" cy="12" r="9"/><path d="M12 8h.01"/><path d="M11 12h1v4h1"/>',
+  success: '<circle cx="12" cy="12" r="9"/><path d="m8.5 12.5 2.5 2.5 4.5-5"/>',
+  warning: '<path d="M10.29 3.86 1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0Z"/><line x1="12" x2="12" y1="9" y2="13"/><line x1="12" x2="12.01" y1="17" y2="17"/>',
+  destructive: '<circle cx="12" cy="12" r="9"/><line x1="15" x2="9" y1="9" y2="15"/><line x1="9" x2="15" y1="9" y2="15"/>',
+  accent: '<path d="M12 2 3 14h7l-1 8 10-12h-7l1-8Z"/>'
+};
 var ShipToast = class extends i4 {
   constructor() {
     super(...arguments);
-    this.tone = "info";
+    this.size = "md";
     this.duration = 5e3;
     this.dismissible = true;
+    this.showProgress = false;
     this._timer = null;
+    this._remaining = 0;
+    this._startedAt = 0;
+    this._removed = false;
+    this._onPause = () => {
+      if (!this._timer) return;
+      const elapsed = Date.now() - this._startedAt;
+      this._remaining = Math.max(0, this._remaining - elapsed);
+      this._clearTimer();
+      this.toggleAttribute("data-paused", true);
+    };
+    this._onResume = () => {
+      if (this._removed || this.duration <= 0) return;
+      if (this._remaining <= 0) return;
+      this.toggleAttribute("data-paused", false);
+      this._startedAt = Date.now();
+      this._timer = setTimeout(() => this.dismiss("timeout"), this._remaining);
+    };
+    this._onKeydown = (e6) => {
+      if (e6.key === "Escape" && this.dismissible) {
+        e6.stopPropagation();
+        this.dismiss("manual");
+      }
+    };
+    this._onCloseClick = () => this.dismiss("manual");
+    this._handleSlotChange = (e6) => {
+      const slot = e6.target;
+      const name = slot.name || "default";
+      const filled = slot.assignedNodes({ flatten: true }).some((n4) => {
+        if (n4.nodeType === Node.ELEMENT_NODE) return true;
+        return n4.textContent?.trim().length ?? 0 > 0;
+      });
+      if (name === "icon") this.toggleAttribute("data-has-slotted-icon", filled);
+      if (name === "title") this.toggleAttribute("data-no-title", !filled);
+      if (name === "actions") this.toggleAttribute("data-no-actions", !filled);
+    };
   }
   connectedCallback() {
     super.connectedCallback();
-    if (this.duration > 0) {
-      this._timer = setTimeout(() => this.dismiss(), this.duration);
-    }
+    if (!this.hasAttribute("tabindex")) this.tabIndex = 0;
+    this._scheduleDismiss();
+    this.addEventListener("mouseenter", this._onPause);
+    this.addEventListener("mouseleave", this._onResume);
+    this.addEventListener("focusin", this._onPause);
+    this.addEventListener("focusout", this._onResume);
+    this.addEventListener("keydown", this._onKeydown);
   }
   disconnectedCallback() {
     super.disconnectedCallback();
-    if (this._timer) clearTimeout(this._timer);
+    this._clearTimer();
+    this.removeEventListener("mouseenter", this._onPause);
+    this.removeEventListener("mouseleave", this._onResume);
+    this.removeEventListener("focusin", this._onPause);
+    this.removeEventListener("focusout", this._onResume);
+    this.removeEventListener("keydown", this._onKeydown);
   }
-  dismiss() {
+  _scheduleDismiss() {
+    this._clearTimer();
+    if (this.duration > 0) {
+      this._remaining = this.duration;
+      this._startedAt = Date.now();
+      this._timer = setTimeout(() => this.dismiss("timeout"), this.duration);
+      this.style.setProperty("--toast-duration", `${this.duration}ms`);
+    }
+  }
+  _clearTimer() {
+    if (this._timer) {
+      clearTimeout(this._timer);
+      this._timer = null;
+    }
+  }
+  /**
+   * Synchronously fire `ship-dismiss` and detach the host. Used by the
+   * close button and auto-timeout. Matches the contract tested in
+   * ship-toast.test.ts (isConnected → false immediately after click).
+   */
+  dismiss(reason = "manual") {
+    if (this._removed) return;
+    this._removed = true;
+    this._clearTimer();
     this.dispatchEvent(new CustomEvent("ship-dismiss", {
+      detail: { reason },
       bubbles: true,
       composed: true
     }));
     this.remove();
   }
+  /**
+   * Animated dismissal — plays the exit keyframe, then removes. Useful for
+   * galleries and long-lived notifications where the extra 180ms feels
+   * more considered than a pop-out. Falls back to sync dismiss when
+   * prefers-reduced-motion is set.
+   */
+  async close(reason = "manual") {
+    if (this._removed) return;
+    const prefersReduce = typeof window !== "undefined" && window.matchMedia?.("(prefers-reduced-motion: reduce)").matches;
+    if (prefersReduce) {
+      this.dismiss(reason);
+      return;
+    }
+    this._clearTimer();
+    this.toggleAttribute("data-closing", true);
+    await new Promise((resolve) => {
+      const onEnd = () => {
+        this.removeEventListener("animationend", onEnd);
+        resolve();
+      };
+      this.addEventListener("animationend", onEnd);
+      setTimeout(() => resolve(), 260);
+    });
+    this.dismiss(reason);
+  }
+  _iconMarkup() {
+    const key = this.tone ?? "default";
+    const svg2 = TONE_ICON[key];
+    if (!svg2) return b2`<slot name="icon"></slot>`;
+    return b2`
+      <slot name="icon" @slotchange=${this._handleSlotChange}>
+        <svg
+          viewBox="0 0 24 24"
+          fill="none"
+          stroke="currentColor"
+          stroke-width="2"
+          stroke-linecap="round"
+          stroke-linejoin="round"
+          aria-hidden="true"
+          .innerHTML=${svg2}
+        ></svg>
+      </slot>
+    `;
+  }
   render() {
     const assertive = this.tone === "destructive" || this.tone === "warning";
     const role = assertive ? "alert" : "status";
     const live = assertive ? "assertive" : "polite";
+    const hasAutoIcon = !!this.tone && this.tone !== "default" && this.tone !== "muted";
+    this.toggleAttribute("data-no-icon", !hasAutoIcon && !this.hasAttribute("data-has-slotted-icon"));
     return b2`
       <div class="toast" role=${role} aria-live=${live} aria-atomic="true" part="toast">
-        <span><slot name="icon"></slot></span>
+        <span class="icon">${this._iconMarkup()}</span>
         <div class="content">
-          <div class="title"><slot name="title"></slot></div>
-          <div><slot></slot></div>
-          <div><slot name="actions"></slot></div>
+          <div class="title">
+            <slot name="title" @slotchange=${this._handleSlotChange}></slot>
+          </div>
+          <div class="body"><slot></slot></div>
+          <div class="actions">
+            <slot name="actions" @slotchange=${this._handleSlotChange}></slot>
+          </div>
         </div>
-        ${this.dismissible ? b2`<button class="close" aria-label="Dismiss" @click=${this.dismiss}>×</button>` : b2`<span></span>`}
+        ${this.dismissible ? b2`
+              <button
+                class="close"
+                part="close"
+                type="button"
+                aria-label="Dismiss notification"
+                @click=${this._onCloseClick}
+              >
+                <svg
+                  viewBox="0 0 24 24"
+                  fill="none"
+                  stroke="currentColor"
+                  stroke-width="2"
+                  stroke-linecap="round"
+                  stroke-linejoin="round"
+                  aria-hidden="true"
+                >
+                  <line x1="18" y1="6" x2="6" y2="18"></line>
+                  <line x1="6" y1="6" x2="18" y2="18"></line>
+                </svg>
+              </button>
+            ` : null}
+        ${this.showProgress && this.duration > 0 ? b2`<span class="progress" aria-hidden="true"></span>` : null}
       </div>
     `;
   }
 };
-ShipToast.styles = [
-  toneVars,
-  i`
-      :host {
-        display: block;
-        animation: slide-in var(--duration-medium) var(--ease-out);
-      }
-      .toast {
-        display: grid;
-        grid-template-columns: auto 1fr auto;
-        gap: 10px;
-        align-items: start;
-        padding: 12px 14px;
-        border-radius: var(--radius);
-        border: 1px solid var(--tone-border);
-        background: var(--tone-bg);
-        color: var(--tone-fg);
-        box-shadow: var(--shadow-md);
-        font-family: var(--font-body);
-        font-size: var(--text-base);
-        line-height: var(--leading-normal);
-      }
-      .content { display: flex; flex-direction: column; gap: 4px; min-width: 0; color: var(--foreground); }
-      .title { font-weight: var(--font-weight-semibold); color: var(--tone-fg); }
-      .close {
-        background: transparent; border: 0; color: inherit;
-        cursor: pointer; font-size: 14px; padding: 2px 6px;
-        border-radius: var(--radius-sm);
-      }
-      .close:hover { background: color-mix(in oklch, var(--tone-fg) 14%, transparent); }
-      .close:focus-visible {
-        outline: var(--ring-width) solid var(--ring-color);
-        outline-offset: var(--ring-offset);
-      }
-      @keyframes slide-in {
-        from { opacity: 0; transform: translateY(-8px); }
-        to   { opacity: 1; transform: translateY(0); }
-      }
-    `
-];
+ShipToast.styles = shipToastStyles;
 ShipToast.properties = {
   tone: { type: String, reflect: true },
+  size: { type: String, reflect: true },
   duration: { type: Number },
-  dismissible: { type: Boolean, reflect: true }
+  dismissible: { type: Boolean, reflect: true },
+  showProgress: { type: Boolean, reflect: true, attribute: "show-progress" }
 };
-if (typeof customElements !== "undefined") {
-  if (!customElements.get("ship-toast-container"))
-    customElements.define("ship-toast-container", ShipToastContainer);
-  if (!customElements.get("ship-toast"))
-    customElements.define("ship-toast", ShipToast);
+if (typeof customElements !== "undefined" && !customElements.get("ship-toast")) {
+  customElements.define("ship-toast", ShipToast);
 }
 
-// packages/ui/src/web-components/utility/ship-breadcrumb.ts
+// ../../../packages/ui/src/web-components/utility/ship-breadcrumb.ts
 var ShipBreadcrumbItem = class extends i4 {
   constructor() {
     super(...arguments);
@@ -9497,7 +10290,7 @@ if (typeof customElements !== "undefined") {
     customElements.define("ship-breadcrumb", ShipBreadcrumb);
 }
 
-// packages/ui/src/web-components/utility/ship-link.ts
+// ../../../packages/ui/src/web-components/utility/ship-link.ts
 var ShipLink = class extends i4 {
   constructor() {
     super(...arguments);
@@ -9561,7 +10354,7 @@ if (typeof customElements !== "undefined" && !customElements.get("ship-link")) {
   customElements.define("ship-link", ShipLink);
 }
 
-// packages/ui/src/web-components/utility/ship-metachip.ts
+// ../../../packages/ui/src/web-components/utility/ship-metachip.ts
 var ShipMetachip = class extends i4 {
   constructor() {
     super(...arguments);
@@ -9609,7 +10402,7 @@ if (typeof customElements !== "undefined" && !customElements.get("ship-metachip"
   customElements.define("ship-metachip", ShipMetachip);
 }
 
-// packages/ui/src/web-components/utility/ship-step-segments.ts
+// ../../../packages/ui/src/web-components/utility/ship-step-segments.ts
 var KNOWN = /* @__PURE__ */ new Set(["done", "failed", "pending", "running"]);
 var ShipStepSegments = class extends i4 {
   constructor() {
@@ -9662,7 +10455,7 @@ if (typeof customElements !== "undefined" && !customElements.get("ship-step-segm
   customElements.define("ship-step-segments", ShipStepSegments);
 }
 
-// packages/ui/src/web-components/index.ts
+// ../../../packages/ui/src/web-components/index.ts
 function registerShipComponents() {
 }
 export {
