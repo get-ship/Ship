@@ -1,72 +1,66 @@
 /**
  * <ship-badge>
  *
- * Small pill for status / category. Replaces inline `.badge.badge-*` from
- * pipelines + specs views. The tone vocabulary maps the per-view tone
- * names (dispatched/completed/failed/etc.) to semantic tones at the
- * caller — this element only knows tones.
+ * Static status label. Small, non-interactive, tone-colored. Reads as
+ * inline chrome: "New", "Beta", "3", "Active". If the pill needs to
+ * respond to clicks, selection, or removal, reach for <ship-chip>.
  *
  * Attributes:
  *   - tone: default | info | success | warning | destructive | accent | muted
  *     (default: muted)
- *   - size: sm | md (default: md)
+ *   - variant: solid | soft | outline (default: soft)
+ *   - size: sm | md | lg (default: md)
+ *   - pill: boolean — flip to fully-rounded (--radius-full). Default is
+ *     squared (--radius-sm) for visual parity with the pre-polish badge
+ *     used across tables and row metadata.
  *
  * Slots:
+ *   - leading — icon / status dot before the label. Rendered at the
+ *     size-appropriate icon dimension; tints with currentColor so
+ *     <ship-status-dot> / <ship-icon> children pick up the badge tone.
  *   - (default) label text
+ *
+ * Parts:
+ *   - badge — the outer pill element
+ *   - leading — the leading-icon slot container
  */
 
-import { LitElement, css, html } from 'lit'
-import { toneVars } from './util'
-import type { Tone } from './util'
+import { LitElement, html } from 'lit'
+import { shipBadgeStyles } from './ship-badge.styles'
+import type { Size, Tone } from './util'
+
+type BadgeVariant = 'solid' | 'soft' | 'outline'
 
 export class ShipBadge extends LitElement {
-  static styles = [
-    toneVars,
-    css`
-      :host {
-        display: inline-flex;
-        vertical-align: middle;
-      }
-      .badge {
-        display: inline-flex;
-        align-items: center;
-        gap: 4px;
-        padding: 2px 8px;
-        font-family: var(--font-body);
-        font-size: 10px;
-        font-weight: 600;
-        line-height: 1.4;
-        letter-spacing: 0.04em;
-        text-transform: uppercase;
-        border-radius: 4px;
-        background: var(--tone-bg);
-        color: var(--tone-fg);
-        border: 1px solid transparent;
-        white-space: nowrap;
-      }
-      :host([size='sm']) .badge {
-        padding: 1px 6px;
-        font-size: 9px;
-      }
-    `,
-  ]
+  static styles = shipBadgeStyles
 
   static properties = {
     tone: { type: String, reflect: true },
+    variant: { type: String, reflect: true },
     size: { type: String, reflect: true },
+    pill: { type: Boolean, reflect: true },
   }
 
   tone: Tone
-  size: 'sm' | 'md'
+  variant: BadgeVariant | null
+  size: Size
+  pill: boolean
 
   constructor() {
     super()
     this.tone = 'muted'
+    this.variant = null
     this.size = 'md'
+    this.pill = false
   }
 
   render() {
-    return html`<span class="badge" part="badge"><slot></slot></span>`
+    return html`
+      <span class="badge" part="badge">
+        <span class="leading" part="leading"><slot name="leading"></slot></span>
+        <slot></slot>
+      </span>
+    `
   }
 }
 

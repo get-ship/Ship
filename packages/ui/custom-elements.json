@@ -974,6 +974,30 @@
     },
     {
       "kind": "javascript-module",
+      "path": "src/web-components/ship-badge.styles.ts",
+      "declarations": [
+        {
+          "kind": "variable",
+          "name": "shipBadgeStyles",
+          "type": {
+            "text": "array"
+          },
+          "default": "[ reducedMotion, css` :host { display: inline-flex; vertical-align: middle; /* Tone channel — overridden per :host([tone=…]). Default reads as * muted so a bare <ship-badge> sits quietly until given meaning. */ --tone: var(--muted-foreground); --tone-fg: var(--muted-foreground); --tone-contrast: var(--background); } :host([hidden]) { display: none; } /* ------------------------------------------------------------------ * Tone channel. Contrast colors picked so solid fills stay legible * in both light and dark themes (matches ship-button's tone table). * ------------------------------------------------------------------ */ :host(:not([tone])), :host([tone='muted']) { --tone: var(--muted-foreground); --tone-fg: var(--muted-foreground); --tone-contrast: var(--background); } :host([tone='default']) { --tone: var(--foreground); --tone-fg: var(--foreground); --tone-contrast: var(--background); } :host([tone='info']) { --tone: var(--info); --tone-fg: var(--info); --tone-contrast: oklch(0.99 0.02 260); } :host([tone='success']) { --tone: var(--success); --tone-fg: var(--success); --tone-contrast: oklch(0.99 0.02 150); } :host([tone='warning']) { --tone: var(--warning); --tone-fg: var(--warning); --tone-contrast: oklch(0.2 0.04 75); } :host([tone='destructive']) { --tone: var(--destructive); --tone-fg: var(--destructive); --tone-contrast: oklch(0.99 0.02 25); } :host([tone='accent']) { --tone: var(--accent); --tone-fg: var(--accent); --tone-contrast: var(--accent-foreground); } /* ------------------------------------------------------------------ * Size channel. Heights chosen to slot cleanly into the common * contexts: sm inside dense table cells next to a monospace cell, * md for inline status after a title, lg for hero/summary cards. * Uppercase + 0.04em tracking matches the pre-polish pipelines * status pill so table rows don't re-flow. * ------------------------------------------------------------------ */ :host(:not([size])), :host([size='md']) { --bdg-h: 22px; --bdg-px: 8px; --bdg-fs: 10.5px; --bdg-gap: 4px; --bdg-icon: 10px; } :host([size='sm']) { --bdg-h: 18px; --bdg-px: 6px; --bdg-fs: 9.5px; --bdg-gap: 3px; --bdg-icon: 8px; } :host([size='lg']) { --bdg-h: 26px; --bdg-px: 10px; --bdg-fs: 11.5px; --bdg-gap: 5px; --bdg-icon: 12px; } /* Shape channel — square by default (visual parity with pre-polish * badge), pill when opted-in. Both shapes share the same height & * padding so swapping shapes doesn't re-layout surrounding text. */ :host { --bdg-radius: var(--radius-sm); } :host([pill]) { --bdg-radius: var(--radius-full); } /* ------------------------------------------------------------------ * Core badge chrome. Non-interactive — no cursor, no hover, no * focus ring. Padding block is 0 so the explicit min-height owns * the vertical rhythm; inline padding follows the size channel. * ------------------------------------------------------------------ */ .badge { display: inline-flex; align-items: center; gap: var(--bdg-gap); min-height: var(--bdg-h); padding: 0 var(--bdg-px); font-family: var(--font-body); font-size: var(--bdg-fs); font-weight: var(--font-weight-semibold); line-height: 1; letter-spacing: 0.04em; text-transform: uppercase; border-radius: var(--bdg-radius); /* Base styling — acts as the soft variant so any unknown or missing * variant attribute still renders a legible pill. Known variants * below re-declare these three properties to override. */ background: color-mix(in oklch, var(--tone) 16%, transparent); border: 1px solid color-mix(in oklch, var(--tone) 24%, transparent); color: var(--tone-fg); white-space: nowrap; -webkit-font-smoothing: antialiased; font-variant-numeric: tabular-nums; } /* ------------------------------------------------------------------ * Variant matrix. Reads only from --tone / --tone-contrast so the * matrix stays DRY across tones. Default (no variant attr) is the * soft look — matches the pre-polish badge and is the context * where badges sit most often (inline row metadata). * ------------------------------------------------------------------ */ /* soft — tone-tinted surface, faint border, tone text. Default is * already applied by .badge above; this explicit selector exists * so callers that pass variant=soft target the same rules as * variant-less badges. */ :host([variant='soft']) .badge { background: color-mix(in oklch, var(--tone) 16%, transparent); border-color: color-mix(in oklch, var(--tone) 24%, transparent); color: var(--tone-fg); } /* solid — filled tone, contrast text, subtle inset highlight for * the premium feel (same recipe as ship-button solid). */ :host([variant='solid']) .badge { background: var(--tone); border-color: color-mix(in oklch, var(--tone) 100%, black 6%); color: var(--tone-contrast); box-shadow: inset 0 1px 0 0 color-mix(in oklch, white 18%, transparent); } :host([variant='solid'][tone='muted']) .badge, :host([variant='solid']:not([tone])) .badge { background: var(--muted-foreground); border-color: color-mix(in oklch, var(--muted-foreground) 100%, black 6%); color: var(--background); } /* outline — transparent with tone border + tone text. The slightly * deeper border keeps the chip legible against textured backgrounds. */ :host([variant='outline']) .badge { background: transparent; border-color: color-mix(in oklch, var(--tone) 50%, transparent); color: var(--tone-fg); } :host([variant='outline']:not([tone])) .badge, :host([variant='outline'][tone='muted']) .badge { border-color: var(--border); color: var(--muted-foreground); } /* ------------------------------------------------------------------ * Leading slot — icon / status dot. Sized from the icon channel so * the glyph always matches the label's cap-height optically. Uses * currentColor so an <ship-status-dot> or <ship-icon> tints with * the badge's tone-fg without extra wiring. * ------------------------------------------------------------------ */ .leading { display: inline-flex; align-items: center; justify-content: center; width: var(--bdg-icon); height: var(--bdg-icon); flex-shrink: 0; color: currentColor; } .leading:empty { display: none; } ::slotted([slot='leading']) { display: inline-flex; align-items: center; color: currentColor; width: 100%; height: 100%; } /* Forced-colors — fall back to system colors so high-contrast * modes render the badge border reliably. */ @media (forced-colors: active) { .badge { border-color: CanvasText; color: CanvasText; } :host([variant='solid']) .badge { background: Highlight; color: HighlightText; border-color: Highlight; } } `, ]"
+        }
+      ],
+      "exports": [
+        {
+          "kind": "js",
+          "name": "shipBadgeStyles",
+          "declaration": {
+            "name": "shipBadgeStyles",
+            "module": "src/web-components/ship-badge.styles.ts"
+          }
+        }
+      ]
+    },
+    {
+      "kind": "javascript-module",
       "path": "src/web-components/ship-badge.ts",
       "declarations": [
         {
@@ -994,13 +1018,35 @@
             },
             {
               "kind": "field",
+              "name": "variant",
+              "privacy": "public",
+              "type": {
+                "text": "BadgeVariant | null"
+              },
+              "default": "null",
+              "attribute": "variant",
+              "reflects": true
+            },
+            {
+              "kind": "field",
               "name": "size",
               "privacy": "public",
               "type": {
-                "text": "'sm' | 'md'"
+                "text": "Size"
               },
               "default": "'md'",
               "attribute": "size",
+              "reflects": true
+            },
+            {
+              "kind": "field",
+              "name": "pill",
+              "privacy": "public",
+              "type": {
+                "text": "boolean"
+              },
+              "default": "false",
+              "attribute": "pill",
               "reflects": true
             }
           ],
@@ -1014,12 +1060,28 @@
               "fieldName": "tone"
             },
             {
+              "name": "variant",
+              "type": {
+                "text": "BadgeVariant | null"
+              },
+              "default": "null",
+              "fieldName": "variant"
+            },
+            {
               "name": "size",
               "type": {
-                "text": "'sm' | 'md'"
+                "text": "Size"
               },
               "default": "'md'",
               "fieldName": "size"
+            },
+            {
+              "name": "pill",
+              "type": {
+                "text": "boolean"
+              },
+              "default": "false",
+              "fieldName": "pill"
             }
           ],
           "superclass": {
@@ -8575,6 +8637,44 @@
     },
     {
       "kind": "javascript-module",
+      "path": "src/web-components/observability/ship-table.styles.ts",
+      "declarations": [
+        {
+          "kind": "variable",
+          "name": "shipTableStyles",
+          "type": {
+            "text": "array"
+          },
+          "default": "[ reducedMotion, css` :host { display: block; width: 100%; font-family: var(--font-body); font-size: var(--text-base); color: var(--foreground); /* Density channel — default matches the pre-polish 10px/12px cells * the SDK table macro uses, so existing views don't shift a pixel. */ --row-py: 10px; --row-px: var(--space-3); --th-py: 10px; --th-fs: var(--text-xs); --table-radius: var(--radius-lg); --row-hover-mix: 45%; } :host([hidden]) { display: none; } /* Density: compact — log-table feel. Legacy 'dense' aliases to this. */ :host([density='compact']), :host([dense]) { --row-py: 6px; --row-px: var(--space-2); --th-py: 6px; } /* Density: comfortable — settings / admin feel. */ :host([density='comfortable']) { --row-py: 14px; --row-px: var(--space-4); --th-py: 14px; } /* ------------------------------------------------------------------ * Wrapper — source-of-truth surface. Border + radius + overflow * live here so the table inside can scroll horizontally on narrow * viewports without the border clipping mid-cell. Mirrors shadcn's * Table's wrapping <div>. * ------------------------------------------------------------------ */ .wrap { position: relative; width: 100%; border: 1px solid var(--border); border-radius: var(--table-radius); background: var(--card); box-shadow: var(--shadow-xs); overflow: hidden; overflow-x: auto; transition: box-shadow var(--duration-fast) var(--ease-out); } table { width: 100%; border-collapse: separate; border-spacing: 0; table-layout: auto; font-variant-numeric: tabular-nums; } /* Sticky-header — pins <thead> while the body scrolls. Pair with an * inline style=\"max-height:…\" on the host to get the scroll box. */ :host([sticky-header]) .wrap { overflow-y: auto; } /* ------------------------------------------------------------------ * Empty state — rendered when the consumer slots content into the * 'empty' slot AND the tbody has no <tr> children. Visibility is * toggled via the 'data-empty' attribute set from the component's * slotchange / MutationObserver logic. * ------------------------------------------------------------------ */ .empty { display: none; padding: var(--space-7) var(--space-5); text-align: center; color: var(--muted-foreground); font-size: var(--text-sm); background: var(--card); } :host([data-empty]) .empty { display: block; } :host([data-empty]) table { display: none; } @media (forced-colors: active) { .wrap { border-color: CanvasText; } } `, ]"
+        },
+        {
+          "kind": "variable",
+          "name": "shipTableLightDomCss",
+          "default": "` ship-table { --ship-table-border-soft: color-mix(in oklch, var(--border) 80%, transparent); } /* In native mode the consumer's <table> is a direct child — reset * its own borders/spacing so the ship-table wrapper chrome owns the * surface and nothing double-lines. */ ship-table[variant='native'] > table { width: 100%; border-collapse: separate; border-spacing: 0; table-layout: auto; font-variant-numeric: tabular-nums; } /* Cell chrome — padding, baseline, separator. Reads density from the * host custom properties via inheritance. Scoped under ship-table so * we only claim cells inside the component, not arbitrary tables. */ ship-table th, ship-table td { text-align: left; padding: var(--row-py, 10px) var(--row-px, 12px); vertical-align: middle; border-bottom: 1px solid var(--ship-table-border-soft); font-size: var(--text-base, 13px); color: var(--foreground); box-sizing: border-box; } ship-table th { padding-top: var(--th-py, 10px); padding-bottom: var(--th-py, 10px); font-weight: var(--font-weight-semibold, 600); font-size: var(--th-fs, 10.5px); text-transform: uppercase; letter-spacing: 0.06em; color: var(--muted-foreground); border-bottom: 1px solid var(--border); white-space: nowrap; user-select: none; background: color-mix(in oklch, var(--muted) 55%, var(--card)); } ship-table thead { background: color-mix(in oklch, var(--muted) 55%, var(--card)); } /* Last body row — drop separator; the wrapper border closes the table. * Works for both the slot pattern (bare <tr> as direct child) and the * fragment pattern (<tr> inside <tbody>). */ ship-table > tr:last-of-type > *, ship-table tbody tr:last-child > * { border-bottom: 0; } /* Column alignment. */ ship-table th[align='right'], ship-table td[align='right'] { text-align: right; } ship-table th[align='center'], ship-table td[align='center'] { text-align: center; } /* Mono/muted conventions for the data-view SDK table + similar. */ ship-table .mono { font-family: ui-monospace, SFMono-Regular, 'SF Mono', Menlo, Consolas, monospace; font-size: var(--text-sm, 12px); letter-spacing: -0.01em; } ship-table .muted { color: var(--muted-foreground); } ship-table .null { color: var(--muted-foreground); font-style: italic; } /* Row hover — on by default, opt-out via hoverable=\"false\". Applies * to body rows in both patterns: bare <tr> under ship-table, or <tr> * under <tbody>. Excludes the thead row via :not([slot='head']). */ ship-table > tr:not([slot='head']), ship-table tbody tr { transition: background-color var(--duration-fast, 120ms) var(--ease-out, cubic-bezier(0.16,1,0.3,1)); } ship-table:not([hoverable='false']) > tr:not([slot='head']):hover > *, ship-table:not([hoverable='false']) tbody tr:hover > * { background: color-mix(in oklch, var(--muted) var(--row-hover-mix, 45%), transparent); } /* Striped — zebra on alternate body rows. Both patterns. */ ship-table[striped] > tr:not([slot='head']):nth-of-type(even) > *, ship-table[striped] tbody tr:nth-child(even) > * { background: color-mix(in oklch, var(--muted) 25%, transparent); } ship-table[striped]:not([hoverable='false']) > tr:not([slot='head']):hover > *, ship-table[striped]:not([hoverable='false']) tbody tr:hover > * { background: color-mix(in oklch, var(--muted) var(--row-hover-mix, 45%), transparent); } /* Selected row — data-selected attr or aria-selected=\"true\". */ ship-table tr[data-selected] > *, ship-table tr[aria-selected='true'] > * { background: color-mix(in oklch, var(--primary) 14%, transparent); } ship-table tr[data-selected] > *:first-child, ship-table tr[aria-selected='true'] > *:first-child { box-shadow: inset 3px 0 0 0 var(--primary); } /* Sticky-header — applies position:sticky to the thead cells so the * header rides above scrolling body rows. Works on both patterns * because the thead cells sit inside the shadow <thead> via slot * projection, and the slotted element inherits sticky semantics. */ ship-table[sticky-header] thead th, ship-table[sticky-header] tr[slot='head'] > th { position: sticky; top: 0; z-index: var(--z-sticky, 20); background: color-mix(in oklch, var(--muted) 55%, var(--card)); box-shadow: 0 1px 0 0 var(--border); } /* Sortable headers — chevron rendered by the component; these rules * paint the cursor + color transitions. */ ship-table th[data-sort-key], ship-table th.sortable { cursor: pointer; -webkit-tap-highlight-color: transparent; transition: color var(--duration-fast, 120ms) var(--ease-out, cubic-bezier(0.16,1,0.3,1)); } ship-table th[data-sort-key]:hover, ship-table th.sortable:hover { color: var(--foreground); } ship-table th[aria-sort='ascending'], ship-table th[aria-sort='descending'] { color: var(--foreground); } ship-table th[data-sort-key]:focus-visible { outline: none; box-shadow: inset 0 0 0 var(--ring-width, 3px) color-mix(in oklch, var(--ring-color, var(--primary)) var(--ring-opacity, 25%), transparent); } /* Forced colors — keep legibility in high-contrast mode. */ @media (forced-colors: active) { ship-table th, ship-table td { border-bottom-color: CanvasText; } } `",
+          "description": "Light-DOM CSS adopted once on the host document. Styles cells and\nrows living under a <ship-table>. Scoped by the `ship-table` tag\nselector so it doesn't leak onto arbitrary tables.\n\nConsumers can compose their markup two ways; both land on the same\nvisual result:\n\n  A) Slot pattern (preserves the pre-polish API used by tests):\n     <ship-table>\n       <tr slot=\"head\"><th>Name</th></tr>\n       <tr><td>Alpha</td></tr>\n     </ship-table>\n\n  B) Table-fragment pattern (more ergonomic for existing HTML tables):\n     <ship-table>\n       <thead><tr><th>Name</th></tr></thead>\n       <tbody><tr><td>Alpha</td></tr></tbody>\n     </ship-table>\n\nBoth patterns live in light DOM as descendants of <ship-table>, so a\nsingle set of scoped selectors reaches all cells via `ship-table th`\nand `ship-table td`. Row-specific concerns (striping, selection,\nhover) differ slightly between patterns and are expressed below."
+        }
+      ],
+      "exports": [
+        {
+          "kind": "js",
+          "name": "shipTableStyles",
+          "declaration": {
+            "name": "shipTableStyles",
+            "module": "src/web-components/observability/ship-table.styles.ts"
+          }
+        },
+        {
+          "kind": "js",
+          "name": "shipTableLightDomCss",
+          "declaration": {
+            "name": "shipTableLightDomCss",
+            "module": "src/web-components/observability/ship-table.styles.ts"
+          }
+        }
+      ]
+    },
+    {
+      "kind": "javascript-module",
       "path": "src/web-components/observability/ship-table.ts",
       "declarations": [
         {
@@ -8582,6 +8682,28 @@
           "description": "",
           "name": "ShipTable",
           "members": [
+            {
+              "kind": "field",
+              "name": "variant",
+              "privacy": "public",
+              "type": {
+                "text": "Variant"
+              },
+              "default": "'slot'",
+              "attribute": "variant",
+              "reflects": true
+            },
+            {
+              "kind": "field",
+              "name": "density",
+              "privacy": "public",
+              "type": {
+                "text": "Density"
+              },
+              "default": "'default'",
+              "attribute": "density",
+              "reflects": true
+            },
             {
               "kind": "field",
               "name": "dense",
@@ -8606,6 +8728,28 @@
             },
             {
               "kind": "field",
+              "name": "striped",
+              "privacy": "public",
+              "type": {
+                "text": "boolean"
+              },
+              "default": "false",
+              "attribute": "striped",
+              "reflects": true
+            },
+            {
+              "kind": "field",
+              "name": "stickyHeader",
+              "privacy": "public",
+              "type": {
+                "text": "boolean"
+              },
+              "default": "false",
+              "attribute": "sticky-header",
+              "reflects": true
+            },
+            {
+              "kind": "field",
               "name": "label",
               "privacy": "public",
               "type": {
@@ -8613,9 +8757,82 @@
               },
               "default": "''",
               "attribute": "label"
+            },
+            {
+              "kind": "field",
+              "name": "structureObserver",
+              "type": {
+                "text": "MutationObserver | undefined"
+              },
+              "privacy": "private"
+            },
+            {
+              "kind": "method",
+              "name": "enhanceSortableHeaders",
+              "privacy": "private",
+              "description": "Give sortable headers a tabindex, role, chevron, and an initial\naria-sort so keyboard users can cycle the sort direction. Idempotent\nacross re-runs so Datastar-patched tables stay enhanced."
+            },
+            {
+              "kind": "method",
+              "name": "paintSortChevrons",
+              "privacy": "private"
+            },
+            {
+              "kind": "method",
+              "name": "syncEmptyState",
+              "privacy": "private",
+              "description": "Toggle `[data-empty]` when the table has no body rows AND an\n`empty` slot is provided. Covers all three structural patterns:\n - slot mode: <tr slot=\"head\"> + bare <tr> default-slotted\n - native mode: <table><thead><tr/></thead><tbody><tr/></tbody></table>\n - native mode without explicit tbody"
+            },
+            {
+              "kind": "field",
+              "name": "onHeaderClick",
+              "privacy": "private"
+            },
+            {
+              "kind": "field",
+              "name": "onHeaderKey",
+              "privacy": "private"
+            },
+            {
+              "kind": "method",
+              "name": "cycleSort",
+              "privacy": "private",
+              "parameters": [
+                {
+                  "name": "th",
+                  "type": {
+                    "text": "HTMLTableCellElement"
+                  }
+                }
+              ],
+              "description": "Cycle: none -> ascending -> descending -> none. Clearing peers keeps\nthe table single-sort; multi-sort consumers can listen for ship-sort\nand manage aria-sort themselves."
+            }
+          ],
+          "events": [
+            {
+              "name": "ship-sort",
+              "type": {
+                "text": "CustomEvent"
+              }
             }
           ],
           "attributes": [
+            {
+              "name": "variant",
+              "type": {
+                "text": "Variant"
+              },
+              "default": "'slot'",
+              "fieldName": "variant"
+            },
+            {
+              "name": "density",
+              "type": {
+                "text": "Density"
+              },
+              "default": "'default'",
+              "fieldName": "density"
+            },
             {
               "name": "dense",
               "type": {
@@ -8631,6 +8848,22 @@
               },
               "default": "true",
               "fieldName": "hoverable"
+            },
+            {
+              "name": "striped",
+              "type": {
+                "text": "boolean"
+              },
+              "default": "false",
+              "fieldName": "striped"
+            },
+            {
+              "name": "sticky-header",
+              "type": {
+                "text": "boolean"
+              },
+              "default": "false",
+              "fieldName": "stickyHeader"
             },
             {
               "name": "label",
@@ -9371,6 +9604,30 @@
     },
     {
       "kind": "javascript-module",
+      "path": "src/web-components/utility/ship-chip.styles.ts",
+      "declarations": [
+        {
+          "kind": "variable",
+          "name": "shipChipStyles",
+          "type": {
+            "text": "array"
+          },
+          "default": "[ reducedMotion, css` :host { display: inline-flex; vertical-align: middle; -webkit-tap-highlight-color: transparent; --tone: var(--muted-foreground); --tone-fg: var(--muted-foreground); --tone-contrast: var(--background); } :host([hidden]) { display: none; } /* Tone channel — same palette as ship-button so a row of mixed * chips + buttons share tone semantics. One-liner per tone keeps * additions cheap. */ :host(:not([tone])), :host([tone='muted']) { --tone: var(--muted-foreground); --tone-fg: var(--muted-foreground); --tone-contrast: var(--background); } :host([tone='default']) { --tone: var(--foreground); --tone-fg: var(--foreground); --tone-contrast: var(--background); } :host([tone='info']) { --tone: var(--info); --tone-fg: var(--info); --tone-contrast: oklch(0.99 0.02 260); } :host([tone='success']) { --tone: var(--success); --tone-fg: var(--success); --tone-contrast: oklch(0.99 0.02 150); } :host([tone='warning']) { --tone: var(--warning); --tone-fg: var(--warning); --tone-contrast: oklch(0.2 0.04 75); } :host([tone='destructive']) { --tone: var(--destructive); --tone-fg: var(--destructive); --tone-contrast: oklch(0.99 0.02 25); } :host([tone='accent']) { --tone: var(--accent); --tone-fg: var(--accent); --tone-contrast: var(--accent-foreground); } /* Size channel — sm matches pre-polish filter rails; md/lg step up * proportionally. Heights +4px per step so sibling controls align. */ :host(:not([size])), :host([size='md']) { --chip-h: 26px; --chip-px: 10px; --chip-fs: var(--text-sm); --chip-gap: 6px; --chip-icon: 12px; --chip-remove: 16px; } :host([size='sm']) { --chip-h: 22px; --chip-px: 8px; --chip-fs: var(--text-xs); --chip-gap: 4px; --chip-icon: 10px; --chip-remove: 14px; } :host([size='lg']) { --chip-h: 30px; --chip-px: 12px; --chip-fs: var(--text-base); --chip-gap: 6px; --chip-icon: 14px; --chip-remove: 18px; } :host { --chip-radius: var(--radius-full); } /* ------------------------------------------------------------------ * Core chip chrome. The host owns interaction — no inner <button> * — so Datastar's data-on:click on the host fires identically * whether the user hits the label, padding, or icon. Keyboard * activation (Enter / Space) synthesizes a host click in TS. * ------------------------------------------------------------------ */ .chip { display: inline-flex; align-items: center; gap: var(--chip-gap); min-height: var(--chip-h); padding: 0 var(--chip-px); font-family: var(--font-body); font-size: var(--chip-fs); font-weight: var(--font-weight-medium); line-height: 1; letter-spacing: -0.005em; color: var(--tone-fg); background: transparent; border: 1px solid transparent; border-radius: var(--chip-radius); cursor: pointer; user-select: none; -webkit-user-select: none; white-space: nowrap; isolation: isolate; transition: background-color var(--duration-fast) var(--ease-out), border-color var(--duration-fast) var(--ease-out), box-shadow var(--duration-fast) var(--ease-out), color var(--duration-fast) var(--ease-out), filter var(--duration-fast) var(--ease-out); } /* ------------------------------------------------------------------ * Variant matrix — solid | soft | outline. Default (no variant * attr) is soft so filter rails stay legible against the page bg. * ------------------------------------------------------------------ */ :host(:not([variant])) .chip, :host([variant='soft']) .chip { background: color-mix(in oklch, var(--tone) 14%, transparent); border-color: color-mix(in oklch, var(--tone) 22%, transparent); color: var(--tone-fg); } :host(:not([variant]):not([disabled])) .chip:hover, :host([variant='soft']:not([disabled])) .chip:hover { background: color-mix(in oklch, var(--tone) 22%, transparent); border-color: color-mix(in oklch, var(--tone) 32%, transparent); } :host(:not([variant]):not([disabled])) .chip:active, :host([variant='soft']:not([disabled])) .chip:active { background: color-mix(in oklch, var(--tone) 28%, transparent); } :host([variant='outline']) .chip { background: transparent; border-color: color-mix(in oklch, var(--tone) 45%, transparent); color: var(--tone-fg); } :host([variant='outline']:not([tone])) .chip, :host([variant='outline'][tone='muted']) .chip { border-color: var(--border); color: var(--muted-foreground); } :host([variant='outline']:not([disabled])) .chip:hover { background: color-mix(in oklch, var(--tone) 10%, transparent); border-color: color-mix(in oklch, var(--tone) 70%, transparent); } :host([variant='outline']:not([tone]):not([disabled])) .chip:hover, :host([variant='outline'][tone='muted']:not([disabled])) .chip:hover { background: var(--muted); border-color: color-mix(in oklch, var(--border) 160%, transparent); color: var(--foreground); } :host([variant='solid']) .chip { background: var(--tone); border-color: color-mix(in oklch, var(--tone) 100%, black 6%); color: var(--tone-contrast); box-shadow: inset 0 1px 0 0 color-mix(in oklch, white 18%, transparent); } :host([variant='solid']:not([disabled])) .chip:hover { background: color-mix(in oklch, var(--tone) 92%, white 8%); box-shadow: inset 0 1px 0 0 color-mix(in oklch, white 22%, transparent), var(--shadow-xs); } /* ------------------------------------------------------------------ * Selected state — Radix Toggle pressed look. Promotes any variant * to a solid tone fill so [soft][soft][selected][soft] reads the * active one unambiguously. Selected + muted uses --foreground as * the fill so the pill asserts neutrally instead of washing out. * ------------------------------------------------------------------ */ :host([selected]) .chip { background: var(--tone); border-color: color-mix(in oklch, var(--tone) 100%, black 10%); color: var(--tone-contrast); box-shadow: inset 0 1px 0 0 color-mix(in oklch, white 20%, transparent), var(--shadow-xs); font-weight: var(--font-weight-semibold); } :host([selected]:not([disabled])) .chip:hover { background: color-mix(in oklch, var(--tone) 92%, white 8%); box-shadow: inset 0 1px 0 0 color-mix(in oklch, white 24%, transparent), var(--shadow-sm); } :host([selected]:not([tone])) .chip, :host([selected][tone='muted']) .chip { background: var(--foreground); border-color: var(--foreground); color: var(--background); } :host([selected]:not([tone]):not([disabled])) .chip:hover, :host([selected][tone='muted']:not([disabled])) .chip:hover { background: color-mix(in oklch, var(--foreground) 88%, var(--background)); } /* Focus ring — stacked box-shadow so the ring sits outside the pill * without reserving layout. Fires on :host(:focus-visible) so it * travels with Tab navigation and programmatic focus identically. */ :host(:focus-visible) { outline: none; } :host(:focus-visible) .chip { outline: none; box-shadow: 0 0 0 var(--ring-offset) var(--background), 0 0 0 calc(var(--ring-offset) + var(--ring-width)) color-mix(in oklch, var(--tone) var(--ring-opacity), transparent); } :host([selected]:focus-visible) .chip { box-shadow: inset 0 1px 0 0 color-mix(in oklch, white 22%, transparent), 0 0 0 var(--ring-offset) var(--background), 0 0 0 calc(var(--ring-offset) + var(--ring-width)) color-mix(in oklch, var(--tone) var(--ring-opacity), transparent); } /* Disabled — muted, desaturated, uninteractive. Distinct from the * unselected look so users can tell when a chip is unreachable. */ :host([disabled]) .chip { cursor: not-allowed; background: var(--muted); border-color: color-mix(in oklch, var(--border) 80%, transparent); color: color-mix(in oklch, var(--muted-foreground) 70%, transparent); filter: saturate(0.65); box-shadow: none; } /* ------------------------------------------------------------------ * Leading slot — icon / status dot / avatar. Sized from the icon * channel so glyphs optically match cap-height. currentColor flows * so <ship-status-dot> tints with the chip tone for free. * ------------------------------------------------------------------ */ .leading { display: inline-flex; align-items: center; justify-content: center; width: var(--chip-icon); height: var(--chip-icon); flex-shrink: 0; color: currentColor; } .leading:empty { display: none; } ::slotted([slot='leading']) { display: inline-flex; align-items: center; color: currentColor; width: 100%; height: 100%; } /* ------------------------------------------------------------------ * Remove button — × affordance on the trailing edge. Not focusable * separately from the chip (tabindex=-1 in TS); clicking stops * propagation so the chip's click doesn't also fire. Keyboard * removal: Backspace / Delete on the focused chip (handled in TS). * ------------------------------------------------------------------ */ .remove { display: inline-flex; align-items: center; justify-content: center; width: var(--chip-remove); height: var(--chip-remove); margin-inline: 2px -4px; padding: 0; border: 0; background: transparent; color: inherit; cursor: pointer; border-radius: var(--radius-full); flex-shrink: 0; transition: background-color var(--duration-fast) var(--ease-out), color var(--duration-fast) var(--ease-out); -webkit-tap-highlight-color: transparent; } .remove svg { width: 70%; height: 70%; display: block; stroke: currentColor; fill: none; stroke-width: 1.75; stroke-linecap: round; } .remove:hover:not(:disabled) { background: color-mix(in oklch, currentColor 18%, transparent); } :host([selected]) .remove:hover:not(:disabled) { background: color-mix(in oklch, white 24%, transparent); } .remove:focus-visible { outline: none; box-shadow: 0 0 0 2px color-mix(in oklch, var(--tone) 55%, transparent); } :host([disabled]) .remove { cursor: not-allowed; } /* Forced-colors — system colors for high-contrast mode. */ @media (forced-colors: active) { .chip { border-color: CanvasText; color: CanvasText; } :host([selected]) .chip { background: Highlight; color: HighlightText; border-color: Highlight; } :host(:focus-visible) .chip { outline: 2px solid CanvasText; outline-offset: 2px; } } `, ]"
+        }
+      ],
+      "exports": [
+        {
+          "kind": "js",
+          "name": "shipChipStyles",
+          "declaration": {
+            "name": "shipChipStyles",
+            "module": "src/web-components/utility/ship-chip.styles.ts"
+          }
+        }
+      ]
+    },
+    {
+      "kind": "javascript-module",
       "path": "src/web-components/utility/ship-chip.ts",
       "declarations": [
         {
@@ -9391,13 +9648,35 @@
             },
             {
               "kind": "field",
+              "name": "variant",
+              "privacy": "public",
+              "type": {
+                "text": "ChipVariant | null"
+              },
+              "default": "null",
+              "attribute": "variant",
+              "reflects": true
+            },
+            {
+              "kind": "field",
               "name": "size",
               "privacy": "public",
               "type": {
-                "text": "'sm' | 'md'"
+                "text": "Size"
               },
               "default": "'md'",
               "attribute": "size",
+              "reflects": true
+            },
+            {
+              "kind": "field",
+              "name": "selected",
+              "privacy": "public",
+              "type": {
+                "text": "boolean"
+              },
+              "default": "false",
+              "attribute": "selected",
               "reflects": true
             },
             {
@@ -9413,27 +9692,29 @@
             },
             {
               "kind": "field",
-              "name": "selected",
+              "name": "disabled",
               "privacy": "public",
               "type": {
                 "text": "boolean"
               },
               "default": "false",
-              "attribute": "selected",
+              "attribute": "disabled",
               "reflects": true
             },
             {
+              "kind": "field",
+              "name": "onKeydown",
+              "privacy": "private"
+            },
+            {
+              "kind": "field",
+              "name": "onRemoveClick",
+              "privacy": "private"
+            },
+            {
               "kind": "method",
-              "name": "onRemove",
-              "privacy": "private",
-              "parameters": [
-                {
-                  "name": "e",
-                  "type": {
-                    "text": "Event"
-                  }
-                }
-              ]
+              "name": "dispatchRemove",
+              "privacy": "private"
             }
           ],
           "events": [
@@ -9454,12 +9735,28 @@
               "fieldName": "tone"
             },
             {
+              "name": "variant",
+              "type": {
+                "text": "ChipVariant | null"
+              },
+              "default": "null",
+              "fieldName": "variant"
+            },
+            {
               "name": "size",
               "type": {
-                "text": "'sm' | 'md'"
+                "text": "Size"
               },
               "default": "'md'",
               "fieldName": "size"
+            },
+            {
+              "name": "selected",
+              "type": {
+                "text": "boolean"
+              },
+              "default": "false",
+              "fieldName": "selected"
             },
             {
               "name": "removable",
@@ -9470,12 +9767,12 @@
               "fieldName": "removable"
             },
             {
-              "name": "selected",
+              "name": "disabled",
               "type": {
                 "text": "boolean"
               },
               "default": "false",
-              "fieldName": "selected"
+              "fieldName": "disabled"
             }
           ],
           "superclass": {

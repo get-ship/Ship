@@ -12,7 +12,7 @@ Convention: `attr=value|value` = enum, bare `attr` = boolean.
 - `<ship-annotation-layer>` [view-id mode endpoint staging staged _pending _drag] events: ship-annotation-staged, ship-annotation-error, ship-annotation-sent
 - `<ship-annotation-list>` [staged] events: ship-annotation-remove
 - `<ship-annotation-marker>` [kind x y rect active index]
-- `<ship-badge>` [tone size=sm|md]
+- `<ship-badge>` [tone variant size pill]
 - `<ship-button>` [tone variant size disabled loading type=button|submit|reset label pressed=true|false expanded=true|false]
 - `<ship-card>` [tone variant padding interactive accent-bar status-rail fill]
 - `<ship-checkbox>` [checked indeterminate disabled required invalid tone size name value label]
@@ -61,7 +61,7 @@ Convention: `attr=value|value` = enum, bare `attr` = boolean.
 - `<ship-json-view>` [data expanded depth]
 - `<ship-log-line>` [level timestamp source]
 - `<ship-markdown>` [value]
-- `<ship-table>` [dense hoverable label]
+- `<ship-table>` [variant density dense hoverable striped sticky-header label] events: ship-sort
 - `<ship-timeline>`
 - `<ship-timeline-item>` [tone at interactive] events: ship-select
 - `<ship-timestamp>` [value format]
@@ -85,7 +85,7 @@ Convention: `attr=value|value` = enum, bare `attr` = boolean.
 - `<ship-avatar>` [src name size tone _errored]
 - `<ship-breadcrumb>`
 - `<ship-breadcrumb-item>` [href active]
-- `<ship-chip>` [tone size=sm|md removable selected] events: ship-remove
+- `<ship-chip>` [tone variant size selected removable disabled] events: ship-remove
 - `<ship-icon>` [name size tone label]
 - `<ship-kbd>` [keys]
 - `<ship-link>` [href external tone]

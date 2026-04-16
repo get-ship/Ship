@@ -1,7 +1,7 @@
 // node_modules/.pnpm/@lit+reactive-element@2.1.2/node_modules/@lit/reactive-element/css-tag.js
 var t = globalThis;
 var e = t.ShadowRoot && (void 0 === t.ShadyCSS || t.ShadyCSS.nativeShadow) && "adoptedStyleSheets" in Document.prototype && "replace" in CSSStyleSheet.prototype;
-var s = Symbol();
+var s = /* @__PURE__ */ Symbol();
 var o = /* @__PURE__ */ new WeakMap();
 var n = class {
   constructor(t4, e6, o6) {
@@ -81,7 +81,7 @@ var u = { toAttribute(t4, s4) {
 } };
 var f = (t4, s4) => !i2(t4, s4);
 var b = { attribute: true, type: String, converter: u, reflect: false, useDefault: false, hasChanged: f };
-Symbol.metadata ?? (Symbol.metadata = Symbol("metadata")), a.litPropertyMetadata ?? (a.litPropertyMetadata = /* @__PURE__ */ new WeakMap());
+Symbol.metadata ?? (Symbol.metadata = /* @__PURE__ */ Symbol("metadata")), a.litPropertyMetadata ?? (a.litPropertyMetadata = /* @__PURE__ */ new WeakMap());
 var y = class extends HTMLElement {
   static addInitializer(t4) {
     this._$Ei(), (this.l ?? (this.l = [])).push(t4);
@@ -91,7 +91,7 @@ var y = class extends HTMLElement {
   }
   static createProperty(t4, s4 = b) {
     if (s4.state && (s4.attribute = false), this._$Ei(), this.prototype.hasOwnProperty(t4) && ((s4 = Object.create(s4)).wrapped = true), this.elementProperties.set(t4, s4), !s4.noAccessor) {
-      const i6 = Symbol(), h3 = this.getPropertyDescriptor(t4, i6, s4);
+      const i6 = /* @__PURE__ */ Symbol(), h3 = this.getPropertyDescriptor(t4, i6, s4);
       void 0 !== h3 && e2(this.prototype, t4, h3);
     }
   }
@@ -292,8 +292,8 @@ var x = (t4) => (i6, ...s4) => ({ _$litType$: t4, strings: i6, values: s4 });
 var b2 = x(1);
 var w = x(2);
 var T = x(3);
-var E = Symbol.for("lit-noChange");
-var A = Symbol.for("lit-nothing");
+var E = /* @__PURE__ */ Symbol.for("lit-noChange");
+var A = /* @__PURE__ */ Symbol.for("lit-nothing");
 var C = /* @__PURE__ */ new WeakMap();
 var P = l2.createTreeWalker(l2, 129);
 function V(t4, i6) {
@@ -2279,50 +2279,234 @@ if (typeof customElements !== "undefined" && !customElements.get("ship-annotatio
   customElements.define("ship-annotation-list", ShipAnnotationList);
 }
 
+// packages/ui/src/web-components/ship-badge.styles.ts
+var shipBadgeStyles = [
+  reducedMotion,
+  i`
+    :host {
+      display: inline-flex;
+      vertical-align: middle;
+      /* Tone channel — overridden per :host([tone=…]). Default reads as
+       * muted so a bare <ship-badge> sits quietly until given meaning. */
+      --tone: var(--muted-foreground);
+      --tone-fg: var(--muted-foreground);
+      --tone-contrast: var(--background);
+    }
+    :host([hidden]) { display: none; }
+
+    /* ------------------------------------------------------------------
+     * Tone channel. Contrast colors picked so solid fills stay legible
+     * in both light and dark themes (matches ship-button's tone table).
+     * ------------------------------------------------------------------ */
+    :host(:not([tone])),
+    :host([tone='muted']) {
+      --tone: var(--muted-foreground);
+      --tone-fg: var(--muted-foreground);
+      --tone-contrast: var(--background);
+    }
+    :host([tone='default']) {
+      --tone: var(--foreground);
+      --tone-fg: var(--foreground);
+      --tone-contrast: var(--background);
+    }
+    :host([tone='info']) {
+      --tone: var(--info);
+      --tone-fg: var(--info);
+      --tone-contrast: oklch(0.99 0.02 260);
+    }
+    :host([tone='success']) {
+      --tone: var(--success);
+      --tone-fg: var(--success);
+      --tone-contrast: oklch(0.99 0.02 150);
+    }
+    :host([tone='warning']) {
+      --tone: var(--warning);
+      --tone-fg: var(--warning);
+      --tone-contrast: oklch(0.2 0.04 75);
+    }
+    :host([tone='destructive']) {
+      --tone: var(--destructive);
+      --tone-fg: var(--destructive);
+      --tone-contrast: oklch(0.99 0.02 25);
+    }
+    :host([tone='accent']) {
+      --tone: var(--accent);
+      --tone-fg: var(--accent);
+      --tone-contrast: var(--accent-foreground);
+    }
+
+    /* ------------------------------------------------------------------
+     * Size channel. Heights chosen to slot cleanly into the common
+     * contexts: sm inside dense table cells next to a monospace cell,
+     * md for inline status after a title, lg for hero/summary cards.
+     * Uppercase + 0.04em tracking matches the pre-polish pipelines
+     * status pill so table rows don't re-flow.
+     * ------------------------------------------------------------------ */
+    :host(:not([size])),
+    :host([size='md']) {
+      --bdg-h: 22px;
+      --bdg-px: 8px;
+      --bdg-fs: 10.5px;
+      --bdg-gap: 4px;
+      --bdg-icon: 10px;
+    }
+    :host([size='sm']) {
+      --bdg-h: 18px;
+      --bdg-px: 6px;
+      --bdg-fs: 9.5px;
+      --bdg-gap: 3px;
+      --bdg-icon: 8px;
+    }
+    :host([size='lg']) {
+      --bdg-h: 26px;
+      --bdg-px: 10px;
+      --bdg-fs: 11.5px;
+      --bdg-gap: 5px;
+      --bdg-icon: 12px;
+    }
+
+    /* Shape channel — square by default (visual parity with pre-polish
+     * badge), pill when opted-in. Both shapes share the same height &
+     * padding so swapping shapes doesn't re-layout surrounding text. */
+    :host { --bdg-radius: var(--radius-sm); }
+    :host([pill]) { --bdg-radius: var(--radius-full); }
+
+    /* ------------------------------------------------------------------
+     * Core badge chrome. Non-interactive — no cursor, no hover, no
+     * focus ring. Padding block is 0 so the explicit min-height owns
+     * the vertical rhythm; inline padding follows the size channel.
+     * ------------------------------------------------------------------ */
+    .badge {
+      display: inline-flex;
+      align-items: center;
+      gap: var(--bdg-gap);
+      min-height: var(--bdg-h);
+      padding: 0 var(--bdg-px);
+      font-family: var(--font-body);
+      font-size: var(--bdg-fs);
+      font-weight: var(--font-weight-semibold);
+      line-height: 1;
+      letter-spacing: 0.04em;
+      text-transform: uppercase;
+      border-radius: var(--bdg-radius);
+      /* Base styling — acts as the soft variant so any unknown or missing
+       * variant attribute still renders a legible pill. Known variants
+       * below re-declare these three properties to override. */
+      background: color-mix(in oklch, var(--tone) 16%, transparent);
+      border: 1px solid color-mix(in oklch, var(--tone) 24%, transparent);
+      color: var(--tone-fg);
+      white-space: nowrap;
+      -webkit-font-smoothing: antialiased;
+      font-variant-numeric: tabular-nums;
+    }
+
+    /* ------------------------------------------------------------------
+     * Variant matrix. Reads only from --tone / --tone-contrast so the
+     * matrix stays DRY across tones. Default (no variant attr) is the
+     * soft look — matches the pre-polish badge and is the context
+     * where badges sit most often (inline row metadata).
+     * ------------------------------------------------------------------ */
+
+    /* soft — tone-tinted surface, faint border, tone text. Default is
+     * already applied by .badge above; this explicit selector exists
+     * so callers that pass variant=soft target the same rules as
+     * variant-less badges. */
+    :host([variant='soft']) .badge {
+      background: color-mix(in oklch, var(--tone) 16%, transparent);
+      border-color: color-mix(in oklch, var(--tone) 24%, transparent);
+      color: var(--tone-fg);
+    }
+
+    /* solid — filled tone, contrast text, subtle inset highlight for
+     * the premium feel (same recipe as ship-button solid). */
+    :host([variant='solid']) .badge {
+      background: var(--tone);
+      border-color: color-mix(in oklch, var(--tone) 100%, black 6%);
+      color: var(--tone-contrast);
+      box-shadow:
+        inset 0 1px 0 0 color-mix(in oklch, white 18%, transparent);
+    }
+    :host([variant='solid'][tone='muted']) .badge,
+    :host([variant='solid']:not([tone])) .badge {
+      background: var(--muted-foreground);
+      border-color: color-mix(in oklch, var(--muted-foreground) 100%, black 6%);
+      color: var(--background);
+    }
+
+    /* outline — transparent with tone border + tone text. The slightly
+     * deeper border keeps the chip legible against textured backgrounds. */
+    :host([variant='outline']) .badge {
+      background: transparent;
+      border-color: color-mix(in oklch, var(--tone) 50%, transparent);
+      color: var(--tone-fg);
+    }
+    :host([variant='outline']:not([tone])) .badge,
+    :host([variant='outline'][tone='muted']) .badge {
+      border-color: var(--border);
+      color: var(--muted-foreground);
+    }
+
+    /* ------------------------------------------------------------------
+     * Leading slot — icon / status dot. Sized from the icon channel so
+     * the glyph always matches the label's cap-height optically. Uses
+     * currentColor so an <ship-status-dot> or <ship-icon> tints with
+     * the badge's tone-fg without extra wiring.
+     * ------------------------------------------------------------------ */
+    .leading {
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      width: var(--bdg-icon);
+      height: var(--bdg-icon);
+      flex-shrink: 0;
+      color: currentColor;
+    }
+    .leading:empty { display: none; }
+    ::slotted([slot='leading']) {
+      display: inline-flex;
+      align-items: center;
+      color: currentColor;
+      width: 100%;
+      height: 100%;
+    }
+
+    /* Forced-colors — fall back to system colors so high-contrast
+     * modes render the badge border reliably. */
+    @media (forced-colors: active) {
+      .badge { border-color: CanvasText; color: CanvasText; }
+      :host([variant='solid']) .badge {
+        background: Highlight;
+        color: HighlightText;
+        border-color: Highlight;
+      }
+    }
+  `
+];
+
 // packages/ui/src/web-components/ship-badge.ts
 var ShipBadge = class extends i4 {
   constructor() {
     super();
     this.tone = "muted";
+    this.variant = null;
     this.size = "md";
+    this.pill = false;
   }
   render() {
-    return b2`<span class="badge" part="badge"><slot></slot></span>`;
+    return b2`
+      <span class="badge" part="badge">
+        <span class="leading" part="leading"><slot name="leading"></slot></span>
+        <slot></slot>
+      </span>
+    `;
   }
 };
-ShipBadge.styles = [
-  toneVars,
-  i`
-      :host {
-        display: inline-flex;
-        vertical-align: middle;
-      }
-      .badge {
-        display: inline-flex;
-        align-items: center;
-        gap: 4px;
-        padding: 2px 8px;
-        font-family: var(--font-body);
-        font-size: 10px;
-        font-weight: 600;
-        line-height: 1.4;
-        letter-spacing: 0.04em;
-        text-transform: uppercase;
-        border-radius: 4px;
-        background: var(--tone-bg);
-        color: var(--tone-fg);
-        border: 1px solid transparent;
-        white-space: nowrap;
-      }
-      :host([size='sm']) .badge {
-        padding: 1px 6px;
-        font-size: 9px;
-      }
-    `
-];
+ShipBadge.styles = shipBadgeStyles;
 ShipBadge.properties = {
   tone: { type: String, reflect: true },
-  size: { type: String, reflect: true }
+  variant: { type: String, reflect: true },
+  size: { type: String, reflect: true },
+  pill: { type: Boolean, reflect: true }
 };
 if (typeof customElements !== "undefined" && !customElements.get("ship-badge")) {
   customElements.define("ship-badge", ShipBadge);
@@ -7101,58 +7285,421 @@ if (typeof customElements !== "undefined" && !customElements.get("ship-markdown"
   customElements.define("ship-markdown", ShipMarkdown);
 }
 
+// packages/ui/src/web-components/observability/ship-table.styles.ts
+var shipTableStyles = [
+  reducedMotion,
+  i`
+    :host {
+      display: block;
+      width: 100%;
+      font-family: var(--font-body);
+      font-size: var(--text-base);
+      color: var(--foreground);
+
+      /* Density channel — default matches the pre-polish 10px/12px cells
+       * the SDK table macro uses, so existing views don't shift a pixel. */
+      --row-py: 10px;
+      --row-px: var(--space-3);
+      --th-py: 10px;
+      --th-fs: var(--text-xs);
+      --table-radius: var(--radius-lg);
+      --row-hover-mix: 45%;
+    }
+    :host([hidden]) { display: none; }
+
+    /* Density: compact — log-table feel. Legacy 'dense' aliases to this. */
+    :host([density='compact']),
+    :host([dense]) {
+      --row-py: 6px;
+      --row-px: var(--space-2);
+      --th-py: 6px;
+    }
+    /* Density: comfortable — settings / admin feel. */
+    :host([density='comfortable']) {
+      --row-py: 14px;
+      --row-px: var(--space-4);
+      --th-py: 14px;
+    }
+
+    /* ------------------------------------------------------------------
+     * Wrapper — source-of-truth surface. Border + radius + overflow
+     * live here so the table inside can scroll horizontally on narrow
+     * viewports without the border clipping mid-cell. Mirrors shadcn's
+     * Table's wrapping <div>.
+     * ------------------------------------------------------------------ */
+    .wrap {
+      position: relative;
+      width: 100%;
+      border: 1px solid var(--border);
+      border-radius: var(--table-radius);
+      background: var(--card);
+      box-shadow: var(--shadow-xs);
+      overflow: hidden;
+      overflow-x: auto;
+      transition: box-shadow var(--duration-fast) var(--ease-out);
+    }
+
+    table {
+      width: 100%;
+      border-collapse: separate;
+      border-spacing: 0;
+      table-layout: auto;
+      font-variant-numeric: tabular-nums;
+    }
+
+    /* Sticky-header — pins <thead> while the body scrolls. The consumer
+     * sets max-height on the host (inline style); we mirror it onto the
+     * wrapper so the scroll container is the wrapper itself, which keeps
+     * the border + radius intact around the scrolled body. */
+    :host([sticky-header]) {
+      display: block;
+    }
+    :host([sticky-header]) .wrap {
+      overflow-y: auto;
+      max-height: inherit;
+    }
+
+    /* ------------------------------------------------------------------
+     * Empty state — rendered when the consumer slots content into the
+     * 'empty' slot AND the tbody has no <tr> children. Visibility is
+     * toggled via the 'data-empty' attribute set from the component's
+     * slotchange / MutationObserver logic.
+     * ------------------------------------------------------------------ */
+    .empty {
+      display: none;
+      padding: var(--space-7) var(--space-5);
+      text-align: center;
+      color: var(--muted-foreground);
+      font-size: var(--text-sm);
+      background: var(--card);
+    }
+    :host([data-empty]) .empty { display: block; }
+    :host([data-empty]) table { display: none; }
+
+    @media (forced-colors: active) {
+      .wrap { border-color: CanvasText; }
+    }
+  `
+];
+var shipTableLightDomCss = `
+  ship-table {
+    --ship-table-border-soft: color-mix(in oklch, var(--border) 80%, transparent);
+  }
+
+  /* In native mode the consumer's <table> is a direct child \u2014 reset
+   * its own borders/spacing so the ship-table wrapper chrome owns the
+   * surface and nothing double-lines. */
+  ship-table[variant='native'] > table {
+    width: 100%;
+    border-collapse: separate;
+    border-spacing: 0;
+    table-layout: auto;
+    font-variant-numeric: tabular-nums;
+  }
+
+  /* Cell chrome \u2014 padding, baseline, separator. Reads density from the
+   * host custom properties via inheritance. Scoped under ship-table so
+   * we only claim cells inside the component, not arbitrary tables. */
+  ship-table th,
+  ship-table td {
+    text-align: left;
+    padding: var(--row-py, 10px) var(--row-px, 12px);
+    vertical-align: middle;
+    border-bottom: 1px solid var(--ship-table-border-soft);
+    font-size: var(--text-base, 13px);
+    color: var(--foreground);
+    box-sizing: border-box;
+  }
+  ship-table th {
+    padding-top: var(--th-py, 10px);
+    padding-bottom: var(--th-py, 10px);
+    font-weight: var(--font-weight-semibold, 600);
+    font-size: var(--th-fs, 10.5px);
+    text-transform: uppercase;
+    letter-spacing: 0.06em;
+    color: var(--muted-foreground);
+    border-bottom: 1px solid var(--border);
+    white-space: nowrap;
+    user-select: none;
+    background: color-mix(in oklch, var(--muted) 55%, var(--card));
+  }
+  ship-table thead {
+    background: color-mix(in oklch, var(--muted) 55%, var(--card));
+  }
+  /* Last body row \u2014 drop separator; the wrapper border closes the table.
+   * Works for both the slot pattern (bare <tr> as direct child) and the
+   * fragment pattern (<tr> inside <tbody>). */
+  ship-table > tr:last-of-type > *,
+  ship-table tbody tr:last-child > * {
+    border-bottom: 0;
+  }
+
+  /* Column alignment. */
+  ship-table th[align='right'], ship-table td[align='right'] { text-align: right; }
+  ship-table th[align='center'], ship-table td[align='center'] { text-align: center; }
+
+  /* Mono/muted conventions for the data-view SDK table + similar. */
+  ship-table .mono {
+    font-family: ui-monospace, SFMono-Regular, 'SF Mono', Menlo, Consolas, monospace;
+    font-size: var(--text-sm, 12px);
+    letter-spacing: -0.01em;
+  }
+  ship-table .muted { color: var(--muted-foreground); }
+  ship-table .null { color: var(--muted-foreground); font-style: italic; }
+
+  /* Row hover \u2014 on by default, opt-out via hoverable="false". Applies
+   * to body rows in both patterns: bare <tr> under ship-table, or <tr>
+   * under <tbody>. Excludes the thead row via :not([slot='head']). */
+  ship-table > tr:not([slot='head']),
+  ship-table tbody tr {
+    transition: background-color var(--duration-fast, 120ms) var(--ease-out, cubic-bezier(0.16,1,0.3,1));
+  }
+  ship-table:not([hoverable='false']) > tr:not([slot='head']):hover > *,
+  ship-table:not([hoverable='false']) tbody tr:hover > * {
+    background: color-mix(in oklch, var(--muted) var(--row-hover-mix, 45%), transparent);
+  }
+
+  /* Striped \u2014 zebra on alternate body rows. Both patterns. */
+  ship-table[striped] > tr:not([slot='head']):nth-of-type(even) > *,
+  ship-table[striped] tbody tr:nth-child(even) > * {
+    background: color-mix(in oklch, var(--muted) 25%, transparent);
+  }
+  ship-table[striped]:not([hoverable='false']) > tr:not([slot='head']):hover > *,
+  ship-table[striped]:not([hoverable='false']) tbody tr:hover > * {
+    background: color-mix(in oklch, var(--muted) var(--row-hover-mix, 45%), transparent);
+  }
+
+  /* Selected row \u2014 data-selected attr or aria-selected="true". */
+  ship-table tr[data-selected] > *,
+  ship-table tr[aria-selected='true'] > * {
+    background: color-mix(in oklch, var(--primary) 14%, transparent);
+  }
+  ship-table tr[data-selected] > *:first-child,
+  ship-table tr[aria-selected='true'] > *:first-child {
+    box-shadow: inset 3px 0 0 0 var(--primary);
+  }
+
+  /* Sticky-header \u2014 applies position:sticky to the thead cells so the
+   * header rides above scrolling body rows. Works on both patterns
+   * because the thead cells sit inside the shadow <thead> via slot
+   * projection, and the slotted element inherits sticky semantics. */
+  ship-table[sticky-header] thead th,
+  ship-table[sticky-header] tr[slot='head'] > th {
+    position: sticky;
+    top: 0;
+    z-index: var(--z-sticky, 20);
+    background: color-mix(in oklch, var(--muted) 55%, var(--card));
+    box-shadow: 0 1px 0 0 var(--border);
+  }
+
+  /* Sortable headers \u2014 chevron rendered by the component; these rules
+   * paint the cursor + color transitions. */
+  ship-table th[data-sort-key],
+  ship-table th.sortable {
+    cursor: pointer;
+    -webkit-tap-highlight-color: transparent;
+    transition: color var(--duration-fast, 120ms) var(--ease-out, cubic-bezier(0.16,1,0.3,1));
+  }
+  ship-table th[data-sort-key]:hover,
+  ship-table th.sortable:hover {
+    color: var(--foreground);
+  }
+  ship-table th[aria-sort='ascending'],
+  ship-table th[aria-sort='descending'] {
+    color: var(--foreground);
+  }
+  ship-table th[data-sort-key]:focus-visible {
+    outline: none;
+    box-shadow: inset 0 0 0 var(--ring-width, 3px)
+      color-mix(in oklch, var(--ring-color, var(--primary)) var(--ring-opacity, 25%), transparent);
+  }
+
+  /* Empty-state \u2014 in native mode the <table> is a light-DOM child so
+   * hiding it has to happen from the document stylesheet. The host
+   * [data-empty] attribute is the single source of truth either way. */
+  ship-table[data-empty] > table {
+    display: none;
+  }
+
+  /* Forced colors \u2014 keep legibility in high-contrast mode. */
+  @media (forced-colors: active) {
+    ship-table th, ship-table td { border-bottom-color: CanvasText; }
+  }
+`;
+
 // packages/ui/src/web-components/observability/ship-table.ts
+var lightDomInstalled = /* @__PURE__ */ new WeakSet();
+function installLightDomStyles(doc) {
+  if (lightDomInstalled.has(doc)) return;
+  lightDomInstalled.add(doc);
+  try {
+    if (typeof CSSStyleSheet !== "undefined" && "replaceSync" in CSSStyleSheet.prototype) {
+      const sheet = new CSSStyleSheet();
+      sheet.replaceSync(shipTableLightDomCss);
+      doc.adoptedStyleSheets = [...doc.adoptedStyleSheets, sheet];
+      return;
+    }
+  } catch {
+  }
+  const style = doc.createElement("style");
+  style.setAttribute("data-ship-table", "");
+  style.textContent = shipTableLightDomCss;
+  doc.head.appendChild(style);
+}
 var ShipTable = class extends i4 {
   constructor() {
     super(...arguments);
+    this.variant = "slot";
+    this.density = "default";
     this.dense = false;
     this.hoverable = true;
+    this.striped = false;
+    this.stickyHeader = false;
     this.label = "";
+    this.onHeaderClick = (e6) => {
+      const th = e6.target.closest(
+        "th[data-sort-key]"
+      );
+      if (!th || !this.contains(th)) return;
+      this.cycleSort(th);
+    };
+    this.onHeaderKey = (e6) => {
+      if (e6.key !== "Enter" && e6.key !== " ") return;
+      const th = e6.target.closest(
+        "th[data-sort-key]"
+      );
+      if (!th || !this.contains(th)) return;
+      e6.preventDefault();
+      this.cycleSort(th);
+    };
+  }
+  connectedCallback() {
+    super.connectedCallback();
+    installLightDomStyles(this.ownerDocument);
+    this.addEventListener("click", this.onHeaderClick);
+    this.addEventListener("keydown", this.onHeaderKey);
+  }
+  disconnectedCallback() {
+    super.disconnectedCallback();
+    this.removeEventListener("click", this.onHeaderClick);
+    this.removeEventListener("keydown", this.onHeaderKey);
+    this.structureObserver?.disconnect();
+  }
+  firstUpdated() {
+    this.enhanceSortableHeaders();
+    this.syncEmptyState();
+    this.structureObserver = new MutationObserver(() => {
+      this.enhanceSortableHeaders();
+      this.syncEmptyState();
+    });
+    this.structureObserver.observe(this, { childList: true, subtree: true });
+  }
+  /** Give sortable headers a tabindex, role, chevron, and an initial
+   * aria-sort so keyboard users can cycle the sort direction. Idempotent
+   * across re-runs so Datastar-patched tables stay enhanced. */
+  enhanceSortableHeaders() {
+    const ths = this.querySelectorAll(
+      "th[data-sort-key]"
+    );
+    ths.forEach((th) => {
+      if (!th.hasAttribute("aria-sort")) th.setAttribute("aria-sort", "none");
+      if (!th.hasAttribute("tabindex")) th.setAttribute("tabindex", "0");
+      if (!th.hasAttribute("role")) th.setAttribute("role", "columnheader");
+      if (!th.querySelector(".ship-sort-indicator")) {
+        const chev = document.createElement("span");
+        chev.className = "ship-sort-indicator";
+        chev.setAttribute("aria-hidden", "true");
+        chev.style.cssText = "margin-left:4px;display:inline-block;opacity:0.5;transition:transform 120ms var(--ease-out),opacity 120ms var(--ease-out);vertical-align:middle;";
+        chev.innerHTML = '<svg width="10" height="10" viewBox="0 0 10 10" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true"><path d="M2 4l3-2 3 2M2 6l3 2 3-2"/></svg>';
+        th.appendChild(chev);
+      }
+    });
+    this.paintSortChevrons();
+  }
+  paintSortChevrons() {
+    this.querySelectorAll("th[data-sort-key]").forEach(
+      (th) => {
+        const dir = th.getAttribute("aria-sort") || "none";
+        const ind = th.querySelector(".ship-sort-indicator");
+        if (!ind) return;
+        if (dir === "ascending") {
+          ind.style.transform = "rotate(180deg)";
+          ind.style.opacity = "1";
+        } else if (dir === "descending") {
+          ind.style.transform = "rotate(0deg)";
+          ind.style.opacity = "1";
+        } else {
+          ind.style.transform = "rotate(0deg)";
+          ind.style.opacity = "0.4";
+        }
+      }
+    );
+  }
+  /** Toggle `[data-empty]` when the table has no body rows AND an
+   * `empty` slot is provided. Covers all three structural patterns:
+   *   - slot mode: <tr slot="head"> + bare <tr> default-slotted
+   *   - native mode: <table><thead><tr/></thead><tbody><tr/></tbody></table>
+   *   - native mode without explicit tbody */
+  syncEmptyState() {
+    const bodyRow = this.querySelector(":scope > table tbody > tr") || this.querySelector(":scope > table > tr:not(:has(th))") || this.querySelector(":scope > tbody > tr") || this.querySelector(':scope > tr:not([slot="head"])');
+    const hasEmptySlot = this.querySelector('[slot="empty"]') != null;
+    if (!bodyRow && hasEmptySlot) this.setAttribute("data-empty", "");
+    else this.removeAttribute("data-empty");
+  }
+  /** Cycle: none -> ascending -> descending -> none. Clearing peers keeps
+   * the table single-sort; multi-sort consumers can listen for ship-sort
+   * and manage aria-sort themselves. */
+  cycleSort(th) {
+    const key = th.getAttribute("data-sort-key") || "";
+    const current = th.getAttribute("aria-sort") || "none";
+    const next = current === "none" ? "ascending" : current === "ascending" ? "descending" : "none";
+    this.querySelectorAll("th[data-sort-key]").forEach(
+      (peer) => {
+        if (peer !== th) peer.setAttribute("aria-sort", "none");
+      }
+    );
+    th.setAttribute("aria-sort", next);
+    this.paintSortChevrons();
+    this.dispatchEvent(
+      new CustomEvent("ship-sort", {
+        detail: { key, direction: next },
+        bubbles: true,
+        composed: true
+      })
+    );
   }
   render() {
+    if (this.variant === "native") {
+      return b2`
+        <div class="wrap" part="wrap">
+          <slot></slot>
+          <div class="empty" part="empty" role="status">
+            <slot name="empty"></slot>
+          </div>
+        </div>
+      `;
+    }
     return b2`
       <div class="wrap" part="wrap">
         <table part="table" aria-label=${this.label || A}>
           <thead part="thead"><slot name="head"></slot></thead>
           <tbody part="tbody"><slot></slot></tbody>
         </table>
+        <div class="empty" part="empty" role="status">
+          <slot name="empty"></slot>
+        </div>
       </div>
     `;
   }
 };
-ShipTable.styles = i`
-    :host {
-      display: block;
-      width: 100%;
-      font-family: var(--font-body);
-      font-size: var(--text-sm);
-      color: var(--foreground);
-    }
-    .wrap { overflow-x: auto; border: 1px solid var(--border); border-radius: var(--radius-md); }
-    table { width: 100%; border-collapse: collapse; }
-    ::slotted(tr) { border-bottom: 1px solid var(--border); }
-    ::slotted(tr:last-child) { border-bottom: none; }
-    ::slotted(th), ::slotted(td) {
-      text-align: left;
-      padding: 8px 12px;
-      vertical-align: middle;
-    }
-    ::slotted(th) {
-      font-weight: var(--font-weight-semibold);
-      font-size: var(--text-xs);
-      text-transform: uppercase;
-      letter-spacing: 0.04em;
-      color: var(--muted-foreground);
-      background: color-mix(in oklch, var(--muted) 60%, var(--background));
-    }
-    :host([dense]) ::slotted(th),
-    :host([dense]) ::slotted(td) { padding: 4px 8px; }
-    :host([hoverable]) ::slotted(tr:hover) { background: var(--muted); }
-    thead { border-bottom: 1px solid var(--border); }
-  `;
+ShipTable.styles = shipTableStyles;
 ShipTable.properties = {
+  variant: { type: String, reflect: true },
+  density: { type: String, reflect: true },
   dense: { type: Boolean, reflect: true },
   hoverable: { type: Boolean, reflect: true },
+  striped: { type: Boolean, reflect: true },
+  stickyHeader: { type: Boolean, reflect: true, attribute: "sticky-header" },
   label: { type: String }
 };
 if (typeof customElements !== "undefined" && !customElements.get("ship-table")) {
@@ -8253,17 +8800,336 @@ if (typeof customElements !== "undefined" && !customElements.get("ship-avatar"))
   customElements.define("ship-avatar", ShipAvatar);
 }
 
+// packages/ui/src/web-components/utility/ship-chip.styles.ts
+var shipChipStyles = [
+  reducedMotion,
+  i`
+    :host {
+      display: inline-flex;
+      vertical-align: middle;
+      -webkit-tap-highlight-color: transparent;
+      --tone: var(--muted-foreground);
+      --tone-fg: var(--muted-foreground);
+      --tone-contrast: var(--background);
+    }
+    :host([hidden]) { display: none; }
+
+    /* Tone channel — same palette as ship-button so a row of mixed
+     * chips + buttons share tone semantics. One-liner per tone keeps
+     * additions cheap. */
+    :host(:not([tone])),
+    :host([tone='muted'])       { --tone: var(--muted-foreground); --tone-fg: var(--muted-foreground); --tone-contrast: var(--background); }
+    :host([tone='default'])     { --tone: var(--foreground);       --tone-fg: var(--foreground);       --tone-contrast: var(--background); }
+    :host([tone='info'])        { --tone: var(--info);              --tone-fg: var(--info);              --tone-contrast: oklch(0.99 0.02 260); }
+    :host([tone='success'])     { --tone: var(--success);           --tone-fg: var(--success);           --tone-contrast: oklch(0.99 0.02 150); }
+    :host([tone='warning'])     { --tone: var(--warning);           --tone-fg: var(--warning);           --tone-contrast: oklch(0.2 0.04 75); }
+    :host([tone='destructive']) { --tone: var(--destructive);       --tone-fg: var(--destructive);       --tone-contrast: oklch(0.99 0.02 25); }
+    :host([tone='accent'])      { --tone: var(--accent);            --tone-fg: var(--accent);            --tone-contrast: var(--accent-foreground); }
+
+    /* Size channel — sm matches pre-polish filter rails; md/lg step up
+     * proportionally. Heights +4px per step so sibling controls align. */
+    :host(:not([size])),
+    :host([size='md']) { --chip-h: 26px; --chip-px: 10px; --chip-fs: var(--text-sm);   --chip-gap: 6px; --chip-icon: 12px; --chip-remove: 16px; }
+    :host([size='sm']) { --chip-h: 22px; --chip-px: 8px;  --chip-fs: var(--text-xs);   --chip-gap: 4px; --chip-icon: 10px; --chip-remove: 14px; }
+    :host([size='lg']) { --chip-h: 30px; --chip-px: 12px; --chip-fs: var(--text-base); --chip-gap: 6px; --chip-icon: 14px; --chip-remove: 18px; }
+
+    :host { --chip-radius: var(--radius-full); }
+
+    /* ------------------------------------------------------------------
+     * Core chip chrome. The host owns interaction — no inner <button>
+     * — so Datastar's data-on:click on the host fires identically
+     * whether the user hits the label, padding, or icon. Keyboard
+     * activation (Enter / Space) synthesizes a host click in TS.
+     * ------------------------------------------------------------------ */
+    .chip {
+      display: inline-flex;
+      align-items: center;
+      gap: var(--chip-gap);
+      min-height: var(--chip-h);
+      padding: 0 var(--chip-px);
+      font-family: var(--font-body);
+      font-size: var(--chip-fs);
+      font-weight: var(--font-weight-medium);
+      line-height: 1;
+      letter-spacing: -0.005em;
+      color: var(--tone-fg);
+      background: transparent;
+      border: 1px solid transparent;
+      border-radius: var(--chip-radius);
+      cursor: pointer;
+      user-select: none;
+      -webkit-user-select: none;
+      white-space: nowrap;
+      isolation: isolate;
+      transition:
+        background-color var(--duration-fast) var(--ease-out),
+        border-color var(--duration-fast) var(--ease-out),
+        box-shadow var(--duration-fast) var(--ease-out),
+        color var(--duration-fast) var(--ease-out),
+        filter var(--duration-fast) var(--ease-out);
+    }
+
+    /* ------------------------------------------------------------------
+     * Variant matrix — solid | soft | outline. Default (no variant
+     * attr) is soft so filter rails stay legible against the page bg.
+     * ------------------------------------------------------------------ */
+
+    :host(:not([variant])) .chip,
+    :host([variant='soft']) .chip {
+      background: color-mix(in oklch, var(--tone) 14%, transparent);
+      border-color: color-mix(in oklch, var(--tone) 22%, transparent);
+      color: var(--tone-fg);
+    }
+    :host(:not([variant]):not([disabled])) .chip:hover,
+    :host([variant='soft']:not([disabled])) .chip:hover {
+      background: color-mix(in oklch, var(--tone) 22%, transparent);
+      border-color: color-mix(in oklch, var(--tone) 32%, transparent);
+    }
+    :host(:not([variant]):not([disabled])) .chip:active,
+    :host([variant='soft']:not([disabled])) .chip:active {
+      background: color-mix(in oklch, var(--tone) 28%, transparent);
+    }
+
+    :host([variant='outline']) .chip {
+      background: transparent;
+      border-color: color-mix(in oklch, var(--tone) 45%, transparent);
+      color: var(--tone-fg);
+    }
+    :host([variant='outline']:not([tone])) .chip,
+    :host([variant='outline'][tone='muted']) .chip {
+      border-color: var(--border);
+      color: var(--muted-foreground);
+    }
+    :host([variant='outline']:not([disabled])) .chip:hover {
+      background: color-mix(in oklch, var(--tone) 10%, transparent);
+      border-color: color-mix(in oklch, var(--tone) 70%, transparent);
+    }
+    :host([variant='outline']:not([tone]):not([disabled])) .chip:hover,
+    :host([variant='outline'][tone='muted']:not([disabled])) .chip:hover {
+      background: var(--muted);
+      border-color: color-mix(in oklch, var(--border) 160%, transparent);
+      color: var(--foreground);
+    }
+
+    :host([variant='solid']) .chip {
+      background: var(--tone);
+      border-color: color-mix(in oklch, var(--tone) 100%, black 6%);
+      color: var(--tone-contrast);
+      box-shadow: inset 0 1px 0 0 color-mix(in oklch, white 18%, transparent);
+    }
+    :host([variant='solid']:not([disabled])) .chip:hover {
+      background: color-mix(in oklch, var(--tone) 92%, white 8%);
+      box-shadow:
+        inset 0 1px 0 0 color-mix(in oklch, white 22%, transparent),
+        var(--shadow-xs);
+    }
+
+    /* ------------------------------------------------------------------
+     * Selected state — Radix Toggle pressed look. Promotes any variant
+     * to a solid tone fill so [soft][soft][selected][soft] reads the
+     * active one unambiguously. Selected + muted uses --foreground as
+     * the fill so the pill asserts neutrally instead of washing out.
+     * ------------------------------------------------------------------ */
+    :host([selected]) .chip {
+      background: var(--tone);
+      border-color: color-mix(in oklch, var(--tone) 100%, black 10%);
+      color: var(--tone-contrast);
+      box-shadow:
+        inset 0 1px 0 0 color-mix(in oklch, white 20%, transparent),
+        var(--shadow-xs);
+      font-weight: var(--font-weight-semibold);
+    }
+    :host([selected]:not([disabled])) .chip:hover {
+      background: color-mix(in oklch, var(--tone) 92%, white 8%);
+      box-shadow:
+        inset 0 1px 0 0 color-mix(in oklch, white 24%, transparent),
+        var(--shadow-sm);
+    }
+    :host([selected]:not([tone])) .chip,
+    :host([selected][tone='muted']) .chip {
+      background: var(--foreground);
+      border-color: var(--foreground);
+      color: var(--background);
+    }
+    :host([selected]:not([tone]):not([disabled])) .chip:hover,
+    :host([selected][tone='muted']:not([disabled])) .chip:hover {
+      background: color-mix(in oklch, var(--foreground) 88%, var(--background));
+    }
+
+    /* Focus ring — stacked box-shadow so the ring sits outside the pill
+     * without reserving layout. Fires on :host(:focus-visible) so it
+     * travels with Tab navigation and programmatic focus identically. */
+    :host(:focus-visible) { outline: none; }
+    :host(:focus-visible) .chip {
+      outline: none;
+      box-shadow:
+        0 0 0 var(--ring-offset) var(--background),
+        0 0 0 calc(var(--ring-offset) + var(--ring-width))
+          color-mix(in oklch, var(--tone) var(--ring-opacity), transparent);
+    }
+    :host([selected]:focus-visible) .chip {
+      box-shadow:
+        inset 0 1px 0 0 color-mix(in oklch, white 22%, transparent),
+        0 0 0 var(--ring-offset) var(--background),
+        0 0 0 calc(var(--ring-offset) + var(--ring-width))
+          color-mix(in oklch, var(--tone) var(--ring-opacity), transparent);
+    }
+
+    /* Disabled — muted, desaturated, uninteractive. Distinct from the
+     * unselected look so users can tell when a chip is unreachable. */
+    :host([disabled]) .chip {
+      cursor: not-allowed;
+      background: var(--muted);
+      border-color: color-mix(in oklch, var(--border) 80%, transparent);
+      color: color-mix(in oklch, var(--muted-foreground) 70%, transparent);
+      filter: saturate(0.65);
+      box-shadow: none;
+    }
+
+    /* ------------------------------------------------------------------
+     * Leading slot — icon / status dot / avatar. Sized from the icon
+     * channel so glyphs optically match cap-height. currentColor flows
+     * so <ship-status-dot> tints with the chip tone for free.
+     * ------------------------------------------------------------------ */
+    .leading {
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      width: var(--chip-icon);
+      height: var(--chip-icon);
+      flex-shrink: 0;
+      color: currentColor;
+    }
+    .leading:empty { display: none; }
+    ::slotted([slot='leading']) {
+      display: inline-flex;
+      align-items: center;
+      color: currentColor;
+      width: 100%;
+      height: 100%;
+    }
+
+    /* ------------------------------------------------------------------
+     * Remove button — × affordance on the trailing edge. Not focusable
+     * separately from the chip (tabindex=-1 in TS); clicking stops
+     * propagation so the chip's click doesn't also fire. Keyboard
+     * removal: Backspace / Delete on the focused chip (handled in TS).
+     * ------------------------------------------------------------------ */
+    .remove {
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      width: var(--chip-remove);
+      height: var(--chip-remove);
+      margin-inline: 2px -4px;
+      padding: 0;
+      border: 0;
+      background: transparent;
+      color: inherit;
+      cursor: pointer;
+      border-radius: var(--radius-full);
+      flex-shrink: 0;
+      transition:
+        background-color var(--duration-fast) var(--ease-out),
+        color var(--duration-fast) var(--ease-out);
+      -webkit-tap-highlight-color: transparent;
+    }
+    .remove svg {
+      width: 70%;
+      height: 70%;
+      display: block;
+      stroke: currentColor;
+      fill: none;
+      stroke-width: 1.75;
+      stroke-linecap: round;
+    }
+    .remove:hover:not(:disabled) {
+      background: color-mix(in oklch, currentColor 18%, transparent);
+    }
+    :host([selected]) .remove:hover:not(:disabled) {
+      background: color-mix(in oklch, white 24%, transparent);
+    }
+    .remove:focus-visible {
+      outline: none;
+      box-shadow: 0 0 0 2px color-mix(in oklch, var(--tone) 55%, transparent);
+    }
+    :host([disabled]) .remove { cursor: not-allowed; }
+
+    /* Forced-colors — system colors for high-contrast mode. */
+    @media (forced-colors: active) {
+      .chip { border-color: CanvasText; color: CanvasText; }
+      :host([selected]) .chip {
+        background: Highlight;
+        color: HighlightText;
+        border-color: Highlight;
+      }
+      :host(:focus-visible) .chip {
+        outline: 2px solid CanvasText;
+        outline-offset: 2px;
+      }
+    }
+  `
+];
+
 // packages/ui/src/web-components/utility/ship-chip.ts
 var ShipChip = class extends i4 {
   constructor() {
-    super(...arguments);
+    super();
+    this.onKeydown = (e6) => {
+      if (this.disabled) return;
+      if (e6.key === "Enter" || e6.key === " ") {
+        e6.preventDefault();
+        this.click();
+        return;
+      }
+      if (this.removable && (e6.key === "Backspace" || e6.key === "Delete")) {
+        e6.preventDefault();
+        this.dispatchRemove();
+      }
+    };
+    this.onRemoveClick = (e6) => {
+      e6.stopPropagation();
+      if (this.disabled) return;
+      this.dispatchRemove();
+    };
     this.tone = "muted";
+    this.variant = null;
     this.size = "md";
-    this.removable = false;
     this.selected = false;
+    this.removable = false;
+    this.disabled = false;
   }
-  onRemove(e6) {
-    e6.stopPropagation();
+  connectedCallback() {
+    super.connectedCallback();
+    if (!this.hasAttribute("tabindex") && !this.disabled) {
+      this.setAttribute("tabindex", "0");
+    }
+    if (!this.hasAttribute("role")) {
+      this.setAttribute("role", "button");
+    }
+    this.addEventListener("keydown", this.onKeydown);
+  }
+  disconnectedCallback() {
+    this.removeEventListener("keydown", this.onKeydown);
+    super.disconnectedCallback();
+  }
+  updated(changed) {
+    if (changed.has("disabled")) {
+      if (this.disabled) {
+        this.setAttribute("aria-disabled", "true");
+        this.setAttribute("tabindex", "-1");
+      } else {
+        this.removeAttribute("aria-disabled");
+        if (this.getAttribute("tabindex") === "-1") {
+          this.setAttribute("tabindex", "0");
+        }
+      }
+    }
+    if (changed.has("selected")) {
+      this.setAttribute("aria-pressed", this.selected ? "true" : "false");
+    }
+  }
+  dispatchRemove() {
     this.dispatchEvent(new CustomEvent("ship-remove", {
       detail: {},
       bubbles: true,
@@ -8273,56 +9139,35 @@ var ShipChip = class extends i4 {
   render() {
     return b2`
       <span class="chip" part="chip">
-        <slot name="leading"></slot>
+        <span class="leading" part="leading"><slot name="leading"></slot></span>
         <slot></slot>
-        ${this.removable ? b2`<button class="remove" part="remove" aria-label="Remove" @click=${this.onRemove}>×</button>` : null}
+        ${this.removable ? b2`
+              <button
+                class="remove"
+                part="remove"
+                type="button"
+                aria-label="Remove"
+                tabindex="-1"
+                ?disabled=${this.disabled}
+                @click=${this.onRemoveClick}
+              >
+                <svg viewBox="0 0 10 10" aria-hidden="true">
+                  <path d="M2 2 L8 8 M8 2 L2 8" />
+                </svg>
+              </button>
+            ` : A}
       </span>
     `;
   }
 };
-ShipChip.styles = [
-  toneVars,
-  i`
-      :host { display: inline-flex; vertical-align: middle; }
-      .chip {
-        display: inline-flex; align-items: center; gap: 6px;
-        padding: 4px 10px;
-        font-family: var(--font-body);
-        font-size: var(--text-sm);
-        font-weight: var(--font-weight-medium);
-        line-height: var(--leading-tight);
-        border-radius: var(--radius-full);
-        background: var(--tone-bg);
-        color: var(--tone-fg);
-        border: 1px solid var(--tone-border);
-        white-space: nowrap;
-      }
-      :host([size='sm']) .chip { padding: 2px 8px; font-size: var(--text-xs); gap: 4px; }
-      :host([selected]) .chip {
-        background: color-mix(in oklch, var(--tone-fg) 22%, transparent);
-        border-color: var(--tone-fg);
-      }
-      .remove {
-        display: inline-flex; align-items: center; justify-content: center;
-        width: 16px; height: 16px;
-        border: 0; padding: 0; margin-right: -4px;
-        background: transparent; color: inherit; cursor: pointer;
-        border-radius: var(--radius-full);
-        font-size: 14px; line-height: 1;
-      }
-      .remove:hover { background: color-mix(in oklch, var(--tone-fg) 18%, transparent); }
-      .remove:focus-visible {
-        outline: var(--ring-width) solid var(--ring-color);
-        outline-offset: var(--ring-offset);
-      }
-      ::slotted([slot='leading']) { display: inline-flex; }
-    `
-];
+ShipChip.styles = shipChipStyles;
 ShipChip.properties = {
   tone: { type: String, reflect: true },
+  variant: { type: String, reflect: true },
   size: { type: String, reflect: true },
+  selected: { type: Boolean, reflect: true },
   removable: { type: Boolean, reflect: true },
-  selected: { type: Boolean, reflect: true }
+  disabled: { type: Boolean, reflect: true }
 };
 if (typeof customElements !== "undefined" && !customElements.get("ship-chip")) {
   customElements.define("ship-chip", ShipChip);
