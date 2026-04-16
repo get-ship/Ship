@@ -1,20 +1,20 @@
-//! Phase 2 annotation payload — pinned in Phase 1 so agents can consume
-//! `studio.annotation.created` from day one without a second wire-format
-//! migration. See `.artifacts/phase-1-agent-canvas-views-spec.md`
-//! §"Phase 2 integration contract".
+//! Feedback payload — agent-designed feedback events emitted from Studio
+//! views. Carries arbitrary agent-designed payloads (ratings, selections,
+//! comments, DOM markups) so any kind of human feedback can flow back to
+//! the agent through a single wire format.
 
 use chrono::{DateTime, Utc};
 use serde::{Deserialize, Serialize};
 
-/// A single user- or agent-authored annotation on a live canvas, spec doc,
-/// or file.
+/// A single user- or agent-authored feedback event against a live canvas,
+/// spec doc, or file.
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
-pub struct AnnotationEvent {
+pub struct FeedbackEvent {
     pub id: String,
-    pub kind: AnnotationKind,
-    pub target: AnnotationTarget,
+    pub kind: FeedbackKind,
+    pub target: FeedbackTarget,
     #[serde(default, skip_serializing_if = "Option::is_none")]
-    pub intent: Option<AnnotationIntent>,
+    pub intent: Option<FeedbackIntent>,
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub note: Option<String>,
     #[serde(default, skip_serializing_if = "Option::is_none")]
@@ -31,14 +31,14 @@ pub struct AnnotationEvent {
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
 #[serde(rename_all = "snake_case")]
-pub enum AnnotationKind {
+pub enum FeedbackKind {
     Point,
     Region,
     Action,
 }
 
 #[derive(Debug, Clone, PartialEq, Serialize, Deserialize, Default)]
-pub struct AnnotationTarget {
+pub struct FeedbackTarget {
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub view_id: Option<String>,
     #[serde(default, skip_serializing_if = "Option::is_none")]
@@ -53,7 +53,7 @@ pub struct AnnotationTarget {
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
 #[serde(rename_all = "snake_case")]
-pub enum AnnotationIntent {
+pub enum FeedbackIntent {
     Comment,
     RequestChange,
     Regenerate,
@@ -77,5 +77,5 @@ pub enum AuthorKind {
 }
 
 #[cfg(test)]
-#[path = "annotation_tests.rs"]
+#[path = "feedback_tests.rs"]
 mod tests;

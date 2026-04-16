@@ -96,8 +96,8 @@ fn schema_for_event_type(
         "skill.failed" => Some(check::<SkillFailed>),
         // supervisor
         "supervisor.shutting_down" => Some(check::<SupervisorShuttingDown>),
-        // studio / annotation (Phase 1 pin for the Phase 2 overlay wire format)
-        "studio.annotation.created" => Some(check::<crate::events::annotation::AnnotationEvent>),
+        // studio / feedback (agent-designed feedback payload from Studio views)
+        "studio.feedback.created" => Some(check::<crate::events::feedback::FeedbackEvent>),
         _ => None,
     }
 }

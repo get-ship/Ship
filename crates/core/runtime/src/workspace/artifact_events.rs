@@ -7,7 +7,7 @@
 //!
 //! ## Event ownership
 //!
-//! - **Studio-emitted** (`studio.annotation`, `studio.feedback`, `studio.selection`):
+//! - **Studio-emitted** (`studio.feedback`, `studio.selection`):
 //!   Studio UI actions directed at a rendered artifact. Agents receive these
 //!   because they already subscribe to `studio.*` — no additional subscription
 //!   prefix is needed.
@@ -21,7 +21,7 @@ use crate::agents::skill::Skill;
 
 /// Maps an artifact type to the Studio-emitted event suffixes applicable to it.
 ///
-/// These are `studio.*` events (e.g. `studio.annotation`). Agents already
+/// These are `studio.*` events (e.g. `studio.feedback`). Agents already
 /// subscribe to `studio.*`, so no new subscription prefix is generated from
 /// these suffixes — the mapping exists to document which Studio actions are
 /// meaningful for each artifact type.
@@ -29,10 +29,10 @@ use crate::agents::skill::Skill;
 /// Returns an empty slice for unrecognised artifact types.
 pub fn events_for_artifact(artifact_type: &str) -> &'static [&'static str] {
     match artifact_type {
-        "html" => &["annotation", "feedback", "selection"],
+        "html" => &["feedback", "selection"],
         "pdf" => &["selection", "feedback"],
         "markdown" => &["feedback", "selection"],
-        "image" => &["annotation", "feedback"],
+        "image" => &["feedback"],
         "adr" => &["feedback"],
         "note" => &["feedback"],
         "url" => &["feedback"],
@@ -92,7 +92,6 @@ mod tests {
     #[test]
     fn html_includes_studio_events_not_artifact_lifecycle() {
         let evts = events_for_artifact("html");
-        assert!(evts.contains(&"annotation"));
         assert!(evts.contains(&"selection"));
         assert!(evts.contains(&"feedback"));
         // agent-emitted lifecycle events are NOT subscription topics
@@ -101,9 +100,8 @@ mod tests {
     }
 
     #[test]
-    fn pdf_no_annotation() {
+    fn pdf_has_selection_and_feedback() {
         let evts = events_for_artifact("pdf");
-        assert!(!evts.contains(&"annotation"));
         assert!(evts.contains(&"selection"));
         assert!(evts.contains(&"feedback"));
     }

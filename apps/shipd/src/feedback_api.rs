@@ -1,16 +1,16 @@
-//! REST handler for `POST /api/runtime/annotations`.
+//! REST handler for `POST /api/runtime/feedback`.
 //!
-//! Accepts an `AnnotationEvent` payload and routes it to the right subscriber:
+//! Accepts a `FeedbackEvent` payload and routes it to the right subscriber:
 //!
-//! - `target.view_id` present and open → emit `studio.annotation.created`
+//! - `target.view_id` present and open → emit `studio.feedback.created`
 //!   through the kernel (reaches the owning agent's actor mailbox) AND
 //!   broadcast on the view session's SSE stream so co-watchers see it.
 //! - `target.view_id` absent → workspace broadcast on the kernel event bus.
 //! - `target.view_id` present but unknown / closed → 404.
 //!
 //! Validation, rate-limit (agent callers), and 60s id-dedupe are enforced
-//! in this module. The wire-format (`AnnotationEvent`) is pinned in Phase 1.
-//! See `.artifacts/phase-2-annotations-spec.md`.
+//! in this module. The wire format is `FeedbackEvent` — see
+//! `crates/core/runtime/src/events/feedback.rs`.
 
 use axum::{
     Extension, Json,
@@ -19,7 +19,7 @@ use axum::{
     response::{IntoResponse, Response},
 };
 use runtime::events::EventEnvelope;
-use runtime::events::annotation::{AnnotationEvent, AnnotationKind, AuthorKind};
+use runtime::events::feedback::{AuthorKind, FeedbackEvent, FeedbackKind};
 use std::collections::HashMap;
 use std::sync::Arc;
 use std::time::{Duration, Instant};
@@ -30,11 +30,11 @@ use crate::auth::AuthContext;
 use crate::rest_api::ApiState;
 use crate::views::session::SessionError;
 
-/// Daemon-scoped state for annotation ingress. Holds agent rate-limit
+/// Daemon-scoped state for feedback ingress. Holds agent rate-limit
 /// buckets and a sliding-window dedupe cache. One instance per daemon
 /// (attached as an axum `Extension`).
 #[derive(Default)]
-pub struct AnnotationGuard {
+pub struct FeedbackGuard {
     inner: Mutex<GuardInner>,
 }
 
@@ -53,7 +53,7 @@ const AGENT_REFILL_PER_SEC: f64 = 10.0;
 const NOTE_MAX_BYTES: usize = 10 * 1024;
 const SELECTION_TEXT_MAX_BYTES: usize = 20 * 1024;
 
-impl AnnotationGuard {
+impl FeedbackGuard {
     pub fn new() -> Arc<Self> {
         Arc::new(Self::default())
     }
@@ -94,17 +94,17 @@ impl AnnotationGuard {
 
 // ───────────────────────── Handler ─────────────────────────
 
-pub async fn post_annotation(
+pub async fn post_feedback(
     State(state): State<ApiState>,
     Extension(auth): Extension<AuthContext>,
-    Extension(guard): Extension<Arc<AnnotationGuard>>,
-    Json(mut ev): Json<AnnotationEvent>,
+    Extension(guard): Extension<Arc<FeedbackGuard>>,
+    Json(mut ev): Json<FeedbackEvent>,
 ) -> Response {
     // Allow server-side id generation for view-authored feedback where the
     // template can't easily produce a ULID. Empty string or any string that
     // isn't a valid ULID from a human-authored action = server generates.
     if ev.author_kind == AuthorKind::Human
-        && ev.kind == AnnotationKind::Action
+        && ev.kind == FeedbackKind::Action
         && Ulid::from_string(&ev.id).is_err()
     {
         ev.id = Ulid::new().to_string();
@@ -122,13 +122,13 @@ pub async fn post_annotation(
             return err(
                 StatusCode::TOO_MANY_REQUESTS,
                 "rate_limited",
-                "agent annotation rate limit exceeded (10/sec)",
+                "agent feedback rate limit exceeded (10/sec)",
             );
         }
     }
 
     if let Err(code) = guard.check_and_record_id(&ev.id).await {
-        return err(StatusCode::UNPROCESSABLE_ENTITY, code, "annotation id already seen within 60s window");
+        return err(StatusCode::UNPROCESSABLE_ENTITY, code, "feedback id already seen within 60s window");
     }
 
     // View-session routing: present-and-known delivers twice, present-and-
@@ -138,14 +138,14 @@ pub async fn post_annotation(
             Ok(v) => v,
             Err(e) => return err(StatusCode::INTERNAL_SERVER_ERROR, "serialize_failed", &e.to_string()),
         };
-        if let Err(e) = state.view_sessions().broadcast_annotation(&view_id, &payload).await {
+        if let Err(e) = state.view_sessions().broadcast_feedback(&view_id, &payload).await {
             return session_err(e);
         }
         if let Err(resp) = emit_kernel(&state, &auth, &ev, &view_id).await {
             return resp;
         }
     } else {
-        // Workspace broadcast path. Use the annotation id as the entity id so
+        // Workspace broadcast path. Use the feedback id as the entity id so
         // every broadcast is independently addressable on the event log.
         if let Err(resp) = emit_kernel(&state, &auth, &ev, &ev.id).await {
             return resp;
@@ -162,13 +162,13 @@ pub async fn post_annotation(
 async fn emit_kernel(
     state: &ApiState,
     auth: &AuthContext,
-    ev: &AnnotationEvent,
+    ev: &FeedbackEvent,
     entity_id: &str,
 ) -> Result<(), Response> {
     let payload = serde_json::to_value(ev).map_err(|e| {
         err(StatusCode::INTERNAL_SERVER_ERROR, "serialize_failed", &e.to_string())
     })?;
-    let envelope = EventEnvelope::new("studio.annotation.created", entity_id, &payload)
+    let envelope = EventEnvelope::new("studio.feedback.created", entity_id, &payload)
         .map_err(|e| err(StatusCode::BAD_REQUEST, "envelope_invalid", &e.to_string()))?;
     let ctx = auth.to_daemon_emit_context();
     state
@@ -182,12 +182,12 @@ async fn emit_kernel(
 
 // ───────────────────────── Validation ─────────────────────────
 
-fn validate(ev: &AnnotationEvent) -> Result<(), Response> {
+fn validate(ev: &FeedbackEvent) -> Result<(), Response> {
     if Ulid::from_string(&ev.id).is_err() {
         return Err(err(StatusCode::UNPROCESSABLE_ENTITY, "invalid_id", "id must be a ULID"));
     }
     match ev.kind {
-        AnnotationKind::Point => {
+        FeedbackKind::Point => {
             if ev.target.selector.is_none() {
                 return Err(err(
                     StatusCode::UNPROCESSABLE_ENTITY,
@@ -203,7 +203,7 @@ fn validate(ev: &AnnotationEvent) -> Result<(), Response> {
                 ));
             }
         }
-        AnnotationKind::Region => match ev.target.rect {
+        FeedbackKind::Region => match ev.target.rect {
             None => {
                 return Err(err(
                     StatusCode::UNPROCESSABLE_ENTITY,
@@ -221,7 +221,7 @@ fn validate(ev: &AnnotationEvent) -> Result<(), Response> {
                 }
             }
         },
-        AnnotationKind::Action => {}
+        FeedbackKind::Action => {}
     }
     if let Some(note) = &ev.note
         && note.len() > NOTE_MAX_BYTES
@@ -274,5 +274,5 @@ fn session_err(e: SessionError) -> Response {
 }
 
 #[cfg(test)]
-#[path = "annotations_api_tests.rs"]
+#[path = "feedback_api_tests.rs"]
 mod tests;

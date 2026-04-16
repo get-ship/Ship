@@ -14,7 +14,7 @@ use tokio_util::sync::CancellationToken;
 use utoipa::OpenApi;
 
 use crate::{
-    NetworkServer, actor_api, annotations_api, attest, auth, cors, hooks_api, human_webhook,
+    NetworkServer, actor_api, attest, auth, cors, feedback_api, hooks_api, human_webhook,
     openapi, pairing, project_api, pty_handler, rest_api, runtime_api, session, settings_api,
     shell_assets, ship_runtime, specs_api, specs_view, supervisor, view_sessions_api, views,
     collection_api, views_agents, views_chat, views_events, views_git, views_pipelines, views_raw,
@@ -143,7 +143,7 @@ pub fn build_router(
         async move { session::issue_session_handler(reg, auth.0).await }
     };
 
-    let annotation_guard = annotations_api::AnnotationGuard::new();
+    let feedback_guard = feedback_api::FeedbackGuard::new();
     let authenticated_routes = Router::new()
         .nest("/api", pair_confirm_routes)
         .ship_route(Route::IssueSession, session_issue_handler)
@@ -151,7 +151,7 @@ pub fn build_router(
         .nest("/api", hook_routes)
         .nest("/api", webhook_routes)
         .nest_service("/mcp", service)
-        .layer(axum::Extension(annotation_guard))
+        .layer(axum::Extension(feedback_guard))
         .layer(axum::middleware::from_fn(move |req, next| {
             auth::auth_middleware(auth_token.clone(), auth_registry.clone(), req, next)
         }));
@@ -224,8 +224,8 @@ fn build_ship_routes(st: rest_api::ApiState) -> Router {
         .ship_route(Route::CloseViewSession_template(), view_sessions_api::close_session)
         .ship_route(Route::SubscribeViewSession_template(), view_sessions_api::subscribe_session)
         .ship_route(Route::ViewSessionRaw_template(), view_sessions_api::raw_session)
-        // Annotations ingress
-        .ship_route(Route::PostAnnotation, annotations_api::post_annotation)
+        // Feedback ingress
+        .ship_route(Route::PostFeedback, feedback_api::post_feedback)
         .ship_route(Route::ViewGit, views_git::git_shell)
         .ship_route(Route::ViewGitSse, views_git::git_sse)
         .ship_route(Route::ViewPipelines, views_pipelines::pipelines_shell)

@@ -45,7 +45,7 @@ The human's feedback doesn't have to be "drew a box, added a note." You decide w
 </ship-button>
 ```
 
-Each click emits `studio.annotation.created` with your payload attached. You read it on your next turn and iterate.
+Each click emits `studio.feedback.created` with your payload attached. You read it on your next turn and iterate.
 
 **Design rule:** the payload should be structured enough that you can act on it in one prompt. Free-text requires you to parse — enums and numbers don't. Prefer:
 - `{option: 'A', rating: 5}` over `"rating: A-5"`
@@ -126,7 +126,7 @@ You're a senior designer who codes. Render like it's production:
 
 ## Reading feedback on your next turn
 
-Feedback arrives as `studio.annotation.created` events in your session. Each event has:
+Feedback arrives as `studio.feedback.created` events in your session. Each event has:
 
 ```json
 {

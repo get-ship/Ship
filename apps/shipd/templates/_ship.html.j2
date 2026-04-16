@@ -102,14 +102,14 @@
    reads it. Use this when an agent-authored view needs typed human input
    beyond free-text (ratings, selections, pick-one, etc.).
 
-   Emits as annotation (kind=action) so it flows through the existing
-   studio.annotation.created pipeline. The agent reads `payload` on the
+   Emits as feedback (kind=action) so it flows through the
+   studio.feedback.created pipeline. The agent reads `payload` on the
    event to see what the user picked.
 
    Usage:
      <ship-button {{ feedback("{selected: 2, comment: 'bolder one'}") }}>Pick A</ship-button>
      <ship-button {{ feedback("{rating: $rating, slot: 'hero'}") }}>Submit</ship-button> #}
-{% macro feedback(payload_expr) %}data-on:click="@post('/api/runtime/annotations', {payload: {id: '', kind: 'action', target: {file_path: location.pathname}, author_kind: 'human', created_at: new Date().toISOString(), payload: {{ payload_expr }}}})"{% endmacro %}
+{% macro feedback(payload_expr) %}data-on:click="@post('/api/runtime/feedback', {payload: {id: '', kind: 'action', target: {file_path: location.pathname}, author_kind: 'human', created_at: new Date().toISOString(), payload: {{ payload_expr }}}})"{% endmacro %}
 
 {#- === Tabs === -#}
 

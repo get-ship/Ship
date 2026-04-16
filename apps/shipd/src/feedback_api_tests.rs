@@ -1,4 +1,4 @@
-//! Integration tests for `POST /api/runtime/annotations`.
+//! Integration tests for `POST /api/runtime/feedback`.
 
 use axum::{Router, body::Body, http::Request, response::IntoResponse};
 use http_body_util::BodyExt;
@@ -7,7 +7,7 @@ use tempfile::TempDir;
 use tower::ServiceExt;
 use ulid::Ulid;
 
-use super::AnnotationGuard;
+use super::FeedbackGuard;
 use crate::auth::AuthContext;
 use crate::rest_api::ApiState;
 use crate::ship_runtime::ShipRuntime;
@@ -15,8 +15,8 @@ use crate::ship_runtime::ShipRuntime;
 fn router_for(state: ApiState, auth: AuthContext) -> Router {
     Router::new()
         .route(
-            "/api/runtime/annotations",
-            axum::routing::post(super::post_annotation),
+            "/api/runtime/feedback",
+            axum::routing::post(super::post_feedback),
         )
         // A view-session route is included so tests can open a session to
         // exercise the view-scoped routing branch through the same harness.
@@ -26,7 +26,7 @@ fn router_for(state: ApiState, auth: AuthContext) -> Router {
         )
         .with_state(state)
         .layer(axum::Extension(auth))
-        .layer(axum::Extension(AnnotationGuard::new()))
+        .layer(axum::Extension(FeedbackGuard::new()))
 }
 
 fn fresh_state() -> (ApiState, TempDir) {
@@ -89,7 +89,7 @@ async fn open_view(router: &Router) -> String {
 // ─────────────────── Happy paths ───────────────────
 
 #[tokio::test(flavor = "multi_thread", worker_threads = 2)]
-async fn view_scoped_annotation_fans_out_to_concurrent_sse_subscribers() {
+async fn view_scoped_feedback_fans_out_to_concurrent_sse_subscribers() {
     let (state, _tmp) = fresh_state();
     let router = router_for(state.clone(), mcp_auth("agent.owner"));
     let view_id = open_view(&router).await;
@@ -110,7 +110,7 @@ async fn view_scoped_annotation_fans_out_to_concurrent_sse_subscribers() {
     let mut payload = base_payload();
     payload["target"]["view_id"] = serde_json::Value::String(view_id.clone());
     let id = payload["id"].as_str().unwrap().to_string();
-    let (status, body) = send_json(&router, "/api/runtime/annotations", payload).await;
+    let (status, body) = send_json(&router, "/api/runtime/feedback", payload).await;
     assert_eq!(status, 201, "unexpected body: {body}");
     assert_eq!(body["id"], serde_json::Value::String(id.clone()));
 
@@ -131,7 +131,7 @@ async fn view_scoped_annotation_fans_out_to_concurrent_sse_subscribers() {
 }
 
 #[tokio::test(flavor = "multi_thread", worker_threads = 2)]
-async fn view_scoped_annotation_reaches_owner_actor_mailbox() {
+async fn view_scoped_feedback_reaches_owner_actor_mailbox() {
     let (state, _tmp) = fresh_state();
 
     // Stand up an actor subscribed to `studio.` — the owner's session would
@@ -142,14 +142,14 @@ async fn view_scoped_annotation_reaches_owner_actor_mailbox() {
     let mut payload = base_payload();
     payload["target"]["view_id"] = serde_json::Value::String(view_id.clone());
     let id = payload["id"].as_str().unwrap().to_string();
-    let (status, _) = send_json(&router, "/api/runtime/annotations", payload).await;
+    let (status, _) = send_json(&router, "/api/runtime/feedback", payload).await;
     assert_eq!(status, 201);
 
     let ev = tokio::time::timeout(std::time::Duration::from_secs(1), mailbox.recv())
         .await
         .expect("kernel did not deliver within 1s")
         .expect("mailbox closed");
-    assert_eq!(ev.event_type, "studio.annotation.created");
+    assert_eq!(ev.event_type, "studio.feedback.created");
     assert!(ev.payload_json.contains(&id));
 }
 
@@ -173,20 +173,20 @@ async fn spawn_studio_subscriber(
 }
 
 #[tokio::test(flavor = "multi_thread", worker_threads = 2)]
-async fn broadcast_annotation_without_view_id_reaches_subscribers() {
+async fn broadcast_feedback_without_view_id_reaches_subscribers() {
     let (state, _tmp) = fresh_state();
     let mut mailbox = spawn_studio_subscriber(&state, "agent.observer").await;
     let router = router_for(state, mcp_auth("agent.caller"));
     let payload = base_payload(); // no view_id
     let id = payload["id"].as_str().unwrap().to_string();
-    let (status, _) = send_json(&router, "/api/runtime/annotations", payload).await;
+    let (status, _) = send_json(&router, "/api/runtime/feedback", payload).await;
     assert_eq!(status, 201);
 
     let ev = tokio::time::timeout(std::time::Duration::from_secs(1), mailbox.recv())
         .await
         .expect("workspace broadcast not delivered")
         .expect("mailbox closed");
-    assert_eq!(ev.event_type, "studio.annotation.created");
+    assert_eq!(ev.event_type, "studio.feedback.created");
     assert_eq!(ev.entity_id, id);
 }
 
@@ -199,7 +199,7 @@ async fn unknown_view_id_returns_404_without_fallback_broadcast() {
     let router = router_for(state, mcp_auth("agent.caller"));
     let mut payload = base_payload();
     payload["target"]["view_id"] = serde_json::Value::String("view-does-not-exist".into());
-    let (status, body) = send_json(&router, "/api/runtime/annotations", payload).await;
+    let (status, body) = send_json(&router, "/api/runtime/feedback", payload).await;
     assert_eq!(status, 404);
     assert_eq!(body["error"]["code"], "view_not_found");
     // Give the kernel a chance to (wrongly) deliver; assert it did not.
@@ -239,7 +239,7 @@ async fn validation_rules_return_422() {
         let router = router_for(state, mcp_auth("agent.caller"));
         let mut payload = base_payload();
         mutate(&mut payload);
-        let (status, body) = send_json(&router, "/api/runtime/annotations", payload).await;
+        let (status, body) = send_json(&router, "/api/runtime/feedback", payload).await;
         assert_eq!(status, 422, "code `{expected_code}` expected 422: {body}");
         assert_eq!(body["error"]["code"], *expected_code, "case `{expected_code}`: {body}");
     }
@@ -250,9 +250,9 @@ async fn duplicate_id_within_window_returns_422() {
     let (state, _tmp) = fresh_state();
     let router = router_for(state, mcp_auth("agent.caller"));
     let payload = base_payload();
-    let (status, _) = send_json(&router, "/api/runtime/annotations", payload.clone()).await;
+    let (status, _) = send_json(&router, "/api/runtime/feedback", payload.clone()).await;
     assert_eq!(status, 201);
-    let (status, body) = send_json(&router, "/api/runtime/annotations", payload).await;
+    let (status, body) = send_json(&router, "/api/runtime/feedback", payload).await;
     assert_eq!(status, 422);
     assert_eq!(body["error"]["code"], "duplicate_id");
 }
@@ -268,7 +268,7 @@ async fn agent_author_burst_triggers_429() {
     for _ in 0..12 {
         let mut p = base_payload();
         p["author_kind"] = serde_json::Value::String("agent".into());
-        let (s, body) = send_json(&router, "/api/runtime/annotations", p).await;
+        let (s, body) = send_json(&router, "/api/runtime/feedback", p).await;
         if s == 429 {
             assert_eq!(body["error"]["code"], "rate_limited");
             saw_429 = true;
@@ -286,7 +286,7 @@ async fn human_author_is_not_rate_limited() {
     let router = router_for(state, mcp_auth("agent.host"));
     // Humans must be allowed to send well past the agent cap.
     for _ in 0..30 {
-        let (s, body) = send_json(&router, "/api/runtime/annotations", base_payload()).await;
+        let (s, body) = send_json(&router, "/api/runtime/feedback", base_payload()).await;
         assert_eq!(s, 201, "human call unexpectedly failed: {body}");
     }
 }

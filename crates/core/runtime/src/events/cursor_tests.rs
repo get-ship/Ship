@@ -83,7 +83,7 @@ mod cursor {
         let (_tmp, mut router) = setup();
 
         // Emit some events before spawning the actor.
-        router.route(ev("studio.annotation"), &runtime_ctx()).await.unwrap();
+        router.route(ev("studio.feedback"), &runtime_ctx()).await.unwrap();
         router.route(ev("studio.feedback"), &runtime_ctx()).await.unwrap();
 
         // First spawn — no cursor exists. Actor should NOT receive old events.
@@ -106,7 +106,7 @@ mod cursor {
             .spawn_actor_with_permissions(identity("agent.replayer"), global_studio_perms())
             .unwrap();
 
-        let ev1 = ev("studio.annotation");
+        let ev1 = ev("studio.feedback");
         router.route(ev1.clone(), &runtime_ctx()).await.unwrap();
 
         let received = mb.try_recv().expect("must receive ev1");
@@ -143,7 +143,7 @@ mod cursor {
             .spawn_actor_with_permissions(identity("agent.cursor"), global_studio_perms())
             .unwrap();
 
-        let ev1 = ev("studio.annotation");
+        let ev1 = ev("studio.feedback");
         let ev2 = ev("studio.feedback");
         router.route(ev1.clone(), &runtime_ctx()).await.unwrap();
         router.route(ev2.clone(), &runtime_ctx()).await.unwrap();
@@ -221,9 +221,9 @@ mod cursor {
         router.stop_actor("agent.scoped").unwrap();
 
         // Events in both workspaces while offline.
-        let ev_a = ev("studio.annotation")
+        let ev_a = ev("studio.feedback")
             .with_context(Some("ws-a"), None);
-        let ev_b = ev("studio.annotation")
+        let ev_b = ev("studio.feedback")
             .with_context(Some("ws-b"), None);
         router.route(ev_a.clone(), &runtime_ctx()).await.unwrap();
         router.route(ev_b, &runtime_ctx()).await.unwrap();

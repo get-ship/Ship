@@ -316,7 +316,7 @@
               "type": {
                 "text": "string"
               },
-              "default": "'/api/runtime/annotations'",
+              "default": "'/api/runtime/feedback'",
               "attribute": "endpoint",
               "reflects": true
             },

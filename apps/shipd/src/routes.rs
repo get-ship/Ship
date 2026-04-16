@@ -169,10 +169,10 @@ pub enum Route {
     /// @route GET "/api/runtime/view-sessions/{id}/raw"
     ViewSessionRaw { id: String },
 
-    // ── Annotations (Phase 2 overlay ingress) ─────────────────────────────
+    // ── Feedback (agent-designed feedback ingress) ────────────────────────
 
-    /// @route POST "/api/runtime/annotations"
-    PostAnnotation,
+    /// @route POST "/api/runtime/feedback"
+    PostFeedback,
 
     // ── Runtime listings ─────────────────────────────────────────────────
 

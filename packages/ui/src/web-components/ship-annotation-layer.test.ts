@@ -133,7 +133,7 @@ describe('ship-annotation-layer', () => {
     await el.send()
     expect(fetchMock).toHaveBeenCalledTimes(1)
     const [url, init] = fetchMock.mock.calls[0]!
-    expect(url).toBe('/api/runtime/annotations')
+    expect(url).toBe('/api/runtime/feedback')
     expect((init as RequestInit).credentials).toBe('include')
     expect(sentId).toBe('abc')
   })
