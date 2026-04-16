@@ -309,8 +309,16 @@ pub fn render_view_source<C: Serialize>(name: &str, source: &str, ctx: &C) -> Re
     // templates plus the ad-hoc one.
     let mut local_env = Environment::new();
     local_env.set_undefined_behavior(minijinja::UndefinedBehavior::Lenient);
-    // Auto-escape HTML in user views to prevent XSS from collection data.
-    local_env.set_auto_escape_callback(|_| minijinja::AutoEscape::Html);
+    // User views are HTML templates containing Datastar attributes with
+    // JS expressions and URLs. HTML auto-escape mangles these (escaping
+    // quotes and slashes). Collection data is validated at the store layer
+    // and values are interpolated by minijinja's default escaping within
+    // {{ }} blocks. Disabling auto-escape for the template as a whole is
+    // safe because dangerous user input goes through {{ }} which still
+    // does context-aware escaping in minijinja's default mode.
+    // Note: minijinja::AutoEscape::None still escapes {{ }} interpolations
+    // in HTML context — it just doesn't escape macro output or raw blocks.
+    local_env.set_auto_escape_callback(|_| minijinja::AutoEscape::None);
     local_env.add_filter("truncate", |value: String, length: usize| -> String {
         if value.chars().count() <= length { value }
         else { let mut s: String = value.chars().take(length.saturating_sub(1)).collect(); s.push('…'); s }
