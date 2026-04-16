@@ -117,25 +117,24 @@ pub async fn serve_view(
     Path(name): Path<String>,
     axum::extract::Query(query_params): axum::extract::Query<std::collections::HashMap<String, String>>,
     headers: axum::http::HeaderMap,
-) -> impl IntoResponse {
-    if !is_valid_view_name(&name) { return mesh_err(StatusCode::BAD_REQUEST, "invalid view name"); }
+) -> axum::response::Response {
+    if !is_valid_view_name(&name) { return mesh_err(StatusCode::BAD_REQUEST, "invalid view name").into_response(); }
     let (view_dir, _) = match resolve_view_dir(&name) {
         Some(v) => v,
-        None => return mesh_err(StatusCode::NOT_FOUND, format!("view '{name}' not found")),
+        None => return mesh_err(StatusCode::NOT_FOUND, format!("view '{name}' not found")).into_response(),
     };
     // Try index.html.j2 first (Jinja-processed), then index.html.
     let (source, is_template) = if view_dir.join("index.html.j2").exists() {
         match std::fs::read_to_string(view_dir.join("index.html.j2")) {
             Ok(h) => (h, true),
-            Err(_) => return mesh_err(StatusCode::NOT_FOUND, format!("view '{name}' cannot read index.html.j2")),
+            Err(_) => return mesh_err(StatusCode::NOT_FOUND, format!("view '{name}' cannot read index.html.j2")).into_response(),
         }
     } else {
         match std::fs::read_to_string(view_dir.join("index.html")) {
             Ok(h) => { let has_jinja = h.contains("{%") || h.contains("{{"); (h, has_jinja) },
-            Err(_) => return mesh_err(StatusCode::NOT_FOUND, format!("view '{name}' has no index.html")),
+            Err(_) => return mesh_err(StatusCode::NOT_FOUND, format!("view '{name}' has no index.html")).into_response(),
         }
     };
-    let _ = headers;
     let html = if is_template {
         let ctx = build_view_context(&name, &query_params);
         match super::templates::render_view_source(&name, &source, &ctx) {
@@ -148,7 +147,22 @@ pub async fn serve_view(
     } else {
         source.replace("{{SHIP_TOKEN}}", "")
     };
-    mesh_ok(serde_json::json!({ "html": html }))
+
+    // Content negotiation: if the caller wants HTML, return it raw.
+    // Studio/MCP get the JSON envelope; shell and browsers get HTML.
+    let wants_html = headers
+        .get(axum::http::header::ACCEPT)
+        .and_then(|v| v.to_str().ok())
+        .map(|s| s.contains("text/html"))
+        .unwrap_or(false);
+    if wants_html {
+        return axum::response::Response::builder()
+            .status(StatusCode::OK)
+            .header(axum::http::header::CONTENT_TYPE, "text/html; charset=utf-8")
+            .body(axum::body::Body::from(html))
+            .unwrap();
+    }
+    mesh_ok(serde_json::json!({ "html": html })).into_response()
 }
 
 /// GET /api/runtime/view/{name}/manifest
