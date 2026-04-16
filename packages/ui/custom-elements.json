@@ -4,6 +4,112 @@
   "modules": [
     {
       "kind": "javascript-module",
+      "path": "src/web-components/focus.ts",
+      "declarations": [
+        {
+          "kind": "function",
+          "name": "focusableWithin",
+          "return": {
+            "type": {
+              "text": "HTMLElement[]"
+            }
+          },
+          "parameters": [
+            {
+              "name": "root",
+              "type": {
+                "text": "ParentNode"
+              }
+            }
+          ]
+        },
+        {
+          "kind": "function",
+          "name": "trapFocus",
+          "return": {
+            "type": {
+              "text": "void"
+            }
+          },
+          "parameters": [
+            {
+              "name": "root",
+              "type": {
+                "text": "ParentNode"
+              }
+            },
+            {
+              "name": "e",
+              "type": {
+                "text": "KeyboardEvent"
+              }
+            }
+          ]
+        },
+        {
+          "kind": "class",
+          "description": "Remembers the active element on `save()` and restores focus on `restore()`.\nSafe to call `restore()` multiple times (no-op after first).",
+          "name": "FocusReturn",
+          "members": [
+            {
+              "kind": "field",
+              "name": "saved",
+              "type": {
+                "text": "HTMLElement | null"
+              },
+              "privacy": "private",
+              "default": "null"
+            },
+            {
+              "kind": "method",
+              "name": "save",
+              "return": {
+                "type": {
+                  "text": "void"
+                }
+              }
+            },
+            {
+              "kind": "method",
+              "name": "restore",
+              "return": {
+                "type": {
+                  "text": "void"
+                }
+              }
+            }
+          ]
+        }
+      ],
+      "exports": [
+        {
+          "kind": "js",
+          "name": "focusableWithin",
+          "declaration": {
+            "name": "focusableWithin",
+            "module": "src/web-components/focus.ts"
+          }
+        },
+        {
+          "kind": "js",
+          "name": "trapFocus",
+          "declaration": {
+            "name": "trapFocus",
+            "module": "src/web-components/focus.ts"
+          }
+        },
+        {
+          "kind": "js",
+          "name": "FocusReturn",
+          "declaration": {
+            "name": "FocusReturn",
+            "module": "src/web-components/focus.ts"
+          }
+        }
+      ]
+    },
+    {
+      "kind": "javascript-module",
       "path": "src/web-components/ship-alert-dialog.ts",
       "declarations": [
         {
@@ -1016,6 +1122,44 @@
               "default": "'button'",
               "attribute": "type",
               "reflects": true
+            },
+            {
+              "kind": "field",
+              "name": "label",
+              "privacy": "public",
+              "type": {
+                "text": "string"
+              },
+              "default": "''",
+              "attribute": "label"
+            },
+            {
+              "kind": "field",
+              "name": "pressed",
+              "privacy": "public",
+              "type": {
+                "text": "'true' | 'false' | ''"
+              },
+              "default": "''",
+              "attribute": "pressed",
+              "reflects": true
+            },
+            {
+              "kind": "field",
+              "name": "expanded",
+              "privacy": "public",
+              "type": {
+                "text": "'true' | 'false' | ''"
+              },
+              "default": "''",
+              "attribute": "expanded",
+              "reflects": true
+            },
+            {
+              "kind": "field",
+              "name": "handleDefaultSlotChange",
+              "privacy": "private",
+              "description": "Detect an empty default slot so we can render a square icon-only button\nwithout requiring callers to opt in with a new attribute."
             }
           ],
           "attributes": [
@@ -1065,6 +1209,30 @@
               },
               "default": "'button'",
               "fieldName": "type"
+            },
+            {
+              "name": "label",
+              "type": {
+                "text": "string"
+              },
+              "default": "''",
+              "fieldName": "label"
+            },
+            {
+              "name": "pressed",
+              "type": {
+                "text": "'true' | 'false' | ''"
+              },
+              "default": "''",
+              "fieldName": "pressed"
+            },
+            {
+              "name": "expanded",
+              "type": {
+                "text": "'true' | 'false' | ''"
+              },
+              "default": "''",
+              "fieldName": "expanded"
             }
           ],
           "superclass": {
@@ -1096,6 +1264,30 @@
     },
     {
       "kind": "javascript-module",
+      "path": "src/web-components/ship-card.styles.ts",
+      "declarations": [
+        {
+          "kind": "variable",
+          "name": "shipCardStyles",
+          "type": {
+            "text": "array"
+          },
+          "default": "[ reducedMotion, toneVars, css` :host { display: block; position: relative; background: var(--card); color: var(--card-foreground); border: 1px solid var(--border); border-radius: var(--card-radius); box-shadow: var(--shadow-xs); /* Density channel — overridden per :host([padding=…]) below. * Defaults match pre-polish 16px/20px so existing composites * (ship-pipeline-definition, ship-pipeline-run, settings cards) * keep their visual weight. */ --card-px: 20px; --card-py: 16px; --card-gap: var(--space-3); --card-radius: var(--radius-lg); padding: var(--card-py) var(--card-px); transition: background-color var(--duration-fast) var(--ease-out), border-color var(--duration-fast) var(--ease-out), box-shadow var(--duration-fast) var(--ease-out), transform var(--duration-fast) var(--ease-out); } :host([hidden]) { display: none; } /* Density channel. 'none' is useful for nested composites that want * total control over internal spacing. */ :host([padding='none']) { --card-px: 0px; --card-py: 0px; --card-gap: 0px; } :host([padding='sm']) { --card-px: var(--space-3); --card-py: var(--space-2); --card-gap: var(--space-2); } :host([padding='lg']) { --card-px: var(--space-6); --card-py: var(--space-5); --card-gap: var(--space-4); } /* Variant: outline drops the solid fill in favor of the border alone — * used for secondary surfaces that sit inside another card/panel. */ :host([variant='outline']) { background: transparent; box-shadow: none; } /* Toned border when a tone is set (but not default). Keeps the surface * neutral; the tone lives on the edge. Applied on the non-fill path so * it doesn't fight the wash. */ :host([tone]:not([tone='default']):not([fill])) { border-color: var(--tone-border); } /* fill — tone-tinted background wash. Pairs with status-rail or tone * for an alert-style card. Border picks up tone-border so the edge * follows the wash instead of clashing with the neutral token. */ :host([fill]) { background: var(--tone-bg); border-color: var(--tone-border); } /* status-rail — 3px left border tinted by tone. Preserves padding by * offsetting the inline-start inset so inner text doesn't jump when * the rail toggles on. */ :host([status-rail]) { border-left: 3px solid var(--tone-fg); padding-left: calc(var(--card-px) - 3px); } /* accent-bar — 2-stop gradient top-bar that fades in on hover. * Rendered as a pseudo-element so the bar scrolls with the card and * follows the radius curve without needing clip-path. */ :host([accent-bar])::before { content: ''; position: absolute; top: 0; left: 0; right: 0; height: 2px; background: linear-gradient(90deg, var(--primary), var(--accent)); opacity: 0; border-radius: var(--card-radius) var(--card-radius) 0 0; transition: opacity var(--duration-medium) var(--ease-out); pointer-events: none; } :host([accent-bar]:hover)::before, :host([accent-bar][interactive]:focus-visible)::before { opacity: 1; } /* ------------------------------------------------------------------ * Interactive — hover lift + active press + focus-visible ring. * Non-interactive cards stay static; this block is the only place the * card picks up pointer affordances. Mirrors ship-button's motion so * the two read as the same design system when sitting side-by-side. * ------------------------------------------------------------------ */ :host([interactive]) { cursor: pointer; -webkit-tap-highlight-color: transparent; } :host([interactive]:hover) { border-color: color-mix(in oklch, var(--border) 160%, transparent); box-shadow: var(--shadow-sm); transform: translateY(-1px); } :host([interactive][tone]:not([tone='default']):hover) { border-color: color-mix(in oklch, var(--tone-fg) 55%, var(--border)); } :host([interactive]:active) { box-shadow: var(--shadow-xs); transform: translateY(0); transition-duration: 60ms; } /* Focus ring — only for keyboard focus on interactive cards. Stacked * box-shadow so the ring sits outside the border without reserving * layout space (matches ship-button / ship-select / ship-input). */ :host([interactive]:focus-visible) { outline: none; border-color: color-mix(in oklch, var(--ring-color) 55%, var(--border)); box-shadow: 0 0 0 var(--ring-offset) var(--background), 0 0 0 calc(var(--ring-offset) + var(--ring-width)) color-mix(in oklch, var(--ring-color) var(--ring-opacity), transparent); } :host([interactive][tone]:not([tone='default']):focus-visible) { border-color: color-mix(in oklch, var(--tone-fg) 60%, var(--border)); box-shadow: 0 0 0 var(--ring-offset) var(--background), 0 0 0 calc(var(--ring-offset) + var(--ring-width)) color-mix(in oklch, var(--tone-fg) var(--ring-opacity), transparent); } /* ------------------------------------------------------------------ * Slots — header/content/footer with subtle separators. Separators * render only when the corresponding slot has projected content, * detected via the [data-filled] attribute set from slotchange. * ------------------------------------------------------------------ */ .header, .footer { display: block; } .header[data-filled] { margin: calc(var(--card-py) * -1) calc(var(--card-px) * -1) var(--card-gap); padding: var(--card-py) var(--card-px); border-bottom: 1px solid color-mix(in oklch, var(--border) 80%, transparent); } .footer[data-filled] { margin: var(--card-gap) calc(var(--card-px) * -1) calc(var(--card-py) * -1); padding: var(--card-py) var(--card-px); border-top: 1px solid color-mix(in oklch, var(--border) 80%, transparent); } /* When there's no inner padding there's nothing to negative-margin * against; the separator becomes a plain rule instead. */ :host([padding='none']) .header[data-filled] { margin: 0 0 var(--space-3); padding: 0 0 var(--space-3); } :host([padding='none']) .footer[data-filled] { margin: var(--space-3) 0 0; padding: var(--space-3) 0 0; } /* status-rail narrows the left margin by the 3px rail so the header * separator doesn't sit over the colored rail. */ :host([status-rail]) .header[data-filled] { margin-left: calc(var(--card-px) * -1 + 3px); } :host([status-rail]) .footer[data-filled] { margin-left: calc(var(--card-px) * -1 + 3px); } /* Forced-colors — keep the focus ring visible in high-contrast mode * where color-mix'd shadows collapse to the system palette. */ @media (forced-colors: active) { :host([interactive]:focus-visible) { outline: 2px solid CanvasText; outline-offset: 2px; } } `, ]"
+        }
+      ],
+      "exports": [
+        {
+          "kind": "js",
+          "name": "shipCardStyles",
+          "declaration": {
+            "name": "shipCardStyles",
+            "module": "src/web-components/ship-card.styles.ts"
+          }
+        }
+      ]
+    },
+    {
+      "kind": "javascript-module",
       "path": "src/web-components/ship-card.ts",
       "declarations": [
         {
@@ -1118,10 +1310,21 @@
               "name": "variant",
               "privacy": "public",
               "type": {
-                "text": "'default' | 'outline'"
+                "text": "CardVariant"
               },
               "default": "'default'",
               "attribute": "variant",
+              "reflects": true
+            },
+            {
+              "kind": "field",
+              "name": "padding",
+              "privacy": "public",
+              "type": {
+                "text": "CardPadding"
+              },
+              "default": "'md'",
+              "attribute": "padding",
               "reflects": true
             },
             {
@@ -1167,6 +1370,27 @@
               "default": "false",
               "attribute": "fill",
               "reflects": true
+            },
+            {
+              "kind": "method",
+              "name": "activateInteractiveRole",
+              "privacy": "private"
+            },
+            {
+              "kind": "method",
+              "name": "deactivateInteractiveRole",
+              "privacy": "private"
+            },
+            {
+              "kind": "field",
+              "name": "onKey",
+              "privacy": "private"
+            },
+            {
+              "kind": "field",
+              "name": "syncFilled",
+              "privacy": "private",
+              "description": "Reflect projected content onto the wrapper so CSS can render a\nseparator only when the header/footer slot actually has content."
             }
           ],
           "attributes": [
@@ -1180,10 +1404,18 @@
             {
               "name": "variant",
               "type": {
-                "text": "'default' | 'outline'"
+                "text": "CardVariant"
               },
               "default": "'default'",
               "fieldName": "variant"
+            },
+            {
+              "name": "padding",
+              "type": {
+                "text": "CardPadding"
+              },
+              "default": "'md'",
+              "fieldName": "padding"
             },
             {
               "name": "interactive",
@@ -1247,6 +1479,30 @@
     },
     {
       "kind": "javascript-module",
+      "path": "src/web-components/ship-checkbox.styles.ts",
+      "declarations": [
+        {
+          "kind": "variable",
+          "name": "shipCheckboxStyles",
+          "type": {
+            "text": "array"
+          },
+          "default": "[ reducedMotion, css` :host { display: inline-flex; align-items: center; gap: var(--space-2); vertical-align: middle; font-family: var(--font-body); font-size: var(--text-base); color: var(--foreground); -webkit-tap-highlight-color: transparent; /* Tone channel — default is primary so an attribute-less checkbox * reads as the brand fill (matches shadcn/Radix defaults). */ --tone: var(--primary); --tone-on-fg: var(--primary-foreground); } :host([hidden]) { display: none; } :host(:not([tone])), :host([tone='default']) { --tone: var(--primary); --tone-on-fg: var(--primary-foreground); } :host([tone='info']) { --tone: var(--info); --tone-on-fg: oklch(0.99 0.02 260); } :host([tone='success']) { --tone: var(--success); --tone-on-fg: oklch(0.99 0.02 150); } :host([tone='warning']) { --tone: var(--warning); --tone-on-fg: oklch(0.2 0.04 75); } :host([tone='destructive']) { --tone: var(--destructive); --tone-on-fg: oklch(0.99 0.02 25); } :host([tone='accent']) { --tone: var(--accent); --tone-on-fg: var(--accent-foreground); } :host([tone='muted']) { --tone: var(--muted-foreground); --tone-on-fg: var(--background); } /* Size channel. Stroke width scales with size so the check glyph * maintains the same optical weight from sm through lg. */ :host(:not([size])), :host([size='md']) { --cb-size: 16px; --cb-radius: var(--radius-sm); --cb-stroke: 2px; } :host([size='sm']) { --cb-size: 14px; --cb-radius: 3px; --cb-stroke: 1.75px; } :host([size='lg']) { --cb-size: 18px; --cb-radius: var(--radius-sm); --cb-stroke: 2.25px; } label { display: inline-flex; align-items: center; gap: var(--space-2); cursor: pointer; user-select: none; -webkit-user-select: none; } :host([disabled]) label { cursor: not-allowed; } /* ------------------------------------------------------------------ * Box — the square. Border adds a crisp edge; box-sizing absorbs the * border so the visible square reads at the advertised size. * ------------------------------------------------------------------ */ .box { position: relative; display: inline-flex; align-items: center; justify-content: center; flex-shrink: 0; width: var(--cb-size); height: var(--cb-size); background: var(--background); border: 1px solid color-mix(in oklch, var(--border) 160%, transparent); border-radius: var(--cb-radius); box-sizing: border-box; box-shadow: var(--shadow-xs); transition: background-color var(--duration-fast) var(--ease-out), border-color var(--duration-fast) var(--ease-out), box-shadow var(--duration-fast) var(--ease-out); } /* Hover — quiet border darkening + subtle shadow bump. Matches * ship-input's at-rest-to-hover language so a form row reads as * one cohesive surface. */ :host(:not([disabled]):not([checked]):not([indeterminate])) label:hover .box { border-color: color-mix(in oklch, var(--border) 220%, transparent); box-shadow: var(--shadow-sm); } /* Invalid — destructive border regardless of tone, so an error on * an info/success-toned checkbox is unmissable. Mirrors ship-input. */ :host([invalid]) .box { border-color: color-mix(in oklch, var(--destructive) 70%, var(--border)); } :host([invalid]:not([disabled])) label:hover .box { border-color: color-mix(in oklch, var(--destructive) 85%, var(--border)); } /* Checked / indeterminate — fill with tone, top-highlight inset for * the premium feel (same recipe as ship-button solid). Border picks * up a slightly darker edge so the square still reads crisply. */ :host([checked]) .box, :host([indeterminate]) .box { background: var(--tone); border-color: color-mix(in oklch, var(--tone) 100%, black 8%); box-shadow: inset 0 1px 0 0 color-mix(in oklch, white 20%, transparent), var(--shadow-xs); } :host([checked]:not([disabled])) label:hover .box, :host([indeterminate]:not([disabled])) label:hover .box { background: color-mix(in oklch, var(--tone) 92%, white 8%); box-shadow: inset 0 1px 0 0 color-mix(in oklch, white 24%, transparent), var(--shadow-sm); } /* ------------------------------------------------------------------ * Glyphs — check + indeterminate. Rendered in currentColor on * --tone-on-fg so the glyph is always legible against the fill. * Opacity/scale transitions give a tiny snap when toggling — the * kind of detail that sells the component as production-tier. * ------------------------------------------------------------------ */ .glyph { position: absolute; inset: 0; display: inline-flex; align-items: center; justify-content: center; color: var(--tone-on-fg); opacity: 0; transform: scale(0.6); transition: opacity var(--duration-fast) var(--ease-out), transform var(--duration-fast) var(--ease-out); pointer-events: none; } :host([checked]:not([indeterminate])) .glyph.check, :host([indeterminate]) .glyph.mixed { opacity: 1; transform: scale(1); } .glyph svg { width: 100%; height: 100%; display: block; } .glyph svg path, .glyph svg line { stroke: currentColor; stroke-width: var(--cb-stroke); stroke-linecap: round; stroke-linejoin: round; fill: none; } /* ------------------------------------------------------------------ * Native input — visually hidden but preserved for form submission, * keyboard toggle (Space), and a11y tools. Stretches over the box so * hit-testing matches the visible affordance. * ------------------------------------------------------------------ */ input { position: absolute; inset: 0; width: 100%; height: 100%; margin: 0; padding: 0; opacity: 0; cursor: inherit; appearance: none; -webkit-appearance: none; } /* Focus ring — stacked box-shadow on the box so the ring sits * outside the square without reserving layout. Uses :has() so the * ring travels with the native input's :focus-visible, keeping * keyboard semantics identical to ship-button / ship-switch. */ :host(:not([disabled])) label:has(input:focus-visible) .box { box-shadow: 0 0 0 var(--ring-offset) var(--background), 0 0 0 calc(var(--ring-offset) + var(--ring-width)) color-mix(in oklch, var(--tone) var(--ring-opacity), transparent); } :host([invalid]:not([disabled])) label:has(input:focus-visible) .box { box-shadow: 0 0 0 var(--ring-offset) var(--background), 0 0 0 calc(var(--ring-offset) + var(--ring-width)) color-mix(in oklch, var(--destructive) var(--ring-opacity), transparent); } /* Forced colors — drop the color-mix ring in favor of a CanvasText * outline that high-contrast modes can render reliably. */ @media (forced-colors: active) { .box { border-color: CanvasText; } :host([checked]) .box, :host([indeterminate]) .box { background: Highlight; } .glyph { color: HighlightText; } :host(:not([disabled])) label:has(input:focus-visible) .box { outline: 2px solid CanvasText; outline-offset: 2px; } } /* ------------------------------------------------------------------ * Disabled — muted + desaturated, no interactions. Distinct from * invalid/loading so the unreachable state is unambiguous. * ------------------------------------------------------------------ */ :host([disabled]) { color: var(--muted-foreground); } :host([disabled]) .box { background: var(--muted); border-color: color-mix(in oklch, var(--border) 70%, transparent); filter: saturate(0.6); box-shadow: none; } :host([disabled][checked]) .box, :host([disabled][indeterminate]) .box { background: color-mix(in oklch, var(--tone) 55%, var(--muted)); border-color: color-mix(in oklch, var(--tone) 40%, var(--border)); } /* Slotted label — inherits host color + size so callers don't need * to restyle. Wraps naturally when the row gets tight. */ ::slotted(*) { font: inherit; color: inherit; line-height: var(--leading-tight); } `, ]"
+        }
+      ],
+      "exports": [
+        {
+          "kind": "js",
+          "name": "shipCheckboxStyles",
+          "declaration": {
+            "name": "shipCheckboxStyles",
+            "module": "src/web-components/ship-checkbox.styles.ts"
+          }
+        }
+      ]
+    },
+    {
+      "kind": "javascript-module",
       "path": "src/web-components/ship-checkbox.ts",
       "declarations": [
         {
@@ -1254,6 +1510,32 @@
           "description": "",
           "name": "ShipCheckbox",
           "members": [
+            {
+              "kind": "field",
+              "name": "formAssociated",
+              "type": {
+                "text": "boolean"
+              },
+              "static": true,
+              "default": "true"
+            },
+            {
+              "kind": "field",
+              "name": "internals",
+              "type": {
+                "text": "ElementInternals"
+              },
+              "privacy": "private"
+            },
+            {
+              "kind": "field",
+              "name": "defaultChecked",
+              "type": {
+                "text": "boolean"
+              },
+              "privacy": "private",
+              "default": "false"
+            },
             {
               "kind": "field",
               "name": "checked",
@@ -1273,27 +1555,8 @@
                 "text": "boolean"
               },
               "default": "false",
-              "attribute": "indeterminate"
-            },
-            {
-              "kind": "field",
-              "name": "name",
-              "privacy": "public",
-              "type": {
-                "text": "string"
-              },
-              "default": "''",
-              "attribute": "name"
-            },
-            {
-              "kind": "field",
-              "name": "value",
-              "privacy": "public",
-              "type": {
-                "text": "string"
-              },
-              "default": "'on'",
-              "attribute": "value"
+              "attribute": "indeterminate",
+              "reflects": true
             },
             {
               "kind": "field",
@@ -1319,6 +1582,68 @@
             },
             {
               "kind": "field",
+              "name": "invalid",
+              "privacy": "public",
+              "type": {
+                "text": "boolean"
+              },
+              "default": "false",
+              "attribute": "invalid",
+              "reflects": true
+            },
+            {
+              "kind": "field",
+              "name": "tone",
+              "privacy": "public",
+              "type": {
+                "text": "Tone | undefined"
+              },
+              "attribute": "tone",
+              "reflects": true
+            },
+            {
+              "kind": "field",
+              "name": "size",
+              "privacy": "public",
+              "type": {
+                "text": "Size"
+              },
+              "default": "'md'",
+              "attribute": "size",
+              "reflects": true
+            },
+            {
+              "kind": "field",
+              "name": "name",
+              "privacy": "public",
+              "type": {
+                "text": "string"
+              },
+              "default": "''",
+              "attribute": "name"
+            },
+            {
+              "kind": "field",
+              "name": "value",
+              "privacy": "public",
+              "type": {
+                "text": "string"
+              },
+              "default": "'on'",
+              "attribute": "value"
+            },
+            {
+              "kind": "field",
+              "name": "label",
+              "privacy": "public",
+              "type": {
+                "text": "string"
+              },
+              "default": "''",
+              "attribute": "label"
+            },
+            {
+              "kind": "field",
               "name": "input",
               "type": {
                 "text": "HTMLInputElement"
@@ -1327,24 +1652,37 @@
             },
             {
               "kind": "method",
-              "name": "onChange",
-              "privacy": "private",
+              "name": "formResetCallback"
+            },
+            {
+              "kind": "method",
+              "name": "formStateRestoreCallback",
               "parameters": [
                 {
-                  "name": "e",
+                  "name": "state",
                   "type": {
-                    "text": "Event"
+                    "text": "string | null"
                   }
                 }
               ]
-            }
-          ],
-          "events": [
+            },
             {
-              "name": "ship-change",
-              "type": {
-                "text": "CustomEvent"
-              }
+              "kind": "method",
+              "name": "setFormValue",
+              "privacy": "private",
+              "parameters": [
+                {
+                  "name": "v",
+                  "type": {
+                    "text": "string | null"
+                  }
+                }
+              ]
+            },
+            {
+              "kind": "field",
+              "name": "onChange",
+              "privacy": "private"
             }
           ],
           "attributes": [
@@ -1365,6 +1703,45 @@
               "fieldName": "indeterminate"
             },
             {
+              "name": "disabled",
+              "type": {
+                "text": "boolean"
+              },
+              "default": "false",
+              "fieldName": "disabled"
+            },
+            {
+              "name": "required",
+              "type": {
+                "text": "boolean"
+              },
+              "default": "false",
+              "fieldName": "required"
+            },
+            {
+              "name": "invalid",
+              "type": {
+                "text": "boolean"
+              },
+              "default": "false",
+              "fieldName": "invalid"
+            },
+            {
+              "name": "tone",
+              "type": {
+                "text": "Tone | undefined"
+              },
+              "fieldName": "tone"
+            },
+            {
+              "name": "size",
+              "type": {
+                "text": "Size"
+              },
+              "default": "'md'",
+              "fieldName": "size"
+            },
+            {
               "name": "name",
               "type": {
                 "text": "string"
@@ -1381,20 +1758,12 @@
               "fieldName": "value"
             },
             {
-              "name": "disabled",
+              "name": "label",
               "type": {
-                "text": "boolean"
+                "text": "string"
               },
-              "default": "false",
-              "fieldName": "disabled"
-            },
-            {
-              "name": "required",
-              "type": {
-                "text": "boolean"
-              },
-              "default": "false",
-              "fieldName": "required"
+              "default": "''",
+              "fieldName": "label"
             }
           ],
           "superclass": {
@@ -1426,6 +1795,30 @@
     },
     {
       "kind": "javascript-module",
+      "path": "src/web-components/ship-dialog.styles.ts",
+      "declarations": [
+        {
+          "kind": "variable",
+          "name": "shipDialogStyles",
+          "type": {
+            "text": "array"
+          },
+          "default": "[reducedMotion, css` :host { display: contents; } :host([hidden]) { display: none; } /* Size channel — one source of truth for max-width + padding. Adding a * size = one :host([size=…]) block below. */ :host(:not([size])), :host([size='md']) { --dlg-max-w: 500px; --dlg-px: 24px; --dlg-header-py: 18px; --dlg-body-py: 16px; --dlg-footer-py: 16px; --dlg-title-fs: var(--text-lg); --dlg-desc-fs: var(--text-base); } :host([size='sm']) { --dlg-max-w: 400px; --dlg-px: 20px; --dlg-header-py: 16px; --dlg-body-py: 14px; --dlg-footer-py: 14px; --dlg-title-fs: var(--text-md); --dlg-desc-fs: var(--text-sm); } :host([size='lg']) { --dlg-max-w: 700px; --dlg-px: 28px; --dlg-header-py: 20px; --dlg-body-py: 20px; --dlg-footer-py: 18px; --dlg-title-fs: var(--text-xl); --dlg-desc-fs: var(--text-base); } :host([size='full']) { --dlg-max-w: 90vw; --dlg-px: 28px; --dlg-header-py: 20px; --dlg-body-py: 20px; --dlg-footer-py: 18px; --dlg-title-fs: var(--text-xl); --dlg-desc-fs: var(--text-base); } /* The native <dialog>. Centered via dialog's default modal positioning * (margin:auto in UA sheet). We control the visual: surface, shadow, * rounded corners, and an entrance animation that respects reduced-motion * via the reducedMotion stylesheet above. */ dialog { position: fixed; inset: 0; margin: auto; padding: 0; border: 1px solid color-mix(in oklch, var(--border) 140%, transparent); border-radius: var(--radius-lg); background: var(--card); color: var(--card-foreground); width: calc(100vw - 32px); max-width: var(--dlg-max-w); max-height: min(calc(100vh - 32px), 85vh); box-shadow: 0 0 0 1px color-mix(in oklch, black 4%, transparent), var(--shadow-xl); font-family: var(--font-body); color-scheme: light dark; overflow: visible; /* Start state — entrance runs on [open]. */ opacity: 0; transform: translateY(8px) scale(0.96); transition: opacity var(--duration-medium) var(--ease-out), transform var(--duration-medium) var(--ease-out); } :host([size='full']) dialog { max-height: 90vh; } dialog[open] { opacity: 1; transform: translateY(0) scale(1); } /* Backdrop — semi-transparent overlay. Default variant has a subtle tint, * the 'blur' variant adds a backdrop-filter for a premium feel. Both fade * in with the dialog. */ dialog::backdrop { background: oklch(0 0 0 / 42%); opacity: 0; transition: opacity var(--duration-medium) var(--ease-out); } dialog[open]::backdrop { opacity: 1; } :host([backdrop='blur']) dialog::backdrop { background: oklch(0 0 0 / 32%); backdrop-filter: blur(6px) saturate(1.1); -webkit-backdrop-filter: blur(6px) saturate(1.1); } :host([backdrop='solid']) dialog::backdrop { background: oklch(0 0 0 / 62%); } /* Focus-trap sentinels — invisible, zero-size, but keyboard-tabbable. * Placed before and after .wrap so Tab at either edge bounces to the * other end via the sentinel focus handler. */ .sentinel { position: fixed; width: 1px; height: 1px; pointer-events: none; opacity: 0; } /* Structural wrapper — flex column so the body area can scroll while the * header/footer stay pinned. */ .wrap { display: flex; flex-direction: column; max-height: inherit; position: relative; isolation: isolate; } /* Header — title + optional description. Bordered from body so long * content below gets a visible scroll anchor. */ .header { padding: var(--dlg-header-py) var(--dlg-px); padding-right: calc(var(--dlg-px) + 28px); border-bottom: 1px solid color-mix(in oklch, var(--border) 120%, transparent); font-size: var(--dlg-title-fs); font-weight: var(--font-weight-semibold); letter-spacing: -0.01em; line-height: var(--leading-tight); color: var(--foreground); flex: 0 0 auto; } :host([no-header]) .header { display: none; } /* Optional description — consumers wrap a second line in * <span class=\"ship-dialog-description\">. Because slotted descendants * live in light DOM, the class is global and needs no ::slotted plumbing; * callers can style it directly or let the tokens.css surface a default. * Exposed custom properties let hosts theme from outside. */ :host { --ship-dialog-description-color: var(--muted-foreground); --ship-dialog-description-size: var(--dlg-desc-fs); } .body { padding: var(--dlg-body-py) var(--dlg-px); overflow-y: auto; overscroll-behavior: contain; font-size: var(--text-base); line-height: var(--leading-normal); color: var(--card-foreground); flex: 1 1 auto; min-height: 0; /* Subtle scrollbar — matches shadcn's scroll-area feel. */ scrollbar-width: thin; scrollbar-color: color-mix(in oklch, var(--border) 160%, transparent) transparent; } .body::-webkit-scrollbar { width: 8px; height: 8px; } .body::-webkit-scrollbar-thumb { background: color-mix(in oklch, var(--border) 160%, transparent); border-radius: var(--radius-full); } .body::-webkit-scrollbar-track { background: transparent; } /* Footer — action row. Hidden when no footer slot content to avoid a * dangling empty band at the bottom. */ .footer { padding: var(--dlg-footer-py) var(--dlg-px); border-top: 1px solid color-mix(in oklch, var(--border) 120%, transparent); display: flex; gap: var(--space-2); justify-content: flex-end; align-items: center; flex: 0 0 auto; background: color-mix(in oklch, var(--muted) 25%, var(--card)); border-bottom-left-radius: var(--radius-lg); border-bottom-right-radius: var(--radius-lg); } :host([no-footer]) .footer { display: none; } /* Close button — top-right, ghost styling that picks up tone on hover. * Sized so the target is comfortably 28px while the glyph stays crisp. */ .close { position: absolute; top: 12px; inset-inline-end: 12px; width: 28px; height: 28px; display: inline-flex; align-items: center; justify-content: center; background: transparent; border: 1px solid transparent; border-radius: var(--radius-md); color: var(--muted-foreground); cursor: pointer; padding: 0; font: inherit; z-index: 1; transition: background-color var(--duration-fast) var(--ease-out), border-color var(--duration-fast) var(--ease-out), color var(--duration-fast) var(--ease-out), transform var(--duration-fast) var(--ease-out); } .close:hover { background: var(--muted); color: var(--foreground); transform: scale(1.04); } .close:active { transform: scale(0.96); } .close:focus-visible { outline: none; box-shadow: 0 0 0 var(--ring-offset) var(--card), 0 0 0 calc(var(--ring-offset) + var(--ring-width)) color-mix(in oklch, var(--ring-color) var(--ring-opacity), transparent); } .close svg { width: 14px; height: 14px; display: block; } :host([no-close-button]) .close { display: none; } /* Forced-colors — ring + border legibility in high-contrast mode. */ @media (forced-colors: active) { dialog { border: 1px solid CanvasText; } .close:focus-visible { outline: 2px solid CanvasText; outline-offset: 2px; } } `]"
+        }
+      ],
+      "exports": [
+        {
+          "kind": "js",
+          "name": "shipDialogStyles",
+          "declaration": {
+            "name": "shipDialogStyles",
+            "module": "src/web-components/ship-dialog.styles.ts"
+          }
+        }
+      ]
+    },
+    {
+      "kind": "javascript-module",
       "path": "src/web-components/ship-dialog.ts",
       "declarations": [
         {
@@ -1449,10 +1842,21 @@
               "name": "size",
               "privacy": "public",
               "type": {
-                "text": "'sm' | 'md' | 'lg'"
+                "text": "Size"
               },
               "default": "'md'",
               "attribute": "size",
+              "reflects": true
+            },
+            {
+              "kind": "field",
+              "name": "backdrop",
+              "privacy": "public",
+              "type": {
+                "text": "Backdrop"
+              },
+              "default": "'default'",
+              "attribute": "backdrop",
               "reflects": true
             },
             {
@@ -1478,6 +1882,90 @@
             },
             {
               "kind": "field",
+              "name": "noHeader",
+              "privacy": "public",
+              "type": {
+                "text": "boolean"
+              },
+              "default": "false",
+              "attribute": "no-header",
+              "reflects": true
+            },
+            {
+              "kind": "field",
+              "name": "noFooter",
+              "privacy": "public",
+              "type": {
+                "text": "boolean"
+              },
+              "default": "false",
+              "attribute": "no-footer",
+              "reflects": true
+            },
+            {
+              "kind": "field",
+              "name": "dialogRole",
+              "privacy": "public",
+              "type": {
+                "text": "'dialog' | 'alertdialog'"
+              },
+              "default": "'dialog'",
+              "attribute": "role-override"
+            },
+            {
+              "kind": "field",
+              "name": "_idSeq",
+              "type": {
+                "text": "number"
+              },
+              "privacy": "private",
+              "static": true,
+              "default": "0"
+            },
+            {
+              "kind": "field",
+              "name": "uid",
+              "type": {
+                "text": "number"
+              },
+              "privacy": "private",
+              "default": "++ShipDialog._idSeq"
+            },
+            {
+              "kind": "field",
+              "name": "focusReturn",
+              "privacy": "private",
+              "default": "new FocusReturn()"
+            },
+            {
+              "kind": "field",
+              "name": "hasScrollLock",
+              "type": {
+                "text": "boolean"
+              },
+              "privacy": "private",
+              "default": "false"
+            },
+            {
+              "kind": "field",
+              "name": "headerId",
+              "type": {
+                "text": "string"
+              },
+              "privacy": "private",
+              "readonly": true
+            },
+            {
+              "kind": "field",
+              "name": "bodyId",
+              "type": {
+                "text": "string"
+              },
+              "privacy": "private",
+              "readonly": true
+            },
+            {
+              "kind": "field",
               "name": "dialogEl",
               "type": {
                 "text": "HTMLDialogElement"
@@ -1490,7 +1978,32 @@
             },
             {
               "kind": "method",
+              "name": "showModal"
+            },
+            {
+              "kind": "method",
               "name": "close"
+            },
+            {
+              "kind": "method",
+              "name": "collectFocusables",
+              "privacy": "private",
+              "return": {
+                "type": {
+                  "text": "HTMLElement[]"
+                }
+              },
+              "description": "Collect focusables from both the shadow dialog (close button) and the\nhost's light-DOM children (slotted body/footer controls). Sentinels\nare excluded. Order: light-DOM (natural tab order for body/footer)\nfirst, then the shadow close button."
+            },
+            {
+              "kind": "method",
+              "name": "focusInitial",
+              "privacy": "private",
+              "return": {
+                "type": {
+                  "text": "void"
+                }
+              }
             },
             {
               "kind": "field",
@@ -1501,6 +2014,30 @@
               "kind": "field",
               "name": "onBackdropClick",
               "privacy": "private"
+            },
+            {
+              "kind": "field",
+              "name": "onSentinelFocus",
+              "privacy": "private",
+              "description": "Sentinel-based focus trap. Two invisible focusable divs bracket the\ndialog contents — if Tab lands on either sentinel we bounce focus to\nthe opposite end of the ring. Works across shadow boundaries without\nrequiring us to enumerate cross-boundary focusables."
+            },
+            {
+              "kind": "method",
+              "name": "focusWithFallback",
+              "privacy": "private",
+              "return": {
+                "type": {
+                  "text": "void"
+                }
+              },
+              "parameters": [
+                {
+                  "name": "el",
+                  "type": {
+                    "text": "HTMLElement"
+                  }
+                }
+              ]
             },
             {
               "kind": "field",
@@ -1528,10 +2065,18 @@
             {
               "name": "size",
               "type": {
-                "text": "'sm' | 'md' | 'lg'"
+                "text": "Size"
               },
               "default": "'md'",
               "fieldName": "size"
+            },
+            {
+              "name": "backdrop",
+              "type": {
+                "text": "Backdrop"
+              },
+              "default": "'default'",
+              "fieldName": "backdrop"
             },
             {
               "name": "dismissible",
@@ -1548,6 +2093,30 @@
               },
               "default": "false",
               "fieldName": "noCloseButton"
+            },
+            {
+              "name": "no-header",
+              "type": {
+                "text": "boolean"
+              },
+              "default": "false",
+              "fieldName": "noHeader"
+            },
+            {
+              "name": "no-footer",
+              "type": {
+                "text": "boolean"
+              },
+              "default": "false",
+              "fieldName": "noFooter"
+            },
+            {
+              "name": "role-override",
+              "type": {
+                "text": "'dialog' | 'alertdialog'"
+              },
+              "default": "'dialog'",
+              "fieldName": "dialogRole"
             }
           ],
           "superclass": {
@@ -1599,8 +2168,57 @@
             },
             {
               "kind": "field",
+              "name": "typeahead",
+              "privacy": "private",
+              "default": "new Typeahead()"
+            },
+            {
+              "kind": "field",
               "name": "onTriggerClick",
               "privacy": "private"
+            },
+            {
+              "kind": "method",
+              "name": "items",
+              "privacy": "private",
+              "return": {
+                "type": {
+                  "text": "HTMLElement[]"
+                }
+              }
+            },
+            {
+              "kind": "method",
+              "name": "focusItem",
+              "privacy": "private",
+              "parameters": [
+                {
+                  "name": "index",
+                  "type": {
+                    "text": "number"
+                  }
+                }
+              ]
+            },
+            {
+              "kind": "method",
+              "name": "currentIndex",
+              "privacy": "private",
+              "return": {
+                "type": {
+                  "text": "number"
+                }
+              }
+            },
+            {
+              "kind": "method",
+              "name": "triggerEl",
+              "privacy": "private",
+              "return": {
+                "type": {
+                  "text": "HTMLElement | null"
+                }
+              }
             },
             {
               "kind": "field",
@@ -1608,8 +2226,28 @@
               "privacy": "private"
             },
             {
+              "kind": "method",
+              "name": "close",
+              "privacy": "private"
+            },
+            {
+              "kind": "field",
+              "name": "onKeydown",
+              "privacy": "private"
+            },
+            {
               "kind": "field",
               "name": "onDocClick",
+              "privacy": "private"
+            },
+            {
+              "kind": "method",
+              "name": "setupTrigger",
+              "privacy": "private"
+            },
+            {
+              "kind": "method",
+              "name": "setupItems",
               "privacy": "private"
             }
           ],
@@ -1727,6 +2365,42 @@
               "default": "false",
               "attribute": "invalid",
               "reflects": true
+            },
+            {
+              "kind": "field",
+              "name": "_idSeq",
+              "type": {
+                "text": "number"
+              },
+              "privacy": "private",
+              "static": true,
+              "default": "0"
+            },
+            {
+              "kind": "field",
+              "name": "uid",
+              "type": {
+                "text": "number"
+              },
+              "privacy": "private",
+              "default": "++ShipField._idSeq"
+            },
+            {
+              "kind": "field",
+              "name": "hintId",
+              "privacy": "private",
+              "default": "`ship-field-hint-${this.uid}`"
+            },
+            {
+              "kind": "field",
+              "name": "errorId",
+              "privacy": "private",
+              "default": "`ship-field-error-${this.uid}`"
+            },
+            {
+              "kind": "field",
+              "name": "wireControl",
+              "privacy": "private"
             }
           ],
           "attributes": [
@@ -1768,6 +2442,30 @@
     },
     {
       "kind": "javascript-module",
+      "path": "src/web-components/ship-input.styles.ts",
+      "declarations": [
+        {
+          "kind": "variable",
+          "name": "shipInputStyles",
+          "type": {
+            "text": "array"
+          },
+          "default": "[reducedMotion, css` :host { display: inline-flex; width: 100%; --tone: var(--primary); --tone-fg: var(--primary); } :host([hidden]) { display: none; } :host(:not([tone])), :host([tone='default']) { --tone: var(--ring-color); --tone-fg: var(--foreground); } :host([tone='info']) { --tone: var(--info); --tone-fg: var(--info); } :host([tone='success']) { --tone: var(--success); --tone-fg: var(--success); } :host([tone='warning']) { --tone: var(--warning); --tone-fg: var(--warning); } :host([tone='destructive']) { --tone: var(--destructive); --tone-fg: var(--destructive); } :host([tone='accent']) { --tone: var(--accent); --tone-fg: var(--accent); } :host([tone='muted']) { --tone: var(--muted-foreground); --tone-fg: var(--muted-foreground); } :host(:not([size])), :host([size='md']) { --in-h: 34px; --in-px: 10px; --in-gap: var(--space-2); --in-fs: var(--text-base); --in-lh: 22px; --in-fw: var(--font-weight-normal); --in-icon: 14px; --in-radius: var(--radius-md); } :host([size='sm']) { --in-h: 28px; --in-px: 8px; --in-gap: 6px; --in-fs: var(--text-sm); --in-lh: 18px; --in-fw: var(--font-weight-normal); --in-icon: 12px; --in-radius: var(--radius-sm); } :host([size='lg']) { --in-h: 40px; --in-px: var(--space-3); --in-gap: var(--space-2); --in-fs: var(--text-lg); --in-lh: 24px; --in-fw: var(--font-weight-medium); --in-icon: 16px; --in-radius: var(--radius-md); } .field { display: inline-flex; align-items: center; gap: var(--in-gap); width: 100%; min-height: var(--in-h); background: var(--background); color: var(--foreground); border: 1px solid var(--border); border-radius: var(--in-radius); padding: 0 var(--in-px); box-shadow: var(--shadow-xs); transition: background-color var(--duration-fast) var(--ease-out), border-color var(--duration-fast) var(--ease-out), box-shadow var(--duration-fast) var(--ease-out); } /* Hover — subtle border darkening + surface lift. Mirrors shadcn's * quiet-input feel: the field acknowledges the pointer without shouting. */ :host(:not([disabled])) .field:hover { border-color: color-mix(in oklch, var(--border) 160%, transparent); box-shadow: var(--shadow-sm); } /* Focus ring — stacked box-shadow so the ring sits outside the border * without reserving layout. Matches ship-button's technique. */ .field:focus-within { outline: none; border-color: color-mix(in oklch, var(--tone) 70%, var(--border)); box-shadow: 0 0 0 var(--ring-width) color-mix(in oklch, var(--tone) var(--ring-opacity), transparent); } /* Invalid — destructive tint on border + ring. Wins over tone so users * can't miss an error state even on info/success-toned inputs. */ :host([invalid]) .field { border-color: color-mix(in oklch, var(--destructive) 65%, var(--border)); } :host([invalid]) .field:hover { border-color: color-mix(in oklch, var(--destructive) 80%, var(--border)); } :host([invalid]) .field:focus-within { border-color: var(--destructive); box-shadow: 0 0 0 var(--ring-width) color-mix(in oklch, var(--destructive) var(--ring-opacity), transparent); } /* Ghost — no chrome at rest, materialize on focus. Keeps the title-input * pattern (click-to-edit) without the old border-jump. */ :host([variant='ghost']) .field { background: transparent; border-color: transparent; box-shadow: none; } :host([variant='ghost']:not([disabled])) .field:hover { background: color-mix(in oklch, var(--muted) 50%, transparent); border-color: transparent; box-shadow: none; } :host([variant='ghost']) .field:focus-within { background: var(--background); border-color: color-mix(in oklch, var(--tone) 70%, var(--border)); } /* Native element — transparent so the field chrome is the surface of * truth. font-size is driven off the size channel, never hardcoded. */ input { flex: 1; min-width: 0; border: 0; outline: 0; background: transparent; color: inherit; font-family: var(--font-body); font-size: var(--in-fs); font-weight: var(--in-fw); line-height: var(--in-lh); letter-spacing: -0.005em; padding: 0; } input::placeholder { color: var(--muted-foreground); opacity: 1; } input:-webkit-autofill { -webkit-box-shadow: 0 0 0 1000px var(--background) inset; -webkit-text-fill-color: var(--foreground); caret-color: var(--foreground); } /* Disabled — dim the whole field and kill pointer affordances. */ :host([disabled]) .field, :host([readonly]) .field { cursor: not-allowed; } :host([disabled]) .field { background: var(--muted); border-color: color-mix(in oklch, var(--border) 70%, transparent); box-shadow: none; opacity: 0.6; } input:disabled { cursor: not-allowed; color: var(--muted-foreground); } input:read-only { cursor: default; } /* Loading spinner — sized off the adornment channel so it sits on the * same optical line as a slotted icon. */ .spinner { width: var(--in-icon); height: var(--in-icon); border: 1.5px solid currentColor; border-right-color: transparent; border-radius: 50%; animation: spin 0.7s linear infinite; display: inline-block; flex-shrink: 0; color: var(--muted-foreground); } @keyframes spin { to { transform: rotate(360deg); } } /* Slotted adornments — constrain icons to the size channel so a bare * <svg> drops in at the right visual weight without caller intervention. */ ::slotted([slot='leading']), ::slotted([slot='trailing']) { display: inline-flex; align-items: center; flex: 0 0 auto; color: var(--muted-foreground); font-size: var(--in-fs); line-height: 1; } ::slotted(svg) { width: var(--in-icon); height: var(--in-icon); display: block; } @media (forced-colors: active) { .field:focus-within { outline: 2px solid CanvasText; outline-offset: 2px; } } `]"
+        }
+      ],
+      "exports": [
+        {
+          "kind": "js",
+          "name": "shipInputStyles",
+          "declaration": {
+            "name": "shipInputStyles",
+            "module": "src/web-components/ship-input.styles.ts"
+          }
+        }
+      ]
+    },
+    {
+      "kind": "javascript-module",
       "path": "src/web-components/ship-input.ts",
       "declarations": [
         {
@@ -1775,6 +2473,32 @@
           "description": "",
           "name": "ShipInput",
           "members": [
+            {
+              "kind": "field",
+              "name": "formAssociated",
+              "type": {
+                "text": "boolean"
+              },
+              "static": true,
+              "default": "true"
+            },
+            {
+              "kind": "field",
+              "name": "internals",
+              "type": {
+                "text": "ElementInternals"
+              },
+              "privacy": "private"
+            },
+            {
+              "kind": "field",
+              "name": "defaultValue",
+              "type": {
+                "text": "string"
+              },
+              "privacy": "private",
+              "default": "''"
+            },
             {
               "kind": "field",
               "name": "type",
@@ -1882,6 +2606,16 @@
             },
             {
               "kind": "field",
+              "name": "tone",
+              "privacy": "public",
+              "type": {
+                "text": "Tone | undefined"
+              },
+              "attribute": "tone",
+              "reflects": true
+            },
+            {
+              "kind": "field",
               "name": "variant",
               "privacy": "public",
               "type": {
@@ -1901,6 +2635,81 @@
               "default": "'md'",
               "attribute": "size",
               "reflects": true
+            },
+            {
+              "kind": "field",
+              "name": "label",
+              "privacy": "public",
+              "type": {
+                "text": "string"
+              },
+              "default": "''",
+              "attribute": "label"
+            },
+            {
+              "kind": "field",
+              "name": "describedBy",
+              "privacy": "public",
+              "type": {
+                "text": "string"
+              },
+              "default": "''",
+              "attribute": "described-by"
+            },
+            {
+              "kind": "field",
+              "name": "errorMessage",
+              "privacy": "public",
+              "type": {
+                "text": "string"
+              },
+              "default": "''",
+              "attribute": "error-message"
+            },
+            {
+              "kind": "field",
+              "name": "_idSeq",
+              "type": {
+                "text": "number"
+              },
+              "privacy": "private",
+              "static": true,
+              "default": "0"
+            },
+            {
+              "kind": "field",
+              "name": "errId",
+              "privacy": "private",
+              "default": "`ship-input-err-${++ShipInput._idSeq}`"
+            },
+            {
+              "kind": "method",
+              "name": "formResetCallback"
+            },
+            {
+              "kind": "method",
+              "name": "formStateRestoreCallback",
+              "parameters": [
+                {
+                  "name": "state",
+                  "type": {
+                    "text": "string | null"
+                  }
+                }
+              ]
+            },
+            {
+              "kind": "method",
+              "name": "setFormValue",
+              "privacy": "private",
+              "parameters": [
+                {
+                  "name": "v",
+                  "type": {
+                    "text": "string"
+                  }
+                }
+              ]
             },
             {
               "kind": "method",
@@ -2006,6 +2815,13 @@
               "fieldName": "loading"
             },
             {
+              "name": "tone",
+              "type": {
+                "text": "Tone | undefined"
+              },
+              "fieldName": "tone"
+            },
+            {
               "name": "variant",
               "type": {
                 "text": "Variant | 'default'"
@@ -2020,6 +2836,30 @@
               },
               "default": "'md'",
               "fieldName": "size"
+            },
+            {
+              "name": "label",
+              "type": {
+                "text": "string"
+              },
+              "default": "''",
+              "fieldName": "label"
+            },
+            {
+              "name": "described-by",
+              "type": {
+                "text": "string"
+              },
+              "default": "''",
+              "fieldName": "describedBy"
+            },
+            {
+              "name": "error-message",
+              "type": {
+                "text": "string"
+              },
+              "default": "''",
+              "fieldName": "errorMessage"
             }
           ],
           "superclass": {
@@ -2274,6 +3114,22 @@
               "reflects": true
             },
             {
+              "kind": "field",
+              "name": "_idSeq",
+              "type": {
+                "text": "number"
+              },
+              "privacy": "private",
+              "static": true,
+              "default": "0"
+            },
+            {
+              "kind": "field",
+              "name": "panelId",
+              "privacy": "private",
+              "default": "`ship-popover-panel-${++ShipPopover._idSeq}`"
+            },
+            {
               "kind": "method",
               "name": "show"
             },
@@ -2299,8 +3155,28 @@
               ]
             },
             {
+              "kind": "method",
+              "name": "triggerEl",
+              "privacy": "private",
+              "return": {
+                "type": {
+                  "text": "HTMLElement | null"
+                }
+              }
+            },
+            {
+              "kind": "field",
+              "name": "setupTrigger",
+              "privacy": "private"
+            },
+            {
               "kind": "field",
               "name": "onDocClick",
+              "privacy": "private"
+            },
+            {
+              "kind": "field",
+              "name": "onKeydown",
               "privacy": "private"
             }
           ],
@@ -2408,6 +3284,16 @@
               "default": "'md'",
               "attribute": "size",
               "reflects": true
+            },
+            {
+              "kind": "field",
+              "name": "label",
+              "privacy": "public",
+              "type": {
+                "text": "string"
+              },
+              "default": "''",
+              "attribute": "label"
             }
           ],
           "attributes": [
@@ -2442,6 +3328,14 @@
               },
               "default": "'md'",
               "fieldName": "size"
+            },
+            {
+              "name": "label",
+              "type": {
+                "text": "string"
+              },
+              "default": "''",
+              "fieldName": "label"
             }
           ],
           "superclass": {
@@ -2473,6 +3367,30 @@
     },
     {
       "kind": "javascript-module",
+      "path": "src/web-components/ship-select.styles.ts",
+      "declarations": [
+        {
+          "kind": "variable",
+          "name": "shipSelectStyles",
+          "type": {
+            "text": "array"
+          },
+          "default": "[reducedMotion, css` :host { display: inline-flex; vertical-align: middle; /* Per-host tone channel — mirrors ship-button's approach so the chrome * below can stay tone-agnostic and compose freely. */ --tone: var(--foreground); --tone-fg: var(--foreground); } :host([hidden]) { display: none; } /* Tone channel. Default tone leaves the control neutral; explicit tones * colorize the border + focus ring. Foreground text stays readable. */ :host([tone='info']) { --tone: var(--info); --tone-fg: var(--info); } :host([tone='success']) { --tone: var(--success); --tone-fg: var(--success); } :host([tone='warning']) { --tone: var(--warning); --tone-fg: var(--warning); } :host([tone='destructive']) { --tone: var(--destructive); --tone-fg: var(--destructive); } :host([tone='accent']) { --tone: var(--accent); --tone-fg: var(--accent); } :host([tone='muted']) { --tone: var(--muted-foreground); --tone-fg: var(--muted-foreground); } /* Size channel — one source of truth for height/padding/type scale. * Matches ship-button visual weight. Values are hardcoded (not pulled * from --space-* tokens) because some runtime hosts ship a tokens.css * without the spacing scale, and a select that loses its padding is * worse than a select that ignores a token the host didn't define. */ :host(:not([size])), :host([size='md']) { --sel-h: 34px; --sel-px: 12px; --sel-fs: 13px; --sel-gap: 8px; --sel-chev: 14px; } :host([size='sm']) { --sel-h: 28px; --sel-px: 10px; --sel-fs: 12px; --sel-gap: 6px; --sel-chev: 12px; } :host([size='lg']) { --sel-h: 40px; --sel-px: 16px; --sel-fs: 14px; --sel-gap: 8px; --sel-chev: 16px; } /* Field wrapper — this is the visible chrome. The real <select> sits * on top, fully transparent, so clicks/keyboard/native popup still work * without us re-implementing a menu. */ .field { position: relative; display: inline-flex; align-items: center; gap: var(--sel-gap); min-height: var(--sel-h); padding-inline: var(--sel-px); padding-inline-end: calc(var(--sel-px) + var(--sel-chev) + 6px); background: var(--background); color: var(--foreground); border: 1px solid var(--border); border-radius: var(--radius-md); box-shadow: var(--shadow-xs); font-family: var(--font-body); font-size: var(--sel-fs); font-weight: var(--font-weight-medium); line-height: 1; letter-spacing: -0.005em; cursor: pointer; user-select: none; -webkit-user-select: none; transition: background-color var(--duration-fast) var(--ease-out), border-color var(--duration-fast) var(--ease-out), box-shadow var(--duration-fast) var(--ease-out), color var(--duration-fast) var(--ease-out); } /* Hover — subtle muted wash + border crispening, matching ship-button's * default (no-variant) treatment so the two sit next to each other * without either looking out of place. */ :host(:not([disabled])) .field:hover { background: color-mix(in oklch, var(--muted) 70%, var(--background)); border-color: color-mix(in oklch, var(--border) 160%, transparent); box-shadow: var(--shadow-sm); } /* Toned border when a tone is set (except default). Keeps the surface * neutral while still signaling intent on the edge. */ :host([tone]:not([tone='default'])) .field { border-color: color-mix(in oklch, var(--tone) 38%, var(--border)); } :host([tone]:not([tone='default']):not([disabled])) .field:hover { background: color-mix(in oklch, var(--tone) 8%, var(--background)); border-color: color-mix(in oklch, var(--tone) 55%, var(--border)); } /* The real <select> — layered invisibly over the chrome. We use * appearance:none to strip OS chrome, color:transparent to hide the * rendered glyph, and pointer events stay enabled so the native popup * fires. */ select { position: absolute; inset: 0; width: 100%; height: 100%; margin: 0; padding-inline: var(--sel-px); padding-inline-end: calc(var(--sel-px) + var(--sel-chev) + 6px); font: inherit; color: transparent; background: transparent; border: 0; outline: 0; appearance: none; -webkit-appearance: none; cursor: inherit; } /* Keep the chosen option legible in the native popup (OS-chromed). */ select option { color: var(--foreground); background: var(--background); } /* Visible label layer — mirrors the current value on top of the chrome. * This is what the user actually reads; the native <select> underneath * provides the menu. Sized to content so the host's intrinsic width * tracks the current value (matches shadcn's trigger-hugs-label feel). */ .value { display: inline-block; max-width: 100%; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; pointer-events: none; } :host([data-placeholder]) .value { color: var(--muted-foreground); } /* Chevron — SVG in shadow so it always matches currentColor + size. * Positioned absolutely so it never contends with the text layout. */ .chevron { position: absolute; inset-block: 0; inset-inline-end: var(--sel-px); margin-block: auto; width: var(--sel-chev); height: var(--sel-chev); color: var(--muted-foreground); pointer-events: none; transition: color var(--duration-fast) var(--ease-out), transform var(--duration-medium) var(--ease-out); } :host(:not([disabled])) .field:hover .chevron { color: var(--foreground); } :host([tone]:not([tone='default'])) .chevron { color: color-mix(in oklch, var(--tone-fg) 75%, var(--muted-foreground)); } /* Focus ring — rendered on the wrapper via stacked box-shadows. The * native select sits inside, so :focus-within on the host flips this on * reliably whether the user tabs in or clicks. */ :host(:focus-within) .field { outline: none; border-color: color-mix(in oklch, var(--tone) 60%, var(--border)); box-shadow: 0 0 0 var(--ring-offset) var(--background), 0 0 0 calc(var(--ring-offset) + var(--ring-width)) color-mix(in oklch, var(--tone) 55%, transparent); } :host(:not([tone]):focus-within) .field, :host([tone='default']:focus-within) .field { border-color: color-mix(in oklch, var(--ring-color) 55%, var(--border)); box-shadow: 0 0 0 var(--ring-offset) var(--background), 0 0 0 calc(var(--ring-offset) + var(--ring-width)) color-mix(in oklch, var(--ring-color) var(--ring-opacity), transparent); } /* Invalid — destructive border + destructive ring, overrides tone so * validation always reads first. */ :host([invalid]) .field { border-color: var(--destructive); } :host([invalid]:focus-within) .field { border-color: var(--destructive); box-shadow: 0 0 0 var(--ring-offset) var(--background), 0 0 0 calc(var(--ring-offset) + var(--ring-width)) color-mix(in oklch, var(--destructive) var(--ring-opacity), transparent); } /* Disabled — muted surface, desaturated, not-allowed. 60% opacity on * the whole host matches ship-button's disabled affordance. */ :host([disabled]) { opacity: 0.6; cursor: not-allowed; } :host([disabled]) .field { background: var(--muted); border-color: color-mix(in oklch, var(--border) 80%, transparent); box-shadow: none; cursor: not-allowed; filter: saturate(0.6); } :host([disabled]) select { cursor: not-allowed; } /* Forced-colors — make sure the ring is still visible. */ @media (forced-colors: active) { :host(:focus-within) .field { outline: 2px solid CanvasText; outline-offset: 2px; } } `]"
+        }
+      ],
+      "exports": [
+        {
+          "kind": "js",
+          "name": "shipSelectStyles",
+          "declaration": {
+            "name": "shipSelectStyles",
+            "module": "src/web-components/ship-select.styles.ts"
+          }
+        }
+      ]
+    },
+    {
+      "kind": "javascript-module",
       "path": "src/web-components/ship-select.ts",
       "declarations": [
         {
@@ -2480,6 +3398,32 @@
           "description": "",
           "name": "ShipSelect",
           "members": [
+            {
+              "kind": "field",
+              "name": "formAssociated",
+              "type": {
+                "text": "boolean"
+              },
+              "static": true,
+              "default": "true"
+            },
+            {
+              "kind": "field",
+              "name": "internals",
+              "type": {
+                "text": "ElementInternals"
+              },
+              "privacy": "private"
+            },
+            {
+              "kind": "field",
+              "name": "defaultValue",
+              "type": {
+                "text": "string"
+              },
+              "privacy": "private",
+              "default": "''"
+            },
             {
               "kind": "field",
               "name": "value",
@@ -2524,14 +3468,55 @@
             },
             {
               "kind": "field",
+              "name": "invalid",
+              "privacy": "public",
+              "type": {
+                "text": "boolean"
+              },
+              "default": "false",
+              "attribute": "invalid",
+              "reflects": true
+            },
+            {
+              "kind": "field",
+              "name": "tone",
+              "privacy": "public",
+              "type": {
+                "text": "Tone | undefined"
+              },
+              "attribute": "tone",
+              "reflects": true
+            },
+            {
+              "kind": "field",
               "name": "size",
               "privacy": "public",
               "type": {
-                "text": "'sm' | 'md'"
+                "text": "Size"
               },
               "default": "'md'",
               "attribute": "size",
               "reflects": true
+            },
+            {
+              "kind": "field",
+              "name": "label",
+              "privacy": "public",
+              "type": {
+                "text": "string"
+              },
+              "default": "''",
+              "attribute": "label"
+            },
+            {
+              "kind": "field",
+              "name": "describedBy",
+              "privacy": "public",
+              "type": {
+                "text": "string"
+              },
+              "default": "''",
+              "attribute": "described-by"
             },
             {
               "kind": "field",
@@ -2543,8 +3528,54 @@
             },
             {
               "kind": "method",
+              "name": "formResetCallback"
+            },
+            {
+              "kind": "method",
+              "name": "formStateRestoreCallback",
+              "parameters": [
+                {
+                  "name": "state",
+                  "type": {
+                    "text": "string | null"
+                  }
+                }
+              ]
+            },
+            {
+              "kind": "method",
+              "name": "setFormValue",
+              "privacy": "private",
+              "parameters": [
+                {
+                  "name": "v",
+                  "type": {
+                    "text": "string"
+                  }
+                }
+              ]
+            },
+            {
+              "kind": "method",
               "name": "syncOptions",
               "privacy": "private"
+            },
+            {
+              "kind": "method",
+              "name": "currentLabel",
+              "privacy": "private",
+              "return": {
+                "type": {
+                  "text": "string"
+                }
+              },
+              "description": "Pick the label for the current value. We always read from light-DOM\noptions (the source of truth) so the label is available on every render,\nincluding the first one before `syncOptions()` has cloned them into\nshadow. Falls back to the raw value so the chrome never renders empty."
+            },
+            {
+              "kind": "method",
+              "name": "updatePlaceholderState",
+              "privacy": "private",
+              "description": "Mirror `data-placeholder` on the host when the current option has an\nempty value — lets the visible label dim to `--muted-foreground`."
             },
             {
               "kind": "method",
@@ -2602,12 +3633,43 @@
               "fieldName": "disabled"
             },
             {
+              "name": "invalid",
+              "type": {
+                "text": "boolean"
+              },
+              "default": "false",
+              "fieldName": "invalid"
+            },
+            {
+              "name": "tone",
+              "type": {
+                "text": "Tone | undefined"
+              },
+              "fieldName": "tone"
+            },
+            {
               "name": "size",
               "type": {
-                "text": "'sm' | 'md'"
+                "text": "Size"
               },
               "default": "'md'",
               "fieldName": "size"
+            },
+            {
+              "name": "label",
+              "type": {
+                "text": "string"
+              },
+              "default": "''",
+              "fieldName": "label"
+            },
+            {
+              "name": "described-by",
+              "type": {
+                "text": "string"
+              },
+              "default": "''",
+              "fieldName": "describedBy"
             }
           ],
           "superclass": {
@@ -2839,6 +3901,11 @@
               "default": "false",
               "attribute": "interactive",
               "reflects": true
+            },
+            {
+              "kind": "field",
+              "name": "onKey",
+              "privacy": "private"
             }
           ],
           "attributes": [
@@ -2927,6 +3994,16 @@
               "default": "'md'",
               "attribute": "size",
               "reflects": true
+            },
+            {
+              "kind": "field",
+              "name": "label",
+              "privacy": "public",
+              "type": {
+                "text": "string"
+              },
+              "default": "''",
+              "attribute": "label"
             }
           ],
           "attributes": [
@@ -2953,6 +4030,14 @@
               },
               "default": "'md'",
               "fieldName": "size"
+            },
+            {
+              "name": "label",
+              "type": {
+                "text": "string"
+              },
+              "default": "''",
+              "fieldName": "label"
             }
           ],
           "superclass": {
@@ -2984,6 +4069,30 @@
     },
     {
       "kind": "javascript-module",
+      "path": "src/web-components/ship-switch.styles.ts",
+      "declarations": [
+        {
+          "kind": "variable",
+          "name": "shipSwitchStyles",
+          "type": {
+            "text": "array"
+          },
+          "default": "[ reducedMotion, css` :host { display: inline-flex; align-items: center; gap: var(--space-2); vertical-align: middle; font-family: var(--font-body); font-size: var(--text-base); color: var(--foreground); -webkit-tap-highlight-color: transparent; /* Tone channel — overridden per :host([tone=…]) below. Default is * primary so an attribute-less switch reads as the brand toggle. */ --tone: var(--primary); --tone-on-fg: var(--primary-foreground); } :host([hidden]) { display: none; } :host(:not([tone])), :host([tone='default']) { --tone: var(--primary); --tone-on-fg: var(--primary-foreground); } :host([tone='info']) { --tone: var(--info); --tone-on-fg: oklch(0.99 0.02 260); } :host([tone='success']) { --tone: var(--success); --tone-on-fg: oklch(0.99 0.02 150); } :host([tone='warning']) { --tone: var(--warning); --tone-on-fg: oklch(0.2 0.04 75); } :host([tone='destructive']) { --tone: var(--destructive); --tone-on-fg: oklch(0.99 0.02 25); } :host([tone='accent']) { --tone: var(--accent); --tone-on-fg: var(--accent-foreground); } :host([tone='muted']) { --tone: var(--muted-foreground); --tone-on-fg: var(--background); } /* Size channel. Each pair is (track W × H, thumb diameter). The * 1px border is absorbed via box-sizing so the visible pill reads * at the advertised dimensions. */ :host(:not([size])), :host([size='md']) { --sw-w: 28px; --sw-h: 16px; --sw-thumb: 12px; } :host([size='sm']) { --sw-w: 24px; --sw-h: 14px; --sw-thumb: 10px; } :host([size='lg']) { --sw-w: 32px; --sw-h: 18px; --sw-thumb: 14px; } label { display: inline-flex; align-items: center; gap: var(--space-2); cursor: pointer; user-select: none; -webkit-user-select: none; } :host([disabled]) label { cursor: not-allowed; } /* ------------------------------------------------------------------ * Track — the pill. Border adds a crisp 1px edge that keeps the off * state legible against neutral backgrounds (shadcn does the same). * Transitions are token-driven so reduced-motion collapses them. * ------------------------------------------------------------------ */ .track { position: relative; display: inline-block; flex-shrink: 0; width: var(--sw-w); height: var(--sw-h); background: var(--muted); border: 1px solid color-mix(in oklch, var(--border) 140%, transparent); border-radius: var(--radius-full); box-sizing: border-box; transition: background-color var(--duration-fast) var(--ease-out), border-color var(--duration-fast) var(--ease-out), box-shadow var(--duration-fast) var(--ease-out); } /* Hover — deepen the border + subtle shadow, matching ship-button's * quiet hover language. Skipped on disabled so users can tell when * the control is unreachable. */ :host(:not([disabled]):not([checked])) label:hover .track { background: color-mix(in oklch, var(--muted) 70%, var(--foreground) 6%); border-color: color-mix(in oklch, var(--border) 180%, transparent); } /* Checked — fill with tone, top-highlight inset for the premium feel * (same recipe as ship-button solid). Border picks up a slightly * darker edge so the pill still reads crisply over light surfaces. */ :host([checked]) .track { background: var(--tone); border-color: color-mix(in oklch, var(--tone) 100%, black 6%); box-shadow: inset 0 1px 0 0 color-mix(in oklch, white 22%, transparent); } :host([checked]:not([disabled])) label:hover .track { background: color-mix(in oklch, var(--tone) 92%, white 8%); box-shadow: inset 0 1px 0 0 color-mix(in oklch, white 26%, transparent), var(--shadow-xs); } /* ------------------------------------------------------------------ * Thumb — sliding pellet. Sits 1px inside the border in both states; * the left calc flips between those anchors so sizes stay in sync. * ------------------------------------------------------------------ */ .thumb { position: absolute; top: 50%; left: 1px; width: var(--sw-thumb); height: var(--sw-thumb); background: var(--background); border-radius: 50%; box-shadow: 0 1px 2px 0 oklch(0 0 0 / 18%), 0 1px 1px 0 oklch(0 0 0 / 10%); transform: translateY(-50%); transition: left var(--duration-fast) var(--ease-out), background-color var(--duration-fast) var(--ease-out), box-shadow var(--duration-fast) var(--ease-out); pointer-events: none; } :host([checked]) .thumb { left: calc(100% - var(--sw-thumb) - 3px); background: var(--tone-on-fg); } /* ------------------------------------------------------------------ * Native input — visually hidden but preserved for form submission, * keyboard toggle (Space), and a11y tools. Stretches over the track * so hit-testing matches the visible affordance. * ------------------------------------------------------------------ */ input { position: absolute; inset: 0; width: 100%; height: 100%; margin: 0; padding: 0; opacity: 0; cursor: inherit; appearance: none; -webkit-appearance: none; } /* Focus ring — stacked box-shadow on the track so the ring sits * outside the pill without reserving layout. Uses :has() so the * ring travels with the native input's :focus-visible, keeping * keyboard semantics identical to ship-button. */ :host(:not([disabled])) label:has(input:focus-visible) .track { box-shadow: 0 0 0 var(--ring-offset) var(--background), 0 0 0 calc(var(--ring-offset) + var(--ring-width)) color-mix(in oklch, var(--tone) var(--ring-opacity), transparent); } :host([checked]:not([disabled])) label:has(input:focus-visible) .track { box-shadow: inset 0 1px 0 0 color-mix(in oklch, white 22%, transparent), 0 0 0 var(--ring-offset) var(--background), 0 0 0 calc(var(--ring-offset) + var(--ring-width)) color-mix(in oklch, var(--tone) var(--ring-opacity), transparent); } /* Forced colors — drop the color-mix ring in favor of a CanvasText * outline that high-contrast modes can render reliably. */ @media (forced-colors: active) { :host(:not([disabled])) label:has(input:focus-visible) .track { outline: 2px solid CanvasText; outline-offset: 2px; } .track { border-color: CanvasText; } :host([checked]) .track { background: Highlight; } } /* ------------------------------------------------------------------ * Disabled — muted + desaturated, no interactions. Distinct from * loading (which this component doesn't have) so the unreachable * state is unambiguous. * ------------------------------------------------------------------ */ :host([disabled]) { color: var(--muted-foreground); } :host([disabled]) .track { background: var(--muted); border-color: color-mix(in oklch, var(--border) 70%, transparent); filter: saturate(0.6); box-shadow: none; } :host([disabled][checked]) .track { background: color-mix(in oklch, var(--tone) 55%, var(--muted)); border-color: color-mix(in oklch, var(--tone) 40%, var(--border)); } :host([disabled]) .thumb { box-shadow: 0 1px 1px 0 oklch(0 0 0 / 10%); } /* Slotted label — inherits host color + size so callers don't need * to restyle. Wraps naturally when the row gets tight. */ ::slotted(*) { font: inherit; color: inherit; line-height: var(--leading-tight); } `, ]"
+        }
+      ],
+      "exports": [
+        {
+          "kind": "js",
+          "name": "shipSwitchStyles",
+          "declaration": {
+            "name": "shipSwitchStyles",
+            "module": "src/web-components/ship-switch.styles.ts"
+          }
+        }
+      ]
+    },
+    {
+      "kind": "javascript-module",
       "path": "src/web-components/ship-switch.ts",
       "declarations": [
         {
@@ -2991,6 +4100,32 @@
           "description": "",
           "name": "ShipSwitch",
           "members": [
+            {
+              "kind": "field",
+              "name": "formAssociated",
+              "type": {
+                "text": "boolean"
+              },
+              "static": true,
+              "default": "true"
+            },
+            {
+              "kind": "field",
+              "name": "internals",
+              "type": {
+                "text": "ElementInternals"
+              },
+              "privacy": "private"
+            },
+            {
+              "kind": "field",
+              "name": "defaultChecked",
+              "type": {
+                "text": "boolean"
+              },
+              "privacy": "private",
+              "default": "false"
+            },
             {
               "kind": "field",
               "name": "checked",
@@ -3015,6 +4150,27 @@
             },
             {
               "kind": "field",
+              "name": "tone",
+              "privacy": "public",
+              "type": {
+                "text": "Tone | undefined"
+              },
+              "attribute": "tone",
+              "reflects": true
+            },
+            {
+              "kind": "field",
+              "name": "size",
+              "privacy": "public",
+              "type": {
+                "text": "Size"
+              },
+              "default": "'md'",
+              "attribute": "size",
+              "reflects": true
+            },
+            {
+              "kind": "field",
               "name": "name",
               "privacy": "public",
               "type": {
@@ -3034,25 +4190,48 @@
               "attribute": "value"
             },
             {
+              "kind": "field",
+              "name": "label",
+              "privacy": "public",
+              "type": {
+                "text": "string"
+              },
+              "default": "''",
+              "attribute": "label"
+            },
+            {
               "kind": "method",
-              "name": "onChange",
-              "privacy": "private",
+              "name": "formResetCallback"
+            },
+            {
+              "kind": "method",
+              "name": "formStateRestoreCallback",
               "parameters": [
                 {
-                  "name": "e",
+                  "name": "state",
                   "type": {
-                    "text": "Event"
+                    "text": "string | null"
                   }
                 }
               ]
-            }
-          ],
-          "events": [
+            },
             {
-              "name": "ship-change",
-              "type": {
-                "text": "CustomEvent"
-              }
+              "kind": "method",
+              "name": "setFormValue",
+              "privacy": "private",
+              "parameters": [
+                {
+                  "name": "v",
+                  "type": {
+                    "text": "string | null"
+                  }
+                }
+              ]
+            },
+            {
+              "kind": "field",
+              "name": "onChange",
+              "privacy": "private"
             }
           ],
           "attributes": [
@@ -3073,6 +4252,21 @@
               "fieldName": "disabled"
             },
             {
+              "name": "tone",
+              "type": {
+                "text": "Tone | undefined"
+              },
+              "fieldName": "tone"
+            },
+            {
+              "name": "size",
+              "type": {
+                "text": "Size"
+              },
+              "default": "'md'",
+              "fieldName": "size"
+            },
+            {
               "name": "name",
               "type": {
                 "text": "string"
@@ -3087,6 +4281,14 @@
               },
               "default": "'on'",
               "fieldName": "value"
+            },
+            {
+              "name": "label",
+              "type": {
+                "text": "string"
+              },
+              "default": "''",
+              "fieldName": "label"
             }
           ],
           "superclass": {
@@ -3118,6 +4320,46 @@
     },
     {
       "kind": "javascript-module",
+      "path": "src/web-components/ship-tabs.styles.ts",
+      "declarations": [
+        {
+          "kind": "variable",
+          "name": "shipTabsStyles",
+          "type": {
+            "text": "array"
+          },
+          "default": "[reducedMotion, css` :host { display: block; font-family: var(--font-body); --tone: var(--primary); --tone-fg: var(--foreground); } :host([hidden]) { display: none; } :host([tone='info']) { --tone: var(--info); } :host([tone='success']) { --tone: var(--success); } :host([tone='warning']) { --tone: var(--warning); } :host([tone='destructive']) { --tone: var(--destructive); } :host([tone='accent']) { --tone: var(--accent); } :host([tone='muted']) { --tone: var(--muted-foreground); } /* Size channel — matches ship-button's sm/md/lg height scale so a tab * sitting next to a button lines up optically. */ :host(:not([size])), :host([size='md']) { --tab-h: 36px; --tab-px: 14px; --tab-fs: var(--text-base); --tab-fw: var(--font-weight-medium); --tab-active-fw: var(--font-weight-semibold); --tab-gap: var(--space-2); --tab-radius: var(--radius-md); --tab-count-fs: 10.5px; --tab-count-px: 7px; } :host([size='sm']) { --tab-h: 30px; --tab-px: 10px; --tab-fs: var(--text-sm); --tab-gap: 6px; --tab-radius: var(--radius-sm); --tab-count-fs: 9.5px; --tab-count-px: 6px; } :host([size='lg']) { --tab-h: 42px; --tab-px: var(--space-4); --tab-fs: var(--text-md); --tab-gap: var(--space-2); --tab-radius: var(--radius-md); --tab-count-fs: 11px; --tab-count-px: 8px; } /* Shared tablist + tab chrome. Variants reshape from here via their * class hook (.underline / .segmented) — no per-variant duplication. */ .tablist { position: relative; display: flex; align-items: stretch; gap: 2px; } .tab { position: relative; display: inline-flex; align-items: center; justify-content: center; gap: var(--tab-gap); height: var(--tab-h); padding: 0 var(--tab-px); background: transparent; border: 0; color: var(--muted-foreground); font-family: inherit; font-size: var(--tab-fs); font-weight: var(--tab-fw, var(--font-weight-medium)); line-height: 1; cursor: pointer; white-space: nowrap; user-select: none; -webkit-user-select: none; -webkit-tap-highlight-color: transparent; transition: background-color var(--duration-fast) var(--ease-out), color var(--duration-fast) var(--ease-out), box-shadow var(--duration-fast) var(--ease-out); } .tab:hover:not(:disabled):not([aria-selected='true']) { color: var(--foreground); } .tab[aria-selected='true'] { color: var(--tone-fg); font-weight: var(--tab-active-fw, var(--font-weight-semibold)); } .tab:focus-visible { outline: none; box-shadow: 0 0 0 var(--ring-offset) var(--background), 0 0 0 calc(var(--ring-offset) + var(--ring-width)) color-mix(in oklch, var(--tone) var(--ring-opacity), transparent); border-radius: var(--tab-radius); z-index: 1; } .tab:disabled { cursor: not-allowed; color: color-mix(in oklch, var(--muted-foreground) 55%, transparent); filter: saturate(0.6); } /* Underline variant — indicator is an ::after pseudo on .tablist * positioned via --underline-x/--underline-w; width transition drives * the tab-to-tab slide. Pre-measurement opacity hides the indicator * until the component writes the geometry on first update. */ .tablist.underline { border-bottom: 1px solid var(--border); margin-bottom: 20px; gap: 0; } .tablist.underline::after { content: ''; position: absolute; left: 0; bottom: -1px; height: 2px; width: var(--underline-w, 0px); transform: translateX(var(--underline-x, 0px)); background: var(--tone); border-radius: 2px 2px 0 0; pointer-events: none; transition: transform var(--duration-medium) var(--ease-out), width var(--duration-medium) var(--ease-out), opacity var(--duration-fast) var(--ease-out); } :host(:not([data-underline-ready])) .tablist.underline::after { opacity: 0; } .tablist.underline .tab { border-radius: 0; margin-bottom: -1px; } .tablist.underline .tab:hover:not(:disabled):not([aria-selected='true']) { background: color-mix(in oklch, var(--muted) 60%, transparent); } :host([sticky]) .tablist.underline { position: sticky; top: 0; background: var(--background); z-index: var(--z-sticky); padding-top: 4px; margin-top: -4px; } /* Segmented variant — pill group. Active tab elevates onto --background * with a soft shadow so it reads as a chip lifted off the muted track. */ .tablist.segmented { display: inline-flex; gap: 2px; padding: 3px; background: var(--muted); border: 1px solid color-mix(in oklch, var(--border) 80%, transparent); border-radius: calc(var(--tab-radius) + 3px); } .tablist.segmented .tab { flex: 1; height: calc(var(--tab-h) - 6px); border-radius: var(--tab-radius); } .tablist.segmented .tab:hover:not(:disabled):not([aria-selected='true']) { color: var(--foreground); background: color-mix(in oklch, var(--background) 60%, transparent); } .tablist.segmented .tab[aria-selected='true'] { background: var(--background); color: var(--foreground); box-shadow: inset 0 0 0 1px color-mix(in oklch, var(--border) 60%, transparent), var(--shadow-xs); } .tablist.segmented::after { display: none; } /* Count chip — tabular-nums so digit-width changes don't shift the * label. Active state re-colors to the tone channel. */ .count { display: inline-flex; align-items: center; justify-content: center; min-width: calc(var(--tab-count-fs) + 8px); padding: 1px var(--tab-count-px); background: color-mix(in oklch, var(--muted-foreground) 14%, transparent); color: var(--muted-foreground); border-radius: var(--radius-full); font-size: var(--tab-count-fs); font-weight: var(--font-weight-semibold); font-variant-numeric: tabular-nums; line-height: 1.4; transition: background-color var(--duration-fast) var(--ease-out), color var(--duration-fast) var(--ease-out); } .tab[aria-selected='true'] .count { background: color-mix(in oklch, var(--tone) 18%, transparent); color: var(--tone); } .panels { display: block; } /* Vertical orientation — tablist on the left, panels on the right. * Underline indicator flips to a right-edge rail; --underline-y/h drive * the same transform-based animation on the Y axis. */ :host([orientation='vertical']) { display: grid; grid-template-columns: max-content 1fr; gap: var(--space-6); } :host([orientation='vertical']) .tablist.underline { flex-direction: column; align-items: stretch; border-bottom: 0; border-right: 1px solid var(--border); margin-bottom: 0; gap: 2px; } :host([orientation='vertical']) .tablist.underline .tab { justify-content: flex-start; margin-bottom: 0; margin-right: -1px; border-radius: var(--tab-radius) 0 0 var(--tab-radius); } :host([orientation='vertical']) .tablist.underline::after { left: auto; right: -1px; bottom: auto; top: 0; width: 2px; height: var(--underline-h, 0px); transform: translateY(var(--underline-y, 0px)); border-radius: 2px 0 0 2px; transition: transform var(--duration-medium) var(--ease-out), height var(--duration-medium) var(--ease-out), opacity var(--duration-fast) var(--ease-out); } :host([orientation='vertical']) .tablist.segmented { flex-direction: column; padding: 3px; } :host([orientation='vertical']) .tablist.segmented .tab { flex: none; justify-content: flex-start; } @media (forced-colors: active) { .tab:focus-visible { outline: 2px solid CanvasText; outline-offset: -2px; } .tablist.underline::after { background: CanvasText; } .tab[aria-selected='true'] { color: CanvasText; } } `]"
+        },
+        {
+          "kind": "variable",
+          "name": "shipTabPanelStyles",
+          "type": {
+            "text": "array"
+          },
+          "default": "[reducedMotion, css` :host { display: none; } :host([active]) { display: block; animation: ship-tab-panel-fade var(--duration-medium) var(--ease-out); } @keyframes ship-tab-panel-fade { from { opacity: 0; transform: translateY(4px); } to { opacity: 1; transform: translateY(0); } } :host(:focus-visible) { outline: none; box-shadow: 0 0 0 var(--ring-offset) var(--background), 0 0 0 calc(var(--ring-offset) + var(--ring-width)) color-mix(in oklch, var(--ring-color) var(--ring-opacity), transparent); border-radius: var(--radius-md); } `]"
+        }
+      ],
+      "exports": [
+        {
+          "kind": "js",
+          "name": "shipTabsStyles",
+          "declaration": {
+            "name": "shipTabsStyles",
+            "module": "src/web-components/ship-tabs.styles.ts"
+          }
+        },
+        {
+          "kind": "js",
+          "name": "shipTabPanelStyles",
+          "declaration": {
+            "name": "shipTabPanelStyles",
+            "module": "src/web-components/ship-tabs.styles.ts"
+          }
+        }
+      ]
+    },
+    {
+      "kind": "javascript-module",
       "path": "src/web-components/ship-tabs.ts",
       "declarations": [
         {
@@ -3133,7 +4375,8 @@
                 "text": "string"
               },
               "default": "''",
-              "attribute": "name"
+              "attribute": "name",
+              "reflects": true
             },
             {
               "kind": "field",
@@ -3143,7 +4386,8 @@
                 "text": "string"
               },
               "default": "''",
-              "attribute": "label"
+              "attribute": "label",
+              "reflects": true
             },
             {
               "kind": "field",
@@ -3153,7 +4397,8 @@
                 "text": "number | null"
               },
               "default": "null",
-              "attribute": "count"
+              "attribute": "count",
+              "reflects": true
             },
             {
               "kind": "field",
@@ -3163,7 +4408,8 @@
                 "text": "boolean"
               },
               "default": "false",
-              "attribute": "disabled"
+              "attribute": "disabled",
+              "reflects": true
             }
           ],
           "attributes": [
@@ -3220,7 +4466,8 @@
                 "text": "string"
               },
               "default": "''",
-              "attribute": "name"
+              "attribute": "name",
+              "reflects": true
             },
             {
               "kind": "field",
@@ -3288,6 +4535,27 @@
             },
             {
               "kind": "field",
+              "name": "size",
+              "privacy": "public",
+              "type": {
+                "text": "Size"
+              },
+              "default": "'md'",
+              "attribute": "size",
+              "reflects": true
+            },
+            {
+              "kind": "field",
+              "name": "tone",
+              "privacy": "public",
+              "type": {
+                "text": "Tone | undefined"
+              },
+              "attribute": "tone",
+              "reflects": true
+            },
+            {
+              "kind": "field",
               "name": "sticky",
               "privacy": "public",
               "type": {
@@ -3296,6 +4564,45 @@
               "default": "false",
               "attribute": "sticky",
               "reflects": true
+            },
+            {
+              "kind": "field",
+              "name": "orientation",
+              "privacy": "public",
+              "type": {
+                "text": "'horizontal' | 'vertical'"
+              },
+              "default": "'horizontal'",
+              "attribute": "orientation",
+              "reflects": true
+            },
+            {
+              "kind": "field",
+              "name": "mutationObserver",
+              "type": {
+                "text": "MutationObserver | undefined"
+              },
+              "privacy": "private",
+              "description": "Observes the tab children so label/count/disabled edits after mount\ntrigger a re-render. Also catches tabs added/removed from the slot."
+            },
+            {
+              "kind": "field",
+              "name": "resizeObserver",
+              "type": {
+                "text": "ResizeObserver | undefined"
+              },
+              "privacy": "private",
+              "description": "Observes the tablist container for size changes so the underline\nindicator repositions when the layout reflows (sidebar open/close,\nwindow resize, font load)."
+            },
+            {
+              "kind": "field",
+              "name": "rafId",
+              "type": {
+                "text": "number"
+              },
+              "privacy": "private",
+              "default": "0",
+              "description": "Underline-indicator measurement runs through rAF so we never write\ncustom properties more than once per frame even under event storms."
             },
             {
               "kind": "field",
@@ -3318,6 +4625,22 @@
             {
               "kind": "method",
               "name": "syncPanels",
+              "privacy": "private"
+            },
+            {
+              "kind": "method",
+              "name": "attachResizeObserver",
+              "privacy": "private"
+            },
+            {
+              "kind": "method",
+              "name": "scheduleIndicatorSync",
+              "privacy": "private",
+              "description": "Coalesce indicator updates through rAF. We measure the active tab's\noffset within the tablist and write the geometry into CSS custom\nproperties; the pseudo-element transition animates the move."
+            },
+            {
+              "kind": "method",
+              "name": "syncIndicator",
               "privacy": "private"
             },
             {
@@ -3373,12 +4696,35 @@
               "fieldName": "variant"
             },
             {
+              "name": "size",
+              "type": {
+                "text": "Size"
+              },
+              "default": "'md'",
+              "fieldName": "size"
+            },
+            {
+              "name": "tone",
+              "type": {
+                "text": "Tone | undefined"
+              },
+              "fieldName": "tone"
+            },
+            {
               "name": "sticky",
               "type": {
                 "text": "boolean"
               },
               "default": "false",
               "fieldName": "sticky"
+            },
+            {
+              "name": "orientation",
+              "type": {
+                "text": "'horizontal' | 'vertical'"
+              },
+              "default": "'horizontal'",
+              "fieldName": "orientation"
             }
           ],
           "superclass": {
@@ -3442,6 +4788,30 @@
     },
     {
       "kind": "javascript-module",
+      "path": "src/web-components/ship-textarea.styles.ts",
+      "declarations": [
+        {
+          "kind": "variable",
+          "name": "shipTextareaStyles",
+          "type": {
+            "text": "array"
+          },
+          "default": "[reducedMotion, css` :host { display: block; width: 100%; --tone: var(--ring-color); --tone-fg: var(--foreground); } :host([hidden]) { display: none; } :host(:not([tone])), :host([tone='default']) { --tone: var(--ring-color); --tone-fg: var(--foreground); } :host([tone='info']) { --tone: var(--info); --tone-fg: var(--info); } :host([tone='success']) { --tone: var(--success); --tone-fg: var(--success); } :host([tone='warning']) { --tone: var(--warning); --tone-fg: var(--warning); } :host([tone='destructive']) { --tone: var(--destructive); --tone-fg: var(--destructive); } :host([tone='accent']) { --tone: var(--accent); --tone-fg: var(--accent); } :host([tone='muted']) { --tone: var(--muted-foreground); --tone-fg: var(--muted-foreground); } :host(:not([size])), :host([size='md']) { --ta-px: 12px; --ta-py: 10px; --ta-fs: var(--text-base); --ta-lh: 1.5; --ta-radius: var(--radius-md); } :host([size='sm']) { --ta-px: 10px; --ta-py: 8px; --ta-fs: var(--text-sm); --ta-lh: 1.45; --ta-radius: var(--radius-sm); } textarea { display: block; width: 100%; box-sizing: border-box; border: 1px solid var(--border); border-radius: var(--ta-radius); padding: var(--ta-py) var(--ta-px); background: var(--background); color: var(--foreground); font-family: var(--font-body); font-size: var(--ta-fs); line-height: var(--ta-lh); letter-spacing: -0.005em; box-shadow: var(--shadow-xs); transition: background-color var(--duration-fast) var(--ease-out), border-color var(--duration-fast) var(--ease-out), box-shadow var(--duration-fast) var(--ease-out); } :host(:not([disabled])) textarea:hover { border-color: color-mix(in oklch, var(--border) 160%, transparent); box-shadow: var(--shadow-sm); } textarea:focus-visible, textarea:focus { outline: none; border-color: color-mix(in oklch, var(--tone) 70%, var(--border)); box-shadow: 0 0 0 var(--ring-width) color-mix(in oklch, var(--tone) var(--ring-opacity), transparent); } :host([invalid]) textarea { border-color: color-mix(in oklch, var(--destructive) 65%, var(--border)); } :host([invalid]) textarea:hover { border-color: color-mix(in oklch, var(--destructive) 80%, var(--border)); } :host([invalid]) textarea:focus-visible, :host([invalid]) textarea:focus { border-color: var(--destructive); box-shadow: 0 0 0 var(--ring-width) color-mix(in oklch, var(--destructive) var(--ring-opacity), transparent); } textarea::placeholder { color: var(--muted-foreground); opacity: 1; } textarea:disabled { cursor: not-allowed; background: var(--muted); border-color: color-mix(in oklch, var(--border) 70%, transparent); color: var(--muted-foreground); box-shadow: none; opacity: 0.6; } textarea:read-only { cursor: default; } :host([variant='code']) textarea { font-family: ${MONO}; font-size: var(--text-base); line-height: 1.55; letter-spacing: 0; tab-size: 2; } @media (forced-colors: active) { textarea:focus-visible { outline: 2px solid CanvasText; outline-offset: 2px; } } `]"
+        }
+      ],
+      "exports": [
+        {
+          "kind": "js",
+          "name": "shipTextareaStyles",
+          "declaration": {
+            "name": "shipTextareaStyles",
+            "module": "src/web-components/ship-textarea.styles.ts"
+          }
+        }
+      ]
+    },
+    {
+      "kind": "javascript-module",
       "path": "src/web-components/ship-textarea.ts",
       "declarations": [
         {
@@ -3449,6 +4819,32 @@
           "description": "",
           "name": "ShipTextarea",
           "members": [
+            {
+              "kind": "field",
+              "name": "formAssociated",
+              "type": {
+                "text": "boolean"
+              },
+              "static": true,
+              "default": "true"
+            },
+            {
+              "kind": "field",
+              "name": "internals",
+              "type": {
+                "text": "ElementInternals"
+              },
+              "privacy": "private"
+            },
+            {
+              "kind": "field",
+              "name": "defaultValue",
+              "type": {
+                "text": "string"
+              },
+              "privacy": "private",
+              "default": "''"
+            },
             {
               "kind": "field",
               "name": "value",
@@ -3524,6 +4920,16 @@
             },
             {
               "kind": "field",
+              "name": "tone",
+              "privacy": "public",
+              "type": {
+                "text": "Tone | undefined"
+              },
+              "attribute": "tone",
+              "reflects": true
+            },
+            {
+              "kind": "field",
               "name": "variant",
               "privacy": "public",
               "type": {
@@ -3538,7 +4944,7 @@
               "name": "size",
               "privacy": "public",
               "type": {
-                "text": "'sm' | 'md'"
+                "text": "Size"
               },
               "default": "'md'",
               "attribute": "size",
@@ -3553,6 +4959,66 @@
               },
               "default": "'vertical'",
               "attribute": "resize"
+            },
+            {
+              "kind": "field",
+              "name": "invalid",
+              "privacy": "public",
+              "type": {
+                "text": "boolean"
+              },
+              "default": "false",
+              "attribute": "invalid",
+              "reflects": true
+            },
+            {
+              "kind": "field",
+              "name": "label",
+              "privacy": "public",
+              "type": {
+                "text": "string"
+              },
+              "default": "''",
+              "attribute": "label"
+            },
+            {
+              "kind": "field",
+              "name": "describedBy",
+              "privacy": "public",
+              "type": {
+                "text": "string"
+              },
+              "default": "''",
+              "attribute": "described-by"
+            },
+            {
+              "kind": "method",
+              "name": "formResetCallback"
+            },
+            {
+              "kind": "method",
+              "name": "formStateRestoreCallback",
+              "parameters": [
+                {
+                  "name": "state",
+                  "type": {
+                    "text": "string | null"
+                  }
+                }
+              ]
+            },
+            {
+              "kind": "method",
+              "name": "setFormValue",
+              "privacy": "private",
+              "parameters": [
+                {
+                  "name": "v",
+                  "type": {
+                    "text": "string"
+                  }
+                }
+              ]
             },
             {
               "kind": "method",
@@ -3634,6 +5100,13 @@
               "fieldName": "readonly"
             },
             {
+              "name": "tone",
+              "type": {
+                "text": "Tone | undefined"
+              },
+              "fieldName": "tone"
+            },
+            {
               "name": "variant",
               "type": {
                 "text": "'default' | 'code'"
@@ -3644,7 +5117,7 @@
             {
               "name": "size",
               "type": {
-                "text": "'sm' | 'md'"
+                "text": "Size"
               },
               "default": "'md'",
               "fieldName": "size"
@@ -3656,6 +5129,30 @@
               },
               "default": "'vertical'",
               "fieldName": "resize"
+            },
+            {
+              "name": "invalid",
+              "type": {
+                "text": "boolean"
+              },
+              "default": "false",
+              "fieldName": "invalid"
+            },
+            {
+              "name": "label",
+              "type": {
+                "text": "string"
+              },
+              "default": "''",
+              "fieldName": "label"
+            },
+            {
+              "name": "described-by",
+              "type": {
+                "text": "string"
+              },
+              "default": "''",
+              "fieldName": "describedBy"
             }
           ],
           "superclass": {
@@ -3805,6 +5302,21 @@
               "default": "'default'",
               "attribute": "variant",
               "reflects": true
+            },
+            {
+              "kind": "method",
+              "name": "focusable",
+              "privacy": "private",
+              "return": {
+                "type": {
+                  "text": "HTMLElement[]"
+                }
+              }
+            },
+            {
+              "kind": "field",
+              "name": "onKey",
+              "privacy": "private"
             }
           ],
           "attributes": [
@@ -3887,6 +5399,32 @@
               "default": "'top'",
               "attribute": "placement",
               "reflects": true
+            },
+            {
+              "kind": "field",
+              "name": "_idSeq",
+              "type": {
+                "text": "number"
+              },
+              "privacy": "private",
+              "static": true,
+              "default": "0"
+            },
+            {
+              "kind": "field",
+              "name": "bubbleId",
+              "privacy": "private",
+              "default": "`ship-tooltip-${++ShipTooltip._idSeq}`"
+            },
+            {
+              "kind": "field",
+              "name": "onKeydown",
+              "privacy": "private"
+            },
+            {
+              "kind": "field",
+              "name": "wireTrigger",
+              "privacy": "private"
             }
           ],
           "attributes": [
@@ -3922,6 +5460,123 @@
           "declaration": {
             "name": "ShipTooltip",
             "module": "src/web-components/ship-tooltip.ts"
+          }
+        }
+      ]
+    },
+    {
+      "kind": "javascript-module",
+      "path": "src/web-components/typeahead.ts",
+      "declarations": [
+        {
+          "kind": "class",
+          "description": "Typeahead string-buffer for listbox / menu / tree keyboard search.\n\nCollects single-character keystrokes into a buffer that resets after\n`timeout` ms of inactivity. `match(items, fromIndex)` returns the index\nof the next item whose label starts with the buffer (case-insensitive),\npreferring items strictly after `fromIndex` and wrapping. Returns -1 if\nno match.\n\nIf only one character has been typed, repeated presses cycle through\nmatches starting with that letter (Listbox APG pattern).",
+          "name": "Typeahead",
+          "members": [
+            {
+              "kind": "field",
+              "name": "buffer",
+              "type": {
+                "text": "string"
+              },
+              "privacy": "private",
+              "default": "''"
+            },
+            {
+              "kind": "field",
+              "name": "lastAt",
+              "type": {
+                "text": "number"
+              },
+              "privacy": "private",
+              "default": "0"
+            },
+            {
+              "kind": "method",
+              "name": "push",
+              "return": {
+                "type": {
+                  "text": "string"
+                }
+              },
+              "parameters": [
+                {
+                  "name": "key",
+                  "type": {
+                    "text": "string"
+                  }
+                }
+              ]
+            },
+            {
+              "kind": "method",
+              "name": "reset",
+              "return": {
+                "type": {
+                  "text": "void"
+                }
+              }
+            },
+            {
+              "kind": "method",
+              "name": "match",
+              "return": {
+                "type": {
+                  "text": "number"
+                }
+              },
+              "parameters": [
+                {
+                  "name": "labels",
+                  "type": {
+                    "text": "readonly string[]"
+                  }
+                },
+                {
+                  "name": "fromIndex",
+                  "type": {
+                    "text": "number"
+                  }
+                }
+              ],
+              "description": "Find the next matching item index. Items provide their search label.\n`fromIndex` is the currently-active index (matches start strictly\nafter it). Buffer of length 1 cycles; longer buffers prefix-match."
+            }
+          ]
+        },
+        {
+          "kind": "function",
+          "name": "isTypeaheadKey",
+          "return": {
+            "type": {
+              "text": "boolean"
+            }
+          },
+          "parameters": [
+            {
+              "name": "e",
+              "type": {
+                "text": "KeyboardEvent"
+              }
+            }
+          ],
+          "description": "True for printable single-character keys (ignores modifiers, F-keys, etc.)."
+        }
+      ],
+      "exports": [
+        {
+          "kind": "js",
+          "name": "Typeahead",
+          "declaration": {
+            "name": "Typeahead",
+            "module": "src/web-components/typeahead.ts"
+          }
+        },
+        {
+          "kind": "js",
+          "name": "isTypeaheadKey",
+          "declaration": {
+            "name": "isTypeaheadKey",
+            "module": "src/web-components/typeahead.ts"
           }
         }
       ]
@@ -3997,6 +5652,16 @@
               "default": "false",
               "attribute": "grid",
               "reflects": true
+            },
+            {
+              "kind": "field",
+              "name": "label",
+              "privacy": "public",
+              "type": {
+                "text": "string"
+              },
+              "default": "'area chart'",
+              "attribute": "label"
             }
           ],
           "attributes": [
@@ -4047,6 +5712,14 @@
               },
               "default": "false",
               "fieldName": "grid"
+            },
+            {
+              "name": "label",
+              "type": {
+                "text": "string"
+              },
+              "default": "'area chart'",
+              "fieldName": "label"
             }
           ],
           "superclass": {
@@ -4157,6 +5830,16 @@
               },
               "default": "null",
               "attribute": "max"
+            },
+            {
+              "kind": "field",
+              "name": "label",
+              "privacy": "public",
+              "type": {
+                "text": "string"
+              },
+              "default": "'bar chart'",
+              "attribute": "label"
             }
           ],
           "attributes": [
@@ -4215,6 +5898,14 @@
               },
               "default": "null",
               "fieldName": "max"
+            },
+            {
+              "name": "label",
+              "type": {
+                "text": "string"
+              },
+              "default": "'bar chart'",
+              "fieldName": "label"
             }
           ],
           "superclass": {
@@ -4283,6 +5974,16 @@
               },
               "default": "16",
               "attribute": "thickness"
+            },
+            {
+              "kind": "field",
+              "name": "label",
+              "privacy": "public",
+              "type": {
+                "text": "string"
+              },
+              "default": "'donut chart'",
+              "attribute": "label"
             }
           ],
           "attributes": [
@@ -4309,6 +6010,14 @@
               },
               "default": "16",
               "fieldName": "thickness"
+            },
+            {
+              "name": "label",
+              "type": {
+                "text": "string"
+              },
+              "default": "'donut chart'",
+              "fieldName": "label"
             }
           ],
           "superclass": {
@@ -4377,6 +6086,16 @@
               },
               "default": "100",
               "attribute": "max"
+            },
+            {
+              "kind": "field",
+              "name": "label",
+              "privacy": "public",
+              "type": {
+                "text": "string"
+              },
+              "default": "'gauge'",
+              "attribute": "label"
             },
             {
               "kind": "field",
@@ -4504,6 +6223,14 @@
               },
               "default": "12",
               "fieldName": "thickness"
+            },
+            {
+              "name": "label",
+              "type": {
+                "text": "string"
+              },
+              "default": "'gauge'",
+              "fieldName": "label"
             }
           ],
           "superclass": {
@@ -4583,6 +6310,16 @@
               "default": "'primary'",
               "attribute": "tone",
               "reflects": true
+            },
+            {
+              "kind": "field",
+              "name": "label",
+              "privacy": "public",
+              "type": {
+                "text": "string"
+              },
+              "default": "'heatmap'",
+              "attribute": "label"
             }
           ],
           "attributes": [
@@ -4617,6 +6354,14 @@
               },
               "default": "'primary'",
               "fieldName": "tone"
+            },
+            {
+              "name": "label",
+              "type": {
+                "text": "string"
+              },
+              "default": "'heatmap'",
+              "fieldName": "label"
             }
           ],
           "superclass": {
@@ -4717,6 +6462,16 @@
               "default": "false",
               "attribute": "grid",
               "reflects": true
+            },
+            {
+              "kind": "field",
+              "name": "label",
+              "privacy": "public",
+              "type": {
+                "text": "string"
+              },
+              "default": "'line chart'",
+              "attribute": "label"
             }
           ],
           "attributes": [
@@ -4767,6 +6522,14 @@
               },
               "default": "false",
               "fieldName": "grid"
+            },
+            {
+              "name": "label",
+              "type": {
+                "text": "string"
+              },
+              "default": "'line chart'",
+              "fieldName": "label"
             }
           ],
           "superclass": {
@@ -4825,6 +6588,16 @@
               },
               "default": "null",
               "attribute": "total"
+            },
+            {
+              "kind": "field",
+              "name": "label",
+              "privacy": "public",
+              "type": {
+                "text": "string"
+              },
+              "default": "'meter'",
+              "attribute": "label"
             }
           ],
           "attributes": [
@@ -4843,6 +6616,14 @@
               },
               "default": "null",
               "fieldName": "total"
+            },
+            {
+              "name": "label",
+              "type": {
+                "text": "string"
+              },
+              "default": "'meter'",
+              "fieldName": "label"
             }
           ],
           "superclass": {
@@ -4922,6 +6703,17 @@
               "default": "'primary'",
               "attribute": "tone",
               "reflects": true
+            },
+            {
+              "kind": "field",
+              "name": "label",
+              "privacy": "public",
+              "type": {
+                "text": "string"
+              },
+              "default": "''",
+              "attribute": "label",
+              "reflects": true
             }
           ],
           "attributes": [
@@ -4956,6 +6748,14 @@
               },
               "default": "'primary'",
               "fieldName": "tone"
+            },
+            {
+              "name": "label",
+              "type": {
+                "text": "string"
+              },
+              "default": "''",
+              "fieldName": "label"
             }
           ],
           "superclass": {
@@ -5046,6 +6846,16 @@
               "default": "false",
               "attribute": "fill",
               "reflects": true
+            },
+            {
+              "kind": "field",
+              "name": "label",
+              "privacy": "public",
+              "type": {
+                "text": "string"
+              },
+              "default": "'sparkline'",
+              "attribute": "label"
             }
           ],
           "attributes": [
@@ -5088,6 +6898,14 @@
               },
               "default": "false",
               "fieldName": "fill"
+            },
+            {
+              "name": "label",
+              "type": {
+                "text": "string"
+              },
+              "default": "'sparkline'",
+              "fieldName": "label"
             }
           ],
           "superclass": {
@@ -6785,6 +8603,16 @@
               "default": "true",
               "attribute": "hoverable",
               "reflects": true
+            },
+            {
+              "kind": "field",
+              "name": "label",
+              "privacy": "public",
+              "type": {
+                "text": "string"
+              },
+              "default": "''",
+              "attribute": "label"
             }
           ],
           "attributes": [
@@ -6803,6 +8631,14 @@
               },
               "default": "true",
               "fieldName": "hoverable"
+            },
+            {
+              "name": "label",
+              "type": {
+                "text": "string"
+              },
+              "default": "''",
+              "fieldName": "label"
             }
           ],
           "superclass": {
@@ -7718,6 +9554,17 @@
               "default": "'default'",
               "attribute": "tone",
               "reflects": true
+            },
+            {
+              "kind": "field",
+              "name": "label",
+              "privacy": "public",
+              "type": {
+                "text": "string"
+              },
+              "default": "''",
+              "attribute": "label",
+              "reflects": true
             }
           ],
           "attributes": [
@@ -7744,6 +9591,14 @@
               },
               "default": "'default'",
               "fieldName": "tone"
+            },
+            {
+              "name": "label",
+              "type": {
+                "text": "string"
+              },
+              "default": "''",
+              "fieldName": "label"
             }
           ],
           "superclass": {

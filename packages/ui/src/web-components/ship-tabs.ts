@@ -1,43 +1,52 @@
 /**
  * <ship-tabs> + <ship-tab> + <ship-tab-panel>
  *
- * Declarative child-composition tabs. The active tab is the one with
- * `name` matching the <ship-tabs active="..."> attribute.
- *
- * Two visual variants:
- *   - underline (default) — pipelines `.tabs-bar` style (bottom border,
- *     highlight bar).
- *   - segmented — specs `.tabs` style (pill background, active has white
- *     chip with soft shadow). Uppercase micro-labels.
+ * Declarative child-composition tabs. The active tab is the one whose
+ * `name` matches <ship-tabs active="…">. Matches shadcn/ui's Tabs + Radix
+ * Tabs visual weight: clean text tabs with an animated underline, or a
+ * pill-group segmented control.
  *
  * Attributes on <ship-tabs>:
- *   - active: name of the active tab
- *   - variant: underline | segmented (default underline)
- *   - sticky: boolean — sticky top positioning (pipelines uses this)
+ *   - active — name of the active tab (also reflected on the element)
+ *   - variant — underline | segmented (default: underline)
+ *   - size — sm | md | lg (default: md)
+ *   - tone — default | info | success | warning | destructive | accent | muted
+ *     Drives the active-tab accent color (underline + focus ring + count chip).
+ *   - sticky — boolean; sticky top positioning (pipelines uses this)
+ *   - orientation — horizontal | vertical (default: horizontal)
  *
  * Attributes on <ship-tab>:
  *   - name (required)
- *   - label (if omitted, name is used)
- *   - count: optional numeric count rendered as a pill chip
+ *   - label — if omitted, name is used
+ *   - count — optional numeric count rendered as a pill chip after the label
  *   - disabled
  *
  * Attributes on <ship-tab-panel>:
  *   - name (required) — shown when matches parent <ship-tabs active>.
+ *
+ * Slots on <ship-tabs>:
+ *   - (default) — projected children: <ship-tab> and <ship-tab-panel>
+ *
+ * Parts:
+ *   - tablist — the role="tablist" wrapper
+ *   - tab — each role="tab" button
+ *   - indicator — the moving underline pseudo-element owner (tablist::after)
  *
  * Events (on <ship-tabs>):
  *   - ship-tab-change — CustomEvent { detail: { name } }
  */
 
 import { LitElement, css, html } from 'lit'
-import { reducedMotion } from './util'
+import { shipTabsStyles, shipTabPanelStyles } from './ship-tabs.styles'
+import type { Size, Tone } from './util'
 
 export class ShipTab extends LitElement {
   static styles = css`:host { display: none; }`
   static properties = {
-    name: { type: String },
-    label: { type: String },
-    count: { type: Number },
-    disabled: { type: Boolean },
+    name: { type: String, reflect: true },
+    label: { type: String, reflect: true },
+    count: { type: Number, reflect: true },
+    disabled: { type: Boolean, reflect: true },
   }
   name = ''
   label = ''
@@ -47,16 +56,9 @@ export class ShipTab extends LitElement {
 }
 
 export class ShipTabPanel extends LitElement {
-  static styles = [reducedMotion, css`
-    :host { display: none; }
-    :host([active]) { display: block; animation: fade 180ms ease; }
-    @keyframes fade {
-      from { opacity: 0; transform: translateY(4px); }
-      to { opacity: 1; transform: translateY(0); }
-    }
-  `]
+  static styles = shipTabPanelStyles
   static properties = {
-    name: { type: String },
+    name: { type: String, reflect: true },
     active: { type: Boolean, reflect: true },
   }
   name = ''
@@ -72,130 +74,51 @@ export class ShipTabPanel extends LitElement {
 }
 
 export class ShipTabs extends LitElement {
-  static styles = css`
-    :host { display: block; font-family: var(--font-body); }
-
-    /* Underline variant (default) — matches pipelines .tabs-bar */
-    .tablist.underline {
-      display: flex; gap: 2px;
-      border-bottom: 1px solid var(--border);
-      margin-bottom: 24px;
-    }
-    :host([sticky]) .tablist.underline {
-      position: sticky; top: 0; background: var(--background); z-index: 5;
-      padding-top: 4px;
-    }
-    .tablist.underline button {
-      background: transparent; border: 0;
-      color: var(--muted-foreground);
-      padding: 10px 16px;
-      font: inherit;
-      font-size: 13px; font-weight: 500;
-      cursor: pointer;
-      border-bottom: 2px solid transparent;
-      margin-bottom: -1px;
-      display: inline-flex; align-items: center; gap: 8px;
-      transition: color 120ms;
-    }
-    .tablist.underline button:hover:not(:disabled) { color: var(--foreground); }
-    .tablist.underline button[aria-selected='true'] {
-      color: var(--foreground);
-      border-bottom-color: var(--primary);
-    }
-
-    /* Segmented variant — matches specs .tabs */
-    .tablist.segmented {
-      display: flex; gap: 2px;
-      padding: 8px 10px;
-      border-bottom: 1px solid var(--border);
-      background: var(--muted);
-    }
-    .tablist.segmented button {
-      flex: 1;
-      padding: 6px 8px;
-      border: none;
-      background: transparent;
-      color: var(--muted-foreground);
-      font: inherit;
-      font-size: 11px; font-weight: 500;
-      cursor: pointer;
-      border-radius: 4px;
-      text-transform: uppercase;
-      letter-spacing: 0.04em;
-    }
-    .tablist.segmented button[aria-selected='true'] {
-      background: var(--background);
-      color: var(--foreground);
-      box-shadow: 0 1px 2px rgba(0,0,0,0.05);
-    }
-
-    button:disabled { opacity: 0.5; cursor: not-allowed; }
-    button:focus-visible {
-      outline: 2px solid var(--primary);
-      outline-offset: -2px;
-      border-radius: 4px;
-    }
-
-    .count {
-      background: var(--muted);
-      color: var(--muted-foreground);
-      padding: 1px 7px;
-      border-radius: 999px;
-      font-size: 10px; font-weight: 600;
-      font-variant-numeric: tabular-nums;
-      min-width: 18px;
-      text-align: center;
-    }
-    .tablist.underline button[aria-selected='true'] .count {
-      background: color-mix(in oklch, var(--primary) 15%, transparent);
-      color: var(--primary);
-    }
-
-    .panels { display: block; }
-
-    /* Vertical orientation — tablist on the left, panels on the right. */
-    :host([orientation='vertical']) {
-      display: grid;
-      grid-template-columns: max-content 1fr;
-      gap: 24px;
-    }
-    :host([orientation='vertical']) .tablist.underline {
-      flex-direction: column;
-      align-items: stretch;
-      border-bottom: 0;
-      border-right: 1px solid var(--border);
-      margin-bottom: 0;
-      gap: 0;
-    }
-    :host([orientation='vertical']) .tablist.underline button {
-      border-bottom: 0;
-      border-right: 2px solid transparent;
-      margin-bottom: 0;
-      margin-right: -1px;
-      text-align: left;
-      justify-content: flex-start;
-    }
-    :host([orientation='vertical']) .tablist.underline button[aria-selected='true'] {
-      border-right-color: var(--primary);
-    }
-    :host([orientation='vertical']) .tablist.segmented {
-      flex-direction: column;
-      border-bottom: 0;
-      border-right: 1px solid var(--border);
-    }
-  `
+  static styles = shipTabsStyles
 
   static properties = {
     active: { type: String, reflect: true },
     variant: { type: String, reflect: true },
+    size: { type: String, reflect: true },
+    tone: { type: String, reflect: true },
     sticky: { type: Boolean, reflect: true },
     orientation: { type: String, reflect: true },
   }
 
   active = ''
   variant: 'underline' | 'segmented' = 'underline'
+  size: Size = 'md'
+  tone?: Tone
   sticky = false
   orientation: 'horizontal' | 'vertical' = 'horizontal'
+
+  /** Observes the tab children so label/count/disabled edits after mount
+   * trigger a re-render. Also catches tabs added/removed from the slot. */
+  private mutationObserver?: MutationObserver
+  /** Observes the tablist container for size changes so the underline
+   * indicator repositions when the layout reflows (sidebar open/close,
+   * window resize, font load). */
+  private resizeObserver?: ResizeObserver
+  /** Underline-indicator measurement runs through rAF so we never write
+   * custom properties more than once per frame even under event storms. */
+  private rafId = 0
+
+  connectedCallback() {
+    super.connectedCallback()
+    this.mutationObserver = new MutationObserver(() => this.requestUpdate())
+    this.mutationObserver.observe(this, {
+      childList: true,
+      subtree: true,
+      attributes: true,
+      attributeFilter: ['name', 'label', 'count', 'disabled'],
+    })
+  }
+  disconnectedCallback() {
+    super.disconnectedCallback()
+    this.mutationObserver?.disconnect()
+    this.resizeObserver?.disconnect()
+    if (this.rafId) cancelAnimationFrame(this.rafId)
+  }
 
   private get tabs(): ShipTab[] {
     return Array.from(this.querySelectorAll(':scope > ship-tab')) as ShipTab[]
@@ -204,13 +127,68 @@ export class ShipTabs extends LitElement {
     return Array.from(this.querySelectorAll(':scope > ship-tab-panel')) as ShipTabPanel[]
   }
 
-  firstUpdated() { this.syncPanels() }
-  updated() { this.syncPanels() }
+  firstUpdated() {
+    this.syncPanels()
+    this.attachResizeObserver()
+    this.scheduleIndicatorSync()
+  }
+  updated(changed: Map<string, unknown>) {
+    this.syncPanels()
+    // Any change that could shift the active tab's geometry needs a sync:
+    // active-tab change, variant swap, orientation flip, size change.
+    if (
+      changed.has('active') ||
+      changed.has('variant') ||
+      changed.has('orientation') ||
+      changed.has('size')
+    ) {
+      this.scheduleIndicatorSync()
+    }
+  }
+
   private syncPanels() {
     for (const p of this.panels) p.active = p.name === this.active
   }
 
+  private attachResizeObserver() {
+    const tablist = this.renderRoot.querySelector('.tablist') as HTMLElement | null
+    if (!tablist || typeof ResizeObserver === 'undefined') return
+    this.resizeObserver = new ResizeObserver(() => this.scheduleIndicatorSync())
+    this.resizeObserver.observe(tablist)
+  }
+
+  /** Coalesce indicator updates through rAF. We measure the active tab's
+   * offset within the tablist and write the geometry into CSS custom
+   * properties; the pseudo-element transition animates the move. */
+  private scheduleIndicatorSync() {
+    if (this.variant === 'segmented') return
+    if (this.rafId) cancelAnimationFrame(this.rafId)
+    this.rafId = requestAnimationFrame(() => this.syncIndicator())
+  }
+
+  private syncIndicator() {
+    this.rafId = 0
+    const tablist = this.renderRoot.querySelector('.tablist') as HTMLElement | null
+    if (!tablist) return
+    const activeBtn = tablist.querySelector<HTMLButtonElement>(
+      'button[aria-selected="true"]',
+    )
+    if (!activeBtn) {
+      this.removeAttribute('data-underline-ready')
+      return
+    }
+    if (this.orientation === 'vertical') {
+      tablist.style.setProperty('--underline-y', `${activeBtn.offsetTop}px`)
+      tablist.style.setProperty('--underline-h', `${activeBtn.offsetHeight}px`)
+    } else {
+      tablist.style.setProperty('--underline-x', `${activeBtn.offsetLeft}px`)
+      tablist.style.setProperty('--underline-w', `${activeBtn.offsetWidth}px`)
+    }
+    this.setAttribute('data-underline-ready', '')
+  }
+
   private activate(name: string) {
+    if (this.active === name) return
     this.active = name
     this.dispatchEvent(new CustomEvent('ship-tab-change', {
       detail: { name }, bubbles: true, composed: true,
@@ -221,27 +199,34 @@ export class ShipTabs extends LitElement {
     const vertical = this.orientation === 'vertical'
     const nextKey = vertical ? 'ArrowDown' : 'ArrowRight'
     const prevKey = vertical ? 'ArrowUp' : 'ArrowLeft'
-    const keys = [nextKey, prevKey, 'Home', 'End']
-    if (!keys.includes(e.key)) return
+    const nav = [nextKey, prevKey, 'Home', 'End']
+    const activate = ['Enter', ' ']
+    if (!nav.includes(e.key) && !activate.includes(e.key)) return
     e.preventDefault()
-    const tabs = this.tabs.filter(t => !t.disabled)
-    const names = tabs.map(t => t.name)
-    if (!names.length) return
-    const i = names.indexOf(this.active)
+    const enabled = this.tabs.filter(t => !t.disabled)
+    if (!enabled.length) return
+    const names = enabled.map(t => t.name)
+    const i = Math.max(0, names.indexOf(this.active))
     let next = i
     if (e.key === nextKey) next = (i + 1) % names.length
     else if (e.key === prevKey) next = (i - 1 + names.length) % names.length
     else if (e.key === 'Home') next = 0
     else if (e.key === 'End') next = names.length - 1
-    this.activate(names[next])
+    // Enter/Space activate the currently-focused tab (if different from
+    // active) so manual-activation consumers still get the event.
+    const targetName = names[next]
+    this.activate(targetName)
     queueMicrotask(() => {
-      const btn = this.renderRoot.querySelector<HTMLButtonElement>(`button[data-name="${names[next]}"]`)
+      const btn = this.renderRoot.querySelector<HTMLButtonElement>(
+        `button[data-name="${targetName}"]`,
+      )
       btn?.focus()
     })
   }
 
   render() {
-    const tabs = this.tabs.map(t => ({
+    const tabs = this.tabs.map((t, idx) => ({
+      index: idx,
       name: t.name,
       label: t.label || t.name,
       count: t.count,
@@ -249,26 +234,31 @@ export class ShipTabs extends LitElement {
     }))
 
     return html`
-      <div class="tablist ${this.variant}" role="tablist"
+      <div class="tablist ${this.variant}" part="tablist" role="tablist"
            aria-orientation=${this.orientation}
            @keydown=${this.onKeydown}>
         ${tabs.map(t => html`
           <button
+            class="tab"
+            part="tab"
             role="tab"
             id=${`ship-tab-${t.name}`}
             data-name=${t.name}
             aria-selected=${t.name === this.active ? 'true' : 'false'}
             aria-controls=${`ship-tabpanel-${t.name}`}
+            aria-disabled=${t.disabled ? 'true' : 'false'}
             tabindex=${t.name === this.active ? '0' : '-1'}
             ?disabled=${t.disabled}
-            @click=${() => this.activate(t.name)}
+            @click=${() => !t.disabled && this.activate(t.name)}
           >
-            ${t.label}
-            ${t.count != null ? html`<span class="count">${t.count}</span>` : null}
+            <span class="label"><slot name=${`label-${t.name}`}>${t.label}</slot></span>
+            ${t.count != null
+              ? html`<span class="count" aria-hidden="true">${t.count}</span>`
+              : null}
           </button>
         `)}
       </div>
-      <div class="panels"><slot></slot></div>
+      <div class="panels" part="panels"><slot></slot></div>
     `
   }
 }

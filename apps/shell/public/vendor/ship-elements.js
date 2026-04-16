@@ -1,4 +1,4 @@
-// ../../../node_modules/.pnpm/@lit+reactive-element@2.1.2/node_modules/@lit/reactive-element/css-tag.js
+// node_modules/.pnpm/@lit+reactive-element@2.1.2/node_modules/@lit/reactive-element/css-tag.js
 var t = globalThis;
 var e = t.ShadowRoot && (void 0 === t.ShadyCSS || t.ShadyCSS.nativeShadow) && "adoptedStyleSheets" in Document.prototype && "replace" in CSSStyleSheet.prototype;
 var s = Symbol();
@@ -43,7 +43,7 @@ var c = e ? (t4) => t4 : (t4) => t4 instanceof CSSStyleSheet ? ((t5) => {
   return r(e6);
 })(t4) : t4;
 
-// ../../../node_modules/.pnpm/@lit+reactive-element@2.1.2/node_modules/@lit/reactive-element/reactive-element.js
+// node_modules/.pnpm/@lit+reactive-element@2.1.2/node_modules/@lit/reactive-element/reactive-element.js
 var { is: i2, defineProperty: e2, getOwnPropertyDescriptor: h, getOwnPropertyNames: r2, getOwnPropertySymbols: o2, getPrototypeOf: n2 } = Object;
 var a = globalThis;
 var c2 = a.trustedTypes;
@@ -265,7 +265,7 @@ var y = class extends HTMLElement {
 };
 y.elementStyles = [], y.shadowRootOptions = { mode: "open" }, y[d("elementProperties")] = /* @__PURE__ */ new Map(), y[d("finalized")] = /* @__PURE__ */ new Map(), p?.({ ReactiveElement: y }), (a.reactiveElementVersions ?? (a.reactiveElementVersions = [])).push("2.1.2");
 
-// ../../../node_modules/.pnpm/lit-html@3.3.2/node_modules/lit-html/lit-html.js
+// node_modules/.pnpm/lit-html@3.3.2/node_modules/lit-html/lit-html.js
 var t2 = globalThis;
 var i3 = (t4) => t4;
 var s2 = t2.trustedTypes;
@@ -519,7 +519,7 @@ var D = (t4, i6, s4) => {
   return h3._$AI(t4), h3;
 };
 
-// ../../../node_modules/.pnpm/lit-element@4.2.2/node_modules/lit-element/lit-element.js
+// node_modules/.pnpm/lit-element@4.2.2/node_modules/lit-element/lit-element.js
 var s3 = globalThis;
 var i4 = class extends y {
   constructor() {
@@ -549,7 +549,7 @@ var o4 = s3.litElementPolyfillSupport;
 o4?.({ LitElement: i4 });
 (s3.litElementVersions ?? (s3.litElementVersions = [])).push("4.2.2");
 
-// ../../../packages/ui/src/web-components/util.ts
+// packages/ui/src/web-components/util.ts
 var MONO_STACK = "ui-monospace, SFMono-Regular, 'SF Mono', Menlo, Consolas, monospace";
 var MONO = r(MONO_STACK);
 var toneVars = i`
@@ -611,7 +611,7 @@ var reducedMotion = i`
   }
 `;
 
-// ../../../packages/ui/src/web-components/ship-alert.ts
+// packages/ui/src/web-components/ship-alert.ts
 var ShipAlert = class extends i4 {
   constructor() {
     super();
@@ -681,7 +681,7 @@ if (typeof customElements !== "undefined" && !customElements.get("ship-alert")) 
   customElements.define("ship-alert", ShipAlert);
 }
 
-// ../../../packages/ui/src/web-components/ship-dialog.styles.ts
+// packages/ui/src/web-components/ship-dialog.styles.ts
 var shipDialogStyles = [reducedMotion, i`
   :host { display: contents; }
   :host([hidden]) { display: none; }
@@ -922,7 +922,7 @@ var shipDialogStyles = [reducedMotion, i`
   }
 `];
 
-// ../../../packages/ui/src/web-components/focus.ts
+// packages/ui/src/web-components/focus.ts
 var FOCUSABLE_SELECTOR = [
   "a[href]",
   "area[href]",
@@ -962,7 +962,7 @@ var FocusReturn = class {
   }
 };
 
-// ../../../packages/ui/src/web-components/ship-dialog.ts
+// packages/ui/src/web-components/ship-dialog.ts
 var scrollLockCount = 0;
 var savedBodyOverflow = null;
 var savedBodyPaddingRight = null;
@@ -1175,7 +1175,7 @@ if (typeof customElements !== "undefined" && !customElements.get("ship-dialog"))
   customElements.define("ship-dialog", ShipDialog);
 }
 
-// ../../../packages/ui/src/web-components/ship-button.ts
+// packages/ui/src/web-components/ship-button.ts
 var ShipButton = class extends i4 {
   constructor() {
     super(...arguments);
@@ -1639,7 +1639,7 @@ if (typeof customElements !== "undefined" && !customElements.get("ship-button"))
   customElements.define("ship-button", ShipButton);
 }
 
-// ../../../packages/ui/src/web-components/ship-alert-dialog.ts
+// packages/ui/src/web-components/ship-alert-dialog.ts
 var ShipAlertDialog = class extends i4 {
   constructor() {
     super(...arguments);
@@ -1690,7 +1690,7 @@ if (typeof customElements !== "undefined" && !customElements.get("ship-alert-dia
   customElements.define("ship-alert-dialog", ShipAlertDialog);
 }
 
-// ../../../packages/ui/src/utils/annotation-helpers.ts
+// packages/ui/src/utils/annotation-helpers.ts
 function getCSSSelector(el) {
   if (el.id) return `#${el.id}`;
   const tag = el.tagName.toLowerCase();
@@ -1752,7 +1752,7 @@ function buildAnnotationEvent(input) {
   return ev;
 }
 
-// ../../../packages/ui/src/web-components/ship-annotation-layer.internals.ts
+// packages/ui/src/web-components/ship-annotation-layer.internals.ts
 var layerStyles = i`
   :host {
     position: relative;
@@ -1850,7 +1850,7 @@ function renderPopover(host, at) {
   `;
 }
 
-// ../../../packages/ui/src/web-components/ship-annotation-marker.ts
+// packages/ui/src/web-components/ship-annotation-marker.ts
 var ShipAnnotationMarker = class extends i4 {
   constructor() {
     super(...arguments);
@@ -1943,7 +1943,7 @@ if (typeof customElements !== "undefined" && !customElements.get("ship-annotatio
   customElements.define("ship-annotation-marker", ShipAnnotationMarker);
 }
 
-// ../../../packages/ui/src/web-components/ship-annotation-layer.ts
+// packages/ui/src/web-components/ship-annotation-layer.ts
 var DEFAULT_ENDPOINT = "/api/runtime/feedback";
 var ShipAnnotationLayer = class extends i4 {
   constructor() {
@@ -2165,7 +2165,7 @@ if (typeof customElements !== "undefined" && !customElements.get("ship-annotatio
   customElements.define("ship-annotation-layer", ShipAnnotationLayer);
 }
 
-// ../../../packages/ui/src/web-components/ship-annotation-list.ts
+// packages/ui/src/web-components/ship-annotation-list.ts
 var ShipAnnotationList = class extends i4 {
   constructor() {
     super(...arguments);
@@ -2279,7 +2279,7 @@ if (typeof customElements !== "undefined" && !customElements.get("ship-annotatio
   customElements.define("ship-annotation-list", ShipAnnotationList);
 }
 
-// ../../../packages/ui/src/web-components/ship-badge.ts
+// packages/ui/src/web-components/ship-badge.ts
 var ShipBadge = class extends i4 {
   constructor() {
     super();
@@ -2328,7 +2328,7 @@ if (typeof customElements !== "undefined" && !customElements.get("ship-badge")) 
   customElements.define("ship-badge", ShipBadge);
 }
 
-// ../../../packages/ui/src/web-components/ship-card.styles.ts
+// packages/ui/src/web-components/ship-card.styles.ts
 var shipCardStyles = [
   reducedMotion,
   toneVars,
@@ -2522,7 +2522,7 @@ var shipCardStyles = [
   `
 ];
 
-// ../../../packages/ui/src/web-components/ship-card.ts
+// packages/ui/src/web-components/ship-card.ts
 var ShipCard = class extends i4 {
   constructor() {
     super(...arguments);
@@ -2605,18 +2605,269 @@ if (typeof customElements !== "undefined" && !customElements.get("ship-card")) {
   customElements.define("ship-card", ShipCard);
 }
 
-// ../../../packages/ui/src/web-components/ship-checkbox.ts
+// packages/ui/src/web-components/ship-checkbox.styles.ts
+var shipCheckboxStyles = [
+  reducedMotion,
+  i`
+    :host {
+      display: inline-flex;
+      align-items: center;
+      gap: var(--space-2);
+      vertical-align: middle;
+      font-family: var(--font-body);
+      font-size: var(--text-base);
+      color: var(--foreground);
+      -webkit-tap-highlight-color: transparent;
+
+      /* Tone channel — default is primary so an attribute-less checkbox
+       * reads as the brand fill (matches shadcn/Radix defaults). */
+      --tone: var(--primary);
+      --tone-on-fg: var(--primary-foreground);
+    }
+    :host([hidden]) { display: none; }
+
+    :host(:not([tone])),
+    :host([tone='default']) {
+      --tone: var(--primary);
+      --tone-on-fg: var(--primary-foreground);
+    }
+    :host([tone='info'])        { --tone: var(--info);        --tone-on-fg: oklch(0.99 0.02 260); }
+    :host([tone='success'])     { --tone: var(--success);     --tone-on-fg: oklch(0.99 0.02 150); }
+    :host([tone='warning'])     { --tone: var(--warning);     --tone-on-fg: oklch(0.2 0.04 75); }
+    :host([tone='destructive']) { --tone: var(--destructive); --tone-on-fg: oklch(0.99 0.02 25); }
+    :host([tone='accent'])      { --tone: var(--accent);      --tone-on-fg: var(--accent-foreground); }
+    :host([tone='muted'])       { --tone: var(--muted-foreground); --tone-on-fg: var(--background); }
+
+    /* Size channel. Stroke width scales with size so the check glyph
+     * maintains the same optical weight from sm through lg. */
+    :host(:not([size])),
+    :host([size='md']) {
+      --cb-size: 16px;
+      --cb-radius: var(--radius-sm);
+      --cb-stroke: 2px;
+    }
+    :host([size='sm']) {
+      --cb-size: 14px;
+      --cb-radius: 3px;
+      --cb-stroke: 1.75px;
+    }
+    :host([size='lg']) {
+      --cb-size: 18px;
+      --cb-radius: var(--radius-sm);
+      --cb-stroke: 2.25px;
+    }
+
+    label {
+      display: inline-flex;
+      align-items: center;
+      gap: var(--space-2);
+      cursor: pointer;
+      user-select: none;
+      -webkit-user-select: none;
+    }
+    :host([disabled]) label { cursor: not-allowed; }
+
+    /* ------------------------------------------------------------------
+     * Box — the square. Border adds a crisp edge; box-sizing absorbs the
+     * border so the visible square reads at the advertised size.
+     * ------------------------------------------------------------------ */
+    .box {
+      position: relative;
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      flex-shrink: 0;
+      width: var(--cb-size);
+      height: var(--cb-size);
+      background: var(--background);
+      border: 1px solid color-mix(in oklch, var(--border) 160%, transparent);
+      border-radius: var(--cb-radius);
+      box-sizing: border-box;
+      box-shadow: var(--shadow-xs);
+      transition:
+        background-color var(--duration-fast) var(--ease-out),
+        border-color var(--duration-fast) var(--ease-out),
+        box-shadow var(--duration-fast) var(--ease-out);
+    }
+
+    /* Hover — quiet border darkening + subtle shadow bump. Matches
+     * ship-input's at-rest-to-hover language so a form row reads as
+     * one cohesive surface. */
+    :host(:not([disabled]):not([checked]):not([indeterminate])) label:hover .box {
+      border-color: color-mix(in oklch, var(--border) 220%, transparent);
+      box-shadow: var(--shadow-sm);
+    }
+
+    /* Invalid — destructive border regardless of tone, so an error on
+     * an info/success-toned checkbox is unmissable. Mirrors ship-input. */
+    :host([invalid]) .box {
+      border-color: color-mix(in oklch, var(--destructive) 70%, var(--border));
+    }
+    :host([invalid]:not([disabled])) label:hover .box {
+      border-color: color-mix(in oklch, var(--destructive) 85%, var(--border));
+    }
+
+    /* Checked / indeterminate — fill with tone, top-highlight inset for
+     * the premium feel (same recipe as ship-button solid). Border picks
+     * up a slightly darker edge so the square still reads crisply. */
+    :host([checked]) .box,
+    :host([indeterminate]) .box {
+      background: var(--tone);
+      border-color: color-mix(in oklch, var(--tone) 100%, black 8%);
+      box-shadow:
+        inset 0 1px 0 0 color-mix(in oklch, white 20%, transparent),
+        var(--shadow-xs);
+    }
+    :host([checked]:not([disabled])) label:hover .box,
+    :host([indeterminate]:not([disabled])) label:hover .box {
+      background: color-mix(in oklch, var(--tone) 92%, white 8%);
+      box-shadow:
+        inset 0 1px 0 0 color-mix(in oklch, white 24%, transparent),
+        var(--shadow-sm);
+    }
+
+    /* ------------------------------------------------------------------
+     * Glyphs — check + indeterminate. Rendered in currentColor on
+     * --tone-on-fg so the glyph is always legible against the fill.
+     * Opacity/scale transitions give a tiny snap when toggling — the
+     * kind of detail that sells the component as production-tier.
+     * ------------------------------------------------------------------ */
+    .glyph {
+      position: absolute;
+      inset: 0;
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      color: var(--tone-on-fg);
+      opacity: 0;
+      transform: scale(0.6);
+      transition:
+        opacity var(--duration-fast) var(--ease-out),
+        transform var(--duration-fast) var(--ease-out);
+      pointer-events: none;
+    }
+    :host([checked]:not([indeterminate])) .glyph.check,
+    :host([indeterminate]) .glyph.mixed {
+      opacity: 1;
+      transform: scale(1);
+    }
+
+    .glyph svg {
+      width: 100%;
+      height: 100%;
+      display: block;
+    }
+    .glyph svg path,
+    .glyph svg line {
+      stroke: currentColor;
+      stroke-width: var(--cb-stroke);
+      stroke-linecap: round;
+      stroke-linejoin: round;
+      fill: none;
+    }
+
+    /* ------------------------------------------------------------------
+     * Native input — visually hidden but preserved for form submission,
+     * keyboard toggle (Space), and a11y tools. Stretches over the box so
+     * hit-testing matches the visible affordance.
+     * ------------------------------------------------------------------ */
+    input {
+      position: absolute;
+      inset: 0;
+      width: 100%;
+      height: 100%;
+      margin: 0;
+      padding: 0;
+      opacity: 0;
+      cursor: inherit;
+      appearance: none;
+      -webkit-appearance: none;
+    }
+
+    /* Focus ring — stacked box-shadow on the box so the ring sits
+     * outside the square without reserving layout. Uses :has() so the
+     * ring travels with the native input's :focus-visible, keeping
+     * keyboard semantics identical to ship-button / ship-switch. */
+    :host(:not([disabled])) label:has(input:focus-visible) .box {
+      box-shadow:
+        0 0 0 var(--ring-offset) var(--background),
+        0 0 0 calc(var(--ring-offset) + var(--ring-width))
+          color-mix(in oklch, var(--tone) var(--ring-opacity), transparent);
+    }
+    :host([invalid]:not([disabled])) label:has(input:focus-visible) .box {
+      box-shadow:
+        0 0 0 var(--ring-offset) var(--background),
+        0 0 0 calc(var(--ring-offset) + var(--ring-width))
+          color-mix(in oklch, var(--destructive) var(--ring-opacity), transparent);
+    }
+
+    /* Forced colors — drop the color-mix ring in favor of a CanvasText
+     * outline that high-contrast modes can render reliably. */
+    @media (forced-colors: active) {
+      .box { border-color: CanvasText; }
+      :host([checked]) .box,
+      :host([indeterminate]) .box { background: Highlight; }
+      .glyph { color: HighlightText; }
+      :host(:not([disabled])) label:has(input:focus-visible) .box {
+        outline: 2px solid CanvasText;
+        outline-offset: 2px;
+      }
+    }
+
+    /* ------------------------------------------------------------------
+     * Disabled — muted + desaturated, no interactions. Distinct from
+     * invalid/loading so the unreachable state is unambiguous.
+     * ------------------------------------------------------------------ */
+    :host([disabled]) {
+      color: var(--muted-foreground);
+    }
+    :host([disabled]) .box {
+      background: var(--muted);
+      border-color: color-mix(in oklch, var(--border) 70%, transparent);
+      filter: saturate(0.6);
+      box-shadow: none;
+    }
+    :host([disabled][checked]) .box,
+    :host([disabled][indeterminate]) .box {
+      background: color-mix(in oklch, var(--tone) 55%, var(--muted));
+      border-color: color-mix(in oklch, var(--tone) 40%, var(--border));
+    }
+
+    /* Slotted label — inherits host color + size so callers don't need
+     * to restyle. Wraps naturally when the row gets tight. */
+    ::slotted(*) {
+      font: inherit;
+      color: inherit;
+      line-height: var(--leading-tight);
+    }
+  `
+];
+
+// packages/ui/src/web-components/ship-checkbox.ts
 var ShipCheckbox = class extends i4 {
   constructor() {
     super();
     this.defaultChecked = false;
     this.checked = false;
     this.indeterminate = false;
-    this.name = "";
-    this.value = "on";
     this.disabled = false;
     this.required = false;
     this.invalid = false;
+    this.size = "md";
+    this.name = "";
+    this.value = "on";
+    this.label = "";
+    this.onChange = (e6) => {
+      const c4 = e6.target.checked;
+      this.checked = c4;
+      this.indeterminate = false;
+      this.setFormValue(c4 ? this.value : null);
+      this.dispatchEvent(new CustomEvent("ship-change", {
+        detail: { checked: c4 },
+        bubbles: true,
+        composed: true
+      }));
+    };
     this.internals = this.attachInternals();
   }
   get input() {
@@ -2625,9 +2876,6 @@ var ShipCheckbox = class extends i4 {
   connectedCallback() {
     super.connectedCallback();
     this.defaultChecked = this.checked;
-  }
-  setFormValue(v2) {
-    if (typeof this.internals.setFormValue === "function") this.internals.setFormValue(v2);
   }
   updated() {
     if (this.input) this.input.indeterminate = this.indeterminate;
@@ -2640,59 +2888,64 @@ var ShipCheckbox = class extends i4 {
   formStateRestoreCallback(state) {
     this.checked = state === this.value;
   }
-  onChange(e6) {
-    const c4 = e6.target.checked;
-    this.checked = c4;
-    this.indeterminate = false;
-    this.setFormValue(c4 ? this.value : null);
-    this.dispatchEvent(new CustomEvent("ship-change", {
-      detail: { checked: c4 },
-      bubbles: true,
-      composed: true
-    }));
+  setFormValue(v2) {
+    if (typeof this.internals.setFormValue === "function") {
+      this.internals.setFormValue(v2);
+    }
   }
   render() {
+    const ariaChecked = this.indeterminate ? "mixed" : this.checked ? "true" : "false";
     return b2`
       <label part="label">
-        <input
-          part="input"
-          type="checkbox"
-          .checked=${this.checked}
-          name=${this.name}
-          value=${this.value}
-          ?disabled=${this.disabled}
-          ?required=${this.required}
-          aria-checked=${this.indeterminate ? "mixed" : this.checked ? "true" : "false"}
-          aria-invalid=${this.invalid ? "true" : "false"}
-          @change=${this.onChange}
-        />
+        <span class="box" part="box">
+          <input
+            part="input"
+            type="checkbox"
+            .checked=${this.checked}
+            ?disabled=${this.disabled}
+            ?required=${this.required}
+            name=${this.name}
+            value=${this.value}
+            aria-checked=${ariaChecked}
+            aria-invalid=${this.invalid ? "true" : "false"}
+            aria-label=${this.label || this.name || "checkbox"}
+            @change=${this.onChange}
+          />
+          <span class="glyph check" aria-hidden="true">
+            <svg viewBox="0 0 16 16" fill="none">
+              <path d="M3.5 8.5 L6.75 11.75 L12.5 4.75"></path>
+            </svg>
+          </span>
+          <span class="glyph mixed" aria-hidden="true">
+            <svg viewBox="0 0 16 16" fill="none">
+              <line x1="4" y1="8" x2="12" y2="8"></line>
+            </svg>
+          </span>
+        </span>
         <slot></slot>
       </label>
     `;
   }
 };
 ShipCheckbox.formAssociated = true;
-ShipCheckbox.styles = i`
-    :host { display: inline-flex; align-items: center; gap: 8px; cursor: pointer; font: inherit; font-size: 13px; color: var(--foreground); }
-    :host([disabled]) { cursor: not-allowed; opacity: 0.6; }
-    label { display: inline-flex; align-items: center; gap: 8px; cursor: inherit; }
-    input { margin: 0; accent-color: var(--primary); width: 14px; height: 14px; }
-    input:focus-visible { outline: 2px solid var(--primary); outline-offset: 2px; }
-  `;
+ShipCheckbox.styles = shipCheckboxStyles;
 ShipCheckbox.properties = {
   checked: { type: Boolean, reflect: true },
-  indeterminate: { type: Boolean },
-  name: { type: String },
-  value: { type: String },
+  indeterminate: { type: Boolean, reflect: true },
   disabled: { type: Boolean, reflect: true },
   required: { type: Boolean, reflect: true },
-  invalid: { type: Boolean, reflect: true }
+  invalid: { type: Boolean, reflect: true },
+  tone: { type: String, reflect: true },
+  size: { type: String, reflect: true },
+  name: { type: String },
+  value: { type: String },
+  label: { type: String }
 };
 if (typeof customElements !== "undefined" && !customElements.get("ship-checkbox")) {
   customElements.define("ship-checkbox", ShipCheckbox);
 }
 
-// ../../../packages/ui/src/web-components/typeahead.ts
+// packages/ui/src/web-components/typeahead.ts
 var Typeahead = class {
   constructor(timeout = 500) {
     this.timeout = timeout;
@@ -2735,7 +2988,7 @@ function isTypeaheadKey(e6) {
   return e6.key.length === 1 && /\S/.test(e6.key);
 }
 
-// ../../../packages/ui/src/web-components/ship-dropdown-menu.ts
+// packages/ui/src/web-components/ship-dropdown-menu.ts
 var ShipDropdownMenu = class extends i4 {
   constructor() {
     super(...arguments);
@@ -2907,7 +3160,7 @@ if (typeof customElements !== "undefined" && !customElements.get("ship-dropdown-
   customElements.define("ship-dropdown-menu", ShipDropdownMenu);
 }
 
-// ../../../packages/ui/src/web-components/ship-empty-state.ts
+// packages/ui/src/web-components/ship-empty-state.ts
 var ShipEmptyState = class extends i4 {
   constructor() {
     super(...arguments);
@@ -2978,7 +3231,7 @@ if (typeof customElements !== "undefined" && !customElements.get("ship-empty-sta
   customElements.define("ship-empty-state", ShipEmptyState);
 }
 
-// ../../../packages/ui/src/web-components/ship-field.ts
+// packages/ui/src/web-components/ship-field.ts
 var _ShipField = class _ShipField extends i4 {
   constructor() {
     super(...arguments);
@@ -3029,7 +3282,7 @@ if (typeof customElements !== "undefined" && !customElements.get("ship-field")) 
   customElements.define("ship-field", ShipField);
 }
 
-// ../../../packages/ui/src/web-components/ship-input.styles.ts
+// packages/ui/src/web-components/ship-input.styles.ts
 var shipInputStyles = [reducedMotion, i`
   :host {
     display: inline-flex;
@@ -3228,7 +3481,7 @@ var shipInputStyles = [reducedMotion, i`
   }
 `];
 
-// ../../../packages/ui/src/web-components/ship-input.ts
+// packages/ui/src/web-components/ship-input.ts
 var _ShipInput = class _ShipInput extends i4 {
   constructor() {
     super();
@@ -3330,7 +3583,7 @@ if (typeof customElements !== "undefined" && !customElements.get("ship-input")) 
   customElements.define("ship-input", ShipInput);
 }
 
-// ../../../packages/ui/src/web-components/ship-label.ts
+// packages/ui/src/web-components/ship-label.ts
 var ShipLabel = class extends i4 {
   constructor() {
     super(...arguments);
@@ -3369,7 +3622,7 @@ if (typeof customElements !== "undefined" && !customElements.get("ship-label")) 
   customElements.define("ship-label", ShipLabel);
 }
 
-// ../../../packages/ui/src/web-components/ship-list-item.ts
+// packages/ui/src/web-components/ship-list-item.ts
 var ShipListItem = class extends i4 {
   constructor() {
     super(...arguments);
@@ -3459,7 +3712,7 @@ if (typeof customElements !== "undefined" && !customElements.get("ship-list-item
   customElements.define("ship-list-item", ShipListItem);
 }
 
-// ../../../packages/ui/src/web-components/ship-popover.ts
+// packages/ui/src/web-components/ship-popover.ts
 var _ShipPopover = class _ShipPopover extends i4 {
   constructor() {
     super(...arguments);
@@ -3574,7 +3827,7 @@ if (typeof customElements !== "undefined" && !customElements.get("ship-popover")
   customElements.define("ship-popover", ShipPopover);
 }
 
-// ../../../packages/ui/src/web-components/ship-progress.ts
+// packages/ui/src/web-components/ship-progress.ts
 var ShipProgress = class extends i4 {
   constructor() {
     super();
@@ -3639,7 +3892,7 @@ if (typeof customElements !== "undefined" && !customElements.get("ship-progress"
   customElements.define("ship-progress", ShipProgress);
 }
 
-// ../../../packages/ui/src/web-components/ship-select.styles.ts
+// packages/ui/src/web-components/ship-select.styles.ts
 var shipSelectStyles = [reducedMotion, i`
   :host {
     display: inline-flex;
@@ -3874,7 +4127,7 @@ var shipSelectStyles = [reducedMotion, i`
   }
 `];
 
-// ../../../packages/ui/src/web-components/ship-select.ts
+// packages/ui/src/web-components/ship-select.ts
 var ShipSelect = class extends i4 {
   constructor() {
     super();
@@ -4004,7 +4257,7 @@ if (typeof customElements !== "undefined" && !customElements.get("ship-select"))
   customElements.define("ship-select", ShipSelect);
 }
 
-// ../../../packages/ui/src/web-components/ship-separator.ts
+// packages/ui/src/web-components/ship-separator.ts
 var ShipSeparator = class extends i4 {
   constructor() {
     super(...arguments);
@@ -4040,7 +4293,7 @@ if (typeof customElements !== "undefined" && !customElements.get("ship-separator
   customElements.define("ship-separator", ShipSeparator);
 }
 
-// ../../../packages/ui/src/web-components/ship-spinner.ts
+// packages/ui/src/web-components/ship-spinner.ts
 var ShipSpinner = class extends i4 {
   constructor() {
     super();
@@ -4078,7 +4331,7 @@ if (typeof customElements !== "undefined" && !customElements.get("ship-spinner")
   customElements.define("ship-spinner", ShipSpinner);
 }
 
-// ../../../packages/ui/src/web-components/ship-stat.ts
+// packages/ui/src/web-components/ship-stat.ts
 var ShipStat = class extends i4 {
   constructor() {
     super(...arguments);
@@ -4182,7 +4435,7 @@ if (typeof customElements !== "undefined" && !customElements.get("ship-stat")) {
   customElements.define("ship-stat", ShipStat);
 }
 
-// ../../../packages/ui/src/web-components/ship-status-dot.ts
+// packages/ui/src/web-components/ship-status-dot.ts
 var ShipStatusDot = class extends i4 {
   constructor() {
     super();
@@ -4228,15 +4481,229 @@ if (typeof customElements !== "undefined" && !customElements.get("ship-status-do
   customElements.define("ship-status-dot", ShipStatusDot);
 }
 
-// ../../../packages/ui/src/web-components/ship-switch.ts
+// packages/ui/src/web-components/ship-switch.styles.ts
+var shipSwitchStyles = [
+  reducedMotion,
+  i`
+    :host {
+      display: inline-flex;
+      align-items: center;
+      gap: var(--space-2);
+      vertical-align: middle;
+      font-family: var(--font-body);
+      font-size: var(--text-base);
+      color: var(--foreground);
+      -webkit-tap-highlight-color: transparent;
+
+      /* Tone channel — overridden per :host([tone=…]) below. Default is
+       * primary so an attribute-less switch reads as the brand toggle. */
+      --tone: var(--primary);
+      --tone-on-fg: var(--primary-foreground);
+    }
+    :host([hidden]) { display: none; }
+
+    :host(:not([tone])),
+    :host([tone='default']) {
+      --tone: var(--primary);
+      --tone-on-fg: var(--primary-foreground);
+    }
+    :host([tone='info'])        { --tone: var(--info);        --tone-on-fg: oklch(0.99 0.02 260); }
+    :host([tone='success'])     { --tone: var(--success);     --tone-on-fg: oklch(0.99 0.02 150); }
+    :host([tone='warning'])     { --tone: var(--warning);     --tone-on-fg: oklch(0.2 0.04 75); }
+    :host([tone='destructive']) { --tone: var(--destructive); --tone-on-fg: oklch(0.99 0.02 25); }
+    :host([tone='accent'])      { --tone: var(--accent);      --tone-on-fg: var(--accent-foreground); }
+    :host([tone='muted'])       { --tone: var(--muted-foreground); --tone-on-fg: var(--background); }
+
+    /* Size channel. Each pair is (track W × H, thumb diameter). The
+     * 1px border is absorbed via box-sizing so the visible pill reads
+     * at the advertised dimensions. */
+    :host(:not([size])),
+    :host([size='md']) { --sw-w: 28px; --sw-h: 16px; --sw-thumb: 12px; }
+    :host([size='sm']) { --sw-w: 24px; --sw-h: 14px; --sw-thumb: 10px; }
+    :host([size='lg']) { --sw-w: 32px; --sw-h: 18px; --sw-thumb: 14px; }
+
+    label {
+      display: inline-flex;
+      align-items: center;
+      gap: var(--space-2);
+      cursor: pointer;
+      user-select: none;
+      -webkit-user-select: none;
+    }
+    :host([disabled]) label { cursor: not-allowed; }
+
+    /* ------------------------------------------------------------------
+     * Track — the pill. Border adds a crisp 1px edge that keeps the off
+     * state legible against neutral backgrounds (shadcn does the same).
+     * Transitions are token-driven so reduced-motion collapses them.
+     * ------------------------------------------------------------------ */
+    .track {
+      position: relative;
+      display: inline-block;
+      flex-shrink: 0;
+      width: var(--sw-w);
+      height: var(--sw-h);
+      background: var(--muted);
+      border: 1px solid color-mix(in oklch, var(--border) 140%, transparent);
+      border-radius: var(--radius-full);
+      box-sizing: border-box;
+      transition:
+        background-color var(--duration-fast) var(--ease-out),
+        border-color var(--duration-fast) var(--ease-out),
+        box-shadow var(--duration-fast) var(--ease-out);
+    }
+
+    /* Hover — deepen the border + subtle shadow, matching ship-button's
+     * quiet hover language. Skipped on disabled so users can tell when
+     * the control is unreachable. */
+    :host(:not([disabled]):not([checked])) label:hover .track {
+      background: color-mix(in oklch, var(--muted) 70%, var(--foreground) 6%);
+      border-color: color-mix(in oklch, var(--border) 180%, transparent);
+    }
+
+    /* Checked — fill with tone, top-highlight inset for the premium feel
+     * (same recipe as ship-button solid). Border picks up a slightly
+     * darker edge so the pill still reads crisply over light surfaces. */
+    :host([checked]) .track {
+      background: var(--tone);
+      border-color: color-mix(in oklch, var(--tone) 100%, black 6%);
+      box-shadow:
+        inset 0 1px 0 0 color-mix(in oklch, white 22%, transparent);
+    }
+    :host([checked]:not([disabled])) label:hover .track {
+      background: color-mix(in oklch, var(--tone) 92%, white 8%);
+      box-shadow:
+        inset 0 1px 0 0 color-mix(in oklch, white 26%, transparent),
+        var(--shadow-xs);
+    }
+
+    /* ------------------------------------------------------------------
+     * Thumb — sliding pellet. Sits 1px inside the border in both states;
+     * the left calc flips between those anchors so sizes stay in sync.
+     * ------------------------------------------------------------------ */
+    .thumb {
+      position: absolute;
+      top: 50%;
+      left: 1px;
+      width: var(--sw-thumb);
+      height: var(--sw-thumb);
+      background: var(--background);
+      border-radius: 50%;
+      box-shadow:
+        0 1px 2px 0 oklch(0 0 0 / 18%),
+        0 1px 1px 0 oklch(0 0 0 / 10%);
+      transform: translateY(-50%);
+      transition:
+        left var(--duration-fast) var(--ease-out),
+        background-color var(--duration-fast) var(--ease-out),
+        box-shadow var(--duration-fast) var(--ease-out);
+      pointer-events: none;
+    }
+    :host([checked]) .thumb {
+      left: calc(100% - var(--sw-thumb) - 3px);
+      background: var(--tone-on-fg);
+    }
+
+    /* ------------------------------------------------------------------
+     * Native input — visually hidden but preserved for form submission,
+     * keyboard toggle (Space), and a11y tools. Stretches over the track
+     * so hit-testing matches the visible affordance.
+     * ------------------------------------------------------------------ */
+    input {
+      position: absolute;
+      inset: 0;
+      width: 100%;
+      height: 100%;
+      margin: 0;
+      padding: 0;
+      opacity: 0;
+      cursor: inherit;
+      appearance: none;
+      -webkit-appearance: none;
+    }
+
+    /* Focus ring — stacked box-shadow on the track so the ring sits
+     * outside the pill without reserving layout. Uses :has() so the
+     * ring travels with the native input's :focus-visible, keeping
+     * keyboard semantics identical to ship-button. */
+    :host(:not([disabled])) label:has(input:focus-visible) .track {
+      box-shadow:
+        0 0 0 var(--ring-offset) var(--background),
+        0 0 0 calc(var(--ring-offset) + var(--ring-width))
+          color-mix(in oklch, var(--tone) var(--ring-opacity), transparent);
+    }
+    :host([checked]:not([disabled])) label:has(input:focus-visible) .track {
+      box-shadow:
+        inset 0 1px 0 0 color-mix(in oklch, white 22%, transparent),
+        0 0 0 var(--ring-offset) var(--background),
+        0 0 0 calc(var(--ring-offset) + var(--ring-width))
+          color-mix(in oklch, var(--tone) var(--ring-opacity), transparent);
+    }
+
+    /* Forced colors — drop the color-mix ring in favor of a CanvasText
+     * outline that high-contrast modes can render reliably. */
+    @media (forced-colors: active) {
+      :host(:not([disabled])) label:has(input:focus-visible) .track {
+        outline: 2px solid CanvasText;
+        outline-offset: 2px;
+      }
+      .track { border-color: CanvasText; }
+      :host([checked]) .track { background: Highlight; }
+    }
+
+    /* ------------------------------------------------------------------
+     * Disabled — muted + desaturated, no interactions. Distinct from
+     * loading (which this component doesn't have) so the unreachable
+     * state is unambiguous.
+     * ------------------------------------------------------------------ */
+    :host([disabled]) {
+      color: var(--muted-foreground);
+    }
+    :host([disabled]) .track {
+      background: var(--muted);
+      border-color: color-mix(in oklch, var(--border) 70%, transparent);
+      filter: saturate(0.6);
+      box-shadow: none;
+    }
+    :host([disabled][checked]) .track {
+      background: color-mix(in oklch, var(--tone) 55%, var(--muted));
+      border-color: color-mix(in oklch, var(--tone) 40%, var(--border));
+    }
+    :host([disabled]) .thumb {
+      box-shadow: 0 1px 1px 0 oklch(0 0 0 / 10%);
+    }
+
+    /* Slotted label — inherits host color + size so callers don't need
+     * to restyle. Wraps naturally when the row gets tight. */
+    ::slotted(*) {
+      font: inherit;
+      color: inherit;
+      line-height: var(--leading-tight);
+    }
+  `
+];
+
+// packages/ui/src/web-components/ship-switch.ts
 var ShipSwitch = class extends i4 {
   constructor() {
     super();
     this.defaultChecked = false;
     this.checked = false;
     this.disabled = false;
+    this.size = "md";
     this.name = "";
     this.value = "on";
+    this.label = "";
+    this.onChange = (e6) => {
+      const c4 = e6.target.checked;
+      this.checked = c4;
+      this.setFormValue(c4 ? this.value : null);
+      this.dispatchEvent(new CustomEvent("ship-change", {
+        detail: { checked: c4 },
+        bubbles: true,
+        composed: true
+      }));
+    };
     this.internals = this.attachInternals();
   }
   connectedCallback() {
@@ -4253,17 +4720,9 @@ var ShipSwitch = class extends i4 {
     this.checked = state === this.value;
   }
   setFormValue(v2) {
-    if (typeof this.internals.setFormValue === "function") this.internals.setFormValue(v2);
-  }
-  onChange(e6) {
-    const c4 = e6.target.checked;
-    this.checked = c4;
-    this.setFormValue(c4 ? this.value : null);
-    this.dispatchEvent(new CustomEvent("ship-change", {
-      detail: { checked: c4 },
-      bubbles: true,
-      composed: true
-    }));
+    if (typeof this.internals.setFormValue === "function") {
+      this.internals.setFormValue(v2);
+    }
   }
   render() {
     return b2`
@@ -4274,6 +4733,7 @@ var ShipSwitch = class extends i4 {
             type="checkbox"
             role="switch"
             aria-checked=${this.checked ? "true" : "false"}
+            aria-label=${this.label || this.name || "toggle"}
             .checked=${this.checked}
             ?disabled=${this.disabled}
             name=${this.name}
@@ -4288,51 +4748,292 @@ var ShipSwitch = class extends i4 {
   }
 };
 ShipSwitch.formAssociated = true;
-ShipSwitch.styles = [reducedMotion, i`
-    :host { display: inline-flex; align-items: center; gap: 8px; font-size: 13px; color: var(--foreground); }
-    :host([disabled]) { opacity: 0.6; cursor: not-allowed; }
-    label { display: inline-flex; align-items: center; gap: 8px; cursor: inherit; }
-    .track {
-      position: relative;
-      display: inline-block;
-      width: 30px; height: 18px;
-      background: var(--muted);
-      border: 1px solid var(--border);
-      border-radius: 999px;
-      transition: background 120ms, border-color 120ms;
-    }
-    .thumb {
-      position: absolute;
-      top: 1px; left: 1px;
-      width: 14px; height: 14px;
-      background: var(--background);
-      border-radius: 50%;
-      box-shadow: 0 1px 2px oklch(0.147 0.004 49.25 / 25%);
-      transition: transform 140ms ease;
-    }
-    :host([checked]) .track {
-      background: var(--primary);
-      border-color: var(--primary);
-    }
-    :host([checked]) .thumb { transform: translateX(12px); }
-    input {
-      position: absolute; opacity: 0; width: 100%; height: 100%;
-      margin: 0; cursor: inherit;
-      inset: 0;
-    }
-    input:focus-visible + .thumb { outline: 2px solid var(--primary); outline-offset: 2px; }
-  `];
+ShipSwitch.styles = shipSwitchStyles;
 ShipSwitch.properties = {
   checked: { type: Boolean, reflect: true },
   disabled: { type: Boolean, reflect: true },
+  tone: { type: String, reflect: true },
+  size: { type: String, reflect: true },
   name: { type: String },
-  value: { type: String }
+  value: { type: String },
+  label: { type: String }
 };
 if (typeof customElements !== "undefined" && !customElements.get("ship-switch")) {
   customElements.define("ship-switch", ShipSwitch);
 }
 
-// ../../../packages/ui/src/web-components/ship-tabs.ts
+// packages/ui/src/web-components/ship-tabs.styles.ts
+var shipTabsStyles = [reducedMotion, i`
+  :host {
+    display: block;
+    font-family: var(--font-body);
+    --tone: var(--primary);
+    --tone-fg: var(--foreground);
+  }
+  :host([hidden]) { display: none; }
+
+  :host([tone='info'])        { --tone: var(--info); }
+  :host([tone='success'])     { --tone: var(--success); }
+  :host([tone='warning'])     { --tone: var(--warning); }
+  :host([tone='destructive']) { --tone: var(--destructive); }
+  :host([tone='accent'])      { --tone: var(--accent); }
+  :host([tone='muted'])       { --tone: var(--muted-foreground); }
+
+  /* Size channel — matches ship-button's sm/md/lg height scale so a tab
+   * sitting next to a button lines up optically. */
+  :host(:not([size])),
+  :host([size='md']) {
+    --tab-h: 36px;
+    --tab-px: 14px;
+    --tab-fs: var(--text-base);
+    --tab-fw: var(--font-weight-medium);
+    --tab-active-fw: var(--font-weight-semibold);
+    --tab-gap: var(--space-2);
+    --tab-radius: var(--radius-md);
+    --tab-count-fs: 10.5px;
+    --tab-count-px: 7px;
+  }
+  :host([size='sm']) {
+    --tab-h: 30px;
+    --tab-px: 10px;
+    --tab-fs: var(--text-sm);
+    --tab-gap: 6px;
+    --tab-radius: var(--radius-sm);
+    --tab-count-fs: 9.5px;
+    --tab-count-px: 6px;
+  }
+  :host([size='lg']) {
+    --tab-h: 42px;
+    --tab-px: var(--space-4);
+    --tab-fs: var(--text-md);
+    --tab-gap: var(--space-2);
+    --tab-radius: var(--radius-md);
+    --tab-count-fs: 11px;
+    --tab-count-px: 8px;
+  }
+
+  /* Shared tablist + tab chrome. Variants reshape from here via their
+   * class hook (.underline / .segmented) — no per-variant duplication. */
+  .tablist {
+    position: relative;
+    display: flex;
+    align-items: stretch;
+    gap: 2px;
+  }
+  .tab {
+    position: relative;
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    gap: var(--tab-gap);
+    height: var(--tab-h);
+    padding: 0 var(--tab-px);
+    background: transparent;
+    border: 0;
+    color: var(--muted-foreground);
+    font-family: inherit;
+    font-size: var(--tab-fs);
+    font-weight: var(--tab-fw, var(--font-weight-medium));
+    line-height: 1;
+    cursor: pointer;
+    white-space: nowrap;
+    user-select: none;
+    -webkit-user-select: none;
+    -webkit-tap-highlight-color: transparent;
+    transition:
+      background-color var(--duration-fast) var(--ease-out),
+      color var(--duration-fast) var(--ease-out),
+      box-shadow var(--duration-fast) var(--ease-out);
+  }
+  .tab:hover:not(:disabled):not([aria-selected='true']) {
+    color: var(--foreground);
+  }
+  .tab[aria-selected='true'] {
+    color: var(--tone-fg);
+    font-weight: var(--tab-active-fw, var(--font-weight-semibold));
+  }
+  .tab:focus-visible {
+    outline: none;
+    box-shadow:
+      0 0 0 var(--ring-offset) var(--background),
+      0 0 0 calc(var(--ring-offset) + var(--ring-width))
+        color-mix(in oklch, var(--tone) var(--ring-opacity), transparent);
+    border-radius: var(--tab-radius);
+    z-index: 1;
+  }
+  .tab:disabled {
+    cursor: not-allowed;
+    color: color-mix(in oklch, var(--muted-foreground) 55%, transparent);
+    filter: saturate(0.6);
+  }
+
+  /* Underline variant — indicator is an ::after pseudo on .tablist
+   * positioned via --underline-x/--underline-w; width transition drives
+   * the tab-to-tab slide. Pre-measurement opacity hides the indicator
+   * until the component writes the geometry on first update. */
+  .tablist.underline {
+    border-bottom: 1px solid var(--border);
+    margin-bottom: 20px;
+    gap: 0;
+  }
+  .tablist.underline::after {
+    content: '';
+    position: absolute;
+    left: 0;
+    bottom: -1px;
+    height: 2px;
+    width: var(--underline-w, 0px);
+    transform: translateX(var(--underline-x, 0px));
+    background: var(--tone);
+    border-radius: 2px 2px 0 0;
+    pointer-events: none;
+    transition:
+      transform var(--duration-medium) var(--ease-out),
+      width var(--duration-medium) var(--ease-out),
+      opacity var(--duration-fast) var(--ease-out);
+  }
+  :host(:not([data-underline-ready])) .tablist.underline::after {
+    opacity: 0;
+  }
+  .tablist.underline .tab { border-radius: 0; margin-bottom: -1px; }
+  .tablist.underline .tab:hover:not(:disabled):not([aria-selected='true']) {
+    background: color-mix(in oklch, var(--muted) 60%, transparent);
+  }
+  :host([sticky]) .tablist.underline {
+    position: sticky;
+    top: 0;
+    background: var(--background);
+    z-index: var(--z-sticky);
+    padding-top: 4px;
+    margin-top: -4px;
+  }
+
+  /* Segmented variant — pill group. Active tab elevates onto --background
+   * with a soft shadow so it reads as a chip lifted off the muted track. */
+  .tablist.segmented {
+    display: inline-flex;
+    gap: 2px;
+    padding: 3px;
+    background: var(--muted);
+    border: 1px solid color-mix(in oklch, var(--border) 80%, transparent);
+    border-radius: calc(var(--tab-radius) + 3px);
+  }
+  .tablist.segmented .tab {
+    flex: 1;
+    height: calc(var(--tab-h) - 6px);
+    border-radius: var(--tab-radius);
+  }
+  .tablist.segmented .tab:hover:not(:disabled):not([aria-selected='true']) {
+    color: var(--foreground);
+    background: color-mix(in oklch, var(--background) 60%, transparent);
+  }
+  .tablist.segmented .tab[aria-selected='true'] {
+    background: var(--background);
+    color: var(--foreground);
+    box-shadow:
+      inset 0 0 0 1px color-mix(in oklch, var(--border) 60%, transparent),
+      var(--shadow-xs);
+  }
+  .tablist.segmented::after { display: none; }
+
+  /* Count chip — tabular-nums so digit-width changes don't shift the
+   * label. Active state re-colors to the tone channel. */
+  .count {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    min-width: calc(var(--tab-count-fs) + 8px);
+    padding: 1px var(--tab-count-px);
+    background: color-mix(in oklch, var(--muted-foreground) 14%, transparent);
+    color: var(--muted-foreground);
+    border-radius: var(--radius-full);
+    font-size: var(--tab-count-fs);
+    font-weight: var(--font-weight-semibold);
+    font-variant-numeric: tabular-nums;
+    line-height: 1.4;
+    transition:
+      background-color var(--duration-fast) var(--ease-out),
+      color var(--duration-fast) var(--ease-out);
+  }
+  .tab[aria-selected='true'] .count {
+    background: color-mix(in oklch, var(--tone) 18%, transparent);
+    color: var(--tone);
+  }
+
+  .panels { display: block; }
+
+  /* Vertical orientation — tablist on the left, panels on the right.
+   * Underline indicator flips to a right-edge rail; --underline-y/h drive
+   * the same transform-based animation on the Y axis. */
+  :host([orientation='vertical']) {
+    display: grid;
+    grid-template-columns: max-content 1fr;
+    gap: var(--space-6);
+  }
+  :host([orientation='vertical']) .tablist.underline {
+    flex-direction: column;
+    align-items: stretch;
+    border-bottom: 0;
+    border-right: 1px solid var(--border);
+    margin-bottom: 0;
+    gap: 2px;
+  }
+  :host([orientation='vertical']) .tablist.underline .tab {
+    justify-content: flex-start;
+    margin-bottom: 0;
+    margin-right: -1px;
+    border-radius: var(--tab-radius) 0 0 var(--tab-radius);
+  }
+  :host([orientation='vertical']) .tablist.underline::after {
+    left: auto;
+    right: -1px;
+    bottom: auto;
+    top: 0;
+    width: 2px;
+    height: var(--underline-h, 0px);
+    transform: translateY(var(--underline-y, 0px));
+    border-radius: 2px 0 0 2px;
+    transition:
+      transform var(--duration-medium) var(--ease-out),
+      height var(--duration-medium) var(--ease-out),
+      opacity var(--duration-fast) var(--ease-out);
+  }
+  :host([orientation='vertical']) .tablist.segmented {
+    flex-direction: column;
+    padding: 3px;
+  }
+  :host([orientation='vertical']) .tablist.segmented .tab {
+    flex: none;
+    justify-content: flex-start;
+  }
+
+  @media (forced-colors: active) {
+    .tab:focus-visible { outline: 2px solid CanvasText; outline-offset: -2px; }
+    .tablist.underline::after { background: CanvasText; }
+    .tab[aria-selected='true'] { color: CanvasText; }
+  }
+`];
+var shipTabPanelStyles = [reducedMotion, i`
+  :host { display: none; }
+  :host([active]) {
+    display: block;
+    animation: ship-tab-panel-fade var(--duration-medium) var(--ease-out);
+  }
+  @keyframes ship-tab-panel-fade {
+    from { opacity: 0; transform: translateY(4px); }
+    to   { opacity: 1; transform: translateY(0); }
+  }
+  :host(:focus-visible) {
+    outline: none;
+    box-shadow:
+      0 0 0 var(--ring-offset) var(--background),
+      0 0 0 calc(var(--ring-offset) + var(--ring-width))
+        color-mix(in oklch, var(--ring-color) var(--ring-opacity), transparent);
+    border-radius: var(--radius-md);
+  }
+`];
+
+// packages/ui/src/web-components/ship-tabs.ts
 var ShipTab = class extends i4 {
   constructor() {
     super(...arguments);
@@ -4347,10 +5048,10 @@ var ShipTab = class extends i4 {
 };
 ShipTab.styles = i`:host { display: none; }`;
 ShipTab.properties = {
-  name: { type: String },
-  label: { type: String },
-  count: { type: Number },
-  disabled: { type: Boolean }
+  name: { type: String, reflect: true },
+  label: { type: String, reflect: true },
+  count: { type: Number, reflect: true },
+  disabled: { type: Boolean, reflect: true }
 };
 var ShipTabPanel = class extends i4 {
   constructor() {
@@ -4369,16 +5070,9 @@ var ShipTabPanel = class extends i4 {
     return b2`<slot></slot>`;
   }
 };
-ShipTabPanel.styles = [reducedMotion, i`
-    :host { display: none; }
-    :host([active]) { display: block; animation: fade 180ms ease; }
-    @keyframes fade {
-      from { opacity: 0; transform: translateY(4px); }
-      to { opacity: 1; transform: translateY(0); }
-    }
-  `];
+ShipTabPanel.styles = shipTabPanelStyles;
 ShipTabPanel.properties = {
-  name: { type: String },
+  name: { type: String, reflect: true },
   active: { type: Boolean, reflect: true }
 };
 var ShipTabs = class extends i4 {
@@ -4386,8 +5080,28 @@ var ShipTabs = class extends i4 {
     super(...arguments);
     this.active = "";
     this.variant = "underline";
+    this.size = "md";
     this.sticky = false;
     this.orientation = "horizontal";
+    /** Underline-indicator measurement runs through rAF so we never write
+     * custom properties more than once per frame even under event storms. */
+    this.rafId = 0;
+  }
+  connectedCallback() {
+    super.connectedCallback();
+    this.mutationObserver = new MutationObserver(() => this.requestUpdate());
+    this.mutationObserver.observe(this, {
+      childList: true,
+      subtree: true,
+      attributes: true,
+      attributeFilter: ["name", "label", "count", "disabled"]
+    });
+  }
+  disconnectedCallback() {
+    super.disconnectedCallback();
+    this.mutationObserver?.disconnect();
+    this.resizeObserver?.disconnect();
+    if (this.rafId) cancelAnimationFrame(this.rafId);
   }
   get tabs() {
     return Array.from(this.querySelectorAll(":scope > ship-tab"));
@@ -4397,14 +5111,54 @@ var ShipTabs = class extends i4 {
   }
   firstUpdated() {
     this.syncPanels();
+    this.attachResizeObserver();
+    this.scheduleIndicatorSync();
   }
-  updated() {
+  updated(changed) {
     this.syncPanels();
+    if (changed.has("active") || changed.has("variant") || changed.has("orientation") || changed.has("size")) {
+      this.scheduleIndicatorSync();
+    }
   }
   syncPanels() {
     for (const p3 of this.panels) p3.active = p3.name === this.active;
   }
+  attachResizeObserver() {
+    const tablist = this.renderRoot.querySelector(".tablist");
+    if (!tablist || typeof ResizeObserver === "undefined") return;
+    this.resizeObserver = new ResizeObserver(() => this.scheduleIndicatorSync());
+    this.resizeObserver.observe(tablist);
+  }
+  /** Coalesce indicator updates through rAF. We measure the active tab's
+   * offset within the tablist and write the geometry into CSS custom
+   * properties; the pseudo-element transition animates the move. */
+  scheduleIndicatorSync() {
+    if (this.variant === "segmented") return;
+    if (this.rafId) cancelAnimationFrame(this.rafId);
+    this.rafId = requestAnimationFrame(() => this.syncIndicator());
+  }
+  syncIndicator() {
+    this.rafId = 0;
+    const tablist = this.renderRoot.querySelector(".tablist");
+    if (!tablist) return;
+    const activeBtn = tablist.querySelector(
+      'button[aria-selected="true"]'
+    );
+    if (!activeBtn) {
+      this.removeAttribute("data-underline-ready");
+      return;
+    }
+    if (this.orientation === "vertical") {
+      tablist.style.setProperty("--underline-y", `${activeBtn.offsetTop}px`);
+      tablist.style.setProperty("--underline-h", `${activeBtn.offsetHeight}px`);
+    } else {
+      tablist.style.setProperty("--underline-x", `${activeBtn.offsetLeft}px`);
+      tablist.style.setProperty("--underline-w", `${activeBtn.offsetWidth}px`);
+    }
+    this.setAttribute("data-underline-ready", "");
+  }
   activate(name) {
+    if (this.active === name) return;
     this.active = name;
     this.dispatchEvent(new CustomEvent("ship-tab-change", {
       detail: { name },
@@ -4416,170 +5170,69 @@ var ShipTabs = class extends i4 {
     const vertical = this.orientation === "vertical";
     const nextKey = vertical ? "ArrowDown" : "ArrowRight";
     const prevKey = vertical ? "ArrowUp" : "ArrowLeft";
-    const keys = [nextKey, prevKey, "Home", "End"];
-    if (!keys.includes(e6.key)) return;
+    const nav = [nextKey, prevKey, "Home", "End"];
+    const activate = ["Enter", " "];
+    if (!nav.includes(e6.key) && !activate.includes(e6.key)) return;
     e6.preventDefault();
-    const tabs = this.tabs.filter((t4) => !t4.disabled);
-    const names = tabs.map((t4) => t4.name);
-    if (!names.length) return;
-    const i6 = names.indexOf(this.active);
+    const enabled = this.tabs.filter((t4) => !t4.disabled);
+    if (!enabled.length) return;
+    const names = enabled.map((t4) => t4.name);
+    const i6 = Math.max(0, names.indexOf(this.active));
     let next = i6;
     if (e6.key === nextKey) next = (i6 + 1) % names.length;
     else if (e6.key === prevKey) next = (i6 - 1 + names.length) % names.length;
     else if (e6.key === "Home") next = 0;
     else if (e6.key === "End") next = names.length - 1;
-    this.activate(names[next]);
+    const targetName = names[next];
+    this.activate(targetName);
     queueMicrotask(() => {
-      const btn = this.renderRoot.querySelector(`button[data-name="${names[next]}"]`);
+      const btn = this.renderRoot.querySelector(
+        `button[data-name="${targetName}"]`
+      );
       btn?.focus();
     });
   }
   render() {
-    const tabs = this.tabs.map((t4) => ({
+    const tabs = this.tabs.map((t4, idx) => ({
+      index: idx,
       name: t4.name,
       label: t4.label || t4.name,
       count: t4.count,
       disabled: t4.disabled
     }));
     return b2`
-      <div class="tablist ${this.variant}" role="tablist"
+      <div class="tablist ${this.variant}" part="tablist" role="tablist"
            aria-orientation=${this.orientation}
            @keydown=${this.onKeydown}>
         ${tabs.map((t4) => b2`
           <button
+            class="tab"
+            part="tab"
             role="tab"
             id=${`ship-tab-${t4.name}`}
             data-name=${t4.name}
             aria-selected=${t4.name === this.active ? "true" : "false"}
             aria-controls=${`ship-tabpanel-${t4.name}`}
+            aria-disabled=${t4.disabled ? "true" : "false"}
             tabindex=${t4.name === this.active ? "0" : "-1"}
             ?disabled=${t4.disabled}
-            @click=${() => this.activate(t4.name)}
+            @click=${() => !t4.disabled && this.activate(t4.name)}
           >
-            ${t4.label}
-            ${t4.count != null ? b2`<span class="count">${t4.count}</span>` : null}
+            <span class="label"><slot name=${`label-${t4.name}`}>${t4.label}</slot></span>
+            ${t4.count != null ? b2`<span class="count" aria-hidden="true">${t4.count}</span>` : null}
           </button>
         `)}
       </div>
-      <div class="panels"><slot></slot></div>
+      <div class="panels" part="panels"><slot></slot></div>
     `;
   }
 };
-ShipTabs.styles = i`
-    :host { display: block; font-family: var(--font-body); }
-
-    /* Underline variant (default) — matches pipelines .tabs-bar */
-    .tablist.underline {
-      display: flex; gap: 2px;
-      border-bottom: 1px solid var(--border);
-      margin-bottom: 24px;
-    }
-    :host([sticky]) .tablist.underline {
-      position: sticky; top: 0; background: var(--background); z-index: 5;
-      padding-top: 4px;
-    }
-    .tablist.underline button {
-      background: transparent; border: 0;
-      color: var(--muted-foreground);
-      padding: 10px 16px;
-      font: inherit;
-      font-size: 13px; font-weight: 500;
-      cursor: pointer;
-      border-bottom: 2px solid transparent;
-      margin-bottom: -1px;
-      display: inline-flex; align-items: center; gap: 8px;
-      transition: color 120ms;
-    }
-    .tablist.underline button:hover:not(:disabled) { color: var(--foreground); }
-    .tablist.underline button[aria-selected='true'] {
-      color: var(--foreground);
-      border-bottom-color: var(--primary);
-    }
-
-    /* Segmented variant — matches specs .tabs */
-    .tablist.segmented {
-      display: flex; gap: 2px;
-      padding: 8px 10px;
-      border-bottom: 1px solid var(--border);
-      background: var(--muted);
-    }
-    .tablist.segmented button {
-      flex: 1;
-      padding: 6px 8px;
-      border: none;
-      background: transparent;
-      color: var(--muted-foreground);
-      font: inherit;
-      font-size: 11px; font-weight: 500;
-      cursor: pointer;
-      border-radius: 4px;
-      text-transform: uppercase;
-      letter-spacing: 0.04em;
-    }
-    .tablist.segmented button[aria-selected='true'] {
-      background: var(--background);
-      color: var(--foreground);
-      box-shadow: 0 1px 2px rgba(0,0,0,0.05);
-    }
-
-    button:disabled { opacity: 0.5; cursor: not-allowed; }
-    button:focus-visible {
-      outline: 2px solid var(--primary);
-      outline-offset: -2px;
-      border-radius: 4px;
-    }
-
-    .count {
-      background: var(--muted);
-      color: var(--muted-foreground);
-      padding: 1px 7px;
-      border-radius: 999px;
-      font-size: 10px; font-weight: 600;
-      font-variant-numeric: tabular-nums;
-      min-width: 18px;
-      text-align: center;
-    }
-    .tablist.underline button[aria-selected='true'] .count {
-      background: color-mix(in oklch, var(--primary) 15%, transparent);
-      color: var(--primary);
-    }
-
-    .panels { display: block; }
-
-    /* Vertical orientation — tablist on the left, panels on the right. */
-    :host([orientation='vertical']) {
-      display: grid;
-      grid-template-columns: max-content 1fr;
-      gap: 24px;
-    }
-    :host([orientation='vertical']) .tablist.underline {
-      flex-direction: column;
-      align-items: stretch;
-      border-bottom: 0;
-      border-right: 1px solid var(--border);
-      margin-bottom: 0;
-      gap: 0;
-    }
-    :host([orientation='vertical']) .tablist.underline button {
-      border-bottom: 0;
-      border-right: 2px solid transparent;
-      margin-bottom: 0;
-      margin-right: -1px;
-      text-align: left;
-      justify-content: flex-start;
-    }
-    :host([orientation='vertical']) .tablist.underline button[aria-selected='true'] {
-      border-right-color: var(--primary);
-    }
-    :host([orientation='vertical']) .tablist.segmented {
-      flex-direction: column;
-      border-bottom: 0;
-      border-right: 1px solid var(--border);
-    }
-  `;
+ShipTabs.styles = shipTabsStyles;
 ShipTabs.properties = {
   active: { type: String, reflect: true },
   variant: { type: String, reflect: true },
+  size: { type: String, reflect: true },
+  tone: { type: String, reflect: true },
   sticky: { type: Boolean, reflect: true },
   orientation: { type: String, reflect: true }
 };
@@ -4589,7 +5242,7 @@ if (typeof customElements !== "undefined") {
   if (!customElements.get("ship-tabs")) customElements.define("ship-tabs", ShipTabs);
 }
 
-// ../../../packages/ui/src/web-components/ship-textarea.styles.ts
+// packages/ui/src/web-components/ship-textarea.styles.ts
 var shipTextareaStyles = [reducedMotion, i`
   :host {
     display: block;
@@ -4702,7 +5355,7 @@ var shipTextareaStyles = [reducedMotion, i`
   }
 `];
 
-// ../../../packages/ui/src/web-components/ship-textarea.ts
+// packages/ui/src/web-components/ship-textarea.ts
 var ShipTextarea = class extends i4 {
   constructor() {
     super();
@@ -4790,7 +5443,7 @@ if (typeof customElements !== "undefined" && !customElements.get("ship-textarea"
   customElements.define("ship-textarea", ShipTextarea);
 }
 
-// ../../../packages/ui/src/web-components/ship-theme-toggle.ts
+// packages/ui/src/web-components/ship-theme-toggle.ts
 var STORAGE_KEY = "ship-theme";
 var ShipThemeToggle = class extends i4 {
   constructor() {
@@ -4862,7 +5515,7 @@ if (typeof customElements !== "undefined" && !customElements.get("ship-theme-tog
   customElements.define("ship-theme-toggle", ShipThemeToggle);
 }
 
-// ../../../packages/ui/src/web-components/ship-toolbar.ts
+// packages/ui/src/web-components/ship-toolbar.ts
 var ShipToolbar = class extends i4 {
   constructor() {
     super(...arguments);
@@ -4926,7 +5579,7 @@ if (typeof customElements !== "undefined" && !customElements.get("ship-toolbar")
   customElements.define("ship-toolbar", ShipToolbar);
 }
 
-// ../../../packages/ui/src/web-components/ship-tooltip.ts
+// packages/ui/src/web-components/ship-tooltip.ts
 var _ShipTooltip = class _ShipTooltip extends i4 {
   constructor() {
     super(...arguments);
@@ -5014,7 +5667,7 @@ if (typeof customElements !== "undefined" && !customElements.get("ship-tooltip")
   customElements.define("ship-tooltip", ShipTooltip);
 }
 
-// ../../../packages/ui/src/web-components/domain/ship-pipeline-step.ts
+// packages/ui/src/web-components/domain/ship-pipeline-step.ts
 var ShipPipelineStep = class extends i4 {
   constructor() {
     super(...arguments);
@@ -5124,7 +5777,7 @@ if (typeof customElements !== "undefined" && !customElements.get("ship-pipeline-
   customElements.define("ship-pipeline-step", ShipPipelineStep);
 }
 
-// ../../../packages/ui/src/web-components/domain/ship-pipeline-run.ts
+// packages/ui/src/web-components/domain/ship-pipeline-run.ts
 var STATE_TO_TONE = {
   dispatched: "info",
   running: "info",
@@ -5200,7 +5853,7 @@ if (typeof customElements !== "undefined" && !customElements.get("ship-pipeline-
   customElements.define("ship-pipeline-run", ShipPipelineRun);
 }
 
-// ../../../packages/ui/src/web-components/domain/ship-pipeline-definition.ts
+// packages/ui/src/web-components/domain/ship-pipeline-definition.ts
 var ShipPipelineDefinition = class extends i4 {
   constructor() {
     super(...arguments);
@@ -5270,7 +5923,7 @@ if (typeof customElements !== "undefined" && !customElements.get("ship-pipeline-
   customElements.define("ship-pipeline-definition", ShipPipelineDefinition);
 }
 
-// ../../../packages/ui/src/web-components/domain/ship-pipeline-dag.ts
+// packages/ui/src/web-components/domain/ship-pipeline-dag.ts
 var ShipPipelineDag = class extends i4 {
   connectedCallback() {
     super.connectedCallback();
@@ -5301,7 +5954,7 @@ if (typeof customElements !== "undefined" && !customElements.get("ship-pipeline-
   customElements.define("ship-pipeline-dag", ShipPipelineDag);
 }
 
-// ../../../packages/ui/src/web-components/domain/ship-history-row.ts
+// packages/ui/src/web-components/domain/ship-history-row.ts
 var ShipHistoryRow = class extends i4 {
   constructor() {
     super(...arguments);
@@ -5341,7 +5994,7 @@ if (typeof customElements !== "undefined" && !customElements.get("ship-history-r
   customElements.define("ship-history-row", ShipHistoryRow);
 }
 
-// ../../../packages/ui/src/web-components/domain/ship-spec-row.ts
+// packages/ui/src/web-components/domain/ship-spec-row.ts
 var STATUS_TO_TONE = {
   draft: "muted",
   ready: "success",
@@ -5388,7 +6041,7 @@ if (typeof customElements !== "undefined" && !customElements.get("ship-spec-row"
   customElements.define("ship-spec-row", ShipSpecRow);
 }
 
-// ../../../packages/ui/src/web-components/utility/ship-icon.ts
+// packages/ui/src/web-components/utility/ship-icon.ts
 var ICONS = {
   "chevron-down": "M6 9l6 6 6-6",
   "chevron-right": "M9 6l6 6-6 6",
@@ -5471,7 +6124,7 @@ if (typeof customElements !== "undefined" && !customElements.get("ship-icon")) {
   customElements.define("ship-icon", ShipIcon);
 }
 
-// ../../../packages/ui/src/web-components/domain/ship-git-diff.ts
+// packages/ui/src/web-components/domain/ship-git-diff.ts
 var ShipGitDiff = class extends i4 {
   constructor() {
     super(...arguments);
@@ -5741,7 +6394,7 @@ if (typeof customElements !== "undefined") {
   if (!customElements.get("ship-git-diff-line")) customElements.define("ship-git-diff-line", ShipGitDiffLine);
 }
 
-// ../../../packages/ui/src/web-components/observability/ship-log-line.ts
+// packages/ui/src/web-components/observability/ship-log-line.ts
 var ShipLogLine = class extends i4 {
   constructor() {
     super(...arguments);
@@ -5799,7 +6452,7 @@ if (typeof customElements !== "undefined" && !customElements.get("ship-log-line"
   customElements.define("ship-log-line", ShipLogLine);
 }
 
-// ../../../packages/ui/src/web-components/observability/ship-event-row.ts
+// packages/ui/src/web-components/observability/ship-event-row.ts
 var ShipEventRow = class extends i4 {
   connectedCallback() {
     super.connectedCallback();
@@ -5849,7 +6502,7 @@ if (typeof customElements !== "undefined" && !customElements.get("ship-event-row
   customElements.define("ship-event-row", ShipEventRow);
 }
 
-// ../../../packages/ui/src/web-components/observability/ship-timestamp.ts
+// packages/ui/src/web-components/observability/ship-timestamp.ts
 var MINUTE = 6e4;
 var HOUR = 36e5;
 var DAY = 864e5;
@@ -5911,7 +6564,7 @@ if (typeof customElements !== "undefined" && !customElements.get("ship-timestamp
   customElements.define("ship-timestamp", ShipTimestamp);
 }
 
-// ../../../packages/ui/src/web-components/observability/ship-json-view.ts
+// packages/ui/src/web-components/observability/ship-json-view.ts
 var ShipJsonView = class extends i4 {
   constructor() {
     super(...arguments);
@@ -6006,7 +6659,7 @@ if (typeof customElements !== "undefined" && !customElements.get("ship-json-view
   customElements.define("ship-json-view", ShipJsonView);
 }
 
-// ../../../packages/ui/src/web-components/observability/ship-diff.ts
+// packages/ui/src/web-components/observability/ship-diff.ts
 function diffLines(a3, b3) {
   const A2 = a3.split("\n");
   const B2 = b3.split("\n");
@@ -6106,7 +6759,7 @@ if (typeof customElements !== "undefined" && !customElements.get("ship-diff")) {
   customElements.define("ship-diff", ShipDiff);
 }
 
-// ../../../packages/ui/src/web-components/observability/ship-code.ts
+// packages/ui/src/web-components/observability/ship-code.ts
 var ShipCode = class extends i4 {
   constructor() {
     super(...arguments);
@@ -6176,7 +6829,7 @@ if (typeof customElements !== "undefined" && !customElements.get("ship-code")) {
   customElements.define("ship-code", ShipCode);
 }
 
-// ../../../packages/ui/src/web-components/observability/ship-copy-button.ts
+// packages/ui/src/web-components/observability/ship-copy-button.ts
 var ShipCopyButton = class extends i4 {
   constructor() {
     super(...arguments);
@@ -6273,7 +6926,7 @@ if (typeof customElements !== "undefined" && !customElements.get("ship-copy-butt
   customElements.define("ship-copy-button", ShipCopyButton);
 }
 
-// ../../../node_modules/.pnpm/lit-html@3.3.2/node_modules/lit-html/directive.js
+// node_modules/.pnpm/lit-html@3.3.2/node_modules/lit-html/directive.js
 var t3 = { ATTRIBUTE: 1, CHILD: 2, PROPERTY: 3, BOOLEAN_ATTRIBUTE: 4, EVENT: 5, ELEMENT: 6 };
 var e4 = (t4) => (...e6) => ({ _$litDirective$: t4, values: e6 });
 var i5 = class {
@@ -6293,7 +6946,7 @@ var i5 = class {
   }
 };
 
-// ../../../node_modules/.pnpm/lit-html@3.3.2/node_modules/lit-html/directives/unsafe-html.js
+// node_modules/.pnpm/lit-html@3.3.2/node_modules/lit-html/directives/unsafe-html.js
 var e5 = class extends i5 {
   constructor(i6) {
     if (super(i6), this.it = A, i6.type !== t3.CHILD) throw Error(this.constructor.directiveName + "() can only be used in child bindings");
@@ -6311,7 +6964,7 @@ var e5 = class extends i5 {
 e5.directiveName = "unsafeHTML", e5.resultType = 1;
 var o5 = e4(e5);
 
-// ../../../packages/ui/src/web-components/observability/ship-markdown.ts
+// packages/ui/src/web-components/observability/ship-markdown.ts
 function escape(s4) {
   return s4.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;").replace(/"/g, "&quot;");
 }
@@ -6448,7 +7101,7 @@ if (typeof customElements !== "undefined" && !customElements.get("ship-markdown"
   customElements.define("ship-markdown", ShipMarkdown);
 }
 
-// ../../../packages/ui/src/web-components/observability/ship-table.ts
+// packages/ui/src/web-components/observability/ship-table.ts
 var ShipTable = class extends i4 {
   constructor() {
     super(...arguments);
@@ -6506,7 +7159,7 @@ if (typeof customElements !== "undefined" && !customElements.get("ship-table")) 
   customElements.define("ship-table", ShipTable);
 }
 
-// ../../../packages/ui/src/web-components/observability/ship-timeline.ts
+// packages/ui/src/web-components/observability/ship-timeline.ts
 var ShipTimeline = class extends i4 {
   connectedCallback() {
     super.connectedCallback();
@@ -6642,7 +7295,7 @@ if (typeof customElements !== "undefined") {
   if (!customElements.get("ship-timeline-item")) customElements.define("ship-timeline-item", ShipTimelineItem);
 }
 
-// ../../../packages/ui/src/web-components/observability/ship-tree-view.ts
+// packages/ui/src/web-components/observability/ship-tree-view.ts
 var ShipTreeView = class extends i4 {
   connectedCallback() {
     super.connectedCallback();
@@ -6773,7 +7426,7 @@ if (typeof customElements !== "undefined") {
   if (!customElements.get("ship-tree-node")) customElements.define("ship-tree-node", ShipTreeNode);
 }
 
-// ../../../packages/ui/src/web-components/charts/util.ts
+// packages/ui/src/web-components/charts/util.ts
 var TONE_VARS = {
   default: "var(--foreground)",
   primary: "var(--primary)",
@@ -6830,7 +7483,7 @@ function arcPath(cx, cy, r4, startAngle, endAngle) {
   return `M${x1.toFixed(2)},${y1.toFixed(2)} A${r4},${r4} 0 ${large} ${sweep} ${x2.toFixed(2)},${y22.toFixed(2)}`;
 }
 
-// ../../../packages/ui/src/web-components/charts/ship-sparkline.ts
+// packages/ui/src/web-components/charts/ship-sparkline.ts
 var ShipSparkline = class extends i4 {
   constructor() {
     super(...arguments);
@@ -6896,7 +7549,7 @@ if (typeof customElements !== "undefined" && !customElements.get("ship-sparkline
   customElements.define("ship-sparkline", ShipSparkline);
 }
 
-// ../../../packages/ui/src/web-components/charts/ship-bar-chart.ts
+// packages/ui/src/web-components/charts/ship-bar-chart.ts
 var ShipBarChart = class extends i4 {
   constructor() {
     super(...arguments);
@@ -6980,7 +7633,7 @@ if (typeof customElements !== "undefined" && !customElements.get("ship-bar-chart
   customElements.define("ship-bar-chart", ShipBarChart);
 }
 
-// ../../../packages/ui/src/web-components/charts/ship-line-chart.ts
+// packages/ui/src/web-components/charts/ship-line-chart.ts
 var ShipLineChart = class extends i4 {
   constructor() {
     super(...arguments);
@@ -7061,7 +7714,7 @@ if (typeof customElements !== "undefined" && !customElements.get("ship-line-char
   customElements.define("ship-line-chart", ShipLineChart);
 }
 
-// ../../../packages/ui/src/web-components/charts/ship-area-chart.ts
+// packages/ui/src/web-components/charts/ship-area-chart.ts
 var ShipAreaChart = class extends i4 {
   constructor() {
     super(...arguments);
@@ -7143,7 +7796,7 @@ if (typeof customElements !== "undefined" && !customElements.get("ship-area-char
   customElements.define("ship-area-chart", ShipAreaChart);
 }
 
-// ../../../packages/ui/src/web-components/charts/ship-donut.ts
+// packages/ui/src/web-components/charts/ship-donut.ts
 var ShipDonut = class extends i4 {
   constructor() {
     super(...arguments);
@@ -7222,7 +7875,7 @@ if (typeof customElements !== "undefined" && !customElements.get("ship-donut")) 
   customElements.define("ship-donut", ShipDonut);
 }
 
-// ../../../packages/ui/src/web-components/charts/ship-gauge.ts
+// packages/ui/src/web-components/charts/ship-gauge.ts
 var ShipGauge = class extends i4 {
   constructor() {
     super(...arguments);
@@ -7305,7 +7958,7 @@ if (typeof customElements !== "undefined" && !customElements.get("ship-gauge")) 
   customElements.define("ship-gauge", ShipGauge);
 }
 
-// ../../../packages/ui/src/web-components/charts/ship-progress-ring.ts
+// packages/ui/src/web-components/charts/ship-progress-ring.ts
 var ShipProgressRing = class extends i4 {
   constructor() {
     super(...arguments);
@@ -7375,7 +8028,7 @@ if (typeof customElements !== "undefined" && !customElements.get("ship-progress-
   customElements.define("ship-progress-ring", ShipProgressRing);
 }
 
-// ../../../packages/ui/src/web-components/charts/ship-heatmap.ts
+// packages/ui/src/web-components/charts/ship-heatmap.ts
 var TONE_CSS_VAR = {
   default: "--foreground",
   primary: "--primary",
@@ -7460,7 +8113,7 @@ if (typeof customElements !== "undefined" && !customElements.get("ship-heatmap")
   customElements.define("ship-heatmap", ShipHeatmap);
 }
 
-// ../../../packages/ui/src/web-components/charts/ship-meter.ts
+// packages/ui/src/web-components/charts/ship-meter.ts
 var ShipMeter = class extends i4 {
   constructor() {
     super(...arguments);
@@ -7532,7 +8185,7 @@ if (typeof customElements !== "undefined" && !customElements.get("ship-meter")) 
   customElements.define("ship-meter", ShipMeter);
 }
 
-// ../../../packages/ui/src/web-components/utility/ship-avatar.ts
+// packages/ui/src/web-components/utility/ship-avatar.ts
 function initialsFromName(name) {
   const parts = name.trim().split(/\s+/).filter(Boolean);
   if (parts.length === 0) return "";
@@ -7600,7 +8253,7 @@ if (typeof customElements !== "undefined" && !customElements.get("ship-avatar"))
   customElements.define("ship-avatar", ShipAvatar);
 }
 
-// ../../../packages/ui/src/web-components/utility/ship-chip.ts
+// packages/ui/src/web-components/utility/ship-chip.ts
 var ShipChip = class extends i4 {
   constructor() {
     super(...arguments);
@@ -7675,7 +8328,7 @@ if (typeof customElements !== "undefined" && !customElements.get("ship-chip")) {
   customElements.define("ship-chip", ShipChip);
 }
 
-// ../../../packages/ui/src/web-components/utility/ship-kbd.ts
+// packages/ui/src/web-components/utility/ship-kbd.ts
 var ShipKbd = class extends i4 {
   constructor() {
     super(...arguments);
@@ -7718,7 +8371,7 @@ if (typeof customElements !== "undefined" && !customElements.get("ship-kbd")) {
   customElements.define("ship-kbd", ShipKbd);
 }
 
-// ../../../packages/ui/src/web-components/utility/ship-skeleton.ts
+// packages/ui/src/web-components/utility/ship-skeleton.ts
 var ShipSkeleton = class extends i4 {
   constructor() {
     super(...arguments);
@@ -7783,7 +8436,7 @@ if (typeof customElements !== "undefined" && !customElements.get("ship-skeleton"
   customElements.define("ship-skeleton", ShipSkeleton);
 }
 
-// ../../../packages/ui/src/web-components/utility/ship-toast.ts
+// packages/ui/src/web-components/utility/ship-toast.ts
 var ShipToastContainer = class extends i4 {
   constructor() {
     super(...arguments);
@@ -7907,7 +8560,7 @@ if (typeof customElements !== "undefined") {
     customElements.define("ship-toast", ShipToast);
 }
 
-// ../../../packages/ui/src/web-components/utility/ship-breadcrumb.ts
+// packages/ui/src/web-components/utility/ship-breadcrumb.ts
 var ShipBreadcrumbItem = class extends i4 {
   constructor() {
     super(...arguments);
@@ -7999,7 +8652,7 @@ if (typeof customElements !== "undefined") {
     customElements.define("ship-breadcrumb", ShipBreadcrumb);
 }
 
-// ../../../packages/ui/src/web-components/utility/ship-link.ts
+// packages/ui/src/web-components/utility/ship-link.ts
 var ShipLink = class extends i4 {
   constructor() {
     super(...arguments);
@@ -8063,7 +8716,7 @@ if (typeof customElements !== "undefined" && !customElements.get("ship-link")) {
   customElements.define("ship-link", ShipLink);
 }
 
-// ../../../packages/ui/src/web-components/utility/ship-metachip.ts
+// packages/ui/src/web-components/utility/ship-metachip.ts
 var ShipMetachip = class extends i4 {
   constructor() {
     super(...arguments);
@@ -8111,7 +8764,7 @@ if (typeof customElements !== "undefined" && !customElements.get("ship-metachip"
   customElements.define("ship-metachip", ShipMetachip);
 }
 
-// ../../../packages/ui/src/web-components/utility/ship-step-segments.ts
+// packages/ui/src/web-components/utility/ship-step-segments.ts
 var KNOWN = /* @__PURE__ */ new Set(["done", "failed", "pending", "running"]);
 var ShipStepSegments = class extends i4 {
   constructor() {
@@ -8164,7 +8817,7 @@ if (typeof customElements !== "undefined" && !customElements.get("ship-step-segm
   customElements.define("ship-step-segments", ShipStepSegments);
 }
 
-// ../../../packages/ui/src/web-components/index.ts
+// packages/ui/src/web-components/index.ts
 function registerShipComponents() {
 }
 export {

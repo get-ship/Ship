@@ -265,7 +265,7 @@
         </div>
         <div class="settings-row-control">
           <ship-switch {% if flag.enabled %}checked{% endif %}
-            data-on:ship-switch-change="@put('{{ update_setting() }}', {contentType: 'json', body: JSON.stringify({key: '{{ flag.key }}', value: evt.detail.checked})})"></ship-switch>
+            data-on:ship-change="@put('{{ update_setting() }}', {contentType: 'json', body: JSON.stringify({key: '{{ flag.key }}', value: evt.detail.checked})})"></ship-switch>
         </div>
       </div>
       {% endfor %}
