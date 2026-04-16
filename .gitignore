@@ -72,6 +72,9 @@ dist/
 # Ship worktrees — ephemeral, never commit
 .ship/worktrees/
 
+# Local cargo overrides (shared target-dir path is user-specific)
+.cargo/config.toml
+
 # Ship runtime state — local-only, never commit
 .ship/platform.db
 .ship/platform.db-*

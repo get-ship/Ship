@@ -7,12 +7,19 @@ steps:
     agent: "{{ impl_agent }}"
     after: [tests]
     gate:
+      # Impl must produce real code change — anywhere in src or tests.
+      # Rust projects put integration tests in `tests/` (and unit tests
+      # inline under `#[cfg(test)]`), so forbidding `tests/` outright
+      # rejects legitimate test-infra work. The real intent: don't let
+      # an impl step hand-wave by editing only docs/config/artifacts.
       require_changed:
-        match: "**/*.{rs,ts,tsx,py}"
-        not_match: "**/tests/**|**/*.test.*|**/*.spec.*"
+        match: "**/*.{rs,ts,tsx,py,js}"
         min: 1
+      forbid_changed:
+        match: ".artifacts/**|docs/**|README.md"
+        min: 0
   - id: review
-    agent: reviewer
+    agent: gatekeeper
     after: [impl]
 step_specs:
   - |

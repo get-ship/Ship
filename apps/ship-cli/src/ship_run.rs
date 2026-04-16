@@ -75,15 +75,14 @@ pub fn run(opts: RunOptions) -> Result<()> {
         "headless": opts.headless,
     });
 
-    // Short tmux session name the PtyExecutor uses. Mirrors
-    // `runtime::services::orchestrator::step_executor::tmux_session_name`.
+    // Tmux session name the PtyExecutor uses. Mirrors
+    // `apps/shipd/src/supervisor/executors/pty.rs::session_name`.
     let tmux_short: String = {
         let sanitized: String = slug
             .chars()
             .map(|c| if c == '.' || c == ':' { '_' } else { c })
             .collect();
-        let short: String = sanitized.chars().take(8).collect();
-        format!("ship-{short}")
+        format!("ship-{sanitized}")
     };
 
     match post_to_daemon("/api/runtime/jobs", &body) {
