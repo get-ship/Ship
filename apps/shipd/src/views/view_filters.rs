@@ -198,6 +198,66 @@ pub fn ship_skills() -> Vec<Value> {
         .collect()
 }
 
+/// Scan a canvas docs directory, populating seen map with slug -> modified time.
+/// Skips slugs already in the map (project takes precedence over global).
+fn scan_canvas_docs(dir: &std::path::Path, seen: &mut std::collections::HashMap<String, u64>) {
+    let Ok(entries) = std::fs::read_dir(dir) else { return };
+    for entry in entries.flatten() {
+        let name = entry.file_name().to_string_lossy().to_string();
+        let Some(slug) = name.strip_suffix(".html.j2") else { continue };
+        if seen.contains_key(slug) {
+            continue;
+        }
+        let modified = entry
+            .metadata()
+            .ok()
+            .and_then(|m| m.modified().ok())
+            .and_then(|t| t.duration_since(std::time::UNIX_EPOCH).ok())
+            .map(|d| d.as_secs())
+            .unwrap_or(0);
+        seen.insert(slug.to_string(), modified);
+    }
+}
+
+/// Global function: `ship_canvas_docs()`.
+/// Lists canvas documents at `.ship/views/canvas/docs/*.html.j2`.
+/// Returns `[{slug, title, modified}]` sorted by modified desc.
+/// Scans both project .ship/ and global ~/.ship/ — project wins on slug collisions.
+pub fn ship_canvas_docs() -> Vec<Value> {
+    let mut seen = std::collections::HashMap::<String, u64>::new();
+    // Project dir first (takes precedence)
+    if let Ok(proj) = runtime::project::get_project_dir(None) {
+        scan_canvas_docs(&proj.join("views").join("canvas").join("docs"), &mut seen);
+    }
+    // Global dir as fallback
+    if let Ok(global) = runtime::project::get_global_dir() {
+        scan_canvas_docs(&global.join("views").join("canvas").join("docs"), &mut seen);
+    }
+    let mut docs: Vec<(String, u64)> = seen.into_iter().collect();
+    docs.sort_by(|a, b| b.1.cmp(&a.1));
+    docs.into_iter()
+        .map(|(slug, modified)| {
+            // Derive a human-readable title from the slug (kebab → Title Case)
+            let title = slug
+                .split('-')
+                .map(|w| {
+                    let mut chars = w.chars();
+                    match chars.next() {
+                        Some(c) => c.to_uppercase().chain(chars).collect::<String>(),
+                        None => String::new(),
+                    }
+                })
+                .collect::<Vec<_>>()
+                .join(" ");
+            Value::from_serialize(&serde_json::json!({
+                "slug": slug,
+                "title": title,
+                "modified": modified,
+            }))
+        })
+        .collect()
+}
+
 /// Register all SDK filters and functions on a minijinja Environment.
 pub fn register_all(env: &mut minijinja::Environment) {
     env.add_function("ship_items", ship_items);
@@ -207,6 +267,7 @@ pub fn register_all(env: &mut minijinja::Environment) {
     env.add_function("ship_agents", ship_agents);
     env.add_function("ship_agent", ship_agent);
     env.add_function("ship_skills", ship_skills);
+    env.add_function("ship_canvas_docs", ship_canvas_docs);
     env.add_filter("where", filter_where);
     env.add_filter("sort_by", filter_sort_by);
     env.add_filter("take", filter_take);

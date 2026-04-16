@@ -15,7 +15,10 @@ pub(crate) fn build_generic_context(
     manifest_data: &Option<ManifestData>,
     query_params: &HashMap<String, String>,
 ) -> serde_json::Value {
-    let mut ctx = serde_json::json!({ "view_name": view_name });
+    let mut ctx = serde_json::json!({
+        "view_name": view_name,
+        "query": query_params,
+    });
     let Ok(ship_dir) = runtime::project::get_global_dir() else { return ctx };
 
     load_collections(&mut ctx, signals, manifest_data, query_params, &ship_dir);

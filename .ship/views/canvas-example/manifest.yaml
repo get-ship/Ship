@@ -1,6 +1,0 @@
-name: canvas-example
-type: html
-# No data loader — canvas views typically render agent-authored content
-# directly from the template body. Add events if the agent wants live updates
-# pushed into the canvas (e.g. agent emits, canvas SSE-morphs).
-events: []

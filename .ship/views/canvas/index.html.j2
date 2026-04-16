@@ -1,0 +1,160 @@
+{#-
+  Canvas workspace — hosts agent-authored visual documents.
+
+  Agents drop files into .ship/views/canvas/docs/<slug>.html.j2.
+  This workspace lists them in a sidebar, loads the active one into the
+  main pane, and provides feedback chrome (the doc itself uses the
+  feedback() macro from the Ship View SDK).
+
+  Active doc: ?doc=<slug> query param, defaults to newest.
+-#}
+{% from '_ship.html.j2' import head, styles %}
+<!DOCTYPE html>
+<html lang="en">
+<head>{{ head('Canvas') }}
+  {{ styles() }}
+  <style>
+    html, body { height: 100%; }
+    .canvas-workspace {
+      display: grid;
+      grid-template-columns: 240px 1fr;
+      height: 100vh;
+      min-height: 0;
+    }
+    .canvas-rail {
+      border-right: 1px solid var(--border);
+      background: var(--sidebar);
+      overflow-y: auto;
+      display: flex;
+      flex-direction: column;
+    }
+    .canvas-rail-head {
+      padding: var(--space-4) var(--space-3) var(--space-3);
+      border-bottom: 1px solid var(--border);
+    }
+    .canvas-rail-title {
+      font-family: var(--font-display);
+      font-size: var(--text-sm);
+      font-weight: var(--font-weight-semibold);
+      margin: 0 0 var(--space-1);
+      letter-spacing: -0.01em;
+    }
+    .canvas-rail-sub {
+      font-size: var(--text-xs);
+      color: var(--muted-foreground);
+    }
+    .canvas-rail-list {
+      padding: var(--space-2) 0;
+      flex: 1;
+    }
+    .canvas-rail-item {
+      display: flex;
+      flex-direction: column;
+      padding: var(--space-2) var(--space-3);
+      text-decoration: none;
+      color: var(--foreground);
+      border-left: 2px solid transparent;
+      transition: background var(--duration-fast) var(--ease-out);
+    }
+    .canvas-rail-item:hover {
+      background: color-mix(in oklch, var(--muted) 40%, transparent);
+    }
+    .canvas-rail-item.active {
+      background: color-mix(in oklch, var(--primary) 10%, transparent);
+      border-left-color: var(--primary);
+    }
+    .canvas-rail-item-title {
+      font-size: var(--text-sm);
+      font-weight: var(--font-weight-medium);
+    }
+    .canvas-rail-item-slug {
+      font-family: var(--font-mono);
+      font-size: 10px;
+      color: var(--muted-foreground);
+      margin-top: 2px;
+    }
+    .canvas-rail-empty {
+      padding: var(--space-5) var(--space-3);
+      font-size: var(--text-xs);
+      color: var(--muted-foreground);
+      line-height: 1.5;
+    }
+    .canvas-rail-empty code {
+      font-family: var(--font-mono);
+      background: var(--muted);
+      padding: 1px 4px;
+      border-radius: 3px;
+      font-size: 10px;
+    }
+    .canvas-main {
+      overflow-y: auto;
+      background: var(--background);
+    }
+    .canvas-empty {
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      height: 100%;
+      padding: var(--space-6);
+      text-align: center;
+      color: var(--muted-foreground);
+      flex-direction: column;
+      gap: var(--space-2);
+    }
+    .canvas-empty-title {
+      font-family: var(--font-display);
+      font-size: var(--text-lg);
+      font-weight: var(--font-weight-semibold);
+      color: var(--foreground);
+    }
+  </style>
+</head>
+<body>
+<div class="ship-view">
+
+{% set docs = ship_canvas_docs() %}
+{% set active_slug = query.doc if query and query.doc else (docs[0].slug if docs else '') %}
+
+<div class="canvas-workspace">
+
+  {# ── Sidebar: doc list ──────────────────────────────────────── #}
+  <aside class="canvas-rail">
+    <div class="canvas-rail-head">
+      <h1 class="canvas-rail-title">Canvas</h1>
+      <div class="canvas-rail-sub">{{ docs | length }} document{{ "s" if docs|length != 1 else "" }}</div>
+    </div>
+    <div class="canvas-rail-list">
+      {% if docs | length == 0 %}
+      <div class="canvas-rail-empty">
+        No canvases yet. Agents create them at <code>.ship/views/canvas/docs/</code>.
+      </div>
+      {% else %}
+        {% for doc in docs %}
+        <a href="/api/runtime/view/canvas?doc={{ doc.slug }}"
+           class="canvas-rail-item {% if doc.slug == active_slug %}active{% endif %}">
+          <span class="canvas-rail-item-title">{{ doc.title }}</span>
+          <span class="canvas-rail-item-slug">{{ doc.slug }}.html.j2</span>
+        </a>
+        {% endfor %}
+      {% endif %}
+    </div>
+  </aside>
+
+  {# ── Main pane: include the active doc ───────────────────────── #}
+  <main class="canvas-main">
+    {% if active_slug %}
+      {% include 'canvas/docs/' ~ active_slug ~ '.html.j2' ignore missing %}
+    {% else %}
+      <div class="canvas-empty">
+        <ship-icon name="image" aria-hidden="true"></ship-icon>
+        <div class="canvas-empty-title">No canvas selected</div>
+        <div>Ask an agent to draft a visual here.</div>
+      </div>
+    {% endif %}
+  </main>
+
+</div>
+
+</div>
+</body>
+</html>

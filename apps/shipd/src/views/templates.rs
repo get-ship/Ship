@@ -295,6 +295,33 @@ pub fn render<C: Serialize>(template: &str, ctx: &C) -> Result<String, String> {
 /// template inherits the same environment as daemon-internal views —
 /// URL macros, filters, lenient undefined behavior — so views in
 /// `.ship/views/` can use `{% from '_urls.html.j2' import ... %}`.
+/// Recursively walk a view directory, collecting `.html.j2` files as
+/// `(name, source)` pairs where `name` is the relative path under views_root
+/// (e.g. `canvas/docs/hero-review.html.j2`). Used to register subdirectory
+/// templates so {% include %} works inside user-authored views.
+fn walk_templates(
+    dir: &std::path::Path,
+    views_root: &std::path::Path,
+    exclude_name: &str,
+    out: &mut Vec<(String, String)>,
+) {
+    let Ok(entries) = std::fs::read_dir(dir) else { return };
+    for entry in entries.flatten() {
+        let path = entry.path();
+        if path.is_dir() {
+            walk_templates(&path, views_root, exclude_name, out);
+        } else if path.to_string_lossy().ends_with(".html.j2")
+            && let Ok(rel) = path.strip_prefix(views_root)
+            && let Ok(source) = std::fs::read_to_string(&path)
+        {
+            let name = rel.to_string_lossy().replace('\\', "/");
+            if name != exclude_name {
+                out.push((name, source));
+            }
+        }
+    }
+}
+
 pub fn render_view_source<C: Serialize>(name: &str, source: &str, ctx: &C) -> Result<String, String> {
     // If the source contains no Jinja syntax, return it as-is (fast path).
     if !source.contains("{%") && !source.contains("{{") {
@@ -328,6 +355,34 @@ pub fn render_view_source<C: Serialize>(name: &str, source: &str, ctx: &C) -> Re
     // Copy all registered templates (macros, partials).
     for (tpl_name, tpl_src) in TEMPLATES {
         let _ = local_env.add_template(tpl_name, tpl_src);
+    }
+    // Register sibling templates from the view's directory tree so templates
+    // can {% include %} partials. e.g. canvas/index.html.j2 includes
+    // canvas/docs/hero-review.html.j2. Scans project .ship/views/ then global
+    // ~/.ship/views/ (project wins on path collisions).
+    let mut sibling_sources: Vec<(String, String)> = Vec::new();
+    if let Some(view_name) = name.split('/').next() {
+        let mut registered: std::collections::HashSet<String> = std::collections::HashSet::new();
+        for ship_dir in [
+            runtime::project::get_project_dir(None).ok(),
+            runtime::project::get_global_dir().ok(),
+        ]
+        .into_iter()
+        .flatten()
+        {
+            let views_root = ship_dir.join("views");
+            let view_dir = views_root.join(view_name);
+            let mut found: Vec<(String, String)> = Vec::new();
+            walk_templates(&view_dir, &views_root, name, &mut found);
+            for (n, s) in found {
+                if registered.insert(n.clone()) {
+                    sibling_sources.push((n, s));
+                }
+            }
+        }
+    }
+    for (n, s) in &sibling_sources {
+        let _ = local_env.add_template(n, s);
     }
     // Add the view source as a named template.
     local_env.add_template(name, source)
