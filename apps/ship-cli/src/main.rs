@@ -19,6 +19,7 @@ mod help_topics;
 mod hook;
 mod init;
 mod install;
+mod job;
 mod loader;
 mod logging;
 mod skill_loader;
@@ -161,6 +162,12 @@ fn dispatch(command: Option<Commands>) -> Result<()> {
                 })
             }
             Commands::Hook { action } => dispatch_hook(action),
+            Commands::Job { action } => {
+                use cli::JobCommands;
+                match action {
+                    JobCommands::Cancel { slug, reason } => job::cancel(&slug, &reason),
+                }
+            }
             Commands::Studio { port, open } => run_studio(port, open),
             Commands::Daemon { action } => {
                 use cli::DaemonCommands;

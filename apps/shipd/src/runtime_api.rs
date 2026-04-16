@@ -511,7 +511,7 @@ pub async fn cancel_job(
     use runtime::projections::job::JobStatus;
     if matches!(
         job.status,
-        JobStatus::Failed | JobStatus::Merged | JobStatus::Cancelled
+        JobStatus::Failed | JobStatus::Merged | JobStatus::Cancelled | JobStatus::Completed
     ) {
         return (
             StatusCode::CONFLICT,

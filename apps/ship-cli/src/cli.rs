@@ -252,6 +252,12 @@ pub enum Commands {
         headless: bool,
     },
 
+    /// Manage running jobs (cancel, etc.).
+    Job {
+        #[command(subcommand)]
+        action: JobCommands,
+    },
+
     /// Manage the Ship daemon (shipd) background process
     Daemon {
         #[command(subcommand)]
@@ -260,6 +266,18 @@ pub enum Commands {
 
     /// Show help — same as --help
     Help,
+}
+
+#[derive(Subcommand, Debug)]
+pub enum JobCommands {
+    /// Cancel a running job.
+    Cancel {
+        /// Slug of the job to cancel.
+        slug: String,
+        /// Free-form reason. Recorded in the event log.
+        #[arg(long, default_value = "operator-cancelled")]
+        reason: String,
+    },
 }
 
 #[derive(Subcommand, Debug)]
