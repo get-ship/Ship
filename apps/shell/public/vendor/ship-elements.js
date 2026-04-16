@@ -1,4 +1,4 @@
-// ../../node_modules/.pnpm/@lit+reactive-element@2.1.2/node_modules/@lit/reactive-element/css-tag.js
+// node_modules/.pnpm/@lit+reactive-element@2.1.2/node_modules/@lit/reactive-element/css-tag.js
 var t = globalThis;
 var e = t.ShadowRoot && (void 0 === t.ShadyCSS || t.ShadyCSS.nativeShadow) && "adoptedStyleSheets" in Document.prototype && "replace" in CSSStyleSheet.prototype;
 var s = Symbol();
@@ -43,7 +43,7 @@ var c = e ? (t4) => t4 : (t4) => t4 instanceof CSSStyleSheet ? ((t5) => {
   return r(e6);
 })(t4) : t4;
 
-// ../../node_modules/.pnpm/@lit+reactive-element@2.1.2/node_modules/@lit/reactive-element/reactive-element.js
+// node_modules/.pnpm/@lit+reactive-element@2.1.2/node_modules/@lit/reactive-element/reactive-element.js
 var { is: i2, defineProperty: e2, getOwnPropertyDescriptor: h, getOwnPropertyNames: r2, getOwnPropertySymbols: o2, getPrototypeOf: n2 } = Object;
 var a = globalThis;
 var c2 = a.trustedTypes;
@@ -265,7 +265,7 @@ var y = class extends HTMLElement {
 };
 y.elementStyles = [], y.shadowRootOptions = { mode: "open" }, y[d("elementProperties")] = /* @__PURE__ */ new Map(), y[d("finalized")] = /* @__PURE__ */ new Map(), p?.({ ReactiveElement: y }), (a.reactiveElementVersions ?? (a.reactiveElementVersions = [])).push("2.1.2");
 
-// ../../node_modules/.pnpm/lit-html@3.3.2/node_modules/lit-html/lit-html.js
+// node_modules/.pnpm/lit-html@3.3.2/node_modules/lit-html/lit-html.js
 var t2 = globalThis;
 var i3 = (t4) => t4;
 var s2 = t2.trustedTypes;
@@ -519,7 +519,7 @@ var D = (t4, i6, s4) => {
   return h3._$AI(t4), h3;
 };
 
-// ../../node_modules/.pnpm/lit-element@4.2.2/node_modules/lit-element/lit-element.js
+// node_modules/.pnpm/lit-element@4.2.2/node_modules/lit-element/lit-element.js
 var s3 = globalThis;
 var i4 = class extends y {
   constructor() {
@@ -549,7 +549,7 @@ var o4 = s3.litElementPolyfillSupport;
 o4?.({ LitElement: i4 });
 (s3.litElementVersions ?? (s3.litElementVersions = [])).push("4.2.2");
 
-// src/web-components/util.ts
+// packages/ui/src/web-components/util.ts
 var MONO_STACK = "ui-monospace, SFMono-Regular, 'SF Mono', Menlo, Consolas, monospace";
 var MONO = r(MONO_STACK);
 var toneVars = i`
@@ -611,7 +611,7 @@ var reducedMotion = i`
   }
 `;
 
-// src/web-components/ship-alert.ts
+// packages/ui/src/web-components/ship-alert.ts
 var ShipAlert = class extends i4 {
   constructor() {
     super();
@@ -681,7 +681,7 @@ if (typeof customElements !== "undefined" && !customElements.get("ship-alert")) 
   customElements.define("ship-alert", ShipAlert);
 }
 
-// src/web-components/ship-dialog.ts
+// packages/ui/src/web-components/ship-dialog.ts
 var _ShipDialog = class _ShipDialog extends i4 {
   constructor() {
     super(...arguments);
@@ -849,7 +849,7 @@ if (typeof customElements !== "undefined" && !customElements.get("ship-dialog"))
   customElements.define("ship-dialog", ShipDialog);
 }
 
-// src/web-components/ship-button.ts
+// packages/ui/src/web-components/ship-button.ts
 var ShipButton = class extends i4 {
   constructor() {
     super(...arguments);
@@ -1313,7 +1313,7 @@ if (typeof customElements !== "undefined" && !customElements.get("ship-button"))
   customElements.define("ship-button", ShipButton);
 }
 
-// src/web-components/ship-alert-dialog.ts
+// packages/ui/src/web-components/ship-alert-dialog.ts
 var ShipAlertDialog = class extends i4 {
   constructor() {
     super(...arguments);
@@ -1364,7 +1364,7 @@ if (typeof customElements !== "undefined" && !customElements.get("ship-alert-dia
   customElements.define("ship-alert-dialog", ShipAlertDialog);
 }
 
-// src/utils/annotation-helpers.ts
+// packages/ui/src/utils/annotation-helpers.ts
 function getCSSSelector(el) {
   if (el.id) return `#${el.id}`;
   const tag = el.tagName.toLowerCase();
@@ -1426,7 +1426,7 @@ function buildAnnotationEvent(input) {
   return ev;
 }
 
-// src/web-components/ship-annotation-layer.internals.ts
+// packages/ui/src/web-components/ship-annotation-layer.internals.ts
 var layerStyles = i`
   :host {
     position: relative;
@@ -1524,7 +1524,7 @@ function renderPopover(host, at) {
   `;
 }
 
-// src/web-components/ship-annotation-marker.ts
+// packages/ui/src/web-components/ship-annotation-marker.ts
 var ShipAnnotationMarker = class extends i4 {
   constructor() {
     super(...arguments);
@@ -1617,8 +1617,8 @@ if (typeof customElements !== "undefined" && !customElements.get("ship-annotatio
   customElements.define("ship-annotation-marker", ShipAnnotationMarker);
 }
 
-// src/web-components/ship-annotation-layer.ts
-var DEFAULT_ENDPOINT = "/api/runtime/annotations";
+// packages/ui/src/web-components/ship-annotation-layer.ts
+var DEFAULT_ENDPOINT = "/api/runtime/feedback";
 var ShipAnnotationLayer = class extends i4 {
   constructor() {
     super(...arguments);
@@ -1839,7 +1839,7 @@ if (typeof customElements !== "undefined" && !customElements.get("ship-annotatio
   customElements.define("ship-annotation-layer", ShipAnnotationLayer);
 }
 
-// src/web-components/ship-annotation-list.ts
+// packages/ui/src/web-components/ship-annotation-list.ts
 var ShipAnnotationList = class extends i4 {
   constructor() {
     super(...arguments);
@@ -1953,7 +1953,7 @@ if (typeof customElements !== "undefined" && !customElements.get("ship-annotatio
   customElements.define("ship-annotation-list", ShipAnnotationList);
 }
 
-// src/web-components/ship-badge.ts
+// packages/ui/src/web-components/ship-badge.ts
 var ShipBadge = class extends i4 {
   constructor() {
     super();
@@ -2002,7 +2002,7 @@ if (typeof customElements !== "undefined" && !customElements.get("ship-badge")) 
   customElements.define("ship-badge", ShipBadge);
 }
 
-// src/web-components/ship-card.ts
+// packages/ui/src/web-components/ship-card.ts
 var ShipCard = class extends i4 {
   constructor() {
     super();
@@ -2099,7 +2099,7 @@ if (typeof customElements !== "undefined" && !customElements.get("ship-card")) {
   customElements.define("ship-card", ShipCard);
 }
 
-// src/web-components/ship-checkbox.ts
+// packages/ui/src/web-components/ship-checkbox.ts
 var ShipCheckbox = class extends i4 {
   constructor() {
     super();
@@ -2186,7 +2186,7 @@ if (typeof customElements !== "undefined" && !customElements.get("ship-checkbox"
   customElements.define("ship-checkbox", ShipCheckbox);
 }
 
-// src/web-components/typeahead.ts
+// packages/ui/src/web-components/typeahead.ts
 var Typeahead = class {
   constructor(timeout = 500) {
     this.timeout = timeout;
@@ -2229,7 +2229,7 @@ function isTypeaheadKey(e6) {
   return e6.key.length === 1 && /\S/.test(e6.key);
 }
 
-// src/web-components/ship-dropdown-menu.ts
+// packages/ui/src/web-components/ship-dropdown-menu.ts
 var ShipDropdownMenu = class extends i4 {
   constructor() {
     super(...arguments);
@@ -2401,7 +2401,7 @@ if (typeof customElements !== "undefined" && !customElements.get("ship-dropdown-
   customElements.define("ship-dropdown-menu", ShipDropdownMenu);
 }
 
-// src/web-components/ship-empty-state.ts
+// packages/ui/src/web-components/ship-empty-state.ts
 var ShipEmptyState = class extends i4 {
   constructor() {
     super(...arguments);
@@ -2472,7 +2472,7 @@ if (typeof customElements !== "undefined" && !customElements.get("ship-empty-sta
   customElements.define("ship-empty-state", ShipEmptyState);
 }
 
-// src/web-components/ship-field.ts
+// packages/ui/src/web-components/ship-field.ts
 var _ShipField = class _ShipField extends i4 {
   constructor() {
     super(...arguments);
@@ -2523,7 +2523,206 @@ if (typeof customElements !== "undefined" && !customElements.get("ship-field")) 
   customElements.define("ship-field", ShipField);
 }
 
-// src/web-components/ship-input.ts
+// packages/ui/src/web-components/ship-input.styles.ts
+var shipInputStyles = [reducedMotion, i`
+  :host {
+    display: inline-flex;
+    width: 100%;
+    --tone: var(--primary);
+    --tone-fg: var(--primary);
+  }
+  :host([hidden]) { display: none; }
+
+  :host(:not([tone])),
+  :host([tone='default']) {
+    --tone: var(--ring-color);
+    --tone-fg: var(--foreground);
+  }
+  :host([tone='info'])        { --tone: var(--info);        --tone-fg: var(--info); }
+  :host([tone='success'])     { --tone: var(--success);     --tone-fg: var(--success); }
+  :host([tone='warning'])     { --tone: var(--warning);     --tone-fg: var(--warning); }
+  :host([tone='destructive']) { --tone: var(--destructive); --tone-fg: var(--destructive); }
+  :host([tone='accent'])      { --tone: var(--accent);      --tone-fg: var(--accent); }
+  :host([tone='muted'])       { --tone: var(--muted-foreground); --tone-fg: var(--muted-foreground); }
+
+  :host(:not([size])),
+  :host([size='md']) {
+    --in-h: 34px;
+    --in-px: 10px;
+    --in-gap: var(--space-2);
+    --in-fs: var(--text-base);
+    --in-lh: 22px;
+    --in-fw: var(--font-weight-normal);
+    --in-icon: 14px;
+    --in-radius: var(--radius-md);
+  }
+  :host([size='sm']) {
+    --in-h: 28px;
+    --in-px: 8px;
+    --in-gap: 6px;
+    --in-fs: var(--text-sm);
+    --in-lh: 18px;
+    --in-fw: var(--font-weight-normal);
+    --in-icon: 12px;
+    --in-radius: var(--radius-sm);
+  }
+  :host([size='lg']) {
+    --in-h: 40px;
+    --in-px: var(--space-3);
+    --in-gap: var(--space-2);
+    --in-fs: var(--text-lg);
+    --in-lh: 24px;
+    --in-fw: var(--font-weight-medium);
+    --in-icon: 16px;
+    --in-radius: var(--radius-md);
+  }
+
+  .field {
+    display: inline-flex;
+    align-items: center;
+    gap: var(--in-gap);
+    width: 100%;
+    min-height: var(--in-h);
+    background: var(--background);
+    color: var(--foreground);
+    border: 1px solid var(--border);
+    border-radius: var(--in-radius);
+    padding: 0 var(--in-px);
+    box-shadow: var(--shadow-xs);
+    transition:
+      background-color var(--duration-fast) var(--ease-out),
+      border-color var(--duration-fast) var(--ease-out),
+      box-shadow var(--duration-fast) var(--ease-out);
+  }
+
+  /* Hover — subtle border darkening + surface lift. Mirrors shadcn's
+   * quiet-input feel: the field acknowledges the pointer without shouting. */
+  :host(:not([disabled])) .field:hover {
+    border-color: color-mix(in oklch, var(--border) 160%, transparent);
+    box-shadow: var(--shadow-sm);
+  }
+
+  /* Focus ring — stacked box-shadow so the ring sits outside the border
+   * without reserving layout. Matches ship-button's technique. */
+  .field:focus-within {
+    outline: none;
+    border-color: color-mix(in oklch, var(--tone) 70%, var(--border));
+    box-shadow:
+      0 0 0 var(--ring-width)
+        color-mix(in oklch, var(--tone) var(--ring-opacity), transparent);
+  }
+
+  /* Invalid — destructive tint on border + ring. Wins over tone so users
+   * can't miss an error state even on info/success-toned inputs. */
+  :host([invalid]) .field {
+    border-color: color-mix(in oklch, var(--destructive) 65%, var(--border));
+  }
+  :host([invalid]) .field:hover {
+    border-color: color-mix(in oklch, var(--destructive) 80%, var(--border));
+  }
+  :host([invalid]) .field:focus-within {
+    border-color: var(--destructive);
+    box-shadow:
+      0 0 0 var(--ring-width)
+        color-mix(in oklch, var(--destructive) var(--ring-opacity), transparent);
+  }
+
+  /* Ghost — no chrome at rest, materialize on focus. Keeps the title-input
+   * pattern (click-to-edit) without the old border-jump. */
+  :host([variant='ghost']) .field {
+    background: transparent;
+    border-color: transparent;
+    box-shadow: none;
+  }
+  :host([variant='ghost']:not([disabled])) .field:hover {
+    background: color-mix(in oklch, var(--muted) 50%, transparent);
+    border-color: transparent;
+    box-shadow: none;
+  }
+  :host([variant='ghost']) .field:focus-within {
+    background: var(--background);
+    border-color: color-mix(in oklch, var(--tone) 70%, var(--border));
+  }
+
+  /* Native element — transparent so the field chrome is the surface of
+   * truth. font-size is driven off the size channel, never hardcoded. */
+  input {
+    flex: 1;
+    min-width: 0;
+    border: 0;
+    outline: 0;
+    background: transparent;
+    color: inherit;
+    font-family: var(--font-body);
+    font-size: var(--in-fs);
+    font-weight: var(--in-fw);
+    line-height: var(--in-lh);
+    letter-spacing: -0.005em;
+    padding: 0;
+  }
+  input::placeholder {
+    color: var(--muted-foreground);
+    opacity: 1;
+  }
+  input:-webkit-autofill {
+    -webkit-box-shadow: 0 0 0 1000px var(--background) inset;
+    -webkit-text-fill-color: var(--foreground);
+    caret-color: var(--foreground);
+  }
+
+  /* Disabled — dim the whole field and kill pointer affordances. */
+  :host([disabled]) .field,
+  :host([readonly]) .field { cursor: not-allowed; }
+  :host([disabled]) .field {
+    background: var(--muted);
+    border-color: color-mix(in oklch, var(--border) 70%, transparent);
+    box-shadow: none;
+    opacity: 0.6;
+  }
+  input:disabled {
+    cursor: not-allowed;
+    color: var(--muted-foreground);
+  }
+  input:read-only { cursor: default; }
+
+  /* Loading spinner — sized off the adornment channel so it sits on the
+   * same optical line as a slotted icon. */
+  .spinner {
+    width: var(--in-icon);
+    height: var(--in-icon);
+    border: 1.5px solid currentColor;
+    border-right-color: transparent;
+    border-radius: 50%;
+    animation: spin 0.7s linear infinite;
+    display: inline-block;
+    flex-shrink: 0;
+    color: var(--muted-foreground);
+  }
+  @keyframes spin { to { transform: rotate(360deg); } }
+
+  /* Slotted adornments — constrain icons to the size channel so a bare
+   * <svg> drops in at the right visual weight without caller intervention. */
+  ::slotted([slot='leading']),
+  ::slotted([slot='trailing']) {
+    display: inline-flex;
+    align-items: center;
+    flex: 0 0 auto;
+    color: var(--muted-foreground);
+    font-size: var(--in-fs);
+    line-height: 1;
+  }
+  ::slotted(svg) {
+    width: var(--in-icon);
+    height: var(--in-icon);
+    display: block;
+  }
+
+  @media (forced-colors: active) {
+    .field:focus-within { outline: 2px solid CanvasText; outline-offset: 2px; }
+  }
+`];
+
+// packages/ui/src/web-components/ship-input.ts
 var _ShipInput = class _ShipInput extends i4 {
   constructor() {
     super();
@@ -2600,73 +2799,7 @@ var _ShipInput = class _ShipInput extends i4 {
   }
 };
 _ShipInput.formAssociated = true;
-_ShipInput.styles = [reducedMotion, i`
-    :host { display: inline-flex; width: 100%; }
-    .field {
-      display: inline-flex; align-items: center; gap: var(--radius-sm);
-      width: 100%;
-      background: var(--background);
-      color: var(--foreground);
-      border: 1px solid var(--border);
-      border-radius: var(--radius-md);
-      padding: 0 10px;
-      transition:
-        border-color var(--duration-fast) var(--ease-out),
-        box-shadow var(--duration-fast) var(--ease-out);
-    }
-    .field:focus-within {
-      outline: none;
-      border-color: var(--primary);
-      box-shadow:
-        0 0 0 var(--ring-width)
-          color-mix(in oklch, var(--ring-color) var(--ring-opacity), transparent);
-    }
-    :host([invalid]) .field:focus-within {
-      border-color: var(--destructive);
-      box-shadow:
-        0 0 0 var(--ring-width)
-          color-mix(in oklch, var(--destructive) var(--ring-opacity), transparent);
-    }
-    .spinner {
-      width: 12px; height: 12px;
-      border: 1.5px solid var(--muted-foreground);
-      border-right-color: transparent;
-      border-radius: 50%;
-      animation: spin 0.8s linear infinite;
-      display: inline-block;
-      flex-shrink: 0;
-    }
-    @keyframes spin { to { transform: rotate(360deg); } }
-    :host([variant='ghost']) .field {
-      background: transparent;
-      border-color: transparent;
-    }
-    :host([variant='ghost']) .field:focus-within {
-      background: var(--background);
-      border-color: var(--border);
-      outline: none;
-    }
-    :host([invalid]) .field { border-color: var(--destructive); }
-
-    input {
-      flex: 1;
-      border: 0; outline: 0; background: transparent; color: inherit;
-      font: inherit;
-      padding: 0;
-      min-width: 0;
-    }
-    input::placeholder { color: var(--muted-foreground); }
-    input:disabled { cursor: not-allowed; opacity: 0.6; }
-
-    :host([size='sm']) .field { padding: 2px 8px; }
-    :host([size='sm']) input { font-size: 12px; line-height: 20px; }
-    :host(:not([size])) .field,
-    :host([size='md']) .field { padding: 4px 10px; }
-    :host(:not([size])) input,
-    :host([size='md']) input { font-size: 13px; line-height: 22px; }
-    :host([size='lg']) .field { padding: 6px 12px; }
-    :host([size='lg']) input { font-size: 16px; line-height: 28px; font-weight: 600; }
-  `];
+_ShipInput.styles = shipInputStyles;
 _ShipInput.properties = {
   type: { type: String },
   value: { type: String },
@@ -2678,6 +2811,7 @@ _ShipInput.properties = {
   readonly: { type: Boolean, reflect: true },
   invalid: { type: Boolean, reflect: true },
   loading: { type: Boolean, reflect: true },
+  tone: { type: String, reflect: true },
   variant: { type: String, reflect: true },
   size: { type: String, reflect: true },
   label: { type: String },
@@ -2690,7 +2824,7 @@ if (typeof customElements !== "undefined" && !customElements.get("ship-input")) 
   customElements.define("ship-input", ShipInput);
 }
 
-// src/web-components/ship-label.ts
+// packages/ui/src/web-components/ship-label.ts
 var ShipLabel = class extends i4 {
   constructor() {
     super(...arguments);
@@ -2729,7 +2863,7 @@ if (typeof customElements !== "undefined" && !customElements.get("ship-label")) 
   customElements.define("ship-label", ShipLabel);
 }
 
-// src/web-components/ship-list-item.ts
+// packages/ui/src/web-components/ship-list-item.ts
 var ShipListItem = class extends i4 {
   constructor() {
     super(...arguments);
@@ -2819,7 +2953,7 @@ if (typeof customElements !== "undefined" && !customElements.get("ship-list-item
   customElements.define("ship-list-item", ShipListItem);
 }
 
-// src/web-components/ship-popover.ts
+// packages/ui/src/web-components/ship-popover.ts
 var _ShipPopover = class _ShipPopover extends i4 {
   constructor() {
     super(...arguments);
@@ -2934,7 +3068,7 @@ if (typeof customElements !== "undefined" && !customElements.get("ship-popover")
   customElements.define("ship-popover", ShipPopover);
 }
 
-// src/web-components/ship-progress.ts
+// packages/ui/src/web-components/ship-progress.ts
 var ShipProgress = class extends i4 {
   constructor() {
     super();
@@ -2999,7 +3133,242 @@ if (typeof customElements !== "undefined" && !customElements.get("ship-progress"
   customElements.define("ship-progress", ShipProgress);
 }
 
-// src/web-components/ship-select.ts
+// packages/ui/src/web-components/ship-select.styles.ts
+var shipSelectStyles = [reducedMotion, i`
+  :host {
+    display: inline-flex;
+    vertical-align: middle;
+    /* Per-host tone channel — mirrors ship-button's approach so the chrome
+     * below can stay tone-agnostic and compose freely. */
+    --tone: var(--foreground);
+    --tone-fg: var(--foreground);
+  }
+  :host([hidden]) { display: none; }
+
+  /* Tone channel. Default tone leaves the control neutral; explicit tones
+   * colorize the border + focus ring. Foreground text stays readable. */
+  :host([tone='info']) {
+    --tone: var(--info);
+    --tone-fg: var(--info);
+  }
+  :host([tone='success']) {
+    --tone: var(--success);
+    --tone-fg: var(--success);
+  }
+  :host([tone='warning']) {
+    --tone: var(--warning);
+    --tone-fg: var(--warning);
+  }
+  :host([tone='destructive']) {
+    --tone: var(--destructive);
+    --tone-fg: var(--destructive);
+  }
+  :host([tone='accent']) {
+    --tone: var(--accent);
+    --tone-fg: var(--accent);
+  }
+  :host([tone='muted']) {
+    --tone: var(--muted-foreground);
+    --tone-fg: var(--muted-foreground);
+  }
+
+  /* Size channel — one source of truth for height/padding/type scale.
+   * Matches ship-button visual weight. Values are hardcoded (not pulled
+   * from --space-* tokens) because some runtime hosts ship a tokens.css
+   * without the spacing scale, and a select that loses its padding is
+   * worse than a select that ignores a token the host didn't define. */
+  :host(:not([size])),
+  :host([size='md']) {
+    --sel-h: 34px;
+    --sel-px: 12px;
+    --sel-fs: 13px;
+    --sel-gap: 8px;
+    --sel-chev: 14px;
+  }
+  :host([size='sm']) {
+    --sel-h: 28px;
+    --sel-px: 10px;
+    --sel-fs: 12px;
+    --sel-gap: 6px;
+    --sel-chev: 12px;
+  }
+  :host([size='lg']) {
+    --sel-h: 40px;
+    --sel-px: 16px;
+    --sel-fs: 14px;
+    --sel-gap: 8px;
+    --sel-chev: 16px;
+  }
+
+  /* Field wrapper — this is the visible chrome. The real <select> sits
+   * on top, fully transparent, so clicks/keyboard/native popup still work
+   * without us re-implementing a menu. */
+  .field {
+    position: relative;
+    display: inline-flex;
+    align-items: center;
+    gap: var(--sel-gap);
+    min-height: var(--sel-h);
+    padding-inline: var(--sel-px);
+    padding-inline-end: calc(var(--sel-px) + var(--sel-chev) + 6px);
+    background: var(--background);
+    color: var(--foreground);
+    border: 1px solid var(--border);
+    border-radius: var(--radius-md);
+    box-shadow: var(--shadow-xs);
+    font-family: var(--font-body);
+    font-size: var(--sel-fs);
+    font-weight: var(--font-weight-medium);
+    line-height: 1;
+    letter-spacing: -0.005em;
+    cursor: pointer;
+    user-select: none;
+    -webkit-user-select: none;
+    transition:
+      background-color var(--duration-fast) var(--ease-out),
+      border-color var(--duration-fast) var(--ease-out),
+      box-shadow var(--duration-fast) var(--ease-out),
+      color var(--duration-fast) var(--ease-out);
+  }
+
+  /* Hover — subtle muted wash + border crispening, matching ship-button's
+   * default (no-variant) treatment so the two sit next to each other
+   * without either looking out of place. */
+  :host(:not([disabled])) .field:hover {
+    background: color-mix(in oklch, var(--muted) 70%, var(--background));
+    border-color: color-mix(in oklch, var(--border) 160%, transparent);
+    box-shadow: var(--shadow-sm);
+  }
+
+  /* Toned border when a tone is set (except default). Keeps the surface
+   * neutral while still signaling intent on the edge. */
+  :host([tone]:not([tone='default'])) .field {
+    border-color: color-mix(in oklch, var(--tone) 38%, var(--border));
+  }
+  :host([tone]:not([tone='default']):not([disabled])) .field:hover {
+    background: color-mix(in oklch, var(--tone) 8%, var(--background));
+    border-color: color-mix(in oklch, var(--tone) 55%, var(--border));
+  }
+
+  /* The real <select> — layered invisibly over the chrome. We use
+   * appearance:none to strip OS chrome, color:transparent to hide the
+   * rendered glyph, and pointer events stay enabled so the native popup
+   * fires. */
+  select {
+    position: absolute;
+    inset: 0;
+    width: 100%;
+    height: 100%;
+    margin: 0;
+    padding-inline: var(--sel-px);
+    padding-inline-end: calc(var(--sel-px) + var(--sel-chev) + 6px);
+    font: inherit;
+    color: transparent;
+    background: transparent;
+    border: 0;
+    outline: 0;
+    appearance: none;
+    -webkit-appearance: none;
+    cursor: inherit;
+  }
+  /* Keep the chosen option legible in the native popup (OS-chromed). */
+  select option { color: var(--foreground); background: var(--background); }
+
+  /* Visible label layer — mirrors the current value on top of the chrome.
+   * This is what the user actually reads; the native <select> underneath
+   * provides the menu. Sized to content so the host's intrinsic width
+   * tracks the current value (matches shadcn's trigger-hugs-label feel). */
+  .value {
+    display: inline-block;
+    max-width: 100%;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    pointer-events: none;
+  }
+  :host([data-placeholder]) .value {
+    color: var(--muted-foreground);
+  }
+
+  /* Chevron — SVG in shadow so it always matches currentColor + size.
+   * Positioned absolutely so it never contends with the text layout. */
+  .chevron {
+    position: absolute;
+    inset-block: 0;
+    inset-inline-end: var(--sel-px);
+    margin-block: auto;
+    width: var(--sel-chev);
+    height: var(--sel-chev);
+    color: var(--muted-foreground);
+    pointer-events: none;
+    transition:
+      color var(--duration-fast) var(--ease-out),
+      transform var(--duration-medium) var(--ease-out);
+  }
+  :host(:not([disabled])) .field:hover .chevron {
+    color: var(--foreground);
+  }
+  :host([tone]:not([tone='default'])) .chevron {
+    color: color-mix(in oklch, var(--tone-fg) 75%, var(--muted-foreground));
+  }
+
+  /* Focus ring — rendered on the wrapper via stacked box-shadows. The
+   * native select sits inside, so :focus-within on the host flips this on
+   * reliably whether the user tabs in or clicks. */
+  :host(:focus-within) .field {
+    outline: none;
+    border-color: color-mix(in oklch, var(--tone) 60%, var(--border));
+    box-shadow:
+      0 0 0 var(--ring-offset) var(--background),
+      0 0 0 calc(var(--ring-offset) + var(--ring-width))
+        color-mix(in oklch, var(--tone) 55%, transparent);
+  }
+  :host(:not([tone]):focus-within) .field,
+  :host([tone='default']:focus-within) .field {
+    border-color: color-mix(in oklch, var(--ring-color) 55%, var(--border));
+    box-shadow:
+      0 0 0 var(--ring-offset) var(--background),
+      0 0 0 calc(var(--ring-offset) + var(--ring-width))
+        color-mix(in oklch, var(--ring-color) var(--ring-opacity), transparent);
+  }
+
+  /* Invalid — destructive border + destructive ring, overrides tone so
+   * validation always reads first. */
+  :host([invalid]) .field {
+    border-color: var(--destructive);
+  }
+  :host([invalid]:focus-within) .field {
+    border-color: var(--destructive);
+    box-shadow:
+      0 0 0 var(--ring-offset) var(--background),
+      0 0 0 calc(var(--ring-offset) + var(--ring-width))
+        color-mix(in oklch, var(--destructive) var(--ring-opacity), transparent);
+  }
+
+  /* Disabled — muted surface, desaturated, not-allowed. 60% opacity on
+   * the whole host matches ship-button's disabled affordance. */
+  :host([disabled]) {
+    opacity: 0.6;
+    cursor: not-allowed;
+  }
+  :host([disabled]) .field {
+    background: var(--muted);
+    border-color: color-mix(in oklch, var(--border) 80%, transparent);
+    box-shadow: none;
+    cursor: not-allowed;
+    filter: saturate(0.6);
+  }
+  :host([disabled]) select {
+    cursor: not-allowed;
+  }
+
+  /* Forced-colors — make sure the ring is still visible. */
+  @media (forced-colors: active) {
+    :host(:focus-within) .field { outline: 2px solid CanvasText; outline-offset: 2px; }
+  }
+`];
+
+// packages/ui/src/web-components/ship-select.ts
 var ShipSelect = class extends i4 {
   constructor() {
     super();
@@ -3027,6 +3396,7 @@ var ShipSelect = class extends i4 {
   updated() {
     this.syncOptions();
     this.setFormValue(this.value);
+    this.updatePlaceholderState();
   }
   formResetCallback() {
     this.value = this.defaultValue;
@@ -3046,9 +3416,41 @@ var ShipSelect = class extends i4 {
     this.selectEl.appendChild(fragment);
     this.selectEl.value = this.value;
   }
+  /** Pick the label for the current value. We always read from light-DOM
+   * options (the source of truth) so the label is available on every render,
+   * including the first one before `syncOptions()` has cloned them into
+   * shadow. Falls back to the raw value so the chrome never renders empty. */
+  currentLabel() {
+    const lightOpts = Array.from(
+      this.querySelectorAll(":scope > option, :scope > optgroup > option")
+    );
+    if (lightOpts.length === 0) return this.value;
+    const match = lightOpts.find((o6) => o6.value === this.value) ?? lightOpts.find((o6) => o6.hasAttribute("selected")) ?? lightOpts[0];
+    const text = (match?.textContent || "").trim();
+    return text || match?.value || this.value;
+  }
+  /** Mirror `data-placeholder` on the host when the current option has an
+   * empty value — lets the visible label dim to `--muted-foreground`. */
+  updatePlaceholderState() {
+    const sel = this.selectEl;
+    if (!sel) {
+      const lightOpts = Array.from(
+        this.querySelectorAll(":scope > option, :scope > optgroup > option")
+      );
+      const match = lightOpts.find((o6) => o6.value === this.value) ?? lightOpts.find((o6) => o6.hasAttribute("selected")) ?? lightOpts[0];
+      if (!match || match.value === "") this.setAttribute("data-placeholder", "");
+      else this.removeAttribute("data-placeholder");
+      return;
+    }
+    const opt = sel.selectedOptions?.[0] ?? sel.options[sel.selectedIndex];
+    const isPlaceholder = !opt || opt.value === "";
+    if (isPlaceholder) this.setAttribute("data-placeholder", "");
+    else this.removeAttribute("data-placeholder");
+  }
   onChange(e6) {
     this.value = e6.target.value;
     this.setFormValue(this.value);
+    this.updatePlaceholderState();
     this.dispatchEvent(new CustomEvent("ship-change", {
       detail: { value: this.value },
       bubbles: true,
@@ -3057,41 +3459,37 @@ var ShipSelect = class extends i4 {
   }
   render() {
     return b2`
-      <select part="select"
-        name=${this.name}
-        ?required=${this.required}
-        ?disabled=${this.disabled}
-        aria-invalid=${this.invalid ? "true" : "false"}
-        aria-label=${this.label || A}
-        aria-describedby=${this.describedBy || A}
-        @change=${this.onChange}
-      ></select>
+      <div class="field" part="field">
+        <span class="value" aria-hidden="true">${this.currentLabel()}</span>
+        <svg class="chevron" part="chevron" viewBox="0 0 16 16"
+          aria-hidden="true" focusable="false" fill="none"
+          stroke="currentColor" stroke-width="1.75"
+          stroke-linecap="round" stroke-linejoin="round">
+          <path d="M4 6l4 4 4-4"></path>
+        </svg>
+        <select part="select"
+          name=${this.name}
+          ?required=${this.required}
+          ?disabled=${this.disabled}
+          aria-invalid=${this.invalid ? "true" : "false"}
+          aria-label=${this.label || A}
+          aria-describedby=${this.describedBy || A}
+          @change=${this.onChange}
+        ></select>
+      </div>
       <span hidden><slot @slotchange=${this.syncOptions}></slot></span>
     `;
   }
 };
 ShipSelect.formAssociated = true;
-ShipSelect.styles = i`
-    :host { display: inline-flex; }
-    select {
-      border: 1px solid var(--border);
-      border-radius: 6px;
-      padding: 5px 8px;
-      font: inherit; font-size: 12px;
-      background: var(--background);
-      color: var(--foreground);
-      cursor: pointer;
-    }
-    select:focus-visible { outline: 2px solid var(--primary); outline-offset: 1px; }
-    select:disabled { cursor: not-allowed; opacity: 0.6; }
-    :host([size='sm']) select { font-size: 11px; padding: 3px 6px; }
-  `;
+ShipSelect.styles = shipSelectStyles;
 ShipSelect.properties = {
   value: { type: String },
   name: { type: String },
   required: { type: Boolean, reflect: true },
   disabled: { type: Boolean, reflect: true },
   invalid: { type: Boolean, reflect: true },
+  tone: { type: String, reflect: true },
   size: { type: String, reflect: true },
   label: { type: String },
   describedBy: { type: String, attribute: "described-by" }
@@ -3100,7 +3498,7 @@ if (typeof customElements !== "undefined" && !customElements.get("ship-select"))
   customElements.define("ship-select", ShipSelect);
 }
 
-// src/web-components/ship-separator.ts
+// packages/ui/src/web-components/ship-separator.ts
 var ShipSeparator = class extends i4 {
   constructor() {
     super(...arguments);
@@ -3136,7 +3534,7 @@ if (typeof customElements !== "undefined" && !customElements.get("ship-separator
   customElements.define("ship-separator", ShipSeparator);
 }
 
-// src/web-components/ship-spinner.ts
+// packages/ui/src/web-components/ship-spinner.ts
 var ShipSpinner = class extends i4 {
   constructor() {
     super();
@@ -3174,7 +3572,7 @@ if (typeof customElements !== "undefined" && !customElements.get("ship-spinner")
   customElements.define("ship-spinner", ShipSpinner);
 }
 
-// src/web-components/ship-stat.ts
+// packages/ui/src/web-components/ship-stat.ts
 var ShipStat = class extends i4 {
   constructor() {
     super(...arguments);
@@ -3278,7 +3676,7 @@ if (typeof customElements !== "undefined" && !customElements.get("ship-stat")) {
   customElements.define("ship-stat", ShipStat);
 }
 
-// src/web-components/ship-status-dot.ts
+// packages/ui/src/web-components/ship-status-dot.ts
 var ShipStatusDot = class extends i4 {
   constructor() {
     super();
@@ -3324,7 +3722,7 @@ if (typeof customElements !== "undefined" && !customElements.get("ship-status-do
   customElements.define("ship-status-dot", ShipStatusDot);
 }
 
-// src/web-components/ship-switch.ts
+// packages/ui/src/web-components/ship-switch.ts
 var ShipSwitch = class extends i4 {
   constructor() {
     super();
@@ -3428,7 +3826,7 @@ if (typeof customElements !== "undefined" && !customElements.get("ship-switch"))
   customElements.define("ship-switch", ShipSwitch);
 }
 
-// src/web-components/ship-tabs.ts
+// packages/ui/src/web-components/ship-tabs.ts
 var ShipTab = class extends i4 {
   constructor() {
     super(...arguments);
@@ -3685,7 +4083,120 @@ if (typeof customElements !== "undefined") {
   if (!customElements.get("ship-tabs")) customElements.define("ship-tabs", ShipTabs);
 }
 
-// src/web-components/ship-textarea.ts
+// packages/ui/src/web-components/ship-textarea.styles.ts
+var shipTextareaStyles = [reducedMotion, i`
+  :host {
+    display: block;
+    width: 100%;
+    --tone: var(--ring-color);
+    --tone-fg: var(--foreground);
+  }
+  :host([hidden]) { display: none; }
+
+  :host(:not([tone])),
+  :host([tone='default']) {
+    --tone: var(--ring-color);
+    --tone-fg: var(--foreground);
+  }
+  :host([tone='info'])        { --tone: var(--info);        --tone-fg: var(--info); }
+  :host([tone='success'])     { --tone: var(--success);     --tone-fg: var(--success); }
+  :host([tone='warning'])     { --tone: var(--warning);     --tone-fg: var(--warning); }
+  :host([tone='destructive']) { --tone: var(--destructive); --tone-fg: var(--destructive); }
+  :host([tone='accent'])      { --tone: var(--accent);      --tone-fg: var(--accent); }
+  :host([tone='muted'])       { --tone: var(--muted-foreground); --tone-fg: var(--muted-foreground); }
+
+  :host(:not([size])),
+  :host([size='md']) {
+    --ta-px: 12px;
+    --ta-py: 10px;
+    --ta-fs: var(--text-base);
+    --ta-lh: 1.5;
+    --ta-radius: var(--radius-md);
+  }
+  :host([size='sm']) {
+    --ta-px: 10px;
+    --ta-py: 8px;
+    --ta-fs: var(--text-sm);
+    --ta-lh: 1.45;
+    --ta-radius: var(--radius-sm);
+  }
+
+  textarea {
+    display: block;
+    width: 100%;
+    box-sizing: border-box;
+    border: 1px solid var(--border);
+    border-radius: var(--ta-radius);
+    padding: var(--ta-py) var(--ta-px);
+    background: var(--background);
+    color: var(--foreground);
+    font-family: var(--font-body);
+    font-size: var(--ta-fs);
+    line-height: var(--ta-lh);
+    letter-spacing: -0.005em;
+    box-shadow: var(--shadow-xs);
+    transition:
+      background-color var(--duration-fast) var(--ease-out),
+      border-color var(--duration-fast) var(--ease-out),
+      box-shadow var(--duration-fast) var(--ease-out);
+  }
+
+  :host(:not([disabled])) textarea:hover {
+    border-color: color-mix(in oklch, var(--border) 160%, transparent);
+    box-shadow: var(--shadow-sm);
+  }
+
+  textarea:focus-visible,
+  textarea:focus {
+    outline: none;
+    border-color: color-mix(in oklch, var(--tone) 70%, var(--border));
+    box-shadow:
+      0 0 0 var(--ring-width)
+        color-mix(in oklch, var(--tone) var(--ring-opacity), transparent);
+  }
+
+  :host([invalid]) textarea {
+    border-color: color-mix(in oklch, var(--destructive) 65%, var(--border));
+  }
+  :host([invalid]) textarea:hover {
+    border-color: color-mix(in oklch, var(--destructive) 80%, var(--border));
+  }
+  :host([invalid]) textarea:focus-visible,
+  :host([invalid]) textarea:focus {
+    border-color: var(--destructive);
+    box-shadow:
+      0 0 0 var(--ring-width)
+        color-mix(in oklch, var(--destructive) var(--ring-opacity), transparent);
+  }
+
+  textarea::placeholder {
+    color: var(--muted-foreground);
+    opacity: 1;
+  }
+  textarea:disabled {
+    cursor: not-allowed;
+    background: var(--muted);
+    border-color: color-mix(in oklch, var(--border) 70%, transparent);
+    color: var(--muted-foreground);
+    box-shadow: none;
+    opacity: 0.6;
+  }
+  textarea:read-only { cursor: default; }
+
+  :host([variant='code']) textarea {
+    font-family: ${MONO};
+    font-size: var(--text-base);
+    line-height: 1.55;
+    letter-spacing: 0;
+    tab-size: 2;
+  }
+
+  @media (forced-colors: active) {
+    textarea:focus-visible { outline: 2px solid CanvasText; outline-offset: 2px; }
+  }
+`];
+
+// packages/ui/src/web-components/ship-textarea.ts
 var ShipTextarea = class extends i4 {
   constructor() {
     super();
@@ -3752,37 +4263,7 @@ var ShipTextarea = class extends i4 {
   }
 };
 ShipTextarea.formAssociated = true;
-ShipTextarea.styles = i`
-    :host { display: block; }
-    textarea {
-      width: 100%;
-      box-sizing: border-box;
-      border: 1px solid var(--border);
-      border-radius: 6px;
-      padding: 12px;
-      background: var(--background);
-      color: var(--foreground);
-      font: inherit;
-      font-family: var(--font-body);
-      line-height: 1.5;
-    }
-    textarea:focus {
-      outline: 2px solid var(--primary);
-      outline-offset: -1px;
-      border-color: transparent;
-    }
-    textarea::placeholder { color: var(--muted-foreground); }
-    textarea:disabled { cursor: not-allowed; opacity: 0.6; }
-
-    :host([variant='code']) textarea {
-      font-family: ${MONO};
-      font-size: 13px;
-    }
-    :host([size='sm']) textarea {
-      padding: 4px 8px;
-      font-size: 12px;
-    }
-  `;
+ShipTextarea.styles = shipTextareaStyles;
 ShipTextarea.properties = {
   value: { type: String },
   placeholder: { type: String },
@@ -3791,6 +4272,7 @@ ShipTextarea.properties = {
   required: { type: Boolean, reflect: true },
   disabled: { type: Boolean, reflect: true },
   readonly: { type: Boolean, reflect: true },
+  tone: { type: String, reflect: true },
   variant: { type: String, reflect: true },
   size: { type: String, reflect: true },
   resize: { type: String },
@@ -3802,7 +4284,7 @@ if (typeof customElements !== "undefined" && !customElements.get("ship-textarea"
   customElements.define("ship-textarea", ShipTextarea);
 }
 
-// src/web-components/ship-theme-toggle.ts
+// packages/ui/src/web-components/ship-theme-toggle.ts
 var STORAGE_KEY = "ship-theme";
 var ShipThemeToggle = class extends i4 {
   constructor() {
@@ -3874,7 +4356,7 @@ if (typeof customElements !== "undefined" && !customElements.get("ship-theme-tog
   customElements.define("ship-theme-toggle", ShipThemeToggle);
 }
 
-// src/web-components/ship-toolbar.ts
+// packages/ui/src/web-components/ship-toolbar.ts
 var ShipToolbar = class extends i4 {
   constructor() {
     super(...arguments);
@@ -3938,7 +4420,7 @@ if (typeof customElements !== "undefined" && !customElements.get("ship-toolbar")
   customElements.define("ship-toolbar", ShipToolbar);
 }
 
-// src/web-components/ship-tooltip.ts
+// packages/ui/src/web-components/ship-tooltip.ts
 var _ShipTooltip = class _ShipTooltip extends i4 {
   constructor() {
     super(...arguments);
@@ -4026,7 +4508,7 @@ if (typeof customElements !== "undefined" && !customElements.get("ship-tooltip")
   customElements.define("ship-tooltip", ShipTooltip);
 }
 
-// src/web-components/domain/ship-pipeline-step.ts
+// packages/ui/src/web-components/domain/ship-pipeline-step.ts
 var ShipPipelineStep = class extends i4 {
   constructor() {
     super(...arguments);
@@ -4136,7 +4618,7 @@ if (typeof customElements !== "undefined" && !customElements.get("ship-pipeline-
   customElements.define("ship-pipeline-step", ShipPipelineStep);
 }
 
-// src/web-components/domain/ship-pipeline-run.ts
+// packages/ui/src/web-components/domain/ship-pipeline-run.ts
 var STATE_TO_TONE = {
   dispatched: "info",
   running: "info",
@@ -4212,7 +4694,7 @@ if (typeof customElements !== "undefined" && !customElements.get("ship-pipeline-
   customElements.define("ship-pipeline-run", ShipPipelineRun);
 }
 
-// src/web-components/domain/ship-pipeline-definition.ts
+// packages/ui/src/web-components/domain/ship-pipeline-definition.ts
 var ShipPipelineDefinition = class extends i4 {
   constructor() {
     super(...arguments);
@@ -4282,7 +4764,7 @@ if (typeof customElements !== "undefined" && !customElements.get("ship-pipeline-
   customElements.define("ship-pipeline-definition", ShipPipelineDefinition);
 }
 
-// src/web-components/domain/ship-pipeline-dag.ts
+// packages/ui/src/web-components/domain/ship-pipeline-dag.ts
 var ShipPipelineDag = class extends i4 {
   connectedCallback() {
     super.connectedCallback();
@@ -4313,7 +4795,7 @@ if (typeof customElements !== "undefined" && !customElements.get("ship-pipeline-
   customElements.define("ship-pipeline-dag", ShipPipelineDag);
 }
 
-// src/web-components/domain/ship-history-row.ts
+// packages/ui/src/web-components/domain/ship-history-row.ts
 var ShipHistoryRow = class extends i4 {
   constructor() {
     super(...arguments);
@@ -4353,7 +4835,7 @@ if (typeof customElements !== "undefined" && !customElements.get("ship-history-r
   customElements.define("ship-history-row", ShipHistoryRow);
 }
 
-// src/web-components/domain/ship-spec-row.ts
+// packages/ui/src/web-components/domain/ship-spec-row.ts
 var STATUS_TO_TONE = {
   draft: "muted",
   ready: "success",
@@ -4400,7 +4882,7 @@ if (typeof customElements !== "undefined" && !customElements.get("ship-spec-row"
   customElements.define("ship-spec-row", ShipSpecRow);
 }
 
-// src/web-components/utility/ship-icon.ts
+// packages/ui/src/web-components/utility/ship-icon.ts
 var ICONS = {
   "chevron-down": "M6 9l6 6 6-6",
   "chevron-right": "M9 6l6 6-6 6",
@@ -4483,7 +4965,7 @@ if (typeof customElements !== "undefined" && !customElements.get("ship-icon")) {
   customElements.define("ship-icon", ShipIcon);
 }
 
-// src/web-components/domain/ship-git-diff.ts
+// packages/ui/src/web-components/domain/ship-git-diff.ts
 var ShipGitDiff = class extends i4 {
   constructor() {
     super(...arguments);
@@ -4753,7 +5235,7 @@ if (typeof customElements !== "undefined") {
   if (!customElements.get("ship-git-diff-line")) customElements.define("ship-git-diff-line", ShipGitDiffLine);
 }
 
-// src/web-components/observability/ship-log-line.ts
+// packages/ui/src/web-components/observability/ship-log-line.ts
 var ShipLogLine = class extends i4 {
   constructor() {
     super(...arguments);
@@ -4811,7 +5293,7 @@ if (typeof customElements !== "undefined" && !customElements.get("ship-log-line"
   customElements.define("ship-log-line", ShipLogLine);
 }
 
-// src/web-components/observability/ship-event-row.ts
+// packages/ui/src/web-components/observability/ship-event-row.ts
 var ShipEventRow = class extends i4 {
   connectedCallback() {
     super.connectedCallback();
@@ -4861,7 +5343,7 @@ if (typeof customElements !== "undefined" && !customElements.get("ship-event-row
   customElements.define("ship-event-row", ShipEventRow);
 }
 
-// src/web-components/observability/ship-timestamp.ts
+// packages/ui/src/web-components/observability/ship-timestamp.ts
 var MINUTE = 6e4;
 var HOUR = 36e5;
 var DAY = 864e5;
@@ -4923,7 +5405,7 @@ if (typeof customElements !== "undefined" && !customElements.get("ship-timestamp
   customElements.define("ship-timestamp", ShipTimestamp);
 }
 
-// src/web-components/observability/ship-json-view.ts
+// packages/ui/src/web-components/observability/ship-json-view.ts
 var ShipJsonView = class extends i4 {
   constructor() {
     super(...arguments);
@@ -5018,7 +5500,7 @@ if (typeof customElements !== "undefined" && !customElements.get("ship-json-view
   customElements.define("ship-json-view", ShipJsonView);
 }
 
-// src/web-components/observability/ship-diff.ts
+// packages/ui/src/web-components/observability/ship-diff.ts
 function diffLines(a3, b3) {
   const A2 = a3.split("\n");
   const B2 = b3.split("\n");
@@ -5118,7 +5600,7 @@ if (typeof customElements !== "undefined" && !customElements.get("ship-diff")) {
   customElements.define("ship-diff", ShipDiff);
 }
 
-// src/web-components/observability/ship-code.ts
+// packages/ui/src/web-components/observability/ship-code.ts
 var ShipCode = class extends i4 {
   constructor() {
     super(...arguments);
@@ -5188,7 +5670,7 @@ if (typeof customElements !== "undefined" && !customElements.get("ship-code")) {
   customElements.define("ship-code", ShipCode);
 }
 
-// src/web-components/observability/ship-copy-button.ts
+// packages/ui/src/web-components/observability/ship-copy-button.ts
 var ShipCopyButton = class extends i4 {
   constructor() {
     super(...arguments);
@@ -5285,7 +5767,7 @@ if (typeof customElements !== "undefined" && !customElements.get("ship-copy-butt
   customElements.define("ship-copy-button", ShipCopyButton);
 }
 
-// ../../node_modules/.pnpm/lit-html@3.3.2/node_modules/lit-html/directive.js
+// node_modules/.pnpm/lit-html@3.3.2/node_modules/lit-html/directive.js
 var t3 = { ATTRIBUTE: 1, CHILD: 2, PROPERTY: 3, BOOLEAN_ATTRIBUTE: 4, EVENT: 5, ELEMENT: 6 };
 var e4 = (t4) => (...e6) => ({ _$litDirective$: t4, values: e6 });
 var i5 = class {
@@ -5305,7 +5787,7 @@ var i5 = class {
   }
 };
 
-// ../../node_modules/.pnpm/lit-html@3.3.2/node_modules/lit-html/directives/unsafe-html.js
+// node_modules/.pnpm/lit-html@3.3.2/node_modules/lit-html/directives/unsafe-html.js
 var e5 = class extends i5 {
   constructor(i6) {
     if (super(i6), this.it = A, i6.type !== t3.CHILD) throw Error(this.constructor.directiveName + "() can only be used in child bindings");
@@ -5323,7 +5805,7 @@ var e5 = class extends i5 {
 e5.directiveName = "unsafeHTML", e5.resultType = 1;
 var o5 = e4(e5);
 
-// src/web-components/observability/ship-markdown.ts
+// packages/ui/src/web-components/observability/ship-markdown.ts
 function escape(s4) {
   return s4.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;").replace(/"/g, "&quot;");
 }
@@ -5460,7 +5942,7 @@ if (typeof customElements !== "undefined" && !customElements.get("ship-markdown"
   customElements.define("ship-markdown", ShipMarkdown);
 }
 
-// src/web-components/observability/ship-table.ts
+// packages/ui/src/web-components/observability/ship-table.ts
 var ShipTable = class extends i4 {
   constructor() {
     super(...arguments);
@@ -5518,7 +6000,7 @@ if (typeof customElements !== "undefined" && !customElements.get("ship-table")) 
   customElements.define("ship-table", ShipTable);
 }
 
-// src/web-components/observability/ship-timeline.ts
+// packages/ui/src/web-components/observability/ship-timeline.ts
 var ShipTimeline = class extends i4 {
   connectedCallback() {
     super.connectedCallback();
@@ -5654,7 +6136,7 @@ if (typeof customElements !== "undefined") {
   if (!customElements.get("ship-timeline-item")) customElements.define("ship-timeline-item", ShipTimelineItem);
 }
 
-// src/web-components/observability/ship-tree-view.ts
+// packages/ui/src/web-components/observability/ship-tree-view.ts
 var ShipTreeView = class extends i4 {
   connectedCallback() {
     super.connectedCallback();
@@ -5785,7 +6267,7 @@ if (typeof customElements !== "undefined") {
   if (!customElements.get("ship-tree-node")) customElements.define("ship-tree-node", ShipTreeNode);
 }
 
-// src/web-components/charts/util.ts
+// packages/ui/src/web-components/charts/util.ts
 var TONE_VARS = {
   default: "var(--foreground)",
   primary: "var(--primary)",
@@ -5842,7 +6324,7 @@ function arcPath(cx, cy, r4, startAngle, endAngle) {
   return `M${x1.toFixed(2)},${y1.toFixed(2)} A${r4},${r4} 0 ${large} ${sweep} ${x2.toFixed(2)},${y22.toFixed(2)}`;
 }
 
-// src/web-components/charts/ship-sparkline.ts
+// packages/ui/src/web-components/charts/ship-sparkline.ts
 var ShipSparkline = class extends i4 {
   constructor() {
     super(...arguments);
@@ -5908,7 +6390,7 @@ if (typeof customElements !== "undefined" && !customElements.get("ship-sparkline
   customElements.define("ship-sparkline", ShipSparkline);
 }
 
-// src/web-components/charts/ship-bar-chart.ts
+// packages/ui/src/web-components/charts/ship-bar-chart.ts
 var ShipBarChart = class extends i4 {
   constructor() {
     super(...arguments);
@@ -5992,7 +6474,7 @@ if (typeof customElements !== "undefined" && !customElements.get("ship-bar-chart
   customElements.define("ship-bar-chart", ShipBarChart);
 }
 
-// src/web-components/charts/ship-line-chart.ts
+// packages/ui/src/web-components/charts/ship-line-chart.ts
 var ShipLineChart = class extends i4 {
   constructor() {
     super(...arguments);
@@ -6073,7 +6555,7 @@ if (typeof customElements !== "undefined" && !customElements.get("ship-line-char
   customElements.define("ship-line-chart", ShipLineChart);
 }
 
-// src/web-components/charts/ship-area-chart.ts
+// packages/ui/src/web-components/charts/ship-area-chart.ts
 var ShipAreaChart = class extends i4 {
   constructor() {
     super(...arguments);
@@ -6155,7 +6637,7 @@ if (typeof customElements !== "undefined" && !customElements.get("ship-area-char
   customElements.define("ship-area-chart", ShipAreaChart);
 }
 
-// src/web-components/charts/ship-donut.ts
+// packages/ui/src/web-components/charts/ship-donut.ts
 var ShipDonut = class extends i4 {
   constructor() {
     super(...arguments);
@@ -6234,7 +6716,7 @@ if (typeof customElements !== "undefined" && !customElements.get("ship-donut")) 
   customElements.define("ship-donut", ShipDonut);
 }
 
-// src/web-components/charts/ship-gauge.ts
+// packages/ui/src/web-components/charts/ship-gauge.ts
 var ShipGauge = class extends i4 {
   constructor() {
     super(...arguments);
@@ -6317,7 +6799,7 @@ if (typeof customElements !== "undefined" && !customElements.get("ship-gauge")) 
   customElements.define("ship-gauge", ShipGauge);
 }
 
-// src/web-components/charts/ship-progress-ring.ts
+// packages/ui/src/web-components/charts/ship-progress-ring.ts
 var ShipProgressRing = class extends i4 {
   constructor() {
     super(...arguments);
@@ -6387,7 +6869,7 @@ if (typeof customElements !== "undefined" && !customElements.get("ship-progress-
   customElements.define("ship-progress-ring", ShipProgressRing);
 }
 
-// src/web-components/charts/ship-heatmap.ts
+// packages/ui/src/web-components/charts/ship-heatmap.ts
 var TONE_CSS_VAR = {
   default: "--foreground",
   primary: "--primary",
@@ -6472,7 +6954,7 @@ if (typeof customElements !== "undefined" && !customElements.get("ship-heatmap")
   customElements.define("ship-heatmap", ShipHeatmap);
 }
 
-// src/web-components/charts/ship-meter.ts
+// packages/ui/src/web-components/charts/ship-meter.ts
 var ShipMeter = class extends i4 {
   constructor() {
     super(...arguments);
@@ -6544,7 +7026,7 @@ if (typeof customElements !== "undefined" && !customElements.get("ship-meter")) 
   customElements.define("ship-meter", ShipMeter);
 }
 
-// src/web-components/utility/ship-avatar.ts
+// packages/ui/src/web-components/utility/ship-avatar.ts
 function initialsFromName(name) {
   const parts = name.trim().split(/\s+/).filter(Boolean);
   if (parts.length === 0) return "";
@@ -6612,7 +7094,7 @@ if (typeof customElements !== "undefined" && !customElements.get("ship-avatar"))
   customElements.define("ship-avatar", ShipAvatar);
 }
 
-// src/web-components/utility/ship-chip.ts
+// packages/ui/src/web-components/utility/ship-chip.ts
 var ShipChip = class extends i4 {
   constructor() {
     super(...arguments);
@@ -6687,7 +7169,7 @@ if (typeof customElements !== "undefined" && !customElements.get("ship-chip")) {
   customElements.define("ship-chip", ShipChip);
 }
 
-// src/web-components/utility/ship-kbd.ts
+// packages/ui/src/web-components/utility/ship-kbd.ts
 var ShipKbd = class extends i4 {
   constructor() {
     super(...arguments);
@@ -6730,7 +7212,7 @@ if (typeof customElements !== "undefined" && !customElements.get("ship-kbd")) {
   customElements.define("ship-kbd", ShipKbd);
 }
 
-// src/web-components/utility/ship-skeleton.ts
+// packages/ui/src/web-components/utility/ship-skeleton.ts
 var ShipSkeleton = class extends i4 {
   constructor() {
     super(...arguments);
@@ -6795,7 +7277,7 @@ if (typeof customElements !== "undefined" && !customElements.get("ship-skeleton"
   customElements.define("ship-skeleton", ShipSkeleton);
 }
 
-// src/web-components/utility/ship-toast.ts
+// packages/ui/src/web-components/utility/ship-toast.ts
 var ShipToastContainer = class extends i4 {
   constructor() {
     super(...arguments);
@@ -6919,7 +7401,7 @@ if (typeof customElements !== "undefined") {
     customElements.define("ship-toast", ShipToast);
 }
 
-// src/web-components/utility/ship-breadcrumb.ts
+// packages/ui/src/web-components/utility/ship-breadcrumb.ts
 var ShipBreadcrumbItem = class extends i4 {
   constructor() {
     super(...arguments);
@@ -7011,7 +7493,7 @@ if (typeof customElements !== "undefined") {
     customElements.define("ship-breadcrumb", ShipBreadcrumb);
 }
 
-// src/web-components/utility/ship-link.ts
+// packages/ui/src/web-components/utility/ship-link.ts
 var ShipLink = class extends i4 {
   constructor() {
     super(...arguments);
@@ -7075,7 +7557,7 @@ if (typeof customElements !== "undefined" && !customElements.get("ship-link")) {
   customElements.define("ship-link", ShipLink);
 }
 
-// src/web-components/utility/ship-metachip.ts
+// packages/ui/src/web-components/utility/ship-metachip.ts
 var ShipMetachip = class extends i4 {
   constructor() {
     super(...arguments);
@@ -7123,7 +7605,7 @@ if (typeof customElements !== "undefined" && !customElements.get("ship-metachip"
   customElements.define("ship-metachip", ShipMetachip);
 }
 
-// src/web-components/utility/ship-step-segments.ts
+// packages/ui/src/web-components/utility/ship-step-segments.ts
 var KNOWN = /* @__PURE__ */ new Set(["done", "failed", "pending", "running"]);
 var ShipStepSegments = class extends i4 {
   constructor() {
@@ -7176,7 +7658,7 @@ if (typeof customElements !== "undefined" && !customElements.get("ship-step-segm
   customElements.define("ship-step-segments", ShipStepSegments);
 }
 
-// src/web-components/index.ts
+// packages/ui/src/web-components/index.ts
 function registerShipComponents() {
 }
 export {

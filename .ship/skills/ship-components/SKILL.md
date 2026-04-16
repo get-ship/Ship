@@ -247,6 +247,85 @@ yesterday's first pass.
 10. **No new pnpm workspace packages** without explicit design approval.
     Everything web-component lives in `@ship/ui`.
 
+## Polish pass — bringing an existing component to shadcn/Radix quality
+
+Use this when the job is "make this component production-tier." Proven
+pattern from the ship-button polish (see git history for `ship-button.ts`).
+
+### Approach
+
+1. **Read the existing component** and its tests. Note the public API
+   (attributes, slots, events, parts) — do NOT change it.
+2. **Look at shadcn/ui and Radix Themes** for the equivalent component.
+   Match their visual weight.
+3. **CSS custom-property channels** for tone × variant × size:
+   - Per-host tone channel: `--tone`, `--tone-fg`, `--tone-contrast` set
+     once at `:host([tone=…])`; variant CSS reads from the channel.
+     Adding a tone = one `:host([tone=new])` block.
+   - Per-host size channel: `--btn-h`, `--btn-px`, `--btn-fs`, etc.
+   - Variants read from channels, not hardcoded per variant.
+4. **Micro-interactions** — hover/active/focus use `var(--duration-fast)`
+   + `var(--ease-out)`. Hover lifts 1px + `shadow-sm`; active returns to
+   0 + `shadow-xs`. Focus-visible uses stacked box-shadow ring.
+5. **States must be visually distinct:**
+   - Loading: content fades (opacity + scale), spinner overlays in
+     `currentColor`, `aria-busy` set, interactions disabled.
+   - Disabled: muted bg, desaturated filter, dimmed text, no affordances,
+     `cursor: not-allowed`.
+6. **Premium CTA treatment** — for `tone=accent` + `variant=solid`, subtle
+   gradient + colored glow on hover. Primary actions feel premium.
+7. **Optical corrections** — 0.5px padding nudges for descenders, inset
+   highlights on solid variants so fills don't look flat.
+8. **Respect `prefers-reduced-motion`** — import `reducedMotion` from
+   `util.ts`, transforms/transitions collapse automatically.
+9. **Don't break tests.** Public API and event emission unchanged.
+
+### Verification loop (required)
+
+After changes, run the full loop:
+
+1. **Unit tests**: `cd packages/ui && pnpm test <component>`
+2. **Bundle + reload daemon:**
+   ```bash
+   /workspaces/ship/node_modules/.pnpm/@esbuild+linux-x64@0.25.12/node_modules/@esbuild/linux-x64/bin/esbuild \
+     packages/ui/src/web-components/index.ts --bundle --format=esm --target=es2020 \
+     --outfile=apps/shipd/assets/ship-elements.js --log-level=warning
+   cp apps/shipd/assets/ship-elements.js apps/shell/public/vendor/ship-elements.js
+   cd /workspaces/ship && cargo build -p shipd
+   pkill -9 shipd; sleep 2
+   cd /workspaces/ship && ./target/debug/shipd --port 9315 2>/tmp/shipd.log &
+   sleep 3
+   ```
+3. **Playwright verification** (use the `web-qa` skill):
+   - Build a gallery HTML page exercising the component across all
+     tones/variants/sizes/states. Inject it via
+     `await page.setContent(html)` or render it inline into localhost:3000.
+   - Load scripts from the running daemon at `http://localhost:9315`
+     (`/api/runtime/assets/view-tokens.css`,
+     `/api/runtime/assets/ship-elements.js`).
+   - Capture console errors: target 0.
+   - Screenshot the gallery at 1400×1800, deviceScaleFactor: 2.
+   - Screenshot hover and focus states separately.
+   - Verify keyboard navigation works (Tab + Enter/Space).
+   - Write a short report to `.artifacts/web-qa/<run>/` with screenshots
+     + observations.
+4. **Update any views** that were using the old attribute names or
+   patterns the component emits (e.g. ship-select went from emitting
+   `ship-select-change` to `ship-change` — templates had to update).
+5. **Commit** only when: tests pass, zero console errors, screenshots
+   show each state deliberately.
+
+### What "production-tier" means
+
+Not: "colors match the tokens." That's a floor.
+
+Yes:
+- Hard to distinguish from shadcn/Radix equivalent in polish
+- Every state (hover, focus, active, disabled, loading) is deliberate
+- Typography is optically balanced, not just mathematically sized
+- Micro-interactions feel snappy, not sluggish
+- The component photographs well (looks good in a docs screenshot)
+
 ## Reviewing existing components
 
 When this charter lands, five components already exist in

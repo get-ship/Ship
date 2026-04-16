@@ -7,8 +7,11 @@
  * Attributes:
  *   - value, placeholder, name, required, disabled, readonly
  *   - rows: number (default 4)
+ *   - tone: default | info | success | warning | destructive | accent | muted
+ *     (tints the focus ring; `invalid` overrides to destructive)
  *   - variant: default | code (default: default)
  *   - size: sm | md (default: md)
+ *   - invalid: boolean — reflects aria-invalid + destructive border + ring
  *   - resize: none | vertical | horizontal | both (default: vertical)
  *
  * Parts:
@@ -18,8 +21,9 @@
  *   - ship-input — CustomEvent { detail: { value } }
  */
 
-import { LitElement, css, html, nothing } from 'lit'
-import { MONO } from './util'
+import { LitElement, html, nothing } from 'lit'
+import { shipTextareaStyles } from './ship-textarea.styles'
+import type { Size, Tone } from './util'
 
 export class ShipTextarea extends LitElement {
   static formAssociated = true
@@ -29,37 +33,7 @@ export class ShipTextarea extends LitElement {
     super()
     this.internals = this.attachInternals()
   }
-  static styles = css`
-    :host { display: block; }
-    textarea {
-      width: 100%;
-      box-sizing: border-box;
-      border: 1px solid var(--border);
-      border-radius: 6px;
-      padding: 12px;
-      background: var(--background);
-      color: var(--foreground);
-      font: inherit;
-      font-family: var(--font-body);
-      line-height: 1.5;
-    }
-    textarea:focus {
-      outline: 2px solid var(--primary);
-      outline-offset: -1px;
-      border-color: transparent;
-    }
-    textarea::placeholder { color: var(--muted-foreground); }
-    textarea:disabled { cursor: not-allowed; opacity: 0.6; }
-
-    :host([variant='code']) textarea {
-      font-family: ${MONO};
-      font-size: 13px;
-    }
-    :host([size='sm']) textarea {
-      padding: 4px 8px;
-      font-size: 12px;
-    }
-  `
+  static styles = shipTextareaStyles
 
   static properties = {
     value: { type: String },
@@ -69,6 +43,7 @@ export class ShipTextarea extends LitElement {
     required: { type: Boolean, reflect: true },
     disabled: { type: Boolean, reflect: true },
     readonly: { type: Boolean, reflect: true },
+    tone: { type: String, reflect: true },
     variant: { type: String, reflect: true },
     size: { type: String, reflect: true },
     resize: { type: String },
@@ -84,8 +59,9 @@ export class ShipTextarea extends LitElement {
   required = false
   disabled = false
   readonly = false
+  tone?: Tone
   variant: 'default' | 'code' = 'default'
-  size: 'sm' | 'md' = 'md'
+  size: Size = 'md'
   resize: 'none' | 'vertical' | 'horizontal' | 'both' = 'vertical'
   invalid = false
   label = ''
