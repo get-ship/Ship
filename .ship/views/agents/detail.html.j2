@@ -1,273 +1,58 @@
 {#-
-  Agent detail — tabbed config page.
+  Agent detail — stacked sections with sticky header.
   Context: agent (AgentDetail), tiers (Vec<TierRow>).
 
-  Parity target: apps/web/src/routes/studio/agents/$id.tsx +
-                 apps/web/src/features/agents/sections/*
+  Parity target: apps/web/src/routes/studio/agents/$id.tsx
+  - Sticky header: avatar (28px) + name (display bold) + version + delete
+  - Five stacked sections: Skills, MCP, Permissions, Rules, Providers
+  - Each section uses the SectionShell pattern (icon + title + count + action)
 -#}
-{% from '_ship.html.j2' import head, signal, get, on %}
+{% from '_ship.html.j2' import head, signal, get, radio %}
 {% from '_urls.html.j2' import view_agents, view_agent_detail %}
 <!DOCTYPE html>
 <html lang="en">
 <head>
   {{ head(agent.name) }}
-  <style>
-  .ad-view { color: var(--foreground); font-family: var(--font-body); min-height: 100vh; }
-  .ad-wrap { max-width: 68rem; margin: 0 auto; padding: var(--space-4) var(--space-5) var(--space-8); }
-  .ad-crumb { margin-bottom: var(--space-3); }
-  .ad-header {
-    display: flex; align-items: center; gap: var(--space-3);
-    padding: var(--space-3) 0 var(--space-4);
-    margin-bottom: var(--space-2);
-    border-bottom: 1px solid var(--border);
-    position: sticky; top: 0; z-index: 20;
-    background: color-mix(in oklch, var(--background) 92%, transparent);
-    backdrop-filter: saturate(160%) blur(8px);
-    -webkit-backdrop-filter: saturate(160%) blur(8px);
-  }
-  .ad-title-block { min-width: 0; flex: 1; }
-  .ad-name {
-    font-family: var(--font-display);
-    font-size: var(--text-lg);
-    font-weight: var(--font-weight-bold);
-    letter-spacing: -0.01em;
-    margin: 0;
-    color: var(--foreground);
-    overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
-  }
-  .ad-id {
-    font-family: var(--font-mono);
-    font-size: 10px;
-    color: var(--muted-foreground);
-    margin-top: 2px;
-  }
-  .ad-desc {
-    font-size: var(--text-sm);
-    color: var(--muted-foreground);
-    line-height: 1.6;
-    margin: var(--space-3) 0 var(--space-4);
-    max-width: 60ch;
-  }
-  .ad-meta-row {
-    display: flex; flex-wrap: wrap; align-items: baseline;
-    padding: var(--space-2) 0 var(--space-4);
-    border-top: 1px solid color-mix(in oklch, var(--border) 60%, transparent);
-    border-bottom: 1px solid color-mix(in oklch, var(--border) 60%, transparent);
-    margin-bottom: var(--space-4);
-  }
-  .ad-tabs { --ship-tabs-sticky-top: 64px; }
-  .ad-panel {
-    padding: var(--space-4) 0 var(--space-2);
-  }
-  .ad-section-head {
-    display: flex; align-items: center; justify-content: space-between;
-    margin-bottom: var(--space-3);
-    gap: var(--space-2);
-  }
-  .ad-section-title {
-    font-size: 11px;
-    font-weight: var(--font-weight-semibold);
-    text-transform: uppercase;
-    letter-spacing: 0.08em;
-    color: var(--muted-foreground);
-    margin: 0;
-    display: inline-flex; align-items: center; gap: var(--space-2);
-  }
-  .ad-section-count {
-    font-size: 10px;
-    font-weight: var(--font-weight-normal);
-    color: var(--muted-foreground);
-    opacity: 0.7;
-    margin-left: 2px;
-  }
-  .ad-chip-grid {
-    display: flex; flex-wrap: wrap; gap: var(--space-2);
-  }
-  .ad-item-chip {
-    display: inline-flex; align-items: center; gap: var(--space-2);
-    padding: 6px 10px;
-    border: 1px solid color-mix(in oklch, var(--border) 70%, transparent);
-    border-radius: var(--radius-md);
-    background: color-mix(in oklch, var(--card) 70%, transparent);
-    font-size: var(--text-xs);
-    color: var(--foreground);
-    min-height: 32px;
-  }
-  .ad-item-chip .lead {
-    display: inline-flex; align-items: center; justify-content: center;
-    width: 22px; height: 22px;
-    border-radius: var(--radius-sm);
-    background: color-mix(in oklch, var(--primary) 14%, transparent);
-    color: var(--primary);
-    font-size: 10px;
-    font-weight: var(--font-weight-semibold);
-    text-transform: uppercase;
-  }
-  .ad-item-chip .lead.mcp {
-    background: color-mix(in oklch, var(--info) 16%, transparent);
-    color: var(--info);
-  }
-  .ad-rule-row {
-    display: flex; align-items: center; gap: var(--space-3);
-    padding: var(--space-2) var(--space-3);
-    border: 1px solid color-mix(in oklch, var(--border) 60%, transparent);
-    border-radius: var(--radius-md);
-    background: color-mix(in oklch, var(--card) 70%, transparent);
-  }
-  .ad-rule-name {
-    font-family: var(--font-mono);
-    font-size: 11px;
-    color: var(--foreground);
-    background: var(--muted);
-    padding: 2px 8px;
-    border-radius: var(--radius-sm);
-    flex-shrink: 0;
-  }
-  .ad-stack { display: flex; flex-direction: column; gap: var(--space-2); }
-  .ad-perm-grid {
-    display: grid;
-    grid-template-columns: repeat(auto-fit, minmax(220px, 1fr));
-    gap: var(--space-2);
-  }
-  .ad-perm-card {
-    display: flex; flex-direction: column; gap: 6px;
-    padding: var(--space-3);
-    border: 1px solid var(--border);
-    border-radius: var(--radius-md);
-    background: var(--card);
-    cursor: pointer;
-    transition: border-color var(--duration-fast) var(--ease-out),
-                background-color var(--duration-fast) var(--ease-out),
-                box-shadow var(--duration-fast) var(--ease-out);
-  }
-  .ad-perm-card:hover {
-    border-color: color-mix(in oklch, var(--primary) 40%, var(--border));
-  }
-  .ad-perm-card[aria-checked="true"] {
-    border-color: var(--primary);
-    background: color-mix(in oklch, var(--primary) 6%, var(--card));
-    box-shadow: 0 0 0 1px color-mix(in oklch, var(--primary) 40%, transparent) inset;
-  }
-  .ad-perm-head {
-    display: flex; align-items: center; gap: var(--space-2);
-    font-size: var(--text-sm);
-    font-weight: var(--font-weight-semibold);
-    color: var(--foreground);
-  }
-  .ad-perm-card[aria-checked="true"] .ad-perm-head { color: var(--primary); }
-  .ad-perm-desc {
-    font-size: 11px;
-    color: var(--muted-foreground);
-    line-height: 1.5;
-    margin: 0;
-  }
-  .ad-provider-grid {
-    display: grid;
-    grid-template-columns: repeat(auto-fill, minmax(220px, 1fr));
-    gap: var(--space-2);
-  }
-  .ad-provider-card {
-    display: flex; align-items: center; gap: var(--space-3);
-    padding: var(--space-3);
-    border: 1px solid color-mix(in oklch, var(--border) 60%, transparent);
-    border-radius: var(--radius-md);
-    background: color-mix(in oklch, var(--card) 70%, transparent);
-    transition: border-color var(--duration-fast) var(--ease-out);
-  }
-  .ad-provider-card:hover {
-    border-color: var(--border);
-  }
-  .ad-provider-card.default {
-    border-color: color-mix(in oklch, var(--primary) 40%, var(--border));
-    background: color-mix(in oklch, var(--primary) 4%, var(--card));
-  }
-  .ad-provider-avatar {
-    width: 36px; height: 36px;
-    border-radius: var(--radius-md);
-    background: var(--muted);
-    display: inline-flex; align-items: center; justify-content: center;
-    font-family: var(--font-mono);
-    font-size: 13px;
-    font-weight: var(--font-weight-semibold);
-    color: var(--foreground);
-    text-transform: uppercase;
-    flex-shrink: 0;
-  }
-  .ad-provider-body { min-width: 0; flex: 1; }
-  .ad-provider-name {
-    font-size: var(--text-sm);
-    font-weight: var(--font-weight-medium);
-    color: var(--foreground);
-    display: inline-flex; align-items: center; gap: 6px;
-  }
-  .ad-provider-sub {
-    font-size: 11px;
-    color: var(--muted-foreground);
-    margin-top: 2px;
-  }
-  .ad-empty {
-    font-size: var(--text-sm);
-    color: var(--muted-foreground);
-    padding: var(--space-4);
-    text-align: center;
-    border: 1px dashed color-mix(in oklch, var(--border) 70%, transparent);
-    border-radius: var(--radius-md);
-  }
-  @media (prefers-reduced-motion: reduce) {
-    .ad-perm-card, .ad-provider-card { transition: none; }
-  }
-  </style>
+  {% include 'agents/partials/detail_styles.html.j2' %}
 </head>
 <body>
-<div id="ship-view-root" class="ship-view ad-view" {{ signal('tier', agent.permissions_tier) }}>
-  <div class="ad-wrap">
+<div id="ship-view-root" class="ship-view ad-view"
+     {{ signal('tier', agent.permissions_tier) }}>
 
-    <ship-breadcrumb class="ad-crumb">
-      <ship-breadcrumb-item {{ get(view_agents()) }} style="cursor:pointer">
-        Agents
-      </ship-breadcrumb-item>
-      <ship-breadcrumb-item active>{{ agent.name }}</ship-breadcrumb-item>
-    </ship-breadcrumb>
+  <!-- Sticky header -->
+  <header class="ad-header">
+    <button class="ad-back-btn" {{ get(view_agents()) }}
+            aria-label="Back to agents">
+      <svg width="16" height="16" viewBox="0 0 24 24" fill="none"
+           stroke="currentColor" stroke-width="2" stroke-linecap="round"
+           stroke-linejoin="round">
+        <polyline points="15 18 9 12 15 6"/>
+      </svg>
+    </button>
+    <div class="ad-avatar">{{ agent.letter }}</div>
+    <h1 class="ad-name">{{ agent.name }}</h1>
+    <span class="ad-version">0.0.0</span>
+    <div class="ad-header-spacer"></div>
+    <button class="ad-delete-btn" aria-label="Delete agent">
+      <svg width="16" height="16" viewBox="0 0 24 24" fill="none"
+           stroke="currentColor" stroke-width="2" stroke-linecap="round"
+           stroke-linejoin="round">
+        <polyline points="3 6 5 6 21 6"/>
+        <path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"/>
+      </svg>
+    </button>
+  </header>
 
-    <header class="ad-header">
-      <ship-avatar size="lg" tone="accent" name="{{ agent.name }}"></ship-avatar>
-      <div class="ad-title-block">
-        <h1 class="ad-name">{{ agent.name }}</h1>
-        <div class="ad-id">{{ agent.id }}</div>
-      </div>
-      <ship-button size="sm" variant="ghost" {{ get(view_agents()) }}>
-        <ship-icon slot="leading" name="arrow-left"></ship-icon>
-        Back
-      </ship-button>
-    </header>
-
-    {% if agent.description %}
-      <p class="ad-desc">{{ agent.description }}</p>
-    {% endif %}
-
-    <div class="ad-meta-row">
-      <ship-metachip label="Skills" value="{{ agent.skills | length }}"></ship-metachip>
-      <ship-metachip label="MCP" value="{{ agent.mcp_servers | length }}"></ship-metachip>
-      <ship-metachip label="Rules" value="{{ agent.rules | length }}"></ship-metachip>
-      <ship-metachip label="Providers" value="{{ agent.providers | length }}"></ship-metachip>
-      <ship-metachip label="Tier" value="{{ agent.permissions_tier }}"></ship-metachip>
-    </div>
-
-    <ship-tabs class="ad-tabs" variant="underline" active="skills">
-      <ship-tab name="skills" label="Skills" count="{{ agent.skills | length }}"></ship-tab>
-      <ship-tab name="mcp" label="MCP" count="{{ agent.mcp_servers | length }}"></ship-tab>
-      <ship-tab name="rules" label="Rules" count="{{ agent.rules | length }}"></ship-tab>
-      <ship-tab name="permissions" label="Permissions"></ship-tab>
-      <ship-tab name="providers" label="Providers" count="{{ agent.providers | length }}"></ship-tab>
-
-      {% include 'agents/partials/panel_skills.html.j2' %}
-      {% include 'agents/partials/panel_mcp.html.j2' %}
-      {% include 'agents/partials/panel_rules.html.j2' %}
-      {% include 'agents/partials/panel_permissions.html.j2' %}
-      {% include 'agents/partials/panel_providers.html.j2' %}
-    </ship-tabs>
-
+  <!-- Scrollable body with all sections -->
+  <div class="ad-body">
+    {% include 'agents/partials/panel_skills.html.j2' %}
+    {% include 'agents/partials/panel_mcp.html.j2' %}
+    {% include 'agents/partials/panel_permissions.html.j2' %}
+    {% include 'agents/partials/panel_rules.html.j2' %}
+    {% include 'agents/partials/panel_providers.html.j2' %}
+    <div class="ad-bottom-spacer"></div>
   </div>
+
 </div>
 </body>
 </html>

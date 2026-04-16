@@ -1,30 +1,97 @@
-{#- Permissions tab panel. Context: agent, tiers (Vec<TierRow>).
-    Each tier is a radio-style card. $tier signal holds the selected tier id. -#}
+{#- Permissions section. Context: agent (AgentDetail), tiers (Vec<TierRow>).
+    Parity: apps/web/src/features/agents/sections/PermissionsSection.tsx
+    - Three preset buttons (Standard / Autonomous / Read Only)
+    - Three permission cards (Allow / Ask / Deny) -#}
 {% from '_ship.html.j2' import radio %}
-<ship-tab-panel name="permissions">
-  <div class="ad-panel">
-    <div class="ad-section-head">
-      <h2 class="ad-section-title">
-        <ship-icon name="check" size="sm"></ship-icon>
-        Permission tier
-      </h2>
+<section id="section-permissions" class="ad-section">
+  <div class="ad-section-head">
+    <h2 class="ad-section-label">
+      <svg class="ad-section-icon" viewBox="0 0 24 24" fill="none"
+           stroke="currentColor" stroke-width="2" stroke-linecap="round"
+           stroke-linejoin="round">
+        <rect width="18" height="11" x="3" y="11" rx="2" ry="2"/>
+        <path d="M7 11V7a5 5 0 0 1 10 0v4"/>
+      </svg>
+      Permissions
+    </h2>
+    <button class="ad-section-action" disabled>
+      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor"
+           stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+        <path d="M17 3a2.85 2.83 0 1 1 4 4L7.5 20.5 2 22l1.5-5.5Z"/>
+      </svg>
+      Edit
+    </button>
+  </div>
+
+  <!-- Preset buttons -->
+  <div class="ad-preset-row" role="radiogroup" aria-label="Permission preset">
+    {% for t in tiers %}
+      <button class="ad-preset-btn"
+              role="radio"
+              tabindex="0"
+              {{ radio('tier', t.id) }}
+              aria-checked="{% if t.selected %}true{% else %}false{% endif %}">
+        <span class="ad-preset-label">
+          {% if t.id == 'standard' %}
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor"
+                 stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+              <path d="M20 13c0 5-3.5 7.5-7.66 8.95a1 1 0 0 1-.67-.01C7.5 20.5 4 18 4 13V6a1 1 0 0 1 1-1c2 0 4.5-1.2 6.24-2.72a1.17 1.17 0 0 1 1.52 0C14.51 3.81 17 5 19 5a1 1 0 0 1 1 1z"/>
+            </svg>
+          {% elif t.id == 'autonomous' %}
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor"
+                 stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+              <path d="M20 13c0 5-3.5 7.5-7.66 8.95a1 1 0 0 1-.67-.01C7.5 20.5 4 18 4 13V6a1 1 0 0 1 1-1c2 0 4.5-1.2 6.24-2.72a1.17 1.17 0 0 1 1.52 0C14.51 3.81 17 5 19 5a1 1 0 0 1 1 1z"/>
+              <path d="m9 12 2 2 4-4"/>
+            </svg>
+          {% else %}
+            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor"
+                 stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+              <path d="M20 13c0 5-3.5 7.5-7.66 8.95a1 1 0 0 1-.67-.01C7.5 20.5 4 18 4 13V6a1 1 0 0 1 1-1c2 0 4.5-1.2 6.24-2.72a1.17 1.17 0 0 1 1.52 0C14.51 3.81 17 5 19 5a1 1 0 0 1 1 1z"/>
+              <path d="m2 2 20 20"/>
+            </svg>
+          {% endif %}
+          {{ t.label }}
+        </span>
+        <p class="ad-preset-desc">{{ t.description }}</p>
+      </button>
+    {% endfor %}
+  </div>
+
+  <!-- Permission cards -->
+  <div class="ad-perm-grid">
+    <div class="ad-perm-card">
+      <div class="ad-perm-card-head ad-perm-card-head--allow">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor"
+             stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+          <path d="M20 6 9 17l-5-5"/>
+        </svg>
+        Allow
+      </div>
+      <p class="ad-perm-card-list"><span class="ad-perm-none">none</span></p>
     </div>
-    <div class="ad-perm-grid" role="radiogroup" aria-label="Permission tier">
-      {% for t in tiers %}
-        <div class="ad-perm-card"
-             role="radio"
-             tabindex="0"
-             {{ radio('tier', t.id) }}
-             aria-checked="{% if t.selected %}true{% else %}false{% endif %}">
-          <div class="ad-perm-head">
-            <ship-icon
-              name="{% if t.id == 'standard' %}check{% elif t.id == 'autonomous' %}sparkles{% else %}info{% endif %}"
-              size="sm"></ship-icon>
-            {{ t.label }}
-          </div>
-          <p class="ad-perm-desc">{{ t.description }}</p>
-        </div>
-      {% endfor %}
+    <div class="ad-perm-card">
+      <div class="ad-perm-card-head ad-perm-card-head--ask">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor"
+             stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+          <circle cx="12" cy="12" r="10"/>
+          <path d="M9.09 9a3 3 0 0 1 5.83 1c0 2-3 3-3 3"/>
+          <path d="M12 17h.01"/>
+        </svg>
+        Ask
+      </div>
+      <p class="ad-perm-card-list"><span class="ad-perm-none">none</span></p>
+    </div>
+    <div class="ad-perm-card">
+      <div class="ad-perm-card-head ad-perm-card-head--deny">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor"
+             stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+          <circle cx="12" cy="12" r="10"/>
+          <path d="m15 9-6 6"/>
+          <path d="m9 9 6 6"/>
+        </svg>
+        Deny
+      </div>
+      <p class="ad-perm-card-list"><span class="ad-perm-none">none</span></p>
     </div>
   </div>
-</ship-tab-panel>
+</section>

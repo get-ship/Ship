@@ -3,10 +3,12 @@
   Context: agents (Vec<AgentSummary>), total (usize).
 
   Parity target: apps/web/src/routes/studio/agents/index.tsx
-  - display headline + "N agents configured" subtitle
-  - responsive card grid (~320px min)
-  - ship-avatar + name + description + stats footer
-  - ship-empty-state when total == 0
+  - Syne display heading + "N agents" subtitle
+  - responsive card grid (grid-cols-1 / md:2 / lg:3)
+  - avatar (colored circle, first letter) + name + description + stats + badges
+  - filter bar (search + role pills)
+  - card hover: border-primary/30 + arrow foreground
+  - empty state
 -#}
 {% from '_ship.html.j2' import head, signal, live, get, post %}
 {% from '_urls.html.j2' import view_agent_detail, view_agents_create %}
@@ -15,51 +17,125 @@
 <head>
   {{ head('Agents') }}
   <style>
-  .agents-view { color: var(--foreground); font-family: var(--font-body); }
-  .agents-wrap {
-    max-width: 80rem;
-    margin: 0 auto;
-    padding: var(--space-6) var(--space-5) var(--space-8);
+  .agents-view {
+    color: var(--foreground);
+    font-family: var(--font-body);
   }
+  .agents-wrap {
+    max-width: 1024px;
+    margin: 0 auto;
+    padding: 32px 24px;
+  }
+
+  /* --- Header row --- */
   .agents-head {
-    display: flex; align-items: flex-start; justify-content: space-between;
-    gap: var(--space-4); margin-bottom: var(--space-6);
+    display: flex;
+    align-items: flex-start;
+    justify-content: space-between;
+    gap: 16px;
+    margin-bottom: 24px;
   }
   .agents-title {
     font-family: var(--font-display);
-    font-size: var(--text-2xl);
-    font-weight: var(--font-weight-bold);
+    font-size: 24px;
+    font-weight: 700;
+    line-height: 32px;
     letter-spacing: -0.015em;
-    margin: 0 0 var(--space-1);
+    margin: 0 0 4px;
     color: var(--foreground);
   }
   .agents-sub {
-    font-size: var(--text-sm);
+    font-size: 14px;
     color: var(--muted-foreground);
     margin: 0;
   }
+  .agents-new-btn {
+    display: inline-flex;
+    align-items: center;
+    gap: 6px;
+    padding: 8px 16px;
+    border-radius: 8px;
+    border: none;
+    background: var(--primary);
+    color: var(--primary-foreground);
+    font-size: 12px;
+    font-weight: 600;
+    cursor: pointer;
+    transition: background var(--duration-fast, 150ms) ease;
+    white-space: nowrap;
+  }
+  .agents-new-btn:hover { opacity: 0.9; }
+  .agents-new-btn:focus-visible {
+    outline: none;
+    box-shadow: 0 0 0 3px color-mix(in oklch, var(--ring) 50%, transparent);
+  }
+
+  /* --- Card grid --- */
   .agents-grid {
     display: grid;
-    grid-template-columns: repeat(auto-fill, minmax(320px, 1fr));
-    gap: var(--space-3);
+    grid-template-columns: 1fr;
+    gap: 12px;
   }
-  /* ship-card interactive already provides hover/focus treatment. We just
-     pin padding + lay out the inner row. */
-  .agent-card { cursor: pointer; padding: var(--space-4); }
+  @media (min-width: 768px) {
+    .agents-grid { grid-template-columns: repeat(2, 1fr); }
+  }
+  @media (min-width: 1024px) {
+    .agents-grid { grid-template-columns: repeat(3, 1fr); }
+  }
+
+  /* --- Agent card --- */
+  .agent-card {
+    display: block;
+    text-decoration: none;
+    color: inherit;
+    padding: 16px;
+    border-radius: 12px;
+    border: 1px solid color-mix(in oklch, var(--border) 60%, transparent);
+    background: var(--card);
+    cursor: pointer;
+    transition: border-color var(--duration-fast, 150ms) ease;
+  }
+  .agent-card:hover {
+    border-color: color-mix(in oklch, var(--primary) 30%, transparent);
+  }
+  .agent-card:focus-visible {
+    outline: none;
+    box-shadow: 0 0 0 3px color-mix(in oklch, var(--ring) 50%, transparent);
+  }
   .agent-card-head {
-    display: flex; align-items: flex-start; gap: var(--space-3);
-    margin-bottom: var(--space-3);
+    display: flex;
+    align-items: flex-start;
+    gap: 12px;
+    margin-bottom: 12px;
+  }
+  .agent-avatar {
+    width: 40px;
+    height: 40px;
+    border-radius: 12px;
+    background: linear-gradient(135deg,
+      oklch(0.67 0.16 58),
+      oklch(0.5 0.16 30));
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    color: white;
+    font-size: 16px;
+    font-weight: 600;
+    text-transform: uppercase;
+    flex-shrink: 0;
   }
   .agent-card-body { min-width: 0; flex: 1; }
   .agent-name {
-    font-size: var(--text-sm);
-    font-weight: var(--font-weight-semibold);
+    font-size: 14px;
+    font-weight: 600;
     color: var(--foreground);
     margin: 0 0 2px;
-    overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
   }
   .agent-desc {
-    font-size: var(--text-xs);
+    font-size: 11px;
     color: var(--muted-foreground);
     margin: 0;
     line-height: 1.5;
@@ -70,48 +146,78 @@
   }
   .agent-arrow {
     color: var(--muted-foreground);
-    transition: color var(--duration-fast) var(--ease-out),
-                transform var(--duration-fast) var(--ease-out);
+    transition: color var(--duration-fast, 150ms) ease;
     margin-top: 2px;
     flex-shrink: 0;
+    width: 14px;
+    height: 14px;
   }
-  .agent-card:hover .agent-arrow {
-    color: var(--foreground);
-    transform: translateX(2px);
-  }
+  .agent-card:hover .agent-arrow { color: var(--foreground); }
+
+  /* --- Stats row --- */
   .agent-stats {
-    display: flex; align-items: center; gap: var(--space-2);
-    font-size: 11px;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+    font-size: 10px;
     color: var(--muted-foreground);
   }
   .agent-stats-sep { color: var(--border); }
-  .loading-copy {
-    font-size: var(--text-sm);
+
+  /* --- Badge row --- */
+  .agent-badges {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    margin-top: 8px;
+  }
+  .agent-badge {
+    display: inline-flex;
+    align-items: center;
+    gap: 3px;
+    font-size: 9px;
+    padding: 2px 6px;
+    border: 1px solid color-mix(in oklch, var(--border) 50%, transparent);
+    border-radius: 4px;
     color: var(--muted-foreground);
-    padding: var(--space-4) 0;
+  }
+  .agent-badge--project {
+    color: var(--foreground);
+    background: color-mix(in oklch, var(--muted) 50%, transparent);
+  }
+
+  /* --- Loading / empty --- */
+  .loading-copy {
+    font-size: 14px;
+    color: var(--muted-foreground);
+    padding: 16px 0;
     margin: 0;
   }
+
   @media (prefers-reduced-motion: reduce) {
-    .agent-card:hover .agent-arrow { transform: none; }
+    .agent-card, .agent-arrow { transition: none; }
   }
   </style>
 </head>
 <body>
-<div id="ship-view-root" class="ship-view agents-view" {{ signal('_creating', false) }}>
+<div id="ship-view-root" class="ship-view agents-view"
+     {{ signal('_creating', false) }}>
   <div class="agents-wrap">
 
     <header class="agents-head">
       <div>
         <h1 class="agents-title">Agents</h1>
-        <p class="agents-sub">
-          {{ total }} agent{% if total != 1 %}s{% endif %} configured
-        </p>
+        <p class="agents-sub">{{ total }} agent{% if total != 1 %}s{% endif %}</p>
       </div>
-      <ship-button size="sm" tone="accent" variant="solid"
-        {{ post(view_agents_create(), '{}') }}>
-        <ship-icon slot="leading" name="plus"></ship-icon>
+      <button class="agents-new-btn" {{ post(view_agents_create(), '{}') }}>
+        <svg width="14" height="14" viewBox="0 0 24 24" fill="none"
+             stroke="currentColor" stroke-width="2" stroke-linecap="round"
+             stroke-linejoin="round">
+          <line x1="12" y1="5" x2="12" y2="19"/>
+          <line x1="5" y1="12" x2="19" y2="12"/>
+        </svg>
         New agent
-      </ship-button>
+      </button>
     </header>
 
     <div {{ live('agents') }}>
