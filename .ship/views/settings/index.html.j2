@@ -1,7 +1,7 @@
 {#-
-  Settings view -- self-contained shell with Datastar live updates.
-  Loaded by the daemon via .ship/views/settings/. The Rust handler
-  supplies SettingsCtx (providers, terminal, advanced, about).
+  Settings view -- matches React /studio/settings parity.
+  Single-column centered layout with four card sections:
+  Providers, Terminal, Advanced (collapsible), About.
 -#}
 {% from '_ship.html.j2' import head, signal, live, styles %}
 {% from '_urls.html.j2' import view_settings_sse %}
@@ -14,28 +14,30 @@
     .settings-wrap {
       max-width: 768px;
       margin: 0 auto;
-      padding: 24px 20px 48px;
+      padding: 24px 24px 96px;
       width: 100%;
     }
-    .settings-header { margin-bottom: 20px; }
+    .settings-header { margin-bottom: 24px; }
     .settings-header h1 {
       font-family: var(--font-display);
       font-size: 20px;
       font-weight: 700;
-      letter-spacing: -0.01em;
+      line-height: 28px;
       margin: 0;
       color: var(--foreground);
     }
     .settings-header p {
       font-size: 13px;
+      line-height: 19.5px;
       color: var(--muted-foreground);
-      margin: 4px 0 0;
+      margin: 2px 0 0;
     }
   </style>
 </head>
 <body>
 <div id="ship-view-root" class="ship-view ship-view-settings"
-     {{ signal('section', 'all') }}>
+     {{ signal('section', 'all') }}
+     {{ signal('advancedOpen', false) }}>
   <main class="settings-wrap">
     <header class="settings-header">
       <h1>Settings</h1>

@@ -75,6 +75,7 @@ pub struct SettingsCtx {
     pub terminal: TerminalConfig,
     pub advanced: Vec<FeatureFlag>,
     pub advanced_registry: String,
+    pub daemon_endpoint: String,
     pub about: AboutInfo,
 }
 
@@ -163,6 +164,12 @@ fn build_ctx(_params: &SettingsParams) -> SettingsCtx {
     let default_model = setting_string("defaults.model");
     let providers = detect_providers(&default_provider);
     let advanced_registry = setting_string("registry.endpoint");
+    let daemon_port = setting_string("daemon.port");
+    let daemon_endpoint = if daemon_port.is_empty() {
+        "http://localhost:9315".to_string()
+    } else {
+        format!("http://localhost:{}", daemon_port)
+    };
 
     SettingsCtx {
         providers,
@@ -171,6 +178,7 @@ fn build_ctx(_params: &SettingsParams) -> SettingsCtx {
         terminal: build_terminal(),
         advanced: Vec::new(),
         advanced_registry,
+        daemon_endpoint,
         about: build_about(),
     }
 }
