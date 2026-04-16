@@ -75,8 +75,8 @@ pub fn run(opts: RunOptions) -> Result<()> {
         "headless": opts.headless,
     });
 
-    // Tmux session name the PtyExecutor uses. Mirrors
-    // `apps/shipd/src/supervisor/executors/pty.rs::session_name`.
+    // Tmux session name the TmuxWindowExecutor uses. Mirrors
+    // `apps/shipd/src/supervisor/executors/tmux_window.rs::session_name`.
     let tmux_short: String = {
         let sanitized: String = slug
             .chars()

@@ -1,4 +1,7 @@
-//! PtyExecutor — spawns pipeline steps in tmux PTY windows.
+//! TmuxWindowExecutor — executes pipeline steps as tmux windows inside a
+//! shared per-slug session. Output captured via `tee` into
+//! `.artifacts/pipeline/NN-<step>.log`. Use for interactive-attach
+//! pipelines. Not a PTY.
 //!
 //! A pipeline run gets one tmux session named `ship-<slug>` (full slug,
 //! sanitized for tmux-forbidden chars). Each step becomes a window whose
@@ -7,8 +10,8 @@
 //! from prior runs. The session outlives the run so retrospection is
 //! possible; a periodic sweep (not this module's concern) handles TTL.
 //!
-//! Fallback: `PtyExecutor::new()` returns Err on Windows or when tmux is
-//! absent, and dispatch falls back to ProcessExecutor.
+//! Fallback: `TmuxWindowExecutor::new()` returns Err on Windows or when
+//! tmux is absent, and dispatch falls back to ProcessExecutor.
 
 use anyhow::{anyhow, Result};
 use async_trait::async_trait;
@@ -18,22 +21,22 @@ use runtime::services::dispatch_ports::{
 use runtime::services::provider_adapter::adapter_for;
 
 /// Job executor that runs each pipeline step inside a tmux window.
-pub(crate) struct PtyExecutor;
+pub(crate) struct TmuxWindowExecutor;
 
 /// State stored on the ExecutorHandle.
 ///
 /// `window` is a tmux window id (`@N`) — NOT a name. Targeting by id is
 /// unambiguous even if other windows in the session share a name.
-struct PtyState {
+struct TmuxWindowState {
     session: String,
     window: String,
 }
 
-impl PtyExecutor {
-    /// Construct a PtyExecutor. Returns Err when tmux is not usable.
+impl TmuxWindowExecutor {
+    /// Construct a TmuxWindowExecutor. Returns Err when tmux is not usable.
     pub fn new() -> Result<Self> {
         if cfg!(windows) {
-            return Err(anyhow!("PtyExecutor is unavailable on Windows"));
+            return Err(anyhow!("TmuxWindowExecutor is unavailable on Windows"));
         }
         if !tmux_available() {
             return Err(anyhow!("tmux binary not found on PATH"));
@@ -147,14 +150,14 @@ fn find_unique_window_by_name(session: &str, name: &str) -> Option<String> {
     let first = matches.next()?;
     if matches.next().is_some() {
         tracing::warn!(session, name,
-            "pty-executor: multiple windows share this name — refusing to rehydrate");
+            "tmux-window-executor: multiple windows share this name — refusing to rehydrate");
         return None;
     }
     Some(first)
 }
 
 #[async_trait]
-impl JobExecutor for PtyExecutor {
+impl JobExecutor for TmuxWindowExecutor {
     async fn spawn(&self, ctx: &JobContext) -> Result<ExecutorHandle> {
         let session = session_name(&ctx.slug);
         let (step_idx, step_id) = ctx
@@ -193,7 +196,7 @@ impl JobExecutor for PtyExecutor {
         tracing::info!(
             slug = ctx.slug, session, window = window_id,
             window_name = step_id, log = log_rel,
-            "pty-executor: step launched"
+            "tmux-window-executor: step launched"
         );
 
         let slug = ctx.slug.clone();
@@ -207,12 +210,12 @@ impl JobExecutor for PtyExecutor {
 
         Ok(ExecutorHandle {
             pid: None,
-            inner: Box::new(PtyState { session, window: window_id }),
+            inner: Box::new(TmuxWindowState { session, window: window_id }),
         })
     }
 
     async fn is_alive(&self, handle: &ExecutorHandle) -> bool {
-        let state = match handle.inner.downcast_ref::<PtyState>() {
+        let state = match handle.inner.downcast_ref::<TmuxWindowState>() {
             Some(s) => s,
             None => return false,
         };
@@ -220,7 +223,7 @@ impl JobExecutor for PtyExecutor {
     }
 
     async fn stop(&self, handle: &ExecutorHandle) -> Result<()> {
-        let state = match handle.inner.downcast_ref::<PtyState>() {
+        let state = match handle.inner.downcast_ref::<TmuxWindowState>() {
             Some(s) => s,
             None => return Ok(()),
         };
@@ -232,7 +235,7 @@ impl JobExecutor for PtyExecutor {
     }
 
     async fn send(&self, handle: &ExecutorHandle, message: &str) -> Result<()> {
-        let state = match handle.inner.downcast_ref::<PtyState>() {
+        let state = match handle.inner.downcast_ref::<TmuxWindowState>() {
             Some(s) => s,
             None => return Ok(()),
         };
@@ -261,7 +264,7 @@ impl JobExecutor for PtyExecutor {
         let window = find_unique_window_by_name(&session, &name)?;
         Some(ExecutorHandle {
             pid: None,
-            inner: Box::new(PtyState { session, window }),
+            inner: Box::new(TmuxWindowState { session, window }),
         })
     }
 }
@@ -277,7 +280,7 @@ fn monitor_window(
         std::thread::sleep(std::time::Duration::from_secs(5));
         if !window_id_exists(session, window_id) {
             tracing::info!(session, window = window_id, slug,
-                "pty-executor: window closed, signalling exit");
+                "tmux-window-executor: window closed, signalling exit");
             if let Some(tx) = exit_tx {
                 let _ = tx.send(ExitSignal {
                     slug: slug.to_string(),
@@ -291,5 +294,5 @@ fn monitor_window(
 }
 
 #[cfg(test)]
-#[path = "pty_tests.rs"]
+#[path = "tmux_window_tests.rs"]
 mod tests;

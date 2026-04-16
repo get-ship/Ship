@@ -52,6 +52,10 @@ thiserror = "2"
 # canvas HTML (see apps/shipd/src/views/sanitize.rs).
 ammonia = "4"
 include_dir = "0.7"
+# Cross-platform pseudo-terminal allocation (PTY on Unix, ConPTY on
+# Windows). Used by ProcessExecutor so spawned agents see a real TTY —
+# stream-json and human output stay line-buffered, isatty checks work.
+portable-pty = "0.9"
 
 [features]
 unstable = ["runtime/unstable"]

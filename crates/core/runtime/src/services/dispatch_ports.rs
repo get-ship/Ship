@@ -42,13 +42,14 @@ pub struct JobContext {
     /// background monitor can signal exit without curling the daemon API.
     /// `None` for pipeline re-dispatches — the liveness sweep handles those.
     pub exit_tx: Option<UnboundedSender<ExitSignal>>,
-    /// Step metadata used by the PtyExecutor to pick the tmux window name and
-    /// per-step log path. `None` for single-step jobs — the executor falls back
-    /// to using `slug` as the window name.
+    /// Step metadata used by the TmuxWindowExecutor to pick the tmux window
+    /// name and per-step log path. `None` for single-step jobs — the executor
+    /// falls back to using `slug` as the window name.
     pub step: Option<StepInfo>,
     /// When true, dispatch forces the headless ProcessExecutor path even if
-    /// the executor in `OrchestratorContext` is PtyExecutor. Surfaced through
-    /// to the executor so it can fall back without its own flag check.
+    /// the executor in `OrchestratorContext` is TmuxWindowExecutor. Surfaced
+    /// through to the executor so it can fall back without its own flag
+    /// check.
     pub headless: bool,
 }
 

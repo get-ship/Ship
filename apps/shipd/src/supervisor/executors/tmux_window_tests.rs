@@ -32,10 +32,10 @@ fn step_log_rel_is_zero_padded() {
 }
 
 #[test]
-fn pty_new_fails_when_tmux_absent_or_windows() {
-    let result = PtyExecutor::new();
+fn tmux_window_new_fails_when_tmux_absent_or_windows() {
+    let result = TmuxWindowExecutor::new();
     if cfg!(windows) {
-        assert!(result.is_err(), "PtyExecutor must fail on Windows");
+        assert!(result.is_err(), "TmuxWindowExecutor must fail on Windows");
     } else if !tmux_available() {
         assert!(result.is_err(), "must fail when tmux is absent");
     } else {
@@ -44,7 +44,7 @@ fn pty_new_fails_when_tmux_absent_or_windows() {
 }
 
 #[tokio::test]
-async fn pty_spawn_captures_window_id_and_survives_name_collision() {
+async fn tmux_window_spawn_captures_window_id_and_survives_name_collision() {
     // Real-tmux integration test. Flaky under parallel test execution
     // because tmux's session init races with sibling tests. Gate with
     // SHIP_TMUX_TESTS=1 to run locally; the default test run skips it.
@@ -58,7 +58,7 @@ async fn pty_spawn_captures_window_id_and_survives_name_collision() {
     }
     use runtime::services::dispatch_ports::{LaunchProfile, StepInfo};
     let tmp = tempfile::tempdir().unwrap();
-    let slug = format!("ptytest-{}", &runtime::gen_ulid()[..8].to_lowercase());
+    let slug = format!("tmuxwintest-{}", &runtime::gen_ulid()[..8].to_lowercase());
     let session = session_name(&slug);
 
     let make_ctx = || JobContext {
@@ -79,18 +79,18 @@ async fn pty_spawn_captures_window_id_and_survives_name_collision() {
         headless: false,
     };
 
-    let exec = PtyExecutor::new().unwrap();
+    let exec = TmuxWindowExecutor::new().unwrap();
 
     // First spawn: creates session + first "tests" window.
     let h1 = exec.spawn(&make_ctx()).await.expect("spawn 1");
-    let s1 = h1.inner.downcast_ref::<PtyState>().unwrap();
+    let s1 = h1.inner.downcast_ref::<TmuxWindowState>().unwrap();
     assert!(s1.window.starts_with('@'), "window must be a tmux @id, got {:?}", s1.window);
     assert!(window_id_exists(&session, &s1.window));
 
     // Second spawn in the same session with a window of the same name. The
     // captured window ids must differ and both must be independently alive.
     let h2 = exec.spawn(&make_ctx()).await.expect("spawn 2");
-    let s2 = h2.inner.downcast_ref::<PtyState>().unwrap();
+    let s2 = h2.inner.downcast_ref::<TmuxWindowState>().unwrap();
     assert_ne!(s1.window, s2.window, "duplicate-named windows must have distinct ids");
     assert!(window_id_exists(&session, &s1.window));
     assert!(window_id_exists(&session, &s2.window));
@@ -111,7 +111,7 @@ async fn resume_handle_refuses_ambiguous_name() {
     }
     use runtime::services::dispatch_ports::{LaunchProfile, StepInfo};
     let tmp = tempfile::tempdir().unwrap();
-    let slug = format!("ptytest-{}", &runtime::gen_ulid()[..8].to_lowercase());
+    let slug = format!("tmuxwintest-{}", &runtime::gen_ulid()[..8].to_lowercase());
     let session = session_name(&slug);
 
     let make_ctx = || JobContext {
@@ -132,7 +132,7 @@ async fn resume_handle_refuses_ambiguous_name() {
         headless: false,
     };
 
-    let exec = PtyExecutor::new().unwrap();
+    let exec = TmuxWindowExecutor::new().unwrap();
     let _h1 = exec.spawn(&make_ctx()).await.expect("spawn 1");
     let _h2 = exec.spawn(&make_ctx()).await.expect("spawn 2");
 
