@@ -14,6 +14,7 @@ fn sample_summary(name: &str, letter: &str) -> AgentSummary {
         mcp_count: 1,
         rules_count: 2,
         letter: letter.to_string(),
+        source: "PROJECT AGENTS".into(),
     }
 }
 
@@ -29,6 +30,7 @@ fn sample_detail() -> AgentDetail {
         providers: vec!["claude".into(), "codex".into()],
         default_provider: Some("claude".into()),
         permissions_tier: "standard".into(),
+        source: "PROJECT AGENTS".into(),
     }
 }
 

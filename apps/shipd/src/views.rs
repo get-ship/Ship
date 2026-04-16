@@ -25,6 +25,7 @@
 pub mod stream;
 pub mod state;
 pub mod agents_state;
+pub mod agents_jsonc;
 pub mod skills_state;
 pub mod chat_state;
 pub mod events_state;

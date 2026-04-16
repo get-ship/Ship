@@ -1,12 +1,23 @@
 //! Agent discovery helpers for the `agents` daemon-rendered view.
 //!
-//! Reads agent configs from `<ship_dir>/agents/*.{jsonc,json}`. JSONC is
-//! stripped locally to stay independent of the compiler crate (we don't
-//! need full grammar-accurate parsing — just line/block comments and
-//! trailing commas to feed serde_json).
+//! Reads agent configs from `<ship_dir>/agents/*.{jsonc,json}` across two
+//! scopes and merges them — project (discovered from cwd via
+//! `runtime::project::get_project_dir`) wins over global on id collision.
+//! Each summary/detail carries a `source` field so the view can group the
+//! rail by scope.
+//!
+//! JSONC parsing lives in the sibling `agents_jsonc` module.
 
 use serde::Serialize;
-use std::path::Path;
+use std::collections::HashSet;
+use std::path::{Path, PathBuf};
+
+use super::agents_jsonc::{first_letter, parse_file, resolve_array_field};
+
+// Re-export helpers whose names tests refer to directly (via `super::*`
+// in the sibling tests file). Canonical home is `agents_jsonc`.
+#[cfg(test)]
+pub(crate) use super::agents_jsonc::strip_jsonc;
 
 #[derive(Clone, Debug, Serialize)]
 pub struct AgentSummary {
@@ -19,6 +30,7 @@ pub struct AgentSummary {
     pub rules_count: usize,
     /// First letter of `name` uppercased, for the avatar glyph.
     pub letter: String,
+    pub source: String,
 }
 
 #[derive(Clone, Debug, Serialize)]
@@ -33,154 +45,42 @@ pub struct AgentDetail {
     pub providers: Vec<String>,
     pub default_provider: Option<String>,
     pub permissions_tier: String,
+    pub source: String,
 }
 
-pub(crate) fn strip_jsonc(input: &str) -> String {
-    let mut out = String::with_capacity(input.len());
-    let mut in_block = false;
-    let mut in_str = false;
-    let mut it = input.chars().peekable();
-    while let Some(c) = it.next() {
-        if in_block {
-            if c == '*' && it.peek() == Some(&'/') {
-                it.next();
-                in_block = false;
-            }
-            continue;
-        }
-        if in_str {
-            out.push(c);
-            if c == '\\' {
-                if let Some(&n) = it.peek() {
-                    out.push(n);
-                    it.next();
-                }
-            } else if c == '"' {
-                in_str = false;
-            }
-            continue;
-        }
-        if c == '"' {
-            in_str = true;
-            out.push(c);
-            continue;
-        }
-        if c == '/' {
-            match it.peek() {
-                Some(&'/') => {
-                    for r in it.by_ref() {
-                        if r == '\n' {
-                            out.push('\n');
-                            break;
-                        }
-                    }
-                    continue;
-                }
-                Some(&'*') => {
-                    it.next();
-                    in_block = true;
-                    continue;
-                }
-                _ => {}
-            }
-        }
-        out.push(c);
-    }
-    // Second pass: drop trailing commas before `}` or `]`.
-    // Walk as bytes so we can peek ahead cheaply; preserve multi-byte UTF-8
-    // sequences verbatim by copying the original byte slice (not byte-casting
-    // to char, which mangles any codepoint above U+007F).
-    let src = out.as_bytes();
-    let mut cleaned_bytes: Vec<u8> = Vec::with_capacity(src.len());
-    let mut i = 0;
-    while i < src.len() {
-        if src[i] == b',' {
-            let mut j = i + 1;
-            while j < src.len() && src[j].is_ascii_whitespace() {
-                j += 1;
-            }
-            if j < src.len() && (src[j] == b'}' || src[j] == b']') {
-                i += 1;
-                continue;
-            }
-        }
-        cleaned_bytes.push(src[i]);
-        i += 1;
-    }
-    // Safe: we only dropped ASCII commas at valid char boundaries, every other
-    // byte was copied unchanged from the original UTF-8 String.
-    String::from_utf8(cleaned_bytes).unwrap_or_else(|e| String::from_utf8_lossy(e.as_bytes()).into_owned())
+/// Source label for project-scoped agents (enclosing `.ship/` of cwd).
+pub const SOURCE_PROJECT: &str = "PROJECT AGENTS";
+/// Source label for global-scoped agents (`~/.ship/agents/`).
+pub const SOURCE_GLOBAL: &str = "USER AGENTS";
+
+/// Resolved search roots for the two scopes.
+pub(crate) struct AgentScopes {
+    pub global_dir: PathBuf,
+    pub project_dir: Option<PathBuf>,
 }
 
-pub(crate) fn first_letter(s: &str) -> String {
-    s.chars()
-        .next()
-        .map(|c| c.to_ascii_uppercase().to_string())
-        .unwrap_or_else(|| "?".to_string())
+fn resolve_scopes(ship_dir: &Path) -> AgentScopes {
+    let project_ship = runtime::project::get_project_dir(None)
+        .ok()
+        .filter(|p| p != ship_dir);
+    scopes_from(ship_dir, project_ship.as_deref())
 }
 
-fn parse_file(path: &Path) -> Option<(String, serde_json::Value)> {
-    let id = path.file_stem().and_then(|s| s.to_str())?.to_string();
-    let raw = std::fs::read_to_string(path).ok()?;
-    let json_str = strip_jsonc(&raw);
-    let parsed: serde_json::Value = serde_json::from_str(&json_str).ok()?;
-    Some((id, parsed))
+/// Build scopes for an explicit (global, project) pair. Tests call this to
+/// inject both sides without touching the process-global `SHIP_DIR` env var.
+pub(crate) fn scopes_from(
+    ship_dir: &Path,
+    project_ship_dir: Option<&Path>,
+) -> AgentScopes {
+    let global_dir = ship_dir.join("agents");
+    let project_dir = project_ship_dir
+        .filter(|p| *p != ship_dir)
+        .map(|p| p.join("agents"));
+    AgentScopes { global_dir, project_dir }
 }
 
-fn extract_str_array(v: &serde_json::Value) -> Vec<String> {
-    v.as_array()
-        .map(|arr| {
-            arr.iter()
-                .filter_map(|item| match item {
-                    serde_json::Value::String(s) => Some(s.clone()),
-                    serde_json::Value::Object(map) => map
-                        .get("id")
-                        .or_else(|| map.get("name"))
-                        .and_then(|x| x.as_str())
-                        .map(|s| s.to_string()),
-                    _ => None,
-                })
-                .collect()
-        })
-        .unwrap_or_default()
-}
-
-/// Resolve a collection-ish field from an agent config, tolerating the two
-/// shapes Ship actually emits:
-///   1. Flat: `"skills": ["a", "b"]` or `[{"id": "a"}, {"name": "b"}]`
-///   2. Nested: `"skills": { "refs": [...] }` / `"mcp": { "servers": [...] }`
-/// The `nested_keys` parameter lists candidate sub-keys to inspect when the
-/// top-level value is an object; the first one that contains an array wins.
-fn resolve_array_field(
-    obj: &serde_json::Value,
-    top_keys: &[&str],
-    nested_keys: &[&str],
-) -> Vec<String> {
-    for key in top_keys {
-        let Some(v) = obj.get(*key) else { continue };
-        if v.is_array() {
-            return extract_str_array(v);
-        }
-        if let Some(inner) = v.as_object() {
-            for nk in nested_keys {
-                if let Some(arr) = inner.get(*nk) {
-                    if arr.is_array() {
-                        return extract_str_array(arr);
-                    }
-                }
-            }
-        }
-    }
-    Vec::new()
-}
-
-/// List agents from `<ship_dir>/agents/*.{jsonc,json}`.
-pub fn list_agents(ship_dir: &Path) -> Vec<AgentSummary> {
-    let dir = ship_dir.join("agents");
-    let entries = match std::fs::read_dir(&dir) {
-        Ok(e) => e,
-        Err(_) => return Vec::new(),
-    };
+fn scan_agents_dir(dir: &Path, source: &str) -> Vec<AgentSummary> {
+    let Ok(entries) = std::fs::read_dir(dir) else { return Vec::new() };
     let mut out = Vec::new();
     for entry in entries.flatten() {
         let path = entry.path();
@@ -218,15 +118,13 @@ pub fn list_agents(ship_dir: &Path) -> Vec<AgentSummary> {
             mcp_count: mcp.len(),
             rules_count: rules.len(),
             letter,
+            source: source.to_string(),
         });
     }
-    out.sort_by(|a, b| a.name.cmp(&b.name));
     out
 }
 
-/// Load a single agent by id.
-pub fn load_agent(ship_dir: &Path, id: &str) -> Option<AgentDetail> {
-    let dir = ship_dir.join("agents");
+fn load_from_dir(dir: &Path, id: &str, source: &str) -> Option<AgentDetail> {
     for ext in ["jsonc", "json"] {
         let path = dir.join(format!("{id}.{ext}"));
         if !path.is_file() {
@@ -281,9 +179,52 @@ pub fn load_agent(ship_dir: &Path, id: &str) -> Option<AgentDetail> {
             providers,
             default_provider,
             permissions_tier,
+            source: source.to_string(),
         });
     }
     None
+}
+
+/// List agents from project (if inside a Ship project) and global scopes.
+/// Project entries shadow global on id collision.
+pub fn list_agents(ship_dir: &Path) -> Vec<AgentSummary> {
+    list_agents_with_scopes(&resolve_scopes(ship_dir))
+}
+
+pub(crate) fn list_agents_with_scopes(scopes: &AgentScopes) -> Vec<AgentSummary> {
+    let mut seen: HashSet<String> = HashSet::new();
+    let mut out = Vec::new();
+    if let Some(dir) = scopes.project_dir.as_ref() {
+        for a in scan_agents_dir(dir, SOURCE_PROJECT) {
+            if seen.insert(a.id.clone()) {
+                out.push(a);
+            }
+        }
+    }
+    for a in scan_agents_dir(&scopes.global_dir, SOURCE_GLOBAL) {
+        if seen.insert(a.id.clone()) {
+            out.push(a);
+        }
+    }
+    out.sort_by(|a, b| a.name.cmp(&b.name));
+    out
+}
+
+/// Load a single agent by id. Project scope wins on collision.
+pub fn load_agent(ship_dir: &Path, id: &str) -> Option<AgentDetail> {
+    load_agent_with_scopes(&resolve_scopes(ship_dir), id)
+}
+
+pub(crate) fn load_agent_with_scopes(
+    scopes: &AgentScopes,
+    id: &str,
+) -> Option<AgentDetail> {
+    if let Some(dir) = scopes.project_dir.as_ref() {
+        if let Some(d) = load_from_dir(dir, id, SOURCE_PROJECT) {
+            return Some(d);
+        }
+    }
+    load_from_dir(&scopes.global_dir, id, SOURCE_GLOBAL)
 }
 
 #[cfg(test)]
