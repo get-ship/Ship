@@ -37,12 +37,12 @@ pub async fn subscribe_job_events(
     _ship_dir: PathBuf,
     health_registry: &crate::supervised::HealthRegistry,
 ) -> Option<DispatchHandle> {
-    // Default: RoutingExecutor picks PtyExecutor (tmux-attached PTY) or
-    // ProcessExecutor (headless) per-job based on the `headless` flag set
+    // Default: RoutingExecutor picks TmuxWindowExecutor (interactive-attach)
+    // or ProcessExecutor (headless) per-job based on the `headless` flag set
     // by `ship run [--headless]`. If tmux is unavailable (Windows, not
-    // installed, etc.) PtyExecutor construction fails and RoutingExecutor
-    // transparently falls back to ProcessExecutor for every job with a
-    // single warning line.
+    // installed, etc.) TmuxWindowExecutor construction fails and
+    // RoutingExecutor transparently falls back to ProcessExecutor for every
+    // job with a single warning line.
     //
     // Legacy `SHIP_EXECUTOR=tmux` escape hatch still forces the old
     // single-session interactive TmuxExecutor for users pairing with an
@@ -52,7 +52,7 @@ pub async fn subscribe_job_events(
             tracing::info!("job-dispatch: using TmuxExecutor (SHIP_EXECUTOR=tmux)");
             Arc::new(super::executors::TmuxExecutor)
         } else {
-            tracing::info!("job-dispatch: using RoutingExecutor (pty default, headless on flag)");
+            tracing::info!("job-dispatch: using RoutingExecutor (tmux-window default, headless on flag)");
             Arc::new(super::executors::RoutingExecutor::new())
         };
 

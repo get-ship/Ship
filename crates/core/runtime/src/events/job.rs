@@ -230,8 +230,9 @@ pub struct JobCreatedPayload {
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub step_specs: Option<Vec<String>>,
     /// When true, run steps headless (ProcessExecutor). When false (default),
-    /// run steps in a tmux PTY session (PtyExecutor) so users can `tmux attach`
-    /// and watch the agent live.
+    /// run steps as tmux windows in a shared per-slug session
+    /// (TmuxWindowExecutor) so users can `tmux attach` and watch the agent
+    /// live.
     #[serde(default)]
     pub headless: bool,
 }

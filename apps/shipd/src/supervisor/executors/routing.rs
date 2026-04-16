@@ -1,4 +1,5 @@
-//! RoutingExecutor — per-job selection between Pty and Process executors.
+//! RoutingExecutor — per-job selection between TmuxWindow and Process
+//! executors.
 //!
 //! The orchestrator receives a single `Arc<dyn JobExecutor>`, but we want
 //! the routing decision (interactive tmux vs. headless child process) to
@@ -6,44 +7,45 @@
 //! `ship run --headless` / the API. RoutingExecutor wraps both concrete
 //! implementations and forwards `spawn` to the right one. Subsequent
 //! lifecycle calls (`is_alive`, `stop`, `send`) dispatch based on the
-//! type of the opaque handle state — Pty and Process use distinct state
-//! structs, so `downcast_ref` already gives us the right routing for
-//! free.
+//! type of the opaque handle state — TmuxWindow and Process use distinct
+//! state structs, so `downcast_ref` already gives us the right routing
+//! for free.
 
 use anyhow::Result;
 use async_trait::async_trait;
 use runtime::services::dispatch_ports::{ExecutorHandle, JobContext, JobExecutor};
 
-use super::{ProcessExecutor, PtyExecutor};
+use super::{ProcessExecutor, TmuxWindowExecutor};
 
-/// Routes each `spawn` to Pty or Process based on the job's `headless`
-/// flag. Falls back to Process if the Pty executor is not constructable
-/// on this host (no tmux, Windows, etc.) and logs a single-line warning.
+/// Routes each `spawn` to TmuxWindow or Process based on the job's
+/// `headless` flag. Falls back to Process if the TmuxWindow executor is
+/// not constructable on this host (no tmux, Windows, etc.) and logs a
+/// single-line warning.
 pub(crate) struct RoutingExecutor {
-    pty: Option<PtyExecutor>,
+    tmux_window: Option<TmuxWindowExecutor>,
     process: ProcessExecutor,
 }
 
 impl RoutingExecutor {
     pub fn new() -> Self {
-        let pty = match PtyExecutor::new() {
+        let tmux_window = match TmuxWindowExecutor::new() {
             Ok(e) => Some(e),
             Err(e) => {
                 tracing::warn!(
-                    "job-dispatch: PtyExecutor unavailable ({e}); falling back \
-                     to ProcessExecutor for all jobs"
+                    "job-dispatch: TmuxWindowExecutor unavailable ({e}); falling \
+                     back to ProcessExecutor for all jobs"
                 );
                 None
             }
         };
-        Self { pty, process: ProcessExecutor }
+        Self { tmux_window, process: ProcessExecutor }
     }
 
     fn pick(&self, ctx: &JobContext) -> &dyn JobExecutor {
         if !ctx.headless
-            && let Some(ref pty) = self.pty
+            && let Some(ref tmux_window) = self.tmux_window
         {
-            return pty;
+            return tmux_window;
         }
         &self.process
     }
@@ -57,8 +59,8 @@ impl JobExecutor for RoutingExecutor {
 
     async fn is_alive(&self, handle: &ExecutorHandle) -> bool {
         // Ask both; whichever owns the handle state returns true/false.
-        if let Some(ref pty) = self.pty
-            && pty.is_alive(handle).await
+        if let Some(ref tmux_window) = self.tmux_window
+            && tmux_window.is_alive(handle).await
         {
             return true;
         }
@@ -66,15 +68,15 @@ impl JobExecutor for RoutingExecutor {
     }
 
     async fn stop(&self, handle: &ExecutorHandle) -> Result<()> {
-        if let Some(ref pty) = self.pty {
-            let _ = pty.stop(handle).await;
+        if let Some(ref tmux_window) = self.tmux_window {
+            let _ = tmux_window.stop(handle).await;
         }
         self.process.stop(handle).await
     }
 
     async fn send(&self, handle: &ExecutorHandle, message: &str) -> Result<()> {
-        if let Some(ref pty) = self.pty
-            && pty.send(handle, message).await.is_ok()
+        if let Some(ref tmux_window) = self.tmux_window
+            && tmux_window.send(handle, message).await.is_ok()
         {
             return Ok(());
         }
@@ -87,11 +89,11 @@ impl JobExecutor for RoutingExecutor {
         provider: Option<&str>,
         current_step: Option<&str>,
     ) -> Option<ExecutorHandle> {
-        // PTY-attached jobs rehydrate from tmux window state. Process
+        // Tmux-attached jobs rehydrate from tmux window state. Process
         // executor has no out-of-band handle (headless jobs can't be
         // re-attached — the child process is gone with the daemon).
-        if let Some(ref pty) = self.pty
-            && let Some(h) = pty.resume_handle(slug, provider, current_step).await
+        if let Some(ref tmux_window) = self.tmux_window
+            && let Some(h) = tmux_window.resume_handle(slug, provider, current_step).await
         {
             return Some(h);
         }

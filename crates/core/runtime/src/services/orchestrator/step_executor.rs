@@ -10,12 +10,15 @@
 //! The two concrete implementations live in `apps/shipd/src/supervisor/
 //! executors/`:
 //!
-//!   - `PtyExecutor`     — tmux session `ship-<short>`, one window per step,
-//!                         command teed to `.artifacts/pipeline/NN-<step>.log`.
-//!                         Default path for `ship run`.
-//!   - `ProcessExecutor` — headless child process. Selected when the job's
-//!                         `headless` flag is set, when tmux is unavailable,
-//!                         or on Windows.
+//!   - `TmuxWindowExecutor` — tmux session `ship-<slug>`, one window per
+//!                            step, command teed to
+//!                            `.artifacts/pipeline/NN-<step>.log`. Default
+//!                            path for `ship run`. Not a PTY — it
+//!                            multiplexes tmux windows.
+//!   - `ProcessExecutor`    — headless child process running under a real
+//!                            PTY. Selected when the job's `headless`
+//!                            flag is set, when tmux is unavailable, or on
+//!                            Windows.
 //!
 //! The shipd-side `RoutingExecutor` selects between them per-job based on
 //! `JobContext::headless`.

@@ -75,7 +75,7 @@ pub fn run(opts: RunOptions) -> Result<()> {
         "headless": opts.headless,
     });
 
-    // Short tmux session name the PtyExecutor uses. Mirrors
+    // Short tmux session name the TmuxWindowExecutor uses. Mirrors
     // `runtime::services::orchestrator::step_executor::tmux_session_name`.
     let tmux_short: String = {
         let sanitized: String = slug

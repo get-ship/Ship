@@ -241,7 +241,7 @@ pub struct CreateJobRequest {
     #[serde(default)]
     pub vars: Option<std::collections::HashMap<String, String>>,
     /// When true, force the headless (ProcessExecutor) path. When false or
-    /// absent, the default PtyExecutor (tmux) path is used.
+    /// absent, the default TmuxWindowExecutor (tmux-window) path is used.
     #[serde(default)]
     pub headless: bool,
 }
