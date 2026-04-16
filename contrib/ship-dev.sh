@@ -32,6 +32,7 @@ VOLUMES=(
   -v "$HOME/.claude.json:/home/dev/.claude.json:Z"
   -v "$HOME/.config/gh:/home/dev/.config/gh:Z"
   -v "$HOME/.gitconfig:/home/dev/.gitconfig:ro,Z"
+  -v "$HOME/.ssh:/home/dev/.ssh:ro,Z"
 )
 
 # Optional host mounts — add only if they exist

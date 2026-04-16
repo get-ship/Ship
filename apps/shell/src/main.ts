@@ -61,7 +61,7 @@ const SAME_ORIGIN = isSameOrigin(RAW_BASE);
 const DAEMON_BASE = SAME_ORIGIN ? "" : RAW_BASE;
 const TOKEN = SAME_ORIGIN ? "" : ((import.meta.env.VITE_DAEMON_TOKEN as string) ?? "");
 
-const view = document.getElementById("view") as HTMLElement;
+const view = document.getElementById("ship-view-root") as HTMLElement;
 const drawerContent = document.getElementById("drawer-content") as HTMLElement;
 const drawerBtn = document.getElementById("toggle-drawer") as HTMLButtonElement;
 const themeBtn = document.getElementById("toggle-theme") as HTMLButtonElement;
@@ -131,7 +131,7 @@ async function submitFragmentForm(form: HTMLFormElement) {
     body: body.toString(),
   });
   const html = await res.text();
-  const target = document.getElementById(form.dataset.target ?? "view") ?? view;
+  const target = document.getElementById(form.dataset.target ?? "ship-view-root") ?? view;
   target.innerHTML = html;
 }
 

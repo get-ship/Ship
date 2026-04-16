@@ -110,7 +110,7 @@
   </style>
 </head>
 <body>
-<div class="ship-view">
+<div id="ship-view-root" class="ship-view">
 
 {% set docs = ship_canvas_docs() %}
 {% set active_slug = query.doc if query and query.doc else (docs[0].slug if docs else '') %}

@@ -16,9 +16,9 @@ use utoipa::OpenApi;
 use crate::{
     NetworkServer, actor_api, attest, auth, cors, feedback_api, hooks_api, human_webhook,
     openapi, pairing, project_api, pty_handler, rest_api, runtime_api, session, settings_api,
-    shell_assets, ship_runtime, specs_api, specs_view, supervisor, view_sessions_api, views,
-    collection_api, views_agents, views_chat, views_events, views_git, views_pipelines, views_raw,
-    views_settings, views_skills,
+    shell_assets, ship_runtime, specs_api, specs_view, supervisor, view_morph_target,
+    view_sessions_api, views, collection_api, views_agents, views_chat, views_events, views_git,
+    views_pipelines, views_raw, views_settings, views_skills,
 };
 
 /// Build the full Axum router with all route groups, auth, and CORS.
@@ -170,6 +170,9 @@ pub fn build_router(
     }
     root
         .layer(axum::middleware::from_fn(cors::cors_middleware))
+        // Tag view responses with Datastar morph-target headers so cross-view
+        // navigation inside the shell doesn't wipe shell chrome.
+        .layer(axum::middleware::from_fn(view_morph_target::view_morph_target_middleware))
         // Request body limit: 1 MB for all non-streaming endpoints.
         .layer(tower_http::limit::RequestBodyLimitLayer::new(1024 * 1024))
         // Catch handler panics → 500 instead of connection abort.

@@ -157,7 +157,7 @@
   </style>
 </head>
 <body>
-<div id="git-root" class="ship-view ship-view-git"
+<div id="ship-view-root" class="ship-view ship-view-git"
      {{ signal('commit', selected_commit.sha if selected_commit else '') }}>
   <div class="ship-git-wrap{% if selected_commit %} ship-git-wrap-detail{% endif %}">
     <div data-init="@get('{{ view_git_sse() }}{% if workspace_id %}?workspace_id={{ workspace_id }}{% endif %}')">

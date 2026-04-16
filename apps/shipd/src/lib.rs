@@ -8,6 +8,7 @@ pub mod collection_api;
 pub mod auth;
 mod connections;
 mod cors;
+mod view_morph_target;
 mod daemon;
 pub mod scopes;
 pub mod session;

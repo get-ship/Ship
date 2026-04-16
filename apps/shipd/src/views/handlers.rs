@@ -159,6 +159,8 @@ pub async fn serve_view(
         .map(|s| s.contains("text/html"))
         .unwrap_or(false);
     if wants_html {
+        // Middleware (view_morph_target) adds the datastar-selector header
+        // so cross-view navigation inside the shell preserves shell chrome.
         return axum::response::Response::builder()
             .status(StatusCode::OK)
             .header(axum::http::header::CONTENT_TYPE, "text/html; charset=utf-8")
