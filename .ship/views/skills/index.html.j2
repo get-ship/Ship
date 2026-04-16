@@ -7,77 +7,21 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>{{ head('Skills') }}
-  {{ styles() }}
   <style>
-  .ship-view-skills { color: var(--foreground); height: 100%; }
-  .skills-layout {
-    display: grid; grid-template-columns: 260px 1fr;
-    height: 100%; min-height: 500px;
-  }
-  .skills-left {
-    border-right: 1px solid var(--border); display: flex;
-    flex-direction: column; min-height: 0; background: var(--card);
-    overflow: hidden;
-  }
+  .skills-layout { display: grid; grid-template-columns: 260px 1fr; height: 100%; min-height: 500px; }
+  .skills-left { border-right: 1px solid var(--border); display: flex; flex-direction: column; background: var(--card); overflow: hidden; }
   .skills-left > :nth-child(2) { overflow: auto; flex: 1 1 auto; }
-  .skills-detail {
-    padding: 24px 28px; overflow: auto; display: flex;
-    flex-direction: column; gap: 16px;
-  }
-  .skills-detail.empty {
-    padding: 0; align-items: center; justify-content: center;
-  }
-  .skills-rail-head {
-    padding: 10px 12px; border-bottom: 1px solid var(--border);
-    display: flex; flex-direction: column; gap: 8px;
-  }
-  .skills-filter-row { display: flex; flex-wrap: wrap; gap: 4px; }
-  .skills-group { padding: 6px 0; }
-  .skills-group-head {
-    font-size: 10px; font-weight: 600; text-transform: uppercase;
-    letter-spacing: 0.08em; color: var(--muted-foreground); padding: 6px 12px;
-  }
-  .skills-row {
-    display: flex; align-items: center; gap: 6px; padding: 4px 12px;
-    min-height: 28px; font-size: 12px; cursor: pointer;
-  }
-  .skills-row:hover {
-    background: color-mix(in oklch, var(--muted) 40%, transparent);
-  }
-  .skills-row[aria-selected="true"] {
-    background: color-mix(in oklch, var(--primary) 12%, transparent);
-  }
-  .skills-caret {
-    color: var(--muted-foreground); font-size: 10px; width: 10px;
-  }
-  .skills-row > .skills-name {
-    overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
-  }
-  .skills-dot {
-    width: 6px; height: 6px; border-radius: 50%;
-    background: var(--success); margin-left: auto; flex-shrink: 0;
-  }
-  .skills-dot.docs { background: var(--muted-foreground); }
-  .skills-source-tag {
-    width: 8px; height: 8px; border-radius: 2px;
-    background: var(--primary); flex-shrink: 0;
-  }
-  .skills-empty-hint {
-    font-size: 12px; color: var(--muted-foreground);
-    padding: 16px; text-align: center;
-  }
-  .skill-detail-head h1 {
-    font-family: var(--font-display); font-size: 22px;
-    font-weight: 700; margin: 0;
-  }
-  .skill-detail-desc {
-    font-size: 13px; color: var(--muted-foreground); margin: 4px 0 0;
-  }
-  .skill-frontmatter-chips { display: flex; flex-wrap: wrap; gap: 6px; }
+  .skills-detail { padding: var(--space-5) var(--space-6); overflow: auto; display: flex; flex-direction: column; gap: var(--space-4); }
+  .skills-detail.empty { align-items: center; justify-content: center; }
+  .skills-rail-head { padding: var(--space-3); border-bottom: 1px solid var(--border); display: flex; flex-direction: column; gap: var(--space-2); }
+  .skills-group-head { font-size: var(--text-xs); font-weight: var(--font-weight-semibold); text-transform: uppercase; letter-spacing: 0.08em; color: var(--muted-foreground); padding: var(--space-2) var(--space-3); }
+  .skills-row { display: flex; align-items: center; gap: var(--space-2); padding: var(--space-1) var(--space-3); font-size: var(--text-sm); cursor: pointer; }
+  .skills-row:hover { background: var(--muted); }
+  .skills-row[aria-selected="true"] { background: color-mix(in oklch, var(--primary) 12%, transparent); }
   </style>
 </head>
 <body>
-<div id="skills-root" class="ship-view ship-view-skills"
+<div id="skills-root" class="ship-view"
      {{ signal('activeSkill', active_skill_id | default('')) }}>
   <div class="skills-layout">
     <aside class="skills-left">
@@ -86,17 +30,17 @@
           size="sm"
           placeholder="Search skills..."
           value="{{ rail.q }}"
-          data-on:input__debounce.250ms="@get('{{ view_skills_rail() }}?q=' + encodeURIComponent(evt.target.value) + '&kind={{ rail.active_kind }}')"></ship-input>
-        <div class="skills-filter-row" role="group" aria-label="Filter by kind">
+          {{ on('input__debounce.250ms', "@get('" ~ view_skills_rail() ~ "?q=' + encodeURIComponent(evt.target.value) + '&kind=" ~ rail.active_kind ~ "')") }}></ship-input>
+        <ship-toolbar role="group" aria-label="Filter by kind">
           {% for kc in rail.kind_counts %}
             <ship-chip size="sm" {% if kc.selected %}selected{% endif %}
-              data-on:click="@get('{{ view_skills_rail() }}?kind={{ kc.id }}{% if rail.q %}&q={{ rail.q }}{% endif %}')">{{ kc.label }} &middot; {{ kc.count }}</ship-chip>
+              {{ on('click', "@get('" ~ view_skills_rail() ~ "?kind=" ~ kc.id ~ "{% if rail.q %}&q=" ~ rail.q ~ "{% endif %}')") }}>{{ kc.label }} &middot; {{ kc.count }}</ship-chip>
           {% endfor %}
-        </div>
+        </ship-toolbar>
       </div>
       <div id="skills-rail">
         {% if rail.groups|length == 0 %}
-          <div class="skills-empty-hint">No skills match.</div>
+          <ship-empty-state><span slot="title">No skills match.</span></ship-empty-state>
         {% else %}
           {% for g in rail.groups %}
             <div class="skills-group">
@@ -104,11 +48,9 @@
               {% for s in g.skills %}
                 <div class="skills-row"
                      {{ attr('aria-selected', "$activeSkill == '" ~ s.id ~ "'") }}
-                     data-on:click="$activeSkill = '{{ s.id }}'; @get('/api/runtime/view/skills/sse')">
-                  <span class="skills-caret">&#8250;</span>
+                     {{ on('click', "$activeSkill = '" ~ s.id ~ "'; @get('/api/runtime/view/skills/sse')") }}>
                   <span class="skills-name">{{ s.name }}</span>
-                  <span class="skills-dot {% if s.kind == 'docs' %}docs{% endif %}" aria-hidden="true"></span>
-                  <span class="skills-source-tag" aria-hidden="true"></span>
+                  <ship-status-dot tone="{% if s.kind == 'docs' %}muted{% else %}success{% endif %}" size="sm"></ship-status-dot>
                 </div>
               {% endfor %}
             </div>

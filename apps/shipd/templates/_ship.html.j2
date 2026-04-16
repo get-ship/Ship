@@ -62,6 +62,11 @@
 {# Navigate to a named view #}
 {% macro view(name) %}data-on:click="@get('/api/runtime/view/{{ name }}')"{% endmacro %}
 
+{#- === Event Listeners === -#}
+
+{# Generic event listener for ship-element custom events #}
+{% macro on(event, expr) %}data-on:{{ event }}="{{ expr }}"{% endmacro %}
+
 {#- === Generic Actions === -#}
 
 {# GET request on click #}
