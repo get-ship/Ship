@@ -332,10 +332,18 @@ fn daemon_stop() -> Result<()> {
 
 fn daemon_status() -> Result<()> {
     let pid_path = pid_file()?;
+    let supervisor_pid = read_pid(&pid_path)?;
 
-    match read_pid(&pid_path)? {
+    // Try the live REST endpoint first — that's the source of truth for
+    // real status. Fall back to the pid-file probe if the daemon is
+    // unreachable (no port file, stale process, etc).
+    if let Some((port, token)) = daemon_info_if_healthy() {
+        return print_live_status(port, &token, supervisor_pid);
+    }
+
+    match supervisor_pid {
         Some(pid) if is_process_alive(pid) => {
-            println!("shipd running (pid {}, port {})", pid, SHIPD_PORT);
+            println!("shipd supervisor running (pid {}, port {}) — daemon unreachable", pid, SHIPD_PORT);
         }
         Some(pid) => {
             println!("shipd not running (stale pid {})", pid);
@@ -345,6 +353,104 @@ fn daemon_status() -> Result<()> {
         }
     }
     Ok(())
+}
+
+fn print_live_status(port: u16, token: &str, supervisor_pid: Option<u32>) -> Result<()> {
+    let url = format!("http://127.0.0.1:{port}/api/runtime/daemon/status");
+    let mut resp = ureq::get(&url)
+        .header("Authorization", &format!("Bearer {token}"))
+        .config()
+        .http_status_as_error(false)
+        .build()
+        .call()
+        .map_err(|e| anyhow::anyhow!("status request failed: {e}"))?;
+    let value: serde_json::Value = resp
+        .body_mut()
+        .read_json()
+        .map_err(|e| anyhow::anyhow!("status: malformed response body: {e}"))?;
+
+    if !value["ok"].as_bool().unwrap_or(false) {
+        anyhow::bail!(
+            "daemon returned error: {}",
+            value["data"].as_str().unwrap_or("unknown")
+        );
+    }
+    let d = &value["data"];
+    let pid = d["pid"].as_u64().unwrap_or(0);
+    let version = d["version"].as_str().unwrap_or("?");
+    let uptime = format_uptime(d["uptime_secs"].as_u64().unwrap_or(0));
+    let total = d["jobs_total"].as_u64().unwrap_or(0);
+    let by_status = d["jobs_by_status"].as_object().cloned().unwrap_or_default();
+    let by_status_summary: Vec<String> = by_status
+        .iter()
+        .filter_map(|(k, v)| v.as_u64().map(|n| (k.clone(), n)))
+        .filter(|(_, n)| *n > 0)
+        .map(|(k, n)| format!("{n} {k}"))
+        .collect();
+    let last_sweep = d["last_sweep_at"]
+        .as_str()
+        .map(format_relative_time)
+        .unwrap_or_else(|| "never".to_string());
+    let drift = d["last_sweep_drift"].as_u64().unwrap_or(0);
+
+    println!("shipd running");
+    println!("  pid:            {pid}");
+    if let Some(s) = supervisor_pid {
+        if (s as u64) != pid {
+            println!("  supervisor pid: {s}");
+        }
+    }
+    println!("  version:        {version}");
+    println!("  port:           {port}");
+    println!("  uptime:         {uptime}");
+    if by_status_summary.is_empty() {
+        println!("  jobs:           {total} total");
+    } else {
+        println!(
+            "  jobs:           {total} total ({})",
+            by_status_summary.join(", ")
+        );
+    }
+    println!("  last sweep:     {last_sweep}");
+    println!("  drift detected: {drift}");
+    Ok(())
+}
+
+/// Render seconds as `2h 14m`, `34m 12s`, or `47s` — keeps the longest
+/// two units that still fit in 8 chars.
+fn format_uptime(secs: u64) -> String {
+    let days = secs / 86_400;
+    let hours = (secs % 86_400) / 3_600;
+    let mins = (secs % 3_600) / 60;
+    let s = secs % 60;
+    if days > 0 {
+        format!("{days}d {hours}h")
+    } else if hours > 0 {
+        format!("{hours}h {mins}m")
+    } else if mins > 0 {
+        format!("{mins}m {s}s")
+    } else {
+        format!("{s}s")
+    }
+}
+
+/// Render an RFC3339 timestamp as `8s ago`, `12m ago`, `2h ago`, etc.
+fn format_relative_time(ts: &str) -> String {
+    let Ok(dt) = chrono::DateTime::parse_from_rfc3339(ts) else {
+        return ts.to_string();
+    };
+    let secs = (chrono::Utc::now() - dt.with_timezone(&chrono::Utc))
+        .num_seconds()
+        .max(0);
+    if secs < 60 {
+        format!("{secs}s ago")
+    } else if secs < 3600 {
+        format!("{}m ago", secs / 60)
+    } else if secs < 86400 {
+        format!("{}h ago", secs / 3600)
+    } else {
+        format!("{}d ago", secs / 86400)
+    }
 }
 
 fn daemon_cleanup() -> Result<()> {
