@@ -211,3 +211,61 @@ fn list_skills_public_discovers_our_tmp_skill() {
         "unique tmp skill must be discovered"
     );
 }
+
+#[test]
+fn summary_includes_files_and_indicators() {
+    let tmp = tempdir().unwrap();
+    let ship = tmp.path().join(".ship");
+    let skill_dir = ship.join("skills").join("x");
+    std::fs::create_dir_all(skill_dir.join("assets")).unwrap();
+    std::fs::create_dir_all(skill_dir.join("references")).unwrap();
+    std::fs::create_dir_all(skill_dir.join("evals")).unwrap();
+    write_skill(&ship.join("skills"), "x", "name: x\n", "body");
+    std::fs::write(skill_dir.join("assets").join("vars.json"), "{}").unwrap();
+    std::fs::write(skill_dir.join("references").join("ref.md"), "# ref").unwrap();
+    std::fs::write(skill_dir.join("evals").join("evals.json"), "[]").unwrap();
+    let scopes = scopes_from(&ship, None);
+    let out = list_skills_with_scopes(&scopes);
+    let s = out.iter().find(|s| s.id == "x").unwrap();
+    assert!(s.files.contains(&"SKILL.md".to_string()));
+    assert!(s.files.contains(&"assets/vars.json".to_string()));
+    assert!(s.has_vars);
+    assert!(s.has_refs);
+    assert!(s.has_evals);
+}
+
+#[test]
+fn detail_includes_files() {
+    let tmp = tempdir().unwrap();
+    let ship = tmp.path().join(".ship");
+    let skill_dir = ship.join("skills").join("y");
+    std::fs::create_dir_all(skill_dir.join("scripts")).unwrap();
+    write_skill(&ship.join("skills"), "y", "name: y\n", "body");
+    std::fs::write(skill_dir.join("scripts").join("run.sh"), "#!/bin/bash").unwrap();
+    let scopes = scopes_from(&ship, None);
+    let d = load_skill_with_scopes(&scopes, "y").unwrap();
+    assert!(d.files.contains(&"SKILL.md".to_string()));
+    assert!(d.files.contains(&"scripts/run.sh".to_string()));
+}
+
+#[test]
+fn load_skill_file_reads_content() {
+    let tmp = tempdir().unwrap();
+    let ship = tmp.path().join(".ship");
+    std::fs::create_dir_all(ship.join("skills")).unwrap();
+    write_skill(&ship.join("skills"), "z", "name: z\n", "hello");
+    let content = load_skill_file(&ship, "z", "SKILL.md");
+    assert!(content.is_some());
+    assert!(content.unwrap().contains("hello"));
+}
+
+#[test]
+fn load_skill_file_rejects_path_traversal() {
+    let tmp = tempdir().unwrap();
+    let ship = tmp.path().join(".ship");
+    std::fs::create_dir_all(ship.join("skills")).unwrap();
+    write_skill(&ship.join("skills"), "w", "name: w\n", "body");
+    std::fs::write(tmp.path().join("secret.txt"), "top secret").unwrap();
+    let content = load_skill_file(&ship, "w", "../../secret.txt");
+    assert!(content.is_none());
+}

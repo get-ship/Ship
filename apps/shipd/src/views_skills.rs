@@ -19,7 +19,9 @@ use std::collections::BTreeMap;
 
 use crate::rest_api::ApiState;
 use crate::views::resolve_view_dir;
-use crate::views::state::{SkillDetail, SkillKind, SkillSummary, list_skills, load_skill};
+use crate::views::state::{
+    SkillDetail, SkillKind, SkillSummary, list_skills, load_skill, load_skill_file,
+};
 use crate::views::templates;
 
 /// Try rendering a template from `.ship/views/<view>/<file>`.
@@ -48,6 +50,9 @@ pub struct SkillsParams {
     /// Optional tag filter (exact match).
     #[serde(default)]
     pub tag: Option<String>,
+    /// When set, load this file path within the selected skill for the editor.
+    #[serde(default)]
+    pub file: Option<String>,
 }
 
 #[derive(Serialize)]
@@ -82,9 +87,20 @@ pub struct SkillsShellCtx {
 }
 
 #[derive(Serialize)]
+pub struct SkillFileCtx {
+    pub path: String,
+    pub name: String,
+    pub ext: String,
+    pub content: String,
+}
+
+#[derive(Serialize)]
 pub struct SkillDetailCtx {
     pub skill: SkillDetail,
     pub rail: RailCtx,
+    /// Populated when ?file=... is set and the file exists.
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub file: Option<SkillFileCtx>,
 }
 
 fn active_kind(params: &SkillsParams) -> String {
@@ -213,8 +229,8 @@ pub async fn skills_rail(
         })
 }
 
-/// GET /api/runtime/view/skills/detail/{id} — full shell with a populated
-/// detail pane (middle) and metadata sidebar (right).
+/// GET /api/runtime/view/skills/detail/{id}?file=SKILL.md — full shell with
+/// a populated detail pane; optionally shows a specific file in the editor.
 pub async fn skill_detail(
     State(state): State<ApiState>,
     Path(id): Path<String>,
@@ -224,14 +240,17 @@ pub async fn skill_detail(
         return Err(StatusCode::NOT_FOUND);
     };
     let rail = build_rail(state.ship_dir(), &params);
-    let ctx = SkillDetailCtx { skill, rail };
+    let file = params.file.as_deref().and_then(|fp| {
+        let content = load_skill_file(state.ship_dir(), &id, fp)?;
+        let name = fp.rsplit('/').next().unwrap_or(fp).to_string();
+        let ext = name.rsplit('.').next().unwrap_or("").to_lowercase();
+        Some(SkillFileCtx { path: fp.to_string(), name, ext, content })
+    });
+    let ctx = SkillDetailCtx { skill, rail, file };
 
-    // Try .ship/views/skills/index.html.j2 first (new canonical location).
     if let Some(html) = try_render_view("skills", "index.html.j2", &ctx) {
         return Ok(Html(html));
     }
-
-    // Fallback to embedded template.
     templates::render("skills/shell.html.j2", &ctx)
         .map(Html)
         .map_err(|e| {

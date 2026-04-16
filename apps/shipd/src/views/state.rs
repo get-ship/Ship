@@ -15,7 +15,7 @@ use std::path::Path;
 // without caring about the submodule split.
 pub use super::agents_state::{AgentDetail, AgentSummary, list_agents, load_agent};
 pub use super::skills_state::{
-    SkillDetail, SkillKind, SkillSummary, list_skills, load_skill,
+    SkillDetail, SkillKind, SkillSummary, list_skills, load_skill, load_skill_file,
 };
 
 /// Definition of a pipeline parsed from a `.ship/pipelines/*.yaml` file.

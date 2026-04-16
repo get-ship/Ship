@@ -1,0 +1,134 @@
+{#-
+  Editor pane — flex-1 middle column. Shows file content when a file is
+  selected, empty state otherwise. Matches React SkillsEditor layout.
+
+  Context:
+    skill (SkillDetail, optional)
+    file (SkillFileCtx, optional) — has path, name, ext, content
+-#}
+<style>
+.skills-editor {
+  display: flex; flex-direction: column;
+  flex: 1; min-width: 0;
+  min-height: 0; overflow: hidden;
+}
+.se-toolbar {
+  display: flex; align-items: center; justify-content: space-between;
+  padding: 6px 16px;
+  border-bottom: 1px solid var(--border);
+  background: color-mix(in oklch, var(--background) 50%, transparent);
+  flex-shrink: 0;
+}
+.se-breadcrumb {
+  display: flex; align-items: center; gap: 0;
+  font-size: 11px; color: var(--muted-foreground);
+}
+.se-breadcrumb span { display: inline; }
+.se-breadcrumb .sep { margin: 0 4px; opacity: 0.5; }
+.se-breadcrumb .active {
+  color: color-mix(in oklch, var(--foreground) 80%, transparent);
+  font-weight: 500;
+}
+.se-toolbar-actions {
+  display: flex; align-items: center; gap: 4px;
+}
+.se-editor-body {
+  flex: 1; overflow-y: auto;
+  min-height: 0;
+}
+.se-editor-content {
+  padding: 28px 40px 48px;
+  max-width: 960px;
+  width: 100%;
+  margin: 0 auto;
+}
+.se-editor-content ship-markdown {
+  font-size: 14px;
+  line-height: 1.65;
+}
+.se-code-view {
+  padding: 20px 24px;
+  font-family: var(--font-mono);
+  font-size: 12px;
+  line-height: 1.6;
+  white-space: pre-wrap;
+  word-break: break-word;
+  color: var(--foreground);
+  background: color-mix(in oklch, var(--card) 50%, var(--background));
+  border-radius: var(--radius);
+  margin: 20px 24px;
+  border: 1px solid var(--border);
+  overflow-x: auto;
+}
+.se-empty-state {
+  flex: 1; display: flex;
+  align-items: center; justify-content: center;
+  flex-direction: column; gap: 12px;
+  color: var(--muted-foreground);
+}
+.se-empty-icon { opacity: 0.3; }
+.se-empty-title {
+  font-size: 16px; font-weight: 500;
+  color: var(--foreground);
+}
+.se-empty-desc { font-size: 13px; max-width: 320px; text-align: center; }
+</style>
+
+<div class="skills-editor">
+  {% if file is defined %}
+    <div class="se-toolbar">
+      <div class="se-breadcrumb">
+        <span>skills</span>
+        <span class="sep">/</span>
+        <span>{{ skill.name }}</span>
+        <span class="sep">/</span>
+        <span class="active">{{ file.name }}</span>
+      </div>
+      <div class="se-toolbar-actions">
+        {# Save button — hidden for now (read-only mode) #}
+        {# PanelRight toggle — placeholder for info panel toggle #}
+      </div>
+    </div>
+    <div class="se-editor-body">
+      {% if file.ext == 'md' %}
+        <div class="se-editor-content">
+          <ship-markdown value="{{ file.content }}"></ship-markdown>
+        </div>
+      {% elif file.ext == 'json' %}
+        <pre class="se-code-view">{{ file.content }}</pre>
+      {% elif file.ext == 'sh' or file.ext == 'py' or file.ext == 'js' or file.ext == 'ts' %}
+        <pre class="se-code-view">{{ file.content }}</pre>
+      {% else %}
+        <pre class="se-code-view">{{ file.content }}</pre>
+      {% endif %}
+    </div>
+  {% elif skill is defined %}
+    {# Skill selected but no file specified — show SKILL.md body #}
+    <div class="se-toolbar">
+      <div class="se-breadcrumb">
+        <span>skills</span>
+        <span class="sep">/</span>
+        <span class="active">{{ skill.name }}</span>
+      </div>
+    </div>
+    <div class="se-editor-body">
+      <div class="se-editor-content">
+        {% if skill.body %}
+          <ship-markdown value="{{ skill.body }}"></ship-markdown>
+        {% else %}
+          <div class="se-empty-state" style="padding:40px 0">
+            <ship-icon name="file" size="xl" tone="muted"></ship-icon>
+            <span class="se-empty-desc">This skill has no SKILL.md content yet.</span>
+          </div>
+        {% endif %}
+      </div>
+    </div>
+  {% else %}
+    {# No skill or file selected #}
+    <div class="se-empty-state">
+      <ship-icon name="zap" size="xl" class="se-empty-icon" tone="muted"></ship-icon>
+      <span class="se-empty-title">No file open</span>
+      <span class="se-empty-desc">Select a skill from the explorer to start editing.</span>
+    </div>
+  {% endif %}
+</div>
