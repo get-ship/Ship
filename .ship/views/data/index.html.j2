@@ -40,11 +40,11 @@
     {% if sdk_collections | length > 0 %}
     <div class="data-toolbar">
       <ship-select size="sm" value="{{ active_collection }}"
-        data-on:ship-select-change="$collection = evt.detail.value; @get('/api/runtime/view/data/sse')">
+        data-on:ship-change="$collection = evt.detail.value; @get('/api/runtime/view/data/sse')">
         {% for c in sdk_collections %}
-        <ship-option value="{{ c.id }}" {% if c.id == active_collection %}selected{% endif %}>
+        <option value="{{ c.id }}" {% if c.id == active_collection %}selected{% endif %}>
           {{ c.name or c.id }} ({{ c.field_count }})
-        </ship-option>
+        </option>
         {% endfor %}
       </ship-select>
       {% if schema is defined %}

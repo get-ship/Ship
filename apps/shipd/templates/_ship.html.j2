@@ -149,8 +149,8 @@
     </label>
     {% if field_def.field_type == "enum" and field_def.values %}
     <ship-select size="sm" data-bind="{{ form_signal }}.{{ field_name }}">
-      <ship-option value="">--</ship-option>
-      {% for v in field_def.values %}<ship-option value="{{ v }}">{{ v }}</ship-option>{% endfor %}
+      <option value="">--</option>
+      {% for v in field_def.values %}<option value="{{ v }}">{{ v }}</option>{% endfor %}
     </ship-select>
     {% elif field_def.field_type == "boolean" %}
     <ship-switch data-bind="{{ form_signal }}.{{ field_name }}"></ship-switch>
