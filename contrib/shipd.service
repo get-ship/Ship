@@ -1,0 +1,14 @@
+[Unit]
+Description=Ship daemon (shipd)
+After=default.target
+
+[Service]
+Type=simple
+ExecStart=%h/.local/bin/ship daemon run --host 127.0.0.1 --port 9315
+Restart=on-failure
+RestartSec=2
+TimeoutStopSec=30
+Environment="RUST_LOG=info"
+
+[Install]
+WantedBy=default.target
