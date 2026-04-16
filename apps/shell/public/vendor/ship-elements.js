@@ -1,4 +1,4 @@
-// node_modules/.pnpm/@lit+reactive-element@2.1.2/node_modules/@lit/reactive-element/css-tag.js
+// ../../node_modules/.pnpm/@lit+reactive-element@2.1.2/node_modules/@lit/reactive-element/css-tag.js
 var t = globalThis;
 var e = t.ShadowRoot && (void 0 === t.ShadyCSS || t.ShadyCSS.nativeShadow) && "adoptedStyleSheets" in Document.prototype && "replace" in CSSStyleSheet.prototype;
 var s = Symbol();
@@ -43,7 +43,7 @@ var c = e ? (t4) => t4 : (t4) => t4 instanceof CSSStyleSheet ? ((t5) => {
   return r(e6);
 })(t4) : t4;
 
-// node_modules/.pnpm/@lit+reactive-element@2.1.2/node_modules/@lit/reactive-element/reactive-element.js
+// ../../node_modules/.pnpm/@lit+reactive-element@2.1.2/node_modules/@lit/reactive-element/reactive-element.js
 var { is: i2, defineProperty: e2, getOwnPropertyDescriptor: h, getOwnPropertyNames: r2, getOwnPropertySymbols: o2, getPrototypeOf: n2 } = Object;
 var a = globalThis;
 var c2 = a.trustedTypes;
@@ -265,7 +265,7 @@ var y = class extends HTMLElement {
 };
 y.elementStyles = [], y.shadowRootOptions = { mode: "open" }, y[d("elementProperties")] = /* @__PURE__ */ new Map(), y[d("finalized")] = /* @__PURE__ */ new Map(), p?.({ ReactiveElement: y }), (a.reactiveElementVersions ?? (a.reactiveElementVersions = [])).push("2.1.2");
 
-// node_modules/.pnpm/lit-html@3.3.2/node_modules/lit-html/lit-html.js
+// ../../node_modules/.pnpm/lit-html@3.3.2/node_modules/lit-html/lit-html.js
 var t2 = globalThis;
 var i3 = (t4) => t4;
 var s2 = t2.trustedTypes;
@@ -519,7 +519,7 @@ var D = (t4, i6, s4) => {
   return h3._$AI(t4), h3;
 };
 
-// node_modules/.pnpm/lit-element@4.2.2/node_modules/lit-element/lit-element.js
+// ../../node_modules/.pnpm/lit-element@4.2.2/node_modules/lit-element/lit-element.js
 var s3 = globalThis;
 var i4 = class extends y {
   constructor() {
@@ -549,7 +549,7 @@ var o4 = s3.litElementPolyfillSupport;
 o4?.({ LitElement: i4 });
 (s3.litElementVersions ?? (s3.litElementVersions = [])).push("4.2.2");
 
-// packages/ui/src/web-components/util.ts
+// src/web-components/util.ts
 var MONO_STACK = "ui-monospace, SFMono-Regular, 'SF Mono', Menlo, Consolas, monospace";
 var MONO = r(MONO_STACK);
 var toneVars = i`
@@ -589,8 +589,29 @@ var toneVars = i`
     --tone-border: var(--border);
   }
 `;
+var focusRingStyle = r(`
+  outline: none;
+  box-shadow:
+    0 0 0 var(--ring-offset) var(--background),
+    0 0 0 calc(var(--ring-offset) + var(--ring-width))
+      color-mix(in oklch, var(--ring-color) var(--ring-opacity), transparent);
+`);
+var focusRingForcedColors = r(`
+  outline: 2px solid CanvasText;
+  outline-offset: 2px;
+`);
+var reducedMotion = i`
+  @media (prefers-reduced-motion: reduce) {
+    :host, :host *, ::slotted(*) {
+      animation-duration: 0.01ms !important;
+      animation-iteration-count: 1 !important;
+      transition-duration: 0.01ms !important;
+      scroll-behavior: auto !important;
+    }
+  }
+`;
 
-// packages/ui/src/web-components/ship-alert.ts
+// src/web-components/ship-alert.ts
 var ShipAlert = class extends i4 {
   constructor() {
     super();
@@ -605,8 +626,11 @@ var ShipAlert = class extends i4 {
     this.remove();
   }
   render() {
+    const assertive = this.tone === "destructive" || this.tone === "warning";
+    const role = assertive ? "alert" : "status";
+    const live = assertive ? "assertive" : "polite";
     return b2`
-      <div class="box" role="status">
+      <div class="box" role=${role} aria-live=${live} aria-atomic="true">
         <span><slot name="icon"></slot></span>
         <div class="content">
           <div class="title"><slot name="title"></slot></div>
@@ -657,14 +681,16 @@ if (typeof customElements !== "undefined" && !customElements.get("ship-alert")) 
   customElements.define("ship-alert", ShipAlert);
 }
 
-// packages/ui/src/web-components/ship-dialog.ts
-var ShipDialog = class extends i4 {
+// src/web-components/ship-dialog.ts
+var _ShipDialog = class _ShipDialog extends i4 {
   constructor() {
     super(...arguments);
     this.open = false;
     this.size = "md";
     this.dismissible = true;
     this.noCloseButton = false;
+    this.dialogRole = "dialog";
+    this.uid = ++_ShipDialog._idSeq;
     this.onClose = () => {
       this.open = false;
       this.dispatchEvent(new CustomEvent("ship-close", { bubbles: true, composed: true }));
@@ -678,10 +704,17 @@ var ShipDialog = class extends i4 {
       this.close();
     };
   }
+  get headerId() {
+    return `ship-dialog-header-${this.uid}`;
+  }
+  get bodyId() {
+    return `ship-dialog-body-${this.uid}`;
+  }
   get dialogEl() {
     return this.renderRoot.querySelector("dialog");
   }
   updated(changed) {
+    this.setAttribute("data-state", this.open ? "open" : "closed");
     if (changed.has("open") && this.dialogEl) {
       if (this.open && !this.dialogEl.open) {
         if (typeof this.dialogEl.showModal === "function") {
@@ -704,7 +737,14 @@ var ShipDialog = class extends i4 {
   }
   render() {
     return b2`
-      <dialog @close=${this.onClose} @click=${this.onBackdropClick}>
+      <dialog
+        role=${this.dialogRole}
+        aria-modal="true"
+        aria-labelledby=${this.headerId}
+        aria-describedby=${this.bodyId}
+        @close=${this.onClose}
+        @click=${this.onBackdropClick}
+      >
         <div class="wrap">
           <button
             class="close"
@@ -712,15 +752,15 @@ var ShipDialog = class extends i4 {
             aria-label="Close dialog"
             @click=${this.onDismiss}
           >×</button>
-          <div class="header"><slot name="header"></slot></div>
-          <div class="body"><slot></slot></div>
+          <div class="header" id=${this.headerId}><slot name="header"></slot></div>
+          <div class="body" id=${this.bodyId}><slot></slot></div>
           <div class="footer"><slot name="footer"></slot></div>
         </div>
       </dialog>
     `;
   }
 };
-ShipDialog.styles = i`
+_ShipDialog.styles = i`
     :host { display: contents; }
     dialog {
       padding: 0;
@@ -796,17 +836,20 @@ ShipDialog.styles = i`
     }
     :host([no-close-button]) .close { display: none; }
   `;
-ShipDialog.properties = {
+_ShipDialog.properties = {
   open: { type: Boolean, reflect: true },
   size: { type: String, reflect: true },
   dismissible: { type: Boolean },
-  noCloseButton: { type: Boolean, reflect: true, attribute: "no-close-button" }
+  noCloseButton: { type: Boolean, reflect: true, attribute: "no-close-button" },
+  dialogRole: { type: String, attribute: "role-override" }
 };
+_ShipDialog._idSeq = 0;
+var ShipDialog = _ShipDialog;
 if (typeof customElements !== "undefined" && !customElements.get("ship-dialog")) {
   customElements.define("ship-dialog", ShipDialog);
 }
 
-// packages/ui/src/web-components/ship-button.ts
+// src/web-components/ship-button.ts
 var ShipButton = class extends i4 {
   constructor() {
     super(...arguments);
@@ -815,6 +858,25 @@ var ShipButton = class extends i4 {
     this.disabled = false;
     this.loading = false;
     this.type = "button";
+    this.label = "";
+    this.pressed = "";
+    this.expanded = "";
+    /** Detect an empty default slot so we can render a square icon-only button
+     * without requiring callers to opt in with a new attribute. */
+    this.handleDefaultSlotChange = (e6) => {
+      const slot = e6.target;
+      const nodes = slot.assignedNodes({ flatten: true });
+      const hasText = nodes.some((n4) => {
+        if (n4.nodeType === Node.TEXT_NODE) return (n4.textContent || "").trim().length > 0;
+        if (n4.nodeType === Node.ELEMENT_NODE) {
+          const el = n4;
+          return (el.textContent || "").trim().length > 0 || el.childElementCount > 0;
+        }
+        return false;
+      });
+      if (hasText) this.removeAttribute("data-icon-only");
+      else this.setAttribute("data-icon-only", "");
+    };
   }
   render() {
     return b2`
@@ -823,156 +885,435 @@ var ShipButton = class extends i4 {
         type=${this.type}
         ?disabled=${this.disabled || this.loading}
         aria-busy=${this.loading ? "true" : "false"}
+        aria-disabled=${this.disabled || this.loading ? "true" : "false"}
+        aria-label=${this.label || A}
+        aria-pressed=${this.pressed || A}
+        aria-expanded=${this.expanded || A}
       >
-        ${this.loading ? b2`<span class="spinner" aria-hidden="true"></span>` : b2`<slot name="leading"></slot>`}
-        <slot></slot>
-        <slot name="trailing"></slot>
+        <span class="content">
+          <slot name="leading"></slot>
+          <slot @slotchange=${this.handleDefaultSlotChange}></slot>
+          <slot name="trailing"></slot>
+        </span>
+        ${this.loading ? b2`<span class="spinner-wrap" aria-hidden="true"><span class="spinner"></span></span>` : A}
       </button>
     `;
   }
 };
-ShipButton.styles = i`
+ShipButton.styles = [reducedMotion, i`
     :host {
       display: inline-flex;
       vertical-align: middle;
+      /* Per-host tone channel. Overridden per :host([tone=...]) below so
+       * the variant selectors can stay tone-agnostic and compose freely. */
+      --tone: var(--primary);
+      --tone-fg: var(--primary-foreground);
+      --tone-contrast: oklch(0.99 0.02 95);
     }
     :host([hidden]) { display: none; }
 
+    /* Tone channel — each tone supplies its own accent color + a readable
+     * contrast foreground for solid fills. The rest of the styling is driven
+     * purely off --tone / --tone-contrast so variants stay DRY. */
+    :host(:not([tone])),
+    :host([tone='default']) {
+      --tone: var(--foreground);
+      --tone-fg: var(--foreground);
+      --tone-contrast: var(--background);
+    }
+    :host([tone='info']) {
+      --tone: var(--info);
+      --tone-fg: var(--info);
+      --tone-contrast: oklch(0.99 0.02 260);
+    }
+    :host([tone='success']) {
+      --tone: var(--success);
+      --tone-fg: var(--success);
+      --tone-contrast: oklch(0.99 0.02 150);
+    }
+    :host([tone='warning']) {
+      --tone: var(--warning);
+      --tone-fg: var(--warning);
+      --tone-contrast: oklch(0.2 0.04 75);
+    }
+    :host([tone='destructive']) {
+      --tone: var(--destructive);
+      --tone-fg: var(--destructive);
+      --tone-contrast: oklch(0.99 0.02 25);
+    }
+    :host([tone='accent']) {
+      --tone: var(--accent);
+      --tone-fg: var(--accent);
+      --tone-contrast: var(--accent-foreground);
+    }
+    :host([tone='muted']) {
+      --tone: var(--muted-foreground);
+      --tone-fg: var(--muted-foreground);
+      --tone-contrast: var(--background);
+    }
+
     button {
+      position: relative;
       display: inline-flex;
       align-items: center;
       justify-content: center;
-      gap: var(--radius-sm);
+      gap: var(--space-2);
       font-family: var(--font-body);
       font-weight: var(--font-weight-medium);
+      letter-spacing: -0.005em;
       line-height: 1;
       border-radius: var(--radius-md);
       cursor: pointer;
       border: 1px solid transparent;
       background: transparent;
       color: var(--foreground);
+      isolation: isolate;
+      user-select: none;
+      -webkit-user-select: none;
+      -webkit-tap-highlight-color: transparent;
+      /* Optical alignment for g/y descenders — nudge content up by 0.5px so
+       * the label sits visually centered between cap-height and baseline. */
+      padding-block-start: calc(var(--btn-py) - 0.5px);
+      padding-block-end: calc(var(--btn-py) + 0.5px);
+      padding-inline: var(--btn-px);
+      transform: translateZ(0);
       transition:
         background-color var(--duration-fast) var(--ease-out),
         border-color var(--duration-fast) var(--ease-out),
         box-shadow var(--duration-fast) var(--ease-out),
-        filter var(--duration-fast) var(--ease-out),
-        color var(--duration-fast) var(--ease-out);
+        color var(--duration-fast) var(--ease-out),
+        transform var(--duration-fast) var(--ease-out),
+        filter var(--duration-fast) var(--ease-out);
       white-space: nowrap;
     }
-    :host([loading]) button { min-width: var(--ship-button-min-width, 2.5em); }
-    button:hover:not(:disabled) { box-shadow: var(--shadow-sm); }
+
+    /* Size tokens — drive padding/height/typography from a single --btn-*
+     * channel so the matrix below never needs to repeat sizing logic. */
+    :host(:not([size])),
+    :host([size='md']) {
+      --btn-h: 34px;
+      --btn-px: var(--space-3);
+      --btn-py: 0px;
+      --btn-fs: var(--text-base);
+      --btn-fw: var(--font-weight-semibold);
+      --btn-gap: var(--space-2);
+      --btn-icon: 14px;
+    }
+    :host([size='sm']) {
+      --btn-h: 28px;
+      --btn-px: var(--space-3);
+      --btn-py: 0px;
+      --btn-fs: var(--text-sm);
+      --btn-fw: var(--font-weight-medium);
+      --btn-gap: 6px;
+      --btn-icon: 12px;
+    }
+    :host([size='lg']) {
+      --btn-h: 40px;
+      --btn-px: var(--space-4);
+      --btn-py: 0px;
+      --btn-fs: var(--text-md);
+      --btn-fw: var(--font-weight-semibold);
+      --btn-gap: var(--space-2);
+      --btn-icon: 16px;
+    }
+
+    button {
+      min-height: var(--btn-h);
+      font-size: var(--btn-fs);
+      font-weight: var(--btn-fw);
+      gap: var(--btn-gap);
+    }
+
+    /* Icon-only — detected via the default slot being empty of visible text.
+     * When active, collapse horizontal padding so the button renders as a
+     * perfectly square affordance for icon adornments. */
+    :host([data-icon-only]) button {
+      padding-inline: 0;
+      inline-size: var(--btn-h);
+      min-inline-size: var(--btn-h);
+    }
+
+    /* ──────────────────────────────────────────────────────────────────
+     * Variant matrix — each rule reads only from --tone/--tone-contrast,
+     * so adding a tone is a single :host([tone=…]) channel override above.
+     * ────────────────────────────────────────────────────────────────── */
+
+    /* solid — tone fill, contrast text, subtle top-highlight for premium feel */
+    :host([variant='solid']) button {
+      background: var(--tone);
+      border-color: color-mix(in oklch, var(--tone) 100%, black 6%);
+      color: var(--tone-contrast);
+      box-shadow:
+        inset 0 1px 0 0 color-mix(in oklch, white 18%, transparent),
+        var(--shadow-xs);
+    }
+    :host([variant='solid']) button:hover:not(:disabled) {
+      background: color-mix(in oklch, var(--tone) 92%, white 8%);
+      box-shadow:
+        inset 0 1px 0 0 color-mix(in oklch, white 22%, transparent),
+        var(--shadow-sm);
+      transform: translateY(-1px);
+    }
+    :host([variant='solid']) button:active:not(:disabled) {
+      background: color-mix(in oklch, var(--tone) 92%, black 8%);
+      box-shadow:
+        inset 0 1px 2px 0 color-mix(in oklch, black 18%, transparent),
+        var(--shadow-xs);
+      transform: translateY(0);
+    }
+
+    /* Solid default tone: neutral surface that still feels like a filled
+     * button (matches shadcn's default variant). */
+    :host(:not([tone])[variant='solid']) button,
+    :host([tone='default'][variant='solid']) button {
+      background: var(--foreground);
+      border-color: var(--foreground);
+      color: var(--background);
+    }
+    :host(:not([tone])[variant='solid']) button:hover:not(:disabled),
+    :host([tone='default'][variant='solid']) button:hover:not(:disabled) {
+      background: color-mix(in oklch, var(--foreground) 88%, var(--background));
+    }
+
+    /* Default (no variant attr) is the neutral bordered button — matches
+     * the existing view styling and shadcn's outline feel. */
+    :host(:not([variant])) button {
+      background: var(--background);
+      border-color: var(--border);
+      color: var(--foreground);
+      box-shadow: var(--shadow-xs);
+    }
+    :host(:not([variant])) button:hover:not(:disabled) {
+      background: color-mix(in oklch, var(--muted) 70%, var(--background));
+      border-color: color-mix(in oklch, var(--border) 160%, transparent);
+      box-shadow: var(--shadow-sm);
+      transform: translateY(-1px);
+    }
+    :host(:not([variant])) button:active:not(:disabled) {
+      background: var(--muted);
+      box-shadow: var(--shadow-xs);
+      transform: translateY(0);
+    }
+    /* Default button with a tone: colorize text + border subtly so tone is
+     * legible without overpowering the neutral surface. */
+    :host(:not([variant])[tone]:not([tone='default']):not([tone='muted'])) button {
+      color: var(--tone-fg);
+      border-color: color-mix(in oklch, var(--tone) 38%, var(--border));
+    }
+    :host(:not([variant])[tone]:not([tone='default']):not([tone='muted'])) button:hover:not(:disabled) {
+      background: color-mix(in oklch, var(--tone) 8%, var(--background));
+      border-color: color-mix(in oklch, var(--tone) 55%, var(--border));
+    }
+
+    /* soft — tone-tinted surface with a faint border for definition */
+    :host([variant='soft']) button {
+      background: color-mix(in oklch, var(--tone) 14%, transparent);
+      border-color: color-mix(in oklch, var(--tone) 22%, transparent);
+      color: var(--tone-fg);
+    }
+    :host([variant='soft']) button:hover:not(:disabled) {
+      background: color-mix(in oklch, var(--tone) 22%, transparent);
+      border-color: color-mix(in oklch, var(--tone) 32%, transparent);
+      transform: translateY(-1px);
+      box-shadow: var(--shadow-xs);
+    }
+    :host([variant='soft']) button:active:not(:disabled) {
+      background: color-mix(in oklch, var(--tone) 28%, transparent);
+      transform: translateY(0);
+      box-shadow: none;
+    }
+
+    /* outline — transparent with tone border + text */
+    :host([variant='outline']) button {
+      background: transparent;
+      border-color: color-mix(in oklch, var(--tone) 55%, transparent);
+      color: var(--tone-fg);
+    }
+    :host([variant='outline']:not([tone])) button,
+    :host([variant='outline'][tone='default']) button {
+      border-color: var(--border);
+      color: var(--foreground);
+    }
+    :host([variant='outline']) button:hover:not(:disabled) {
+      background: color-mix(in oklch, var(--tone) 10%, transparent);
+      border-color: color-mix(in oklch, var(--tone) 75%, transparent);
+      transform: translateY(-1px);
+      box-shadow: var(--shadow-xs);
+    }
+    :host([variant='outline']:not([tone])) button:hover:not(:disabled),
+    :host([variant='outline'][tone='default']) button:hover:not(:disabled) {
+      background: var(--muted);
+      border-color: color-mix(in oklch, var(--border) 160%, transparent);
+    }
+    :host([variant='outline']) button:active:not(:disabled) {
+      background: color-mix(in oklch, var(--tone) 16%, transparent);
+      transform: translateY(0);
+      box-shadow: none;
+    }
+
+    /* ghost — no chrome, tone tint on hover */
+    :host([variant='ghost']) button {
+      background: transparent;
+      border-color: transparent;
+      color: var(--tone-fg);
+    }
+    :host([variant='ghost']:not([tone])) button,
+    :host([variant='ghost'][tone='default']) button {
+      color: var(--muted-foreground);
+    }
+    :host([variant='ghost']) button:hover:not(:disabled) {
+      background: color-mix(in oklch, var(--tone) 12%, transparent);
+    }
+    :host([variant='ghost']:not([tone])) button:hover:not(:disabled),
+    :host([variant='ghost'][tone='default']) button:hover:not(:disabled) {
+      background: var(--muted);
+      color: var(--foreground);
+    }
+    :host([variant='ghost']) button:active:not(:disabled) {
+      background: color-mix(in oklch, var(--tone) 18%, transparent);
+    }
+
+    /* Premium treatment for the primary CTA (solid + accent): a subtle
+     * diagonal gradient + faint colored glow on hover. Keeps the rest of
+     * the matrix honest while giving the hero button some presence. */
+    :host([variant='solid'][tone='accent']) button {
+      background:
+        linear-gradient(
+          180deg,
+          color-mix(in oklch, var(--accent) 100%, white 6%) 0%,
+          var(--accent) 100%
+        );
+    }
+    :host([variant='solid'][tone='accent']) button:hover:not(:disabled) {
+      background:
+        linear-gradient(
+          180deg,
+          color-mix(in oklch, var(--accent) 100%, white 10%) 0%,
+          color-mix(in oklch, var(--accent) 95%, white 5%) 100%
+        );
+      box-shadow:
+        inset 0 1px 0 0 color-mix(in oklch, white 24%, transparent),
+        var(--shadow-sm),
+        0 0 0 1px color-mix(in oklch, var(--accent) 40%, transparent),
+        0 6px 20px -8px color-mix(in oklch, var(--accent) 70%, transparent);
+    }
+
+    /* Destructive solid: bump contrast so it visibly demands attention. */
+    :host([variant='solid'][tone='destructive']) button {
+      font-weight: var(--font-weight-semibold);
+    }
+    :host([variant='solid'][tone='destructive']) button:hover:not(:disabled) {
+      box-shadow:
+        inset 0 1px 0 0 color-mix(in oklch, white 24%, transparent),
+        var(--shadow-sm),
+        0 4px 14px -4px color-mix(in oklch, var(--destructive) 55%, transparent);
+    }
+
+    /* Focus ring — :focus-visible only, rendered via stacked box-shadows
+     * so the ring sits outside the border without reserving layout space. */
     button:focus-visible {
       outline: none;
       box-shadow:
         0 0 0 var(--ring-offset) var(--background),
         0 0 0 calc(var(--ring-offset) + var(--ring-width))
+          color-mix(in oklch, var(--tone) 55%, transparent);
+    }
+    :host(:not([tone])) button:focus-visible,
+    :host([tone='default']) button:focus-visible {
+      box-shadow:
+        0 0 0 var(--ring-offset) var(--background),
+        0 0 0 calc(var(--ring-offset) + var(--ring-width))
           color-mix(in oklch, var(--ring-color) var(--ring-opacity), transparent);
     }
-    button:disabled { cursor: not-allowed; opacity: 0.6; }
-
-    /* sizes — match specs .btn (sm) and a slightly larger md/lg for Studio use */
-    :host([size='sm']) button { font-size: 11px; padding: 4px 8px; }
-    :host(:not([size])) button,
-    :host([size='md']) button { font-size: var(--text-sm); padding: 5px 10px; }
-    :host([size='lg']) button { font-size: var(--text-base); padding: 8px 14px; }
-
-    /* default (tone=default): neutral bordered button matching specs .btn */
-    :host(:not([tone])) button,
-    :host([tone='default']) button {
-      background: var(--background);
-      border-color: var(--border);
-      color: var(--foreground);
+    @media (forced-colors: active) {
+      button:focus-visible { outline: 2px solid CanvasText; outline-offset: 2px; }
     }
-    :host(:not([tone])) button:hover:not(:disabled),
-    :host([tone='default']) button:hover:not(:disabled) {
+
+    /* Disabled — muted, no pointer, no motion. Distinct enough from hover
+     * state that users can tell it's unreachable, not just loading. */
+    button:disabled {
+      cursor: not-allowed;
+      color: color-mix(in oklch, var(--muted-foreground) 65%, transparent);
       background: var(--muted);
+      border-color: color-mix(in oklch, var(--border) 80%, transparent);
+      box-shadow: none;
+      transform: none;
+      filter: saturate(0.6);
     }
-
-    /* solid variant — primary colored fill. Matches specs .btn-primary. */
-    :host([variant='solid'][tone='default']) button,
-    :host([variant='solid']:not([tone])) button {
-      background: var(--primary);
-      border-color: var(--primary);
-      color: var(--primary-foreground);
-    }
-    :host([variant='solid'][tone='default']) button:hover:not(:disabled),
-    :host([variant='solid']:not([tone])) button:hover:not(:disabled) {
-      filter: brightness(1.05);
-    }
-    :host([variant='solid'][tone='destructive']) button {
-      background: var(--destructive);
-      border-color: var(--destructive);
-      color: oklch(0.99 0.02 95);
-    }
-    :host([variant='solid'][tone='destructive']) button:hover:not(:disabled) {
-      filter: brightness(1.05);
-    }
-    :host([variant='solid'][tone='success']) button {
-      background: var(--success); border-color: var(--success); color: oklch(0.99 0.02 95);
-    }
-    :host([variant='solid'][tone='accent']) button {
-      background: var(--accent); border-color: var(--accent); color: var(--accent-foreground);
-    }
-
-    /* outline variant — matches specs .btn-danger */
-    :host([variant='outline']) button {
+    :host([variant='ghost']) button:disabled,
+    :host([variant='outline']) button:disabled {
       background: transparent;
-      border-color: var(--border);
-      color: var(--foreground);
     }
-    :host([variant='outline'][tone='destructive']) button {
-      color: var(--destructive); border-color: var(--destructive);
-    }
-    :host([variant='outline']) button:hover:not(:disabled) { background: var(--muted); }
-
-    /* ghost variant — transparent, hover tint */
-    :host([variant='ghost']) button {
-      background: transparent; border-color: transparent; color: var(--muted-foreground);
-    }
-    :host([variant='ghost']) button:hover:not(:disabled) {
-      background: var(--muted); color: var(--foreground);
-    }
-    :host([variant='ghost'][tone='destructive']) button { color: var(--destructive); }
-
-    /* soft variant — tinted surface, used for pill-like affirm buttons */
-    :host([variant='soft']) button {
-      background: color-mix(in oklch, var(--primary) 12%, transparent);
-      border-color: color-mix(in oklch, var(--primary) 25%, transparent);
-      color: var(--primary);
-    }
-    :host([variant='soft'][tone='destructive']) button {
-      background: color-mix(in oklch, var(--destructive) 12%, transparent);
-      border-color: color-mix(in oklch, var(--destructive) 28%, transparent);
-      color: var(--destructive);
+    :host([variant='outline']) button:disabled {
+      border-color: color-mix(in oklch, var(--border) 60%, transparent);
     }
 
+    /* Loading — fade the label out while preserving layout, overlay spinner
+     * in the same color as the text would be (currentColor on the button). */
+    :host([loading]) button { cursor: progress; }
+    :host([loading]) .content {
+      opacity: 0;
+      transform: scale(0.96);
+    }
+    .content {
+      display: inline-flex;
+      align-items: center;
+      gap: var(--btn-gap);
+      transition:
+        opacity var(--duration-fast) var(--ease-out),
+        transform var(--duration-fast) var(--ease-out);
+    }
+
+    .spinner-wrap {
+      position: absolute;
+      inset: 0;
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      pointer-events: none;
+    }
     .spinner {
-      width: 12px; height: 12px;
+      width: var(--btn-icon);
+      height: var(--btn-icon);
       border: 1.5px solid currentColor;
       border-right-color: transparent;
       border-radius: 50%;
-      animation: spin 0.8s linear infinite;
+      animation: spin 0.7s linear infinite;
       display: inline-block;
     }
     @keyframes spin { to { transform: rotate(360deg); } }
 
-    ::slotted([slot='leading']), ::slotted([slot='trailing']) {
-      display: inline-flex; align-items: center;
+    /* Slotted icons — constrain to the size channel so icons visually match
+     * the typographic scale without each caller having to set a size. */
+    ::slotted([slot='leading']),
+    ::slotted([slot='trailing']) {
+      display: inline-flex;
+      align-items: center;
+      flex: 0 0 auto;
     }
-  `;
+    ::slotted(svg) {
+      width: var(--btn-icon);
+      height: var(--btn-icon);
+      display: block;
+    }
+  `];
 ShipButton.properties = {
   tone: { type: String, reflect: true },
   variant: { type: String, reflect: true },
   size: { type: String, reflect: true },
   disabled: { type: Boolean, reflect: true },
   loading: { type: Boolean, reflect: true },
-  type: { type: String, reflect: true }
+  type: { type: String, reflect: true },
+  label: { type: String },
+  pressed: { type: String, reflect: true },
+  expanded: { type: String, reflect: true }
 };
 if (typeof customElements !== "undefined" && !customElements.get("ship-button")) {
   customElements.define("ship-button", ShipButton);
 }
 
-// packages/ui/src/web-components/ship-alert-dialog.ts
+// src/web-components/ship-alert-dialog.ts
 var ShipAlertDialog = class extends i4 {
   constructor() {
     super(...arguments);
@@ -987,7 +1328,7 @@ var ShipAlertDialog = class extends i4 {
   }
   render() {
     return b2`
-      <ship-dialog size="sm" no-close-button ?open=${this.open}
+      <ship-dialog role-override="alertdialog" size="sm" no-close-button ?open=${this.open}
         @ship-close=${() => {
       this.open = false;
     }}
@@ -1023,7 +1364,7 @@ if (typeof customElements !== "undefined" && !customElements.get("ship-alert-dia
   customElements.define("ship-alert-dialog", ShipAlertDialog);
 }
 
-// packages/ui/src/utils/annotation-helpers.ts
+// src/utils/annotation-helpers.ts
 function getCSSSelector(el) {
   if (el.id) return `#${el.id}`;
   const tag = el.tagName.toLowerCase();
@@ -1085,7 +1426,7 @@ function buildAnnotationEvent(input) {
   return ev;
 }
 
-// packages/ui/src/web-components/ship-annotation-layer.internals.ts
+// src/web-components/ship-annotation-layer.internals.ts
 var layerStyles = i`
   :host {
     position: relative;
@@ -1183,7 +1524,7 @@ function renderPopover(host, at) {
   `;
 }
 
-// packages/ui/src/web-components/ship-annotation-marker.ts
+// src/web-components/ship-annotation-marker.ts
 var ShipAnnotationMarker = class extends i4 {
   constructor() {
     super(...arguments);
@@ -1276,7 +1617,7 @@ if (typeof customElements !== "undefined" && !customElements.get("ship-annotatio
   customElements.define("ship-annotation-marker", ShipAnnotationMarker);
 }
 
-// packages/ui/src/web-components/ship-annotation-layer.ts
+// src/web-components/ship-annotation-layer.ts
 var DEFAULT_ENDPOINT = "/api/runtime/annotations";
 var ShipAnnotationLayer = class extends i4 {
   constructor() {
@@ -1498,7 +1839,7 @@ if (typeof customElements !== "undefined" && !customElements.get("ship-annotatio
   customElements.define("ship-annotation-layer", ShipAnnotationLayer);
 }
 
-// packages/ui/src/web-components/ship-annotation-list.ts
+// src/web-components/ship-annotation-list.ts
 var ShipAnnotationList = class extends i4 {
   constructor() {
     super(...arguments);
@@ -1612,7 +1953,7 @@ if (typeof customElements !== "undefined" && !customElements.get("ship-annotatio
   customElements.define("ship-annotation-list", ShipAnnotationList);
 }
 
-// packages/ui/src/web-components/ship-badge.ts
+// src/web-components/ship-badge.ts
 var ShipBadge = class extends i4 {
   constructor() {
     super();
@@ -1661,15 +2002,34 @@ if (typeof customElements !== "undefined" && !customElements.get("ship-badge")) 
   customElements.define("ship-badge", ShipBadge);
 }
 
-// packages/ui/src/web-components/ship-card.ts
+// src/web-components/ship-card.ts
 var ShipCard = class extends i4 {
   constructor() {
     super();
+    this.onKey = (e6) => {
+      if (!this.interactive) return;
+      if (e6.key === "Enter" || e6.key === " ") {
+        e6.preventDefault();
+        this.click();
+      }
+    };
     this.variant = "default";
     this.interactive = false;
     this.accentBar = false;
     this.statusRail = false;
     this.fill = false;
+  }
+  connectedCallback() {
+    super.connectedCallback();
+    if (this.interactive) {
+      if (!this.hasAttribute("role")) this.setAttribute("role", "button");
+      if (!this.hasAttribute("tabindex")) this.setAttribute("tabindex", "0");
+      this.addEventListener("keydown", this.onKey);
+    }
+  }
+  disconnectedCallback() {
+    super.disconnectedCallback();
+    this.removeEventListener("keydown", this.onKey);
   }
   render() {
     return b2`
@@ -1739,27 +2099,46 @@ if (typeof customElements !== "undefined" && !customElements.get("ship-card")) {
   customElements.define("ship-card", ShipCard);
 }
 
-// packages/ui/src/web-components/ship-checkbox.ts
+// src/web-components/ship-checkbox.ts
 var ShipCheckbox = class extends i4 {
   constructor() {
-    super(...arguments);
+    super();
+    this.defaultChecked = false;
     this.checked = false;
     this.indeterminate = false;
     this.name = "";
     this.value = "on";
     this.disabled = false;
     this.required = false;
+    this.invalid = false;
+    this.internals = this.attachInternals();
   }
   get input() {
     return this.renderRoot.querySelector("input");
   }
+  connectedCallback() {
+    super.connectedCallback();
+    this.defaultChecked = this.checked;
+  }
+  setFormValue(v2) {
+    if (typeof this.internals.setFormValue === "function") this.internals.setFormValue(v2);
+  }
   updated() {
     if (this.input) this.input.indeterminate = this.indeterminate;
+    this.setFormValue(this.checked ? this.value : null);
+  }
+  formResetCallback() {
+    this.checked = this.defaultChecked;
+    this.indeterminate = false;
+  }
+  formStateRestoreCallback(state) {
+    this.checked = state === this.value;
   }
   onChange(e6) {
     const c4 = e6.target.checked;
     this.checked = c4;
     this.indeterminate = false;
+    this.setFormValue(c4 ? this.value : null);
     this.dispatchEvent(new CustomEvent("ship-change", {
       detail: { checked: c4 },
       bubbles: true,
@@ -1777,6 +2156,8 @@ var ShipCheckbox = class extends i4 {
           value=${this.value}
           ?disabled=${this.disabled}
           ?required=${this.required}
+          aria-checked=${this.indeterminate ? "mixed" : this.checked ? "true" : "false"}
+          aria-invalid=${this.invalid ? "true" : "false"}
           @change=${this.onChange}
         />
         <slot></slot>
@@ -1784,6 +2165,7 @@ var ShipCheckbox = class extends i4 {
     `;
   }
 };
+ShipCheckbox.formAssociated = true;
 ShipCheckbox.styles = i`
     :host { display: inline-flex; align-items: center; gap: 8px; cursor: pointer; font: inherit; font-size: 13px; color: var(--foreground); }
     :host([disabled]) { cursor: not-allowed; opacity: 0.6; }
@@ -1797,19 +2179,65 @@ ShipCheckbox.properties = {
   name: { type: String },
   value: { type: String },
   disabled: { type: Boolean, reflect: true },
-  required: { type: Boolean, reflect: true }
+  required: { type: Boolean, reflect: true },
+  invalid: { type: Boolean, reflect: true }
 };
 if (typeof customElements !== "undefined" && !customElements.get("ship-checkbox")) {
   customElements.define("ship-checkbox", ShipCheckbox);
 }
 
-// packages/ui/src/web-components/ship-dropdown-menu.ts
+// src/web-components/typeahead.ts
+var Typeahead = class {
+  constructor(timeout = 500) {
+    this.timeout = timeout;
+    this.buffer = "";
+    this.lastAt = 0;
+  }
+  push(key) {
+    const now = Date.now();
+    if (now - this.lastAt > this.timeout) this.buffer = "";
+    this.lastAt = now;
+    const k2 = key.toLowerCase();
+    if (this.buffer === k2) return this.buffer;
+    this.buffer += k2;
+    return this.buffer;
+  }
+  reset() {
+    this.buffer = "";
+    this.lastAt = 0;
+  }
+  /**
+   * Find the next matching item index. Items provide their search label.
+   * `fromIndex` is the currently-active index (matches start strictly
+   * after it). Buffer of length 1 cycles; longer buffers prefix-match.
+   */
+  match(labels, fromIndex) {
+    const n4 = labels.length;
+    if (!this.buffer || n4 === 0) return -1;
+    const cycling = this.buffer.length === 1;
+    const start = cycling ? fromIndex + 1 : 0;
+    for (let i6 = 0; i6 < n4; i6++) {
+      const idx = (start + i6) % n4;
+      const label = (labels[idx] ?? "").toLowerCase();
+      if (label.startsWith(this.buffer)) return idx;
+    }
+    return -1;
+  }
+};
+function isTypeaheadKey(e6) {
+  if (e6.ctrlKey || e6.altKey || e6.metaKey) return false;
+  return e6.key.length === 1 && /\S/.test(e6.key);
+}
+
+// src/web-components/ship-dropdown-menu.ts
 var ShipDropdownMenu = class extends i4 {
   constructor() {
     super(...arguments);
     this.open = false;
+    this.typeahead = new Typeahead();
     this.onTriggerClick = () => {
       this.open = !this.open;
+      if (this.open) queueMicrotask(() => this.focusItem(0));
     };
     this.onItemClick = (e6) => {
       const target = e6.target.closest("[data-value]");
@@ -1820,7 +2248,42 @@ var ShipDropdownMenu = class extends i4 {
         bubbles: true,
         composed: true
       }));
-      this.open = false;
+      this.close();
+    };
+    this.onKeydown = (e6) => {
+      if (!this.open) return;
+      const items = this.items();
+      if (!items.length) return;
+      const i6 = this.currentIndex();
+      if (e6.key === "ArrowDown") {
+        e6.preventDefault();
+        this.focusItem(i6 + 1);
+      } else if (e6.key === "ArrowUp") {
+        e6.preventDefault();
+        this.focusItem(i6 - 1);
+      } else if (e6.key === "Home") {
+        e6.preventDefault();
+        this.focusItem(0);
+      } else if (e6.key === "End") {
+        e6.preventDefault();
+        this.focusItem(items.length - 1);
+      } else if (e6.key === "Escape") {
+        e6.preventDefault();
+        this.close();
+      } else if (e6.key === "Tab") {
+        this.open = false;
+      } else if ((e6.key === "Enter" || e6.key === " ") && i6 >= 0) {
+        e6.preventDefault();
+        items[i6].click();
+      } else if (isTypeaheadKey(e6)) {
+        this.typeahead.push(e6.key);
+        const labels = items.map((el) => (el.textContent ?? "").trim());
+        const next = this.typeahead.match(labels, i6);
+        if (next >= 0) {
+          e6.preventDefault();
+          this.focusItem(next);
+        }
+      }
     };
     this.onDocClick = (e6) => {
       if (!this.open) return;
@@ -1828,19 +2291,63 @@ var ShipDropdownMenu = class extends i4 {
       if (!this.contains(target) && target !== this) this.open = false;
     };
   }
+  items() {
+    return Array.from(this.querySelectorAll('[role="menuitem"], button[data-value], [data-value]')).filter((el) => !el.hasAttribute("disabled"));
+  }
+  focusItem(index) {
+    const items = this.items();
+    if (!items.length) return;
+    const i6 = (index + items.length) % items.length;
+    for (const it of items) it.setAttribute("tabindex", "-1");
+    items[i6].setAttribute("tabindex", "0");
+    items[i6].focus();
+  }
+  currentIndex() {
+    const items = this.items();
+    return items.indexOf(document.activeElement);
+  }
+  triggerEl() {
+    const slot = this.renderRoot.querySelector('slot[name="trigger"]');
+    const assigned = slot?.assignedElements({ flatten: true });
+    return assigned?.[0] ?? null;
+  }
+  close() {
+    this.open = false;
+    this.triggerEl()?.focus();
+  }
+  setupTrigger() {
+    const t4 = this.triggerEl();
+    if (!t4) return;
+    t4.setAttribute("aria-haspopup", "menu");
+    t4.setAttribute("aria-expanded", this.open ? "true" : "false");
+  }
+  setupItems() {
+    const items = this.items();
+    items.forEach((el, idx) => {
+      if (!el.hasAttribute("role")) el.setAttribute("role", "menuitem");
+      if (!el.hasAttribute("tabindex")) el.setAttribute("tabindex", idx === 0 ? "0" : "-1");
+    });
+  }
+  updated() {
+    this.setAttribute("data-state", this.open ? "open" : "closed");
+    this.setupTrigger();
+    this.setupItems();
+  }
   connectedCallback() {
     super.connectedCallback();
     document.addEventListener("click", this.onDocClick);
+    this.addEventListener("keydown", this.onKeydown);
   }
   disconnectedCallback() {
     super.disconnectedCallback();
     document.removeEventListener("click", this.onDocClick);
+    this.removeEventListener("keydown", this.onKeydown);
   }
   render() {
     return b2`
-      <span @click=${this.onTriggerClick}><slot name="trigger"></slot></span>
+      <span @click=${this.onTriggerClick}><slot name="trigger" @slotchange=${() => this.setupTrigger()}></slot></span>
       <div class="menu" role="menu" @click=${this.onItemClick}>
-        <slot></slot>
+        <slot @slotchange=${() => this.setupItems()}></slot>
       </div>
     `;
   }
@@ -1894,15 +2401,16 @@ if (typeof customElements !== "undefined" && !customElements.get("ship-dropdown-
   customElements.define("ship-dropdown-menu", ShipDropdownMenu);
 }
 
-// packages/ui/src/web-components/ship-empty-state.ts
+// src/web-components/ship-empty-state.ts
 var ShipEmptyState = class extends i4 {
   constructor() {
     super(...arguments);
     this.variant = "default";
   }
   render() {
+    const live = this.variant === "connecting" ? "polite" : "off";
     return b2`
-      <div class="box">
+      <div class="box" role="status" aria-live=${live}>
         <div class="icon"><slot name="icon"></slot></div>
         <div class="title"><slot name="title"></slot></div>
         <div class="desc"><slot></slot></div>
@@ -1964,22 +2472,41 @@ if (typeof customElements !== "undefined" && !customElements.get("ship-empty-sta
   customElements.define("ship-empty-state", ShipEmptyState);
 }
 
-// packages/ui/src/web-components/ship-field.ts
-var ShipField = class extends i4 {
+// src/web-components/ship-field.ts
+var _ShipField = class _ShipField extends i4 {
   constructor() {
     super(...arguments);
     this.invalid = false;
+    this.uid = ++_ShipField._idSeq;
+    this.hintId = `ship-field-hint-${this.uid}`;
+    this.errorId = `ship-field-error-${this.uid}`;
+    this.wireControl = () => {
+      const slot = this.renderRoot.querySelector("slot:not([name])");
+      const first = slot?.assignedElements({ flatten: true })[0];
+      if (!first) return;
+      const ids = [];
+      if (this.invalid) ids.push(this.errorId);
+      else ids.push(this.hintId);
+      const prior = (first.getAttribute("aria-describedby") || "").split(/\s+/).filter((id) => id && id !== this.hintId && id !== this.errorId);
+      const final = [...prior, ...ids].join(" ").trim();
+      if (final) first.setAttribute("aria-describedby", final);
+      if ("invalid" in first) first.invalid = this.invalid;
+      else first.setAttribute("aria-invalid", this.invalid ? "true" : "false");
+    };
+  }
+  updated() {
+    this.wireControl();
   }
   render() {
     return b2`
       <slot name="label"></slot>
-      <slot></slot>
-      <div class="hint"><slot name="hint"></slot></div>
-      <div class="error"><slot name="error"></slot></div>
+      <slot @slotchange=${this.wireControl}></slot>
+      <div id=${this.hintId} class="hint"><slot name="hint"></slot></div>
+      <div id=${this.errorId} class="error" role="alert" aria-live="polite"><slot name="error"></slot></div>
     `;
   }
 };
-ShipField.styles = i`
+_ShipField.styles = i`
     :host { display: flex; flex-direction: column; gap: 6px; }
     .hint, .error { font-size: 11px; line-height: 1.4; }
     .hint { color: var(--muted-foreground); }
@@ -1987,17 +2514,20 @@ ShipField.styles = i`
     :host(:not([invalid])) .error { display: none; }
     :host([invalid]) .hint { display: none; }
   `;
-ShipField.properties = {
+_ShipField.properties = {
   invalid: { type: Boolean, reflect: true }
 };
+_ShipField._idSeq = 0;
+var ShipField = _ShipField;
 if (typeof customElements !== "undefined" && !customElements.get("ship-field")) {
   customElements.define("ship-field", ShipField);
 }
 
-// packages/ui/src/web-components/ship-input.ts
-var ShipInput = class extends i4 {
+// src/web-components/ship-input.ts
+var _ShipInput = class _ShipInput extends i4 {
   constructor() {
-    super(...arguments);
+    super();
+    this.defaultValue = "";
     this.type = "text";
     this.value = "";
     this.placeholder = "";
@@ -2010,10 +2540,32 @@ var ShipInput = class extends i4 {
     this.loading = false;
     this.variant = "default";
     this.size = "md";
+    this.label = "";
+    this.describedBy = "";
+    this.errorMessage = "";
+    this.errId = `ship-input-err-${++_ShipInput._idSeq}`;
+    this.internals = this.attachInternals();
+  }
+  connectedCallback() {
+    super.connectedCallback();
+    this.defaultValue = this.value;
+  }
+  updated() {
+    this.setFormValue(this.value);
+  }
+  formResetCallback() {
+    this.value = this.defaultValue;
+  }
+  formStateRestoreCallback(state) {
+    this.value = state ?? "";
+  }
+  setFormValue(v2) {
+    if (typeof this.internals.setFormValue === "function") this.internals.setFormValue(v2);
   }
   onInput(e6) {
     const target = e6.target;
     this.value = target.value;
+    this.setFormValue(this.value);
     this.dispatchEvent(new CustomEvent("ship-input", {
       detail: { value: this.value },
       bubbles: true,
@@ -2035,14 +2587,20 @@ var ShipInput = class extends i4 {
           ?disabled=${this.disabled}
           ?readonly=${this.readonly}
           aria-invalid=${this.invalid ? "true" : "false"}
+          aria-required=${this.required ? "true" : "false"}
+          aria-busy=${this.loading ? "true" : "false"}
+          aria-label=${this.label || A}
+          aria-describedby=${this.invalid && this.errorMessage ? `${this.errId}${this.describedBy ? " " + this.describedBy : ""}` : this.describedBy || A}
           @input=${this.onInput}
         />
         ${this.loading ? b2`<span class="spinner" aria-hidden="true"></span>` : b2`<slot name="trailing"></slot>`}
       </div>
+      ${this.invalid && this.errorMessage ? b2`<span id=${this.errId} role="alert" style="display:none">${this.errorMessage}</span>` : A}
     `;
   }
 };
-ShipInput.styles = i`
+_ShipInput.formAssociated = true;
+_ShipInput.styles = [reducedMotion, i`
     :host { display: inline-flex; width: 100%; }
     .field {
       display: inline-flex; align-items: center; gap: var(--radius-sm);
@@ -2108,8 +2666,8 @@ ShipInput.styles = i`
     :host([size='md']) input { font-size: 13px; line-height: 22px; }
     :host([size='lg']) .field { padding: 6px 12px; }
     :host([size='lg']) input { font-size: 16px; line-height: 28px; font-weight: 600; }
-  `;
-ShipInput.properties = {
+  `];
+_ShipInput.properties = {
   type: { type: String },
   value: { type: String },
   placeholder: { type: String },
@@ -2121,13 +2679,18 @@ ShipInput.properties = {
   invalid: { type: Boolean, reflect: true },
   loading: { type: Boolean, reflect: true },
   variant: { type: String, reflect: true },
-  size: { type: String, reflect: true }
+  size: { type: String, reflect: true },
+  label: { type: String },
+  describedBy: { type: String, attribute: "described-by" },
+  errorMessage: { type: String, attribute: "error-message" }
 };
+_ShipInput._idSeq = 0;
+var ShipInput = _ShipInput;
 if (typeof customElements !== "undefined" && !customElements.get("ship-input")) {
   customElements.define("ship-input", ShipInput);
 }
 
-// packages/ui/src/web-components/ship-label.ts
+// src/web-components/ship-label.ts
 var ShipLabel = class extends i4 {
   constructor() {
     super(...arguments);
@@ -2166,7 +2729,7 @@ if (typeof customElements !== "undefined" && !customElements.get("ship-label")) 
   customElements.define("ship-label", ShipLabel);
 }
 
-// packages/ui/src/web-components/ship-list-item.ts
+// src/web-components/ship-list-item.ts
 var ShipListItem = class extends i4 {
   constructor() {
     super(...arguments);
@@ -2188,6 +2751,7 @@ var ShipListItem = class extends i4 {
         part="button"
         role="option"
         aria-selected=${this.selected ? "true" : "false"}
+        aria-disabled=${this.disabled ? "true" : "false"}
         ?disabled=${this.disabled}
         @click=${this.onClick}
       >
@@ -2228,6 +2792,9 @@ ShipListItem.styles = i`
         0 0 0 calc(var(--ring-offset) + var(--ring-width))
           color-mix(in oklch, var(--ring-color) var(--ring-opacity), transparent);
     }
+    @media (forced-colors: active) {
+      button:focus-visible { outline: 2px solid CanvasText; outline-offset: 2px; }
+    }
     :host([selected]) button {
       background: var(--muted);
       border-color: var(--primary);
@@ -2252,16 +2819,31 @@ if (typeof customElements !== "undefined" && !customElements.get("ship-list-item
   customElements.define("ship-list-item", ShipListItem);
 }
 
-// packages/ui/src/web-components/ship-popover.ts
-var ShipPopover = class extends i4 {
+// src/web-components/ship-popover.ts
+var _ShipPopover = class _ShipPopover extends i4 {
   constructor() {
     super(...arguments);
     this.open = false;
     this.placement = "bottom";
+    this.panelId = `ship-popover-panel-${++_ShipPopover._idSeq}`;
+    this.setupTrigger = () => {
+      const t4 = this.triggerEl();
+      if (!t4) return;
+      t4.setAttribute("aria-haspopup", "dialog");
+      t4.setAttribute("aria-expanded", this.open ? "true" : "false");
+      t4.setAttribute("aria-controls", this.panelId);
+    };
     this.onDocClick = (e6) => {
       if (!this.open) return;
       const target = e6.composedPath()[0];
       if (!this.contains(target) && target !== this) this.hide();
+    };
+    this.onKeydown = (e6) => {
+      if (this.open && e6.key === "Escape") {
+        e6.preventDefault();
+        this.hide();
+        this.triggerEl()?.focus();
+      }
     };
   }
   show() {
@@ -2278,22 +2860,39 @@ var ShipPopover = class extends i4 {
   emit(name) {
     this.dispatchEvent(new CustomEvent(name, { bubbles: true, composed: true }));
   }
+  triggerEl() {
+    const slot = this.renderRoot.querySelector('slot[name="trigger"]');
+    const assigned = slot?.assignedElements({ flatten: true });
+    return assigned?.[0] ?? null;
+  }
+  updated() {
+    this.setAttribute("data-state", this.open ? "open" : "closed");
+    this.setupTrigger();
+  }
   connectedCallback() {
     super.connectedCallback();
     document.addEventListener("click", this.onDocClick);
+    this.addEventListener("keydown", this.onKeydown);
   }
   disconnectedCallback() {
     super.disconnectedCallback();
     document.removeEventListener("click", this.onDocClick);
+    this.removeEventListener("keydown", this.onKeydown);
   }
   render() {
     return b2`
-      <span @click=${() => this.toggle()}><slot name="trigger"></slot></span>
-      <div class="panel" role="dialog"><slot></slot></div>
+      <span @click=${() => this.toggle()}><slot name="trigger" @slotchange=${this.setupTrigger}></slot></span>
+      <div
+        id=${this.panelId}
+        class="panel"
+        role="dialog"
+        aria-modal="false"
+        aria-hidden=${this.open ? "false" : "true"}
+      ><slot></slot></div>
     `;
   }
 };
-ShipPopover.styles = i`
+_ShipPopover.styles = i`
     :host { position: relative; display: inline-flex; }
     .panel {
       position: absolute;
@@ -2325,15 +2924,17 @@ ShipPopover.styles = i`
     :host([placement='right']) .panel { left: calc(100% + 6px); top: 0; }
     :host([placement='left']) .panel { right: calc(100% + 6px); top: 0; }
   `;
-ShipPopover.properties = {
+_ShipPopover.properties = {
   open: { type: Boolean, reflect: true },
   placement: { type: String, reflect: true }
 };
+_ShipPopover._idSeq = 0;
+var ShipPopover = _ShipPopover;
 if (typeof customElements !== "undefined" && !customElements.get("ship-popover")) {
   customElements.define("ship-popover", ShipPopover);
 }
 
-// packages/ui/src/web-components/ship-progress.ts
+// src/web-components/ship-progress.ts
 var ShipProgress = class extends i4 {
   constructor() {
     super();
@@ -2341,6 +2942,7 @@ var ShipProgress = class extends i4 {
     this.max = 100;
     this.tone = "info";
     this.size = "md";
+    this.label = "";
   }
   render() {
     const pct = this.value == null ? null : Math.max(0, Math.min(100, this.value / this.max * 100));
@@ -2348,7 +2950,9 @@ var ShipProgress = class extends i4 {
       <div class="track" role="progressbar"
         aria-valuemin="0"
         aria-valuemax=${this.max}
-        aria-valuenow=${this.value ?? ""}
+        aria-valuenow=${this.value != null ? this.value : A}
+        aria-busy=${this.value == null ? "true" : "false"}
+        aria-label=${this.label || A}
       >
         <div class="bar" style=${pct != null ? `width: ${pct}%` : ""}></div>
       </div>
@@ -2356,6 +2960,7 @@ var ShipProgress = class extends i4 {
   }
 };
 ShipProgress.styles = [
+  reducedMotion,
   toneVars,
   i`
       :host { display: block; }
@@ -2387,30 +2992,50 @@ ShipProgress.properties = {
   value: { type: Number, reflect: true },
   max: { type: Number },
   tone: { type: String, reflect: true },
-  size: { type: String, reflect: true }
+  size: { type: String, reflect: true },
+  label: { type: String }
 };
 if (typeof customElements !== "undefined" && !customElements.get("ship-progress")) {
   customElements.define("ship-progress", ShipProgress);
 }
 
-// packages/ui/src/web-components/ship-select.ts
+// src/web-components/ship-select.ts
 var ShipSelect = class extends i4 {
   constructor() {
-    super(...arguments);
+    super();
+    this.defaultValue = "";
     this.value = "";
     this.name = "";
     this.required = false;
     this.disabled = false;
+    this.invalid = false;
     this.size = "md";
+    this.label = "";
+    this.describedBy = "";
+    this.internals = this.attachInternals();
   }
   get selectEl() {
     return this.renderRoot.querySelector("select");
+  }
+  connectedCallback() {
+    super.connectedCallback();
+    this.defaultValue = this.value;
   }
   firstUpdated() {
     this.syncOptions();
   }
   updated() {
     this.syncOptions();
+    this.setFormValue(this.value);
+  }
+  formResetCallback() {
+    this.value = this.defaultValue;
+  }
+  formStateRestoreCallback(state) {
+    this.value = state ?? "";
+  }
+  setFormValue(v2) {
+    if (typeof this.internals.setFormValue === "function") this.internals.setFormValue(v2);
   }
   syncOptions() {
     if (!this.selectEl) return;
@@ -2423,6 +3048,7 @@ var ShipSelect = class extends i4 {
   }
   onChange(e6) {
     this.value = e6.target.value;
+    this.setFormValue(this.value);
     this.dispatchEvent(new CustomEvent("ship-change", {
       detail: { value: this.value },
       bubbles: true,
@@ -2435,12 +3061,16 @@ var ShipSelect = class extends i4 {
         name=${this.name}
         ?required=${this.required}
         ?disabled=${this.disabled}
+        aria-invalid=${this.invalid ? "true" : "false"}
+        aria-label=${this.label || A}
+        aria-describedby=${this.describedBy || A}
         @change=${this.onChange}
       ></select>
       <span hidden><slot @slotchange=${this.syncOptions}></slot></span>
     `;
   }
 };
+ShipSelect.formAssociated = true;
 ShipSelect.styles = i`
     :host { display: inline-flex; }
     select {
@@ -2461,13 +3091,16 @@ ShipSelect.properties = {
   name: { type: String },
   required: { type: Boolean, reflect: true },
   disabled: { type: Boolean, reflect: true },
-  size: { type: String, reflect: true }
+  invalid: { type: Boolean, reflect: true },
+  size: { type: String, reflect: true },
+  label: { type: String },
+  describedBy: { type: String, attribute: "described-by" }
 };
 if (typeof customElements !== "undefined" && !customElements.get("ship-select")) {
   customElements.define("ship-select", ShipSelect);
 }
 
-// packages/ui/src/web-components/ship-separator.ts
+// src/web-components/ship-separator.ts
 var ShipSeparator = class extends i4 {
   constructor() {
     super(...arguments);
@@ -2503,7 +3136,7 @@ if (typeof customElements !== "undefined" && !customElements.get("ship-separator
   customElements.define("ship-separator", ShipSeparator);
 }
 
-// packages/ui/src/web-components/ship-spinner.ts
+// src/web-components/ship-spinner.ts
 var ShipSpinner = class extends i4 {
   constructor() {
     super();
@@ -2516,6 +3149,7 @@ var ShipSpinner = class extends i4 {
   }
 };
 ShipSpinner.styles = [
+  reducedMotion,
   toneVars,
   i`
       :host { display: inline-flex; vertical-align: middle; }
@@ -2540,12 +3174,31 @@ if (typeof customElements !== "undefined" && !customElements.get("ship-spinner")
   customElements.define("ship-spinner", ShipSpinner);
 }
 
-// packages/ui/src/web-components/ship-stat.ts
+// src/web-components/ship-stat.ts
 var ShipStat = class extends i4 {
   constructor() {
     super(...arguments);
     this.accent = "default";
     this.interactive = false;
+    this.onKey = (e6) => {
+      if (!this.interactive) return;
+      if (e6.key === "Enter" || e6.key === " ") {
+        e6.preventDefault();
+        this.click();
+      }
+    };
+  }
+  connectedCallback() {
+    super.connectedCallback();
+    if (this.interactive) {
+      if (!this.hasAttribute("role")) this.setAttribute("role", "button");
+      if (!this.hasAttribute("tabindex")) this.setAttribute("tabindex", "0");
+      this.addEventListener("keydown", this.onKey);
+    }
+  }
+  disconnectedCallback() {
+    super.disconnectedCallback();
+    this.removeEventListener("keydown", this.onKey);
   }
   render() {
     return b2`
@@ -2625,19 +3278,24 @@ if (typeof customElements !== "undefined" && !customElements.get("ship-stat")) {
   customElements.define("ship-stat", ShipStat);
 }
 
-// packages/ui/src/web-components/ship-status-dot.ts
+// src/web-components/ship-status-dot.ts
 var ShipStatusDot = class extends i4 {
   constructor() {
     super();
     this.tone = "success";
     this.pulse = false;
     this.size = "md";
+    this.label = "";
   }
   render() {
+    if (this.label) {
+      return b2`<span class="dot" part="dot" role="img" aria-label=${this.label}></span>`;
+    }
     return b2`<span class="dot" part="dot" aria-hidden="true"></span>`;
   }
 };
 ShipStatusDot.styles = [
+  reducedMotion,
   toneVars,
   i`
       :host { display: inline-flex; vertical-align: middle; }
@@ -2659,24 +3317,44 @@ ShipStatusDot.styles = [
 ShipStatusDot.properties = {
   tone: { type: String, reflect: true },
   pulse: { type: Boolean, reflect: true },
-  size: { type: String, reflect: true }
+  size: { type: String, reflect: true },
+  label: { type: String }
 };
 if (typeof customElements !== "undefined" && !customElements.get("ship-status-dot")) {
   customElements.define("ship-status-dot", ShipStatusDot);
 }
 
-// packages/ui/src/web-components/ship-switch.ts
+// src/web-components/ship-switch.ts
 var ShipSwitch = class extends i4 {
   constructor() {
-    super(...arguments);
+    super();
+    this.defaultChecked = false;
     this.checked = false;
     this.disabled = false;
     this.name = "";
     this.value = "on";
+    this.internals = this.attachInternals();
+  }
+  connectedCallback() {
+    super.connectedCallback();
+    this.defaultChecked = this.checked;
+  }
+  updated() {
+    this.setFormValue(this.checked ? this.value : null);
+  }
+  formResetCallback() {
+    this.checked = this.defaultChecked;
+  }
+  formStateRestoreCallback(state) {
+    this.checked = state === this.value;
+  }
+  setFormValue(v2) {
+    if (typeof this.internals.setFormValue === "function") this.internals.setFormValue(v2);
   }
   onChange(e6) {
     const c4 = e6.target.checked;
     this.checked = c4;
+    this.setFormValue(c4 ? this.value : null);
     this.dispatchEvent(new CustomEvent("ship-change", {
       detail: { checked: c4 },
       bubbles: true,
@@ -2705,7 +3383,8 @@ var ShipSwitch = class extends i4 {
     `;
   }
 };
-ShipSwitch.styles = i`
+ShipSwitch.formAssociated = true;
+ShipSwitch.styles = [reducedMotion, i`
     :host { display: inline-flex; align-items: center; gap: 8px; font-size: 13px; color: var(--foreground); }
     :host([disabled]) { opacity: 0.6; cursor: not-allowed; }
     label { display: inline-flex; align-items: center; gap: 8px; cursor: inherit; }
@@ -2738,7 +3417,7 @@ ShipSwitch.styles = i`
       inset: 0;
     }
     input:focus-visible + .thumb { outline: 2px solid var(--primary); outline-offset: 2px; }
-  `;
+  `];
 ShipSwitch.properties = {
   checked: { type: Boolean, reflect: true },
   disabled: { type: Boolean, reflect: true },
@@ -2749,7 +3428,7 @@ if (typeof customElements !== "undefined" && !customElements.get("ship-switch"))
   customElements.define("ship-switch", ShipSwitch);
 }
 
-// packages/ui/src/web-components/ship-tabs.ts
+// src/web-components/ship-tabs.ts
 var ShipTab = class extends i4 {
   constructor() {
     super(...arguments);
@@ -2775,18 +3454,25 @@ var ShipTabPanel = class extends i4 {
     this.name = "";
     this.active = false;
   }
+  connectedCallback() {
+    super.connectedCallback();
+    if (!this.hasAttribute("role")) this.setAttribute("role", "tabpanel");
+    if (!this.hasAttribute("tabindex")) this.setAttribute("tabindex", "0");
+    if (this.name && !this.id) this.id = `ship-tabpanel-${this.name}`;
+    if (this.name) this.setAttribute("aria-labelledby", `ship-tab-${this.name}`);
+  }
   render() {
     return b2`<slot></slot>`;
   }
 };
-ShipTabPanel.styles = i`
+ShipTabPanel.styles = [reducedMotion, i`
     :host { display: none; }
     :host([active]) { display: block; animation: fade 180ms ease; }
     @keyframes fade {
       from { opacity: 0; transform: translateY(4px); }
       to { opacity: 1; transform: translateY(0); }
     }
-  `;
+  `];
 ShipTabPanel.properties = {
   name: { type: String },
   active: { type: Boolean, reflect: true }
@@ -2797,6 +3483,7 @@ var ShipTabs = class extends i4 {
     this.active = "";
     this.variant = "underline";
     this.sticky = false;
+    this.orientation = "horizontal";
   }
   get tabs() {
     return Array.from(this.querySelectorAll(":scope > ship-tab"));
@@ -2822,13 +3509,26 @@ var ShipTabs = class extends i4 {
     }));
   }
   onKeydown(e6) {
-    if (e6.key !== "ArrowRight" && e6.key !== "ArrowLeft") return;
+    const vertical = this.orientation === "vertical";
+    const nextKey = vertical ? "ArrowDown" : "ArrowRight";
+    const prevKey = vertical ? "ArrowUp" : "ArrowLeft";
+    const keys = [nextKey, prevKey, "Home", "End"];
+    if (!keys.includes(e6.key)) return;
     e6.preventDefault();
     const tabs = this.tabs.filter((t4) => !t4.disabled);
     const names = tabs.map((t4) => t4.name);
+    if (!names.length) return;
     const i6 = names.indexOf(this.active);
-    const next = e6.key === "ArrowRight" ? (i6 + 1) % names.length : (i6 - 1 + names.length) % names.length;
+    let next = i6;
+    if (e6.key === nextKey) next = (i6 + 1) % names.length;
+    else if (e6.key === prevKey) next = (i6 - 1 + names.length) % names.length;
+    else if (e6.key === "Home") next = 0;
+    else if (e6.key === "End") next = names.length - 1;
     this.activate(names[next]);
+    queueMicrotask(() => {
+      const btn = this.renderRoot.querySelector(`button[data-name="${names[next]}"]`);
+      btn?.focus();
+    });
   }
   render() {
     const tabs = this.tabs.map((t4) => ({
@@ -2838,11 +3538,16 @@ var ShipTabs = class extends i4 {
       disabled: t4.disabled
     }));
     return b2`
-      <div class="tablist ${this.variant}" role="tablist" @keydown=${this.onKeydown}>
+      <div class="tablist ${this.variant}" role="tablist"
+           aria-orientation=${this.orientation}
+           @keydown=${this.onKeydown}>
         ${tabs.map((t4) => b2`
           <button
             role="tab"
+            id=${`ship-tab-${t4.name}`}
+            data-name=${t4.name}
             aria-selected=${t4.name === this.active ? "true" : "false"}
+            aria-controls=${`ship-tabpanel-${t4.name}`}
             tabindex=${t4.name === this.active ? "0" : "-1"}
             ?disabled=${t4.disabled}
             @click=${() => this.activate(t4.name)}
@@ -2936,11 +3641,43 @@ ShipTabs.styles = i`
     }
 
     .panels { display: block; }
+
+    /* Vertical orientation — tablist on the left, panels on the right. */
+    :host([orientation='vertical']) {
+      display: grid;
+      grid-template-columns: max-content 1fr;
+      gap: 24px;
+    }
+    :host([orientation='vertical']) .tablist.underline {
+      flex-direction: column;
+      align-items: stretch;
+      border-bottom: 0;
+      border-right: 1px solid var(--border);
+      margin-bottom: 0;
+      gap: 0;
+    }
+    :host([orientation='vertical']) .tablist.underline button {
+      border-bottom: 0;
+      border-right: 2px solid transparent;
+      margin-bottom: 0;
+      margin-right: -1px;
+      text-align: left;
+      justify-content: flex-start;
+    }
+    :host([orientation='vertical']) .tablist.underline button[aria-selected='true'] {
+      border-right-color: var(--primary);
+    }
+    :host([orientation='vertical']) .tablist.segmented {
+      flex-direction: column;
+      border-bottom: 0;
+      border-right: 1px solid var(--border);
+    }
   `;
 ShipTabs.properties = {
   active: { type: String, reflect: true },
   variant: { type: String, reflect: true },
-  sticky: { type: Boolean, reflect: true }
+  sticky: { type: Boolean, reflect: true },
+  orientation: { type: String, reflect: true }
 };
 if (typeof customElements !== "undefined") {
   if (!customElements.get("ship-tab")) customElements.define("ship-tab", ShipTab);
@@ -2948,10 +3685,11 @@ if (typeof customElements !== "undefined") {
   if (!customElements.get("ship-tabs")) customElements.define("ship-tabs", ShipTabs);
 }
 
-// packages/ui/src/web-components/ship-textarea.ts
+// src/web-components/ship-textarea.ts
 var ShipTextarea = class extends i4 {
   constructor() {
-    super(...arguments);
+    super();
+    this.defaultValue = "";
     this.value = "";
     this.placeholder = "";
     this.name = "";
@@ -2962,9 +3700,30 @@ var ShipTextarea = class extends i4 {
     this.variant = "default";
     this.size = "md";
     this.resize = "vertical";
+    this.invalid = false;
+    this.label = "";
+    this.describedBy = "";
+    this.internals = this.attachInternals();
+  }
+  connectedCallback() {
+    super.connectedCallback();
+    this.defaultValue = this.value;
+  }
+  updated() {
+    this.setFormValue(this.value);
+  }
+  formResetCallback() {
+    this.value = this.defaultValue;
+  }
+  formStateRestoreCallback(state) {
+    this.value = state ?? "";
+  }
+  setFormValue(v2) {
+    if (typeof this.internals.setFormValue === "function") this.internals.setFormValue(v2);
   }
   onInput(e6) {
     this.value = e6.target.value;
+    this.setFormValue(this.value);
     this.dispatchEvent(new CustomEvent("ship-input", {
       detail: { value: this.value },
       bubbles: true,
@@ -2982,12 +3741,17 @@ var ShipTextarea = class extends i4 {
         ?required=${this.required}
         ?disabled=${this.disabled}
         ?readonly=${this.readonly}
+        aria-invalid=${this.invalid ? "true" : "false"}
+        aria-required=${this.required ? "true" : "false"}
+        aria-label=${this.label || A}
+        aria-describedby=${this.describedBy || A}
         style="resize: ${this.resize}"
         @input=${this.onInput}
       ></textarea>
     `;
   }
 };
+ShipTextarea.formAssociated = true;
 ShipTextarea.styles = i`
     :host { display: block; }
     textarea {
@@ -3029,13 +3793,16 @@ ShipTextarea.properties = {
   readonly: { type: Boolean, reflect: true },
   variant: { type: String, reflect: true },
   size: { type: String, reflect: true },
-  resize: { type: String }
+  resize: { type: String },
+  invalid: { type: Boolean, reflect: true },
+  label: { type: String },
+  describedBy: { type: String, attribute: "described-by" }
 };
 if (typeof customElements !== "undefined" && !customElements.get("ship-textarea")) {
   customElements.define("ship-textarea", ShipTextarea);
 }
 
-// packages/ui/src/web-components/ship-theme-toggle.ts
+// src/web-components/ship-theme-toggle.ts
 var STORAGE_KEY = "ship-theme";
 var ShipThemeToggle = class extends i4 {
   constructor() {
@@ -3074,7 +3841,12 @@ var ShipThemeToggle = class extends i4 {
   render() {
     const isDark = this.theme === "dark";
     return b2`
-      <button @click=${this.toggle} aria-label="Toggle theme" title="Toggle theme">
+      <button
+        @click=${this.toggle}
+        aria-label="Toggle theme"
+        aria-pressed=${isDark ? "true" : "false"}
+        title="Toggle theme"
+      >
         ${isDark ? "\u{1F319}" : "\u2600"} <slot>${isDark ? "Dark" : "Light"}</slot>
       </button>
     `;
@@ -3102,7 +3874,7 @@ if (typeof customElements !== "undefined" && !customElements.get("ship-theme-tog
   customElements.define("ship-theme-toggle", ShipThemeToggle);
 }
 
-// packages/ui/src/web-components/ship-toolbar.ts
+// src/web-components/ship-toolbar.ts
 var ShipToolbar = class extends i4 {
   constructor() {
     super(...arguments);
@@ -3110,6 +3882,31 @@ var ShipToolbar = class extends i4 {
     this.align = "center";
     this.gap = "md";
     this.variant = "default";
+    this.onKey = (e6) => {
+      if (e6.key !== "ArrowRight" && e6.key !== "ArrowLeft") return;
+      const items = this.focusable();
+      if (!items.length) return;
+      const active = e6.composedPath().find((n4) => items.includes(n4)) || null;
+      const i6 = active ? items.indexOf(active) : -1;
+      const next = e6.key === "ArrowRight" ? (i6 + 1) % items.length : (i6 - 1 + items.length) % items.length;
+      items[next].focus();
+      e6.preventDefault();
+    };
+  }
+  connectedCallback() {
+    super.connectedCallback();
+    if (!this.hasAttribute("role")) this.setAttribute("role", "toolbar");
+    if (!this.hasAttribute("aria-orientation")) this.setAttribute("aria-orientation", "horizontal");
+    this.addEventListener("keydown", this.onKey);
+  }
+  disconnectedCallback() {
+    super.disconnectedCallback();
+    this.removeEventListener("keydown", this.onKey);
+  }
+  focusable() {
+    const slot = this.renderRoot.querySelector("slot:not([name])");
+    const els = slot?.assignedElements({ flatten: true }) ?? [];
+    return els.filter((el) => !el.hasAttribute("disabled"));
   }
   render() {
     return b2`<slot name="spacer"></slot><slot></slot>`;
@@ -3141,20 +3938,41 @@ if (typeof customElements !== "undefined" && !customElements.get("ship-toolbar")
   customElements.define("ship-toolbar", ShipToolbar);
 }
 
-// packages/ui/src/web-components/ship-tooltip.ts
-var ShipTooltip = class extends i4 {
+// src/web-components/ship-tooltip.ts
+var _ShipTooltip = class _ShipTooltip extends i4 {
   constructor() {
     super(...arguments);
     this.placement = "top";
+    this.bubbleId = `ship-tooltip-${++_ShipTooltip._idSeq}`;
+    this.onKeydown = (e6) => {
+      if (e6.key === "Escape") this.blur();
+    };
+    this.wireTrigger = () => {
+      const slot = this.renderRoot.querySelector("slot:not([name])");
+      const first = slot?.assignedElements({ flatten: true })[0];
+      if (!first) return;
+      const existing = first.getAttribute("aria-describedby") || "";
+      if (!existing.split(/\s+/).includes(this.bubbleId)) {
+        first.setAttribute("aria-describedby", existing ? `${existing} ${this.bubbleId}` : this.bubbleId);
+      }
+    };
+  }
+  connectedCallback() {
+    super.connectedCallback();
+    this.addEventListener("keydown", this.onKeydown);
+  }
+  disconnectedCallback() {
+    super.disconnectedCallback();
+    this.removeEventListener("keydown", this.onKeydown);
   }
   render() {
     return b2`
-      <slot></slot>
-      <span class="bubble" role="tooltip"><slot name="content"></slot></span>
+      <slot @slotchange=${this.wireTrigger}></slot>
+      <span id=${this.bubbleId} class="bubble" role="tooltip"><slot name="content"></slot></span>
     `;
   }
 };
-ShipTooltip.styles = i`
+_ShipTooltip.styles = i`
     :host { position: relative; display: inline-flex; }
     .bubble {
       position: absolute;
@@ -3199,14 +4017,16 @@ ShipTooltip.styles = i`
       transform: translateY(-50%);
     }
   `;
-ShipTooltip.properties = {
+_ShipTooltip.properties = {
   placement: { type: String, reflect: true }
 };
+_ShipTooltip._idSeq = 0;
+var ShipTooltip = _ShipTooltip;
 if (typeof customElements !== "undefined" && !customElements.get("ship-tooltip")) {
   customElements.define("ship-tooltip", ShipTooltip);
 }
 
-// packages/ui/src/web-components/domain/ship-pipeline-step.ts
+// src/web-components/domain/ship-pipeline-step.ts
 var ShipPipelineStep = class extends i4 {
   constructor() {
     super(...arguments);
@@ -3214,6 +4034,14 @@ var ShipPipelineStep = class extends i4 {
     this.stepType = "agent";
     this.state = "pending";
     this.agent = "";
+  }
+  connectedCallback() {
+    super.connectedCallback();
+    if (!this.hasAttribute("role")) this.setAttribute("role", "listitem");
+  }
+  updated() {
+    const summary = `${this.stepType} step ${this.name}${this.agent ? ` (${this.agent})` : ""}: ${this.state}`;
+    this.setAttribute("aria-label", summary);
   }
   glyphFor(state) {
     switch (state) {
@@ -3308,7 +4136,7 @@ if (typeof customElements !== "undefined" && !customElements.get("ship-pipeline-
   customElements.define("ship-pipeline-step", ShipPipelineStep);
 }
 
-// packages/ui/src/web-components/domain/ship-pipeline-run.ts
+// src/web-components/domain/ship-pipeline-run.ts
 var STATE_TO_TONE = {
   dispatched: "info",
   running: "info",
@@ -3324,6 +4152,10 @@ var ShipPipelineRun = class extends i4 {
     this.state = "pending";
     this.slug = "";
     this.agent = "";
+  }
+  updated() {
+    this.setAttribute("role", "article");
+    this.setAttribute("aria-label", `Pipeline run ${this.slug || ""}${this.agent ? ` on ${this.agent}` : ""}: ${this.state}`);
   }
   render() {
     const tone = STATE_TO_TONE[this.state] ?? "muted";
@@ -3380,13 +4212,18 @@ if (typeof customElements !== "undefined" && !customElements.get("ship-pipeline-
   customElements.define("ship-pipeline-run", ShipPipelineRun);
 }
 
-// packages/ui/src/web-components/domain/ship-pipeline-definition.ts
+// src/web-components/domain/ship-pipeline-definition.ts
 var ShipPipelineDefinition = class extends i4 {
   constructor() {
     super(...arguments);
     this.name = "";
     this.steps = 0;
     this.description = "";
+  }
+  updated() {
+    this.setAttribute("role", "article");
+    const desc = this.description ? `: ${this.description}` : "";
+    this.setAttribute("aria-label", `Pipeline ${this.name}, ${this.steps} step${this.steps === 1 ? "" : "s"}${desc}`);
   }
   render() {
     const s4 = this.steps;
@@ -3445,8 +4282,13 @@ if (typeof customElements !== "undefined" && !customElements.get("ship-pipeline-
   customElements.define("ship-pipeline-definition", ShipPipelineDefinition);
 }
 
-// packages/ui/src/web-components/domain/ship-pipeline-dag.ts
+// src/web-components/domain/ship-pipeline-dag.ts
 var ShipPipelineDag = class extends i4 {
+  connectedCallback() {
+    super.connectedCallback();
+    if (!this.hasAttribute("role")) this.setAttribute("role", "list");
+    if (!this.hasAttribute("aria-label")) this.setAttribute("aria-label", "pipeline steps");
+  }
   render() {
     return b2`<slot></slot>`;
   }
@@ -3471,19 +4313,23 @@ if (typeof customElements !== "undefined" && !customElements.get("ship-pipeline-
   customElements.define("ship-pipeline-dag", ShipPipelineDag);
 }
 
-// packages/ui/src/web-components/domain/ship-history-row.ts
+// src/web-components/domain/ship-history-row.ts
 var ShipHistoryRow = class extends i4 {
   constructor() {
     super(...arguments);
     this.state = "";
   }
+  connectedCallback() {
+    super.connectedCallback();
+    if (!this.hasAttribute("role")) this.setAttribute("role", "row");
+  }
   render() {
     return b2`
-      <span class="cell"><slot name="slug"></slot></span>
-      <span class="cell"><slot name="pipeline"></slot></span>
-      <span class="cell"><slot name="status"></slot></span>
-      <span class="cell"><slot name="duration"></slot></span>
-      <span class="cell"><slot name="completed"></slot></span>
+      <span class="cell" role="cell"><slot name="slug"></slot></span>
+      <span class="cell" role="cell"><slot name="pipeline"></slot></span>
+      <span class="cell" role="cell"><slot name="status"></slot></span>
+      <span class="cell" role="cell"><slot name="duration"></slot></span>
+      <span class="cell" role="cell"><slot name="completed"></slot></span>
     `;
   }
 };
@@ -3507,7 +4353,7 @@ if (typeof customElements !== "undefined" && !customElements.get("ship-history-r
   customElements.define("ship-history-row", ShipHistoryRow);
 }
 
-// packages/ui/src/web-components/domain/ship-spec-row.ts
+// src/web-components/domain/ship-spec-row.ts
 var STATUS_TO_TONE = {
   draft: "muted",
   ready: "success",
@@ -3554,7 +4400,7 @@ if (typeof customElements !== "undefined" && !customElements.get("ship-spec-row"
   customElements.define("ship-spec-row", ShipSpecRow);
 }
 
-// packages/ui/src/web-components/utility/ship-icon.ts
+// src/web-components/utility/ship-icon.ts
 var ICONS = {
   "chevron-down": "M6 9l6 6 6-6",
   "chevron-right": "M9 6l6 6-6 6",
@@ -3590,14 +4436,27 @@ var ShipIcon = class extends i4 {
     this.name = "";
     this.size = "md";
     this.tone = "default";
+    this.label = "";
+  }
+  updated() {
+    if (this.label) {
+      this.setAttribute("role", "img");
+      this.setAttribute("aria-label", this.label);
+      this.removeAttribute("aria-hidden");
+    } else {
+      this.setAttribute("aria-hidden", "true");
+      this.removeAttribute("role");
+      this.removeAttribute("aria-label");
+    }
   }
   render() {
     const d3 = this.name ? ICONS[this.name] : void 0;
+    const hidden = this.label ? A : "true";
     return b2`
       <slot>
         ${d3 ? b2`<svg viewBox="0 0 24 24" fill="none" stroke="currentColor"
               stroke-width="2" stroke-linecap="round" stroke-linejoin="round"
-              aria-hidden="true" part="svg">
+              aria-hidden=${hidden} part="svg">
               <path d=${d3}></path>
             </svg>` : null}
       </slot>
@@ -3617,13 +4476,14 @@ ShipIcon.styles = [
 ShipIcon.properties = {
   name: { type: String, reflect: true },
   size: { type: String, reflect: true },
-  tone: { type: String, reflect: true }
+  tone: { type: String, reflect: true },
+  label: { type: String, reflect: true }
 };
 if (typeof customElements !== "undefined" && !customElements.get("ship-icon")) {
   customElements.define("ship-icon", ShipIcon);
 }
 
-// packages/ui/src/web-components/domain/ship-git-diff.ts
+// src/web-components/domain/ship-git-diff.ts
 var ShipGitDiff = class extends i4 {
   constructor() {
     super(...arguments);
@@ -3632,6 +4492,13 @@ var ShipGitDiff = class extends i4 {
     this.deletions = 0;
     this.empty = false;
     this.allCollapsed = false;
+  }
+  connectedCallback() {
+    super.connectedCallback();
+    if (!this.hasAttribute("role")) this.setAttribute("role", "region");
+  }
+  updated() {
+    this.setAttribute("aria-label", `Diff: ${this.files} file${this.files === 1 ? "" : "s"} changed, ${this.additions} additions, ${this.deletions} deletions`);
   }
   toggleAll() {
     const next = !this.allCollapsed;
@@ -3718,6 +4585,13 @@ var ShipGitDiffFile = class extends i4 {
     this.additions = 0;
     this.deletions = 0;
     this.collapsed = false;
+  }
+  connectedCallback() {
+    super.connectedCallback();
+    if (!this.hasAttribute("role")) this.setAttribute("role", "group");
+  }
+  updated() {
+    this.setAttribute("aria-label", `${this.path}: +${this.additions} -${this.deletions}`);
   }
   toggle() {
     this.collapsed = !this.collapsed;
@@ -3814,6 +4688,10 @@ var ShipGitDiffLine = class extends i4 {
     this.old = "";
     this.new = "";
   }
+  updated() {
+    const verb = this.type === "add" ? "added" : this.type === "del" ? "removed" : "context";
+    this.setAttribute("aria-label", `line ${this.new || this.old} ${verb}`);
+  }
   sig() {
     return this.type === "add" ? "+" : this.type === "del" ? "-" : " ";
   }
@@ -3875,11 +4753,15 @@ if (typeof customElements !== "undefined") {
   if (!customElements.get("ship-git-diff-line")) customElements.define("ship-git-diff-line", ShipGitDiffLine);
 }
 
-// packages/ui/src/web-components/observability/ship-log-line.ts
+// src/web-components/observability/ship-log-line.ts
 var ShipLogLine = class extends i4 {
   constructor() {
     super(...arguments);
     this.level = "info";
+  }
+  connectedCallback() {
+    super.connectedCallback();
+    if (!this.hasAttribute("role")) this.setAttribute("role", "listitem");
   }
   render() {
     return b2`
@@ -3929,8 +4811,12 @@ if (typeof customElements !== "undefined" && !customElements.get("ship-log-line"
   customElements.define("ship-log-line", ShipLogLine);
 }
 
-// packages/ui/src/web-components/observability/ship-event-row.ts
+// src/web-components/observability/ship-event-row.ts
 var ShipEventRow = class extends i4 {
+  connectedCallback() {
+    super.connectedCallback();
+    if (!this.hasAttribute("role")) this.setAttribute("role", "listitem");
+  }
   render() {
     return b2`
       <div class="head" part="head">
@@ -3975,7 +4861,7 @@ if (typeof customElements !== "undefined" && !customElements.get("ship-event-row
   customElements.define("ship-event-row", ShipEventRow);
 }
 
-// packages/ui/src/web-components/observability/ship-timestamp.ts
+// src/web-components/observability/ship-timestamp.ts
 var MINUTE = 6e4;
 var HOUR = 36e5;
 var DAY = 864e5;
@@ -4037,7 +4923,7 @@ if (typeof customElements !== "undefined" && !customElements.get("ship-timestamp
   customElements.define("ship-timestamp", ShipTimestamp);
 }
 
-// packages/ui/src/web-components/observability/ship-json-view.ts
+// src/web-components/observability/ship-json-view.ts
 var ShipJsonView = class extends i4 {
   constructor() {
     super(...arguments);
@@ -4073,13 +4959,18 @@ var ShipJsonView = class extends i4 {
       </details>
     `;
   }
+  connectedCallback() {
+    super.connectedCallback();
+    if (!this.hasAttribute("role")) this.setAttribute("role", "tree");
+    if (!this.hasAttribute("aria-label")) this.setAttribute("aria-label", "JSON tree");
+  }
   render() {
     if (!this.data) return b2``;
     let parsed;
     try {
       parsed = JSON.parse(this.data);
     } catch (e6) {
-      return b2`<span class="error" part="error">Invalid JSON: ${e6.message}</span>`;
+      return b2`<span class="error" part="error" role="alert">Invalid JSON: ${e6.message}</span>`;
     }
     return b2`<div part="root">${this._renderValue(parsed, null, 0)}</div>`;
   }
@@ -4127,7 +5018,7 @@ if (typeof customElements !== "undefined" && !customElements.get("ship-json-view
   customElements.define("ship-json-view", ShipJsonView);
 }
 
-// packages/ui/src/web-components/observability/ship-diff.ts
+// src/web-components/observability/ship-diff.ts
 function diffLines(a3, b3) {
   const A2 = a3.split("\n");
   const B2 = b3.split("\n");
@@ -4179,11 +5070,17 @@ var ShipDiff = class extends i4 {
     if (this.from || this.to) return diffLines(this.from, this.to);
     return [];
   }
+  connectedCallback() {
+    super.connectedCallback();
+    if (!this.hasAttribute("role")) this.setAttribute("role", "region");
+    if (!this.hasAttribute("aria-label")) this.setAttribute("aria-label", "diff");
+  }
   render() {
     const lines = this._lines();
     return b2`${lines.map((l3) => {
       const sign = l3.kind === "add" ? "+" : l3.kind === "del" ? "-" : l3.kind === "hunk" ? "@" : " ";
-      return b2`<div class="line ${l3.kind}" part="line"><span class="sign">${sign}</span><span>${l3.text}</span></div>`;
+      const kindLabel = l3.kind === "add" ? "added" : l3.kind === "del" ? "removed" : l3.kind === "hunk" ? "hunk" : "context";
+      return b2`<div class="line ${l3.kind}" part="line" role="listitem" aria-label=${`${kindLabel}: ${l3.text}`}><span class="sign" aria-hidden="true">${sign}</span><span>${l3.text}</span></div>`;
     })}`;
   }
 };
@@ -4221,7 +5118,7 @@ if (typeof customElements !== "undefined" && !customElements.get("ship-diff")) {
   customElements.define("ship-diff", ShipDiff);
 }
 
-// packages/ui/src/web-components/observability/ship-code.ts
+// src/web-components/observability/ship-code.ts
 var ShipCode = class extends i4 {
   constructor() {
     super(...arguments);
@@ -4230,7 +5127,7 @@ var ShipCode = class extends i4 {
   render() {
     if (this.block) {
       return b2`
-        <div class="block" part="block">
+        <div class="block" part="block" role="region" aria-label=${this.language ? `${this.language} code block` : "code block"}>
           ${this.language ? b2`<header part="label">${this.language}</header>` : null}
           <pre part="pre"><slot></slot></pre>
         </div>
@@ -4291,7 +5188,7 @@ if (typeof customElements !== "undefined" && !customElements.get("ship-code")) {
   customElements.define("ship-code", ShipCode);
 }
 
-// packages/ui/src/web-components/observability/ship-copy-button.ts
+// src/web-components/observability/ship-copy-button.ts
 var ShipCopyButton = class extends i4 {
   constructor() {
     super(...arguments);
@@ -4373,6 +5270,9 @@ ShipCopyButton.styles = i`
         0 0 0 calc(var(--ring-offset) + var(--ring-width))
           color-mix(in oklch, var(--ring-color) var(--ring-opacity), transparent);
     }
+    @media (forced-colors: active) {
+      button:focus-visible { outline: 2px solid CanvasText; outline-offset: 2px; }
+    }
     :host([copied]) button { color: var(--success); border-color: var(--success); }
     svg { width: 12px; height: 12px; }
   `;
@@ -4385,7 +5285,7 @@ if (typeof customElements !== "undefined" && !customElements.get("ship-copy-butt
   customElements.define("ship-copy-button", ShipCopyButton);
 }
 
-// node_modules/.pnpm/lit-html@3.3.2/node_modules/lit-html/directive.js
+// ../../node_modules/.pnpm/lit-html@3.3.2/node_modules/lit-html/directive.js
 var t3 = { ATTRIBUTE: 1, CHILD: 2, PROPERTY: 3, BOOLEAN_ATTRIBUTE: 4, EVENT: 5, ELEMENT: 6 };
 var e4 = (t4) => (...e6) => ({ _$litDirective$: t4, values: e6 });
 var i5 = class {
@@ -4405,7 +5305,7 @@ var i5 = class {
   }
 };
 
-// node_modules/.pnpm/lit-html@3.3.2/node_modules/lit-html/directives/unsafe-html.js
+// ../../node_modules/.pnpm/lit-html@3.3.2/node_modules/lit-html/directives/unsafe-html.js
 var e5 = class extends i5 {
   constructor(i6) {
     if (super(i6), this.it = A, i6.type !== t3.CHILD) throw Error(this.constructor.directiveName + "() can only be used in child bindings");
@@ -4423,7 +5323,7 @@ var e5 = class extends i5 {
 e5.directiveName = "unsafeHTML", e5.resultType = 1;
 var o5 = e4(e5);
 
-// packages/ui/src/web-components/observability/ship-markdown.ts
+// src/web-components/observability/ship-markdown.ts
 function escape(s4) {
   return s4.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;").replace(/"/g, "&quot;");
 }
@@ -4560,17 +5460,18 @@ if (typeof customElements !== "undefined" && !customElements.get("ship-markdown"
   customElements.define("ship-markdown", ShipMarkdown);
 }
 
-// packages/ui/src/web-components/observability/ship-table.ts
+// src/web-components/observability/ship-table.ts
 var ShipTable = class extends i4 {
   constructor() {
     super(...arguments);
     this.dense = false;
     this.hoverable = true;
+    this.label = "";
   }
   render() {
     return b2`
       <div class="wrap" part="wrap">
-        <table part="table">
+        <table part="table" aria-label=${this.label || A}>
           <thead part="thead"><slot name="head"></slot></thead>
           <tbody part="tbody"><slot></slot></tbody>
         </table>
@@ -4610,14 +5511,19 @@ ShipTable.styles = i`
   `;
 ShipTable.properties = {
   dense: { type: Boolean, reflect: true },
-  hoverable: { type: Boolean, reflect: true }
+  hoverable: { type: Boolean, reflect: true },
+  label: { type: String }
 };
 if (typeof customElements !== "undefined" && !customElements.get("ship-table")) {
   customElements.define("ship-table", ShipTable);
 }
 
-// packages/ui/src/web-components/observability/ship-timeline.ts
+// src/web-components/observability/ship-timeline.ts
 var ShipTimeline = class extends i4 {
+  connectedCallback() {
+    super.connectedCallback();
+    if (!this.hasAttribute("role")) this.setAttribute("role", "list");
+  }
   render() {
     return b2`<div class="list" part="list"><slot></slot></div>`;
   }
@@ -4644,6 +5550,7 @@ var ShipTimelineItem = class extends i4 {
   }
   connectedCallback() {
     super.connectedCallback();
+    if (!this.hasAttribute("role")) this.setAttribute("role", "listitem");
     this.addEventListener("keydown", this._onKey);
     this.addEventListener("click", this._onClick);
   }
@@ -4657,7 +5564,7 @@ var ShipTimelineItem = class extends i4 {
   }
   updated() {
     if (this.interactive) {
-      if (!this.hasAttribute("role")) this.setAttribute("role", "button");
+      this.setAttribute("role", "button");
       if (!this.hasAttribute("tabindex")) this.setAttribute("tabindex", "0");
     }
   }
@@ -4732,6 +5639,9 @@ ShipTimelineItem.styles = [
           0 0 0 calc(var(--ring-offset) + var(--ring-width))
             color-mix(in oklch, var(--ring-color) var(--ring-opacity), transparent);
       }
+      @media (forced-colors: active) {
+        :host([interactive]:focus-visible) { outline: 2px solid CanvasText; outline-offset: 2px; }
+      }
     `
 ];
 ShipTimelineItem.properties = {
@@ -4744,7 +5654,7 @@ if (typeof customElements !== "undefined") {
   if (!customElements.get("ship-timeline-item")) customElements.define("ship-timeline-item", ShipTimelineItem);
 }
 
-// packages/ui/src/web-components/observability/ship-tree-view.ts
+// src/web-components/observability/ship-tree-view.ts
 var ShipTreeView = class extends i4 {
   connectedCallback() {
     super.connectedCallback();
@@ -4807,7 +5717,7 @@ var ShipTreeNode = class extends i4 {
         class="row"
         part="row"
         tabindex="0"
-        aria-expanded=${this.leaf ? "false" : String(this.expanded)}
+        aria-expanded=${this.leaf ? A : String(this.expanded)}
         aria-selected=${String(this.selected)}
         @click=${this._select}
         @keydown=${this._onKey}
@@ -4848,6 +5758,9 @@ ShipTreeNode.styles = i`
         0 0 0 calc(var(--ring-offset) + var(--ring-width))
           color-mix(in oklch, var(--ring-color) var(--ring-opacity), transparent);
     }
+    @media (forced-colors: active) {
+      .row:focus-visible { outline: 2px solid CanvasText; outline-offset: 2px; }
+    }
     .caret {
       display: inline-flex;
       width: 12px; height: 12px;
@@ -4872,7 +5785,7 @@ if (typeof customElements !== "undefined") {
   if (!customElements.get("ship-tree-node")) customElements.define("ship-tree-node", ShipTreeNode);
 }
 
-// packages/ui/src/web-components/charts/util.ts
+// src/web-components/charts/util.ts
 var TONE_VARS = {
   default: "var(--foreground)",
   primary: "var(--primary)",
@@ -4929,7 +5842,7 @@ function arcPath(cx, cy, r4, startAngle, endAngle) {
   return `M${x1.toFixed(2)},${y1.toFixed(2)} A${r4},${r4} 0 ${large} ${sweep} ${x2.toFixed(2)},${y22.toFixed(2)}`;
 }
 
-// packages/ui/src/web-components/charts/ship-sparkline.ts
+// src/web-components/charts/ship-sparkline.ts
 var ShipSparkline = class extends i4 {
   constructor() {
     super(...arguments);
@@ -4938,6 +5851,7 @@ var ShipSparkline = class extends i4 {
     this.width = 80;
     this.height = 20;
     this.fill = false;
+    this.label = "sparkline";
   }
   render() {
     const nums = parseNums(this.data);
@@ -4957,7 +5871,7 @@ var ShipSparkline = class extends i4 {
         width=${w2}
         height=${h3}
         role="img"
-        aria-label="sparkline"
+        aria-label=${this.label}
       >
         ${this.fill ? w`<path d=${areaD} fill=${color} fill-opacity="0.18" stroke="none"></path>` : null}
         <path
@@ -4987,13 +5901,14 @@ ShipSparkline.properties = {
   tone: { type: String, reflect: true },
   width: { type: Number },
   height: { type: Number },
-  fill: { type: Boolean, reflect: true }
+  fill: { type: Boolean, reflect: true },
+  label: { type: String }
 };
 if (typeof customElements !== "undefined" && !customElements.get("ship-sparkline")) {
   customElements.define("ship-sparkline", ShipSparkline);
 }
 
-// packages/ui/src/web-components/charts/ship-bar-chart.ts
+// src/web-components/charts/ship-bar-chart.ts
 var ShipBarChart = class extends i4 {
   constructor() {
     super(...arguments);
@@ -5004,6 +5919,7 @@ var ShipBarChart = class extends i4 {
     this.width = 300;
     this.height = 200;
     this.max = null;
+    this.label = "bar chart";
   }
   render() {
     const nums = parseNums(this.data);
@@ -5035,7 +5951,7 @@ var ShipBarChart = class extends i4 {
       return { x: x2, y: y3, w: barW, h: barH };
     });
     return b2`
-      <svg viewBox="0 0 ${w2} ${h3}" preserveAspectRatio="none" role="img" aria-label="bar chart">
+      <svg viewBox="0 0 ${w2} ${h3}" preserveAspectRatio="none" role="img" aria-label=${this.label}>
         ${bars.map(
       (b3, i6) => w`
           <rect
@@ -5069,13 +5985,14 @@ ShipBarChart.properties = {
   orientation: { type: String, reflect: true },
   width: { type: Number },
   height: { type: Number },
-  max: { type: Number }
+  max: { type: Number },
+  label: { type: String }
 };
 if (typeof customElements !== "undefined" && !customElements.get("ship-bar-chart")) {
   customElements.define("ship-bar-chart", ShipBarChart);
 }
 
-// packages/ui/src/web-components/charts/ship-line-chart.ts
+// src/web-components/charts/ship-line-chart.ts
 var ShipLineChart = class extends i4 {
   constructor() {
     super(...arguments);
@@ -5085,6 +6002,7 @@ var ShipLineChart = class extends i4 {
     this.height = 200;
     this.points = false;
     this.grid = false;
+    this.label = "line chart";
   }
   render() {
     const allSeries = parseJson(this.series, []);
@@ -5099,7 +6017,7 @@ var ShipLineChart = class extends i4 {
     const gridLines = this.grid ? [0.25, 0.5, 0.75].map((f3) => 2 + innerH * f3) : [];
     return b2`
       <div class="wrap">
-        <svg viewBox="0 0 ${w2} ${h3}" preserveAspectRatio="none" role="img" aria-label="line chart">
+        <svg viewBox="0 0 ${w2} ${h3}" preserveAspectRatio="none" role="img" aria-label=${this.label}>
           ${gridLines.map(
       (y3) => w`<line class="grid-line" x1="0" x2=${w2} y1=${y3.toFixed(2)} y2=${y3.toFixed(2)}></line>`
     )}
@@ -5148,13 +6066,14 @@ ShipLineChart.properties = {
   width: { type: Number },
   height: { type: Number },
   points: { type: Boolean, reflect: true },
-  grid: { type: Boolean, reflect: true }
+  grid: { type: Boolean, reflect: true },
+  label: { type: String }
 };
 if (typeof customElements !== "undefined" && !customElements.get("ship-line-chart")) {
   customElements.define("ship-line-chart", ShipLineChart);
 }
 
-// packages/ui/src/web-components/charts/ship-area-chart.ts
+// src/web-components/charts/ship-area-chart.ts
 var ShipAreaChart = class extends i4 {
   constructor() {
     super(...arguments);
@@ -5164,6 +6083,7 @@ var ShipAreaChart = class extends i4 {
     this.height = 200;
     this.points = false;
     this.grid = false;
+    this.label = "area chart";
   }
   render() {
     const allSeries = parseJson(this.series, []);
@@ -5177,7 +6097,7 @@ var ShipAreaChart = class extends i4 {
     const gridLines = this.grid ? [0.25, 0.5, 0.75].map((f3) => 2 + innerH * f3) : [];
     return b2`
       <div class="wrap">
-        <svg viewBox="0 0 ${w2} ${h3}" preserveAspectRatio="none" role="img" aria-label="area chart">
+        <svg viewBox="0 0 ${w2} ${h3}" preserveAspectRatio="none" role="img" aria-label=${this.label}>
           ${gridLines.map(
       (y3) => w`<line class="grid-line" x1="0" x2=${w2} y1=${y3.toFixed(2)} y2=${y3.toFixed(2)}></line>`
     )}
@@ -5228,19 +6148,21 @@ ShipAreaChart.properties = {
   width: { type: Number },
   height: { type: Number },
   points: { type: Boolean, reflect: true },
-  grid: { type: Boolean, reflect: true }
+  grid: { type: Boolean, reflect: true },
+  label: { type: String }
 };
 if (typeof customElements !== "undefined" && !customElements.get("ship-area-chart")) {
   customElements.define("ship-area-chart", ShipAreaChart);
 }
 
-// packages/ui/src/web-components/charts/ship-donut.ts
+// src/web-components/charts/ship-donut.ts
 var ShipDonut = class extends i4 {
   constructor() {
     super(...arguments);
     this.data = "";
     this.size = 120;
     this.thickness = 16;
+    this.label = "donut chart";
   }
   updated() {
     this.style.setProperty("--ship-donut-size", `${this.size}px`);
@@ -5255,7 +6177,7 @@ var ShipDonut = class extends i4 {
     const total = segs.reduce((acc, x2) => acc + Math.max(0, x2.value), 0);
     let offset = 0;
     return b2`
-      <svg viewBox="0 0 ${s4} ${s4}" role="img" aria-label="donut chart">
+      <svg viewBox="0 0 ${s4} ${s4}" role="img" aria-label=${this.label}>
         <circle class="track" cx=${c4} cy=${c4} r=${r4} fill="none" stroke-width=${t4}></circle>
         ${total > 0 ? segs.map((seg) => {
       const len = Math.max(0, seg.value) / total * circumference;
@@ -5305,19 +6227,21 @@ ShipDonut.styles = i`
 ShipDonut.properties = {
   data: { type: String, reflect: true },
   size: { type: Number },
-  thickness: { type: Number }
+  thickness: { type: Number },
+  label: { type: String }
 };
 if (typeof customElements !== "undefined" && !customElements.get("ship-donut")) {
   customElements.define("ship-donut", ShipDonut);
 }
 
-// packages/ui/src/web-components/charts/ship-gauge.ts
+// src/web-components/charts/ship-gauge.ts
 var ShipGauge = class extends i4 {
   constructor() {
     super(...arguments);
     this.value = 0;
     this.min = 0;
     this.max = 100;
+    this.label = "gauge";
     this.tone = null;
     this.lowThreshold = null;
     this.highThreshold = null;
@@ -5351,7 +6275,7 @@ var ShipGauge = class extends i4 {
     const valueD = ratio > 0 ? arcPath(c4, c4, r4, start, valueEnd) : "";
     const color = toneColor(this.resolveTone());
     return b2`
-      <svg viewBox="0 0 ${s4} ${s4}" role="img" aria-label="gauge">
+      <svg viewBox="0 0 ${s4} ${s4}" role="img" aria-label=${this.label}>
         <path class="track" d=${trackD} fill="none" stroke-width=${t4} stroke-linecap="round"></path>
         ${valueD ? w`<path d=${valueD} fill="none" stroke=${color} stroke-width=${t4} stroke-linecap="round"></path>` : null}
       </svg>
@@ -5386,13 +6310,14 @@ ShipGauge.properties = {
   lowThreshold: { type: Number, attribute: "low-threshold" },
   highThreshold: { type: Number, attribute: "high-threshold" },
   size: { type: Number },
-  thickness: { type: Number }
+  thickness: { type: Number },
+  label: { type: String }
 };
 if (typeof customElements !== "undefined" && !customElements.get("ship-gauge")) {
   customElements.define("ship-gauge", ShipGauge);
 }
 
-// packages/ui/src/web-components/charts/ship-progress-ring.ts
+// src/web-components/charts/ship-progress-ring.ts
 var ShipProgressRing = class extends i4 {
   constructor() {
     super(...arguments);
@@ -5400,6 +6325,7 @@ var ShipProgressRing = class extends i4 {
     this.size = 48;
     this.thickness = 4;
     this.tone = "primary";
+    this.label = "";
   }
   updated() {
     this.style.setProperty("--ship-ring-size", `${this.size}px`);
@@ -5415,7 +6341,8 @@ var ShipProgressRing = class extends i4 {
     const color = toneColor(this.tone);
     return b2`
       <svg viewBox="0 0 ${s4} ${s4}" role="progressbar"
-        aria-valuemin="0" aria-valuemax="100" aria-valuenow=${pct}>
+        aria-valuemin="0" aria-valuemax="100" aria-valuenow=${pct}
+        aria-label=${this.label || A}>
         <circle class="track" cx=${c4} cy=${c4} r=${r4}
           fill="none" stroke-width=${t4}></circle>
         <circle class="bar" cx=${c4} cy=${c4} r=${r4}
@@ -5453,13 +6380,14 @@ ShipProgressRing.properties = {
   value: { type: Number, reflect: true },
   size: { type: Number },
   thickness: { type: Number },
-  tone: { type: String, reflect: true }
+  tone: { type: String, reflect: true },
+  label: { type: String, reflect: true }
 };
 if (typeof customElements !== "undefined" && !customElements.get("ship-progress-ring")) {
   customElements.define("ship-progress-ring", ShipProgressRing);
 }
 
-// packages/ui/src/web-components/charts/ship-heatmap.ts
+// src/web-components/charts/ship-heatmap.ts
 var TONE_CSS_VAR = {
   default: "--foreground",
   primary: "--primary",
@@ -5477,6 +6405,7 @@ var ShipHeatmap = class extends i4 {
     this.rows = "";
     this.cols = "";
     this.tone = "primary";
+    this.label = "heatmap";
   }
   render() {
     const rows = parseLabels(this.rows);
@@ -5487,7 +6416,7 @@ var ShipHeatmap = class extends i4 {
     for (const c4 of cells) lookup.set(`${c4.y}\0${c4.x}`, c4.value);
     const gridStyle = `grid-template-columns: auto repeat(${cols.length}, 1fr);`;
     return b2`
-      <div class="grid" style=${gridStyle} role="table" aria-label="heatmap">
+      <div class="grid" style=${gridStyle} role="table" aria-label=${this.label}>
         <div></div>
         ${cols.map((c4) => b2`<div class="col-label">${c4}</div>`)}
         ${rows.map(
@@ -5536,18 +6465,20 @@ ShipHeatmap.properties = {
   data: { type: String, reflect: true },
   rows: { type: String },
   cols: { type: String },
-  tone: { type: String, reflect: true }
+  tone: { type: String, reflect: true },
+  label: { type: String }
 };
 if (typeof customElements !== "undefined" && !customElements.get("ship-heatmap")) {
   customElements.define("ship-heatmap", ShipHeatmap);
 }
 
-// packages/ui/src/web-components/charts/ship-meter.ts
+// src/web-components/charts/ship-meter.ts
 var ShipMeter = class extends i4 {
   constructor() {
     super(...arguments);
     this.segments = "";
     this.total = null;
+    this.label = "meter";
   }
   render() {
     const segs = parseJson(this.segments, []);
@@ -5556,7 +6487,7 @@ var ShipMeter = class extends i4 {
     const safeDenom = denom <= 0 ? 1 : denom;
     return b2`
       <div class="wrap">
-        <div class="bar" role="img" aria-label="meter">
+        <div class="bar" role="img" aria-label=${this.label}>
           ${segs.map((s4) => {
       const pct = Math.max(0, s4.count) / safeDenom * 100;
       if (pct <= 0) return null;
@@ -5606,13 +6537,14 @@ ShipMeter.styles = i`
   `;
 ShipMeter.properties = {
   segments: { type: String, reflect: true },
-  total: { type: Number }
+  total: { type: Number },
+  label: { type: String }
 };
 if (typeof customElements !== "undefined" && !customElements.get("ship-meter")) {
   customElements.define("ship-meter", ShipMeter);
 }
 
-// packages/ui/src/web-components/utility/ship-avatar.ts
+// src/web-components/utility/ship-avatar.ts
 function initialsFromName(name) {
   const parts = name.trim().split(/\s+/).filter(Boolean);
   if (parts.length === 0) return "";
@@ -5680,7 +6612,7 @@ if (typeof customElements !== "undefined" && !customElements.get("ship-avatar"))
   customElements.define("ship-avatar", ShipAvatar);
 }
 
-// packages/ui/src/web-components/utility/ship-chip.ts
+// src/web-components/utility/ship-chip.ts
 var ShipChip = class extends i4 {
   constructor() {
     super(...arguments);
@@ -5755,11 +6687,15 @@ if (typeof customElements !== "undefined" && !customElements.get("ship-chip")) {
   customElements.define("ship-chip", ShipChip);
 }
 
-// packages/ui/src/web-components/utility/ship-kbd.ts
+// src/web-components/utility/ship-kbd.ts
 var ShipKbd = class extends i4 {
   constructor() {
     super(...arguments);
     this.keys = "";
+  }
+  updated() {
+    if (!this.hasAttribute("role")) this.setAttribute("role", "group");
+    if (this.keys) this.setAttribute("aria-label", `Keyboard shortcut: ${this.keys}`);
   }
   render() {
     const tokens = this.keys.split("+").map((s4) => s4.trim()).filter(Boolean);
@@ -5794,7 +6730,7 @@ if (typeof customElements !== "undefined" && !customElements.get("ship-kbd")) {
   customElements.define("ship-kbd", ShipKbd);
 }
 
-// packages/ui/src/web-components/utility/ship-skeleton.ts
+// src/web-components/utility/ship-skeleton.ts
 var ShipSkeleton = class extends i4 {
   constructor() {
     super(...arguments);
@@ -5802,6 +6738,13 @@ var ShipSkeleton = class extends i4 {
     this.width = "";
     this.height = "";
     this.lines = 1;
+  }
+  connectedCallback() {
+    super.connectedCallback();
+    if (!this.hasAttribute("role")) this.setAttribute("role", "status");
+    if (!this.hasAttribute("aria-live")) this.setAttribute("aria-live", "polite");
+    if (!this.hasAttribute("aria-busy")) this.setAttribute("aria-busy", "true");
+    if (!this.hasAttribute("aria-label")) this.setAttribute("aria-label", "Loading");
   }
   styleFor() {
     const parts = [];
@@ -5852,11 +6795,16 @@ if (typeof customElements !== "undefined" && !customElements.get("ship-skeleton"
   customElements.define("ship-skeleton", ShipSkeleton);
 }
 
-// packages/ui/src/web-components/utility/ship-toast.ts
+// src/web-components/utility/ship-toast.ts
 var ShipToastContainer = class extends i4 {
   constructor() {
     super(...arguments);
     this.position = "top-right";
+  }
+  connectedCallback() {
+    super.connectedCallback();
+    if (!this.hasAttribute("role")) this.setAttribute("role", "region");
+    if (!this.hasAttribute("aria-label")) this.setAttribute("aria-label", "Notifications");
   }
   render() {
     return b2`<slot></slot>`;
@@ -5903,8 +6851,11 @@ var ShipToast = class extends i4 {
     this.remove();
   }
   render() {
+    const assertive = this.tone === "destructive" || this.tone === "warning";
+    const role = assertive ? "alert" : "status";
+    const live = assertive ? "assertive" : "polite";
     return b2`
-      <div class="toast" role="status" part="toast">
+      <div class="toast" role=${role} aria-live=${live} aria-atomic="true" part="toast">
         <span><slot name="icon"></slot></span>
         <div class="content">
           <div class="title"><slot name="title"></slot></div>
@@ -5968,7 +6919,7 @@ if (typeof customElements !== "undefined") {
     customElements.define("ship-toast", ShipToast);
 }
 
-// packages/ui/src/web-components/utility/ship-breadcrumb.ts
+// src/web-components/utility/ship-breadcrumb.ts
 var ShipBreadcrumbItem = class extends i4 {
   constructor() {
     super(...arguments);
@@ -6060,7 +7011,7 @@ if (typeof customElements !== "undefined") {
     customElements.define("ship-breadcrumb", ShipBreadcrumb);
 }
 
-// packages/ui/src/web-components/utility/ship-link.ts
+// src/web-components/utility/ship-link.ts
 var ShipLink = class extends i4 {
   constructor() {
     super(...arguments);
@@ -6077,7 +7028,8 @@ var ShipLink = class extends i4 {
          target=${target ?? ""}
          rel=${rel ?? ""}>
         <slot></slot>
-        ${this.external ? b2`<span class="ext" aria-hidden="true">
+        ${this.external ? b2`<span class="sr-only" style="position:absolute;width:1px;height:1px;overflow:hidden;clip:rect(0,0,0,0);">(opens in new tab)</span>
+        <span class="ext" aria-hidden="true">
           <svg viewBox="0 0 24 24" fill="none" stroke="currentColor"
                stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
             <path d="M18 13v6a2 2 0 01-2 2H5a2 2 0 01-2-2V8a2 2 0 012-2h6M15 3h6v6M10 14L21 3"/>
@@ -6123,7 +7075,7 @@ if (typeof customElements !== "undefined" && !customElements.get("ship-link")) {
   customElements.define("ship-link", ShipLink);
 }
 
-// packages/ui/src/web-components/utility/ship-metachip.ts
+// src/web-components/utility/ship-metachip.ts
 var ShipMetachip = class extends i4 {
   constructor() {
     super(...arguments);
@@ -6171,7 +7123,7 @@ if (typeof customElements !== "undefined" && !customElements.get("ship-metachip"
   customElements.define("ship-metachip", ShipMetachip);
 }
 
-// packages/ui/src/web-components/utility/ship-step-segments.ts
+// src/web-components/utility/ship-step-segments.ts
 var KNOWN = /* @__PURE__ */ new Set(["done", "failed", "pending", "running"]);
 var ShipStepSegments = class extends i4 {
   constructor() {
@@ -6224,7 +7176,7 @@ if (typeof customElements !== "undefined" && !customElements.get("ship-step-segm
   customElements.define("ship-step-segments", ShipStepSegments);
 }
 
-// packages/ui/src/web-components/index.ts
+// src/web-components/index.ts
 function registerShipComponents() {
 }
 export {
