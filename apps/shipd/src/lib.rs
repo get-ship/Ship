@@ -116,7 +116,10 @@ pub async fn run_network(
     pairing::set_dev_mode(dev);
     let global_dir = runtime::project::get_global_dir()?;
     let init_started_at = std::time::Instant::now();
-    daemon::cleanup_stale_daemon_files(&global_dir);
+    daemon::cleanup_stale_daemon_files(&global_dir).map_err(|e| {
+        eprintln!("\nshipd startup aborted: {e}\n");
+        e
+    })?;
     if let Some(ref w) = workspace_dir {
         tracing::info!(workspace = %w.display(), "shipd: project-scoped mode");
     } else {

@@ -55,10 +55,13 @@ fn reconcile_before_dispatch_in_startup_order() {
 }
 
 // ═══════════════════════════════════════════════════════════════════════════
-// DEAD PROCESS DETECTION
+// DEAD PROCESS DETECTION (OBSERVATIONAL)
 //
-// After daemon restart, dispatched jobs may have dead processes. The daemon
-// must detect these and emit step_failed.
+// After daemon restart, dispatched jobs may have no live process. Reconcile
+// records a single observation via `executor.session_destroyed` and defers
+// the terminal-state decision to the liveness sweep — which gates on a
+// 5-minute stale threshold. This prevents a single missed probe from
+// killing a job that is actually alive but slow to re-surface.
 // ═══════════════════════════════════════════════════════════════════════════
 
 /// Reconciliation scans for dispatched jobs in the projection.
@@ -71,33 +74,56 @@ fn reconciliation_scans_dispatched_jobs() {
     );
 }
 
-/// Reconciliation checks process liveness via the executor.
+/// Reconciliation asks the executor to rehydrate a handle — the modern
+/// liveness primitive. The old `is_alive` on a placeholder handle pattern
+/// is gone.
 #[test]
-fn reconciliation_checks_liveness() {
+fn reconciliation_uses_resume_handle() {
     let source = include_str!("../../../../crates/core/runtime/src/services/orchestrator/replay.rs");
     assert!(
-        source.contains("is_alive"),
-        "reconciliation must check if the process is still alive"
+        source.contains("resume_handle"),
+        "reconciliation must rehydrate a live handle via resume_handle"
     );
 }
 
-/// Dead processes must emit step_failed, not silently drop the job.
+/// Dead processes must emit `executor.session_destroyed` — an observation
+/// event. The liveness sweep owns the terminal-state decision.
 #[test]
-fn dead_process_emits_step_failed() {
+fn dead_process_emits_session_destroyed() {
     let source = include_str!("../../../../crates/core/runtime/src/services/orchestrator/replay.rs");
     assert!(
-        source.contains("STEP_FAILED") || source.contains("step_failed"),
-        "dead processes must emit a step_failed event"
+        source.contains("emit_executor_session_destroyed"),
+        "no-live-process must emit executor.session_destroyed on reconcile"
     );
 }
 
-/// The step_failed error must indicate daemon restart.
+/// Reconcile never emits `job.step_failed` — that is terminal and belongs
+/// to the liveness sweep.
 #[test]
-fn step_failed_includes_restart_reason() {
+fn reconcile_does_not_emit_step_failed() {
     let source = include_str!("../../../../crates/core/runtime/src/services/orchestrator/replay.rs");
     assert!(
-        source.contains("daemon restarted"),
-        "step_failed error must mention daemon restart"
+        !source.contains("STEP_FAILED"),
+        "reconcile must not emit STEP_FAILED — observation only"
+    );
+    assert!(
+        !source.contains("emit_step_failed"),
+        "the emit_step_failed helper must be gone from reconcile"
+    );
+    assert!(
+        !source.contains("daemon restarted, agent not running"),
+        "the old terminal error string must not exist in reconcile"
+    );
+}
+
+/// Observation uses the `External` cause — agent exit was not observed;
+/// session/window simply isn't there.
+#[test]
+fn session_destroyed_uses_external_cause() {
+    let source = include_str!("../../../../crates/core/runtime/src/services/orchestrator/replay.rs");
+    assert!(
+        source.contains("DestructionCause::External"),
+        "reconcile must record cause = External (unobserved vanishment)"
     );
 }
 
@@ -191,8 +217,8 @@ fn pending_dispatch_checks_dependencies() {
 fn live_process_registered_in_registry() {
     let source = include_str!("../../../../crates/core/runtime/src/services/orchestrator/replay.rs");
     assert!(
-        source.contains("register") && source.contains("is_alive"),
-        "live processes must be re-registered in ProcessRegistry"
+        source.contains("registry.register") && source.contains("resume_handle"),
+        "live processes must be re-registered in ProcessRegistry after resume_handle"
     );
 }
 
@@ -203,9 +229,14 @@ fn live_process_registered_in_registry() {
 // which jobs need recovery and which should be skipped.
 // ═══════════════════════════════════════════════════════════════════════════
 
-/// Orphaned dispatched jobs are detected and marked failed via projection.
+/// Orphaned dispatched jobs stay in `Dispatched` immediately after reconcile.
+///
+/// Reconcile records the observation via `executor.session_destroyed` (an
+/// event not consumed by the job projection) instead of `step_failed`.
+/// The projection keeps the job in `Dispatched`; the liveness sweep's
+/// 5-min stale threshold owns the eventual terminal transition.
 #[test]
-fn reconcile_marks_orphaned_jobs_as_failed() {
+fn reconcile_keeps_orphaned_jobs_dispatched() {
     let events = vec![
         ev(event_types::JOB_CREATED, serde_json::json!({
             "job_id": "j-orphan", "slug": "orphan",
@@ -215,23 +246,113 @@ fn reconcile_marks_orphaned_jobs_as_failed() {
         ev(event_types::JOB_DISPATCHED, serde_json::json!({
             "job_id": "j-orphan", "worktree": "/w", "pid": 99999,
         })),
-        // No completion — daemon died, agent process is gone.
-        // Simulate what reconcile would do: emit step_failed.
-        ev(event_types::STEP_FAILED, serde_json::json!({
-            "job_id": "j-orphan",
-            "error": "daemon restarted, agent not running",
+        // No completion — daemon died, process went missing. Simulate
+        // what reconcile emits today: an observation event.
+        ev(runtime::events::executor::EXECUTOR_SESSION_DESTROYED, serde_json::json!({
+            "executor_kind": "tmux_window",
+            "session_name": "orphan",
+            "slug": "orphan",
+            "cause": "external",
         })),
     ];
     let map = project(&events);
     let job = map.get("j-orphan").unwrap();
     assert_eq!(
         job.status,
-        JobStatus::Failed,
-        "orphaned dispatched job must be Failed after step_failed event"
+        JobStatus::Dispatched,
+        "reconcile must not flip orphaned jobs to Failed — that is liveness' call"
     );
     assert!(
-        job.error.as_ref().map_or(false, |e| e.contains("daemon restarted")),
-        "error must reference daemon restart"
+        job.error.is_none(),
+        "no error should be recorded from an observation event"
+    );
+}
+
+/// Observation events from reconcile do not collide with the liveness sweep's
+/// terminal state — the sweep still owns the transition to `Failed`.
+#[test]
+fn liveness_sweep_retains_terminal_authority() {
+    let events = vec![
+        ev(event_types::JOB_CREATED, serde_json::json!({
+            "job_id": "j-late", "slug": "late",
+            "agent": "r", "branch": "job/late",
+            "spec_path": "spec.md", "plan_id": null,
+        })),
+        ev(event_types::JOB_DISPATCHED, serde_json::json!({
+            "job_id": "j-late", "worktree": "/w", "pid": 99999,
+        })),
+        ev(runtime::events::executor::EXECUTOR_SESSION_DESTROYED, serde_json::json!({
+            "executor_kind": "tmux_window",
+            "session_name": "late",
+            "slug": "late",
+            "cause": "external",
+        })),
+        // Eventually, liveness sweep emits job.failed after the stale
+        // threshold. That transition still works.
+        ev(event_types::JOB_FAILED, serde_json::json!({
+            "job_id": "j-late",
+            "error": "liveness: stale dispatched job — no process after 5m",
+        })),
+    ];
+    let map = project(&events);
+    let job = map.get("j-late").unwrap();
+    assert_eq!(
+        job.status,
+        JobStatus::Failed,
+        "liveness sweep still owns the eventual Failed transition"
+    );
+}
+
+// ═══════════════════════════════════════════════════════════════════════════
+// DAEMON STARTUP: LIVE-DAEMON REFUSAL
+//
+// Two daemons racing over `daemon.port`/`daemon.pid` is the original defect
+// surfaced by sup-restart-01: the second daemon runs reconcile against jobs
+// the live daemon is managing and emits spurious terminal events.
+// ═══════════════════════════════════════════════════════════════════════════
+
+/// The helper exists and pattern-matches the pidfile + `kill(0)` check.
+#[test]
+fn another_daemon_alive_helper_exists() {
+    let source = include_str!("../daemon.rs");
+    assert!(
+        source.contains("pub fn another_daemon_alive"),
+        "daemon.rs must expose another_daemon_alive for testability"
+    );
+}
+
+/// Startup returns an error instead of silently continuing when a foreign
+/// daemon is alive. Verified at source level; unit coverage lives in
+/// `daemon::stale_cleanup_tests::live_daemon_detected_returns_err`.
+#[test]
+fn cleanup_returns_result_with_live_daemon_refusal() {
+    let source = include_str!("../daemon.rs");
+    assert!(
+        source.contains("cleanup_stale_daemon_files(global_dir: &Path) -> Result<()>"),
+        "cleanup_stale_daemon_files must be fallible"
+    );
+    assert!(
+        source.contains("another daemon is already running"),
+        "refusal message must be actionable"
+    );
+    assert!(
+        source.contains("ship daemon stop") && source.contains("ship daemon restart"),
+        "refusal must point to the operator-facing remediation"
+    );
+}
+
+/// The daemon startup sequence propagates the refusal up instead of
+/// swallowing it — so the process exits non-zero with stderr explaining why.
+#[test]
+fn startup_propagates_refusal() {
+    let source = include_str!("../lib.rs");
+    assert!(
+        source.contains("cleanup_stale_daemon_files(&global_dir).map_err"),
+        "lib.rs must propagate the cleanup error on startup"
+    );
+    assert!(
+        source.contains("shipd startup aborted"),
+        "stderr must carry an explicit aborted marker"
     );
 }
 
