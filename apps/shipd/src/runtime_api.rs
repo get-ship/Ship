@@ -247,32 +247,159 @@ pub struct CreateJobRequest {
 }
 
 /// GET /api/runtime/jobs
+///
+/// Returns each `JobRecord` with two operator-visibility annotations:
+///
+/// - `process_state`: `"alive"` when the latest process projection for the
+///   slug is still Running, `"missing"` when the most recent supervisor
+///   sweep flagged drift (no_process) without a coherence_restored after
+///   it, `"terminal"` for jobs in a terminal status, `"none"` otherwise.
+/// - `notes`: optional truncated error / blocker for the row's NOTES column.
 #[utoipa::path(
     get,
     path = "/api/runtime/jobs",
     responses((status = 200, body = MeshResponse)),
     tag = "runtime"
 )]
-pub async fn list_jobs(State(_state): State<ApiState>) -> impl IntoResponse {
-    match runtime::projections::job::load_jobs() {
-        Ok(jobs) => {
-            let data: Vec<_> = jobs.into_values().collect();
-            (
-                StatusCode::OK,
+pub async fn list_jobs(State(state): State<ApiState>) -> impl IntoResponse {
+    let jobs = match runtime::projections::job::load_jobs_at(state.ship_dir()) {
+        Ok(j) => j,
+        Err(e) => {
+            return (
+                StatusCode::INTERNAL_SERVER_ERROR,
                 Json(MeshResponse {
-                    ok: true,
-                    data: serde_json::json!({ "jobs": data }),
+                    ok: false,
+                    data: serde_json::json!(e.to_string()),
                 }),
-            )
+            );
         }
-        Err(e) => (
-            StatusCode::INTERNAL_SERVER_ERROR,
-            Json(MeshResponse {
-                ok: false,
-                data: serde_json::json!(e.to_string()),
-            }),
-        ),
+    };
+    let processes = list_processes_at(state.ship_dir(), None).unwrap_or_default();
+    let supervisor_events =
+        load_recent_events_by_type(state.ship_dir(), &["supervisor.drift_detected", "supervisor.coherence_restored"], 500)
+            .unwrap_or_default();
+
+    let annotated: Vec<serde_json::Value> = jobs
+        .values()
+        .map(|j| annotate_job(j, &processes, &supervisor_events))
+        .collect();
+    (
+        StatusCode::OK,
+        Json(MeshResponse {
+            ok: true,
+            data: serde_json::json!({ "jobs": annotated }),
+        }),
+    )
+}
+
+/// Annotate a job with `process_state` + `notes` for `ship jobs`.
+fn annotate_job(
+    job: &runtime::projections::job::JobRecord,
+    processes: &[runtime::projections::process::ProcessRecord],
+    supervisor_events: &[runtime::events::EventEnvelope],
+) -> serde_json::Value {
+    use runtime::projections::job::JobStatus;
+    use runtime::projections::process::ProcessStatus;
+
+    let terminal = matches!(
+        job.status,
+        JobStatus::Failed | JobStatus::Merged | JobStatus::Cancelled | JobStatus::Completed
+    );
+
+    // Most recent process for this slug, by spawned_at.
+    let latest_proc = processes
+        .iter()
+        .filter(|p| p.slug == job.slug)
+        .max_by_key(|p| p.spawned_at);
+
+    let process_state = if terminal {
+        "terminal"
+    } else if matches!(latest_proc.map(|p| p.status), Some(ProcessStatus::Running)) {
+        "alive"
+    } else if drift_active_for_slug(&job.slug, supervisor_events) {
+        "missing"
+    } else {
+        "none"
+    };
+
+    let notes = job
+        .error
+        .as_ref()
+        .or(job.blocker.as_ref())
+        .map(|s| truncate(s, 60));
+
+    let mut obj = serde_json::to_value(job).unwrap_or(serde_json::json!({}));
+    if let Some(map) = obj.as_object_mut() {
+        map.insert("process_state".into(), serde_json::json!(process_state));
+        map.insert("notes".into(), serde_json::json!(notes));
     }
+    obj
+}
+
+/// True if the most recent supervisor.drift_detected for `slug` is newer
+/// than any subsequent supervisor.coherence_restored — i.e. the drift has
+/// not yet been resolved by a sweep action.
+fn drift_active_for_slug(slug: &str, events: &[runtime::events::EventEnvelope]) -> bool {
+    let mut latest_drift: Option<chrono::DateTime<chrono::Utc>> = None;
+    let mut latest_restored: Option<chrono::DateTime<chrono::Utc>> = None;
+    for e in events {
+        if e.entity_id != slug {
+            continue;
+        }
+        match e.event_type.as_str() {
+            "supervisor.drift_detected" => {
+                latest_drift = Some(latest_drift.map_or(e.created_at, |d| d.max(e.created_at)));
+            }
+            "supervisor.coherence_restored" => {
+                latest_restored =
+                    Some(latest_restored.map_or(e.created_at, |d| d.max(e.created_at)));
+            }
+            _ => {}
+        }
+    }
+    match (latest_drift, latest_restored) {
+        (Some(d), Some(r)) => d > r,
+        (Some(_), None) => true,
+        _ => false,
+    }
+}
+
+fn truncate(s: &str, max: usize) -> String {
+    let chars: Vec<char> = s.chars().collect();
+    if chars.len() <= max {
+        s.to_string()
+    } else {
+        chars[..max.saturating_sub(1)].iter().collect::<String>() + "…"
+    }
+}
+
+/// Project process events from an explicit ship_dir without going through
+/// the global db_path. Mirrors `load_jobs_at` for jobs.
+fn list_processes_at(
+    ship_dir: &std::path::Path,
+    slug: Option<&str>,
+) -> anyhow::Result<Vec<runtime::projections::process::ProcessRecord>> {
+    runtime::db::ensure_db_at(ship_dir)?;
+    let events = runtime::db::events::list_recent_events_at(ship_dir, 50_000)?;
+    let mut records = runtime::projections::process::project(&events);
+    if let Some(s) = slug {
+        records.retain(|r| r.slug == s);
+    }
+    Ok(records)
+}
+
+/// Filter recent events by event_type set, against an explicit ship_dir.
+fn load_recent_events_by_type(
+    ship_dir: &std::path::Path,
+    types: &[&str],
+    limit: usize,
+) -> anyhow::Result<Vec<runtime::events::EventEnvelope>> {
+    runtime::db::ensure_db_at(ship_dir)?;
+    let events = runtime::db::events::list_recent_events_at(ship_dir, limit)?;
+    Ok(events
+        .into_iter()
+        .filter(|e| types.contains(&e.event_type.as_str()))
+        .collect())
 }
 
 // ---- Job detail response types ----
@@ -770,6 +897,207 @@ pub async fn steer_agent(
             Json(MeshResponse { ok: false, data: serde_json::json!(format!("failed to steer agent: {e}")) }),
         ),
     }
+}
+
+// ---- Procs / events / daemon status (slice 6) ----
+
+#[derive(Deserialize, utoipa::IntoParams)]
+pub struct ProcsQuery {
+    pub slug: Option<String>,
+    pub limit: Option<usize>,
+}
+
+/// GET /api/runtime/procs[?slug=X][&limit=N]
+///
+/// Returns process records from the `process.*` projection. Without
+/// `slug`, returns the most recent `limit` records (default 100), sorted
+/// newest first.
+#[utoipa::path(
+    get,
+    path = "/api/runtime/procs",
+    params(ProcsQuery),
+    responses((status = 200, body = MeshResponse)),
+    tag = "runtime"
+)]
+pub async fn list_procs(
+    State(state): State<ApiState>,
+    Query(params): Query<ProcsQuery>,
+) -> impl IntoResponse {
+    let limit = params.limit.unwrap_or(100);
+    let slug = params.slug.as_deref();
+    match list_processes_at(state.ship_dir(), slug) {
+        Ok(mut records) => {
+            // Newest first; cap to limit.
+            records.sort_by(|a, b| b.spawned_at.cmp(&a.spawned_at));
+            if records.len() > limit {
+                records.truncate(limit);
+            }
+            (
+                StatusCode::OK,
+                Json(MeshResponse {
+                    ok: true,
+                    data: serde_json::json!({ "procs": records }),
+                }),
+            )
+        }
+        Err(e) => (
+            StatusCode::INTERNAL_SERVER_ERROR,
+            Json(MeshResponse { ok: false, data: serde_json::json!(e.to_string()) }),
+        ),
+    }
+}
+
+#[derive(Deserialize, utoipa::IntoParams)]
+pub struct EventsPollQuery {
+    /// ULID cursor — return events with id > since_id, ordered ASC.
+    pub since_id: Option<String>,
+    /// If set, only return events whose envelope `entity_id` matches OR
+    /// whose payload contains `"slug": "<slug>"`.
+    pub slug: Option<String>,
+    /// Optional event-namespace prefix filter ("job", "process", "supervisor").
+    pub namespace: Option<String>,
+    pub limit: Option<usize>,
+}
+
+/// GET /api/runtime/events/poll
+///
+/// Polling fallback for `ship tail`. SSE replays only future events;
+/// poll allows the CLI to walk the log forward from a known cursor.
+/// Use `since_id` (ULID) for incremental polling. Limit defaults to 200.
+#[utoipa::path(
+    get,
+    path = "/api/runtime/events/poll",
+    params(EventsPollQuery),
+    responses((status = 200, body = MeshResponse)),
+    tag = "runtime"
+)]
+pub async fn poll_events(
+    State(state): State<ApiState>,
+    Query(params): Query<EventsPollQuery>,
+) -> impl IntoResponse {
+    let limit = params.limit.unwrap_or(200).min(2000);
+    let ship_dir = state.ship_dir();
+    if let Err(e) = runtime::db::ensure_db_at(ship_dir) {
+        return (
+            StatusCode::INTERNAL_SERVER_ERROR,
+            Json(MeshResponse { ok: false, data: serde_json::json!(e.to_string()) }),
+        );
+    }
+    // Read the most recent N events ascending; we filter in memory.
+    let events = match runtime::db::events::list_recent_events_at(ship_dir, 5_000) {
+        Ok(e) => e,
+        Err(e) => {
+            return (
+                StatusCode::INTERNAL_SERVER_ERROR,
+                Json(MeshResponse { ok: false, data: serde_json::json!(e.to_string()) }),
+            );
+        }
+    };
+
+    let cursor = params.since_id.as_deref();
+    let slug = params.slug.as_deref();
+    let ns = params.namespace.as_deref();
+
+    let filtered: Vec<_> = events
+        .into_iter()
+        .filter(|e| match cursor {
+            Some(c) => e.id.as_str() > c,
+            None => true,
+        })
+        .filter(|e| match ns {
+            Some(prefix) => e.event_type.starts_with(&format!("{prefix}.")),
+            None => true,
+        })
+        .filter(|e| match slug {
+            Some(s) => {
+                if e.entity_id == s {
+                    return true;
+                }
+                serde_json::from_str::<serde_json::Value>(&e.payload_json)
+                    .ok()
+                    .and_then(|v| v["slug"].as_str().map(str::to_string))
+                    .map(|p| p == s)
+                    .unwrap_or(false)
+            }
+            None => true,
+        })
+        .take(limit)
+        .collect();
+
+    (
+        StatusCode::OK,
+        Json(MeshResponse {
+            ok: true,
+            data: serde_json::json!({ "events": filtered }),
+        }),
+    )
+}
+
+/// GET /api/runtime/daemon/status
+///
+/// Real, live status for `ship daemon status` — pid, version, uptime,
+/// job counts by status, last sweep timestamp, drift count over the
+/// last 50 sweep events.
+#[utoipa::path(
+    get,
+    path = "/api/runtime/daemon/status",
+    responses((status = 200, body = MeshResponse)),
+    tag = "runtime"
+)]
+pub async fn daemon_status(State(state): State<ApiState>) -> impl IntoResponse {
+    use runtime::projections::job::JobStatus;
+
+    let ship_dir = state.ship_dir();
+    let jobs = runtime::projections::job::load_jobs_at(ship_dir).unwrap_or_default();
+    let mut counts: std::collections::BTreeMap<&str, usize> = std::collections::BTreeMap::new();
+    for j in jobs.values() {
+        let key = match j.status {
+            JobStatus::Pending => "pending",
+            JobStatus::Dispatched => "dispatched",
+            JobStatus::Completed => "completed",
+            JobStatus::GatePending => "gate_pending",
+            JobStatus::Blocked => "blocked",
+            JobStatus::Merged => "merged",
+            JobStatus::Failed => "failed",
+            JobStatus::Cancelled => "cancelled",
+        };
+        *counts.entry(key).or_insert(0) += 1;
+    }
+
+    // Most recent sweep_completed and the drift count it recorded.
+    let sweep_events =
+        load_recent_events_by_type(ship_dir, &["supervisor.sweep_completed"], 100)
+            .unwrap_or_default();
+    let last_sweep = sweep_events.iter().max_by_key(|e| e.created_at);
+    let last_sweep_at = last_sweep.map(|e| e.created_at.to_rfc3339());
+    let last_sweep_drift = last_sweep
+        .and_then(|e| serde_json::from_str::<serde_json::Value>(&e.payload_json).ok())
+        .and_then(|p| p["drift_count"].as_u64())
+        .unwrap_or(0);
+
+    let port = state.config().port;
+    let host = state.config().host.clone();
+    let uptime_secs = state.uptime().as_secs();
+    let pid = std::process::id();
+
+    (
+        StatusCode::OK,
+        Json(MeshResponse {
+            ok: true,
+            data: serde_json::json!({
+                "pid": pid,
+                "version": env!("CARGO_PKG_VERSION"),
+                "host": host,
+                "port": port,
+                "uptime_secs": uptime_secs,
+                "jobs_total": jobs.len(),
+                "jobs_by_status": counts,
+                "last_sweep_at": last_sweep_at,
+                "last_sweep_drift": last_sweep_drift,
+                "tasks": state.health_registry().snapshot(),
+            }),
+        }),
+    )
 }
 
 /// POST /api/runtime/rebuild-projections — rebuild all projections from events.
@@ -1306,5 +1634,292 @@ mod tests {
             .await
             .into_response();
         assert_eq!(response.status(), StatusCode::SERVICE_UNAVAILABLE);
+    }
+
+    // ---- Slice 6 endpoints ----
+
+    async fn emit_process_spawned(state: &ApiState, slug: &str, pid: u32) {
+        let payload = runtime::events::process::ProcessSpawnedPayload {
+            slug: slug.to_string(),
+            job_id: format!("job-{slug}"),
+            pid: Some(pid),
+            cmd: "claude".to_string(),
+            argv: vec![],
+            env_keys: vec![],
+            cwd: "/tmp".to_string(),
+            executor_kind: "process".to_string(),
+            step_id: None,
+        };
+        let env = EventEnvelope::new(
+            runtime::events::process::event_types::PROCESS_SPAWNED,
+            slug,
+            &payload,
+        )
+        .unwrap()
+        .with_actor_id("test");
+        state.persist_and_route(&env).await.unwrap();
+    }
+
+    async fn emit_drift_detected(state: &ApiState, slug: &str) {
+        let payload = runtime::events::supervisor::DriftDetectedPayload {
+            slug: slug.into(),
+            job_id: format!("job-{slug}"),
+            expected_status: "Dispatched".into(),
+            actual_state: "no_process".into(),
+            detail: "test".into(),
+        };
+        let env = EventEnvelope::new(
+            runtime::events::supervisor::event_types::SUPERVISOR_DRIFT_DETECTED,
+            slug,
+            &payload,
+        )
+        .unwrap()
+        .with_actor_id("test");
+        state.persist_and_route(&env).await.unwrap();
+    }
+
+    async fn emit_sweep_completed(state: &ApiState, drift_count: usize) {
+        let payload = runtime::events::supervisor::SweepCompletedPayload {
+            duration_ms: 12,
+            drift_count,
+            actions_taken: drift_count,
+        };
+        let env = EventEnvelope::new(
+            runtime::events::supervisor::event_types::SUPERVISOR_SWEEP_COMPLETED,
+            "supervisor",
+            &payload,
+        )
+        .unwrap()
+        .with_actor_id("test");
+        state.persist_and_route(&env).await.unwrap();
+    }
+
+    #[tokio::test(flavor = "multi_thread")]
+    async fn list_jobs_annotates_terminal_jobs_as_terminal() {
+        let dir = TempDir::new().unwrap();
+        let state = make_api_state(&dir);
+        let job_id = emit_job_created(&state, "term-anno").await;
+
+        // Drive into Failed.
+        let env = EventEnvelope::new(
+            event_types::JOB_FAILED,
+            &job_id,
+            &runtime::events::job::JobFailedPayload {
+                job_id: job_id.clone(),
+                error: "boom".into(),
+            },
+        )
+        .unwrap()
+        .with_actor_id("test");
+        state.persist_and_route(&env).await.unwrap();
+
+        let response = list_jobs(State(state)).await.into_response();
+        let val = collect_body(response).await;
+        let jobs = val["data"]["jobs"].as_array().unwrap();
+        let row = jobs.iter().find(|j| j["slug"] == "term-anno").unwrap();
+        assert_eq!(row["process_state"], serde_json::json!("terminal"));
+        assert_eq!(row["notes"], serde_json::json!("boom"));
+    }
+
+    #[tokio::test(flavor = "multi_thread")]
+    async fn list_jobs_marks_drift_as_missing_when_unresolved() {
+        let dir = TempDir::new().unwrap();
+        let state = make_api_state(&dir);
+        let _job_id = emit_job_created(&state, "drift-job").await;
+        emit_drift_detected(&state, "drift-job").await;
+
+        let response = list_jobs(State(state)).await.into_response();
+        let val = collect_body(response).await;
+        let jobs = val["data"]["jobs"].as_array().unwrap();
+        let row = jobs.iter().find(|j| j["slug"] == "drift-job").unwrap();
+        assert_eq!(row["process_state"], serde_json::json!("missing"));
+    }
+
+    #[tokio::test(flavor = "multi_thread")]
+    async fn list_jobs_marks_alive_for_running_process() {
+        let dir = TempDir::new().unwrap();
+        let state = make_api_state(&dir);
+        let _job_id = emit_job_created(&state, "alive-job").await;
+        emit_process_spawned(&state, "alive-job", 1234).await;
+
+        let response = list_jobs(State(state)).await.into_response();
+        let val = collect_body(response).await;
+        let jobs = val["data"]["jobs"].as_array().unwrap();
+        let row = jobs.iter().find(|j| j["slug"] == "alive-job").unwrap();
+        assert_eq!(row["process_state"], serde_json::json!("alive"));
+    }
+
+    #[tokio::test(flavor = "multi_thread")]
+    async fn list_procs_filters_by_slug() {
+        let dir = TempDir::new().unwrap();
+        let state = make_api_state(&dir);
+        emit_process_spawned(&state, "procs-a", 1).await;
+        emit_process_spawned(&state, "procs-b", 2).await;
+
+        let q = Query(ProcsQuery { slug: Some("procs-a".into()), limit: None });
+        let response = list_procs(State(state), q).await.into_response();
+        let val = collect_body(response).await;
+        let procs = val["data"]["procs"].as_array().unwrap();
+        assert_eq!(procs.len(), 1);
+        assert_eq!(procs[0]["slug"], "procs-a");
+        assert_eq!(procs[0]["pid"], 1);
+    }
+
+    #[tokio::test(flavor = "multi_thread")]
+    async fn list_procs_returns_all_when_no_slug() {
+        let dir = TempDir::new().unwrap();
+        let state = make_api_state(&dir);
+        emit_process_spawned(&state, "all-a", 10).await;
+        emit_process_spawned(&state, "all-b", 11).await;
+
+        let q = Query(ProcsQuery { slug: None, limit: None });
+        let response = list_procs(State(state), q).await.into_response();
+        let val = collect_body(response).await;
+        let procs = val["data"]["procs"].as_array().unwrap();
+        assert!(procs.len() >= 2);
+    }
+
+    #[tokio::test(flavor = "multi_thread")]
+    async fn poll_events_filters_by_slug() {
+        let dir = TempDir::new().unwrap();
+        let state = make_api_state(&dir);
+        let _ = emit_job_created(&state, "tail-x").await;
+        let _ = emit_job_created(&state, "tail-y").await;
+
+        let q = Query(EventsPollQuery {
+            since_id: None,
+            slug: Some("tail-x".into()),
+            namespace: None,
+            limit: None,
+        });
+        let response = poll_events(State(state), q).await.into_response();
+        let val = collect_body(response).await;
+        let events = val["data"]["events"].as_array().unwrap();
+        assert!(!events.is_empty(), "should have at least one event for slug");
+        for e in events {
+            let payload: serde_json::Value =
+                serde_json::from_str(e["payload_json"].as_str().unwrap_or("{}")).unwrap();
+            assert_eq!(payload["slug"], "tail-x");
+        }
+    }
+
+    #[tokio::test(flavor = "multi_thread")]
+    async fn poll_events_namespace_filter() {
+        let dir = TempDir::new().unwrap();
+        let state = make_api_state(&dir);
+        let _ = emit_job_created(&state, "ns-test").await;
+        emit_process_spawned(&state, "ns-test", 99).await;
+
+        let q = Query(EventsPollQuery {
+            since_id: None,
+            slug: Some("ns-test".into()),
+            namespace: Some("process".into()),
+            limit: None,
+        });
+        let response = poll_events(State(state), q).await.into_response();
+        let val = collect_body(response).await;
+        let events = val["data"]["events"].as_array().unwrap();
+        assert!(!events.is_empty());
+        for e in events {
+            assert!(
+                e["event_type"].as_str().unwrap().starts_with("process."),
+                "namespace filter must restrict to process.*"
+            );
+        }
+    }
+
+    #[tokio::test(flavor = "multi_thread")]
+    async fn poll_events_respects_since_id_cursor() {
+        let dir = TempDir::new().unwrap();
+        let state = make_api_state(&dir);
+        let _ = emit_job_created(&state, "cursor-test").await;
+
+        let first = Query(EventsPollQuery {
+            since_id: None,
+            slug: Some("cursor-test".into()),
+            namespace: None,
+            limit: None,
+        });
+        let response = poll_events(State(state.clone()), first).await.into_response();
+        let val = collect_body(response).await;
+        let events = val["data"]["events"].as_array().unwrap();
+        let last_id = events.last().unwrap()["id"].as_str().unwrap().to_string();
+
+        let second = Query(EventsPollQuery {
+            since_id: Some(last_id),
+            slug: Some("cursor-test".into()),
+            namespace: None,
+            limit: None,
+        });
+        let response = poll_events(State(state), second).await.into_response();
+        let val = collect_body(response).await;
+        assert_eq!(val["data"]["events"].as_array().unwrap().len(), 0);
+    }
+
+    #[tokio::test(flavor = "multi_thread")]
+    async fn daemon_status_returns_pid_and_uptime() {
+        let dir = TempDir::new().unwrap();
+        let state = make_api_state(&dir);
+        let _ = emit_job_created(&state, "status-job").await;
+        emit_sweep_completed(&state, 0).await;
+
+        let response = daemon_status(State(state)).await.into_response();
+        assert_eq!(response.status(), StatusCode::OK);
+        let val = collect_body(response).await;
+        let d = &val["data"];
+        assert!(d["pid"].as_u64().unwrap() > 0);
+        assert!(d["jobs_total"].as_u64().unwrap() >= 1);
+        assert_eq!(d["jobs_by_status"]["pending"], serde_json::json!(1));
+        assert!(d["last_sweep_at"].is_string());
+        assert_eq!(d["last_sweep_drift"], serde_json::json!(0));
+    }
+
+    #[tokio::test(flavor = "multi_thread")]
+    async fn drift_active_for_slug_resolved_returns_false() {
+        let drift_ts = chrono::Utc::now() - chrono::Duration::seconds(10);
+        let restored_ts = chrono::Utc::now();
+        let mk = |t: &str, ts: chrono::DateTime<chrono::Utc>| EventEnvelope {
+            id: "x".into(),
+            event_type: t.into(),
+            entity_id: "slug".into(),
+            actor: "test".into(),
+            payload_json: "{}".into(),
+            version: 1,
+            causation_id: None,
+            workspace_id: None,
+            session_id: None,
+            actor_id: None,
+            parent_actor_id: None,
+            target_actor_id: None,
+            elevated: false,
+            created_at: ts,
+        };
+        let events = vec![
+            mk("supervisor.drift_detected", drift_ts),
+            mk("supervisor.coherence_restored", restored_ts),
+        ];
+        assert!(!drift_active_for_slug("slug", &events));
+    }
+
+    #[tokio::test(flavor = "multi_thread")]
+    async fn drift_active_for_slug_unresolved_returns_true() {
+        let mk = |t: &str| EventEnvelope {
+            id: "x".into(),
+            event_type: t.into(),
+            entity_id: "slug".into(),
+            actor: "test".into(),
+            payload_json: "{}".into(),
+            version: 1,
+            causation_id: None,
+            workspace_id: None,
+            session_id: None,
+            actor_id: None,
+            parent_actor_id: None,
+            target_actor_id: None,
+            elevated: false,
+            created_at: chrono::Utc::now(),
+        };
+        let events = vec![mk("supervisor.drift_detected")];
+        assert!(drift_active_for_slug("slug", &events));
     }
 }
