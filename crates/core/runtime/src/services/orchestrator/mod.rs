@@ -40,6 +40,8 @@ mod tests_cancel;
 #[cfg(test)]
 mod tests_spawn_failed;
 #[cfg(test)]
+mod tests_replay;
+#[cfg(test)]
 mod tests_sweep;
 #[cfg(test)]
 mod tests_terminal_guard;

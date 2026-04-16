@@ -101,7 +101,7 @@ async fn reconcile_dispatched_inner(
     kernel: &Arc<Mutex<crate::events::KernelRouter>>,
     octx: &OrchestratorContext,
     jobs: std::collections::HashMap<String, crate::projections::job::JobRecord>,
-    store_dir: Option<&std::path::Path>,
+    _store_dir: Option<&std::path::Path>,
 ) {
     let stale: Vec<_> = jobs
         .values()
@@ -119,12 +119,10 @@ async fn reconcile_dispatched_inner(
         // Ask the executor to rehydrate a real handle from out-of-band
         // state (tmux session names, window names, etc). `Some` means
         // the agent survived the restart — re-attach. `None` means no
-        // live process exists — mark the step failed.
-        //
-        // The prior pattern constructed a placeholder handle with
-        // `pid: None` and `inner: Box::new(())` then called `is_alive`,
-        // which always returned false because the inner type couldn't
-        // be downcast — killing live agents on every restart.
+        // live process was found on this pass — record an observation
+        // event and let the liveness sweep decide after the stale
+        // threshold. A single missed probe is not sufficient evidence
+        // to terminate the job.
         match octx
             .executor
             .resume_handle(
@@ -145,55 +143,19 @@ async fn reconcile_dispatched_inner(
             None => {
                 tracing::info!(
                     slug = job.slug, job_id = job.job_id,
-                    "job-dispatch: reconcile — no live process found, marking step failed"
+                    "job-dispatch: reconcile — no live process, deferring to liveness sweep"
                 );
-                emit_step_failed(kernel, &job.job_id, &job.slug, "daemon restarted, agent not running", store_dir).await;
+                crate::services::orchestrator::emit::emit_executor_session_destroyed(
+                    kernel,
+                    &job.slug,
+                    "tmux_window",
+                    &job.slug,
+                    crate::events::executor::DestructionCause::External,
+                )
+                .await;
             }
         }
     }
 
     tracing::info!("job-dispatch: reconciliation complete");
-}
-
-/// Emit job.step_failed and persist to event store.
-async fn emit_step_failed(
-    kernel: &Arc<Mutex<crate::events::KernelRouter>>,
-    job_id: &str,
-    slug: &str,
-    error: &str,
-    store_dir: Option<&std::path::Path>,
-) {
-    use crate::events::job::event_types;
-
-    let payload = serde_json::json!({
-        "job_id": job_id,
-        "error": error,
-    });
-    let envelope = match EventEnvelope::new(event_types::STEP_FAILED, job_id, &payload) {
-        Ok(e) => e.with_actor_id("service.job-dispatch"),
-        Err(e) => {
-            tracing::warn!(slug, "job-dispatch: reconcile — failed to build envelope: {e}");
-            return;
-        }
-    };
-
-    let persist_result = match store_dir {
-        Some(dir) => crate::events::SqliteEventStore::new_at(dir)
-            .and_then(|s| crate::events::EventStore::append(&s, &envelope)),
-        None => crate::events::SqliteEventStore::new()
-            .and_then(|s| crate::events::EventStore::append(&s, &envelope)),
-    };
-    if let Err(e) = persist_result {
-        tracing::warn!(slug, "job-dispatch: reconcile — failed to persist step_failed: {e}");
-    }
-
-    let ctx = crate::events::EmitContext {
-        caller_kind: crate::events::CallerKind::Runtime,
-        skill_id: None,
-        workspace_id: None,
-        session_id: None,
-    };
-    if let Err(e) = kernel.lock().await.route(envelope, &ctx).await {
-        tracing::warn!(slug, "job-dispatch: reconcile — failed to emit step_failed: {e}");
-    }
 }
