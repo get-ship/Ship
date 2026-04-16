@@ -19,6 +19,7 @@
     "manifest": "custom-elements-manifest analyze --config custom-elements-manifest.config.mjs",
     "catalog": "node scripts/generate-catalog.mjs",
     "bundle:elements": "esbuild src/web-components/index.ts --bundle --format=esm --target=es2020 --outfile=../../apps/shipd/assets/ship-elements.js --log-level=warning",
+    "bundle:editor": "esbuild src/web-components/ship-markdown-editor.ts --bundle --format=esm --target=es2020 --outfile=../../apps/shell/public/vendor/ship-markdown-editor.js --log-level=warning",
     "test": "vitest run",
     "test:watch": "vitest",
     "typecheck": "tsc -p tsconfig.json --noEmit"
@@ -28,13 +29,26 @@
     "react-dom": "^19.0.0"
   },
   "dependencies": {
+    "@tiptap/core": "^3.21.0",
+    "@tiptap/extension-code-block-lowlight": "^3.21.0",
+    "@tiptap/extension-image": "^3.21.0",
+    "@tiptap/extension-link": "^3.21.0",
+    "@tiptap/extension-placeholder": "^3.21.0",
+    "@tiptap/extension-table": "^3.21.0",
+    "@tiptap/extension-task-item": "^3.21.0",
+    "@tiptap/extension-task-list": "^3.21.0",
+    "@tiptap/extension-typography": "^3.21.0",
+    "@tiptap/starter-kit": "^3.21.0",
     "lit": "^3.2.0",
-    "lucide-react": "^0.575.0"
+    "lowlight": "^3.3.0",
+    "lucide-react": "^0.575.0",
+    "tiptap-markdown": "^0.9.0"
   },
   "devDependencies": {
     "@custom-elements-manifest/analyzer": "^0.11.0",
     "@types/react": "^19.2.14",
     "@types/react-dom": "^19.1.6",
+    "esbuild": "^0.25.12",
     "jsdom": "^28.1.0",
     "typescript": "~5.8.3",
     "vitest": "^3.2.4"

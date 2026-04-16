@@ -1,0 +1,60 @@
+{#-
+  Canvas doc — demo of <ship-markdown-editor> with Datastar two-way binding.
+
+  Loads the editor bundle lazily from /vendor/ship-markdown-editor.js (served
+  by the shell dev server at :3100 from apps/shell/public/vendor/). When a
+  daemon-side asset route lands in a later job, this reference can migrate.
+
+  The editor emits native `input` (for `data-bind`) and `ship-change` (for
+  custom handlers). A `<pre>` next to it shows the serialized markdown so
+  you can verify the round-trip while typing.
+-#}
+{% from '_ship.html.j2' import signal, bind %}
+
+<style>
+  .mde-demo-wrap { max-width: 68rem; margin: 0 auto; padding: var(--space-6) var(--space-5); }
+  .mde-title { font-family: var(--font-display); font-size: var(--text-2xl); font-weight: var(--font-weight-bold); margin: 0 0 var(--space-2); letter-spacing: -0.015em; }
+  .mde-sub { color: var(--muted-foreground); font-size: var(--text-sm); margin: 0 0 var(--space-6); }
+  .mde-grid { display: grid; grid-template-columns: minmax(0, 1.3fr) minmax(0, 1fr); gap: var(--space-4); }
+  .mde-legend { font-size: var(--text-xs); font-weight: var(--font-weight-semibold); text-transform: uppercase; letter-spacing: 0.08em; color: var(--muted-foreground); margin: 0 0 var(--space-2); }
+  .mde-preview {
+    border: 1px solid var(--border);
+    border-radius: var(--radius-lg);
+    background: var(--card);
+    padding: var(--space-3) var(--space-4);
+    font-family: var(--font-mono);
+    font-size: var(--text-sm);
+    line-height: 1.55;
+    white-space: pre-wrap;
+    overflow: auto;
+    max-height: 520px;
+    min-height: 200px;
+    color: var(--foreground);
+  }
+  @media (max-width: 900px) { .mde-grid { grid-template-columns: 1fr; } }
+</style>
+
+<script type="module" src="/vendor/ship-markdown-editor.js"></script>
+
+<div class="ship-view" {{ signal('content', '# Canvas — Editor test\n\nThis is a **rich-text** editor bound to a Datastar signal.\n\nTry:\n\n- Selecting text and pressing **Cmd/Ctrl + B**.\n- Toggling a heading from the toolbar.\n- Watching the markdown update live in the preview pane.\n\n```js\nconsole.log("code blocks too")\n```\n') }}>
+  <div class="mde-demo-wrap">
+    <h1 class="mde-title">Markdown editor demo</h1>
+    <p class="mde-sub">Two-way bound to <code>$content</code> via <code>data-bind</code>. Any change streams to the markdown pane on the right.</p>
+
+    <div class="mde-grid">
+      <div>
+        <p class="mde-legend">Editor</p>
+        <ship-markdown-editor
+          {{ bind('content') }}
+          label="Canvas draft"
+          placeholder="Write freely. Markdown syntax, keyboard shortcuts, and the toolbar all work."
+          rows="14"
+        ></ship-markdown-editor>
+      </div>
+      <div>
+        <p class="mde-legend">Markdown (live)</p>
+        <pre class="mde-preview" data-text="$content"></pre>
+      </div>
+    </div>
+  </div>
+</div>
