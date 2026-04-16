@@ -44,6 +44,13 @@ pub(crate) fn start_exit_handler(
             );
             registry.lock().await.unregister(&signal.slug);
 
+            // Emit process.exited for observability.
+            let exit_signal = signal.exit_code.and_then(|c| if c != 0 { Some("non-zero") } else { None });
+            runtime::services::orchestrator::emit::emit_process_exited(
+                &kernel, &signal.slug, None, signal.exit_code,
+                exit_signal.as_deref(), 0, "unknown",
+            ).await;
+
             match signal.exit_code {
                 Some(0) | None => {
                     // Single-step or no-pipeline job — original behavior.

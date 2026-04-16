@@ -7,7 +7,7 @@ use crate::services::dispatch_ports::{JobContext, LaunchProfile};
 use std::sync::Arc;
 use tokio::sync::Mutex;
 
-use super::emit::{emit_job_dispatched, emit_job_dispatched_with_meta, emit_spawn_failed};
+use super::emit::{emit_job_dispatched, emit_job_dispatched_with_meta, emit_process_spawned, emit_spawn_failed};
 use super::pipeline_loader::ensure_pipeline;
 use super::step_monitor::StepMonitor;
 use super::OrchestratorContext;
@@ -162,6 +162,13 @@ pub async fn dispatch_job_internal(
             return;
         }
     };
+
+    let executor_kind = if payload.headless { "process" } else { "pty" };
+    emit_process_spawned(
+        kernel, slug, &payload.job_id, handle.pid,
+        "claude", &[], &[], &worktree_path.to_string_lossy(),
+        executor_kind, job_ctx_with_dir.step.as_ref().map(|s| s.id.as_str()),
+    ).await;
 
     octx.registry.register(slug, handle).await;
 

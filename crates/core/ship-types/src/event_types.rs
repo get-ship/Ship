@@ -42,6 +42,10 @@ pub const SKILL_STARTED: &str = "skill.started";
 pub const SKILL_COMPLETED: &str = "skill.completed";
 pub const SKILL_FAILED: &str = "skill.failed";
 pub const SUPERVISOR_SHUTTING_DOWN: &str = "supervisor.shutting_down";
+pub const PROCESS_SPAWNED: &str = "process.spawned";
+pub const PROCESS_EXITED: &str = "process.exited";
+pub const PROCESS_SIGNAL_SENT: &str = "process.signal_sent";
+pub const PROCESS_ORPHANED: &str = "process.orphaned";
 
 pub const ALL: &[&str] = &[
     WORKSPACE_CREATED,
@@ -88,6 +92,10 @@ pub const ALL: &[&str] = &[
     SKILL_COMPLETED,
     SKILL_FAILED,
     SUPERVISOR_SHUTTING_DOWN,
+    PROCESS_SPAWNED,
+    PROCESS_EXITED,
+    PROCESS_SIGNAL_SENT,
+    PROCESS_ORPHANED,
 ];
 
 #[cfg(test)]

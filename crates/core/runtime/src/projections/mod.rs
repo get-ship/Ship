@@ -10,6 +10,7 @@
 pub mod async_projection;
 pub mod job;
 pub mod job_transitions;
+pub mod process;
 pub mod spawn;
 mod actor;
 mod registry;
@@ -29,6 +30,7 @@ mod tests_session;
 pub use actor::ActorProjection;
 pub use async_projection::{AsyncProjection, spawn_projection};
 pub use job::{JobRecord, JobStatus, load_jobs, project as project_jobs};
+pub use process::{ProcessRecord, ProcessStatus, load_processes};
 pub use registry::{EventBus, Projection};
 pub use session::SessionProjection;
 pub use spawn::{ProjectionHandle, spawn_with_failure_counter};

@@ -269,6 +269,12 @@ async fn emit_and_finish(
         start_sha: monitor.start_sha.clone(),
     };
 
+    // Emit process.exited alongside step.observed for process lifecycle tracking.
+    super::emit::emit_process_exited(
+        kernel, &monitor.slug, None, exit_code, None,
+        duration_secs * 1000, "unknown",
+    ).await;
+
     emit_step_observed(kernel, &monitor.job_id, &monitor.slug, &payload).await;
 }
 

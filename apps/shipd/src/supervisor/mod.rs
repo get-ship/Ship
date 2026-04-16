@@ -13,6 +13,7 @@ pub(crate) mod executors;
 pub mod helpers;
 pub mod job_dispatch;
 pub(crate) mod liveness;
+pub(crate) mod process_events;
 pub(crate) mod orphan_cleanup;
 pub(crate) mod platform;
 pub(crate) mod registry;

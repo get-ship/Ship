@@ -106,6 +106,94 @@ pub async fn emit_step_dispatched_event(
     persist_and_route(kernel, envelope, slug, ship_dir).await;
 }
 
+// ── Process lifecycle event emitters ──────────────────────────────────────────
+
+/// Emit `process.spawned` after an executor successfully creates a process.
+pub async fn emit_process_spawned(
+    kernel: &Arc<Mutex<crate::events::KernelRouter>>,
+    slug: &str,
+    job_id: &str,
+    pid: Option<u32>,
+    cmd: &str,
+    argv: &[String],
+    env_keys: &[String],
+    cwd: &str,
+    executor_kind: &str,
+    step_id: Option<&str>,
+) {
+    use crate::events::process::{sanitize_argv, filter_env_keys, ProcessSpawnedPayload, event_types};
+    let payload = ProcessSpawnedPayload {
+        slug: slug.to_string(),
+        job_id: job_id.to_string(),
+        pid,
+        cmd: cmd.to_string(),
+        argv: sanitize_argv(argv),
+        env_keys: filter_env_keys(env_keys),
+        cwd: cwd.to_string(),
+        executor_kind: executor_kind.to_string(),
+        step_id: step_id.map(str::to_string),
+    };
+    emit_process_event(kernel, event_types::PROCESS_SPAWNED, slug, &payload).await;
+}
+
+/// Emit `process.exited` when a monitored process terminates.
+pub async fn emit_process_exited(
+    kernel: &Arc<Mutex<crate::events::KernelRouter>>,
+    slug: &str,
+    pid: Option<u32>,
+    exit_code: Option<i32>,
+    signal: Option<&str>,
+    wall_duration_ms: u64,
+    executor_kind: &str,
+) {
+    use crate::events::process::{ProcessExitedPayload, event_types};
+    let payload = ProcessExitedPayload {
+        slug: slug.to_string(),
+        pid,
+        exit_code,
+        signal: signal.map(str::to_string),
+        wall_duration_ms,
+        executor_kind: executor_kind.to_string(),
+    };
+    emit_process_event(kernel, event_types::PROCESS_EXITED, slug, &payload).await;
+}
+
+/// Emit `process.signal_sent` before sending a signal to a process.
+pub async fn emit_process_signal_sent(
+    kernel: &Arc<Mutex<crate::events::KernelRouter>>,
+    slug: &str,
+    pid: Option<u32>,
+    signum: &str,
+    reason: &str,
+    actor: &str,
+) {
+    use crate::events::process::{ProcessSignalSentPayload, event_types};
+    let payload = ProcessSignalSentPayload {
+        slug: slug.to_string(),
+        pid,
+        signum: signum.to_string(),
+        reason: reason.to_string(),
+        actor: actor.to_string(),
+    };
+    emit_process_event(kernel, event_types::PROCESS_SIGNAL_SENT, slug, &payload).await;
+}
+
+async fn emit_process_event(
+    kernel: &Arc<Mutex<crate::events::KernelRouter>>,
+    event_type: &str,
+    slug: &str,
+    payload: &impl serde::Serialize,
+) {
+    let envelope = match EventEnvelope::new(event_type, slug, payload) {
+        Ok(e) => e.with_actor_id("service.process-lifecycle"),
+        Err(e) => {
+            tracing::warn!(slug, event_type, "process-events: failed to build envelope: {e}");
+            return;
+        }
+    };
+    persist_and_route(kernel, envelope, slug, None).await;
+}
+
 /// Persist an event to platform.db and deliver it through the kernel.
 ///
 /// Thin wrapper around `KernelRouter::emit` that logs failures at ERROR

@@ -10,7 +10,7 @@ use crate::services::dispatch_ports::{JobContext, LaunchProfile};
 use std::sync::Arc;
 use tokio::sync::Mutex;
 
-use super::emit::{emit_job_dispatched_with_meta, emit_step_dispatched_event};
+use super::emit::{emit_job_dispatched_with_meta, emit_process_spawned, emit_step_dispatched_event};
 use super::step_monitor::{StepMonitor, start_step_monitor};
 use super::OrchestratorContext;
 
@@ -248,6 +248,13 @@ async fn advance_pipeline_inner(
                 };
                 match octx.executor.spawn(&job_ctx).await {
                     Ok(handle) => {
+                        let exec_kind = if job.headless { "process" } else { "pty" };
+                        emit_process_spawned(
+                            kernel, slug, &job.job_id, handle.pid,
+                            "claude", &[], &[],
+                            &worktree_path.to_string_lossy(),
+                            exec_kind, Some(&step.id),
+                        ).await;
                         octx.registry.register(slug, handle).await;
                         let monitor = StepMonitor::new(
                             job.job_id.clone(),
