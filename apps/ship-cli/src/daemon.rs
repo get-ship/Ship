@@ -1,6 +1,9 @@
 use anyhow::{Context, Result};
 use std::path::{Path, PathBuf};
 
+pub mod pidfile;
+use pidfile::{PidfileRecord, PidfileRole};
+
 pub enum DaemonCommand {
     Start { host: String, dev: bool },
     Stop,
@@ -82,25 +85,34 @@ const MAX_BACKOFF: std::time::Duration = std::time::Duration::from_secs(60);
 fn daemon_start(host: String, dev: bool) -> Result<()> {
     let pid_path = pid_file()?;
     let log_path = log_file()?;
+    let global_dir = ship_dir()?;
     // Dev mode forces localhost bind regardless of --host.
     let host = if dev { "127.0.0.1".to_string() } else { host };
 
-    // Check if already running.
-    if let Some(pid) = read_pid(&pid_path)? {
-        if is_process_alive(pid) {
-            println!("shipd already running (pid {}, port {})", pid, SHIPD_PORT);
-            return Ok(());
-        }
-        // Stale PID file — remove it.
-        let _ = std::fs::remove_file(&pid_path);
+    // Check if already running. The pidfile lock is the source of truth;
+    // a held lock means a live supervisor exists. Falling back to the legacy
+    // pid file keeps callers honest if the lock-based pidfile is missing.
+    if let Some((record, true)) = pidfile::read(&global_dir)? {
+        println!(
+            "shipd already running (pid {}, port {}, version {})",
+            record.pid, record.port, record.version
+        );
+        return Ok(());
     }
+    if let Some(pid) = read_pid(&pid_path)?
+        && is_process_alive(pid)
+    {
+        println!("shipd already running (pid {}, port {})", pid, SHIPD_PORT);
+        return Ok(());
+    }
+    // Stale legacy pid file — remove it before spawning.
+    let _ = std::fs::remove_file(&pid_path);
 
     let self_exe = std::env::current_exe().context("cannot determine own executable path")?;
 
     // Ensure ~/.ship/ and crashes dir exist.
-    let ship = ship_dir()?;
-    std::fs::create_dir_all(&ship).context("cannot create ~/.ship/ directory")?;
-    let crashes_dir = ship.join("crashes");
+    std::fs::create_dir_all(&global_dir).context("cannot create ~/.ship/ directory")?;
+    let crashes_dir = global_dir.join("crashes");
     std::fs::create_dir_all(&crashes_dir).context("cannot create ~/.ship/crashes/ directory")?;
 
     // Fork the supervisor into the background.
@@ -144,9 +156,37 @@ fn daemon_start(host: String, dev: bool) -> Result<()> {
 /// Called via `ship daemon supervise`. Not meant to be called directly by users.
 fn daemon_supervise(host: String, dev: bool) -> Result<()> {
     let self_exe = std::env::current_exe().context("cannot determine own executable path")?;
-    let crashes_dir = ship_dir()?.join("crashes");
+    let global_dir = ship_dir()?;
+    let crashes_dir = global_dir.join("crashes");
     // Dev mode forces localhost bind.
     let host = if dev { "127.0.0.1".to_string() } else { host };
+
+    // Acquire the OS-enforced singleton lock. Another live supervisor
+    // holding the lock means we exit cleanly with its identity.
+    let record = PidfileRecord {
+        pid: std::process::id(),
+        port: SHIPD_PORT,
+        version: env!("CARGO_PKG_VERSION").to_string(),
+        commit_sha: option_env!("VERGEN_GIT_SHA").unwrap_or("unknown").to_string(),
+        started_at: chrono::Utc::now().to_rfc3339(),
+        pidfile_path: String::new(),
+        socket_path: String::new(),
+        role: PidfileRole::Supervisor,
+    };
+    let _pidfile_guard = match pidfile::acquire(&global_dir, record)? {
+        Some(guard) => guard,
+        None => {
+            if let Some((existing, _)) = pidfile::read(&global_dir)? {
+                eprintln!(
+                    "shipd already running (pid {}, port {}, version {})",
+                    existing.pid, existing.port, existing.version
+                );
+            } else {
+                eprintln!("shipd already running (pidfile lock held, no record readable)");
+            }
+            return Ok(());
+        }
+    };
 
     // Relay SIGTERM/SIGINT to the child, then exit cleanly.
     let child_pid: std::sync::Arc<std::sync::atomic::AtomicU32> =
@@ -331,25 +371,34 @@ fn daemon_stop() -> Result<()> {
 }
 
 fn daemon_status() -> Result<()> {
-    let pid_path = pid_file()?;
-    let supervisor_pid = read_pid(&pid_path)?;
+    let global_dir = ship_dir()?;
+    let pidfile_record = pidfile::read(&global_dir)?;
+    let supervisor_pid = pidfile_record.as_ref().and_then(
+        |(rec, lock_held)| if *lock_held { Some(rec.pid) } else { None },
+    );
 
     // Try the live REST endpoint first — that's the source of truth for
-    // real status. Fall back to the pid-file probe if the daemon is
+    // real status. Fall back to the pidfile read if the daemon is
     // unreachable (no port file, stale process, etc).
     if let Some((port, token)) = daemon_info_if_healthy() {
         return print_live_status(port, &token, supervisor_pid);
     }
 
-    match supervisor_pid {
-        Some(pid) if is_process_alive(pid) => {
-            println!("shipd supervisor running (pid {}, port {}) — daemon unreachable", pid, SHIPD_PORT);
+    match pidfile_record {
+        None => println!("shipd not running"),
+        Some((record, true)) => {
+            // Lock held but REST endpoint unreachable — supervisor up,
+            // daemon listener not ready (or wrong port).
+            println!(
+                "shipd supervisor running (pid {}, port {}, version {}) — daemon unreachable",
+                record.pid, record.port, record.version
+            );
         }
-        Some(pid) => {
-            println!("shipd not running (stale pid {})", pid);
-        }
-        None => {
-            println!("shipd not running");
+        Some((record, false)) => {
+            println!(
+                "shipd not running (stale pidfile from pid {})",
+                record.pid
+            );
         }
     }
     Ok(())
