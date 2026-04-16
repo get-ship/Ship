@@ -22,7 +22,7 @@ pub mod types {
 
         #[test]
         fn all_constants_have_expected_count() {
-            assert_eq!(ALL.len(), 52, "exactly 52 event type constants required");
+            assert_eq!(ALL.len(), 58, "exactly 58 event type constants required");
         }
     }
 }
@@ -41,6 +41,7 @@ pub use crate::persistence::{
 pub use crate::persistence::event_store as store;
 // Modules kept here (implement runtime-specific logic)
 pub mod annotation;
+pub mod daemon;
 pub mod filter;
 pub mod global_kernel_router;
 pub mod job;

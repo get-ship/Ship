@@ -25,6 +25,8 @@ mod tests_actor;
 #[cfg(test)]
 mod tests_async;
 #[cfg(test)]
+mod tests_daemon_events;
+#[cfg(test)]
 mod tests_session;
 
 pub use actor::ActorProjection;
