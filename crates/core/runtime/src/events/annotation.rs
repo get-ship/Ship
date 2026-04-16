@@ -19,6 +19,12 @@ pub struct AnnotationEvent {
     pub note: Option<String>,
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub selection: Option<Selection>,
+    /// Agent-designed feedback payload. The agent authors a view that emits
+    /// structured feedback on interaction (e.g. `{selected: 2, rating: 5}`).
+    /// Shape is whatever the agent chose — the receiving prompt reads it.
+    /// Orthogonal to `note` (free-text) and `selection` (DOM context).
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub payload: Option<serde_json::Value>,
     pub created_at: DateTime<Utc>,
     pub author_kind: AuthorKind,
 }

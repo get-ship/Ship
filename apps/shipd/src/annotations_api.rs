@@ -98,8 +98,17 @@ pub async fn post_annotation(
     State(state): State<ApiState>,
     Extension(auth): Extension<AuthContext>,
     Extension(guard): Extension<Arc<AnnotationGuard>>,
-    Json(ev): Json<AnnotationEvent>,
+    Json(mut ev): Json<AnnotationEvent>,
 ) -> Response {
+    // Allow server-side id generation for view-authored feedback where the
+    // template can't easily produce a ULID. Empty string or any string that
+    // isn't a valid ULID from a human-authored action = server generates.
+    if ev.author_kind == AuthorKind::Human
+        && ev.kind == AnnotationKind::Action
+        && Ulid::from_string(&ev.id).is_err()
+    {
+        ev.id = Ulid::new().to_string();
+    }
     if let Err(resp) = validate(&ev) {
         return resp;
     }
