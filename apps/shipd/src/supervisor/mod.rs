@@ -65,6 +65,10 @@ mod tests_graceful_shutdown;
 mod tests_process_exit;
 
 #[cfg(test)]
+#[path = "tests_executor_events.rs"]
+mod tests_executor_events;
+
+#[cfg(test)]
 #[path = "tests_pipeline_e2e.rs"]
 mod tests_pipeline_e2e;
 

@@ -99,6 +99,11 @@ fn schema_for_event_type(
         "process.exited" => Some(check::<crate::events::process::ProcessExitedPayload>),
         "process.signal_sent" => Some(check::<crate::events::process::ProcessSignalSentPayload>),
         "process.orphaned" => Some(check::<crate::events::process::ProcessOrphanedPayload>),
+        // executor
+        "executor.session_created" => Some(check::<crate::events::executor::ExecutorSessionCreatedPayload>),
+        "executor.session_destroyed" => Some(check::<crate::events::executor::ExecutorSessionDestroyedPayload>),
+        "executor.window_created" => Some(check::<crate::events::executor::ExecutorWindowCreatedPayload>),
+        "executor.window_destroyed" => Some(check::<crate::events::executor::ExecutorWindowDestroyedPayload>),
         // supervisor
         "supervisor.shutting_down" => Some(check::<SupervisorShuttingDown>),
         "supervisor.sweep_started" => Some(check::<crate::events::supervisor::SweepStartedPayload>),
@@ -175,8 +180,11 @@ mod tests {
     #[test]
     fn all_known_event_types_have_schemas() {
         use crate::events::types::event_types::ALL;
-        // job.update has no dedicated payload struct — it's a generic update
-        let exceptions = &["job.update", "session.attached"];
+        // job.update has no dedicated payload struct — it's a generic update.
+        // process.killed is declared but not yet emitted; deferred to a
+        // follow-on slice where we wire the plumbing through the executor
+        // signal-send sites.
+        let exceptions = &["job.update", "session.attached", "process.killed"];
         for &et in ALL {
             if exceptions.contains(&et) {
                 continue;

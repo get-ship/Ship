@@ -9,17 +9,34 @@ use std::collections::HashMap;
 use std::path::PathBuf;
 use tokio::sync::mpsc::UnboundedSender;
 
-/// Signal sent from an executor monitor when the agent process exits.
+/// Why an executor is signalling exit. Forces each call site to declare
+/// semantics: we either observed the agent's own exit, or the substrate
+/// (tmux session/window, PTY, ...) went away without us seeing it.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum ExitCause {
+    /// The agent process actually exited; `exit_code` is meaningful
+    /// (`Some` = real code, `None` = process is gone but no code captured).
+    AgentExited,
+    /// The executor's session/window was destroyed externally — we did
+    /// not observe the agent exit. `exit_code` is always `None`.
+    SessionDestroyed,
+}
+
+/// Signal sent from an executor monitor when an agent's run ends.
 ///
 /// Executors send this on `JobContext::exit_tx` so the dispatch handler can
 /// emit `job.completed` or `job.failed` without waiting for the SessionEnd hook.
+///
+/// `cause` is exhaustive — every executor must declare whether it observed
+/// the agent exit or merely noticed the substrate went away. The liveness
+/// handler routes on `cause`: only `AgentExited` with `exit_code == Some(0)`
+/// is a clean completion.
 #[derive(Debug)]
 pub struct ExitSignal {
     pub slug: String,
     pub job_id: String,
-    /// `None` means the process was killed or the exit code was unavailable
-    /// (e.g. tmux session closed). `Some(0)` = clean exit, non-zero = failure.
     pub exit_code: Option<i32>,
+    pub cause: ExitCause,
 }
 
 /// Context for a job being dispatched. Carries everything an executor needs.

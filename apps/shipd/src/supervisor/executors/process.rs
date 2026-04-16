@@ -28,7 +28,9 @@ use std::sync::{Arc, Mutex};
 use anyhow::Result;
 use async_trait::async_trait;
 use portable_pty::{native_pty_system, Child, CommandBuilder, MasterPty, PtySize};
-use runtime::services::dispatch_ports::{ExecutorHandle, ExitSignal, JobContext, JobExecutor};
+use runtime::services::dispatch_ports::{
+    ExecutorHandle, ExitCause, ExitSignal, JobContext, JobExecutor,
+};
 
 /// Job executor that spawns agents as direct child processes under a PTY.
 pub(crate) struct ProcessExecutor;
@@ -145,7 +147,12 @@ impl JobExecutor for ProcessExecutor {
             tracing::info!(slug, pid, exit_code, "process-executor: agent exited");
             drop(log_path_clone);
             if let Some(tx) = exit_tx {
-                let _ = tx.send(ExitSignal { slug, job_id, exit_code });
+                let _ = tx.send(ExitSignal {
+                    slug,
+                    job_id,
+                    exit_code,
+                    cause: ExitCause::AgentExited,
+                });
             }
         });
 

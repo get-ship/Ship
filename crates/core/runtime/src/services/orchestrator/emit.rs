@@ -194,6 +194,67 @@ async fn emit_process_event(
     persist_and_route(kernel, envelope, slug, None).await;
 }
 
+// ── Executor substrate event emitters ─────────────────────────────────────────
+
+/// Emit `executor.session_destroyed` when a tmux session (or equivalent
+/// executor substrate) is torn down. Used by the liveness handler to record
+/// the why before emitting `job.failed`.
+pub async fn emit_executor_session_destroyed(
+    kernel: &Arc<Mutex<crate::events::KernelRouter>>,
+    slug: &str,
+    executor_kind: &str,
+    session_name: &str,
+    cause: crate::events::executor::DestructionCause,
+) {
+    use crate::events::executor::{EXECUTOR_SESSION_DESTROYED, ExecutorSessionDestroyedPayload};
+    let payload = ExecutorSessionDestroyedPayload {
+        executor_kind: executor_kind.to_string(),
+        session_name: session_name.to_string(),
+        slug: slug.to_string(),
+        cause,
+    };
+    emit_executor_event(kernel, EXECUTOR_SESSION_DESTROYED, slug, &payload).await;
+}
+
+/// Emit `executor.window_destroyed` when an individual window within a
+/// shared-session executor is torn down.
+pub async fn emit_executor_window_destroyed(
+    kernel: &Arc<Mutex<crate::events::KernelRouter>>,
+    slug: &str,
+    executor_kind: &str,
+    session_name: &str,
+    window_name: &str,
+    step: Option<&str>,
+    cause: crate::events::executor::DestructionCause,
+) {
+    use crate::events::executor::{EXECUTOR_WINDOW_DESTROYED, ExecutorWindowDestroyedPayload};
+    let payload = ExecutorWindowDestroyedPayload {
+        executor_kind: executor_kind.to_string(),
+        session_name: session_name.to_string(),
+        window_name: window_name.to_string(),
+        slug: slug.to_string(),
+        step: step.map(str::to_string),
+        cause,
+    };
+    emit_executor_event(kernel, EXECUTOR_WINDOW_DESTROYED, slug, &payload).await;
+}
+
+async fn emit_executor_event(
+    kernel: &Arc<Mutex<crate::events::KernelRouter>>,
+    event_type: &str,
+    slug: &str,
+    payload: &impl serde::Serialize,
+) {
+    let envelope = match EventEnvelope::new(event_type, slug, payload) {
+        Ok(e) => e.with_actor_id("service.executor-lifecycle"),
+        Err(e) => {
+            tracing::warn!(slug, event_type, "executor-events: failed to build envelope: {e}");
+            return;
+        }
+    };
+    persist_and_route(kernel, envelope, slug, None).await;
+}
+
 /// Persist an event to platform.db and deliver it through the kernel.
 ///
 /// Thin wrapper around `KernelRouter::emit` that logs failures at ERROR

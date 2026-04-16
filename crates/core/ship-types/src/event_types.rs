@@ -50,6 +50,11 @@ pub const PROCESS_SPAWNED: &str = "process.spawned";
 pub const PROCESS_EXITED: &str = "process.exited";
 pub const PROCESS_SIGNAL_SENT: &str = "process.signal_sent";
 pub const PROCESS_ORPHANED: &str = "process.orphaned";
+pub const PROCESS_KILLED: &str = "process.killed";
+pub const EXECUTOR_SESSION_CREATED: &str = "executor.session_created";
+pub const EXECUTOR_SESSION_DESTROYED: &str = "executor.session_destroyed";
+pub const EXECUTOR_WINDOW_CREATED: &str = "executor.window_created";
+pub const EXECUTOR_WINDOW_DESTROYED: &str = "executor.window_destroyed";
 pub const DAEMON_STARTUP_COMPLETED: &str = "daemon.startup_completed";
 pub const DAEMON_SHUTDOWN_COMPLETED: &str = "daemon.shutdown_completed";
 pub const DAEMON_CRASHED: &str = "daemon.crashed";
@@ -110,6 +115,11 @@ pub const ALL: &[&str] = &[
     PROCESS_EXITED,
     PROCESS_SIGNAL_SENT,
     PROCESS_ORPHANED,
+    PROCESS_KILLED,
+    EXECUTOR_SESSION_CREATED,
+    EXECUTOR_SESSION_DESTROYED,
+    EXECUTOR_WINDOW_CREATED,
+    EXECUTOR_WINDOW_DESTROYED,
     DAEMON_STARTUP_COMPLETED,
     DAEMON_SHUTDOWN_COMPLETED,
     DAEMON_CRASHED,
