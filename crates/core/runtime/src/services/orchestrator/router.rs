@@ -57,6 +57,13 @@ pub async fn start_orchestrator(
         replay_octx.platform.cleanup_orphaned_worktrees().await;
     });
 
+    // Start the periodic coherence sweep (30s interval).
+    let sweep_kernel = kernel.clone();
+    let sweep_octx = octx.clone();
+    tokio::spawn(async move {
+        super::sweep::start_coherence_sweep(sweep_kernel, sweep_octx).await;
+    });
+
     let kr = kernel.clone();
     let mut mb = mailbox;
     while let Some(envelope) = mb.recv().await {

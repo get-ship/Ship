@@ -31,6 +31,7 @@ pub mod router;
 pub mod run_step;
 pub mod step_executor;
 pub mod step_monitor;
+pub mod sweep;
 
 pub mod dispatch;
 
@@ -38,6 +39,8 @@ pub mod dispatch;
 mod tests_cancel;
 #[cfg(test)]
 mod tests_spawn_failed;
+#[cfg(test)]
+mod tests_sweep;
 #[cfg(test)]
 mod tests_terminal_guard;
 

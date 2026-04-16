@@ -226,4 +226,7 @@ pub trait ProcessRegistryPort: Send + Sync {
     /// Default `None` — tests and registries that don't track handles
     /// can leave this unimplemented.
     async fn take(&self, _slug: &str) -> Option<ExecutorHandle> { None }
+    /// Return all currently registered slug keys.
+    /// Used by the coherence sweep to detect stray processes.
+    async fn live_slugs(&self) -> Vec<String> { vec![] }
 }

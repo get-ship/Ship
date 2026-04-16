@@ -94,8 +94,17 @@ fn schema_for_event_type(
         "skill.started" => Some(check::<SkillStarted>),
         "skill.completed" => Some(check::<SkillCompleted>),
         "skill.failed" => Some(check::<SkillFailed>),
+        // process
+        "process.spawned" => Some(check::<crate::events::process::ProcessSpawnedPayload>),
+        "process.exited" => Some(check::<crate::events::process::ProcessExitedPayload>),
+        "process.signal_sent" => Some(check::<crate::events::process::ProcessSignalSentPayload>),
+        "process.orphaned" => Some(check::<crate::events::process::ProcessOrphanedPayload>),
         // supervisor
         "supervisor.shutting_down" => Some(check::<SupervisorShuttingDown>),
+        "supervisor.sweep_started" => Some(check::<crate::events::supervisor::SweepStartedPayload>),
+        "supervisor.sweep_completed" => Some(check::<crate::events::supervisor::SweepCompletedPayload>),
+        "supervisor.drift_detected" => Some(check::<crate::events::supervisor::DriftDetectedPayload>),
+        "supervisor.coherence_restored" => Some(check::<crate::events::supervisor::CoherenceRestoredPayload>),
         // studio / annotation (Phase 1 pin for the Phase 2 overlay wire format)
         "studio.annotation.created" => Some(check::<crate::events::annotation::AnnotationEvent>),
         _ => None,

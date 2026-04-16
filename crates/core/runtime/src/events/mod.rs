@@ -22,7 +22,7 @@ pub mod types {
 
         #[test]
         fn all_constants_have_expected_count() {
-            assert_eq!(ALL.len(), 48, "exactly 48 event type constants required");
+            assert_eq!(ALL.len(), 52, "exactly 52 event type constants required");
         }
     }
 }
@@ -45,6 +45,7 @@ pub mod filter;
 pub mod global_kernel_router;
 pub mod job;
 pub mod process;
+pub mod supervisor;
 pub mod kernel_lifecycle;
 pub mod kernel_router;
 pub mod payload_schema;
