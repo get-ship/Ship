@@ -9,7 +9,16 @@ use serde::Serialize;
 use std::path::{Path, PathBuf};
 
 pub mod pidfile;
+pub mod supervision;
+pub mod supervision_pidfile;
+pub mod supervision_systemd;
+
+#[cfg(test)]
+#[path = "daemon/supervision_tests.rs"]
+mod supervision_tests;
+
 use pidfile::{AcquireResult, PidfileRecord, PidfileRole};
+use supervision::{AdapterKind, SupervisionStatus};
 
 pub enum DaemonCommand {
     Start { host: String, dev: bool },
@@ -510,39 +519,48 @@ fn daemon_stop() -> Result<()> {
 
 fn daemon_status() -> Result<()> {
     let global_dir = ship_dir()?;
-    let pidfile_record = pidfile::read(&global_dir)?;
-    let supervisor_pid = pidfile_record.as_ref().and_then(
-        |(rec, lock_held)| if *lock_held { Some(rec.pid) } else { None },
-    );
+    let adapter = supervision::select();
+    let supervision_status = adapter.status(&global_dir)?;
 
-    // Try the live REST endpoint first — that's the source of truth for
-    // real status. Fall back to the pidfile read if the daemon is
-    // unreachable (no port file, stale process, etc).
+    // Try the live REST endpoint first — that's the daemon's own status,
+    // richer than what a supervisor adapter can see from outside.
     if let Some((port, token)) = daemon_info_if_healthy() {
-        return print_live_status(port, &token, supervisor_pid);
+        return print_live_status(port, &token, &supervision_status);
     }
 
-    match pidfile_record {
-        None => println!("shipd not running"),
-        Some((record, true)) => {
-            // Lock held but REST endpoint unreachable — supervisor up,
-            // daemon listener not ready (or wrong port).
-            println!(
-                "shipd supervisor running (pid {}, port {}, version {}) — daemon unreachable",
-                record.pid, record.port, record.version
-            );
-        }
-        Some((record, false)) => {
-            println!(
-                "shipd not running (stale pidfile from pid {})",
-                record.pid
-            );
-        }
-    }
+    print_supervision_only(&supervision_status);
     Ok(())
 }
 
-fn print_live_status(port: u16, token: &str, supervisor_pid: Option<u32>) -> Result<()> {
+fn print_supervision_only(s: &SupervisionStatus) {
+    if !s.running {
+        match s.pid {
+            Some(pid) => println!(
+                "shipd not running (stale pidfile from pid {pid})"
+            ),
+            None => println!("shipd not running"),
+        }
+        println!("  supervised by: {}", s.adapter.label());
+        return;
+    }
+    println!("shipd supervisor running — daemon unreachable");
+    println!("  supervised by: {}", s.adapter.label());
+    if let Some(pid) = s.pid {
+        println!("  pid:           {pid}");
+    }
+    if let Some(v) = &s.version {
+        println!("  version:       {v}");
+    }
+    if let Some(u) = s.uptime_secs {
+        println!("  uptime:        {}", format_uptime(u));
+    }
+    if s.adapter == AdapterKind::Systemd {
+        print_journal_tail(s);
+    }
+}
+
+fn print_live_status(port: u16, token: &str, supervision: &SupervisionStatus) -> Result<()> {
+    let supervisor_pid = supervision.pid;
     let url = format!("http://127.0.0.1:{port}/api/runtime/daemon/status");
     let mut resp = ureq::get(&url)
         .header("Authorization", &format!("Bearer {token}"))
@@ -581,6 +599,7 @@ fn print_live_status(port: u16, token: &str, supervisor_pid: Option<u32>) -> Res
     let drift = d["last_sweep_drift"].as_u64().unwrap_or(0);
 
     println!("shipd running");
+    println!("  supervised by:  {}", supervision.adapter.label());
     println!("  pid:            {pid}");
     if let Some(s) = supervisor_pid {
         if (s as u64) != pid {
@@ -600,7 +619,19 @@ fn print_live_status(port: u16, token: &str, supervisor_pid: Option<u32>) -> Res
     }
     println!("  last sweep:     {last_sweep}");
     println!("  drift detected: {drift}");
+    if supervision.adapter == AdapterKind::Systemd {
+        print_journal_tail(supervision);
+    }
     Ok(())
+}
+
+fn print_journal_tail(s: &SupervisionStatus) {
+    if let Some(tail) = s.extras.iter().find(|(k, _)| k == "journal_tail") {
+        println!("  journal tail:");
+        for line in tail.1.lines() {
+            println!("    {line}");
+        }
+    }
 }
 
 /// Render seconds as `2h 14m`, `34m 12s`, or `47s` — keeps the longest
