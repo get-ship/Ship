@@ -10,7 +10,7 @@
 //! the pipeline on a single event — it waits for activity to settle and
 //! checks outputs (git commits, step_done) before deciding.
 
-use crate::events::job::{StepObservedPayload, StepTrigger, StepVerdict, event_types};
+use crate::events::job::{StepObservedPayload, StepTrigger, StepType, StepVerdict, event_types};
 use crate::events::{EventEnvelope, KernelRouter};
 use crate::services::dispatch_ports::{ExitSignal, ProcessRegistryPort};
 use std::path::PathBuf;
@@ -36,6 +36,9 @@ pub struct StepMonitor {
     pub step_index: usize,
     pub slug: String,
     pub step_name: String,
+    /// Pipeline step kind — feeds the verdict rules. Run steps short-circuit
+    /// on exit code; agent/review steps require explicit evidence.
+    pub step_type: StepType,
     pub work_dir: PathBuf,
     pub started_at: Instant,
     pub timeout: Duration,
@@ -50,6 +53,7 @@ impl StepMonitor {
         step_index: usize,
         slug: String,
         step_name: String,
+        step_type: StepType,
         work_dir: PathBuf,
     ) -> Self {
         let start_sha = resolve_head_sha(&work_dir);
@@ -58,6 +62,7 @@ impl StepMonitor {
             step_index,
             slug,
             step_name,
+            step_type,
             work_dir,
             started_at: Instant::now(),
             timeout: DEFAULT_TIMEOUT,
@@ -233,7 +238,8 @@ async fn emit_and_finish(
 
     let done_result = if done_declared { Some(true) } else { None };
     let verdict = StepObservedPayload::compute_verdict(
-        done_declared, done_result, exit_code, commits, uncommitted, &trigger,
+        &monitor.step_type, done_declared, done_result,
+        exit_code, commits, uncommitted, &trigger,
     );
     let duration_secs = monitor.started_at.elapsed().as_secs();
     let succeeded = verdict == StepVerdict::Advance;

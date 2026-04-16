@@ -261,6 +261,7 @@ async fn advance_pipeline_inner(
                             step_idx,
                             slug.clone(),
                             step.id.clone(),
+                            step.step_type.clone(),
                             worktree_path.clone(),
                         );
                         let (activity_tx, activity_rx) = tokio::sync::mpsc::unbounded_channel();

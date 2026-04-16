@@ -174,14 +174,16 @@ pub async fn dispatch_job_internal(
 
     let is_multi_step = payload.steps.as_ref().is_some_and(|s| s.steps.len() > 1);
     if is_multi_step {
-        let step_name = payload.steps.as_ref()
-            .and_then(|s| s.root_steps().first().map(|rs| rs.id.clone()))
-            .unwrap_or_default();
+        let root = payload.steps.as_ref().and_then(|s| s.root_steps().first().cloned().cloned());
+        let (step_name, step_type) = root
+            .map(|r| (r.id, r.step_type))
+            .unwrap_or_else(|| (String::new(), crate::events::job::StepType::Agent));
         let monitor = StepMonitor::new(
             payload.job_id.clone(),
             0,
             slug.clone(),
             step_name,
+            step_type,
             worktree_path.clone(),
         );
         let (activity_tx, activity_rx) = tokio::sync::mpsc::unbounded_channel();
