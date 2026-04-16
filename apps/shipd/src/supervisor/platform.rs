@@ -121,4 +121,8 @@ impl ProcessRegistryPort for RegistryAdapter {
     async fn take(&self, slug: &str) -> Option<ExecutorHandle> {
         self.0.lock().await.take(slug)
     }
+
+    async fn live_slugs(&self) -> Vec<String> {
+        self.0.lock().await.live_slugs()
+    }
 }
