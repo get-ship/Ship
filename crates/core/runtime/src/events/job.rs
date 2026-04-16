@@ -474,7 +474,17 @@ impl StepObservedPayload {
     ///
     /// The only signal that maps 1-1 to a verdict is `step_done(bool)` —
     /// an explicit declaration from the agent itself.
+    ///
+    /// **Step contract for agents:** if your step produces no commits and no
+    /// uncommitted changes, you must call `step_done(true)` explicitly to mark
+    /// success. Channel closure or process exit with zero evidence is treated
+    /// as failure — this pins down previously-implicit "noop step" semantics
+    /// surfaced by dev-pipe-01 Finding 3.2.
+    ///
+    /// **Run steps short-circuit on exit code.** A `StepType::Run` step has no
+    /// agent and no `step_done` mechanism; its shell exit code is authoritative.
     pub fn compute_verdict(
+        step_type: &StepType,
         done_declared: bool,
         done_result: Option<bool>,
         exit_code: Option<i32>,
@@ -482,6 +492,16 @@ impl StepObservedPayload {
         uncommitted_files: u32,
         trigger: &StepTrigger,
     ) -> StepVerdict {
+        // Run steps have no agent and no step_done mechanism. The shell exit
+        // code is the whole story — route around the evidence machinery so
+        // `cargo check` style verify steps don't require commits to advance.
+        if matches!(step_type, StepType::Run) {
+            return match exit_code {
+                Some(0) => StepVerdict::Advance,
+                _ => StepVerdict::Failed,
+            };
+        }
+
         // Agent explicitly declared outcome. Trust it. Only authoritative rule.
         if done_declared {
             return match done_result {
@@ -514,20 +534,19 @@ impl StepObservedPayload {
         // Nothing produced. Weigh the trigger and exit code together.
         match trigger {
             StepTrigger::Timeout => StepVerdict::Failed,
-            StepTrigger::ChannelClosed | StepTrigger::ProcessExit => {
-                if nonzero_exit {
-                    StepVerdict::Failed
-                } else {
-                    // Clean exit with no output — might be a noop task, let
-                    // the gate decide rather than hang the pipeline.
-                    StepVerdict::Inconclusive
-                }
-            }
+            // No commits, no uncommitted files, no done_declared, and the
+            // agent's channel was cut or the process exited. The agent
+            // produced zero evidence of any work. Treat as failure — the
+            // agent must call step_done(true) to mark a legitimate noop.
+            StepTrigger::ChannelClosed | StepTrigger::ProcessExit => StepVerdict::Failed,
             StepTrigger::DoneDeclared => {
                 // done_declared == false already handled above. If we get here
                 // with DoneDeclared trigger, something is off.
                 StepVerdict::Inconclusive
             }
+            // Activity-based settlement is different — turns ended but the
+            // agent might still have pending work. Leave for gate review
+            // rather than failing outright.
             StepTrigger::TurnSettled => StepVerdict::Inconclusive,
         }
     }
@@ -563,6 +582,7 @@ mod verdict_tests {
     /// Shorthand for compute_verdict with named args, so each test reads as
     /// a sentence about the evidence, not a pile of positional arguments.
     struct Evidence {
+        step_type: StepType,
         done: bool,
         done_result: Option<bool>,
         exit: Option<i32>,
@@ -574,6 +594,7 @@ mod verdict_tests {
     impl Default for Evidence {
         fn default() -> Self {
             Self {
+                step_type: StepType::Agent,
                 done: false,
                 done_result: None,
                 exit: None,
@@ -586,7 +607,8 @@ mod verdict_tests {
 
     fn verdict(e: Evidence) -> StepVerdict {
         StepObservedPayload::compute_verdict(
-            e.done, e.done_result, e.exit, e.commits, e.uncommitted, &e.trigger,
+            &e.step_type, e.done, e.done_result,
+            e.exit, e.commits, e.uncommitted, &e.trigger,
         )
     }
 
@@ -725,15 +747,17 @@ mod verdict_tests {
     }
 
     #[test]
-    fn process_exit_no_evidence_zero_exit_is_inconclusive() {
-        // Agent exited cleanly without producing anything. Maybe the task
-        // was a noop. Gate decides rather than the pipeline hanging.
+    fn process_exit_no_evidence_zero_exit_is_failed() {
+        // Agent exited cleanly without producing anything. Before dev-pipe-01
+        // this was Inconclusive (pushed to gate); that let no-op pipeline
+        // runs silently proceed. Agents must now call step_done(true) for a
+        // legitimate noop — bare channel closure with zero evidence fails.
         assert_eq!(
             verdict(Evidence {
                 exit: Some(0), trigger: StepTrigger::ProcessExit,
                 ..Default::default()
             }),
-            StepVerdict::Inconclusive,
+            StepVerdict::Failed,
         );
     }
 
@@ -765,5 +789,99 @@ mod verdict_tests {
             matches!(v, StepVerdict::Inconclusive | StepVerdict::Advance),
             "non-zero exit with commits must not short-circuit to Failed, got {v:?}",
         );
+    }
+
+    // ─── dev-pipe-01 Finding 3.2 regression guards ─────────────────────────
+
+    #[test]
+    fn agent_no_evidence_channel_closed_clean_exit_is_failed() {
+        // The exact dev-pipe-01 Finding 3.2 case: the supervisor cut the
+        // agent's channel, the agent produced no commits and no dirty files
+        // and never called step_done. Before this fix the router advanced
+        // via gate review; now it must halt as a failure.
+        let v = verdict(Evidence {
+            step_type: StepType::Agent,
+            exit: Some(0),
+            trigger: StepTrigger::ChannelClosed,
+            ..Default::default()
+        });
+        assert_eq!(v, StepVerdict::Failed);
+    }
+
+    #[test]
+    fn agent_no_evidence_channel_closed_no_exit_is_failed() {
+        // tmux can't see an exit code, so this exact shape shows up a lot in
+        // practice. Same verdict: no evidence + external channel cut = fail.
+        let v = verdict(Evidence {
+            step_type: StepType::Agent,
+            trigger: StepTrigger::ChannelClosed,
+            ..Default::default()
+        });
+        assert_eq!(v, StepVerdict::Failed);
+    }
+
+    #[test]
+    fn run_step_clean_exit_advances_regardless_of_commits() {
+        // `run:` step with `cargo check && cargo test` exit 0 — verify
+        // commands produce no commits, and must still advance.
+        let v = verdict(Evidence {
+            step_type: StepType::Run,
+            exit: Some(0),
+            trigger: StepTrigger::ProcessExit,
+            ..Default::default()
+        });
+        assert_eq!(v, StepVerdict::Advance);
+    }
+
+    #[test]
+    fn run_step_nonzero_exit_fails_regardless_of_commits() {
+        // Even with commits, a run step that exits non-zero is a failure —
+        // its exit code is the authoritative signal.
+        let v = verdict(Evidence {
+            step_type: StepType::Run,
+            exit: Some(1),
+            commits: 5,
+            trigger: StepTrigger::ProcessExit,
+            ..Default::default()
+        });
+        assert_eq!(v, StepVerdict::Failed);
+    }
+
+    #[test]
+    fn run_step_missing_exit_fails() {
+        // Shell process gone with no exit code = failure for run steps.
+        let v = verdict(Evidence {
+            step_type: StepType::Run,
+            trigger: StepTrigger::ChannelClosed,
+            ..Default::default()
+        });
+        assert_eq!(v, StepVerdict::Failed);
+    }
+
+    #[test]
+    fn agent_turn_settled_no_evidence_stays_inconclusive() {
+        // Activity-based settlement is different from channel closure —
+        // the agent might be paused mid-task, not terminated. Gate reviews.
+        let v = verdict(Evidence {
+            step_type: StepType::Agent,
+            trigger: StepTrigger::TurnSettled,
+            ..Default::default()
+        });
+        assert_eq!(v, StepVerdict::Inconclusive);
+    }
+
+    #[test]
+    fn agent_done_declared_still_authoritative() {
+        // Even with zero commits, an agent that explicitly calls
+        // step_done(true) advances. Legitimate noop steps take this path.
+        let v = verdict(Evidence {
+            step_type: StepType::Agent,
+            done: true,
+            done_result: Some(true),
+            exit: Some(0),
+            trigger: StepTrigger::ChannelClosed,
+            ..Default::default()
+        });
+        assert_eq!(v, StepVerdict::Advance);
     }
 }
