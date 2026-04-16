@@ -21,19 +21,8 @@ use axum::Json;
 use serde::Serialize;
 
 use crate::rest_api::ApiState;
-use crate::views::resolve_view_dir;
 use crate::views::state::{AgentDetail, AgentSummary, list_agents, load_agent};
 use crate::views::templates;
-
-/// Try rendering a template from `.ship/views/<view>/<file>`.
-/// Returns `None` if the view directory or file does not exist, or if
-/// rendering fails (in which case the caller falls back to embedded templates).
-fn try_render_view<C: Serialize>(view: &str, file: &str, ctx: &C) -> Option<String> {
-    let (view_dir, _source) = resolve_view_dir(view)?;
-    let source = std::fs::read_to_string(view_dir.join(file)).ok()?;
-    let template_name = format!("{view}/{file}");
-    templates::render_view_source(&template_name, &source, ctx).ok()
-}
 
 #[derive(Serialize)]
 pub struct AgentsIndexCtx {
@@ -79,13 +68,6 @@ pub async fn agents_shell(
     let agents = list_agents(state.ship_dir());
     let total = agents.len();
     let ctx = AgentsIndexCtx { agents, total };
-
-    // Try .ship/views/agents/index.html.j2 first (new canonical location).
-    if let Some(html) = try_render_view("agents", "index.html.j2", &ctx) {
-        return Ok(Html(html));
-    }
-
-    // Fallback to embedded template.
     templates::render("agents/shell.html.j2", &ctx)
         .map(Html)
         .map_err(|e| {
@@ -104,13 +86,6 @@ pub async fn agent_detail(
     };
     let tiers = build_tiers(&agent.permissions_tier);
     let ctx = AgentDetailCtx { agent, tiers };
-
-    // Try .ship/views/agents/detail.html.j2 first (new canonical location).
-    if let Some(html) = try_render_view("agents", "detail.html.j2", &ctx) {
-        return Ok(Html(html));
-    }
-
-    // Fallback to embedded template.
     templates::render("agents/detail.html.j2", &ctx)
         .map(Html)
         .map_err(|e| {

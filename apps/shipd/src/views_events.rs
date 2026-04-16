@@ -20,7 +20,6 @@ use crate::views::events_state::{
     DEFAULT_LIMIT, EntityGroup, EventFilter, EventRow, distinct_actors, distinct_types,
     group_by_entity, list_events,
 };
-use crate::views::resolve_view_dir;
 use crate::views::stream::{ViewSse, ViewStream};
 use crate::views::templates;
 
@@ -79,32 +78,12 @@ fn build_ctx(params: &EventsParams, ship_dir: &std::path::Path) -> EventsCtx {
     }
 }
 
-/// Try rendering a template from `.ship/views/events/<file>`.
-/// Returns `None` if the view directory or file does not exist, or if
-/// rendering fails (in which case the caller falls back to embedded templates).
-fn try_render_view(file: &str, ctx: &EventsCtx) -> Option<String> {
-    let (view_dir, _source) = resolve_view_dir("events")?;
-    let source = std::fs::read_to_string(view_dir.join(file)).ok()?;
-    let template_name = format!("events/{file}");
-    templates::render_view_source(&template_name, &source, ctx).ok()
-}
-
 pub async fn events_shell(
     State(state): State<ApiState>,
     Query(params): Query<EventsParams>,
 ) -> Result<Html<String>, StatusCode> {
     let ctx = build_ctx(&params, state.ship_dir());
-    let is_fragment = params.fragment.as_deref().is_some_and(|s| !s.is_empty());
-
-    if !is_fragment {
-        // Try .ship/views/events/index.html.j2 first (new canonical location).
-        if let Some(html) = try_render_view("index.html.j2", &ctx) {
-            return Ok(Html(html));
-        }
-    }
-
-    // Fallback to embedded template.
-    let tpl = if is_fragment {
+    let tpl = if params.fragment.as_deref().is_some_and(|s| !s.is_empty()) {
         "events/content.html.j2"
     } else {
         "events/shell.html.j2"

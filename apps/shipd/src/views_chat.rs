@@ -56,20 +56,6 @@ pub async fn chat_shell(
     State(state): State<ApiState>,
     Query(params): Query<ChatParams>,
 ) -> Result<Html<String>, StatusCode> {
-    // Try .ship/views/chat/index.html.j2 first (user-authored override).
-    if let Some((view_dir, _)) = crate::views::resolve_view_dir("chat") {
-        let index_path = view_dir.join("index.html.j2");
-        if let Ok(source) = std::fs::read_to_string(&index_path) {
-            let ctx = build_ctx(&params, state.ship_dir());
-            return templates::render_view_source("chat", &source, &ctx)
-                .map(Html)
-                .map_err(|e| {
-                    tracing::error!(error = %e, "chat view render failed");
-                    StatusCode::INTERNAL_SERVER_ERROR
-                });
-        }
-    }
-    // Fallback: daemon-embedded template.
     let ctx = build_ctx(&params, state.ship_dir());
     templates::render("chat/shell.html.j2", &ctx).map(Html).map_err(|e| {
         tracing::error!(error = %e, "chat shell render failed");

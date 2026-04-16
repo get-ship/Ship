@@ -22,7 +22,6 @@ use runtime::gen_ulid;
 use serde::{Deserialize, Serialize};
 use std::time::Duration;
 
-use crate::views::resolve_view_dir;
 use crate::views::stream::{ViewSse, ViewStream};
 use crate::views::templates;
 
@@ -456,29 +455,12 @@ fn build_ctx(params: &SpecsParams) -> SpecsCtx {
     }
 }
 
-/// Try rendering a template from `.ship/views/specs/<file>`.
-/// Returns `None` if the view directory or file does not exist, or if
-/// rendering fails (in which case the caller falls back to embedded templates).
-fn try_render_view(file: &str, ctx: &SpecsCtx) -> Option<String> {
-    let (view_dir, _source) = resolve_view_dir("specs")?;
-    let source = std::fs::read_to_string(view_dir.join(file)).ok()?;
-    let template_name = format!("specs/{file}");
-    templates::render_view_source(&template_name, &source, ctx).ok()
-}
-
 /// GET /api/runtime/view/specs — full shell, minijinja-rendered.
 pub async fn specs_shell(
     State(_state): State<crate::rest_api::ApiState>,
     Query(params): Query<SpecsParams>,
 ) -> Result<Html<String>, StatusCode> {
     let ctx = build_ctx(&params);
-
-    // Try .ship/views/specs/index.html.j2 first (new canonical location).
-    if let Some(html) = try_render_view("index.html.j2", &ctx) {
-        return Ok(Html(html));
-    }
-
-    // Fallback to embedded template.
     templates::render("specs/shell.html.j2", &ctx)
         .map(Html)
         .map_err(|e| {

@@ -18,25 +18,8 @@ use serde::{Deserialize, Serialize};
 use std::collections::BTreeMap;
 
 use crate::rest_api::ApiState;
-use crate::views::resolve_view_dir;
 use crate::views::state::{SkillDetail, SkillKind, SkillSummary, list_skills, load_skill};
 use crate::views::templates;
-
-/// Try rendering a template from `.ship/views/<view>/<file>`.
-/// Returns `None` if the view directory or file does not exist, or if
-/// rendering fails (in which case the caller falls back to embedded templates).
-fn try_render_view<C: Serialize>(view: &str, file: &str, ctx: &C) -> Option<String> {
-    let (view_dir, _source) = resolve_view_dir(view)?;
-    let source = std::fs::read_to_string(view_dir.join(file)).ok()?;
-    let template_name = format!("{view}/{file}");
-    match templates::render_view_source(&template_name, &source, ctx) {
-        Ok(html) => Some(html),
-        Err(e) => {
-            tracing::warn!(view = %view, file = %file, "view render failed, falling back: {e}");
-            None
-        }
-    }
-}
 
 #[derive(Clone, Debug, Default, Deserialize)]
 pub struct SkillsParams {
@@ -183,13 +166,6 @@ pub async fn skills_shell(
 ) -> Result<Html<String>, StatusCode> {
     let rail = build_rail(state.ship_dir(), &params);
     let ctx = SkillsShellCtx { rail };
-
-    // Try .ship/views/skills/index.html.j2 first (new canonical location).
-    if let Some(html) = try_render_view("skills", "index.html.j2", &ctx) {
-        return Ok(Html(html));
-    }
-
-    // Fallback to embedded template.
     templates::render("skills/shell.html.j2", &ctx)
         .map(Html)
         .map_err(|e| {
