@@ -225,6 +225,13 @@ pub async fn skill_detail(
     };
     let rail = build_rail(state.ship_dir(), &params);
     let ctx = SkillDetailCtx { skill, rail };
+
+    // Try .ship/views/skills/index.html.j2 first (new canonical location).
+    if let Some(html) = try_render_view("skills", "index.html.j2", &ctx) {
+        return Ok(Html(html));
+    }
+
+    // Fallback to embedded template.
     templates::render("skills/shell.html.j2", &ctx)
         .map(Html)
         .map_err(|e| {

@@ -1,0 +1,32 @@
+{#- Rules tab panel. Context: agent (AgentDetail). -#}
+<ship-tab-panel name="rules">
+  <div class="ad-panel">
+    <div class="ad-section-head">
+      <h2 class="ad-section-title">
+        <ship-icon name="file" size="sm"></ship-icon>
+        Rules
+        <span class="ad-section-count">{{ agent.rules | length }} total</span>
+      </h2>
+      <ship-button size="sm" variant="ghost" disabled>
+        <ship-icon slot="leading" name="plus"></ship-icon>
+        Add rule
+      </ship-button>
+    </div>
+    {% if agent.rules | length == 0 %}
+      <div class="ad-empty">
+        No rules configured. This agent uses project defaults.
+      </div>
+    {% else %}
+      <div class="ad-stack">
+        {% for rule in agent.rules %}
+          <div class="ad-rule-row">
+            <span class="ad-rule-name">{{ rule }}</span>
+            <span style="flex:1 1 auto;color:var(--muted-foreground);font-size:11px;overflow:hidden;text-overflow:ellipsis;white-space:nowrap">
+              Project rule
+            </span>
+          </div>
+        {% endfor %}
+      </div>
+    {% endif %}
+  </div>
+</ship-tab-panel>

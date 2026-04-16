@@ -1,0 +1,30 @@
+{#- Permissions tab panel. Context: agent, tiers (Vec<TierRow>).
+    Each tier is a radio-style card. $tier signal holds the selected tier id. -#}
+{% from '_ship.html.j2' import radio %}
+<ship-tab-panel name="permissions">
+  <div class="ad-panel">
+    <div class="ad-section-head">
+      <h2 class="ad-section-title">
+        <ship-icon name="check" size="sm"></ship-icon>
+        Permission tier
+      </h2>
+    </div>
+    <div class="ad-perm-grid" role="radiogroup" aria-label="Permission tier">
+      {% for t in tiers %}
+        <div class="ad-perm-card"
+             role="radio"
+             tabindex="0"
+             {{ radio('tier', t.id) }}
+             aria-checked="{% if t.selected %}true{% else %}false{% endif %}">
+          <div class="ad-perm-head">
+            <ship-icon
+              name="{% if t.id == 'standard' %}check{% elif t.id == 'autonomous' %}sparkles{% else %}info{% endif %}"
+              size="sm"></ship-icon>
+            {{ t.label }}
+          </div>
+          <p class="ad-perm-desc">{{ t.description }}</p>
+        </div>
+      {% endfor %}
+    </div>
+  </div>
+</ship-tab-panel>

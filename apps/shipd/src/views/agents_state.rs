@@ -86,24 +86,30 @@ pub(crate) fn strip_jsonc(input: &str) -> String {
         }
         out.push(c);
     }
-    let bytes = out.as_bytes();
-    let mut cleaned = String::with_capacity(out.len());
+    // Second pass: drop trailing commas before `}` or `]`.
+    // Walk as bytes so we can peek ahead cheaply; preserve multi-byte UTF-8
+    // sequences verbatim by copying the original byte slice (not byte-casting
+    // to char, which mangles any codepoint above U+007F).
+    let src = out.as_bytes();
+    let mut cleaned_bytes: Vec<u8> = Vec::with_capacity(src.len());
     let mut i = 0;
-    while i < bytes.len() {
-        if bytes[i] == b',' {
+    while i < src.len() {
+        if src[i] == b',' {
             let mut j = i + 1;
-            while j < bytes.len() && bytes[j].is_ascii_whitespace() {
+            while j < src.len() && src[j].is_ascii_whitespace() {
                 j += 1;
             }
-            if j < bytes.len() && (bytes[j] == b'}' || bytes[j] == b']') {
+            if j < src.len() && (src[j] == b'}' || src[j] == b']') {
                 i += 1;
                 continue;
             }
         }
-        cleaned.push(bytes[i] as char);
+        cleaned_bytes.push(src[i]);
         i += 1;
     }
-    cleaned
+    // Safe: we only dropped ASCII commas at valid char boundaries, every other
+    // byte was copied unchanged from the original UTF-8 String.
+    String::from_utf8(cleaned_bytes).unwrap_or_else(|e| String::from_utf8_lossy(e.as_bytes()).into_owned())
 }
 
 pub(crate) fn first_letter(s: &str) -> String {
@@ -139,6 +145,35 @@ fn extract_str_array(v: &serde_json::Value) -> Vec<String> {
         .unwrap_or_default()
 }
 
+/// Resolve a collection-ish field from an agent config, tolerating the two
+/// shapes Ship actually emits:
+///   1. Flat: `"skills": ["a", "b"]` or `[{"id": "a"}, {"name": "b"}]`
+///   2. Nested: `"skills": { "refs": [...] }` / `"mcp": { "servers": [...] }`
+/// The `nested_keys` parameter lists candidate sub-keys to inspect when the
+/// top-level value is an object; the first one that contains an array wins.
+fn resolve_array_field(
+    obj: &serde_json::Value,
+    top_keys: &[&str],
+    nested_keys: &[&str],
+) -> Vec<String> {
+    for key in top_keys {
+        let Some(v) = obj.get(*key) else { continue };
+        if v.is_array() {
+            return extract_str_array(v);
+        }
+        if let Some(inner) = v.as_object() {
+            for nk in nested_keys {
+                if let Some(arr) = inner.get(*nk) {
+                    if arr.is_array() {
+                        return extract_str_array(arr);
+                    }
+                }
+            }
+        }
+    }
+    Vec::new()
+}
+
 /// List agents from `<ship_dir>/agents/*.{jsonc,json}`.
 pub fn list_agents(ship_dir: &Path) -> Vec<AgentSummary> {
     let dir = ship_dir.join("agents");
@@ -165,17 +200,14 @@ pub fn list_agents(ship_dir: &Path) -> Vec<AgentSummary> {
             .and_then(|v| v.as_str())
             .unwrap_or("")
             .to_string();
-        let skills = parsed.get("skills").map(extract_str_array).unwrap_or_default();
-        let providers = agent_obj
-            .get("providers")
-            .map(extract_str_array)
-            .unwrap_or_default();
-        let mcp = parsed
-            .get("mcp_servers")
-            .or_else(|| parsed.get("mcpServers"))
-            .map(extract_str_array)
-            .unwrap_or_default();
-        let rules = parsed.get("rules").map(extract_str_array).unwrap_or_default();
+        let skills = resolve_array_field(&parsed, &["skills"], &["refs", "ids"]);
+        let providers = resolve_array_field(agent_obj, &["providers"], &["ids"]);
+        let mcp = resolve_array_field(
+            &parsed,
+            &["mcp_servers", "mcpServers", "mcp"],
+            &["servers", "refs"],
+        );
+        let rules = resolve_array_field(&parsed, &["rules"], &["refs", "ids"]);
         let letter = first_letter(&name);
         out.push(AgentSummary {
             id,
@@ -212,28 +244,32 @@ pub fn load_agent(ship_dir: &Path, id: &str) -> Option<AgentDetail> {
             .and_then(|v| v.as_str())
             .unwrap_or("")
             .to_string();
-        let skills = parsed.get("skills").map(extract_str_array).unwrap_or_default();
-        let providers = agent_obj
-            .get("providers")
-            .map(extract_str_array)
-            .unwrap_or_default();
-        let mcp_servers = parsed
-            .get("mcp_servers")
-            .or_else(|| parsed.get("mcpServers"))
-            .map(extract_str_array)
-            .unwrap_or_default();
-        let rules = parsed.get("rules").map(extract_str_array).unwrap_or_default();
+        let skills = resolve_array_field(&parsed, &["skills"], &["refs", "ids"]);
+        let providers = resolve_array_field(agent_obj, &["providers"], &["ids"]);
+        let mcp_servers = resolve_array_field(
+            &parsed,
+            &["mcp_servers", "mcpServers", "mcp"],
+            &["servers", "refs"],
+        );
+        let rules = resolve_array_field(&parsed, &["rules"], &["refs", "ids"]);
         let default_provider = agent_obj
             .get("default_provider")
             .or_else(|| agent_obj.get("defaultProvider"))
             .or_else(|| agent_obj.get("provider"))
             .and_then(|v| v.as_str())
             .map(|s| s.to_string());
-        let permissions_tier = parsed
-            .get("permissions")
-            .and_then(|p| p.get("tier").and_then(|t| t.as_str()))
-            .unwrap_or("standard")
-            .to_string();
+        // Permissions tier lives under `permissions.tier` (flat) or — for
+        // project configs that use the preset name — `permissions.preset`
+        // with a `ship-<tier>` prefix. Strip the prefix to canonicalize.
+        let permissions_obj = parsed.get("permissions");
+        let permissions_tier = permissions_obj
+            .and_then(|p| p.get("tier").and_then(|t| t.as_str()).map(|s| s.to_string()))
+            .or_else(|| {
+                permissions_obj
+                    .and_then(|p| p.get("preset").and_then(|t| t.as_str()))
+                    .map(|s| s.trim_start_matches("ship-").to_string())
+            })
+            .unwrap_or_else(|| "standard".to_string());
         return Some(AgentDetail {
             id: file_id,
             name: name.clone(),
@@ -251,86 +287,5 @@ pub fn load_agent(ship_dir: &Path, id: &str) -> Option<AgentDetail> {
 }
 
 #[cfg(test)]
-mod tests {
-    use super::*;
-    use tempfile::tempdir;
-
-    fn write_agent(ship_dir: &Path, id: &str, body: &str) {
-        let d = ship_dir.join("agents");
-        std::fs::create_dir_all(&d).unwrap();
-        std::fs::write(d.join(format!("{id}.jsonc")), body).unwrap();
-    }
-
-    #[test]
-    fn empty_dir_returns_empty_vec() {
-        let tmp = tempdir().unwrap();
-        assert!(list_agents(tmp.path()).is_empty());
-    }
-
-    #[test]
-    fn parses_flat_and_nested_shapes() {
-        let tmp = tempdir().unwrap();
-        write_agent(
-            tmp.path(),
-            "coder",
-            r#"{
-                // flat shape
-                "name": "Coder",
-                "description": "Writes code.",
-                "skills": ["tdd", "refactor"],
-                "providers": ["claude", "codex"],
-                "mcp_servers": ["ship"]
-            }"#,
-        );
-        write_agent(
-            tmp.path(),
-            "reviewer",
-            r#"{
-                "agent": { "name": "Reviewer", "description": "Reviews PRs.", "providers": ["claude"] },
-                "skills": [{"id": "review"}, "style"],
-                "rules": ["kind", "clear"]
-            }"#,
-        );
-        let out = list_agents(tmp.path());
-        assert_eq!(out.len(), 2);
-        assert_eq!(out[0].name, "Coder");
-        assert_eq!(out[0].skills_count, 2);
-        assert_eq!(out[0].providers_count, 2);
-        assert_eq!(out[0].mcp_count, 1);
-        assert_eq!(out[0].letter, "C");
-        assert_eq!(out[1].name, "Reviewer");
-        assert_eq!(out[1].skills_count, 2);
-        assert_eq!(out[1].rules_count, 2);
-    }
-
-    #[test]
-    fn load_agent_returns_none_for_missing() {
-        let tmp = tempdir().unwrap();
-        assert!(load_agent(tmp.path(), "nope").is_none());
-    }
-
-    #[test]
-    fn load_agent_returns_detail_with_defaults() {
-        let tmp = tempdir().unwrap();
-        write_agent(
-            tmp.path(),
-            "coder",
-            r#"{ "name": "Coder", "description": "Writes code." }"#,
-        );
-        let d = load_agent(tmp.path(), "coder").unwrap();
-        assert_eq!(d.name, "Coder");
-        assert_eq!(d.permissions_tier, "standard");
-        assert_eq!(d.letter, "C");
-    }
-
-    #[test]
-    fn strip_jsonc_handles_comments() {
-        let src = r#"{
-            // line
-            /* block */
-            "x": 1,
-        }"#;
-        let v: serde_json::Value = serde_json::from_str(&strip_jsonc(src)).unwrap();
-        assert_eq!(v["x"], 1);
-    }
-}
+#[path = "agents_state_tests.rs"]
+mod tests;

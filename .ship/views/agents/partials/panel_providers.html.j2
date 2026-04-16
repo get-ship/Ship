@@ -1,0 +1,37 @@
+{#- Providers tab panel. Context: agent (AgentDetail). -#}
+<ship-tab-panel name="providers">
+  <div class="ad-panel">
+    <div class="ad-section-head">
+      <h2 class="ad-section-title">
+        <ship-icon name="folder" size="sm"></ship-icon>
+        Providers
+        <span class="ad-section-count">{{ agent.providers | length }} configured</span>
+      </h2>
+    </div>
+    {% if agent.providers | length == 0 %}
+      <div class="ad-empty">
+        No providers configured. Add one under <code style="font-family:var(--font-mono);font-size:11px">agent.providers</code> to run this agent.
+      </div>
+    {% else %}
+      <div class="ad-provider-grid">
+        {% for p in agent.providers %}
+          <div class="ad-provider-card{% if agent.default_provider == p %} default{% endif %}">
+            <div class="ad-provider-avatar">{{ p[:2] }}</div>
+            <div class="ad-provider-body">
+              <div class="ad-provider-name">
+                {{ p | capitalize }}
+                {% if agent.default_provider == p %}
+                  <ship-badge tone="accent" variant="soft" size="sm">Default</ship-badge>
+                {% endif %}
+              </div>
+              <div class="ad-provider-sub">
+                <ship-status-dot tone="success" size="sm"></ship-status-dot>
+                Model: defaults
+              </div>
+            </div>
+          </div>
+        {% endfor %}
+      </div>
+    {% endif %}
+  </div>
+</ship-tab-panel>

@@ -1,23 +1,22 @@
-{#- One agent card. Context: `a` = AgentSummary -#}
+{#- One agent card. Context: `a` = AgentSummary.
+    Uses <ship-card interactive> for the hover lift + focus ring + keyboard
+    activation. Click routes to the detail view. -#}
 {% from '_ship.html.j2' import get %}
 {% from '_urls.html.j2' import view_agent_detail %}
-<div class="agent-card"
-     {{ get(view_agent_detail(a.id)) }}>
+<ship-card interactive class="agent-card" {{ get(view_agent_detail(a.id)) }}>
   <div class="agent-card-head">
-    <div class="agent-avatar" data-letter="{{ a.letter }}">{{ a.letter }}</div>
-    <div class="agent-card-title">
+    <ship-avatar size="lg" tone="accent" name="{{ a.name }}"></ship-avatar>
+    <div class="agent-card-body">
       <div class="agent-name">{{ a.name }}</div>
-      <div class="agent-desc">{{ a.description | truncate(120) }}</div>
+      <p class="agent-desc">{{ a.description or "No description" }}</p>
     </div>
+    <ship-icon class="agent-arrow" name="arrow-right" size="sm"></ship-icon>
   </div>
-  <div class="agent-card-foot">
-    <div class="agent-stats">
-      <span>{{ a.skills_count }} skill{% if a.skills_count != 1 %}s{% endif %}</span>
-      <span class="agent-stats-sep">&#183;</span>
-      <span>{{ a.mcp_count }} MCP</span>
-      <span class="agent-stats-sep">&#183;</span>
-      <span>{{ a.rules_count }} rule{% if a.rules_count != 1 %}s{% endif %}</span>
-    </div>
-    <span class="agent-arrow" aria-hidden="true">&#8594;</span>
+  <div class="agent-stats">
+    <span>{{ a.skills_count }} skill{% if a.skills_count != 1 %}s{% endif %}</span>
+    <span class="agent-stats-sep">&middot;</span>
+    <span>{{ a.mcp_count }} MCP</span>
+    <span class="agent-stats-sep">&middot;</span>
+    <span>{{ a.rules_count }} rule{% if a.rules_count != 1 %}s{% endif %}</span>
   </div>
-</div>
+</ship-card>

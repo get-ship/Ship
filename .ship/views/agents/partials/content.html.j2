@@ -1,36 +1,22 @@
-{#- Agents content — SSE-patchable region.
-   Root element MUST have id="agents-content" for Datastar patching. -#}
-{% from '_ship.html.j2' import get %}
-{% from '_urls.html.j2' import view_agent_detail %}
+{#- Agents SSE content partial. Target: <div id="agents-content">.
+    Context: agents (Vec<AgentSummary>), total (usize). -#}
+{% from '_ship.html.j2' import get, post %}
+{% from '_urls.html.j2' import view_agent_detail, view_agents_create %}
 <div id="agents-content">
-  {% if agents|length == 0 %}
-    <ship-empty-state
-      icon="bot"
-      title="No agents yet"
-      body="Drop a JSONC file under .ship/agents/ to configure one."></ship-empty-state>
+  {% if agents | length == 0 %}
+    <ship-empty-state icon="sparkles" variant="default" size="lg">
+      <span slot="title">No agents yet</span>
+      Drop a JSONC file under <code style="font-family:var(--font-mono);font-size:12px;padding:2px 6px;border-radius:var(--radius-sm);background:var(--muted);color:var(--foreground)">.ship/agents/</code> or create one from the Studio.
+      <ship-button slot="action" tone="accent" variant="solid"
+        {{ post(view_agents_create(), '{}') }}>
+        <ship-icon slot="leading" name="plus"></ship-icon>
+        New agent
+      </ship-button>
+    </ship-empty-state>
   {% else %}
     <div class="agents-grid">
       {% for a in agents %}
-      <div class="agent-card"
-           {{ get(view_agent_detail(a.id)) }}>
-        <div class="agent-card-head">
-          <div class="agent-avatar">{{ a.letter }}</div>
-          <div class="agent-card-title">
-            <div class="agent-name">{{ a.name }}</div>
-            <div class="agent-desc">{{ a.description | truncate(120) }}</div>
-          </div>
-        </div>
-        <div class="agent-card-foot">
-          <div class="agent-stats">
-            <span>{{ a.skills_count }} skill{% if a.skills_count != 1 %}s{% endif %}</span>
-            <span class="agent-stats-sep">&#183;</span>
-            <span>{{ a.mcp_count }} MCP</span>
-            <span class="agent-stats-sep">&#183;</span>
-            <span>{{ a.rules_count }} rule{% if a.rules_count != 1 %}s{% endif %}</span>
-          </div>
-          <span class="agent-arrow" aria-hidden="true">&#8594;</span>
-        </div>
-      </div>
+        {% include 'agents/partials/card.html.j2' %}
       {% endfor %}
     </div>
   {% endif %}

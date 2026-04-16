@@ -1,84 +1,125 @@
 {#-
-  Agents index — self-contained card grid with SSE live updates.
+  Agents index — grid of agent cards with SSE live updates.
   Context: agents (Vec<AgentSummary>), total (usize).
+
+  Parity target: apps/web/src/routes/studio/agents/index.tsx
+  - display headline + "N agents configured" subtitle
+  - responsive card grid (~320px min)
+  - ship-avatar + name + description + stats footer
+  - ship-empty-state when total == 0
 -#}
-{% from '_ship.html.j2' import head, signal, live, styles, post %}
-{% from '_urls.html.j2' import view_agents_create %}
+{% from '_ship.html.j2' import head, signal, live, get, post %}
+{% from '_urls.html.j2' import view_agent_detail, view_agents_create %}
 <!DOCTYPE html>
 <html lang="en">
-<head>{{ head('Agents') }}
-  {{ styles() }}
+<head>
+  {{ head('Agents') }}
   <style>
-  .ship-view-agents { color: var(--foreground); }
-  .agents-wrap { max-width: 1280px; margin: 0 auto; padding: 28px 24px 56px; }
+  .agents-view { color: var(--foreground); font-family: var(--font-body); }
+  .agents-wrap {
+    max-width: 80rem;
+    margin: 0 auto;
+    padding: var(--space-6) var(--space-5) var(--space-8);
+  }
   .agents-head {
     display: flex; align-items: flex-start; justify-content: space-between;
-    gap: 16px; margin: 0 0 28px;
+    gap: var(--space-4); margin-bottom: var(--space-6);
   }
   .agents-title {
-    font-family: var(--font-display); font-size: 26px; font-weight: 700;
-    letter-spacing: -0.015em; margin: 0;
+    font-family: var(--font-display);
+    font-size: var(--text-2xl);
+    font-weight: var(--font-weight-bold);
+    letter-spacing: -0.015em;
+    margin: 0 0 var(--space-1);
+    color: var(--foreground);
   }
-  .agents-sub { font-size: 13px; color: var(--muted-foreground); margin-top: 6px; }
+  .agents-sub {
+    font-size: var(--text-sm);
+    color: var(--muted-foreground);
+    margin: 0;
+  }
   .agents-grid {
-    display: grid; grid-template-columns: repeat(auto-fill, minmax(320px, 1fr));
-    gap: 18px;
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(320px, 1fr));
+    gap: var(--space-3);
   }
-  .agent-card {
-    display: flex; flex-direction: column; justify-content: space-between; gap: 18px;
-    border: 1px solid var(--border); background: var(--card);
-    border-radius: var(--radius-lg); padding: 20px; min-height: 150px; cursor: pointer;
-    transition: border-color 0.12s ease, background-color 0.12s ease;
+  /* ship-card interactive already provides hover/focus treatment. We just
+     pin padding + lay out the inner row. */
+  .agent-card { cursor: pointer; padding: var(--space-4); }
+  .agent-card-head {
+    display: flex; align-items: flex-start; gap: var(--space-3);
+    margin-bottom: var(--space-3);
   }
-  .agent-card:hover {
-    border-color: color-mix(in oklch, var(--primary) 45%, var(--border));
+  .agent-card-body { min-width: 0; flex: 1; }
+  .agent-name {
+    font-size: var(--text-sm);
+    font-weight: var(--font-weight-semibold);
+    color: var(--foreground);
+    margin: 0 0 2px;
+    overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
   }
-  .agent-card-head { display: flex; gap: 14px; align-items: flex-start; }
-  .agent-avatar {
-    width: 40px; height: 40px; border-radius: 50%;
-    background: color-mix(in oklch, var(--primary) 18%, var(--card));
-    color: var(--primary);
-    display: inline-flex; align-items: center; justify-content: center;
-    font-weight: 600; font-size: 16px; flex-shrink: 0;
+  .agent-desc {
+    font-size: var(--text-xs);
+    color: var(--muted-foreground);
+    margin: 0;
+    line-height: 1.5;
+    display: -webkit-box;
+    -webkit-line-clamp: 2;
+    -webkit-box-orient: vertical;
+    overflow: hidden;
   }
-  .agent-card-title { min-width: 0; flex: 1; }
-  .agent-name { font-size: 15px; font-weight: 600; color: var(--foreground); margin: 0 0 4px; }
-  .agent-desc { font-size: 13px; color: var(--muted-foreground); margin: 0; line-height: 1.5; }
-  .agent-card-foot {
-    display: flex; align-items: center; justify-content: space-between; gap: 8px;
+  .agent-arrow {
+    color: var(--muted-foreground);
+    transition: color var(--duration-fast) var(--ease-out),
+                transform var(--duration-fast) var(--ease-out);
+    margin-top: 2px;
+    flex-shrink: 0;
+  }
+  .agent-card:hover .agent-arrow {
+    color: var(--foreground);
+    transform: translateX(2px);
   }
   .agent-stats {
-    font-size: 12px; color: var(--muted-foreground);
-    display: flex; align-items: center; gap: 6px; flex-wrap: wrap;
+    display: flex; align-items: center; gap: var(--space-2);
+    font-size: 11px;
+    color: var(--muted-foreground);
   }
-  .agent-stats-sep { opacity: 0.6; }
-  .agent-arrow {
-    color: var(--muted-foreground); font-size: 14px;
-    transition: transform 0.12s ease, color 0.12s ease;
+  .agent-stats-sep { color: var(--border); }
+  .loading-copy {
+    font-size: var(--text-sm);
+    color: var(--muted-foreground);
+    padding: var(--space-4) 0;
+    margin: 0;
   }
-  .agent-card:hover .agent-arrow { color: var(--primary); transform: translateX(2px); }
+  @media (prefers-reduced-motion: reduce) {
+    .agent-card:hover .agent-arrow { transform: none; }
+  }
   </style>
 </head>
 <body>
-<div id="agents-root" class="ship-view ship-view-agents"
-     {{ signal('search', '') }}>
+<div class="agents-view" {{ signal('_creating', false) }}>
   <div class="agents-wrap">
-    <div class="agents-head">
+
+    <header class="agents-head">
       <div>
         <h1 class="agents-title">Agents</h1>
-        <div class="agents-sub">{{ total }} {% if total == 1 %}agent configured{% else %}agents configured{% endif %}</div>
+        <p class="agents-sub">
+          {{ total }} agent{% if total != 1 %}s{% endif %} configured
+        </p>
       </div>
       <ship-button size="sm" tone="accent" variant="solid"
         {{ post(view_agents_create(), '{}') }}>
-        + New Agent
+        <ship-icon slot="leading" name="plus"></ship-icon>
+        New agent
       </ship-button>
-    </div>
+    </header>
 
     <div {{ live('agents') }}>
       <div id="agents-content">
-        <p class="agents-sub" style="padding: 16px 0">Loading...</p>
+        <p class="loading-copy">Loading...</p>
       </div>
     </div>
+
   </div>
 </div>
 </body>

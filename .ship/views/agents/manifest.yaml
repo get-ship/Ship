@@ -3,5 +3,5 @@ type: html
 data:
   agents: true
 events:
-  - config.changed
-  - workspace.changed
+  - config.
+  - workspace.

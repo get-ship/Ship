@@ -1,0 +1,30 @@
+{#- MCP tab panel. Context: agent (AgentDetail). -#}
+<ship-tab-panel name="mcp">
+  <div class="ad-panel">
+    <div class="ad-section-head">
+      <h2 class="ad-section-title">
+        <ship-icon name="folder" size="sm"></ship-icon>
+        MCP servers
+        <span class="ad-section-count">{{ agent.mcp_servers | length }} connected</span>
+      </h2>
+      <ship-button size="sm" variant="ghost" disabled>
+        <ship-icon slot="leading" name="plus"></ship-icon>
+        Add server
+      </ship-button>
+    </div>
+    {% if agent.mcp_servers | length == 0 %}
+      <div class="ad-empty">
+        No MCP servers connected. Add one in the agent profile.
+      </div>
+    {% else %}
+      <div class="ad-chip-grid">
+        {% for server in agent.mcp_servers %}
+          <span class="ad-item-chip">
+            <span class="lead mcp">{{ server[:2] }}</span>
+            {{ server }}
+          </span>
+        {% endfor %}
+      </div>
+    {% endif %}
+  </div>
+</ship-tab-panel>
