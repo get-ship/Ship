@@ -191,7 +191,7 @@
       </td>
       {% endfor %}
       <td class="mono muted">{{ item.updated_at[:16] if item.updated_at else "--" }}</td>
-      <td><ship-button size="sm" variant="destructive" {{ delete(collection, item.id) }} {{ loading('_deleting') }}>x</ship-button></td>
+      <td><ship-button size="sm" tone="destructive" variant="soft" {{ delete(collection, item.id) }} {{ loading('_deleting') }} aria-label="Delete"><ship-icon slot="leading" name="trash"></ship-icon></ship-button></td>
     </tr>
     {% endfor %}
   </tbody>

@@ -48,9 +48,9 @@
         {% endfor %}
       </ship-select>
       {% if schema is defined %}
-      <ship-button size="sm"
+      <ship-button size="sm" tone="accent" variant="solid"
         data-on:click="$_showForm = !$_showForm">
-        + New
+        <ship-icon slot="leading" name="plus"></ship-icon>New
       </ship-button>
       {% endif %}
       <span class="data-count">{{ items | length if items is defined else 0 }} items</span>
@@ -62,13 +62,13 @@
     <ship-card {{ show('$_showForm') }} style="display:none; margin-bottom: var(--space-4, 16px)">
       <div style="display:flex;justify-content:space-between;align-items:center;margin-bottom:var(--space-3,12px)">
         <strong>New {{ active_collection }}</strong>
-        <ship-button size="sm" variant="ghost"
-          data-on:click="$_showForm = false">x</ship-button>
+        <ship-button size="sm" variant="ghost" aria-label="Close"
+          data-on:click="$_showForm = false"><ship-icon slot="leading" name="x"></ship-icon></ship-button>
       </div>
       {{ form(schema, active_collection) }}
       <ship-separator></ship-separator>
       <div style="display:flex;gap:var(--space-2,8px);margin-top:var(--space-3,12px);align-items:center">
-        <ship-button size="sm"
+        <ship-button size="sm" tone="accent" variant="solid"
           {{ create(active_collection, '$form') }}
           {{ loading('_creating') }}>Create</ship-button>
         <ship-button size="sm" variant="ghost"
