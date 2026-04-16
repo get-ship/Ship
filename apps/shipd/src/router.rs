@@ -206,6 +206,7 @@ fn build_ship_routes(st: rest_api::ApiState) -> Router {
         .ship_route(Route::CreateJob, runtime_api::create_job)
         .ship_route(Route::GetJob_template(), runtime_api::get_job_detail)
         .ship_route(Route::EndJob, runtime_api::end_job)
+        .ship_route(Route::CancelJob_template(), runtime_api::cancel_job)
         // Views
         .ship_route(Route::ListViews, views::list_views)
         .ship_route(Route::ServeView_template(), views::serve_view)

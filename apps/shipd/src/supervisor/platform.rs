@@ -117,4 +117,8 @@ impl ProcessRegistryPort for RegistryAdapter {
     async fn unregister(&self, slug: &str) {
         self.0.lock().await.unregister(slug);
     }
+
+    async fn take(&self, slug: &str) -> Option<ExecutorHandle> {
+        self.0.lock().await.take(slug)
+    }
 }

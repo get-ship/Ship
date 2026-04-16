@@ -453,6 +453,116 @@ pub async fn create_job(
     }
 }
 
+// ---- Cancel ----
+
+#[derive(Deserialize, utoipa::ToSchema)]
+pub struct CancelJobRequest {
+    #[serde(default = "default_cancel_reason")]
+    pub reason: String,
+}
+
+fn default_cancel_reason() -> String {
+    "operator-cancelled".to_string()
+}
+
+/// POST /api/runtime/jobs/{slug}/cancel — emit `job.cancelled` for the
+/// job with this slug. Idempotent: returns 409 with the current status
+/// when the job is already in a terminal state, and emits no event.
+#[utoipa::path(
+    post,
+    path = "/api/runtime/jobs/{slug}/cancel",
+    request_body = CancelJobRequest,
+    responses((status = 200, body = MeshResponse)),
+    tag = "runtime"
+)]
+pub async fn cancel_job(
+    State(state): State<ApiState>,
+    Extension(auth): Extension<AuthContext>,
+    Path(slug): Path<String>,
+    Json(req): Json<CancelJobRequest>,
+) -> impl IntoResponse {
+    if let Err(e) = require_scope(&auth, Scope::ManageJobs) {
+        return e;
+    }
+
+    let jobs = match runtime::projections::job::load_jobs_at(state.ship_dir()) {
+        Ok(j) => j,
+        Err(e) => {
+            return (
+                StatusCode::INTERNAL_SERVER_ERROR,
+                Json(MeshResponse { ok: false, data: serde_json::json!(e.to_string()) }),
+            );
+        }
+    };
+
+    let job = match jobs.values().find(|j| j.slug == slug) {
+        Some(j) => j.clone(),
+        None => {
+            return (
+                StatusCode::NOT_FOUND,
+                Json(MeshResponse {
+                    ok: false,
+                    data: serde_json::json!(format!("no job with slug '{slug}'")),
+                }),
+            );
+        }
+    };
+
+    use runtime::projections::job::JobStatus;
+    if matches!(
+        job.status,
+        JobStatus::Failed | JobStatus::Merged | JobStatus::Cancelled | JobStatus::Completed
+    ) {
+        return (
+            StatusCode::CONFLICT,
+            Json(MeshResponse {
+                ok: false,
+                data: serde_json::json!({
+                    "slug": &slug,
+                    "status": format!("{:?}", job.status).to_lowercase(),
+                }),
+            }),
+        );
+    }
+
+    let payload = runtime::events::job::JobCancelledPayload {
+        job_id: job.job_id.clone(),
+        slug: slug.clone(),
+        reason: req.reason,
+        requested_by: "operator".to_string(),
+    };
+
+    let envelope = match EventEnvelope::new(
+        event_types::JOB_CANCELLED,
+        &job.job_id,
+        &payload,
+    )
+    .map(|e| e.with_actor_id("operator"))
+    {
+        Ok(e) => e,
+        Err(e) => {
+            return (
+                StatusCode::BAD_REQUEST,
+                Json(MeshResponse { ok: false, data: serde_json::json!(e.to_string()) }),
+            );
+        }
+    };
+
+    match state.persist_and_route(&envelope).await {
+        Ok(()) => (
+            StatusCode::OK,
+            Json(MeshResponse {
+                ok: true,
+                data: serde_json::json!({ "slug": &slug, "status": "cancelling" }),
+            }),
+        ),
+        Err(e) => (
+            StatusCode::INTERNAL_SERVER_ERROR,
+            Json(MeshResponse { ok: false, data: serde_json::json!(e.to_string()) }),
+        ),
+    }
+}
+
 // ---- Job end (hook-triggered) ----
 
 #[derive(Deserialize, utoipa::ToSchema)]
@@ -1078,6 +1188,113 @@ mod tests {
         assert!(val["data"]["recent_events"].is_array());
         // The job.created event should appear in recent_events
         assert!(val["data"]["recent_events"].as_array().unwrap().len() >= 1);
+    }
+
+    async fn emit_job_created(state: &ApiState, slug: &str) -> String {
+        let job_id = runtime::gen_ulid();
+        let payload = runtime::events::job::JobCreatedPayload {
+            job_id: job_id.clone(),
+            slug: slug.into(),
+            agent: "a".into(),
+            branch: format!("job/{slug}"),
+            spec_path: ".artifacts/job-spec.md".into(),
+            plan_id: None, model: None, provider: None, depends_on: None,
+            pipeline: None, steps: None, pipeline_name: None, vars: None,
+            spec_content: None, step_specs: None, headless: false,
+        };
+        let env = EventEnvelope::new(event_types::JOB_CREATED, &job_id, &payload)
+            .unwrap()
+            .with_actor_id("test");
+        state.persist_and_route(&env).await.unwrap();
+        job_id
+    }
+
+    #[tokio::test(flavor = "multi_thread")]
+    async fn cancel_job_emits_job_cancelled_for_pending_job() {
+        let dir = TempDir::new().unwrap();
+        let state = make_api_state(&dir);
+        let job_id = emit_job_created(&state, "cancel-ok").await;
+
+        let req = CancelJobRequest { reason: "smoke".into() };
+        let response = cancel_job(
+            State(state.clone()),
+            Extension(full_auth()),
+            Path("cancel-ok".to_string()),
+            Json(req),
+        )
+        .await
+        .into_response();
+        assert_eq!(response.status(), StatusCode::OK);
+
+        let jobs = runtime::projections::job::load_jobs_at(state.ship_dir()).unwrap();
+        let job = jobs.get(&job_id).unwrap();
+        assert_eq!(job.status, runtime::projections::job::JobStatus::Cancelled);
+
+        // Confirm the cancelled event actually landed.
+        let events = runtime::db::events::query_recent_events_for_entity_at(
+            &state.ship_dir().join("platform.db"),
+            &job_id, 20,
+        )
+        .unwrap();
+        assert!(
+            events.iter().any(|e| e.event_type == event_types::JOB_CANCELLED),
+            "expected job.cancelled in event log"
+        );
+    }
+
+    #[tokio::test(flavor = "multi_thread")]
+    async fn cancel_job_returns_409_for_already_terminal_job() {
+        let dir = TempDir::new().unwrap();
+        let state = make_api_state(&dir);
+        let job_id = emit_job_created(&state, "cancel-term").await;
+
+        // Seed a terminal state first.
+        let fail_payload = runtime::events::job::JobFailedPayload {
+            job_id: job_id.clone(),
+            error: "boom".into(),
+        };
+        let env = EventEnvelope::new(event_types::JOB_FAILED, &job_id, &fail_payload)
+            .unwrap()
+            .with_actor_id("test");
+        state.persist_and_route(&env).await.unwrap();
+
+        let req = CancelJobRequest { reason: "after-fail".into() };
+        let response = cancel_job(
+            State(state.clone()),
+            Extension(full_auth()),
+            Path("cancel-term".to_string()),
+            Json(req),
+        )
+        .await
+        .into_response();
+        assert_eq!(response.status(), StatusCode::CONFLICT);
+
+        // Make sure no job.cancelled was emitted (idempotent no-op).
+        let events = runtime::db::events::query_recent_events_for_entity_at(
+            &state.ship_dir().join("platform.db"),
+            &job_id, 20,
+        )
+        .unwrap();
+        assert!(
+            events.iter().all(|e| e.event_type != event_types::JOB_CANCELLED),
+            "409 path must emit no job.cancelled event"
+        );
+    }
+
+    #[tokio::test(flavor = "multi_thread")]
+    async fn cancel_job_returns_404_for_unknown_slug() {
+        let dir = TempDir::new().unwrap();
+        let state = make_api_state(&dir);
+        let req = CancelJobRequest { reason: "x".into() };
+        let response = cancel_job(
+            State(state),
+            Extension(full_auth()),
+            Path("nope".to_string()),
+            Json(req),
+        )
+        .await
+        .into_response();
+        assert_eq!(response.status(), StatusCode::NOT_FOUND);
     }
 
     #[tokio::test(flavor = "multi_thread")]
