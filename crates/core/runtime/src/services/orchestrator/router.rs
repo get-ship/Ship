@@ -353,7 +353,14 @@ async fn evaluate_step_gate(
     let step = pipeline.steps.iter().find(|s| s.id == payload.step_name)?;
     let gate = step.gate.as_ref()?;
 
-    let start_sha = payload.start_sha.clone().unwrap_or_default();
+    // Gates evaluate `require_changed` / `forbid_changed` across the whole
+    // pipeline run. Prefer the job-level baseline SHA captured at dispatch so
+    // commits from earlier steps are visible; fall back to the gating step's
+    // own start SHA for legacy events (pre-baseline_sha) that don't carry it.
+    let start_sha = super::git_helpers::gate_baseline_sha(
+        job.baseline_sha.as_deref(),
+        payload.start_sha.as_deref(),
+    );
     let commit_range = if start_sha.is_empty() {
         "<no baseline>..HEAD".to_string()
     } else {

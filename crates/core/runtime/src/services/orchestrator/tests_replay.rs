@@ -109,6 +109,7 @@ async fn seed_dispatched_job(kernel: &Arc<Mutex<KernelRouter>>, job_id: &str, sl
         plan_id: None, depends_on: None, model: None, provider: None,
         pipeline: None, steps: None, pipeline_name: None, vars: None,
         spec_content: None, step_specs: None, headless: false,
+        baseline_sha: None,
     };
     let env = EventEnvelope::new(event_types::JOB_CREATED, job_id, &created).unwrap().with_actor_id("test");
     kernel.lock().await.emit(env, &ctx).await.unwrap();
@@ -232,6 +233,7 @@ mod replay_filter {
             vars: None,
             step_retries: HashMap::new(),
             headless: false,
+            baseline_sha: None,
         }
     }
 

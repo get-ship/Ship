@@ -79,6 +79,7 @@ pub async fn dispatch_ready_pending_jobs(
             spec_content: None,
             step_specs: None,
             headless: job.headless,
+            baseline_sha: job.baseline_sha.clone(),
         };
 
         let slug_for_err = payload.slug.clone();

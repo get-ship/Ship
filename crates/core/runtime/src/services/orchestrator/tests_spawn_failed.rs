@@ -120,6 +120,7 @@ fn job_payload(job_id: &str, slug: &str) -> JobCreatedPayload {
         spec_content: None,
         step_specs: None,
         headless: true,
+        baseline_sha: None,
     }
 }
 

@@ -193,6 +193,10 @@ pub async fn launch_spec(
     let slug = format!("spec-{}", &spec.id);
     let branch = format!("job/{slug}");
 
+    let baseline_sha = runtime::project::get_project_dir(None)
+        .ok()
+        .and_then(|p| p.parent().map(std::path::Path::to_path_buf))
+        .and_then(|root| runtime::services::orchestrator::git_helpers::resolve_head_sha(&root));
     let payload = JobCreatedPayload {
         job_id: job_id.clone(),
         slug,
@@ -211,6 +215,7 @@ pub async fn launch_spec(
         spec_content: std::fs::read_to_string(&spec.body_path).ok(),
         step_specs: None,
         headless: false,
+        baseline_sha,
     };
 
     let payload = match runtime::services::orchestrator::pipeline_loader::ensure_pipeline(payload) {

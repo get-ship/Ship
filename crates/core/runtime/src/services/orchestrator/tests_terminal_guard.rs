@@ -153,6 +153,7 @@ async fn seed_terminal(
         spec_content: None,
         step_specs: None,
         headless: true,
+        baseline_sha: None,
     };
     let env = EventEnvelope::new(event_types::JOB_CREATED, job_id, &created).unwrap();
     crate::services::orchestrator::emit::persist_and_route(&kernel, env, slug, None).await;

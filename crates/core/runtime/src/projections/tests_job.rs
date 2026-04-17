@@ -57,6 +57,41 @@ fn project_carries_source_spec_path_from_created_event() {
 }
 
 #[test]
+fn project_carries_baseline_sha_from_created_event() {
+    // Pipeline gates evaluate diff rules from `baseline_sha..HEAD`, so the
+    // projection must surface it from the job.created payload. This is the
+    // load-bearing field for end-to-end pipelines — without it a review
+    // step's gate sees an empty diff range and fails spuriously.
+    let events = vec![make_event(
+        event_types::JOB_CREATED,
+        serde_json::json!({
+            "job_id": "j-base",
+            "slug": "with-baseline",
+            "agent": "rust-runtime",
+            "branch": "job/with-baseline",
+            "spec_path": ".artifacts/job-spec.md",
+            "baseline_sha": "deadbeefcafebabe",
+            "plan_id": null
+        }),
+    )];
+    let map = project(&events);
+    let rec = map.get("j-base").unwrap();
+    assert_eq!(rec.baseline_sha.as_deref(), Some("deadbeefcafebabe"));
+}
+
+#[test]
+fn project_leaves_baseline_sha_none_on_legacy_events() {
+    // Legacy job.created events won't include baseline_sha. The projection
+    // must keep the field `None` so the gate evaluator knows to fall back
+    // to the step-local start SHA — breaking back-compat would fail every
+    // in-flight pipeline when the daemon restarts mid-run.
+    let events = vec![created_event("j-legacy")];
+    let map = project(&events);
+    let rec = map.get("j-legacy").unwrap();
+    assert!(rec.baseline_sha.is_none());
+}
+
+#[test]
 fn project_dispatched_sets_worktree() {
     let events = vec![
         created_event("j2"),
