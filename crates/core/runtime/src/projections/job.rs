@@ -79,6 +79,12 @@ pub struct JobRecord {
     /// When true, pipeline steps were dispatched with the headless flag.
     #[serde(default)]
     pub headless: bool,
+    /// HEAD SHA of the source repo when the job was created. Pipeline
+    /// gates evaluate diff rules from this SHA to HEAD so they see
+    /// commits made by earlier steps. `None` on legacy records — gates
+    /// fall back to the gating step's own start SHA.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub baseline_sha: Option<String>,
 }
 
 impl JobRecord {
@@ -321,6 +327,7 @@ pub fn project(events: &[EventEnvelope]) -> HashMap<String, JobRecord> {
                     vars: serde_json::from_value(p["vars"].clone()).ok(),
                     step_retries: HashMap::new(),
                     headless: p["headless"].as_bool().unwrap_or(false),
+                    baseline_sha: p["baseline_sha"].as_str().map(str::to_string),
                 };
                 map.insert(job_id, record);
             }

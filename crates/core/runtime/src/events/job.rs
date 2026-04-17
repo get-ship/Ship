@@ -241,6 +241,14 @@ pub struct JobCreatedPayload {
     /// live.
     #[serde(default)]
     pub headless: bool,
+    /// HEAD SHA of the source repo when this job was created. Pipeline
+    /// gates evaluate `require_changed` / `forbid_changed` against the
+    /// diff from this SHA to HEAD, so the checks see work committed in
+    /// any earlier pipeline step, not just the gating step. `None` for
+    /// legacy events predating this field; gates fall back to the
+    /// step's start SHA in that case.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub baseline_sha: Option<String>,
 }
 
 /// Emitted when the job is assigned to a worktree and (optionally) a process.
@@ -603,6 +611,53 @@ mod job_created_payload_tests {
         // Round-trip through serialization preserves the field.
         let reserialized = serde_json::to_string(&p).unwrap();
         assert!(reserialized.contains("\"source_spec_path\":\"/abs/path/to/spec.md\""));
+    }
+
+    #[test]
+    fn baseline_sha_round_trips_when_present() {
+        // Pin the wire contract for the field gates rely on. Both the
+        // serialize-with-value and deserialize-from-value paths must hold
+        // — without that, the reviewer step's gate can't see commits made
+        // by earlier pipeline steps and fails with an empty diff range.
+        let json = r#"{
+            "job_id": "01ZZZ",
+            "slug": "test",
+            "agent": "rust-runtime",
+            "branch": "job/test",
+            "spec_path": ".artifacts/job-spec.md",
+            "plan_id": null,
+            "model": null,
+            "provider": null,
+            "baseline_sha": "deadbeefcafe"
+        }"#;
+        let p: JobCreatedPayload = serde_json::from_str(json).unwrap();
+        assert_eq!(p.baseline_sha.as_deref(), Some("deadbeefcafe"));
+        let reserialized = serde_json::to_string(&p).unwrap();
+        assert!(reserialized.contains("\"baseline_sha\":\"deadbeefcafe\""));
+    }
+
+    #[test]
+    fn baseline_sha_absent_in_legacy_events() {
+        // Legacy payloads must still deserialize and not emit the field
+        // when None, so the event log doesn't grow explicit nulls on
+        // every new write.
+        let legacy_json = r#"{
+            "job_id": "01WWW",
+            "slug": "old",
+            "agent": "rust-runtime",
+            "branch": "job/old",
+            "spec_path": ".artifacts/job-spec.md",
+            "plan_id": null,
+            "model": null,
+            "provider": null
+        }"#;
+        let p: JobCreatedPayload = serde_json::from_str(legacy_json).unwrap();
+        assert!(p.baseline_sha.is_none());
+        let reserialized = serde_json::to_string(&p).unwrap();
+        assert!(
+            !reserialized.contains("baseline_sha"),
+            "None must skip serializing, got: {reserialized}"
+        );
     }
 
     #[test]

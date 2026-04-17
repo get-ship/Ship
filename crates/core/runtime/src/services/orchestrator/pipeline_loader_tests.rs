@@ -27,6 +27,7 @@ fn base_payload(agent: &str) -> JobCreatedPayload {
         spec_content: None,
         step_specs: None,
         headless: false,
+        baseline_sha: None,
     }
 }
 

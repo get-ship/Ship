@@ -75,6 +75,17 @@ pub async fn list_workspaces(State(state): State<ApiState>) -> impl IntoResponse
     )
 }
 
+/// Resolve HEAD SHA of the active project root. Used at `job.created` time
+/// to capture the pipeline's baseline — the point every future worktree
+/// branches from, and the `from` end of gate diff evaluation. `None` when
+/// the project dir can't be resolved or git fails; gates fall back to the
+/// step-local start SHA in that case.
+fn resolve_project_head_sha() -> Option<String> {
+    let project_ship = runtime::project::get_project_dir(None).ok()?;
+    let project_root = project_ship.parent()?;
+    runtime::services::orchestrator::git_helpers::resolve_head_sha(project_root)
+}
+
 /// Parse `git worktree list --porcelain` from the active project root.
 /// Returns (branch, path) pairs, skipping detached and bare entries.
 fn git_worktrees() -> Option<Vec<(String, String)>> {
@@ -524,6 +535,7 @@ pub async fn create_job(
         return e;
     }
     let job_id = runtime::gen_ulid();
+    let baseline_sha = resolve_project_head_sha();
     let payload = JobCreatedPayload {
         job_id: job_id.clone(),
         slug: req.slug,
@@ -542,6 +554,7 @@ pub async fn create_job(
         spec_content: req.spec_content,
         step_specs: None,
         headless: req.headless,
+        baseline_sha,
     };
 
     // Enrich with pipeline BEFORE persisting — the persisted event must include steps
@@ -1503,6 +1516,7 @@ mod tests {
             spec_content: None,
             step_specs: None,
             headless: false,
+            baseline_sha: None,
         };
         let envelope = runtime::events::EventEnvelope::new(
             runtime::events::job::event_types::JOB_CREATED,
@@ -1539,6 +1553,7 @@ mod tests {
             plan_id: None, model: None, provider: None, depends_on: None,
             pipeline: None, steps: None, pipeline_name: None, vars: None,
             spec_content: None, step_specs: None, headless: false,
+            baseline_sha: None,
         };
         let env = EventEnvelope::new(event_types::JOB_CREATED, &job_id, &payload)
             .unwrap()
