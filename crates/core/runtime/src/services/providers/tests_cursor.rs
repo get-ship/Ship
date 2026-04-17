@@ -96,3 +96,17 @@ fn parse_output_returns_none() {
     let adapter = CursorAdapter;
     assert!(adapter.parse_output("anything").is_none());
 }
+
+// ── Capabilities ────────────────────────────────────────────────────────────
+
+#[test]
+fn caps_match_declared() {
+    let c = CursorAdapter.caps();
+    assert!(c.headless);
+    assert!(c.interactive);
+    assert!(!c.server_mode);
+    assert!(c.json_stream, "cursor: --output-format stream-json");
+    assert!(!c.mcp, "cursor: no documented MCP injection");
+    assert!(c.hooks, "cursor: .cursor/hooks.json");
+    assert!(!c.session_resume);
+}

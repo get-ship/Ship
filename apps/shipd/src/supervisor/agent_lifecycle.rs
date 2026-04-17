@@ -1,14 +1,15 @@
 //! Agent lifecycle helpers — graceful agent exit for pipeline step transitions.
 
-use runtime::services::provider_adapter::adapter_for;
+use runtime::services::provider_adapter::adapter_for_or_default;
 
 /// Send the provider's exit command to the agent in a tmux session and wait for clean exit.
 /// Best-effort — skips if tmux isn't available (tests).
 pub(crate) async fn graceful_agent_exit(slug: &str, provider: Option<&str>) {
     let tmux_session = format!("job-{}", slug);
-    let adapter = adapter_for(provider);
-
-    let exit_cmd = adapter.exit_command().to_string();
+    // Best-effort: unknown provider → no exit command, force-kill path handles it.
+    let exit_cmd = adapter_for_or_default(provider)
+        .map(|a| a.exit_command().to_string())
+        .unwrap_or_default();
 
     let has_session = std::process::Command::new("tmux")
         .args(["has-session", "-t", &tmux_session])

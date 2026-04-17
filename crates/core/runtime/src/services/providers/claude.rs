@@ -4,7 +4,7 @@ use std::collections::HashMap;
 use std::path::Path;
 
 use crate::services::dispatch_ports::{LaunchCommand, LaunchProfile};
-use crate::services::provider_adapter::{ProviderAdapter, ProviderEvent};
+use crate::services::provider_adapter::{ProviderAdapter, ProviderCapabilities, ProviderEvent};
 
 pub struct ClaudeAdapter;
 
@@ -62,6 +62,18 @@ impl ClaudeAdapter {
 
 impl ProviderAdapter for ClaudeAdapter {
     fn id(&self) -> &str { "claude" }
+
+    fn caps(&self) -> ProviderCapabilities {
+        ProviderCapabilities {
+            headless: true,
+            interactive: true,
+            server_mode: false,
+            json_stream: true,
+            mcp: true,
+            hooks: true,
+            session_resume: false,
+        }
+    }
 
     fn build_interactive(&self, slug: &str, profile: &LaunchProfile) -> LaunchCommand {
         let (args, env) = Self::base_args(slug, profile);

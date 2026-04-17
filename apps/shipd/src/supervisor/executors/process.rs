@@ -34,7 +34,7 @@ use runtime::services::dispatch_ports::{
     ExecutorHandle, ExitCause, ExitSignal, JobContext, JobExecutor, LaunchCommand, LaunchProfile,
 };
 use runtime::services::orchestrator::emit::persist_and_route;
-use runtime::services::provider_adapter::{adapter_for, ProviderAdapter};
+use runtime::services::provider_adapter::{adapter_for_or_default, ProviderAdapter};
 
 /// Default prompt injected when the caller didn't supply one.
 /// Kept in ProcessExecutor (the headless spawn path) because only
@@ -100,8 +100,10 @@ impl JobExecutor for ProcessExecutor {
         // Non-interactive launch. Dispatch to the provider adapter so each
         // provider owns its own flags and prompt shape — Claude consumes the
         // autostart prompt via `-p`, Codex via `codex exec "<prompt>"`, etc.
-        // `adapter_for` silently defaults to Claude when provider is None.
-        let adapter = adapter_for(ctx.launch.provider.as_deref());
+        // `adapter_for_or_default` falls back to Claude when provider is None,
+        // and errors loudly on an unknown name instead of silently defaulting.
+        let adapter = adapter_for_or_default(ctx.launch.provider.as_deref())
+            .map_err(|e| anyhow::anyhow!("ProcessExecutor: {e}"))?;
         let launch = build_headless_with_default_prompt(adapter.as_ref(), &ctx.slug, &ctx.launch);
 
         let pty_system = native_pty_system();
@@ -341,7 +343,7 @@ mod tests {
             persist_session: true,
             ..Default::default()
         };
-        let adapter = adapter_for(profile.provider.as_deref());
+        let adapter = adapter_for_or_default(profile.provider.as_deref()).unwrap();
         let cmd = build_headless_with_default_prompt(adapter.as_ref(), "my-slug", &profile);
         assert_eq!(cmd.bin, "codex");
         assert_eq!(cmd.args[0], "exec");
@@ -351,7 +353,7 @@ mod tests {
     #[test]
     fn dispatch_defaults_to_claude_when_provider_is_none() {
         let profile = LaunchProfile { persist_session: true, ..Default::default() };
-        let adapter = adapter_for(profile.provider.as_deref());
+        let adapter = adapter_for_or_default(profile.provider.as_deref()).unwrap();
         let cmd = build_headless_with_default_prompt(adapter.as_ref(), "my-slug", &profile);
         assert_eq!(cmd.bin, "claude");
         // Default prompt is injected as the `-p` value (instead of the
@@ -369,7 +371,7 @@ mod tests {
             persist_session: true,
             ..Default::default()
         };
-        let adapter = adapter_for(profile.provider.as_deref());
+        let adapter = adapter_for_or_default(profile.provider.as_deref()).unwrap();
         let cmd = build_headless_with_default_prompt(adapter.as_ref(), "s", &profile);
         assert_eq!(cmd.args.last().unwrap(), "custom");
     }

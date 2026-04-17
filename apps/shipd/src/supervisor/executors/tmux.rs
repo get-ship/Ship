@@ -10,7 +10,7 @@ use runtime::services::dispatch_ports::{
     ExecutorHandle, ExitCause, ExitSignal, JobContext, JobExecutor,
 };
 use runtime::services::orchestrator::emit::emit_executor_session_destroyed;
-use runtime::services::provider_adapter::adapter_for;
+use runtime::services::provider_adapter::adapter_for_or_default;
 use tokio::sync::Mutex;
 
 use super::super::helpers::{ensure_tmux_session, kill_tmux_session};
@@ -55,7 +55,8 @@ impl JobExecutor for TmuxExecutor {
             ensure_tmux_session(&tmux_session, &ctx.work_dir)?;
         }
 
-        let adapter = adapter_for(ctx.launch.provider.as_deref());
+        let adapter = adapter_for_or_default(ctx.launch.provider.as_deref())
+            .map_err(|e| anyhow::anyhow!("tmux executor: {e}"))?;
         let cmd = adapter.build_interactive(&ctx.slug, &ctx.launch);
         let shell_cmd = cmd.to_shell_string();
 
@@ -139,8 +140,10 @@ impl JobExecutor for TmuxExecutor {
         };
 
         // Send exit command for graceful shutdown before force-killing.
-        let adapter = adapter_for(state.provider.as_deref());
-        let exit_command = adapter.exit_command().to_string();
+        // Unknown-provider falls through to the force-kill path at the end.
+        let exit_command = adapter_for_or_default(state.provider.as_deref())
+            .map(|a| a.exit_command().to_string())
+            .unwrap_or_default();
         let _ = std::process::Command::new("tmux")
             .args(["send-keys", "-t", &state.session, &exit_command, "Enter"])
             .status();

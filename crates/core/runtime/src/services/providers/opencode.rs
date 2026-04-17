@@ -4,12 +4,24 @@ use std::collections::HashMap;
 use std::path::Path;
 
 use crate::services::dispatch_ports::{LaunchCommand, LaunchProfile};
-use crate::services::provider_adapter::{ProviderAdapter, ProviderEvent};
+use crate::services::provider_adapter::{ProviderAdapter, ProviderCapabilities, ProviderEvent};
 
 pub struct OpenCodeAdapter;
 
 impl ProviderAdapter for OpenCodeAdapter {
     fn id(&self) -> &str { "opencode" }
+
+    fn caps(&self) -> ProviderCapabilities {
+        ProviderCapabilities {
+            headless: true,
+            interactive: true,
+            server_mode: true,
+            json_stream: true,
+            mcp: true,
+            hooks: false,
+            session_resume: true,
+        }
+    }
 
     fn build_interactive(&self, slug: &str, profile: &LaunchProfile) -> LaunchCommand {
         let mut args = Vec::new();

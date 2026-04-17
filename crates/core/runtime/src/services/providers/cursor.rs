@@ -4,12 +4,24 @@ use std::collections::HashMap;
 use std::path::Path;
 
 use crate::services::dispatch_ports::{LaunchCommand, LaunchProfile};
-use crate::services::provider_adapter::{ProviderAdapter, ProviderEvent};
+use crate::services::provider_adapter::{ProviderAdapter, ProviderCapabilities, ProviderEvent};
 
 pub struct CursorAdapter;
 
 impl ProviderAdapter for CursorAdapter {
     fn id(&self) -> &str { "cursor" }
+
+    fn caps(&self) -> ProviderCapabilities {
+        ProviderCapabilities {
+            headless: true,
+            interactive: true,
+            server_mode: false,
+            json_stream: true,
+            mcp: false,
+            hooks: true,
+            session_resume: false,
+        }
+    }
 
     fn build_interactive(&self, slug: &str, profile: &LaunchProfile) -> LaunchCommand {
         let mut args = Vec::new();

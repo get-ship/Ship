@@ -126,3 +126,17 @@ fn parse_output_returns_none() {
 fn id_is_codex() {
     assert_eq!(CodexAdapter.id(), "codex");
 }
+
+// ── Capabilities ────────────────────────────────────────────────────────────
+
+#[test]
+fn caps_match_declared() {
+    let c = CodexAdapter.caps();
+    assert!(c.headless);
+    assert!(c.interactive);
+    assert!(c.server_mode, "codex: app-server");
+    assert!(c.json_stream, "codex: exec --json");
+    assert!(c.mcp, "codex: .codex/config.toml mcp_servers");
+    assert!(c.hooks, "codex: .codex/hooks.json");
+    assert!(c.session_resume, "codex: exec resume");
+}
