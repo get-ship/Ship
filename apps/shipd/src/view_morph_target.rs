@@ -91,8 +91,9 @@ pub async fn view_morph_target_middleware(req: Request<Body>, next: Next) -> Res
 }
 
 /// Extract the fragment rooted at `<* id="ship-view-root">` (and its
-/// closing tag) from a full HTML document. Falls back to the input if the
-/// marker isn't found — still valid HTML, just larger than needed.
+/// closing tag) from a full HTML document. Also prepends any `<style>`
+/// blocks from before the root element so view-specific CSS isn't lost
+/// when the `<head>` is stripped.
 fn extract_fragment(html: &str) -> String {
     let needle = "id=\"ship-view-root\"";
     let Some(id_pos) = html.find(needle) else {
@@ -100,6 +101,23 @@ fn extract_fragment(html: &str) -> String {
     };
     // Walk back to the start of the tag that owns this attribute.
     let start = html[..id_pos].rfind('<').unwrap_or(0);
+
+    // Collect all <style>...</style> blocks from before the root element.
+    // These live in <head> and would be lost when we strip the page wrapper.
+    let mut styles = String::new();
+    let before_root = &html[..start];
+    let mut search_from = 0;
+    while let Some(style_start) = before_root[search_from..].find("<style") {
+        let abs_start = search_from + style_start;
+        if let Some(style_end) = before_root[abs_start..].find("</style>") {
+            let abs_end = abs_start + style_end + "</style>".len();
+            styles.push_str(&before_root[abs_start..abs_end]);
+            styles.push('\n');
+            search_from = abs_end;
+        } else {
+            break;
+        }
+    }
     // From the start tag, walk forward balancing open/close tags so nested
     // elements with the same tag name don't prematurely end the fragment.
     // Simpler approach: find the matching close tag by counting opens/closes
@@ -126,14 +144,24 @@ fn extract_fragment(html: &str) -> String {
                 depth -= 1;
                 if depth == 0 {
                     let end = c + close_pat.len();
-                    return html[start..end].to_string();
+                    let root = &html[start..end];
+                    return if styles.is_empty() {
+                        root.to_string()
+                    } else {
+                        format!("{styles}{root}")
+                    };
                 }
                 cursor = c + close_pat.len();
             }
             _ => break,
         }
     }
-    html[start..].to_string()
+    let rest = &html[start..];
+    if styles.is_empty() {
+        rest.to_string()
+    } else {
+        format!("{styles}{rest}")
+    }
 }
 
 fn parse_tag_name(s: &str) -> Option<String> {
@@ -185,5 +213,24 @@ mod tests {
     fn falls_back_when_marker_missing() {
         let html = "<body>no wrapper here</body>";
         assert_eq!(extract_fragment(html), html);
+    }
+
+    #[test]
+    fn preserves_style_blocks_from_head() {
+        let html = r#"<!DOCTYPE html>
+<html>
+<head>
+<style>.foo { color: red; }</style>
+<style>.bar { padding: 10px; }</style>
+</head>
+<body>
+<div id="ship-view-root">content</div>
+</body>
+</html>"#;
+        let frag = extract_fragment(html);
+        assert!(frag.contains(".foo { color: red; }"), "first style block preserved");
+        assert!(frag.contains(".bar { padding: 10px; }"), "second style block preserved");
+        assert!(frag.contains("id=\"ship-view-root\""), "root element present");
+        assert!(!frag.contains("DOCTYPE"), "no DOCTYPE");
     }
 }
