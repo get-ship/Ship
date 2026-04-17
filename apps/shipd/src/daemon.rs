@@ -226,4 +226,59 @@ mod stale_cleanup_tests {
         let _ = child.kill();
         let _ = child.wait();
     }
+
+    /// The supervisor process writes `daemon.pid` with its own PID before
+    /// spawning the child daemon. The child must not treat the live
+    /// parent-supervisor as a racing daemon.
+    #[cfg(unix)]
+    #[test]
+    fn live_supervisor_parent_does_not_block_child_startup() {
+        let dir = TempDir::new().unwrap();
+        let ppid = super::parent_pid().expect("test must run with a parent");
+        std::fs::write(dir.path().join("daemon.pid"), ppid.to_string()).unwrap();
+
+        let detected = another_daemon_alive(dir.path());
+        assert_eq!(
+            detected, None,
+            "parent supervisor (pid {ppid}) must not be flagged as a racing daemon"
+        );
+
+        let result = cleanup_stale_daemon_files(dir.path());
+        assert!(
+            result.is_ok(),
+            "live supervisor parent (pid {ppid}) wrongly treated as racing daemon: {:?}",
+            result.err()
+        );
+    }
+
+    /// Pin sup-restart-01's contract: a live third-party PID that is
+    /// neither us nor our parent still refuses startup. Uses a spawned
+    /// child process (whose pid is alive, not us, and not our parent).
+    #[cfg(unix)]
+    #[test]
+    fn live_unrelated_daemon_still_blocks_startup() {
+        let dir = TempDir::new().unwrap();
+        let mut child = std::process::Command::new("sleep")
+            .arg("30")
+            .spawn()
+            .expect("spawn sleep");
+        let child_pid = child.id();
+
+        assert_ne!(child_pid, std::process::id(), "child pid must not be ours");
+        assert_ne!(
+            Some(child_pid),
+            super::parent_pid(),
+            "child pid must not be our parent"
+        );
+
+        std::fs::write(dir.path().join("daemon.pid"), child_pid.to_string()).unwrap();
+        let result = cleanup_stale_daemon_files(dir.path());
+        let err = result.expect_err("live unrelated daemon should block startup");
+        let msg = format!("{err}");
+        assert!(msg.contains("already running"), "msg: {msg}");
+        assert!(msg.contains(&child_pid.to_string()), "msg: {msg}");
+
+        let _ = child.kill();
+        let _ = child.wait();
+    }
 }
