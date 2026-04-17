@@ -230,6 +230,13 @@ pub struct CreateJobRequest {
     pub agent: String,
     pub branch: String,
     pub spec_path: String,
+    /// Operator-facing path to the spec file (absolute when resolvable).
+    /// Plumbed into the JobRecord so `ship jobs` can distinguish which
+    /// spec each job was dispatched from. Distinct from `spec_path`
+    /// (daemon-side worktree destination). Optional: `--spec-text`
+    /// dispatches and legacy callers send `None`.
+    #[serde(default)]
+    pub source_spec_path: Option<String>,
     pub depends_on: Option<Vec<String>>,
     pub pipeline: Option<String>,
     pub provider: Option<String>,
@@ -523,6 +530,7 @@ pub async fn create_job(
         agent: req.agent,
         branch: req.branch,
         spec_path: req.spec_path,
+        source_spec_path: req.source_spec_path,
         plan_id: None,
         model: None,
         provider: req.provider,

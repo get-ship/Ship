@@ -202,6 +202,12 @@ pub struct JobCreatedPayload {
     pub agent: String,
     pub branch: String,
     pub spec_path: String,
+    /// Operator-facing path to the spec file as passed to `ship run --spec`
+    /// (or the dispatch.sh equivalent). Distinct from `spec_path` which is
+    /// the daemon-side worktree destination. None for legacy events and
+    /// for `--spec-text` / inline-spec flows.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub source_spec_path: Option<String>,
     pub plan_id: Option<String>,
     pub model: Option<String>,
     pub provider: Option<String>,
@@ -573,6 +579,53 @@ pub mod event_types {
     pub const STEP_RETRY: &str = "step.retry";
     pub const STEP_DONE_DECLARED: &str = "step.done_declared";
     pub const STEP_OBSERVED: &str = "step.observed";
+}
+
+#[cfg(test)]
+mod job_created_payload_tests {
+    use super::*;
+
+    #[test]
+    fn source_spec_path_round_trips_when_present() {
+        let json = r#"{
+            "job_id": "01XXX",
+            "slug": "test",
+            "agent": "rust-runtime",
+            "branch": "job/test",
+            "spec_path": ".artifacts/job-spec.md",
+            "plan_id": null,
+            "model": null,
+            "provider": null,
+            "source_spec_path": "/abs/path/to/spec.md"
+        }"#;
+        let p: JobCreatedPayload = serde_json::from_str(json).unwrap();
+        assert_eq!(p.source_spec_path.as_deref(), Some("/abs/path/to/spec.md"));
+        // Round-trip through serialization preserves the field.
+        let reserialized = serde_json::to_string(&p).unwrap();
+        assert!(reserialized.contains("\"source_spec_path\":\"/abs/path/to/spec.md\""));
+    }
+
+    #[test]
+    fn source_spec_path_absent_in_legacy_events() {
+        // Legacy payloads predating this field must still deserialize — and the
+        // field must serialize away when None (skip_serializing_if) so the
+        // event log doesn't grow explicit nulls on every new write either.
+        let legacy_json = r#"{
+            "job_id": "01YYY",
+            "slug": "old",
+            "agent": "rust-runtime",
+            "branch": "job/old",
+            "spec_path": ".artifacts/job-spec.md",
+            "plan_id": null,
+            "model": null,
+            "provider": null
+        }"#;
+        let p: JobCreatedPayload = serde_json::from_str(legacy_json).unwrap();
+        assert!(p.source_spec_path.is_none());
+        let reserialized = serde_json::to_string(&p).unwrap();
+        assert!(!reserialized.contains("source_spec_path"),
+            "None must skip serializing, got: {reserialized}");
+    }
 }
 
 #[cfg(test)]

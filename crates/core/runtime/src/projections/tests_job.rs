@@ -28,6 +28,32 @@ fn project_creates_pending_record() {
     assert_eq!(rec.status, JobStatus::Pending);
     assert_eq!(rec.slug, "auth-tests");
     assert_eq!(rec.agent, "rust-runtime");
+    // Legacy `created_event` does not set source_spec_path — projection must
+    // leave the field None rather than conflate it with spec_path.
+    assert!(rec.source_spec_path.is_none());
+}
+
+#[test]
+fn project_carries_source_spec_path_from_created_event() {
+    // New-style dispatches carry the operator-facing path. The projection
+    // must surface it verbatim so `ship jobs` can distinguish spec files.
+    let events = vec![make_event(
+        event_types::JOB_CREATED,
+        serde_json::json!({
+            "job_id": "j-src",
+            "slug": "with-source",
+            "agent": "rust-runtime",
+            "branch": "job/with-source",
+            "spec_path": ".artifacts/job-spec.md",
+            "source_spec_path": "/abs/path/to/operator-spec.md",
+            "plan_id": null
+        }),
+    )];
+    let map = project(&events);
+    let rec = map.get("j-src").unwrap();
+    assert_eq!(rec.source_spec_path.as_deref(), Some("/abs/path/to/operator-spec.md"));
+    // spec_path (destination) stays unchanged — both fields coexist.
+    assert_eq!(rec.spec_path, ".artifacts/job-spec.md");
 }
 
 #[test]

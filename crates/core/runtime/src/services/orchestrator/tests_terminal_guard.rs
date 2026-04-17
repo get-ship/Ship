@@ -141,6 +141,7 @@ async fn seed_terminal(
         agent: "rust-runtime".into(),
         branch: format!("job/{slug}"),
         spec_path: ".artifacts/job-spec.md".into(),
+        source_spec_path: None,
         plan_id: None,
         model: None,
         provider: None,

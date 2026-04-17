@@ -38,6 +38,11 @@ pub struct JobRecord {
     pub agent: String,
     pub branch: String,
     pub spec_path: String,
+    /// Operator-facing spec path captured at `ship run` time. `None` for
+    /// legacy records predating this field and for inline-spec (`--spec-text`)
+    /// dispatches. Distinct from `spec_path` (daemon-side worktree destination).
+    #[serde(default)]
+    pub source_spec_path: Option<String>,
     pub depends_on: Option<Vec<String>>,
     pub status: JobStatus,
     pub worktree: Option<String>,
@@ -297,6 +302,7 @@ pub fn project(events: &[EventEnvelope]) -> HashMap<String, JobRecord> {
                     agent: p["agent"].as_str().unwrap_or("").to_string(),
                     branch: p["branch"].as_str().unwrap_or("").to_string(),
                     spec_path: p["spec_path"].as_str().unwrap_or("").to_string(),
+                    source_spec_path: p["source_spec_path"].as_str().map(str::to_string),
                     depends_on,
                     status: JobStatus::Pending,
                     worktree: None,

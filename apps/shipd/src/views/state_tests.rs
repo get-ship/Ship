@@ -13,6 +13,7 @@ fn mk(slug: &str, agent: &str, status: JobStatus, ts_secs: i64) -> JobRecord {
         agent: agent.into(),
         branch: "main".into(),
         spec_path: "spec.md".into(),
+        source_spec_path: None,
         depends_on: None,
         status,
         worktree: None,
