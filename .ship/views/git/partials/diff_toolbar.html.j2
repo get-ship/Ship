@@ -1,0 +1,25 @@
+{#-
+  Diff view toolbar: back button, branch icon, label, "show working tree" link.
+  Expects: selected_commit{sha, short_sha, is_working}, workspace_id.
+-#}
+{% from '_urls.html.j2' import view_git %}
+{%- set ws_qs = '' -%}
+{%- if workspace_id %}{%- set ws_qs = '?workspace_id=' ~ workspace_id -%}{%- endif -%}
+
+<div class="git-diff-toolbar">
+  <button type="button" class="git-back" aria-label="Back to status"
+    data-on:click="@get('{{ view_git() }}{{ ws_qs }}')">
+    <ship-icon name="arrow-left" size="sm"></ship-icon>
+  </button>
+  <ship-icon name="git-branch" size="sm" class="git-header-icon"></ship-icon>
+  <span class="git-diff-label">
+    {% if selected_commit.is_working %}Working tree diff
+    {% else %}Commit {{ selected_commit.short_sha }}{% endif %}
+  </span>
+  {% if not selected_commit.is_working %}
+    <button type="button" class="git-show-working"
+      data-on:click="@get('{{ view_git() }}?commit=WORKING{% if workspace_id %}&workspace_id={{ workspace_id }}{% endif %}')">
+      Show working tree
+    </button>
+  {% endif %}
+</div>

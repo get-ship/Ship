@@ -1,0 +1,11 @@
+{#- Review banners for completed pipelines -#}
+{% if completed_jobs and completed_jobs|length > 0 %}
+  {% for j in completed_jobs %}
+  <div class="git-review-banner" role="status">
+    <ship-icon name="check-circle" size="sm"></ship-icon>
+    <div>
+      <p>Pipeline <strong>{{ j.slug }}</strong> completed. Review the diff below.</p>
+    </div>
+  </div>
+  {% endfor %}
+{% endif %}

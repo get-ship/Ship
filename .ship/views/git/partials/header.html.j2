@@ -1,0 +1,10 @@
+{#- Git header: icon + title + status badge -#}
+<div class="git-header">
+  <ship-icon name="git-branch" size="md" class="git-header-icon"></ship-icon>
+  <h1>Git</h1>
+  {% if branch %}
+    <span class="git-badge {% if clean %}git-badge--clean{% else %}git-badge--dirty{% endif %}">
+      {% if clean %}Clean{% else %}Changes{% endif %}
+    </span>
+  {% endif %}
+</div>
