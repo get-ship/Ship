@@ -50,10 +50,10 @@ pub async fn subscribe_job_events(
     let executor: Arc<dyn JobExecutor> =
         if std::env::var("SHIP_EXECUTOR").as_deref() == Ok("tmux") {
             tracing::info!("job-dispatch: using TmuxExecutor (SHIP_EXECUTOR=tmux)");
-            Arc::new(super::executors::TmuxExecutor)
+            Arc::new(super::executors::TmuxExecutor::new(Some(kernel.clone())))
         } else {
             tracing::info!("job-dispatch: using RoutingExecutor (tmux-window default, headless on flag)");
-            Arc::new(super::executors::RoutingExecutor::new())
+            Arc::new(super::executors::RoutingExecutor::new(Some(kernel.clone())))
         };
 
     let registry = Arc::new(Mutex::new(ProcessRegistry::new()));
@@ -62,6 +62,7 @@ pub async fn subscribe_job_events(
         registry: registry.clone(),
         executor: executor.clone(),
         health_registry: health_registry.clone(),
+        kernel: kernel.clone(),
     });
 
     let activity_txs = Arc::new(Mutex::new(HashMap::new()));

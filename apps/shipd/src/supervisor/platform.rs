@@ -3,9 +3,12 @@
 
 use anyhow::Result;
 use async_trait::async_trait;
+use runtime::events::executor::DestructionCause;
+use runtime::events::KernelRouter;
 use runtime::services::dispatch_ports::{
     AgentPlatform, ExitSignal, ExecutorHandle, JobExecutor, ProcessRegistryPort,
 };
+use runtime::services::orchestrator::emit::emit_executor_session_destroyed;
 use std::path::{Path, PathBuf};
 use std::sync::Arc;
 use tokio::sync::Mutex;
@@ -21,6 +24,7 @@ pub struct ShipdPlatform {
     pub registry: Arc<Mutex<ProcessRegistry>>,
     pub executor: Arc<dyn JobExecutor>,
     pub health_registry: crate::supervised::HealthRegistry,
+    pub kernel: Arc<Mutex<KernelRouter>>,
 }
 
 #[async_trait]
@@ -44,6 +48,16 @@ impl AgentPlatform for ShipdPlatform {
         if let Err(e) = helpers::kill_tmux_session(&tmux_session) {
             tracing::warn!(slug, "platform: tmux cleanup failed: {e}");
         }
+        // Destruction intent fired whether the kill succeeded or the session
+        // was already gone — operators still care that cleanup touched it.
+        emit_executor_session_destroyed(
+            &self.kernel,
+            slug,
+            "tmux",
+            &tmux_session,
+            DestructionCause::External,
+        )
+        .await;
         if let Err(e) = helpers::remove_worktree(&worktree_path) {
             tracing::warn!(slug, "platform: worktree cleanup failed: {e}");
         }
@@ -84,7 +98,7 @@ impl AgentPlatform for ShipdPlatform {
     }
 
     async fn cleanup_orphaned_worktrees(&self) {
-        super::orphan_cleanup::cleanup_orphaned_worktrees().await;
+        super::orphan_cleanup::cleanup_orphaned_worktrees(&self.kernel).await;
     }
 }
 
