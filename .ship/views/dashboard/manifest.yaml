@@ -1,0 +1,14 @@
+name: dashboard
+type: html
+data:
+  collections: all
+  agents: true
+  skills: true
+  pipelines: true
+  events_data: true
+events:
+  - job.
+  - step.
+  - workspace.
+  - config.
+  - ""
