@@ -416,7 +416,7 @@ mod tests {
     /// `stop()` must project a `process.killed` envelope with signal=SIGTERM
     /// and reason=graceful_shutdown — the audit record that the graceful
     /// path fired.
-    #[tokio::test]
+    #[tokio::test(flavor = "multi_thread")]
     #[cfg_attr(not(unix), ignore)]
     async fn process_executor_emits_process_killed_on_sigterm_path() {
         let (_dir, kernel, db) = setup_kernel();
