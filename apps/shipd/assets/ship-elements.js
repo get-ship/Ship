@@ -1,4 +1,4 @@
-// ../../../node_modules/.pnpm/@lit+reactive-element@2.1.2/node_modules/@lit/reactive-element/css-tag.js
+// node_modules/.pnpm/@lit+reactive-element@2.1.2/node_modules/@lit/reactive-element/css-tag.js
 var t = globalThis;
 var e = t.ShadowRoot && (void 0 === t.ShadyCSS || t.ShadyCSS.nativeShadow) && "adoptedStyleSheets" in Document.prototype && "replace" in CSSStyleSheet.prototype;
 var s = Symbol();
@@ -43,7 +43,7 @@ var c = e ? (t4) => t4 : (t4) => t4 instanceof CSSStyleSheet ? ((t5) => {
   return r(e6);
 })(t4) : t4;
 
-// ../../../node_modules/.pnpm/@lit+reactive-element@2.1.2/node_modules/@lit/reactive-element/reactive-element.js
+// node_modules/.pnpm/@lit+reactive-element@2.1.2/node_modules/@lit/reactive-element/reactive-element.js
 var { is: i2, defineProperty: e2, getOwnPropertyDescriptor: h, getOwnPropertyNames: r2, getOwnPropertySymbols: o2, getPrototypeOf: n2 } = Object;
 var a = globalThis;
 var c2 = a.trustedTypes;
@@ -265,7 +265,7 @@ var y = class extends HTMLElement {
 };
 y.elementStyles = [], y.shadowRootOptions = { mode: "open" }, y[d("elementProperties")] = /* @__PURE__ */ new Map(), y[d("finalized")] = /* @__PURE__ */ new Map(), p?.({ ReactiveElement: y }), (a.reactiveElementVersions ?? (a.reactiveElementVersions = [])).push("2.1.2");
 
-// ../../../node_modules/.pnpm/lit-html@3.3.2/node_modules/lit-html/lit-html.js
+// node_modules/.pnpm/lit-html@3.3.2/node_modules/lit-html/lit-html.js
 var t2 = globalThis;
 var i3 = (t4) => t4;
 var s2 = t2.trustedTypes;
@@ -519,7 +519,7 @@ var D = (t4, i6, s4) => {
   return h3._$AI(t4), h3;
 };
 
-// ../../../node_modules/.pnpm/lit-element@4.2.2/node_modules/lit-element/lit-element.js
+// node_modules/.pnpm/lit-element@4.2.2/node_modules/lit-element/lit-element.js
 var s3 = globalThis;
 var i4 = class extends y {
   constructor() {
@@ -549,7 +549,7 @@ var o4 = s3.litElementPolyfillSupport;
 o4?.({ LitElement: i4 });
 (s3.litElementVersions ?? (s3.litElementVersions = [])).push("4.2.2");
 
-// ../../../packages/ui/src/web-components/util.ts
+// packages/ui/src/web-components/util.ts
 var MONO_STACK = "ui-monospace, SFMono-Regular, 'SF Mono', Menlo, Consolas, monospace";
 var MONO = r(MONO_STACK);
 var toneVars = i`
@@ -611,7 +611,298 @@ var reducedMotion = i`
   }
 `;
 
-// ../../../packages/ui/src/web-components/ship-alert.ts
+// packages/ui/src/web-components/ship-accordion.styles.ts
+var shipAccordionStyles = [
+  reducedMotion,
+  i`
+    :host {
+      display: block;
+      font-family: var(--font-body);
+      color: var(--foreground);
+    }
+    :host([hidden]) { display: none; }
+  `
+];
+var shipAccordionItemStyles = [
+  reducedMotion,
+  i`
+    :host {
+      display: block;
+      border-bottom: 1px solid var(--border);
+    }
+    :host([hidden]) { display: none; }
+
+    .trigger {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      width: 100%;
+      padding: var(--space-4) 0;
+      background: none;
+      border: none;
+      font: inherit;
+      font-size: var(--text-base);
+      font-weight: 500;
+      color: var(--foreground);
+      cursor: pointer;
+      text-align: left;
+      line-height: var(--leading-normal);
+      transition: color var(--duration-fast) var(--ease-out);
+    }
+    .trigger:hover {
+      text-decoration: underline;
+      text-underline-offset: 4px;
+    }
+
+    /* Focus ring */
+    .trigger:focus-visible {
+      outline: none;
+      box-shadow:
+        0 0 0 var(--ring-offset) var(--background),
+        0 0 0 calc(var(--ring-offset) + var(--ring-width))
+          color-mix(in oklch, var(--ring-color) var(--ring-opacity), transparent);
+      border-radius: var(--radius-sm);
+    }
+    @media (forced-colors: active) {
+      .trigger:focus-visible {
+        outline: 2px solid CanvasText;
+        outline-offset: 2px;
+      }
+    }
+
+    :host([disabled]) .trigger {
+      cursor: not-allowed;
+      color: var(--muted-foreground);
+    }
+    :host([disabled]) .trigger:hover {
+      text-decoration: none;
+    }
+
+    /* Chevron */
+    .chevron {
+      flex-shrink: 0;
+      width: 16px;
+      height: 16px;
+      color: var(--muted-foreground);
+      transition: transform var(--duration-normal, 200ms) var(--ease-out);
+    }
+    :host([open]) .chevron {
+      transform: rotate(180deg);
+    }
+
+    /* Content area — CSS grid height animation */
+    .content-wrap {
+      display: grid;
+      grid-template-rows: 0fr;
+      transition: grid-template-rows var(--duration-normal, 200ms) var(--ease-out);
+    }
+    :host([open]) .content-wrap {
+      grid-template-rows: 1fr;
+    }
+    .content-inner {
+      overflow: hidden;
+    }
+    .content-body {
+      padding-bottom: var(--space-4);
+      font-size: var(--text-sm);
+      color: var(--muted-foreground);
+      line-height: var(--leading-relaxed);
+    }
+  `
+];
+
+// packages/ui/src/web-components/ship-accordion.ts
+var _ShipAccordionItem = class _ShipAccordionItem extends i4 {
+  constructor() {
+    super(...arguments);
+    this.value = "";
+    this.disabled = false;
+    this.open = false;
+    this.uid = ++_ShipAccordionItem._idSeq;
+    this.onTriggerClick = () => {
+      if (this.disabled) return;
+      this.dispatchEvent(new CustomEvent("ship-accordion-item-toggle", {
+        detail: { value: this.value },
+        bubbles: true,
+        composed: true
+      }));
+    };
+    this.onKeydown = (e6) => {
+      if (e6.key === "ArrowDown" || e6.key === "ArrowUp") {
+        e6.preventDefault();
+        this.dispatchEvent(new CustomEvent("ship-accordion-nav", {
+          detail: { direction: e6.key === "ArrowDown" ? "next" : "prev" },
+          bubbles: true,
+          composed: true
+        }));
+      } else if (e6.key === "Home" || e6.key === "End") {
+        e6.preventDefault();
+        this.dispatchEvent(new CustomEvent("ship-accordion-nav", {
+          detail: { direction: e6.key === "Home" ? "first" : "last" },
+          bubbles: true,
+          composed: true
+        }));
+      }
+    };
+  }
+  get triggerId() {
+    return `ship-acc-trigger-${this.uid}`;
+  }
+  get contentId() {
+    return `ship-acc-content-${this.uid}`;
+  }
+  /** Focus the trigger button from the parent accordion's keyboard handler. */
+  focusTrigger() {
+    const btn = this.renderRoot.querySelector("button");
+    btn?.focus();
+  }
+  render() {
+    return b2`
+      <button
+        class="trigger"
+        part="trigger"
+        id=${this.triggerId}
+        aria-expanded=${this.open ? "true" : "false"}
+        aria-controls=${this.contentId}
+        ?disabled=${this.disabled}
+        @click=${this.onTriggerClick}
+        @keydown=${this.onKeydown}
+      >
+        <slot name="trigger"></slot>
+        <svg class="chevron" part="chevron" viewBox="0 0 16 16" fill="none"
+          stroke="currentColor" stroke-width="1.75" stroke-linecap="round"
+          stroke-linejoin="round" aria-hidden="true">
+          <path d="M4 6l4 4 4-4"></path>
+        </svg>
+      </button>
+      <div class="content-wrap" part="content"
+        id=${this.contentId}
+        role="region"
+        aria-labelledby=${this.triggerId}
+      >
+        <div class="content-inner">
+          <div class="content-body">
+            <slot></slot>
+          </div>
+        </div>
+      </div>
+    `;
+  }
+};
+_ShipAccordionItem.styles = shipAccordionItemStyles;
+_ShipAccordionItem.properties = {
+  value: { type: String, reflect: true },
+  disabled: { type: Boolean, reflect: true },
+  open: { type: Boolean, reflect: true }
+};
+_ShipAccordionItem._idSeq = 0;
+var ShipAccordionItem = _ShipAccordionItem;
+var ShipAccordion = class extends i4 {
+  constructor() {
+    super(...arguments);
+    this.type = "single";
+    this.value = "";
+    this.onItemToggle = (e6) => {
+      e6.stopPropagation();
+      const itemVal = e6.detail.value;
+      const open = this.getOpenValues();
+      if (this.type === "single") {
+        if (open.has(itemVal)) {
+          this.setOpenValues(/* @__PURE__ */ new Set());
+        } else {
+          this.setOpenValues(/* @__PURE__ */ new Set([itemVal]));
+        }
+      } else {
+        if (open.has(itemVal)) {
+          open.delete(itemVal);
+        } else {
+          open.add(itemVal);
+        }
+        this.setOpenValues(open);
+      }
+    };
+    this.onItemNav = (e6) => {
+      e6.stopPropagation();
+      const enabled = this.enabledItems;
+      if (!enabled.length) return;
+      const current = e6.target.closest("ship-accordion-item");
+      const idx = current ? enabled.indexOf(current) : -1;
+      let target;
+      switch (e6.detail.direction) {
+        case "next":
+          target = enabled[(idx + 1) % enabled.length];
+          break;
+        case "prev":
+          target = enabled[(idx - 1 + enabled.length) % enabled.length];
+          break;
+        case "first":
+          target = enabled[0];
+          break;
+        case "last":
+          target = enabled[enabled.length - 1];
+          break;
+      }
+      target?.focusTrigger();
+    };
+  }
+  connectedCallback() {
+    super.connectedCallback();
+    this.addEventListener("ship-accordion-item-toggle", this.onItemToggle);
+    this.addEventListener("ship-accordion-nav", this.onItemNav);
+  }
+  disconnectedCallback() {
+    super.disconnectedCallback();
+    this.removeEventListener("ship-accordion-item-toggle", this.onItemToggle);
+    this.removeEventListener("ship-accordion-nav", this.onItemNav);
+  }
+  get items() {
+    return Array.from(
+      this.querySelectorAll(":scope > ship-accordion-item")
+    );
+  }
+  get enabledItems() {
+    return this.items.filter((i6) => !i6.disabled);
+  }
+  getOpenValues() {
+    return new Set(this.value ? this.value.split(",").filter(Boolean) : []);
+  }
+  setOpenValues(vals) {
+    this.value = Array.from(vals).join(",");
+    this.syncItems();
+    this.dispatchEvent(new CustomEvent("ship-change", {
+      detail: { value: this.value },
+      bubbles: true,
+      composed: true
+    }));
+  }
+  updated() {
+    this.syncItems();
+  }
+  syncItems() {
+    const open = this.getOpenValues();
+    for (const item of this.items) {
+      item.open = open.has(item.value);
+    }
+  }
+  render() {
+    return b2`<slot></slot>`;
+  }
+};
+ShipAccordion.styles = shipAccordionStyles;
+ShipAccordion.properties = {
+  type: { type: String, reflect: true },
+  value: { type: String, reflect: true }
+};
+if (typeof customElements !== "undefined") {
+  if (!customElements.get("ship-accordion-item")) {
+    customElements.define("ship-accordion-item", ShipAccordionItem);
+  }
+  if (!customElements.get("ship-accordion")) {
+    customElements.define("ship-accordion", ShipAccordion);
+  }
+}
+
+// packages/ui/src/web-components/ship-alert.ts
 var ShipAlert = class extends i4 {
   constructor() {
     super();
@@ -681,7 +972,7 @@ if (typeof customElements !== "undefined" && !customElements.get("ship-alert")) 
   customElements.define("ship-alert", ShipAlert);
 }
 
-// ../../../packages/ui/src/web-components/ship-dialog.styles.ts
+// packages/ui/src/web-components/ship-dialog.styles.ts
 var shipDialogStyles = [reducedMotion, i`
   :host { display: contents; }
   :host([hidden]) { display: none; }
@@ -922,7 +1213,7 @@ var shipDialogStyles = [reducedMotion, i`
   }
 `];
 
-// ../../../packages/ui/src/web-components/focus.ts
+// packages/ui/src/web-components/focus.ts
 var FOCUSABLE_SELECTOR = [
   "a[href]",
   "area[href]",
@@ -962,7 +1253,7 @@ var FocusReturn = class {
   }
 };
 
-// ../../../packages/ui/src/web-components/ship-dialog.ts
+// packages/ui/src/web-components/ship-dialog.ts
 var scrollLockCount = 0;
 var savedBodyOverflow = null;
 var savedBodyPaddingRight = null;
@@ -1175,7 +1466,7 @@ if (typeof customElements !== "undefined" && !customElements.get("ship-dialog"))
   customElements.define("ship-dialog", ShipDialog);
 }
 
-// ../../../packages/ui/src/web-components/ship-button.ts
+// packages/ui/src/web-components/ship-button.ts
 var ShipButton = class extends i4 {
   constructor() {
     super(...arguments);
@@ -1639,7 +1930,7 @@ if (typeof customElements !== "undefined" && !customElements.get("ship-button"))
   customElements.define("ship-button", ShipButton);
 }
 
-// ../../../packages/ui/src/web-components/ship-alert-dialog.ts
+// packages/ui/src/web-components/ship-alert-dialog.ts
 var ShipAlertDialog = class extends i4 {
   constructor() {
     super(...arguments);
@@ -1690,7 +1981,7 @@ if (typeof customElements !== "undefined" && !customElements.get("ship-alert-dia
   customElements.define("ship-alert-dialog", ShipAlertDialog);
 }
 
-// ../../../packages/ui/src/utils/annotation-helpers.ts
+// packages/ui/src/utils/annotation-helpers.ts
 function getCSSSelector(el) {
   if (el.id) return `#${el.id}`;
   const tag = el.tagName.toLowerCase();
@@ -1752,7 +2043,7 @@ function buildAnnotationEvent(input) {
   return ev;
 }
 
-// ../../../packages/ui/src/web-components/ship-annotation-layer.internals.ts
+// packages/ui/src/web-components/ship-annotation-layer.internals.ts
 var layerStyles = i`
   :host {
     position: relative;
@@ -1850,7 +2141,7 @@ function renderPopover(host, at) {
   `;
 }
 
-// ../../../packages/ui/src/web-components/ship-annotation-marker.ts
+// packages/ui/src/web-components/ship-annotation-marker.ts
 var ShipAnnotationMarker = class extends i4 {
   constructor() {
     super(...arguments);
@@ -1943,7 +2234,7 @@ if (typeof customElements !== "undefined" && !customElements.get("ship-annotatio
   customElements.define("ship-annotation-marker", ShipAnnotationMarker);
 }
 
-// ../../../packages/ui/src/web-components/ship-annotation-layer.ts
+// packages/ui/src/web-components/ship-annotation-layer.ts
 var DEFAULT_ENDPOINT = "/api/runtime/feedback";
 var ShipAnnotationLayer = class extends i4 {
   constructor() {
@@ -2165,7 +2456,7 @@ if (typeof customElements !== "undefined" && !customElements.get("ship-annotatio
   customElements.define("ship-annotation-layer", ShipAnnotationLayer);
 }
 
-// ../../../packages/ui/src/web-components/ship-annotation-list.ts
+// packages/ui/src/web-components/ship-annotation-list.ts
 var ShipAnnotationList = class extends i4 {
   constructor() {
     super(...arguments);
@@ -2279,7 +2570,7 @@ if (typeof customElements !== "undefined" && !customElements.get("ship-annotatio
   customElements.define("ship-annotation-list", ShipAnnotationList);
 }
 
-// ../../../packages/ui/src/web-components/ship-badge.styles.ts
+// packages/ui/src/web-components/ship-badge.styles.ts
 var shipBadgeStyles = [
   reducedMotion,
   i`
@@ -2483,7 +2774,7 @@ var shipBadgeStyles = [
   `
 ];
 
-// ../../../packages/ui/src/web-components/ship-badge.ts
+// packages/ui/src/web-components/ship-badge.ts
 var ShipBadge = class extends i4 {
   constructor() {
     super();
@@ -2512,7 +2803,7 @@ if (typeof customElements !== "undefined" && !customElements.get("ship-badge")) 
   customElements.define("ship-badge", ShipBadge);
 }
 
-// ../../../packages/ui/src/web-components/ship-card.styles.ts
+// packages/ui/src/web-components/ship-card.styles.ts
 var shipCardStyles = [
   reducedMotion,
   toneVars,
@@ -2706,7 +2997,7 @@ var shipCardStyles = [
   `
 ];
 
-// ../../../packages/ui/src/web-components/ship-card.ts
+// packages/ui/src/web-components/ship-card.ts
 var ShipCard = class extends i4 {
   constructor() {
     super(...arguments);
@@ -2789,7 +3080,7 @@ if (typeof customElements !== "undefined" && !customElements.get("ship-card")) {
   customElements.define("ship-card", ShipCard);
 }
 
-// ../../../packages/ui/src/web-components/ship-checkbox.styles.ts
+// packages/ui/src/web-components/ship-checkbox.styles.ts
 var shipCheckboxStyles = [
   reducedMotion,
   i`
@@ -3027,7 +3318,7 @@ var shipCheckboxStyles = [
   `
 ];
 
-// ../../../packages/ui/src/web-components/ship-checkbox.ts
+// packages/ui/src/web-components/ship-checkbox.ts
 var ShipCheckbox = class extends i4 {
   constructor() {
     super();
@@ -3129,7 +3420,117 @@ if (typeof customElements !== "undefined" && !customElements.get("ship-checkbox"
   customElements.define("ship-checkbox", ShipCheckbox);
 }
 
-// ../../../packages/ui/src/web-components/typeahead.ts
+// packages/ui/src/web-components/ship-collapsible.styles.ts
+var shipCollapsibleStyles = [
+  reducedMotion,
+  i`
+    :host {
+      display: block;
+      font-family: var(--font-body);
+      color: var(--foreground);
+    }
+    :host([hidden]) { display: none; }
+
+    .content-wrap {
+      display: grid;
+      grid-template-rows: 0fr;
+      transition: grid-template-rows var(--duration-normal, 200ms) var(--ease-out);
+    }
+    :host([open]) .content-wrap {
+      grid-template-rows: 1fr;
+    }
+
+    .content-inner {
+      overflow: hidden;
+    }
+
+    ::slotted([slot='trigger']) {
+      cursor: pointer;
+      user-select: none;
+      -webkit-user-select: none;
+    }
+    :host([disabled]) ::slotted([slot='trigger']) {
+      cursor: not-allowed;
+      opacity: 0.5;
+    }
+  `
+];
+
+// packages/ui/src/web-components/ship-collapsible.ts
+var _ShipCollapsible = class _ShipCollapsible extends i4 {
+  constructor() {
+    super(...arguments);
+    this.open = false;
+    this.disabled = false;
+    this.uid = ++_ShipCollapsible._idSeq;
+    this.toggle = () => {
+      if (this.disabled) return;
+      this.open = !this.open;
+      this.dispatchEvent(new CustomEvent("ship-toggle", {
+        detail: { open: this.open },
+        bubbles: true,
+        composed: true
+      }));
+    };
+    this.onTriggerKeydown = (e6) => {
+      if (e6.key === "Enter" || e6.key === " ") {
+        e6.preventDefault();
+        this.toggle();
+      }
+    };
+    this.onTriggerSlotChange = (e6) => {
+      const slot = e6.target;
+      for (const el of slot.assignedElements()) {
+        const h3 = el;
+        h3.setAttribute("aria-expanded", String(this.open));
+        h3.setAttribute("aria-controls", this.contentId);
+        if (!h3.hasAttribute("tabindex") && !h3.matches("button, a, input, select, textarea")) {
+          h3.setAttribute("tabindex", "0");
+        }
+      }
+    };
+  }
+  get contentId() {
+    return `ship-collapsible-${this.uid}`;
+  }
+  updated(changed) {
+    if (changed.has("open")) {
+      const slot = this.renderRoot.querySelector("slot[name=trigger]");
+      if (slot) {
+        for (const el of slot.assignedElements()) {
+          el.setAttribute("aria-expanded", String(this.open));
+        }
+      }
+    }
+  }
+  render() {
+    return b2`
+      <div @click=${this.toggle} @keydown=${this.onTriggerKeydown}>
+        <slot name="trigger" @slotchange=${this.onTriggerSlotChange}></slot>
+      </div>
+      <div class="content-wrap" part="content"
+        id=${this.contentId}
+        role="region"
+      >
+        <div class="content-inner">
+          <slot></slot>
+        </div>
+      </div>
+    `;
+  }
+};
+_ShipCollapsible.styles = shipCollapsibleStyles;
+_ShipCollapsible.properties = {
+  open: { type: Boolean, reflect: true },
+  disabled: { type: Boolean, reflect: true }
+};
+_ShipCollapsible._idSeq = 0;
+var ShipCollapsible = _ShipCollapsible;
+if (typeof customElements !== "undefined" && !customElements.get("ship-collapsible")) {
+  customElements.define("ship-collapsible", ShipCollapsible);
+}
+
+// packages/ui/src/web-components/typeahead.ts
 var Typeahead = class {
   constructor(timeout = 500) {
     this.timeout = timeout;
@@ -3172,7 +3573,7 @@ function isTypeaheadKey(e6) {
   return e6.key.length === 1 && /\S/.test(e6.key);
 }
 
-// ../../../packages/ui/src/web-components/ship-dropdown-menu.ts
+// packages/ui/src/web-components/ship-dropdown-menu.ts
 var ShipDropdownMenu = class extends i4 {
   constructor() {
     super(...arguments);
@@ -3344,7 +3745,7 @@ if (typeof customElements !== "undefined" && !customElements.get("ship-dropdown-
   customElements.define("ship-dropdown-menu", ShipDropdownMenu);
 }
 
-// ../../../packages/ui/src/web-components/ship-empty-state.styles.ts
+// packages/ui/src/web-components/ship-empty-state.styles.ts
 var shipEmptyStateStyles = [
   reducedMotion,
   toneVars,
@@ -3594,7 +3995,7 @@ var shipEmptyStateStyles = [
   `
 ];
 
-// ../../../packages/ui/src/web-components/utility/ship-icon.ts
+// packages/ui/src/web-components/utility/ship-icon.ts
 var ICONS = {
   "chevron-down": "M6 9l6 6 6-6",
   "chevron-right": "M9 6l6 6-6 6",
@@ -3677,7 +4078,7 @@ if (typeof customElements !== "undefined" && !customElements.get("ship-icon")) {
   customElements.define("ship-icon", ShipIcon);
 }
 
-// ../../../packages/ui/src/web-components/ship-empty-state.ts
+// packages/ui/src/web-components/ship-empty-state.ts
 var ShipEmptyState = class extends i4 {
   constructor() {
     super(...arguments);
@@ -3759,7 +4160,7 @@ if (typeof customElements !== "undefined" && !customElements.get("ship-empty-sta
   customElements.define("ship-empty-state", ShipEmptyState);
 }
 
-// ../../../packages/ui/src/web-components/ship-field.ts
+// packages/ui/src/web-components/ship-field.ts
 var _ShipField = class _ShipField extends i4 {
   constructor() {
     super(...arguments);
@@ -3810,7 +4211,7 @@ if (typeof customElements !== "undefined" && !customElements.get("ship-field")) 
   customElements.define("ship-field", ShipField);
 }
 
-// ../../../packages/ui/src/web-components/ship-input.styles.ts
+// packages/ui/src/web-components/ship-input.styles.ts
 var shipInputStyles = [reducedMotion, i`
   :host {
     display: inline-flex;
@@ -4009,7 +4410,7 @@ var shipInputStyles = [reducedMotion, i`
   }
 `];
 
-// ../../../packages/ui/src/web-components/ship-input.ts
+// packages/ui/src/web-components/ship-input.ts
 var _ShipInput = class _ShipInput extends i4 {
   constructor() {
     super();
@@ -4111,7 +4512,7 @@ if (typeof customElements !== "undefined" && !customElements.get("ship-input")) 
   customElements.define("ship-input", ShipInput);
 }
 
-// ../../../packages/ui/src/web-components/ship-label.ts
+// packages/ui/src/web-components/ship-label.ts
 var ShipLabel = class extends i4 {
   constructor() {
     super(...arguments);
@@ -4150,7 +4551,7 @@ if (typeof customElements !== "undefined" && !customElements.get("ship-label")) 
   customElements.define("ship-label", ShipLabel);
 }
 
-// ../../../packages/ui/src/web-components/ship-list-item.ts
+// packages/ui/src/web-components/ship-list-item.ts
 var ShipListItem = class extends i4 {
   constructor() {
     super(...arguments);
@@ -4240,7 +4641,7 @@ if (typeof customElements !== "undefined" && !customElements.get("ship-list-item
   customElements.define("ship-list-item", ShipListItem);
 }
 
-// ../../../packages/ui/src/web-components/ship-popover.ts
+// packages/ui/src/web-components/ship-popover.ts
 var _ShipPopover = class _ShipPopover extends i4 {
   constructor() {
     super(...arguments);
@@ -4355,7 +4756,7 @@ if (typeof customElements !== "undefined" && !customElements.get("ship-popover")
   customElements.define("ship-popover", ShipPopover);
 }
 
-// ../../../packages/ui/src/web-components/ship-progress.ts
+// packages/ui/src/web-components/ship-progress.ts
 var ShipProgress = class extends i4 {
   constructor() {
     super();
@@ -4420,7 +4821,334 @@ if (typeof customElements !== "undefined" && !customElements.get("ship-progress"
   customElements.define("ship-progress", ShipProgress);
 }
 
-// ../../../packages/ui/src/web-components/ship-select.styles.ts
+// packages/ui/src/web-components/ship-radio-group.styles.ts
+var shipRadioGroupStyles = [
+  reducedMotion,
+  i`
+    :host {
+      display: flex;
+      flex-direction: column;
+      gap: var(--space-2);
+      font-family: var(--font-body);
+      color: var(--foreground);
+    }
+    :host([hidden]) { display: none; }
+  `
+];
+var shipRadioStyles = [
+  reducedMotion,
+  i`
+    :host {
+      display: inline-flex;
+      align-items: center;
+      gap: var(--space-2);
+      vertical-align: middle;
+      font-family: var(--font-body);
+      font-size: var(--text-base);
+      color: var(--foreground);
+      -webkit-tap-highlight-color: transparent;
+
+      --tone: var(--primary);
+    }
+    :host([hidden]) { display: none; }
+
+    /* Tone channel — inherited from group or set directly */
+    :host(:not([tone])),
+    :host([tone='default']) { --tone: var(--primary); }
+    :host([tone='info'])        { --tone: var(--info); }
+    :host([tone='success'])     { --tone: var(--success); }
+    :host([tone='warning'])     { --tone: var(--warning); }
+    :host([tone='destructive']) { --tone: var(--destructive); }
+    :host([tone='accent'])      { --tone: var(--accent); }
+    :host([tone='muted'])       { --tone: var(--muted-foreground); }
+
+    /* Size channel */
+    :host(:not([size])),
+    :host([size='md']) {
+      --rd-size: 16px;
+      --rd-dot: 8px;
+    }
+    :host([size='sm']) {
+      --rd-size: 14px;
+      --rd-dot: 6px;
+    }
+    :host([size='lg']) {
+      --rd-size: 20px;
+      --rd-dot: 10px;
+    }
+
+    label {
+      display: inline-flex;
+      align-items: center;
+      gap: var(--space-2);
+      cursor: pointer;
+      user-select: none;
+      -webkit-user-select: none;
+    }
+    :host([disabled]) label { cursor: not-allowed; }
+
+    /* Circle */
+    .circle {
+      position: relative;
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      flex-shrink: 0;
+      width: var(--rd-size);
+      height: var(--rd-size);
+      background: var(--background);
+      border: 1px solid color-mix(in oklch, var(--border) 160%, transparent);
+      border-radius: 50%;
+      box-sizing: border-box;
+      transition:
+        border-color var(--duration-fast) var(--ease-out),
+        box-shadow var(--duration-fast) var(--ease-out);
+    }
+
+    /* Hover */
+    :host(:not([disabled]):not([checked])) label:hover .circle {
+      border-color: color-mix(in oklch, var(--border) 220%, transparent);
+    }
+
+    /* Checked — border takes tone color */
+    :host([checked]) .circle {
+      border-color: var(--tone);
+    }
+
+    /* Dot */
+    .dot {
+      width: var(--rd-dot);
+      height: var(--rd-dot);
+      border-radius: 50%;
+      background: var(--tone);
+      opacity: 0;
+      transform: scale(0);
+      transition:
+        opacity var(--duration-fast) var(--ease-out),
+        transform var(--duration-fast) var(--ease-out);
+    }
+    :host([checked]) .dot {
+      opacity: 1;
+      transform: scale(1);
+    }
+
+    /* Native input — visually hidden */
+    input {
+      position: absolute;
+      inset: 0;
+      width: 100%;
+      height: 100%;
+      margin: 0;
+      padding: 0;
+      opacity: 0;
+      cursor: inherit;
+      appearance: none;
+      -webkit-appearance: none;
+    }
+
+    /* Focus ring */
+    :host(:not([disabled])) label:has(input:focus-visible) .circle {
+      box-shadow:
+        0 0 0 var(--ring-offset) var(--background),
+        0 0 0 calc(var(--ring-offset) + var(--ring-width))
+          color-mix(in oklch, var(--tone) var(--ring-opacity), transparent);
+    }
+    @media (forced-colors: active) {
+      .circle { border-color: CanvasText; }
+      :host([checked]) .dot { background: Highlight; }
+      :host(:not([disabled])) label:has(input:focus-visible) .circle {
+        outline: 2px solid CanvasText;
+        outline-offset: 2px;
+      }
+    }
+
+    /* Disabled */
+    :host([disabled]) {
+      color: var(--muted-foreground);
+    }
+    :host([disabled]) .circle {
+      background: var(--muted);
+      border-color: color-mix(in oklch, var(--border) 70%, transparent);
+      filter: saturate(0.6);
+    }
+    :host([disabled][checked]) .circle {
+      border-color: color-mix(in oklch, var(--tone) 50%, var(--border));
+    }
+    :host([disabled][checked]) .dot {
+      background: color-mix(in oklch, var(--tone) 55%, var(--muted));
+    }
+
+    ::slotted(*) {
+      font: inherit;
+      color: inherit;
+      line-height: var(--leading-tight);
+    }
+  `
+];
+
+// packages/ui/src/web-components/ship-radio-group.ts
+var ShipRadio = class extends i4 {
+  constructor() {
+    super(...arguments);
+    this.value = "";
+    this.disabled = false;
+    this.checked = false;
+    this.onClick = () => {
+      if (this.disabled) return;
+      this.dispatchEvent(new CustomEvent("ship-radio-select", {
+        detail: { value: this.value },
+        bubbles: true,
+        composed: true
+      }));
+    };
+    this.onKeydown = (e6) => {
+      const nav = ["ArrowDown", "ArrowRight", "ArrowUp", "ArrowLeft"];
+      if (nav.includes(e6.key)) {
+        e6.preventDefault();
+        const forward = e6.key === "ArrowDown" || e6.key === "ArrowRight";
+        this.dispatchEvent(new CustomEvent("ship-radio-nav", {
+          detail: { direction: forward ? "next" : "prev" },
+          bubbles: true,
+          composed: true
+        }));
+      }
+    };
+  }
+  /** Focus the native input from the group's keyboard handler. */
+  focusInput() {
+    const input = this.renderRoot.querySelector("input");
+    input?.focus();
+  }
+  render() {
+    return b2`
+      <label>
+        <span class="circle" part="circle">
+          <input
+            part="input"
+            type="radio"
+            role="radio"
+            .checked=${this.checked}
+            ?disabled=${this.disabled}
+            aria-checked=${this.checked ? "true" : "false"}
+            aria-label=${this.value}
+            tabindex=${this.checked ? "0" : "-1"}
+            @click=${this.onClick}
+            @keydown=${this.onKeydown}
+          />
+          <span class="dot" part="dot" aria-hidden="true"></span>
+        </span>
+        <slot></slot>
+      </label>
+    `;
+  }
+};
+ShipRadio.styles = shipRadioStyles;
+ShipRadio.properties = {
+  value: { type: String, reflect: true },
+  disabled: { type: Boolean, reflect: true },
+  checked: { type: Boolean, reflect: true },
+  tone: { type: String, reflect: true },
+  size: { type: String, reflect: true }
+};
+var ShipRadioGroup = class extends i4 {
+  constructor() {
+    super(...arguments);
+    this.value = "";
+    this.disabled = false;
+    this.name = "";
+    this.label = "";
+    this.onRadioSelect = (e6) => {
+      e6.stopPropagation();
+      const newValue = e6.detail.value;
+      if (newValue === this.value) return;
+      this.value = newValue;
+      this.syncRadios();
+      this.dispatchEvent(new CustomEvent("ship-change", {
+        detail: { value: this.value },
+        bubbles: true,
+        composed: true
+      }));
+    };
+    this.onRadioNav = (e6) => {
+      e6.stopPropagation();
+      const enabled = this.enabledRadios;
+      if (!enabled.length) return;
+      const current = e6.target.closest("ship-radio");
+      const idx = current ? enabled.indexOf(current) : -1;
+      let next;
+      if (e6.detail.direction === "next") {
+        next = enabled[(idx + 1) % enabled.length];
+      } else {
+        next = enabled[(idx - 1 + enabled.length) % enabled.length];
+      }
+      this.value = next.value;
+      this.syncRadios();
+      next.focusInput();
+      this.dispatchEvent(new CustomEvent("ship-change", {
+        detail: { value: this.value },
+        bubbles: true,
+        composed: true
+      }));
+    };
+  }
+  connectedCallback() {
+    super.connectedCallback();
+    if (!this.hasAttribute("role")) this.setAttribute("role", "radiogroup");
+    if (this.label) this.setAttribute("aria-label", this.label);
+    this.addEventListener("ship-radio-select", this.onRadioSelect);
+    this.addEventListener("ship-radio-nav", this.onRadioNav);
+  }
+  disconnectedCallback() {
+    super.disconnectedCallback();
+    this.removeEventListener("ship-radio-select", this.onRadioSelect);
+    this.removeEventListener("ship-radio-nav", this.onRadioNav);
+  }
+  get radios() {
+    return Array.from(this.querySelectorAll(":scope > ship-radio"));
+  }
+  get enabledRadios() {
+    return this.radios.filter((r4) => !r4.disabled && !this.disabled);
+  }
+  updated() {
+    this.syncRadios();
+  }
+  syncRadios() {
+    for (const radio of this.radios) {
+      radio.checked = radio.value === this.value;
+      if (this.tone && !radio.hasAttribute("tone")) {
+        radio.tone = this.tone;
+      }
+      if (this.size && !radio.hasAttribute("size")) {
+        radio.size = this.size;
+      }
+      if (this.disabled) {
+        radio.disabled = true;
+      }
+    }
+  }
+  render() {
+    return b2`<slot></slot>`;
+  }
+};
+ShipRadioGroup.styles = shipRadioGroupStyles;
+ShipRadioGroup.properties = {
+  value: { type: String, reflect: true },
+  disabled: { type: Boolean, reflect: true },
+  tone: { type: String, reflect: true },
+  size: { type: String, reflect: true },
+  name: { type: String },
+  label: { type: String }
+};
+if (typeof customElements !== "undefined") {
+  if (!customElements.get("ship-radio")) {
+    customElements.define("ship-radio", ShipRadio);
+  }
+  if (!customElements.get("ship-radio-group")) {
+    customElements.define("ship-radio-group", ShipRadioGroup);
+  }
+}
+
+// packages/ui/src/web-components/ship-select.styles.ts
 var shipSelectStyles = [reducedMotion, i`
   :host {
     display: inline-flex;
@@ -4655,7 +5383,7 @@ var shipSelectStyles = [reducedMotion, i`
   }
 `];
 
-// ../../../packages/ui/src/web-components/ship-select.ts
+// packages/ui/src/web-components/ship-select.ts
 var ShipSelect = class extends i4 {
   constructor() {
     super();
@@ -4785,7 +5513,7 @@ if (typeof customElements !== "undefined" && !customElements.get("ship-select"))
   customElements.define("ship-select", ShipSelect);
 }
 
-// ../../../packages/ui/src/web-components/ship-separator.ts
+// packages/ui/src/web-components/ship-separator.ts
 var ShipSeparator = class extends i4 {
   constructor() {
     super(...arguments);
@@ -4821,7 +5549,248 @@ if (typeof customElements !== "undefined" && !customElements.get("ship-separator
   customElements.define("ship-separator", ShipSeparator);
 }
 
-// ../../../packages/ui/src/web-components/ship-spinner.ts
+// packages/ui/src/web-components/ship-slider.styles.ts
+var shipSliderStyles = [
+  reducedMotion,
+  i`
+    :host {
+      display: block;
+      font-family: var(--font-body);
+      color: var(--foreground);
+      -webkit-tap-highlight-color: transparent;
+      --tone: var(--primary);
+    }
+    :host([hidden]) { display: none; }
+
+    :host(:not([tone])),
+    :host([tone='default']) { --tone: var(--primary); }
+    :host([tone='info'])        { --tone: var(--info); }
+    :host([tone='success'])     { --tone: var(--success); }
+    :host([tone='warning'])     { --tone: var(--warning); }
+    :host([tone='destructive']) { --tone: var(--destructive); }
+    :host([tone='accent'])      { --tone: var(--accent); }
+    :host([tone='muted'])       { --tone: var(--muted-foreground); }
+
+    /* Size channel */
+    :host(:not([size])),
+    :host([size='md']) {
+      --sl-h: 6px;
+      --sl-thumb: 16px;
+    }
+    :host([size='sm']) {
+      --sl-h: 4px;
+      --sl-thumb: 12px;
+    }
+    :host([size='lg']) {
+      --sl-h: 8px;
+      --sl-thumb: 20px;
+    }
+
+    .container {
+      position: relative;
+      display: flex;
+      align-items: center;
+      width: 100%;
+      height: var(--sl-thumb);
+      cursor: pointer;
+      touch-action: none;
+    }
+    :host([disabled]) .container {
+      cursor: not-allowed;
+      opacity: 0.5;
+    }
+
+    /* Track */
+    .track {
+      position: relative;
+      width: 100%;
+      height: var(--sl-h);
+      background: var(--muted);
+      border-radius: var(--radius-full);
+      overflow: hidden;
+    }
+
+    /* Filled portion */
+    .fill {
+      position: absolute;
+      top: 0;
+      left: 0;
+      height: 100%;
+      background: var(--tone);
+      border-radius: inherit;
+      transition: width 0ms;
+    }
+
+    /* Thumb */
+    .thumb {
+      position: absolute;
+      top: 50%;
+      width: var(--sl-thumb);
+      height: var(--sl-thumb);
+      background: var(--background);
+      border: 2px solid var(--tone);
+      border-radius: 50%;
+      box-shadow: var(--shadow-sm);
+      transform: translate(-50%, -50%);
+      transition:
+        box-shadow var(--duration-fast) var(--ease-out),
+        transform var(--duration-fast) var(--ease-out);
+      box-sizing: border-box;
+    }
+    .thumb:hover {
+      box-shadow: var(--shadow-md);
+      transform: translate(-50%, -50%) scale(1.05);
+    }
+    .thumb:active {
+      transform: translate(-50%, -50%) scale(0.95);
+    }
+
+    /* Focus ring */
+    :host(:not([disabled])) .thumb:focus-visible {
+      outline: none;
+      box-shadow:
+        0 0 0 var(--ring-offset) var(--background),
+        0 0 0 calc(var(--ring-offset) + var(--ring-width))
+          color-mix(in oklch, var(--tone) var(--ring-opacity), transparent);
+    }
+    @media (forced-colors: active) {
+      .thumb:focus-visible {
+        outline: 2px solid CanvasText;
+        outline-offset: 2px;
+      }
+      .thumb { border-color: CanvasText; }
+      .fill { background: Highlight; }
+    }
+  `
+];
+
+// packages/ui/src/web-components/ship-slider.ts
+var ShipSlider = class extends i4 {
+  constructor() {
+    super(...arguments);
+    this.value = 0;
+    this.min = 0;
+    this.max = 100;
+    this.step = 1;
+    this.disabled = false;
+    this.size = "md";
+    this.label = "";
+    this.dragging = false;
+    this.onPointerDown = (e6) => {
+      if (this.disabled) return;
+      e6.preventDefault();
+      this.dragging = true;
+      this.setValue(this.valueFromPointer(e6.clientX));
+      const thumb = this.renderRoot.querySelector(".thumb");
+      thumb?.focus();
+      const onMove = (ev) => {
+        if (!this.dragging) return;
+        this.setValue(this.valueFromPointer(ev.clientX));
+      };
+      const onUp = () => {
+        this.dragging = false;
+        document.removeEventListener("pointermove", onMove);
+        document.removeEventListener("pointerup", onUp);
+      };
+      document.addEventListener("pointermove", onMove);
+      document.addEventListener("pointerup", onUp);
+    };
+    this.onKeydown = (e6) => {
+      if (this.disabled) return;
+      let handled = true;
+      switch (e6.key) {
+        case "ArrowRight":
+        case "ArrowUp":
+          this.setValue(this.value + this.step);
+          break;
+        case "ArrowLeft":
+        case "ArrowDown":
+          this.setValue(this.value - this.step);
+          break;
+        case "Home":
+          this.setValue(this.min);
+          break;
+        case "End":
+          this.setValue(this.max);
+          break;
+        case "PageUp":
+          this.setValue(this.value + this.step * 10);
+          break;
+        case "PageDown":
+          this.setValue(this.value - this.step * 10);
+          break;
+        default:
+          handled = false;
+      }
+      if (handled) e6.preventDefault();
+    };
+  }
+  get pct() {
+    const range = this.max - this.min;
+    if (range <= 0) return 0;
+    return (this.value - this.min) / range * 100;
+  }
+  clamp(v2) {
+    const stepped = Math.round((v2 - this.min) / this.step) * this.step + this.min;
+    return Math.max(this.min, Math.min(this.max, stepped));
+  }
+  setValue(v2) {
+    const clamped = this.clamp(v2);
+    if (clamped === this.value) return;
+    this.value = clamped;
+    this.dispatchEvent(new CustomEvent("ship-change", {
+      detail: { value: this.value },
+      bubbles: true,
+      composed: true
+    }));
+  }
+  valueFromPointer(clientX) {
+    const track = this.renderRoot.querySelector(".track");
+    if (!track) return this.value;
+    const rect = track.getBoundingClientRect();
+    const pct = Math.max(0, Math.min(1, (clientX - rect.left) / rect.width));
+    return this.min + pct * (this.max - this.min);
+  }
+  render() {
+    const pct = this.pct;
+    return b2`
+      <div class="container" @pointerdown=${this.onPointerDown}>
+        <div class="track" part="track">
+          <div class="fill" part="fill" style="width: ${pct}%"></div>
+        </div>
+        <div
+          class="thumb"
+          part="thumb"
+          role="slider"
+          tabindex=${this.disabled ? "-1" : "0"}
+          aria-valuemin=${this.min}
+          aria-valuemax=${this.max}
+          aria-valuenow=${this.value}
+          aria-label=${this.label || "slider"}
+          aria-disabled=${this.disabled ? "true" : "false"}
+          style="left: ${pct}%"
+          @keydown=${this.onKeydown}
+        ></div>
+      </div>
+    `;
+  }
+};
+ShipSlider.styles = shipSliderStyles;
+ShipSlider.properties = {
+  value: { type: Number, reflect: true },
+  min: { type: Number },
+  max: { type: Number },
+  step: { type: Number },
+  disabled: { type: Boolean, reflect: true },
+  tone: { type: String, reflect: true },
+  size: { type: String, reflect: true },
+  label: { type: String }
+};
+if (typeof customElements !== "undefined" && !customElements.get("ship-slider")) {
+  customElements.define("ship-slider", ShipSlider);
+}
+
+// packages/ui/src/web-components/ship-spinner.ts
 var ShipSpinner = class extends i4 {
   constructor() {
     super();
@@ -4859,7 +5828,7 @@ if (typeof customElements !== "undefined" && !customElements.get("ship-spinner")
   customElements.define("ship-spinner", ShipSpinner);
 }
 
-// ../../../packages/ui/src/web-components/ship-stat.ts
+// packages/ui/src/web-components/ship-stat.ts
 var ShipStat = class extends i4 {
   constructor() {
     super(...arguments);
@@ -4963,7 +5932,7 @@ if (typeof customElements !== "undefined" && !customElements.get("ship-stat")) {
   customElements.define("ship-stat", ShipStat);
 }
 
-// ../../../packages/ui/src/web-components/ship-status-dot.ts
+// packages/ui/src/web-components/ship-status-dot.ts
 var ShipStatusDot = class extends i4 {
   constructor() {
     super();
@@ -5009,7 +5978,7 @@ if (typeof customElements !== "undefined" && !customElements.get("ship-status-do
   customElements.define("ship-status-dot", ShipStatusDot);
 }
 
-// ../../../packages/ui/src/web-components/ship-switch.styles.ts
+// packages/ui/src/web-components/ship-switch.styles.ts
 var shipSwitchStyles = [
   reducedMotion,
   i`
@@ -5211,7 +6180,7 @@ var shipSwitchStyles = [
   `
 ];
 
-// ../../../packages/ui/src/web-components/ship-switch.ts
+// packages/ui/src/web-components/ship-switch.ts
 var ShipSwitch = class extends i4 {
   constructor() {
     super();
@@ -5290,7 +6259,7 @@ if (typeof customElements !== "undefined" && !customElements.get("ship-switch"))
   customElements.define("ship-switch", ShipSwitch);
 }
 
-// ../../../packages/ui/src/web-components/ship-tabs.styles.ts
+// packages/ui/src/web-components/ship-tabs.styles.ts
 var shipTabsStyles = [reducedMotion, i`
   :host {
     display: block;
@@ -5561,7 +6530,7 @@ var shipTabPanelStyles = [reducedMotion, i`
   }
 `];
 
-// ../../../packages/ui/src/web-components/ship-tabs.ts
+// packages/ui/src/web-components/ship-tabs.ts
 var ShipTab = class extends i4 {
   constructor() {
     super(...arguments);
@@ -5770,7 +6739,7 @@ if (typeof customElements !== "undefined") {
   if (!customElements.get("ship-tabs")) customElements.define("ship-tabs", ShipTabs);
 }
 
-// ../../../packages/ui/src/web-components/ship-textarea.styles.ts
+// packages/ui/src/web-components/ship-textarea.styles.ts
 var shipTextareaStyles = [reducedMotion, i`
   :host {
     display: block;
@@ -5883,7 +6852,7 @@ var shipTextareaStyles = [reducedMotion, i`
   }
 `];
 
-// ../../../packages/ui/src/web-components/ship-textarea.ts
+// packages/ui/src/web-components/ship-textarea.ts
 var ShipTextarea = class extends i4 {
   constructor() {
     super();
@@ -5971,7 +6940,7 @@ if (typeof customElements !== "undefined" && !customElements.get("ship-textarea"
   customElements.define("ship-textarea", ShipTextarea);
 }
 
-// ../../../packages/ui/src/web-components/ship-theme-toggle.ts
+// packages/ui/src/web-components/ship-theme-toggle.ts
 var STORAGE_KEY = "ship-theme";
 var ShipThemeToggle = class extends i4 {
   constructor() {
@@ -6043,7 +7012,7 @@ if (typeof customElements !== "undefined" && !customElements.get("ship-theme-tog
   customElements.define("ship-theme-toggle", ShipThemeToggle);
 }
 
-// ../../../packages/ui/src/web-components/ship-toolbar.ts
+// packages/ui/src/web-components/ship-toolbar.ts
 var ShipToolbar = class extends i4 {
   constructor() {
     super(...arguments);
@@ -6107,7 +7076,7 @@ if (typeof customElements !== "undefined" && !customElements.get("ship-toolbar")
   customElements.define("ship-toolbar", ShipToolbar);
 }
 
-// ../../../packages/ui/src/web-components/ship-tooltip.ts
+// packages/ui/src/web-components/ship-tooltip.ts
 var _ShipTooltip = class _ShipTooltip extends i4 {
   constructor() {
     super(...arguments);
@@ -6195,7 +7164,7 @@ if (typeof customElements !== "undefined" && !customElements.get("ship-tooltip")
   customElements.define("ship-tooltip", ShipTooltip);
 }
 
-// ../../../packages/ui/src/web-components/domain/ship-pipeline-step.ts
+// packages/ui/src/web-components/domain/ship-pipeline-step.ts
 var ShipPipelineStep = class extends i4 {
   constructor() {
     super(...arguments);
@@ -6305,7 +7274,7 @@ if (typeof customElements !== "undefined" && !customElements.get("ship-pipeline-
   customElements.define("ship-pipeline-step", ShipPipelineStep);
 }
 
-// ../../../packages/ui/src/web-components/domain/ship-pipeline-run.ts
+// packages/ui/src/web-components/domain/ship-pipeline-run.ts
 var STATE_TO_TONE = {
   dispatched: "info",
   running: "info",
@@ -6381,7 +7350,7 @@ if (typeof customElements !== "undefined" && !customElements.get("ship-pipeline-
   customElements.define("ship-pipeline-run", ShipPipelineRun);
 }
 
-// ../../../packages/ui/src/web-components/domain/ship-pipeline-definition.ts
+// packages/ui/src/web-components/domain/ship-pipeline-definition.ts
 var ShipPipelineDefinition = class extends i4 {
   constructor() {
     super(...arguments);
@@ -6451,7 +7420,7 @@ if (typeof customElements !== "undefined" && !customElements.get("ship-pipeline-
   customElements.define("ship-pipeline-definition", ShipPipelineDefinition);
 }
 
-// ../../../packages/ui/src/web-components/domain/ship-pipeline-dag.ts
+// packages/ui/src/web-components/domain/ship-pipeline-dag.ts
 var ShipPipelineDag = class extends i4 {
   connectedCallback() {
     super.connectedCallback();
@@ -6482,7 +7451,7 @@ if (typeof customElements !== "undefined" && !customElements.get("ship-pipeline-
   customElements.define("ship-pipeline-dag", ShipPipelineDag);
 }
 
-// ../../../packages/ui/src/web-components/domain/ship-history-row.ts
+// packages/ui/src/web-components/domain/ship-history-row.ts
 var ShipHistoryRow = class extends i4 {
   constructor() {
     super(...arguments);
@@ -6522,7 +7491,7 @@ if (typeof customElements !== "undefined" && !customElements.get("ship-history-r
   customElements.define("ship-history-row", ShipHistoryRow);
 }
 
-// ../../../packages/ui/src/web-components/domain/ship-spec-row.ts
+// packages/ui/src/web-components/domain/ship-spec-row.ts
 var STATUS_TO_TONE = {
   draft: "muted",
   ready: "success",
@@ -6569,7 +7538,7 @@ if (typeof customElements !== "undefined" && !customElements.get("ship-spec-row"
   customElements.define("ship-spec-row", ShipSpecRow);
 }
 
-// ../../../packages/ui/src/web-components/domain/ship-git-diff.ts
+// packages/ui/src/web-components/domain/ship-git-diff.ts
 var ShipGitDiff = class extends i4 {
   constructor() {
     super(...arguments);
@@ -6839,7 +7808,7 @@ if (typeof customElements !== "undefined") {
   if (!customElements.get("ship-git-diff-line")) customElements.define("ship-git-diff-line", ShipGitDiffLine);
 }
 
-// ../../../packages/ui/src/web-components/observability/ship-log-line.ts
+// packages/ui/src/web-components/observability/ship-log-line.ts
 var ShipLogLine = class extends i4 {
   constructor() {
     super(...arguments);
@@ -6897,7 +7866,7 @@ if (typeof customElements !== "undefined" && !customElements.get("ship-log-line"
   customElements.define("ship-log-line", ShipLogLine);
 }
 
-// ../../../packages/ui/src/web-components/observability/ship-event-row.ts
+// packages/ui/src/web-components/observability/ship-event-row.ts
 var ShipEventRow = class extends i4 {
   connectedCallback() {
     super.connectedCallback();
@@ -6947,7 +7916,7 @@ if (typeof customElements !== "undefined" && !customElements.get("ship-event-row
   customElements.define("ship-event-row", ShipEventRow);
 }
 
-// ../../../packages/ui/src/web-components/observability/ship-timestamp.ts
+// packages/ui/src/web-components/observability/ship-timestamp.ts
 var MINUTE = 6e4;
 var HOUR = 36e5;
 var DAY = 864e5;
@@ -7009,7 +7978,7 @@ if (typeof customElements !== "undefined" && !customElements.get("ship-timestamp
   customElements.define("ship-timestamp", ShipTimestamp);
 }
 
-// ../../../packages/ui/src/web-components/observability/ship-json-view.ts
+// packages/ui/src/web-components/observability/ship-json-view.ts
 var ShipJsonView = class extends i4 {
   constructor() {
     super(...arguments);
@@ -7104,7 +8073,7 @@ if (typeof customElements !== "undefined" && !customElements.get("ship-json-view
   customElements.define("ship-json-view", ShipJsonView);
 }
 
-// ../../../packages/ui/src/web-components/observability/ship-diff.ts
+// packages/ui/src/web-components/observability/ship-diff.ts
 function diffLines(a3, b3) {
   const A2 = a3.split("\n");
   const B2 = b3.split("\n");
@@ -7204,7 +8173,7 @@ if (typeof customElements !== "undefined" && !customElements.get("ship-diff")) {
   customElements.define("ship-diff", ShipDiff);
 }
 
-// ../../../packages/ui/src/web-components/observability/ship-code.ts
+// packages/ui/src/web-components/observability/ship-code.ts
 var ShipCode = class extends i4 {
   constructor() {
     super(...arguments);
@@ -7274,7 +8243,7 @@ if (typeof customElements !== "undefined" && !customElements.get("ship-code")) {
   customElements.define("ship-code", ShipCode);
 }
 
-// ../../../packages/ui/src/web-components/observability/ship-copy-button.ts
+// packages/ui/src/web-components/observability/ship-copy-button.ts
 var ShipCopyButton = class extends i4 {
   constructor() {
     super(...arguments);
@@ -7371,7 +8340,7 @@ if (typeof customElements !== "undefined" && !customElements.get("ship-copy-butt
   customElements.define("ship-copy-button", ShipCopyButton);
 }
 
-// ../../../node_modules/.pnpm/lit-html@3.3.2/node_modules/lit-html/directive.js
+// node_modules/.pnpm/lit-html@3.3.2/node_modules/lit-html/directive.js
 var t3 = { ATTRIBUTE: 1, CHILD: 2, PROPERTY: 3, BOOLEAN_ATTRIBUTE: 4, EVENT: 5, ELEMENT: 6 };
 var e4 = (t4) => (...e6) => ({ _$litDirective$: t4, values: e6 });
 var i5 = class {
@@ -7391,7 +8360,7 @@ var i5 = class {
   }
 };
 
-// ../../../node_modules/.pnpm/lit-html@3.3.2/node_modules/lit-html/directives/unsafe-html.js
+// node_modules/.pnpm/lit-html@3.3.2/node_modules/lit-html/directives/unsafe-html.js
 var e5 = class extends i5 {
   constructor(i6) {
     if (super(i6), this.it = A, i6.type !== t3.CHILD) throw Error(this.constructor.directiveName + "() can only be used in child bindings");
@@ -7409,7 +8378,7 @@ var e5 = class extends i5 {
 e5.directiveName = "unsafeHTML", e5.resultType = 1;
 var o5 = e4(e5);
 
-// ../../../packages/ui/src/web-components/observability/ship-markdown.ts
+// packages/ui/src/web-components/observability/ship-markdown.ts
 function escape(s4) {
   return s4.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;").replace(/"/g, "&quot;");
 }
@@ -7546,7 +8515,7 @@ if (typeof customElements !== "undefined" && !customElements.get("ship-markdown"
   customElements.define("ship-markdown", ShipMarkdown);
 }
 
-// ../../../packages/ui/src/web-components/observability/ship-table.styles.ts
+// packages/ui/src/web-components/observability/ship-table.styles.ts
 var shipTableStyles = [
   reducedMotion,
   i`
@@ -7788,7 +8757,7 @@ var shipTableLightDomCss = `
   }
 `;
 
-// ../../../packages/ui/src/web-components/observability/ship-table.ts
+// packages/ui/src/web-components/observability/ship-table.ts
 var lightDomInstalled = /* @__PURE__ */ new WeakSet();
 function installLightDomStyles(doc) {
   if (lightDomInstalled.has(doc)) return;
@@ -7967,7 +8936,7 @@ if (typeof customElements !== "undefined" && !customElements.get("ship-table")) 
   customElements.define("ship-table", ShipTable);
 }
 
-// ../../../packages/ui/src/web-components/observability/ship-timeline.ts
+// packages/ui/src/web-components/observability/ship-timeline.ts
 var ShipTimeline = class extends i4 {
   connectedCallback() {
     super.connectedCallback();
@@ -8103,7 +9072,7 @@ if (typeof customElements !== "undefined") {
   if (!customElements.get("ship-timeline-item")) customElements.define("ship-timeline-item", ShipTimelineItem);
 }
 
-// ../../../packages/ui/src/web-components/observability/ship-tree-view.ts
+// packages/ui/src/web-components/observability/ship-tree-view.ts
 var ShipTreeView = class extends i4 {
   connectedCallback() {
     super.connectedCallback();
@@ -8234,7 +9203,7 @@ if (typeof customElements !== "undefined") {
   if (!customElements.get("ship-tree-node")) customElements.define("ship-tree-node", ShipTreeNode);
 }
 
-// ../../../packages/ui/src/web-components/charts/util.ts
+// packages/ui/src/web-components/charts/util.ts
 var TONE_VARS = {
   default: "var(--foreground)",
   primary: "var(--primary)",
@@ -8291,7 +9260,7 @@ function arcPath(cx, cy, r4, startAngle, endAngle) {
   return `M${x1.toFixed(2)},${y1.toFixed(2)} A${r4},${r4} 0 ${large} ${sweep} ${x2.toFixed(2)},${y22.toFixed(2)}`;
 }
 
-// ../../../packages/ui/src/web-components/charts/ship-sparkline.ts
+// packages/ui/src/web-components/charts/ship-sparkline.ts
 var ShipSparkline = class extends i4 {
   constructor() {
     super(...arguments);
@@ -8357,7 +9326,7 @@ if (typeof customElements !== "undefined" && !customElements.get("ship-sparkline
   customElements.define("ship-sparkline", ShipSparkline);
 }
 
-// ../../../packages/ui/src/web-components/charts/ship-bar-chart.ts
+// packages/ui/src/web-components/charts/ship-bar-chart.ts
 var ShipBarChart = class extends i4 {
   constructor() {
     super(...arguments);
@@ -8441,7 +9410,7 @@ if (typeof customElements !== "undefined" && !customElements.get("ship-bar-chart
   customElements.define("ship-bar-chart", ShipBarChart);
 }
 
-// ../../../packages/ui/src/web-components/charts/ship-line-chart.ts
+// packages/ui/src/web-components/charts/ship-line-chart.ts
 var ShipLineChart = class extends i4 {
   constructor() {
     super(...arguments);
@@ -8522,7 +9491,7 @@ if (typeof customElements !== "undefined" && !customElements.get("ship-line-char
   customElements.define("ship-line-chart", ShipLineChart);
 }
 
-// ../../../packages/ui/src/web-components/charts/ship-area-chart.ts
+// packages/ui/src/web-components/charts/ship-area-chart.ts
 var ShipAreaChart = class extends i4 {
   constructor() {
     super(...arguments);
@@ -8604,7 +9573,7 @@ if (typeof customElements !== "undefined" && !customElements.get("ship-area-char
   customElements.define("ship-area-chart", ShipAreaChart);
 }
 
-// ../../../packages/ui/src/web-components/charts/ship-donut.ts
+// packages/ui/src/web-components/charts/ship-donut.ts
 var ShipDonut = class extends i4 {
   constructor() {
     super(...arguments);
@@ -8683,7 +9652,7 @@ if (typeof customElements !== "undefined" && !customElements.get("ship-donut")) 
   customElements.define("ship-donut", ShipDonut);
 }
 
-// ../../../packages/ui/src/web-components/charts/ship-gauge.ts
+// packages/ui/src/web-components/charts/ship-gauge.ts
 var ShipGauge = class extends i4 {
   constructor() {
     super(...arguments);
@@ -8766,7 +9735,7 @@ if (typeof customElements !== "undefined" && !customElements.get("ship-gauge")) 
   customElements.define("ship-gauge", ShipGauge);
 }
 
-// ../../../packages/ui/src/web-components/charts/ship-progress-ring.ts
+// packages/ui/src/web-components/charts/ship-progress-ring.ts
 var ShipProgressRing = class extends i4 {
   constructor() {
     super(...arguments);
@@ -8836,7 +9805,7 @@ if (typeof customElements !== "undefined" && !customElements.get("ship-progress-
   customElements.define("ship-progress-ring", ShipProgressRing);
 }
 
-// ../../../packages/ui/src/web-components/charts/ship-heatmap.ts
+// packages/ui/src/web-components/charts/ship-heatmap.ts
 var TONE_CSS_VAR = {
   default: "--foreground",
   primary: "--primary",
@@ -8921,7 +9890,7 @@ if (typeof customElements !== "undefined" && !customElements.get("ship-heatmap")
   customElements.define("ship-heatmap", ShipHeatmap);
 }
 
-// ../../../packages/ui/src/web-components/charts/ship-meter.ts
+// packages/ui/src/web-components/charts/ship-meter.ts
 var ShipMeter = class extends i4 {
   constructor() {
     super(...arguments);
@@ -8993,7 +9962,7 @@ if (typeof customElements !== "undefined" && !customElements.get("ship-meter")) 
   customElements.define("ship-meter", ShipMeter);
 }
 
-// ../../../packages/ui/src/web-components/utility/ship-avatar.ts
+// packages/ui/src/web-components/utility/ship-avatar.ts
 function initialsFromName(name) {
   const parts = name.trim().split(/\s+/).filter(Boolean);
   if (parts.length === 0) return "";
@@ -9061,7 +10030,7 @@ if (typeof customElements !== "undefined" && !customElements.get("ship-avatar"))
   customElements.define("ship-avatar", ShipAvatar);
 }
 
-// ../../../packages/ui/src/web-components/utility/ship-chip.styles.ts
+// packages/ui/src/web-components/utility/ship-chip.styles.ts
 var shipChipStyles = [
   reducedMotion,
   i`
@@ -9332,7 +10301,7 @@ var shipChipStyles = [
   `
 ];
 
-// ../../../packages/ui/src/web-components/utility/ship-chip.ts
+// packages/ui/src/web-components/utility/ship-chip.ts
 var ShipChip = class extends i4 {
   constructor() {
     super();
@@ -9434,7 +10403,7 @@ if (typeof customElements !== "undefined" && !customElements.get("ship-chip")) {
   customElements.define("ship-chip", ShipChip);
 }
 
-// ../../../packages/ui/src/web-components/utility/ship-kbd.ts
+// packages/ui/src/web-components/utility/ship-kbd.ts
 var ShipKbd = class extends i4 {
   constructor() {
     super(...arguments);
@@ -9477,7 +10446,7 @@ if (typeof customElements !== "undefined" && !customElements.get("ship-kbd")) {
   customElements.define("ship-kbd", ShipKbd);
 }
 
-// ../../../packages/ui/src/web-components/utility/ship-skeleton.ts
+// packages/ui/src/web-components/utility/ship-skeleton.ts
 var ShipSkeleton = class extends i4 {
   constructor() {
     super(...arguments);
@@ -9542,7 +10511,7 @@ if (typeof customElements !== "undefined" && !customElements.get("ship-skeleton"
   customElements.define("ship-skeleton", ShipSkeleton);
 }
 
-// ../../../packages/ui/src/web-components/utility/ship-toast-container.styles.ts
+// packages/ui/src/web-components/utility/ship-toast-container.styles.ts
 var shipToastContainerStyles = i`
   :host {
     position: fixed;
@@ -9624,7 +10593,7 @@ var shipToastContainerStyles = i`
   }
 `;
 
-// ../../../packages/ui/src/web-components/utility/ship-toast-container.ts
+// packages/ui/src/web-components/utility/ship-toast-container.ts
 var SLIDE_FROM = {
   "top-left": "top",
   "top-center": "top",
@@ -9723,7 +10692,7 @@ if (typeof customElements !== "undefined" && !customElements.get("ship-toast-con
   customElements.define("ship-toast-container", ShipToastContainer);
 }
 
-// ../../../packages/ui/src/web-components/utility/ship-toast.styles.ts
+// packages/ui/src/web-components/utility/ship-toast.styles.ts
 var shipToastStyles = [
   reducedMotion,
   toneVars,
@@ -9995,7 +10964,7 @@ var shipToastStyles = [
   `
 ];
 
-// ../../../packages/ui/src/web-components/utility/ship-toast.ts
+// packages/ui/src/web-components/utility/ship-toast.ts
 var TONE_ICON = {
   info: '<circle cx="12" cy="12" r="9"/><path d="M12 8h.01"/><path d="M11 12h1v4h1"/>',
   success: '<circle cx="12" cy="12" r="9"/><path d="m8.5 12.5 2.5 2.5 4.5-5"/>',
@@ -10198,7 +11167,7 @@ if (typeof customElements !== "undefined" && !customElements.get("ship-toast")) 
   customElements.define("ship-toast", ShipToast);
 }
 
-// ../../../packages/ui/src/web-components/utility/ship-breadcrumb.ts
+// packages/ui/src/web-components/utility/ship-breadcrumb.ts
 var ShipBreadcrumbItem = class extends i4 {
   constructor() {
     super(...arguments);
@@ -10290,7 +11259,7 @@ if (typeof customElements !== "undefined") {
     customElements.define("ship-breadcrumb", ShipBreadcrumb);
 }
 
-// ../../../packages/ui/src/web-components/utility/ship-link.ts
+// packages/ui/src/web-components/utility/ship-link.ts
 var ShipLink = class extends i4 {
   constructor() {
     super(...arguments);
@@ -10354,7 +11323,7 @@ if (typeof customElements !== "undefined" && !customElements.get("ship-link")) {
   customElements.define("ship-link", ShipLink);
 }
 
-// ../../../packages/ui/src/web-components/utility/ship-metachip.ts
+// packages/ui/src/web-components/utility/ship-metachip.ts
 var ShipMetachip = class extends i4 {
   constructor() {
     super(...arguments);
@@ -10402,7 +11371,7 @@ if (typeof customElements !== "undefined" && !customElements.get("ship-metachip"
   customElements.define("ship-metachip", ShipMetachip);
 }
 
-// ../../../packages/ui/src/web-components/utility/ship-step-segments.ts
+// packages/ui/src/web-components/utility/ship-step-segments.ts
 var KNOWN = /* @__PURE__ */ new Set(["done", "failed", "pending", "running"]);
 var ShipStepSegments = class extends i4 {
   constructor() {
@@ -10455,11 +11424,13 @@ if (typeof customElements !== "undefined" && !customElements.get("ship-step-segm
   customElements.define("ship-step-segments", ShipStepSegments);
 }
 
-// ../../../packages/ui/src/web-components/index.ts
+// packages/ui/src/web-components/index.ts
 function registerShipComponents() {
 }
 export {
   ICONS,
+  ShipAccordion,
+  ShipAccordionItem,
   ShipAlert,
   ShipAlertDialog,
   ShipAnnotationLayer,
@@ -10476,6 +11447,7 @@ export {
   ShipCheckbox,
   ShipChip,
   ShipCode,
+  ShipCollapsible,
   ShipCopyButton,
   ShipDialog,
   ShipDiff,
@@ -10510,9 +11482,12 @@ export {
   ShipPopover,
   ShipProgress,
   ShipProgressRing,
+  ShipRadio,
+  ShipRadioGroup,
   ShipSelect,
   ShipSeparator,
   ShipSkeleton,
+  ShipSlider,
   ShipSparkline,
   ShipSpecRow,
   ShipSpinner,
