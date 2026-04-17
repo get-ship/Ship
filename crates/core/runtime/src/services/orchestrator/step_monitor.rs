@@ -4,7 +4,7 @@
 //! 1. `step.done_declared` event (agent called `step_done`) — strongest signal
 //! 2. Activity signals (provider Stop hook, turn ended) — scan triggers
 //! 3. Process exit signal (executor sends `ExitSignal`)
-//! 4. Timeout (configurable, default 30 minutes)
+//! 4. Timeout (configurable, default 10 minutes)
 //!
 //! The monitor accumulates evidence across signals. It does not advance
 //! the pipeline on a single event — it waits for activity to settle and
@@ -22,8 +22,13 @@ use tokio::sync::Mutex;
 
 use super::StepActivity;
 
-/// Default step timeout: 30 minutes.
-const DEFAULT_TIMEOUT: Duration = Duration::from_secs(30 * 60);
+/// Default step timeout: 10 minutes. Run-step pipelines need to be fast;
+/// longer budgets let agents drift into unbounded verification loops.
+pub(crate) const DEFAULT_TIMEOUT: Duration = Duration::from_secs(10 * 60);
+
+/// Emit a "step approaching timeout" warn log once at this fraction of
+/// the total timeout, so operators can intervene before the hard kill.
+const TIMEOUT_WARN_FRACTION: f32 = 0.8;
 
 /// After evidence appears (commits, turn ended), wait this long for more
 /// activity before declaring the step done. Prevents advancing mid-task
@@ -94,6 +99,11 @@ pub fn start_step_monitor(
 ) {
     tokio::spawn(async move {
         let deadline = tokio::time::Instant::now() + monitor.timeout;
+        let warn_after = Duration::from_secs_f32(
+            monitor.timeout.as_secs_f32() * TIMEOUT_WARN_FRACTION,
+        );
+        let mut warn_deadline: Option<tokio::time::Instant> =
+            Some(tokio::time::Instant::now() + warn_after);
         let mut settle_deadline: Option<tokio::time::Instant> = None;
         let mut exit_signal: Option<ExitSignal> = None;
         let mut turns: u32 = 0;
@@ -136,10 +146,13 @@ pub fn start_step_monitor(
             }
 
             // Compute how long until the next interesting deadline.
-            let sleep_until = match settle_deadline {
-                Some(sd) => sd.min(deadline),
-                None => deadline,
-            };
+            let mut sleep_until = deadline;
+            if let Some(sd) = settle_deadline {
+                sleep_until = sleep_until.min(sd);
+            }
+            if let Some(wd) = warn_deadline {
+                sleep_until = sleep_until.min(wd);
+            }
 
             tokio::select! {
                 signal = exit_rx.recv() => {
@@ -201,8 +214,7 @@ pub fn start_step_monitor(
                     }
                 }
                 _ = tokio::time::sleep_until(sleep_until) => {
-                    // Either settle deadline or global timeout fired.
-                    // The loop body above handles both cases.
+                    // Global timeout fired — terminate.
                     if tokio::time::Instant::now() >= deadline {
                         let (commits, uncommitted) = scan_git_evidence(
                             &monitor.work_dir, monitor.start_sha.as_deref(),
@@ -214,6 +226,22 @@ pub fn start_step_monitor(
                             commits, uncommitted, turns,
                         ).await;
                         return;
+                    }
+                    // Pre-timeout warn: emit once at 80% of budget so
+                    // operators see the step is about to time out.
+                    if let Some(wd) = warn_deadline {
+                        if tokio::time::Instant::now() >= wd {
+                            let remaining = deadline
+                                .saturating_duration_since(tokio::time::Instant::now())
+                                .as_secs();
+                            tracing::warn!(
+                                slug = monitor.slug,
+                                step = monitor.step_name,
+                                remaining_secs = remaining,
+                                "step-monitor: step approaching timeout"
+                            );
+                            warn_deadline = None;
+                        }
                     }
                 }
             }

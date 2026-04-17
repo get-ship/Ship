@@ -29,8 +29,10 @@ step_specs:
     change, write tests if behavior is changing, ensure `cargo check`
     passes locally before signalling done.
 
-    Signal completion with `mcp__ship__step_done({ summary })` citing the
-    files you changed and the test count if applicable.
+    **Completion rule:** the moment `cargo check` and the relevant
+    `cargo test` pass once, call `mcp__ship__step_done` with a one-line
+    summary (files changed, test count) and stop. Do not run additional
+    verification rounds — the verify step (next) will do that for you.
 
   - |
     # Verify — step 2 of 3 (shell only, no agent)
