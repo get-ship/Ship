@@ -198,11 +198,15 @@ export async function renderGalleryAsync(root: HTMLElement): Promise<number> {
  * catch-all so the gallery stays tidy.
  */
 const CHILD_ONLY: ReadonlySet<string> = new Set([
+  'ship-accordion-item',
   'ship-breadcrumb-item',
   'ship-git-diff-file',
   'ship-git-diff-hunk',
+  'ship-navigation-item',
+  'ship-radio',
   'ship-tab',
   'ship-tab-panel',
   'ship-timeline-item',
+  'ship-toggle',
   'ship-tree-node',
 ])

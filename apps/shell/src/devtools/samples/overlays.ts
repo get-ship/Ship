@@ -162,12 +162,69 @@ function toastContainerSample(): TriggerSample {
   }
 }
 
+function contextMenuSample(): TriggerSample {
+  return {
+    label: 'Right-click me',
+    caption: 'contextmenu → show(x, y)',
+    build: () => {
+      const menu = document.createElement('ship-context-menu') as HTMLElement & {
+        show?: (x: number, y: number) => void
+        close?: () => void
+      }
+      menu.innerHTML =
+        '<span slot="trigger" style="padding:8px 16px;border:1px dashed var(--border);border-radius:var(--radius-sm);color:var(--muted-foreground);font-size:var(--text-sm);cursor:context-menu;display:inline-block">Right-click this area</span>' +
+        '<button data-value="cut">Cut</button>' +
+        '<button data-value="copy">Copy</button>' +
+        '<button data-value="paste">Paste</button>' +
+        '<button data-value="delete">Delete</button>'
+      return {
+        overlay: menu,
+        activate: () => {
+          menu.show?.(200, 200)
+        },
+      }
+    },
+  }
+}
+
+function hoverCardSample(): TriggerSample {
+  return {
+    label: 'Hover me',
+    caption: 'hover / focus → card',
+    build: () => {
+      const card = document.createElement('ship-hover-card') as HTMLElement & {
+        show?: () => void
+      }
+      card.innerHTML =
+        '<span slot="trigger" tabindex="0" style="color:var(--primary);text-decoration:underline;cursor:pointer;font-size:var(--text-sm)">@rust-lane</span>' +
+        '<div style="display:flex;flex-direction:column;gap:8px">' +
+        '<div style="display:flex;align-items:center;gap:10px">' +
+        '<ship-avatar name="Rust Lane" size="sm"></ship-avatar>' +
+        '<div>' +
+        '<strong style="font-size:var(--text-sm)">rust-lane</strong>' +
+        '<div style="font-size:var(--text-xs);color:var(--muted-foreground)">CI agent</div>' +
+        '</div>' +
+        '</div>' +
+        '<p style="margin:0;font-size:var(--text-xs);color:var(--muted-foreground)">Specialized build agent for Rust projects. Runs tests, lints, and publishes crates.</p>' +
+        '</div>'
+      return {
+        overlay: card,
+        activate: () => {
+          card.show?.()
+        },
+      }
+    },
+  }
+}
+
 export const OVERLAYS: Record<string, Sample[]> = {
   'ship-dialog': [dialogSample()],
   'ship-alert-dialog': [alertDialogSample()],
   'ship-popover': [popoverSample()],
   'ship-tooltip': [tooltipSample()],
   'ship-dropdown-menu': [dropdownSample()],
+  'ship-context-menu': [contextMenuSample()],
+  'ship-hover-card': [hoverCardSample()],
   'ship-toast-container': [toastContainerSample()],
   // One full-width card with all four tones stacked — toasts have an
   // internal min-width that would overflow cramped grid cells, so show

@@ -1,4 +1,4 @@
-// node_modules/.pnpm/@lit+reactive-element@2.1.2/node_modules/@lit/reactive-element/css-tag.js
+// ../../node_modules/.pnpm/@lit+reactive-element@2.1.2/node_modules/@lit/reactive-element/css-tag.js
 var t = globalThis;
 var e = t.ShadowRoot && (void 0 === t.ShadyCSS || t.ShadyCSS.nativeShadow) && "adoptedStyleSheets" in Document.prototype && "replace" in CSSStyleSheet.prototype;
 var s = Symbol();
@@ -43,7 +43,7 @@ var c = e ? (t4) => t4 : (t4) => t4 instanceof CSSStyleSheet ? ((t5) => {
   return r(e6);
 })(t4) : t4;
 
-// node_modules/.pnpm/@lit+reactive-element@2.1.2/node_modules/@lit/reactive-element/reactive-element.js
+// ../../node_modules/.pnpm/@lit+reactive-element@2.1.2/node_modules/@lit/reactive-element/reactive-element.js
 var { is: i2, defineProperty: e2, getOwnPropertyDescriptor: h, getOwnPropertyNames: r2, getOwnPropertySymbols: o2, getPrototypeOf: n2 } = Object;
 var a = globalThis;
 var c2 = a.trustedTypes;
@@ -265,7 +265,7 @@ var y = class extends HTMLElement {
 };
 y.elementStyles = [], y.shadowRootOptions = { mode: "open" }, y[d("elementProperties")] = /* @__PURE__ */ new Map(), y[d("finalized")] = /* @__PURE__ */ new Map(), p?.({ ReactiveElement: y }), (a.reactiveElementVersions ?? (a.reactiveElementVersions = [])).push("2.1.2");
 
-// node_modules/.pnpm/lit-html@3.3.2/node_modules/lit-html/lit-html.js
+// ../../node_modules/.pnpm/lit-html@3.3.2/node_modules/lit-html/lit-html.js
 var t2 = globalThis;
 var i3 = (t4) => t4;
 var s2 = t2.trustedTypes;
@@ -519,7 +519,7 @@ var D = (t4, i6, s4) => {
   return h3._$AI(t4), h3;
 };
 
-// node_modules/.pnpm/lit-element@4.2.2/node_modules/lit-element/lit-element.js
+// ../../node_modules/.pnpm/lit-element@4.2.2/node_modules/lit-element/lit-element.js
 var s3 = globalThis;
 var i4 = class extends y {
   constructor() {
@@ -549,7 +549,7 @@ var o4 = s3.litElementPolyfillSupport;
 o4?.({ LitElement: i4 });
 (s3.litElementVersions ?? (s3.litElementVersions = [])).push("4.2.2");
 
-// packages/ui/src/web-components/util.ts
+// src/web-components/util.ts
 var MONO_STACK = "ui-monospace, SFMono-Regular, 'SF Mono', Menlo, Consolas, monospace";
 var MONO = r(MONO_STACK);
 var toneVars = i`
@@ -611,298 +611,7 @@ var reducedMotion = i`
   }
 `;
 
-// packages/ui/src/web-components/ship-accordion.styles.ts
-var shipAccordionStyles = [
-  reducedMotion,
-  i`
-    :host {
-      display: block;
-      font-family: var(--font-body);
-      color: var(--foreground);
-    }
-    :host([hidden]) { display: none; }
-  `
-];
-var shipAccordionItemStyles = [
-  reducedMotion,
-  i`
-    :host {
-      display: block;
-      border-bottom: 1px solid var(--border);
-    }
-    :host([hidden]) { display: none; }
-
-    .trigger {
-      display: flex;
-      align-items: center;
-      justify-content: space-between;
-      width: 100%;
-      padding: var(--space-4) 0;
-      background: none;
-      border: none;
-      font: inherit;
-      font-size: var(--text-base);
-      font-weight: 500;
-      color: var(--foreground);
-      cursor: pointer;
-      text-align: left;
-      line-height: var(--leading-normal);
-      transition: color var(--duration-fast) var(--ease-out);
-    }
-    .trigger:hover {
-      text-decoration: underline;
-      text-underline-offset: 4px;
-    }
-
-    /* Focus ring */
-    .trigger:focus-visible {
-      outline: none;
-      box-shadow:
-        0 0 0 var(--ring-offset) var(--background),
-        0 0 0 calc(var(--ring-offset) + var(--ring-width))
-          color-mix(in oklch, var(--ring-color) var(--ring-opacity), transparent);
-      border-radius: var(--radius-sm);
-    }
-    @media (forced-colors: active) {
-      .trigger:focus-visible {
-        outline: 2px solid CanvasText;
-        outline-offset: 2px;
-      }
-    }
-
-    :host([disabled]) .trigger {
-      cursor: not-allowed;
-      color: var(--muted-foreground);
-    }
-    :host([disabled]) .trigger:hover {
-      text-decoration: none;
-    }
-
-    /* Chevron */
-    .chevron {
-      flex-shrink: 0;
-      width: 16px;
-      height: 16px;
-      color: var(--muted-foreground);
-      transition: transform var(--duration-normal, 200ms) var(--ease-out);
-    }
-    :host([open]) .chevron {
-      transform: rotate(180deg);
-    }
-
-    /* Content area — CSS grid height animation */
-    .content-wrap {
-      display: grid;
-      grid-template-rows: 0fr;
-      transition: grid-template-rows var(--duration-normal, 200ms) var(--ease-out);
-    }
-    :host([open]) .content-wrap {
-      grid-template-rows: 1fr;
-    }
-    .content-inner {
-      overflow: hidden;
-    }
-    .content-body {
-      padding-bottom: var(--space-4);
-      font-size: var(--text-sm);
-      color: var(--muted-foreground);
-      line-height: var(--leading-relaxed);
-    }
-  `
-];
-
-// packages/ui/src/web-components/ship-accordion.ts
-var _ShipAccordionItem = class _ShipAccordionItem extends i4 {
-  constructor() {
-    super(...arguments);
-    this.value = "";
-    this.disabled = false;
-    this.open = false;
-    this.uid = ++_ShipAccordionItem._idSeq;
-    this.onTriggerClick = () => {
-      if (this.disabled) return;
-      this.dispatchEvent(new CustomEvent("ship-accordion-item-toggle", {
-        detail: { value: this.value },
-        bubbles: true,
-        composed: true
-      }));
-    };
-    this.onKeydown = (e6) => {
-      if (e6.key === "ArrowDown" || e6.key === "ArrowUp") {
-        e6.preventDefault();
-        this.dispatchEvent(new CustomEvent("ship-accordion-nav", {
-          detail: { direction: e6.key === "ArrowDown" ? "next" : "prev" },
-          bubbles: true,
-          composed: true
-        }));
-      } else if (e6.key === "Home" || e6.key === "End") {
-        e6.preventDefault();
-        this.dispatchEvent(new CustomEvent("ship-accordion-nav", {
-          detail: { direction: e6.key === "Home" ? "first" : "last" },
-          bubbles: true,
-          composed: true
-        }));
-      }
-    };
-  }
-  get triggerId() {
-    return `ship-acc-trigger-${this.uid}`;
-  }
-  get contentId() {
-    return `ship-acc-content-${this.uid}`;
-  }
-  /** Focus the trigger button from the parent accordion's keyboard handler. */
-  focusTrigger() {
-    const btn = this.renderRoot.querySelector("button");
-    btn?.focus();
-  }
-  render() {
-    return b2`
-      <button
-        class="trigger"
-        part="trigger"
-        id=${this.triggerId}
-        aria-expanded=${this.open ? "true" : "false"}
-        aria-controls=${this.contentId}
-        ?disabled=${this.disabled}
-        @click=${this.onTriggerClick}
-        @keydown=${this.onKeydown}
-      >
-        <slot name="trigger"></slot>
-        <svg class="chevron" part="chevron" viewBox="0 0 16 16" fill="none"
-          stroke="currentColor" stroke-width="1.75" stroke-linecap="round"
-          stroke-linejoin="round" aria-hidden="true">
-          <path d="M4 6l4 4 4-4"></path>
-        </svg>
-      </button>
-      <div class="content-wrap" part="content"
-        id=${this.contentId}
-        role="region"
-        aria-labelledby=${this.triggerId}
-      >
-        <div class="content-inner">
-          <div class="content-body">
-            <slot></slot>
-          </div>
-        </div>
-      </div>
-    `;
-  }
-};
-_ShipAccordionItem.styles = shipAccordionItemStyles;
-_ShipAccordionItem.properties = {
-  value: { type: String, reflect: true },
-  disabled: { type: Boolean, reflect: true },
-  open: { type: Boolean, reflect: true }
-};
-_ShipAccordionItem._idSeq = 0;
-var ShipAccordionItem = _ShipAccordionItem;
-var ShipAccordion = class extends i4 {
-  constructor() {
-    super(...arguments);
-    this.type = "single";
-    this.value = "";
-    this.onItemToggle = (e6) => {
-      e6.stopPropagation();
-      const itemVal = e6.detail.value;
-      const open = this.getOpenValues();
-      if (this.type === "single") {
-        if (open.has(itemVal)) {
-          this.setOpenValues(/* @__PURE__ */ new Set());
-        } else {
-          this.setOpenValues(/* @__PURE__ */ new Set([itemVal]));
-        }
-      } else {
-        if (open.has(itemVal)) {
-          open.delete(itemVal);
-        } else {
-          open.add(itemVal);
-        }
-        this.setOpenValues(open);
-      }
-    };
-    this.onItemNav = (e6) => {
-      e6.stopPropagation();
-      const enabled = this.enabledItems;
-      if (!enabled.length) return;
-      const current = e6.target.closest("ship-accordion-item");
-      const idx = current ? enabled.indexOf(current) : -1;
-      let target;
-      switch (e6.detail.direction) {
-        case "next":
-          target = enabled[(idx + 1) % enabled.length];
-          break;
-        case "prev":
-          target = enabled[(idx - 1 + enabled.length) % enabled.length];
-          break;
-        case "first":
-          target = enabled[0];
-          break;
-        case "last":
-          target = enabled[enabled.length - 1];
-          break;
-      }
-      target?.focusTrigger();
-    };
-  }
-  connectedCallback() {
-    super.connectedCallback();
-    this.addEventListener("ship-accordion-item-toggle", this.onItemToggle);
-    this.addEventListener("ship-accordion-nav", this.onItemNav);
-  }
-  disconnectedCallback() {
-    super.disconnectedCallback();
-    this.removeEventListener("ship-accordion-item-toggle", this.onItemToggle);
-    this.removeEventListener("ship-accordion-nav", this.onItemNav);
-  }
-  get items() {
-    return Array.from(
-      this.querySelectorAll(":scope > ship-accordion-item")
-    );
-  }
-  get enabledItems() {
-    return this.items.filter((i6) => !i6.disabled);
-  }
-  getOpenValues() {
-    return new Set(this.value ? this.value.split(",").filter(Boolean) : []);
-  }
-  setOpenValues(vals) {
-    this.value = Array.from(vals).join(",");
-    this.syncItems();
-    this.dispatchEvent(new CustomEvent("ship-change", {
-      detail: { value: this.value },
-      bubbles: true,
-      composed: true
-    }));
-  }
-  updated() {
-    this.syncItems();
-  }
-  syncItems() {
-    const open = this.getOpenValues();
-    for (const item of this.items) {
-      item.open = open.has(item.value);
-    }
-  }
-  render() {
-    return b2`<slot></slot>`;
-  }
-};
-ShipAccordion.styles = shipAccordionStyles;
-ShipAccordion.properties = {
-  type: { type: String, reflect: true },
-  value: { type: String, reflect: true }
-};
-if (typeof customElements !== "undefined") {
-  if (!customElements.get("ship-accordion-item")) {
-    customElements.define("ship-accordion-item", ShipAccordionItem);
-  }
-  if (!customElements.get("ship-accordion")) {
-    customElements.define("ship-accordion", ShipAccordion);
-  }
-}
-
-// packages/ui/src/web-components/ship-alert.ts
+// src/web-components/ship-alert.ts
 var ShipAlert = class extends i4 {
   constructor() {
     super();
@@ -972,7 +681,7 @@ if (typeof customElements !== "undefined" && !customElements.get("ship-alert")) 
   customElements.define("ship-alert", ShipAlert);
 }
 
-// packages/ui/src/web-components/ship-dialog.styles.ts
+// src/web-components/ship-dialog.styles.ts
 var shipDialogStyles = [reducedMotion, i`
   :host { display: contents; }
   :host([hidden]) { display: none; }
@@ -1213,7 +922,7 @@ var shipDialogStyles = [reducedMotion, i`
   }
 `];
 
-// packages/ui/src/web-components/focus.ts
+// src/web-components/focus.ts
 var FOCUSABLE_SELECTOR = [
   "a[href]",
   "area[href]",
@@ -1253,7 +962,7 @@ var FocusReturn = class {
   }
 };
 
-// packages/ui/src/web-components/ship-dialog.ts
+// src/web-components/ship-dialog.ts
 var scrollLockCount = 0;
 var savedBodyOverflow = null;
 var savedBodyPaddingRight = null;
@@ -1466,7 +1175,7 @@ if (typeof customElements !== "undefined" && !customElements.get("ship-dialog"))
   customElements.define("ship-dialog", ShipDialog);
 }
 
-// packages/ui/src/web-components/ship-button.ts
+// src/web-components/ship-button.ts
 var ShipButton = class extends i4 {
   constructor() {
     super(...arguments);
@@ -1930,7 +1639,7 @@ if (typeof customElements !== "undefined" && !customElements.get("ship-button"))
   customElements.define("ship-button", ShipButton);
 }
 
-// packages/ui/src/web-components/ship-alert-dialog.ts
+// src/web-components/ship-alert-dialog.ts
 var ShipAlertDialog = class extends i4 {
   constructor() {
     super(...arguments);
@@ -1981,596 +1690,7 @@ if (typeof customElements !== "undefined" && !customElements.get("ship-alert-dia
   customElements.define("ship-alert-dialog", ShipAlertDialog);
 }
 
-// packages/ui/src/utils/annotation-helpers.ts
-function getCSSSelector(el) {
-  if (el.id) return `#${el.id}`;
-  const tag = el.tagName.toLowerCase();
-  if (el.className && typeof el.className === "string") {
-    const classes = el.className.trim().split(/\s+/).slice(0, 3).join(".");
-    if (classes) return `${tag}.${classes}`;
-  }
-  return tag;
-}
-function getElementsInRect(doc, rect) {
-  const [rx, ry, rw, rh] = rect;
-  const selectors = [];
-  const all = doc.querySelectorAll("*");
-  for (const el of all) {
-    const r4 = el.getBoundingClientRect();
-    if (r4.left >= rx && r4.top >= ry && r4.right <= rx + rw && r4.bottom <= ry + rh) {
-      selectors.push(getCSSSelector(el));
-    }
-    if (selectors.length >= 10) break;
-  }
-  return selectors;
-}
-var CROCKFORD = "0123456789ABCDEFGHJKMNPQRSTVWXYZ";
-function newUlid(now = Date.now()) {
-  let ts = now;
-  const time = new Array(10);
-  for (let i6 = 9; i6 >= 0; i6--) {
-    time[i6] = CROCKFORD[ts % 32];
-    ts = Math.floor(ts / 32);
-  }
-  const rand = new Array(16);
-  const cryptoObj = typeof globalThis !== "undefined" ? globalThis.crypto : void 0;
-  if (cryptoObj?.getRandomValues) {
-    const buf = new Uint8Array(16);
-    cryptoObj.getRandomValues(buf);
-    for (let i6 = 0; i6 < 16; i6++) rand[i6] = CROCKFORD[buf[i6] % 32];
-  } else {
-    for (let i6 = 0; i6 < 16; i6++) rand[i6] = CROCKFORD[Math.floor(Math.random() * 32)];
-  }
-  return time.join("") + rand.join("");
-}
-function buildAnnotationEvent(input) {
-  const target = {};
-  if (input.viewId !== void 0) target.view_id = input.viewId;
-  if (input.filePath !== void 0) target.file_path = input.filePath;
-  if (input.selector !== void 0) target.selector = input.selector;
-  if (input.rect !== void 0) target.rect = input.rect;
-  if (input.viewport !== void 0) target.viewport = input.viewport;
-  const ev = {
-    id: input.id ?? newUlid(),
-    kind: input.kind,
-    target,
-    created_at: input.createdAt ?? (/* @__PURE__ */ new Date()).toISOString(),
-    author_kind: input.authorKind ?? "human"
-  };
-  if (input.intent !== void 0) ev.intent = input.intent;
-  if (input.note !== void 0) ev.note = input.note;
-  if (input.selection !== void 0) ev.selection = input.selection;
-  return ev;
-}
-
-// packages/ui/src/web-components/ship-annotation-layer.internals.ts
-var layerStyles = i`
-  :host {
-    position: relative;
-    display: block;
-    font-family: var(--font-body);
-  }
-  .surface { position: relative; width: 100%; height: 100%; }
-  .overlay { position: absolute; inset: 0; z-index: 10; }
-  :host([mode='point']) .overlay,
-  :host([mode='region']) .overlay { cursor: crosshair; }
-  :host(:not([mode='point']):not([mode='region'])) .overlay { pointer-events: none; }
-
-  .drag-rect {
-    position: absolute;
-    border: 2px dashed var(--primary);
-    background: color-mix(in oklch, var(--primary) 10%, transparent);
-    pointer-events: none;
-    border-radius: var(--radius-sm);
-  }
-  .popover {
-    position: absolute;
-    z-index: 20;
-    min-width: 220px;
-    padding: 8px;
-    background: var(--popover, var(--background));
-    color: var(--popover-foreground, var(--foreground));
-    border: 1px solid var(--border);
-    border-radius: var(--radius-md);
-    box-shadow: var(--shadow-lg);
-    display: flex;
-    flex-direction: column;
-    gap: 6px;
-  }
-  .popover textarea {
-    font: inherit;
-    width: 100%;
-    min-height: 60px;
-    resize: vertical;
-    padding: 4px 6px;
-    border: 1px solid var(--border);
-    border-radius: var(--radius-sm);
-    background: var(--background);
-    color: var(--foreground);
-    box-sizing: border-box;
-  }
-  .popover-actions { display: flex; justify-content: flex-end; gap: 6px; }
-  .popover button {
-    font: inherit;
-    font-size: var(--text-sm);
-    padding: 4px 10px;
-    border-radius: var(--radius-sm);
-    border: 1px solid var(--border);
-    background: var(--background);
-    color: var(--foreground);
-    cursor: pointer;
-  }
-  .popover button[data-primary] {
-    background: var(--primary);
-    color: var(--primary-foreground);
-    border-color: var(--primary);
-  }
-`;
-function renderPopover(host, at) {
-  const left = Math.min(at.x + 12, 1e4);
-  const top = Math.min(at.y + 12, 1e4);
-  return b2`
-    <div
-      class="popover"
-      data-annotation-popover
-      style=${`left:${left}px;top:${top}px`}
-      @pointerdown=${(e6) => e6.stopPropagation()}
-    >
-      <textarea
-        part="note-input"
-        placeholder="Add a note…"
-        @keydown=${(e6) => {
-    if (e6.key === "Escape") host.cancelNote();
-    if (e6.key === "Enter" && (e6.metaKey || e6.ctrlKey)) {
-      host.confirmNote(e6.currentTarget.value);
-    }
-  }}
-      ></textarea>
-      <div class="popover-actions">
-        <button type="button" @click=${() => host.cancelNote()}>Cancel</button>
-        <button
-          type="button"
-          data-primary
-          @click=${(e6) => {
-    const ta = e6.currentTarget.closest(".popover").querySelector("textarea");
-    host.confirmNote(ta.value);
-  }}
-        >Send</button>
-      </div>
-    </div>
-  `;
-}
-
-// packages/ui/src/web-components/ship-annotation-marker.ts
-var ShipAnnotationMarker = class extends i4 {
-  constructor() {
-    super(...arguments);
-    this.kind = "point";
-    this.x = 0;
-    this.y = 0;
-    this.rect = null;
-    this.active = false;
-    this.index = 0;
-  }
-  parsedRect() {
-    if (!this.rect) return null;
-    const parts = this.rect.split(",").map((s4) => Number(s4.trim()));
-    if (parts.length !== 4 || parts.some((n4) => !Number.isFinite(n4))) return null;
-    return parts;
-  }
-  render() {
-    if (this.kind === "region") {
-      const r4 = this.parsedRect();
-      if (!r4) return null;
-      const [x2, y3, w2, h3] = r4;
-      return b2`<div
-        part="box"
-        role="button"
-        tabindex="0"
-        style=${`left:${x2}px;top:${y3}px;width:${w2}px;height:${h3}px`}
-      ></div>`;
-    }
-    return b2`<div
-      part="pin"
-      role="button"
-      tabindex="0"
-      style=${`left:${this.x}px;top:${this.y}px`}
-    >${this.index + 1}</div>`;
-  }
-};
-ShipAnnotationMarker.styles = i`
-    :host {
-      position: absolute;
-      pointer-events: auto;
-      font-family: var(--font-body);
-      font-size: var(--text-xs);
-    }
-    :host([hidden]) { display: none; }
-
-    [part='pin'] {
-      position: absolute;
-      width: 20px;
-      height: 20px;
-      border-radius: 50%;
-      background: var(--primary);
-      color: var(--primary-foreground);
-      display: inline-flex;
-      align-items: center;
-      justify-content: center;
-      font-weight: var(--font-weight-medium);
-      box-shadow: var(--shadow-sm);
-      cursor: pointer;
-      transform: translate(-50%, -50%);
-      border: 2px solid var(--background);
-      transition: filter var(--duration-fast) var(--ease-out);
-    }
-    :host([active]) [part='pin'] {
-      filter: brightness(1.2);
-      outline: 2px solid var(--ring-color);
-      outline-offset: 2px;
-    }
-
-    [part='box'] {
-      position: absolute;
-      border: 2px dashed var(--primary);
-      background: color-mix(in oklch, var(--primary) 10%, transparent);
-      border-radius: var(--radius-sm);
-      cursor: pointer;
-      box-sizing: border-box;
-    }
-    :host([active]) [part='box'] {
-      background: color-mix(in oklch, var(--primary) 18%, transparent);
-    }
-  `;
-ShipAnnotationMarker.properties = {
-  kind: { type: String, reflect: true },
-  x: { type: Number },
-  y: { type: Number },
-  rect: { type: String, reflect: true },
-  active: { type: Boolean, reflect: true },
-  index: { type: Number }
-};
-if (typeof customElements !== "undefined" && !customElements.get("ship-annotation-marker")) {
-  customElements.define("ship-annotation-marker", ShipAnnotationMarker);
-}
-
-// packages/ui/src/web-components/ship-annotation-layer.ts
-var DEFAULT_ENDPOINT = "/api/runtime/feedback";
-var ShipAnnotationLayer = class extends i4 {
-  constructor() {
-    super(...arguments);
-    this.viewId = "";
-    this.mode = "off";
-    this.endpoint = DEFAULT_ENDPOINT;
-    this.staging = false;
-    this.staged = [];
-    this._pending = null;
-    this._drag = null;
-    this._overlayEl = null;
-    this._positions = {};
-    this.onPointerDown = (e6) => {
-      if (this.mode === "off") return;
-      const t4 = e6.target;
-      if (t4.closest("[data-annotation-popover]") || t4.closest("ship-annotation-marker")) return;
-      if (this._pending) {
-        this._pending = null;
-        return;
-      }
-      e6.preventDefault();
-      const p3 = this.overlayPos(e6);
-      this._drag = { startX: p3.x, startY: p3.y, curX: p3.x, curY: p3.y };
-      e6.target.setPointerCapture?.(e6.pointerId);
-    };
-    this.onPointerMove = (e6) => {
-      if (!this._drag) return;
-      const p3 = this.overlayPos(e6);
-      this._drag = { ...this._drag, curX: p3.x, curY: p3.y };
-    };
-    this.onPointerUp = (e6) => {
-      if (!this._drag) return;
-      const p3 = this.overlayPos(e6);
-      const dx = Math.abs(p3.x - this._drag.startX);
-      const dy = Math.abs(p3.y - this._drag.startY);
-      if (this.mode === "point" || this.mode === "region" && dx < 8 && dy < 8) {
-        let selector = "body";
-        const el = this.pickElementAt(p3.x, p3.y);
-        if (el) selector = getCSSSelector(el);
-        this._pending = { kind: "point", x: p3.x, y: p3.y, selector };
-      } else if (this.mode === "region") {
-        const x2 = Math.min(this._drag.startX, p3.x);
-        const y3 = Math.min(this._drag.startY, p3.y);
-        const rect = [
-          Math.round(x2),
-          Math.round(y3),
-          Math.round(dx),
-          Math.round(dy)
-        ];
-        this._pending = { kind: "region", x: x2 + dx / 2, y: y3 + dy / 2, rect };
-      }
-      this._drag = null;
-      void e6;
-    };
-  }
-  // ─── gestures ───
-  overlayPos(e6) {
-    const el = this._overlayEl;
-    if (!el) return { x: 0, y: 0 };
-    const r4 = el.getBoundingClientRect();
-    return { x: e6.clientX - r4.left, y: e6.clientY - r4.top };
-  }
-  pickElementAt(x2, y3) {
-    const slot = this.shadowRoot?.querySelector("slot");
-    const assigned = slot?.assignedElements({ flatten: true }) ?? [];
-    if (!this._overlayEl) return null;
-    const overlayR = this._overlayEl.getBoundingClientRect();
-    const clientX = overlayR.left + x2;
-    const clientY = overlayR.top + y3;
-    for (const root of assigned) {
-      const host = root;
-      const r4 = host.getBoundingClientRect();
-      if (clientX < r4.left || clientX > r4.right || clientY < r4.top || clientY > r4.bottom) continue;
-      const el = host.ownerDocument.elementFromPoint(clientX, clientY);
-      if (el && host.contains(el)) return el;
-    }
-    return null;
-  }
-  // ─── staging / send ───
-  confirmNote(note) {
-    const p3 = this._pending;
-    if (!p3) return;
-    const trimmed = note.trim();
-    if (!trimmed) {
-      this._pending = null;
-      return;
-    }
-    const elements = p3.kind === "region" && p3.rect && this.ownerDocument ? getElementsInRect(this.ownerDocument, p3.rect) : void 0;
-    const ev = buildAnnotationEvent({
-      viewId: this.viewId || void 0,
-      kind: p3.kind,
-      selector: p3.kind === "point" ? p3.selector : void 0,
-      rect: p3.kind === "region" ? p3.rect : void 0,
-      note: trimmed,
-      selection: elements && elements.length > 0 ? { kind: "elements", text: elements.join(",") } : void 0
-    });
-    this._positions[ev.id] = { x: p3.x, y: p3.y };
-    this.staged = [...this.staged, ev];
-    this.dispatchEvent(
-      new CustomEvent("ship-annotation-staged", { detail: ev, bubbles: true, composed: true })
-    );
-    this._pending = null;
-    if (!this.staging) void this.sendOne(ev);
-  }
-  cancelNote() {
-    this._pending = null;
-  }
-  async send() {
-    const queue = [...this.staged];
-    for (const ev of queue) await this.sendOne(ev);
-  }
-  clear() {
-    this.staged = [];
-  }
-  async sendOne(ev) {
-    try {
-      const resp = await fetch(this.endpoint || DEFAULT_ENDPOINT, {
-        method: "POST",
-        credentials: "include",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify(ev)
-      });
-      if (!resp.ok) {
-        const body = await resp.json().catch(() => ({}));
-        this.dispatchEvent(
-          new CustomEvent("ship-annotation-error", {
-            detail: {
-              code: body?.error?.code ?? `http_${resp.status}`,
-              message: body?.error?.message ?? resp.statusText,
-              id: ev.id
-            },
-            bubbles: true,
-            composed: true
-          })
-        );
-        return;
-      }
-      this.dispatchEvent(
-        new CustomEvent("ship-annotation-sent", {
-          detail: { id: ev.id, status: resp.status },
-          bubbles: true,
-          composed: true
-        })
-      );
-      this.staged = this.staged.filter((s4) => s4.id !== ev.id);
-    } catch (e6) {
-      this.dispatchEvent(
-        new CustomEvent("ship-annotation-error", {
-          detail: { code: "network_error", message: String(e6), id: ev.id },
-          bubbles: true,
-          composed: true
-        })
-      );
-    }
-  }
-  // ─── render ───
-  firstUpdated() {
-    this._overlayEl = this.shadowRoot.querySelector(".overlay");
-  }
-  render() {
-    const d3 = this._drag;
-    const dragRect = d3 && (Math.abs(d3.curX - d3.startX) > 4 || Math.abs(d3.curY - d3.startY) > 4) ? {
-      x: Math.min(d3.startX, d3.curX),
-      y: Math.min(d3.startY, d3.curY),
-      w: Math.abs(d3.curX - d3.startX),
-      h: Math.abs(d3.curY - d3.startY)
-    } : null;
-    return b2`
-      <div class="surface">
-        <slot></slot>
-        <div
-          class="overlay"
-          @pointerdown=${this.onPointerDown}
-          @pointermove=${this.onPointerMove}
-          @pointerup=${this.onPointerUp}
-        >
-          ${this.staged.map((a3, i6) => this.renderMarker(a3, i6))}
-          ${dragRect ? b2`<div
-                class="drag-rect"
-                style=${`left:${dragRect.x}px;top:${dragRect.y}px;width:${dragRect.w}px;height:${dragRect.h}px`}
-              ></div>` : null}
-          ${this._pending ? renderPopover(this, this._pending) : null}
-        </div>
-      </div>
-    `;
-  }
-  renderMarker(a3, i6) {
-    if (a3.kind === "region" && a3.target.rect) {
-      return b2`<ship-annotation-marker
-        kind="region"
-        rect=${a3.target.rect.join(",")}
-        index=${i6}
-      ></ship-annotation-marker>`;
-    }
-    if (a3.kind === "point") {
-      const pos = this._positions[a3.id] ?? { x: 0, y: 0 };
-      return b2`<ship-annotation-marker
-        kind="point"
-        .x=${pos.x}
-        .y=${pos.y}
-        index=${i6}
-      ></ship-annotation-marker>`;
-    }
-    return null;
-  }
-};
-ShipAnnotationLayer.styles = layerStyles;
-ShipAnnotationLayer.properties = {
-  viewId: { type: String, attribute: "view-id", reflect: true },
-  mode: { type: String, reflect: true },
-  endpoint: { type: String, reflect: true },
-  staging: { type: Boolean, reflect: true },
-  staged: { state: true },
-  _pending: { state: true },
-  _drag: { state: true }
-};
-if (typeof customElements !== "undefined" && !customElements.get("ship-annotation-layer")) {
-  customElements.define("ship-annotation-layer", ShipAnnotationLayer);
-}
-
-// packages/ui/src/web-components/ship-annotation-list.ts
-var ShipAnnotationList = class extends i4 {
-  constructor() {
-    super(...arguments);
-    this.staged = [];
-  }
-  /**
-   * When the `staged` attribute is set directly (rather than the
-   * property), parse it as JSON so consumers can hydrate from markup.
-   */
-  attributeChangedCallback(name, old, value) {
-    if (name === "staged" && value !== null) {
-      try {
-        const parsed = JSON.parse(value);
-        if (Array.isArray(parsed)) {
-          this.staged = parsed;
-          return;
-        }
-      } catch {
-      }
-    }
-    super.attributeChangedCallback(name, old, value);
-  }
-  emitRemove(id) {
-    this.dispatchEvent(
-      new CustomEvent("ship-annotation-remove", {
-        detail: { id },
-        bubbles: true,
-        composed: true
-      })
-    );
-  }
-  render() {
-    if (!this.staged || this.staged.length === 0) {
-      return b2`<div class="empty" part="empty">No staged annotations.</div>`;
-    }
-    return b2`
-      <ol part="list">
-        ${this.staged.map(
-      (a3) => b2`
-            <li part="item" data-id=${a3.id}>
-              <span class="kind">${a3.kind}</span>
-              <span class="note" title=${a3.note ?? ""}>${a3.note ?? "(no note)"}</span>
-              <button
-                type="button"
-                aria-label="Remove annotation"
-                @click=${() => this.emitRemove(a3.id)}
-              >Remove</button>
-            </li>
-          `
-    )}
-      </ol>
-    `;
-  }
-};
-ShipAnnotationList.styles = i`
-    :host {
-      display: block;
-      font-family: var(--font-body);
-      font-size: var(--text-sm);
-      color: var(--foreground);
-    }
-    ol {
-      list-style: none;
-      margin: 0;
-      padding: 0;
-      display: flex;
-      flex-direction: column;
-      gap: 4px;
-    }
-    li {
-      display: flex;
-      align-items: center;
-      gap: 8px;
-      padding: 4px 8px;
-      border: 1px solid var(--border);
-      border-radius: var(--radius-sm);
-      background: var(--background);
-    }
-    .kind {
-      font-size: var(--text-xs);
-      text-transform: uppercase;
-      letter-spacing: 0.04em;
-      color: var(--muted-foreground);
-      min-width: 48px;
-    }
-    .note {
-      flex: 1;
-      overflow: hidden;
-      text-overflow: ellipsis;
-      white-space: nowrap;
-    }
-    .empty {
-      color: var(--muted-foreground);
-      padding: 4px 8px;
-    }
-    button {
-      background: transparent;
-      border: 1px solid var(--border);
-      border-radius: var(--radius-sm);
-      color: var(--muted-foreground);
-      cursor: pointer;
-      font-size: var(--text-xs);
-      padding: 2px 6px;
-    }
-    button:hover { color: var(--destructive); border-color: var(--destructive); }
-  `;
-ShipAnnotationList.properties = {
-  staged: { type: Array }
-};
-if (typeof customElements !== "undefined" && !customElements.get("ship-annotation-list")) {
-  customElements.define("ship-annotation-list", ShipAnnotationList);
-}
-
-// packages/ui/src/web-components/ship-badge.styles.ts
+// src/web-components/ship-badge.styles.ts
 var shipBadgeStyles = [
   reducedMotion,
   i`
@@ -2774,7 +1894,7 @@ var shipBadgeStyles = [
   `
 ];
 
-// packages/ui/src/web-components/ship-badge.ts
+// src/web-components/ship-badge.ts
 var ShipBadge = class extends i4 {
   constructor() {
     super();
@@ -2803,7 +1923,7 @@ if (typeof customElements !== "undefined" && !customElements.get("ship-badge")) 
   customElements.define("ship-badge", ShipBadge);
 }
 
-// packages/ui/src/web-components/ship-card.styles.ts
+// src/web-components/ship-card.styles.ts
 var shipCardStyles = [
   reducedMotion,
   toneVars,
@@ -2997,7 +2117,7 @@ var shipCardStyles = [
   `
 ];
 
-// packages/ui/src/web-components/ship-card.ts
+// src/web-components/ship-card.ts
 var ShipCard = class extends i4 {
   constructor() {
     super(...arguments);
@@ -3080,7 +2200,7 @@ if (typeof customElements !== "undefined" && !customElements.get("ship-card")) {
   customElements.define("ship-card", ShipCard);
 }
 
-// packages/ui/src/web-components/ship-checkbox.styles.ts
+// src/web-components/ship-checkbox.styles.ts
 var shipCheckboxStyles = [
   reducedMotion,
   i`
@@ -3318,7 +2438,7 @@ var shipCheckboxStyles = [
   `
 ];
 
-// packages/ui/src/web-components/ship-checkbox.ts
+// src/web-components/ship-checkbox.ts
 var ShipCheckbox = class extends i4 {
   constructor() {
     super();
@@ -3420,117 +2540,7 @@ if (typeof customElements !== "undefined" && !customElements.get("ship-checkbox"
   customElements.define("ship-checkbox", ShipCheckbox);
 }
 
-// packages/ui/src/web-components/ship-collapsible.styles.ts
-var shipCollapsibleStyles = [
-  reducedMotion,
-  i`
-    :host {
-      display: block;
-      font-family: var(--font-body);
-      color: var(--foreground);
-    }
-    :host([hidden]) { display: none; }
-
-    .content-wrap {
-      display: grid;
-      grid-template-rows: 0fr;
-      transition: grid-template-rows var(--duration-normal, 200ms) var(--ease-out);
-    }
-    :host([open]) .content-wrap {
-      grid-template-rows: 1fr;
-    }
-
-    .content-inner {
-      overflow: hidden;
-    }
-
-    ::slotted([slot='trigger']) {
-      cursor: pointer;
-      user-select: none;
-      -webkit-user-select: none;
-    }
-    :host([disabled]) ::slotted([slot='trigger']) {
-      cursor: not-allowed;
-      opacity: 0.5;
-    }
-  `
-];
-
-// packages/ui/src/web-components/ship-collapsible.ts
-var _ShipCollapsible = class _ShipCollapsible extends i4 {
-  constructor() {
-    super(...arguments);
-    this.open = false;
-    this.disabled = false;
-    this.uid = ++_ShipCollapsible._idSeq;
-    this.toggle = () => {
-      if (this.disabled) return;
-      this.open = !this.open;
-      this.dispatchEvent(new CustomEvent("ship-toggle", {
-        detail: { open: this.open },
-        bubbles: true,
-        composed: true
-      }));
-    };
-    this.onTriggerKeydown = (e6) => {
-      if (e6.key === "Enter" || e6.key === " ") {
-        e6.preventDefault();
-        this.toggle();
-      }
-    };
-    this.onTriggerSlotChange = (e6) => {
-      const slot = e6.target;
-      for (const el of slot.assignedElements()) {
-        const h3 = el;
-        h3.setAttribute("aria-expanded", String(this.open));
-        h3.setAttribute("aria-controls", this.contentId);
-        if (!h3.hasAttribute("tabindex") && !h3.matches("button, a, input, select, textarea")) {
-          h3.setAttribute("tabindex", "0");
-        }
-      }
-    };
-  }
-  get contentId() {
-    return `ship-collapsible-${this.uid}`;
-  }
-  updated(changed) {
-    if (changed.has("open")) {
-      const slot = this.renderRoot.querySelector("slot[name=trigger]");
-      if (slot) {
-        for (const el of slot.assignedElements()) {
-          el.setAttribute("aria-expanded", String(this.open));
-        }
-      }
-    }
-  }
-  render() {
-    return b2`
-      <div @click=${this.toggle} @keydown=${this.onTriggerKeydown}>
-        <slot name="trigger" @slotchange=${this.onTriggerSlotChange}></slot>
-      </div>
-      <div class="content-wrap" part="content"
-        id=${this.contentId}
-        role="region"
-      >
-        <div class="content-inner">
-          <slot></slot>
-        </div>
-      </div>
-    `;
-  }
-};
-_ShipCollapsible.styles = shipCollapsibleStyles;
-_ShipCollapsible.properties = {
-  open: { type: Boolean, reflect: true },
-  disabled: { type: Boolean, reflect: true }
-};
-_ShipCollapsible._idSeq = 0;
-var ShipCollapsible = _ShipCollapsible;
-if (typeof customElements !== "undefined" && !customElements.get("ship-collapsible")) {
-  customElements.define("ship-collapsible", ShipCollapsible);
-}
-
-// packages/ui/src/web-components/typeahead.ts
+// src/web-components/typeahead.ts
 var Typeahead = class {
   constructor(timeout = 500) {
     this.timeout = timeout;
@@ -3573,7 +2583,191 @@ function isTypeaheadKey(e6) {
   return e6.key.length === 1 && /\S/.test(e6.key);
 }
 
-// packages/ui/src/web-components/ship-dropdown-menu.ts
+// src/web-components/ship-context-menu.ts
+var ShipContextMenu = class extends i4 {
+  constructor() {
+    super(...arguments);
+    this.open = false;
+    this.typeahead = new Typeahead();
+    this.menuX = 0;
+    this.menuY = 0;
+    this.onContextMenu = (e6) => {
+      e6.preventDefault();
+      this.show(e6.clientX, e6.clientY);
+    };
+    this.onItemClick = (e6) => {
+      const target = e6.target.closest("[data-value]");
+      if (!target) return;
+      this.dispatchEvent(new CustomEvent("ship-select", {
+        detail: { value: target.dataset.value || "" },
+        bubbles: true,
+        composed: true
+      }));
+      this.close();
+    };
+    this.onKeydown = (e6) => {
+      if (!this.open) return;
+      const items = this.items();
+      if (!items.length) return;
+      const i6 = this.currentIndex();
+      if (e6.key === "ArrowDown") {
+        e6.preventDefault();
+        this.focusItem(i6 + 1);
+      } else if (e6.key === "ArrowUp") {
+        e6.preventDefault();
+        this.focusItem(i6 - 1);
+      } else if (e6.key === "Home") {
+        e6.preventDefault();
+        this.focusItem(0);
+      } else if (e6.key === "End") {
+        e6.preventDefault();
+        this.focusItem(items.length - 1);
+      } else if (e6.key === "Escape") {
+        e6.preventDefault();
+        this.close();
+      } else if (e6.key === "Tab") {
+        this.close();
+      } else if ((e6.key === "Enter" || e6.key === " ") && i6 >= 0) {
+        e6.preventDefault();
+        items[i6].click();
+      } else if (isTypeaheadKey(e6)) {
+        this.typeahead.push(e6.key);
+        const labels = items.map((el) => (el.textContent ?? "").trim());
+        const next = this.typeahead.match(labels, i6);
+        if (next >= 0) {
+          e6.preventDefault();
+          this.focusItem(next);
+        }
+      }
+    };
+    this.onDocClick = (e6) => {
+      if (!this.open) return;
+      const target = e6.composedPath()[0];
+      if (!this.contains(target) && target !== this) this.close();
+    };
+  }
+  items() {
+    return Array.from(
+      this.querySelectorAll('[role="menuitem"], button[data-value], [data-value]')
+    ).filter((el) => !el.hasAttribute("disabled"));
+  }
+  focusItem(index) {
+    const items = this.items();
+    if (!items.length) return;
+    const i6 = (index + items.length) % items.length;
+    for (const it of items) it.setAttribute("tabindex", "-1");
+    items[i6].setAttribute("tabindex", "0");
+    items[i6].focus();
+  }
+  currentIndex() {
+    const items = this.items();
+    return items.indexOf(document.activeElement);
+  }
+  setupItems() {
+    const items = this.items();
+    items.forEach((el, idx) => {
+      if (!el.hasAttribute("role")) el.setAttribute("role", "menuitem");
+      if (!el.hasAttribute("tabindex")) el.setAttribute("tabindex", idx === 0 ? "0" : "-1");
+    });
+  }
+  show(x2, y3) {
+    this.menuX = x2;
+    this.menuY = y3;
+    this.open = true;
+    this.emit("ship-open");
+    queueMicrotask(() => {
+      this.setupItems();
+      this.focusItem(0);
+    });
+  }
+  close() {
+    this.open = false;
+    this.emit("ship-close");
+  }
+  emit(name) {
+    this.dispatchEvent(new CustomEvent(name, { bubbles: true, composed: true }));
+  }
+  connectedCallback() {
+    super.connectedCallback();
+    document.addEventListener("click", this.onDocClick);
+    this.addEventListener("keydown", this.onKeydown);
+  }
+  disconnectedCallback() {
+    super.disconnectedCallback();
+    document.removeEventListener("click", this.onDocClick);
+    this.removeEventListener("keydown", this.onKeydown);
+  }
+  updated() {
+    this.setAttribute("data-state", this.open ? "open" : "closed");
+    const menu = this.renderRoot.querySelector(".menu");
+    if (menu && this.open) {
+      menu.style.left = `${this.menuX}px`;
+      menu.style.top = `${this.menuY}px`;
+    }
+    this.setupItems();
+  }
+  render() {
+    return b2`
+      <span @contextmenu=${this.onContextMenu}><slot name="trigger"></slot></span>
+      <div class="menu" part="menu" role="menu"
+        aria-label="Context menu"
+        @click=${this.onItemClick}>
+        <slot @slotchange=${() => this.setupItems()}></slot>
+      </div>
+    `;
+  }
+};
+ShipContextMenu.styles = [reducedMotion, i`
+    :host { display: contents; }
+    .menu {
+      position: fixed;
+      z-index: var(--z-dropdown);
+      min-width: 160px;
+      padding: 4px;
+      background: var(--popover);
+      color: var(--popover-foreground);
+      border: 1px solid var(--border);
+      border-radius: var(--radius);
+      box-shadow: var(--shadow-lg);
+      display: flex; flex-direction: column;
+      font-family: var(--font-body);
+      font-size: var(--text-base);
+      opacity: 0;
+      transform: scale(0.95);
+      pointer-events: none;
+      transition:
+        opacity var(--duration-fast) var(--ease-out),
+        transform var(--duration-fast) var(--ease-out);
+    }
+    :host([open]) .menu {
+      opacity: 1;
+      transform: scale(1);
+      pointer-events: auto;
+    }
+    ::slotted(button), ::slotted([role='menuitem']) {
+      text-align: left;
+      background: transparent; border: 0;
+      padding: 6px 10px;
+      border-radius: var(--radius-sm);
+      color: inherit; font: inherit;
+      cursor: pointer;
+      transition: background-color var(--duration-fast) var(--ease-out);
+    }
+    ::slotted(button:hover), ::slotted([role='menuitem']:hover) {
+      background: var(--muted);
+    }
+    @media (forced-colors: active) {
+      .menu { border: 1px solid CanvasText; }
+    }
+  `];
+ShipContextMenu.properties = {
+  open: { type: Boolean, reflect: true }
+};
+if (typeof customElements !== "undefined" && !customElements.get("ship-context-menu")) {
+  customElements.define("ship-context-menu", ShipContextMenu);
+}
+
+// src/web-components/ship-dropdown-menu.ts
 var ShipDropdownMenu = class extends i4 {
   constructor() {
     super(...arguments);
@@ -3745,7 +2939,7 @@ if (typeof customElements !== "undefined" && !customElements.get("ship-dropdown-
   customElements.define("ship-dropdown-menu", ShipDropdownMenu);
 }
 
-// packages/ui/src/web-components/ship-empty-state.styles.ts
+// src/web-components/ship-empty-state.styles.ts
 var shipEmptyStateStyles = [
   reducedMotion,
   toneVars,
@@ -3995,7 +3189,7 @@ var shipEmptyStateStyles = [
   `
 ];
 
-// packages/ui/src/web-components/utility/ship-icon.ts
+// src/web-components/utility/ship-icon.ts
 var ICONS = {
   "chevron-down": "M6 9l6 6 6-6",
   "chevron-right": "M9 6l6 6-6 6",
@@ -4078,7 +3272,7 @@ if (typeof customElements !== "undefined" && !customElements.get("ship-icon")) {
   customElements.define("ship-icon", ShipIcon);
 }
 
-// packages/ui/src/web-components/ship-empty-state.ts
+// src/web-components/ship-empty-state.ts
 var ShipEmptyState = class extends i4 {
   constructor() {
     super(...arguments);
@@ -4160,7 +3354,7 @@ if (typeof customElements !== "undefined" && !customElements.get("ship-empty-sta
   customElements.define("ship-empty-state", ShipEmptyState);
 }
 
-// packages/ui/src/web-components/ship-field.ts
+// src/web-components/ship-field.ts
 var _ShipField = class _ShipField extends i4 {
   constructor() {
     super(...arguments);
@@ -4211,7 +3405,178 @@ if (typeof customElements !== "undefined" && !customElements.get("ship-field")) 
   customElements.define("ship-field", ShipField);
 }
 
-// packages/ui/src/web-components/ship-input.styles.ts
+// src/web-components/ship-hover-card.ts
+var _ShipHoverCard = class _ShipHoverCard extends i4 {
+  constructor() {
+    super(...arguments);
+    this.open = false;
+    this.placement = "bottom";
+    this.showDelay = 300;
+    this.hideDelay = 100;
+    this.cardId = `ship-hover-card-${++_ShipHoverCard._idSeq}`;
+    this.showTimer = null;
+    this.hideTimer = null;
+    this.onMouseEnter = () => {
+      this.clearTimers();
+      this.showTimer = setTimeout(() => this.show(), this.showDelay);
+    };
+    this.onMouseLeave = () => {
+      this.clearTimers();
+      this.hideTimer = setTimeout(() => this.hide(), this.hideDelay);
+    };
+    this.onFocusIn = () => {
+      this.clearTimers();
+      this.show();
+    };
+    this.onFocusOut = () => {
+      this.clearTimers();
+      this.hideTimer = setTimeout(() => this.hide(), this.hideDelay);
+    };
+    this.wireTrigger = () => {
+      const slot = this.renderRoot.querySelector('slot[name="trigger"]');
+      const first = slot?.assignedElements({ flatten: true })[0];
+      if (!first) return;
+      first.setAttribute("aria-describedby", this.cardId);
+    };
+  }
+  show() {
+    this.clearTimers();
+    this.open = true;
+    this.emit("ship-open");
+  }
+  hide() {
+    this.clearTimers();
+    this.open = false;
+    this.emit("ship-close");
+  }
+  emit(name) {
+    this.dispatchEvent(new CustomEvent(name, { bubbles: true, composed: true }));
+  }
+  clearTimers() {
+    if (this.showTimer) {
+      clearTimeout(this.showTimer);
+      this.showTimer = null;
+    }
+    if (this.hideTimer) {
+      clearTimeout(this.hideTimer);
+      this.hideTimer = null;
+    }
+  }
+  updated() {
+    this.setAttribute("data-state", this.open ? "open" : "closed");
+  }
+  connectedCallback() {
+    super.connectedCallback();
+    this.addEventListener("mouseenter", this.onMouseEnter);
+    this.addEventListener("mouseleave", this.onMouseLeave);
+    this.addEventListener("focusin", this.onFocusIn);
+    this.addEventListener("focusout", this.onFocusOut);
+  }
+  disconnectedCallback() {
+    super.disconnectedCallback();
+    this.clearTimers();
+    this.removeEventListener("mouseenter", this.onMouseEnter);
+    this.removeEventListener("mouseleave", this.onMouseLeave);
+    this.removeEventListener("focusin", this.onFocusIn);
+    this.removeEventListener("focusout", this.onFocusOut);
+  }
+  render() {
+    return b2`
+      <slot name="trigger" @slotchange=${this.wireTrigger}></slot>
+      <div id=${this.cardId} class="card" part="card" role="tooltip"
+        aria-hidden=${this.open ? "false" : "true"}>
+        <div class="arrow"></div>
+        <slot></slot>
+      </div>
+    `;
+  }
+};
+_ShipHoverCard.styles = [reducedMotion, i`
+    :host { position: relative; display: inline-flex; }
+    .card {
+      position: absolute;
+      z-index: var(--z-popover);
+      min-width: 240px;
+      max-width: 340px;
+      padding: 16px;
+      background: var(--popover);
+      color: var(--popover-foreground);
+      border: 1px solid var(--border);
+      border-radius: var(--radius-lg);
+      box-shadow: var(--shadow-lg);
+      font-family: var(--font-body);
+      font-size: var(--text-base);
+      line-height: var(--leading-normal);
+      opacity: 0;
+      transform: translateY(-4px);
+      pointer-events: none;
+      transition:
+        opacity var(--duration-medium) var(--ease-out),
+        transform var(--duration-medium) var(--ease-out);
+    }
+    :host([open]) .card {
+      opacity: 1;
+      transform: translateY(0);
+      pointer-events: auto;
+    }
+    /* Arrow */
+    .arrow {
+      position: absolute;
+      width: 10px;
+      height: 10px;
+      background: var(--popover);
+      border: 1px solid var(--border);
+      transform: rotate(45deg);
+      z-index: -1;
+    }
+    /* Placement: bottom (default) */
+    :host([placement='bottom']) .card,
+    :host(:not([placement])) .card { top: calc(100% + 8px); left: 50%; transform: translateX(-50%); }
+    :host([placement='bottom'][open]) .card,
+    :host(:not([placement])[open]) .card { transform: translateX(-50%) translateY(0); }
+    :host([placement='bottom']) .arrow,
+    :host(:not([placement])) .arrow {
+      top: -6px; left: 50%; transform: translateX(-50%) rotate(45deg);
+      border-bottom: none; border-right: none;
+    }
+    /* Placement: top */
+    :host([placement='top']) .card { bottom: calc(100% + 8px); left: 50%; transform: translateX(-50%); }
+    :host([placement='top'][open]) .card { transform: translateX(-50%) translateY(0); }
+    :host([placement='top']) .arrow {
+      bottom: -6px; left: 50%; transform: translateX(-50%) rotate(45deg);
+      border-top: none; border-left: none;
+    }
+    /* Placement: right */
+    :host([placement='right']) .card { left: calc(100% + 8px); top: 50%; transform: translateY(-50%); }
+    :host([placement='right'][open]) .card { transform: translateY(-50%); }
+    :host([placement='right']) .arrow {
+      left: -6px; top: 50%; transform: translateY(-50%) rotate(45deg);
+      border-top: none; border-right: none;
+    }
+    /* Placement: left */
+    :host([placement='left']) .card { right: calc(100% + 8px); top: 50%; transform: translateY(-50%); }
+    :host([placement='left'][open]) .card { transform: translateY(-50%); }
+    :host([placement='left']) .arrow {
+      right: -6px; top: 50%; transform: translateY(-50%) rotate(45deg);
+      border-bottom: none; border-left: none;
+    }
+    @media (forced-colors: active) {
+      .card { border: 1px solid CanvasText; }
+    }
+  `];
+_ShipHoverCard.properties = {
+  open: { type: Boolean, reflect: true },
+  placement: { type: String, reflect: true },
+  showDelay: { type: Number, attribute: "show-delay" },
+  hideDelay: { type: Number, attribute: "hide-delay" }
+};
+_ShipHoverCard._idSeq = 0;
+var ShipHoverCard = _ShipHoverCard;
+if (typeof customElements !== "undefined" && !customElements.get("ship-hover-card")) {
+  customElements.define("ship-hover-card", ShipHoverCard);
+}
+
+// src/web-components/ship-input.styles.ts
 var shipInputStyles = [reducedMotion, i`
   :host {
     display: inline-flex;
@@ -4410,7 +3775,7 @@ var shipInputStyles = [reducedMotion, i`
   }
 `];
 
-// packages/ui/src/web-components/ship-input.ts
+// src/web-components/ship-input.ts
 var _ShipInput = class _ShipInput extends i4 {
   constructor() {
     super();
@@ -4512,7 +3877,7 @@ if (typeof customElements !== "undefined" && !customElements.get("ship-input")) 
   customElements.define("ship-input", ShipInput);
 }
 
-// packages/ui/src/web-components/ship-label.ts
+// src/web-components/ship-label.ts
 var ShipLabel = class extends i4 {
   constructor() {
     super(...arguments);
@@ -4551,7 +3916,7 @@ if (typeof customElements !== "undefined" && !customElements.get("ship-label")) 
   customElements.define("ship-label", ShipLabel);
 }
 
-// packages/ui/src/web-components/ship-list-item.ts
+// src/web-components/ship-list-item.ts
 var ShipListItem = class extends i4 {
   constructor() {
     super(...arguments);
@@ -4641,7 +4006,213 @@ if (typeof customElements !== "undefined" && !customElements.get("ship-list-item
   customElements.define("ship-list-item", ShipListItem);
 }
 
-// packages/ui/src/web-components/ship-popover.ts
+// src/web-components/ship-navigation-menu.ts
+var ShipNavigationItem = class extends i4 {
+  constructor() {
+    super(...arguments);
+    this.value = "";
+    this.active = false;
+    this.disabled = false;
+    this.href = "";
+    this.onClick = (e6) => {
+      if (this.disabled) return;
+      if (!this.href) e6.preventDefault();
+      this.dispatchEvent(new CustomEvent("ship-nav-select", {
+        detail: { value: this.value },
+        bubbles: true,
+        composed: true
+      }));
+    };
+  }
+  /** Focus the interactive element — used by parent nav for keyboard nav. */
+  focusLink() {
+    const el = this.renderRoot.querySelector(".link");
+    el?.focus();
+  }
+  render() {
+    if (this.href) {
+      return b2`
+        <a class="link" part="link"
+          href=${this.href}
+          aria-current=${this.active ? "page" : "false"}
+          @click=${this.onClick}
+        ><slot></slot></a>
+        <div class="indicator" part="indicator" aria-hidden="true"></div>
+      `;
+    }
+    return b2`
+      <button class="link" part="link" type="button"
+        aria-current=${this.active ? "true" : "false"}
+        ?disabled=${this.disabled}
+        @click=${this.onClick}
+      ><slot></slot></button>
+      <div class="indicator" part="indicator" aria-hidden="true"></div>
+    `;
+  }
+};
+ShipNavigationItem.styles = [reducedMotion, i`
+    :host { display: inline-flex; position: relative; }
+    :host([hidden]) { display: none; }
+
+    .link {
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+      padding: 8px 14px;
+      font-family: var(--font-body);
+      font-size: var(--text-base);
+      font-weight: var(--font-weight-medium);
+      color: var(--muted-foreground);
+      text-decoration: none;
+      background: transparent;
+      border: none;
+      cursor: pointer;
+      transition:
+        color var(--duration-fast) var(--ease-out),
+        background-color var(--duration-fast) var(--ease-out);
+      line-height: var(--leading-normal);
+      border-radius: var(--radius);
+    }
+    .link:hover {
+      color: var(--foreground);
+      background: color-mix(in oklch, var(--muted) 50%, transparent);
+    }
+    :host([active]) .link {
+      color: var(--foreground);
+      font-weight: var(--font-weight-semibold);
+    }
+    :host([disabled]) .link {
+      cursor: not-allowed;
+      opacity: 0.5;
+      pointer-events: none;
+    }
+    .link:focus-visible {
+      ${focusRingStyle}
+    }
+
+    /* Active indicator line */
+    .indicator {
+      position: absolute;
+      bottom: 0;
+      left: 14px;
+      right: 14px;
+      height: 2px;
+      background: var(--foreground);
+      border-radius: var(--radius-full);
+      opacity: 0;
+      transform: scaleX(0);
+      transition:
+        opacity var(--duration-fast) var(--ease-out),
+        transform var(--duration-fast) var(--ease-out);
+    }
+    :host([active]) .indicator {
+      opacity: 1;
+      transform: scaleX(1);
+    }
+
+    @media (forced-colors: active) {
+      .link:focus-visible {
+        ${focusRingForcedColors}
+      }
+      :host([active]) .indicator {
+        background: CanvasText;
+      }
+    }
+  `];
+ShipNavigationItem.properties = {
+  value: { type: String, reflect: true },
+  active: { type: Boolean, reflect: true },
+  disabled: { type: Boolean, reflect: true },
+  href: { type: String }
+};
+var ShipNavigationMenu = class extends i4 {
+  constructor() {
+    super(...arguments);
+    this.value = "";
+    this.onNavSelect = (e6) => {
+      e6.stopPropagation();
+      const val = e6.detail.value;
+      this.value = val;
+      this.syncItems();
+      this.dispatchEvent(new CustomEvent("ship-change", {
+        detail: { value: val },
+        bubbles: true,
+        composed: true
+      }));
+    };
+    this.onKeydown = (e6) => {
+      if (e6.key !== "ArrowRight" && e6.key !== "ArrowLeft" && e6.key !== "Home" && e6.key !== "End") return;
+      const items = this.enabledItems;
+      if (!items.length) return;
+      const current = e6.composedPath().find(
+        (n4) => items.includes(n4)
+      ) || null;
+      const i6 = current ? items.indexOf(current) : -1;
+      let target;
+      if (e6.key === "ArrowRight") target = items[(i6 + 1) % items.length];
+      else if (e6.key === "ArrowLeft") target = items[(i6 - 1 + items.length) % items.length];
+      else if (e6.key === "Home") target = items[0];
+      else if (e6.key === "End") target = items[items.length - 1];
+      if (target) {
+        e6.preventDefault();
+        target.focusLink();
+      }
+    };
+  }
+  get navItems() {
+    return Array.from(
+      this.querySelectorAll(":scope > ship-navigation-item")
+    );
+  }
+  get enabledItems() {
+    return this.navItems.filter((i6) => !i6.disabled);
+  }
+  syncItems() {
+    for (const item of this.navItems) {
+      item.active = item.value === this.value;
+    }
+  }
+  connectedCallback() {
+    super.connectedCallback();
+    if (!this.hasAttribute("role")) this.setAttribute("role", "navigation");
+    this.addEventListener("ship-nav-select", this.onNavSelect);
+    this.addEventListener("keydown", this.onKeydown);
+  }
+  disconnectedCallback() {
+    super.disconnectedCallback();
+    this.removeEventListener("ship-nav-select", this.onNavSelect);
+    this.removeEventListener("keydown", this.onKeydown);
+  }
+  updated() {
+    this.syncItems();
+  }
+  render() {
+    return b2`<slot @slotchange=${() => this.syncItems()}></slot>`;
+  }
+};
+ShipNavigationMenu.styles = [reducedMotion, i`
+    :host {
+      display: flex;
+      align-items: stretch;
+      gap: 0;
+      border-bottom: 1px solid var(--border);
+      font-family: var(--font-body);
+    }
+    :host([hidden]) { display: none; }
+  `];
+ShipNavigationMenu.properties = {
+  value: { type: String, reflect: true }
+};
+if (typeof customElements !== "undefined") {
+  if (!customElements.get("ship-navigation-item")) {
+    customElements.define("ship-navigation-item", ShipNavigationItem);
+  }
+  if (!customElements.get("ship-navigation-menu")) {
+    customElements.define("ship-navigation-menu", ShipNavigationMenu);
+  }
+}
+
+// src/web-components/ship-popover.ts
 var _ShipPopover = class _ShipPopover extends i4 {
   constructor() {
     super(...arguments);
@@ -4756,7 +4327,7 @@ if (typeof customElements !== "undefined" && !customElements.get("ship-popover")
   customElements.define("ship-popover", ShipPopover);
 }
 
-// packages/ui/src/web-components/ship-progress.ts
+// src/web-components/ship-progress.ts
 var ShipProgress = class extends i4 {
   constructor() {
     super();
@@ -4821,334 +4392,183 @@ if (typeof customElements !== "undefined" && !customElements.get("ship-progress"
   customElements.define("ship-progress", ShipProgress);
 }
 
-// packages/ui/src/web-components/ship-radio-group.styles.ts
-var shipRadioGroupStyles = [
-  reducedMotion,
-  i`
-    :host {
-      display: flex;
-      flex-direction: column;
-      gap: var(--space-2);
-      font-family: var(--font-body);
-      color: var(--foreground);
-    }
-    :host([hidden]) { display: none; }
-  `
-];
-var shipRadioStyles = [
-  reducedMotion,
-  i`
-    :host {
-      display: inline-flex;
-      align-items: center;
-      gap: var(--space-2);
-      vertical-align: middle;
-      font-family: var(--font-body);
-      font-size: var(--text-base);
-      color: var(--foreground);
-      -webkit-tap-highlight-color: transparent;
-
-      --tone: var(--primary);
-    }
-    :host([hidden]) { display: none; }
-
-    /* Tone channel — inherited from group or set directly */
-    :host(:not([tone])),
-    :host([tone='default']) { --tone: var(--primary); }
-    :host([tone='info'])        { --tone: var(--info); }
-    :host([tone='success'])     { --tone: var(--success); }
-    :host([tone='warning'])     { --tone: var(--warning); }
-    :host([tone='destructive']) { --tone: var(--destructive); }
-    :host([tone='accent'])      { --tone: var(--accent); }
-    :host([tone='muted'])       { --tone: var(--muted-foreground); }
-
-    /* Size channel */
-    :host(:not([size])),
-    :host([size='md']) {
-      --rd-size: 16px;
-      --rd-dot: 8px;
-    }
-    :host([size='sm']) {
-      --rd-size: 14px;
-      --rd-dot: 6px;
-    }
-    :host([size='lg']) {
-      --rd-size: 20px;
-      --rd-dot: 10px;
-    }
-
-    label {
-      display: inline-flex;
-      align-items: center;
-      gap: var(--space-2);
-      cursor: pointer;
-      user-select: none;
-      -webkit-user-select: none;
-    }
-    :host([disabled]) label { cursor: not-allowed; }
-
-    /* Circle */
-    .circle {
-      position: relative;
-      display: inline-flex;
-      align-items: center;
-      justify-content: center;
-      flex-shrink: 0;
-      width: var(--rd-size);
-      height: var(--rd-size);
-      background: var(--background);
-      border: 1px solid color-mix(in oklch, var(--border) 160%, transparent);
-      border-radius: 50%;
-      box-sizing: border-box;
-      transition:
-        border-color var(--duration-fast) var(--ease-out),
-        box-shadow var(--duration-fast) var(--ease-out);
-    }
-
-    /* Hover */
-    :host(:not([disabled]):not([checked])) label:hover .circle {
-      border-color: color-mix(in oklch, var(--border) 220%, transparent);
-    }
-
-    /* Checked — border takes tone color */
-    :host([checked]) .circle {
-      border-color: var(--tone);
-    }
-
-    /* Dot */
-    .dot {
-      width: var(--rd-dot);
-      height: var(--rd-dot);
-      border-radius: 50%;
-      background: var(--tone);
-      opacity: 0;
-      transform: scale(0);
-      transition:
-        opacity var(--duration-fast) var(--ease-out),
-        transform var(--duration-fast) var(--ease-out);
-    }
-    :host([checked]) .dot {
-      opacity: 1;
-      transform: scale(1);
-    }
-
-    /* Native input — visually hidden */
-    input {
-      position: absolute;
-      inset: 0;
-      width: 100%;
-      height: 100%;
-      margin: 0;
-      padding: 0;
-      opacity: 0;
-      cursor: inherit;
-      appearance: none;
-      -webkit-appearance: none;
-    }
-
-    /* Focus ring */
-    :host(:not([disabled])) label:has(input:focus-visible) .circle {
-      box-shadow:
-        0 0 0 var(--ring-offset) var(--background),
-        0 0 0 calc(var(--ring-offset) + var(--ring-width))
-          color-mix(in oklch, var(--tone) var(--ring-opacity), transparent);
-    }
-    @media (forced-colors: active) {
-      .circle { border-color: CanvasText; }
-      :host([checked]) .dot { background: Highlight; }
-      :host(:not([disabled])) label:has(input:focus-visible) .circle {
-        outline: 2px solid CanvasText;
-        outline-offset: 2px;
-      }
-    }
-
-    /* Disabled */
-    :host([disabled]) {
-      color: var(--muted-foreground);
-    }
-    :host([disabled]) .circle {
-      background: var(--muted);
-      border-color: color-mix(in oklch, var(--border) 70%, transparent);
-      filter: saturate(0.6);
-    }
-    :host([disabled][checked]) .circle {
-      border-color: color-mix(in oklch, var(--tone) 50%, var(--border));
-    }
-    :host([disabled][checked]) .dot {
-      background: color-mix(in oklch, var(--tone) 55%, var(--muted));
-    }
-
-    ::slotted(*) {
-      font: inherit;
-      color: inherit;
-      line-height: var(--leading-tight);
-    }
-  `
-];
-
-// packages/ui/src/web-components/ship-radio-group.ts
-var ShipRadio = class extends i4 {
+// src/web-components/ship-scroll-area.ts
+var ShipScrollArea = class extends i4 {
   constructor() {
     super(...arguments);
-    this.value = "";
-    this.disabled = false;
-    this.checked = false;
-    this.onClick = () => {
-      if (this.disabled) return;
-      this.dispatchEvent(new CustomEvent("ship-radio-select", {
-        detail: { value: this.value },
-        bubbles: true,
-        composed: true
-      }));
-    };
-    this.onKeydown = (e6) => {
-      const nav = ["ArrowDown", "ArrowRight", "ArrowUp", "ArrowLeft"];
-      if (nav.includes(e6.key)) {
-        e6.preventDefault();
-        const forward = e6.key === "ArrowDown" || e6.key === "ArrowRight";
-        this.dispatchEvent(new CustomEvent("ship-radio-nav", {
-          detail: { direction: forward ? "next" : "prev" },
-          bubbles: true,
-          composed: true
-        }));
+    this.orientation = "vertical";
+    this.size = "md";
+    this.vThumbEl = null;
+    this.hThumbEl = null;
+    this.scrollTimer = null;
+    this.updateThumbs = () => {
+      const vp = this.viewportEl;
+      if (!vp) return;
+      if (this.showV && this.vThumbEl) {
+        const ratio = vp.clientHeight / vp.scrollHeight;
+        if (ratio < 1) {
+          const thumbH = Math.max(24, ratio * vp.clientHeight);
+          const scrollRatio = vp.scrollTop / (vp.scrollHeight - vp.clientHeight);
+          const thumbTop = scrollRatio * (vp.clientHeight - thumbH);
+          this.vThumbEl.style.height = `${thumbH}px`;
+          this.vThumbEl.style.top = `${thumbTop}px`;
+          this.vThumbEl.style.display = "";
+        } else {
+          this.vThumbEl.style.display = "none";
+        }
+      }
+      if (this.showH && this.hThumbEl) {
+        const ratio = vp.clientWidth / vp.scrollWidth;
+        if (ratio < 1) {
+          const thumbW = Math.max(24, ratio * vp.clientWidth);
+          const scrollRatio = vp.scrollLeft / (vp.scrollWidth - vp.clientWidth);
+          const thumbLeft = scrollRatio * (vp.clientWidth - thumbW);
+          this.hThumbEl.style.width = `${thumbW}px`;
+          this.hThumbEl.style.left = `${thumbLeft}px`;
+          this.hThumbEl.style.display = "";
+        } else {
+          this.hThumbEl.style.display = "none";
+        }
       }
     };
-  }
-  /** Focus the native input from the group's keyboard handler. */
-  focusInput() {
-    const input = this.renderRoot.querySelector("input");
-    input?.focus();
-  }
-  render() {
-    return b2`
-      <label>
-        <span class="circle" part="circle">
-          <input
-            part="input"
-            type="radio"
-            role="radio"
-            .checked=${this.checked}
-            ?disabled=${this.disabled}
-            aria-checked=${this.checked ? "true" : "false"}
-            aria-label=${this.value}
-            tabindex=${this.checked ? "0" : "-1"}
-            @click=${this.onClick}
-            @keydown=${this.onKeydown}
-          />
-          <span class="dot" part="dot" aria-hidden="true"></span>
-        </span>
-        <slot></slot>
-      </label>
-    `;
-  }
-};
-ShipRadio.styles = shipRadioStyles;
-ShipRadio.properties = {
-  value: { type: String, reflect: true },
-  disabled: { type: Boolean, reflect: true },
-  checked: { type: Boolean, reflect: true },
-  tone: { type: String, reflect: true },
-  size: { type: String, reflect: true }
-};
-var ShipRadioGroup = class extends i4 {
-  constructor() {
-    super(...arguments);
-    this.value = "";
-    this.disabled = false;
-    this.name = "";
-    this.label = "";
-    this.onRadioSelect = (e6) => {
-      e6.stopPropagation();
-      const newValue = e6.detail.value;
-      if (newValue === this.value) return;
-      this.value = newValue;
-      this.syncRadios();
-      this.dispatchEvent(new CustomEvent("ship-change", {
-        detail: { value: this.value },
-        bubbles: true,
-        composed: true
-      }));
-    };
-    this.onRadioNav = (e6) => {
-      e6.stopPropagation();
-      const enabled = this.enabledRadios;
-      if (!enabled.length) return;
-      const current = e6.target.closest("ship-radio");
-      const idx = current ? enabled.indexOf(current) : -1;
-      let next;
-      if (e6.detail.direction === "next") {
-        next = enabled[(idx + 1) % enabled.length];
-      } else {
-        next = enabled[(idx - 1 + enabled.length) % enabled.length];
-      }
-      this.value = next.value;
-      this.syncRadios();
-      next.focusInput();
-      this.dispatchEvent(new CustomEvent("ship-change", {
-        detail: { value: this.value },
-        bubbles: true,
-        composed: true
-      }));
+    this.onScroll = () => {
+      this.updateThumbs();
+      const vBar = this.renderRoot.querySelector(".scrollbar-v");
+      const hBar = this.renderRoot.querySelector(".scrollbar-h");
+      vBar?.classList.add("active");
+      hBar?.classList.add("active");
+      if (this.scrollTimer) clearTimeout(this.scrollTimer);
+      this.scrollTimer = setTimeout(() => {
+        vBar?.classList.remove("active");
+        hBar?.classList.remove("active");
+      }, 1200);
     };
   }
-  connectedCallback() {
-    super.connectedCallback();
-    if (!this.hasAttribute("role")) this.setAttribute("role", "radiogroup");
-    if (this.label) this.setAttribute("aria-label", this.label);
-    this.addEventListener("ship-radio-select", this.onRadioSelect);
-    this.addEventListener("ship-radio-nav", this.onRadioNav);
+  get viewportEl() {
+    return this.renderRoot.querySelector(".viewport");
+  }
+  get showV() {
+    return this.orientation === "vertical" || this.orientation === "both";
+  }
+  get showH() {
+    return this.orientation === "horizontal" || this.orientation === "both";
+  }
+  firstUpdated() {
+    this.vThumbEl = this.renderRoot.querySelector(".scrollbar-v .thumb");
+    this.hThumbEl = this.renderRoot.querySelector(".scrollbar-h .thumb");
+    const vp = this.viewportEl;
+    if (vp) {
+      vp.addEventListener("scroll", this.onScroll, { passive: true });
+    }
+    this.updateThumbs();
   }
   disconnectedCallback() {
     super.disconnectedCallback();
-    this.removeEventListener("ship-radio-select", this.onRadioSelect);
-    this.removeEventListener("ship-radio-nav", this.onRadioNav);
-  }
-  get radios() {
-    return Array.from(this.querySelectorAll(":scope > ship-radio"));
-  }
-  get enabledRadios() {
-    return this.radios.filter((r4) => !r4.disabled && !this.disabled);
-  }
-  updated() {
-    this.syncRadios();
-  }
-  syncRadios() {
-    for (const radio of this.radios) {
-      radio.checked = radio.value === this.value;
-      if (this.tone && !radio.hasAttribute("tone")) {
-        radio.tone = this.tone;
-      }
-      if (this.size && !radio.hasAttribute("size")) {
-        radio.size = this.size;
-      }
-      if (this.disabled) {
-        radio.disabled = true;
-      }
-    }
+    if (this.scrollTimer) clearTimeout(this.scrollTimer);
   }
   render() {
-    return b2`<slot></slot>`;
+    return b2`
+      <div class="viewport" part="viewport" tabindex="0">
+        <slot></slot>
+      </div>
+      ${this.showV ? b2`
+        <div class="scrollbar scrollbar-v" part="scrollbar-v" aria-hidden="true">
+          <div class="thumb"></div>
+        </div>` : ""}
+      ${this.showH ? b2`
+        <div class="scrollbar scrollbar-h" part="scrollbar-h" aria-hidden="true">
+          <div class="thumb"></div>
+        </div>` : ""}
+    `;
   }
 };
-ShipRadioGroup.styles = shipRadioGroupStyles;
-ShipRadioGroup.properties = {
-  value: { type: String, reflect: true },
-  disabled: { type: Boolean, reflect: true },
-  tone: { type: String, reflect: true },
-  size: { type: String, reflect: true },
-  name: { type: String },
-  label: { type: String }
+ShipScrollArea.styles = [reducedMotion, i`
+    :host {
+      display: block;
+      position: relative;
+      overflow: hidden;
+    }
+    :host([hidden]) { display: none; }
+
+    /* Size channel for scrollbar thumb width */
+    :host(:not([size])), :host([size='md']) { --sb-size: 8px; }
+    :host([size='sm']) { --sb-size: 6px; }
+    :host([size='lg']) { --sb-size: 10px; }
+
+    .viewport {
+      width: 100%;
+      height: 100%;
+      overflow: hidden;
+      scrollbar-width: none;         /* Firefox */
+      -ms-overflow-style: none;       /* IE / Edge */
+    }
+    .viewport::-webkit-scrollbar { display: none; }
+
+    :host([orientation='vertical']) .viewport,
+    :host(:not([orientation])) .viewport {
+      overflow-y: auto;
+    }
+    :host([orientation='horizontal']) .viewport {
+      overflow-x: auto;
+    }
+    :host([orientation='both']) .viewport {
+      overflow: auto;
+    }
+
+    /* Scrollbar tracks — absolute positioned overlays */
+    .scrollbar {
+      position: absolute;
+      opacity: 0;
+      transition: opacity var(--duration-medium) var(--ease-out);
+      z-index: 1;
+    }
+    :host(:hover) .scrollbar,
+    :host(:focus-within) .scrollbar,
+    .scrollbar.active {
+      opacity: 1;
+    }
+
+    .scrollbar-v {
+      top: 0; right: 2px; bottom: 0;
+      width: var(--sb-size);
+    }
+    .scrollbar-h {
+      left: 0; right: 0; bottom: 2px;
+      height: var(--sb-size);
+    }
+
+    /* Thumb */
+    .thumb {
+      position: absolute;
+      border-radius: var(--radius-full);
+      background: color-mix(in oklch, var(--foreground) 30%, transparent);
+      transition: background-color var(--duration-fast) var(--ease-out);
+    }
+    .thumb:hover {
+      background: color-mix(in oklch, var(--foreground) 50%, transparent);
+    }
+    .scrollbar-v .thumb {
+      width: 100%;
+      min-height: 24px;
+    }
+    .scrollbar-h .thumb {
+      height: 100%;
+      min-width: 24px;
+    }
+
+    @media (forced-colors: active) {
+      .thumb { background: CanvasText; }
+    }
+  `];
+ShipScrollArea.properties = {
+  orientation: { type: String, reflect: true },
+  size: { type: String, reflect: true }
 };
-if (typeof customElements !== "undefined") {
-  if (!customElements.get("ship-radio")) {
-    customElements.define("ship-radio", ShipRadio);
-  }
-  if (!customElements.get("ship-radio-group")) {
-    customElements.define("ship-radio-group", ShipRadioGroup);
-  }
+if (typeof customElements !== "undefined" && !customElements.get("ship-scroll-area")) {
+  customElements.define("ship-scroll-area", ShipScrollArea);
 }
 
-// packages/ui/src/web-components/ship-select.styles.ts
+// src/web-components/ship-select.styles.ts
 var shipSelectStyles = [reducedMotion, i`
   :host {
     display: inline-flex;
@@ -5383,7 +4803,7 @@ var shipSelectStyles = [reducedMotion, i`
   }
 `];
 
-// packages/ui/src/web-components/ship-select.ts
+// src/web-components/ship-select.ts
 var ShipSelect = class extends i4 {
   constructor() {
     super();
@@ -5513,7 +4933,7 @@ if (typeof customElements !== "undefined" && !customElements.get("ship-select"))
   customElements.define("ship-select", ShipSelect);
 }
 
-// packages/ui/src/web-components/ship-separator.ts
+// src/web-components/ship-separator.ts
 var ShipSeparator = class extends i4 {
   constructor() {
     super(...arguments);
@@ -5549,248 +4969,7 @@ if (typeof customElements !== "undefined" && !customElements.get("ship-separator
   customElements.define("ship-separator", ShipSeparator);
 }
 
-// packages/ui/src/web-components/ship-slider.styles.ts
-var shipSliderStyles = [
-  reducedMotion,
-  i`
-    :host {
-      display: block;
-      font-family: var(--font-body);
-      color: var(--foreground);
-      -webkit-tap-highlight-color: transparent;
-      --tone: var(--primary);
-    }
-    :host([hidden]) { display: none; }
-
-    :host(:not([tone])),
-    :host([tone='default']) { --tone: var(--primary); }
-    :host([tone='info'])        { --tone: var(--info); }
-    :host([tone='success'])     { --tone: var(--success); }
-    :host([tone='warning'])     { --tone: var(--warning); }
-    :host([tone='destructive']) { --tone: var(--destructive); }
-    :host([tone='accent'])      { --tone: var(--accent); }
-    :host([tone='muted'])       { --tone: var(--muted-foreground); }
-
-    /* Size channel */
-    :host(:not([size])),
-    :host([size='md']) {
-      --sl-h: 6px;
-      --sl-thumb: 16px;
-    }
-    :host([size='sm']) {
-      --sl-h: 4px;
-      --sl-thumb: 12px;
-    }
-    :host([size='lg']) {
-      --sl-h: 8px;
-      --sl-thumb: 20px;
-    }
-
-    .container {
-      position: relative;
-      display: flex;
-      align-items: center;
-      width: 100%;
-      height: var(--sl-thumb);
-      cursor: pointer;
-      touch-action: none;
-    }
-    :host([disabled]) .container {
-      cursor: not-allowed;
-      opacity: 0.5;
-    }
-
-    /* Track */
-    .track {
-      position: relative;
-      width: 100%;
-      height: var(--sl-h);
-      background: var(--muted);
-      border-radius: var(--radius-full);
-      overflow: hidden;
-    }
-
-    /* Filled portion */
-    .fill {
-      position: absolute;
-      top: 0;
-      left: 0;
-      height: 100%;
-      background: var(--tone);
-      border-radius: inherit;
-      transition: width 0ms;
-    }
-
-    /* Thumb */
-    .thumb {
-      position: absolute;
-      top: 50%;
-      width: var(--sl-thumb);
-      height: var(--sl-thumb);
-      background: var(--background);
-      border: 2px solid var(--tone);
-      border-radius: 50%;
-      box-shadow: var(--shadow-sm);
-      transform: translate(-50%, -50%);
-      transition:
-        box-shadow var(--duration-fast) var(--ease-out),
-        transform var(--duration-fast) var(--ease-out);
-      box-sizing: border-box;
-    }
-    .thumb:hover {
-      box-shadow: var(--shadow-md);
-      transform: translate(-50%, -50%) scale(1.05);
-    }
-    .thumb:active {
-      transform: translate(-50%, -50%) scale(0.95);
-    }
-
-    /* Focus ring */
-    :host(:not([disabled])) .thumb:focus-visible {
-      outline: none;
-      box-shadow:
-        0 0 0 var(--ring-offset) var(--background),
-        0 0 0 calc(var(--ring-offset) + var(--ring-width))
-          color-mix(in oklch, var(--tone) var(--ring-opacity), transparent);
-    }
-    @media (forced-colors: active) {
-      .thumb:focus-visible {
-        outline: 2px solid CanvasText;
-        outline-offset: 2px;
-      }
-      .thumb { border-color: CanvasText; }
-      .fill { background: Highlight; }
-    }
-  `
-];
-
-// packages/ui/src/web-components/ship-slider.ts
-var ShipSlider = class extends i4 {
-  constructor() {
-    super(...arguments);
-    this.value = 0;
-    this.min = 0;
-    this.max = 100;
-    this.step = 1;
-    this.disabled = false;
-    this.size = "md";
-    this.label = "";
-    this.dragging = false;
-    this.onPointerDown = (e6) => {
-      if (this.disabled) return;
-      e6.preventDefault();
-      this.dragging = true;
-      this.setValue(this.valueFromPointer(e6.clientX));
-      const thumb = this.renderRoot.querySelector(".thumb");
-      thumb?.focus();
-      const onMove = (ev) => {
-        if (!this.dragging) return;
-        this.setValue(this.valueFromPointer(ev.clientX));
-      };
-      const onUp = () => {
-        this.dragging = false;
-        document.removeEventListener("pointermove", onMove);
-        document.removeEventListener("pointerup", onUp);
-      };
-      document.addEventListener("pointermove", onMove);
-      document.addEventListener("pointerup", onUp);
-    };
-    this.onKeydown = (e6) => {
-      if (this.disabled) return;
-      let handled = true;
-      switch (e6.key) {
-        case "ArrowRight":
-        case "ArrowUp":
-          this.setValue(this.value + this.step);
-          break;
-        case "ArrowLeft":
-        case "ArrowDown":
-          this.setValue(this.value - this.step);
-          break;
-        case "Home":
-          this.setValue(this.min);
-          break;
-        case "End":
-          this.setValue(this.max);
-          break;
-        case "PageUp":
-          this.setValue(this.value + this.step * 10);
-          break;
-        case "PageDown":
-          this.setValue(this.value - this.step * 10);
-          break;
-        default:
-          handled = false;
-      }
-      if (handled) e6.preventDefault();
-    };
-  }
-  get pct() {
-    const range = this.max - this.min;
-    if (range <= 0) return 0;
-    return (this.value - this.min) / range * 100;
-  }
-  clamp(v2) {
-    const stepped = Math.round((v2 - this.min) / this.step) * this.step + this.min;
-    return Math.max(this.min, Math.min(this.max, stepped));
-  }
-  setValue(v2) {
-    const clamped = this.clamp(v2);
-    if (clamped === this.value) return;
-    this.value = clamped;
-    this.dispatchEvent(new CustomEvent("ship-change", {
-      detail: { value: this.value },
-      bubbles: true,
-      composed: true
-    }));
-  }
-  valueFromPointer(clientX) {
-    const track = this.renderRoot.querySelector(".track");
-    if (!track) return this.value;
-    const rect = track.getBoundingClientRect();
-    const pct = Math.max(0, Math.min(1, (clientX - rect.left) / rect.width));
-    return this.min + pct * (this.max - this.min);
-  }
-  render() {
-    const pct = this.pct;
-    return b2`
-      <div class="container" @pointerdown=${this.onPointerDown}>
-        <div class="track" part="track">
-          <div class="fill" part="fill" style="width: ${pct}%"></div>
-        </div>
-        <div
-          class="thumb"
-          part="thumb"
-          role="slider"
-          tabindex=${this.disabled ? "-1" : "0"}
-          aria-valuemin=${this.min}
-          aria-valuemax=${this.max}
-          aria-valuenow=${this.value}
-          aria-label=${this.label || "slider"}
-          aria-disabled=${this.disabled ? "true" : "false"}
-          style="left: ${pct}%"
-          @keydown=${this.onKeydown}
-        ></div>
-      </div>
-    `;
-  }
-};
-ShipSlider.styles = shipSliderStyles;
-ShipSlider.properties = {
-  value: { type: Number, reflect: true },
-  min: { type: Number },
-  max: { type: Number },
-  step: { type: Number },
-  disabled: { type: Boolean, reflect: true },
-  tone: { type: String, reflect: true },
-  size: { type: String, reflect: true },
-  label: { type: String }
-};
-if (typeof customElements !== "undefined" && !customElements.get("ship-slider")) {
-  customElements.define("ship-slider", ShipSlider);
-}
-
-// packages/ui/src/web-components/ship-spinner.ts
+// src/web-components/ship-spinner.ts
 var ShipSpinner = class extends i4 {
   constructor() {
     super();
@@ -5828,7 +5007,7 @@ if (typeof customElements !== "undefined" && !customElements.get("ship-spinner")
   customElements.define("ship-spinner", ShipSpinner);
 }
 
-// packages/ui/src/web-components/ship-stat.ts
+// src/web-components/ship-stat.ts
 var ShipStat = class extends i4 {
   constructor() {
     super(...arguments);
@@ -5932,7 +5111,7 @@ if (typeof customElements !== "undefined" && !customElements.get("ship-stat")) {
   customElements.define("ship-stat", ShipStat);
 }
 
-// packages/ui/src/web-components/ship-status-dot.ts
+// src/web-components/ship-status-dot.ts
 var ShipStatusDot = class extends i4 {
   constructor() {
     super();
@@ -5978,7 +5157,7 @@ if (typeof customElements !== "undefined" && !customElements.get("ship-status-do
   customElements.define("ship-status-dot", ShipStatusDot);
 }
 
-// packages/ui/src/web-components/ship-switch.styles.ts
+// src/web-components/ship-switch.styles.ts
 var shipSwitchStyles = [
   reducedMotion,
   i`
@@ -6180,7 +5359,7 @@ var shipSwitchStyles = [
   `
 ];
 
-// packages/ui/src/web-components/ship-switch.ts
+// src/web-components/ship-switch.ts
 var ShipSwitch = class extends i4 {
   constructor() {
     super();
@@ -6259,7 +5438,7 @@ if (typeof customElements !== "undefined" && !customElements.get("ship-switch"))
   customElements.define("ship-switch", ShipSwitch);
 }
 
-// packages/ui/src/web-components/ship-tabs.styles.ts
+// src/web-components/ship-tabs.styles.ts
 var shipTabsStyles = [reducedMotion, i`
   :host {
     display: block;
@@ -6530,7 +5709,7 @@ var shipTabPanelStyles = [reducedMotion, i`
   }
 `];
 
-// packages/ui/src/web-components/ship-tabs.ts
+// src/web-components/ship-tabs.ts
 var ShipTab = class extends i4 {
   constructor() {
     super(...arguments);
@@ -6739,7 +5918,7 @@ if (typeof customElements !== "undefined") {
   if (!customElements.get("ship-tabs")) customElements.define("ship-tabs", ShipTabs);
 }
 
-// packages/ui/src/web-components/ship-textarea.styles.ts
+// src/web-components/ship-textarea.styles.ts
 var shipTextareaStyles = [reducedMotion, i`
   :host {
     display: block;
@@ -6852,7 +6031,7 @@ var shipTextareaStyles = [reducedMotion, i`
   }
 `];
 
-// packages/ui/src/web-components/ship-textarea.ts
+// src/web-components/ship-textarea.ts
 var ShipTextarea = class extends i4 {
   constructor() {
     super();
@@ -6940,7 +6119,7 @@ if (typeof customElements !== "undefined" && !customElements.get("ship-textarea"
   customElements.define("ship-textarea", ShipTextarea);
 }
 
-// packages/ui/src/web-components/ship-theme-toggle.ts
+// src/web-components/ship-theme-toggle.ts
 var STORAGE_KEY = "ship-theme";
 var ShipThemeToggle = class extends i4 {
   constructor() {
@@ -7012,7 +6191,235 @@ if (typeof customElements !== "undefined" && !customElements.get("ship-theme-tog
   customElements.define("ship-theme-toggle", ShipThemeToggle);
 }
 
-// packages/ui/src/web-components/ship-toolbar.ts
+// src/web-components/ship-toggle-group.ts
+var ShipToggle = class extends i4 {
+  constructor() {
+    super(...arguments);
+    this.pressed = false;
+    this.disabled = false;
+    this.value = "";
+    this.size = "md";
+    this.variant = "outline";
+    this.onClick = () => {
+      if (this.disabled) return;
+      this.pressed = !this.pressed;
+      this.dispatchEvent(new CustomEvent("ship-toggle", {
+        detail: { pressed: this.pressed, value: this.value },
+        bubbles: true,
+        composed: true
+      }));
+    };
+  }
+  /** Focus the button — used by parent group for keyboard nav. */
+  focusButton() {
+    const btn = this.renderRoot.querySelector("button");
+    btn?.focus();
+  }
+  render() {
+    return b2`
+      <button
+        part="button"
+        type="button"
+        aria-pressed=${this.pressed ? "true" : "false"}
+        ?disabled=${this.disabled}
+        @click=${this.onClick}
+      ><slot></slot></button>
+    `;
+  }
+};
+ShipToggle.styles = [reducedMotion, i`
+    :host { display: inline-flex; }
+    :host([hidden]) { display: none; }
+
+    /* Size channel */
+    :host(:not([size])), :host([size='md']) {
+      --tgl-h: 36px; --tgl-px: 12px; --tgl-fs: var(--text-base);
+    }
+    :host([size='sm']) {
+      --tgl-h: 28px; --tgl-px: 8px; --tgl-fs: var(--text-sm);
+    }
+    :host([size='lg']) {
+      --tgl-h: 42px; --tgl-px: 16px; --tgl-fs: var(--text-base);
+    }
+
+    button {
+      display: inline-flex;
+      align-items: center;
+      justify-content: center;
+      gap: 6px;
+      height: var(--tgl-h);
+      padding: 0 var(--tgl-px);
+      font-family: var(--font-body);
+      font-size: var(--tgl-fs);
+      font-weight: var(--font-weight-medium);
+      line-height: 1;
+      color: var(--muted-foreground);
+      background: transparent;
+      border: 1px solid var(--border);
+      border-radius: var(--radius);
+      cursor: pointer;
+      transition:
+        background-color var(--duration-fast) var(--ease-out),
+        color var(--duration-fast) var(--ease-out),
+        border-color var(--duration-fast) var(--ease-out);
+    }
+    :host([variant='ghost']) button {
+      border-color: transparent;
+    }
+    button:hover {
+      background: var(--muted);
+      color: var(--foreground);
+    }
+    :host([pressed]) button {
+      background: var(--muted);
+      color: var(--foreground);
+      border-color: var(--border);
+    }
+    :host([disabled]) button {
+      cursor: not-allowed;
+      opacity: 0.5;
+      pointer-events: none;
+    }
+    button:focus-visible {
+      ${focusRingStyle}
+    }
+    @media (forced-colors: active) {
+      button:focus-visible {
+        ${focusRingForcedColors}
+      }
+      :host([pressed]) button {
+        outline: 2px solid CanvasText;
+      }
+    }
+  `];
+ShipToggle.properties = {
+  pressed: { type: Boolean, reflect: true },
+  disabled: { type: Boolean, reflect: true },
+  value: { type: String, reflect: true },
+  size: { type: String, reflect: true },
+  variant: { type: String, reflect: true }
+};
+var ShipToggleGroup = class extends i4 {
+  constructor() {
+    super(...arguments);
+    this.type = "single";
+    this.value = "";
+    this.size = "md";
+    this.variant = "outline";
+    this.onToggle = (e6) => {
+      e6.stopPropagation();
+      const toggle = e6.target.closest("ship-toggle");
+      if (!toggle) return;
+      const val = toggle.value;
+      const selected = this.getSelectedValues();
+      if (this.type === "single") {
+        if (selected.has(val)) {
+          this.setSelectedValues(/* @__PURE__ */ new Set());
+        } else {
+          this.setSelectedValues(/* @__PURE__ */ new Set([val]));
+        }
+      } else {
+        if (selected.has(val)) {
+          selected.delete(val);
+        } else {
+          selected.add(val);
+        }
+        this.setSelectedValues(selected);
+      }
+    };
+    this.onKeydown = (e6) => {
+      if (e6.key !== "ArrowRight" && e6.key !== "ArrowLeft") return;
+      const items = this.enabledToggles;
+      if (!items.length) return;
+      const current = e6.composedPath().find(
+        (n4) => items.includes(n4)
+      ) || null;
+      const i6 = current ? items.indexOf(current) : -1;
+      const next = e6.key === "ArrowRight" ? (i6 + 1) % items.length : (i6 - 1 + items.length) % items.length;
+      items[next].focusButton();
+      e6.preventDefault();
+    };
+  }
+  get toggles() {
+    return Array.from(this.querySelectorAll(":scope > ship-toggle"));
+  }
+  get enabledToggles() {
+    return this.toggles.filter((t4) => !t4.disabled);
+  }
+  getSelectedValues() {
+    return new Set(this.value ? this.value.split(",").filter(Boolean) : []);
+  }
+  setSelectedValues(vals) {
+    this.value = Array.from(vals).join(",");
+    this.syncToggles();
+    this.dispatchEvent(new CustomEvent("ship-change", {
+      detail: { value: this.value },
+      bubbles: true,
+      composed: true
+    }));
+  }
+  syncToggles() {
+    const selected = this.getSelectedValues();
+    for (const toggle of this.toggles) {
+      toggle.pressed = selected.has(toggle.value);
+      if (this.size) toggle.size = this.size;
+      if (this.variant) toggle.variant = this.variant;
+    }
+  }
+  connectedCallback() {
+    super.connectedCallback();
+    if (!this.hasAttribute("role")) this.setAttribute("role", "group");
+    this.addEventListener("ship-toggle", this.onToggle);
+    this.addEventListener("keydown", this.onKeydown);
+  }
+  disconnectedCallback() {
+    super.disconnectedCallback();
+    this.removeEventListener("ship-toggle", this.onToggle);
+    this.removeEventListener("keydown", this.onKeydown);
+  }
+  updated() {
+    this.syncToggles();
+  }
+  render() {
+    return b2`<slot @slotchange=${() => this.syncToggles()}></slot>`;
+  }
+};
+ShipToggleGroup.styles = [reducedMotion, i`
+    :host {
+      display: inline-flex;
+      gap: 0;
+    }
+    :host([hidden]) { display: none; }
+    /* Merge borders between children */
+    ::slotted(ship-toggle:not(:first-child)) {
+      margin-left: -1px;
+    }
+    ::slotted(ship-toggle:first-child) {
+      border-radius: var(--radius) 0 0 var(--radius);
+    }
+    ::slotted(ship-toggle:last-child) {
+      border-radius: 0 var(--radius) var(--radius) 0;
+    }
+    ::slotted(ship-toggle:not(:first-child):not(:last-child)) {
+      border-radius: 0;
+    }
+  `];
+ShipToggleGroup.properties = {
+  type: { type: String, reflect: true },
+  value: { type: String, reflect: true },
+  size: { type: String, reflect: true },
+  variant: { type: String, reflect: true }
+};
+if (typeof customElements !== "undefined") {
+  if (!customElements.get("ship-toggle")) {
+    customElements.define("ship-toggle", ShipToggle);
+  }
+  if (!customElements.get("ship-toggle-group")) {
+    customElements.define("ship-toggle-group", ShipToggleGroup);
+  }
+}
+
+// src/web-components/ship-toolbar.ts
 var ShipToolbar = class extends i4 {
   constructor() {
     super(...arguments);
@@ -7076,7 +6483,7 @@ if (typeof customElements !== "undefined" && !customElements.get("ship-toolbar")
   customElements.define("ship-toolbar", ShipToolbar);
 }
 
-// packages/ui/src/web-components/ship-tooltip.ts
+// src/web-components/ship-tooltip.ts
 var _ShipTooltip = class _ShipTooltip extends i4 {
   constructor() {
     super(...arguments);
@@ -7164,7 +6571,7 @@ if (typeof customElements !== "undefined" && !customElements.get("ship-tooltip")
   customElements.define("ship-tooltip", ShipTooltip);
 }
 
-// packages/ui/src/web-components/domain/ship-pipeline-step.ts
+// src/web-components/domain/ship-pipeline-step.ts
 var ShipPipelineStep = class extends i4 {
   constructor() {
     super(...arguments);
@@ -7274,7 +6681,7 @@ if (typeof customElements !== "undefined" && !customElements.get("ship-pipeline-
   customElements.define("ship-pipeline-step", ShipPipelineStep);
 }
 
-// packages/ui/src/web-components/domain/ship-pipeline-run.ts
+// src/web-components/domain/ship-pipeline-run.ts
 var STATE_TO_TONE = {
   dispatched: "info",
   running: "info",
@@ -7350,7 +6757,7 @@ if (typeof customElements !== "undefined" && !customElements.get("ship-pipeline-
   customElements.define("ship-pipeline-run", ShipPipelineRun);
 }
 
-// packages/ui/src/web-components/domain/ship-pipeline-definition.ts
+// src/web-components/domain/ship-pipeline-definition.ts
 var ShipPipelineDefinition = class extends i4 {
   constructor() {
     super(...arguments);
@@ -7420,7 +6827,7 @@ if (typeof customElements !== "undefined" && !customElements.get("ship-pipeline-
   customElements.define("ship-pipeline-definition", ShipPipelineDefinition);
 }
 
-// packages/ui/src/web-components/domain/ship-pipeline-dag.ts
+// src/web-components/domain/ship-pipeline-dag.ts
 var ShipPipelineDag = class extends i4 {
   connectedCallback() {
     super.connectedCallback();
@@ -7451,7 +6858,7 @@ if (typeof customElements !== "undefined" && !customElements.get("ship-pipeline-
   customElements.define("ship-pipeline-dag", ShipPipelineDag);
 }
 
-// packages/ui/src/web-components/domain/ship-history-row.ts
+// src/web-components/domain/ship-history-row.ts
 var ShipHistoryRow = class extends i4 {
   constructor() {
     super(...arguments);
@@ -7491,7 +6898,7 @@ if (typeof customElements !== "undefined" && !customElements.get("ship-history-r
   customElements.define("ship-history-row", ShipHistoryRow);
 }
 
-// packages/ui/src/web-components/domain/ship-spec-row.ts
+// src/web-components/domain/ship-spec-row.ts
 var STATUS_TO_TONE = {
   draft: "muted",
   ready: "success",
@@ -7538,7 +6945,7 @@ if (typeof customElements !== "undefined" && !customElements.get("ship-spec-row"
   customElements.define("ship-spec-row", ShipSpecRow);
 }
 
-// packages/ui/src/web-components/domain/ship-git-diff.ts
+// src/web-components/domain/ship-git-diff.ts
 var ShipGitDiff = class extends i4 {
   constructor() {
     super(...arguments);
@@ -7808,7 +7215,7 @@ if (typeof customElements !== "undefined") {
   if (!customElements.get("ship-git-diff-line")) customElements.define("ship-git-diff-line", ShipGitDiffLine);
 }
 
-// packages/ui/src/web-components/observability/ship-log-line.ts
+// src/web-components/observability/ship-log-line.ts
 var ShipLogLine = class extends i4 {
   constructor() {
     super(...arguments);
@@ -7866,7 +7273,7 @@ if (typeof customElements !== "undefined" && !customElements.get("ship-log-line"
   customElements.define("ship-log-line", ShipLogLine);
 }
 
-// packages/ui/src/web-components/observability/ship-event-row.ts
+// src/web-components/observability/ship-event-row.ts
 var ShipEventRow = class extends i4 {
   connectedCallback() {
     super.connectedCallback();
@@ -7916,7 +7323,7 @@ if (typeof customElements !== "undefined" && !customElements.get("ship-event-row
   customElements.define("ship-event-row", ShipEventRow);
 }
 
-// packages/ui/src/web-components/observability/ship-timestamp.ts
+// src/web-components/observability/ship-timestamp.ts
 var MINUTE = 6e4;
 var HOUR = 36e5;
 var DAY = 864e5;
@@ -7978,7 +7385,7 @@ if (typeof customElements !== "undefined" && !customElements.get("ship-timestamp
   customElements.define("ship-timestamp", ShipTimestamp);
 }
 
-// packages/ui/src/web-components/observability/ship-json-view.ts
+// src/web-components/observability/ship-json-view.ts
 var ShipJsonView = class extends i4 {
   constructor() {
     super(...arguments);
@@ -8073,7 +7480,7 @@ if (typeof customElements !== "undefined" && !customElements.get("ship-json-view
   customElements.define("ship-json-view", ShipJsonView);
 }
 
-// packages/ui/src/web-components/observability/ship-diff.ts
+// src/web-components/observability/ship-diff.ts
 function diffLines(a3, b3) {
   const A2 = a3.split("\n");
   const B2 = b3.split("\n");
@@ -8173,7 +7580,7 @@ if (typeof customElements !== "undefined" && !customElements.get("ship-diff")) {
   customElements.define("ship-diff", ShipDiff);
 }
 
-// packages/ui/src/web-components/observability/ship-code.ts
+// src/web-components/observability/ship-code.ts
 var ShipCode = class extends i4 {
   constructor() {
     super(...arguments);
@@ -8243,7 +7650,7 @@ if (typeof customElements !== "undefined" && !customElements.get("ship-code")) {
   customElements.define("ship-code", ShipCode);
 }
 
-// packages/ui/src/web-components/observability/ship-copy-button.ts
+// src/web-components/observability/ship-copy-button.ts
 var ShipCopyButton = class extends i4 {
   constructor() {
     super(...arguments);
@@ -8340,7 +7747,7 @@ if (typeof customElements !== "undefined" && !customElements.get("ship-copy-butt
   customElements.define("ship-copy-button", ShipCopyButton);
 }
 
-// node_modules/.pnpm/lit-html@3.3.2/node_modules/lit-html/directive.js
+// ../../node_modules/.pnpm/lit-html@3.3.2/node_modules/lit-html/directive.js
 var t3 = { ATTRIBUTE: 1, CHILD: 2, PROPERTY: 3, BOOLEAN_ATTRIBUTE: 4, EVENT: 5, ELEMENT: 6 };
 var e4 = (t4) => (...e6) => ({ _$litDirective$: t4, values: e6 });
 var i5 = class {
@@ -8360,7 +7767,7 @@ var i5 = class {
   }
 };
 
-// node_modules/.pnpm/lit-html@3.3.2/node_modules/lit-html/directives/unsafe-html.js
+// ../../node_modules/.pnpm/lit-html@3.3.2/node_modules/lit-html/directives/unsafe-html.js
 var e5 = class extends i5 {
   constructor(i6) {
     if (super(i6), this.it = A, i6.type !== t3.CHILD) throw Error(this.constructor.directiveName + "() can only be used in child bindings");
@@ -8378,7 +7785,7 @@ var e5 = class extends i5 {
 e5.directiveName = "unsafeHTML", e5.resultType = 1;
 var o5 = e4(e5);
 
-// packages/ui/src/web-components/observability/ship-markdown.ts
+// src/web-components/observability/ship-markdown.ts
 function escape(s4) {
   return s4.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;").replace(/"/g, "&quot;");
 }
@@ -8515,7 +7922,7 @@ if (typeof customElements !== "undefined" && !customElements.get("ship-markdown"
   customElements.define("ship-markdown", ShipMarkdown);
 }
 
-// packages/ui/src/web-components/observability/ship-table.styles.ts
+// src/web-components/observability/ship-table.styles.ts
 var shipTableStyles = [
   reducedMotion,
   i`
@@ -8757,7 +8164,7 @@ var shipTableLightDomCss = `
   }
 `;
 
-// packages/ui/src/web-components/observability/ship-table.ts
+// src/web-components/observability/ship-table.ts
 var lightDomInstalled = /* @__PURE__ */ new WeakSet();
 function installLightDomStyles(doc) {
   if (lightDomInstalled.has(doc)) return;
@@ -8936,7 +8343,7 @@ if (typeof customElements !== "undefined" && !customElements.get("ship-table")) 
   customElements.define("ship-table", ShipTable);
 }
 
-// packages/ui/src/web-components/observability/ship-timeline.ts
+// src/web-components/observability/ship-timeline.ts
 var ShipTimeline = class extends i4 {
   connectedCallback() {
     super.connectedCallback();
@@ -9072,7 +8479,7 @@ if (typeof customElements !== "undefined") {
   if (!customElements.get("ship-timeline-item")) customElements.define("ship-timeline-item", ShipTimelineItem);
 }
 
-// packages/ui/src/web-components/observability/ship-tree-view.ts
+// src/web-components/observability/ship-tree-view.ts
 var ShipTreeView = class extends i4 {
   connectedCallback() {
     super.connectedCallback();
@@ -9203,7 +8610,7 @@ if (typeof customElements !== "undefined") {
   if (!customElements.get("ship-tree-node")) customElements.define("ship-tree-node", ShipTreeNode);
 }
 
-// packages/ui/src/web-components/charts/util.ts
+// src/web-components/charts/util.ts
 var TONE_VARS = {
   default: "var(--foreground)",
   primary: "var(--primary)",
@@ -9260,7 +8667,7 @@ function arcPath(cx, cy, r4, startAngle, endAngle) {
   return `M${x1.toFixed(2)},${y1.toFixed(2)} A${r4},${r4} 0 ${large} ${sweep} ${x2.toFixed(2)},${y22.toFixed(2)}`;
 }
 
-// packages/ui/src/web-components/charts/ship-sparkline.ts
+// src/web-components/charts/ship-sparkline.ts
 var ShipSparkline = class extends i4 {
   constructor() {
     super(...arguments);
@@ -9326,7 +8733,7 @@ if (typeof customElements !== "undefined" && !customElements.get("ship-sparkline
   customElements.define("ship-sparkline", ShipSparkline);
 }
 
-// packages/ui/src/web-components/charts/ship-bar-chart.ts
+// src/web-components/charts/ship-bar-chart.ts
 var ShipBarChart = class extends i4 {
   constructor() {
     super(...arguments);
@@ -9410,7 +8817,7 @@ if (typeof customElements !== "undefined" && !customElements.get("ship-bar-chart
   customElements.define("ship-bar-chart", ShipBarChart);
 }
 
-// packages/ui/src/web-components/charts/ship-line-chart.ts
+// src/web-components/charts/ship-line-chart.ts
 var ShipLineChart = class extends i4 {
   constructor() {
     super(...arguments);
@@ -9491,7 +8898,7 @@ if (typeof customElements !== "undefined" && !customElements.get("ship-line-char
   customElements.define("ship-line-chart", ShipLineChart);
 }
 
-// packages/ui/src/web-components/charts/ship-area-chart.ts
+// src/web-components/charts/ship-area-chart.ts
 var ShipAreaChart = class extends i4 {
   constructor() {
     super(...arguments);
@@ -9573,7 +8980,7 @@ if (typeof customElements !== "undefined" && !customElements.get("ship-area-char
   customElements.define("ship-area-chart", ShipAreaChart);
 }
 
-// packages/ui/src/web-components/charts/ship-donut.ts
+// src/web-components/charts/ship-donut.ts
 var ShipDonut = class extends i4 {
   constructor() {
     super(...arguments);
@@ -9652,7 +9059,7 @@ if (typeof customElements !== "undefined" && !customElements.get("ship-donut")) 
   customElements.define("ship-donut", ShipDonut);
 }
 
-// packages/ui/src/web-components/charts/ship-gauge.ts
+// src/web-components/charts/ship-gauge.ts
 var ShipGauge = class extends i4 {
   constructor() {
     super(...arguments);
@@ -9735,7 +9142,7 @@ if (typeof customElements !== "undefined" && !customElements.get("ship-gauge")) 
   customElements.define("ship-gauge", ShipGauge);
 }
 
-// packages/ui/src/web-components/charts/ship-progress-ring.ts
+// src/web-components/charts/ship-progress-ring.ts
 var ShipProgressRing = class extends i4 {
   constructor() {
     super(...arguments);
@@ -9805,7 +9212,7 @@ if (typeof customElements !== "undefined" && !customElements.get("ship-progress-
   customElements.define("ship-progress-ring", ShipProgressRing);
 }
 
-// packages/ui/src/web-components/charts/ship-heatmap.ts
+// src/web-components/charts/ship-heatmap.ts
 var TONE_CSS_VAR = {
   default: "--foreground",
   primary: "--primary",
@@ -9890,7 +9297,7 @@ if (typeof customElements !== "undefined" && !customElements.get("ship-heatmap")
   customElements.define("ship-heatmap", ShipHeatmap);
 }
 
-// packages/ui/src/web-components/charts/ship-meter.ts
+// src/web-components/charts/ship-meter.ts
 var ShipMeter = class extends i4 {
   constructor() {
     super(...arguments);
@@ -9962,7 +9369,7 @@ if (typeof customElements !== "undefined" && !customElements.get("ship-meter")) 
   customElements.define("ship-meter", ShipMeter);
 }
 
-// packages/ui/src/web-components/utility/ship-avatar.ts
+// src/web-components/utility/ship-avatar.ts
 function initialsFromName(name) {
   const parts = name.trim().split(/\s+/).filter(Boolean);
   if (parts.length === 0) return "";
@@ -10030,7 +9437,7 @@ if (typeof customElements !== "undefined" && !customElements.get("ship-avatar"))
   customElements.define("ship-avatar", ShipAvatar);
 }
 
-// packages/ui/src/web-components/utility/ship-chip.styles.ts
+// src/web-components/utility/ship-chip.styles.ts
 var shipChipStyles = [
   reducedMotion,
   i`
@@ -10301,7 +9708,7 @@ var shipChipStyles = [
   `
 ];
 
-// packages/ui/src/web-components/utility/ship-chip.ts
+// src/web-components/utility/ship-chip.ts
 var ShipChip = class extends i4 {
   constructor() {
     super();
@@ -10403,7 +9810,7 @@ if (typeof customElements !== "undefined" && !customElements.get("ship-chip")) {
   customElements.define("ship-chip", ShipChip);
 }
 
-// packages/ui/src/web-components/utility/ship-kbd.ts
+// src/web-components/utility/ship-kbd.ts
 var ShipKbd = class extends i4 {
   constructor() {
     super(...arguments);
@@ -10446,7 +9853,7 @@ if (typeof customElements !== "undefined" && !customElements.get("ship-kbd")) {
   customElements.define("ship-kbd", ShipKbd);
 }
 
-// packages/ui/src/web-components/utility/ship-skeleton.ts
+// src/web-components/utility/ship-skeleton.ts
 var ShipSkeleton = class extends i4 {
   constructor() {
     super(...arguments);
@@ -10487,7 +9894,7 @@ ShipSkeleton.styles = i`
         var(--muted) 100%
       );
       background-size: 200% 100%;
-      animation: shimmer var(--duration-slow) linear infinite;
+      animation: shimmer 1.8s ease-in-out infinite;
       border-radius: var(--radius-sm);
     }
     :host([variant='circle']) .bar { border-radius: var(--radius-full); }
@@ -10500,6 +9907,9 @@ ShipSkeleton.styles = i`
       0% { background-position: 200% 0; }
       100% { background-position: -200% 0; }
     }
+    @media (prefers-reduced-motion: reduce) {
+      .bar { animation: none; }
+    }
   `;
 ShipSkeleton.properties = {
   variant: { type: String, reflect: true },
@@ -10511,7 +9921,7 @@ if (typeof customElements !== "undefined" && !customElements.get("ship-skeleton"
   customElements.define("ship-skeleton", ShipSkeleton);
 }
 
-// packages/ui/src/web-components/utility/ship-toast-container.styles.ts
+// src/web-components/utility/ship-toast-container.styles.ts
 var shipToastContainerStyles = i`
   :host {
     position: fixed;
@@ -10593,7 +10003,7 @@ var shipToastContainerStyles = i`
   }
 `;
 
-// packages/ui/src/web-components/utility/ship-toast-container.ts
+// src/web-components/utility/ship-toast-container.ts
 var SLIDE_FROM = {
   "top-left": "top",
   "top-center": "top",
@@ -10692,7 +10102,7 @@ if (typeof customElements !== "undefined" && !customElements.get("ship-toast-con
   customElements.define("ship-toast-container", ShipToastContainer);
 }
 
-// packages/ui/src/web-components/utility/ship-toast.styles.ts
+// src/web-components/utility/ship-toast.styles.ts
 var shipToastStyles = [
   reducedMotion,
   toneVars,
@@ -10964,7 +10374,7 @@ var shipToastStyles = [
   `
 ];
 
-// packages/ui/src/web-components/utility/ship-toast.ts
+// src/web-components/utility/ship-toast.ts
 var TONE_ICON = {
   info: '<circle cx="12" cy="12" r="9"/><path d="M12 8h.01"/><path d="M11 12h1v4h1"/>',
   success: '<circle cx="12" cy="12" r="9"/><path d="m8.5 12.5 2.5 2.5 4.5-5"/>',
@@ -11167,7 +10577,7 @@ if (typeof customElements !== "undefined" && !customElements.get("ship-toast")) 
   customElements.define("ship-toast", ShipToast);
 }
 
-// packages/ui/src/web-components/utility/ship-breadcrumb.ts
+// src/web-components/utility/ship-breadcrumb.ts
 var ShipBreadcrumbItem = class extends i4 {
   constructor() {
     super(...arguments);
@@ -11259,7 +10669,7 @@ if (typeof customElements !== "undefined") {
     customElements.define("ship-breadcrumb", ShipBreadcrumb);
 }
 
-// packages/ui/src/web-components/utility/ship-link.ts
+// src/web-components/utility/ship-link.ts
 var ShipLink = class extends i4 {
   constructor() {
     super(...arguments);
@@ -11323,7 +10733,7 @@ if (typeof customElements !== "undefined" && !customElements.get("ship-link")) {
   customElements.define("ship-link", ShipLink);
 }
 
-// packages/ui/src/web-components/utility/ship-metachip.ts
+// src/web-components/utility/ship-metachip.ts
 var ShipMetachip = class extends i4 {
   constructor() {
     super(...arguments);
@@ -11371,7 +10781,7 @@ if (typeof customElements !== "undefined" && !customElements.get("ship-metachip"
   customElements.define("ship-metachip", ShipMetachip);
 }
 
-// packages/ui/src/web-components/utility/ship-step-segments.ts
+// src/web-components/utility/ship-step-segments.ts
 var KNOWN = /* @__PURE__ */ new Set(["done", "failed", "pending", "running"]);
 var ShipStepSegments = class extends i4 {
   constructor() {
@@ -11424,18 +10834,13 @@ if (typeof customElements !== "undefined" && !customElements.get("ship-step-segm
   customElements.define("ship-step-segments", ShipStepSegments);
 }
 
-// packages/ui/src/web-components/index.ts
+// src/web-components/index.ts
 function registerShipComponents() {
 }
 export {
   ICONS,
-  ShipAccordion,
-  ShipAccordionItem,
   ShipAlert,
   ShipAlertDialog,
-  ShipAnnotationLayer,
-  ShipAnnotationList,
-  ShipAnnotationMarker,
   ShipAreaChart,
   ShipAvatar,
   ShipBadge,
@@ -11447,7 +10852,7 @@ export {
   ShipCheckbox,
   ShipChip,
   ShipCode,
-  ShipCollapsible,
+  ShipContextMenu,
   ShipCopyButton,
   ShipDialog,
   ShipDiff,
@@ -11463,6 +10868,7 @@ export {
   ShipGitDiffLine,
   ShipHeatmap,
   ShipHistoryRow,
+  ShipHoverCard,
   ShipIcon,
   ShipInput,
   ShipJsonView,
@@ -11475,6 +10881,8 @@ export {
   ShipMarkdown,
   ShipMetachip,
   ShipMeter,
+  ShipNavigationItem,
+  ShipNavigationMenu,
   ShipPipelineDag,
   ShipPipelineDefinition,
   ShipPipelineRun,
@@ -11482,12 +10890,10 @@ export {
   ShipPopover,
   ShipProgress,
   ShipProgressRing,
-  ShipRadio,
-  ShipRadioGroup,
+  ShipScrollArea,
   ShipSelect,
   ShipSeparator,
   ShipSkeleton,
-  ShipSlider,
   ShipSparkline,
   ShipSpecRow,
   ShipSpinner,
@@ -11506,6 +10912,8 @@ export {
   ShipTimestamp,
   ShipToast,
   ShipToastContainer,
+  ShipToggle,
+  ShipToggleGroup,
   ShipToolbar,
   ShipTooltip,
   ShipTreeNode,

@@ -1,6 +1,7 @@
 /**
  * Layout primitive samples: card / separator / toolbar / breadcrumb /
- * tabs / tree-view / timeline / list-item.
+ * tabs / accordion / collapsible / scroll-area / navigation-menu /
+ * tree-view / timeline / list-item.
  */
 
 import { row, type Sample } from './types'
@@ -106,5 +107,56 @@ export const LAYOUT: Record<string, Sample[]> = {
         '<ship-list-item disabled style="width:240px">Disabled row</ship-list-item>',
       ].join(''),
     ),
+  ],
+  'ship-accordion': [
+    {
+      props: { type: 'single', value: 'first' },
+      innerHTML:
+        '<ship-accordion-item value="first">' +
+        '<span slot="trigger">What is Ship?</span>' +
+        'Ship is an agent-native CI/CD runtime that orchestrates pipelines.' +
+        '</ship-accordion-item>' +
+        '<ship-accordion-item value="second">' +
+        '<span slot="trigger">How does the daemon work?</span>' +
+        'The daemon runs locally and communicates over gRPC with the CLI and MCP server.' +
+        '</ship-accordion-item>' +
+        '<ship-accordion-item value="third">' +
+        '<span slot="trigger">Can I extend it?</span>' +
+        'Yes — write custom pipeline steps as shell commands or Rust functions.' +
+        '</ship-accordion-item>',
+      metaAttrs: { type: 'single', value: 'first' },
+    },
+  ],
+  'ship-collapsible': [
+    {
+      props: { open: '' },
+      innerHTML:
+        '<ship-button slot="trigger" variant="outline" size="sm">Toggle details</ship-button>' +
+        '<div style="padding:10px 0;color:var(--muted-foreground);font-size:var(--text-sm)">' +
+        'This content is collapsible. Click the button above to show or hide it. ' +
+        'Smooth height animation transitions the region open and closed.' +
+        '</div>',
+      metaAttrs: { open: 'true' },
+    },
+  ],
+  'ship-scroll-area': [
+    {
+      props: { style: 'height:140px;width:260px' },
+      innerHTML: Array.from({ length: 20 }, (_, i) =>
+        `<div style="padding:4px 8px;font-size:var(--text-sm);color:var(--muted-foreground);border-bottom:1px solid var(--border)">Line ${i + 1} — scrollable content</div>`,
+      ).join(''),
+      metaAttrs: { orientation: 'vertical' },
+    },
+  ],
+  'ship-navigation-menu': [
+    {
+      props: { value: 'overview' },
+      innerHTML:
+        '<ship-navigation-item value="overview">Overview</ship-navigation-item>' +
+        '<ship-navigation-item value="pipelines">Pipelines</ship-navigation-item>' +
+        '<ship-navigation-item value="agents">Agents</ship-navigation-item>' +
+        '<ship-navigation-item value="settings" disabled>Settings</ship-navigation-item>',
+      metaAttrs: { value: 'overview' },
+    },
   ],
 }

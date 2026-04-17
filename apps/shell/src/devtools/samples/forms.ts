@@ -1,6 +1,6 @@
 /**
  * Form primitive samples: input / textarea / select / checkbox / switch /
- * field / label.
+ * radio-group / slider / toggle-group / field / label.
  */
 
 import { row, type Sample } from './types'
@@ -102,5 +102,53 @@ export const FORMS: Record<string, Sample[]> = {
     { innerHTML: 'Label text' },
     { props: { required: '' }, innerHTML: 'Required label' },
     { props: { size: 'sm' }, innerHTML: 'Small label' },
+  ],
+  'ship-radio-group': [
+    {
+      raw: true,
+      innerHTML:
+        '<div class="sample-row" style="gap:32px">' +
+        '<ship-radio-group value="prod">' +
+        '<ship-radio value="dev">Development</ship-radio>' +
+        '<ship-radio value="staging">Staging</ship-radio>' +
+        '<ship-radio value="prod">Production</ship-radio>' +
+        '</ship-radio-group>' +
+        '<ship-radio-group value="fast" tone="accent">' +
+        '<ship-radio value="fast">Fast</ship-radio>' +
+        '<ship-radio value="balanced">Balanced</ship-radio>' +
+        '<ship-radio value="thorough">Thorough</ship-radio>' +
+        '</ship-radio-group>' +
+        '</div>',
+      metaAttrs: { tone: 'default|accent' },
+    },
+  ],
+  'ship-slider': [
+    row(
+      [
+        '<ship-slider value="40" style="width:200px" label="Volume"></ship-slider>',
+        '<ship-slider value="70" tone="info" style="width:200px" label="Brightness"></ship-slider>',
+        '<ship-slider value="50" tone="success" style="width:200px" label="Quality"></ship-slider>',
+        '<ship-slider value="30" disabled style="width:200px" label="Disabled"></ship-slider>',
+      ].join(''),
+    ),
+  ],
+  'ship-toggle-group': [
+    {
+      raw: true,
+      innerHTML:
+        '<div class="sample-row" style="gap:24px">' +
+        '<ship-toggle-group type="single" value="grid">' +
+        '<ship-toggle value="list">List</ship-toggle>' +
+        '<ship-toggle value="grid">Grid</ship-toggle>' +
+        '<ship-toggle value="board">Board</ship-toggle>' +
+        '</ship-toggle-group>' +
+        '<ship-toggle-group type="multiple" value="bold,italic" variant="ghost">' +
+        '<ship-toggle value="bold">B</ship-toggle>' +
+        '<ship-toggle value="italic">I</ship-toggle>' +
+        '<ship-toggle value="underline">U</ship-toggle>' +
+        '</ship-toggle-group>' +
+        '</div>',
+      metaAttrs: { type: 'single|multiple' },
+    },
   ],
 }

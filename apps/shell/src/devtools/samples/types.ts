@@ -85,6 +85,11 @@ export const FULL_WIDTH: ReadonlySet<string> = new Set([
   'ship-pipeline-run',
   'ship-toolbar',
   'ship-breadcrumb',
+  'ship-accordion',
+  'ship-radio-group',
+  'ship-toggle-group',
+  'ship-navigation-menu',
+  'ship-slider',
   'ship-field',
   'ship-history-row',
   'ship-stat',
@@ -94,9 +99,7 @@ export const FULL_WIDTH: ReadonlySet<string> = new Set([
   'ship-spec-row',
 ])
 
-// ─────────────────────────────────────────────────────────────────────
-// Shared helpers.
-// ─────────────────────────────────────────────────────────────────────
+// Shared helpers
 
 export const TONES = [
   'default',
@@ -157,9 +160,7 @@ export function matrix(
   }
 }
 
-// ─────────────────────────────────────────────────────────────────────
-// Group registry. Order matters — renders top to bottom.
-// ─────────────────────────────────────────────────────────────────────
+// Group registry — order matters, renders top to bottom.
 
 export const GROUPS: Group[] = [
   {
@@ -185,6 +186,9 @@ export const GROUPS: Group[] = [
       'ship-select',
       'ship-checkbox',
       'ship-switch',
+      'ship-radio-group',
+      'ship-slider',
+      'ship-toggle-group',
       'ship-field',
       'ship-label',
     ],
@@ -223,6 +227,10 @@ export const GROUPS: Group[] = [
       'ship-toolbar',
       'ship-breadcrumb',
       'ship-tabs',
+      'ship-accordion',
+      'ship-collapsible',
+      'ship-scroll-area',
+      'ship-navigation-menu',
       'ship-tree-view',
       'ship-timeline',
       'ship-list-item',
@@ -251,6 +259,8 @@ export const GROUPS: Group[] = [
       'ship-popover',
       'ship-tooltip',
       'ship-dropdown-menu',
+      'ship-context-menu',
+      'ship-hover-card',
       'ship-toast-container',
       'ship-toast',
     ],

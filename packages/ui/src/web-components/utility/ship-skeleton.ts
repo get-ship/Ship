@@ -26,7 +26,7 @@ export class ShipSkeleton extends LitElement {
         var(--muted) 100%
       );
       background-size: 200% 100%;
-      animation: shimmer var(--duration-slow) linear infinite;
+      animation: shimmer 1.8s ease-in-out infinite;
       border-radius: var(--radius-sm);
     }
     :host([variant='circle']) .bar { border-radius: var(--radius-full); }
@@ -38,6 +38,9 @@ export class ShipSkeleton extends LitElement {
     @keyframes shimmer {
       0% { background-position: 200% 0; }
       100% { background-position: -200% 0; }
+    }
+    @media (prefers-reduced-motion: reduce) {
+      .bar { animation: none; }
     }
   `
 
