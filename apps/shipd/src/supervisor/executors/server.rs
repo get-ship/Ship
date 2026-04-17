@@ -222,6 +222,3 @@ async fn translate_events(
     }
 }
 
-#[cfg(test)]
-#[path = "tests_server.rs"]
-mod tests;

@@ -28,3 +28,7 @@ pub(crate) use routing::RoutingExecutor;
 pub(crate) use server::ServerExecutor;
 pub(crate) use tmux::TmuxExecutor;
 pub(crate) use tmux_window::TmuxWindowExecutor;
+
+#[cfg(test)]
+#[path = "tests_server.rs"]
+mod tests_server;
