@@ -11,9 +11,13 @@
 //! state structs, so `downcast_ref` already gives us the right routing
 //! for free.
 
+use std::sync::Arc;
+
 use anyhow::Result;
 use async_trait::async_trait;
+use runtime::events::KernelRouter;
 use runtime::services::dispatch_ports::{ExecutorHandle, JobContext, JobExecutor};
+use tokio::sync::Mutex;
 
 use super::{ProcessExecutor, TmuxWindowExecutor};
 
@@ -27,7 +31,7 @@ pub(crate) struct RoutingExecutor {
 }
 
 impl RoutingExecutor {
-    pub fn new() -> Self {
+    pub fn new(kernel: Option<Arc<Mutex<KernelRouter>>>) -> Self {
         let tmux_window = match TmuxWindowExecutor::new() {
             Ok(e) => Some(e),
             Err(e) => {
@@ -38,7 +42,7 @@ impl RoutingExecutor {
                 None
             }
         };
-        Self { tmux_window, process: ProcessExecutor }
+        Self { tmux_window, process: ProcessExecutor::new(kernel) }
     }
 
     fn pick(&self, ctx: &JobContext) -> &dyn JobExecutor {

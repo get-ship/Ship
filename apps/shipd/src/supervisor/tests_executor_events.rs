@@ -182,3 +182,90 @@ async fn agent_exited_unknown_code_emits_job_failed() {
         "agent gone with no code captured must NOT emit job.completed; got {types:?}"
     );
 }
+
+// ── cleanup-path destruction emission ───────────────────────────────────────
+//
+// Every tmux session we tear down must surface as a
+// `executor.session_destroyed { External }` event — not only the cases where
+// the liveness handler sees the substrate vanish. These tests pin the two
+// cleanup call sites the emit-coverage slice wires up: `ShipdPlatform::
+// cleanup_job` (end-of-life for a live job) and `cleanup_orphan` (startup
+// scan for stale worktrees). Both share the same projection shape so the
+// post-mortem query "every session we destroyed in the last 24h" stays
+// complete regardless of how the destruction was triggered.
+
+use async_trait::async_trait;
+use runtime::events::executor::EXECUTOR_SESSION_DESTROYED;
+use runtime::services::dispatch_ports::{
+    AgentPlatform, ExecutorHandle, JobContext, JobExecutor,
+};
+
+/// Stub executor so ShipdPlatform can be constructed in tests without
+/// spinning up the real RoutingExecutor (which probes for tmux).
+struct NoopJobExecutor;
+
+#[async_trait]
+impl JobExecutor for NoopJobExecutor {
+    async fn spawn(&self, _ctx: &JobContext) -> anyhow::Result<ExecutorHandle> {
+        Ok(ExecutorHandle { pid: None, inner: Box::new(()) })
+    }
+    async fn is_alive(&self, _handle: &ExecutorHandle) -> bool { false }
+    async fn stop(&self, _handle: &ExecutorHandle) -> anyhow::Result<()> { Ok(()) }
+    async fn send(&self, _handle: &ExecutorHandle, _msg: &str) -> anyhow::Result<()> { Ok(()) }
+}
+
+fn build_platform(kernel: Arc<Mutex<KernelRouter>>) -> super::platform::ShipdPlatform {
+    super::platform::ShipdPlatform {
+        registry: Arc::new(Mutex::new(ProcessRegistry::new())),
+        executor: Arc::new(NoopJobExecutor),
+        health_registry: crate::supervised::HealthRegistry::new(),
+        kernel,
+    }
+}
+
+/// `AgentPlatform::cleanup_job` must emit `executor.session_destroyed` with
+/// `External` cause regardless of whether the tmux session actually existed.
+/// Covers `platform.rs:44`'s `kill_tmux_session` call site.
+#[tokio::test(flavor = "multi_thread", worker_threads = 2)]
+async fn cleanup_job_emits_executor_session_destroyed() {
+    let (_dir, base, kernel) = setup();
+    let platform = build_platform(Arc::clone(&kernel));
+
+    platform.cleanup_job("cleanup-emit", "job/cleanup-emit").await;
+
+    let events = list_recent_events_at(&base, 50).unwrap();
+    let destroyed = events
+        .iter()
+        .find(|e| {
+            e.event_type == EXECUTOR_SESSION_DESTROYED && e.entity_id == "cleanup-emit"
+        })
+        .expect("cleanup_job must emit executor.session_destroyed for the slug");
+    let payload: serde_json::Value =
+        serde_json::from_str(&destroyed.payload_json).expect("payload parses");
+    assert_eq!(payload["cause"], "external");
+    assert_eq!(payload["executor_kind"], "tmux");
+    assert_eq!(payload["session_name"], "job-cleanup-emit");
+}
+
+/// `cleanup_orphan` must emit `executor.session_destroyed` with `External`
+/// cause so the post-mortem projection sees orphan-path destructions too.
+/// Covers `orphan_cleanup.rs:68`'s `kill_tmux_session` call site.
+#[tokio::test(flavor = "multi_thread", worker_threads = 2)]
+async fn cleanup_orphan_emits_executor_session_destroyed() {
+    let (_dir, base, kernel) = setup();
+
+    super::orphan_cleanup::tests_only::cleanup_orphan_for_test("orphan-emit", &kernel).await;
+
+    let events = list_recent_events_at(&base, 50).unwrap();
+    let destroyed = events
+        .iter()
+        .find(|e| {
+            e.event_type == EXECUTOR_SESSION_DESTROYED && e.entity_id == "orphan-emit"
+        })
+        .expect("cleanup_orphan must emit executor.session_destroyed for the slug");
+    let payload: serde_json::Value =
+        serde_json::from_str(&destroyed.payload_json).expect("payload parses");
+    assert_eq!(payload["cause"], "external");
+    assert_eq!(payload["executor_kind"], "tmux");
+    assert_eq!(payload["session_name"], "job-orphan-emit");
+}

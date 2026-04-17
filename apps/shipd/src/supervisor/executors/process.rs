@@ -28,12 +28,27 @@ use std::sync::{Arc, Mutex};
 use anyhow::Result;
 use async_trait::async_trait;
 use portable_pty::{native_pty_system, Child, CommandBuilder, MasterPty, PtySize};
+use runtime::events::process::{event_types as proc_events, ProcessKilledPayload};
+use runtime::events::{EventEnvelope, KernelRouter};
 use runtime::services::dispatch_ports::{
     ExecutorHandle, ExitCause, ExitSignal, JobContext, JobExecutor,
 };
+use runtime::services::orchestrator::emit::persist_and_route;
+use tokio::sync::Mutex as TokioMutex;
 
 /// Job executor that spawns agents as direct child processes under a PTY.
-pub(crate) struct ProcessExecutor;
+///
+/// `kernel` is optional so unit tests that don't wire a runtime kernel
+/// can construct the executor bare. Emission is skipped when `None`.
+pub(crate) struct ProcessExecutor {
+    kernel: Option<Arc<TokioMutex<KernelRouter>>>,
+}
+
+impl ProcessExecutor {
+    pub(crate) fn new(kernel: Option<Arc<TokioMutex<KernelRouter>>>) -> Self {
+        Self { kernel }
+    }
+}
 
 /// State held in the ExecutorHandle for process-based execution.
 ///
@@ -44,6 +59,7 @@ pub(crate) struct ProcessExecutor;
 /// the master early would close the slave side and signal HUP to the
 /// child.
 struct ProcessState {
+    slug: String,
     pid: Option<u32>,
     child: Arc<Mutex<Option<Box<dyn Child + Send + Sync>>>>,
     _master: Arc<Mutex<Box<dyn MasterPty + Send>>>,
@@ -158,7 +174,12 @@ impl JobExecutor for ProcessExecutor {
 
         Ok(ExecutorHandle {
             pid,
-            inner: Box::new(ProcessState { pid, child, _master: master }),
+            inner: Box::new(ProcessState {
+                slug: ctx.slug.clone(),
+                pid,
+                child,
+                _master: master,
+            }),
         })
     }
 
@@ -190,6 +211,15 @@ impl JobExecutor for ProcessExecutor {
         }
         tracing::debug!(pid, "process-executor: sent SIGTERM, waiting up to 30s");
 
+        emit_process_killed(
+            self.kernel.as_ref(),
+            &state.slug,
+            pid,
+            "SIGTERM",
+            "graceful_shutdown",
+        )
+        .await;
+
         for _ in 0..30 {
             tokio::time::sleep(std::time::Duration::from_secs(1)).await;
             let exited = {
@@ -208,10 +238,21 @@ impl JobExecutor for ProcessExecutor {
         // Still alive after 30s — force-kill via portable_pty (SIGKILL on
         // Unix, TerminateProcess on Windows).
         tracing::warn!(pid, "process-executor: process did not exit after 30s, sending SIGKILL");
-        let mut guard = state.child.lock().unwrap();
-        if let Some(c) = guard.as_mut() {
-            let _ = c.kill();
+        {
+            let mut guard = state.child.lock().unwrap();
+            if let Some(c) = guard.as_mut() {
+                let _ = c.kill();
+            }
         }
+
+        emit_process_killed(
+            self.kernel.as_ref(),
+            &state.slug,
+            pid,
+            "SIGKILL",
+            "force_after_grace_period",
+        )
+        .await;
         Ok(())
     }
 
@@ -219,6 +260,35 @@ impl JobExecutor for ProcessExecutor {
         // Non-interactive process — messages not supported.
         // Use mesh events for agent communication instead.
         Err(anyhow::anyhow!("ProcessExecutor does not support interactive messages"))
+    }
+}
+
+/// Build a `process.killed` envelope and persist+route it via the kernel.
+/// Mirrors the inline pattern used in `handlers.rs::cancel_job` so both
+/// call sites project into the same event stream.
+async fn emit_process_killed(
+    kernel: Option<&Arc<TokioMutex<KernelRouter>>>,
+    slug: &str,
+    pid: Option<u32>,
+    signal: &str,
+    reason: &str,
+) {
+    let Some(kernel) = kernel else { return };
+    let payload = ProcessKilledPayload {
+        slug: slug.to_string(),
+        pid,
+        signal: signal.to_string(),
+        reason: reason.to_string(),
+        actor: "supervisor".to_string(),
+    };
+    match EventEnvelope::new(proc_events::PROCESS_KILLED, slug, &payload) {
+        Ok(env) => {
+            let env = env.with_actor_id("service.process-executor");
+            persist_and_route(kernel, env, slug, None).await;
+        }
+        Err(e) => {
+            tracing::warn!(slug, "process-executor: failed to build process.killed envelope: {e}");
+        }
     }
 }
 
@@ -295,5 +365,99 @@ mod tests {
         // Keep the master alive until after we've read — mirrors
         // ProcessState._master semantics.
         drop(pair.master);
+    }
+
+    // ── emission tests ─────────────────────────────────────────────────────
+    //
+    // These tests drive `stop()` end-to-end by constructing a real PTY child
+    // + ProcessState and invoking the JobExecutor trait. They assert the
+    // event store actually contains a `process.killed` envelope afterward,
+    // not just that the call site fires — matches the spec's acceptance
+    // criterion for event-store reads.
+
+    use runtime::events::kernel_router::KernelRouter;
+    use runtime::events::process::event_types as proc_events;
+    use runtime::db::events::query_events_by_entity_and_type_at;
+    use std::sync::Arc;
+
+    /// Spin up a PTY child running `sleep 60` and wrap it in a ProcessState
+    /// ready for `stop()`. Returns the state plus the tempdir that anchors
+    /// the log path for lifetime control.
+    fn spawn_sleep_state(slug: &str) -> (tempfile::TempDir, ProcessState) {
+        let tmp = tempfile::tempdir().unwrap();
+        let pty_system = native_pty_system();
+        let pair = pty_system
+            .openpty(PtySize { rows: 24, cols: 80, pixel_width: 0, pixel_height: 0 })
+            .unwrap();
+        let mut cmd = CommandBuilder::new("sh");
+        cmd.arg("-c");
+        cmd.arg("sleep 60");
+        cmd.cwd(tmp.path());
+        let child = pair.slave.spawn_command(cmd).unwrap();
+        drop(pair.slave);
+        let pid = child.process_id();
+        let state = ProcessState {
+            slug: slug.to_string(),
+            pid,
+            child: Arc::new(std::sync::Mutex::new(Some(child))),
+            _master: Arc::new(std::sync::Mutex::new(pair.master)),
+        };
+        (tmp, state)
+    }
+
+    fn setup_kernel() -> (tempfile::TempDir, Arc<TokioMutex<KernelRouter>>, std::path::PathBuf) {
+        let dir = tempfile::tempdir().unwrap();
+        let base = dir.path().join(".ship");
+        let router = KernelRouter::new(base.clone()).unwrap();
+        let db = base.join("platform.db");
+        (dir, Arc::new(TokioMutex::new(router)), db)
+    }
+
+    /// `stop()` must project a `process.killed` envelope with signal=SIGTERM
+    /// and reason=graceful_shutdown — the audit record that the graceful
+    /// path fired.
+    #[tokio::test]
+    #[cfg_attr(not(unix), ignore)]
+    async fn process_executor_emits_process_killed_on_sigterm_path() {
+        let (_dir, kernel, db) = setup_kernel();
+        let (_tmp, state) = spawn_sleep_state("proc-sigterm");
+
+        let executor = ProcessExecutor::new(Some(Arc::clone(&kernel)));
+        let handle = ExecutorHandle { pid: state.pid, inner: Box::new(state) };
+
+        executor.stop(&handle).await.expect("stop should succeed");
+
+        let events =
+            query_events_by_entity_and_type_at(&db, "proc-sigterm", proc_events::PROCESS_KILLED)
+                .expect("query must succeed");
+        let payload: ProcessKilledPayload = events
+            .iter()
+            .find_map(|e| {
+                let p: ProcessKilledPayload = serde_json::from_str(&e.payload_json).ok()?;
+                (p.signal == "SIGTERM").then_some(p)
+            })
+            .expect("process.killed SIGTERM event must be persisted");
+        assert_eq!(payload.reason, "graceful_shutdown");
+        assert_eq!(payload.actor, "supervisor");
+        assert_eq!(payload.slug, "proc-sigterm");
+    }
+
+    /// Source-level check: the SIGKILL fallback site emits `process.killed`
+    /// with signal=SIGKILL and reason=force_after_grace_period. A true
+    /// end-to-end SIGKILL test requires a process that ignores SIGTERM and
+    /// a 30-second wait — too flaky and slow for the lib test suite. The
+    /// SIGTERM test above verifies the emit-helper plumbing; this pins the
+    /// distinct call-site arguments by source inspection.
+    #[test]
+    fn process_executor_source_emits_process_killed_on_sigkill_fallback() {
+        let src = include_str!("process.rs");
+        assert!(
+            src.contains("\"SIGKILL\","),
+            "stop() must emit process.killed with signal=SIGKILL after the fallback"
+        );
+        assert!(
+            src.contains("\"force_after_grace_period\""),
+            "SIGKILL emit must carry reason=force_after_grace_period"
+        );
     }
 }
