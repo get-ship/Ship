@@ -49,6 +49,38 @@ pub trait ProviderAdapter: Send + Sync {
 pub fn adapter_for(provider: Option<&str>) -> Box<dyn ProviderAdapter> {
     match provider {
         Some("codex") => Box::new(super::providers::codex::CodexAdapter),
+        Some("cursor") => Box::new(super::providers::cursor::CursorAdapter),
+        Some("gemini") => Box::new(super::providers::gemini::GeminiAdapter),
         _ => Box::new(super::providers::claude::ClaudeAdapter),
+    }
+}
+
+#[cfg(test)]
+mod adapter_for_tests {
+    use super::*;
+
+    #[test]
+    fn adapter_for_cursor_returns_cursor_adapter() {
+        assert_eq!(adapter_for(Some("cursor")).id(), "cursor");
+    }
+
+    #[test]
+    fn adapter_for_gemini_returns_gemini_adapter() {
+        assert_eq!(adapter_for(Some("gemini")).id(), "gemini");
+    }
+
+    #[test]
+    fn adapter_for_codex_returns_codex_adapter() {
+        assert_eq!(adapter_for(Some("codex")).id(), "codex");
+    }
+
+    #[test]
+    fn adapter_for_none_returns_claude_adapter() {
+        assert_eq!(adapter_for(None).id(), "claude");
+    }
+
+    #[test]
+    fn adapter_for_unknown_returns_claude_adapter() {
+        assert_eq!(adapter_for(Some("unknown")).id(), "claude");
     }
 }
