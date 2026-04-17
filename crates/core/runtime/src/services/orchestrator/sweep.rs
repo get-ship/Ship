@@ -1,14 +1,14 @@
 //! Periodic coherence sweep — detects and resolves drift between job
 //! projections and live processes every 30 seconds.
 
-use crate::events::job::{event_types as job_events, JobFailedPayload};
+use crate::events::job::{event_types as job_events, JobFailedPayload, StepType};
 use crate::events::process::{event_types as proc_events, ProcessKilledPayload};
 use crate::events::supervisor::{
     event_types as sup_events, CoherenceRestoredPayload, DriftDetectedPayload,
     SweepCompletedPayload, SweepStartedPayload,
 };
 use crate::events::EventEnvelope;
-use crate::projections::job::{load_jobs, JobStatus};
+use crate::projections::job::{load_jobs, JobRecord, JobStatus};
 use std::sync::Arc;
 use std::time::Duration;
 use tokio::sync::Mutex;
@@ -62,6 +62,14 @@ pub async fn run_sweep(
 
     // Check A: Dispatched/GatePending jobs with no live process
     for job in &in_scope {
+        // Run steps run synchronously inside `execute_run_step` and never
+        // register a handle; they self-emit step.completed / step.failed.
+        // The live-process check would false-flag any Run step that outlives
+        // the 30s sweep interval (e.g. `cargo test`).
+        if current_step_is_run(job) {
+            continue;
+        }
+
         let handle = octx
             .executor
             .resume_handle(
@@ -216,6 +224,24 @@ pub async fn run_sweep(
     }
 
     Ok(())
+}
+
+/// True iff the job's current step has `StepType::Run`. Returns false for
+/// jobs with no DAG pipeline, no `current_step`, or a non-Run step type — so
+/// only the Run-step path short-circuits the sweep.
+fn current_step_is_run(job: &JobRecord) -> bool {
+    let Some(pipeline) = job.steps.as_ref() else {
+        return false;
+    };
+    let Some(current_id) = job.current_step.as_deref() else {
+        return false;
+    };
+    pipeline
+        .steps
+        .iter()
+        .find(|s| s.id == current_id)
+        .map(|s| matches!(s.step_type, StepType::Run))
+        .unwrap_or(false)
 }
 
 async fn emit_event(
