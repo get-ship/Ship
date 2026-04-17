@@ -18,7 +18,7 @@ use async_trait::async_trait;
 use runtime::services::dispatch_ports::{
     ExecutorHandle, ExitCause, ExitSignal, JobContext, JobExecutor,
 };
-use runtime::services::provider_adapter::adapter_for;
+use runtime::services::provider_adapter::adapter_for_or_default;
 
 /// Job executor that runs each pipeline step inside a tmux window.
 pub(crate) struct TmuxWindowExecutor;
@@ -179,7 +179,8 @@ impl JobExecutor for TmuxWindowExecutor {
         let window_id = create_window(&session, &step_id, &work_dir)?;
         let window_target = format!("{session}:{window_id}");
 
-        let adapter = adapter_for(ctx.launch.provider.as_deref());
+        let adapter = adapter_for_or_default(ctx.launch.provider.as_deref())
+            .map_err(|e| anyhow!("tmux-window executor: {e}"))?;
         let cmd = adapter.build_headless(&ctx.slug, &ctx.launch);
         let shell_cmd = cmd.to_shell_string();
         let log_rel = step_log_rel(step_idx, &step_id);

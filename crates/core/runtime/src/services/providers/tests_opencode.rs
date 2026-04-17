@@ -96,3 +96,17 @@ fn parse_output_returns_none() {
     let adapter = OpenCodeAdapter;
     assert!(adapter.parse_output("anything").is_none());
 }
+
+// ── Capabilities ────────────────────────────────────────────────────────────
+
+#[test]
+fn caps_match_declared() {
+    let c = OpenCodeAdapter.caps();
+    assert!(c.headless);
+    assert!(c.interactive);
+    assert!(c.server_mode, "opencode: serve HTTP REST + SSE");
+    assert!(c.json_stream);
+    assert!(c.mcp, "opencode: opencode.json mcp");
+    assert!(!c.hooks, "opencode: hooks via JS plugin file, not wired");
+    assert!(c.session_resume, "opencode: REST sessions persist");
+}

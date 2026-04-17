@@ -3,7 +3,7 @@
 //! Executors are provider-agnostic process managers. They receive a
 //! ProviderAdapter and delegate all provider-specific behavior to it.
 
-use runtime::services::provider_adapter::adapter_for;
+use runtime::services::provider_adapter::{adapter_for, adapter_for_or_default};
 
 // ── Source helpers ───────────────────────────────────────────────────────────
 
@@ -87,19 +87,19 @@ fn provider_launchers_module_does_not_exist() {
 fn adapter_for_none_defaults_to_claude_ready_pattern() {
     // Mode-marker line at the real input prompt — not the menu selector `❯`
     // which false-matched the channels-menu row and broke dispatch.
-    let adapter = adapter_for(None);
+    let adapter = adapter_for_or_default(None).unwrap();
     assert_eq!(adapter.ready_pattern(), "bypass permissions on");
 }
 
 #[test]
 fn adapter_for_claude_has_exit_command() {
-    let adapter = adapter_for(Some("claude"));
+    let adapter = adapter_for("claude").unwrap();
     assert_eq!(adapter.exit_command(), "/exit");
 }
 
 #[test]
 fn adapter_for_codex_has_distinct_exit_command() {
-    let codex = adapter_for(Some("codex"));
-    let claude = adapter_for(None);
+    let codex = adapter_for("codex").unwrap();
+    let claude = adapter_for_or_default(None).unwrap();
     assert_ne!(codex.exit_command(), claude.exit_command());
 }

@@ -4,12 +4,24 @@ use std::collections::HashMap;
 use std::path::Path;
 
 use crate::services::dispatch_ports::{LaunchCommand, LaunchProfile};
-use crate::services::provider_adapter::{ProviderAdapter, ProviderEvent};
+use crate::services::provider_adapter::{ProviderAdapter, ProviderCapabilities, ProviderEvent};
 
 pub struct CodexAdapter;
 
 impl ProviderAdapter for CodexAdapter {
     fn id(&self) -> &str { "codex" }
+
+    fn caps(&self) -> ProviderCapabilities {
+        ProviderCapabilities {
+            headless: true,
+            interactive: true,
+            server_mode: true,
+            json_stream: true,
+            mcp: true,
+            hooks: true,
+            session_resume: true,
+        }
+    }
 
     fn build_interactive(&self, slug: &str, profile: &LaunchProfile) -> LaunchCommand {
         let mut args = Vec::new();

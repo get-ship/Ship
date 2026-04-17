@@ -97,3 +97,17 @@ fn parse_output_returns_none() {
     let adapter = GeminiAdapter;
     assert!(adapter.parse_output("anything").is_none());
 }
+
+// ── Capabilities ────────────────────────────────────────────────────────────
+
+#[test]
+fn caps_match_declared() {
+    let c = GeminiAdapter.caps();
+    assert!(c.headless);
+    assert!(c.interactive);
+    assert!(!c.server_mode);
+    assert!(c.json_stream, "gemini: --output-format json");
+    assert!(c.mcp, "gemini: .gemini/settings.json mcpServers");
+    assert!(c.hooks, "gemini: .gemini/settings.json hooks");
+    assert!(!c.session_resume);
+}
