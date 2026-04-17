@@ -28,7 +28,7 @@ export class ShipLineChart extends LitElement {
       transition: opacity var(--duration-fast) var(--ease-out);
     }
     .wrap { display: flex; flex-direction: column; gap: 6px; width: 100%; height: 100%; }
-    svg { display: block; width: 100%; flex: 1; overflow: visible; }
+    svg { display: block; width: 100%; flex: 1; overflow: hidden; }
     .legend {
       display: flex;
       flex-wrap: wrap;
