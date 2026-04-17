@@ -64,11 +64,25 @@ pub fn run(opts: RunOptions) -> Result<()> {
     let branch = format!("job/{slug}");
     let spec_path = ".artifacts/job-spec.md".to_string();
 
+    // Capture the operator-facing spec path for the job record. `canonicalize`
+    // resolves symlinks and `./` so `ship jobs` shows an unambiguous absolute
+    // path; fall back to the display string when the file isn't on disk
+    // (inline-spec callers passing a virtual path). `None` for --spec-text.
+    let source_spec_path = opts.spec_file
+        .as_ref()
+        .and_then(|p| {
+            std::fs::canonicalize(p)
+                .ok()
+                .and_then(|abs| abs.to_str().map(String::from))
+                .or_else(|| Some(p.display().to_string()))
+        });
+
     let body = serde_json::json!({
         "slug": slug,
         "agent": first_agent_display,
         "branch": branch,
         "spec_path": spec_path,
+        "source_spec_path": source_spec_path,
         "pipeline": pipeline_name,
         "spec_content": if spec_content.is_empty() { None } else { Some(&spec_content) },
         "vars": if vars.is_empty() { None } else { Some(&vars) },
