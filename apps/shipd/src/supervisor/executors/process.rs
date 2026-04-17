@@ -31,9 +31,32 @@ use portable_pty::{native_pty_system, Child, CommandBuilder, MasterPty, PtySize}
 use runtime::events::process::{event_types as proc_events, ProcessKilledPayload};
 use runtime::events::{EventEnvelope, KernelRouter};
 use runtime::services::dispatch_ports::{
-    ExecutorHandle, ExitCause, ExitSignal, JobContext, JobExecutor,
+    ExecutorHandle, ExitCause, ExitSignal, JobContext, JobExecutor, LaunchCommand, LaunchProfile,
 };
 use runtime::services::orchestrator::emit::persist_and_route;
+use runtime::services::provider_adapter::{adapter_for, ProviderAdapter};
+
+/// Default prompt injected when the caller didn't supply one.
+/// Kept in ProcessExecutor (the headless spawn path) because only
+/// non-interactive runs need an autostart; interactive tmux sessions are
+/// driven by the adapter's `autostart_input` after a ready pattern match.
+const DEFAULT_AUTOSTART_PROMPT: &str = "Read .artifacts/job-spec.md and execute it autonomously.";
+
+/// Build the headless launch command for a job, filling in the default prompt
+/// when the profile doesn't carry one. Extracted so tests can assert the
+/// provider-dispatch shape without actually spawning a process.
+fn build_headless_with_default_prompt(
+    adapter: &dyn ProviderAdapter,
+    slug: &str,
+    profile: &LaunchProfile,
+) -> LaunchCommand {
+    if profile.autostart_prompt.is_some() {
+        return adapter.build_headless(slug, profile);
+    }
+    let mut with_prompt = profile.clone();
+    with_prompt.autostart_prompt = Some(DEFAULT_AUTOSTART_PROMPT.to_string());
+    adapter.build_headless(slug, &with_prompt)
+}
 use tokio::sync::Mutex as TokioMutex;
 
 /// Job executor that spawns agents as direct child processes under a PTY.
@@ -74,48 +97,33 @@ impl JobExecutor for ProcessExecutor {
         let log_path = log_dir.join(format!("agent-{}.log", ctx.slug));
         let log_file = std::fs::File::create(&log_path)?;
 
-        // Non-interactive launch. The `-p` prompt is the instruction the
-        // agent receives on invocation — it points at the composed spec so
-        // the agent reads current-step role + predecessor summaries + job
-        // body + runtime contract.
-        //
-        // Claude CLI's `stream-json` output format requires `--verbose` (it
-        // refuses otherwise). We're not currently parsing stream-json events,
-        // so use the default human-readable format. Switching to stream-json
-        // later means adding `--verbose` and a stdout parser; the PTY master
-        // reader is the natural place to hang that parser off of.
-        let prompt = "Read .artifacts/job-spec.md and execute it autonomously.";
-        let mut args: Vec<String> = vec![
-            "--dangerously-skip-permissions".into(),
-            "--dangerously-load-development-channels".into(),
-            "server:ship".into(),
-            "--print".into(),
-            "-p".into(),
-            prompt.into(),
-        ];
-        if let Some(ref m) = ctx.launch.model {
-            args.push("--model".into());
-            args.push(m.clone());
-        }
+        // Non-interactive launch. Dispatch to the provider adapter so each
+        // provider owns its own flags and prompt shape — Claude consumes the
+        // autostart prompt via `-p`, Codex via `codex exec "<prompt>"`, etc.
+        // `adapter_for` silently defaults to Claude when provider is None.
+        let adapter = adapter_for(ctx.launch.provider.as_deref());
+        let launch = build_headless_with_default_prompt(adapter.as_ref(), &ctx.slug, &ctx.launch);
 
         let pty_system = native_pty_system();
         let pair = pty_system
             .openpty(PtySize { rows: 24, cols: 80, pixel_width: 0, pixel_height: 0 })
             .map_err(|e| anyhow::anyhow!("openpty failed: {e}"))?;
 
-        let mut cmd = CommandBuilder::new("claude");
-        for arg in &args {
+        let mut cmd = CommandBuilder::new(&launch.bin);
+        for arg in &launch.args {
             cmd.arg(arg);
         }
         cmd.cwd(&ctx.work_dir);
-        cmd.env("SHIP_MESH_ID", &ctx.slug);
+        for (k, v) in &launch.env {
+            cmd.env(k, v);
+        }
         cmd.env("SHIP_AGENT_ID", &ctx.agent);
         cmd.env("SHIP_SESSION_ID", &ctx.slug);
 
         let child = pair
             .slave
             .spawn_command(cmd)
-            .map_err(|e| anyhow::anyhow!("failed to spawn claude: {e}"))?;
+            .map_err(|e| anyhow::anyhow!("failed to spawn {}: {e}", launch.bin))?;
         // Drop the slave so the master-side reader hits EOF on child exit.
         drop(pair.slave);
 
@@ -318,6 +326,53 @@ fn tee_reader_to_file(
 mod tests {
     use super::*;
     use std::time::{Duration, Instant};
+
+    // ── Provider-dispatch tests ────────────────────────────────────────────
+    //
+    // The spawn path now delegates binary + flag construction to the provider
+    // adapter. These tests pin that we pick the right adapter and pipe the
+    // default autostart prompt when the profile omits one — without actually
+    // exec'ing the provider CLI (which would require codex/claude on PATH).
+
+    #[test]
+    fn dispatch_uses_codex_adapter_when_provider_is_codex() {
+        let profile = LaunchProfile {
+            provider: Some("codex".to_string()),
+            persist_session: true,
+            ..Default::default()
+        };
+        let adapter = adapter_for(profile.provider.as_deref());
+        let cmd = build_headless_with_default_prompt(adapter.as_ref(), "my-slug", &profile);
+        assert_eq!(cmd.bin, "codex");
+        assert_eq!(cmd.args[0], "exec");
+        assert_eq!(cmd.args.last().unwrap(), DEFAULT_AUTOSTART_PROMPT);
+    }
+
+    #[test]
+    fn dispatch_defaults_to_claude_when_provider_is_none() {
+        let profile = LaunchProfile { persist_session: true, ..Default::default() };
+        let adapter = adapter_for(profile.provider.as_deref());
+        let cmd = build_headless_with_default_prompt(adapter.as_ref(), "my-slug", &profile);
+        assert_eq!(cmd.bin, "claude");
+        // Default prompt is injected as the `-p` value (instead of the
+        // adapter's own "go" fallback) so the Claude flow gets the same
+        // instruction it always got from the pre-dispatch hardcoded spawn.
+        let p_idx = cmd.args.iter().position(|a| a == "-p").expect("-p flag");
+        assert_eq!(cmd.args[p_idx + 1], DEFAULT_AUTOSTART_PROMPT);
+    }
+
+    #[test]
+    fn dispatch_preserves_caller_supplied_prompt() {
+        let profile = LaunchProfile {
+            provider: Some("codex".to_string()),
+            autostart_prompt: Some("custom".to_string()),
+            persist_session: true,
+            ..Default::default()
+        };
+        let adapter = adapter_for(profile.provider.as_deref());
+        let cmd = build_headless_with_default_prompt(adapter.as_ref(), "s", &profile);
+        assert_eq!(cmd.args.last().unwrap(), "custom");
+    }
 
     /// Exercises the PTY plumbing end-to-end: openpty → spawn `echo` →
     /// reader-thread tee → try_wait() flips to Some after exit → log

@@ -103,6 +103,11 @@ pub struct LaunchProfile {
     pub persist_session: bool,
     /// Request structured JSON output from the provider.
     pub structured_output: bool,
+    /// Prompt handed to headless provider runs as the first instruction.
+    /// Claude consumes it via `-p` after the rest of its flags; Codex takes it
+    /// as the final positional argument to `codex exec`. `None` falls back to
+    /// each adapter's default.
+    pub autostart_prompt: Option<String>,
 }
 
 /// Handle returned by a `JobExecutor` after spawning an agent.

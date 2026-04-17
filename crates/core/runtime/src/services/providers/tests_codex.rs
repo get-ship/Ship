@@ -47,13 +47,52 @@ fn model_flag_maps_correctly() {
 }
 
 #[test]
-fn headless_same_as_interactive() {
+fn headless_emits_exec_subcommand() {
     let adapter = CodexAdapter;
-    let profile = default_profile();
-    let interactive = adapter.build_interactive("j", &profile);
-    let headless = adapter.build_headless("j", &profile);
-    assert_eq!(interactive.bin, headless.bin);
-    assert_eq!(interactive.args, headless.args);
+    let profile = LaunchProfile {
+        autostart_prompt: Some("test prompt".to_string()),
+        persist_session: true,
+        ..Default::default()
+    };
+    let cmd = adapter.build_headless("test-slug", &profile);
+    assert_eq!(cmd.bin, "codex");
+    assert_eq!(cmd.args[0], "exec");
+    assert!(cmd
+        .args
+        .contains(&"--dangerously-bypass-approvals-and-sandbox".to_string()));
+    assert_eq!(cmd.args.last().unwrap(), "test prompt");
+    assert_eq!(
+        cmd.env.get("SHIP_MESH_ID").map(String::as_str),
+        Some("test-slug")
+    );
+}
+
+#[test]
+fn headless_includes_model_when_specified() {
+    let adapter = CodexAdapter;
+    let profile = LaunchProfile {
+        model: Some("o3".to_string()),
+        autostart_prompt: Some("p".to_string()),
+        persist_session: true,
+        ..Default::default()
+    };
+    let cmd = adapter.build_headless("s", &profile);
+    let model_idx = cmd
+        .args
+        .iter()
+        .position(|a| a == "--model")
+        .expect("--model flag");
+    assert_eq!(cmd.args[model_idx + 1], "o3");
+}
+
+#[test]
+fn headless_falls_back_to_default_prompt() {
+    let adapter = CodexAdapter;
+    let cmd = adapter.build_headless("s", &default_profile());
+    assert_eq!(
+        cmd.args.last().unwrap(),
+        "Read .artifacts/job-spec.md and execute it."
+    );
 }
 
 // ── Lifecycle hooks ─────────────────────────────────────────────────────────
