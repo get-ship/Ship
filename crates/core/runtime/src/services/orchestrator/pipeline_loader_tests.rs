@@ -15,6 +15,7 @@ fn base_payload(agent: &str) -> JobCreatedPayload {
         agent: agent.into(),
         branch: "job/slug-1".into(),
         spec_path: ".ship/specs/slug-1.md".into(),
+        source_spec_path: None,
         plan_id: None,
         model: None,
         provider: None,

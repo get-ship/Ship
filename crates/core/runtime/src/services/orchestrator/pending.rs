@@ -67,6 +67,7 @@ pub async fn dispatch_ready_pending_jobs(
             agent: job.agent.clone(),
             branch: job.branch.clone(),
             spec_path: job.spec_path.clone(),
+            source_spec_path: job.source_spec_path.clone(),
             depends_on: None,
             pipeline: job.pipeline.clone(),
             steps: job.steps.clone(),

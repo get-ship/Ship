@@ -186,6 +186,7 @@ fn derive_segments_handles_no_pipeline() {
         agent: "a".into(),
         branch: "b".into(),
         spec_path: String::new(),
+        source_spec_path: None,
         depends_on: None,
         status: JobStatus::Completed,
         worktree: None,

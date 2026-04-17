@@ -199,6 +199,7 @@ pub async fn launch_spec(
         agent: "claude".into(),
         branch,
         spec_path: spec.body_path.clone(),
+        source_spec_path: Some(spec.body_path.clone()),
         plan_id: None,
         model: None,
         provider: None,
