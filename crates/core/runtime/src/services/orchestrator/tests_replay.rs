@@ -159,3 +159,158 @@ async fn reconcile_dispatched_emits_session_destroyed_not_step_failed() {
     );
     assert!(job.error.is_none());
 }
+
+// ─────────────────────────────────────────────────────────────────────────
+// Replay filter + cap — startup-replay-bound-01
+//
+// `replay_unprocessed_completions` must skip Completed jobs whose pipeline
+// is fully advanced with no outstanding auto_merge, and must not replay
+// more than MAX_REPLAYS_PER_STARTUP jobs per daemon startup. These tests
+// pin both the `needs_replay` predicate and `select_replay_targets` ranking.
+// ─────────────────────────────────────────────────────────────────────────
+
+mod replay_filter {
+    use std::collections::HashMap;
+
+    use chrono::{Duration, Utc};
+
+    use crate::events::job::{Pipeline, PipelineStep, StepType};
+    use crate::projections::job::{JobRecord, JobStatus};
+    use crate::services::orchestrator::replay::{
+        MAX_REPLAYS_PER_STARTUP, needs_replay, select_replay_targets,
+    };
+
+    fn pipeline_step(id: &str) -> PipelineStep {
+        PipelineStep {
+            id: id.to_string(),
+            step_type: StepType::Agent,
+            agent: Some("agent".to_string()),
+            goal: None,
+            after: vec![],
+            model: None,
+            provider: None,
+            command: None,
+            max_retries: None,
+            gate: None,
+        }
+    }
+
+    fn make_job(
+        id: &str,
+        step_ids: &[&str],
+        completed: &[&str],
+        auto_merge: bool,
+        worktree: Option<String>,
+    ) -> JobRecord {
+        let now = Utc::now();
+        JobRecord {
+            job_id: id.to_string(),
+            slug: id.to_string(),
+            agent: "test-agent".to_string(),
+            branch: format!("job/{id}"),
+            spec_path: String::new(),
+            depends_on: None,
+            status: JobStatus::Completed,
+            worktree,
+            blocker: None,
+            error: None,
+            model: None,
+            provider: None,
+            created_at: now,
+            updated_at: now,
+            provider_meta: None,
+            pipeline: None,
+            steps: Some(Pipeline {
+                steps: step_ids.iter().map(|s| pipeline_step(s)).collect(),
+                auto_merge,
+            }),
+            current_phase: None,
+            completed_steps: completed.iter().map(|s| s.to_string()).collect(),
+            current_step: None,
+            vars: None,
+            step_retries: HashMap::new(),
+            headless: false,
+        }
+    }
+
+    #[test]
+    fn replay_skips_fully_advanced_jobs() {
+        // All steps completed, no auto_merge — replay would be a no-op.
+        let job = make_job("j", &["a", "b", "c"], &["a", "b", "c"], false, None);
+        assert!(!needs_replay(&job));
+    }
+
+    #[test]
+    fn replay_includes_jobs_with_unfinished_pipeline() {
+        // Completed status set early, pipeline still has work.
+        let job = make_job("j", &["a", "b", "c"], &["a"], false, None);
+        assert!(needs_replay(&job));
+    }
+
+    #[test]
+    fn replay_includes_auto_merge_jobs_with_extant_worktree() {
+        // All steps done, auto_merge pending because worktree still on disk.
+        let tmp = tempfile::TempDir::new().unwrap();
+        let path = tmp.path().to_string_lossy().into_owned();
+        let job = make_job("j", &["a"], &["a"], true, Some(path));
+        assert!(needs_replay(&job));
+    }
+
+    #[test]
+    fn replay_skips_auto_merge_jobs_when_worktree_gone() {
+        // auto_merge already fired — worktree removed. Nothing to replay.
+        let missing = "/tmp/ship-startup-replay-test-missing-xyz123".to_string();
+        assert!(!std::path::Path::new(&missing).exists());
+        let job = make_job("j", &["a"], &["a"], true, Some(missing));
+        assert!(!needs_replay(&job));
+    }
+
+    #[test]
+    fn replay_skips_jobs_without_dag_pipeline() {
+        // Legacy / phase-only jobs have nothing for advance_pipeline to do.
+        let mut job = make_job("j", &["a"], &["a"], false, None);
+        job.steps = None;
+        assert!(!needs_replay(&job));
+    }
+
+    #[test]
+    fn replay_caps_at_ten_oldest_dropped() {
+        let base = Utc::now();
+        let mut jobs = HashMap::new();
+        for i in 0..15 {
+            let mut job = make_job(
+                &format!("j{i:02}"),
+                &["a", "b"],
+                &["a"],
+                false,
+                None,
+            );
+            // Higher i → more recent. Oldest five must be dropped.
+            job.updated_at = base + Duration::seconds(i64::from(i));
+            jobs.insert(job.job_id.clone(), job);
+        }
+
+        let selected = select_replay_targets(&jobs);
+
+        assert_eq!(selected.len(), MAX_REPLAYS_PER_STARTUP);
+        let ids: Vec<_> = selected.iter().map(|j| j.job_id.clone()).collect();
+        for i in 5..15 {
+            assert!(ids.contains(&format!("j{i:02}")), "expected recent j{i:02} in replay set");
+        }
+        for i in 0..5 {
+            assert!(!ids.contains(&format!("j{i:02}")), "oldest j{i:02} should be dropped");
+        }
+    }
+
+    #[test]
+    fn replay_no_change_when_nothing_to_replay() {
+        let empty: HashMap<String, JobRecord> = HashMap::new();
+        assert!(select_replay_targets(&empty).is_empty());
+
+        // Fully-advanced no-merge job is filtered out — select returns empty.
+        let mut jobs = HashMap::new();
+        let terminal = make_job("j", &["a", "b"], &["a", "b"], false, None);
+        jobs.insert(terminal.job_id.clone(), terminal);
+        assert!(select_replay_targets(&jobs).is_empty());
+    }
+}

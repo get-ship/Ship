@@ -76,6 +76,13 @@ pub struct JobRecord {
     pub headless: bool,
 }
 
+impl JobRecord {
+    /// Number of DAG pipeline steps recorded as completed.
+    pub fn completed_step_count(&self) -> usize {
+        self.completed_steps.len()
+    }
+}
+
 /// Apply a single event to an existing `JobRecord`.
 ///
 /// Unknown event types are silently ignored so the projection remains forward-compatible.
