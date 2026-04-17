@@ -51,6 +51,7 @@ pub fn adapter_for(provider: Option<&str>) -> Box<dyn ProviderAdapter> {
         Some("codex") => Box::new(super::providers::codex::CodexAdapter),
         Some("cursor") => Box::new(super::providers::cursor::CursorAdapter),
         Some("gemini") => Box::new(super::providers::gemini::GeminiAdapter),
+        Some("opencode") => Box::new(super::providers::opencode::OpenCodeAdapter),
         _ => Box::new(super::providers::claude::ClaudeAdapter),
     }
 }
@@ -72,6 +73,11 @@ mod adapter_for_tests {
     #[test]
     fn adapter_for_codex_returns_codex_adapter() {
         assert_eq!(adapter_for(Some("codex")).id(), "codex");
+    }
+
+    #[test]
+    fn adapter_for_opencode_returns_opencode_adapter() {
+        assert_eq!(adapter_for(Some("opencode")).id(), "opencode");
     }
 
     #[test]
