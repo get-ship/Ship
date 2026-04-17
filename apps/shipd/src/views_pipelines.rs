@@ -87,6 +87,7 @@ pub struct RunView {
     pub branch: String,
     pub state: &'static str,
     pub tone: &'static str,
+    pub status_text: &'static str,
     pub duration: String,
     pub updated_at: String,
     pub steps: Vec<StepView>,
@@ -95,6 +96,16 @@ pub struct RunView {
     /// Outcome segment tokens, one per defined step: `done | failed |
     /// pending | running`. Populated for history rows.
     pub segments: Vec<&'static str>,
+    /// Provider name (e.g. "anthropic").
+    pub provider: String,
+    /// Model name (e.g. "claude-sonnet-4-20250514").
+    pub model: String,
+    /// Blocker reason, if status is blocked.
+    pub blocker: String,
+    /// Error message, if status is failed.
+    pub error: String,
+    /// Job dependencies (slugs).
+    pub depends_on: Vec<String>,
 }
 
 #[derive(Serialize)]
@@ -196,6 +207,18 @@ pub fn derive_segments(job: &JobRecord) -> Vec<&'static str> {
     out
 }
 
+fn status_text_label(s: &JobStatus) -> &'static str {
+    match s {
+        JobStatus::Pending => "pending",
+        JobStatus::Dispatched => "running",
+        JobStatus::GatePending => "gate",
+        JobStatus::Completed => "completed",
+        JobStatus::Failed => "failed",
+        JobStatus::Merged => "merged",
+        JobStatus::Blocked => "blocked",
+    }
+}
+
 fn to_run_view(job: &JobRecord, include_stats: bool) -> RunView {
     let job_failed = matches!(job.status, JobStatus::Failed);
     let steps = job
@@ -240,11 +263,17 @@ fn to_run_view(job: &JobRecord, include_stats: bool) -> RunView {
         branch: job.branch.clone(),
         state: run_state_token(&job.status),
         tone: tone_for(&job.status),
+        status_text: status_text_label(&job.status),
         duration: format_duration((job.updated_at - job.created_at).num_seconds()),
         updated_at: job.updated_at.to_rfc3339(),
         steps,
         branch_stats: stats,
         segments: derive_segments(job),
+        provider: job.provider.clone().unwrap_or_default(),
+        model: job.model.clone().unwrap_or_default(),
+        blocker: job.blocker.clone().unwrap_or_default(),
+        error: job.error.clone().unwrap_or_default(),
+        depends_on: job.depends_on.clone().unwrap_or_default(),
     }
 }
 

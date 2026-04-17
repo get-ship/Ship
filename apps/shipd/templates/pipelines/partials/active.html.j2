@@ -1,14 +1,22 @@
-{#- Active runs list. Each run is a detailed card with run head + DAG. -#}
+{#- Active runs list — spec-parity empty state and run cards. -#}
 {% if active_runs and active_runs | length > 0 %}
-<div class="ship-pipelines-run-list">
+<div class="ship-pipelines-run-list" style="display: flex; flex-direction: column; gap: 0.5rem;">
   {% for run in active_runs %}
     {% include 'pipelines/partials/run_card.html.j2' %}
   {% endfor %}
 </div>
 {% else %}
-<ship-empty-state>
-  <ship-icon slot="icon" name="activity"></ship-icon>
-  <span slot="title">No active runs</span>
-  Kick off a pipeline with <ship-code inline>ship run &lt;pipeline&gt; &lt;spec&gt;</ship-code> or from the Specs view.
-</ship-empty-state>
+<div style="display: flex; flex-direction: column; align-items: center; justify-content: center; padding: 4rem 0; text-align: center;">
+  <div style="width: 3rem; height: 3rem; border-radius: 0.75rem; border: 1px solid color-mix(in oklch, var(--border) 60%, transparent); background: color-mix(in oklch, var(--muted) 40%, transparent); display: flex; align-items: center; justify-content: center; margin-bottom: 1rem;">
+    <ship-icon name="play" size="md" tone="muted"></ship-icon>
+  </div>
+  <span style="font-size: 0.875rem; font-weight: 500; color: var(--foreground);">No active runs</span>
+  <span style="font-size: 0.75rem; color: var(--muted-foreground); max-width: 20rem; margin-top: 0.25rem;">Launch a run from a pipeline template or create one manually.</span>
+  {% from '_urls.html.j2' import create_job %}
+  <ship-button size="sm" tone="accent" variant="solid" style="margin-top: 1rem;"
+    data-on:click="@post('{{ create_job() }}', {contentType: 'json', body: JSON.stringify({})})">
+    <ship-icon slot="leading" name="plus" size="sm"></ship-icon>
+    New Run
+  </ship-button>
+</div>
 {% endif %}

@@ -37,6 +37,7 @@ fn sample_run(slug: &str, state: &'static str) -> RunView {
         branch: format!("job/{slug}"),
         state,
         tone: "info",
+        status_text: "running",
         duration: "1m 0s".into(),
         updated_at: "2025-01-02T03:04:05Z".into(),
         steps: vec![StepView {
@@ -50,6 +51,11 @@ fn sample_run(slug: &str, state: &'static str) -> RunView {
             dirty_files: 3,
         },
         segments: vec!["done", "running", "pending"],
+        provider: String::new(),
+        model: String::new(),
+        blocker: String::new(),
+        error: String::new(),
+        depends_on: vec![],
     }
 }
 
@@ -100,7 +106,7 @@ fn shell_renders_as_fragment_with_root_id() {
     assert!(!html.contains("<!DOCTYPE"), "shell must be a fragment: {html}");
     assert!(!html.contains("<html"), "no <html>: {html}");
     assert!(!html.contains("<body"), "no <body>: {html}");
-    assert!(html.contains("id=\"pipelines-root\""), "missing root id: {html}");
+    assert!(html.contains("id=\"ship-view-root\""), "missing root id: {html}");
     assert!(html.contains("<ship-tabs"), "missing ship-tabs: {html}");
     assert!(
         html.contains("/api/runtime/view/pipelines"),
@@ -133,15 +139,15 @@ fn content_renders_active_tab_with_runs() {
     ctx.stats.active = 1;
     let html = templates::render("pipelines/content.html.j2", &ctx).expect("render");
     assert!(html.contains("fix-bug"), "slug visible: {html}");
-    assert!(html.contains("2"), "commits_ahead 2 renders: {html}");
-    assert!(html.contains("3"), "dirty_files 3 renders: {html}");
+    assert!(html.contains("ship-run-card"), "run card class: {html}");
+    assert!(html.contains("running"), "status text visible: {html}");
 }
 
 #[test]
 fn empty_state_when_no_active_runs() {
     let ctx = empty_ctx("active");
     let html = templates::render("pipelines/content.html.j2", &ctx).expect("render");
-    assert!(html.contains("<ship-empty-state"), "empty state: {html}");
+    assert!(html.contains("No active runs"), "empty state: {html}");
 }
 
 #[test]
@@ -153,12 +159,13 @@ fn definitions_tab_renders_def_cards() {
         step_count: 3,
     }];
     let html = templates::render("pipelines/content.html.j2", &ctx).expect("render");
-    assert!(html.contains("<ship-pipeline-definition"));
-    assert!(html.contains("name=\"tdd\""));
+    assert!(html.contains("ship-def-card"), "def card class: {html}");
+    assert!(html.contains("tdd"), "name visible: {html}");
+    assert!(html.contains("3 steps"), "step count: {html}");
 }
 
 #[test]
-fn history_row_renders_step_segments() {
+fn history_row_renders_step_pills() {
     let mut ctx = empty_ctx("history");
     ctx.history_runs = vec![RunView {
         segments: vec!["done", "done", "failed"],
@@ -166,13 +173,10 @@ fn history_row_renders_step_segments() {
     }];
     ctx.stats.history = 1;
     let html = templates::render("pipelines/content.html.j2", &ctx).expect("render");
+    assert!(html.contains("hist-1"), "slug visible: {html}");
     assert!(
-        html.contains("<ship-step-segments"),
-        "segments element: {html}"
-    );
-    assert!(
-        html.contains("values=\"done,done,failed\""),
-        "segments values: {html}"
+        html.contains("ship-step-pill"),
+        "step pills render: {html}"
     );
 }
 

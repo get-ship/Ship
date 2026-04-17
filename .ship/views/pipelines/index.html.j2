@@ -1,9 +1,6 @@
-{#- SDK gaps:
-    - no status_summary() macro for status pill row
--#}
 {#-
-  Pipelines view — self-contained, Datastar-driven.
-  All state is managed via signals (tab, agent). ZERO URL query strings.
+  Pipelines (Workflows) view — spec-parity with the React /studio/workflows route.
+  Single-column centered layout. Datastar-driven tab switching and SSE content patches.
   The daemon passes PipelinesCtx as Jinja context.
 -#}
 {% from '_ship.html.j2' import head, signal, show, live, loading, spinner, chip, chip_all %}
@@ -11,71 +8,153 @@
 <!DOCTYPE html>
 <html lang="en">
 <head>
-  {{ head('Pipelines') }}
+  {{ head('Workflows') }}
   <style>
-  .ship-view-pipelines { color: var(--foreground); }
-  .ship-pipelines-wrap { width: 100%; max-width: 1400px; margin: 0 auto; padding: 12px 24px; }
-  .ship-pipelines-head { display: flex; align-items: flex-end; justify-content: space-between; gap: 16px; margin: 0 0 14px; }
-  .ship-pipelines-title { font-family: var(--font-display); font-size: 20px; font-weight: 600; letter-spacing: -0.01em; margin: 0; }
-  .ship-pipelines-sub { font-size: 12px; color: var(--muted-foreground); margin-top: 4px; }
-  .ship-pipelines-status { display: flex; flex-wrap: wrap; align-items: center; gap: 14px; padding: 8px 0; margin: 0 0 10px; border-top: 1px solid color-mix(in oklch, var(--border) 60%, transparent); border-bottom: 1px solid color-mix(in oklch, var(--border) 60%, transparent); }
-  .ship-pipelines-status-pill { display: inline-flex; align-items: center; gap: 6px; font-size: 11px; color: var(--muted-foreground); }
-  .ship-pipelines-status-pill .count { font-variant-numeric: tabular-nums; color: var(--foreground); font-weight: 500; }
-  .ship-pipelines-tabs-row { padding: 0; margin-bottom: 10px; }
-  .ship-pipelines-filters { display: flex; flex-wrap: wrap; gap: 6px; padding: 0; margin-bottom: 12px; }
+  .ship-view-pipelines {
+    color: var(--foreground);
+    background: var(--background);
+    height: 100vh;
+    overflow: hidden;
+  }
+  .ship-pipelines-scroll {
+    flex: 1;
+    overflow: auto;
+    height: 100%;
+  }
+  .ship-pipelines-wrap {
+    width: 100%;
+    max-width: 64rem;
+    margin: 0 auto;
+    padding: 2rem 1.5rem;
+  }
+  .ship-pipelines-head {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    margin-bottom: 1.5rem;
+  }
+  .ship-pipelines-title {
+    font-family: var(--font-display);
+    font-size: 1.5rem;
+    font-weight: 700;
+    letter-spacing: -0.01em;
+    margin: 0;
+    color: var(--foreground);
+  }
+  .ship-pipelines-sub {
+    font-size: 0.875rem;
+    color: var(--muted-foreground);
+    margin-top: 0.25rem;
+  }
+  .ship-pipelines-stats {
+    display: flex;
+    align-items: center;
+    gap: 1rem;
+    margin-bottom: 1.5rem;
+    border-radius: 0.5rem;
+    border: 1px solid color-mix(in oklch, var(--border) 60%, transparent);
+    background: color-mix(in oklch, var(--card) 50%, transparent);
+    padding: 0.75rem 1rem;
+  }
+  .ship-stat { display: inline-flex; align-items: center; gap: 0.375rem; }
+  .ship-stat-label { font-size: 0.75rem; color: var(--muted-foreground); }
+  .ship-stat-count {
+    font-size: 0.75rem;
+    font-weight: 500;
+    color: var(--foreground);
+    font-variant-numeric: tabular-nums;
+  }
+  .ship-pipelines-tabs-row { margin-bottom: 1rem; }
+  .ship-pipelines-filters {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 0.375rem;
+    margin-bottom: 1rem;
+  }
   .ship-pipelines-content { padding: 0; }
+
+  @media (max-width: 767px) {
+    .ship-pipelines-scroll { display: none; }
+    .ship-mobile-gate { display: flex; }
+  }
+  @media (min-width: 768px) {
+    .ship-mobile-gate { display: none; }
+  }
+  .ship-mobile-gate {
+    align-items: center;
+    justify-content: center;
+    height: 100%;
+    flex-direction: column;
+    gap: 0.5rem;
+    color: var(--muted-foreground);
+    font-size: 0.875rem;
+  }
   </style>
+  {% include 'pipelines/partials/styles.html.j2' %}
 </head>
 <body>
 <div id="ship-view-root" class="ship-view ship-view-pipelines"
      {{ signal('tab', active_tab) }}
      {{ signal('agent', agent_filter) }}
      {{ signal('_creating', false) }}>
-  <div class="ship-pipelines-wrap">
-    <div class="ship-pipelines-head">
-      <div>
-        <h1 class="ship-pipelines-title">Pipelines</h1>
-        <div class="ship-pipelines-sub">{{ stats_subtitle }}</div>
+
+  <div class="ship-pipelines-scroll">
+    <div class="ship-pipelines-wrap">
+      <div class="ship-pipelines-head">
+        <div>
+          <h1 class="ship-pipelines-title">Workflows</h1>
+          <p class="ship-pipelines-sub">{{ stats_subtitle }}</p>
+        </div>
+        <ship-button size="sm" tone="accent" variant="solid"
+          data-on:click="@post('{{ create_job() }}', {contentType: 'json', body: JSON.stringify({})})"
+          {{ loading('_creating') }}>
+          <ship-icon slot="leading" name="play" size="sm"></ship-icon>
+          New Run
+        </ship-button>
+        {{ spinner('_creating') }}
       </div>
-      <ship-button size="sm" tone="accent" variant="solid"
-        data-on:click="@post('{{ create_job() }}', {contentType: 'json', body: JSON.stringify({})})"
-        {{ loading('_creating') }}>
-        + Run
-      </ship-button>
-      {{ spinner('_creating') }}
-    </div>
 
-    <div class="ship-pipelines-status" role="group" aria-label="Run status summary">
-      {% for pill in status_pills %}
-      <span class="ship-pipelines-status-pill">
-        <ship-status-dot tone="{{ pill.tone }}"></ship-status-dot>
-        <span>{{ pill.label }}</span>
-        <span class="count">{{ pill.count }}</span>
-      </span>
-      {% endfor %}
-    </div>
+      {% if status_pills and status_pills | length > 0 %}
+      <div class="ship-pipelines-stats" role="group" aria-label="Run status summary">
+        {% for pill in status_pills %}
+        <span class="ship-stat">
+          <ship-status-dot tone="{{ pill.tone }}"></ship-status-dot>
+          <span class="ship-stat-label">{{ pill.label }}</span>
+          <span class="ship-stat-count">{{ pill.count }}</span>
+        </span>
+        {% endfor %}
+      </div>
+      {% endif %}
 
-    <div class="ship-pipelines-tabs-row">
-      <ship-tabs variant="underline" active="{{ active_tab }}"
-        data-on:ship-tab-change="$tab = evt.detail.name; @get('/api/runtime/view/pipelines/sse')">
-        <ship-tab name="active" label="Active" count="{{ stats.active }}"></ship-tab>
-        <ship-tab name="definitions" label="Definitions" count="{{ stats.definitions }}"></ship-tab>
-        <ship-tab name="history" label="History" count="{{ stats.history }}"></ship-tab>
-      </ship-tabs>
-    </div>
+      <div class="ship-pipelines-tabs-row">
+        <ship-tabs variant="underline" active="{{ active_tab }}"
+          data-on:ship-tab-change="$tab = evt.detail.name; @get('/api/runtime/view/pipelines/sse?tab=' + evt.detail.name)">
+          <ship-tab name="active" label="Active Runs" count="{{ stats.active }}"></ship-tab>
+          <ship-tab name="definitions" label="Templates" count="{{ stats.definitions }}"></ship-tab>
+          <ship-tab name="history" label="History" count="{{ stats.history }}"></ship-tab>
+        </ship-tabs>
+      </div>
 
-    <div class="ship-pipelines-filters" role="group" aria-label="Filter by agent">
-      <ship-chip size="sm" {{ chip_all('agent', 'pipelines') }}>All agents</ship-chip>
-      {% for a in agents %}
-      <ship-chip size="sm" {{ chip('agent', a, 'pipelines') }}>{{ a }}</ship-chip>
-      {% endfor %}
-    </div>
+      {% if agents and agents | length > 0 %}
+      <div class="ship-pipelines-filters" role="group" aria-label="Filter by agent">
+        <ship-chip size="sm" {{ chip_all('agent', 'pipelines') }}>All agents</ship-chip>
+        {% for a in agents %}
+        <ship-chip size="sm" {{ chip('agent', a, 'pipelines') }}>{{ a }}</ship-chip>
+        {% endfor %}
+      </div>
+      {% endif %}
 
-    <div {{ live('pipelines') }}>
-      <div id="pipelines-content" class="ship-pipelines-content">
-        <p style="padding: 16px 0; font-size: 11px; color: var(--muted-foreground)">Loading...</p>
+      <div {{ live('pipelines') }}>
+        <div id="pipelines-content" class="ship-pipelines-content">
+          <p style="padding: 2rem 0; font-size: 0.75rem; color: var(--muted-foreground)">Loading...</p>
+        </div>
       </div>
     </div>
+  </div>
+
+  <div class="ship-mobile-gate">
+    <ship-icon name="monitor" size="xl" tone="muted"></ship-icon>
+    <span>Best experienced on desktop</span>
   </div>
 </div>
 </body>

@@ -40,6 +40,7 @@ fn sample_ctx() -> SettingsCtx {
         },
         advanced: vec![],
         advanced_registry: "https://registry.getship.dev".into(),
+        daemon_endpoint: "http://localhost:9315".into(),
         about: AboutInfo {
             ship_version: "0.0.1".into(),
             daemon_version: "0.0.1".into(),
@@ -60,6 +61,7 @@ fn empty_ctx() -> SettingsCtx {
         terminal: TerminalConfig::default(),
         advanced: vec![],
         advanced_registry: String::new(),
+        daemon_endpoint: "http://localhost:9315".into(),
         about: AboutInfo::default(),
     }
 }
@@ -82,7 +84,7 @@ fn shell_renders_single_column_four_sections() {
     assert!(!html.contains("<!DOCTYPE"), "shell must be a fragment");
     assert!(!html.contains("<html"), "no <html>");
     // Root id + single column max-width 768.
-    assert!(html.contains("id=\"settings-root\""), "missing root id");
+    assert!(html.contains("id=\"ship-view-root\""), "missing root id");
     assert!(html.contains("max-width: 768px"), "missing 768px column");
     // Header content.
     assert!(html.contains(">Settings<"), "missing h1");
