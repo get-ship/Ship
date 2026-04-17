@@ -1872,7 +1872,11 @@ var shipBadgeStyles = [
       flex-shrink: 0;
       color: currentColor;
     }
-    .leading:empty { display: none; }
+    /* Hide leading wrapper when no content is slotted into it.
+     * :empty doesn't work because <slot> is always a child. Use
+     * :not(:has(::slotted(*))) for modern browsers. */
+    .leading { display: none; }
+    .leading:has(::slotted(*)) { display: inline-flex; }
     ::slotted([slot='leading']) {
       display: inline-flex;
       align-items: center;
@@ -7463,7 +7467,7 @@ ShipJsonView.styles = i`
       transition: transform var(--duration-fast) var(--ease-out);
     }
     details[open] > summary .caret { transform: rotate(90deg); }
-    .key { color: var(--accent); }
+    .key { color: var(--primary); font-weight: var(--font-weight-medium); }
     .s { color: var(--success); }
     .n { color: var(--info); }
     .b { color: var(--accent); font-weight: var(--font-weight-medium); }
@@ -8519,6 +8523,11 @@ var ShipTreeNode = class extends i4 {
     this._select = () => {
       this.dispatchEvent(new CustomEvent("ship-select", { bubbles: true, composed: true, detail: {} }));
     };
+    /** Clicking the row both selects AND toggles expand/collapse. */
+    this._rowClick = (e6) => {
+      this._select();
+      this._toggle(e6);
+    };
     this._onKey = (e6) => {
       if (e6.key === "Enter" || e6.key === " ") {
         e6.preventDefault();
@@ -8544,10 +8553,10 @@ var ShipTreeNode = class extends i4 {
         tabindex="0"
         aria-expanded=${this.leaf ? A : String(this.expanded)}
         aria-selected=${String(this.selected)}
-        @click=${this._select}
+        @click=${this._rowClick}
         @keydown=${this._onKey}
       >
-        <span class="caret" part="caret" @click=${this._toggle} aria-hidden="true">
+        <span class="caret" part="caret" aria-hidden="true">
           <svg viewBox="0 0 12 12" fill="none" stroke="currentColor" stroke-width="1.5"><polyline points="4 3 8 6 4 9"></polyline></svg>
         </span>
         <slot name="icon"></slot>
@@ -8873,7 +8882,7 @@ ShipLineChart.styles = i`
       transition: opacity var(--duration-fast) var(--ease-out);
     }
     .wrap { display: flex; flex-direction: column; gap: 6px; width: 100%; height: 100%; }
-    svg { display: block; width: 100%; flex: 1; overflow: visible; }
+    svg { display: block; width: 100%; flex: 1; overflow: hidden; }
     .legend {
       display: flex;
       flex-wrap: wrap;
@@ -8957,7 +8966,7 @@ ShipAreaChart.styles = i`
       transition: opacity var(--duration-fast) var(--ease-out);
     }
     .wrap { display: flex; flex-direction: column; gap: 6px; width: 100%; height: 100%; }
-    svg { display: block; width: 100%; flex: 1; overflow: visible; }
+    svg { display: block; width: 100%; flex: 1; overflow: hidden; }
     .legend {
       display: flex; flex-wrap: wrap; gap: 12px;
       font-size: var(--text-xs);
@@ -9637,7 +9646,8 @@ var shipChipStyles = [
       flex-shrink: 0;
       color: currentColor;
     }
-    .leading:empty { display: none; }
+    .leading { display: none; }
+    .leading:has(::slotted(*)) { display: inline-flex; }
     ::slotted([slot='leading']) {
       display: inline-flex;
       align-items: center;
