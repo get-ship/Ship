@@ -33,10 +33,24 @@ pub fn network_stop() -> Result<()> {
     Ok(())
 }
 
+/// Returns the parent PID on Unix, or `None` on non-Unix / when no parent.
+#[cfg(unix)]
+fn parent_pid() -> Option<u32> {
+    let p = unsafe { libc::getppid() };
+    if p > 0 { Some(p as u32) } else { None }
+}
+
+#[cfg(not(unix))]
+fn parent_pid() -> Option<u32> {
+    None
+}
+
 /// Returns `Some(pid)` if a daemon other than us is alive per pidfile + `kill(0)`.
 ///
 /// Returns `None` when no pid file exists, the pid file is corrupt, the pid
-/// belongs to us, or the recorded process is no longer alive.
+/// belongs to us or our parent supervisor, or the recorded process is no
+/// longer alive. Excluding the parent supervisor prevents the child daemon
+/// process from mistaking its own spawning supervisor for a racing daemon.
 pub fn another_daemon_alive(global_dir: &Path) -> Option<u32> {
     let pid_file = global_dir.join("daemon.pid");
     let pid_str = std::fs::read_to_string(&pid_file).ok()?;
@@ -47,7 +61,10 @@ pub fn another_daemon_alive(global_dir: &Path) -> Option<u32> {
     #[cfg(not(unix))]
     let alive = false;
 
-    if alive && pid != std::process::id() {
+    let is_us = pid == std::process::id();
+    let is_our_supervisor = parent_pid() == Some(pid);
+
+    if alive && !is_us && !is_our_supervisor {
         Some(pid)
     } else {
         None
