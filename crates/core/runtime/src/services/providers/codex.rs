@@ -27,7 +27,7 @@ impl ProviderAdapter for CodexAdapter {
     fn build_headless(&self, slug: &str, profile: &LaunchProfile) -> LaunchCommand {
         let mut args = vec![
             "exec".to_string(),
-            "--dangerously-bypass-approvals-and-sandbox".to_string(),
+            "--full-auto".to_string(),
         ];
         if let Some(ref model) = profile.model {
             args.push("--model".to_string());

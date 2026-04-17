@@ -59,7 +59,7 @@ fn headless_emits_exec_subcommand() {
     assert_eq!(cmd.args[0], "exec");
     assert!(cmd
         .args
-        .contains(&"--dangerously-bypass-approvals-and-sandbox".to_string()));
+        .contains(&"--full-auto".to_string()));
     assert_eq!(cmd.args.last().unwrap(), "test prompt");
     assert_eq!(
         cmd.env.get("SHIP_MESH_ID").map(String::as_str),

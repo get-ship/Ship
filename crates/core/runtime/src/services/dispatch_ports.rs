@@ -53,6 +53,7 @@ pub struct JobContext {
     pub spec_content: Option<String>,
     pub work_dir: PathBuf,
     pub env: HashMap<String, String>,
+<<<<<<< Updated upstream
     /// How to launch the provider CLI for this job.
     pub launch: LaunchProfile,
     /// Exit notification channel. Set by `dispatch_job_internal` so the executor's
@@ -86,7 +87,23 @@ pub struct StepInfo {
 #[derive(Clone, Debug, Default)]
 pub struct LaunchProfile {
     /// Provider CLI to use (e.g. "claude", "codex"). None = default (claude).
+||||||| Stash base
+    pub model: Option<String>,
+=======
+    /// How to launch the provider CLI for this job.
+    pub launch: LaunchProfile,
+}
+
+/// Everything about *how* to run the provider process.
+///
+/// Separated from JobContext so launch configuration is composable —
+/// provider defaults + pipeline step overrides + user preferences.
+#[derive(Clone, Debug, Default)]
+pub struct LaunchProfile {
+    /// Provider CLI to use (e.g. "claude", "codex"). None = default (claude).
+>>>>>>> Stashed changes
     pub provider: Option<String>,
+<<<<<<< Updated upstream
     /// Model override for this run.
     pub model: Option<String>,
     /// Effort level (e.g. "low", "medium", "high", "max"). Provider-specific.
@@ -108,6 +125,25 @@ pub struct LaunchProfile {
     /// as the final positional argument to `codex exec`. `None` falls back to
     /// each adapter's default.
     pub autostart_prompt: Option<String>,
+||||||| Stash base
+=======
+    /// Model override for this run.
+    pub model: Option<String>,
+    /// Effort level (e.g. "low", "medium", "high", "max"). Provider-specific.
+    pub effort: Option<String>,
+    /// Resume a previous session by ID.
+    pub resume_session: Option<String>,
+    /// Display name for the session (shows in provider's session picker).
+    pub session_name: Option<String>,
+    /// Maximum spend in USD for this run.
+    pub max_budget_usd: Option<f64>,
+    /// Permission mode override (e.g. "plan", "auto", "bypassPermissions").
+    pub permission_mode: Option<String>,
+    /// Whether to persist the session (false = ephemeral, e.g. gate reviews).
+    pub persist_session: bool,
+    /// Request structured JSON output from the provider.
+    pub structured_output: bool,
+>>>>>>> Stashed changes
 }
 
 /// Handle returned by a `JobExecutor` after spawning an agent.
