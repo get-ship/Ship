@@ -208,6 +208,85 @@ async fn seed_dispatched_job(
     kernel.lock().await.emit(env, &ctx).await.unwrap();
 }
 
+/// Seed a dispatched job with a DAG pipeline; `current_step` advances via
+/// the JOB_DISPATCHED projection.
+async fn seed_dispatched_job_with_pipeline(
+    kernel: &Arc<Mutex<KernelRouter>>,
+    job_id: &str,
+    slug: &str,
+    pipeline: crate::events::job::Pipeline,
+) {
+    use crate::events::job::{event_types, JobCreatedPayload, JobDispatchedPayload};
+    use crate::events::{CallerKind, EmitContext};
+
+    let ctx = EmitContext {
+        caller_kind: CallerKind::Runtime,
+        skill_id: None,
+        workspace_id: None,
+        session_id: None,
+    };
+
+    let created = JobCreatedPayload {
+        job_id: job_id.to_string(),
+        slug: slug.to_string(),
+        agent: "test-agent".to_string(),
+        branch: format!("job/{slug}"),
+        spec_path: ".artifacts/job-spec.md".to_string(),
+        source_spec_path: None,
+        plan_id: None,
+        depends_on: None,
+        model: None,
+        provider: None,
+        pipeline: None,
+        steps: Some(pipeline),
+        pipeline_name: None,
+        vars: None,
+        spec_content: None,
+        step_specs: None,
+        headless: false,
+    };
+    let env = EventEnvelope::new(event_types::JOB_CREATED, job_id, &created)
+        .unwrap()
+        .with_actor_id("test");
+    kernel.lock().await.emit(env, &ctx).await.unwrap();
+
+    let dispatched = JobDispatchedPayload {
+        job_id: job_id.to_string(),
+        worktree: format!("/tmp/test-worktrees/{slug}"),
+        pid: None,
+        provider_meta: None,
+    };
+    let env = EventEnvelope::new(event_types::JOB_DISPATCHED, job_id, &dispatched)
+        .unwrap()
+        .with_actor_id("test");
+    kernel.lock().await.emit(env, &ctx).await.unwrap();
+}
+
+fn one_step_pipeline(step_id: &str, step_type: crate::events::job::StepType)
+    -> crate::events::job::Pipeline
+{
+    use crate::events::job::{Pipeline, PipelineStep, StepType};
+    let (command, agent, goal) = match step_type {
+        StepType::Run => (Some("echo hi".to_string()), None, None),
+        _ => (None, Some("test-agent".to_string()), Some("do work".to_string())),
+    };
+    Pipeline {
+        auto_merge: false,
+        steps: vec![PipelineStep {
+            id: step_id.to_string(),
+            step_type,
+            agent,
+            goal,
+            after: vec![],
+            model: None,
+            provider: None,
+            command,
+            max_retries: None,
+            gate: None,
+        }],
+    }
+}
+
 /// Seed a job in Failed status.
 async fn seed_failed_job(
     kernel: &Arc<Mutex<KernelRouter>>,
@@ -405,5 +484,98 @@ async fn stray_process_gets_killed() {
             p["slug"] == "orphan-1" && p["actor"] == "supervisor"
         }),
         "process.killed emitted with actor=supervisor for stray kill"
+    );
+}
+
+// ── Run-step awareness (sweep-run-aware-01) ────────────────────────────────
+// Run steps are synchronous and don't register handles; the sweep's live-
+// process check would false-flag them on any command outlasting the 30s
+// interval. These tests pin that the skip is Run-only — Agent and
+// no-current-step paths still reach the existing drift branch.
+
+#[tokio::test(flavor = "multi_thread", worker_threads = 2)]
+async fn sweep_skips_run_step_jobs() {
+    use crate::events::job::StepType;
+    let _tmp = tempfile::TempDir::new().unwrap();
+    let kernel = make_kernel();
+    let octx = make_octx(Arc::new(DeadExecutor), Arc::new(EmptyRegistry));
+
+    seed_dispatched_job_with_pipeline(
+        &kernel,
+        "j-run-aware-1",
+        "sweep-run-aware-1",
+        one_step_pipeline("build", StepType::Run),
+    )
+    .await;
+    run_sweep(&kernel, &octx).await.unwrap();
+
+    // No drift event scoped to this job's slug.
+    let drift = find_events_by_type(sup_events::SUPERVISOR_DRIFT_DETECTED);
+    assert!(
+        !drift.iter().any(|e| e.entity_id == "sweep-run-aware-1"),
+        "Run-step dispatched job must not be flagged as drift"
+    );
+
+    // No job.failed for this job_id emitted by the sweep.
+    let sweep_failed = find_events_by_type("job.failed")
+        .into_iter()
+        .find(|e| e.entity_id == "j-run-aware-1");
+    assert!(
+        sweep_failed.is_none(),
+        "Run-step dispatched job must not be marked failed by the sweep"
+    );
+}
+
+#[tokio::test(flavor = "multi_thread", worker_threads = 2)]
+async fn sweep_still_flags_agent_step_jobs_with_no_process() {
+    use crate::events::job::StepType;
+    let _tmp = tempfile::TempDir::new().unwrap();
+    let kernel = make_kernel();
+    let octx = make_octx(Arc::new(DeadExecutor), Arc::new(EmptyRegistry));
+
+    seed_dispatched_job_with_pipeline(
+        &kernel,
+        "j-agent-aware-1",
+        "sweep-agent-aware-1",
+        one_step_pipeline("work", StepType::Agent),
+    )
+    .await;
+    run_sweep(&kernel, &octx).await.unwrap();
+
+    let drift = find_events_by_type(sup_events::SUPERVISOR_DRIFT_DETECTED);
+    assert!(
+        drift.iter().any(|e| e.entity_id == "sweep-agent-aware-1"),
+        "agent-step dispatched job with no live process must still be flagged"
+    );
+
+    let sweep_failed = find_events_by_type("job.failed")
+        .into_iter()
+        .filter(|e| e.entity_id == "j-agent-aware-1")
+        .find(|e| {
+            let p: serde_json::Value =
+                serde_json::from_str(&e.payload_json).unwrap_or_default();
+            p["error"].as_str().unwrap_or_default().contains("coherence sweep")
+        });
+    assert!(
+        sweep_failed.is_some(),
+        "agent-step dispatched job must receive coherence-sweep job.failed"
+    );
+}
+
+#[tokio::test(flavor = "multi_thread", worker_threads = 2)]
+async fn sweep_skips_jobs_with_no_current_step() {
+    // no pipeline → current_step=None. Pins that the Run filter doesn't
+    // short-circuit the no-current-step path — only Run-typed steps skip.
+    let _tmp = tempfile::TempDir::new().unwrap();
+    let kernel = make_kernel();
+    let octx = make_octx(Arc::new(DeadExecutor), Arc::new(EmptyRegistry));
+
+    seed_dispatched_job(&kernel, "j-no-current-1", "sweep-no-current-1").await;
+    run_sweep(&kernel, &octx).await.unwrap();
+
+    let drift = find_events_by_type(sup_events::SUPERVISOR_DRIFT_DETECTED);
+    assert!(
+        drift.iter().any(|e| e.entity_id == "sweep-no-current-1"),
+        "dispatched job with no pipeline must still be flagged — safety net intact"
     );
 }
