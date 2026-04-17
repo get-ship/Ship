@@ -119,6 +119,12 @@ export class ShipTreeNode extends LitElement {
     this.dispatchEvent(new CustomEvent('ship-select', { bubbles: true, composed: true, detail: {} }))
   }
 
+  /** Clicking the row both selects AND toggles expand/collapse. */
+  private _rowClick = (e: Event) => {
+    this._select()
+    this._toggle(e)
+  }
+
   private _onKey = (e: KeyboardEvent) => {
     if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); this._select() }
     else if (e.key === 'ArrowRight' && !this.leaf && !this.expanded) { e.preventDefault(); this._toggle(e) }
@@ -133,10 +139,10 @@ export class ShipTreeNode extends LitElement {
         tabindex="0"
         aria-expanded=${this.leaf ? nothing : String(this.expanded)}
         aria-selected=${String(this.selected)}
-        @click=${this._select}
+        @click=${this._rowClick}
         @keydown=${this._onKey}
       >
-        <span class="caret" part="caret" @click=${this._toggle} aria-hidden="true">
+        <span class="caret" part="caret" aria-hidden="true">
           <svg viewBox="0 0 12 12" fill="none" stroke="currentColor" stroke-width="1.5"><polyline points="4 3 8 6 4 9"></polyline></svg>
         </span>
         <slot name="icon"></slot>

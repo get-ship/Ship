@@ -41,7 +41,7 @@ export class ShipJsonView extends LitElement {
       transition: transform var(--duration-fast) var(--ease-out);
     }
     details[open] > summary .caret { transform: rotate(90deg); }
-    .key { color: var(--accent); }
+    .key { color: var(--primary); font-weight: var(--font-weight-medium); }
     .s { color: var(--success); }
     .n { color: var(--info); }
     .b { color: var(--accent); font-weight: var(--font-weight-medium); }

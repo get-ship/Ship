@@ -210,7 +210,11 @@ export const shipBadgeStyles = [
       flex-shrink: 0;
       color: currentColor;
     }
-    .leading:empty { display: none; }
+    /* Hide leading wrapper when no content is slotted into it.
+     * :empty doesn't work because <slot> is always a child. Use
+     * :not(:has(::slotted(*))) for modern browsers. */
+    .leading { display: none; }
+    .leading:has(::slotted(*)) { display: inline-flex; }
     ::slotted([slot='leading']) {
       display: inline-flex;
       align-items: center;

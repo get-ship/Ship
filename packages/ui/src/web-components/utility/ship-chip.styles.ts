@@ -225,7 +225,8 @@ export const shipChipStyles = [
       flex-shrink: 0;
       color: currentColor;
     }
-    .leading:empty { display: none; }
+    .leading { display: none; }
+    .leading:has(::slotted(*)) { display: inline-flex; }
     ::slotted([slot='leading']) {
       display: inline-flex;
       align-items: center;
