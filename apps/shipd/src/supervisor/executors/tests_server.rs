@@ -78,9 +78,10 @@ async fn routing_picks_server_executor_when_provider_supports_and_session_bound(
 
     // End-to-end: the spawn itself hits the bound StubSession and
     // surfaces its error, confirming the route reached the executor.
-    let err = <RoutingExecutor as JobExecutor>::spawn(&routing, &ctx)
-        .await
-        .expect_err("stub must fail start_turn");
+    let err = match <RoutingExecutor as JobExecutor>::spawn(&routing, &ctx).await {
+        Err(e) => e,
+        Ok(_) => panic!("stub must fail start_turn"),
+    };
     let msg = err.to_string();
     assert!(msg.contains("StubSession"), "msg was: {msg}");
 }

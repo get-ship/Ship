@@ -30,6 +30,7 @@ use async_trait::async_trait;
 use runtime::events::KernelRouter;
 use runtime::services::dispatch_ports::{ExecutorHandle, JobContext, JobExecutor};
 use runtime::services::provider_adapter::adapter_for_or_default;
+use runtime::services::providers::codex_session::CodexSession;
 use runtime::services::server_session::ServerSession;
 use tokio::sync::Mutex;
 
@@ -119,6 +120,39 @@ impl RoutingExecutor {
         Some(ServerExecutor::new(self.kernel.clone(), session))
     }
 
+    /// Lazy-spawn a `CodexSession` on first codex dispatch, caching the
+    /// binding in the session registry. On spawn failure (binary missing,
+    /// handshake stalls, etc.) we log a warning and leave the registry
+    /// untouched — the caller then falls through to Process/TmuxWindow,
+    /// preserving the one-shot `codex exec` path as graceful degradation.
+    async fn ensure_codex_session(&self, ctx: &JobContext) {
+        let Some(provider) = ctx.launch.provider.as_deref() else {
+            return;
+        };
+        if provider != "codex" {
+            return;
+        }
+        if self.sessions.get("codex").is_some() {
+            return;
+        }
+        if !codex_binary_on_path() {
+            tracing::debug!(
+                "routing: codex binary not on PATH; skipping CodexSession lazy-spawn"
+            );
+            return;
+        }
+        match CodexSession::spawn().await {
+            Ok(session) => {
+                tracing::info!("routing: lazy-spawned CodexSession for provider=codex");
+                self.sessions.bind("codex", Arc::new(session));
+            }
+            Err(err) => {
+                tracing::warn!(%err,
+                    "routing: CodexSession lazy-spawn failed; falling back to ProcessExecutor");
+            }
+        }
+    }
+
     /// Test-only inspection: which executor would `spawn` dispatch to,
     /// given this context? Avoids actually spawning a provider process
     /// in routing tests.
@@ -145,6 +179,11 @@ pub(crate) enum RouteKind {
 #[async_trait]
 impl JobExecutor for RoutingExecutor {
     async fn spawn(&self, ctx: &JobContext) -> Result<ExecutorHandle> {
+        // Codex routes to a persistent app-server session when available.
+        // The first codex dispatch lazy-spawns the child; subsequent
+        // dispatches reuse the cached session Arc via the registry.
+        self.ensure_codex_session(ctx).await;
+
         if let Some(server) = self.try_server_executor(ctx) {
             tracing::info!(slug = ctx.slug,
                 provider = ?ctx.launch.provider,
@@ -216,6 +255,20 @@ impl JobExecutor for RoutingExecutor {
         }
         None
     }
+}
+
+/// Walk `PATH` once looking for the `codex` binary. Avoids a spawn
+/// attempt (and its error log) when the user hasn't installed codex.
+/// Cheap enough to re-check per dispatch — the success case caches
+/// the bound session so this only runs until the first codex job.
+fn codex_binary_on_path() -> bool {
+    let Some(paths) = std::env::var_os("PATH") else {
+        return false;
+    };
+    std::env::split_paths(&paths).any(|dir| {
+        let candidate = dir.join("codex");
+        candidate.is_file()
+    })
 }
 
 /// Build a transient `ServerExecutor` for handle dispatch when the
