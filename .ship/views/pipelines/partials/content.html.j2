@@ -142,11 +142,11 @@
             <ship-timestamp value="{{ run.updated_at }}" relative></ship-timestamp>
           </span>
           {% if run.state == 'dispatched' or run.state == 'pending' %}
-          <button class="ship-run-stop"
+          <ship-button variant="outline" size="sm" tone="destructive"
             data-on:click="@post('{{ end_job() }}', {contentType: 'json', body: JSON.stringify({job_id: '{{ run.job_id }}'})})">
-            <ship-icon name="square" size="xs"></ship-icon>
+            <ship-icon slot="leading" name="stop"></ship-icon>
             Stop
-          </button>
+          </ship-button>
           {% endif %}
         </div>
       </section>

@@ -23,7 +23,7 @@ export const shipMarkdownEditorBubbleStyles = css`
     border: 1px solid var(--border);
     border-radius: var(--radius-md);
     box-shadow: var(--shadow-md, 0 4px 12px rgba(0, 0, 0, 0.14));
-    transform: translate(-50%, -8px);
+    transform: translateX(-50%);
     opacity: 0;
     pointer-events: none;
     transform-origin: 50% 100%;

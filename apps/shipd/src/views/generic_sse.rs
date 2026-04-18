@@ -62,7 +62,9 @@ fn render_partial(
         Ok(html) => Some(html),
         Err(e) => {
             tracing::error!(view = %view_name, error = %e, "partial render failed");
-            None
+            Some(super::error_overlay::render_error_overlay(
+                &tpl_name, &source, &e,
+            ))
         }
     }
 }

@@ -25,7 +25,7 @@ export class ShipBarChart extends LitElement {
       height: 200px;
       transition: opacity var(--duration-fast) var(--ease-out);
     }
-    svg { display: block; width: 100%; height: 100%; overflow: visible; }
+    svg { display: block; width: 100%; height: 100%; overflow: hidden; }
   `
 
   static properties = {

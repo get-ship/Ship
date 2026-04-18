@@ -7,40 +7,33 @@
   - Five stacked sections: Skills, MCP, Permissions, Rules, Providers
   - Each section uses the SectionShell pattern (icon + title + count + action)
 -#}
-{% from '_ship.html.j2' import head, signal, get, radio %}
+{% from '_ship.html.j2' import head, signal, get, nav, radio %}
 {% from '_urls.html.j2' import view_agents, view_agent_detail %}
+{% if not fragment %}
 <!DOCTYPE html>
 <html lang="en">
 <head>
   {{ head(agent.name) }}
-  {% include 'agents/partials/detail_styles.html.j2' %}
 </head>
 <body>
+{% endif %}
 <div id="ship-view-root" class="ship-view ad-view"
      {{ signal('tier', agent.permissions_tier) }}>
+  {% include 'agents/partials/detail_styles.html.j2' %}
 
   <!-- Sticky header -->
   <header class="ad-header">
-    <button class="ad-back-btn" {{ get(view_agents()) }}
+    <ship-button variant="ghost" size="sm" {{ nav('/agents') }}
             aria-label="Back to agents">
-      <svg width="16" height="16" viewBox="0 0 24 24" fill="none"
-           stroke="currentColor" stroke-width="2" stroke-linecap="round"
-           stroke-linejoin="round">
-        <polyline points="15 18 9 12 15 6"/>
-      </svg>
-    </button>
+      <ship-icon slot="leading" name="chevron-left"></ship-icon>
+    </ship-button>
     <div class="ad-avatar">{{ agent.letter }}</div>
     <h1 class="ad-name">{{ agent.name }}</h1>
     <span class="ad-version">0.0.0</span>
     <div class="ad-header-spacer"></div>
-    <button class="ad-delete-btn" aria-label="Delete agent">
-      <svg width="16" height="16" viewBox="0 0 24 24" fill="none"
-           stroke="currentColor" stroke-width="2" stroke-linecap="round"
-           stroke-linejoin="round">
-        <polyline points="3 6 5 6 21 6"/>
-        <path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6m3 0V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2"/>
-      </svg>
-    </button>
+    <ship-button variant="ghost" size="sm" tone="destructive" aria-label="Delete agent">
+      <ship-icon slot="leading" name="trash"></ship-icon>
+    </ship-button>
   </header>
 
   <!-- Scrollable body with all sections -->
@@ -54,5 +47,7 @@
   </div>
 
 </div>
+{% if not fragment %}
 </body>
 </html>
+{% endif %}

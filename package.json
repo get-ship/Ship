@@ -14,6 +14,7 @@
     "cf:deploy": "pnpm --filter web deploy"
   },
   "devDependencies": {
+    "@playwright/test": "^1.58.2",
     "typescript": "~5.8.3",
     "vite-plus": "^0.1.11"
   },

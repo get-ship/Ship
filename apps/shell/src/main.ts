@@ -1,5 +1,6 @@
 import Navigo from "navigo";
 import { mountDaemonFragment, openDaemonSSE, isSameOrigin } from "./mount";
+import { initSignalInspector } from "./signal-inspector";
 
 // ── Daemon URL rewriting ─────────────────────────────────────────────
 // Daemon templates emit absolute URLs (http://127.0.0.1:9315/api/...).
@@ -164,13 +165,13 @@ viewRoute("/pipelines", "/api/runtime/view/pipelines", "/api/runtime/view/pipeli
 viewRoute("/specs", "/api/runtime/view/specs", "/api/runtime/view/specs/sse");
 viewRoute("/git", "/api/runtime/view/git", "/api/runtime/view/git/sse");
 viewRoute("/settings", "/api/runtime/view/settings", "/api/runtime/view/settings/sse");
-viewRoute("/agents", "/api/runtime/view/agents");
-viewRoute("/skills", "/api/runtime/view/skills");
+viewRoute("/agents", "/api/runtime/view/agents", "/api/runtime/view/agents/sse");
+viewRoute("/skills", "/api/runtime/view/skills", "/api/runtime/view/skills/sse");
 viewRoute("/chat", "/api/runtime/view/chat", "/api/runtime/view/chat/sse");
 viewRoute("/events", "/api/runtime/view/events", "/api/runtime/view/events/sse");
 viewRoute("/data", "/api/runtime/view/data", "/api/runtime/view/data/sse");
-viewRoute("/dashboard", "/api/runtime/view/dashboard");
-viewRoute("/canvas", "/api/runtime/view/canvas");
+viewRoute("/dashboard", "/api/runtime/view/dashboard", "/api/runtime/view/dashboard/sse");
+viewRoute("/canvas", "/api/runtime/view/canvas", "/api/runtime/view/canvas/sse");
 
 // Dynamic routes — detail pages with params
 router.on("/agents/:id", ({ data }) => {
@@ -232,3 +233,6 @@ drawerBtn.addEventListener("click", async () => {
 
 // Start routing
 router.resolve();
+
+// Dev tooling
+initSignalInspector();

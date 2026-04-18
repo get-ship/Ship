@@ -138,8 +138,20 @@ pub async fn serve_view(
             Err(_) => return mesh_err(StatusCode::NOT_FOUND, format!("view '{name}' has no index.html")).into_response(),
         }
     };
+    // Detect fragment mode: Datastar sends `Datastar-Request: true` when
+    // navigating inside the shell. In that case the page chrome (DOCTYPE,
+    // html, head, body) is unnecessary — the shell already provides it.
+    let is_fragment = headers
+        .get("datastar-request")
+        .and_then(|v| v.to_str().ok())
+        .map(|s| s.eq_ignore_ascii_case("true"))
+        .unwrap_or(false);
+
     let html = if is_template {
-        let ctx = build_view_context(&name, &query_params);
+        let mut ctx = build_view_context(&name, &query_params);
+        if is_fragment {
+            ctx["fragment"] = serde_json::json!(true);
+        }
         match super::templates::render_view_source(&name, &source, &ctx) {
             Ok(h) => h,
             Err(e) => {

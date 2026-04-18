@@ -18,6 +18,7 @@ pub(crate) fn build_generic_context(
     let mut ctx = serde_json::json!({
         "view_name": view_name,
         "query": query_params,
+        "fragment": true,
     });
     let Ok(ship_dir) = runtime::project::get_global_dir() else { return ctx };
 

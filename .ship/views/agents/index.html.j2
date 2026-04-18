@@ -12,10 +12,14 @@
 -#}
 {% from '_ship.html.j2' import head, signal, live, get, post %}
 {% from '_urls.html.j2' import view_agent_detail, view_agents_create %}
+{% if not fragment %}
 <!DOCTYPE html>
 <html lang="en">
-<head>
-  {{ head('Agents') }}
+<head>{{ head('Agents') }}</head>
+<body>
+{% endif %}
+<div id="ship-view-root" class="ship-view agents-view"
+     {{ signal('_creating', false) }}>
   <style>
   .agents-view {
     color: var(--foreground);
@@ -198,10 +202,6 @@
     .agent-card, .agent-arrow { transition: none; }
   }
   </style>
-</head>
-<body>
-<div id="ship-view-root" class="ship-view agents-view"
-     {{ signal('_creating', false) }}>
   <div class="agents-wrap">
 
     <header class="agents-head">
@@ -209,15 +209,10 @@
         <h1 class="agents-title">Agents</h1>
         <p class="agents-sub">{{ total }} agent{% if total != 1 %}s{% endif %}</p>
       </div>
-      <button class="agents-new-btn" {{ post(view_agents_create(), '{}') }}>
-        <svg width="14" height="14" viewBox="0 0 24 24" fill="none"
-             stroke="currentColor" stroke-width="2" stroke-linecap="round"
-             stroke-linejoin="round">
-          <line x1="12" y1="5" x2="12" y2="19"/>
-          <line x1="5" y1="12" x2="19" y2="12"/>
-        </svg>
+      <ship-button tone="accent" variant="solid" {{ post(view_agents_create(), '{}') }}>
+        <ship-icon slot="leading" name="plus"></ship-icon>
         New agent
-      </button>
+      </ship-button>
     </header>
 
     <div {{ live('agents') }}>
@@ -228,5 +223,7 @@
 
   </div>
 </div>
+{% if not fragment %}
 </body>
 </html>
+{% endif %}

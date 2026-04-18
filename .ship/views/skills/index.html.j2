@@ -15,9 +15,13 @@
 -#}
 {% from '_ship.html.j2' import head, styles %}
 {% from '_urls.html.j2' import view_skills, view_skill_detail %}
+{% if not fragment %}
 <!DOCTYPE html>
 <html lang="en">
-<head>{{ head('Skills') }}
+<head>{{ head('Skills') }}</head>
+<body>
+{% endif %}
+<div id="ship-view-root" class="ship-view ship-view-skills">
   {{ styles() }}
   <style>
   .ship-view-skills {
@@ -48,9 +52,6 @@
     font-size: 14px;
   }
   </style>
-</head>
-<body>
-<div id="ship-view-root" class="ship-view ship-view-skills">
   <div class="skills-ide">
     {% include 'skills/partials/explorer.html.j2' %}
     {% include 'skills/partials/editor.html.j2' %}
@@ -63,5 +64,7 @@
     <span>Best experienced on desktop</span>
   </div>
 </div>
+{% if not fragment %}
 </body>
 </html>
+{% endif %}

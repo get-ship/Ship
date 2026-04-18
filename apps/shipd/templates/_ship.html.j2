@@ -6,14 +6,18 @@
 
 {#- === Page Setup === -#}
 
-{# Emit standard <head> contents: meta, title, CSS, Datastar, ship-elements #}
+{# Emit standard <head> contents: meta, title, CSS, Datastar, ship-elements.
+   In fragment mode (loaded inside the shell via Datastar), these assets are
+   already present — emit nothing. #}
 {% macro head(title='Ship View') %}
+{% if not fragment %}
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>{{ title }}</title>
   <link rel="stylesheet" href="/api/runtime/assets/view-tokens.css">
   <script type="module" src="/api/runtime/assets/datastar.js"></script>
   <script type="module" src="/api/runtime/assets/ship-elements.js"></script>
+{% endif %}
 {% endmacro %}
 
 {#- === Signals & Reactivity === -#}
@@ -56,11 +60,14 @@
 
 {#- === Navigation === -#}
 
-{# Navigate to another view via GET (replaces content via Datastar morph) #}
+{# Navigate to another view via Datastar morph (use for in-view partial updates) #}
 {% macro navigate(url) %}data-on:click="@get('{{ url }}')"{% endmacro %}
 
-{# Navigate to a named view #}
-{% macro view(name) %}data-on:click="@get('/api/runtime/view/{{ name }}')"{% endmacro %}
+{# Navigate to a shell route (uses router when available, falls back to Datastar) #}
+{% macro nav(path) %}data-on:click="window.router ? window.router.navigate('{{ path }}') : window.location.href='{{ path }}'"{% endmacro %}
+
+{# Navigate to a named view via shell router #}
+{% macro view(name) %}data-on:click="window.router ? window.router.navigate('/{{ name }}') : window.location.href='/{{ name }}'"{% endmacro %}
 
 {#- === Event Listeners === -#}
 

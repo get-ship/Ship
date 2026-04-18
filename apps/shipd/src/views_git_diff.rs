@@ -8,6 +8,15 @@
 
 use serde::Serialize;
 
+/// HTML-escape diff line content so that when Datastar morphs via innerHTML,
+/// the decoded entities still render as text (not parsed as HTML elements).
+fn escape_html(s: &str) -> String {
+    s.replace('&', "&amp;")
+        .replace('<', "&lt;")
+        .replace('>', "&gt;")
+        .replace('"', "&quot;")
+}
+
 #[derive(Clone, Debug, Serialize, PartialEq, Eq)]
 pub struct DiffLine {
     /// "add" | "del" | "context" — matches the component `type` attribute.
@@ -135,7 +144,7 @@ pub fn parse_unified_diff(text: &str) -> ParsedDiff {
             }
             hunk.lines.push(DiffLine {
                 kind: "add",
-                content: rest.to_string(),
+                content: escape_html(rest),
                 old_num: None,
                 new_num: Some(new_line),
             });
@@ -147,7 +156,7 @@ pub fn parse_unified_diff(text: &str) -> ParsedDiff {
             }
             hunk.lines.push(DiffLine {
                 kind: "del",
-                content: rest.to_string(),
+                content: escape_html(rest),
                 old_num: Some(old_line),
                 new_num: None,
             });
@@ -157,7 +166,7 @@ pub fn parse_unified_diff(text: &str) -> ParsedDiff {
             // "\ No newline at end of file" — skip
             continue;
         } else {
-            let content = line.strip_prefix(' ').unwrap_or(line).to_string();
+            let content = escape_html(line.strip_prefix(' ').unwrap_or(line));
             hunk.lines.push(DiffLine {
                 kind: "context",
                 content,

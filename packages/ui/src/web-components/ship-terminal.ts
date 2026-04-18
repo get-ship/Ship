@@ -146,6 +146,24 @@ export class ShipTerminal extends LitElement {
       this._attachResizeObserver()
     }
 
+    // xterm canvas renderer paints garbled glyphs on the first write (shadow
+    // DOM bug). Workaround: sacrificial blank line + CSS clips row 0.
+    // WebGL renderer doesn't have this issue, so only apply when on canvas.
+    const isWebGL = !!(bundle.terminal as any)._core?._renderService?._renderer?.value?.constructor?.name?.includes('Webgl')
+    if (!isWebGL) {
+      bundle.terminal.writeln('')
+      // Measure actual rendered row height for precise clipping.
+      const wrap = this.renderRoot.querySelector('[data-terminal]') as HTMLElement
+      const xtermRows = wrap?.querySelector('.xterm-rows')
+      const firstRow = xtermRows?.children[0] as HTMLElement
+      const secondRow = xtermRows?.children[1] as HTMLElement
+      const rowH = (firstRow && secondRow)
+        ? secondRow.offsetTop - firstRow.offsetTop + 8
+        : Math.ceil(opts.fontSize * 1.6)
+      this.style.setProperty('--xterm-row-h', `${rowH}px`)
+      this.classList.add('canvas-fallback')
+    }
+
     this.dispatchEvent(new CustomEvent('ship-ready', {
       bubbles: true, composed: true,
     }))

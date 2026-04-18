@@ -38,6 +38,17 @@ export default defineConfig(({ mode }) => {
       "import.meta.env.VITE_DAEMON_URL": JSON.stringify(""),
       "import.meta.env.VITE_DAEMON_TOKEN": JSON.stringify(""),
     },
+    // Daemon-served assets are proxied at runtime, not local files.
+    // Tell Vite not to try pre-transforming them.
+    optimizeDeps: {
+      exclude: [
+        "/api/runtime/assets/ship-elements.js",
+        "/api/runtime/assets/ship-code-editor.js",
+        "/api/runtime/assets/ship-markdown-editor.js",
+        "/api/runtime/assets/ship-terminal.js",
+        "/api/runtime/assets/datastar.js",
+      ],
+    },
     server: {
       port: 3100,
       strictPort: true,

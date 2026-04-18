@@ -385,14 +385,23 @@ pub fn render_view_source<C: Serialize>(name: &str, source: &str, ctx: &C) -> Re
         let _ = local_env.add_template(n, s);
     }
     // Add the view source as a named template.
-    local_env.add_template(name, source)
-        .map_err(|e| format!("view '{name}' template parse error: {e}"))?;
+    if let Err(e) = local_env.add_template(name, source) {
+        let msg = format!("view '{name}' template parse error: {e}");
+        tracing::warn!(view = %name, "{msg}");
+        return Ok(super::error_overlay::render_error_overlay(name, source, &msg));
+    }
 
     let tpl = local_env.get_template(name)
         .map_err(|e| format!("view '{name}' not found after add: {e}"))?;
     let value = Value::from_serialize(ctx);
-    tpl.render(value)
-        .map_err(|e| format!("view '{name}' render error: {e}"))
+    match tpl.render(value) {
+        Ok(html) => Ok(html),
+        Err(e) => {
+            let msg = format!("view '{name}' render error: {e}");
+            tracing::warn!(view = %name, "{msg}");
+            Ok(super::error_overlay::render_error_overlay(name, source, &msg))
+        }
+    }
 }
 
 #[cfg(test)]

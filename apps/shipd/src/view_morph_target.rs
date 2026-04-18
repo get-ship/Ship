@@ -67,15 +67,25 @@ pub async fn view_morph_target_middleware(req: Request<Body>, next: Next) -> Res
         return response;
     }
 
-    // Datastar caller: strip the full-page wrapping so idiomorph operates
-    // on a clean fragment rooted at #ship-view-root.
+    // Datastar caller: the view handler already renders a clean fragment
+    // (no DOCTYPE/html/head/body) when it sees the Datastar-Request header.
+    // We just need to set the selector/mode headers and, as a safety net,
+    // fall back to extraction if the response still contains a full page.
     let (mut parts, body) = response.into_parts();
     let bytes = match body::to_bytes(body, 8 * 1024 * 1024).await {
         Ok(b) => b,
         Err(_) => return Response::from_parts(parts, Body::empty()),
     };
     let text = String::from_utf8_lossy(&bytes);
-    let fragment = extract_fragment(&text);
+
+    // If the response is already a clean fragment (no DOCTYPE), pass it
+    // through. Otherwise fall back to the old extraction logic for any
+    // templates that haven't been updated yet.
+    let output = if text.trim_start().starts_with("<!DOCTYPE") || text.trim_start().starts_with("<html") {
+        extract_fragment(&text)
+    } else {
+        text.into_owned()
+    };
 
     parts
         .headers
@@ -87,7 +97,7 @@ pub async fn view_morph_target_middleware(req: Request<Body>, next: Next) -> Res
         .or_insert(HeaderValue::from_static("outer"));
     parts.headers.remove(axum::http::header::CONTENT_LENGTH);
 
-    Response::from_parts(parts, Body::from(fragment))
+    Response::from_parts(parts, Body::from(output))
 }
 
 /// Extract the fragment rooted at `<* id="ship-view-root">` (and its

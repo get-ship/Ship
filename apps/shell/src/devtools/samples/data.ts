@@ -126,6 +126,12 @@ export const DATA: Record<string, Sample[]> = {
       metaAttrs: { series: '1 series', grid: '' },
     },
   ],
+  'ship-pagination': [
+    {
+      props: { page: '2', total: '127', 'per-page': '25', tone: 'info' },
+      metaAttrs: { page: '2', total: '127', 'per-page': '25', tone: 'info' },
+    },
+  ],
   'ship-heatmap': [
     {
       props: {

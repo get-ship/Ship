@@ -132,6 +132,24 @@ export const FORMS: Record<string, Sample[]> = {
       ].join(''),
     ),
   ],
+  'ship-file-upload': [
+    {
+      props: {},
+      metaAttrs: { note: 'default single file' },
+    },
+    {
+      props: { multiple: '', accept: '.png,.jpg,image/*' },
+      metaAttrs: { multiple: '', accept: '.png,.jpg,image/*' },
+    },
+    {
+      props: { tone: 'info', multiple: '', 'max-size': '5242880' },
+      metaAttrs: { tone: 'info', 'max-size': '5 MB' },
+    },
+    {
+      props: { disabled: '' },
+      metaAttrs: { disabled: '' },
+    },
+  ],
   'ship-toggle-group': [
     {
       raw: true,

@@ -75,11 +75,13 @@ export async function createTerminal(opts: TerminalInitOptions): Promise<Termina
     { FitAddon },
     { WebLinksAddon },
     { SearchAddon },
+    webglMod,
   ] = await Promise.all([
     import('@xterm/xterm'),
     import('@xterm/addon-fit'),
     import('@xterm/addon-web-links'),
     import('@xterm/addon-search'),
+    import('@xterm/addon-webgl').catch(() => null),
   ])
 
   const term = new Terminal({
@@ -101,7 +103,23 @@ export async function createTerminal(opts: TerminalInitOptions): Promise<Termina
   term.loadAddon(new WebLinksAddon())
   term.loadAddon(searchAddon)
 
-  term.open(opts.container)
+  // Prefer WebGL renderer — avoids canvas renderer's first-row corruption bug.
+  // Falls back to canvas if WebGL is unavailable (old hardware, headless, etc).
+  if (webglMod) {
+    try {
+      const webgl = new webglMod.WebglAddon()
+      webgl.onContextLoss(() => { webgl.dispose() })
+      term.loadAddon(webgl)
+    } catch { /* WebGL unavailable — canvas fallback */ }
+  }
+
+  // Delay open() until the container has a layout — xterm's canvas renderer
+  // produces garbled first-row glyphs if it initializes before the container
+  // has computed dimensions.
+  await new Promise<void>((resolve) => requestAnimationFrame(() => {
+    term.open(opts.container)
+    resolve()
+  }))
 
   // Emit user input data for interactive mode
   if (!opts.readonly) {

@@ -38,7 +38,7 @@
   @media (max-width: 980px) { .mde-grid { grid-template-columns: 1fr; } }
 </style>
 
-<script type="module" src="/vendor/ship-markdown-editor.js"></script>
+<script type="module" src="/api/runtime/assets/ship-markdown-editor.js"></script>
 
 {%- set default_md = '# Canvas — Editor test\n\nThis is a **rich-text** editor bound to a Datastar signal.\n\nTry:\n\n- Select any phrase. A floating toolbar appears above it.\n- Click **B** to bold, or the speech-bubble icon to leave a comment.\n- Click the sparkle icon to emit a Generate request.\n\nThe comment/generate actions post to `/api/runtime/feedback`, the same pipeline canvas buttons use. The agent receives the payload on its next turn.\n\n```js\nconsole.log("code blocks too")\n```\n' -%}
 

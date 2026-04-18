@@ -61,6 +61,15 @@ pub enum Route {
     /// @route GET "/api/runtime/assets/ship-elements.js"
     AssetShipElementsJs,
 
+    /// @route GET "/api/runtime/assets/ship-code-editor.js"
+    AssetCodeEditorJs,
+
+    /// @route GET "/api/runtime/assets/ship-markdown-editor.js"
+    AssetMarkdownEditorJs,
+
+    /// @route GET "/api/runtime/assets/ship-terminal.js"
+    AssetTerminalJs,
+
     /// @route GET "/api/runtime/assets/custom-elements.json"
     AssetElementsManifest,
 

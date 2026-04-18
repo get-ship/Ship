@@ -182,12 +182,16 @@ export class ShipMarkdownEditor extends LitElement {
     const sel = ed.state.selection
     if (sel.empty || this.pending) { this.hideBubble(); return }
     try {
-      const start = ed.view.coordsAtPos(sel.from)
-      const end = ed.view.coordsAtPos(sel.to)
+      const coords = ed.view.coordsAtPos(sel.from)
+      const endCoords = ed.view.coordsAtPos(sel.to)
       const shellRect = shell.getBoundingClientRect()
-      const top = Math.min(start.top, end.top) - shellRect.top
-      const left = (start.left + end.right) / 2 - shellRect.left
-      this.bubblePos = { top, left }
+      // Place bubble above selection. coords are viewport-relative.
+      // shellRect.top is also viewport-relative. Difference = position
+      // within the shell element (which has position:relative).
+      const selTop = Math.min(coords.top, endCoords.top)
+      const top = selTop - shellRect.top - 42
+      const left = (coords.left + endCoords.left) / 2 - shellRect.left
+      this.bubblePos = { top: Math.max(-4, top), left: Math.max(20, left) }
     } catch { this.bubblePos = null }
     this.requestUpdate()
   }

@@ -63,9 +63,8 @@
 {% endif %}
 
 {% if total_changed and total_changed > 0 %}
-  <button type="button" class="git-view-diff-btn"
+  <ship-button variant="outline" size="sm" tone="accent"
     data-on:click="@get('{{ diff_url | safe }}')">
-    <ship-icon name="git-compare" size="xs"></ship-icon>
     View diff
-  </button>
+  </ship-button>
 {% endif %}

@@ -5,9 +5,15 @@
 -#}
 {% from '_ship.html.j2' import head, signal, live, styles %}
 {% from '_urls.html.j2' import view_settings_sse %}
+{% if not fragment %}
 <!DOCTYPE html>
 <html lang="en">
-<head>{{ head('Settings') }}
+<head>{{ head('Settings') }}</head>
+<body>
+{% endif %}
+<div id="ship-view-root" class="ship-view ship-view-settings"
+     {{ signal('section', 'all') }}
+     {{ signal('advancedOpen', false) }}>
   {{ styles() }}
   <style>
     .ship-view-settings { color: var(--foreground); }
@@ -33,11 +39,6 @@
       margin: 2px 0 0;
     }
   </style>
-</head>
-<body>
-<div id="ship-view-root" class="ship-view ship-view-settings"
-     {{ signal('section', 'all') }}
-     {{ signal('advancedOpen', false) }}>
   <main class="settings-wrap">
     <header class="settings-header">
       <h1>Settings</h1>
@@ -52,5 +53,7 @@
     </div>
   </main>
 </div>
+{% if not fragment %}
 </body>
 </html>
+{% endif %}

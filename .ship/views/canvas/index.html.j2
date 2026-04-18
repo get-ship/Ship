@@ -9,12 +9,15 @@
   Active doc: ?doc=<slug> query param, defaults to newest.
 -#}
 {% from '_ship.html.j2' import head, styles %}
+{% if not fragment %}
 <!DOCTYPE html>
 <html lang="en">
-<head>{{ head('Canvas') }}
+<head>{{ head('Canvas') }}</head>
+<body>
+{% endif %}
+<div id="ship-view-root" class="ship-view">
   {{ styles() }}
   <style>
-    html, body { height: 100%; }
     .canvas-workspace {
       display: grid;
       grid-template-columns: 240px 1fr;
@@ -108,9 +111,6 @@
       color: var(--foreground);
     }
   </style>
-</head>
-<body>
-<div id="ship-view-root" class="ship-view">
 
 {% set docs = ship_canvas_docs() %}
 {% set active_slug = query.doc if query and query.doc else (docs[0].slug if docs else '') %}
@@ -130,8 +130,9 @@
       </div>
       {% else %}
         {% for doc in docs %}
-        <a href="/api/runtime/view/canvas?doc={{ doc.slug }}"
-           class="canvas-rail-item {% if doc.slug == active_slug %}active{% endif %}">
+        <a href="/canvas/{{ doc.slug }}"
+           class="canvas-rail-item {% if doc.slug == active_slug %}active{% endif %}"
+           data-on:click.prevent="window.router ? window.router.navigate('/canvas/{{ doc.slug }}') : void(0)">
           <span class="canvas-rail-item-title">{{ doc.title }}</span>
           <span class="canvas-rail-item-slug">{{ doc.slug }}.html.j2</span>
         </a>
@@ -156,5 +157,7 @@
 </div>
 
 </div>
+{% if not fragment %}
 </body>
 </html>
+{% endif %}

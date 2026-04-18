@@ -6,23 +6,24 @@
     - no navigation macro for linking between views
 -#}
 {% from '_ship.html.j2' import head, signal, show, live, create, loading, spinner, form, styles %}
+{% if not fragment %}
 <!DOCTYPE html>
 <html lang="en">
-<head>{{ head('Data') }}
-  {{ styles() }}
-  <style>
-  .data-wrap { max-width: 76rem; margin: 0 auto; padding: var(--space-6, 24px) var(--space-4, 16px); }
-  .data-toolbar { display: flex; align-items: center; gap: var(--space-3, 10px); margin-bottom: var(--space-4, 16px); flex-wrap: wrap; }
-  .data-count { font-size: var(--text-xs, 11px); color: var(--muted-foreground); margin-left: auto; }
-  </style>
-</head>
+<head>{{ head('Data') }}</head>
 <body>
+{% endif %}
 <div id="ship-view-root" class="ship-view"
      {{ signal('collection', active_collection) }}
      {{ signal('_showForm', false) }}
      {{ signal('_creating', false) }}
      {{ signal('_deleting', false) }}
      {{ signal('form', {}) }}>
+  {{ styles() }}
+  <style>
+  .data-wrap { max-width: 76rem; margin: 0 auto; padding: var(--space-6, 24px) var(--space-4, 16px); }
+  .data-toolbar { display: flex; align-items: center; gap: var(--space-3, 10px); margin-bottom: var(--space-4, 16px); flex-wrap: wrap; }
+  .data-count { font-size: var(--text-xs, 11px); color: var(--muted-foreground); margin-left: auto; }
+  </style>
   <div class="data-wrap">
 
     {# -- Header -- #}
@@ -87,5 +88,7 @@
 
   </div>
 </div>
+{% if not fragment %}
 </body>
 </html>
+{% endif %}

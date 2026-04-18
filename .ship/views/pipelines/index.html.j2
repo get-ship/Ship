@@ -5,10 +5,16 @@
 -#}
 {% from '_ship.html.j2' import head, signal, show, live, loading, spinner, chip, chip_all %}
 {% from '_urls.html.j2' import create_job, view_pipelines_sse, get_job, end_job %}
+{% if not fragment %}
 <!DOCTYPE html>
 <html lang="en">
-<head>
-  {{ head('Workflows') }}
+<head>{{ head('Workflows') }}</head>
+<body>
+{% endif %}
+<div id="ship-view-root" class="ship-view ship-view-pipelines"
+     {{ signal('tab', active_tab) }}
+     {{ signal('agent', agent_filter) }}
+     {{ signal('_creating', false) }}>
   <style>
   .ship-view-pipelines {
     color: var(--foreground);
@@ -91,12 +97,6 @@
   }
   </style>
   {% include 'pipelines/partials/styles.html.j2' %}
-</head>
-<body>
-<div id="ship-view-root" class="ship-view ship-view-pipelines"
-     {{ signal('tab', active_tab) }}
-     {{ signal('agent', agent_filter) }}
-     {{ signal('_creating', false) }}>
 
   <div class="ship-pipelines-scroll">
     <div class="ship-pipelines-wrap">
@@ -157,5 +157,7 @@
     <span>Best experienced on desktop</span>
   </div>
 </div>
+{% if not fragment %}
 </body>
 </html>
+{% endif %}

@@ -64,6 +64,7 @@ export const FULL_WIDTH: ReadonlySet<string> = new Set([
   'ship-textarea',
   'ship-switch',
   'ship-checkbox',
+  'ship-file-upload',
   'ship-tabs',
   'ship-table',
   'ship-pipeline-dag',
@@ -96,7 +97,9 @@ export const FULL_WIDTH: ReadonlySet<string> = new Set([
   'ship-log-line',
   'ship-event-row',
   'ship-card',
+  'ship-skeleton',
   'ship-spec-row',
+  'ship-pagination',
 ])
 
 // Shared helpers
@@ -189,6 +192,7 @@ export const GROUPS: Group[] = [
       'ship-radio-group',
       'ship-slider',
       'ship-toggle-group',
+      'ship-file-upload',
       'ship-field',
       'ship-label',
     ],
@@ -217,6 +221,7 @@ export const GROUPS: Group[] = [
       'ship-line-chart',
       'ship-area-chart',
       'ship-heatmap',
+      'ship-pagination',
     ],
   },
   {

@@ -18,7 +18,7 @@ import {
 
 /** All tags the ship-elements bundle has registered. Discovered at boot. */
 async function discoverTags(): Promise<string[]> {
-  const res = await fetch('/vendor/ship-elements.js', {
+  const res = await fetch('/api/runtime/assets/ship-elements.js', {
     credentials: 'same-origin',
   })
   const text = await res.text()

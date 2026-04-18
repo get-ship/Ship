@@ -74,6 +74,42 @@ pub async fn serve_elements_manifest() -> axum::response::Response {
         .unwrap()
 }
 
+// ── Island bundles (lazy-loaded heavy components) ────────────────────────────
+
+const SHIP_CODE_EDITOR_JS: &str = include_str!("../../assets/ship-code-editor.js");
+const SHIP_MARKDOWN_EDITOR_JS: &str = include_str!("../../assets/ship-markdown-editor.js");
+const SHIP_TERMINAL_JS: &str = include_str!("../../assets/ship-terminal.js");
+
+/// GET /api/runtime/assets/ship-code-editor.js
+pub async fn serve_code_editor() -> axum::response::Response {
+    axum::response::Response::builder()
+        .status(StatusCode::OK)
+        .header(axum::http::header::CONTENT_TYPE, "application/javascript; charset=utf-8")
+        .header(axum::http::header::CACHE_CONTROL, "public, max-age=3600, immutable")
+        .body(axum::body::Body::from(SHIP_CODE_EDITOR_JS))
+        .unwrap()
+}
+
+/// GET /api/runtime/assets/ship-markdown-editor.js
+pub async fn serve_markdown_editor() -> axum::response::Response {
+    axum::response::Response::builder()
+        .status(StatusCode::OK)
+        .header(axum::http::header::CONTENT_TYPE, "application/javascript; charset=utf-8")
+        .header(axum::http::header::CACHE_CONTROL, "public, max-age=3600, immutable")
+        .body(axum::body::Body::from(SHIP_MARKDOWN_EDITOR_JS))
+        .unwrap()
+}
+
+/// GET /api/runtime/assets/ship-terminal.js
+pub async fn serve_terminal() -> axum::response::Response {
+    axum::response::Response::builder()
+        .status(StatusCode::OK)
+        .header(axum::http::header::CONTENT_TYPE, "application/javascript; charset=utf-8")
+        .header(axum::http::header::CACHE_CONTROL, "public, max-age=3600, immutable")
+        .body(axum::body::Body::from(SHIP_TERMINAL_JS))
+        .unwrap()
+}
+
 /// GET /api/runtime/assets/ship-elements.md
 /// Compact, token-efficient catalog for agent context.
 pub async fn serve_elements_catalog() -> axum::response::Response {

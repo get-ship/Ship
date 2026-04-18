@@ -45,7 +45,7 @@
               <ship-git-diff-line
                 type="{{ line.kind }}"
                 old="{% if line.old_num %}{{ line.old_num }}{% endif %}"
-                new="{% if line.new_num %}{{ line.new_num }}{% endif %}">{{ line.content }}</ship-git-diff-line>
+                new="{% if line.new_num %}{{ line.new_num }}{% endif %}">{{ line.content | safe }}</ship-git-diff-line>
             {% endfor %}
           {% endfor %}
         </ship-git-diff-file>

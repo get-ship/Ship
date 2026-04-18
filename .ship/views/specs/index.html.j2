@@ -11,10 +11,13 @@
 -#}
 {% from '_ship.html.j2' import head, signal %}
 {% from '_urls.html.j2' import create_spec, view_specs, view_specs_sse %}
+{% if not fragment %}
 <!DOCTYPE html>
 <html lang="en">
-<head>
-  {{ head('Specs') }}
+<head>{{ head('Specs') }}</head>
+<body>
+{% endif %}
+<div id="ship-view-root" class="ship-view ship-view-specs">
   <style>
   .ship-view-specs { padding: 0; color: var(--foreground); }
   .specs-grid {
@@ -183,9 +186,6 @@
     padding: 48px;
   }
   </style>
-</head>
-<body>
-<div id="ship-view-root" class="ship-view ship-view-specs">
   <div class="specs-grid"
        {{ signal('q', q) }}
        {{ signal('confirmDelete', false) }}>
@@ -217,5 +217,7 @@
     </main>
   </div>
 </div>
+{% if not fragment %}
 </body>
 </html>
+{% endif %}

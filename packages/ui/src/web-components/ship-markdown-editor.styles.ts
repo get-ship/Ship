@@ -64,6 +64,7 @@ export const shipMarkdownEditorStyles = [reducedMotion, css`
   }
 
   .shell {
+    position: relative;
     display: flex;
     flex-direction: column;
     background: var(--card);

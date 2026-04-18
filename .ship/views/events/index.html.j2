@@ -7,10 +7,17 @@
   Datastar for all interactions. ZERO script tags.
 -#}
 {% from '_ship.html.j2' import head, signal, show, live, chip, chip_all, search %}
+{% if not fragment %}
 <!DOCTYPE html>
 <html lang="en">
-<head>
-  {{ head('Events') }}
+<head>{{ head('Events') }}</head>
+<body>
+{% endif %}
+<div id="ship-view-root" class="ship-view ship-view-events"
+     {{ signal('eventType', '') }}
+     {{ signal('actor', '') }}
+     {{ signal('entity', '') }}
+     {{ signal('q', '') }}>
   <style>
   .ship-view-events { color: var(--foreground); }
   .events-wrap { max-width: 960px; margin: 0 auto; padding: 20px 16px 40px; }
@@ -68,13 +75,6 @@
     color: var(--foreground); font-size: 11px; min-width: 160px;
   }
   </style>
-</head>
-<body>
-<div id="ship-view-root" class="ship-view ship-view-events"
-     {{ signal('eventType', '') }}
-     {{ signal('actor', '') }}
-     {{ signal('entity', '') }}
-     {{ signal('q', '') }}>
   <div class="events-wrap">
     <div class="events-head">
       <div>
@@ -96,8 +96,8 @@
       <ship-chip size="sm" {{ chip('actor', a, 'events') }}>{{ a }}</ship-chip>
       {% endfor %}
       {% endif %}
-      <input class="events-search" placeholder="Search events..."
-             {{ search('q', 'events') }} />
+      <ship-input size="sm" placeholder="Search events..."
+             {{ search('q', 'events') }}></ship-input>
     </div>
 
     {# -- Content (SSE-driven) -- #}
@@ -109,5 +109,7 @@
 
   </div>
 </div>
+{% if not fragment %}
 </body>
 </html>
+{% endif %}

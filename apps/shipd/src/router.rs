@@ -95,6 +95,9 @@ pub fn build_router(
         .ship_route(Route::AssetDatastarJs, views::serve_datastar_js)
         .ship_route(Route::AssetViewTokensCss, views::serve_view_tokens)
         .ship_route(Route::AssetShipElementsJs, views::serve_ship_elements)
+        .ship_route(Route::AssetCodeEditorJs, views::serve_code_editor)
+        .ship_route(Route::AssetMarkdownEditorJs, views::serve_markdown_editor)
+        .ship_route(Route::AssetTerminalJs, views::serve_terminal)
         .ship_route(Route::AssetElementsManifest, views::serve_elements_manifest)
         .ship_route(Route::AssetElementsCatalog, views::serve_elements_catalog);
 

@@ -4,15 +4,17 @@
   All data loaded via manifest.yaml. No hardcoded colors or px values.
 -#}
 {% from '_ship.html.j2' import head, signal, styles %}
+{% if not fragment %}
 <!DOCTYPE html>
 <html lang="en">
 <head>
   {{ head('Dashboard') }}
-  {{ styles() }}
-  {% include 'dashboard/partials/styles.html.j2' %}
 </head>
 <body>
+{% endif %}
 <div id="ship-view-root" class="ship-view dash">
+  {{ styles() }}
+  {% include 'dashboard/partials/styles.html.j2' %}
   <div class="dash-wrap">
 
     {# ── Header ───────────────────────────────────────────────── #}
@@ -142,8 +144,8 @@
           <div class="dash-agents-grid">
             {% for agent in all_agents | take(8) %}
             <a class="dash-agent-pill"
-               href="/api/runtime/view/agents/detail/{{ agent.id }}"
-               data-on:click.prevent="@get('/api/runtime/view/agents/detail/{{ agent.id }}')">
+               href="/agents/{{ agent.id }}"
+               data-on:click.prevent="window.router ? window.router.navigate('/agents/{{ agent.id }}') : void(0)">
               <div class="dash-agent-avatar" aria-hidden="true">
                 {{ agent.name[0] if agent.name is defined and agent.name | length > 0 else 'A' }}
               </div>
@@ -273,5 +275,7 @@
     </div>{# /.dash-body #}
   </div>{# /.dash-wrap #}
 </div>{# /#ship-view-root #}
+{% if not fragment %}
 </body>
 </html>
+{% endif %}

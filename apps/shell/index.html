@@ -4,9 +4,20 @@
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <title>Ship Shell</title>
-    <link rel="stylesheet" href="/api/runtime/assets/view-tokens.css" />
-    <script type="module" src="/api/runtime/assets/datastar.js"></script>
-    <script type="module" src="/api/runtime/assets/ship-elements.js"></script>
+    <script>
+      // Load daemon-served assets dynamically so Vite doesn't try to pre-transform them.
+      (function() {
+        var base = '/api/runtime/assets/';
+        var css = document.createElement('link');
+        css.rel = 'stylesheet'; css.href = base + 'view-tokens.css';
+        document.head.appendChild(css);
+        ['datastar.js','ship-elements.js','ship-code-editor.js','ship-markdown-editor.js','ship-terminal.js'].forEach(function(f) {
+          var s = document.createElement('script');
+          s.type = 'module'; s.src = base + f;
+          document.head.appendChild(s);
+        });
+      })();
+    </script>
     <script>
       // Theme boot — sync before paint to avoid a light-flash.
       (() => {
@@ -90,15 +101,20 @@
         overflow: auto;
         padding: 0;
         background: var(--background);
+        min-width: 0;
       }
       aside#drawer {
+        width: 0;
+        border-left: none;
+        background: var(--sidebar);
+        overflow: hidden;
+        transition: width var(--duration-normal, 200ms) var(--ease-out, ease);
+      }
+      body.drawer-open aside#drawer {
         width: 340px;
         border-left: 1px solid var(--border);
-        background: var(--sidebar);
-        display: none;
         overflow: auto;
       }
-      body.drawer-open aside#drawer { display: block; }
       .mount-error {
         margin: 20px;
         padding: 14px 16px;

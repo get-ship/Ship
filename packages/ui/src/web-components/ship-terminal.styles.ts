@@ -28,6 +28,14 @@ export const shipTerminalStyles = [reducedMotion, css`
     overflow: hidden;
   }
 
+  /* xterm canvas renderer corrupts row 0 glyphs on first write (shadow DOM bug).
+     A sacrificial writeln('') in _init absorbs the corruption. On canvas
+     fallback, clip the corrupted row and pad to compensate. */
+  :host(.canvas-fallback) .terminal-wrap {
+    clip-path: inset(var(--xterm-row-h, 20px) 0 0 0);
+    margin-top: calc(-1 * var(--xterm-row-h, 20px));
+  }
+
   /* xterm.js injects its own styles on the container; we ensure the
      wrapper fills the host and remove any extra padding xterm adds. */
   .terminal-wrap .xterm {
