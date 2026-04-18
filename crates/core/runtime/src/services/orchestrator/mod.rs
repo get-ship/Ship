@@ -41,6 +41,8 @@ mod tests_cancel;
 #[cfg(test)]
 mod tests_prompt_composer;
 #[cfg(test)]
+mod tests_dispatch_provider;
+#[cfg(test)]
 mod tests_spawn_failed;
 #[cfg(test)]
 mod tests_replay;

@@ -86,6 +86,19 @@ pub async fn dispatch_job_internal(
         })
     });
 
+    // Resolve provider/model from the first step when present — matches how
+    // `advance_pipeline` resolves for steps 2+, so first-step and
+    // later-step dispatch agree on the source of truth. Fall through to
+    // the job-level payload fields when the step leaves them unset.
+    let first_step = payload.steps.as_ref()
+        .and_then(|p| p.root_steps().first().cloned());
+    let launch_provider = first_step.as_ref()
+        .and_then(|s| s.provider.clone())
+        .or_else(|| payload.provider.clone());
+    let launch_model = first_step.as_ref()
+        .and_then(|s| s.model.clone())
+        .or_else(|| payload.model.clone());
+
     let job_ctx = JobContext {
         job_id: payload.job_id.clone(),
         slug: slug.clone(),
@@ -97,8 +110,8 @@ pub async fn dispatch_job_internal(
         env: [("SHIP_MESH_ID".to_string(), slug.to_string())].into(),
         exit_tx: None,
         launch: LaunchProfile {
-            provider: payload.provider.clone(),
-            model: payload.model.clone(),
+            provider: launch_provider,
+            model: launch_model,
             persist_session: true,
             ..Default::default()
         },
