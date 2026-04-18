@@ -12,7 +12,7 @@
 mod cursor {
     use crate::persistence::cursor::ActorCursor;
     use ship_types::envelope::EventEnvelope;
-    use crate::events::identity::{ActorIdentity, ActorType};
+    use ship_types::identity::{ActorIdentity, ActorType};
     use crate::events::kernel_router::KernelRouter;
     use crate::events::permissions::{ActorPermissions, DeliveryScope, PermittedSubscription};
     use crate::events::validator::{CallerKind, EmitContext};
