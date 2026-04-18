@@ -31,6 +31,7 @@ use runtime::events::KernelRouter;
 use runtime::services::dispatch_ports::{ExecutorHandle, JobContext, JobExecutor};
 use runtime::services::provider_adapter::adapter_for_or_default;
 use runtime::services::providers::codex_session::CodexSession;
+use runtime::services::providers::opencode_session::OpenCodeSession;
 use runtime::services::server_session::ServerSession;
 use tokio::sync::Mutex;
 
@@ -135,7 +136,7 @@ impl RoutingExecutor {
         if self.sessions.get("codex").is_some() {
             return;
         }
-        if !codex_binary_on_path() {
+        if !binary_on_path("codex") {
             tracing::debug!(
                 "routing: codex binary not on PATH; skipping CodexSession lazy-spawn"
             );
@@ -149,6 +150,37 @@ impl RoutingExecutor {
             Err(err) => {
                 tracing::warn!(%err,
                     "routing: CodexSession lazy-spawn failed; falling back to ProcessExecutor");
+            }
+        }
+    }
+
+    /// Lazy-spawn an `OpenCodeSession` on first opencode dispatch, caching
+    /// the binding in the session registry. Mirrors `ensure_codex_session`:
+    /// binary-absence + spawn-failure both degrade cleanly to Process.
+    async fn ensure_opencode_session(&self, ctx: &JobContext) {
+        let Some(provider) = ctx.launch.provider.as_deref() else {
+            return;
+        };
+        if provider != "opencode" {
+            return;
+        }
+        if self.sessions.get("opencode").is_some() {
+            return;
+        }
+        if !binary_on_path("opencode") {
+            tracing::debug!(
+                "routing: opencode binary not on PATH; skipping OpenCodeSession lazy-spawn"
+            );
+            return;
+        }
+        match OpenCodeSession::spawn().await {
+            Ok(session) => {
+                tracing::info!("routing: lazy-spawned OpenCodeSession for provider=opencode");
+                self.sessions.bind("opencode", Arc::new(session));
+            }
+            Err(err) => {
+                tracing::warn!(%err,
+                    "routing: OpenCodeSession lazy-spawn failed; falling back to ProcessExecutor");
             }
         }
     }
@@ -179,10 +211,11 @@ pub(crate) enum RouteKind {
 #[async_trait]
 impl JobExecutor for RoutingExecutor {
     async fn spawn(&self, ctx: &JobContext) -> Result<ExecutorHandle> {
-        // Codex routes to a persistent app-server session when available.
-        // The first codex dispatch lazy-spawns the child; subsequent
-        // dispatches reuse the cached session Arc via the registry.
+        // Server-mode providers route to a persistent session when the
+        // registry has a binding. The first dispatch per provider lazy-
+        // spawns the child; subsequent dispatches reuse the cached Arc.
         self.ensure_codex_session(ctx).await;
+        self.ensure_opencode_session(ctx).await;
 
         if let Some(server) = self.try_server_executor(ctx) {
             tracing::info!(slug = ctx.slug,
@@ -257,16 +290,16 @@ impl JobExecutor for RoutingExecutor {
     }
 }
 
-/// Walk `PATH` once looking for the `codex` binary. Avoids a spawn
-/// attempt (and its error log) when the user hasn't installed codex.
-/// Cheap enough to re-check per dispatch — the success case caches
-/// the bound session so this only runs until the first codex job.
-fn codex_binary_on_path() -> bool {
+/// Walk `PATH` once looking for a named binary. Avoids a spawn attempt
+/// (and its error log) when the user hasn't installed the provider.
+/// Cheap enough to re-check per dispatch — the success case caches the
+/// bound session so this only runs until the first matching job.
+fn binary_on_path(name: &str) -> bool {
     let Some(paths) = std::env::var_os("PATH") else {
         return false;
     };
     std::env::split_paths(&paths).any(|dir| {
-        let candidate = dir.join("codex");
+        let candidate = dir.join(name);
         candidate.is_file()
     })
 }
