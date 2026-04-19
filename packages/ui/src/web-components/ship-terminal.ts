@@ -159,7 +159,7 @@ export class ShipTerminal extends LitElement {
       const secondRow = xtermRows?.children[1] as HTMLElement
       const rowH = (firstRow && secondRow)
         ? secondRow.offsetTop - firstRow.offsetTop + 8
-        : Math.ceil(opts.fontSize * 1.6)
+        : Math.ceil(resolvedFontSize * 1.6)
       this.style.setProperty('--xterm-row-h', `${rowH}px`)
       this.classList.add('canvas-fallback')
     }

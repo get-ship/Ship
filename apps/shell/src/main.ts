@@ -57,7 +57,7 @@ const TOKEN = SAME_ORIGIN
   : ((import.meta.env.VITE_DAEMON_TOKEN as string) ?? "");
 
 // ── DOM refs ─────────────────────────────────────────────────────────
-const view = document.getElementById("ship-view-root") as HTMLElement;
+let view = document.getElementById("ship-view-root") as HTMLElement;
 const drawerContent = document.getElementById("drawer-content") as HTMLElement;
 const breadcrumbs = document.getElementById("breadcrumbs") as HTMLElement;
 const statusBranch = document.getElementById("status-branch") as HTMLElement;

@@ -15163,7 +15163,7 @@ async function injectXtermCSS(root) {
   } catch {
   }
 }
-async function createTerminal(opts2) {
+async function createTerminal(opts) {
   const [
     { Terminal },
     { FitAddon },
@@ -15178,13 +15178,13 @@ async function createTerminal(opts2) {
     Promise.resolve().then(() => (init_addon_webgl(), addon_webgl_exports)).catch(() => null)
   ]);
   const term = new Terminal({
-    rows: opts2.rows,
-    cols: opts2.cols,
-    fontSize: opts2.fontSize,
+    rows: opts.rows,
+    cols: opts.cols,
+    fontSize: opts.fontSize,
     fontFamily: MONO_STACK,
-    theme: buildTheme(opts2.host),
-    cursorBlink: !opts2.readonly,
-    disableStdin: opts2.readonly,
+    theme: buildTheme(opts.host),
+    cursorBlink: !opts.readonly,
+    disableStdin: opts.readonly,
     allowProposedApi: true,
     convertEol: true
   });
@@ -15204,16 +15204,16 @@ async function createTerminal(opts2) {
     }
   }
   await new Promise((resolve2) => requestAnimationFrame(() => {
-    term.open(opts2.container);
+    term.open(opts.container);
     resolve2();
   }));
-  if (!opts2.readonly) {
-    term.onData(opts2.onData);
+  if (!opts.readonly) {
+    term.onData(opts.onData);
   }
   term.attachCustomKeyEventHandler((ev) => {
     if ((ev.ctrlKey || ev.metaKey) && ev.key === "f" && ev.type === "keydown") {
       ev.preventDefault();
-      opts2.onSearchToggle();
+      opts.onSearchToggle();
       return false;
     }
     return true;
@@ -15356,7 +15356,7 @@ var ShipTerminal = class extends i4 {
       const xtermRows = wrap2?.querySelector(".xterm-rows");
       const firstRow = xtermRows?.children[0];
       const secondRow = xtermRows?.children[1];
-      const rowH = firstRow && secondRow ? secondRow.offsetTop - firstRow.offsetTop + 8 : Math.ceil(opts.fontSize * 1.6);
+      const rowH = firstRow && secondRow ? secondRow.offsetTop - firstRow.offsetTop + 8 : Math.ceil(resolvedFontSize * 1.6);
       this.style.setProperty("--xterm-row-h", `${rowH}px`);
       this.classList.add("canvas-fallback");
     }
