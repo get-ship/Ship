@@ -1,0 +1,34 @@
+{
+  "compilerOptions": {
+    "target": "es2024",
+    "lib": ["es2024"],
+    "jsx": "react-jsx",
+    "module": "es2022",
+    "moduleResolution": "bundler",
+    "resolveJsonModule": true,
+    "allowJs": true,
+    "checkJs": false,
+    "noEmit": false,
+    "composite": true,
+    "outDir": "out-tsc",
+    "isolatedModules": true,
+    "allowSyntheticDefaultImports": true,
+    "forceConsistentCasingInFileNames": true,
+    "strict": true,
+    "skipLibCheck": true,
+    "types": [
+      "../../../types/cloudflare-runtime.d.ts",
+      "../../../types/vite-env.d.ts",
+      "./worker-env.d.ts"
+    ]
+  },
+  "include": ["src/**/*", "migrations"],
+  "references": [
+    {
+      "path": "../../../packages/types"
+    },
+    {
+      "path": "../../../tools/drizzle"
+    }
+  ]
+}

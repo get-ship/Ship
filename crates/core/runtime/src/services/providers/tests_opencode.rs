@@ -38,7 +38,7 @@ fn interactive_model_flag_maps_correctly() {
 }
 
 #[test]
-fn headless_emits_run_yolo_command() {
+fn headless_emits_run_command_with_prompt() {
     let adapter = OpenCodeAdapter;
     let profile = LaunchProfile {
         autostart_prompt: Some("test prompt".to_string()),
@@ -48,7 +48,10 @@ fn headless_emits_run_yolo_command() {
     let cmd = adapter.build_headless("test-slug", &profile);
     assert_eq!(cmd.bin, "opencode");
     assert_eq!(cmd.args[0], "run");
-    assert!(cmd.args.contains(&"--yolo".to_string()));
+    assert!(
+        !cmd.args.contains(&"--yolo".to_string()),
+        "opencode CLI has no --yolo flag; removed in April 2026",
+    );
     assert_eq!(cmd.args.last().unwrap(), "test prompt");
     assert_eq!(
         cmd.env.get("SHIP_MESH_ID").map(String::as_str),
@@ -104,7 +107,10 @@ fn caps_match_declared() {
     let c = OpenCodeAdapter.caps();
     assert!(c.headless);
     assert!(c.interactive);
-    assert!(c.server_mode, "opencode: serve HTTP REST + SSE");
+    assert!(
+        !c.server_mode,
+        "opencode server_mode is off pending OpenCodeSession rewrite — API shape changed (parts vs role/content, sync vs SSE)",
+    );
     assert!(c.json_stream);
     assert!(c.mcp, "opencode: opencode.json mcp");
     assert!(!c.hooks, "opencode: hooks via JS plugin file, not wired");

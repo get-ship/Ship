@@ -73,8 +73,10 @@ up the partial work for review. Do not call `step_done` for blocked work.
 **Progress updates** (optional, while still working): `mcp__ship__log_progress`
 records a checkpoint without advancing.
 
-**Hard timeout: 10 minutes per step.** If you haven't called `step_done`
-or `log_progress { blocker: ... }` by then, the monitor terminates the
-step as `timed out`. Treat 10 minutes as your budget; verify once, then
-immediately call `step_done`.
+**Timeouts:** the step is killed if no subprocess activity is seen for
+5 minutes (idle timeout), or if the whole step runs past 60 minutes
+(hard cap). Long tool calls like `cargo test` keep the step alive
+naturally — you don't need to rush. If you haven't called `step_done`
+or `log_progress { blocker: ... }` before those limits, the monitor
+terminates the step as `timed out`.
 "#;

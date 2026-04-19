@@ -65,6 +65,7 @@ fn make_octx() -> Arc<OrchestratorContext> {
         executor: Arc::new(MissingExecutor),
         platform: Arc::new(NoopPlatform),
         registry: Arc::new(EmptyRegistry),
+        probe: Arc::new(crate::services::process_tree_probe::SysinfoProcessTreeProbe::new()),
         done_flags: Arc::new(Mutex::new(std::collections::HashMap::new())),
         activity_txs: Arc::new(Mutex::new(std::collections::HashMap::new())),
         job_locks: Arc::new(Mutex::new(std::collections::HashMap::new())),

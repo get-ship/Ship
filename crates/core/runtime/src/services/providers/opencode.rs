@@ -15,7 +15,15 @@ impl ProviderAdapter for OpenCodeAdapter {
         ProviderCapabilities {
             headless: true,
             interactive: true,
-            server_mode: true,
+            // Opencode's `/session/:id/message` API changed shape in April
+            // 2026 — body now expects `{parts:[{type,text}]}` instead of
+            // `{role,content}`, and the response is synchronous (full
+            // assistant message inline) rather than returning a messageID
+            // that drives SSE subscription. OpenCodeSession still targets
+            // the old shape; re-enable server_mode after the session code
+            // is updated to use `/session/:id/prompt_async` + SSE, or to
+            // parse the sync response into SessionEvents directly.
+            server_mode: false,
             json_stream: true,
             mcp: true,
             hooks: false,
@@ -35,7 +43,12 @@ impl ProviderAdapter for OpenCodeAdapter {
     }
 
     fn build_headless(&self, slug: &str, profile: &LaunchProfile) -> LaunchCommand {
-        let mut args = vec!["run".to_string(), "--yolo".to_string()];
+        // `opencode run` takes the message as positional args; no dedicated
+        // bypass flag exists in the current CLI (unlike Claude's `--yolo` /
+        // Codex's `--full-auto`). Server-mode via `opencode serve` is the
+        // primary automation path — CLI is a fallback when the session
+        // can't bind.
+        let mut args = vec!["run".to_string()];
         if let Some(ref model) = profile.model {
             args.push("--model".to_string());
             args.push(model.clone());

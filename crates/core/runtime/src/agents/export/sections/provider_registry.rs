@@ -107,8 +107,12 @@ pub const PROVIDERS: &[ProviderDescriptor] = &[
         config_format: ConfigFormat::Json,
         mcp_key: "mcpServers",
         http_url_field: "httpUrl",
-        emit_type_field: true,
-        managed_marker: ManagedMarker::Inline,
+        // Gemini validates `mcpServers.*` against a strict schema — any
+        // extra key (`type`, `_ship`, etc.) aborts the CLI at startup
+        // with "Unrecognized key(s) in object". Drop both so entries are
+        // { command, args, env? } only.
+        emit_type_field: false,
+        managed_marker: ManagedMarker::StateFileOnly,
         prompt_output: PromptOutput::GeminiMd,
         skills_output: SkillsOutput::AgentSkills,
     },

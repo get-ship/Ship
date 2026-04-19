@@ -11,7 +11,7 @@ mod cross_component {
 
     use anyhow::Result;
     use crate::events::filter::EventFilter;
-    use crate::events::identity::{ActorIdentity, ActorType};
+    use ship_types::identity::{ActorIdentity, ActorType};
     use crate::events::kernel_router::{ActorConfig, KernelRouter};
     use crate::events::permissions::{ActorPermissions, DeliveryScope, PermittedSubscription};
     use crate::events::validator::{CallerKind, EmitContext};

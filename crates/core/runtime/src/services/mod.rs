@@ -32,6 +32,7 @@ pub mod mesh;
 pub mod human_gateway;
 pub mod dispatch_ports;
 pub mod orchestrator;
+pub mod process_tree_probe;
 pub mod provider_adapter;
 pub mod providers;
 pub mod server_session;

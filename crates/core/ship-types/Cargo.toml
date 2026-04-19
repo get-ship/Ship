@@ -9,6 +9,8 @@ serde = { version = "1.0", features = ["derive"] }
 serde_json = "1.0"
 chrono = { version = "0.4", features = ["serde"] }
 ulid = "1"
+specta = { version = "=2.0.0-rc.22", features = ["derive", "chrono"], optional = true }
 
 [features]
-specta = []
+default = []
+specta = ["dep:specta"]

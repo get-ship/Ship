@@ -18,6 +18,8 @@ struct ModeRow {
     name: String,
     description: Option<String>,
     role: Option<String>,
+    #[serde(default)]
+    tools_preset: Option<String>,
     active_tools_json: String,
     mcp_refs_json: String,
     skill_refs_json: String,
@@ -56,6 +58,7 @@ pub(super) fn get_modes_config(ship_dir: &Path) -> Result<Vec<AgentProfile>> {
             name: row.name,
             description: row.description,
             role: row.role,
+            tools_preset: row.tools_preset,
             active_tools,
             mcp_servers: resolve_refs_to_external_ids(ship_dir, ARTIFACT_KIND_MCP, &mcp_refs)?,
             skills: resolve_refs_to_external_ids(ship_dir, ARTIFACT_KIND_SKILL, &skill_refs)?,
@@ -80,6 +83,7 @@ pub(super) fn save_modes_config(ship_dir: &Path, modes: &[AgentProfile]) -> Resu
             name: mode.name.clone(),
             description: mode.description.clone(),
             role: mode.role.clone(),
+            tools_preset: mode.tools_preset.clone(),
             active_tools_json: serde_json::to_string(&mode.active_tools)?,
             mcp_refs_json: serde_json::to_string(&resolve_external_ids_to_refs(
                 ship_dir,

@@ -43,6 +43,13 @@ impl ProcessRegistry {
         self.handles.get(slug)
     }
 
+    /// Read the PID of a live handle without taking ownership. Returns
+    /// `None` if no handle is registered or the handle has no PID
+    /// (e.g. tmux executor without a captured pane PID).
+    pub fn get_pid(&self, slug: &str) -> Option<u32> {
+        self.handles.get(slug).and_then(|h| h.pid)
+    }
+
     pub fn len(&self) -> usize {
         self.handles.len()
     }

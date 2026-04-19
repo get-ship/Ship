@@ -149,6 +149,7 @@ fn make_octx(
         executor,
         platform: Arc::new(NoopPlatform),
         registry,
+        probe: Arc::new(crate::services::process_tree_probe::SysinfoProcessTreeProbe::new()),
         done_flags: Arc::new(Mutex::new(std::collections::HashMap::new())),
         activity_txs: Arc::new(Mutex::new(std::collections::HashMap::new())),
         job_locks: Arc::new(Mutex::new(std::collections::HashMap::new())),

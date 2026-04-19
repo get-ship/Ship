@@ -130,14 +130,110 @@ pub struct LaunchCommand {
 
 impl LaunchCommand {
     /// Flatten to a single shell command string (for tmux send-keys).
+    /// Arguments and env values containing shell-significant characters
+    /// are single-quoted so prompts like `"Read spec.md and execute it."`
+    /// survive intact rather than being word-split by the shell.
     pub fn to_shell_string(&self) -> String {
         let mut parts = Vec::new();
         for (k, v) in &self.env {
-            parts.push(format!("{k}={v}"));
+            parts.push(format!("{k}={}", shell_quote(v)));
         }
-        parts.push(self.bin.clone());
-        parts.extend(self.args.iter().cloned());
+        parts.push(shell_quote(&self.bin));
+        parts.extend(self.args.iter().map(|a| shell_quote(a)));
         parts.join(" ")
+    }
+}
+
+/// Quote a string for safe POSIX-sh consumption. Strings containing only
+/// shell-safe characters pass through unchanged; everything else is
+/// wrapped in single quotes with inner single quotes escaped as `'\''`.
+fn shell_quote(s: &str) -> String {
+    if !s.is_empty()
+        && s.chars().all(|c| {
+            c.is_ascii_alphanumeric() || matches!(c, '_' | '-' | '.' | '/' | ':' | '@' | '=' | '+' | ',')
+        })
+    {
+        return s.to_string();
+    }
+    let mut out = String::with_capacity(s.len() + 2);
+    out.push('\'');
+    for c in s.chars() {
+        if c == '\'' {
+            out.push_str("'\\''");
+        } else {
+            out.push(c);
+        }
+    }
+    out.push('\'');
+    out
+}
+
+#[cfg(test)]
+mod shell_quote_tests {
+    use super::*;
+    use std::collections::HashMap;
+
+    #[test]
+    fn safe_strings_pass_through_unquoted() {
+        assert_eq!(shell_quote("codex"), "codex");
+        assert_eq!(shell_quote("--full-auto"), "--full-auto");
+        assert_eq!(shell_quote("/tmp/foo.txt"), "/tmp/foo.txt");
+        assert_eq!(shell_quote("KEY=value"), "KEY=value");
+    }
+
+    #[test]
+    fn empty_string_is_quoted() {
+        assert_eq!(shell_quote(""), "''");
+    }
+
+    #[test]
+    fn strings_with_spaces_are_single_quoted() {
+        assert_eq!(
+            shell_quote("Read spec.md and execute it."),
+            "'Read spec.md and execute it.'",
+        );
+    }
+
+    #[test]
+    fn inner_single_quotes_are_escaped() {
+        assert_eq!(shell_quote("it's working"), "'it'\\''s working'");
+    }
+
+    #[test]
+    fn shell_metachars_are_quoted() {
+        assert_eq!(shell_quote("a && b"), "'a && b'");
+        assert_eq!(shell_quote("$HOME"), "'$HOME'");
+        assert_eq!(shell_quote("foo | bar"), "'foo | bar'");
+        assert_eq!(shell_quote("`whoami`"), "'`whoami`'");
+    }
+
+    #[test]
+    fn to_shell_string_quotes_multiword_prompt() {
+        let cmd = LaunchCommand {
+            bin: "codex".into(),
+            args: vec![
+                "exec".into(),
+                "--full-auto".into(),
+                "Read .artifacts/spec.md and execute it.".into(),
+            ],
+            env: HashMap::new(),
+        };
+        assert_eq!(
+            cmd.to_shell_string(),
+            "codex exec --full-auto 'Read .artifacts/spec.md and execute it.'",
+        );
+    }
+
+    #[test]
+    fn to_shell_string_quotes_env_values_with_spaces() {
+        let mut env = HashMap::new();
+        env.insert("MSG".to_string(), "hello world".to_string());
+        let cmd = LaunchCommand {
+            bin: "claude".into(),
+            args: vec!["-p".into()],
+            env,
+        };
+        assert!(cmd.to_shell_string().starts_with("MSG='hello world' "));
     }
 }
 
@@ -252,4 +348,39 @@ pub trait ProcessRegistryPort: Send + Sync {
     /// Return all currently registered slug keys.
     /// Used by the coherence sweep to detect stray processes.
     async fn live_slugs(&self) -> Vec<String> { vec![] }
+    /// Read the current PID for a slug without removing the handle.
+    /// Returns `None` if no live handle is registered, or if the handle
+    /// has no captured PID. Used by the step monitor's subprocess-tree
+    /// heartbeat probe — it needs a read-only root PID to walk children.
+    async fn get_pid(&self, _slug: &str) -> Option<u32> { None }
+}
+
+/// Sample of the liveness state of a dispatched process tree.
+///
+/// `cpu_ticks` is a monotonic counter whose unit is implementation-defined
+/// — only deltas between successive samples matter. The monitor reads
+/// "tree is idle" from a zero delta and resets its idle timer on any
+/// positive delta.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub struct TreeSample {
+    /// Monotonic CPU counter for the tree (root + descendants). Unit is
+    /// impl-defined; only deltas are meaningful.
+    pub cpu_ticks: u64,
+    /// Number of live processes in the tree at sample time — observability
+    /// only, the monitor doesn't gate decisions on it.
+    pub process_count: u32,
+}
+
+/// Port: observes liveness of a dispatched process tree.
+///
+/// Implementations walk descendants of the root PID and return the total
+/// accumulated CPU time across the tree. The monitor compares successive
+/// samples: delta == 0 → tree is idle; delta > 0 → heartbeat.
+///
+/// `sample` returning `None` means the root PID is gone; callers treat
+/// that as "tree dead" and defer to the executor's exit signal for the
+/// actual termination path.
+#[async_trait]
+pub trait ProcessTreeProbe: Send + Sync {
+    async fn sample(&self, root_pid: u32) -> Option<TreeSample>;
 }

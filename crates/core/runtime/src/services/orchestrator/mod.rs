@@ -41,6 +41,8 @@ mod tests_cancel;
 #[cfg(test)]
 mod tests_prompt_composer;
 #[cfg(test)]
+mod tests_dispatch_provider;
+#[cfg(test)]
 mod tests_spawn_failed;
 #[cfg(test)]
 mod tests_replay;
@@ -48,9 +50,11 @@ mod tests_replay;
 mod tests_sweep;
 #[cfg(test)]
 mod tests_terminal_guard;
+#[cfg(test)]
+mod tests_heartbeat;
 
 use crate::services::dispatch_ports::{
-    AgentPlatform, IsolationStrategy, JobExecutor, ProcessRegistryPort,
+    AgentPlatform, IsolationStrategy, JobExecutor, ProcessRegistryPort, ProcessTreeProbe,
 };
 use std::collections::HashMap;
 use std::sync::atomic::AtomicBool;
@@ -76,6 +80,9 @@ pub struct OrchestratorContext {
     pub executor: Arc<dyn JobExecutor>,
     pub platform: Arc<dyn AgentPlatform>,
     pub registry: Arc<dyn ProcessRegistryPort>,
+    /// Subprocess-tree heartbeat probe used by `StepMonitor` to distinguish
+    /// "agent is burning CPU on a tool call" from "agent is stuck."
+    pub probe: Arc<dyn ProcessTreeProbe>,
     /// Maps `slug` → done_declared flag for active step monitors.
     pub done_flags: Arc<Mutex<HashMap<String, Arc<AtomicBool>>>>,
     /// Maps `slug` → activity sender for active step monitors.

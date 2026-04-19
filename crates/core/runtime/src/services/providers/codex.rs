@@ -40,6 +40,7 @@ impl ProviderAdapter for CodexAdapter {
         let mut args = vec![
             "exec".to_string(),
             "--full-auto".to_string(),
+            "--skip-git-repo-check".to_string(),
         ];
         if let Some(ref model) = profile.model {
             args.push("--model".to_string());

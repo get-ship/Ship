@@ -6,6 +6,7 @@ auto_merge: true
 steps:
   - id: implement
     agent: rust-lane
+    provider: "{{ provider }}"
   - id: verify
     run: |
       cargo check --workspace 2>&1 | tail -5

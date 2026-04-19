@@ -1,0 +1,16 @@
+{
+  "name": "@ship-cloud/platform",
+  "version": "0.0.0",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "schema:generate": "drizzle-kit generate --driver=durable-sqlite --schema=src/data/schema/**/*.ts --out=migrations --dialect=sqlite",
+    "db:studio": "drizzle-kit studio --config=drizzle.config.ts",
+    "test": "vitest run",
+    "test:watch": "vitest"
+  },
+  "dependencies": {
+    "@ship-cloud/types": "workspace:*",
+    "drizzle-orm": "catalog:"
+  }
+}

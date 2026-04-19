@@ -18,6 +18,7 @@ fn monotonic_ulid() -> String {
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
+#[cfg_attr(feature = "specta", derive(specta::Type))]
 pub struct EventEnvelope {
     pub id: String,
     pub event_type: String,

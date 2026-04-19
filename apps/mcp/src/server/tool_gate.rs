@@ -28,15 +28,21 @@ impl ShipServer {
     #[cfg(feature = "unstable")]
     const UNSTABLE_TOOLS: &[&str] = &["event"];
 
-    // ── Role-based default tool sets ────────────────────────────────
+    // ── Tool tiers ──────────────────────────────────────────────────
+    //
+    // Two tiers, composed by preset. Replaces the old worker/lead/
+    // commander roles (which conflated platform protocol with
+    // orchestration capability).
 
-    const WORKER_TOOLS: &[&str] = &[
+    /// Platform protocol tools — every dispatched agent needs these to
+    /// participate in the pipeline protocol. Not user-facing.
+    pub const PLATFORM_TOOLS: &[&str] = &[
         "log_progress",
         "update_job",
         "write_session_file",
-        // Phase 1 canvas framework: agents in dispatch/worker modes can open
-        // and patch their own view sessions. Gate/review modes that want to
-        // block this set explicit active_tools that omit these.
+        // Pipeline step-completion signal. Without step_done, pipelines
+        // fall back to process-exit / activity-timeout signals.
+        "step_done",
         #[cfg(feature = "unstable")]
         "view_open",
         #[cfg(feature = "unstable")]
@@ -49,25 +55,86 @@ impl ShipServer {
         "view_close",
     ];
 
-    const LEAD_TOOLS: &[&str] = &["create_job"];
+    /// Orchestration tools — spawn child jobs, observe the mesh.
+    /// Only agents with an orchestrator preset get these.
+    pub const ORCHESTRATION_TOOLS: &[&str] = &["create_job", "mesh_discover", "mesh_status"];
 
-    const COMMANDER_TOOLS: &[&str] = &["mesh_discover", "mesh_status"];
-
-    /// Returns the default tool set for a given role.
-    /// Unknown roles fall back to worker defaults.
-    pub fn default_tools_for_role(role: &str) -> Vec<&'static str> {
-        let mut tools: Vec<&'static str> = Self::WORKER_TOOLS.to_vec();
-        match role {
-            "lead" => {
-                tools.extend_from_slice(Self::LEAD_TOOLS);
+    /// Resolve a preset name to its tool set. Unknown presets fall back
+    /// to "worker" (platform tools only — the safe default).
+    pub fn tools_for_preset(preset: &str) -> Vec<&'static str> {
+        match preset {
+            "orchestrator" => {
+                let mut tools: Vec<&'static str> = Self::PLATFORM_TOOLS.to_vec();
+                tools.extend_from_slice(Self::ORCHESTRATION_TOOLS);
+                tools
             }
-            "commander" => {
-                tools.extend_from_slice(Self::LEAD_TOOLS);
-                tools.extend_from_slice(Self::COMMANDER_TOOLS);
-            }
-            _ => {} // worker or unknown → worker defaults only
+            _ => Self::PLATFORM_TOOLS.to_vec(),
         }
-        tools
+    }
+
+    /// Resolve the effective preset for an agent profile:
+    ///   1. Explicit `tools_preset` wins.
+    ///   2. Otherwise map legacy `role`: worker→worker, lead|commander→orchestrator.
+    ///   3. Otherwise "worker".
+    pub fn effective_preset(tools_preset: Option<&str>, role: Option<&str>) -> &'static str {
+        if let Some(p) = tools_preset {
+            return match p {
+                "orchestrator" => "orchestrator",
+                _ => "worker",
+            };
+        }
+        match role {
+            Some("lead") | Some("commander") => "orchestrator",
+            _ => "worker",
+        }
+    }
+
+    /// True when this MCP server is serving a dispatched agent.
+    ///
+    /// Detection order:
+    ///   1. SHIP_MESH_ID env var set (works when parent propagates env).
+    ///   2. Current dir or any ancestor contains a `.artifacts/.dispatched`
+    ///      marker — written by the isolation adapter on worktree prep.
+    ///      Survives providers like codex that don't propagate env.
+    ///
+    /// Dispatched agents always get PLATFORM_TOOLS regardless of
+    /// KV-stored active_agent state — dispatch context is the truth.
+    pub fn is_dispatched_context() -> bool {
+        if std::env::var("SHIP_MESH_ID")
+            .map(|v| !v.is_empty())
+            .unwrap_or(false)
+        {
+            return true;
+        }
+        Self::cwd_is_dispatched_worktree()
+    }
+
+    /// Walk up from cwd looking for the explicit `.artifacts/.dispatched`
+    /// marker file. Stops at the first match or at the filesystem root.
+    /// The marker is only written by the isolation adapter during job
+    /// dispatch, so the project root won't match even if it has
+    /// `.artifacts/` artifacts from prior runs.
+    pub(crate) const DISPATCH_MARKER: &str = ".artifacts/.dispatched";
+
+    fn cwd_is_dispatched_worktree() -> bool {
+        let Ok(mut cur) = std::env::current_dir() else {
+            return false;
+        };
+        loop {
+            if cur.join(Self::DISPATCH_MARKER).is_file() {
+                return true;
+            }
+            if !cur.pop() {
+                return false;
+            }
+        }
+    }
+
+    /// True when `tool_name` is a platform-protocol tool (visible to every
+    /// dispatched agent).
+    pub fn is_platform_tool(tool_name: &str) -> bool {
+        let n = Self::normalize_mode_tool_id(tool_name);
+        Self::PLATFORM_TOOLS.contains(&n.as_str())
     }
 
     pub fn is_core_tool(tool_name: &str) -> bool {
@@ -104,35 +171,42 @@ impl ShipServer {
         if Self::is_project_workspace_tool(tool_name) {
             return Ok(());
         }
+        // Dispatched agents (SHIP_MESH_ID set) always get platform tools.
+        // This bypasses the KV-based active_agent lookup entirely — the
+        // dispatch context is the source of truth.
+        if Self::is_dispatched_context() && Self::is_platform_tool(tool_name) {
+            return Ok(());
+        }
         let active_agent =
             get_active_agent(Some(project_dir.to_path_buf())).map_err(|e| e.to_string())?;
         if let Some(ref mode) = active_agent {
-            // Explicit active_tools override role defaults
+            // Explicit active_tools is the complete allowlist when set —
+            // lets profiles grant specific tools outside their preset
+            // without adopting the whole preset.
             if !mode.active_tools.is_empty() {
                 if Self::mode_allows_tool(tool_name, &mode.active_tools) {
                     return Ok(());
                 }
                 return Err(format!(
-                    "Tool '{}' blocked by active mode '{}' (allowed: {}).",
+                    "Tool '{}' blocked by active mode '{}' (active_tools: {}).",
                     tool_name,
                     mode.id,
                     mode.active_tools.join(", ")
                 ));
             }
 
-            // Use role-based defaults when active_tools is empty
-            let role = mode.role.as_deref().unwrap_or("worker");
-            let role_defaults = Self::default_tools_for_role(role);
+            let preset = Self::effective_preset(mode.tools_preset.as_deref(), mode.role.as_deref());
+            let preset_tools = Self::tools_for_preset(preset);
             let normalized = Self::normalize_mode_tool_id(tool_name);
-            if role_defaults.contains(&normalized.as_str()) {
+            if preset_tools.contains(&normalized.as_str()) {
                 return Ok(());
             }
             return Err(format!(
-                "Tool '{}' blocked by active mode '{}' (role '{}' allows: {}).",
+                "Tool '{}' blocked by active mode '{}' (preset '{}' allows: {}).",
                 tool_name,
                 mode.id,
-                role,
-                role_defaults.join(", ")
+                preset,
+                preset_tools.join(", ")
             ));
         }
         Err(format!(
