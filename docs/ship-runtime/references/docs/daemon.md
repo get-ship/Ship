@@ -97,3 +97,61 @@ Each MCP HTTP session creates a `NetworkServer` with a shared `KernelRouter`. So
 - **EventRelay** — consumes an actor's mailbox, forwarding events to MCP peers (via `McpEventSink`) and a polling `Inbox` buffer (capped at 256 messages).
 - **Inbox** — `VecDeque` behind `RwLock`, drained by the `mesh_inbox` MCP tool.
 - **MeshService spawner** — `spawn_mesh_service` is called once (via `OnceLock`) to register the mesh service actor.
+
+## Daemon identity
+
+The daemon carries identity metadata that the CLI uses to refuse silent
+version takeovers. Source: `apps/ship-cli/src/daemon/pidfile.rs`.
+
+### Pidfile
+
+Written atomically on daemon start to `{SHIP_GLOBAL_DIR}/shipd.pid`:
+
+```json
+{
+  "pid": 12345,
+  "host": "127.0.0.1",
+  "port": 4040,
+  "version": "0.2.0",
+  "commit_sha": "8a8040a2"
+}
+```
+
+Emitted events: `daemon.pidfile_acquired` on fresh write,
+`daemon.pidfile_stale_taken` when the previous holder PID is gone.
+Start refuses if a live daemon holds the pidfile.
+
+### Version mismatch guard
+
+`ship daemon start` reads the pidfile before starting. If a live daemon
+is running and its `version` differs from `env!("CARGO_PKG_VERSION")`,
+`start` refuses with a pointer to `ship daemon restart`. This prevents
+the "I just rebuilt but old code is still serving" footgun.
+
+## Supervision adapters
+
+`ship daemon {start,stop,restart}` delegate to a `SupervisionAdapter`
+chosen at runtime. Source: `apps/ship-cli/src/daemon/supervision.rs`.
+
+Adapters:
+
+- **systemd** (`supervision_systemd.rs`) — active when
+  `shipd.service` is installed under `~/.config/systemd/user/`.
+  Delegates to `systemctl --user {start|stop|restart} shipd.service`.
+  Under systemd, `Restart=on-failure` is authoritative; do NOT kill
+  the daemon bypassing the unit (respawn races).
+- **pidfile** (`supervision_pidfile.rs`) — legacy/fallback. Spawns
+  the binary directly, uses the pidfile to find it, sends `SIGTERM`
+  on stop. Still the default install path.
+
+`start`/`restart` run `check_version_mismatch` first.
+
+## Process lifecycle events
+
+`process.spawned` / `process.exited` / `process.signal_sent` /
+`process.killed` / `process.orphaned` ride the event bus for every
+dispatched step. Source: `crates/core/runtime/src/events/process.rs`.
+
+`process.spawned.cmd` carries the **actual** provider binary name
+(`codex`, `opencode`, `gemini`, `claude`) — not hardcoded. Useful for
+`ship procs` to show what's actually running.
