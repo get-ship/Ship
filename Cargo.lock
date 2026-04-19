@@ -3026,6 +3026,7 @@ name = "ship-jobs"
 version = "0.1.0"
 dependencies = [
  "chrono",
+ "compiler",
  "serde",
  "serde_json",
  "serde_yaml",
@@ -3062,6 +3063,7 @@ dependencies = [
  "axum",
  "base64",
  "chrono",
+ "compiler",
  "datastar",
  "dirs 6.0.0",
  "futures",

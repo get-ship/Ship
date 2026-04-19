@@ -141,21 +141,11 @@ struct ProjectIdentity {
 
 fn read_project_identity(ship_dir: &Path) -> Option<ProjectIdentity> {
     let primary = ship_dir.join(crate::config::PRIMARY_CONFIG_FILE);
-    let legacy = ship_dir.join(crate::config::LEGACY_CONFIG_FILE);
-    let (path, is_jsonc) = if primary.exists() {
-        (primary, true)
-    } else if legacy.exists() {
-        (legacy, false)
-    } else {
+    if !primary.exists() {
         return None;
-    };
-    let content = fs::read_to_string(path).ok()?;
-    let parsed: serde_json::Value = if is_jsonc {
-        compiler::jsonc::from_jsonc_str(&content).ok()?
-    } else {
-        let tv: toml::Value = toml::from_str(&content).ok()?;
-        serde_json::to_value(&tv).ok()?
-    };
+    }
+    let content = fs::read_to_string(primary).ok()?;
+    let parsed: serde_json::Value = compiler::jsonc::from_jsonc_str(&content).ok()?;
 
     let id = parsed
         .get("id")

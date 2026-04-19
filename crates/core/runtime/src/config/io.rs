@@ -8,7 +8,7 @@ use super::runtime_settings::{
     get_legacy_agents_config, get_runtime_settings, migrate_json_config, normalize_git_config,
     remove_legacy_agents_config, save_runtime_settings,
 };
-use super::types::{LEGACY_CONFIG_FILE, PRIMARY_CONFIG_FILE};
+use super::types::PRIMARY_CONFIG_FILE;
 use crate::project::get_global_dir;
 use anyhow::Result;
 use std::fs;
@@ -21,18 +21,13 @@ pub fn get_config(project_dir: Option<PathBuf>) -> Result<ProjectConfig> {
         None => get_global_dir()?,
     };
 
-    // Prefer ship.jsonc, then legacy ship.toml.
     let primary_path = config_dir.join(PRIMARY_CONFIG_FILE);
-    let legacy_path = config_dir.join(LEGACY_CONFIG_FILE);
     let json_path = config_dir.join("config.json");
 
     let mut config = None;
     if primary_path.exists() {
         let content = fs::read_to_string(&primary_path)?;
         config = Some(compiler::jsonc::from_jsonc_str(&content)?);
-    } else if legacy_path.exists() {
-        let content = fs::read_to_string(&legacy_path)?;
-        config = Some(toml::from_str(&content)?);
     }
 
     let mut config = if let Some(config) = config {

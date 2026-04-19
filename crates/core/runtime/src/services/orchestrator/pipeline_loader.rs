@@ -7,7 +7,7 @@
 //! 4. Default pipeline (`implement → gate → merge`)
 
 use crate::events::job::{JobCreatedPayload, Pipeline, PipelineStep};
-use ship_jobs::pipeline::{PipelineMeta, normalize_pipeline_yaml};
+use ship_jobs::pipeline::{PipelineMeta, normalize_pipeline};
 
 /// Enrich a job with a pipeline. Resolution order:
 /// 1. Already has `steps` → use it
@@ -65,7 +65,7 @@ fn resolve_steps(payload: &mut JobCreatedPayload) {
                 slug = payload.slug,
                 pipeline = name,
                 steps = pipeline.steps.len(),
-                "pipeline: loaded from .ship/pipelines/{name}.yaml"
+                "pipeline: loaded from .ship/pipelines/{name}"
             );
             merge_meta_vars(payload, &meta);
             payload.steps = Some(pipeline);
@@ -128,7 +128,8 @@ fn interpolate_pipeline(payload: &mut JobCreatedPayload) {
     }
 }
 
-/// Load a named pipeline from `.ship/pipelines/<name>.yaml` in the project root.
+/// Load a named pipeline from `.ship/pipelines/<name>.jsonc` (preferred) or
+/// `.ship/pipelines/<name>.yaml` (legacy) in the project root.
 /// Supports both old format (explicit id/type/agent) and new format (agents list,
 /// simplified steps).
 fn load_pipeline_file(name: &str) -> Option<(Pipeline, PipelineMeta)> {
@@ -136,12 +137,18 @@ fn load_pipeline_file(name: &str) -> Option<(Pipeline, PipelineMeta)> {
     loop {
         let ship_dir = dir.join(".ship");
         if ship_dir.is_dir() {
-            let path = ship_dir.join("pipelines").join(format!("{name}.yaml"));
-            if path.exists() {
-                let content = std::fs::read_to_string(&path).ok()?;
-                return parse_pipeline_content(&content);
-            }
-            return None;
+            // Prefer .jsonc, fall back to .yaml for backwards compat
+            let jsonc_path = ship_dir.join("pipelines").join(format!("{name}.jsonc"));
+            let yaml_path = ship_dir.join("pipelines").join(format!("{name}.yaml"));
+            let path = if jsonc_path.exists() {
+                jsonc_path
+            } else if yaml_path.exists() {
+                yaml_path
+            } else {
+                return None;
+            };
+            let content = std::fs::read_to_string(&path).ok()?;
+            return parse_pipeline_content(&content);
         }
         if !dir.pop() {
             return None;
@@ -149,10 +156,10 @@ fn load_pipeline_file(name: &str) -> Option<(Pipeline, PipelineMeta)> {
     }
 }
 
-/// Parse pipeline YAML content into a Pipeline and metadata.
+/// Parse pipeline content (JSONC or YAML) into a Pipeline and metadata.
 /// Handles both old and new formats via ship_jobs normalization.
 fn parse_pipeline_content(content: &str) -> Option<(Pipeline, PipelineMeta)> {
-    let (normalized, meta) = normalize_pipeline_yaml(content).ok()?;
+    let (normalized, meta) = normalize_pipeline(content).ok()?;
     let steps_val = normalized.get("steps")?;
     let steps: Vec<PipelineStep> = serde_json::from_value(steps_val.clone()).ok()?;
     Some((Pipeline { steps }, meta))

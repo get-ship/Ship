@@ -99,7 +99,11 @@ fn resolve_view_dir(name: &str) -> Option<(PathBuf, &'static str)> {
 }
 
 fn read_manifest_file(dir: &PathBuf, name: &str) -> Option<ViewManifest> {
-    let raw: ManifestFile = if dir.join("manifest.yaml").exists() {
+    let raw: ManifestFile = if dir.join("manifest.jsonc").exists() {
+        let s = std::fs::read_to_string(dir.join("manifest.jsonc")).ok()?;
+        compiler::jsonc::from_jsonc_str(&s).ok()?
+    } else if dir.join("manifest.yaml").exists() {
+        // Legacy fallback for community views
         serde_yaml::from_str(&std::fs::read_to_string(dir.join("manifest.yaml")).ok()?).ok()?
     } else if dir.join("manifest.json").exists() {
         serde_json::from_str(&std::fs::read_to_string(dir.join("manifest.json")).ok()?).ok()?
@@ -119,7 +123,7 @@ fn read_manifest_file(dir: &PathBuf, name: &str) -> Option<ViewManifest> {
 }
 
 fn detect_view_type(dir: &PathBuf) -> Option<String> {
-    if dir.join("manifest.yaml").exists() || dir.join("manifest.json").exists() {
+    if dir.join("manifest.jsonc").exists() || dir.join("manifest.yaml").exists() || dir.join("manifest.json").exists() {
         if let Some(m) = read_manifest_file(dir, "unknown") { return Some(m.view_type); }
     }
     if dir.join("index.html").exists() { return Some("html".into()); }
@@ -371,7 +375,7 @@ pub async fn serve_view_manifest(Path(name): Path<String>) -> impl IntoResponse 
         Some(v) => v,
         None => return mesh_err(StatusCode::NOT_FOUND, format!("view '{name}' not found")),
     };
-    if view_dir.join("manifest.yaml").exists() || view_dir.join("manifest.json").exists() {
+    if view_dir.join("manifest.jsonc").exists() || view_dir.join("manifest.yaml").exists() || view_dir.join("manifest.json").exists() {
         if let Some(m) = read_manifest_file(&view_dir, &name) {
             return mesh_ok(serde_json::json!(m));
         }

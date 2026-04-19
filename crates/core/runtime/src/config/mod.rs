@@ -24,7 +24,7 @@ mod tests_io;
 // ─── Public API — mirrors the original config.rs public surface ───────────────
 
 pub use types::{
-    AgentLayerConfig, AiConfig, GitConfig, HookConfig, HookTrigger, LEGACY_CONFIG_FILE,
+    AgentLayerConfig, AiConfig, GitConfig, HookConfig, HookTrigger,
     NamespaceConfig, PRIMARY_CONFIG_FILE, PermissionConfig, StatusConfig,
 };
 

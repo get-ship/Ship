@@ -114,7 +114,10 @@ pub fn status_token(s: &JobStatus) -> &'static str {
     }
 }
 
-/// List pipeline definitions from `<ship_dir>/pipelines/*.yaml`, sorted by name.
+/// Recognised pipeline file extensions, preferred first.
+const PIPELINE_EXTS: &[&str] = &["jsonc", "yaml"];
+
+/// List pipeline definitions from `<ship_dir>/pipelines/`, sorted by name.
 ///
 /// Missing directories return an empty vec — having no pipelines is a
 /// valid project state, not an error. Other IO errors are logged and
@@ -133,7 +136,8 @@ pub fn list_pipeline_defs(ship_dir: &Path) -> Vec<PipelineDef> {
     let mut out = Vec::new();
     for entry in entries.flatten() {
         let path = entry.path();
-        if path.extension().and_then(|s| s.to_str()) != Some("yaml") {
+        let ext = path.extension().and_then(|s| s.to_str()).unwrap_or("");
+        if !PIPELINE_EXTS.contains(&ext) {
             continue;
         }
         let name = match path.file_stem().and_then(|s| s.to_str()) {
@@ -152,10 +156,22 @@ pub fn list_pipeline_defs(ship_dir: &Path) -> Vec<PipelineDef> {
     out
 }
 
-fn parse_pipeline_meta(yaml: &str) -> (String, usize) {
-    let value: serde_yaml::Value = match serde_yaml::from_str(yaml) {
-        Ok(v) => v,
-        Err(_) => return (String::new(), 0),
+/// Parse pipeline content (JSONC or YAML) and extract metadata.
+fn parse_pipeline_meta(content: &str) -> (String, usize) {
+    let value: serde_json::Value = {
+        let trimmed = content.trim_start();
+        if trimmed.starts_with('{') || trimmed.starts_with('[') {
+            let json = compiler::jsonc::strip_jsonc_comments(content);
+            match serde_json::from_str(&json) {
+                Ok(v) => v,
+                Err(_) => return (String::new(), 0),
+            }
+        } else {
+            match serde_yaml::from_str(content) {
+                Ok(v) => v,
+                Err(_) => return (String::new(), 0),
+            }
+        }
     };
     let description = value
         .get("description")
@@ -164,12 +180,12 @@ fn parse_pipeline_meta(yaml: &str) -> (String, usize) {
         .to_string();
     let step_count = value
         .get("steps")
-        .and_then(|v| v.as_sequence())
+        .and_then(|v| v.as_array())
         .map(|s| s.len())
         .or_else(|| {
             value
                 .get("agents")
-                .and_then(|v| v.as_sequence())
+                .and_then(|v| v.as_array())
                 .map(|s| s.len())
         })
         .unwrap_or(0);
