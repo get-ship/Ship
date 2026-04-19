@@ -13,7 +13,7 @@
  *   - (default) raw SVG passthrough; if present, takes precedence over `name`.
  */
 
-import { LitElement, css, html, nothing } from 'lit'
+import { LitElement, css, html, nothing, svg } from 'lit'
 import { toneVars } from '../util'
 import type { Size, Tone } from '../util'
 
@@ -60,12 +60,19 @@ export const ICONS: Record<string, string> = {
   'log-out': 'M9 21H5a2 2 0 01-2-2V5a2 2 0 012-2h4M16 17l5-5-5-5M21 12H9',
   users: 'M17 21v-2a4 4 0 00-4-4H5a4 4 0 00-4 4v2M9 7a4 4 0 100 8 4 4 0 000-8zM23 21v-2a4 4 0 00-3-3.87M16 3.13a4 4 0 010 7.75',
   terminal: 'M4 17l6-5-6-5M12 19h8',
-  'git-branch': 'M6 3v12M18 9a3 3 0 100 6 3 3 0 000-6zM6 21a3 3 0 100-6 3 3 0 000 6zM18 12a9 9 0 01-9 9',
-  git: 'M6 3v12M18 9a3 3 0 100 6 3 3 0 000-6zM6 21a3 3 0 100-6 3 3 0 000 6zM18 12a9 9 0 01-9 9',
+  // git-branch uses circles + lines (can't be a single path d)
+  git: 'M6 3v12',
+  'git-branch': 'M6 3v12',
   play: 'M5 3l14 9-14 9V3z',
   pause: 'M6 4h4v16H6zM14 4h4v16h-4z',
   stop: 'M6 4h12a2 2 0 012 2v12a2 2 0 01-2 2H6a2 2 0 01-2-2V6a2 2 0 012-2z',
   zap: 'M13 2L3 14h9l-1 8 10-12h-9l1-8z',
+}
+
+/** Icons that need multiple SVG elements (circles + lines). */
+const COMPLEX_ICONS: Record<string, unknown> = {
+  git: svg`<line x1="6" y1="3" x2="6" y2="15"></line><circle cx="18" cy="6" r="3"></circle><circle cx="6" cy="18" r="3"></circle><path d="M18 9a9 9 0 01-9 9"></path>`,
+  'git-branch': svg`<line x1="6" y1="3" x2="6" y2="15"></line><circle cx="18" cy="6" r="3"></circle><circle cx="6" cy="18" r="3"></circle><path d="M18 9a9 9 0 01-9 9"></path>`,
 }
 
 export class ShipIcon extends LitElement {
@@ -106,10 +113,15 @@ export class ShipIcon extends LitElement {
 
   render() {
     const d = this.name ? ICONS[this.name] : undefined
+    const complex = this.name ? COMPLEX_ICONS[this.name] : undefined
     const hidden = this.label ? nothing : 'true'
     return html`
       <slot>
-        ${d
+        ${complex
+          ? html`<svg viewBox="0 0 24 24" fill="none" stroke="currentColor"
+              stroke-width="2" stroke-linecap="round" stroke-linejoin="round"
+              aria-hidden=${hidden} part="svg">${complex}</svg>`
+          : d
           ? html`<svg viewBox="0 0 24 24" fill="none" stroke="currentColor"
               stroke-width="2" stroke-linecap="round" stroke-linejoin="round"
               aria-hidden=${hidden} part="svg">
