@@ -1,159 +1,295 @@
 /**
- * <ship-toast> + <ship-toast-container>
- *
- * Fixed-position stacking notification container and an individual toast.
- *
- * <ship-toast-container>
- *   Attributes:
- *     - position: top-right | bottom-right | bottom-left | top-left
- *       (default top-right)
- *   Slots:
- *     - (default) ship-toast children, stacked.
- *
  * <ship-toast>
- *   Attributes:
- *     - tone: default | info | success | warning | destructive | accent | muted
- *     - duration: ms before auto-dismiss; 0 = persistent. Default 5000.
- *     - dismissible: boolean, default true.
  *
- *   Slots:
- *     - icon, title, actions, (default) body.
+ * Transient notification card. Polished to shadcn Sonner / Radix Toast
+ * quality: tone channel with auto-icon, size channel, entrance animation,
+ * hover-to-pause auto-dismiss, optional progress bar, and an exit
+ * animation available via `.close()` for UI call-sites that want it.
  *
- *   Events:
- *     - ship-dismiss — fires when the toast dismisses itself or the user
- *       clicks the close button.
+ * Attributes:
+ *   - tone: default | info | success | warning | destructive | accent | muted
+ *   - size: sm | md | lg (default md)
+ *   - duration: ms before auto-dismiss; 0 = persistent. Default 5000.
+ *   - dismissible: boolean, shows the close button (default true).
+ *   - show-progress: boolean, renders a bottom progress bar tied to duration.
+ *   - closing: reflected while the exit animation plays; auto-cleared on
+ *     removal. Not typically set by consumers.
+ *
+ * Slots:
+ *   - icon — leading icon. If empty, a tone-appropriate SVG is auto-filled.
+ *   - title — the heading line.
+ *   - (default) body text.
+ *   - actions — trailing action row (one CTA recommended).
+ *
+ * Parts:
+ *   - toast — the card surface element.
+ *   - close — the dismiss button.
+ *
+ * Events:
+ *   - ship-dismiss — fires when the toast is removed (manually, via timer,
+ *     or programmatic .close()). detail: { reason: 'manual'|'timeout'|'programmatic' }
+ *
+ * Public methods:
+ *   - dismiss(reason?) — fires ship-dismiss and removes the host synchronously.
+ *     Used by the close button so existing tests keep sync remove semantics.
+ *   - close(reason?) — plays exit animation, then dismisses. Call from
+ *     call-sites that want the polish; falls back to sync dismiss if
+ *     reduced-motion is active.
  */
 
-import { LitElement, css, html } from 'lit'
-import { toneVars } from '../util'
-import type { Tone } from '../util'
+import { LitElement, html } from 'lit'
+import { shipToastStyles } from './ship-toast.styles'
+import type { Size, Tone } from '../util'
 
-export type ToastPosition = 'top-right' | 'bottom-right' | 'bottom-left' | 'top-left'
+// Re-export the container from this module so existing callers that
+// `import './ship-toast'` (and the colocated test) still find
+// ShipToastContainer. The class itself lives in its own file.
+export { ShipToastContainer } from './ship-toast-container'
+import './ship-toast-container'
 
-export class ShipToastContainer extends LitElement {
-  static styles = css`
-    :host {
-      position: fixed;
-      top: 16px; right: 16px;
-      display: flex; flex-direction: column; gap: 8px;
-      z-index: var(--z-toast);
-      pointer-events: none;
-      max-width: min(420px, calc(100vw - 32px));
-    }
-    :host([position='bottom-right']) { top: auto; bottom: 16px; right: 16px; flex-direction: column-reverse; }
-    :host([position='bottom-left']) { top: auto; bottom: 16px; left: 16px; right: auto; flex-direction: column-reverse; }
-    :host([position='top-left']) { left: 16px; right: auto; }
-    ::slotted(ship-toast) { pointer-events: auto; }
-  `
+type DismissReason = 'manual' | 'timeout' | 'programmatic'
 
-  static properties = { position: { type: String, reflect: true } }
-  position: ToastPosition = 'top-right'
-
-  render() {
-    return html`<slot></slot>`
-  }
+// Tone → inline SVG icon (Lucide-style 24×24 strokes at 2px). Kept inline
+// so the toast renders correctly in daemon-rendered views where no icon
+// font is guaranteed. Consumers can override via the `icon` slot.
+const TONE_ICON: Record<string, string> = {
+  info: '<circle cx="12" cy="12" r="9"/><path d="M12 8h.01"/><path d="M11 12h1v4h1"/>',
+  success: '<circle cx="12" cy="12" r="9"/><path d="m8.5 12.5 2.5 2.5 4.5-5"/>',
+  warning:
+    '<path d="M10.29 3.86 1.82 18a2 2 0 0 0 1.71 3h16.94a2 2 0 0 0 1.71-3L13.71 3.86a2 2 0 0 0-3.42 0Z"/><line x1="12" x2="12" y1="9" y2="13"/><line x1="12" x2="12.01" y1="17" y2="17"/>',
+  destructive:
+    '<circle cx="12" cy="12" r="9"/><line x1="15" x2="9" y1="9" y2="15"/><line x1="9" x2="15" y1="9" y2="15"/>',
+  accent:
+    '<path d="M12 2 3 14h7l-1 8 10-12h-7l1-8Z"/>',
 }
 
 export class ShipToast extends LitElement {
-  static styles = [
-    toneVars,
-    css`
-      :host {
-        display: block;
-        animation: slide-in var(--duration-medium) var(--ease-out);
-      }
-      .toast {
-        display: grid;
-        grid-template-columns: auto 1fr auto;
-        gap: 10px;
-        align-items: start;
-        padding: 12px 14px;
-        border-radius: var(--radius);
-        border: 1px solid var(--tone-border);
-        background: var(--tone-bg);
-        color: var(--tone-fg);
-        box-shadow: var(--shadow-md);
-        font-family: var(--font-body);
-        font-size: var(--text-base);
-        line-height: var(--leading-normal);
-      }
-      .content { display: flex; flex-direction: column; gap: 4px; min-width: 0; color: var(--foreground); }
-      .title { font-weight: var(--font-weight-semibold); color: var(--tone-fg); }
-      .close {
-        background: transparent; border: 0; color: inherit;
-        cursor: pointer; font-size: 14px; padding: 2px 6px;
-        border-radius: var(--radius-sm);
-      }
-      .close:hover { background: color-mix(in oklch, var(--tone-fg) 14%, transparent); }
-      .close:focus-visible {
-        outline: var(--ring-width) solid var(--ring-color);
-        outline-offset: var(--ring-offset);
-      }
-      @keyframes slide-in {
-        from { opacity: 0; transform: translateY(-8px); }
-        to   { opacity: 1; transform: translateY(0); }
-      }
-    `,
-  ]
+  static styles = shipToastStyles
 
   static properties = {
     tone: { type: String, reflect: true },
+    size: { type: String, reflect: true },
     duration: { type: Number },
     dismissible: { type: Boolean, reflect: true },
+    showProgress: { type: Boolean, reflect: true, attribute: 'show-progress' },
   }
 
-  tone: Tone = 'info'
+  tone?: Tone
+  size: Size = 'md'
   duration = 5000
   dismissible = true
+  showProgress = false
 
   private _timer: ReturnType<typeof setTimeout> | null = null
+  private _remaining = 0
+  private _startedAt = 0
+  private _removed = false
 
   connectedCallback() {
     super.connectedCallback()
-    if (this.duration > 0) {
-      this._timer = setTimeout(() => this.dismiss(), this.duration)
-    }
+    // Announce politely by default; destructive/warning escalate to
+    // aria-live="assertive" via the template role/aria-live attrs.
+    if (!this.hasAttribute('tabindex')) this.tabIndex = 0
+    this._scheduleDismiss()
+    this.addEventListener('mouseenter', this._onPause)
+    this.addEventListener('mouseleave', this._onResume)
+    this.addEventListener('focusin', this._onPause)
+    this.addEventListener('focusout', this._onResume)
+    this.addEventListener('keydown', this._onKeydown)
   }
 
   disconnectedCallback() {
     super.disconnectedCallback()
-    if (this._timer) clearTimeout(this._timer)
+    this._clearTimer()
+    this.removeEventListener('mouseenter', this._onPause)
+    this.removeEventListener('mouseleave', this._onResume)
+    this.removeEventListener('focusin', this._onPause)
+    this.removeEventListener('focusout', this._onResume)
+    this.removeEventListener('keydown', this._onKeydown)
   }
 
-  dismiss() {
+  private _scheduleDismiss() {
+    this._clearTimer()
+    if (this.duration > 0) {
+      this._remaining = this.duration
+      this._startedAt = Date.now()
+      this._timer = setTimeout(() => this.dismiss('timeout'), this.duration)
+      // Expose duration to the CSS progress bar keyframe.
+      this.style.setProperty('--toast-duration', `${this.duration}ms`)
+    }
+  }
+
+  private _clearTimer() {
+    if (this._timer) {
+      clearTimeout(this._timer)
+      this._timer = null
+    }
+  }
+
+  private _onPause = () => {
+    if (!this._timer) return
+    const elapsed = Date.now() - this._startedAt
+    this._remaining = Math.max(0, this._remaining - elapsed)
+    this._clearTimer()
+    this.toggleAttribute('data-paused', true)
+  }
+
+  private _onResume = () => {
+    if (this._removed || this.duration <= 0) return
+    if (this._remaining <= 0) return
+    this.toggleAttribute('data-paused', false)
+    this._startedAt = Date.now()
+    this._timer = setTimeout(() => this.dismiss('timeout'), this._remaining)
+  }
+
+  private _onKeydown = (e: KeyboardEvent) => {
+    if (e.key === 'Escape' && this.dismissible) {
+      e.stopPropagation()
+      this.dismiss('manual')
+    }
+  }
+
+  /**
+   * Synchronously fire `ship-dismiss` and detach the host. Used by the
+   * close button and auto-timeout. Matches the contract tested in
+   * ship-toast.test.ts (isConnected → false immediately after click).
+   */
+  dismiss(reason: DismissReason = 'manual') {
+    if (this._removed) return
+    this._removed = true
+    this._clearTimer()
     this.dispatchEvent(new CustomEvent('ship-dismiss', {
-      bubbles: true, composed: true,
+      detail: { reason },
+      bubbles: true,
+      composed: true,
     }))
     this.remove()
   }
 
-  render() {
+  /**
+   * Animated dismissal — plays the exit keyframe, then removes. Useful for
+   * galleries and long-lived notifications where the extra 180ms feels
+   * more considered than a pop-out. Falls back to sync dismiss when
+   * prefers-reduced-motion is set.
+   */
+  async close(reason: DismissReason = 'manual') {
+    if (this._removed) return
+    const prefersReduce =
+      typeof window !== 'undefined' &&
+      window.matchMedia?.('(prefers-reduced-motion: reduce)').matches
+    if (prefersReduce) {
+      this.dismiss(reason)
+      return
+    }
+    this._clearTimer()
+    this.toggleAttribute('data-closing', true)
+    await new Promise<void>((resolve) => {
+      const onEnd = () => {
+        this.removeEventListener('animationend', onEnd)
+        resolve()
+      }
+      this.addEventListener('animationend', onEnd)
+      // Safety net — if animationend never fires (e.g. display:none), resolve
+      // after the medium duration + a frame. Matches --duration-medium.
+      setTimeout(() => resolve(), 260)
+    })
+    this.dismiss(reason)
+  }
+
+  private _onCloseClick = () => this.dismiss('manual')
+
+  private _handleSlotChange = (e: Event) => {
+    const slot = e.target as HTMLSlotElement
+    const name = slot.name || 'default'
+    const filled = slot.assignedNodes({ flatten: true }).some((n) => {
+      if (n.nodeType === Node.ELEMENT_NODE) return true
+      return n.textContent?.trim().length ?? 0 > 0
+    })
+    if (name === 'icon') this.toggleAttribute('data-has-slotted-icon', filled)
+    if (name === 'title') this.toggleAttribute('data-no-title', !filled)
+    if (name === 'actions') this.toggleAttribute('data-no-actions', !filled)
+  }
+
+  private _iconMarkup() {
+    const key = (this.tone ?? 'default') as keyof typeof TONE_ICON
+    const svg = TONE_ICON[key]
+    if (!svg) return html`<slot name="icon"></slot>`
     return html`
-      <div class="toast" role="status" part="toast">
-        <span><slot name="icon"></slot></span>
+      <slot name="icon" @slotchange=${this._handleSlotChange}>
+        <svg
+          viewBox="0 0 24 24"
+          fill="none"
+          stroke="currentColor"
+          stroke-width="2"
+          stroke-linecap="round"
+          stroke-linejoin="round"
+          aria-hidden="true"
+          .innerHTML=${svg}
+        ></svg>
+      </slot>
+    `
+  }
+
+  render() {
+    const assertive = this.tone === 'destructive' || this.tone === 'warning'
+    const role = assertive ? 'alert' : 'status'
+    const live = assertive ? 'assertive' : 'polite'
+    // When tone is default/muted and no icon is slotted, collapse the icon
+    // column so the content takes over. The auto-icon only activates for
+    // semantic tones (info/success/warning/destructive/accent).
+    const hasAutoIcon = !!this.tone && this.tone !== 'default' && this.tone !== 'muted'
+    this.toggleAttribute('data-no-icon', !hasAutoIcon && !this.hasAttribute('data-has-slotted-icon'))
+
+    return html`
+      <div class="toast" role=${role} aria-live=${live} aria-atomic="true" part="toast">
+        <span class="icon">${this._iconMarkup()}</span>
         <div class="content">
-          <div class="title"><slot name="title"></slot></div>
-          <div><slot></slot></div>
-          <div><slot name="actions"></slot></div>
+          <div class="title">
+            <slot name="title" @slotchange=${this._handleSlotChange}></slot>
+          </div>
+          <div class="body"><slot></slot></div>
+          <div class="actions">
+            <slot name="actions" @slotchange=${this._handleSlotChange}></slot>
+          </div>
         </div>
         ${this.dismissible
-          ? html`<button class="close" aria-label="Dismiss" @click=${this.dismiss}>×</button>`
-          : html`<span></span>`}
+          ? html`
+              <button
+                class="close"
+                part="close"
+                type="button"
+                aria-label="Dismiss notification"
+                @click=${this._onCloseClick}
+              >
+                <svg
+                  viewBox="0 0 24 24"
+                  fill="none"
+                  stroke="currentColor"
+                  stroke-width="2"
+                  stroke-linecap="round"
+                  stroke-linejoin="round"
+                  aria-hidden="true"
+                >
+                  <line x1="18" y1="6" x2="6" y2="18"></line>
+                  <line x1="6" y1="6" x2="18" y2="18"></line>
+                </svg>
+              </button>
+            `
+          : null}
+        ${this.showProgress && this.duration > 0
+          ? html`<span class="progress" aria-hidden="true"></span>`
+          : null}
       </div>
     `
   }
 }
 
-if (typeof customElements !== 'undefined') {
-  if (!customElements.get('ship-toast-container'))
-    customElements.define('ship-toast-container', ShipToastContainer)
-  if (!customElements.get('ship-toast'))
-    customElements.define('ship-toast', ShipToast)
+if (typeof customElements !== 'undefined' && !customElements.get('ship-toast')) {
+  customElements.define('ship-toast', ShipToast)
 }
 
 declare global {
   interface HTMLElementTagNameMap {
     'ship-toast': ShipToast
-    'ship-toast-container': ShipToastContainer
   }
 }

@@ -45,8 +45,12 @@ fn init_creates_ship_structure() {
 
     assert!(tmp.path().join(".ship").is_dir());
     assert!(tmp.path().join(".ship/ship.jsonc").exists());
-    assert!(tmp.path().join(".ship/README.md").exists());
-    assert!(tmp.path().join(".ship/.gitignore").exists());
+    // Gitignore for compiled artifacts lives at the project root, not .ship/
+    assert!(tmp.path().join(".gitignore").exists());
+    // Default dev agent is scaffolded
+    assert!(tmp.path().join(".ship/agents/dev.jsonc").exists());
+    // No modes/ directory (deprecated)
+    assert!(!tmp.path().join(".ship/modes").exists());
 }
 
 #[test]
@@ -306,7 +310,7 @@ fn compile_provider_codex_writes_codex_config_toml() {
 // ── ship status ───────────────────────────────────────────────────────────────
 
 #[test]
-fn status_shows_no_active_agent_before_use() {
+fn status_shows_dev_agent_after_init() {
     let tmp = TempDir::new().unwrap();
 
     ship_in(&tmp)
@@ -315,11 +319,12 @@ fn status_shows_no_active_agent_before_use() {
         .assert()
         .success();
 
+    // ship init now auto-activates the dev agent
     ship_in(&tmp)
         .args(["status", "--path", tmp.path().to_str().unwrap()])
         .assert()
         .success()
-        .stdout(predicate::str::contains("No active agent"));
+        .stdout(predicate::str::contains("dev"));
 }
 
 // ── ship compile idempotency ───────────────────────────────────────────────────
@@ -352,22 +357,21 @@ fn compile_is_idempotent() {
 // ── ship install ──────────────────────────────────────────────────────────────
 
 #[test]
-fn install_no_manifest_exits_nonzero() {
+fn install_without_module_succeeds_with_no_deps() {
     let tmp = TempDir::new().unwrap();
-    ship()
-        .args(["init"])
-        .current_dir(tmp.path())
-        .assert()
-        .success();
+    // Write a minimal ship.jsonc with no module and no deps
+    write(
+        tmp.path(),
+        ".ship/ship.jsonc",
+        r#"{ "project": { "providers": ["claude"] } }"#,
+    );
 
-    // .ship/ship.jsonc from `ship init` is a project-config file (no "module"),
-    // so install must fail with a clear error.
+    // install with no deps and no module should succeed (no network needed)
     ship()
         .args(["install"])
         .current_dir(tmp.path())
         .assert()
-        .failure()
-        .stderr(predicate::str::contains("module").or(predicate::str::contains("manifest")));
+        .success();
 }
 
 #[test]

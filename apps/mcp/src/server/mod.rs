@@ -595,6 +595,83 @@ impl ShipServer {
         job_tools::step_done(req).await
     }
 
+    // ---- Collections ----
+
+    #[tool(
+        description = "Create a new item in a collection. The collection must have a schema \
+        defined in .ship/schemas/. Data is validated against the schema before writing."
+    )]
+    async fn create_doc(
+        &self,
+        Parameters(req): Parameters<crate::requests::collections::CreateDocRequest>,
+    ) -> String {
+        match crate::network_client::create_doc(&req.collection, &req.data, req.id.as_deref()).await {
+            Ok(r) => r,
+            Err(e) => format!("Error: {e}"),
+        }
+    }
+
+    #[tool(
+        description = "Update fields on an existing collection item. Only specified fields \
+        are changed — unspecified fields are preserved. Validates the merged result."
+    )]
+    async fn update_doc(
+        &self,
+        Parameters(req): Parameters<crate::requests::collections::UpdateDocRequest>,
+    ) -> String {
+        match crate::network_client::update_doc(&req.collection, &req.item_id, &req.data).await {
+            Ok(r) => r,
+            Err(e) => format!("Error: {e}"),
+        }
+    }
+
+    #[tool(
+        description = "Get a single item from a collection by ID."
+    )]
+    async fn get_doc(
+        &self,
+        Parameters(req): Parameters<crate::requests::collections::GetDocRequest>,
+    ) -> String {
+        match crate::network_client::get_doc(&req.collection, &req.item_id).await {
+            Ok(r) => r,
+            Err(e) => format!("Error: {e}"),
+        }
+    }
+
+    #[tool(
+        description = "Delete an item from a collection by ID."
+    )]
+    async fn delete_doc(
+        &self,
+        Parameters(req): Parameters<crate::requests::collections::DeleteDocRequest>,
+    ) -> String {
+        match crate::network_client::delete_doc(&req.collection, &req.item_id).await {
+            Ok(r) => r,
+            Err(e) => format!("Error: {e}"),
+        }
+    }
+
+    #[tool(
+        description = "Query items in a collection with filters, sorting, and pagination. \
+        Filter operators: $eq (implicit), $ne, $gt, $gte, $lt, $lte, $in, $exists. \
+        Sort: field name to 1 (asc) or -1 (desc). Returns matching items."
+    )]
+    async fn query_docs(
+        &self,
+        Parameters(req): Parameters<crate::requests::collections::QueryDocsRequest>,
+    ) -> String {
+        let body = serde_json::json!({
+            "collection": req.collection,
+            "filter": req.filter,
+            "sort": req.sort,
+            "limit": req.limit,
+        });
+        match crate::network_client::query_docs(&req.collection, body).await {
+            Ok(r) => r,
+            Err(e) => format!("Error: {e}"),
+        }
+    }
+
 }
 
 // ---- Unstable tool registration ----

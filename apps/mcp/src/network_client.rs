@@ -275,8 +275,10 @@ pub async fn register_session(
     workspace_id: Option<&str>,
 ) -> Result<String> {
     let url = format!("{}/session/register", base_url()?);
+    let daemon_token = get_network_token()?;
     let resp = reqwest::Client::new()
         .post(&url)
+        .bearer_auth(&daemon_token)
         .json(&serde_json::json!({
             "agent_id": agent_id,
             "role": role,
@@ -390,4 +392,70 @@ pub fn mesh_subscribe(
     });
 
     Ok(rx)
+}
+
+// ── Collection operations ────────────────────────────────────────────────────
+
+async fn delete(path: &str) -> Result<String> {
+    let url = format!("{}{}", base_url()?, path);
+    let token = get_effective_token().await?;
+    let resp = reqwest::Client::new()
+        .delete(&url)
+        .bearer_auth(&token)
+        .send()
+        .await
+        .map_err(|e| anyhow!("ship daemon unavailable: {e}"))?;
+
+    let status = resp.status();
+    let text = resp.text().await.map_err(|e| anyhow!("failed to read response: {e}"))?;
+    if !status.is_success() {
+        return Err(anyhow!("ship daemon error ({}): {}", status, text));
+    }
+    Ok(text)
+}
+
+async fn put(path: &str, body: Value) -> Result<String> {
+    let url = format!("{}{}", base_url()?, path);
+    let token = get_effective_token().await?;
+    let resp = reqwest::Client::new()
+        .put(&url)
+        .bearer_auth(&token)
+        .json(&body)
+        .send()
+        .await
+        .map_err(|e| anyhow!("ship daemon unavailable: {e}"))?;
+
+    let status = resp.status();
+    let text = resp.text().await.map_err(|e| anyhow!("failed to read response: {e}"))?;
+    if !status.is_success() {
+        return Err(anyhow!("ship daemon error ({}): {}", status, text));
+    }
+    Ok(text)
+}
+
+pub async fn create_doc(collection: &str, data: &Value, id: Option<&str>) -> Result<String> {
+    let mut body = serde_json::json!({ "data": data });
+    if let Some(id) = id {
+        body["id"] = serde_json::json!(id);
+    }
+    post(&format!("/collections/{collection}/items"), body).await
+}
+
+pub async fn update_doc(collection: &str, item_id: &str, data: &Value) -> Result<String> {
+    put(
+        &format!("/collections/{collection}/items/{item_id}"),
+        serde_json::json!({ "data": data }),
+    ).await
+}
+
+pub async fn get_doc(collection: &str, item_id: &str) -> Result<String> {
+    get(&format!("/collections/{collection}/items/{item_id}")).await
+}
+
+pub async fn delete_doc(collection: &str, item_id: &str) -> Result<String> {
+    delete(&format!("/collections/{collection}/items/{item_id}")).await
+}
+
+pub async fn query_docs(collection: &str, body: Value) -> Result<String> {
+    post(&format!("/collections/{collection}/query"), body).await
 }

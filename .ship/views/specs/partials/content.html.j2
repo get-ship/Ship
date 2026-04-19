@@ -1,0 +1,101 @@
+{#- SDK gaps:
+    - no confirmation_dialog() macro — must use raw ship-alert-dialog + signal toggling
+    - no metachip_row() macro for metadata display
+    - no launch_bar() macro for sticky bottom action bar
+    - no markdown_section() macro for prose rendering
+-#}
+{#- Specs content — detail pane or empty state, live-patched over SSE.
+   Root element MUST have id="specs-content" for Datastar patching. -#}
+{% from '_ship.html.j2' import show %}
+{% from '_urls.html.j2' import create_spec, delete_spec, launch_spec %}
+<div id="specs-content">
+  {% if selected %}
+    <div class="specs-detail-inner">
+      <header class="specs-detail-head">
+        <div class="specs-detail-title-row">
+          <h1>{{ selected.title if selected.title else '(untitled)' }}</h1>
+          <div class="specs-detail-actions">
+            <ship-button variant="outline" size="sm"
+              data-on:click="@post('{{ create_spec() }}', {contentType: 'json', body: JSON.stringify({title: '{{ selected.title_js }} (copy)', body: '{{ selected.body_js }}'})})">
+              Duplicate
+            </ship-button>
+            <ship-button variant="outline" size="sm" tone="destructive"
+              data-on:click="$confirmDelete = true">
+              Delete
+            </ship-button>
+          </div>
+        </div>
+
+        <div class="specs-metachips">
+          <ship-metachip label="Status" value="{{ selected.status_label }}"></ship-metachip>
+          <ship-metachip label="Pipeline" value="{{ selected.pipeline_label }}"></ship-metachip>
+          <ship-metachip label="Agent" value="{{ selected.agent }}"></ship-metachip>
+          <ship-metachip label="Vars" value="{{ selected.vars_display }}"></ship-metachip>
+          <ship-metachip label="Branch" value="{{ selected.branch }}"></ship-metachip>
+        </div>
+      </header>
+
+      <article class="specs-prose">
+        {% if selected.goal_md %}
+          <h2>Goal</h2>
+          <ship-markdown value="{{ selected.goal_md }}"></ship-markdown>
+        {% endif %}
+
+        {% if selected.acceptance | length > 0 %}
+          <h2>Acceptance</h2>
+          <ul class="specs-acceptance">
+            {% for item in selected.acceptance %}
+              <li{% if item.done %} class="done"{% endif %}>
+                <ship-checkbox {% if item.done %}checked{% endif %} disabled></ship-checkbox>
+                <span class="acc-text">{{ item.text }}</span>
+              </li>
+            {% endfor %}
+          </ul>
+        {% endif %}
+
+        {% if selected.scope_md %}
+          <h2>Scope</h2>
+          <ship-markdown value="{{ selected.scope_md }}"></ship-markdown>
+        {% endif %}
+
+        {% if selected.linked_md %}
+          <h2>Linked</h2>
+          <ship-markdown value="{{ selected.linked_md }}"></ship-markdown>
+        {% endif %}
+
+        {% if selected.other_md %}
+          <ship-markdown value="{{ selected.other_md }}"></ship-markdown>
+        {% endif %}
+      </article>
+    </div>
+
+    <div class="specs-launch-bar">
+      <div class="specs-launch-bar-inner">
+        <ship-button variant="solid" tone="accent" size="lg"
+          {% if not selected.pipeline %}disabled{% endif %}
+          data-on:click="@post('{{ launch_spec(selected.id) }}')">
+          {{ selected.launch_label }}
+        </ship-button>
+        <span class="specs-launch-hint">{{ selected.launch_hint }}</span>
+      </div>
+    </div>
+
+    <ship-alert-dialog tone="destructive"
+                       confirm-label="Delete"
+                       cancel-label="Cancel"
+                       data-attr-open="$confirmDelete"
+                       data-on:ship-cancel="$confirmDelete = false"
+                       data-on:ship-confirm="@delete('{{ delete_spec(selected.id) }}'); $confirmDelete = false">
+      <span slot="title">Delete spec</span>
+      This removes the spec from the project. This cannot be undone.
+    </ship-alert-dialog>
+  {% else %}
+    <div class="specs-empty">
+      <ship-empty-state variant="placeholder">
+        <ship-icon slot="icon" name="file-text"></ship-icon>
+        <span slot="title">No spec selected</span>
+        Select a spec from the list to view and launch it.
+      </ship-empty-state>
+    </div>
+  {% endif %}
+</div>

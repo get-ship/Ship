@@ -63,7 +63,7 @@ fn emit_session(envelope: EventEnvelope, workspace_id: &str) -> Result<EventEnve
         session_id: envelope.session_id.clone(),
     };
     if let Some(kr) = crate::events::kernel_router()
-        && let Err(e) = block_on_anyhow(async { kr.lock().await.route(envelope.clone(), &ctx).await })
+        && let Err(e) = block_on_anyhow(async { kr.lock().await.emit(envelope.clone(), &ctx).await })
     {
         tracing::warn!("db::session_events: kernel route after commit failed: {e}");
     }
@@ -126,7 +126,7 @@ pub fn insert_session_progress_event(
         session_id: Some(session_id.to_string()),
     };
     if let Some(kr) = crate::events::kernel_router()
-        && let Err(e) = block_on_anyhow(async { kr.lock().await.route(envelope, &ctx).await })
+        && let Err(e) = block_on_anyhow(async { kr.lock().await.emit(envelope, &ctx).await })
     {
         tracing::warn!("db::session_events: kernel route of progress failed: {e}");
     }

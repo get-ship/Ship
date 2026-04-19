@@ -29,7 +29,7 @@ export class ShipAreaChart extends LitElement {
       transition: opacity var(--duration-fast) var(--ease-out);
     }
     .wrap { display: flex; flex-direction: column; gap: 6px; width: 100%; height: 100%; }
-    svg { display: block; width: 100%; flex: 1; overflow: visible; }
+    svg { display: block; width: 100%; flex: 1; overflow: hidden; }
     .legend {
       display: flex; flex-wrap: wrap; gap: 12px;
       font-size: var(--text-xs);
@@ -47,6 +47,7 @@ export class ShipAreaChart extends LitElement {
     height: { type: Number },
     points: { type: Boolean, reflect: true },
     grid: { type: Boolean, reflect: true },
+    label: { type: String },
   }
 
   series = ''
@@ -55,6 +56,7 @@ export class ShipAreaChart extends LitElement {
   height = 200
   points = false
   grid = false
+  label = 'area chart'
 
   render() {
     const allSeries = parseJson<Series[]>(this.series, [])
@@ -68,7 +70,7 @@ export class ShipAreaChart extends LitElement {
     const gridLines = this.grid ? [0.25, 0.5, 0.75].map((f) => 2 + innerH * f) : []
     return html`
       <div class="wrap">
-        <svg viewBox="0 0 ${w} ${h}" preserveAspectRatio="none" role="img" aria-label="area chart">
+        <svg viewBox="0 0 ${w} ${h}" preserveAspectRatio="none" role="img" aria-label=${this.label}>
           ${gridLines.map(
             (y) => svg`<line class="grid-line" x1="0" x2=${w} y1=${y.toFixed(2)} y2=${y.toFixed(2)}></line>`,
           )}

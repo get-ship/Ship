@@ -34,7 +34,7 @@ fn emit_config_event(subject: &str, detail: Option<String>) -> Result<()> {
         session_id: None,
     };
     if let Some(kr) = crate::events::kernel_router()
-        && let Err(e) = block_on_anyhow(async { kr.lock().await.route(envelope, &ctx).await })
+        && let Err(e) = block_on_anyhow(async { kr.lock().await.emit(envelope, &ctx).await })
     {
         tracing::warn!("config::crud: kernel route failed: {e}");
     }
@@ -170,7 +170,7 @@ pub fn set_active_agent(project_dir: Option<PathBuf>, id: Option<&str>) -> Resul
     if let Some(ref dir) = project_dir
         && let Err(error) = crate::agents::export::sync_active_agent(dir)
     {
-        eprintln!("[ship] warning: active mode sync failed: {}", error);
+        tracing::warn!("active mode sync failed: {error}");
     }
     emit_config_event(
         "active_agent",

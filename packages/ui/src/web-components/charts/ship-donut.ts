@@ -47,11 +47,13 @@ export class ShipDonut extends LitElement {
     data: { type: String, reflect: true },
     size: { type: Number },
     thickness: { type: Number },
+    label: { type: String },
   }
 
   data = ''
   size = 120
   thickness = 16
+  label = 'donut chart'
 
   updated() {
     this.style.setProperty('--ship-donut-size', `${this.size}px`)
@@ -67,7 +69,7 @@ export class ShipDonut extends LitElement {
     const total = segs.reduce((acc, x) => acc + Math.max(0, x.value), 0)
     let offset = 0
     return html`
-      <svg viewBox="0 0 ${s} ${s}" role="img" aria-label="donut chart">
+      <svg viewBox="0 0 ${s} ${s}" role="img" aria-label=${this.label}>
         <circle class="track" cx=${c} cy=${c} r=${r} fill="none" stroke-width=${t}></circle>
         ${total > 0
           ? segs.map((seg) => {

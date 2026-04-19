@@ -1,0 +1,184 @@
+{#- Content styles for pipelines view — extracted to stay under 300-line cap. -#}
+<style>
+/* --- Run card --- */
+.ship-run-card {
+  display: flex;
+  align-items: flex-start;
+  gap: var(--space-3);
+  border: 1px solid color-mix(in oklch, var(--border) 60%, transparent);
+  background: var(--card);
+  border-radius: var(--radius-lg);
+  padding: var(--space-4);
+  transition: border-color 0.15s;
+}
+.ship-run-card:hover { border-color: var(--border); }
+.ship-run-dot { flex-shrink: 0; margin-top: var(--space-1); }
+.ship-run-body { flex: 1; min-width: 0; }
+.ship-run-title-row { display: flex; align-items: center; gap: var(--space-2); }
+.ship-run-slug {
+  font-size: var(--text-sm);
+  font-weight: var(--font-weight-semibold);
+  color: var(--foreground);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.ship-run-status { font-size: var(--text-xs); font-weight: var(--font-weight-medium); }
+.ship-run-detail {
+  font-size: var(--text-xs);
+  color: color-mix(in oklch, var(--muted-foreground) 60%, transparent);
+  margin-top: 2px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.ship-run-right {
+  display: flex;
+  flex-direction: column;
+  align-items: flex-end;
+  gap: var(--space-1);
+  flex-shrink: 0;
+  margin-top: 2px;
+}
+.ship-run-when {
+  font-size: var(--text-xs);
+  color: color-mix(in oklch, var(--muted-foreground) 50%, transparent);
+}
+
+/* --- Banners --- */
+.ship-run-banner {
+  margin-top: var(--space-2);
+  border-radius: var(--radius-md);
+  padding: var(--space-1) var(--space-3);
+  font-size: var(--text-xs);
+}
+.ship-run-banner.blocker,
+.ship-run-banner.error {
+  border: 1px solid color-mix(in oklch, var(--destructive) 20%, transparent);
+  background: color-mix(in oklch, var(--destructive) 5%, transparent);
+  color: var(--destructive);
+}
+
+/* --- Depends-on tags --- */
+.ship-run-deps {
+  display: flex;
+  align-items: center;
+  gap: var(--space-1);
+  flex-wrap: wrap;
+  margin-top: var(--space-1);
+}
+.ship-run-deps-label {
+  font-size: var(--text-xs);
+  color: color-mix(in oklch, var(--muted-foreground) 50%, transparent);
+}
+.ship-run-dep-tag {
+  font-size: var(--text-xs);
+  padding: 2px var(--space-1);
+  border-radius: var(--radius-sm);
+  border: 1px solid var(--border);
+  color: var(--muted-foreground);
+}
+
+/* --- Step progress pills --- */
+.ship-run-steps {
+  display: flex;
+  align-items: center;
+  gap: var(--space-1);
+  margin-top: var(--space-2);
+}
+.ship-step-pill {
+  padding: 2px var(--space-2);
+  border-radius: var(--radius-sm);
+  font-size: var(--text-xs);
+  font-weight: var(--font-weight-medium);
+}
+.ship-step-pill.done {
+  background: color-mix(in oklch, var(--success) 10%, transparent);
+  color: var(--success);
+}
+.ship-step-pill.running {
+  background: color-mix(in oklch, var(--info) 10%, transparent);
+  color: var(--info);
+  box-shadow: inset 0 0 0 1px color-mix(in oklch, var(--info) 30%, transparent);
+}
+.ship-step-pill.pending {
+  background: color-mix(in oklch, var(--muted) 30%, transparent);
+  color: color-mix(in oklch, var(--muted-foreground) 60%, transparent);
+}
+.ship-step-pill.failed {
+  background: color-mix(in oklch, var(--destructive) 10%, transparent);
+  color: var(--destructive);
+}
+
+/* --- Stop button --- */
+.ship-run-stop {
+  font-size: var(--text-xs);
+  color: var(--muted-foreground);
+  cursor: pointer;
+  background: none;
+  border: none;
+  padding: 2px var(--space-1);
+  border-radius: var(--radius-sm);
+  display: inline-flex;
+  align-items: center;
+  gap: var(--space-1);
+  transition: color 0.15s, background 0.15s;
+}
+.ship-run-stop:hover {
+  color: var(--destructive);
+  background: color-mix(in oklch, var(--destructive) 10%, transparent);
+}
+
+/* --- Definitions --- */
+.ship-pipelines-def-list {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-2);
+}
+.ship-def-card {
+  border: 1px solid color-mix(in oklch, var(--border) 60%, transparent);
+  background: var(--card);
+  border-radius: var(--radius-lg);
+  overflow: hidden;
+}
+.ship-def-header {
+  display: flex;
+  align-items: center;
+  gap: var(--space-3);
+  padding: var(--space-3) var(--space-4);
+  cursor: pointer;
+  transition: background 0.15s;
+}
+.ship-def-header:hover {
+  background: color-mix(in oklch, var(--muted) 20%, transparent);
+}
+.ship-def-name { font-size: var(--text-sm); font-weight: var(--font-weight-semibold); }
+.ship-def-desc {
+  font-size: var(--text-xs);
+  color: color-mix(in oklch, var(--muted-foreground) 60%, transparent);
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  flex: 1;
+  min-width: 0;
+}
+.ship-def-steps-count {
+  font-size: var(--text-xs);
+  color: color-mix(in oklch, var(--muted-foreground) 40%, transparent);
+  flex-shrink: 0;
+}
+.ship-def-templates-head {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  margin-bottom: var(--space-4);
+}
+.ship-def-templates-desc {
+  font-size: var(--text-xs);
+  color: var(--muted-foreground);
+}
+.ship-pipelines-load-more {
+  text-align: center;
+  margin: var(--space-4) 0 var(--space-1);
+}
+</style>

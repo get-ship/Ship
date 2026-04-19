@@ -67,10 +67,36 @@ export class ShipTooltip extends LitElement {
   }
 
   placement: 'top' | 'bottom' | 'left' | 'right' = 'top'
+  private static _idSeq = 0
+  private bubbleId = `ship-tooltip-${++ShipTooltip._idSeq}`
+
+  private onKeydown = (e: KeyboardEvent) => {
+    if (e.key === 'Escape') (this as HTMLElement).blur()
+  }
+
+  private wireTrigger = () => {
+    const slot = this.renderRoot.querySelector('slot:not([name])') as HTMLSlotElement | null
+    const first = slot?.assignedElements({ flatten: true })[0] as HTMLElement | undefined
+    if (!first) return
+    const existing = first.getAttribute('aria-describedby') || ''
+    if (!existing.split(/\s+/).includes(this.bubbleId)) {
+      first.setAttribute('aria-describedby', existing ? `${existing} ${this.bubbleId}` : this.bubbleId)
+    }
+  }
+
+  connectedCallback() {
+    super.connectedCallback()
+    this.addEventListener('keydown', this.onKeydown)
+  }
+  disconnectedCallback() {
+    super.disconnectedCallback()
+    this.removeEventListener('keydown', this.onKeydown)
+  }
+
   render() {
     return html`
-      <slot></slot>
-      <span class="bubble" role="tooltip"><slot name="content"></slot></span>
+      <slot @slotchange=${this.wireTrigger}></slot>
+      <span id=${this.bubbleId} class="bubble" role="tooltip"><slot name="content"></slot></span>
     `
   }
 }

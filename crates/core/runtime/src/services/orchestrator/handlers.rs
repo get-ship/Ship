@@ -54,7 +54,7 @@ pub async fn handle_job_update(
         workspace_id: None,
         session_id: None,
     };
-    match kernel.lock().await.route(mesh_envelope, &ctx).await {
+    match kernel.lock().await.emit(mesh_envelope, &ctx).await {
         Ok(_) => tracing::info!(entity_id, "job-dispatch: forwarded job.update to agent"),
         Err(e) => tracing::warn!(entity_id, "job-dispatch: mesh forward failed: {e}"),
     }

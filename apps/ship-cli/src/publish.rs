@@ -46,20 +46,21 @@ fn resolve_hashes(
 
 /// `ship publish --dry-run` output.
 fn dry_run(manifest: &ShipManifest, hashes: &ExportHashes, export_path: Option<&str>) {
-    println!("Package:  {}", manifest.module.name);
-    println!("Version:  {}", manifest.module.version);
+    let module = manifest.module.as_ref().unwrap();
+    println!("Package:  {}", module.name);
+    println!("Version:  {}", module.version);
     if let Some(path) = export_path {
         println!("Export:   {}", path);
     }
     println!("Hash:     {}", hashes.combined);
-    if let Some(ref desc) = manifest.module.description {
+    if let Some(ref desc) = module.description {
         println!("Description: {}", desc);
     }
-    if let Some(ref lic) = manifest.module.license {
+    if let Some(ref lic) = module.license {
         println!("License:  {}", lic);
     }
-    if !manifest.module.authors.is_empty() {
-        println!("Authors:  {}", manifest.module.authors.join(", "));
+    if !module.authors.is_empty() {
+        println!("Authors:  {}", module.authors.join(", "));
     }
     if !hashes.per_export.is_empty() {
         println!("\nExport hashes:");
@@ -80,19 +81,20 @@ fn build_payload(
     tag: Option<&str>,
     export_path: Option<&str>,
 ) -> serde_json::Value {
+    let module = manifest.module.as_ref().unwrap();
     let mut payload = serde_json::json!({
-        "name": manifest.module.name,
-        "version": manifest.module.version,
+        "name": module.name,
+        "version": module.version,
         "hash": hashes.combined,
     });
-    if let Some(ref desc) = manifest.module.description {
+    if let Some(ref desc) = module.description {
         payload["description"] = serde_json::Value::String(desc.clone());
     }
-    if let Some(ref lic) = manifest.module.license {
+    if let Some(ref lic) = module.license {
         payload["license"] = serde_json::Value::String(lic.clone());
     }
-    if !manifest.module.authors.is_empty() {
-        payload["authors"] = serde_json::json!(manifest.module.authors);
+    if !module.authors.is_empty() {
+        payload["authors"] = serde_json::json!(module.authors);
     }
     if let Some(t) = tag {
         payload["tag"] = serde_json::Value::String(t.to_string());
@@ -149,6 +151,9 @@ pub fn run_publish(
     let manifest_path = ship_dir.join("ship.jsonc");
     let manifest = ShipManifest::from_file(&manifest_path)
         .context("reading .ship/ship.jsonc — is this a Ship project?")?;
+
+    // Publish requires module section.
+    let module = manifest.require_module()?;
     let hashes = resolve_hashes(&ship_dir, &manifest, export_path)?;
 
     if is_dry_run {
@@ -183,9 +188,9 @@ pub fn run_publish(
     let label = match export_path {
         Some(path) => format!(
             "{}@{} [{}]",
-            manifest.module.name, manifest.module.version, path
+            module.name, module.version, path
         ),
-        None => format!("{}@{}", manifest.module.name, manifest.module.version),
+        None => format!("{}@{}", module.name, module.version),
     };
     println!("Published {} ({})", label, hashes.combined);
     Ok(())

@@ -38,13 +38,17 @@ export class ShipHistoryRow extends LitElement {
   }
 
   state = ''
+  connectedCallback() {
+    super.connectedCallback()
+    if (!this.hasAttribute('role')) this.setAttribute('role', 'row')
+  }
   render() {
     return html`
-      <span class="cell"><slot name="slug"></slot></span>
-      <span class="cell"><slot name="pipeline"></slot></span>
-      <span class="cell"><slot name="status"></slot></span>
-      <span class="cell"><slot name="duration"></slot></span>
-      <span class="cell"><slot name="completed"></slot></span>
+      <span class="cell" role="cell"><slot name="slug"></slot></span>
+      <span class="cell" role="cell"><slot name="pipeline"></slot></span>
+      <span class="cell" role="cell"><slot name="status"></slot></span>
+      <span class="cell" role="cell"><slot name="duration"></slot></span>
+      <span class="cell" role="cell"><slot name="completed"></slot></span>
     `
   }
 }

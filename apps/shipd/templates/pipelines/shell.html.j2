@@ -1,102 +1,138 @@
 {#-
-  Pipelines view — single-column, token-driven layout matching the
-  mockup at `.artifacts/ui-proposal/pipelines.html`. Fragment-only
-  (no doctype / html / body); mounted into the Studio shell which
-  wraps us in its own `.ship-view`.
-
-  Structure:
-    header (title + subtitle + "+ Run") → tabs with counts →
-    agent-filter chip row → #pipelines-content (SSE target).
+  Pipelines (Workflows) view — spec-parity with React /studio/workflows.
+  Single-column centered layout. Fragment-only (no doctype); mounted into
+  the Studio shell or rendered standalone by the daemon.
 -#}
 {% from '_urls.html.j2' import create_job, view_pipelines, view_pipelines_sse %}
-<div id="pipelines-root" class="ship-view ship-view-pipelines">
+<div id="ship-view-root" class="ship-view ship-view-pipelines">
   <style>
     .ship-view-pipelines { color: var(--foreground); }
-    .ship-pipelines-wrap { width: 100%; max-width: 1400px; margin: 0 auto; padding: 12px 24px; }
-    .ship-pipelines-head { display: flex; align-items: flex-end; justify-content: space-between; gap: 16px; margin: 0 0 14px; padding: 0; }
-    .ship-pipelines-title { font-family: var(--font-display); font-size: 20px; font-weight: 600; letter-spacing: -0.01em; margin: 0; }
-    .ship-pipelines-sub { font-size: 12px; color: var(--muted-foreground); margin-top: 4px; }
-    .ship-pipelines-status { display: flex; flex-wrap: wrap; align-items: center; gap: 14px; padding: 8px 0; margin: 0 0 10px; border-top: 1px solid color-mix(in oklch, var(--border) 60%, transparent); border-bottom: 1px solid color-mix(in oklch, var(--border) 60%, transparent); }
-    .ship-pipelines-status-pill { display: inline-flex; align-items: center; gap: 6px; font-size: 11px; color: var(--muted-foreground); }
-    .ship-pipelines-status-pill .count { font-variant-numeric: tabular-nums; color: var(--foreground); font-weight: 500; }
-    .ship-pipelines-tabs-row { padding: 0; margin-bottom: 10px; }
-    .ship-pipelines-filters { display: flex; flex-wrap: wrap; gap: 6px; padding: 0; margin-bottom: 12px; }
+    .ship-pipelines-scroll { flex: 1; overflow: auto; }
+    .ship-pipelines-wrap { width: 100%; max-width: 64rem; margin: 0 auto; padding: 2rem 1.5rem; }
+
+    .ship-pipelines-head { display: flex; align-items: center; justify-content: space-between; margin-bottom: 1.5rem; }
+    .ship-pipelines-title { font-family: var(--font-display); font-size: 1.5rem; font-weight: 700; letter-spacing: -0.01em; margin: 0; }
+    .ship-pipelines-sub { font-size: 0.875rem; color: var(--muted-foreground); margin-top: 0.25rem; }
+
+    .ship-pipelines-stats { display: flex; align-items: center; gap: 1rem; margin-bottom: 1.5rem; border-radius: 0.5rem; border: 1px solid color-mix(in oklch, var(--border) 60%, transparent); background: color-mix(in oklch, var(--card) 50%, transparent); padding: 0.75rem 1rem; }
+    .ship-stat { display: inline-flex; align-items: center; gap: 0.375rem; }
+    .ship-stat-label { font-size: 0.75rem; color: var(--muted-foreground); }
+    .ship-stat-count { font-size: 0.75rem; font-weight: 500; color: var(--foreground); font-variant-numeric: tabular-nums; }
+
+    .ship-pipelines-tabs-row { margin-bottom: 1rem; }
+    .ship-pipelines-filters { display: flex; flex-wrap: wrap; gap: 0.375rem; margin-bottom: 1rem; }
     .ship-pipelines-content { padding: 0; }
-    .ship-run-card { display: flex; align-items: center; gap: 10px; border: 1px solid var(--border); background: var(--card); border-radius: var(--radius-md); padding: 10px 14px; margin-bottom: 6px; min-height: 48px; }
-    .ship-run-head { display: flex; align-items: center; flex-wrap: nowrap; gap: 10px; width: 100%; }
-    .ship-run-slug { font-family: var(--font-mono); font-size: 12px; font-weight: 500; color: var(--foreground); }
-    .ship-run-sep { color: color-mix(in oklch, var(--muted-foreground) 50%, transparent); }
-    .ship-run-meta { font-size: 11px; color: var(--muted-foreground); display: inline-flex; align-items: center; gap: 4px; }
-    .ship-run-dur { margin-left: auto; font-size: 11px; color: var(--muted-foreground); font-variant-numeric: tabular-nums; }
-    .ship-run-dur.running { color: var(--warning); }
-    .ship-run-actions { display: inline-flex; gap: 6px; }
-    .ship-run-dag { display: flex; gap: 10px; overflow-x: auto; margin-top: 14px; padding-bottom: 4px; }
-    .ship-step-card { flex: 0 0 auto; min-width: 160px; border: 1px solid var(--border); border-radius: var(--radius-md); padding: 10px 12px; background: color-mix(in oklch, var(--muted) 30%, transparent); }
-    .ship-step-card.done { border-color: color-mix(in oklch, var(--success) 35%, var(--border)); }
-    .ship-step-card.running { border-color: color-mix(in oklch, var(--warning) 45%, var(--border)); background: color-mix(in oklch, var(--warning) 8%, transparent); }
-    .ship-step-card.failed { border-color: color-mix(in oklch, var(--destructive) 45%, var(--border)); background: color-mix(in oklch, var(--destructive) 8%, transparent); }
-    .ship-step-head { display: flex; align-items: center; gap: 6px; margin-bottom: 4px; }
-    .ship-step-id { font-family: var(--font-mono); font-size: 11px; font-weight: 500; }
-    .ship-step-agent { font-size: 11px; color: var(--muted-foreground); }
-    .ship-step-state { font-size: 10px; text-transform: uppercase; letter-spacing: 0.06em; color: var(--muted-foreground); margin-top: 6px; }
-    .ship-step-state.done { color: var(--success); }
-    .ship-step-state.running { color: var(--warning); }
-    .ship-step-state.failed { color: var(--destructive); }
-    .ship-history-card { border: 1px solid var(--border); background: var(--card); border-radius: var(--radius-lg); overflow: hidden; }
-    .ship-history-row { display: flex; align-items: center; gap: 12px; padding: 10px 14px; border-bottom: 1px solid color-mix(in oklch, var(--border) 60%, transparent); font-size: 12px; }
+
+    /* Run card */
+    .ship-run-card { display: flex; align-items: flex-start; gap: 0.75rem; border: 1px solid color-mix(in oklch, var(--border) 60%, transparent); background: var(--card); border-radius: 0.5rem; padding: 1rem; margin-bottom: 0.5rem; transition: border-color 0.15s; }
+    .ship-run-card:hover { border-color: var(--border); }
+    .ship-run-dot { flex-shrink: 0; margin-top: 0.375rem; }
+    .ship-run-body { flex: 1; min-width: 0; }
+    .ship-run-title-row { display: flex; align-items: center; gap: 0.5rem; }
+    .ship-run-slug { font-size: 0.875rem; font-weight: 600; color: var(--foreground); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+    .ship-run-status { font-size: 10px; font-weight: 500; }
+    .ship-run-detail { font-size: 0.75rem; color: color-mix(in oklch, var(--muted-foreground) 60%, transparent); margin-top: 0.125rem; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+    .ship-run-right { display: flex; flex-direction: column; align-items: flex-end; gap: 0.25rem; flex-shrink: 0; margin-top: 0.125rem; }
+    .ship-run-when { font-size: 11px; color: color-mix(in oklch, var(--muted-foreground) 50%, transparent); }
+
+    /* Banners */
+    .ship-run-banner { margin-top: 0.5rem; border-radius: 0.375rem; padding: 0.375rem 0.75rem; font-size: 0.75rem; }
+    .ship-run-banner.blocker { border: 1px solid color-mix(in oklch, var(--destructive) 20%, transparent); background: color-mix(in oklch, var(--destructive) 5%, transparent); color: var(--destructive); }
+    .ship-run-banner.error { border: 1px solid color-mix(in oklch, var(--destructive) 20%, transparent); background: color-mix(in oklch, var(--destructive) 5%, transparent); color: var(--destructive); }
+
+    /* Depends-on tags */
+    .ship-run-deps { display: flex; align-items: center; gap: 0.25rem; flex-wrap: wrap; margin-top: 0.375rem; }
+    .ship-run-deps-label { font-size: 10px; color: color-mix(in oklch, var(--muted-foreground) 50%, transparent); }
+    .ship-run-dep-tag { font-size: 10px; padding: 0.125rem 0.375rem; border-radius: 0.25rem; border: 1px solid var(--border); color: var(--muted-foreground); }
+
+    /* Step progress pills */
+    .ship-run-steps { display: flex; align-items: center; gap: 0.25rem; margin-top: 0.5rem; }
+    .ship-step-pill { padding: 0.125rem 0.5rem; border-radius: 0.25rem; font-size: 10px; font-weight: 500; }
+    .ship-step-pill.done { background: color-mix(in oklch, var(--success) 10%, transparent); color: var(--success); }
+    .ship-step-pill.running { background: color-mix(in oklch, var(--info) 10%, transparent); color: var(--info); box-shadow: inset 0 0 0 1px color-mix(in oklch, var(--info) 30%, transparent); }
+    .ship-step-pill.pending { background: color-mix(in oklch, var(--muted) 30%, transparent); color: color-mix(in oklch, var(--muted-foreground) 60%, transparent); }
+    .ship-step-pill.failed { background: color-mix(in oklch, var(--destructive) 10%, transparent); color: var(--destructive); }
+
+    /* Stop button */
+    .ship-run-stop { font-size: 10px; color: var(--muted-foreground); cursor: pointer; background: none; border: none; padding: 0.125rem 0.375rem; border-radius: 0.25rem; display: inline-flex; align-items: center; gap: 0.25rem; transition: color 0.15s, background 0.15s; }
+    .ship-run-stop:hover { color: var(--destructive); background: color-mix(in oklch, var(--destructive) 10%, transparent); }
+
+    /* History */
+    .ship-history-card { border: 1px solid var(--border); background: var(--card); border-radius: 0.5rem; overflow: hidden; }
+    .ship-history-row { display: flex; align-items: center; gap: 0.75rem; padding: 0.625rem 0.875rem; border-bottom: 1px solid color-mix(in oklch, var(--border) 60%, transparent); font-size: 0.75rem; }
     .ship-history-row:last-child { border-bottom: 0; }
-    .ship-history-slug { font-family: var(--font-mono); font-size: 12px; color: var(--foreground); }
-    .ship-history-pipeline { font-size: 11px; color: var(--muted-foreground); margin-left: 8px; }
+    .ship-history-slug { font-weight: 600; font-size: 0.875rem; color: var(--foreground); }
+    .ship-history-status { font-size: 10px; font-weight: 500; }
+    .ship-history-detail { font-size: 0.75rem; color: color-mix(in oklch, var(--muted-foreground) 60%, transparent); }
+    .ship-history-pipeline { font-size: 11px; color: var(--muted-foreground); margin-left: 0.5rem; }
     .ship-history-when { font-size: 11px; color: var(--muted-foreground); margin-left: auto; font-variant-numeric: tabular-nums; }
     .ship-history-dur { font-size: 11px; color: var(--muted-foreground); font-variant-numeric: tabular-nums; }
-    .ship-recent-heading { font-size: 10px; font-weight: 600; text-transform: uppercase; letter-spacing: 0.08em; color: color-mix(in oklch, var(--muted-foreground) 75%, transparent); padding: 0 12px; margin: 24px 0 8px; }
-    .ship-pipelines-def-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(280px, 1fr)); gap: 12px; }
-    .ship-pipelines-load-more { text-align: center; margin: 16px 0 4px; }
+    .ship-recent-heading { font-size: 10px; font-weight: 600; text-transform: uppercase; letter-spacing: 0.08em; color: color-mix(in oklch, var(--muted-foreground) 75%, transparent); padding: 0 0.75rem; margin: 1.5rem 0 0.5rem; }
+
+    /* Definitions */
+    .ship-pipelines-def-list { display: flex; flex-direction: column; gap: 0.5rem; }
+    .ship-def-card { border: 1px solid color-mix(in oklch, var(--border) 60%, transparent); background: var(--card); border-radius: 0.5rem; overflow: hidden; }
+    .ship-def-header { display: flex; align-items: center; gap: 0.75rem; padding: 0.75rem 1rem; cursor: pointer; transition: background 0.15s; }
+    .ship-def-header:hover { background: color-mix(in oklch, var(--muted) 20%, transparent); }
+    .ship-def-name { font-size: 0.875rem; font-weight: 600; }
+    .ship-def-desc { font-size: 0.75rem; color: color-mix(in oklch, var(--muted-foreground) 60%, transparent); overflow: hidden; text-overflow: ellipsis; white-space: nowrap; flex: 1; min-width: 0; }
+    .ship-def-steps-count { font-size: 10px; color: color-mix(in oklch, var(--muted-foreground) 40%, transparent); flex-shrink: 0; }
+    .ship-def-templates-head { display: flex; align-items: center; justify-content: space-between; margin-bottom: 1rem; }
+    .ship-def-templates-desc { font-size: 0.75rem; color: var(--muted-foreground); }
+
+    .ship-pipelines-load-more { text-align: center; margin: 1rem 0 0.25rem; }
   </style>
 
-  <div class="ship-pipelines-wrap">
-    <div class="ship-pipelines-head">
-      <div>
-        <h1 class="ship-pipelines-title">Pipelines</h1>
-        <div class="ship-pipelines-sub">{{ stats_subtitle }}</div>
+  <div class="ship-pipelines-scroll">
+    <div class="ship-pipelines-wrap">
+      <div class="ship-pipelines-head">
+        <div>
+          <h1 class="ship-pipelines-title">Workflows</h1>
+          <p class="ship-pipelines-sub">{{ stats_subtitle }}</p>
+        </div>
+        <ship-button size="sm" tone="accent" variant="solid"
+          data-on:click="@post('{{ create_job() }}', {contentType: 'json', body: JSON.stringify({})})">
+          <ship-icon slot="leading" name="play" size="sm"></ship-icon>
+          New Run
+        </ship-button>
       </div>
-      <ship-button size="sm" tone="accent" variant="solid"
-        data-on:click="@post('{{ create_job() }}', {contentType: 'json', body: JSON.stringify({})})">
-        + Run
-      </ship-button>
-    </div>
 
-    <div class="ship-pipelines-status" role="group" aria-label="Run status summary">
-      {% for pill in status_pills %}
-      <span class="ship-pipelines-status-pill">
-        <ship-status-dot tone="{{ pill.tone }}"></ship-status-dot>
-        <span>{{ pill.label }}</span>
-        <span class="count">{{ pill.count }}</span>
-      </span>
-      {% endfor %}
-    </div>
+      {% if status_pills and status_pills | length > 0 %}
+      <div class="ship-pipelines-stats" role="group" aria-label="Run status summary">
+        {% for pill in status_pills %}
+        <span class="ship-stat">
+          <ship-status-dot tone="{{ pill.tone }}"></ship-status-dot>
+          <span class="ship-stat-label">{{ pill.label }}</span>
+          <span class="ship-stat-count">{{ pill.count }}</span>
+        </span>
+        {% endfor %}
+      </div>
+      {% endif %}
 
-    <div class="ship-pipelines-tabs-row">
-      <ship-tabs variant="underline" active="{{ active_tab }}"
-        data-on:ship-tab-change="@get('{{ view_pipelines() }}?tab=' + evt.detail.name)">
-        <ship-tab name="active" label="Active" count="{{ stats.active }}"></ship-tab>
-        <ship-tab name="definitions" label="Definitions" count="{{ stats.definitions }}"></ship-tab>
-        <ship-tab name="history" label="History" count="{{ stats.history }}"></ship-tab>
-      </ship-tabs>
-    </div>
+      <div class="ship-pipelines-tabs-row">
+        <ship-tabs variant="underline" active="{{ active_tab }}"
+          data-on:ship-tab-change="@get('{{ view_pipelines() }}?tab=' + evt.detail.name)">
+          <ship-tab name="active" label="Active Runs" count="{{ stats.active }}"></ship-tab>
+          <ship-tab name="definitions" label="Templates" count="{{ stats.definitions }}"></ship-tab>
+          <ship-tab name="history" label="History" count="{{ stats.history }}"></ship-tab>
+        </ship-tabs>
+      </div>
 
-    <div class="ship-pipelines-filters" role="group" aria-label="Filter by agent">
-      <ship-chip size="sm" {% if not agent_filter %}selected{% endif %}
-        data-on:click="@get('{{ view_pipelines() }}?tab={{ active_tab }}')">All agents</ship-chip>
-      {% for a in agents %}
-      <ship-chip size="sm" {% if agent_filter == a %}selected{% endif %}
-        data-on:click="@get('{{ view_pipelines() }}?tab={{ active_tab }}&agent={{ a }}')">{{ a }}</ship-chip>
-      {% endfor %}
-    </div>
+      {% if agents | length > 0 %}
+      <div class="ship-pipelines-filters" role="group" aria-label="Filter by agent">
+        <ship-chip size="sm" {% if not agent_filter %}selected{% endif %}
+          data-on:click="@get('{{ view_pipelines() }}?tab={{ active_tab }}')">All agents</ship-chip>
+        {% for a in agents %}
+        <ship-chip size="sm" {% if agent_filter == a %}selected{% endif %}
+          data-on:click="@get('{{ view_pipelines() }}?tab={{ active_tab }}&agent={{ a }}')">{{ a }}</ship-chip>
+        {% endfor %}
+      </div>
+      {% endif %}
 
-    <div id="pipelines-content" class="ship-pipelines-content"
-         data-init="@get('{{ view_pipelines_sse() }}?tab={{ active_tab }}{% if agent_filter %}&agent={{ agent_filter }}{% endif %}', {requestCancellation: 'disabled'})">
-      {% include 'pipelines/content.html.j2' %}
+      <div id="pipelines-content" class="ship-pipelines-content"
+           data-init="@get('{{ view_pipelines_sse() }}?tab={{ active_tab }}{% if agent_filter %}&agent={{ agent_filter }}{% endif %}', {requestCancellation: 'disabled'})">
+        {% include 'pipelines/content.html.j2' %}
+      </div>
     </div>
   </div>
 </div>

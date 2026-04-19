@@ -8,7 +8,7 @@ use crate::events::EventEnvelope;
 // Fallback if tracing is not available — errors are still visible via test output.
 #[allow(unused_macros)]
 macro_rules! log_error {
-    ($($arg:tt)*) => { eprintln!($($arg)*) }
+    ($($arg:tt)*) => { tracing::warn!($($arg)*) }
 }
 
 /// A projection maintains a derived read model from events.
@@ -57,7 +57,7 @@ impl EventBus {
             if proj.event_types().contains(&event.event_type.as_str())
                 && let Err(e) = proj.apply(event, conn)
             {
-                eprintln!(
+                tracing::warn!(
                     "[projection:{}] handler failed for {}: {}",
                     proj.name(),
                     event.event_type,

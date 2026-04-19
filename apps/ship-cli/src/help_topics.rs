@@ -57,15 +57,15 @@ Agents
 An agent is a JSONC file in .ship/agents/ that declares an AI assistant's
 identity, skills, permissions, and provider targets.
 
-  Create:   ship agents create rust-expert
-  List:     ship agents list
-  Edit:     ship agents edit rust-expert
-  Activate: ship use rust-expert
-  Delete:   ship agents delete rust-expert
-  Clone:    ship agents clone rust-expert go-expert
+  Create:   Add a file at .ship/agents/<id>.jsonc
+  Activate: ship use <id>
+  Recompile: ship compile
+
+`ship init` scaffolds a default `dev` agent. To add more, copy dev.jsonc
+and change the id, name, and skill refs.
 
 Agent files live in .ship/agents/<id>.jsonc. Global agents live in
-~/.ship/agents/<id>.jsonc (create with --global).
+~/.ship/agents/<id>.jsonc.
 
 After editing an agent, run `ship compile` or `ship use <id>` to regenerate
 provider-native config files.
@@ -133,7 +133,7 @@ Serving (run the Ship MCP server for project intelligence):
   ship mcp serve              stdio mode (default, for Claude Code)
   ship mcp serve --http       HTTP daemon mode for CI/remote agents
 
-Server definitions live in .ship/agents/mcp.toml.
+Server definitions live in .ship/mcp.jsonc.
 ";
 
 const TOPIC_PROVIDERS: &str = "\
@@ -146,9 +146,8 @@ Ship compiles agent config to provider-native formats:
   codex     .codex/ directory + AGENTS.md
   gemini    .gemini/ directory + GEMINI.md
 
-Set providers in your agent TOML:
-  [agent]
-  providers = [\"claude\", \"cursor\"]
+Set providers in your agent JSONC:
+  \"agent\": { \"providers\": [\"claude\", \"gemini\"] }
 
 Or compile for one provider at a time:
   ship compile --provider claude
@@ -158,44 +157,40 @@ const TOPIC_SKILLS: &str = "\
 Skills
 
 Skills are markdown files that add domain knowledge or workflow instructions
-to an agent. They live in .ship/agents/skills/.
+to an agent. They live in .ship/skills/<skill-id>/SKILL.md.
 
-  Install from registry: ship skills add ship-coordination
-  Install from path:     ship skills add ./my-skills/review
-  Create a new skill:    ship skills create my-skill
-  List installed:        ship skills list
-  Remove:                ship skills remove my-skill
+  Install from registry: ship add github.com/owner/skill-pack
+  Create a new skill:    mkdir .ship/skills/my-skill && edit SKILL.md
+  Install deps:          ship install
 
-Skills are referenced in agent TOML files:
-  [skills]
-  refs = [\"ship-coordination\", \"my-skill\"]
+Skills are referenced in agent JSONC files:
+  \"skills\": { \"refs\": [\"my-skill\", \"code-review\"] }
 
-A skill is either a single .md file or a directory with SKILL.md.
+A skill directory contains SKILL.md (required), and optionally
+assets/vars.json (typed variables) and references/docs/ (reference material).
 ";
 
 const TOPIC_WORKFLOW: &str = "\
 Typical Workflow
 
-1. Initialize a project:
+1. Initialize a project (scaffolds .ship/ with a dev agent and compiles):
    ship init
 
-2. Create an agent:
-   ship agents create my-agent
+2. Edit the agent to add skills, permissions, providers:
+   Edit .ship/agents/dev.jsonc directly
 
-3. Edit the agent to add skills, permissions, providers:
-   ship agents edit my-agent
-
-4. Activate and compile:
-   ship use my-agent
-
-5. After editing agent config, recompile:
+3. Recompile after changes:
    ship compile
+
+4. Add more agents by copying dev.jsonc:
+   cp .ship/agents/dev.jsonc .ship/agents/backend.jsonc
+   (change the id and name, then: ship use backend)
+
+5. Install packages from the registry:
+   ship add github.com/owner/skill-pack
 
 6. Validate config before committing:
    ship validate
-
-7. Install shared dependencies:
-   ship install
 
 The compiled output (CLAUDE.md, .cursor/, etc.) is gitignored.
 Only .ship/ is committed to version control.

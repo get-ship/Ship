@@ -15,11 +15,8 @@ The `ship` command manages your agents, skills, and projects from the terminal. 
 ```bash
 curl -fsSL https://getship.dev/install | sh
 ```
-- Git
 
-## Installation
-
-Clone the repository and install from source:
+Or clone the repository and install from source:
 
 ```bash
 git clone https://github.com/madvib/ship.git

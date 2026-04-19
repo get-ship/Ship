@@ -13,6 +13,22 @@ use axum::{
     response::{IntoResponse, Response},
 };
 use runtime::events::CallerKind;
+
+/// Constant-time token comparison to prevent timing attacks.
+/// XORs all bytes and checks the accumulator — execution time is
+/// independent of how many bytes match.
+fn tokens_equal(a: &str, b: &str) -> bool {
+    let a = a.as_bytes();
+    let b = b.as_bytes();
+    if a.len() != b.len() {
+        return false;
+    }
+    let mut acc: u8 = 0;
+    for (x, y) in a.iter().zip(b.iter()) {
+        acc |= x ^ y;
+    }
+    acc == 0
+}
 use std::path::Path;
 use std::sync::Arc;
 
@@ -213,7 +229,7 @@ pub async fn auth_middleware(
     }
 
     // Daemon token and SDK tokens are validated against the expected token.
-    if token != expected_token.as_str() {
+    if !tokens_equal(token, expected_token.as_str()) {
         return (StatusCode::UNAUTHORIZED, "invalid token").into_response();
     }
 

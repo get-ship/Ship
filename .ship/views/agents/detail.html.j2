@@ -1,0 +1,53 @@
+{#-
+  Agent detail — stacked sections with sticky header.
+  Context: agent (AgentDetail), tiers (Vec<TierRow>).
+
+  Parity target: apps/web/src/routes/studio/agents/$id.tsx
+  - Sticky header: avatar (28px) + name (display bold) + version + delete
+  - Five stacked sections: Skills, MCP, Permissions, Rules, Providers
+  - Each section uses the SectionShell pattern (icon + title + count + action)
+-#}
+{% from '_ship.html.j2' import head, signal, get, nav, radio %}
+{% from '_urls.html.j2' import view_agents, view_agent_detail %}
+{% if not fragment %}
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  {{ head(agent.name) }}
+</head>
+<body>
+{% endif %}
+<div id="ship-view-root" class="ship-view ad-view"
+     {{ signal('tier', agent.permissions_tier) }}>
+  {% include 'agents/partials/detail_styles.html.j2' %}
+
+  <!-- Sticky header -->
+  <header class="ad-header">
+    <ship-button variant="ghost" size="sm" {{ nav('/agents') }}
+            aria-label="Back to agents">
+      <ship-icon slot="leading" name="chevron-left"></ship-icon>
+    </ship-button>
+    <div class="ad-avatar">{{ agent.letter }}</div>
+    <h1 class="ad-name">{{ agent.name }}</h1>
+    <span class="ad-version">0.0.0</span>
+    <div class="ad-header-spacer"></div>
+    <ship-button variant="ghost" size="sm" tone="destructive" aria-label="Delete agent">
+      <ship-icon slot="leading" name="trash"></ship-icon>
+    </ship-button>
+  </header>
+
+  <!-- Scrollable body with all sections -->
+  <div class="ad-body">
+    {% include 'agents/partials/panel_skills.html.j2' %}
+    {% include 'agents/partials/panel_mcp.html.j2' %}
+    {% include 'agents/partials/panel_permissions.html.j2' %}
+    {% include 'agents/partials/panel_rules.html.j2' %}
+    {% include 'agents/partials/panel_providers.html.j2' %}
+    <div class="ad-bottom-spacer"></div>
+  </div>
+
+</div>
+{% if not fragment %}
+</body>
+</html>
+{% endif %}

@@ -1,0 +1,30 @@
+{#-
+  Recent commits list. Each row navigates to the commit diff.
+  Expects: commits[], workspace_id, branch, total_changed.
+-#}
+{% from '_urls.html.j2' import view_git %}
+{%- set ws_qs = '' -%}
+{%- if workspace_id %}{%- set ws_qs = '&workspace_id=' ~ workspace_id -%}{%- endif -%}
+
+{% if commits and commits|length > 0 %}
+  {% if branch or (total_changed and total_changed > 0) %}
+    <hr class="git-divider">
+  {% endif %}
+  <div class="git-log-heading">Recent Commits</div>
+  <div class="git-log">
+    {% for c in commits[:10] %}
+      <button type="button" class="git-commit"
+        data-on:click="@get('{{ view_git() }}?commit={{ c.sha }}{{ ws_qs }}')">
+        <div class="git-commit-subject">{{ c.subject|truncate(60) }}</div>
+        <div class="git-commit-meta">
+          <span class="git-commit-sha">{{ c.short_sha }}</span>
+          <span>{{ c.date }}</span>
+          <span class="spacer"></span>
+          <ship-icon class="hint" name="message-square" size="xs"></ship-icon>
+        </div>
+      </button>
+    {% endfor %}
+  </div>
+{% elif not branch %}
+  <p class="git-empty">Connect CLI to see git info.</p>
+{% endif %}

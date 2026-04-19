@@ -14,9 +14,9 @@
     </div>
     <div class="settings-row-control">
       <ship-select size="sm" value="{{ terminal.program }}"
-        data-on:ship-select-change="@put('{{ update_setting() }}', {contentType: 'json', body: JSON.stringify({key: 'terminal.program', value: evt.detail.value})})">
+        data-on:ship-change="@put('{{ update_setting() }}', {contentType: 'json', body: JSON.stringify({key: 'terminal.program', value: evt.detail.value})})">
         {% for opt in terminal.options %}
-          <ship-option value="{{ opt.value }}" {% if opt.value == terminal.program %}selected{% endif %}>{{ opt.label }}</ship-option>
+          <option value="{{ opt.value }}" {% if opt.value == terminal.program %}selected{% endif %}>{{ opt.label }}</option>
         {% endfor %}
       </ship-select>
     </div>

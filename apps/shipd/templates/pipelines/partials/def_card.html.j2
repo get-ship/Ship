@@ -1,8 +1,12 @@
-{#- Expects `def` in scope. -#}
+{#- Pipeline card — spec-parity with React PipelineCard.
+    Expects `def` (PipelineDef) in scope. -#}
 {% from '_urls.html.j2' import create_job %}
-<ship-pipeline-definition name="{{ def.name }}" steps="{{ def.step_count }}" description="{{ def.description }}">
-  <ship-button slot="actions" size="sm" tone="accent" variant="solid"
-    data-on:click="@post('{{ create_job() }}', {contentType: 'json', body: JSON.stringify({pipeline: '{{ def.name }}'})})">
-    Launch
-  </ship-button>
-</ship-pipeline-definition>
+<div class="ship-def-card">
+  <div class="ship-def-header" tabindex="0" role="button" aria-expanded="false">
+    <ship-icon name="git-merge" size="sm" tone="muted"></ship-icon>
+    <span class="ship-def-name">{{ def.name }}</span>
+    <span class="ship-def-desc">{{ def.description }}</span>
+    <span class="ship-def-steps-count">{{ def.step_count }} step{{ 's' if def.step_count != 1 else '' }}</span>
+    <ship-icon name="chevron-right" size="xs" tone="muted"></ship-icon>
+  </div>
+</div>

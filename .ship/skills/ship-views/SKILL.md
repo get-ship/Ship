@@ -1,0 +1,490 @@
+---
+name: ship-views
+stable-id: ship-views
+description: Author Ship views — server-rendered reactive HTML with zero build step. Drop a file in .ship/views/<name>/, reload the page, see changes. Uses the Ship View SDK (Jinja macros + ship-elements + Datastar under the hood). This is the primary skill for building Ship extensions.
+tags: [views, sdk, extension-authoring, jinja, datastar, ship-elements]
+authors: [ship]
+---
+
+# Ship Views — The Extension Authoring Surface
+
+A Ship view is a server-rendered reactive HTML page that updates live via SSE, responds to user actions via Datastar attributes, and is composed from the Ship component library (ship-elements). You author it as a single `.html.j2` file in `.ship/views/<name>/`. No build step. No framework. Edit the file, refresh the browser, see your changes.
+
+**This is how you build extensions on Ship.**
+
+## Quick start — a minimal view in 30 seconds
+
+Create `.ship/views/hello/index.html.j2`:
+
+```jinja
+{% from '_ship.html.j2' import head, signal, show %}
+<!DOCTYPE html>
+<html>
+<head>{{ head('Hello') }}</head>
+<body>
+<div class="ship-view" {{ signal('message', 'world') }}>
+  <ship-card style="max-width: 40rem; margin: 40px auto; padding: 24px;">
+    <h1 style="font-family: var(--font-display);">Hello, <span data-text="$message"></span>!</h1>
+    <ship-input data-bind="message" placeholder="Type your name"></ship-input>
+  </ship-card>
+</div>
+</body>
+</html>
+```
+
+Load `http://localhost:3000/hello`. Type. The heading updates as you type. No JS. No build.
+
+## The SDK — always import from `_ship.html.j2`
+
+Every view starts with:
+
+```jinja
+{% from '_ship.html.j2' import head, signal, show, live, loading, spinner,
+   create, update, delete, form, table, styles,
+   get, post, put, navigate, on, bind, attr,
+   tab, tab_panel, chip, chip_all, search, radio, confirm_delete %}
+```
+
+These are all the macros you need. They hide Datastar syntax, wrap common patterns, and enforce consistency. **Don't write raw `data-on:click`, `data-signals:`, etc. — use the macros.** Raw Datastar is an escape hatch for rare cases.
+
+## The component library — ship-elements
+
+Every UI element is a `<ship-*>` web component. They style themselves. They handle keyboard, focus, and accessibility. You compose them like HTML.
+
+### Buttons — get this right first
+
+**The button model has two orthogonal attributes:**
+
+| Attribute | Purpose | Values |
+|-----------|---------|--------|
+| `tone` | Semantic color meaning | `default`, `info`, `success`, `warning`, `destructive`, `accent`, `muted` |
+| `variant` | Visual style | `solid`, `soft`, `outline`, `ghost` |
+
+**These are not interchangeable.** `variant="destructive"` is wrong — destructive is a tone, not a variant.
+
+**CTA cookbook:**
+
+```jinja
+{# Primary action — colored, prominent #}
+<ship-button tone="accent" variant="solid">Save</ship-button>
+
+{# Destructive action — soft red, not shouty #}
+<ship-button tone="destructive" variant="soft">Delete</ship-button>
+
+{# Secondary/cancel — no color, subtle #}
+<ship-button variant="ghost">Cancel</ship-button>
+
+{# Irreversible high-risk — solid red #}
+<ship-button tone="destructive" variant="solid">Permanently delete</ship-button>
+
+{# Icon-only — needs aria-label #}
+<ship-button variant="ghost" aria-label="Settings">
+  <ship-icon slot="leading" name="settings"></ship-icon>
+</ship-button>
+
+{# With loading indicator #}
+<ship-button tone="accent" variant="solid"
+  {{ create('task', '$form') }}
+  {{ loading('_creating') }}>
+  Create
+</ship-button>
+```
+
+### Inputs and selects
+
+```jinja
+<ship-input data-bind="form.title" placeholder="Title"></ship-input>
+<ship-textarea data-bind="form.notes" rows="3"></ship-textarea>
+<ship-switch data-bind="form.enabled"></ship-switch>
+
+{# IMPORTANT: ship-select uses native <option>, NOT <ship-option> #}
+<ship-select data-bind="status">
+  <option value="todo">To do</option>
+  <option value="doing" selected>Doing</option>
+  <option value="done">Done</option>
+</ship-select>
+
+{# IMPORTANT: listen for 'ship-change', NOT 'ship-select-change' #}
+<ship-select {{ on('ship-change', '$status = evt.detail.value') }}>
+  ...
+</ship-select>
+```
+
+### Common components (reach for these first)
+
+| Need | Use |
+|------|-----|
+| Button | `<ship-button tone="..." variant="...">` |
+| Text input | `<ship-input>` |
+| Multi-line input | `<ship-textarea>` |
+| Dropdown | `<ship-select>` (native `<option>` children) |
+| Toggle | `<ship-switch>` |
+| Checkbox | `<ship-checkbox>` |
+| Card/panel | `<ship-card>` |
+| Toolbar/button group | `<ship-toolbar>` |
+| Tag/filter chip | `<ship-chip>` |
+| Status label | `<ship-badge>` |
+| Divider | `<ship-separator>` |
+| Empty state | `<ship-empty-state>` |
+| Status indicator | `<ship-status-dot>` |
+| Icon | `<ship-icon name="...">` |
+| Timestamp | `<ship-timestamp>` |
+| Tabs | `<ship-tabs>` + `<ship-tab>` + `<ship-tab-panel>` |
+| Dialog | `<ship-dialog>` |
+| Toast | `<ship-toast>` |
+
+Full list: `GET /api/runtime/assets/ship-elements.md` (served by the daemon).
+
+## The manifest — declarative data + events
+
+Every view has `.ship/views/<name>/manifest.yaml`:
+
+```yaml
+name: my-view
+type: html
+
+# What data the daemon loads into Jinja context on initial render
+data:
+  collections: all           # load all collection schemas
+  items: $collection         # load items for the active collection signal
+
+# What kernel events trigger SSE re-renders
+events:
+  - collection.item_created
+  - collection.item_updated
+  - collection.item_deleted
+```
+
+Available `data:` loaders: `collections`, `agents`, `skills`, `settings`, `events_data`, `specs`, `chat`, `pipelines`, `git`.
+
+Events: any kernel namespace prefix (`collection.`, `job.`, `workspace.`, `config.`, etc.) or empty string for all events.
+
+## Working with collections — the primary data story
+
+Collections are structured data tables defined by JSON schema. They're the extension author's main data surface.
+
+### Schema definition
+
+`.ship/schemas/task.jsonc`:
+```jsonc
+{
+  "id": "task",
+  "name": "Task",
+  "fields": {
+    "title":    { "type": "string", "required": true },
+    "status":   { "type": "enum", "values": ["todo", "doing", "done"] },
+    "priority": { "type": "number" },
+    "done":     { "type": "boolean" }
+  }
+}
+```
+
+### Querying from templates
+
+```jinja
+{# Load ALL items #}
+{% for task in ship_items('task') %}
+  <div>{{ task.data.title }}</div>
+{% endfor %}
+
+{# Query with SQL pushdown (Django-style operators) #}
+{% for task in ship_query('task', {
+    status: 'active',
+    priority__gte: 3,
+    _sort: '-priority',
+    _limit: 20
+}) %}
+  <div>{{ task.data.title }}</div>
+{% endfor %}
+
+{# Load schema for auto-forms #}
+{% set schema = ship_schema('task') %}
+
+{# List all available collections #}
+{% for c in ship_collections() %}
+  <option value="{{ c.id }}">{{ c.name }} ({{ c.field_count }})</option>
+{% endfor %}
+```
+
+Filter operators: `field__eq` (shorthand: just `field`), `field__ne`, `field__gt`, `field__gte`, `field__lt`, `field__lte`, `field__in`, `field__nin`, `field__contains`, `field__exists`. `_or` for OR groups. `_sort` (prefix `-` for desc), `_limit`, `_offset`.
+
+### CRUD actions
+
+Use SDK macros — they output Datastar attributes composed onto elements:
+
+```jinja
+{# Create #}
+<ship-button {{ create('task', '$form') }} {{ loading('_creating') }}>
+  Create
+</ship-button>
+
+{# Update #}
+<ship-button {{ update('task', item.id, '$form') }}>Save</ship-button>
+
+{# Delete #}
+<ship-button {{ delete('task', item.id) }}>Delete</ship-button>
+
+{# Delete with confirmation #}
+<ship-button {{ confirm_delete('task', item.id) }}>Delete</ship-button>
+```
+
+### Auto-form and auto-table
+
+For full CRUD, use the generated macros:
+
+```jinja
+{# Generates typed inputs for every schema field, bound to $form #}
+{{ form(schema, 'task') }}
+
+{# Generates a data table with typed cells and per-row delete buttons #}
+{{ table(schema, items, 'task') }}
+```
+
+## Reactivity — signals and SSE
+
+### Signals (client state)
+
+```jinja
+{# Declare a signal with default value #}
+<div class="ship-view"
+     {{ signal('collection', 'task') }}
+     {{ signal('_showForm', false) }}
+     {{ signal('form', {}) }}>
+  ...
+</div>
+```
+
+Signals starting with `_` are **local** (not sent to server — use for UI state like `_showForm`, `_creating`).
+
+### Reactive patterns
+
+```jinja
+{# Show/hide #}
+<ship-card {{ show('$_showForm') }}>...</ship-card>
+
+{# Toggle class #}
+<div {{ toggle_class('active', '$tab == "details"') }}>...</div>
+
+{# Reactive attribute #}
+<ship-chip {{ attr('selected', '$status == "active"') }}>Active</ship-chip>
+
+{# Two-way input binding #}
+<ship-input {{ bind('form.title') }}></ship-input>
+
+{# Display a signal value #}
+<span data-text="$count"></span>
+```
+
+### SSE — long-lived reads
+
+```jinja
+{# Subscribe to the view's own SSE stream #}
+<div {{ live('my-view') }}>
+  <div id="my-view-content">Loading...</div>
+</div>
+```
+
+The daemon's generic SSE handler reads your manifest `events:` list, subscribes to those kernel events, re-renders `partials/content.html.j2` on each, and pushes via Datastar's `datastar-patch-elements`.
+
+**CQRS pattern:** reads flow over SSE (long-lived `@get`), writes are short-lived `@post`/`@delete` (the read stream pushes the visual update).
+
+## Design tokens
+
+Everything uses CSS custom properties from `view-tokens.css`:
+
+| Category | Tokens |
+|----------|--------|
+| Spacing | `--space-1` through `--space-8` (4/8/12/16/20/24/32/40px) |
+| Typography | `--text-xs` through `--text-4xl` |
+| Font weight | `--font-weight-normal/medium/semibold/bold` |
+| Radii | `--radius-sm/md/lg/xl/full` |
+| Colors (semantic) | `--foreground`, `--background`, `--muted`, `--muted-foreground`, `--border`, `--card`, `--primary`, `--accent`, `--destructive`, `--success`, `--info`, `--warning` |
+| Fonts | `--font-body`, `--font-display`, `--font-mono` |
+| Motion | `--duration-fast/medium/slow`, `--ease-out/in/in-out` |
+
+**Don't hardcode px or hex values.** Use tokens.
+
+## Gotchas (hard-won)
+
+### Ship-elements quirks
+
+- `ship-select` uses native `<option>` children. `<ship-option>` does not exist.
+- `ship-select` emits `ship-change`, not `ship-select-change`.
+- `ship-button` uses `tone` for color meaning, `variant` for style. `variant="destructive"` is wrong.
+- Icon-only buttons need `aria-label`.
+
+### Jinja in the view env
+
+- Auto-escape is **off** in view templates (so Datastar attribute values with quotes/slashes work).
+- `tojson` filter doesn't exist in minijinja. Use `is string`/`is none` checks.
+- `{% if %}` tags don't work inside `{{ macro() }}` string arguments. Use ternary: `(value if cond else "")`.
+- URL macros from `_urls.html.j2` emit relative paths (`/api/...`), not absolute URLs.
+
+### Datastar expressions
+
+- String signal values are wrapped in single quotes: `$collection` evaluates to `'task'`, not `task`.
+- Multiple statements: separate with semicolons. `data-on:click="$tab = 'new'; @get('/sse')"`
+- Loading indicators pair with a signal that can be ANY name, conventionally `_creating`, `_loading`, `_sending`.
+
+### CQRS patterns
+
+- Writes (`@post`, `@delete`) don't need to render anything — the SSE read stream pushes the visual update via kernel events.
+- One long-lived `@get(/sse)` per view. Multiple SSE connections is an anti-pattern.
+
+## Example: full CRUD view in 50 lines
+
+`.ship/views/tasks/manifest.yaml`:
+```yaml
+name: tasks
+type: html
+data:
+  collections: [task]
+  items: $collection
+events:
+  - collection.
+```
+
+`.ship/views/tasks/index.html.j2`:
+```jinja
+{% from '_ship.html.j2' import head, signal, show, live, create, loading, spinner, form, styles %}
+<!DOCTYPE html>
+<html>
+<head>{{ head('Tasks') }}{{ styles() }}</head>
+<body>
+<div class="ship-view"
+     {{ signal('_showForm', false) }}
+     {{ signal('_creating', false) }}
+     {{ signal('form', {}) }}>
+  <div style="max-width: 72rem; margin: 0 auto; padding: var(--space-6) var(--space-4);">
+
+    <h1 style="font-family: var(--font-display); font-size: var(--text-2xl);">Tasks</h1>
+
+    <ship-toolbar style="margin: var(--space-4) 0;">
+      <ship-button tone="accent" variant="solid"
+        data-on:click="$_showForm = !$_showForm">
+        <ship-icon slot="leading" name="plus"></ship-icon>New task
+      </ship-button>
+    </ship-toolbar>
+
+    <ship-card {{ show('$_showForm') }} style="margin-bottom: var(--space-4);">
+      {{ form(ship_schema('task'), 'task') }}
+      <ship-separator></ship-separator>
+      <div style="display:flex; gap:var(--space-2); margin-top:var(--space-3);">
+        <ship-button tone="accent" variant="solid"
+          {{ create('task', '$form') }}
+          {{ loading('_creating') }}>Create</ship-button>
+        <ship-button variant="ghost"
+          data-on:click="$_showForm = false">Cancel</ship-button>
+        {{ spinner('_creating') }}
+      </div>
+    </ship-card>
+
+    <div {{ live('tasks') }}>
+      <div id="tasks-content">Loading...</div>
+    </div>
+  </div>
+</div>
+</body>
+</html>
+```
+
+`.ship/views/tasks/partials/content.html.j2`:
+```jinja
+{% from '_ship.html.j2' import table %}
+<div id="tasks-content">
+  {% if items | length > 0 %}
+    {{ table(schema, items, 'task') }}
+  {% else %}
+    <ship-empty-state>
+      <span slot="title">No tasks yet</span>
+      <span slot="description">Click + New task to create one</span>
+    </ship-empty-state>
+  {% endif %}
+</div>
+```
+
+That's it. Full CRUD with live updates, auto-generated form and table, proper button semantics, design tokens throughout. Edit the file, refresh, see changes.
+
+## The iteration loop
+
+Ship's view authoring is a co-evolving system. If you hit a pattern the SDK doesn't cover well, or a component that doesn't look right:
+
+1. **Don't work around it in templates** — that's how the SDK rots.
+2. **File the gap.** Add a `{#- SDK gap: ... -#}` comment in the template.
+3. **Escalate:** either (a) improve the macro in `_ship.html.j2`, (b) fix the ship-element component, or (c) add a Jinja filter in `view_filters.rs`.
+4. **Dogfood first, document after.** Views must prove patterns before they become recommendations.
+
+Today the SDK covers collections CRUD, forms, tables, navigation, actions, reactivity, live updates, filter chips, tabs, search, and confirmation. It doesn't yet cover inline edit, complex validation, optimistic UI, drag-and-drop. Those come next.
+
+## Reference — all SDK macros
+
+Import from `_ship.html.j2`.
+
+### Page setup
+- `head(title)` — standard `<head>` contents
+- `styles()` — standard CSS utility classes
+
+### Signals
+- `signal(name, default)` — declare a reactive signal
+- `show(expr)` — hide when expr is false (with display:none to prevent flash)
+- `toggle_class(cls, expr)` — reactive class toggle
+- `attr(name, expr)` — reactive attribute
+- `bind(signal_name)` — two-way input binding
+
+### Events
+- `on(event, expr)` — generic event listener (use for custom events like `ship-change`)
+- `live(view_name)` — long-lived SSE subscription
+- `live_persistent(view_name)` — SSE with `requestCancellation: 'disabled'`
+
+### Actions
+- `get(url)` / `post(url, payload)` / `put(url, payload)` / `delete(url)` — HTTP actions
+- `put_on_change(url, payload)` — PUT on input change
+- `submit(url, payload)` — POST on form submit
+- `navigate(url)` / `view(name)` — navigation
+
+### Collection actions
+- `create(collection, data)` — POST new item
+- `update(collection, id, data)` — PUT item
+- `delete(collection, id)` — DELETE item
+- `confirm_delete(collection, id)` — DELETE with confirm dialog
+
+### Job actions
+- `create_job(agent, pipeline?)` — POST new job
+- `emit(event_type, data)` — emit kernel event
+
+### UI patterns
+- `loading(signal_name)` — `data-indicator`
+- `spinner(signal_name)` — inline spinner element
+- `form(schema, collection)` — auto-generate form fields from schema
+- `table(schema, items, collection)` — auto-generate data table
+- `tab(signal, value)` / `tab_panel(signal, value)` — tab UI
+- `chip(signal, value, view?)` / `chip_all(signal, view?)` — filter chips
+- `search(signal, view, delay?)` — debounced search input
+- `on_change_debounced(expr, delay?)` — debounced change handler
+- `radio(signal, value)` — radio-style selection
+- `confirm(message, action)` — confirm before action
+
+## Reference — Jinja functions
+
+- `ship_items(collection)` — all items from a collection
+- `ship_query(collection, opts)` — SQL-pushdown query (see filter operators above)
+- `ship_schema(collection)` — collection schema
+- `ship_collections()` — all collection definitions
+- `ship_agents()` / `ship_agent(id)` — agent configs
+- `ship_skills()` — skill configs
+
+## Reference — Jinja list filters
+
+- `items | where('field', value)` — equality
+- `items | where('field', '>=', value)` — comparison
+- `items | sort_by('field')` / `items | sort_by('field', true)` — sort
+- `items | take(n)` — limit
+
+These work on any list — they're general utilities, not collection-specific. For collection queries, prefer `ship_query` (SQL pushdown vs memory filter).
+
+## See also
+
+- `ship-components` skill — the web component library catalog
+- `.artifacts/specs/view-sdk-design.md` — SDK architecture decisions
+- `apps/shipd/templates/_ship.html.j2` — the canonical macro source
+- `.ship/views/data/` — reference implementation of the patterns above

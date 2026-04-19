@@ -1,18 +1,27 @@
 /**
  * <ship-skeleton>
  *
- * Animated shimmer placeholder for loading states.
+ * Shimmer placeholder for loading states.
  *
  * Attributes:
  *   - variant: text | circle | rect (default text)
- *   - width: CSS width value
- *   - height: CSS height value
- *   - lines: integer — number of text lines (variant=text only, default 1)
+ *   - width: CSS width value (default "100%")
+ *   - height: CSS height value (text=16px, circle=40px, rect=100px)
+ *   - lines: number of text lines (variant=text only, default 1)
+ *   - animate: boolean, default true — set to false to disable shimmer
  */
 
 import { LitElement, css, html } from 'lit'
 
 export type SkeletonVariant = 'text' | 'circle' | 'rect'
+
+const HEIGHTS: Record<SkeletonVariant, string> = {
+  text: '16px',
+  circle: '40px',
+  rect: '100px',
+}
+
+const LINE_WIDTHS = ['100%', '80%', '60%']
 
 export class ShipSkeleton extends LitElement {
   static styles = css`
@@ -26,18 +35,20 @@ export class ShipSkeleton extends LitElement {
         var(--muted) 100%
       );
       background-size: 200% 100%;
-      animation: shimmer var(--duration-slow) linear infinite;
-      border-radius: var(--radius-sm);
+      animation: shimmer 1.8s ease-in-out infinite;
+      border-radius: 9999px;
     }
+    :host(:not([animate])) .bar,
+    :host([animate='false']) .bar { animation: none; }
     :host([variant='circle']) .bar { border-radius: var(--radius-full); }
     :host([variant='rect']) .bar { border-radius: var(--radius-md); }
-    :host([variant='text']) .bar { height: 0.9em; }
     :host([variant='text']) .bar + .bar { margin-top: 6px; }
-    :host([variant='text']) .bar:last-child { width: 65%; }
-    :host([variant='text']) .bar:only-child { width: 100%; }
     @keyframes shimmer {
       0% { background-position: 200% 0; }
       100% { background-position: -200% 0; }
+    }
+    @media (prefers-reduced-motion: reduce) {
+      .bar { animation: none; }
     }
   `
 
@@ -46,25 +57,37 @@ export class ShipSkeleton extends LitElement {
     width: { type: String },
     height: { type: String },
     lines: { type: Number },
+    animate: { type: Boolean, reflect: true },
   }
 
   variant: SkeletonVariant = 'text'
   width = ''
   height = ''
   lines = 1
+  animate = true
 
-  private styleFor(): string {
+  connectedCallback() {
+    super.connectedCallback()
+    if (!this.hasAttribute('role')) this.setAttribute('role', 'status')
+    if (!this.hasAttribute('aria-live')) this.setAttribute('aria-live', 'polite')
+    if (!this.hasAttribute('aria-busy')) this.setAttribute('aria-busy', 'true')
+    if (!this.hasAttribute('aria-label')) this.setAttribute('aria-label', 'Loading')
+  }
+
+  private barStyle(index: number, count: number): string {
     const parts: string[] = []
-    if (this.width) parts.push(`width:${this.width}`)
-    if (this.height) parts.push(`height:${this.height}`)
+    const w = this.width || (this.variant === 'text' && count > 1
+      ? LINE_WIDTHS[Math.min(index, LINE_WIDTHS.length - 1)]
+      : '100%')
+    parts.push(`width:${w}`)
+    parts.push(`height:${this.height || HEIGHTS[this.variant]}`)
     return parts.join(';')
   }
 
   render() {
     const count = this.variant === 'text' ? Math.max(1, this.lines || 1) : 1
-    const s = this.styleFor()
-    return html`${Array.from({ length: count }).map(() => html`
-      <span class="bar" part="bar" style=${s}></span>
+    return html`${Array.from({ length: count }, (_, i) => html`
+      <span class="bar" part="bar" style=${this.barStyle(i, count)}></span>
     `)}`
   }
 }

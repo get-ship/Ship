@@ -1,0 +1,25 @@
+{#- Agents SSE content partial. Target: <div id="agents-content">.
+    Context: agents (Vec<AgentSummary>), total (usize). -#}
+{% from '_ship.html.j2' import get, post %}
+{% from '_urls.html.j2' import view_agent_detail, view_agents_create %}
+<div id="agents-content">
+  {% if agents | length == 0 %}
+    <ship-empty-state icon="sparkles" variant="default" size="lg">
+      <span slot="title">No agents yet</span>
+      Drop a JSONC file under
+      <code style="font-family:var(--font-mono);font-size:var(--text-xs);padding:2px var(--radius-md);border-radius:var(--radius-sm);background:var(--muted);color:var(--foreground)">.ship/agents/</code>
+      or create one from the Studio.
+      <ship-button slot="action" tone="accent" variant="solid"
+        {{ post(view_agents_create(), '{}') }}>
+        <ship-icon slot="leading" name="plus"></ship-icon>
+        New agent
+      </ship-button>
+    </ship-empty-state>
+  {% else %}
+    <div class="agents-grid">
+      {% for a in agents %}
+        {% include 'agents/partials/card.html.j2' %}
+      {% endfor %}
+    </div>
+  {% endif %}
+</div>

@@ -60,6 +60,11 @@ export class ShipLogLine extends LitElement {
   timestamp?: string
   source?: string
 
+  connectedCallback() {
+    super.connectedCallback()
+    if (!this.hasAttribute('role')) this.setAttribute('role', 'listitem')
+  }
+
   render() {
     return html`
       ${this.timestamp ? html`<span class="ts" part="timestamp">${this.timestamp}</span>` : html`<span></span>`}

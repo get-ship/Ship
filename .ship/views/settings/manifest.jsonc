@@ -1,0 +1,5 @@
+{
+  "name": "settings",
+  "type": "html",
+  "description": "Workspace, project, agent, and integration configuration"
+}

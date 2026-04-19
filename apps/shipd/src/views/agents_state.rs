@@ -1,12 +1,23 @@
 //! Agent discovery helpers for the `agents` daemon-rendered view.
 //!
-//! Reads agent configs from `<ship_dir>/agents/*.{jsonc,json}`. JSONC is
-//! stripped locally to stay independent of the compiler crate (we don't
-//! need full grammar-accurate parsing — just line/block comments and
-//! trailing commas to feed serde_json).
+//! Reads agent configs from `<ship_dir>/agents/*.{jsonc,json}` across two
+//! scopes and merges them — project (discovered from cwd via
+//! `runtime::project::get_project_dir`) wins over global on id collision.
+//! Each summary/detail carries a `source` field so the view can group the
+//! rail by scope.
+//!
+//! JSONC parsing lives in the sibling `agents_jsonc` module.
 
 use serde::Serialize;
-use std::path::Path;
+use std::collections::HashSet;
+use std::path::{Path, PathBuf};
+
+use super::agents_jsonc::{first_letter, parse_file, resolve_array_field};
+
+// Re-export helpers whose names tests refer to directly (via `super::*`
+// in the sibling tests file). Canonical home is `agents_jsonc`.
+#[cfg(test)]
+pub(crate) use super::agents_jsonc::strip_jsonc;
 
 #[derive(Clone, Debug, Serialize)]
 pub struct AgentSummary {
@@ -19,6 +30,7 @@ pub struct AgentSummary {
     pub rules_count: usize,
     /// First letter of `name` uppercased, for the avatar glyph.
     pub letter: String,
+    pub source: String,
 }
 
 #[derive(Clone, Debug, Serialize)]
@@ -33,119 +45,42 @@ pub struct AgentDetail {
     pub providers: Vec<String>,
     pub default_provider: Option<String>,
     pub permissions_tier: String,
+    pub source: String,
 }
 
-pub(crate) fn strip_jsonc(input: &str) -> String {
-    let mut out = String::with_capacity(input.len());
-    let mut in_block = false;
-    let mut in_str = false;
-    let mut it = input.chars().peekable();
-    while let Some(c) = it.next() {
-        if in_block {
-            if c == '*' && it.peek() == Some(&'/') {
-                it.next();
-                in_block = false;
-            }
-            continue;
-        }
-        if in_str {
-            out.push(c);
-            if c == '\\' {
-                if let Some(&n) = it.peek() {
-                    out.push(n);
-                    it.next();
-                }
-            } else if c == '"' {
-                in_str = false;
-            }
-            continue;
-        }
-        if c == '"' {
-            in_str = true;
-            out.push(c);
-            continue;
-        }
-        if c == '/' {
-            match it.peek() {
-                Some(&'/') => {
-                    for r in it.by_ref() {
-                        if r == '\n' {
-                            out.push('\n');
-                            break;
-                        }
-                    }
-                    continue;
-                }
-                Some(&'*') => {
-                    it.next();
-                    in_block = true;
-                    continue;
-                }
-                _ => {}
-            }
-        }
-        out.push(c);
-    }
-    let bytes = out.as_bytes();
-    let mut cleaned = String::with_capacity(out.len());
-    let mut i = 0;
-    while i < bytes.len() {
-        if bytes[i] == b',' {
-            let mut j = i + 1;
-            while j < bytes.len() && bytes[j].is_ascii_whitespace() {
-                j += 1;
-            }
-            if j < bytes.len() && (bytes[j] == b'}' || bytes[j] == b']') {
-                i += 1;
-                continue;
-            }
-        }
-        cleaned.push(bytes[i] as char);
-        i += 1;
-    }
-    cleaned
+/// Source label for project-scoped agents (enclosing `.ship/` of cwd).
+pub const SOURCE_PROJECT: &str = "PROJECT AGENTS";
+/// Source label for global-scoped agents (`~/.ship/agents/`).
+pub const SOURCE_GLOBAL: &str = "USER AGENTS";
+
+/// Resolved search roots for the two scopes.
+pub(crate) struct AgentScopes {
+    pub global_dir: PathBuf,
+    pub project_dir: Option<PathBuf>,
 }
 
-pub(crate) fn first_letter(s: &str) -> String {
-    s.chars()
-        .next()
-        .map(|c| c.to_ascii_uppercase().to_string())
-        .unwrap_or_else(|| "?".to_string())
+fn resolve_scopes(ship_dir: &Path) -> AgentScopes {
+    let project_ship = runtime::project::get_project_dir(None)
+        .ok()
+        .filter(|p| p != ship_dir);
+    scopes_from(ship_dir, project_ship.as_deref())
 }
 
-fn parse_file(path: &Path) -> Option<(String, serde_json::Value)> {
-    let id = path.file_stem().and_then(|s| s.to_str())?.to_string();
-    let raw = std::fs::read_to_string(path).ok()?;
-    let json_str = strip_jsonc(&raw);
-    let parsed: serde_json::Value = serde_json::from_str(&json_str).ok()?;
-    Some((id, parsed))
+/// Build scopes for an explicit (global, project) pair. Tests call this to
+/// inject both sides without touching the process-global `SHIP_DIR` env var.
+pub(crate) fn scopes_from(
+    ship_dir: &Path,
+    project_ship_dir: Option<&Path>,
+) -> AgentScopes {
+    let global_dir = ship_dir.join("agents");
+    let project_dir = project_ship_dir
+        .filter(|p| *p != ship_dir)
+        .map(|p| p.join("agents"));
+    AgentScopes { global_dir, project_dir }
 }
 
-fn extract_str_array(v: &serde_json::Value) -> Vec<String> {
-    v.as_array()
-        .map(|arr| {
-            arr.iter()
-                .filter_map(|item| match item {
-                    serde_json::Value::String(s) => Some(s.clone()),
-                    serde_json::Value::Object(map) => map
-                        .get("id")
-                        .or_else(|| map.get("name"))
-                        .and_then(|x| x.as_str())
-                        .map(|s| s.to_string()),
-                    _ => None,
-                })
-                .collect()
-        })
-        .unwrap_or_default()
-}
-
-/// List agents from `<ship_dir>/agents/*.{jsonc,json}`.
-pub fn list_agents(ship_dir: &Path) -> Vec<AgentSummary> {
-    let dir = ship_dir.join("agents");
-    let entries = match std::fs::read_dir(&dir) {
-        Ok(e) => e,
-        Err(_) => return Vec::new(),
-    };
+fn scan_agents_dir(dir: &Path, source: &str) -> Vec<AgentSummary> {
+    let Ok(entries) = std::fs::read_dir(dir) else { return Vec::new() };
     let mut out = Vec::new();
     for entry in entries.flatten() {
         let path = entry.path();
@@ -165,17 +100,14 @@ pub fn list_agents(ship_dir: &Path) -> Vec<AgentSummary> {
             .and_then(|v| v.as_str())
             .unwrap_or("")
             .to_string();
-        let skills = parsed.get("skills").map(extract_str_array).unwrap_or_default();
-        let providers = agent_obj
-            .get("providers")
-            .map(extract_str_array)
-            .unwrap_or_default();
-        let mcp = parsed
-            .get("mcp_servers")
-            .or_else(|| parsed.get("mcpServers"))
-            .map(extract_str_array)
-            .unwrap_or_default();
-        let rules = parsed.get("rules").map(extract_str_array).unwrap_or_default();
+        let skills = resolve_array_field(&parsed, &["skills"], &["refs", "ids"]);
+        let providers = resolve_array_field(agent_obj, &["providers"], &["ids"]);
+        let mcp = resolve_array_field(
+            &parsed,
+            &["mcp_servers", "mcpServers", "mcp"],
+            &["servers", "refs"],
+        );
+        let rules = resolve_array_field(&parsed, &["rules"], &["refs", "ids"]);
         let letter = first_letter(&name);
         out.push(AgentSummary {
             id,
@@ -186,15 +118,13 @@ pub fn list_agents(ship_dir: &Path) -> Vec<AgentSummary> {
             mcp_count: mcp.len(),
             rules_count: rules.len(),
             letter,
+            source: source.to_string(),
         });
     }
-    out.sort_by(|a, b| a.name.cmp(&b.name));
     out
 }
 
-/// Load a single agent by id.
-pub fn load_agent(ship_dir: &Path, id: &str) -> Option<AgentDetail> {
-    let dir = ship_dir.join("agents");
+fn load_from_dir(dir: &Path, id: &str, source: &str) -> Option<AgentDetail> {
     for ext in ["jsonc", "json"] {
         let path = dir.join(format!("{id}.{ext}"));
         if !path.is_file() {
@@ -212,28 +142,32 @@ pub fn load_agent(ship_dir: &Path, id: &str) -> Option<AgentDetail> {
             .and_then(|v| v.as_str())
             .unwrap_or("")
             .to_string();
-        let skills = parsed.get("skills").map(extract_str_array).unwrap_or_default();
-        let providers = agent_obj
-            .get("providers")
-            .map(extract_str_array)
-            .unwrap_or_default();
-        let mcp_servers = parsed
-            .get("mcp_servers")
-            .or_else(|| parsed.get("mcpServers"))
-            .map(extract_str_array)
-            .unwrap_or_default();
-        let rules = parsed.get("rules").map(extract_str_array).unwrap_or_default();
+        let skills = resolve_array_field(&parsed, &["skills"], &["refs", "ids"]);
+        let providers = resolve_array_field(agent_obj, &["providers"], &["ids"]);
+        let mcp_servers = resolve_array_field(
+            &parsed,
+            &["mcp_servers", "mcpServers", "mcp"],
+            &["servers", "refs"],
+        );
+        let rules = resolve_array_field(&parsed, &["rules"], &["refs", "ids"]);
         let default_provider = agent_obj
             .get("default_provider")
             .or_else(|| agent_obj.get("defaultProvider"))
             .or_else(|| agent_obj.get("provider"))
             .and_then(|v| v.as_str())
             .map(|s| s.to_string());
-        let permissions_tier = parsed
-            .get("permissions")
-            .and_then(|p| p.get("tier").and_then(|t| t.as_str()))
-            .unwrap_or("standard")
-            .to_string();
+        // Permissions tier lives under `permissions.tier` (flat) or — for
+        // project configs that use the preset name — `permissions.preset`
+        // with a `ship-<tier>` prefix. Strip the prefix to canonicalize.
+        let permissions_obj = parsed.get("permissions");
+        let permissions_tier = permissions_obj
+            .and_then(|p: &serde_json::Value| p.get("tier").and_then(|t: &serde_json::Value| t.as_str()).map(|s: &str| s.to_string()))
+            .or_else(|| {
+                permissions_obj
+                    .and_then(|p: &serde_json::Value| p.get("preset").and_then(|t: &serde_json::Value| t.as_str()))
+                    .map(|s: &str| s.trim_start_matches("ship-").to_string())
+            })
+            .unwrap_or_else(|| "standard".to_string());
         return Some(AgentDetail {
             id: file_id,
             name: name.clone(),
@@ -245,92 +179,54 @@ pub fn load_agent(ship_dir: &Path, id: &str) -> Option<AgentDetail> {
             providers,
             default_provider,
             permissions_tier,
+            source: source.to_string(),
         });
     }
     None
 }
 
-#[cfg(test)]
-mod tests {
-    use super::*;
-    use tempfile::tempdir;
-
-    fn write_agent(ship_dir: &Path, id: &str, body: &str) {
-        let d = ship_dir.join("agents");
-        std::fs::create_dir_all(&d).unwrap();
-        std::fs::write(d.join(format!("{id}.jsonc")), body).unwrap();
-    }
-
-    #[test]
-    fn empty_dir_returns_empty_vec() {
-        let tmp = tempdir().unwrap();
-        assert!(list_agents(tmp.path()).is_empty());
-    }
-
-    #[test]
-    fn parses_flat_and_nested_shapes() {
-        let tmp = tempdir().unwrap();
-        write_agent(
-            tmp.path(),
-            "coder",
-            r#"{
-                // flat shape
-                "name": "Coder",
-                "description": "Writes code.",
-                "skills": ["tdd", "refactor"],
-                "providers": ["claude", "codex"],
-                "mcp_servers": ["ship"]
-            }"#,
-        );
-        write_agent(
-            tmp.path(),
-            "reviewer",
-            r#"{
-                "agent": { "name": "Reviewer", "description": "Reviews PRs.", "providers": ["claude"] },
-                "skills": [{"id": "review"}, "style"],
-                "rules": ["kind", "clear"]
-            }"#,
-        );
-        let out = list_agents(tmp.path());
-        assert_eq!(out.len(), 2);
-        assert_eq!(out[0].name, "Coder");
-        assert_eq!(out[0].skills_count, 2);
-        assert_eq!(out[0].providers_count, 2);
-        assert_eq!(out[0].mcp_count, 1);
-        assert_eq!(out[0].letter, "C");
-        assert_eq!(out[1].name, "Reviewer");
-        assert_eq!(out[1].skills_count, 2);
-        assert_eq!(out[1].rules_count, 2);
-    }
-
-    #[test]
-    fn load_agent_returns_none_for_missing() {
-        let tmp = tempdir().unwrap();
-        assert!(load_agent(tmp.path(), "nope").is_none());
-    }
-
-    #[test]
-    fn load_agent_returns_detail_with_defaults() {
-        let tmp = tempdir().unwrap();
-        write_agent(
-            tmp.path(),
-            "coder",
-            r#"{ "name": "Coder", "description": "Writes code." }"#,
-        );
-        let d = load_agent(tmp.path(), "coder").unwrap();
-        assert_eq!(d.name, "Coder");
-        assert_eq!(d.permissions_tier, "standard");
-        assert_eq!(d.letter, "C");
-    }
-
-    #[test]
-    fn strip_jsonc_handles_comments() {
-        let src = r#"{
-            // line
-            /* block */
-            "x": 1,
-        }"#;
-        let v: serde_json::Value = serde_json::from_str(&strip_jsonc(src)).unwrap();
-        assert_eq!(v["x"], 1);
-    }
+/// List agents from project (if inside a Ship project) and global scopes.
+/// Project entries shadow global on id collision.
+pub fn list_agents(ship_dir: &Path) -> Vec<AgentSummary> {
+    list_agents_with_scopes(&resolve_scopes(ship_dir))
 }
+
+pub(crate) fn list_agents_with_scopes(scopes: &AgentScopes) -> Vec<AgentSummary> {
+    let mut seen: HashSet<String> = HashSet::new();
+    let mut out = Vec::new();
+    if let Some(dir) = scopes.project_dir.as_ref() {
+        for a in scan_agents_dir(dir, SOURCE_PROJECT) {
+            if seen.insert(a.id.clone()) {
+                out.push(a);
+            }
+        }
+    }
+    for a in scan_agents_dir(&scopes.global_dir, SOURCE_GLOBAL) {
+        if seen.insert(a.id.clone()) {
+            out.push(a);
+        }
+    }
+    out.sort_by(|a, b| a.name.cmp(&b.name));
+    out
+}
+
+/// Load a single agent by id. Project scope wins on collision.
+pub fn load_agent(ship_dir: &Path, id: &str) -> Option<AgentDetail> {
+    load_agent_with_scopes(&resolve_scopes(ship_dir), id)
+}
+
+pub(crate) fn load_agent_with_scopes(
+    scopes: &AgentScopes,
+    id: &str,
+) -> Option<AgentDetail> {
+    if let Some(dir) = scopes.project_dir.as_ref() {
+        if let Some(d) = load_from_dir(dir, id, SOURCE_PROJECT) {
+            return Some(d);
+        }
+    }
+    load_from_dir(&scopes.global_dir, id, SOURCE_GLOBAL)
+}
+
+#[cfg(test)]
+#[path = "agents_state_tests.rs"]
+mod tests;

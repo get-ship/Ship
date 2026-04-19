@@ -1,0 +1,6 @@
+name: canvas
+type: html
+# Canvas workspace: hosts agent-authored documents in docs/<slug>.html.j2.
+# Loads one into the main pane via ?doc=<slug> query param.
+# No data loader — docs are Jinja fragments included by the shell.
+events: []

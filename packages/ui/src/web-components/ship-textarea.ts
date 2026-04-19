@@ -7,8 +7,11 @@
  * Attributes:
  *   - value, placeholder, name, required, disabled, readonly
  *   - rows: number (default 4)
+ *   - tone: default | info | success | warning | destructive | accent | muted
+ *     (tints the focus ring; `invalid` overrides to destructive)
  *   - variant: default | code (default: default)
  *   - size: sm | md (default: md)
+ *   - invalid: boolean — reflects aria-invalid + destructive border + ring
  *   - resize: none | vertical | horizontal | both (default: vertical)
  *
  * Parts:
@@ -18,41 +21,19 @@
  *   - ship-input — CustomEvent { detail: { value } }
  */
 
-import { LitElement, css, html } from 'lit'
-import { MONO } from './util'
+import { LitElement, html, nothing } from 'lit'
+import { shipTextareaStyles } from './ship-textarea.styles'
+import type { Size, Tone } from './util'
 
 export class ShipTextarea extends LitElement {
-  static styles = css`
-    :host { display: block; }
-    textarea {
-      width: 100%;
-      box-sizing: border-box;
-      border: 1px solid var(--border);
-      border-radius: 6px;
-      padding: 12px;
-      background: var(--background);
-      color: var(--foreground);
-      font: inherit;
-      font-family: var(--font-body);
-      line-height: 1.5;
-    }
-    textarea:focus {
-      outline: 2px solid var(--primary);
-      outline-offset: -1px;
-      border-color: transparent;
-    }
-    textarea::placeholder { color: var(--muted-foreground); }
-    textarea:disabled { cursor: not-allowed; opacity: 0.6; }
-
-    :host([variant='code']) textarea {
-      font-family: ${MONO};
-      font-size: 13px;
-    }
-    :host([size='sm']) textarea {
-      padding: 4px 8px;
-      font-size: 12px;
-    }
-  `
+  static formAssociated = true
+  private internals: ElementInternals
+  private defaultValue = ''
+  constructor() {
+    super()
+    this.internals = this.attachInternals()
+  }
+  static styles = shipTextareaStyles
 
   static properties = {
     value: { type: String },
@@ -62,9 +43,13 @@ export class ShipTextarea extends LitElement {
     required: { type: Boolean, reflect: true },
     disabled: { type: Boolean, reflect: true },
     readonly: { type: Boolean, reflect: true },
+    tone: { type: String, reflect: true },
     variant: { type: String, reflect: true },
     size: { type: String, reflect: true },
     resize: { type: String },
+    invalid: { type: Boolean, reflect: true },
+    label: { type: String },
+    describedBy: { type: String, attribute: 'described-by' },
   }
 
   value = ''
@@ -74,11 +59,27 @@ export class ShipTextarea extends LitElement {
   required = false
   disabled = false
   readonly = false
+  tone?: Tone
   variant: 'default' | 'code' = 'default'
-  size: 'sm' | 'md' = 'md'
+  size: Size = 'md'
   resize: 'none' | 'vertical' | 'horizontal' | 'both' = 'vertical'
+  invalid = false
+  label = ''
+  describedBy = ''
+  connectedCallback() {
+    super.connectedCallback()
+    this.defaultValue = this.value
+  }
+  updated() { this.setFormValue(this.value) }
+  formResetCallback() { this.value = this.defaultValue }
+  formStateRestoreCallback(state: string | null) { this.value = state ?? '' }
+  private setFormValue(v: string) {
+    if (typeof this.internals.setFormValue === 'function') this.internals.setFormValue(v)
+  }
+
   private onInput(e: Event) {
     this.value = (e.target as HTMLTextAreaElement).value
+    this.setFormValue(this.value)
     this.dispatchEvent(new CustomEvent('ship-input', {
       detail: { value: this.value }, bubbles: true, composed: true,
     }))
@@ -95,6 +96,10 @@ export class ShipTextarea extends LitElement {
         ?required=${this.required}
         ?disabled=${this.disabled}
         ?readonly=${this.readonly}
+        aria-invalid=${this.invalid ? 'true' : 'false'}
+        aria-required=${this.required ? 'true' : 'false'}
+        aria-label=${this.label || nothing}
+        aria-describedby=${this.describedBy || nothing}
         style="resize: ${this.resize}"
         @input=${this.onInput}
       ></textarea>

@@ -1,0 +1,42 @@
+{#- Skills section. Context: agent (AgentDetail).
+    Parity: apps/web/src/features/agents/sections/SkillsSection.tsx -#}
+<section id="section-skills" class="ad-section">
+  <div class="ad-section-head">
+    <h2 class="ad-section-label">
+      <svg class="ad-section-icon" viewBox="0 0 24 24" fill="none"
+           stroke="currentColor" stroke-width="2" stroke-linecap="round"
+           stroke-linejoin="round">
+        <polygon points="13 2 3 14 12 14 11 22 21 10 12 10 13 2"/>
+      </svg>
+      Skills
+      <span class="ad-section-count">{{ agent.skills | length }} attached</span>
+    </h2>
+    <ship-button class="ad-section-action" variant="outline" size="sm" disabled>
+      <ship-icon slot="leading" name="plus"></ship-icon>
+      Add
+    </ship-button>
+  </div>
+  {% if agent.skills | length == 0 %}
+    <div class="ad-empty">
+      No skills attached. Edit
+      <code style="font-family:var(--font-mono);font-size:var(--text-xs)">.ship/agents/{{ agent.id }}.jsonc</code>
+      to add one.
+    </div>
+  {% else %}
+    <div class="ad-chip-grid">
+      {% for skill in agent.skills %}
+        <div class="ad-chip">
+          <span class="ad-chip-icon ad-chip-icon--skill">{{ skill[:2] }}</span>
+          <div class="ad-chip-body">
+            <div class="ad-chip-name">{{ skill }}</div>
+            <div class="ad-chip-meta">project</div>
+          </div>
+        </div>
+      {% endfor %}
+      <ship-button class="ad-add-chip" variant="ghost" size="sm" disabled>
+        <ship-icon slot="leading" name="plus"></ship-icon>
+        Add skill
+      </ship-button>
+    </div>
+  {% endif %}
+</section>

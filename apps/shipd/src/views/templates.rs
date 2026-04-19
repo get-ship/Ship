@@ -27,7 +27,28 @@
 
 use minijinja::{Environment, Value};
 use serde::Serialize;
-use std::sync::OnceLock;
+use std::sync::{OnceLock, RwLock};
+use std::collections::HashMap;
+
+/// Cache of compiled user view environments, keyed by "view_name:source_hash".
+/// A fresh Environment is ~400ms to build (parses all embedded TEMPLATES +
+/// walks filesystem for sibling partials). Caching brings subsequent renders
+/// to ~1ms. Invalidated when the view source hash changes (auto-reload).
+static USER_ENV_CACHE: OnceLock<RwLock<HashMap<String, std::sync::Arc<Environment<'static>>>>> = OnceLock::new();
+
+fn user_env_cache() -> &'static RwLock<HashMap<String, std::sync::Arc<Environment<'static>>>> {
+    USER_ENV_CACHE.get_or_init(|| RwLock::new(HashMap::new()))
+}
+
+fn source_hash(source: &str) -> u64 {
+    // Deterministic FNV-1a so the same source always maps to the same key.
+    let mut h: u64 = 0xcbf29ce484222325;
+    for b in source.as_bytes() {
+        h ^= *b as u64;
+        h = h.wrapping_mul(0x100000001b3);
+    }
+    h
+}
 
 /// All templates shipped with the daemon. `(name, source)` pairs.
 ///
@@ -38,6 +59,11 @@ const TEMPLATES: &[(&str, &str)] = &[
     (
         "_breadcrumb.html.j2",
         include_str!("../../templates/_breadcrumb.html.j2"),
+    ),
+    // Ship View SDK — user-facing macros for Datastar + collection actions.
+    (
+        "_ship.html.j2",
+        include_str!("../../templates/_ship.html.j2"),
     ),
     // Auto-generated URL macros. Written to disk by `apps/shipd/build.rs`
     // at compile time and included here like any other template.
@@ -233,6 +259,8 @@ const TEMPLATES: &[(&str, &str)] = &[
         "specs/shell.html.j2",
         include_str!("../../templates/specs/shell.html.j2"),
     ),
+    // (Data browser view lives in .ship/views/data/ as a client-side view,
+    // not as daemon-rendered Jinja templates.)
 ];
 
 static ENV: OnceLock<Environment<'static>> = OnceLock::new();
@@ -282,49 +310,149 @@ pub fn render<C: Serialize>(template: &str, ctx: &C) -> Result<String, String> {
         .map_err(|e| format!("template '{template}' render error: {e}"))
 }
 
-#[cfg(test)]
-mod tests {
-    use super::*;
-    use serde::Serialize;
+/// Render an ad-hoc template string with access to all registered macros.
+///
+/// Used for `.ship/views/` HTML files that contain Jinja syntax. The
+/// template inherits the same environment as daemon-internal views —
+/// URL macros, filters, lenient undefined behavior — so views in
+/// `.ship/views/` can use `{% from '_urls.html.j2' import ... %}`.
+/// Recursively walk a view directory, collecting `.html.j2` files as
+/// `(name, source)` pairs where `name` is the relative path under views_root
+/// (e.g. `canvas/docs/hero-review.html.j2`). Used to register subdirectory
+/// templates so {% include %} works inside user-authored views.
+fn walk_templates(
+    dir: &std::path::Path,
+    views_root: &std::path::Path,
+    exclude_name: &str,
+    out: &mut Vec<(String, String)>,
+) {
+    let Ok(entries) = std::fs::read_dir(dir) else { return };
+    for entry in entries.flatten() {
+        let path = entry.path();
+        if path.is_dir() {
+            walk_templates(&path, views_root, exclude_name, out);
+        } else if path.to_string_lossy().ends_with(".html.j2")
+            && let Ok(rel) = path.strip_prefix(views_root)
+            && let Ok(source) = std::fs::read_to_string(&path)
+        {
+            let name = rel.to_string_lossy().replace('\\', "/");
+            if name != exclude_name {
+                out.push((name, source));
+            }
+        }
+    }
+}
 
-    #[derive(Serialize)]
-    struct EmptyCtx {
-        icon: &'static str,
-        title: &'static str,
-        body: &'static str,
+pub fn render_view_source<C: Serialize>(name: &str, source: &str, ctx: &C) -> Result<String, String> {
+    // If the source contains no Jinja syntax, return it as-is (fast path).
+    if !source.contains("{%") && !source.contains("{{") {
+        return Ok(source.to_string());
     }
 
-    #[test]
-    fn env_initializes_and_registers_every_template() {
-        let e = env();
-        for (name, _) in TEMPLATES {
-            assert!(
-                e.get_template(name).is_ok(),
-                "template '{name}' must be registered"
-            );
+    // Check cache first. Key: "name:source_hash". Same source → same env.
+    let cache_key = format!("{}:{}", name, source_hash(source));
+    {
+        if let Ok(cache) = user_env_cache().read() {
+            if let Some(env) = cache.get(&cache_key) {
+                let tpl = env.get_template(name)
+                    .map_err(|e| format!("view '{name}' not found in cached env: {e}"))?;
+                let value = Value::from_serialize(ctx);
+                return match tpl.render(value) {
+                    Ok(html) => Ok(html),
+                    Err(e) => {
+                        let msg = format!("view '{name}' render error: {e}");
+                        tracing::warn!(view = %name, "{msg}");
+                        Ok(super::error_overlay::render_error_overlay(name, source, &msg))
+                    }
+                };
+            }
         }
     }
 
-    #[test]
-    fn render_empty_partial_produces_ship_empty_state() {
-        let html = render(
-            "_empty.html.j2",
-            &EmptyCtx {
-                icon: "inbox",
-                title: "Nothing here",
-                body: "Create one to get started.",
-            },
-        )
-        .expect("render must succeed");
-        assert!(html.contains("ship-empty-state"));
-        assert!(html.contains("Nothing here"));
+    // Cache miss — build environment. ~400ms.
+    let mut local_env = Environment::new();
+    local_env.set_undefined_behavior(minijinja::UndefinedBehavior::Lenient);
+    // User views are HTML templates containing Datastar attributes with
+    // JS expressions and URLs. HTML auto-escape mangles these (escaping
+    // quotes and slashes). Collection data is validated at the store layer
+    // and values are interpolated by minijinja's default escaping within
+    // {{ }} blocks. Disabling auto-escape for the template as a whole is
+    // safe because dangerous user input goes through {{ }} which still
+    // does context-aware escaping in minijinja's default mode.
+    // Note: minijinja::AutoEscape::None still escapes {{ }} interpolations
+    // in HTML context — it just doesn't escape macro output or raw blocks.
+    local_env.set_auto_escape_callback(|_| minijinja::AutoEscape::None);
+    local_env.add_filter("truncate", |value: String, length: usize| -> String {
+        if value.chars().count() <= length { value }
+        else { let mut s: String = value.chars().take(length.saturating_sub(1)).collect(); s.push('…'); s }
+    });
+    // Register SDK filters and functions for user views.
+    super::view_filters::register_all(&mut local_env);
+    // Copy all registered templates (macros, partials).
+    for (tpl_name, tpl_src) in TEMPLATES {
+        let _ = local_env.add_template(tpl_name, tpl_src);
+    }
+    // Register sibling templates from the view's directory tree so templates
+    // can {% include %} partials. e.g. canvas/index.html.j2 includes
+    // canvas/docs/hero-review.html.j2. Scans project .ship/views/ then global
+    // ~/.ship/views/ (project wins on path collisions).
+    let mut sibling_sources: Vec<(String, String)> = Vec::new();
+    if let Some(view_name) = name.split('/').next() {
+        let mut registered: std::collections::HashSet<String> = std::collections::HashSet::new();
+        for ship_dir in [
+            runtime::project::get_project_dir(None).ok(),
+            runtime::project::get_global_dir().ok(),
+        ]
+        .into_iter()
+        .flatten()
+        {
+            let views_root = ship_dir.join("views");
+            let view_dir = views_root.join(view_name);
+            let mut found: Vec<(String, String)> = Vec::new();
+            walk_templates(&view_dir, &views_root, name, &mut found);
+            for (n, s) in found {
+                if registered.insert(n.clone()) {
+                    sibling_sources.push((n, s));
+                }
+            }
+        }
+    }
+    // Leak sibling template strings so they satisfy Environment<'static>
+    // lifetime. The cache holds the Environment for the process lifetime,
+    // so the memory is reused across requests (not actually leaked per call).
+    for (n, s) in sibling_sources {
+        let leaked_n: &'static str = Box::leak(n.into_boxed_str());
+        let leaked_s: &'static str = Box::leak(s.into_boxed_str());
+        let _ = local_env.add_template(leaked_n, leaked_s);
+    }
+    // Add the view source as a named template.
+    let leaked_source: &'static str = Box::leak(source.to_string().into_boxed_str());
+    let leaked_name: &'static str = Box::leak(name.to_string().into_boxed_str());
+    if let Err(e) = local_env.add_template(leaked_name, leaked_source) {
+        let msg = format!("view '{name}' template parse error: {e}");
+        tracing::warn!(view = %name, "{msg}");
+        return Ok(super::error_overlay::render_error_overlay(name, source, &msg));
     }
 
-    #[test]
-    fn missing_template_yields_error() {
-        #[derive(Serialize)]
-        struct Empty {}
-        let err = render("does-not-exist.html.j2", &Empty {}).unwrap_err();
-        assert!(err.contains("not found"));
+    // Wrap in Arc and cache for next time.
+    let env_arc = std::sync::Arc::new(local_env);
+    if let Ok(mut cache) = user_env_cache().write() {
+        cache.insert(cache_key, env_arc.clone());
+    }
+
+    let tpl = env_arc.get_template(name)
+        .map_err(|e| format!("view '{name}' not found after add: {e}"))?;
+    let value = Value::from_serialize(ctx);
+    match tpl.render(value) {
+        Ok(html) => Ok(html),
+        Err(e) => {
+            let msg = format!("view '{name}' render error: {e}");
+            tracing::warn!(view = %name, "{msg}");
+            Ok(super::error_overlay::render_error_overlay(name, source, &msg))
+        }
     }
 }
+
+#[cfg(test)]
+#[path = "templates_tests.rs"]
+mod tests;

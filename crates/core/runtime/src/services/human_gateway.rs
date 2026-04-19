@@ -128,7 +128,7 @@ impl HumanGatewayService {
         let payload: JobBlockedPayload = match serde_json::from_str(&event.payload_json) {
             Ok(p) => p,
             Err(e) => {
-                eprintln!("[human-gateway] failed to parse job.blocked payload: {e}");
+                tracing::warn!("human-gateway: failed to parse job.blocked payload: {e}");
                 return;
             }
         };
@@ -154,8 +154,8 @@ impl HumanGatewayService {
         let adapter = self.adapter.clone();
         tokio::spawn(async move {
             match adapter.send(&msg).await {
-                Ok(id) => eprintln!("[human-gateway] telegram message sent, id={id}"),
-                Err(e) => eprintln!("[human-gateway] adapter send failed: {e}"),
+                Ok(id) => tracing::info!("human-gateway: message sent, id={id}"),
+                Err(e) => tracing::error!("human-gateway: adapter send failed: {e}"),
             }
         });
     }

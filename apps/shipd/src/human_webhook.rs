@@ -75,8 +75,8 @@ pub async fn telegram_webhook(
         session_id: None,
     };
 
-    if let Err(e) = kernel.lock().await.route(envelope, &ctx).await {
-        warn!("[human-webhook] failed to route human.response: {e}");
+    if let Err(e) = kernel.lock().await.emit(envelope, &ctx).await {
+        warn!("human-webhook: failed to emit human.response: {e}");
         return StatusCode::INTERNAL_SERVER_ERROR;
     }
 

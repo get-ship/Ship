@@ -213,3 +213,46 @@ async fn reconcile_dispatched_inner(
 
     tracing::info!("job-dispatch: reconciliation complete");
 }
+
+/// Emit job.step_failed and persist to event store.
+async fn emit_step_failed(
+    kernel: &Arc<Mutex<crate::events::KernelRouter>>,
+    job_id: &str,
+    slug: &str,
+    error: &str,
+    store_dir: Option<&std::path::Path>,
+) {
+    use crate::events::job::event_types;
+
+    let payload = serde_json::json!({
+        "job_id": job_id,
+        "error": error,
+    });
+    let envelope = match EventEnvelope::new(event_types::STEP_FAILED, job_id, &payload) {
+        Ok(e) => e.with_actor_id("service.job-dispatch"),
+        Err(e) => {
+            tracing::warn!(slug, "job-dispatch: reconcile — failed to build envelope: {e}");
+            return;
+        }
+    };
+
+    let persist_result = match store_dir {
+        Some(dir) => crate::events::SqliteEventStore::new_at(dir)
+            .and_then(|s| crate::events::EventStore::append(&s, &envelope)),
+        None => crate::events::SqliteEventStore::new()
+            .and_then(|s| crate::events::EventStore::append(&s, &envelope)),
+    };
+    if let Err(e) = persist_result {
+        tracing::warn!(slug, "job-dispatch: reconcile — failed to persist step_failed: {e}");
+    }
+
+    let ctx = crate::events::EmitContext {
+        caller_kind: crate::events::CallerKind::Runtime,
+        skill_id: None,
+        workspace_id: None,
+        session_id: None,
+    };
+    if let Err(e) = kernel.lock().await.emit(envelope, &ctx).await {
+        tracing::warn!(slug, "job-dispatch: reconcile — failed to emit step_failed: {e}");
+    }
+}

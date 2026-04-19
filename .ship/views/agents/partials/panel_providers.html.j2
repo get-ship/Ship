@@ -1,0 +1,50 @@
+{#- Providers section. Context: agent (AgentDetail).
+    Parity: apps/web/src/features/agents/sections/ProvidersSection.tsx -#}
+<section id="section-providers" class="ad-section">
+  <div class="ad-section-head">
+    <h2 class="ad-section-label">
+      <svg class="ad-section-icon" viewBox="0 0 24 24" fill="none"
+           stroke="currentColor" stroke-width="2" stroke-linecap="round"
+           stroke-linejoin="round">
+        <line x1="4" y1="21" x2="4" y2="14"/>
+        <line x1="4" y1="10" x2="4" y2="3"/>
+        <line x1="12" y1="21" x2="12" y2="12"/>
+        <line x1="12" y1="8" x2="12" y2="3"/>
+        <line x1="20" y1="21" x2="20" y2="16"/>
+        <line x1="20" y1="12" x2="20" y2="3"/>
+        <line x1="2" y1="14" x2="6" y2="14"/>
+        <line x1="10" y1="8" x2="14" y2="8"/>
+        <line x1="18" y1="16" x2="22" y2="16"/>
+      </svg>
+      Providers
+      <span class="ad-section-count">{{ agent.providers | length }} providers</span>
+    </h2>
+  </div>
+  {% if agent.providers | length == 0 %}
+    <div class="ad-empty">
+      No providers configured. Add one under
+      <code style="font-family:var(--font-mono);font-size:var(--text-xs)">agent.providers</code>
+      to run this agent.
+    </div>
+  {% else %}
+    <div class="ad-provider-grid">
+      {% for p in agent.providers %}
+        <div class="ad-provider-card">
+          <div class="ad-provider-logo">{{ p[:2] }}</div>
+          <div class="ad-provider-body">
+            <div class="ad-provider-name">
+              {{ p | capitalize }}
+              {% if agent.default_provider == p %}
+                <span class="ad-provider-default-badge">default</span>
+              {% endif %}
+            </div>
+            <div class="ad-provider-sub">
+              <span class="ad-status-dot"></span>
+              defaults
+            </div>
+          </div>
+        </div>
+      {% endfor %}
+    </div>
+  {% endif %}
+</section>

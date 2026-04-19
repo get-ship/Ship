@@ -18,19 +18,16 @@ Ship is a package manager and runtime for AI agents. Install skills and agents f
 
 ## Getting started
 
-I recommend starting with Studio:
+Get started in three commands:
 
 ```bash
 curl -fsSL https://getship.dev/install | sh
 cd your-project
 ship init
-ship studio --open
 ```
 
-Studio connects to your local project and lets you browse the registry, install skills, create agents, and configure everything visually.
+`ship init` scaffolds `.ship/`, creates a `dev` agent, and compiles provider-native config files automatically. Your project is ready to use with Claude Code, Gemini, Codex, or OpenCode immediately.
 
-Alternatively, ask your AI agent to set things up. Ship's MCP tools let agents install skills and manage configuration on your behalf — just describe what you want.
-
-The [CLI reference](/reference/cli/) documents the full command set for scripting and automation.
+For a visual interface, run `ship studio --open` to browse the registry, configure agents, and edit skills in the browser.
 
 Continue to [Installation](./installation).

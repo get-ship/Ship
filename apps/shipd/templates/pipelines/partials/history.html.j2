@@ -1,11 +1,11 @@
-{#- History tab — compact row list + Load more pagination. -#}
+{#- History tab — spec-parity with React history list.
+    Uses WorkflowRunCard style (same as active runs) for completed/failed/merged jobs. -#}
 {% if history_runs and history_runs | length > 0 %}
-<h2 class="ship-recent-heading">Recent history</h2>
-<section class="ship-history-card">
+<div style="display: flex; flex-direction: column; gap: 0.5rem;">
   {% for run in history_runs %}
-    {% include 'pipelines/partials/history_row.html.j2' %}
+    {% include 'pipelines/partials/run_card.html.j2' %}
   {% endfor %}
-</section>
+</div>
 {% if stats.history > history_runs | length %}
 <p class="ship-pipelines-load-more">
   {% from '_urls.html.j2' import view_pipelines %}
@@ -16,9 +16,11 @@
 </p>
 {% endif %}
 {% else %}
-<ship-empty-state>
-  <ship-icon slot="icon" name="archive"></ship-icon>
-  <span slot="title">No run history yet</span>
-  Completed, failed, and merged runs will appear here.
-</ship-empty-state>
+<div style="display: flex; flex-direction: column; align-items: center; justify-content: center; padding: 4rem 0; text-align: center;">
+  <div style="width: 3rem; height: 3rem; border-radius: 0.75rem; border: 1px solid color-mix(in oklch, var(--border) 60%, transparent); background: color-mix(in oklch, var(--muted) 40%, transparent); display: flex; align-items: center; justify-content: center; margin-bottom: 1rem;">
+    <ship-icon name="list" size="md" tone="muted"></ship-icon>
+  </div>
+  <span style="font-size: 0.875rem; font-weight: 500; color: var(--foreground);">No completed runs</span>
+  <span style="font-size: 0.75rem; color: var(--muted-foreground);">Completed, merged, and failed runs will appear here.</span>
+</div>
 {% endif %}

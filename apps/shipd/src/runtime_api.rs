@@ -36,7 +36,13 @@ pub struct SessionsQuery {
     responses((status = 200, body = MeshResponse)),
     tag = "runtime"
 )]
-pub async fn list_workspaces(State(state): State<ApiState>) -> impl IntoResponse {
+pub async fn list_workspaces(
+    State(state): State<ApiState>,
+    Extension(auth): Extension<AuthContext>,
+) -> impl IntoResponse {
+    if let Err(e) = require_scope(&auth, Scope::ReadWorkspace) {
+        return e.into_response();
+    }
     // Source of truth: git worktrees. DB rows overlay metadata when present.
     let mut workspaces: Vec<serde_json::Value> = Vec::new();
     let mut seen_names: std::collections::HashSet<String> = std::collections::HashSet::new();
@@ -73,6 +79,7 @@ pub async fn list_workspaces(State(state): State<ApiState>) -> impl IntoResponse
             data: serde_json::json!({ "workspaces": workspaces }),
         }),
     )
+        .into_response()
 }
 
 /// Resolve HEAD SHA of the active project root. Used at `job.created` time
@@ -131,8 +138,12 @@ fn git_worktrees() -> Option<Vec<(String, String)>> {
 )]
 pub async fn list_sessions(
     State(_state): State<ApiState>,
+    Extension(auth): Extension<AuthContext>,
     Query(params): Query<SessionsQuery>,
 ) -> impl IntoResponse {
+    if let Err(e) = require_scope(&auth, Scope::ReadWorkspace) {
+        return e.into_response();
+    }
     let workspace_id = params.workspace_id.as_deref();
     match runtime::db::session::list_workspace_sessions_db(workspace_id, 100) {
         Ok(sessions) => {
@@ -172,6 +183,7 @@ pub async fn list_sessions(
             }),
         ),
     }
+        .into_response()
 }
 
 /// GET /api/runtime/agents
@@ -181,7 +193,13 @@ pub async fn list_sessions(
     responses((status = 200, body = MeshResponse)),
     tag = "runtime"
 )]
-pub async fn list_agents(State(state): State<ApiState>) -> impl IntoResponse {
+pub async fn list_agents(
+    State(state): State<ApiState>,
+    Extension(auth): Extension<AuthContext>,
+) -> impl IntoResponse {
+    if let Err(e) = require_scope(&auth, Scope::ReadWorkspace) {
+        return e.into_response();
+    }
     // An agent is either (a) defined on disk as a .ship/agents/<id> profile,
     // (b) live in the mesh registry (registered via REST/MCP), or both.
     // Return the union keyed by agent_id so tests that populate only the
@@ -231,6 +249,7 @@ pub async fn list_agents(State(state): State<ApiState>) -> impl IntoResponse {
 
     let agents: Vec<serde_json::Value> = by_id.into_values().collect();
     (StatusCode::OK, Json(MeshResponse { ok: true, data: serde_json::json!({ "agents": agents }) }))
+        .into_response()
 }
 
 // ---- Job request types ----
@@ -445,15 +464,19 @@ pub struct EventSummary {
 )]
 pub async fn get_job_detail(
     State(state): State<ApiState>,
+    Extension(auth): Extension<AuthContext>,
     Path(job_id): Path<String>,
-) -> impl IntoResponse {
+) -> axum::response::Response {
+    if let Err(e) = require_scope(&auth, Scope::ReadJobs) {
+        return e.into_response();
+    }
     let jobs = match runtime::projections::job::load_jobs_at(state.ship_dir()) {
         Ok(j) => j,
         Err(e) => {
             return (
                 StatusCode::INTERNAL_SERVER_ERROR,
                 Json(MeshResponse { ok: false, data: serde_json::json!(e.to_string()) }),
-            );
+            ).into_response();
         }
     };
 
@@ -466,7 +489,7 @@ pub async fn get_job_detail(
                     ok: false,
                     data: serde_json::json!(format!("job '{job_id}' not found")),
                 }),
-            );
+            ).into_response();
         }
     };
 
@@ -512,6 +535,7 @@ pub async fn get_job_detail(
             data: serde_json::json!(detail),
         }),
     )
+        .into_response()
 }
 
 /// POST /api/runtime/jobs — emit job.created event through the kernel.
@@ -1252,6 +1276,16 @@ mod tests {
         Arc::new(crate::ship_runtime::ShipRuntime::new_test(ship_dir, kernel))
     }
 
+    fn test_auth() -> Extension<AuthContext> {
+        Extension(AuthContext {
+            caller_kind: runtime::events::CallerKind::Cli,
+            agent_id: None,
+            workspace_id: None,
+            session_id: None,
+            scopes: vec![Scope::Full],
+        })
+    }
+
     async fn collect_body(response: axum::response::Response) -> serde_json::Value {
         use http_body_util::BodyExt;
         let bytes = response.into_body().collect().await.unwrap().to_bytes();
@@ -1262,7 +1296,7 @@ mod tests {
     async fn list_workspaces_returns_ok_with_array() {
         let dir = TempDir::new().unwrap();
         let state = make_api_state(&dir);
-        let response = list_workspaces(State(state)).await.into_response();
+        let response = list_workspaces(State(state), test_auth()).await.into_response();
         assert_eq!(response.status(), axum::http::StatusCode::OK);
         let val = collect_body(response).await;
         assert_eq!(val["ok"], serde_json::json!(true));
@@ -1274,7 +1308,7 @@ mod tests {
         let dir = TempDir::new().unwrap();
         let state = make_api_state(&dir);
         let query = Query(SessionsQuery { workspace_id: None });
-        let response = list_sessions(State(state), query).await.into_response();
+        let response = list_sessions(State(state), test_auth(), query).await.into_response();
         assert_eq!(response.status(), axum::http::StatusCode::OK);
         let val = collect_body(response).await;
         assert_eq!(val["ok"], serde_json::json!(true));
@@ -1288,7 +1322,7 @@ mod tests {
         let query = Query(SessionsQuery {
             workspace_id: Some("nonexistent-workspace".to_string()),
         });
-        let response = list_sessions(State(state), query).await.into_response();
+        let response = list_sessions(State(state), test_auth(), query).await.into_response();
         assert_eq!(response.status(), axum::http::StatusCode::OK);
         let val = collect_body(response).await;
         assert_eq!(val["ok"], serde_json::json!(true));
@@ -1300,7 +1334,7 @@ mod tests {
     async fn list_agents_returns_ok_empty_registry() {
         let dir = TempDir::new().unwrap();
         let state = make_api_state(&dir);
-        let response = list_agents(State(state)).await.into_response();
+        let response = list_agents(State(state), test_auth()).await.into_response();
         assert_eq!(response.status(), axum::http::StatusCode::OK);
         let val = collect_body(response).await;
         assert_eq!(val["ok"], serde_json::json!(true));
@@ -1325,7 +1359,7 @@ mod tests {
         let state = make_api_state(&dir);
         create_test_workspace(&state, "feature/rt-ws-test");
 
-        let response = list_workspaces(State(state)).await.into_response();
+        let response = list_workspaces(State(state), test_auth()).await.into_response();
         let val = collect_body(response).await;
         let workspaces = val["data"]["workspaces"].as_array().unwrap();
         assert!(
@@ -1353,7 +1387,7 @@ mod tests {
             );
         }
 
-        let response = list_agents(State(state)).await.into_response();
+        let response = list_agents(State(state), test_auth()).await.into_response();
         let val = collect_body(response).await;
         let agents = val["data"]["agents"].as_array().unwrap();
         assert_eq!(agents.len(), 1);
@@ -1383,7 +1417,7 @@ mod tests {
         .unwrap();
 
         let query = Query(SessionsQuery { workspace_id: None });
-        let response = list_sessions(State(state), query).await.into_response();
+        let response = list_sessions(State(state), test_auth(), query).await.into_response();
         let val = collect_body(response).await;
         let sessions = val["data"]["sessions"].as_array().unwrap();
         assert!(sessions.len() >= 1, "created session should appear");
@@ -1419,7 +1453,7 @@ mod tests {
         let query = Query(SessionsQuery {
             workspace_id: Some(ws_b.id),
         });
-        let response = list_sessions(State(state), query).await.into_response();
+        let response = list_sessions(State(state), test_auth(), query).await.into_response();
         let val = collect_body(response).await;
         let sessions = val["data"]["sessions"].as_array().unwrap();
         assert_eq!(sessions.len(), 0, "no sessions for workspace B");
@@ -1432,7 +1466,7 @@ mod tests {
         create_test_workspace(&state, "feature/multi-a");
         create_test_workspace(&state, "feature/multi-b");
 
-        let response = list_workspaces(State(state)).await.into_response();
+        let response = list_workspaces(State(state), test_auth()).await.into_response();
         let val = collect_body(response).await;
         let workspaces = val["data"]["workspaces"].as_array().unwrap();
         assert!(workspaces.len() >= 2);
@@ -1445,7 +1479,7 @@ mod tests {
         create_test_workspace(&state, "feature/ws-a");
         create_test_workspace(&state, "feature/ws-b");
 
-        let response = list_workspaces(State(state)).await.into_response();
+        let response = list_workspaces(State(state), test_auth()).await.into_response();
         let val = collect_body(response).await;
         let workspaces = val["data"]["workspaces"].as_array().unwrap();
 
@@ -1483,7 +1517,7 @@ mod tests {
     async fn get_job_detail_not_found() {
         let dir = TempDir::new().unwrap();
         let state = make_api_state(&dir);
-        let response = get_job_detail(State(state), Path("nonexistent-job-id".to_string()))
+        let response = get_job_detail(State(state), test_auth(), Path("nonexistent-job-id".to_string()))
             .await
             .into_response();
         assert_eq!(response.status(), StatusCode::NOT_FOUND);
@@ -1527,7 +1561,7 @@ mod tests {
         .with_actor_id("test");
         state.persist_and_route(&envelope).await.unwrap();
 
-        let response = get_job_detail(State(state), Path(job_id.clone()))
+        let response = get_job_detail(State(state), test_auth(), Path(job_id.clone()))
             .await
             .into_response();
         assert_eq!(response.status(), StatusCode::OK);

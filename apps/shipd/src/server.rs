@@ -115,8 +115,8 @@ impl NetworkServer {
             workspace_id: None,
             session_id: None,
         };
-        match self.kernel.lock().await.route(envelope.clone(), &ctx).await {
-            Ok(()) => format!("ok: routed {}", envelope.event_type),
+        match self.kernel.lock().await.emit(envelope.clone(), &ctx).await {
+            Ok(()) => format!("ok: emitted {}", envelope.event_type),
             Err(e) => format!("Error: {e}"),
         }
     }

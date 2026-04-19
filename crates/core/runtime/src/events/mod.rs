@@ -43,6 +43,7 @@ pub use crate::persistence::event_store as store;
 pub mod annotation;
 pub mod daemon;
 pub mod executor;
+pub mod feedback;
 pub mod filter;
 pub mod global_kernel_router;
 pub mod job;
@@ -53,8 +54,8 @@ pub mod kernel_router;
 pub mod payload_schema;
 pub mod validator;
 
-pub use annotation::{
-    AnnotationEvent, AnnotationIntent, AnnotationKind, AnnotationTarget, AuthorKind, Selection,
+pub use feedback::{
+    AuthorKind, FeedbackEvent, FeedbackIntent, FeedbackKind, FeedbackTarget, Selection,
 };
 
 #[cfg(feature = "unstable")]

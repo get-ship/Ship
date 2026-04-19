@@ -1,9 +1,7 @@
 use clap::{Parser, Subcommand};
 use std::path::PathBuf;
 
-pub use crate::commands::{HookCommands, McpCommands, WorkspaceCommands};
-#[cfg(feature = "unstable")]
-pub use crate::commands::EventsCommands;
+pub use crate::commands::{EventsCommands, HookCommands, McpCommands, WorkspaceCommands};
 
 const AFTER_HELP: &str = "\x1b[1mDaily Workflow:\x1b[0m
   ship init              Start here — scaffold .ship/
@@ -185,9 +183,7 @@ pub enum Commands {
     },
 
     // ── Inspection ───────────────────────────────────────────────────────────
-    /// Query the project event log (dev tool — not part of the user-facing CLI)
-    #[cfg(feature = "unstable")]
-    #[command(hide = true)]
+    /// Query the project event log
     Events {
         #[command(subcommand)]
         action: EventsCommands,

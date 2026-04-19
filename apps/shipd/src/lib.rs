@@ -4,9 +4,12 @@
 //! `network_status` / `network_stop` for CLI subcommands.
 
 pub mod actor_api;
+pub mod artifacts_api;
+pub mod collection_api;
 pub mod auth;
 mod connections;
 mod cors;
+mod view_morph_target;
 mod daemon;
 pub mod scopes;
 pub mod session;
@@ -23,9 +26,10 @@ pub mod routes;
 pub mod router;
 pub mod runtime_api;
 pub mod view_sessions_api;
-pub mod annotations_api;
+pub mod feedback_api;
 pub mod mcp_apps_bridge;
 mod server;
+pub mod themes;
 pub mod views;
 pub mod views_raw;
 pub mod views_git;
@@ -247,6 +251,12 @@ pub async fn run_network(
     );
     Ok(())
 }
+
+#[cfg(test)]
+mod collection_tests;
+#[cfg(test)]
+#[path = "artifacts_api_tests.rs"]
+mod artifacts_api_tests;
 
 /// Append a daemon.* event directly to platform.db.
 ///

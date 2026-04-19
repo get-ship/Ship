@@ -1,0 +1,10 @@
+name: data
+type: html
+claims: []
+data:
+  collections: all
+  items: "$collection"
+events:
+  - collection.item_created
+  - collection.item_updated
+  - collection.item_deleted

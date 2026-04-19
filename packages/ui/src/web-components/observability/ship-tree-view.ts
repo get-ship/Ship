@@ -24,7 +24,7 @@
  *     - trailing — trailing content (badge, count, etc.)
  */
 
-import { LitElement, css, html } from 'lit'
+import { LitElement, css, html, nothing } from 'lit'
 
 export class ShipTreeView extends LitElement {
   static styles = css`
@@ -67,6 +67,9 @@ export class ShipTreeNode extends LitElement {
         0 0 0 var(--ring-offset) var(--background),
         0 0 0 calc(var(--ring-offset) + var(--ring-width))
           color-mix(in oklch, var(--ring-color) var(--ring-opacity), transparent);
+    }
+    @media (forced-colors: active) {
+      .row:focus-visible { outline: 2px solid CanvasText; outline-offset: 2px; }
     }
     .caret {
       display: inline-flex;
@@ -116,6 +119,12 @@ export class ShipTreeNode extends LitElement {
     this.dispatchEvent(new CustomEvent('ship-select', { bubbles: true, composed: true, detail: {} }))
   }
 
+  /** Clicking the row both selects AND toggles expand/collapse. */
+  private _rowClick = (e: Event) => {
+    this._select()
+    this._toggle(e)
+  }
+
   private _onKey = (e: KeyboardEvent) => {
     if (e.key === 'Enter' || e.key === ' ') { e.preventDefault(); this._select() }
     else if (e.key === 'ArrowRight' && !this.leaf && !this.expanded) { e.preventDefault(); this._toggle(e) }
@@ -128,12 +137,12 @@ export class ShipTreeNode extends LitElement {
         class="row"
         part="row"
         tabindex="0"
-        aria-expanded=${this.leaf ? 'false' : String(this.expanded)}
+        aria-expanded=${this.leaf ? nothing : String(this.expanded)}
         aria-selected=${String(this.selected)}
-        @click=${this._select}
+        @click=${this._rowClick}
         @keydown=${this._onKey}
       >
-        <span class="caret" part="caret" @click=${this._toggle} aria-hidden="true">
+        <span class="caret" part="caret" aria-hidden="true">
           <svg viewBox="0 0 12 12" fill="none" stroke="currentColor" stroke-width="1.5"><polyline points="4 3 8 6 4 9"></polyline></svg>
         </span>
         <slot name="icon"></slot>

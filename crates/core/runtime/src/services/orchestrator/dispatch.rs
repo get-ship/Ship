@@ -7,7 +7,7 @@ use crate::services::dispatch_ports::{JobContext, LaunchProfile};
 use std::sync::Arc;
 use tokio::sync::Mutex;
 
-use super::emit::{emit_job_dispatched, emit_job_dispatched_with_meta, emit_process_spawned, emit_spawn_failed};
+use super::emit::{emit_job_dispatched, emit_job_dispatched_with_meta, emit_job_failed, emit_process_spawned, emit_spawn_failed};
 use super::pipeline_loader::ensure_pipeline;
 use super::step_monitor::StepMonitor;
 use super::OrchestratorContext;
@@ -63,6 +63,7 @@ pub async fn dispatch_job_internal(
             Some(c) => c.clone(),
             None => {
                 tracing::error!(slug, step_id = first.id, "job-dispatch: run step missing command");
+                emit_job_failed(kernel, &payload.job_id, slug, "run step missing command").await;
                 return;
             }
         };

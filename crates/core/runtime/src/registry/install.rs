@@ -115,7 +115,7 @@ pub fn resolve_and_fetch(
             && let Some(warning) =
                 check_registry_hash(&dep_path, &resolved.tag, &cached.hash, opts.offline)
         {
-            eprintln!("{warning}");
+            tracing::warn!("{warning}");
         }
 
         locked.retain(|p| p.path != dep_path);

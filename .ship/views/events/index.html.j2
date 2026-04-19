@@ -1,0 +1,115 @@
+{#- SDK gaps:
+    - no navigation macro for linking between views
+-#}
+{#-
+  Events browser — live event-stream feed with filter chips and entity groupings.
+  The daemon passes rows, types, actors, groups, total as Jinja context.
+  Datastar for all interactions. ZERO script tags.
+-#}
+{% from '_ship.html.j2' import head, signal, show, live, chip, chip_all, search %}
+{% if not fragment %}
+<!DOCTYPE html>
+<html lang="en">
+<head>{{ head('Events') }}</head>
+<body>
+{% endif %}
+<div id="ship-view-root" class="ship-view ship-view-events"
+     {{ signal('eventType', '') }}
+     {{ signal('actor', '') }}
+     {{ signal('entity', '') }}
+     {{ signal('q', '') }}>
+  <style>
+  .ship-view-events { color: var(--foreground); }
+  .events-wrap { max-width: 960px; margin: 0 auto; padding: var(--space-5) var(--space-4) var(--space-10); }
+  .events-head {
+    display: flex; align-items: flex-end; justify-content: space-between;
+    margin-bottom: var(--space-3);
+  }
+  .events-title {
+    font-family: var(--font-display); font-size: var(--text-xl); font-weight: var(--font-weight-semibold); margin: 0;
+  }
+  .events-sub {
+    font-size: var(--text-xs); color: var(--muted-foreground); margin-top: 2px;
+    font-variant-numeric: tabular-nums;
+  }
+  .events-filters {
+    display: flex; flex-wrap: wrap; gap: var(--space-1); margin-bottom: var(--space-3);
+    padding: var(--space-2) 0; border-bottom: 1px solid var(--border);
+  }
+  .events-content details {
+    margin-bottom: var(--space-2); border: 1px solid var(--border);
+    border-radius: var(--radius-md); overflow: hidden; background: var(--card);
+  }
+  .events-content summary {
+    list-style: none; cursor: pointer; padding: var(--space-2) var(--space-3); font-size: var(--text-xs);
+    display: flex; align-items: center; gap: var(--space-2);
+    background: color-mix(in oklch, var(--muted) 25%, transparent);
+  }
+  .events-content summary::-webkit-details-marker { display: none; }
+  .events-content summary .entity {
+    font-family: var(--font-mono); color: var(--foreground);
+  }
+  .events-content summary .count {
+    font-size: var(--text-xs); color: var(--muted-foreground); margin-left: auto;
+  }
+  .events-row {
+    display: grid; grid-template-columns: 90px 1fr 140px 140px;
+    gap: var(--space-2); padding: var(--space-1) var(--space-3); border-top: 1px solid var(--border);
+    font-size: var(--text-xs); align-items: baseline;
+  }
+  .events-row .ts { color: var(--muted-foreground); font-variant-numeric: tabular-nums; }
+  .events-row .kind { font-family: var(--font-mono); color: var(--foreground); }
+  .events-row .actor { color: var(--muted-foreground); }
+  .events-row .id {
+    color: var(--muted-foreground); font-family: var(--font-mono);
+    font-size: var(--text-xs); overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
+  }
+  .events-row pre {
+    grid-column: 1 / -1; margin: var(--space-1) 0 0;
+    background: color-mix(in oklch, var(--muted) 30%, transparent);
+    padding: var(--space-2); border-radius: var(--radius-sm); font-size: var(--text-xs); overflow-x: auto;
+  }
+  .events-search {
+    margin-left: auto; padding: var(--space-1) var(--space-2); border: 1px solid var(--border);
+    border-radius: var(--radius-sm); background: var(--background);
+    color: var(--foreground); font-size: var(--text-xs); min-width: 160px;
+  }
+  </style>
+  <div class="events-wrap">
+    <div class="events-head">
+      <div>
+        <h1 class="events-title">Events</h1>
+        <div class="events-sub">{{ total }} events</div>
+      </div>
+    </div>
+
+    {# -- Filter chips -- #}
+    <div class="events-filters" role="group" aria-label="Filter events">
+      <ship-chip size="sm" {{ chip_all('eventType', 'events') }}>All types</ship-chip>
+      {% for t in types %}
+      <ship-chip size="sm" {{ chip('eventType', t, 'events') }}>{{ t }}</ship-chip>
+      {% endfor %}
+      {% if actors|length > 0 %}
+      <span style="width:1px;background:var(--border);margin:0 var(--space-1)"></span>
+      <ship-chip size="sm" {{ chip_all('actor', 'events') }}>All actors</ship-chip>
+      {% for a in actors %}
+      <ship-chip size="sm" {{ chip('actor', a, 'events') }}>{{ a }}</ship-chip>
+      {% endfor %}
+      {% endif %}
+      <ship-input size="sm" placeholder="Search events..."
+             {{ search('q', 'events') }}></ship-input>
+    </div>
+
+    {# -- Content (SSE-driven) -- #}
+    <div {{ live('events') }}>
+      <div id="events-content" class="events-content">
+        <p style="padding: var(--space-4) 0; font-size: var(--text-xs); color: var(--muted-foreground)">Loading...</p>
+      </div>
+    </div>
+
+  </div>
+</div>
+{% if not fragment %}
+</body>
+</html>
+{% endif %}

@@ -9,9 +9,6 @@ pub fn global_dir() -> PathBuf {
         .join(".ship")
 }
 
-pub fn global_modes_dir() -> PathBuf {
-    global_dir().join("modes")
-}
 pub fn global_skills_dir() -> PathBuf {
     global_dir().join("skills")
 }
@@ -25,7 +22,6 @@ pub fn global_cache_dir() -> PathBuf {
 pub fn ensure_global_dirs() -> anyhow::Result<()> {
     for dir in [
         global_dir(),
-        global_modes_dir(),
         global_skills_dir(),
         global_mcp_dir(),
         global_cache_dir(),
@@ -39,9 +35,6 @@ pub fn ensure_global_dirs() -> anyhow::Result<()> {
 
 pub fn project_dir() -> PathBuf {
     PathBuf::from(".ship")
-}
-pub fn project_modes_dir() -> PathBuf {
-    project_dir().join("modes")
 }
 pub fn agents_dir() -> PathBuf {
     project_dir().join("agents")
@@ -89,7 +82,6 @@ pub fn project_ship_dir_required() -> anyhow::Result<std::path::PathBuf> {
 pub fn ensure_project_dirs() -> anyhow::Result<()> {
     for dir in [
         project_dir(),
-        project_modes_dir(),
         agents_dir(),
         rules_dir(),
         skills_dir(),
@@ -107,7 +99,6 @@ mod tests {
     fn global_paths_under_home_ship() {
         let g = global_dir();
         assert!(g.to_string_lossy().ends_with(".ship"));
-        assert_eq!(global_modes_dir(), g.join("modes"));
         assert_eq!(global_skills_dir(), g.join("skills"));
     }
 

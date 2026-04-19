@@ -59,6 +59,11 @@ export class ShipPipelineDefinition extends LitElement {
   name = ''
   steps = 0
   description = ''
+  updated() {
+    this.setAttribute('role', 'article')
+    const desc = this.description ? `: ${this.description}` : ''
+    this.setAttribute('aria-label', `Pipeline ${this.name}, ${this.steps} step${this.steps === 1 ? '' : 's'}${desc}`)
+  }
   render() {
     const s = this.steps
     const suffix = s === 1 ? '' : 's'

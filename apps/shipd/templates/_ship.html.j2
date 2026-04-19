@@ -1,0 +1,290 @@
+{#- Ship View SDK — import macros to build views without raw Datastar/URLs.
+    Usage: {% from '_ship.html.j2' import head, signal, show, live %}
+    Macros output HTML attributes so they compose on elements:
+      <button {{ create('tasks', '$form') }} {{ loading('_saving') }}>Save</button>
+-#}
+
+{#- === Page Setup === -#}
+
+{# Emit standard <head> contents: meta, title, CSS, Datastar, ship-elements.
+   In fragment mode (loaded inside the shell via Datastar), these assets are
+   already present — emit nothing. #}
+{% macro head(title='Ship View') %}
+{% if not fragment %}
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>{{ title }}</title>
+  <link rel="stylesheet" href="/api/runtime/assets/view-tokens.css">
+  <script type="module" src="/api/runtime/assets/datastar.js"></script>
+  <script type="module" src="/api/runtime/assets/ship-elements.js"></script>
+{% endif %}
+{% endmacro %}
+
+{#- === Signals & Reactivity === -#}
+
+{# Declare a reactive signal. String defaults get quoted, others pass through. #}
+{% macro signal(name, default='') %}data-signals:{{ name }}="{% if default is string %}'{{ default }}'{% elif default is none %}null{% else %}{{ default }}{% endif %}"{% endmacro %}
+
+{# Show element only when expression is true (hidden by default to prevent flash) #}
+{% macro show(expr) %}data-show="{{ expr }}" style="display:none"{% endmacro %}
+
+{# Toggle class based on expression #}
+{% macro toggle_class(cls, expr) %}data-class:{{ cls }}="{{ expr }}"{% endmacro %}
+
+{# Bind an attribute reactively #}
+{% macro attr(name, expr) %}data-attr:{{ name }}="{{ expr }}"{% endmacro %}
+
+{#- === SSE & Live Updates === -#}
+
+{# Subscribe to SSE stream for a view (long-lived read connection) #}
+{% macro live(view_name) %}data-init="@get('/api/runtime/view/{{ view_name }}/sse')"{% endmacro %}
+
+{#- === Loading & Indicators === -#}
+
+{# Mark an element as having a loading indicator signal #}
+{% macro loading(signal_name) %}data-indicator="{{ signal_name }}"{% endmacro %}
+
+{# Render a spinner that shows during loading #}
+{% macro spinner(signal_name) %}<span data-show="${{ signal_name }}" style="display:none"><span class="ship-spinner"></span></span>{% endmacro %}
+
+{#- === Collection Actions === -#}
+
+{# Create an item in a collection. data is a Datastar signal expression (e.g. '$form') #}
+{% macro create(collection, data) %}data-on:click="@post('/api/collections/{{ collection }}/items', {payload: {data: {{ data }}}})"{% endmacro %}
+
+{# Update an item in a collection #}
+{% macro update(collection, id, data) %}data-on:click="@put('/api/collections/{{ collection }}/items/{{ id }}', {payload: {data: {{ data }}}})"{% endmacro %}
+
+{# Delete an item from a collection #}
+{% macro delete(collection, id) %}data-on:click="@delete('/api/collections/{{ collection }}/items/{{ id }}')"{% endmacro %}
+
+{#- === Navigation === -#}
+
+{# Navigate to another view via Datastar morph (use for in-view partial updates) #}
+{% macro navigate(url) %}data-on:click="@get('{{ url }}')"{% endmacro %}
+
+{# Navigate to a shell route (uses router when available, falls back to Datastar) #}
+{% macro nav(path) %}data-on:click="window.router ? window.router.navigate('{{ path }}') : window.location.href='{{ path }}'"{% endmacro %}
+
+{# Navigate to a named view via shell router #}
+{% macro view(name) %}data-on:click="window.router ? window.router.navigate('/{{ name }}') : window.location.href='/{{ name }}'"{% endmacro %}
+
+{#- === Event Listeners === -#}
+
+{# Generic event listener for ship-element custom events #}
+{% macro on(event, expr) %}data-on:{{ event }}="{{ expr }}"{% endmacro %}
+
+{#- === Generic Actions === -#}
+
+{# GET request on click #}
+{% macro get(url) %}data-on:click="@get('{{ url }}')"{% endmacro %}
+
+{# POST request on click with payload #}
+{% macro post(url, payload='{}') %}data-on:click="@post('{{ url }}', {payload: {{ payload }}})"{% endmacro %}
+
+{# PUT request on click with payload #}
+{% macro put(url, payload='{}') %}data-on:click="@put('{{ url }}', {payload: {{ payload }}})"{% endmacro %}
+
+{# PUT request on change (for settings/config updates) #}
+{% macro put_on_change(url, payload='{}') %}data-on:change="@put('{{ url }}', {payload: {{ payload }}})"{% endmacro %}
+
+{# POST on submit (for forms) #}
+{% macro submit(url, payload='{}') %}data-on:submit="@post('{{ url }}', {payload: {{ payload }}})"{% endmacro %}
+
+{# Bind a signal to an input element's value #}
+{% macro bind(signal_name) %}data-bind="{{ signal_name }}"{% endmacro %}
+
+{#- === Job Actions === -#}
+
+{# Create a new job. agent_expr is a signal expression, pipeline is optional. #}
+{% macro create_job(agent_expr, pipeline='') %}data-on:click="@post('/api/runtime/jobs', {payload: {agent: {{ agent_expr }}{% if pipeline %}, pipeline: '{{ pipeline }}'{% endif %}}})"{% endmacro %}
+
+{# Emit a kernel event #}
+{% macro emit(event_type, data_expr='{}') %}data-on:click="@post('/api/events/emit', {payload: {event_type: '{{ event_type }}', data: {{ data_expr }}}})"{% endmacro %}
+
+{#- === Agent Feedback === -#}
+
+{# Send structured feedback to the active agent/session.
+   The payload is whatever shape the agent designed — the receiving prompt
+   reads it. Use this when an agent-authored view needs typed human input
+   beyond free-text (ratings, selections, pick-one, etc.).
+
+   Emits as feedback (kind=action) so it flows through the
+   studio.feedback.created pipeline. The agent reads `payload` on the
+   event to see what the user picked.
+
+   Usage:
+     <ship-button {{ feedback("{selected: 2, comment: 'bolder one'}") }}>Pick A</ship-button>
+     <ship-button {{ feedback("{rating: $rating, slot: 'hero'}") }}>Submit</ship-button> #}
+{% macro feedback(payload_expr) %}data-on:click="@post('/api/runtime/feedback', {contentType: 'json', body: JSON.stringify({id: '', kind: 'action', target: {file_path: location.pathname}, author_kind: 'human', created_at: new Date().toISOString(), payload: {{ payload_expr }}})})"{% endmacro %}
+
+{#- === Tabs === -#}
+
+{# Tab button — sets a signal and optionally re-fetches SSE #}
+{% macro tab(signal_name, value, label='') %}data-on:click="${{ signal_name }} = '{{ value }}'" data-attr:aria-selected="${{ signal_name }} == '{{ value }}'"{% endmacro %}
+
+{# Tab panel — visible when signal matches value #}
+{% macro tab_panel(signal_name, value) %}data-show="${{ signal_name }} == '{{ value }}'" style="display:none"{% endmacro %}
+
+{#- === Filter Chips === -#}
+
+{# Chip that sets a signal value and refreshes SSE #}
+{% macro chip(signal_name, value, view_name='') %}data-on:click="${{ signal_name }} = '{{ value }}'{% if view_name %}; @get('/api/runtime/view/{{ view_name }}/sse'){% endif %}" data-attr:selected="${{ signal_name }} == '{{ value }}'"{% endmacro %}
+
+{# Chip to clear/reset a signal (show all) #}
+{% macro chip_all(signal_name, view_name='') %}data-on:click="${{ signal_name }} = ''{% if view_name %}; @get('/api/runtime/view/{{ view_name }}/sse'){% endif %}" data-attr:selected="${{ signal_name }} == ''"{% endmacro %}
+
+{#- === Search & Debounce === -#}
+
+{# Debounced input that refreshes SSE after typing stops #}
+{% macro search(signal_name, view_name, delay='300ms') %}data-bind="{{ signal_name }}" data-on:input__debounce.{{ delay }}="@get('/api/runtime/view/{{ view_name }}/sse')"{% endmacro %}
+
+{# Debounced action on change (e.g., settings auto-save) #}
+{% macro on_change_debounced(expr, delay='300ms') %}data-on:change__debounce.{{ delay }}="{{ expr }}"{% endmacro %}
+
+{#- === Radio / Selection === -#}
+
+{# Radio-style selection — sets a signal, marks as checked #}
+{% macro radio(signal_name, value) %}data-on:click="${{ signal_name }} = '{{ value }}'" data-attr:aria-checked="${{ signal_name }} == '{{ value }}'"{% endmacro %}
+
+{#- === Confirmation === -#}
+
+{# Confirm before action — shows browser confirm dialog #}
+{% macro confirm_delete(collection, id) %}data-on:click="confirm('Delete this item?') && @delete('/api/collections/{{ collection }}/items/{{ id }}')"{% endmacro %}
+
+{# Generic confirm before action #}
+{% macro confirm(message, action_expr) %}data-on:click="confirm('{{ message }}') && {{ action_expr }}"{% endmacro %}
+
+{#- === Extended Live === -#}
+
+{# SSE subscription with requestCancellation disabled (for persistent connections) #}
+{% macro live_persistent(view_name) %}data-init="@get('/api/runtime/view/{{ view_name }}/sse', {requestCancellation: 'disabled'})"{% endmacro %}
+
+{#- === Data Macros === -#}
+
+{# Auto-form: generate typed form fields from a collection schema #}
+{% macro form(schema, collection, form_signal='form') %}
+<div class="ship-form">
+  {% for field_name, field_def in schema.fields %}
+  <div class="ship-form-field">
+    <label class="ship-form-label">
+      {{ field_name }}{% if field_def.required %}<span style="color:var(--destructive)"> *</span>{% endif %}
+    </label>
+    {% if field_def.field_type == "enum" and field_def.values %}
+    <ship-select size="sm" data-bind="{{ form_signal }}.{{ field_name }}">
+      <option value="">--</option>
+      {% for v in field_def.values %}<option value="{{ v }}">{{ v }}</option>{% endfor %}
+    </ship-select>
+    {% elif field_def.field_type == "boolean" %}
+    <ship-switch data-bind="{{ form_signal }}.{{ field_name }}"></ship-switch>
+    {% elif field_def.field_type == "number" %}
+    <ship-input size="sm" type="number" data-bind="{{ form_signal }}.{{ field_name }}" placeholder="0"></ship-input>
+    {% elif field_def.field_type == "markdown" %}
+    <ship-textarea size="sm" data-bind="{{ form_signal }}.{{ field_name }}" rows="3" placeholder="{{ field_name }}"></ship-textarea>
+    {% else %}
+    <ship-input size="sm" data-bind="{{ form_signal }}.{{ field_name }}" placeholder="{{ field_name }}"></ship-input>
+    {% endif %}
+  </div>
+  {% endfor %}
+</div>
+{% endmacro %}
+
+{# Auto-table: generate a data table from schema + items #}
+{% macro table(schema, items, collection) %}
+<table class="ship-table">
+  <thead><tr>
+    <th style="width:90px">ID</th>
+    {% for field_name, _ in schema.fields %}<th>{{ field_name }}</th>{% endfor %}
+    <th style="width:100px">Updated</th>
+    <th style="width:40px"></th>
+  </tr></thead>
+  <tbody>
+    {% for item in items %}
+    <tr id="item-{{ item.id }}">
+      <td class="mono muted" title="{{ item.id }}">{{ item.id[:10] }}</td>
+      {% for field_name, field_def in schema.fields %}
+      <td>
+        {% set val = item.data[field_name] if item.data[field_name] is defined else none %}
+        {% if val is none or val == "" %}<span class="null">--</span>
+        {% elif field_def.field_type == "enum" %}<ship-chip>{{ val }}</ship-chip>
+        {% elif field_def.field_type == "boolean" %}<ship-badge variant="{{ 'success' if val else 'secondary' }}">{{ "Yes" if val else "No" }}</ship-badge>
+        {% elif field_def.field_type == "number" %}<span class="mono">{{ val }}</span>
+        {% elif field_def.field_type == "array" and val is iterable and val is not string %}{% for v in val[:4] %}<ship-chip>{{ v }}</ship-chip> {% endfor %}{% if val | length > 4 %}<ship-badge variant="secondary">+{{ val | length - 4 }}</ship-badge>{% endif %}
+        {% else %}{{ val }}{% endif %}
+      </td>
+      {% endfor %}
+      <td class="mono muted">{{ item.updated_at[:16] if item.updated_at else "--" }}</td>
+      <td><ship-button size="sm" tone="destructive" variant="soft" {{ delete(collection, item.id) }} {{ loading('_deleting') }} aria-label="Delete"><ship-icon slot="leading" name="trash"></ship-icon></ship-button></td>
+    </tr>
+    {% endfor %}
+  </tbody>
+</table>
+{% endmacro %}
+
+{#- === Layout === -#}
+
+{# Centered single-column layout with max-width. Good for settings, forms, detail pages. #}
+{% macro layout_center(max_width='768px') %}
+<div style="max-width:{{ max_width }};margin:0 auto;padding:var(--space-6) var(--space-5) var(--space-12)">
+{% endmacro %}
+
+{# Two-column layout: fixed sidebar + flexible main pane. Good for explorers, canvas. #}
+{% macro layout_sidebar(sidebar_width='240px') %}
+<div style="display:grid;grid-template-columns:{{ sidebar_width }} 1fr;height:100%;min-height:0">
+{% endmacro %}
+
+{# Three-column layout: sidebar + main + info panel. Good for IDE-style views. #}
+{% macro layout_three_col(left='240px', right='320px') %}
+<div style="display:grid;grid-template-columns:{{ left }} 1fr {{ right }};height:100%;min-height:0">
+{% endmacro %}
+
+{# Close a layout wrapper. #}
+{% macro layout_end() %}</div>{% endmacro %}
+
+{#- === Toast Notifications === -#}
+
+{# Show a toast notification programmatically. Uses ship-toast-container. #}
+{% macro toast_container() %}
+<ship-toast-container position="bottom-right" id="ship-toasts"></ship-toast-container>
+{% endmacro %}
+
+{# Trigger a toast from a button click or event handler.
+   Usage: <ship-button {{ toast_action('Saved!', 'success') }}>Save</ship-button> #}
+{% macro toast_action(message, tone='default', duration=3000) %}data-on:click="(() => { const c = document.getElementById('ship-toasts') || document.querySelector('ship-toast-container'); if(c) c.show({title: '{{ message }}', tone: '{{ tone }}', duration: {{ duration }}}); })()"{% endmacro %}
+
+{#- === Confirm Dialog === -#}
+
+{# Render a confirm dialog that gates a destructive action.
+   Usage: {{ confirm_dialog('delete-item', 'Delete this item?', 'This cannot be undone.', delete('/tasks', item_id)) }}
+   Then on the trigger: <ship-button {{ confirm_trigger('delete-item') }}>Delete</ship-button> #}
+{% macro confirm_dialog(id, title, description, action_attrs) %}
+<ship-alert-dialog id="confirm-{{ id }}">
+  <span slot="title">{{ title }}</span>
+  <span slot="description">{{ description }}</span>
+  <ship-button slot="cancel" variant="outline" size="sm"
+    data-on:click="document.getElementById('confirm-{{ id }}').removeAttribute('open')">Cancel</ship-button>
+  <ship-button slot="action" tone="destructive" variant="solid" size="sm"
+    {{ action_attrs }}
+    data-on:click="document.getElementById('confirm-{{ id }}').removeAttribute('open')">Confirm</ship-button>
+</ship-alert-dialog>
+{% endmacro %}
+
+{# Open a confirm dialog by id. #}
+{% macro confirm_trigger(id) %}data-on:click="document.getElementById('confirm-{{ id }}').setAttribute('open', '')"{% endmacro %}
+
+{#- === Shared Styles === -#}
+
+{# Shared styles for ship-form and ship-table #}
+{% macro styles() %}
+<style>
+.ship-form-field { display: flex; align-items: flex-start; gap: var(--space-3); margin-bottom: var(--space-2); }
+.ship-form-label { font-size: var(--text-xs); font-weight: var(--font-weight-medium); min-width: 110px; padding-top: 7px; color: var(--muted-foreground); }
+.ship-table { width: 100%; border-collapse: collapse; font-size: var(--text-sm); }
+.ship-table th { text-align: left; padding: var(--space-2) var(--space-3); border-bottom: 2px solid var(--border); font-weight: var(--font-weight-semibold); font-size: var(--text-xs); text-transform: uppercase; letter-spacing: 0.04em; color: var(--muted-foreground); }
+.ship-table td { padding: var(--space-2) var(--space-3); border-bottom: 1px solid var(--border); vertical-align: top; }
+.ship-table tr:hover td { background: color-mix(in oklch, var(--muted) 40%, transparent); }
+.mono { font-family: var(--font-mono); font-size: var(--text-xs); }
+.muted { color: var(--muted-foreground); }
+.null { color: var(--muted-foreground); font-style: italic; }
+</style>
+{% endmacro %}

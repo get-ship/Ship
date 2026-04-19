@@ -136,7 +136,7 @@ pub async fn mesh_register(
     };
 
     let ctx = auth.to_daemon_emit_context();
-    match state.kernel().lock().await.route(envelope, &ctx).await {
+    match state.kernel().lock().await.emit(envelope, &ctx).await {
         Ok(()) => (StatusCode::OK, Json(MeshResponse { ok: true, data: serde_json::json!(format!("registered: {}", req.agent_id)) })),
         Err(e) => (StatusCode::INTERNAL_SERVER_ERROR, Json(MeshResponse { ok: false, data: serde_json::json!(e.to_string()) })),
     }
@@ -171,7 +171,7 @@ pub async fn mesh_send(
     };
 
     let ctx = auth.to_daemon_emit_context();
-    match state.kernel().lock().await.route(envelope, &ctx).await {
+    match state.kernel().lock().await.emit(envelope, &ctx).await {
         Ok(()) => (StatusCode::OK, Json(MeshResponse { ok: true, data: serde_json::json!("sent") })),
         Err(e) => (StatusCode::INTERNAL_SERVER_ERROR, Json(MeshResponse { ok: false, data: serde_json::json!(e.to_string()) })),
     }
@@ -204,7 +204,7 @@ pub async fn mesh_broadcast(
     };
 
     let ctx = auth.to_daemon_emit_context();
-    match state.kernel().lock().await.route(envelope, &ctx).await {
+    match state.kernel().lock().await.emit(envelope, &ctx).await {
         Ok(()) => (StatusCode::OK, Json(MeshResponse { ok: true, data: serde_json::json!("broadcast sent") })),
         Err(e) => (StatusCode::INTERNAL_SERVER_ERROR, Json(MeshResponse { ok: false, data: serde_json::json!(e.to_string()) })),
     }
@@ -258,7 +258,7 @@ pub async fn mesh_status_update(
     };
 
     let ctx = auth.to_daemon_emit_context();
-    match state.kernel().lock().await.route(envelope, &ctx).await {
+    match state.kernel().lock().await.emit(envelope, &ctx).await {
         Ok(()) => (StatusCode::OK, Json(MeshResponse { ok: true, data: serde_json::json!("status updated") })),
         Err(e) => (StatusCode::INTERNAL_SERVER_ERROR, Json(MeshResponse { ok: false, data: serde_json::json!(e.to_string()) })),
     }

@@ -37,12 +37,12 @@ function stagedToEvent({ filePath, ann: a }: StagedAnnotation): AnnotationEvent 
   })
 }
 
-async function postAnnotation(ev: AnnotationEvent): Promise<void> {
-  const res = await daemonFetch('/api/runtime/annotations', {
+async function postFeedback(ev: AnnotationEvent): Promise<void> {
+  const res = await daemonFetch('/api/runtime/feedback', {
     method: 'POST',
     body: JSON.stringify(ev),
   })
-  if (!res.ok) throw new Error(`daemon: post annotation ${res.status}`)
+  if (!res.ok) throw new Error(`daemon: post feedback ${res.status}`)
 }
 
 let seq = 1
@@ -80,7 +80,7 @@ export function AnnotationProvider({ children }: { children: ReactNode }) {
 
   const sendToAgent = useCallback(async (message: string) => {
     for (const s of staged) {
-      await postAnnotation(stagedToEvent(s))
+      await postFeedback(stagedToEvent(s))
     }
 
     const text = message.trim()

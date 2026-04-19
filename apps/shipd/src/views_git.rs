@@ -19,6 +19,7 @@ use serde::{Deserialize, Serialize};
 use std::path::Path;
 use std::time::Duration;
 
+use crate::views::resolve_view_dir;
 use crate::views::stream::{ViewSse, ViewStream};
 use crate::views::templates;
 use crate::views_git_data::{
@@ -180,11 +181,29 @@ fn render_shell(params: &GitParams, ship_dir: &Path) -> Option<String> {
     }
 }
 
+/// Try rendering a template from `.ship/views/git/<file>`.
+/// Returns `None` if the view directory or file does not exist, or if
+/// rendering fails (in which case the caller falls back to embedded templates).
+fn try_render_view(file: &str, ctx: &GitCtx) -> Option<String> {
+    let (view_dir, _source) = resolve_view_dir("git")?;
+    let source = std::fs::read_to_string(view_dir.join(file)).ok()?;
+    let template_name = format!("git/{file}");
+    templates::render_view_source(&template_name, &source, ctx).ok()
+}
+
 /// GET /api/runtime/view/git — full shell, minijinja-rendered.
 pub async fn git_shell(
     State(state): State<crate::rest_api::ApiState>,
     Query(params): Query<GitParams>,
 ) -> Result<Html<String>, StatusCode> {
+    let ctx = build_ctx(&params, state.ship_dir());
+
+    // Try .ship/views/git/index.html.j2 first (new canonical location).
+    if let Some(html) = try_render_view("index.html.j2", &ctx) {
+        return Ok(Html(html));
+    }
+
+    // Fallback to embedded template.
     render_shell(&params, state.ship_dir())
         .map(Html)
         .ok_or(StatusCode::INTERNAL_SERVER_ERROR)

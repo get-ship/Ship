@@ -34,8 +34,14 @@ pub mod session_types;
 pub mod sanitize;
 
 mod assets;
+pub mod agents_jsonc;
+pub mod context;
+pub mod error_overlay;
+pub mod generic_sse;
 mod handlers;
 mod resolve;
+pub mod view_filters;
+pub mod view_filters_list;
 
 #[cfg(test)]
 #[allow(unused_imports)]
@@ -47,13 +53,14 @@ use serde::Serialize;
 use crate::rest_api::MeshResponse;
 
 pub use assets::{
-    serve_datastar_js, serve_elements_catalog, serve_elements_manifest, serve_ship_elements,
-    serve_view_tokens,
+    serve_code_editor, serve_datastar_js, serve_elements_catalog,
+    serve_elements_manifest, serve_markdown_editor, serve_ship_elements,
+    serve_terminal, serve_theme_css, serve_themes_list, serve_view_tokens,
 };
 pub use handlers::{
     list_views, serve_view, serve_view_asset, serve_view_bundle, serve_view_manifest,
 };
-pub(crate) use resolve::{is_valid_view_name, resolve_view_dir};
+pub(crate) use resolve::{is_valid_view_name, read_raw_manifest, resolve_view_dir};
 
 #[derive(Serialize, Clone)]
 pub struct ViewManifest {

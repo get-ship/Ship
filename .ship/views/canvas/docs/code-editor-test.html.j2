@@ -1,0 +1,120 @@
+{#- Code Editor Test — canvas document (included as fragment by canvas/index.html.j2) -#}
+<script type="module" src="/api/runtime/assets/ship-code-editor.js"></script>
+<style>
+  .code-editor-test { padding: 24px; }
+  .code-editor-test h1 {
+    font-family: var(--font-display);
+    font-size: var(--text-2xl);
+    margin: 0 0 8px;
+  }
+  .code-editor-test .subtitle {
+    color: var(--muted-foreground);
+    margin: 0 0 32px;
+    font-size: var(--text-md);
+  }
+  .code-editor-test .panel {
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+    margin-bottom: 32px;
+  }
+  .code-editor-test .panel-label {
+    font-size: var(--text-sm);
+    font-weight: 600;
+    color: var(--muted-foreground);
+    text-transform: uppercase;
+    letter-spacing: 0.05em;
+  }
+  .code-editor-test section { margin-bottom: 40px; }
+  .code-editor-test section > h2 {
+    font-size: var(--text-lg);
+    font-weight: 600;
+    margin: 0 0 16px;
+  }
+</style>
+
+<div class="code-editor-test">
+  <h1>Code Editor Component</h1>
+  <p class="subtitle">ship-code-editor &mdash; CodeMirror 6 island with syntax highlighting</p>
+
+  <!-- YAML Editor -->
+  <section>
+    <h2>YAML</h2>
+    <div class="panel">
+      <span class="panel-label">Editor</span>
+      <ship-code-editor
+        language="yaml"
+        value="name: my-pipeline
+steps:
+  - name: build
+    run: cargo build
+  - name: test
+    run: cargo test"
+        placeholder="Enter YAML..."
+      ></ship-code-editor>
+    </div>
+  </section>
+
+  <!-- JSON Editor -->
+  <section>
+    <h2>JSON</h2>
+    <div class="panel">
+      <span class="panel-label">Editor</span>
+      <ship-code-editor
+        language="json"
+        value='{"name": "ship", "version": "0.1.0"}'
+        placeholder="Enter JSON..."
+      ></ship-code-editor>
+    </div>
+  </section>
+
+  <!-- JavaScript Editor -->
+  <section>
+    <h2>JavaScript</h2>
+    <div class="panel">
+      <span class="panel-label">Editor</span>
+      <ship-code-editor
+        language="javascript"
+        value="function greet(name) {
+  return 'Hello, ' + name + '!';
+}"
+        placeholder="Enter JavaScript..."
+      ></ship-code-editor>
+    </div>
+  </section>
+
+  <!-- Readonly Example -->
+  <section>
+    <h2>Readonly (Rust)</h2>
+    <div class="panel">
+      <span class="panel-label">Read-only editor</span>
+      <ship-code-editor
+        language="rust"
+        readonly
+        value="fn main() {
+    let msg = &quot;Ship is running&quot;;
+    println!(&quot;{}&quot;, msg);
+}"
+      ></ship-code-editor>
+    </div>
+  </section>
+
+  <!-- Size Variants -->
+  <section>
+    <h2>Size Variants</h2>
+    <div style="display: flex; flex-direction: column; gap: 16px;">
+      <div class="panel">
+        <span class="panel-label">Small</span>
+        <ship-code-editor language="yaml" size="sm" value="size: sm"></ship-code-editor>
+      </div>
+      <div class="panel">
+        <span class="panel-label">Medium (default)</span>
+        <ship-code-editor language="yaml" size="md" value="size: md"></ship-code-editor>
+      </div>
+      <div class="panel">
+        <span class="panel-label">Large</span>
+        <ship-code-editor language="yaml" size="lg" value="size: lg"></ship-code-editor>
+      </div>
+    </div>
+  </section>
+</div>

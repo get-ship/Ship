@@ -25,11 +25,11 @@
     {% endif %}
     <span class="ship-git-toolbar-spacer"></span>
     {% if total_changed and total_changed > 0 %}
-      <button type="button" class="ship-git-toolbar-link"
+      <ship-button variant="ghost" size="sm"
         data-on:click="@get('{{ diff_url | safe }}')">
         <ship-icon name="git-compare" size="xs"></ship-icon>
         View diff
-      </button>
+      </ship-button>
     {% endif %}
   </div>
   {% endif %}

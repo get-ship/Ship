@@ -14,11 +14,11 @@ use tokio_util::sync::CancellationToken;
 use utoipa::OpenApi;
 
 use crate::{
-    NetworkServer, actor_api, annotations_api, attest, auth, cors, hooks_api, human_webhook,
-    openapi, pairing, project_api, pty_handler, rest_api, runtime_api, session, settings_api,
-    shell_assets, ship_runtime, specs_api, specs_view, supervisor, view_sessions_api, views,
-    views_agents, views_chat, views_events, views_git, views_pipelines, views_raw, views_settings,
-    views_skills,
+    NetworkServer, actor_api, artifacts_api, attest, auth, cors, feedback_api, hooks_api,
+    human_webhook, openapi, pairing, project_api, pty_handler, rest_api, runtime_api, session,
+    settings_api, shell_assets, ship_runtime, specs_api, specs_view, supervisor,
+    view_morph_target, view_sessions_api, views, collection_api, views_agents, views_chat,
+    views_events, views_git, views_pipelines, views_raw, views_settings, views_skills,
 };
 
 /// Build the full Axum router with all route groups, auth, and CORS.
@@ -88,9 +88,6 @@ pub fn build_router(
                 auth::server_attest(attest_verifier.clone(), attest_sessions.clone(), body)
             }),
         )
-        .route("/api/session/register", axum::routing::post(move |body: axum::Json<auth::SessionRegisterRequest>| {
-            auth::session_register(register_registry, body)
-        }))
         .route("/api/health", axum::routing::get(move || {
             health_check(health_rt)
         }))
@@ -98,8 +95,13 @@ pub fn build_router(
         .ship_route(Route::AssetDatastarJs, views::serve_datastar_js)
         .ship_route(Route::AssetViewTokensCss, views::serve_view_tokens)
         .ship_route(Route::AssetShipElementsJs, views::serve_ship_elements)
+        .ship_route(Route::AssetCodeEditorJs, views::serve_code_editor)
+        .ship_route(Route::AssetMarkdownEditorJs, views::serve_markdown_editor)
+        .ship_route(Route::AssetTerminalJs, views::serve_terminal)
         .ship_route(Route::AssetElementsManifest, views::serve_elements_manifest)
-        .ship_route(Route::AssetElementsCatalog, views::serve_elements_catalog);
+        .ship_route(Route::AssetElementsCatalog, views::serve_elements_catalog)
+        .ship_route(Route::AssetThemeCss, views::serve_theme_css)
+        .ship_route(Route::ListThemes, views::serve_themes_list);
 
     let auth_token = token;
     let auth_registry = session_registry;
@@ -131,7 +133,13 @@ pub fn build_router(
             axum::routing::post(move |auth_ext: axum::Extension<auth::AuthContext>, body: axum::Json<auth::RevokeSessionsRequest>| {
                 auth::revoke_sessions(revoke_sessions_registry.clone(), auth_ext, body)
             }),
-        );
+        )
+        .route("/api/session/register", axum::routing::post(move |
+            auth_ext: axum::Extension<auth::AuthContext>,
+            body: axum::Json<auth::SessionRegisterRequest>,
+        | {
+            auth::session_register(register_registry, auth_ext, body)
+        }));
 
     let shell_registry = auth_registry.clone();
     let session_issue_registry = auth_registry.clone();
@@ -140,7 +148,7 @@ pub fn build_router(
         async move { session::issue_session_handler(reg, auth.0).await }
     };
 
-    let annotation_guard = annotations_api::AnnotationGuard::new();
+    let feedback_guard = feedback_api::FeedbackGuard::new();
     let authenticated_routes = Router::new()
         .nest("/api", pair_confirm_routes)
         .ship_route(Route::IssueSession, session_issue_handler)
@@ -148,7 +156,7 @@ pub fn build_router(
         .nest("/api", hook_routes)
         .nest("/api", webhook_routes)
         .nest_service("/mcp", service)
-        .layer(axum::Extension(annotation_guard))
+        .layer(axum::Extension(feedback_guard))
         .layer(axum::middleware::from_fn(move |req, next| {
             auth::auth_middleware(auth_token.clone(), auth_registry.clone(), req, next)
         }));
@@ -167,8 +175,15 @@ pub fn build_router(
     }
     root
         .layer(axum::middleware::from_fn(cors::cors_middleware))
-        // Request body limit: 1 MB for all non-streaming endpoints.
-        .layer(tower_http::limit::RequestBodyLimitLayer::new(1024 * 1024))
+        // Tag view responses with Datastar morph-target headers so cross-view
+        // navigation inside the shell doesn't wipe shell chrome.
+        .layer(axum::middleware::from_fn(view_morph_target::view_morph_target_middleware))
+        // Outer request body cap. 50 MB matches the files-API upload limit.
+        // JSON / Form extractors still enforce axum's `DefaultBodyLimit`
+        // (2 MB) on their own — this layer only sets the outer ceiling.
+        .layer(tower_http::limit::RequestBodyLimitLayer::new(
+            crate::artifacts_api::MAX_UPLOAD_BYTES,
+        ))
         // Catch handler panics → 500 instead of connection abort.
         .layer(tower_http::catch_panic::CatchPanicLayer::custom(handle_panic))
 }
@@ -216,6 +231,7 @@ fn build_ship_routes(st: rest_api::ApiState) -> Router {
         .ship_route(Route::ServeViewManifest_template(), views::serve_view_manifest)
         .ship_route(Route::ServeViewBundle_template(), views::serve_view_bundle)
         .ship_route(Route::ServeViewRaw_template(), views_raw::serve_view_raw)
+        .ship_route(Route::ServeViewSse_template(), views::generic_sse::serve_view_sse)
         // Agent-owned view sessions
         .ship_route(Route::OpenViewSession, view_sessions_api::open_session)
         .ship_route(Route::PatchViewSession_template(), view_sessions_api::patch_session)
@@ -224,8 +240,8 @@ fn build_ship_routes(st: rest_api::ApiState) -> Router {
         .ship_route(Route::CloseViewSession_template(), view_sessions_api::close_session)
         .ship_route(Route::SubscribeViewSession_template(), view_sessions_api::subscribe_session)
         .ship_route(Route::ViewSessionRaw_template(), view_sessions_api::raw_session)
-        // Annotations ingress
-        .ship_route(Route::PostAnnotation, annotations_api::post_annotation)
+        // Feedback ingress
+        .ship_route(Route::PostFeedback, feedback_api::post_feedback)
         .ship_route(Route::ViewGit, views_git::git_shell)
         .ship_route(Route::ViewGitSse, views_git::git_sse)
         .ship_route(Route::ViewPipelines, views_pipelines::pipelines_shell)
@@ -284,7 +300,27 @@ fn build_ship_routes(st: rest_api::ApiState) -> Router {
         .ship_route(Route::EmitEvent, project_api::emit_event)
         .ship_route(Route::ArtifactsStatus_template(), project_api::artifacts_status)
         .ship_route(Route::PromoteArtifact_template(), project_api::promote_artifact)
-        .ship_route(Route::ListProjectArtifacts, project_api::list_project_artifacts)
+        // Artifacts — upload route needs a relaxed `DefaultBodyLimit` so
+        // Multipart can read the full 50 MB upload ceiling; other extractors
+        // on this router continue to use the axum default.
+        .merge(
+            Router::<rest_api::ApiState>::new()
+                .ship_route(Route::ArtifactsUpload, artifacts_api::upload_artifact)
+                .ship_route(Route::ArtifactsList, artifacts_api::list_artifacts)
+                .ship_route(Route::ArtifactDownload_template(), artifacts_api::download_artifact)
+                .ship_route(Route::ArtifactDelete_template(), artifacts_api::delete_artifact)
+                .layer(axum::extract::DefaultBodyLimit::max(
+                    artifacts_api::MAX_UPLOAD_BYTES,
+                )),
+        )
+        // Collections
+        .ship_route(Route::ListCollections, collection_api::list_collections)
+        .ship_route(Route::GetCollectionSchema_template(), collection_api::get_schema)
+        .ship_route(Route::CreateCollectionItem_template(), collection_api::create_item)
+        .ship_route(Route::GetCollectionItem_template(), collection_api::get_item)
+        .ship_route(Route::UpdateCollectionItem_template(), collection_api::update_item)
+        .ship_route(Route::DeleteCollectionItem_template(), collection_api::delete_item)
+        .ship_route(Route::QueryCollection_template(), collection_api::query_items)
         // Glob-param file handlers (not in enum — glob syntax is project_api
         // internal; keep flat).
         .route(

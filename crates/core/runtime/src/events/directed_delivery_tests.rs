@@ -103,7 +103,7 @@ mod directed_delivery {
             .unwrap();
 
         // No target_actor_id — broadcast.
-        let event = ev("studio.annotation");
+        let event = ev("studio.feedback");
         assert!(event.target_actor_id.is_none());
         router.route(event.clone(), &runtime_ctx()).await.unwrap();
 

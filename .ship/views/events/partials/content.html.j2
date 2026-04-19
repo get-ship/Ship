@@ -1,0 +1,34 @@
+{#- SDK gaps:
+    - no macro for grouped details/accordion pattern
+    - no macro for event row grid layout
+-#}
+{#- Events content — grouped by entity, live-patched over SSE.
+   Root element MUST have id="events-content" for Datastar patching. -#}
+<div id="events-content" class="events-content">
+  {% if groups|length == 0 %}
+    <ship-empty-state
+      icon="activity"
+      title="Waiting for events..."
+      body="No events match the current filter yet."></ship-empty-state>
+  {% else %}
+    {% for g in groups %}
+      <details {% if not g.collapsed %}open{% endif %}>
+        <summary>
+          <span class="entity">{{ g.entity_id }}</span>
+          <span class="count">{{ g.count }} event{% if g.count != 1 %}s{% endif %}</span>
+        </summary>
+        {% for r in g.rows %}
+        <details class="events-row-wrap">
+          <summary class="events-row">
+            <span class="ts">{{ r.timestamp }}</span>
+            <span class="kind">{{ r.event_type }}</span>
+            <span class="actor">{{ r.actor }}</span>
+            <span class="id">{{ r.id }}</span>
+          </summary>
+          <pre>{{ r.payload_pretty }}</pre>
+        </details>
+        {% endfor %}
+      </details>
+    {% endfor %}
+  {% endif %}
+</div>

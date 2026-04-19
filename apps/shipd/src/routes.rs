@@ -61,11 +61,26 @@ pub enum Route {
     /// @route GET "/api/runtime/assets/ship-elements.js"
     AssetShipElementsJs,
 
+    /// @route GET "/api/runtime/assets/ship-code-editor.js"
+    AssetCodeEditorJs,
+
+    /// @route GET "/api/runtime/assets/ship-markdown-editor.js"
+    AssetMarkdownEditorJs,
+
+    /// @route GET "/api/runtime/assets/ship-terminal.js"
+    AssetTerminalJs,
+
     /// @route GET "/api/runtime/assets/custom-elements.json"
     AssetElementsManifest,
 
     /// @route GET "/api/runtime/assets/ship-elements.md"
     AssetElementsCatalog,
+
+    /// @route GET "/api/runtime/assets/theme.css"
+    AssetThemeCss,
+
+    /// @route GET "/api/runtime/themes"
+    ListThemes,
 
     // ── Views: HTML shells + SSE streams ─────────────────────────────────
 
@@ -143,6 +158,9 @@ pub enum Route {
     /// @route GET "/api/runtime/view/{name}/raw"
     ServeViewRaw { name: String },
 
+    /// @route GET "/api/runtime/view/{name}/sse"
+    ServeViewSse { name: String },
+
     // ── Agent-owned view sessions (Phase 1 canvas framework) ─────────────
 
     /// @route POST "/api/runtime/view-sessions"
@@ -166,10 +184,10 @@ pub enum Route {
     /// @route GET "/api/runtime/view-sessions/{id}/raw"
     ViewSessionRaw { id: String },
 
-    // ── Annotations (Phase 2 overlay ingress) ─────────────────────────────
+    // ── Feedback (agent-designed feedback ingress) ────────────────────────
 
-    /// @route POST "/api/runtime/annotations"
-    PostAnnotation,
+    /// @route POST "/api/runtime/feedback"
+    PostFeedback,
 
     // ── Runtime listings ─────────────────────────────────────────────────
 
@@ -330,8 +348,9 @@ pub enum Route {
     /// @route POST "/api/workspaces/{id}/artifacts/promote"
     PromoteArtifact { id: String },
 
-    /// @route GET "/api/artifacts"
-    ListProjectArtifacts,
+    // `GET /api/artifacts` is owned by the artifacts API below — it lists
+    // DB-backed artifact metadata. The prior FS-scanning endpoint on this
+    // path has been replaced.
 
     // ── Mesh / actors ────────────────────────────────────────────────────
 
@@ -358,6 +377,43 @@ pub enum Route {
 
     /// @route POST "/api/events/route"
     EventRoute,
+
+    // ── Collections ──────────────────────────────────────────────────────
+
+    /// @route GET "/api/collections"
+    ListCollections,
+
+    /// @route GET "/api/collections/{collection}/schema"
+    GetCollectionSchema { collection: String },
+
+    /// @route POST "/api/collections/{collection}/items"
+    CreateCollectionItem { collection: String },
+
+    /// @route GET "/api/collections/{collection}/items/{item_id}"
+    GetCollectionItem { collection: String, item_id: String },
+
+    /// @route PUT "/api/collections/{collection}/items/{item_id}"
+    UpdateCollectionItem { collection: String, item_id: String },
+
+    /// @route DELETE "/api/collections/{collection}/items/{item_id}"
+    DeleteCollectionItem { collection: String, item_id: String },
+
+    /// @route POST "/api/collections/{collection}/query"
+    QueryCollection { collection: String },
+
+    // ── Artifacts ────────────────────────────────────────────────────────
+
+    /// @route POST "/api/artifacts"
+    ArtifactsUpload,
+
+    /// @route GET "/api/artifacts"
+    ArtifactsList,
+
+    /// @route GET "/api/artifacts/{id}"
+    ArtifactDownload { id: String },
+
+    /// @route DELETE "/api/artifacts/{id}"
+    ArtifactDelete { id: String },
 
     // ── Capabilities ─────────────────────────────────────────────────────
 

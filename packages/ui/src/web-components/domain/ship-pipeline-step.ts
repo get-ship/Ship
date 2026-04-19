@@ -93,6 +93,14 @@ export class ShipPipelineStep extends LitElement {
   stepType: StepType = 'agent'
   state: StepState = 'pending'
   agent = ''
+  connectedCallback() {
+    super.connectedCallback()
+    if (!this.hasAttribute('role')) this.setAttribute('role', 'listitem')
+  }
+  updated() {
+    const summary = `${this.stepType} step ${this.name}${this.agent ? ` (${this.agent})` : ''}: ${this.state}`
+    this.setAttribute('aria-label', summary)
+  }
   private glyphFor(state: StepState): string {
     switch (state) {
       case 'completed': return '\u2713' // ✓

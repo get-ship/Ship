@@ -55,39 +55,32 @@ Validate `.ship/` config -- JSONC syntax, skill refs, MCP fields, permissions.
 | `--json` | Emit errors as JSON |
 | `--path <dir>` | Project root |
 
-### `ship convert <source>`
+### `ship convert .`
 
-Convert provider config files (CLAUDE.md, .cursor/) into `.ship/` format.
+Convert existing provider config files in the current directory into `.ship/` format.
 
 ## Agent Management
 
-| Command | Description | Flags |
-|---------|-------------|-------|
-| `ship agents list` | List available agent profiles | `--local`, `--project` |
-| `ship agents create <name>` | Create a new agent profile (lowercase + hyphens) | `--global` |
-| `ship agents edit <name>` | Open agent in `$EDITOR` | |
-| `ship agents clone <src> <dst>` | Copy full profile under a new ID | |
-| `ship agents delete <name>` | Delete an agent profile | |
+Agents are JSONC files in `.ship/agents/`. `ship init` scaffolds a `dev` agent automatically.
+
+| Task | How |
+|------|-----|
+| Create an agent | Add a file at `.ship/agents/<id>.jsonc` |
+| Activate | `ship use <id>` |
+| Recompile | `ship compile` |
+| Validate | `ship validate --agent <id>` |
+
+To create additional agents, copy an existing one and change the `id` field.
 
 ## Skills
 
-| Command | Description | Flags |
-|---------|-------------|-------|
-| `ship skills add <source>` | Install from GitHub URL, `owner/repo`, or registry | `--skill <id>`, `--global` |
-| `ship skills list` | List all installed skills | |
-| `ship skills remove <id>` | Remove an installed skill | `--global` |
-| `ship skills create <id>` | Scaffold a new skill (lowercase, digits, hyphens) | |
+Skills are directories in `.ship/skills/` containing a `SKILL.md` file. Install from the registry or create locally.
 
-`--skill <id>` is required when a repo contains multiple skills.
-
-## Variables
-
-| Command | Description |
-|---------|-------------|
-| `ship vars get <skill-id> [key]` | Read merged state for a skill. Omit key for all variables. |
-| `ship vars set <skill-id> <key> <value>` | Set a variable. Routes to correct scope via `storage-hint`. Validates type/enum. |
-| `ship vars append <skill-id> <key> '<json>'` | Append an element to an array variable. |
-| `ship vars reset <skill-id>` | Reset all state to defaults from `vars.json`. |
+| Task | How |
+|------|-----|
+| Install from registry | `ship add github.com/owner/skill-pack` |
+| Create a local skill | `mkdir .ship/skills/my-skill` and add `SKILL.md` |
+| Reference in an agent | Add the skill ID to `skills.refs` in the agent JSONC |
 
 ## MCP Servers
 
@@ -108,7 +101,7 @@ ship mcp add my-api --url http://localhost:8080/mcp
 
 ### `ship install`
 
-Resolve and install all dependencies from `.ship/ship.toml`, then compile.
+Resolve and install all dependencies from `.ship/ship.jsonc`, then compile.
 
 | Flag | Description |
 |------|-------------|
@@ -116,7 +109,7 @@ Resolve and install all dependencies from `.ship/ship.toml`, then compile.
 
 ### `ship add <package>`
 
-Add a dependency to `.ship/ship.toml` and install it. Version defaults to `main` if omitted.
+Add a dependency to `.ship/ship.jsonc` and install it. Version defaults to `main` if omitted.
 
 ```bash
 ship add some-package@0.2.0

@@ -1,0 +1,84 @@
+{#- Permissions section. Context: agent (AgentDetail), tiers (Vec<TierRow>).
+    Parity: apps/web/src/features/agents/sections/PermissionsSection.tsx
+    - Three preset buttons (Standard / Autonomous / Read Only)
+    - Three permission cards (Allow / Ask / Deny) -#}
+{% from '_ship.html.j2' import radio %}
+<section id="section-permissions" class="ad-section">
+  <div class="ad-section-head">
+    <h2 class="ad-section-label">
+      <svg class="ad-section-icon" viewBox="0 0 24 24" fill="none"
+           stroke="currentColor" stroke-width="2" stroke-linecap="round"
+           stroke-linejoin="round">
+        <rect width="18" height="11" x="3" y="11" rx="2" ry="2"/>
+        <path d="M7 11V7a5 5 0 0 1 10 0v4"/>
+      </svg>
+      Permissions
+    </h2>
+    <ship-button class="ad-section-action" variant="outline" size="sm" disabled>
+      <ship-icon slot="leading" name="pencil"></ship-icon>
+      Edit
+    </ship-button>
+  </div>
+
+  <!-- Preset buttons -->
+  <div class="ad-preset-row" role="radiogroup" aria-label="Permission preset">
+    {% for t in tiers %}
+      <ship-button class="ad-preset-btn"
+              variant="outline"
+              role="radio"
+              tabindex="0"
+              {{ radio('tier', t.id) }}
+              aria-checked="{% if t.selected %}true{% else %}false{% endif %}">
+        <span class="ad-preset-label">
+          {% if t.id == 'standard' %}
+            <ship-icon name="shield"></ship-icon>
+          {% elif t.id == 'autonomous' %}
+            <ship-icon name="shield-check"></ship-icon>
+          {% else %}
+            <ship-icon name="shield-off"></ship-icon>
+          {% endif %}
+          {{ t.label }}
+        </span>
+        <p class="ad-preset-desc">{{ t.description }}</p>
+      </ship-button>
+    {% endfor %}
+  </div>
+
+  <!-- Permission cards -->
+  <div class="ad-perm-grid">
+    <div class="ad-perm-card">
+      <div class="ad-perm-card-head ad-perm-card-head--allow">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor"
+             stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+          <path d="M20 6 9 17l-5-5"/>
+        </svg>
+        Allow
+      </div>
+      <p class="ad-perm-card-list"><span class="ad-perm-none">none</span></p>
+    </div>
+    <div class="ad-perm-card">
+      <div class="ad-perm-card-head ad-perm-card-head--ask">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor"
+             stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+          <circle cx="12" cy="12" r="10"/>
+          <path d="M9.09 9a3 3 0 0 1 5.83 1c0 2-3 3-3 3"/>
+          <path d="M12 17h.01"/>
+        </svg>
+        Ask
+      </div>
+      <p class="ad-perm-card-list"><span class="ad-perm-none">none</span></p>
+    </div>
+    <div class="ad-perm-card">
+      <div class="ad-perm-card-head ad-perm-card-head--deny">
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor"
+             stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+          <circle cx="12" cy="12" r="10"/>
+          <path d="m15 9-6 6"/>
+          <path d="m9 9 6 6"/>
+        </svg>
+        Deny
+      </div>
+      <p class="ad-perm-card-list"><span class="ad-perm-none">none</span></p>
+    </div>
+  </div>
+</section>

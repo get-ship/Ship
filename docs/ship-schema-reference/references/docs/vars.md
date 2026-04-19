@@ -1,0 +1,76 @@
+---
+group: Schema Reference
+title: Skill Variables
+section: reference
+order: 7
+---
+
+# Skill Variables — vars.json
+
+**Location**: `.ship/skills/<skill-id>/assets/vars.json`
+**Schema**: `vars.schema.json`
+
+Declares typed, scoped configuration variables that make a skill "smart." The compiler resolves variables into SKILL.md at compile time via MiniJinja templates.
+
+## Variable fields
+
+Each top-level key is a variable name. Values are objects:
+
+| Field | Type | Default | Description |
+|-------|------|---------|-------------|
+| `type` | enum | `"string"` | `string`, `bool`, `enum`, `array`, `object` |
+| `default` | any | — | Default value when no user state is set. Must match `type`. |
+| `storage-hint` | enum | `"global"` | Where values are stored: `global`, `local`, `project` |
+| `values` | string[] | — | Allowed values for `enum` type. Validated on set and compile. |
+| `label` | string | — | Human-readable name shown in Studio and CLI |
+| `description` | string | — | Longer explanation shown in Studio tooltips |
+
+## Storage scopes
+
+| Scope | Semantics | Shared? |
+|-------|-----------|---------|
+| `global` | Machine-wide, follows user across projects | Personal |
+| `local` | This project only | Personal |
+| `project` | This project, intended for teams | Team-shared |
+
+Merge order: defaults → global → local → project. Last wins.
+
+## Variable types
+
+| Type | Default value example | CLI set example |
+|------|----------------------|-----------------|
+| `string` | `"vitest"` | `ship vars set tdd test_runner vitest` |
+| `bool` | `true` | `ship vars set tdd commit_at_green false` |
+| `enum` | `"fast"` | `ship vars set tdd speed fast` |
+| `array` | `["src/"]` | `ship vars append tdd watch_paths '["tests/"]'` |
+| `object` | `{}` | `ship vars set tdd config '{"key":"val"}'` |
+
+## Example
+
+```json
+{
+  "$schema": "https://raw.githubusercontent.com/madvib/ship/main/schemas/vars.schema.json",
+  "test_runner": {
+    "type": "enum",
+    "values": ["vitest", "jest", "pytest", "cargo-test"],
+    "default": "vitest",
+    "storage-hint": "project",
+    "label": "Test Runner",
+    "description": "Which test runner to use for TDD cycles."
+  },
+  "commit_at_green": {
+    "type": "bool",
+    "default": false,
+    "storage-hint": "local",
+    "label": "Auto-commit on green",
+    "description": "Automatically commit when tests pass."
+  },
+  "watch_paths": {
+    "type": "array",
+    "default": ["src/", "tests/"],
+    "storage-hint": "project",
+    "label": "Watch Paths",
+    "description": "Directories to watch for file changes."
+  }
+}
+```

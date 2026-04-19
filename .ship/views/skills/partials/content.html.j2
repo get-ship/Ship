@@ -1,0 +1,31 @@
+{#-
+  Detail pane placeholder — shown when no skill is selected.
+
+  Separate from `detail.html.j2` so the "no selection" state has a
+  dedicated empty-state presentation and the root element carries
+  `id="skills-content"` for any future SSE patching.
+
+  Context: rail (RailCtx); no `skill` here.
+-#}
+<div id="skills-content">
+  <div class="skills-detail empty">
+    {% if rail.total == 0 %}
+      <ship-empty-state icon="sparkles">
+        <span slot="title">No skills discovered</span>
+        Drop a directory under <code style="font-family:var(--font-mono);font-size:12px;background:var(--muted);padding:1px 6px;border-radius:4px">.ship/skills/&lt;name&gt;/</code> with a <code style="font-family:var(--font-mono);font-size:12px;background:var(--muted);padding:1px 6px;border-radius:4px">SKILL.md</code> file to get started.
+      </ship-empty-state>
+    {% elif rail.filtered == 0 %}
+      <ship-empty-state icon="search">
+        <span slot="title">No matches</span>
+        No skills match the current search or filter. Try clearing the
+        search box or selecting a different kind.
+      </ship-empty-state>
+    {% else %}
+      <ship-empty-state variant="placeholder" icon="sparkles">
+        <span slot="title">Select a skill</span>
+        Choose a skill from the list on the left to read its SKILL.md.
+        {{ rail.filtered }} skill{{ 's' if rail.filtered != 1 else '' }} available.
+      </ship-empty-state>
+    {% endif %}
+  </div>
+</div>

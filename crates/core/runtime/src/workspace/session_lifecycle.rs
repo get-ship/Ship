@@ -105,7 +105,7 @@ fn run_post_session_hooks(ship_dir: &Path, session: &WorkspaceSession) -> Result
         match output {
             Ok(out) => {
                 if !out.status.success() {
-                    eprintln!(
+                    tracing::warn!(
                         "Post-session hook '{}' failed with status {:?}",
                         hook.id,
                         out.status.code()
@@ -113,7 +113,7 @@ fn run_post_session_hooks(ship_dir: &Path, session: &WorkspaceSession) -> Result
                 }
             }
             Err(error) => {
-                eprintln!(
+                tracing::warn!(
                     "Failed to execute post-session hook '{}': {}",
                     hook.id, error
                 );
@@ -157,7 +157,7 @@ pub fn start_workspace_session(
         };
         insert_session_attached_event(&existing.id, &workspace.id, &payload)?;
         if let Err(e) = persist_session_artifact(ship_dir, &existing, "attach") {
-            eprintln!("Failed to persist attached session artifact: {}", e);
+            tracing::warn!("failed to persist attached session artifact: {e}");
         }
         return Ok(existing);
     }
@@ -187,7 +187,7 @@ pub fn start_workspace_session(
     let started = hydrate_workspace_session(created);
 
     if let Err(e) = persist_session_artifact(ship_dir, &started, "start") {
-        eprintln!("Failed to persist session artifact on start: {}", e);
+        tracing::warn!("failed to persist session artifact on start: {e}");
     }
 
     Ok(started)
@@ -300,13 +300,13 @@ pub fn end_workspace_session(
     ended.session_record_id = Some(record_id);
 
     if let Err(e) = persist_session_artifact(ship_dir, &ended, "end") {
-        eprintln!("Failed to persist session artifact on end: {}", e);
+        tracing::warn!("failed to persist session artifact on end: {e}");
     }
     let hook_ship_dir = ship_dir.to_path_buf();
     let hook_session = ended.clone();
     std::thread::spawn(move || {
         if let Err(e) = run_post_session_hooks(&hook_ship_dir, &hook_session) {
-            eprintln!("Failed to run post-session hooks: {}", e);
+            tracing::warn!("failed to run post-session hooks: {e}");
         }
     });
 

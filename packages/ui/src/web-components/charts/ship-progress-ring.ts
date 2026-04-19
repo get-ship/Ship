@@ -13,7 +13,7 @@
  *   - (default) — centered label
  */
 
-import { LitElement, css, html } from 'lit'
+import { LitElement, css, html, nothing } from 'lit'
 import { toneColor } from './util'
 
 export class ShipProgressRing extends LitElement {
@@ -44,12 +44,14 @@ export class ShipProgressRing extends LitElement {
     size: { type: Number },
     thickness: { type: Number },
     tone: { type: String, reflect: true },
+    label: { type: String, reflect: true },
   }
 
   value = 0
   size = 48
   thickness = 4
   tone = 'primary'
+  label = ''
 
   updated() {
     this.style.setProperty('--ship-ring-size', `${this.size}px`)
@@ -66,7 +68,8 @@ export class ShipProgressRing extends LitElement {
     const color = toneColor(this.tone)
     return html`
       <svg viewBox="0 0 ${s} ${s}" role="progressbar"
-        aria-valuemin="0" aria-valuemax="100" aria-valuenow=${pct}>
+        aria-valuemin="0" aria-valuemax="100" aria-valuenow=${pct}
+        aria-label=${this.label || nothing}>
         <circle class="track" cx=${c} cy=${c} r=${r}
           fill="none" stroke-width=${t}></circle>
         <circle class="bar" cx=${c} cy=${c} r=${r}

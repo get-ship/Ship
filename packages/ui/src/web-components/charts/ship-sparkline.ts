@@ -34,6 +34,7 @@ export class ShipSparkline extends LitElement {
     width: { type: Number },
     height: { type: Number },
     fill: { type: Boolean, reflect: true },
+    label: { type: String },
   }
 
   data = ''
@@ -41,6 +42,7 @@ export class ShipSparkline extends LitElement {
   width = 80
   height = 20
   fill = false
+  label = 'sparkline'
 
   render() {
     const nums = parseNums(this.data)
@@ -62,7 +64,7 @@ export class ShipSparkline extends LitElement {
         width=${w}
         height=${h}
         role="img"
-        aria-label="sparkline"
+        aria-label=${this.label}
       >
         ${this.fill
           ? svg`<path d=${areaD} fill=${color} fill-opacity="0.18" stroke="none"></path>`

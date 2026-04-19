@@ -1,8 +1,8 @@
 //! Tests for ActorPermissions and emit/subscribe enforcement.
 //!
 //! Acceptance criteria covered:
-//! - Actor with emit permission for `studio.*` can emit `studio.annotation`
-//! - Actor without emit permission for `studio.*` is rejected emitting `studio.annotation`
+//! - Actor with emit permission for `studio.*` can emit `studio.feedback`
+//! - Actor without emit permission for `studio.*` is rejected emitting `studio.feedback`
 //! - Actor with empty emit list cannot emit any events
 //! - CallerKind::Cli bypasses emit restrictions (superuser)
 //! - Actor cannot subscribe to namespace not in its permissions
@@ -71,7 +71,7 @@ mod permissions {
             .spawn_actor_with_permissions(identity("studio"), perms)
             .unwrap();
 
-        let result = router.route(ev("studio.annotation"), &runtime_ctx()).await;
+        let result = router.route(ev("studio.feedback"), &runtime_ctx()).await;
         assert!(result.is_ok(), "actor with studio.* emit should succeed");
     }
 
@@ -89,7 +89,7 @@ mod permissions {
             .unwrap();
 
         // Agent tries to emit into studio.* — should be rejected.
-        let event = ev("studio.annotation")
+        let event = ev("studio.feedback")
             .with_actor_id("agent.reviewer");
         let result = router.route(event, &mcp_ctx()).await;
         assert!(result.is_err(), "actor without studio.* emit must be rejected");
@@ -196,7 +196,7 @@ mod permissions {
         );
 
         // Route a studio event — agent IS subscribed.
-        let studio_event = ev("studio.annotation");
+        let studio_event = ev("studio.feedback");
         router
             .route(studio_event.clone(), &runtime_ctx())
             .await

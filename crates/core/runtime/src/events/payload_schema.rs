@@ -117,6 +117,8 @@ fn schema_for_event_type(
         "daemon.port_bind_failed" => Some(check::<crate::events::daemon::PortBindFailedPayload>),
         "daemon.pidfile_acquired" => Some(check::<crate::events::daemon::PidfileAcquiredPayload>),
         "daemon.pidfile_stale_taken" => Some(check::<crate::events::daemon::PidfileStaleTakenPayload>),
+        // studio / feedback (agent-designed feedback payload from Studio views)
+        "studio.feedback.created" => Some(check::<crate::events::feedback::FeedbackEvent>),
         // studio / annotation (Phase 1 pin for the Phase 2 overlay wire format)
         "studio.annotation.created" => Some(check::<crate::events::annotation::AnnotationEvent>),
         _ => None,

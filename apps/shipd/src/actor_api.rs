@@ -77,8 +77,8 @@ pub async fn actor_spawn(
             })),
         };
         let ctx = auth.to_daemon_emit_context();
-        if let Err(e) = state.kernel().lock().await.route(envelope, &ctx).await {
-            tracing::warn!(actor_id = %req.actor_id, "mesh.register routing failed: {e}");
+        if let Err(e) = state.kernel().lock().await.emit(envelope, &ctx).await {
+            tracing::warn!(actor_id = %req.actor_id, "mesh.register emit failed: {e}");
         }
     }
 
@@ -112,8 +112,8 @@ pub async fn event_route(
         workspace_id: req.workspace_id.or(auth.workspace_id),
         session_id: req.session_id.or(auth.session_id),
     };
-    match state.kernel().lock().await.route(req.envelope, &ctx).await {
-        Ok(()) => (StatusCode::OK, Json(MeshResponse { ok: true, data: serde_json::json!("routed") })),
+    match state.kernel().lock().await.emit(req.envelope, &ctx).await {
+        Ok(()) => (StatusCode::OK, Json(MeshResponse { ok: true, data: serde_json::json!("emitted") })),
         Err(e) => (StatusCode::INTERNAL_SERVER_ERROR, Json(MeshResponse { ok: false, data: serde_json::json!(e.to_string()) })),
     }
 }

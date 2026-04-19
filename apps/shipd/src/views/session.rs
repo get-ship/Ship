@@ -174,20 +174,20 @@ impl ViewSessionRegistry {
             .collect()
     }
 
-    /// Deliver an annotation payload to every live subscriber of `view_id`
-    /// as a Datastar signal (`{"annotation": <payload>}`). Used by the
-    /// `/api/runtime/annotations` handler so co-watchers of a canvas see
-    /// annotations without needing a separate SSE stream.
+    /// Deliver a feedback payload to every live subscriber of `view_id`
+    /// as a Datastar signal (`{"feedback": <payload>}`). Used by the
+    /// `/api/runtime/feedback` handler so co-watchers of a canvas see
+    /// feedback without needing a separate SSE stream.
     ///
     /// Not caller-authorized: any authenticated request that passed the
     /// ingress validator may land here. Authorization is enforced upstream
     /// by the REST layer.
-    pub async fn broadcast_annotation(
+    pub async fn broadcast_feedback(
         &self,
         view_id: &str,
         payload: &Value,
     ) -> Result<(), SessionError> {
-        let json = serde_json::json!({ "annotation": payload }).to_string();
+        let json = serde_json::json!({ "feedback": payload }).to_string();
         self.broadcast(view_id, Broadcast::Signal(json)).await
     }
 

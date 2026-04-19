@@ -47,6 +47,9 @@ export class ShipListItem extends LitElement {
         0 0 0 calc(var(--ring-offset) + var(--ring-width))
           color-mix(in oklch, var(--ring-color) var(--ring-opacity), transparent);
     }
+    @media (forced-colors: active) {
+      button:focus-visible { outline: 2px solid CanvasText; outline-offset: 2px; }
+    }
     :host([selected]) button {
       background: var(--muted);
       border-color: var(--primary);
@@ -86,6 +89,7 @@ export class ShipListItem extends LitElement {
         part="button"
         role="option"
         aria-selected=${this.selected ? 'true' : 'false'}
+        aria-disabled=${this.disabled ? 'true' : 'false'}
         ?disabled=${this.disabled}
         @click=${this.onClick}
       >

@@ -20,13 +20,26 @@ interface RawFile {
   modifiedAt?: number; createdAt?: number
 }
 
+interface RawArtifact {
+  id: string; name: string; path: string; size: number; mime: string
+  created_at: string
+}
+
+function fileTypeFromMime(mime: string, name: string): SessionFile['type'] {
+  if (mime.startsWith('image/')) return 'image'
+  if (mime === 'text/html') return 'html'
+  if (mime === 'text/markdown' || name.toLowerCase().endsWith('.md')) return 'markdown'
+  if (mime === 'text/x-uri' || name.toLowerCase().endsWith('.url')) return 'url'
+  return 'other'
+}
+
 export function useSessionFiles() {
   const wsId = useActiveWorkspaceId()
 
   const query = useQuery({
     queryKey: sessionKeys.files(wsId),
     queryFn: async (): Promise<SessionFile[]> => {
-      // Fetch workspace + project files in parallel
+      // Fetch workspace (ephemeral .artifacts/) + project (DB-backed artifacts) in parallel.
       const [wsRes, projRes] = await Promise.all([
         daemonFetch(`/api/workspaces/${encodeURIComponent(wsId)}/session-files`),
         daemonFetch(`/api/artifacts`),
@@ -35,35 +48,34 @@ export function useSessionFiles() {
       const wsFiles: RawFile[] = wsRes.ok
         ? ((await wsRes.json()) as { ok: boolean; data: { files: RawFile[] } }).data.files
         : []
-      const projFiles: RawFile[] = projRes.ok
-        ? ((await projRes.json()) as { ok: boolean; data: { files: RawFile[] } }).data.files
+      const projArtifacts: RawArtifact[] = projRes.ok
+        ? ((await projRes.json()) as { ok: boolean; data: RawArtifact[] }).data ?? []
         : []
 
-      // Merge: workspace files first, then project-only files
-      const seen = new Set<string>()
       const merged: SessionFile[] = []
+      const seen = new Set<string>()
 
       for (const f of wsFiles) {
         seen.add(f.path)
-        const inProject = projFiles.some((p) => p.path === f.path)
+        // Workspace/.artifacts/ is ephemeral scratch; no project cross-reference.
         merged.push({
           name: f.name,
           path: f.path,
           type: toFileType(f.type),
           size: f.size,
           modifiedAt: f.modifiedAt ?? Date.now(),
-          tier: inProject ? 'both' : 'workspace',
+          tier: 'workspace',
         })
       }
 
-      for (const f of projFiles) {
-        if (seen.has(f.path)) continue
+      for (const a of projArtifacts) {
+        if (seen.has(a.name)) continue
         merged.push({
-          name: f.name,
-          path: f.path,
-          type: toFileType(f.type),
-          size: f.size,
-          modifiedAt: f.modifiedAt ?? Date.now(),
+          name: a.name,
+          path: a.path,
+          type: fileTypeFromMime(a.mime, a.name),
+          size: a.size,
+          modifiedAt: Date.parse(a.created_at) || Date.now(),
           tier: 'project',
         })
       }

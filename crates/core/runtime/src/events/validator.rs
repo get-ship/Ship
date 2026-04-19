@@ -58,6 +58,7 @@ pub trait EventValidator: Send + Sync {
 /// Actors can subscribe to events in these namespaces.
 pub const KERNEL_NAMESPACES: &[&str] = &[
     "actor.",
+    "collection.",
     "config.",
     "daemon.",
     "gate.",
@@ -83,6 +84,7 @@ pub const PLATFORM_ONLY_NAMESPACES: &[&str] = &[
 /// PLATFORM_ONLY_NAMESPACES — enforced by `namespace_lists_are_aligned` test.
 pub const RESERVED_NAMESPACES: &[&str] = &[
     "actor.",
+    "collection.",
     "config.",
     "daemon.",
     "gate.",

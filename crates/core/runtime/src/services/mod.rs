@@ -136,7 +136,7 @@ pub async fn run_service(
     mut mailbox: Mailbox,
 ) {
     if let Err(e) = handler.on_start(&store) {
-        eprintln!("[service:{}] on_start failed: {e}", handler.name());
+        tracing::warn!("[service:{}] on_start failed: {e}", handler.name());
         return;
     }
 
@@ -152,7 +152,7 @@ pub async fn run_service(
                     match event {
                         Some(e) => {
                             if let Err(err) = handler.handle(&e, &store) {
-                                eprintln!("[service:{}] handle error: {err}", handler.name());
+                                tracing::warn!("[service:{}] handle error: {err}", handler.name());
                             }
                         }
                         None => break,
@@ -160,7 +160,7 @@ pub async fn run_service(
                 }
                 _ = ticker.tick() => {
                     if let Err(e) = handler.on_tick(&store) {
-                        eprintln!("[service:{}] tick error: {e}", handler.name());
+                        tracing::warn!("[service:{}] tick error: {e}", handler.name());
                     }
                 }
             }
@@ -168,7 +168,7 @@ pub async fn run_service(
     } else {
         while let Some(event) = mailbox.recv().await {
             if let Err(e) = handler.handle(&event, &store) {
-                eprintln!("[service:{}] handle error: {e}", handler.name());
+                tracing::warn!("[service:{}] handle error: {e}", handler.name());
             }
         }
     }
@@ -176,10 +176,10 @@ pub async fn run_service(
     // Drain before stop — gives the service time to finish in-flight work.
     let drain_timeout = Duration::from_secs(30);
     if let Err(e) = handler.on_drain(drain_timeout) {
-        eprintln!("[service:{}] drain error: {e}", handler.name());
+        tracing::warn!("[service:{}] drain error: {e}", handler.name());
     }
 
     if let Err(e) = handler.on_stop(&store) {
-        eprintln!("[service:{}] on_stop failed: {e}", handler.name());
+        tracing::warn!("[service:{}] on_stop failed: {e}", handler.name());
     }
 }

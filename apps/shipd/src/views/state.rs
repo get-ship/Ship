@@ -3,20 +3,33 @@
 //! View handlers should never re-walk the filesystem or issue scattered
 //! runtime calls. Everything they need arrives through this module, so
 //! caching, error handling, and filter semantics live in one place.
+//!
+//! ## Scope in R0a
+//!
+//! R0a ships only what the pipelines pilot (R0b) will consume. That is:
+//!
+//! - Pipeline definitions from `.ship/pipelines/*.yaml`
+//! - Pipeline runs (via `runtime::projections::job::load_jobs`)
+//! - A shared [`Filter`] struct for query-string-driven view filters
+//!
+//! Helpers for specs, git, and settings are intentionally absent. They
+//! will be added alongside the pilots that need them — not as empty
+//! stubs. This keeps the module honest about what is actually wired up.
+
+// Agents + Skills state lives in sibling modules to respect the 300-line
+// cap on this file. Re-exports let callers use `views::state::list_agents`
+// without knowing about the split.
+pub use super::agents_state::{AgentDetail, AgentSummary, list_agents, load_agent};
+pub use super::skills_state::{
+    SkillDetail, SkillKind, SkillSummary, list_skills, load_skill,
+    load_skill_file,
+};
 
 use runtime::projections::job::{JobRecord, JobStatus};
 use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
 use std::io::ErrorKind;
 use std::path::Path;
-
-// Agents + Skills state lives in sibling modules to respect the 300-line
-// cap on this file. Re-exports let callers use `views::state::list_agents`
-// without caring about the submodule split.
-pub use super::agents_state::{AgentDetail, AgentSummary, list_agents, load_agent};
-pub use super::skills_state::{
-    SkillDetail, SkillKind, SkillSummary, list_skills, load_skill,
-};
 
 /// Definition of a pipeline parsed from a `.ship/pipelines/*.yaml` file.
 #[derive(Clone, Debug, Serialize)]
@@ -49,20 +62,28 @@ impl RunCategory {
     }
 }
 
-/// A view filter, typically populated from a query string.
+/// A view filter, typically populated from a query string. Every field is
+/// optional so callers can pass an empty [`Filter::default`] for unfiltered
+/// results.
 #[derive(Clone, Debug, Default, Deserialize, Serialize)]
 pub struct Filter {
+    /// Case-insensitive substring match applied to slug, agent, and
+    /// pipeline name where relevant.
     #[serde(default)]
     pub q: Option<String>,
+    /// Exact match on `JobRecord::agent`.
     #[serde(default)]
     pub agent: Option<String>,
+    /// Exact match on pipeline name (derived from spec path's parent).
     #[serde(default)]
     pub pipeline: Option<String>,
+    /// Restrict to a specific status, e.g. `failed`.
     #[serde(default)]
     pub status: Option<String>,
 }
 
 impl Filter {
+    /// True if no filter fields are set.
     pub fn is_empty(&self) -> bool {
         self.q.is_none() && self.agent.is_none() && self.pipeline.is_none() && self.status.is_none()
     }
@@ -89,7 +110,8 @@ impl Filter {
     }
 }
 
-/// Normalized kebab-case token for `JobStatus`.
+/// Normalized kebab-case token for `JobStatus`. Stable for query strings
+/// and template comparisons.
 pub fn status_token(s: &JobStatus) -> &'static str {
     match s {
         JobStatus::Pending => "pending",
@@ -103,7 +125,14 @@ pub fn status_token(s: &JobStatus) -> &'static str {
     }
 }
 
-/// List pipeline definitions from `<ship_dir>/pipelines/*.yaml`, sorted by name.
+/// Recognised pipeline file extensions, preferred first.
+const PIPELINE_EXTS: &[&str] = &["jsonc", "yaml"];
+
+/// List pipeline definitions from `<ship_dir>/pipelines/`, sorted by name.
+///
+/// Missing directories return an empty vec — having no pipelines is a
+/// valid project state, not an error. Other IO errors are logged and
+/// produce an empty vec rather than propagating to the view handler.
 pub fn list_pipeline_defs(ship_dir: &Path) -> Vec<PipelineDef> {
     let dir = ship_dir.join("pipelines");
     let entries = match std::fs::read_dir(&dir) {
@@ -118,7 +147,8 @@ pub fn list_pipeline_defs(ship_dir: &Path) -> Vec<PipelineDef> {
     let mut out = Vec::new();
     for entry in entries.flatten() {
         let path = entry.path();
-        if path.extension().and_then(|s| s.to_str()) != Some("yaml") {
+        let ext = path.extension().and_then(|s| s.to_str()).unwrap_or("");
+        if !PIPELINE_EXTS.contains(&ext) {
             continue;
         }
         let name = match path.file_stem().and_then(|s| s.to_str()) {
@@ -137,10 +167,22 @@ pub fn list_pipeline_defs(ship_dir: &Path) -> Vec<PipelineDef> {
     out
 }
 
-fn parse_pipeline_meta(yaml: &str) -> (String, usize) {
-    let value: serde_yaml::Value = match serde_yaml::from_str(yaml) {
-        Ok(v) => v,
-        Err(_) => return (String::new(), 0),
+/// Parse pipeline content (JSONC or YAML) and extract metadata.
+fn parse_pipeline_meta(content: &str) -> (String, usize) {
+    let value: serde_json::Value = {
+        let trimmed = content.trim_start();
+        if trimmed.starts_with('{') || trimmed.starts_with('[') {
+            let json = compiler::jsonc::strip_jsonc_comments(content);
+            match serde_json::from_str(&json) {
+                Ok(v) => v,
+                Err(_) => return (String::new(), 0),
+            }
+        } else {
+            match serde_yaml::from_str(content) {
+                Ok(v) => v,
+                Err(_) => return (String::new(), 0),
+            }
+        }
     };
     let description = value
         .get("description")
@@ -149,12 +191,12 @@ fn parse_pipeline_meta(yaml: &str) -> (String, usize) {
         .to_string();
     let step_count = value
         .get("steps")
-        .and_then(|v| v.as_sequence())
+        .and_then(|v| v.as_array())
         .map(|s| s.len())
         .or_else(|| {
             value
                 .get("agents")
-                .and_then(|v| v.as_sequence())
+                .and_then(|v| v.as_array())
                 .map(|s| s.len())
         })
         .unwrap_or(0);
@@ -180,6 +222,7 @@ fn filter_and_sort(jobs: HashMap<String, JobRecord>, filter: &Filter) -> Vec<Job
 }
 
 /// Partition a run list into `(active, history)` by [`RunCategory`].
+/// Preserves relative ordering within each bucket.
 pub fn partition_runs(runs: Vec<JobRecord>) -> (Vec<JobRecord>, Vec<JobRecord>) {
     let mut active = Vec::new();
     let mut history = Vec::new();

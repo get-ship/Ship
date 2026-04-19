@@ -7,6 +7,62 @@ use axum::{extract::Path, http::StatusCode, response::IntoResponse};
 use super::resolve::{is_valid_view_name, read_manifest_file, resolve_view_dir, scan_views_dir};
 use super::{ViewListEntry, ViewManifest, mesh_err, mesh_ok};
 
+/// Build a rich context for Jinja view rendering.
+/// Includes collection schemas and items so views can render server-side.
+fn build_view_context(view_name: &str, params: &HashMap<String, String>) -> serde_json::Value {
+    let mut ctx = serde_json::json!({
+        "view_name": view_name,
+        "query": params,
+    });
+    if let Ok(ship_dir) = runtime::project::get_global_dir() {
+        let schemas = runtime::collections::schema::load_schemas(&ship_dir).unwrap_or_default();
+        let summaries: Vec<serde_json::Value> = schemas.iter().map(|s| {
+            let fields: Vec<serde_json::Value> = s.fields.iter().map(|(k, v)| {
+                serde_json::json!([k, {
+                    "field_type": format!("{:?}", v.field_type).to_lowercase(),
+                    "required": v.required,
+                    "values": v.values,
+                    "default": v.default,
+                }])
+            }).collect();
+            serde_json::json!({ "id": s.id, "name": s.name, "field_count": s.fields.len(), "fields": fields })
+        }).collect();
+        ctx["collections"] = serde_json::json!(summaries);
+
+        let active_schema = params.get("collection")
+            .and_then(|id| schemas.iter().find(|s| s.id == *id))
+            .or_else(|| schemas.first());
+
+        if let Some(first) = active_schema {
+            ctx["active_collection"] = serde_json::json!(first.id);
+            let fields_list: Vec<serde_json::Value> = first.fields.iter().map(|(k, v)| {
+                serde_json::json!([k, {
+                    "field_type": format!("{:?}", v.field_type).to_lowercase(),
+                    "required": v.required, "values": v.values, "default": v.default,
+                }])
+            }).collect();
+            ctx["schema"] = serde_json::json!({ "id": first.id, "name": first.name, "fields": fields_list });
+
+            if let Ok(mut svc) = runtime::collections::store::open_docs_db(&ship_dir) {
+                let _ = runtime::collections::store::ensure_collection_table(&mut svc, first);
+                let req = runtime::collections::query::QueryRequest {
+                    collection: first.id.clone(),
+                    filter: std::collections::BTreeMap::new(),
+                    sort: std::collections::BTreeMap::new(),
+                    limit: 200, offset: 0,
+                };
+                if let Ok(items) = runtime::collections::store::query_items(&mut svc, first, &req) {
+                    let items_json: Vec<serde_json::Value> = items.into_iter()
+                        .map(|i| serde_json::to_value(i).unwrap_or_default()).collect();
+                    ctx["total_items"] = serde_json::json!(items_json.len());
+                    ctx["items"] = serde_json::json!(items_json);
+                }
+            }
+        }
+    }
+    ctx
+}
+
 /// GET /api/runtime/views
 pub async fn list_views() -> impl IntoResponse {
     let mut views: HashMap<String, ViewListEntry> = HashMap::new();
@@ -62,24 +118,68 @@ pub async fn serve_view_asset(Path((name, file)): Path<(String, String)>) -> axu
 /// GET /api/runtime/view/{name}
 pub async fn serve_view(
     Path(name): Path<String>,
+    axum::extract::Query(query_params): axum::extract::Query<std::collections::HashMap<String, String>>,
     headers: axum::http::HeaderMap,
-) -> impl IntoResponse {
-    if !is_valid_view_name(&name) { return mesh_err(StatusCode::BAD_REQUEST, "invalid view name"); }
+) -> axum::response::Response {
+    if !is_valid_view_name(&name) { return mesh_err(StatusCode::BAD_REQUEST, "invalid view name").into_response(); }
     let (view_dir, _) = match resolve_view_dir(&name) {
         Some(v) => v,
-        None => return mesh_err(StatusCode::NOT_FOUND, format!("view '{name}' not found")),
+        None => return mesh_err(StatusCode::NOT_FOUND, format!("view '{name}' not found")).into_response(),
     };
-    let html = match std::fs::read_to_string(view_dir.join("index.html")) {
-        Ok(h) => h,
-        Err(_) => return mesh_err(StatusCode::NOT_FOUND, format!("view '{name}' has no index.html")),
+    // Try index.html.j2 first (Jinja-processed), then index.html.
+    let (source, is_template) = if view_dir.join("index.html.j2").exists() {
+        match std::fs::read_to_string(view_dir.join("index.html.j2")) {
+            Ok(h) => (h, true),
+            Err(_) => return mesh_err(StatusCode::NOT_FOUND, format!("view '{name}' cannot read index.html.j2")).into_response(),
+        }
+    } else {
+        match std::fs::read_to_string(view_dir.join("index.html")) {
+            Ok(h) => { let has_jinja = h.contains("{%") || h.contains("{{"); (h, has_jinja) },
+            Err(_) => return mesh_err(StatusCode::NOT_FOUND, format!("view '{name}' has no index.html")).into_response(),
+        }
     };
-    let _ = headers; // cookie-first auth; headers unused here
-    // Views reference shared assets via relative URLs:
-    //   <link rel="stylesheet" href="/api/runtime/assets/view-tokens.css">
-    //   <script type="module" src="/api/runtime/assets/datastar.js"></script>
-    // Legacy `{{SHIP_TOKEN}}` placeholders are stripped — cookie handles auth.
-    let html = html.replace("{{SHIP_TOKEN}}", "");
-    mesh_ok(serde_json::json!({ "html": html }))
+    // Detect fragment mode: Datastar sends `Datastar-Request: true` when
+    // navigating inside the shell. In that case the page chrome (DOCTYPE,
+    // html, head, body) is unnecessary — the shell already provides it.
+    let is_fragment = headers
+        .get("datastar-request")
+        .and_then(|v| v.to_str().ok())
+        .map(|s| s.eq_ignore_ascii_case("true"))
+        .unwrap_or(false);
+
+    let html = if is_template {
+        let mut ctx = build_view_context(&name, &query_params);
+        if is_fragment {
+            ctx["fragment"] = serde_json::json!(true);
+        }
+        match super::templates::render_view_source(&name, &source, &ctx) {
+            Ok(h) => h,
+            Err(e) => {
+                tracing::warn!(view = %name, "view template render failed: {e}");
+                source.replace("{{SHIP_TOKEN}}", "")
+            }
+        }
+    } else {
+        source.replace("{{SHIP_TOKEN}}", "")
+    };
+
+    // Content negotiation: if the caller wants HTML, return it raw.
+    // Studio/MCP get the JSON envelope; shell and browsers get HTML.
+    let wants_html = headers
+        .get(axum::http::header::ACCEPT)
+        .and_then(|v| v.to_str().ok())
+        .map(|s| s.contains("text/html"))
+        .unwrap_or(false);
+    if wants_html {
+        // Middleware (view_morph_target) adds the datastar-selector header
+        // so cross-view navigation inside the shell preserves shell chrome.
+        return axum::response::Response::builder()
+            .status(StatusCode::OK)
+            .header(axum::http::header::CONTENT_TYPE, "text/html; charset=utf-8")
+            .body(axum::body::Body::from(html))
+            .unwrap();
+    }
+    mesh_ok(serde_json::json!({ "html": html })).into_response()
 }
 
 /// GET /api/runtime/view/{name}/manifest

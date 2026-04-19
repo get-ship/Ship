@@ -1,14 +1,8 @@
-//! Settings view — minijinja shell + Datastar SSE content patches.
+//! Settings view — shell + Datastar SSE patches.
 //!
-//! Single endpoint pair:
-//!
-//! - `GET /api/runtime/view/settings` — full-page HTML shell, single column,
-//!   four stacked sections (Providers / Terminal / Advanced / About).
-//! - `GET /api/runtime/view/settings/sse` — patches `#settings-panel` on
-//!   workspace / config-changed events.
-//!
-//! All reads go through the `runtime::config` public surface. Writes happen
-//! via the existing `/api/settings` REST endpoint that forms post to.
+//! Templates now live in `.ship/views/settings/` with fallback to
+//! embedded `apps/shipd/templates/settings/`. Rust handlers stay here
+//! for context-building (providers, terminal, flags, about).
 
 use axum::extract::{Query, State};
 use axum::http::StatusCode;
@@ -22,8 +16,6 @@ use crate::views::templates;
 
 #[derive(Clone, Debug, Default, Deserialize)]
 pub struct SettingsParams {}
-
-// ─── Context structs ──────────────────────────────────────────────────────────
 
 #[derive(Serialize, Clone)]
 pub struct ProviderRow {
@@ -83,20 +75,20 @@ pub struct SettingsCtx {
     pub terminal: TerminalConfig,
     pub advanced: Vec<FeatureFlag>,
     pub advanced_registry: String,
+    pub daemon_endpoint: String,
     pub about: AboutInfo,
 }
 
 // ─── State helpers ────────────────────────────────────────────────────────────
 
 fn provider_meta(id: &str) -> (&'static str, &'static str) {
-    // (human label, glyph)
     match id {
-        "claude" => ("Anthropic Claude", "✦"),
-        "openai" | "codex" => ("OpenAI", "◆"),
-        "gemini" => ("Google Gemini", "◇"),
-        "grok" => ("xAI Grok", "◈"),
-        "opencode" => ("OpenCode", "◉"),
-        _ => ("Provider", "○"),
+        "claude" => ("Anthropic Claude", "\u{2726}"),
+        "openai" | "codex" => ("OpenAI", "\u{25C6}"),
+        "gemini" => ("Google Gemini", "\u{25C7}"),
+        "grok" => ("xAI Grok", "\u{25C8}"),
+        "opencode" => ("OpenCode", "\u{25C9}"),
+        _ => ("Provider", "\u{25CB}"),
     }
 }
 
@@ -154,15 +146,12 @@ fn build_terminal() -> TerminalConfig {
 }
 
 fn build_about() -> AboutInfo {
-    let ship_version = env!("CARGO_PKG_VERSION").to_string();
+    let v = env!("CARGO_PKG_VERSION").to_string();
     AboutInfo {
-        ship_version: ship_version.clone(),
-        daemon_version: ship_version.clone(),
-        cli_version: ship_version,
-        license: "MIT".to_string(),
-        homepage: "https://getship.dev".to_string(),
-        docs: "https://getship.dev/docs".to_string(),
-        source: "https://github.com/madvib/Ship".to_string(),
+        ship_version: v.clone(), daemon_version: v.clone(), cli_version: v,
+        license: "MIT".into(), homepage: "https://getship.dev".into(),
+        docs: "https://getship.dev/docs".into(),
+        source: "https://github.com/madvib/Ship".into(),
     }
 }
 
@@ -175,6 +164,12 @@ fn build_ctx(_params: &SettingsParams) -> SettingsCtx {
     let default_model = setting_string("defaults.model");
     let providers = detect_providers(&default_provider);
     let advanced_registry = setting_string("registry.endpoint");
+    let daemon_port = setting_string("daemon.port");
+    let daemon_endpoint = if daemon_port.is_empty() {
+        "http://localhost:9315".to_string()
+    } else {
+        format!("http://localhost:{}", daemon_port)
+    };
 
     SettingsCtx {
         providers,
@@ -183,14 +178,15 @@ fn build_ctx(_params: &SettingsParams) -> SettingsCtx {
         terminal: build_terminal(),
         advanced: Vec::new(),
         advanced_registry,
+        daemon_endpoint,
         about: build_about(),
     }
 }
 
 fn render_panel(params: &SettingsParams) -> Option<String> {
     let ctx = build_ctx(params);
-    match render_sections(&ctx) {
-        Ok(inner) => Some(format!("<div id=\"settings-panel\">{inner}</div>")),
+    match render_content_partial(&ctx) {
+        Ok(html) => Some(html),
         Err(e) => {
             tracing::error!(error = %e, "settings panel render failed");
             None
@@ -198,7 +194,15 @@ fn render_panel(params: &SettingsParams) -> Option<String> {
     }
 }
 
-fn render_sections(ctx: &SettingsCtx) -> Result<String, String> {
+/// Render content partial from `.ship/views/settings/` or fall back to embedded partials.
+fn render_content_partial(ctx: &SettingsCtx) -> Result<String, String> {
+    if let Some(view_dir) = resolve_settings_view_dir() {
+        let partial = view_dir.join("partials/content.html.j2");
+        if let Ok(source) = std::fs::read_to_string(&partial) {
+            return templates::render_view_source("settings/partials/content", &source, ctx);
+        }
+    }
+    // Fallback: compose from embedded templates.
     let mut out = String::new();
     for tpl in [
         "settings/partials/providers.html.j2",
@@ -211,18 +215,42 @@ fn render_sections(ctx: &SettingsCtx) -> Result<String, String> {
     Ok(out)
 }
 
+/// Locate `.ship/views/settings/` in project or global dir.
+fn resolve_settings_view_dir() -> Option<std::path::PathBuf> {
+    if let Ok(d) = runtime::project::get_project_dir(None) {
+        let c = d.join("views/settings");
+        if c.is_dir() { return Some(c); }
+    }
+    if let Ok(d) = runtime::project::get_global_dir() {
+        let c = d.join("views/settings");
+        if c.is_dir() { return Some(c); }
+    }
+    None
+}
+
 /// GET /api/runtime/view/settings — full shell, minijinja-rendered.
+///
+/// Reads from `.ship/views/settings/index.html.j2` when available, falls
+/// back to the embedded `settings/shell.html.j2` template.
 pub async fn settings_shell(
     State(_state): State<crate::rest_api::ApiState>,
     Query(params): Query<SettingsParams>,
 ) -> Result<Html<String>, StatusCode> {
     let ctx = build_ctx(&params);
-    templates::render("settings/shell.html.j2", &ctx)
-        .map(Html)
-        .map_err(|e| {
-            tracing::error!(error = %e, "settings shell render failed");
-            StatusCode::INTERNAL_SERVER_ERROR
-        })
+    let result = if let Some(view_dir) = resolve_settings_view_dir() {
+        let index = view_dir.join("index.html.j2");
+        if let Ok(source) = std::fs::read_to_string(&index) {
+            templates::render_view_source("settings/index", &source, &ctx)
+        } else {
+            templates::render("settings/shell.html.j2", &ctx)
+        }
+    } else {
+        templates::render("settings/shell.html.j2", &ctx)
+    };
+    result.map(Html).map_err(|e| {
+        tracing::error!(error = %e, "settings shell render failed");
+        StatusCode::INTERNAL_SERVER_ERROR
+    })
 }
 
 /// GET /api/runtime/view/settings/sse — Datastar patches for `#settings-panel`.
@@ -234,10 +262,8 @@ pub async fn settings_sse(
 
     let actor_id = format!("settings-sse-{}", gen_ulid());
     let config = runtime::events::ActorConfig {
-        namespace: actor_id.clone(),
-        write_namespaces: vec![],
-        read_namespaces: vec![],
-        subscribe_namespaces: vec!["workspace.".to_string()],
+        namespace: actor_id.clone(), write_namespaces: vec![],
+        read_namespaces: vec![], subscribe_namespaces: vec!["workspace.".into()],
     };
     let mailbox = match state.kernel().lock().await.spawn_actor(&actor_id, config) {
         Ok((_store, mb)) => Some(mb),
@@ -256,7 +282,7 @@ pub async fn settings_sse(
         let _hb = vs.heartbeat_every(Duration::from_secs(15));
 
         if let Some(html) = render_panel(&params) {
-            if vs.patch("#settings-panel", html).await.is_err() {
+            if vs.patch("#settings-content", html).await.is_err() {
                 return;
             }
         }
@@ -267,7 +293,7 @@ pub async fn settings_sse(
                 break;
             }
             let Some(html) = render_panel(&params) else { continue };
-            if vs.patch("#settings-panel", html).await.is_err() {
+            if vs.patch("#settings-content", html).await.is_err() {
                 break;
             }
         }

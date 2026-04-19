@@ -1,0 +1,119 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <title>ship-markdown-editor — verification page</title>
+  <style>
+    :root {
+      color-scheme: light dark;
+      --background: oklch(0.99 0 0);
+      --foreground: oklch(0.18 0.01 260);
+      --card: oklch(1 0 0);
+      --muted: oklch(0.96 0.003 260);
+      --muted-foreground: oklch(0.52 0.02 260);
+      --border: oklch(0.92 0.01 260);
+      --primary: oklch(0.62 0.2 260);
+      --primary-foreground: oklch(0.99 0 0);
+      --destructive: oklch(0.58 0.22 20);
+      --info: oklch(0.65 0.18 220);
+      --success: oklch(0.68 0.17 155);
+      --warning: oklch(0.75 0.15 85);
+      --accent: oklch(0.66 0.18 295);
+      --ring-color: var(--primary);
+      --ring-width: 3px;
+      --ring-offset: 0px;
+      --ring-opacity: 35%;
+      --radius-sm: 4px; --radius-md: 6px; --radius-lg: 10px;
+      --shadow-xs: 0 1px 2px 0 oklch(0 0 0 / 5%);
+      --shadow-sm: 0 1px 3px 0 oklch(0 0 0 / 8%);
+      --space-1: 4px; --space-2: 8px; --space-3: 12px; --space-4: 16px;
+      --space-5: 20px; --space-6: 24px;
+      --text-xs: 10.5px; --text-sm: 12px; --text-base: 13px;
+      --text-md: 14px; --text-lg: 16px; --text-xl: 20px; --text-2xl: 24px;
+      --font-weight-normal: 400; --font-weight-medium: 500;
+      --font-weight-semibold: 600; --font-weight-bold: 700;
+      --leading-tight: 1.2; --leading-normal: 1.5; --leading-relaxed: 1.7;
+      --ease-out: cubic-bezier(0.16, 1, 0.3, 1);
+      --duration-fast: 120ms;
+      --font-body: 'Inter', system-ui, -apple-system, sans-serif;
+      --font-display: 'Inter', system-ui, -apple-system, sans-serif;
+    }
+    body {
+      margin: 0;
+      background: var(--background);
+      color: var(--foreground);
+      font-family: var(--font-body);
+      padding: 32px 24px;
+    }
+    .page {
+      max-width: 960px;
+      margin: 0 auto;
+      display: flex;
+      flex-direction: column;
+      gap: 20px;
+    }
+    h1 { font-size: 22px; margin: 0 0 4px; }
+    .sub { color: var(--muted-foreground); font-size: 14px; margin: 0 0 20px; }
+    .grid {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 20px;
+    }
+    .preview {
+      border: 1px solid var(--border);
+      border-radius: 10px;
+      padding: 12px 14px;
+      background: var(--card);
+      font-family: ui-monospace, SFMono-Regular, monospace;
+      font-size: 12px;
+      line-height: 1.55;
+      white-space: pre-wrap;
+      overflow: auto;
+      max-height: 420px;
+    }
+    .legend {
+      font-size: 11px;
+      color: var(--muted-foreground);
+      text-transform: uppercase;
+      letter-spacing: 0.08em;
+      margin: 0 0 6px;
+    }
+  </style>
+  <script type="module" src="/vendor/ship-markdown-editor.js"></script>
+</head>
+<body>
+  <div class="page">
+    <header>
+      <h1>ship-markdown-editor verification</h1>
+      <p class="sub">Typing updates the preview. The editor round-trips markdown via tiptap-markdown.</p>
+    </header>
+
+    <div class="grid">
+      <div>
+        <p class="legend">Editor</p>
+        <ship-markdown-editor
+          id="editor"
+          label="Notes"
+          placeholder="Start typing…  try **bold**, *italic*, # heading"
+          value="# Welcome&#10;&#10;Edit **this** document to verify the editor works.&#10;&#10;- [x] renders&#10;- [ ] serializes&#10;"
+          rows="14"
+        ></ship-markdown-editor>
+      </div>
+      <div>
+        <p class="legend">Markdown (serialized)</p>
+        <pre class="preview" id="preview"></pre>
+      </div>
+    </div>
+  </div>
+
+  <script type="module">
+    const editor = document.getElementById('editor');
+    const preview = document.getElementById('preview');
+    function render(v) { preview.textContent = v ?? ''; }
+    render(editor.value);
+    editor.addEventListener('ship-change', (e) => render(e.detail.value));
+    editor.addEventListener('input', () => render(editor.value));
+  </script>
+</body>
+</html>

@@ -8,13 +8,36 @@ use serde::Deserialize;
 use super::{ViewListEntry, ViewManifest};
 
 #[derive(Deserialize)]
-pub(super) struct ManifestFile {
+pub(crate) struct ManifestFile {
     name: Option<String>,
     #[serde(rename = "type")]
     view_type: Option<String>,
     element: Option<String>,
     claims: Option<Vec<String>>,
     entry: Option<String>,
+    pub data: Option<ManifestData>,
+    pub events: Option<Vec<String>>,
+}
+
+#[derive(Deserialize, Clone)]
+pub(crate) struct ManifestData {
+    pub collections: Option<ManifestCollections>,
+    pub items: Option<String>,
+    pub settings: Option<bool>,
+    pub agents: Option<bool>,
+    pub skills: Option<bool>,
+    pub events_data: Option<bool>,
+    pub chat: Option<bool>,
+    pub specs: Option<bool>,
+    pub pipelines: Option<bool>,
+    pub git: Option<bool>,
+}
+
+#[derive(Deserialize, Clone)]
+#[serde(untagged)]
+pub(crate) enum ManifestCollections {
+    All(String),
+    List(Vec<String>),
 }
 
 pub(crate) fn is_valid_view_name(name: &str) -> bool {
@@ -35,14 +58,19 @@ pub(crate) fn resolve_view_dir(name: &str) -> Option<(PathBuf, &'static str)> {
     None
 }
 
-pub(super) fn read_manifest_file(dir: &PathBuf, name: &str) -> Option<ViewManifest> {
-    let raw: ManifestFile = if dir.join("manifest.yaml").exists() {
-        serde_yaml::from_str(&std::fs::read_to_string(dir.join("manifest.yaml")).ok()?).ok()?
+/// Read the raw manifest file (with data/events fields) for the SSE handler.
+pub(crate) fn read_raw_manifest(dir: &PathBuf) -> Option<ManifestFile> {
+    if dir.join("manifest.yaml").exists() {
+        serde_yaml::from_str(&std::fs::read_to_string(dir.join("manifest.yaml")).ok()?).ok()
     } else if dir.join("manifest.json").exists() {
-        serde_json::from_str(&std::fs::read_to_string(dir.join("manifest.json")).ok()?).ok()?
+        serde_json::from_str(&std::fs::read_to_string(dir.join("manifest.json")).ok()?).ok()
     } else {
-        return None;
-    };
+        None
+    }
+}
+
+pub(super) fn read_manifest_file(dir: &PathBuf, name: &str) -> Option<ViewManifest> {
+    let raw: ManifestFile = read_raw_manifest(dir)?;
 
     let vtype = raw.view_type.unwrap_or_else(|| "html".into());
     let mname = raw.name.unwrap_or_else(|| name.into());

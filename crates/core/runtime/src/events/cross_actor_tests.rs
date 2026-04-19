@@ -225,13 +225,13 @@ async fn agent_skill_event_reaches_studio_mailbox() {
     assert_eq!(received.event_type, "canvas.artifact_created");
 }
 
-/// Studio emits `studio.annotation` → Agent's mailbox receives it.
+/// Studio emits `studio.feedback` → Agent's mailbox receives it.
 ///
 /// Agents subscribe to `studio.*` in their base subscription, so any Studio
-/// UI action (annotation, feedback, selection) reaches the agent without needing
+/// UI action (feedback, selection) reaches the agent without needing
 /// a per-artifact-type subscription entry.
 #[tokio::test(flavor = "multi_thread", worker_threads = 2)]
-async fn studio_annotation_reaches_agent_mailbox() {
+async fn studio_feedback_reaches_agent_mailbox() {
     let tmp = tempdir().unwrap();
     let mut router = KernelRouter::new(tmp.path().join(".ship")).unwrap();
 
@@ -239,15 +239,15 @@ async fn studio_annotation_reaches_agent_mailbox() {
     let (_agent_store, mut agent_mb) =
         router.spawn_actor("agent.mcp", agent_config("agent.mcp")).unwrap();
 
-    let event = ev("studio.annotation");
+    let event = ev("studio.feedback");
     studio_store.append(&event).unwrap();
     router.route(event.clone(), &mcp_ctx()).await.unwrap();
 
     let received = agent_mb
         .try_recv()
-        .expect("agent mailbox must receive studio.annotation");
+        .expect("agent mailbox must receive studio.feedback");
     assert_eq!(received.id, event.id);
-    assert_eq!(received.event_type, "studio.annotation");
+    assert_eq!(received.event_type, "studio.feedback");
 }
 
 // ── kernel audit trail ───────────────────────────────────────────────────────

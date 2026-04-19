@@ -1,0 +1,46 @@
+{#- Canvas doc — demo of <ship-terminal> in read-only log viewer mode. -#}
+
+<style>
+  .term-demo-wrap { max-width: 78rem; margin: 0 auto; padding: var(--space-6) var(--space-5); }
+  .term-title { font-family: var(--font-display); font-size: var(--text-2xl); font-weight: var(--font-weight-bold); margin: 0 0 var(--space-2); letter-spacing: -0.015em; }
+  .term-sub { color: var(--muted-foreground); font-size: var(--text-sm); margin: 0 0 var(--space-6); max-width: 52rem; }
+  .term-grid { display: flex; flex-direction: column; gap: var(--space-4); }
+  .term-legend { font-size: var(--text-xs); font-weight: var(--font-weight-semibold); text-transform: uppercase; letter-spacing: 0.08em; color: var(--muted-foreground); margin: 0 0 var(--space-2); display: flex; align-items: center; gap: 8px; }
+  .term-legend .pill { font-size: 10px; padding: 1px 6px; border-radius: 999px; background: color-mix(in oklch, var(--primary) 14%, var(--muted)); color: var(--foreground); text-transform: none; letter-spacing: 0; font-weight: 500; }
+  .term-actions { display: flex; gap: var(--space-2); flex-wrap: wrap; margin-top: var(--space-3); }
+</style>
+
+<div class="ship-view">
+  <div class="term-demo-wrap">
+    <h1 class="term-title">Terminal demo</h1>
+    <p class="term-sub">
+      Read-only log viewer using <code>&lt;ship-terminal&gt;</code>. Click the
+      buttons to write sample output. Use <kbd>Ctrl+F</kbd> to search within
+      the terminal content.
+    </p>
+
+    <div class="term-grid">
+      <div>
+        <p class="term-legend">Log output <span class="pill">readonly</span></p>
+        <ship-terminal
+          id="demo-term"
+          readonly
+          rows="20"
+          fit
+          style="height: 420px;"
+        ></ship-terminal>
+      </div>
+
+      <div class="term-actions">
+        <ship-button variant="outline" size="sm"
+          data-on:click="(() => { const t = document.getElementById('demo-term'); if(!t) return; const E=String.fromCharCode(27); t.writeln(E+'[1;36m$'+E+'[0m ship build'); t.writeln(E+'[2m[1/4]'+E+'[0m Resolving...'); t.writeln(E+'[2m[2/4]'+E+'[0m Compiling...'); t.writeln(E+'[2m[3/4]'+E+'[0m Testing...'); t.writeln('  '+E+'[32m✓'+E+'[0m 26 tests passed'); t.writeln(E+'[32m✓ Done'+E+'[0m in 2.4s'); t.writeln(''); })()">Run build</ship-button>
+        <ship-button variant="outline" size="sm"
+          data-on:click="(() => { const t = document.getElementById('demo-term'); if(!t) return; const E=String.fromCharCode(27); t.writeln(E+'[1mANSI color demo:'+E+'[0m'); t.writeln('  '+E+'[31mred'+E+'[0m '+E+'[32mgreen'+E+'[0m '+E+'[33myellow'+E+'[0m '+E+'[34mblue'+E+'[0m '+E+'[35mmagenta'+E+'[0m '+E+'[36mcyan'+E+'[0m'); t.writeln('  '+E+'[1;31mbold red'+E+'[0m '+E+'[4;32munderline green'+E+'[0m '+E+'[7;34mreverse blue'+E+'[0m'); t.writeln(''); })()">ANSI colors</ship-button>
+        <ship-button variant="outline" size="sm"
+          data-on:click="(() => { const t = document.getElementById('demo-term'); if(!t) return; const E=String.fromCharCode(27); let i=0; const iv=setInterval(()=>{i++; const f='█'.repeat(i); const e='░'.repeat(20-i); const p=Math.round(i/20*100); t.write('\r  '+E+'[36m'+f+e+E+'[0m '+p+'%'); if(i>=20){clearInterval(iv); t.writeln(' '+E+'[32mdone'+E+'[0m');}},80); })()">Progress bar</ship-button>
+        <ship-button variant="outline" size="sm"
+          data-on:click="document.getElementById('demo-term')?.clear()">Clear</ship-button>
+      </div>
+    </div>
+  </div>
+</div>

@@ -1,0 +1,229 @@
+{#-
+  Agents index — grid of agent cards with SSE live updates.
+  Context: agents (Vec<AgentSummary>), total (usize).
+
+  Parity target: apps/web/src/routes/studio/agents/index.tsx
+  - Syne display heading + "N agents" subtitle
+  - responsive card grid (grid-cols-1 / md:2 / lg:3)
+  - avatar (colored circle, first letter) + name + description + stats + badges
+  - filter bar (search + role pills)
+  - card hover: border-primary/30 + arrow foreground
+  - empty state
+-#}
+{% from '_ship.html.j2' import head, signal, live, get, post %}
+{% from '_urls.html.j2' import view_agent_detail, view_agents_create %}
+{% if not fragment %}
+<!DOCTYPE html>
+<html lang="en">
+<head>{{ head('Agents') }}</head>
+<body>
+{% endif %}
+<div id="ship-view-root" class="ship-view agents-view"
+     {{ signal('_creating', false) }}>
+  <style>
+  .agents-view {
+    color: var(--foreground);
+    font-family: var(--font-body);
+  }
+  .agents-wrap {
+    max-width: 1024px;
+    margin: 0 auto;
+    padding: 32px var(--space-6);
+  }
+
+  /* --- Header row --- */
+  .agents-head {
+    display: flex;
+    align-items: flex-start;
+    justify-content: space-between;
+    gap: var(--space-4);
+    margin-bottom: var(--space-6);
+  }
+  .agents-title {
+    font-family: var(--font-display);
+    font-size: var(--text-2xl);
+    font-weight: var(--font-weight-bold);
+    line-height: 32px;
+    letter-spacing: -0.015em;
+    margin: 0 0 var(--space-1);
+    color: var(--foreground);
+  }
+  .agents-sub {
+    font-size: 14px;
+    color: var(--muted-foreground);
+    margin: 0;
+  }
+  .agents-new-btn {
+    display: inline-flex;
+    align-items: center;
+    gap: var(--radius-md);
+    padding: var(--space-2) var(--space-4);
+    border-radius: var(--radius-lg);
+    border: none;
+    background: var(--primary);
+    color: var(--primary-foreground);
+    font-size: 12px;
+    font-weight: var(--font-weight-semibold);
+    cursor: pointer;
+    transition: background var(--duration-fast, 150ms) ease;
+    white-space: nowrap;
+  }
+  .agents-new-btn:hover { opacity: 0.9; }
+  .agents-new-btn:focus-visible {
+    outline: none;
+    box-shadow: 0 0 0 3px color-mix(in oklch, var(--ring) 50%, transparent);
+  }
+
+  /* --- Card grid --- */
+  .agents-grid {
+    display: grid;
+    grid-template-columns: 1fr;
+    gap: var(--space-3);
+  }
+  @media (min-width: 768px) {
+    .agents-grid { grid-template-columns: repeat(2, 1fr); }
+  }
+  @media (min-width: 1024px) {
+    .agents-grid { grid-template-columns: repeat(3, 1fr); }
+  }
+
+  /* --- Agent card --- */
+  .agent-card {
+    display: block;
+    text-decoration: none;
+    color: inherit;
+    padding: var(--space-4);
+    border-radius: var(--space-3);
+    border: 1px solid color-mix(in oklch, var(--border) 60%, transparent);
+    background: var(--card);
+    cursor: pointer;
+    transition: border-color var(--duration-fast, 150ms) ease;
+  }
+  .agent-card:hover {
+    border-color: color-mix(in oklch, var(--primary) 30%, transparent);
+  }
+  .agent-card:focus-visible {
+    outline: none;
+    box-shadow: 0 0 0 3px color-mix(in oklch, var(--ring) 50%, transparent);
+  }
+  .agent-card-head {
+    display: flex;
+    align-items: flex-start;
+    gap: var(--space-3);
+    margin-bottom: var(--space-3);
+  }
+  .agent-avatar {
+    width: 40px;
+    height: 40px;
+    border-radius: var(--space-3);
+    background: linear-gradient(135deg,
+      oklch(0.67 0.16 58),
+      oklch(0.5 0.16 30));
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    color: white;
+    font-size: var(--space-4);
+    font-weight: var(--font-weight-semibold);
+    text-transform: uppercase;
+    flex-shrink: 0;
+  }
+  .agent-card-body { min-width: 0; flex: 1; }
+  .agent-name {
+    font-size: 14px;
+    font-weight: var(--font-weight-semibold);
+    color: var(--foreground);
+    margin: 0 0 2px;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    white-space: nowrap;
+  }
+  .agent-desc {
+    font-size: var(--text-xs);
+    color: var(--muted-foreground);
+    margin: 0;
+    line-height: 1.5;
+    display: -webkit-box;
+    -webkit-line-clamp: 2;
+    -webkit-box-orient: vertical;
+    overflow: hidden;
+  }
+  .agent-arrow {
+    color: var(--muted-foreground);
+    transition: color var(--duration-fast, 150ms) ease;
+    margin-top: 2px;
+    flex-shrink: 0;
+    width: 14px;
+    height: 14px;
+  }
+  .agent-card:hover .agent-arrow { color: var(--foreground); }
+
+  /* --- Stats row --- */
+  .agent-stats {
+    display: flex;
+    align-items: center;
+    gap: var(--space-2);
+    font-size: 10px;
+    color: var(--muted-foreground);
+  }
+  .agent-stats-sep { color: var(--border); }
+
+  /* --- Badge row --- */
+  .agent-badges {
+    display: flex;
+    align-items: center;
+    gap: var(--radius-md);
+    margin-top: var(--space-2);
+  }
+  .agent-badge {
+    display: inline-flex;
+    align-items: center;
+    gap: 3px;
+    font-size: 9px;
+    padding: 2px var(--radius-md);
+    border: 1px solid color-mix(in oklch, var(--border) 50%, transparent);
+    border-radius: var(--radius-sm);
+    color: var(--muted-foreground);
+  }
+  .agent-badge--project {
+    color: var(--foreground);
+    background: color-mix(in oklch, var(--muted) 50%, transparent);
+  }
+
+  /* --- Loading / empty --- */
+  .loading-copy {
+    font-size: 14px;
+    color: var(--muted-foreground);
+    padding: var(--space-4) 0;
+    margin: 0;
+  }
+
+  @media (prefers-reduced-motion: reduce) {
+    .agent-card, .agent-arrow { transition: none; }
+  }
+  </style>
+  <div class="agents-wrap">
+
+    <header class="agents-head">
+      <div>
+        <h1 class="agents-title">Agents</h1>
+        <p class="agents-sub">{{ total }} agent{% if total != 1 %}s{% endif %}</p>
+      </div>
+      <ship-button tone="accent" variant="solid" {{ post(view_agents_create(), '{}') }}>
+        <ship-icon slot="leading" name="plus"></ship-icon>
+        New agent
+      </ship-button>
+    </header>
+
+    <div {{ live('agents') }}>
+      <div id="agents-content">
+        <p class="loading-copy">Loading...</p>
+      </div>
+    </div>
+
+  </div>
+</div>
+{% if not fragment %}
+</body>
+</html>
+{% endif %}

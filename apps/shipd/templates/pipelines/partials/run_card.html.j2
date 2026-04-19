@@ -1,46 +1,58 @@
 {#-
-  One active run. Expects `run` (RunView) in scope.
-
-  Structure:
-    run-head  — status dot + slug + agent + branch + duration + git stats + actions
-    run-dag   — horizontal row of step cards
+  WorkflowRunCard — spec-parity with React WorkflowRunCard.tsx.
+  Expects `run` (RunView) in scope.
 -#}
 <section class="ship-run-card" aria-label="Pipeline run {{ run.slug }}">
-  <div class="ship-run-head">
+  <div class="ship-run-dot">
     <ship-status-dot tone="{{ run.tone }}"{% if run.state == 'dispatched' or run.state == 'gate-pending' %} pulse{% endif %}></ship-status-dot>
-    <span class="ship-run-slug">{{ run.slug }}</span>
-    <span class="ship-run-sep">·</span>
-    <span class="ship-run-meta">{{ run.agent }}</span>
-    {% if run.branch %}
-    <span class="ship-run-sep">·</span>
-    <span class="ship-run-meta">{{ run.branch }}</span>
-    {% endif %}
-    {% if run.branch_stats.commits_ahead > 0 %}
-    <span class="ship-run-sep">·</span>
-    <span class="ship-run-meta" title="commits ahead of main">
-      <ship-icon name="git-commit" size="sm"></ship-icon>
-      {{ run.branch_stats.commits_ahead }}
-    </span>
-    {% endif %}
-    {% if run.branch_stats.dirty_files > 0 %}
-    <span class="ship-run-sep">·</span>
-    <span class="ship-run-meta" title="uncommitted files">
-      <ship-icon name="file-diff" size="sm"></ship-icon>
-      {{ run.branch_stats.dirty_files }} dirty
-    </span>
-    {% endif %}
-    <span class="ship-run-dur {% if run.state == 'dispatched' or run.state == 'gate-pending' %}running{% endif %}">{{ run.duration }}</span>
-    <span class="ship-run-actions">
-      {% from '_urls.html.j2' import get_job, end_job %}
-      <ship-button size="sm" variant="ghost"
-        data-on:click="@get('{{ get_job(run.job_id) }}')">
-        Attach
-      </ship-button>
-      <ship-button size="sm" variant="ghost" tone="destructive"
-        data-on:click="@post('{{ end_job() }}', {contentType: 'json', body: JSON.stringify({job_id: '{{ run.job_id }}'})})">
-        Stop
-      </ship-button>
-    </span>
   </div>
 
+  <div class="ship-run-body">
+    <div class="ship-run-title-row">
+      <span class="ship-run-slug">{{ run.slug }}</span>
+      <span class="ship-run-status" style="color: var(--{{ run.tone }})">{{ run.status_text }}</span>
+    </div>
+    <div class="ship-run-detail">
+      {{ run.agent }}{% if run.branch %} / {{ run.branch }}{% endif %}{% if run.provider %} / {{ run.provider }}{% endif %}{% if run.model %} / {{ run.model }}{% endif %}
+    </div>
+
+    {% if run.blocker %}
+    <div class="ship-run-banner blocker">Blocked: {{ run.blocker }}</div>
+    {% endif %}
+
+    {% if run.error %}
+    <div class="ship-run-banner error">Error: {{ run.error }}</div>
+    {% endif %}
+
+    {% if run.depends_on and run.depends_on | length > 0 %}
+    <div class="ship-run-deps">
+      <span class="ship-run-deps-label">depends on:</span>
+      {% for dep in run.depends_on %}
+      <span class="ship-run-dep-tag">{{ dep }}</span>
+      {% endfor %}
+    </div>
+    {% endif %}
+
+    {% if run.steps and run.steps | length > 0 %}
+    <div class="ship-run-steps">
+      {% for step in run.steps %}
+      <span class="ship-step-pill {{ step.state }}">{{ step.id }}</span>
+      {% endfor %}
+    </div>
+    {% endif %}
+  </div>
+
+  <div class="ship-run-right">
+    <span class="ship-run-when">
+      <ship-timestamp value="{{ run.updated_at }}" relative></ship-timestamp>
+    </span>
+    {% if run.state == 'dispatched' or run.state == 'pending' %}
+    {% from '_urls.html.j2' import end_job %}
+    <button class="ship-run-stop"
+      data-on:click="@post('{{ end_job() }}', {contentType: 'json', body: JSON.stringify({job_id: '{{ run.job_id }}'})})">
+      <ship-icon name="square" size="xs"></ship-icon>
+      Stop
+    </button>
+    {% endif %}
+  </div>
 </section>

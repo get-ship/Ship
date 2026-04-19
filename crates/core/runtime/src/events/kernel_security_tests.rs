@@ -598,7 +598,7 @@ mod kernel_security_edge_cases {
             .spawn_actor_with_permissions(identity("agent.multi"), perms)
             .unwrap();
 
-        let ev1 = ev("studio.annotation").with_actor_id("agent.multi");
+        let ev1 = ev("studio.feedback").with_actor_id("agent.multi");
         let ev2 = ev("agent.started").with_actor_id("agent.multi");
         let ev3 = ev("session.started").with_actor_id("agent.multi");
 

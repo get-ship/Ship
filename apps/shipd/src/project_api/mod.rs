@@ -15,7 +15,7 @@ pub use agents_skills::{list_agents, list_skills};
 pub use agents_skills_write::{
     delete_skill_file, get_skill_vars, set_skill_var, write_agent, write_skill_file,
 };
-pub use artifacts::{artifacts_status, list_project_artifacts, promote_artifact};
+pub use artifacts::{artifacts_status, promote_artifact};
 pub use pipelines::{list_pipelines, write_pipeline, delete_pipeline};
 pub use git::{git_diff, git_log, git_status, project_git_diff, project_git_log, project_git_status};
 pub use session_files::{
@@ -233,7 +233,7 @@ pub async fn emit_event(
         .kernel()
         .lock()
         .await
-        .route(envelope, &ctx)
+        .emit(envelope, &ctx)
         .await
         .map_err(|e| {
             err_response(StatusCode::INTERNAL_SERVER_ERROR, &e.to_string())

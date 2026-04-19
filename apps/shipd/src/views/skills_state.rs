@@ -1,11 +1,10 @@
-//! Skill discovery helpers for the `skills` daemon-rendered view.
-//!
-//! Uses `runtime::read_skill_paths` to enumerate all configured skill
-//! roots (respects `project.skill_paths`, so `docs/` doc-skills appear
-//! alongside project skills when listed in the manifest).
+//! Skill discovery for the `skills` view. Scans global + project scopes,
+//! deduplicates by id (project wins). Callers pass the daemon's global
+//! ship_dir; project scope resolved via `runtime::project::get_project_dir`.
 
 use serde::Serialize;
-use std::path::Path;
+use std::collections::HashSet;
+use std::path::{Path, PathBuf};
 
 #[derive(Clone, Copy, Debug, PartialEq, Eq, Serialize)]
 #[serde(rename_all = "snake_case")]
@@ -22,6 +21,10 @@ pub struct SkillSummary {
     pub kind: SkillKind,
     pub source: String,
     pub tags: Vec<String>,
+    pub files: Vec<String>,
+    pub has_vars: bool,
+    pub has_refs: bool,
+    pub has_evals: bool,
 }
 
 #[derive(Clone, Debug, Serialize)]
@@ -35,11 +38,16 @@ pub struct SkillDetail {
     pub authors: Vec<String>,
     pub variables: Vec<String>,
     pub artifacts: Vec<String>,
-    /// Raw SKILL.md body (no frontmatter).
+    pub files: Vec<String>,
     pub body: String,
 }
 
-fn parse_skill_md(content: &str) -> (std::collections::HashMap<String, String>, String) {
+/// Source label applied to project-scoped skills (enclosing `.ship/` of cwd).
+pub const SOURCE_PROJECT: &str = "PROJECT SKILLS";
+/// Source label applied to global-scoped skills (`~/.ship/skills/`).
+pub const SOURCE_GLOBAL: &str = "USER SKILLS";
+
+pub(crate) fn parse_skill_md(content: &str) -> (std::collections::HashMap<String, String>, String) {
     let mut map = std::collections::HashMap::new();
     if !content.starts_with("---") {
         return (map, content.to_string());
@@ -57,7 +65,7 @@ fn parse_skill_md(content: &str) -> (std::collections::HashMap<String, String>, 
     (map, body)
 }
 
-fn parse_yaml_list(val: &str) -> Vec<String> {
+pub(crate) fn parse_yaml_list(val: &str) -> Vec<String> {
     let t = val.trim();
     if t.starts_with('[') && t.ends_with(']') {
         t[1..t.len() - 1]
@@ -72,188 +80,218 @@ fn parse_yaml_list(val: &str) -> Vec<String> {
     }
 }
 
+pub(crate) fn scan_files(skill_dir: &Path) -> Vec<String> {
+    let mut out = Vec::new();
+    fn walk(dir: &Path, prefix: &str, out: &mut Vec<String>) {
+        let Ok(entries) = std::fs::read_dir(dir) else { return };
+        let mut sorted: Vec<_> = entries.flatten().collect();
+        sorted.sort_by_key(|e| e.file_name());
+        for e in sorted {
+            let name = e.file_name().to_string_lossy().to_string();
+            if name.starts_with('.') { continue; }
+            let rel = if prefix.is_empty() { name.clone() } else { format!("{prefix}/{name}") };
+            if e.path().is_dir() { walk(&e.path(), &rel, out); } else { out.push(rel); }
+        }
+    }
+    walk(skill_dir, "", &mut out);
+    out
+}
+
 fn kind_from_path(skill_dir_path: &Path) -> SkillKind {
-    if skill_dir_path
-        .components()
-        .any(|c| c.as_os_str() == "docs")
-    {
+    if skill_dir_path.components().any(|c| c.as_os_str() == "docs") {
         SkillKind::Docs
     } else {
         SkillKind::Smart
     }
 }
 
-fn source_label(skill_dir_path: &Path, project_root: &Path) -> String {
-    if skill_dir_path.starts_with(project_root) {
-        "PROJECT SKILLS".to_string()
-    } else {
-        "USER SKILLS".to_string()
-    }
+pub(crate) struct SkillScopes {
+    pub global_dirs: Vec<PathBuf>,
+    pub project_dirs: Vec<PathBuf>,
 }
 
-/// List all skills discovered via `runtime::read_skill_paths`.
-pub fn list_skills(ship_dir: &Path) -> Vec<SkillSummary> {
-    let project_root = ship_dir.parent().unwrap_or(ship_dir);
-    let dirs = runtime::read_skill_paths(ship_dir, project_root);
+fn resolve_scopes(ship_dir: &Path) -> SkillScopes {
+    let project_ship = runtime::project::get_project_dir(None)
+        .ok()
+        .filter(|p| p != ship_dir);
+    scopes_from(ship_dir, project_ship.as_deref())
+}
+
+pub(crate) fn scopes_from(
+    ship_dir: &Path,
+    project_ship_dir: Option<&Path>,
+) -> SkillScopes {
+    let global_parent = ship_dir.parent().unwrap_or(ship_dir);
+    let global_dirs = runtime::read_skill_paths(ship_dir, global_parent);
+
+    let project_dirs = match project_ship_dir {
+        Some(project_ship) if project_ship != ship_dir => {
+            let project_root = project_ship.parent().unwrap_or(project_ship);
+            runtime::read_skill_paths(project_ship, project_root)
+        }
+        _ => Vec::new(),
+    };
+
+    SkillScopes { global_dirs, project_dirs }
+}
+
+fn scan_skill_dir(skills_root: &Path, source: &str) -> Vec<SkillSummary> {
     let mut out = Vec::new();
-    let mut seen = std::collections::HashSet::new();
-    for skills_root in &dirs {
-        if !skills_root.exists() {
+    if !skills_root.exists() {
+        return out;
+    }
+    let Ok(entries) = std::fs::read_dir(skills_root) else { return out };
+    for entry in entries.flatten() {
+        let path = entry.path();
+        if !path.is_dir() {
             continue;
         }
-        let Ok(entries) = std::fs::read_dir(skills_root) else { continue };
-        for entry in entries.flatten() {
-            let path = entry.path();
-            if !path.is_dir() {
-                continue;
+        let skill_md = path.join("SKILL.md");
+        if !skill_md.is_file() {
+            continue;
+        }
+        let content = std::fs::read_to_string(&skill_md).unwrap_or_default();
+        let (fm, _body) = parse_skill_md(&content);
+        let dir_name = entry.file_name().to_string_lossy().to_string();
+        let id = fm.get("name").cloned().unwrap_or_else(|| dir_name.clone());
+        let description = fm.get("description").cloned().unwrap_or_default();
+        let tags = fm.get("tags").map(|v| parse_yaml_list(v)).unwrap_or_default();
+        let files = scan_files(&path);
+        let has_vars = files.iter().any(|f| f.ends_with("vars.json"));
+        let has_refs = files.iter().any(|f| f.starts_with("references/"));
+        let has_evals = files.iter().any(|f| f.starts_with("evals/"));
+        out.push(SkillSummary {
+            id,
+            name: fm.get("name").cloned().unwrap_or(dir_name),
+            description,
+            kind: kind_from_path(&path),
+            source: source.to_string(),
+            tags,
+            files,
+            has_vars,
+            has_refs,
+            has_evals,
+        });
+    }
+    out
+}
+
+fn find_skill_subdir(skills_root: &Path, id: &str) -> Option<(PathBuf, String)> {
+    if !skills_root.exists() { return None; }
+    let entries = std::fs::read_dir(skills_root).ok()?;
+    for entry in entries.flatten() {
+        let path = entry.path();
+        if !path.is_dir() || !path.join("SKILL.md").is_file() { continue; }
+        let content = std::fs::read_to_string(path.join("SKILL.md")).unwrap_or_default();
+        let (fm, _) = parse_skill_md(&content);
+        let dn = entry.file_name().to_string_lossy().to_string();
+        let candidate = fm.get("name").cloned().unwrap_or_else(|| dn.clone());
+        if candidate == id || dn == id { return Some((path, dn)); }
+    }
+    None
+}
+
+fn load_detail_from_dir(skills_root: &Path, id: &str, source: &str) -> Option<SkillDetail> {
+    let (path, dir_name) = find_skill_subdir(skills_root, id)?;
+    let content = std::fs::read_to_string(path.join("SKILL.md")).unwrap_or_default();
+    let (fm, body) = parse_skill_md(&content);
+    let candidate = fm.get("name").cloned().unwrap_or_else(|| dir_name.clone());
+    let tags = fm.get("tags").map(|v| parse_yaml_list(v)).unwrap_or_default();
+    let authors = fm.get("authors").map(|v| parse_yaml_list(v)).unwrap_or_default();
+    let artifacts = fm.get("artifacts").map(|v| parse_yaml_list(v)).unwrap_or_default();
+    let mut variables = Vec::new();
+    if let Ok(vs) = std::fs::read_to_string(path.join("assets").join("vars.json"))
+        && let Ok(v) = serde_json::from_str::<serde_json::Value>(&vs)
+        && let Some(map) = v.as_object()
+    {
+        variables = map.keys().cloned().collect();
+        variables.sort();
+    }
+    let files = scan_files(&path);
+    Some(SkillDetail {
+        id: candidate.clone(),
+        name: fm.get("name").cloned().unwrap_or(dir_name),
+        description: fm.get("description").cloned().unwrap_or_default(),
+        kind: kind_from_path(&path),
+        source: source.to_string(),
+        tags, authors, variables, artifacts, files, body,
+    })
+}
+
+pub fn list_skills(ship_dir: &Path) -> Vec<SkillSummary> {
+    list_skills_with_scopes(&resolve_scopes(ship_dir))
+}
+
+pub(crate) fn list_skills_with_scopes(scopes: &SkillScopes) -> Vec<SkillSummary> {
+    let mut seen: HashSet<String> = HashSet::new();
+    let mut out = Vec::new();
+
+    // Project first so its skills win dedup on id collision.
+    for dir in &scopes.project_dirs {
+        for skill in scan_skill_dir(dir, SOURCE_PROJECT) {
+            if seen.insert(skill.id.clone()) {
+                out.push(skill);
             }
-            let skill_md = path.join("SKILL.md");
-            if !skill_md.is_file() {
-                continue;
-            }
-            let content = std::fs::read_to_string(&skill_md).unwrap_or_default();
-            let (fm, _body) = parse_skill_md(&content);
-            let dir_name = entry.file_name().to_string_lossy().to_string();
-            let id = fm.get("name").cloned().unwrap_or_else(|| dir_name.clone());
-            if !seen.insert(id.clone()) {
-                continue;
-            }
-            let description = fm.get("description").cloned().unwrap_or_default();
-            let tags = fm.get("tags").map(|v| parse_yaml_list(v)).unwrap_or_default();
-            out.push(SkillSummary {
-                id,
-                name: fm.get("name").cloned().unwrap_or(dir_name),
-                description,
-                kind: kind_from_path(&path),
-                source: source_label(&path, project_root),
-                tags,
-            });
         }
     }
+    for dir in &scopes.global_dirs {
+        for skill in scan_skill_dir(dir, SOURCE_GLOBAL) {
+            if seen.insert(skill.id.clone()) {
+                out.push(skill);
+            }
+        }
+    }
+
     out.sort_by(|a, b| a.name.cmp(&b.name));
     out
 }
 
-/// Load a single skill by id (matches frontmatter `name` then dir name).
 pub fn load_skill(ship_dir: &Path, id: &str) -> Option<SkillDetail> {
-    let project_root = ship_dir.parent().unwrap_or(ship_dir);
-    let dirs = runtime::read_skill_paths(ship_dir, project_root);
-    for skills_root in &dirs {
-        let Ok(entries) = std::fs::read_dir(skills_root) else { continue };
-        for entry in entries.flatten() {
-            let path = entry.path();
-            if !path.is_dir() {
-                continue;
-            }
-            let skill_md = path.join("SKILL.md");
-            if !skill_md.is_file() {
-                continue;
-            }
-            let content = std::fs::read_to_string(&skill_md).unwrap_or_default();
-            let (fm, body) = parse_skill_md(&content);
-            let dir_name = entry.file_name().to_string_lossy().to_string();
-            let candidate = fm.get("name").cloned().unwrap_or_else(|| dir_name.clone());
-            if candidate != id && dir_name != id {
-                continue;
-            }
-            let tags = fm.get("tags").map(|v| parse_yaml_list(v)).unwrap_or_default();
-            let authors = fm
-                .get("authors")
-                .map(|v| parse_yaml_list(v))
-                .unwrap_or_default();
-            let artifacts = fm
-                .get("artifacts")
-                .map(|v| parse_yaml_list(v))
-                .unwrap_or_default();
-            let mut variables = Vec::new();
-            if let Ok(vs) = std::fs::read_to_string(path.join("assets").join("vars.json"))
-                && let Ok(v) = serde_json::from_str::<serde_json::Value>(&vs)
-                && let Some(map) = v.as_object()
-            {
-                variables = map.keys().cloned().collect();
-                variables.sort();
-            }
-            return Some(SkillDetail {
-                id: candidate.clone(),
-                name: fm.get("name").cloned().unwrap_or(dir_name),
-                description: fm.get("description").cloned().unwrap_or_default(),
-                kind: kind_from_path(&path),
-                source: source_label(&path, project_root),
-                tags,
-                authors,
-                variables,
-                artifacts,
-                body,
-            });
+    load_skill_with_scopes(&resolve_scopes(ship_dir), id)
+}
+
+pub(crate) fn load_skill_with_scopes(
+    scopes: &SkillScopes,
+    id: &str,
+) -> Option<SkillDetail> {
+    for dir in &scopes.project_dirs {
+        if let Some(d) = load_detail_from_dir(dir, id, SOURCE_PROJECT) {
+            return Some(d);
+        }
+    }
+    for dir in &scopes.global_dirs {
+        if let Some(d) = load_detail_from_dir(dir, id, SOURCE_GLOBAL) {
+            return Some(d);
         }
     }
     None
 }
 
-#[cfg(test)]
-mod tests {
-    use super::*;
-    use tempfile::tempdir;
-
-    fn write_skill(dir: &Path, name: &str, fm: &str, body: &str) {
-        let d = dir.join(name);
-        std::fs::create_dir_all(&d).unwrap();
-        let content = format!("---\n{fm}---\n{body}");
-        std::fs::write(d.join("SKILL.md"), content).unwrap();
-    }
-
-    #[test]
-    fn empty_returns_empty() {
-        let tmp = tempdir().unwrap();
-        let ship = tmp.path().join(".ship");
-        std::fs::create_dir_all(&ship).unwrap();
-        assert!(list_skills(&ship).is_empty());
-    }
-
-    #[test]
-    fn parses_frontmatter_into_summary() {
-        let tmp = tempdir().unwrap();
-        let ship = tmp.path().join(".ship");
-        std::fs::create_dir_all(ship.join("skills")).unwrap();
-        write_skill(
-            &ship.join("skills"),
-            "tdd",
-            "name: tdd\ndescription: Test first.\ntags: [testing, rust]\n",
-            "# Body\n",
-        );
-        let out = list_skills(&ship);
-        assert_eq!(out.len(), 1);
-        assert_eq!(out[0].id, "tdd");
-        assert_eq!(out[0].source, "PROJECT SKILLS");
-        assert!(out[0].tags.contains(&"testing".to_string()));
-    }
-
-    #[test]
-    fn load_skill_reads_body_and_vars() {
-        let tmp = tempdir().unwrap();
-        let ship = tmp.path().join(".ship");
-        std::fs::create_dir_all(ship.join("skills").join("x").join("assets")).unwrap();
-        write_skill(
-            &ship.join("skills"),
-            "x",
-            "name: x\ndescription: d\n",
-            "# hi\nbody",
-        );
-        std::fs::write(
-            ship.join("skills").join("x").join("assets").join("vars.json"),
-            r#"{"foo": {"type":"string"}, "bar": {"type":"bool"}}"#,
-        )
-        .unwrap();
-        let d = load_skill(&ship, "x").unwrap();
-        assert!(d.body.contains("# hi"));
-        assert_eq!(d.variables, vec!["bar".to_string(), "foo".to_string()]);
-    }
-
-    #[test]
-    fn load_skill_returns_none_for_missing() {
-        let tmp = tempdir().unwrap();
-        let ship = tmp.path().join(".ship");
-        std::fs::create_dir_all(&ship).unwrap();
-        assert!(load_skill(&ship, "nope").is_none());
-    }
+pub fn resolve_skill_dir(ship_dir: &Path, id: &str) -> Option<PathBuf> {
+    resolve_skill_dir_with_scopes(&resolve_scopes(ship_dir), id)
 }
+
+pub(crate) fn resolve_skill_dir_with_scopes(scopes: &SkillScopes, id: &str) -> Option<PathBuf> {
+    for dir in scopes.project_dirs.iter().chain(scopes.global_dirs.iter()) {
+        if let Some((path, _)) = find_skill_subdir(dir, id) {
+            return Some(path);
+        }
+    }
+    None
+}
+
+/// Load a file from a skill directory. Path-traversal safe.
+pub fn load_skill_file(ship_dir: &Path, id: &str, file_path: &str) -> Option<String> {
+    let skill_dir = resolve_skill_dir(ship_dir, id)?;
+    let full = skill_dir.join(file_path);
+    let canonical = full.canonicalize().ok()?;
+    let base = skill_dir.canonicalize().ok()?;
+    if !canonical.starts_with(&base) {
+        return None; // path traversal attempt
+    }
+    std::fs::read_to_string(&canonical).ok()
+}
+
+#[cfg(test)]
+#[path = "skills_state_tests.rs"]
+mod tests;

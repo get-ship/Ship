@@ -1,0 +1,102 @@
+<style>
+.data-wrap {
+  max-width: 76rem;
+  margin: 0 auto;
+  padding: var(--space-6, 24px) var(--space-4, 16px);
+}
+.data-header { margin-bottom: var(--space-5, 20px); }
+.data-title {
+  font-size: var(--text-xl, 20px);
+  font-weight: var(--font-weight-bold, 600);
+  margin: 0;
+}
+.data-subtitle {
+  font-size: var(--text-xs, 12px);
+  margin-top: var(--space-1, 4px);
+}
+.data-toolbar {
+  display: flex;
+  align-items: center;
+  gap: var(--space-3, 10px);
+  margin-bottom: var(--space-4, 16px);
+  flex-wrap: wrap;
+}
+.data-count {
+  font-size: var(--text-xs, 11px);
+  color: var(--muted-foreground);
+  margin-left: auto;
+}
+.data-loading { padding: var(--space-4, 16px) 0; }
+.data-form-card {
+  display: none;
+  margin-bottom: var(--space-4, 16px);
+}
+.data-form-head,
+.data-schema-head {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: var(--space-3, 12px);
+}
+.data-form-actions {
+  display: flex;
+  gap: var(--space-2, 8px);
+  margin-top: var(--space-3, 12px);
+  align-items: center;
+}
+.data-schema-card {
+  margin-bottom: var(--space-4, 16px);
+}
+.schema-table {
+  width: 100%;
+  border-collapse: collapse;
+  font-size: var(--text-sm, 13px);
+}
+.schema-table th {
+  text-align: left;
+  padding: var(--space-1, 4px) var(--space-3, 12px);
+  border-bottom: 1px solid var(--border);
+  font-size: var(--text-xs, 11px);
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  color: var(--muted-foreground);
+  font-weight: var(--font-weight-semibold, 600);
+}
+.schema-table td {
+  padding: var(--space-1, 4px) var(--space-3, 12px);
+  border-bottom: 1px solid color-mix(in oklch, var(--border) 50%, transparent);
+}
+
+/* -- Clickable table rows -- */
+.ship-table tbody tr { cursor: pointer; }
+.ship-table tbody tr.row-selected td {
+  background: color-mix(in oklch, var(--primary) 10%, transparent);
+}
+
+/* -- Detail panel -- */
+.data-detail {
+  margin-top: var(--space-4, 16px);
+}
+.data-detail-head {
+  display: flex;
+  justify-content: space-between;
+  align-items: center;
+  margin-bottom: var(--space-3, 12px);
+}
+.data-detail-id {
+  font-family: var(--font-mono, monospace);
+  font-size: var(--text-xs, 11px);
+  color: var(--muted-foreground);
+}
+.data-detail-actions {
+  display: flex;
+  gap: var(--space-2, 8px);
+  margin-top: var(--space-3, 12px);
+  align-items: center;
+}
+
+/* -- Pagination -- */
+.data-pagination {
+  margin-top: var(--space-4, 16px);
+}
+</style>

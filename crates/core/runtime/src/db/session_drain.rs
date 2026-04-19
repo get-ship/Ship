@@ -122,7 +122,7 @@ pub fn cleanup_stale_draining(grace_secs: i64) -> Result<u64> {
             &wid,
             &payload,
         ) {
-            eprintln!("Failed to complete drain for session '{}': {}", sid, e);
+            tracing::warn!(session_id = %sid, "session drain: failed to complete drain: {e}");
             continue;
         }
         count += 1;

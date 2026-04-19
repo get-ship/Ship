@@ -1,0 +1,70 @@
+{#-
+  Skills IDE — three-column layout matching React Studio parity.
+
+  Context:
+    rail (RailCtx) — groups, kind_counts, q, active_kind, active_tag
+    skill (SkillDetail, optional) — populated when /skills/detail/<id>
+    file (SkillFileCtx, optional) — populated when ?file=<path> is set
+
+  Layout:
+    ┌───────────────┬────────────────┬─────────────┐
+    │  EXPLORER     │  EDITOR        │  INFO PANEL  │
+    │  240px        │  flex-1        │  320px       │
+    │  file tree    │  file content  │  metadata    │
+    └───────────────┴────────────────┴─────────────┘
+-#}
+{% from '_ship.html.j2' import head, styles %}
+{% from '_urls.html.j2' import view_skills, view_skill_detail %}
+{% if not fragment %}
+<!DOCTYPE html>
+<html lang="en">
+<head>{{ head('Skills') }}</head>
+<body>
+{% endif %}
+<div id="ship-view-root" class="ship-view ship-view-skills">
+  {{ styles() }}
+  <style>
+  .ship-view-skills {
+    color: var(--foreground);
+    background: var(--background);
+    height: 100vh;
+    overflow: hidden;
+  }
+  .skills-ide {
+    display: flex;
+    height: 100%;
+    min-height: 0;
+  }
+  @media (max-width: 767px) {
+    .skills-ide { display: none; }
+    .skills-mobile { display: flex; }
+  }
+  @media (min-width: 768px) {
+    .skills-mobile { display: none; }
+  }
+  .skills-mobile {
+    align-items: center;
+    justify-content: center;
+    height: 100%;
+    flex-direction: column;
+    gap: var(--space-2);
+    color: var(--muted-foreground);
+    font-size: 14px;
+  }
+  </style>
+  <div class="skills-ide">
+    {% include 'skills/partials/explorer.html.j2' %}
+    {% include 'skills/partials/editor.html.j2' %}
+    {% if skill is defined %}
+      {% include 'skills/partials/info.html.j2' %}
+    {% endif %}
+  </div>
+  <div class="skills-mobile">
+    <ship-icon name="monitor" size="xl" tone="muted"></ship-icon>
+    <span>Best experienced on desktop</span>
+  </div>
+</div>
+{% if not fragment %}
+</body>
+</html>
+{% endif %}
