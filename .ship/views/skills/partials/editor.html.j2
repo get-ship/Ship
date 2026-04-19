@@ -37,20 +37,20 @@
   min-height: 0;
 }
 .se-editor-content {
-  padding: 28px 40px 48px;
+  padding: var(--space-4) var(--space-5) var(--space-8);
   max-width: 960px;
   width: 100%;
   margin: 0 auto;
 }
 .se-editor-content ship-markdown,
 .se-editor-content ship-markdown-editor {
-  font-size: 14px;
-  line-height: 1.65;
+  font-size: var(--text-sm);
+  line-height: var(--leading-relaxed);
 }
 .se-code-view {
-  padding: 20px 24px;
+  padding: var(--space-5) var(--space-6);
   font-family: var(--font-mono);
-  font-size: 12px;
+  font-size: var(--text-xs);
   line-height: 1.6;
   white-space: pre-wrap;
   word-break: break-word;
@@ -93,7 +93,7 @@
     <div class="se-editor-body">
       {% if file.ext == 'md' %}
         <div class="se-editor-content">
-          <ship-markdown-editor value="{{ file.content }}" readonly></ship-markdown-editor>
+          <ship-markdown-editor value="{{ file.content }}"></ship-markdown-editor>
         </div>
       {% elif file.ext == 'json' %}
         <pre class="se-code-view">{{ file.content }}</pre>
@@ -115,7 +115,7 @@
     <div class="se-editor-body">
       <div class="se-editor-content">
         {% if skill.body %}
-          <ship-markdown-editor value="{{ skill.body }}" readonly></ship-markdown-editor>
+          <ship-markdown-editor value="{{ skill.body }}"></ship-markdown-editor>
         {% else %}
           <div class="se-empty-state" style="padding:40px 0">
             <ship-icon name="file" size="xl" tone="muted"></ship-icon>

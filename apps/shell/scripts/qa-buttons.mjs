@@ -7,7 +7,7 @@ import { chromium } from "playwright";
 import { mkdir, writeFile } from "node:fs/promises";
 import { join } from "node:path";
 
-const BASE = process.env.SHELL_URL ?? "http://127.0.0.1:3100";
+const BASE = process.env.SHELL_URL ?? "http://127.0.0.1:3001";
 const OUT = "qa-evidence/buttons";
 
 async function main() {

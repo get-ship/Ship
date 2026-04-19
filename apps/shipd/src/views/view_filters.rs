@@ -271,6 +271,12 @@ pub fn register_all(env: &mut minijinja::Environment) {
     env.add_filter("where", filter_where);
     env.add_filter("sort_by", filter_sort_by);
     env.add_filter("take", filter_take);
+    env.add_filter("tojson", filter_tojson);
+}
+
+/// Filter: `| tojson` — serialize any value to a JSON string.
+fn filter_tojson(value: Value) -> String {
+    serde_json::to_string(&value).unwrap_or_else(|_| "null".to_string())
 }
 
 #[cfg(test)]
