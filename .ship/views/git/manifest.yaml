@@ -1,6 +1,0 @@
-name: git
-type: html
-data:
-  git: true
-events:
-  - ""

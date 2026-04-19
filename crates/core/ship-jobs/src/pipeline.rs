@@ -29,15 +29,16 @@ pub struct PipelineMeta {
     pub step_specs: Option<Vec<String>>,
 }
 
-/// Parse a pipeline YAML file and normalize it into the old-format steps array.
+/// Parse a pipeline definition and normalize it into the old-format steps array.
 ///
 /// Accepts both the new simplified format (agents list, string steps) and the
 /// old format (explicit id/type/agent/after per step). Returns a JSON Value
 /// with a `steps` array that the runtime PipelineStep deserializer can handle,
 /// plus extracted metadata.
-pub fn normalize_pipeline_yaml(yaml_str: &str) -> Result<(Value, PipelineMeta), String> {
-    let val: Value = serde_yaml::from_str(yaml_str)
-        .map_err(|e| format!("invalid pipeline YAML: {e}"))?;
+///
+/// Input can be JSONC (primary) or YAML (legacy/frontmatter).
+pub fn normalize_pipeline(input: &str) -> Result<(Value, PipelineMeta), String> {
+    let val: Value = try_parse_jsonc_or_yaml(input)?;
 
     let meta = extract_meta(&val);
 
@@ -56,7 +57,26 @@ pub fn normalize_pipeline_yaml(yaml_str: &str) -> Result<(Value, PipelineMeta), 
     Err("pipeline must have either `agents` or `steps`".to_string())
 }
 
-/// Extract pipeline-level metadata from the YAML value.
+/// Backwards-compatible alias — callers migrating from YAML can use this name.
+pub fn normalize_pipeline_yaml(input: &str) -> Result<(Value, PipelineMeta), String> {
+    normalize_pipeline(input)
+}
+
+/// Try JSONC first, fall back to YAML for legacy/frontmatter content.
+fn try_parse_jsonc_or_yaml(input: &str) -> Result<Value, String> {
+    let trimmed = input.trim_start();
+    // If it looks like JSON (starts with `{` or `[`), parse as JSONC.
+    if trimmed.starts_with('{') || trimmed.starts_with('[') {
+        let json_str = compiler::jsonc::strip_jsonc_comments(input);
+        return serde_json::from_str(&json_str)
+            .map_err(|e| format!("invalid pipeline JSONC: {e}"));
+    }
+    // Otherwise treat as YAML (spec frontmatter, legacy files).
+    serde_yaml::from_str(input)
+        .map_err(|e| format!("invalid pipeline YAML: {e}"))
+}
+
+/// Extract pipeline-level metadata from the parsed value.
 fn extract_meta(val: &Value) -> PipelineMeta {
     PipelineMeta {
         name: val.get("name").and_then(|v| v.as_str()).map(str::to_string),
