@@ -86,6 +86,16 @@ fn headless_includes_model_when_specified() {
 }
 
 #[test]
+fn headless_includes_skip_git_repo_check() {
+    let adapter = CodexAdapter;
+    let cmd = adapter.build_headless("s", &default_profile());
+    assert!(
+        cmd.args.contains(&"--skip-git-repo-check".to_string()),
+        "codex runs in ship worktrees that may not look like a canonical git repo",
+    );
+}
+
+#[test]
 fn headless_falls_back_to_default_prompt() {
     let adapter = CodexAdapter;
     let cmd = adapter.build_headless("s", &default_profile());
