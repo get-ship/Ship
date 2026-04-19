@@ -126,19 +126,9 @@ function closeSSE() {
 async function mount(endpoint: string, sse?: string) {
   closeSSE();
 
-  // Tear down the old view completely — this triggers Datastar's
-  // MutationObserver disconnect, closing any internal SSE connections
-  // the previous view's {{ live() }} macro started.
+  // Tear down the old view — textContent="" triggers Datastar's
+  // MutationObserver to disconnect stale SSE watchers.
   view.textContent = "";
-
-  // Show loading skeleton
-  view.innerHTML = `
-    <div style="padding:var(--space-6) var(--space-5);max-width:960px;margin:0 auto">
-      <ship-skeleton variant="text" lines="1" width="40%" style="margin-bottom:var(--space-4)"></ship-skeleton>
-      <ship-skeleton variant="rect" height="120px" style="margin-bottom:var(--space-4)"></ship-skeleton>
-      <ship-skeleton variant="text" lines="3" style="margin-bottom:var(--space-4)"></ship-skeleton>
-      <ship-skeleton variant="rect" height="200px"></ship-skeleton>
-    </div>`;
 
   try {
     await mountDaemonFragment(view, endpoint, {

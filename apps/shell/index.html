@@ -12,11 +12,20 @@
         var css = document.createElement('link');
         css.rel = 'stylesheet'; css.href = base + 'view-tokens.css';
         document.head.appendChild(css);
-        ['datastar.js','ship-elements.js','ship-code-editor.js','ship-markdown-editor.js','ship-terminal.js'].forEach(function(f) {
+        // Core: load eagerly (blocking). Islands: load async (non-blocking).
+        ['datastar.js','ship-elements.js'].forEach(function(f) {
           var s = document.createElement('script');
           s.type = 'module'; s.src = base + f;
           document.head.appendChild(s);
         });
+        // Island bundles — defer until after initial paint.
+        requestIdleCallback(function() {
+          ['ship-code-editor.js','ship-markdown-editor.js','ship-terminal.js'].forEach(function(f) {
+            var s = document.createElement('script');
+            s.type = 'module'; s.src = base + f;
+            document.head.appendChild(s);
+          });
+        }, { timeout: 3000 });
       })();
     </script>
     <script>
