@@ -5,12 +5,69 @@
 //! 2. Reconciles jobs stuck in `Dispatched` state after a daemon restart
 
 use crate::events::EventEnvelope;
-use crate::projections::job::{load_jobs, JobStatus};
+use crate::projections::job::{load_jobs, JobRecord, JobStatus};
+use std::collections::HashMap;
 use std::sync::Arc;
 use tokio::sync::Mutex;
 
 use super::pipeline::advance_pipeline;
 use super::OrchestratorContext;
+
+/// Max stale completions to replay on a single daemon startup. Older jobs
+/// beyond this are dropped with a warn log — a signal that the projection
+/// is polluted and needs operator attention, not that the daemon should
+/// spend seconds replaying them on every restart.
+pub(super) const MAX_REPLAYS_PER_STARTUP: usize = 10;
+
+/// Returns true when a Completed job has work the replay would actually
+/// do — currently: pipeline progression is still pending, OR an
+/// `auto_merge` pipeline finished but never merged (worktree still on disk).
+///
+/// Returns false when the job is fully terminal: no DAG pipeline, or
+/// every step completed with no pending auto_merge.
+pub(super) fn needs_replay(job: &JobRecord) -> bool {
+    let Some(pipeline) = job.steps.as_ref() else {
+        return false;
+    };
+
+    let total_steps = pipeline.steps.len();
+    let completed = job.completed_step_count();
+    if completed < total_steps {
+        return true;
+    }
+
+    if pipeline.auto_merge {
+        let worktree = job.worktree.as_deref().map(std::path::Path::new);
+        return matches!(worktree, Some(p) if p.exists());
+    }
+
+    false
+}
+
+/// Select the jobs to replay: Completed + needs_replay, sorted most-recent
+/// first, capped at `MAX_REPLAYS_PER_STARTUP`. Logs a warn when capped.
+pub(super) fn select_replay_targets(jobs: &HashMap<String, JobRecord>) -> Vec<JobRecord> {
+    let mut stale: Vec<JobRecord> = jobs
+        .values()
+        .filter(|j| j.status == JobStatus::Completed)
+        .filter(|j| needs_replay(j))
+        .cloned()
+        .collect();
+
+    stale.sort_by(|a, b| b.updated_at.cmp(&a.updated_at));
+
+    if stale.len() > MAX_REPLAYS_PER_STARTUP {
+        tracing::warn!(
+            total = stale.len(),
+            cap = MAX_REPLAYS_PER_STARTUP,
+            "job-dispatch: replay set exceeds cap; replaying most recent only. \
+             Investigate stale completions: ship jobs --status completed"
+        );
+        stale.truncate(MAX_REPLAYS_PER_STARTUP);
+    }
+
+    stale
+}
 
 /// Replay unprocessed `job.completed` events that arrived while the daemon was down.
 pub async fn replay_unprocessed_completions(
@@ -25,10 +82,7 @@ pub async fn replay_unprocessed_completions(
         }
     };
 
-    let stale: Vec<_> = jobs
-        .values()
-        .filter(|j| j.status == JobStatus::Completed)
-        .collect();
+    let stale = select_replay_targets(&jobs);
 
     if stale.is_empty() {
         tracing::debug!("job-dispatch: no stale completed jobs to replay");
@@ -37,7 +91,7 @@ pub async fn replay_unprocessed_completions(
 
     tracing::info!(count = stale.len(), "job-dispatch: replaying stale job.completed events");
 
-    for job in stale {
+    for job in &stale {
         let payload = serde_json::json!({
             "job_id": job.job_id,
             "slug": job.slug,
@@ -101,7 +155,7 @@ async fn reconcile_dispatched_inner(
     kernel: &Arc<Mutex<crate::events::KernelRouter>>,
     octx: &OrchestratorContext,
     jobs: std::collections::HashMap<String, crate::projections::job::JobRecord>,
-    store_dir: Option<&std::path::Path>,
+    _store_dir: Option<&std::path::Path>,
 ) {
     let stale: Vec<_> = jobs
         .values()
@@ -116,27 +170,45 @@ async fn reconcile_dispatched_inner(
     tracing::info!(count = stale.len(), "job-dispatch: reconciling stale dispatched jobs");
 
     for job in stale {
-        let handle = crate::services::dispatch_ports::ExecutorHandle {
-            pid: None,
-            inner: Box::new(()),
-        };
-
-        if octx.executor.is_alive(&handle).await {
-            tracing::info!(slug = job.slug, "job-dispatch: reconcile — process still alive, re-attaching");
-            let resume_handle = crate::services::dispatch_ports::ExecutorHandle {
-                pid: None,
-                inner: Box::new(()),
-            };
-            octx.registry.register(&job.slug, resume_handle).await;
-            continue;
+        // Ask the executor to rehydrate a real handle from out-of-band
+        // state (tmux session names, window names, etc). `Some` means
+        // the agent survived the restart — re-attach. `None` means no
+        // live process was found on this pass — record an observation
+        // event and let the liveness sweep decide after the stale
+        // threshold. A single missed probe is not sufficient evidence
+        // to terminate the job.
+        match octx
+            .executor
+            .resume_handle(
+                &job.slug,
+                job.provider.as_deref(),
+                job.current_step.as_deref(),
+            )
+            .await
+        {
+            Some(handle) => {
+                tracing::info!(
+                    slug = job.slug,
+                    "job-dispatch: reconcile — process still alive, re-attaching"
+                );
+                octx.registry.register(&job.slug, handle).await;
+                continue;
+            }
+            None => {
+                tracing::info!(
+                    slug = job.slug, job_id = job.job_id,
+                    "job-dispatch: reconcile — no live process, deferring to liveness sweep"
+                );
+                crate::services::orchestrator::emit::emit_executor_session_destroyed(
+                    kernel,
+                    &job.slug,
+                    "tmux_window",
+                    &job.slug,
+                    crate::events::executor::DestructionCause::External,
+                )
+                .await;
+            }
         }
-
-        tracing::info!(
-            slug = job.slug, job_id = job.job_id,
-            "job-dispatch: reconcile — process dead, marking step failed"
-        );
-
-        emit_step_failed(kernel, &job.job_id, &job.slug, "daemon restarted, agent not running", store_dir).await;
     }
 
     tracing::info!("job-dispatch: reconciliation complete");

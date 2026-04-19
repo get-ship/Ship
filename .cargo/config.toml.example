@@ -1,0 +1,7 @@
+# Copy this to `.cargo/config.toml` and update the path. Shared target
+# dir across main checkout + worktrees gives ~80% build-time savings
+# on warm caches (no rebuild from scratch when switching branches).
+#
+# Path must be absolute so every worktree resolves to the same dir.
+[build]
+target-dir = "/absolute/path/outside/the/repo/cargo-target"

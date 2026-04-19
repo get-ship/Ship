@@ -49,32 +49,34 @@ pub fn load_job_context(job_id: &str) -> JobContextFromEvents {
 
 /// The runtime's pipeline contract. Injected at dispatch, never author-written.
 /// Tells the agent how to signal completion so the step monitor can observe.
-pub const RUNTIME_CONTRACT: &str = r#"## Runtime contract — how to signal completion
+pub const RUNTIME_CONTRACT: &str = r#"## Runtime contract — completing this step
 
-This step is being observed by the Ship pipeline's step monitor. Signal
-completion using one of:
+This step is part of a Ship pipeline. The next step is waiting on you.
+Your job ends when you call `mcp__ship__step_done`.
 
-**Preferred — explicit done.** Call `mcp__ship__step_done` with a one-line
-summary. Advances the pipeline immediately. The summary is fed to the next
-step as context.
+**The completion rule, full stop:**
+
+When the acceptance criteria in the job body are met (tests passing once,
+the requested change present, no compile errors), **call `step_done`
+immediately and exit**. Do not iterate further. Do not re-verify. Do not
+explore neighboring code. The reviewer step is what catches missed cases —
+it has the diff and your summary. Trust it.
 
 ```
-mcp__ship__step_done({ summary: "added ping() and a passing test" })
+mcp__ship__step_done({ summary: "added ping() + 2 tests, all green" })
 ```
 
-**Fallback — commit and stop.** If `step_done` is unavailable, commit your
-work with `git commit`. When you stop responding, the monitor observes a
-commit + settle period and advances the pipeline. No summary is carried
-forward in this path.
+**If you're blocked**, call `mcp__ship__log_progress` with the blocker
+and stop responding. The monitor will settle and the gate step will pick
+up the partial work for review. Do not call `step_done` for blocked work.
 
-**Progress updates** (optional): call `mcp__ship__log_progress` with a
-checkpoint. Doesn't advance; just records thinking in the event log.
+**Progress updates** (optional, while still working): `mcp__ship__log_progress`
+records a checkpoint without advancing.
 
-**Never call step_done** until the job body's acceptance criteria are met.
-If you're blocked, call `mcp__ship__log_progress` with the blocker and stop.
-
-If you do nothing after the job body is addressed: the monitor settles ~15s
-after you stop responding. With no commits and no step_done, the pipeline
-router treats the step as Inconclusive and advances to the next step (a
-gate step, if any, will review before proceeding).
+**Timeouts:** the step is killed if no subprocess activity is seen for
+5 minutes (idle timeout), or if the whole step runs past 60 minutes
+(hard cap). Long tool calls like `cargo test` keep the step alive
+naturally — you don't need to rush. If you haven't called `step_done`
+or `log_progress { blocker: ... }` before those limits, the monitor
+terminates the step as `timed out`.
 "#;

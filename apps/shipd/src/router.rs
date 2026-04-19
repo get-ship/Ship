@@ -14,11 +14,11 @@ use tokio_util::sync::CancellationToken;
 use utoipa::OpenApi;
 
 use crate::{
-    NetworkServer, actor_api, attest, auth, cors, feedback_api, hooks_api, human_webhook,
-    openapi, pairing, project_api, pty_handler, rest_api, runtime_api, session, settings_api,
-    shell_assets, ship_runtime, specs_api, specs_view, supervisor, view_morph_target,
-    view_sessions_api, views, collection_api, views_agents, views_chat, views_events, views_git,
-    views_pipelines, views_raw, views_settings, views_skills,
+    NetworkServer, actor_api, artifacts_api, attest, auth, cors, feedback_api, hooks_api,
+    human_webhook, openapi, pairing, project_api, pty_handler, rest_api, runtime_api, session,
+    settings_api, shell_assets, ship_runtime, specs_api, specs_view, supervisor,
+    view_morph_target, view_sessions_api, views, collection_api, views_agents, views_chat,
+    views_events, views_git, views_pipelines, views_raw, views_settings, views_skills,
 };
 
 /// Build the full Axum router with all route groups, auth, and CORS.
@@ -178,8 +178,12 @@ pub fn build_router(
         // Tag view responses with Datastar morph-target headers so cross-view
         // navigation inside the shell doesn't wipe shell chrome.
         .layer(axum::middleware::from_fn(view_morph_target::view_morph_target_middleware))
-        // Request body limit: 1 MB for all non-streaming endpoints.
-        .layer(tower_http::limit::RequestBodyLimitLayer::new(1024 * 1024))
+        // Outer request body cap. 50 MB matches the files-API upload limit.
+        // JSON / Form extractors still enforce axum's `DefaultBodyLimit`
+        // (2 MB) on their own — this layer only sets the outer ceiling.
+        .layer(tower_http::limit::RequestBodyLimitLayer::new(
+            crate::artifacts_api::MAX_UPLOAD_BYTES,
+        ))
         // Catch handler panics → 500 instead of connection abort.
         .layer(tower_http::catch_panic::CatchPanicLayer::custom(handle_panic))
 }
@@ -217,6 +221,10 @@ fn build_ship_routes(st: rest_api::ApiState) -> Router {
         .ship_route(Route::CreateJob, runtime_api::create_job)
         .ship_route(Route::GetJob_template(), runtime_api::get_job_detail)
         .ship_route(Route::EndJob, runtime_api::end_job)
+        .ship_route(Route::CancelJob_template(), runtime_api::cancel_job)
+        .ship_route(Route::ListProcs, runtime_api::list_procs)
+        .ship_route(Route::PollEvents, runtime_api::poll_events)
+        .ship_route(Route::DaemonStatus, runtime_api::daemon_status)
         // Views
         .ship_route(Route::ListViews, views::list_views)
         .ship_route(Route::ServeView_template(), views::serve_view)
@@ -292,7 +300,19 @@ fn build_ship_routes(st: rest_api::ApiState) -> Router {
         .ship_route(Route::EmitEvent, project_api::emit_event)
         .ship_route(Route::ArtifactsStatus_template(), project_api::artifacts_status)
         .ship_route(Route::PromoteArtifact_template(), project_api::promote_artifact)
-        .ship_route(Route::ListProjectArtifacts, project_api::list_project_artifacts)
+        // Artifacts — upload route needs a relaxed `DefaultBodyLimit` so
+        // Multipart can read the full 50 MB upload ceiling; other extractors
+        // on this router continue to use the axum default.
+        .merge(
+            Router::<rest_api::ApiState>::new()
+                .ship_route(Route::ArtifactsUpload, artifacts_api::upload_artifact)
+                .ship_route(Route::ArtifactsList, artifacts_api::list_artifacts)
+                .ship_route(Route::ArtifactDownload_template(), artifacts_api::download_artifact)
+                .ship_route(Route::ArtifactDelete_template(), artifacts_api::delete_artifact)
+                .layer(axum::extract::DefaultBodyLimit::max(
+                    artifacts_api::MAX_UPLOAD_BYTES,
+                )),
+        )
         // Collections
         .ship_route(Route::ListCollections, collection_api::list_collections)
         .ship_route(Route::GetCollectionSchema_template(), collection_api::get_schema)

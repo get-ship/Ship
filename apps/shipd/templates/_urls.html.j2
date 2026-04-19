@@ -59,6 +59,10 @@
 {%- macro create_job() -%}/api/runtime/jobs{%- endmacro -%}
 {%- macro get_job(job_id) -%}/api/runtime/jobs/{{ job_id }}{%- endmacro -%}
 {%- macro end_job() -%}/api/runtime/jobs/end{%- endmacro -%}
+{%- macro cancel_job(slug) -%}/api/runtime/jobs/{{ slug }}/cancel{%- endmacro -%}
+{%- macro list_procs() -%}/api/runtime/procs{%- endmacro -%}
+{%- macro poll_events() -%}/api/runtime/events/poll{%- endmacro -%}
+{%- macro daemon_status() -%}/api/runtime/daemon/status{%- endmacro -%}
 {%- macro list_specs() -%}/api/runtime/specs{%- endmacro -%}
 {%- macro create_spec() -%}/api/runtime/specs{%- endmacro -%}
 {%- macro get_spec(id) -%}/api/runtime/specs/{{ id }}{%- endmacro -%}
@@ -93,7 +97,6 @@
 {%- macro emit_event() -%}/api/events/emit{%- endmacro -%}
 {%- macro artifacts_status(id) -%}/api/workspaces/{{ id }}/artifacts/status{%- endmacro -%}
 {%- macro promote_artifact(id) -%}/api/workspaces/{{ id }}/artifacts/promote{%- endmacro -%}
-{%- macro list_project_artifacts() -%}/api/artifacts{%- endmacro -%}
 {%- macro mesh_register() -%}/api/mesh/register{%- endmacro -%}
 {%- macro mesh_send() -%}/api/mesh/send{%- endmacro -%}
 {%- macro mesh_broadcast() -%}/api/mesh/broadcast{%- endmacro -%}
@@ -109,4 +112,8 @@
 {%- macro update_collection_item(collection, item_id) -%}/api/collections/{{ collection }}/items/{{ item_id }}{%- endmacro -%}
 {%- macro delete_collection_item(collection, item_id) -%}/api/collections/{{ collection }}/items/{{ item_id }}{%- endmacro -%}
 {%- macro query_collection(collection) -%}/api/collections/{{ collection }}/query{%- endmacro -%}
+{%- macro artifacts_upload() -%}/api/artifacts{%- endmacro -%}
+{%- macro artifacts_list() -%}/api/artifacts{%- endmacro -%}
+{%- macro artifact_download(id) -%}/api/artifacts/{{ id }}{%- endmacro -%}
+{%- macro artifact_delete(id) -%}/api/artifacts/{{ id }}{%- endmacro -%}
 {%- macro capabilities() -%}/api/capabilities{%- endmacro -%}

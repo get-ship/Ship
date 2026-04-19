@@ -1,9 +1,11 @@
 //! Secondary event handlers — update forwarding, cleanup, finalization, merge.
 
 use crate::events::job::event_types;
+use crate::events::process::{event_types as process_event_types, ProcessKilledPayload};
 use crate::events::{CallerKind, EmitContext, EventEnvelope};
 use crate::services::dispatch_ports::AgentPlatform;
 use crate::services::orchestrator::emit::persist_and_route;
+use crate::services::orchestrator::OrchestratorContext;
 use std::sync::Arc;
 use tokio::sync::Mutex;
 
@@ -135,6 +137,90 @@ pub async fn finalize_pipeline_if_done(
         Err(_) => return,
     };
     persist_and_route(kernel, env, &slug, None).await;
+}
+
+/// Handle `job.cancelled` — terminate the agent process, tear down the
+/// tmux session, and emit `process.killed` for audit. The projection
+/// has already transitioned the job to Cancelled via the transition
+/// table; this handler's job is to stop the running work.
+pub async fn handle_job_cancelled(
+    kernel: &Arc<Mutex<crate::events::KernelRouter>>,
+    envelope: &EventEnvelope,
+    octx: &OrchestratorContext,
+) {
+    let payload: serde_json::Value =
+        serde_json::from_str(&envelope.payload_json).unwrap_or_default();
+    let slug = match payload["slug"].as_str() {
+        Some(s) if !s.is_empty() => s.to_string(),
+        _ => {
+            tracing::warn!(
+                entity_id = %envelope.entity_id,
+                "job-dispatch: job.cancelled missing slug — skipping process kill"
+            );
+            return;
+        }
+    };
+
+    // Registry first (fast path). On miss, try the executor's resume path
+    // — best effort. `handle` is consumed by executor.stop.
+    let pid = if let Some(handle) = octx.registry.take(&slug).await {
+        let pid = handle.pid;
+        super::emit::emit_process_signal_sent(
+            kernel, &slug, pid, "SIGTERM", "cancellation", "operator",
+        ).await;
+        if let Err(e) = octx.executor.stop(&handle).await {
+            tracing::warn!(slug, "job-dispatch: cancel stop returned err: {e}");
+        }
+        pid
+    } else if let Some(handle) = octx.executor.resume_handle(&slug, None, None).await {
+        let pid = handle.pid;
+        super::emit::emit_process_signal_sent(
+            kernel, &slug, pid, "SIGTERM", "cancellation", "operator",
+        ).await;
+        if let Err(e) = octx.executor.stop(&handle).await {
+            tracing::warn!(slug, "job-dispatch: cancel stop (via resume) returned err: {e}");
+        }
+        pid
+    } else {
+        tracing::info!(slug, "job-dispatch: cancel — no live handle found; proceeding to tmux cleanup");
+        None
+    };
+
+    // Ensure tmux session + worktree are gone. Look up branch from the
+    // projection so delete_branch can run.
+    let branch = crate::projections::job::load_jobs()
+        .ok()
+        .and_then(|jobs| {
+            jobs.values()
+                .find(|j| j.slug == slug)
+                .map(|j| j.branch.clone())
+        })
+        .unwrap_or_default();
+    octx.platform.cleanup_job(&slug, &branch).await;
+
+    // Emit process.killed for audit.
+    let killed = ProcessKilledPayload {
+        slug: slug.clone(),
+        pid,
+        signal: "SIGTERM+SIGKILL".into(),
+        reason: "cancellation".into(),
+        actor: "operator".into(),
+    };
+    match EventEnvelope::new(process_event_types::PROCESS_KILLED, &slug, &killed) {
+        Ok(env) => {
+            let env = env.with_actor_id("service.job-dispatch");
+            persist_and_route(kernel, env, &slug, None).await;
+        }
+        Err(e) => {
+            tracing::warn!(slug, "job-dispatch: failed to build process.killed envelope: {e}");
+        }
+    }
+
+    // Drop per-slug bookkeeping so a subsequent retry with the same slug
+    // isn't confused by stale state.
+    octx.done_flags.lock().await.remove(slug.as_str());
+    octx.activity_txs.lock().await.remove(slug.as_str());
+    octx.job_locks.lock().await.remove(&envelope.entity_id);
 }
 
 /// Execute a merge step: git merge the job branch, emit `job.merged` on success.

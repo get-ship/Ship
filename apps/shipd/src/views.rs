@@ -25,7 +25,6 @@
 pub mod stream;
 pub mod state;
 pub mod agents_state;
-pub mod agents_jsonc;
 pub mod skills_state;
 pub mod chat_state;
 pub mod events_state;
@@ -34,15 +33,15 @@ pub mod session;
 pub mod session_types;
 pub mod sanitize;
 
-pub mod context;
-pub mod generic_sse;
-pub mod error_overlay;
-pub mod view_filters;
-pub mod view_filters_list;
-
 mod assets;
+pub mod agents_jsonc;
+pub mod context;
+pub mod error_overlay;
+pub mod generic_sse;
 mod handlers;
 mod resolve;
+pub mod view_filters;
+pub mod view_filters_list;
 
 #[cfg(test)]
 #[allow(unused_imports)]
@@ -54,9 +53,9 @@ use serde::Serialize;
 use crate::rest_api::MeshResponse;
 
 pub use assets::{
-    serve_code_editor, serve_datastar_js, serve_elements_catalog, serve_elements_manifest,
-    serve_markdown_editor, serve_ship_elements, serve_terminal, serve_theme_css,
-    serve_themes_list, serve_view_tokens,
+    serve_code_editor, serve_datastar_js, serve_elements_catalog,
+    serve_elements_manifest, serve_markdown_editor, serve_ship_elements,
+    serve_terminal, serve_theme_css, serve_themes_list, serve_view_tokens,
 };
 pub use handlers::{
     list_views, serve_view, serve_view_asset, serve_view_bundle, serve_view_manifest,

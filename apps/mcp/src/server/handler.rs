@@ -127,6 +127,7 @@ impl ServerHandler for ShipServer {
         _context: RequestContext<RoleServer>,
     ) -> Result<ListToolsResult, ErrorData> {
         let all_tools = self.tool_router.list_all();
+        let dispatched = Self::is_dispatched_context();
         let visible = if let Ok(project_dir) = self.get_effective_project_dir().await {
             let ship_dir = project_dir.join(".ship");
             let active_agent = get_active_agent(Some(ship_dir)).unwrap_or(None);
@@ -140,24 +141,36 @@ impl ServerHandler for ShipServer {
                     if Self::is_project_workspace_tool(n) {
                         return true;
                     }
+                    // Dispatched agents always get platform tools — the
+                    // dispatch context (SHIP_MESH_ID env) is the truth,
+                    // independent of KV-tracked active_agent.
+                    if dispatched && Self::is_platform_tool(n) {
+                        return true;
+                    }
                     let Some(ref agent) = active_agent else {
                         return false;
                     };
-                    // Explicit active_tools override role defaults.
+                    // Explicit active_tools is the complete allowlist when set.
                     if !agent.active_tools.is_empty() {
                         return Self::mode_allows_tool(n, &agent.active_tools);
                     }
-                    // Fall back to role-based defaults.
-                    let role = agent.role.as_deref().unwrap_or("worker");
-                    let role_defaults = Self::default_tools_for_role(role);
+                    let preset = Self::effective_preset(
+                        agent.tools_preset.as_deref(),
+                        agent.role.as_deref(),
+                    );
+                    let preset_tools = Self::tools_for_preset(preset);
                     let normalized = Self::normalize_mode_tool_id(n);
-                    role_defaults.contains(&normalized.as_str())
+                    preset_tools.contains(&normalized.as_str())
                 })
                 .collect()
         } else {
+            // No project dir — only core plus (if dispatched) platform tools.
             all_tools
                 .into_iter()
-                .filter(|t| Self::is_core_tool(t.name.as_ref()))
+                .filter(|t| {
+                    let n = t.name.as_ref();
+                    Self::is_core_tool(n) || (dispatched && Self::is_platform_tool(n))
+                })
                 .collect()
         };
         Ok(ListToolsResult::with_all_items(visible))

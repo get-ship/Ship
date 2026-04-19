@@ -27,17 +27,21 @@ pub struct PipelineMeta {
     /// `.artifacts/pipeline/NN-<step_id>.md` at job launch instead of sharing
     /// a single spec across every step.
     pub step_specs: Option<Vec<String>>,
+    /// When true, the runtime runs `git merge` on the job branch after the
+    /// final step completes. Replaces the former `type: merge` step.
+    pub auto_merge: Option<bool>,
 }
 
-/// Parse a pipeline YAML file and normalize it into the old-format steps array.
+/// Parse a pipeline definition and normalize it into the old-format steps array.
 ///
 /// Accepts both the new simplified format (agents list, string steps) and the
 /// old format (explicit id/type/agent/after per step). Returns a JSON Value
 /// with a `steps` array that the runtime PipelineStep deserializer can handle,
 /// plus extracted metadata.
-pub fn normalize_pipeline_yaml(yaml_str: &str) -> Result<(Value, PipelineMeta), String> {
-    let val: Value = serde_yaml::from_str(yaml_str)
-        .map_err(|e| format!("invalid pipeline YAML: {e}"))?;
+///
+/// Input can be JSONC (primary) or YAML (legacy/frontmatter).
+pub fn normalize_pipeline(input: &str) -> Result<(Value, PipelineMeta), String> {
+    let val: Value = try_parse_jsonc_or_yaml(input)?;
 
     let meta = extract_meta(&val);
 
@@ -56,7 +60,26 @@ pub fn normalize_pipeline_yaml(yaml_str: &str) -> Result<(Value, PipelineMeta), 
     Err("pipeline must have either `agents` or `steps`".to_string())
 }
 
-/// Extract pipeline-level metadata from the YAML value.
+/// Backwards-compatible alias — callers migrating from YAML can use this name.
+pub fn normalize_pipeline_yaml(input: &str) -> Result<(Value, PipelineMeta), String> {
+    normalize_pipeline(input)
+}
+
+/// Try JSONC first, fall back to YAML for legacy/frontmatter content.
+fn try_parse_jsonc_or_yaml(input: &str) -> Result<Value, String> {
+    let trimmed = input.trim_start();
+    // If it looks like JSON (starts with `{` or `[`), parse as JSONC.
+    if trimmed.starts_with('{') || trimmed.starts_with('[') {
+        let json_str = compiler::jsonc::strip_jsonc_comments(input);
+        return serde_json::from_str(&json_str)
+            .map_err(|e| format!("invalid pipeline JSONC: {e}"));
+    }
+    // Otherwise treat as YAML (spec frontmatter, legacy files).
+    serde_yaml::from_str(input)
+        .map_err(|e| format!("invalid pipeline YAML: {e}"))
+}
+
+/// Extract pipeline-level metadata from the parsed value.
 fn extract_meta(val: &Value) -> PipelineMeta {
     PipelineMeta {
         name: val.get("name").and_then(|v| v.as_str()).map(str::to_string),
@@ -75,6 +98,7 @@ fn extract_meta(val: &Value) -> PipelineMeta {
                 .map(|entry| entry.as_str().unwrap_or_default().to_string())
                 .collect()
         }),
+        auto_merge: val.get("auto_merge").and_then(|v| v.as_bool()),
     }
 }
 
@@ -191,12 +215,6 @@ fn normalize_single_step(
                 step.insert("id".to_string(), json!(id));
                 step.insert("type".to_string(), json!("run"));
                 step.insert("command".to_string(), json!(cmd));
-            } else if let Some(prompt) = obj.get("human").and_then(|v| v.as_str()) {
-                // human: <prompt>
-                let id = format!("human-{counter}");
-                step.insert("id".to_string(), json!(id));
-                step.insert("type".to_string(), json!("human"));
-                step.insert("goal".to_string(), json!(prompt));
             } else if let Some(agent) = obj.get("agent").and_then(|v| v.as_str()) {
                 // agent: <id> with overrides
                 let id = format!("step-{counter}");

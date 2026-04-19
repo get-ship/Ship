@@ -1,7 +1,0 @@
-name: pipelines
-type: html
-data:
-  pipelines: true
-events:
-  - job.
-  - step.

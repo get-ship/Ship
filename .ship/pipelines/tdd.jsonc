@@ -1,0 +1,5 @@
+{
+  "name": "tdd",
+  "description": "Test-driven development — tests first, implement second, gate.",
+  "agents": ["test-writer", "{{ impl_agent }}", "reviewer"]
+}

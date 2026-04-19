@@ -232,7 +232,8 @@ pub(crate) fn provider_cli(providers: &[String]) -> Option<String> {
                     persist_session: true,
                     ..Default::default()
                 };
-                let adapter = adapter_for(Some(p));
+                // Providers in the match arm are known; Err here is unreachable.
+                let adapter = adapter_for(p).ok()?;
                 return Some(adapter.build_interactive("workspace", &profile).to_shell_string());
             }
             _ => {}

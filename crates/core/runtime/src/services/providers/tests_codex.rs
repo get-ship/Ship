@@ -47,13 +47,62 @@ fn model_flag_maps_correctly() {
 }
 
 #[test]
-fn headless_same_as_interactive() {
+fn headless_emits_exec_subcommand() {
     let adapter = CodexAdapter;
-    let profile = default_profile();
-    let interactive = adapter.build_interactive("j", &profile);
-    let headless = adapter.build_headless("j", &profile);
-    assert_eq!(interactive.bin, headless.bin);
-    assert_eq!(interactive.args, headless.args);
+    let profile = LaunchProfile {
+        autostart_prompt: Some("test prompt".to_string()),
+        persist_session: true,
+        ..Default::default()
+    };
+    let cmd = adapter.build_headless("test-slug", &profile);
+    assert_eq!(cmd.bin, "codex");
+    assert_eq!(cmd.args[0], "exec");
+    assert!(cmd
+        .args
+        .contains(&"--full-auto".to_string()));
+    assert_eq!(cmd.args.last().unwrap(), "test prompt");
+    assert_eq!(
+        cmd.env.get("SHIP_MESH_ID").map(String::as_str),
+        Some("test-slug")
+    );
+}
+
+#[test]
+fn headless_includes_model_when_specified() {
+    let adapter = CodexAdapter;
+    let profile = LaunchProfile {
+        model: Some("o3".to_string()),
+        autostart_prompt: Some("p".to_string()),
+        persist_session: true,
+        ..Default::default()
+    };
+    let cmd = adapter.build_headless("s", &profile);
+    let model_idx = cmd
+        .args
+        .iter()
+        .position(|a| a == "--model")
+        .expect("--model flag");
+    assert_eq!(cmd.args[model_idx + 1], "o3");
+}
+
+#[test]
+fn headless_includes_skip_git_repo_check() {
+    let adapter = CodexAdapter;
+    let cmd = adapter.build_headless("s", &default_profile());
+    assert!(
+        cmd.args.contains(&"--skip-git-repo-check".to_string()),
+        "codex runs in ship worktrees that may not look like a canonical git repo",
+    );
+}
+
+#[test]
+fn headless_falls_back_to_default_prompt() {
+    let adapter = CodexAdapter;
+    let cmd = adapter.build_headless("s", &default_profile());
+    assert_eq!(
+        cmd.args.last().unwrap(),
+        "Read .artifacts/job-spec.md and execute it."
+    );
 }
 
 // ── Lifecycle hooks ─────────────────────────────────────────────────────────
@@ -86,4 +135,18 @@ fn parse_output_returns_none() {
 #[test]
 fn id_is_codex() {
     assert_eq!(CodexAdapter.id(), "codex");
+}
+
+// ── Capabilities ────────────────────────────────────────────────────────────
+
+#[test]
+fn caps_match_declared() {
+    let c = CodexAdapter.caps();
+    assert!(c.headless);
+    assert!(c.interactive);
+    assert!(c.server_mode, "codex: app-server");
+    assert!(c.json_stream, "codex: exec --json");
+    assert!(c.mcp, "codex: .codex/config.toml mcp_servers");
+    assert!(c.hooks, "codex: .codex/hooks.json");
+    assert!(c.session_resume, "codex: exec resume");
 }

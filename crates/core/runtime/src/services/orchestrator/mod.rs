@@ -13,8 +13,10 @@
 //! the orchestration logic testable without a real supervisor (tmux, git
 //! worktree, etc.).
 
+pub mod dedup;
 pub mod emit;
-pub mod gate_retry;
+pub mod git_helpers;
+pub mod review_retry;
 pub mod gate_rules;
 pub mod handlers;
 pub mod pipeline;
@@ -30,11 +32,29 @@ pub mod router;
 pub mod run_step;
 pub mod step_executor;
 pub mod step_monitor;
+pub mod sweep;
 
 pub mod dispatch;
 
+#[cfg(test)]
+mod tests_cancel;
+#[cfg(test)]
+mod tests_prompt_composer;
+#[cfg(test)]
+mod tests_dispatch_provider;
+#[cfg(test)]
+mod tests_spawn_failed;
+#[cfg(test)]
+mod tests_replay;
+#[cfg(test)]
+mod tests_sweep;
+#[cfg(test)]
+mod tests_terminal_guard;
+#[cfg(test)]
+mod tests_heartbeat;
+
 use crate::services::dispatch_ports::{
-    AgentPlatform, IsolationStrategy, JobExecutor, ProcessRegistryPort,
+    AgentPlatform, IsolationStrategy, JobExecutor, ProcessRegistryPort, ProcessTreeProbe,
 };
 use std::collections::HashMap;
 use std::sync::atomic::AtomicBool;
@@ -60,6 +80,9 @@ pub struct OrchestratorContext {
     pub executor: Arc<dyn JobExecutor>,
     pub platform: Arc<dyn AgentPlatform>,
     pub registry: Arc<dyn ProcessRegistryPort>,
+    /// Subprocess-tree heartbeat probe used by `StepMonitor` to distinguish
+    /// "agent is burning CPU on a tool call" from "agent is stuck."
+    pub probe: Arc<dyn ProcessTreeProbe>,
     /// Maps `slug` → done_declared flag for active step monitors.
     pub done_flags: Arc<Mutex<HashMap<String, Arc<AtomicBool>>>>,
     /// Maps `slug` → activity sender for active step monitors.
@@ -68,4 +91,8 @@ pub struct OrchestratorContext {
     /// Per-job advancement lock. Prevents two concurrent events from
     /// double-dispatching the same next step.
     pub job_locks: Arc<Mutex<HashMap<String, Arc<tokio::sync::Mutex<()>>>>>,
+    /// Event-id dedup at the router entry point. Prevents a replayed
+    /// envelope (mailbox redelivery, startup replay race, test replay)
+    /// from advancing the pipeline twice.
+    pub event_dedup: Arc<dedup::EventDedup>,
 }

@@ -1,18 +1,38 @@
 //! TmuxExecutor — spawns agents in named tmux sessions.
 
+use std::sync::Arc;
+
 use anyhow::Result;
 use async_trait::async_trait;
-use runtime::services::dispatch_ports::{ExecutorHandle, ExitSignal, JobContext, JobExecutor};
-use runtime::services::provider_adapter::adapter_for;
+use runtime::events::executor::DestructionCause;
+use runtime::events::KernelRouter;
+use runtime::services::dispatch_ports::{
+    ExecutorHandle, ExitCause, ExitSignal, JobContext, JobExecutor,
+};
+use runtime::services::orchestrator::emit::emit_executor_session_destroyed;
+use runtime::services::provider_adapter::adapter_for_or_default;
+use tokio::sync::Mutex;
 
 use super::super::helpers::{ensure_tmux_session, kill_tmux_session};
 use super::super::terminal_launcher;
 
 /// Job executor that spawns agents in tmux sessions.
-pub(crate) struct TmuxExecutor;
+///
+/// `kernel` is optional so unit tests without a runtime kernel can
+/// construct this executor directly. Emission is skipped when `None`.
+pub(crate) struct TmuxExecutor {
+    kernel: Option<Arc<Mutex<KernelRouter>>>,
+}
+
+impl TmuxExecutor {
+    pub(crate) fn new(kernel: Option<Arc<Mutex<KernelRouter>>>) -> Self {
+        Self { kernel }
+    }
+}
 
 /// State held in the ExecutorHandle for tmux-based execution.
 struct TmuxState {
+    slug: String,
     session: String,
     provider: Option<String>,
 }
@@ -35,7 +55,8 @@ impl JobExecutor for TmuxExecutor {
             ensure_tmux_session(&tmux_session, &ctx.work_dir)?;
         }
 
-        let adapter = adapter_for(ctx.launch.provider.as_deref());
+        let adapter = adapter_for_or_default(ctx.launch.provider.as_deref())
+            .map_err(|e| anyhow::anyhow!("tmux executor: {e}"))?;
         let cmd = adapter.build_interactive(&ctx.slug, &ctx.launch);
         let shell_cmd = cmd.to_shell_string();
 
@@ -93,6 +114,7 @@ impl JobExecutor for TmuxExecutor {
         Ok(ExecutorHandle {
             pid: None,
             inner: Box::new(TmuxState {
+                slug: ctx.slug.clone(),
                 session: tmux_session,
                 provider: ctx.launch.provider.clone(),
             }),
@@ -118,8 +140,10 @@ impl JobExecutor for TmuxExecutor {
         };
 
         // Send exit command for graceful shutdown before force-killing.
-        let adapter = adapter_for(state.provider.as_deref());
-        let exit_command = adapter.exit_command().to_string();
+        // Unknown-provider falls through to the force-kill path at the end.
+        let exit_command = adapter_for_or_default(state.provider.as_deref())
+            .map(|a| a.exit_command().to_string())
+            .unwrap_or_default();
         let _ = std::process::Command::new("tmux")
             .args(["send-keys", "-t", &state.session, &exit_command, "Enter"])
             .status();
@@ -147,7 +171,42 @@ impl JobExecutor for TmuxExecutor {
             session = %state.session,
             "tmux-executor: session did not exit after 30s, force-killing"
         );
-        kill_tmux_session(&state.session)
+        let result = kill_tmux_session(&state.session);
+
+        // Destruction is the intent regardless of whether kill_tmux_session
+        // returned Ok (session killed) or Err (already gone). Either way the
+        // operator-facing fact is that the session is no longer live.
+        if let Some(kernel) = self.kernel.as_ref() {
+            emit_executor_session_destroyed(
+                kernel,
+                &state.slug,
+                "tmux",
+                &state.session,
+                DestructionCause::External,
+            )
+            .await;
+        }
+        result
+    }
+
+    async fn resume_handle(
+        &self,
+        slug: &str,
+        provider: Option<&str>,
+        _current_step: Option<&str>,
+    ) -> Option<ExecutorHandle> {
+        let session = format!("job-{slug}");
+        if !tmux_session_exists(&session) {
+            return None;
+        }
+        Some(ExecutorHandle {
+            pid: None,
+            inner: Box::new(TmuxState {
+                slug: slug.to_string(),
+                session,
+                provider: provider.map(str::to_string),
+            }),
+        })
     }
 
     async fn send(&self, handle: &ExecutorHandle, message: &str) -> Result<()> {
@@ -264,6 +323,7 @@ fn monitor_tmux_session(
                 slug: slug.to_string(),
                 job_id: job_id.to_string(),
                 exit_code: None, // tmux does not expose the agent's exit code
+                cause: ExitCause::SessionDestroyed,
             });
             return;
         }

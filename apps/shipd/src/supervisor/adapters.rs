@@ -20,6 +20,11 @@ impl IsolationStrategy for GitWorktreeIsolation {
         create_worktree(&worktree_path, &job.branch, None)?;
         let session_dir = worktree_path.join(".artifacts");
         std::fs::create_dir_all(&session_dir)?;
+        // Dispatch marker — MCP's tool gate uses this to detect it's
+        // serving a dispatched agent when SHIP_MESH_ID env gets stripped
+        // by the provider's MCP subprocess spawn. Worktree-scoped; the
+        // project root never has this marker.
+        let _ = std::fs::write(session_dir.join(".dispatched"), &job.slug);
         write_phase_spec_from_context(&worktree_path, job)?;
         compile_agent_config(&worktree_path, &job.agent)?;
         Ok(worktree_path)

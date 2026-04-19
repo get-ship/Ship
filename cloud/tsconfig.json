@@ -1,0 +1,22 @@
+{
+  "extends": "./tsconfig.base.json",
+  "compileOnSave": false,
+  "files": [],
+  "references": [
+    {
+      "path": "./packages/types"
+    },
+    {
+      "path": "./apps/actors/platform"
+    },
+    {
+      "path": "./apps/actors/workspace"
+    },
+    {
+      "path": "./apps/gateway"
+    },
+    {
+      "path": "./tools/drizzle"
+    }
+  ]
+}

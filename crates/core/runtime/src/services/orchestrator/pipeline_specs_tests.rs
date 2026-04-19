@@ -23,6 +23,7 @@ fn tdd_pipeline() -> Pipeline {
             step("step-2", "rust-runtime"),
             step("step-3", "reviewer"),
         ],
+        auto_merge: false,
     }
 }
 

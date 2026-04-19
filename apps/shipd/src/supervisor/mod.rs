@@ -13,6 +13,7 @@ pub(crate) mod executors;
 pub mod helpers;
 pub mod job_dispatch;
 pub(crate) mod liveness;
+pub(crate) mod process_events;
 pub(crate) mod orphan_cleanup;
 pub(crate) mod platform;
 pub(crate) mod registry;
@@ -62,6 +63,10 @@ mod tests_graceful_shutdown;
 #[cfg(test)]
 #[path = "tests_process_exit.rs"]
 mod tests_process_exit;
+
+#[cfg(test)]
+#[path = "tests_executor_events.rs"]
+mod tests_executor_events;
 
 #[cfg(test)]
 #[path = "tests_pipeline_e2e.rs"]

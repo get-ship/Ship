@@ -245,6 +245,7 @@ fn pipeline_step_count(name: &str) -> (usize, Option<String>) {
         agent: String::new(),
         branch: String::new(),
         spec_path: String::new(),
+        source_spec_path: None,
         plan_id: None,
         model: None,
         provider: None,
@@ -256,6 +257,7 @@ fn pipeline_step_count(name: &str) -> (usize, Option<String>) {
         spec_content: None,
         step_specs: None,
         headless: false,
+        baseline_sha: None,
     };
     let resolved = match pipeline_loader::ensure_pipeline(payload) {
         Ok(p) => p,

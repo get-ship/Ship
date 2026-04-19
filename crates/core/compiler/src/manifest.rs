@@ -225,7 +225,9 @@ impl ShipManifest {
         Self::from_raw(raw)
     }
 
-    /// Read and parse from a file path. Dispatches to JSONC or TOML based on extension.
+    /// Read and parse from a file path. Dispatches to JSONC (preferred) or TOML
+    /// based on extension. TOML is retained for backwards compatibility with
+    /// cached registry packages that may still use ship.toml.
     pub fn from_file(path: &std::path::Path) -> anyhow::Result<Self> {
         let content = std::fs::read_to_string(path)
             .map_err(|e| anyhow::anyhow!("Cannot read {}: {e}", path.display()))?;

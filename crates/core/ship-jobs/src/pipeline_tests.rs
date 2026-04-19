@@ -30,7 +30,7 @@ name: research
 steps:
   - researcher
   - writer
-  - human: "Review the draft"
+  - run: "echo review"
   - writer
 "#;
     let (val, _) = normalize_pipeline_yaml(yaml).unwrap();
@@ -40,10 +40,10 @@ steps:
     assert_eq!(steps[0]["type"], "agent");
     assert_eq!(steps[0]["agent"], "researcher");
 
-    assert_eq!(steps[2]["type"], "human");
-    assert_eq!(steps[2]["goal"], "Review the draft");
+    assert_eq!(steps[2]["type"], "run");
+    assert_eq!(steps[2]["command"], "echo review");
 
-    // Last step chains after human step
+    // Last step chains after the run step.
     assert_eq!(steps[3]["after"][0].as_str().unwrap(), steps[2]["id"].as_str().unwrap());
 }
 

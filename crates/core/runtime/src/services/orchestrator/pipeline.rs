@@ -10,8 +10,7 @@ use crate::services::dispatch_ports::{JobContext, LaunchProfile};
 use std::sync::Arc;
 use tokio::sync::Mutex;
 
-use super::emit::{emit_job_dispatched_with_meta, emit_step_dispatched_event};
-use super::handlers::execute_merge_step;
+use super::emit::{emit_job_dispatched_with_meta, emit_process_spawned, emit_step_dispatched_event};
 use super::step_monitor::{StepMonitor, start_step_monitor};
 use super::OrchestratorContext;
 
@@ -199,7 +198,7 @@ async fn advance_pipeline_inner(
                 });
                 dispatched_any = true;
             }
-            StepType::Agent | StepType::Gate => {
+            StepType::Agent | StepType::Review => {
                 // Load-time validation guarantees an agent here; defensively skip
                 // on the impossible path rather than substituting a role name.
                 let Some(agent) = step.agent.as_deref().filter(|a| !a.is_empty()) else {
@@ -226,7 +225,7 @@ async fn advance_pipeline_inner(
                     );
                 }
 
-                let persist = step.step_type != StepType::Gate;
+                let persist = step.step_type != StepType::Review;
                 let (exit_tx, exit_rx) = tokio::sync::mpsc::unbounded_channel();
                 let job_ctx = JobContext {
                     job_id: job.job_id.clone(),
@@ -249,12 +248,20 @@ async fn advance_pipeline_inner(
                 };
                 match octx.executor.spawn(&job_ctx).await {
                     Ok(handle) => {
+                        let exec_kind = if job.headless { "process" } else { "pty" };
+                        emit_process_spawned(
+                            kernel, slug, &job.job_id, handle.pid,
+                            "claude", &[], &[],
+                            &worktree_path.to_string_lossy(),
+                            exec_kind, Some(&step.id),
+                        ).await;
                         octx.registry.register(slug, handle).await;
                         let monitor = StepMonitor::new(
                             job.job_id.clone(),
                             step_idx,
                             slug.clone(),
                             step.id.clone(),
+                            step.step_type.clone(),
                             worktree_path.clone(),
                         );
                         let (activity_tx, activity_rx) = tokio::sync::mpsc::unbounded_channel();
@@ -267,6 +274,8 @@ async fn advance_pipeline_inner(
                             monitor,
                             kernel.clone(),
                             octx.registry.clone(),
+                            octx.executor.clone(),
+                            octx.probe.clone(),
                             exit_rx,
                             activity_rx,
                         );
@@ -280,18 +289,6 @@ async fn advance_pipeline_inner(
                 emit_job_dispatched_with_meta(kernel, &job.job_id, &worktree_path, slug, None, ship_dir_override).await;
                 emit_step_dispatched_event(kernel, &job.job_id, &step.id, "agent", slug, ship_dir_override).await;
                 dispatched_any = true;
-            }
-            StepType::Merge => {
-                tracing::info!(slug, branch = %job.branch, "pipeline: executing merge step");
-                octx.platform.graceful_agent_exit(slug, None).await;
-                if execute_merge_step(
-                    kernel, &job.job_id, slug, &job.branch, &*octx.platform,
-                ).await {
-                    dispatched_any = true;
-                }
-            }
-            StepType::Human => {
-                tracing::info!(slug, step_id = step.id, "pipeline: human step — pausing for human action");
             }
         }
     }
