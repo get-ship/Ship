@@ -42,7 +42,8 @@
   width: 100%;
   margin: 0 auto;
 }
-.se-editor-content ship-markdown {
+.se-editor-content ship-markdown,
+.se-editor-content ship-markdown-editor {
   font-size: 14px;
   line-height: 1.65;
 }
@@ -92,7 +93,7 @@
     <div class="se-editor-body">
       {% if file.ext == 'md' %}
         <div class="se-editor-content">
-          <ship-markdown value="{{ file.content }}"></ship-markdown>
+          <ship-markdown-editor value="{{ file.content }}" readonly></ship-markdown-editor>
         </div>
       {% elif file.ext == 'json' %}
         <pre class="se-code-view">{{ file.content }}</pre>
@@ -114,7 +115,7 @@
     <div class="se-editor-body">
       <div class="se-editor-content">
         {% if skill.body %}
-          <ship-markdown value="{{ skill.body }}"></ship-markdown>
+          <ship-markdown-editor value="{{ skill.body }}" readonly></ship-markdown-editor>
         {% else %}
           <div class="se-empty-state" style="padding:40px 0">
             <ship-icon name="file" size="xl" tone="muted"></ship-icon>
