@@ -348,4 +348,39 @@ pub trait ProcessRegistryPort: Send + Sync {
     /// Return all currently registered slug keys.
     /// Used by the coherence sweep to detect stray processes.
     async fn live_slugs(&self) -> Vec<String> { vec![] }
+    /// Read the current PID for a slug without removing the handle.
+    /// Returns `None` if no live handle is registered, or if the handle
+    /// has no captured PID. Used by the step monitor's subprocess-tree
+    /// heartbeat probe — it needs a read-only root PID to walk children.
+    async fn get_pid(&self, _slug: &str) -> Option<u32> { None }
+}
+
+/// Sample of the liveness state of a dispatched process tree.
+///
+/// `cpu_ticks` is a monotonic counter whose unit is implementation-defined
+/// — only deltas between successive samples matter. The monitor reads
+/// "tree is idle" from a zero delta and resets its idle timer on any
+/// positive delta.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub struct TreeSample {
+    /// Monotonic CPU counter for the tree (root + descendants). Unit is
+    /// impl-defined; only deltas are meaningful.
+    pub cpu_ticks: u64,
+    /// Number of live processes in the tree at sample time — observability
+    /// only, the monitor doesn't gate decisions on it.
+    pub process_count: u32,
+}
+
+/// Port: observes liveness of a dispatched process tree.
+///
+/// Implementations walk descendants of the root PID and return the total
+/// accumulated CPU time across the tree. The monitor compares successive
+/// samples: delta == 0 → tree is idle; delta > 0 → heartbeat.
+///
+/// `sample` returning `None` means the root PID is gone; callers treat
+/// that as "tree dead" and defer to the executor's exit signal for the
+/// actual termination path.
+#[async_trait]
+pub trait ProcessTreeProbe: Send + Sync {
+    async fn sample(&self, root_pid: u32) -> Option<TreeSample>;
 }

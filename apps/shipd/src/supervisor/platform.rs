@@ -139,4 +139,8 @@ impl ProcessRegistryPort for RegistryAdapter {
     async fn live_slugs(&self) -> Vec<String> {
         self.0.lock().await.live_slugs()
     }
+
+    async fn get_pid(&self, slug: &str) -> Option<u32> {
+        self.0.lock().await.get_pid(slug)
+    }
 }

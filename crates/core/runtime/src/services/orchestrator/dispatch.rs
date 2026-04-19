@@ -207,6 +207,7 @@ pub async fn dispatch_job_internal(
             kernel.clone(),
             octx.registry.clone(),
             octx.executor.clone(),
+            octx.probe.clone(),
             exit_rx,
             activity_rx,
         );

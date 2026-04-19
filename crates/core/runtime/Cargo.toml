@@ -35,8 +35,10 @@ tar = "0.4"
 rmp-serde = "1"
 tracing = "0.1"
 globset = "0.4"
+sysinfo = { version = "0.38", default-features = false, features = ["system"] }
 
 [features]
 unstable = []
 
 [dev-dependencies]
+tokio = { version = "1", features = ["test-util"] }

@@ -98,6 +98,7 @@ fn octx_with(
         executor,
         platform: Arc::new(TestPlatform(worktrees)),
         registry: Arc::new(NoopRegistry),
+        probe: Arc::new(crate::services::process_tree_probe::SysinfoProcessTreeProbe::new()),
         done_flags: Arc::new(Mutex::new(std::collections::HashMap::new())),
         activity_txs: Arc::new(Mutex::new(std::collections::HashMap::new())),
         job_locks: Arc::new(Mutex::new(std::collections::HashMap::new())),

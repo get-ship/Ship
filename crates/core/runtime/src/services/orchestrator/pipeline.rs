@@ -275,6 +275,7 @@ async fn advance_pipeline_inner(
                             kernel.clone(),
                             octx.registry.clone(),
                             octx.executor.clone(),
+                            octx.probe.clone(),
                             exit_rx,
                             activity_rx,
                         );

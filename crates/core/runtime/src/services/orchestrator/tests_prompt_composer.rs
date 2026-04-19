@@ -30,13 +30,22 @@ fn runtime_contract_states_immediate_call() {
 #[test]
 fn runtime_contract_states_timeout_budget() {
     assert!(
-        RUNTIME_CONTRACT.contains("10 minute") || RUNTIME_CONTRACT.contains("10-minute"),
-        "RUNTIME_CONTRACT must state the 10-minute timeout budget"
+        RUNTIME_CONTRACT.contains("5 minute")
+            || RUNTIME_CONTRACT.contains("5-minute")
+            || RUNTIME_CONTRACT.contains("5 minutes"),
+        "RUNTIME_CONTRACT must state the 5-minute idle timeout"
+    );
+    assert!(
+        RUNTIME_CONTRACT.contains("60 minute")
+            || RUNTIME_CONTRACT.contains("60-minute")
+            || RUNTIME_CONTRACT.contains("60 minutes"),
+        "RUNTIME_CONTRACT must state the 60-minute hard cap"
     );
 }
 
 #[test]
-fn default_timeout_is_ten_minutes() {
-    use crate::services::orchestrator::step_monitor::DEFAULT_TIMEOUT;
-    assert_eq!(DEFAULT_TIMEOUT.as_secs(), 600);
+fn default_idle_and_hard_cap_match_contract() {
+    use crate::services::orchestrator::step_monitor::{DEFAULT_HARD_CAP, DEFAULT_IDLE_TIMEOUT};
+    assert_eq!(DEFAULT_IDLE_TIMEOUT.as_secs(), 5 * 60);
+    assert_eq!(DEFAULT_HARD_CAP.as_secs(), 60 * 60);
 }

@@ -72,6 +72,7 @@ pub async fn subscribe_job_events(
         executor: executor.clone(),
         platform,
         registry: Arc::new(RegistryAdapter(registry.clone())),
+        probe: Arc::new(runtime::services::process_tree_probe::SysinfoProcessTreeProbe::new()),
         done_flags: Arc::new(Mutex::new(HashMap::new())),
         activity_txs: activity_txs.clone(),
         job_locks: Arc::new(Mutex::new(HashMap::new())),
