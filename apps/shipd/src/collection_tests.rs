@@ -34,25 +34,32 @@ mod tests {
     // ── List collections ─────────────────────────────────────────────
 
     #[tokio::test(flavor = "multi_thread")]
-    async fn list_collections_empty() {
+    async fn list_collections_includes_builtins() {
         let daemon = TestDaemon::new().await;
         let resp = daemon.get("/api/collections").await;
         assert_eq!(resp.status, 200);
         assert_eq!(resp.body["ok"], true);
-        assert_eq!(resp.body["data"].as_array().unwrap().len(), 0);
+        // 4 built-in collections: specs, adrs, notes, feedback
+        let data = resp.body["data"].as_array().unwrap();
+        assert_eq!(data.len(), 4);
+        let ids: Vec<&str> = data.iter().map(|s| s["id"].as_str().unwrap()).collect();
+        assert!(ids.contains(&"specs"));
+        assert!(ids.contains(&"adrs"));
+        assert!(ids.contains(&"notes"));
+        assert!(ids.contains(&"feedback"));
     }
 
     #[tokio::test(flavor = "multi_thread")]
-    async fn list_collections_with_schema() {
+    async fn list_collections_with_user_schema() {
         let daemon = TestDaemon::new().await;
         write_schema(&daemon, "task", task_schema_json());
 
         let resp = daemon.get("/api/collections").await;
         assert_eq!(resp.status, 200);
         let data = resp.body["data"].as_array().unwrap();
-        assert_eq!(data.len(), 1);
-        assert_eq!(data[0]["id"], "task");
-        assert_eq!(data[0]["field_count"], 7);
+        // 4 built-in + 1 user-defined
+        assert_eq!(data.len(), 5);
+        assert!(data.iter().any(|s| s["id"] == "task" && s["field_count"] == 7));
     }
 
     // ── Get schema ───────────────────────────────────────────────────

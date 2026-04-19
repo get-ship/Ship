@@ -8,7 +8,7 @@ use serde::Deserialize;
 
 use crate::auth::{AuthContext, Scope, require_scope};
 use crate::rest_api::ApiState;
-use runtime::collections::{query::QueryRequest, schema, service, store};
+use runtime::collections::{builtin, query::QueryRequest, schema, service, store};
 
 // ── Helpers ──────────────────────────────────────────────────────────────────
 
@@ -44,12 +44,18 @@ async fn get_svc_and_schema<'a>(
     Ok((guard, schema))
 }
 
+/// Load all schemas: built-in + user-defined from .ship/schemas/*.jsonc.
+fn load_all_schemas(ship_dir: &std::path::Path) -> anyhow::Result<Vec<schema::CollectionSchema>> {
+    let mut schemas = builtin::all_schemas();
+    schemas.extend(schema::load_schemas(ship_dir)?);
+    Ok(schemas)
+}
+
 fn load_schema(
     ship_dir: &std::path::Path,
     collection: &str,
 ) -> anyhow::Result<schema::CollectionSchema> {
-    let schemas = schema::load_schemas(ship_dir)?;
-    schemas
+    load_all_schemas(ship_dir)?
         .into_iter()
         .find(|s| s.id == collection)
         .ok_or_else(|| anyhow::anyhow!("collection '{}' not found", collection))
@@ -76,7 +82,7 @@ pub async fn list_collections(
     if let Err(e) = require_scope(&auth, Scope::ReadWorkspace) {
         return e.into_response();
     }
-    match schema::load_schemas(state.ship_dir()) {
+    match load_all_schemas(state.ship_dir()) {
         Ok(schemas) => {
             let summaries: Vec<_> = schemas.iter().map(|s| serde_json::json!({
                 "id": s.id,
