@@ -105,3 +105,4 @@ test-results/
 
 # Shell build output — populated by `pnpm -F shell build`.
 apps/shell/dist/
+apps/shell/qa-evidence/
