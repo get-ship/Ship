@@ -85,6 +85,9 @@ pub struct ShipRuntime {
     data_service: tokio::sync::Mutex<Option<runtime::data::DataService>>,
     /// Agent-owned view sessions (Phase 1 canvas framework).
     view_sessions: crate::views::session::SharedViewSessionRegistry,
+    /// Project workspace dir (e.g. `/path/to/repo`) when the daemon was
+    /// started with `--workspace`. Drives project-scoped artifact storage.
+    workspace_dir: Option<PathBuf>,
 
 }
 
@@ -93,6 +96,7 @@ impl ShipRuntime {
     /// Does NOT spawn services — those are lazy via managers.
     pub async fn new(meta: AppMetadata, config: RuntimeConfig) -> Result<Self> {
         let global_dir = &meta.global_dir;
+        let workspace_dir = meta.workspace_dir.clone();
 
         // Integrity check + rebuild if needed.
         //
@@ -193,6 +197,7 @@ impl ShipRuntime {
             health_registry: HealthRegistry::new(),
             data_service: tokio::sync::Mutex::new(None),
             view_sessions: Arc::new(crate::views::session::ViewSessionRegistry::default()),
+            workspace_dir,
 
         })
     }
@@ -254,10 +259,15 @@ impl ShipRuntime {
     }
 
     /// Get or lazily create the shared DataService for collections.
+    ///
+    /// On first call, registers built-in collections (currently `artifacts`)
+    /// so they are guaranteed present without requiring a schema file.
     pub async fn data_service(&self) -> Result<tokio::sync::MutexGuard<'_, Option<runtime::data::DataService>>> {
         let mut guard = self.data_service.lock().await;
         if guard.is_none() {
-            let svc = runtime::data::DataService::open(&self.ship_dir)?;
+            let mut svc = runtime::data::DataService::open(&self.ship_dir)?;
+            runtime::artifacts::ensure_artifacts_collection(&mut svc)
+                .context("registering built-in artifacts collection")?;
             *guard = Some(svc);
         }
         Ok(guard)
@@ -269,6 +279,20 @@ impl ShipRuntime {
 
     pub fn view_sessions(&self) -> &crate::views::session::SharedViewSessionRegistry {
         &self.view_sessions
+    }
+
+    /// Attached project workspace, if the daemon was launched with one.
+    pub fn workspace_dir(&self) -> Option<&Path> {
+        self.workspace_dir.as_deref()
+    }
+
+    /// Stable project slug for the attached workspace. `None` when the daemon
+    /// is in global-only mode — callers that need a project scope should
+    /// surface a clear error rather than inventing one.
+    pub fn project_slug(&self) -> Option<String> {
+        let ws = self.workspace_dir.as_ref()?;
+        let project_ship = runtime::project::get_project_dir(Some(ws.clone())).ok()?;
+        Some(runtime::project::project_slug_from_ship_dir(&project_ship))
     }
 
     /// Lazily initialize and return the mesh manager.
@@ -329,6 +353,7 @@ impl ShipRuntime {
     /// kernel and ship_dir. Does NOT run integrity checks or DB init.
     #[cfg(test)]
     pub fn new_test(ship_dir: std::path::PathBuf, kernel: SharedKernel) -> Self {
+        let workspace_dir = ship_dir.parent().map(|p| p.to_path_buf());
         Self {
             config: RuntimeConfig::default(),
             kernel,
@@ -344,6 +369,7 @@ impl ShipRuntime {
             health_registry: HealthRegistry::new(),
             data_service: tokio::sync::Mutex::new(None),
             view_sessions: Arc::new(crate::views::session::ViewSessionRegistry::default()),
+            workspace_dir,
 
         }
     }
@@ -355,6 +381,7 @@ impl ShipRuntime {
         kernel: SharedKernel,
         mesh_registry: SharedMeshRegistry,
     ) -> Self {
+        let workspace_dir = ship_dir.parent().map(|p| p.to_path_buf());
         Self {
             config: RuntimeConfig::default(),
             kernel,
@@ -370,6 +397,7 @@ impl ShipRuntime {
             health_registry: HealthRegistry::new(),
             data_service: tokio::sync::Mutex::new(None),
             view_sessions: Arc::new(crate::views::session::ViewSessionRegistry::default()),
+            workspace_dir,
 
         }
     }

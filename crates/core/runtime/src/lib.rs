@@ -4,6 +4,7 @@ pub mod collections;
 pub mod config;
 pub mod data;
 pub mod db;
+pub mod artifacts;
 pub mod errors;
 pub mod events;
 pub mod fs_util;

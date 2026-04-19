@@ -334,8 +334,9 @@ pub enum Route {
     /// @route POST "/api/workspaces/{id}/artifacts/promote"
     PromoteArtifact { id: String },
 
-    /// @route GET "/api/artifacts"
-    ListProjectArtifacts,
+    // `GET /api/artifacts` is owned by the artifacts API below — it lists
+    // DB-backed artifact metadata. The prior FS-scanning endpoint on this
+    // path has been replaced.
 
     // ── Mesh / actors ────────────────────────────────────────────────────
 
@@ -385,6 +386,20 @@ pub enum Route {
 
     /// @route POST "/api/collections/{collection}/query"
     QueryCollection { collection: String },
+
+    // ── Artifacts ────────────────────────────────────────────────────────
+
+    /// @route POST "/api/artifacts"
+    ArtifactsUpload,
+
+    /// @route GET "/api/artifacts"
+    ArtifactsList,
+
+    /// @route GET "/api/artifacts/{id}"
+    ArtifactDownload { id: String },
+
+    /// @route DELETE "/api/artifacts/{id}"
+    ArtifactDelete { id: String },
 
     // ── Capabilities ─────────────────────────────────────────────────────
 

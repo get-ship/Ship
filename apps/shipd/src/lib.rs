@@ -4,6 +4,7 @@
 //! `network_status` / `network_stop` for CLI subcommands.
 
 pub mod actor_api;
+pub mod artifacts_api;
 pub mod collection_api;
 pub mod auth;
 mod connections;
@@ -191,3 +192,6 @@ pub async fn run_network(
 
 #[cfg(test)]
 mod collection_tests;
+#[cfg(test)]
+#[path = "artifacts_api_tests.rs"]
+mod artifacts_api_tests;
