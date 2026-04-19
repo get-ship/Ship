@@ -387,3 +387,12 @@ updateStatus();
 document.getElementById("cmdk-open")?.addEventListener("click", () => {
   toggleCmdk();
 });
+
+// Fullscreen button
+document.getElementById("toggle-fullscreen")?.addEventListener("click", () => {
+  if (document.fullscreenElement) {
+    document.exitFullscreen();
+  } else {
+    document.documentElement.requestFullscreen();
+  }
+});

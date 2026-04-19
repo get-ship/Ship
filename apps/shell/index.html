@@ -4,6 +4,7 @@
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
     <title>Ship</title>
+    <link rel="icon" href="/favicon.ico" />
     <script>
       // Load daemon-served assets dynamically (avoids Vite pre-transform errors).
       (function() {
@@ -62,14 +63,16 @@
         -webkit-app-region: drag; /* draggable in Tauri/Electron */
       }
       .ship-topbar .brand {
-        font-family: var(--font-display);
-        font-weight: var(--font-weight-bold);
-        font-size: var(--text-sm);
-        color: var(--foreground);
-        letter-spacing: -0.02em;
+        display: flex;
+        align-items: center;
         margin-right: var(--space-1);
         -webkit-app-region: no-drag;
+        text-decoration: none;
       }
+      .brand-logo { height: 18px; width: auto; }
+      .dark-only { display: none; }
+      .dark .light-only { display: none; }
+      .dark .dark-only { display: block; }
       .ship-topbar .sep {
         width: 1px;
         height: 16px;
@@ -288,7 +291,10 @@
   <body>
     <!-- Top bar: brand, breadcrumbs, ⌘K, user -->
     <div class="ship-topbar">
-      <span class="brand" id="topbar-brand">Ship</span>
+      <a class="brand" id="topbar-brand" href="/" title="Ship home">
+        <img src="/ship-logo.svg" alt="Ship" height="18" class="brand-logo light-only" />
+        <img src="/ship-logo-secondary.svg" alt="Ship" height="18" class="brand-logo dark-only" />
+      </a>
       <div class="sep"></div>
       <div class="crumbs" id="breadcrumbs">
         <span class="current">dashboard</span>
@@ -304,6 +310,9 @@
       </ship-button>
       <ship-button variant="ghost" size="sm" id="toggle-theme" title="Toggle theme" aria-label="Toggle theme">
         <ship-icon slot="leading" name="moon"></ship-icon>
+      </ship-button>
+      <ship-button variant="ghost" size="sm" id="toggle-fullscreen" title="Fullscreen (F11)" aria-label="Toggle fullscreen">
+        <ship-icon slot="leading" name="maximize"></ship-icon>
       </ship-button>
       <ship-button variant="ghost" size="sm" id="toggle-drawer" title="Chat (⌘/)" aria-label="Toggle chat drawer">
         <ship-icon slot="leading" name="message-square-plus"></ship-icon>

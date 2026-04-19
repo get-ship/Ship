@@ -66,6 +66,8 @@ export const ICONS: Record<string, string> = {
   play: 'M5 3l14 9-14 9V3z',
   pause: 'M6 4h4v16H6zM14 4h4v16h-4z',
   stop: 'M6 4h12a2 2 0 012 2v12a2 2 0 01-2 2H6a2 2 0 01-2-2V6a2 2 0 012-2z',
+  maximize: 'M8 3H5a2 2 0 00-2 2v3M21 8V5a2 2 0 00-2-2h-3M3 16v3a2 2 0 002 2h3M16 21h3a2 2 0 002-2v-3',
+  minimize: 'M4 14h6v6M20 10h-6V4M14 10l7-7M3 21l7-7',
   zap: 'M13 2L3 14h9l-1 8 10-12h-9l1-8z',
 }
 
