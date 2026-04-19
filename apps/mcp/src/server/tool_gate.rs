@@ -89,14 +89,41 @@ impl ShipServer {
         }
     }
 
-    /// True when this MCP server is serving a dispatched agent (SHIP_MESH_ID
-    /// set by the dispatcher on spawn). Dispatched agents always get
-    /// PLATFORM_TOOLS regardless of KV-stored active_agent state — the
-    /// dispatch context is the source of truth.
+    /// True when this MCP server is serving a dispatched agent.
+    ///
+    /// Detection order:
+    ///   1. SHIP_MESH_ID env var set (works when parent propagates env).
+    ///   2. Current dir or any ancestor contains `.artifacts/job-spec.md`
+    ///      (every Ship-dispatched worktree has this file, written by
+    ///      the dispatcher before spawning the agent). Survives providers
+    ///      like codex that don't propagate env to MCP subprocesses.
+    ///
+    /// Dispatched agents always get PLATFORM_TOOLS regardless of
+    /// KV-stored active_agent state — dispatch context is the truth.
     pub fn is_dispatched_context() -> bool {
-        std::env::var("SHIP_MESH_ID")
+        if std::env::var("SHIP_MESH_ID")
             .map(|v| !v.is_empty())
             .unwrap_or(false)
+        {
+            return true;
+        }
+        Self::cwd_is_dispatched_worktree()
+    }
+
+    /// Walk up from cwd looking for `.artifacts/job-spec.md`. Stops at the
+    /// first match or at the filesystem root.
+    fn cwd_is_dispatched_worktree() -> bool {
+        let Ok(mut cur) = std::env::current_dir() else {
+            return false;
+        };
+        loop {
+            if cur.join(".artifacts/job-spec.md").is_file() {
+                return true;
+            }
+            if !cur.pop() {
+                return false;
+            }
+        }
     }
 
     /// True when `tool_name` is a platform-protocol tool (visible to every

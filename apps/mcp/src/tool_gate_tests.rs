@@ -104,6 +104,34 @@ fn is_platform_tool_rejects_orchestration() {
     assert!(!ShipServer::is_platform_tool("mesh_discover"));
 }
 
+#[test]
+fn dispatched_context_detects_filesystem_marker() {
+    use std::fs;
+    use tempfile::tempdir;
+    let tmp = tempdir().expect("tempdir");
+    let wt = tmp.path().join("ship-dev-testslug");
+    fs::create_dir_all(wt.join(".artifacts")).unwrap();
+    fs::write(wt.join(".artifacts/job-spec.md"), "spec").unwrap();
+
+    let prev_cwd = std::env::current_dir().ok();
+    let prev_env = std::env::var("SHIP_MESH_ID").ok();
+    // SAFETY: tests are single-threaded here; modifying env/cwd is fine.
+    unsafe { std::env::remove_var("SHIP_MESH_ID"); }
+    std::env::set_current_dir(&wt).unwrap();
+    let detected = ShipServer::is_dispatched_context();
+    if let Some(p) = prev_cwd {
+        let _ = std::env::set_current_dir(p);
+    }
+    if let Some(v) = prev_env {
+        unsafe { std::env::set_var("SHIP_MESH_ID", v); }
+    }
+    assert!(
+        detected,
+        "dispatched context must be detected via .artifacts/job-spec.md marker \
+         even when SHIP_MESH_ID is unset (codex strips env to MCP subprocesses)",
+    );
+}
+
 // ── event gating (unit) ────────────────────────────────────────────
 
 #[test]
