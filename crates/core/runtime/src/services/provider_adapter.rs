@@ -176,14 +176,17 @@ mod adapter_for_tests {
     }
 
     #[test]
-    fn codex_and_opencode_declare_server_mode() {
+    fn codex_declares_server_mode() {
+        // Opencode's server_mode is currently off pending OpenCodeSession
+        // rewrite to match the new `{parts:[...]}` / prompt_async API.
+        // See `opencode.rs::caps` comment.
         let caps = capabilities();
         let server_capable: Vec<&str> = caps
             .iter()
             .filter(|(_, c)| c.server_mode)
             .map(|(id, _)| *id)
             .collect();
-        assert_eq!(server_capable, vec!["codex", "opencode"]);
+        assert_eq!(server_capable, vec!["codex"]);
     }
 
     #[test]
