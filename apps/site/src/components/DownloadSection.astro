@@ -1,0 +1,36 @@
+---
+import PlatformDetect from './PlatformDetect.astro';
+---
+
+<section class="download">
+  <div class="site-container download-inner">
+    <div class="download-header">
+      <h2>Download Ship</h2>
+      <p class="site-muted">
+        One binary. Runs locally. No account required to start.
+      </p>
+    </div>
+    <PlatformDetect />
+  </div>
+</section>
+
+<style>
+  .download {
+    position: relative;
+    padding: clamp(64px, 10vw, 120px) 0;
+    border-top: 1px solid color-mix(in oklch, var(--site-border) 40%, transparent);
+  }
+  .download-header {
+    text-align: center;
+    max-width: 52ch;
+    margin: 0 auto 36px;
+  }
+  .download-header h2 {
+    margin-bottom: 10px;
+  }
+  .download-inner {
+    display: flex;
+    flex-direction: column;
+    gap: 24px;
+  }
+</style>

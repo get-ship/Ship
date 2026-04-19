@@ -9,8 +9,8 @@
     "composite": true,
     "lib": ["ESNext"],
     "types": [
-      "../../types/cloudflare-runtime.d.ts",
-      "../../types/vite-env.d.ts",
+      "../../cloud/types/cloudflare-runtime.d.ts",
+      "../../cloud/types/vite-env.d.ts",
       "./worker-env.d.ts"
     ],
     "jsx": "react-jsx",
@@ -18,8 +18,8 @@
   },
   "include": ["src/**/*"],
   "references": [
-    { "path": "../actors/platform" },
-    { "path": "../actors/workspace" },
-    { "path": "../../packages/types" }
+    { "path": "../../cloud/apps/actors/platform" },
+    { "path": "../../cloud/apps/actors/workspace" },
+    { "path": "../../packages/cloud-types" }
   ]
 }

@@ -25,7 +25,7 @@
   "include": ["src/**/*", "migrations"],
   "references": [
     {
-      "path": "../../../packages/types"
+      "path": "../../../../packages/cloud-types"
     },
     {
       "path": "../../../tools/drizzle"

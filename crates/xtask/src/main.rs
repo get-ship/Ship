@@ -166,7 +166,7 @@ fn gen_types(check: bool) {
         .export(&collect_types())
         .expect("specta-typescript export failed (ui)");
 
-    let cloud_out = repo_root().join("cloud/packages/types/src/generated.ts");
+    let cloud_out = repo_root().join("packages/cloud-types/src/generated.ts");
     let cloud_content = build_cloud_types(&ts);
 
     if check {

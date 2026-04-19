@@ -1,0 +1,23 @@
+{
+  "name": "@ship/site",
+  "version": "0.0.0",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "dev": "astro dev",
+    "build": "astro build",
+    "preview": "astro preview",
+    "deploy": "astro build && wrangler deploy",
+    "typecheck": "astro check"
+  },
+  "dependencies": {
+    "@astrojs/check": "^0.9.4",
+    "@ship/primitives": "workspace:*",
+    "@ship/ui": "workspace:*",
+    "astro": "^6.1.1"
+  },
+  "devDependencies": {
+    "typescript": "~5.8.3",
+    "wrangler": "^4.66.0"
+  }
+}

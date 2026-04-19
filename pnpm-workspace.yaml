@@ -2,10 +2,10 @@ packages:
   - "apps/docs"
   - "apps/web"
   - "apps/shell"
+  - "apps/site"
+  - "apps/gateway"
   - "packages/*"
-  - "cloud/apps/gateway"
   - "cloud/apps/actors/*"
-  - "cloud/packages/*"
   - "cloud/tools/*"
 
 catalog:

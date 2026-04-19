@@ -1,0 +1,236 @@
+---
+// Hero centerpiece: a pipeline graph that draws itself, nodes are provider
+// logos, edges flow. All CSS — respects prefers-reduced-motion through the
+// global media query that zeros animations.
+const nodes = [
+  { id: 'prompt', label: 'Prompt', x: 40, y: 60, kind: 'input' },
+  { id: 'claude', label: 'Claude', x: 220, y: 30, logo: '/provider-logos/claude.svg' },
+  { id: 'codex', label: 'Codex', x: 220, y: 110, logo: '/provider-logos/OpenAI-black-monoblossom.svg', invert: true },
+  { id: 'gemini', label: 'Gemini', x: 220, y: 190, logo: '/provider-logos/googlegemini.svg' },
+  { id: 'view', label: 'View', x: 420, y: 110, kind: 'output' },
+];
+const edges = [
+  { from: 'prompt', to: 'claude', d: 0 },
+  { from: 'prompt', to: 'codex', d: 0.25 },
+  { from: 'prompt', to: 'gemini', d: 0.5 },
+  { from: 'claude', to: 'view', d: 1.0 },
+  { from: 'codex', to: 'view', d: 1.25 },
+  { from: 'gemini', to: 'view', d: 1.5 },
+];
+
+const nodeMap = Object.fromEntries(nodes.map((n) => [n.id, n]));
+---
+
+<div class="hero-anim" aria-hidden="true">
+  <div class="hero-halo hero-halo-1"></div>
+  <div class="hero-halo hero-halo-2"></div>
+  <div class="hero-halo hero-halo-3"></div>
+
+  <svg class="hero-graph" viewBox="0 0 500 240" role="presentation">
+    <defs>
+      <linearGradient id="edge" x1="0" x2="1">
+        <stop offset="0" stop-color="var(--site-accent)" stop-opacity="0.1" />
+        <stop offset="0.5" stop-color="var(--site-accent)" stop-opacity="0.75" />
+        <stop offset="1" stop-color="var(--site-accent)" stop-opacity="0.1" />
+      </linearGradient>
+    </defs>
+    {edges.map((e) => {
+      const a = nodeMap[e.from];
+      const b = nodeMap[e.to];
+      const mx = (a.x + b.x) / 2;
+      const d = `M ${a.x + 56} ${a.y + 20} C ${mx} ${a.y + 20}, ${mx} ${b.y + 20}, ${b.x - 4} ${b.y + 20}`;
+      return (
+        <g>
+          <path d={d} class="hero-edge" style={`animation-delay: ${e.d}s;`} />
+          <circle r="3" class="hero-spark" style={`offset-path: path('${d}'); animation-delay: ${e.d + 0.6}s;`} />
+        </g>
+      );
+    })}
+
+    {nodes.map((n, i) => (
+      <g class="hero-node" style={`animation-delay: ${i * 0.15}s;`} transform={`translate(${n.x}, ${n.y})`}>
+        <rect width="64" height="40" rx="10" class={`hero-node-box hero-node-${n.kind ?? 'provider'}`} />
+        {n.logo ? (
+          <image
+            x="8"
+            y="8"
+            width="24"
+            height="24"
+            href={n.logo}
+            class={n.invert ? 'hero-node-logo hero-node-logo-invert' : 'hero-node-logo'}
+          />
+        ) : (
+          <circle cx="20" cy="20" r="7" class="hero-node-dot" />
+        )}
+        <text x="38" y="25" class="hero-node-label">{n.label}</text>
+      </g>
+    ))}
+  </svg>
+</div>
+
+<style>
+  .hero-anim {
+    position: relative;
+    width: 100%;
+    aspect-ratio: 500 / 260;
+    max-width: 640px;
+    margin-inline: auto;
+  }
+  .hero-halo {
+    position: absolute;
+    border-radius: 50%;
+    filter: blur(60px);
+    opacity: 0.85;
+    pointer-events: none;
+    mix-blend-mode: screen;
+  }
+  :root[data-theme='warm'] .hero-halo {
+    mix-blend-mode: multiply;
+    opacity: 0.65;
+  }
+  .hero-halo-1 {
+    width: 320px;
+    height: 320px;
+    left: -80px;
+    top: -40px;
+    background: var(--site-halo-1);
+    animation: drift 14s ease-in-out infinite alternate;
+  }
+  .hero-halo-2 {
+    width: 240px;
+    height: 240px;
+    right: -60px;
+    top: 40px;
+    background: var(--site-halo-2);
+    animation: drift 18s ease-in-out -4s infinite alternate;
+  }
+  .hero-halo-3 {
+    width: 200px;
+    height: 200px;
+    left: 40%;
+    bottom: -60px;
+    background: var(--site-halo-3);
+    animation: drift 22s ease-in-out -8s infinite alternate;
+  }
+  @keyframes drift {
+    0% {
+      transform: translate3d(0, 0, 0) scale(1);
+    }
+    100% {
+      transform: translate3d(-20px, 12px, 0) scale(1.08);
+    }
+  }
+  .hero-graph {
+    position: absolute;
+    inset: 0;
+    width: 100%;
+    height: 100%;
+  }
+
+  .hero-edge {
+    fill: none;
+    stroke: url(#edge);
+    stroke-width: 1.6;
+    stroke-linecap: round;
+    stroke-dasharray: 300;
+    stroke-dashoffset: 300;
+    animation: edge-draw 2.2s var(--ease-out, cubic-bezier(0.16, 1, 0.3, 1)) forwards;
+    opacity: 0;
+  }
+  @keyframes edge-draw {
+    0% {
+      opacity: 0;
+      stroke-dashoffset: 300;
+    }
+    15% {
+      opacity: 1;
+    }
+    100% {
+      opacity: 1;
+      stroke-dashoffset: 0;
+    }
+  }
+  .hero-spark {
+    fill: var(--site-accent);
+    filter: drop-shadow(0 0 6px var(--site-accent));
+    offset-rotate: 0deg;
+    offset-distance: 0%;
+    opacity: 0;
+    animation: spark 4.5s linear infinite;
+  }
+  @keyframes spark {
+    0% {
+      offset-distance: 0%;
+      opacity: 0;
+    }
+    8% {
+      opacity: 1;
+    }
+    92% {
+      opacity: 1;
+    }
+    100% {
+      offset-distance: 100%;
+      opacity: 0;
+    }
+  }
+  .hero-node {
+    opacity: 0;
+    animation: node-in 0.8s var(--ease-out, cubic-bezier(0.16, 1, 0.3, 1)) forwards;
+    transform-box: fill-box;
+  }
+  @keyframes node-in {
+    0% {
+      opacity: 0;
+      transform: translate(var(--n-x, 0), var(--n-y, 0)) translateY(6px);
+    }
+    100% {
+      opacity: 1;
+    }
+  }
+  .hero-node-box {
+    fill: color-mix(in oklch, var(--site-card) 96%, transparent);
+    stroke: color-mix(in oklch, var(--site-border) 55%, transparent);
+    stroke-width: 1;
+    filter: drop-shadow(0 6px 18px color-mix(in oklch, var(--site-accent) 14%, transparent));
+  }
+  .hero-node-input,
+  .hero-node-output {
+    fill: color-mix(in oklch, var(--site-accent) 14%, var(--site-card));
+    stroke: color-mix(in oklch, var(--site-accent) 40%, transparent);
+  }
+  .hero-node-dot {
+    fill: var(--site-accent);
+  }
+  .hero-node-logo {
+    opacity: 0.95;
+  }
+  :root[data-theme='high-contrast'] .hero-node-logo-invert {
+    filter: invert(1);
+  }
+  .hero-node-label {
+    font-family: var(--site-font-body);
+    font-weight: 600;
+    font-size: 11px;
+    fill: var(--site-fg);
+    dominant-baseline: middle;
+  }
+
+  @media (prefers-reduced-motion: reduce) {
+    .hero-halo {
+      animation: none;
+    }
+    .hero-edge {
+      opacity: 1;
+      stroke-dashoffset: 0;
+      animation: none;
+    }
+    .hero-node {
+      opacity: 1;
+      animation: none;
+    }
+    .hero-spark {
+      display: none;
+    }
+  }
+</style>

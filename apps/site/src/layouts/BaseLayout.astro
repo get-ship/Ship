@@ -1,0 +1,48 @@
+---
+import '../styles/global.css';
+
+interface Props {
+  title: string;
+  description?: string;
+  bodyClass?: string;
+}
+
+const {
+  title,
+  description = 'Ship transforms the way you work with AI. The missing AI interface.',
+  bodyClass = '',
+} = Astro.props;
+---
+
+<!doctype html>
+<html lang="en" data-theme="default">
+  <head>
+    <meta charset="utf-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <title>{title}</title>
+    <meta name="description" content={description} />
+    <meta property="og:title" content={title} />
+    <meta property="og:description" content={description} />
+    <meta property="og:type" content="website" />
+    <meta property="og:url" content="https://getship.dev" />
+    <meta name="theme-color" content="#0f172a" />
+    <link rel="icon" href="/favicon.ico" sizes="any" />
+    <link rel="icon" href="/ship-logo.svg" type="image/svg+xml" />
+    <script is:inline>
+      (() => {
+        try {
+          const v = localStorage.getItem('ship-site-theme');
+          if (v === 'default' || v === 'high-contrast' || v === 'warm') {
+            document.documentElement.dataset.theme = v;
+          }
+        } catch (_) {}
+      })();
+    </script>
+  </head>
+  <body class={bodyClass}>
+    <slot />
+    <script>
+      import '../scripts/register-elements';
+    </script>
+  </body>
+</html>

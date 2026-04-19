@@ -19,8 +19,8 @@ export default defineConfig({
     },
     cloudflare({
       auxiliaryWorkers: [
-        { configPath: '../actors/platform/wrangler.jsonc' },
-        { configPath: '../actors/workspace/wrangler.jsonc' },
+        { configPath: '../../cloud/apps/actors/platform/wrangler.jsonc' },
+        { configPath: '../../cloud/apps/actors/workspace/wrangler.jsonc' },
       ],
       persistState: { path: '../../.wrangler/state' },
     }),

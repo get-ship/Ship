@@ -11,6 +11,7 @@
     "./types": "./src/types.ts",
     "./elements": "./src/web-components/index.ts",
     "./web-components": "./src/web-components/index.ts",
+    "./web-components/*": "./src/web-components/*.ts",
     "./tokens.css": "./src/tokens.css"
   },
   "scripts": {

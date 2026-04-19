@@ -1,0 +1,68 @@
+---
+// Footer-sized theme switcher. Uses <ship-select> — the same native-wrapped
+// primitive we recommend for views (see ship-views skill). Emits the
+// `ship-change` custom event.
+const themes = [
+  { id: 'default', label: 'Default' },
+  { id: 'high-contrast', label: 'High contrast' },
+  { id: 'warm', label: 'Warm (paper)' },
+];
+---
+
+<label class="theme-switcher" data-ship-theme-switcher>
+  <span class="theme-switcher-label">Theme</span>
+  <ship-select size="sm" data-theme-select>
+    {themes.map((t) => (
+      <option value={t.id}>{t.label}</option>
+    ))}
+  </ship-select>
+</label>
+
+<script>
+  const KEY = 'ship-site-theme';
+  const valid = new Set(['default', 'high-contrast', 'warm']);
+
+  const applyTheme = (theme: string) => {
+    if (!valid.has(theme)) return;
+    document.documentElement.dataset.theme = theme;
+    try {
+      localStorage.setItem(KEY, theme);
+    } catch (_) {}
+  };
+
+  const select = document.querySelector<HTMLElement>('[data-theme-select]');
+  if (select) {
+    const current = document.documentElement.dataset.theme || 'default';
+    const setValue = () => {
+      (select as any).value = current;
+      const native = select.querySelector('select') as HTMLSelectElement | null;
+      if (native) native.value = current;
+    };
+    // Wait for custom element upgrade then set the initial value.
+    customElements.whenDefined('ship-select').then(setValue);
+    setValue();
+
+    select.addEventListener('ship-change', (e: Event) => {
+      const next = (e as CustomEvent<{ value: string }>).detail?.value;
+      if (typeof next === 'string') applyTheme(next);
+    });
+    // Fallback for the underlying native change event
+    select.addEventListener('change', (e: Event) => {
+      const target = e.target as HTMLSelectElement;
+      if (target?.value) applyTheme(target.value);
+    });
+  }
+</script>
+
+<style>
+  .theme-switcher {
+    display: inline-flex;
+    align-items: center;
+    gap: 10px;
+    color: var(--site-muted-fg);
+    font-size: 13px;
+  }
+  .theme-switcher-label {
+    font-weight: 500;
+  }
+</style>

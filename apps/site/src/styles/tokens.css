@@ -1,0 +1,89 @@
+/*
+ * Ship site theming layer.
+ *
+ * Imports the canonical design tokens from @ship/ui, then adds
+ * three site-level themes applied via data-theme on <html>:
+ *   - default   (Ship brand)
+ *   - high-contrast
+ *   - warm      (paper-like reading theme)
+ *
+ * The UI tokens file already defines :root (light) and .dark overrides;
+ * we extend with [data-theme="..."] selectors so the switcher can
+ * pick any theme independent of OS dark-mode.
+ */
+
+@import '@ship/ui/tokens.css';
+
+:root {
+  --site-max-width: 1200px;
+  --site-gutter: clamp(16px, 4vw, 48px);
+  --site-accent: oklch(0.62 0.18 255);
+  --site-accent-fg: oklch(0.99 0.02 255);
+  --site-accent-soft: oklch(0.62 0.18 255 / 0.12);
+  --site-halo-1: oklch(0.72 0.18 260 / 0.45);
+  --site-halo-2: oklch(0.78 0.14 160 / 0.35);
+  --site-halo-3: oklch(0.80 0.14 80 / 0.30);
+  --site-bg: var(--background);
+  --site-fg: var(--foreground);
+  --site-muted-fg: var(--muted-foreground);
+  --site-border: var(--border);
+  --site-card: var(--card);
+  --site-radius-lg: 14px;
+  --site-radius-xl: 24px;
+  --site-font-display: 'Inter Tight', 'Inter', ui-sans-serif, system-ui, sans-serif;
+  --site-font-body: 'Inter', ui-sans-serif, system-ui, sans-serif;
+  --site-font-mono: ui-monospace, 'SF Mono', 'JetBrains Mono', Menlo, monospace;
+}
+
+:root[data-theme='default'] {
+  color-scheme: light;
+}
+
+:root[data-theme='high-contrast'] {
+  color-scheme: dark;
+  --background: oklch(0.12 0 0);
+  --foreground: oklch(0.99 0 0);
+  --card: oklch(0.18 0 0);
+  --card-foreground: oklch(0.99 0 0);
+  --muted: oklch(0.22 0 0);
+  --muted-foreground: oklch(0.82 0 0);
+  --border: oklch(0.75 0 0);
+  --primary: oklch(0.85 0.18 90);
+  --primary-foreground: oklch(0.08 0 0);
+  --site-accent: oklch(0.85 0.18 90);
+  --site-accent-fg: oklch(0.08 0 0);
+  --site-accent-soft: oklch(0.85 0.18 90 / 0.22);
+  --site-halo-1: oklch(0.85 0.18 90 / 0.45);
+  --site-halo-2: oklch(0.75 0.22 20 / 0.35);
+  --site-halo-3: oklch(0.80 0.18 200 / 0.35);
+  --site-bg: var(--background);
+  --site-fg: var(--foreground);
+  --site-muted-fg: var(--muted-foreground);
+  --site-border: var(--border);
+  --site-card: var(--card);
+}
+
+:root[data-theme='warm'] {
+  color-scheme: light;
+  --background: oklch(0.97 0.014 80);
+  --foreground: oklch(0.28 0.03 55);
+  --card: oklch(0.99 0.01 80);
+  --card-foreground: oklch(0.28 0.03 55);
+  --muted: oklch(0.93 0.025 75);
+  --muted-foreground: oklch(0.48 0.04 55);
+  --border: oklch(0.88 0.03 70);
+  --primary: oklch(0.55 0.14 35);
+  --primary-foreground: oklch(0.99 0.01 80);
+  --site-accent: oklch(0.55 0.14 35);
+  --site-accent-fg: oklch(0.99 0.01 80);
+  --site-accent-soft: oklch(0.55 0.14 35 / 0.14);
+  --site-halo-1: oklch(0.75 0.12 60 / 0.40);
+  --site-halo-2: oklch(0.82 0.10 140 / 0.30);
+  --site-halo-3: oklch(0.80 0.10 30 / 0.35);
+  --site-bg: var(--background);
+  --site-fg: var(--foreground);
+  --site-muted-fg: var(--muted-foreground);
+  --site-border: var(--border);
+  --site-card: var(--card);
+  --site-font-body: 'Inter', 'Charter', 'Iowan Old Style', Georgia, serif;
+}
