@@ -2,7 +2,7 @@ import { eq } from 'drizzle-orm';
 import type { DrizzleSqliteDODatabase } from 'drizzle-orm/durable-sqlite';
 import { Result } from '@ship-cloud/types';
 import type { EventEnvelope } from '@ship-cloud/types';
-import { WORKSPACE_EVENT_TYPES } from '@ship-cloud/types';
+import { SESSION_STARTED, SESSION_ENDED } from '@ship-cloud/types';
 import { sessions } from '../data/schema/sessions.js';
 import type { workspace_schema } from '../data/schema/index.js';
 
@@ -14,7 +14,7 @@ export class SessionProjectionRepository {
       const now = new Date().toISOString();
 
       switch (event.event_type) {
-        case WORKSPACE_EVENT_TYPES.SESSION_STARTED: {
+        case SESSION_STARTED: {
           await this.db.insert(sessions).values({
             id: event.entity_id,
             actor_id: event.actor_id ?? null,
@@ -24,14 +24,9 @@ export class SessionProjectionRepository {
           }).onConflictDoNothing();
           break;
         }
-        case WORKSPACE_EVENT_TYPES.SESSION_COMPLETED:
+        case SESSION_ENDED:
           await this.db.update(sessions)
-            .set({ status: 'completed', updated_at: now })
-            .where(eq(sessions.id, event.entity_id));
-          break;
-        case WORKSPACE_EVENT_TYPES.SESSION_FAILED:
-          await this.db.update(sessions)
-            .set({ status: 'failed', updated_at: now })
+            .set({ status: 'ended', updated_at: now })
             .where(eq(sessions.id, event.entity_id));
           break;
       }

@@ -98,12 +98,12 @@ describe('Platform EventRepository', () => {
         const repo = new EventRepository(db);
 
         const event = makeEvent({
-          correlation_id: 'corr-1',
           causation_id: 'cause-1',
           workspace_id: 'ws-1',
           session_id: 'sess-1',
           actor_id: 'actor-1',
           parent_actor_id: 'parent-1',
+          target_actor_id: 'target-1',
           elevated: true,
         });
         await repo.push([event]);
@@ -117,8 +117,8 @@ describe('Platform EventRepository', () => {
         expect(stored.actor).toBe('ship');
         expect(stored.payload_json).toBe(event.payload_json);
         expect(stored.version).toBe(1);
-        expect(stored.correlation_id).toBe('corr-1');
         expect(stored.causation_id).toBe('cause-1');
+        expect(stored.target_actor_id).toBe('target-1');
         expect(stored.workspace_id).toBe('ws-1');
         expect(stored.session_id).toBe('sess-1');
         expect(stored.actor_id).toBe('actor-1');
@@ -363,7 +363,7 @@ describe('Platform WorkspaceProjection', () => {
       const projection = new WorkspaceProjectionRepository(db);
 
       await projection.applyEvent(makeEvent({
-        event_type: 'job.queued',
+        event_type: 'job.created',
         entity_id: crypto.randomUUID(),
       }));
 
@@ -386,50 +386,50 @@ describe('Platform JobProjection', () => {
     });
   });
 
-  it('should create job projection from queued event', async () => {
+  it('should create job projection from created event', async () => {
     await runInDurableObject(stub, async (_instance: any, state: any) => {
       const db = drizzle(state.storage, { schema: platform_schema });
       const projection = new JobProjectionRepository(db);
 
       const jobId = crypto.randomUUID();
       await projection.applyEvent(makeEvent({
-        event_type: 'job.queued', entity_id: jobId,
+        event_type: 'job.created', entity_id: jobId,
       }));
 
       const result = await projection.list();
       expect(result.isSuccess).toBe(true);
       expect(result.value).toHaveLength(1);
-      expect(result.value[0]!.status).toBe('queued');
+      expect(result.value[0]!.status).toBe('created');
     });
   });
 
-  it('should transition: queued -> started -> completed', async () => {
+  it('should transition: created -> dispatched -> completed', async () => {
     await runInDurableObject(stub, async (_instance: any, state: any) => {
       const db = drizzle(state.storage, { schema: platform_schema });
       const projection = new JobProjectionRepository(db);
 
       const jobId = crypto.randomUUID();
 
-      await projection.applyEvent(makeEvent({ event_type: 'job.queued', entity_id: jobId }));
-      expect((await projection.list()).value[0]!.status).toBe('queued');
+      await projection.applyEvent(makeEvent({ event_type: 'job.created', entity_id: jobId }));
+      expect((await projection.list()).value[0]!.status).toBe('created');
 
-      await projection.applyEvent(makeEvent({ event_type: 'job.started', entity_id: jobId }));
-      expect((await projection.list()).value[0]!.status).toBe('started');
+      await projection.applyEvent(makeEvent({ event_type: 'job.dispatched', entity_id: jobId }));
+      expect((await projection.list()).value[0]!.status).toBe('dispatched');
 
       await projection.applyEvent(makeEvent({ event_type: 'job.completed', entity_id: jobId }));
       expect((await projection.list()).value[0]!.status).toBe('completed');
     });
   });
 
-  it('should transition: queued -> started -> failed', async () => {
+  it('should transition: created -> dispatched -> failed', async () => {
     await runInDurableObject(stub, async (_instance: any, state: any) => {
       const db = drizzle(state.storage, { schema: platform_schema });
       const projection = new JobProjectionRepository(db);
 
       const jobId = crypto.randomUUID();
 
-      await projection.applyEvent(makeEvent({ event_type: 'job.queued', entity_id: jobId }));
-      await projection.applyEvent(makeEvent({ event_type: 'job.started', entity_id: jobId }));
+      await projection.applyEvent(makeEvent({ event_type: 'job.created', entity_id: jobId }));
+      await projection.applyEvent(makeEvent({ event_type: 'job.dispatched', entity_id: jobId }));
       await projection.applyEvent(makeEvent({ event_type: 'job.failed', entity_id: jobId }));
 
       expect((await projection.list()).value[0]!.status).toBe('failed');
@@ -463,7 +463,7 @@ describe('Platform SyncFacade integration', () => {
       const jobId = crypto.randomUUID();
       const events = [
         makeEvent({ event_type: 'workspace.created', entity_id: wsId, payload_json: JSON.stringify({ name: 'ws-1' }) }),
-        makeEvent({ event_type: 'job.queued', entity_id: jobId, workspace_id: wsId }),
+        makeEvent({ event_type: 'job.created', entity_id: jobId, workspace_id: wsId }),
       ];
 
       const pushResult = await eventRepo.push(events);
@@ -481,7 +481,7 @@ describe('Platform SyncFacade integration', () => {
 
       const jobs = await jobProjection.list();
       expect(jobs.value).toHaveLength(1);
-      expect(jobs.value[0]!.status).toBe('queued');
+      expect(jobs.value[0]!.status).toBe('created');
 
       // Verify pull returns events
       const pullResult = await eventRepo.pull();

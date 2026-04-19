@@ -7,12 +7,12 @@ export const events = sqliteTable('events', {
   actor: text('actor').notNull(),                     // always "ship" for now
   payload_json: text('payload_json').notNull(),       // JSON string
   version: integer('version').notNull(),              // always 1
-  correlation_id: text('correlation_id'),
   causation_id: text('causation_id'),
   workspace_id: text('workspace_id'),
   session_id: text('session_id'),
   actor_id: text('actor_id'),
   parent_actor_id: text('parent_actor_id'),
+  target_actor_id: text('target_actor_id'),
   elevated: integer('elevated', { mode: 'boolean' }).notNull(),
   created_at: text('created_at').notNull(),           // ISO 8601
   // Internal: monotonic ordering cursor set on insert

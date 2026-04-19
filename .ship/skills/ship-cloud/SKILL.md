@@ -46,9 +46,18 @@ CI check: `cargo xtask gen-types --check` fails if the generated files are stale
 - Tests use `runInDurableObject` for DO isolation.
 - No deployment config yet — local dev only. Wrangler configs are present but production secrets + bindings are not wired.
 
-## Known drift (as of import)
+## Projection → Rust event map
 
-The `PLATFORM_EVENT_TYPES` / `WORKSPACE_EVENT_TYPES` groupings in `cloud/packages/types/src/events.ts` contain several constants the Rust runtime does not emit (e.g. `session.completed`, `actor.updated`, `actor.deleted`). Projection branches switching on these cases never match. Before adding new projection logic, check whether the event is actually emitted by Rust — look in `crates/core/ship-types/src/event_types.rs`.
+Cloud is a sync target for Rust, not a parallel model. Projection repos switch on event-type string constants imported directly from `@ship-cloud/types` (which re-exports `./generated`).
+
+| Projection | Events handled | Status written |
+|---|---|---|
+| `WorkspaceProjection` (platform) | `workspace.created`, `.activated`, `.archived`, `.deleted` | `created`/`activated`/`archived`/`deleted` |
+| `JobProjection` (platform) | `job.created`, `.dispatched`, `.completed`, `.failed` | same |
+| `SessionProjection` (workspace) | `session.started`, `.ended` | same |
+| `ActorProjection` (workspace) | `actor.created`, `.woke`, `.slept`, `.stopped`, `.crashed` | same |
+
+To add a new projection case: find the emitter in `crates/core/ship-types/src/event_types.rs`, import the constant in the projection repo, add a `switch` branch. Do not invent names.
 
 ## Local development
 

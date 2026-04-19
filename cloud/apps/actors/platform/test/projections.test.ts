@@ -71,7 +71,7 @@ describe('Platform WorkspaceProjection', () => {
   it('should ignore unrelated event types', async () => {
     await runInDurableObject(stub, async (_: any, state: any) => {
       const proj = new WorkspaceProjectionRepository(drizzle(state.storage, { schema: platform_schema }));
-      await proj.applyEvent(makeEvent({ event_type: 'job.queued', entity_id: crypto.randomUUID() }));
+      await proj.applyEvent(makeEvent({ event_type: 'job.created', entity_id: crypto.randomUUID() }));
       expect((await proj.list()).value).toHaveLength(0);
     });
   });
@@ -81,36 +81,36 @@ describe('Platform JobProjection', () => {
   let stub: DurableObjectStub;
   beforeEach(async () => { stub = await createMigratedStub(); });
 
-  it('should create job from queued event', async () => {
+  it('should create job from created event', async () => {
     await runInDurableObject(stub, async (_: any, state: any) => {
       const proj = new JobProjectionRepository(drizzle(state.storage, { schema: platform_schema }));
       const jobId = crypto.randomUUID();
-      await proj.applyEvent(makeEvent({ event_type: 'job.queued', entity_id: jobId }));
+      await proj.applyEvent(makeEvent({ event_type: 'job.created', entity_id: jobId }));
       const result = await proj.list();
       expect(result.value).toHaveLength(1);
-      expect(result.value[0]!.status).toBe('queued');
+      expect(result.value[0]!.status).toBe('created');
     });
   });
 
-  it('should transition: queued -> started -> completed', async () => {
+  it('should transition: created -> dispatched -> completed', async () => {
     await runInDurableObject(stub, async (_: any, state: any) => {
       const proj = new JobProjectionRepository(drizzle(state.storage, { schema: platform_schema }));
       const jobId = crypto.randomUUID();
-      await proj.applyEvent(makeEvent({ event_type: 'job.queued', entity_id: jobId }));
-      expect((await proj.list()).value[0]!.status).toBe('queued');
-      await proj.applyEvent(makeEvent({ event_type: 'job.started', entity_id: jobId }));
-      expect((await proj.list()).value[0]!.status).toBe('started');
+      await proj.applyEvent(makeEvent({ event_type: 'job.created', entity_id: jobId }));
+      expect((await proj.list()).value[0]!.status).toBe('created');
+      await proj.applyEvent(makeEvent({ event_type: 'job.dispatched', entity_id: jobId }));
+      expect((await proj.list()).value[0]!.status).toBe('dispatched');
       await proj.applyEvent(makeEvent({ event_type: 'job.completed', entity_id: jobId }));
       expect((await proj.list()).value[0]!.status).toBe('completed');
     });
   });
 
-  it('should transition: queued -> started -> failed', async () => {
+  it('should transition: created -> dispatched -> failed', async () => {
     await runInDurableObject(stub, async (_: any, state: any) => {
       const proj = new JobProjectionRepository(drizzle(state.storage, { schema: platform_schema }));
       const jobId = crypto.randomUUID();
-      await proj.applyEvent(makeEvent({ event_type: 'job.queued', entity_id: jobId }));
-      await proj.applyEvent(makeEvent({ event_type: 'job.started', entity_id: jobId }));
+      await proj.applyEvent(makeEvent({ event_type: 'job.created', entity_id: jobId }));
+      await proj.applyEvent(makeEvent({ event_type: 'job.dispatched', entity_id: jobId }));
       await proj.applyEvent(makeEvent({ event_type: 'job.failed', entity_id: jobId }));
       expect((await proj.list()).value[0]!.status).toBe('failed');
     });
@@ -131,7 +131,7 @@ describe('Platform SyncFacade integration', () => {
       const [wsId, jobId] = [crypto.randomUUID(), crypto.randomUUID()];
       const events = [
         makeEvent({ event_type: 'workspace.created', entity_id: wsId, payload_json: JSON.stringify({ name: 'ws-1' }) }),
-        makeEvent({ event_type: 'job.queued', entity_id: jobId, workspace_id: wsId }),
+        makeEvent({ event_type: 'job.created', entity_id: jobId, workspace_id: wsId }),
       ];
 
       expect((await eventRepo.push(events)).value).toBe(2);
@@ -141,7 +141,7 @@ describe('Platform SyncFacade integration', () => {
       }
 
       expect((await wsProj.list()).value).toHaveLength(1);
-      expect((await jobProj.list()).value[0]!.status).toBe('queued');
+      expect((await jobProj.list()).value[0]!.status).toBe('created');
       expect((await eventRepo.pull()).value.events).toHaveLength(2);
     });
   });

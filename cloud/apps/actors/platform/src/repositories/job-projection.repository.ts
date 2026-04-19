@@ -2,7 +2,12 @@ import { eq } from 'drizzle-orm';
 import type { DrizzleSqliteDODatabase } from 'drizzle-orm/durable-sqlite';
 import { Result } from '@ship-cloud/types';
 import type { EventEnvelope } from '@ship-cloud/types';
-import { PLATFORM_EVENT_TYPES } from '@ship-cloud/types';
+import {
+  JOB_CREATED,
+  JOB_DISPATCHED,
+  JOB_COMPLETED,
+  JOB_FAILED,
+} from '@ship-cloud/types';
 import { jobs } from '../data/schema/jobs.js';
 import type { platform_schema } from '../data/schema/index.js';
 
@@ -14,27 +19,27 @@ export class JobProjectionRepository {
       const now = new Date().toISOString();
 
       switch (event.event_type) {
-        case PLATFORM_EVENT_TYPES.JOB_QUEUED: {
+        case JOB_CREATED: {
           await this.db.insert(jobs).values({
             id: event.entity_id,
-            status: 'queued',
+            status: 'created',
             workspace_id: event.workspace_id ?? null,
             created_at: event.created_at,
             updated_at: event.created_at,
           }).onConflictDoNothing();
           break;
         }
-        case PLATFORM_EVENT_TYPES.JOB_STARTED:
+        case JOB_DISPATCHED:
           await this.db.update(jobs)
-            .set({ status: 'started', updated_at: now })
+            .set({ status: 'dispatched', updated_at: now })
             .where(eq(jobs.id, event.entity_id));
           break;
-        case PLATFORM_EVENT_TYPES.JOB_COMPLETED:
+        case JOB_COMPLETED:
           await this.db.update(jobs)
             .set({ status: 'completed', updated_at: now })
             .where(eq(jobs.id, event.entity_id));
           break;
-        case PLATFORM_EVENT_TYPES.JOB_FAILED:
+        case JOB_FAILED:
           await this.db.update(jobs)
             .set({ status: 'failed', updated_at: now })
             .where(eq(jobs.id, event.entity_id));

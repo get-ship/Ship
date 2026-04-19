@@ -2,7 +2,12 @@ import { eq } from 'drizzle-orm';
 import type { DrizzleSqliteDODatabase } from 'drizzle-orm/durable-sqlite';
 import { Result } from '@ship-cloud/types';
 import type { EventEnvelope } from '@ship-cloud/types';
-import { PLATFORM_EVENT_TYPES } from '@ship-cloud/types';
+import {
+  WORKSPACE_CREATED,
+  WORKSPACE_ACTIVATED,
+  WORKSPACE_ARCHIVED,
+  WORKSPACE_DELETED,
+} from '@ship-cloud/types';
 import { workspaces } from '../data/schema/workspaces.js';
 import type { platform_schema } from '../data/schema/index.js';
 
@@ -14,7 +19,7 @@ export class WorkspaceProjectionRepository {
       const now = new Date().toISOString();
 
       switch (event.event_type) {
-        case PLATFORM_EVENT_TYPES.WORKSPACE_CREATED: {
+        case WORKSPACE_CREATED: {
           const payload = JSON.parse(event.payload_json);
           await this.db.insert(workspaces).values({
             id: event.entity_id,
@@ -25,17 +30,17 @@ export class WorkspaceProjectionRepository {
           }).onConflictDoNothing();
           break;
         }
-        case PLATFORM_EVENT_TYPES.WORKSPACE_ACTIVATED:
+        case WORKSPACE_ACTIVATED:
           await this.db.update(workspaces)
             .set({ status: 'activated', updated_at: now })
             .where(eq(workspaces.id, event.entity_id));
           break;
-        case PLATFORM_EVENT_TYPES.WORKSPACE_ARCHIVED:
+        case WORKSPACE_ARCHIVED:
           await this.db.update(workspaces)
             .set({ status: 'archived', updated_at: now })
             .where(eq(workspaces.id, event.entity_id));
           break;
-        case PLATFORM_EVENT_TYPES.WORKSPACE_DELETED:
+        case WORKSPACE_DELETED:
           await this.db.update(workspaces)
             .set({ status: 'deleted', updated_at: now })
             .where(eq(workspaces.id, event.entity_id));

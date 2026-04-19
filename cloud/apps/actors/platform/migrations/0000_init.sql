@@ -5,12 +5,12 @@ CREATE TABLE `events` (
   `actor` text NOT NULL,
   `payload_json` text NOT NULL,
   `version` integer NOT NULL,
-  `correlation_id` text,
   `causation_id` text,
   `workspace_id` text,
   `session_id` text,
   `actor_id` text,
   `parent_actor_id` text,
+  `target_actor_id` text,
   `elevated` integer NOT NULL,
   `created_at` text NOT NULL,
   `cursor` integer NOT NULL
@@ -26,7 +26,7 @@ CREATE TABLE `workspaces` (
 
 CREATE TABLE `jobs` (
   `id` text PRIMARY KEY NOT NULL,
-  `status` text NOT NULL DEFAULT 'queued',
+  `status` text NOT NULL DEFAULT 'created',
   `workspace_id` text,
   `created_at` text NOT NULL,
   `updated_at` text NOT NULL

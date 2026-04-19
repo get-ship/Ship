@@ -52,16 +52,17 @@ describe('Platform EventRepository', () => {
       await runInDurableObject(stub, async (_: any, state: any) => {
         const repo = new EventRepository(drizzle(state.storage, { schema: platform_schema }));
         const event = makeEvent({
-          correlation_id: 'corr-1', causation_id: 'cause-1',
+          causation_id: 'cause-1',
           workspace_id: 'ws-1', session_id: 'sess-1',
-          actor_id: 'actor-1', parent_actor_id: 'parent-1', elevated: true,
+          actor_id: 'actor-1', parent_actor_id: 'parent-1',
+          target_actor_id: 'target-1', elevated: true,
         });
         await repo.push([event]);
         const stored = (await repo.pull()).value.events[0]!;
 
         expect(stored.id).toBe(event.id);
-        expect(stored.correlation_id).toBe('corr-1');
         expect(stored.causation_id).toBe('cause-1');
+        expect(stored.target_actor_id).toBe('target-1');
         expect(stored.workspace_id).toBe('ws-1');
         expect(stored.session_id).toBe('sess-1');
         expect(stored.actor_id).toBe('actor-1');

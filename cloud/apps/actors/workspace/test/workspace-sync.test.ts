@@ -200,17 +200,19 @@ describe('Workspace ActorProjection', () => {
       expect((await projection.list()).value[0]!.status).toBe('created');
 
       await projection.applyEvent(makeEvent({
-        event_type: 'actor.updated', entity_id: actorId,
-        payload_json: JSON.stringify({ name: 'v2' }),
+        event_type: 'actor.woke', entity_id: actorId,
       }));
-      const updated = (await projection.list()).value[0]!;
-      expect(updated.status).toBe('updated');
-      expect(updated.name).toBe('v2');
+      expect((await projection.list()).value[0]!.status).toBe('woke');
 
       await projection.applyEvent(makeEvent({
-        event_type: 'actor.deleted', entity_id: actorId,
+        event_type: 'actor.slept', entity_id: actorId,
       }));
-      expect((await projection.list()).value[0]!.status).toBe('deleted');
+      expect((await projection.list()).value[0]!.status).toBe('slept');
+
+      await projection.applyEvent(makeEvent({
+        event_type: 'actor.stopped', entity_id: actorId,
+      }));
+      expect((await projection.list()).value[0]!.status).toBe('stopped');
     });
   });
 
@@ -286,7 +288,7 @@ describe('Workspace SessionProjection', () => {
     });
   });
 
-  it('should transition: started -> completed', async () => {
+  it('should transition: started -> ended', async () => {
     await runInDurableObject(stub, async (_instance: any, state: any) => {
       const db = drizzle(state.storage, { schema: workspace_schema });
       const projection = new SessionProjectionRepository(db);
@@ -297,28 +299,10 @@ describe('Workspace SessionProjection', () => {
         event_type: 'session.started', entity_id: sessionId, actor_id: 'a1',
       }));
       await projection.applyEvent(makeEvent({
-        event_type: 'session.completed', entity_id: sessionId,
+        event_type: 'session.ended', entity_id: sessionId,
       }));
 
-      expect((await projection.list()).value[0]!.status).toBe('completed');
-    });
-  });
-
-  it('should transition: started -> failed', async () => {
-    await runInDurableObject(stub, async (_instance: any, state: any) => {
-      const db = drizzle(state.storage, { schema: workspace_schema });
-      const projection = new SessionProjectionRepository(db);
-
-      const sessionId = crypto.randomUUID();
-
-      await projection.applyEvent(makeEvent({
-        event_type: 'session.started', entity_id: sessionId, actor_id: 'a1',
-      }));
-      await projection.applyEvent(makeEvent({
-        event_type: 'session.failed', entity_id: sessionId,
-      }));
-
-      expect((await projection.list()).value[0]!.status).toBe('failed');
+      expect((await projection.list()).value[0]!.status).toBe('ended');
     });
   });
 });

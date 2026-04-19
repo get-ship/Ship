@@ -2,7 +2,13 @@ import { eq } from 'drizzle-orm';
 import type { DrizzleSqliteDODatabase } from 'drizzle-orm/durable-sqlite';
 import { Result } from '@ship-cloud/types';
 import type { EventEnvelope } from '@ship-cloud/types';
-import { WORKSPACE_EVENT_TYPES } from '@ship-cloud/types';
+import {
+  ACTOR_CREATED,
+  ACTOR_WOKE,
+  ACTOR_SLEPT,
+  ACTOR_STOPPED,
+  ACTOR_CRASHED,
+} from '@ship-cloud/types';
 import { actors } from '../data/schema/actors.js';
 import type { workspace_schema } from '../data/schema/index.js';
 
@@ -14,7 +20,7 @@ export class ActorProjectionRepository {
       const now = new Date().toISOString();
 
       switch (event.event_type) {
-        case WORKSPACE_EVENT_TYPES.ACTOR_CREATED: {
+        case ACTOR_CREATED: {
           const payload = JSON.parse(event.payload_json);
           await this.db.insert(actors).values({
             id: event.entity_id,
@@ -25,16 +31,24 @@ export class ActorProjectionRepository {
           }).onConflictDoNothing();
           break;
         }
-        case WORKSPACE_EVENT_TYPES.ACTOR_UPDATED: {
-          const payload = JSON.parse(event.payload_json);
+        case ACTOR_WOKE:
           await this.db.update(actors)
-            .set({ name: payload.name ?? undefined, status: 'updated', updated_at: now })
+            .set({ status: 'woke', updated_at: now })
             .where(eq(actors.id, event.entity_id));
           break;
-        }
-        case WORKSPACE_EVENT_TYPES.ACTOR_DELETED:
+        case ACTOR_SLEPT:
           await this.db.update(actors)
-            .set({ status: 'deleted', updated_at: now })
+            .set({ status: 'slept', updated_at: now })
+            .where(eq(actors.id, event.entity_id));
+          break;
+        case ACTOR_STOPPED:
+          await this.db.update(actors)
+            .set({ status: 'stopped', updated_at: now })
+            .where(eq(actors.id, event.entity_id));
+          break;
+        case ACTOR_CRASHED:
+          await this.db.update(actors)
+            .set({ status: 'crashed', updated_at: now })
             .where(eq(actors.id, event.entity_id));
           break;
       }

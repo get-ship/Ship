@@ -24,7 +24,7 @@ describe('Workspace ActorProjection', () => {
     });
   });
 
-  it('should transition: created -> updated -> deleted', async () => {
+  it('should transition: created -> woke -> slept -> stopped', async () => {
     await runInDurableObject(stub, async (_: any, state: any) => {
       const proj = new ActorProjectionRepository(drizzle(state.storage, { schema: workspace_schema }));
       const actorId = crypto.randomUUID();
@@ -32,13 +32,24 @@ describe('Workspace ActorProjection', () => {
       await proj.applyEvent(makeEvent({ event_type: 'actor.created', entity_id: actorId, payload_json: JSON.stringify({ name: 'v1' }) }));
       expect((await proj.list()).value[0]!.status).toBe('created');
 
-      await proj.applyEvent(makeEvent({ event_type: 'actor.updated', entity_id: actorId, payload_json: JSON.stringify({ name: 'v2' }) }));
-      const updated = (await proj.list()).value[0]!;
-      expect(updated.status).toBe('updated');
-      expect(updated.name).toBe('v2');
+      await proj.applyEvent(makeEvent({ event_type: 'actor.woke', entity_id: actorId }));
+      expect((await proj.list()).value[0]!.status).toBe('woke');
 
-      await proj.applyEvent(makeEvent({ event_type: 'actor.deleted', entity_id: actorId }));
-      expect((await proj.list()).value[0]!.status).toBe('deleted');
+      await proj.applyEvent(makeEvent({ event_type: 'actor.slept', entity_id: actorId }));
+      expect((await proj.list()).value[0]!.status).toBe('slept');
+
+      await proj.applyEvent(makeEvent({ event_type: 'actor.stopped', entity_id: actorId }));
+      expect((await proj.list()).value[0]!.status).toBe('stopped');
+    });
+  });
+
+  it('should transition crashed', async () => {
+    await runInDurableObject(stub, async (_: any, state: any) => {
+      const proj = new ActorProjectionRepository(drizzle(state.storage, { schema: workspace_schema }));
+      const actorId = crypto.randomUUID();
+      await proj.applyEvent(makeEvent({ event_type: 'actor.created', entity_id: actorId, payload_json: JSON.stringify({ name: 'v1' }) }));
+      await proj.applyEvent(makeEvent({ event_type: 'actor.crashed', entity_id: actorId }));
+      expect((await proj.list()).value[0]!.status).toBe('crashed');
     });
   });
 
@@ -78,23 +89,13 @@ describe('Workspace SessionProjection', () => {
     });
   });
 
-  it('should transition: started -> completed', async () => {
+  it('should transition: started -> ended', async () => {
     await runInDurableObject(stub, async (_: any, state: any) => {
       const proj = new SessionProjectionRepository(drizzle(state.storage, { schema: workspace_schema }));
       const sessionId = crypto.randomUUID();
       await proj.applyEvent(makeEvent({ event_type: 'session.started', entity_id: sessionId, actor_id: 'a1' }));
-      await proj.applyEvent(makeEvent({ event_type: 'session.completed', entity_id: sessionId }));
-      expect((await proj.list()).value[0]!.status).toBe('completed');
-    });
-  });
-
-  it('should transition: started -> failed', async () => {
-    await runInDurableObject(stub, async (_: any, state: any) => {
-      const proj = new SessionProjectionRepository(drizzle(state.storage, { schema: workspace_schema }));
-      const sessionId = crypto.randomUUID();
-      await proj.applyEvent(makeEvent({ event_type: 'session.started', entity_id: sessionId, actor_id: 'a1' }));
-      await proj.applyEvent(makeEvent({ event_type: 'session.failed', entity_id: sessionId }));
-      expect((await proj.list()).value[0]!.status).toBe('failed');
+      await proj.applyEvent(makeEvent({ event_type: 'session.ended', entity_id: sessionId }));
+      expect((await proj.list()).value[0]!.status).toBe('ended');
     });
   });
 });
