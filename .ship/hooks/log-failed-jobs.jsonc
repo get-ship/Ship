@@ -1,0 +1,19 @@
+{
+  // Example hook: on job.failed, emit a follow-up event the daemon can log.
+  // Remove or edit freely — this is a seed to show the shape.
+  "name": "log-failed-jobs",
+  "description": "Emit a derived hook.job_failed_notice when a job ends in failure.",
+  "trigger": {
+    "event": "job.failed"
+  },
+  "actions": [
+    {
+      "type": "event.emit",
+      "event_type": "hook.job_failed_notice",
+      "payload": {
+        "job_id": "{{ event.entity_id }}",
+        "triggered_by": "{{ event.id }}"
+      }
+    }
+  ]
+}

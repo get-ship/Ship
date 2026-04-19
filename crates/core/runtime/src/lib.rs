@@ -7,6 +7,7 @@ pub mod db;
 pub mod errors;
 pub mod events;
 pub mod fs_util;
+pub mod hooks;
 pub mod log;
 pub mod persistence;
 pub mod project;
@@ -28,7 +29,6 @@ pub use agents::skill;
 pub use agents::skill_paths;
 pub use agents::skill_vars;
 pub use config::catalog;
-pub use config::hooks;
 pub use config::security;
 
 pub use agent_config::{
