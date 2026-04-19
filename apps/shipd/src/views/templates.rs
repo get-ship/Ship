@@ -27,7 +27,28 @@
 
 use minijinja::{Environment, Value};
 use serde::Serialize;
-use std::sync::OnceLock;
+use std::sync::{OnceLock, RwLock};
+use std::collections::HashMap;
+
+/// Cache of compiled user view environments, keyed by "view_name:source_hash".
+/// A fresh Environment is ~400ms to build (parses all embedded TEMPLATES +
+/// walks filesystem for sibling partials). Caching brings subsequent renders
+/// to ~1ms. Invalidated when the view source hash changes (auto-reload).
+static USER_ENV_CACHE: OnceLock<RwLock<HashMap<String, std::sync::Arc<Environment<'static>>>>> = OnceLock::new();
+
+fn user_env_cache() -> &'static RwLock<HashMap<String, std::sync::Arc<Environment<'static>>>> {
+    USER_ENV_CACHE.get_or_init(|| RwLock::new(HashMap::new()))
+}
+
+fn source_hash(source: &str) -> u64 {
+    // Deterministic FNV-1a so the same source always maps to the same key.
+    let mut h: u64 = 0xcbf29ce484222325;
+    for b in source.as_bytes() {
+        h ^= *b as u64;
+        h = h.wrapping_mul(0x100000001b3);
+    }
+    h
+}
 
 /// All templates shipped with the daemon. `(name, source)` pairs.
 ///
@@ -328,12 +349,27 @@ pub fn render_view_source<C: Serialize>(name: &str, source: &str, ctx: &C) -> Re
         return Ok(source.to_string());
     }
 
-    // Create a child environment that inherits all registered templates
-    // (macros, partials) but can also compile an ad-hoc source string.
-    // minijinja doesn't support child envs, so we add the source as a
-    // temporary template to the shared env — but the env is immutable
-    // (OnceLock). Instead, create a fresh env per call with the same
-    // templates plus the ad-hoc one.
+    // Check cache first. Key: "name:source_hash". Same source → same env.
+    let cache_key = format!("{}:{}", name, source_hash(source));
+    {
+        if let Ok(cache) = user_env_cache().read() {
+            if let Some(env) = cache.get(&cache_key) {
+                let tpl = env.get_template(name)
+                    .map_err(|e| format!("view '{name}' not found in cached env: {e}"))?;
+                let value = Value::from_serialize(ctx);
+                return match tpl.render(value) {
+                    Ok(html) => Ok(html),
+                    Err(e) => {
+                        let msg = format!("view '{name}' render error: {e}");
+                        tracing::warn!(view = %name, "{msg}");
+                        Ok(super::error_overlay::render_error_overlay(name, source, &msg))
+                    }
+                };
+            }
+        }
+    }
+
+    // Cache miss — build environment. ~400ms.
     let mut local_env = Environment::new();
     local_env.set_undefined_behavior(minijinja::UndefinedBehavior::Lenient);
     // User views are HTML templates containing Datastar attributes with
@@ -381,17 +417,30 @@ pub fn render_view_source<C: Serialize>(name: &str, source: &str, ctx: &C) -> Re
             }
         }
     }
-    for (n, s) in &sibling_sources {
-        let _ = local_env.add_template(n, s);
+    // Leak sibling template strings so they satisfy Environment<'static>
+    // lifetime. The cache holds the Environment for the process lifetime,
+    // so the memory is reused across requests (not actually leaked per call).
+    for (n, s) in sibling_sources {
+        let leaked_n: &'static str = Box::leak(n.into_boxed_str());
+        let leaked_s: &'static str = Box::leak(s.into_boxed_str());
+        let _ = local_env.add_template(leaked_n, leaked_s);
     }
     // Add the view source as a named template.
-    if let Err(e) = local_env.add_template(name, source) {
+    let leaked_source: &'static str = Box::leak(source.to_string().into_boxed_str());
+    let leaked_name: &'static str = Box::leak(name.to_string().into_boxed_str());
+    if let Err(e) = local_env.add_template(leaked_name, leaked_source) {
         let msg = format!("view '{name}' template parse error: {e}");
         tracing::warn!(view = %name, "{msg}");
         return Ok(super::error_overlay::render_error_overlay(name, source, &msg));
     }
 
-    let tpl = local_env.get_template(name)
+    // Wrap in Arc and cache for next time.
+    let env_arc = std::sync::Arc::new(local_env);
+    if let Ok(mut cache) = user_env_cache().write() {
+        cache.insert(cache_key, env_arc.clone());
+    }
+
+    let tpl = env_arc.get_template(name)
         .map_err(|e| format!("view '{name}' not found after add: {e}"))?;
     let value = Value::from_serialize(ctx);
     match tpl.render(value) {
