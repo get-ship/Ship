@@ -201,6 +201,25 @@ export type Environment = { id: string; name?: string | null; tools?: string[]; 
 
 export type FsPermissions = { allow?: string[]; deny?: string[] }
 
+/**
+ * A single gate rule. `match` is pipe-separated globs (or a YAML list).
+ */
+export type GateRule = { match: string[]; not_match?: string[]; min?: number }
+
+/**
+ * Declarative diff-based gate attached to a step. Runtime evaluates after the
+ * step's commits are sealed, before the next step is dispatched.
+ */
+export type GateSpec = { 
+/**
+ * Every entry must match at least `min` changed paths.
+ */
+require_changed: GateRule[]; 
+/**
+ * Any match across entries fails the gate.
+ */
+forbid_changed: GateRule[] }
+
 export type GitConfig = { ignore?: string[]; commit?: string[] }
 
 export type HookConfig = { id: string; trigger: HookTrigger; matcher?: string | null; command: string; 
@@ -232,7 +251,14 @@ export type JobCompletedPayload = { job_id: string; slug: string }
 /**
  * Emitted when a job is created. `entity_id` in the envelope is the job_id.
  */
-export type JobCreatedPayload = { job_id: string; slug: string; agent: string; branch: string; spec_path: string; plan_id: string | null; model: string | null; provider: string | null; depends_on?: string[] | null; 
+export type JobCreatedPayload = { job_id: string; slug: string; agent: string; branch: string; spec_path: string; 
+/**
+ * Operator-facing path to the spec file as passed to `ship run --spec`
+ * (or the dispatch.sh equivalent). Distinct from `spec_path` which is
+ * the daemon-side worktree destination. None for legacy events and
+ * for `--spec-text` / inline-spec flows.
+ */
+source_spec_path?: string | null; plan_id: string | null; model: string | null; provider: string | null; depends_on?: string[] | null; 
 /**
  * Legacy linear pipeline. Kept for backward compat.
  */
@@ -248,7 +274,35 @@ pipeline_name?: string | null;
 /**
  * Job-level variables for pipeline step interpolation. Override step-level vars.
  */
-vars?: Partial<{ [key in string]: string }> | null }
+vars?: Partial<{ [key in string]: string }> | null; 
+/**
+ * Inline spec content. When present, the worktree adapter writes this to
+ * `spec_path` at dispatch time. Makes jobs self-contained across worktree
+ * boundaries — no reliance on gitignored files existing in the main checkout.
+ */
+spec_content?: string | null; 
+/**
+ * Per-step spec bodies, indexed by step position. Populated by
+ * `ensure_pipeline` from the pipeline YAML's `step_specs:` block when
+ * present. Written to `.artifacts/pipeline/NN-<step_id>.md` at launch.
+ */
+step_specs?: string[] | null; 
+/**
+ * When true, run steps headless (ProcessExecutor). When false (default),
+ * run steps as tmux windows in a shared per-slug session
+ * (TmuxWindowExecutor) so users can `tmux attach` and watch the agent
+ * live.
+ */
+headless?: boolean; 
+/**
+ * HEAD SHA of the source repo when this job was created. Pipeline
+ * gates evaluate `require_changed` / `forbid_changed` against the
+ * diff from this SHA to HEAD, so the checks see work committed in
+ * any earlier pipeline step, not just the gating step. `None` for
+ * legacy events predating this field; gates fall back to the
+ * step's start SHA in that case.
+ */
+baseline_sha?: string | null }
 
 /**
  * Emitted when the job is assigned to a worktree and (optionally) a process.
@@ -287,7 +341,13 @@ export type JobMergedPayload = { job_id: string; slug: string }
 /**
  * Projected state of a single job.
  */
-export type JobRecord = { job_id: string; slug: string; agent: string; branch: string; spec_path: string; depends_on: string[] | null; status: JobStatus; worktree: string | null; blocker: string | null; error: string | null; model: string | null; provider: string | null; created_at: string; updated_at: string; 
+export type JobRecord = { job_id: string; slug: string; agent: string; branch: string; spec_path: string; 
+/**
+ * Operator-facing spec path captured at `ship run` time. `None` for
+ * legacy records predating this field and for inline-spec (`--spec-text`)
+ * dispatches. Distinct from `spec_path` (daemon-side worktree destination).
+ */
+source_spec_path?: string | null; depends_on: string[] | null; status: JobStatus; worktree: string | null; blocker: string | null; error: string | null; model: string | null; provider: string | null; created_at: string; updated_at: string; 
 /**
  * Provider-specific session metadata (e.g. Claude session ID for --resume).
  */
@@ -319,12 +379,28 @@ vars?: Partial<{ [key in string]: string }> | null;
 /**
  * Retry count per step ID — tracks how many times a step was retried after gate failure.
  */
-step_retries: Partial<{ [key in string]: number }> }
+step_retries: Partial<{ [key in string]: number }>; 
+/**
+ * When true, pipeline steps were dispatched with the headless flag.
+ */
+headless?: boolean; 
+/**
+ * HEAD SHA of the source repo when the job was created. Pipeline
+ * gates evaluate diff rules from this SHA to HEAD so they see
+ * commits made by earlier steps. `None` on legacy records — gates
+ * fall back to the gating step's own start SHA.
+ */
+baseline_sha?: string | null }
 
 /**
  * Current status of a job, derived from its event sequence.
  */
-export type JobStatus = "pending" | "dispatched" | "completed" | "gate_pending" | "blocked" | "merged" | "failed"
+export type JobStatus = "pending" | "dispatched" | "completed" | "gate_pending" | "blocked" | "merged" | "failed" | 
+/**
+ * Operator-initiated termination. Distinct from Failed so post-mortems
+ * can distinguish intentional cancellation from execution failure.
+ */
+"cancelled"
 
 /**
  * Emitted by either side (human, commander, or agent) to send a mid-flight
@@ -401,7 +477,14 @@ additional_directories?: string[] }
 /**
  * A pipeline definition — a DAG of steps.
  */
-export type Pipeline = { steps: PipelineStep[] }
+export type Pipeline = { steps: PipelineStep[]; 
+/**
+ * When true, the orchestrator runs `git merge` on the job branch
+ * after the final step completes and emits `job.merged`. Replaces
+ * the former `StepType::Merge` step kind — merging is a property
+ * of the pipeline, not a step type.
+ */
+auto_merge?: boolean }
 
 /**
  * A single phase in a job pipeline (legacy linear format).
@@ -451,7 +534,12 @@ command?: string | null;
  * Maximum number of retries when a gate fails on this step.
  * `None` or `0` means no retries — gate failure is terminal.
  */
-max_retries?: number | null }
+max_retries?: number | null; 
+/**
+ * Post-step diff gate. Declarative structural checks evaluated against
+ * the files changed by this step's commits. See `services::orchestrator::gate_rules`.
+ */
+gate?: GateSpec | null }
 
 /**
  * A single plugin to install.
@@ -803,7 +891,11 @@ verdict: StepVerdict;
  * Back-compat: true when verdict == Advance. Existing consumers and
  * projections that read `succeeded` continue to work.
  */
-succeeded?: boolean }
+succeeded?: boolean; 
+/**
+ * HEAD SHA at step start — baseline for post-step diff gate evaluation.
+ */
+start_sha?: string | null }
 
 /**
  * Emitted when a gated step is retried after gate failure.
@@ -838,7 +930,15 @@ export type StepTrigger =
 /**
  * Step type in a pipeline DAG.
  */
-export type StepType = "agent" | "gate" | "merge" | "human" | 
+export type StepType = "agent" | 
+/**
+ * Agent-backed review of the previous step. Distinct from a
+ * step's declarative `gate:` attribute (a pure diff-rule check,
+ * see `GateSpec`). A `Review` step spawns a reviewer agent that
+ * inspects the previous step's work and emits a verdict; on
+ * failure, the gated step is retried up to its `max_retries`.
+ */
+"review" | 
 /**
  * Execute a shell command. Exit 0 = success, non-zero = failure.
  */
