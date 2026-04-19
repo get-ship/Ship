@@ -15,10 +15,25 @@ pub struct AgentProfile {
     pub name: String,
     #[serde(default)]
     pub description: Option<String>,
-    /// Role for tool gating defaults: "worker", "lead", "commander"
+    /// Legacy: role for tool gating defaults.
+    /// Retained for back-compat with existing profiles. New profiles should
+    /// use `tools_preset` instead. `role` values map as:
+    ///   worker → preset "worker"
+    ///   lead | commander → preset "orchestrator"
     #[serde(default)]
     pub role: Option<String>,
-    /// Tool IDs visible in this mode (empty = use role defaults)
+    /// Tool preset name. Controls which platform-shipped tools this agent
+    /// can see before `active_tools` is applied. Known presets:
+    ///   "worker" → platform protocol tools only (step_done, log_progress,
+    ///              update_job, write_session_file)
+    ///   "orchestrator" → worker tools + create_job + mesh_* tools
+    /// Unset falls back to `role` mapping, then to "worker".
+    #[serde(default)]
+    pub tools_preset: Option<String>,
+    /// Explicit tool IDs visible in this mode (empty = use preset).
+    /// When non-empty, this list replaces the preset — lets profiles
+    /// grant specific tools outside their preset without adopting the
+    /// whole preset (escape hatch for custom agents).
     #[serde(default)]
     pub active_tools: Vec<String>,
     /// MCP server IDs active in this mode (empty = all)

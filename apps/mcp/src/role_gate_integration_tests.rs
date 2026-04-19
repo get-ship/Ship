@@ -30,6 +30,10 @@ fn worker_role_allows_worker_tools() {
         .expect("update_job allowed for worker");
     ShipServer::enforce_mode_tool_gate(&project_dir, "write_session_file")
         .expect("write_session_file allowed for worker");
+    // step_done is the pipeline completion signal — every dispatched
+    // worker agent needs it, or pipelines stall at activity-timeout.
+    ShipServer::enforce_mode_tool_gate(&project_dir, "step_done")
+        .expect("step_done allowed for worker");
 }
 
 #[test]

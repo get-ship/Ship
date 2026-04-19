@@ -1,70 +1,107 @@
 use super::*;
 
-// ── role-based default tool sets ───────────────────────────────────
+// ── Preset tool sets ───────────────────────────────────────────────
 
 #[test]
-fn worker_defaults_contain_expected_tools() {
-    let defaults = ShipServer::default_tools_for_role("worker");
-    assert!(defaults.contains(&"log_progress"), "worker missing log_progress");
-    assert!(defaults.contains(&"update_job"), "worker missing update_job");
-    assert!(
-        defaults.contains(&"write_session_file"),
-        "worker missing write_session_file"
-    );
+fn worker_preset_contains_platform_tools() {
+    let tools = ShipServer::tools_for_preset("worker");
+    assert!(tools.contains(&"log_progress"), "worker missing log_progress");
+    assert!(tools.contains(&"update_job"), "worker missing update_job");
+    assert!(tools.contains(&"write_session_file"), "worker missing write_session_file");
+    assert!(tools.contains(&"step_done"), "worker missing step_done — pipelines depend on it");
 }
 
 #[test]
-fn lead_defaults_extend_worker() {
-    let worker = ShipServer::default_tools_for_role("worker");
-    let lead = ShipServer::default_tools_for_role("lead");
+fn worker_preset_excludes_orchestration_tools() {
+    let tools = ShipServer::tools_for_preset("worker");
+    assert!(!tools.contains(&"create_job"), "worker must not have create_job");
+    assert!(!tools.contains(&"mesh_discover"), "worker must not have mesh_discover");
+    assert!(!tools.contains(&"mesh_status"), "worker must not have mesh_status");
+}
+
+#[test]
+fn orchestrator_preset_extends_worker() {
+    let worker = ShipServer::tools_for_preset("worker");
+    let orchestrator = ShipServer::tools_for_preset("orchestrator");
     for tool in worker {
-        assert!(lead.contains(&tool), "lead should inherit worker tool {tool}");
-    }
-    assert!(lead.contains(&"create_job"), "lead missing create_job");
-}
-
-#[test]
-fn commander_defaults_extend_lead() {
-    let lead = ShipServer::default_tools_for_role("lead");
-    let commander = ShipServer::default_tools_for_role("commander");
-    for tool in lead {
         assert!(
-            commander.contains(&tool),
-            "commander should inherit lead tool {tool}"
+            orchestrator.contains(&tool),
+            "orchestrator should inherit worker tool {tool}"
         );
     }
-    assert!(
-        commander.contains(&"mesh_discover"),
-        "commander missing mesh_discover"
-    );
-    assert!(
-        commander.contains(&"mesh_status"),
-        "commander missing mesh_status"
-    );
+    assert!(orchestrator.contains(&"create_job"), "orchestrator missing create_job");
+    assert!(orchestrator.contains(&"mesh_discover"), "orchestrator missing mesh_discover");
+    assert!(orchestrator.contains(&"mesh_status"), "orchestrator missing mesh_status");
 }
 
 #[test]
-fn dangerous_tools_excluded_from_all_role_defaults() {
+fn unknown_preset_falls_back_to_worker() {
+    let unknown = ShipServer::tools_for_preset("nonexistent");
+    let worker = ShipServer::tools_for_preset("worker");
+    assert_eq!(unknown, worker, "unknown preset should fall back to worker");
+}
+
+// ── Legacy role → preset mapping (back-compat) ─────────────────────
+
+#[test]
+fn legacy_role_worker_maps_to_worker_preset() {
+    assert_eq!(ShipServer::effective_preset(None, Some("worker")), "worker");
+}
+
+#[test]
+fn legacy_role_lead_maps_to_orchestrator_preset() {
+    assert_eq!(ShipServer::effective_preset(None, Some("lead")), "orchestrator");
+}
+
+#[test]
+fn legacy_role_commander_maps_to_orchestrator_preset() {
+    assert_eq!(ShipServer::effective_preset(None, Some("commander")), "orchestrator");
+}
+
+#[test]
+fn no_role_and_no_preset_defaults_to_worker() {
+    assert_eq!(ShipServer::effective_preset(None, None), "worker");
+}
+
+#[test]
+fn tools_preset_takes_precedence_over_legacy_role() {
+    assert_eq!(
+        ShipServer::effective_preset(Some("orchestrator"), Some("worker")),
+        "orchestrator",
+        "explicit tools_preset must win over legacy role"
+    );
+}
+
+// ── Dangerous tools never in any preset ────────────────────────────
+
+#[test]
+fn dangerous_tools_excluded_from_all_presets() {
     let dangerous = ["event", "mesh_send", "mesh_broadcast"];
-    for role in &["worker", "lead", "commander"] {
-        let defaults = ShipServer::default_tools_for_role(role);
+    for preset in &["worker", "orchestrator"] {
+        let tools = ShipServer::tools_for_preset(preset);
         for tool in &dangerous {
             assert!(
-                !defaults.contains(tool),
-                "{tool} must not be in {role} defaults"
+                !tools.contains(tool),
+                "{tool} must not be in {preset} preset"
             );
         }
     }
 }
 
+// ── Dispatched-context shortcut ────────────────────────────────────
+
 #[test]
-fn unknown_role_falls_back_to_worker_defaults() {
-    let unknown = ShipServer::default_tools_for_role("nonexistent");
-    let worker = ShipServer::default_tools_for_role("worker");
-    assert_eq!(
-        unknown, worker,
-        "unknown role should fall back to worker defaults"
-    );
+fn is_platform_tool_recognizes_step_done() {
+    assert!(ShipServer::is_platform_tool("step_done"));
+    assert!(ShipServer::is_platform_tool("log_progress"));
+    assert!(ShipServer::is_platform_tool("update_job"));
+    assert!(ShipServer::is_platform_tool("write_session_file"));
+}
+
+#[test]
+fn is_platform_tool_rejects_orchestration() {
+    assert!(!ShipServer::is_platform_tool("create_job"));
+    assert!(!ShipServer::is_platform_tool("mesh_discover"));
 }
 
 // ── event gating (unit) ────────────────────────────────────────────
@@ -80,11 +117,11 @@ fn event_not_core_without_unstable() {
 
 #[test]
 #[cfg(feature = "unstable")]
-fn event_not_in_role_defaults_even_with_unstable() {
-    let defaults = ShipServer::default_tools_for_role("commander");
+fn event_not_in_orchestrator_preset_even_with_unstable() {
+    let tools = ShipServer::tools_for_preset("orchestrator");
     assert!(
-        !defaults.contains(&"event"),
-        "event must not be in any role defaults even with unstable"
+        !tools.contains(&"event"),
+        "event must not be in any preset even with unstable"
     );
 }
 
@@ -129,41 +166,38 @@ fn deprecated_tools_are_no_longer_core() {
     }
 }
 
-// ── worker role sees exactly 6 tools via role defaults + core ──────
+// ── Preset + core effective tool set sizes ─────────────────────────
 
 #[test]
-fn worker_effective_tool_set_is_six_tools() {
+fn worker_effective_tool_set_count() {
     let core: Vec<&str> = ShipServer::CORE_TOOLS.to_vec();
-    let role_defaults = ShipServer::default_tools_for_role("worker");
+    let preset = ShipServer::tools_for_preset("worker");
     let mut all: Vec<&str> = core;
-    all.extend(role_defaults.iter().copied());
+    all.extend(preset.iter().copied());
     all.sort_unstable();
     all.dedup();
-    // Stable: create_workspace, complete_workspace, set_skill_var,
-    //         log_progress, update_job, write_session_file (= 6).
-    // Unstable adds the 5 view.* canvas tools on top (= 11).
+    // Stable: 3 core + 4 platform (step_done, log_progress, update_job,
+    // write_session_file) = 7. Unstable adds 5 view.* = 12.
     #[cfg(not(feature = "unstable"))]
-    let expected = 6;
+    let expected = 7;
     #[cfg(feature = "unstable")]
-    let expected = 11;
-    assert_eq!(all.len(), expected, "worker tool set mismatch: {all:?}");
+    let expected = 12;
+    assert_eq!(all.len(), expected, "worker effective set mismatch: {all:?}");
 }
 
-// ── commander role sees exactly 9 tools ────────────────────────────
-
 #[test]
-fn commander_effective_tool_set_is_nine_tools() {
+fn orchestrator_effective_tool_set_count() {
     let core: Vec<&str> = ShipServer::CORE_TOOLS.to_vec();
-    let role_defaults = ShipServer::default_tools_for_role("commander");
+    let preset = ShipServer::tools_for_preset("orchestrator");
     let mut all: Vec<&str> = core;
-    all.extend(role_defaults.iter().copied());
+    all.extend(preset.iter().copied());
     all.sort_unstable();
     all.dedup();
-    // Stable: 9 (6 worker + create_job + mesh_discover + mesh_status).
-    // Unstable: 9 + 5 view.* = 14.
+    // Stable: 7 worker + 3 orchestration (create_job, mesh_discover,
+    // mesh_status) = 10. Unstable: 10 + 5 view.* = 15.
     #[cfg(not(feature = "unstable"))]
-    let expected = 9;
+    let expected = 10;
     #[cfg(feature = "unstable")]
-    let expected = 14;
-    assert_eq!(all.len(), expected, "commander tool set mismatch: {all:?}");
+    let expected = 15;
+    assert_eq!(all.len(), expected, "orchestrator effective set mismatch: {all:?}");
 }
