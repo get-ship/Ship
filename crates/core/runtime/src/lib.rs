@@ -8,7 +8,7 @@ pub mod artifacts;
 pub mod errors;
 pub mod events;
 pub mod fs_util;
-pub mod hooks;
+pub mod triggers;
 pub mod log;
 pub mod persistence;
 pub mod project;
