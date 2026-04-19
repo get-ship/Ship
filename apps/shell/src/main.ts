@@ -1,5 +1,5 @@
 import Navigo from "navigo";
-import { mountDaemonFragment, openDaemonSSE, isSameOrigin } from "./mount";
+import { mountDaemonFragment, isSameOrigin } from "./mount";
 import { initSignalInspector } from "./signal-inspector";
 import { initThemeLoader, setTheme, getThemeName } from "./theme-loader";
 import { toggle as toggleCmdk, isCommandPaletteOpen } from "./command-palette";
@@ -85,8 +85,6 @@ if (localStorage.getItem("ship-rail-open")) {
 }
 
 // ── Drawer toggle ────────────────────────────────────────────────────
-let drawerSSE: EventSource | null = null;
-
 async function toggleDrawer() {
   const opening = !document.body.classList.contains("drawer-open");
   document.body.classList.toggle("drawer-open");
@@ -100,7 +98,8 @@ async function toggleDrawer() {
       drawerContent.innerHTML = `<div class="empty-hint">Failed to load chat</div>`;
     }
   } else {
-    if (drawerSSE) { drawerSSE.close(); drawerSSE = null; }
+    // Clear drawer content to stop any Datastar SSE watchers
+    drawerContent.textContent = "";
   }
 }
 
@@ -113,22 +112,19 @@ document.getElementById("close-terminal")!.addEventListener("click", () => {
   document.body.classList.remove("terminal-open");
 });
 
-// ── SSE management ───────────────────────────────────────────────────
-let currentSSE: EventSource | null = null;
-function closeSSE() {
-  if (currentSSE) {
-    currentSSE.close();
-    currentSSE = null;
-  }
-}
-
 // ── Mount a daemon view ──────────────────────────────────────────────
-async function mount(endpoint: string, sse?: string) {
-  closeSSE();
+async function mount(endpoint: string) {
 
-  // Tear down the old view — textContent="" triggers Datastar's
-  // MutationObserver to disconnect stale SSE watchers.
-  view.textContent = "";
+  // Remove old view from DOM entirely. This is critical — Datastar's
+  // MutationObserver fires on removed nodes and cleans up internal SSE
+  // connections from {{ live() }} macros. textContent="" alone is not
+  // enough; we need to remove and re-create the mount point.
+  const parent = view.parentElement!;
+  const newView = document.createElement("main");
+  newView.id = "ship-view-root";
+  newView.className = "ship-content";
+  parent.replaceChild(newView, view);
+  view = newView;
 
   try {
     await mountDaemonFragment(view, endpoint, {
@@ -139,16 +135,13 @@ async function mount(endpoint: string, sse?: string) {
     view.innerHTML = `<div class="mount-error">Failed to load view.\nCheck that the daemon is running.</div>`;
     return;
   }
-  if (sse) {
-    currentSSE = openDaemonSSE(sse, { token: TOKEN, base: DAEMON_BASE });
-    currentSSE.onerror = () => {};
-  }
 }
 
-// ── Form submit handler ──────────────────────────────────────────────
-view.addEventListener("submit", (ev) => {
+// ── Form submit handler (delegated on document, not view — view gets replaced) ──
+document.addEventListener("submit", (ev) => {
   const form = ev.target;
   if (!(form instanceof HTMLFormElement)) return;
+  if (!form.closest("#ship-view-root")) return;
   ev.preventDefault();
   void submitFragmentForm(form);
 });
@@ -206,25 +199,25 @@ function updateNav(path: string) {
 // ── Router (Navigo) ──────────────────────────────────────────────────
 const router = new Navigo("/");
 
-function viewRoute(path: string, endpoint: string, sse?: string) {
+function viewRoute(path: string, endpoint: string) {
   router.on(path, () => {
     updateNav(path);
-    void mount(endpoint, sse);
+    void mount(endpoint);
   });
 }
 
-viewRoute("/", "/api/runtime/view/dashboard", "/api/runtime/view/dashboard/sse");
-viewRoute("/pipelines", "/api/runtime/view/pipelines", "/api/runtime/view/pipelines/sse");
-viewRoute("/specs", "/api/runtime/view/specs", "/api/runtime/view/specs/sse");
-viewRoute("/git", "/api/runtime/view/git", "/api/runtime/view/git/sse");
-viewRoute("/settings", "/api/runtime/view/settings", "/api/runtime/view/settings/sse");
-viewRoute("/agents", "/api/runtime/view/agents", "/api/runtime/view/agents/sse");
-viewRoute("/skills", "/api/runtime/view/skills", "/api/runtime/view/skills/sse");
-viewRoute("/chat", "/api/runtime/view/chat", "/api/runtime/view/chat/sse");
-viewRoute("/events", "/api/runtime/view/events", "/api/runtime/view/events/sse");
-viewRoute("/data", "/api/runtime/view/data", "/api/runtime/view/data/sse");
-viewRoute("/dashboard", "/api/runtime/view/dashboard", "/api/runtime/view/dashboard/sse");
-viewRoute("/canvas", "/api/runtime/view/canvas", "/api/runtime/view/canvas/sse");
+viewRoute("/", "/api/runtime/view/dashboard");
+viewRoute("/pipelines", "/api/runtime/view/pipelines");
+viewRoute("/specs", "/api/runtime/view/specs");
+viewRoute("/git", "/api/runtime/view/git");
+viewRoute("/settings", "/api/runtime/view/settings");
+viewRoute("/agents", "/api/runtime/view/agents");
+viewRoute("/skills", "/api/runtime/view/skills");
+viewRoute("/chat", "/api/runtime/view/chat");
+viewRoute("/events", "/api/runtime/view/events");
+viewRoute("/data", "/api/runtime/view/data");
+viewRoute("/dashboard", "/api/runtime/view/dashboard");
+viewRoute("/canvas", "/api/runtime/view/canvas");
 
 // Dynamic routes
 router.on("/agents/:id", ({ data }) => {
