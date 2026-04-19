@@ -111,11 +111,12 @@ fn dispatched_context_detects_filesystem_marker() {
     let tmp = tempdir().expect("tempdir");
     let wt = tmp.path().join("ship-dev-testslug");
     fs::create_dir_all(wt.join(".artifacts")).unwrap();
-    fs::write(wt.join(".artifacts/job-spec.md"), "spec").unwrap();
+    fs::write(wt.join(".artifacts/.dispatched"), "ship-dev-testslug").unwrap();
 
     let prev_cwd = std::env::current_dir().ok();
     let prev_env = std::env::var("SHIP_MESH_ID").ok();
-    // SAFETY: tests are single-threaded here; modifying env/cwd is fine.
+    // SAFETY: tests run sequentially per test binary; modifying env/cwd
+    // here is benign — restored before assertion.
     unsafe { std::env::remove_var("SHIP_MESH_ID"); }
     std::env::set_current_dir(&wt).unwrap();
     let detected = ShipServer::is_dispatched_context();
@@ -127,8 +128,37 @@ fn dispatched_context_detects_filesystem_marker() {
     }
     assert!(
         detected,
-        "dispatched context must be detected via .artifacts/job-spec.md marker \
+        "dispatched context must be detected via .artifacts/.dispatched marker \
          even when SHIP_MESH_ID is unset (codex strips env to MCP subprocesses)",
+    );
+}
+
+#[test]
+fn dispatched_context_ignores_artifacts_without_marker() {
+    use std::fs;
+    use tempfile::tempdir;
+    let tmp = tempdir().expect("tempdir");
+    let wt = tmp.path().join("not-a-dispatch");
+    fs::create_dir_all(wt.join(".artifacts")).unwrap();
+    // `.artifacts/` exists with random contents but NO `.dispatched` marker.
+    fs::write(wt.join(".artifacts/spec.md"), "random spec").unwrap();
+    fs::write(wt.join(".artifacts/job-spec.md"), "old job spec").unwrap();
+
+    let prev_cwd = std::env::current_dir().ok();
+    let prev_env = std::env::var("SHIP_MESH_ID").ok();
+    unsafe { std::env::remove_var("SHIP_MESH_ID"); }
+    std::env::set_current_dir(&wt).unwrap();
+    let detected = ShipServer::is_dispatched_context();
+    if let Some(p) = prev_cwd {
+        let _ = std::env::set_current_dir(p);
+    }
+    if let Some(v) = prev_env {
+        unsafe { std::env::set_var("SHIP_MESH_ID", v); }
+    }
+    assert!(
+        !detected,
+        "presence of .artifacts/ alone must not trigger dispatched mode — \
+         only the .dispatched marker counts",
     );
 }
 

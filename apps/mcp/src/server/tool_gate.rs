@@ -93,10 +93,9 @@ impl ShipServer {
     ///
     /// Detection order:
     ///   1. SHIP_MESH_ID env var set (works when parent propagates env).
-    ///   2. Current dir or any ancestor contains `.artifacts/job-spec.md`
-    ///      (every Ship-dispatched worktree has this file, written by
-    ///      the dispatcher before spawning the agent). Survives providers
-    ///      like codex that don't propagate env to MCP subprocesses.
+    ///   2. Current dir or any ancestor contains a `.artifacts/.dispatched`
+    ///      marker — written by the isolation adapter on worktree prep.
+    ///      Survives providers like codex that don't propagate env.
     ///
     /// Dispatched agents always get PLATFORM_TOOLS regardless of
     /// KV-stored active_agent state — dispatch context is the truth.
@@ -110,14 +109,19 @@ impl ShipServer {
         Self::cwd_is_dispatched_worktree()
     }
 
-    /// Walk up from cwd looking for `.artifacts/job-spec.md`. Stops at the
-    /// first match or at the filesystem root.
+    /// Walk up from cwd looking for the explicit `.artifacts/.dispatched`
+    /// marker file. Stops at the first match or at the filesystem root.
+    /// The marker is only written by the isolation adapter during job
+    /// dispatch, so the project root won't match even if it has
+    /// `.artifacts/` artifacts from prior runs.
+    pub(crate) const DISPATCH_MARKER: &str = ".artifacts/.dispatched";
+
     fn cwd_is_dispatched_worktree() -> bool {
         let Ok(mut cur) = std::env::current_dir() else {
             return false;
         };
         loop {
-            if cur.join(".artifacts/job-spec.md").is_file() {
+            if cur.join(Self::DISPATCH_MARKER).is_file() {
                 return true;
             }
             if !cur.pop() {
