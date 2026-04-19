@@ -324,3 +324,17 @@ fn to_shell_string_includes_env_and_flags() {
 fn id_is_claude() {
     assert_eq!(ClaudeAdapter.id(), "claude");
 }
+
+// ── Capabilities ────────────────────────────────────────────────────────────
+
+#[test]
+fn caps_match_declared() {
+    let c = ClaudeAdapter.caps();
+    assert!(c.headless);
+    assert!(c.interactive);
+    assert!(!c.server_mode, "claude: SDK is in-process, no server");
+    assert!(c.json_stream, "claude: --output-format stream-json");
+    assert!(c.mcp, "claude: .mcp.json");
+    assert!(c.hooks, "claude: .claude/settings.json hooks");
+    assert!(!c.session_resume);
+}

@@ -248,6 +248,41 @@ pub enum Commands {
         headless: bool,
     },
 
+    /// Manage running jobs (cancel, etc.).
+    Job {
+        #[command(subcommand)]
+        action: JobCommands,
+    },
+
+    /// List current jobs with projected status, current step, and live process state
+    Jobs {
+        /// Emit jobs as JSON instead of a table
+        #[arg(long)]
+        json: bool,
+    },
+
+    /// List process records (lifecycle view from the ProcessRecord projection)
+    Procs {
+        /// Filter to a single job slug
+        #[arg(long)]
+        slug: Option<String>,
+        /// Cap the number of rows returned (default 100)
+        #[arg(long)]
+        limit: Option<usize>,
+        /// Emit records as JSON instead of a table
+        #[arg(long)]
+        json: bool,
+    },
+
+    /// Stream events for a slug in real time (1s polling)
+    Tail {
+        /// Job slug to follow
+        slug: String,
+        /// Filter to a single event namespace (e.g. "job", "process", "supervisor")
+        #[arg(long)]
+        namespace: Option<String>,
+    },
+
     /// Manage the Ship daemon (shipd) background process
     Daemon {
         #[command(subcommand)]
@@ -256,6 +291,18 @@ pub enum Commands {
 
     /// Show help — same as --help
     Help,
+}
+
+#[derive(Subcommand, Debug)]
+pub enum JobCommands {
+    /// Cancel a running job.
+    Cancel {
+        /// Slug of the job to cancel.
+        slug: String,
+        /// Free-form reason. Recorded in the event log.
+        #[arg(long, default_value = "operator-cancelled")]
+        reason: String,
+    },
 }
 
 #[derive(Subcommand, Debug)]
@@ -272,6 +319,15 @@ pub enum DaemonCommands {
     },
     /// Stop the running daemon process
     Stop,
+    /// Restart the daemon (stop + start, or `systemctl restart` under systemd)
+    Restart {
+        /// Bind address (default: 127.0.0.1). Ignored under systemd — the unit controls host.
+        #[arg(long, default_value = "127.0.0.1")]
+        host: String,
+        /// DEV mode — auto-pair on first localhost request, force 127.0.0.1 bind.
+        #[arg(long)]
+        dev: bool,
+    },
     /// Show daemon status
     Status,
     /// Remove orphaned worktrees for merged and failed jobs

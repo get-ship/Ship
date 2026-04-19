@@ -25,7 +25,7 @@ mod tests_io;
 
 pub use types::{
     AgentLayerConfig, AiConfig, GitConfig, HookConfig, HookTrigger,
-    NamespaceConfig, PRIMARY_CONFIG_FILE, PermissionConfig, StatusConfig,
+    LEGACY_CONFIG_FILE, NamespaceConfig, PRIMARY_CONFIG_FILE, PermissionConfig, StatusConfig,
 };
 
 pub use project::{

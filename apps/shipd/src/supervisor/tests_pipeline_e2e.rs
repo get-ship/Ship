@@ -169,7 +169,7 @@ async fn pipeline_advances_through_all_steps() {
             "spec_path": "spec.md", "plan_id": null,
             "steps": { "steps": [
                 { "id": "implement", "type": "agent", "agent": "rust-runtime", "after": [] },
-                { "id": "gate", "type": "gate", "agent": "reviewer", "after": ["implement"] },
+                { "id": "gate", "type": "review", "agent": "reviewer", "after": ["implement"] },
             ]}
         }),
     ).unwrap()).unwrap();
@@ -199,6 +199,7 @@ async fn pipeline_advances_through_all_steps() {
         done_flags: Arc::new(Mutex::new(std::collections::HashMap::new())),
         activity_txs: Arc::new(Mutex::new(std::collections::HashMap::new())),
         job_locks: Arc::new(Mutex::new(std::collections::HashMap::new())),
+        event_dedup: Arc::new(runtime::services::orchestrator::dedup::EventDedup::new()),
     };
 
     // First step completes — simulate agent finishing
@@ -443,6 +444,7 @@ async fn run_step_advances_to_agent_step() {
         done_flags: Arc::new(Mutex::new(std::collections::HashMap::new())),
         activity_txs: Arc::new(Mutex::new(std::collections::HashMap::new())),
         job_locks: Arc::new(Mutex::new(std::collections::HashMap::new())),
+        event_dedup: Arc::new(runtime::services::orchestrator::dedup::EventDedup::new()),
     };
 
     // advance_pipeline with the step_completed event — should dispatch "implement"
@@ -528,6 +530,7 @@ async fn first_step_run_executes_without_agent() {
         done_flags: Arc::new(Mutex::new(std::collections::HashMap::new())),
         activity_txs: Arc::new(Mutex::new(std::collections::HashMap::new())),
         job_locks: Arc::new(Mutex::new(std::collections::HashMap::new())),
+        event_dedup: Arc::new(runtime::services::orchestrator::dedup::EventDedup::new()),
     };
 
     // Dispatch the first run step directly — should execute without spawning an agent.

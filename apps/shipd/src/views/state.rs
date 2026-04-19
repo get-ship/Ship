@@ -16,6 +16,15 @@
 //! will be added alongside the pilots that need them — not as empty
 //! stubs. This keeps the module honest about what is actually wired up.
 
+// Agents + Skills state lives in sibling modules to respect the 300-line
+// cap on this file. Re-exports let callers use `views::state::list_agents`
+// without knowing about the split.
+pub use super::agents_state::{AgentDetail, AgentSummary, list_agents, load_agent};
+pub use super::skills_state::{
+    SkillDetail, SkillKind, SkillSummary, list_skills, load_skill,
+    load_skill_file,
+};
+
 use runtime::projections::job::{JobRecord, JobStatus};
 use serde::{Deserialize, Serialize};
 use std::collections::HashMap;
@@ -47,7 +56,8 @@ impl RunCategory {
             JobStatus::Completed
             | JobStatus::Failed
             | JobStatus::Merged
-            | JobStatus::Blocked => RunCategory::History,
+            | JobStatus::Blocked
+            | JobStatus::Cancelled => RunCategory::History,
         }
     }
 }
@@ -111,6 +121,7 @@ pub fn status_token(s: &JobStatus) -> &'static str {
         JobStatus::Failed => "failed",
         JobStatus::Merged => "merged",
         JobStatus::Blocked => "blocked",
+        JobStatus::Cancelled => "cancelled",
     }
 }
 

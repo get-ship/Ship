@@ -94,10 +94,33 @@ fn schema_for_event_type(
         "skill.started" => Some(check::<SkillStarted>),
         "skill.completed" => Some(check::<SkillCompleted>),
         "skill.failed" => Some(check::<SkillFailed>),
+        // process
+        "process.spawned" => Some(check::<crate::events::process::ProcessSpawnedPayload>),
+        "process.exited" => Some(check::<crate::events::process::ProcessExitedPayload>),
+        "process.signal_sent" => Some(check::<crate::events::process::ProcessSignalSentPayload>),
+        "process.orphaned" => Some(check::<crate::events::process::ProcessOrphanedPayload>),
+        // executor
+        "executor.session_created" => Some(check::<crate::events::executor::ExecutorSessionCreatedPayload>),
+        "executor.session_destroyed" => Some(check::<crate::events::executor::ExecutorSessionDestroyedPayload>),
+        "executor.window_created" => Some(check::<crate::events::executor::ExecutorWindowCreatedPayload>),
+        "executor.window_destroyed" => Some(check::<crate::events::executor::ExecutorWindowDestroyedPayload>),
         // supervisor
         "supervisor.shutting_down" => Some(check::<SupervisorShuttingDown>),
+        "supervisor.sweep_started" => Some(check::<crate::events::supervisor::SweepStartedPayload>),
+        "supervisor.sweep_completed" => Some(check::<crate::events::supervisor::SweepCompletedPayload>),
+        "supervisor.drift_detected" => Some(check::<crate::events::supervisor::DriftDetectedPayload>),
+        "supervisor.coherence_restored" => Some(check::<crate::events::supervisor::CoherenceRestoredPayload>),
+        // daemon
+        "daemon.startup_completed" => Some(check::<crate::events::daemon::StartupCompletedPayload>),
+        "daemon.shutdown_completed" => Some(check::<crate::events::daemon::ShutdownCompletedPayload>),
+        "daemon.crashed" => Some(check::<crate::events::daemon::CrashedPayload>),
+        "daemon.port_bind_failed" => Some(check::<crate::events::daemon::PortBindFailedPayload>),
+        "daemon.pidfile_acquired" => Some(check::<crate::events::daemon::PidfileAcquiredPayload>),
+        "daemon.pidfile_stale_taken" => Some(check::<crate::events::daemon::PidfileStaleTakenPayload>),
         // studio / feedback (agent-designed feedback payload from Studio views)
         "studio.feedback.created" => Some(check::<crate::events::feedback::FeedbackEvent>),
+        // studio / annotation (Phase 1 pin for the Phase 2 overlay wire format)
+        "studio.annotation.created" => Some(check::<crate::events::annotation::AnnotationEvent>),
         _ => None,
     }
 }
@@ -159,8 +182,11 @@ mod tests {
     #[test]
     fn all_known_event_types_have_schemas() {
         use crate::events::types::event_types::ALL;
-        // job.update has no dedicated payload struct — it's a generic update
-        let exceptions = &["job.update", "session.attached"];
+        // job.update has no dedicated payload struct — it's a generic update.
+        // process.killed is declared but not yet emitted; deferred to a
+        // follow-on slice where we wire the plumbing through the executor
+        // signal-send sites.
+        let exceptions = &["job.update", "session.attached", "process.killed"];
         for &et in ALL {
             if exceptions.contains(&et) {
                 continue;

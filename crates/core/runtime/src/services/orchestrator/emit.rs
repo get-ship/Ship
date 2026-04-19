@@ -46,6 +46,38 @@ pub async fn emit_job_dispatched_with_meta(
     tracing::info!(slug, "pipeline: job dispatched successfully");
 }
 
+/// Emit a `job.spawn_failed` event for a dispatch failure.
+///
+/// `stage` identifies which phase of dispatch failed:
+/// `"isolation_prepare"`, `"agent_compile"`, or `"executor_spawn"`.
+/// Distinct from `job.failed` (agent ran and produced a failure).
+pub async fn emit_spawn_failed(
+    kernel: &Arc<Mutex<crate::events::KernelRouter>>,
+    job_id: &str,
+    slug: &str,
+    stage: &str,
+    err: &anyhow::Error,
+) {
+    let payload = crate::events::job::JobSpawnFailedPayload {
+        job_id: job_id.to_string(),
+        slug: slug.to_string(),
+        stage: stage.to_string(),
+        error: format!("{err:#}"),
+    };
+    let envelope = match EventEnvelope::new(
+        crate::events::job::event_types::JOB_SPAWN_FAILED,
+        job_id,
+        &payload,
+    ) {
+        Ok(e) => e.with_actor_id("service.job-dispatch"),
+        Err(e) => {
+            tracing::warn!(slug, "pipeline: failed to build job.spawn_failed event: {e}");
+            return;
+        }
+    };
+    persist_and_route(kernel, envelope, slug, None).await;
+}
+
 /// Emit a `job.step_dispatched` event for a specific pipeline step.
 pub async fn emit_step_dispatched_event(
     kernel: &Arc<Mutex<crate::events::KernelRouter>>,
@@ -99,6 +131,155 @@ pub async fn emit_job_failed(
 
     persist_and_route(kernel, envelope, slug, None).await;
     tracing::error!(slug, error, "job failed");
+}
+
+// ── Process lifecycle event emitters ──────────────────────────────────────────
+
+/// Emit `process.spawned` after an executor successfully creates a process.
+pub async fn emit_process_spawned(
+    kernel: &Arc<Mutex<crate::events::KernelRouter>>,
+    slug: &str,
+    job_id: &str,
+    pid: Option<u32>,
+    cmd: &str,
+    argv: &[String],
+    env_keys: &[String],
+    cwd: &str,
+    executor_kind: &str,
+    step_id: Option<&str>,
+) {
+    use crate::events::process::{sanitize_argv, filter_env_keys, ProcessSpawnedPayload, event_types};
+    let payload = ProcessSpawnedPayload {
+        slug: slug.to_string(),
+        job_id: job_id.to_string(),
+        pid,
+        cmd: cmd.to_string(),
+        argv: sanitize_argv(argv),
+        env_keys: filter_env_keys(env_keys),
+        cwd: cwd.to_string(),
+        executor_kind: executor_kind.to_string(),
+        step_id: step_id.map(str::to_string),
+    };
+    emit_process_event(kernel, event_types::PROCESS_SPAWNED, slug, &payload).await;
+}
+
+/// Emit `process.exited` when a monitored process terminates.
+pub async fn emit_process_exited(
+    kernel: &Arc<Mutex<crate::events::KernelRouter>>,
+    slug: &str,
+    pid: Option<u32>,
+    exit_code: Option<i32>,
+    signal: Option<&str>,
+    wall_duration_ms: u64,
+    executor_kind: &str,
+) {
+    use crate::events::process::{ProcessExitedPayload, event_types};
+    let payload = ProcessExitedPayload {
+        slug: slug.to_string(),
+        pid,
+        exit_code,
+        signal: signal.map(str::to_string),
+        wall_duration_ms,
+        executor_kind: executor_kind.to_string(),
+    };
+    emit_process_event(kernel, event_types::PROCESS_EXITED, slug, &payload).await;
+}
+
+/// Emit `process.signal_sent` before sending a signal to a process.
+pub async fn emit_process_signal_sent(
+    kernel: &Arc<Mutex<crate::events::KernelRouter>>,
+    slug: &str,
+    pid: Option<u32>,
+    signum: &str,
+    reason: &str,
+    actor: &str,
+) {
+    use crate::events::process::{ProcessSignalSentPayload, event_types};
+    let payload = ProcessSignalSentPayload {
+        slug: slug.to_string(),
+        pid,
+        signum: signum.to_string(),
+        reason: reason.to_string(),
+        actor: actor.to_string(),
+    };
+    emit_process_event(kernel, event_types::PROCESS_SIGNAL_SENT, slug, &payload).await;
+}
+
+async fn emit_process_event(
+    kernel: &Arc<Mutex<crate::events::KernelRouter>>,
+    event_type: &str,
+    slug: &str,
+    payload: &impl serde::Serialize,
+) {
+    let envelope = match EventEnvelope::new(event_type, slug, payload) {
+        Ok(e) => e.with_actor_id("service.process-lifecycle"),
+        Err(e) => {
+            tracing::warn!(slug, event_type, "process-events: failed to build envelope: {e}");
+            return;
+        }
+    };
+    persist_and_route(kernel, envelope, slug, None).await;
+}
+
+// ── Executor substrate event emitters ─────────────────────────────────────────
+
+/// Emit `executor.session_destroyed` when a tmux session (or equivalent
+/// executor substrate) is torn down. Used by the liveness handler to record
+/// the why before emitting `job.failed`.
+pub async fn emit_executor_session_destroyed(
+    kernel: &Arc<Mutex<crate::events::KernelRouter>>,
+    slug: &str,
+    executor_kind: &str,
+    session_name: &str,
+    cause: crate::events::executor::DestructionCause,
+) {
+    use crate::events::executor::{EXECUTOR_SESSION_DESTROYED, ExecutorSessionDestroyedPayload};
+    let payload = ExecutorSessionDestroyedPayload {
+        executor_kind: executor_kind.to_string(),
+        session_name: session_name.to_string(),
+        slug: slug.to_string(),
+        cause,
+    };
+    emit_executor_event(kernel, EXECUTOR_SESSION_DESTROYED, slug, &payload).await;
+}
+
+/// Emit `executor.window_destroyed` when an individual window within a
+/// shared-session executor is torn down.
+pub async fn emit_executor_window_destroyed(
+    kernel: &Arc<Mutex<crate::events::KernelRouter>>,
+    slug: &str,
+    executor_kind: &str,
+    session_name: &str,
+    window_name: &str,
+    step: Option<&str>,
+    cause: crate::events::executor::DestructionCause,
+) {
+    use crate::events::executor::{EXECUTOR_WINDOW_DESTROYED, ExecutorWindowDestroyedPayload};
+    let payload = ExecutorWindowDestroyedPayload {
+        executor_kind: executor_kind.to_string(),
+        session_name: session_name.to_string(),
+        window_name: window_name.to_string(),
+        slug: slug.to_string(),
+        step: step.map(str::to_string),
+        cause,
+    };
+    emit_executor_event(kernel, EXECUTOR_WINDOW_DESTROYED, slug, &payload).await;
+}
+
+async fn emit_executor_event(
+    kernel: &Arc<Mutex<crate::events::KernelRouter>>,
+    event_type: &str,
+    slug: &str,
+    payload: &impl serde::Serialize,
+) {
+    let envelope = match EventEnvelope::new(event_type, slug, payload) {
+        Ok(e) => e.with_actor_id("service.executor-lifecycle"),
+        Err(e) => {
+            tracing::warn!(slug, event_type, "executor-events: failed to build envelope: {e}");
+            return;
+        }
+    };
+    persist_and_route(kernel, envelope, slug, None).await;
 }
 
 /// Persist an event to platform.db and deliver it through the kernel.

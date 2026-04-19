@@ -37,12 +37,12 @@ pub async fn subscribe_job_events(
     _ship_dir: PathBuf,
     health_registry: &crate::supervised::HealthRegistry,
 ) -> Option<DispatchHandle> {
-    // Default: RoutingExecutor picks PtyExecutor (tmux-attached PTY) or
-    // ProcessExecutor (headless) per-job based on the `headless` flag set
+    // Default: RoutingExecutor picks TmuxWindowExecutor (interactive-attach)
+    // or ProcessExecutor (headless) per-job based on the `headless` flag set
     // by `ship run [--headless]`. If tmux is unavailable (Windows, not
-    // installed, etc.) PtyExecutor construction fails and RoutingExecutor
-    // transparently falls back to ProcessExecutor for every job with a
-    // single warning line.
+    // installed, etc.) TmuxWindowExecutor construction fails and
+    // RoutingExecutor transparently falls back to ProcessExecutor for every
+    // job with a single warning line.
     //
     // Legacy `SHIP_EXECUTOR=tmux` escape hatch still forces the old
     // single-session interactive TmuxExecutor for users pairing with an
@@ -50,10 +50,10 @@ pub async fn subscribe_job_events(
     let executor: Arc<dyn JobExecutor> =
         if std::env::var("SHIP_EXECUTOR").as_deref() == Ok("tmux") {
             tracing::info!("job-dispatch: using TmuxExecutor (SHIP_EXECUTOR=tmux)");
-            Arc::new(super::executors::TmuxExecutor)
+            Arc::new(super::executors::TmuxExecutor::new(Some(kernel.clone())))
         } else {
-            tracing::info!("job-dispatch: using RoutingExecutor (pty default, headless on flag)");
-            Arc::new(super::executors::RoutingExecutor::new())
+            tracing::info!("job-dispatch: using RoutingExecutor (tmux-window default, headless on flag)");
+            Arc::new(super::executors::RoutingExecutor::new(Some(kernel.clone())))
         };
 
     let registry = Arc::new(Mutex::new(ProcessRegistry::new()));
@@ -62,6 +62,7 @@ pub async fn subscribe_job_events(
         registry: registry.clone(),
         executor: executor.clone(),
         health_registry: health_registry.clone(),
+        kernel: kernel.clone(),
     });
 
     let activity_txs = Arc::new(Mutex::new(HashMap::new()));
@@ -74,6 +75,7 @@ pub async fn subscribe_job_events(
         done_flags: Arc::new(Mutex::new(HashMap::new())),
         activity_txs: activity_txs.clone(),
         job_locks: Arc::new(Mutex::new(HashMap::new())),
+        event_dedup: Arc::new(runtime::services::orchestrator::dedup::EventDedup::new()),
     });
 
     let kr = kernel.clone();

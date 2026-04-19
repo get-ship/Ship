@@ -48,9 +48,53 @@ pub fn interpolate_step(
         goal: step.goal.as_deref().map(interp).transpose()?,
         after: step.after.clone(),
         model: step.model.as_deref().map(interp).transpose()?,
-        provider: step.provider.clone(),
+        provider: step.provider.as_deref().map(interp).transpose()?,
         command: step.command.as_deref().map(interp).transpose()?,
         max_retries: step.max_retries,
         gate: step.gate.clone(),
     })
+}
+
+#[cfg(test)]
+mod tests {
+    use super::*;
+    use crate::events::job::StepType;
+
+    fn step_with_provider(template: &str) -> PipelineStep {
+        PipelineStep {
+            id: "implement".into(),
+            step_type: StepType::Agent,
+            agent: Some("rust-lane".into()),
+            goal: None,
+            after: vec![],
+            model: None,
+            provider: Some(template.into()),
+            command: None,
+            max_retries: None,
+            gate: None,
+        }
+    }
+
+    #[test]
+    fn provider_is_interpolated_from_job_vars() {
+        let step = step_with_provider("{{ provider }}");
+        let vars: HashMap<String, String> =
+            [("provider".into(), "codex".into())].into_iter().collect();
+        let out = interpolate_step(&step, &vars, &Default::default()).unwrap();
+        assert_eq!(out.provider.as_deref(), Some("codex"));
+    }
+
+    #[test]
+    fn provider_missing_var_errors() {
+        let step = step_with_provider("{{ provider }}");
+        let err = interpolate_step(&step, &Default::default(), &Default::default()).unwrap_err();
+        assert_eq!(err, "provider");
+    }
+
+    #[test]
+    fn provider_literal_passes_through() {
+        let step = step_with_provider("claude");
+        let out = interpolate_step(&step, &Default::default(), &Default::default()).unwrap();
+        assert_eq!(out.provider.as_deref(), Some("claude"));
+    }
 }

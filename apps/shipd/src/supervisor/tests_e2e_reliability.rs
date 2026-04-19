@@ -296,12 +296,14 @@ fn pipeline_full_lifecycle_all_steps_tracked() {
             "job_id": "j1", "slug": "pipe",
             "agent": "test-writer", "branch": "job/pipe",
             "spec_path": "spec.md", "plan_id": null,
-            "steps": { "steps": [
-                { "id": "test", "type": "agent", "agent": "test-writer", "after": [] },
-                { "id": "impl", "type": "agent", "agent": "rust-runtime", "after": ["test"] },
-                { "id": "gate", "type": "gate", "agent": "reviewer", "after": ["impl"] },
-                { "id": "merge", "type": "merge", "after": ["gate"] },
-            ]}
+            "steps": {
+                "auto_merge": true,
+                "steps": [
+                    { "id": "test", "type": "agent", "agent": "test-writer", "after": [] },
+                    { "id": "impl", "type": "agent", "agent": "rust-runtime", "after": ["test"] },
+                    { "id": "gate", "type": "review", "agent": "reviewer", "after": ["impl"] },
+                ]
+            }
         })),
         dispatched("j1"), completed("j1", "pipe"),  // test
         dispatched("j1"), completed("j1", "pipe"),  // impl
@@ -385,13 +387,22 @@ fn auth_token_is_per_instance() {
 // error return. Nothing swallowed silently.
 // ═══════════════════════════════════════════════════════════════════════════
 
-/// Dead process reconciliation must emit step_failed.
+/// Dead process reconciliation must leave an observable event trail.
+///
+/// Reconcile records a single `executor.session_destroyed` observation;
+/// the liveness sweep later emits `job.failed` once the stale threshold
+/// elapses. Either signal is sufficient — nothing is swallowed silently.
 #[test]
 fn dead_process_recovery_is_observable() {
-    let source = include_str!("../../../../crates/core/runtime/src/services/orchestrator/replay.rs");
+    let replay = include_str!("../../../../crates/core/runtime/src/services/orchestrator/replay.rs");
+    let liveness = include_str!("liveness.rs");
     assert!(
-        source.contains("STEP_FAILED") || source.contains("step_failed"),
-        "dead process reconciliation must emit step_failed — no silent drops"
+        replay.contains("emit_executor_session_destroyed"),
+        "reconcile must record an observation event when no live process is found"
+    );
+    assert!(
+        liveness.contains("job.failed") || liveness.contains("JOB_FAILED"),
+        "liveness sweep must emit job.failed for genuinely missing processes"
     );
 }
 

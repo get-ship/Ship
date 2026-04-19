@@ -64,26 +64,39 @@ pub fn run(opts: RunOptions) -> Result<()> {
     let branch = format!("job/{slug}");
     let spec_path = ".artifacts/job-spec.md".to_string();
 
+    // Capture the operator-facing spec path for the job record. `canonicalize`
+    // resolves symlinks and `./` so `ship jobs` shows an unambiguous absolute
+    // path; fall back to the display string when the file isn't on disk
+    // (inline-spec callers passing a virtual path). `None` for --spec-text.
+    let source_spec_path = opts.spec_file
+        .as_ref()
+        .and_then(|p| {
+            std::fs::canonicalize(p)
+                .ok()
+                .and_then(|abs| abs.to_str().map(String::from))
+                .or_else(|| Some(p.display().to_string()))
+        });
+
     let body = serde_json::json!({
         "slug": slug,
         "agent": first_agent_display,
         "branch": branch,
         "spec_path": spec_path,
+        "source_spec_path": source_spec_path,
         "pipeline": pipeline_name,
         "spec_content": if spec_content.is_empty() { None } else { Some(&spec_content) },
         "vars": if vars.is_empty() { None } else { Some(&vars) },
         "headless": opts.headless,
     });
 
-    // Short tmux session name the PtyExecutor uses. Mirrors
-    // `runtime::services::orchestrator::step_executor::tmux_session_name`.
+    // Tmux session name the TmuxWindowExecutor uses. Mirrors
+    // `apps/shipd/src/supervisor/executors/tmux_window.rs::session_name`.
     let tmux_short: String = {
         let sanitized: String = slug
             .chars()
             .map(|c| if c == '.' || c == ':' { '_' } else { c })
             .collect();
-        let short: String = sanitized.chars().take(8).collect();
-        format!("ship-{short}")
+        format!("ship-{sanitized}")
     };
 
     match post_to_daemon("/api/runtime/jobs", &body) {
@@ -196,6 +209,46 @@ fn interpolate_simple(template: &str, vars: &HashMap<String, String>) -> String 
     result
 }
 
+/// Build the `[kind] detail` label for a step line in `--dry-run` output.
+/// Infers kind from body fields when `type:` is absent — `id:` steps pass
+/// through the normalizer unchanged, so they never gain an explicit `type`.
+fn format_step_label(step: &serde_json::Value, vars: &HashMap<String, String>) -> String {
+    let step_type = step.get("type").and_then(|v| v.as_str()).unwrap_or_else(|| {
+        if step.get("run").is_some() {
+            "run"
+        } else if step.get("agent").is_some() {
+            "agent"
+        } else if step.get("human").is_some() || step.get("goal").is_some() {
+            "human"
+        } else {
+            "agent"
+        }
+    });
+    match step_type {
+        "agent" | "gate" => {
+            let agent = step.get("agent").and_then(|v| v.as_str()).unwrap_or("?");
+            format!("[{step_type}] {}", interpolate_simple(agent, vars))
+        }
+        "run" => {
+            let cmd = step
+                .get("command")
+                .or_else(|| step.get("run"))
+                .and_then(|v| v.as_str())
+                .unwrap_or("?");
+            format!("[run] {cmd}")
+        }
+        "human" => {
+            let goal = step
+                .get("goal")
+                .or_else(|| step.get("human"))
+                .and_then(|v| v.as_str())
+                .unwrap_or("?");
+            format!("[human] {goal}")
+        }
+        _ => format!("[{step_type}]"),
+    }
+}
+
 fn print_dry_run(
     name: &str,
     path: &Path,
@@ -216,35 +269,7 @@ fn print_dry_run(
     }
     println!("Steps ({}):", steps.len());
     for (i, step) in steps.iter().enumerate() {
-        let step_type = step
-            .get("type")
-            .and_then(|v| v.as_str())
-            .unwrap_or("agent");
-        let label = match step_type {
-            "agent" | "gate" => {
-                let agent = step
-                    .get("agent")
-                    .and_then(|v| v.as_str())
-                    .unwrap_or("?");
-                let resolved = interpolate_simple(agent, vars);
-                format!("[{step_type}] {resolved}")
-            }
-            "run" => {
-                let cmd = step
-                    .get("command")
-                    .and_then(|v| v.as_str())
-                    .unwrap_or("?");
-                format!("[run] {cmd}")
-            }
-            "human" => {
-                let goal = step
-                    .get("goal")
-                    .and_then(|v| v.as_str())
-                    .unwrap_or("?");
-                format!("[human] {goal}")
-            }
-            _ => format!("[{step_type}]"),
-        };
+        let label = format_step_label(step, vars);
         let after = step
             .get("after")
             .and_then(|v| v.as_array())
@@ -288,3 +313,7 @@ fn post_to_daemon(path: &str, body: &serde_json::Value) -> Result<serde_json::Va
         .read_json()?;
     Ok(resp)
 }
+
+#[cfg(test)]
+#[path = "ship_run_tests.rs"]
+mod tests;

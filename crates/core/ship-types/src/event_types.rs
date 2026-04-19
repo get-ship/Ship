@@ -42,6 +42,25 @@ pub const SKILL_STARTED: &str = "skill.started";
 pub const SKILL_COMPLETED: &str = "skill.completed";
 pub const SKILL_FAILED: &str = "skill.failed";
 pub const SUPERVISOR_SHUTTING_DOWN: &str = "supervisor.shutting_down";
+pub const SUPERVISOR_SWEEP_STARTED: &str = "supervisor.sweep_started";
+pub const SUPERVISOR_SWEEP_COMPLETED: &str = "supervisor.sweep_completed";
+pub const SUPERVISOR_DRIFT_DETECTED: &str = "supervisor.drift_detected";
+pub const SUPERVISOR_COHERENCE_RESTORED: &str = "supervisor.coherence_restored";
+pub const PROCESS_SPAWNED: &str = "process.spawned";
+pub const PROCESS_EXITED: &str = "process.exited";
+pub const PROCESS_SIGNAL_SENT: &str = "process.signal_sent";
+pub const PROCESS_ORPHANED: &str = "process.orphaned";
+pub const PROCESS_KILLED: &str = "process.killed";
+pub const EXECUTOR_SESSION_CREATED: &str = "executor.session_created";
+pub const EXECUTOR_SESSION_DESTROYED: &str = "executor.session_destroyed";
+pub const EXECUTOR_WINDOW_CREATED: &str = "executor.window_created";
+pub const EXECUTOR_WINDOW_DESTROYED: &str = "executor.window_destroyed";
+pub const DAEMON_STARTUP_COMPLETED: &str = "daemon.startup_completed";
+pub const DAEMON_SHUTDOWN_COMPLETED: &str = "daemon.shutdown_completed";
+pub const DAEMON_CRASHED: &str = "daemon.crashed";
+pub const DAEMON_PORT_BIND_FAILED: &str = "daemon.port_bind_failed";
+pub const DAEMON_PIDFILE_ACQUIRED: &str = "daemon.pidfile_acquired";
+pub const DAEMON_PIDFILE_STALE_TAKEN: &str = "daemon.pidfile_stale_taken";
 
 pub const ALL: &[&str] = &[
     WORKSPACE_CREATED,
@@ -88,6 +107,25 @@ pub const ALL: &[&str] = &[
     SKILL_COMPLETED,
     SKILL_FAILED,
     SUPERVISOR_SHUTTING_DOWN,
+    SUPERVISOR_SWEEP_STARTED,
+    SUPERVISOR_SWEEP_COMPLETED,
+    SUPERVISOR_DRIFT_DETECTED,
+    SUPERVISOR_COHERENCE_RESTORED,
+    PROCESS_SPAWNED,
+    PROCESS_EXITED,
+    PROCESS_SIGNAL_SENT,
+    PROCESS_ORPHANED,
+    PROCESS_KILLED,
+    EXECUTOR_SESSION_CREATED,
+    EXECUTOR_SESSION_DESTROYED,
+    EXECUTOR_WINDOW_CREATED,
+    EXECUTOR_WINDOW_DESTROYED,
+    DAEMON_STARTUP_COMPLETED,
+    DAEMON_SHUTDOWN_COMPLETED,
+    DAEMON_CRASHED,
+    DAEMON_PORT_BIND_FAILED,
+    DAEMON_PIDFILE_ACQUIRED,
+    DAEMON_PIDFILE_STALE_TAKEN,
 ];
 
 #[cfg(test)]

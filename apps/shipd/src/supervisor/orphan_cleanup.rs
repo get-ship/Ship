@@ -4,7 +4,13 @@
 //! may still have worktrees, branches, and tmux sessions on disk. This module
 //! scans the job projection on startup and cleans them up.
 
+use std::sync::Arc;
+
+use runtime::events::executor::DestructionCause;
+use runtime::events::KernelRouter;
 use runtime::projections::job::{load_jobs, JobStatus};
+use runtime::services::orchestrator::emit::emit_executor_session_destroyed;
+use tokio::sync::Mutex;
 
 use super::helpers::worktrees_dir;
 
@@ -13,7 +19,7 @@ use super::helpers::worktrees_dir;
 /// Loads the job projection and finds jobs in a terminal state (Merged or Failed)
 /// that still have a worktree directory on disk. Cleans up each one using the
 /// standard cleanup handler so cleanup is consistent and idempotent.
-pub(crate) async fn cleanup_orphaned_worktrees() {
+pub(crate) async fn cleanup_orphaned_worktrees(kernel: &Arc<Mutex<KernelRouter>>) {
     let jobs = match load_jobs() {
         Ok(j) => j,
         Err(e) => {
@@ -51,14 +57,14 @@ pub(crate) async fn cleanup_orphaned_worktrees() {
             job_id = job.job_id,
             "job-dispatch: removing orphaned worktree"
         );
-        cleanup_orphan(&job.slug).await;
+        cleanup_orphan(&job.slug, kernel).await;
     }
 
     tracing::info!("job-dispatch: orphan cleanup complete");
 }
 
 /// Clean up a single orphaned job's resources.
-async fn cleanup_orphan(slug: &str) {
+async fn cleanup_orphan(slug: &str, kernel: &Arc<Mutex<KernelRouter>>) {
     use super::helpers::{delete_branch, kill_tmux_session, remove_worktree};
 
     let tmux_session = format!("job-{slug}");
@@ -68,10 +74,29 @@ async fn cleanup_orphan(slug: &str) {
     if let Err(e) = kill_tmux_session(&tmux_session) {
         tracing::warn!(slug, "orphan: tmux cleanup failed: {e}");
     }
+    // Destruction intent fires regardless of whether the session was alive;
+    // the operator-facing fact is that we've torn it down.
+    emit_executor_session_destroyed(
+        kernel,
+        slug,
+        "tmux",
+        &tmux_session,
+        DestructionCause::External,
+    )
+    .await;
     if let Err(e) = remove_worktree(&worktree_path) {
         tracing::warn!(slug, "orphan: worktree cleanup failed: {e}");
     }
     if let Err(e) = delete_branch(&branch) {
         tracing::warn!(slug, "orphan: branch cleanup failed: {e}");
+    }
+}
+
+#[cfg(test)]
+pub(crate) mod tests_only {
+    use super::*;
+
+    pub(crate) async fn cleanup_orphan_for_test(slug: &str, kernel: &Arc<Mutex<KernelRouter>>) {
+        super::cleanup_orphan(slug, kernel).await;
     }
 }

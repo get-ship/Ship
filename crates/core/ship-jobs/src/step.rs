@@ -2,9 +2,9 @@
 #[derive(Debug, Clone, PartialEq)]
 pub enum StepType {
     Agent,
-    Gate,
-    Merge,
-    Human,
+    /// Agent-backed reviewer for the previous step. Not to be confused
+    /// with the `gate:` attribute — that's a diff-rule check on any step.
+    Review,
     Run { command: String },
 }
 
@@ -22,7 +22,6 @@ pub struct PipelineStep {
 ///
 /// Returns the `type` field value that the runtime PipelineStep deserializer expects:
 /// - Has `run` key → "run"
-/// - Has `human` key → "human"
 /// - Has `agent` key or is a string → "agent"
 pub fn infer_step_type(val: &serde_json::Value) -> &'static str {
     if val.is_string() {
@@ -32,17 +31,15 @@ pub fn infer_step_type(val: &serde_json::Value) -> &'static str {
         if obj.contains_key("run") {
             return "run";
         }
-        if obj.contains_key("human") {
-            return "human";
-        }
         if obj.contains_key("type")
             && let Some(t) = obj["type"].as_str()
         {
             return match t {
                 "agent" => "agent",
-                "gate" => "gate",
-                "merge" => "merge",
-                "human" => "human",
+                // `gate` is the legacy alias for `review` (agent-backed
+                // reviewer). A step's declarative diff-rule gate is the
+                // `gate:` attribute on any step, not a step type.
+                "review" | "gate" => "review",
                 "run" => "run",
                 _ => "agent",
             };

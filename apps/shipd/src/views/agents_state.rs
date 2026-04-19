@@ -161,11 +161,11 @@ fn load_from_dir(dir: &Path, id: &str, source: &str) -> Option<AgentDetail> {
         // with a `ship-<tier>` prefix. Strip the prefix to canonicalize.
         let permissions_obj = parsed.get("permissions");
         let permissions_tier = permissions_obj
-            .and_then(|p| p.get("tier").and_then(|t| t.as_str()).map(|s| s.to_string()))
+            .and_then(|p: &serde_json::Value| p.get("tier").and_then(|t: &serde_json::Value| t.as_str()).map(|s: &str| s.to_string()))
             .or_else(|| {
                 permissions_obj
-                    .and_then(|p| p.get("preset").and_then(|t| t.as_str()))
-                    .map(|s| s.trim_start_matches("ship-").to_string())
+                    .and_then(|p: &serde_json::Value| p.get("preset").and_then(|t: &serde_json::Value| t.as_str()))
+                    .map(|s: &str| s.trim_start_matches("ship-").to_string())
             })
             .unwrap_or_else(|| "standard".to_string());
         return Some(AgentDetail {

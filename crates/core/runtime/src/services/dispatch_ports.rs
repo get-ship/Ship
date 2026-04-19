@@ -9,17 +9,34 @@ use std::collections::HashMap;
 use std::path::PathBuf;
 use tokio::sync::mpsc::UnboundedSender;
 
-/// Signal sent from an executor monitor when the agent process exits.
+/// Why an executor is signalling exit. Forces each call site to declare
+/// semantics: we either observed the agent's own exit, or the substrate
+/// (tmux session/window, PTY, ...) went away without us seeing it.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum ExitCause {
+    /// The agent process actually exited; `exit_code` is meaningful
+    /// (`Some` = real code, `None` = process is gone but no code captured).
+    AgentExited,
+    /// The executor's session/window was destroyed externally — we did
+    /// not observe the agent exit. `exit_code` is always `None`.
+    SessionDestroyed,
+}
+
+/// Signal sent from an executor monitor when an agent's run ends.
 ///
 /// Executors send this on `JobContext::exit_tx` so the dispatch handler can
 /// emit `job.completed` or `job.failed` without waiting for the SessionEnd hook.
+///
+/// `cause` is exhaustive — every executor must declare whether it observed
+/// the agent exit or merely noticed the substrate went away. The liveness
+/// handler routes on `cause`: only `AgentExited` with `exit_code == Some(0)`
+/// is a clean completion.
 #[derive(Debug)]
 pub struct ExitSignal {
     pub slug: String,
     pub job_id: String,
-    /// `None` means the process was killed or the exit code was unavailable
-    /// (e.g. tmux session closed). `Some(0)` = clean exit, non-zero = failure.
     pub exit_code: Option<i32>,
+    pub cause: ExitCause,
 }
 
 /// Context for a job being dispatched. Carries everything an executor needs.
@@ -42,13 +59,14 @@ pub struct JobContext {
     /// background monitor can signal exit without curling the daemon API.
     /// `None` for pipeline re-dispatches — the liveness sweep handles those.
     pub exit_tx: Option<UnboundedSender<ExitSignal>>,
-    /// Step metadata used by the PtyExecutor to pick the tmux window name and
-    /// per-step log path. `None` for single-step jobs — the executor falls back
-    /// to using `slug` as the window name.
+    /// Step metadata used by the TmuxWindowExecutor to pick the tmux window
+    /// name and per-step log path. `None` for single-step jobs — the executor
+    /// falls back to using `slug` as the window name.
     pub step: Option<StepInfo>,
     /// When true, dispatch forces the headless ProcessExecutor path even if
-    /// the executor in `OrchestratorContext` is PtyExecutor. Surfaced through
-    /// to the executor so it can fall back without its own flag check.
+    /// the executor in `OrchestratorContext` is TmuxWindowExecutor. Surfaced
+    /// through to the executor so it can fall back without its own flag
+    /// check.
     pub headless: bool,
 }
 
@@ -85,6 +103,11 @@ pub struct LaunchProfile {
     pub persist_session: bool,
     /// Request structured JSON output from the provider.
     pub structured_output: bool,
+    /// Prompt handed to headless provider runs as the first instruction.
+    /// Claude consumes it via `-p` after the rest of its flags; Codex takes it
+    /// as the final positional argument to `codex exec`. `None` falls back to
+    /// each adapter's default.
+    pub autostart_prompt: Option<String>,
 }
 
 /// Handle returned by a `JobExecutor` after spawning an agent.
@@ -150,6 +173,25 @@ pub trait JobExecutor: Send + Sync {
     async fn stop(&self, handle: &ExecutorHandle) -> Result<()>;
     /// Inject a message into the running agent.
     async fn send(&self, handle: &ExecutorHandle, message: &str) -> Result<()>;
+
+    /// Rehydrate a handle for a still-running process after a daemon
+    /// restart. Returns `Some(handle)` if the executor can locate a live
+    /// process for the given `slug` (and optionally `current_step` for
+    /// executors that spawn per-step processes), `None` otherwise.
+    /// Default: `None` — conservative; callers treat that as "no live
+    /// process" and the job gets marked failed on reconciliation.
+    ///
+    /// Replaces the historic pattern of constructing a fake `pid: None`
+    /// handle and calling `is_alive` on it, which always returned false
+    /// because the inner opaque state couldn't be downcast.
+    async fn resume_handle(
+        &self,
+        _slug: &str,
+        _provider: Option<&str>,
+        _current_step: Option<&str>,
+    ) -> Option<ExecutorHandle> {
+        None
+    }
 }
 
 // ── Orchestrator port traits ────────────────────────────────────────────────
@@ -203,4 +245,11 @@ pub trait ProcessRegistryPort: Send + Sync {
     async fn register(&self, slug: &str, handle: ExecutorHandle);
     /// Remove a handle (e.g. when a job completes).
     async fn unregister(&self, slug: &str);
+    /// Remove and return a handle so the caller can stop the process.
+    /// Default `None` — tests and registries that don't track handles
+    /// can leave this unimplemented.
+    async fn take(&self, _slug: &str) -> Option<ExecutorHandle> { None }
+    /// Return all currently registered slug keys.
+    /// Used by the coherence sweep to detect stray processes.
+    async fn live_slugs(&self) -> Vec<String> { vec![] }
 }

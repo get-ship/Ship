@@ -4,7 +4,7 @@ use std::collections::HashMap;
 use std::path::Path;
 
 use crate::services::dispatch_ports::{LaunchCommand, LaunchProfile};
-use crate::services::provider_adapter::{ProviderAdapter, ProviderEvent};
+use crate::services::provider_adapter::{ProviderAdapter, ProviderCapabilities, ProviderEvent};
 
 pub struct ClaudeAdapter;
 
@@ -63,6 +63,18 @@ impl ClaudeAdapter {
 impl ProviderAdapter for ClaudeAdapter {
     fn id(&self) -> &str { "claude" }
 
+    fn caps(&self) -> ProviderCapabilities {
+        ProviderCapabilities {
+            headless: true,
+            interactive: true,
+            server_mode: false,
+            json_stream: true,
+            mcp: true,
+            hooks: true,
+            session_resume: false,
+        }
+    }
+
     fn build_interactive(&self, slug: &str, profile: &LaunchProfile) -> LaunchCommand {
         let (args, env) = Self::base_args(slug, profile);
         LaunchCommand { bin: "claude".to_string(), args, env }
@@ -70,11 +82,15 @@ impl ProviderAdapter for ClaudeAdapter {
 
     fn build_headless(&self, slug: &str, profile: &LaunchProfile) -> LaunchCommand {
         let (mut args, env) = Self::base_args(slug, profile);
-        args.push("--output-format".to_string());
-        args.push("stream-json".to_string());
-        args.push("--print".to_string());
-        args.push("-p".to_string());
-        args.push("go".to_string());
+        let prompt = profile.autostart_prompt.clone().unwrap_or_else(|| "go".to_string());
+        args.extend([
+            "--verbose".to_string(),
+            "--output-format".to_string(),
+            "stream-json".to_string(),
+            "--print".to_string(),
+            "-p".to_string(),
+            prompt,
+        ]);
         LaunchCommand { bin: "claude".to_string(), args, env }
     }
 

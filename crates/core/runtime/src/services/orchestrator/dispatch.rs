@@ -7,7 +7,7 @@ use crate::services::dispatch_ports::{JobContext, LaunchProfile};
 use std::sync::Arc;
 use tokio::sync::Mutex;
 
-use super::emit::{emit_job_dispatched, emit_job_dispatched_with_meta, emit_job_failed};
+use super::emit::{emit_job_dispatched, emit_job_dispatched_with_meta, emit_job_failed, emit_process_spawned, emit_spawn_failed};
 use super::pipeline_loader::ensure_pipeline;
 use super::step_monitor::StepMonitor;
 use super::OrchestratorContext;
@@ -111,7 +111,7 @@ pub async fn dispatch_job_internal(
         Ok(p) => p,
         Err(e) => {
             tracing::error!(slug, "job-dispatch: isolation prepare failed: {e}");
-            emit_job_failed(kernel, &payload.job_id, slug, &format!("isolation prepare failed: {e}")).await;
+            emit_spawn_failed(kernel, &payload.job_id, slug, "isolation_prepare", &e).await;
             return;
         }
     };
@@ -159,23 +159,32 @@ pub async fn dispatch_job_internal(
         Ok(h) => h,
         Err(e) => {
             tracing::error!(slug, "job-dispatch: executor spawn failed: {e}");
-            emit_job_failed(kernel, &payload.job_id, slug, &format!("executor spawn failed: {e}")).await;
+            emit_spawn_failed(kernel, &payload.job_id, slug, "executor_spawn", &e).await;
             return;
         }
     };
+
+    let executor_kind = if payload.headless { "process" } else { "pty" };
+    emit_process_spawned(
+        kernel, slug, &payload.job_id, handle.pid,
+        "claude", &[], &[], &worktree_path.to_string_lossy(),
+        executor_kind, job_ctx_with_dir.step.as_ref().map(|s| s.id.as_str()),
+    ).await;
 
     octx.registry.register(slug, handle).await;
 
     let is_multi_step = payload.steps.as_ref().is_some_and(|s| s.steps.len() > 1);
     if is_multi_step {
-        let step_name = payload.steps.as_ref()
-            .and_then(|s| s.root_steps().first().map(|rs| rs.id.clone()))
-            .unwrap_or_default();
+        let root = payload.steps.as_ref().and_then(|s| s.root_steps().first().cloned().cloned());
+        let (step_name, step_type) = root
+            .map(|r| (r.id, r.step_type))
+            .unwrap_or_else(|| (String::new(), crate::events::job::StepType::Agent));
         let monitor = StepMonitor::new(
             payload.job_id.clone(),
             0,
             slug.clone(),
             step_name,
+            step_type,
             worktree_path.clone(),
         );
         let (activity_tx, activity_rx) = tokio::sync::mpsc::unbounded_channel();
@@ -257,7 +266,7 @@ async fn dispatch_first_run_step_inner(
         Ok(p) => p,
         Err(e) => {
             tracing::error!(slug, "job-dispatch: isolation prepare failed: {e}");
-            emit_job_failed(kernel, &payload.job_id, slug, &format!("isolation prepare failed: {e}")).await;
+            emit_spawn_failed(kernel, &payload.job_id, slug, "isolation_prepare", &e).await;
             return;
         }
     };

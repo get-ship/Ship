@@ -2,6 +2,7 @@ use serde::{Deserialize, Serialize};
 use specta::Type;
 
 pub const PRIMARY_CONFIG_FILE: &str = "ship.jsonc";
+pub const LEGACY_CONFIG_FILE: &str = "ship.toml";
 
 // ─── Data types ───────────────────────────────────────────────────────────────
 

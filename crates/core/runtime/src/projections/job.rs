@@ -25,6 +25,9 @@ pub enum JobStatus {
     Blocked,
     Merged,
     Failed,
+    /// Operator-initiated termination. Distinct from Failed so post-mortems
+    /// can distinguish intentional cancellation from execution failure.
+    Cancelled,
 }
 
 /// Projected state of a single job.
@@ -35,6 +38,11 @@ pub struct JobRecord {
     pub agent: String,
     pub branch: String,
     pub spec_path: String,
+    /// Operator-facing spec path captured at `ship run` time. `None` for
+    /// legacy records predating this field and for inline-spec (`--spec-text`)
+    /// dispatches. Distinct from `spec_path` (daemon-side worktree destination).
+    #[serde(default)]
+    pub source_spec_path: Option<String>,
     pub depends_on: Option<Vec<String>>,
     pub status: JobStatus,
     pub worktree: Option<String>,
@@ -71,11 +79,30 @@ pub struct JobRecord {
     /// When true, pipeline steps were dispatched with the headless flag.
     #[serde(default)]
     pub headless: bool,
+    /// HEAD SHA of the source repo when the job was created. Pipeline
+    /// gates evaluate diff rules from this SHA to HEAD so they see
+    /// commits made by earlier steps. `None` on legacy records — gates
+    /// fall back to the gating step's own start SHA.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub baseline_sha: Option<String>,
+}
+
+impl JobRecord {
+    /// Number of DAG pipeline steps recorded as completed.
+    pub fn completed_step_count(&self) -> usize {
+        self.completed_steps.len()
+    }
 }
 
 /// Apply a single event to an existing `JobRecord`.
 ///
 /// Unknown event types are silently ignored so the projection remains forward-compatible.
+///
+/// Status transitions are table-driven via [`super::job_transitions::status_for`].
+/// Match arms below own only payload extraction and field-level bookkeeping;
+/// the final `if let Some(next) = status_for(...)` applies the new status.
+/// STEP_OBSERVED is the one payload-conditional case — its `Failed` branch
+/// is set inline, and `status_for` returns `None` for it to avoid overriding.
 pub fn apply(record: &mut JobRecord, event: &EventEnvelope) {
     let ts = event.created_at;
     match event.event_type.as_str() {
@@ -96,6 +123,9 @@ pub fn apply(record: &mut JobRecord, event: &EventEnvelope) {
             // replayed JOB_DISPATCHED doesn't destructively read state on the
             // first pass and see None on the second. The `.contains` guard on
             // push prevents duplicate completed entries.
+            //
+            // Note: these checks read `record.status` BEFORE the table-driven
+            // transition at the bottom of `apply` updates it.
             if record.status == JobStatus::Completed
                 && let Some(current) = record.current_step.clone()
             {
@@ -118,22 +148,18 @@ pub fn apply(record: &mut JobRecord, event: &EventEnvelope) {
                     record.current_phase = Some(0);
                 }
             }
-            record.status = JobStatus::Dispatched;
             record.updated_at = ts;
         }
         event_types::JOB_GATE_REQUESTED => {
-            record.status = JobStatus::GatePending;
             record.updated_at = ts;
         }
         event_types::JOB_GATE_PASSED => {
-            record.status = JobStatus::Pending;
             record.updated_at = ts;
         }
         event_types::JOB_GATE_FAILED => {
             if let Ok(p) = serde_json::from_str::<serde_json::Value>(&event.payload_json) {
                 record.error = p["reason"].as_str().map(str::to_string);
             }
-            record.status = JobStatus::Failed;
             record.updated_at = ts;
         }
         event_types::JOB_COMPLETED => {
@@ -146,32 +172,39 @@ pub fn apply(record: &mut JobRecord, event: &EventEnvelope) {
                 }
                 record.current_step = None;
             }
-            record.status = JobStatus::Completed;
             record.updated_at = ts;
         }
         event_types::JOB_BLOCKED => {
             if let Ok(p) = serde_json::from_str::<serde_json::Value>(&event.payload_json) {
                 record.blocker = p["blocker"].as_str().map(str::to_string);
             }
-            record.status = JobStatus::Blocked;
             record.updated_at = ts;
         }
         event_types::JOB_MERGED => {
-            record.status = JobStatus::Merged;
             record.updated_at = ts;
         }
         event_types::JOB_FAILED => {
             if let Ok(p) = serde_json::from_str::<serde_json::Value>(&event.payload_json) {
                 record.error = p["error"].as_str().map(str::to_string);
             }
-            record.status = JobStatus::Failed;
+            record.updated_at = ts;
+        }
+        event_types::JOB_SPAWN_FAILED => {
+            if let Ok(p) = serde_json::from_str::<serde_json::Value>(&event.payload_json) {
+                record.error = p["error"].as_str().map(str::to_string);
+            }
+            record.updated_at = ts;
+        }
+        event_types::JOB_CANCELLED => {
+            if let Ok(p) = serde_json::from_str::<serde_json::Value>(&event.payload_json) {
+                record.error = p["reason"].as_str().map(str::to_string);
+            }
             record.updated_at = ts;
         }
         event_types::STEP_DISPATCHED => {
             if let Ok(p) = serde_json::from_str::<serde_json::Value>(&event.payload_json) {
                 record.current_step = p["step_id"].as_str().map(str::to_string);
             }
-            record.status = JobStatus::Dispatched;
             record.updated_at = ts;
         }
         event_types::STEP_COMPLETED => {
@@ -191,7 +224,6 @@ pub fn apply(record: &mut JobRecord, event: &EventEnvelope) {
             if let Ok(p) = serde_json::from_str::<serde_json::Value>(&event.payload_json) {
                 record.error = p["error"].as_str().map(str::to_string);
             }
-            record.status = JobStatus::Failed;
             record.updated_at = ts;
         }
         event_types::STEP_RETRY => {
@@ -203,7 +235,6 @@ pub fn apply(record: &mut JobRecord, event: &EventEnvelope) {
                 // Remove the step from completed so it can be re-dispatched
                 record.completed_steps.retain(|s| s != step_id);
                 record.error = None;
-                record.status = JobStatus::Dispatched;
             }
             record.updated_at = ts;
         }
@@ -225,6 +256,8 @@ pub fn apply(record: &mut JobRecord, event: &EventEnvelope) {
                         record.completed_steps.push(step_name.to_string());
                     }
                 } else {
+                    // Payload-conditional transition — `status_for` returns
+                    // `None` for STEP_OBSERVED so this assignment survives.
                     record.error = p["reason"].as_str().map(str::to_string);
                     record.status = JobStatus::Failed;
                 }
@@ -232,6 +265,12 @@ pub fn apply(record: &mut JobRecord, event: &EventEnvelope) {
             record.updated_at = ts;
         }
         _ => {}
+    }
+
+    // Table-driven unconditional status transitions. Events with no listed
+    // transition (STEP_COMPLETED, STEP_OBSERVED, unknowns) are untouched.
+    if let Some(next) = super::job_transitions::status_for(&event.event_type) {
+        record.status = next;
     }
 }
 
@@ -269,6 +308,7 @@ pub fn project(events: &[EventEnvelope]) -> HashMap<String, JobRecord> {
                     agent: p["agent"].as_str().unwrap_or("").to_string(),
                     branch: p["branch"].as_str().unwrap_or("").to_string(),
                     spec_path: p["spec_path"].as_str().unwrap_or("").to_string(),
+                    source_spec_path: p["source_spec_path"].as_str().map(str::to_string),
                     depends_on,
                     status: JobStatus::Pending,
                     worktree: None,
@@ -287,6 +327,7 @@ pub fn project(events: &[EventEnvelope]) -> HashMap<String, JobRecord> {
                     vars: serde_json::from_value(p["vars"].clone()).ok(),
                     step_retries: HashMap::new(),
                     headless: p["headless"].as_bool().unwrap_or(false),
+                    baseline_sha: p["baseline_sha"].as_str().map(str::to_string),
                 };
                 map.insert(job_id, record);
             }

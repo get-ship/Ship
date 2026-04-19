@@ -6,7 +6,9 @@
 
 use async_trait::async_trait;
 use runtime::events::kernel_router::{ActorConfig, KernelRouter};
-use runtime::services::dispatch_ports::{ExecutorHandle, ExitSignal, JobContext, JobExecutor};
+use runtime::services::dispatch_ports::{
+    ExecutorHandle, ExitCause, ExitSignal, JobContext, JobExecutor,
+};
 use std::sync::Arc;
 use std::time::Duration;
 use tempfile::TempDir;
@@ -146,6 +148,7 @@ async fn exit_handler_emits_job_completed_for_clean_exit() {
             slug: "test-job".to_string(),
             job_id: "j-clean-1".to_string(),
             exit_code: Some(0),
+            cause: ExitCause::AgentExited,
         })
         .expect("channel must accept the exit signal");
 
@@ -175,6 +178,7 @@ async fn exit_handler_does_not_panic_for_failed_exit() {
             slug: "failing-job".to_string(),
             job_id: "j-fail-1".to_string(),
             exit_code: Some(1),
+            cause: ExitCause::AgentExited,
         })
         .expect("channel must accept the exit signal");
 

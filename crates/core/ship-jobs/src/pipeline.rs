@@ -27,6 +27,9 @@ pub struct PipelineMeta {
     /// `.artifacts/pipeline/NN-<step_id>.md` at job launch instead of sharing
     /// a single spec across every step.
     pub step_specs: Option<Vec<String>>,
+    /// When true, the runtime runs `git merge` on the job branch after the
+    /// final step completes. Replaces the former `type: merge` step.
+    pub auto_merge: Option<bool>,
 }
 
 /// Parse a pipeline definition and normalize it into the old-format steps array.
@@ -95,6 +98,7 @@ fn extract_meta(val: &Value) -> PipelineMeta {
                 .map(|entry| entry.as_str().unwrap_or_default().to_string())
                 .collect()
         }),
+        auto_merge: val.get("auto_merge").and_then(|v| v.as_bool()),
     }
 }
 
@@ -211,12 +215,6 @@ fn normalize_single_step(
                 step.insert("id".to_string(), json!(id));
                 step.insert("type".to_string(), json!("run"));
                 step.insert("command".to_string(), json!(cmd));
-            } else if let Some(prompt) = obj.get("human").and_then(|v| v.as_str()) {
-                // human: <prompt>
-                let id = format!("human-{counter}");
-                step.insert("id".to_string(), json!(id));
-                step.insert("type".to_string(), json!("human"));
-                step.insert("goal".to_string(), json!(prompt));
             } else if let Some(agent) = obj.get("agent").and_then(|v| v.as_str()) {
                 // agent: <id> with overrides
                 let id = format!("step-{counter}");

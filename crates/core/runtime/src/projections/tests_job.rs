@@ -28,6 +28,67 @@ fn project_creates_pending_record() {
     assert_eq!(rec.status, JobStatus::Pending);
     assert_eq!(rec.slug, "auth-tests");
     assert_eq!(rec.agent, "rust-runtime");
+    // Legacy `created_event` does not set source_spec_path — projection must
+    // leave the field None rather than conflate it with spec_path.
+    assert!(rec.source_spec_path.is_none());
+}
+
+#[test]
+fn project_carries_source_spec_path_from_created_event() {
+    // New-style dispatches carry the operator-facing path. The projection
+    // must surface it verbatim so `ship jobs` can distinguish spec files.
+    let events = vec![make_event(
+        event_types::JOB_CREATED,
+        serde_json::json!({
+            "job_id": "j-src",
+            "slug": "with-source",
+            "agent": "rust-runtime",
+            "branch": "job/with-source",
+            "spec_path": ".artifacts/job-spec.md",
+            "source_spec_path": "/abs/path/to/operator-spec.md",
+            "plan_id": null
+        }),
+    )];
+    let map = project(&events);
+    let rec = map.get("j-src").unwrap();
+    assert_eq!(rec.source_spec_path.as_deref(), Some("/abs/path/to/operator-spec.md"));
+    // spec_path (destination) stays unchanged — both fields coexist.
+    assert_eq!(rec.spec_path, ".artifacts/job-spec.md");
+}
+
+#[test]
+fn project_carries_baseline_sha_from_created_event() {
+    // Pipeline gates evaluate diff rules from `baseline_sha..HEAD`, so the
+    // projection must surface it from the job.created payload. This is the
+    // load-bearing field for end-to-end pipelines — without it a review
+    // step's gate sees an empty diff range and fails spuriously.
+    let events = vec![make_event(
+        event_types::JOB_CREATED,
+        serde_json::json!({
+            "job_id": "j-base",
+            "slug": "with-baseline",
+            "agent": "rust-runtime",
+            "branch": "job/with-baseline",
+            "spec_path": ".artifacts/job-spec.md",
+            "baseline_sha": "deadbeefcafebabe",
+            "plan_id": null
+        }),
+    )];
+    let map = project(&events);
+    let rec = map.get("j-base").unwrap();
+    assert_eq!(rec.baseline_sha.as_deref(), Some("deadbeefcafebabe"));
+}
+
+#[test]
+fn project_leaves_baseline_sha_none_on_legacy_events() {
+    // Legacy job.created events won't include baseline_sha. The projection
+    // must keep the field `None` so the gate evaluator knows to fall back
+    // to the step-local start SHA — breaking back-compat would fail every
+    // in-flight pipeline when the daemon restarts mid-run.
+    let events = vec![created_event("j-legacy")];
+    let map = project(&events);
+    let rec = map.get("j-legacy").unwrap();
+    assert!(rec.baseline_sha.is_none());
 }
 
 #[test]
@@ -279,7 +340,7 @@ fn project_step_retry_tracks_attempt() {
                 "steps": {
                     "steps": [
                         { "id": "implement", "type": "agent", "agent": "rust-lane", "max_retries": 2 },
-                        { "id": "gate", "type": "gate", "agent": "reviewer", "after": ["implement"] }
+                        { "id": "gate", "type": "review", "agent": "reviewer", "after": ["implement"] }
                     ]
                 }
             }),
@@ -489,5 +550,45 @@ mod idempotent {
             first.status, rec.status,
             "status must not change across replay"
         );
+    }
+
+    #[test]
+    fn project_spawn_failed_sets_failed_with_error() {
+        let events = vec![
+            created_event("js1"),
+            make_event(
+                event_types::JOB_SPAWN_FAILED,
+                serde_json::json!({
+                    "job_id": "js1",
+                    "slug": "auth-tests",
+                    "stage": "executor_spawn",
+                    "error": "tmux: command not found",
+                }),
+            ),
+        ];
+        let map = project(&events);
+        let rec = map.get("js1").unwrap();
+        assert_eq!(rec.status, JobStatus::Failed);
+        assert_eq!(rec.error.as_deref(), Some("tmux: command not found"));
+    }
+
+    #[test]
+    fn project_cancelled_sets_cancelled_with_reason() {
+        let events = vec![
+            created_event("jc1"),
+            make_event(
+                event_types::JOB_CANCELLED,
+                serde_json::json!({
+                    "job_id": "jc1",
+                    "slug": "auth-tests",
+                    "reason": "superseded by rerun",
+                    "requested_by": "operator",
+                }),
+            ),
+        ];
+        let map = project(&events);
+        let rec = map.get("jc1").unwrap();
+        assert_eq!(rec.status, JobStatus::Cancelled);
+        assert_eq!(rec.error.as_deref(), Some("superseded by rerun"));
     }
 }

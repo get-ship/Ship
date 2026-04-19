@@ -1,9 +1,29 @@
 use anyhow::{Context, Result};
+use runtime::events::EventEnvelope;
+use runtime::events::daemon::{
+    CrashedPayload, PidfileAcquiredPayload, PidfileStaleTakenPayload,
+    ShutdownCompletedPayload, event_types as daemon_events,
+};
+use runtime::events::{EventStore, SqliteEventStore};
+use serde::Serialize;
 use std::path::{Path, PathBuf};
+
+pub mod pidfile;
+pub mod supervision;
+pub mod supervision_pidfile;
+pub mod supervision_systemd;
+
+#[cfg(test)]
+#[path = "daemon/supervision_tests.rs"]
+mod supervision_tests;
+
+use pidfile::{AcquireResult, PidfileRecord, PidfileRole};
+use supervision::{AdapterKind, StartContext, SupervisionStatus};
 
 pub enum DaemonCommand {
     Start { host: String, dev: bool },
     Stop,
+    Restart { host: String, dev: bool },
     Status,
     Cleanup,
     Run { host: String, port: u16, dev: bool, with_ui: bool },
@@ -61,13 +81,59 @@ fn is_process_alive(pid: u32) -> bool {
 
 pub fn run_daemon(cmd: DaemonCommand) -> Result<()> {
     match cmd {
-        DaemonCommand::Start { host, dev } => daemon_start(host, dev),
-        DaemonCommand::Stop => daemon_stop(),
+        DaemonCommand::Start { host, dev } => {
+            let ctx = start_context(host, dev)?;
+            check_version_mismatch(&ctx.global_dir)?;
+            supervision::select().start(&ctx)
+        }
+        DaemonCommand::Stop => supervision::select().stop(),
+        DaemonCommand::Restart { host, dev } => {
+            let ctx = start_context(host, dev)?;
+            supervision::select().restart(&ctx)
+        }
         DaemonCommand::Status => daemon_status(),
         DaemonCommand::Cleanup => daemon_cleanup(),
         DaemonCommand::Run { host, port, dev, with_ui } => daemon_run(host, port, dev, with_ui),
         DaemonCommand::Supervise { host, dev } => daemon_supervise(host, dev),
     }
+}
+
+fn start_context(host: String, dev: bool) -> Result<StartContext> {
+    // Dev mode pins the bind to localhost regardless of --host so that
+    // the relaxed auth surface is never exposed on a LAN. Applied here
+    // so both adapters see the same final host.
+    let host = if dev { "127.0.0.1".to_string() } else { host };
+    Ok(StartContext {
+        host,
+        dev,
+        global_dir: ship_dir()?,
+    })
+}
+
+/// Refuse `ship daemon start` when a live daemon is running a different
+/// version than the CLI we're invoking. This catches the "copy a fresh
+/// shipd into ~/.local/bin and forget to restart" footgun, where the
+/// stale process keeps serving old code while the operator thinks the
+/// new one is live.
+///
+/// Only `start` checks. `restart` is the remediation, so version mismatch
+/// during restart is expected — we *want* to replace the old process.
+/// `stop` doesn't care: shutting down a stale daemon is never wrong.
+fn check_version_mismatch(global_dir: &Path) -> Result<()> {
+    let Some((record, true)) = pidfile::read(global_dir)? else {
+        return Ok(());
+    };
+    let installed = env!("CARGO_PKG_VERSION");
+    if record.version != installed {
+        anyhow::bail!(
+            "shipd version mismatch: running {} (pid {}), installed {}.\n\
+             Use `ship daemon restart` to replace the running daemon.",
+            record.version,
+            record.pid,
+            installed
+        );
+    }
+    Ok(())
 }
 
 /// Maximum restart attempts within the window before giving up.
@@ -79,28 +145,41 @@ const INITIAL_BACKOFF: std::time::Duration = std::time::Duration::from_secs(1);
 /// Maximum backoff between restarts.
 const MAX_BACKOFF: std::time::Duration = std::time::Duration::from_secs(60);
 
-fn daemon_start(host: String, dev: bool) -> Result<()> {
+/// Legacy start path wired to the pidfile adapter. Spawns the supervisor
+/// process, which in turn owns the actual `shipd` child. Reachable only
+/// through `PidfileAdapter::start` (or `ensure_daemon` in-process) —
+/// `run_daemon` never calls this directly.
+pub(super) fn daemon_start_inner(host: &str, dev: bool) -> Result<()> {
     let pid_path = pid_file()?;
     let log_path = log_file()?;
+    let global_dir = ship_dir()?;
     // Dev mode forces localhost bind regardless of --host.
-    let host = if dev { "127.0.0.1".to_string() } else { host };
+    let host = if dev { "127.0.0.1".to_string() } else { host.to_string() };
 
-    // Check if already running.
-    if let Some(pid) = read_pid(&pid_path)? {
-        if is_process_alive(pid) {
-            println!("shipd already running (pid {}, port {})", pid, SHIPD_PORT);
-            return Ok(());
-        }
-        // Stale PID file — remove it.
-        let _ = std::fs::remove_file(&pid_path);
+    // Check if already running. The pidfile lock is the source of truth;
+    // a held lock means a live supervisor exists. Falling back to the legacy
+    // pid file keeps callers honest if the lock-based pidfile is missing.
+    if let Some((record, true)) = pidfile::read(&global_dir)? {
+        println!(
+            "shipd already running (pid {}, port {}, version {})",
+            record.pid, record.port, record.version
+        );
+        return Ok(());
     }
+    if let Some(pid) = read_pid(&pid_path)?
+        && is_process_alive(pid)
+    {
+        println!("shipd already running (pid {}, port {})", pid, SHIPD_PORT);
+        return Ok(());
+    }
+    // Stale legacy pid file — remove it before spawning.
+    let _ = std::fs::remove_file(&pid_path);
 
     let self_exe = std::env::current_exe().context("cannot determine own executable path")?;
 
     // Ensure ~/.ship/ and crashes dir exist.
-    let ship = ship_dir()?;
-    std::fs::create_dir_all(&ship).context("cannot create ~/.ship/ directory")?;
-    let crashes_dir = ship.join("crashes");
+    std::fs::create_dir_all(&global_dir).context("cannot create ~/.ship/ directory")?;
+    let crashes_dir = global_dir.join("crashes");
     std::fs::create_dir_all(&crashes_dir).context("cannot create ~/.ship/crashes/ directory")?;
 
     // Fork the supervisor into the background.
@@ -144,9 +223,64 @@ fn daemon_start(host: String, dev: bool) -> Result<()> {
 /// Called via `ship daemon supervise`. Not meant to be called directly by users.
 fn daemon_supervise(host: String, dev: bool) -> Result<()> {
     let self_exe = std::env::current_exe().context("cannot determine own executable path")?;
-    let crashes_dir = ship_dir()?.join("crashes");
+    let global_dir = ship_dir()?;
+    let crashes_dir = global_dir.join("crashes");
     // Dev mode forces localhost bind.
     let host = if dev { "127.0.0.1".to_string() } else { host };
+
+    // Acquire the OS-enforced singleton lock. Another live supervisor
+    // holding the lock means we exit cleanly with its identity.
+    let record = PidfileRecord {
+        pid: std::process::id(),
+        port: SHIPD_PORT,
+        version: env!("CARGO_PKG_VERSION").to_string(),
+        commit_sha: option_env!("VERGEN_GIT_SHA").unwrap_or("unknown").to_string(),
+        started_at: chrono::Utc::now().to_rfc3339(),
+        pidfile_path: String::new(),
+        socket_path: String::new(),
+        role: PidfileRole::Supervisor,
+    };
+    let supervisor_pid = record.pid;
+    let pidfile_path = pidfile::pidfile_path(&global_dir).display().to_string();
+    let _pidfile_guard = match pidfile::acquire(&global_dir, record)? {
+        AcquireResult::Fresh(guard) => {
+            emit_supervisor_event(
+                &global_dir,
+                daemon_events::DAEMON_PIDFILE_ACQUIRED,
+                "daemon",
+                &PidfileAcquiredPayload {
+                    pid: supervisor_pid,
+                    pidfile_path: pidfile_path.clone(),
+                },
+            );
+            guard
+        }
+        AcquireResult::StaleTaken { guard, prior } => {
+            emit_supervisor_event(
+                &global_dir,
+                daemon_events::DAEMON_PIDFILE_STALE_TAKEN,
+                "daemon",
+                &PidfileStaleTakenPayload {
+                    new_pid: supervisor_pid,
+                    prior_pid: prior.pid,
+                    prior_started_at: prior.started_at,
+                    prior_version: prior.version,
+                },
+            );
+            guard
+        }
+        AcquireResult::Held => {
+            if let Some((existing, _)) = pidfile::read(&global_dir)? {
+                eprintln!(
+                    "shipd already running (pid {}, port {}, version {})",
+                    existing.pid, existing.port, existing.version
+                );
+            } else {
+                eprintln!("shipd already running (pidfile lock held, no record readable)");
+            }
+            return Ok(());
+        }
+    };
 
     // Relay SIGTERM/SIGINT to the child, then exit cleanly.
     let child_pid: std::sync::Arc<std::sync::atomic::AtomicU32> =
@@ -203,6 +337,7 @@ fn daemon_supervise(host: String, dev: bool) -> Result<()> {
             .with_context(|| "supervisor: cannot spawn daemon")?;
 
         let pid = child.id();
+        let child_started_at = std::time::Instant::now();
         eprintln!("shipd supervisor: daemon started (pid {pid})");
 
         #[cfg(unix)]
@@ -210,6 +345,7 @@ fn daemon_supervise(host: String, dev: bool) -> Result<()> {
 
         // Wait for child to exit.
         let status = child.wait().context("supervisor: failed to wait on child")?;
+        let child_uptime_secs = child_started_at.elapsed().as_secs();
 
         #[cfg(unix)]
         CHILD_PID.store(0, std::sync::atomic::Ordering::SeqCst);
@@ -222,11 +358,33 @@ fn daemon_supervise(host: String, dev: bool) -> Result<()> {
 
         if should_stop {
             eprintln!("shipd supervisor: clean shutdown (child exit: {status})");
+            emit_supervisor_event(
+                &global_dir,
+                daemon_events::DAEMON_SHUTDOWN_COMPLETED,
+                "daemon",
+                &ShutdownCompletedPayload {
+                    pid,
+                    uptime_secs: child_uptime_secs,
+                    agents_drained: 0,
+                    trigger: "operator".to_string(),
+                },
+            );
             break;
         }
 
         if status.success() {
             eprintln!("shipd supervisor: daemon exited cleanly");
+            emit_supervisor_event(
+                &global_dir,
+                daemon_events::DAEMON_SHUTDOWN_COMPLETED,
+                "daemon",
+                &ShutdownCompletedPayload {
+                    pid,
+                    uptime_secs: child_uptime_secs,
+                    agents_drained: 0,
+                    trigger: "child_exited_cleanly".to_string(),
+                },
+            );
             break;
         }
 
@@ -238,6 +396,24 @@ fn daemon_supervise(host: String, dev: bool) -> Result<()> {
             backoff.as_secs()
         );
         write_crash_report(&crashes_dir, &reason, Some(pid));
+
+        let (exit_code, signal) = exit_status_parts(&status);
+        let last_known_event_id =
+            runtime::db::event_log_summary(&global_dir).latest_event_id;
+        let restart_will_be_attempted = restart_count < MAX_RESTARTS;
+        emit_supervisor_event(
+            &global_dir,
+            daemon_events::DAEMON_CRASHED,
+            "daemon",
+            &CrashedPayload {
+                pid,
+                uptime_secs: child_uptime_secs,
+                exit_code,
+                signal,
+                last_known_event_id,
+                restart_will_be_attempted,
+            },
+        );
 
         std::thread::sleep(backoff);
         backoff = (backoff * 2).min(MAX_BACKOFF);
@@ -259,6 +435,68 @@ fn format_exit_status(status: &std::process::ExitStatus) -> String {
     match status.code() {
         Some(code) => format!("exit code {code}"),
         None => "unknown".to_string(),
+    }
+}
+
+/// Split an exit status into (exit_code, signal_name). Either may be None.
+/// Used by `daemon.crashed` payloads.
+fn exit_status_parts(status: &std::process::ExitStatus) -> (Option<i32>, Option<String>) {
+    #[cfg(unix)]
+    {
+        use std::os::unix::process::ExitStatusExt;
+        if let Some(sig) = status.signal() {
+            return (None, Some(signal_name(sig)));
+        }
+    }
+    (status.code(), None)
+}
+
+#[cfg(unix)]
+fn signal_name(sig: i32) -> String {
+    match sig {
+        libc::SIGHUP => "SIGHUP".into(),
+        libc::SIGINT => "SIGINT".into(),
+        libc::SIGQUIT => "SIGQUIT".into(),
+        libc::SIGILL => "SIGILL".into(),
+        libc::SIGABRT => "SIGABRT".into(),
+        libc::SIGFPE => "SIGFPE".into(),
+        libc::SIGKILL => "SIGKILL".into(),
+        libc::SIGSEGV => "SIGSEGV".into(),
+        libc::SIGPIPE => "SIGPIPE".into(),
+        libc::SIGTERM => "SIGTERM".into(),
+        other => format!("signal_{other}"),
+    }
+}
+
+/// Append a daemon.* lifecycle event from the supervisor process.
+///
+/// The supervisor lives in its own process and has no in-memory kernel —
+/// the platform event store is the source of truth. The daemon child reads
+/// from the event log when it comes up; in-memory subscribers are the cache.
+/// Failures are logged to stderr (the supervisor's own log channel) and
+/// swallowed: telemetry must never block lifecycle decisions.
+fn emit_supervisor_event<P: Serialize>(
+    global_dir: &Path,
+    event_type: &str,
+    entity_id: &str,
+    payload: &P,
+) {
+    let envelope = match EventEnvelope::new(event_type, entity_id, payload) {
+        Ok(e) => e.with_actor_id("daemon"),
+        Err(e) => {
+            eprintln!("shipd supervisor: cannot build {event_type} envelope: {e}");
+            return;
+        }
+    };
+    let store = match SqliteEventStore::new_at(global_dir) {
+        Ok(s) => s,
+        Err(e) => {
+            eprintln!("shipd supervisor: cannot open event store: {e}");
+            return;
+        }
+    };
+    if let Err(e) = store.append(&envelope) {
+        eprintln!("shipd supervisor: cannot append {event_type}: {e}");
     }
 }
 
@@ -299,7 +537,11 @@ fn daemon_run(host: String, port: u16, dev: bool, with_ui: bool) -> Result<()> {
     rt.block_on(shipd::run_network(host, port, dev, with_ui, None))
 }
 
-fn daemon_stop() -> Result<()> {
+/// Legacy stop path wired to the pidfile adapter. Reads the supervisor
+/// pid from `~/.ship/daemon.pid` and sends SIGTERM. Only the pidfile
+/// adapter invokes this — systemd-managed installations go through
+/// `systemctl --user stop`.
+pub(super) fn daemon_stop_inner() -> Result<()> {
     let pid_path = pid_file()?;
 
     let pid = match read_pid(&pid_path)? {
@@ -331,20 +573,157 @@ fn daemon_stop() -> Result<()> {
 }
 
 fn daemon_status() -> Result<()> {
-    let pid_path = pid_file()?;
+    let global_dir = ship_dir()?;
+    let adapter = supervision::select();
+    let supervision_status = adapter.status(&global_dir)?;
 
-    match read_pid(&pid_path)? {
-        Some(pid) if is_process_alive(pid) => {
-            println!("shipd running (pid {}, port {})", pid, SHIPD_PORT);
+    // Try the live REST endpoint first — that's the daemon's own status,
+    // richer than what a supervisor adapter can see from outside.
+    if let Some((port, token)) = daemon_info_if_healthy() {
+        return print_live_status(port, &token, &supervision_status);
+    }
+
+    print_supervision_only(&supervision_status);
+    Ok(())
+}
+
+fn print_supervision_only(s: &SupervisionStatus) {
+    if !s.running {
+        match s.pid {
+            Some(pid) => println!(
+                "shipd not running (stale pidfile from pid {pid})"
+            ),
+            None => println!("shipd not running"),
         }
-        Some(pid) => {
-            println!("shipd not running (stale pid {})", pid);
-        }
-        None => {
-            println!("shipd not running");
+        println!("  supervised by: {}", s.adapter.label());
+        return;
+    }
+    println!("shipd supervisor running — daemon unreachable");
+    println!("  supervised by: {}", s.adapter.label());
+    if let Some(pid) = s.pid {
+        println!("  pid:           {pid}");
+    }
+    if let Some(v) = &s.version {
+        println!("  version:       {v}");
+    }
+    if let Some(u) = s.uptime_secs {
+        println!("  uptime:        {}", format_uptime(u));
+    }
+    if s.adapter == AdapterKind::Systemd {
+        print_journal_tail(s);
+    }
+}
+
+fn print_live_status(port: u16, token: &str, supervision: &SupervisionStatus) -> Result<()> {
+    let supervisor_pid = supervision.pid;
+    let url = format!("http://127.0.0.1:{port}/api/runtime/daemon/status");
+    let mut resp = ureq::get(&url)
+        .header("Authorization", &format!("Bearer {token}"))
+        .config()
+        .http_status_as_error(false)
+        .build()
+        .call()
+        .map_err(|e| anyhow::anyhow!("status request failed: {e}"))?;
+    let value: serde_json::Value = resp
+        .body_mut()
+        .read_json()
+        .map_err(|e| anyhow::anyhow!("status: malformed response body: {e}"))?;
+
+    if !value["ok"].as_bool().unwrap_or(false) {
+        anyhow::bail!(
+            "daemon returned error: {}",
+            value["data"].as_str().unwrap_or("unknown")
+        );
+    }
+    let d = &value["data"];
+    let pid = d["pid"].as_u64().unwrap_or(0);
+    let version = d["version"].as_str().unwrap_or("?");
+    let uptime = format_uptime(d["uptime_secs"].as_u64().unwrap_or(0));
+    let total = d["jobs_total"].as_u64().unwrap_or(0);
+    let by_status = d["jobs_by_status"].as_object().cloned().unwrap_or_default();
+    let by_status_summary: Vec<String> = by_status
+        .iter()
+        .filter_map(|(k, v)| v.as_u64().map(|n| (k.clone(), n)))
+        .filter(|(_, n)| *n > 0)
+        .map(|(k, n)| format!("{n} {k}"))
+        .collect();
+    let last_sweep = d["last_sweep_at"]
+        .as_str()
+        .map(format_relative_time)
+        .unwrap_or_else(|| "never".to_string());
+    let drift = d["last_sweep_drift"].as_u64().unwrap_or(0);
+
+    println!("shipd running");
+    println!("  supervised by:  {}", supervision.adapter.label());
+    println!("  pid:            {pid}");
+    if let Some(s) = supervisor_pid {
+        if (s as u64) != pid {
+            println!("  supervisor pid: {s}");
         }
     }
+    println!("  version:        {version}");
+    println!("  port:           {port}");
+    println!("  uptime:         {uptime}");
+    if by_status_summary.is_empty() {
+        println!("  jobs:           {total} total");
+    } else {
+        println!(
+            "  jobs:           {total} total ({})",
+            by_status_summary.join(", ")
+        );
+    }
+    println!("  last sweep:     {last_sweep}");
+    println!("  drift detected: {drift}");
+    if supervision.adapter == AdapterKind::Systemd {
+        print_journal_tail(supervision);
+    }
     Ok(())
+}
+
+fn print_journal_tail(s: &SupervisionStatus) {
+    if let Some(tail) = s.extras.iter().find(|(k, _)| k == "journal_tail") {
+        println!("  journal tail:");
+        for line in tail.1.lines() {
+            println!("    {line}");
+        }
+    }
+}
+
+/// Render seconds as `2h 14m`, `34m 12s`, or `47s` — keeps the longest
+/// two units that still fit in 8 chars.
+fn format_uptime(secs: u64) -> String {
+    let days = secs / 86_400;
+    let hours = (secs % 86_400) / 3_600;
+    let mins = (secs % 3_600) / 60;
+    let s = secs % 60;
+    if days > 0 {
+        format!("{days}d {hours}h")
+    } else if hours > 0 {
+        format!("{hours}h {mins}m")
+    } else if mins > 0 {
+        format!("{mins}m {s}s")
+    } else {
+        format!("{s}s")
+    }
+}
+
+/// Render an RFC3339 timestamp as `8s ago`, `12m ago`, `2h ago`, etc.
+fn format_relative_time(ts: &str) -> String {
+    let Ok(dt) = chrono::DateTime::parse_from_rfc3339(ts) else {
+        return ts.to_string();
+    };
+    let secs = (chrono::Utc::now() - dt.with_timezone(&chrono::Utc))
+        .num_seconds()
+        .max(0);
+    if secs < 60 {
+        format!("{secs}s ago")
+    } else if secs < 3600 {
+        format!("{}m ago", secs / 60)
+    } else if secs < 86400 {
+        format!("{}h ago", secs / 3600)
+    } else {
+        format!("{}d ago", secs / 86400)
+    }
 }
 
 fn daemon_cleanup() -> Result<()> {
@@ -460,9 +839,11 @@ pub fn ensure_daemon() -> Result<(u16, String)> {
         return Ok((port, token));
     }
 
-    // Start the daemon.
+    // Start the daemon via the adapter so systemd-managed installs use
+    // `systemctl --user start` instead of the legacy supervisor spawn.
     eprintln!("shipd: starting daemon...");
-    daemon_start("0.0.0.0".to_string(), false)?;
+    let ctx = start_context("0.0.0.0".to_string(), false)?;
+    supervision::select().start(&ctx)?;
 
     // Wait for the daemon to become healthy (up to 5 seconds).
     let deadline = std::time::Instant::now() + std::time::Duration::from_secs(5);

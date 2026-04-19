@@ -88,7 +88,8 @@ pub struct ShipRuntime {
     /// Project workspace dir (e.g. `/path/to/repo`) when the daemon was
     /// started with `--workspace`. Drives project-scoped artifact storage.
     workspace_dir: Option<PathBuf>,
-
+    /// Wall-clock instant the daemon process started — used for uptime.
+    started_at: std::time::Instant,
 }
 
 impl ShipRuntime {
@@ -198,8 +199,13 @@ impl ShipRuntime {
             data_service: tokio::sync::Mutex::new(None),
             view_sessions: Arc::new(crate::views::session::ViewSessionRegistry::default()),
             workspace_dir,
-
+            started_at: std::time::Instant::now(),
         })
+    }
+
+    /// Process uptime since the runtime was constructed.
+    pub fn uptime(&self) -> std::time::Duration {
+        self.started_at.elapsed()
     }
 
     pub fn kernel(&self) -> &SharedKernel {
@@ -370,7 +376,7 @@ impl ShipRuntime {
             data_service: tokio::sync::Mutex::new(None),
             view_sessions: Arc::new(crate::views::session::ViewSessionRegistry::default()),
             workspace_dir,
-
+            started_at: std::time::Instant::now(),
         }
     }
 
@@ -398,7 +404,7 @@ impl ShipRuntime {
             data_service: tokio::sync::Mutex::new(None),
             view_sessions: Arc::new(crate::views::session::ViewSessionRegistry::default()),
             workspace_dir,
-
+            started_at: std::time::Instant::now(),
         }
     }
 
