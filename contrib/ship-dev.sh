@@ -55,8 +55,9 @@ fi
 # --- Ports ---
 PORTS=(
   -p 3000:3000   # Ship Studio (Vite dev)
-  -p 3001:3001   # Ship Studio (alt)
+  -p 3001:3001   # Ship Shell (alt Vite dev)
   -p 3002:3002   # Vite HMR websocket
+  -p 3100:3100   # Ship Shell (Vite dev — canonical)
   -p 4321:4321   # Astro docs site (dev)
   -p 4983:4983   # Drizzle Studio
   -p 5173:5173   # Vite dev server / Vite Inspect

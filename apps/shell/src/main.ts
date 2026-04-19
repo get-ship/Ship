@@ -126,10 +126,21 @@ function closeSSE() {
 // ── Mount a daemon view ──────────────────────────────────────────────
 async function mount(endpoint: string, sse?: string) {
   closeSSE();
-  // Close drawer SSE too — prevent stale SSE targeting missing elements
-  if (drawerSSE) { drawerSSE.close(); drawerSSE = null; }
 
-  view.innerHTML = `<div class="empty-hint"><ship-spinner size="sm"></ship-spinner></div>`;
+  // Tear down the old view completely — this triggers Datastar's
+  // MutationObserver disconnect, closing any internal SSE connections
+  // the previous view's {{ live() }} macro started.
+  view.textContent = "";
+
+  // Show loading skeleton
+  view.innerHTML = `
+    <div style="padding:var(--space-6) var(--space-5);max-width:960px;margin:0 auto">
+      <ship-skeleton variant="text" lines="1" width="40%" style="margin-bottom:var(--space-4)"></ship-skeleton>
+      <ship-skeleton variant="rect" height="120px" style="margin-bottom:var(--space-4)"></ship-skeleton>
+      <ship-skeleton variant="text" lines="3" style="margin-bottom:var(--space-4)"></ship-skeleton>
+      <ship-skeleton variant="rect" height="200px"></ship-skeleton>
+    </div>`;
+
   try {
     await mountDaemonFragment(view, endpoint, {
       token: TOKEN,
@@ -141,7 +152,6 @@ async function mount(endpoint: string, sse?: string) {
   }
   if (sse) {
     currentSSE = openDaemonSSE(sse, { token: TOKEN, base: DAEMON_BASE });
-    // Suppress SSE errors (reconnects are normal during navigation)
     currentSSE.onerror = () => {};
   }
 }
@@ -328,11 +338,41 @@ document.addEventListener("keydown", (e) => {
   }
 });
 
-// ── Status bar ───────────────────────────────────────────────────────
-function updateStatus() {
+// ── Status bar — live daemon data ────────────────────────────────────
+let daemonConnected = false;
+
+async function updateStatus() {
   statusTheme.textContent = getThemeName();
-  // TODO: fetch workspace info from daemon for branch + agent count
+  try {
+    const res = await fetch("/api/runtime/workspace", {
+      credentials: SAME_ORIGIN ? "include" : "omit",
+      headers: !SAME_ORIGIN && TOKEN ? { Authorization: `Bearer ${TOKEN}` } : {},
+    });
+    if (res.ok) {
+      const data = await res.json();
+      statusBranch.textContent = data.branch || "no branch";
+      statusAgents.textContent = `${data.agent_count ?? 0} agents`;
+      statusDot.classList.remove("disconnected");
+      daemonConnected = true;
+    } else {
+      markDisconnected();
+    }
+  } catch {
+    markDisconnected();
+  }
 }
+
+function markDisconnected() {
+  if (daemonConnected) {
+    statusDot.classList.add("disconnected");
+    statusBranch.textContent = "offline";
+    statusAgents.textContent = "";
+    daemonConnected = false;
+  }
+}
+
+// Poll status every 15s
+setInterval(updateStatus, 15000);
 
 // ── Expose globals ───────────────────────────────────────────────────
 (window as any).router = router;
