@@ -1,0 +1,21 @@
+name: shell-smoke
+description: >
+  Pure-shell headless smoke. Zero LLM cost. Reproduces the headless
+  dispatch regression — if shell steps fail, it's not agent-side.
+auto_merge: false
+steps:
+  - id: one
+    run: |
+      echo "step 1"
+      echo "step 1" > smoke.txt
+      git add smoke.txt
+      git -c user.name=smoke -c user.email=smoke@ship.dev commit -m "smoke step 1"
+  - id: two
+    run: |
+      echo "step 2 appended" >> smoke.txt
+      git -c user.name=smoke -c user.email=smoke@ship.dev commit -am "smoke step 2"
+    after: [one]
+  - id: three
+    run: |
+      test -f smoke.txt && grep -q "step 2 appended" smoke.txt
+    after: [two]

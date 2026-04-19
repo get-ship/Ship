@@ -190,6 +190,7 @@ fn observed_advance(job_id: &str, slug: &str) -> EventEnvelope {
         verdict: StepVerdict::Advance,
         succeeded: true,
         start_sha: None,
+        log_tail: None,
     };
     EventEnvelope::new(event_types::STEP_OBSERVED, job_id, &payload).unwrap()
 }
