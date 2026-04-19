@@ -1,0 +1,807 @@
+{
+  "gallery": {
+    "totalCards": 102,
+    "definedCount": 68,
+    "hydratedCount": 68,
+    "zeroSizeCount": 2,
+    "consoleErrors": [],
+    "cards": [
+      {
+        "tag": "ship-markdown",
+        "defined": true,
+        "hasShadow": true,
+        "width": 291,
+        "height": 195
+      },
+      {
+        "tag": "ship-code",
+        "defined": true,
+        "hasShadow": true,
+        "width": 256,
+        "height": 101
+      },
+      {
+        "tag": "ship-code",
+        "defined": true,
+        "hasShadow": true,
+        "width": 163,
+        "height": 73
+      },
+      {
+        "tag": "ship-kbd",
+        "defined": true,
+        "hasShadow": true,
+        "width": 73,
+        "height": 19
+      },
+      {
+        "tag": "ship-kbd",
+        "defined": true,
+        "hasShadow": true,
+        "width": 135,
+        "height": 19
+      },
+      {
+        "tag": "ship-kbd",
+        "defined": true,
+        "hasShadow": true,
+        "width": 31,
+        "height": 19
+      },
+      {
+        "tag": "ship-link",
+        "defined": true,
+        "hasShadow": true,
+        "width": 68,
+        "height": 20
+      },
+      {
+        "tag": "ship-link",
+        "defined": true,
+        "hasShadow": true,
+        "width": 59,
+        "height": 20
+      },
+      {
+        "tag": "ship-link",
+        "defined": true,
+        "hasShadow": true,
+        "width": 87,
+        "height": 20
+      },
+      {
+        "tag": "ship-timestamp",
+        "defined": true,
+        "hasShadow": true,
+        "width": 48,
+        "height": 20
+      },
+      {
+        "tag": "ship-timestamp",
+        "defined": true,
+        "hasShadow": true,
+        "width": 211,
+        "height": 20
+      },
+      {
+        "tag": "ship-json-view",
+        "defined": true,
+        "hasShadow": true,
+        "width": 197,
+        "height": 252
+      },
+      {
+        "tag": "div",
+        "defined": false,
+        "hasShadow": false,
+        "width": 1310,
+        "height": 279
+      },
+      {
+        "tag": "div",
+        "defined": false,
+        "hasShadow": false,
+        "width": 1310,
+        "height": 73
+      },
+      {
+        "tag": "div",
+        "defined": false,
+        "hasShadow": false,
+        "width": 1310,
+        "height": 73
+      },
+      {
+        "tag": "div",
+        "defined": false,
+        "hasShadow": false,
+        "width": 1310,
+        "height": 243
+      },
+      {
+        "tag": "div",
+        "defined": false,
+        "hasShadow": false,
+        "width": 1310,
+        "height": 73
+      },
+      {
+        "tag": "ship-copy-button",
+        "defined": true,
+        "hasShadow": true,
+        "width": 137,
+        "height": 22
+      },
+      {
+        "tag": "ship-copy-button",
+        "defined": true,
+        "hasShadow": true,
+        "width": 59,
+        "height": 22
+      },
+      {
+        "tag": "div",
+        "defined": false,
+        "hasShadow": false,
+        "width": 1310,
+        "height": 228
+      },
+      {
+        "tag": "div",
+        "defined": false,
+        "hasShadow": false,
+        "width": 1310,
+        "height": 132
+      },
+      {
+        "tag": "ship-textarea",
+        "defined": true,
+        "hasShadow": true,
+        "width": 1310,
+        "height": 81
+      },
+      {
+        "tag": "ship-textarea",
+        "defined": true,
+        "hasShadow": true,
+        "width": 1310,
+        "height": 82
+      },
+      {
+        "tag": "ship-select",
+        "defined": true,
+        "hasShadow": true,
+        "width": 79,
+        "height": 73
+      },
+      {
+        "tag": "ship-select",
+        "defined": true,
+        "hasShadow": true,
+        "width": 99,
+        "height": 73
+      },
+      {
+        "tag": "ship-select",
+        "defined": true,
+        "hasShadow": true,
+        "width": 139,
+        "height": 73
+      },
+      {
+        "tag": "div",
+        "defined": false,
+        "hasShadow": false,
+        "width": 1310,
+        "height": 73
+      },
+      {
+        "tag": "div",
+        "defined": false,
+        "hasShadow": false,
+        "width": 1310,
+        "height": 73
+      },
+      {
+        "tag": "div",
+        "defined": false,
+        "hasShadow": false,
+        "width": 1310,
+        "height": 75
+      },
+      {
+        "tag": "div",
+        "defined": false,
+        "hasShadow": false,
+        "width": 1310,
+        "height": 73
+      },
+      {
+        "tag": "div",
+        "defined": false,
+        "hasShadow": false,
+        "width": 1310,
+        "height": 73
+      },
+      {
+        "tag": "ship-file-upload",
+        "defined": true,
+        "hasShadow": true,
+        "width": 239,
+        "height": 105
+      },
+      {
+        "tag": "ship-file-upload",
+        "defined": true,
+        "hasShadow": true,
+        "width": 239,
+        "height": 105
+      },
+      {
+        "tag": "ship-file-upload",
+        "defined": true,
+        "hasShadow": true,
+        "width": 239,
+        "height": 105
+      },
+      {
+        "tag": "ship-file-upload",
+        "defined": true,
+        "hasShadow": true,
+        "width": 239,
+        "height": 105
+      },
+      {
+        "tag": "ship-field",
+        "defined": true,
+        "hasShadow": true,
+        "width": 198,
+        "height": 83
+      },
+      {
+        "tag": "ship-field",
+        "defined": true,
+        "hasShadow": true,
+        "width": 198,
+        "height": 83
+      },
+      {
+        "tag": "ship-label",
+        "defined": true,
+        "hasShadow": true,
+        "width": 67,
+        "height": 20
+      },
+      {
+        "tag": "ship-label",
+        "defined": true,
+        "hasShadow": true,
+        "width": 104,
+        "height": 20
+      },
+      {
+        "tag": "ship-label",
+        "defined": true,
+        "hasShadow": true,
+        "width": 77,
+        "height": 20
+      },
+      {
+        "tag": "div",
+        "defined": false,
+        "hasShadow": false,
+        "width": 1310,
+        "height": 219
+      },
+      {
+        "tag": "div",
+        "defined": false,
+        "hasShadow": false,
+        "width": 1310,
+        "height": 73
+      },
+      {
+        "tag": "div",
+        "defined": false,
+        "hasShadow": false,
+        "width": 293,
+        "height": 8
+      },
+      {
+        "tag": "div",
+        "defined": false,
+        "hasShadow": false,
+        "width": 293,
+        "height": 26
+      },
+      {
+        "tag": "div",
+        "defined": false,
+        "hasShadow": false,
+        "width": 293,
+        "height": 60
+      },
+      {
+        "tag": "div",
+        "defined": false,
+        "hasShadow": false,
+        "width": 293,
+        "height": 48
+      },
+      {
+        "tag": "ship-alert",
+        "defined": true,
+        "hasShadow": true,
+        "width": 407,
+        "height": 80
+      },
+      {
+        "tag": "ship-alert",
+        "defined": true,
+        "hasShadow": true,
+        "width": 254,
+        "height": 79
+      },
+      {
+        "tag": "ship-alert",
+        "defined": true,
+        "hasShadow": true,
+        "width": 284,
+        "height": 79
+      },
+      {
+        "tag": "ship-alert",
+        "defined": true,
+        "hasShadow": true,
+        "width": 247,
+        "height": 79
+      },
+      {
+        "tag": "div",
+        "defined": false,
+        "hasShadow": false,
+        "width": 1310,
+        "height": 116
+      },
+      {
+        "tag": "ship-table",
+        "defined": true,
+        "hasShadow": true,
+        "width": 1310,
+        "height": 200
+      },
+      {
+        "tag": "ship-meter",
+        "defined": true,
+        "hasShadow": true,
+        "width": 1310,
+        "height": 73
+      },
+      {
+        "tag": "div",
+        "defined": false,
+        "hasShadow": false,
+        "width": 293,
+        "height": 292
+      },
+      {
+        "tag": "div",
+        "defined": false,
+        "hasShadow": false,
+        "width": 293,
+        "height": 120
+      },
+      {
+        "tag": "div",
+        "defined": false,
+        "hasShadow": false,
+        "width": 293,
+        "height": 40
+      },
+      {
+        "tag": "ship-bar-chart",
+        "defined": true,
+        "hasShadow": true,
+        "width": 1310,
+        "height": 200
+      },
+      {
+        "tag": "ship-line-chart",
+        "defined": true,
+        "hasShadow": true,
+        "width": 1310,
+        "height": 200
+      },
+      {
+        "tag": "ship-area-chart",
+        "defined": true,
+        "hasShadow": true,
+        "width": 1310,
+        "height": 200
+      },
+      {
+        "tag": "ship-heatmap",
+        "defined": true,
+        "hasShadow": true,
+        "width": 1310,
+        "height": 474
+      },
+      {
+        "tag": "ship-pagination",
+        "defined": true,
+        "hasShadow": true,
+        "width": 292,
+        "height": 73
+      },
+      {
+        "tag": "div",
+        "defined": false,
+        "hasShadow": false,
+        "width": 1310,
+        "height": 79
+      },
+      {
+        "tag": "ship-separator",
+        "defined": true,
+        "hasShadow": true,
+        "width": 293,
+        "height": 1
+      },
+      {
+        "tag": "ship-toolbar",
+        "defined": true,
+        "hasShadow": true,
+        "width": 244,
+        "height": 73
+      },
+      {
+        "tag": "ship-breadcrumb",
+        "defined": true,
+        "hasShadow": true,
+        "width": 251,
+        "height": 73
+      },
+      {
+        "tag": "ship-tabs",
+        "defined": true,
+        "hasShadow": true,
+        "width": 253,
+        "height": 76
+      },
+      {
+        "tag": "ship-tabs",
+        "defined": true,
+        "hasShadow": true,
+        "width": 189,
+        "height": 73
+      },
+      {
+        "tag": "ship-accordion",
+        "defined": true,
+        "hasShadow": true,
+        "width": 456,
+        "height": 194
+      },
+      {
+        "tag": "ship-collapsible",
+        "defined": true,
+        "hasShadow": true,
+        "width": 293,
+        "height": 102
+      },
+      {
+        "tag": "ship-scroll-area",
+        "defined": true,
+        "hasShadow": true,
+        "width": 260,
+        "height": 140
+      },
+      {
+        "tag": "ship-navigation-menu",
+        "defined": true,
+        "hasShadow": true,
+        "width": 310,
+        "height": 73
+      },
+      {
+        "tag": "ship-tree-view",
+        "defined": true,
+        "hasShadow": true,
+        "width": 149,
+        "height": 216
+      },
+      {
+        "tag": "ship-timeline",
+        "defined": true,
+        "hasShadow": true,
+        "width": 177,
+        "height": 212
+      },
+      {
+        "tag": "div",
+        "defined": false,
+        "hasShadow": false,
+        "width": 293,
+        "height": 164
+      },
+      {
+        "tag": "div",
+        "defined": false,
+        "hasShadow": false,
+        "width": 293,
+        "height": 20
+      },
+      {
+        "tag": "div",
+        "defined": false,
+        "hasShadow": false,
+        "width": 293,
+        "height": 56
+      },
+      {
+        "tag": "ship-theme-toggle",
+        "defined": true,
+        "hasShadow": true,
+        "width": 58,
+        "height": 28
+      },
+      {
+        "tag": "ship-metachip",
+        "defined": true,
+        "hasShadow": true,
+        "width": 291,
+        "height": 29
+      },
+      {
+        "tag": "div",
+        "defined": false,
+        "hasShadow": false,
+        "width": 1310,
+        "height": 73
+      },
+      {
+        "tag": "div",
+        "defined": false,
+        "hasShadow": false,
+        "width": 293,
+        "height": 26
+      },
+      {
+        "tag": "div",
+        "defined": false,
+        "hasShadow": false,
+        "width": 1310,
+        "height": 273
+      },
+      {
+        "tag": "ship-button",
+        "defined": true,
+        "hasShadow": true,
+        "width": 90,
+        "height": 28
+      },
+      {
+        "tag": "ship-button",
+        "defined": true,
+        "hasShadow": true,
+        "width": 72,
+        "height": 28
+      },
+      {
+        "tag": "ship-popover",
+        "defined": true,
+        "hasShadow": true,
+        "width": 0,
+        "height": 0
+      },
+      {
+        "tag": "ship-tooltip",
+        "defined": true,
+        "hasShadow": true,
+        "width": 79,
+        "height": 28
+      },
+      {
+        "tag": "ship-dropdown-menu",
+        "defined": true,
+        "hasShadow": true,
+        "width": 60,
+        "height": 34
+      },
+      {
+        "tag": "ship-context-menu",
+        "defined": true,
+        "hasShadow": true,
+        "width": 0,
+        "height": 0
+      },
+      {
+        "tag": "ship-hover-card",
+        "defined": true,
+        "hasShadow": true,
+        "width": 59,
+        "height": 18
+      },
+      {
+        "tag": "ship-button",
+        "defined": true,
+        "hasShadow": true,
+        "width": 85,
+        "height": 28
+      },
+      {
+        "tag": "div",
+        "defined": false,
+        "hasShadow": false,
+        "width": 440,
+        "height": 73
+      },
+      {
+        "tag": "ship-pipeline-dag",
+        "defined": true,
+        "hasShadow": true,
+        "width": 610,
+        "height": 82
+      },
+      {
+        "tag": "div",
+        "defined": false,
+        "hasShadow": false,
+        "width": 293,
+        "height": 164
+      },
+      {
+        "tag": "ship-pipeline-run",
+        "defined": true,
+        "hasShadow": true,
+        "width": 495,
+        "height": 210
+      },
+      {
+        "tag": "div",
+        "defined": false,
+        "hasShadow": false,
+        "width": 1310,
+        "height": 121
+      },
+      {
+        "tag": "div",
+        "defined": false,
+        "hasShadow": false,
+        "width": 1310,
+        "height": 73
+      },
+      {
+        "tag": "ship-history-row",
+        "defined": true,
+        "hasShadow": true,
+        "width": 160,
+        "height": 73
+      },
+      {
+        "tag": "ship-event-row",
+        "defined": true,
+        "hasShadow": true,
+        "width": 321,
+        "height": 73
+      },
+      {
+        "tag": "ship-event-row",
+        "defined": true,
+        "hasShadow": true,
+        "width": 327,
+        "height": 73
+      },
+      {
+        "tag": "ship-log-line",
+        "defined": true,
+        "hasShadow": true,
+        "width": 404,
+        "height": 92
+      },
+      {
+        "tag": "ship-git-diff",
+        "defined": true,
+        "hasShadow": true,
+        "width": 330,
+        "height": 179
+      },
+      {
+        "tag": "div",
+        "defined": false,
+        "hasShadow": false,
+        "width": 293,
+        "height": 72
+      },
+      {
+        "tag": "ship-diff",
+        "defined": true,
+        "hasShadow": true,
+        "width": 106,
+        "height": 102
+      }
+    ],
+    "issues": [
+      "ship-json-view: key color=oklch(0.67 0.16 58) (verify dark mode readability)",
+      "ship-tree-view: 0 nodes found"
+    ]
+  },
+  "views": [
+    {
+      "path": "/dashboard",
+      "loaded": true,
+      "shellIntact": true,
+      "consoleErrors": [],
+      "cssIssues": [],
+      "datastarErrors": []
+    },
+    {
+      "path": "/skills",
+      "loaded": true,
+      "shellIntact": true,
+      "consoleErrors": [],
+      "cssIssues": [],
+      "datastarErrors": []
+    },
+    {
+      "path": "/agents",
+      "loaded": true,
+      "shellIntact": true,
+      "consoleErrors": [],
+      "cssIssues": [],
+      "datastarErrors": []
+    },
+    {
+      "path": "/settings",
+      "loaded": true,
+      "shellIntact": true,
+      "consoleErrors": [],
+      "cssIssues": [],
+      "datastarErrors": []
+    },
+    {
+      "path": "/pipelines",
+      "loaded": true,
+      "shellIntact": true,
+      "consoleErrors": [],
+      "cssIssues": [],
+      "datastarErrors": []
+    },
+    {
+      "path": "/git",
+      "loaded": true,
+      "shellIntact": true,
+      "consoleErrors": [],
+      "cssIssues": [],
+      "datastarErrors": []
+    },
+    {
+      "path": "/data",
+      "loaded": true,
+      "shellIntact": true,
+      "consoleErrors": [],
+      "cssIssues": [
+        "zero-height: SHIP-CARD."
+      ],
+      "datastarErrors": []
+    },
+    {
+      "path": "/canvas",
+      "loaded": true,
+      "shellIntact": true,
+      "consoleErrors": [
+        "opts is not defined"
+      ],
+      "cssIssues": [],
+      "datastarErrors": []
+    },
+    {
+      "path": "/events",
+      "loaded": true,
+      "shellIntact": true,
+      "consoleErrors": [],
+      "cssIssues": [],
+      "datastarErrors": []
+    }
+  ]
+}

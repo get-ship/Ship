@@ -14,14 +14,10 @@
       MCP Servers
       <span class="ad-section-count">{{ agent.mcp_servers | length }} attached</span>
     </h2>
-    <button class="ad-section-action" disabled>
-      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor"
-           stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-        <line x1="12" y1="5" x2="12" y2="19"/>
-        <line x1="5" y1="12" x2="19" y2="12"/>
-      </svg>
+    <ship-button class="ad-section-action" variant="outline" size="sm" disabled>
+      <ship-icon slot="leading" name="plus"></ship-icon>
       Add
-    </button>
+    </ship-button>
   </div>
   {% if agent.mcp_servers | length == 0 %}
     <div class="ad-empty">
@@ -38,15 +34,10 @@
           </div>
         </div>
       {% endfor %}
-      <button class="ad-add-chip" disabled>
-        <svg width="12" height="12" viewBox="0 0 24 24" fill="none"
-             stroke="currentColor" stroke-width="2" stroke-linecap="round"
-             stroke-linejoin="round">
-          <line x1="12" y1="5" x2="12" y2="19"/>
-          <line x1="5" y1="12" x2="19" y2="12"/>
-        </svg>
+      <ship-button class="ad-add-chip" variant="ghost" size="sm" disabled>
+        <ship-icon slot="leading" name="plus"></ship-icon>
         Add server
-      </button>
+      </ship-button>
     </div>
   {% endif %}
 </section>

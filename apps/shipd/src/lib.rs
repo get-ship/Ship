@@ -28,6 +28,7 @@ pub mod view_sessions_api;
 pub mod feedback_api;
 pub mod mcp_apps_bridge;
 mod server;
+pub mod themes;
 pub mod views;
 pub mod views_raw;
 pub mod views_git;

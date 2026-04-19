@@ -120,3 +120,28 @@ pub async fn serve_elements_catalog() -> axum::response::Response {
         .body(axum::body::Body::from(SHIP_ELEMENTS_CATALOG))
         .unwrap()
 }
+
+/// GET /api/runtime/assets/theme.css
+/// Returns the active theme's CSS overrides. No-cache so theme changes apply immediately.
+pub async fn serve_theme_css() -> axum::response::Response {
+    let css = crate::themes::resolve_theme_css();
+    axum::response::Response::builder()
+        .status(StatusCode::OK)
+        .header(axum::http::header::CONTENT_TYPE, "text/css; charset=utf-8")
+        .header(axum::http::header::CACHE_CONTROL, "no-cache")
+        .body(axum::body::Body::from(css))
+        .unwrap()
+}
+
+/// GET /api/runtime/themes
+/// Returns JSON list of all available themes.
+pub async fn serve_themes_list() -> axum::response::Response {
+    let themes = crate::themes::list_themes();
+    let json = serde_json::to_string(&themes).unwrap_or_else(|_| "[]".to_string());
+    axum::response::Response::builder()
+        .status(StatusCode::OK)
+        .header(axum::http::header::CONTENT_TYPE, "application/json; charset=utf-8")
+        .header(axum::http::header::CACHE_CONTROL, "no-cache")
+        .body(axum::body::Body::from(json))
+        .unwrap()
+}

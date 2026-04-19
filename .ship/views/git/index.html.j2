@@ -21,51 +21,51 @@
   <style>
   {#- Base layout -#}
   .ship-view-git { color: var(--foreground); }
-  .git-wrap { width: 100%; max-width: 672px; margin: 0 auto; padding: 24px 16px; }
+  .git-wrap { width: 100%; max-width: 672px; margin: 0 auto; padding: calc(var(--space-4) + var(--space-2)) var(--space-4); }
   .git-wrap--diff { max-width: none; padding: 0; }
 
   {#- Header -#}
   .git-header {
-    display: flex; align-items: center; gap: 8px;
-    margin-bottom: 16px;
+    display: flex; align-items: center; gap: var(--space-2);
+    margin-bottom: var(--space-4);
   }
   .git-header h1 {
     font-family: var(--font-display);
-    font-size: 18px; font-weight: 600;
+    font-size: 18px; font-weight: var(--font-weight-semibold);
     letter-spacing: -0.01em; margin: 0;
   }
   .git-header-icon { color: var(--muted-foreground); }
   .git-badge {
-    display: inline-flex; align-items: center; gap: 4px;
-    font-size: 12px; font-weight: 500;
-    padding: 2px 8px; border-radius: 9999px;
+    display: inline-flex; align-items: center; gap: var(--space-1);
+    font-size: var(--text-xs); font-weight: var(--font-weight-medium);
+    padding: 2px var(--space-2); border-radius: 9999px;
   }
   .git-badge--clean { color: var(--success); background: color-mix(in oklch, var(--success) 10%, transparent); }
   .git-badge--dirty { color: var(--warning); background: color-mix(in oklch, var(--warning) 10%, transparent); }
 
   {#- Review banner -#}
   .git-review-banner {
-    display: flex; align-items: flex-start; gap: 8px;
-    margin-bottom: 12px; padding: 8px 12px;
+    display: flex; align-items: flex-start; gap: var(--space-2);
+    margin-bottom: var(--space-3); padding: var(--space-2) var(--space-3);
     border-radius: var(--radius-lg);
     border: 1px solid color-mix(in oklch, var(--success) 30%, transparent);
     background: color-mix(in oklch, var(--success) 10%, transparent);
   }
   .git-review-banner ship-icon { color: var(--success); flex-shrink: 0; margin-top: 1px; }
-  .git-review-banner p { font-size: 12px; color: var(--foreground); margin: 0; }
-  .git-review-banner strong { font-weight: 500; }
+  .git-review-banner p { font-size: var(--text-xs); color: var(--foreground); margin: 0; }
+  .git-review-banner strong { font-weight: var(--font-weight-medium); }
 
   {#- Branch toolbar -#}
   .git-branch-bar {
-    display: flex; align-items: center; gap: 8px;
-    padding: 12px; margin-bottom: 12px;
+    display: flex; align-items: center; gap: var(--space-2);
+    padding: var(--space-3); margin-bottom: var(--space-3);
     border-radius: var(--radius-lg);
     background: color-mix(in oklch, var(--card) 80%, var(--muted));
     border: 1px solid color-mix(in oklch, var(--border) 50%, transparent);
   }
   .git-branch-name {
     display: inline-flex; align-items: center; gap: 6px;
-    font-family: var(--font-mono); font-size: 12px; font-weight: 500;
+    font-family: var(--font-mono); font-size: var(--text-xs); font-weight: var(--font-weight-medium);
   }
   .git-dot {
     width: 6px; height: 6px; border-radius: 9999px; flex-shrink: 0;
@@ -74,29 +74,29 @@
   .git-dot--warn { background: var(--warning); }
   .git-changed-count {
     margin-left: auto;
-    display: inline-flex; align-items: center; gap: 4px;
+    display: inline-flex; align-items: center; gap: var(--space-1);
     font-size: 10px; color: var(--muted-foreground);
   }
 
   {#- Status breakdown -#}
   .git-breakdown {
-    display: flex; gap: 12px; font-size: 10px;
+    display: flex; gap: var(--space-3); font-size: 10px;
     color: var(--muted-foreground); margin-bottom: 10px;
   }
-  .git-breakdown span { display: inline-flex; align-items: center; gap: 4px; }
+  .git-breakdown span { display: inline-flex; align-items: center; gap: var(--space-1); }
 
   {#- File list -#}
   .git-file-list {
     display: flex; flex-direction: column;
-    margin-bottom: 12px;
+    margin-bottom: var(--space-3);
     border: 1px solid color-mix(in oklch, var(--border) 50%, transparent);
     border-radius: var(--radius-md); overflow: hidden;
   }
   .git-file-row {
-    display: flex; align-items: center; gap: 8px;
+    display: flex; align-items: center; gap: var(--space-2);
     width: 100%; padding: 6px 10px;
     background: transparent; border: 0;
-    font-family: var(--font-mono); font-size: 12px;
+    font-family: var(--font-mono); font-size: var(--text-xs);
     color: var(--foreground); cursor: pointer; text-align: left;
     transition: background var(--duration-fast) ease;
   }
@@ -110,7 +110,7 @@
   .git-file-badge {
     display: inline-block;
     font-family: var(--font-mono); font-size: 9px; line-height: 1;
-    padding: 2px 5px; border-radius: 3px;
+    padding: 2px 5px; border-radius: var(--radius-sm);
     font-weight: 700; letter-spacing: 0.02em;
     flex-shrink: 0; text-align: center; min-width: 18px;
   }
@@ -126,8 +126,8 @@
   {#- View diff button -#}
   .git-view-diff-btn {
     display: flex; align-items: center; justify-content: center; gap: 6px;
-    width: 100%; padding: 7px 12px;
-    font-size: 10px; font-weight: 500;
+    width: 100%; padding: 7px var(--space-3);
+    font-size: 10px; font-weight: var(--font-weight-medium);
     color: var(--primary);
     border: 1px solid color-mix(in oklch, var(--primary) 20%, transparent);
     border-radius: var(--radius-md);
@@ -142,21 +142,21 @@
   .git-divider {
     border: 0;
     border-top: 1px solid color-mix(in oklch, var(--border) 40%, transparent);
-    margin: 16px 0;
+    margin: var(--space-4) 0;
   }
 
   {#- Commit log -#}
   .git-log-heading {
-    font-size: 10px; font-weight: 600;
+    font-size: 10px; font-weight: var(--font-weight-semibold);
     text-transform: uppercase; letter-spacing: 0.08em;
     color: color-mix(in oklch, var(--muted-foreground) 50%, transparent);
-    margin-bottom: 8px;
+    margin-bottom: var(--space-2);
   }
   .git-log { display: flex; flex-direction: column; gap: 2px; }
   .git-commit {
     display: block; width: 100%; text-align: left;
     background: transparent; border: 0;
-    padding: 8px; margin: 0 -4px;
+    padding: var(--space-2); margin: 0 -4px;
     border-radius: var(--radius-md); cursor: pointer;
     transition: background var(--duration-fast) ease;
   }
@@ -164,13 +164,13 @@
     background: color-mix(in oklch, var(--muted) 40%, transparent);
   }
   .git-commit-subject {
-    font-size: 13px; color: var(--muted-foreground);
+    font-size: var(--text-sm); color: var(--muted-foreground);
     line-height: 1.4;
     transition: color var(--duration-fast) ease;
   }
   .git-commit:hover .git-commit-subject { color: var(--foreground); }
   .git-commit-meta {
-    display: flex; align-items: center; gap: 8px;
+    display: flex; align-items: center; gap: var(--space-2);
     margin-top: 3px; font-size: 10px;
     color: color-mix(in oklch, var(--muted-foreground) 50%, transparent);
   }
@@ -190,8 +190,8 @@
 
   {#- Diff toolbar -#}
   .git-diff-toolbar {
-    display: flex; align-items: center; gap: 8px;
-    padding: 8px 16px;
+    display: flex; align-items: center; gap: var(--space-2);
+    padding: var(--space-2) var(--space-4);
     border-bottom: 1px solid color-mix(in oklch, var(--border) 60%, transparent);
     flex-shrink: 0;
   }
@@ -207,19 +207,19 @@
     background: color-mix(in oklch, var(--muted) 60%, transparent);
   }
   .git-diff-label {
-    font-size: 12px; font-weight: 500;
+    font-size: var(--text-xs); font-weight: var(--font-weight-medium);
     color: var(--foreground);
   }
   .git-show-working {
     background: transparent; border: 0;
     font-size: 10px; color: var(--muted-foreground);
-    cursor: pointer; margin-left: 8px;
+    cursor: pointer; margin-left: var(--space-2);
     transition: color var(--duration-fast) ease;
   }
   .git-show-working:hover { color: var(--foreground); }
 
   {#- Diff body -#}
-  .git-diff-body { padding: 0 16px 16px; }
+  .git-diff-body { padding: 0 var(--space-4) var(--space-4); }
   </style>
   <div class="git-wrap{% if selected_commit %} git-wrap--diff{% endif %}">
     {% if error %}

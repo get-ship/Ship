@@ -18,27 +18,27 @@
 
 <div id="git-content">
 {% if error %}
-  <div style="padding: 16px;">
+  <div style="padding: var(--space-4);">
     <h2 style="font-size: 14px; color: var(--destructive);">{{ error.title }}</h2>
-    <p style="font-size: 12px; color: var(--muted-foreground);">{{ error.body }}</p>
+    <p style="font-size: var(--text-xs); color: var(--muted-foreground);">{{ error.body }}</p>
   </div>
 {% elif selected_commit %}
   {# -- Diff viewer mode -- #}
   <div class="ship-git-diff-header">
-    <button type="button" class="ship-git-back" aria-label="Back"
+    <ship-button variant="ghost" size="sm" aria-label="Back"
       data-on:click="@get('{{ sse_url }}{% if workspace_id %}?workspace_id={{ workspace_id }}{% endif %}')">
       <ship-icon name="arrow-left" size="sm"></ship-icon>
-    </button>
+    </ship-button>
     <ship-icon name="git-branch" size="sm" class="ship-git-header-icon"></ship-icon>
     <span class="ship-git-diff-title">
       {% if selected_commit.is_working %}Working tree diff
       {% else %}Commit {{ selected_commit.short_sha }}{% endif %}
     </span>
     {% if not selected_commit.is_working %}
-      <button type="button" class="ship-git-show-working"
+      <ship-button variant="ghost" size="sm"
         data-on:click="@get('{{ sse_url }}?commit=WORKING{{ ws_qs }}')">
         Show working tree
-      </button>
+      </ship-button>
     {% endif %}
   </div>
 
@@ -127,11 +127,11 @@
       {% endif %}
       <span class="ship-git-toolbar-spacer"></span>
       {% if total_changed and total_changed > 0 %}
-        <button type="button" class="ship-git-toolbar-link"
+        <ship-button variant="ghost" size="sm"
           data-on:click="@get('{{ sse_url }}?commit=WORKING{{ ws_qs }}')">
           <ship-icon name="git-compare" size="xs"></ship-icon>
           View diff
-        </button>
+        </ship-button>
       {% endif %}
     </div>
     {% endif %}

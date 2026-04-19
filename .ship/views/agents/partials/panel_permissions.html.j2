@@ -14,46 +14,33 @@
       </svg>
       Permissions
     </h2>
-    <button class="ad-section-action" disabled>
-      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor"
-           stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-        <path d="M17 3a2.85 2.83 0 1 1 4 4L7.5 20.5 2 22l1.5-5.5Z"/>
-      </svg>
+    <ship-button class="ad-section-action" variant="outline" size="sm" disabled>
+      <ship-icon slot="leading" name="pencil"></ship-icon>
       Edit
-    </button>
+    </ship-button>
   </div>
 
   <!-- Preset buttons -->
   <div class="ad-preset-row" role="radiogroup" aria-label="Permission preset">
     {% for t in tiers %}
-      <button class="ad-preset-btn"
+      <ship-button class="ad-preset-btn"
+              variant="outline"
               role="radio"
               tabindex="0"
               {{ radio('tier', t.id) }}
               aria-checked="{% if t.selected %}true{% else %}false{% endif %}">
         <span class="ad-preset-label">
           {% if t.id == 'standard' %}
-            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor"
-                 stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-              <path d="M20 13c0 5-3.5 7.5-7.66 8.95a1 1 0 0 1-.67-.01C7.5 20.5 4 18 4 13V6a1 1 0 0 1 1-1c2 0 4.5-1.2 6.24-2.72a1.17 1.17 0 0 1 1.52 0C14.51 3.81 17 5 19 5a1 1 0 0 1 1 1z"/>
-            </svg>
+            <ship-icon name="shield"></ship-icon>
           {% elif t.id == 'autonomous' %}
-            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor"
-                 stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-              <path d="M20 13c0 5-3.5 7.5-7.66 8.95a1 1 0 0 1-.67-.01C7.5 20.5 4 18 4 13V6a1 1 0 0 1 1-1c2 0 4.5-1.2 6.24-2.72a1.17 1.17 0 0 1 1.52 0C14.51 3.81 17 5 19 5a1 1 0 0 1 1 1z"/>
-              <path d="m9 12 2 2 4-4"/>
-            </svg>
+            <ship-icon name="shield-check"></ship-icon>
           {% else %}
-            <svg viewBox="0 0 24 24" fill="none" stroke="currentColor"
-                 stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-              <path d="M20 13c0 5-3.5 7.5-7.66 8.95a1 1 0 0 1-.67-.01C7.5 20.5 4 18 4 13V6a1 1 0 0 1 1-1c2 0 4.5-1.2 6.24-2.72a1.17 1.17 0 0 1 1.52 0C14.51 3.81 17 5 19 5a1 1 0 0 1 1 1z"/>
-              <path d="m2 2 20 20"/>
-            </svg>
+            <ship-icon name="shield-off"></ship-icon>
           {% endif %}
           {{ t.label }}
         </span>
         <p class="ad-preset-desc">{{ t.description }}</p>
-      </button>
+      </ship-button>
     {% endfor %}
   </div>
 

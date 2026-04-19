@@ -7,7 +7,7 @@
     <ship-empty-state icon="sparkles" variant="default" size="lg">
       <span slot="title">No agents yet</span>
       Drop a JSONC file under
-      <code style="font-family:var(--font-mono);font-size:12px;padding:2px 6px;border-radius:4px;background:var(--muted);color:var(--foreground)">.ship/agents/</code>
+      <code style="font-family:var(--font-mono);font-size:var(--text-xs);padding:2px var(--radius-md);border-radius:var(--radius-sm);background:var(--muted);color:var(--foreground)">.ship/agents/</code>
       or create one from the Studio.
       <ship-button slot="action" tone="accent" variant="solid"
         {{ post(view_agents_create(), '{}') }}>

@@ -17,7 +17,10 @@ export async function mountDaemonFragment(
 ): Promise<void> {
   const sameOrigin = isSameOrigin(opts.base);
   const url = sameOrigin ? path : opts.base.replace(/\/$/, "") + path;
-  const headers: Record<string, string> = { Accept: "text/html" };
+  const headers: Record<string, string> = {
+    Accept: "text/html",
+    "Datastar-Request": "true",
+  };
   if (!sameOrigin && opts.token) headers.Authorization = `Bearer ${opts.token}`;
   const res = await fetch(url, {
     method: "GET",

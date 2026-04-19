@@ -4,30 +4,30 @@
 .ship-run-card {
   display: flex;
   align-items: flex-start;
-  gap: 0.75rem;
+  gap: var(--space-3);
   border: 1px solid color-mix(in oklch, var(--border) 60%, transparent);
   background: var(--card);
-  border-radius: 0.5rem;
-  padding: 1rem;
+  border-radius: var(--radius-lg);
+  padding: var(--space-4);
   transition: border-color 0.15s;
 }
 .ship-run-card:hover { border-color: var(--border); }
-.ship-run-dot { flex-shrink: 0; margin-top: 0.375rem; }
+.ship-run-dot { flex-shrink: 0; margin-top: var(--space-1); }
 .ship-run-body { flex: 1; min-width: 0; }
-.ship-run-title-row { display: flex; align-items: center; gap: 0.5rem; }
+.ship-run-title-row { display: flex; align-items: center; gap: var(--space-2); }
 .ship-run-slug {
-  font-size: 0.875rem;
-  font-weight: 600;
+  font-size: var(--text-sm);
+  font-weight: var(--font-weight-semibold);
   color: var(--foreground);
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
 }
-.ship-run-status { font-size: 10px; font-weight: 500; }
+.ship-run-status { font-size: var(--text-xs); font-weight: var(--font-weight-medium); }
 .ship-run-detail {
-  font-size: 0.75rem;
+  font-size: var(--text-xs);
   color: color-mix(in oklch, var(--muted-foreground) 60%, transparent);
-  margin-top: 0.125rem;
+  margin-top: 2px;
   overflow: hidden;
   text-overflow: ellipsis;
   white-space: nowrap;
@@ -36,21 +36,21 @@
   display: flex;
   flex-direction: column;
   align-items: flex-end;
-  gap: 0.25rem;
+  gap: var(--space-1);
   flex-shrink: 0;
-  margin-top: 0.125rem;
+  margin-top: 2px;
 }
 .ship-run-when {
-  font-size: 11px;
+  font-size: var(--text-xs);
   color: color-mix(in oklch, var(--muted-foreground) 50%, transparent);
 }
 
 /* --- Banners --- */
 .ship-run-banner {
-  margin-top: 0.5rem;
-  border-radius: 0.375rem;
-  padding: 0.375rem 0.75rem;
-  font-size: 0.75rem;
+  margin-top: var(--space-2);
+  border-radius: var(--radius-md);
+  padding: var(--space-1) var(--space-3);
+  font-size: var(--text-xs);
 }
 .ship-run-banner.blocker,
 .ship-run-banner.error {
@@ -63,18 +63,18 @@
 .ship-run-deps {
   display: flex;
   align-items: center;
-  gap: 0.25rem;
+  gap: var(--space-1);
   flex-wrap: wrap;
-  margin-top: 0.375rem;
+  margin-top: var(--space-1);
 }
 .ship-run-deps-label {
-  font-size: 10px;
+  font-size: var(--text-xs);
   color: color-mix(in oklch, var(--muted-foreground) 50%, transparent);
 }
 .ship-run-dep-tag {
-  font-size: 10px;
-  padding: 0.125rem 0.375rem;
-  border-radius: 0.25rem;
+  font-size: var(--text-xs);
+  padding: 2px var(--space-1);
+  border-radius: var(--radius-sm);
   border: 1px solid var(--border);
   color: var(--muted-foreground);
 }
@@ -83,14 +83,14 @@
 .ship-run-steps {
   display: flex;
   align-items: center;
-  gap: 0.25rem;
-  margin-top: 0.5rem;
+  gap: var(--space-1);
+  margin-top: var(--space-2);
 }
 .ship-step-pill {
-  padding: 0.125rem 0.5rem;
-  border-radius: 0.25rem;
-  font-size: 10px;
-  font-weight: 500;
+  padding: 2px var(--space-2);
+  border-radius: var(--radius-sm);
+  font-size: var(--text-xs);
+  font-weight: var(--font-weight-medium);
 }
 .ship-step-pill.done {
   background: color-mix(in oklch, var(--success) 10%, transparent);
@@ -112,16 +112,16 @@
 
 /* --- Stop button --- */
 .ship-run-stop {
-  font-size: 10px;
+  font-size: var(--text-xs);
   color: var(--muted-foreground);
   cursor: pointer;
   background: none;
   border: none;
-  padding: 0.125rem 0.375rem;
-  border-radius: 0.25rem;
+  padding: 2px var(--space-1);
+  border-radius: var(--radius-sm);
   display: inline-flex;
   align-items: center;
-  gap: 0.25rem;
+  gap: var(--space-1);
   transition: color 0.15s, background 0.15s;
 }
 .ship-run-stop:hover {
@@ -133,28 +133,28 @@
 .ship-pipelines-def-list {
   display: flex;
   flex-direction: column;
-  gap: 0.5rem;
+  gap: var(--space-2);
 }
 .ship-def-card {
   border: 1px solid color-mix(in oklch, var(--border) 60%, transparent);
   background: var(--card);
-  border-radius: 0.5rem;
+  border-radius: var(--radius-lg);
   overflow: hidden;
 }
 .ship-def-header {
   display: flex;
   align-items: center;
-  gap: 0.75rem;
-  padding: 0.75rem 1rem;
+  gap: var(--space-3);
+  padding: var(--space-3) var(--space-4);
   cursor: pointer;
   transition: background 0.15s;
 }
 .ship-def-header:hover {
   background: color-mix(in oklch, var(--muted) 20%, transparent);
 }
-.ship-def-name { font-size: 0.875rem; font-weight: 600; }
+.ship-def-name { font-size: var(--text-sm); font-weight: var(--font-weight-semibold); }
 .ship-def-desc {
-  font-size: 0.75rem;
+  font-size: var(--text-xs);
   color: color-mix(in oklch, var(--muted-foreground) 60%, transparent);
   overflow: hidden;
   text-overflow: ellipsis;
@@ -163,7 +163,7 @@
   min-width: 0;
 }
 .ship-def-steps-count {
-  font-size: 10px;
+  font-size: var(--text-xs);
   color: color-mix(in oklch, var(--muted-foreground) 40%, transparent);
   flex-shrink: 0;
 }
@@ -171,14 +171,14 @@
   display: flex;
   align-items: center;
   justify-content: space-between;
-  margin-bottom: 1rem;
+  margin-bottom: var(--space-4);
 }
 .ship-def-templates-desc {
-  font-size: 0.75rem;
+  font-size: var(--text-xs);
   color: var(--muted-foreground);
 }
 .ship-pipelines-load-more {
   text-align: center;
-  margin: 1rem 0 0.25rem;
+  margin: var(--space-4) 0 var(--space-1);
 }
 </style>

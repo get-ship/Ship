@@ -1,6 +1,7 @@
 import Navigo from "navigo";
 import { mountDaemonFragment, openDaemonSSE, isSameOrigin } from "./mount";
 import { initSignalInspector } from "./signal-inspector";
+import { initThemeLoader, setTheme } from "./theme-loader";
 
 // ── Daemon URL rewriting ─────────────────────────────────────────────
 // Daemon templates emit absolute URLs (http://127.0.0.1:9315/api/...).
@@ -233,6 +234,10 @@ drawerBtn.addEventListener("click", async () => {
 
 // Start routing
 router.resolve();
+
+// Theming
+initThemeLoader();
+(window as any).setShipTheme = setTheme;
 
 // Dev tooling
 initSignalInspector();

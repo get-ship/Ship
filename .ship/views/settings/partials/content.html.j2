@@ -6,6 +6,9 @@
   {% include 'settings/partials/styles.html.j2' %}
   {% include 'settings/partials/icons.html.j2' %}
 
+  {# ── THEME ── #}
+  {% include 'settings/partials/theme.html.j2' %}
+
   {# ── PROVIDERS ── #}
   <div class="s-card">
     <div class="s-card-head">
@@ -24,13 +27,13 @@
           <span id="save-provider" class="s-save-badge">
             <svg><use href="#ico-check"/></svg> Saved
           </span>
-          <select class="s-select"
-            onchange="shipSaveSetting('defaults.provider', this.value, 'save-provider')">
+          <ship-select size="sm" id="sel-provider"
+            value="{{ default_provider }}">
             {% for p in providers %}
               <option value="{{ p.id }}"
                 {% if p.id == default_provider %}selected{% endif %}>{{ p.id }}</option>
             {% endfor %}
-          </select>
+          </ship-select>
         </div>
       </div>
 
@@ -43,16 +46,15 @@
           <span id="save-model" class="s-save-badge">
             <svg><use href="#ico-check"/></svg> Saved
           </span>
-          <input type="text" class="s-input" value="{{ default_model }}"
+          <ship-input size="sm" id="inp-model"
+            value="{{ default_model }}"
             placeholder="e.g. sonnet"
-            data-key="defaults.model"
-            onblur="shipCommitInput(this, 'save-model')"
-            onkeydown="if(event.key==='Enter'){this.blur()}" />
+            data-key="defaults.model"></ship-input>
         </div>
       </div>
 
       {% if providers and providers | length > 0 %}
-      <div style="padding: 4px 0 8px">
+      <div style="padding: var(--space-1) 0 var(--space-2)">
         <div class="s-provider-label">Installed providers</div>
         {% for p in providers %}
         <div class="s-prov">
@@ -91,13 +93,13 @@
           <span id="save-terminal" class="s-save-badge">
             <svg><use href="#ico-check"/></svg> Saved
           </span>
-          <select class="s-select"
-            onchange="shipSaveSetting('terminal.program', this.value, 'save-terminal')">
+          <ship-select size="sm" id="sel-terminal"
+            value="{{ terminal.program }}">
             {% for opt in terminal.options %}
               <option value="{{ opt.value }}"
                 {% if opt.value == terminal.program %}selected{% endif %}>{{ opt.label }}</option>
             {% endfor %}
-          </select>
+          </ship-select>
         </div>
       </div>
 
@@ -110,11 +112,10 @@
           <span id="save-worktree" class="s-save-badge">
             <svg><use href="#ico-check"/></svg> Saved
           </span>
-          <input type="text" class="s-input" value="{{ terminal.worktree_base }}"
+          <ship-input size="sm" id="inp-worktree"
+            value="{{ terminal.worktree_base }}"
             placeholder="/path/to/worktrees"
-            data-key="worktree.base_dir"
-            onblur="shipCommitInput(this, 'save-worktree')"
-            onkeydown="if(event.key==='Enter'){this.blur()}" />
+            data-key="worktree.base_dir"></ship-input>
         </div>
       </div>
     </div>
@@ -122,50 +123,49 @@
 
   {# ── ADVANCED (collapsible) ── #}
   <div class="s-card" id="advanced-card">
-    <button class="s-collapse-btn" type="button"
-      aria-expanded="false" aria-controls="advanced-body"
-      onclick="toggleAdvanced()">
-      <div class="s-card-title">
-        <svg><use href="#ico-settings2"/></svg>
-        Advanced
+    <ship-collapsible id="advanced-collapsible">
+      <div slot="trigger" class="s-collapse-trigger">
+        <div class="s-card-title">
+          <svg><use href="#ico-settings2"/></svg>
+          Advanced
+        </div>
+        <svg class="s-chevron" id="advanced-chevron"><use href="#ico-chevron-down"/></svg>
       </div>
-      <svg class="s-chevron" id="advanced-chevron"><use href="#ico-chevron-down"/></svg>
-    </button>
-    <div class="s-collapse-body" id="advanced-body">
-      <div class="s-card-body">
-        <div class="s-row">
-          <div><div class="s-row-label">Daemon status</div></div>
-          <div class="s-row-ctrl">
-            <span class="s-status">
-              <span class="s-status-dot"></span>
-              <span class="s-status-text">Connected</span>
-            </span>
+      <div class="s-collapse-inner">
+        <div class="s-card-body">
+          <div class="s-row">
+            <div><div class="s-row-label">Daemon status</div></div>
+            <div class="s-row-ctrl">
+              <span class="s-status">
+                <span class="s-status-dot"></span>
+                <span class="s-status-text">Connected</span>
+              </span>
+            </div>
           </div>
-        </div>
-        <div class="s-row">
-          <div><div class="s-row-label">Daemon endpoint</div></div>
-          <div class="s-row-ctrl">
-            <span class="s-mono-val">{{ daemon_endpoint }}</span>
+          <div class="s-row">
+            <div><div class="s-row-label">Daemon endpoint</div></div>
+            <div class="s-row-ctrl">
+              <span class="s-mono-val">{{ daemon_endpoint }}</span>
+            </div>
           </div>
-        </div>
-        <div class="s-row">
-          <div>
-            <div class="s-row-label">Registry endpoint</div>
-            <span class="s-row-sub">Package registry URL</span>
-          </div>
-          <div class="s-row-ctrl">
-            <span id="save-registry" class="s-save-badge">
-              <svg><use href="#ico-check"/></svg> Saved
-            </span>
-            <input type="text" class="s-input" value="{{ advanced_registry }}"
-              placeholder="https://registry.getship.dev"
-              data-key="registry.endpoint"
-              onblur="shipCommitInput(this, 'save-registry')"
-              onkeydown="if(event.key==='Enter'){this.blur()}" />
+          <div class="s-row">
+            <div>
+              <div class="s-row-label">Registry endpoint</div>
+              <span class="s-row-sub">Package registry URL</span>
+            </div>
+            <div class="s-row-ctrl">
+              <span id="save-registry" class="s-save-badge">
+                <svg><use href="#ico-check"/></svg> Saved
+              </span>
+              <ship-input size="sm" id="inp-registry"
+                value="{{ advanced_registry }}"
+                placeholder="https://registry.getship.dev"
+                data-key="registry.endpoint"></ship-input>
+            </div>
           </div>
         </div>
       </div>
-    </div>
+    </ship-collapsible>
   </div>
 
   {# ── ABOUT ── #}
@@ -233,5 +233,50 @@
       chevron.classList.toggle('open');
       btn.setAttribute('aria-expanded', String(!isOpen));
     }
+
+    /* Wire ship-select elements to save on change */
+    (function() {
+      var selProvider = document.getElementById('sel-provider');
+      if (selProvider) {
+        selProvider.addEventListener('ship-change', function(e) {
+          shipSaveSetting('defaults.provider', e.detail.value, 'save-provider');
+        });
+      }
+      var selTerminal = document.getElementById('sel-terminal');
+      if (selTerminal) {
+        selTerminal.addEventListener('ship-change', function(e) {
+          shipSaveSetting('terminal.program', e.detail.value, 'save-terminal');
+        });
+      }
+
+      /* Wire ship-input elements to commit on blur / Enter */
+      function wireInput(id, badgeId) {
+        var el = document.getElementById(id);
+        if (!el) return;
+        var origVal = el.getAttribute('value') || '';
+        el.addEventListener('ship-input', function() {});
+        el.addEventListener('focusout', function() {
+          var val = (el.value || '').trim();
+          if (val === origVal) return;
+          origVal = val;
+          shipSaveSetting(el.getAttribute('data-key'), val, badgeId);
+        });
+        el.addEventListener('keydown', function(e) {
+          if (e.key === 'Enter') el.blur();
+        });
+      }
+      wireInput('inp-model', 'save-model');
+      wireInput('inp-worktree', 'save-worktree');
+      wireInput('inp-registry', 'save-registry');
+
+      /* Wire ship-collapsible chevron rotation */
+      var collapsible = document.getElementById('advanced-collapsible');
+      if (collapsible) {
+        collapsible.addEventListener('ship-toggle', function(e) {
+          var chevron = document.getElementById('advanced-chevron');
+          if (chevron) chevron.classList.toggle('open', e.detail.open);
+        });
+      }
+    })();
   </script>
 </div>

@@ -15,14 +15,10 @@
       Rules
       <span class="ad-section-count">{{ agent.rules | length }} rules</span>
     </h2>
-    <button class="ad-section-action" disabled>
-      <svg viewBox="0 0 24 24" fill="none" stroke="currentColor"
-           stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-        <line x1="12" y1="5" x2="12" y2="19"/>
-        <line x1="5" y1="12" x2="19" y2="12"/>
-      </svg>
+    <ship-button class="ad-section-action" variant="outline" size="sm" disabled>
+      <ship-icon slot="leading" name="plus"></ship-icon>
       Add
-    </button>
+    </ship-button>
   </div>
   {% if agent.rules | length == 0 %}
     <div class="ad-empty">
@@ -34,7 +30,7 @@
         <div class="ad-rule-row">
           <span class="ad-rule-name">{{ rule }}</span>
           <span class="ad-rule-preview">Project rule</span>
-          <button class="ad-rule-edit" disabled>edit</button>
+          <ship-button class="ad-rule-edit" variant="ghost" size="sm" disabled>edit</ship-button>
         </div>
       {% endfor %}
     </div>

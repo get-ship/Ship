@@ -76,6 +76,12 @@ pub enum Route {
     /// @route GET "/api/runtime/assets/ship-elements.md"
     AssetElementsCatalog,
 
+    /// @route GET "/api/runtime/assets/theme.css"
+    AssetThemeCss,
+
+    /// @route GET "/api/runtime/themes"
+    ListThemes,
+
     // ── Views: HTML shells + SSE streams ─────────────────────────────────
 
     /// @route GET "/api/runtime/view/pipelines"
