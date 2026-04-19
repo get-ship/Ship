@@ -1,6 +1,6 @@
 //! Shared row → EventEnvelope deserialization.
 //!
-//! Platform.db and actor DBs share the same 14-column `events` schema.
+//! `platform.db` and actor DBs share the same 14-column `events` schema.
 //! The job projection uses a 13-column SELECT (omitting `target_actor_id`).
 //! This module provides a single function for both cases.
 
