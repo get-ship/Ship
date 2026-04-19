@@ -12,7 +12,7 @@
 
 use crate::events::job::{StepObservedPayload, StepTrigger, StepType, StepVerdict, event_types};
 use crate::events::{EventEnvelope, KernelRouter};
-use crate::services::dispatch_ports::{ExitSignal, ProcessRegistryPort};
+use crate::services::dispatch_ports::{ExitSignal, JobExecutor, ProcessRegistryPort};
 use std::path::PathBuf;
 use std::sync::atomic::{AtomicBool, Ordering};
 use std::sync::Arc;
@@ -94,6 +94,7 @@ pub fn start_step_monitor(
     monitor: StepMonitor,
     kernel: Arc<Mutex<KernelRouter>>,
     registry: Arc<dyn ProcessRegistryPort>,
+    executor: Arc<dyn JobExecutor>,
     mut exit_rx: UnboundedReceiver<ExitSignal>,
     mut activity_rx: UnboundedReceiver<StepActivity>,
 ) {
@@ -219,6 +220,13 @@ pub fn start_step_monitor(
                         let (commits, uncommitted) = scan_git_evidence(
                             &monitor.work_dir, monitor.start_sha.as_deref(),
                         );
+                        // Kill the spawned process before advancing the
+                        // pipeline. Without this, the stalled agent keeps
+                        // running and fights the next step for worktree
+                        // state (cargo locks, git index, etc.).
+                        kill_spawned_process(
+                            &kernel, &registry, &executor, &monitor.slug,
+                        ).await;
                         emit_and_finish(
                             &monitor, &kernel, &registry,
                             StepTrigger::Timeout, None,
@@ -247,6 +255,29 @@ pub fn start_step_monitor(
             }
         }
     });
+}
+
+/// Stop the dispatched process for `slug` if the registry still has a
+/// handle. Emits `process.signal_sent` for observability; ignores stop
+/// errors (best-effort — the step is already terminal from the
+/// pipeline's view). `emit_and_finish` calls `registry.unregister`
+/// after us, so use `take` here to avoid a double-remove.
+async fn kill_spawned_process(
+    kernel: &Arc<Mutex<KernelRouter>>,
+    registry: &Arc<dyn ProcessRegistryPort>,
+    executor: &Arc<dyn JobExecutor>,
+    slug: &str,
+) {
+    let Some(handle) = registry.take(slug).await else {
+        return;
+    };
+    let pid = handle.pid;
+    super::emit::emit_process_signal_sent(
+        kernel, slug, pid, "SIGTERM", "step_timeout", "step_monitor",
+    ).await;
+    if let Err(e) = executor.stop(&handle).await {
+        tracing::warn!(slug, "step-monitor: stop on timeout returned err: {e}");
+    }
 }
 
 /// Build the payload, emit step.observed, and unregister from the registry.
