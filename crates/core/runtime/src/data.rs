@@ -25,11 +25,43 @@ pub struct DataService {
 }
 
 impl DataService {
-    /// Open or create `data.db` in the given `.ship/` directory.
+    /// Open or create `data.db` in the given `.ship/` directory and run
+    /// runtime startup — register built-in collection schemas and migrate
+    /// legacy user content from `platform.db`.
+    ///
+    /// Startup is idempotent: schema registration is a no-op if tables
+    /// already exist, and migration is gated by a completion flag.
     pub fn open(ship_dir: &Path) -> Result<Self> {
+        let mut svc = Self::open_raw(ship_dir)?;
+        svc.run_startup(ship_dir)?;
+        Ok(svc)
+    }
+
+    /// Open `data.db` without running startup. Exposed for startup code
+    /// that manages registration and migration itself (e.g. the migration
+    /// module's own tests).
+    pub fn open_raw(ship_dir: &Path) -> Result<Self> {
         let db_path = ship_dir.join("data.db");
         let conn = open_connection(&db_path)?;
         Ok(Self { conn, db_path })
+    }
+
+    /// Register built-in schemas and run the platform-to-collections
+    /// migration. Idempotent — safe to call repeatedly.
+    pub fn run_startup(&mut self, ship_dir: &Path) -> Result<()> {
+        crate::collections::builtin::register_builtin_schemas(self)?;
+        let platform_path = ship_dir.join("platform.db");
+        let report =
+            crate::collections::migration::migrate_platform_to_collections(self, &platform_path)?;
+        if !report.already_migrated && !report.source_missing {
+            tracing::info!(
+                notes = report.notes_migrated,
+                adrs = report.adrs_migrated,
+                specs = report.specs_migrated,
+                "collections: migrated legacy platform rows into data.db"
+            );
+        }
+        Ok(())
     }
 
     /// Access the underlying connection for direct SQL operations.
