@@ -4,6 +4,18 @@ settings:
   autoInstallPeers: true
   excludeLinksFromLockfile: false
 
+catalogs:
+  default:
+    drizzle-orm:
+      specifier: 0.45.1
+      version: 0.45.1
+    hono:
+      specifier: 4.10.8
+      version: 4.10.8
+    zod:
+      specifier: 4.3.6
+      version: 4.3.6
+
 overrides:
   react: ^19.0.0
   react-dom: ^19.0.0
@@ -273,6 +285,44 @@ importers:
       wrangler:
         specifier: ^4.75.0
         version: 4.75.0
+
+  cloud/apps/actors/platform:
+    dependencies:
+      '@ship-cloud/types':
+        specifier: workspace:*
+        version: link:../../../packages/types
+      drizzle-orm:
+        specifier: 'catalog:'
+        version: 0.45.1(@types/better-sqlite3@7.6.13)(better-sqlite3@12.8.0)(kysely@0.28.12)(sql.js@1.14.1)
+
+  cloud/apps/actors/workspace:
+    dependencies:
+      '@ship-cloud/types':
+        specifier: workspace:*
+        version: link:../../../packages/types
+      drizzle-orm:
+        specifier: 'catalog:'
+        version: 0.45.1(@types/better-sqlite3@7.6.13)(better-sqlite3@12.8.0)(kysely@0.28.12)(sql.js@1.14.1)
+
+  cloud/apps/gateway:
+    dependencies:
+      '@ship-cloud/types':
+        specifier: workspace:*
+        version: link:../../packages/types
+      hono:
+        specifier: 'catalog:'
+        version: 4.10.8
+      zod:
+        specifier: 'catalog:'
+        version: 4.3.6
+
+  cloud/packages/types: {}
+
+  cloud/tools/drizzle:
+    devDependencies:
+      '@types/node':
+        specifier: ^22.0.0
+        version: 22.19.15
 
   packages/assets: {}
 
@@ -5535,6 +5585,10 @@ packages:
   highlight.js@11.11.1:
     resolution: {integrity: sha512-Xwwo44whKBVCYoliBQwaPvtd/2tYFkRQtXDWj1nackaV2JPXx3L0+Jvd8/qCJ2p+ML0/XVkJ2q+Mr+UVdpJK5w==}
     engines: {node: '>=12.0.0'}
+
+  hono@4.10.8:
+    resolution: {integrity: sha512-DDT0A0r6wzhe8zCGoYOmMeuGu3dyTAE40HHjwUsWFTEy5WxK1x2WDSsBPlEXgPbRIFY6miDualuUDbasPogIww==}
+    engines: {node: '>=16.9.0'}
 
   hono@4.12.4:
     resolution: {integrity: sha512-ooiZW1Xy8rQ4oELQ++otI2T9DsKpV0M6c6cO6JGx4RTfav9poFFLlet9UMXHZnoM1yG0HWGlQLswBGX3RZmHtg==}
@@ -11460,7 +11514,7 @@ snapshots:
       sirv: 3.0.2
       tinyglobby: 0.2.15
       tinyrainbow: 2.0.0
-      vitest: 3.2.4(@types/debug@4.1.12)(@types/node@25.3.3)(@vitest/ui@3.2.4)(jiti@2.6.1)(jsdom@28.1.0(@noble/hashes@2.0.1))(lightningcss@1.31.1)(msw@2.12.10(@types/node@25.3.3)(typescript@5.8.3))(tsx@4.21.0)
+      vitest: 3.2.4(@types/debug@4.1.12)(@types/node@22.19.15)(@vitest/ui@3.2.4)(jiti@2.6.1)(jsdom@28.1.0(@noble/hashes@2.0.1))(lightningcss@1.31.1)(msw@2.12.10(@types/node@22.19.15)(typescript@5.8.3))(tsx@4.21.0)
 
   '@vitest/utils@3.2.4':
     dependencies:
@@ -13105,6 +13159,8 @@ snapshots:
   headers-polyfill@4.0.3: {}
 
   highlight.js@11.11.1: {}
+
+  hono@4.10.8: {}
 
   hono@4.12.4: {}
 

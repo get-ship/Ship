@@ -3,6 +3,15 @@ packages:
   - "apps/web"
   - "apps/shell"
   - "packages/*"
+  - "cloud/apps/gateway"
+  - "cloud/apps/actors/*"
+  - "cloud/packages/*"
+  - "cloud/tools/*"
+
+catalog:
+  drizzle-orm: "0.45.1"
+  hono: "4.10.8"
+  zod: "4.3.6"
 
 enableGlobalVirtualStore: false
 
@@ -14,4 +23,5 @@ onlyBuiltDependencies:
   - better-sqlite3
   - esbuild
   - lightningcss
+  - sharp
   - workerd
