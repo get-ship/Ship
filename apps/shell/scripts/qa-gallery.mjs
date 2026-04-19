@@ -275,9 +275,9 @@ async function qaView(browser, path) {
 
     // Check shell chrome
     const shellCheck = await page.evaluate(() => {
-      const header = document.querySelector("header");
-      const main = document.querySelector("main#ship-view-root");
-      const nav = document.querySelector("header nav");
+      const header = document.querySelector("header") || document.querySelector(".ship-topbar");
+      const main = document.getElementById("ship-view-root");
+      const nav = document.querySelector(".ship-rail") || document.querySelector("header nav");
       return {
         hasHeader: !!header,
         hasMain: !!main,

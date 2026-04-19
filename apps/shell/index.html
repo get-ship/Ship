@@ -3,9 +3,9 @@
   <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <title>Ship Shell</title>
+    <title>Ship</title>
     <script>
-      // Load daemon-served assets dynamically so Vite doesn't try to pre-transform them.
+      // Load daemon-served assets dynamically (avoids Vite pre-transform errors).
       (function() {
         var base = '/api/runtime/assets/';
         var css = document.createElement('link');
@@ -19,11 +19,11 @@
       })();
     </script>
     <script>
-      // Theme boot — sync before paint to avoid a light-flash.
+      // Theme + mode boot — sync before first paint.
       (() => {
         const saved = localStorage.getItem("ship-shell-theme");
         const prefers = matchMedia("(prefers-color-scheme: dark)").matches;
-        const dark = saved ? saved === "dark" : prefers;
+        const dark = saved === "dark" || (!saved && prefers);
         document.documentElement.classList.toggle("dark", dark);
       })();
     </script>
@@ -32,7 +32,9 @@
       html, body { height: 100%; margin: 0; }
       * { box-sizing: border-box; }
 
-      /* ── Shell layout ── */
+      /* ── Shell: content-first layout ──
+         Top bar (32px) + full-bleed content + status bar (24px).
+         Panels toggle in from edges — nothing visible by default. */
       body {
         font-family: var(--font-body);
         background: var(--background);
@@ -40,135 +42,325 @@
         font-size: var(--text-base);
         line-height: var(--leading-normal);
         display: grid;
-        grid-template-rows: auto 1fr;
-        grid-template-columns: 1fr auto;
+        grid-template-rows: auto 1fr auto;
+        grid-template-columns: auto 1fr auto;
         min-height: 100vh;
+        overflow: hidden;
       }
 
-      /* ── Header chrome ── */
-      header {
+      /* ── Top bar: slim, one line ── */
+      .ship-topbar {
         grid-column: 1 / -1;
-        padding: var(--space-2) var(--space-5);
+        height: 36px;
+        padding: 0 var(--space-3);
         border-bottom: 1px solid var(--border);
         background: var(--sidebar);
         display: flex;
-        gap: var(--space-3);
         align-items: center;
+        gap: var(--space-2);
+        user-select: none;
+        -webkit-app-region: drag; /* draggable in Tauri/Electron */
       }
-      header .brand {
+      .ship-topbar .brand {
         font-family: var(--font-display);
-        font-weight: var(--font-weight-semibold);
-        font-size: var(--text-md);
-        letter-spacing: -0.01em;
+        font-weight: var(--font-weight-bold);
+        font-size: var(--text-sm);
         color: var(--foreground);
-        margin-right: var(--space-2);
+        letter-spacing: -0.02em;
+        margin-right: var(--space-1);
+        -webkit-app-region: no-drag;
       }
-      header nav { display: flex; gap: 2px; }
-      header nav a {
+      .ship-topbar .sep {
+        width: 1px;
+        height: 16px;
+        background: var(--border);
+      }
+      /* Breadcrumb area */
+      .ship-topbar .crumbs {
+        display: flex;
+        align-items: center;
+        gap: var(--space-1);
+        font-size: var(--text-sm);
+        color: var(--muted-foreground);
+        min-width: 0;
+        overflow: hidden;
+      }
+      .ship-topbar .crumbs a {
+        color: var(--muted-foreground);
         text-decoration: none;
-        color: var(--muted-foreground);
+        white-space: nowrap;
         cursor: pointer;
-        padding: var(--space-1) var(--space-2);
-        border-radius: var(--radius-md);
-        font-size: var(--text-sm);
+      }
+      .ship-topbar .crumbs a:hover { color: var(--foreground); }
+      .ship-topbar .crumbs .current {
+        color: var(--foreground);
         font-weight: var(--font-weight-medium);
-        transition: background var(--duration-fast) var(--ease-out),
-                    color var(--duration-fast) var(--ease-out);
       }
-      header nav a:hover {
-        background: var(--sidebar-accent);
-        color: var(--foreground);
+      .ship-topbar .crumbs .chevron {
+        color: var(--border);
+        font-size: var(--text-xs);
       }
-      header nav a.active {
-        background: color-mix(in oklch, var(--primary) 12%, transparent);
-        color: var(--primary);
-      }
-      .spacer { flex: 1; }
-
-      /* ── Gallery link ── */
-      .icon-btn {
-        background: transparent;
+      .ship-topbar .spacer { flex: 1; }
+      /* Top bar buttons — no drag region */
+      .ship-topbar ship-button,
+      .ship-topbar button,
+      .ship-topbar a { -webkit-app-region: no-drag; }
+      /* Command palette trigger */
+      .ship-topbar .cmdk-trigger {
+        display: flex;
+        align-items: center;
+        gap: var(--space-2);
+        padding: var(--space-1) var(--space-3);
         border: 1px solid var(--border);
-        color: var(--muted-foreground);
-        padding: var(--space-1) var(--space-2);
         border-radius: var(--radius-md);
+        background: var(--background);
+        color: var(--muted-foreground);
+        font-size: var(--text-xs);
         cursor: pointer;
-        font-family: inherit;
-        font-size: var(--text-sm);
-        transition: background var(--duration-fast) var(--ease-out),
-                    border-color var(--duration-fast) var(--ease-out),
-                    color var(--duration-fast) var(--ease-out);
+        transition: border-color var(--duration-fast) var(--ease-out);
+        min-width: 180px;
       }
-      .icon-btn:hover {
-        background: var(--sidebar-accent);
-        color: var(--foreground);
-        border-color: color-mix(in oklch, var(--foreground) 20%, var(--border));
+      .ship-topbar .cmdk-trigger:hover {
+        border-color: color-mix(in oklch, var(--foreground) 30%, var(--border));
+      }
+      .ship-topbar .cmdk-trigger kbd {
+        font-family: var(--font-mono);
+        font-size: 10px;
+        padding: 1px 4px;
+        border: 1px solid var(--border);
+        border-radius: 3px;
+        background: var(--muted);
+        color: var(--muted-foreground);
+        margin-left: auto;
       }
 
-      /* ── Main content area ── */
-      main {
-        overflow: auto;
+      /* ── Nav rail: toggleable, left edge ── */
+      .ship-rail {
+        grid-row: 2;
+        width: 0;
+        overflow: hidden;
+        background: var(--sidebar);
+        border-right: none;
+        transition: width var(--duration-normal) var(--ease-out);
+        display: flex;
+        flex-direction: column;
+        gap: var(--space-1);
         padding: 0;
+      }
+      body.rail-open .ship-rail {
+        width: 48px;
+        border-right: 1px solid var(--border);
+        padding: var(--space-2) 0;
+        overflow-y: auto;
+      }
+      .ship-rail a {
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        width: 48px;
+        height: 36px;
+        color: var(--muted-foreground);
+        text-decoration: none;
+        border-radius: 0;
+        transition: background var(--duration-fast) var(--ease-out),
+                    color var(--duration-fast) var(--ease-out);
+        position: relative;
+      }
+      .ship-rail a:hover {
+        background: var(--sidebar-accent);
+        color: var(--foreground);
+      }
+      .ship-rail a.active {
+        color: var(--primary);
+        background: color-mix(in oklch, var(--primary) 10%, transparent);
+      }
+      .ship-rail a.active::before {
+        content: '';
+        position: absolute;
+        left: 0;
+        top: 6px;
+        bottom: 6px;
+        width: 2px;
+        background: var(--primary);
+        border-radius: 0 2px 2px 0;
+      }
+      .ship-rail .rail-spacer { flex: 1; }
+
+      /* ── Main content: full bleed ── */
+      .ship-content {
+        grid-row: 2;
+        overflow: auto;
         background: var(--background);
         min-width: 0;
       }
 
-      /* ── Drawer ── */
-      aside#drawer {
+      /* ── Right drawer: chat panel ── */
+      .ship-drawer {
+        grid-row: 2;
         width: 0;
-        border-left: none;
-        background: var(--sidebar);
         overflow: hidden;
+        background: var(--sidebar);
+        border-left: none;
         transition: width var(--duration-normal) var(--ease-out);
       }
-      body.drawer-open aside#drawer {
-        width: 340px;
+      body.drawer-open .ship-drawer {
+        width: 360px;
         border-left: 1px solid var(--border);
         overflow: auto;
       }
+
+      /* ── Bottom terminal panel: toggleable ── */
+      .ship-terminal-panel {
+        grid-column: 1 / -1;
+        height: 0;
+        overflow: hidden;
+        background: var(--background);
+        border-top: none;
+        transition: height var(--duration-normal) var(--ease-out);
+      }
+      body.terminal-open .ship-terminal-panel {
+        height: 240px;
+        border-top: 1px solid var(--border);
+        overflow: auto;
+      }
+      .ship-terminal-panel .panel-header {
+        display: flex;
+        align-items: center;
+        gap: var(--space-2);
+        padding: var(--space-1) var(--space-3);
+        border-bottom: 1px solid var(--border);
+        background: var(--sidebar);
+        font-size: var(--text-xs);
+        color: var(--muted-foreground);
+        font-weight: var(--font-weight-medium);
+      }
+      .ship-terminal-panel .panel-body {
+        height: calc(100% - 28px);
+      }
+
+      /* ── Status bar: hairline bottom ── */
+      .ship-statusbar {
+        grid-column: 1 / -1;
+        height: 24px;
+        padding: 0 var(--space-3);
+        border-top: 1px solid var(--border);
+        background: var(--sidebar);
+        display: flex;
+        align-items: center;
+        gap: var(--space-3);
+        font-size: 11px;
+        color: var(--muted-foreground);
+        user-select: none;
+      }
+      .ship-statusbar .status-dot {
+        width: 6px;
+        height: 6px;
+        border-radius: var(--radius-full);
+        background: var(--success);
+        flex-shrink: 0;
+      }
+      .ship-statusbar .status-dot.disconnected { background: var(--destructive); }
+      .ship-statusbar .spacer { flex: 1; }
+
+      /* ── Utility ── */
       .mount-error {
-        margin: 20px;
-        padding: 14px 16px;
+        margin: var(--space-5);
+        padding: var(--space-3) var(--space-4);
         border: 1px solid color-mix(in oklch, var(--destructive) 40%, var(--border));
         background: color-mix(in oklch, var(--destructive) 8%, transparent);
         color: var(--destructive);
         border-radius: var(--radius-md);
-        font-family: var(--font-mono, ui-monospace, monospace);
+        font-family: var(--font-mono);
         font-size: var(--text-sm);
         white-space: pre-wrap;
       }
       .empty-hint {
-        margin: 40px auto;
-        max-width: 32rem;
-        text-align: center;
+        display: flex;
+        align-items: center;
+        justify-content: center;
+        height: 100%;
         color: var(--muted-foreground);
         font-size: var(--text-sm);
       }
     </style>
   </head>
   <body>
-    <header>
-      <span class="brand">Ship</span>
-      <nav>
-        <a data-route="/dashboard">dashboard</a>
-        <a data-route="/pipelines">pipelines</a>
-        <a data-route="/agents">agents</a>
-        <a data-route="/skills">skills</a>
-        <a data-route="/git">git</a>
-        <a data-route="/data">data</a>
-        <a data-route="/canvas">canvas</a>
-        <a data-route="/settings">settings</a>
-        <a data-route="/events">events</a>
-      </nav>
+    <!-- Top bar: brand, breadcrumbs, ⌘K, user -->
+    <div class="ship-topbar">
+      <span class="brand" id="topbar-brand">Ship</span>
+      <div class="sep"></div>
+      <div class="crumbs" id="breadcrumbs">
+        <span class="current">dashboard</span>
+      </div>
       <span class="spacer"></span>
-      <a class="icon-btn" href="/devtools.html" title="Component gallery" style="text-decoration: none;">gallery</a>
-      <ship-button variant="ghost" size="sm" id="toggle-theme" title="Toggle theme" aria-label="Toggle theme"><ship-icon slot="leading" name="moon"></ship-icon></ship-button>
-      <ship-button variant="ghost" size="sm" id="toggle-drawer" title="Toggle drawer" aria-label="Toggle drawer"><ship-icon slot="leading" name="menu"></ship-icon></ship-button>
-    </header>
-    <main id="ship-view-root">
+      <button class="cmdk-trigger" id="cmdk-open" title="Command palette">
+        <ship-icon name="search" size="sm"></ship-icon>
+        <span>Search or jump to...</span>
+        <kbd>⌘K</kbd>
+      </button>
+      <ship-button variant="ghost" size="sm" id="toggle-rail" title="Toggle navigation (⌘B)" aria-label="Toggle navigation">
+        <ship-icon slot="leading" name="menu"></ship-icon>
+      </ship-button>
+      <ship-button variant="ghost" size="sm" id="toggle-theme" title="Toggle theme" aria-label="Toggle theme">
+        <ship-icon slot="leading" name="moon"></ship-icon>
+      </ship-button>
+      <ship-button variant="ghost" size="sm" id="toggle-drawer" title="Chat (⌘/)" aria-label="Toggle chat drawer">
+        <ship-icon slot="leading" name="message-square-plus"></ship-icon>
+      </ship-button>
+    </div>
+
+    <!-- Left rail: icon navigation (hidden by default) -->
+    <nav class="ship-rail" id="ship-rail">
+      <a data-route="/dashboard" title="Dashboard"><ship-icon name="sparkles"></ship-icon></a>
+      <a data-route="/pipelines" title="Pipelines"><ship-icon name="play"></ship-icon></a>
+      <a data-route="/agents" title="Agents"><ship-icon name="users"></ship-icon></a>
+      <a data-route="/skills" title="Skills"><ship-icon name="zap"></ship-icon></a>
+      <a data-route="/git" title="Git"><ship-icon name="git"></ship-icon></a>
+      <a data-route="/data" title="Data"><ship-icon name="folder"></ship-icon></a>
+      <a data-route="/canvas" title="Canvas"><ship-icon name="image"></ship-icon></a>
+      <a data-route="/events" title="Events"><ship-icon name="sparkles"></ship-icon></a>
+      <div class="rail-spacer"></div>
+      <a data-route="/settings" title="Settings"><ship-icon name="settings"></ship-icon></a>
+    </nav>
+
+    <!-- Main content: full bleed -->
+    <main class="ship-content" id="ship-view-root">
       <div class="empty-hint">loading…</div>
     </main>
-    <aside id="drawer"><div id="drawer-content"><div class="empty-hint">drawer empty</div></div></aside>
+
+    <!-- Right drawer: chat -->
+    <aside class="ship-drawer" id="drawer">
+      <div id="drawer-content"><div class="empty-hint">chat</div></div>
+    </aside>
+
+    <!-- Bottom terminal panel (hidden by default) -->
+    <div class="ship-terminal-panel" id="terminal-panel">
+      <div class="panel-header">
+        <ship-icon name="terminal" size="sm"></ship-icon>
+        <span>Terminal</span>
+        <span class="spacer" style="flex:1"></span>
+        <ship-button variant="ghost" size="sm" id="close-terminal" aria-label="Close terminal">
+          <ship-icon slot="leading" name="x"></ship-icon>
+        </ship-button>
+      </div>
+      <div class="panel-body">
+        <ship-terminal id="shell-terminal" fit readonly></ship-terminal>
+      </div>
+    </div>
+
+    <!-- Status bar -->
+    <div class="ship-statusbar">
+      <span class="status-dot" id="status-dot"></span>
+      <span id="status-branch">main</span>
+      <span>·</span>
+      <span id="status-agents">0 agents</span>
+      <span class="spacer"></span>
+      <span id="status-theme">ship</span>
+    </div>
+
+    <!-- Toast container -->
+    <ship-toast-container position="bottom-right" id="ship-toasts"></ship-toast-container>
+
     <script type="module" src="/src/main.ts"></script>
   </body>
 </html>

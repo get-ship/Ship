@@ -1,12 +1,10 @@
 import Navigo from "navigo";
 import { mountDaemonFragment, openDaemonSSE, isSameOrigin } from "./mount";
 import { initSignalInspector } from "./signal-inspector";
-import { initThemeLoader, setTheme } from "./theme-loader";
+import { initThemeLoader, setTheme, getThemeName } from "./theme-loader";
+import { toggle as toggleCmdk, isCommandPaletteOpen } from "./command-palette";
 
 // ── Daemon URL rewriting ─────────────────────────────────────────────
-// Daemon templates emit absolute URLs (http://127.0.0.1:9315/api/...).
-// Rewrite to relative at the fetch boundary so datastar, <form action>,
-// and <a href> all Just Work through the shell proxy.
 const DAEMON_ORIGINS = new Set([
   "http://127.0.0.1:9315",
   "http://localhost:9315",
@@ -60,20 +58,60 @@ const TOKEN = SAME_ORIGIN
 
 // ── DOM refs ─────────────────────────────────────────────────────────
 const view = document.getElementById("ship-view-root") as HTMLElement;
-const drawerContent = document.getElementById(
-  "drawer-content",
-) as HTMLElement;
-const drawerBtn = document.getElementById(
-  "toggle-drawer",
-) as HTMLButtonElement;
-const themeBtn = document.getElementById(
-  "toggle-theme",
-) as HTMLButtonElement;
+const drawerContent = document.getElementById("drawer-content") as HTMLElement;
+const breadcrumbs = document.getElementById("breadcrumbs") as HTMLElement;
+const statusBranch = document.getElementById("status-branch") as HTMLElement;
+const statusAgents = document.getElementById("status-agents") as HTMLElement;
+const statusTheme = document.getElementById("status-theme") as HTMLElement;
+const statusDot = document.getElementById("status-dot") as HTMLElement;
 
 // ── Theme toggle ─────────────────────────────────────────────────────
-themeBtn.addEventListener("click", () => {
+document.getElementById("toggle-theme")!.addEventListener("click", () => {
   const isDark = document.documentElement.classList.toggle("dark");
   localStorage.setItem("ship-shell-theme", isDark ? "dark" : "light");
+});
+
+// ── Rail toggle ──────────────────────────────────────────────────────
+document.getElementById("toggle-rail")!.addEventListener("click", () => {
+  document.body.classList.toggle("rail-open");
+  localStorage.setItem(
+    "ship-rail-open",
+    document.body.classList.contains("rail-open") ? "1" : "",
+  );
+});
+// Restore rail state
+if (localStorage.getItem("ship-rail-open")) {
+  document.body.classList.add("rail-open");
+}
+
+// ── Drawer toggle ────────────────────────────────────────────────────
+let drawerSSE: EventSource | null = null;
+document.getElementById("toggle-drawer")!.addEventListener("click", async () => {
+  const opening = !document.body.classList.contains("drawer-open");
+  document.body.classList.toggle("drawer-open");
+  if (opening) {
+    try {
+      await mountDaemonFragment(drawerContent, "/api/runtime/view/chat", {
+        token: TOKEN,
+        base: DAEMON_BASE,
+      });
+      // Start chat SSE only after DOM is mounted
+      drawerSSE = openDaemonSSE("/api/runtime/view/chat/sse", {
+        token: TOKEN,
+        base: DAEMON_BASE,
+      });
+    } catch {
+      drawerContent.innerHTML = `<div class="empty-hint">Failed to load chat</div>`;
+    }
+  } else {
+    // Close chat SSE when drawer closes
+    if (drawerSSE) { drawerSSE.close(); drawerSSE = null; }
+  }
+});
+
+// ── Terminal panel toggle ────────────────────────────────────────────
+document.getElementById("close-terminal")!.addEventListener("click", () => {
+  document.body.classList.remove("terminal-open");
 });
 
 // ── SSE management ───────────────────────────────────────────────────
@@ -85,25 +123,30 @@ function closeSSE() {
   }
 }
 
-// ── Mount a daemon view into the main pane ───────────────────────────
+// ── Mount a daemon view ──────────────────────────────────────────────
 async function mount(endpoint: string, sse?: string) {
   closeSSE();
-  view.innerHTML = `<div style="padding:40px;text-align:center;color:var(--muted-foreground)">Loading…</div>`;
+  // Close drawer SSE too — prevent stale SSE targeting missing elements
+  if (drawerSSE) { drawerSSE.close(); drawerSSE = null; }
+
+  view.innerHTML = `<div class="empty-hint"><ship-spinner size="sm"></ship-spinner></div>`;
   try {
     await mountDaemonFragment(view, endpoint, {
       token: TOKEN,
       base: DAEMON_BASE,
     });
   } catch {
-    view.innerHTML = `<div style="padding:40px;text-align:center;color:var(--destructive)">Failed to load view.</div>`;
+    view.innerHTML = `<div class="mount-error">Failed to load view.\nCheck that the daemon is running.</div>`;
     return;
   }
   if (sse) {
     currentSSE = openDaemonSSE(sse, { token: TOKEN, base: DAEMON_BASE });
+    // Suppress SSE errors (reconnects are normal during navigation)
+    currentSSE.onerror = () => {};
   }
 }
 
-// ── Form submit handler (delegated) ──────────────────────────────────
+// ── Form submit handler ──────────────────────────────────────────────
 view.addEventListener("submit", (ev) => {
   const form = ev.target;
   if (!(form instanceof HTMLFormElement)) return;
@@ -134,34 +177,44 @@ async function submitFragmentForm(form: HTMLFormElement) {
   target.innerHTML = html;
 }
 
-// ── Update nav active state ──────────────────────────────────────────
+// ── Breadcrumbs ──────────────────────────────────────────────────────
+function updateBreadcrumbs(path: string) {
+  const parts = path.split("/").filter(Boolean);
+  if (parts.length === 0) parts.push("dashboard");
+  const crumbs = parts.map((part, i) => {
+    const isLast = i === parts.length - 1;
+    const href = "/" + parts.slice(0, i + 1).join("/");
+    if (isLast) {
+      return `<span class="current">${part}</span>`;
+    }
+    return `<a onclick="event.preventDefault();window.router.navigate('${href}')">${part}</a><span class="chevron">›</span>`;
+  });
+  breadcrumbs.innerHTML = crumbs.join("");
+}
+
+// ── Update nav active state (rail + any data-route links) ────────────
 function updateNav(path: string) {
   document
-    .querySelectorAll<HTMLAnchorElement>("header a[data-route]")
+    .querySelectorAll<HTMLAnchorElement>("[data-route]")
     .forEach((a) => {
       const route = a.dataset.route!;
-      // Match exact or prefix (e.g. /skills matches /skills/:id)
       const active = path === route || path.startsWith(route + "/");
       a.classList.toggle("active", active);
     });
+  updateBreadcrumbs(path);
 }
 
 // ── Router (Navigo) ──────────────────────────────────────────────────
 const router = new Navigo("/");
 
-// View routes — static top-level
-function viewRoute(
-  path: string,
-  endpoint: string,
-  sse?: string,
-) {
+function viewRoute(path: string, endpoint: string, sse?: string) {
   router.on(path, () => {
     updateNav(path);
     void mount(endpoint, sse);
   });
 }
 
-viewRoute("/", "/api/runtime/view/pipelines", "/api/runtime/view/pipelines/sse");
+viewRoute("/", "/api/runtime/view/dashboard", "/api/runtime/view/dashboard/sse");
 viewRoute("/pipelines", "/api/runtime/view/pipelines", "/api/runtime/view/pipelines/sse");
 viewRoute("/specs", "/api/runtime/view/specs", "/api/runtime/view/specs/sse");
 viewRoute("/git", "/api/runtime/view/git", "/api/runtime/view/git/sse");
@@ -174,70 +227,124 @@ viewRoute("/data", "/api/runtime/view/data", "/api/runtime/view/data/sse");
 viewRoute("/dashboard", "/api/runtime/view/dashboard", "/api/runtime/view/dashboard/sse");
 viewRoute("/canvas", "/api/runtime/view/canvas", "/api/runtime/view/canvas/sse");
 
-// Dynamic routes — detail pages with params
+// Dynamic routes
 router.on("/agents/:id", ({ data }) => {
   updateNav("/agents");
+  updateBreadcrumbs(`/agents/${data!.id}`);
   void mount(`/api/runtime/view/agents/detail/${data!.id}`);
 });
 
 router.on("/skills/:id", ({ data }) => {
   updateNav("/skills");
+  updateBreadcrumbs(`/skills/${data!.id}`);
   void mount(`/api/runtime/view/skills/detail/${data!.id}`);
 });
 
 router.on("/skills/:id/:file", ({ data }) => {
   updateNav("/skills");
+  updateBreadcrumbs(`/skills/${data!.id}/${data!.file}`);
   void mount(`/api/runtime/view/skills/detail/${data!.id}?file=${encodeURIComponent(data!.file)}`);
 });
 
 router.on("/canvas/:doc", ({ data }) => {
   updateNav("/canvas");
+  updateBreadcrumbs(`/canvas/${data!.doc}`);
   void mount(`/api/runtime/view/canvas?doc=${encodeURIComponent(data!.doc)}`);
 });
 
-// 404 fallback
+// 404
 router.notFound(() => {
   updateNav("");
+  updateBreadcrumbs(location.pathname);
   view.innerHTML = `
-    <div style="padding:60px;text-align:center;">
-      <h2 style="font-family:var(--font-display);font-size:var(--text-xl);margin:0 0 8px">Page not found</h2>
-      <p style="color:var(--muted-foreground)">The route "${location.pathname}" doesn't exist.</p>
-      <ship-button tone="accent" variant="solid" style="margin-top:16px"
-        onclick="window.router.navigate('/')">Go home</ship-button>
+    <div style="display:flex;flex-direction:column;align-items:center;justify-content:center;height:100%;gap:var(--space-3)">
+      <h2 style="font-family:var(--font-display);font-size:var(--text-xl);margin:0">Page not found</h2>
+      <p style="color:var(--muted-foreground);margin:0">The route "${location.pathname}" doesn't exist.</p>
+      <ship-button tone="accent" variant="solid" onclick="window.router.navigate('/')">Go home</ship-button>
     </div>`;
 });
 
-// Wire nav links to router
+// Wire all data-route links (rail + any future nav)
 document
-  .querySelectorAll<HTMLAnchorElement>("header a[data-route]")
+  .querySelectorAll<HTMLAnchorElement>("[data-route]")
   .forEach((a) => {
     a.addEventListener("click", (e) => {
       e.preventDefault();
       router.navigate(a.dataset.route!);
     });
+    // Middle-click = new tab
+    a.addEventListener("auxclick", (e) => {
+      if (e.button === 1) {
+        e.preventDefault();
+        window.open(a.dataset.route!, "_blank");
+      }
+    });
   });
 
-// Drawer toggle
-drawerBtn.addEventListener("click", async () => {
-  document.body.classList.toggle("drawer-open");
-  if (document.body.classList.contains("drawer-open")) {
-    await mountDaemonFragment(drawerContent, "/api/runtime/view/events", {
-      token: TOKEN,
-      base: DAEMON_BASE,
-    });
+// ── Keyboard shortcuts ───────────────────────────────────────────────
+document.addEventListener("keydown", (e) => {
+  const meta = e.metaKey || e.ctrlKey;
+
+  // ⌘K — Command palette
+  if (meta && e.key === "k") {
+    e.preventDefault();
+    toggleCmdk();
+    return;
+  }
+
+  // Escape — close palette if open
+  if (e.key === "Escape" && isCommandPaletteOpen()) {
+    e.preventDefault();
+    toggleCmdk();
+    return;
+  }
+
+  // ⌘B — Toggle rail
+  if (meta && e.key === "b") {
+    e.preventDefault();
+    document.getElementById("toggle-rail")?.click();
+  }
+
+  // ⌘/ — Toggle drawer (chat)
+  if (meta && e.key === "/") {
+    e.preventDefault();
+    document.getElementById("toggle-drawer")?.click();
+  }
+
+  // ⌘J — Toggle terminal panel
+  if (meta && e.key === "j") {
+    e.preventDefault();
+    document.body.classList.toggle("terminal-open");
+  }
+
+  // F11 — Fullscreen
+  if (e.key === "F11") {
+    e.preventDefault();
+    if (document.fullscreenElement) {
+      document.exitFullscreen();
+    } else {
+      document.documentElement.requestFullscreen();
+    }
   }
 });
 
-// Expose router globally so views can navigate programmatically
-// e.g. onclick="window.router.navigate('/agents/commander')"
+// ── Status bar ───────────────────────────────────────────────────────
+function updateStatus() {
+  statusTheme.textContent = getThemeName();
+  // TODO: fetch workspace info from daemon for branch + agent count
+}
+
+// ── Expose globals ───────────────────────────────────────────────────
 (window as any).router = router;
-
-// Start routing
-router.resolve();
-
-// Theming
-initThemeLoader();
 (window as any).setShipTheme = setTheme;
 
-// Dev tooling
+// ── Boot ─────────────────────────────────────────────────────────────
+router.resolve();
+initThemeLoader();
 initSignalInspector();
+updateStatus();
+
+// ⌘K trigger button
+document.getElementById("cmdk-open")?.addEventListener("click", () => {
+  toggleCmdk();
+});

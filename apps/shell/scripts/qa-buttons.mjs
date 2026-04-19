@@ -159,7 +159,7 @@ async function main() {
 
     // Check if the view is still intact
     const intact = await page.evaluate(() => {
-      const header = document.querySelector("header");
+      const header = document.querySelector("header") || document.querySelector(".ship-topbar");
       const main = document.getElementById("ship-view-root");
       return !!header && !!main;
     });

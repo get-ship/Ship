@@ -116,7 +116,7 @@
    Usage:
      <ship-button {{ feedback("{selected: 2, comment: 'bolder one'}") }}>Pick A</ship-button>
      <ship-button {{ feedback("{rating: $rating, slot: 'hero'}") }}>Submit</ship-button> #}
-{% macro feedback(payload_expr) %}data-on:click="@post('/api/runtime/feedback', {payload: {id: '', kind: 'action', target: {file_path: location.pathname}, author_kind: 'human', created_at: new Date().toISOString(), payload: {{ payload_expr }}}})"{% endmacro %}
+{% macro feedback(payload_expr) %}data-on:click="@post('/api/runtime/feedback', {contentType: 'json', body: JSON.stringify({id: '', kind: 'action', target: {file_path: location.pathname}, author_kind: 'human', created_at: new Date().toISOString(), payload: {{ payload_expr }}})})"{% endmacro %}
 
 {#- === Tabs === -#}
 
