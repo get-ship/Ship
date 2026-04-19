@@ -118,4 +118,42 @@ mod smoke {
             .expect("probe should see the running test process");
         assert!(sample.process_count >= 1, "tree should contain at least the root");
     }
+
+    /// End-to-end CPU-delta detection: spawn a busy child, sample twice,
+    /// confirm the probe sees both the child and its CPU ticks climbing.
+    /// Ignored by default — hits real subprocesses and wall-clock timing.
+    /// Run with `cargo test -p runtime -- --ignored cpu_delta_detects_busy_child`.
+    #[tokio::test]
+    #[ignore]
+    async fn cpu_delta_detects_busy_child() {
+        let mut child = tokio::process::Command::new("sh")
+            .args(["-c", "while :; do :; done"])
+            .stdout(std::process::Stdio::null())
+            .stderr(std::process::Stdio::null())
+            .spawn()
+            .expect("spawn busy child");
+
+        let probe = SysinfoProcessTreeProbe::new();
+        let pid = std::process::id();
+
+        tokio::time::sleep(std::time::Duration::from_millis(500)).await;
+        let first = probe.sample(pid).await.expect("first sample");
+
+        tokio::time::sleep(std::time::Duration::from_secs(2)).await;
+        let second = probe.sample(pid).await.expect("second sample");
+
+        let _ = child.kill().await;
+        let _ = child.wait().await;
+
+        assert!(
+            second.process_count >= 2,
+            "tree should include the busy child; got {}",
+            second.process_count
+        );
+        assert!(
+            second.cpu_ticks > first.cpu_ticks,
+            "CPU ticks should climb across 2s of busy work; first={} second={}",
+            first.cpu_ticks, second.cpu_ticks
+        );
+    }
 }
