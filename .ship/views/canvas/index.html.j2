@@ -1,14 +1,5 @@
-{#-
-  Canvas workspace — hosts agent-authored visual documents.
-
-  Agents drop files into .ship/views/canvas/docs/<slug>.html.j2.
-  This workspace lists them in a sidebar, loads the active one into the
-  main pane, and provides feedback chrome (the doc itself uses the
-  feedback() macro from the Ship View SDK).
-
-  Active doc: ?doc=<slug> query param, defaults to newest.
--#}
-{% from '_ship.html.j2' import head, styles %}
+{#- Canvas workspace — agent-authored visual documents with feedback. -#}
+{% from '_ship.html.j2' import head, styles, toast_container %}
 {% if not fragment %}
 <!DOCTYPE html>
 <html lang="en">
@@ -18,106 +9,50 @@
 <div id="ship-view-root" class="ship-view">
   {{ styles() }}
   <style>
-    .canvas-workspace {
-      display: grid;
-      grid-template-columns: 240px 1fr;
-      height: 100vh;
-      min-height: 0;
-    }
-    .canvas-rail {
-      border-right: 1px solid var(--border);
-      background: var(--sidebar);
-      overflow-y: auto;
-      display: flex;
-      flex-direction: column;
-    }
-    .canvas-rail-head {
-      padding: var(--space-4) var(--space-3) var(--space-3);
-      border-bottom: 1px solid var(--border);
-    }
-    .canvas-rail-title {
-      font-family: var(--font-display);
-      font-size: var(--text-sm);
-      font-weight: var(--font-weight-semibold);
-      margin: 0 0 var(--space-1);
-      letter-spacing: -0.01em;
-    }
-    .canvas-rail-sub {
-      font-size: var(--text-xs);
-      color: var(--muted-foreground);
-    }
-    .canvas-rail-list {
-      padding: var(--space-2) 0;
-      flex: 1;
-    }
+    .canvas-workspace { display: grid; grid-template-columns: 260px 1fr; height: 100vh; min-height: 0; }
+    .canvas-rail { border-right: 1px solid var(--border); background: var(--sidebar); overflow-y: auto; display: flex; flex-direction: column; }
+    .canvas-rail-head { padding: var(--space-4) var(--space-3) var(--space-3); border-bottom: 1px solid var(--border); }
+    .canvas-rail-title { font-family: var(--font-display); font-size: var(--text-sm); font-weight: var(--font-weight-semibold); margin: 0 0 var(--space-1); letter-spacing: -0.01em; }
+    .canvas-rail-sub { font-size: var(--text-xs); color: var(--muted-foreground); }
+    .canvas-rail-list { padding: var(--space-2) 0; flex: 1; }
     .canvas-rail-item {
-      display: flex;
-      flex-direction: column;
-      padding: var(--space-2) var(--space-3);
-      text-decoration: none;
-      color: var(--foreground);
-      border-left: 2px solid transparent;
-      transition: background var(--duration-fast) var(--ease-out);
+      display: flex; flex-direction: column; padding: var(--space-2) var(--space-3);
+      text-decoration: none; color: var(--foreground); border-left: 3px solid transparent;
+      transition: background var(--duration-fast) var(--ease-out), border-color var(--duration-fast) var(--ease-out);
     }
-    .canvas-rail-item:hover {
-      background: color-mix(in oklch, var(--muted) 40%, transparent);
-    }
-    .canvas-rail-item.active {
-      background: color-mix(in oklch, var(--primary) 10%, transparent);
-      border-left-color: var(--primary);
-    }
-    .canvas-rail-item-title {
-      font-size: var(--text-sm);
-      font-weight: var(--font-weight-medium);
-    }
-    .canvas-rail-item-slug {
-      font-family: var(--font-mono);
-      font-size: var(--text-xs);
-      color: var(--muted-foreground);
-      margin-top: var(--space-1);
-    }
-    .canvas-rail-empty {
-      padding: var(--space-5) var(--space-3);
-      font-size: var(--text-xs);
-      color: var(--muted-foreground);
-      line-height: 1.5;
-    }
-    .canvas-rail-empty code {
-      font-family: var(--font-mono);
-      background: var(--muted);
-      padding: 1px var(--space-1);
-      border-radius: var(--radius-sm);
-      font-size: var(--text-xs);
-    }
-    .canvas-main {
-      overflow-y: auto;
-      background: var(--background);
-    }
-    .canvas-empty {
-      display: flex;
-      align-items: center;
-      justify-content: center;
-      height: 100%;
-      padding: var(--space-6);
-      text-align: center;
-      color: var(--muted-foreground);
-      flex-direction: column;
-      gap: var(--space-2);
-    }
-    .canvas-empty-title {
-      font-family: var(--font-display);
-      font-size: var(--text-lg);
-      font-weight: var(--font-weight-semibold);
-      color: var(--foreground);
-    }
+    .canvas-rail-item:hover { background: color-mix(in oklch, var(--muted) 50%, transparent); border-left-color: color-mix(in oklch, var(--muted-foreground) 30%, transparent); }
+    .canvas-rail-item.active { background: color-mix(in oklch, var(--primary) 12%, transparent); border-left-color: var(--primary); }
+    .canvas-rail-item-title { font-size: var(--text-sm); font-weight: var(--font-weight-medium); }
+    .canvas-rail-item-meta { display: flex; align-items: center; gap: var(--space-2); margin-top: var(--space-1); }
+    .canvas-rail-item-slug { font-family: var(--font-mono); font-size: var(--text-xs); color: var(--muted-foreground); }
+    .canvas-rail-item-detail { font-size: 10px; color: var(--muted-foreground); opacity: 0.7; }
+    .canvas-rail-empty { padding: var(--space-5) var(--space-3); font-size: var(--text-xs); color: var(--muted-foreground); line-height: 1.5; }
+    .canvas-rail-empty code { font-family: var(--font-mono); background: var(--muted); padding: 1px var(--space-1); border-radius: var(--radius-sm); font-size: var(--text-xs); }
+    .canvas-rail-section { padding: var(--space-3) var(--space-3) var(--space-2); border-top: 1px solid var(--border); }
+    .canvas-rail-section-title { font-size: 10px; font-weight: var(--font-weight-semibold); text-transform: uppercase; letter-spacing: 0.06em; color: var(--muted-foreground); margin: 0 0 var(--space-2); }
+    .canvas-feedback-item { padding: var(--space-1) 0; font-size: var(--text-xs); color: var(--muted-foreground); line-height: 1.4; border-bottom: 1px solid color-mix(in oklch, var(--border) 50%, transparent); }
+    .canvas-feedback-item:last-child { border-bottom: none; }
+    .canvas-feedback-author { font-weight: var(--font-weight-medium); color: var(--foreground); }
+    .canvas-feedback-time { font-size: 10px; opacity: 0.6; }
+    .canvas-feedback-empty { font-size: var(--text-xs); color: var(--muted-foreground); font-style: italic; padding: var(--space-1) 0; }
+    .canvas-rail-cta { padding: var(--space-3); border-top: 1px solid var(--border); }
+    .canvas-rail-cta a { font-size: var(--text-xs); color: var(--muted-foreground); text-decoration: none; cursor: pointer; transition: color var(--duration-fast) var(--ease-out); }
+    .canvas-rail-cta a:hover { color: var(--primary); }
+    .canvas-main { overflow-y: auto; background: var(--background); }
+    .canvas-empty { display: flex; align-items: center; justify-content: center; height: 100%; padding: var(--space-8); text-align: center; color: var(--muted-foreground); flex-direction: column; gap: var(--space-3); }
+    .canvas-empty ship-icon { font-size: 48px; opacity: 0.3; }
+    .canvas-empty-title { font-family: var(--font-display); font-size: var(--text-xl); font-weight: var(--font-weight-semibold); color: var(--foreground); }
+    .canvas-empty-desc { font-size: var(--text-sm); max-width: 420px; line-height: 1.6; color: var(--muted-foreground); }
+    .canvas-empty-hint { font-size: var(--text-xs); color: var(--muted-foreground); opacity: 0.6; margin-top: var(--space-2); }
   </style>
 
 {% set docs = ship_canvas_docs() %}
 {% set active_slug = query.doc if query and query.doc else (docs[0].slug if docs else '') %}
+{% set feedback_items = ship_feedback_recent(5) if ship_feedback_recent is defined else [] %}
 
 <div class="canvas-workspace">
 
-  {# ── Sidebar: doc list ──────────────────────────────────────── #}
+  {# -- Sidebar --------------------------------------------------------- #}
   <aside class="canvas-rail">
     <div class="canvas-rail-head">
       <h1 class="canvas-rail-title">Canvas</h1>
@@ -134,28 +69,63 @@
            class="canvas-rail-item {% if doc.slug == active_slug %}active{% endif %}"
            data-on:click.prevent="window.router ? window.router.navigate('/canvas/{{ doc.slug }}') : void(0)">
           <span class="canvas-rail-item-title">{{ doc.title }}</span>
-          <span class="canvas-rail-item-slug">{{ doc.slug }}.html.j2</span>
+          <span class="canvas-rail-item-meta">
+            <span class="canvas-rail-item-slug">{{ doc.slug }}.html.j2</span>
+            {% if doc.modified %}<span class="canvas-rail-item-detail">{{ doc.modified }}</span>{% endif %}
+            {% if doc.lines %}<span class="canvas-rail-item-detail">{{ doc.lines }}L</span>{% endif %}
+          </span>
         </a>
         {% endfor %}
       {% endif %}
     </div>
+
+    {# -- Recent Feedback ------------------------------------------------ #}
+    <div class="canvas-rail-section">
+      <h2 class="canvas-rail-section-title">Recent Feedback</h2>
+      {% if feedback_items and feedback_items | length > 0 %}
+        {% for fb in feedback_items %}
+        <div class="canvas-feedback-item">
+          <span class="canvas-feedback-author">{{ fb.author_kind | default('human') }}</span>
+          <span class="canvas-feedback-time">{{ fb.created_at[:16] if fb.created_at else '' }}</span>
+          <div>{{ fb.payload | string | truncate(60) if fb.payload else '(empty)' }}</div>
+        </div>
+        {% endfor %}
+      {% else %}
+        <div class="canvas-feedback-empty">No feedback yet</div>
+      {% endif %}
+    </div>
+
+    {# -- New Canvas CTA ------------------------------------------------- #}
+    <div class="canvas-rail-cta">
+      <a data-on:click="window.router ? window.router.navigate('/chat') : void(0)">
+        Ask an agent to create a canvas
+      </a>
+    </div>
   </aside>
 
-  {# ── Main pane: include the active doc ───────────────────────── #}
+  {# -- Main pane -------------------------------------------------------- #}
   <main class="canvas-main">
     {% if active_slug %}
       {% include 'canvas/docs/' ~ active_slug ~ '.html.j2' ignore missing %}
     {% else %}
       <div class="canvas-empty">
         <ship-icon name="image" aria-hidden="true"></ship-icon>
-        <div class="canvas-empty-title">No canvas selected</div>
-        <div>Ask an agent to draft a visual here.</div>
+        <div class="canvas-empty-title">Create a Canvas</div>
+        <div class="canvas-empty-desc">
+          The canvas is where agents create visual artifacts for your review.
+          Ask an agent to design a component, review a layout, or prototype
+          an interaction.
+        </div>
+        <div class="canvas-empty-hint">
+          Canvases appear here automatically when agents create them.
+        </div>
       </div>
     {% endif %}
   </main>
 
 </div>
 
+{{ toast_container() }}
 </div>
 {% if not fragment %}
 </body>

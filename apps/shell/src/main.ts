@@ -86,7 +86,8 @@ if (localStorage.getItem("ship-rail-open")) {
 
 // ── Drawer toggle ────────────────────────────────────────────────────
 let drawerSSE: EventSource | null = null;
-document.getElementById("toggle-drawer")!.addEventListener("click", async () => {
+
+async function toggleDrawer() {
   const opening = !document.body.classList.contains("drawer-open");
   document.body.classList.toggle("drawer-open");
   if (opening) {
@@ -95,18 +96,16 @@ document.getElementById("toggle-drawer")!.addEventListener("click", async () => 
         token: TOKEN,
         base: DAEMON_BASE,
       });
-      // Start chat SSE only after DOM is mounted
-      drawerSSE = openDaemonSSE("/api/runtime/view/chat/sse", {
-        token: TOKEN,
-        base: DAEMON_BASE,
-      });
     } catch {
       drawerContent.innerHTML = `<div class="empty-hint">Failed to load chat</div>`;
     }
   } else {
-    // Close chat SSE when drawer closes
     if (drawerSSE) { drawerSSE.close(); drawerSSE = null; }
   }
+}
+
+document.getElementById("toggle-drawer")!.addEventListener("click", () => {
+  void toggleDrawer();
 });
 
 // ── Terminal panel toggle ────────────────────────────────────────────
@@ -318,7 +317,7 @@ document.addEventListener("keydown", (e) => {
   // ⌘/ — Toggle drawer (chat)
   if (meta && e.key === "/") {
     e.preventDefault();
-    document.getElementById("toggle-drawer")?.click();
+    toggleDrawer();
   }
 
   // ⌘J — Toggle terminal panel
