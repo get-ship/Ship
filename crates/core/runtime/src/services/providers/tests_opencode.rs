@@ -107,7 +107,10 @@ fn caps_match_declared() {
     let c = OpenCodeAdapter.caps();
     assert!(c.headless);
     assert!(c.interactive);
-    assert!(c.server_mode, "opencode: serve HTTP REST + SSE");
+    assert!(
+        !c.server_mode,
+        "opencode server_mode is off pending OpenCodeSession rewrite — API shape changed (parts vs role/content, sync vs SSE)",
+    );
     assert!(c.json_stream);
     assert!(c.mcp, "opencode: opencode.json mcp");
     assert!(!c.hooks, "opencode: hooks via JS plugin file, not wired");

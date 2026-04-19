@@ -15,7 +15,15 @@ impl ProviderAdapter for OpenCodeAdapter {
         ProviderCapabilities {
             headless: true,
             interactive: true,
-            server_mode: true,
+            // Opencode's `/session/:id/message` API changed shape in April
+            // 2026 — body now expects `{parts:[{type,text}]}` instead of
+            // `{role,content}`, and the response is synchronous (full
+            // assistant message inline) rather than returning a messageID
+            // that drives SSE subscription. OpenCodeSession still targets
+            // the old shape; re-enable server_mode after the session code
+            // is updated to use `/session/:id/prompt_async` + SSE, or to
+            // parse the sync response into SessionEvents directly.
+            server_mode: false,
             json_stream: true,
             mcp: true,
             hooks: false,
