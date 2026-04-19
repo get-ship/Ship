@@ -35,7 +35,12 @@ impl ProviderAdapter for OpenCodeAdapter {
     }
 
     fn build_headless(&self, slug: &str, profile: &LaunchProfile) -> LaunchCommand {
-        let mut args = vec!["run".to_string(), "--yolo".to_string()];
+        // `opencode run` takes the message as positional args; no dedicated
+        // bypass flag exists in the current CLI (unlike Claude's `--yolo` /
+        // Codex's `--full-auto`). Server-mode via `opencode serve` is the
+        // primary automation path — CLI is a fallback when the session
+        // can't bind.
+        let mut args = vec!["run".to_string()];
         if let Some(ref model) = profile.model {
             args.push("--model".to_string());
             args.push(model.clone());
