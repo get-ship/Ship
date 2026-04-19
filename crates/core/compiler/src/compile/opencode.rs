@@ -234,10 +234,10 @@ pub(super) fn build_opencode_config_patch(resolved: &ResolvedConfig) -> Option<J
         root["permission"] = perms;
     }
 
-    // Ship hooks — reference the JS plugin for lifecycle integration.
-    root["hooks"] = serde_json::json!({
-        "file": "contrib/opencode-ship-hooks.js"
-    });
+    // Opencode dropped the top-level `hooks` key from its config schema in
+    // April 2026 — the current CLI rejects any config containing it with a
+    // ConfigInvalidError. Ship lifecycle integration for opencode runs
+    // through the MCP server entry above instead.
 
     // settings_extra — merged verbatim last (provider_settings.opencode passthrough).
     if let Some(extra) = &resolved.opencode_settings_extra
