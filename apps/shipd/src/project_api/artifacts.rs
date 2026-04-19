@@ -107,16 +107,6 @@ pub async fn promote_artifact(
     })))
 }
 
-/// GET /api/artifacts
-pub async fn list_project_artifacts(
-    State(state): State<ApiState>,
-) -> Result<(StatusCode, Json<MeshResponse>), (StatusCode, Json<MeshResponse>)> {
-    let project_dir = project_artifacts_dir(state.ship_dir())?;
-
-    let mut files: Vec<serde_json::Value> = Vec::new();
-    if project_dir.exists() {
-        super::session_files::collect_files_recursive(&project_dir, &project_dir, &mut files)?;
-    }
-
-    Ok(ok_response(serde_json::json!({ "files": files })))
-}
+// `GET /api/artifacts` is served by `artifacts_api::list_artifacts`, which
+// queries the DB-backed artifacts collection. The former FS-scanning
+// implementation lived here; it has been replaced.
