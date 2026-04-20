@@ -1,68 +1,225 @@
 ---
-// Theme picker. Drives the shared @ship/ui theme helpers — no theme
-// list lives in the site. Theme ids, labels, groups, and the dark-class
-// decision all flow from packages/ui/src/themes.ts.
+// Theme picker. Mirrors the shell app's settings/theme card grid —
+// each theme renders on a card tinted with its own background color,
+// with a strip of 4 swatches (bg / card / primary / accent) so
+// light/dark + accent mood are readable at a glance.
+//
+// Drives off THEMES in @ship/ui/themes. No theme ids, labels, or
+// swatches live in the site.
 import { THEMES } from '@ship/ui/themes';
 
 const groups = Array.from(new Set(THEMES.map((t) => t.group)));
 ---
 
-<label class="theme-switcher">
-  <span class="theme-switcher-label">Theme</span>
-  <ship-select size="sm" data-theme-select data-placeholder="SHIP Light">
+<ship-popover placement="bottom" class="theme-popover" data-theme-picker>
+  <ship-button
+    slot="trigger"
+    variant="outline"
+    size="sm"
+    class="theme-trigger"
+    aria-haspopup="menu"
+    aria-label="Choose theme"
+  >
+    <span class="theme-trigger-swatch" aria-hidden="true" data-theme-trigger-swatch></span>
+    <span class="theme-trigger-label" data-theme-trigger-label>SHIP Light</span>
+    <svg class="theme-trigger-caret" viewBox="0 0 10 6" aria-hidden="true">
+      <path d="M1 1l4 4 4-4" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" />
+    </svg>
+  </ship-button>
+
+  <div class="theme-grid" role="listbox" aria-label="Theme">
     {groups.map((g) => (
-      <optgroup label={g}>
-        {THEMES.filter((t) => t.group === g).map((t) => (
-          <option value={t.id}>{t.label}</option>
-        ))}
-      </optgroup>
+      <section class="theme-group" aria-label={g}>
+        <header class="theme-group-head">{g}</header>
+        <div class="theme-group-cards">
+          {THEMES.filter((t) => t.group === g).map((t) => (
+            <button
+              type="button"
+              class="theme-card"
+              role="option"
+              data-theme-card={t.id}
+              data-dark={t.dark ? 'true' : 'false'}
+              aria-label={t.label}
+              style={`
+                --swatch-bg: ${t.swatches[0]};
+                --swatch-card: ${t.swatches[1]};
+                --swatch-primary: ${t.swatches[2]};
+                --swatch-accent: ${t.swatches[3]};
+              `}
+            >
+              <div class="theme-card-swatches">
+                <span style={`background:${t.swatches[0]}`}></span>
+                <span style={`background:${t.swatches[1]}`}></span>
+                <span style={`background:${t.swatches[2]}`}></span>
+                <span style={`background:${t.swatches[3]}`}></span>
+              </div>
+              <div class="theme-card-name">{t.label}</div>
+            </button>
+          ))}
+        </div>
+      </section>
     ))}
-  </ship-select>
-</label>
+  </div>
+</ship-popover>
 
 <script>
-  import { applyTheme, persistTheme, readStoredTheme, isValidTheme } from '@ship/ui/themes';
+  import {
+    THEMES,
+    applyTheme,
+    persistTheme,
+    readStoredTheme,
+    isValidTheme,
+  } from '@ship/ui/themes';
 
-  const selects = document.querySelectorAll<HTMLElement>('[data-theme-select]');
-  for (const select of selects) {
-    const sync = () => {
-      const current = readStoredTheme();
-      (select as any).value = current;
-      const native = select.querySelector('select') as HTMLSelectElement | null;
-      if (native) native.value = current;
+  const pickers = document.querySelectorAll<HTMLElement>('[data-theme-picker]');
+  for (const picker of pickers) {
+    const cards = picker.querySelectorAll<HTMLButtonElement>('[data-theme-card]');
+    const trigger = picker.querySelector<HTMLElement>('.theme-trigger');
+    const swatch = picker.querySelector<HTMLElement>('[data-theme-trigger-swatch]');
+    const label = picker.querySelector<HTMLElement>('[data-theme-trigger-label]');
+
+    const paintTrigger = (id: string) => {
+      const theme = THEMES.find((t) => t.id === id);
+      if (!theme) return;
+      if (label) label.textContent = theme.label;
+      if (swatch) swatch.style.background = theme.swatches[2];
+      if (trigger) trigger.setAttribute('data-theme', id);
     };
-    customElements.whenDefined('ship-select').then(sync);
-    sync();
 
-    const onChange = (value: unknown) => {
-      if (!isValidTheme(value)) return;
-      const next = applyTheme(value);
-      persistTheme(next);
+    const setActive = (id: string) => {
+      for (const card of cards) {
+        card.setAttribute(
+          'aria-selected',
+          card.dataset.themeCard === id ? 'true' : 'false',
+        );
+      }
+      paintTrigger(id);
     };
 
-    select.addEventListener('ship-change', (e: Event) => {
-      const detail = (e as CustomEvent<{ value: string }>).detail;
-      onChange(detail?.value);
-    });
-    select.addEventListener('change', (e: Event) => {
-      const target = e.target as HTMLSelectElement;
-      if (target?.value) onChange(target.value);
-    });
+    setActive(readStoredTheme());
+
+    for (const card of cards) {
+      card.addEventListener('click', () => {
+        const id = card.dataset.themeCard;
+        if (!isValidTheme(id)) return;
+        const next = applyTheme(id);
+        persistTheme(next);
+        setActive(next);
+        (picker as any).hide?.();
+      });
+    }
   }
 </script>
 
 <style>
-  .theme-switcher {
+  .theme-popover {
     display: inline-flex;
-    align-items: center;
-    gap: 10px;
-    color: var(--muted-foreground);
-    font-size: 13px;
   }
-  .theme-switcher-label {
+
+  /* Trigger button ---------------------------------------------------- */
+
+  .theme-trigger {
+    /* ship-button's outline variant, plus a tiny swatch preview. */
+    --btn-gap: 8px;
+  }
+  .theme-trigger-swatch {
+    width: 10px;
+    height: 10px;
+    border-radius: 999px;
+    background: var(--primary);
+    box-shadow: 0 0 0 1px color-mix(in oklch, var(--foreground) 15%, transparent);
+  }
+  .theme-trigger-label {
+    font-family: var(--font-body);
     font-weight: 500;
+  }
+  .theme-trigger-caret {
+    width: 10px;
+    height: 6px;
+    color: var(--muted-foreground);
+    margin-left: 2px;
+  }
+
+  /* Popover body ------------------------------------------------------ */
+
+  .theme-grid {
+    display: flex;
+    flex-direction: column;
+    gap: 12px;
+    padding: 4px;
+    width: 320px;
+  }
+  .theme-group-head {
+    font-size: 10.5px;
+    font-weight: 600;
+    letter-spacing: 0.1em;
     text-transform: uppercase;
-    letter-spacing: 0.08em;
-    font-size: 11px;
+    color: var(--muted-foreground);
+    padding: 0 6px;
+    margin-bottom: 6px;
+  }
+  .theme-group-cards {
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 8px;
+  }
+
+  /* Individual theme cards — painted in the theme's own bg. ---------- */
+
+  .theme-card {
+    appearance: none;
+    background: var(--swatch-bg);
+    border: 2px solid color-mix(in oklch, var(--swatch-primary) 0%, transparent);
+    border-radius: 10px;
+    padding: 8px;
+    cursor: pointer;
+    text-align: left;
+    font: inherit;
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+    transition:
+      border-color var(--duration-fast) var(--ease-out),
+      box-shadow var(--duration-fast) var(--ease-out),
+      transform var(--duration-fast) var(--ease-out);
+  }
+  .theme-card:hover {
+    border-color: color-mix(in oklch, var(--swatch-primary) 50%, transparent);
+    transform: translateY(-1px);
+  }
+  .theme-card[aria-selected='true'] {
+    border-color: var(--swatch-primary);
+    box-shadow: 0 0 0 3px color-mix(in oklch, var(--swatch-primary) 22%, transparent);
+  }
+  .theme-card:focus-visible {
+    outline: 2px solid var(--swatch-primary);
+    outline-offset: 2px;
+  }
+
+  .theme-card-swatches {
+    display: flex;
+    gap: 3px;
+    height: 22px;
+    border-radius: 6px;
+    overflow: hidden;
+    border: 1px solid color-mix(in oklch, var(--swatch-primary) 35%, transparent);
+  }
+  .theme-card-swatches > span {
+    flex: 1;
+    display: block;
+  }
+
+  .theme-card-name {
+    font-size: 12px;
+    font-weight: 600;
+    /* Text color keyed to the card's own theme so light cards stay
+     * readable on light bg, dark cards on dark bg. */
+    color: color-mix(in oklch, var(--swatch-primary) 12%, var(--swatch-accent));
+  }
+  .theme-card[data-dark='true'] .theme-card-name {
+    color: color-mix(in oklch, var(--swatch-accent) 0%, #f5f5f5);
+  }
+  .theme-card[data-dark='false'] .theme-card-name {
+    color: color-mix(in oklch, var(--swatch-accent) 0%, #0a0a0a);
   }
 </style>

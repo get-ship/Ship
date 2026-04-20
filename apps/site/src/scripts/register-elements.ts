@@ -16,7 +16,7 @@ type Loader = () => Promise<unknown>;
 const loaders: Loader[] = [
   () => import('@ship/ui/web-components/ship-button'),
   () => import('@ship/ui/web-components/ship-card'),
-  () => import('@ship/ui/web-components/ship-select'),
+  () => import('@ship/ui/web-components/ship-popover'),
   () => import('@ship/ui/web-components/ship-badge'),
   () => import('@ship/ui/web-components/ship-status-dot'),
   () => import('@ship/ui/web-components/ship-separator'),

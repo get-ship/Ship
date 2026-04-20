@@ -133,26 +133,7 @@ ship-button[tone='accent']:not(:defined) {
   background: var(--accent);
   color: var(--accent-foreground);
 }
-
-/*
- * Brand CTA override.
- *
- * The ship-components vocabulary currently exposes `tone="accent"` for
- * primary actions, which reads --accent. SHIP's canonical brand color
- * lives on --primary (warm amber), and we want that visible on the
- * marketing site. This class remaps --accent -> --primary for the
- * ship-button instances it's applied to, so tone="accent" renders in
- * the brand orange without patching the library. No other styling.
- *
- * Library gap: `tone="primary"` should be a first-class option in
- * ship-button. Tracking as a follow-up so we don't quietly extend the
- * charter from a marketing site.
- */
-ship-button.cta-brand {
-  --accent: var(--primary);
-  --accent-foreground: var(--primary-foreground);
-}
-ship-button.cta-brand:not(:defined) {
+ship-button[tone='primary']:not(:defined) {
   background: var(--primary);
   color: var(--primary-foreground);
 }
@@ -273,5 +254,14 @@ ship-alert:not(:defined) {
 
 ship-dialog:not(:defined),
 ship-auth-dialog:not(:defined) {
+  display: none;
+}
+
+/* Un-upgraded popover: render only the trigger slot. Any default-slot
+ * children (the panel body) stay hidden until ship-popover takes over. */
+ship-popover:not(:defined) {
+  display: inline-flex;
+}
+ship-popover:not(:defined) > *:not([slot='trigger']) {
   display: none;
 }

@@ -5,7 +5,7 @@
  * come for free from the native element.
  *
  * Attributes:
- *   - tone: default | info | success | warning | destructive | accent | muted
+ *   - tone: default | primary | info | success | warning | destructive | accent | muted
  *   - variant: solid | soft | outline | ghost (default: solid)
  *   - size: sm | md | lg (default: md)
  *   - disabled: boolean
@@ -49,6 +49,11 @@ export class ShipButton extends LitElement {
       --tone: var(--foreground);
       --tone-fg: var(--foreground);
       --tone-contrast: var(--background);
+    }
+    :host([tone='primary']) {
+      --tone: var(--primary);
+      --tone-fg: var(--primary);
+      --tone-contrast: var(--primary-foreground);
     }
     :host([tone='info']) {
       --tone: var(--info);
