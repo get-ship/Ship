@@ -69,24 +69,24 @@ const recipes = [
   {
     id: 'command-palette',
     title: 'Command palette',
-    blurb: 'ship-dialog + ship-input + ship-list-item + ship-kbd. Exact pattern the site uses.',
+    blurb: 'ship-dialog + ship-input + ship-list-tile + ship-kbd. Exact pattern the site uses.',
     html: `<ship-card variant="outline" padding="none" style="max-width:420px;box-shadow:var(--shadow-md);">
   <div style="padding:10px 14px;border-bottom:1px solid var(--border);">
     <ship-input placeholder="Jump to…" style="width:100%;"></ship-input>
   </div>
   <div style="padding:6px 6px 10px;display:flex;flex-direction:column;gap:2px;">
-    <ship-list-item selected>
+    <ship-list-tile interactive selected>
       <span>Components</span>
       <ship-kbd slot="trailing" keys="G C"></ship-kbd>
-    </ship-list-item>
-    <ship-list-item>
+    </ship-list-tile>
+    <ship-list-tile interactive>
       <span>Themes</span>
       <ship-kbd slot="trailing" keys="G T"></ship-kbd>
-    </ship-list-item>
-    <ship-list-item>
+    </ship-list-tile>
+    <ship-list-tile interactive>
       <span>Tokens</span>
       <ship-kbd slot="trailing" keys="G D"></ship-kbd>
-    </ship-list-item>
+    </ship-list-tile>
   </div>
 </ship-card>`,
   },

@@ -16,7 +16,7 @@
           </div>
           <div class="specs-rail-items">
             {% for spec in group.items %}
-              <ship-list-item
+              <ship-list-tile interactive
                 {% if selected_id == spec.id %}selected{% endif %}
                 data-on:click="@get('{{ view_specs() }}?selected={{ spec.id }}&q=' + encodeURIComponent($q || ''))">
                 <ship-status-dot slot="leading" size="sm" tone="{{ spec.tone }}"
@@ -28,7 +28,7 @@
                 <span slot="trailing" class="spec-row-pipeline">
                   {% if spec.pipeline %}{{ spec.pipeline }}{% else %}—{% endif %}
                 </span>
-              </ship-list-item>
+              </ship-list-tile>
             {% endfor %}
             {% if group.items | length == 0 %}
               <div style="padding: 4px 10px; font-size: 11px; color: var(--muted-foreground); opacity: 0.6;">

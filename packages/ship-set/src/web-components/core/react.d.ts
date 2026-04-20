@@ -34,7 +34,7 @@ declare module 'react' {
       'ship-field': ShipElement
       'ship-input': ShipElement
       'ship-label': ShipElement
-      'ship-list-item': ShipElement
+      'ship-list-tile': ShipElement
       'ship-popover': ShipElement
       'ship-progress': ShipElement
       'ship-select': ShipElement
@@ -56,8 +56,6 @@ declare module 'react' {
       'ship-pipeline-run': ShipElement
       'ship-pipeline-definition': ShipElement
       'ship-pipeline-dag': ShipElement
-      'ship-history-row': ShipElement
-      'ship-spec-row': ShipElement
       'ship-git-diff': ShipElement
       'ship-git-diff-file': ShipElement
       'ship-git-diff-hunk': ShipElement
@@ -67,9 +65,7 @@ declare module 'react' {
       'ship-code': ShipElement
       'ship-copy-button': ShipElement
       'ship-diff': ShipElement
-      'ship-event-row': ShipElement
       'ship-json-view': ShipElement
-      'ship-log-line': ShipElement
       'ship-markdown': ShipElement
       'ship-table': ShipElement
       'ship-timeline': ShipElement

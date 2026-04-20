@@ -175,9 +175,11 @@ export const SHOTS: Record<string, ComponentShot[]> = {
       `,
     },
   ],
-  'ship-list-item': [
+  'ship-list-tile': [
     { label: 'Default', innerHTML: 'Pick a workspace' },
     { label: 'Selected', attrs: { selected: '' }, innerHTML: 'Selected row' },
+    { label: 'Interactive', attrs: { interactive: '' }, innerHTML: 'Click me' },
+    { label: 'Card', attrs: { variant: 'card' }, innerHTML: 'Card tile' },
   ],
   'ship-avatar': [
     { label: 'Initials', attrs: { name: 'Priya Nair' } },

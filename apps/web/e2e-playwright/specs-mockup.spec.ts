@@ -13,7 +13,7 @@ test('specs detail pane with selected spec', async ({ page }) => {
   await page.goto('/studio/view/specs')
   await page.waitForTimeout(2500)
   // Click the ping spec row (title starts with "Add fn ping()").
-  const row = page.locator('ship-list-item').filter({ hasText: 'Add fn ping' }).first()
+  const row = page.locator('ship-list-tile').filter({ hasText: 'Add fn ping' }).first()
   await row.click()
   await page.waitForSelector('.specs-detail-inner', { timeout: 10_000 })
   await page.waitForTimeout(1500)

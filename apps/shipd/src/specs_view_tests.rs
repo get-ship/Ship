@@ -100,7 +100,7 @@ fn rail_groups_and_items_render() {
     let html = templates::render("specs/partials/rail.html.j2", &ctx).expect("render");
     assert!(html.contains("Draft"));
     assert!(html.contains("Ready"));
-    assert!(html.contains("<ship-list-item"));
+    assert!(html.contains("<ship-list-tile"));
     assert!(html.contains("<ship-status-dot"));
     assert!(html.contains("Spec s1"));
     assert!(html.contains("Spec s2"));

@@ -41,7 +41,7 @@ await snap("05-multi-mount-drawer", "/pipelines", async () => {
 
 // Verify: custom element upgraded (shadow root exists when ship-elements hydrated).
 const hydration = await page.evaluate(() => {
-  const tags = ["ship-card", "ship-button", "ship-badge", "ship-list-item", "ship-tabs"];
+  const tags = ["ship-card", "ship-button", "ship-badge", "ship-list-tile", "ship-tabs"];
   const out = [];
   for (const t of tags) {
     for (const el of document.querySelectorAll(t)) {

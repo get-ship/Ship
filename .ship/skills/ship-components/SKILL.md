@@ -60,7 +60,7 @@ tell them apart at usage time. The library organization is strict.
 - Zero knowledge of the daemon API. Pure DOM.
 - Built on Lit.
 
-**Examples:** `ship-button`, `ship-card`, `ship-list-item`, `ship-stat`,
+**Examples:** `ship-button`, `ship-card`, `ship-list-tile`, `ship-stat`,
 `ship-input`, `ship-tabs`, `ship-empty-state`.
 
 ### Domain components
@@ -75,8 +75,7 @@ tell them apart at usage time. The library organization is strict.
 - Still free of direct daemon API calls — receive data via attrs / props.
 
 **Examples:** `ship-pipeline-step`, `ship-pipeline-run`,
-`ship-pipeline-definition`, `ship-pipeline-dag`, `ship-history-row`,
-`ship-spec-row`.
+`ship-pipeline-definition`, `ship-pipeline-dag`.
 
 ### Decision rule
 
@@ -336,7 +335,7 @@ When this charter lands, five components already exist in
 |---|---|
 | `badge.ts` | Rewrite API: rename `variant` → `tone`, default to `muted`, keep `color-mix` implementation approach. |
 | `empty-state.ts` | Rewrite: delete `ICON_GLYPHS` map, delete `title`/`description` attrs, go slot-only. |
-| `file-row.ts` | **Move and rename.** `domain/file-row.ts` or absorb into a Studio git view composite. The generic replacement is a new primitive `ship-list-item.ts`. |
+| `file-row.ts` | **Move and rename.** `domain/file-row.ts` or absorb into a Studio git view composite. The generic replacement is a new primitive `ship-list-tile.ts`. |
 | `step-card.ts` | **Move.** Becomes `domain/pipeline-step.ts` (rename tag to `ship-pipeline-step`), simplify to compose `ship-card` + `ship-status-dot` + `ship-spinner`. |
 | `tabs.ts` | Extend: add `variant="underline" \| "segmented"`, add `count` attr to `ship-tab`. Preserve child-composition pattern. |
 

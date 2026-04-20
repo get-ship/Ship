@@ -34,7 +34,6 @@ Convention: `attr=value|value` = enum, bare `attr` = boolean.
 - `<ship-donut>` [data size thickness label]
 - `<ship-dropdown-menu>` [open]
 - `<ship-empty-state>` [variant size tone icon]
-- `<ship-event-row>` [actor verb target at]
 - `<ship-field>` [invalid]
 - `<ship-file-upload>` [accept multiple max-size disabled tone _files _over _error] events: ship-change
 - `<ship-gauge>` [value min max tone low-threshold high-threshold size thickness label]
@@ -47,8 +46,7 @@ Convention: `attr=value|value` = enum, bare `attr` = boolean.
 - `<ship-label>` [for size=sm|md required]
 - `<ship-line-chart>` [series labels width height points grid label]
 - `<ship-link>` [href external tone]
-- `<ship-list-item>` [selected disabled] events: ship-select
-- `<ship-log-line>` [level timestamp source]
+- `<ship-list-tile>` [variant interactive selected disabled density tone] events: ship-select
 - `<ship-markdown>` [value]
 - `<ship-markdown-editor>` [value placeholder size tone disabled invalid rows full-height name label show-selection-toolbar allow-comment allow-generate] events: input, ship-change
 - `<ship-metachip>` [label value]
@@ -98,9 +96,7 @@ Convention: `attr=value|value` = enum, bare `attr` = boolean.
 - `<ship-git-diff-file>` [path additions deletions collapsed]
 - `<ship-git-diff-hunk>` [header]
 - `<ship-git-diff-line>` [type old new]
-- `<ship-history-row>` [state]
 - `<ship-pipeline-dag>`
 - `<ship-pipeline-definition>` [name steps description]
 - `<ship-pipeline-run>` [state slug agent]
 - `<ship-pipeline-step>` [name step-type state agent]
-- `<ship-spec-row>` [item-title status pipeline selected]
