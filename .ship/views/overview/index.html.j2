@@ -81,6 +81,19 @@
     .ov-node-summary { font-size: var(--text-xs); color: var(--muted-foreground); line-height: 1.3; }
     .ov-node-layer { font-size: var(--text-xs); color: var(--muted-foreground); text-transform: uppercase; letter-spacing: 0.03em; }
 
+    /* Connect handle — hover-revealed, drag to another node to add a depends_on */
+    .ov-connect {
+      position: absolute; top: 50%; right: -8px; transform: translateY(-50%);
+      width: 16px; height: 16px; border-radius: 50%;
+      background: var(--accent); border: 2px solid var(--background);
+      cursor: crosshair; opacity: 0;
+      transition: opacity var(--duration-fast) var(--ease-out);
+      z-index: 2;
+    }
+    .ov-node:hover .ov-connect { opacity: 1; }
+    .ov-node.connect-target { outline: 2px solid var(--accent); outline-offset: 2px; }
+    .ov-ghost-edge { stroke: var(--accent); stroke-width: 2; stroke-dasharray: 4 4; fill: none; pointer-events: none; }
+
     .ov-drawer {
       position: absolute; top: 0; right: 0; bottom: 0; width: min(480px, 90%);
       background: var(--background);
@@ -177,6 +190,7 @@
           </div>
           <div class="ov-node-layer">{{ layer }}{% if d.doc_skill %} · {{ d.doc_skill }}{% endif %}</div>
           {% if d.summary %}<div class="ov-node-summary">{{ d.summary[:80] }}{% if d.summary | length > 80 %}…{% endif %}</div>{% endif %}
+          <div class="ov-connect" role="button" aria-label="Drag to connect"></div>
         </div>
       {% endfor %}
     </div>
@@ -382,11 +396,71 @@
     applyTransform();
   }, { passive: false });
 
+  // ── Edge drag (from connect handle to another node) ────
+  let connectFrom = null;
+  let ghostPath = null;
+  function cancelConnect() {
+    connectFrom = null;
+    if (ghostPath) { ghostPath.remove(); ghostPath = null; }
+    canvas.querySelectorAll('.ov-node.connect-target').forEach(n => n.classList.remove('connect-target'));
+  }
+  canvas.addEventListener('pointerdown', e => {
+    const handle = e.target.closest('.ov-connect');
+    if (!handle) return;
+    const node = handle.closest('.ov-node');
+    if (!node) return;
+    e.stopPropagation(); e.preventDefault();
+    connectFrom = node;
+    ghostPath = document.createElementNS('http://www.w3.org/2000/svg', 'path');
+    ghostPath.setAttribute('class', 'ov-ghost-edge');
+    edges.appendChild(ghostPath);
+    canvas.setPointerCapture(e.pointerId);
+  });
+  canvas.addEventListener('pointermove', e => {
+    if (!connectFrom) return;
+    const a = nodeCenter(connectFrom);
+    // canvas-space cursor
+    const crect = canvas.getBoundingClientRect();
+    const cx = (e.clientX - crect.left) / scale;
+    const cy = (e.clientY - crect.top) / scale;
+    ghostPath.setAttribute('d', `M ${a.x} ${a.y} L ${cx} ${cy}`);
+    // Highlight hovered target node
+    canvas.querySelectorAll('.ov-node.connect-target').forEach(n => n.classList.remove('connect-target'));
+    const tgt = document.elementFromPoint(e.clientX, e.clientY)?.closest('.ov-node');
+    if (tgt && tgt !== connectFrom) tgt.classList.add('connect-target');
+  });
+  canvas.addEventListener('pointerup', async e => {
+    if (!connectFrom) return;
+    const tgt = document.elementFromPoint(e.clientX, e.clientY)?.closest('.ov-node');
+    const src = connectFrom;
+    cancelConnect();
+    try { canvas.releasePointerCapture(e.pointerId); } catch(_) {}
+    if (!tgt || tgt === src) return;
+    // Append tgt's name to src's depends_on, if not already there
+    let deps = [];
+    try { deps = JSON.parse(src.dataset.depends); } catch(_) {}
+    if (!Array.isArray(deps)) deps = [];
+    const tgtName = tgt.dataset.name;
+    if (deps.includes(tgtName)) return;
+    deps.push(tgtName);
+    src.dataset.depends = JSON.stringify(deps);
+    // Persist
+    await fetch(`/api/collections/systems/items/${encodeURIComponent(src.dataset.id)}`, {
+      method: 'PUT', headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ data: { depends_on: deps } }),
+    }).catch(() => {});
+    drawEdges();
+  });
+  // ESC cancels in-flight connect
+  document.addEventListener('keydown', e => { if (e.key === 'Escape') cancelConnect(); });
+
   // ── Node drag + click ──────────────────────────────────
   let dragged = null;
   canvas.querySelectorAll('.ov-node').forEach(node => {
     let startX, startY, origX, origY, moved = false, saveTimer = null;
     node.addEventListener('pointerdown', e => {
+      // Let connect-handle drags pass through to the canvas-level listener.
+      if (e.target.closest('.ov-connect')) return;
       e.stopPropagation();
       dragged = node;
       moved = false;
@@ -436,25 +510,36 @@
   }
 
   // ── Drawer wiring ──────────────────────────────────────
+  // Datastar's public JS↔signal API is not documented/stable. The reliable
+  // pattern is to inject a hidden element carrying a `data-on:click`
+  // expression that writes the signals we need, let Datastar hydrate it
+  // on the next MutationObserver tick (double rAF), then programmatically
+  // click it. This is crude but deterministic.
+  function pokeSignals(expression) {
+    const root = document.querySelector('.overview-root');
+    if (!root) return;
+    const bridge = document.createElement('button');
+    bridge.style.cssText = 'position:absolute;left:-9999px;width:1px;height:1px;';
+    bridge.setAttribute('data-on:click', expression);
+    root.appendChild(bridge);
+    requestAnimationFrame(() => requestAnimationFrame(() => {
+      bridge.click();
+      bridge.remove();
+    }));
+  }
+
   async function openDrawer(id) {
     try {
       const r = await fetch(`/api/collections/systems/items/${encodeURIComponent(id)}`);
       if (!r.ok) return;
-      const envelope = await r.json();
-      const item = envelope.data || envelope;
-      const dsStore = (window.datastar && window.datastar.signals) || null;
-      // Datastar signals API varies; fall back to CustomEvent
-      window.dispatchEvent(new CustomEvent('overview:open-drawer', { detail: { id, data: item.data || item } }));
+      const env = await r.json();
+      const item = env.data || env;
+      const data = item.data || item;
+      const expr = `$form = ${JSON.stringify(data)}; $_drawerId = ${JSON.stringify(id)}; $_isNew = false; $_drawerOpen = true`;
+      pokeSignals(expr);
     } catch(_) {}
   }
 
-  window.addEventListener('overview:open-drawer', (e) => {
-    const root = document.querySelector('.overview-root');
-    if (!root || !window.ds) return;
-  });
-
-  // Use Datastar's signal bus via a data-on hook by toggling a hidden element.
-  // Simpler: expose a function the save button calls back into.
   window.__ovSave = async function(id, formVal, isNew) {
     const payload = { data: formVal || {} };
     const url = isNew
@@ -466,45 +551,19 @@
       body: JSON.stringify(payload),
     });
     if (r.ok) {
-      // Close + reload the view to pick up the new/edited item.
-      if (window.router) window.router.navigate('/overview');
-      else location.reload();
+      pokeSignals('$_drawerOpen = false');
+      // Reload to pick up the new/edited item in the rendered list.
+      setTimeout(() => {
+        if (window.router) window.router.navigate('/overview');
+        else location.reload();
+      }, 150);
     }
   };
 
-  // Click intercept: when a node is clicked (not dragged), populate drawer by
-  // reading attrs and dispatching a Datastar store update via the node's own
-  // data-on handler would be complicated. Use the document-level signal API:
-  function setSignals(patch) {
-    const evt = new CustomEvent('datastar-signals-patch', { detail: patch, bubbles: true });
-    document.dispatchEvent(evt);
-  }
-
-  // Override openDrawer to hydrate via refetch + direct store mutation.
-  openDrawer = async function(id) {
-    try {
-      const r = await fetch(`/api/collections/systems/items/${encodeURIComponent(id)}`);
-      if (!r.ok) return;
-      const env = await r.json();
-      const item = env.data || env;
-      const data = item.data || item;
-      const root = document.querySelector('.overview-root');
-      if (!root) return;
-      // Prefer Datastar's globally-exposed signals if present.
-      const ds = window.datastar;
-      if (ds && ds.$) {
-        try { ds.$.form = data; ds.$._drawerId = id; ds.$._isNew = false; ds.$._drawerOpen = true; return; } catch(_) {}
-      }
-      // Fallback: mutate Datastar via a hidden trigger element's data-on.
-      const bridge = document.createElement('button');
-      bridge.style.display = 'none';
-      bridge.setAttribute('data-on:click',
-        `$form = ${JSON.stringify(data)}; $_drawerId = '${id.replace(/'/g, "\\'")}'; $_isNew = false; $_drawerOpen = true`);
-      root.appendChild(bridge);
-      // Let Datastar process the new element, then click it.
-      requestAnimationFrame(() => { bridge.click(); bridge.remove(); });
-    } catch(_) {}
-  };
+  // ESC closes the drawer.
+  document.addEventListener('keydown', (e) => {
+    if (e.key === 'Escape') pokeSignals('$_drawerOpen = false');
+  });
 
   // ── Fit-to-view ────────────────────────────────────────
   window.__ovFit = function() {
@@ -529,25 +588,54 @@
     applyTransform();
   };
 
-  // ── Filter reactivity (listen to Datastar signal changes via polling lite) ──
+  // ── Filter reactivity ──────────────────────────────────
+  // Track filter state in local vars so we don't depend on Datastar's
+  // internal signal store. Listen to DOM events from the search input
+  // and chip clicks, mirror the state locally, apply classes.
+  const filter = { search: '', status: '', layer: '' };
   function applyFilters() {
-    const search = (getSig('_search') || '').toLowerCase();
-    const status = getSig('_statusFilter') || '';
-    const layer = getSig('_layerFilter') || '';
+    const s = filter.search.toLowerCase();
     canvas.querySelectorAll('.ov-node').forEach(n => {
       const name = (n.dataset.name || '').toLowerCase();
-      const okSearch = !search || name.includes(search);
-      const okStatus = !status || n.dataset.status === status;
-      const okLayer = !layer || n.dataset.layer === layer;
+      const okSearch = !s || name.includes(s);
+      const okStatus = !filter.status || n.dataset.status === filter.status;
+      const okLayer = !filter.layer || n.dataset.layer === filter.layer;
       n.classList.toggle('dimmed', !(okSearch && okStatus && okLayer));
     });
   }
-  function getSig(name) {
-    const ds = window.datastar;
-    try { return ds && ds.$ ? ds.$[name] : ''; } catch(_) { return ''; }
+
+  // Search input
+  const searchEl = document.querySelector('.overview-toolbar ship-input[data-bind="_search"]');
+  if (searchEl) {
+    // Listen to both the web component's custom event and the underlying input event.
+    const handler = (e) => {
+      const v = (e.detail?.value ?? e.target?.value ?? '') + '';
+      filter.search = v;
+      applyFilters();
+    };
+    searchEl.addEventListener('input', handler);
+    searchEl.addEventListener('change', handler);
+    searchEl.addEventListener('ship-input', handler);
   }
-  // Poll filter state at low frequency — simple + robust.
-  setInterval(applyFilters, 150);
+
+  // Status + layer filter chips — clicks toggle filter state.
+  function wireChipGroup(groupLabel, fieldName, validValues) {
+    const group = [...document.querySelectorAll(`.overview-toolbar [role="group"]`)]
+      .find(g => (g.getAttribute('aria-label') || '').toLowerCase() === groupLabel);
+    if (!group) return;
+    group.querySelectorAll('ship-chip').forEach(chipEl => {
+      chipEl.addEventListener('click', () => {
+        const txt = (chipEl.textContent || '').trim();
+        filter[fieldName] = validValues.includes(txt) ? txt : '';
+        // Visually mark the selected chip.
+        group.querySelectorAll('ship-chip').forEach(c => c.removeAttribute('data-active'));
+        chipEl.setAttribute('data-active', '');
+        applyFilters();
+      });
+    });
+  }
+  wireChipGroup('status', 'status', ['spec', 'building', 'shipping', 'complete']);
+  wireChipGroup('layer', 'layer', ['primitive', 'runtime', 'interface', 'meta']);
 
   // Initial paint
   drawEdges();
