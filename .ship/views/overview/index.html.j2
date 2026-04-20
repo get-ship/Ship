@@ -590,7 +590,40 @@
       method, headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ data }),
     });
-    if (r.ok) {
+    if (!r.ok) return;
+    // Update the clicked node's DOM attrs + summary in place so the
+    // canvas reflects the save without a full re-mount (keeps pan/zoom).
+    if (drawerId) {
+      const node = canvas.querySelector(`.ov-node[data-id="${CSS.escape(drawerId)}"]`);
+      if (node) {
+        if (data.name)    node.dataset.name = data.name;
+        if (data.layer)   node.dataset.layer = data.layer;
+        if (data.status)  node.dataset.status = data.status;
+        node.dataset.depends = JSON.stringify(data.depends_on || []);
+        // Rewrite the visible header label + summary
+        const headSpan = node.querySelector('.ov-node-head > span');
+        if (headSpan) headSpan.textContent = data.name || '(unnamed)';
+        const dot = node.querySelector('ship-status-dot');
+        if (dot) dot.setAttribute('status', data.status || 'spec');
+        const layerEl = node.querySelector('.ov-node-layer');
+        if (layerEl) layerEl.textContent = `${data.layer || ''}${data.doc_skill ? ' · ' + data.doc_skill : ''}`;
+        let summaryEl = node.querySelector('.ov-node-summary');
+        if (data.summary) {
+          if (!summaryEl) {
+            summaryEl = document.createElement('div');
+            summaryEl.className = 'ov-node-summary';
+            layerEl?.after(summaryEl);
+          }
+          const s = data.summary;
+          summaryEl.textContent = s.length > 80 ? s.slice(0, 80) + '…' : s;
+        } else if (summaryEl) {
+          summaryEl.remove();
+        }
+      }
+      drawEdges();
+      closeDrawerUI();
+    } else {
+      // New system: need the assigned id; simplest to re-mount the view.
       closeDrawerUI();
       setTimeout(() => {
         if (window.router) window.router.navigate('/overview');
@@ -708,14 +741,9 @@
   wireChipGroup('status', 'status', ['spec', 'building', 'shipping', 'complete']);
   wireChipGroup('layer', 'layer', ['primitive', 'runtime', 'interface', 'meta']);
 
-  // Initial paint
+  // Initial paint + fit to viewport
   drawEdges();
-  // Auto-fit if no node has an explicit saved position (all nulls collapse to auto-grid — still fit)
-  const hasSaved = [...canvas.querySelectorAll('.ov-node')].some(n => {
-    // auto-grid positions are deterministic; we simply always fit on first load
-    return false;
-  });
-  if (!hasSaved) requestAnimationFrame(() => window.__ovFit && window.__ovFit());
+  requestAnimationFrame(() => window.__ovFit && window.__ovFit());
 })();
 </script>
 
