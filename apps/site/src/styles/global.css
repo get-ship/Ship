@@ -149,12 +149,24 @@ ship-button:not(:defined):hover {
   transform: translateY(-1px);
 }
 
+/*
+ * ship-card pre-upgrade fallback. Matches the shadow-DOM padding
+ * matrix closely enough that a fresh navigation doesn't look cramped
+ * during the brief window before ship-card registers. Padding values
+ * mirror the size channel in ship-card.styles.ts.
+ */
 ship-card:not(:defined) {
   display: block;
   border: 1px solid color-mix(in oklch, var(--border) 60%, transparent);
   border-radius: var(--radius-lg);
   background: var(--card);
+  padding: var(--space-4) var(--space-5);
 }
+ship-card[padding='none']:not(:defined) { padding: 0; }
+ship-card[padding='sm']:not(:defined)   { padding: var(--space-3); }
+ship-card[padding='md']:not(:defined)   { padding: var(--space-4) var(--space-5); }
+ship-card[padding='lg']:not(:defined)   { padding: var(--space-5) var(--space-6); }
+ship-card[variant='outline']:not(:defined) { box-shadow: none; }
 
 /* Neutral pill baseline. Specific tones override so pre-upgrade contrast
  * always clears WCAG AA, matching the real Lit shadow output. */
