@@ -11267,7 +11267,7 @@ var ShipSkeleton = class extends i4 {
     this.width = "";
     this.height = "";
     this.lines = 1;
-    this.animate = true;
+    this.animated = true;
   }
   connectedCallback() {
     super.connectedCallback();
@@ -11322,7 +11322,7 @@ ShipSkeleton.properties = {
   width: { type: String },
   height: { type: String },
   lines: { type: Number },
-  animate: { type: Boolean, reflect: true }
+  animated: { type: Boolean, attribute: "animate", reflect: true }
 };
 if (typeof customElements !== "undefined" && !customElements.get("ship-skeleton")) {
   customElements.define("ship-skeleton", ShipSkeleton);
@@ -12257,12 +12257,12 @@ var ShipPipelineStepDef = class extends i4 {
     this.agent = "";
     this.provider = "";
     this.model = "";
-    this.after = "";
+    this.afterIds = "";
     this.command = "";
   }
   render() {
     const tone = TYPE_TONE[this.stepType] ?? "muted";
-    const afterList = (this.after || "").split(",").map((s4) => s4.trim()).filter(Boolean);
+    const afterList = (this.afterIds || "").split(",").map((s4) => s4.trim()).filter(Boolean);
     const cmd = (this.command || "").trim();
     return b2`
       <div part="row">
@@ -12366,7 +12366,7 @@ ShipPipelineStepDef.properties = {
   agent: { type: String, reflect: true },
   provider: { type: String, reflect: true },
   model: { type: String, reflect: true },
-  after: { type: String, reflect: true },
+  afterIds: { type: String, attribute: "after", reflect: true },
   command: { type: String },
   index: { type: Number, reflect: true }
 };

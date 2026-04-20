@@ -8,6 +8,7 @@ pub mod artifacts;
 mod agents_skills;
 mod agents_skills_write;
 mod git;
+mod pipeline_position;
 mod pipelines;
 pub(crate) mod session_files;
 

@@ -83,4 +83,59 @@ describe('ship-code-editor', () => {
     const el = await mount('<ship-code-editor></ship-code-editor>')
     expect(el.theme).toBe('auto')
   })
+
+  it('exposes setDiagnostics method', async () => {
+    const el = await mount('<ship-code-editor></ship-code-editor>')
+    expect(typeof el.setDiagnostics).toBe('function')
+  })
+
+  it('accepts diagnostics queued before first update', async () => {
+    // Queue before mount: a fresh element that hasn't hit firstUpdated yet
+    // should store diagnostics and flush them when the view is ready.
+    document.body.insertAdjacentHTML(
+      'beforeend',
+      '<ship-code-editor value="hello\nworld"></ship-code-editor>',
+    )
+    const el = document.body.lastElementChild as ShipCodeEditor
+    el.setDiagnostics([
+      { line: 1, column: 1, severity: 'error', message: 'queued' },
+    ])
+    await el.updateComplete
+    await new Promise((r) => setTimeout(r, 50))
+    // No throw = queued diagnostics applied once the view constructed.
+    expect(el.value).toBe('hello\nworld')
+  })
+
+  it('accepts diagnostics after initialization', async () => {
+    const el = await mount(
+      '<ship-code-editor value="line1\nline2\nline3"></ship-code-editor>',
+    )
+    expect(() =>
+      el.setDiagnostics([
+        { line: 2, column: 3, severity: 'warning', message: 'second line' },
+      ]),
+    ).not.toThrow()
+  })
+
+  it('clears diagnostics when passed empty array', async () => {
+    const el = await mount(
+      '<ship-code-editor value="foo"></ship-code-editor>',
+    )
+    el.setDiagnostics([
+      { line: 1, column: 1, severity: 'error', message: 'e' },
+    ])
+    expect(() => el.setDiagnostics([])).not.toThrow()
+  })
+
+  it('clamps out-of-range line numbers', async () => {
+    const el = await mount(
+      '<ship-code-editor value="single line"></ship-code-editor>',
+    )
+    // Line 99 doesn't exist — must not throw.
+    expect(() =>
+      el.setDiagnostics([
+        { line: 99, column: 1, severity: 'error', message: 'way out' },
+      ]),
+    ).not.toThrow()
+  })
 })

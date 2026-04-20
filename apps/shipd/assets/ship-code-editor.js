@@ -8,7 +8,7 @@ var __export = (target, all) => {
     __defProp(target, name2, { get: all[name2], enumerable: true });
 };
 
-// node_modules/.pnpm/@marijn+find-cluster-break@1.0.2/node_modules/@marijn/find-cluster-break/src/index.js
+// ../../node_modules/.pnpm/@marijn+find-cluster-break@1.0.2/node_modules/@marijn/find-cluster-break/src/index.js
 function isExtendingChar(code) {
   if (code < 768) return false;
   for (let from = 0, to = rangeFrom.length; ; ) {
@@ -75,7 +75,7 @@ function codePointSize(code) {
 }
 var rangeFrom, rangeTo, ZWJ;
 var init_src = __esm({
-  "node_modules/.pnpm/@marijn+find-cluster-break@1.0.2/node_modules/@marijn/find-cluster-break/src/index.js"() {
+  "../../node_modules/.pnpm/@marijn+find-cluster-break@1.0.2/node_modules/@marijn/find-cluster-break/src/index.js"() {
     rangeFrom = [];
     rangeTo = [];
     (() => {
@@ -87,7 +87,7 @@ var init_src = __esm({
   }
 });
 
-// node_modules/.pnpm/@codemirror+state@6.6.0/node_modules/@codemirror/state/dist/index.js
+// ../../node_modules/.pnpm/@codemirror+state@6.6.0/node_modules/@codemirror/state/dist/index.js
 function textLength(text) {
   let length = -1;
   for (let line of text)
@@ -708,7 +708,7 @@ function findColumn(string2, col, tabSize, strict) {
 }
 var Text, TextLeaf, TextNode, RawTextCursor, PartialTextCursor, LineCursor, Line, DefaultSplit, MapMode, ChangeDesc, ChangeSet, SectionIter, SelectionRange, EditorSelection, nextID, Facet, FacetProvider, initField, StateField, Prec_, Prec, PrecExtension, Compartment, CompartmentInstance, Configuration, languageData, allowMultipleSelections, lineSeparator, changeFilter, transactionFilter, transactionExtender, readOnly, Annotation, AnnotationType, StateEffectType, StateEffect, Transaction, none, CharCategory, nonASCIISingleCaseWordChar, wordChar, EditorState, RangeValue, Range, Chunk, RangeSet, RangeSetBuilder, LayerCursor, HeapCursor, SpanCursor;
 var init_dist = __esm({
-  "node_modules/.pnpm/@codemirror+state@6.6.0/node_modules/@codemirror/state/dist/index.js"() {
+  "../../node_modules/.pnpm/@codemirror+state@6.6.0/node_modules/@codemirror/state/dist/index.js"() {
     init_src();
     Text = class _Text {
       /**
@@ -3445,13 +3445,13 @@ var init_dist = __esm({
   }
 });
 
-// node_modules/.pnpm/style-mod@4.1.3/node_modules/style-mod/src/style-mod.js
+// ../../node_modules/.pnpm/style-mod@4.1.3/node_modules/style-mod/src/style-mod.js
 var C2, COUNT, SET, top, StyleModule, adoptedSet, StyleSet;
 var init_style_mod = __esm({
-  "node_modules/.pnpm/style-mod@4.1.3/node_modules/style-mod/src/style-mod.js"() {
+  "../../node_modules/.pnpm/style-mod@4.1.3/node_modules/style-mod/src/style-mod.js"() {
     C2 = "\u037C";
     COUNT = typeof Symbol == "undefined" ? "__" + C2 : Symbol.for(C2);
-    SET = typeof Symbol == "undefined" ? "__styleSet" + Math.floor(Math.random() * 1e8) : Symbol("styleSet");
+    SET = typeof Symbol == "undefined" ? "__styleSet" + Math.floor(Math.random() * 1e8) : /* @__PURE__ */ Symbol("styleSet");
     top = typeof globalThis != "undefined" ? globalThis : typeof window != "undefined" ? window : {};
     StyleModule = class {
       // :: (Object<Style>, ?{finish: ?(string) → string})
@@ -3581,7 +3581,7 @@ var init_style_mod = __esm({
   }
 });
 
-// node_modules/.pnpm/w3c-keyname@2.2.8/node_modules/w3c-keyname/index.js
+// ../../node_modules/.pnpm/w3c-keyname@2.2.8/node_modules/w3c-keyname/index.js
 function keyName(event) {
   var ignoreKey = mac && event.metaKey && event.shiftKey && !event.ctrlKey && !event.altKey || ie && event.shiftKey && event.key && event.key.length == 1 || event.key == "Unidentified";
   var name2 = !ignoreKey && event.key || (event.shiftKey ? shift : base)[event.keyCode] || event.key || "Unidentified";
@@ -3595,7 +3595,7 @@ function keyName(event) {
 }
 var base, shift, mac, ie, i5, i5, i5, code;
 var init_w3c_keyname = __esm({
-  "node_modules/.pnpm/w3c-keyname@2.2.8/node_modules/w3c-keyname/index.js"() {
+  "../../node_modules/.pnpm/w3c-keyname@2.2.8/node_modules/w3c-keyname/index.js"() {
     base = {
       8: "Backspace",
       9: "Tab",
@@ -3688,7 +3688,7 @@ var init_w3c_keyname = __esm({
   }
 });
 
-// node_modules/.pnpm/crelt@1.0.6/node_modules/crelt/index.js
+// ../../node_modules/.pnpm/crelt@1.0.6/node_modules/crelt/index.js
 function crelt() {
   var elt2 = arguments[0];
   if (typeof elt2 == "string") elt2 = document.createElement(elt2);
@@ -3717,11 +3717,11 @@ function add(elt2, child) {
   }
 }
 var init_crelt = __esm({
-  "node_modules/.pnpm/crelt@1.0.6/node_modules/crelt/index.js"() {
+  "../../node_modules/.pnpm/crelt@1.0.6/node_modules/crelt/index.js"() {
   }
 });
 
-// node_modules/.pnpm/@codemirror+view@6.40.0/node_modules/@codemirror/view/dist/index.js
+// ../../node_modules/.pnpm/@codemirror+view@6.40.0/node_modules/@codemirror/view/dist/index.js
 function combineAttrs(source, target) {
   for (let name2 in source) {
     if (name2 == "class" && target.class)
@@ -5932,6 +5932,85 @@ function rectangularSelection(options) {
   let filter = (options === null || options === void 0 ? void 0 : options.eventFilter) || ((e4) => e4.altKey && e4.button == 0);
   return EditorView.mouseSelectionStyle.of((view, event) => filter(event) ? rectangleSelectionStyle(view, event) : null);
 }
+function windowSpace(view) {
+  let docElt = view.dom.ownerDocument.documentElement;
+  return { top: 0, left: 0, bottom: docElt.clientHeight, right: docElt.clientWidth };
+}
+function setLeftStyle(elt2, value) {
+  let current = parseInt(elt2.style.left, 10);
+  if (isNaN(current) || Math.abs(value - current) > 1)
+    elt2.style.left = value + "px";
+}
+function isInTooltip(tooltip, event) {
+  let { left, right, top: top2, bottom } = tooltip.getBoundingClientRect(), arrow;
+  if (arrow = tooltip.querySelector(".cm-tooltip-arrow")) {
+    let arrowRect = arrow.getBoundingClientRect();
+    top2 = Math.min(arrowRect.top, top2);
+    bottom = Math.max(arrowRect.bottom, bottom);
+  }
+  return event.clientX >= left - tooltipMargin && event.clientX <= right + tooltipMargin && event.clientY >= top2 - tooltipMargin && event.clientY <= bottom + tooltipMargin;
+}
+function isOverRange(view, from, to, x2, y3, margin) {
+  let rect = view.scrollDOM.getBoundingClientRect();
+  let docBottom = view.documentTop + view.documentPadding.top + view.contentHeight;
+  if (rect.left > x2 || rect.right < x2 || rect.top > y3 || Math.min(rect.bottom, docBottom) < y3)
+    return false;
+  let pos = view.posAtCoords({ x: x2, y: y3 }, false);
+  return pos >= from && pos <= to;
+}
+function hoverTooltip(source, options = {}) {
+  let setHover = StateEffect.define();
+  let hoverState = StateField.define({
+    create() {
+      return [];
+    },
+    update(value, tr) {
+      if (value.length) {
+        if (options.hideOnChange && (tr.docChanged || tr.selection))
+          value = [];
+        else if (options.hideOn)
+          value = value.filter((v2) => !options.hideOn(tr, v2));
+        if (tr.docChanged) {
+          let mapped = [];
+          for (let tooltip of value) {
+            let newPos = tr.changes.mapPos(tooltip.pos, -1, MapMode.TrackDel);
+            if (newPos != null) {
+              let copy = Object.assign(/* @__PURE__ */ Object.create(null), tooltip);
+              copy.pos = newPos;
+              if (copy.end != null)
+                copy.end = tr.changes.mapPos(copy.end);
+              mapped.push(copy);
+            }
+          }
+          value = mapped;
+        }
+      }
+      for (let effect of tr.effects) {
+        if (effect.is(setHover))
+          value = effect.value;
+        if (effect.is(closeHoverTooltipEffect))
+          value = [];
+      }
+      return value;
+    },
+    provide: (f3) => showHoverTooltip.from(f3)
+  });
+  return {
+    active: hoverState,
+    extension: [
+      hoverState,
+      ViewPlugin.define((view) => new HoverPlugin(
+        view,
+        source,
+        hoverState,
+        setHover,
+        options.hoverTime || 300
+        /* Hover.Time */
+      )),
+      showHoverTooltipHost
+    ]
+  };
+}
 function getPanel(view, panel) {
   let plugin = view.plugin(panelPlugin);
   let index = plugin ? plugin.specs.indexOf(panel) : -1;
@@ -6075,9 +6154,9 @@ function maxLineNumber(lines) {
 function highlightActiveLineGutter() {
   return activeLineGutterHighlighter;
 }
-var nav, doc, ie_edge, ie_upto10, ie_11up, ie2, gecko, chrome, webkit, safari, ios, browser, noAttrs, WidgetType, BlockType, Decoration, MarkDecoration, LineDecoration, PointDecoration, BlockWrapper, DOMSelectionState, preventScrollSupported, scratchRange, DOMPos, Direction, LTR, RTL, LowTypes, ArabicTypes, Brackets, BracketStack, BidiRE, BidiSpan, types, movedOver, clickAddsSelectionRange, dragMovesSelection$1, mouseSelectionStyle, exceptionSink, updateListener, inputHandler, focusChangeEffect, clipboardInputFilter, clipboardOutputFilter, perLineTextDirection, nativeSelectionHidden, scrollHandler, ScrollTarget, scrollIntoView, setEditContextFormatting, editable, nextPluginID, viewPlugin, ViewPlugin, PluginInstance, editorAttributes, contentAttributes, decorations, blockWrappers, outerDecorations, atomicRanges, bidiIsolatedRanges, scrollMargins, styleModule, ChangedRange, ViewUpdate, noChildren, Tile, CompositeTile, DocTile, BlockWrapperTile, LineTile, MarkTile, TextTile, WidgetTile, WidgetBufferTile, TilePointer, OpenWrapper, TileBuilder, TextStream, buckets, TileCache, TileUpdate, lineBaseAttrs, NullWidget, BreakWidget, DocView, DecorationComparator$1, WrapperComparator, BlockGapWidget, PosAssoc, InlineCoordsScan, LineBreakPlaceholder, DOMReader, DOMPoint, DOMChange, InputState, PendingKeys, EmacsyPendingKeys, modifierCodes, dragScrollMargin, MouseSelection, handlers, observers, brokenClipboardAPI, BadMouseDetail, lastMouseDown, lastMouseDownCount, lastMouseDownTime, lastLinewiseCopy, isFocusChange, appliedFirefoxHack, wrappingWhiteSpace, heightChangeFlag, HeightOracle, MeasuredHeights, BlockInfo, QueryType, Epsilon, HeightMap, SpaceDeco, HeightMapBlock, HeightMapText, HeightMapGap, HeightMapBranch, relevantWidgetHeight, NodeBuilder, DecorationComparator2, LineGap, LineGapWidget, ViewState, Viewport, IdScaler, BigScaler, theme, darkTheme, baseThemeID, baseLightID, baseDarkID, lightDarkIDs, baseTheme$1, observeOptions, useCharData, DOMObserver, EditContextManager, EditorView, MaxBidiLine, BadMeasure, CachedOrder, currentPlatform, handleKeyEvents, keymap, Keymaps, storedPrefix, PrefixTimeout, currentKeyEvent, RectangleMarker, LayerView, layerOrder, selectionConfig, cursorLayer, selectionLayer, hideNativeSelection, UnicodeRegexpSupport, lineDeco, activeLineHighlighter, Placeholder, MaxOff, baseTheme, panelConfig, panelPlugin, PanelGroup, showPanel, dialogField, openDialogEffect, closeDialogEffect, GutterMarker, gutterLineClass, gutterWidgetClass, defaults, activeGutters, unfixGutters, gutterView, UpdateContext, SingleGutterView, GutterElement, lineNumberMarkers, lineNumberWidgetMarker, lineNumberConfig, NumberMarker, lineNumberGutter, activeLineGutterMarker, activeLineGutterHighlighter;
+var nav, doc, ie_edge, ie_upto10, ie_11up, ie2, gecko, chrome, webkit, safari, ios, browser, noAttrs, WidgetType, BlockType, Decoration, MarkDecoration, LineDecoration, PointDecoration, BlockWrapper, DOMSelectionState, preventScrollSupported, scratchRange, DOMPos, Direction, LTR, RTL, LowTypes, ArabicTypes, Brackets, BracketStack, BidiRE, BidiSpan, types, movedOver, clickAddsSelectionRange, dragMovesSelection$1, mouseSelectionStyle, exceptionSink, updateListener, inputHandler, focusChangeEffect, clipboardInputFilter, clipboardOutputFilter, perLineTextDirection, nativeSelectionHidden, scrollHandler, ScrollTarget, scrollIntoView, setEditContextFormatting, editable, nextPluginID, viewPlugin, ViewPlugin, PluginInstance, editorAttributes, contentAttributes, decorations, blockWrappers, outerDecorations, atomicRanges, bidiIsolatedRanges, scrollMargins, styleModule, ChangedRange, ViewUpdate, noChildren, Tile, CompositeTile, DocTile, BlockWrapperTile, LineTile, MarkTile, TextTile, WidgetTile, WidgetBufferTile, TilePointer, OpenWrapper, TileBuilder, TextStream, buckets, TileCache, TileUpdate, lineBaseAttrs, NullWidget, BreakWidget, DocView, DecorationComparator$1, WrapperComparator, BlockGapWidget, PosAssoc, InlineCoordsScan, LineBreakPlaceholder, DOMReader, DOMPoint, DOMChange, InputState, PendingKeys, EmacsyPendingKeys, modifierCodes, dragScrollMargin, MouseSelection, handlers, observers, brokenClipboardAPI, BadMouseDetail, lastMouseDown, lastMouseDownCount, lastMouseDownTime, lastLinewiseCopy, isFocusChange, appliedFirefoxHack, wrappingWhiteSpace, heightChangeFlag, HeightOracle, MeasuredHeights, BlockInfo, QueryType, Epsilon, HeightMap, SpaceDeco, HeightMapBlock, HeightMapText, HeightMapGap, HeightMapBranch, relevantWidgetHeight, NodeBuilder, DecorationComparator2, LineGap, LineGapWidget, ViewState, Viewport, IdScaler, BigScaler, theme, darkTheme, baseThemeID, baseLightID, baseDarkID, lightDarkIDs, baseTheme$1, observeOptions, useCharData, DOMObserver, EditContextManager, EditorView, MaxBidiLine, BadMeasure, CachedOrder, currentPlatform, handleKeyEvents, keymap, Keymaps, storedPrefix, PrefixTimeout, currentKeyEvent, RectangleMarker, LayerView, layerOrder, selectionConfig, cursorLayer, selectionLayer, hideNativeSelection, UnicodeRegexpSupport, lineDeco, activeLineHighlighter, Placeholder, MaxOff, Outside, TooltipViewManager, tooltipConfig, knownHeight, tooltipPlugin, baseTheme, noOffset, showTooltip, showHoverTooltip, HoverTooltipHost, showHoverTooltipHost, HoverPlugin, tooltipMargin, closeHoverTooltipEffect, panelConfig, panelPlugin, PanelGroup, showPanel, dialogField, openDialogEffect, closeDialogEffect, GutterMarker, gutterLineClass, gutterWidgetClass, defaults, activeGutters, unfixGutters, gutterView, UpdateContext, SingleGutterView, GutterElement, lineNumberMarkers, lineNumberWidgetMarker, lineNumberConfig, NumberMarker, lineNumberGutter, activeLineGutterMarker, activeLineGutterHighlighter;
 var init_dist2 = __esm({
-  "node_modules/.pnpm/@codemirror+view@6.40.0/node_modules/@codemirror/view/dist/index.js"() {
+  "../../node_modules/.pnpm/@codemirror+view@6.40.0/node_modules/@codemirror/view/dist/index.js"() {
     init_dist();
     init_style_mod();
     init_w3c_keyname();
@@ -12623,6 +12702,311 @@ var init_dist2 = __esm({
       }
     };
     MaxOff = 2e3;
+    Outside = "-10000px";
+    TooltipViewManager = class {
+      constructor(view, facet, createTooltipView, removeTooltipView) {
+        this.facet = facet;
+        this.createTooltipView = createTooltipView;
+        this.removeTooltipView = removeTooltipView;
+        this.input = view.state.facet(facet);
+        this.tooltips = this.input.filter((t4) => t4);
+        let prev = null;
+        this.tooltipViews = this.tooltips.map((t4) => prev = createTooltipView(t4, prev));
+      }
+      update(update, above) {
+        var _a2;
+        let input = update.state.facet(this.facet);
+        let tooltips = input.filter((x2) => x2);
+        if (input === this.input) {
+          for (let t4 of this.tooltipViews)
+            if (t4.update)
+              t4.update(update);
+          return false;
+        }
+        let tooltipViews = [], newAbove = above ? [] : null;
+        for (let i5 = 0; i5 < tooltips.length; i5++) {
+          let tip = tooltips[i5], known = -1;
+          if (!tip)
+            continue;
+          for (let i6 = 0; i6 < this.tooltips.length; i6++) {
+            let other = this.tooltips[i6];
+            if (other && other.create == tip.create)
+              known = i6;
+          }
+          if (known < 0) {
+            tooltipViews[i5] = this.createTooltipView(tip, i5 ? tooltipViews[i5 - 1] : null);
+            if (newAbove)
+              newAbove[i5] = !!tip.above;
+          } else {
+            let tooltipView = tooltipViews[i5] = this.tooltipViews[known];
+            if (newAbove)
+              newAbove[i5] = above[known];
+            if (tooltipView.update)
+              tooltipView.update(update);
+          }
+        }
+        for (let t4 of this.tooltipViews)
+          if (tooltipViews.indexOf(t4) < 0) {
+            this.removeTooltipView(t4);
+            (_a2 = t4.destroy) === null || _a2 === void 0 ? void 0 : _a2.call(t4);
+          }
+        if (above) {
+          newAbove.forEach((val, i5) => above[i5] = val);
+          above.length = newAbove.length;
+        }
+        this.input = input;
+        this.tooltips = tooltips;
+        this.tooltipViews = tooltipViews;
+        return true;
+      }
+    };
+    tooltipConfig = /* @__PURE__ */ Facet.define({
+      combine: (values2) => {
+        var _a2, _b2, _c;
+        return {
+          position: browser.ios ? "absolute" : ((_a2 = values2.find((conf) => conf.position)) === null || _a2 === void 0 ? void 0 : _a2.position) || "fixed",
+          parent: ((_b2 = values2.find((conf) => conf.parent)) === null || _b2 === void 0 ? void 0 : _b2.parent) || null,
+          tooltipSpace: ((_c = values2.find((conf) => conf.tooltipSpace)) === null || _c === void 0 ? void 0 : _c.tooltipSpace) || windowSpace
+        };
+      }
+    });
+    knownHeight = /* @__PURE__ */ new WeakMap();
+    tooltipPlugin = /* @__PURE__ */ ViewPlugin.fromClass(class {
+      constructor(view) {
+        this.view = view;
+        this.above = [];
+        this.inView = true;
+        this.madeAbsolute = false;
+        this.lastTransaction = 0;
+        this.measureTimeout = -1;
+        let config2 = view.state.facet(tooltipConfig);
+        this.position = config2.position;
+        this.parent = config2.parent;
+        this.classes = view.themeClasses;
+        this.createContainer();
+        this.measureReq = { read: this.readMeasure.bind(this), write: this.writeMeasure.bind(this), key: this };
+        this.resizeObserver = typeof ResizeObserver == "function" ? new ResizeObserver(() => this.measureSoon()) : null;
+        this.manager = new TooltipViewManager(view, showTooltip, (t4, p3) => this.createTooltip(t4, p3), (t4) => {
+          if (this.resizeObserver)
+            this.resizeObserver.unobserve(t4.dom);
+          t4.dom.remove();
+        });
+        this.above = this.manager.tooltips.map((t4) => !!t4.above);
+        this.intersectionObserver = typeof IntersectionObserver == "function" ? new IntersectionObserver((entries) => {
+          if (Date.now() > this.lastTransaction - 50 && entries.length > 0 && entries[entries.length - 1].intersectionRatio < 1)
+            this.measureSoon();
+        }, { threshold: [1] }) : null;
+        this.observeIntersection();
+        view.win.addEventListener("resize", this.measureSoon = this.measureSoon.bind(this));
+        this.maybeMeasure();
+      }
+      createContainer() {
+        if (this.parent) {
+          this.container = document.createElement("div");
+          this.container.style.position = "relative";
+          this.container.className = this.view.themeClasses;
+          this.parent.appendChild(this.container);
+        } else {
+          this.container = this.view.dom;
+        }
+      }
+      observeIntersection() {
+        if (this.intersectionObserver) {
+          this.intersectionObserver.disconnect();
+          for (let tooltip of this.manager.tooltipViews)
+            this.intersectionObserver.observe(tooltip.dom);
+        }
+      }
+      measureSoon() {
+        if (this.measureTimeout < 0)
+          this.measureTimeout = setTimeout(() => {
+            this.measureTimeout = -1;
+            this.maybeMeasure();
+          }, 50);
+      }
+      update(update) {
+        if (update.transactions.length)
+          this.lastTransaction = Date.now();
+        let updated = this.manager.update(update, this.above);
+        if (updated)
+          this.observeIntersection();
+        let shouldMeasure = updated || update.geometryChanged;
+        let newConfig = update.state.facet(tooltipConfig);
+        if (newConfig.position != this.position && !this.madeAbsolute) {
+          this.position = newConfig.position;
+          for (let t4 of this.manager.tooltipViews)
+            t4.dom.style.position = this.position;
+          shouldMeasure = true;
+        }
+        if (newConfig.parent != this.parent) {
+          if (this.parent)
+            this.container.remove();
+          this.parent = newConfig.parent;
+          this.createContainer();
+          for (let t4 of this.manager.tooltipViews)
+            this.container.appendChild(t4.dom);
+          shouldMeasure = true;
+        } else if (this.parent && this.view.themeClasses != this.classes) {
+          this.classes = this.container.className = this.view.themeClasses;
+        }
+        if (shouldMeasure)
+          this.maybeMeasure();
+      }
+      createTooltip(tooltip, prev) {
+        let tooltipView = tooltip.create(this.view);
+        let before = prev ? prev.dom : null;
+        tooltipView.dom.classList.add("cm-tooltip");
+        if (tooltip.arrow && !tooltipView.dom.querySelector(".cm-tooltip > .cm-tooltip-arrow")) {
+          let arrow = document.createElement("div");
+          arrow.className = "cm-tooltip-arrow";
+          tooltipView.dom.appendChild(arrow);
+        }
+        tooltipView.dom.style.position = this.position;
+        tooltipView.dom.style.top = Outside;
+        tooltipView.dom.style.left = "0px";
+        this.container.insertBefore(tooltipView.dom, before);
+        if (tooltipView.mount)
+          tooltipView.mount(this.view);
+        if (this.resizeObserver)
+          this.resizeObserver.observe(tooltipView.dom);
+        return tooltipView;
+      }
+      destroy() {
+        var _a2, _b2, _c;
+        this.view.win.removeEventListener("resize", this.measureSoon);
+        for (let tooltipView of this.manager.tooltipViews) {
+          tooltipView.dom.remove();
+          (_a2 = tooltipView.destroy) === null || _a2 === void 0 ? void 0 : _a2.call(tooltipView);
+        }
+        if (this.parent)
+          this.container.remove();
+        (_b2 = this.resizeObserver) === null || _b2 === void 0 ? void 0 : _b2.disconnect();
+        (_c = this.intersectionObserver) === null || _c === void 0 ? void 0 : _c.disconnect();
+        clearTimeout(this.measureTimeout);
+      }
+      readMeasure() {
+        let scaleX = 1, scaleY = 1, makeAbsolute = false;
+        if (this.position == "fixed" && this.manager.tooltipViews.length) {
+          let { dom } = this.manager.tooltipViews[0];
+          if (browser.safari) {
+            let rect = dom.getBoundingClientRect();
+            makeAbsolute = Math.abs(rect.top + 1e4) > 1 || Math.abs(rect.left) > 1;
+          } else {
+            makeAbsolute = !!dom.offsetParent && dom.offsetParent != this.container.ownerDocument.body;
+          }
+        }
+        if (makeAbsolute || this.position == "absolute") {
+          if (this.parent) {
+            let rect = this.parent.getBoundingClientRect();
+            if (rect.width && rect.height) {
+              scaleX = rect.width / this.parent.offsetWidth;
+              scaleY = rect.height / this.parent.offsetHeight;
+            }
+          } else {
+            ({ scaleX, scaleY } = this.view.viewState);
+          }
+        }
+        let visible = this.view.scrollDOM.getBoundingClientRect(), margins = getScrollMargins(this.view);
+        return {
+          visible: {
+            left: visible.left + margins.left,
+            top: visible.top + margins.top,
+            right: visible.right - margins.right,
+            bottom: visible.bottom - margins.bottom
+          },
+          parent: this.parent ? this.container.getBoundingClientRect() : this.view.dom.getBoundingClientRect(),
+          pos: this.manager.tooltips.map((t4, i5) => {
+            let tv = this.manager.tooltipViews[i5];
+            return tv.getCoords ? tv.getCoords(t4.pos) : this.view.coordsAtPos(t4.pos);
+          }),
+          size: this.manager.tooltipViews.map(({ dom }) => dom.getBoundingClientRect()),
+          space: this.view.state.facet(tooltipConfig).tooltipSpace(this.view),
+          scaleX,
+          scaleY,
+          makeAbsolute
+        };
+      }
+      writeMeasure(measured) {
+        var _a2;
+        if (measured.makeAbsolute) {
+          this.madeAbsolute = true;
+          this.position = "absolute";
+          for (let t4 of this.manager.tooltipViews)
+            t4.dom.style.position = "absolute";
+        }
+        let { visible, space: space5, scaleX, scaleY } = measured;
+        let others = [];
+        for (let i5 = 0; i5 < this.manager.tooltips.length; i5++) {
+          let tooltip = this.manager.tooltips[i5], tView = this.manager.tooltipViews[i5], { dom } = tView;
+          let pos = measured.pos[i5], size = measured.size[i5];
+          if (!pos || tooltip.clip !== false && (pos.bottom <= Math.max(visible.top, space5.top) || pos.top >= Math.min(visible.bottom, space5.bottom) || pos.right < Math.max(visible.left, space5.left) - 0.1 || pos.left > Math.min(visible.right, space5.right) + 0.1)) {
+            dom.style.top = Outside;
+            continue;
+          }
+          let arrow = tooltip.arrow ? tView.dom.querySelector(".cm-tooltip-arrow") : null;
+          let arrowHeight = arrow ? 7 : 0;
+          let width = size.right - size.left, height = (_a2 = knownHeight.get(tView)) !== null && _a2 !== void 0 ? _a2 : size.bottom - size.top;
+          let offset = tView.offset || noOffset, ltr = this.view.textDirection == Direction.LTR;
+          let left = size.width > space5.right - space5.left ? ltr ? space5.left : space5.right - size.width : ltr ? Math.max(space5.left, Math.min(pos.left - (arrow ? 14 : 0) + offset.x, space5.right - width)) : Math.min(Math.max(space5.left, pos.left - width + (arrow ? 14 : 0) - offset.x), space5.right - width);
+          let above = this.above[i5];
+          if (!tooltip.strictSide && (above ? pos.top - height - arrowHeight - offset.y < space5.top : pos.bottom + height + arrowHeight + offset.y > space5.bottom) && above == space5.bottom - pos.bottom > pos.top - space5.top)
+            above = this.above[i5] = !above;
+          let spaceVert = (above ? pos.top - space5.top : space5.bottom - pos.bottom) - arrowHeight;
+          if (spaceVert < height && tView.resize !== false) {
+            if (spaceVert < this.view.defaultLineHeight) {
+              dom.style.top = Outside;
+              continue;
+            }
+            knownHeight.set(tView, height);
+            dom.style.height = (height = spaceVert) / scaleY + "px";
+          } else if (dom.style.height) {
+            dom.style.height = "";
+          }
+          let top2 = above ? pos.top - height - arrowHeight - offset.y : pos.bottom + arrowHeight + offset.y;
+          let right = left + width;
+          if (tView.overlap !== true) {
+            for (let r4 of others)
+              if (r4.left < right && r4.right > left && r4.top < top2 + height && r4.bottom > top2)
+                top2 = above ? r4.top - height - 2 - arrowHeight : r4.bottom + arrowHeight + 2;
+          }
+          if (this.position == "absolute") {
+            dom.style.top = (top2 - measured.parent.top) / scaleY + "px";
+            setLeftStyle(dom, (left - measured.parent.left) / scaleX);
+          } else {
+            dom.style.top = top2 / scaleY + "px";
+            setLeftStyle(dom, left / scaleX);
+          }
+          if (arrow) {
+            let arrowLeft = pos.left + (ltr ? offset.x : -offset.x) - (left + 14 - 7);
+            arrow.style.left = arrowLeft / scaleX + "px";
+          }
+          if (tView.overlap !== true)
+            others.push({ left, top: top2, right, bottom: top2 + height });
+          dom.classList.toggle("cm-tooltip-above", above);
+          dom.classList.toggle("cm-tooltip-below", !above);
+          if (tView.positioned)
+            tView.positioned(measured.space);
+        }
+      }
+      maybeMeasure() {
+        if (this.manager.tooltips.length) {
+          if (this.view.inView)
+            this.view.requestMeasure(this.measureReq);
+          if (this.inView != this.view.inView) {
+            this.inView = this.view.inView;
+            if (!this.inView)
+              for (let tv of this.manager.tooltipViews)
+                tv.dom.style.top = Outside;
+          }
+        }
+      }
+    }, {
+      eventObservers: {
+        scroll() {
+          this.maybeMeasure();
+        }
+      }
+    });
     baseTheme = /* @__PURE__ */ EditorView.baseTheme({
       ".cm-tooltip": {
         zIndex: 500,
@@ -12685,6 +13069,213 @@ var init_dist2 = __esm({
         }
       }
     });
+    noOffset = { x: 0, y: 0 };
+    showTooltip = /* @__PURE__ */ Facet.define({
+      enables: [tooltipPlugin, baseTheme]
+    });
+    showHoverTooltip = /* @__PURE__ */ Facet.define({
+      combine: (inputs) => inputs.reduce((a3, i5) => a3.concat(i5), [])
+    });
+    HoverTooltipHost = class _HoverTooltipHost {
+      // Needs to be static so that host tooltip instances always match
+      static create(view) {
+        return new _HoverTooltipHost(view);
+      }
+      constructor(view) {
+        this.view = view;
+        this.mounted = false;
+        this.dom = document.createElement("div");
+        this.dom.classList.add("cm-tooltip-hover");
+        this.manager = new TooltipViewManager(view, showHoverTooltip, (t4, p3) => this.createHostedView(t4, p3), (t4) => t4.dom.remove());
+      }
+      createHostedView(tooltip, prev) {
+        let hostedView = tooltip.create(this.view);
+        hostedView.dom.classList.add("cm-tooltip-section");
+        this.dom.insertBefore(hostedView.dom, prev ? prev.dom.nextSibling : this.dom.firstChild);
+        if (this.mounted && hostedView.mount)
+          hostedView.mount(this.view);
+        return hostedView;
+      }
+      mount(view) {
+        for (let hostedView of this.manager.tooltipViews) {
+          if (hostedView.mount)
+            hostedView.mount(view);
+        }
+        this.mounted = true;
+      }
+      positioned(space5) {
+        for (let hostedView of this.manager.tooltipViews) {
+          if (hostedView.positioned)
+            hostedView.positioned(space5);
+        }
+      }
+      update(update) {
+        this.manager.update(update);
+      }
+      destroy() {
+        var _a2;
+        for (let t4 of this.manager.tooltipViews)
+          (_a2 = t4.destroy) === null || _a2 === void 0 ? void 0 : _a2.call(t4);
+      }
+      passProp(name2) {
+        let value = void 0;
+        for (let view of this.manager.tooltipViews) {
+          let given = view[name2];
+          if (given !== void 0) {
+            if (value === void 0)
+              value = given;
+            else if (value !== given)
+              return void 0;
+          }
+        }
+        return value;
+      }
+      get offset() {
+        return this.passProp("offset");
+      }
+      get getCoords() {
+        return this.passProp("getCoords");
+      }
+      get overlap() {
+        return this.passProp("overlap");
+      }
+      get resize() {
+        return this.passProp("resize");
+      }
+    };
+    showHoverTooltipHost = /* @__PURE__ */ showTooltip.compute([showHoverTooltip], (state) => {
+      let tooltips = state.facet(showHoverTooltip);
+      if (tooltips.length === 0)
+        return null;
+      return {
+        pos: Math.min(...tooltips.map((t4) => t4.pos)),
+        end: Math.max(...tooltips.map((t4) => {
+          var _a2;
+          return (_a2 = t4.end) !== null && _a2 !== void 0 ? _a2 : t4.pos;
+        })),
+        create: HoverTooltipHost.create,
+        above: tooltips[0].above,
+        arrow: tooltips.some((t4) => t4.arrow)
+      };
+    });
+    HoverPlugin = class {
+      constructor(view, source, field, setHover, hoverTime) {
+        this.view = view;
+        this.source = source;
+        this.field = field;
+        this.setHover = setHover;
+        this.hoverTime = hoverTime;
+        this.hoverTimeout = -1;
+        this.restartTimeout = -1;
+        this.pending = null;
+        this.lastMove = { x: 0, y: 0, target: view.dom, time: 0 };
+        this.checkHover = this.checkHover.bind(this);
+        view.dom.addEventListener("mouseleave", this.mouseleave = this.mouseleave.bind(this));
+        view.dom.addEventListener("mousemove", this.mousemove = this.mousemove.bind(this));
+      }
+      update() {
+        if (this.pending) {
+          this.pending = null;
+          clearTimeout(this.restartTimeout);
+          this.restartTimeout = setTimeout(() => this.startHover(), 20);
+        }
+      }
+      get active() {
+        return this.view.state.field(this.field);
+      }
+      checkHover() {
+        this.hoverTimeout = -1;
+        if (this.active.length)
+          return;
+        let hovered = Date.now() - this.lastMove.time;
+        if (hovered < this.hoverTime)
+          this.hoverTimeout = setTimeout(this.checkHover, this.hoverTime - hovered);
+        else
+          this.startHover();
+      }
+      startHover() {
+        clearTimeout(this.restartTimeout);
+        let { view, lastMove } = this;
+        let tile = view.docView.tile.nearest(lastMove.target);
+        if (!tile)
+          return;
+        let pos, side = 1;
+        if (tile.isWidget()) {
+          pos = tile.posAtStart;
+        } else {
+          pos = view.posAtCoords(lastMove);
+          if (pos == null)
+            return;
+          let posCoords = view.coordsAtPos(pos);
+          if (!posCoords || lastMove.y < posCoords.top || lastMove.y > posCoords.bottom || lastMove.x < posCoords.left - view.defaultCharacterWidth || lastMove.x > posCoords.right + view.defaultCharacterWidth)
+            return;
+          let bidi = view.bidiSpans(view.state.doc.lineAt(pos)).find((s4) => s4.from <= pos && s4.to >= pos);
+          let rtl = bidi && bidi.dir == Direction.RTL ? -1 : 1;
+          side = lastMove.x < posCoords.left ? -rtl : rtl;
+        }
+        let open = this.source(view, pos, side);
+        if (open === null || open === void 0 ? void 0 : open.then) {
+          let pending = this.pending = { pos };
+          open.then((result) => {
+            if (this.pending == pending) {
+              this.pending = null;
+              if (result && !(Array.isArray(result) && !result.length))
+                view.dispatch({ effects: this.setHover.of(Array.isArray(result) ? result : [result]) });
+            }
+          }, (e4) => logException(view.state, e4, "hover tooltip"));
+        } else if (open && !(Array.isArray(open) && !open.length)) {
+          view.dispatch({ effects: this.setHover.of(Array.isArray(open) ? open : [open]) });
+        }
+      }
+      get tooltip() {
+        let plugin = this.view.plugin(tooltipPlugin);
+        let index = plugin ? plugin.manager.tooltips.findIndex((t4) => t4.create == HoverTooltipHost.create) : -1;
+        return index > -1 ? plugin.manager.tooltipViews[index] : null;
+      }
+      mousemove(event) {
+        var _a2, _b2;
+        this.lastMove = { x: event.clientX, y: event.clientY, target: event.target, time: Date.now() };
+        if (this.hoverTimeout < 0)
+          this.hoverTimeout = setTimeout(this.checkHover, this.hoverTime);
+        let { active, tooltip } = this;
+        if (active.length && tooltip && !isInTooltip(tooltip.dom, event) || this.pending) {
+          let { pos } = active[0] || this.pending, end = (_b2 = (_a2 = active[0]) === null || _a2 === void 0 ? void 0 : _a2.end) !== null && _b2 !== void 0 ? _b2 : pos;
+          if (pos == end ? this.view.posAtCoords(this.lastMove) != pos : !isOverRange(this.view, pos, end, event.clientX, event.clientY)) {
+            this.view.dispatch({ effects: this.setHover.of([]) });
+            this.pending = null;
+          }
+        }
+      }
+      mouseleave(event) {
+        clearTimeout(this.hoverTimeout);
+        this.hoverTimeout = -1;
+        let { active } = this;
+        if (active.length) {
+          let { tooltip } = this;
+          let inTooltip = tooltip && tooltip.dom.contains(event.relatedTarget);
+          if (!inTooltip)
+            this.view.dispatch({ effects: this.setHover.of([]) });
+          else
+            this.watchTooltipLeave(tooltip.dom);
+        }
+      }
+      watchTooltipLeave(tooltip) {
+        let watch = (event) => {
+          tooltip.removeEventListener("mouseleave", watch);
+          if (this.active.length && !this.view.dom.contains(event.relatedTarget))
+            this.view.dispatch({ effects: this.setHover.of([]) });
+        };
+        tooltip.addEventListener("mouseleave", watch);
+      }
+      destroy() {
+        clearTimeout(this.hoverTimeout);
+        clearTimeout(this.restartTimeout);
+        this.view.dom.removeEventListener("mouseleave", this.mouseleave);
+        this.view.dom.removeEventListener("mousemove", this.mousemove);
+      }
+    };
+    tooltipMargin = 4;
+    closeHoverTooltipEffect = /* @__PURE__ */ StateEffect.define();
     panelConfig = /* @__PURE__ */ Facet.define({
       combine(configs) {
         let topContainer, bottomContainer;
@@ -13274,7 +13865,7 @@ var init_dist2 = __esm({
   }
 });
 
-// node_modules/.pnpm/@lezer+common@1.5.2/node_modules/@lezer/common/dist/index.js
+// ../../node_modules/.pnpm/@lezer+common@1.5.2/node_modules/@lezer/common/dist/index.js
 function checkSide(side, pos, from, to) {
   switch (side) {
     case -2:
@@ -13768,7 +14359,7 @@ function enterFragments(mounts, ranges) {
 }
 var DefaultBufferLength, nextPropID, Range2, NodeProp, MountedTree, noProps, NodeType, NodeSet, CachedNode, CachedInnerNode, IterMode, Tree, FlatBufferCursor, TreeBuffer, BaseNode, TreeNode, BufferContext, BufferNode, StackIterator, TreeCursor, nodeSizeCache, NodeWeakMap, TreeFragment, Parser, StringInput, InnerParse, ActiveOverlay, stoppedInner, MixedParse, StructureCursor, FragmentCursor;
 var init_dist3 = __esm({
-  "node_modules/.pnpm/@lezer+common@1.5.2/node_modules/@lezer/common/dist/index.js"() {
+  "../../node_modules/.pnpm/@lezer+common@1.5.2/node_modules/@lezer/common/dist/index.js"() {
     DefaultBufferLength = 1024;
     nextPropID = 0;
     Range2 = class {
@@ -15329,7 +15920,7 @@ var init_dist3 = __esm({
   }
 });
 
-// node_modules/.pnpm/@lezer+highlight@1.2.3/node_modules/@lezer/highlight/dist/index.js
+// ../../node_modules/.pnpm/@lezer+highlight@1.2.3/node_modules/@lezer/highlight/dist/index.js
 function sameArray2(a3, b3) {
   return a3.length == b3.length && a3.every((x2, i5) => x2 == b3[i5]);
 }
@@ -15430,7 +16021,7 @@ function getStyleTags(node) {
 }
 var nextTagID, Tag, nextModifierID, Modifier, ruleNodeProp, Rule, HighlightBuilder, t3, comment, name, typeName, propertyName, literal, string, number, content, heading, keyword, operator, punctuation, bracket, meta, tags, classHighlighter;
 var init_dist4 = __esm({
-  "node_modules/.pnpm/@lezer+highlight@1.2.3/node_modules/@lezer/highlight/dist/index.js"() {
+  "../../node_modules/.pnpm/@lezer+highlight@1.2.3/node_modules/@lezer/highlight/dist/index.js"() {
     init_dist3();
     nextTagID = 0;
     Tag = class _Tag {
@@ -16059,7 +16650,7 @@ var init_dist4 = __esm({
   }
 });
 
-// node_modules/.pnpm/@codemirror+language@6.12.3/node_modules/@codemirror/language/dist/index.js
+// ../../node_modules/.pnpm/@codemirror+language@6.12.3/node_modules/@codemirror/language/dist/index.js
 function defineLanguageFacet(baseData) {
   return Facet.define({
     combine: baseData ? (values2) => values2.concat(baseData) : void 0
@@ -16561,7 +17152,7 @@ function createTokenType(extra, tagStr) {
 }
 var _a, languageDataProp, sublanguageProp, Language, LRLanguage, DocInput, currentContext, ParseContext, LanguageState, requestIdle, isInputPending, parseWorker, language, LanguageSupport, LanguageDescription, indentService, indentUnit, IndentContext, indentNodeProp, TreeIndentContext, flatIndent, DontIndentBeyond, foldService, foldNodeProp, foldEffect, unfoldEffect, foldState, foldCode, unfoldCode, foldAll, unfoldAll, foldKeymap, defaultConfig, foldConfig, foldWidget, PreparedFoldWidget, foldGutterDefaults, FoldMarker, baseTheme$12, HighlightStyle, highlighterFacet, fallbackHighlighter, TreeHighlighter, treeHighlighter, defaultHighlightStyle, baseTheme2, DefaultScanDist, DefaultBrackets, bracketMatchingConfig, matchingMark, nonmatchingMark, bracketMatcher, bracketMatchingUnique, bracketMatchingHandle, noTokens, typeArray, warned, byTag, defaultTable, marks;
 var init_dist5 = __esm({
-  "node_modules/.pnpm/@codemirror+language@6.12.3/node_modules/@codemirror/language/dist/index.js"() {
+  "../../node_modules/.pnpm/@codemirror+language@6.12.3/node_modules/@codemirror/language/dist/index.js"() {
     init_dist3();
     init_dist();
     init_dist2();
@@ -17705,7 +18296,7 @@ var init_dist5 = __esm({
   }
 });
 
-// node_modules/.pnpm/@codemirror+autocomplete@6.20.1/node_modules/@codemirror/autocomplete/dist/index.js
+// ../../node_modules/.pnpm/@codemirror+autocomplete@6.20.1/node_modules/@codemirror/autocomplete/dist/index.js
 function toSet(chars) {
   let flat = Object.keys(chars).join("");
   let words = /\w/.test(flat);
@@ -17952,7 +18543,7 @@ function canStartStringAt(state, pos, prefixes) {
 }
 var CompletionContext, pickedCompletion, windows, baseTheme3, FieldPos, FieldRange, Snippet, fieldMarker, fieldRange, ActiveSnippet, setActive, moveToField, snippetState, clearSnippet, nextSnippetField, prevSnippetField, defaultSnippetKeymap, snippetKeymap, addSnippetKeymap, snippetPointerHandler, defaults2, closeBracketEffect, closedBracket, bracketState, definedClosing, android, inputHandler2, deleteBracketPair, closeBracketsKeymap;
 var init_dist6 = __esm({
-  "node_modules/.pnpm/@codemirror+autocomplete@6.20.1/node_modules/@codemirror/autocomplete/dist/index.js"() {
+  "../../node_modules/.pnpm/@codemirror+autocomplete@6.20.1/node_modules/@codemirror/autocomplete/dist/index.js"() {
     init_dist();
     init_dist2();
     init_dist5();
@@ -18399,7 +18990,7 @@ var init_dist6 = __esm({
   }
 });
 
-// node_modules/.pnpm/@lezer+lr@1.4.9/node_modules/@lezer/lr/dist/index.js
+// ../../node_modules/.pnpm/@lezer+lr@1.4.10/node_modules/@lezer/lr/dist/index.js
 function decodeArray(input, Type2 = Uint16Array) {
   if (typeof input != "string")
     return input;
@@ -18538,7 +19129,7 @@ function getSpecializer(spec) {
 }
 var Stack, StackContext, SimulatedStack, StackBufferCursor, CachedToken, nullToken, InputStream, TokenGroup, LocalTokenGroup, ExternalTokenizer, verbose, stackIDs, FragmentCursor2, TokenCache, Parse, Dialect, id, ContextTracker, LRParser;
 var init_dist7 = __esm({
-  "node_modules/.pnpm/@lezer+lr@1.4.9/node_modules/@lezer/lr/dist/index.js"() {
+  "../../node_modules/.pnpm/@lezer+lr@1.4.10/node_modules/@lezer/lr/dist/index.js"() {
     init_dist3();
     Stack = class _Stack {
       /**
@@ -18650,16 +19241,12 @@ var init_dist7 = __esm({
       */
       storeNode(term, start, end, size = 4, mustSink = false) {
         if (term == 0 && (!this.stack.length || this.stack[this.stack.length - 1] < this.buffer.length + this.bufferBase)) {
-          let cur = this, top2 = this.buffer.length;
-          if (top2 == 0 && cur.parent) {
-            top2 = cur.bufferBase - cur.parent.bufferBase;
-            cur = cur.parent;
-          }
-          if (top2 > 0 && cur.buffer[top2 - 4] == 0 && cur.buffer[top2 - 1] > -1) {
+          let top2 = this.buffer.length;
+          if (top2 > 0 && this.buffer[top2 - 4] == 0 && this.buffer[top2 - 1] > -1) {
             if (start == end)
               return;
-            if (cur.buffer[top2 - 2] >= start) {
-              cur.buffer[top2 - 2] = end;
+            if (this.buffer[top2 - 2] >= start) {
+              this.buffer[top2 - 2] = end;
               return;
             }
           }
@@ -18763,6 +19350,8 @@ var init_dist7 = __esm({
       split() {
         let parent = this;
         let off = parent.buffer.length;
+        if (off && parent.buffer[off - 4] == 0)
+          off -= 4;
         while (off > 0 && parent.buffer[off - 2] > parent.reducePos)
           off -= 4;
         let buffer = parent.buffer.slice(off), base2 = parent.bufferBase + off;
@@ -20169,7 +20758,7 @@ var init_dist7 = __esm({
   }
 });
 
-// node_modules/.pnpm/@lezer+yaml@1.0.4/node_modules/@lezer/yaml/dist/index.js
+// ../../node_modules/.pnpm/@lezer+yaml@1.0.4/node_modules/@lezer/yaml/dist/index.js
 function findColumn2(input, pos) {
   for (let col = 0, p3 = pos - input.pos - 1; ; p3--, col++) {
     let ch = input.peek(p3);
@@ -20310,7 +20899,7 @@ function readPlain(input, scan, inFlow, indent2) {
 }
 var blockEnd, eof, DirectiveEnd, DocEnd, sequenceStartMark, sequenceContinueMark, explicitMapStartMark, explicitMapContinueMark, flowMapMark, mapStartMark, mapContinueMark, Literal, QuotedLiteral, Anchor, Alias, Tag2, BlockLiteralContent, BracketL, FlowSequence, Colon, BraceL, FlowMapping, BlockLiteralHeader, type_Top, type_Seq, type_Map, type_Flow, type_Lit, Context, indentation, newlines, blockMark, charTable, literals, blockLiteral, yamlHighlighting, parser;
 var init_dist8 = __esm({
-  "node_modules/.pnpm/@lezer+yaml@1.0.4/node_modules/@lezer/yaml/dist/index.js"() {
+  "../../node_modules/.pnpm/@lezer+yaml@1.0.4/node_modules/@lezer/yaml/dist/index.js"() {
     init_dist7();
     init_dist4();
     blockEnd = 63;
@@ -20533,7 +21122,7 @@ var init_dist8 = __esm({
   }
 });
 
-// node_modules/.pnpm/@codemirror+lang-yaml@6.1.3/node_modules/@codemirror/lang-yaml/dist/index.js
+// ../../node_modules/.pnpm/@codemirror+lang-yaml@6.1.3/node_modules/@codemirror/lang-yaml/dist/index.js
 var dist_exports = {};
 __export(dist_exports, {
   yaml: () => yaml,
@@ -20553,7 +21142,7 @@ function yamlFrontmatter(config2) {
 }
 var parser2, yamlLanguage, frontmatterLanguage;
 var init_dist9 = __esm({
-  "node_modules/.pnpm/@codemirror+lang-yaml@6.1.3/node_modules/@codemirror/lang-yaml/dist/index.js"() {
+  "../../node_modules/.pnpm/@codemirror+lang-yaml@6.1.3/node_modules/@codemirror/lang-yaml/dist/index.js"() {
     init_dist8();
     init_dist5();
     init_dist3();
@@ -20621,10 +21210,10 @@ var init_dist9 = __esm({
   }
 });
 
-// node_modules/.pnpm/@lezer+json@1.0.3/node_modules/@lezer/json/dist/index.js
+// ../../node_modules/.pnpm/@lezer+json@1.0.3/node_modules/@lezer/json/dist/index.js
 var jsonHighlighting, parser3;
 var init_dist10 = __esm({
-  "node_modules/.pnpm/@lezer+json@1.0.3/node_modules/@lezer/json/dist/index.js"() {
+  "../../node_modules/.pnpm/@lezer+json@1.0.3/node_modules/@lezer/json/dist/index.js"() {
     init_dist7();
     init_dist4();
     jsonHighlighting = styleTags({
@@ -20660,7 +21249,7 @@ var init_dist10 = __esm({
   }
 });
 
-// node_modules/.pnpm/@codemirror+lang-json@6.0.2/node_modules/@codemirror/lang-json/dist/index.js
+// ../../node_modules/.pnpm/@codemirror+lang-json@6.0.2/node_modules/@codemirror/lang-json/dist/index.js
 var dist_exports2 = {};
 __export(dist_exports2, {
   json: () => json,
@@ -20680,7 +21269,7 @@ function json() {
 }
 var jsonParseLinter, jsonLanguage;
 var init_dist11 = __esm({
-  "node_modules/.pnpm/@codemirror+lang-json@6.0.2/node_modules/@codemirror/lang-json/dist/index.js"() {
+  "../../node_modules/.pnpm/@codemirror+lang-json@6.0.2/node_modules/@codemirror/lang-json/dist/index.js"() {
     init_dist10();
     init_dist5();
     jsonParseLinter = () => (view) => {
@@ -20720,13 +21309,13 @@ var init_dist11 = __esm({
   }
 });
 
-// node_modules/.pnpm/@lezer+javascript@1.5.4/node_modules/@lezer/javascript/dist/index.js
+// ../../node_modules/.pnpm/@lezer+javascript@1.5.4/node_modules/@lezer/javascript/dist/index.js
 function identifierChar(ch, start) {
   return ch >= 65 && ch <= 90 || ch >= 97 && ch <= 122 || ch == 95 || ch >= 192 || !start && ch >= 48 && ch <= 57;
 }
 var noSemi, noSemiType, incdec, incdecPrefix, questionDot, JSXStartTag, insertSemi, spaces, newline, LineComment, BlockComment, Dialect_jsx, space, braceR, semicolon, slash, star, plus, minus, lt, comma, question, dot, bracketL, trackNewline, insertSemicolon, noSemicolon, noSemicolonType, operatorToken, jsx, jsHighlight, spec_identifier, spec_word, spec_LessThan, parser4;
 var init_dist12 = __esm({
-  "node_modules/.pnpm/@lezer+javascript@1.5.4/node_modules/@lezer/javascript/dist/index.js"() {
+  "../../node_modules/.pnpm/@lezer+javascript@1.5.4/node_modules/@lezer/javascript/dist/index.js"() {
     init_dist7();
     init_dist4();
     noSemi = 316;
@@ -20939,7 +21528,7 @@ var init_dist12 = __esm({
   }
 });
 
-// node_modules/.pnpm/@codemirror+lang-javascript@6.2.5/node_modules/@codemirror/lang-javascript/dist/index.js
+// ../../node_modules/.pnpm/@codemirror+lang-javascript@6.2.5/node_modules/@codemirror/lang-javascript/dist/index.js
 var dist_exports3 = {};
 __export(dist_exports3, {
   autoCloseTags: () => autoCloseTags,
@@ -21164,7 +21753,7 @@ function translateDiagnostic(input, doc2, offset) {
 }
 var snippets, typescriptSnippets, cache, ScopeNodes, functionContext, gatherCompletions, Identifier, dontComplete, javascriptLanguage, jsxSublanguage, typescriptLanguage, jsxLanguage, tsxLanguage, kwCompletion, keywords, typescriptKeywords, android2, autoCloseTags;
 var init_dist13 = __esm({
-  "node_modules/.pnpm/@codemirror+lang-javascript@6.2.5/node_modules/@codemirror/lang-javascript/dist/index.js"() {
+  "../../node_modules/.pnpm/@codemirror+lang-javascript@6.2.5/node_modules/@codemirror/lang-javascript/dist/index.js"() {
     init_dist12();
     init_dist5();
     init_dist();
@@ -21404,7 +21993,7 @@ var init_dist13 = __esm({
   }
 });
 
-// node_modules/.pnpm/@lezer+rust@1.0.2/node_modules/@lezer/rust/dist/index.js
+// ../../node_modules/.pnpm/@lezer+rust@1.0.2/node_modules/@lezer/rust/dist/index.js
 function isNum(ch) {
   return ch >= 48 && ch <= 57;
 }
@@ -21413,7 +22002,7 @@ function isNum_(ch) {
 }
 var closureParamDelim, tpOpen, tpClose, RawString, Float, _b, _e, _f, _r, _E, Zero, Dot, Plus, Minus, Hash, Quote, Pipe, LessThan, GreaterThan, literalTokens, closureParam, tpDelim, rustHighlighting, spec_identifier2, parser5;
 var init_dist14 = __esm({
-  "node_modules/.pnpm/@lezer+rust@1.0.2/node_modules/@lezer/rust/dist/index.js"() {
+  "../../node_modules/.pnpm/@lezer+rust@1.0.2/node_modules/@lezer/rust/dist/index.js"() {
     init_dist7();
     init_dist4();
     closureParamDelim = 1;
@@ -21574,7 +22163,7 @@ var init_dist14 = __esm({
   }
 });
 
-// node_modules/.pnpm/@codemirror+lang-rust@6.0.2/node_modules/@codemirror/lang-rust/dist/index.js
+// ../../node_modules/.pnpm/@codemirror+lang-rust@6.0.2/node_modules/@codemirror/lang-rust/dist/index.js
 var dist_exports4 = {};
 __export(dist_exports4, {
   rust: () => rust,
@@ -21585,7 +22174,7 @@ function rust() {
 }
 var rustLanguage;
 var init_dist15 = __esm({
-  "node_modules/.pnpm/@codemirror+lang-rust@6.0.2/node_modules/@codemirror/lang-rust/dist/index.js"() {
+  "../../node_modules/.pnpm/@codemirror+lang-rust@6.0.2/node_modules/@codemirror/lang-rust/dist/index.js"() {
     init_dist14();
     init_dist5();
     rustLanguage = /* @__PURE__ */ LRLanguage.define({
@@ -21616,7 +22205,7 @@ var init_dist15 = __esm({
   }
 });
 
-// node_modules/.pnpm/@lezer+markdown@1.6.3/node_modules/@lezer/markdown/dist/index.js
+// ../../node_modules/.pnpm/@lezer+markdown@1.6.3/node_modules/@lezer/markdown/dist/index.js
 function skipForList(bl, cx, line) {
   if (line.pos == line.text.length || bl != cx.block && line.indent >= cx.stack[line.depth + 1].value + line.baseIndent)
     return true;
@@ -22063,7 +22652,7 @@ function parseSubSuper(ch, node, mark) {
 }
 var CompositeBlock, Type, LeafBlock, Line2, DefaultSkipMarkup, EmptyLine, CommentEnd, ProcessingEnd, HTMLBlockStyle, DefaultBlockParsers, LinkReferenceParser, SetextHeadingParser, DefaultLeafBlocks, DefaultEndLeaf, scanLineResult, BlockContext, MarkdownParser, nodeTypes, none3, Buffer2, Element, TreeElement, EmphasisUnderscore, EmphasisAsterisk, LinkStart, ImageStart, InlineDelimiter, Escapable, Punctuation, DefaultInline, InlineContext, NotLast, FragmentCursor3, markdownHighlighting, parser6, StrikethroughDelim, Strikethrough, delimiterLine, TableParser, Table, TaskParser, TaskList, autolinkRE, urlRE, lastTwoDomainWords, emailRE, xmppResourceRE, Autolink, GFM, Superscript, Subscript, Emoji;
 var init_dist16 = __esm({
-  "node_modules/.pnpm/@lezer+markdown@1.6.3/node_modules/@lezer/markdown/dist/index.js"() {
+  "../../node_modules/.pnpm/@lezer+markdown@1.6.3/node_modules/@lezer/markdown/dist/index.js"() {
     init_dist3();
     init_dist4();
     CompositeBlock = class _CompositeBlock {
@@ -22528,11 +23117,11 @@ var init_dist16 = __esm({
     };
     SetextHeadingParser = class {
       nextLine(cx, line, leaf) {
-        let underline = line.depth < cx.stack.length ? -1 : isSetextUnderline(line);
+        let underline2 = line.depth < cx.stack.length ? -1 : isSetextUnderline(line);
         let next = line.next;
-        if (underline < 0)
+        if (underline2 < 0)
           return false;
-        let underlineMark = elt(Type.HeaderMark, cx.lineStart + line.pos, cx.lineStart + underline);
+        let underlineMark = elt(Type.HeaderMark, cx.lineStart + line.pos, cx.lineStart + underline2);
         cx.nextLine();
         cx.addLeafElement(leaf, elt(next == 61 ? Type.SetextHeading1 : Type.SetextHeading2, leaf.start, cx.prevLineEnd(), [
           ...cx.parser.parseInline(leaf.content, leaf.start),
@@ -23683,7 +24272,7 @@ var init_dist16 = __esm({
   }
 });
 
-// node_modules/.pnpm/@lezer+html@1.3.13/node_modules/@lezer/html/dist/index.js
+// ../../node_modules/.pnpm/@lezer+html@1.3.13/node_modules/@lezer/html/dist/index.js
 function nameChar(ch) {
   return ch == 45 || ch == 46 || ch == 58 || ch >= 65 && ch <= 90 || ch == 95 || ch >= 97 && ch <= 122 || ch >= 161;
 }
@@ -23802,7 +24391,7 @@ function configureNesting(tags3 = [], attributes = []) {
 }
 var scriptText, StartCloseScriptTag, styleText, StartCloseStyleTag, textareaText, StartCloseTextareaTag, EndTag, SelfClosingEndTag, StartTag, StartScriptTag, StartStyleTag, StartTextareaTag, StartSelfClosingTag, StartCloseTag, NoMatchStartCloseTag, MismatchedStartCloseTag, missingCloseTag, IncompleteTag, IncompleteCloseTag, commentContent$1, Element2, TagName, Attribute, AttributeName, AttributeValue, UnquotedAttributeValue, ScriptText, StyleText, TextareaText, OpenTag, CloseTag, Dialect_noMatch, Dialect_selfClosing, selfClosers, implicitlyClosed, closeOnOpen, cachedName, cachedInput, cachedPos, lessThan, greaterThan, slash2, question2, bang, dash, startTagTerms, elementContext, tagStart, commentContent, endTag, scriptTokens, styleTokens, textareaTokens, htmlHighlighting, parser7;
 var init_dist17 = __esm({
-  "node_modules/.pnpm/@lezer+html@1.3.13/node_modules/@lezer/html/dist/index.js"() {
+  "../../node_modules/.pnpm/@lezer+html@1.3.13/node_modules/@lezer/html/dist/index.js"() {
     init_dist7();
     init_dist4();
     init_dist3();
@@ -24035,7 +24624,7 @@ var init_dist17 = __esm({
   }
 });
 
-// node_modules/.pnpm/@lezer+css@1.3.3/node_modules/@lezer/css/dist/index.js
+// ../../node_modules/.pnpm/@lezer+css@1.3.3/node_modules/@lezer/css/dist/index.js
 function isAlpha(ch) {
   return ch >= 65 && ch <= 90 || ch >= 97 && ch <= 122 || ch >= 161;
 }
@@ -24047,7 +24636,7 @@ function isHex(ch) {
 }
 var descendantOp, Unit, identifier, callee, VariableName, queryIdentifier, queryVariableName, QueryCallee, space3, colon, parenL, underscore, bracketL2, dash2, period, hash, percent, ampersand, backslash, newline2, asterisk, identifierTokens, identifiers, queryIdentifiers, descendant, unitToken, cssHighlighting, spec_callee, spec_queryIdentifier, spec_QueryCallee, spec_AtKeyword, spec_identifier3, parser8;
 var init_dist18 = __esm({
-  "node_modules/.pnpm/@lezer+css@1.3.3/node_modules/@lezer/css/dist/index.js"() {
+  "../../node_modules/.pnpm/@lezer+css@1.3.3/node_modules/@lezer/css/dist/index.js"() {
     init_dist7();
     init_dist4();
     descendantOp = 135;
@@ -24217,7 +24806,7 @@ var init_dist18 = __esm({
   }
 });
 
-// node_modules/.pnpm/@codemirror+lang-css@6.3.1/node_modules/@codemirror/lang-css/dist/index.js
+// ../../node_modules/.pnpm/@codemirror+lang-css@6.3.1/node_modules/@codemirror/lang-css/dist/index.js
 var dist_exports5 = {};
 __export(dist_exports5, {
   css: () => css,
@@ -24298,7 +24887,7 @@ function css() {
 }
 var _properties, pseudoClasses, values, tags2, atRules, identifier2, variable, VariablesByNode, declSelector, defineCSSCompletionSource, cssCompletionSource, cssLanguage;
 var init_dist19 = __esm({
-  "node_modules/.pnpm/@codemirror+lang-css@6.3.1/node_modules/@codemirror/lang-css/dist/index.js"() {
+  "../../node_modules/.pnpm/@codemirror+lang-css@6.3.1/node_modules/@codemirror/lang-css/dist/index.js"() {
     init_dist18();
     init_dist5();
     init_dist3();
@@ -25093,7 +25682,7 @@ var init_dist19 = __esm({
   }
 });
 
-// node_modules/.pnpm/@codemirror+lang-html@6.4.11/node_modules/@codemirror/lang-html/dist/index.js
+// ../../node_modules/.pnpm/@codemirror+lang-html@6.4.11/node_modules/@codemirror/lang-html/dist/index.js
 var dist_exports6 = {};
 __export(dist_exports6, {
   autoCloseTags: () => autoCloseTags2,
@@ -25256,7 +25845,7 @@ function html(config2 = {}) {
 }
 var Targets, Charsets, Methods, Encs, Bool, S3, Tags, GlobalAttrs, eventAttributes, Schema, identifier3, jsonParser, defaultNesting, defaultAttrs, htmlPlain, htmlLanguage, selfClosers2, autoCloseTags2;
 var init_dist20 = __esm({
-  "node_modules/.pnpm/@codemirror+lang-html@6.4.11/node_modules/@codemirror/lang-html/dist/index.js"() {
+  "../../node_modules/.pnpm/@codemirror+lang-html@6.4.11/node_modules/@codemirror/lang-html/dist/index.js"() {
     init_dist17();
     init_dist19();
     init_dist13();
@@ -25841,7 +26430,7 @@ var init_dist20 = __esm({
   }
 });
 
-// node_modules/.pnpm/@codemirror+lang-markdown@6.5.0/node_modules/@codemirror/lang-markdown/dist/index.js
+// ../../node_modules/.pnpm/@codemirror+lang-markdown@6.5.0/node_modules/@codemirror/lang-markdown/dist/index.js
 var dist_exports7 = {};
 __export(dist_exports7, {
   commonmarkLanguage: () => commonmarkLanguage,
@@ -26048,7 +26637,7 @@ function htmlTagCompletions() {
 }
 var data, headingProp, commonmark, headerIndent, commonmarkLanguage, extended, markdownLanguage, Context2, insertNewlineContinueMarkupCommand, insertNewlineContinueMarkup, deleteMarkupBackward, markdownKeymap, htmlNoMatch, _tagCompletions, nonPlainText, pasteURLAsLink;
 var init_dist21 = __esm({
-  "node_modules/.pnpm/@codemirror+lang-markdown@6.5.0/node_modules/@codemirror/lang-markdown/dist/index.js"() {
+  "../../node_modules/.pnpm/@codemirror+lang-markdown@6.5.0/node_modules/@codemirror/lang-markdown/dist/index.js"() {
     init_dist();
     init_dist2();
     init_dist5();
@@ -26283,7 +26872,7 @@ var init_dist21 = __esm({
   }
 });
 
-// node_modules/.pnpm/@lezer+python@1.1.18/node_modules/@lezer/python/dist/index.js
+// ../../node_modules/.pnpm/@lezer+python@1.1.18/node_modules/@lezer/python/dist/index.js
 function isLineBreak(ch) {
   return ch == newline3 || ch == carriageReturn;
 }
@@ -26321,7 +26910,7 @@ function skipEscape(input, ch) {
 }
 var printKeyword, indent, dedent, newline$1, blankLineStart, newlineBracketed, eof2, stringContent, Escape, replacementStart, stringEnd, ParenL, ParenthesizedExpression, TupleExpression, ComprehensionExpression, BracketL2, ArrayExpression, ArrayComprehensionExpression, BraceL2, DictionaryExpression, DictionaryComprehensionExpression, SetExpression, SetComprehensionExpression, ArgList, subscript, String$1, stringStart, stringStartD, stringStartL, stringStartLD, stringStartR, stringStartRD, stringStartRL, stringStartRLD, FormatString, stringStartF, stringStartFD, stringStartFL, stringStartFLD, stringStartFR, stringStartFRD, stringStartFRL, stringStartFRLD, FormatReplacement, nestedFormatReplacement, importList, TypeParamList, ParamList, SequencePattern, MappingPattern, PatternArgList, newline3, carriageReturn, space4, tab, hash2, parenOpen, dot2, braceOpen, braceClose, singleQuote, doubleQuote, backslash2, letter_o, letter_x, letter_N, letter_u, letter_U, bracketed, newlines2, indentation2, cx_Bracketed, cx_String, cx_DoubleQuote, cx_Long, cx_Raw, cx_Format, topIndent2, stringFlags, trackIndent, legacyPrint, strings, pythonHighlighting, spec_identifier4, parser9;
 var init_dist22 = __esm({
-  "node_modules/.pnpm/@lezer+python@1.1.18/node_modules/@lezer/python/dist/index.js"() {
+  "../../node_modules/.pnpm/@lezer+python@1.1.18/node_modules/@lezer/python/dist/index.js"() {
     init_dist7();
     init_dist4();
     printKeyword = 1;
@@ -26626,7 +27215,7 @@ var init_dist22 = __esm({
   }
 });
 
-// node_modules/.pnpm/@codemirror+lang-python@6.2.1/node_modules/@codemirror/lang-python/dist/index.js
+// ../../node_modules/.pnpm/@codemirror+lang-python@6.2.1/node_modules/@codemirror/lang-python/dist/index.js
 var dist_exports8 = {};
 __export(dist_exports8, {
   globalCompletion: () => globalCompletion,
@@ -26727,7 +27316,7 @@ function python() {
 }
 var cache2, ScopeNodes2, gatherCompletions2, Identifier2, dontComplete2, globals, snippets2, globalCompletion, pythonLanguage;
 var init_dist23 = __esm({
-  "node_modules/.pnpm/@codemirror+lang-python@6.2.1/node_modules/@codemirror/lang-python/dist/index.js"() {
+  "../../node_modules/.pnpm/@codemirror+lang-python@6.2.1/node_modules/@codemirror/lang-python/dist/index.js"() {
     init_dist22();
     init_dist5();
     init_dist3();
@@ -27062,10 +27651,10 @@ var init_dist23 = __esm({
   }
 });
 
-// node_modules/.pnpm/@lit+reactive-element@2.1.2/node_modules/@lit/reactive-element/css-tag.js
+// ../../node_modules/.pnpm/@lit+reactive-element@2.1.2/node_modules/@lit/reactive-element/css-tag.js
 var t = globalThis;
 var e = t.ShadowRoot && (void 0 === t.ShadyCSS || t.ShadyCSS.nativeShadow) && "adoptedStyleSheets" in Document.prototype && "replace" in CSSStyleSheet.prototype;
-var s = Symbol();
+var s = /* @__PURE__ */ Symbol();
 var o = /* @__PURE__ */ new WeakMap();
 var n = class {
   constructor(t4, e4, o5) {
@@ -27107,7 +27696,7 @@ var c = e ? (t4) => t4 : (t4) => t4 instanceof CSSStyleSheet ? ((t5) => {
   return r(e4);
 })(t4) : t4;
 
-// node_modules/.pnpm/@lit+reactive-element@2.1.2/node_modules/@lit/reactive-element/reactive-element.js
+// ../../node_modules/.pnpm/@lit+reactive-element@2.1.2/node_modules/@lit/reactive-element/reactive-element.js
 var { is: i2, defineProperty: e2, getOwnPropertyDescriptor: h, getOwnPropertyNames: r2, getOwnPropertySymbols: o2, getPrototypeOf: n2 } = Object;
 var a = globalThis;
 var c2 = a.trustedTypes;
@@ -27145,7 +27734,7 @@ var u = { toAttribute(t4, s4) {
 } };
 var f = (t4, s4) => !i2(t4, s4);
 var b = { attribute: true, type: String, converter: u, reflect: false, useDefault: false, hasChanged: f };
-Symbol.metadata ?? (Symbol.metadata = Symbol("metadata")), a.litPropertyMetadata ?? (a.litPropertyMetadata = /* @__PURE__ */ new WeakMap());
+Symbol.metadata ?? (Symbol.metadata = /* @__PURE__ */ Symbol("metadata")), a.litPropertyMetadata ?? (a.litPropertyMetadata = /* @__PURE__ */ new WeakMap());
 var y = class extends HTMLElement {
   static addInitializer(t4) {
     this._$Ei(), (this.l ?? (this.l = [])).push(t4);
@@ -27155,7 +27744,7 @@ var y = class extends HTMLElement {
   }
   static createProperty(t4, s4 = b) {
     if (s4.state && (s4.attribute = false), this._$Ei(), this.prototype.hasOwnProperty(t4) && ((s4 = Object.create(s4)).wrapped = true), this.elementProperties.set(t4, s4), !s4.noAccessor) {
-      const i5 = Symbol(), h3 = this.getPropertyDescriptor(t4, i5, s4);
+      const i5 = /* @__PURE__ */ Symbol(), h3 = this.getPropertyDescriptor(t4, i5, s4);
       void 0 !== h3 && e2(this.prototype, t4, h3);
     }
   }
@@ -27329,7 +27918,7 @@ var y = class extends HTMLElement {
 };
 y.elementStyles = [], y.shadowRootOptions = { mode: "open" }, y[d("elementProperties")] = /* @__PURE__ */ new Map(), y[d("finalized")] = /* @__PURE__ */ new Map(), p?.({ ReactiveElement: y }), (a.reactiveElementVersions ?? (a.reactiveElementVersions = [])).push("2.1.2");
 
-// node_modules/.pnpm/lit-html@3.3.2/node_modules/lit-html/lit-html.js
+// ../../node_modules/.pnpm/lit-html@3.3.2/node_modules/lit-html/lit-html.js
 var t2 = globalThis;
 var i3 = (t4) => t4;
 var s2 = t2.trustedTypes;
@@ -27356,8 +27945,8 @@ var x = (t4) => (i5, ...s4) => ({ _$litType$: t4, strings: i5, values: s4 });
 var b2 = x(1);
 var w = x(2);
 var T = x(3);
-var E = Symbol.for("lit-noChange");
-var A = Symbol.for("lit-nothing");
+var E = /* @__PURE__ */ Symbol.for("lit-noChange");
+var A = /* @__PURE__ */ Symbol.for("lit-nothing");
 var C = /* @__PURE__ */ new WeakMap();
 var P = l2.createTreeWalker(l2, 129);
 function V(t4, i5) {
@@ -27583,7 +28172,7 @@ var D = (t4, i5, s4) => {
   return h3._$AI(t4), h3;
 };
 
-// node_modules/.pnpm/lit-element@4.2.2/node_modules/lit-element/lit-element.js
+// ../../node_modules/.pnpm/lit-element@4.2.2/node_modules/lit-element/lit-element.js
 var s3 = globalThis;
 var i4 = class extends y {
   constructor() {
@@ -27613,12 +28202,12 @@ var o4 = s3.litElementPolyfillSupport;
 o4?.({ LitElement: i4 });
 (s3.litElementVersions ?? (s3.litElementVersions = [])).push("4.2.2");
 
-// packages/ui/src/web-components/ship-code-editor.ts
+// src/web-components/ship-code-editor.ts
 init_dist();
 init_dist2();
 init_dist5();
 
-// node_modules/.pnpm/@codemirror+commands@6.10.3/node_modules/@codemirror/commands/dist/index.js
+// ../../node_modules/.pnpm/@codemirror+commands@6.10.3/node_modules/@codemirror/commands/dist/index.js
 init_dist();
 init_dist2();
 init_dist5();
@@ -28703,10 +29292,10 @@ var defaultKeymap = /* @__PURE__ */ [
 ].concat(standardKeymap);
 var indentWithTab = { key: "Tab", run: indentMore, shift: indentLess };
 
-// packages/ui/src/web-components/ship-code-editor.ts
+// src/web-components/ship-code-editor.ts
 init_dist6();
 
-// node_modules/.pnpm/@codemirror+search@6.6.0/node_modules/@codemirror/search/dist/index.js
+// ../../node_modules/.pnpm/@codemirror+search@6.6.0/node_modules/@codemirror/search/dist/index.js
 init_dist2();
 init_dist();
 init_crelt();
@@ -29786,7 +30375,744 @@ var searchExtensions = [
   baseTheme4
 ];
 
-// packages/ui/src/web-components/ship-code-editor.theme.ts
+// ../../node_modules/.pnpm/@codemirror+lint@6.9.5/node_modules/@codemirror/lint/dist/index.js
+init_dist2();
+init_dist();
+init_crelt();
+var SelectedDiagnostic = class {
+  constructor(from, to, diagnostic) {
+    this.from = from;
+    this.to = to;
+    this.diagnostic = diagnostic;
+  }
+};
+var LintState = class _LintState {
+  constructor(diagnostics, panel, selected) {
+    this.diagnostics = diagnostics;
+    this.panel = panel;
+    this.selected = selected;
+  }
+  static init(diagnostics, panel, state) {
+    let diagnosticFilter = state.facet(lintConfig).markerFilter;
+    if (diagnosticFilter)
+      diagnostics = diagnosticFilter(diagnostics, state);
+    let sorted = diagnostics.slice().sort((a3, b3) => a3.from - b3.from || a3.to - b3.to);
+    let deco = new RangeSetBuilder(), active = [], pos = 0;
+    let scan = state.doc.iter(), scanPos = 0, docLen = state.doc.length;
+    for (let i5 = 0; ; ) {
+      let next = i5 == sorted.length ? null : sorted[i5];
+      if (!next && !active.length)
+        break;
+      let from, to;
+      if (active.length) {
+        from = pos;
+        to = active.reduce((p3, d3) => Math.min(p3, d3.to), next && next.from > from ? next.from : 1e8);
+      } else {
+        from = next.from;
+        if (from > docLen)
+          break;
+        to = next.to;
+        active.push(next);
+        i5++;
+      }
+      while (i5 < sorted.length) {
+        let next2 = sorted[i5];
+        if (next2.from == from && (next2.to > next2.from || next2.to == from)) {
+          active.push(next2);
+          i5++;
+          to = Math.min(next2.to, to);
+        } else {
+          to = Math.min(next2.from, to);
+          break;
+        }
+      }
+      to = Math.min(to, docLen);
+      let widget = false;
+      if (active.some((d3) => d3.from == from && (d3.to == to || to == docLen))) {
+        widget = from == to;
+        if (!widget && to - from < 10) {
+          let behind = from - (scanPos + scan.value.length);
+          if (behind > 0) {
+            scan.next(behind);
+            scanPos = from;
+          }
+          for (let check = from; ; ) {
+            if (check >= to) {
+              widget = true;
+              break;
+            }
+            if (!scan.lineBreak && scanPos + scan.value.length > check)
+              break;
+            check = scanPos + scan.value.length;
+            scanPos += scan.value.length;
+            scan.next();
+          }
+        }
+      }
+      let sev = maxSeverity(active);
+      if (widget) {
+        deco.add(from, from, Decoration.widget({
+          widget: new DiagnosticWidget(sev),
+          diagnostics: active.slice()
+        }));
+      } else {
+        let markClass = active.reduce((c4, d3) => d3.markClass ? c4 + " " + d3.markClass : c4, "");
+        deco.add(from, to, Decoration.mark({
+          class: "cm-lintRange cm-lintRange-" + sev + markClass,
+          diagnostics: active.slice(),
+          inclusiveEnd: active.some((a3) => a3.to > to)
+        }));
+      }
+      pos = to;
+      if (pos == docLen)
+        break;
+      for (let i6 = 0; i6 < active.length; i6++)
+        if (active[i6].to <= pos)
+          active.splice(i6--, 1);
+    }
+    let set = deco.finish();
+    return new _LintState(set, panel, findDiagnostic(set));
+  }
+};
+function findDiagnostic(diagnostics, diagnostic = null, after = 0) {
+  let found = null;
+  diagnostics.between(after, 1e9, (from, to, { spec }) => {
+    if (diagnostic && spec.diagnostics.indexOf(diagnostic) < 0)
+      return;
+    if (!found)
+      found = new SelectedDiagnostic(from, to, diagnostic || spec.diagnostics[0]);
+    else if (spec.diagnostics.indexOf(found.diagnostic) < 0)
+      return false;
+    else
+      found = new SelectedDiagnostic(found.from, to, found.diagnostic);
+  });
+  return found;
+}
+function hideTooltip(tr, tooltip) {
+  let from = tooltip.pos, to = tooltip.end || from;
+  let result = tr.state.facet(lintConfig).hideOn(tr, from, to);
+  if (result != null)
+    return result;
+  let line = tr.startState.doc.lineAt(tooltip.pos);
+  return !!(tr.effects.some((e4) => e4.is(setDiagnosticsEffect)) || tr.changes.touchesRange(line.from, Math.max(line.to, to)));
+}
+function maybeEnableLint(state, effects) {
+  return state.field(lintState, false) ? effects : effects.concat(StateEffect.appendConfig.of(lintExtensions));
+}
+function setDiagnostics(state, diagnostics) {
+  return {
+    effects: maybeEnableLint(state, [setDiagnosticsEffect.of(diagnostics)])
+  };
+}
+var setDiagnosticsEffect = /* @__PURE__ */ StateEffect.define();
+var togglePanel2 = /* @__PURE__ */ StateEffect.define();
+var movePanelSelection = /* @__PURE__ */ StateEffect.define();
+var lintState = /* @__PURE__ */ StateField.define({
+  create() {
+    return new LintState(Decoration.none, null, null);
+  },
+  update(value, tr) {
+    if (tr.docChanged && value.diagnostics.size) {
+      let mapped = value.diagnostics.map(tr.changes), selected = null, panel = value.panel;
+      if (value.selected) {
+        let selPos = tr.changes.mapPos(value.selected.from, 1);
+        selected = findDiagnostic(mapped, value.selected.diagnostic, selPos) || findDiagnostic(mapped, null, selPos);
+      }
+      if (!mapped.size && panel && tr.state.facet(lintConfig).autoPanel)
+        panel = null;
+      value = new LintState(mapped, panel, selected);
+    }
+    for (let effect of tr.effects) {
+      if (effect.is(setDiagnosticsEffect)) {
+        let panel = !tr.state.facet(lintConfig).autoPanel ? value.panel : effect.value.length ? LintPanel.open : null;
+        value = LintState.init(effect.value, panel, tr.state);
+      } else if (effect.is(togglePanel2)) {
+        value = new LintState(value.diagnostics, effect.value ? LintPanel.open : null, value.selected);
+      } else if (effect.is(movePanelSelection)) {
+        value = new LintState(value.diagnostics, value.panel, effect.value);
+      }
+    }
+    return value;
+  },
+  provide: (f3) => [
+    showPanel.from(f3, (val) => val.panel),
+    EditorView.decorations.from(f3, (s4) => s4.diagnostics)
+  ]
+});
+var activeMark = /* @__PURE__ */ Decoration.mark({ class: "cm-lintRange cm-lintRange-active" });
+function lintTooltip(view, pos, side) {
+  let { diagnostics } = view.state.field(lintState);
+  let found, start = -1, end = -1;
+  diagnostics.between(pos - (side < 0 ? 1 : 0), pos + (side > 0 ? 1 : 0), (from, to, { spec }) => {
+    if (pos >= from && pos <= to && (from == to || (pos > from || side > 0) && (pos < to || side < 0))) {
+      found = spec.diagnostics;
+      start = from;
+      end = to;
+      return false;
+    }
+  });
+  let diagnosticFilter = view.state.facet(lintConfig).tooltipFilter;
+  if (found && diagnosticFilter)
+    found = diagnosticFilter(found, view.state);
+  if (!found)
+    return null;
+  return {
+    pos: start,
+    end,
+    above: view.state.doc.lineAt(start).to < end,
+    create() {
+      return { dom: diagnosticsTooltip(view, found) };
+    }
+  };
+}
+function diagnosticsTooltip(view, diagnostics) {
+  return crelt("ul", { class: "cm-tooltip-lint" }, diagnostics.map((d3) => renderDiagnostic(view, d3, false)));
+}
+var closeLintPanel = (view) => {
+  let field = view.state.field(lintState, false);
+  if (!field || !field.panel)
+    return false;
+  view.dispatch({ effects: togglePanel2.of(false) });
+  return true;
+};
+var lintConfig = /* @__PURE__ */ Facet.define({
+  combine(input) {
+    return {
+      sources: input.map((i5) => i5.source).filter((x2) => x2 != null),
+      ...combineConfig(input.map((i5) => i5.config), {
+        delay: 750,
+        markerFilter: null,
+        tooltipFilter: null,
+        needsRefresh: null,
+        hideOn: () => null
+      }, {
+        delay: Math.max,
+        markerFilter: combineFilter,
+        tooltipFilter: combineFilter,
+        needsRefresh: (a3, b3) => !a3 ? b3 : !b3 ? a3 : (u3) => a3(u3) || b3(u3),
+        hideOn: (a3, b3) => !a3 ? b3 : !b3 ? a3 : (t4, x2, y3) => a3(t4, x2, y3) || b3(t4, x2, y3),
+        autoPanel: (a3, b3) => a3 || b3
+      })
+    };
+  }
+});
+function combineFilter(a3, b3) {
+  return !a3 ? b3 : !b3 ? a3 : (d3, s4) => b3(a3(d3, s4), s4);
+}
+function assignKeys(actions) {
+  let assigned = [];
+  if (actions)
+    actions: for (let { name: name2 } of actions) {
+      for (let i5 = 0; i5 < name2.length; i5++) {
+        let ch = name2[i5];
+        if (/[a-zA-Z]/.test(ch) && !assigned.some((c4) => c4.toLowerCase() == ch.toLowerCase())) {
+          assigned.push(ch);
+          continue actions;
+        }
+      }
+      assigned.push("");
+    }
+  return assigned;
+}
+function renderDiagnostic(view, diagnostic, inPanel) {
+  var _a2;
+  let keys = inPanel ? assignKeys(diagnostic.actions) : [];
+  return crelt("li", { class: "cm-diagnostic cm-diagnostic-" + diagnostic.severity }, crelt("span", { class: "cm-diagnosticText" }, diagnostic.renderMessage ? diagnostic.renderMessage(view) : diagnostic.message), (_a2 = diagnostic.actions) === null || _a2 === void 0 ? void 0 : _a2.map((action, i5) => {
+    let fired = false, click = (e4) => {
+      e4.preventDefault();
+      if (fired)
+        return;
+      fired = true;
+      let found = findDiagnostic(view.state.field(lintState).diagnostics, diagnostic);
+      if (found)
+        action.apply(view, found.from, found.to);
+    };
+    let { name: name2 } = action, keyIndex = keys[i5] ? name2.indexOf(keys[i5]) : -1;
+    let nameElt = keyIndex < 0 ? name2 : [
+      name2.slice(0, keyIndex),
+      crelt("u", name2.slice(keyIndex, keyIndex + 1)),
+      name2.slice(keyIndex + 1)
+    ];
+    let markClass = action.markClass ? " " + action.markClass : "";
+    return crelt("button", {
+      type: "button",
+      class: "cm-diagnosticAction" + markClass,
+      onclick: click,
+      onmousedown: click,
+      "aria-label": ` Action: ${name2}${keyIndex < 0 ? "" : ` (access key "${keys[i5]})"`}.`
+    }, nameElt);
+  }), diagnostic.source && crelt("div", { class: "cm-diagnosticSource" }, diagnostic.source));
+}
+var DiagnosticWidget = class extends WidgetType {
+  constructor(sev) {
+    super();
+    this.sev = sev;
+  }
+  eq(other) {
+    return other.sev == this.sev;
+  }
+  toDOM() {
+    return crelt("span", { class: "cm-lintPoint cm-lintPoint-" + this.sev });
+  }
+};
+var PanelItem = class {
+  constructor(view, diagnostic) {
+    this.diagnostic = diagnostic;
+    this.id = "item_" + Math.floor(Math.random() * 4294967295).toString(16);
+    this.dom = renderDiagnostic(view, diagnostic, true);
+    this.dom.id = this.id;
+    this.dom.setAttribute("role", "option");
+  }
+};
+var LintPanel = class _LintPanel {
+  constructor(view) {
+    this.view = view;
+    this.items = [];
+    let onkeydown = (event) => {
+      if (event.ctrlKey || event.altKey || event.metaKey)
+        return;
+      if (event.keyCode == 27) {
+        closeLintPanel(this.view);
+        this.view.focus();
+      } else if (event.keyCode == 38 || event.keyCode == 33) {
+        this.moveSelection((this.selectedIndex - 1 + this.items.length) % this.items.length);
+      } else if (event.keyCode == 40 || event.keyCode == 34) {
+        this.moveSelection((this.selectedIndex + 1) % this.items.length);
+      } else if (event.keyCode == 36) {
+        this.moveSelection(0);
+      } else if (event.keyCode == 35) {
+        this.moveSelection(this.items.length - 1);
+      } else if (event.keyCode == 13) {
+        this.view.focus();
+      } else if (event.keyCode >= 65 && event.keyCode <= 90 && this.selectedIndex >= 0) {
+        let { diagnostic } = this.items[this.selectedIndex], keys = assignKeys(diagnostic.actions);
+        for (let i5 = 0; i5 < keys.length; i5++)
+          if (keys[i5].toUpperCase().charCodeAt(0) == event.keyCode) {
+            let found = findDiagnostic(this.view.state.field(lintState).diagnostics, diagnostic);
+            if (found)
+              diagnostic.actions[i5].apply(view, found.from, found.to);
+          }
+      } else {
+        return;
+      }
+      event.preventDefault();
+    };
+    let onclick = (event) => {
+      for (let i5 = 0; i5 < this.items.length; i5++) {
+        if (this.items[i5].dom.contains(event.target))
+          this.moveSelection(i5);
+      }
+    };
+    this.list = crelt("ul", {
+      tabIndex: 0,
+      role: "listbox",
+      "aria-label": this.view.state.phrase("Diagnostics"),
+      onkeydown,
+      onclick
+    });
+    this.dom = crelt("div", { class: "cm-panel-lint" }, this.list, crelt("button", {
+      type: "button",
+      name: "close",
+      "aria-label": this.view.state.phrase("close"),
+      onclick: () => closeLintPanel(this.view)
+    }, "\xD7"));
+    this.update();
+  }
+  get selectedIndex() {
+    let selected = this.view.state.field(lintState).selected;
+    if (!selected)
+      return -1;
+    for (let i5 = 0; i5 < this.items.length; i5++)
+      if (this.items[i5].diagnostic == selected.diagnostic)
+        return i5;
+    return -1;
+  }
+  update() {
+    let { diagnostics, selected } = this.view.state.field(lintState);
+    let i5 = 0, needsSync = false, newSelectedItem = null;
+    let seen = /* @__PURE__ */ new Set();
+    diagnostics.between(0, this.view.state.doc.length, (_start, _end, { spec }) => {
+      for (let diagnostic of spec.diagnostics) {
+        if (seen.has(diagnostic))
+          continue;
+        seen.add(diagnostic);
+        let found = -1, item;
+        for (let j = i5; j < this.items.length; j++)
+          if (this.items[j].diagnostic == diagnostic) {
+            found = j;
+            break;
+          }
+        if (found < 0) {
+          item = new PanelItem(this.view, diagnostic);
+          this.items.splice(i5, 0, item);
+          needsSync = true;
+        } else {
+          item = this.items[found];
+          if (found > i5) {
+            this.items.splice(i5, found - i5);
+            needsSync = true;
+          }
+        }
+        if (selected && item.diagnostic == selected.diagnostic) {
+          if (!item.dom.hasAttribute("aria-selected")) {
+            item.dom.setAttribute("aria-selected", "true");
+            newSelectedItem = item;
+          }
+        } else if (item.dom.hasAttribute("aria-selected")) {
+          item.dom.removeAttribute("aria-selected");
+        }
+        i5++;
+      }
+    });
+    while (i5 < this.items.length && !(this.items.length == 1 && this.items[0].diagnostic.from < 0)) {
+      needsSync = true;
+      this.items.pop();
+    }
+    if (this.items.length == 0) {
+      this.items.push(new PanelItem(this.view, {
+        from: -1,
+        to: -1,
+        severity: "info",
+        message: this.view.state.phrase("No diagnostics")
+      }));
+      needsSync = true;
+    }
+    if (newSelectedItem) {
+      this.list.setAttribute("aria-activedescendant", newSelectedItem.id);
+      this.view.requestMeasure({
+        key: this,
+        read: () => ({ sel: newSelectedItem.dom.getBoundingClientRect(), panel: this.list.getBoundingClientRect() }),
+        write: ({ sel, panel }) => {
+          let scaleY = panel.height / this.list.offsetHeight;
+          if (sel.top < panel.top)
+            this.list.scrollTop -= (panel.top - sel.top) / scaleY;
+          else if (sel.bottom > panel.bottom)
+            this.list.scrollTop += (sel.bottom - panel.bottom) / scaleY;
+        }
+      });
+    } else if (this.selectedIndex < 0) {
+      this.list.removeAttribute("aria-activedescendant");
+    }
+    if (needsSync)
+      this.sync();
+  }
+  sync() {
+    let domPos = this.list.firstChild;
+    function rm2() {
+      let prev = domPos;
+      domPos = prev.nextSibling;
+      prev.remove();
+    }
+    for (let item of this.items) {
+      if (item.dom.parentNode == this.list) {
+        while (domPos != item.dom)
+          rm2();
+        domPos = item.dom.nextSibling;
+      } else {
+        this.list.insertBefore(item.dom, domPos);
+      }
+    }
+    while (domPos)
+      rm2();
+  }
+  moveSelection(selectedIndex) {
+    if (this.selectedIndex < 0)
+      return;
+    let field = this.view.state.field(lintState);
+    let selection = findDiagnostic(field.diagnostics, this.items[selectedIndex].diagnostic);
+    if (!selection)
+      return;
+    this.view.dispatch({
+      selection: { anchor: selection.from, head: selection.to },
+      scrollIntoView: true,
+      effects: movePanelSelection.of(selection)
+    });
+  }
+  static open(view) {
+    return new _LintPanel(view);
+  }
+};
+function svg(content2, attrs = `viewBox="0 0 40 40"`) {
+  return `url('data:image/svg+xml,<svg xmlns="http://www.w3.org/2000/svg" ${attrs}>${encodeURIComponent(content2)}</svg>')`;
+}
+function underline(color) {
+  return svg(`<path d="m0 2.5 l2 -1.5 l1 0 l2 1.5 l1 0" stroke="${color}" fill="none" stroke-width=".7"/>`, `width="6" height="3"`);
+}
+var baseTheme5 = /* @__PURE__ */ EditorView.baseTheme({
+  ".cm-diagnostic": {
+    padding: "3px 6px 3px 8px",
+    marginLeft: "-1px",
+    display: "block",
+    whiteSpace: "pre-wrap"
+  },
+  ".cm-diagnostic-error": { borderLeft: "5px solid #d11" },
+  ".cm-diagnostic-warning": { borderLeft: "5px solid orange" },
+  ".cm-diagnostic-info": { borderLeft: "5px solid #999" },
+  ".cm-diagnostic-hint": { borderLeft: "5px solid #66d" },
+  ".cm-diagnosticAction": {
+    font: "inherit",
+    border: "none",
+    padding: "2px 4px",
+    backgroundColor: "#444",
+    color: "white",
+    borderRadius: "3px",
+    marginLeft: "8px",
+    cursor: "pointer"
+  },
+  ".cm-diagnosticSource": {
+    fontSize: "70%",
+    opacity: 0.7
+  },
+  ".cm-lintRange": {
+    backgroundPosition: "left bottom",
+    backgroundRepeat: "repeat-x",
+    paddingBottom: "0.7px"
+  },
+  ".cm-lintRange-error": { backgroundImage: /* @__PURE__ */ underline("#d11") },
+  ".cm-lintRange-warning": { backgroundImage: /* @__PURE__ */ underline("orange") },
+  ".cm-lintRange-info": { backgroundImage: /* @__PURE__ */ underline("#999") },
+  ".cm-lintRange-hint": { backgroundImage: /* @__PURE__ */ underline("#66d") },
+  ".cm-lintRange-active": { backgroundColor: "#ffdd9980" },
+  ".cm-tooltip-lint": {
+    padding: 0,
+    margin: 0
+  },
+  ".cm-lintPoint": {
+    position: "relative",
+    "&:after": {
+      content: '""',
+      position: "absolute",
+      bottom: 0,
+      left: "-2px",
+      borderLeft: "3px solid transparent",
+      borderRight: "3px solid transparent",
+      borderBottom: "4px solid #d11"
+    }
+  },
+  ".cm-lintPoint-warning": {
+    "&:after": { borderBottomColor: "orange" }
+  },
+  ".cm-lintPoint-info": {
+    "&:after": { borderBottomColor: "#999" }
+  },
+  ".cm-lintPoint-hint": {
+    "&:after": { borderBottomColor: "#66d" }
+  },
+  ".cm-panel.cm-panel-lint": {
+    position: "relative",
+    "& ul": {
+      maxHeight: "100px",
+      overflowY: "auto",
+      "& [aria-selected]": {
+        backgroundColor: "#ddd",
+        "& u": { textDecoration: "underline" }
+      },
+      "&:focus [aria-selected]": {
+        background_fallback: "#bdf",
+        backgroundColor: "Highlight",
+        color_fallback: "white",
+        color: "HighlightText"
+      },
+      "& u": { textDecoration: "none" },
+      padding: 0,
+      margin: 0
+    },
+    "& [name=close]": {
+      position: "absolute",
+      top: "0",
+      right: "2px",
+      background: "inherit",
+      border: "none",
+      font: "inherit",
+      padding: 0,
+      margin: 0
+    }
+  },
+  "&dark .cm-lintRange-active": { backgroundColor: "#86714a80" },
+  "&dark .cm-panel.cm-panel-lint ul": {
+    "& [aria-selected]": {
+      backgroundColor: "#2e343e"
+    }
+  }
+});
+function severityWeight(sev) {
+  return sev == "error" ? 4 : sev == "warning" ? 3 : sev == "info" ? 2 : 1;
+}
+function maxSeverity(diagnostics) {
+  let sev = "hint", weight = 1;
+  for (let d3 of diagnostics) {
+    let w2 = severityWeight(d3.severity);
+    if (w2 > weight) {
+      weight = w2;
+      sev = d3.severity;
+    }
+  }
+  return sev;
+}
+var LintGutterMarker = class extends GutterMarker {
+  constructor(diagnostics) {
+    super();
+    this.diagnostics = diagnostics;
+    this.severity = maxSeverity(diagnostics);
+  }
+  toDOM(view) {
+    let elt2 = document.createElement("div");
+    elt2.className = "cm-lint-marker cm-lint-marker-" + this.severity;
+    let diagnostics = this.diagnostics;
+    let diagnosticsFilter = view.state.facet(lintGutterConfig).tooltipFilter;
+    if (diagnosticsFilter)
+      diagnostics = diagnosticsFilter(diagnostics, view.state);
+    if (diagnostics.length)
+      elt2.onmouseover = () => gutterMarkerMouseOver(view, elt2, diagnostics);
+    return elt2;
+  }
+};
+function trackHoverOn(view, marker) {
+  let mousemove = (event) => {
+    let rect = marker.getBoundingClientRect();
+    if (event.clientX > rect.left - 10 && event.clientX < rect.right + 10 && event.clientY > rect.top - 10 && event.clientY < rect.bottom + 10)
+      return;
+    for (let target = event.target; target; target = target.parentNode) {
+      if (target.nodeType == 1 && target.classList.contains("cm-tooltip-lint"))
+        return;
+    }
+    window.removeEventListener("mousemove", mousemove);
+    if (view.state.field(lintGutterTooltip))
+      view.dispatch({ effects: setLintGutterTooltip.of(null) });
+  };
+  window.addEventListener("mousemove", mousemove);
+}
+function gutterMarkerMouseOver(view, marker, diagnostics) {
+  function hovered() {
+    let line = view.elementAtHeight(marker.getBoundingClientRect().top + 5 - view.documentTop);
+    const linePos = view.coordsAtPos(line.from);
+    if (linePos) {
+      view.dispatch({ effects: setLintGutterTooltip.of({
+        pos: line.from,
+        above: false,
+        clip: false,
+        create() {
+          return {
+            dom: diagnosticsTooltip(view, diagnostics),
+            getCoords: () => marker.getBoundingClientRect()
+          };
+        }
+      }) });
+    }
+    marker.onmouseout = marker.onmousemove = null;
+    trackHoverOn(view, marker);
+  }
+  let { hoverTime } = view.state.facet(lintGutterConfig);
+  let hoverTimeout = setTimeout(hovered, hoverTime);
+  marker.onmouseout = () => {
+    clearTimeout(hoverTimeout);
+    marker.onmouseout = marker.onmousemove = null;
+  };
+  marker.onmousemove = () => {
+    clearTimeout(hoverTimeout);
+    hoverTimeout = setTimeout(hovered, hoverTime);
+  };
+}
+function markersForDiagnostics(doc2, diagnostics) {
+  let byLine = /* @__PURE__ */ Object.create(null);
+  for (let diagnostic of diagnostics) {
+    let line = doc2.lineAt(diagnostic.from);
+    (byLine[line.from] || (byLine[line.from] = [])).push(diagnostic);
+  }
+  let markers = [];
+  for (let line in byLine) {
+    markers.push(new LintGutterMarker(byLine[line]).range(+line));
+  }
+  return RangeSet.of(markers, true);
+}
+var lintGutterExtension = /* @__PURE__ */ gutter({
+  class: "cm-gutter-lint",
+  markers: (view) => view.state.field(lintGutterMarkers),
+  widgetMarker: (view, widget, block) => {
+    let diagnostics = [];
+    view.state.field(lintGutterMarkers).between(block.from, block.to, (from, to, value) => {
+      if (from > block.from && from < block.to)
+        diagnostics.push(...value.diagnostics);
+    });
+    return diagnostics.length ? new LintGutterMarker(diagnostics) : null;
+  }
+});
+var lintGutterMarkers = /* @__PURE__ */ StateField.define({
+  create() {
+    return RangeSet.empty;
+  },
+  update(markers, tr) {
+    markers = markers.map(tr.changes);
+    let diagnosticFilter = tr.state.facet(lintGutterConfig).markerFilter;
+    for (let effect of tr.effects) {
+      if (effect.is(setDiagnosticsEffect)) {
+        let diagnostics = effect.value;
+        if (diagnosticFilter)
+          diagnostics = diagnosticFilter(diagnostics || [], tr.state);
+        markers = markersForDiagnostics(tr.state.doc, diagnostics.slice(0));
+      }
+    }
+    return markers;
+  }
+});
+var setLintGutterTooltip = /* @__PURE__ */ StateEffect.define();
+var lintGutterTooltip = /* @__PURE__ */ StateField.define({
+  create() {
+    return null;
+  },
+  update(tooltip, tr) {
+    if (tooltip && tr.docChanged)
+      tooltip = hideTooltip(tr, tooltip) ? null : { ...tooltip, pos: tr.changes.mapPos(tooltip.pos) };
+    return tr.effects.reduce((t4, e4) => e4.is(setLintGutterTooltip) ? e4.value : t4, tooltip);
+  },
+  provide: (field) => showTooltip.from(field)
+});
+var lintGutterTheme = /* @__PURE__ */ EditorView.baseTheme({
+  ".cm-gutter-lint": {
+    width: "1.4em",
+    "& .cm-gutterElement": {
+      padding: ".2em"
+    }
+  },
+  ".cm-lint-marker": {
+    width: "1em",
+    height: "1em"
+  },
+  ".cm-lint-marker-info": {
+    content: /* @__PURE__ */ svg(`<path fill="#aaf" stroke="#77e" stroke-width="6" stroke-linejoin="round" d="M5 5L35 5L35 35L5 35Z"/>`)
+  },
+  ".cm-lint-marker-warning": {
+    content: /* @__PURE__ */ svg(`<path fill="#fe8" stroke="#fd7" stroke-width="6" stroke-linejoin="round" d="M20 6L37 35L3 35Z"/>`)
+  },
+  ".cm-lint-marker-error": {
+    content: /* @__PURE__ */ svg(`<circle cx="20" cy="20" r="15" fill="#f87" stroke="#f43" stroke-width="6"/>`)
+  }
+});
+var lintExtensions = [
+  lintState,
+  /* @__PURE__ */ EditorView.decorations.compute([lintState], (state) => {
+    let { selected, panel } = state.field(lintState);
+    return !selected || !panel || selected.from == selected.to ? Decoration.none : Decoration.set([
+      activeMark.range(selected.from, selected.to)
+    ]);
+  }),
+  /* @__PURE__ */ hoverTooltip(lintTooltip, { hideOn: hideTooltip }),
+  baseTheme5
+];
+var lintGutterConfig = /* @__PURE__ */ Facet.define({
+  combine(configs) {
+    return combineConfig(configs, {
+      hoverTime: 300,
+      markerFilter: null,
+      tooltipFilter: null
+    });
+  }
+});
+function lintGutter(config2 = {}) {
+  return [lintGutterConfig.of(config2), lintGutterMarkers, lintGutterExtension, lintGutterTheme, lintGutterTooltip];
+}
+
+// src/web-components/ship-code-editor.theme.ts
 init_dist2();
 init_dist5();
 init_dist4();
@@ -29892,7 +31218,7 @@ var shipHighlightStyle = HighlightStyle.define([
 ]);
 var shipHighlighting = syntaxHighlighting(shipHighlightStyle);
 
-// packages/ui/src/web-components/util.ts
+// src/web-components/util.ts
 var MONO_STACK = "ui-monospace, SFMono-Regular, 'SF Mono', Menlo, Consolas, monospace";
 var MONO = r(MONO_STACK);
 var toneVars = i`
@@ -29954,7 +31280,7 @@ var reducedMotion = i`
   }
 `;
 
-// packages/ui/src/web-components/ship-code-editor.styles.ts
+// src/web-components/ship-code-editor.styles.ts
 var codeEditorStyles = i`
   :host {
     display: block;
@@ -30023,7 +31349,7 @@ var codeEditorStyles = i`
   }
 `;
 
-// packages/ui/src/web-components/ship-code-editor.languages.ts
+// src/web-components/ship-code-editor.languages.ts
 async function loadLanguage(lang) {
   switch (lang) {
     case "yaml": {
@@ -30070,7 +31396,7 @@ async function loadLanguage(lang) {
   }
 }
 
-// packages/ui/src/web-components/ship-code-editor.ts
+// src/web-components/ship-code-editor.ts
 var DEBOUNCE_MS = 150;
 var ShipCodeEditor = class extends i4 {
   constructor() {
@@ -30091,6 +31417,8 @@ var ShipCodeEditor = class extends i4 {
     this._lineNumbersCompartment = new Compartment();
     this._placeholderCompartment = new Compartment();
     this._suppressUpdate = false;
+    /** Pending diagnostics queued before the view finishes constructing. */
+    this._pendingDiagnostics = null;
     if (typeof ElementInternals !== "undefined") {
       this._internals = this.attachInternals();
     }
@@ -30124,6 +31452,7 @@ var ShipCodeEditor = class extends i4 {
       ]),
       shipEditorTheme,
       shipHighlighting,
+      lintGutter(),
       this._langCompartment.of(langExt),
       this._readonlyCompartment.of(EditorState.readOnly.of(this.readonly)),
       this._placeholderCompartment.of(
@@ -30140,6 +31469,10 @@ var ShipCodeEditor = class extends i4 {
       state: EditorState.create({ doc: this.value || "", extensions }),
       parent: root
     });
+    if (this._pendingDiagnostics) {
+      this._applyDiagnostics(this._pendingDiagnostics);
+      this._pendingDiagnostics = null;
+    }
   }
   async updated(changed) {
     if (!this._view) return;
@@ -30203,6 +31536,49 @@ var ShipCodeEditor = class extends i4 {
   }
   focus() {
     this._view?.focus();
+  }
+  /**
+   * Render a set of server-side diagnostics in the CodeMirror lint gutter.
+   *
+   * Pass an empty array to clear existing markers.
+   *
+   * Positions are 1-based. When `endLine`/`endColumn` are omitted, the
+   * diagnostic spans from `(line, column)` to end-of-line so a marker
+   * always has a visible range even when the server only gives us the
+   * starting position of the offending value.
+   */
+  setDiagnostics(diagnostics) {
+    if (!this._view) {
+      this._pendingDiagnostics = diagnostics;
+      return;
+    }
+    this._applyDiagnostics(diagnostics);
+  }
+  _applyDiagnostics(diagnostics) {
+    if (!this._view) return;
+    const state = this._view.state;
+    const doc2 = state.doc;
+    const cmDiagnostics = diagnostics.map((d3) => {
+      const line = Math.max(1, Math.min(doc2.lines, d3.line | 0));
+      const startLine = doc2.line(line);
+      const col = Math.max(1, (d3.column ?? 1) | 0);
+      const from = Math.min(
+        startLine.to,
+        startLine.from + col - 1
+      );
+      const endL = d3.endLine ?? line;
+      const endLineObj = doc2.line(Math.max(1, Math.min(doc2.lines, endL | 0)));
+      const endCol = d3.endColumn;
+      const to = endCol != null ? Math.min(endLineObj.to, endLineObj.from + (endCol - 1)) : endLineObj.to;
+      return {
+        from,
+        to: Math.max(from + 1, to),
+        severity: d3.severity,
+        message: d3.message,
+        source: d3.source
+      };
+    });
+    this._view.dispatch(setDiagnostics(state, cmDiagnostics));
   }
   render() {
     return b2`<div class="editor-root" part="editor"></div>`;

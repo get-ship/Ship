@@ -119,7 +119,7 @@ export class ShipPipelineStepDef extends LitElement {
     agent: { type: String, reflect: true },
     provider: { type: String, reflect: true },
     model: { type: String, reflect: true },
-    after: { type: String, reflect: true },
+    afterIds: { type: String, attribute: 'after', reflect: true },
     command: { type: String },
     index: { type: Number, reflect: true },
   }
@@ -129,13 +129,13 @@ export class ShipPipelineStepDef extends LitElement {
   agent = ''
   provider = ''
   model = ''
-  after = ''
+  afterIds = ''
   command = ''
   index?: number
 
   render() {
     const tone = TYPE_TONE[this.stepType] ?? 'muted'
-    const afterList = (this.after || '')
+    const afterList = (this.afterIds || '')
       .split(',')
       .map((s) => s.trim())
       .filter(Boolean)
