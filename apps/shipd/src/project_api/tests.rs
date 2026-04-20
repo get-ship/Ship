@@ -474,3 +474,33 @@ async fn session_file_path_traversal_blocked() {
         "write traversal must not create file outside session dir"
     );
 }
+
+#[tokio::test(flavor = "multi_thread")]
+async fn resolve_worktree_ignores_pathless_workspace_fallback() {
+    // Reproduces the bug where a workspace registered in the DB without
+    // an explicit `path` made resolve_project_root fall back to
+    // ship_dir.parent() — if ship_dir is HOME/.ship, the fallback is HOME
+    // itself, which has a `.ship/` dir and passed the old existence
+    // check. Writes then landed in the global ~/.ship/pipelines/ instead
+    // of the real project.
+    let dir = TempDir::new().unwrap();
+    let ship_dir = dir.path().join(".ship");
+    std::fs::create_dir_all(&ship_dir).unwrap();
+    runtime::db::ensure_db_at(&ship_dir).unwrap();
+    let branch = test_branch("no-path");
+    runtime::workspace::create_workspace(
+        &ship_dir,
+        runtime::workspace::CreateWorkspaceRequest {
+            branch: branch.clone(),
+            path: None, // explicit: no path
+            ..Default::default()
+        },
+    )
+    .unwrap();
+
+    // With no explicit path, no checked-out worktree matching `branch`,
+    // and no matching current branch, the resolver must return 404
+    // rather than silently returning the parent of ship_dir.
+    let err = resolve_worktree(&ship_dir, &branch).unwrap_err();
+    assert_eq!(err.0, StatusCode::NOT_FOUND);
+}
