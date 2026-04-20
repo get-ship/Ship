@@ -227,6 +227,7 @@ fn build_ship_routes(st: rest_api::ApiState) -> Router {
         .ship_route(Route::PollEvents, runtime_api::poll_events)
         .ship_route(Route::DaemonStatus, runtime_api::daemon_status)
         // Views
+        .ship_route(Route::ViewPipelineRun_template(), views_pipelines::pipelines_run_shell)
         .ship_route(Route::ListViews, views::list_views)
         .ship_route(Route::ServeView_template(), views::serve_view)
         .ship_route(Route::ServeViewManifest_template(), views::serve_view_manifest)

@@ -19,6 +19,8 @@
 {%- macro list_themes() -%}/api/runtime/themes{%- endmacro -%}
 {%- macro view_pipelines() -%}/api/runtime/view/pipelines{%- endmacro -%}
 {%- macro view_pipelines_sse() -%}/api/runtime/view/pipelines/sse{%- endmacro -%}
+{%- macro view_pipeline_run(slug) -%}/api/runtime/view/pipelines/run/{{ slug }}{%- endmacro -%}
+{%- macro view_pipeline_run_sse(slug) -%}/api/runtime/view/pipelines/run/{{ slug }}/sse{%- endmacro -%}
 {%- macro view_specs() -%}/api/runtime/view/specs{%- endmacro -%}
 {%- macro view_specs_sse() -%}/api/runtime/view/specs/sse{%- endmacro -%}
 {%- macro view_git() -%}/api/runtime/view/git{%- endmacro -%}
