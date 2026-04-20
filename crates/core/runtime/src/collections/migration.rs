@@ -62,6 +62,13 @@ pub fn migrate_platform_to_collections(
 
     mark_migration_complete(svc, MIGRATION_KEY)?;
 
+    tracing::info!(
+        notes = notes_migrated,
+        adrs = adrs_migrated,
+        specs = specs_migrated,
+        "platform.db → data.db migration complete"
+    );
+
     Ok(MigrationReport {
         already_migrated: false,
         source_missing: false,
@@ -667,5 +674,85 @@ mod tests {
         assert_eq!(map_spec_status("completed"), "complete");
         assert_eq!(map_spec_status("cancelled"), "abandoned");
         assert_eq!(map_spec_status("unknown"), "draft");
+    }
+
+    /// Realistic volume — 500 notes — catches N+1 cost in idempotency checks.
+    #[test]
+    fn migration_handles_realistic_volume() {
+        let (mut svc, tmp) = setup_data_service();
+        let platform = tmp.path().join("platform.db");
+        seed_platform_db(&platform);
+
+        // Append 500 notes on top of the base seed (which inserts 1).
+        let url = format!("sqlite://{}?mode=rwc", platform.display());
+        let opts = SqliteConnectOptions::from_str(&url).unwrap().create_if_missing(true);
+        let mut conn = crate::db::block_on(async {
+            SqliteConnection::connect_with(&opts).await
+        })
+        .unwrap();
+        let now = chrono::Utc::now().to_rfc3339();
+        for i in 0..500 {
+            let id = format!("bulk-{i:04}");
+            crate::db::block_on(async {
+                sqlx::query(
+                    "INSERT INTO note (id, title, content, tags_json, branch, created_at, updated_at)
+                     VALUES (?, ?, ?, ?, ?, ?, ?)",
+                )
+                .bind(&id)
+                .bind(format!("bulk note {i}"))
+                .bind("bulk content")
+                .bind("[]")
+                .bind("main")
+                .bind(&now)
+                .bind(&now)
+                .execute(&mut conn)
+                .await
+            })
+            .unwrap();
+        }
+        crate::db::block_on(async { conn.close().await }).unwrap();
+
+        let report = migrate_platform_to_collections(&mut svc, &platform).unwrap();
+        assert_eq!(report.notes_migrated, 501);
+
+        // Re-run must short-circuit even at volume.
+        let report2 = migrate_platform_to_collections(&mut svc, &platform).unwrap();
+        assert!(report2.already_migrated);
+    }
+
+    /// Resume after a partial migration: some target rows already exist (as
+    /// would happen if a prior run errored between migrate_notes and
+    /// migrate_adrs). The re-run must not duplicate already-copied rows and
+    /// must fill in the rest.
+    #[test]
+    fn migration_resumes_after_partial_failure() {
+        let (mut svc, tmp) = setup_data_service();
+        let platform = tmp.path().join("platform.db");
+        seed_platform_db(&platform);
+
+        // Simulate a prior partial run: migrate just notes successfully, then
+        // "crash" before completion is marked.
+        let notes_schema = builtin::notes_schema();
+        let mut conn_ro = open_platform_readonly(&platform).unwrap().unwrap();
+        let first_pass_notes = migrate_notes(&mut svc, &notes_schema, &mut conn_ro).unwrap();
+        assert_eq!(first_pass_notes, 1);
+        // Completion flag intentionally NOT set — mimics a partial run.
+        crate::db::block_on(async { conn_ro.close().await }).unwrap();
+
+        // Now run the full migration. Notes are already present; adrs/specs
+        // still need copying. Nothing should duplicate.
+        let report = migrate_platform_to_collections(&mut svc, &platform).unwrap();
+        assert!(!report.already_migrated);
+        assert_eq!(report.notes_migrated, 0, "notes already present — none re-copied");
+        assert_eq!(report.adrs_migrated, 1);
+        assert_eq!(report.specs_migrated, 1);
+
+        let notes = store::query_items(
+            &mut svc,
+            &builtin::notes_schema(),
+            &empty_query(NOTES_ID),
+        )
+        .unwrap();
+        assert_eq!(notes.len(), 1, "no note duplicates after resume");
     }
 }
