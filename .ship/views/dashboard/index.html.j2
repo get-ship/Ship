@@ -167,7 +167,7 @@
                interactive
                class="dash-agent-tile"
                data-on:click.prevent="window.router ? window.router.navigate('/agents/{{ agent.id }}') : void(0)">
-              <ship-avatar slot="leading" size="sm" initials="{{ agent_initial }}" name="{{ agent_name }}"></ship-avatar>
+              <ship-avatar slot="leading" initials="{{ agent_initial }}" name="{{ agent_name }}"></ship-avatar>
               <span class="dash-agent-name">{{ agent_name }}</span>
               <span slot="meta" class="dash-agent-role">
                 {%- if agent.role is defined -%}{{ agent.role }}
