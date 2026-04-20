@@ -3,69 +3,43 @@ import BaseLayout from '../layouts/BaseLayout.astro';
 import Navbar from '../components/Navbar.astro';
 import Footer from '../components/Footer.astro';
 
-// Features — written as a list, not eight hero sections. Each card
-// is scannable in ~15 seconds. Icons are tone-tinted SVG badges so
-// we don't load an icon library for a marketing page.
+// Five features, each substantial. Each card has a tone, a kicker,
+// a paragraph of real content, and a technical tag line underneath.
 const features = [
   {
     tone: 'primary',
-    kind: 'Smart skills',
-    title: 'Skills with variables.',
-    body: 'Parameterized capabilities — pass in your goal, your data, your tools. Scoped permissions, versioned, shareable. Ship the catalog or author your own.',
+    kind: 'Skills',
+    title: 'Parameterized capabilities for every agent.',
+    body: 'Skills are small files — a prompt, the tools they can touch, a permission scope, optional UI. Hand one to any agent and watch it work. Compose them into pipelines. Author your own in an afternoon and share them across workspaces.',
+    tag: '.ship/skills/*',
   },
   {
     tone: 'accent',
-    kind: 'SHIP SDK',
-    title: 'Custom views, no framework.',
-    body: 'Build reactive apps inside your workspace with the same ship-* components the first-party app uses. No build step, no deploy.',
+    kind: 'Views',
+    title: 'Reactive apps inside your workspace.',
+    body: 'Build a dashboard, a tracker, a lens over your data with the same ship-* components the first-party app uses. Jinja templates, Datastar for reactivity, no build step, no deploy. Drop a new view file into a folder and refresh — your app is live.',
+    tag: '.ship/views/*',
   },
   {
     tone: 'info',
-    kind: 'Built-in views',
-    title: 'Ten surfaces, day one.',
-    body: 'Dashboard, chat, agents, pipelines, data, git, events, specs, canvas, settings — every one extensible with your own skills and collections.',
-  },
-  {
-    tone: 'primary',
     kind: 'Pipelines',
-    title: 'Any workflow, one file.',
-    body: 'Steps can be a shell run, an agent call, a human or automated gate, a merge, or a nested pipeline. Scheduled, retried, capped, and audited.',
+    title: 'Any workflow, one file, audited.',
+    body: 'Steps can be a shell command, an agent call, a human gate, a merge, or a nested pipeline. SHIP schedules, retries, caps cost per run, and keeps the full audit trail. Drop into a branch, run locally, promote to scheduled.',
+    tag: 'ship run <name>',
   },
   {
     tone: 'success',
     kind: 'Collections',
-    title: 'Your data, any shape.',
-    body: 'Define a schema, get forms, tables, filters, and SQL-pushdown queries for free. Read from any view, write from any agent.',
+    title: 'Your data, any shape, instantly usable.',
+    body: 'Define a schema and SHIP hands you forms, tables, filters, and SQL-pushdown queries. Any agent can read, any view can render, any skill can write. Your collections are first-class citizens of every surface in the app.',
+    tag: 'collections/*',
   },
   {
     tone: 'warning',
     kind: 'Integrations',
-    title: 'MCP-native.',
-    body: 'Any tool that speaks Model Context Protocol plugs in — IDEs, servers, agents from other vendors. Scoped to the skills that use them.',
-  },
-  {
-    tone: 'accent',
-    kind: 'Notifications',
-    title: 'Keeps you in the loop.',
-    body: 'Push, email, Slack, webhooks — your rules. Agents ping you when a long-running job finishes, not before.',
-  },
-  {
-    tone: 'info',
-    kind: 'Themes',
-    title: 'Sixteen tokens, your brand.',
-    body: 'Override a handful of CSS variables and every SHIP surface — the app, your extensions, third-party views — picks up your palette.',
-  },
-  {
-    tone: 'success',
-    kind: 'Local-first',
-    title: 'On your machine, your keys.',
-    body: 'Runs entirely on your laptop. No account required to start. Sync across devices and workspaces when you choose to.',
-  },
-  {
-    tone: 'muted',
-    kind: 'Observability',
-    title: 'Every run, visible.',
-    body: 'Charts, timelines, diffs, audit logs, per-agent cost — all first-class components you can drop into any view.',
+    title: 'MCP-native. Local-first. Your keys.',
+    body: 'Every tool that speaks Model Context Protocol plugs straight in. Notifications route agent output back to where you already work — push, email, chat, webhooks, your rules. Runs entirely on your machine, no account required.',
+    tag: 'local-first · BYO keys',
   },
 ];
 ---
@@ -100,28 +74,33 @@ const features = [
       </ship-toolbar>
     </header>
 
-    <!-- Feature grid — the whole page -->
-    <section class="fx-grid site-container" aria-label="Features">
-      {features.map((f) => (
+    <!-- Feature stack — five cards with real content -->
+    <section class="fx-stack site-container" aria-label="Features">
+      {features.map((f, i) => (
         <ship-card variant="outline" padding="lg" class="fx-card" data-tone={f.tone}>
-          <div class="fx-card-head">
+          <div class="fx-card-rail" aria-hidden="true">
+            <span class="fx-card-num">{String(i + 1).padStart(2, '0')}</span>
             <ship-badge tone={f.tone} variant="soft" size="sm">{f.kind}</ship-badge>
           </div>
-          <h3 class="fx-card-title">{f.title}</h3>
-          <p class="fx-card-body">{f.body}</p>
+          <div class="fx-card-body-wrap">
+            <h3 class="fx-card-title">{f.title}</h3>
+            <p class="fx-card-body">{f.body}</p>
+            <code class="fx-card-tag">{f.tag}</code>
+          </div>
         </ship-card>
       ))}
     </section>
 
-    <!-- CTA card (retained) ---------------------------------------- -->
+    <!-- CTA card -------------------------------------------------- -->
     <section class="fx-cta site-container">
       <ship-card variant="outline" padding="lg" class="fx-cta-card">
         <div class="fx-cta-copy">
-          <h2>Ready to build on SHIP?</h2>
+          <h2>Install it. See for yourself.</h2>
           <p>
-            We&rsquo;re onboarding a small group of design-forward
-            teams ahead of general availability. Bring your use case,
-            we&rsquo;ll bring the SDK, runtime, and production reps.
+            Everything above runs on your laptop the moment the
+            installer lands. Leave your email for the release, or jump
+            straight into the docs and start wiring up your own
+            skills, views, and pipelines.
           </p>
         </div>
         <ship-toolbar slot="footer" gap="md" justify="end">
@@ -129,13 +108,13 @@ const features = [
             variant="ghost"
             size="md"
             onclick="location.href='https://docs.getship.dev'"
-          >Docs</ship-button>
+          >Read the docs</ship-button>
           <ship-button
             tone="primary"
             variant="solid"
             size="md"
-            onclick="location.href='mailto:sales@getship.dev'"
-          >Email sales</ship-button>
+            onclick="location.href='/download'"
+          >Download SHIP</ship-button>
         </ship-toolbar>
       </ship-card>
     </section>
@@ -166,57 +145,81 @@ const features = [
   }
   .fx-ctas { margin-top: 6px; }
 
-  /* Feature grid ------------------------------------------------- */
-  .fx-grid {
-    display: grid;
-    grid-template-columns: repeat(auto-fill, minmax(280px, 1fr));
-    gap: 12px;
-    padding-bottom: clamp(48px, 8vw, 96px);
+  /* Feature stack ------------------------------------------------ */
+  .fx-stack {
+    display: flex;
+    flex-direction: column;
+    gap: 16px;
+    padding-bottom: clamp(40px, 6vw, 80px);
+    max-width: 960px;
+    margin-inline: auto;
   }
   .fx-card {
-    display: block;
+    display: grid;
+    grid-template-columns: 160px 1fr;
+    gap: clamp(20px, 3vw, 40px);
+    align-items: start;
     position: relative;
     overflow: hidden;
-    transition: transform var(--duration-fast) var(--ease-out),
-                box-shadow var(--duration-fast) var(--ease-out),
-                border-color var(--duration-fast) var(--ease-out);
+    transition: border-color var(--duration-fast) var(--ease-out),
+                transform var(--duration-fast) var(--ease-out);
+  }
+  @media (max-width: 640px) {
+    .fx-card { grid-template-columns: 1fr; gap: 12px; }
   }
   .fx-card::before {
-    /* Tone-tinted accent bar along the top edge. */
     content: '';
     position: absolute;
-    inset: 0 0 auto 0;
-    height: 2px;
+    inset: 0 auto 0 0;
+    width: 3px;
     background: var(--fx-tone, var(--primary));
-    opacity: 0.7;
   }
-  .fx-card[data-tone='primary']     { --fx-tone: var(--primary); }
-  .fx-card[data-tone='accent']      { --fx-tone: var(--accent); }
-  .fx-card[data-tone='info']        { --fx-tone: oklch(0.60 0.16 240); }
-  .fx-card[data-tone='success']     { --fx-tone: oklch(0.58 0.15 150); }
-  .fx-card[data-tone='warning']     { --fx-tone: oklch(0.64 0.16 60); }
-  .fx-card[data-tone='muted']       { --fx-tone: color-mix(in oklch, var(--muted-foreground) 70%, transparent); }
-
+  .fx-card[data-tone='primary']  { --fx-tone: var(--primary); }
+  .fx-card[data-tone='accent']   { --fx-tone: var(--accent); }
+  .fx-card[data-tone='info']     { --fx-tone: oklch(0.60 0.16 240); }
+  .fx-card[data-tone='success']  { --fx-tone: oklch(0.58 0.15 150); }
+  .fx-card[data-tone='warning']  { --fx-tone: oklch(0.64 0.16 60); }
   .fx-card:hover {
-    transform: translateY(-2px);
     border-color: color-mix(in oklch, var(--fx-tone, var(--primary)) 45%, transparent);
   }
-  .fx-card-head {
-    display: inline-flex;
-    margin-bottom: 12px;
+
+  .fx-card-rail {
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+    align-items: flex-start;
+  }
+  .fx-card-num {
+    font-family: var(--font-mono);
+    font-weight: 600;
+    font-size: 11px;
+    color: var(--muted-foreground);
+    letter-spacing: 0.1em;
   }
   .fx-card-title {
     font-family: var(--font-display);
     font-weight: 700;
-    font-size: 18px;
-    letter-spacing: -0.015em;
+    font-size: clamp(20px, 2.3vw, 26px);
+    letter-spacing: -0.018em;
     color: var(--foreground);
-    margin-bottom: 6px;
+    margin-bottom: 10px;
+    line-height: 1.2;
   }
   .fx-card-body {
     color: var(--muted-foreground);
-    font-size: 13.5px;
-    line-height: 1.55;
+    font-size: 14.5px;
+    line-height: 1.6;
+    margin-bottom: 14px;
+    max-width: 62ch;
+  }
+  .fx-card-tag {
+    font-family: var(--font-mono);
+    font-size: 11.5px;
+    color: color-mix(in oklch, var(--fx-tone, var(--primary)) 75%, var(--foreground));
+    padding: 3px 8px;
+    border-radius: var(--radius-sm);
+    background: color-mix(in oklch, var(--fx-tone, var(--primary)) 10%, transparent);
+    display: inline-block;
   }
 
   /* CTA --------------------------------------------------------- */
