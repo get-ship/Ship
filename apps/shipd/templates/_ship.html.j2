@@ -294,6 +294,47 @@
 {# Open a confirm dialog by id. #}
 {% macro confirm_trigger(id) %}data-on:click="document.getElementById('confirm-{{ id }}').setAttribute('open', '')"{% endmacro %}
 
+{#- === Section (card with standardized header) === -#}
+
+{# Open a `<ship-card>` with a standardized header row:
+   optional leading icon + title on the left, optional link pill on the
+   right (right-chevron + muted text). Must be paired with endsection().
+
+   Usage:
+     {{ section('Recent jobs', icon='activity',
+                link_href='/api/runtime/view/pipelines',
+                link_label='View all') }}
+       ...body...
+     {{ endsection() }}
+
+   When link_href starts with `/api/runtime/view/<name>`, the link
+   uses `@get(link_href)` with `.prevent` so SSE-aware navigation
+   takes over. Otherwise the anchor navigates normally.
+
+   Inline-styled on purpose: the macro owns the standardized layout
+   via design tokens, so view authors don't have to re-declare
+   .dash-section-head. -#}
+{% macro section(title, icon=none, link_href=none, link_label=none) %}
+<ship-card padding="none">
+  <div slot="header" style="display:flex;align-items:center;justify-content:space-between;gap:var(--space-3);padding:var(--space-4) var(--space-5)">
+    <h2 style="display:flex;align-items:center;gap:var(--space-2);margin:0;font-size:var(--text-sm);font-weight:var(--font-weight-semibold);color:var(--foreground)">
+      {% if icon %}<ship-icon name="{{ icon }}" style="width:16px;height:16px;color:var(--muted-foreground)"></ship-icon>{% endif %}
+      {{ title }}
+    </h2>
+    {% if link_href and link_label %}
+    <a href="{{ link_href }}"
+       {% if link_href is startingwith('/api/runtime/view/') %}data-on:click.prevent="@get('{{ link_href }}')"{% endif %}
+       style="display:inline-flex;align-items:center;gap:var(--space-1);padding:var(--space-1) var(--space-2);font-size:var(--text-xs);color:var(--muted-foreground);text-decoration:none;border-radius:var(--radius-sm)">
+      {{ link_label }}
+      <ship-icon name="chevron-right" style="width:10px;height:10px"></ship-icon>
+    </a>
+    {% endif %}
+  </div>
+{% endmacro %}
+
+{# Close the ship-card opened by section(). #}
+{% macro endsection() %}</ship-card>{% endmacro %}
+
 {#- === Shared Styles === -#}
 
 {# Shared styles for ship-form and ship-table #}

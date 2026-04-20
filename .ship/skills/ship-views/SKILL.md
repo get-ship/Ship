@@ -507,6 +507,14 @@ Import from `_ship.html.j2`.
 - `on_change_debounced(expr, delay?)` — debounced change handler
 - `radio(signal, value)` — radio-style selection
 - `confirm(message, action)` — confirm before action
+- `section(title, icon?, link_href?, link_label?)` /
+  `endsection()` — paired macros that open/close a `<ship-card>` with
+  a standardized header: optional leading ship-icon + title on the left,
+  optional right-side link pill (chevron + muted text). When
+  `link_href` starts with `/api/runtime/view/<name>`, the link uses
+  `@get(link_href)` with `.prevent` for SSE-aware navigation;
+  otherwise it falls back to plain anchor semantics. Replaces
+  hand-rolled `<ship-card padding="none">` + `<div slot="header" class="dash-section-head">` patterns.
 
 ## Reference — Jinja functions
 
