@@ -1,6 +1,7 @@
 ---
 import '../styles/global.css';
 import AuthModal from '../components/AuthModal.astro';
+import { THEMES, DEFAULT_THEME, THEME_STORAGE_KEY } from '@ship/ui/themes';
 
 interface Props {
   title: string;
@@ -17,6 +18,15 @@ const {
   bodyClass = '',
   ownAuthModal = false,
 } = Astro.props;
+
+// Serialize the @ship/ui theme catalog into the FOUC-prevention inline
+// script. Single source of truth — if THEMES changes, this updates.
+const themePreloadPayload = JSON.stringify({
+  key: THEME_STORAGE_KEY,
+  default: DEFAULT_THEME,
+  ids: THEMES.map((t) => t.id),
+  darks: THEMES.filter((t) => t.dark).map((t) => t.id),
+});
 ---
 
 <!doctype html>
@@ -33,22 +43,23 @@ const {
     <meta name="theme-color" content="#0f172a" />
     <link rel="icon" href="/favicon.ico" sizes="any" />
     <link rel="icon" href="/ship-logo.svg" type="image/svg+xml" />
-    <script is:inline>
+    <script is:inline define:vars={{ themes: themePreloadPayload }}>
       (() => {
-        const ok = new Set([
-          'ship-light', 'ship-dark', 'high-contrast', 'warm',
-          'gruvbox-dark', 'gruvbox-light', 'nord', 'solarized-dark',
-        ]);
+        const cfg = JSON.parse(themes);
+        const ok = new Set(cfg.ids);
+        const darks = new Set(cfg.darks);
+        let theme = cfg.default;
         try {
-          const v = localStorage.getItem('ship-site-theme');
-          document.documentElement.dataset.theme = ok.has(v) ? v : 'ship-light';
-        } catch (_) {
-          document.documentElement.dataset.theme = 'ship-light';
-        }
+          const v = localStorage.getItem(cfg.key);
+          if (ok.has(v)) theme = v;
+        } catch (_) {}
+        const root = document.documentElement;
+        root.dataset.theme = theme;
+        root.classList.toggle('dark', darks.has(theme));
         // Marks the document as JS-enabled so scroll-triggered sections
         // can hide themselves pre-animation. Without this, noscript
         // users see a blank section.
-        document.documentElement.classList.add('js');
+        root.classList.add('js');
       })();
     </script>
   </head>

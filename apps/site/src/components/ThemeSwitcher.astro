@@ -1,20 +1,10 @@
 ---
-// VSCode-style theme catalog exposed through <ship-select>. Lists all
-// eight themes defined in styles/tokens.css; persisted to localStorage
-// so it survives reloads. The inline script in BaseLayout re-applies on
-// page load before paint.
-const themes = [
-  { id: 'ship-light', label: 'SHIP Light', group: 'SHIP' },
-  { id: 'ship-dark', label: 'SHIP Dark', group: 'SHIP' },
-  { id: 'high-contrast', label: 'High Contrast', group: 'SHIP' },
-  { id: 'warm', label: 'Warm (paper)', group: 'SHIP' },
-  { id: 'gruvbox-dark', label: 'Gruvbox Dark', group: 'Classics' },
-  { id: 'gruvbox-light', label: 'Gruvbox Light', group: 'Classics' },
-  { id: 'nord', label: 'Nord', group: 'Classics' },
-  { id: 'solarized-dark', label: 'Solarized Dark', group: 'Classics' },
-];
+// Theme picker. Drives the shared @ship/ui theme helpers — no theme
+// list lives in the site. Theme ids, labels, groups, and the dark-class
+// decision all flow from packages/ui/src/themes.ts.
+import { THEMES } from '@ship/ui/themes';
 
-const groups = Array.from(new Set(themes.map((t) => t.group)));
+const groups = Array.from(new Set(THEMES.map((t) => t.group)));
 ---
 
 <label class="theme-switcher">
@@ -22,7 +12,7 @@ const groups = Array.from(new Set(themes.map((t) => t.group)));
   <ship-select size="sm" data-theme-select data-placeholder="SHIP Light">
     {groups.map((g) => (
       <optgroup label={g}>
-        {themes.filter((t) => t.group === g).map((t) => (
+        {THEMES.filter((t) => t.group === g).map((t) => (
           <option value={t.id}>{t.label}</option>
         ))}
       </optgroup>
@@ -31,43 +21,32 @@ const groups = Array.from(new Set(themes.map((t) => t.group)));
 </label>
 
 <script>
-  const KEY = 'ship-site-theme';
-  const THEMES = new Set([
-    'ship-light',
-    'ship-dark',
-    'high-contrast',
-    'warm',
-    'gruvbox-dark',
-    'gruvbox-light',
-    'nord',
-    'solarized-dark',
-  ]);
-
-  const apply = (theme: string) => {
-    if (!THEMES.has(theme)) return;
-    document.documentElement.dataset.theme = theme;
-    try {
-      localStorage.setItem(KEY, theme);
-    } catch (_) {}
-  };
+  import { applyTheme, persistTheme, readStoredTheme, isValidTheme } from '@ship/ui/themes';
 
   const selects = document.querySelectorAll<HTMLElement>('[data-theme-select]');
   for (const select of selects) {
     const sync = () => {
-      const current = document.documentElement.dataset.theme || 'ship-light';
+      const current = readStoredTheme();
       (select as any).value = current;
       const native = select.querySelector('select') as HTMLSelectElement | null;
       if (native) native.value = current;
     };
     customElements.whenDefined('ship-select').then(sync);
     sync();
+
+    const onChange = (value: unknown) => {
+      if (!isValidTheme(value)) return;
+      const next = applyTheme(value);
+      persistTheme(next);
+    };
+
     select.addEventListener('ship-change', (e: Event) => {
-      const next = (e as CustomEvent<{ value: string }>).detail?.value;
-      if (typeof next === 'string') apply(next);
+      const detail = (e as CustomEvent<{ value: string }>).detail;
+      onChange(detail?.value);
     });
     select.addEventListener('change', (e: Event) => {
       const target = e.target as HTMLSelectElement;
-      if (target?.value) apply(target.value);
+      if (target?.value) onChange(target.value);
     });
   }
 </script>

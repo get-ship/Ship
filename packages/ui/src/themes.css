@@ -1,0 +1,146 @@
+/*
+ * Ship theme catalog.
+ *
+ * Shared VSCode-style themes for both the SHIP app and the marketing
+ * site. The canonical light + dark palettes live in ./tokens.css under
+ * `:root` and `.dark` respectively — do not duplicate them here.
+ *
+ * This file only defines optional *alternate* themes applied via
+ * `data-theme` on <html>. Consumers pick themes by setting:
+ *
+ *   document.documentElement.dataset.theme = 'gruvbox-dark';
+ *   document.documentElement.classList.toggle('dark', isDarkTheme(theme));
+ *
+ * When a theme is inherently dark, the host should also apply the
+ * canonical `.dark` class so shadow/elevation tokens in tokens.css
+ * flip too — this file then overrides only the palette.
+ *
+ * Every theme only overrides ship-ui semantic tokens. No parallel
+ * tokens, no new names.
+ */
+
+/* ------- high-contrast --------------------------------------------- */
+
+:root[data-theme='high-contrast'] {
+  --background: oklch(0.09 0 0);
+  --foreground: oklch(0.99 0 0);
+  --card: oklch(0.15 0 0);
+  --card-foreground: oklch(0.99 0 0);
+  --popover: oklch(0.15 0 0);
+  --popover-foreground: oklch(0.99 0 0);
+  --muted: oklch(0.20 0 0);
+  --muted-foreground: oklch(0.85 0 0);
+  --border: oklch(0.75 0 0);
+  --input: oklch(0.75 0 0);
+  --primary: oklch(0.87 0.18 85);
+  --primary-foreground: oklch(0.08 0 0);
+  --accent: oklch(0.87 0.18 85);
+  --accent-foreground: oklch(0.08 0 0);
+  --destructive: oklch(0.65 0.24 25);
+  --ring: oklch(0.87 0.18 85 / 40%);
+}
+
+/* ------- warm (paper-like reading theme) --------------------------- */
+
+:root[data-theme='warm'] {
+  --background: oklch(0.97 0.014 80);
+  --foreground: oklch(0.28 0.03 55);
+  --card: oklch(0.99 0.010 80);
+  --card-foreground: oklch(0.28 0.03 55);
+  --popover: oklch(0.99 0.010 80);
+  --popover-foreground: oklch(0.28 0.03 55);
+  --muted: oklch(0.93 0.025 75);
+  --muted-foreground: oklch(0.46 0.04 55);
+  --border: oklch(0.28 0.03 55 / 22%);
+  --input: oklch(0.28 0.03 55 / 22%);
+  --primary: oklch(0.55 0.14 35);
+  --primary-foreground: oklch(0.99 0.01 80);
+  --accent: oklch(0.55 0.14 35);
+  --accent-foreground: oklch(0.99 0.01 80);
+  --destructive: oklch(0.55 0.22 27);
+  --ring: oklch(0.55 0.14 35 / 35%);
+}
+
+/* ------- gruvbox-dark (Pavel Pertsev, 2016) ------------------------ */
+
+:root[data-theme='gruvbox-dark'] {
+  --background: oklch(0.28 0.014 80);
+  --foreground: oklch(0.87 0.04 85);
+  --card: oklch(0.33 0.016 80);
+  --card-foreground: oklch(0.87 0.04 85);
+  --popover: oklch(0.33 0.016 80);
+  --popover-foreground: oklch(0.87 0.04 85);
+  --muted: oklch(0.36 0.018 80);
+  --muted-foreground: oklch(0.72 0.03 85);
+  --border: oklch(1 0 0 / 14%);
+  --input: oklch(1 0 0 / 14%);
+  --primary: oklch(0.82 0.16 80);
+  --primary-foreground: oklch(0.20 0.02 80);
+  --accent: oklch(0.82 0.16 80);
+  --accent-foreground: oklch(0.20 0.02 80);
+  --destructive: oklch(0.55 0.22 25);
+  --ring: oklch(0.82 0.16 80 / 35%);
+}
+
+/* ------- gruvbox-light --------------------------------------------- */
+
+:root[data-theme='gruvbox-light'] {
+  --background: oklch(0.95 0.04 85);
+  --foreground: oklch(0.34 0.015 80);
+  --card: oklch(0.97 0.035 85);
+  --card-foreground: oklch(0.34 0.015 80);
+  --popover: oklch(0.97 0.035 85);
+  --popover-foreground: oklch(0.34 0.015 80);
+  --muted: oklch(0.90 0.05 85);
+  --muted-foreground: oklch(0.50 0.02 80);
+  --border: oklch(0.34 0.015 80 / 22%);
+  --input: oklch(0.34 0.015 80 / 22%);
+  --primary: oklch(0.66 0.16 55);
+  --primary-foreground: oklch(0.98 0.03 85);
+  --accent: oklch(0.66 0.16 55);
+  --accent-foreground: oklch(0.98 0.03 85);
+  --destructive: oklch(0.55 0.22 27);
+  --ring: oklch(0.66 0.16 55 / 35%);
+}
+
+/* ------- nord (Arctic Ice Studio, 2016) ---------------------------- */
+
+:root[data-theme='nord'] {
+  --background: oklch(0.29 0.02 255);
+  --foreground: oklch(0.95 0.01 250);
+  --card: oklch(0.34 0.02 255);
+  --card-foreground: oklch(0.95 0.01 250);
+  --popover: oklch(0.34 0.02 255);
+  --popover-foreground: oklch(0.95 0.01 250);
+  --muted: oklch(0.38 0.02 255);
+  --muted-foreground: oklch(0.78 0.02 245);
+  --border: oklch(1 0 0 / 14%);
+  --input: oklch(1 0 0 / 14%);
+  --primary: oklch(0.77 0.06 220);
+  --primary-foreground: oklch(0.22 0.02 255);
+  --accent: oklch(0.77 0.06 220);
+  --accent-foreground: oklch(0.22 0.02 255);
+  --destructive: oklch(0.62 0.20 25);
+  --ring: oklch(0.77 0.06 220 / 35%);
+}
+
+/* ------- solarized-dark (Ethan Schoonover, 2011) ------------------- */
+
+:root[data-theme='solarized-dark'] {
+  --background: oklch(0.26 0.03 220);
+  --foreground: oklch(0.72 0.02 220);
+  --card: oklch(0.30 0.03 215);
+  --card-foreground: oklch(0.82 0.02 220);
+  --popover: oklch(0.30 0.03 215);
+  --popover-foreground: oklch(0.82 0.02 220);
+  --muted: oklch(0.34 0.03 215);
+  --muted-foreground: oklch(0.68 0.02 220);
+  --border: oklch(1 0 0 / 14%);
+  --input: oklch(1 0 0 / 14%);
+  --primary: oklch(0.65 0.14 240);
+  --primary-foreground: oklch(0.12 0.03 220);
+  --accent: oklch(0.65 0.14 240);
+  --accent-foreground: oklch(0.12 0.03 220);
+  --destructive: oklch(0.60 0.22 25);
+  --ring: oklch(0.65 0.14 240 / 35%);
+}
