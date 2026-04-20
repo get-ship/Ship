@@ -1,0 +1,113 @@
+---
+import ThemeSwitcher from './ThemeSwitcher.astro';
+
+const links = [
+  { href: '/features', label: 'Features' },
+  { href: '/store', label: 'Store' },
+  { href: '/download', label: 'Download' },
+  { href: 'https://docs.getship.dev', label: 'Docs' },
+];
+---
+
+<header class="site-nav">
+  <div class="site-container site-nav-inner">
+    <a class="site-nav-brand" href="/" aria-label="SHIP home">
+      <img src="/ship-logo.svg" alt="" width="32" height="32" class="site-nav-logo" />
+      <span class="site-nav-wordmark">SHIP</span>
+    </a>
+
+    <nav class="site-nav-links" aria-label="Primary">
+      {links.map((l) => (
+        <a href={l.href}>{l.label}</a>
+      ))}
+    </nav>
+
+    <div class="site-nav-actions">
+      <div class="site-nav-theme">
+        <ThemeSwitcher />
+      </div>
+      <ship-button
+        variant="ghost"
+        size="md"
+        class="site-nav-signin"
+        onclick="(window.ship && window.ship.openAuth)?window.ship.openAuth('sign-in'):location.href='/sign-in'"
+      >Sign in</ship-button>
+      <ship-button
+        tone="primary"
+        variant="solid"
+        size="md"
+        onclick="location.href='/download'"
+      >Download</ship-button>
+    </div>
+  </div>
+</header>
+
+<style>
+  .site-nav {
+    position: sticky;
+    top: 0;
+    z-index: 40;
+    backdrop-filter: saturate(140%) blur(14px);
+    -webkit-backdrop-filter: saturate(140%) blur(14px);
+    background: color-mix(in oklch, var(--background) 72%, transparent);
+    border-bottom: 1px solid color-mix(in oklch, var(--border) 40%, transparent);
+  }
+  .site-nav-inner {
+    display: grid;
+    grid-template-columns: auto 1fr auto;
+    align-items: center;
+    gap: 32px;
+    padding-block: 14px;
+  }
+  .site-nav-brand {
+    display: inline-flex;
+    align-items: center;
+    gap: 10px;
+    font-family: var(--font-display);
+    font-weight: 700;
+    font-size: 18px;
+    letter-spacing: -0.01em;
+  }
+  .site-nav-logo {
+    width: 28px;
+    height: 28px;
+    border-radius: 6px;
+  }
+  .site-nav-wordmark {
+    color: var(--foreground);
+  }
+  .site-nav-links {
+    display: flex;
+    gap: 28px;
+    justify-content: center;
+    font-size: 14px;
+    font-weight: 500;
+    color: var(--muted-foreground);
+  }
+  .site-nav-links a {
+    transition: color 160ms ease;
+  }
+  .site-nav-links a:hover {
+    color: var(--foreground);
+  }
+  .site-nav-actions {
+    display: flex;
+    align-items: center;
+    gap: 14px;
+  }
+  .site-nav-theme {
+    display: inline-flex;
+  }
+  @media (max-width: 840px) {
+    .site-nav-theme,
+    .site-nav-signin { display: none; }
+  }
+  @media (max-width: 720px) {
+    .site-nav-links {
+      display: none;
+    }
+    .site-nav-inner {
+      grid-template-columns: auto 1fr;
+    }
+  }
+</style>

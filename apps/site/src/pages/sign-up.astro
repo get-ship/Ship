@@ -1,0 +1,38 @@
+---
+import BaseLayout from '../layouts/BaseLayout.astro';
+import Navbar from '../components/Navbar.astro';
+import Footer from '../components/Footer.astro';
+import AuthModal from '../components/AuthModal.astro';
+---
+
+<BaseLayout title="Create your account — SHIP" ownAuthModal>
+  <Navbar />
+  <main class="auth-page">
+    <div class="site-container auth-intro">
+      <h1>Start with SHIP.</h1>
+      <p class="site-muted">
+        Free on your machine. Bring your own keys. Create an account
+        when you&rsquo;re ready to sync across devices or work with a
+        team.
+      </p>
+    </div>
+  </main>
+  <Footer />
+  <AuthModal mode="sign-up" autoOpen />
+</BaseLayout>
+
+<style>
+  .auth-page {
+    padding: clamp(72px, 10vw, 128px) 0;
+    min-height: 60vh;
+  }
+  .auth-intro {
+    text-align: center;
+    max-width: 52ch;
+    margin: 0 auto;
+    display: flex;
+    flex-direction: column;
+    gap: 14px;
+    align-items: center;
+  }
+</style>

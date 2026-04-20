@@ -1,0 +1,167 @@
+---
+import BaseLayout from '../layouts/BaseLayout.astro';
+import { THEMES } from '@ship/ui/themes';
+
+const groups = Array.from(new Set(THEMES.map((t) => t.group)));
+---
+
+<BaseLayout title="Themes · SHIP SET" active="/themes">
+  <section class="th-head">
+    <h1 class="th-title">Themes</h1>
+    <p class="th-sub">
+      Click a card to apply a theme site-wide. Every SHIP surface
+      picks up the change &mdash; nav, components, previews. Copy the
+      <code>:root[data-theme]</code> block to use it in your own app.
+    </p>
+  </section>
+
+  {groups.map((g) => (
+    <section class="th-group">
+      <header class="th-group-head">{g}</header>
+      <div class="th-grid">
+        {THEMES.filter((t) => t.group === g).map((t) => (
+          <article
+            class="th-card"
+            data-theme-card={t.id}
+            style={`
+              --t-bg: ${t.swatches[0]};
+              --t-card: ${t.swatches[1]};
+              --t-primary: ${t.swatches[2]};
+              --t-accent: ${t.swatches[3]};
+            `}
+          >
+            <button
+              type="button"
+              class="th-apply"
+              data-apply-theme={t.id}
+              aria-label={`Apply ${t.label}`}
+            >
+              <div class="th-swatches" aria-hidden="true">
+                <span style={`background:${t.swatches[0]}`}></span>
+                <span style={`background:${t.swatches[1]}`}></span>
+                <span style={`background:${t.swatches[2]}`}></span>
+                <span style={`background:${t.swatches[3]}`}></span>
+              </div>
+              <div class="th-card-body">
+                <div class="th-card-head">
+                  <span class="th-card-name">{t.label}</span>
+                  <code class="th-card-id">{t.id}</code>
+                </div>
+                <div class="th-card-meta">
+                  {t.dark ? 'Dark' : 'Light'} &middot; {t.group}
+                </div>
+              </div>
+            </button>
+          </article>
+        ))}
+      </div>
+    </section>
+  ))}
+</BaseLayout>
+
+<script>
+  import {
+    applyTheme,
+    persistTheme,
+    isValidTheme,
+  } from '@ship/ui/themes';
+
+  for (const btn of document.querySelectorAll<HTMLElement>('[data-apply-theme]')) {
+    btn.addEventListener('click', () => {
+      const id = btn.getAttribute('data-apply-theme');
+      if (!isValidTheme(id)) return;
+      const next = applyTheme(id);
+      persistTheme(next);
+      // Also sync the nav picker if it's on the page.
+      for (const c of document.querySelectorAll('[data-theme-card]')) {
+        c.setAttribute('aria-selected', c.getAttribute('data-theme-card') === next ? 'true' : 'false');
+      }
+    });
+  }
+</script>
+
+<style>
+  .th-head { padding: 24px 0 16px; display: flex; flex-direction: column; gap: 10px; }
+  .th-title { font-size: clamp(30px, 4vw, 44px); letter-spacing: -0.024em; }
+  .th-sub {
+    color: var(--muted-foreground);
+    max-width: 62ch;
+    line-height: 1.55;
+  }
+  .th-sub code {
+    font-family: var(--font-mono);
+    font-size: 12px;
+    padding: 1px 5px;
+    border-radius: var(--radius-sm);
+    background: color-mix(in oklch, var(--border) 30%, transparent);
+    color: var(--foreground);
+  }
+
+  .th-group { padding: 18px 0 12px; }
+  .th-group-head {
+    font-family: var(--font-display);
+    font-size: 12px;
+    font-weight: 600;
+    letter-spacing: 0.12em;
+    text-transform: uppercase;
+    color: var(--muted-foreground);
+    margin-bottom: 12px;
+  }
+  .th-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(220px, 1fr));
+    gap: 10px;
+  }
+  .th-card { display: block; }
+  .th-apply {
+    appearance: none;
+    width: 100%;
+    padding: 0;
+    border: 2px solid transparent;
+    border-radius: var(--radius-lg);
+    background: var(--t-bg);
+    cursor: pointer;
+    overflow: hidden;
+    text-align: left;
+    font: inherit;
+    transition: border-color var(--duration-fast) var(--ease-out), transform var(--duration-fast) var(--ease-out);
+  }
+  .th-apply:hover {
+    border-color: color-mix(in oklch, var(--t-primary) 55%, transparent);
+    transform: translateY(-1px);
+  }
+  .th-card[aria-selected='true'] .th-apply {
+    border-color: var(--t-primary);
+    box-shadow: 0 0 0 3px color-mix(in oklch, var(--t-primary) 22%, transparent);
+  }
+  .th-swatches { display: flex; height: 40px; }
+  .th-swatches > span { flex: 1; display: block; }
+  .th-card-body {
+    padding: 10px 14px 14px;
+    background: var(--t-card);
+  }
+  .th-card-head {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 8px;
+  }
+  .th-card-name {
+    font-family: var(--font-display);
+    font-weight: 700;
+    font-size: 14px;
+    color: color-mix(in oklch, var(--t-primary) 20%, var(--t-accent));
+  }
+  .th-card-id {
+    font-family: var(--font-mono);
+    font-size: 10.5px;
+    opacity: 0.75;
+    color: color-mix(in oklch, var(--t-primary) 15%, var(--t-accent));
+  }
+  .th-card-meta {
+    font-size: 11px;
+    margin-top: 4px;
+    opacity: 0.65;
+    color: color-mix(in oklch, var(--t-primary) 30%, var(--t-accent));
+  }
+</style>

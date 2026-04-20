@@ -9,6 +9,9 @@
 import './ship-accordion'
 import './ship-alert'
 import './ship-alert-dialog'
+import './ship-annotation-layer'
+import './ship-annotation-list'
+import './ship-annotation-marker'
 import './ship-badge'
 import './ship-button'
 import './ship-card'
@@ -53,6 +56,7 @@ import './domain/ship-pipeline-dag'
 import './domain/ship-history-row'
 import './domain/ship-spec-row'
 import './domain/ship-git-diff'
+import './domain/ship-auth-dialog'
 
 // Observability, charts, utility (each subdir index registers its own)
 export * from './observability'

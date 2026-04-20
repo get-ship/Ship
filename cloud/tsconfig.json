@@ -4,7 +4,7 @@
   "files": [],
   "references": [
     {
-      "path": "./packages/types"
+      "path": "../packages/cloud-types"
     },
     {
       "path": "./apps/actors/platform"
@@ -13,7 +13,7 @@
       "path": "./apps/actors/workspace"
     },
     {
-      "path": "./apps/gateway"
+      "path": "../apps/gateway"
     },
     {
       "path": "./tools/drizzle"
