@@ -178,13 +178,13 @@ export const shipCardStyles = [
       margin: calc(var(--card-py) * -1) calc(var(--card-px) * -1) var(--card-gap);
       padding: var(--card-py) var(--card-px);
       border-bottom: 1px solid
-        color-mix(in oklch, var(--border) 80%, transparent);
+        color-mix(in oklch, var(--border) 50%, transparent);
     }
     .footer[data-filled] {
       margin: var(--card-gap) calc(var(--card-px) * -1) calc(var(--card-py) * -1);
       padding: var(--card-py) var(--card-px);
       border-top: 1px solid
-        color-mix(in oklch, var(--border) 80%, transparent);
+        color-mix(in oklch, var(--border) 50%, transparent);
     }
     /* When there's no inner padding there's nothing to negative-margin
      * against; the separator becomes a plain rule instead. */

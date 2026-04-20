@@ -44,4 +44,27 @@ describe('ship-avatar', () => {
     expect(el.shadowRoot!.querySelector('img')).toBeNull()
     expect(el.shadowRoot!.textContent).toContain('A')
   })
+
+  it('renders the explicit initials attribute and applies the rich tile treatment', async () => {
+    const el = await mount('<ship-avatar initials="AB"></ship-avatar>')
+    // Explicit initials render in the shadow DOM, uppercased.
+    const node = el.shadowRoot!.querySelector('.initials') as HTMLElement
+    expect(node).not.toBeNull()
+    expect(node.textContent).toContain('AB')
+    // Host carries the data-initials marker so CSS applies the gradient
+    // treatment — the styling hook exists even if jsdom can't resolve
+    // color-mix in computed style.
+    expect(el.hasAttribute('data-initials')).toBe(true)
+  })
+
+  it('uppercases lowercase explicit initials', async () => {
+    const el = await mount('<ship-avatar initials="ab"></ship-avatar>')
+    const node = el.shadowRoot!.querySelector('.initials') as HTMLElement
+    expect(node.textContent).toContain('AB')
+  })
+
+  it('drops the data-initials marker when an image is loaded', async () => {
+    const el = await mount('<ship-avatar src="/pic.png" name="Ada"></ship-avatar>')
+    expect(el.hasAttribute('data-initials')).toBe(false)
+  })
 })

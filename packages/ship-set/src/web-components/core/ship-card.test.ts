@@ -37,4 +37,27 @@ describe('ship-card', () => {
     expect(el.fill).toBe(true)
     expect(el.hasAttribute('fill')).toBe(true)
   })
+
+  it('marks the header region as filled when slot="header" has content', async () => {
+    const el = await mount(`
+      <ship-card>
+        <div slot="header">Header content</div>
+        body
+      </ship-card>
+    `)
+    // slotchange fires after the element is attached; give Lit a beat so
+    // the handler has reflected data-filled onto the wrapper.
+    await el.updateComplete
+    await new Promise((r) => setTimeout(r, 0))
+    const header = el.shadowRoot!.querySelector('.header') as HTMLElement
+    expect(header.hasAttribute('data-filled')).toBe(true)
+  })
+
+  it('does not mark the header region as filled when slot="header" is empty', async () => {
+    const el = await mount('<ship-card>body</ship-card>')
+    await el.updateComplete
+    await new Promise((r) => setTimeout(r, 0))
+    const header = el.shadowRoot!.querySelector('.header') as HTMLElement
+    expect(header.hasAttribute('data-filled')).toBe(false)
+  })
 })

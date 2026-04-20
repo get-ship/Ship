@@ -1,6 +1,6 @@
 import { afterEach, describe, expect, it } from 'vitest'
 import './ship-list-tile'
-import type { ShipListTile } from './ship-list-tile'
+import { ShipListTile } from './ship-list-tile'
 import { cleanupTestDom } from './util'
 
 async function mount(markup: string) {
@@ -72,5 +72,22 @@ describe('ship-list-tile', () => {
     const el = await mount('<ship-list-tile variant="card" density="compact">Item</ship-list-tile>')
     expect(el.getAttribute('variant')).toBe('card')
     expect(el.getAttribute('density')).toBe('compact')
+  })
+
+  it('variant="card" carries the card visual treatment rules in shadow styles', async () => {
+    const el = await mount('<ship-list-tile variant="card">Item</ship-list-tile>')
+    // The tile root carries the .tile class hook the CSS selectors target.
+    const tile = el.shadowRoot!.querySelector('.tile') as HTMLElement
+    expect(tile).toBeTruthy()
+    expect(el.getAttribute('variant')).toBe('card')
+    // jsdom doesn't resolve color-mix or adoptedStyleSheets reliably, so
+    // we inspect the element's static styles directly. The card-variant
+    // rules introduced by the polish pass must remain wired in: softer
+    // default border, hover lift via translateY, stronger hover border.
+    const staticStyles = ShipListTile.styles as unknown as Array<{ cssText: string }>
+    const css = staticStyles.map((s) => s.cssText || String(s)).join('\n')
+    expect(css).toContain(`[variant='card']`)
+    expect(css).toContain('translateY(-1px)')
+    expect(css).toContain('color-mix')
   })
 })

@@ -40,13 +40,14 @@
  */
 
 import { LitElement, css, html } from 'lit'
-import { toneVars } from './util'
+import { reducedMotion, toneVars } from './util'
 
 type Variant = 'row' | 'card'
 type Density = 'compact' | 'normal' | 'relaxed'
 
 export class ShipListTile extends LitElement {
   static styles = [
+    reducedMotion,
     toneVars,
     css`
       :host {
@@ -72,7 +73,8 @@ export class ShipListTile extends LitElement {
         transition:
           background-color var(--duration-fast) var(--ease-out),
           border-color var(--duration-fast) var(--ease-out),
-          box-shadow var(--duration-fast) var(--ease-out);
+          box-shadow var(--duration-fast) var(--ease-out),
+          transform var(--duration-fast) var(--ease-out);
       }
 
       /* variant=row (default) — thin hover background */
@@ -82,14 +84,24 @@ export class ShipListTile extends LitElement {
         border-color: var(--border);
       }
 
-      /* variant=card — elevated surface */
+      /* variant=card — elevated surface. Softer default border so the
+       * resting card reads as a quiet surface; hover lifts it into focus
+       * with a transform + stronger border + stronger shadow to match
+       * shadcn/Radix Card-as-interactive-tile treatment. */
       :host([variant='card']) .tile {
         background: var(--card);
-        border-color: var(--border);
+        border-color: color-mix(in oklch, var(--border) 60%, transparent);
         box-shadow: var(--shadow-xs);
       }
       :host([variant='card']) .tile:hover {
+        border-color: color-mix(in oklch, var(--primary) 40%, transparent);
         box-shadow: var(--shadow-sm);
+        transform: translateY(-1px);
+      }
+      :host([variant='card'][interactive]) .tile:active {
+        transform: translateY(0);
+        box-shadow: var(--shadow-xs);
+        transition-duration: 60ms;
       }
 
       /* Focus ring when interactive */
