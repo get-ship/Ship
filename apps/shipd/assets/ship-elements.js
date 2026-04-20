@@ -1,7 +1,7 @@
-// node_modules/.pnpm/@lit+reactive-element@2.1.2/node_modules/@lit/reactive-element/css-tag.js
+// ../../node_modules/.pnpm/@lit+reactive-element@2.1.2/node_modules/@lit/reactive-element/css-tag.js
 var t = globalThis;
 var e = t.ShadowRoot && (void 0 === t.ShadyCSS || t.ShadyCSS.nativeShadow) && "adoptedStyleSheets" in Document.prototype && "replace" in CSSStyleSheet.prototype;
-var s = Symbol();
+var s = /* @__PURE__ */ Symbol();
 var o = /* @__PURE__ */ new WeakMap();
 var n = class {
   constructor(t4, e6, o6) {
@@ -43,7 +43,7 @@ var c = e ? (t4) => t4 : (t4) => t4 instanceof CSSStyleSheet ? ((t5) => {
   return r(e6);
 })(t4) : t4;
 
-// node_modules/.pnpm/@lit+reactive-element@2.1.2/node_modules/@lit/reactive-element/reactive-element.js
+// ../../node_modules/.pnpm/@lit+reactive-element@2.1.2/node_modules/@lit/reactive-element/reactive-element.js
 var { is: i2, defineProperty: e2, getOwnPropertyDescriptor: h, getOwnPropertyNames: r2, getOwnPropertySymbols: o2, getPrototypeOf: n2 } = Object;
 var a = globalThis;
 var c2 = a.trustedTypes;
@@ -81,7 +81,7 @@ var u = { toAttribute(t4, s4) {
 } };
 var f = (t4, s4) => !i2(t4, s4);
 var b = { attribute: true, type: String, converter: u, reflect: false, useDefault: false, hasChanged: f };
-Symbol.metadata ?? (Symbol.metadata = Symbol("metadata")), a.litPropertyMetadata ?? (a.litPropertyMetadata = /* @__PURE__ */ new WeakMap());
+Symbol.metadata ?? (Symbol.metadata = /* @__PURE__ */ Symbol("metadata")), a.litPropertyMetadata ?? (a.litPropertyMetadata = /* @__PURE__ */ new WeakMap());
 var y = class extends HTMLElement {
   static addInitializer(t4) {
     this._$Ei(), (this.l ?? (this.l = [])).push(t4);
@@ -91,7 +91,7 @@ var y = class extends HTMLElement {
   }
   static createProperty(t4, s4 = b) {
     if (s4.state && (s4.attribute = false), this._$Ei(), this.prototype.hasOwnProperty(t4) && ((s4 = Object.create(s4)).wrapped = true), this.elementProperties.set(t4, s4), !s4.noAccessor) {
-      const i6 = Symbol(), h3 = this.getPropertyDescriptor(t4, i6, s4);
+      const i6 = /* @__PURE__ */ Symbol(), h3 = this.getPropertyDescriptor(t4, i6, s4);
       void 0 !== h3 && e2(this.prototype, t4, h3);
     }
   }
@@ -265,7 +265,7 @@ var y = class extends HTMLElement {
 };
 y.elementStyles = [], y.shadowRootOptions = { mode: "open" }, y[d("elementProperties")] = /* @__PURE__ */ new Map(), y[d("finalized")] = /* @__PURE__ */ new Map(), p?.({ ReactiveElement: y }), (a.reactiveElementVersions ?? (a.reactiveElementVersions = [])).push("2.1.2");
 
-// node_modules/.pnpm/lit-html@3.3.2/node_modules/lit-html/lit-html.js
+// ../../node_modules/.pnpm/lit-html@3.3.2/node_modules/lit-html/lit-html.js
 var t2 = globalThis;
 var i3 = (t4) => t4;
 var s2 = t2.trustedTypes;
@@ -292,8 +292,8 @@ var x = (t4) => (i6, ...s4) => ({ _$litType$: t4, strings: i6, values: s4 });
 var b2 = x(1);
 var w = x(2);
 var T = x(3);
-var E = Symbol.for("lit-noChange");
-var A = Symbol.for("lit-nothing");
+var E = /* @__PURE__ */ Symbol.for("lit-noChange");
+var A = /* @__PURE__ */ Symbol.for("lit-nothing");
 var C = /* @__PURE__ */ new WeakMap();
 var P = l2.createTreeWalker(l2, 129);
 function V(t4, i6) {
@@ -519,7 +519,7 @@ var D = (t4, i6, s4) => {
   return h3._$AI(t4), h3;
 };
 
-// node_modules/.pnpm/lit-element@4.2.2/node_modules/lit-element/lit-element.js
+// ../../node_modules/.pnpm/lit-element@4.2.2/node_modules/lit-element/lit-element.js
 var s3 = globalThis;
 var i4 = class extends y {
   constructor() {
@@ -549,9 +549,13 @@ var o4 = s3.litElementPolyfillSupport;
 o4?.({ LitElement: i4 });
 (s3.litElementVersions ?? (s3.litElementVersions = [])).push("4.2.2");
 
-// packages/ui/src/web-components/util.ts
+// src/web-components/util.ts
 var MONO_STACK = "ui-monospace, SFMono-Regular, 'SF Mono', Menlo, Consolas, monospace";
 var MONO = r(MONO_STACK);
+function defineOnce(name, ctor) {
+  if (typeof customElements === "undefined") return;
+  if (!customElements.get(name)) customElements.define(name, ctor);
+}
 var toneVars = i`
   :host {
     --tone-fg: var(--foreground);
@@ -611,7 +615,7 @@ var reducedMotion = i`
   }
 `;
 
-// packages/ui/src/web-components/ship-accordion.styles.ts
+// src/web-components/ship-accordion.styles.ts
 var shipAccordionStyles = [
   reducedMotion,
   i`
@@ -711,7 +715,7 @@ var shipAccordionItemStyles = [
   `
 ];
 
-// packages/ui/src/web-components/ship-accordion.ts
+// src/web-components/ship-accordion.ts
 var _ShipAccordionItem = class _ShipAccordionItem extends i4 {
   constructor() {
     super(...arguments);
@@ -902,7 +906,7 @@ if (typeof customElements !== "undefined") {
   }
 }
 
-// packages/ui/src/web-components/ship-alert.ts
+// src/web-components/ship-alert.ts
 var ShipAlert = class extends i4 {
   constructor() {
     super();
@@ -972,7 +976,7 @@ if (typeof customElements !== "undefined" && !customElements.get("ship-alert")) 
   customElements.define("ship-alert", ShipAlert);
 }
 
-// packages/ui/src/web-components/ship-dialog.styles.ts
+// src/web-components/ship-dialog.styles.ts
 var shipDialogStyles = [reducedMotion, i`
   :host { display: contents; }
   :host([hidden]) { display: none; }
@@ -1213,7 +1217,7 @@ var shipDialogStyles = [reducedMotion, i`
   }
 `];
 
-// packages/ui/src/web-components/focus.ts
+// src/web-components/focus.ts
 var FOCUSABLE_SELECTOR = [
   "a[href]",
   "area[href]",
@@ -1253,7 +1257,7 @@ var FocusReturn = class {
   }
 };
 
-// packages/ui/src/web-components/ship-dialog.ts
+// src/web-components/ship-dialog.ts
 var scrollLockCount = 0;
 var savedBodyOverflow = null;
 var savedBodyPaddingRight = null;
@@ -1466,7 +1470,7 @@ if (typeof customElements !== "undefined" && !customElements.get("ship-dialog"))
   customElements.define("ship-dialog", ShipDialog);
 }
 
-// packages/ui/src/web-components/ship-button.ts
+// src/web-components/ship-button.ts
 var ShipButton = class extends i4 {
   constructor() {
     super(...arguments);
@@ -1930,7 +1934,7 @@ if (typeof customElements !== "undefined" && !customElements.get("ship-button"))
   customElements.define("ship-button", ShipButton);
 }
 
-// packages/ui/src/web-components/ship-alert-dialog.ts
+// src/web-components/ship-alert-dialog.ts
 var ShipAlertDialog = class extends i4 {
   constructor() {
     super(...arguments);
@@ -1981,7 +1985,7 @@ if (typeof customElements !== "undefined" && !customElements.get("ship-alert-dia
   customElements.define("ship-alert-dialog", ShipAlertDialog);
 }
 
-// packages/ui/src/web-components/ship-badge.styles.ts
+// src/web-components/ship-badge.styles.ts
 var shipBadgeStyles = [
   reducedMotion,
   i`
@@ -2189,7 +2193,7 @@ var shipBadgeStyles = [
   `
 ];
 
-// packages/ui/src/web-components/ship-badge.ts
+// src/web-components/ship-badge.ts
 var ShipBadge = class extends i4 {
   constructor() {
     super();
@@ -2218,7 +2222,7 @@ if (typeof customElements !== "undefined" && !customElements.get("ship-badge")) 
   customElements.define("ship-badge", ShipBadge);
 }
 
-// packages/ui/src/web-components/ship-card.styles.ts
+// src/web-components/ship-card.styles.ts
 var shipCardStyles = [
   reducedMotion,
   toneVars,
@@ -2412,7 +2416,7 @@ var shipCardStyles = [
   `
 ];
 
-// packages/ui/src/web-components/ship-card.ts
+// src/web-components/ship-card.ts
 var ShipCard = class extends i4 {
   constructor() {
     super(...arguments);
@@ -2495,7 +2499,7 @@ if (typeof customElements !== "undefined" && !customElements.get("ship-card")) {
   customElements.define("ship-card", ShipCard);
 }
 
-// packages/ui/src/web-components/ship-checkbox.styles.ts
+// src/web-components/ship-checkbox.styles.ts
 var shipCheckboxStyles = [
   reducedMotion,
   i`
@@ -2733,7 +2737,7 @@ var shipCheckboxStyles = [
   `
 ];
 
-// packages/ui/src/web-components/ship-checkbox.ts
+// src/web-components/ship-checkbox.ts
 var ShipCheckbox = class extends i4 {
   constructor() {
     super();
@@ -2835,7 +2839,7 @@ if (typeof customElements !== "undefined" && !customElements.get("ship-checkbox"
   customElements.define("ship-checkbox", ShipCheckbox);
 }
 
-// packages/ui/src/web-components/ship-collapsible.styles.ts
+// src/web-components/ship-collapsible.styles.ts
 var shipCollapsibleStyles = [
   reducedMotion,
   i`
@@ -2871,7 +2875,7 @@ var shipCollapsibleStyles = [
   `
 ];
 
-// packages/ui/src/web-components/ship-collapsible.ts
+// src/web-components/ship-collapsible.ts
 var _ShipCollapsible = class _ShipCollapsible extends i4 {
   constructor() {
     super(...arguments);
@@ -2945,7 +2949,7 @@ if (typeof customElements !== "undefined" && !customElements.get("ship-collapsib
   customElements.define("ship-collapsible", ShipCollapsible);
 }
 
-// packages/ui/src/web-components/typeahead.ts
+// src/web-components/typeahead.ts
 var Typeahead = class {
   constructor(timeout = 500) {
     this.timeout = timeout;
@@ -2988,7 +2992,7 @@ function isTypeaheadKey(e6) {
   return e6.key.length === 1 && /\S/.test(e6.key);
 }
 
-// packages/ui/src/web-components/ship-context-menu.ts
+// src/web-components/ship-context-menu.ts
 var ShipContextMenu = class extends i4 {
   constructor() {
     super(...arguments);
@@ -3172,7 +3176,7 @@ if (typeof customElements !== "undefined" && !customElements.get("ship-context-m
   customElements.define("ship-context-menu", ShipContextMenu);
 }
 
-// packages/ui/src/web-components/ship-dropdown-menu.ts
+// src/web-components/ship-dropdown-menu.ts
 var ShipDropdownMenu = class extends i4 {
   constructor() {
     super(...arguments);
@@ -3344,7 +3348,7 @@ if (typeof customElements !== "undefined" && !customElements.get("ship-dropdown-
   customElements.define("ship-dropdown-menu", ShipDropdownMenu);
 }
 
-// packages/ui/src/web-components/ship-empty-state.styles.ts
+// src/web-components/ship-empty-state.styles.ts
 var shipEmptyStateStyles = [
   reducedMotion,
   toneVars,
@@ -3594,7 +3598,7 @@ var shipEmptyStateStyles = [
   `
 ];
 
-// packages/ui/src/web-components/utility/ship-icon.ts
+// src/web-components/utility/ship-icon.ts
 var ICONS = {
   "chevron-down": "M6 9l6 6 6-6",
   "chevron-right": "M9 6l6 6-6 6",
@@ -3707,7 +3711,7 @@ if (typeof customElements !== "undefined" && !customElements.get("ship-icon")) {
   customElements.define("ship-icon", ShipIcon);
 }
 
-// packages/ui/src/web-components/ship-empty-state.ts
+// src/web-components/ship-empty-state.ts
 var ShipEmptyState = class extends i4 {
   constructor() {
     super(...arguments);
@@ -3789,7 +3793,7 @@ if (typeof customElements !== "undefined" && !customElements.get("ship-empty-sta
   customElements.define("ship-empty-state", ShipEmptyState);
 }
 
-// packages/ui/src/web-components/ship-field.ts
+// src/web-components/ship-field.ts
 var _ShipField = class _ShipField extends i4 {
   constructor() {
     super(...arguments);
@@ -3840,7 +3844,7 @@ if (typeof customElements !== "undefined" && !customElements.get("ship-field")) 
   customElements.define("ship-field", ShipField);
 }
 
-// packages/ui/src/web-components/ship-file-upload.ts
+// src/web-components/ship-file-upload.ts
 function fmtSize(bytes) {
   if (bytes < 1024) return `${bytes} B`;
   if (bytes < 1048576) return `${(bytes / 1024).toFixed(1)} KB`;
@@ -4014,7 +4018,7 @@ if (typeof customElements !== "undefined" && !customElements.get("ship-file-uplo
   customElements.define("ship-file-upload", ShipFileUpload);
 }
 
-// packages/ui/src/web-components/ship-hover-card.ts
+// src/web-components/ship-hover-card.ts
 var _ShipHoverCard = class _ShipHoverCard extends i4 {
   constructor() {
     super(...arguments);
@@ -4185,7 +4189,7 @@ if (typeof customElements !== "undefined" && !customElements.get("ship-hover-car
   customElements.define("ship-hover-card", ShipHoverCard);
 }
 
-// packages/ui/src/web-components/ship-input.styles.ts
+// src/web-components/ship-input.styles.ts
 var shipInputStyles = [reducedMotion, i`
   :host {
     display: inline-flex;
@@ -4384,7 +4388,7 @@ var shipInputStyles = [reducedMotion, i`
   }
 `];
 
-// packages/ui/src/web-components/ship-input.ts
+// src/web-components/ship-input.ts
 var _ShipInput = class _ShipInput extends i4 {
   constructor() {
     super();
@@ -4486,7 +4490,7 @@ if (typeof customElements !== "undefined" && !customElements.get("ship-input")) 
   customElements.define("ship-input", ShipInput);
 }
 
-// packages/ui/src/web-components/ship-label.ts
+// src/web-components/ship-label.ts
 var ShipLabel = class extends i4 {
   constructor() {
     super(...arguments);
@@ -4525,7 +4529,7 @@ if (typeof customElements !== "undefined" && !customElements.get("ship-label")) 
   customElements.define("ship-label", ShipLabel);
 }
 
-// packages/ui/src/web-components/ship-list-item.ts
+// src/web-components/ship-list-item.ts
 var ShipListItem = class extends i4 {
   constructor() {
     super(...arguments);
@@ -4615,7 +4619,7 @@ if (typeof customElements !== "undefined" && !customElements.get("ship-list-item
   customElements.define("ship-list-item", ShipListItem);
 }
 
-// packages/ui/src/web-components/ship-navigation-menu.ts
+// src/web-components/ship-navigation-menu.ts
 var ShipNavigationItem = class extends i4 {
   constructor() {
     super(...arguments);
@@ -4821,7 +4825,7 @@ if (typeof customElements !== "undefined") {
   }
 }
 
-// packages/ui/src/web-components/ship-pagination.ts
+// src/web-components/ship-pagination.ts
 var ShipPagination = class extends i4 {
   constructor() {
     super(...arguments);
@@ -4908,7 +4912,7 @@ if (typeof customElements !== "undefined" && !customElements.get("ship-paginatio
   customElements.define("ship-pagination", ShipPagination);
 }
 
-// packages/ui/src/web-components/ship-popover.ts
+// src/web-components/ship-popover.ts
 var _ShipPopover = class _ShipPopover extends i4 {
   constructor() {
     super(...arguments);
@@ -5023,7 +5027,7 @@ if (typeof customElements !== "undefined" && !customElements.get("ship-popover")
   customElements.define("ship-popover", ShipPopover);
 }
 
-// packages/ui/src/web-components/ship-progress.ts
+// src/web-components/ship-progress.ts
 var ShipProgress = class extends i4 {
   constructor() {
     super();
@@ -5088,7 +5092,7 @@ if (typeof customElements !== "undefined" && !customElements.get("ship-progress"
   customElements.define("ship-progress", ShipProgress);
 }
 
-// packages/ui/src/web-components/ship-radio-group.styles.ts
+// src/web-components/ship-radio-group.styles.ts
 var shipRadioGroupStyles = [
   reducedMotion,
   i`
@@ -5253,7 +5257,7 @@ var shipRadioStyles = [
   `
 ];
 
-// packages/ui/src/web-components/ship-radio-group.ts
+// src/web-components/ship-radio-group.ts
 var ShipRadio = class extends i4 {
   constructor() {
     super(...arguments);
@@ -5415,7 +5419,7 @@ if (typeof customElements !== "undefined") {
   }
 }
 
-// packages/ui/src/web-components/ship-scroll-area.ts
+// src/web-components/ship-scroll-area.ts
 var ShipScrollArea = class extends i4 {
   constructor() {
     super(...arguments);
@@ -5591,7 +5595,7 @@ if (typeof customElements !== "undefined" && !customElements.get("ship-scroll-ar
   customElements.define("ship-scroll-area", ShipScrollArea);
 }
 
-// packages/ui/src/web-components/ship-select.styles.ts
+// src/web-components/ship-select.styles.ts
 var shipSelectStyles = [reducedMotion, i`
   :host {
     display: inline-flex;
@@ -5826,7 +5830,7 @@ var shipSelectStyles = [reducedMotion, i`
   }
 `];
 
-// packages/ui/src/web-components/ship-select.ts
+// src/web-components/ship-select.ts
 var ShipSelect = class extends i4 {
   constructor() {
     super();
@@ -5956,7 +5960,7 @@ if (typeof customElements !== "undefined" && !customElements.get("ship-select"))
   customElements.define("ship-select", ShipSelect);
 }
 
-// packages/ui/src/web-components/ship-separator.ts
+// src/web-components/ship-separator.ts
 var ShipSeparator = class extends i4 {
   constructor() {
     super(...arguments);
@@ -5992,7 +5996,7 @@ if (typeof customElements !== "undefined" && !customElements.get("ship-separator
   customElements.define("ship-separator", ShipSeparator);
 }
 
-// packages/ui/src/web-components/ship-slider.styles.ts
+// src/web-components/ship-slider.styles.ts
 var shipSliderStyles = [
   reducedMotion,
   i`
@@ -6107,7 +6111,7 @@ var shipSliderStyles = [
   `
 ];
 
-// packages/ui/src/web-components/ship-slider.ts
+// src/web-components/ship-slider.ts
 var ShipSlider = class extends i4 {
   constructor() {
     super(...arguments);
@@ -6233,7 +6237,7 @@ if (typeof customElements !== "undefined" && !customElements.get("ship-slider"))
   customElements.define("ship-slider", ShipSlider);
 }
 
-// packages/ui/src/web-components/ship-spinner.ts
+// src/web-components/ship-spinner.ts
 var ShipSpinner = class extends i4 {
   constructor() {
     super();
@@ -6271,7 +6275,7 @@ if (typeof customElements !== "undefined" && !customElements.get("ship-spinner")
   customElements.define("ship-spinner", ShipSpinner);
 }
 
-// packages/ui/src/web-components/ship-stat.ts
+// src/web-components/ship-stat.ts
 var ShipStat = class extends i4 {
   constructor() {
     super(...arguments);
@@ -6375,7 +6379,7 @@ if (typeof customElements !== "undefined" && !customElements.get("ship-stat")) {
   customElements.define("ship-stat", ShipStat);
 }
 
-// packages/ui/src/web-components/ship-status-dot.ts
+// src/web-components/ship-status-dot.ts
 var ShipStatusDot = class extends i4 {
   constructor() {
     super();
@@ -6421,7 +6425,7 @@ if (typeof customElements !== "undefined" && !customElements.get("ship-status-do
   customElements.define("ship-status-dot", ShipStatusDot);
 }
 
-// packages/ui/src/web-components/ship-switch.styles.ts
+// src/web-components/ship-switch.styles.ts
 var shipSwitchStyles = [
   reducedMotion,
   i`
@@ -6623,7 +6627,7 @@ var shipSwitchStyles = [
   `
 ];
 
-// packages/ui/src/web-components/ship-switch.ts
+// src/web-components/ship-switch.ts
 var ShipSwitch = class extends i4 {
   constructor() {
     super();
@@ -6702,7 +6706,7 @@ if (typeof customElements !== "undefined" && !customElements.get("ship-switch"))
   customElements.define("ship-switch", ShipSwitch);
 }
 
-// packages/ui/src/web-components/ship-tabs.styles.ts
+// src/web-components/ship-tabs.styles.ts
 var shipTabsStyles = [reducedMotion, i`
   :host {
     display: block;
@@ -6973,7 +6977,7 @@ var shipTabPanelStyles = [reducedMotion, i`
   }
 `];
 
-// packages/ui/src/web-components/ship-tabs.ts
+// src/web-components/ship-tabs.ts
 var ShipTab = class extends i4 {
   constructor() {
     super(...arguments);
@@ -7182,7 +7186,7 @@ if (typeof customElements !== "undefined") {
   if (!customElements.get("ship-tabs")) customElements.define("ship-tabs", ShipTabs);
 }
 
-// packages/ui/src/web-components/ship-textarea.styles.ts
+// src/web-components/ship-textarea.styles.ts
 var shipTextareaStyles = [reducedMotion, i`
   :host {
     display: block;
@@ -7295,7 +7299,7 @@ var shipTextareaStyles = [reducedMotion, i`
   }
 `];
 
-// packages/ui/src/web-components/ship-textarea.ts
+// src/web-components/ship-textarea.ts
 var ShipTextarea = class extends i4 {
   constructor() {
     super();
@@ -7383,7 +7387,7 @@ if (typeof customElements !== "undefined" && !customElements.get("ship-textarea"
   customElements.define("ship-textarea", ShipTextarea);
 }
 
-// packages/ui/src/web-components/ship-theme-toggle.ts
+// src/web-components/ship-theme-toggle.ts
 var STORAGE_KEY = "ship-theme";
 var ShipThemeToggle = class extends i4 {
   constructor() {
@@ -7455,7 +7459,7 @@ if (typeof customElements !== "undefined" && !customElements.get("ship-theme-tog
   customElements.define("ship-theme-toggle", ShipThemeToggle);
 }
 
-// packages/ui/src/web-components/ship-toggle-group.ts
+// src/web-components/ship-toggle-group.ts
 var ShipToggle = class extends i4 {
   constructor() {
     super(...arguments);
@@ -7683,7 +7687,7 @@ if (typeof customElements !== "undefined") {
   }
 }
 
-// packages/ui/src/web-components/ship-toolbar.ts
+// src/web-components/ship-toolbar.ts
 var ShipToolbar = class extends i4 {
   constructor() {
     super(...arguments);
@@ -7747,7 +7751,7 @@ if (typeof customElements !== "undefined" && !customElements.get("ship-toolbar")
   customElements.define("ship-toolbar", ShipToolbar);
 }
 
-// packages/ui/src/web-components/ship-tooltip.ts
+// src/web-components/ship-tooltip.ts
 var _ShipTooltip = class _ShipTooltip extends i4 {
   constructor() {
     super(...arguments);
@@ -7835,7 +7839,7 @@ if (typeof customElements !== "undefined" && !customElements.get("ship-tooltip")
   customElements.define("ship-tooltip", ShipTooltip);
 }
 
-// packages/ui/src/web-components/domain/ship-pipeline-step.ts
+// src/web-components/domain/ship-pipeline-step.ts
 var ShipPipelineStep = class extends i4 {
   constructor() {
     super(...arguments);
@@ -7945,7 +7949,7 @@ if (typeof customElements !== "undefined" && !customElements.get("ship-pipeline-
   customElements.define("ship-pipeline-step", ShipPipelineStep);
 }
 
-// packages/ui/src/web-components/domain/ship-pipeline-run.ts
+// src/web-components/domain/ship-pipeline-run.ts
 var STATE_TO_TONE = {
   dispatched: "info",
   running: "info",
@@ -8021,7 +8025,7 @@ if (typeof customElements !== "undefined" && !customElements.get("ship-pipeline-
   customElements.define("ship-pipeline-run", ShipPipelineRun);
 }
 
-// packages/ui/src/web-components/domain/ship-pipeline-definition.ts
+// src/web-components/domain/ship-pipeline-definition.ts
 var ShipPipelineDefinition = class extends i4 {
   constructor() {
     super(...arguments);
@@ -8091,7 +8095,7 @@ if (typeof customElements !== "undefined" && !customElements.get("ship-pipeline-
   customElements.define("ship-pipeline-definition", ShipPipelineDefinition);
 }
 
-// packages/ui/src/web-components/domain/ship-pipeline-dag.ts
+// src/web-components/domain/ship-pipeline-dag.ts
 var ShipPipelineDag = class extends i4 {
   connectedCallback() {
     super.connectedCallback();
@@ -8122,7 +8126,7 @@ if (typeof customElements !== "undefined" && !customElements.get("ship-pipeline-
   customElements.define("ship-pipeline-dag", ShipPipelineDag);
 }
 
-// packages/ui/src/web-components/domain/ship-history-row.ts
+// src/web-components/domain/ship-history-row.ts
 var ShipHistoryRow = class extends i4 {
   constructor() {
     super(...arguments);
@@ -8162,7 +8166,7 @@ if (typeof customElements !== "undefined" && !customElements.get("ship-history-r
   customElements.define("ship-history-row", ShipHistoryRow);
 }
 
-// packages/ui/src/web-components/domain/ship-spec-row.ts
+// src/web-components/domain/ship-spec-row.ts
 var STATUS_TO_TONE = {
   draft: "muted",
   ready: "success",
@@ -8209,7 +8213,7 @@ if (typeof customElements !== "undefined" && !customElements.get("ship-spec-row"
   customElements.define("ship-spec-row", ShipSpecRow);
 }
 
-// packages/ui/src/web-components/domain/ship-git-diff.ts
+// src/web-components/domain/ship-git-diff.ts
 var ShipGitDiff = class extends i4 {
   constructor() {
     super(...arguments);
@@ -8479,7 +8483,7 @@ if (typeof customElements !== "undefined") {
   if (!customElements.get("ship-git-diff-line")) customElements.define("ship-git-diff-line", ShipGitDiffLine);
 }
 
-// packages/ui/src/web-components/observability/ship-log-line.ts
+// src/web-components/observability/ship-log-line.ts
 var ShipLogLine = class extends i4 {
   constructor() {
     super(...arguments);
@@ -8537,7 +8541,133 @@ if (typeof customElements !== "undefined" && !customElements.get("ship-log-line"
   customElements.define("ship-log-line", ShipLogLine);
 }
 
-// packages/ui/src/web-components/observability/ship-event-row.ts
+// src/web-components/observability/ship-log-stream.ts
+var ShipLogStream = class extends i4 {
+  constructor() {
+    super(...arguments);
+    this.url = "";
+    this.event = "log";
+    this.autoscroll = false;
+    this.active = false;
+    this.maxBytes = 1e6;
+    this._source = null;
+    this._buffer = "";
+    this._stickyBottom = true;
+    this._onScroll = (e6) => {
+      const pre = e6.currentTarget;
+      this._stickyBottom = pre.scrollHeight - pre.clientHeight <= pre.scrollTop + 4;
+    };
+  }
+  updated(changed) {
+    if (changed.has("url") || changed.has("event")) {
+      if (this.active && this._source) {
+        this.close();
+        this.open();
+      }
+    }
+    if (changed.has("active")) {
+      if (this.active) this.open();
+      else this.close();
+    }
+  }
+  disconnectedCallback() {
+    super.disconnectedCallback();
+    this.close();
+  }
+  open() {
+    if (!this.url || this._source) return;
+    try {
+      this._source = new EventSource(this.url, { withCredentials: true });
+    } catch {
+      this.dispatchEvent(new CustomEvent("ship-stream-error"));
+      return;
+    }
+    this._source.addEventListener(this.event, (ev) => {
+      this._append(ev.data ?? "");
+    });
+    this._source.onopen = () => {
+      this.dispatchEvent(new CustomEvent("ship-stream-open"));
+    };
+    this._source.onerror = () => {
+      this.dispatchEvent(new CustomEvent("ship-stream-error"));
+    };
+  }
+  close() {
+    if (this._source) {
+      this._source.close();
+      this._source = null;
+      this.dispatchEvent(new CustomEvent("ship-stream-close"));
+    }
+  }
+  clear() {
+    this._buffer = "";
+    this.requestUpdate();
+  }
+  _append(chunk) {
+    this._buffer += chunk;
+    if (this._buffer.length > this.maxBytes) {
+      const overflow = this._buffer.length - this.maxBytes;
+      const cut = this._buffer.indexOf("\n", overflow);
+      this._buffer = this._buffer.slice(cut >= 0 ? cut + 1 : overflow);
+    }
+    this.requestUpdate();
+  }
+  firstUpdated() {
+    if (this.active && !this._source) this.open();
+  }
+  updated_scroll() {
+    if (!this.autoscroll || !this._stickyBottom) return;
+    const pre = this.renderRoot.querySelector('[part="scroll"]');
+    if (pre) pre.scrollTop = pre.scrollHeight;
+  }
+  render() {
+    queueMicrotask(() => this.updated_scroll());
+    const empty = this._buffer.length === 0;
+    return b2`<pre
+      part="scroll"
+      ?data-empty=${empty}
+      @scroll=${this._onScroll}
+    >${empty ? "(no output yet)" : this._buffer}</pre>`;
+  }
+};
+ShipLogStream.styles = i`
+    :host {
+      display: block;
+      min-height: 8rem;
+      max-height: 24rem;
+      border-radius: var(--radius-md);
+      border: 1px solid color-mix(in oklch, var(--border) 60%, transparent);
+      background: color-mix(in oklch, var(--background) 95%, black 5%);
+      color: var(--foreground);
+      overflow: hidden;
+    }
+    [part='scroll'] {
+      height: 100%;
+      max-height: inherit;
+      margin: 0;
+      padding: var(--space-3) var(--space-4);
+      font-family: ${MONO};
+      font-size: var(--text-xs);
+      line-height: 1.55;
+      white-space: pre-wrap;
+      word-break: break-word;
+      overflow-y: auto;
+    }
+    [part='scroll'][data-empty] {
+      color: var(--muted-foreground);
+      font-style: italic;
+    }
+  `;
+ShipLogStream.properties = {
+  url: { type: String, reflect: true },
+  event: { type: String, reflect: true },
+  autoscroll: { type: Boolean, reflect: true },
+  active: { type: Boolean, reflect: true },
+  maxBytes: { type: Number, attribute: "max-bytes" }
+};
+defineOnce("ship-log-stream", ShipLogStream);
+
+// src/web-components/observability/ship-event-row.ts
 var ShipEventRow = class extends i4 {
   connectedCallback() {
     super.connectedCallback();
@@ -8587,7 +8717,7 @@ if (typeof customElements !== "undefined" && !customElements.get("ship-event-row
   customElements.define("ship-event-row", ShipEventRow);
 }
 
-// packages/ui/src/web-components/observability/ship-timestamp.ts
+// src/web-components/observability/ship-timestamp.ts
 var MINUTE = 6e4;
 var HOUR = 36e5;
 var DAY = 864e5;
@@ -8649,7 +8779,7 @@ if (typeof customElements !== "undefined" && !customElements.get("ship-timestamp
   customElements.define("ship-timestamp", ShipTimestamp);
 }
 
-// packages/ui/src/web-components/observability/ship-json-view.ts
+// src/web-components/observability/ship-json-view.ts
 var ShipJsonView = class extends i4 {
   constructor() {
     super(...arguments);
@@ -8744,7 +8874,7 @@ if (typeof customElements !== "undefined" && !customElements.get("ship-json-view
   customElements.define("ship-json-view", ShipJsonView);
 }
 
-// packages/ui/src/web-components/observability/ship-diff.ts
+// src/web-components/observability/ship-diff.ts
 function diffLines(a3, b3) {
   const A2 = a3.split("\n");
   const B2 = b3.split("\n");
@@ -8844,7 +8974,7 @@ if (typeof customElements !== "undefined" && !customElements.get("ship-diff")) {
   customElements.define("ship-diff", ShipDiff);
 }
 
-// packages/ui/src/web-components/observability/ship-code.ts
+// src/web-components/observability/ship-code.ts
 var ShipCode = class extends i4 {
   constructor() {
     super(...arguments);
@@ -8914,7 +9044,7 @@ if (typeof customElements !== "undefined" && !customElements.get("ship-code")) {
   customElements.define("ship-code", ShipCode);
 }
 
-// packages/ui/src/web-components/observability/ship-copy-button.ts
+// src/web-components/observability/ship-copy-button.ts
 var ShipCopyButton = class extends i4 {
   constructor() {
     super(...arguments);
@@ -9011,7 +9141,7 @@ if (typeof customElements !== "undefined" && !customElements.get("ship-copy-butt
   customElements.define("ship-copy-button", ShipCopyButton);
 }
 
-// node_modules/.pnpm/lit-html@3.3.2/node_modules/lit-html/directive.js
+// ../../node_modules/.pnpm/lit-html@3.3.2/node_modules/lit-html/directive.js
 var t3 = { ATTRIBUTE: 1, CHILD: 2, PROPERTY: 3, BOOLEAN_ATTRIBUTE: 4, EVENT: 5, ELEMENT: 6 };
 var e4 = (t4) => (...e6) => ({ _$litDirective$: t4, values: e6 });
 var i5 = class {
@@ -9031,7 +9161,7 @@ var i5 = class {
   }
 };
 
-// node_modules/.pnpm/lit-html@3.3.2/node_modules/lit-html/directives/unsafe-html.js
+// ../../node_modules/.pnpm/lit-html@3.3.2/node_modules/lit-html/directives/unsafe-html.js
 var e5 = class extends i5 {
   constructor(i6) {
     if (super(i6), this.it = A, i6.type !== t3.CHILD) throw Error(this.constructor.directiveName + "() can only be used in child bindings");
@@ -9049,7 +9179,7 @@ var e5 = class extends i5 {
 e5.directiveName = "unsafeHTML", e5.resultType = 1;
 var o5 = e4(e5);
 
-// packages/ui/src/web-components/observability/ship-markdown.ts
+// src/web-components/observability/ship-markdown.ts
 function escape(s4) {
   return s4.replace(/&/g, "&amp;").replace(/</g, "&lt;").replace(/>/g, "&gt;").replace(/"/g, "&quot;");
 }
@@ -9186,7 +9316,7 @@ if (typeof customElements !== "undefined" && !customElements.get("ship-markdown"
   customElements.define("ship-markdown", ShipMarkdown);
 }
 
-// packages/ui/src/web-components/observability/ship-table.styles.ts
+// src/web-components/observability/ship-table.styles.ts
 var shipTableStyles = [
   reducedMotion,
   i`
@@ -9428,7 +9558,7 @@ var shipTableLightDomCss = `
   }
 `;
 
-// packages/ui/src/web-components/observability/ship-table.ts
+// src/web-components/observability/ship-table.ts
 var lightDomInstalled = /* @__PURE__ */ new WeakSet();
 function installLightDomStyles(doc) {
   if (lightDomInstalled.has(doc)) return;
@@ -9607,7 +9737,7 @@ if (typeof customElements !== "undefined" && !customElements.get("ship-table")) 
   customElements.define("ship-table", ShipTable);
 }
 
-// packages/ui/src/web-components/observability/ship-timeline.ts
+// src/web-components/observability/ship-timeline.ts
 var ShipTimeline = class extends i4 {
   connectedCallback() {
     super.connectedCallback();
@@ -9743,7 +9873,7 @@ if (typeof customElements !== "undefined") {
   if (!customElements.get("ship-timeline-item")) customElements.define("ship-timeline-item", ShipTimelineItem);
 }
 
-// packages/ui/src/web-components/observability/ship-tree-view.ts
+// src/web-components/observability/ship-tree-view.ts
 var ShipTreeView = class extends i4 {
   connectedCallback() {
     super.connectedCallback();
@@ -9879,7 +10009,7 @@ if (typeof customElements !== "undefined") {
   if (!customElements.get("ship-tree-node")) customElements.define("ship-tree-node", ShipTreeNode);
 }
 
-// packages/ui/src/web-components/charts/util.ts
+// src/web-components/charts/util.ts
 var TONE_VARS = {
   default: "var(--foreground)",
   primary: "var(--primary)",
@@ -9936,7 +10066,7 @@ function arcPath(cx, cy, r4, startAngle, endAngle) {
   return `M${x1.toFixed(2)},${y1.toFixed(2)} A${r4},${r4} 0 ${large} ${sweep} ${x2.toFixed(2)},${y22.toFixed(2)}`;
 }
 
-// packages/ui/src/web-components/charts/ship-sparkline.ts
+// src/web-components/charts/ship-sparkline.ts
 var ShipSparkline = class extends i4 {
   constructor() {
     super(...arguments);
@@ -10002,7 +10132,7 @@ if (typeof customElements !== "undefined" && !customElements.get("ship-sparkline
   customElements.define("ship-sparkline", ShipSparkline);
 }
 
-// packages/ui/src/web-components/charts/ship-bar-chart.ts
+// src/web-components/charts/ship-bar-chart.ts
 var ShipBarChart = class extends i4 {
   constructor() {
     super(...arguments);
@@ -10086,7 +10216,7 @@ if (typeof customElements !== "undefined" && !customElements.get("ship-bar-chart
   customElements.define("ship-bar-chart", ShipBarChart);
 }
 
-// packages/ui/src/web-components/charts/ship-line-chart.ts
+// src/web-components/charts/ship-line-chart.ts
 var ShipLineChart = class extends i4 {
   constructor() {
     super(...arguments);
@@ -10167,7 +10297,7 @@ if (typeof customElements !== "undefined" && !customElements.get("ship-line-char
   customElements.define("ship-line-chart", ShipLineChart);
 }
 
-// packages/ui/src/web-components/charts/ship-area-chart.ts
+// src/web-components/charts/ship-area-chart.ts
 var ShipAreaChart = class extends i4 {
   constructor() {
     super(...arguments);
@@ -10249,7 +10379,7 @@ if (typeof customElements !== "undefined" && !customElements.get("ship-area-char
   customElements.define("ship-area-chart", ShipAreaChart);
 }
 
-// packages/ui/src/web-components/charts/ship-donut.ts
+// src/web-components/charts/ship-donut.ts
 var ShipDonut = class extends i4 {
   constructor() {
     super(...arguments);
@@ -10328,7 +10458,7 @@ if (typeof customElements !== "undefined" && !customElements.get("ship-donut")) 
   customElements.define("ship-donut", ShipDonut);
 }
 
-// packages/ui/src/web-components/charts/ship-gauge.ts
+// src/web-components/charts/ship-gauge.ts
 var ShipGauge = class extends i4 {
   constructor() {
     super(...arguments);
@@ -10411,7 +10541,7 @@ if (typeof customElements !== "undefined" && !customElements.get("ship-gauge")) 
   customElements.define("ship-gauge", ShipGauge);
 }
 
-// packages/ui/src/web-components/charts/ship-progress-ring.ts
+// src/web-components/charts/ship-progress-ring.ts
 var ShipProgressRing = class extends i4 {
   constructor() {
     super(...arguments);
@@ -10481,7 +10611,7 @@ if (typeof customElements !== "undefined" && !customElements.get("ship-progress-
   customElements.define("ship-progress-ring", ShipProgressRing);
 }
 
-// packages/ui/src/web-components/charts/ship-heatmap.ts
+// src/web-components/charts/ship-heatmap.ts
 var TONE_CSS_VAR = {
   default: "--foreground",
   primary: "--primary",
@@ -10566,7 +10696,7 @@ if (typeof customElements !== "undefined" && !customElements.get("ship-heatmap")
   customElements.define("ship-heatmap", ShipHeatmap);
 }
 
-// packages/ui/src/web-components/charts/ship-meter.ts
+// src/web-components/charts/ship-meter.ts
 var ShipMeter = class extends i4 {
   constructor() {
     super(...arguments);
@@ -10638,7 +10768,7 @@ if (typeof customElements !== "undefined" && !customElements.get("ship-meter")) 
   customElements.define("ship-meter", ShipMeter);
 }
 
-// packages/ui/src/web-components/utility/ship-avatar.ts
+// src/web-components/utility/ship-avatar.ts
 function initialsFromName(name) {
   const parts = name.trim().split(/\s+/).filter(Boolean);
   if (parts.length === 0) return "";
@@ -10706,7 +10836,7 @@ if (typeof customElements !== "undefined" && !customElements.get("ship-avatar"))
   customElements.define("ship-avatar", ShipAvatar);
 }
 
-// packages/ui/src/web-components/utility/ship-chip.styles.ts
+// src/web-components/utility/ship-chip.styles.ts
 var shipChipStyles = [
   reducedMotion,
   i`
@@ -10978,7 +11108,7 @@ var shipChipStyles = [
   `
 ];
 
-// packages/ui/src/web-components/utility/ship-chip.ts
+// src/web-components/utility/ship-chip.ts
 var ShipChip = class extends i4 {
   constructor() {
     super();
@@ -11080,7 +11210,7 @@ if (typeof customElements !== "undefined" && !customElements.get("ship-chip")) {
   customElements.define("ship-chip", ShipChip);
 }
 
-// packages/ui/src/web-components/utility/ship-kbd.ts
+// src/web-components/utility/ship-kbd.ts
 var ShipKbd = class extends i4 {
   constructor() {
     super(...arguments);
@@ -11123,7 +11253,7 @@ if (typeof customElements !== "undefined" && !customElements.get("ship-kbd")) {
   customElements.define("ship-kbd", ShipKbd);
 }
 
-// packages/ui/src/web-components/utility/ship-skeleton.ts
+// src/web-components/utility/ship-skeleton.ts
 var HEIGHTS = {
   text: "16px",
   circle: "40px",
@@ -11198,7 +11328,7 @@ if (typeof customElements !== "undefined" && !customElements.get("ship-skeleton"
   customElements.define("ship-skeleton", ShipSkeleton);
 }
 
-// packages/ui/src/web-components/utility/ship-toast-container.styles.ts
+// src/web-components/utility/ship-toast-container.styles.ts
 var shipToastContainerStyles = i`
   :host {
     position: fixed;
@@ -11280,7 +11410,7 @@ var shipToastContainerStyles = i`
   }
 `;
 
-// packages/ui/src/web-components/utility/ship-toast-container.ts
+// src/web-components/utility/ship-toast-container.ts
 var SLIDE_FROM = {
   "top-left": "top",
   "top-center": "top",
@@ -11379,7 +11509,7 @@ if (typeof customElements !== "undefined" && !customElements.get("ship-toast-con
   customElements.define("ship-toast-container", ShipToastContainer);
 }
 
-// packages/ui/src/web-components/utility/ship-toast.styles.ts
+// src/web-components/utility/ship-toast.styles.ts
 var shipToastStyles = [
   reducedMotion,
   toneVars,
@@ -11651,7 +11781,7 @@ var shipToastStyles = [
   `
 ];
 
-// packages/ui/src/web-components/utility/ship-toast.ts
+// src/web-components/utility/ship-toast.ts
 var TONE_ICON = {
   info: '<circle cx="12" cy="12" r="9"/><path d="M12 8h.01"/><path d="M11 12h1v4h1"/>',
   success: '<circle cx="12" cy="12" r="9"/><path d="m8.5 12.5 2.5 2.5 4.5-5"/>',
@@ -11854,7 +11984,7 @@ if (typeof customElements !== "undefined" && !customElements.get("ship-toast")) 
   customElements.define("ship-toast", ShipToast);
 }
 
-// packages/ui/src/web-components/utility/ship-breadcrumb.ts
+// src/web-components/utility/ship-breadcrumb.ts
 var ShipBreadcrumbItem = class extends i4 {
   constructor() {
     super(...arguments);
@@ -11946,7 +12076,7 @@ if (typeof customElements !== "undefined") {
     customElements.define("ship-breadcrumb", ShipBreadcrumb);
 }
 
-// packages/ui/src/web-components/utility/ship-link.ts
+// src/web-components/utility/ship-link.ts
 var ShipLink = class extends i4 {
   constructor() {
     super(...arguments);
@@ -12010,7 +12140,7 @@ if (typeof customElements !== "undefined" && !customElements.get("ship-link")) {
   customElements.define("ship-link", ShipLink);
 }
 
-// packages/ui/src/web-components/utility/ship-metachip.ts
+// src/web-components/utility/ship-metachip.ts
 var ShipMetachip = class extends i4 {
   constructor() {
     super(...arguments);
@@ -12058,7 +12188,7 @@ if (typeof customElements !== "undefined" && !customElements.get("ship-metachip"
   customElements.define("ship-metachip", ShipMetachip);
 }
 
-// packages/ui/src/web-components/utility/ship-step-segments.ts
+// src/web-components/utility/ship-step-segments.ts
 var KNOWN = /* @__PURE__ */ new Set(["done", "failed", "pending", "running"]);
 var ShipStepSegments = class extends i4 {
   constructor() {
@@ -12111,7 +12241,7 @@ if (typeof customElements !== "undefined" && !customElements.get("ship-step-segm
   customElements.define("ship-step-segments", ShipStepSegments);
 }
 
-// packages/ui/src/web-components/index.ts
+// src/web-components/index.ts
 function registerShipComponents() {
 }
 export {
@@ -12159,6 +12289,7 @@ export {
   ShipLink,
   ShipListItem,
   ShipLogLine,
+  ShipLogStream,
   ShipMarkdown,
   ShipMetachip,
   ShipMeter,

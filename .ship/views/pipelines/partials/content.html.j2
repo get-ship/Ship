@@ -168,7 +168,11 @@
             <ship-timestamp value="{{ run.updated_at }}" relative></ship-timestamp>
           </span>
           <ship-button variant="ghost" size="sm"
-            onclick="window.shipToggleLog(this, '{{ run.slug }}')">
+            data-on:click="
+              const s = document.getElementById('logs-{{ run.slug }}');
+              s.active = !s.active;
+              evt.currentTarget.setAttribute('tone', s.active ? 'accent' : 'default');
+            ">
             <ship-icon slot="leading" name="terminal"></ship-icon>
             Logs
           </ship-button>
@@ -181,7 +185,10 @@
           {% endif %}
         </div>
       </section>
-      <pre id="log-{{ run.slug }}" class="ship-run-log" hidden data-slug="{{ run.slug }}"></pre>
+      <ship-log-stream
+        id="logs-{{ run.slug }}"
+        url="/api/runtime/jobs/{{ run.slug }}/log/stream"
+        autoscroll></ship-log-stream>
       {% endfor %}
     </div>
     {% else %}

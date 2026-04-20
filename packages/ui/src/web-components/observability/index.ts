@@ -6,6 +6,7 @@
  */
 
 import './ship-log-line'
+import './ship-log-stream'
 import './ship-event-row'
 import './ship-timestamp'
 import './ship-json-view'
@@ -18,6 +19,7 @@ import './ship-timeline'
 import './ship-tree-view'
 
 export { ShipLogLine } from './ship-log-line'
+export { ShipLogStream } from './ship-log-stream'
 export { ShipEventRow } from './ship-event-row'
 export { ShipTimestamp, formatRelative } from './ship-timestamp'
 export { ShipJsonView } from './ship-json-view'
