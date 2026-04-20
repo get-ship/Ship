@@ -14,6 +14,7 @@ SLUG=""
 AGENT=""
 SPEC_FILE=""
 SHIP_AGENT_MODEL="${SHIP_AGENT_MODEL:-}"
+EXTRA_SKILLS=()
 
 # ── Parse args ────────────────────────────────────────────────────────────────
 while [[ $# -gt 0 ]]; do
@@ -24,6 +25,7 @@ while [[ $# -gt 0 ]]; do
     --base)     BASE_BRANCH="$2"; shift 2 ;;
     --dir)      WORKTREE_BASE="$2"; shift 2 ;;
     --model)    SHIP_AGENT_MODEL="$2"; shift 2 ;;
+    --skill)    EXTRA_SKILLS+=("$2"); shift 2 ;;
     --no-open)  NO_OPEN=true; shift ;;
     --dry-run)  DRY_RUN=true; shift ;;
     --confirm)  CONFIRM=1; shift ;;
@@ -35,6 +37,7 @@ if [[ -z "$SLUG" || -z "$AGENT" || -z "$SPEC_FILE" ]]; then
   echo "Usage: dispatch.sh --slug <name> --agent <agent> --spec <file>" >&2
   echo "  --base <branch>   Branch to fork from (default: current)" >&2
   echo "  --dir <path>      Worktree base dir (default: ~/dev/ship-worktrees)" >&2
+  echo "  --skill <id>      Extra skill to inject at compile time (repeatable)" >&2
   echo "  --no-open         Print launch command instead of opening terminal" >&2
   echo "  --confirm         Show spec and ask y/n before launching" >&2
   echo "  --dry-run         Show what would happen" >&2
@@ -77,6 +80,7 @@ if $DRY_RUN; then
   echo "  worktree:        $WORKTREE_PATH"
   echo "  branch:          $BRANCH_NAME"
   echo "  terminal:        $TERMINAL"
+  echo "  extra skills:    ${EXTRA_SKILLS[*]:-(none)}"
   echo "  SHIP_GLOBAL_DIR: $SHIP_GLOBAL_DIR"
   exit 0
 fi
@@ -118,8 +122,11 @@ if ! command -v ship &>/dev/null; then
   exit 1
 fi
 
-echo "Compiling agent: ship use $AGENT (SHIP_GLOBAL_DIR=$SHIP_GLOBAL_DIR)"
-if ! (cd "$WORKTREE_PATH" && SHIP_GLOBAL_DIR="$SHIP_GLOBAL_DIR" ship use "$AGENT"); then
+WITH_ARGS=()
+for s in "${EXTRA_SKILLS[@]}"; do WITH_ARGS+=(--with "$s"); done
+
+echo "Compiling agent: ship use $AGENT ${WITH_ARGS[*]} (SHIP_GLOBAL_DIR=$SHIP_GLOBAL_DIR)"
+if ! (cd "$WORKTREE_PATH" && SHIP_GLOBAL_DIR="$SHIP_GLOBAL_DIR" ship use "$AGENT" "${WITH_ARGS[@]}"); then
   echo "Error: 'ship use $AGENT' failed in $WORKTREE_PATH. Agent not launched." >&2
   exit 1
 fi

@@ -26,6 +26,7 @@ bash .ship/skills/spawn-agent/scripts/dispatch.sh \
 | `--spec <file>` | Path to job spec (required) |
 | `--base <branch>` | Branch to fork from (default: current branch) |
 | `--model <id>` | Override model for the spawned agent |
+| `--skill <id>` | Extra skill to inject at compile time, repeatable (e.g. `--skill web-qa --skill tdd`) |
 | `--no-open` | Print launch command instead of opening terminal |
 | `--dry-run` | Show what would happen |
 | `--confirm` | Show spec and ask y/n before launching |

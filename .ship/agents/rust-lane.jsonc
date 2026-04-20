@@ -9,7 +9,10 @@
     "providers": ["claude", "codex", "cursor", "gemini", "opencode"],
   },
   "skills": {
-    "refs": ["ship-coordination"],
+    "refs": [
+      "ship-coordination",
+      "ship-schema-reference",
+    ],
   },
   "mcp": {
     "servers": ["ship"],
@@ -19,6 +22,6 @@
     "tools_deny": ["Bash(git push --force*)", "Bash(*cargo publish*)", "Bash(*npm publish*)", "Bash(* ~/.ship/*)", "Bash(rm -rf *)"],
   },
   "rules": {
-    "inline": "Scope: crates/core/, apps/mcp/, apps/shipd/. Compiler is pure transformation — no side effects. Runtime owns DB migrations. Use `just build`, `cargo test -p <crate>`. Never run_in_background for builds.",
+    "inline": "Scope: Rust surface — crates/core/, apps/mcp/, apps/shipd/, apps/ship-cli/. May also touch scripts/, contrib/, .github/workflows/ when the job spec requires it. Compiler is pure transformation — no side effects. Runtime owns DB migrations. Use `just build`, `cargo test -p <crate>`. Never run_in_background for builds. Job spec overrides scope when it lists a specific file scope.",
   },
 }
