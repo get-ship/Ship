@@ -54,7 +54,7 @@ impl KernelRouter {
         permissions.validate()?;
 
         let label = &identity.label;
-        if self.mailboxes.contains_key(label) {
+        if self.inner.has_actor(label) {
             return Err(anyhow!("actor '{}' already exists", label));
         }
 
@@ -62,17 +62,33 @@ impl KernelRouter {
 
         let db_path = self.actor_db_path(label);
 
+        // Build an mpsc channel manually so we can replay into it before returning.
         let (tx, rx) = mpsc::channel(MAILBOX_CAPACITY);
-        self.mailboxes.insert(label.to_string(), tx.clone());
 
+        // Build the ActorConfig from permissions for inner registration.
+        let config = ship_types::ActorConfig {
+            namespace: label.to_string(),
+            write_namespaces: permissions.emit.clone(),
+            read_namespaces: subs_to_namespaces(&permissions.subscribe),
+            subscribe_namespaces: subs_to_namespaces(&permissions.subscribe),
+        };
+
+        // Register subscriptions in inner so route() can find this actor.
+        // We insert the sender we own so delivery goes to our mailbox.
+        // We bypass inner.spawn_actor() here because we need our own channel
+        // for the replay path — instead we register via inner's spawn and
+        // discard the returned mailbox, then route deliveries ourselves.
+        // TODO: expose a lower-level registration API on inner if this pattern
+        // grows. For now the unstable path is self-contained.
+        let _ = self.inner.spawn_actor(label, config.clone())
+            .map_err(|e| anyhow!("{e}"))?;
+
+        // Override: replace inner's sender with our own so that deliver_with_scope
+        // can access sender state (full / closed) via inner.mailbox_sender().
+        // This is a limitation of the current split: the unstable path creates its
+        // own channel and cannot share inner's sender. We store our sender in
+        // actor_meta for use by deliver_with_scope.
         let subs = permissions.subscribe.clone();
-        for sub in &subs {
-            self.subscriptions
-                .entry(sub.namespace.clone())
-                .or_default()
-                .push(label.to_string());
-        }
-
         self.actor_meta.insert(
             label.to_string(),
             ActorMeta {
@@ -95,6 +111,16 @@ impl KernelRouter {
                 let _ = tx.try_send(ev.clone());
             }
         }
+
+        // Store sender for use by deliver_with_scope.
+        self.actor_meta
+            .get_mut(label)
+            .expect("just inserted")
+            .permissions = permissions.clone();
+
+        // Keep a copy of tx for deliver_with_scope via the senders map.
+        // We stash it separately since inner's channel is different.
+        self.unstable_senders.insert(label.to_string(), tx);
 
         let store = ActorStore::new(
             label,
@@ -180,7 +206,10 @@ impl KernelRouter {
         let mut full_actors: Vec<String> = Vec::new();
 
         if let Some(ref target) = event.target_actor_id {
-            if let Some(tx) = self.mailboxes.get(target)
+            // Try unstable senders first, then fall back to inner's channel.
+            let tx_opt = self.unstable_senders.get(target)
+                .or_else(|| self.inner.mailbox_sender(target));
+            if let Some(tx) = tx_opt
                 && self.should_deliver(event, target)
             {
                 match tx.try_send(event.clone()) {
@@ -214,12 +243,15 @@ impl KernelRouter {
             return Ok(());
         }
 
-        for (ns, actor_ids) in &self.subscriptions {
+        for (ns, actor_ids) in self.inner.subscriptions() {
             if event.event_type.starts_with(ns.as_str()) {
                 for actor_id in actor_ids {
-                    if self.should_deliver(event, actor_id)
-                        && let Some(tx) = self.mailboxes.get(actor_id)
-                    {
+                    if !self.should_deliver(event, actor_id) {
+                        continue;
+                    }
+                    let tx_opt = self.unstable_senders.get(actor_id)
+                        .or_else(|| self.inner.mailbox_sender(actor_id));
+                    if let Some(tx) = tx_opt {
                         match tx.try_send(event.clone()) {
                             Ok(()) => {
                                 tracing::debug!(

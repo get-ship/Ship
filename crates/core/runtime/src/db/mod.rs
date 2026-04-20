@@ -1,8 +1,9 @@
-//! Platform DB — relational state (workspaces, sessions, jobs, targets).
+//! Platform DB — relational state (workspaces, sessions, jobs, targets)
+//! plus the shared `events` table backing every actor's event log.
 //!
-//! Path: `~/.ship/platform.db`.  Migrations in `migrations/`.
-//! Per-actor event stores live under `~/.ship/actors/` and are managed
-//! by `KernelRouter`, not this module.
+//! Path: `~/.ship/platform.db`. Migrations in `migrations/`.
+//! Actors are a logical boundary over this shared log — see
+//! `persistence::actor_store` for the namespace-scoped write/read handle.
 
 pub mod actor_events;
 pub mod adrs;

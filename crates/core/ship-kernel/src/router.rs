@@ -16,7 +16,7 @@ use crate::sink::EventSink;
 use crate::validator::EventValidator;
 use crate::KernelError;
 
-pub(crate) const MAILBOX_CAPACITY: usize = 256;
+pub const MAILBOX_CAPACITY: usize = 256;
 
 /// Kernel-managed event router with per-actor isolation.
 pub struct KernelRouter {
@@ -105,6 +105,39 @@ impl KernelRouter {
             .collect()
     }
 
+    /// Deliver an event directly to a named actor's mailbox. No persistence, no validation.
+    ///
+    /// Used by runtime-specific delivery paths (e.g. scope-filtered delivery in
+    /// the `unstable` feature) that need per-actor control over which events are
+    /// forwarded. Returns `true` if the actor exists and the send was attempted,
+    /// `false` if the actor is not registered. Silently drops if the mailbox is
+    /// full or closed (callers that need overflow handling should check the return
+    /// and emit their own diagnostic events).
+    pub fn send_to_actor(&self, actor_id: &str, event: EventEnvelope) -> bool {
+        if let Some(tx) = self.mailboxes.get(actor_id) {
+            let _ = tx.try_send(event);
+            true
+        } else {
+            false
+        }
+    }
+
+    /// Sender handle for a registered actor's mailbox, or `None` if not found.
+    ///
+    /// Used by runtime-specific delivery paths that need to check the channel
+    /// state (e.g. to detect a full mailbox) before deciding how to proceed.
+    pub fn mailbox_sender(&self, actor_id: &str) -> Option<&mpsc::Sender<EventEnvelope>> {
+        self.mailboxes.get(actor_id)
+    }
+
+    /// Snapshot of all namespace → actor-ID subscription mappings.
+    ///
+    /// Used by runtime-specific delivery paths (e.g. scope-filtered delivery)
+    /// that need to inspect subscription state without going through `route`.
+    pub fn subscriptions(&self) -> &HashMap<String, Vec<String>> {
+        &self.subscriptions
+    }
+
     /// Validate, persist, and deliver an event.
     pub async fn route(&self, event: EventEnvelope) -> anyhow::Result<()> {
         // Run validators
@@ -115,12 +148,23 @@ impl KernelRouter {
         // Persist via sink
         self.sink.persist(&event)?;
 
+        // Deliver without re-running validators or persisting.
+        self.deliver(&event);
+        Ok(())
+    }
+
+    /// Deliver an event to subscribers without persistence or validation.
+    ///
+    /// Used by callers that have already persisted the event and just need
+    /// to push it to in-memory mailboxes (e.g. the deprecated `route()` path
+    /// in the runtime wrapper that skips persistence).
+    pub fn deliver(&self, event: &EventEnvelope) {
         // Direct message — deliver only to target
         if let Some(ref target) = event.target_actor_id {
             if let Some(tx) = self.mailboxes.get(target) {
                 let _ = tx.try_send(event.clone());
             }
-            return Ok(());
+            return;
         }
 
         // Broadcast — deliver to matching subscribers
@@ -133,7 +177,5 @@ impl KernelRouter {
                 }
             }
         }
-
-        Ok(())
     }
 }
