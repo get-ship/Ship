@@ -1,0 +1,28 @@
+{#-
+  Render a canvas artifact (HTML stored in the artifacts collection) inside
+  the standard view-session shell. The agent passes the loaded HTML in
+  `context.artifact_html` at open-time; live patches/signals address the
+  view session by id afterwards.
+
+  Context:
+    - view_id        : ULID assigned by the registry
+    - title          : optional human-facing title
+    - context        : { artifact_id?, artifact_html? }
+-#}
+{% extends '_page_shell.html.j2' %}
+
+{% block title %}{{ title | default('Canvas') }}{% endblock %}
+
+{% block body_class %}ship-canvas{% endblock %}
+
+{% block body %}
+<ship-annotation-layer view-id="{{ view_id }}" mode="point" staging>
+  <div
+    id="root"
+    class="ship-canvas-root"
+    data-init="@get('/api/runtime/view-sessions/{{ view_id }}', {requestCancellation: 'disabled'})"
+  >
+    {{ context.artifact_html | default('<p class="ship-canvas-empty">awaiting first patch…</p>') | safe }}
+  </div>
+</ship-annotation-layer>
+{% endblock %}

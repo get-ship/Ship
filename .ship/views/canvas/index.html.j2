@@ -1,4 +1,4 @@
-{#- Canvas workspace — agent-authored visual documents with feedback. -#}
+{#- Canvas workspace — agent-authored interaction artifacts with feedback. -#}
 {% from '_ship.html.j2' import head, styles, toast_container %}
 {% if not fragment %}
 <!DOCTYPE html>
@@ -24,7 +24,7 @@
     .canvas-rail-item.active { background: color-mix(in oklch, var(--primary) 12%, transparent); border-left-color: var(--primary); }
     .canvas-rail-item-title { font-size: var(--text-sm); font-weight: var(--font-weight-medium); }
     .canvas-rail-item-meta { display: flex; align-items: center; gap: var(--space-2); margin-top: var(--space-1); }
-    .canvas-rail-item-slug { font-family: var(--font-mono); font-size: var(--text-xs); color: var(--muted-foreground); }
+    .canvas-rail-item-id { font-family: var(--font-mono); font-size: 10px; color: var(--muted-foreground); opacity: 0.7; }
     .canvas-rail-item-detail { font-size: 10px; color: var(--muted-foreground); opacity: 0.7; }
     .canvas-rail-empty { padding: var(--space-5) var(--space-3); font-size: var(--text-xs); color: var(--muted-foreground); line-height: 1.5; }
     .canvas-rail-empty code { font-family: var(--font-mono); background: var(--muted); padding: 1px var(--space-1); border-radius: var(--radius-sm); font-size: var(--text-xs); }
@@ -38,7 +38,8 @@
     .canvas-rail-cta { padding: var(--space-3); border-top: 1px solid var(--border); }
     .canvas-rail-cta a { font-size: var(--text-xs); color: var(--muted-foreground); text-decoration: none; cursor: pointer; transition: color var(--duration-fast) var(--ease-out); }
     .canvas-rail-cta a:hover { color: var(--primary); }
-    .canvas-main { overflow-y: auto; background: var(--background); }
+    .canvas-main { overflow: hidden; background: var(--background); position: relative; }
+    .canvas-doc { padding: var(--space-6); height: 100%; overflow-y: auto; }
     .canvas-empty { display: flex; align-items: center; justify-content: center; height: 100%; padding: var(--space-8); text-align: center; color: var(--muted-foreground); flex-direction: column; gap: var(--space-3); }
     .canvas-empty ship-icon { font-size: 48px; opacity: 0.3; }
     .canvas-empty-title { font-family: var(--font-display); font-size: var(--text-xl); font-weight: var(--font-weight-semibold); color: var(--foreground); }
@@ -48,31 +49,33 @@
 
 {% set docs = ship_canvas_docs() %}
 {% set active_slug = query.doc if query and query.doc else (docs[0].slug if docs else '') %}
-{% set feedback_items = ship_feedback_recent(5) if ship_feedback_recent is defined else [] %}
+{% set active_doc_html = ship_canvas_doc_content(active_slug) if active_slug else '' %}
+{% set feedback_items = ship_query('feedback', {'_sort': '-created_at', '_limit': 5}) %}
 
-<div class="canvas-workspace">
+<div class="canvas-workspace"
+     data-on-load="@get('/api/runtime/view/canvas/sse', {openWhenHidden: true})">
 
   {# -- Sidebar --------------------------------------------------------- #}
   <aside class="canvas-rail">
     <div class="canvas-rail-head">
       <h1 class="canvas-rail-title">Canvas</h1>
-      <div class="canvas-rail-sub">{{ docs | length }} document{{ "s" if docs|length != 1 else "" }}</div>
+      <div class="canvas-rail-sub">{{ docs | length }} artifact{{ "s" if docs|length != 1 else "" }}</div>
     </div>
     <div class="canvas-rail-list">
       {% if docs | length == 0 %}
       <div class="canvas-rail-empty">
-        No canvases yet. Agents create them at <code>.ship/views/canvas/docs/</code>.
+        No canvas artifacts yet. Agents create them by uploading HTML to
+        <code>POST /api/artifacts</code> with <code>collection_id=canvas</code>.
       </div>
       {% else %}
         {% for doc in docs %}
         <a href="/canvas/{{ doc.slug }}"
            class="canvas-rail-item {% if doc.slug == active_slug %}active{% endif %}"
            data-on:click.prevent="window.router ? window.router.navigate('/canvas/{{ doc.slug }}') : void(0)">
-          <span class="canvas-rail-item-title">{{ doc.title }}</span>
+          <span class="canvas-rail-item-title">{{ doc.title or doc.slug }}</span>
           <span class="canvas-rail-item-meta">
-            <span class="canvas-rail-item-slug">{{ doc.slug }}.html.j2</span>
-            {% if doc.modified %}<span class="canvas-rail-item-detail">{{ doc.modified }}</span>{% endif %}
-            {% if doc.lines %}<span class="canvas-rail-item-detail">{{ doc.lines }}L</span>{% endif %}
+            <span class="canvas-rail-item-id">{{ doc.slug[:8] }}</span>
+            {% if doc.modified %}<span class="canvas-rail-item-detail">{{ doc.modified[:16] }}</span>{% endif %}
           </span>
         </a>
         {% endfor %}
@@ -80,14 +83,14 @@
     </div>
 
     {# -- Recent Feedback ------------------------------------------------ #}
-    <div class="canvas-rail-section">
+    <div class="canvas-rail-section" id="canvas-feedback-panel">
       <h2 class="canvas-rail-section-title">Recent Feedback</h2>
       {% if feedback_items and feedback_items | length > 0 %}
         {% for fb in feedback_items %}
         <div class="canvas-feedback-item">
-          <span class="canvas-feedback-author">{{ fb.author_kind | default('human') }}</span>
+          <span class="canvas-feedback-author">{{ fb.data.actor or fb.created_by or 'human' }}</span>
           <span class="canvas-feedback-time">{{ fb.created_at[:16] if fb.created_at else '' }}</span>
-          <div>{{ fb.payload | string | truncate(60) if fb.payload else '(empty)' }}</div>
+          <div>{{ (fb.data.annotation or fb.data.target_id or '(action)') | string | truncate(60) }}</div>
         </div>
         {% endfor %}
       {% else %}
@@ -105,19 +108,31 @@
 
   {# -- Main pane -------------------------------------------------------- #}
   <main class="canvas-main">
-    {% if active_slug %}
-      {% include 'canvas/docs/' ~ active_slug ~ '.html.j2' ignore missing %}
+    {% if active_slug and active_doc_html %}
+      <ship-annotation-layer view-id="{{ active_slug }}" mode="point" staging>
+        <div id="canvas-doc" class="canvas-doc">{{ active_doc_html | safe }}</div>
+      </ship-annotation-layer>
+    {% elif active_slug %}
+      <div class="canvas-empty">
+        <ship-icon name="alert-circle" aria-hidden="true"></ship-icon>
+        <div class="canvas-empty-title">Artifact not found</div>
+        <div class="canvas-empty-desc">
+          Canvas artifact <code>{{ active_slug }}</code> isn't in the
+          artifacts collection or its blob is missing.
+        </div>
+      </div>
     {% else %}
       <div class="canvas-empty">
         <ship-icon name="image" aria-hidden="true"></ship-icon>
         <div class="canvas-empty-title">Create a Canvas</div>
         <div class="canvas-empty-desc">
-          The canvas is where agents create visual artifacts for your review.
-          Ask an agent to design a component, review a layout, or prototype
-          an interaction.
+          Canvas is the live interaction surface — rating cards, working
+          prototypes, spec viewers with action buttons. Ask an agent to
+          create one.
         </div>
         <div class="canvas-empty-hint">
-          Canvases appear here automatically when agents create them.
+          Each canvas is a single HTML artifact in the files collection.
+          Annotations and feedback flow back to the agent in real time.
         </div>
       </div>
     {% endif %}

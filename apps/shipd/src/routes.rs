@@ -197,6 +197,11 @@ pub enum Route {
     /// @route POST "/api/runtime/feedback"
     PostFeedback,
 
+    // ── Annotations (canvas overlay wire format) ─────────────────────────
+
+    /// @route POST "/api/runtime/annotations"
+    PostAnnotation,
+
     // ── Runtime listings ─────────────────────────────────────────────────
 
     /// @route GET "/api/runtime/workspaces"

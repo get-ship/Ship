@@ -10,16 +10,39 @@
 use crate::network_client;
 use crate::requests::{
     ViewAppendRequest, ViewCloseRequest, ViewOpenRequest, ViewPatchRequest, ViewSignalRequest,
+    ViewTarget,
 };
 
 pub async fn view_open(actor_id: &str, req: ViewOpenRequest) -> String {
-    match network_client::view_open(
-        actor_id,
-        &req.template,
-        req.title.as_deref(),
-        req.initial_context.as_ref(),
-    )
-    .await
+    let (template, mut context) = match req.target {
+        Some(ViewTarget::Canvas { id }) => match network_client::artifact_download(&id).await {
+            Ok(html) => {
+                let ctx = serde_json::json!({
+                    "artifact_id": id,
+                    "artifact_html": html,
+                });
+                ("canvas/artifact".to_string(), Some(ctx))
+            }
+            Err(e) => return format!("Error: failed to load canvas artifact '{id}': {e}"),
+        },
+        None => match req.template {
+            Some(t) => (t, req.initial_context.clone()),
+            None => return "Error: view.open requires either `template` or `target`".to_string(),
+        },
+    };
+    if let Some(extra) = req.initial_context.as_ref() {
+        // When the caller supplies both target and initial_context, merge:
+        // explicit context keys win, with artifact_html falling through.
+        if let Some(merged) = context.as_mut()
+            && let (Some(into), Some(from)) = (merged.as_object_mut(), extra.as_object())
+        {
+            for (k, v) in from {
+                into.insert(k.clone(), v.clone());
+            }
+        }
+    }
+    match network_client::view_open(actor_id, &template, req.title.as_deref(), context.as_ref())
+        .await
     {
         Ok(body) => body,
         Err(e) => format!("Error: {e}"),

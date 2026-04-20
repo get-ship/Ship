@@ -214,6 +214,35 @@ async fn studio_events_delivered_to_skill_peers_without_declaration() {
     assert_eq!(log.lock().await.len(), 1);
 }
 
+/// Canvas loop contract: feedback + annotation events produced by the
+/// canvas REST handlers reach every connected agent peer regardless of
+/// whether their active skill declared them in `in:`. Both event names
+/// live under the `studio.` system prefix so the round trip is guaranteed.
+#[tokio::test]
+async fn canvas_round_trip_events_reach_all_peers() {
+    let (a, la) = MockAdapter::new();
+    let (b, lb) = MockAdapter::new();
+    let relay = EventRelay::new();
+    relay.add_peer(system_peer("system", a)).await;
+    relay
+        .add_peer(skill_peer("skill-restricted", b, vec!["unrelated.event"]))
+        .await;
+    run_relay(
+        relay,
+        vec![
+            envelope("studio.feedback.created"),
+            envelope("studio.annotation.created"),
+        ],
+    )
+    .await;
+    assert_eq!(la.lock().await.len(), 2, "system peer missed canvas events");
+    assert_eq!(
+        lb.lock().await.len(),
+        2,
+        "skill-restricted peer missed canvas events under studio.* prefix"
+    );
+}
+
 // ── Workspace scoping tests ─────────────────────────────────
 
 #[tokio::test]

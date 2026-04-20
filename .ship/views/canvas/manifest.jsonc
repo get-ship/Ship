@@ -1,0 +1,21 @@
+{
+  // Canvas workspace: hosts agent-authored interaction artifacts. Each
+  // artifact is a row in the built-in `artifacts` collection tagged with
+  // `collection_id = "canvas"`; HTML bytes live on disk under
+  // ~/.ship/artifacts/<project>/blobs/. Agents create them at runtime
+  // (POST /api/artifacts), the rail re-renders on collection events.
+  "name": "canvas",
+  "type": "html",
+  "description": "Live interaction surface — agent-created HTML artifacts with annotation + feedback round-trip",
+
+  // SSE subscriptions. The rail listens for canvas-artifact mutations and
+  // for round-tripped feedback / annotation events so the panel updates
+  // without a full page reload.
+  "events": [
+    "collection.item_created",
+    "collection.item_updated",
+    "collection.item_deleted",
+    "studio.feedback.created",
+    "studio.annotation.created"
+  ]
+}
