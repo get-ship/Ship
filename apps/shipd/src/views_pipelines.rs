@@ -523,6 +523,16 @@ pub struct PipelineFocusCtx {
     /// Raw pipeline document as JSON (converted from YAML/JSONC) — the
     /// template unpacks steps, gate rules, vars, auto_merge, step_specs.
     pub doc: serde_json::Value,
+    /// Verbatim file contents on disk (JSONC or YAML). Fed into
+    /// <ship-code-editor> for the raw-edit mode. Writes go back to
+    /// PUT /api/workspaces/{workspace_id}/pipelines/{name}.
+    pub raw: String,
+    /// On-disk file extension — "jsonc" (preferred) or "yaml".
+    pub format: String,
+    /// Workspace id (= current git branch at the project root) that
+    /// the editor PUTs back to. None when the daemon can't resolve
+    /// a current workspace.
+    pub workspace_id: Option<String>,
     /// Runs of this pipeline, newest first.
     pub runs: Vec<RunView>,
     /// Provider IDs on PATH for the dispatch form.
@@ -589,7 +599,41 @@ pub fn build_focus_ctx(name: &str, ship_dir: &std::path::Path) -> Option<Pipelin
         .map(|d| d.id.to_string())
         .collect();
 
-    Some(PipelineFocusCtx { name: name.to_string(), def, doc, runs, providers })
+    let format = path
+        .extension()
+        .and_then(|e| e.to_str())
+        .unwrap_or("jsonc")
+        .to_string();
+    let workspace_id = current_project_workspace_id();
+
+    Some(PipelineFocusCtx {
+        name: name.to_string(),
+        def,
+        doc,
+        raw,
+        format,
+        workspace_id,
+        runs,
+        providers,
+    })
+}
+
+/// The workspace id the editor PUTs to — current git branch at the
+/// project root the daemon is attached to. None when the project
+/// isn't a git repo or the branch can't be determined.
+fn current_project_workspace_id() -> Option<String> {
+    let project_ship = runtime::project::get_project_dir(None).ok()?;
+    let root = project_ship.parent()?;
+    let out = std::process::Command::new("git")
+        .args(["rev-parse", "--abbrev-ref", "HEAD"])
+        .current_dir(root)
+        .output()
+        .ok()?;
+    if !out.status.success() {
+        return None;
+    }
+    let branch = String::from_utf8_lossy(&out.stdout).trim().to_string();
+    if branch.is_empty() { None } else { Some(branch) }
 }
 
 /// GET /api/runtime/view/pipelines/pipeline/{name} — per-pipeline focus shell.

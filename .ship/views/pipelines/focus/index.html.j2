@@ -13,7 +13,11 @@
 <head>{{ head(name) }}</head>
 <body>
 {% endif %}
-<div id="ship-view-root" class="ship-view ship-view-pipeline-focus">
+<div id="ship-view-root" class="ship-view ship-view-pipeline-focus"
+     {{ signal('edit_mode', false) }}
+     {{ signal('edit_draft', raw) }}
+     {{ signal('edit_saving', false) }}
+     {{ signal('edit_error', '') }}>
   <style>
   .ship-view-pipeline-focus { color: var(--foreground); background: var(--background); }
   .ship-focus-wrap {
@@ -99,7 +103,26 @@
         {% endif %}
       </div>
       <div class="ship-focus-actions">
-        <ship-button tone="accent" variant="solid"
+        {% if workspace_id %}
+        <ship-button variant="outline" data-show="!$edit_mode"
+          data-on:click="$edit_mode = true; $edit_draft = {{ raw | tojson }}; $edit_error = ''">
+          <ship-icon slot="leading" name="edit-3" size="sm"></ship-icon>
+          Edit
+        </ship-button>
+        <ship-button variant="outline" data-show="$edit_mode"
+          data-on:click="$edit_mode = false; $edit_draft = {{ raw | tojson }}; $edit_error = ''">
+          Cancel
+        </ship-button>
+        <ship-button tone="accent" variant="solid" data-show="$edit_mode"
+          data-on:click="@put('/api/workspaces/{{ workspace_id }}/pipelines/{{ name }}', {
+            contentType: 'json',
+            body: JSON.stringify({ content: $edit_draft })
+          })">
+          <ship-icon slot="leading" name="check" size="sm"></ship-icon>
+          Save
+        </ship-button>
+        {% endif %}
+        <ship-button tone="accent" variant="solid" data-show="!$edit_mode"
           data-on:click="document.getElementById('dispatch-dialog').showModal()">
           <ship-icon slot="leading" name="play" size="sm"></ship-icon>
           Dispatch
@@ -192,8 +215,25 @@
       </div>
     </section>
 
-    {# ── Steps definition ──────────────────────────────────────── #}
-    <ship-card>
+    {# ── Raw editor (edit mode) ────────────────────────────────── #}
+    <ship-card data-show="$edit_mode">
+      <div slot="header" style="display: flex; align-items: center; justify-content: space-between; gap: var(--space-2);">
+        <h3 class="ship-focus-section-label">
+          Edit {{ format }}
+        </h3>
+        <ship-chip size="sm" tone="warning">editing</ship-chip>
+      </div>
+      <ship-alert tone="destructive" compact data-show="$edit_error">
+        <span data-text="$edit_error"></span>
+      </ship-alert>
+      <ship-code-editor
+        language="{{ 'jsonc' if format == 'jsonc' else ('json' if format == 'json' else 'yaml') }}"
+        data-bind="edit_draft"
+        style="min-height: 24rem;">{{ raw }}</ship-code-editor>
+    </ship-card>
+
+    {# ── Steps definition (read mode) ───────────────────────────── #}
+    <ship-card data-show="!$edit_mode">
       <h3 slot="header" class="ship-focus-section-label">Steps</h3>
       {% if doc.steps and doc.steps | length > 0 %}
         {% for step in doc.steps %}
