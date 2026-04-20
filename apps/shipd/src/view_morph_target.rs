@@ -16,7 +16,9 @@
 //! Datastar (`Datastar-Request: true` header), strip the outer
 //! `<!DOCTYPE html>...<body>` wrapping and return ONLY the inner view
 //! content. Also set `datastar-selector: #ship-view-root` and
-//! `datastar-mode: outer` so Datastar patches only that element.
+//! `datastar-mode: inner` so Datastar replaces the mount point's
+//! children without touching the shell's stable `<main id="ship-view-root"
+//! class="ship-content">` element itself (keeping its layout class).
 //! Non-Datastar callers (plain browser, curl) get the full page unchanged.
 
 use axum::{
@@ -63,7 +65,7 @@ pub async fn view_morph_target_middleware(req: Request<Body>, next: Next) -> Res
             .or_insert(HeaderValue::from_static("#ship-view-root"));
         headers
             .entry("datastar-mode")
-            .or_insert(HeaderValue::from_static("outer"));
+            .or_insert(HeaderValue::from_static("inner"));
         return response;
     }
 
@@ -94,90 +96,53 @@ pub async fn view_morph_target_middleware(req: Request<Body>, next: Next) -> Res
     parts
         .headers
         .entry("datastar-mode")
-        .or_insert(HeaderValue::from_static("outer"));
+        .or_insert(HeaderValue::from_static("inner"));
     parts.headers.remove(axum::http::header::CONTENT_LENGTH);
 
     Response::from_parts(parts, Body::from(output))
 }
 
-/// Extract the fragment rooted at `<* id="ship-view-root">` (and its
-/// closing tag) from a full HTML document. Also prepends any `<style>`
-/// blocks from before the root element so view-specific CSS isn't lost
-/// when the `<head>` is stripped.
+/// Extract the body content of a full HTML document. Returns everything
+/// between `<body...>` and `</body>`, prepended by any `<style>` blocks
+/// from `<head>` (so per-view CSS isn't lost when the chrome is stripped).
+/// Falls back to returning the input unchanged if no `<body>` is found.
 fn extract_fragment(html: &str) -> String {
-    let needle = "id=\"ship-view-root\"";
-    let Some(id_pos) = html.find(needle) else {
+    // Collect <style> blocks from the <head> so per-view CSS survives.
+    let mut styles = String::new();
+    let head_end = html.find("</head>").unwrap_or(0);
+    if head_end > 0 {
+        let head_slice = &html[..head_end];
+        let mut search_from = 0;
+        while let Some(style_start) = head_slice[search_from..].find("<style") {
+            let abs_start = search_from + style_start;
+            if let Some(style_end) = head_slice[abs_start..].find("</style>") {
+                let abs_end = abs_start + style_end + "</style>".len();
+                styles.push_str(&head_slice[abs_start..abs_end]);
+                styles.push('\n');
+                search_from = abs_end;
+            } else {
+                break;
+            }
+        }
+    }
+
+    // Find <body ...> and </body> and return the content between.
+    let Some(body_open_start) = html.find("<body") else {
         return html.to_string();
     };
-    // Walk back to the start of the tag that owns this attribute.
-    let start = html[..id_pos].rfind('<').unwrap_or(0);
-
-    // Collect all <style>...</style> blocks from before the root element.
-    // These live in <head> and would be lost when we strip the page wrapper.
-    let mut styles = String::new();
-    let before_root = &html[..start];
-    let mut search_from = 0;
-    while let Some(style_start) = before_root[search_from..].find("<style") {
-        let abs_start = search_from + style_start;
-        if let Some(style_end) = before_root[abs_start..].find("</style>") {
-            let abs_end = abs_start + style_end + "</style>".len();
-            styles.push_str(&before_root[abs_start..abs_end]);
-            styles.push('\n');
-            search_from = abs_end;
-        } else {
-            break;
-        }
-    }
-    // From the start tag, walk forward balancing open/close tags so nested
-    // elements with the same tag name don't prematurely end the fragment.
-    // Simpler approach: find the matching close tag by counting opens/closes
-    // of the SAME element name (the one that carries the id).
-    let tag_name = parse_tag_name(&html[start..]);
-    let Some(tag_name) = tag_name else {
-        return html[start..].to_string();
+    let Some(body_open_end_rel) = html[body_open_start..].find('>') else {
+        return html.to_string();
     };
-    let open_pat = format!("<{tag_name}");
-    let close_pat = format!("</{tag_name}>");
-    let mut depth = 0usize;
-    let mut cursor = start;
-    let bytes = html.as_bytes();
-    while cursor < bytes.len() {
-        let rest = &html[cursor..];
-        let next_open = rest.find(&open_pat).map(|i| i + cursor);
-        let next_close = rest.find(&close_pat).map(|i| i + cursor);
-        match (next_open, next_close) {
-            (Some(o), Some(c)) if o < c => {
-                depth += 1;
-                cursor = o + open_pat.len();
-            }
-            (_, Some(c)) => {
-                depth -= 1;
-                if depth == 0 {
-                    let end = c + close_pat.len();
-                    let root = &html[start..end];
-                    return if styles.is_empty() {
-                        root.to_string()
-                    } else {
-                        format!("{styles}{root}")
-                    };
-                }
-                cursor = c + close_pat.len();
-            }
-            _ => break,
-        }
-    }
-    let rest = &html[start..];
+    let content_start = body_open_start + body_open_end_rel + 1;
+    let Some(body_close_start) = html[content_start..].rfind("</body>") else {
+        return html.to_string();
+    };
+    let content = html[content_start..content_start + body_close_start].trim();
     if styles.is_empty() {
-        rest.to_string()
+        content.to_string()
     } else {
-        format!("{styles}{rest}")
+        format!("{styles}\n{content}")
     }
-}
-
-fn parse_tag_name(s: &str) -> Option<String> {
-    let s = s.strip_prefix('<')?;
-    let end = s.find(|c: char| c.is_whitespace() || c == '>')?;
-    Some(s[..end].to_string())
 }
 
 #[cfg(test)]
@@ -185,43 +150,43 @@ mod tests {
     use super::*;
 
     #[test]
-    fn extracts_from_full_page() {
+    fn extracts_body_content_from_full_page() {
         let html = r#"<!DOCTYPE html>
 <html>
 <head><title>x</title></head>
 <body>
-<div id="ship-view-root" class="ship-view">hello <span>world</span></div>
+<div class="ship-view">hello <span>world</span></div>
 </body>
 </html>"#;
         let frag = extract_fragment(html);
-        assert!(frag.starts_with(r#"<div id="ship-view-root""#));
+        assert!(frag.starts_with(r#"<div class="ship-view""#));
         assert!(frag.ends_with("</div>"));
         assert!(frag.contains("hello"));
         assert!(!frag.contains("DOCTYPE"));
+        assert!(!frag.contains("<head>"));
         assert!(!frag.contains("<body>"));
     }
 
     #[test]
     fn handles_nested_divs() {
-        let html = r#"<body>
-<div id="ship-view-root"><div>inner</div><div>inner 2</div></div>
-</body>"#;
+        let html = r#"<!DOCTYPE html><html><head></head><body>
+<div class="ship-view"><div>inner</div><div>inner 2</div></div>
+</body></html>"#;
         let frag = extract_fragment(html);
         assert!(frag.contains("inner 2"));
-        assert!(frag.ends_with("</div>"));
         assert_eq!(frag.matches("</div>").count(), 3);
     }
 
     #[test]
-    fn works_on_main_element() {
-        let html = r#"<body><main id="ship-view-root">content</main></body>"#;
+    fn works_when_root_is_main_element() {
+        let html = r#"<!DOCTYPE html><html><head></head><body><main class="ship-view">content</main></body></html>"#;
         let frag = extract_fragment(html);
-        assert_eq!(frag, r#"<main id="ship-view-root">content</main>"#);
+        assert_eq!(frag, r#"<main class="ship-view">content</main>"#);
     }
 
     #[test]
-    fn falls_back_when_marker_missing() {
-        let html = "<body>no wrapper here</body>";
+    fn falls_back_when_no_body() {
+        let html = "no doctype no body";
         assert_eq!(extract_fragment(html), html);
     }
 
@@ -234,13 +199,14 @@ mod tests {
 <style>.bar { padding: 10px; }</style>
 </head>
 <body>
-<div id="ship-view-root">content</div>
+<div class="ship-view">content</div>
 </body>
 </html>"#;
         let frag = extract_fragment(html);
         assert!(frag.contains(".foo { color: red; }"), "first style block preserved");
         assert!(frag.contains(".bar { padding: 10px; }"), "second style block preserved");
-        assert!(frag.contains("id=\"ship-view-root\""), "root element present");
+        assert!(frag.contains("class=\"ship-view\""), "root element present");
         assert!(!frag.contains("DOCTYPE"), "no DOCTYPE");
+        assert!(!frag.contains("<head>"), "no head tag");
     }
 }
