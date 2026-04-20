@@ -67,4 +67,14 @@ describe('ship-avatar', () => {
     const el = await mount('<ship-avatar src="/pic.png" name="Ada"></ship-avatar>')
     expect(el.hasAttribute('data-initials')).toBe(false)
   })
+
+  it('size="sm" is 28px to match compact list-tile rows', async () => {
+    // The prior 24px sm was smaller than the pre-migration 28px and
+    // had no production usage; bumping to 28px lets compact
+    // list-tile rows carry the gradient tile without reaching for md.
+    const staticStyles = ShipAvatar.styles as unknown as Array<{ cssText: string }>
+    const css = staticStyles.map((s) => s.cssText || String(s)).join('\n')
+    expect(css).toContain(`:host([size='sm']) { width: 28px; height: 28px;`)
+    expect(css).not.toContain('width: 24px')
+  })
 })

@@ -12,6 +12,12 @@
  *   - initials: explicit initials override (e.g. "AB"). Takes precedence
  *       over derivation from `name` when set. Uppercased for display.
  *   - size: sm | md | lg | xl (default md = 32px)
+ *       sm = 28px — bumped from 24px so compact list-tile rows with
+ *         density="compact" have a visible gradient tile. The previous
+ *         24px had zero production usage.
+ *       md = 32px (default)
+ *       lg = 40px
+ *       xl = 56px
  *   - tone: background tone for the initials fallback
  *
  * The initials fallback always renders with a primary→accent gradient
@@ -49,7 +55,7 @@ export class ShipAvatar extends LitElement {
         overflow: hidden;
         user-select: none;
       }
-      :host([size='sm']) { width: 24px; height: 24px; font-size: var(--text-xs); }
+      :host([size='sm']) { width: 28px; height: 28px; font-size: var(--text-xs); }
       :host([size='lg']) { width: 40px; height: 40px; font-size: var(--text-md); }
       :host([size='xl']) { width: 56px; height: 56px; font-size: var(--text-lg); }
 
