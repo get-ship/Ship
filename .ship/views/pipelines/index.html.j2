@@ -105,52 +105,7 @@
     <span>Best experienced on desktop</span>
   </div>
 
-  <ship-dialog id="dispatch-dialog" size="lg"
-    {{ signal('dispatch_pipeline', (defs[0].name if defs and defs | length > 0 else '')) }}
-    {{ signal('dispatch_spec', '') }}
-    {{ signal('dispatch_provider', '') }}
-    {{ signal('dispatch_headless', true) }}>
-    <span slot="header">Dispatch pipeline run</span>
-    <ship-field label="Pipeline">
-      <ship-select data-bind="dispatch_pipeline">
-        {% for def in defs %}
-        <option value="{{ def.name }}">{{ def.name }}{% if def.description %} — {{ def.description }}{% endif %}</option>
-        {% endfor %}
-      </ship-select>
-    </ship-field>
-    <ship-field label="Spec" hint="Plain text or markdown — what the run should do.">
-      <ship-textarea data-bind="dispatch_spec" rows="10"
-        placeholder="Describe the work in one or two paragraphs..."></ship-textarea>
-    </ship-field>
-    <ship-field label="Provider override" hint="Optional — leave blank to use the pipeline's declared providers.">
-      <ship-select data-bind="dispatch_provider">
-        <option value="">(from pipeline)</option>
-        {% for p in providers %}<option value="{{ p }}">{{ p }}</option>{% endfor %}
-      </ship-select>
-    </ship-field>
-    <ship-field>
-      <ship-checkbox data-bind="dispatch_headless">Headless (run without tmux)</ship-checkbox>
-    </ship-field>
-    <div slot="footer">
-      <ship-button variant="outline"
-        data-on:click="document.getElementById('dispatch-dialog').close()">
-        Cancel
-      </ship-button>
-      <ship-button tone="accent" variant="solid"
-        data-on:click="@post('/api/runtime/dispatch', {
-          contentType: 'json',
-          body: JSON.stringify({
-            pipeline: $dispatch_pipeline,
-            spec: $dispatch_spec,
-            provider: $dispatch_provider || null,
-            headless: $dispatch_headless
-          })
-        }); document.getElementById('dispatch-dialog').close()">
-        <ship-icon slot="leading" name="play" size="sm"></ship-icon>
-        Dispatch
-      </ship-button>
-    </div>
-  </ship-dialog>
+  {% include 'pipelines/partials/dispatch_dialog.html.j2' %}
 
   {# ── New pipeline ─────────────────────────────────────────────── #}
   {% if workspace_id %}

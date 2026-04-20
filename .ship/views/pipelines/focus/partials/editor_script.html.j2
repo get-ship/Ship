@@ -1,0 +1,144 @@
+{#-
+  Editor save/cancel/delete helpers for the pipeline focus view.
+  Exposes three functions on `window`:
+    - tryCancelEdit(root, original) — exit edit mode, confirming on dirty
+    - savePipeline(workspaceId, name, draft, root) — PUT and push diagnostics
+    - deletePipeline(workspaceId, name) — DELETE and redirect
+  Plus: `?edit=1` auto-enters edit mode (New-pipeline redirect);
+        beforeunload warns on nav-away with an unsaved draft.
+-#}
+<script>
+(function () {
+  // Honor `?edit=1` query param — the New-pipeline flow redirects here
+  // after creating the file so the user lands in the editor immediately.
+  // Retry briefly because Datastar may not have bound signals yet on
+  // first paint.
+  if (/[?&]edit=1(&|$)/.test(window.location.search)) {
+    let tries = 0;
+    const flip = () => {
+      const root = document.getElementById('ship-view-root');
+      const sigs = root && root.__ds?.signals;
+      if (sigs && sigs.edit_mode) {
+        sigs.edit_mode.value = true;
+        return;
+      }
+      if (++tries < 20) setTimeout(flip, 50);
+    };
+    window.addEventListener('DOMContentLoaded', flip);
+  }
+
+  function getSignals(root) { return root.__ds?.signals; }
+  function setSignal(root, k, v) {
+    const sigs = getSignals(root);
+    if (sigs && sigs[k]) { sigs[k].value = v; return; }
+    root.setAttribute('data-signal-' + k, v);
+  }
+  function getSignal(root, k) {
+    const sigs = getSignals(root);
+    return sigs && sigs[k] ? sigs[k].value : undefined;
+  }
+
+  // Called by the Cancel button and by the editor's ship-cancel event.
+  // Confirms before discarding a dirty draft; plain cancel otherwise.
+  window.tryCancelEdit = function (root, original) {
+    const draft = getSignal(root, 'edit_draft');
+    if (draft !== undefined && draft !== original) {
+      if (!window.confirm('Discard unsaved changes to this pipeline?')) return;
+    }
+    setSignal(root, 'edit_draft', original);
+    setSignal(root, 'edit_mode', false);
+    setSignal(root, 'edit_error', '');
+    setSignal(root, 'edit_issue_count', 0);
+    const editor = root.querySelector('ship-code-editor');
+    if (editor && typeof editor.setDiagnostics === 'function') {
+      editor.setDiagnostics([]);
+    }
+  };
+
+  // Browser beforeunload — warn if leaving with a dirty draft.
+  window.addEventListener('beforeunload', function (e) {
+    const root = document.getElementById('ship-view-root');
+    if (!root) return;
+    const editMode = getSignal(root, 'edit_mode');
+    const draft = getSignal(root, 'edit_draft');
+    const orig = root.getAttribute('data-pipeline-raw') || '';
+    if (editMode && draft !== undefined && draft !== orig) {
+      e.preventDefault();
+      e.returnValue = '';
+    }
+  });
+
+  window.deletePipeline = async function (workspaceId, name) {
+    const url = '/api/workspaces/' + encodeURIComponent(workspaceId)
+      + '/pipelines/' + encodeURIComponent(name);
+    try {
+      const resp = await fetch(url, { method: 'DELETE', credentials: 'include' });
+      if (resp.ok) {
+        window.location.href = '/api/runtime/view/pipelines';
+        return;
+      }
+      const body = await resp.json().catch(function () { return {}; });
+      const msg = (body && body.data) || ('HTTP ' + resp.status);
+      window.alert('Delete failed: ' + (typeof msg === 'string' ? msg : JSON.stringify(msg)));
+    } catch (err) {
+      window.alert('Delete failed: ' + (err && err.message ? err.message : String(err)));
+    }
+  };
+
+  window.savePipeline = async function (workspaceId, name, draft, root) {
+    const set = function (k, v) { setSignal(root, k, v); };
+    const editor = root.querySelector('ship-code-editor');
+    const pushDiagnostics = function (issues) {
+      if (!editor || typeof editor.setDiagnostics !== 'function') return;
+      editor.setDiagnostics((issues || []).map(function (i) {
+        return {
+          line: i.line || 1,
+          column: i.column || 1,
+          severity: i.kind === 'parse' ? 'error' : 'warning',
+          message: i.message || 'validation error',
+          source: i.path || i.kind,
+        };
+      }));
+    };
+    set('edit_saving', true);
+    set('edit_error', '');
+    set('edit_error_line', 0);
+    set('edit_error_col', 0);
+    set('edit_issue_count', 0);
+    pushDiagnostics([]);
+    const url = '/api/workspaces/' + encodeURIComponent(workspaceId)
+      + '/pipelines/' + encodeURIComponent(name);
+    try {
+      const resp = await fetch(url, {
+        method: 'PUT',
+        credentials: 'include',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ content: draft }),
+      });
+      if (resp.ok) {
+        set('edit_mode', false);
+        set('edit_saving', false);
+        window.location.reload();
+        return;
+      }
+      const body = await resp.json().catch(function () { return {}; });
+      const data = (body && body.data) || {};
+      const issues = Array.isArray(data.issues) ? data.issues : (data.parse ? [data.parse] : []);
+      const primary = issues[0];
+      if (primary) {
+        set('edit_error', primary.message || 'validation error');
+        set('edit_error_line', primary.line || 0);
+        set('edit_error_col', primary.column || 0);
+        set('edit_issue_count', issues.length);
+        pushDiagnostics(issues);
+      } else {
+        set('edit_error', data.error || ('HTTP ' + resp.status));
+      }
+    } catch (err) {
+      set('edit_error', 'network: ' + (err && err.message ? err.message : String(err)));
+    } finally {
+      set('edit_saving', false);
+    }
+  };
+})();
+</script>

@@ -67,6 +67,25 @@
     grid-template-columns: repeat(4, minmax(0, 1fr));
     gap: var(--space-3);
   }
+  @media (max-width: 840px) {
+    .ship-focus-stats { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+  }
+  .ship-focus-kbd {
+    font-family: var(--font-mono);
+    font-size: var(--text-xs);
+    padding: 2px 6px;
+    border-radius: 4px;
+    background: color-mix(in oklch, var(--muted) 60%, transparent);
+    border: 1px solid color-mix(in oklch, var(--border) 70%, transparent);
+    color: var(--muted-foreground);
+  }
+  .ship-focus-kbd-hint {
+    display: inline-flex;
+    align-items: center;
+    gap: var(--space-1);
+    font-size: var(--text-xs);
+    color: var(--muted-foreground);
+  }
   .ship-focus-section-label {
     font-family: var(--font-display);
     font-size: var(--text-xs);
@@ -236,7 +255,14 @@
         <h3 class="ship-focus-section-label">
           Edit {{ format }}
         </h3>
-        <ship-chip size="sm" tone="warning">editing</ship-chip>
+        <div style="display: flex; align-items: center; gap: var(--space-2);">
+          <span class="ship-focus-kbd-hint">
+            <kbd class="ship-focus-kbd">⌘S</kbd><span>save</span>
+            <span style="margin: 0 var(--space-1); opacity: 0.5;">·</span>
+            <kbd class="ship-focus-kbd">Esc</kbd><span>cancel</span>
+          </span>
+          <ship-chip size="sm" tone="warning">editing</ship-chip>
+        </div>
       </div>
       <ship-alert tone="destructive" compact data-show="$edit_error">
         <ship-icon slot="leading" name="triangle-alert" size="sm"></ship-icon>
@@ -349,44 +375,8 @@
   </div>
 
   {# ── Dispatch dialog (scoped to this pipeline) ────────────────── #}
-  <ship-dialog id="dispatch-dialog" size="lg"
-    {{ signal('dispatch_spec', '') }}
-    {{ signal('dispatch_provider', '') }}
-    {{ signal('dispatch_headless', true) }}>
-    <span slot="header">Dispatch {{ name }}</span>
-    <ship-field label="Spec" hint="Plain text or markdown — what the run should do.">
-      <ship-textarea data-bind="dispatch_spec" rows="10"
-        placeholder="Describe the work in one or two paragraphs..."></ship-textarea>
-    </ship-field>
-    <ship-field label="Provider override" hint="Optional — leave blank to use the pipeline's declared providers.">
-      <ship-select data-bind="dispatch_provider">
-        <option value="">(from pipeline)</option>
-        {% for p in providers %}<option value="{{ p }}">{{ p }}</option>{% endfor %}
-      </ship-select>
-    </ship-field>
-    <ship-field>
-      <ship-checkbox data-bind="dispatch_headless">Headless (run without tmux)</ship-checkbox>
-    </ship-field>
-    <div slot="footer">
-      <ship-button variant="outline"
-        data-on:click="document.getElementById('dispatch-dialog').close()">
-        Cancel
-      </ship-button>
-      <ship-button tone="accent" variant="solid"
-        data-on:click="@post('/api/runtime/dispatch', {
-          contentType: 'json',
-          body: JSON.stringify({
-            pipeline: '{{ name }}',
-            spec: $dispatch_spec,
-            provider: $dispatch_provider || null,
-            headless: $dispatch_headless
-          })
-        }); document.getElementById('dispatch-dialog').close()">
-        <ship-icon slot="leading" name="play" size="sm"></ship-icon>
-        Dispatch
-      </ship-button>
-    </div>
-  </ship-dialog>
+  {% set fixed_pipeline = name %}
+  {% include 'pipelines/partials/dispatch_dialog.html.j2' %}
 
   {# ── Delete confirmation ──────────────────────────────────────── #}
   {% if workspace_id %}
@@ -402,147 +392,7 @@
   </ship-alert-dialog>
   {% endif %}
 </div>
-<script>
-// Raw-editor save helper — fetches the workspace PUT endpoint, reads
-// the structured parse/schema errors so the editor can place markers.
-// Signals on the root element are mutated via Datastar's proxied
-// signals API when available; falls back to `data-signal-*` writes.
-(function () {
-  // Honor `?edit=1` query param — the New-pipeline flow redirects here
-  // after creating the file so the user lands in the editor immediately.
-  // Retry briefly because Datastar may not have bound signals yet on
-  // first paint.
-  if (/[?&]edit=1(&|$)/.test(window.location.search)) {
-    let tries = 0;
-    const flip = () => {
-      const root = document.getElementById('ship-view-root');
-      const sigs = root && root.__ds?.signals;
-      if (sigs && sigs.edit_mode) {
-        sigs.edit_mode.value = true;
-        return;
-      }
-      if (++tries < 20) setTimeout(flip, 50);
-    };
-    window.addEventListener('DOMContentLoaded', flip);
-  }
-
-  function getSignals(root) {
-    return root.__ds?.signals;
-  }
-  function setSignal(root, k, v) {
-    const sigs = getSignals(root);
-    if (sigs && sigs[k]) { sigs[k].value = v; return; }
-    root.setAttribute('data-signal-' + k, v);
-  }
-  function getSignal(root, k) {
-    const sigs = getSignals(root);
-    return sigs && sigs[k] ? sigs[k].value : undefined;
-  }
-
-  // Called by the Cancel button and by the editor's ship-cancel event.
-  // Confirms before discarding a dirty draft; plain cancel otherwise.
-  window.tryCancelEdit = function (root, original) {
-    const draft = getSignal(root, 'edit_draft');
-    if (draft !== undefined && draft !== original) {
-      if (!window.confirm('Discard unsaved changes to this pipeline?')) return;
-    }
-    setSignal(root, 'edit_draft', original);
-    setSignal(root, 'edit_mode', false);
-    setSignal(root, 'edit_error', '');
-    setSignal(root, 'edit_issue_count', 0);
-    const editor = root.querySelector('ship-code-editor');
-    if (editor && typeof editor.setDiagnostics === 'function') {
-      editor.setDiagnostics([]);
-    }
-  };
-
-  // Browser beforeunload — warn if leaving with a dirty draft.
-  window.addEventListener('beforeunload', function (e) {
-    const root = document.getElementById('ship-view-root');
-    if (!root) return;
-    const editMode = getSignal(root, 'edit_mode');
-    const draft = getSignal(root, 'edit_draft');
-    const orig = root.getAttribute('data-pipeline-raw') || '';
-    if (editMode && draft !== undefined && draft !== orig) {
-      e.preventDefault();
-      e.returnValue = '';
-    }
-  });
-
-  window.deletePipeline = async function (workspaceId, name) {
-    const url = '/api/workspaces/' + encodeURIComponent(workspaceId)
-      + '/pipelines/' + encodeURIComponent(name);
-    try {
-      const resp = await fetch(url, { method: 'DELETE', credentials: 'include' });
-      if (resp.ok) {
-        window.location.href = '/api/runtime/view/pipelines';
-        return;
-      }
-      const body = await resp.json().catch(function () { return {}; });
-      const msg = (body && body.data) || ('HTTP ' + resp.status);
-      window.alert('Delete failed: ' + (typeof msg === 'string' ? msg : JSON.stringify(msg)));
-    } catch (err) {
-      window.alert('Delete failed: ' + (err && err.message ? err.message : String(err)));
-    }
-  };
-
-  window.savePipeline = async function (workspaceId, name, draft, root) {
-    const set = function (k, v) { setSignal(root, k, v); };
-    const editor = root.querySelector('ship-code-editor');
-    const pushDiagnostics = function (issues) {
-      if (!editor || typeof editor.setDiagnostics !== 'function') return;
-      editor.setDiagnostics((issues || []).map(function (i) {
-        return {
-          line: i.line || 1,
-          column: i.column || 1,
-          severity: i.kind === 'parse' ? 'error' : 'warning',
-          message: i.message || 'validation error',
-          source: i.path || i.kind,
-        };
-      }));
-    };
-    set('edit_saving', true);
-    set('edit_error', '');
-    set('edit_error_line', 0);
-    set('edit_error_col', 0);
-    set('edit_issue_count', 0);
-    pushDiagnostics([]);
-    const url = '/api/workspaces/' + encodeURIComponent(workspaceId)
-      + '/pipelines/' + encodeURIComponent(name);
-    try {
-      const resp = await fetch(url, {
-        method: 'PUT',
-        credentials: 'include',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify({ content: draft }),
-      });
-      if (resp.ok) {
-        set('edit_mode', false);
-        set('edit_saving', false);
-        window.location.reload();
-        return;
-      }
-      const body = await resp.json().catch(function () { return {}; });
-      const data = (body && body.data) || {};
-      const issues = Array.isArray(data.issues) ? data.issues : (data.parse ? [data.parse] : []);
-      const primary = issues[0];
-      if (primary) {
-        set('edit_error', primary.message || 'validation error');
-        set('edit_error_line', primary.line || 0);
-        set('edit_error_col', primary.column || 0);
-        set('edit_issue_count', issues.length);
-        pushDiagnostics(issues);
-      } else {
-        set('edit_error', data.error || ('HTTP ' + resp.status));
-      }
-    } catch (err) {
-      set('edit_error', 'network: ' + (err && err.message ? err.message : String(err)));
-    } finally {
-      set('edit_saving', false);
-    }
-  };
-})();
-</script>
+{% include 'pipelines/focus/partials/editor_script.html.j2' %}
 {% if not fragment %}
 </body>
 </html>

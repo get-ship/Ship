@@ -167,24 +167,27 @@ const PIPELINE_EXTS: &[&str] = &["jsonc", "yaml"];
 /// Missing directories return an empty vec — having no pipelines is a
 /// valid project state, not an error.
 pub fn list_pipeline_defs(ship_dir: &Path) -> Vec<PipelineDef> {
-    let dir = ship_dir.join("pipelines");
-    let resolved = if dir.is_dir() {
-        dir
-    } else {
-        // Walk up from CWD looking for .ship/pipelines/.
-        let mut walker = std::env::current_dir().ok();
-        let mut found = None;
-        while let Some(d) = walker.as_ref() {
-            let cand = d.join(".ship").join("pipelines");
-            if cand.is_dir() {
-                found = Some(cand);
-                break;
-            }
-            walker = d.parent().map(|p| p.to_path_buf());
+    // Prefer project-local .ship/pipelines/ discovered by walking up from
+    // CWD. Fall back to the daemon's global ship_dir/pipelines only when
+    // no project-local dir exists. The earlier "ship_dir first" order
+    // broke silently when an empty ~/.ship/pipelines/ got created by
+    // some unrelated bootstrapping — the daemon would then serve zero
+    // pipelines despite a populated project dir.
+    let mut walker = std::env::current_dir().ok();
+    let mut project_local = None;
+    while let Some(d) = walker.as_ref() {
+        let cand = d.join(".ship").join("pipelines");
+        if cand.is_dir() {
+            project_local = Some(cand);
+            break;
         }
-        match found {
-            Some(f) => f,
-            None => return Vec::new(),
+        walker = d.parent().map(|p| p.to_path_buf());
+    }
+    let resolved = match project_local {
+        Some(p) => p,
+        None => {
+            let global = ship_dir.join("pipelines");
+            if global.is_dir() { global } else { return Vec::new(); }
         }
     };
     let dir = resolved;
