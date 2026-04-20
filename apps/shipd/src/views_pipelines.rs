@@ -25,7 +25,8 @@ use std::path::PathBuf;
 use std::time::Duration;
 
 use crate::views::state::{
-    Filter, PipelineDef, list_pipeline_defs, list_pipeline_runs, partition_runs, status_token,
+    Filter, PipelineDef, aggregate_pipeline_stats, list_pipeline_defs, list_pipeline_runs,
+    partition_runs, status_token,
 };
 use crate::views::stream::{ViewSse, ViewStream};
 use crate::views::templates;
@@ -301,10 +302,11 @@ fn build_subtitle(stats: &Stats) -> String {
 }
 
 pub fn build_ctx(params: &PipelinesParams, ship_dir: &std::path::Path) -> PipelinesCtx {
-    let defs = list_pipeline_defs(ship_dir);
+    let mut defs = list_pipeline_defs(ship_dir);
     // Unfiltered pass populates the agent-chip row; the active
     // filter only narrows rendered runs, not the chip options.
     let all_runs = list_pipeline_runs(ship_dir, &Filter::default());
+    aggregate_pipeline_stats(&mut defs, all_runs.iter());
     let agents: Vec<String> = all_runs
         .iter()
         .map(|j| j.agent.clone())

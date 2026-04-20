@@ -31,12 +31,40 @@ use std::collections::HashMap;
 use std::io::ErrorKind;
 use std::path::Path;
 
-/// Definition of a pipeline parsed from a `.ship/pipelines/*.yaml` file.
+/// Definition of a pipeline parsed from a `.ship/pipelines/*.yaml` file,
+/// plus usage stats aggregated from JobRecords referencing it.
 #[derive(Clone, Debug, Serialize)]
 pub struct PipelineDef {
     pub name: String,
     pub description: String,
     pub step_count: usize,
+    /// Runs currently in `dispatched` / `pending` / `gate-pending`.
+    #[serde(default)]
+    pub active_runs: usize,
+    /// Total runs we have a record of.
+    #[serde(default)]
+    pub total_runs: usize,
+    /// Runs in `completed` or `merged`.
+    #[serde(default)]
+    pub success_runs: usize,
+    /// Runs in `failed`.
+    #[serde(default)]
+    pub failed_runs: usize,
+    /// Success rate, 0.0..1.0 over `total_runs`. 0 when `total_runs == 0`.
+    #[serde(default)]
+    pub success_rate: f32,
+    /// Most recent run's updated_at (ISO 8601), regardless of status.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub last_run_at: Option<String>,
+    /// Status token for the most recent run (e.g. "merged", "failed").
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub last_run_status: Option<String>,
+    /// Tone for the most recent run's status (info/success/destructive/etc).
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub last_run_tone: Option<String>,
+    /// Slug of the most recent run.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub last_run_slug: Option<String>,
 }
 
 /// Categorization of a run for tab bucketing.
@@ -130,11 +158,36 @@ const PIPELINE_EXTS: &[&str] = &["jsonc", "yaml"];
 
 /// List pipeline definitions from `<ship_dir>/pipelines/`, sorted by name.
 ///
+/// `ship_dir` passed in is typically the global `~/.ship/`, which won't
+/// contain pipelines — those live per-project at `<project>/.ship/
+/// pipelines/`. When the direct path doesn't exist, walk up from the
+/// daemon's CWD (matches what `pipeline_loader::load_pipeline_file`
+/// does at dispatch time).
+///
 /// Missing directories return an empty vec — having no pipelines is a
-/// valid project state, not an error. Other IO errors are logged and
-/// produce an empty vec rather than propagating to the view handler.
+/// valid project state, not an error.
 pub fn list_pipeline_defs(ship_dir: &Path) -> Vec<PipelineDef> {
     let dir = ship_dir.join("pipelines");
+    let resolved = if dir.is_dir() {
+        dir
+    } else {
+        // Walk up from CWD looking for .ship/pipelines/.
+        let mut walker = std::env::current_dir().ok();
+        let mut found = None;
+        while let Some(d) = walker.as_ref() {
+            let cand = d.join(".ship").join("pipelines");
+            if cand.is_dir() {
+                found = Some(cand);
+                break;
+            }
+            walker = d.parent().map(|p| p.to_path_buf());
+        }
+        match found {
+            Some(f) => f,
+            None => return Vec::new(),
+        }
+    };
+    let dir = resolved;
     let entries = match std::fs::read_dir(&dir) {
         Ok(e) => e,
         Err(e) if e.kind() == ErrorKind::NotFound => return Vec::new(),
@@ -161,10 +214,91 @@ pub fn list_pipeline_defs(ship_dir: &Path) -> Vec<PipelineDef> {
             name,
             description,
             step_count,
+            active_runs: 0,
+            total_runs: 0,
+            success_runs: 0,
+            failed_runs: 0,
+            success_rate: 0.0,
+            last_run_at: None,
+            last_run_status: None,
+            last_run_tone: None,
+            last_run_slug: None,
         });
     }
     out.sort_by(|a, b| a.name.cmp(&b.name));
     out
+}
+
+/// Aggregate per-pipeline run stats from a JobRecord iterator and
+/// merge them into the provided defs. Each def's counts, success
+/// rate, and last-run fields get populated in place.
+pub fn aggregate_pipeline_stats<'a>(
+    defs: &mut [PipelineDef],
+    jobs: impl IntoIterator<Item = &'a runtime::projections::job::JobRecord>,
+) {
+    let mut by_name: std::collections::HashMap<String, Vec<&JobRecord>> =
+        std::collections::HashMap::new();
+    for job in jobs {
+        let Some(pipe) = pipeline_name_for_job(job) else { continue };
+        by_name.entry(pipe).or_default().push(job);
+    }
+
+    for def in defs.iter_mut() {
+        let Some(runs) = by_name.get_mut(&def.name) else { continue };
+        // Most recent first.
+        runs.sort_by(|a, b| b.updated_at.cmp(&a.updated_at));
+
+        def.total_runs = runs.len();
+        def.active_runs = runs
+            .iter()
+            .filter(|j| matches!(j.status, JobStatus::Dispatched | JobStatus::GatePending | JobStatus::Pending))
+            .count();
+        def.success_runs = runs
+            .iter()
+            .filter(|j| matches!(j.status, JobStatus::Completed | JobStatus::Merged))
+            .count();
+        def.failed_runs = runs
+            .iter()
+            .filter(|j| matches!(j.status, JobStatus::Failed))
+            .count();
+        def.success_rate = if def.total_runs == 0 {
+            0.0
+        } else {
+            def.success_runs as f32 / def.total_runs as f32
+        };
+        if let Some(latest) = runs.first() {
+            def.last_run_at = Some(latest.updated_at.to_rfc3339());
+            def.last_run_status = Some(status_token(&latest.status).to_string());
+            def.last_run_tone = Some(status_tone(&latest.status).to_string());
+            def.last_run_slug = Some(latest.slug.clone());
+        }
+    }
+}
+
+/// Resolve a job's pipeline name from its slug. `ship run` generates
+/// slug as `<pipeline_name>-<8-char-ulid>`; strip the trailing 8-char
+/// alphanumeric suffix after the last `-`.
+fn pipeline_name_for_job(job: &JobRecord) -> Option<String> {
+    let (prefix, suffix) = job.slug.rsplit_once('-')?;
+    if suffix.len() == 8 && suffix.chars().all(|c| c.is_ascii_alphanumeric()) {
+        Some(prefix.to_string())
+    } else {
+        None
+    }
+}
+
+/// Short tone token for ship-badge / ship-status-dot tone attributes.
+pub fn status_tone(s: &JobStatus) -> &'static str {
+    match s {
+        JobStatus::Dispatched => "info",
+        JobStatus::GatePending => "warning",
+        JobStatus::Completed => "success",
+        JobStatus::Failed => "destructive",
+        JobStatus::Merged => "accent",
+        JobStatus::Blocked => "warning",
+        JobStatus::Cancelled => "muted",
+        JobStatus::Pending => "muted",
+    }
 }
 
 /// Parse pipeline content (JSONC or YAML) and extract metadata.

@@ -1,13 +1,39 @@
-{#- Content styles for pipelines view — remaining non-component layout only.
-    Run cards are <ship-pipeline-run>; steps are <ship-pipeline-step>; errors
-    are <ship-alert> / <ship-collapsible>; depends-on tags are <ship-chip>.
-    This file covers only the surrounding layout that isn't a component. -#}
+{#- Layout styles for the pipelines view. Component-internal styling
+    lives inside each <ship-*> element; this file covers only the
+    surrounding page layout. -#}
 <style>
+.ship-pipelines-section {
+  margin-bottom: var(--space-6);
+}
+.ship-pipelines-section-head {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+  margin-bottom: var(--space-3);
+}
+.ship-pipelines-section-title {
+  font-family: var(--font-display);
+  font-size: var(--text-base);
+  font-weight: var(--font-weight-semibold);
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+  margin: 0;
+  color: var(--foreground);
+  letter-spacing: -0.01em;
+}
 .ship-pipelines-run-list {
   display: flex;
   flex-direction: column;
   gap: var(--space-3);
 }
+.ship-pipelines-def-list {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(28rem, 1fr));
+  gap: var(--space-3);
+}
+
+/* Run detail line inside ship-pipeline-run default slot. */
 .ship-run-detail {
   display: flex;
   flex-wrap: wrap;
@@ -24,53 +50,69 @@
   border-radius: var(--radius-sm);
   font-size: var(--text-xs);
 }
-.ship-run-deps {
-  display: flex;
-  align-items: center;
-  gap: var(--space-1);
-  flex-wrap: wrap;
-  margin: var(--space-2) 0;
-}
-.ship-run-deps-label {
-  font-size: var(--text-xs);
-  color: color-mix(in oklch, var(--muted-foreground) 50%, transparent);
-}
 
-/* Definitions tab — templates list. */
-.ship-pipelines-def-list {
+/* Pipeline definition cards. */
+.ship-def-card-body {
   display: flex;
   flex-direction: column;
-  gap: var(--space-2);
-}
-.ship-def-header {
-  display: flex;
-  align-items: center;
   gap: var(--space-3);
-  padding: var(--space-3) var(--space-4);
   cursor: pointer;
 }
-.ship-def-name { font-size: var(--text-sm); font-weight: var(--font-weight-semibold); }
-.ship-def-desc {
-  font-size: var(--text-xs);
-  color: color-mix(in oklch, var(--muted-foreground) 60%, transparent);
-  overflow: hidden;
-  text-overflow: ellipsis;
-  white-space: nowrap;
-  flex: 1;
-  min-width: 0;
+.ship-def-card-head {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-1);
 }
-.ship-def-templates-head {
+.ship-def-card-title-row {
   display: flex;
   align-items: center;
-  justify-content: space-between;
-  margin-bottom: var(--space-4);
+  gap: var(--space-2);
+  flex-wrap: wrap;
 }
-.ship-def-templates-desc {
+.ship-def-name {
+  font-family: var(--font-mono);
+  font-size: var(--text-sm);
+  font-weight: var(--font-weight-semibold);
+  color: var(--foreground);
+}
+.ship-def-desc {
   font-size: var(--text-xs);
   color: var(--muted-foreground);
+  margin: 0;
+  line-height: 1.5;
 }
-.ship-pipelines-load-more {
-  text-align: center;
-  margin: var(--space-4) 0 var(--space-1);
+.ship-def-card-meta {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-5);
+  padding-top: var(--space-2);
+  border-top: 1px solid color-mix(in oklch, var(--border) 40%, transparent);
+}
+.ship-def-meta-cell {
+  display: flex;
+  flex-direction: column;
+  gap: 2px;
+  font-size: var(--text-xs);
+}
+.ship-def-meta-label {
+  font-size: var(--text-xs);
+  color: color-mix(in oklch, var(--muted-foreground) 70%, transparent);
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  font-weight: var(--font-weight-medium);
+}
+.ship-def-meta-value {
+  font-size: var(--text-sm);
+  font-weight: var(--font-weight-medium);
+  color: var(--foreground);
+  font-variant-numeric: tabular-nums;
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+}
+.ship-def-meta-empty {
+  font-size: var(--text-xs);
+  color: var(--muted-foreground);
+  font-style: italic;
 }
 </style>

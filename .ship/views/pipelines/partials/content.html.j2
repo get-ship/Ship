@@ -1,127 +1,141 @@
 {#-
-  Pipelines content — dispatches on active_tab signal.
-  Root element MUST have id="pipelines-content" for Datastar patching.
-  Composed from ship-components: <ship-pipeline-run>, <ship-pipeline-dag>,
-  <ship-pipeline-step>, <ship-empty-state>, <ship-chip>, <ship-alert>.
+  Pipelines content — pipeline-first layout.
+
+  Each entry in `defs` is a PipelineDef (name, description, step_count,
+  total_runs, success_runs, failed_runs, active_runs, success_rate,
+  last_run_{at,status,tone,slug}). Active runs across all pipelines
+  still render as a prominent section at the top so operators see
+  what's live without drilling into a specific pipeline.
 -#}
-{% from '_urls.html.j2' import end_job, view_pipelines %}
-{% macro render_run(run, allow_stop) -%}
-  {# Normalize legacy `gate-pending` → `gatepending` for ship-pipeline-run. #}
-  {% set run_state = run.state | replace('-', '') %}
-  <ship-pipeline-run state="{{ run_state }}" slug="{{ run.slug }}" agent="{{ run.agent }}">
-    <ship-timestamp slot="actions" value="{{ run.updated_at }}" relative></ship-timestamp>
-    <ship-button slot="actions" variant="ghost" size="sm"
-      data-on:click="
-        const s = document.getElementById('logs-{{ run.slug }}');
-        s.active = !s.active;
-        evt.currentTarget.setAttribute('tone', s.active ? 'accent' : 'default');
-      ">
-      <ship-icon slot="leading" name="terminal"></ship-icon>
-      Logs
-    </ship-button>
-    {% if allow_stop and (run.state == 'dispatched' or run.state == 'pending') %}
-    <ship-button slot="actions" variant="outline" size="sm" tone="destructive"
-      data-on:click="@post('{{ end_job() }}', {contentType: 'json', body: JSON.stringify({job_id: '{{ run.job_id }}'})})">
-      <ship-icon slot="leading" name="stop"></ship-icon>
-      Stop
-    </ship-button>
-    {% endif %}
-
-    <div class="ship-run-detail">
-      {% if run.branch %}<code>{{ run.branch }}</code>{% endif %}
-      {% if run.provider %}<span>{{ run.provider }}</span>{% endif %}
-      {% if run.model %}<span>{{ run.model }}</span>{% endif %}
-    </div>
-
-    {% if run.blocker %}
-    <ship-alert tone="warning" compact>Blocked: {{ run.blocker }}</ship-alert>
-    {% endif %}
-
-    {% if run.error %}
-      {% if '\n' in run.error %}
-      <ship-collapsible>
-        <ship-alert slot="trigger" tone="destructive" compact>Error (expand for details)</ship-alert>
-        <ship-code language="text">{{ run.error }}</ship-code>
-      </ship-collapsible>
-      {% else %}
-      <ship-alert tone="destructive" compact>Error: {{ run.error }}</ship-alert>
-      {% endif %}
-    {% endif %}
-
-    {% if run.depends_on and run.depends_on | length > 0 %}
-    <div class="ship-run-deps">
-      <span class="ship-run-deps-label">depends on:</span>
-      {% for dep in run.depends_on %}<ship-chip size="sm">{{ dep }}</ship-chip>{% endfor %}
-    </div>
-    {% endif %}
-
-    {% if run.steps and run.steps | length > 0 %}
-    <ship-pipeline-dag>
-      {% for step in run.steps %}
-      <ship-pipeline-step
-        name="{{ step.id }}"
-        state="{{ step.state }}"
-        step-type="{{ step.step_type }}"
-        {% if step.agent %}agent="{{ step.agent }}"{% endif %}></ship-pipeline-step>
-      {% if not loop.last %}<span class="arrow" aria-hidden="true">→</span>{% endif %}
-      {% endfor %}
-    </ship-pipeline-dag>
-    {% endif %}
-
-    <ship-log-stream slot="footer"
-      id="logs-{{ run.slug }}"
-      url="/api/runtime/jobs/{{ run.slug }}/log/stream"
-      autoscroll></ship-log-stream>
-  </ship-pipeline-run>
-{%- endmacro %}
+{% from '_urls.html.j2' import end_job %}
 
 <div id="pipelines-content" class="ship-pipelines-content">
-  {% if active_tab == 'definitions' %}
-    <div class="ship-def-templates-head">
-      <span class="ship-def-templates-desc">Pipelines define multi-step agent runs.</span>
+
+  {# ── Active runs (all pipelines) ───────────────────────────────── #}
+  {% if active_runs and active_runs | length > 0 %}
+  <div class="ship-pipelines-section">
+    <div class="ship-pipelines-section-head">
+      <h2 class="ship-pipelines-section-title">
+        <ship-icon name="play" size="sm" tone="info"></ship-icon>
+        Active runs
+      </h2>
+      <ship-badge tone="info">{{ active_runs | length }}</ship-badge>
+    </div>
+    <div class="ship-pipelines-run-list">
+      {% for run in active_runs %}
+        {% set run_state = run.state | replace('-', '') %}
+        <ship-pipeline-run state="{{ run_state }}" slug="{{ run.slug }}" agent="{{ run.agent }}">
+          <ship-timestamp slot="actions" value="{{ run.updated_at }}" relative></ship-timestamp>
+          <ship-button slot="actions" variant="ghost" size="sm"
+            data-on:click="window.location.href='/api/runtime/view/pipelines/run/{{ run.slug }}'">
+            <ship-icon slot="leading" name="chevron-right"></ship-icon>
+            Open
+          </ship-button>
+          <ship-button slot="actions" variant="outline" size="sm" tone="destructive"
+            data-on:click="@post('{{ end_job() }}', {contentType: 'json', body: JSON.stringify({job_id: '{{ run.job_id }}'})})">
+            <ship-icon slot="leading" name="stop"></ship-icon>
+            Stop
+          </ship-button>
+
+          <div class="ship-run-detail">
+            {% if run.branch %}<code>{{ run.branch }}</code>{% endif %}
+            {% if run.provider %}<ship-chip size="sm">{{ run.provider }}</ship-chip>{% endif %}
+            {% if run.model %}<ship-chip size="sm">{{ run.model }}</ship-chip>{% endif %}
+          </div>
+
+          {% if run.blocker %}
+          <ship-alert tone="warning" compact>Blocked: {{ run.blocker }}</ship-alert>
+          {% endif %}
+
+          {% if run.steps and run.steps | length > 0 %}
+          <ship-pipeline-dag>
+            {% for step in run.steps %}
+            <ship-pipeline-step
+              name="{{ step.id }}"
+              state="{{ step.state }}"
+              step-type="{{ step.step_type }}"
+              {% if step.agent %}agent="{{ step.agent }}"{% endif %}></ship-pipeline-step>
+            {% if not loop.last %}<span class="arrow" aria-hidden="true">→</span>{% endif %}
+            {% endfor %}
+          </ship-pipeline-dag>
+          {% endif %}
+
+          <ship-log-stream slot="footer"
+            id="logs-{{ run.slug }}"
+            url="/api/runtime/jobs/{{ run.slug }}/log/stream"
+            autoscroll></ship-log-stream>
+        </ship-pipeline-run>
+      {% endfor %}
+    </div>
+  </div>
+  {% endif %}
+
+  {# ── Pipelines list ───────────────────────────────────────────── #}
+  <div class="ship-pipelines-section">
+    <div class="ship-pipelines-section-head">
+      <h2 class="ship-pipelines-section-title">
+        <ship-icon name="git-merge" size="sm"></ship-icon>
+        Pipelines
+      </h2>
+      <ship-badge tone="muted">{{ defs | length }}</ship-badge>
     </div>
     {% if defs and defs | length > 0 %}
     <div class="ship-pipelines-def-list">
       {% for def in defs %}
       <ship-card>
-        <div class="ship-def-header" tabindex="0" role="button" aria-expanded="false">
-          <ship-icon name="git-merge" size="sm" tone="muted"></ship-icon>
-          <span class="ship-def-name">{{ def.name }}</span>
-          <span class="ship-def-desc">{{ def.description }}</span>
-          <ship-chip size="sm">{{ def.step_count }} step{{ 's' if def.step_count != 1 else '' }}</ship-chip>
-          <ship-icon name="chevron-right" size="xs" tone="muted"></ship-icon>
+        <div class="ship-def-card-body">
+          <div class="ship-def-card-head">
+            <div class="ship-def-card-title-row">
+              {% if def.active_runs and def.active_runs > 0 %}
+                <ship-status-dot tone="info" pulse></ship-status-dot>
+              {% elif def.last_run_tone %}
+                <ship-status-dot tone="{{ def.last_run_tone }}"></ship-status-dot>
+              {% else %}
+                <ship-status-dot tone="muted"></ship-status-dot>
+              {% endif %}
+              <span class="ship-def-name">{{ def.name }}</span>
+              <ship-chip size="sm">{{ def.step_count }} step{{ 's' if def.step_count != 1 else '' }}</ship-chip>
+              {% if def.active_runs and def.active_runs > 0 %}
+                <ship-badge tone="info">{{ def.active_runs }} running</ship-badge>
+              {% endif %}
+            </div>
+            {% if def.description %}
+            <p class="ship-def-desc">{{ def.description }}</p>
+            {% endif %}
+          </div>
+          <div class="ship-def-card-meta">
+            {% if def.total_runs and def.total_runs > 0 %}
+              <span class="ship-def-meta-cell">
+                <span class="ship-def-meta-label">Runs</span>
+                <span class="ship-def-meta-value">{{ def.total_runs }}</span>
+              </span>
+              <span class="ship-def-meta-cell">
+                <span class="ship-def-meta-label">Success</span>
+                <span class="ship-def-meta-value">{{ (def.success_rate * 100) | int }}%</span>
+              </span>
+              {% if def.last_run_at %}
+              <span class="ship-def-meta-cell">
+                <span class="ship-def-meta-label">Last run</span>
+                <span class="ship-def-meta-value">
+                  <ship-timestamp value="{{ def.last_run_at }}" relative></ship-timestamp>
+                  {% if def.last_run_status %}
+                  <ship-badge size="sm" tone="{{ def.last_run_tone or 'muted' }}">{{ def.last_run_status }}</ship-badge>
+                  {% endif %}
+                </span>
+              </span>
+              {% endif %}
+            {% else %}
+              <span class="ship-def-meta-empty">No runs yet</span>
+            {% endif %}
+          </div>
         </div>
       </ship-card>
       {% endfor %}
     </div>
     {% else %}
-    <ship-empty-state icon="git-merge" heading="No pipeline templates" description="Create a pipeline in .ship/pipelines/"></ship-empty-state>
+    <ship-empty-state icon="git-merge" heading="No pipelines"
+      description="Define a pipeline in .ship/pipelines/ to see it here."></ship-empty-state>
     {% endif %}
+  </div>
 
-  {% elif active_tab == 'history' %}
-    {% if history_runs and history_runs | length > 0 %}
-    <div class="ship-pipelines-run-list">
-      {% for run in history_runs %}{{ render_run(run, false) }}{% endfor %}
-    </div>
-    {% if stats.history > history_runs | length %}
-    <p class="ship-pipelines-load-more">
-      <ship-chip size="sm"
-        data-on:click="@get('{{ view_pipelines() }}?tab=history')">
-        Load {{ stats.history - (history_runs | length) }} more
-      </ship-chip>
-    </p>
-    {% endif %}
-    {% else %}
-    <ship-empty-state icon="list" heading="No completed runs" description="Completed, merged, and failed runs will appear here."></ship-empty-state>
-    {% endif %}
-
-  {% else %}
-    {% if active_runs and active_runs | length > 0 %}
-    <div class="ship-pipelines-run-list">
-      {% for run in active_runs %}{{ render_run(run, true) }}{% endfor %}
-    </div>
-    {% else %}
-    <ship-empty-state icon="play" heading="No active runs" description="Dispatch a pipeline from the command line: ship run &lt;pipeline&gt; --spec &lt;path&gt;"></ship-empty-state>
-    {% endif %}
-  {% endif %}
 </div>

@@ -1,9 +1,8 @@
 {#-
-  Pipelines view — view, edit, and dispatch pipelines with live ops state.
-  Single-column centered layout. Datastar-driven tab switching and SSE content patches.
+  Pipelines view — pipeline-first layout with live ops state.
   The daemon passes PipelinesCtx as Jinja context.
 -#}
-{% from '_ship.html.j2' import head, signal, show, live, loading, spinner, chip, chip_all %}
+{% from '_ship.html.j2' import head, signal, live %}
 {% from '_urls.html.j2' import view_pipelines_sse, end_job %}
 {% if not fragment %}
 <!DOCTYPE html>
@@ -11,10 +10,7 @@
 <head>{{ head('Pipelines') }}</head>
 <body>
 {% endif %}
-<div id="ship-view-root" class="ship-view ship-view-pipelines"
-     {{ signal('tab', active_tab) }}
-     {{ signal('agent', agent_filter) }}
-     {{ signal('_creating', false) }}>
+<div id="ship-view-root" class="ship-view ship-view-pipelines">
   <style>
   .ship-view-pipelines {
     color: var(--foreground);
@@ -28,8 +24,9 @@
   }
   .ship-pipelines-head {
     display: flex;
-    align-items: center;
+    align-items: flex-start;
     justify-content: space-between;
+    gap: var(--space-4);
     margin-bottom: var(--space-6);
   }
   .ship-pipelines-title {
@@ -45,35 +42,12 @@
     color: var(--muted-foreground);
     margin-top: var(--space-1);
   }
-  .ship-pipelines-stats {
+  .ship-pipelines-head-actions {
     display: flex;
-    align-items: center;
-    gap: var(--space-4);
-    margin-bottom: var(--space-6);
-    border-radius: var(--radius-lg);
-    border: 1px solid color-mix(in oklch, var(--border) 60%, transparent);
-    background: color-mix(in oklch, var(--card) 50%, transparent);
-    padding: var(--space-3) var(--space-4);
+    gap: var(--space-2);
   }
-  .ship-stat { display: inline-flex; align-items: center; gap: var(--space-1); }
-  .ship-stat-label { font-size: var(--text-xs); color: var(--muted-foreground); }
-  .ship-stat-count {
-    font-size: var(--text-xs);
-    font-weight: var(--font-weight-medium);
-    color: var(--foreground);
-    font-variant-numeric: tabular-nums;
-  }
-  .ship-pipelines-tabs-row { margin-bottom: var(--space-4); }
-  .ship-pipelines-filters {
-    display: flex;
-    flex-wrap: wrap;
-    gap: var(--space-1);
-    margin-bottom: var(--space-4);
-  }
-  .ship-pipelines-content { padding: 0; }
-
   @media (max-width: 767px) {
-    .ship-pipelines-scroll { display: none; }
+    .ship-pipelines-wrap { display: none; }
     .ship-mobile-gate { display: flex; }
   }
   @media (min-width: 768px) {
@@ -82,7 +56,7 @@
   .ship-mobile-gate {
     align-items: center;
     justify-content: center;
-    height: 100%;
+    min-height: 60vh;
     flex-direction: column;
     gap: var(--space-2);
     color: var(--muted-foreground);
@@ -91,56 +65,33 @@
   </style>
   {% include 'pipelines/partials/styles.html.j2' %}
 
-    <div class="ship-pipelines-wrap">
-      <div class="ship-pipelines-head">
-        <div>
-          <h1 class="ship-pipelines-title">Pipelines</h1>
-          <p class="ship-pipelines-sub">{{ stats_subtitle }}</p>
-        </div>
-        <ship-button size="sm" tone="accent" variant="solid"
+  <div class="ship-pipelines-wrap">
+    <header class="ship-pipelines-head">
+      <div>
+        <h1 class="ship-pipelines-title">Pipelines</h1>
+        <p class="ship-pipelines-sub">{{ stats_subtitle }}</p>
+      </div>
+      <div class="ship-pipelines-head-actions">
+        <ship-button variant="outline" size="sm"
+          data-on:click="window.location.href='/api/runtime/view/pipelines?history=1'">
+          <ship-icon slot="leading" name="list" size="sm"></ship-icon>
+          History
+        </ship-button>
+        <ship-button tone="accent" variant="solid" size="sm"
           data-on:click="document.getElementById('dispatch-dialog').showModal()">
           <ship-icon slot="leading" name="play" size="sm"></ship-icon>
-          New Run
+          Dispatch
         </ship-button>
       </div>
+    </header>
 
-      {% if status_pills and status_pills | length > 0 %}
-      <div class="ship-pipelines-stats" role="group" aria-label="Run status summary">
-        {% for pill in status_pills %}
-        <span class="ship-stat">
-          <ship-status-dot tone="{{ pill.tone }}"></ship-status-dot>
-          <span class="ship-stat-label">{{ pill.label }}</span>
-          <span class="ship-stat-count">{{ pill.count }}</span>
-        </span>
-        {% endfor %}
-      </div>
-      {% endif %}
-
-      <div class="ship-pipelines-tabs-row">
-        <ship-tabs variant="underline" active="{{ active_tab }}"
-          data-on:ship-tab-change="$tab = evt.detail.name; @get('/api/runtime/view/pipelines/sse?tab=' + evt.detail.name)">
-          <ship-tab name="active" label="Active Runs" count="{{ stats.active }}"></ship-tab>
-          <ship-tab name="definitions" label="Templates" count="{{ stats.definitions }}"></ship-tab>
-          <ship-tab name="history" label="History" count="{{ stats.history }}"></ship-tab>
-        </ship-tabs>
-      </div>
-
-      {% if agents and agents | length > 0 %}
-      <div class="ship-pipelines-filters" role="group" aria-label="Filter by agent">
-        <ship-chip size="sm" {{ chip_all('agent', 'pipelines') }}>All agents</ship-chip>
-        {% for a in agents %}
-        <ship-chip size="sm" {{ chip('agent', a, 'pipelines') }}>{{ a }}</ship-chip>
-        {% endfor %}
-      </div>
-      {% endif %}
-
-      {# Initial content rendered server-side so the first paint shows
-         real data. SSE ({{ live('pipelines') }}) patches this on any
-         job.* / step.* event. #}
-      <div {{ live('pipelines') }}>
-        {% include 'pipelines/partials/content.html.j2' %}
-      </div>
+    {# Initial content rendered server-side so the first paint shows
+       real data. SSE ({{ live('pipelines') }}) patches this on any
+       job.* / step.* event. #}
+    <div {{ live('pipelines') }}>
+      {% include 'pipelines/partials/content.html.j2' %}
     </div>
+  </div>
 
   <div class="ship-mobile-gate">
     <ship-icon name="monitor" size="xl" tone="muted"></ship-icon>
@@ -171,7 +122,7 @@
       </ship-select>
     </ship-field>
     <ship-field>
-      <ship-checkbox data-bind="dispatch_headless">Headless (no tmux window)</ship-checkbox>
+      <ship-checkbox data-bind="dispatch_headless">Headless (run without tmux)</ship-checkbox>
     </ship-field>
     <div slot="footer">
       <ship-button variant="outline"
