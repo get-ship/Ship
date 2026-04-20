@@ -6,6 +6,7 @@ use crate::db::envelope::envelope_from_row;
 use crate::db::{block_on, db_path, ensure_db, ensure_db_at, open_db_at};
 use ship_types::envelope::EventEnvelope;
 use crate::events::EventFilter;
+use ship_kernel::EventSink;
 
 pub trait EventStore: Send + Sync {
     fn append(&self, event: &EventEnvelope) -> Result<()>;
@@ -228,5 +229,46 @@ impl EventStore for SqliteEventStore {
         })
     }
 
+}
+
+impl EventSink for SqliteEventStore {
+    /// Persist an event to the SQLite events table.
+    ///
+    /// Delegates to the same append path used by `EventStore::append`, but
+    /// satisfies the `ship_kernel::EventSink` trait so `ship_kernel::KernelRouter`
+    /// can use `SqliteEventStore` as its persistence back-end.
+    fn persist(&self, event: &EventEnvelope) -> anyhow::Result<()> {
+        self.append(event)
+    }
+}
+
+#[cfg(test)]
+mod event_sink_tests {
+    use super::*;
+    use ship_kernel::EventSink;
+    use tempfile::tempdir;
+
+    #[test]
+    fn sqlite_event_store_persist_writes_to_events_table() {
+        let tmp = tempdir().unwrap();
+        let store = SqliteEventStore::new_at(tmp.path()).unwrap();
+        let event = EventEnvelope::new("test.sink", "entity-1", &serde_json::json!({})).unwrap();
+
+        store.persist(&event).unwrap();
+
+        let retrieved = store.get(&event.id).unwrap().expect("event must be in DB after persist");
+        assert_eq!(retrieved.id, event.id);
+        assert_eq!(retrieved.event_type, "test.sink");
+    }
+
+    #[test]
+    fn sqlite_event_store_implements_event_sink_trait() {
+        let tmp = tempdir().unwrap();
+        let store = SqliteEventStore::new_at(tmp.path()).unwrap();
+        // Verify the type can be used as Arc<dyn EventSink>
+        let sink: std::sync::Arc<dyn EventSink> = std::sync::Arc::new(store);
+        let event = EventEnvelope::new("test.trait", "entity-2", &serde_json::json!({})).unwrap();
+        sink.persist(&event).unwrap();
+    }
 }
 
