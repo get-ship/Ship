@@ -24,6 +24,7 @@ mod procs;
 mod tail;
 mod loader;
 mod logging;
+mod uninstall;
 mod skill_loader;
 mod skill_parse;
 mod mcp;
@@ -188,9 +189,14 @@ fn dispatch(command: Option<Commands>) -> Result<()> {
                     DaemonCommands::Cleanup => DaemonCommand::Cleanup,
                     DaemonCommands::Run { host, port, dev, with_ui } => DaemonCommand::Run { host, port, dev, with_ui },
                     DaemonCommands::Supervise { host, dev } => DaemonCommand::Supervise { host, dev },
+                    DaemonCommands::InstallService { shipd_path, no_start, no_autostart } => {
+                        DaemonCommand::InstallService { shipd_path, no_start, no_autostart }
+                    }
+                    DaemonCommands::UninstallService => DaemonCommand::UninstallService,
                 };
                 run_daemon(cmd)
             }
+            Commands::Uninstall { yes } => uninstall::run(yes),
             Commands::Help => {
                 use clap::CommandFactory;
                 Cli::command().print_help()?;

@@ -1,0 +1,12 @@
+[Desktop Entry]
+Type=Application
+Name=Ship daemon
+Comment=Ship daemon — autostarts at login so the dashboard is always available
+Terminal=false
+NoDisplay=true
+X-GNOME-Autostart-enabled=true
+# Best-effort: `systemctl --user start` is the canonical entry point on
+# modern desktops. The XDG autostart entry is a safety net for sessions
+# where the systemd user unit is disabled or unavailable (e.g. a fresh
+# install before `systemctl --user daemon-reload`).
+Exec=sh -c 'systemctl --user start shipd.service 2>/dev/null || /usr/bin/shipd --host 127.0.0.1 --port 9315 &'

@@ -1,0 +1,47 @@
+<?xml version="1.0" encoding="UTF-8"?>
+<!DOCTYPE plist PUBLIC "-//Apple//DTD PLIST 1.0//EN" "http://www.apple.com/DTDs/PropertyList-1.0.dtd">
+<plist version="1.0">
+<dict>
+    <key>Label</key>
+    <string>dev.getship.shipd</string>
+
+    <key>ProgramArguments</key>
+    <array>
+        <string>__SHIP_BIN__/shipd</string>
+        <string>--host</string>
+        <string>127.0.0.1</string>
+        <string>--port</string>
+        <string>9315</string>
+    </array>
+
+    <key>RunAtLoad</key>
+    <true/>
+
+    <key>KeepAlive</key>
+    <dict>
+        <key>SuccessfulExit</key>
+        <false/>
+    </dict>
+
+    <key>ThrottleInterval</key>
+    <integer>5</integer>
+
+    <key>EnvironmentVariables</key>
+    <dict>
+        <key>RUST_LOG</key>
+        <string>info</string>
+    </dict>
+
+    <key>StandardOutPath</key>
+    <string>__SHIP_HOME__/logs/shipd.out.log</string>
+
+    <key>StandardErrorPath</key>
+    <string>__SHIP_HOME__/logs/shipd.err.log</string>
+
+    <key>WorkingDirectory</key>
+    <string>__SHIP_HOME__</string>
+
+    <key>ProcessType</key>
+    <string>Background</string>
+</dict>
+</plist>

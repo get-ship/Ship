@@ -1,0 +1,50 @@
+#!/bin/sh
+# Debian post-install for the `ship` package.
+#
+# cargo-deb runs this with root privileges via dpkg. We flip to the
+# target user's context (SUDO_USER when invoked via `sudo apt install`)
+# so systemd --user calls register the unit in the right session.
+#
+# Idempotent: `ship daemon install-service` overwrites any existing
+# unit, and the launcher / autostart entries are shipped by the .deb
+# itself — this script only activates them.
+set -eu
+
+log() { printf '[ship] %s\n' "$*"; }
+
+TARGET_USER="${SUDO_USER:-${USER:-}}"
+TARGET_UID=""
+if [ -n "${SUDO_UID:-}" ]; then
+    TARGET_UID="$SUDO_UID"
+elif [ -n "$TARGET_USER" ]; then
+    TARGET_UID="$(id -u "$TARGET_USER" 2>/dev/null || true)"
+fi
+
+if [ -z "$TARGET_USER" ] || [ -z "$TARGET_UID" ] || [ "$TARGET_USER" = "root" ]; then
+    log "no non-root target user detected; skipping autostart registration"
+    log "(run \`ship daemon install-service\` as your user to enable autostart)"
+    exit 0
+fi
+
+# systemctl --user needs a live DBus session. Enable lingering so the
+# unit survives logout and starts on boot.
+if command -v loginctl > /dev/null 2>&1; then
+    loginctl enable-linger "$TARGET_USER" 2>/dev/null || true
+fi
+
+# Drop into the user's session and register the systemd unit. The
+# user's $HOME and $XDG_RUNTIME_DIR are required; we set them
+# explicitly instead of relying on sudo's heuristics.
+USER_HOME="$(getent passwd "$TARGET_USER" | cut -d: -f6)"
+XDG_RUNTIME_DIR="/run/user/${TARGET_UID}"
+export XDG_RUNTIME_DIR
+
+su - "$TARGET_USER" -c "\
+    XDG_RUNTIME_DIR='${XDG_RUNTIME_DIR}' \
+    HOME='${USER_HOME}' \
+    /usr/bin/ship daemon install-service --shipd-path /usr/bin/shipd \
+" || {
+    log "could not register shipd autostart (will retry on first login)"
+    exit 0
+}
+log "shipd autostart registered for ${TARGET_USER}"

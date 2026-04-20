@@ -9,6 +9,7 @@ use serde::Serialize;
 use std::path::{Path, PathBuf};
 
 pub mod pidfile;
+pub mod service_registration;
 pub mod supervision;
 pub mod supervision_pidfile;
 pub mod supervision_systemd;
@@ -29,6 +30,11 @@ pub enum DaemonCommand {
     Run { host: String, port: u16, dev: bool, with_ui: bool },
     /// Internal: supervisor loop that watches and restarts the daemon.
     Supervise { host: String, dev: bool },
+    /// Internal: called by native installer post-install hooks to
+    /// register shipd with the OS service manager. Not user-facing.
+    InstallService { shipd_path: Option<PathBuf>, no_start: bool, no_autostart: bool },
+    /// Internal: called by uninstall flows to undo `InstallService`.
+    UninstallService,
 }
 
 const SHIPD_PORT: u16 = 9315;
@@ -95,6 +101,22 @@ pub fn run_daemon(cmd: DaemonCommand) -> Result<()> {
         DaemonCommand::Cleanup => daemon_cleanup(),
         DaemonCommand::Run { host, port, dev, with_ui } => daemon_run(host, port, dev, with_ui),
         DaemonCommand::Supervise { host, dev } => daemon_supervise(host, dev),
+        DaemonCommand::InstallService { shipd_path, no_start, no_autostart } => {
+            let report = service_registration::install_service(
+                service_registration::InstallOptions {
+                    start_now: !no_start,
+                    enable_autostart: !no_autostart,
+                    shipd_path,
+                },
+            )?;
+            println!("{}", report.message);
+            Ok(())
+        }
+        DaemonCommand::UninstallService => {
+            let report = service_registration::uninstall_service()?;
+            println!("{}", report.message);
+            Ok(())
+        }
     }
 }
 

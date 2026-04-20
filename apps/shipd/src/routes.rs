@@ -44,6 +44,14 @@ include!(concat!(env!("OUT_DIR"), "/routes_generated.rs"));
 /// URL builders can substitute them. Variants without params are unit
 /// variants.
 pub enum Route {
+    // ── First-run / setup ────────────────────────────────────────────────
+
+    /// @route GET "/"
+    Index,
+
+    /// @route GET "/setup"
+    Setup,
+
     // ── Session / auth ───────────────────────────────────────────────────
 
     /// @route POST "/api/runtime/session"

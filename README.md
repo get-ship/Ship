@@ -133,20 +133,30 @@ Agents in a running Ship cluster can discover and message each other through the
 
 ## Get Started
 
-```bash
-curl -fsSL https://getship.dev/install.sh | sh
-cd your-project
-ship init
-ship use my-agent
-```
+1. Download Ship from the [releases page] and double-click the
+   installer for your platform (`.pkg` / `.msi` / `.deb` / `.rpm`).
+2. Your browser opens at `http://localhost:9315/setup` — finish the
+   wizard.
+3. `cd your-project && ship init && ship use my-agent`
 
-Or start from [Ship Studio](https://getship.dev).
+[releases page]: https://github.com/madvib/ship/releases/latest
 
 ## Install
 
-```bash
-curl -fsSL https://getship.dev/install.sh | sh   # recommended
-cargo install --path apps/ship-cli               # from source
+Full per-platform matrix (GUI, CLI, dev fallback, uninstall) lives in
+[`docs/INSTALL.md`](docs/INSTALL.md). Short form:
+
+```sh
+# macOS          brew install madvib/tap/ship      (tap: TODO)
+# Debian/Ubuntu  sudo apt install ./ship_*.deb
+# Fedora/RHEL    sudo dnf install ./ship-*.rpm
+# Windows        msiexec /i ship-*.msi
+#
+# Dev / exotic Unix — bootstraps both binaries into ~/.ship/bin:
+curl -fsSL https://github.com/madvib/ship/releases/latest/download/install.sh | sh
+#
+# From source:
+cargo install --path apps/ship-cli --path apps/shipd
 ```
 
 ## Status

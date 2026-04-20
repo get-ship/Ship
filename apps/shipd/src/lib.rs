@@ -11,6 +11,7 @@ mod connections;
 mod cors;
 mod view_morph_target;
 mod daemon;
+mod first_run;
 pub mod scopes;
 pub mod session;
 mod handler;
@@ -223,6 +224,11 @@ pub async fn run_network(
             tracing::warn!("shipd: failed to emit daemon.startup_completed: {e}");
         }
     }
+
+    // First-run UX: if `data.db` doesn't exist yet, open the default
+    // browser at `/setup` once the listener is bound. Harmless no-op on
+    // subsequent starts; suppressible via `SHIP_NO_BROWSER=1`.
+    first_run::maybe_open_setup(&global_dir, port);
 
     axum::serve(listener, app)
         .with_graceful_shutdown(async move { ct.cancelled_owned().await })

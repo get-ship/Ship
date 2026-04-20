@@ -6,6 +6,8 @@
    The shell's fetch/EventSource shims rewrite absolute daemon URLs
    to relative, so relative-by-default is the correct choice.
 -#}
+{%- macro index() -%}/{%- endmacro -%}
+{%- macro setup() -%}/setup{%- endmacro -%}
 {%- macro issue_session() -%}/api/runtime/session{%- endmacro -%}
 {%- macro asset_datastar_js() -%}/api/runtime/assets/datastar.js{%- endmacro -%}
 {%- macro asset_view_tokens_css() -%}/api/runtime/assets/view-tokens.css{%- endmacro -%}

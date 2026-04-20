@@ -4,6 +4,11 @@ on:
   push:
     tags:
       - 'v*'
+  pull_request:
+    paths:
+      - '.github/workflows/release-cli.yml'
+      - 'dist-workspace.toml'
+      - 'apps/ship-cli/Cargo.toml'
   workflow_dispatch:
     inputs:
       tag:
@@ -14,9 +19,17 @@ concurrency:
   group: release-cli-${{ github.ref }}
   cancel-in-progress: true
 
+env:
+  CARGO_DIST_VERSION: 0.28.0
+  CARGO_TERM_COLOR: always
+
 jobs:
-  build:
-    name: Build ${{ matrix.target }}
+  # ──────────────────────────────────────────────────────────────────────────
+  # 1. Tarball bundles (both binaries + README) for every target.
+  #    Consumed by the dev-fallback `scripts/install.sh`.
+  # ──────────────────────────────────────────────────────────────────────────
+  tarballs:
+    name: Tarball ${{ matrix.target }}
     permissions:
       contents: write
     strategy:
@@ -26,23 +39,23 @@ jobs:
           - os: ubuntu-latest
             target: x86_64-unknown-linux-gnu
             archive: tar.gz
-            suffix: ''
+            exe: ''
           - os: ubuntu-22.04-arm
             target: aarch64-unknown-linux-gnu
             archive: tar.gz
-            suffix: ''
+            exe: ''
           - os: macos-latest
             target: aarch64-apple-darwin
             archive: tar.gz
-            suffix: ''
+            exe: ''
           - os: macos-latest
             target: x86_64-apple-darwin
             archive: tar.gz
-            suffix: ''
+            exe: ''
           - os: windows-latest
             target: x86_64-pc-windows-msvc
             archive: zip
-            suffix: .exe
+            exe: .exe
 
     runs-on: ${{ matrix.os }}
 
@@ -58,43 +71,238 @@ jobs:
           workspaces: '. -> target'
           key: ${{ matrix.target }}
 
-      - name: Build ship
+      - name: Resolve version
+        id: version
+        shell: bash
+        run: |
+          if [ "${{ github.event_name }}" = "workflow_dispatch" ]; then
+            tag="${{ github.event.inputs.tag }}"
+          elif [ "${{ github.event_name }}" = "push" ]; then
+            tag="${{ github.ref_name }}"
+          else
+            tag="v0.0.0-pr${{ github.event.number }}"
+          fi
+          version="${tag#v}"
+          echo "tag=${tag}" >> "$GITHUB_OUTPUT"
+          echo "version=${version}" >> "$GITHUB_OUTPUT"
+
+      - name: Build ship + shipd
         run: |
           cargo build --release --target ${{ matrix.target }} \
-            -p ship-studio-cli
+            -p ship-cli -p shipd
 
       - name: Package (Unix)
         if: matrix.archive == 'tar.gz'
+        shell: bash
         run: |
-          mkdir -p dist
-          cp target/${{ matrix.target }}/release/ship dist/ship
-          chmod +x dist/ship
-          tar -czf ship-${{ matrix.target }}.tar.gz -C dist ship
+          stage="ship-${{ steps.version.outputs.version }}-${{ matrix.target }}"
+          mkdir -p "dist/${stage}"
+          cp "target/${{ matrix.target }}/release/ship${{ matrix.exe }}" "dist/${stage}/ship${{ matrix.exe }}"
+          cp "target/${{ matrix.target }}/release/shipd${{ matrix.exe }}" "dist/${stage}/shipd${{ matrix.exe }}"
+          chmod +x "dist/${stage}/ship" "dist/${stage}/shipd"
+          cp README.md "dist/${stage}/README.md"
+          cp contrib/installer-assets/LICENSE-INSTALLER.txt "dist/${stage}/LICENSE.txt" || true
+          tar -czf "${stage}.tar.gz" -C dist "${stage}"
 
       - name: Package (Windows)
         if: matrix.archive == 'zip'
-        run: |
-          mkdir dist
-          copy target\${{ matrix.target }}\release\ship.exe dist\ship.exe
-          Compress-Archive -Path dist\ship.exe -DestinationPath ship-${{ matrix.target }}.zip
         shell: pwsh
+        run: |
+          $stage = "ship-${{ steps.version.outputs.version }}-${{ matrix.target }}"
+          New-Item -ItemType Directory -Force -Path "dist/$stage" | Out-Null
+          Copy-Item "target/${{ matrix.target }}/release/ship.exe" "dist/$stage/ship.exe"
+          Copy-Item "target/${{ matrix.target }}/release/shipd.exe" "dist/$stage/shipd.exe"
+          Copy-Item "README.md" "dist/$stage/README.md"
+          if (Test-Path "contrib/installer-assets/LICENSE-INSTALLER.txt") {
+            Copy-Item "contrib/installer-assets/LICENSE-INSTALLER.txt" "dist/$stage/LICENSE.txt"
+          }
+          Compress-Archive -Path "dist/$stage/*" -DestinationPath "$stage.zip"
 
       - name: Upload artifact
         uses: actions/upload-artifact@v4
         with:
-          name: ship-${{ matrix.target }}
-          path: ship-${{ matrix.target }}.${{ matrix.archive }}
+          name: tarball-${{ steps.version.outputs.version }}-${{ matrix.target }}
+          path: ship-${{ steps.version.outputs.version }}-${{ matrix.target }}.${{ matrix.archive }}
           retention-days: 1
 
+  # ──────────────────────────────────────────────────────────────────────────
+  # 2. Native installers (.msi, .pkg) via cargo-dist.
+  #    Config lives in dist-workspace.toml; dist handles platform details.
+  # ──────────────────────────────────────────────────────────────────────────
+  installers:
+    name: Installer ${{ matrix.target }}
+    permissions:
+      contents: write
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - os: macos-latest
+            target: aarch64-apple-darwin
+            format: pkg
+          - os: macos-latest
+            target: x86_64-apple-darwin
+            format: pkg
+          - os: windows-latest
+            target: x86_64-pc-windows-msvc
+            format: msi
+    runs-on: ${{ matrix.os }}
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: dtolnay/rust-toolchain@stable
+        with:
+          targets: ${{ matrix.target }}
+
+      - uses: swatinem/rust-cache@v2
+        with:
+          workspaces: '. -> target'
+          key: installer-${{ matrix.target }}
+
+      - name: Install cargo-dist
+        shell: bash
+        run: |
+          cargo install cargo-dist --version "${CARGO_DIST_VERSION}" --locked
+
+      - name: dist plan
+        shell: bash
+        run: |
+          cargo dist plan --target "${{ matrix.target }}"
+
+      - name: dist build (${{ matrix.format }})
+        shell: bash
+        env:
+          # Gated on org-level secrets. Empty values → unsigned build;
+          # cargo-dist reads `env:` values verbatim so unset secrets
+          # simply leave the signing step inert. Flip signing on by
+          # populating the secrets — no workflow edit required.
+          APPLE_DEVELOPER_ID: ${{ secrets.APPLE_DEVELOPER_ID }}
+          APPLE_ID: ${{ secrets.APPLE_ID }}
+          APPLE_APP_SPECIFIC_PASSWORD: ${{ secrets.APPLE_APP_SPECIFIC_PASSWORD }}
+          APPLE_TEAM_ID: ${{ secrets.APPLE_TEAM_ID }}
+          WINDOWS_SIGNING_CERT: ${{ secrets.WINDOWS_SIGNING_CERT }}
+          WINDOWS_SIGNING_PASSWORD: ${{ secrets.WINDOWS_SIGNING_PASSWORD }}
+          # Homebrew tap push — no-op when the secret / tap repo are
+          # absent. cargo-dist reads it at release time only.
+          HOMEBREW_TAP_TOKEN: ${{ secrets.HOMEBREW_TAP_TOKEN }}
+        run: |
+          cargo dist build --target "${{ matrix.target }}" --artifacts=local
+
+      - name: Upload installer
+        uses: actions/upload-artifact@v4
+        with:
+          name: installer-${{ matrix.format }}-${{ matrix.target }}
+          path: |
+            target/distrib/*.msi
+            target/distrib/*.pkg
+          retention-days: 1
+          if-no-files-found: error
+
+  # ──────────────────────────────────────────────────────────────────────────
+  # 3. Linux native packages (.deb, .rpm) — cargo-dist doesn't yet emit
+  #    these cleanly, so we drive cargo-deb / cargo-generate-rpm directly.
+  #    Metadata lives on [package.metadata.deb] / .generate-rpm in
+  #    apps/ship-cli/Cargo.toml.
+  # ──────────────────────────────────────────────────────────────────────────
+  linux-packages:
+    name: Linux ${{ matrix.format }} ${{ matrix.target }}
+    permissions:
+      contents: write
+    strategy:
+      fail-fast: false
+      matrix:
+        include:
+          - os: ubuntu-latest
+            target: x86_64-unknown-linux-gnu
+            format: deb
+          - os: ubuntu-22.04-arm
+            target: aarch64-unknown-linux-gnu
+            format: deb
+          - os: ubuntu-latest
+            target: x86_64-unknown-linux-gnu
+            format: rpm
+          - os: ubuntu-22.04-arm
+            target: aarch64-unknown-linux-gnu
+            format: rpm
+    runs-on: ${{ matrix.os }}
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: dtolnay/rust-toolchain@stable
+        with:
+          targets: ${{ matrix.target }}
+
+      - uses: swatinem/rust-cache@v2
+        with:
+          workspaces: '. -> target'
+          key: linux-${{ matrix.format }}-${{ matrix.target }}
+
+      - name: Install packaging tool
+        shell: bash
+        run: |
+          case "${{ matrix.format }}" in
+            deb) cargo install cargo-deb --locked ;;
+            rpm) cargo install cargo-generate-rpm --locked ;;
+          esac
+
+      - name: Build release binaries
+        run: |
+          cargo build --release --target "${{ matrix.target }}" \
+            -p ship-cli -p shipd
+          # cargo-deb / cargo-generate-rpm read `target/release/`.
+          mkdir -p target/release
+          cp "target/${{ matrix.target }}/release/ship"  target/release/ship
+          cp "target/${{ matrix.target }}/release/shipd" target/release/shipd
+
+      - name: Build package
+        shell: bash
+        run: |
+          case "${{ matrix.format }}" in
+            deb)
+              cargo deb -p ship-cli --no-build --no-strip \
+                --target "${{ matrix.target }}"
+              ;;
+            rpm)
+              cargo generate-rpm -p apps/ship-cli
+              ;;
+          esac
+
+      - name: Upload package
+        uses: actions/upload-artifact@v4
+        with:
+          name: linux-${{ matrix.format }}-${{ matrix.target }}
+          path: |
+            target/**/*.deb
+            target/generate-rpm/*.rpm
+          retention-days: 1
+          if-no-files-found: error
+
+  # ──────────────────────────────────────────────────────────────────────────
+  # 4. Aggregate artifacts and draft the GitHub release (tag push only).
+  # ──────────────────────────────────────────────────────────────────────────
   release:
     name: Create GitHub Release
-    needs: build
+    if: github.event_name == 'push' || github.event_name == 'workflow_dispatch'
+    needs: [tarballs, installers, linux-packages]
     runs-on: ubuntu-latest
     permissions:
       contents: write
 
     steps:
       - uses: actions/checkout@v4
+
+      - name: Resolve version
+        id: version
+        shell: bash
+        run: |
+          if [ "${{ github.event_name }}" = "workflow_dispatch" ]; then
+            tag="${{ github.event.inputs.tag }}"
+          else
+            tag="${{ github.ref_name }}"
+          fi
+          version="${tag#v}"
+          echo "tag=${tag}" >> "$GITHUB_OUTPUT"
+          echo "version=${version}" >> "$GITHUB_OUTPUT"
 
       - name: Download all artifacts
         uses: actions/download-artifact@v4
@@ -105,35 +313,35 @@ jobs:
       - name: Create release
         uses: softprops/action-gh-release@v2
         with:
-          name: Ship ${{ github.ref_name }}
+          name: Ship ${{ steps.version.outputs.tag }}
+          tag_name: ${{ steps.version.outputs.tag }}
           body: |
             ## Install
 
-            **macOS / Linux (arm64)**
-            ```bash
-            curl -fsSL https://github.com/${{ github.repository }}/releases/download/${{ github.ref_name }}/ship-aarch64-apple-darwin.tar.gz | tar -xz
-            sudo mv ship /usr/local/bin/
-            ```
+            Native installers — double-click to install, no terminal required:
 
-            **macOS (x86_64)**
-            ```bash
-            curl -fsSL https://github.com/${{ github.repository }}/releases/download/${{ github.ref_name }}/ship-x86_64-apple-darwin.tar.gz | tar -xz
-            sudo mv ship /usr/local/bin/
-            ```
+            - **macOS (Apple Silicon / Intel)** — `ship-*-apple-darwin.pkg`
+            - **Windows** — `ship-*-pc-windows-msvc.msi`
+            - **Debian / Ubuntu** — `ship_*.deb` (install with `sudo apt install ./ship_*.deb`)
+            - **Fedora / RHEL** — `ship-*.rpm`
 
-            **Linux (x86_64)**
-            ```bash
-            curl -fsSL https://github.com/${{ github.repository }}/releases/download/${{ github.ref_name }}/ship-x86_64-unknown-linux-gnu.tar.gz | tar -xz
-            sudo mv ship /usr/local/bin/
-            ```
+            Installers are **unsigned** for v1. macOS will ask you to right-click → Open the first time; Windows SmartScreen will ask for confirmation. Both warnings are expected. Code signing is tracked as a follow-up.
 
-            **Windows (x86_64)**
-            Download `ship-x86_64-pc-windows-msvc.zip`, extract, and add to `$PATH`.
+            ### Tarball fallbacks
+
+            Raw binaries for automation or dev setups are also attached (`ship-*.tar.gz` / `ship-*.zip`). The `scripts/install.sh` dev fallback uses these and is retained for CI / devbox bootstrap only.
 
             ---
 
             See [CHANGELOG](https://github.com/${{ github.repository }}/blob/main/CHANGELOG.md) for details.
           draft: true
-          prerelease: ${{ contains(github.ref_name, 'alpha') || contains(github.ref_name, 'beta') || contains(github.ref_name, 'rc') }}
-          files: artifacts/*
-          fail_on_unmatched_files: true
+          prerelease: ${{ contains(steps.version.outputs.tag, 'alpha') || contains(steps.version.outputs.tag, 'beta') || contains(steps.version.outputs.tag, 'rc') }}
+          files: |
+            artifacts/*.tar.gz
+            artifacts/*.zip
+            artifacts/*.msi
+            artifacts/*.pkg
+            artifacts/*.deb
+            artifacts/*.rpm
+            scripts/install.sh
+          fail_on_unmatched_files: false

@@ -1,0 +1,23 @@
+Ship — Installer License (placeholder)
+
+This is an early preview build of Ship. Use at your own risk. The
+underlying software is distributed under the terms in LICENSE at the
+repository root. This installer license is a placeholder and will be
+replaced with the final click-through EULA before general availability.
+
+By installing this software you acknowledge that:
+
+  * The installer is not code-signed for v1. Your OS may show a
+    security warning (Gatekeeper on macOS, SmartScreen on Windows);
+    open the installer anyway to proceed. Code-signed builds are
+    tracked in the project roadmap.
+
+  * Ship writes configuration and state to ~/.ship/ and registers a
+    background daemon (`shipd`) as a user-level service (systemd
+    --user on Linux, launchd user agent on macOS, startup task on
+    Windows). Uninstall removes the service and ~/.ship/.
+
+  * No telemetry is collected beyond the local event log in
+    ~/.ship/platform.db.
+
+See https://github.com/madvib/ship for the authoritative license.
