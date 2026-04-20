@@ -82,52 +82,45 @@
     {% if defs and defs | length > 0 %}
     <div class="ship-pipelines-def-list">
       {% for def in defs %}
-      <ship-card>
-        <div class="ship-def-card-body">
-          <div class="ship-def-card-head">
-            <div class="ship-def-card-title-row">
-              {% if def.active_runs and def.active_runs > 0 %}
-                <ship-status-dot tone="info" pulse></ship-status-dot>
-              {% elif def.last_run_tone %}
-                <ship-status-dot tone="{{ def.last_run_tone }}"></ship-status-dot>
-              {% else %}
-                <ship-status-dot tone="muted"></ship-status-dot>
-              {% endif %}
-              <span class="ship-def-name">{{ def.name }}</span>
-              <ship-chip size="sm">{{ def.step_count }} step{{ 's' if def.step_count != 1 else '' }}</ship-chip>
-              {% if def.active_runs and def.active_runs > 0 %}
-                <ship-badge tone="info">{{ def.active_runs }} running</ship-badge>
-              {% endif %}
-            </div>
-            {% if def.description %}
-            <p class="ship-def-desc">{{ def.description }}</p>
+      {% set tile_tone = 'info' if (def.active_runs and def.active_runs > 0) else (def.last_run_tone or 'muted') %}
+      <ship-card interactive status-rail tone="{{ tile_tone }}"
+        data-on:click="window.location.href='/api/runtime/view/pipelines/pipeline/{{ def.name }}'">
+        <div class="ship-def-title">
+          <span class="ship-def-name">{{ def.name }}</span>
+          {% if def.active_runs and def.active_runs > 0 %}
+          <ship-badge tone="info">{{ def.active_runs }} running</ship-badge>
+          {% endif %}
+        </div>
+        {% if def.description %}
+        <p class="ship-def-desc">{{ def.description }}</p>
+        {% endif %}
+        <div class="ship-def-chips">
+          <ship-chip size="sm" tone="muted">{{ def.step_count }} step{{ 's' if def.step_count != 1 else '' }}</ship-chip>
+          {% if def.last_run_status %}
+          <ship-chip size="sm" tone="{{ def.last_run_tone or 'muted' }}">{{ def.last_run_status }}</ship-chip>
+          {% endif %}
+        </div>
+        <div slot="footer" class="ship-def-stats">
+          {% if def.total_runs and def.total_runs > 0 %}
+            <span class="ship-def-stat">
+              <span class="ship-def-stat-value">{{ def.total_runs }}</span>
+              <span class="ship-def-stat-label">runs</span>
+            </span>
+            <span class="ship-def-stat">
+              <span class="ship-def-stat-value">{{ (def.success_rate * 100) | int }}<span class="ship-def-stat-unit">%</span></span>
+              <span class="ship-def-stat-label">success</span>
+            </span>
+            {% if def.last_run_at %}
+            <span class="ship-def-stat ship-def-stat-grow">
+              <span class="ship-def-stat-value ship-def-stat-time">
+                <ship-timestamp value="{{ def.last_run_at }}" relative></ship-timestamp>
+              </span>
+              <span class="ship-def-stat-label">last run</span>
+            </span>
             {% endif %}
-          </div>
-          <div class="ship-def-card-meta">
-            {% if def.total_runs and def.total_runs > 0 %}
-              <span class="ship-def-meta-cell">
-                <span class="ship-def-meta-label">Runs</span>
-                <span class="ship-def-meta-value">{{ def.total_runs }}</span>
-              </span>
-              <span class="ship-def-meta-cell">
-                <span class="ship-def-meta-label">Success</span>
-                <span class="ship-def-meta-value">{{ (def.success_rate * 100) | int }}%</span>
-              </span>
-              {% if def.last_run_at %}
-              <span class="ship-def-meta-cell">
-                <span class="ship-def-meta-label">Last run</span>
-                <span class="ship-def-meta-value">
-                  <ship-timestamp value="{{ def.last_run_at }}" relative></ship-timestamp>
-                  {% if def.last_run_status %}
-                  <ship-badge size="sm" tone="{{ def.last_run_tone or 'muted' }}">{{ def.last_run_status }}</ship-badge>
-                  {% endif %}
-                </span>
-              </span>
-              {% endif %}
-            {% else %}
-              <span class="ship-def-meta-empty">No runs yet</span>
-            {% endif %}
-          </div>
+          {% else %}
+            <span class="ship-def-stat-empty">No runs yet — click to dispatch</span>
+          {% endif %}
         </div>
       </ship-card>
       {% endfor %}

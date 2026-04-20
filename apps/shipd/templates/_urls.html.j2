@@ -19,6 +19,7 @@
 {%- macro list_themes() -%}/api/runtime/themes{%- endmacro -%}
 {%- macro view_pipelines() -%}/api/runtime/view/pipelines{%- endmacro -%}
 {%- macro view_pipelines_sse() -%}/api/runtime/view/pipelines/sse{%- endmacro -%}
+{%- macro view_pipeline_focus(name) -%}/api/runtime/view/pipelines/pipeline/{{ name }}{%- endmacro -%}
 {%- macro view_pipeline_run(slug) -%}/api/runtime/view/pipelines/run/{{ slug }}{%- endmacro -%}
 {%- macro view_pipeline_run_sse(slug) -%}/api/runtime/view/pipelines/run/{{ slug }}/sse{%- endmacro -%}
 {%- macro view_specs() -%}/api/runtime/view/specs{%- endmacro -%}

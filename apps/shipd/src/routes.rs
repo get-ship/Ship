@@ -90,6 +90,9 @@ pub enum Route {
     /// @route GET "/api/runtime/view/pipelines/sse"
     ViewPipelinesSse,
 
+    /// @route GET "/api/runtime/view/pipelines/pipeline/{name}"
+    ViewPipelineFocus { name: String },
+
     /// @route GET "/api/runtime/view/pipelines/run/{slug}"
     ViewPipelineRun { slug: String },
 

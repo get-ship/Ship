@@ -515,6 +515,104 @@ fn event_summary(env: &runtime::events::EventEnvelope) -> String {
     }
 }
 
+/// Per-pipeline focus context — full definition + runs of that pipeline.
+#[derive(Serialize)]
+pub struct PipelineFocusCtx {
+    pub name: String,
+    pub def: PipelineDef,
+    /// Raw pipeline document as JSON (converted from YAML/JSONC) — the
+    /// template unpacks steps, gate rules, vars, auto_merge, step_specs.
+    pub doc: serde_json::Value,
+    /// Runs of this pipeline, newest first.
+    pub runs: Vec<RunView>,
+    /// Provider IDs on PATH for the dispatch form.
+    pub providers: Vec<String>,
+}
+
+fn find_pipeline_file(name: &str) -> Option<std::path::PathBuf> {
+    let mut walker = std::env::current_dir().ok()?;
+    loop {
+        let dir = walker.join(".ship").join("pipelines");
+        if dir.is_dir() {
+            for ext in ["yaml", "yml", "jsonc", "json"] {
+                let cand = dir.join(format!("{name}.{ext}"));
+                if cand.exists() {
+                    return Some(cand);
+                }
+            }
+            return None;
+        }
+        if !walker.pop() {
+            return None;
+        }
+    }
+}
+
+pub fn build_focus_ctx(name: &str, ship_dir: &std::path::Path) -> Option<PipelineFocusCtx> {
+    let path = find_pipeline_file(name)?;
+    let raw = std::fs::read_to_string(&path).ok()?;
+    let doc: serde_json::Value = {
+        let trimmed = raw.trim_start();
+        if trimmed.starts_with('{') || trimmed.starts_with('[') {
+            let json = compiler::jsonc::strip_jsonc_comments(&raw);
+            serde_json::from_str(&json).ok()?
+        } else {
+            let v: serde_yaml::Value = serde_yaml::from_str(&raw).ok()?;
+            serde_json::to_value(v).ok()?
+        }
+    };
+
+    // Reuse list_pipeline_defs + aggregate to get the same stats shape.
+    let mut defs = list_pipeline_defs(ship_dir);
+    let all_runs = list_pipeline_runs(ship_dir, &Filter::default());
+    aggregate_pipeline_stats(&mut defs, all_runs.iter());
+    let def = defs.into_iter().find(|d| d.name == name)?;
+
+    let runs: Vec<RunView> = all_runs
+        .iter()
+        .filter(|j| {
+            j.slug.rsplit_once('-')
+                .map(|(prefix, suffix)| {
+                    prefix == name
+                        && suffix.len() == 8
+                        && suffix.chars().all(|c| c.is_ascii_alphanumeric())
+                })
+                .unwrap_or(false)
+        })
+        .take(25)
+        .map(|j| to_run_view(j, true))
+        .collect();
+
+    let providers: Vec<String> = runtime::agent_export::PROVIDERS
+        .iter()
+        .filter(|d| runtime::detect_binary(d.binary))
+        .map(|d| d.id.to_string())
+        .collect();
+
+    Some(PipelineFocusCtx { name: name.to_string(), def, doc, runs, providers })
+}
+
+/// GET /api/runtime/view/pipelines/pipeline/{name} — per-pipeline focus shell.
+pub async fn pipeline_focus_shell(
+    State(state): State<crate::rest_api::ApiState>,
+    axum::extract::Path(name): axum::extract::Path<String>,
+) -> Result<Html<String>, StatusCode> {
+    let Some(ctx) = build_focus_ctx(&name, state.ship_dir()) else {
+        return Err(StatusCode::NOT_FOUND);
+    };
+    let Some((view_dir, _)) = crate::views::resolve_view_dir("pipelines") else {
+        return Err(StatusCode::INTERNAL_SERVER_ERROR);
+    };
+    let path = view_dir.join("focus").join("index.html.j2");
+    let source = std::fs::read_to_string(&path).map_err(|_| StatusCode::NOT_FOUND)?;
+    templates::render_view_source("pipelines/focus/index.html.j2", &source, &ctx)
+        .map(Html)
+        .map_err(|e| {
+            tracing::error!(error = %e, "pipeline focus render failed");
+            StatusCode::INTERNAL_SERVER_ERROR
+        })
+}
+
 /// GET /api/runtime/view/pipelines/run/{slug} — run detail shell.
 pub async fn pipelines_run_shell(
     State(state): State<crate::rest_api::ApiState>,
