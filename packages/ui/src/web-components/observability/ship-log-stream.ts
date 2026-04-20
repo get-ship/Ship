@@ -105,7 +105,15 @@ export class ShipLogStream extends LitElement {
       return
     }
     this._source.addEventListener(this.event, (ev) => {
-      this._append((ev as MessageEvent).data ?? '')
+      const chunk = (ev as MessageEvent).data ?? ''
+      this._append(chunk)
+      // Emit a tick so ops-center indicators can pulse while bytes flow.
+      // Detail carries the chunk byte count; callers typically don't need it.
+      this.dispatchEvent(new CustomEvent('ship-log-tick', {
+        detail: { bytes: chunk.length },
+        bubbles: true,
+        composed: true,
+      }))
     })
     this._source.onopen = () => {
       this.dispatchEvent(new CustomEvent('ship-stream-open'))

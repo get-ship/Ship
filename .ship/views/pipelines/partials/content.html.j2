@@ -99,6 +99,14 @@
           {% if def.last_run_status %}
           <ship-chip size="sm" tone="{{ def.last_run_tone or 'muted' }}">{{ def.last_run_status }}</ship-chip>
           {% endif %}
+          {% if def.recent_outcomes and def.recent_outcomes | length > 0 %}
+          <span class="ship-def-spark" aria-label="Last {{ def.recent_outcomes | length }} run outcomes">
+            {% for outcome in def.recent_outcomes %}
+            <span class="ship-def-spark-cell ship-def-spark-{{ outcome | replace('-', '') }}"
+              title="{{ outcome }}"></span>
+            {% endfor %}
+          </span>
+          {% endif %}
         </div>
         <div slot="footer" class="ship-def-stats">
           {% if def.total_runs and def.total_runs > 0 %}

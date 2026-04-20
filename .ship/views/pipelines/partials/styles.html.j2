@@ -63,6 +63,7 @@
   display: flex;
   gap: var(--space-2);
   flex-wrap: wrap;
+  align-items: center;
 }
 .ship-def-stats {
   display: flex;
@@ -122,4 +123,32 @@
   border-radius: var(--radius-sm);
   font-size: var(--text-xs);
 }
+
+/* Run-outcome sparkline — tiny strip in the list tile, reads left→right
+   as old→new. Each cell is tone-tinted via a status class; hover tooltip
+   exposes the raw status token for accessibility. */
+.ship-def-spark {
+  display: inline-flex;
+  align-items: center;
+  gap: 2px;
+  margin-left: auto;
+  padding: 0;
+}
+.ship-def-spark-cell {
+  display: inline-block;
+  width: 4px;
+  height: 14px;
+  border-radius: 2px;
+  background: var(--muted);
+  transition: transform var(--duration-fast) var(--ease-out);
+}
+.ship-def-spark-cell:hover { transform: scaleY(1.12); }
+.ship-def-spark-completed,
+.ship-def-spark-merged { background: var(--success); }
+.ship-def-spark-failed { background: var(--destructive); }
+.ship-def-spark-blocked { background: var(--warning); }
+.ship-def-spark-dispatched,
+.ship-def-spark-gatepending,
+.ship-def-spark-pending { background: var(--info); }
+.ship-def-spark-cancelled { background: color-mix(in oklch, var(--muted-foreground) 45%, transparent); }
 </style>

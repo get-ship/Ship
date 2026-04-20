@@ -65,6 +65,11 @@ pub struct PipelineDef {
     /// Slug of the most recent run.
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub last_run_slug: Option<String>,
+    /// Outcome sparkline — last ~8 run status tokens, oldest first.
+    /// Populated by `aggregate_pipeline_stats`. Renders as a tiny strip
+    /// in the list tile; each status gets a tone-tinted dot or bar.
+    #[serde(default, skip_serializing_if = "Vec::is_empty")]
+    pub recent_outcomes: Vec<String>,
 }
 
 /// Categorization of a run for tab bucketing.
@@ -133,6 +138,12 @@ impl Filter {
             && status_token(&job.status) != s
         {
             return false;
+        }
+        if let Some(p) = self.pipeline.as_deref().filter(|s| !s.is_empty()) {
+            match pipeline_name_for_job(job) {
+                Some(ref name) if name == p => {}
+                _ => return false,
+            }
         }
         true
     }
@@ -226,6 +237,7 @@ pub fn list_pipeline_defs(ship_dir: &Path) -> Vec<PipelineDef> {
             last_run_status: None,
             last_run_tone: None,
             last_run_slug: None,
+            recent_outcomes: Vec::new(),
         });
     }
     out.sort_by(|a, b| a.name.cmp(&b.name));
@@ -275,7 +287,23 @@ pub fn aggregate_pipeline_stats<'a>(
             def.last_run_tone = Some(status_tone(&latest.status).to_string());
             def.last_run_slug = Some(latest.slug.clone());
         }
+        // Recent outcomes for the list-tile sparkline. `runs` is
+        // most-recent-first; the tile reads left→right = old→new, so we
+        // take the newest 8 and reverse. Cap at 8 so long histories
+        // don't blow up the tile footer.
+        let mut recent: Vec<String> = runs
+            .iter()
+            .take(8)
+            .map(|j| status_token(&j.status).to_string())
+            .collect();
+        recent.reverse();
+        def.recent_outcomes = recent;
     }
+}
+
+/// Public alias — history view needs to group/filter runs by pipeline.
+pub fn pipeline_name_for_job_public(job: &JobRecord) -> Option<String> {
+    pipeline_name_for_job(job)
 }
 
 /// Resolve a job's pipeline name from its slug. `ship run` generates

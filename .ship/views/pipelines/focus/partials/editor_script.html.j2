@@ -37,6 +37,19 @@
     window.addEventListener('DOMContentLoaded', () => setSignal('edit_mode', true));
   }
 
+  // Ops-center heartbeat: each <ship-pipeline-run data-on:ship-log-tick>
+  // pings this helper whenever its log stream emits bytes. We add a brief
+  // halo class and auto-remove it after 1.5s so steady output reads as a
+  // continuous pulse; idle runs settle back to static styling.
+  const HEARTBEAT_TIMERS = new WeakMap();
+  window.pulseRun = function (el) {
+    if (!el) return;
+    el.classList.add('ship-heartbeat');
+    const existing = HEARTBEAT_TIMERS.get(el);
+    if (existing) clearTimeout(existing);
+    HEARTBEAT_TIMERS.set(el, setTimeout(() => el.classList.remove('ship-heartbeat'), 1500));
+  };
+
   window.resetPipelineEditor = function () {
     const ed = editor();
     if (!ed) return;

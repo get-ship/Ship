@@ -96,6 +96,12 @@
     margin: 0;
   }
   .ship-focus-stack { display: flex; flex-direction: column; gap: var(--space-3); }
+  /* Live-run heartbeat: brief halo whenever the run's log stream
+     receives a chunk. Pulse is ~1.5s and self-resets via JS below. */
+  .ship-live-run { transition: box-shadow var(--duration-medium) var(--ease-out); border-radius: var(--radius-lg); }
+  .ship-live-run.ship-heartbeat {
+    box-shadow: 0 0 0 3px color-mix(in oklch, var(--info) 30%, transparent);
+  }
   .ship-focus-header-row {
     display: flex;
     align-items: center;
@@ -176,200 +182,15 @@
     {% endif %}
 
     {% if ops_mode and active_for_pipeline | length > 0 %}
-    <section>
-      <h2 class="ship-focus-section-label" style="margin-bottom: var(--space-3);">
-        Ops · active now
-      </h2>
-      <div class="ship-focus-stack">
-        {% for run in active_for_pipeline %}
-          {% set run_state = run.state | replace('-', '') %}
-          <ship-pipeline-run state="{{ run_state }}" slug="{{ run.slug }}" agent="{{ run.agent }}">
-            <ship-timestamp slot="actions" value="{{ run.updated_at }}" relative></ship-timestamp>
-            <ship-button slot="actions" variant="ghost" size="sm"
-              data-on:click="window.location.href='/pipelines/run/{{ run.slug }}'">
-              <ship-icon slot="leading" name="chevron-right"></ship-icon>
-              Open
-            </ship-button>
-            <ship-button slot="actions" variant="outline" size="sm" tone="destructive"
-              data-on:click="@post('{{ end_job() }}', {contentType: 'json', body: JSON.stringify({job_id: '{{ run.job_id }}'})})">
-              <ship-icon slot="leading" name="stop"></ship-icon>
-              Stop
-            </ship-button>
-
-            {% if run.steps and run.steps | length > 0 %}
-            <ship-pipeline-dag>
-              {% for step in run.steps %}
-              <ship-pipeline-step
-                name="{{ step.id }}"
-                state="{{ step.state }}"
-                step-type="{{ step.step_type }}"
-                {% if step.agent %}agent="{{ step.agent }}"{% endif %}></ship-pipeline-step>
-              {% if not loop.last %}<span class="arrow" aria-hidden="true">→</span>{% endif %}
-              {% endfor %}
-            </ship-pipeline-dag>
-            {% endif %}
-
-            {# Ops mode: log stream is always open so you see what's happening #}
-            <ship-log-stream slot="footer"
-              url="/api/runtime/jobs/{{ run.slug }}/log/stream"
-              active autoscroll></ship-log-stream>
-          </ship-pipeline-run>
-        {% endfor %}
-      </div>
-    </section>
+      {% include 'pipelines/focus/partials/ops_center.html.j2' %}
     {% endif %}
 
-    {# ── Stats ──────────────────────────────────────────────────── #}
-    <section>
-      <h2 class="ship-focus-section-label" style="margin-bottom: var(--space-3);">
-        {% if ops_mode %}Overview{% else %}Stats{% endif %}
-      </h2>
-      <div class="ship-focus-stats">
-        <ship-stat>
-          <span slot="label">Total runs</span>
-          {{ def.total_runs or 0 }}
-        </ship-stat>
-        <ship-stat accent="{{ 'success' if def.success_rate >= 0.8 else ('warning' if def.success_rate >= 0.5 else 'destructive') if def.total_runs > 0 else 'default' }}">
-          <span slot="label">Success rate</span>
-          {{ (def.success_rate * 100) | int }}%
-        </ship-stat>
-        <ship-stat accent="{{ 'info' if def.active_runs and def.active_runs > 0 else 'default' }}">
-          <span slot="label">Active now</span>
-          {{ def.active_runs or 0 }}
-        </ship-stat>
-        <ship-stat>
-          <span slot="label">Last run</span>
-          {% if def.last_run_at %}
-            <ship-timestamp value="{{ def.last_run_at }}" relative></ship-timestamp>
-            {% if def.last_run_status %}
-            <ship-badge slot="trend" size="sm" tone="{{ def.last_run_tone or 'muted' }}">{{ def.last_run_status }}</ship-badge>
-            {% endif %}
-          {% else %}—{% endif %}
-        </ship-stat>
-      </div>
-    </section>
+    {% include 'pipelines/focus/partials/stats.html.j2' %}
+    {% include 'pipelines/focus/partials/edit_card.html.j2' %}
+    {% include 'pipelines/focus/partials/steps_card.html.j2' %}
 
-    {# ── Raw editor (edit mode) ────────────────────────────────── #}
-    <ship-card data-show="$edit_mode">
-      <div slot="header" class="ship-focus-header-row">
-        <h3 class="ship-focus-section-label">
-          Edit {{ format }}
-        </h3>
-        <div style="display: flex; align-items: center; gap: var(--space-2);">
-          <span class="ship-focus-kbd-hint">
-            <kbd class="ship-focus-kbd">⌘S</kbd><span>save</span>
-            <span style="margin: 0 var(--space-1); opacity: 0.5;">·</span>
-            <kbd class="ship-focus-kbd">Esc</kbd><span>cancel</span>
-          </span>
-          <ship-chip size="sm" tone="warning">editing</ship-chip>
-        </div>
-      </div>
-      <ship-alert tone="destructive" compact data-show="$edit_error">
-        <ship-icon slot="leading" name="triangle-alert" size="sm"></ship-icon>
-        <span data-text="$edit_error"></span>
-        <span data-show="$edit_error_line > 0" style="margin-left: var(--space-2); opacity: 0.85;">
-          at line <span data-text="$edit_error_line"></span>:<span data-text="$edit_error_col"></span>
-        </span>
-        <span slot="actions" data-show="$edit_issue_count > 1" style="font-size: var(--text-xs); opacity: 0.85;">
-          +<span data-text="$edit_issue_count - 1"></span> more — see inline markers
-        </span>
-      </ship-alert>
-      <ship-code-editor id="pipeline-editor"
-        language="{{ 'jsonc' if format == 'jsonc' else ('json' if format == 'json' else 'yaml') }}"
-        value="{{ raw }}"
-        data-on:ship-save="window.savePipeline('{{ workspace_id }}', '{{ name }}')"
-        data-on:ship-cancel="if ($edit_mode) { $edit_mode = false; $edit_error = ''; $edit_issue_count = 0; window.resetPipelineEditor() }"
-        style="min-height: 24rem;"></ship-code-editor>
-    </ship-card>
-
-    {# ── Steps definition (read mode) ───────────────────────────── #}
-    <ship-card data-show="!$edit_mode">
-      <h3 slot="header" class="ship-focus-section-label">Steps</h3>
-      {% if doc.steps and doc.steps | length > 0 %}
-        {% for step in doc.steps %}
-          {% set step_type = 'run' if step.run else ('gate' if step.gate else 'agent') %}
-          <ship-pipeline-step-def
-            index="{{ loop.index }}"
-            name="{{ step.id }}"
-            step-type="{{ step_type }}"
-            {% if step.agent %}agent="{{ step.agent }}"{% endif %}
-            {% if step.provider %}provider="{{ step.provider }}"{% endif %}
-            {% if step.model %}model="{{ step.model }}"{% endif %}
-            {% if step.after %}after="{{ step.after | join(',') }}"{% endif %}
-            {% if step.run %}command="{{ step.run }}"{% endif %}>
-            {% if step.gate %}
-            <div slot="gate">
-              {% if step.gate.require_changed %}
-              <ship-chip size="sm" tone="warning">
-                require
-                {% if step.gate.require_changed.match %}&nbsp;<code>{{ step.gate.require_changed.match }}</code>{% endif %}
-                {% if step.gate.require_changed.min is defined %}&nbsp;≥ {{ step.gate.require_changed.min }}{% endif %}
-              </ship-chip>
-              {% endif %}
-              {% if step.gate.forbid_changed %}
-              <ship-chip size="sm" tone="destructive">
-                forbid
-                {% if step.gate.forbid_changed.match %}&nbsp;<code>{{ step.gate.forbid_changed.match }}</code>{% endif %}
-                {% if step.gate.forbid_changed.min is defined %}&nbsp;&gt; {{ step.gate.forbid_changed.min }}{% endif %}
-              </ship-chip>
-              {% endif %}
-            </div>
-            {% endif %}
-          </ship-pipeline-step-def>
-        {% endfor %}
-      {% else %}
-        <ship-empty-state icon="list" heading="No steps"
-          description="This pipeline file doesn't declare any steps."></ship-empty-state>
-      {% endif %}
-    </ship-card>
-
-    {# ── Recent runs (non-ops history) ────────────────────────── #}
     {% if runs and runs | length > 0 %}
-    <ship-card>
-      <h3 slot="header" class="ship-focus-section-label">
-        {% if ops_mode %}Recent runs (history){% else %}Recent runs{% endif %}
-      </h3>
-      <div class="ship-focus-stack">
-        {% for run in runs %}
-          {# In ops mode, active runs are already shown above — skip here #}
-          {% if not ops_mode or not (run.state == 'dispatched' or run.state == 'pending' or run.state == 'gate-pending') %}
-          {% set run_state = run.state | replace('-', '') %}
-          <ship-pipeline-run state="{{ run_state }}" slug="{{ run.slug }}" agent="{{ run.agent }}">
-            <ship-timestamp slot="actions" value="{{ run.updated_at }}" relative></ship-timestamp>
-            <ship-button slot="actions" variant="ghost" size="sm"
-              data-on:click="window.location.href='/pipelines/run/{{ run.slug }}'">
-              <ship-icon slot="leading" name="chevron-right"></ship-icon>
-              Open
-            </ship-button>
-
-            {% if run.error %}
-              {% if '\n' in run.error %}
-              <ship-collapsible>
-                <ship-alert slot="trigger" tone="destructive" compact>Error (expand for details)</ship-alert>
-                <ship-code language="text">{{ run.error }}</ship-code>
-              </ship-collapsible>
-              {% else %}
-              <ship-alert tone="destructive" compact>Error: {{ run.error }}</ship-alert>
-              {% endif %}
-            {% endif %}
-
-            {% if run.steps and run.steps | length > 0 %}
-            <ship-pipeline-dag>
-              {% for step in run.steps %}
-              <ship-pipeline-step
-                name="{{ step.id }}"
-                state="{{ step.state }}"
-                step-type="{{ step.step_type }}"
-                {% if step.agent %}agent="{{ step.agent }}"{% endif %}></ship-pipeline-step>
-              {% if not loop.last %}<span class="arrow" aria-hidden="true">→</span>{% endif %}
-              {% endfor %}
-            </ship-pipeline-dag>
-            {% endif %}
-          </ship-pipeline-run>
-          {% endif %}
-        {% endfor %}
-      </div>
-    </ship-card>
+      {% include 'pipelines/focus/partials/recent_runs.html.j2' %}
     {% endif %}
   </div>
 

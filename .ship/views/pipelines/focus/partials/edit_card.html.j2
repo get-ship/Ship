@@ -1,0 +1,36 @@
+{#-
+  Edit card — shown only when $edit_mode is true. Hosts the ship-code-editor
+  + inline parse/schema diagnostics. Emits ship-save / ship-cancel from the
+  editor which the parent wires to window.savePipeline / inline signal writes.
+-#}
+<ship-card data-show="$edit_mode">
+  <div slot="header" class="ship-focus-header-row">
+    <h3 class="ship-focus-section-label">
+      Edit {{ format }}
+    </h3>
+    <div style="display: flex; align-items: center; gap: var(--space-2);">
+      <span class="ship-focus-kbd-hint">
+        <kbd class="ship-focus-kbd">⌘S</kbd><span>save</span>
+        <span style="margin: 0 var(--space-1); opacity: 0.5;">·</span>
+        <kbd class="ship-focus-kbd">Esc</kbd><span>cancel</span>
+      </span>
+      <ship-chip size="sm" tone="warning">editing</ship-chip>
+    </div>
+  </div>
+  <ship-alert tone="destructive" compact data-show="$edit_error">
+    <ship-icon slot="leading" name="triangle-alert" size="sm"></ship-icon>
+    <span data-text="$edit_error"></span>
+    <span data-show="$edit_error_line > 0" style="margin-left: var(--space-2); opacity: 0.85;">
+      at line <span data-text="$edit_error_line"></span>:<span data-text="$edit_error_col"></span>
+    </span>
+    <span slot="actions" data-show="$edit_issue_count > 1" style="font-size: var(--text-xs); opacity: 0.85;">
+      +<span data-text="$edit_issue_count - 1"></span> more — see inline markers
+    </span>
+  </ship-alert>
+  <ship-code-editor id="pipeline-editor"
+    language="{{ 'jsonc' if format == 'jsonc' else ('json' if format == 'json' else 'yaml') }}"
+    value="{{ raw }}"
+    data-on:ship-save="window.savePipeline('{{ workspace_id }}', '{{ name }}')"
+    data-on:ship-cancel="if ($edit_mode) { $edit_mode = false; $edit_error = ''; $edit_issue_count = 0; window.resetPipelineEditor() }"
+    style="min-height: 24rem;"></ship-code-editor>
+</ship-card>

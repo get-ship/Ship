@@ -26,7 +26,7 @@ use std::time::Duration;
 
 use crate::views::state::{
     Filter, PipelineDef, aggregate_pipeline_stats, list_pipeline_defs, list_pipeline_runs,
-    partition_runs, status_token,
+    partition_runs, status_token, status_tone,
 };
 use crate::views::stream::{ViewSse, ViewStream};
 use crate::views::templates;
@@ -53,6 +53,33 @@ impl PipelinesParams {
     /// Selected agent filter (empty string = "All agents").
     pub fn agent_filter(&self) -> String {
         self.filter.agent.clone().unwrap_or_default()
+    }
+}
+
+/// Query string for the history view. Independent of PipelinesParams
+/// since the filters it surfaces (search + pagination) differ.
+#[derive(Clone, Debug, Default, Deserialize)]
+pub struct HistoryParams {
+    /// Case-insensitive substring applied to slug, agent, and pipeline name.
+    #[serde(default)]
+    pub q: Option<String>,
+    /// Exact pipeline name filter (matches the tile chip on the list view).
+    #[serde(default)]
+    pub pipeline: Option<String>,
+    /// Zero-based offset into the history list.
+    #[serde(default)]
+    pub offset: Option<usize>,
+    /// Page size; clamped to 1..=200.
+    #[serde(default)]
+    pub limit: Option<usize>,
+}
+
+impl HistoryParams {
+    pub fn page_limit(&self) -> usize {
+        self.limit.unwrap_or(50).clamp(1, 200)
+    }
+    pub fn page_offset(&self) -> usize {
+        self.offset.unwrap_or(0)
     }
 }
 
@@ -562,6 +589,132 @@ fn find_pipeline_file(name: &str) -> Option<std::path::PathBuf> {
     }
 }
 
+/// Flat row shape for the history table. Runs here are already in
+/// `RunCategory::History` — no active jobs bleed through.
+#[derive(Serialize, Clone)]
+pub struct HistoryRow {
+    pub slug: String,
+    pub pipeline: String,
+    pub agent: String,
+    pub state: &'static str,
+    pub tone: &'static str,
+    pub duration: String,
+    pub updated_at: String,
+    pub branch: String,
+}
+
+#[derive(Serialize)]
+pub struct HistoryCtx {
+    /// Current filter state, echoed back for form inputs.
+    pub q: String,
+    pub pipeline_filter: String,
+    /// Page window.
+    pub rows: Vec<HistoryRow>,
+    pub total: usize,
+    pub offset: usize,
+    pub limit: usize,
+    pub has_prev: bool,
+    pub has_next: bool,
+    /// All pipeline names that have ever produced a run — feeds the
+    /// pipeline-filter `<ship-select>`.
+    pub pipelines: Vec<String>,
+}
+
+pub fn build_history_ctx(
+    params: &HistoryParams,
+    ship_dir: &std::path::Path,
+) -> HistoryCtx {
+    // Load every run, then narrow: history-only, optional pipeline match,
+    // optional case-insensitive q substring across slug/agent/pipeline.
+    let filter = Filter {
+        pipeline: params.pipeline.clone().filter(|s| !s.is_empty()),
+        ..Filter::default()
+    };
+    let all = list_pipeline_runs(ship_dir, &filter);
+    let (_active, history_all) = partition_runs(all);
+    let q = params.q.clone().unwrap_or_default();
+    let q_lower = q.to_lowercase();
+    let filtered: Vec<JobRecord> = history_all
+        .into_iter()
+        .filter(|j| {
+            if q_lower.is_empty() {
+                return true;
+            }
+            let pname = crate::views::state::pipeline_name_for_job_public(j)
+                .unwrap_or_default();
+            j.slug.to_lowercase().contains(&q_lower)
+                || j.agent.to_lowercase().contains(&q_lower)
+                || pname.to_lowercase().contains(&q_lower)
+        })
+        .collect();
+    let total = filtered.len();
+
+    let offset = params.page_offset().min(total);
+    let limit = params.page_limit();
+    let window: Vec<JobRecord> = filtered
+        .into_iter()
+        .skip(offset)
+        .take(limit)
+        .collect();
+
+    // All distinct pipeline names across ALL runs (not just filtered) so
+    // the pipeline selector always includes every historical option.
+    let pipelines: Vec<String> = {
+        let unfiltered = list_pipeline_runs(ship_dir, &Filter::default());
+        let (_a, h) = partition_runs(unfiltered);
+        let mut set = BTreeSet::new();
+        for j in &h {
+            if let Some(p) = crate::views::state::pipeline_name_for_job_public(j) {
+                set.insert(p);
+            }
+        }
+        set.into_iter().collect()
+    };
+
+    let rows: Vec<HistoryRow> = window
+        .into_iter()
+        .map(|j| HistoryRow {
+            slug: j.slug.clone(),
+            pipeline: crate::views::state::pipeline_name_for_job_public(&j).unwrap_or_default(),
+            agent: j.agent.clone(),
+            state: run_state_token(&j.status),
+            tone: status_tone(&j.status),
+            duration: format_duration_between(&j.created_at, &j.updated_at),
+            updated_at: j.updated_at.to_rfc3339(),
+            branch: j.branch.clone(),
+        })
+        .collect();
+
+    let has_prev = offset > 0;
+    let has_next = offset + limit < total;
+
+    HistoryCtx {
+        q,
+        pipeline_filter: params.pipeline.clone().unwrap_or_default(),
+        rows,
+        total,
+        offset,
+        limit,
+        has_prev,
+        has_next,
+        pipelines,
+    }
+}
+
+fn format_duration_between(
+    start: &chrono::DateTime<chrono::Utc>,
+    end: &chrono::DateTime<chrono::Utc>,
+) -> String {
+    let secs = (end.signed_duration_since(*start)).num_seconds().max(0);
+    if secs < 60 {
+        format!("{secs}s")
+    } else if secs < 3600 {
+        format!("{}m {}s", secs / 60, secs % 60)
+    } else {
+        format!("{}h {}m", secs / 3600, (secs % 3600) / 60)
+    }
+}
+
 pub fn build_focus_ctx(name: &str, ship_dir: &std::path::Path) -> Option<PipelineFocusCtx> {
     let path = find_pipeline_file(name)?;
     let raw = std::fs::read_to_string(&path).ok()?;
@@ -716,6 +869,29 @@ pub async fn pipelines_run_shell(
     let source = std::fs::read_to_string(&path).map_err(|_| StatusCode::NOT_FOUND)?;
     render_with_fragment(
         "pipelines/run/index.html.j2",
+        &source,
+        &ctx,
+        is_fragment_request(&headers),
+    )
+}
+
+/// GET /api/runtime/view/pipelines/history — dedicated paginated history.
+///
+/// Accepts `?q=<substr>&offset=<n>&limit=<n>` for filtering + pagination.
+/// `q` matches against slug / agent / pipeline name (case-insensitive).
+pub async fn pipelines_history_shell(
+    State(state): State<crate::rest_api::ApiState>,
+    headers: HeaderMap,
+    Query(params): Query<HistoryParams>,
+) -> Result<Html<String>, StatusCode> {
+    let ctx = build_history_ctx(&params, state.ship_dir());
+    let Some((view_dir, _)) = crate::views::resolve_view_dir("pipelines") else {
+        return Err(StatusCode::INTERNAL_SERVER_ERROR);
+    };
+    let path = view_dir.join("history").join("index.html.j2");
+    let source = std::fs::read_to_string(&path).map_err(|_| StatusCode::NOT_FOUND)?;
+    render_with_fragment(
+        "pipelines/history/index.html.j2",
         &source,
         &ctx,
         is_fragment_request(&headers),

@@ -250,6 +250,14 @@ router.on("/pipelines/pipeline/:name", ({ data }) => {
   void mount(`/api/runtime/view/pipelines/pipeline/${encodeURIComponent(data!.name)}`);
 });
 
+router.on("/pipelines/history", () => {
+  updateNav("/pipelines");
+  updateBreadcrumbs(`/pipelines/history`);
+  // Forward any query string so pagination/search survive shell nav.
+  const qs = location.search ?? "";
+  void mount(`/api/runtime/view/pipelines/history${qs}`);
+});
+
 router.on("/pipelines/run/:slug", ({ data }) => {
   updateNav("/pipelines");
   updateBreadcrumbs(`/pipelines/run/${data!.slug}`);

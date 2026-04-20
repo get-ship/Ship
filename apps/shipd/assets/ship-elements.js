@@ -8583,7 +8583,13 @@ var ShipLogStream = class extends i4 {
       return;
     }
     this._source.addEventListener(this.event, (ev) => {
-      this._append(ev.data ?? "");
+      const chunk = ev.data ?? "";
+      this._append(chunk);
+      this.dispatchEvent(new CustomEvent("ship-log-tick", {
+        detail: { bytes: chunk.length },
+        bubbles: true,
+        composed: true
+      }));
     });
     this._source.onopen = () => {
       this.dispatchEvent(new CustomEvent("ship-stream-open"));

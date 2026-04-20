@@ -45,6 +45,7 @@ fn empty_def(name: &str, description: &str, step_count: usize) -> PipelineDef {
         last_run_status: None,
         last_run_tone: None,
         last_run_slug: None,
+        recent_outcomes: Vec::new(),
     }
 }
 
