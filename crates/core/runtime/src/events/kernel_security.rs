@@ -200,8 +200,10 @@ impl KernelRouter {
 
     /// Deliver event to matching subscribers respecting scope and directed delivery.
     ///
-    /// Returns `Err` if any actor's mailbox was full. The event is still
-    /// delivered to all actors that have capacity — only the full ones miss it.
+    /// Returns `Err` if any permissions-based actor's mailbox was full. Actors
+    /// spawned via `spawn_actor()` (legacy path) silently drop on full — only
+    /// actors with `actor_meta` (spawned via `spawn_actor_with_permissions*`)
+    /// trigger error propagation and `actor.mailbox_full` events.
     pub(crate) async fn deliver_with_scope(&self, event: &EventEnvelope) -> Result<()> {
         let mut full_actors: Vec<String> = Vec::new();
 
@@ -221,7 +223,16 @@ impl KernelRouter {
                         );
                     }
                     Err(mpsc::error::TrySendError::Full(_)) => {
-                        full_actors.push(target.clone());
+                        // Only propagate full errors for permissions-based actors.
+                        if self.actor_meta.contains_key(target) {
+                            full_actors.push(target.clone());
+                        } else {
+                            tracing::warn!(
+                                actor_id = target,
+                                event_type = %event.event_type,
+                                "kernel-router: mailbox full, event dropped"
+                            );
+                        }
                     }
                     Err(mpsc::error::TrySendError::Closed(_)) => {
                         tracing::warn!(
@@ -261,7 +272,16 @@ impl KernelRouter {
                                 );
                             }
                             Err(mpsc::error::TrySendError::Full(_)) => {
-                                full_actors.push(actor_id.clone());
+                                // Only propagate full errors for permissions-based actors.
+                                if self.actor_meta.contains_key(actor_id) {
+                                    full_actors.push(actor_id.clone());
+                                } else {
+                                    tracing::warn!(
+                                        actor_id,
+                                        event_type = %event.event_type,
+                                        "kernel-router: mailbox full, event dropped"
+                                    );
+                                }
                             }
                             Err(mpsc::error::TrySendError::Closed(_)) => {
                                 tracing::warn!(

@@ -105,6 +105,11 @@ impl KernelRouter {
             .collect()
     }
 
+    /// Look up the config for a single actor. Returns `None` if not registered.
+    pub fn get_actor_config(&self, actor_id: &str) -> Option<&ActorConfig> {
+        self.actor_configs.get(actor_id)
+    }
+
     /// Deliver an event directly to a named actor's mailbox. No persistence, no validation.
     ///
     /// Used by runtime-specific delivery paths (e.g. scope-filtered delivery in

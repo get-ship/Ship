@@ -253,9 +253,8 @@ impl KernelRouter {
         };
 
         // Consult inner for actor config.
-        let configs = self.inner.list_actors();
-        let config = match configs.iter().find(|(id, _)| id == actor_id) {
-            Some((_, cfg)) => cfg.clone(),
+        let config = match self.inner.get_actor_config(actor_id) {
+            Some(cfg) => cfg,
             None => return Ok(()),
         };
 
