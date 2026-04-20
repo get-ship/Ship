@@ -73,21 +73,14 @@ impl KernelRouter {
             subscribe_namespaces: subs_to_namespaces(&permissions.subscribe),
         };
 
-        // Register subscriptions in inner so route() can find this actor.
-        // We insert the sender we own so delivery goes to our mailbox.
-        // We bypass inner.spawn_actor() here because we need our own channel
-        // for the replay path — instead we register via inner's spawn and
-        // discard the returned mailbox, then route deliveries ourselves.
-        // TODO: expose a lower-level registration API on inner if this pattern
-        // grows. For now the unstable path is self-contained.
+        // Register with inner for subscription state and actor config lookup.
+        // inner.spawn_actor() creates its own channel — we discard that Mailbox
+        // and use our own channel (tx/rx) so cursor-based replay can inject
+        // events before returning. deliver_with_scope() uses unstable_senders
+        // for actual delivery to these actors, not inner's mailboxes.
         let _ = self.inner.spawn_actor(label, config.clone())
             .map_err(|e| anyhow!("{e}"))?;
 
-        // Override: replace inner's sender with our own so that deliver_with_scope
-        // can access sender state (full / closed) via inner.mailbox_sender().
-        // This is a limitation of the current split: the unstable path creates its
-        // own channel and cannot share inner's sender. We store our sender in
-        // actor_meta for use by deliver_with_scope.
         let subs = permissions.subscribe.clone();
         self.actor_meta.insert(
             label.to_string(),
@@ -112,14 +105,7 @@ impl KernelRouter {
             }
         }
 
-        // Store sender for use by deliver_with_scope.
-        self.actor_meta
-            .get_mut(label)
-            .expect("just inserted")
-            .permissions = permissions.clone();
-
-        // Keep a copy of tx for deliver_with_scope via the senders map.
-        // We stash it separately since inner's channel is different.
+        // Stash the sender so deliver_with_scope can reach this actor's mailbox.
         self.unstable_senders.insert(label.to_string(), tx);
 
         let store = ActorStore::new(
