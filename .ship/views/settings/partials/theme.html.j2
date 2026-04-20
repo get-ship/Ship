@@ -1,7 +1,10 @@
 {#- Theme picker section for the settings view.
     Renders preset cards with color swatches + mode toggle.
     Theme switching calls window.setShipTheme(name) from the shell. -#}
+{% from '_ship.html.j2' import section, endsection %}
 <style>
+  /* Theme preset grid — a 5-tile swatch picker is a view-specific composition
+     (gradient-sampled color swatches + name), not a library pattern. Kept view-local. */
   .s-theme-grid {
     display: grid;
     grid-template-columns: repeat(auto-fill, minmax(120px, 1fr));
@@ -42,31 +45,23 @@
     color: var(--foreground);
     text-align: center;
   }
+  /* Color-mode row — horizontal label + 3-button picker; ship-list-tile's
+     meta/trailing split puts the buttons below the label at this density,
+     so the inline layout stays view-local. */
   .s-mode-row {
     display: flex;
     gap: var(--space-3);
     align-items: center;
     padding: var(--space-2) 0;
   }
-  .s-mode-label {
-    font-size: var(--text-sm);
-    color: var(--muted-foreground);
-    min-width: 80px;
-  }
 </style>
 
 <div id="settings-theme">
-  <div class="s-card">
-    <div class="s-card-head">
-      <div class="s-card-title">
-        <ship-icon name="eye"></ship-icon>
-        Theme
-      </div>
-    </div>
-    <div class="s-card-body">
+  {{ section('Theme', icon='eye') }}
+    <div class="s-section-body">
       <div class="s-mode-row">
         <div class="s-row-label">Color mode</div>
-        <div class="s-row-ctrl" style="display:flex;gap:var(--space-2)">
+        <div class="s-mode-ctrl">
           <ship-button size="sm" variant="outline"
             onclick="document.documentElement.classList.remove('dark');localStorage.setItem('ship-shell-theme','light')">Light</ship-button>
           <ship-button size="sm" variant="outline"
@@ -129,5 +124,5 @@
         </div>
       </div>
     </div>
-  </div>
+  {{ endsection() }}
 </div>
