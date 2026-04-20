@@ -4,10 +4,10 @@
 // so it survives reloads. The inline script in BaseLayout re-applies on
 // page load before paint.
 const themes = [
-  { id: 'ship-light', label: 'Ship Light', group: 'Ship' },
-  { id: 'ship-dark', label: 'Ship Dark', group: 'Ship' },
-  { id: 'high-contrast', label: 'High Contrast', group: 'Ship' },
-  { id: 'warm', label: 'Warm (paper)', group: 'Ship' },
+  { id: 'ship-light', label: 'SHIP Light', group: 'SHIP' },
+  { id: 'ship-dark', label: 'SHIP Dark', group: 'SHIP' },
+  { id: 'high-contrast', label: 'High Contrast', group: 'SHIP' },
+  { id: 'warm', label: 'Warm (paper)', group: 'SHIP' },
   { id: 'gruvbox-dark', label: 'Gruvbox Dark', group: 'Classics' },
   { id: 'gruvbox-light', label: 'Gruvbox Light', group: 'Classics' },
   { id: 'nord', label: 'Nord', group: 'Classics' },
@@ -19,7 +19,7 @@ const groups = Array.from(new Set(themes.map((t) => t.group)));
 
 <label class="theme-switcher">
   <span class="theme-switcher-label">Theme</span>
-  <ship-select size="sm" data-theme-select data-placeholder="Ship Light">
+  <ship-select size="sm" data-theme-select data-placeholder="SHIP Light">
     {groups.map((g) => (
       <optgroup label={g}>
         {themes.filter((t) => t.group === g).map((t) => (

@@ -20,17 +20,17 @@ const { videoSrc, videoPoster } = Astro.props;
   <div class="site-container hero-inner">
     <ship-badge tone="accent" variant="soft" size="sm" class="hero-eyebrow">
       <ship-status-dot tone="success" pulse slot="leading"></ship-status-dot>
-      Public beta &middot; v0.9
+      Public beta
     </ship-badge>
 
     <h1 class="hero-headline">
-      The missing <span class="hero-accent">AI interface.</span>
+      One app for <span class="hero-accent">every AI.</span>
     </h1>
 
     <p class="hero-sub">
-      Ship transforms the way you work with AI. Build apps, orchestrate
-      models, and control your data &mdash; locally, with no
-      lock&#8209;in.
+      SHIP is the missing AI interface. Chat with any model, run agents
+      that finish real work, and build the tools you need &mdash; all
+      from one place, on your machine, with your own keys.
     </p>
 
     <ship-toolbar justify="center" gap="md" class="hero-ctas">
@@ -39,12 +39,12 @@ const { videoSrc, videoPoster } = Astro.props;
         variant="solid"
         size="lg"
         onclick="location.href='/download'"
-      >Download for your platform</ship-button>
+      >Download SHIP</ship-button>
       <ship-button
         variant="ghost"
         size="lg"
         onclick="document.getElementById('features')?.scrollIntoView({behavior:'smooth'})"
-      >See how it works &rarr;</ship-button>
+      >See what it does &rarr;</ship-button>
     </ship-toolbar>
 
     <div class="hero-stage">

@@ -1,77 +1,85 @@
 ---
-// Highlight 1 — AI native.
+// Highlight 1 — "One chat, every model."
 //
-// The demo shows a Ship pipeline JSON materializing on the left and
-// the equivalent pipeline-step chain animating across the right.
-// Both panels are driven by a single IntersectionObserver that flips
-// the section's data-visible attribute once — reveal is always
-// one-shot and idempotent.
+// Left: a stack of provider chats stacked like browser tabs, the
+// active one tinted with its model's accent color. Right: an agent
+// run card showing SHIP orchestrating across providers for a
+// single task — "draft a release post" pulling from Claude for
+// prose, ChatGPT for code, Gemini for screenshots, with per-step
+// cost and duration.
+//
+// Both panels reveal via IntersectionObserver once.
 
-const pipelineSteps = [
-  { name: 'fetch_docs',   type: 'agent',  label: 'Claude',  state: 'completed' },
-  { name: 'summarize',    type: 'agent',  label: 'Gemini',  state: 'completed' },
-  { name: 'critique',     type: 'gate',   label: 'Gate',    state: 'running' },
-  { name: 'compose_view', type: 'run',    label: 'Runtime', state: 'pending' },
+const chats = [
+  { id: 'claude',  name: 'Claude',   desc: 'Long context, thoughtful answers',  accent: 'oklch(0.72 0.14 40)' },
+  { id: 'chatgpt', name: 'ChatGPT',  desc: 'Fast, broad, great for code',       accent: 'oklch(0.66 0.13 155)' },
+  { id: 'gemini',  name: 'Gemini',   desc: 'Multimodal, research-friendly',     accent: 'oklch(0.66 0.14 240)' },
+  { id: 'cursor',  name: 'Cursor',   desc: 'Your IDE agent, in-app',            accent: 'oklch(0.65 0.16 300)' },
+];
+
+const agentSteps = [
+  { label: 'Summarize the week',    provider: 'Claude',  state: 'completed', ms: '1.4s',  cost: '$0.02' },
+  { label: 'Pick 3 highlights',     provider: 'ChatGPT', state: 'completed', ms: '0.9s',  cost: '$0.01' },
+  { label: 'Draft the release post',provider: 'Claude',  state: 'running',   ms: '—',     cost: '—' },
+  { label: 'Grab screenshots',      provider: 'Gemini',  state: 'pending',   ms: '—',     cost: '—' },
 ];
 ---
 
 <section class="hl hl-ai" data-visible="false">
   <div class="site-container hl-inner">
     <header class="hl-head">
-      <ship-badge tone="accent" variant="soft" size="sm">01 &middot; AI native</ship-badge>
-      <h2>The compiler for your AI stack.</h2>
+      <ship-badge tone="accent" variant="soft" size="sm">One chat, every model</ship-badge>
+      <h2>Pick the right brain, not the right app.</h2>
       <p class="hl-sub">
-        Declare a pipeline, pick the providers, ship the skills. Ship
-        compiles five AI backends &mdash; Claude, Codex, Gemini, Cursor,
-        OpenCode &mdash; down to a single runtime. Bring your own keys.
-        Orchestrate across them in 50 lines of JSON.
+        Claude, ChatGPT, Gemini, Cursor, OpenCode &mdash; all in one
+        place, all talking to each other. Switch mid-conversation. Ask
+        two models the same question. Let SHIP route each step to
+        whichever model is best for the job.
       </p>
     </header>
 
     <div class="hl-demo">
-      <ship-card variant="outline" padding="none" class="hl-code">
-        <div slot="header" class="hl-code-head">
-          <ship-badge tone="muted" variant="outline" size="sm">pipeline.json</ship-badge>
-          <span class="hl-code-meta">compiles to <strong>5 runtimes</strong></span>
-        </div>
-<pre class="hl-code-pre"><code><span class="k">{</span>
-  <span class="s">"id"</span>: <span class="v">"daily-review"</span>,
-  <span class="s">"steps"</span>: <span class="k">[</span>
-    <span class="k">{</span> <span class="s">"name"</span>: <span class="v">"fetch_docs"</span>,   <span class="s">"type"</span>: <span class="v">"agent"</span>,  <span class="s">"with"</span>: <span class="v">"claude"</span>  <span class="k">}</span>,
-    <span class="k">{</span> <span class="s">"name"</span>: <span class="v">"summarize"</span>,    <span class="s">"type"</span>: <span class="v">"agent"</span>,  <span class="s">"with"</span>: <span class="v">"gemini"</span>  <span class="k">}</span>,
-    <span class="k">{</span> <span class="s">"name"</span>: <span class="v">"critique"</span>,     <span class="s">"type"</span>: <span class="v">"gate"</span>,   <span class="s">"skill"</span>: <span class="v">"reviewer"</span> <span class="k">}</span>,
-    <span class="k">{</span> <span class="s">"name"</span>: <span class="v">"compose_view"</span>, <span class="s">"type"</span>: <span class="v">"run"</span>,    <span class="s">"view"</span>: <span class="v">"digest"</span>    <span class="k">}</span>
-  <span class="k">]</span>
-<span class="k">}</span></code></pre>
-      </ship-card>
-
-      <div class="hl-steps">
-        {pipelineSteps.map((s, i) => (
-          <div class="hl-step-wrap" style={`--i: ${i}`}>
-            <div class="hl-step-connector" aria-hidden="true"></div>
-            <ship-card
-              variant="outline"
-              status-rail
-              tone={s.state === 'completed' ? 'success' : s.state === 'running' ? 'info' : 'default'}
-              padding="md"
-              class="hl-step"
-            >
-              <div class="hl-step-head">
-                <span class="hl-step-name">{s.name}</span>
-                <ship-status-dot
-                  tone={s.state === 'completed' ? 'success' : s.state === 'running' ? 'info' : 'muted'}
-                  pulse={s.state === 'running'}
-                ></ship-status-dot>
-              </div>
-              <div class="hl-step-meta">
-                <span class="hl-step-type">{s.type}</span>
-                <span class="hl-step-dot">&middot;</span>
-                <span class="hl-step-agent">{s.label}</span>
-              </div>
-            </ship-card>
+      <div class="hl-chats">
+        {chats.map((c, i) => (
+          <div
+            class="hl-chat"
+            data-active={i === 0 ? 'true' : 'false'}
+            style={`--accent: ${c.accent}; --i: ${i}`}
+          >
+            <div class="hl-chat-dot" aria-hidden="true"></div>
+            <div class="hl-chat-body">
+              <div class="hl-chat-name">{c.name}</div>
+              <div class="hl-chat-desc">{c.desc}</div>
+            </div>
+            <span class="hl-chat-key" aria-hidden="true">&#8984;{i + 1}</span>
           </div>
         ))}
       </div>
+
+      <ship-card variant="outline" padding="lg" class="hl-agent">
+        <div slot="header" class="hl-agent-head">
+          <div>
+            <div class="hl-agent-title">Release post for v1.2</div>
+            <div class="hl-agent-sub">4 steps &middot; 2 models &middot; running now</div>
+          </div>
+          <ship-badge tone="info" variant="soft" size="sm">agent</ship-badge>
+        </div>
+
+        <ul class="hl-agent-steps">
+          {agentSteps.map((s, i) => (
+            <li class="hl-agent-step" data-state={s.state} style={`--i: ${i}`}>
+              <ship-status-dot
+                tone={s.state === 'completed' ? 'success' : s.state === 'running' ? 'info' : 'muted'}
+                pulse={s.state === 'running'}
+              ></ship-status-dot>
+              <span class="hl-agent-label">{s.label}</span>
+              <span class="hl-agent-provider">{s.provider}</span>
+              <span class="hl-agent-ms">{s.ms}</span>
+              <span class="hl-agent-cost">{s.cost}</span>
+            </li>
+          ))}
+        </ul>
+      </ship-card>
     </div>
   </div>
 </section>
@@ -125,111 +133,148 @@ const pipelineSteps = [
     .hl-demo { grid-template-columns: 1fr; }
   }
 
-  .hl-code {
+  /* Provider chat stack */
+  .hl-chats {
     display: flex;
     flex-direction: column;
+    gap: 10px;
+  }
+  .hl-chat {
+    display: grid;
+    grid-template-columns: auto 1fr auto;
+    align-items: center;
+    gap: 14px;
+    padding: 14px 16px;
+    border: 1px solid color-mix(in oklch, var(--border) 55%, transparent);
+    border-radius: var(--radius-lg);
+    background: var(--card);
+    transition:
+      opacity 420ms var(--ease-out, cubic-bezier(0.16, 1, 0.3, 1)),
+      transform 420ms var(--ease-out, cubic-bezier(0.16, 1, 0.3, 1));
+    transition-delay: calc(160ms + var(--i) * 110ms);
+  }
+  .hl-chat[data-active='true'] {
+    border-color: color-mix(in oklch, var(--accent) 60%, transparent);
+    box-shadow:
+      0 1px 2px color-mix(in oklch, var(--foreground) 5%, transparent),
+      0 16px 36px -24px color-mix(in oklch, var(--accent) 60%, transparent);
+  }
+  :root.js .hl-ai[data-visible='false'] .hl-chat {
+    opacity: 0;
+    transform: translateX(-10px);
+  }
+  .hl-ai[data-visible='true'] .hl-chat {
+    opacity: 1;
+    transform: none;
+  }
+  .hl-chat-dot {
+    width: 10px;
+    height: 10px;
+    border-radius: 50%;
+    background: var(--accent);
+  }
+  .hl-chat-name {
+    font-family: var(--font-display);
+    font-weight: 600;
+    font-size: 15px;
+    letter-spacing: -0.01em;
+    color: var(--foreground);
+  }
+  .hl-chat-desc {
+    color: var(--muted-foreground);
+    font-size: 12.5px;
+    margin-top: 2px;
+  }
+  .hl-chat-key {
+    font-family: var(--font-mono);
+    font-size: 11px;
+    color: var(--muted-foreground);
+    padding: 2px 6px;
+    border-radius: 5px;
+    background: color-mix(in oklch, var(--border) 30%, transparent);
+    white-space: nowrap;
+  }
+
+  /* Agent run card */
+  .hl-agent {
+    display: block;
     transition:
       opacity 500ms var(--ease-out, cubic-bezier(0.16, 1, 0.3, 1)) 80ms,
       transform 500ms var(--ease-out, cubic-bezier(0.16, 1, 0.3, 1)) 80ms;
   }
-  :root.js .hl-ai[data-visible='false'] .hl-code {
+  :root.js .hl-ai[data-visible='false'] .hl-agent {
     opacity: 0;
     transform: translateY(16px);
   }
-  .hl-ai[data-visible='true'] .hl-code { opacity: 1; transform: none; }
-  .hl-code-head {
+  .hl-ai[data-visible='true'] .hl-agent { opacity: 1; transform: none; }
+  .hl-agent-head {
     display: flex;
-    align-items: center;
+    align-items: flex-start;
     justify-content: space-between;
     gap: 10px;
-    padding: 12px 16px;
   }
-  .hl-code-meta {
+  .hl-agent-title {
+    font-family: var(--font-display);
+    font-weight: 700;
+    font-size: 17px;
+    letter-spacing: -0.01em;
+    color: var(--foreground);
+  }
+  .hl-agent-sub {
     color: var(--muted-foreground);
-    font-size: 12px;
-  }
-  .hl-code-meta strong {
-    color: var(--foreground);
-    font-weight: 600;
-  }
-  .hl-code-pre {
-    font-family: var(--font-mono);
     font-size: 12.5px;
-    line-height: 1.55;
-    padding: 18px 20px;
-    margin: 0;
-    color: var(--foreground);
-    background: color-mix(in oklch, var(--muted) 30%, transparent);
-    overflow: auto;
-    max-height: 320px;
-    tab-size: 2;
+    margin-top: 2px;
   }
-  .hl-code-pre .k { color: var(--muted-foreground); }
-  .hl-code-pre .s { color: var(--site-accent); }
-  .hl-code-pre .v { color: oklch(0.60 0.16 150); }
-
-  .hl-steps {
+  .hl-agent-steps {
+    list-style: none;
+    margin: 16px 0 0;
+    padding: 0;
     display: flex;
     flex-direction: column;
-    gap: 12px;
-    padding: 4px 0;
   }
-  .hl-step-wrap {
-    position: relative;
-    padding-left: 18px;
-    transition:
-      opacity 420ms var(--ease-out, cubic-bezier(0.16, 1, 0.3, 1)),
-      transform 420ms var(--ease-out, cubic-bezier(0.16, 1, 0.3, 1));
-    transition-delay: calc(320ms + var(--i) * 140ms);
-  }
-  :root.js .hl-ai[data-visible='false'] .hl-step-wrap {
-    opacity: 0;
-    transform: translateX(10px);
-  }
-  .hl-ai[data-visible='true'] .hl-step-wrap {
-    opacity: 1;
-    transform: none;
-  }
-  .hl-step-connector {
-    position: absolute;
-    left: 6px;
-    top: -8px;
-    bottom: -8px;
-    width: 2px;
-    background: linear-gradient(
-      180deg,
-      transparent 0,
-      color-mix(in oklch, var(--site-accent) 35%, transparent) 30%,
-      color-mix(in oklch, var(--site-accent) 35%, transparent) 70%,
-      transparent 100%
-    );
-  }
-  .hl-step-wrap:first-child .hl-step-connector { top: 50%; }
-  .hl-step-wrap:last-child  .hl-step-connector { bottom: 50%; }
-
-  .hl-step { display: block; }
-  .hl-step-head {
-    display: flex;
+  .hl-agent-step {
+    display: grid;
+    grid-template-columns: 14px 1fr auto auto auto;
+    column-gap: 12px;
     align-items: center;
-    justify-content: space-between;
-    gap: 10px;
-  }
-  .hl-step-name {
-    font-family: var(--font-mono);
+    padding: 10px 2px;
     font-size: 13px;
-    font-weight: 600;
     color: var(--foreground);
+    border-bottom: 1px solid color-mix(in oklch, var(--border) 30%, transparent);
+    transition:
+      opacity 360ms var(--ease-out, cubic-bezier(0.16, 1, 0.3, 1)),
+      transform 360ms var(--ease-out, cubic-bezier(0.16, 1, 0.3, 1));
+    transition-delay: calc(320ms + var(--i) * 90ms);
   }
-  .hl-step-meta {
+  .hl-agent-step:last-child { border-bottom: 0; }
+  :root.js .hl-ai[data-visible='false'] .hl-agent-step {
+    opacity: 0;
+    transform: translateY(6px);
+  }
+  .hl-ai[data-visible='true'] .hl-agent-step { opacity: 1; transform: none; }
+  .hl-agent-step[data-state='pending'] { opacity: 0.55; }
+  .hl-agent-label {
+    font-weight: 500;
+  }
+  .hl-agent-provider {
     color: var(--muted-foreground);
-    font-size: 12px;
-    margin-top: 4px;
+    font-family: var(--font-mono);
+    font-size: 11.5px;
   }
-  .hl-step-type {
-    text-transform: uppercase;
-    letter-spacing: 0.08em;
-    font-size: 10.5px;
-    font-weight: 600;
+  .hl-agent-ms,
+  .hl-agent-cost {
+    font-family: var(--font-mono);
+    font-size: 11.5px;
+    color: var(--muted-foreground);
+    min-width: 44px;
+    text-align: right;
   }
-  .hl-step-dot { margin: 0 6px; }
+  @media (max-width: 620px) {
+    .hl-agent-step {
+      grid-template-columns: 14px 1fr auto;
+      row-gap: 2px;
+    }
+    .hl-agent-provider { grid-column: 2 / 4; font-size: 11px; }
+    .hl-agent-ms, .hl-agent-cost { display: none; }
+  }
 </style>
