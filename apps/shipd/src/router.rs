@@ -219,6 +219,7 @@ fn build_ship_routes(st: rest_api::ApiState) -> Router {
         .ship_route(Route::SteerAgent_template(), runtime_api::steer_agent)
         .ship_route(Route::ListJobs, runtime_api::list_jobs)
         .ship_route(Route::CreateJob, runtime_api::create_job)
+        .ship_route(Route::RunPipeline, runtime_api::run_pipeline)
         .ship_route(Route::GetJob_template(), runtime_api::get_job_detail)
         .ship_route(Route::EndJob, runtime_api::end_job)
         .ship_route(Route::CancelJob_template(), runtime_api::cancel_job)

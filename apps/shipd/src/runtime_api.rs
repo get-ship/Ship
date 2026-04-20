@@ -625,6 +625,185 @@ pub async fn create_job(
     }
 }
 
+// ---- Run pipeline (simplified dispatch) ----
+
+/// Minimal inputs the UI provides — slug/branch/agent get derived
+/// server-side so the caller doesn't have to know the naming
+/// conventions.
+#[derive(Deserialize, utoipa::ToSchema)]
+pub struct RunPipelineRequest {
+    /// Pipeline name (file in `.ship/pipelines/<name>.yaml[.jsonc]`).
+    pub pipeline: String,
+    /// Inline spec body describing what the run should do.
+    #[serde(default)]
+    pub spec: Option<String>,
+    /// Pipeline `{{ var }}` overrides.
+    #[serde(default)]
+    pub vars: Option<std::collections::HashMap<String, String>>,
+    /// When true, force the headless (ProcessExecutor) path.
+    #[serde(default)]
+    pub headless: bool,
+    /// Optional workspace name; defaults to the pipeline name.
+    #[serde(default)]
+    pub workspace: Option<String>,
+}
+
+/// POST /api/runtime/run
+///
+/// UI-facing dispatch — mirrors `ship run` on the CLI. Loads the named
+/// pipeline, generates slug/branch/agent, and emits `job.created`. The
+/// orchestrator picks it up from there.
+#[utoipa::path(
+    post,
+    path = "/api/runtime/run",
+    request_body = RunPipelineRequest,
+    responses((status = 200, body = MeshResponse)),
+    tag = "runtime"
+)]
+pub async fn run_pipeline(
+    State(state): State<ApiState>,
+    Extension(auth): Extension<AuthContext>,
+    Json(req): Json<RunPipelineRequest>,
+) -> impl IntoResponse {
+    if let Err(e) = require_scope(&auth, Scope::CreateJobs) {
+        return e;
+    }
+
+    // Resolve the pipeline file (.yaml | .yml | .jsonc | .json) under
+    // the project's .ship/pipelines/.
+    let project_dir = state.ship_dir().parent().map(|p| p.to_path_buf()).unwrap_or_default();
+    let pipelines_dir = project_dir.join(".ship").join("pipelines");
+    let mut pipeline_path = None;
+    for ext in ["yaml", "yml", "jsonc", "json"] {
+        let candidate = pipelines_dir.join(format!("{}.{ext}", req.pipeline));
+        if candidate.exists() {
+            pipeline_path = Some(candidate);
+            break;
+        }
+    }
+    let Some(pipeline_path) = pipeline_path else {
+        return (
+            StatusCode::NOT_FOUND,
+            Json(MeshResponse {
+                ok: false,
+                data: serde_json::json!(format!("pipeline '{}' not found", req.pipeline)),
+            }),
+        );
+    };
+    let raw = match std::fs::read_to_string(&pipeline_path) {
+        Ok(s) => s,
+        Err(e) => {
+            return (
+                StatusCode::INTERNAL_SERVER_ERROR,
+                Json(MeshResponse {
+                    ok: false,
+                    data: serde_json::json!(format!("read pipeline: {e}")),
+                }),
+            );
+        }
+    };
+    let (normalized, meta) = match ship_jobs::pipeline::normalize_pipeline_yaml(&raw) {
+        Ok(n) => n,
+        Err(e) => {
+            return (
+                StatusCode::BAD_REQUEST,
+                Json(MeshResponse {
+                    ok: false,
+                    data: serde_json::json!(format!("pipeline parse: {e}")),
+                }),
+            );
+        }
+    };
+
+    let steps = match normalized.get("steps").and_then(|v| v.as_array()) {
+        Some(s) => s,
+        None => {
+            return (
+                StatusCode::BAD_REQUEST,
+                Json(MeshResponse {
+                    ok: false,
+                    data: serde_json::json!("pipeline has no steps"),
+                }),
+            );
+        }
+    };
+
+    let first_agent = steps
+        .first()
+        .and_then(|s| s.get("agent"))
+        .and_then(|a| a.as_str())
+        .unwrap_or("default")
+        .to_string();
+
+    let pipeline_name = meta.name.clone().unwrap_or_else(|| req.pipeline.clone());
+    let workspace_name = req.workspace.unwrap_or_else(|| pipeline_name.clone());
+    let slug = format!("{}-{}", workspace_name, &runtime::gen_ulid()[..8].to_lowercase());
+    let branch = format!("job/{slug}");
+    let job_id = runtime::gen_ulid();
+
+    let payload = JobCreatedPayload {
+        job_id: job_id.clone(),
+        slug,
+        agent: first_agent,
+        branch,
+        spec_path: ".artifacts/job-spec.md".to_string(),
+        source_spec_path: None,
+        plan_id: None,
+        model: None,
+        provider: None,
+        depends_on: None,
+        pipeline: None,
+        steps: None,
+        pipeline_name: Some(pipeline_name),
+        vars: req.vars,
+        spec_content: req.spec,
+        step_specs: None,
+        headless: req.headless,
+        baseline_sha: resolve_project_head_sha(),
+    };
+
+    let payload = match runtime::services::orchestrator::pipeline_loader::ensure_pipeline(payload) {
+        Ok(p) => p,
+        Err(e) => {
+            return (
+                StatusCode::BAD_REQUEST,
+                Json(MeshResponse { ok: false, data: serde_json::json!(e) }),
+            );
+        }
+    };
+
+    let envelope = match EventEnvelope::new(event_types::JOB_CREATED, &job_id, &payload)
+        .map(|e| e.with_actor_id("studio"))
+    {
+        Ok(e) => e,
+        Err(e) => {
+            return (
+                StatusCode::INTERNAL_SERVER_ERROR,
+                Json(MeshResponse {
+                    ok: false,
+                    data: serde_json::json!(e.to_string()),
+                }),
+            );
+        }
+    };
+    match state.persist_and_route(&envelope).await {
+        Ok(()) => (
+            StatusCode::OK,
+            Json(MeshResponse {
+                ok: true,
+                data: serde_json::json!({ "job_id": &job_id }),
+            }),
+        ),
+        Err(e) => (
+            StatusCode::INTERNAL_SERVER_ERROR,
+            Json(MeshResponse {
+                ok: false,
+                data: serde_json::json!(e.to_string()),
+            }),
+        ),
+    }
+}
+
 // ---- Cancel ----
 
 #[derive(Deserialize, utoipa::ToSchema)]

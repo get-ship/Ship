@@ -214,6 +214,9 @@ pub enum Route {
     /// @route POST "/api/runtime/jobs"
     CreateJob,
 
+    /// @route POST "/api/runtime/run"
+    RunPipeline,
+
     /// @route GET "/api/runtime/jobs/{job_id}"
     GetJob { job_id: String },
 

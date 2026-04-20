@@ -57,6 +57,7 @@
 {%- macro steer_agent(slug) -%}/api/runtime/agents/{{ slug }}/steer{%- endmacro -%}
 {%- macro list_jobs() -%}/api/runtime/jobs{%- endmacro -%}
 {%- macro create_job() -%}/api/runtime/jobs{%- endmacro -%}
+{%- macro run_pipeline() -%}/api/runtime/run{%- endmacro -%}
 {%- macro get_job(job_id) -%}/api/runtime/jobs/{{ job_id }}{%- endmacro -%}
 {%- macro end_job() -%}/api/runtime/jobs/end{%- endmacro -%}
 {%- macro cancel_job(slug) -%}/api/runtime/jobs/{{ slug }}/cancel{%- endmacro -%}
