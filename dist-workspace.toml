@@ -1,0 +1,82 @@
+# cargo-dist (axo.dev/dist) configuration.
+#
+# Generates native .msi and .pkg installers. CI invokes dist from
+# `.github/workflows/release-cli.yml` on every tag push. Linux .deb
+# and .rpm are produced by cargo-deb / cargo-generate-rpm (see the
+# same workflow) because cargo-dist does not own those formats yet.
+#
+# Regenerate locally by installing dist (`cargo install cargo-dist`)
+# and running `dist init`. Signing is gated on CI secrets — empty
+# secrets result in unsigned artifacts without failing the build.
+
+[workspace]
+members = ["cargo:."]
+
+[dist]
+cargo-dist-version = "0.28.0"
+ci = "github"
+installers = ["msi", "pkg", "homebrew"]
+dist = true
+# Requires `madvib/homebrew-tap` to exist as a public GitHub repo and
+# `HOMEBREW_TAP_TOKEN` to be set as a repo/org secret with `contents:
+# write` on that tap repo. Without those two prereqs, cargo-dist still
+# produces other installers but skips the formula push.
+tap = "madvib/homebrew-tap"
+formula = "ship"
+targets = [
+    "x86_64-unknown-linux-gnu",
+    "aarch64-unknown-linux-gnu",
+    "x86_64-apple-darwin",
+    "aarch64-apple-darwin",
+    "x86_64-pc-windows-msvc",
+]
+tag-namespace = "ship"
+hosting = ["github"]
+unix-archive = ".tar.gz"
+windows-archive = ".zip"
+allow-dirty = ["ci"]
+
+# Extra files bundled into every tarball + referenced by the installers.
+include = [
+    "contrib/shipd.service",
+    "contrib/dev.getship.shipd.plist",
+    "contrib/installer-assets/LICENSE-INSTALLER.txt",
+    "contrib/installer-assets/ship-512.png",
+    "contrib/launchers/macos/Ship.app",
+    "contrib/launchers/windows/ship-launcher.cmd",
+    "contrib/postinst/pkg-postinstall.sh",
+    "contrib/postinst/msi-postinstall.ps1",
+]
+
+# ── macOS .pkg ──────────────────────────────────────────────────────────────
+[dist.mac-pkg-config]
+identifier = "dev.getship.ship"
+install-location = "/usr/local"
+# Invoked by productbuild after files land under install-location.
+# Copies Ship.app into /Applications and calls `ship daemon install-service`
+# in the console user's context.
+postinstall-script = "contrib/postinst/pkg-postinstall.sh"
+
+# ── Windows .msi ────────────────────────────────────────────────────────────
+[dist.msi-config]
+# cargo-dist injects a WiX CustomAction that runs this PowerShell file
+# at the end of the install sequence (deferred, impersonated) so the
+# scheduled task lands in the invoking user's session.
+postinstall-script = "contrib/postinst/msi-postinstall.ps1"
+# Start-menu shortcut launched by the user to open the Ship dashboard.
+# cargo-dist wires this into the MSI's `StartMenuFolder` feature.
+start-menu-shortcut = { target = "contrib/launchers/windows/ship-launcher.cmd", name = "Ship" }
+
+# ── Signing (gated on CI secrets; cargo-dist reads from env vars) ───────────
+[dist.macos-sign]
+# Notarization: CI sets APPLE_ID / APPLE_APP_SPECIFIC_PASSWORD /
+# APPLE_TEAM_ID when the certs are available; empty → unsigned build
+# with a loud README banner about right-click-Open on first launch.
+developer-id-application = "env:APPLE_DEVELOPER_ID"
+
+[dist.windows-sign]
+# Authenticode: CI sets WINDOWS_SIGNING_CERT (base64 PFX) +
+# WINDOWS_SIGNING_PASSWORD. Empty → unsigned MSI, SmartScreen will
+# warn on first install.
+certificate = "env:WINDOWS_SIGNING_CERT"
+password = "env:WINDOWS_SIGNING_PASSWORD"

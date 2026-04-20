@@ -289,6 +289,13 @@ pub enum Commands {
         action: DaemonCommands,
     },
 
+    /// Uninstall Ship from this machine (stops daemon, removes ~/.ship, scrubs PATH)
+    Uninstall {
+        /// Skip the confirmation prompt
+        #[arg(long)]
+        yes: bool,
+    },
+
     /// Show help — same as --help
     Help,
 }
@@ -354,6 +361,22 @@ pub enum DaemonCommands {
         #[arg(long)]
         dev: bool,
     },
+    /// Internal: register shipd with the OS service manager (called by native installers)
+    #[command(hide = true, name = "install-service")]
+    InstallService {
+        /// Explicit path to the shipd binary. Auto-detected when omitted.
+        #[arg(long, value_name = "PATH")]
+        shipd_path: Option<PathBuf>,
+        /// Register the service but do not start it yet.
+        #[arg(long)]
+        no_start: bool,
+        /// Register the service but do not enable autostart on login.
+        #[arg(long)]
+        no_autostart: bool,
+    },
+    /// Internal: undo install-service (called by native uninstallers)
+    #[command(hide = true, name = "uninstall-service")]
+    UninstallService,
 }
 
 #[derive(Subcommand, Debug)]

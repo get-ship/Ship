@@ -101,7 +101,11 @@ pub fn build_router(
         .ship_route(Route::AssetElementsManifest, views::serve_elements_manifest)
         .ship_route(Route::AssetElementsCatalog, views::serve_elements_catalog)
         .ship_route(Route::AssetThemeCss, views::serve_theme_css)
-        .ship_route(Route::ListThemes, views::serve_themes_list);
+        .ship_route(Route::ListThemes, views::serve_themes_list)
+        // First-run flow — both routes are unauthenticated so a fresh
+        // install can reach the setup wizard before any browser is paired.
+        .ship_route(Route::Index, views::setup::index_handler)
+        .ship_route(Route::Setup, views::setup::setup_handler);
 
     let auth_token = token;
     let auth_registry = session_registry;

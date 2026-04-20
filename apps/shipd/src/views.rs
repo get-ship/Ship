@@ -28,6 +28,7 @@ pub mod agents_state;
 pub mod skills_state;
 pub mod chat_state;
 pub mod events_state;
+pub mod setup;
 pub mod templates;
 pub mod session;
 pub mod session_types;
