@@ -3,7 +3,7 @@
   One node per item. Drag to reposition (persists to position_x/position_y).
   Click to open the edit drawer. SVG edges per depends_on arrays.
 -#}
-{% from '_ship.html.j2' import head, signal, show, styles, form, loading, spinner, chip, chip_all %}
+{% from '_ship.html.j2' import head, signal, show, styles, form, loading, spinner, chip, chip_all, feedback %}
 {% if not fragment %}<!DOCTYPE html><html lang="en"><head>{{ head('Overview') }}</head><body>{% endif %}
 
 {% set schema = ship_schema('systems') %}
@@ -192,14 +192,109 @@
         </ship-button>
       </div>
       <div class="ov-drawer-body">
-        {% if schema %}
-        {{ form(schema, 'systems') }}
-        {% endif %}
+        {# Explicit field rendering — richer markdown editing than generic
+           form() macro provides. ship-markdown-editor for prose fields,
+           inline gap list editor, feedback widget per gap + system. #}
+        <div class="ship-form">
+          <div class="ship-form-field">
+            <label class="ship-form-label">name <span style="color:var(--destructive)">*</span></label>
+            <ship-input size="sm" data-bind="form.name" placeholder="ship-<system>"></ship-input>
+          </div>
+          <div class="ship-form-field">
+            <label class="ship-form-label">layer</label>
+            <ship-select size="sm" data-bind="form.layer">
+              <option value="">--</option>
+              <option value="primitive">primitive</option>
+              <option value="runtime">runtime</option>
+              <option value="interface">interface</option>
+              <option value="meta">meta</option>
+            </ship-select>
+          </div>
+          <div class="ship-form-field">
+            <label class="ship-form-label">status</label>
+            <ship-select size="sm" data-bind="form.status">
+              <option value="spec">spec</option>
+              <option value="building">building</option>
+              <option value="shipping">shipping</option>
+              <option value="complete">complete</option>
+            </ship-select>
+          </div>
+          <div class="ship-form-field">
+            <label class="ship-form-label">summary</label>
+            <ship-input size="sm" data-bind="form.summary" placeholder="one-liner"></ship-input>
+          </div>
+          <div class="ship-form-field" style="flex-direction:column;align-items:stretch">
+            <label class="ship-form-label" style="min-width:0">current state</label>
+            <ship-markdown-editor data-bind="form.current_state"></ship-markdown-editor>
+          </div>
+          <div class="ship-form-field" style="flex-direction:column;align-items:stretch">
+            <label class="ship-form-label" style="min-width:0">desired state</label>
+            <ship-markdown-editor data-bind="form.desired_state"></ship-markdown-editor>
+          </div>
+          <div class="ship-form-field" style="flex-direction:column;align-items:stretch">
+            <label class="ship-form-label" style="min-width:0">diagram</label>
+            <ship-markdown-editor data-bind="form.diagram"></ship-markdown-editor>
+          </div>
+          <div class="ship-form-field" style="flex-direction:column;align-items:stretch">
+            <label class="ship-form-label" style="min-width:0">gaps</label>
+            <div data-for="(gap, i) in ($form.gaps || [])" data-key="i" style="display:flex;gap:var(--space-2);margin-bottom:var(--space-1);align-items:center">
+              <ship-input size="sm" data-bind="form.gaps[i]" style="flex:1"></ship-input>
+              <ship-button size="xs" variant="ghost" aria-label="Send gap to agent"
+                {{ feedback("{kind: 'gap_dispatch', system: $form.name, gap: $form.gaps[i]}") }}>
+                <ship-icon name="send"></ship-icon>
+              </ship-button>
+              <ship-button size="xs" variant="ghost" aria-label="Remove gap"
+                data-on:click="$form.gaps.splice(i, 1); $form = {...$form}">
+                <ship-icon name="x"></ship-icon>
+              </ship-button>
+            </div>
+            <ship-button size="sm" variant="outline"
+              data-on:click="$form.gaps = [...($form.gaps || []), '']; $form = {...$form}">
+              <ship-icon slot="leading" name="plus"></ship-icon>Add gap
+            </ship-button>
+          </div>
+          <div class="ship-form-field">
+            <label class="ship-form-label">doc skill</label>
+            <ship-input size="sm" data-bind="form.doc_skill" placeholder="ship-<name>"></ship-input>
+          </div>
+          <div class="ship-form-field" style="flex-direction:column;align-items:stretch">
+            <label class="ship-form-label" style="min-width:0">code paths</label>
+            <div data-for="(p, i) in ($form.code_paths || [])" data-key="i" style="display:flex;gap:var(--space-2);margin-bottom:var(--space-1)">
+              <ship-input size="sm" data-bind="form.code_paths[i]" style="flex:1"></ship-input>
+              <ship-button size="xs" variant="ghost" aria-label="Remove path"
+                data-on:click="$form.code_paths.splice(i, 1); $form = {...$form}">
+                <ship-icon name="x"></ship-icon>
+              </ship-button>
+            </div>
+            <ship-button size="sm" variant="outline"
+              data-on:click="$form.code_paths = [...($form.code_paths || []), '']; $form = {...$form}">
+              <ship-icon slot="leading" name="plus"></ship-icon>Add path
+            </ship-button>
+          </div>
+          <div class="ship-form-field" style="flex-direction:column;align-items:stretch">
+            <label class="ship-form-label" style="min-width:0">depends on</label>
+            <div data-for="(d, i) in ($form.depends_on || [])" data-key="i" style="display:flex;gap:var(--space-2);margin-bottom:var(--space-1)">
+              <ship-input size="sm" data-bind="form.depends_on[i]" style="flex:1" placeholder="system id"></ship-input>
+              <ship-button size="xs" variant="ghost" aria-label="Remove dependency"
+                data-on:click="$form.depends_on.splice(i, 1); $form = {...$form}">
+                <ship-icon name="x"></ship-icon>
+              </ship-button>
+            </div>
+            <ship-button size="sm" variant="outline"
+              data-on:click="$form.depends_on = [...($form.depends_on || []), '']; $form = {...$form}">
+              <ship-icon slot="leading" name="plus"></ship-icon>Add dependency
+            </ship-button>
+          </div>
+        </div>
       </div>
       <div class="ov-drawer-foot">
         <ship-button tone="accent" variant="solid"
           data-on:click="window.__ovSave && window.__ovSave($_drawerId, $form, $_isNew)">
           Save
+        </ship-button>
+        <ship-button variant="outline" aria-label="Send system to agent"
+          {{ feedback("{kind: 'system_dispatch', system: $form.name, layer: $form.layer, status: $form.status}") }}>
+          <ship-icon slot="leading" name="send"></ship-icon>Ask agent
         </ship-button>
         <ship-button variant="ghost" data-on:click="$_drawerOpen = false">Cancel</ship-button>
       </div>
