@@ -1,73 +1,81 @@
 {#-
   Editor save/cancel/delete helpers for the pipeline focus view.
+
+  The editor element (`<ship-code-editor id="pipeline-editor">`) owns its
+  own content — its `value="{{ raw }}"` attribute sets the initial text,
+  and its `.value` property is the current draft. There is no parallel
+  `edit_draft` signal: single source of truth lives on the element.
+
   Exposes three functions on `window`:
-    - tryCancelEdit(root, original) — exit edit mode, confirming on dirty
-    - savePipeline(workspaceId, name, draft, root) — PUT and push diagnostics
+    - tryCancelEdit() — exit edit mode, confirm on dirty
+    - savePipeline(workspaceId, name) — PUT and push diagnostics
     - deletePipeline(workspaceId, name) — DELETE and redirect
-  Plus: `?edit=1` auto-enters edit mode (New-pipeline redirect);
-        beforeunload warns on nav-away with an unsaved draft.
+  Plus: `?edit=1` auto-enters edit mode (the New-pipeline flow redirects
+        here with it); beforeunload warns on nav-away with a dirty draft.
 -#}
 <script>
-// Original pipeline source captured at page-load. Used by
-// beforeunload + tryCancelEdit to detect a dirty draft. Stored as a
-// JS global via `| tojson` (not an HTML attribute) because the raw
-// JSONC contains `"` and newlines that would break attribute quoting.
-window.__pipelineRaw = {{ raw | tojson }};
 (function () {
-  // Honor `?edit=1` query param — the New-pipeline flow redirects here
-  // after creating the file so the user lands in the editor immediately.
-  // Retry briefly because Datastar may not have bound signals yet on
-  // first paint.
+  // `.ship-view-pipeline-focus` is the daemon's view root — that's where
+  // Datastar binds signals. The shell's <main id="ship-view-root"> wraps
+  // it but holds no signal state.
+  const VIEW_SELECTOR = '.ship-view-pipeline-focus';
+  const EDITOR_ID = 'pipeline-editor';
+
+  function root() { return document.querySelector(VIEW_SELECTOR); }
+  function editor() { return document.getElementById(EDITOR_ID); }
+
+  // Read/write Datastar signals — ignore silently when the editor is not
+  // mounted or Datastar hasn't bound yet, so initial-load helpers can
+  // retry without throwing.
+  function sigs() { return root()?.__ds?.signals; }
+  function setSignal(k, v) {
+    const s = sigs();
+    if (s && s[k]) { s[k].value = v; return; }
+    // Datastar not bound yet — set the attribute so initial render picks it up.
+    root()?.setAttribute('data-signal-' + k, v);
+  }
+  function getSignal(k) { return sigs()?.[k]?.value; }
+
+  // Honor `?edit=1` query param — the New-pipeline flow lands here
+  // expecting to start in the editor immediately.
   if (/[?&]edit=1(&|$)/.test(window.location.search)) {
     let tries = 0;
     const flip = () => {
-      const root = document.getElementById('ship-view-root');
-      const sigs = root && root.__ds?.signals;
-      if (sigs && sigs.edit_mode) {
-        sigs.edit_mode.value = true;
-        return;
-      }
+      const s = sigs();
+      if (s?.edit_mode) { s.edit_mode.value = true; return; }
       if (++tries < 20) setTimeout(flip, 50);
     };
     window.addEventListener('DOMContentLoaded', flip);
   }
 
-  function getSignals(root) { return root.__ds?.signals; }
-  function setSignal(root, k, v) {
-    const sigs = getSignals(root);
-    if (sigs && sigs[k]) { sigs[k].value = v; return; }
-    root.setAttribute('data-signal-' + k, v);
-  }
-  function getSignal(root, k) {
-    const sigs = getSignals(root);
-    return sigs && sigs[k] ? sigs[k].value : undefined;
+  // Draft is dirty when the editor's current value differs from the
+  // initial `value=` attribute the daemon rendered.
+  function isDirty() {
+    const ed = editor();
+    if (!ed) return false;
+    const original = ed.getAttribute('value') ?? '';
+    return ed.value !== original;
   }
 
-  // Called by the Cancel button and by the editor's ship-cancel event.
-  // Confirms before discarding a dirty draft; plain cancel otherwise.
-  window.tryCancelEdit = function (root, original) {
-    const draft = getSignal(root, 'edit_draft');
-    if (draft !== undefined && draft !== original) {
-      if (!window.confirm('Discard unsaved changes to this pipeline?')) return;
-    }
-    setSignal(root, 'edit_draft', original);
-    setSignal(root, 'edit_mode', false);
-    setSignal(root, 'edit_error', '');
-    setSignal(root, 'edit_issue_count', 0);
-    const editor = root.querySelector('ship-code-editor');
-    if (editor && typeof editor.setDiagnostics === 'function') {
-      editor.setDiagnostics([]);
-    }
+  function clearErrorUi() {
+    setSignal('edit_error', '');
+    setSignal('edit_error_line', 0);
+    setSignal('edit_error_col', 0);
+    setSignal('edit_issue_count', 0);
+    editor()?.setDiagnostics?.([]);
+  }
+
+  window.tryCancelEdit = function () {
+    if (isDirty() && !window.confirm('Discard unsaved changes to this pipeline?')) return;
+    const ed = editor();
+    if (ed) ed.value = ed.getAttribute('value') ?? '';
+    setSignal('edit_mode', false);
+    clearErrorUi();
   };
 
-  // Browser beforeunload — warn if leaving with a dirty draft.
+  // Browser-level guard against nav-away with unsaved changes.
   window.addEventListener('beforeunload', function (e) {
-    const root = document.getElementById('ship-view-root');
-    if (!root) return;
-    const editMode = getSignal(root, 'edit_mode');
-    const draft = getSignal(root, 'edit_draft');
-    const orig = window.__pipelineRaw || '';
-    if (editMode && draft !== undefined && draft !== orig) {
+    if (getSignal('edit_mode') && isDirty()) {
       e.preventDefault();
       e.returnValue = '';
     }
@@ -78,39 +86,31 @@ window.__pipelineRaw = {{ raw | tojson }};
       + '/pipelines/' + encodeURIComponent(name);
     try {
       const resp = await fetch(url, { method: 'DELETE', credentials: 'include' });
-      if (resp.ok) {
-        window.location.href = '/api/runtime/view/pipelines';
-        return;
-      }
-      const body = await resp.json().catch(function () { return {}; });
-      const msg = (body && body.data) || ('HTTP ' + resp.status);
+      if (resp.ok) { window.location.href = '/pipelines'; return; }
+      const body = await resp.json().catch(() => ({}));
+      const msg = body?.data || ('HTTP ' + resp.status);
       window.alert('Delete failed: ' + (typeof msg === 'string' ? msg : JSON.stringify(msg)));
     } catch (err) {
-      window.alert('Delete failed: ' + (err && err.message ? err.message : String(err)));
+      window.alert('Delete failed: ' + (err?.message || String(err)));
     }
   };
 
-  window.savePipeline = async function (workspaceId, name, draft, root) {
-    const set = function (k, v) { setSignal(root, k, v); };
-    const editor = root.querySelector('ship-code-editor');
-    const pushDiagnostics = function (issues) {
-      if (!editor || typeof editor.setDiagnostics !== 'function') return;
-      editor.setDiagnostics((issues || []).map(function (i) {
-        return {
-          line: i.line || 1,
-          column: i.column || 1,
-          severity: i.kind === 'parse' ? 'error' : 'warning',
-          message: i.message || 'validation error',
-          source: i.path || i.kind,
-        };
-      }));
-    };
-    set('edit_saving', true);
-    set('edit_error', '');
-    set('edit_error_line', 0);
-    set('edit_error_col', 0);
-    set('edit_issue_count', 0);
-    pushDiagnostics([]);
+  function pushDiagnostics(issues) {
+    editor()?.setDiagnostics?.((issues || []).map(i => ({
+      line: i.line || 1,
+      column: i.column || 1,
+      severity: i.kind === 'parse' ? 'error' : 'warning',
+      message: i.message || 'validation error',
+      source: i.path || i.kind,
+    })));
+  }
+
+  window.savePipeline = async function (workspaceId, name) {
+    const ed = editor();
+    if (!ed) return;
+    const draft = ed.value;
+    setSignal('edit_saving', true);
+    clearErrorUi();
     const url = '/api/workspaces/' + encodeURIComponent(workspaceId)
       + '/pipelines/' + encodeURIComponent(name);
     try {
@@ -121,28 +121,28 @@ window.__pipelineRaw = {{ raw | tojson }};
         body: JSON.stringify({ content: draft }),
       });
       if (resp.ok) {
-        set('edit_mode', false);
-        set('edit_saving', false);
+        setSignal('edit_mode', false);
+        setSignal('edit_saving', false);
         window.location.reload();
         return;
       }
-      const body = await resp.json().catch(function () { return {}; });
-      const data = (body && body.data) || {};
+      const body = await resp.json().catch(() => ({}));
+      const data = body?.data || {};
       const issues = Array.isArray(data.issues) ? data.issues : (data.parse ? [data.parse] : []);
       const primary = issues[0];
       if (primary) {
-        set('edit_error', primary.message || 'validation error');
-        set('edit_error_line', primary.line || 0);
-        set('edit_error_col', primary.column || 0);
-        set('edit_issue_count', issues.length);
+        setSignal('edit_error', primary.message || 'validation error');
+        setSignal('edit_error_line', primary.line || 0);
+        setSignal('edit_error_col', primary.column || 0);
+        setSignal('edit_issue_count', issues.length);
         pushDiagnostics(issues);
       } else {
-        set('edit_error', data.error || ('HTTP ' + resp.status));
+        setSignal('edit_error', data.error || ('HTTP ' + resp.status));
       }
     } catch (err) {
-      set('edit_error', 'network: ' + (err && err.message ? err.message : String(err)));
+      setSignal('edit_error', 'network: ' + (err?.message || String(err)));
     } finally {
-      set('edit_saving', false);
+      setSignal('edit_saving', false);
     }
   };
 })();

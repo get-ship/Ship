@@ -10,7 +10,8 @@
 <head>{{ head('Pipelines') }}</head>
 <body>
 {% endif %}
-<div id="ship-view-root" class="ship-view ship-view-pipelines">
+{#- Shell provides <main id="ship-view-root">; classes do the styling. -#}
+<div class="ship-view ship-view-pipelines">
   <style>
   .ship-view-pipelines {
     color: var(--foreground);
@@ -73,7 +74,7 @@
       </div>
       <div class="ship-pipelines-head-actions">
         <ship-button variant="outline" size="sm"
-          data-on:click="window.location.href='/api/runtime/view/pipelines?history=1'">
+          data-on:click="window.location.href='/pipelines?history=1'">
           <ship-icon slot="leading" name="list" size="sm"></ship-icon>
           History
         </ship-button>
@@ -129,7 +130,7 @@
       <ship-button tone="accent" variant="solid"
         data-attr:loading="$new_pipe_creating"
         data-attr:disabled="$new_pipe_creating"
-        data-on:click="window.createPipeline('{{ workspace_id }}', $new_pipe_name, document.getElementById('ship-view-root'))">
+        data-on:click="window.createPipeline('{{ workspace_id }}', $new_pipe_name, document.querySelector('.ship-view-pipelines'))">
         <ship-icon slot="leading" name="plus" size="sm"></ship-icon>
         Create
       </ship-button>
@@ -174,7 +175,7 @@
           body: JSON.stringify({ content: body }),
         });
         if (resp.ok) {
-          window.location.href = '/api/runtime/view/pipelines/pipeline/' + encodeURIComponent(trimmed) + '?edit=1';
+          window.location.href = '/pipelines/pipeline/' + encodeURIComponent(trimmed) + '?edit=1';
           return;
         }
         const parsed = await resp.json().catch(function () { return {}; });

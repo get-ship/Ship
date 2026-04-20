@@ -22,17 +22,8 @@
 
 {#- === Signals & Reactivity === -#}
 
-{# Declare a reactive signal.
-
-   Strings go through `| tojson` (quoting, escaping embedded `"`/`\n`/`\\`)
-   then `| e` (HTML-escaping the `"` so the attribute delimiter isn't
-   broken). Previously we wrote `'{{ default }}'` which blew up the
-   moment a default contained a `"` or a newline — a JSONC pipeline
-   source bleeds literal `"name"` pairs into the attribute, closing
-   it prematurely and leaving the rest of the document as stray text.
-
-   Booleans, numbers, null pass through as raw JS literals. #}
-{% macro signal(name, default='') %}data-signals:{{ name }}="{% if default is string %}{{ default | tojson | e }}{% elif default is none %}null{% else %}{{ default }}{% endif %}"{% endmacro %}
+{# Declare a reactive signal. String defaults get quoted, others pass through. #}
+{% macro signal(name, default='') %}data-signals:{{ name }}="{% if default is string %}'{{ default }}'{% elif default is none %}null{% else %}{{ default }}{% endif %}"{% endmacro %}
 
 {# Show element only when expression is true (hidden by default to prevent flash) #}
 {% macro show(expr) %}data-show="{{ expr }}" style="display:none"{% endmacro %}

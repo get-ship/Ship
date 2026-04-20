@@ -14,7 +14,8 @@
 <head>{{ head(run.slug) }}</head>
 <body>
 {% endif %}
-<div id="ship-view-root" class="ship-view ship-view-run-detail">
+{#- Shell provides <main id="ship-view-root">; classes do the styling. -#}
+<div class="ship-view ship-view-run-detail">
   <style>
   .ship-view-run-detail {
     color: var(--foreground);
@@ -99,7 +100,7 @@
       <div>
         <div class="ship-run-detail-title-row">
           <ship-button size="sm" variant="ghost"
-            data-on:click="window.location.href='/api/runtime/view/pipelines'">
+            data-on:click="window.location.href='/pipelines'">
             <ship-icon slot="leading" name="chevron-left"></ship-icon>
             All runs
           </ship-button>

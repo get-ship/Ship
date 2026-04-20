@@ -244,6 +244,18 @@ router.on("/canvas/:doc", ({ data }) => {
   void mount(`/api/runtime/view/canvas?doc=${encodeURIComponent(data!.doc)}`);
 });
 
+router.on("/pipelines/pipeline/:name", ({ data }) => {
+  updateNav("/pipelines");
+  updateBreadcrumbs(`/pipelines/${data!.name}`);
+  void mount(`/api/runtime/view/pipelines/pipeline/${encodeURIComponent(data!.name)}`);
+});
+
+router.on("/pipelines/run/:slug", ({ data }) => {
+  updateNav("/pipelines");
+  updateBreadcrumbs(`/pipelines/run/${data!.slug}`);
+  void mount(`/api/runtime/view/pipelines/run/${encodeURIComponent(data!.slug)}`);
+});
+
 // 404
 router.notFound(() => {
   updateNav("");

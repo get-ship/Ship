@@ -13,9 +13,10 @@
 <head>{{ head(name) }}</head>
 <body>
 {% endif %}
-<div id="ship-view-root" class="ship-view ship-view-pipeline-focus"
+{#- Shell provides <main id="ship-view-root">; this inner div is where
+    Datastar signals live. Classes are the only styling hooks. -#}
+<div class="ship-view ship-view-pipeline-focus"
      {{ signal('edit_mode', false) }}
-     {{ signal('edit_draft', raw) }}
      {{ signal('edit_saving', false) }}
      {{ signal('edit_error', '') }}
      {{ signal('edit_error_line', 0) }}
@@ -107,7 +108,7 @@
     <header class="ship-focus-head">
       <div class="ship-focus-title-block">
         <ship-button variant="ghost" size="sm"
-          data-on:click="window.location.href='/api/runtime/view/pipelines'"
+          data-on:click="window.location.href='/pipelines'"
           style="width: fit-content;">
           <ship-icon slot="leading" name="chevron-left" size="xs"></ship-icon>
           All pipelines
@@ -134,18 +135,18 @@
       <div class="ship-focus-actions">
         {% if workspace_id %}
         <ship-button variant="outline" data-show="!$edit_mode"
-          data-on:click="$edit_mode = true; $edit_draft = {{ raw | tojson }}; $edit_error = ''">
+          data-on:click="$edit_mode = true; $edit_error = ''">
           <ship-icon slot="leading" name="edit-3" size="sm"></ship-icon>
           Edit
         </ship-button>
         <ship-button variant="outline" data-show="$edit_mode"
-          data-on:click="window.tryCancelEdit(document.getElementById('ship-view-root'), {{ raw | tojson }})">
+          data-on:click="window.tryCancelEdit()">
           Cancel
         </ship-button>
         <ship-button tone="accent" variant="solid" data-show="$edit_mode"
           data-attr:loading="$edit_saving"
           data-attr:disabled="$edit_saving"
-          data-on:click="window.savePipeline('{{ workspace_id }}', '{{ name }}', $edit_draft, document.getElementById('ship-view-root'))">
+          data-on:click="window.savePipeline('{{ workspace_id }}', '{{ name }}')">
           <ship-icon slot="leading" name="check" size="sm"></ship-icon>
           Save
         </ship-button>
@@ -185,7 +186,7 @@
           <ship-pipeline-run state="{{ run_state }}" slug="{{ run.slug }}" agent="{{ run.agent }}">
             <ship-timestamp slot="actions" value="{{ run.updated_at }}" relative></ship-timestamp>
             <ship-button slot="actions" variant="ghost" size="sm"
-              data-on:click="window.location.href='/api/runtime/view/pipelines/run/{{ run.slug }}'">
+              data-on:click="window.location.href='/pipelines/run/{{ run.slug }}'">
               <ship-icon slot="leading" name="chevron-right"></ship-icon>
               Open
             </ship-button>
@@ -273,12 +274,11 @@
           +<span data-text="$edit_issue_count - 1"></span> more — see inline markers
         </span>
       </ship-alert>
-      <ship-code-editor
+      <ship-code-editor id="pipeline-editor"
         language="{{ 'jsonc' if format == 'jsonc' else ('json' if format == 'json' else 'yaml') }}"
         value="{{ raw }}"
-        data-bind="edit_draft"
-        data-on:ship-save="window.savePipeline('{{ workspace_id }}', '{{ name }}', $edit_draft, document.getElementById('ship-view-root'))"
-        data-on:ship-cancel="if ($edit_mode) { window.tryCancelEdit(document.getElementById('ship-view-root'), {{ raw | tojson }}) }"
+        data-on:ship-save="window.savePipeline('{{ workspace_id }}', '{{ name }}')"
+        data-on:ship-cancel="if ($edit_mode) { window.tryCancelEdit() }"
         style="min-height: 24rem;"></ship-code-editor>
     </ship-card>
 
@@ -337,7 +337,7 @@
           <ship-pipeline-run state="{{ run_state }}" slug="{{ run.slug }}" agent="{{ run.agent }}">
             <ship-timestamp slot="actions" value="{{ run.updated_at }}" relative></ship-timestamp>
             <ship-button slot="actions" variant="ghost" size="sm"
-              data-on:click="window.location.href='/api/runtime/view/pipelines/run/{{ run.slug }}'">
+              data-on:click="window.location.href='/pipelines/run/{{ run.slug }}'">
               <ship-icon slot="leading" name="chevron-right"></ship-icon>
               Open
             </ship-button>
