@@ -71,6 +71,18 @@ jobs:
           workspaces: '. -> target'
           key: ${{ matrix.target }}
 
+      - uses: pnpm/action-setup@v4
+        with:
+          version: 10
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "22"
+          cache: pnpm
+      - name: Install JS deps
+        run: pnpm install --frozen-lockfile
+      - name: Build daemon asset bundles
+        run: pnpm build:bundles
+
       - name: Resolve version
         id: version
         shell: bash
@@ -159,6 +171,18 @@ jobs:
           workspaces: '. -> target'
           key: installer-${{ matrix.target }}
 
+      - uses: pnpm/action-setup@v4
+        with:
+          version: 10
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "22"
+          cache: pnpm
+      - name: Install JS deps
+        run: pnpm install --frozen-lockfile
+      - name: Build daemon asset bundles
+        run: pnpm build:bundles
+
       - name: Install cargo-dist
         shell: bash
         run: |
@@ -236,6 +260,18 @@ jobs:
         with:
           workspaces: '. -> target'
           key: linux-${{ matrix.format }}-${{ matrix.target }}
+
+      - uses: pnpm/action-setup@v4
+        with:
+          version: 10
+      - uses: actions/setup-node@v4
+        with:
+          node-version: "22"
+          cache: pnpm
+      - name: Install JS deps
+        run: pnpm install --frozen-lockfile
+      - name: Build daemon asset bundles
+        run: pnpm build:bundles
 
       - name: Install packaging tool
         shell: bash
