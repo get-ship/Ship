@@ -8667,6 +8667,87 @@ ShipLogStream.properties = {
 };
 defineOnce("ship-log-stream", ShipLogStream);
 
+// src/web-components/observability/ship-stat.ts
+var ShipStat2 = class extends i4 {
+  constructor() {
+    super(...arguments);
+    this.label = "";
+    this.value = "";
+    this.unit = "";
+    this.size = "md";
+  }
+  render() {
+    const hasSlottedValue = this._hasSlottedDefault();
+    return b2`
+      <span part="label">${this.label}</span>
+      <div part="value">
+        ${this.value && !hasSlottedValue ? b2`<span class="num">${this.value}</span>` : null}
+        ${this.unit ? b2`<span class="unit">${this.unit}</span>` : null}
+        <slot></slot>
+        <span class="trailing"><slot name="trailing"></slot></span>
+      </div>
+    `;
+  }
+  _hasSlottedDefault() {
+    const slot = this.renderRoot.querySelector("slot:not([name])");
+    if (!slot) return false;
+    return slot.assignedNodes({ flatten: true }).length > 0;
+  }
+};
+ShipStat2.styles = i`
+    :host {
+      display: flex;
+      flex-direction: column;
+      gap: 4px;
+      padding: 14px 16px;
+      border-radius: var(--radius-lg);
+      border: 1px solid color-mix(in oklch, var(--border) 45%, transparent);
+      background: color-mix(in oklch, var(--card) 35%, transparent);
+    }
+    :host([size='sm']) { padding: 10px 12px; gap: 2px; }
+    :host([size='lg']) { padding: 18px 20px; gap: 6px; }
+
+    [part='label'] {
+      font-size: 10px;
+      color: var(--muted-foreground);
+      text-transform: uppercase;
+      letter-spacing: 0.06em;
+      font-weight: var(--font-weight-medium);
+    }
+    [part='value'] {
+      display: flex;
+      align-items: baseline;
+      gap: 6px;
+      font-variant-numeric: tabular-nums;
+      color: var(--foreground);
+      letter-spacing: -0.01em;
+      line-height: 1.1;
+    }
+    .num {
+      font-size: var(--text-xl);
+      font-weight: var(--font-weight-semibold);
+    }
+    :host([size='sm']) .num { font-size: var(--text-base); }
+    :host([size='lg']) .num { font-size: var(--text-2xl); }
+    .unit {
+      font-size: var(--text-xs);
+      font-weight: var(--font-weight-medium);
+      color: var(--muted-foreground);
+    }
+    .trailing {
+      margin-left: auto;
+      display: inline-flex;
+      align-items: center;
+    }
+  `;
+ShipStat2.properties = {
+  label: { type: String, reflect: true },
+  value: { type: String, reflect: true },
+  unit: { type: String, reflect: true },
+  size: { type: String, reflect: true }
+};
+defineOnce("ship-stat", ShipStat2);
+
 // src/web-components/observability/ship-event-row.ts
 var ShipEventRow = class extends i4 {
   connectedCallback() {
@@ -12241,6 +12322,137 @@ if (typeof customElements !== "undefined" && !customElements.get("ship-step-segm
   customElements.define("ship-step-segments", ShipStepSegments);
 }
 
+// src/web-components/domain/ship-pipeline-step-def.ts
+var TYPE_TONE = {
+  run: "muted",
+  agent: "info",
+  gate: "warning",
+  merge: "accent",
+  human: "warning"
+};
+var ShipPipelineStepDef = class extends i4 {
+  constructor() {
+    super(...arguments);
+    this.name = "";
+    this.stepType = "agent";
+    this.agent = "";
+    this.provider = "";
+    this.model = "";
+    this.after = "";
+    this.command = "";
+  }
+  render() {
+    const tone = TYPE_TONE[this.stepType] ?? "muted";
+    const afterList = (this.after || "").split(",").map((s4) => s4.trim()).filter(Boolean);
+    const cmd = (this.command || "").trim();
+    return b2`
+      <div part="row">
+        <span class="index">${this.index ?? ""}</span>
+        <div class="body">
+          <div part="header">
+            <span class="name">${this.name}</span>
+            <ship-chip size="sm" tone=${tone}>${this.stepType}</ship-chip>
+            ${afterList.length > 0 ? b2`<span class="after">after
+                  ${afterList.map(
+      (a3, i6) => b2`${i6 > 0 ? ", " : ""}<code>${a3}</code>`
+    )}
+                </span>` : null}
+            <span class="trailing"><slot name="trailing"></slot></span>
+          </div>
+          ${this.agent || this.provider || this.model ? b2`<div class="chips">
+                ${this.agent ? b2`<ship-chip size="sm">${this.agent}</ship-chip>` : null}
+                ${this.provider ? b2`<ship-chip size="sm">${this.provider}</ship-chip>` : null}
+                ${this.model ? b2`<ship-chip size="sm">${this.model}</ship-chip>` : null}
+              </div>` : null}
+          ${cmd ? b2`<pre part="command">${cmd}</pre>` : null}
+          <slot name="gate"></slot>
+        </div>
+      </div>
+    `;
+  }
+};
+ShipPipelineStepDef.styles = i`
+    :host {
+      display: block;
+      padding: 16px 0;
+      border-top: 1px solid color-mix(in oklch, var(--border) 40%, transparent);
+    }
+    :host(:first-of-type), :host([first]) { border-top: none; padding-top: 0; }
+    :host(:last-of-type) { padding-bottom: 0; }
+
+    [part='row'] {
+      display: grid;
+      grid-template-columns: 2ch 1fr;
+      gap: 16px;
+    }
+    .index {
+      font-family: ${MONO};
+      font-size: var(--text-xs);
+      color: var(--muted-foreground);
+      padding-top: 3px;
+    }
+    .body { display: flex; flex-direction: column; gap: 8px; min-width: 0; }
+    [part='header'] {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      flex-wrap: wrap;
+    }
+    .name {
+      font-family: ${MONO};
+      font-size: var(--text-sm);
+      font-weight: var(--font-weight-semibold);
+      color: var(--foreground);
+    }
+    .after {
+      font-size: var(--text-xs);
+      color: var(--muted-foreground);
+    }
+    .after code {
+      font-family: ${MONO};
+      background: color-mix(in oklch, var(--muted) 40%, transparent);
+      padding: 1px 5px;
+      border-radius: 4px;
+      font-size: var(--text-xs);
+    }
+    .chips { display: flex; gap: 6px; flex-wrap: wrap; }
+    [part='command'] {
+      margin: 0;
+      padding: 10px 12px;
+      border-radius: var(--radius-md);
+      border: 1px solid color-mix(in oklch, var(--border) 40%, transparent);
+      background: color-mix(in oklch, var(--muted) 35%, transparent);
+      font-family: ${MONO};
+      font-size: var(--text-xs);
+      line-height: 1.55;
+      color: var(--foreground);
+      white-space: pre-wrap;
+      word-break: break-word;
+      overflow-x: auto;
+    }
+    .gate-slot {
+      padding: 8px 12px;
+      border-left: 2px solid color-mix(in oklch, var(--warning) 45%, transparent);
+      display: flex;
+      flex-direction: column;
+      gap: 4px;
+      font-size: var(--text-xs);
+      color: var(--muted-foreground);
+    }
+    .trailing { margin-left: auto; }
+  `;
+ShipPipelineStepDef.properties = {
+  name: { type: String, reflect: true },
+  stepType: { type: String, attribute: "step-type", reflect: true },
+  agent: { type: String, reflect: true },
+  provider: { type: String, reflect: true },
+  model: { type: String, reflect: true },
+  after: { type: String, reflect: true },
+  command: { type: String },
+  index: { type: Number, reflect: true }
+};
+defineOnce("ship-pipeline-step-def", ShipPipelineStepDef);
+
 // src/web-components/index.ts
 function registerShipComponents() {
 }
@@ -12300,6 +12512,7 @@ export {
   ShipPipelineDefinition,
   ShipPipelineRun,
   ShipPipelineStep,
+  ShipPipelineStepDef,
   ShipPopover,
   ShipProgress,
   ShipProgressRing,
