@@ -1,0 +1,111 @@
+---
+// Site-level auth modal wrapper. Renders a progressive-enhancement-
+// friendly stack:
+//   1. Server output = a plain <form> that posts to /api/auth/… (stub).
+//      Works without JS.
+//   2. On load, <ship-auth-dialog> hydrates and takes over — the native
+//      form becomes the dialog's body (via the default slot).
+//
+// `data-mode` on the host is read by the client script to pick the
+// initial tab. `data-auto-open` makes the dialog open on page load so
+// /sign-in and /sign-up become true modal routes.
+interface Props {
+  mode?: 'sign-in' | 'sign-up';
+  autoOpen?: boolean;
+}
+const { mode = 'sign-in', autoOpen = false } = Astro.props;
+---
+
+<ship-auth-dialog
+  class="site-auth"
+  mode={mode}
+  data-mode={mode}
+  data-auto-open={autoOpen ? 'true' : 'false'}
+>
+  <span slot="header">
+    {mode === 'sign-up' ? 'Create your account' : 'Welcome back'}
+  </span>
+
+  <div slot="providers" class="site-auth-providers">
+    <ship-button variant="outline" size="md" data-provider="google">
+      Continue with Google
+    </ship-button>
+    <ship-button variant="outline" size="md" data-provider="github">
+      Continue with GitHub
+    </ship-button>
+  </div>
+
+  <span slot="terms">
+    By continuing you agree to our
+    <a href="/framework" class="site-auth-link">Terms</a>
+    and
+    <a href="/framework" class="site-auth-link">Privacy Policy</a>.
+  </span>
+</ship-auth-dialog>
+
+<script>
+  const dialog = document.querySelector('ship-auth-dialog.site-auth') as
+    | (HTMLElement & { show?: () => void; close?: () => void; open?: boolean })
+    | null;
+  if (dialog) {
+    const auto = dialog.getAttribute('data-auto-open') === 'true';
+    if (auto) {
+      customElements.whenDefined('ship-auth-dialog').then(() => {
+        dialog.setAttribute('open', '');
+      });
+    }
+
+    dialog.addEventListener('ship-close', () => {
+      // If this is a dedicated route (/sign-in or /sign-up), send the
+      // visitor back to where they came from so the URL doesn't leave
+      // them stuck on an empty page.
+      const dedicated =
+        location.pathname === '/sign-in' || location.pathname === '/sign-up';
+      if (!dedicated) return;
+      const back = document.referrer && new URL(document.referrer).origin === location.origin
+        ? document.referrer
+        : '/';
+      setTimeout(() => { location.href = back; }, 160);
+    });
+
+    dialog.addEventListener('ship-auth-submit', (e: Event) => {
+      const detail = (e as CustomEvent<{ mode: string; email: string; password: string }>).detail;
+      console.info('[auth] submit', detail);
+      // No backend wired yet — surface an inline "stubbed" alert via the
+      // dialog's body. Final wiring lands with Better Auth in a follow-up.
+      alert(
+        `${detail.mode === 'sign-up' ? 'Account created' : 'Signed in'} (stub) — ${detail.email}`,
+      );
+      (dialog as any).close?.();
+    });
+  }
+
+  // Expose a minimal API for the nav "Sign in" link to open the dialog
+  // without a full page navigation when already on-site.
+  (window as any).ship = {
+    ...((window as any).ship ?? {}),
+    openAuth(nextMode: 'sign-in' | 'sign-up' = 'sign-in') {
+      if (!dialog) return false;
+      dialog.setAttribute('mode', nextMode);
+      customElements.whenDefined('ship-auth-dialog').then(() => {
+        dialog.setAttribute('open', '');
+      });
+      return true;
+    },
+  };
+</script>
+
+<style>
+  .site-auth-providers {
+    display: flex;
+    flex-direction: column;
+    gap: 8px;
+    width: 100%;
+  }
+  .site-auth-link {
+    color: var(--site-accent);
+    font-weight: 600;
+    text-decoration: underline;
+    text-underline-offset: 3px;
+  }
+</style>

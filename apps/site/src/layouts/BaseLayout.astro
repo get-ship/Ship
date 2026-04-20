@@ -1,16 +1,21 @@
 ---
 import '../styles/global.css';
+import AuthModal from '../components/AuthModal.astro';
 
 interface Props {
   title: string;
   description?: string;
   bodyClass?: string;
+  /** If true, skip mounting the shared auth modal — used by /sign-in
+   *  and /sign-up which mount their own with `autoOpen`. */
+  ownAuthModal?: boolean;
 }
 
 const {
   title,
   description = 'Ship transforms the way you work with AI. The missing AI interface.',
   bodyClass = '',
+  ownAuthModal = false,
 } = Astro.props;
 ---
 
@@ -40,11 +45,16 @@ const {
         } catch (_) {
           document.documentElement.dataset.theme = 'ship-light';
         }
+        // Marks the document as JS-enabled so scroll-triggered sections
+        // can hide themselves pre-animation. Without this, noscript
+        // users see a blank section.
+        document.documentElement.classList.add('js');
       })();
     </script>
   </head>
   <body class={bodyClass}>
     <slot />
+    {!ownAuthModal && <AuthModal />}
     <script>
       import '../scripts/register-elements';
     </script>

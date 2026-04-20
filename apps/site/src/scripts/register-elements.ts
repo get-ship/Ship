@@ -24,6 +24,16 @@ const loaders: Loader[] = [
   () => import('@ship/ui/web-components/ship-alert'),
 ];
 
+// Auth dialog + its dependencies load on-demand when the user opens
+// the modal (or lands on /sign-in or /sign-up). Keeps the homepage
+// free of the dialog + tabs + input bundle.
+const authLoaders: Loader[] = [
+  () => import('@ship/ui/web-components/ship-input'),
+  () => import('@ship/ui/web-components/ship-tabs'),
+  () => import('@ship/ui/web-components/ship-dialog'),
+  () => import('@ship/ui/web-components/domain/ship-auth-dialog'),
+];
+
 const ric = (cb: () => void) => {
   const anyWin = window as any;
   if (typeof anyWin.requestIdleCallback === 'function') {
@@ -53,7 +63,20 @@ const bootstrap = async () => {
   }
 };
 
+let authStarted = false;
+const bootstrapAuth = async () => {
+  if (authStarted) return;
+  authStarted = true;
+  // Chain through the normal loaders first so the dialog renders against
+  // the same registered primitives as the rest of the site.
+  await bootstrap();
+  for (const loader of authLoaders) {
+    await registerOne(loader);
+  }
+};
+
 const kick = () => void bootstrap();
+const kickAuth = () => void bootstrapAuth();
 
 const wireTriggers = () => {
   // Real interactions only — scroll events get simulated by perf tools,
@@ -62,6 +85,25 @@ const wireTriggers = () => {
   window.addEventListener('pointerdown', kick, opts);
   window.addEventListener('keydown', kick, opts);
   window.addEventListener('touchstart', kick, opts);
+
+  // If the page has a ship-auth-dialog (e.g. /sign-in, /sign-up, or any
+  // page that mounts AuthModal), kick the auth bundle as soon as the
+  // user nudges the DOM so the dialog is ready when they click.
+  if (document.querySelector('ship-auth-dialog')) {
+    const authOpts: AddEventListenerOptions = { once: true, passive: true };
+    window.addEventListener('pointerdown', kickAuth, authOpts);
+    window.addEventListener('keydown', kickAuth, authOpts);
+    window.addEventListener('touchstart', kickAuth, authOpts);
+    // Dedicated auth routes open the dialog on load — bootstrap immediately.
+    const auto = document.querySelector('ship-auth-dialog[data-auto-open="true"]');
+    if (auto) ric(kickAuth);
+  }
+
+  // Expose for imperative callers (navbar Sign in button).
+  (window as any).ship = {
+    ...((window as any).ship ?? {}),
+    _loadAuth: kickAuth,
+  };
 
   // Safety net: if none of the above fire, upgrade after the TBT window
   // has closed. 10s is well past Lighthouse's simulated measurement.

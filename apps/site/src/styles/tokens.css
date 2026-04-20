@@ -1,8 +1,11 @@
 /*
  * Ship site theming layer.
  *
- * Imports the canonical design tokens from @ship/ui, then exposes a
- * VSCode-style catalog of named themes applied via data-theme on <html>:
+ * Imports @ship/ui tokens (the canonical palette, spacing, motion, and
+ * typography used across Studio, docs, shell, and daemon-served views)
+ * and layers a VSCode-style catalog of named themes applied via
+ * data-theme on <html>. Every theme only overrides the ship-ui semantic
+ * tokens — we do NOT invent a parallel type scale or font stack.
  *
  *   ship-light        — Ship brand, bright
  *   ship-dark         — Ship brand, dark
@@ -11,11 +14,7 @@
  *   gruvbox-dark      — retro terminal, warm browns + yellow
  *   gruvbox-light     — gruvbox's light sibling
  *   nord              — arctic blue-greys
- *   solarized-dark    — Ethan Schoonover's classic
- *
- * Each theme only overrides the ship-ui semantic tokens + the three
- * site halo colors. The rest of the layout (spacing, radii, typography)
- * lives in @ship/ui/tokens.css and is shared.
+ *   solarized-dark    — Ethan Schoonover, 2011
  */
 
 @import '@ship/ui/tokens.css';
@@ -23,34 +22,34 @@
 :root {
   --site-max-width: 1200px;
   --site-gutter: clamp(16px, 4vw, 48px);
-  --site-radius-lg: 14px;
-  --site-radius-xl: 24px;
-  --site-font-display: 'Inter Tight', 'Inter', ui-sans-serif, system-ui, sans-serif;
-  --site-font-body: 'Inter', ui-sans-serif, system-ui, sans-serif;
-  --site-font-mono: ui-monospace, 'SF Mono', 'JetBrains Mono', Menlo, monospace;
 
-  /* Default (ship-light) palette — used when data-theme is absent.
-   * Accent luminance tuned so white text on the solid fill clears
-   * WCAG AA 4.5:1 at 14–15px. */
+  /* Brand accent channel. @ship/ui defines --primary (orange) and
+   * --accent (purple). The marketing site leans on a deeper blue-purple
+   * accent for WCAG AA on solid CTAs; it maps back to --accent in dark
+   * themes where contrast is easier. */
   --site-accent: oklch(0.52 0.18 265);
   --site-accent-fg: oklch(0.99 0.02 265);
   --site-accent-soft: oklch(0.52 0.18 265 / 0.14);
   --site-halo-1: oklch(0.72 0.18 260 / 0.45);
   --site-halo-2: oklch(0.78 0.14 160 / 0.35);
   --site-halo-3: oklch(0.80 0.14 80 / 0.30);
+
+  /* Pass-through aliases so component-adjacent CSS doesn't spell out the
+   * ship-ui token names. Everything flows from --foreground / --background
+   * / --card / --border / --muted-foreground — no parallel tokens. */
   --site-bg: var(--background);
   --site-fg: var(--foreground);
   --site-muted-fg: var(--muted-foreground);
   --site-border: var(--border);
   --site-card: var(--card);
+  --site-radius-lg: var(--radius-lg);
+  --site-radius-xl: var(--radius-xl);
 }
 
-/* ship-light — same as :root defaults, explicit marker. */
 :root[data-theme='ship-light'] {
   color-scheme: light;
 }
 
-/* ship-dark — canonical dark. */
 :root[data-theme='ship-dark'] {
   color-scheme: dark;
   --background: oklch(0.17 0.012 265);
@@ -72,7 +71,6 @@
   --site-halo-3: oklch(0.65 0.14 200 / 0.28);
 }
 
-/* high-contrast — black canvas, amber accent. */
 :root[data-theme='high-contrast'] {
   color-scheme: dark;
   --background: oklch(0.09 0 0);
@@ -94,7 +92,6 @@
   --site-halo-3: oklch(0.80 0.18 210 / 0.30);
 }
 
-/* warm — paper-like reading surface. */
 :root[data-theme='warm'] {
   color-scheme: light;
   --background: oklch(0.97 0.014 80);
@@ -114,42 +111,39 @@
   --site-halo-1: oklch(0.75 0.12 60 / 0.40);
   --site-halo-2: oklch(0.82 0.10 140 / 0.30);
   --site-halo-3: oklch(0.80 0.10 30 / 0.35);
-  --site-font-body: 'Inter', 'Charter', 'Iowan Old Style', Georgia, serif;
 }
 
-/* gruvbox-dark — Pavel Pertsev's palette, terminal classic. */
 :root[data-theme='gruvbox-dark'] {
   color-scheme: dark;
-  --background: oklch(0.28 0.014 80);  /* #282828 */
-  --foreground: oklch(0.87 0.04 85);   /* #ebdbb2 */
-  --card: oklch(0.33 0.016 80);        /* #3c3836 */
+  --background: oklch(0.28 0.014 80);
+  --foreground: oklch(0.87 0.04 85);
+  --card: oklch(0.33 0.016 80);
   --card-foreground: oklch(0.87 0.04 85);
-  --muted: oklch(0.36 0.018 80);       /* #504945 */
-  --muted-foreground: oklch(0.72 0.03 85);  /* #a89984 */
-  --border: oklch(0.46 0.02 80);       /* #665c54 */
-  --primary: oklch(0.82 0.16 80);      /* #fabd2f */
+  --muted: oklch(0.36 0.018 80);
+  --muted-foreground: oklch(0.72 0.03 85);
+  --border: oklch(0.46 0.02 80);
+  --primary: oklch(0.82 0.16 80);
   --primary-foreground: oklch(0.20 0.02 80);
   --accent: oklch(0.82 0.16 80);
   --accent-foreground: oklch(0.20 0.02 80);
   --site-accent: oklch(0.82 0.16 80);
   --site-accent-fg: oklch(0.20 0.02 80);
   --site-accent-soft: oklch(0.82 0.16 80 / 0.18);
-  --site-halo-1: oklch(0.80 0.17 65 / 0.40);   /* orange */
-  --site-halo-2: oklch(0.66 0.15 125 / 0.28);  /* green */
-  --site-halo-3: oklch(0.55 0.20 25 / 0.32);   /* red */
+  --site-halo-1: oklch(0.80 0.17 65 / 0.40);
+  --site-halo-2: oklch(0.66 0.15 125 / 0.28);
+  --site-halo-3: oklch(0.55 0.20 25 / 0.32);
 }
 
-/* gruvbox-light — same palette, inverted backgrounds. */
 :root[data-theme='gruvbox-light'] {
   color-scheme: light;
-  --background: oklch(0.95 0.04 85);   /* #fbf1c7 */
-  --foreground: oklch(0.34 0.015 80);  /* #3c3836 */
-  --card: oklch(0.97 0.035 85);        /* #f9f5d7 */
+  --background: oklch(0.95 0.04 85);
+  --foreground: oklch(0.34 0.015 80);
+  --card: oklch(0.97 0.035 85);
   --card-foreground: oklch(0.34 0.015 80);
-  --muted: oklch(0.90 0.05 85);        /* #ebdbb2 */
+  --muted: oklch(0.90 0.05 85);
   --muted-foreground: oklch(0.50 0.02 80);
   --border: oklch(0.80 0.05 85);
-  --primary: oklch(0.66 0.16 55);      /* #d65d0e */
+  --primary: oklch(0.66 0.16 55);
   --primary-foreground: oklch(0.98 0.03 85);
   --accent: oklch(0.66 0.16 55);
   --accent-foreground: oklch(0.98 0.03 85);
@@ -161,46 +155,44 @@
   --site-halo-3: oklch(0.68 0.18 25 / 0.25);
 }
 
-/* nord — Arctic palette. */
 :root[data-theme='nord'] {
   color-scheme: dark;
-  --background: oklch(0.29 0.02 255);  /* #2e3440 */
-  --foreground: oklch(0.95 0.01 250);  /* #eceff4 */
-  --card: oklch(0.34 0.02 255);        /* #3b4252 */
+  --background: oklch(0.29 0.02 255);
+  --foreground: oklch(0.95 0.01 250);
+  --card: oklch(0.34 0.02 255);
   --card-foreground: oklch(0.95 0.01 250);
-  --muted: oklch(0.38 0.02 255);       /* #434c5e */
-  --muted-foreground: oklch(0.78 0.02 245);  /* #d8dee9 */
-  --border: oklch(0.46 0.02 255);      /* #4c566a */
-  --primary: oklch(0.77 0.06 220);     /* #88c0d0 */
+  --muted: oklch(0.38 0.02 255);
+  --muted-foreground: oklch(0.78 0.02 245);
+  --border: oklch(0.46 0.02 255);
+  --primary: oklch(0.77 0.06 220);
   --primary-foreground: oklch(0.22 0.02 255);
   --accent: oklch(0.77 0.06 220);
   --accent-foreground: oklch(0.22 0.02 255);
   --site-accent: oklch(0.77 0.06 220);
   --site-accent-fg: oklch(0.22 0.02 255);
   --site-accent-soft: oklch(0.77 0.06 220 / 0.20);
-  --site-halo-1: oklch(0.78 0.08 210 / 0.36);   /* frost */
+  --site-halo-1: oklch(0.78 0.08 210 / 0.36);
   --site-halo-2: oklch(0.72 0.10 180 / 0.28);
-  --site-halo-3: oklch(0.80 0.11 40 / 0.22);    /* aurora peach */
+  --site-halo-3: oklch(0.80 0.11 40 / 0.22);
 }
 
-/* solarized-dark — Ethan Schoonover, 2011. */
 :root[data-theme='solarized-dark'] {
   color-scheme: dark;
-  --background: oklch(0.26 0.03 220);  /* #002b36 */
-  --foreground: oklch(0.72 0.02 220);  /* #839496 */
-  --card: oklch(0.30 0.03 215);        /* #073642 */
+  --background: oklch(0.26 0.03 220);
+  --foreground: oklch(0.72 0.02 220);
+  --card: oklch(0.30 0.03 215);
   --card-foreground: oklch(0.82 0.02 220);
   --muted: oklch(0.34 0.03 215);
-  --muted-foreground: oklch(0.68 0.02 220);  /* #657b83 */
+  --muted-foreground: oklch(0.68 0.02 220);
   --border: oklch(0.38 0.03 215);
-  --primary: oklch(0.65 0.14 240);     /* #268bd2 */
+  --primary: oklch(0.65 0.14 240);
   --primary-foreground: oklch(0.12 0.03 220);
   --accent: oklch(0.65 0.14 240);
   --accent-foreground: oklch(0.12 0.03 220);
   --site-accent: oklch(0.65 0.14 240);
   --site-accent-fg: oklch(0.99 0.01 220);
   --site-accent-soft: oklch(0.65 0.14 240 / 0.20);
-  --site-halo-1: oklch(0.70 0.12 220 / 0.40);   /* cyan */
-  --site-halo-2: oklch(0.65 0.14 160 / 0.25);   /* green */
-  --site-halo-3: oklch(0.70 0.18 20 / 0.22);    /* magenta */
+  --site-halo-1: oklch(0.70 0.12 220 / 0.40);
+  --site-halo-2: oklch(0.65 0.14 160 / 0.25);
+  --site-halo-3: oklch(0.70 0.18 20 / 0.22);
 }

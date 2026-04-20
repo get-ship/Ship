@@ -5,24 +5,16 @@ const columns = [
   {
     title: 'Product',
     links: [
-      { href: '/#pillars', label: 'Pipelines' },
-      { href: '/#pillars', label: 'Views' },
-      { href: '/store', label: 'Store' },
+      { href: '/#features', label: 'Features' },
       { href: '/download', label: 'Download' },
-    ],
-  },
-  {
-    title: 'Company',
-    links: [
-      { href: '/framework', label: 'About' },
-      { href: 'mailto:hello@getship.dev', label: 'Contact' },
+      { href: '/sign-in', label: 'Sign in' },
     ],
   },
   {
     title: 'Developers',
     links: [
       { href: 'https://docs.getship.dev', label: 'Docs' },
-      { href: '/framework', label: 'SDK' },
+      { href: '/framework', label: 'Framework' },
     ],
   },
 ];
@@ -89,7 +81,7 @@ const version = 'v0.9.0-preview';
     }
   }
   .footer-brand-name {
-    font-family: var(--site-font-display);
+    font-family: var(--font-display);
     font-weight: 700;
     font-size: 22px;
     letter-spacing: -0.01em;
@@ -102,7 +94,7 @@ const version = 'v0.9.0-preview';
   .footer-cols {
     display: grid;
     gap: 32px;
-    grid-template-columns: repeat(3, 1fr);
+    grid-template-columns: repeat(2, 1fr);
   }
   @media (max-width: 520px) {
     .footer-cols {
@@ -110,7 +102,7 @@ const version = 'v0.9.0-preview';
     }
   }
   .footer-col-title {
-    font-family: var(--site-font-display);
+    font-family: var(--font-display);
     font-weight: 600;
     font-size: 13px;
     letter-spacing: 0.04em;
@@ -164,7 +156,7 @@ const version = 'v0.9.0-preview';
     transform: translateX(3px);
   }
   .footer-version {
-    font-family: var(--site-font-mono);
+    font-family: var(--font-mono);
     font-size: 12px;
   }
 </style>

@@ -52,6 +52,7 @@ import './domain/ship-pipeline-dag'
 import './domain/ship-history-row'
 import './domain/ship-spec-row'
 import './domain/ship-git-diff'
+import './domain/ship-auth-dialog'
 
 // Observability, charts, utility (each subdir index registers its own)
 export * from './observability'

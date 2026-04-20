@@ -1,12 +1,19 @@
 ---
+// Hero: tagline, sub-copy, CTAs, and a centerpiece.
+//
+// The centerpiece is a <video> if a source is provided, otherwise falls
+// back to the CSS/SVG view-composition animation. The slot is a real
+// content-visibility island so a future .mp4/.webm capture can drop in
+// without a refactor.
 import HeroAnimation from './HeroAnimation.astro';
 import ProviderStrip from './ProviderStrip.astro';
 
-const pillars = [
-  { title: 'Pipelines', copy: 'Orchestrate 5 AI providers with 50 lines of JSON.', tone: 'accent', kbd: 'pipelines' },
-  { title: 'Views', copy: 'Custom UI with your data in seconds — 15% of the React code.', tone: 'info', kbd: 'views' },
-  { title: 'Control', copy: 'Permissions, skills, governance. Your data, your models.', tone: 'success', kbd: 'control' },
-];
+interface Props {
+  videoSrc?: string;
+  videoPoster?: string;
+}
+
+const { videoSrc, videoPoster } = Astro.props;
 ---
 
 <section class="hero">
@@ -21,8 +28,9 @@ const pillars = [
     </h1>
 
     <p class="hero-sub">
-      Ship transforms the way you work with AI. Build apps, orchestrate models,
-      and control your data &mdash; locally, with no lock&#8209;in.
+      Ship transforms the way you work with AI. Build apps, orchestrate
+      models, and control your data &mdash; locally, with no
+      lock&#8209;in.
     </p>
 
     <ship-toolbar justify="center" gap="md" class="hero-ctas">
@@ -35,41 +43,37 @@ const pillars = [
       <ship-button
         variant="ghost"
         size="lg"
-        onclick="location.href='#pillars'"
+        onclick="document.getElementById('features')?.scrollIntoView({behavior:'smooth'})"
       >See how it works &rarr;</ship-button>
     </ship-toolbar>
 
-    <HeroAnimation />
+    <div class="hero-stage">
+      {videoSrc ? (
+        <video
+          class="hero-video"
+          autoplay
+          muted
+          loop
+          playsinline
+          preload="metadata"
+          poster={videoPoster}
+        >
+          <source src={videoSrc} type="video/mp4" />
+        </video>
+      ) : (
+        <HeroAnimation />
+      )}
+    </div>
 
     <ProviderStrip />
-
-    <ul class="hero-pillars" id="pillars">
-      {pillars.map((p) => (
-        <li>
-          <ship-card
-            variant="outline"
-            status-rail
-            tone={p.tone}
-            padding="lg"
-            class="hero-pillar-card"
-          >
-            <div slot="header" class="hero-pillar-head">
-              <ship-badge tone={p.tone} variant="soft" size="sm">{p.kbd}</ship-badge>
-              <span class="hero-pillar-title">{p.title}</span>
-            </div>
-            <p class="hero-pillar-copy">{p.copy}</p>
-          </ship-card>
-        </li>
-      ))}
-    </ul>
   </div>
 </section>
 
 <style>
   .hero {
     position: relative;
-    padding-top: 64px;
-    padding-bottom: 96px;
+    padding-top: 72px;
+    padding-bottom: 80px;
     overflow: hidden;
   }
   .hero::before {
@@ -83,9 +87,7 @@ const pillars = [
     opacity: 0.55;
     z-index: -1;
   }
-  :root[data-theme='warm'] .hero::before {
-    opacity: 0.35;
-  }
+  :root[data-theme='warm'] .hero::before { opacity: 0.35; }
 
   .hero-inner {
     display: flex;
@@ -113,67 +115,28 @@ const pillars = [
   .hero-sub {
     max-width: 58ch;
     margin-inline: auto;
-    color: var(--site-muted-fg);
+    color: var(--muted-foreground);
     font-size: clamp(16px, 1.6vw, 20px);
     line-height: 1.55;
   }
 
-  .hero-ctas {
-    display: flex;
-    gap: 12px;
-    flex-wrap: wrap;
-    justify-content: center;
-    margin-top: 4px;
-  }
-  .hero-cta-a {
-    color: inherit;
-    text-decoration: none;
-    display: inline-block;
-  }
+  .hero-ctas { margin-top: 4px; }
 
-  .hero-pillars {
-    list-style: none;
-    padding: 0;
-    margin: 32px 0 0;
-    display: grid;
-    gap: 16px;
+  .hero-stage {
     width: 100%;
-    grid-template-columns: repeat(3, minmax(0, 1fr));
-    max-width: 900px;
+    max-width: 880px;
+    margin: 12px auto 0;
   }
-  .hero-pillars li {
-    display: block;
-  }
-  .hero-pillar-card {
-    height: 100%;
-    display: block;
-    text-align: left;
-  }
-  .hero-pillar-head {
-    display: inline-flex;
-    align-items: center;
-    gap: 8px;
-  }
-  .hero-pillar-title {
-    font-family: var(--site-font-display);
-    font-weight: 600;
-    font-size: 15px;
-    letter-spacing: -0.01em;
-    color: var(--site-fg);
-  }
-  .hero-pillar-copy {
-    color: var(--site-muted-fg);
-    font-size: 14px;
-    line-height: 1.5;
+  .hero-video {
+    width: 100%;
+    border-radius: 18px;
+    box-shadow:
+      0 1px 2px color-mix(in oklch, var(--foreground) 5%, transparent),
+      0 32px 64px -24px color-mix(in oklch, var(--site-accent) 28%, transparent);
+    background: var(--card);
   }
 
   @media (max-width: 760px) {
-    .hero-pillars {
-      grid-template-columns: 1fr;
-    }
-    .hero {
-      padding-top: 40px;
-      padding-bottom: 56px;
-    }
+    .hero { padding-top: 48px; padding-bottom: 56px; }
   }
 </style>

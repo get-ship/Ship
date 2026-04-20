@@ -1,0 +1,382 @@
+---
+// Highlight 2 — Extend.
+//
+// Live mini-view demo: a form on the left drives a reactive "task" row
+// on the right. No AI, no server — just Ship's reactivity pattern
+// shown in microcosm. Users edit title / priority / done and see the
+// card mutate in real time. Proves "custom UI in seconds" without the
+// runtime.
+//
+// The IntersectionObserver reveals the section once; after that the
+// demo is fully interactive.
+
+// `{{ ... }}` Minijinja placeholders in the code sample conflict with
+// Astro's JSX parser, so we assemble the snippet as a pre-escaped string
+// and render it through `set:html`.
+const viewSource = `<span class="k">&lt;ship-card</span> <span class="s">variant</span>=<span class="v">"outline"</span> <span class="s">padding</span>=<span class="v">"lg"</span><span class="k">&gt;</span>
+  <span class="k">&lt;div</span> <span class="s">class</span>=<span class="v">"task"</span> <span class="s">data-done</span>=<span class="v">"&#123;&#123; task.done &#125;&#125;"</span><span class="k">&gt;</span>
+    <span class="c">&#123;&#123; task.title &#125;&#125;</span>
+    <span class="k">&lt;ship-badge</span> <span class="s">tone</span>=<span class="v">"&#123;&#123; priorityTone(task.priority) &#125;&#125;"</span><span class="k">&gt;</span>
+      <span class="c">&#123;&#123; task.priority &#125;&#125;</span>
+    <span class="k">&lt;/ship-badge&gt;</span>
+  <span class="k">&lt;/div&gt;</span>
+<span class="k">&lt;/ship-card&gt;</span>`;
+---
+
+<section class="hl hl-extend" data-visible="false">
+  <div class="site-container hl-inner">
+    <header class="hl-head">
+      <ship-badge tone="info" variant="soft" size="sm">02 &middot; Extend</ship-badge>
+      <h2>Your data. Your UI. In seconds.</h2>
+      <p class="hl-sub">
+        Define a collection, compose a view from the Ship elements, and
+        you&rsquo;re done. No React boilerplate. No build step. Ship
+        renders every view against the same design system and reacts to
+        your edits instantly &mdash; try it below.
+      </p>
+    </header>
+
+    <div class="hl-demo">
+      <ship-card variant="outline" padding="lg" class="hl-form-card">
+        <div slot="header" class="hl-card-head">
+          <ship-badge tone="info" variant="soft" size="sm">form</ship-badge>
+          <span class="hl-card-meta">bound to <code>$task</code></span>
+        </div>
+        <form class="hl-form" id="extendForm" autocomplete="off">
+          <label class="hl-field">
+            <span>Title</span>
+            <input
+              name="title"
+              type="text"
+              value="Weekly digest"
+              maxlength="64"
+              data-bind
+            />
+          </label>
+          <label class="hl-field">
+            <span>Priority</span>
+            <select name="priority" data-bind>
+              <option value="low">Low</option>
+              <option value="medium" selected>Medium</option>
+              <option value="high">High</option>
+            </select>
+          </label>
+          <label class="hl-field hl-field-row">
+            <input type="checkbox" name="done" data-bind />
+            <span>Mark as done</span>
+          </label>
+          <label class="hl-field">
+            <span>Assignee</span>
+            <input
+              name="assignee"
+              type="text"
+              value="claude"
+              data-bind
+            />
+          </label>
+        </form>
+      </ship-card>
+
+      <div class="hl-output">
+        <ship-card variant="outline" padding="lg" class="hl-view-card" id="extendView">
+          <div slot="header" class="hl-card-head">
+            <ship-badge tone="accent" variant="soft" size="sm">view</ship-badge>
+            <span class="hl-card-meta"><code>.ship/views/tasks</code></span>
+          </div>
+
+          <div class="hl-task" data-done="false">
+            <div class="hl-task-left">
+              <ship-status-dot tone="info" data-slot="dot"></ship-status-dot>
+              <div class="hl-task-body">
+                <div class="hl-task-title" data-slot="title">Weekly digest</div>
+                <div class="hl-task-sub">
+                  <span data-slot="assignee">claude</span>
+                  <span class="hl-task-divider">&middot;</span>
+                  <span data-slot="priority-label">medium</span>
+                </div>
+              </div>
+            </div>
+            <ship-badge
+              data-slot="priority"
+              tone="info"
+              variant="soft"
+              size="sm"
+            >medium</ship-badge>
+          </div>
+
+          <ship-separator class="hl-task-sep"></ship-separator>
+
+          <div class="hl-task-meta">
+            <span>live-reactive &middot; no build step &middot; no server</span>
+            <span
+              class="hl-pulse"
+              data-slot="pulse"
+              role="presentation"
+            ></span>
+          </div>
+        </ship-card>
+
+        <pre class="hl-view-source"><code set:html={viewSource}></code></pre>
+      </div>
+    </div>
+  </div>
+</section>
+
+<script>
+  const TONES = {
+    low: 'muted',
+    medium: 'info',
+    high: 'destructive',
+  };
+
+  const sync = (state) => {
+    const view = document.getElementById('extendView');
+    if (!view) return;
+    const task = view.querySelector('.hl-task');
+    if (!task) return;
+
+    const setText = (name, text) => {
+      const el = view.querySelector('[data-slot="' + name + '"]');
+      if (el) el.textContent = text;
+    };
+
+    setText('title', state.title || 'Untitled task');
+    setText('assignee', state.assignee || '—');
+    setText('priority-label', state.priority);
+
+    const badge = view.querySelector('[data-slot="priority"]');
+    if (badge) {
+      badge.textContent = state.priority;
+      badge.setAttribute('tone', TONES[state.priority] || 'muted');
+    }
+
+    const dot = view.querySelector('[data-slot="dot"]');
+    if (dot) {
+      dot.setAttribute('tone', state.done ? 'success' : 'info');
+      if (state.done) dot.removeAttribute('pulse');
+      else dot.setAttribute('pulse', '');
+    }
+
+    task.setAttribute('data-done', String(state.done));
+
+    const pulse = view.querySelector('[data-slot="pulse"]');
+    if (pulse) {
+      pulse.classList.remove('is-pulsing');
+      void pulse.offsetWidth;
+      pulse.classList.add('is-pulsing');
+    }
+  };
+
+  const readState = (form) => {
+    const fd = new FormData(form);
+    const doneEl = form.elements.namedItem('done');
+    return {
+      title: String(fd.get('title') || ''),
+      priority: String(fd.get('priority') || 'medium'),
+      done: doneEl && 'checked' in doneEl ? Boolean(doneEl.checked) : false,
+      assignee: String(fd.get('assignee') || ''),
+    };
+  };
+
+  const form = document.getElementById('extendForm');
+  if (form) {
+    const onChange = () => sync(readState(form));
+    form.addEventListener('input', onChange);
+    form.addEventListener('change', onChange);
+    onChange();
+  }
+
+  const obs = new IntersectionObserver((entries) => {
+    for (const e of entries) {
+      if (e.isIntersecting) {
+        e.target.setAttribute('data-visible', 'true');
+        obs.unobserve(e.target);
+      }
+    }
+  }, { threshold: 0.2 });
+  document.querySelectorAll('.hl-extend').forEach((el) => obs.observe(el));
+</script>
+
+<style>
+  .hl {
+    padding: clamp(72px, 10vw, 128px) 0;
+    position: relative;
+  }
+  .hl-inner {
+    display: grid;
+    gap: clamp(32px, 5vw, 64px);
+  }
+  .hl-head {
+    max-width: 60ch;
+    margin-inline: auto;
+    text-align: center;
+    display: flex;
+    flex-direction: column;
+    gap: 14px;
+    align-items: center;
+  }
+  .hl-sub {
+    color: var(--muted-foreground);
+    font-size: clamp(16px, 1.6vw, 18px);
+    line-height: 1.55;
+  }
+
+  .hl-demo {
+    display: grid;
+    grid-template-columns: 1fr 1.1fr;
+    gap: clamp(20px, 3vw, 36px);
+    align-items: start;
+    transition:
+      opacity 500ms var(--ease-out, cubic-bezier(0.16, 1, 0.3, 1)) 80ms,
+      transform 500ms var(--ease-out, cubic-bezier(0.16, 1, 0.3, 1)) 80ms;
+  }
+  :root.js .hl-extend[data-visible='false'] .hl-demo {
+    opacity: 0;
+    transform: translateY(16px);
+  }
+  .hl-extend[data-visible='true'] .hl-demo { opacity: 1; transform: none; }
+  @media (max-width: 860px) {
+    .hl-demo { grid-template-columns: 1fr; }
+  }
+
+  .hl-card-head {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 10px;
+  }
+  .hl-card-meta {
+    color: var(--muted-foreground);
+    font-size: 12px;
+  }
+  .hl-card-meta code {
+    font-family: var(--font-mono);
+  }
+
+  .hl-form {
+    display: grid;
+    gap: 14px;
+  }
+  .hl-field {
+    display: grid;
+    gap: 6px;
+    font-size: 13px;
+    color: var(--foreground);
+  }
+  .hl-field > span {
+    font-weight: 500;
+    color: var(--muted-foreground);
+    font-size: 12px;
+    text-transform: uppercase;
+    letter-spacing: 0.06em;
+  }
+  .hl-field input[type='text'],
+  .hl-field select {
+    height: 38px;
+    padding: 0 12px;
+    border: 1px solid var(--border);
+    border-radius: 10px;
+    background: var(--card);
+    color: var(--foreground);
+    font: inherit;
+    transition: border-color 120ms ease, box-shadow 120ms ease;
+  }
+  .hl-field input[type='text']:focus,
+  .hl-field select:focus {
+    outline: none;
+    border-color: var(--site-accent);
+    box-shadow: 0 0 0 3px var(--site-accent-soft);
+  }
+  .hl-field-row {
+    flex-direction: row;
+    display: flex;
+    align-items: center;
+    gap: 8px;
+  }
+  .hl-field-row input { width: 16px; height: 16px; }
+  .hl-field-row > span {
+    text-transform: none;
+    letter-spacing: 0;
+    font-size: 13px;
+    color: var(--foreground);
+    font-weight: 500;
+  }
+
+  .hl-output {
+    display: flex;
+    flex-direction: column;
+    gap: 14px;
+  }
+  .hl-view-card { display: block; }
+  .hl-task {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 14px;
+    transition: opacity 160ms ease;
+  }
+  .hl-task[data-done='true'] { opacity: 0.6; }
+  .hl-task[data-done='true'] .hl-task-title { text-decoration: line-through; }
+  .hl-task-left {
+    display: flex;
+    align-items: center;
+    gap: 12px;
+    min-width: 0;
+  }
+  .hl-task-body { min-width: 0; }
+  .hl-task-title {
+    font-family: var(--font-display);
+    font-weight: 600;
+    font-size: 15px;
+    letter-spacing: -0.01em;
+    color: var(--foreground);
+  }
+  .hl-task-sub {
+    color: var(--muted-foreground);
+    font-size: 12px;
+    margin-top: 2px;
+    display: inline-flex;
+    gap: 4px;
+  }
+  .hl-task-divider { color: color-mix(in oklch, var(--muted-foreground) 50%, transparent); }
+  .hl-task-sep { display: block; margin: 14px 0 10px; }
+  .hl-task-meta {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 10px;
+    color: var(--muted-foreground);
+    font-size: 12px;
+  }
+  .hl-pulse {
+    width: 8px;
+    height: 8px;
+    border-radius: 50%;
+    background: var(--site-accent);
+  }
+  .hl-pulse.is-pulsing {
+    animation: hl-pulse 650ms cubic-bezier(0.16, 1, 0.3, 1);
+  }
+  @keyframes hl-pulse {
+    0% { transform: scale(1); box-shadow: 0 0 0 0 color-mix(in oklch, var(--site-accent) 45%, transparent); }
+    70% { transform: scale(1.4); box-shadow: 0 0 0 10px color-mix(in oklch, var(--site-accent) 0%, transparent); }
+    100% { transform: scale(1); box-shadow: 0 0 0 0 color-mix(in oklch, var(--site-accent) 0%, transparent); }
+  }
+
+  .hl-view-source {
+    font-family: var(--font-mono);
+    font-size: 12px;
+    line-height: 1.6;
+    padding: 14px 16px;
+    margin: 0;
+    color: var(--foreground);
+    background: color-mix(in oklch, var(--muted) 30%, transparent);
+    border: 1px solid color-mix(in oklch, var(--border) 55%, transparent);
+    border-radius: var(--radius-lg);
+    overflow: auto;
+  }
+  .hl-view-source .k { color: var(--muted-foreground); }
+  .hl-view-source .s { color: var(--site-accent); }
+  .hl-view-source .v { color: oklch(0.60 0.16 150); }
+  .hl-view-source .c { color: var(--foreground); }
+</style>

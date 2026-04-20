@@ -2,9 +2,9 @@
 import ThemeSwitcher from './ThemeSwitcher.astro';
 
 const links = [
-  { href: '/#pillars', label: 'Product' },
+  { href: '/#features', label: 'Product' },
+  { href: '/download', label: 'Download' },
   { href: 'https://docs.getship.dev', label: 'Docs' },
-  { href: '/store', label: 'Store' },
 ];
 ---
 
@@ -25,6 +25,12 @@ const links = [
       <div class="site-nav-theme">
         <ThemeSwitcher />
       </div>
+      <ship-button
+        variant="ghost"
+        size="md"
+        class="site-nav-signin"
+        onclick="(window.ship && window.ship.openAuth)?window.ship.openAuth('sign-in'):location.href='/sign-in'"
+      >Sign in</ship-button>
       <ship-button
         tone="accent"
         variant="solid"
@@ -56,7 +62,7 @@ const links = [
     display: inline-flex;
     align-items: center;
     gap: 10px;
-    font-family: var(--site-font-display);
+    font-family: var(--font-display);
     font-weight: 700;
     font-size: 18px;
     letter-spacing: -0.01em;
@@ -92,7 +98,8 @@ const links = [
     display: inline-flex;
   }
   @media (max-width: 840px) {
-    .site-nav-theme { display: none; }
+    .site-nav-theme,
+    .site-nav-signin { display: none; }
   }
   @media (max-width: 720px) {
     .site-nav-links {
