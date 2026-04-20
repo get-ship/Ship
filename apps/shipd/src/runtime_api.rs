@@ -625,18 +625,24 @@ pub async fn create_job(
     }
 }
 
-// ---- Run pipeline (simplified dispatch) ----
+// ---- Dispatch (UI-facing; mirrors `ship run`) ----
 
-/// Minimal inputs the UI provides — slug/branch/agent get derived
-/// server-side so the caller doesn't have to know the naming
-/// conventions.
+/// Dispatch a run by pipeline name. UI and other high-level callers
+/// use this — the daemon derives `slug`, `branch`, `agent`, and the
+/// pipeline step graph server-side. For programmatic callers with
+/// their own slug/branch conventions, see `create_job` at
+/// `POST /api/runtime/jobs`.
 #[derive(Deserialize, utoipa::ToSchema)]
-pub struct RunPipelineRequest {
-    /// Pipeline name (file in `.ship/pipelines/<name>.yaml[.jsonc]`).
+pub struct DispatchRequest {
+    /// Pipeline name (file in `.ship/pipelines/<name>.{yaml,yml,jsonc,json}`).
     pub pipeline: String,
     /// Inline spec body describing what the run should do.
     #[serde(default)]
     pub spec: Option<String>,
+    /// Provider override; when `None`, each step uses whatever the
+    /// pipeline YAML declared (or falls back to claude).
+    #[serde(default)]
+    pub provider: Option<String>,
     /// Pipeline `{{ var }}` overrides.
     #[serde(default)]
     pub vars: Option<std::collections::HashMap<String, String>>,
@@ -648,22 +654,22 @@ pub struct RunPipelineRequest {
     pub workspace: Option<String>,
 }
 
-/// POST /api/runtime/run
+/// POST /api/runtime/dispatch
 ///
-/// UI-facing dispatch — mirrors `ship run` on the CLI. Loads the named
-/// pipeline, generates slug/branch/agent, and emits `job.created`. The
-/// orchestrator picks it up from there.
+/// UI-facing dispatch — mirrors `ship run` on the CLI. Loads the
+/// named pipeline, generates slug/branch/agent, and emits
+/// `job.created`. The orchestrator picks it up from there.
 #[utoipa::path(
     post,
-    path = "/api/runtime/run",
-    request_body = RunPipelineRequest,
+    path = "/api/runtime/dispatch",
+    request_body = DispatchRequest,
     responses((status = 200, body = MeshResponse)),
     tag = "runtime"
 )]
-pub async fn run_pipeline(
+pub async fn dispatch_pipeline(
     State(state): State<ApiState>,
     Extension(auth): Extension<AuthContext>,
-    Json(req): Json<RunPipelineRequest>,
+    Json(req): Json<DispatchRequest>,
 ) -> impl IntoResponse {
     if let Err(e) = require_scope(&auth, Scope::CreateJobs) {
         return e;
@@ -750,7 +756,7 @@ pub async fn run_pipeline(
         source_spec_path: None,
         plan_id: None,
         model: None,
-        provider: None,
+        provider: req.provider,
         depends_on: None,
         pipeline: None,
         steps: None,

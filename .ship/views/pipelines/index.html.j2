@@ -19,13 +19,6 @@
   .ship-view-pipelines {
     color: var(--foreground);
     background: var(--background);
-    height: 100vh;
-    overflow: hidden;
-  }
-  .ship-pipelines-scroll {
-    flex: 1;
-    overflow: auto;
-    height: 100%;
   }
   .ship-pipelines-wrap {
     width: 100%;
@@ -98,7 +91,6 @@
   </style>
   {% include 'pipelines/partials/styles.html.j2' %}
 
-  <div class="ship-pipelines-scroll">
     <div class="ship-pipelines-wrap">
       <div class="ship-pipelines-head">
         <div>
@@ -148,7 +140,6 @@
         </div>
       </div>
     </div>
-  </div>
 
   <div class="ship-mobile-gate">
     <ship-icon name="monitor" size="xl" tone="muted"></ship-icon>
@@ -158,6 +149,7 @@
   <ship-dialog id="dispatch-dialog" size="lg"
     {{ signal('dispatch_pipeline', (defs[0].name if defs and defs | length > 0 else '')) }}
     {{ signal('dispatch_spec', '') }}
+    {{ signal('dispatch_provider', '') }}
     {{ signal('dispatch_headless', false) }}>
     <span slot="header">Dispatch pipeline run</span>
     <ship-field label="Pipeline">
@@ -167,9 +159,15 @@
         {% endfor %}
       </ship-select>
     </ship-field>
-    <ship-field label="Spec" hint="What should the agent do? (plain text or markdown)">
+    <ship-field label="Spec" hint="Plain text or markdown — what the run should do.">
       <ship-textarea data-bind="dispatch_spec" rows="10"
         placeholder="Describe the work in one or two paragraphs..."></ship-textarea>
+    </ship-field>
+    <ship-field label="Provider override" hint="Optional — leave blank to use the pipeline's declared providers.">
+      <ship-select data-bind="dispatch_provider">
+        <option value="">(from pipeline)</option>
+        {% for p in providers %}<option value="{{ p }}">{{ p }}</option>{% endfor %}
+      </ship-select>
     </ship-field>
     <ship-field>
       <ship-checkbox data-bind="dispatch_headless">Headless (no tmux window)</ship-checkbox>
@@ -180,11 +178,12 @@
         Cancel
       </ship-button>
       <ship-button tone="accent" variant="solid"
-        data-on:click="@post('/api/runtime/run', {
+        data-on:click="@post('/api/runtime/dispatch', {
           contentType: 'json',
           body: JSON.stringify({
             pipeline: $dispatch_pipeline,
             spec: $dispatch_spec,
+            provider: $dispatch_provider || null,
             headless: $dispatch_headless
           })
         }); document.getElementById('dispatch-dialog').close()">

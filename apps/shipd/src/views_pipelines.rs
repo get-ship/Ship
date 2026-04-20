@@ -125,6 +125,9 @@ pub struct PipelinesCtx {
     pub history_runs: Vec<RunView>,
     /// Status pill row shown above tabs — one per state.
     pub status_pills: Vec<StatusPill>,
+    /// Provider IDs detected on PATH. Feeds the dispatch dialog's
+    /// optional provider override. Unavailable providers are excluded.
+    pub providers: Vec<String>,
 }
 
 fn run_state_token(s: &JobStatus) -> &'static str {
@@ -366,6 +369,12 @@ pub fn build_ctx(params: &PipelinesParams, ship_dir: &std::path::Path) -> Pipeli
         StatusPill { label: "Failed", tone: "destructive", count: all_by_status(JobStatus::Failed) },
     ];
 
+    let providers: Vec<String> = runtime::agent_export::PROVIDERS
+        .iter()
+        .filter(|d| runtime::detect_binary(d.binary))
+        .map(|d| d.id.to_string())
+        .collect();
+
     PipelinesCtx {
         active_tab: params.active_tab(),
         filter: params.filter.clone(),
@@ -377,6 +386,7 @@ pub fn build_ctx(params: &PipelinesParams, ship_dir: &std::path::Path) -> Pipeli
         active_runs,
         history_runs,
         status_pills,
+        providers,
     }
 }
 
