@@ -1,0 +1,14 @@
+{#-
+  event_tile — a single kernel-event row used inside the Latest events feed.
+  Context: `r` (EventRow — timestamp, event_type, actor?).
+  Extracted because the Latest-events feed has two sibling branches
+  (flat `rows` and grouped `groups`) that render the exact same tile;
+  inlining would guarantee drift as the row shape evolves.
+-#}
+<ship-list-tile density="compact" role="listitem">
+  <span slot="leading" class="dash-mono dash-muted dash-ts">{{ r.timestamp }}</span>
+  <span class="dash-mono">{{ r.event_type }}</span>
+  <span slot="trailing" class="dash-muted dash-event-actor">
+    {{- r.actor if r.actor is defined else '—' -}}
+  </span>
+</ship-list-tile>
