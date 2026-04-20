@@ -8,6 +8,11 @@
         beforeunload warns on nav-away with an unsaved draft.
 -#}
 <script>
+// Original pipeline source captured at page-load. Used by
+// beforeunload + tryCancelEdit to detect a dirty draft. Stored as a
+// JS global via `| tojson` (not an HTML attribute) because the raw
+// JSONC contains `"` and newlines that would break attribute quoting.
+window.__pipelineRaw = {{ raw | tojson }};
 (function () {
   // Honor `?edit=1` query param — the New-pipeline flow redirects here
   // after creating the file so the user lands in the editor immediately.
@@ -61,7 +66,7 @@
     if (!root) return;
     const editMode = getSignal(root, 'edit_mode');
     const draft = getSignal(root, 'edit_draft');
-    const orig = root.getAttribute('data-pipeline-raw') || '';
+    const orig = window.__pipelineRaw || '';
     if (editMode && draft !== undefined && draft !== orig) {
       e.preventDefault();
       e.returnValue = '';
