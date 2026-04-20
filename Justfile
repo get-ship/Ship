@@ -23,22 +23,32 @@ build:
 build-release:
     cargo build --release -p ship-cli -p mcp -p shipd
 
-# Install dev binaries to ~/.local/bin (ship + shipd)
+# Install dev binaries to ~/.local/bin (ship + shipd).
+# Resolves the cargo target dir via `cargo metadata` so the copy works when
+# .cargo/config.toml redirects target-dir (e.g. for a shared build cache
+# across worktrees).
 install-dev: build
-    cp -f target/debug/ship ~/.local/bin/ship.new && mv ~/.local/bin/ship.new ~/.local/bin/ship
-    cp -f target/debug/shipd ~/.local/bin/shipd
-    @echo "Installed: ship + shipd → ~/.local/bin"
+    #!/usr/bin/env bash
+    set -euo pipefail
+    target=$(cargo metadata --format-version 1 --no-deps --offline | grep -o '"target_directory":"[^"]*"' | cut -d'"' -f4)
+    cp -f "$target/debug/ship" ~/.local/bin/ship.new && mv ~/.local/bin/ship.new ~/.local/bin/ship
+    cp -f "$target/debug/shipd" ~/.local/bin/shipd
+    echo "Installed: ship + shipd → ~/.local/bin"
 
 # Install stable binary to ~/.cargo/bin
 install: build-release
+    #!/usr/bin/env bash
+    set -euo pipefail
+    target=$(cargo metadata --format-version 1 --no-deps --offline | grep -o '"target_directory":"[^"]*"' | cut -d'"' -f4)
     cargo install --path apps/ship-cli
-    cp -f target/release/shipd ~/.local/bin/shipd
+    cp -f "$target/release/shipd" ~/.local/bin/shipd
 
-# Restart shipd with the latest dev build (build → install → hard restart)
+# Restart shipd with the latest dev build (build → install → graceful restart).
+# `ship daemon stop` terminates the supervisor cleanly and shipd's own
+# shutdown path removes stale daemon.pid/daemon.port before the next start.
 daemon-restart: install-dev
-    -pkill -9 shipd 2>/dev/null; true
+    -ship daemon stop 2>/dev/null || true
     @sleep 1
-    @rm -f ~/.ship/network.port ~/.ship/daemon.pid
     ship daemon start
 
 # Rebuild WASM compiler (requires build-essential)
