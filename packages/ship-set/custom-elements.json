@@ -4,6 +4,1123 @@
   "modules": [
     {
       "kind": "javascript-module",
+      "path": "src/web-components/domain/ship-auth-dialog.ts",
+      "declarations": [
+        {
+          "kind": "class",
+          "description": "",
+          "name": "ShipAuthDialog",
+          "members": [
+            {
+              "kind": "field",
+              "name": "open",
+              "privacy": "public",
+              "type": {
+                "text": "boolean"
+              },
+              "default": "false",
+              "attribute": "open",
+              "reflects": true
+            },
+            {
+              "kind": "field",
+              "name": "mode",
+              "privacy": "public",
+              "type": {
+                "text": "AuthMode"
+              },
+              "default": "'sign-in'",
+              "attribute": "mode",
+              "reflects": true
+            },
+            {
+              "kind": "field",
+              "name": "loading",
+              "privacy": "public",
+              "type": {
+                "text": "boolean"
+              },
+              "default": "false",
+              "attribute": "loading",
+              "reflects": true
+            },
+            {
+              "kind": "field",
+              "name": "backdrop",
+              "privacy": "public",
+              "type": {
+                "text": "'default' | 'blur' | 'solid'"
+              },
+              "default": "'blur'",
+              "attribute": "backdrop",
+              "reflects": true
+            },
+            {
+              "kind": "field",
+              "name": "onTabChange",
+              "privacy": "private"
+            },
+            {
+              "kind": "field",
+              "name": "onSubmit",
+              "privacy": "private"
+            },
+            {
+              "kind": "method",
+              "name": "switchTo",
+              "privacy": "private",
+              "parameters": [
+                {
+                  "name": "next",
+                  "type": {
+                    "text": "AuthMode"
+                  }
+                }
+              ]
+            },
+            {
+              "kind": "field",
+              "name": "onDialogClose",
+              "privacy": "private"
+            },
+            {
+              "kind": "method",
+              "name": "defaultTitle",
+              "privacy": "private"
+            },
+            {
+              "kind": "method",
+              "name": "submitLabel",
+              "privacy": "private"
+            },
+            {
+              "kind": "method",
+              "name": "hasProviderChildren",
+              "privacy": "private"
+            },
+            {
+              "kind": "method",
+              "name": "show",
+              "description": "Imperative helpers mirroring ship-dialog."
+            },
+            {
+              "kind": "method",
+              "name": "showModal"
+            },
+            {
+              "kind": "method",
+              "name": "close"
+            }
+          ],
+          "events": [
+            {
+              "name": "ship-mode-change",
+              "type": {
+                "text": "CustomEvent"
+              }
+            }
+          ],
+          "attributes": [
+            {
+              "name": "open",
+              "type": {
+                "text": "boolean"
+              },
+              "default": "false",
+              "fieldName": "open"
+            },
+            {
+              "name": "mode",
+              "type": {
+                "text": "AuthMode"
+              },
+              "default": "'sign-in'",
+              "fieldName": "mode"
+            },
+            {
+              "name": "loading",
+              "type": {
+                "text": "boolean"
+              },
+              "default": "false",
+              "fieldName": "loading"
+            },
+            {
+              "name": "backdrop",
+              "type": {
+                "text": "'default' | 'blur' | 'solid'"
+              },
+              "default": "'blur'",
+              "fieldName": "backdrop"
+            }
+          ],
+          "superclass": {
+            "name": "LitElement",
+            "package": "lit"
+          },
+          "tagName": "ship-auth-dialog",
+          "customElement": true
+        }
+      ],
+      "exports": [
+        {
+          "kind": "js",
+          "name": "ShipAuthDialog",
+          "declaration": {
+            "name": "ShipAuthDialog",
+            "module": "src/web-components/domain/ship-auth-dialog.ts"
+          }
+        },
+        {
+          "kind": "custom-element-definition",
+          "name": "ship-auth-dialog",
+          "declaration": {
+            "name": "ShipAuthDialog",
+            "module": "src/web-components/domain/ship-auth-dialog.ts"
+          }
+        }
+      ]
+    },
+    {
+      "kind": "javascript-module",
+      "path": "src/web-components/domain/ship-git-diff.ts",
+      "declarations": [
+        {
+          "kind": "class",
+          "description": "",
+          "name": "ShipGitDiff",
+          "members": [
+            {
+              "kind": "field",
+              "name": "files",
+              "privacy": "public",
+              "type": {
+                "text": "number"
+              },
+              "default": "0",
+              "attribute": "files",
+              "reflects": true
+            },
+            {
+              "kind": "field",
+              "name": "additions",
+              "privacy": "public",
+              "type": {
+                "text": "number"
+              },
+              "default": "0",
+              "attribute": "additions",
+              "reflects": true
+            },
+            {
+              "kind": "field",
+              "name": "deletions",
+              "privacy": "public",
+              "type": {
+                "text": "number"
+              },
+              "default": "0",
+              "attribute": "deletions",
+              "reflects": true
+            },
+            {
+              "kind": "field",
+              "name": "empty",
+              "privacy": "public",
+              "type": {
+                "text": "boolean"
+              },
+              "default": "false",
+              "attribute": "empty",
+              "reflects": true
+            },
+            {
+              "kind": "field",
+              "name": "allCollapsed",
+              "privacy": "public",
+              "type": {
+                "text": "boolean"
+              },
+              "default": "false",
+              "attribute": "allCollapsed"
+            },
+            {
+              "kind": "method",
+              "name": "toggleAll",
+              "privacy": "private"
+            }
+          ],
+          "attributes": [
+            {
+              "name": "files",
+              "type": {
+                "text": "number"
+              },
+              "default": "0",
+              "fieldName": "files"
+            },
+            {
+              "name": "additions",
+              "type": {
+                "text": "number"
+              },
+              "default": "0",
+              "fieldName": "additions"
+            },
+            {
+              "name": "deletions",
+              "type": {
+                "text": "number"
+              },
+              "default": "0",
+              "fieldName": "deletions"
+            },
+            {
+              "name": "empty",
+              "type": {
+                "text": "boolean"
+              },
+              "default": "false",
+              "fieldName": "empty"
+            },
+            {
+              "name": "allCollapsed",
+              "type": {
+                "text": "boolean"
+              },
+              "default": "false",
+              "fieldName": "allCollapsed"
+            }
+          ],
+          "superclass": {
+            "name": "LitElement",
+            "package": "lit"
+          },
+          "tagName": "ship-git-diff",
+          "customElement": true
+        },
+        {
+          "kind": "class",
+          "description": "",
+          "name": "ShipGitDiffFile",
+          "members": [
+            {
+              "kind": "field",
+              "name": "path",
+              "privacy": "public",
+              "type": {
+                "text": "string"
+              },
+              "default": "''",
+              "attribute": "path",
+              "reflects": true
+            },
+            {
+              "kind": "field",
+              "name": "additions",
+              "privacy": "public",
+              "type": {
+                "text": "number"
+              },
+              "default": "0",
+              "attribute": "additions",
+              "reflects": true
+            },
+            {
+              "kind": "field",
+              "name": "deletions",
+              "privacy": "public",
+              "type": {
+                "text": "number"
+              },
+              "default": "0",
+              "attribute": "deletions",
+              "reflects": true
+            },
+            {
+              "kind": "field",
+              "name": "collapsed",
+              "privacy": "public",
+              "type": {
+                "text": "boolean"
+              },
+              "default": "false",
+              "attribute": "collapsed",
+              "reflects": true
+            },
+            {
+              "kind": "method",
+              "name": "toggle",
+              "privacy": "private"
+            }
+          ],
+          "attributes": [
+            {
+              "name": "path",
+              "type": {
+                "text": "string"
+              },
+              "default": "''",
+              "fieldName": "path"
+            },
+            {
+              "name": "additions",
+              "type": {
+                "text": "number"
+              },
+              "default": "0",
+              "fieldName": "additions"
+            },
+            {
+              "name": "deletions",
+              "type": {
+                "text": "number"
+              },
+              "default": "0",
+              "fieldName": "deletions"
+            },
+            {
+              "name": "collapsed",
+              "type": {
+                "text": "boolean"
+              },
+              "default": "false",
+              "fieldName": "collapsed"
+            }
+          ],
+          "superclass": {
+            "name": "LitElement",
+            "package": "lit"
+          },
+          "tagName": "ship-git-diff-file",
+          "customElement": true
+        },
+        {
+          "kind": "class",
+          "description": "",
+          "name": "ShipGitDiffHunk",
+          "members": [
+            {
+              "kind": "field",
+              "name": "header",
+              "privacy": "public",
+              "type": {
+                "text": "string"
+              },
+              "default": "''",
+              "attribute": "header",
+              "reflects": true
+            }
+          ],
+          "attributes": [
+            {
+              "name": "header",
+              "type": {
+                "text": "string"
+              },
+              "default": "''",
+              "fieldName": "header"
+            }
+          ],
+          "superclass": {
+            "name": "LitElement",
+            "package": "lit"
+          },
+          "tagName": "ship-git-diff-hunk",
+          "customElement": true
+        },
+        {
+          "kind": "class",
+          "description": "",
+          "name": "ShipGitDiffLine",
+          "members": [
+            {
+              "kind": "field",
+              "name": "type",
+              "privacy": "public",
+              "type": {
+                "text": "LineType"
+              },
+              "default": "'context'",
+              "attribute": "type",
+              "reflects": true
+            },
+            {
+              "kind": "field",
+              "name": "old",
+              "privacy": "public",
+              "type": {
+                "text": "string"
+              },
+              "default": "''",
+              "attribute": "old",
+              "reflects": true
+            },
+            {
+              "kind": "field",
+              "name": "new",
+              "privacy": "public",
+              "type": {
+                "text": "string"
+              },
+              "default": "''",
+              "attribute": "new",
+              "reflects": true
+            },
+            {
+              "kind": "method",
+              "name": "sig",
+              "privacy": "private",
+              "return": {
+                "type": {
+                  "text": "string"
+                }
+              }
+            }
+          ],
+          "attributes": [
+            {
+              "name": "type",
+              "type": {
+                "text": "LineType"
+              },
+              "default": "'context'",
+              "fieldName": "type"
+            },
+            {
+              "name": "old",
+              "type": {
+                "text": "string"
+              },
+              "default": "''",
+              "fieldName": "old"
+            },
+            {
+              "name": "new",
+              "type": {
+                "text": "string"
+              },
+              "default": "''",
+              "fieldName": "new"
+            }
+          ],
+          "superclass": {
+            "name": "LitElement",
+            "package": "lit"
+          },
+          "tagName": "ship-git-diff-line",
+          "customElement": true
+        }
+      ],
+      "exports": [
+        {
+          "kind": "js",
+          "name": "ShipGitDiff",
+          "declaration": {
+            "name": "ShipGitDiff",
+            "module": "src/web-components/domain/ship-git-diff.ts"
+          }
+        },
+        {
+          "kind": "js",
+          "name": "ShipGitDiffFile",
+          "declaration": {
+            "name": "ShipGitDiffFile",
+            "module": "src/web-components/domain/ship-git-diff.ts"
+          }
+        },
+        {
+          "kind": "js",
+          "name": "ShipGitDiffHunk",
+          "declaration": {
+            "name": "ShipGitDiffHunk",
+            "module": "src/web-components/domain/ship-git-diff.ts"
+          }
+        },
+        {
+          "kind": "js",
+          "name": "ShipGitDiffLine",
+          "declaration": {
+            "name": "ShipGitDiffLine",
+            "module": "src/web-components/domain/ship-git-diff.ts"
+          }
+        },
+        {
+          "kind": "custom-element-definition",
+          "name": "ship-git-diff",
+          "declaration": {
+            "name": "ShipGitDiff",
+            "module": "src/web-components/domain/ship-git-diff.ts"
+          }
+        },
+        {
+          "kind": "custom-element-definition",
+          "name": "ship-git-diff-file",
+          "declaration": {
+            "name": "ShipGitDiffFile",
+            "module": "src/web-components/domain/ship-git-diff.ts"
+          }
+        },
+        {
+          "kind": "custom-element-definition",
+          "name": "ship-git-diff-hunk",
+          "declaration": {
+            "name": "ShipGitDiffHunk",
+            "module": "src/web-components/domain/ship-git-diff.ts"
+          }
+        },
+        {
+          "kind": "custom-element-definition",
+          "name": "ship-git-diff-line",
+          "declaration": {
+            "name": "ShipGitDiffLine",
+            "module": "src/web-components/domain/ship-git-diff.ts"
+          }
+        }
+      ]
+    },
+    {
+      "kind": "javascript-module",
+      "path": "src/web-components/domain/ship-pipeline-dag.ts",
+      "declarations": [
+        {
+          "kind": "class",
+          "description": "",
+          "name": "ShipPipelineDag",
+          "members": [],
+          "superclass": {
+            "name": "LitElement",
+            "package": "lit"
+          },
+          "tagName": "ship-pipeline-dag",
+          "customElement": true
+        }
+      ],
+      "exports": [
+        {
+          "kind": "js",
+          "name": "ShipPipelineDag",
+          "declaration": {
+            "name": "ShipPipelineDag",
+            "module": "src/web-components/domain/ship-pipeline-dag.ts"
+          }
+        },
+        {
+          "kind": "custom-element-definition",
+          "name": "ship-pipeline-dag",
+          "declaration": {
+            "name": "ShipPipelineDag",
+            "module": "src/web-components/domain/ship-pipeline-dag.ts"
+          }
+        }
+      ]
+    },
+    {
+      "kind": "javascript-module",
+      "path": "src/web-components/domain/ship-pipeline-definition.ts",
+      "declarations": [
+        {
+          "kind": "class",
+          "description": "",
+          "name": "ShipPipelineDefinition",
+          "members": [
+            {
+              "kind": "field",
+              "name": "name",
+              "privacy": "public",
+              "type": {
+                "text": "string"
+              },
+              "default": "''",
+              "attribute": "name",
+              "reflects": true
+            },
+            {
+              "kind": "field",
+              "name": "steps",
+              "privacy": "public",
+              "type": {
+                "text": "number"
+              },
+              "default": "0",
+              "attribute": "steps",
+              "reflects": true
+            },
+            {
+              "kind": "field",
+              "name": "description",
+              "privacy": "public",
+              "type": {
+                "text": "string"
+              },
+              "default": "''",
+              "attribute": "description",
+              "reflects": true
+            }
+          ],
+          "attributes": [
+            {
+              "name": "name",
+              "type": {
+                "text": "string"
+              },
+              "default": "''",
+              "fieldName": "name"
+            },
+            {
+              "name": "steps",
+              "type": {
+                "text": "number"
+              },
+              "default": "0",
+              "fieldName": "steps"
+            },
+            {
+              "name": "description",
+              "type": {
+                "text": "string"
+              },
+              "default": "''",
+              "fieldName": "description"
+            }
+          ],
+          "superclass": {
+            "name": "LitElement",
+            "package": "lit"
+          },
+          "tagName": "ship-pipeline-definition",
+          "customElement": true
+        }
+      ],
+      "exports": [
+        {
+          "kind": "js",
+          "name": "ShipPipelineDefinition",
+          "declaration": {
+            "name": "ShipPipelineDefinition",
+            "module": "src/web-components/domain/ship-pipeline-definition.ts"
+          }
+        },
+        {
+          "kind": "custom-element-definition",
+          "name": "ship-pipeline-definition",
+          "declaration": {
+            "name": "ShipPipelineDefinition",
+            "module": "src/web-components/domain/ship-pipeline-definition.ts"
+          }
+        }
+      ]
+    },
+    {
+      "kind": "javascript-module",
+      "path": "src/web-components/domain/ship-pipeline-run.ts",
+      "declarations": [
+        {
+          "kind": "class",
+          "description": "",
+          "name": "ShipPipelineRun",
+          "members": [
+            {
+              "kind": "field",
+              "name": "state",
+              "privacy": "public",
+              "type": {
+                "text": "RunState"
+              },
+              "default": "'pending'",
+              "attribute": "state",
+              "reflects": true
+            },
+            {
+              "kind": "field",
+              "name": "slug",
+              "privacy": "public",
+              "type": {
+                "text": "string"
+              },
+              "default": "''",
+              "attribute": "slug",
+              "reflects": true
+            },
+            {
+              "kind": "field",
+              "name": "agent",
+              "privacy": "public",
+              "type": {
+                "text": "string"
+              },
+              "default": "''",
+              "attribute": "agent",
+              "reflects": true
+            }
+          ],
+          "attributes": [
+            {
+              "name": "state",
+              "type": {
+                "text": "RunState"
+              },
+              "default": "'pending'",
+              "fieldName": "state"
+            },
+            {
+              "name": "slug",
+              "type": {
+                "text": "string"
+              },
+              "default": "''",
+              "fieldName": "slug"
+            },
+            {
+              "name": "agent",
+              "type": {
+                "text": "string"
+              },
+              "default": "''",
+              "fieldName": "agent"
+            }
+          ],
+          "superclass": {
+            "name": "LitElement",
+            "package": "lit"
+          },
+          "tagName": "ship-pipeline-run",
+          "customElement": true
+        }
+      ],
+      "exports": [
+        {
+          "kind": "js",
+          "name": "ShipPipelineRun",
+          "declaration": {
+            "name": "ShipPipelineRun",
+            "module": "src/web-components/domain/ship-pipeline-run.ts"
+          }
+        },
+        {
+          "kind": "custom-element-definition",
+          "name": "ship-pipeline-run",
+          "declaration": {
+            "name": "ShipPipelineRun",
+            "module": "src/web-components/domain/ship-pipeline-run.ts"
+          }
+        }
+      ]
+    },
+    {
+      "kind": "javascript-module",
+      "path": "src/web-components/domain/ship-pipeline-step-def.ts",
+      "declarations": [
+        {
+          "kind": "class",
+          "description": "",
+          "name": "ShipPipelineStepDef",
+          "members": [
+            {
+              "kind": "field",
+              "name": "name",
+              "privacy": "public",
+              "type": {
+                "text": "string"
+              },
+              "default": "''",
+              "attribute": "name",
+              "reflects": true
+            },
+            {
+              "kind": "field",
+              "name": "stepType",
+              "privacy": "public",
+              "type": {
+                "text": "string"
+              },
+              "default": "'agent'",
+              "attribute": "step-type",
+              "reflects": true
+            },
+            {
+              "kind": "field",
+              "name": "agent",
+              "privacy": "public",
+              "type": {
+                "text": "string"
+              },
+              "default": "''",
+              "attribute": "agent",
+              "reflects": true
+            },
+            {
+              "kind": "field",
+              "name": "provider",
+              "privacy": "public",
+              "type": {
+                "text": "string"
+              },
+              "default": "''",
+              "attribute": "provider",
+              "reflects": true
+            },
+            {
+              "kind": "field",
+              "name": "model",
+              "privacy": "public",
+              "type": {
+                "text": "string"
+              },
+              "default": "''",
+              "attribute": "model",
+              "reflects": true
+            },
+            {
+              "kind": "field",
+              "name": "afterIds",
+              "privacy": "public",
+              "type": {
+                "text": "string"
+              },
+              "default": "''",
+              "attribute": "after",
+              "reflects": true
+            },
+            {
+              "kind": "field",
+              "name": "command",
+              "privacy": "public",
+              "type": {
+                "text": "string"
+              },
+              "default": "''",
+              "attribute": "command"
+            },
+            {
+              "kind": "field",
+              "name": "index",
+              "privacy": "public",
+              "type": {
+                "text": "number | undefined"
+              },
+              "attribute": "index",
+              "reflects": true
+            }
+          ],
+          "attributes": [
+            {
+              "name": "name",
+              "type": {
+                "text": "string"
+              },
+              "default": "''",
+              "fieldName": "name"
+            },
+            {
+              "name": "step-type",
+              "type": {
+                "text": "string"
+              },
+              "default": "'agent'",
+              "fieldName": "stepType"
+            },
+            {
+              "name": "agent",
+              "type": {
+                "text": "string"
+              },
+              "default": "''",
+              "fieldName": "agent"
+            },
+            {
+              "name": "provider",
+              "type": {
+                "text": "string"
+              },
+              "default": "''",
+              "fieldName": "provider"
+            },
+            {
+              "name": "model",
+              "type": {
+                "text": "string"
+              },
+              "default": "''",
+              "fieldName": "model"
+            },
+            {
+              "name": "after",
+              "type": {
+                "text": "string"
+              },
+              "default": "''",
+              "fieldName": "afterIds"
+            },
+            {
+              "name": "command",
+              "type": {
+                "text": "string"
+              },
+              "default": "''",
+              "fieldName": "command"
+            },
+            {
+              "name": "index",
+              "type": {
+                "text": "number | undefined"
+              },
+              "fieldName": "index"
+            }
+          ],
+          "superclass": {
+            "name": "LitElement",
+            "package": "lit"
+          },
+          "customElement": true
+        }
+      ],
+      "exports": [
+        {
+          "kind": "js",
+          "name": "ShipPipelineStepDef",
+          "declaration": {
+            "name": "ShipPipelineStepDef",
+            "module": "src/web-components/domain/ship-pipeline-step-def.ts"
+          }
+        }
+      ]
+    },
+    {
+      "kind": "javascript-module",
+      "path": "src/web-components/domain/ship-pipeline-step.ts",
+      "declarations": [
+        {
+          "kind": "class",
+          "description": "",
+          "name": "ShipPipelineStep",
+          "members": [
+            {
+              "kind": "field",
+              "name": "name",
+              "privacy": "public",
+              "type": {
+                "text": "string"
+              },
+              "default": "''",
+              "attribute": "name",
+              "reflects": true
+            },
+            {
+              "kind": "field",
+              "name": "stepType",
+              "privacy": "public",
+              "type": {
+                "text": "StepType"
+              },
+              "default": "'agent'",
+              "attribute": "step-type",
+              "reflects": true
+            },
+            {
+              "kind": "field",
+              "name": "state",
+              "privacy": "public",
+              "type": {
+                "text": "StepState"
+              },
+              "default": "'pending'",
+              "attribute": "state",
+              "reflects": true
+            },
+            {
+              "kind": "field",
+              "name": "agent",
+              "privacy": "public",
+              "type": {
+                "text": "string"
+              },
+              "default": "''",
+              "attribute": "agent",
+              "reflects": true
+            },
+            {
+              "kind": "method",
+              "name": "glyphFor",
+              "privacy": "private",
+              "return": {
+                "type": {
+                  "text": "string"
+                }
+              },
+              "parameters": [
+                {
+                  "name": "state",
+                  "type": {
+                    "text": "StepState"
+                  }
+                }
+              ]
+            }
+          ],
+          "attributes": [
+            {
+              "name": "name",
+              "type": {
+                "text": "string"
+              },
+              "default": "''",
+              "fieldName": "name"
+            },
+            {
+              "name": "step-type",
+              "type": {
+                "text": "StepType"
+              },
+              "default": "'agent'",
+              "fieldName": "stepType"
+            },
+            {
+              "name": "state",
+              "type": {
+                "text": "StepState"
+              },
+              "default": "'pending'",
+              "fieldName": "state"
+            },
+            {
+              "name": "agent",
+              "type": {
+                "text": "string"
+              },
+              "default": "''",
+              "fieldName": "agent"
+            }
+          ],
+          "superclass": {
+            "name": "LitElement",
+            "package": "lit"
+          },
+          "tagName": "ship-pipeline-step",
+          "customElement": true
+        }
+      ],
+      "exports": [
+        {
+          "kind": "js",
+          "name": "ShipPipelineStep",
+          "declaration": {
+            "name": "ShipPipelineStep",
+            "module": "src/web-components/domain/ship-pipeline-step.ts"
+          }
+        },
+        {
+          "kind": "custom-element-definition",
+          "name": "ship-pipeline-step",
+          "declaration": {
+            "name": "ShipPipelineStep",
+            "module": "src/web-components/domain/ship-pipeline-step.ts"
+          }
+        }
+      ]
+    },
+    {
+      "kind": "javascript-module",
       "path": "src/web-components/core/focus.ts",
       "declarations": [
         {
@@ -5557,6 +6674,17 @@
             },
             {
               "kind": "field",
+              "name": "navigable",
+              "privacy": "public",
+              "type": {
+                "text": "string | null"
+              },
+              "default": "null",
+              "attribute": "navigable",
+              "reflects": true
+            },
+            {
+              "kind": "field",
               "name": "selected",
               "privacy": "public",
               "type": {
@@ -5601,13 +6729,37 @@
             },
             {
               "kind": "method",
+              "name": "resolveRole",
+              "privacy": "private",
+              "return": {
+                "type": {
+                  "text": "string"
+                }
+              }
+            },
+            {
+              "kind": "method",
               "name": "dispatchSelect",
-              "privacy": "private"
+              "privacy": "private",
+              "return": {
+                "type": {
+                  "text": "boolean"
+                }
+              },
+              "description": "Dispatch ship-select. Returns whether default was prevented."
             },
             {
               "kind": "method",
               "name": "onClick",
-              "privacy": "private"
+              "privacy": "private",
+              "parameters": [
+                {
+                  "name": "e",
+                  "type": {
+                    "text": "MouseEvent"
+                  }
+                }
+              ]
             },
             {
               "kind": "method",
@@ -5621,14 +6773,6 @@
                   }
                 }
               ]
-            }
-          ],
-          "events": [
-            {
-              "name": "ship-select",
-              "type": {
-                "text": "CustomEvent"
-              }
             }
           ],
           "attributes": [
@@ -5647,6 +6791,14 @@
               },
               "default": "false",
               "fieldName": "interactive"
+            },
+            {
+              "name": "navigable",
+              "type": {
+                "text": "string | null"
+              },
+              "default": "null",
+              "fieldName": "navigable"
             },
             {
               "name": "selected",
@@ -11520,1123 +12672,6 @@
           "declaration": {
             "name": "isTypeaheadKey",
             "module": "src/web-components/core/typeahead.ts"
-          }
-        }
-      ]
-    },
-    {
-      "kind": "javascript-module",
-      "path": "src/web-components/domain/ship-auth-dialog.ts",
-      "declarations": [
-        {
-          "kind": "class",
-          "description": "",
-          "name": "ShipAuthDialog",
-          "members": [
-            {
-              "kind": "field",
-              "name": "open",
-              "privacy": "public",
-              "type": {
-                "text": "boolean"
-              },
-              "default": "false",
-              "attribute": "open",
-              "reflects": true
-            },
-            {
-              "kind": "field",
-              "name": "mode",
-              "privacy": "public",
-              "type": {
-                "text": "AuthMode"
-              },
-              "default": "'sign-in'",
-              "attribute": "mode",
-              "reflects": true
-            },
-            {
-              "kind": "field",
-              "name": "loading",
-              "privacy": "public",
-              "type": {
-                "text": "boolean"
-              },
-              "default": "false",
-              "attribute": "loading",
-              "reflects": true
-            },
-            {
-              "kind": "field",
-              "name": "backdrop",
-              "privacy": "public",
-              "type": {
-                "text": "'default' | 'blur' | 'solid'"
-              },
-              "default": "'blur'",
-              "attribute": "backdrop",
-              "reflects": true
-            },
-            {
-              "kind": "field",
-              "name": "onTabChange",
-              "privacy": "private"
-            },
-            {
-              "kind": "field",
-              "name": "onSubmit",
-              "privacy": "private"
-            },
-            {
-              "kind": "method",
-              "name": "switchTo",
-              "privacy": "private",
-              "parameters": [
-                {
-                  "name": "next",
-                  "type": {
-                    "text": "AuthMode"
-                  }
-                }
-              ]
-            },
-            {
-              "kind": "field",
-              "name": "onDialogClose",
-              "privacy": "private"
-            },
-            {
-              "kind": "method",
-              "name": "defaultTitle",
-              "privacy": "private"
-            },
-            {
-              "kind": "method",
-              "name": "submitLabel",
-              "privacy": "private"
-            },
-            {
-              "kind": "method",
-              "name": "hasProviderChildren",
-              "privacy": "private"
-            },
-            {
-              "kind": "method",
-              "name": "show",
-              "description": "Imperative helpers mirroring ship-dialog."
-            },
-            {
-              "kind": "method",
-              "name": "showModal"
-            },
-            {
-              "kind": "method",
-              "name": "close"
-            }
-          ],
-          "events": [
-            {
-              "name": "ship-mode-change",
-              "type": {
-                "text": "CustomEvent"
-              }
-            }
-          ],
-          "attributes": [
-            {
-              "name": "open",
-              "type": {
-                "text": "boolean"
-              },
-              "default": "false",
-              "fieldName": "open"
-            },
-            {
-              "name": "mode",
-              "type": {
-                "text": "AuthMode"
-              },
-              "default": "'sign-in'",
-              "fieldName": "mode"
-            },
-            {
-              "name": "loading",
-              "type": {
-                "text": "boolean"
-              },
-              "default": "false",
-              "fieldName": "loading"
-            },
-            {
-              "name": "backdrop",
-              "type": {
-                "text": "'default' | 'blur' | 'solid'"
-              },
-              "default": "'blur'",
-              "fieldName": "backdrop"
-            }
-          ],
-          "superclass": {
-            "name": "LitElement",
-            "package": "lit"
-          },
-          "tagName": "ship-auth-dialog",
-          "customElement": true
-        }
-      ],
-      "exports": [
-        {
-          "kind": "js",
-          "name": "ShipAuthDialog",
-          "declaration": {
-            "name": "ShipAuthDialog",
-            "module": "src/web-components/domain/ship-auth-dialog.ts"
-          }
-        },
-        {
-          "kind": "custom-element-definition",
-          "name": "ship-auth-dialog",
-          "declaration": {
-            "name": "ShipAuthDialog",
-            "module": "src/web-components/domain/ship-auth-dialog.ts"
-          }
-        }
-      ]
-    },
-    {
-      "kind": "javascript-module",
-      "path": "src/web-components/domain/ship-git-diff.ts",
-      "declarations": [
-        {
-          "kind": "class",
-          "description": "",
-          "name": "ShipGitDiff",
-          "members": [
-            {
-              "kind": "field",
-              "name": "files",
-              "privacy": "public",
-              "type": {
-                "text": "number"
-              },
-              "default": "0",
-              "attribute": "files",
-              "reflects": true
-            },
-            {
-              "kind": "field",
-              "name": "additions",
-              "privacy": "public",
-              "type": {
-                "text": "number"
-              },
-              "default": "0",
-              "attribute": "additions",
-              "reflects": true
-            },
-            {
-              "kind": "field",
-              "name": "deletions",
-              "privacy": "public",
-              "type": {
-                "text": "number"
-              },
-              "default": "0",
-              "attribute": "deletions",
-              "reflects": true
-            },
-            {
-              "kind": "field",
-              "name": "empty",
-              "privacy": "public",
-              "type": {
-                "text": "boolean"
-              },
-              "default": "false",
-              "attribute": "empty",
-              "reflects": true
-            },
-            {
-              "kind": "field",
-              "name": "allCollapsed",
-              "privacy": "public",
-              "type": {
-                "text": "boolean"
-              },
-              "default": "false",
-              "attribute": "allCollapsed"
-            },
-            {
-              "kind": "method",
-              "name": "toggleAll",
-              "privacy": "private"
-            }
-          ],
-          "attributes": [
-            {
-              "name": "files",
-              "type": {
-                "text": "number"
-              },
-              "default": "0",
-              "fieldName": "files"
-            },
-            {
-              "name": "additions",
-              "type": {
-                "text": "number"
-              },
-              "default": "0",
-              "fieldName": "additions"
-            },
-            {
-              "name": "deletions",
-              "type": {
-                "text": "number"
-              },
-              "default": "0",
-              "fieldName": "deletions"
-            },
-            {
-              "name": "empty",
-              "type": {
-                "text": "boolean"
-              },
-              "default": "false",
-              "fieldName": "empty"
-            },
-            {
-              "name": "allCollapsed",
-              "type": {
-                "text": "boolean"
-              },
-              "default": "false",
-              "fieldName": "allCollapsed"
-            }
-          ],
-          "superclass": {
-            "name": "LitElement",
-            "package": "lit"
-          },
-          "tagName": "ship-git-diff",
-          "customElement": true
-        },
-        {
-          "kind": "class",
-          "description": "",
-          "name": "ShipGitDiffFile",
-          "members": [
-            {
-              "kind": "field",
-              "name": "path",
-              "privacy": "public",
-              "type": {
-                "text": "string"
-              },
-              "default": "''",
-              "attribute": "path",
-              "reflects": true
-            },
-            {
-              "kind": "field",
-              "name": "additions",
-              "privacy": "public",
-              "type": {
-                "text": "number"
-              },
-              "default": "0",
-              "attribute": "additions",
-              "reflects": true
-            },
-            {
-              "kind": "field",
-              "name": "deletions",
-              "privacy": "public",
-              "type": {
-                "text": "number"
-              },
-              "default": "0",
-              "attribute": "deletions",
-              "reflects": true
-            },
-            {
-              "kind": "field",
-              "name": "collapsed",
-              "privacy": "public",
-              "type": {
-                "text": "boolean"
-              },
-              "default": "false",
-              "attribute": "collapsed",
-              "reflects": true
-            },
-            {
-              "kind": "method",
-              "name": "toggle",
-              "privacy": "private"
-            }
-          ],
-          "attributes": [
-            {
-              "name": "path",
-              "type": {
-                "text": "string"
-              },
-              "default": "''",
-              "fieldName": "path"
-            },
-            {
-              "name": "additions",
-              "type": {
-                "text": "number"
-              },
-              "default": "0",
-              "fieldName": "additions"
-            },
-            {
-              "name": "deletions",
-              "type": {
-                "text": "number"
-              },
-              "default": "0",
-              "fieldName": "deletions"
-            },
-            {
-              "name": "collapsed",
-              "type": {
-                "text": "boolean"
-              },
-              "default": "false",
-              "fieldName": "collapsed"
-            }
-          ],
-          "superclass": {
-            "name": "LitElement",
-            "package": "lit"
-          },
-          "tagName": "ship-git-diff-file",
-          "customElement": true
-        },
-        {
-          "kind": "class",
-          "description": "",
-          "name": "ShipGitDiffHunk",
-          "members": [
-            {
-              "kind": "field",
-              "name": "header",
-              "privacy": "public",
-              "type": {
-                "text": "string"
-              },
-              "default": "''",
-              "attribute": "header",
-              "reflects": true
-            }
-          ],
-          "attributes": [
-            {
-              "name": "header",
-              "type": {
-                "text": "string"
-              },
-              "default": "''",
-              "fieldName": "header"
-            }
-          ],
-          "superclass": {
-            "name": "LitElement",
-            "package": "lit"
-          },
-          "tagName": "ship-git-diff-hunk",
-          "customElement": true
-        },
-        {
-          "kind": "class",
-          "description": "",
-          "name": "ShipGitDiffLine",
-          "members": [
-            {
-              "kind": "field",
-              "name": "type",
-              "privacy": "public",
-              "type": {
-                "text": "LineType"
-              },
-              "default": "'context'",
-              "attribute": "type",
-              "reflects": true
-            },
-            {
-              "kind": "field",
-              "name": "old",
-              "privacy": "public",
-              "type": {
-                "text": "string"
-              },
-              "default": "''",
-              "attribute": "old",
-              "reflects": true
-            },
-            {
-              "kind": "field",
-              "name": "new",
-              "privacy": "public",
-              "type": {
-                "text": "string"
-              },
-              "default": "''",
-              "attribute": "new",
-              "reflects": true
-            },
-            {
-              "kind": "method",
-              "name": "sig",
-              "privacy": "private",
-              "return": {
-                "type": {
-                  "text": "string"
-                }
-              }
-            }
-          ],
-          "attributes": [
-            {
-              "name": "type",
-              "type": {
-                "text": "LineType"
-              },
-              "default": "'context'",
-              "fieldName": "type"
-            },
-            {
-              "name": "old",
-              "type": {
-                "text": "string"
-              },
-              "default": "''",
-              "fieldName": "old"
-            },
-            {
-              "name": "new",
-              "type": {
-                "text": "string"
-              },
-              "default": "''",
-              "fieldName": "new"
-            }
-          ],
-          "superclass": {
-            "name": "LitElement",
-            "package": "lit"
-          },
-          "tagName": "ship-git-diff-line",
-          "customElement": true
-        }
-      ],
-      "exports": [
-        {
-          "kind": "js",
-          "name": "ShipGitDiff",
-          "declaration": {
-            "name": "ShipGitDiff",
-            "module": "src/web-components/domain/ship-git-diff.ts"
-          }
-        },
-        {
-          "kind": "js",
-          "name": "ShipGitDiffFile",
-          "declaration": {
-            "name": "ShipGitDiffFile",
-            "module": "src/web-components/domain/ship-git-diff.ts"
-          }
-        },
-        {
-          "kind": "js",
-          "name": "ShipGitDiffHunk",
-          "declaration": {
-            "name": "ShipGitDiffHunk",
-            "module": "src/web-components/domain/ship-git-diff.ts"
-          }
-        },
-        {
-          "kind": "js",
-          "name": "ShipGitDiffLine",
-          "declaration": {
-            "name": "ShipGitDiffLine",
-            "module": "src/web-components/domain/ship-git-diff.ts"
-          }
-        },
-        {
-          "kind": "custom-element-definition",
-          "name": "ship-git-diff",
-          "declaration": {
-            "name": "ShipGitDiff",
-            "module": "src/web-components/domain/ship-git-diff.ts"
-          }
-        },
-        {
-          "kind": "custom-element-definition",
-          "name": "ship-git-diff-file",
-          "declaration": {
-            "name": "ShipGitDiffFile",
-            "module": "src/web-components/domain/ship-git-diff.ts"
-          }
-        },
-        {
-          "kind": "custom-element-definition",
-          "name": "ship-git-diff-hunk",
-          "declaration": {
-            "name": "ShipGitDiffHunk",
-            "module": "src/web-components/domain/ship-git-diff.ts"
-          }
-        },
-        {
-          "kind": "custom-element-definition",
-          "name": "ship-git-diff-line",
-          "declaration": {
-            "name": "ShipGitDiffLine",
-            "module": "src/web-components/domain/ship-git-diff.ts"
-          }
-        }
-      ]
-    },
-    {
-      "kind": "javascript-module",
-      "path": "src/web-components/domain/ship-pipeline-dag.ts",
-      "declarations": [
-        {
-          "kind": "class",
-          "description": "",
-          "name": "ShipPipelineDag",
-          "members": [],
-          "superclass": {
-            "name": "LitElement",
-            "package": "lit"
-          },
-          "tagName": "ship-pipeline-dag",
-          "customElement": true
-        }
-      ],
-      "exports": [
-        {
-          "kind": "js",
-          "name": "ShipPipelineDag",
-          "declaration": {
-            "name": "ShipPipelineDag",
-            "module": "src/web-components/domain/ship-pipeline-dag.ts"
-          }
-        },
-        {
-          "kind": "custom-element-definition",
-          "name": "ship-pipeline-dag",
-          "declaration": {
-            "name": "ShipPipelineDag",
-            "module": "src/web-components/domain/ship-pipeline-dag.ts"
-          }
-        }
-      ]
-    },
-    {
-      "kind": "javascript-module",
-      "path": "src/web-components/domain/ship-pipeline-definition.ts",
-      "declarations": [
-        {
-          "kind": "class",
-          "description": "",
-          "name": "ShipPipelineDefinition",
-          "members": [
-            {
-              "kind": "field",
-              "name": "name",
-              "privacy": "public",
-              "type": {
-                "text": "string"
-              },
-              "default": "''",
-              "attribute": "name",
-              "reflects": true
-            },
-            {
-              "kind": "field",
-              "name": "steps",
-              "privacy": "public",
-              "type": {
-                "text": "number"
-              },
-              "default": "0",
-              "attribute": "steps",
-              "reflects": true
-            },
-            {
-              "kind": "field",
-              "name": "description",
-              "privacy": "public",
-              "type": {
-                "text": "string"
-              },
-              "default": "''",
-              "attribute": "description",
-              "reflects": true
-            }
-          ],
-          "attributes": [
-            {
-              "name": "name",
-              "type": {
-                "text": "string"
-              },
-              "default": "''",
-              "fieldName": "name"
-            },
-            {
-              "name": "steps",
-              "type": {
-                "text": "number"
-              },
-              "default": "0",
-              "fieldName": "steps"
-            },
-            {
-              "name": "description",
-              "type": {
-                "text": "string"
-              },
-              "default": "''",
-              "fieldName": "description"
-            }
-          ],
-          "superclass": {
-            "name": "LitElement",
-            "package": "lit"
-          },
-          "tagName": "ship-pipeline-definition",
-          "customElement": true
-        }
-      ],
-      "exports": [
-        {
-          "kind": "js",
-          "name": "ShipPipelineDefinition",
-          "declaration": {
-            "name": "ShipPipelineDefinition",
-            "module": "src/web-components/domain/ship-pipeline-definition.ts"
-          }
-        },
-        {
-          "kind": "custom-element-definition",
-          "name": "ship-pipeline-definition",
-          "declaration": {
-            "name": "ShipPipelineDefinition",
-            "module": "src/web-components/domain/ship-pipeline-definition.ts"
-          }
-        }
-      ]
-    },
-    {
-      "kind": "javascript-module",
-      "path": "src/web-components/domain/ship-pipeline-run.ts",
-      "declarations": [
-        {
-          "kind": "class",
-          "description": "",
-          "name": "ShipPipelineRun",
-          "members": [
-            {
-              "kind": "field",
-              "name": "state",
-              "privacy": "public",
-              "type": {
-                "text": "RunState"
-              },
-              "default": "'pending'",
-              "attribute": "state",
-              "reflects": true
-            },
-            {
-              "kind": "field",
-              "name": "slug",
-              "privacy": "public",
-              "type": {
-                "text": "string"
-              },
-              "default": "''",
-              "attribute": "slug",
-              "reflects": true
-            },
-            {
-              "kind": "field",
-              "name": "agent",
-              "privacy": "public",
-              "type": {
-                "text": "string"
-              },
-              "default": "''",
-              "attribute": "agent",
-              "reflects": true
-            }
-          ],
-          "attributes": [
-            {
-              "name": "state",
-              "type": {
-                "text": "RunState"
-              },
-              "default": "'pending'",
-              "fieldName": "state"
-            },
-            {
-              "name": "slug",
-              "type": {
-                "text": "string"
-              },
-              "default": "''",
-              "fieldName": "slug"
-            },
-            {
-              "name": "agent",
-              "type": {
-                "text": "string"
-              },
-              "default": "''",
-              "fieldName": "agent"
-            }
-          ],
-          "superclass": {
-            "name": "LitElement",
-            "package": "lit"
-          },
-          "tagName": "ship-pipeline-run",
-          "customElement": true
-        }
-      ],
-      "exports": [
-        {
-          "kind": "js",
-          "name": "ShipPipelineRun",
-          "declaration": {
-            "name": "ShipPipelineRun",
-            "module": "src/web-components/domain/ship-pipeline-run.ts"
-          }
-        },
-        {
-          "kind": "custom-element-definition",
-          "name": "ship-pipeline-run",
-          "declaration": {
-            "name": "ShipPipelineRun",
-            "module": "src/web-components/domain/ship-pipeline-run.ts"
-          }
-        }
-      ]
-    },
-    {
-      "kind": "javascript-module",
-      "path": "src/web-components/domain/ship-pipeline-step-def.ts",
-      "declarations": [
-        {
-          "kind": "class",
-          "description": "",
-          "name": "ShipPipelineStepDef",
-          "members": [
-            {
-              "kind": "field",
-              "name": "name",
-              "privacy": "public",
-              "type": {
-                "text": "string"
-              },
-              "default": "''",
-              "attribute": "name",
-              "reflects": true
-            },
-            {
-              "kind": "field",
-              "name": "stepType",
-              "privacy": "public",
-              "type": {
-                "text": "string"
-              },
-              "default": "'agent'",
-              "attribute": "step-type",
-              "reflects": true
-            },
-            {
-              "kind": "field",
-              "name": "agent",
-              "privacy": "public",
-              "type": {
-                "text": "string"
-              },
-              "default": "''",
-              "attribute": "agent",
-              "reflects": true
-            },
-            {
-              "kind": "field",
-              "name": "provider",
-              "privacy": "public",
-              "type": {
-                "text": "string"
-              },
-              "default": "''",
-              "attribute": "provider",
-              "reflects": true
-            },
-            {
-              "kind": "field",
-              "name": "model",
-              "privacy": "public",
-              "type": {
-                "text": "string"
-              },
-              "default": "''",
-              "attribute": "model",
-              "reflects": true
-            },
-            {
-              "kind": "field",
-              "name": "afterIds",
-              "privacy": "public",
-              "type": {
-                "text": "string"
-              },
-              "default": "''",
-              "attribute": "after",
-              "reflects": true
-            },
-            {
-              "kind": "field",
-              "name": "command",
-              "privacy": "public",
-              "type": {
-                "text": "string"
-              },
-              "default": "''",
-              "attribute": "command"
-            },
-            {
-              "kind": "field",
-              "name": "index",
-              "privacy": "public",
-              "type": {
-                "text": "number | undefined"
-              },
-              "attribute": "index",
-              "reflects": true
-            }
-          ],
-          "attributes": [
-            {
-              "name": "name",
-              "type": {
-                "text": "string"
-              },
-              "default": "''",
-              "fieldName": "name"
-            },
-            {
-              "name": "step-type",
-              "type": {
-                "text": "string"
-              },
-              "default": "'agent'",
-              "fieldName": "stepType"
-            },
-            {
-              "name": "agent",
-              "type": {
-                "text": "string"
-              },
-              "default": "''",
-              "fieldName": "agent"
-            },
-            {
-              "name": "provider",
-              "type": {
-                "text": "string"
-              },
-              "default": "''",
-              "fieldName": "provider"
-            },
-            {
-              "name": "model",
-              "type": {
-                "text": "string"
-              },
-              "default": "''",
-              "fieldName": "model"
-            },
-            {
-              "name": "after",
-              "type": {
-                "text": "string"
-              },
-              "default": "''",
-              "fieldName": "afterIds"
-            },
-            {
-              "name": "command",
-              "type": {
-                "text": "string"
-              },
-              "default": "''",
-              "fieldName": "command"
-            },
-            {
-              "name": "index",
-              "type": {
-                "text": "number | undefined"
-              },
-              "fieldName": "index"
-            }
-          ],
-          "superclass": {
-            "name": "LitElement",
-            "package": "lit"
-          },
-          "customElement": true
-        }
-      ],
-      "exports": [
-        {
-          "kind": "js",
-          "name": "ShipPipelineStepDef",
-          "declaration": {
-            "name": "ShipPipelineStepDef",
-            "module": "src/web-components/domain/ship-pipeline-step-def.ts"
-          }
-        }
-      ]
-    },
-    {
-      "kind": "javascript-module",
-      "path": "src/web-components/domain/ship-pipeline-step.ts",
-      "declarations": [
-        {
-          "kind": "class",
-          "description": "",
-          "name": "ShipPipelineStep",
-          "members": [
-            {
-              "kind": "field",
-              "name": "name",
-              "privacy": "public",
-              "type": {
-                "text": "string"
-              },
-              "default": "''",
-              "attribute": "name",
-              "reflects": true
-            },
-            {
-              "kind": "field",
-              "name": "stepType",
-              "privacy": "public",
-              "type": {
-                "text": "StepType"
-              },
-              "default": "'agent'",
-              "attribute": "step-type",
-              "reflects": true
-            },
-            {
-              "kind": "field",
-              "name": "state",
-              "privacy": "public",
-              "type": {
-                "text": "StepState"
-              },
-              "default": "'pending'",
-              "attribute": "state",
-              "reflects": true
-            },
-            {
-              "kind": "field",
-              "name": "agent",
-              "privacy": "public",
-              "type": {
-                "text": "string"
-              },
-              "default": "''",
-              "attribute": "agent",
-              "reflects": true
-            },
-            {
-              "kind": "method",
-              "name": "glyphFor",
-              "privacy": "private",
-              "return": {
-                "type": {
-                  "text": "string"
-                }
-              },
-              "parameters": [
-                {
-                  "name": "state",
-                  "type": {
-                    "text": "StepState"
-                  }
-                }
-              ]
-            }
-          ],
-          "attributes": [
-            {
-              "name": "name",
-              "type": {
-                "text": "string"
-              },
-              "default": "''",
-              "fieldName": "name"
-            },
-            {
-              "name": "step-type",
-              "type": {
-                "text": "StepType"
-              },
-              "default": "'agent'",
-              "fieldName": "stepType"
-            },
-            {
-              "name": "state",
-              "type": {
-                "text": "StepState"
-              },
-              "default": "'pending'",
-              "fieldName": "state"
-            },
-            {
-              "name": "agent",
-              "type": {
-                "text": "string"
-              },
-              "default": "''",
-              "fieldName": "agent"
-            }
-          ],
-          "superclass": {
-            "name": "LitElement",
-            "package": "lit"
-          },
-          "tagName": "ship-pipeline-step",
-          "customElement": true
-        }
-      ],
-      "exports": [
-        {
-          "kind": "js",
-          "name": "ShipPipelineStep",
-          "declaration": {
-            "name": "ShipPipelineStep",
-            "module": "src/web-components/domain/ship-pipeline-step.ts"
-          }
-        },
-        {
-          "kind": "custom-element-definition",
-          "name": "ship-pipeline-step",
-          "declaration": {
-            "name": "ShipPipelineStep",
-            "module": "src/web-components/domain/ship-pipeline-step.ts"
           }
         }
       ]

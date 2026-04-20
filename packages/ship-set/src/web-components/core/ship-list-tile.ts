@@ -11,6 +11,14 @@
  *       card — elevated surface, border-radius, subtle shadow.
  *   - interactive: boolean (default: false) — role=button, tabindex=0,
  *       cursor:pointer, Enter/Space dispatches `ship-select`.
+ *   - navigable: string (optional) — when set, the tile root renders as
+ *       an `<a href>` so cmd-click, middle-click, and open-in-new-tab
+ *       work as native anchor semantics. `target` and `rel` on the host
+ *       element pass through to the anchor (e.g.
+ *       `navigable="/x" target="_blank" rel="noopener"`). The anchor's
+ *       default navigation happens unless a consumer calls
+ *       `preventDefault` on the `ship-select` event (when `interactive`
+ *       is also set). When `navigable` is set, role becomes `link`.
  *   - selected: boolean (default: false, reflected) — reflects aria-selected
  *       and visual highlight.
  *   - disabled: boolean (default: false, reflected) — blocks interaction
@@ -30,6 +38,8 @@
  * Events:
  *   - ship-select — CustomEvent<{}>, bubbles, composed. Dispatched when
  *       `interactive` is true and the user clicks or presses Enter/Space.
+ *       When `navigable` is also set, calling `preventDefault` on this
+ *       event also prevents the anchor's default navigation.
  *
  * CSS parts:
  *   - button — wrapper element when `interactive`.
@@ -70,12 +80,14 @@ export class ShipListTile extends LitElement {
         gap: 4px;
         color: inherit;
         font: inherit;
+        text-decoration: none;
         transition:
           background-color var(--duration-fast) var(--ease-out),
           border-color var(--duration-fast) var(--ease-out),
           box-shadow var(--duration-fast) var(--ease-out),
           transform var(--duration-fast) var(--ease-out);
       }
+      a.tile { display: flex; }
 
       /* variant=row (default) — thin hover background */
       :host([variant='row']) .tile:hover,
@@ -165,6 +177,7 @@ export class ShipListTile extends LitElement {
   static properties = {
     variant: { type: String, reflect: true },
     interactive: { type: Boolean, reflect: true },
+    navigable: { type: String, reflect: true },
     selected: { type: Boolean, reflect: true },
     disabled: { type: Boolean, reflect: true },
     density: { type: String, reflect: true },
@@ -173,6 +186,7 @@ export class ShipListTile extends LitElement {
 
   variant: Variant = 'row'
   interactive = false
+  navigable: string | null = null
   selected = false
   disabled = false
   density: Density = 'normal'
@@ -181,13 +195,13 @@ export class ShipListTile extends LitElement {
   connectedCallback() {
     super.connectedCallback()
     if (!this.hasAttribute('role')) {
-      this.setAttribute('role', this.interactive ? 'button' : 'listitem')
+      this.setAttribute('role', this.resolveRole())
     }
   }
 
   updated(changed: Map<string, unknown>) {
-    if (changed.has('interactive')) {
-      this.setAttribute('role', this.interactive ? 'button' : 'listitem')
+    if (changed.has('interactive') || changed.has('navigable')) {
+      this.setAttribute('role', this.resolveRole())
     }
     if (changed.has('selected')) {
       this.setAttribute('aria-selected', this.selected ? 'true' : 'false')
@@ -197,23 +211,45 @@ export class ShipListTile extends LitElement {
     }
   }
 
-  private dispatchSelect() {
-    if (this.disabled || !this.interactive) return
-    this.dispatchEvent(
-      new CustomEvent('ship-select', {
-        detail: {},
-        bubbles: true,
-        composed: true,
-      }),
-    )
+  private resolveRole(): string {
+    // Link wins for a11y when navigable is set — a link with enhanced
+    // keyboard semantics via interactive still announces as a link.
+    if (this.navigable != null) return 'link'
+    if (this.interactive) return 'button'
+    return 'listitem'
   }
 
-  private onClick() {
-    this.dispatchSelect()
+  /** Dispatch ship-select. Returns whether default was prevented. */
+  private dispatchSelect(): boolean {
+    if (this.disabled || !this.interactive) return false
+    const ev = new CustomEvent('ship-select', {
+      detail: {},
+      bubbles: true,
+      composed: true,
+      cancelable: true,
+    })
+    this.dispatchEvent(ev)
+    return ev.defaultPrevented
+  }
+
+  private onClick(e: MouseEvent) {
+    // Only modify navigation when interactive. A navigable-only tile
+    // acts as a pure anchor — no ship-select dispatch.
+    if (!this.interactive) return
+    const prevented = this.dispatchSelect()
+    // When combined with navigable, consumers can preventDefault on
+    // ship-select to also block the anchor's native navigation.
+    if (prevented && this.navigable != null) {
+      e.preventDefault()
+    }
   }
 
   private onKeyDown(e: KeyboardEvent) {
     if (!this.interactive || this.disabled) return
+    // Anchors already handle Enter natively. Skip to avoid double-firing
+    // navigation, but still let Space trigger selection for parity with
+    // the button variant.
+    if (this.navigable != null && e.key === 'Enter') return
     if (e.key === 'Enter' || e.key === ' ') {
       e.preventDefault()
       this.dispatchSelect()
@@ -222,6 +258,36 @@ export class ShipListTile extends LitElement {
 
   render() {
     const tabindex = this.interactive && !this.disabled ? '0' : undefined
+    const inner = html`
+      <div class="row" part="row">
+        <slot name="leading"></slot>
+        <span class="primary" part="primary"><slot></slot></span>
+        <span part="trailing"><slot name="trailing"></slot></span>
+      </div>
+      <div class="secondary" part="secondary"><slot name="meta"></slot></div>
+    `
+
+    if (this.navigable != null) {
+      // Pass-through target/rel from the host element so callers can
+      // write `<ship-list-tile navigable="/x" target="_blank" rel="noopener">`.
+      const target = this.getAttribute('target') ?? undefined
+      const rel = this.getAttribute('rel') ?? undefined
+      return html`
+        <a
+          class="tile"
+          part="button"
+          href=${this.navigable}
+          target=${target as unknown as string}
+          rel=${rel as unknown as string}
+          tabindex=${tabindex as unknown as string}
+          @click=${this.onClick}
+          @keydown=${this.onKeyDown}
+        >
+          ${inner}
+        </a>
+      `
+    }
+
     return html`
       <div
         class="tile"
@@ -230,12 +296,7 @@ export class ShipListTile extends LitElement {
         @click=${this.onClick}
         @keydown=${this.onKeyDown}
       >
-        <div class="row" part="row">
-          <slot name="leading"></slot>
-          <span class="primary" part="primary"><slot></slot></span>
-          <span part="trailing"><slot name="trailing"></slot></span>
-        </div>
-        <div class="secondary" part="secondary"><slot name="meta"></slot></div>
+        ${inner}
       </div>
     `
   }

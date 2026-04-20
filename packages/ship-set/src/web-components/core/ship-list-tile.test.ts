@@ -90,4 +90,89 @@ describe('ship-list-tile', () => {
     expect(css).toContain('translateY(-1px)')
     expect(css).toContain('color-mix')
   })
+
+  describe('navigable', () => {
+    it('renders .tile as an anchor with href when navigable is set', async () => {
+      const el = await mount('<ship-list-tile navigable="/agents/foo">Foo</ship-list-tile>')
+      const tile = el.shadowRoot!.querySelector('.tile') as HTMLAnchorElement
+      expect(tile).toBeTruthy()
+      expect(tile.tagName).toBe('A')
+      expect(tile.getAttribute('href')).toBe('/agents/foo')
+      expect(tile.classList.contains('tile')).toBe(true)
+    })
+
+    it('sets role=link when navigable is set', async () => {
+      const el = await mount('<ship-list-tile navigable="/x">X</ship-list-tile>')
+      expect(el.getAttribute('role')).toBe('link')
+    })
+
+    it('link role wins over button when both navigable and interactive are set', async () => {
+      const el = await mount('<ship-list-tile navigable="/x" interactive>X</ship-list-tile>')
+      expect(el.getAttribute('role')).toBe('link')
+    })
+
+    it('passes target and rel through to the anchor', async () => {
+      const el = await mount(
+        '<ship-list-tile navigable="/x" target="_blank" rel="noopener noreferrer">X</ship-list-tile>',
+      )
+      const a = el.shadowRoot!.querySelector('a.tile') as HTMLAnchorElement
+      expect(a.getAttribute('target')).toBe('_blank')
+      expect(a.getAttribute('rel')).toBe('noopener noreferrer')
+    })
+
+    it('does not fire ship-select on plain click when only navigable (no interactive)', async () => {
+      const el = await mount('<ship-list-tile navigable="/x">X</ship-list-tile>')
+      let fired = 0
+      el.addEventListener('ship-select', () => fired++)
+      const a = el.shadowRoot!.querySelector('a.tile') as HTMLAnchorElement
+      a.click()
+      expect(fired).toBe(0)
+    })
+
+    it('fires ship-select when navigable + interactive and click is plain', async () => {
+      const el = await mount('<ship-list-tile navigable="/x" interactive>X</ship-list-tile>')
+      let fired = 0
+      el.addEventListener('ship-select', () => fired++)
+      const a = el.shadowRoot!.querySelector('a.tile') as HTMLAnchorElement
+      a.click()
+      expect(fired).toBe(1)
+    })
+
+    it('preventDefault on ship-select blocks anchor navigation', async () => {
+      const el = await mount('<ship-list-tile navigable="/x" interactive>X</ship-list-tile>')
+      el.addEventListener('ship-select', (e) => e.preventDefault())
+      const a = el.shadowRoot!.querySelector('a.tile') as HTMLAnchorElement
+      const click = new MouseEvent('click', { bubbles: true, cancelable: true })
+      a.dispatchEvent(click)
+      expect(click.defaultPrevented).toBe(true)
+    })
+
+    it('without preventDefault, anchor navigation is not intercepted', async () => {
+      const el = await mount('<ship-list-tile navigable="/x" interactive>X</ship-list-tile>')
+      const a = el.shadowRoot!.querySelector('a.tile') as HTMLAnchorElement
+      const click = new MouseEvent('click', { bubbles: true, cancelable: true })
+      a.dispatchEvent(click)
+      expect(click.defaultPrevented).toBe(false)
+    })
+
+    it('Enter on navigable relies on native anchor behavior (no duplicate select)', async () => {
+      const el = await mount('<ship-list-tile navigable="/x" interactive>X</ship-list-tile>')
+      let fired = 0
+      el.addEventListener('ship-select', () => fired++)
+      const a = el.shadowRoot!.querySelector('a.tile') as HTMLAnchorElement
+      a.dispatchEvent(new KeyboardEvent('keydown', { key: 'Enter', bubbles: true, cancelable: true }))
+      // Anchor handles Enter natively — we skip dispatching ship-select
+      // to avoid double navigation when a consumer doesn't preventDefault.
+      expect(fired).toBe(0)
+    })
+
+    it('Space on navigable + interactive still fires ship-select', async () => {
+      const el = await mount('<ship-list-tile navigable="/x" interactive>X</ship-list-tile>')
+      let fired = 0
+      el.addEventListener('ship-select', () => fired++)
+      const a = el.shadowRoot!.querySelector('a.tile') as HTMLAnchorElement
+      a.dispatchEvent(new KeyboardEvent('keydown', { key: ' ', bubbles: true, cancelable: true }))
+      expect(fired).toBe(1)
+    })
+  })
 })
