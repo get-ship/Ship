@@ -119,11 +119,21 @@ async function mount(endpoint: string) {
   // MutationObserver fires on removed nodes and cleans up internal SSE
   // connections from {{ live() }} macros. textContent="" alone is not
   // enough; we need to remove and re-create the mount point.
-  const parent = view.parentElement!;
+  //
+  // Re-query fresh: a prior Datastar @get may have morphed the root
+  // element out from under us (replacing <main id="ship-view-root"> with
+  // a <div id="ship-view-root"> from the fragment response). The cached
+  // `view` reference would then be detached with a null parentElement.
+  const live = document.getElementById("ship-view-root");
+  const parent = live?.parentElement ?? document.body;
   const newView = document.createElement("main");
   newView.id = "ship-view-root";
   newView.className = "ship-content";
-  parent.replaceChild(newView, view);
+  if (live && live.parentElement) {
+    parent.replaceChild(newView, live);
+  } else {
+    parent.appendChild(newView);
+  }
   view = newView;
 
   try {
@@ -326,14 +336,15 @@ let daemonConnected = false;
 async function updateStatus() {
   statusTheme.textContent = getThemeName();
   try {
-    const res = await fetch("/api/runtime/workspace", {
+    const res = await fetch("/api/runtime/workspaces", {
       credentials: SAME_ORIGIN ? "include" : "omit",
       headers: !SAME_ORIGIN && TOKEN ? { Authorization: `Bearer ${TOKEN}` } : {},
     });
     if (res.ok) {
-      const data = await res.json();
-      statusBranch.textContent = data.branch || "no branch";
-      statusAgents.textContent = `${data.agent_count ?? 0} agents`;
+      const envelope = await res.json();
+      const ws = envelope?.data?.workspaces?.[0];
+      statusBranch.textContent = ws?.name || ws?.id || "no workspace";
+      statusAgents.textContent = ws?.active_agent ? `agent: ${ws.active_agent}` : "";
       statusDot.classList.remove("disconnected");
       daemonConnected = true;
     } else {
