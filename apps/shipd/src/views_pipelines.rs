@@ -14,7 +14,7 @@
 //! go through `crate::views::state` + `crate::views_pipelines_data`.
 
 use axum::extract::{Query, State};
-use axum::http::StatusCode;
+use axum::http::{HeaderMap, StatusCode};
 use axum::response::Html;
 use runtime::events::ActorConfig;
 use runtime::gen_ulid;
@@ -640,9 +640,48 @@ fn current_project_workspace_id() -> Option<String> {
     if branch.is_empty() { None } else { Some(branch) }
 }
 
+/// True when the caller is the shell (Datastar-Request header). In that
+/// case the template should emit a fragment — DOCTYPE/html/body would
+/// become nested children of the shell's `<main id="ship-view-root">`
+/// and wreck the layout.
+fn is_fragment_request(headers: &HeaderMap) -> bool {
+    headers
+        .get("datastar-request")
+        .and_then(|v| v.to_str().ok())
+        .map(|s| s.eq_ignore_ascii_case("true"))
+        .unwrap_or(false)
+}
+
+/// Render a view file with fragment mode forwarded into the template
+/// context so `{% if not fragment %}<!DOCTYPE ...{% endif %}` elides
+/// the outer chrome when the shell requests a fragment.
+fn render_with_fragment<T: serde::Serialize>(
+    template_name: &str,
+    source: &str,
+    ctx: &T,
+    fragment: bool,
+) -> Result<Html<String>, StatusCode> {
+    let mut value = serde_json::to_value(ctx).map_err(|e| {
+        tracing::error!(error = %e, "ctx serialize failed");
+        StatusCode::INTERNAL_SERVER_ERROR
+    })?;
+    if fragment
+        && let serde_json::Value::Object(ref mut map) = value
+    {
+        map.insert("fragment".into(), serde_json::Value::Bool(true));
+    }
+    templates::render_view_source(template_name, source, &value)
+        .map(Html)
+        .map_err(|e| {
+            tracing::error!(error = %e, template = %template_name, "view render failed");
+            StatusCode::INTERNAL_SERVER_ERROR
+        })
+}
+
 /// GET /api/runtime/view/pipelines/pipeline/{name} — per-pipeline focus shell.
 pub async fn pipeline_focus_shell(
     State(state): State<crate::rest_api::ApiState>,
+    headers: HeaderMap,
     axum::extract::Path(name): axum::extract::Path<String>,
 ) -> Result<Html<String>, StatusCode> {
     let Some(ctx) = build_focus_ctx(&name, state.ship_dir()) else {
@@ -653,17 +692,18 @@ pub async fn pipeline_focus_shell(
     };
     let path = view_dir.join("focus").join("index.html.j2");
     let source = std::fs::read_to_string(&path).map_err(|_| StatusCode::NOT_FOUND)?;
-    templates::render_view_source("pipelines/focus/index.html.j2", &source, &ctx)
-        .map(Html)
-        .map_err(|e| {
-            tracing::error!(error = %e, "pipeline focus render failed");
-            StatusCode::INTERNAL_SERVER_ERROR
-        })
+    render_with_fragment(
+        "pipelines/focus/index.html.j2",
+        &source,
+        &ctx,
+        is_fragment_request(&headers),
+    )
 }
 
 /// GET /api/runtime/view/pipelines/run/{slug} — run detail shell.
 pub async fn pipelines_run_shell(
     State(state): State<crate::rest_api::ApiState>,
+    headers: HeaderMap,
     axum::extract::Path(slug): axum::extract::Path<String>,
 ) -> Result<Html<String>, StatusCode> {
     let Some(ctx) = build_run_detail_ctx(&slug, state.ship_dir()) else {
@@ -674,26 +714,36 @@ pub async fn pipelines_run_shell(
     };
     let path = view_dir.join("run").join("index.html.j2");
     let source = std::fs::read_to_string(&path).map_err(|_| StatusCode::NOT_FOUND)?;
-    templates::render_view_source("pipelines/run/index.html.j2", &source, &ctx)
-        .map(Html)
-        .map_err(|e| {
-            tracing::error!(error = %e, "pipelines run detail render failed");
-            StatusCode::INTERNAL_SERVER_ERROR
-        })
+    render_with_fragment(
+        "pipelines/run/index.html.j2",
+        &source,
+        &ctx,
+        is_fragment_request(&headers),
+    )
 }
 
 /// GET /api/runtime/view/pipelines — full shell, minijinja-rendered.
 pub async fn pipelines_shell(
     State(state): State<crate::rest_api::ApiState>,
+    headers: HeaderMap,
     Query(params): Query<PipelinesParams>,
 ) -> Result<Html<String>, StatusCode> {
     let ctx = build_ctx(&params, state.ship_dir());
+    let fragment = is_fragment_request(&headers);
     // Try .ship/views/pipelines/index.html.j2 first (new canonical location).
-    if let Some(html) = try_render_view("index.html.j2", &ctx) {
-        return Ok(Html(html));
+    if let Some((view_dir, _)) = crate::views::resolve_view_dir("pipelines")
+        && let Ok(source) = std::fs::read_to_string(view_dir.join("index.html.j2"))
+    {
+        return render_with_fragment("pipelines/index.html.j2", &source, &ctx, fragment);
     }
-    // Fallback to embedded template.
-    templates::render("pipelines/shell.html.j2", &ctx)
+    // Fallback to embedded template (still honors fragment).
+    let mut value = serde_json::to_value(&ctx).map_err(|_| StatusCode::INTERNAL_SERVER_ERROR)?;
+    if fragment
+        && let serde_json::Value::Object(ref mut map) = value
+    {
+        map.insert("fragment".into(), serde_json::Value::Bool(true));
+    }
+    templates::render("pipelines/shell.html.j2", &value)
         .map(Html)
         .map_err(|e| {
             tracing::error!(error = %e, "pipelines shell render failed");
