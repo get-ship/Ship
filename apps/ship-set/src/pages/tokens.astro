@@ -1,0 +1,364 @@
+---
+import BaseLayout from '../layouts/BaseLayout.astro';
+
+// Semantic color tokens — names match @ship/ui/tokens.css.
+const colorGroups = [
+  {
+    label: 'Surface',
+    tokens: ['background', 'foreground', 'card', 'card-foreground', 'popover', 'popover-foreground'],
+  },
+  {
+    label: 'Muted & accent',
+    tokens: ['muted', 'muted-foreground', 'primary', 'primary-foreground', 'accent', 'accent-foreground'],
+  },
+  {
+    label: 'Structure',
+    tokens: ['border', 'input', 'ring', 'secondary', 'secondary-foreground'],
+  },
+  {
+    label: 'Feedback',
+    tokens: ['success', 'warning', 'info', 'destructive'],
+  },
+];
+
+const spacing = [
+  { name: '--space-1', px: 4 },
+  { name: '--space-2', px: 8 },
+  { name: '--space-3', px: 12 },
+  { name: '--space-4', px: 16 },
+  { name: '--space-5', px: 20 },
+  { name: '--space-6', px: 24 },
+  { name: '--space-7', px: 32 },
+  { name: '--space-8', px: 40 },
+];
+
+const radii = [
+  { name: '--radius-sm', px: 4 },
+  { name: '--radius-md', px: 6 },
+  { name: '--radius-lg', px: 10 },
+  { name: '--radius-xl', px: 14 },
+  { name: '--radius-full', px: 999 },
+];
+
+const shadows = ['--shadow-xs', '--shadow-sm', '--shadow-md', '--shadow-lg', '--shadow-xl'];
+
+const typeScale = [
+  { name: '--text-xs', px: '10.5px' },
+  { name: '--text-sm', px: '12px' },
+  { name: '--text-base', px: '13px' },
+  { name: '--text-md', px: '14px' },
+  { name: '--text-lg', px: '16px' },
+  { name: '--text-xl', px: '20px' },
+  { name: '--text-2xl', px: '24px' },
+  { name: '--text-3xl', px: '28px' },
+  { name: '--text-4xl', px: '36px' },
+];
+
+const motion = [
+  { name: '--duration-fast', value: '120ms' },
+  { name: '--duration-medium', value: '180ms' },
+  { name: '--duration-slow', value: '280ms' },
+  { name: '--ease-out', value: 'cubic-bezier(0.16, 1, 0.3, 1)' },
+  { name: '--ease-in', value: 'cubic-bezier(0.7, 0, 0.84, 0)' },
+  { name: '--ease-in-out', value: 'cubic-bezier(0.65, 0, 0.35, 1)' },
+];
+---
+
+<BaseLayout title="Tokens · SHIP SET" active="/tokens">
+  <section class="tk-head">
+    <h1 class="tk-title">Design tokens</h1>
+    <p class="tk-sub">
+      The canonical surface. Every component reads from these. Click
+      any token to copy its <code>var(--name)</code> reference.
+    </p>
+  </section>
+
+  <!-- Colors ------------------------------------------------------- -->
+  <section class="tk-section">
+    <h2 class="tk-h2">Colors</h2>
+    {colorGroups.map((g) => (
+      <div class="tk-color-group">
+        <header class="tk-color-head">{g.label}</header>
+        <div class="tk-color-grid">
+          {g.tokens.map((t) => (
+            <button type="button" class="tk-color" data-copy={`var(--${t})`}>
+              <div class="tk-color-swatch" style={`background: var(--${t});`}></div>
+              <div class="tk-color-meta">
+                <code>--{t}</code>
+              </div>
+            </button>
+          ))}
+        </div>
+      </div>
+    ))}
+  </section>
+
+  <!-- Spacing ----------------------------------------------------- -->
+  <section class="tk-section">
+    <h2 class="tk-h2">Spacing</h2>
+    <div class="tk-rows">
+      {spacing.map((s) => (
+        <button type="button" class="tk-row" data-copy={`var(${s.name})`}>
+          <code class="tk-row-name">{s.name}</code>
+          <div class="tk-row-bar" style={`width: ${s.px}px;`}></div>
+          <code class="tk-row-val">{s.px}px</code>
+        </button>
+      ))}
+    </div>
+  </section>
+
+  <!-- Radii ------------------------------------------------------- -->
+  <section class="tk-section">
+    <h2 class="tk-h2">Radii</h2>
+    <div class="tk-radii">
+      {radii.map((r) => (
+        <button type="button" class="tk-radius" data-copy={`var(${r.name})`}>
+          <div
+            class="tk-radius-box"
+            style={`border-radius: ${r.px === 999 ? '999px' : r.px + 'px'};`}
+          ></div>
+          <code>{r.name}</code>
+          <span class="tk-muted">{r.px === 999 ? 'full' : r.px + 'px'}</span>
+        </button>
+      ))}
+    </div>
+  </section>
+
+  <!-- Shadows ----------------------------------------------------- -->
+  <section class="tk-section">
+    <h2 class="tk-h2">Shadows</h2>
+    <div class="tk-shadows">
+      {shadows.map((s) => (
+        <button type="button" class="tk-shadow" data-copy={`var(${s})`}>
+          <div class="tk-shadow-box" style={`box-shadow: var(${s});`}></div>
+          <code>{s}</code>
+        </button>
+      ))}
+    </div>
+  </section>
+
+  <!-- Typography -------------------------------------------------- -->
+  <section class="tk-section">
+    <h2 class="tk-h2">Typography</h2>
+    <div class="tk-type-fams">
+      <div class="tk-type-fam">
+        <code>--font-display</code>
+        <p style="font-family: var(--font-display); font-weight: 700; font-size: 28px; letter-spacing: -0.02em;">
+          Syne is the display stack.
+        </p>
+      </div>
+      <div class="tk-type-fam">
+        <code>--font-body</code>
+        <p style="font-family: var(--font-body); font-size: 16px;">
+          DM Sans is the body stack. Neutral, readable, native-feeling.
+        </p>
+      </div>
+      <div class="tk-type-fam">
+        <code>--font-mono</code>
+        <p style="font-family: var(--font-mono); font-size: 14px;">
+          ui-monospace, SF Mono, JetBrains Mono, Menlo.
+        </p>
+      </div>
+    </div>
+    <div class="tk-type-scale">
+      {typeScale.map((s) => (
+        <button type="button" class="tk-type-row" data-copy={`var(${s.name})`}>
+          <code class="tk-row-name">{s.name}</code>
+          <span class="tk-type-sample" style={`font-size: ${s.px};`}>The quick brown fox</span>
+          <code class="tk-row-val">{s.px}</code>
+        </button>
+      ))}
+    </div>
+  </section>
+
+  <!-- Motion ------------------------------------------------------ -->
+  <section class="tk-section">
+    <h2 class="tk-h2">Motion</h2>
+    <div class="tk-rows">
+      {motion.map((m) => (
+        <button type="button" class="tk-row tk-row-wide" data-copy={`var(${m.name})`}>
+          <code class="tk-row-name">{m.name}</code>
+          <code class="tk-row-val">{m.value}</code>
+        </button>
+      ))}
+    </div>
+  </section>
+</BaseLayout>
+
+<script>
+  for (const btn of document.querySelectorAll<HTMLElement>('[data-copy]')) {
+    btn.addEventListener('click', async () => {
+      const text = btn.getAttribute('data-copy') ?? '';
+      try {
+        await navigator.clipboard.writeText(text);
+        btn.classList.add('is-copied');
+        setTimeout(() => btn.classList.remove('is-copied'), 900);
+      } catch {}
+    });
+  }
+</script>
+
+<style>
+  .tk-head { padding: 24px 0 18px; display: flex; flex-direction: column; gap: 10px; }
+  .tk-title { font-size: clamp(30px, 4vw, 44px); letter-spacing: -0.024em; }
+  .tk-sub { color: var(--muted-foreground); max-width: 60ch; }
+  .tk-sub code, .tk-muted {
+    font-family: var(--font-mono);
+    font-size: 12px;
+    color: var(--muted-foreground);
+  }
+
+  .tk-section { padding: 20px 0; display: flex; flex-direction: column; gap: 14px; }
+  .tk-h2 { font-size: 18px; letter-spacing: -0.01em; }
+
+  /* Colors */
+  .tk-color-group { display: flex; flex-direction: column; gap: 8px; }
+  .tk-color-head {
+    font-size: 11px;
+    font-weight: 600;
+    letter-spacing: 0.08em;
+    text-transform: uppercase;
+    color: var(--muted-foreground);
+  }
+  .tk-color-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(160px, 1fr));
+    gap: 8px;
+  }
+  .tk-color {
+    appearance: none;
+    background: var(--card);
+    border: 1px solid color-mix(in oklch, var(--border) 55%, transparent);
+    border-radius: var(--radius-md);
+    padding: 0;
+    overflow: hidden;
+    text-align: left;
+    cursor: pointer;
+    font: inherit;
+    transition: border-color var(--duration-fast) var(--ease-out);
+  }
+  .tk-color:hover { border-color: var(--primary); }
+  .tk-color.is-copied { border-color: var(--success); }
+  .tk-color-swatch {
+    height: 50px;
+    border-bottom: 1px solid color-mix(in oklch, var(--border) 40%, transparent);
+  }
+  .tk-color-meta { padding: 8px 10px; }
+  .tk-color-meta code { font-family: var(--font-mono); font-size: 11px; color: var(--foreground); }
+
+  /* Row-based tokens (spacing, motion, type scale) */
+  .tk-rows { display: flex; flex-direction: column; gap: 4px; }
+  .tk-row {
+    appearance: none;
+    background: transparent;
+    border: 0;
+    padding: 8px 10px;
+    border-radius: var(--radius-md);
+    display: grid;
+    grid-template-columns: 140px 1fr auto;
+    gap: 14px;
+    align-items: center;
+    cursor: pointer;
+    font: inherit;
+    text-align: left;
+    color: var(--foreground);
+    transition: background var(--duration-fast) var(--ease-out);
+  }
+  .tk-row:hover { background: color-mix(in oklch, var(--border) 20%, transparent); }
+  .tk-row.is-copied { background: color-mix(in oklch, var(--success) 14%, transparent); }
+  .tk-row-wide { grid-template-columns: 220px 1fr; }
+  .tk-row-name, .tk-row-val {
+    font-family: var(--font-mono);
+    font-size: 12px;
+  }
+  .tk-row-val { color: var(--muted-foreground); }
+  .tk-row-bar {
+    height: 10px;
+    background: color-mix(in oklch, var(--primary) 40%, transparent);
+    border-radius: var(--radius-sm);
+  }
+
+  /* Radii */
+  .tk-radii { display: grid; grid-template-columns: repeat(auto-fill, minmax(120px, 1fr)); gap: 10px; }
+  .tk-radius {
+    appearance: none;
+    background: var(--card);
+    border: 1px solid color-mix(in oklch, var(--border) 50%, transparent);
+    border-radius: var(--radius-md);
+    padding: 14px 12px;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 8px;
+    cursor: pointer;
+    font: inherit;
+    color: var(--foreground);
+    transition: border-color var(--duration-fast) var(--ease-out);
+  }
+  .tk-radius:hover { border-color: var(--primary); }
+  .tk-radius-box {
+    width: 48px;
+    height: 48px;
+    background: color-mix(in oklch, var(--primary) 22%, transparent);
+    border: 1px solid color-mix(in oklch, var(--primary) 40%, transparent);
+  }
+  .tk-radius code { font-size: 11.5px; }
+  .tk-radius span { font-size: 11px; }
+
+  /* Shadows */
+  .tk-shadows { display: grid; grid-template-columns: repeat(auto-fill, minmax(180px, 1fr)); gap: 16px; padding: 6px 4px 14px; }
+  .tk-shadow {
+    appearance: none;
+    padding: 22px 18px;
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 14px;
+    background: var(--background);
+    border: 0;
+    cursor: pointer;
+    font: inherit;
+  }
+  .tk-shadow-box {
+    width: 80px; height: 50px;
+    background: var(--card);
+    border-radius: var(--radius-md);
+    border: 1px solid color-mix(in oklch, var(--border) 30%, transparent);
+  }
+  .tk-shadow code { font-family: var(--font-mono); font-size: 11.5px; }
+
+  /* Typography */
+  .tk-type-fams {
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+    padding: 10px 12px;
+    border: 1px solid color-mix(in oklch, var(--border) 50%, transparent);
+    border-radius: var(--radius-lg);
+    background: var(--card);
+  }
+  .tk-type-fam code { font-family: var(--font-mono); font-size: 11px; color: var(--muted-foreground); display: inline-block; margin-right: 10px; }
+  .tk-type-fam p { margin: 4px 0 8px; color: var(--foreground); }
+  .tk-type-scale { display: flex; flex-direction: column; gap: 4px; padding-top: 6px; }
+  .tk-type-row {
+    appearance: none;
+    padding: 8px 10px;
+    display: grid;
+    grid-template-columns: 140px 1fr auto;
+    gap: 14px;
+    align-items: baseline;
+    border: 0;
+    background: transparent;
+    cursor: pointer;
+    text-align: left;
+    color: var(--foreground);
+    border-radius: var(--radius-md);
+    transition: background var(--duration-fast) var(--ease-out);
+  }
+  .tk-type-row:hover { background: color-mix(in oklch, var(--border) 20%, transparent); }
+  .tk-type-sample {
+    font-family: var(--font-body);
+    color: var(--foreground);
+    line-height: 1.2;
+  }
+</style>

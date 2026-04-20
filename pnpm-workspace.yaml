@@ -3,6 +3,7 @@ packages:
   - "apps/web"
   - "apps/shell"
   - "apps/site"
+  - "apps/ship-set"
   - "apps/gateway"
   - "packages/*"
   - "cloud/apps/actors/*"

@@ -79,7 +79,6 @@ export default defineConfig(({ mode }) => {
       rollupOptions: {
         input: {
           main: resolve(__dirname, "index.html"),
-          devtools: resolve(__dirname, "devtools.html"),
         },
       },
     },
