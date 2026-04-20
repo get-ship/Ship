@@ -228,6 +228,7 @@ viewRoute("/events", "/api/runtime/view/events");
 viewRoute("/data", "/api/runtime/view/data");
 viewRoute("/dashboard", "/api/runtime/view/dashboard");
 viewRoute("/canvas", "/api/runtime/view/canvas");
+viewRoute("/overview", "/api/runtime/view/overview");
 
 // Dynamic routes
 router.on("/agents/:id", ({ data }) => {

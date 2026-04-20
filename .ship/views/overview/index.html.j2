@@ -1,0 +1,465 @@
+{#-
+  Overview — canvas planning surface for the `systems` collection.
+  One node per item. Drag to reposition (persists to position_x/position_y).
+  Click to open the edit drawer. SVG edges per depends_on arrays.
+-#}
+{% from '_ship.html.j2' import head, signal, show, styles, form, loading, spinner, chip, chip_all %}
+{% if not fragment %}<!DOCTYPE html><html lang="en"><head>{{ head('Overview') }}</head><body>{% endif %}
+
+{% set schema = ship_schema('systems') %}
+{% set items = ship_items('systems') %}
+
+<div class="ship-view overview-root"
+     {{ signal('_drawerOpen', false) }}
+     {{ signal('_drawerId', '') }}
+     {{ signal('_isNew', false) }}
+     {{ signal('_search', '') }}
+     {{ signal('_statusFilter', '') }}
+     {{ signal('_layerFilter', '') }}
+     {{ signal('form', {}) }}>
+  {{ styles() }}
+
+  <style>
+    .overview-root { height: 100%; display: flex; flex-direction: column; }
+    .overview-toolbar {
+      display: flex; align-items: center; gap: var(--space-2);
+      padding: var(--space-2) var(--space-3);
+      border-bottom: 1px solid var(--border);
+      background: var(--background);
+      flex-wrap: wrap;
+    }
+    .overview-toolbar .ov-group { display: flex; gap: var(--space-1); align-items: center; }
+    .overview-toolbar .ov-sep { width: 1px; height: 20px; background: var(--border); margin: 0 var(--space-1); }
+
+    .overview-canvas-wrap {
+      position: relative; flex: 1; overflow: hidden; min-height: 400px;
+      background: var(--muted);
+    }
+    .overview-canvas {
+      position: absolute; inset: 0;
+      transform-origin: 0 0;
+      cursor: grab;
+      background-image:
+        linear-gradient(var(--border) 1px, transparent 1px),
+        linear-gradient(90deg, var(--border) 1px, transparent 1px);
+      background-size: 40px 40px;
+      background-position: 0 0;
+    }
+    .overview-canvas.panning { cursor: grabbing; }
+
+    .ov-edges { position: absolute; top: 0; left: 0; overflow: visible; pointer-events: none; }
+    .ov-edges path { stroke: var(--muted-foreground); stroke-width: 2; fill: none; }
+    .ov-edges path:hover { stroke: var(--accent); }
+
+    .ov-node {
+      position: absolute;
+      width: 220px;
+      background: var(--card);
+      border: 1px solid var(--border);
+      border-left-width: 4px;
+      border-radius: var(--radius-md);
+      padding: var(--space-2) var(--space-3);
+      cursor: grab;
+      user-select: none;
+      box-shadow: 0 1px 2px rgba(0,0,0,0.05);
+      transition: box-shadow var(--duration-fast) var(--ease-out);
+    }
+    .ov-node:hover { box-shadow: 0 4px 12px rgba(0,0,0,0.12); }
+    .ov-node.dragging { cursor: grabbing; z-index: 10; }
+    .ov-node.dimmed { opacity: 0.3; pointer-events: none; }
+    .ov-node[data-status="spec"] { border-left-color: var(--muted-foreground); }
+    .ov-node[data-status="building"] { border-left-color: var(--accent); }
+    .ov-node[data-status="shipping"] { border-left-color: var(--warning); }
+    .ov-node[data-status="complete"] { border-left-color: var(--success); }
+
+    .ov-node-head {
+      display: flex; align-items: center; gap: var(--space-1);
+      font-family: var(--font-display); font-weight: var(--font-weight-semibold);
+      font-size: var(--text-sm);
+      margin-bottom: 2px;
+    }
+    .ov-node-summary { font-size: var(--text-xs); color: var(--muted-foreground); line-height: 1.3; }
+    .ov-node-layer { font-size: var(--text-xs); color: var(--muted-foreground); text-transform: uppercase; letter-spacing: 0.03em; }
+
+    .ov-drawer {
+      position: absolute; top: 0; right: 0; bottom: 0; width: min(480px, 90%);
+      background: var(--background);
+      border-left: 1px solid var(--border);
+      box-shadow: -4px 0 16px rgba(0,0,0,0.08);
+      transform: translateX(100%);
+      transition: transform var(--duration-medium) var(--ease-out);
+      z-index: 20;
+      display: flex; flex-direction: column;
+      overflow: hidden;
+    }
+    .ov-drawer.open { transform: translateX(0); }
+    @media (prefers-reduced-motion: reduce) {
+      .ov-drawer { transition: none; }
+    }
+    .ov-drawer-head {
+      display: flex; align-items: center; justify-content: space-between;
+      padding: var(--space-3); border-bottom: 1px solid var(--border);
+    }
+    .ov-drawer-body { flex: 1; overflow-y: auto; padding: var(--space-3); }
+    .ov-drawer-foot { padding: var(--space-3); border-top: 1px solid var(--border); display: flex; gap: var(--space-2); }
+
+    .ov-empty {
+      position: absolute; inset: 0; display: flex; align-items: center; justify-content: center;
+    }
+  </style>
+
+  {# -- Toolbar -- #}
+  <div class="overview-toolbar">
+    <strong style="font-family: var(--font-display);">Overview</strong>
+    <span style="color:var(--muted-foreground); font-size: var(--text-xs);">{{ items | length }} system{{ "s" if items | length != 1 else "" }}</span>
+    <div class="ov-sep"></div>
+    <ship-input size="sm" placeholder="Search…" data-bind="_search" style="width: 180px;"></ship-input>
+    <div class="ov-sep"></div>
+    <div class="ov-group" role="group" aria-label="Status">
+      <ship-chip size="sm" {{ chip_all('_statusFilter') }}>all</ship-chip>
+      {% for v in ['spec','building','shipping','complete'] %}
+      <ship-chip size="sm" {{ chip('_statusFilter', v) }}>{{ v }}</ship-chip>
+      {% endfor %}
+    </div>
+    <div class="ov-sep"></div>
+    <div class="ov-group" role="group" aria-label="Layer">
+      <ship-chip size="sm" {{ chip_all('_layerFilter') }}>all</ship-chip>
+      {% for v in ['primitive','runtime','interface','meta'] %}
+      <ship-chip size="sm" {{ chip('_layerFilter', v) }}>{{ v }}</ship-chip>
+      {% endfor %}
+    </div>
+    <div style="flex:1"></div>
+    <ship-button size="sm" tone="accent" variant="solid"
+      data-on:click="$form = {}; $_drawerId = ''; $_isNew = true; $_drawerOpen = true">
+      <ship-icon slot="leading" name="plus"></ship-icon>New system
+    </ship-button>
+    <ship-button size="sm" variant="ghost" aria-label="Fit view" data-on:click="window.__ovFit && window.__ovFit()">
+      <ship-icon slot="leading" name="maximize"></ship-icon>Fit
+    </ship-button>
+  </div>
+
+  {# -- Canvas -- #}
+  <div class="overview-canvas-wrap" id="overview-wrap">
+    {% if items | length == 0 %}
+    <div class="ov-empty">
+      <ship-empty-state>
+        <span slot="title">No systems yet</span>
+        <span slot="description">Map your project by adding its first system.</span>
+        <ship-button slot="actions" tone="accent" variant="solid"
+          data-on:click="$form = {}; $_drawerId = ''; $_isNew = true; $_drawerOpen = true">
+          Create first system
+        </ship-button>
+      </ship-empty-state>
+    </div>
+    {% else %}
+    <div class="overview-canvas" id="overview-canvas">
+      <svg class="ov-edges" id="ov-edges" width="4000" height="4000"></svg>
+      {% set layers = {'primitive': 0, 'runtime': 1, 'interface': 2, 'meta': 3} %}
+      {% for item in items %}
+        {% set d = item.data %}
+        {% set layer = d.layer or 'runtime' %}
+        {% set status = d.status or 'spec' %}
+        {% set idx = loop.index0 %}
+        {% set row = layers[layer] if layer in layers else 1 %}
+        {% set px = d.position_x if d.position_x is number else (100 + (idx % 4) * 260) %}
+        {% set py = d.position_y if d.position_y is number else (80 + row * 180) %}
+        <div class="ov-node"
+             id="node-{{ item.id }}"
+             data-id="{{ item.id }}"
+             data-status="{{ status }}"
+             data-layer="{{ layer }}"
+             data-name="{{ d.name or '' }}"
+             data-depends='{{ d.depends_on if d.depends_on else [] }}'
+             style="left: {{ px }}px; top: {{ py }}px;">
+          <div class="ov-node-head">
+            <ship-status-dot status="{{ status }}"></ship-status-dot>
+            <span>{{ d.name or '(unnamed)' }}</span>
+          </div>
+          <div class="ov-node-layer">{{ layer }}{% if d.doc_skill %} · {{ d.doc_skill }}{% endif %}</div>
+          {% if d.summary %}<div class="ov-node-summary">{{ d.summary[:80] }}{% if d.summary | length > 80 %}…{% endif %}</div>{% endif %}
+        </div>
+      {% endfor %}
+    </div>
+    {% endif %}
+
+    {# -- Drawer -- #}
+    <div class="ov-drawer" data-class:open="$_drawerOpen">
+      <div class="ov-drawer-head">
+        <strong data-text="$_isNew ? 'New system' : ($form.name || 'System')"></strong>
+        <ship-button size="sm" variant="ghost" aria-label="Close"
+          data-on:click="$_drawerOpen = false">
+          <ship-icon slot="leading" name="x"></ship-icon>
+        </ship-button>
+      </div>
+      <div class="ov-drawer-body">
+        {% if schema %}
+        {{ form(schema, 'systems') }}
+        {% endif %}
+      </div>
+      <div class="ov-drawer-foot">
+        <ship-button tone="accent" variant="solid"
+          data-on:click="window.__ovSave && window.__ovSave($_drawerId, $form, $_isNew)">
+          Save
+        </ship-button>
+        <ship-button variant="ghost" data-on:click="$_drawerOpen = false">Cancel</ship-button>
+      </div>
+    </div>
+  </div>
+</div>
+
+<script>
+(function() {
+  const wrap = document.getElementById('overview-wrap');
+  const canvas = document.getElementById('overview-canvas');
+  const edges = document.getElementById('ov-edges');
+  if (!wrap || !canvas) return;
+
+  const reduceMotion = matchMedia('(prefers-reduced-motion: reduce)').matches;
+  let scale = 1, tx = 0, ty = 0;
+  function applyTransform() {
+    canvas.style.transform = `translate(${tx}px, ${ty}px) scale(${scale})`;
+  }
+
+  // ── Edges ──────────────────────────────────────────────
+  function nodeCenter(node) {
+    const x = parseFloat(node.style.left) || 0;
+    const y = parseFloat(node.style.top) || 0;
+    return { x: x + node.offsetWidth / 2, y: y + node.offsetHeight / 2 };
+  }
+  function nodeById(id) { return canvas.querySelector(`#node-${CSS.escape(id)}`); }
+  function drawEdges() {
+    edges.innerHTML = '';
+    const ns = 'http://www.w3.org/2000/svg';
+    // defs / marker
+    const defs = document.createElementNS(ns, 'defs');
+    defs.innerHTML = `<marker id="ov-arrow" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="6" markerHeight="6" orient="auto"><path d="M0,0 L10,5 L0,10 z" fill="var(--muted-foreground)"/></marker>`;
+    edges.appendChild(defs);
+    canvas.querySelectorAll('.ov-node').forEach(src => {
+      let deps = [];
+      try { deps = JSON.parse(src.dataset.depends.replace(/'/g, '"')); } catch (_) {}
+      if (!Array.isArray(deps)) return;
+      const a = nodeCenter(src);
+      deps.forEach(depId => {
+        const tgt = nodeById(depId);
+        if (!tgt) return;
+        const b = nodeCenter(tgt);
+        const path = document.createElementNS(ns, 'path');
+        path.setAttribute('d', `M ${a.x} ${a.y} L ${b.x} ${b.y}`);
+        path.setAttribute('marker-end', 'url(#ov-arrow)');
+        edges.appendChild(path);
+      });
+    });
+  }
+
+  // ── Pan (empty canvas drag) ────────────────────────────
+  let panning = false, panStart = null;
+  wrap.addEventListener('pointerdown', e => {
+    if (e.target.closest('.ov-node') || e.target.closest('.ov-drawer')) return;
+    panning = true; panStart = { x: e.clientX - tx, y: e.clientY - ty };
+    canvas.classList.add('panning');
+    wrap.setPointerCapture(e.pointerId);
+  });
+  wrap.addEventListener('pointermove', e => {
+    if (!panning) return;
+    tx = e.clientX - panStart.x;
+    ty = e.clientY - panStart.y;
+    applyTransform();
+  });
+  wrap.addEventListener('pointerup', e => {
+    panning = false; canvas.classList.remove('panning');
+    try { wrap.releasePointerCapture(e.pointerId); } catch(_) {}
+  });
+
+  // ── Zoom (wheel, cursor-centered) ──────────────────────
+  wrap.addEventListener('wheel', e => {
+    e.preventDefault();
+    const rect = wrap.getBoundingClientRect();
+    const cx = e.clientX - rect.left, cy = e.clientY - rect.top;
+    const dz = Math.exp(-e.deltaY * 0.0015);
+    const newScale = Math.max(0.2, Math.min(3, scale * dz));
+    // keep (cx, cy) anchored
+    tx = cx - (cx - tx) * (newScale / scale);
+    ty = cy - (cy - ty) * (newScale / scale);
+    scale = newScale;
+    applyTransform();
+  }, { passive: false });
+
+  // ── Node drag + click ──────────────────────────────────
+  let dragged = null;
+  canvas.querySelectorAll('.ov-node').forEach(node => {
+    let startX, startY, origX, origY, moved = false, saveTimer = null;
+    node.addEventListener('pointerdown', e => {
+      e.stopPropagation();
+      dragged = node;
+      moved = false;
+      startX = e.clientX; startY = e.clientY;
+      origX = parseFloat(node.style.left) || 0;
+      origY = parseFloat(node.style.top) || 0;
+      node.classList.add('dragging');
+      node.setPointerCapture(e.pointerId);
+    });
+    node.addEventListener('pointermove', e => {
+      if (dragged !== node) return;
+      const dx = (e.clientX - startX) / scale;
+      const dy = (e.clientY - startY) / scale;
+      if (Math.hypot(dx, dy) > 3) moved = true;
+      if (!moved) return;
+      const nx = origX + dx, ny = origY + dy;
+      node.style.left = nx + 'px';
+      node.style.top = ny + 'px';
+      drawEdges();
+      if (saveTimer) return;
+      saveTimer = setTimeout(() => {
+        saveTimer = null;
+        savePosition(node.dataset.id, parseFloat(node.style.left), parseFloat(node.style.top));
+      }, 150);
+    });
+    node.addEventListener('pointerup', e => {
+      if (dragged !== node) return;
+      node.classList.remove('dragging');
+      try { node.releasePointerCapture(e.pointerId); } catch(_) {}
+      const wasMoved = moved;
+      dragged = null;
+      if (wasMoved) {
+        if (saveTimer) { clearTimeout(saveTimer); saveTimer = null; }
+        savePosition(node.dataset.id, parseFloat(node.style.left), parseFloat(node.style.top));
+      } else {
+        openDrawer(node.dataset.id);
+      }
+    });
+  });
+
+  async function savePosition(id, x, y) {
+    await fetch(`/api/collections/systems/items/${encodeURIComponent(id)}`, {
+      method: 'PUT',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ data: { position_x: x, position_y: y } }),
+    }).catch(() => {});
+  }
+
+  // ── Drawer wiring ──────────────────────────────────────
+  async function openDrawer(id) {
+    try {
+      const r = await fetch(`/api/collections/systems/items/${encodeURIComponent(id)}`);
+      if (!r.ok) return;
+      const envelope = await r.json();
+      const item = envelope.data || envelope;
+      const dsStore = (window.datastar && window.datastar.signals) || null;
+      // Datastar signals API varies; fall back to CustomEvent
+      window.dispatchEvent(new CustomEvent('overview:open-drawer', { detail: { id, data: item.data || item } }));
+    } catch(_) {}
+  }
+
+  window.addEventListener('overview:open-drawer', (e) => {
+    const root = document.querySelector('.overview-root');
+    if (!root || !window.ds) return;
+  });
+
+  // Use Datastar's signal bus via a data-on hook by toggling a hidden element.
+  // Simpler: expose a function the save button calls back into.
+  window.__ovSave = async function(id, formVal, isNew) {
+    const payload = { data: formVal || {} };
+    const url = isNew
+      ? `/api/collections/systems/items`
+      : `/api/collections/systems/items/${encodeURIComponent(id)}`;
+    const method = isNew ? 'POST' : 'PUT';
+    const r = await fetch(url, {
+      method, headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(payload),
+    });
+    if (r.ok) {
+      // Close + reload the view to pick up the new/edited item.
+      if (window.router) window.router.navigate('/overview');
+      else location.reload();
+    }
+  };
+
+  // Click intercept: when a node is clicked (not dragged), populate drawer by
+  // reading attrs and dispatching a Datastar store update via the node's own
+  // data-on handler would be complicated. Use the document-level signal API:
+  function setSignals(patch) {
+    const evt = new CustomEvent('datastar-signals-patch', { detail: patch, bubbles: true });
+    document.dispatchEvent(evt);
+  }
+
+  // Override openDrawer to hydrate via refetch + direct store mutation.
+  openDrawer = async function(id) {
+    try {
+      const r = await fetch(`/api/collections/systems/items/${encodeURIComponent(id)}`);
+      if (!r.ok) return;
+      const env = await r.json();
+      const item = env.data || env;
+      const data = item.data || item;
+      const root = document.querySelector('.overview-root');
+      if (!root) return;
+      // Prefer Datastar's globally-exposed signals if present.
+      const ds = window.datastar;
+      if (ds && ds.$) {
+        try { ds.$.form = data; ds.$._drawerId = id; ds.$._isNew = false; ds.$._drawerOpen = true; return; } catch(_) {}
+      }
+      // Fallback: mutate Datastar via a hidden trigger element's data-on.
+      const bridge = document.createElement('button');
+      bridge.style.display = 'none';
+      bridge.setAttribute('data-on:click',
+        `$form = ${JSON.stringify(data)}; $_drawerId = '${id.replace(/'/g, "\\'")}'; $_isNew = false; $_drawerOpen = true`);
+      root.appendChild(bridge);
+      // Let Datastar process the new element, then click it.
+      requestAnimationFrame(() => { bridge.click(); bridge.remove(); });
+    } catch(_) {}
+  };
+
+  // ── Fit-to-view ────────────────────────────────────────
+  window.__ovFit = function() {
+    const nodes = [...canvas.querySelectorAll('.ov-node')];
+    if (!nodes.length) return;
+    let minX = Infinity, minY = Infinity, maxX = -Infinity, maxY = -Infinity;
+    nodes.forEach(n => {
+      const x = parseFloat(n.style.left), y = parseFloat(n.style.top);
+      const w = n.offsetWidth, h = n.offsetHeight;
+      if (x < minX) minX = x;
+      if (y < minY) minY = y;
+      if (x + w > maxX) maxX = x + w;
+      if (y + h > maxY) maxY = y + h;
+    });
+    const pad = 40;
+    const rect = wrap.getBoundingClientRect();
+    const sx = (rect.width - pad * 2) / (maxX - minX);
+    const sy = (rect.height - pad * 2) / (maxY - minY);
+    scale = Math.max(0.3, Math.min(1.5, Math.min(sx, sy)));
+    tx = pad - minX * scale;
+    ty = pad - minY * scale;
+    applyTransform();
+  };
+
+  // ── Filter reactivity (listen to Datastar signal changes via polling lite) ──
+  function applyFilters() {
+    const search = (getSig('_search') || '').toLowerCase();
+    const status = getSig('_statusFilter') || '';
+    const layer = getSig('_layerFilter') || '';
+    canvas.querySelectorAll('.ov-node').forEach(n => {
+      const name = (n.dataset.name || '').toLowerCase();
+      const okSearch = !search || name.includes(search);
+      const okStatus = !status || n.dataset.status === status;
+      const okLayer = !layer || n.dataset.layer === layer;
+      n.classList.toggle('dimmed', !(okSearch && okStatus && okLayer));
+    });
+  }
+  function getSig(name) {
+    const ds = window.datastar;
+    try { return ds && ds.$ ? ds.$[name] : ''; } catch(_) { return ''; }
+  }
+  // Poll filter state at low frequency — simple + robust.
+  setInterval(applyFilters, 150);
+
+  // Initial paint
+  drawEdges();
+  // Auto-fit if no node has an explicit saved position (all nulls collapse to auto-grid — still fit)
+  const hasSaved = [...canvas.querySelectorAll('.ov-node')].some(n => {
+    // auto-grid positions are deterministic; we simply always fit on first load
+    return false;
+  });
+  if (!hasSaved) requestAnimationFrame(() => window.__ovFit && window.__ovFit());
+})();
+</script>
+
+{% if not fragment %}</body></html>{% endif %}
