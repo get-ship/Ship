@@ -2,6 +2,12 @@
     Every retained rule is justified inline: either an element gap, a
     view-specific identity concern, or layout glue around the tiles. -#}
 <style>
+  /* Vertical rhythm between stacked section cards. The section() macro
+     emits <ship-card> siblings; without a gap they bump up against each
+     other. Using flex+gap on the container keeps section macros agnostic
+     of rhythm — each view owns its own spacing. */
+  .s-sections { display: flex; flex-direction: column; gap: var(--space-4); }
+
   /* Section body horizontal padding — the section() macro hands spacing
      back to the caller via `padding="none"` on the ship-card, and our
      ship-list-tile rows need 16px left/right to match React parity. */

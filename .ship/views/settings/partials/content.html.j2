@@ -3,24 +3,14 @@
    Matches React /studio/settings parity spec. -#}
 {% from '_ship.html.j2' import section, endsection %}
 {% from '_urls.html.j2' import update_setting %}
-<div id="settings-content">
+<div id="settings-content" class="s-sections">
   {% include 'settings/partials/styles.html.j2' %}
 
   {# ── THEME ── #}
   {% include 'settings/partials/theme.html.j2' %}
 
   {# ── PROVIDERS ── #}
-  {#- SDK gap: section() macro takes an icon= name string which maps to the
-      ship-icon built-in registry; lucide "cpu" isn't in the registry so we
-      pass the SVG via ship-icon's default slot by opening the ship-card
-      directly. Alternative: add "cpu" to packages/ship-set/src/web-components/core/ship-icon.ts ICONS. -#}
-  <ship-card padding="none">
-    <div slot="header" class="s-section-head">
-      <h2 class="s-section-title">
-        <ship-icon><svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round"><rect x="4" y="4" width="16" height="16" rx="2"/><rect x="9" y="9" width="6" height="6"/><path d="M9 2v2M15 2v2M9 20v2M15 20v2M2 9h2M2 15h2M20 9h2M20 15h2"/></svg></ship-icon>
-        Providers
-      </h2>
-    </div>
+  {{ section('Providers', icon='cpu') }}
     <div class="s-section-body">
       <ship-list-tile density="compact">
         <span class="s-row-label">Default provider</span>
@@ -71,7 +61,7 @@
       </div>
       {% endif %}
     </div>
-  </ship-card>
+  {{ endsection() }}
 
   {# ── TERMINAL ── #}
   {{ section('Terminal', icon='terminal') }}
