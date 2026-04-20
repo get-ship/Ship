@@ -7,6 +7,8 @@ Convention: `attr=value|value` = enum, bare `attr` = boolean.
 
 ## Core primitives
 
+- `<ship-accordion>` [type=single|multiple value] events: ship-change
+- `<ship-accordion-item>` [value disabled open]
 - `<ship-alert>` [tone dismissible] events: ship-dismiss
 - `<ship-alert-dialog>` [open tone=default|destructive confirm-label cancel-label] events: name
 - `<ship-annotation-layer>` [view-id mode endpoint staging staged _pending _drag] events: ship-annotation-staged, ship-annotation-error, ship-annotation-sent
@@ -16,26 +18,42 @@ Convention: `attr=value|value` = enum, bare `attr` = boolean.
 - `<ship-button>` [tone variant size disabled loading type=button|submit|reset label pressed=true|false expanded=true|false]
 - `<ship-card>` [tone variant padding interactive accent-bar status-rail fill]
 - `<ship-checkbox>` [checked indeterminate disabled required invalid tone size name value label]
+- `<ship-code-editor>` [value language= placeholder readonly line-numbers size=sm|md|lg tone theme=light|dark|auto] events: input, ship-change
+- `<ship-collapsible>` [open disabled]
+- `<ship-context-menu>` [open] events: name
 - `<ship-dialog>` [open size backdrop dismissible no-close-button no-header no-footer role-override=dialog|alertdialog] events: ship-open
 - `<ship-dropdown-menu>` [open]
-- `<ship-empty-state>` [variant=default|connecting|placeholder]
+- `<ship-empty-state>` [variant size tone icon]
 - `<ship-field>` [invalid]
+- `<ship-file-upload>` [accept multiple max-size disabled tone _files _over _error] events: ship-change
+- `<ship-hover-card>` [open placement=top|bottom|left|right show-delay hide-delay] events: name
 - `<ship-input>` [type value placeholder name autocomplete required disabled readonly invalid loading tone variant=default size label described-by error-message] events: ship-input
 - `<ship-label>` [for size=sm|md required]
 - `<ship-list-item>` [selected disabled] events: ship-select
+- `<ship-markdown-editor>` [value placeholder size tone disabled invalid rows full-height name label show-selection-toolbar allow-comment allow-generate] events: input, ship-change
+- `<ship-navigation-item>` [value active disabled href]
+- `<ship-navigation-menu>` [value]
+- `<ship-pagination>` [page total per-page tone] events: ship-change
 - `<ship-popover>` [open placement=top|bottom|left|right] events: name
 - `<ship-progress>` [value max tone size=sm|md label]
+- `<ship-radio>` [value disabled checked tone size]
+- `<ship-radio-group>` [value disabled tone size name label]
+- `<ship-scroll-area>` [orientation=vertical|horizontal|both size=sm|md|lg]
 - `<ship-select>` [value name required disabled invalid tone size label described-by] events: ship-change
 - `<ship-separator>` [orientation=horizontal|vertical variant=solid|dashed]
+- `<ship-slider>` [value min max step disabled tone size label] events: ship-change
 - `<ship-spinner>` [tone size label]
 - `<ship-stat>` [accent interactive]
 - `<ship-status-dot>` [tone pulse size=sm|md label]
+- `<ship-stepper>` [total current tone size label]
 - `<ship-switch>` [checked disabled tone size name value label]
 - `<ship-tab>` [name label count disabled]
 - `<ship-tab-panel>` [name active]
 - `<ship-tabs>` [active variant=underline|segmented size tone sticky orientation=horizontal|vertical] events: ship-tab-change
 - `<ship-textarea>` [value placeholder name rows required disabled readonly tone variant=default|code size resize=none|vertical|horizontal|both invalid label described-by] events: ship-input
 - `<ship-theme-toggle>` [theme=light|dark|auto]
+- `<ship-toggle>` [pressed disabled value size=sm|md|lg variant=outline|ghost]
+- `<ship-toggle-group>` [type=single|multiple value size=sm|md|lg variant=outline|ghost] events: ship-change
 - `<ship-toolbar>` [justify=start|center|end|between align=center|start|end|baseline gap=sm|md|lg variant=default|bordered]
 - `<ship-tooltip>` [placement=top|bottom|left|right]
 
@@ -90,7 +108,7 @@ Convention: `attr=value|value` = enum, bare `attr` = boolean.
 - `<ship-kbd>` [keys]
 - `<ship-link>` [href external tone]
 - `<ship-metachip>` [label value]
-- `<ship-skeleton>` [variant width height lines]
+- `<ship-skeleton>` [variant width height lines animate]
 - `<ship-step-segments>` [values size=sm|md]
-- `<ship-toast>` [tone duration dismissible] events: ship-dismiss
-- `<ship-toast-container>` [position]
+- `<ship-toast>` [tone size duration dismissible show-progress] events: ship-dismiss
+- `<ship-toast-container>` [position max-visible]

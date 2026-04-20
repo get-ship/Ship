@@ -1,0 +1,41 @@
+{#- Step 4 — Finished. Resource links + launch button. -#}
+<p class="setup-eyebrow">Step 4 of 4</p>
+<h2 class="setup-title">Ship is ready</h2>
+<p class="setup-lede">
+  Your workspace is set up. Jump into the dashboard, or browse what's new.
+</p>
+
+<nav class="setup-grid-3" aria-label="Resources"
+     style="margin: var(--space-6) 0">
+  <a href="https://getship.dev/docs" target="_blank" rel="noopener noreferrer"
+     style="text-decoration:none; color:inherit">
+    <ship-card interactive padding="md">
+      <div style="font-size:var(--text-sm); font-weight:var(--font-weight-semibold)">Docs</div>
+      <div style="font-size:var(--text-xs); color:var(--muted-foreground)">Guides &amp; reference</div>
+    </ship-card>
+  </a>
+  <a href="https://getship.dev/community" target="_blank" rel="noopener noreferrer"
+     style="text-decoration:none; color:inherit">
+    <ship-card interactive padding="md">
+      <div style="font-size:var(--text-sm); font-weight:var(--font-weight-semibold)">Community</div>
+      <div style="font-size:var(--text-xs); color:var(--muted-foreground)">Discord &amp; GitHub</div>
+    </ship-card>
+  </a>
+  <a href="https://getship.dev/store" target="_blank" rel="noopener noreferrer"
+     style="text-decoration:none; color:inherit">
+    <ship-card interactive padding="md">
+      <div style="font-size:var(--text-sm); font-weight:var(--font-weight-semibold)">Store</div>
+      <div style="font-size:var(--text-xs); color:var(--muted-foreground)">Agents &amp; skills</div>
+    </ship-card>
+  </a>
+</nav>
+
+<div class="setup-actions setup-actions--end">
+  {#- Fire-and-forget the completion write; small delay lets Datastar
+      flush the POST before the navigation tears the page down.      -#}
+  <ship-button tone="accent" variant="solid" size="lg"
+               data-on:click="@post('/api/settings', {payload: {key: 'setup.completed', value: true}}); setTimeout(() => window.location.assign('/'), 100)">
+    Open Ship
+    <ship-icon slot="trailing" name="arrow-right"></ship-icon>
+  </ship-button>
+</div>
