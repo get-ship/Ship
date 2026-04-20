@@ -27,6 +27,7 @@ fn empty_ctx(active_tab: &str) -> PipelinesCtx {
         active_runs: vec![],
         history_runs: vec![],
         providers: vec![],
+        workspace_id: None,
     }
 }
 

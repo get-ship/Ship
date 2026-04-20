@@ -18,6 +18,9 @@
  * Events:
  *   - ship-change: CustomEvent { detail: { value } } debounced 150ms
  *   - input: native bubbling (for Datastar data-bind)
+ *   - ship-save: CustomEvent { detail: { value } } — fired on Mod-s
+ *   - ship-cancel: CustomEvent — fired on Escape (does not prevent the
+ *     default Escape behavior; search panels etc. still close)
  *
  * Methods:
  *   - setDiagnostics(Array<{line, column, endLine?, endColumn?, severity, message, source?}>):
@@ -129,6 +132,31 @@ export class ShipCodeEditor extends LitElement {
       highlightActiveLine(),
       highlightSelectionMatches(),
       keymap.of([
+        // Host-intent bindings — fire `ship-save` / `ship-cancel` so the
+        // embedding view can wire them to its own save/exit flow. We
+        // keep CodeMirror's default keymap intact by returning true from
+        // our handlers (don't let the keystroke fall through).
+        {
+          key: 'Mod-s',
+          preventDefault: true,
+          run: () => {
+            this.dispatchEvent(new CustomEvent('ship-save', {
+              detail: { value: this.value }, bubbles: true, composed: true,
+            }))
+            return true
+          },
+        },
+        {
+          key: 'Escape',
+          run: () => {
+            this.dispatchEvent(new CustomEvent('ship-cancel', {
+              bubbles: true, composed: true,
+            }))
+            // Return false so CodeMirror's default Escape handlers
+            // (close search panel, exit multi-cursor) still run.
+            return false
+          },
+        },
         ...closeBracketsKeymap, ...defaultKeymap,
         ...searchKeymap, ...historyKeymap, ...foldKeymap,
         indentWithTab,

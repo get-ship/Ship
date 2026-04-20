@@ -129,6 +129,9 @@ pub struct PipelinesCtx {
     /// Provider IDs detected on PATH. Feeds the dispatch dialog's
     /// optional provider override. Unavailable providers are excluded.
     pub providers: Vec<String>,
+    /// Workspace id (git branch at the project root). Drives the
+    /// "New pipeline" flow — PUT /api/workspaces/{workspace_id}/...
+    pub workspace_id: Option<String>,
 }
 
 fn run_state_token(s: &JobStatus) -> &'static str {
@@ -389,6 +392,7 @@ pub fn build_ctx(params: &PipelinesParams, ship_dir: &std::path::Path) -> Pipeli
         history_runs,
         status_pills,
         providers,
+        workspace_id: current_project_workspace_id(),
     }
 }
 

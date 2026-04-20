@@ -31443,6 +31443,32 @@ var ShipCodeEditor = class extends i4 {
       highlightActiveLine(),
       highlightSelectionMatches(),
       keymap.of([
+        // Host-intent bindings — fire `ship-save` / `ship-cancel` so the
+        // embedding view can wire them to its own save/exit flow. We
+        // keep CodeMirror's default keymap intact by returning true from
+        // our handlers (don't let the keystroke fall through).
+        {
+          key: "Mod-s",
+          preventDefault: true,
+          run: () => {
+            this.dispatchEvent(new CustomEvent("ship-save", {
+              detail: { value: this.value },
+              bubbles: true,
+              composed: true
+            }));
+            return true;
+          }
+        },
+        {
+          key: "Escape",
+          run: () => {
+            this.dispatchEvent(new CustomEvent("ship-cancel", {
+              bubbles: true,
+              composed: true
+            }));
+            return false;
+          }
+        },
         ...closeBracketsKeymap,
         ...defaultKeymap,
         ...searchKeymap,

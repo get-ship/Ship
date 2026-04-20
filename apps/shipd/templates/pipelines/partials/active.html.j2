@@ -12,11 +12,10 @@
   </div>
   <span style="font-size: 0.875rem; font-weight: 500; color: var(--foreground);">No active runs</span>
   <span style="font-size: 0.75rem; color: var(--muted-foreground); max-width: 20rem; margin-top: 0.25rem;">Launch a run from a pipeline template or create one manually.</span>
-  {% from '_urls.html.j2' import create_job %}
   <ship-button size="sm" tone="accent" variant="solid" style="margin-top: 1rem;"
-    data-on:click="@post('{{ create_job() }}', {contentType: 'json', body: JSON.stringify({})})">
-    <ship-icon slot="leading" name="plus" size="sm"></ship-icon>
-    New Run
+    data-on:click="window.location.href='/api/runtime/view/pipelines'">
+    <ship-icon slot="leading" name="list" size="sm"></ship-icon>
+    View pipelines
   </ship-button>
 </div>
 {% endif %}

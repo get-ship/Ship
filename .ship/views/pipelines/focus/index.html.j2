@@ -14,6 +14,7 @@
 <body>
 {% endif %}
 <div id="ship-view-root" class="ship-view ship-view-pipeline-focus"
+     data-pipeline-raw="{{ raw }}"
      {{ signal('edit_mode', false) }}
      {{ signal('edit_draft', raw) }}
      {{ signal('edit_saving', false) }}
@@ -120,7 +121,7 @@
           Edit
         </ship-button>
         <ship-button variant="outline" data-show="$edit_mode"
-          data-on:click="$edit_mode = false; $edit_draft = {{ raw | tojson }}; $edit_error = ''">
+          data-on:click="window.tryCancelEdit(document.getElementById('ship-view-root'), {{ raw | tojson }})">
           Cancel
         </ship-button>
         <ship-button tone="accent" variant="solid" data-show="$edit_mode"
@@ -129,6 +130,11 @@
           data-on:click="window.savePipeline('{{ workspace_id }}', '{{ name }}', $edit_draft, document.getElementById('ship-view-root'))">
           <ship-icon slot="leading" name="check" size="sm"></ship-icon>
           Save
+        </ship-button>
+        <ship-button variant="outline" tone="destructive" size="sm" data-show="$edit_mode"
+          data-on:click="document.getElementById('delete-pipeline-dialog').open = true">
+          <ship-icon slot="leading" name="trash-2" size="sm"></ship-icon>
+          Delete
         </ship-button>
         {% endif %}
         <ship-button tone="accent" variant="solid" data-show="!$edit_mode"
@@ -246,6 +252,8 @@
         language="{{ 'jsonc' if format == 'jsonc' else ('json' if format == 'json' else 'yaml') }}"
         value="{{ raw }}"
         data-bind="edit_draft"
+        data-on:ship-save="window.savePipeline('{{ workspace_id }}', '{{ name }}', $edit_draft, document.getElementById('ship-view-root'))"
+        data-on:ship-cancel="if ($edit_mode) { window.tryCancelEdit(document.getElementById('ship-view-root'), {{ raw | tojson }}) }"
         style="min-height: 24rem;"></ship-code-editor>
     </ship-card>
 
@@ -379,18 +387,107 @@
       </ship-button>
     </div>
   </ship-dialog>
+
+  {# ── Delete confirmation ──────────────────────────────────────── #}
+  {% if workspace_id %}
+  <ship-alert-dialog id="delete-pipeline-dialog" tone="destructive"
+    confirm-label="Delete pipeline" cancel-label="Keep it"
+    data-on:ship-confirm="window.deletePipeline('{{ workspace_id }}', '{{ name }}')"
+    data-on:ship-cancel="document.getElementById('delete-pipeline-dialog').open = false">
+    <span slot="title">Delete <code>{{ name }}</code>?</span>
+    <p style="margin: 0; color: var(--muted-foreground); line-height: 1.5;">
+      This removes the pipeline file from <code>.ship/pipelines/</code>.
+      Any runs already in flight keep going — only the definition is deleted.
+    </p>
+  </ship-alert-dialog>
+  {% endif %}
 </div>
 <script>
 // Raw-editor save helper — fetches the workspace PUT endpoint, reads
-// the structured parse error so the editor can place a marker.
+// the structured parse/schema errors so the editor can place markers.
 // Signals on the root element are mutated via Datastar's proxied
 // signals API when available; falls back to `data-signal-*` writes.
 (function () {
-  window.savePipeline = async function (workspaceId, name, draft, root) {
-    const set = function (k, v) {
-      if (root.__ds?.signals?.[k]) { root.__ds.signals[k].value = v; return; }
-      root.setAttribute('data-signal-' + k, v);
+  // Honor `?edit=1` query param — the New-pipeline flow redirects here
+  // after creating the file so the user lands in the editor immediately.
+  // Retry briefly because Datastar may not have bound signals yet on
+  // first paint.
+  if (/[?&]edit=1(&|$)/.test(window.location.search)) {
+    let tries = 0;
+    const flip = () => {
+      const root = document.getElementById('ship-view-root');
+      const sigs = root && root.__ds?.signals;
+      if (sigs && sigs.edit_mode) {
+        sigs.edit_mode.value = true;
+        return;
+      }
+      if (++tries < 20) setTimeout(flip, 50);
     };
+    window.addEventListener('DOMContentLoaded', flip);
+  }
+
+  function getSignals(root) {
+    return root.__ds?.signals;
+  }
+  function setSignal(root, k, v) {
+    const sigs = getSignals(root);
+    if (sigs && sigs[k]) { sigs[k].value = v; return; }
+    root.setAttribute('data-signal-' + k, v);
+  }
+  function getSignal(root, k) {
+    const sigs = getSignals(root);
+    return sigs && sigs[k] ? sigs[k].value : undefined;
+  }
+
+  // Called by the Cancel button and by the editor's ship-cancel event.
+  // Confirms before discarding a dirty draft; plain cancel otherwise.
+  window.tryCancelEdit = function (root, original) {
+    const draft = getSignal(root, 'edit_draft');
+    if (draft !== undefined && draft !== original) {
+      if (!window.confirm('Discard unsaved changes to this pipeline?')) return;
+    }
+    setSignal(root, 'edit_draft', original);
+    setSignal(root, 'edit_mode', false);
+    setSignal(root, 'edit_error', '');
+    setSignal(root, 'edit_issue_count', 0);
+    const editor = root.querySelector('ship-code-editor');
+    if (editor && typeof editor.setDiagnostics === 'function') {
+      editor.setDiagnostics([]);
+    }
+  };
+
+  // Browser beforeunload — warn if leaving with a dirty draft.
+  window.addEventListener('beforeunload', function (e) {
+    const root = document.getElementById('ship-view-root');
+    if (!root) return;
+    const editMode = getSignal(root, 'edit_mode');
+    const draft = getSignal(root, 'edit_draft');
+    const orig = root.getAttribute('data-pipeline-raw') || '';
+    if (editMode && draft !== undefined && draft !== orig) {
+      e.preventDefault();
+      e.returnValue = '';
+    }
+  });
+
+  window.deletePipeline = async function (workspaceId, name) {
+    const url = '/api/workspaces/' + encodeURIComponent(workspaceId)
+      + '/pipelines/' + encodeURIComponent(name);
+    try {
+      const resp = await fetch(url, { method: 'DELETE', credentials: 'include' });
+      if (resp.ok) {
+        window.location.href = '/api/runtime/view/pipelines';
+        return;
+      }
+      const body = await resp.json().catch(function () { return {}; });
+      const msg = (body && body.data) || ('HTTP ' + resp.status);
+      window.alert('Delete failed: ' + (typeof msg === 'string' ? msg : JSON.stringify(msg)));
+    } catch (err) {
+      window.alert('Delete failed: ' + (err && err.message ? err.message : String(err)));
+    }
+  };
+
+  window.savePipeline = async function (workspaceId, name, draft, root) {
+    const set = function (k, v) { setSignal(root, k, v); };
     const editor = root.querySelector('ship-code-editor');
     const pushDiagnostics = function (issues) {
       if (!editor || typeof editor.setDiagnostics !== 'function') return;

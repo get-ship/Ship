@@ -77,6 +77,13 @@
           <ship-icon slot="leading" name="list" size="sm"></ship-icon>
           History
         </ship-button>
+        {% if workspace_id %}
+        <ship-button variant="outline" size="sm"
+          data-on:click="document.getElementById('new-pipeline-dialog').showModal()">
+          <ship-icon slot="leading" name="plus" size="sm"></ship-icon>
+          New pipeline
+        </ship-button>
+        {% endif %}
         <ship-button tone="accent" variant="solid" size="sm"
           data-on:click="document.getElementById('dispatch-dialog').showModal()">
           <ship-icon slot="leading" name="play" size="sm"></ship-icon>
@@ -144,6 +151,89 @@
       </ship-button>
     </div>
   </ship-dialog>
+
+  {# ── New pipeline ─────────────────────────────────────────────── #}
+  {% if workspace_id %}
+  <ship-dialog id="new-pipeline-dialog" size="sm"
+    {{ signal('new_pipe_name', '') }}
+    {{ signal('new_pipe_error', '') }}
+    {{ signal('new_pipe_creating', false) }}>
+    <span slot="header">New pipeline</span>
+    <ship-field label="Name" hint="Lowercase, kebab-case. Becomes the filename.">
+      <ship-input data-bind="new_pipe_name" placeholder="my-pipeline"
+        autofocus></ship-input>
+    </ship-field>
+    <ship-alert tone="destructive" compact data-show="$new_pipe_error">
+      <span data-text="$new_pipe_error"></span>
+    </ship-alert>
+    <div slot="footer">
+      <ship-button variant="outline"
+        data-on:click="document.getElementById('new-pipeline-dialog').close()">
+        Cancel
+      </ship-button>
+      <ship-button tone="accent" variant="solid"
+        data-attr:loading="$new_pipe_creating"
+        data-attr:disabled="$new_pipe_creating"
+        data-on:click="window.createPipeline('{{ workspace_id }}', $new_pipe_name, document.getElementById('ship-view-root'))">
+        <ship-icon slot="leading" name="plus" size="sm"></ship-icon>
+        Create
+      </ship-button>
+    </div>
+  </ship-dialog>
+  <script>
+  (function () {
+    function setSig(root, k, v) {
+      const sigs = root.__ds?.signals;
+      if (sigs && sigs[k]) { sigs[k].value = v; return; }
+      root.setAttribute('data-signal-' + k, v);
+    }
+    const KEBAB = /^[a-z0-9][a-z0-9-]*$/;
+    const TEMPLATE = [
+      '{',
+      '  // Pipeline definition. Lowercase-kebab name, one or more steps.',
+      '  "name": "__NAME__",',
+      '  "description": "",',
+      '  "steps": [',
+      '    { "id": "one", "run": "echo hello" }',
+      '  ]',
+      '}',
+      '',
+    ].join('\n');
+
+    window.createPipeline = async function (workspaceId, name, root) {
+      const trimmed = (name || '').trim();
+      if (!KEBAB.test(trimmed)) {
+        setSig(root, 'new_pipe_error', 'Name must be lowercase kebab-case (a–z, 0–9, -).');
+        return;
+      }
+      setSig(root, 'new_pipe_creating', true);
+      setSig(root, 'new_pipe_error', '');
+      const body = TEMPLATE.replace('__NAME__', trimmed);
+      const url = '/api/workspaces/' + encodeURIComponent(workspaceId)
+        + '/pipelines/' + encodeURIComponent(trimmed);
+      try {
+        const resp = await fetch(url, {
+          method: 'PUT',
+          credentials: 'include',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ content: body }),
+        });
+        if (resp.ok) {
+          window.location.href = '/api/runtime/view/pipelines/pipeline/' + encodeURIComponent(trimmed) + '?edit=1';
+          return;
+        }
+        const parsed = await resp.json().catch(function () { return {}; });
+        const data = (parsed && parsed.data) || {};
+        setSig(root, 'new_pipe_error', data.error || data || ('HTTP ' + resp.status));
+      } catch (err) {
+        setSig(root, 'new_pipe_error', 'network: ' + (err && err.message ? err.message : String(err)));
+      } finally {
+        setSig(root, 'new_pipe_creating', false);
+      }
+    };
+  })();
+  </script>
+  {% endif %}
 </div>
 {% if not fragment %}
 </body>
