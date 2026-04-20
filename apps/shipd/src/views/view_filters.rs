@@ -198,64 +198,71 @@ pub fn ship_skills() -> Vec<Value> {
         .collect()
 }
 
-/// Scan a canvas docs directory, populating seen map with slug -> modified time.
-/// Skips slugs already in the map (project takes precedence over global).
-fn scan_canvas_docs(dir: &std::path::Path, seen: &mut std::collections::HashMap<String, u64>) {
-    let Ok(entries) = std::fs::read_dir(dir) else { return };
-    for entry in entries.flatten() {
-        let name = entry.file_name().to_string_lossy().to_string();
-        let Some(slug) = name.strip_suffix(".html.j2") else { continue };
-        if seen.contains_key(slug) {
-            continue;
-        }
-        let modified = entry
-            .metadata()
-            .ok()
-            .and_then(|m| m.modified().ok())
-            .and_then(|t| t.duration_since(std::time::UNIX_EPOCH).ok())
-            .map(|d| d.as_secs())
-            .unwrap_or(0);
-        seen.insert(slug.to_string(), modified);
-    }
+/// Open a project-scoped ArtifactService and shared DataService for canvas
+/// queries. Returns `None` when no project workspace is attached or the
+/// data store can't be opened — view filter callers degrade to an empty
+/// list rather than failing the render.
+fn canvas_artifact_service()
+-> Option<(runtime::artifacts::ArtifactService, runtime::data::DataService)> {
+    let global = runtime::project::get_global_dir().ok()?;
+    let project_ship = runtime::project::get_project_dir(None).ok()?;
+    let slug = runtime::project::project_slug_from_ship_dir(&project_ship);
+    let mut svc = runtime::data::DataService::open(&global).ok()?;
+    runtime::artifacts::ensure_artifacts_collection(&mut svc).ok()?;
+    Some((runtime::artifacts::ArtifactService::new(&global, &slug), svc))
 }
 
 /// Global function: `ship_canvas_docs()`.
-/// Lists canvas documents at `.ship/views/canvas/docs/*.html.j2`.
-/// Returns `[{slug, title, modified}]` sorted by modified desc.
-/// Scans both project .ship/ and global ~/.ship/ — project wins on slug collisions.
+/// Lists canvas artifacts (rows in the built-in `artifacts` collection
+/// tagged with `collection_id = "canvas"`), sorted newest first.
+///
+/// Returns `[{slug, title, modified, mime, size}]`. `slug` is the artifact
+/// id (ULID); `title` is the artifact's `name` field set by the agent at
+/// upload time.
 pub fn ship_canvas_docs() -> Vec<Value> {
-    let mut seen = std::collections::HashMap::<String, u64>::new();
-    // Project dir first (takes precedence)
-    if let Ok(proj) = runtime::project::get_project_dir(None) {
-        scan_canvas_docs(&proj.join("views").join("canvas").join("docs"), &mut seen);
+    let Some((artifacts, mut data)) = canvas_artifact_service() else {
+        return vec![];
+    };
+    let mut filter = std::collections::BTreeMap::new();
+    filter.insert("collection_id".to_string(), serde_json::Value::String("canvas".to_string()));
+    let mut sort = std::collections::BTreeMap::new();
+    sort.insert("created_at".to_string(), -1);
+    let req = runtime::collections::query::QueryRequest {
+        collection: runtime::artifacts::ARTIFACTS_COLLECTION_ID.to_string(),
+        filter,
+        sort,
+        limit: 100,
+        offset: 0,
+    };
+    match artifacts.list(&mut data, req) {
+        Ok(records) => records
+            .into_iter()
+            .map(|r| {
+                Value::from_serialize(&serde_json::json!({
+                    "slug": r.id,
+                    "title": r.name,
+                    "modified": r.created_at,
+                    "mime": r.mime,
+                    "size": r.size,
+                }))
+            })
+            .collect(),
+        Err(_) => vec![],
     }
-    // Global dir as fallback
-    if let Ok(global) = runtime::project::get_global_dir() {
-        scan_canvas_docs(&global.join("views").join("canvas").join("docs"), &mut seen);
+}
+
+/// Global function: `ship_canvas_doc_content(slug)`.
+/// Loads the HTML bytes of a canvas artifact (by id) for inline rendering.
+/// Returns an empty string if the artifact is missing or its blob can't be
+/// read — the template falls back to its own empty state.
+pub fn ship_canvas_doc_content(slug: String) -> String {
+    let Some((artifacts, mut data)) = canvas_artifact_service() else {
+        return String::new();
+    };
+    match artifacts.get(&mut data, &slug) {
+        Ok(Some((_record, bytes))) => String::from_utf8_lossy(&bytes).into_owned(),
+        _ => String::new(),
     }
-    let mut docs: Vec<(String, u64)> = seen.into_iter().collect();
-    docs.sort_by(|a, b| b.1.cmp(&a.1));
-    docs.into_iter()
-        .map(|(slug, modified)| {
-            // Derive a human-readable title from the slug (kebab → Title Case)
-            let title = slug
-                .split('-')
-                .map(|w| {
-                    let mut chars = w.chars();
-                    match chars.next() {
-                        Some(c) => c.to_uppercase().chain(chars).collect::<String>(),
-                        None => String::new(),
-                    }
-                })
-                .collect::<Vec<_>>()
-                .join(" ");
-            Value::from_serialize(&serde_json::json!({
-                "slug": slug,
-                "title": title,
-                "modified": modified,
-            }))
-        })
-        .collect()
 }
 
 /// Register all SDK filters and functions on a minijinja Environment.
@@ -268,6 +275,7 @@ pub fn register_all(env: &mut minijinja::Environment) {
     env.add_function("ship_agent", ship_agent);
     env.add_function("ship_skills", ship_skills);
     env.add_function("ship_canvas_docs", ship_canvas_docs);
+    env.add_function("ship_canvas_doc_content", ship_canvas_doc_content);
     env.add_filter("where", filter_where);
     env.add_filter("sort_by", filter_sort_by);
     env.add_filter("take", filter_take);

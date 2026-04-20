@@ -16,6 +16,7 @@ pub const SPECS_ID: &str = "specs";
 pub const ADRS_ID: &str = "adrs";
 pub const NOTES_ID: &str = "notes";
 pub const FEEDBACK_ID: &str = "feedback";
+pub const ANNOTATIONS_ID: &str = "annotations";
 
 fn field(field_type: FieldType) -> FieldDef {
     FieldDef {
@@ -161,9 +162,36 @@ pub fn feedback_schema() -> CollectionSchema {
     }
 }
 
+pub fn annotations_schema() -> CollectionSchema {
+    let mut fields: IndexMap<String, FieldDef> = IndexMap::new();
+    fields.insert(
+        "kind".into(),
+        enum_field(&["point", "region", "action"], true),
+    );
+    fields.insert("view_id".into(), filterable(FieldType::String));
+    fields.insert("file_path".into(), filterable(FieldType::String));
+    fields.insert("selector".into(), field(FieldType::String));
+    fields.insert("intent".into(), filterable(FieldType::String));
+    fields.insert("note".into(), field(FieldType::Markdown));
+    fields.insert("payload".into(), required(FieldType::String));
+    fields.insert("author_kind".into(), filterable(FieldType::String));
+
+    CollectionSchema {
+        id: ANNOTATIONS_ID.to_string(),
+        name: Some("Annotations".to_string()),
+        fields,
+    }
+}
+
 /// All built-in schemas in a stable order.
 pub fn all_schemas() -> Vec<CollectionSchema> {
-    vec![specs_schema(), adrs_schema(), notes_schema(), feedback_schema()]
+    vec![
+        specs_schema(),
+        adrs_schema(),
+        notes_schema(),
+        feedback_schema(),
+        annotations_schema(),
+    ]
 }
 
 /// Register all built-in schemas by creating their tables if missing.
@@ -180,9 +208,12 @@ mod tests {
     use super::*;
 
     #[test]
-    fn all_four_schemas_defined() {
+    fn all_schemas_defined() {
         let ids: Vec<String> = all_schemas().into_iter().map(|s| s.id).collect();
-        assert_eq!(ids, vec![SPECS_ID, ADRS_ID, NOTES_ID, FEEDBACK_ID]);
+        assert_eq!(
+            ids,
+            vec![SPECS_ID, ADRS_ID, NOTES_ID, FEEDBACK_ID, ANNOTATIONS_ID],
+        );
     }
 
     #[test]
@@ -227,7 +258,7 @@ mod tests {
 
         register_builtin_schemas(&mut svc).unwrap();
 
-        for id in [SPECS_ID, ADRS_ID, NOTES_ID, FEEDBACK_ID] {
+        for id in [SPECS_ID, ADRS_ID, NOTES_ID, FEEDBACK_ID, ANNOTATIONS_ID] {
             let table = format!("collection_{id}");
             let rows = svc
                 .query(

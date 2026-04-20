@@ -116,6 +116,10 @@ const TEMPLATES: &[(&str, &str)] = &[
         include_str!("../../templates/canvas/blank.html.j2"),
     ),
     (
+        "canvas/artifact.html.j2",
+        include_str!("../../templates/canvas/artifact.html.j2"),
+    ),
+    (
         "chat/shell.html.j2",
         include_str!("../../templates/chat/shell.html.j2"),
     ),

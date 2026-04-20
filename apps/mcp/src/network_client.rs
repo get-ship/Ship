@@ -250,6 +250,12 @@ pub async fn view_session_raw(view_id: &str) -> Result<String> {
     get(&format!("/runtime/view-sessions/{view_id}/raw")).await
 }
 
+/// Download an artifact's bytes as a UTF-8 string. Used by `view.open` when
+/// the caller targets a canvas artifact instead of a manifest template.
+pub async fn artifact_download(artifact_id: &str) -> Result<String> {
+    get(&format!("/artifacts/{artifact_id}")).await
+}
+
 /// Route a pre-built EventEnvelope through the daemon's KernelRouter.
 /// This ensures events reach daemon subscribers (job-dispatch, workspace-sync, etc).
 pub async fn event_route(

@@ -27,6 +27,7 @@ pub mod routes;
 pub mod router;
 pub mod runtime_api;
 pub mod view_sessions_api;
+pub mod annotations_api;
 pub mod feedback_api;
 pub mod mcp_apps_bridge;
 mod server;
