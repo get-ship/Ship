@@ -211,9 +211,6 @@ pub enum Route {
     /// @route GET "/api/runtime/jobs"
     ListJobs,
 
-    /// @route POST "/api/runtime/jobs"
-    CreateJob,
-
     /// @route POST "/api/runtime/dispatch"
     DispatchPipeline,
 

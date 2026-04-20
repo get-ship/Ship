@@ -78,16 +78,17 @@ pub fn run(opts: RunOptions) -> Result<()> {
         });
 
     let body = serde_json::json!({
-        "slug": slug,
-        "agent": first_agent_display,
-        "branch": branch,
-        "spec_path": spec_path,
-        "source_spec_path": source_spec_path,
         "pipeline": pipeline_name,
-        "spec_content": if spec_content.is_empty() { None } else { Some(&spec_content) },
+        "slug": slug,
+        "branch": branch,
+        "agent": first_agent_display,
+        "source_spec_path": source_spec_path,
+        "spec": if spec_content.is_empty() { None } else { Some(&spec_content) },
         "vars": if vars.is_empty() { None } else { Some(&vars) },
         "headless": opts.headless,
     });
+    // spec_path is fixed (.artifacts/job-spec.md) — server derives it.
+    let _ = spec_path;
 
     // Tmux session name the TmuxWindowExecutor uses. Mirrors
     // `apps/shipd/src/supervisor/executors/tmux_window.rs::session_name`.
@@ -99,7 +100,7 @@ pub fn run(opts: RunOptions) -> Result<()> {
         format!("ship-{sanitized}")
     };
 
-    match post_to_daemon("/api/runtime/jobs", &body) {
+    match post_to_daemon("/api/runtime/dispatch", &body) {
         Ok(resp) => {
             eprintln!("Pipeline: {pipeline_name}");
             eprintln!("Steps:    {}", steps.len());
