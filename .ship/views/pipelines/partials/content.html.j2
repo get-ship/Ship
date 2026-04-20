@@ -4,7 +4,7 @@
   Composed from ship-components: <ship-pipeline-run>, <ship-pipeline-dag>,
   <ship-pipeline-step>, <ship-empty-state>, <ship-chip>, <ship-alert>.
 -#}
-{% from '_urls.html.j2' import create_job, end_job, view_pipelines %}
+{% from '_urls.html.j2' import end_job, view_pipelines %}
 {% macro render_run(run, allow_stop) -%}
   {# Normalize legacy `gate-pending` → `gatepending` for ship-pipeline-run. #}
   {% set run_state = run.state | replace('-', '') %}
@@ -38,12 +38,9 @@
     {% endif %}
 
     {% if run.error %}
-      {% set error_lines = run.error.split('\n') %}
-      {% if error_lines | length > 1 %}
+      {% if '\n' in run.error %}
       <ship-collapsible>
-        <ship-alert slot="trigger" tone="destructive" compact>
-          Error: {{ error_lines[0] }}
-        </ship-alert>
+        <ship-alert slot="trigger" tone="destructive" compact>Error (expand for details)</ship-alert>
         <ship-code language="text">{{ run.error }}</ship-code>
       </ship-collapsible>
       {% else %}
@@ -81,7 +78,7 @@
 <div id="pipelines-content" class="ship-pipelines-content">
   {% if active_tab == 'definitions' %}
     <div class="ship-def-templates-head">
-      <span class="ship-def-templates-desc">Pipeline templates define multi-step agent workflows.</span>
+      <span class="ship-def-templates-desc">Pipelines define multi-step agent runs.</span>
     </div>
     {% if defs and defs | length > 0 %}
     <div class="ship-pipelines-def-list">

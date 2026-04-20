@@ -609,6 +609,12 @@ pub async fn pipelines_sse(
 
 fn render_content(params: &PipelinesParams, ship_dir: &std::path::Path) -> Option<String> {
     let ctx = build_ctx(params, ship_dir);
+    // Prefer the user-level .ship/views/pipelines/partials/content.html.j2
+    // (authoritative — matches what pipelines_shell renders). Fall back to
+    // the embedded template only if the view dir isn't present.
+    if let Some(html) = try_render_view("partials/content.html.j2", &ctx) {
+        return Some(html);
+    }
     match templates::render("pipelines/content.html.j2", &ctx) {
         Ok(html) => Some(html),
         Err(e) => {

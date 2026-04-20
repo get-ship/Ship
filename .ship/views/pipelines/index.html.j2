@@ -1,14 +1,14 @@
 {#-
-  Pipelines (Workflows) view — spec-parity with the React /studio/workflows route.
+  Pipelines view — view, edit, and dispatch pipelines with live ops state.
   Single-column centered layout. Datastar-driven tab switching and SSE content patches.
   The daemon passes PipelinesCtx as Jinja context.
 -#}
 {% from '_ship.html.j2' import head, signal, show, live, loading, spinner, chip, chip_all %}
-{% from '_urls.html.j2' import create_job, view_pipelines_sse, get_job, end_job %}
+{% from '_urls.html.j2' import view_pipelines_sse, end_job %}
 {% if not fragment %}
 <!DOCTYPE html>
 <html lang="en">
-<head>{{ head('Workflows') }}</head>
+<head>{{ head('Pipelines') }}</head>
 <body>
 {% endif %}
 <div id="ship-view-root" class="ship-view ship-view-pipelines"
@@ -94,7 +94,7 @@
     <div class="ship-pipelines-wrap">
       <div class="ship-pipelines-head">
         <div>
-          <h1 class="ship-pipelines-title">Workflows</h1>
+          <h1 class="ship-pipelines-title">Pipelines</h1>
           <p class="ship-pipelines-sub">{{ stats_subtitle }}</p>
         </div>
         <ship-button size="sm" tone="accent" variant="solid"
@@ -134,10 +134,11 @@
       </div>
       {% endif %}
 
+      {# Initial content rendered server-side so the first paint shows
+         real data. SSE ({{ live('pipelines') }}) patches this on any
+         job.* / step.* event. #}
       <div {{ live('pipelines') }}>
-        <div id="pipelines-content" class="ship-pipelines-content">
-          <p style="padding: var(--space-8) 0; font-size: var(--text-xs); color: var(--muted-foreground)">Loading...</p>
-        </div>
+        {% include 'pipelines/partials/content.html.j2' %}
       </div>
     </div>
 
@@ -150,7 +151,7 @@
     {{ signal('dispatch_pipeline', (defs[0].name if defs and defs | length > 0 else '')) }}
     {{ signal('dispatch_spec', '') }}
     {{ signal('dispatch_provider', '') }}
-    {{ signal('dispatch_headless', false) }}>
+    {{ signal('dispatch_headless', true) }}>
     <span slot="header">Dispatch pipeline run</span>
     <ship-field label="Pipeline">
       <ship-select data-bind="dispatch_pipeline">
