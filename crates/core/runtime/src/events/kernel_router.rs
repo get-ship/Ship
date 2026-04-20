@@ -16,6 +16,7 @@
 
 use std::collections::HashMap;
 use std::path::{Path, PathBuf};
+use std::sync::Arc;
 #[cfg(feature = "unstable")]
 use std::sync::Mutex;
 
@@ -24,6 +25,7 @@ use tokio::sync::mpsc;
 
 use crate::errors::KernelError;
 use crate::persistence::actor_store::{ActorStore, raw_append};
+use crate::persistence::event_store::SqliteEventStore;
 use ship_types::envelope::EventEnvelope;
 use ship_kernel::Mailbox;
 use crate::events::validator::{EmitContext, EventValidator};
@@ -43,6 +45,9 @@ pub struct KernelRouter {
     pub(crate) actor_configs: HashMap<String, ActorConfig>,
     pub(crate) subscriptions: HashMap<String, Vec<String>>,
     validators: Vec<Box<dyn EventValidator>>,
+    /// Pure kernel router — will become the single router in a later step.
+    /// Kept in sync with the runtime state during the dual-track migration.
+    pub(crate) inner: ship_kernel::KernelRouter,
     #[cfg(feature = "unstable")]
     pub(crate) actor_meta: HashMap<String, ActorMeta>,
     #[cfg(feature = "unstable")]
@@ -65,6 +70,11 @@ impl KernelRouter {
         #[cfg(feature = "unstable")]
         crate::persistence::cursor::init_cursor_table(&kernel_store_path)?;
 
+        // Construct the pure inner router backed by the same SqliteEventStore.
+        // Step 2 of migration: inner is kept in sync but not yet used for routing.
+        let sink = Arc::new(SqliteEventStore::new_at(&base_dir)?);
+        let inner = ship_kernel::KernelRouter::new(sink);
+
         Ok(Self {
             base_dir,
             kernel_store_path,
@@ -72,6 +82,7 @@ impl KernelRouter {
             actor_configs: HashMap::new(),
             subscriptions: HashMap::new(),
             validators: Vec::new(),
+            inner,
             #[cfg(feature = "unstable")]
             actor_meta: HashMap::new(),
             #[cfg(feature = "unstable")]
