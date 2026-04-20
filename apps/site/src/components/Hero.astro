@@ -3,9 +3,9 @@ import HeroAnimation from './HeroAnimation.astro';
 import ProviderStrip from './ProviderStrip.astro';
 
 const pillars = [
-  { title: 'Pipelines', copy: 'Orchestrate 5 AI providers with 50 lines of JSON.' },
-  { title: 'Views', copy: 'Custom UI with your data in seconds — 15% of the React code.' },
-  { title: 'Control', copy: 'Permissions, skills, governance. Your data, your models.' },
+  { title: 'Pipelines', copy: 'Orchestrate 5 AI providers with 50 lines of JSON.', tone: 'accent', kbd: 'pipelines' },
+  { title: 'Views', copy: 'Custom UI with your data in seconds — 15% of the React code.', tone: 'info', kbd: 'views' },
+  { title: 'Control', copy: 'Permissions, skills, governance. Your data, your models.', tone: 'success', kbd: 'control' },
 ];
 ---
 
@@ -25,23 +25,19 @@ const pillars = [
       and control your data &mdash; locally, with no lock&#8209;in.
     </p>
 
-    <div class="hero-ctas">
+    <ship-toolbar justify="center" gap="md" class="hero-ctas">
       <ship-button
         tone="accent"
         variant="solid"
         size="lg"
         onclick="location.href='/download'"
-      >
-        Download for your platform
-      </ship-button>
+      >Download for your platform</ship-button>
       <ship-button
         variant="ghost"
         size="lg"
         onclick="location.href='#pillars'"
-      >
-        See how it works &rarr;
-      </ship-button>
-    </div>
+      >See how it works &rarr;</ship-button>
+    </ship-toolbar>
 
     <HeroAnimation />
 
@@ -50,8 +46,17 @@ const pillars = [
     <ul class="hero-pillars" id="pillars">
       {pillars.map((p) => (
         <li>
-          <ship-card variant="outline" class="hero-pillar-card">
-            <div slot="header" class="hero-pillar-title">{p.title}</div>
+          <ship-card
+            variant="outline"
+            status-rail
+            tone={p.tone}
+            padding="lg"
+            class="hero-pillar-card"
+          >
+            <div slot="header" class="hero-pillar-head">
+              <ship-badge tone={p.tone} variant="soft" size="sm">{p.kbd}</ship-badge>
+              <span class="hero-pillar-title">{p.title}</span>
+            </div>
             <p class="hero-pillar-copy">{p.copy}</p>
           </ship-card>
         </li>
@@ -70,17 +75,16 @@ const pillars = [
   .hero::before {
     content: '';
     position: absolute;
-    inset: -20% -10% 20%;
+    inset: -10% 0 20%;
     background:
-      radial-gradient(40% 50% at 20% 30%, var(--site-halo-1) 0%, transparent 60%),
-      radial-gradient(40% 40% at 80% 20%, var(--site-halo-2) 0%, transparent 60%),
-      radial-gradient(50% 50% at 60% 80%, var(--site-halo-3) 0%, transparent 60%);
-    filter: blur(40px);
+      radial-gradient(40% 50% at 20% 30%, var(--site-halo-1) 0%, transparent 65%),
+      radial-gradient(40% 40% at 80% 20%, var(--site-halo-2) 0%, transparent 65%),
+      radial-gradient(50% 50% at 60% 80%, var(--site-halo-3) 0%, transparent 65%);
+    opacity: 0.55;
     z-index: -1;
-    opacity: 0.75;
   }
   :root[data-theme='warm'] .hero::before {
-    opacity: 0.45;
+    opacity: 0.35;
   }
 
   .hero-inner {
@@ -145,16 +149,19 @@ const pillars = [
     display: block;
     text-align: left;
   }
+  .hero-pillar-head {
+    display: inline-flex;
+    align-items: center;
+    gap: 8px;
+  }
   .hero-pillar-title {
     font-family: var(--site-font-display);
     font-weight: 600;
     font-size: 15px;
     letter-spacing: -0.01em;
-    padding: 16px 18px 4px;
     color: var(--site-fg);
   }
   .hero-pillar-copy {
-    padding: 0 18px 18px;
     color: var(--site-muted-fg);
     font-size: 14px;
     line-height: 1.5;

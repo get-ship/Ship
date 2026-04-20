@@ -1,55 +1,73 @@
 ---
-// Footer-sized theme switcher. Uses <ship-select> — the same native-wrapped
-// primitive we recommend for views (see ship-views skill). Emits the
-// `ship-change` custom event.
+// VSCode-style theme catalog exposed through <ship-select>. Lists all
+// eight themes defined in styles/tokens.css; persisted to localStorage
+// so it survives reloads. The inline script in BaseLayout re-applies on
+// page load before paint.
 const themes = [
-  { id: 'default', label: 'Default' },
-  { id: 'high-contrast', label: 'High contrast' },
-  { id: 'warm', label: 'Warm (paper)' },
+  { id: 'ship-light', label: 'Ship Light', group: 'Ship' },
+  { id: 'ship-dark', label: 'Ship Dark', group: 'Ship' },
+  { id: 'high-contrast', label: 'High Contrast', group: 'Ship' },
+  { id: 'warm', label: 'Warm (paper)', group: 'Ship' },
+  { id: 'gruvbox-dark', label: 'Gruvbox Dark', group: 'Classics' },
+  { id: 'gruvbox-light', label: 'Gruvbox Light', group: 'Classics' },
+  { id: 'nord', label: 'Nord', group: 'Classics' },
+  { id: 'solarized-dark', label: 'Solarized Dark', group: 'Classics' },
 ];
+
+const groups = Array.from(new Set(themes.map((t) => t.group)));
 ---
 
-<label class="theme-switcher" data-ship-theme-switcher>
+<label class="theme-switcher">
   <span class="theme-switcher-label">Theme</span>
-  <ship-select size="sm" data-theme-select>
-    {themes.map((t) => (
-      <option value={t.id}>{t.label}</option>
+  <ship-select size="sm" data-theme-select data-placeholder="Ship Light">
+    {groups.map((g) => (
+      <optgroup label={g}>
+        {themes.filter((t) => t.group === g).map((t) => (
+          <option value={t.id}>{t.label}</option>
+        ))}
+      </optgroup>
     ))}
   </ship-select>
 </label>
 
 <script>
   const KEY = 'ship-site-theme';
-  const valid = new Set(['default', 'high-contrast', 'warm']);
+  const THEMES = new Set([
+    'ship-light',
+    'ship-dark',
+    'high-contrast',
+    'warm',
+    'gruvbox-dark',
+    'gruvbox-light',
+    'nord',
+    'solarized-dark',
+  ]);
 
-  const applyTheme = (theme: string) => {
-    if (!valid.has(theme)) return;
+  const apply = (theme: string) => {
+    if (!THEMES.has(theme)) return;
     document.documentElement.dataset.theme = theme;
     try {
       localStorage.setItem(KEY, theme);
     } catch (_) {}
   };
 
-  const select = document.querySelector<HTMLElement>('[data-theme-select]');
-  if (select) {
-    const current = document.documentElement.dataset.theme || 'default';
-    const setValue = () => {
+  const selects = document.querySelectorAll<HTMLElement>('[data-theme-select]');
+  for (const select of selects) {
+    const sync = () => {
+      const current = document.documentElement.dataset.theme || 'ship-light';
       (select as any).value = current;
       const native = select.querySelector('select') as HTMLSelectElement | null;
       if (native) native.value = current;
     };
-    // Wait for custom element upgrade then set the initial value.
-    customElements.whenDefined('ship-select').then(setValue);
-    setValue();
-
+    customElements.whenDefined('ship-select').then(sync);
+    sync();
     select.addEventListener('ship-change', (e: Event) => {
       const next = (e as CustomEvent<{ value: string }>).detail?.value;
-      if (typeof next === 'string') applyTheme(next);
+      if (typeof next === 'string') apply(next);
     });
-    // Fallback for the underlying native change event
     select.addEventListener('change', (e: Event) => {
       const target = e.target as HTMLSelectElement;
-      if (target?.value) applyTheme(target.value);
+      if (target?.value) apply(target.value);
     });
   }
 </script>
@@ -64,5 +82,8 @@ const themes = [
   }
   .theme-switcher-label {
     font-weight: 500;
+    text-transform: uppercase;
+    letter-spacing: 0.08em;
+    font-size: 11px;
   }
 </style>

@@ -19,6 +19,8 @@ import PlatformDetect from './PlatformDetect.astro';
     position: relative;
     padding: clamp(64px, 10vw, 120px) 0;
     border-top: 1px solid color-mix(in oklch, var(--site-border) 40%, transparent);
+    content-visibility: auto;
+    contain-intrinsic-size: 1px 900px;
   }
   .download-header {
     text-align: center;

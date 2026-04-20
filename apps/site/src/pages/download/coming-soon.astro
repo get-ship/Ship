@@ -8,23 +8,39 @@ import Footer from '../../components/Footer.astro';
   <Navbar />
   <main class="soon-page">
     <div class="site-container soon-inner">
-      <ship-badge tone="accent" variant="soft">Installers shipping soon</ship-badge>
+      <ship-badge tone="accent" variant="soft" size="md">
+        Installers shipping soon
+      </ship-badge>
       <h1>Almost there.</h1>
       <p class="site-muted">
         Platform installers are being signed and packaged. Drop your email
-        and we&rsquo;ll ping you the moment downloads go live.
+        and we&rsquo;ll let you know the moment downloads go live.
       </p>
+
       <form
         class="soon-form"
-        onsubmit="event.preventDefault();window.location.hash='#thanks';"
+        id="notify"
+        onsubmit="event.preventDefault();document.getElementById('notify-thanks').toggleAttribute('hidden',false);this.reset();"
       >
         <input type="email" required placeholder="you@company.com" aria-label="Email" />
         <ship-button tone="accent" variant="solid" size="md" type="submit">
           Notify me
         </ship-button>
       </form>
-      <p id="thanks" class="soon-thanks site-muted">Thanks &mdash; we&rsquo;ll be in touch.</p>
-      <a class="soon-back" href="/">&larr; Back to the homepage</a>
+
+      <ship-alert tone="success" id="notify-thanks" class="soon-thanks" hidden>
+        <span slot="title">You&rsquo;re on the list.</span>
+        We&rsquo;ll email you as soon as installers land.
+      </ship-alert>
+
+      <ship-toolbar justify="center" class="soon-actions">
+        <ship-button variant="ghost" size="sm" onclick="location.href='/'">
+          &larr; Back to the homepage
+        </ship-button>
+        <ship-button variant="ghost" size="sm" onclick="location.href='https://docs.getship.dev'">
+          Read the docs &rarr;
+        </ship-button>
+      </ship-toolbar>
     </div>
   </main>
   <Footer />
@@ -65,21 +81,11 @@ import Footer from '../../components/Footer.astro';
     outline: 2px solid var(--site-accent);
     outline-offset: 2px;
   }
-  .soon-submit {
-    all: unset;
-    cursor: pointer;
-  }
   .soon-thanks {
-    display: none;
+    width: min(100%, 420px);
+    text-align: left;
   }
-  .soon-thanks:target {
-    display: block;
-  }
-  .soon-back {
-    color: var(--site-muted-fg);
-    margin-top: 20px;
-  }
-  .soon-back:hover {
-    color: var(--site-fg);
+  .soon-actions {
+    margin-top: 16px;
   }
 </style>

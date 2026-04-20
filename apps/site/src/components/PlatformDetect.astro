@@ -1,60 +1,56 @@
 ---
-// Renders three platform cards. Client script tags the detected OS with
-// a data attribute so CSS can highlight it. Server render is deterministic
-// so static hosts cache cleanly; the enhancement is progressive.
+// Uses ship-card composition: header slot holds the platform name +
+// arch, the default slot holds the filename chip, footer slot holds
+// the primary download action. Detected platform gets a ship-badge in
+// the header slot flagging it as recommended.
+//
+// The client script only toggles a `data-recommended` attribute; the
+// badge visibility is driven by CSS slot sync in the shadow DOM.
 const platforms = [
-  {
-    id: 'macos',
-    label: 'macOS 14+',
-    arch: 'Apple silicon · Intel',
-    filename: 'Ship.dmg',
-    href: '/download/coming-soon',
-    icon: 'apple',
-  },
-  {
-    id: 'windows',
-    label: 'Windows 10/11',
-    arch: '64-bit',
-    filename: 'ShipSetup.exe',
-    href: '/download/coming-soon',
-    icon: 'windows',
-  },
-  {
-    id: 'linux',
-    label: 'Linux',
-    arch: 'x86_64 · arm64',
-    filename: 'ship.AppImage',
-    href: '/download/coming-soon',
-    icon: 'linux',
-  },
+  { id: 'macos', label: 'macOS 14+', arch: 'Apple silicon · Intel', filename: 'Ship.dmg', href: '/download/coming-soon' },
+  { id: 'windows', label: 'Windows 10/11', arch: '64-bit', filename: 'ShipSetup.exe', href: '/download/coming-soon' },
+  { id: 'linux', label: 'Linux', arch: 'x86_64 · arm64', filename: 'ship.AppImage', href: '/download/coming-soon' },
 ];
 ---
 
 <div class="platform-detect" data-detected="">
   <div class="platform-grid">
     {platforms.map((p) => (
-      <ship-card variant="outline" class="platform-card" data-platform={p.id}>
-        <div class="platform-icon" data-icon={p.icon} aria-hidden="true"></div>
-        <div class="platform-body">
-          <div class="platform-label">{p.label}</div>
-          <div class="platform-arch">{p.arch}</div>
-          <div class="platform-file">{p.filename}</div>
+      <ship-card
+        variant="outline"
+        accent-bar
+        padding="lg"
+        class="platform-card"
+        data-platform={p.id}
+      >
+        <div slot="header" class="platform-head">
+          <div class="platform-head-meta">
+            <div class="platform-label">{p.label}</div>
+            <div class="platform-arch">{p.arch}</div>
+          </div>
+          <ship-badge tone="accent" variant="soft" size="sm" class="platform-recommend">
+            Recommended
+          </ship-badge>
         </div>
-        <div class="platform-cta">
+
+        <div class="platform-body">
+          <ship-badge tone="muted" variant="outline" size="sm" class="platform-file">
+            {p.filename}
+          </ship-badge>
+        </div>
+
+        <ship-toolbar slot="footer" justify="between">
+          <span class="platform-meta">Signed &middot; notarized</span>
           <ship-button
             tone="accent"
             variant="solid"
             size="md"
             onclick={`location.href='${p.href}'`}
           >Download</ship-button>
-        </div>
+        </ship-toolbar>
       </ship-card>
     ))}
   </div>
-  <p class="platform-note">
-    Looking for source?
-    <a href="https://github.com/" class="platform-note-a">Star us on GitHub &rarr;</a>
-  </p>
 </div>
 
 <script>
@@ -77,9 +73,7 @@ const platforms = [
     const os = detect();
     host.setAttribute('data-detected', os);
     const card = host.querySelector(`[data-platform="${os}"]`);
-    if (card) {
-      card.setAttribute('data-recommended', '');
-    }
+    if (card) card.setAttribute('data-recommended', '');
   }
 </script>
 
@@ -98,35 +92,22 @@ const platforms = [
     }
   }
   .platform-card {
-    display: flex !important;
-    flex-direction: column;
-    gap: 12px;
-    padding: 22px 20px;
+    display: block;
     transition: transform 200ms var(--ease-out), box-shadow 200ms var(--ease-out);
   }
   .platform-card[data-recommended] {
-    border-color: var(--site-accent) !important;
-    box-shadow:
-      0 0 0 1px var(--site-accent),
-      0 20px 40px -12px color-mix(in oklch, var(--site-accent) 30%, transparent);
     transform: translateY(-2px);
   }
-  .platform-card[data-recommended]::before {
-    content: 'Recommended for you';
-    position: absolute;
-    top: -10px;
-    left: 16px;
-    padding: 2px 10px;
-    background: var(--site-accent);
-    color: var(--site-accent-fg);
-    font-size: 11px;
-    font-weight: 600;
-    letter-spacing: 0.04em;
-    border-radius: 999px;
+  .platform-card[data-recommended]::part(content) {
+    position: relative;
   }
-  .platform-body {
-    flex: 1;
+  .platform-head {
+    display: flex;
+    align-items: flex-start;
+    justify-content: space-between;
+    gap: 12px;
   }
+  .platform-head-meta { min-width: 0; }
   .platform-label {
     font-family: var(--site-font-display);
     font-weight: 700;
@@ -137,63 +118,23 @@ const platforms = [
   .platform-arch {
     color: var(--site-muted-fg);
     font-size: 13px;
-    margin-top: 4px;
+    margin-top: 2px;
+  }
+  .platform-recommend {
+    display: none;
+  }
+  .platform-card[data-recommended] .platform-recommend {
+    display: inline-flex;
+  }
+  .platform-body {
+    padding-top: 4px;
   }
   .platform-file {
     font-family: var(--site-font-mono);
     font-size: 12px;
+  }
+  .platform-meta {
     color: var(--site-muted-fg);
-    margin-top: 10px;
-    padding: 6px 10px;
-    background: color-mix(in oklch, var(--site-border) 20%, transparent);
-    border-radius: 6px;
-    display: inline-block;
-  }
-  .platform-cta {
-    margin-top: 6px;
-  }
-  .platform-dl {
-    color: inherit;
-    text-decoration: none;
-  }
-  .platform-icon {
-    width: 36px;
-    height: 36px;
-    border-radius: 10px;
-    background: color-mix(in oklch, var(--site-accent) 10%, transparent);
-    display: grid;
-    place-items: center;
-    position: relative;
-  }
-  .platform-icon::before {
-    content: '';
-    width: 20px;
-    height: 20px;
-    background: currentColor;
-    mask-size: contain;
-    mask-repeat: no-repeat;
-    mask-position: center;
-    color: var(--site-accent);
-  }
-  .platform-icon[data-icon='apple']::before {
-    mask-image: url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24'><path fill='black' d='M17.05 20.28c-.98.95-2.05.8-3.08.35-1.09-.46-2.09-.48-3.24 0-1.44.62-2.2.44-3.06-.35C2.79 15.25 3.51 7.59 9.05 7.31c1.35.07 2.29.74 3.08.8 1.18-.24 2.31-.93 3.57-.84 1.51.12 2.65.72 3.4 1.8-3.12 1.87-2.38 5.98.48 7.13-.57 1.5-1.31 2.99-2.53 4.08ZM12.03 7.25c-.15-2.23 1.66-4.07 3.74-4.25.29 2.58-2.34 4.5-3.74 4.25Z'/></svg>");
-  }
-  .platform-icon[data-icon='windows']::before {
-    mask-image: url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24'><path fill='black' d='M3 5.5 10.5 4.3v7.2H3V5.5Zm0 7.5h7.5v7.2L3 18.5V13Zm8.5-8.9 9.5-1.5v9H11.5V4.1Zm0 9.1h9.5v9l-9.5-1.5v-7.5Z'/></svg>");
-  }
-  .platform-icon[data-icon='linux']::before {
-    mask-image: url("data:image/svg+xml;utf8,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 24 24'><path fill='black' d='M12 2c-3 0-4.5 2.5-4.5 5.5 0 1.8.6 3 .6 4.5 0 1.2-1.1 2.2-2.1 3.4-1 1.2-2 2.6-2 4.1 0 2 1.5 3 3.5 3 1.5 0 2.5-1 3.5-1s1.5.4 3 .4 3-.8 3.8-1.8 1.2-2.2 1.2-3.2c0-2-1.5-3.2-2.5-4.5s-1.5-2.5-1.5-4c0-3-1.5-6.4-3-6.4Zm-1.5 6.5c.4 0 .7.5.7 1s-.3 1-.7 1-.8-.5-.8-1 .4-1 .8-1Zm3 0c.4 0 .7.5.7 1s-.3 1-.7 1-.8-.5-.8-1 .4-1 .8-1Z'/></svg>");
-  }
-  .platform-note {
-    text-align: center;
-    margin-top: 20px;
-    color: var(--site-muted-fg);
-    font-size: 13px;
-  }
-  .platform-note-a {
-    color: var(--site-fg);
-    margin-left: 6px;
-    font-weight: 600;
-    border-bottom: 1px solid var(--site-accent);
+    font-size: 12px;
   }
 </style>
