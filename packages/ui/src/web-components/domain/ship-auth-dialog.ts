@@ -51,7 +51,12 @@ type AuthMode = 'sign-in' | 'sign-up'
 
 export class ShipAuthDialog extends LitElement {
   static styles = css`
-    :host { display: contents; }
+    /* Closed state: the dialog is inert and its slotted providers/terms
+     * must not leak into the host document's flow. Opening the dialog
+     * flips the host to display:contents so the nested <ship-dialog>
+     * can render its modal chrome normally. */
+    :host { display: none; }
+    :host([open]) { display: contents; }
 
     .body {
       display: flex;

@@ -1,58 +1,79 @@
 ---
-// Highlight 1 — "One chat, every model."
+// Pillar 1 — "Your AI, your way."
 //
-// Left: a stack of provider chats stacked like browser tabs, the
-// active one tinted with its model's accent color. Right: an agent
-// run card showing SHIP orchestrating across providers for a
-// single task — "draft a release post" pulling from Claude for
-// prose, ChatGPT for code, Gemini for screenshots, with per-step
-// cost and duration.
-//
-// Both panels reveal via IntersectionObserver once.
+// Two panels. Left: a stack of agent role cards showing how SHIP
+// configures agents with scoped skills and permissions for a job.
+// Right: those agents running as a chain — summarize → critique →
+// compose → notify — with per-step status so you can see what's
+// already happened and what's queued for your review.
 
-const chats = [
-  { id: 'claude',  name: 'Claude',   desc: 'Long context, thoughtful answers',  accent: 'oklch(0.72 0.14 40)' },
-  { id: 'chatgpt', name: 'ChatGPT',  desc: 'Fast, broad, great for code',       accent: 'oklch(0.66 0.13 155)' },
-  { id: 'gemini',  name: 'Gemini',   desc: 'Multimodal, research-friendly',     accent: 'oklch(0.66 0.14 240)' },
-  { id: 'cursor',  name: 'Cursor',   desc: 'Your IDE agent, in-app',            accent: 'oklch(0.65 0.16 300)' },
+const roles = [
+  {
+    id: 'researcher',
+    name: 'Researcher',
+    skills: ['web', 'read files', 'summarize'],
+    model: 'Claude',
+    tone: 'info',
+  },
+  {
+    id: 'writer',
+    name: 'Writer',
+    skills: ['draft', 'citation check'],
+    model: 'ChatGPT',
+    tone: 'accent',
+  },
+  {
+    id: 'reviewer',
+    name: 'Reviewer',
+    skills: ['critique', 'style', 'block shipping'],
+    model: 'Claude',
+    tone: 'success',
+  },
 ];
 
-const agentSteps = [
-  { label: 'Summarize the week',    provider: 'Claude',  state: 'completed', ms: '1.4s',  cost: '$0.02' },
-  { label: 'Pick 3 highlights',     provider: 'ChatGPT', state: 'completed', ms: '0.9s',  cost: '$0.01' },
-  { label: 'Draft the release post',provider: 'Claude',  state: 'running',   ms: '—',     cost: '—' },
-  { label: 'Grab screenshots',      provider: 'Gemini',  state: 'pending',   ms: '—',     cost: '—' },
+const chainSteps = [
+  { label: 'Gather the source material',  role: 'Researcher', state: 'completed', ms: '1.4s',  cost: '$0.02' },
+  { label: 'Draft the release post',      role: 'Writer',     state: 'completed', ms: '2.1s',  cost: '$0.03' },
+  { label: 'Critique and flag issues',    role: 'Reviewer',   state: 'running',   ms: '—',     cost: '—' },
+  { label: 'Ready for your review',       role: 'You',        state: 'pending',   ms: '—',     cost: '—' },
 ];
 ---
 
 <section class="hl hl-ai" data-visible="false">
   <div class="site-container hl-inner">
     <header class="hl-head">
-      <ship-badge tone="accent" variant="soft" size="sm">One chat, every model</ship-badge>
-      <h2>Pick the right brain, not the right app.</h2>
+      <ship-badge tone="accent" variant="soft" size="sm">Your AI, your way</ship-badge>
+      <h2>Agents that know their job.</h2>
       <p class="hl-sub">
-        Claude, ChatGPT, Gemini, Cursor, OpenCode &mdash; all in one
-        place, all talking to each other. Switch mid-conversation. Ask
-        two models the same question. Let SHIP route each step to
-        whichever model is best for the job.
+        Configure agents with the right skills and permissions for
+        their role, chain them together to create any output, and
+        hand the final result to you for review. SHIP does the
+        orchestrating &mdash; you stay in the loop.
       </p>
     </header>
 
     <div class="hl-demo">
-      <div class="hl-chats">
-        {chats.map((c, i) => (
-          <div
-            class="hl-chat"
-            data-active={i === 0 ? 'true' : 'false'}
-            style={`--accent: ${c.accent}; --i: ${i}`}
+      <div class="hl-roles">
+        {roles.map((r, i) => (
+          <ship-card
+            variant="outline"
+            status-rail
+            tone={r.tone}
+            padding="lg"
+            class="hl-role"
+            style={`--i: ${i}`}
           >
-            <div class="hl-chat-dot" aria-hidden="true"></div>
-            <div class="hl-chat-body">
-              <div class="hl-chat-name">{c.name}</div>
-              <div class="hl-chat-desc">{c.desc}</div>
+            <div slot="header" class="hl-role-head">
+              <ship-badge tone={r.tone} variant="soft" size="sm">agent</ship-badge>
+              <span class="hl-role-model">{r.model}</span>
             </div>
-            <span class="hl-chat-key" aria-hidden="true">&#8984;{i + 1}</span>
-          </div>
+            <div class="hl-role-name">{r.name}</div>
+            <div class="hl-role-skills">
+              {r.skills.map((s) => (
+                <span class="hl-skill">{s}</span>
+              ))}
+            </div>
+          </ship-card>
         ))}
       </div>
 
@@ -60,20 +81,20 @@ const agentSteps = [
         <div slot="header" class="hl-agent-head">
           <div>
             <div class="hl-agent-title">Release post for v1.2</div>
-            <div class="hl-agent-sub">4 steps &middot; 2 models &middot; running now</div>
+            <div class="hl-agent-sub">Chained run &middot; 3 agents &middot; awaiting your review</div>
           </div>
-          <ship-badge tone="info" variant="soft" size="sm">agent</ship-badge>
+          <ship-badge tone="info" variant="soft" size="sm">pipeline</ship-badge>
         </div>
 
         <ul class="hl-agent-steps">
-          {agentSteps.map((s, i) => (
+          {chainSteps.map((s, i) => (
             <li class="hl-agent-step" data-state={s.state} style={`--i: ${i}`}>
               <ship-status-dot
                 tone={s.state === 'completed' ? 'success' : s.state === 'running' ? 'info' : 'muted'}
                 pulse={s.state === 'running'}
               ></ship-status-dot>
               <span class="hl-agent-label">{s.label}</span>
-              <span class="hl-agent-provider">{s.provider}</span>
+              <span class="hl-agent-provider">{s.role}</span>
               <span class="hl-agent-ms">{s.ms}</span>
               <span class="hl-agent-cost">{s.cost}</span>
             </li>
@@ -133,66 +154,63 @@ const agentSteps = [
     .hl-demo { grid-template-columns: 1fr; }
   }
 
-  /* Provider chat stack */
-  .hl-chats {
+  /* Role stack — each card is an agent configured for a job. */
+  .hl-roles {
     display: flex;
     flex-direction: column;
     gap: 10px;
   }
-  .hl-chat {
-    display: grid;
-    grid-template-columns: auto 1fr auto;
-    align-items: center;
-    gap: 14px;
-    padding: 14px 16px;
-    border: 1px solid color-mix(in oklch, var(--border) 55%, transparent);
-    border-radius: var(--radius-lg);
-    background: var(--card);
+  .hl-role {
+    display: block;
     transition:
       opacity 420ms var(--ease-out, cubic-bezier(0.16, 1, 0.3, 1)),
       transform 420ms var(--ease-out, cubic-bezier(0.16, 1, 0.3, 1));
     transition-delay: calc(160ms + var(--i) * 110ms);
   }
-  .hl-chat[data-active='true'] {
-    border-color: color-mix(in oklch, var(--accent) 60%, transparent);
-    box-shadow:
-      0 1px 2px color-mix(in oklch, var(--foreground) 5%, transparent),
-      0 16px 36px -24px color-mix(in oklch, var(--accent) 60%, transparent);
-  }
-  :root.js .hl-ai[data-visible='false'] .hl-chat {
+  :root.js .hl-ai[data-visible='false'] .hl-role {
     opacity: 0;
     transform: translateX(-10px);
   }
-  .hl-ai[data-visible='true'] .hl-chat {
+  .hl-ai[data-visible='true'] .hl-role {
     opacity: 1;
     transform: none;
   }
-  .hl-chat-dot {
-    width: 10px;
-    height: 10px;
-    border-radius: 50%;
-    background: var(--accent);
+  .hl-role-head {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 10px;
   }
-  .hl-chat-name {
-    font-family: var(--font-display);
-    font-weight: 600;
-    font-size: 15px;
-    letter-spacing: -0.01em;
-    color: var(--foreground);
-  }
-  .hl-chat-desc {
-    color: var(--muted-foreground);
-    font-size: 12.5px;
-    margin-top: 2px;
-  }
-  .hl-chat-key {
+  .hl-role-model {
     font-family: var(--font-mono);
     font-size: 11px;
     color: var(--muted-foreground);
     padding: 2px 6px;
     border-radius: 5px;
     background: color-mix(in oklch, var(--border) 30%, transparent);
-    white-space: nowrap;
+  }
+  .hl-role-name {
+    font-family: var(--font-display);
+    font-weight: 700;
+    font-size: 17px;
+    letter-spacing: -0.01em;
+    color: var(--foreground);
+    margin-top: 4px;
+  }
+  .hl-role-skills {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 4px;
+    margin-top: 10px;
+  }
+  .hl-skill {
+    font-size: 11.5px;
+    font-weight: 500;
+    color: var(--muted-foreground);
+    padding: 2px 8px;
+    border-radius: 999px;
+    border: 1px solid color-mix(in oklch, var(--border) 60%, transparent);
+    background: var(--card);
   }
 
   /* Agent run card */

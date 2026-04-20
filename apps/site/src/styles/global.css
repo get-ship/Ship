@@ -248,6 +248,7 @@ ship-alert:not(:defined) {
   font-size: 13px;
 }
 
-ship-dialog:not(:defined) {
+ship-dialog:not(:defined),
+ship-auth-dialog:not(:defined) {
   display: none;
 }
