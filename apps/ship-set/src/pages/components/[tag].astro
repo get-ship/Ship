@@ -26,6 +26,7 @@ function attrsToString(attrs?: Record<string, string>): string {
 }
 
 function shotMarkup(tag: string, shot: ComponentShot): string {
+  if (shot.raw) return shot.raw;
   const open = `<${tag}${attrsToString(shot.attrs)}>`;
   const close = `</${tag}>`;
   const body = shot.innerHTML ?? '';
@@ -37,7 +38,9 @@ function shotMarkup(tag: string, shot: ComponentShot): string {
     : `${open}${body}${close}`;
 }
 
-const allCode = shots.map((s) => shotMarkup(doc.tag, s)).join('\n\n');
+const codeShots = shots.filter((s) => !s.overlay);
+const overlayShots = shots.filter((s) => s.overlay);
+const allCode = codeShots.map((s) => shotMarkup(doc.tag, s)).join('\n\n');
 ---
 
 <BaseLayout title={`${doc.tag} · SHIP SET`} active={`/components/${doc.tag}`}>
@@ -63,28 +66,48 @@ const allCode = shots.map((s) => shotMarkup(doc.tag, s)).join('\n\n');
       <h2 class="cmp-h2">Preview</h2>
       <div class="cmp-preview">
         <div class="cmp-preview-surface">
-          <div class="cmp-shots">
-            {shots.map((s) => (
-              <div class="cmp-shot">
-                <div class="cmp-shot-body" set:html={shotMarkup(doc.tag, s)}></div>
-                <div class="cmp-shot-label">{s.label}</div>
-              </div>
-            ))}
-          </div>
+          {codeShots.length > 0 && (
+            <div class="cmp-shots">
+              {codeShots.map((s) => (
+                <div class="cmp-shot">
+                  <div class="cmp-shot-body" set:html={shotMarkup(doc.tag, s)}></div>
+                  <div class="cmp-shot-label">{s.label}</div>
+                </div>
+              ))}
+            </div>
+          )}
+          {overlayShots.length > 0 && (
+            <div class="cmp-overlay-notes">
+              {overlayShots.map((s) => (
+                <div class="cmp-overlay-note">
+                  <svg viewBox="0 0 24 24" width="16" height="16" aria-hidden="true" fill="none">
+                    <path d="M4 8h16M4 14h16M4 20h16" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" />
+                    <rect x="6" y="4" width="12" height="10" rx="2" stroke="currentColor" stroke-width="1.5" />
+                  </svg>
+                  <div>
+                    <div class="cmp-overlay-label">{s.label}</div>
+                    <div class="cmp-overlay-caption">{s.caption ?? 'Overlay component — renders in the top layer when opened.'}</div>
+                  </div>
+                </div>
+              ))}
+            </div>
+          )}
         </div>
 
-        <details class="cmp-code">
-          <summary>
-            <span>View source</span>
-            <button
-              type="button"
-              class="cmp-copy"
-              data-copy={allCode}
-              aria-label="Copy source"
-            >Copy</button>
-          </summary>
-          <pre class="cmp-code-pre"><code>{allCode}</code></pre>
-        </details>
+        {codeShots.length > 0 && (
+          <details class="cmp-code">
+            <summary>
+              <span>View source</span>
+              <button
+                type="button"
+                class="cmp-copy"
+                data-copy={allCode}
+                aria-label="Copy source"
+              >Copy</button>
+            </summary>
+            <pre class="cmp-code-pre"><code>{allCode}</code></pre>
+          </details>
+        )}
       </div>
     </section>
 
@@ -326,6 +349,44 @@ const allCode = shots.map((s) => shotMarkup(doc.tag, s)).join('\n\n');
     font-size: 10.5px;
     letter-spacing: 0.04em;
     color: var(--muted-foreground);
+  }
+  .cmp-preview-surface .arrow {
+    color: var(--muted-foreground);
+    padding: 0 6px;
+    display: inline-flex;
+    align-items: center;
+  }
+
+  /* Overlay placeholder — describes the component instead of rendering it. */
+  .cmp-overlay-notes {
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+    max-width: 520px;
+    margin: 0 auto;
+  }
+  .cmp-overlay-note {
+    display: grid;
+    grid-template-columns: auto 1fr;
+    gap: 12px;
+    align-items: start;
+    padding: 12px 14px;
+    border: 1px dashed color-mix(in oklch, var(--border) 60%, transparent);
+    border-radius: var(--radius-md);
+    background: var(--card);
+    color: var(--muted-foreground);
+  }
+  .cmp-overlay-note > svg { color: var(--primary); margin-top: 1px; }
+  .cmp-overlay-label {
+    font-family: var(--font-display);
+    font-weight: 700;
+    font-size: 13.5px;
+    color: var(--foreground);
+  }
+  .cmp-overlay-caption {
+    font-size: 12.5px;
+    line-height: 1.5;
+    margin-top: 3px;
   }
 
   /* Code block ---------------------------------------------------- */

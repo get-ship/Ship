@@ -45,21 +45,31 @@ const populated = CATEGORY_ORDER.filter((c) => buckets[c].length > 0);
       <div class="idx-grid">
         {buckets[cat].map((c) => {
           const firstShot = getShots(c.tag)[0];
-          const attrs = firstShot.attrs
-            ? Object.entries(firstShot.attrs)
-                .map(([k, v]) => (v === '' ? ` ${k}` : ` ${k}="${v}"`))
-                .join('')
-            : '';
-          const body = firstShot.innerHTML ?? '';
+          let previewHtml: string;
+          let isOverlay = false;
+          if (firstShot.overlay) {
+            isOverlay = true;
+            previewHtml = `<code class="idx-overlay-hint">${c.tag}</code>`;
+          } else if (firstShot.raw) {
+            previewHtml = firstShot.raw;
+          } else {
+            const attrs = firstShot.attrs
+              ? Object.entries(firstShot.attrs)
+                  .map(([k, v]) => (v === '' ? ` ${k}` : ` ${k}="${v}"`))
+                  .join('')
+              : '';
+            const body = firstShot.innerHTML ?? '';
+            previewHtml = `<${c.tag}${attrs}>${body}</${c.tag}>`;
+          }
           return (
             <a
-              class="idx-card"
+              class:list={['idx-card', isOverlay && 'idx-card-overlay']}
               href={`/components/${c.tag}`}
               data-idx-card
               data-idx-tag={c.tag}
               data-idx-summary={c.summary.toLowerCase()}
             >
-              <div class="idx-card-preview" set:html={`<${c.tag}${attrs}>${body}</${c.tag}>`}></div>
+              <div class="idx-card-preview" set:html={previewHtml}></div>
               <div class="idx-card-meta">
                 <code class="idx-card-tag">{c.tag}</code>
               </div>
@@ -232,4 +242,16 @@ const populated = CATEGORY_ORDER.filter((c) => buckets[c].length > 0);
     -webkit-box-orient: vertical;
     overflow: hidden;
   }
+
+  /* Overlay-type tiles: show tag name placeholder instead of rendering. */
+  .idx-card-overlay .idx-card-preview { padding: 14px 8px; }
+  .idx-overlay-hint {
+    font-family: var(--font-mono);
+    font-size: 11px;
+    padding: 4px 8px;
+    border-radius: var(--radius-sm);
+    border: 1px dashed color-mix(in oklch, var(--border) 70%, transparent);
+    color: var(--muted-foreground);
+  }
+  .idx-card .arrow { color: var(--muted-foreground); padding: 0 3px; }
 </style>
