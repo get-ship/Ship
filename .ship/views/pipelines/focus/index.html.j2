@@ -135,12 +135,12 @@
       <div class="ship-focus-actions">
         {% if workspace_id %}
         <ship-button variant="outline" data-show="!$edit_mode"
-          data-on:click="$edit_mode = true; $edit_error = ''">
+          data-on:click="$edit_mode = true; $edit_error = ''; $edit_issue_count = 0">
           <ship-icon slot="leading" name="edit-3" size="sm"></ship-icon>
           Edit
         </ship-button>
         <ship-button variant="outline" data-show="$edit_mode"
-          data-on:click="window.tryCancelEdit()">
+          data-on:click="$edit_mode = false; $edit_error = ''; $edit_issue_count = 0; window.resetPipelineEditor()">
           Cancel
         </ship-button>
         <ship-button tone="accent" variant="solid" data-show="$edit_mode"
@@ -278,7 +278,7 @@
         language="{{ 'jsonc' if format == 'jsonc' else ('json' if format == 'json' else 'yaml') }}"
         value="{{ raw }}"
         data-on:ship-save="window.savePipeline('{{ workspace_id }}', '{{ name }}')"
-        data-on:ship-cancel="if ($edit_mode) { window.tryCancelEdit() }"
+        data-on:ship-cancel="if ($edit_mode) { $edit_mode = false; $edit_error = ''; $edit_issue_count = 0; window.resetPipelineEditor() }"
         style="min-height: 24rem;"></ship-code-editor>
     </ship-card>
 

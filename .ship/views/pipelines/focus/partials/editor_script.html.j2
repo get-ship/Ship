@@ -1,81 +1,62 @@
 {#-
-  Editor save/cancel/delete helpers for the pipeline focus view.
+  Editor helpers for the pipeline focus view.
 
-  The editor element (`<ship-code-editor id="pipeline-editor">`) owns its
-  own content — its `value="{{ raw }}"` attribute sets the initial text,
-  and its `.value` property is the current draft. There is no parallel
-  `edit_draft` signal: single source of truth lives on the element.
+  Design:
+  - Datastar expressions (on the buttons themselves) do all signal
+    mutation — `$edit_mode = false`, `$edit_error = ''`, etc. JS doesn't
+    read/write Datastar signals; that's Datastar's job.
+  - JS owns two things: HTTP (PUT/DELETE) and editor DOM state.
+  - `<ship-code-editor>` is the single source of truth for draft text.
+    `editor.value` = live draft. `editor.getAttribute('value')` = the
+    pristine content the daemon rendered. No parallel `edit_draft` signal.
 
-  Exposes three functions on `window`:
-    - tryCancelEdit() — exit edit mode, confirm on dirty
-    - savePipeline(workspaceId, name) — PUT and push diagnostics
-    - deletePipeline(workspaceId, name) — DELETE and redirect
-  Plus: `?edit=1` auto-enters edit mode (the New-pipeline flow redirects
-        here with it); beforeunload warns on nav-away with a dirty draft.
+  Exposed on window:
+    - savePipeline(workspaceId, name) — PUT + push diagnostics + reload
+    - deletePipeline(workspaceId, name) — DELETE + redirect
+    - resetPipelineEditor() — restore editor to pristine value + clear lint
 -#}
 <script>
 (function () {
-  // `.ship-view-pipeline-focus` is the daemon's view root — that's where
-  // Datastar binds signals. The shell's <main id="ship-view-root"> wraps
-  // it but holds no signal state.
-  const VIEW_SELECTOR = '.ship-view-pipeline-focus';
   const EDITOR_ID = 'pipeline-editor';
+  const VIEW_CLASS = '.ship-view-pipeline-focus';
 
-  function root() { return document.querySelector(VIEW_SELECTOR); }
-  function editor() { return document.getElementById(EDITOR_ID); }
+  const editor = () => document.getElementById(EDITOR_ID);
+  const view = () => document.querySelector(VIEW_CLASS);
 
-  // Read/write Datastar signals — ignore silently when the editor is not
-  // mounted or Datastar hasn't bound yet, so initial-load helpers can
-  // retry without throwing.
-  function sigs() { return root()?.__ds?.signals; }
-  function setSignal(k, v) {
-    const s = sigs();
-    if (s && s[k]) { s[k].value = v; return; }
-    // Datastar not bound yet — set the attribute so initial render picks it up.
-    root()?.setAttribute('data-signal-' + k, v);
+  // Mutate a Datastar signal via the attribute mechanism. Writing to
+  // `data-signal-name` on the root element triggers Datastar's observer,
+  // which patches the internal signal store.
+  function setSignal(name, value) {
+    const v = view();
+    if (!v) return;
+    v.setAttribute('data-signal-' + name, typeof value === 'string' ? value : String(value));
   }
-  function getSignal(k) { return sigs()?.[k]?.value; }
 
-  // Honor `?edit=1` query param — the New-pipeline flow lands here
-  // expecting to start in the editor immediately.
+  // Honor `?edit=1` from the New-pipeline flow — land in edit mode.
   if (/[?&]edit=1(&|$)/.test(window.location.search)) {
-    let tries = 0;
-    const flip = () => {
-      const s = sigs();
-      if (s?.edit_mode) { s.edit_mode.value = true; return; }
-      if (++tries < 20) setTimeout(flip, 50);
-    };
-    window.addEventListener('DOMContentLoaded', flip);
+    window.addEventListener('DOMContentLoaded', () => setSignal('edit_mode', true));
   }
 
-  // Draft is dirty when the editor's current value differs from the
-  // initial `value=` attribute the daemon rendered.
-  function isDirty() {
+  window.resetPipelineEditor = function () {
     const ed = editor();
-    if (!ed) return false;
-    const original = ed.getAttribute('value') ?? '';
-    return ed.value !== original;
-  }
-
-  function clearErrorUi() {
-    setSignal('edit_error', '');
-    setSignal('edit_error_line', 0);
-    setSignal('edit_error_col', 0);
-    setSignal('edit_issue_count', 0);
-    editor()?.setDiagnostics?.([]);
-  }
-
-  window.tryCancelEdit = function () {
-    if (isDirty() && !window.confirm('Discard unsaved changes to this pipeline?')) return;
-    const ed = editor();
-    if (ed) ed.value = ed.getAttribute('value') ?? '';
-    setSignal('edit_mode', false);
-    clearErrorUi();
+    if (!ed) return;
+    ed.value = ed.getAttribute('value') ?? '';
+    ed.setDiagnostics?.([]);
   };
 
-  // Browser-level guard against nav-away with unsaved changes.
-  window.addEventListener('beforeunload', function (e) {
-    if (getSignal('edit_mode') && isDirty()) {
+  // beforeunload — warn if leaving with a dirty draft. `value` attr is
+  // the pristine content; `.value` property is the live draft.
+  window.addEventListener('beforeunload', (e) => {
+    const ed = editor();
+    if (!ed) return;
+    const pristine = ed.getAttribute('value') ?? '';
+    const dirty = ed.value !== pristine;
+    // Only warn while in edit mode. We can't read $edit_mode from JS,
+    // so use the edit card's visibility as a proxy — data-show hides it
+    // with display:none when out of edit mode.
+    const card = view()?.querySelector('ship-card[data-show="$edit_mode"]');
+    const editing = card && getComputedStyle(card).display !== 'none';
+    if (editing && dirty) {
       e.preventDefault();
       e.returnValue = '';
     }
@@ -109,8 +90,12 @@
     const ed = editor();
     if (!ed) return;
     const draft = ed.value;
-    setSignal('edit_saving', true);
-    clearErrorUi();
+    setSignal('edit_saving', 'true');
+    setSignal('edit_error', '');
+    setSignal('edit_error_line', '0');
+    setSignal('edit_error_col', '0');
+    setSignal('edit_issue_count', '0');
+    pushDiagnostics([]);
     const url = '/api/workspaces/' + encodeURIComponent(workspaceId)
       + '/pipelines/' + encodeURIComponent(name);
     try {
@@ -121,8 +106,6 @@
         body: JSON.stringify({ content: draft }),
       });
       if (resp.ok) {
-        setSignal('edit_mode', false);
-        setSignal('edit_saving', false);
         window.location.reload();
         return;
       }
@@ -132,9 +115,9 @@
       const primary = issues[0];
       if (primary) {
         setSignal('edit_error', primary.message || 'validation error');
-        setSignal('edit_error_line', primary.line || 0);
-        setSignal('edit_error_col', primary.column || 0);
-        setSignal('edit_issue_count', issues.length);
+        setSignal('edit_error_line', String(primary.line || 0));
+        setSignal('edit_error_col', String(primary.column || 0));
+        setSignal('edit_issue_count', String(issues.length));
         pushDiagnostics(issues);
       } else {
         setSignal('edit_error', data.error || ('HTTP ' + resp.status));
@@ -142,7 +125,7 @@
     } catch (err) {
       setSignal('edit_error', 'network: ' + (err?.message || String(err)));
     } finally {
-      setSignal('edit_saving', false);
+      setSignal('edit_saving', 'false');
     }
   };
 })();

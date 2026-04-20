@@ -33,6 +33,19 @@ export async function mountDaemonFragment(
   }
   const html = await res.text();
   target.innerHTML = html;
+
+  // `innerHTML =` does not execute <script> elements per HTML spec —
+  // any inline helpers a view ships never register. Rehydrate them by
+  // cloning each script into a fresh element and swapping it in; the
+  // clone counts as "parser-inserted" and runs.
+  for (const stale of Array.from(target.querySelectorAll("script"))) {
+    const fresh = document.createElement("script");
+    for (const attr of Array.from(stale.attributes)) {
+      fresh.setAttribute(attr.name, attr.value);
+    }
+    fresh.text = stale.textContent ?? "";
+    stale.replaceWith(fresh);
+  }
 }
 
 /**
