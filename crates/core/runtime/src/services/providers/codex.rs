@@ -36,11 +36,24 @@ impl ProviderAdapter for CodexAdapter {
 
     // `codex exec` is non-TUI: it runs the prompt and exits naturally, so
     // ready_pattern / exit_command only matter for the interactive path.
+    //
+    // Flags match the OpenAI docs (developers.openai.com/codex/noninteractive):
+    //   --full-auto           allow edits without approval
+    //   --skip-git-repo-check override git repo requirement (we worktree)
+    //   --json                JSON Lines stream of all events to stdout
+    //                         (thread.started, turn.completed, item.*,
+    //                         turn.failed) — lets the reader thread parse
+    //                         structured failures (usage limits, API errors)
+    //                         instead of guessing from plain text.
+    //   --ephemeral           skip persisting session rollout files; we
+    //                         don't resume these jobs.
     fn build_headless(&self, slug: &str, profile: &LaunchProfile) -> LaunchCommand {
         let mut args = vec![
             "exec".to_string(),
             "--full-auto".to_string(),
             "--skip-git-repo-check".to_string(),
+            "--json".to_string(),
+            "--ephemeral".to_string(),
         ];
         if let Some(ref model) = profile.model {
             args.push("--model".to_string());

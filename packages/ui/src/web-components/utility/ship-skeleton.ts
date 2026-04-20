@@ -57,14 +57,14 @@ export class ShipSkeleton extends LitElement {
     width: { type: String },
     height: { type: String },
     lines: { type: Number },
-    animate: { type: Boolean, reflect: true },
+    animated: { type: Boolean, attribute: 'animate', reflect: true },
   }
 
   variant: SkeletonVariant = 'text'
   width = ''
   height = ''
   lines = 1
-  animate = true
+  animated = true
 
   connectedCallback() {
     super.connectedCallback()

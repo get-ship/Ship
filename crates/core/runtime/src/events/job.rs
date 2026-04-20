@@ -475,6 +475,13 @@ pub struct StepObservedPayload {
     /// HEAD SHA at step start — baseline for post-step diff gate evaluation.
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub start_sha: Option<String>,
+    /// Last ~30 lines of the agent's stdout/stderr log. Populated only on
+    /// non-Advance verdicts so operators can see *why* a step failed
+    /// without SSHing into the worktree. ANSI escapes stripped. Provider-
+    /// agnostic — works for any executor that writes to
+    /// `.artifacts/agent-<slug>.log` (ProcessExecutor does).
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub log_tail: Option<String>,
 }
 
 impl StepObservedPayload {

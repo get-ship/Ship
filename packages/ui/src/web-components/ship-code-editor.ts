@@ -18,6 +18,15 @@
  * Events:
  *   - ship-change: CustomEvent { detail: { value } } debounced 150ms
  *   - input: native bubbling (for Datastar data-bind)
+ *   - ship-save: CustomEvent { detail: { value } } — fired on Mod-s
+ *   - ship-cancel: CustomEvent — fired on Escape (does not prevent the
+ *     default Escape behavior; search panels etc. still close)
+ *
+ * Methods:
+ *   - setDiagnostics(Array<{line, column, endLine?, endColumn?, severity, message, source?}>):
+ *       render CodeMirror lint markers for server-side diagnostics.
+ *       line/column are 1-based; endLine/endColumn are optional and default
+ *       to end-of-line if omitted. Severity is "error"|"warning"|"info".
  *
  * Form association: ElementInternals, formAssociated.
  */
@@ -40,10 +49,23 @@ import {
 } from '@codemirror/commands'
 import { closeBrackets, closeBracketsKeymap } from '@codemirror/autocomplete'
 import { searchKeymap, highlightSelectionMatches } from '@codemirror/search'
+import { lintGutter, setDiagnostics, type Diagnostic } from '@codemirror/lint'
 import { shipEditorTheme, shipHighlighting } from './ship-code-editor.theme'
 import { codeEditorStyles } from './ship-code-editor.styles'
 import { loadLanguage } from './ship-code-editor.languages'
 import type { SupportedLanguage } from './ship-code-editor.languages'
+
+/** Server-shape diagnostic — 1-based line/column, matches the daemon's
+ *  ValidationIssue response for pipelines + other edited configs. */
+export interface ShipDiagnostic {
+  line: number
+  column?: number
+  endLine?: number
+  endColumn?: number
+  severity: 'error' | 'warning' | 'info'
+  message: string
+  source?: string
+}
 
 const DEBOUNCE_MS = 150
 
@@ -79,6 +101,8 @@ export class ShipCodeEditor extends LitElement {
   private _lineNumbersCompartment = new Compartment()
   private _placeholderCompartment = new Compartment()
   private _suppressUpdate = false
+  /** Pending diagnostics queued before the view finishes constructing. */
+  private _pendingDiagnostics: ShipDiagnostic[] | null = null
 
   constructor() {
     super()
@@ -108,12 +132,38 @@ export class ShipCodeEditor extends LitElement {
       highlightActiveLine(),
       highlightSelectionMatches(),
       keymap.of([
+        // Host-intent bindings — fire `ship-save` / `ship-cancel` so the
+        // embedding view can wire them to its own save/exit flow. We
+        // keep CodeMirror's default keymap intact by returning true from
+        // our handlers (don't let the keystroke fall through).
+        {
+          key: 'Mod-s',
+          preventDefault: true,
+          run: () => {
+            this.dispatchEvent(new CustomEvent('ship-save', {
+              detail: { value: this.value }, bubbles: true, composed: true,
+            }))
+            return true
+          },
+        },
+        {
+          key: 'Escape',
+          run: () => {
+            this.dispatchEvent(new CustomEvent('ship-cancel', {
+              bubbles: true, composed: true,
+            }))
+            // Return false so CodeMirror's default Escape handlers
+            // (close search panel, exit multi-cursor) still run.
+            return false
+          },
+        },
         ...closeBracketsKeymap, ...defaultKeymap,
         ...searchKeymap, ...historyKeymap, ...foldKeymap,
         indentWithTab,
       ]),
       shipEditorTheme,
       shipHighlighting,
+      lintGutter(),
       this._langCompartment.of(langExt),
       this._readonlyCompartment.of(EditorState.readOnly.of(this.readonly)),
       this._placeholderCompartment.of(
@@ -131,6 +181,11 @@ export class ShipCodeEditor extends LitElement {
       state: EditorState.create({ doc: this.value || '', extensions }),
       parent: root,
     })
+    // Flush any diagnostics that arrived before the view was ready.
+    if (this._pendingDiagnostics) {
+      this._applyDiagnostics(this._pendingDiagnostics)
+      this._pendingDiagnostics = null
+    }
   }
 
   async updated(changed: Map<string, unknown>): Promise<void> {
@@ -203,6 +258,54 @@ export class ShipCodeEditor extends LitElement {
 
   focus(): void {
     this._view?.focus()
+  }
+
+  /**
+   * Render a set of server-side diagnostics in the CodeMirror lint gutter.
+   *
+   * Pass an empty array to clear existing markers.
+   *
+   * Positions are 1-based. When `endLine`/`endColumn` are omitted, the
+   * diagnostic spans from `(line, column)` to end-of-line so a marker
+   * always has a visible range even when the server only gives us the
+   * starting position of the offending value.
+   */
+  setDiagnostics(diagnostics: ShipDiagnostic[]): void {
+    if (!this._view) {
+      this._pendingDiagnostics = diagnostics
+      return
+    }
+    this._applyDiagnostics(diagnostics)
+  }
+
+  private _applyDiagnostics(diagnostics: ShipDiagnostic[]): void {
+    if (!this._view) return
+    const state = this._view.state
+    const doc = state.doc
+    const cmDiagnostics: Diagnostic[] = diagnostics
+      .map((d) => {
+        const line = Math.max(1, Math.min(doc.lines, d.line | 0))
+        const startLine = doc.line(line)
+        const col = Math.max(1, (d.column ?? 1) | 0)
+        const from = Math.min(
+          startLine.to,
+          startLine.from + col - 1,
+        )
+        const endL = d.endLine ?? line
+        const endLineObj = doc.line(Math.max(1, Math.min(doc.lines, endL | 0)))
+        const endCol = d.endColumn
+        const to = endCol != null
+          ? Math.min(endLineObj.to, endLineObj.from + (endCol - 1))
+          : endLineObj.to
+        return {
+          from,
+          to: Math.max(from + 1, to),
+          severity: d.severity,
+          message: d.message,
+          source: d.source,
+        } as Diagnostic
+      })
+    this._view.dispatch(setDiagnostics(state, cmDiagnostics))
   }
 
   render() {

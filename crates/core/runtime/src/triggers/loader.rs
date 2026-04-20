@@ -1,33 +1,33 @@
-//! Hook loader — scan `.ship/hooks/*.jsonc` and return validated [`HookDef`]s.
+//! Trigger loader — scan `.ship/triggers/*.jsonc` and return validated [`TriggerDef`]s.
 
 use std::path::Path;
 
 use ship_types::event_types::ALL as KNOWN_EVENT_TYPES;
 
-use super::def::{HookAction, HookActionType, HookDef};
+use super::def::{ActionKind, TriggerAction, TriggerDef};
 
-/// A single hook that failed to load, with a human-readable reason.
+/// A single trigger that failed to load, with a human-readable reason.
 #[derive(Debug, Clone)]
 pub struct LoadError {
     pub file: String,
     pub reason: String,
 }
 
-/// Result of scanning a hooks directory: parsed hooks plus any failures.
+/// Result of scanning a triggers directory: parsed triggers plus any failures.
 #[derive(Debug, Default)]
 pub struct LoadReport {
-    pub hooks: Vec<HookDef>,
+    pub triggers: Vec<TriggerDef>,
     pub errors: Vec<LoadError>,
 }
 
-/// Load every `*.jsonc` / `*.json` hook under `<ship_dir>/hooks/`.
+/// Load every `*.jsonc` / `*.json` trigger under `<ship_dir>/triggers/`.
 ///
-/// Invalid hooks are collected in `errors` — the loader never panics. Missing
-/// directory is not an error; it returns an empty report.
-pub fn load_hooks_dir(ship_dir: &Path) -> LoadReport {
-    let hooks_dir = ship_dir.join("hooks");
+/// Invalid triggers are collected in `errors` — the loader never panics.
+/// Missing directory is not an error; it returns an empty report.
+pub fn load_triggers_dir(ship_dir: &Path) -> LoadReport {
+    let triggers_dir = ship_dir.join("triggers");
     let mut report = LoadReport::default();
-    let entries = match std::fs::read_dir(&hooks_dir) {
+    let entries = match std::fs::read_dir(&triggers_dir) {
         Ok(it) => it,
         Err(_) => return report,
     };
@@ -57,9 +57,9 @@ pub fn load_hooks_dir(ship_dir: &Path) -> LoadReport {
                 continue;
             }
         };
-        match parse_hook(&content) {
-            Ok(hook) => match validate_hook(&hook, ship_dir) {
-                Ok(()) => report.hooks.push(hook),
+        match parse_trigger(&content) {
+            Ok(trigger) => match validate_trigger(&trigger, ship_dir) {
+                Ok(()) => report.triggers.push(trigger),
                 Err(reason) => report.errors.push(LoadError { file, reason }),
             },
             Err(reason) => report.errors.push(LoadError { file, reason }),
@@ -69,29 +69,29 @@ pub fn load_hooks_dir(ship_dir: &Path) -> LoadReport {
     report
 }
 
-/// Parse a single JSONC hook document.
-pub fn parse_hook(jsonc: &str) -> Result<HookDef, String> {
-    compiler::jsonc::from_jsonc_str::<HookDef>(jsonc).map_err(|e| format!("parse failed: {e}"))
+/// Parse a single JSONC trigger document.
+pub fn parse_trigger(jsonc: &str) -> Result<TriggerDef, String> {
+    compiler::jsonc::from_jsonc_str::<TriggerDef>(jsonc).map_err(|e| format!("parse failed: {e}"))
 }
 
 /// Validate event type, actions, and template files. Pure, takes the ship
 /// directory so template existence checks can resolve relative paths.
-pub fn validate_hook(hook: &HookDef, ship_dir: &Path) -> Result<(), String> {
-    if hook.name.trim().is_empty() {
-        return Err("hook name is required".to_string());
+pub fn validate_trigger(trigger: &TriggerDef, ship_dir: &Path) -> Result<(), String> {
+    if trigger.name.trim().is_empty() {
+        return Err("trigger name is required".to_string());
     }
-    if !is_known_event(&hook.trigger.event) {
-        return Err(format!("unknown event type '{}'", hook.trigger.event));
+    if !is_known_event(&trigger.trigger.event) {
+        return Err(format!("unknown event type '{}'", trigger.trigger.event));
     }
-    for (idx, action) in hook.actions.iter().enumerate() {
+    for (idx, action) in trigger.actions.iter().enumerate() {
         validate_action(action, idx, ship_dir)?;
     }
     Ok(())
 }
 
-fn validate_action(action: &HookAction, idx: usize, ship_dir: &Path) -> Result<(), String> {
+fn validate_action(action: &TriggerAction, idx: usize, ship_dir: &Path) -> Result<(), String> {
     match &action.action_type {
-        HookActionType::CollectionInsert {
+        ActionKind::CollectionInsert {
             collection,
             template_file,
             ..
@@ -109,7 +109,7 @@ fn validate_action(action: &HookAction, idx: usize, ship_dir: &Path) -> Result<(
             }
             Ok(())
         }
-        HookActionType::CollectionUpdate {
+        ActionKind::CollectionUpdate {
             collection, filter, ..
         } => {
             if collection.trim().is_empty() {
@@ -122,13 +122,13 @@ fn validate_action(action: &HookAction, idx: usize, ship_dir: &Path) -> Result<(
             }
             Ok(())
         }
-        HookActionType::EventEmit { event_type, .. } => {
+        ActionKind::EventEmit { event_type, .. } => {
             if event_type.trim().is_empty() {
                 return Err(format!("action[{idx}] event.emit: event_type is required"));
             }
             Ok(())
         }
-        HookActionType::PipelineTrigger { pipeline, .. } => {
+        ActionKind::PipelineTrigger { pipeline, .. } => {
             if pipeline.trim().is_empty() {
                 return Err(format!("action[{idx}] pipeline.trigger: pipeline is required"));
             }
@@ -143,6 +143,6 @@ fn is_known_event(event: &str) -> bool {
 
 fn log_errors(report: &LoadReport) {
     for err in &report.errors {
-        tracing::warn!(file = %err.file, reason = %err.reason, "hooks: invalid hook skipped");
+        tracing::warn!(file = %err.file, reason = %err.reason, "triggers: invalid definition skipped");
     }
 }

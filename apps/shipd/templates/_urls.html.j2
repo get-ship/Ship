@@ -21,6 +21,10 @@
 {%- macro list_themes() -%}/api/runtime/themes{%- endmacro -%}
 {%- macro view_pipelines() -%}/api/runtime/view/pipelines{%- endmacro -%}
 {%- macro view_pipelines_sse() -%}/api/runtime/view/pipelines/sse{%- endmacro -%}
+{%- macro view_pipelines_history() -%}/api/runtime/view/pipelines/history{%- endmacro -%}
+{%- macro view_pipeline_focus(name) -%}/api/runtime/view/pipelines/pipeline/{{ name }}{%- endmacro -%}
+{%- macro view_pipeline_run(slug) -%}/api/runtime/view/pipelines/run/{{ slug }}{%- endmacro -%}
+{%- macro view_pipeline_run_sse(slug) -%}/api/runtime/view/pipelines/run/{{ slug }}/sse{%- endmacro -%}
 {%- macro view_specs() -%}/api/runtime/view/specs{%- endmacro -%}
 {%- macro view_specs_sse() -%}/api/runtime/view/specs/sse{%- endmacro -%}
 {%- macro view_git() -%}/api/runtime/view/git{%- endmacro -%}
@@ -59,10 +63,11 @@
 {%- macro stop_agent(slug) -%}/api/runtime/agents/{{ slug }}/stop{%- endmacro -%}
 {%- macro steer_agent(slug) -%}/api/runtime/agents/{{ slug }}/steer{%- endmacro -%}
 {%- macro list_jobs() -%}/api/runtime/jobs{%- endmacro -%}
-{%- macro create_job() -%}/api/runtime/jobs{%- endmacro -%}
+{%- macro dispatch_pipeline() -%}/api/runtime/dispatch{%- endmacro -%}
 {%- macro get_job(job_id) -%}/api/runtime/jobs/{{ job_id }}{%- endmacro -%}
 {%- macro end_job() -%}/api/runtime/jobs/end{%- endmacro -%}
 {%- macro cancel_job(slug) -%}/api/runtime/jobs/{{ slug }}/cancel{%- endmacro -%}
+{%- macro stream_job_log(slug) -%}/api/runtime/jobs/{{ slug }}/log/stream{%- endmacro -%}
 {%- macro list_procs() -%}/api/runtime/procs{%- endmacro -%}
 {%- macro poll_events() -%}/api/runtime/events/poll{%- endmacro -%}
 {%- macro daemon_status() -%}/api/runtime/daemon/status{%- endmacro -%}

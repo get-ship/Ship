@@ -19,6 +19,7 @@ path = "src/main.rs"
 [dependencies]
 runtime = { path = "../../crates/core/runtime" }
 compiler = { path = "../../crates/core/compiler" }
+ship-jobs = { path = "../../crates/core/ship-jobs" }
 chrono = { version = "0.4", features = ["serde"] }
 tokio = { version = "1.0", features = ["full"] }
 tokio-util = { version = "0.7", features = ["full"] }
@@ -54,6 +55,9 @@ thiserror = "2"
 ammonia = "4"
 form_urlencoded = "1"
 include_dir = "0.7"
+# JSON Schema validator (Draft 2020-12). Used to validate pipeline
+# documents on write — catches structural errors beyond parse errors.
+jsonschema = { version = "0.46", default-features = false }
 # Cross-platform pseudo-terminal allocation (PTY on Unix, ConPTY on
 # Windows). Used by ProcessExecutor so spawned agents see a real TTY —
 # stream-json and human output stay line-buffered, isatty checks work.

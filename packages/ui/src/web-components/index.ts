@@ -99,6 +99,7 @@ export { ShipToolbar } from './ship-toolbar'
 export { ShipTooltip } from './ship-tooltip'
 
 export { ShipPipelineStep } from './domain/ship-pipeline-step'
+export { ShipPipelineStepDef } from './domain/ship-pipeline-step-def'
 export { ShipPipelineRun } from './domain/ship-pipeline-run'
 export { ShipPipelineDefinition } from './domain/ship-pipeline-definition'
 export { ShipPipelineDag } from './domain/ship-pipeline-dag'

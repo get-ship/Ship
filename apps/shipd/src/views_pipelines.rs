@@ -14,7 +14,7 @@
 //! go through `crate::views::state` + `crate::views_pipelines_data`.
 
 use axum::extract::{Query, State};
-use axum::http::StatusCode;
+use axum::http::{HeaderMap, StatusCode};
 use axum::response::Html;
 use runtime::events::ActorConfig;
 use runtime::gen_ulid;
@@ -25,7 +25,8 @@ use std::path::PathBuf;
 use std::time::Duration;
 
 use crate::views::state::{
-    Filter, PipelineDef, list_pipeline_defs, list_pipeline_runs, partition_runs, status_token,
+    Filter, PipelineDef, aggregate_pipeline_stats, list_pipeline_defs, list_pipeline_runs,
+    partition_runs, status_token, status_tone,
 };
 use crate::views::stream::{ViewSse, ViewStream};
 use crate::views::templates;
@@ -52,6 +53,33 @@ impl PipelinesParams {
     /// Selected agent filter (empty string = "All agents").
     pub fn agent_filter(&self) -> String {
         self.filter.agent.clone().unwrap_or_default()
+    }
+}
+
+/// Query string for the history view. Independent of PipelinesParams
+/// since the filters it surfaces (search + pagination) differ.
+#[derive(Clone, Debug, Default, Deserialize)]
+pub struct HistoryParams {
+    /// Case-insensitive substring applied to slug, agent, and pipeline name.
+    #[serde(default)]
+    pub q: Option<String>,
+    /// Exact pipeline name filter (matches the tile chip on the list view).
+    #[serde(default)]
+    pub pipeline: Option<String>,
+    /// Zero-based offset into the history list.
+    #[serde(default)]
+    pub offset: Option<usize>,
+    /// Page size; clamped to 1..=200.
+    #[serde(default)]
+    pub limit: Option<usize>,
+}
+
+impl HistoryParams {
+    pub fn page_limit(&self) -> usize {
+        self.limit.unwrap_or(50).clamp(1, 200)
+    }
+    pub fn page_offset(&self) -> usize {
+        self.offset.unwrap_or(0)
     }
 }
 
@@ -125,6 +153,12 @@ pub struct PipelinesCtx {
     pub history_runs: Vec<RunView>,
     /// Status pill row shown above tabs — one per state.
     pub status_pills: Vec<StatusPill>,
+    /// Provider IDs detected on PATH. Feeds the dispatch dialog's
+    /// optional provider override. Unavailable providers are excluded.
+    pub providers: Vec<String>,
+    /// Workspace id (git branch at the project root). Drives the
+    /// "New pipeline" flow — PUT /api/workspaces/{workspace_id}/...
+    pub workspace_id: Option<String>,
 }
 
 fn run_state_token(s: &JobStatus) -> &'static str {
@@ -298,10 +332,11 @@ fn build_subtitle(stats: &Stats) -> String {
 }
 
 pub fn build_ctx(params: &PipelinesParams, ship_dir: &std::path::Path) -> PipelinesCtx {
-    let defs = list_pipeline_defs(ship_dir);
+    let mut defs = list_pipeline_defs(ship_dir);
     // Unfiltered pass populates the agent-chip row; the active
     // filter only narrows rendered runs, not the chip options.
     let all_runs = list_pipeline_runs(ship_dir, &Filter::default());
+    aggregate_pipeline_stats(&mut defs, all_runs.iter());
     let agents: Vec<String> = all_runs
         .iter()
         .map(|j| j.agent.clone())
@@ -366,6 +401,12 @@ pub fn build_ctx(params: &PipelinesParams, ship_dir: &std::path::Path) -> Pipeli
         StatusPill { label: "Failed", tone: "destructive", count: all_by_status(JobStatus::Failed) },
     ];
 
+    let providers: Vec<String> = runtime::agent_export::PROVIDERS
+        .iter()
+        .filter(|d| runtime::detect_binary(d.binary))
+        .map(|d| d.id.to_string())
+        .collect();
+
     PipelinesCtx {
         active_tab: params.active_tab(),
         filter: params.filter.clone(),
@@ -377,6 +418,8 @@ pub fn build_ctx(params: &PipelinesParams, ship_dir: &std::path::Path) -> Pipeli
         active_runs,
         history_runs,
         status_pills,
+        providers,
+        workspace_id: current_project_workspace_id(),
     }
 }
 
@@ -389,18 +432,494 @@ fn try_render_view(file: &str, ctx: &PipelinesCtx) -> Option<String> {
     templates::render_view_source(&template_name, &source, ctx).ok()
 }
 
+// ── Run detail ──────────────────────────────────────────────────────────────
+
+/// Per-run detail context — job record + step observations + timeline.
+#[derive(Serialize)]
+pub struct RunDetailCtx {
+    pub slug: String,
+    pub run: RunView,
+    /// Ordered step observations derived from step.observed events.
+    /// Carries verdict, trigger, exit_code, duration, log_tail.
+    pub observations: Vec<StepObservationRow>,
+    /// Recent events for this job, oldest first, capped.
+    pub timeline: Vec<TimelineRow>,
+}
+
+#[derive(Serialize)]
+pub struct StepObservationRow {
+    pub step_name: String,
+    pub step_index: usize,
+    pub trigger: String,
+    pub verdict: String,
+    pub succeeded: bool,
+    pub done_declared: bool,
+    pub exit_code: Option<i32>,
+    pub duration_secs: u64,
+    pub commits: u32,
+    pub reason: Option<String>,
+    pub log_tail: Option<String>,
+}
+
+#[derive(Serialize)]
+pub struct TimelineRow {
+    pub event_type: String,
+    pub at: String,
+    pub summary: String,
+}
+
+/// Build run-detail context for `slug`. Returns `None` when no job
+/// record matches.
+pub fn build_run_detail_ctx(slug: &str, ship_dir: &std::path::Path) -> Option<RunDetailCtx> {
+    let jobs = runtime::projections::job::load_jobs_at(ship_dir).ok()?;
+    let job = jobs.values().find(|j| j.slug == slug)?;
+    let run = to_run_view(job, true);
+    let events = runtime::db::events::query_recent_events_for_entity_at(
+        &ship_dir.join("platform.db"),
+        &job.job_id,
+        500,
+    )
+    .unwrap_or_default();
+
+    let mut observations: Vec<StepObservationRow> = events
+        .iter()
+        .filter(|e| e.event_type == "step.observed")
+        .filter_map(|e| {
+            serde_json::from_str::<runtime::events::job::StepObservedPayload>(&e.payload_json)
+                .ok()
+                .map(|p| StepObservationRow {
+                    step_name: p.step_name,
+                    step_index: p.step_index,
+                    trigger: format!("{:?}", p.trigger),
+                    verdict: format!("{:?}", p.verdict),
+                    succeeded: p.succeeded,
+                    done_declared: p.done_declared,
+                    exit_code: p.exit_code,
+                    duration_secs: p.duration_secs,
+                    commits: p.commits_since_start,
+                    reason: p.reason,
+                    log_tail: p.log_tail,
+                })
+        })
+        .collect();
+    observations.sort_by_key(|o| o.step_index);
+
+    let timeline: Vec<TimelineRow> = events
+        .iter()
+        .rev() // oldest first
+        .map(|e| TimelineRow {
+            event_type: e.event_type.clone(),
+            at: e.created_at.to_rfc3339(),
+            summary: event_summary(e),
+        })
+        .collect();
+
+    Some(RunDetailCtx { slug: slug.to_string(), run, observations, timeline })
+}
+
+fn event_summary(env: &runtime::events::EventEnvelope) -> String {
+    let v: serde_json::Value =
+        serde_json::from_str(&env.payload_json).unwrap_or(serde_json::Value::Null);
+    match env.event_type.as_str() {
+        "job.created" => v.get("pipeline_name").and_then(|x| x.as_str())
+            .map(|s| format!("pipeline: {s}")).unwrap_or_default(),
+        "job.dispatched" => "job dispatched".to_string(),
+        "job.completed" => "job completed".to_string(),
+        "job.merged" => "job merged".to_string(),
+        "job.failed" => v.get("error").and_then(|x| x.as_str())
+            .map(|s| s.lines().next().unwrap_or("failed").to_string())
+            .unwrap_or("failed".to_string()),
+        "step.dispatched" => v.get("step_id").and_then(|x| x.as_str())
+            .map(|s| format!("→ {s}")).unwrap_or_default(),
+        "step.observed" => {
+            let name = v.get("step_name").and_then(|x| x.as_str()).unwrap_or("?");
+            let verdict = v.get("verdict").and_then(|x| x.as_str()).unwrap_or("?");
+            format!("{name} — {verdict}")
+        }
+        "process.spawned" => v.get("cmd").and_then(|x| x.as_str())
+            .map(|s| format!("spawned {s}")).unwrap_or_default(),
+        "process.exited" => v.get("exit_code").and_then(|x| x.as_i64())
+            .map(|c| format!("exit {c}")).unwrap_or("exited".to_string()),
+        "process.signal_sent" => v.get("signal").and_then(|x| x.as_str())
+            .map(|s| format!("signal {s}")).unwrap_or_default(),
+        _ => String::new(),
+    }
+}
+
+/// Per-pipeline focus context — full definition + runs of that pipeline.
+#[derive(Serialize)]
+pub struct PipelineFocusCtx {
+    pub name: String,
+    pub def: PipelineDef,
+    /// Raw pipeline document as JSON (converted from YAML/JSONC) — the
+    /// template unpacks steps, gate rules, vars, auto_merge, step_specs.
+    pub doc: serde_json::Value,
+    /// Verbatim file contents on disk (JSONC or YAML). Fed into
+    /// <ship-code-editor> for the raw-edit mode. Writes go back to
+    /// PUT /api/workspaces/{workspace_id}/pipelines/{name}.
+    pub raw: String,
+    /// On-disk file extension — "jsonc" (preferred) or "yaml".
+    pub format: String,
+    /// Workspace id (= current git branch at the project root) that
+    /// the editor PUTs back to. None when the daemon can't resolve
+    /// a current workspace.
+    pub workspace_id: Option<String>,
+    /// Runs of this pipeline, newest first.
+    pub runs: Vec<RunView>,
+    /// Provider IDs on PATH for the dispatch form.
+    pub providers: Vec<String>,
+}
+
+fn find_pipeline_file(name: &str) -> Option<std::path::PathBuf> {
+    let mut walker = std::env::current_dir().ok()?;
+    loop {
+        let dir = walker.join(".ship").join("pipelines");
+        if dir.is_dir() {
+            for ext in ["yaml", "yml", "jsonc", "json"] {
+                let cand = dir.join(format!("{name}.{ext}"));
+                if cand.exists() {
+                    return Some(cand);
+                }
+            }
+            return None;
+        }
+        if !walker.pop() {
+            return None;
+        }
+    }
+}
+
+/// Flat row shape for the history table. Runs here are already in
+/// `RunCategory::History` — no active jobs bleed through.
+#[derive(Serialize, Clone)]
+pub struct HistoryRow {
+    pub slug: String,
+    pub pipeline: String,
+    pub agent: String,
+    pub state: &'static str,
+    pub tone: &'static str,
+    pub duration: String,
+    pub updated_at: String,
+    pub branch: String,
+}
+
+#[derive(Serialize)]
+pub struct HistoryCtx {
+    /// Current filter state, echoed back for form inputs.
+    pub q: String,
+    pub pipeline_filter: String,
+    /// Page window.
+    pub rows: Vec<HistoryRow>,
+    pub total: usize,
+    pub offset: usize,
+    pub limit: usize,
+    pub has_prev: bool,
+    pub has_next: bool,
+    /// All pipeline names that have ever produced a run — feeds the
+    /// pipeline-filter `<ship-select>`.
+    pub pipelines: Vec<String>,
+}
+
+pub fn build_history_ctx(
+    params: &HistoryParams,
+    ship_dir: &std::path::Path,
+) -> HistoryCtx {
+    // Load every run, then narrow: history-only, optional pipeline match,
+    // optional case-insensitive q substring across slug/agent/pipeline.
+    let filter = Filter {
+        pipeline: params.pipeline.clone().filter(|s| !s.is_empty()),
+        ..Filter::default()
+    };
+    let all = list_pipeline_runs(ship_dir, &filter);
+    let (_active, history_all) = partition_runs(all);
+    let q = params.q.clone().unwrap_or_default();
+    let q_lower = q.to_lowercase();
+    let filtered: Vec<JobRecord> = history_all
+        .into_iter()
+        .filter(|j| {
+            if q_lower.is_empty() {
+                return true;
+            }
+            let pname = crate::views::state::pipeline_name_for_job_public(j)
+                .unwrap_or_default();
+            j.slug.to_lowercase().contains(&q_lower)
+                || j.agent.to_lowercase().contains(&q_lower)
+                || pname.to_lowercase().contains(&q_lower)
+        })
+        .collect();
+    let total = filtered.len();
+
+    let offset = params.page_offset().min(total);
+    let limit = params.page_limit();
+    let window: Vec<JobRecord> = filtered
+        .into_iter()
+        .skip(offset)
+        .take(limit)
+        .collect();
+
+    // All distinct pipeline names across ALL runs (not just filtered) so
+    // the pipeline selector always includes every historical option.
+    let pipelines: Vec<String> = {
+        let unfiltered = list_pipeline_runs(ship_dir, &Filter::default());
+        let (_a, h) = partition_runs(unfiltered);
+        let mut set = BTreeSet::new();
+        for j in &h {
+            if let Some(p) = crate::views::state::pipeline_name_for_job_public(j) {
+                set.insert(p);
+            }
+        }
+        set.into_iter().collect()
+    };
+
+    let rows: Vec<HistoryRow> = window
+        .into_iter()
+        .map(|j| HistoryRow {
+            slug: j.slug.clone(),
+            pipeline: crate::views::state::pipeline_name_for_job_public(&j).unwrap_or_default(),
+            agent: j.agent.clone(),
+            state: run_state_token(&j.status),
+            tone: status_tone(&j.status),
+            duration: format_duration_between(&j.created_at, &j.updated_at),
+            updated_at: j.updated_at.to_rfc3339(),
+            branch: j.branch.clone(),
+        })
+        .collect();
+
+    let has_prev = offset > 0;
+    let has_next = offset + limit < total;
+
+    HistoryCtx {
+        q,
+        pipeline_filter: params.pipeline.clone().unwrap_or_default(),
+        rows,
+        total,
+        offset,
+        limit,
+        has_prev,
+        has_next,
+        pipelines,
+    }
+}
+
+fn format_duration_between(
+    start: &chrono::DateTime<chrono::Utc>,
+    end: &chrono::DateTime<chrono::Utc>,
+) -> String {
+    let secs = (end.signed_duration_since(*start)).num_seconds().max(0);
+    if secs < 60 {
+        format!("{secs}s")
+    } else if secs < 3600 {
+        format!("{}m {}s", secs / 60, secs % 60)
+    } else {
+        format!("{}h {}m", secs / 3600, (secs % 3600) / 60)
+    }
+}
+
+pub fn build_focus_ctx(name: &str, ship_dir: &std::path::Path) -> Option<PipelineFocusCtx> {
+    let path = find_pipeline_file(name)?;
+    let raw = std::fs::read_to_string(&path).ok()?;
+    let doc: serde_json::Value = {
+        let trimmed = raw.trim_start();
+        if trimmed.starts_with('{') || trimmed.starts_with('[') {
+            let json = compiler::jsonc::strip_jsonc_comments(&raw);
+            serde_json::from_str(&json).ok()?
+        } else {
+            let v: serde_yaml::Value = serde_yaml::from_str(&raw).ok()?;
+            serde_json::to_value(v).ok()?
+        }
+    };
+
+    // Reuse list_pipeline_defs + aggregate to get the same stats shape.
+    let mut defs = list_pipeline_defs(ship_dir);
+    let all_runs = list_pipeline_runs(ship_dir, &Filter::default());
+    aggregate_pipeline_stats(&mut defs, all_runs.iter());
+    let def = defs.into_iter().find(|d| d.name == name)?;
+
+    let runs: Vec<RunView> = all_runs
+        .iter()
+        .filter(|j| {
+            j.slug.rsplit_once('-')
+                .map(|(prefix, suffix)| {
+                    prefix == name
+                        && suffix.len() == 8
+                        && suffix.chars().all(|c| c.is_ascii_alphanumeric())
+                })
+                .unwrap_or(false)
+        })
+        .take(25)
+        .map(|j| to_run_view(j, true))
+        .collect();
+
+    let providers: Vec<String> = runtime::agent_export::PROVIDERS
+        .iter()
+        .filter(|d| runtime::detect_binary(d.binary))
+        .map(|d| d.id.to_string())
+        .collect();
+
+    let format = path
+        .extension()
+        .and_then(|e| e.to_str())
+        .unwrap_or("jsonc")
+        .to_string();
+    let workspace_id = current_project_workspace_id();
+
+    Some(PipelineFocusCtx {
+        name: name.to_string(),
+        def,
+        doc,
+        raw,
+        format,
+        workspace_id,
+        runs,
+        providers,
+    })
+}
+
+/// The workspace id the editor PUTs to — current git branch at the
+/// project root the daemon is attached to. None when the project
+/// isn't a git repo or the branch can't be determined.
+fn current_project_workspace_id() -> Option<String> {
+    let project_ship = runtime::project::get_project_dir(None).ok()?;
+    let root = project_ship.parent()?;
+    let out = std::process::Command::new("git")
+        .args(["rev-parse", "--abbrev-ref", "HEAD"])
+        .current_dir(root)
+        .output()
+        .ok()?;
+    if !out.status.success() {
+        return None;
+    }
+    let branch = String::from_utf8_lossy(&out.stdout).trim().to_string();
+    if branch.is_empty() { None } else { Some(branch) }
+}
+
+/// True when the caller is the shell (Datastar-Request header). In that
+/// case the template should emit a fragment — DOCTYPE/html/body would
+/// become nested children of the shell's `<main id="ship-view-root">`
+/// and wreck the layout.
+fn is_fragment_request(headers: &HeaderMap) -> bool {
+    headers
+        .get("datastar-request")
+        .and_then(|v| v.to_str().ok())
+        .map(|s| s.eq_ignore_ascii_case("true"))
+        .unwrap_or(false)
+}
+
+/// Render a view file with fragment mode forwarded into the template
+/// context so `{% if not fragment %}<!DOCTYPE ...{% endif %}` elides
+/// the outer chrome when the shell requests a fragment.
+fn render_with_fragment<T: serde::Serialize>(
+    template_name: &str,
+    source: &str,
+    ctx: &T,
+    fragment: bool,
+) -> Result<Html<String>, StatusCode> {
+    let mut value = serde_json::to_value(ctx).map_err(|e| {
+        tracing::error!(error = %e, "ctx serialize failed");
+        StatusCode::INTERNAL_SERVER_ERROR
+    })?;
+    if fragment
+        && let serde_json::Value::Object(ref mut map) = value
+    {
+        map.insert("fragment".into(), serde_json::Value::Bool(true));
+    }
+    templates::render_view_source(template_name, source, &value)
+        .map(Html)
+        .map_err(|e| {
+            tracing::error!(error = %e, template = %template_name, "view render failed");
+            StatusCode::INTERNAL_SERVER_ERROR
+        })
+}
+
+/// GET /api/runtime/view/pipelines/pipeline/{name} — per-pipeline focus shell.
+pub async fn pipeline_focus_shell(
+    State(state): State<crate::rest_api::ApiState>,
+    headers: HeaderMap,
+    axum::extract::Path(name): axum::extract::Path<String>,
+) -> Result<Html<String>, StatusCode> {
+    let Some(ctx) = build_focus_ctx(&name, state.ship_dir()) else {
+        return Err(StatusCode::NOT_FOUND);
+    };
+    let Some((view_dir, _)) = crate::views::resolve_view_dir("pipelines") else {
+        return Err(StatusCode::INTERNAL_SERVER_ERROR);
+    };
+    let path = view_dir.join("focus").join("index.html.j2");
+    let source = std::fs::read_to_string(&path).map_err(|_| StatusCode::NOT_FOUND)?;
+    render_with_fragment(
+        "pipelines/focus/index.html.j2",
+        &source,
+        &ctx,
+        is_fragment_request(&headers),
+    )
+}
+
+/// GET /api/runtime/view/pipelines/run/{slug} — run detail shell.
+pub async fn pipelines_run_shell(
+    State(state): State<crate::rest_api::ApiState>,
+    headers: HeaderMap,
+    axum::extract::Path(slug): axum::extract::Path<String>,
+) -> Result<Html<String>, StatusCode> {
+    let Some(ctx) = build_run_detail_ctx(&slug, state.ship_dir()) else {
+        return Err(StatusCode::NOT_FOUND);
+    };
+    let Some((view_dir, _)) = crate::views::resolve_view_dir("pipelines") else {
+        return Err(StatusCode::INTERNAL_SERVER_ERROR);
+    };
+    let path = view_dir.join("run").join("index.html.j2");
+    let source = std::fs::read_to_string(&path).map_err(|_| StatusCode::NOT_FOUND)?;
+    render_with_fragment(
+        "pipelines/run/index.html.j2",
+        &source,
+        &ctx,
+        is_fragment_request(&headers),
+    )
+}
+
+/// GET /api/runtime/view/pipelines/history — dedicated paginated history.
+///
+/// Accepts `?q=<substr>&offset=<n>&limit=<n>` for filtering + pagination.
+/// `q` matches against slug / agent / pipeline name (case-insensitive).
+pub async fn pipelines_history_shell(
+    State(state): State<crate::rest_api::ApiState>,
+    headers: HeaderMap,
+    Query(params): Query<HistoryParams>,
+) -> Result<Html<String>, StatusCode> {
+    let ctx = build_history_ctx(&params, state.ship_dir());
+    let Some((view_dir, _)) = crate::views::resolve_view_dir("pipelines") else {
+        return Err(StatusCode::INTERNAL_SERVER_ERROR);
+    };
+    let path = view_dir.join("history").join("index.html.j2");
+    let source = std::fs::read_to_string(&path).map_err(|_| StatusCode::NOT_FOUND)?;
+    render_with_fragment(
+        "pipelines/history/index.html.j2",
+        &source,
+        &ctx,
+        is_fragment_request(&headers),
+    )
+}
+
 /// GET /api/runtime/view/pipelines — full shell, minijinja-rendered.
 pub async fn pipelines_shell(
     State(state): State<crate::rest_api::ApiState>,
+    headers: HeaderMap,
     Query(params): Query<PipelinesParams>,
 ) -> Result<Html<String>, StatusCode> {
     let ctx = build_ctx(&params, state.ship_dir());
+    let fragment = is_fragment_request(&headers);
     // Try .ship/views/pipelines/index.html.j2 first (new canonical location).
-    if let Some(html) = try_render_view("index.html.j2", &ctx) {
-        return Ok(Html(html));
+    if let Some((view_dir, _)) = crate::views::resolve_view_dir("pipelines")
+        && let Ok(source) = std::fs::read_to_string(view_dir.join("index.html.j2"))
+    {
+        return render_with_fragment("pipelines/index.html.j2", &source, &ctx, fragment);
     }
-    // Fallback to embedded template.
-    templates::render("pipelines/shell.html.j2", &ctx)
+    // Fallback to embedded template (still honors fragment).
+    let mut value = serde_json::to_value(&ctx).map_err(|_| StatusCode::INTERNAL_SERVER_ERROR)?;
+    if fragment
+        && let serde_json::Value::Object(ref mut map) = value
+    {
+        map.insert("fragment".into(), serde_json::Value::Bool(true));
+    }
+    templates::render("pipelines/shell.html.j2", &value)
         .map(Html)
         .map_err(|e| {
             tracing::error!(error = %e, "pipelines shell render failed");
@@ -464,6 +983,12 @@ pub async fn pipelines_sse(
 
 fn render_content(params: &PipelinesParams, ship_dir: &std::path::Path) -> Option<String> {
     let ctx = build_ctx(params, ship_dir);
+    // Prefer the user-level .ship/views/pipelines/partials/content.html.j2
+    // (authoritative — matches what pipelines_shell renders). Fall back to
+    // the embedded template only if the view dir isn't present.
+    if let Some(html) = try_render_view("partials/content.html.j2", &ctx) {
+        return Some(html);
+    }
     match templates::render("pipelines/content.html.j2", &ctx) {
         Ok(html) => Some(html),
         Err(e) => {

@@ -3,7 +3,7 @@
   Single-column centered layout. Fragment-only (no doctype); mounted into
   the Studio shell or rendered standalone by the daemon.
 -#}
-{% from '_urls.html.j2' import create_job, view_pipelines, view_pipelines_sse %}
+{% from '_urls.html.j2' import view_pipelines, view_pipelines_sse %}
 <div id="ship-view-root" class="ship-view ship-view-pipelines">
   <style>
     .ship-view-pipelines { color: var(--foreground); }
@@ -91,9 +91,9 @@
           <p class="ship-pipelines-sub">{{ stats_subtitle }}</p>
         </div>
         <ship-button size="sm" tone="accent" variant="solid"
-          data-on:click="@post('{{ create_job() }}', {contentType: 'json', body: JSON.stringify({})})">
+          data-on:click="window.location.href='/api/runtime/view/pipelines'">
           <ship-icon slot="leading" name="play" size="sm"></ship-icon>
-          New Run
+          Dispatch
         </ship-button>
       </div>
 

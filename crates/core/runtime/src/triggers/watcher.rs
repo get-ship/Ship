@@ -1,4 +1,4 @@
-//! File-system watcher that triggers hook reloads on `.ship/hooks/` changes.
+//! File-system watcher that triggers engine reloads on `.ship/triggers/` changes.
 
 use std::path::PathBuf;
 use std::sync::Arc;
@@ -8,17 +8,17 @@ use anyhow::Result;
 use notify::{Event, EventKind, RecursiveMode, Watcher};
 use tokio::sync::mpsc;
 
-use super::engine::HookEngine;
+use super::engine::TriggerEngine;
 
-/// Start a filesystem watcher on `<ship_dir>/hooks/` that calls
+/// Start a filesystem watcher on `<ship_dir>/triggers/` that calls
 /// `engine.reload()` whenever a file is added, modified, or removed.
 ///
 /// The watcher task runs until the process exits; dropping the returned
-/// [`HookWatcher`] stops both the watcher and the debounce loop.
-pub fn spawn_watcher(engine: Arc<HookEngine>) -> Result<HookWatcher> {
-    let hooks_dir = engine.ship_dir().join("hooks");
-    if !hooks_dir.exists() {
-        std::fs::create_dir_all(&hooks_dir)?;
+/// [`TriggerWatcher`] stops both the watcher and the debounce loop.
+pub fn spawn_watcher(engine: Arc<TriggerEngine>) -> Result<TriggerWatcher> {
+    let triggers_dir = engine.ship_dir().join("triggers");
+    if !triggers_dir.exists() {
+        std::fs::create_dir_all(&triggers_dir)?;
     }
     let (tx, mut rx) = mpsc::unbounded_channel::<()>();
     let mut watcher = notify::recommended_watcher(move |res: notify::Result<Event>| {
@@ -31,7 +31,7 @@ pub fn spawn_watcher(engine: Arc<HookEngine>) -> Result<HookWatcher> {
             let _ = tx.send(());
         }
     })?;
-    watcher.watch(&hooks_dir, RecursiveMode::NonRecursive)?;
+    watcher.watch(&triggers_dir, RecursiveMode::NonRecursive)?;
 
     let task_engine = engine.clone();
     let handle = tokio::spawn(async move {
@@ -43,15 +43,15 @@ pub fn spawn_watcher(engine: Arc<HookEngine>) -> Result<HookWatcher> {
         }
     });
 
-    Ok(HookWatcher {
+    Ok(TriggerWatcher {
         _watcher: watcher,
-        path: hooks_dir,
+        path: triggers_dir,
         _task: handle,
     })
 }
 
 /// RAII handle — dropping it stops both the notify watcher and the reload task.
-pub struct HookWatcher {
+pub struct TriggerWatcher {
     _watcher: notify::RecommendedWatcher,
     pub path: PathBuf,
     _task: tokio::task::JoinHandle<()>,

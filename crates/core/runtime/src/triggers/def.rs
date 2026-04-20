@@ -1,27 +1,27 @@
-//! Hook definition types — shape of a `.ship/hooks/*.jsonc` document.
+//! Trigger definition types — shape of a `.ship/triggers/*.jsonc` document.
 
 use serde::{Deserialize, Serialize};
 
-/// A single hook definition loaded from `.ship/hooks/<name>.jsonc`.
+/// A single trigger definition loaded from `.ship/triggers/<name>.jsonc`.
 #[derive(Debug, Clone, Serialize, Deserialize)]
-pub struct HookDef {
+pub struct TriggerDef {
     pub name: String,
     #[serde(default)]
     pub description: Option<String>,
-    pub trigger: HookTrigger,
+    pub trigger: TriggerMatch,
     #[serde(default)]
-    pub actions: Vec<HookAction>,
+    pub actions: Vec<TriggerAction>,
 }
 
-/// What event a hook listens for.
+/// What event a trigger listens for.
 #[derive(Debug, Clone, Serialize, Deserialize)]
-pub struct HookTrigger {
+pub struct TriggerMatch {
     pub event: String,
     #[serde(default)]
     pub filter: Option<serde_json::Value>,
 }
 
-/// A single action step in a hook's action list.
+/// A single action step in a trigger's action list.
 ///
 /// The action variant is flattened, so a JSONC action reads naturally:
 ///
@@ -29,9 +29,9 @@ pub struct HookTrigger {
 /// { "type": "collection.insert", "collection": "notes", "data": { ... } }
 /// ```
 #[derive(Debug, Clone, Serialize, Deserialize)]
-pub struct HookAction {
+pub struct TriggerAction {
     #[serde(flatten)]
-    pub action_type: HookActionType,
+    pub action_type: ActionKind,
     #[serde(default)]
     pub when: Option<String>,
 }
@@ -39,7 +39,7 @@ pub struct HookAction {
 /// All supported action types.
 #[derive(Debug, Clone, Serialize, Deserialize)]
 #[serde(tag = "type", rename_all = "snake_case")]
-pub enum HookActionType {
+pub enum ActionKind {
     #[serde(rename = "collection.insert")]
     CollectionInsert {
         collection: String,
@@ -68,7 +68,7 @@ pub enum HookActionType {
     },
 }
 
-impl HookActionType {
+impl ActionKind {
     /// Short action kind used in logs and test assertions.
     pub fn kind(&self) -> &'static str {
         match self {

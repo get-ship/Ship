@@ -70,6 +70,14 @@ pub async fn run_sweep(
             continue;
         }
 
+        // Registry is the authoritative "is this process alive?" signal.
+        // resume_handle is tmux-only today (headless ProcessExecutor returns
+        // None unconditionally — routing.rs), so relying on it alone drift-
+        // fails every live headless agent within one sweep tick.
+        if live_slugs.iter().any(|s| s == &job.slug) {
+            continue;
+        }
+
         let handle = octx
             .executor
             .resume_handle(

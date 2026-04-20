@@ -98,6 +98,18 @@ pub enum Route {
     /// @route GET "/api/runtime/view/pipelines/sse"
     ViewPipelinesSse,
 
+    /// @route GET "/api/runtime/view/pipelines/history"
+    ViewPipelinesHistory,
+
+    /// @route GET "/api/runtime/view/pipelines/pipeline/{name}"
+    ViewPipelineFocus { name: String },
+
+    /// @route GET "/api/runtime/view/pipelines/run/{slug}"
+    ViewPipelineRun { slug: String },
+
+    /// @route GET "/api/runtime/view/pipelines/run/{slug}/sse"
+    ViewPipelineRunSse { slug: String },
+
     /// @route GET "/api/runtime/view/specs"
     ViewSpecs,
 
@@ -224,8 +236,8 @@ pub enum Route {
     /// @route GET "/api/runtime/jobs"
     ListJobs,
 
-    /// @route POST "/api/runtime/jobs"
-    CreateJob,
+    /// @route POST "/api/runtime/dispatch"
+    DispatchPipeline,
 
     /// @route GET "/api/runtime/jobs/{job_id}"
     GetJob { job_id: String },
@@ -235,6 +247,9 @@ pub enum Route {
 
     /// @route POST "/api/runtime/jobs/{slug}/cancel"
     CancelJob { slug: String },
+
+    /// @route GET "/api/runtime/jobs/{slug}/log/stream"
+    StreamJobLog { slug: String },
 
     // ── Process projection / events polling / daemon status (slice 6) ────
 

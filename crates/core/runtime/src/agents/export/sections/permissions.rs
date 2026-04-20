@@ -315,11 +315,12 @@ fn export_claude_settings(
 }
 
 fn export_gemini_settings(project_root: &Path, hooks: &[HookConfig]) -> Result<()> {
-    if hooks.is_empty() {
+    let path = project_root.join(".gemini").join("settings.json");
+    let should_reconcile = !hooks.is_empty() || path.exists();
+    if !should_reconcile {
         return Ok(());
     }
 
-    let path = project_root.join(".gemini").join("settings.json");
     if let Some(parent) = path.parent() {
         fs::create_dir_all(parent)?;
     }
@@ -361,10 +362,37 @@ fn export_gemini_settings(project_root: &Path, hooks: &[HookConfig]) -> Result<(
         by_trigger.entry(key).or_default().push(group);
     }
 
-    for (trigger, entries) in by_trigger {
-        hooks_map.insert(trigger.to_string(), serde_json::json!(entries));
+    // Reconcile every Ship-managed trigger key. Without this, renaming a hook
+    // or removing one from the source leaves stale entries in settings.json.
+    for trigger in gemini_managed_trigger_keys() {
+        if let Some(entries) = by_trigger.remove(trigger) {
+            hooks_map.insert((*trigger).to_string(), serde_json::json!(entries));
+        } else {
+            hooks_map.remove(*trigger);
+        }
     }
+
+    if hooks_map.is_empty() {
+        obj.remove("hooks");
+    }
+
     crate::fs_util::write_atomic(&path, serde_json::to_string_pretty(&root)?)
+}
+
+fn gemini_managed_trigger_keys() -> &'static [&'static str] {
+    &[
+        "BeforeTool",
+        "AfterTool",
+        "BeforeAgent",
+        "AfterAgent",
+        "Notification",
+        "SessionStart",
+        "SessionEnd",
+        "PreCompress",
+        "BeforeModel",
+        "AfterModel",
+        "BeforeToolSelection",
+    ]
 }
 
 fn claude_trigger_name(trigger: &HookTrigger) -> Option<&'static str> {

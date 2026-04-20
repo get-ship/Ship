@@ -138,9 +138,13 @@ pub async fn emit_job_failed_for_review(
         .reason
         .clone()
         .unwrap_or_else(|| "review failed".to_string());
+    let error = match &payload.log_tail {
+        Some(tail) => format!("{reason}\n\nagent log tail:\n{tail}"),
+        None => reason,
+    };
     let fail_payload = crate::events::job::JobFailedPayload {
         job_id: payload.job_id.clone(),
-        error: reason,
+        error,
     };
     let env = match EventEnvelope::new(
         crate::events::job::event_types::JOB_FAILED,

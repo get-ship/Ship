@@ -6,11 +6,26 @@
  * Only view-container-scoped resets and defaults belong here.
  */
 
+/* Universal box-sizing — safe everywhere, including across shadow DOM
+   boundaries. Applies to every element so custom components built with
+   `box-sizing: border-box` internally stay in sync with their host. */
 .ship-view,
 .ship-view *,
 .ship-view *::before,
 .ship-view *::after {
   box-sizing: border-box;
+}
+
+/* Browser-default margin/padding reset — scoped to elements that actually
+   have user-agent styles, NOT a `*` blast. A universal padding:0 reset
+   beats `:host { padding: … }` inside custom components (same specificity
+   rank, outer wins per cascade), which silently flattened every
+   ship-card, ship-button, ship-dialog etc. */
+.ship-view h1, .ship-view h2, .ship-view h3,
+.ship-view h4, .ship-view h5, .ship-view h6,
+.ship-view p, .ship-view blockquote,
+.ship-view ul, .ship-view ol, .ship-view dl,
+.ship-view dd, .ship-view figure, .ship-view pre {
   margin: 0;
   padding: 0;
 }

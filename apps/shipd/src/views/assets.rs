@@ -1,6 +1,15 @@
 //! Shared static assets embedded at compile time + their serve handlers.
+//!
+//! Caching: assets are embedded via `include_str!` — the URL never changes
+//! but the content updates with every daemon rebuild. We serve them with
+//! a content-hash ETag and `cache-control: no-cache, must-revalidate` so
+//! browsers MUST revalidate on every request (cheap: 304 when unchanged,
+//! new body when rebuilt). The previous `immutable, max-age=3600` setting
+//! actively broke dev-loop workflows — CSS / JS edits stayed invisible
+//! for an hour and "hard refresh" didn't reliably invalidate on Chromium.
 
 use axum::http::StatusCode;
+use std::sync::OnceLock;
 
 /// Datastar client — compile-time embedded, shipped with the daemon binary.
 /// Upgraded by committing a new apps/shipd/assets/datastar.js.
@@ -34,44 +43,105 @@ const VIEW_TOKENS_CSS: &str = concat!(
     include_str!("../../assets/view-tokens.css"),
 );
 
-/// GET /api/runtime/assets/datastar.js
-pub async fn serve_datastar_js() -> axum::response::Response {
+// ── ETag helpers ────────────────────────────────────────────────────────────
+//
+// FNV-1a 64-bit is plenty for cache validation — not a cryptographic hash,
+// but two different asset contents producing the same hash is vanishingly
+// unlikely and cheap to compute once per asset at startup.
+
+fn fnv1a64(bytes: &[u8]) -> u64 {
+    let mut h: u64 = 0xcbf29ce484222325;
+    for b in bytes {
+        h ^= *b as u64;
+        h = h.wrapping_mul(0x100000001b3);
+    }
+    h
+}
+
+/// Serve an embedded asset with ETag-based revalidation.
+///
+/// `if_none_match` is the request's `If-None-Match` header (set by the
+/// browser to the ETag it has cached). When it matches the asset's
+/// current ETag, respond 304 Not Modified with no body — the browser
+/// reuses its cache. Otherwise ship the new content.
+fn serve_with_etag(
+    body: &'static str,
+    content_type: &'static str,
+    etag: &'static str,
+    if_none_match: Option<&str>,
+) -> axum::response::Response {
+    let quoted = format!("\"{etag}\"");
+    if if_none_match.map(|v| v.trim_matches('"') == etag || v == quoted).unwrap_or(false) {
+        return axum::response::Response::builder()
+            .status(StatusCode::NOT_MODIFIED)
+            .header(axum::http::header::ETAG, &quoted)
+            .header(axum::http::header::CACHE_CONTROL, "no-cache, must-revalidate")
+            .body(axum::body::Body::empty())
+            .unwrap();
+    }
     axum::response::Response::builder()
         .status(StatusCode::OK)
-        .header(axum::http::header::CONTENT_TYPE, "application/javascript; charset=utf-8")
-        .header(axum::http::header::CACHE_CONTROL, "public, max-age=3600, immutable")
-        .body(axum::body::Body::from(DATASTAR_JS))
+        .header(axum::http::header::CONTENT_TYPE, content_type)
+        .header(axum::http::header::ETAG, &quoted)
+        .header(axum::http::header::CACHE_CONTROL, "no-cache, must-revalidate")
+        .body(axum::body::Body::from(body))
         .unwrap()
+}
+
+/// Look up (or compute) the ETag for a static asset. Hash is computed once
+/// on first access and kept for the process lifetime.
+fn etag_for(asset: &str, cell: &'static OnceLock<String>) -> &'static str {
+    cell.get_or_init(|| format!("{:016x}", fnv1a64(asset.as_bytes())))
+}
+
+fn if_none_match(headers: &axum::http::HeaderMap) -> Option<&str> {
+    headers.get(axum::http::header::IF_NONE_MATCH).and_then(|v| v.to_str().ok())
+}
+
+// ── Handlers ────────────────────────────────────────────────────────────────
+
+/// GET /api/runtime/assets/datastar.js
+pub async fn serve_datastar_js(headers: axum::http::HeaderMap) -> axum::response::Response {
+    static ETAG: OnceLock<String> = OnceLock::new();
+    serve_with_etag(
+        DATASTAR_JS,
+        "application/javascript; charset=utf-8",
+        etag_for(DATASTAR_JS, &ETAG),
+        if_none_match(&headers),
+    )
 }
 
 /// GET /api/runtime/assets/view-tokens.css
-pub async fn serve_view_tokens() -> axum::response::Response {
-    axum::response::Response::builder()
-        .status(StatusCode::OK)
-        .header(axum::http::header::CONTENT_TYPE, "text/css; charset=utf-8")
-        .header(axum::http::header::CACHE_CONTROL, "public, max-age=3600, immutable")
-        .body(axum::body::Body::from(VIEW_TOKENS_CSS))
-        .unwrap()
+pub async fn serve_view_tokens(headers: axum::http::HeaderMap) -> axum::response::Response {
+    static ETAG: OnceLock<String> = OnceLock::new();
+    serve_with_etag(
+        VIEW_TOKENS_CSS,
+        "text/css; charset=utf-8",
+        etag_for(VIEW_TOKENS_CSS, &ETAG),
+        if_none_match(&headers),
+    )
 }
 
 /// GET /api/runtime/assets/ship-elements.js
-pub async fn serve_ship_elements() -> axum::response::Response {
-    axum::response::Response::builder()
-        .status(StatusCode::OK)
-        .header(axum::http::header::CONTENT_TYPE, "application/javascript; charset=utf-8")
-        .header(axum::http::header::CACHE_CONTROL, "public, max-age=3600, immutable")
-        .body(axum::body::Body::from(SHIP_ELEMENTS_JS))
-        .unwrap()
+pub async fn serve_ship_elements(headers: axum::http::HeaderMap) -> axum::response::Response {
+    static ETAG: OnceLock<String> = OnceLock::new();
+    serve_with_etag(
+        SHIP_ELEMENTS_JS,
+        "application/javascript; charset=utf-8",
+        etag_for(SHIP_ELEMENTS_JS, &ETAG),
+        if_none_match(&headers),
+    )
 }
 
 /// GET /api/runtime/assets/custom-elements.json
-pub async fn serve_elements_manifest() -> axum::response::Response {
-    axum::response::Response::builder()
-        .status(StatusCode::OK)
-        .header(axum::http::header::CONTENT_TYPE, "application/json; charset=utf-8")
-        .header(axum::http::header::CACHE_CONTROL, "public, max-age=3600, immutable")
-        .body(axum::body::Body::from(SHIP_ELEMENTS_MANIFEST))
-        .unwrap()
+pub async fn serve_elements_manifest(headers: axum::http::HeaderMap) -> axum::response::Response {
+    static ETAG: OnceLock<String> = OnceLock::new();
+    serve_with_etag(
+        SHIP_ELEMENTS_MANIFEST,
+        "application/json; charset=utf-8",
+        etag_for(SHIP_ELEMENTS_MANIFEST, &ETAG),
+        if_none_match(&headers),
+    )
 }
 
 // ── Island bundles (lazy-loaded heavy components) ────────────────────────────
@@ -81,44 +151,48 @@ const SHIP_MARKDOWN_EDITOR_JS: &str = include_str!("../../assets/ship-markdown-e
 const SHIP_TERMINAL_JS: &str = include_str!("../../assets/ship-terminal.js");
 
 /// GET /api/runtime/assets/ship-code-editor.js
-pub async fn serve_code_editor() -> axum::response::Response {
-    axum::response::Response::builder()
-        .status(StatusCode::OK)
-        .header(axum::http::header::CONTENT_TYPE, "application/javascript; charset=utf-8")
-        .header(axum::http::header::CACHE_CONTROL, "public, max-age=3600, immutable")
-        .body(axum::body::Body::from(SHIP_CODE_EDITOR_JS))
-        .unwrap()
+pub async fn serve_code_editor(headers: axum::http::HeaderMap) -> axum::response::Response {
+    static ETAG: OnceLock<String> = OnceLock::new();
+    serve_with_etag(
+        SHIP_CODE_EDITOR_JS,
+        "application/javascript; charset=utf-8",
+        etag_for(SHIP_CODE_EDITOR_JS, &ETAG),
+        if_none_match(&headers),
+    )
 }
 
 /// GET /api/runtime/assets/ship-markdown-editor.js
-pub async fn serve_markdown_editor() -> axum::response::Response {
-    axum::response::Response::builder()
-        .status(StatusCode::OK)
-        .header(axum::http::header::CONTENT_TYPE, "application/javascript; charset=utf-8")
-        .header(axum::http::header::CACHE_CONTROL, "public, max-age=3600, immutable")
-        .body(axum::body::Body::from(SHIP_MARKDOWN_EDITOR_JS))
-        .unwrap()
+pub async fn serve_markdown_editor(headers: axum::http::HeaderMap) -> axum::response::Response {
+    static ETAG: OnceLock<String> = OnceLock::new();
+    serve_with_etag(
+        SHIP_MARKDOWN_EDITOR_JS,
+        "application/javascript; charset=utf-8",
+        etag_for(SHIP_MARKDOWN_EDITOR_JS, &ETAG),
+        if_none_match(&headers),
+    )
 }
 
 /// GET /api/runtime/assets/ship-terminal.js
-pub async fn serve_terminal() -> axum::response::Response {
-    axum::response::Response::builder()
-        .status(StatusCode::OK)
-        .header(axum::http::header::CONTENT_TYPE, "application/javascript; charset=utf-8")
-        .header(axum::http::header::CACHE_CONTROL, "public, max-age=3600, immutable")
-        .body(axum::body::Body::from(SHIP_TERMINAL_JS))
-        .unwrap()
+pub async fn serve_terminal(headers: axum::http::HeaderMap) -> axum::response::Response {
+    static ETAG: OnceLock<String> = OnceLock::new();
+    serve_with_etag(
+        SHIP_TERMINAL_JS,
+        "application/javascript; charset=utf-8",
+        etag_for(SHIP_TERMINAL_JS, &ETAG),
+        if_none_match(&headers),
+    )
 }
 
 /// GET /api/runtime/assets/ship-elements.md
 /// Compact, token-efficient catalog for agent context.
-pub async fn serve_elements_catalog() -> axum::response::Response {
-    axum::response::Response::builder()
-        .status(StatusCode::OK)
-        .header(axum::http::header::CONTENT_TYPE, "text/markdown; charset=utf-8")
-        .header(axum::http::header::CACHE_CONTROL, "public, max-age=3600, immutable")
-        .body(axum::body::Body::from(SHIP_ELEMENTS_CATALOG))
-        .unwrap()
+pub async fn serve_elements_catalog(headers: axum::http::HeaderMap) -> axum::response::Response {
+    static ETAG: OnceLock<String> = OnceLock::new();
+    serve_with_etag(
+        SHIP_ELEMENTS_CATALOG,
+        "text/markdown; charset=utf-8",
+        etag_for(SHIP_ELEMENTS_CATALOG, &ETAG),
+        if_none_match(&headers),
+    )
 }
 
 /// GET /api/runtime/assets/theme.css

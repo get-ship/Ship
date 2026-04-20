@@ -65,6 +65,7 @@ async fn render_sdk_shell(state: &ApiState, name: &str) -> Option<String> {
         "pipelines" => {
             crate::views_pipelines::pipelines_shell(
                 State(state.clone()),
+                axum::http::HeaderMap::new(),
                 Query(Default::default()),
             )
             .await

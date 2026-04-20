@@ -1,5 +1,8 @@
-//! Action dispatchers — wire each [`HookActionType`] to the runtime primitive
+//! Action dispatchers — wire each [`ActionKind`] to the runtime primitive
 //! that performs it (collections CRUD, event emission, pipeline trigger).
+//!
+//! Note: private payload markers use the `_trigger_depth` key to track chain
+//! depth across event round-trips through the kernel.
 
 use std::path::Path;
 use std::sync::Arc;
@@ -13,7 +16,7 @@ use crate::collections::{service as collection_service, store as collection_stor
 use crate::data::DataService;
 use crate::events::{CallerKind, EmitContext, EventEnvelope, KernelRouter};
 
-use super::def::HookActionType;
+use super::def::ActionKind;
 use super::render;
 
 /// Context the executor passes to each action dispatcher.
@@ -21,33 +24,33 @@ pub struct ActionCtx<'a> {
     pub kernel: &'a Arc<Mutex<KernelRouter>>,
     pub ship_dir: &'a Path,
     pub trigger_event_id: &'a str,
-    pub hook_name: &'a str,
+    pub trigger_name: &'a str,
     pub depth: u32,
 }
 
 /// Dispatch one action. Returns the JSON result that gets appended to
 /// `results` in the rendering context for subsequent actions.
 pub async fn dispatch(
-    action: &HookActionType,
+    action: &ActionKind,
     render_ctx: &Value,
     ctx: &ActionCtx<'_>,
 ) -> Result<Value> {
     match action {
-        HookActionType::CollectionInsert {
+        ActionKind::CollectionInsert {
             collection,
             data,
             template_file,
         } => collection_insert(collection, data, template_file.as_deref(), render_ctx, ctx).await,
-        HookActionType::CollectionUpdate {
+        ActionKind::CollectionUpdate {
             collection,
             filter,
             data,
         } => collection_update(collection, filter, data, render_ctx, ctx).await,
-        HookActionType::EventEmit {
+        ActionKind::EventEmit {
             event_type,
             payload,
         } => event_emit(event_type, payload, render_ctx, ctx).await,
-        HookActionType::PipelineTrigger { pipeline, args } => {
+        ActionKind::PipelineTrigger { pipeline, args } => {
             pipeline_trigger(pipeline, args.as_ref(), render_ctx, ctx).await
         }
     }
@@ -81,7 +84,7 @@ async fn collection_insert(
         &schema,
         &id,
         &data_value,
-        Some(&format!("hook:{}", ctx.hook_name)),
+        Some(&format!("trigger:{}", ctx.trigger_name)),
     )
     .await?;
     Ok(json!({
@@ -124,24 +127,22 @@ async fn event_emit(
         .get("event")
         .and_then(|e| e.get("entity_id"))
         .and_then(|v| v.as_str())
-        .unwrap_or("hook")
+        .unwrap_or("trigger")
         .to_string();
     let mut envelope = EventEnvelope::new(event_type, &entity_id, &rendered_payload)?
         .with_causation(ctx.trigger_event_id)
-        .with_actor_id(&format!("hook:{}", ctx.hook_name));
-    // Propagate hook depth in payload? We store depth separately in an
-    // internal registry — the envelope itself doesn't expose depth.
+        .with_actor_id(&format!("trigger:{}", ctx.trigger_name));
     let emit_ctx = EmitContext {
         caller_kind: CallerKind::Runtime,
         skill_id: None,
         workspace_id: envelope.workspace_id.clone(),
         session_id: envelope.session_id.clone(),
     };
-    // Inject the hook depth so the engine sees a chain even when events
+    // Inject chain depth so the engine sees a trigger chain even when events
     // pass through the router out-of-process. Depth lives on the payload's
-    // optional `_hook_depth` marker — a private convention.
+    // private `_trigger_depth` marker.
     if let Value::Object(obj) = &mut envelope_payload_mut(&mut envelope)? {
-        obj.insert("_hook_depth".into(), Value::from(ctx.depth));
+        obj.insert("_trigger_depth".into(), Value::from(ctx.depth));
         envelope.payload_json = serde_json::to_string(&Value::Object(obj.clone()))?;
     }
     ctx.kernel.lock().await.emit(envelope.clone(), &emit_ctx).await?;
@@ -166,27 +167,27 @@ async fn pipeline_trigger(
         .get("event")
         .and_then(|e| e.get("entity_id"))
         .and_then(|v| v.as_str())
-        .map(|s| format!("hook-{}-{}", ctx.hook_name, s))
-        .unwrap_or_else(|| format!("hook-{}-{}", ctx.hook_name, &job_id));
+        .map(|s| format!("trigger-{}-{}", ctx.trigger_name, s))
+        .unwrap_or_else(|| format!("trigger-{}-{}", ctx.trigger_name, &job_id));
 
     let vars = extract_vars(&rendered_args);
     let payload = json!({
         "job_id": job_id,
         "slug": slug,
         "agent": "runtime",
-        "branch": format!("hook/{slug}"),
-        "spec_path": format!(".artifacts/hooks/{slug}.md"),
+        "branch": format!("trigger/{slug}"),
+        "spec_path": format!(".artifacts/triggers/{slug}.md"),
         "plan_id": null,
         "model": null,
         "provider": null,
         "pipeline_name": pipeline,
         "vars": vars,
         "headless": true,
-        "_hook_depth": ctx.depth,
+        "_trigger_depth": ctx.depth,
     });
     let envelope = EventEnvelope::new("job.created", &job_id, &payload)?
         .with_causation(ctx.trigger_event_id)
-        .with_actor_id(&format!("hook:{}", ctx.hook_name));
+        .with_actor_id(&format!("trigger:{}", ctx.trigger_name));
     let emit_ctx = EmitContext {
         caller_kind: CallerKind::Runtime,
         skill_id: None,

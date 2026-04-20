@@ -26,6 +26,26 @@ fn empty_ctx(active_tab: &str) -> PipelinesCtx {
         defs: vec![],
         active_runs: vec![],
         history_runs: vec![],
+        providers: vec![],
+        workspace_id: None,
+    }
+}
+
+fn empty_def(name: &str, description: &str, step_count: usize) -> PipelineDef {
+    PipelineDef {
+        name: name.into(),
+        description: description.into(),
+        step_count,
+        active_runs: 0,
+        total_runs: 0,
+        success_runs: 0,
+        failed_runs: 0,
+        success_rate: 0.0,
+        last_run_at: None,
+        last_run_status: None,
+        last_run_tone: None,
+        last_run_slug: None,
+        recent_outcomes: Vec::new(),
     }
 }
 
@@ -153,11 +173,7 @@ fn empty_state_when_no_active_runs() {
 #[test]
 fn definitions_tab_renders_def_cards() {
     let mut ctx = empty_ctx("definitions");
-    ctx.defs = vec![PipelineDef {
-        name: "tdd".into(),
-        description: "test driven".into(),
-        step_count: 3,
-    }];
+    ctx.defs = vec![empty_def("tdd", "test driven", 3)];
     let html = templates::render("pipelines/content.html.j2", &ctx).expect("render");
     assert!(html.contains("ship-def-card"), "def card class: {html}");
     assert!(html.contains("tdd"), "name visible: {html}");

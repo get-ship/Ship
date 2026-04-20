@@ -47,7 +47,7 @@ fn multi_param_variant_substitutes_all() {
 #[test]
 fn method_returns_uppercase_str() {
     assert_eq!(Route::ListJobs.method(), "GET");
-    assert_eq!(Route::CreateJob.method(), "POST");
+    assert_eq!(Route::DispatchPipeline.method(), "POST");
     assert_eq!(
         Route::UpdateSpec {
             id: String::new()
