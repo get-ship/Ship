@@ -39,6 +39,7 @@ const platforms = [
           tone="accent"
           variant="solid"
           size="md"
+          class="cta-brand"
           onclick={`location.href='${p.href}'`}
         >Download</ship-button>
       </div>
@@ -91,8 +92,8 @@ const platforms = [
     transition: border-color 160ms ease, box-shadow 160ms ease;
   }
   .platform[data-recommended] {
-    border-color: color-mix(in oklch, var(--accent) 55%, transparent);
-    box-shadow: 0 1px 3px color-mix(in oklch, var(--accent) 20%, transparent);
+    border-color: color-mix(in oklch, var(--primary) 55%, transparent);
+    box-shadow: 0 1px 3px color-mix(in oklch, var(--primary) 20%, transparent);
   }
   .platform-icon {
     width: 28px;
