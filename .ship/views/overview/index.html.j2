@@ -321,21 +321,24 @@
     const y = parseFloat(node.style.top) || 0;
     return { x: x + node.offsetWidth / 2, y: y + node.offsetHeight / 2 };
   }
-  function nodeById(id) { return canvas.querySelector(`#node-${CSS.escape(id)}`); }
+  // Depends_on stores system names (e.g. "ship-cloud"), not collection-item
+  // ids. Look up by data-name so edges resolve.
+  function nodeByName(name) {
+    return canvas.querySelector(`.ov-node[data-name="${CSS.escape(name)}"]`);
+  }
   function drawEdges() {
     edges.innerHTML = '';
     const ns = 'http://www.w3.org/2000/svg';
-    // defs / marker
     const defs = document.createElementNS(ns, 'defs');
     defs.innerHTML = `<marker id="ov-arrow" viewBox="0 0 10 10" refX="9" refY="5" markerWidth="6" markerHeight="6" orient="auto"><path d="M0,0 L10,5 L0,10 z" fill="var(--muted-foreground)"/></marker>`;
     edges.appendChild(defs);
     canvas.querySelectorAll('.ov-node').forEach(src => {
       let deps = [];
-      try { deps = JSON.parse(src.dataset.depends.replace(/'/g, '"')); } catch (_) {}
+      try { deps = JSON.parse(src.dataset.depends); } catch (_) {}
       if (!Array.isArray(deps)) return;
       const a = nodeCenter(src);
-      deps.forEach(depId => {
-        const tgt = nodeById(depId);
+      deps.forEach(depName => {
+        const tgt = nodeByName(depName);
         if (!tgt) return;
         const b = nodeCenter(tgt);
         const path = document.createElementNS(ns, 'path');

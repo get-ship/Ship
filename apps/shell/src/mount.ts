@@ -33,6 +33,16 @@ export async function mountDaemonFragment(
   }
   const html = await res.text();
   target.innerHTML = html;
+  // innerHTML inserts <script> nodes but does not execute them. Re-create
+  // each <script> so views with inline interactivity (e.g. the canvas in
+  // /overview) actually run. Inline scripts first, then src= scripts so
+  // any bootstrapping state is ready before external modules load.
+  for (const old of Array.from(target.querySelectorAll('script'))) {
+    const fresh = document.createElement('script');
+    for (const { name, value } of Array.from(old.attributes)) fresh.setAttribute(name, value);
+    fresh.text = old.textContent ?? '';
+    old.replaceWith(fresh);
+  }
 }
 
 /**
