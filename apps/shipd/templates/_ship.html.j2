@@ -160,6 +160,28 @@
 {# SSE subscription with requestCancellation disabled (for persistent connections) #}
 {% macro live_persistent(view_name) %}data-init="@get('/api/runtime/view/{{ view_name }}/sse', {requestCancellation: 'disabled'})"{% endmacro %}
 
+{#- === Fetch error handling === -#}
+
+{# Bind a signal to receive a failure message when a fetch action on
+   THIS element returns an HTTP error or non-SSE body.
+
+   Datastar fires a `datastar-fetch` event on document with
+     detail: { type: 'error', el: <trigger>, argsRaw: { status } }
+   when `onopen` sees a >= 400 response. This macro attaches a
+   document-level listener scoped to the current element so a failed
+   @post/@get/@put/@delete patches the named error signal.
+
+   Usage (compose alongside `post()` / a raw @post chain):
+     <ship-button
+       data-on:click="$step = 3; @post('/api/projects', {payload: ...})"
+       {{ on_fetch_error('ws_error') }}>
+       Continue
+     </ship-button>
+
+   The default message is "HTTP <status>"; pass a JS expression via
+   `message` to override (has access to `evt.detail.argsRaw.status`). #}
+{% macro on_fetch_error(signal_name, message="'HTTP ' + (evt.detail.argsRaw && evt.detail.argsRaw.status || '?')") %}data-on:datastar-fetch__document="evt.detail && evt.detail.el === el && evt.detail.type === 'error' ? ${{ signal_name }} = {{ message }} : null"{% endmacro %}
+
 {#- === Data Macros === -#}
 
 {# Auto-form: generate typed form fields from a collection schema #}

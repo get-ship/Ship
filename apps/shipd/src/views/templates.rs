@@ -343,14 +343,69 @@ fn walk_templates(
     }
 }
 
+/// Collect sibling `.html.j2` partials for a view into (name, source)
+/// pairs. Scans the project `.ship/views/<view>/` first, then the
+/// global dir, with the project winning on path collisions. Excludes
+/// the top-level `name` template itself — caller supplies that source.
+fn collect_siblings(name: &str) -> Vec<(String, String)> {
+    let mut sibling_sources: Vec<(String, String)> = Vec::new();
+    let Some(view_name) = name.split('/').next() else { return sibling_sources };
+    let mut registered: std::collections::HashSet<String> = std::collections::HashSet::new();
+    for ship_dir in [
+        runtime::project::get_project_dir(None).ok(),
+        runtime::project::get_global_dir().ok(),
+    ]
+    .into_iter()
+    .flatten()
+    {
+        let views_root = ship_dir.join("views");
+        let view_dir = views_root.join(view_name);
+        let mut found: Vec<(String, String)> = Vec::new();
+        walk_templates(&view_dir, &views_root, name, &mut found);
+        for (n, s) in found {
+            if registered.insert(n.clone()) {
+                sibling_sources.push((n, s));
+            }
+        }
+    }
+    // Deterministic ordering so the siblings hash is stable across filesystem
+    // readdir ordering (ext4, APFS, NTFS all differ).
+    sibling_sources.sort_by(|a, b| a.0.cmp(&b.0));
+    sibling_sources
+}
+
+/// Hash the (sorted) sibling partial list into a single u64 so any
+/// edit to any sibling file invalidates the cached environment. Without
+/// this the user-env cache would silently serve stale partials when an
+/// author edits `partials/foo.html.j2` but leaves the top-level
+/// `index.html.j2` untouched (cache key would hit).
+fn siblings_hash(siblings: &[(String, String)]) -> u64 {
+    let mut h: u64 = 0xcbf29ce484222325;
+    for (n, s) in siblings {
+        for b in n.as_bytes() { h ^= *b as u64; h = h.wrapping_mul(0x100000001b3); }
+        h ^= 0xff; h = h.wrapping_mul(0x100000001b3); // separator
+        for b in s.as_bytes() { h ^= *b as u64; h = h.wrapping_mul(0x100000001b3); }
+        h ^= 0xfe; h = h.wrapping_mul(0x100000001b3); // record terminator
+    }
+    h
+}
+
 pub fn render_view_source<C: Serialize>(name: &str, source: &str, ctx: &C) -> Result<String, String> {
     // If the source contains no Jinja syntax, return it as-is (fast path).
     if !source.contains("{%") && !source.contains("{{") {
         return Ok(source.to_string());
     }
 
-    // Check cache first. Key: "name:source_hash". Same source → same env.
-    let cache_key = format!("{}:{}", name, source_hash(source));
+    // Scan siblings upfront so the cache key reflects both the top
+    // template and every partial it can {% include %}. Editing a
+    // partial without touching the top file must invalidate the cache.
+    let sibling_sources = collect_siblings(name);
+    let cache_key = format!(
+        "{}:{:x}:{:x}",
+        name,
+        source_hash(source),
+        siblings_hash(&sibling_sources),
+    );
     {
         if let Ok(cache) = user_env_cache().read() {
             if let Some(env) = cache.get(&cache_key) {
@@ -391,31 +446,6 @@ pub fn render_view_source<C: Serialize>(name: &str, source: &str, ctx: &C) -> Re
     // Copy all registered templates (macros, partials).
     for (tpl_name, tpl_src) in TEMPLATES {
         let _ = local_env.add_template(tpl_name, tpl_src);
-    }
-    // Register sibling templates from the view's directory tree so templates
-    // can {% include %} partials. e.g. canvas/index.html.j2 includes
-    // canvas/docs/hero-review.html.j2. Scans project .ship/views/ then global
-    // ~/.ship/views/ (project wins on path collisions).
-    let mut sibling_sources: Vec<(String, String)> = Vec::new();
-    if let Some(view_name) = name.split('/').next() {
-        let mut registered: std::collections::HashSet<String> = std::collections::HashSet::new();
-        for ship_dir in [
-            runtime::project::get_project_dir(None).ok(),
-            runtime::project::get_global_dir().ok(),
-        ]
-        .into_iter()
-        .flatten()
-        {
-            let views_root = ship_dir.join("views");
-            let view_dir = views_root.join(view_name);
-            let mut found: Vec<(String, String)> = Vec::new();
-            walk_templates(&view_dir, &views_root, name, &mut found);
-            for (n, s) in found {
-                if registered.insert(n.clone()) {
-                    sibling_sources.push((n, s));
-                }
-            }
-        }
     }
     // Leak sibling template strings so they satisfy Environment<'static>
     // lifetime. The cache holds the Environment for the process lifetime,

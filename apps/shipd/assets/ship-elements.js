@@ -6421,6 +6421,99 @@ if (typeof customElements !== "undefined" && !customElements.get("ship-status-do
   customElements.define("ship-status-dot", ShipStatusDot);
 }
 
+// packages/ui/src/web-components/ship-stepper.ts
+var ShipStepper = class extends i4 {
+  constructor() {
+    super(...arguments);
+    this.total = 4;
+    this.current = 1;
+    this.size = "md";
+    this.label = "";
+  }
+  connectedCallback() {
+    super.connectedCallback();
+    this.setAttribute("role", "progressbar");
+    this.syncAria();
+  }
+  updated(changed) {
+    if (changed.has("total") || changed.has("current") || changed.has("label")) {
+      this.syncAria();
+    }
+  }
+  syncAria() {
+    const t4 = Math.max(1, Math.floor(this.total || 0));
+    const c4 = Math.max(1, Math.min(t4, Math.floor(this.current || 1)));
+    this.setAttribute("aria-valuemin", "1");
+    this.setAttribute("aria-valuemax", String(t4));
+    this.setAttribute("aria-valuenow", String(c4));
+    if (this.label) this.setAttribute("aria-label", this.label);
+    else if (!this.hasAttribute("aria-label")) {
+      this.setAttribute("aria-label", `Step ${c4} of ${t4}`);
+    }
+  }
+  render() {
+    const t4 = Math.max(1, Math.floor(this.total || 0));
+    const c4 = Math.max(1, Math.min(t4, Math.floor(this.current || 1)));
+    const dots = [];
+    for (let i6 = 1; i6 <= t4; i6++) {
+      const state = i6 === c4 ? "active" : i6 < c4 ? "done" : "pending";
+      dots.push(b2`<span class="dot" part="dot" data-state=${state} aria-hidden="true"></span>`);
+    }
+    return b2`${dots}`;
+  }
+};
+ShipStepper.styles = [
+  reducedMotion,
+  toneVars,
+  i`
+      :host {
+        display: inline-flex;
+        align-items: center;
+        justify-content: center;
+        gap: var(--space-2);
+        --dot-w: 7px;
+        --dot-h: 7px;
+        --dot-active-w: 22px;
+      }
+      :host([size='sm']) { --dot-w: 6px; --dot-h: 6px; --dot-active-w: 18px; }
+      :host([size='lg']) { --dot-w: 9px; --dot-h: 9px; --dot-active-w: 28px; }
+
+      /* Inactive dot color — a faded tint of the muted-foreground so it
+       * reads as "not yet" regardless of tone. */
+      .dot {
+        width: var(--dot-w);
+        height: var(--dot-h);
+        border-radius: var(--radius-full);
+        background: color-mix(in oklch, var(--muted-foreground) 35%, transparent);
+        transition: all var(--duration-medium) var(--ease-out);
+        flex-shrink: 0;
+      }
+
+      /* Current step — widened pill in the tone color. Default tone
+       * falls back to --primary so this works out-of-the-box. */
+      .dot[data-state='active'] {
+        width: var(--dot-active-w);
+        background: var(--tone-fg, var(--primary));
+      }
+
+      /* Completed steps — same tone but faded so the current step still
+       * reads as "you are here". */
+      .dot[data-state='done'] {
+        background: color-mix(in oklch, var(--tone-fg, var(--primary)) 55%, transparent);
+      }
+    `
+];
+ShipStepper.properties = {
+  total: { type: Number, reflect: true },
+  current: { type: Number, reflect: true },
+  tone: { type: String, reflect: true },
+  size: { type: String, reflect: true },
+  label: { type: String }
+};
+if (typeof customElements !== "undefined" && !customElements.get("ship-stepper")) {
+  customElements.define("ship-stepper", ShipStepper);
+}
+
 // packages/ui/src/web-components/ship-switch.styles.ts
 var shipSwitchStyles = [
   reducedMotion,
@@ -12185,6 +12278,7 @@ export {
   ShipStat,
   ShipStatusDot,
   ShipStepSegments,
+  ShipStepper,
   ShipSwitch,
   ShipTab,
   ShipTabPanel,

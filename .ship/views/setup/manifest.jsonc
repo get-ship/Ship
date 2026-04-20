@@ -1,0 +1,57 @@
+{
+  // First-run setup wizard. Served at /api/runtime/view/setup (and mounted at
+  // top-level /setup by the shell once installer-lane wires the route).
+  // Four linear steps: welcome → workspace → provider → done. No auth.
+  "name": "setup",
+  "type": "html",
+  "description": "First-run setup wizard (welcome → workspace → provider → done)",
+
+  // Reactive signals declared on the root container via {{ signal(...) }}.
+  // Listed here for documentation / tooling — the source of truth remains
+  // index.html.j2.
+  "signals": {
+    "step":                  { "type": "number", "default": 1,        "range": [1, 4] },
+    "ws_mode":               { "type": "string", "default": "new",    "values": ["new", "existing"] },
+    "ws_name":               { "type": "string", "default": "" },
+    "ws_path":               { "type": "string", "default": "" },
+    "ws_resolved":           { "type": "string", "default": "" },
+    "ws_error":              { "type": "string", "default": "" },
+    "ws_busy":               { "type": "boolean", "default": false },
+    "provider":              { "type": "string", "default": "",
+                                "values": ["", "claude", "gemini", "codex", "opencode"] },
+    "api_key":               { "type": "string", "default": "" },
+    "provider_test_result":  { "type": "string", "default": "idle",
+                                "values": ["idle", "testing", "ok", "failed"] },
+    "provider_test_error":   { "type": "string", "default": "" }
+  },
+
+  // Actions the wizard invokes. Thin wrappers over daemon REST endpoints.
+  // The inline `shipSetup.*` helpers in index.html.j2 map to these.
+  "actions": {
+    "workspace.create": {
+      "method": "POST",
+      "url": "/api/projects",
+      "body": { "name": "string", "path": "string" }
+    },
+    "settings.save": {
+      "method": "POST",
+      "url": "/api/settings",
+      "body": { "provider": "string", "key": "string" }
+    },
+    "provider.test": {
+      "method": "POST",
+      "url": "/api/providers/test",
+      "body": { "provider": "string", "key": "string" },
+      "returns": { "ok": "boolean", "error": "string?" }
+    },
+    "setup.complete": {
+      "method": "POST",
+      "url": "/api/settings",
+      "body": { "key": "setup.completed", "value": true },
+      "side_effects": ["redirect to /"]
+    }
+  },
+
+  // No SSE topics — wizard is user-driven, not event-driven.
+  "topics": []
+}
