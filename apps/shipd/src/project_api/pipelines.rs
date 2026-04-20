@@ -10,14 +10,43 @@ use crate::rest_api::{ApiState, MeshResponse};
 /// Recognised pipeline file extensions, preferred first.
 const PIPELINE_EXTS: &[&str] = &["jsonc", "yaml"];
 
-/// Parse pipeline content (JSONC or YAML) into a serde_json::Value.
-fn parse_pipeline_content(content: &str) -> Result<serde_json::Value, String> {
+/// A parse failure with position info. Shared shape between JSONC and
+/// YAML so the client can always render `line:column` when available.
+#[derive(serde::Serialize, Debug)]
+pub struct ParseError {
+    pub message: String,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub line: Option<u32>,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub column: Option<u32>,
+    /// Source format for the editor's linter (jsonc | yaml).
+    pub format: &'static str,
+}
+
+/// Parse pipeline content (JSONC or YAML) into a serde_json::Value,
+/// preserving line/column on failure.
+///
+/// Note: JSONC parsing strips comments first. The stripper keeps line
+/// breaks intact so `serde_json::Error::line()` is correct, but column
+/// numbers on lines that contained inline comments can shift left by
+/// the comment length. Good enough for "jump to line" editor affordances.
+fn parse_pipeline_content(content: &str) -> Result<serde_json::Value, ParseError> {
     let trimmed = content.trim_start();
     if trimmed.starts_with('{') || trimmed.starts_with('[') {
         let json = compiler::jsonc::strip_jsonc_comments(content);
-        serde_json::from_str(&json).map_err(|e| format!("invalid JSONC: {e}"))
+        serde_json::from_str(&json).map_err(|e| ParseError {
+            message: e.to_string(),
+            line: Some(e.line() as u32),
+            column: Some(e.column() as u32),
+            format: "jsonc",
+        })
     } else {
-        serde_yaml::from_str(content).map_err(|e| format!("invalid YAML: {e}"))
+        serde_yaml::from_str(content).map_err(|e| ParseError {
+            message: e.to_string(),
+            line: e.location().map(|l| l.line() as u32),
+            column: e.location().map(|l| l.column() as u32),
+            format: "yaml",
+        })
     }
 }
 
@@ -97,9 +126,20 @@ pub async fn write_pipeline(
         return Err(err_response(StatusCode::BAD_REQUEST, "invalid pipeline name"));
     }
 
-    // Validate content is parseable
-    parse_pipeline_content(&body.content)
-        .map_err(|e| err_response(StatusCode::BAD_REQUEST, &e))?;
+    // Validate content is parseable; thread structured error back so
+    // the client can place a marker at (line, column) in the editor.
+    if let Err(parse_err) = parse_pipeline_content(&body.content) {
+        return Err((
+            StatusCode::BAD_REQUEST,
+            Json(MeshResponse {
+                ok: false,
+                data: serde_json::json!({
+                    "error": "parse_error",
+                    "parse": parse_err,
+                }),
+            }),
+        ));
+    }
 
     std::fs::create_dir_all(&pipelines_dir)
         .map_err(|e| err_response(StatusCode::INTERNAL_SERVER_ERROR, &format!("create dir: {e}")))?;

@@ -17,7 +17,9 @@
      {{ signal('edit_mode', false) }}
      {{ signal('edit_draft', raw) }}
      {{ signal('edit_saving', false) }}
-     {{ signal('edit_error', '') }}>
+     {{ signal('edit_error', '') }}
+     {{ signal('edit_error_line', 0) }}
+     {{ signal('edit_error_col', 0) }}>
   <style>
   .ship-view-pipeline-focus { color: var(--foreground); background: var(--background); }
   .ship-focus-wrap {
@@ -114,10 +116,7 @@
           Cancel
         </ship-button>
         <ship-button tone="accent" variant="solid" data-show="$edit_mode"
-          data-on:click="@put('/api/workspaces/{{ workspace_id }}/pipelines/{{ name }}', {
-            contentType: 'json',
-            body: JSON.stringify({ content: $edit_draft })
-          })">
+          data-on:click="window.savePipeline('{{ workspace_id }}', '{{ name }}', $edit_draft, document.getElementById('ship-view-root'))">
           <ship-icon slot="leading" name="check" size="sm"></ship-icon>
           Save
         </ship-button>
@@ -225,6 +224,9 @@
       </div>
       <ship-alert tone="destructive" compact data-show="$edit_error">
         <span data-text="$edit_error"></span>
+        <span data-show="$edit_error_line > 0" style="margin-left: var(--space-2); opacity: 0.8;">
+          at line <span data-text="$edit_error_line"></span>:<span data-text="$edit_error_col"></span>
+        </span>
       </ship-alert>
       <ship-code-editor
         language="{{ 'jsonc' if format == 'jsonc' else ('json' if format == 'json' else 'yaml') }}"
@@ -363,6 +365,53 @@
     </div>
   </ship-dialog>
 </div>
+<script>
+// Raw-editor save helper — fetches the workspace PUT endpoint, reads
+// the structured parse error so the editor can place a marker.
+// Signals on the root element are mutated via Datastar's proxied
+// signals API when available; falls back to `data-signal-*` writes.
+(function () {
+  window.savePipeline = async function (workspaceId, name, draft, root) {
+    const set = function (k, v) {
+      if (root.__ds?.signals?.[k]) { root.__ds.signals[k].value = v; return; }
+      root.setAttribute('data-signal-' + k, v);
+    };
+    set('edit_saving', true);
+    set('edit_error', '');
+    set('edit_error_line', 0);
+    set('edit_error_col', 0);
+    const url = '/api/workspaces/' + encodeURIComponent(workspaceId)
+      + '/pipelines/' + encodeURIComponent(name);
+    try {
+      const resp = await fetch(url, {
+        method: 'PUT',
+        credentials: 'include',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ content: draft }),
+      });
+      if (resp.ok) {
+        set('edit_mode', false);
+        set('edit_saving', false);
+        window.location.reload();
+        return;
+      }
+      const body = await resp.json().catch(function () { return {}; });
+      const parse = body && body.data && body.data.parse;
+      if (parse) {
+        set('edit_error', parse.message || 'parse error');
+        set('edit_error_line', parse.line || 0);
+        set('edit_error_col', parse.column || 0);
+      } else {
+        set('edit_error', (body && body.data && body.data.error) || ('HTTP ' + resp.status));
+      }
+    } catch (err) {
+      set('edit_error', 'network: ' + (err && err.message ? err.message : String(err)));
+    } finally {
+      set('edit_saving', false);
+    }
+  };
+})();
+</script>
 {% if not fragment %}
 </body>
 </html>
