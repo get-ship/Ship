@@ -3,12 +3,12 @@
   Context: agent (AgentDetail), tiers (Vec<TierRow>).
 
   Parity target: apps/web/src/routes/studio/agents/$id.tsx
-  - Sticky header: avatar (28px) + name (display bold) + version + delete
-  - Five stacked sections: Skills, MCP, Permissions, Rules, Providers
-  - Each section uses the SectionShell pattern (icon + title + count + action)
+  - Sticky header: avatar (28px, ship-avatar sm) + name (display bold) + version + delete
+  - Five stacked section cards: Skills, MCP, Permissions, Rules, Providers
+  - Each section wraps in ship-card via section() macro (title-only) or
+    a hand-wrapped card when the header carries an action button.
 -#}
-{% from '_ship.html.j2' import head, signal, get, nav, radio %}
-{% from '_urls.html.j2' import view_agents, view_agent_detail %}
+{% from '_ship.html.j2' import head, signal, nav %}
 {% if not fragment %}
 <!DOCTYPE html>
 <html lang="en">
@@ -27,7 +27,7 @@
             aria-label="Back to agents">
       <ship-icon slot="leading" name="chevron-left"></ship-icon>
     </ship-button>
-    <div class="ad-avatar">{{ agent.letter }}</div>
+    <ship-avatar size="sm" initials="{{ agent.letter }}" name="{{ agent.name }}"></ship-avatar>
     <h1 class="ad-name">{{ agent.name }}</h1>
     <span class="ad-version">0.0.0</span>
     <div class="ad-header-spacer"></div>
@@ -38,11 +38,13 @@
 
   <!-- Scrollable body with all sections -->
   <div class="ad-body">
-    {% include 'agents/partials/panel_skills.html.j2' %}
-    {% include 'agents/partials/panel_mcp.html.j2' %}
-    {% include 'agents/partials/panel_permissions.html.j2' %}
-    {% include 'agents/partials/panel_rules.html.j2' %}
-    {% include 'agents/partials/panel_providers.html.j2' %}
+    <div class="ad-sections">
+      {% include 'agents/partials/panel_skills.html.j2' %}
+      {% include 'agents/partials/panel_mcp.html.j2' %}
+      {% include 'agents/partials/panel_permissions.html.j2' %}
+      {% include 'agents/partials/panel_rules.html.j2' %}
+      {% include 'agents/partials/panel_providers.html.j2' %}
+    </div>
     <div class="ad-bottom-spacer"></div>
   </div>
 

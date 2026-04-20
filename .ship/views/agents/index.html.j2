@@ -6,12 +6,11 @@
   - Syne display heading + "N agents" subtitle
   - responsive card grid (grid-cols-1 / md:2 / lg:3)
   - avatar (colored circle, first letter) + name + description + stats + badges
-  - filter bar (search + role pills)
-  - card hover: border-primary/30 + arrow foreground
-  - empty state
+  - card hover: border-primary/30 + arrow foreground (ship-list-tile supplies)
+  - empty state (ship-empty-state in content partial)
 -#}
-{% from '_ship.html.j2' import head, signal, live, get, post %}
-{% from '_urls.html.j2' import view_agent_detail, view_agents_create %}
+{% from '_ship.html.j2' import head, signal, live, post %}
+{% from '_urls.html.j2' import view_agents_create %}
 {% if not fragment %}
 <!DOCTYPE html>
 <html lang="en">
@@ -21,23 +20,20 @@
 <div class="ship-view agents-view"
      {{ signal('_creating', false) }}>
   <style>
-  .agents-view {
-    color: var(--foreground);
-    font-family: var(--font-body);
-  }
-  .agents-wrap {
-    max-width: 1024px;
-    margin: 0 auto;
-    padding: 32px var(--space-6);
-  }
+  /* Page-level typography — the view header precedes any ship-card, so the
+     shell container owns font + color context. */
+  .agents-view { color: var(--foreground); font-family: var(--font-body); }
 
-  /* --- Header row --- */
+  /* Outer wrap. The agents view sits inside the shell's main panel; the
+     1024px clamp + symmetric padding match the React parity exactly. */
+  .agents-wrap { max-width: 1024px; margin: 0 auto; padding: 32px var(--space-6); }
+
+  /* Title row — display-family heading left, primary CTA right. No
+     ship-element covers a heading-with-subtitle + action layout; kept
+     view-local. */
   .agents-head {
-    display: flex;
-    align-items: flex-start;
-    justify-content: space-between;
-    gap: var(--space-4);
-    margin-bottom: var(--space-6);
+    display: flex; align-items: flex-start; justify-content: space-between;
+    gap: var(--space-4); margin-bottom: var(--space-6);
   }
   .agents-title {
     font-family: var(--font-display);
@@ -48,37 +44,13 @@
     margin: 0 0 var(--space-1);
     color: var(--foreground);
   }
-  .agents-sub {
-    font-size: 14px;
-    color: var(--muted-foreground);
-    margin: 0;
-  }
-  .agents-new-btn {
-    display: inline-flex;
-    align-items: center;
-    gap: var(--radius-md);
-    padding: var(--space-2) var(--space-4);
-    border-radius: var(--radius-lg);
-    border: none;
-    background: var(--primary);
-    color: var(--primary-foreground);
-    font-size: 12px;
-    font-weight: var(--font-weight-semibold);
-    cursor: pointer;
-    transition: background var(--duration-fast, 150ms) ease;
-    white-space: nowrap;
-  }
-  .agents-new-btn:hover { opacity: 0.9; }
-  .agents-new-btn:focus-visible {
-    outline: none;
-    box-shadow: 0 0 0 3px color-mix(in oklch, var(--ring) 50%, transparent);
-  }
+  .agents-sub { font-size: 14px; color: var(--muted-foreground); margin: 0; }
 
-  /* --- Card grid --- */
+  /* Grid layout — breakpoints mirror the React parity (1/2/3 cols).
+     ship-list-tile doesn't own its own layout context, so the grid rules
+     live here. */
   .agents-grid {
-    display: grid;
-    grid-template-columns: 1fr;
-    gap: var(--space-3);
+    display: grid; grid-template-columns: 1fr; gap: var(--space-3);
   }
   @media (min-width: 768px) {
     .agents-grid { grid-template-columns: repeat(2, 1fr); }
@@ -87,119 +59,68 @@
     .agents-grid { grid-template-columns: repeat(3, 1fr); }
   }
 
-  /* --- Agent card --- */
-  .agent-card {
-    display: block;
-    text-decoration: none;
-    color: inherit;
-    padding: var(--space-4);
-    border-radius: var(--space-3);
-    border: 1px solid color-mix(in oklch, var(--border) 60%, transparent);
-    background: var(--card);
-    cursor: pointer;
-    transition: border-color var(--duration-fast, 150ms) ease;
+  /* Card body vertical stack — the ship-list-tile primary slot renders
+     as an inline span (.primary), but a block-level child lays out as a
+     column regardless. We need a 3-stack inside the tile's primary
+     region so this wrapper restores block flow. */
+  .agents-card-body {
+    display: flex; flex-direction: column; gap: var(--space-2);
+    min-width: 0; flex: 1;
   }
-  .agent-card:hover {
-    border-color: color-mix(in oklch, var(--primary) 30%, transparent);
-  }
-  .agent-card:focus-visible {
-    outline: none;
-    box-shadow: 0 0 0 3px color-mix(in oklch, var(--ring) 50%, transparent);
-  }
-  .agent-card-head {
-    display: flex;
-    align-items: flex-start;
-    gap: var(--space-3);
-    margin-bottom: var(--space-3);
-  }
-  .agent-avatar {
-    width: 40px;
-    height: 40px;
-    border-radius: var(--space-3);
-    background: linear-gradient(135deg,
-      oklch(0.67 0.16 58),
-      oklch(0.5 0.16 30));
-    display: flex;
-    align-items: center;
-    justify-content: center;
-    color: white;
-    font-size: var(--space-4);
-    font-weight: var(--font-weight-semibold);
-    text-transform: uppercase;
-    flex-shrink: 0;
-  }
-  .agent-card-body { min-width: 0; flex: 1; }
-  .agent-name {
+
+  /* Title + description stack. The tile's primary slot is font-weight
+     medium + text-base; agent cards want a tighter semibold title with a
+     clamped 2-line description below — keep view-local. */
+  .agents-card-head { display: flex; flex-direction: column; gap: 2px; min-width: 0; }
+  .agents-card-title {
     font-size: 14px;
     font-weight: var(--font-weight-semibold);
     color: var(--foreground);
-    margin: 0 0 2px;
-    overflow: hidden;
-    text-overflow: ellipsis;
-    white-space: nowrap;
+    overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
   }
-  .agent-desc {
+  .agents-card-desc {
     font-size: var(--text-xs);
     color: var(--muted-foreground);
-    margin: 0;
-    line-height: 1.5;
+    margin: 0; line-height: 1.5;
     display: -webkit-box;
     -webkit-line-clamp: 2;
     -webkit-box-orient: vertical;
     overflow: hidden;
   }
-  .agent-arrow {
-    color: var(--muted-foreground);
-    transition: color var(--duration-fast, 150ms) ease;
-    margin-top: 2px;
-    flex-shrink: 0;
-    width: 14px;
-    height: 14px;
-  }
-  .agent-card:hover .agent-arrow { color: var(--foreground); }
 
-  /* --- Stats row --- */
-  .agent-stats {
-    display: flex;
-    align-items: center;
-    gap: var(--space-2);
-    font-size: 10px;
-    color: var(--muted-foreground);
+  /* Stats row — 10px dotted separators. No ship-element covers this
+     micro-row. */
+  .agents-card-stats {
+    display: flex; align-items: center; gap: var(--space-2);
+    font-size: 10px; color: var(--muted-foreground);
   }
-  .agent-stats-sep { color: var(--border); }
+  .agents-card-sep { color: var(--border); }
 
-  /* --- Badge row --- */
-  .agent-badges {
-    display: flex;
-    align-items: center;
-    gap: var(--radius-md);
-    margin-top: var(--space-2);
-  }
-  .agent-badge {
-    display: inline-flex;
-    align-items: center;
-    gap: 3px;
-    font-size: 9px;
-    padding: 2px var(--radius-md);
-    border: 1px solid color-mix(in oklch, var(--border) 50%, transparent);
-    border-radius: var(--radius-sm);
-    color: var(--muted-foreground);
-  }
-  .agent-badge--project {
-    color: var(--foreground);
-    background: color-mix(in oklch, var(--muted) 50%, transparent);
+  /* Source badge row — gives the badge a dedicated line so it doesn't
+     wrap with the stats. ship-badge size=sm is the correct primitive. */
+  .agents-card-badges {
+    display: flex; align-items: center; gap: var(--radius-md);
   }
 
-  /* --- Loading / empty --- */
+  /* Arrow icon — right-aligned in the tile's trailing slot. Pointed
+     forward; ship-list-tile already handles hover color via inherit. */
+  .agents-card-arrow {
+    width: 14px; height: 14px;
+    color: var(--muted-foreground);
+    transition: color var(--duration-fast) var(--ease-out);
+  }
+  ship-list-tile.agents-card-tile:hover .agents-card-arrow { color: var(--foreground); }
+
+  /* Keep the tile body's primary slot happy — it wraps its content in a
+     span (.primary) that's flex:1 min-width:0 inside the tile row. Our
+     body wants the same so long text clamps. */
+  ship-list-tile.agents-card-tile::part(primary) { min-width: 0; }
+
+  /* Loading copy — shown pre-SSE-patch. ship-empty-state is the loaded
+     empty state (in content partial). */
   .loading-copy {
-    font-size: 14px;
-    color: var(--muted-foreground);
-    padding: var(--space-4) 0;
-    margin: 0;
-  }
-
-  @media (prefers-reduced-motion: reduce) {
-    .agent-card, .agent-arrow { transition: none; }
+    font-size: 14px; color: var(--muted-foreground);
+    padding: var(--space-4) 0; margin: 0;
   }
   </style>
   <div class="agents-wrap">

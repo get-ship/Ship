@@ -1,38 +1,33 @@
 {#- Rules section. Context: agent (AgentDetail).
+    Hand-wrapped ship-card — section() macro has no action-button slot.
     Parity: apps/web/src/features/agents/sections/RulesSection.tsx -#}
-<section id="section-rules" class="ad-section">
-  <div class="ad-section-head">
-    <h2 class="ad-section-label">
-      <svg class="ad-section-icon" viewBox="0 0 24 24" fill="none"
-           stroke="currentColor" stroke-width="2" stroke-linecap="round"
-           stroke-linejoin="round">
-        <path d="M15 2H6a2 2 0 0 0-2 2v16a2 2 0 0 0 2 2h12a2 2 0 0 0 2-2V7Z"/>
-        <path d="M14 2v4a2 2 0 0 0 2 2h4"/>
-        <path d="M10 9H8"/>
-        <path d="M16 13H8"/>
-        <path d="M16 17H8"/>
-      </svg>
+<ship-card padding="none" id="section-rules">
+  <div slot="header" class="ad-section-head">
+    <h2 class="ad-section-title">
+      <ship-icon name="file"></ship-icon>
       Rules
       <span class="ad-section-count">{{ agent.rules | length }} rules</span>
     </h2>
-    <ship-button class="ad-section-action" variant="outline" size="sm" disabled>
+    <ship-button variant="outline" size="sm" disabled>
       <ship-icon slot="leading" name="plus"></ship-icon>
       Add
     </ship-button>
   </div>
-  {% if agent.rules | length == 0 %}
-    <div class="ad-empty">
-      No rules configured. This agent uses project defaults.
-    </div>
-  {% else %}
-    <div class="ad-stack">
-      {% for rule in agent.rules %}
-        <div class="ad-rule-row">
-          <span class="ad-rule-name">{{ rule }}</span>
-          <span class="ad-rule-preview">Project rule</span>
-          <ship-button class="ad-rule-edit" variant="ghost" size="sm" disabled>edit</ship-button>
-        </div>
-      {% endfor %}
-    </div>
-  {% endif %}
-</section>
+  <div class="ad-section-body">
+    {% if agent.rules | length == 0 %}
+      <div class="ad-empty">
+        No rules configured. This agent uses project defaults.
+      </div>
+    {% else %}
+      <div class="ad-rule-list">
+        {% for rule in agent.rules %}
+          <ship-list-tile density="compact">
+            <span slot="leading" class="ad-rule-name">{{ rule }}</span>
+            <span class="ad-rule-preview">Project rule</span>
+            <ship-button slot="trailing" variant="ghost" size="sm" disabled>edit</ship-button>
+          </ship-list-tile>
+        {% endfor %}
+      </div>
+    {% endif %}
+  </div>
+</ship-card>
