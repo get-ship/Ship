@@ -4,7 +4,7 @@ export default defineConfig({
   site: 'https://set.getship.dev',
   output: 'static',
   vite: {
-    ssr: { noExternal: ['@ship/ui'] },
+    ssr: { noExternal: ['@ship/set'] },
     resolve: { conditions: ['browser', 'import', 'module', 'default'] },
   },
 });

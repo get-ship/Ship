@@ -4,9 +4,9 @@
 // with a strip of 4 swatches (bg / card / primary / accent) so
 // light/dark + accent mood are readable at a glance.
 //
-// Drives off THEMES in @ship/ui/themes. No theme ids, labels, or
+// Drives off THEMES in @ship/set/themes. No theme ids, labels, or
 // swatches live in the site.
-import { THEMES } from '@ship/ui/themes';
+import { THEMES } from '@ship/set/themes';
 
 const groups = Array.from(new Set(THEMES.map((t) => t.group)));
 ---
@@ -69,7 +69,7 @@ const groups = Array.from(new Set(THEMES.map((t) => t.group)));
     persistTheme,
     readStoredTheme,
     isValidTheme,
-  } from '@ship/ui/themes';
+  } from '@ship/set/themes';
 
   const pickers = document.querySelectorAll<HTMLElement>('[data-theme-picker]');
   for (const picker of pickers) {

@@ -1,5 +1,5 @@
-import { PermissionsEditor } from '@ship/ui'
-import type { Permissions } from '@ship/ui'
+import { PermissionsEditor } from '@ship/set'
+import type { Permissions } from '@ship/set'
 
 interface Props {
   permissions: Permissions

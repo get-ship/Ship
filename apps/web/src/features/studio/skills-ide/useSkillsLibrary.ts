@@ -5,7 +5,7 @@
 import { useMemo } from 'react'
 import { usePullAgents, useProjectSkills } from '#/features/studio/hooks/useWorkspaceConfig'
 import { useDaemon } from '#/features/studio/hooks/useDaemonData'
-import type { Skill, PullSkill, JsonValue } from '@ship/ui'
+import type { Skill, PullSkill, JsonValue } from '@ship/set'
 
 export interface LibrarySkill extends Skill {
   /** 'project' = from .ship/, 'library' = from ~/.ship/ */

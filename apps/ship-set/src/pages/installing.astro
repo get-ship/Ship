@@ -6,7 +6,7 @@ import BaseLayout from '../layouts/BaseLayout.astro';
   <section class="in-head">
     <h1 class="in-title">Installing</h1>
     <p class="in-sub">
-      SHIP SET is published as <code>@ship/ui</code> today. Install
+      SHIP SET is published as <code>@ship/set</code> today. Install
       into any Vite / Astro / plain-HTML app, import the elements
       bundle once, use them anywhere.
     </p>
@@ -15,8 +15,8 @@ import BaseLayout from '../layouts/BaseLayout.astro';
   <section class="in-section">
     <h2 class="in-h2">1 · Install</h2>
     <div class="in-code">
-      <pre><code>pnpm add @ship/ui</code></pre>
-      <button type="button" class="in-copy" data-copy="pnpm add @ship/ui">Copy</button>
+      <pre><code>pnpm add @ship/set</code></pre>
+      <button type="button" class="in-copy" data-copy="pnpm add @ship/set">Copy</button>
     </div>
     <p class="in-note">
       Works with npm, yarn, bun, and any package manager that reads
@@ -27,12 +27,12 @@ import BaseLayout from '../layouts/BaseLayout.astro';
   <section class="in-section">
     <h2 class="in-h2">2 · Import once</h2>
     <div class="in-code">
-<pre><code>import '@ship/ui/elements'
-import '@ship/ui/tokens.css'
-import '@ship/ui/themes.css'</code></pre>
-      <button type="button" class="in-copy" data-copy={`import '@ship/ui/elements'
-import '@ship/ui/tokens.css'
-import '@ship/ui/themes.css'`}>Copy</button>
+<pre><code>import '@ship/set/elements'
+import '@ship/set/tokens.css'
+import '@ship/set/themes.css'</code></pre>
+      <button type="button" class="in-copy" data-copy={`import '@ship/set/elements'
+import '@ship/set/tokens.css'
+import '@ship/set/themes.css'`}>Copy</button>
     </div>
     <p class="in-note">
       The elements module registers every <code>&lt;ship-*&gt;</code>
@@ -69,11 +69,11 @@ import '@ship/ui/themes.css'`}>Copy</button>
       so shadow/elevation tokens flip too.
     </p>
     <div class="in-code">
-<pre><code>import &#123; applyTheme, persistTheme &#125; from '@ship/ui/themes'
+<pre><code>import &#123; applyTheme, persistTheme &#125; from '@ship/set/themes'
 
 applyTheme('gruvbox-dark')   // sets data-theme + .dark on &lt;html&gt;
 persistTheme('gruvbox-dark') // localStorage for next load</code></pre>
-      <button type="button" class="in-copy" data-copy={`import { applyTheme, persistTheme } from '@ship/ui/themes'
+      <button type="button" class="in-copy" data-copy={`import { applyTheme, persistTheme } from '@ship/set/themes'
 
 applyTheme('gruvbox-dark')
 persistTheme('gruvbox-dark')`}>Copy</button>

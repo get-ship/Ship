@@ -8,7 +8,7 @@ import { useDaemon } from '#/features/studio/hooks/useDaemonData'
 import { CreateJobDialog } from '#/features/studio/CreateJobDialog'
 import { WorkflowRunCard } from '#/features/studio/WorkflowRunCard'
 import { WorkflowTemplates } from '#/features/studio/WorkflowTemplates'
-import type { JobRecord } from '@ship/ui'
+import type { JobRecord } from '@ship/set'
 
 export const Route = createFileRoute('/studio/workflows')({
   component: () => <DaemonGuard><WorkflowsPage /></DaemonGuard>,

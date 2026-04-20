@@ -1,14 +1,14 @@
 @import "tailwindcss";
 @source "../../../packages/primitives/src";
-@source "../../../packages/ui/src";
+@source "../../../packages/ship-set/src";
 @import "tw-animate-css";
 @import "shadcn/tailwind.css";
 @import "@fontsource-variable/syne";
 @import "@fontsource-variable/dm-sans";
 /* Relative path — Tailwind v4's CSS resolver does not honor package.json
-   exports maps, so `@import "@ship/ui/tokens.css"` resolves the scope
+   exports maps, so `@import "@ship/set/tokens.css"` resolves the scope
    to ./src/index.ts and then ENOTDIRs appending tokens.css. */
-@import "../../../packages/ui/src/tokens.css";
+@import "../../../packages/ship-set/src/tokens.css";
 
 @custom-variant dark (&:is(.dark *));
 

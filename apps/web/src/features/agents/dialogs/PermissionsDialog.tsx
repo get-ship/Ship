@@ -1,6 +1,6 @@
 import { useState, useEffect, useCallback, useRef, useMemo } from 'react'
 import { Lock, Wrench, FolderOpen, X } from 'lucide-react'
-import type { ProfilePermissions, McpServerConfig } from '@ship/ui'
+import type { ProfilePermissions, McpServerConfig } from '@ship/set'
 import {
   BUILTIN_TOOLS,
   COMMON_BASH_PATTERNS,

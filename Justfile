@@ -80,7 +80,7 @@ typecheck:
 db-migrate:
     cd apps/web && npx wrangler d1 migrations apply ship --local
 
-# Regenerate Specta types (Rust → packages/ui/src/generated.ts)
+# Regenerate Specta types (Rust → packages/ship-set/src/generated.ts)
 gen-types:
     cargo run -p xtask -- gen-types
 

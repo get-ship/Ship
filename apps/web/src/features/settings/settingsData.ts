@@ -2,7 +2,7 @@ const SETTINGS_KEY = 'ship-settings-v1'
 
 /**
  * UI-local state: user preferences persisted to localStorage.
- * These fields are not derived from `@ship/ui` or `#/db/schema` because
+ * These fields are not derived from `@ship/set` or `#/db/schema` because
  * they represent client-side Studio preferences, not compiler config.
  */
 export interface SettingsData {

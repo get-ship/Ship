@@ -74,7 +74,7 @@ The CLI filesystem is always authoritative. IndexedDB is a cache and draft buffe
 
 ## Type safety
 
-Transfer types (`PullResponse`, `TransferBundle`, `ListAgentsResponse`, `PullSkill`) are defined in Rust and auto-generated to TypeScript via Specta. They live in `@ship/ui`. Studio imports them directly -- no hand-written parallel type definitions.
+Transfer types (`PullResponse`, `TransferBundle`, `ListAgentsResponse`, `PullSkill`) are defined in Rust and auto-generated to TypeScript via Specta. They live in `@ship/set`. Studio imports them directly -- no hand-written parallel type definitions.
 
 All MCP calls go through typed TanStack Query hooks in `features/studio/mcp-queries.ts`.
 

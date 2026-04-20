@@ -15,7 +15,7 @@ import { EditAgentDialog } from '#/features/agents/dialogs/EditAgentDialog'
 import { PermissionsDialog } from '#/features/agents/dialogs/PermissionsDialog'
 import { RuleEditorDialog } from '#/features/agents/dialogs/RuleEditorDialog'
 import type { ResolvedAgentProfile, ToolPermission } from '#/features/agents/types'
-import type { Skill, Rule, HookConfig, ProfilePermissions } from '@ship/ui'
+import type { Skill, Rule, HookConfig, ProfilePermissions } from '@ship/set'
 
 import { AgentDetailSkeleton } from '#/features/studio/StudioSkeleton'
 import { StudioErrorBoundary } from '#/features/studio/StudioErrorBoundary'

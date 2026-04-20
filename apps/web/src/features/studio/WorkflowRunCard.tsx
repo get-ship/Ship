@@ -1,6 +1,6 @@
 import { Square } from 'lucide-react'
 import { useUpdateJob } from '#/features/studio/hooks/useDaemonData'
-import type { JobRecord } from '@ship/ui'
+import type { JobRecord } from '@ship/set'
 
 const STATUS_DOT: Record<string, string> = {
   pending: 'bg-muted-foreground/30',

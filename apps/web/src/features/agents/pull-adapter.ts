@@ -1,7 +1,7 @@
-// Converts PullAgent (from @ship/ui generated types) to ResolvedAgentProfile
+// Converts PullAgent (from @ship/set generated types) to ResolvedAgentProfile
 // (the UI-resolved type used throughout the agent editor).
 
-import type { PullAgent, Skill, McpServerConfig, Rule, HookConfig } from '@ship/ui'
+import type { PullAgent, Skill, McpServerConfig, Rule, HookConfig } from '@ship/set'
 import type { ResolvedAgentProfile } from './types'
 
 export function pullAgentToResolved(pull: PullAgent): ResolvedAgentProfile {

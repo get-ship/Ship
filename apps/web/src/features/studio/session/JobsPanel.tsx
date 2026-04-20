@@ -1,5 +1,5 @@
 import { Briefcase } from 'lucide-react'
-import type { JobRecord } from '@ship/ui'
+import type { JobRecord } from '@ship/set'
 
 const STATUS_COLORS: Record<string, string> = {
   pending: 'bg-muted-foreground/30',

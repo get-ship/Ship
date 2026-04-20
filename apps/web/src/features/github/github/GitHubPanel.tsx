@@ -1,7 +1,7 @@
 import { useState, useCallback, useMemo } from 'react'
 import { Github, Lock, Unlock, Loader2, ExternalLink, GitPullRequest, AlertCircle, ChevronRight } from 'lucide-react'
 import { authClient } from '#/lib/auth-client'
-import type { ProjectLibrary } from '@ship/ui'
+import type { ProjectLibrary } from '@ship/set'
 
 // ── Types ────────────────────────────────────────────────────────────────────
 

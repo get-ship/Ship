@@ -3,7 +3,7 @@ import {
   Search, Plus, ChevronRight, ChevronDown, Zap,
   FolderOpen, Library, ChevronsDownUp,
 } from 'lucide-react'
-import type { Skill } from '@ship/ui'
+import type { Skill } from '@ship/set'
 import type { LibrarySkill } from './useSkillsLibrary'
 import { SKILL_MD } from './useSkillsIDE'
 import { SkillContextMenu, type ContextMenuState } from './SkillContextMenu'

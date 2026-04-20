@@ -4,7 +4,7 @@
 import { useState } from 'react'
 import { useShipQuery } from './useShipQuery'
 import { usePlatform } from '../PlatformProvider'
-import type { Workspace, JobRecord } from '@ship/ui'
+import type { Workspace, JobRecord } from '@ship/set'
 
 // ── Types ──────────────────────────────────────────────────────────────────────
 

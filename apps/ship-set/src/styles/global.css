@@ -1,13 +1,13 @@
 /*
  * SHIP SET site styles.
- * Canonical @ship/ui tokens + the shared theme catalog. Syne + DM Sans
+ * Canonical @ship/set tokens + the shared theme catalog. Syne + DM Sans
  * match the SHIP app. Only site-scoped variables are layout constants.
  */
 
 @import '@fontsource-variable/syne';
 @import '@fontsource-variable/dm-sans';
-@import '@ship/ui/tokens.css';
-@import '@ship/ui/themes.css';
+@import '@ship/set/tokens.css';
+@import '@ship/set/themes.css';
 
 :root {
   --set-sidebar-width: 248px;

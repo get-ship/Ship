@@ -1,7 +1,7 @@
 ---
 // Theme picker shared with the marketing site pattern — swatch cards
-// in a popover. Drives off @ship/ui/themes metadata.
-import { THEMES } from '@ship/ui/themes';
+// in a popover. Drives off @ship/set/themes metadata.
+import { THEMES } from '@ship/set/themes';
 
 const groups = Array.from(new Set(THEMES.map((t) => t.group)));
 ---
@@ -63,7 +63,7 @@ const groups = Array.from(new Set(THEMES.map((t) => t.group)));
     persistTheme,
     readStoredTheme,
     isValidTheme,
-  } from '@ship/ui/themes';
+  } from '@ship/set/themes';
 
   const pickers = document.querySelectorAll<HTMLElement>('[data-theme-picker]');
   for (const picker of pickers) {

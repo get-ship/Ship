@@ -1,6 +1,6 @@
 import { useCallback, lazy, Suspense } from 'react'
 import { PanelRight, Zap, Save, Plus } from 'lucide-react'
-import type { Skill } from '@ship/ui'
+import type { Skill } from '@ship/set'
 import type { FrontmatterEntry } from '@ship/primitives'
 import { parseTabId } from './useSkillsIDE'
 import { TextEditor } from './TextEditor'

@@ -5,7 +5,7 @@ import {
 import { Badge } from '@ship/primitives'
 import { Zap, Loader2, Globe } from 'lucide-react'
 import { useLibrary } from '#/features/compiler/useLibrary'
-import type { Skill } from '@ship/ui'
+import type { Skill } from '@ship/set'
 import { useRegistrySkillSearch } from '../useRegistryAutocomplete'
 import type { RegistrySkillResult } from '../useRegistryAutocomplete'
 

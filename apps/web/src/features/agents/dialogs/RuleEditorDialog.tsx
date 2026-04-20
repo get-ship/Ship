@@ -1,6 +1,6 @@
 import { useState, useEffect, useCallback, useRef } from 'react'
 import { FileText, X, Trash2 } from 'lucide-react'
-import type { Rule } from '@ship/ui'
+import type { Rule } from '@ship/set'
 
 type RuleData = Pick<Rule, 'file_name' | 'content'>
 

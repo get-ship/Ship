@@ -130,4 +130,4 @@ Ship Studio (`apps/web/`) is a TanStack Start application on Cloudflare Workers.
 - Better Auth for authentication
 - `@ship/compiler` (WASM) for in-browser compilation
 - `@ship/primitives` (shadcn) for UI components
-- `@ship/ui` for generated Rust types via Specta
+- `@ship/set` for generated Rust types via Specta

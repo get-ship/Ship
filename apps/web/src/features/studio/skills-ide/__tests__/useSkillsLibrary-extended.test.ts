@@ -1,7 +1,7 @@
 import { describe, it, expect } from 'vitest'
 import { aggregateSkills, mergeProjectSkills } from '../useSkillsLibrary'
 import type { LibrarySkill } from '../useSkillsLibrary'
-import type { PullSkill } from '@ship/ui'
+import type { PullSkill } from '@ship/set'
 
 function skill(id: string, name: string, overrides?: Partial<PullSkill>): PullSkill {
   return {

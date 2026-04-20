@@ -13,7 +13,7 @@ The daemon embeds four JS bundles via `include_str!`:
 - `assets/ship-terminal.js`
 
 These are **not committed** — they are built from source in
-`packages/ui/src/web-components/` by the top-level script:
+`packages/ship-set/src/web-components/` by the top-level script:
 
 ```bash
 pnpm build:bundles           # build all (idempotent; skips unchanged)

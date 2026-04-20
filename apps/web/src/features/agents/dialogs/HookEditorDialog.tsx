@@ -1,6 +1,6 @@
 import { useState, useEffect, useCallback } from 'react'
 import { Link2, X, Trash2 } from 'lucide-react'
-import type { HookConfig, HookTrigger } from '@ship/ui'
+import type { HookConfig, HookTrigger } from '@ship/set'
 
 const DEFAULT_TRIGGERS: HookTrigger[] = [
   'PreToolUse', 'PostToolUse', 'Stop', 'Notification', 'SubagentStop', 'PreCompact',

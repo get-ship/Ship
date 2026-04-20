@@ -2,7 +2,7 @@
  * Ship site global styles.
  * Loads canonical Ship tokens + Syne/DM Sans (matching Studio + docs).
  * No invented fonts. No invented color ramps. Everything flows through
- * @ship/ui/tokens.css.
+ * @ship/set/tokens.css.
  */
 
 @import '@fontsource-variable/syne';

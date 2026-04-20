@@ -2,8 +2,8 @@ import { useState, useCallback, useEffect, useRef } from 'react'
 import { toast } from 'sonner'
 import { useCompiler } from '#/features/compiler/useCompiler'
 import { PROVIDERS } from '#/features/compiler/types'
-import type { ProjectLibrary, McpServerConfig, Skill } from '@ship/ui'
-import { DEFAULT_LIBRARY } from '@ship/ui'
+import type { ProjectLibrary, McpServerConfig, Skill } from '@ship/set'
+import { DEFAULT_LIBRARY } from '@ship/set'
 
 const STORAGE_KEY = 'ship-studio-v1'
 

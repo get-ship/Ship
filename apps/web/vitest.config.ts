@@ -20,7 +20,7 @@ export default defineConfig({
   resolve: {
     alias: {
       '#/': fileURLToPath(new URL('./src/', import.meta.url)),
-      '@ship/ui': fileURLToPath(new URL('../../packages/ui/src/index.ts', import.meta.url)),
+      '@ship/set': fileURLToPath(new URL('../../packages/ship-set/src/index.ts', import.meta.url)),
       '@ship/primitives': fileURLToPath(new URL('../../packages/primitives/src/index.tsx', import.meta.url)),
       'sql.js': fileURLToPath(new URL('./src/__mocks__/sql.js.ts', import.meta.url)),
       'cloudflare:workers': fileURLToPath(new URL('./src/__mocks__/cloudflare-workers.ts', import.meta.url)),

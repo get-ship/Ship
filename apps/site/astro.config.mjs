@@ -5,7 +5,7 @@ export default defineConfig({
   output: 'static',
   vite: {
     ssr: {
-      noExternal: ['@ship/ui'],
+      noExternal: ['@ship/set'],
     },
     resolve: {
       conditions: ['browser', 'import', 'module', 'default'],

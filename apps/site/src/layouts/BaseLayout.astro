@@ -1,7 +1,7 @@
 ---
 import '../styles/global.css';
 import AuthModal from '../components/AuthModal.astro';
-import { THEMES, DEFAULT_THEME, THEME_STORAGE_KEY } from '@ship/ui/themes';
+import { THEMES, DEFAULT_THEME, THEME_STORAGE_KEY } from '@ship/set/themes';
 
 interface Props {
   title: string;
@@ -19,7 +19,7 @@ const {
   ownAuthModal = false,
 } = Astro.props;
 
-// Serialize the @ship/ui theme catalog into the FOUC-prevention inline
+// Serialize the @ship/set theme catalog into the FOUC-prevention inline
 // script. Single source of truth — if THEMES changes, this updates.
 const themePreloadPayload = JSON.stringify({
   key: THEME_STORAGE_KEY,

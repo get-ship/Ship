@@ -2,7 +2,7 @@
 import { Clock, Bot, GitBranch } from 'lucide-react'
 import { useDaemon, type SessionEntry } from '#/features/studio/hooks/useDaemonData'
 import { usePlatform } from '#/features/studio/PlatformProvider'
-import type { Workspace } from '@ship/ui'
+import type { Workspace } from '@ship/set'
 
 export function SessionsTab() {
   const { workspace } = usePlatform()

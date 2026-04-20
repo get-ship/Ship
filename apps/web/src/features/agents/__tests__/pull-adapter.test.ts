@@ -1,6 +1,6 @@
 import { describe, it, expect } from 'vitest'
 import { pullAgentToResolved } from '../pull-adapter'
-import type { PullAgent } from '@ship/ui'
+import type { PullAgent } from '@ship/set'
 
 function makePullAgent(overrides?: Partial<PullAgent>): PullAgent {
   return {

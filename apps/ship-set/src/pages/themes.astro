@@ -1,6 +1,6 @@
 ---
 import BaseLayout from '../layouts/BaseLayout.astro';
-import { THEMES } from '@ship/ui/themes';
+import { THEMES } from '@ship/set/themes';
 
 const groups = Array.from(new Set(THEMES.map((t) => t.group)));
 ---
@@ -64,7 +64,7 @@ const groups = Array.from(new Set(THEMES.map((t) => t.group)));
     applyTheme,
     persistTheme,
     isValidTheme,
-  } from '@ship/ui/themes';
+  } from '@ship/set/themes';
 
   for (const btn of document.querySelectorAll<HTMLElement>('[data-apply-theme]')) {
     btn.addEventListener('click', () => {

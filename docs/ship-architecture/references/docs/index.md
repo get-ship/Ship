@@ -78,7 +78,7 @@ crates/core/
 packages/
   compiler/              @ship/compiler -- WASM npm package
   primitives/            @ship/primitives -- shared UI components (shadcn)
-  ui/                    @ship/ui -- generated types via Specta
+  ui/                    @ship/set -- generated types via Specta
   assets/                Shared static assets
 ```
 

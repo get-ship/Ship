@@ -1,7 +1,7 @@
 import { describe, it, expect } from 'vitest'
 import { buildTransferBundle } from '../build-transfer-bundle'
 import { makeAgent } from '#/features/agents/make-agent'
-import type { TransferBundle } from '@ship/ui'
+import type { TransferBundle } from '@ship/set'
 
 describe('buildTransferBundle', () => {
   it('includes all AgentBundle fields from a minimal agent', () => {

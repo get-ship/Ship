@@ -1,6 +1,6 @@
 import { useState, useCallback, useRef } from 'react'
 import { toast } from 'sonner'
-import type { ProjectLibrary } from '@ship/ui'
+import type { ProjectLibrary } from '@ship/set'
 import type { CompileResult } from './types'
 
 type WasmModule = {

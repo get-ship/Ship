@@ -1,6 +1,6 @@
 import { useState, useEffect, useCallback } from 'react'
 import { X, Settings2, Link2, Code2, Plus, Trash2 } from 'lucide-react'
-import type { HookConfig } from '@ship/ui'
+import type { HookConfig } from '@ship/set'
 import { ProviderLogo } from '#/features/compiler/ProviderLogo'
 import { HookEditorDialog } from './HookEditorDialog'
 

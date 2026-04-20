@@ -1,6 +1,6 @@
 import { useState } from 'react'
 import { Plus, Radio } from 'lucide-react'
-import type { HookConfig } from '@ship/ui'
+import type { HookConfig } from '@ship/set'
 import { HookEditorDialog } from './HookEditorDialog'
 
 interface ProviderHooksTabProps {

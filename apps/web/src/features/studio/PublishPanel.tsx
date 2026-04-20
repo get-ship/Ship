@@ -3,7 +3,7 @@ import { X, Copy, CheckCheck, Loader2 } from 'lucide-react'
 import { ProviderLogo } from '#/features/compiler/ProviderLogo'
 import { PROVIDER_SHORT } from '#/features/compiler/components/ModeHeader'
 import type { CompileState } from '#/features/compiler/useCompiler'
-import type { ProjectLibrary } from '@ship/ui'
+import type { ProjectLibrary } from '@ship/set'
 import type { CompileResult } from '#/features/compiler/types'
 
 interface PublishPanelProps {

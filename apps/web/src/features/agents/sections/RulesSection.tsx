@@ -1,5 +1,5 @@
 import { FileText } from 'lucide-react'
-import type { Rule } from '@ship/ui'
+import type { Rule } from '@ship/set'
 import { SectionShell } from './SectionShell'
 
 interface RulesSectionProps {

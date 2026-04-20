@@ -1,7 +1,7 @@
 import { useState } from 'react'
 import { X, Plus } from 'lucide-react'
-import type { Permissions } from '@ship/ui'
-import { DEFAULT_PERMISSIONS } from '@ship/ui'
+import type { Permissions } from '@ship/set'
+import { DEFAULT_PERMISSIONS } from '@ship/set'
 
 type Preset = 'strict' | 'default' | 'permissive' | 'custom'
 

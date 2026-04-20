@@ -8,7 +8,7 @@ import { useGitStatus } from '#/features/studio/session/useGitInfo'
 import { useSessionFiles } from '#/features/studio/session/useSessionFiles'
 import { CreateWorkspaceDialog } from '#/features/studio/CreateWorkspaceDialog'
 import { toast } from 'sonner'
-import type { Workspace } from '@ship/ui'
+import type { Workspace } from '@ship/set'
 
 import { DaemonGuard } from '#/features/studio/DaemonGuard'
 

@@ -1,7 +1,7 @@
 import { useState } from 'react'
 import { Layers, Server } from 'lucide-react'
-import { McpServerListEditor, McpRegistryBrowser } from '@ship/ui'
-import type { McpServerConfig } from '@ship/ui'
+import { McpServerListEditor, McpRegistryBrowser } from '@ship/set'
+import type { McpServerConfig } from '@ship/set'
 
 interface Props {
   servers: McpServerConfig[]

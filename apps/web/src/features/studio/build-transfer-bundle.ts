@@ -2,7 +2,7 @@
 // Every AgentBundle field must be mapped here — omitting a field causes
 // silent data loss on round-trip.
 
-import type { TransferBundle } from '@ship/ui'
+import type { TransferBundle } from '@ship/set'
 import type { ResolvedAgentProfile } from '#/features/agents/types'
 
 export function buildTransferBundle(agent: ResolvedAgentProfile): TransferBundle {

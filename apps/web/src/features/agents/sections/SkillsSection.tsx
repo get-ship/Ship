@@ -1,5 +1,5 @@
 import { Zap } from 'lucide-react'
-import type { Skill } from '@ship/ui'
+import type { Skill } from '@ship/set'
 import { SectionShell, Chip, ChipIcon, AddChip } from './SectionShell'
 
 function getInitials(name: string): string {

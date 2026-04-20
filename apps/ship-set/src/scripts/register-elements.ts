@@ -6,4 +6,4 @@
 // Auth dialog + editors aren't included here — they ride in on
 // per-page <script> imports when a component page actually uses them.
 
-import '@ship/ui/elements';
+import '@ship/set/elements';

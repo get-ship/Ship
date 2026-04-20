@@ -1,5 +1,5 @@
 import { Globe, FolderOpen, User, Unplug } from 'lucide-react'
-import type { JsonValue } from '@ship/ui'
+import type { JsonValue } from '@ship/set'
 import { useDaemon } from '#/features/studio/hooks/useDaemonData'
 import { useSkillVars, useSetSkillVar } from '#/features/studio/hooks/useWorkspaceConfig'
 import type { LibrarySkill } from './useSkillsLibrary'

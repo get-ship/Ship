@@ -4,8 +4,8 @@ import { McpServersForm } from '#/features/compiler/sections/McpServersForm'
 import { SkillsForm } from '#/features/compiler/sections/SkillsForm'
 import { RulesForm } from '#/features/compiler/sections/RulesForm'
 import { PermissionsForm } from '#/features/compiler/sections/PermissionsForm'
-import { DEFAULT_PERMISSIONS } from '@ship/ui'
-import type { ProjectLibrary } from '@ship/ui'
+import { DEFAULT_PERMISSIONS } from '@ship/set'
+import type { ProjectLibrary } from '@ship/set'
 
 export type ComposerSection = 'providers' | 'mcp' | 'skills' | 'rules' | 'permissions'
 

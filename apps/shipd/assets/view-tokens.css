@@ -1,7 +1,7 @@
 /*
  * Daemon-view base styles.
  *
- * Design tokens themselves come from `packages/ui/src/tokens.css` and are
+ * Design tokens themselves come from `packages/ship-set/src/tokens.css` and are
  * concatenated in front of this file at compile time (see views.rs).
  * Only view-container-scoped resets and defaults belong here.
  */

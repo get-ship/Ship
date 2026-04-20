@@ -9,7 +9,7 @@ import type {
   PullSkill,
   ListAgentsResponse,
   TransferBundle,
-} from '@ship/ui'
+} from '@ship/set'
 
 // ── Helpers ──────────────────────────────────────────────────────────────────
 

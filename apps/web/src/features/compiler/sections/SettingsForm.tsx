@@ -1,6 +1,6 @@
 import { useState, type ReactNode } from 'react'
 import { Plus, X } from 'lucide-react'
-import type { HookConfig, HookTrigger } from '@ship/ui'
+import type { HookConfig, HookTrigger } from '@ship/set'
 
 interface ClaudeSettings {
   model?: string

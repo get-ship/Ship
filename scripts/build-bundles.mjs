@@ -1,8 +1,8 @@
 #!/usr/bin/env node
 /**
  * Build JS asset bundles consumed by the daemon (apps/shipd/assets/*.js).
- * Source of truth is packages/ui/src/web-components/. Output is NOT tracked
- * in git; run this before `cargo build -p shipd`, `cargo test`, or CI.
+ * Source of truth is packages/ship-set/src/web-components/. Output is NOT
+ * tracked in git; run this before `cargo build -p shipd`, `cargo test`, or CI.
  *
  * Usage:
  *   node scripts/build-bundles.mjs            build all bundles (skips if unchanged)
@@ -21,10 +21,10 @@ const assetsDir = join(repoRoot, 'apps/shipd/assets');
 const cacheDir = join(repoRoot, 'apps/shipd/assets/.cache');
 
 const targets = [
-  { name: 'ship-elements',        entry: 'packages/ui/src/web-components/index.ts' },
-  { name: 'ship-code-editor',     entry: 'packages/ui/src/web-components/ship-code-editor.ts' },
-  { name: 'ship-markdown-editor', entry: 'packages/ui/src/web-components/ship-markdown-editor.ts' },
-  { name: 'ship-terminal',        entry: 'packages/ui/src/web-components/ship-terminal.ts' },
+  { name: 'ship-elements',        entry: 'packages/ship-set/src/web-components/index.ts' },
+  { name: 'ship-code-editor',     entry: 'packages/ship-set/src/web-components/islands/ship-code-editor.ts' },
+  { name: 'ship-markdown-editor', entry: 'packages/ship-set/src/web-components/islands/ship-markdown-editor.ts' },
+  { name: 'ship-terminal',        entry: 'packages/ship-set/src/web-components/islands/ship-terminal.ts' },
 ];
 
 const args = new Set(process.argv.slice(2));

@@ -1,8 +1,8 @@
 import { describe, it, expect } from 'vitest'
 import { agentToLibrary } from '../agent-to-library'
 import type { ResolvedAgentProfile } from '../types'
-import { DEFAULT_LIBRARY } from '@ship/ui'
-import type { ProjectLibrary } from '@ship/ui'
+import { DEFAULT_LIBRARY } from '@ship/set'
+import type { ProjectLibrary } from '@ship/set'
 
 // ── Fixtures ─────────────────────────────────────────────────────────────────
 

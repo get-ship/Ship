@@ -1,6 +1,6 @@
 // Compile output types — generated from Rust `CompileOutput`.
 // The TS codebase calls the per-provider result "CompileResult".
-import type { CompileOutput as _CompileOutput } from '@ship/ui'
+import type { CompileOutput as _CompileOutput } from '@ship/set'
 export type CompileResult = _CompileOutput
 
 // Provider metadata

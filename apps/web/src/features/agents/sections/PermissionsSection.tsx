@@ -1,6 +1,6 @@
 import { useMemo } from 'react'
 import { Lock, Shield, ShieldCheck, ShieldOff, Wrench } from 'lucide-react'
-import type { ProfilePermissions, McpServerConfig } from '@ship/ui'
+import type { ProfilePermissions, McpServerConfig } from '@ship/set'
 import { SectionShell } from './SectionShell'
 import { PERMISSION_PRESETS } from '#/features/agents/permission-presets'
 

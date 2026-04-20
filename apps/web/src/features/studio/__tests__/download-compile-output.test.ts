@@ -2,7 +2,7 @@ import { describe, it, expect } from 'vitest'
 import { collectProviderFiles, collectShipSourceFiles, buildShipManifest, buildAgentConfig, buildZip, crc32 } from '../download-compile-output'
 import type { CompileResult } from '#/features/compiler/types'
 import type { ResolvedAgentProfile } from '#/features/agents/types'
-import type { ProjectLibrary } from '@ship/ui'
+import type { ProjectLibrary } from '@ship/set'
 
 function makeResult(overrides: Partial<CompileResult> = {}): CompileResult {
   return {

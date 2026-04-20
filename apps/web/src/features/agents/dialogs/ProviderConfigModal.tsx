@@ -1,6 +1,6 @@
 import { useState, useEffect, useCallback } from 'react'
 import { X } from 'lucide-react'
-import type { HookConfig } from '@ship/ui'
+import type { HookConfig } from '@ship/set'
 import { ProviderLogo } from '#/features/compiler/ProviderLogo'
 import { ProviderGeneralTab } from './ProviderGeneralTab'
 import { ProviderHooksTab } from './ProviderHooksTab'

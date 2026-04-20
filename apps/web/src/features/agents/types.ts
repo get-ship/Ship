@@ -1,5 +1,5 @@
 // UI-only types for the agent editor.
-// Compiler types come from @ship/ui — import them directly where needed.
+// Compiler types come from @ship/set — import them directly where needed.
 
 import type {
   AgentProfile,
@@ -7,7 +7,7 @@ import type {
   McpServerConfig,
   Rule,
   HookConfig,
-} from '@ship/ui'
+} from '@ship/set'
 
 // The compiled AgentProfile stores refs (skill IDs, server names).
 // The UI needs resolved objects for rendering. This type replaces the

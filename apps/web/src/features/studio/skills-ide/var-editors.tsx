@@ -1,6 +1,6 @@
 import { useState, useCallback } from 'react'
 import { RotateCcw, X, Plus } from 'lucide-react'
-import type { JsonValue } from '@ship/ui'
+import type { JsonValue } from '@ship/set'
 
 interface VarEditorProps {
   currentValue: unknown

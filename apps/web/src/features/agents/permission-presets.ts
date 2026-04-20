@@ -1,7 +1,7 @@
 // Ship permission presets -- fixed UI constants for one-click permission config.
 // These map to the agent schema's `permissions.preset` enum values.
 
-import type { ProfilePermissions } from '@ship/ui'
+import type { ProfilePermissions } from '@ship/set'
 
 export interface PermissionPreset {
   id: string

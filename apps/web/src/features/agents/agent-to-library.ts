@@ -3,7 +3,7 @@
 // compilation. When the preview panel compiles, it uses this to produce
 // agent-aware output instead of raw library output.
 
-import type { ProjectLibrary, ModeConfig, HookConfig as RustHookConfig } from '@ship/ui'
+import type { ProjectLibrary, ModeConfig, HookConfig as RustHookConfig } from '@ship/set'
 import type { ResolvedAgentProfile } from './types'
 
 /**

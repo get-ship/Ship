@@ -1,7 +1,7 @@
 ---
 name: ship-components
 stable-id: ship-components
-description: Charter for Ship's web-component library. Covers composition model, naming, props vocabulary, shadow DOM conventions, tier split (primitives vs domain), and anti-slop rules. Load this whenever authoring, reviewing, or extending `<ship-*>` elements in packages/ui/src/web-components/.
+description: Charter for Ship's web-component library. Covers composition model, naming, props vocabulary, shadow DOM conventions, tier split (primitives vs domain), and anti-slop rules. Load this whenever authoring, reviewing, or extending `<ship-*>` elements in packages/ship-set/src/web-components/.
 tags: [ui, components, web-components, lit, design-system, frontend]
 authors: [ship]
 ---
@@ -10,7 +10,7 @@ authors: [ship]
 
 The component library is a strategic surface. It must be extremely easy to
 understand, sensibly named, and compositionally consistent. This document
-is the rulebook. Every component in `packages/ui/src/web-components/`
+is the rulebook. Every component in `packages/ship-set/src/web-components/`
 follows it, without exception.
 
 ## Purpose
@@ -33,7 +33,7 @@ to redesign. Every rewrite must reproduce the current UI's visual result:
 
 - Paddings, radii, font sizes, line heights — match existing app and view
   usage to the pixel where possible.
-- Colors — use the canonical OKLCH tokens (`packages/ui/src/tokens.css`);
+- Colors — use the canonical OKLCH tokens (`packages/ship-set/src/tokens.css`);
   do not introduce new brand colors.
 - Interactions — hover, active, focus, disabled states match current
   behavior.
@@ -51,7 +51,7 @@ tell them apart at usage time. The library organization is strict.
 
 ### Primitives
 
-**Location:** `packages/ui/src/web-components/` (top level).
+**Location:** `packages/ship-set/src/web-components/` (top level).
 
 **Rules:**
 - Domain-free. Names are generic nouns from HTML/UI tradition.
@@ -65,7 +65,7 @@ tell them apart at usage time. The library organization is strict.
 
 ### Domain components
 
-**Location:** `packages/ui/src/web-components/domain/`.
+**Location:** `packages/ship-set/src/web-components/domain/`.
 
 **Rules:**
 - Ship-specific. Named for the Ship concept they represent.
@@ -236,7 +236,7 @@ yesterday's first pass.
 5. **No fallbacks inside `var(--foo)`.** Tokens are guaranteed loaded.
    `var(--primary, oklch(...))` is a smell — delete the fallback.
 6. **No parallel token systems.** Colors, radii, fonts come from
-   `packages/ui/src/tokens.css`. No TS token constants. No
+   `packages/ship-set/src/tokens.css`. No TS token constants. No
    per-component color tables that duplicate the canonical palette.
 7. **No inline styles via `innerHTML`.** Use Lit `css` templates.
 8. **No un-tested components.** PR is incomplete without colocated
@@ -245,7 +245,7 @@ yesterday's first pass.
    its attrs, its slots, its events. One block comment at the top of
    the file. Used by documentation generators and by future agents.
 10. **No new pnpm workspace packages** without explicit design approval.
-    Everything web-component lives in `@ship/ui`.
+    Everything web-component lives in `@ship/set`.
 
 ## Polish pass — bringing an existing component to shadcn/Radix quality
 
@@ -284,11 +284,11 @@ pattern from the ship-button polish (see git history for `ship-button.ts`).
 
 After changes, run the full loop:
 
-1. **Unit tests**: `cd packages/ui && pnpm test <component>`
+1. **Unit tests**: `cd packages/ship-set && pnpm test <component>`
 2. **Bundle + reload daemon:**
    ```bash
    /workspaces/ship/node_modules/.pnpm/@esbuild+linux-x64@0.25.12/node_modules/@esbuild/linux-x64/bin/esbuild \
-     packages/ui/src/web-components/index.ts --bundle --format=esm --target=es2020 \
+     packages/ship-set/src/web-components/index.ts --bundle --format=esm --target=es2020 \
      --outfile=apps/shipd/assets/ship-elements.js --log-level=warning
    cp apps/shipd/assets/ship-elements.js apps/shell/public/vendor/ship-elements.js
    cd /workspaces/ship && cargo build -p shipd
@@ -329,7 +329,7 @@ Yes:
 ## Reviewing existing components
 
 When this charter lands, five components already exist in
-`packages/ui/src/web-components/`: `badge.ts`, `empty-state.ts`,
+`packages/ship-set/src/web-components/`: `badge.ts`, `empty-state.ts`,
 `file-row.ts`, `step-card.ts`, `tabs.ts`. Disposition:
 
 | File | Action |
@@ -357,8 +357,8 @@ Before writing code:
    it. Padding, radius, hover, focus — all of it.
 
 Then write the component, then write the tests, then wire the export
-through `packages/ui/src/web-components/index.ts` and
-`packages/ui/src/index.ts`.
+through `packages/ship-set/src/web-components/index.ts` and
+`packages/ship-set/src/index.ts`.
 
 ## Element catalog — two tiers
 
@@ -368,7 +368,7 @@ Start here. Machine-generated, 66 elements in ~4KB. One line per
 element: tag, attrs (enums as `attr=a|b|c`, booleans as bare names),
 slots, events.
 
-- **Repo:** `packages/ui/catalog.md`
+- **Repo:** `packages/ship-set/catalog.md`
 - **Daemon URL:** `GET /api/runtime/assets/ship-elements.md`
 
 Agents authoring daemon views should read this first. It's small
@@ -380,7 +380,7 @@ enough to sit in-context at all times. For ~95% of emission work
 When you need types, defaults, descriptions, or CSS custom properties,
 load the full manifest.
 
-- **Repo:** `packages/ui/custom-elements.json` (~190KB)
+- **Repo:** `packages/ship-set/custom-elements.json` (~190KB)
 - **Daemon URL:** `GET /api/runtime/assets/custom-elements.json`
 
 IDE tooling (lit-plugin, lsp-cem, VS Code) consumes this for
@@ -391,9 +391,9 @@ attribute autocomplete and type checking.
 Both files regenerate from source automatically on build:
 
 ```
-pnpm -F @ship/ui build      # full pipeline: tsc → manifest → catalog
-pnpm -F @ship/ui manifest   # CEM only
-pnpm -F @ship/ui catalog    # compact catalog only (requires fresh CEM)
+pnpm -F @ship/set build      # full pipeline: tsc → manifest → catalog
+pnpm -F @ship/set manifest   # CEM only
+pnpm -F @ship/set catalog    # compact catalog only (requires fresh CEM)
 ```
 
 ## Daemon-rendered views (minijinja + Datastar SSE)

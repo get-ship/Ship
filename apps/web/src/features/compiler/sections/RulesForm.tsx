@@ -1,6 +1,6 @@
 import { useState } from 'react'
 import { Plus, Trash2, ScrollText, ChevronDown, ChevronRight } from 'lucide-react'
-import type { Rule } from '@ship/ui'
+import type { Rule } from '@ship/set'
 
 const RULE_FILENAME_SUGGESTIONS = [
   'AGENTS.md', 'CLAUDE.md', 'CURSOR.md', 'code-style.md',

@@ -3,7 +3,7 @@ import { Upload, Download, PanelLeft, Loader2 } from 'lucide-react'
 import { toast } from 'sonner'
 import { ProviderLogo } from '#/features/compiler/ProviderLogo'
 import type { CompileState } from '#/features/compiler/useCompiler'
-import type { ProjectLibrary } from '@ship/ui'
+import type { ProjectLibrary } from '@ship/set'
 
 export const PROVIDER_SHORT: Record<string, string> = {
   claude: 'Claude',

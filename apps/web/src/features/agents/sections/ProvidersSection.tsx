@@ -1,6 +1,6 @@
 import { useState } from 'react'
 import { SlidersHorizontal } from 'lucide-react'
-import type { HookConfig } from '@ship/ui'
+import type { HookConfig } from '@ship/set'
 import { ProviderLogo } from '#/features/compiler/ProviderLogo'
 import { useProviderData, type ProviderStatus } from '#/features/agents/useProviderData'
 import { SectionShell } from './SectionShell'

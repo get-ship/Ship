@@ -1,4 +1,4 @@
-import type { ProjectLibrary } from '@ship/ui'
+import type { ProjectLibrary } from '@ship/set'
 import type { CompileResult } from '#/features/compiler/types'
 import type { ResolvedAgentProfile } from '#/features/agents/types'
 

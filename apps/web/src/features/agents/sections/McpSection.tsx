@@ -1,6 +1,6 @@
 import { useState } from 'react'
 import { Grid3X3 } from 'lucide-react'
-import type { McpServerConfig } from '@ship/ui'
+import type { McpServerConfig } from '@ship/set'
 import type { ToolToggleState, ToolPermission } from '../types'
 import { SectionShell, Chip, ChipIcon, AddChip } from './SectionShell'
 

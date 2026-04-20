@@ -1,4 +1,4 @@
-import type { PipelineStep, StepObservedPayload, StepType, StepVerdict, StepTrigger } from '@ship/ui'
+import type { PipelineStep, StepObservedPayload, StepType, StepVerdict, StepTrigger } from '@ship/set'
 import { Badge } from '@ship/primitives'
 
 export type StepStatus = 'completed' | 'running' | 'pending' | 'failed'

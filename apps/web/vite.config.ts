@@ -23,7 +23,7 @@ const config = defineConfig({
     alias: {
       // '@/' resolves primitives-internal paths (e.g. @/lib/utils in primitives components)
       '@/': fileURLToPath(new URL('../../packages/primitives/src/', import.meta.url)),
-      '@ship/ui': fileURLToPath(new URL('../../packages/ui/src/index.ts', import.meta.url)),
+      '@ship/set': fileURLToPath(new URL('../../packages/ship-set/src/index.ts', import.meta.url)),
       '@ship/primitives': fileURLToPath(new URL('../../packages/primitives/src/index.tsx', import.meta.url)),
     },
   },

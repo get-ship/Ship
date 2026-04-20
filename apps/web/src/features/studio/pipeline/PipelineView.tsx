@@ -1,4 +1,4 @@
-import type { JobRecord, StepObservedPayload, PipelineStep } from '@ship/ui'
+import type { JobRecord, StepObservedPayload, PipelineStep } from '@ship/set'
 import { StepCard, type StepStatus } from './StepCard'
 
 export interface PipelineViewProps {

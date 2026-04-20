@@ -2,13 +2,13 @@
  * SHIP site styles layer.
  *
  * Imports the canonical SHIP design tokens + shared theme catalog from
- * @ship/ui. The site does NOT redefine any palette — every theme lives
+ * @ship/set. The site does NOT redefine any palette — every theme lives
  * in the package so the app and the site stay in lockstep. The only
  * site-namespaced variables are layout constants.
  */
 
-@import '@ship/ui/tokens.css';
-@import '@ship/ui/themes.css';
+@import '@ship/set/tokens.css';
+@import '@ship/set/themes.css';
 
 :root {
   --site-max-width: 1200px;

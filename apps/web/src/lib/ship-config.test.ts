@@ -1,6 +1,6 @@
 import { describe, it, expect } from 'vitest'
 import { libraryToShipFiles } from '#/lib/ship-config'
-import type { ProjectLibrary } from '@ship/ui'
+import type { ProjectLibrary } from '@ship/set'
 
 const EMPTY_LIB: ProjectLibrary = {
   modes: [],
