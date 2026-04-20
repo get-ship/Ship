@@ -2,8 +2,8 @@
   Canvas doc — demo of <ship-markdown-editor> with Datastar two-way binding
   plus the selection bubble → ship-feedback pipeline.
 
-  Loads the editor bundle lazily from /vendor/ship-markdown-editor.js (served
-  by the shell dev server at :3100 from apps/shell/public/vendor/).
+  Loads the editor bundle lazily from /api/runtime/assets/ship-markdown-editor.js
+  (daemon-served; built on demand via `pnpm build:bundles`).
 
   The initial markdown is attached as a JSON-escaped single-line expression
   inside data-signals (Datastar compiles signal defaults as JS, so a raw

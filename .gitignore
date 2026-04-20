@@ -116,3 +116,16 @@ test-results/
 # Shell build output — populated by `pnpm -F shell build`.
 apps/shell/dist/
 apps/shell/qa-evidence/
+
+# JS asset bundles — built on demand by `pnpm build:bundles` from
+# packages/ui/src/web-components/. The daemon `include_str!`s them at
+# compile time, so they must exist before `cargo build -p shipd`.
+# datastar.js is a tiny 3rd-party client — kept tracked.
+apps/shipd/assets/ship-elements.js
+apps/shipd/assets/ship-code-editor.js
+apps/shipd/assets/ship-markdown-editor.js
+apps/shipd/assets/ship-terminal.js
+apps/shipd/assets/.cache/
+
+# Legacy shell vendor dir — shell now loads bundles via /api/runtime/assets/*.
+apps/shell/public/vendor/
