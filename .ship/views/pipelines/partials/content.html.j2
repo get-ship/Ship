@@ -54,7 +54,17 @@
             {{ run.agent }}{% if run.branch %} / {{ run.branch }}{% endif %}{% if run.provider %} / {{ run.provider }}{% endif %}{% if run.model %} / {{ run.model }}{% endif %}
           </div>
           {% if run.error %}
-          <div class="ship-run-banner error">Error: {{ run.error }}</div>
+            {% set error_lines = run.error.split('\n') %}
+            {% if error_lines | length > 1 %}
+            <details class="ship-run-error-details">
+              <summary class="ship-run-banner error">
+                Error: {{ error_lines[0] }}<span class="ship-run-error-hint"></span>
+              </summary>
+              <pre class="ship-run-error-tail">{{ run.error }}</pre>
+            </details>
+            {% else %}
+            <div class="ship-run-banner error">Error: {{ run.error }}</div>
+            {% endif %}
           {% endif %}
           {% if run.depends_on and run.depends_on | length > 0 %}
           <div class="ship-run-deps">
@@ -119,7 +129,17 @@
           <div class="ship-run-banner blocker">Blocked: {{ run.blocker }}</div>
           {% endif %}
           {% if run.error %}
-          <div class="ship-run-banner error">Error: {{ run.error }}</div>
+            {% set error_lines = run.error.split('\n') %}
+            {% if error_lines | length > 1 %}
+            <details class="ship-run-error-details">
+              <summary class="ship-run-banner error">
+                Error: {{ error_lines[0] }}<span class="ship-run-error-hint"></span>
+              </summary>
+              <pre class="ship-run-error-tail">{{ run.error }}</pre>
+            </details>
+            {% else %}
+            <div class="ship-run-banner error">Error: {{ run.error }}</div>
+            {% endif %}
           {% endif %}
           {% if run.depends_on and run.depends_on | length > 0 %}
           <div class="ship-run-deps">

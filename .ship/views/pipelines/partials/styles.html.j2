@@ -59,6 +59,41 @@
   color: var(--destructive);
 }
 
+/* --- Expandable error (when the agent log tail is attached) --- */
+.ship-run-error-details {
+  margin-top: var(--space-2);
+}
+.ship-run-error-details > summary {
+  cursor: pointer;
+  list-style: none;
+  margin-top: 0;
+}
+.ship-run-error-details > summary::-webkit-details-marker { display: none; }
+.ship-run-error-details[open] > summary .ship-run-error-hint::after {
+  content: " (collapse)";
+}
+.ship-run-error-hint {
+  margin-left: var(--space-2);
+  font-size: var(--text-xs);
+  opacity: 0.7;
+  font-weight: var(--font-weight-normal);
+}
+.ship-run-error-hint::after { content: " (expand log tail)"; }
+.ship-run-error-tail {
+  margin: var(--space-2) 0 0;
+  padding: var(--space-2) var(--space-3);
+  border-radius: var(--radius-md);
+  border: 1px solid color-mix(in oklch, var(--border) 60%, transparent);
+  background: color-mix(in oklch, var(--muted) 40%, transparent);
+  color: var(--foreground);
+  font-family: var(--font-mono);
+  font-size: var(--text-xs);
+  line-height: 1.5;
+  white-space: pre-wrap;
+  overflow-x: auto;
+  max-height: 20rem;
+}
+
 /* --- Depends-on tags --- */
 .ship-run-deps {
   display: flex;
