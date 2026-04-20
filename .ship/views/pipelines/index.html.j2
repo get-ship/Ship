@@ -157,6 +157,42 @@
     <span>Best experienced on desktop</span>
   </div>
 </div>
+<script>
+// Per-run log streaming. Click "Logs" → opens SSE to
+// /api/runtime/jobs/{slug}/log/stream, appends payload to the <pre>
+// until the button is clicked again. Survives SSE patches of the
+// run list (the <pre> outlives the card's surrounding SSE updates).
+(function () {
+  const streams = new Map(); // slug → EventSource
+  window.shipToggleLog = function (btn, slug) {
+    const pre = document.getElementById('log-' + slug);
+    if (!pre) return;
+    if (streams.has(slug)) {
+      streams.get(slug).close();
+      streams.delete(slug);
+      pre.hidden = true;
+      btn.setAttribute('tone', 'default');
+      return;
+    }
+    pre.hidden = false;
+    pre.textContent = '';
+    btn.setAttribute('tone', 'accent');
+    const url = '/api/runtime/jobs/' + encodeURIComponent(slug) + '/log/stream';
+    const es = new EventSource(url, { withCredentials: true });
+    es.addEventListener('log', (ev) => {
+      const atBottom = pre.scrollHeight - pre.clientHeight <= pre.scrollTop + 4;
+      pre.textContent += ev.data;
+      if (atBottom) pre.scrollTop = pre.scrollHeight;
+    });
+    es.onerror = () => {
+      pre.textContent += '\n[stream closed]\n';
+      es.close();
+      streams.delete(slug);
+    };
+    streams.set(slug, es);
+  };
+})();
+</script>
 {% if not fragment %}
 </body>
 </html>

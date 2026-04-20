@@ -15,7 +15,7 @@ use utoipa::OpenApi;
 
 use crate::{
     NetworkServer, actor_api, artifacts_api, attest, auth, cors, feedback_api, hooks_api,
-    human_webhook, openapi, pairing, project_api, pty_handler, rest_api, runtime_api, session,
+    human_webhook, logs_api, openapi, pairing, project_api, pty_handler, rest_api, runtime_api, session,
     settings_api, shell_assets, ship_runtime, specs_api, specs_view, supervisor,
     view_morph_target, view_sessions_api, views, collection_api, views_agents, views_chat,
     views_events, views_git, views_pipelines, views_raw, views_settings, views_skills,
@@ -222,6 +222,7 @@ fn build_ship_routes(st: rest_api::ApiState) -> Router {
         .ship_route(Route::GetJob_template(), runtime_api::get_job_detail)
         .ship_route(Route::EndJob, runtime_api::end_job)
         .ship_route(Route::CancelJob_template(), runtime_api::cancel_job)
+        .ship_route(Route::StreamJobLog_template(), logs_api::stream_job_log)
         .ship_route(Route::ListProcs, runtime_api::list_procs)
         .ship_route(Route::PollEvents, runtime_api::poll_events)
         .ship_route(Route::DaemonStatus, runtime_api::daemon_status)

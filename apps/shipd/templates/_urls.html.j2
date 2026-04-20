@@ -60,6 +60,7 @@
 {%- macro get_job(job_id) -%}/api/runtime/jobs/{{ job_id }}{%- endmacro -%}
 {%- macro end_job() -%}/api/runtime/jobs/end{%- endmacro -%}
 {%- macro cancel_job(slug) -%}/api/runtime/jobs/{{ slug }}/cancel{%- endmacro -%}
+{%- macro stream_job_log(slug) -%}/api/runtime/jobs/{{ slug }}/log/stream{%- endmacro -%}
 {%- macro list_procs() -%}/api/runtime/procs{%- endmacro -%}
 {%- macro poll_events() -%}/api/runtime/events/poll{%- endmacro -%}
 {%- macro daemon_status() -%}/api/runtime/daemon/status{%- endmacro -%}

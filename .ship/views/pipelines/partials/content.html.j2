@@ -86,8 +86,14 @@
           <span class="ship-run-when">
             <ship-timestamp value="{{ run.updated_at }}" relative></ship-timestamp>
           </span>
+          <ship-button variant="ghost" size="sm"
+            onclick="window.shipToggleLog(this, '{{ run.slug }}')">
+            <ship-icon slot="leading" name="terminal"></ship-icon>
+            Logs
+          </ship-button>
         </div>
       </section>
+      <pre id="log-{{ run.slug }}" class="ship-run-log" hidden data-slug="{{ run.slug }}"></pre>
       {% endfor %}
     </div>
     {% if stats.history > history_runs | length %}
@@ -161,6 +167,11 @@
           <span class="ship-run-when">
             <ship-timestamp value="{{ run.updated_at }}" relative></ship-timestamp>
           </span>
+          <ship-button variant="ghost" size="sm"
+            onclick="window.shipToggleLog(this, '{{ run.slug }}')">
+            <ship-icon slot="leading" name="terminal"></ship-icon>
+            Logs
+          </ship-button>
           {% if run.state == 'dispatched' or run.state == 'pending' %}
           <ship-button variant="outline" size="sm" tone="destructive"
             data-on:click="@post('{{ end_job() }}', {contentType: 'json', body: JSON.stringify({job_id: '{{ run.job_id }}'})})">
@@ -170,6 +181,7 @@
           {% endif %}
         </div>
       </section>
+      <pre id="log-{{ run.slug }}" class="ship-run-log" hidden data-slug="{{ run.slug }}"></pre>
       {% endfor %}
     </div>
     {% else %}

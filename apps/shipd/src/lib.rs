@@ -15,6 +15,7 @@ pub mod scopes;
 pub mod session;
 mod handler;
 pub mod hooks_api;
+pub mod logs_api;
 pub mod human_webhook;
 mod human_gateway;
 pub mod managers;

@@ -94,6 +94,25 @@
   max-height: 20rem;
 }
 
+/* --- Live log pane (per run, SSE-streamed) --- */
+.ship-run-log {
+  margin: calc(var(--space-1) * -1) 0 var(--space-2);
+  padding: var(--space-3) var(--space-4);
+  border-radius: 0 0 var(--radius-md) var(--radius-md);
+  border: 1px solid color-mix(in oklch, var(--border) 60%, transparent);
+  border-top: none;
+  background: color-mix(in oklch, var(--background) 95%, black 5%);
+  color: var(--foreground);
+  font-family: var(--font-mono);
+  font-size: var(--text-xs);
+  line-height: 1.55;
+  white-space: pre-wrap;
+  overflow-y: auto;
+  max-height: 24rem;
+  min-height: 8rem;
+}
+.ship-run-log[hidden] { display: none; }
+
 /* --- Depends-on tags --- */
 .ship-run-deps {
   display: flex;
