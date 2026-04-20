@@ -1,0 +1,92 @@
+---
+import BaseLayout from '../../layouts/BaseLayout.astro';
+import Navbar from '../../components/Navbar.astro';
+import Footer from '../../components/Footer.astro';
+---
+
+<BaseLayout title="SHIP installers — coming soon">
+  <Navbar />
+  <main class="soon-page">
+    <div class="site-container soon-inner">
+      <ship-badge tone="accent" variant="soft" size="md">
+        Installers landing soon
+      </ship-badge>
+      <h1>Almost there.</h1>
+      <p class="site-muted">
+        SHIP installers are being packaged for release. Leave your
+        email and we&rsquo;ll let you know the moment they&rsquo;re
+        live.
+      </p>
+
+      <form
+        class="soon-form"
+        id="notify"
+        onsubmit="event.preventDefault();document.getElementById('notify-thanks').toggleAttribute('hidden',false);this.reset();"
+      >
+        <input type="email" required placeholder="you@company.com" aria-label="Email" />
+        <ship-button tone="accent" variant="solid" size="md" type="submit">
+          Notify me
+        </ship-button>
+      </form>
+
+      <ship-alert tone="success" id="notify-thanks" class="soon-thanks" hidden>
+        <span slot="title">You&rsquo;re on the list.</span>
+        We&rsquo;ll email you as soon as installers land.
+      </ship-alert>
+
+      <ship-toolbar justify="center" class="soon-actions">
+        <ship-button variant="ghost" size="sm" onclick="location.href='/'">
+          &larr; Back to the homepage
+        </ship-button>
+        <ship-button variant="ghost" size="sm" onclick="location.href='https://docs.getship.dev'">
+          Read the docs &rarr;
+        </ship-button>
+      </ship-toolbar>
+    </div>
+  </main>
+  <Footer />
+</BaseLayout>
+
+<style>
+  .soon-page {
+    padding: 96px 0;
+    min-height: 70vh;
+  }
+  .soon-inner {
+    display: flex;
+    flex-direction: column;
+    align-items: center;
+    gap: 18px;
+    text-align: center;
+  }
+  .soon-inner h1 {
+    font-size: clamp(36px, 5vw, 56px);
+  }
+  .soon-form {
+    display: flex;
+    gap: 10px;
+    margin-top: 12px;
+    width: min(100%, 420px);
+  }
+  .soon-form input {
+    flex: 1;
+    height: 40px;
+    padding: 0 14px;
+    border: 1px solid var(--border);
+    border-radius: 10px;
+    background: var(--card);
+    color: var(--foreground);
+    font: inherit;
+  }
+  .soon-form input:focus {
+    outline: 2px solid var(--accent);
+    outline-offset: 2px;
+  }
+  .soon-thanks {
+    width: min(100%, 420px);
+    text-align: left;
+  }
+  .soon-actions {
+    margin-top: 16px;
+  }
+</style>

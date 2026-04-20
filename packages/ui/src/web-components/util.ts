@@ -27,6 +27,7 @@ export function defineOnce(name: string, ctor: CustomElementConstructor): void {
  */
 export type Tone =
   | 'default'
+  | 'primary'
   | 'info'
   | 'success'
   | 'warning'

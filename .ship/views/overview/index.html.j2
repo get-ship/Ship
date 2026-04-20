@@ -9,14 +9,7 @@
 {% set schema = ship_schema('systems') %}
 {% set items = ship_items('systems') %}
 
-<div class="ship-view overview-root"
-     {{ signal('_drawerOpen', false) }}
-     {{ signal('_drawerId', '') }}
-     {{ signal('_isNew', false) }}
-     {{ signal('_search', '') }}
-     {{ signal('_statusFilter', '') }}
-     {{ signal('_layerFilter', '') }}
-     {{ signal('form', {}) }}>
+<div class="ship-view overview-root">
   {{ styles() }}
 
   <style>
@@ -81,6 +74,19 @@
     .ov-node-summary { font-size: var(--text-xs); color: var(--muted-foreground); line-height: 1.3; }
     .ov-node-layer { font-size: var(--text-xs); color: var(--muted-foreground); text-transform: uppercase; letter-spacing: 0.03em; }
 
+    /* Connect handle — hover-revealed, drag to another node to add a depends_on */
+    .ov-connect {
+      position: absolute; top: 50%; right: -8px; transform: translateY(-50%);
+      width: 16px; height: 16px; border-radius: 50%;
+      background: var(--accent); border: 2px solid var(--background);
+      cursor: crosshair; opacity: 0;
+      transition: opacity var(--duration-fast) var(--ease-out);
+      z-index: 2;
+    }
+    .ov-node:hover .ov-connect { opacity: 1; }
+    .ov-node.connect-target { outline: 2px solid var(--accent); outline-offset: 2px; }
+    .ov-ghost-edge { stroke: var(--accent); stroke-width: 2; stroke-dasharray: 4 4; fill: none; pointer-events: none; }
+
     .ov-drawer {
       position: absolute; top: 0; right: 0; bottom: 0; width: min(480px, 90%);
       background: var(--background);
@@ -113,27 +119,26 @@
     <strong style="font-family: var(--font-display);">Overview</strong>
     <span style="color:var(--muted-foreground); font-size: var(--text-xs);">{{ items | length }} system{{ "s" if items | length != 1 else "" }}</span>
     <div class="ov-sep"></div>
-    <ship-input size="sm" placeholder="Search…" data-bind="_search" style="width: 180px;"></ship-input>
+    <ship-input size="sm" placeholder="Search…" id="ov-search" style="width: 180px;"></ship-input>
     <div class="ov-sep"></div>
     <div class="ov-group" role="group" aria-label="Status">
-      <ship-chip size="sm" {{ chip_all('_statusFilter') }}>all</ship-chip>
+      <ship-chip size="sm" data-active>all</ship-chip>
       {% for v in ['spec','building','shipping','complete'] %}
-      <ship-chip size="sm" {{ chip('_statusFilter', v) }}>{{ v }}</ship-chip>
+      <ship-chip size="sm">{{ v }}</ship-chip>
       {% endfor %}
     </div>
     <div class="ov-sep"></div>
     <div class="ov-group" role="group" aria-label="Layer">
-      <ship-chip size="sm" {{ chip_all('_layerFilter') }}>all</ship-chip>
+      <ship-chip size="sm" data-active>all</ship-chip>
       {% for v in ['primitive','runtime','interface','meta'] %}
-      <ship-chip size="sm" {{ chip('_layerFilter', v) }}>{{ v }}</ship-chip>
+      <ship-chip size="sm">{{ v }}</ship-chip>
       {% endfor %}
     </div>
     <div style="flex:1"></div>
-    <ship-button size="sm" tone="accent" variant="solid"
-      data-on:click="$form = {}; $_drawerId = ''; $_isNew = true; $_drawerOpen = true">
+    <ship-button size="sm" tone="accent" variant="solid" id="ov-new-system">
       <ship-icon slot="leading" name="plus"></ship-icon>New system
     </ship-button>
-    <ship-button size="sm" variant="ghost" aria-label="Fit view" data-on:click="window.__ovFit && window.__ovFit()">
+    <ship-button size="sm" variant="ghost" aria-label="Fit view" id="ov-fit">
       <ship-icon slot="leading" name="maximize"></ship-icon>Fit
     </ship-button>
   </div>
@@ -145,8 +150,7 @@
       <ship-empty-state>
         <span slot="title">No systems yet</span>
         <span slot="description">Map your project by adding its first system.</span>
-        <ship-button slot="actions" tone="accent" variant="solid"
-          data-on:click="$form = {}; $_drawerId = ''; $_isNew = true; $_drawerOpen = true">
+        <ship-button slot="actions" tone="accent" variant="solid" id="ov-first-system">
           Create first system
         </ship-button>
       </ship-empty-state>
@@ -177,32 +181,29 @@
           </div>
           <div class="ov-node-layer">{{ layer }}{% if d.doc_skill %} · {{ d.doc_skill }}{% endif %}</div>
           {% if d.summary %}<div class="ov-node-summary">{{ d.summary[:80] }}{% if d.summary | length > 80 %}…{% endif %}</div>{% endif %}
+          <div class="ov-connect" role="button" aria-label="Drag to connect"></div>
         </div>
       {% endfor %}
     </div>
     {% endif %}
 
-    {# -- Drawer -- #}
-    <div class="ov-drawer" data-class:open="$_drawerOpen">
+    {# -- Drawer (imperative — no data-bind/data-for; JS populates + reads) -- #}
+    <div class="ov-drawer" id="ov-drawer">
       <div class="ov-drawer-head">
-        <strong data-text="$_isNew ? 'New system' : ($form.name || 'System')"></strong>
-        <ship-button size="sm" variant="ghost" aria-label="Close"
-          data-on:click="$_drawerOpen = false">
+        <strong id="ov-drawer-title">System</strong>
+        <ship-button size="sm" variant="ghost" aria-label="Close" id="ov-close">
           <ship-icon slot="leading" name="x"></ship-icon>
         </ship-button>
       </div>
       <div class="ov-drawer-body">
-        {# Explicit field rendering — richer markdown editing than generic
-           form() macro provides. ship-markdown-editor for prose fields,
-           inline gap list editor, feedback widget per gap + system. #}
         <div class="ship-form">
           <div class="ship-form-field">
             <label class="ship-form-label">name <span style="color:var(--destructive)">*</span></label>
-            <ship-input size="sm" data-bind="form.name" placeholder="ship-<system>"></ship-input>
+            <ship-input size="sm" id="fld-name" placeholder="ship-<system>"></ship-input>
           </div>
           <div class="ship-form-field">
             <label class="ship-form-label">layer</label>
-            <ship-select size="sm" data-bind="form.layer">
+            <ship-select size="sm" id="fld-layer">
               <option value="">--</option>
               <option value="primitive">primitive</option>
               <option value="runtime">runtime</option>
@@ -212,7 +213,7 @@
           </div>
           <div class="ship-form-field">
             <label class="ship-form-label">status</label>
-            <ship-select size="sm" data-bind="form.status">
+            <ship-select size="sm" id="fld-status">
               <option value="spec">spec</option>
               <option value="building">building</option>
               <option value="shipping">shipping</option>
@@ -221,82 +222,53 @@
           </div>
           <div class="ship-form-field">
             <label class="ship-form-label">summary</label>
-            <ship-input size="sm" data-bind="form.summary" placeholder="one-liner"></ship-input>
+            <ship-input size="sm" id="fld-summary" placeholder="one-liner"></ship-input>
           </div>
           <div class="ship-form-field" style="flex-direction:column;align-items:stretch">
             <label class="ship-form-label" style="min-width:0">current state</label>
-            <ship-markdown-editor data-bind="form.current_state"></ship-markdown-editor>
+            <ship-markdown-editor id="fld-current_state"></ship-markdown-editor>
           </div>
           <div class="ship-form-field" style="flex-direction:column;align-items:stretch">
             <label class="ship-form-label" style="min-width:0">desired state</label>
-            <ship-markdown-editor data-bind="form.desired_state"></ship-markdown-editor>
+            <ship-markdown-editor id="fld-desired_state"></ship-markdown-editor>
           </div>
           <div class="ship-form-field" style="flex-direction:column;align-items:stretch">
             <label class="ship-form-label" style="min-width:0">diagram</label>
-            <ship-markdown-editor data-bind="form.diagram"></ship-markdown-editor>
+            <ship-markdown-editor id="fld-diagram"></ship-markdown-editor>
           </div>
           <div class="ship-form-field" style="flex-direction:column;align-items:stretch">
             <label class="ship-form-label" style="min-width:0">gaps</label>
-            <div data-for="(gap, i) in ($form.gaps || [])" data-key="i" style="display:flex;gap:var(--space-2);margin-bottom:var(--space-1);align-items:center">
-              <ship-input size="sm" data-bind="form.gaps[i]" style="flex:1"></ship-input>
-              <ship-button size="xs" variant="ghost" aria-label="Send gap to agent"
-                {{ feedback("{kind: 'gap_dispatch', system: $form.name, gap: $form.gaps[i]}") }}>
-                <ship-icon name="send"></ship-icon>
-              </ship-button>
-              <ship-button size="xs" variant="ghost" aria-label="Remove gap"
-                data-on:click="$form.gaps.splice(i, 1); $form = {...$form}">
-                <ship-icon name="x"></ship-icon>
-              </ship-button>
-            </div>
-            <ship-button size="sm" variant="outline"
-              data-on:click="$form.gaps = [...($form.gaps || []), '']; $form = {...$form}">
+            <div id="fld-gaps" class="ov-list"></div>
+            <ship-button size="sm" variant="outline" id="fld-gaps-add">
               <ship-icon slot="leading" name="plus"></ship-icon>Add gap
             </ship-button>
           </div>
           <div class="ship-form-field">
             <label class="ship-form-label">doc skill</label>
-            <ship-input size="sm" data-bind="form.doc_skill" placeholder="ship-<name>"></ship-input>
+            <ship-input size="sm" id="fld-doc_skill" placeholder="ship-<name>"></ship-input>
           </div>
           <div class="ship-form-field" style="flex-direction:column;align-items:stretch">
             <label class="ship-form-label" style="min-width:0">code paths</label>
-            <div data-for="(p, i) in ($form.code_paths || [])" data-key="i" style="display:flex;gap:var(--space-2);margin-bottom:var(--space-1)">
-              <ship-input size="sm" data-bind="form.code_paths[i]" style="flex:1"></ship-input>
-              <ship-button size="xs" variant="ghost" aria-label="Remove path"
-                data-on:click="$form.code_paths.splice(i, 1); $form = {...$form}">
-                <ship-icon name="x"></ship-icon>
-              </ship-button>
-            </div>
-            <ship-button size="sm" variant="outline"
-              data-on:click="$form.code_paths = [...($form.code_paths || []), '']; $form = {...$form}">
+            <div id="fld-code_paths" class="ov-list"></div>
+            <ship-button size="sm" variant="outline" id="fld-code_paths-add">
               <ship-icon slot="leading" name="plus"></ship-icon>Add path
             </ship-button>
           </div>
           <div class="ship-form-field" style="flex-direction:column;align-items:stretch">
             <label class="ship-form-label" style="min-width:0">depends on</label>
-            <div data-for="(d, i) in ($form.depends_on || [])" data-key="i" style="display:flex;gap:var(--space-2);margin-bottom:var(--space-1)">
-              <ship-input size="sm" data-bind="form.depends_on[i]" style="flex:1" placeholder="system id"></ship-input>
-              <ship-button size="xs" variant="ghost" aria-label="Remove dependency"
-                data-on:click="$form.depends_on.splice(i, 1); $form = {...$form}">
-                <ship-icon name="x"></ship-icon>
-              </ship-button>
-            </div>
-            <ship-button size="sm" variant="outline"
-              data-on:click="$form.depends_on = [...($form.depends_on || []), '']; $form = {...$form}">
+            <div id="fld-depends_on" class="ov-list"></div>
+            <ship-button size="sm" variant="outline" id="fld-depends_on-add">
               <ship-icon slot="leading" name="plus"></ship-icon>Add dependency
             </ship-button>
           </div>
         </div>
       </div>
       <div class="ov-drawer-foot">
-        <ship-button tone="accent" variant="solid"
-          data-on:click="window.__ovSave && window.__ovSave($_drawerId, $form, $_isNew)">
-          Save
-        </ship-button>
-        <ship-button variant="outline" aria-label="Send system to agent"
-          {{ feedback("{kind: 'system_dispatch', system: $form.name, layer: $form.layer, status: $form.status}") }}>
+        <ship-button tone="accent" variant="solid" id="ov-save">Save</ship-button>
+        <ship-button variant="outline" id="ov-ask-agent" aria-label="Send system to agent">
           <ship-icon slot="leading" name="send"></ship-icon>Ask agent
         </ship-button>
-        <ship-button variant="ghost" data-on:click="$_drawerOpen = false">Cancel</ship-button>
+        <ship-button variant="ghost" id="ov-cancel">Cancel</ship-button>
       </div>
     </div>
   </div>
@@ -382,11 +354,71 @@
     applyTransform();
   }, { passive: false });
 
+  // ── Edge drag (from connect handle to another node) ────
+  let connectFrom = null;
+  let ghostPath = null;
+  function cancelConnect() {
+    connectFrom = null;
+    if (ghostPath) { ghostPath.remove(); ghostPath = null; }
+    canvas.querySelectorAll('.ov-node.connect-target').forEach(n => n.classList.remove('connect-target'));
+  }
+  canvas.addEventListener('pointerdown', e => {
+    const handle = e.target.closest('.ov-connect');
+    if (!handle) return;
+    const node = handle.closest('.ov-node');
+    if (!node) return;
+    e.stopPropagation(); e.preventDefault();
+    connectFrom = node;
+    ghostPath = document.createElementNS('http://www.w3.org/2000/svg', 'path');
+    ghostPath.setAttribute('class', 'ov-ghost-edge');
+    edges.appendChild(ghostPath);
+    canvas.setPointerCapture(e.pointerId);
+  });
+  canvas.addEventListener('pointermove', e => {
+    if (!connectFrom) return;
+    const a = nodeCenter(connectFrom);
+    // canvas-space cursor
+    const crect = canvas.getBoundingClientRect();
+    const cx = (e.clientX - crect.left) / scale;
+    const cy = (e.clientY - crect.top) / scale;
+    ghostPath.setAttribute('d', `M ${a.x} ${a.y} L ${cx} ${cy}`);
+    // Highlight hovered target node
+    canvas.querySelectorAll('.ov-node.connect-target').forEach(n => n.classList.remove('connect-target'));
+    const tgt = document.elementFromPoint(e.clientX, e.clientY)?.closest('.ov-node');
+    if (tgt && tgt !== connectFrom) tgt.classList.add('connect-target');
+  });
+  canvas.addEventListener('pointerup', async e => {
+    if (!connectFrom) return;
+    const tgt = document.elementFromPoint(e.clientX, e.clientY)?.closest('.ov-node');
+    const src = connectFrom;
+    cancelConnect();
+    try { canvas.releasePointerCapture(e.pointerId); } catch(_) {}
+    if (!tgt || tgt === src) return;
+    // Append tgt's name to src's depends_on, if not already there
+    let deps = [];
+    try { deps = JSON.parse(src.dataset.depends); } catch(_) {}
+    if (!Array.isArray(deps)) deps = [];
+    const tgtName = tgt.dataset.name;
+    if (deps.includes(tgtName)) return;
+    deps.push(tgtName);
+    src.dataset.depends = JSON.stringify(deps);
+    // Persist
+    await fetch(`/api/collections/systems/items/${encodeURIComponent(src.dataset.id)}`, {
+      method: 'PUT', headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ data: { depends_on: deps } }),
+    }).catch(() => {});
+    drawEdges();
+  });
+  // ESC cancels in-flight connect
+  document.addEventListener('keydown', e => { if (e.key === 'Escape') cancelConnect(); });
+
   // ── Node drag + click ──────────────────────────────────
   let dragged = null;
   canvas.querySelectorAll('.ov-node').forEach(node => {
     let startX, startY, origX, origY, moved = false, saveTimer = null;
     node.addEventListener('pointerdown', e => {
+      // Let connect-handle drags pass through to the canvas-level listener.
+      if (e.target.closest('.ov-connect')) return;
       e.stopPropagation();
       dragged = node;
       moved = false;
@@ -435,76 +467,207 @@
     }).catch(() => {});
   }
 
-  // ── Drawer wiring ──────────────────────────────────────
-  async function openDrawer(id) {
-    try {
-      const r = await fetch(`/api/collections/systems/items/${encodeURIComponent(id)}`);
-      if (!r.ok) return;
-      const envelope = await r.json();
-      const item = envelope.data || envelope;
-      const dsStore = (window.datastar && window.datastar.signals) || null;
-      // Datastar signals API varies; fall back to CustomEvent
-      window.dispatchEvent(new CustomEvent('overview:open-drawer', { detail: { id, data: item.data || item } }));
-    } catch(_) {}
-  }
+  // ── Drawer (imperative) ────────────────────────────────
+  // Datastar bindings are great for simple forms, but the mix of
+  // shadow-DOM web components + array list editors + markdown-editor
+  // value-propagation made data-bind/data-for unreliable here. Instead,
+  // populate the drawer imperatively on open and read it back on save.
+  const drawer = document.getElementById('ov-drawer');
+  const drawerTitle = document.getElementById('ov-drawer-title');
+  let drawerId = null; // null = new system
+  const FIELDS = ['name','layer','status','summary','current_state','desired_state','diagram','doc_skill'];
+  const LIST_FIELDS = ['gaps','code_paths','depends_on'];
 
-  window.addEventListener('overview:open-drawer', (e) => {
-    const root = document.querySelector('.overview-root');
-    if (!root || !window.ds) return;
-  });
-
-  // Use Datastar's signal bus via a data-on hook by toggling a hidden element.
-  // Simpler: expose a function the save button calls back into.
-  window.__ovSave = async function(id, formVal, isNew) {
-    const payload = { data: formVal || {} };
-    const url = isNew
-      ? `/api/collections/systems/items`
-      : `/api/collections/systems/items/${encodeURIComponent(id)}`;
-    const method = isNew ? 'POST' : 'PUT';
-    const r = await fetch(url, {
-      method, headers: { 'Content-Type': 'application/json' },
-      body: JSON.stringify(payload),
-    });
-    if (r.ok) {
-      // Close + reload the view to pick up the new/edited item.
-      if (window.router) window.router.navigate('/overview');
-      else location.reload();
+  function setFieldValue(el, val) {
+    if (!el) return;
+    const v = val ?? '';
+    el.setAttribute('value', v);
+    try { el.value = v; } catch(_) {}
+    // ship-markdown-editor uses an internal editor instance that needs
+    // explicit content update on reuse.
+    if (typeof el.editor?.commands?.setContent === 'function') {
+      try { el.editor.commands.setContent(v); } catch(_) {}
     }
-  };
-
-  // Click intercept: when a node is clicked (not dragged), populate drawer by
-  // reading attrs and dispatching a Datastar store update via the node's own
-  // data-on handler would be complicated. Use the document-level signal API:
-  function setSignals(patch) {
-    const evt = new CustomEvent('datastar-signals-patch', { detail: patch, bubbles: true });
-    document.dispatchEvent(evt);
+    // ship-select: reflect selection in shadow <select>
+    const innerSelect = el.shadowRoot?.querySelector('select');
+    if (innerSelect) innerSelect.value = v;
+    // ship-input: reflect in shadow <input>
+    const innerInput = el.shadowRoot?.querySelector('input, textarea');
+    if (innerInput) innerInput.value = v;
   }
 
-  // Override openDrawer to hydrate via refetch + direct store mutation.
-  openDrawer = async function(id) {
+  function readFieldValue(el) {
+    if (!el) return '';
+    // markdown-editor: read from the editor instance or the reflected value
+    if (typeof el.editor?.getText === 'function') {
+      try { return el.editor.storage?.markdown?.getMarkdown?.() ?? el.value ?? ''; } catch(_) {}
+    }
+    if (el.value !== undefined) return el.value;
+    const inner = el.shadowRoot?.querySelector('input, textarea, select');
+    if (inner) return inner.value;
+    return el.getAttribute('value') || '';
+  }
+
+  function renderList(listId, values) {
+    const container = document.getElementById(`fld-${listId}`);
+    if (!container) return;
+    container.innerHTML = '';
+    (values || []).forEach((val, i) => {
+      const row = document.createElement('div');
+      row.className = 'ov-list-row';
+      row.style.cssText = 'display:flex;gap:var(--space-2);margin-bottom:var(--space-1);align-items:center';
+      const inp = document.createElement('ship-input');
+      inp.setAttribute('size', 'sm');
+      inp.setAttribute('value', val ?? '');
+      inp.style.flex = '1';
+      if (listId === 'depends_on') inp.setAttribute('placeholder', 'system name');
+      row.appendChild(inp);
+      if (listId === 'gaps') {
+        const send = document.createElement('ship-button');
+        send.setAttribute('size', 'xs');
+        send.setAttribute('variant', 'ghost');
+        send.setAttribute('aria-label', 'Send gap to agent');
+        send.innerHTML = '<ship-icon name="send"></ship-icon>';
+        send.addEventListener('click', () => sendFeedback({ kind: 'gap_dispatch', system: readFieldValue(document.getElementById('fld-name')), gap: readFieldValue(inp) }));
+        row.appendChild(send);
+      }
+      const rm = document.createElement('ship-button');
+      rm.setAttribute('size', 'xs');
+      rm.setAttribute('variant', 'ghost');
+      rm.setAttribute('aria-label', `Remove ${listId}`);
+      rm.innerHTML = '<ship-icon name="x"></ship-icon>';
+      rm.addEventListener('click', () => row.remove());
+      row.appendChild(rm);
+      container.appendChild(row);
+    });
+  }
+
+  function readList(listId) {
+    return [...document.querySelectorAll(`#fld-${listId} .ov-list-row ship-input`)]
+      .map(el => readFieldValue(el))
+      .map(v => (v || '').trim())
+      .filter(v => v.length > 0);
+  }
+
+  function openDrawerUI() { drawer.classList.add('open'); }
+  function closeDrawerUI() { drawer.classList.remove('open'); }
+
+  async function openDrawer(id) {
     try {
       const r = await fetch(`/api/collections/systems/items/${encodeURIComponent(id)}`);
       if (!r.ok) return;
       const env = await r.json();
       const item = env.data || env;
       const data = item.data || item;
-      const root = document.querySelector('.overview-root');
-      if (!root) return;
-      // Prefer Datastar's globally-exposed signals if present.
-      const ds = window.datastar;
-      if (ds && ds.$) {
-        try { ds.$.form = data; ds.$._drawerId = id; ds.$._isNew = false; ds.$._drawerOpen = true; return; } catch(_) {}
-      }
-      // Fallback: mutate Datastar via a hidden trigger element's data-on.
-      const bridge = document.createElement('button');
-      bridge.style.display = 'none';
-      bridge.setAttribute('data-on:click',
-        `$form = ${JSON.stringify(data)}; $_drawerId = '${id.replace(/'/g, "\\'")}'; $_isNew = false; $_drawerOpen = true`);
-      root.appendChild(bridge);
-      // Let Datastar process the new element, then click it.
-      requestAnimationFrame(() => { bridge.click(); bridge.remove(); });
+      drawerId = id;
+      drawerTitle.textContent = data.name || 'System';
+      FIELDS.forEach(f => setFieldValue(document.getElementById(`fld-${f}`), data[f]));
+      LIST_FIELDS.forEach(f => renderList(f, data[f] || []));
+      openDrawerUI();
     } catch(_) {}
-  };
+  }
+
+  function openNewDrawer() {
+    drawerId = null;
+    drawerTitle.textContent = 'New system';
+    FIELDS.forEach(f => setFieldValue(document.getElementById(`fld-${f}`), ''));
+    LIST_FIELDS.forEach(f => renderList(f, []));
+    openDrawerUI();
+  }
+
+  async function saveDrawer() {
+    const data = {};
+    FIELDS.forEach(f => {
+      const v = readFieldValue(document.getElementById(`fld-${f}`));
+      if (v !== '' && v !== undefined && v !== null) data[f] = v;
+    });
+    LIST_FIELDS.forEach(f => { data[f] = readList(f); });
+    const url = drawerId
+      ? `/api/collections/systems/items/${encodeURIComponent(drawerId)}`
+      : `/api/collections/systems/items`;
+    const method = drawerId ? 'PUT' : 'POST';
+    const r = await fetch(url, {
+      method, headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ data }),
+    });
+    if (!r.ok) return;
+    // Update the clicked node's DOM attrs + summary in place so the
+    // canvas reflects the save without a full re-mount (keeps pan/zoom).
+    if (drawerId) {
+      const node = canvas.querySelector(`.ov-node[data-id="${CSS.escape(drawerId)}"]`);
+      if (node) {
+        if (data.name)    node.dataset.name = data.name;
+        if (data.layer)   node.dataset.layer = data.layer;
+        if (data.status)  node.dataset.status = data.status;
+        node.dataset.depends = JSON.stringify(data.depends_on || []);
+        // Rewrite the visible header label + summary
+        const headSpan = node.querySelector('.ov-node-head > span');
+        if (headSpan) headSpan.textContent = data.name || '(unnamed)';
+        const dot = node.querySelector('ship-status-dot');
+        if (dot) dot.setAttribute('status', data.status || 'spec');
+        const layerEl = node.querySelector('.ov-node-layer');
+        if (layerEl) layerEl.textContent = `${data.layer || ''}${data.doc_skill ? ' · ' + data.doc_skill : ''}`;
+        let summaryEl = node.querySelector('.ov-node-summary');
+        if (data.summary) {
+          if (!summaryEl) {
+            summaryEl = document.createElement('div');
+            summaryEl.className = 'ov-node-summary';
+            layerEl?.after(summaryEl);
+          }
+          const s = data.summary;
+          summaryEl.textContent = s.length > 80 ? s.slice(0, 80) + '…' : s;
+        } else if (summaryEl) {
+          summaryEl.remove();
+        }
+      }
+      drawEdges();
+      closeDrawerUI();
+    } else {
+      // New system: need the assigned id; simplest to re-mount the view.
+      closeDrawerUI();
+      setTimeout(() => {
+        if (window.router) window.router.navigate('/overview');
+        else location.reload();
+      }, 120);
+    }
+  }
+
+  function sendFeedback(payload) {
+    fetch('/api/runtime/feedback', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        id: '', kind: 'action', target: { file_path: location.pathname },
+        author_kind: 'human', created_at: new Date().toISOString(), payload,
+      }),
+    }).catch(() => {});
+  }
+
+  // Wire drawer controls
+  document.getElementById('ov-close')?.addEventListener('click', closeDrawerUI);
+  document.getElementById('ov-cancel')?.addEventListener('click', closeDrawerUI);
+  document.getElementById('ov-save')?.addEventListener('click', saveDrawer);
+  document.getElementById('ov-ask-agent')?.addEventListener('click', () => {
+    sendFeedback({
+      kind: 'system_dispatch',
+      system: readFieldValue(document.getElementById('fld-name')),
+      layer: readFieldValue(document.getElementById('fld-layer')),
+      status: readFieldValue(document.getElementById('fld-status')),
+    });
+  });
+  LIST_FIELDS.forEach(f => {
+    document.getElementById(`fld-${f}-add`)?.addEventListener('click', () => {
+      const current = readList(f);
+      renderList(f, [...current, '']);
+    });
+  });
+
+  document.getElementById('ov-new-system')?.addEventListener('click', openNewDrawer);
+  document.getElementById('ov-first-system')?.addEventListener('click', openNewDrawer);
+  document.getElementById('ov-fit')?.addEventListener('click', () => window.__ovFit && window.__ovFit());
+
+  // ESC closes the drawer.
+  document.addEventListener('keydown', (e) => { if (e.key === 'Escape') closeDrawerUI(); });
 
   // ── Fit-to-view ────────────────────────────────────────
   window.__ovFit = function() {
@@ -529,34 +692,58 @@
     applyTransform();
   };
 
-  // ── Filter reactivity (listen to Datastar signal changes via polling lite) ──
+  // ── Filter reactivity ──────────────────────────────────
+  // Track filter state in local vars so we don't depend on Datastar's
+  // internal signal store. Listen to DOM events from the search input
+  // and chip clicks, mirror the state locally, apply classes.
+  const filter = { search: '', status: '', layer: '' };
   function applyFilters() {
-    const search = (getSig('_search') || '').toLowerCase();
-    const status = getSig('_statusFilter') || '';
-    const layer = getSig('_layerFilter') || '';
+    const s = filter.search.toLowerCase();
     canvas.querySelectorAll('.ov-node').forEach(n => {
       const name = (n.dataset.name || '').toLowerCase();
-      const okSearch = !search || name.includes(search);
-      const okStatus = !status || n.dataset.status === status;
-      const okLayer = !layer || n.dataset.layer === layer;
+      const okSearch = !s || name.includes(s);
+      const okStatus = !filter.status || n.dataset.status === filter.status;
+      const okLayer = !filter.layer || n.dataset.layer === filter.layer;
       n.classList.toggle('dimmed', !(okSearch && okStatus && okLayer));
     });
   }
-  function getSig(name) {
-    const ds = window.datastar;
-    try { return ds && ds.$ ? ds.$[name] : ''; } catch(_) { return ''; }
-  }
-  // Poll filter state at low frequency — simple + robust.
-  setInterval(applyFilters, 150);
 
-  // Initial paint
+  // Search input
+  const searchEl = document.getElementById('ov-search');
+  if (searchEl) {
+    // Listen to both the web component's custom event and the underlying input event.
+    const handler = (e) => {
+      const v = (e.detail?.value ?? e.target?.value ?? '') + '';
+      filter.search = v;
+      applyFilters();
+    };
+    searchEl.addEventListener('input', handler);
+    searchEl.addEventListener('change', handler);
+    searchEl.addEventListener('ship-input', handler);
+  }
+
+  // Status + layer filter chips — clicks toggle filter state.
+  function wireChipGroup(groupLabel, fieldName, validValues) {
+    const group = [...document.querySelectorAll(`.overview-toolbar [role="group"]`)]
+      .find(g => (g.getAttribute('aria-label') || '').toLowerCase() === groupLabel);
+    if (!group) return;
+    group.querySelectorAll('ship-chip').forEach(chipEl => {
+      chipEl.addEventListener('click', () => {
+        const txt = (chipEl.textContent || '').trim();
+        filter[fieldName] = validValues.includes(txt) ? txt : '';
+        // Visually mark the selected chip.
+        group.querySelectorAll('ship-chip').forEach(c => c.removeAttribute('data-active'));
+        chipEl.setAttribute('data-active', '');
+        applyFilters();
+      });
+    });
+  }
+  wireChipGroup('status', 'status', ['spec', 'building', 'shipping', 'complete']);
+  wireChipGroup('layer', 'layer', ['primitive', 'runtime', 'interface', 'meta']);
+
+  // Initial paint + fit to viewport
   drawEdges();
-  // Auto-fit if no node has an explicit saved position (all nulls collapse to auto-grid — still fit)
-  const hasSaved = [...canvas.querySelectorAll('.ov-node')].some(n => {
-    // auto-grid positions are deterministic; we simply always fit on first load
-    return false;
-  });
-  if (!hasSaved) requestAnimationFrame(() => window.__ovFit && window.__ovFit());
+  requestAnimationFrame(() => window.__ovFit && window.__ovFit());
 })();
 </script>
 

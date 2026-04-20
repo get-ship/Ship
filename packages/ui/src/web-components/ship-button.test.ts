@@ -28,6 +28,12 @@ describe('ship-button', () => {
     expect(el.getAttribute('tone')).toBe('destructive')
   })
 
+  it('accepts tone="primary" and matches the host selector', async () => {
+    const el = await mount('<ship-button tone="primary" variant="solid">Go</ship-button>')
+    expect(el.getAttribute('tone')).toBe('primary')
+    expect(el.matches('[tone="primary"]')).toBe(true)
+  })
+
   it('disables the inner button when loading', async () => {
     const el = await mount('<ship-button loading>Saving</ship-button>')
     const btn = el.shadowRoot!.querySelector('button')!

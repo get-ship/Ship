@@ -1,0 +1,305 @@
+---
+// Pillar 1 — "Your AI, your way."
+//
+// Two panels. Left: a stack of agent role cards showing how SHIP
+// configures agents with scoped skills and permissions for a job.
+// Right: those agents running as a chain — summarize → critique →
+// compose → notify — with per-step status so you can see what's
+// already happened and what's queued for your review.
+
+const roles = [
+  {
+    id: 'researcher',
+    name: 'Researcher',
+    skills: ['web', 'read files', 'summarize'],
+    model: 'Claude',
+    tone: 'info',
+  },
+  {
+    id: 'writer',
+    name: 'Writer',
+    skills: ['draft', 'citation check'],
+    model: 'ChatGPT',
+    tone: 'accent',
+  },
+  {
+    id: 'reviewer',
+    name: 'Reviewer',
+    skills: ['critique', 'style', 'block shipping'],
+    model: 'Claude',
+    tone: 'success',
+  },
+];
+
+const chainSteps = [
+  { label: 'Gather the source material',  role: 'Researcher', state: 'completed', ms: '1.4s',  cost: '$0.02' },
+  { label: 'Draft the release post',      role: 'Writer',     state: 'completed', ms: '2.1s',  cost: '$0.03' },
+  { label: 'Critique and flag issues',    role: 'Reviewer',   state: 'running',   ms: '—',     cost: '—' },
+  { label: 'Ready for your review',       role: 'You',        state: 'pending',   ms: '—',     cost: '—' },
+];
+---
+
+<section class="hl hl-ai" data-visible="false">
+  <div class="site-container hl-inner">
+    <header class="hl-head">
+      <h2 class="hl-title">Your AI, your way.</h2>
+      <p class="hl-sub">
+        Configure agents with the right skills and permissions for
+        their role, chain them together to create any output, and
+        hand the final result to you for review.
+      </p>
+    </header>
+
+    <div class="hl-demo">
+      <div class="hl-roles">
+        {roles.map((r, i) => (
+          <ship-card
+            variant="outline"
+            status-rail
+            tone={r.tone}
+            padding="lg"
+            class="hl-role"
+            style={`--i: ${i}`}
+          >
+            <div slot="header" class="hl-role-head">
+              <ship-badge tone={r.tone} variant="soft" size="sm">agent</ship-badge>
+              <span class="hl-role-model">{r.model}</span>
+            </div>
+            <div class="hl-role-name">{r.name}</div>
+            <div class="hl-role-skills">
+              {r.skills.map((s) => (
+                <span class="hl-skill">{s}</span>
+              ))}
+            </div>
+          </ship-card>
+        ))}
+      </div>
+
+      <ship-card variant="outline" padding="lg" class="hl-agent">
+        <div slot="header" class="hl-agent-head">
+          <div>
+            <div class="hl-agent-title">Release post for v1.2</div>
+            <div class="hl-agent-sub">Chained run &middot; 3 agents &middot; awaiting your review</div>
+          </div>
+          <ship-badge tone="info" variant="soft" size="sm">pipeline</ship-badge>
+        </div>
+
+        <ul class="hl-agent-steps">
+          {chainSteps.map((s, i) => (
+            <li class="hl-agent-step" data-state={s.state} style={`--i: ${i}`}>
+              <ship-status-dot
+                tone={s.state === 'completed' ? 'success' : s.state === 'running' ? 'info' : 'muted'}
+                pulse={s.state === 'running'}
+              ></ship-status-dot>
+              <span class="hl-agent-label">{s.label}</span>
+              <span class="hl-agent-provider">{s.role}</span>
+              <span class="hl-agent-ms">{s.ms}</span>
+              <span class="hl-agent-cost">{s.cost}</span>
+            </li>
+          ))}
+        </ul>
+      </ship-card>
+    </div>
+  </div>
+</section>
+
+<script>
+  const obs = new IntersectionObserver(
+    (entries) => {
+      for (const e of entries) {
+        if (e.isIntersecting) {
+          e.target.setAttribute('data-visible', 'true');
+          obs.unobserve(e.target);
+        }
+      }
+    },
+    { threshold: 0.25 },
+  );
+  document.querySelectorAll('.hl-ai').forEach((el) => obs.observe(el));
+</script>
+
+<style>
+  .hl {
+    padding: clamp(72px, 10vw, 128px) 0;
+    position: relative;
+  }
+  .hl-inner {
+    display: grid;
+    gap: clamp(28px, 4vw, 52px);
+  }
+  .hl-head {
+    max-width: 60ch;
+    margin-inline: auto;
+    text-align: center;
+    display: flex;
+    flex-direction: column;
+    gap: 14px;
+    align-items: center;
+  }
+  .hl-title {
+    font-size: clamp(32px, 4.4vw, 48px);
+    letter-spacing: -0.025em;
+    color: var(--foreground);
+  }
+  .hl-sub {
+    color: var(--muted-foreground);
+    font-size: clamp(15px, 1.4vw, 17px);
+    line-height: 1.55;
+    max-width: 48ch;
+  }
+
+  .hl-demo {
+    display: grid;
+    grid-template-columns: 1fr 1fr;
+    gap: clamp(16px, 2.5vw, 28px);
+    align-items: stretch;
+    max-width: 880px;
+    margin-inline: auto;
+    width: 100%;
+  }
+  @media (max-width: 860px) {
+    .hl-demo { grid-template-columns: 1fr; }
+  }
+
+  /* Role stack — each card is an agent configured for a job. */
+  .hl-roles {
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+  }
+  .hl-role {
+    display: block;
+    transition:
+      opacity 420ms var(--ease-out, cubic-bezier(0.16, 1, 0.3, 1)),
+      transform 420ms var(--ease-out, cubic-bezier(0.16, 1, 0.3, 1));
+    transition-delay: calc(160ms + var(--i) * 110ms);
+  }
+  :root.js .hl-ai[data-visible='false'] .hl-role {
+    opacity: 0;
+    transform: translateX(-10px);
+  }
+  .hl-ai[data-visible='true'] .hl-role {
+    opacity: 1;
+    transform: none;
+  }
+  .hl-role-head {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: 10px;
+  }
+  .hl-role-model {
+    font-family: var(--font-mono);
+    font-size: 11px;
+    color: var(--muted-foreground);
+    padding: 2px 6px;
+    border-radius: 5px;
+    background: color-mix(in oklch, var(--border) 30%, transparent);
+  }
+  .hl-role-name {
+    font-family: var(--font-display);
+    font-weight: 700;
+    font-size: 17px;
+    letter-spacing: -0.01em;
+    color: var(--foreground);
+    margin-top: 4px;
+  }
+  .hl-role-skills {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 4px;
+    margin-top: 10px;
+  }
+  .hl-skill {
+    font-size: 11.5px;
+    font-weight: 500;
+    color: var(--muted-foreground);
+    padding: 2px 8px;
+    border-radius: 999px;
+    border: 1px solid color-mix(in oklch, var(--border) 60%, transparent);
+    background: var(--card);
+  }
+
+  /* Agent run card */
+  .hl-agent {
+    display: block;
+    transition:
+      opacity 500ms var(--ease-out, cubic-bezier(0.16, 1, 0.3, 1)) 80ms,
+      transform 500ms var(--ease-out, cubic-bezier(0.16, 1, 0.3, 1)) 80ms;
+  }
+  :root.js .hl-ai[data-visible='false'] .hl-agent {
+    opacity: 0;
+    transform: translateY(16px);
+  }
+  .hl-ai[data-visible='true'] .hl-agent { opacity: 1; transform: none; }
+  .hl-agent-head {
+    display: flex;
+    align-items: flex-start;
+    justify-content: space-between;
+    gap: 10px;
+  }
+  .hl-agent-title {
+    font-family: var(--font-display);
+    font-weight: 700;
+    font-size: 17px;
+    letter-spacing: -0.01em;
+    color: var(--foreground);
+  }
+  .hl-agent-sub {
+    color: var(--muted-foreground);
+    font-size: 12.5px;
+    margin-top: 2px;
+  }
+  .hl-agent-steps {
+    list-style: none;
+    margin: 16px 0 0;
+    padding: 0;
+    display: flex;
+    flex-direction: column;
+  }
+  .hl-agent-step {
+    display: grid;
+    grid-template-columns: 14px 1fr auto auto auto;
+    column-gap: 12px;
+    align-items: center;
+    padding: 10px 2px;
+    font-size: 13px;
+    color: var(--foreground);
+    border-bottom: 1px solid color-mix(in oklch, var(--border) 30%, transparent);
+    transition:
+      opacity 360ms var(--ease-out, cubic-bezier(0.16, 1, 0.3, 1)),
+      transform 360ms var(--ease-out, cubic-bezier(0.16, 1, 0.3, 1));
+    transition-delay: calc(320ms + var(--i) * 90ms);
+  }
+  .hl-agent-step:last-child { border-bottom: 0; }
+  :root.js .hl-ai[data-visible='false'] .hl-agent-step {
+    opacity: 0;
+    transform: translateY(6px);
+  }
+  .hl-ai[data-visible='true'] .hl-agent-step { opacity: 1; transform: none; }
+  .hl-agent-step[data-state='pending'] { opacity: 0.55; }
+  .hl-agent-label {
+    font-weight: 500;
+  }
+  .hl-agent-provider {
+    color: var(--muted-foreground);
+    font-family: var(--font-mono);
+    font-size: 11.5px;
+  }
+  .hl-agent-ms,
+  .hl-agent-cost {
+    font-family: var(--font-mono);
+    font-size: 11.5px;
+    color: var(--muted-foreground);
+    min-width: 44px;
+    text-align: right;
+  }
+  @media (max-width: 620px) {
+    .hl-agent-step {
+      grid-template-columns: 14px 1fr auto;
+      row-gap: 2px;
+    }
+    .hl-agent-provider { grid-column: 2 / 4; font-size: 11px; }
+    .hl-agent-ms, .hl-agent-cost { display: none; }
+  }
+</style>

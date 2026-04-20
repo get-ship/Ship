@@ -1,0 +1,116 @@
+---
+import BaseLayout from '../layouts/BaseLayout.astro';
+import Navbar from '../components/Navbar.astro';
+import Footer from '../components/Footer.astro';
+
+// Honest stub. The registry backend isn't live yet — there is no
+// marketplace to browse. We describe what it will be and offer a real
+// action (join the waitlist). No fake install counts, no fake authors.
+const kinds = [
+  { label: 'Pipelines',   blurb: 'Ready-to-run workflows, one click to install.' },
+  { label: 'Skills',      blurb: 'Drop-in capabilities — prompts, tools, scopes.' },
+  { label: 'Views',       blurb: 'Custom interfaces over your data.' },
+  { label: 'Themes',      blurb: 'Palettes and typography for the whole app.' },
+  { label: 'Collections', blurb: 'Shared schemas you can fork to your workspace.' },
+  { label: 'Integrations',blurb: 'MCP servers and connectors from the community.' },
+];
+---
+
+<BaseLayout title="SHIP Store — coming at launch">
+  <Navbar />
+  <main class="store-page">
+    <header class="store-hero site-container">
+      <ship-badge tone="muted" variant="soft" size="sm">Coming at launch</ship-badge>
+      <h1>A home for things you&rsquo;ve shipped.</h1>
+      <p class="store-lede">
+        When SHIP goes live, the store is where pipelines, skills,
+        views, themes, and collections show up &mdash; browsable,
+        installable in one click, versioned end to end. For now,
+        it&rsquo;s a plan. Leave your email if you want the store
+        (and a publish key) the moment it opens.
+      </p>
+      <ship-toolbar gap="md" justify="start" class="store-ctas">
+        <ship-button
+          tone="primary"
+          variant="solid"
+          size="md"
+          onclick="location.href='/sign-up'"
+        >Notify me at launch</ship-button>
+        <ship-button
+          variant="ghost"
+          size="md"
+          onclick="location.href='https://docs.getship.dev'"
+        >Publishing guide &rarr;</ship-button>
+      </ship-toolbar>
+    </header>
+
+    <section class="store-what site-container">
+      <div class="store-what-head">
+        <ship-badge tone="primary" variant="soft" size="sm">What you&rsquo;ll find there</ship-badge>
+      </div>
+      <div class="store-grid">
+        {kinds.map((k) => (
+          <div class="store-kind">
+            <div class="store-kind-label">{k.label}</div>
+            <p class="store-kind-body">{k.blurb}</p>
+          </div>
+        ))}
+      </div>
+    </section>
+  </main>
+  <Footer />
+</BaseLayout>
+
+<style>
+  .store-page {
+    padding-top: clamp(48px, 6vw, 80px);
+    padding-bottom: clamp(72px, 10vw, 128px);
+  }
+
+  .store-hero {
+    display: flex;
+    flex-direction: column;
+    align-items: flex-start;
+    gap: 16px;
+    max-width: 52rem;
+    padding-bottom: clamp(40px, 6vw, 72px);
+  }
+  .store-hero h1 { font-size: clamp(36px, 5vw, 56px); }
+  .store-lede {
+    font-size: clamp(15px, 1.4vw, 17px);
+    line-height: 1.55;
+    color: var(--muted-foreground);
+  }
+  .store-ctas { margin-top: 4px; }
+
+  .store-what {
+    padding-top: clamp(24px, 4vw, 48px);
+  }
+  .store-what-head {
+    margin-bottom: 20px;
+    display: inline-flex;
+  }
+  .store-grid {
+    display: grid;
+    grid-template-columns: repeat(auto-fill, minmax(240px, 1fr));
+    gap: 14px;
+    max-width: 960px;
+  }
+  .store-kind {
+    padding: 14px 16px;
+    border-left: 2px solid color-mix(in oklch, var(--primary) 50%, transparent);
+  }
+  .store-kind-label {
+    font-family: var(--font-display);
+    font-weight: 700;
+    font-size: 17px;
+    color: var(--foreground);
+    letter-spacing: -0.01em;
+  }
+  .store-kind-body {
+    color: var(--muted-foreground);
+    font-size: 13.5px;
+    line-height: 1.55;
+    margin-top: 4px;
+  }
+</style>
