@@ -27,6 +27,24 @@ use crate::views::templates;
 /// Try rendering a template from `.ship/views/<view>/<file>`.
 /// Returns `None` if the view directory or file does not exist, or if
 /// rendering fails (in which case the caller falls back to embedded templates).
+/// Minimal HTML entity escape — sufficient for `<pre>` text content and
+/// attribute-value interpolation. We need this because the user-view
+/// env runs with AutoEscape::None (Datastar attrs require it).
+fn html_escape(s: &str) -> String {
+    let mut out = String::with_capacity(s.len());
+    for ch in s.chars() {
+        match ch {
+            '&' => out.push_str("&amp;"),
+            '<' => out.push_str("&lt;"),
+            '>' => out.push_str("&gt;"),
+            '"' => out.push_str("&quot;"),
+            '\'' => out.push_str("&#x27;"),
+            c => out.push(c),
+        }
+    }
+    out
+}
+
 fn try_render_view<C: Serialize>(view: &str, file: &str, ctx: &C) -> Option<String> {
     let (view_dir, _source) = resolve_view_dir(view)?;
     let source = std::fs::read_to_string(view_dir.join(file)).ok()?;
@@ -244,6 +262,15 @@ pub async fn skill_detail(
         let content = load_skill_file(state.ship_dir(), &id, fp)?;
         let name = fp.rsplit('/').next().unwrap_or(fp).to_string();
         let ext = name.rsplit('.').next().unwrap_or("").to_lowercase();
+        // HTML-escape at the server: the view template env runs with
+        // AutoEscape::None (required so Datastar attrs don't get mangled),
+        // so any <script>/<style>/<link> inside user file content would
+        // otherwise leak into the document — hijacking theme tokens and
+        // layout. Pre-escaping here is safe for both rendering paths:
+        // - `<pre>{{ file.content }}</pre>` displays entities as text
+        // - `<ship-markdown-editor value="{{ file.content }}">` needs
+        //   attribute escaping anyway
+        let content = html_escape(&content);
         Some(SkillFileCtx { path: fp.to_string(), name, ext, content })
     });
     let ctx = SkillDetailCtx { skill, rail, file };

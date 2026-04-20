@@ -91,6 +91,10 @@
       </div>
     </div>
     <div class="se-editor-body">
+      {# file.content is pre-escaped server-side (views_skills.rs) because
+         the user-view env runs AutoEscape::None for Datastar attribute
+         compatibility. Without server-side escape, user files containing
+         <script>/<style>/<link> would hijack the document. #}
       {% if file.ext == 'md' %}
         <div class="se-editor-content">
           <ship-markdown-editor value="{{ file.content }}"></ship-markdown-editor>
