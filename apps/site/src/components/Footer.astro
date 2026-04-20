@@ -64,9 +64,9 @@ const version = 'v0.9.0-preview';
   .site-footer {
     padding: 64px 0 32px;
     margin-top: 80px;
-    border-top: 1px solid color-mix(in oklch, var(--site-border) 40%, transparent);
+    border-top: 1px solid color-mix(in oklch, var(--border) 40%, transparent);
     background:
-      radial-gradient(60% 60% at 50% 0%, color-mix(in oklch, var(--site-accent) 6%, transparent), transparent 70%);
+      radial-gradient(60% 60% at 50% 0%, color-mix(in oklch, var(--accent) 6%, transparent), transparent 70%);
     content-visibility: auto;
     contain-intrinsic-size: 1px 480px;
   }
@@ -87,7 +87,7 @@ const version = 'v0.9.0-preview';
     letter-spacing: -0.01em;
   }
   .footer-tagline {
-    color: var(--site-muted-fg);
+    color: var(--muted-foreground);
     max-width: 28ch;
     margin-top: 6px;
   }
@@ -107,7 +107,7 @@ const version = 'v0.9.0-preview';
     font-size: 13px;
     letter-spacing: 0.04em;
     text-transform: uppercase;
-    color: var(--site-fg);
+    color: var(--foreground);
     margin-bottom: 10px;
   }
   .footer-col ul {
@@ -119,11 +119,11 @@ const version = 'v0.9.0-preview';
     gap: 8px;
   }
   .footer-col a {
-    color: var(--site-muted-fg);
+    color: var(--muted-foreground);
     font-size: 14px;
   }
   .footer-col a:hover {
-    color: var(--site-fg);
+    color: var(--foreground);
   }
   .footer-sep {
     margin: 32px 0 20px;
@@ -134,20 +134,20 @@ const version = 'v0.9.0-preview';
     align-items: center;
     justify-content: space-between;
     gap: 16px;
-    color: var(--site-muted-fg);
+    color: var(--muted-foreground);
     font-size: 13px;
     flex-wrap: wrap;
   }
   .footer-built {
     display: inline-flex;
     gap: 6px;
-    color: var(--site-muted-fg);
-    border-bottom: 1px dashed color-mix(in oklch, var(--site-border) 80%, transparent);
+    color: var(--muted-foreground);
+    border-bottom: 1px dashed color-mix(in oklch, var(--border) 80%, transparent);
     padding-bottom: 2px;
   }
   .footer-built:hover {
-    color: var(--site-fg);
-    border-color: var(--site-accent);
+    color: var(--foreground);
+    border-color: var(--accent);
   }
   .footer-built-arrow {
     transition: transform 160ms ease;

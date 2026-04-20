@@ -36,10 +36,7 @@ const { mode = 'sign-in', autoOpen = false } = Astro.props;
   </div>
 
   <span slot="terms">
-    By continuing you agree to our
-    <a href="/framework" class="site-auth-link">Terms</a>
-    and
-    <a href="/framework" class="site-auth-link">Privacy Policy</a>.
+    By continuing you agree to our Terms &amp; Privacy.
   </span>
 </ship-auth-dialog>
 
@@ -103,7 +100,7 @@ const { mode = 'sign-in', autoOpen = false } = Astro.props;
     width: 100%;
   }
   .site-auth-link {
-    color: var(--site-accent);
+    color: var(--accent);
     font-weight: 600;
     text-decoration: underline;
     text-underline-offset: 3px;

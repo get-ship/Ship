@@ -28,13 +28,10 @@ const points = spark
 <section class="hl hl-observe" data-visible="false">
   <div class="site-container hl-inner">
     <header class="hl-head">
-      <ship-badge tone="success" variant="soft" size="sm">Observe and learn</ship-badge>
-      <h2>Know what your agents just did.</h2>
+      <h2 class="hl-title">Observe and learn.</h2>
       <p class="hl-sub">
         SHIP has tools for agent governance and gives you valuable
         insights into pipeline, model, and agent performance.
-        See what ran, where the time went, what it cost &mdash; and
-        tune the setup until it earns its keep.
       </p>
     </header>
 
@@ -137,7 +134,7 @@ const points = spark
   }
   .hl-inner {
     display: grid;
-    gap: clamp(32px, 5vw, 64px);
+    gap: clamp(28px, 4vw, 52px);
   }
   .hl-head {
     max-width: 60ch;
@@ -148,17 +145,26 @@ const points = spark
     gap: 14px;
     align-items: center;
   }
+  .hl-title {
+    font-size: clamp(32px, 4.4vw, 48px);
+    letter-spacing: -0.025em;
+    color: var(--foreground);
+  }
   .hl-sub {
     color: var(--muted-foreground);
-    font-size: clamp(16px, 1.6vw, 18px);
+    font-size: clamp(15px, 1.4vw, 17px);
     line-height: 1.55;
+    max-width: 48ch;
   }
 
   .hl-demo {
     display: grid;
-    grid-template-columns: 1fr 1.1fr;
-    gap: clamp(20px, 3vw, 36px);
+    grid-template-columns: 1fr 1fr;
+    gap: clamp(16px, 2.5vw, 28px);
     align-items: start;
+    max-width: 880px;
+    margin-inline: auto;
+    width: 100%;
   }
   @media (max-width: 860px) {
     .hl-demo { grid-template-columns: 1fr; }

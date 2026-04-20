@@ -81,9 +81,9 @@ const { videoSrc, videoPoster } = Astro.props;
     position: absolute;
     inset: -10% 0 20%;
     background:
-      radial-gradient(40% 50% at 20% 30%, var(--site-halo-1) 0%, transparent 65%),
-      radial-gradient(40% 40% at 80% 20%, var(--site-halo-2) 0%, transparent 65%),
-      radial-gradient(50% 50% at 60% 80%, var(--site-halo-3) 0%, transparent 65%);
+      radial-gradient(40% 50% at 20% 30%, color-mix(in oklch, var(--accent) 60%, transparent) 0%, transparent 65%),
+      radial-gradient(40% 40% at 80% 20%, color-mix(in oklch, var(--primary) 45%, transparent) 0%, transparent 65%),
+      radial-gradient(50% 50% at 60% 80%, color-mix(in oklch, var(--accent) 35%, transparent) 0%, transparent 65%);
     opacity: 0.55;
     z-index: -1;
   }
@@ -106,7 +106,7 @@ const { videoSrc, videoPoster } = Astro.props;
     margin-inline: auto;
   }
   .hero-accent {
-    background: linear-gradient(110deg, var(--site-accent) 15%, var(--site-halo-1) 100%);
+    background: linear-gradient(110deg, var(--accent) 15%, color-mix(in oklch, var(--accent) 60%, transparent) 100%);
     -webkit-background-clip: text;
     background-clip: text;
     color: transparent;
@@ -132,7 +132,7 @@ const { videoSrc, videoPoster } = Astro.props;
     border-radius: 18px;
     box-shadow:
       0 1px 2px color-mix(in oklch, var(--foreground) 5%, transparent),
-      0 32px 64px -24px color-mix(in oklch, var(--site-accent) 28%, transparent);
+      0 32px 64px -24px color-mix(in oklch, var(--accent) 28%, transparent);
     background: var(--card);
   }
 

@@ -90,11 +90,11 @@ p {
 }
 
 .site-accent {
-  color: var(--site-accent);
+  color: var(--accent);
 }
 
 :focus-visible {
-  outline: 2px solid var(--site-accent);
+  outline: 2px solid var(--accent);
   outline-offset: 3px;
   border-radius: 6px;
 }
@@ -130,8 +130,8 @@ ship-button:not(:defined) {
   line-height: 1;
 }
 ship-button[tone='accent']:not(:defined) {
-  background: var(--site-accent);
-  color: var(--site-accent-fg);
+  background: var(--accent);
+  color: var(--accent-foreground);
 }
 ship-button[variant='ghost']:not(:defined) {
   background: transparent;
@@ -168,14 +168,14 @@ ship-badge:not(:defined) {
   border: 1px solid color-mix(in oklch, var(--border) 60%, transparent);
 }
 ship-badge[tone='accent']:not(:defined) {
-  background: var(--site-accent);
-  color: var(--site-accent-fg);
-  border-color: var(--site-accent);
+  background: var(--accent);
+  color: var(--accent-foreground);
+  border-color: var(--accent);
 }
 ship-badge[tone='accent'][variant='soft']:not(:defined) {
-  background: color-mix(in oklch, var(--site-accent) 18%, var(--card));
+  background: color-mix(in oklch, var(--accent) 18%, var(--card));
   color: var(--foreground);
-  border-color: color-mix(in oklch, var(--site-accent) 45%, transparent);
+  border-color: color-mix(in oklch, var(--accent) 45%, transparent);
 }
 ship-badge[variant='outline']:not(:defined) {
   background: transparent;

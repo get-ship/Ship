@@ -1,12 +1,14 @@
 /*
- * Ship site theming layer.
+ * SHIP site theming layer.
  *
- * Imports @ship/ui tokens (the canonical palette, spacing, motion, and
- * typography used across Studio, docs, shell, and daemon-served views)
- * and layers a VSCode-style catalog of named themes applied via
- * data-theme on <html>. Every theme only overrides the ship-ui semantic
- * tokens — we do NOT invent a parallel type scale or font stack.
+ * Imports the canonical @ship/ui tokens (palette, radii, spacing,
+ * motion, typography — the same surface used by Studio, shipd-served
+ * views, and the docs site). The site layer ONLY overrides the
+ * ship-ui semantic tokens per theme — we do not invent parallel
+ * tokens. Layout constants (max-width, gutter) are the only
+ * site-namespaced variables.
  *
+ * Themes:
  *   ship-light        — Ship brand, bright
  *   ship-dark         — Ship brand, dark
  *   high-contrast     — max-contrast black + amber
@@ -22,28 +24,6 @@
 :root {
   --site-max-width: 1200px;
   --site-gutter: clamp(16px, 4vw, 48px);
-
-  /* Brand accent channel. @ship/ui defines --primary (orange) and
-   * --accent (purple). The marketing site leans on a deeper blue-purple
-   * accent for WCAG AA on solid CTAs; it maps back to --accent in dark
-   * themes where contrast is easier. */
-  --site-accent: oklch(0.52 0.18 265);
-  --site-accent-fg: oklch(0.99 0.02 265);
-  --site-accent-soft: oklch(0.52 0.18 265 / 0.14);
-  --site-halo-1: oklch(0.72 0.18 260 / 0.45);
-  --site-halo-2: oklch(0.78 0.14 160 / 0.35);
-  --site-halo-3: oklch(0.80 0.14 80 / 0.30);
-
-  /* Pass-through aliases so component-adjacent CSS doesn't spell out the
-   * ship-ui token names. Everything flows from --foreground / --background
-   * / --card / --border / --muted-foreground — no parallel tokens. */
-  --site-bg: var(--background);
-  --site-fg: var(--foreground);
-  --site-muted-fg: var(--muted-foreground);
-  --site-border: var(--border);
-  --site-card: var(--card);
-  --site-radius-lg: var(--radius-lg);
-  --site-radius-xl: var(--radius-xl);
 }
 
 :root[data-theme='ship-light'] {
@@ -63,12 +43,6 @@
   --primary-foreground: oklch(0.12 0.01 265);
   --accent: oklch(0.72 0.16 265);
   --accent-foreground: oklch(0.12 0.01 265);
-  --site-accent: oklch(0.72 0.17 265);
-  --site-accent-fg: oklch(0.12 0.01 265);
-  --site-accent-soft: oklch(0.72 0.17 265 / 0.18);
-  --site-halo-1: oklch(0.55 0.18 265 / 0.45);
-  --site-halo-2: oklch(0.60 0.18 320 / 0.30);
-  --site-halo-3: oklch(0.65 0.14 200 / 0.28);
 }
 
 :root[data-theme='high-contrast'] {
@@ -84,12 +58,6 @@
   --primary-foreground: oklch(0.08 0 0);
   --accent: oklch(0.87 0.18 85);
   --accent-foreground: oklch(0.08 0 0);
-  --site-accent: oklch(0.87 0.18 85);
-  --site-accent-fg: oklch(0.08 0 0);
-  --site-accent-soft: oklch(0.87 0.18 85 / 0.22);
-  --site-halo-1: oklch(0.87 0.18 85 / 0.45);
-  --site-halo-2: oklch(0.72 0.22 20 / 0.32);
-  --site-halo-3: oklch(0.80 0.18 210 / 0.30);
 }
 
 :root[data-theme='warm'] {
@@ -105,12 +73,6 @@
   --primary-foreground: oklch(0.99 0.01 80);
   --accent: oklch(0.55 0.14 35);
   --accent-foreground: oklch(0.99 0.01 80);
-  --site-accent: oklch(0.55 0.14 35);
-  --site-accent-fg: oklch(0.99 0.01 80);
-  --site-accent-soft: oklch(0.55 0.14 35 / 0.14);
-  --site-halo-1: oklch(0.75 0.12 60 / 0.40);
-  --site-halo-2: oklch(0.82 0.10 140 / 0.30);
-  --site-halo-3: oklch(0.80 0.10 30 / 0.35);
 }
 
 :root[data-theme='gruvbox-dark'] {
@@ -126,12 +88,6 @@
   --primary-foreground: oklch(0.20 0.02 80);
   --accent: oklch(0.82 0.16 80);
   --accent-foreground: oklch(0.20 0.02 80);
-  --site-accent: oklch(0.82 0.16 80);
-  --site-accent-fg: oklch(0.20 0.02 80);
-  --site-accent-soft: oklch(0.82 0.16 80 / 0.18);
-  --site-halo-1: oklch(0.80 0.17 65 / 0.40);
-  --site-halo-2: oklch(0.66 0.15 125 / 0.28);
-  --site-halo-3: oklch(0.55 0.20 25 / 0.32);
 }
 
 :root[data-theme='gruvbox-light'] {
@@ -147,12 +103,6 @@
   --primary-foreground: oklch(0.98 0.03 85);
   --accent: oklch(0.66 0.16 55);
   --accent-foreground: oklch(0.98 0.03 85);
-  --site-accent: oklch(0.66 0.16 55);
-  --site-accent-fg: oklch(0.98 0.03 85);
-  --site-accent-soft: oklch(0.66 0.16 55 / 0.15);
-  --site-halo-1: oklch(0.80 0.14 55 / 0.42);
-  --site-halo-2: oklch(0.70 0.14 125 / 0.28);
-  --site-halo-3: oklch(0.68 0.18 25 / 0.25);
 }
 
 :root[data-theme='nord'] {
@@ -168,12 +118,6 @@
   --primary-foreground: oklch(0.22 0.02 255);
   --accent: oklch(0.77 0.06 220);
   --accent-foreground: oklch(0.22 0.02 255);
-  --site-accent: oklch(0.77 0.06 220);
-  --site-accent-fg: oklch(0.22 0.02 255);
-  --site-accent-soft: oklch(0.77 0.06 220 / 0.20);
-  --site-halo-1: oklch(0.78 0.08 210 / 0.36);
-  --site-halo-2: oklch(0.72 0.10 180 / 0.28);
-  --site-halo-3: oklch(0.80 0.11 40 / 0.22);
 }
 
 :root[data-theme='solarized-dark'] {
@@ -189,10 +133,4 @@
   --primary-foreground: oklch(0.12 0.03 220);
   --accent: oklch(0.65 0.14 240);
   --accent-foreground: oklch(0.12 0.03 220);
-  --site-accent: oklch(0.65 0.14 240);
-  --site-accent-fg: oklch(0.99 0.01 220);
-  --site-accent-soft: oklch(0.65 0.14 240 / 0.20);
-  --site-halo-1: oklch(0.70 0.12 220 / 0.40);
-  --site-halo-2: oklch(0.65 0.14 160 / 0.25);
-  --site-halo-3: oklch(0.70 0.18 20 / 0.22);
 }

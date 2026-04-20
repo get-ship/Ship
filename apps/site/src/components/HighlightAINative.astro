@@ -42,13 +42,11 @@ const chainSteps = [
 <section class="hl hl-ai" data-visible="false">
   <div class="site-container hl-inner">
     <header class="hl-head">
-      <ship-badge tone="accent" variant="soft" size="sm">Your AI, your way</ship-badge>
-      <h2>Agents that know their job.</h2>
+      <h2 class="hl-title">Your AI, your way.</h2>
       <p class="hl-sub">
         Configure agents with the right skills and permissions for
         their role, chain them together to create any output, and
-        hand the final result to you for review. SHIP does the
-        orchestrating &mdash; you stay in the loop.
+        hand the final result to you for review.
       </p>
     </header>
 
@@ -127,7 +125,7 @@ const chainSteps = [
   }
   .hl-inner {
     display: grid;
-    gap: clamp(32px, 5vw, 64px);
+    gap: clamp(28px, 4vw, 52px);
   }
   .hl-head {
     max-width: 60ch;
@@ -138,17 +136,26 @@ const chainSteps = [
     gap: 14px;
     align-items: center;
   }
+  .hl-title {
+    font-size: clamp(32px, 4.4vw, 48px);
+    letter-spacing: -0.025em;
+    color: var(--foreground);
+  }
   .hl-sub {
     color: var(--muted-foreground);
-    font-size: clamp(16px, 1.6vw, 18px);
+    font-size: clamp(15px, 1.4vw, 17px);
     line-height: 1.55;
+    max-width: 48ch;
   }
 
   .hl-demo {
     display: grid;
-    grid-template-columns: 1.15fr 1fr;
-    gap: clamp(20px, 3vw, 36px);
+    grid-template-columns: 1fr 1fr;
+    gap: clamp(16px, 2.5vw, 28px);
     align-items: stretch;
+    max-width: 880px;
+    margin-inline: auto;
+    width: 100%;
   }
   @media (max-width: 860px) {
     .hl-demo { grid-template-columns: 1fr; }
