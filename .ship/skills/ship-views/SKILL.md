@@ -34,6 +34,38 @@ Create `.ship/views/hello/index.html.j2`:
 
 Load `http://localhost:3000/hello`. Type. The heading updates as you type. No JS. No build.
 
+## Hard rule — views are composition only
+
+**A view template contains no inline `<script>` and no inline `<style>`.**
+Not "should avoid"; does not contain. A view has two jobs:
+
+1. **Compose `<ship-*>` elements and Datastar attributes.** The
+   elements bring styling and behavior with them; the view picks
+   which ones and wires signals between them.
+2. **Declare view-local partials** in
+   `.ship/views/<view>/_components/*.j2` when a composition repeats
+   within the view.
+
+If you reach for something the rule forbids, the fix is upstream:
+
+| Temptation | Right home |
+|---|---|
+| Inline `<script>` for interactivity | A `<ship-*>` element, or a Datastar plugin in the `datastar-views` skill. |
+| Inline `<style>` for layout or theming | Shadow DOM inside a ship-element, or CSS custom properties the element already exposes. |
+| Copy-pasting the same markup block five times in one template | A Jinja partial in `.ship/views/<view>/_components/`. |
+| A new `<ship-X-row>` element that only exists to hold view-specific text | Compose `<ship-list-tile>` with slots. See the distribution test in the `ship-components` skill. |
+
+When the elements genuinely don't support a pattern, don't paper over
+it with raw HTML + CSS. File the gap with the
+`{#- SDK gap: ... -#}` convention (see the iteration loop below) and
+escalate to extending the element or adding an SDK macro. That is
+how the library grows; shadow workarounds in views is how it rots.
+
+View-local Jinja partials are the right abstraction when a composition
+**repeats within one view** but isn't yet reusable enough to earn a
+library element. Once the same partial appears in 3+ views, promote
+it — preferably by adding slots to an existing `<ship-*>` element.
+
 ## The SDK — always import from `_ship.html.j2`
 
 Every view starts with:
@@ -132,6 +164,7 @@ Every UI element is a `<ship-*>` web component. They style themselves. They hand
 | Tabs | `<ship-tabs>` + `<ship-tab>` + `<ship-tab-panel>` |
 | Dialog | `<ship-dialog>` |
 | Toast | `<ship-toast>` |
+| **Any list row, tile, or card** — agent row, event row, log line, history entry, settings row, dashboard card | **`<ship-list-tile>`** (slots: `leading`, default for primary, `meta` for sub-label, `trailing` for badges/controls; `variant=row\|card`, `density=compact\|normal\|relaxed`, `interactive`, `selected`, `tone`) |
 
 Full list: `GET /api/runtime/assets/ship-elements.md` (served by the daemon).
 
@@ -287,6 +320,17 @@ Signals starting with `_` are **local** (not sent to server — use for UI state
 The daemon's generic SSE handler reads your manifest `events:` list, subscribes to those kernel events, re-renders `partials/content.html.j2` on each, and pushes via Datastar's `datastar-patch-elements`.
 
 **CQRS pattern:** reads flow over SSE (long-lived `@get`), writes are short-lived `@post`/`@delete` (the read stream pushes the visual update).
+
+### Datastar usage depth
+
+Today's views use Datastar shallowly — mostly `data-on`, `data-show`,
+`data-bind`, `data-text`, and the wrapped `@get`/`@post` actions.
+That's deliberate; it's what the current patterns need. Advanced
+Datastar (computed signals, effects, custom plugins, store composition)
+is in scope as the SDK matures, but don't reach for it pre-emptively.
+When a pattern genuinely needs it, file a `{#- SDK gap: ... -#}`,
+prototype once, and lift it into a macro before copying it across
+views.
 
 ## Design tokens
 
@@ -484,7 +528,12 @@ These work on any list — they're general utilities, not collection-specific. F
 
 ## See also
 
-- `ship-components` skill — the web component library catalog
+- `ship-components` skill — the `@ship/set` library charter, including
+  the **distribution test** (when does an element belong in the library
+  vs stay a view-local composition?) and the `ship-list-tile` API.
+- `datastar-views` skill — wire-level details for SSE framing,
+  selectors, signal patches, and writing Datastar plugins when a view
+  genuinely needs one.
 - `.artifacts/specs/view-sdk-design.md` — SDK architecture decisions
 - `apps/shipd/templates/_ship.html.j2` — the canonical macro source
 - `.ship/views/data/` — reference implementation of the patterns above

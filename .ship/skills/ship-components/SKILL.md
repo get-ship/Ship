@@ -1,7 +1,7 @@
 ---
 name: ship-components
 stable-id: ship-components
-description: Charter for Ship's web-component library. Covers composition model, naming, props vocabulary, shadow DOM conventions, tier split (primitives vs domain), and anti-slop rules. Load this whenever authoring, reviewing, or extending `<ship-*>` elements in packages/ship-set/src/web-components/.
+description: Charter for Ship's web-component library (@ship/set). Covers composition model, naming, props vocabulary, shadow DOM conventions, directory layout (core / islands / domain / viz), the distribution test, and anti-slop rules. Load this whenever authoring, reviewing, or extending `<ship-*>` elements in packages/ship-set/src/web-components/.
 tags: [ui, components, web-components, lit, design-system, frontend]
 authors: [ship]
 ---
@@ -44,49 +44,113 @@ If the current UI has no defined treatment for a state (e.g. a new size
 variant), propose a consistent derivation from existing tokens; do not
 invent.
 
-## Tier split
+## Directory layout
 
-Two tiers. Both tiers are `<ship-*>` custom elements — consumers can't
-tell them apart at usage time. The library organization is strict.
+All four tiers are `<ship-*>` custom elements — consumers can't tell
+them apart at usage time. The library organization is strict.
 
-### Primitives
+```
+packages/ship-set/src/web-components/
+  core/      — lightweight primitives (button, card, list-tile, input,
+               badge, stat, icon, chip, status-dot, timestamp, etc.)
+  islands/   — heavy single-purpose elements with their own brain
+               (ship-code-editor, ship-markdown-editor, ship-terminal)
+  domain/    — Ship platform concepts (ship-pipeline-*, ship-git-diff,
+               ship-auth-dialog)
+  viz/       — charts (ship-sparkline, ship-line-chart, ship-donut, …)
+```
 
-**Location:** `packages/ship-set/src/web-components/` (top level).
+### core
 
-**Rules:**
-- Domain-free. Names are generic nouns from HTML/UI tradition.
-- No Ship concepts (no `pipeline`, `spec`, `job`, `agent` in primitive
-  names, attrs, or events).
-- Zero knowledge of the daemon API. Pure DOM.
-- Built on Lit.
+Domain-free primitives. Names are generic nouns from HTML/UI tradition.
+No Ship concepts (no `pipeline`, `spec`, `job`, `agent` in primitive
+names, attrs, or events). Zero knowledge of the daemon API. Pure DOM,
+built on Lit.
 
 **Examples:** `ship-button`, `ship-card`, `ship-list-tile`, `ship-stat`,
-`ship-input`, `ship-tabs`, `ship-empty-state`.
+`ship-input`, `ship-tabs`, `ship-empty-state`, `ship-badge`, `ship-icon`.
 
-### Domain components
+### islands
 
-**Location:** `packages/ship-set/src/web-components/domain/`.
+Heavy single-purpose elements that wrap a non-trivial third-party engine
+(Monaco, xterm, tiptap). Bundled separately — `ship-code-editor.js`,
+`ship-markdown-editor.js`, `ship-terminal.js` — so views that don't need
+them don't pay the cost. The shell currently loads islands eagerly via
+`requestIdleCallback` after first paint.
 
-**Rules:**
-- Ship-specific. Named for the Ship concept they represent.
-- Compose primitives. Never reimplement primitive behavior.
-- MAY know about Ship's data shapes (attrs like `state="running"` for a
-  pipeline).
-- Still free of direct daemon API calls — receive data via attrs / props.
+### domain
+
+Ship-specific. Named for the Ship concept they represent. Compose core
+primitives — never reimplement primitive behavior. MAY know about
+Ship's data shapes (attrs like `state="running"` for a pipeline). Still
+free of direct daemon API calls — receive data via attrs / props.
 
 **Examples:** `ship-pipeline-step`, `ship-pipeline-run`,
-`ship-pipeline-definition`, `ship-pipeline-dag`.
+`ship-pipeline-definition`, `ship-pipeline-dag`, `ship-git-diff`,
+`ship-auth-dialog`.
+
+### viz
+
+Charts. Same rules as core (domain-free, pure DOM) but grouped because
+they share canvas/SVG plumbing and because a view often pulls several
+at once.
 
 ### Decision rule
 
 When considering a new component, ask in order:
 
 1. **Is there a Ship concept in the name, attrs, or events?** If yes →
-   domain. If no → primitive.
-2. **Does it compose existing primitives?** Domain components MUST.
-   Primitives MAY but usually don't.
-3. **Could an unrelated project use it?** If yes → primitive. If it only
-   makes sense inside Ship → domain.
+   `domain/`. If no → `core/` (or `viz/` if it's a chart).
+2. **Does it wrap a heavy third-party engine?** If yes → `islands/`.
+3. **Does it compose existing primitives?** Domain components MUST.
+   Core components MAY but usually don't.
+4. **Could an unrelated project use it?** If yes → `core/` or `viz/`.
+   If it only makes sense inside Ship → `domain/`.
+
+Before the tier question even applies, the element must pass the
+**distribution test** below. If it fails, it doesn't belong in the
+library at all — it's a view-local composition.
+
+## The distribution test
+
+Before you write a new `<ship-*>` element, ask whether it belongs in
+the distributed `@ship/set` library at all. An element earns its spot
+**only if at least one** of these is true:
+
+1. **Semantic primitive** — it has a known name in UI vocabulary. A web
+   developer recognizes the name without seeing the element (button,
+   card, combobox, list-tile, popover, tabs, badge). Mirrors what
+   Radix, Material, or iOS would call it.
+2. **Platform concept** — it represents a Ship domain object whose
+   rendering is structurally tied to the concept. `ship-pipeline-step`
+   qualifies because "pipeline step" is a Ship-owned concept with a
+   specific shape (status, name, duration, provider). Not every domain
+   object qualifies — only ones where the rendering *encodes* the
+   concept.
+3. **Has its own brain** — non-trivial internal logic that justifies
+   isolation: Monaco, xterm, tiptap, a custom layout engine. These are
+   *islands*, and they live in `islands/`.
+
+If an element fails all three, it is a **composition**, not a library
+element. Compositions live in
+`.ship/views/<view>/_components/*.j2` as Jinja partials, not as web
+components. When the same composition repeats across 3+ views, promote
+it — preferably by adding slots to an existing library element, rarely
+by introducing a new one. **Never ship a thin wrapper whose only value
+is filling slots with view-specific content.**
+
+| Passes the test | Fails the test (composition) |
+|---|---|
+| `ship-list-tile` — semantic primitive | `ship-agent-row` — `ship-list-tile` + slots |
+| `ship-pipeline-step` — platform concept | `ship-skill-row` — `ship-list-tile` + slots |
+| `ship-code-editor` — has its own brain | `ship-job-card` — `ship-list-tile variant=card` + slots |
+| `ship-badge` — semantic primitive | `ship-settings-row` — `ship-list-tile` + slots |
+
+The failing column is not hypothetical. Every row and tile pattern in
+Ship today is already a `ship-list-tile` composition; every time an
+agent proposes a new `<ship-X-row>` we fold it back into the primitive.
+If your proposed element is "tile with this leading icon, this primary
+line, this trailing badge," you are composing, not distributing.
 
 ## Composition model
 
@@ -222,10 +286,10 @@ yesterday's first pass.
 
 1. **No hardcoded glyph maps.** If a component wants an icon, use a
    slot. Do not ship an `ICON_GLYPHS: { inbox: '⌯' }` micro-registry.
-2. **No domain concepts leaking into primitive names or attrs.**
-   `ship-file-row` with `status="M"` is a git-specific component; it
-   belongs in domain, not primitives. A primitive list-item uses
-   `selected`, not `status`.
+2. **No domain concepts leaking into core names or attrs.**
+   A git-diff row with `status="M"` is a git-specific concept; it
+   belongs in `domain/` (e.g. composed inside `ship-git-diff`), not
+   in `core/`. A core list-tile uses `selected`, not `status`.
 3. **No fake enums that encode display.** A `variant="primary"` for a
    badge is fine (it's the tone). A `variant="dispatched"` is a leak —
    that's a Ship domain concept; map it to a tone at the caller.
@@ -239,7 +303,7 @@ yesterday's first pass.
    per-component color tables that duplicate the canonical palette.
 7. **No inline styles via `innerHTML`.** Use Lit `css` templates.
 8. **No un-tested components.** PR is incomplete without colocated
-   tests. Applies equally to primitives and domain.
+   tests. Applies equally to core, islands, domain, and viz.
 9. **No components without a header comment** describing: what it is,
    its attrs, its slots, its events. One block comment at the top of
    the file. Used by documentation generators and by future agents.
@@ -325,39 +389,83 @@ Yes:
 - Micro-interactions feel snappy, not sluggish
 - The component photographs well (looks good in a docs screenshot)
 
-## Reviewing existing components
+## ship-list-tile — the canonical list primitive
 
-When this charter lands, five components already exist in
-`packages/ship-set/src/web-components/`: `badge.ts`, `empty-state.ts`,
-`file-row.ts`, `step-card.ts`, `tabs.ts`. Disposition:
+`core/ship-list-tile.ts` is the single primitive for every row- or
+tile-shaped pattern in the library. Earlier iterations shipped a
+family of narrow row elements; they were all absorbed into this one
+tile, and the library has no dedicated row tags beyond it. Reach for
+`ship-list-tile` for list items, log lines, event rows, history
+entries, spec summaries, settings rows, and dashboard cards.
 
-| File | Action |
+**API:**
+
+| Axis | Values |
 |---|---|
-| `badge.ts` | Rewrite API: rename `variant` → `tone`, default to `muted`, keep `color-mix` implementation approach. |
-| `empty-state.ts` | Rewrite: delete `ICON_GLYPHS` map, delete `title`/`description` attrs, go slot-only. |
-| `file-row.ts` | **Move and rename.** `domain/file-row.ts` or absorb into a Studio git view composite. The generic replacement is a new primitive `ship-list-tile.ts`. |
-| `step-card.ts` | **Move.** Becomes `domain/pipeline-step.ts` (rename tag to `ship-pipeline-step`), simplify to compose `ship-card` + `ship-status-dot` + `ship-spinner`. |
-| `tabs.ts` | Extend: add `variant="underline" \| "segmented"`, add `count` attr to `ship-tab`. Preserve child-composition pattern. |
+| `variant` | `row` (default) — inline, hover background, thin divider. `card` — elevated surface, radius, subtle shadow. |
+| `density` | `compact` \| `normal` (default) \| `relaxed` — scales vertical/horizontal padding. |
+| `interactive` | boolean — role=button, tabindex=0, cursor:pointer, Enter/Space dispatches `ship-select`. |
+| `selected` | boolean, reflected — reflects `aria-selected` and visual highlight. |
+| `disabled` | boolean, reflected — dims and blocks interaction. |
+| `tone` | shared Tone vocabulary — tints the left-border accent. |
+
+**Slots:** `leading` (icon/dot/avatar), default (primary content), `meta`
+(secondary line below primary — legacy name preserved), `trailing`
+(right-aligned badges, timestamps, chevrons).
+
+**Event:** `ship-select` (CustomEvent, bubbles, composed) when
+`interactive` and the user clicks or presses Enter/Space.
+
+**Parts:** `button`, `row`, `primary`, `secondary`, `trailing`.
+
+### Example — a settings row (label left, control right)
+
+Settings rows are the archetypal `ship-list-tile` composition: primary
+label, sub-label in `meta`, interactive control in `trailing`.
+
+```html
+<ship-list-tile variant="card" density="relaxed">
+  <ship-icon slot="leading" name="bell"></ship-icon>
+  Notifications
+  <span slot="meta">Email me when a pipeline fails</span>
+  <ship-switch slot="trailing" checked></ship-switch>
+</ship-list-tile>
+
+<ship-list-tile variant="card" density="relaxed" interactive>
+  <ship-icon slot="leading" name="key"></ship-icon>
+  API token
+  <span slot="meta">Last rotated 14 days ago</span>
+  <ship-button slot="trailing" variant="ghost" size="sm">Rotate</ship-button>
+</ship-list-tile>
+```
+
+Use the same pattern for agent rows, event rows, skill rows, job cards,
+dashboard entries. If you find yourself wanting a new `<ship-X-row>`
+element, re-read the distribution test above.
 
 ## Adding a new component — checklist
 
 Before writing code:
 
-1. **Confirm tier.** Primitive or domain? Apply the decision rule above.
-2. **Check the fixed vocabulary.** Does an existing tone/variant/size
+1. **Pass the distribution test.** If the element doesn't, it's a
+   view-local Jinja composition, not a library element.
+2. **Confirm the subdir.** `core/`, `islands/`, `domain/`, or `viz/`?
+   Apply the decision rule above.
+3. **Check the fixed vocabulary.** Does an existing tone/variant/size
    value fit? Don't invent.
-3. **Sketch attrs and slots.** Attrs for state, slots for content. Write
+4. **Sketch attrs and slots.** Attrs for state, slots for content. Write
    them in the header comment before writing the class.
-4. **Identify the wrapped native element.** If interactive, there should
+5. **Identify the wrapped native element.** If interactive, there should
    be one.
-5. **Identify events.** What verbs does the user do? Name them
+6. **Identify events.** What verbs does the user do? Name them
    `ship-<verb>`.
-6. **Visual parity.** Find the existing UI this component replaces. Match
+7. **Visual parity.** Find the existing UI this component replaces. Match
    it. Padding, radius, hover, focus — all of it.
 
 Then write the component, then write the tests, then wire the export
-through `packages/ship-set/src/web-components/index.ts` and
-`packages/ship-set/src/index.ts`.
+through the appropriate subdir index (`core/`, `islands/`, `domain/`,
+or `viz/`) and up through `packages/ship-set/src/web-components/index.ts`
+and `packages/ship-set/src/index.ts`.
 
 ## Element catalog — two tiers
 
@@ -443,5 +551,6 @@ For wire-level details (SSE framing, selectors, signal patches) see
 - Changes require a design discussion, not an inline edit.
 - New fixed-vocabulary values need a charter amendment first, then
   propagation to all existing components that use the affected axis.
-- The decision rule for primitive-vs-domain is the most sensitive part.
-  Propose, discuss, then amend.
+- The distribution test and the core-vs-islands-vs-domain-vs-viz
+  decision rule are the most sensitive parts. Propose, discuss, then
+  amend.
