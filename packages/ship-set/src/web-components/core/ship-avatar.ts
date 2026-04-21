@@ -8,6 +8,13 @@
  *
  * Attributes:
  *   - src: image URL. Falls back to initials on error or when absent.
+ *       Also works with simpleicons CDN URLs (e.g.
+ *       `https://cdn.simpleicons.org/rust`) — the image is sized with
+ *       `object-fit: contain` and a small padding so branded glyphs
+ *       don't run edge-to-edge.
+ *   - icon-slug: convenience for simpleicons. When set, populates `src`
+ *       with `https://cdn.simpleicons.org/<slug>`. Example:
+ *       `<ship-avatar icon-slug="rust" tone="accent" shape="square">`.
  *   - name: source for initials and aria-label.
  *   - initials: explicit initials override (e.g. "AB"). Takes precedence
  *       over derivation from `name` when set. Uppercased for display.
@@ -37,6 +44,9 @@ import type { Tone } from './util'
 
 export type AvatarSize = 'sm' | 'md' | 'lg' | 'xl'
 export type AvatarShape = 'round' | 'square'
+
+/** Simpleicons CDN base. Exported so tests and callers can introspect. */
+export const SIMPLEICONS_BASE = 'https://cdn.simpleicons.org'
 
 export function initialsFromName(name: string): string {
   const parts = name.trim().split(/\s+/).filter(Boolean)
@@ -118,7 +128,17 @@ export class ShipAvatar extends LitElement {
         letter-spacing: 0.02em;
         line-height: 1;
       }
-      img { width: 100%; height: 100%; object-fit: cover; display: block; }
+      /* Image variant — object-fit contain + a small padding buffer so
+       * transparent branded glyphs (e.g. simpleicons SVGs) breathe inside
+       * the tile instead of running edge-to-edge. Regular photo avatars
+       * still fit the frame since the round/square mask crops them. */
+      img {
+        width: 100%; height: 100%;
+        object-fit: contain;
+        display: block;
+        padding: 10%;
+        box-sizing: border-box;
+      }
     `,
   ]
 
@@ -129,6 +149,7 @@ export class ShipAvatar extends LitElement {
     size: { type: String, reflect: true },
     shape: { type: String, reflect: true },
     tone: { type: String, reflect: true },
+    iconSlug: { type: String, attribute: 'icon-slug' },
     _errored: { state: true },
   }
 
@@ -138,18 +159,29 @@ export class ShipAvatar extends LitElement {
   size: AvatarSize = 'md'
   shape: AvatarShape = 'round'
   tone: Tone = 'muted'
+  /** Simpleicons slug — populates `src` with the branded glyph URL. */
+  iconSlug = ''
   private _errored = false
 
   private onError = () => {
     this._errored = true
   }
 
+  /** Derive the effective image URL: explicit `src` wins, else
+   * simpleicons CDN when `iconSlug` is set. */
+  private resolvedSrc(): string {
+    if (this.src) return this.src
+    const slug = (this.iconSlug || '').trim()
+    if (slug) return `${SIMPLEICONS_BASE}/${slug}`
+    return ''
+  }
+
   updated(changed: Map<string, unknown>) {
-    if (changed.has('src')) this._errored = false
+    if (changed.has('src') || changed.has('iconSlug')) this._errored = false
     // Reflect a [data-initials] marker attribute when we're rendering the
     // initials path so CSS can apply the rich tile treatment without
     // leaking those styles onto the image variant.
-    const showImage = Boolean(this.src) && !this._errored
+    const showImage = Boolean(this.resolvedSrc()) && !this._errored
     if (showImage) this.removeAttribute('data-initials')
     else this.setAttribute('data-initials', '')
   }
@@ -161,12 +193,13 @@ export class ShipAvatar extends LitElement {
   }
 
   render() {
-    const showImage = this.src && !this._errored
+    const resolvedSrc = this.resolvedSrc()
+    const showImage = Boolean(resolvedSrc) && !this._errored
     const initials = this.resolvedInitials()
     return html`
       <span class="wrap" role="img" aria-label=${this.name || initials || 'avatar'} part="wrap">
         ${showImage
-          ? html`<img src=${this.src} alt=${this.name} @error=${this.onError} />`
+          ? html`<img src=${resolvedSrc} alt=${this.name} @error=${this.onError} />`
           : html`<span class="initials" part="initials">${initials}</span>`}
       </span>
     `

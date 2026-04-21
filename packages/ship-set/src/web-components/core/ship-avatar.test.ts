@@ -128,4 +128,33 @@ describe('ship-avatar', () => {
       `:host([data-initials][tone='accent']) {\n        background: var(--accent);\n        color: var(--accent-foreground);\n      }`,
     )
   })
+
+  it('icon-slug populates the image src from the simpleicons CDN', async () => {
+    const el = await mount('<ship-avatar icon-slug="rust"></ship-avatar>')
+    const img = el.shadowRoot!.querySelector('img')
+    expect(img).not.toBeNull()
+    expect(img!.getAttribute('src')).toBe('https://cdn.simpleicons.org/rust')
+    // Image mode drops the initials marker.
+    expect(el.hasAttribute('data-initials')).toBe(false)
+  })
+
+  it('explicit src wins over icon-slug', async () => {
+    const el = await mount(
+      '<ship-avatar src="/my.png" icon-slug="rust"></ship-avatar>',
+    )
+    const img = el.shadowRoot!.querySelector('img')!
+    expect(img.getAttribute('src')).toBe('/my.png')
+  })
+
+  it('falls back to initials when the simpleicons image errors', async () => {
+    const el = await mount(
+      '<ship-avatar icon-slug="does-not-exist" initials="R"></ship-avatar>',
+    )
+    const img = el.shadowRoot!.querySelector('img')!
+    img.dispatchEvent(new Event('error'))
+    await el.updateComplete
+    expect(el.shadowRoot!.querySelector('img')).toBeNull()
+    expect(el.shadowRoot!.textContent).toContain('R')
+    expect(el.hasAttribute('data-initials')).toBe(true)
+  })
 })
