@@ -1,0 +1,219 @@
+<style>
+
+/* =============================================================
+   TABLE — hero surface (Drizzle / TablePlus-style)
+   ============================================================= */
+.data-view .tbl-wrap {
+  flex: 1;
+  min-height: 0;
+  overflow: auto;
+  position: relative;
+}
+.data-view .tbl-wrap::-webkit-scrollbar { width: 10px; height: 10px; }
+.data-view .tbl-wrap::-webkit-scrollbar-thumb { background: var(--border); border-radius: 6px; }
+
+/* Column widths — paired with <colgroup> in content.html.j2. Table-layout
+   `fixed` above forces browsers to honor these widths exactly. */
+.data-view .tbl col.cg-gutter { width: 40px; }
+.data-view .tbl col.cg-sticky { width: 220px; }
+.data-view .tbl col.cg-field  { width: 180px; }
+.data-view .tbl col.cg-time   { width: 140px; }
+
+.data-view .tbl {
+  border-collapse: separate;
+  border-spacing: 0;
+  /* `fixed` makes the colgroup widths authoritative so the sticky id column
+     never spills into its neighbour. */
+  table-layout: fixed;
+  width: 100%;
+  font-size: var(--text-sm);
+  font-family: var(--font-body);
+  font-variant-numeric: tabular-nums;
+}
+.data-view .tbl thead th {
+  position: sticky;
+  top: 0;
+  z-index: 2;
+  background: color-mix(in oklch, var(--muted-foreground) 5%, var(--background));
+  backdrop-filter: blur(4px);
+  border-bottom: 1px solid var(--border);
+  border-right: 1px solid var(--border);
+  padding: 7px var(--space-3);
+  text-align: left;
+  font-weight: var(--font-weight-medium);
+  color: var(--foreground);
+  white-space: nowrap;
+  user-select: none;
+  height: 34px;
+}
+.data-view .tbl thead th .th-inner {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--space-2);
+}
+.data-view .tbl thead th .fname {
+  font-family: var(--font-mono);
+  font-size: 11.5px;
+  color: var(--foreground);
+}
+.data-view .tbl thead th .req {
+  color: var(--destructive);
+  font-family: var(--font-mono);
+  font-size: 11px;
+  opacity: 0.9;
+}
+.data-view .tbl thead th .sort-ind {
+  color: var(--primary);
+  font-family: var(--font-mono);
+  font-size: 10px;
+  margin-left: var(--space-1);
+}
+
+/* Field-type pill — a compact tag to the left of every column name.
+   Tone per known type; anything else gets the neutral default. */
+.data-view .ft-badge {
+  display: inline-flex;
+  align-items: center;
+  justify-content: center;
+  height: 16px;
+  padding: 0 5px;
+  border-radius: var(--radius-sm);
+  font-family: var(--font-mono);
+  font-size: 9.5px;
+  font-weight: var(--font-weight-semibold);
+  letter-spacing: 0.02em;
+  line-height: 1;
+  text-transform: lowercase;
+  color: var(--muted-foreground);
+  background: color-mix(in oklch, var(--muted-foreground) 12%, transparent);
+}
+.data-view .ft-badge.ft-string     { color: var(--primary);     background: color-mix(in oklch, var(--primary) 14%, transparent); }
+.data-view .ft-badge.ft-number     { color: var(--accent);      background: color-mix(in oklch, var(--accent) 14%, transparent); }
+.data-view .ft-badge.ft-boolean    { color: var(--success);     background: color-mix(in oklch, var(--success) 14%, transparent); }
+.data-view .ft-badge.ft-enum       { color: var(--warning);     background: color-mix(in oklch, var(--warning) 16%, transparent); }
+.data-view .ft-badge.ft-array      { color: var(--info);        background: color-mix(in oklch, var(--info) 14%, transparent); }
+.data-view .ft-badge.ft-markdown   { color: var(--status-purple); background: color-mix(in oklch, var(--status-purple) 14%, transparent); }
+.data-view .ft-badge.ft-timestamp  { color: var(--muted-foreground); background: color-mix(in oklch, var(--muted-foreground) 10%, transparent); }
+
+/* Gutter + sticky id column — always visible during horizontal scroll. */
+.data-view .tbl .th-gutter,
+.data-view .tbl .td-gutter {
+  width: 40px;
+  padding: 0;
+  text-align: center;
+  background: color-mix(in oklch, var(--muted-foreground) 5%, var(--background));
+  border-right: 1px solid var(--border);
+  color: var(--muted-foreground);
+  position: sticky;
+  left: 0;
+  z-index: 1;
+}
+.data-view .tbl .td-gutter { background: var(--background); }
+.data-view .tbl .th-gutter input,
+.data-view .tbl .td-gutter input { cursor: not-allowed; accent-color: var(--primary); }
+
+.data-view .tbl .th-sticky,
+.data-view .tbl .td-sticky {
+  position: sticky;
+  left: 40px;
+  z-index: 1;
+  background: var(--background);
+  border-right: 1px solid var(--border);
+}
+.data-view .tbl .th-sticky { z-index: 3; background: color-mix(in oklch, var(--muted-foreground) 5%, var(--background)); }
+.data-view .tbl tbody tr:hover .td-sticky { background: color-mix(in oklch, var(--primary) 5%, var(--background)); }
+
+.data-view .tbl tbody tr {
+  height: 34px;
+  transition: background var(--duration-fast) var(--ease-out);
+}
+.data-view .tbl tbody tr:hover {
+  background: color-mix(in oklch, var(--primary) 4%, transparent);
+}
+.data-view .tbl tbody td {
+  padding: 6px var(--space-3);
+  border-bottom: 1px solid var(--border);
+  border-right: 1px solid var(--border);
+  color: var(--foreground);
+  vertical-align: middle;
+  max-width: 360px;
+  overflow: hidden;
+  white-space: nowrap;
+  text-overflow: ellipsis;
+}
+.data-view .tbl tbody td.id-cell {
+  font-size: 11px;
+  color: var(--muted-foreground);
+}
+.data-view .tbl tbody td.title-cell { font-weight: var(--font-weight-medium); }
+.data-view .tbl tbody td.td-time { font-size: 11px; color: var(--muted-foreground); }
+.data-view .tbl tbody td .td-null {
+  color: color-mix(in oklch, var(--muted-foreground) 60%, transparent);
+  font-family: var(--font-mono);
+}
+.data-view .tbl tbody td .td-num { color: var(--foreground); }
+
+/* Compact density — halves the vertical rhythm. */
+.data-view .rows-panel.is-dense .tbl thead th { height: 28px; padding: 4px var(--space-2); }
+.data-view .rows-panel.is-dense .tbl tbody tr { height: 26px; }
+.data-view .rows-panel.is-dense .tbl tbody td { padding: 3px var(--space-2); font-size: 12px; }
+
+/* Table footer — counts + stubbed pager. */
+.data-view .tbl-footer {
+  flex: none;
+  display: flex;
+  align-items: center;
+  gap: var(--space-3);
+  padding: 7px var(--space-5);
+  border-top: 1px solid var(--border);
+  background: var(--background);
+  font-size: var(--text-xs);
+  color: var(--muted-foreground);
+  font-family: var(--font-mono);
+}
+.data-view .tbl-footer-live {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--space-1);
+}
+.data-view .tbl-footer-dot {
+  width: 7px; height: 7px;
+  border-radius: 50%;
+  background: var(--success);
+  box-shadow: 0 0 0 0 color-mix(in oklch, var(--success) 50%, transparent);
+  animation: data-view-pulse 2s infinite;
+}
+@keyframes data-view-pulse {
+  0%   { box-shadow: 0 0 0 0 color-mix(in oklch, var(--success) 50%, transparent); }
+  70%  { box-shadow: 0 0 0 6px color-mix(in oklch, var(--success) 0%, transparent); }
+  100% { box-shadow: 0 0 0 0 color-mix(in oklch, var(--success) 0%, transparent); }
+}
+.data-view .tbl-footer-spacer { flex: 1; }
+.data-view .tbl-footer-pager {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--space-2);
+}
+.data-view .tbl-footer-pager button {
+  appearance: none;
+  border: 1px solid var(--border);
+  background: var(--card);
+  color: var(--muted-foreground);
+  width: 24px; height: 24px;
+  border-radius: var(--radius-sm);
+  display: grid;
+  place-items: center;
+  cursor: pointer;
+}
+.data-view .tbl-footer-pager button:disabled { opacity: 0.5; cursor: not-allowed; }
+
+/* Loading state — shown until SSE delivers the first patch. */
+.data-view .data-loading {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+  padding: var(--space-6);
+  color: var(--muted-foreground);
+  font-size: var(--text-sm);
+}
+</style>

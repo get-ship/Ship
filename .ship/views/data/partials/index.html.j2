@@ -1,0 +1,55 @@
+{#-
+  Collections index — grid of schema cards. Shown when the user explicitly
+  visits `?browse=index` or when no collection has been activated.
+-#}
+<div class="data-index">
+  <div class="data-index-head">
+    <div>
+      <h1 class="data-index-title">Collections</h1>
+      <div class="data-index-sub">
+        Typed datasets defined in <span class="mono-snip">.ship/schemas/</span> —
+        stored in <span class="mono-snip">.ship/data.db</span>, reactive via
+        <span class="mono-snip">collection.item_*</span> events.
+      </div>
+    </div>
+    <div class="data-index-actions">
+      <ship-button size="sm" variant="ghost" disabled title="Opening folders — coming soon">
+        <ship-icon slot="leading" name="folder"></ship-icon>Open schemas folder
+      </ship-button>
+      <ship-button size="sm" tone="accent" variant="solid" disabled title="Create flow — coming soon">
+        <ship-icon slot="leading" name="plus"></ship-icon>New collection
+      </ship-button>
+    </div>
+  </div>
+
+  <div class="data-card-grid">
+    {% for c in sdk_collections %}
+    <a class="data-card" href="/api/runtime/view/data?collection={{ c.id }}"
+       data-on:click.prevent="$collection = '{{ c.id }}'; @get('/api/runtime/view/data?collection={{ c.id }}')">
+      <div class="data-card-head">
+        <span class="data-card-icon"><ship-icon name="database"></ship-icon></span>
+        <div class="data-card-identity">
+          <div class="data-card-name">{{ c.name or c.id }}</div>
+          <div class="data-card-id mono-snip">.ship/schemas/{{ c.id }}.jsonc</div>
+        </div>
+        <span class="data-card-count">{{ c.field_count }} field{{ "s" if c.field_count != 1 else "" }}</span>
+      </div>
+      <div class="data-card-fields">
+        {% for f in c.fields[:5] %}
+        <span class="data-card-field">
+          <ship-badge variant="secondary" size="sm">{{ f[1].field_type }}</ship-badge>
+          <span class="mono-snip">{{ f[0] }}</span>
+          {% if f[1].required %}<span class="data-card-req">*</span>{% endif %}
+        </span>
+        {% endfor %}
+        {% if c.fields | length > 5 %}
+        <span class="data-card-field data-card-field-more">+{{ c.fields | length - 5 }} more</span>
+        {% endif %}
+      </div>
+      <div class="data-card-footer">
+        <span><ship-icon name="eye" size="sm"></ship-icon> 1 view</span>
+      </div>
+    </a>
+    {% endfor %}
+  </div>
+</div>

@@ -1,90 +1,107 @@
-{#- Data content partial — rendered by the generic SSE handler.
-   Root element MUST have id="data-content" for Datastar patching. -#}
-{% from '_ship.html.j2' import show, form, loading, spinner, update, confirm_delete %}
-{% set per_page = 25 %}
+{#-
+  Rows tab body — sticky-id Drizzle-style table. Root element must keep
+  id="data-content" so the generic SSE handler can patch it on every
+  collection.item_* event.
+-#}
+{% set item_total = items | length if items is defined else 0 %}
 <div id="data-content">
   {% if schema is defined and items is defined and items | length > 0 %}
-  <table class="ship-table">
-    <thead><tr>
-      <th style="width:90px">ID</th>
-      {% for field_name, _ in schema.fields %}<th>{{ field_name }}</th>{% endfor %}
-      <th style="width:100px">Updated</th>
-      <th style="width:40px"></th>
-    </tr></thead>
-    <tbody>
-      {% for item in items %}
-      <tr id="item-{{ item.id }}"
-          data-on:click="$selectedId = $selectedId === '{{ item.id }}' ? '' : '{{ item.id }}'; $editForm = {{ item.data | tojson }}"
-          data-class:row-selected="$selectedId === '{{ item.id }}'">
-        <td class="mono muted" title="{{ item.id }}">{{ item.id[:10] }}</td>
-        {% for field_name, field_def in schema.fields %}
-        <td>
-          {% set val = item.data[field_name] if item.data[field_name] is defined else none %}
-          {% if val is none or val == "" %}<span class="null">--</span>
-          {% elif field_def.field_type == "enum" %}<ship-chip>{{ val }}</ship-chip>
-          {% elif field_def.field_type == "boolean" %}<ship-badge variant="{{ 'success' if val else 'secondary' }}">{{ "Yes" if val else "No" }}</ship-badge>
-          {% elif field_def.field_type == "number" %}<span class="mono">{{ val }}</span>
-          {% elif field_def.field_type == "array" and val is iterable and val is not string %}{% for v in val[:4] %}<ship-chip>{{ v }}</ship-chip> {% endfor %}{% if val | length > 4 %}<ship-badge variant="secondary">+{{ val | length - 4 }}</ship-badge>{% endif %}
-          {% else %}{{ val }}{% endif %}
-        </td>
+  <div class="tbl-wrap">
+    <table class="tbl">
+      <colgroup>
+        <col class="cg-gutter">
+        <col class="cg-sticky">
+        {% for _f in schema.fields %}<col class="cg-field">{% endfor %}
+        <col class="cg-time">
+      </colgroup>
+      <thead>
+        <tr>
+          <th class="th-gutter" scope="col" aria-label="Select all">
+            <input type="checkbox" disabled>
+          </th>
+          <th class="th-sticky" scope="col">
+            <span class="th-inner">
+              <span class="ft-badge">string</span>
+              <span class="fname">id</span>
+              <span class="sort-ind" aria-label="sorted ascending">↑</span>
+            </span>
+          </th>
+          {% for field_name, field_def in schema.fields %}
+          <th scope="col">
+            <span class="th-inner">
+              <span class="ft-badge ft-{{ field_def.field_type }}">{{ field_def.field_type }}</span>
+              <span class="fname">{{ field_name }}</span>
+              {% if field_def.required %}<span class="req">*</span>{% endif %}
+            </span>
+          </th>
+          {% endfor %}
+          <th scope="col" class="th-updated">
+            <span class="th-inner">
+              <span class="ft-badge ft-timestamp">time</span>
+              <span class="fname">updated</span>
+            </span>
+          </th>
+        </tr>
+      </thead>
+      <tbody>
+        {% for item in items %}
+        <tr>
+          <td class="td-gutter">
+            <input type="checkbox" disabled aria-label="Select row">
+          </td>
+          <td class="td-sticky mono-snip id-cell" title="{{ item.id }}">
+            {{ item.id[:12] }}{% if item.id | length > 12 %}…{% endif %}
+          </td>
+          {% for field_name, field_def in schema.fields %}
+          <td class="{% if field_name == 'title' %}title-cell{% endif %}">
+            {% set val = item.data[field_name] if item.data[field_name] is defined else none %}
+            {% if val is none or val == "" %}
+              <span class="td-null">—</span>
+            {% elif field_def.field_type == "enum" %}
+              <ship-chip>{{ val }}</ship-chip>
+            {% elif field_def.field_type == "boolean" %}
+              <ship-badge variant="{{ 'success' if val else 'secondary' }}">{{ "yes" if val else "no" }}</ship-badge>
+            {% elif field_def.field_type == "number" %}
+              <span class="mono-snip td-num">{{ val }}</span>
+            {% elif field_def.field_type == "array" and val is iterable and val is not string %}
+              {% for v in val[:3] %}<ship-chip>{{ v }}</ship-chip>{% if not loop.last %} {% endif %}{% endfor %}
+              {% if val | length > 3 %}<ship-badge variant="secondary">+{{ val | length - 3 }}</ship-badge>{% endif %}
+            {% else %}
+              <span class="td-text">{{ val }}</span>
+            {% endif %}
+          </td>
+          {% endfor %}
+          <td class="mono-snip td-time">{{ item.updated_at[:16] if item.updated_at else "—" }}</td>
+        </tr>
         {% endfor %}
-        <td class="mono muted">{{ item.updated_at[:16] if item.updated_at else "--" }}</td>
-        <td>
-          <ship-button size="sm" tone="destructive" variant="soft"
-            data-on:click="evt.stopPropagation(); confirm('Delete this item?') && @delete('/api/collections/{{ active_collection }}/items/{{ item.id }}')"
-            {{ loading('_deleting') }}
-            aria-label="Delete">
-            <ship-icon slot="leading" name="trash"></ship-icon>
-          </ship-button>
-        </td>
-      </tr>
-      {% endfor %}
-    </tbody>
-  </table>
-
-  {# -- Pagination -- #}
-  {% if items | length > per_page %}
-  <div class="data-pagination">
-    <ship-pagination page="1" total="{{ items | length }}" per-page="{{ per_page }}"
-      data-on:ship-change="$_page = evt.detail.page">
-    </ship-pagination>
+      </tbody>
+    </table>
   </div>
-  {% endif %}
 
-  {# -- Detail panel (shows when a row is selected) -- #}
-  {% for item in items %}
-  <div {{ show("$selectedId === '" ~ item.id ~ "'") }}>
-    <ship-card style="margin-top:var(--space-4,16px)">
-      <div class="data-detail-head">
-        <strong>Edit item</strong>
-        <span class="data-detail-id">{{ item.id }}</span>
-      </div>
-      {{ form(schema, active_collection, 'editForm') }}
-      <ship-separator></ship-separator>
-      <div class="data-detail-actions">
-        <ship-button size="sm" tone="accent" variant="solid"
-          {{ update(active_collection, item.id, '$editForm') }}>
-          Save
-        </ship-button>
-        <ship-button size="sm" tone="destructive" variant="soft"
-          {{ confirm_delete(active_collection, item.id) }}
-          {{ loading('_deleting') }}>
-          Delete
-        </ship-button>
-        <ship-button size="sm" variant="ghost"
-          data-on:click="$selectedId = ''">
-          Close
-        </ship-button>
-        {{ spinner('_deleting') }}
-      </div>
-    </ship-card>
+  <div class="tbl-footer">
+    <span class="tbl-footer-live">
+      <span class="tbl-footer-dot"></span>
+      live · <span class="mono-snip">collection.item_*</span>
+    </span>
+    <span class="tbl-footer-spacer"></span>
+    <span>{{ item_total }} shown of {{ item_total }} total</span>
+    <div class="tbl-footer-pager" role="group" aria-label="Pagination">
+      <button type="button" disabled aria-label="Previous page">
+        <ship-icon name="chevron-left" size="sm"></ship-icon>
+      </button>
+      <span class="mono-snip">1 / 1</span>
+      <button type="button" disabled aria-label="Next page">
+        <ship-icon name="chevron-right" size="sm"></ship-icon>
+      </button>
+    </div>
   </div>
-  {% endfor %}
 
   {% elif schema is defined %}
   <ship-empty-state>
-    <span slot="title">No items in {{ active_collection }}</span>
-    <span slot="description">Click + New to create one</span>
+    <span slot="title">No items in {{ schema.name or active_collection }}</span>
+    <span slot="description">
+      Create one via the API or CLI — the create flow lands in Phase 2.
+    </span>
   </ship-empty-state>
   {% else %}
   <ship-empty-state>
