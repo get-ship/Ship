@@ -1,9 +1,10 @@
 /**
  * collect-skill-docs.ts
  *
- * Collects .mdoc files from .ship/skills/<id>/references/docs/ into the Astro
- * content directory. ONLY .mdoc files are collected — .md files are usage notes
- * for agents, not project documentation.
+ * Collects doc pages from docs/<skill>/references/docs/ into the Astro content
+ * directory. Both .md and .mdoc are eligible — the `group:` frontmatter field
+ * is the signal that a file is project documentation (as opposed to agent
+ * usage notes).
  *
  * Site structure is driven by frontmatter in each .mdoc file:
  *   - title (required): page title
@@ -16,16 +17,23 @@
  */
 import {
   readFileSync, writeFileSync, mkdirSync, existsSync,
-  readdirSync, rmSync,
+  readdirSync, copyFileSync, watch, unlinkSync, rmdirSync,
 } from "fs"
 import { join, resolve, dirname, basename } from "path"
 
 const SCRIPT_DIR = dirname(new URL(import.meta.url).pathname)
 const REPO_ROOT = resolve(SCRIPT_DIR, "../../../")
-const SKILLS_DIR = join(REPO_ROOT, ".ship/skills")
+const SKILLS_DIR = join(REPO_ROOT, "docs")
 const OUTPUT_DIR = join(SCRIPT_DIR, "../src/content/docs")
 const GENERATED_DIR = join(OUTPUT_DIR, "reference")
-const SKIP_AUDIENCES = new Set(["internal", "agent-only"])
+const PUBLIC_DIR = join(SCRIPT_DIR, "../public")
+const SHIP_ELEMENTS_SRC = join(REPO_ROOT, "apps/shipd/assets/ship-elements.js")
+const SHIP_ELEMENTS_DEST = join(PUBLIC_DIR, "ship-elements.js")
+// `agent-only` files never ship to any site. `internal` files are hidden from
+// the public (user) build but rendered in internal mode so contributors can
+// view internal-audience docs locally.
+const SKIP_AUDIENCES_USER = new Set(["internal", "agent-only"])
+const SKIP_AUDIENCES_INTERNAL = new Set(["agent-only"])
 
 function extractField(block: string, field: string): string | null {
   const m = block.match(new RegExp(`^${field}:\\s*(.+)$`, "m"))
@@ -52,6 +60,33 @@ function stripFrontmatter(text: string): string {
 /** Remove the first h1 if present — Starlight renders its own from title. */
 function stripLeadingH1(text: string): string {
   return text.replace(/^#\s+.+\n+/, "")
+}
+
+/**
+ * Block-level audience filtering.
+ *
+ *   {% internal %} ... {% endinternal %}   contributor-only (internals).
+ *                                          Stripped in user mode, kept in
+ *                                          internal mode.
+ *
+ *   {% user-only %} ... {% enduser-only %} engaging visuals for users.
+ *                                          Kept in both site modes. Agent
+ *                                          stripping happens compiler-side
+ *                                          on `ship use` (TODO — not here).
+ *
+ * Mode is driven by the AUDIENCE env var: "internal" keeps everything; anything
+ * else (default) strips {% internal %} blocks and internal-audience pages.
+ */
+function applyAudienceBlocks(text: string, audience: string): string {
+  // {% internal %}...{% endinternal %} — drop block + markers in user mode;
+  // keep content but drop markers in internal mode.
+  let out = audience === "internal"
+    ? text.replace(/\{%\s*(end)?internal\s*%\}\n?/g, "")
+    : text.replace(/\{%\s*internal\s*%\}[\s\S]*?\{%\s*endinternal\s*%\}\n*/g, "")
+  // {% user-only %}...{% enduser-only %} — always keep content, strip markers.
+  // (Agent-side stripping is compiler-side, not this script.)
+  out = out.replace(/\{%\s*(end)?user-only\s*%\}\n?/g, "")
+  return out
 }
 
 function esc(s: string): string {
@@ -81,11 +116,14 @@ function run(): void {
     return
   }
 
-  // Clean generated docs (preserve hand-written pages like index.md)
-  if (existsSync(GENERATED_DIR)) {
-    rmSync(GENERATED_DIR, { recursive: true, force: true })
-  }
+  const audience = process.env.AUDIENCE === "internal" ? "internal" : "user"
+  console.log(`[collect-docs] audience=${audience}`)
+
   mkdirSync(GENERATED_DIR, { recursive: true })
+  // Track what we write this run. Files inside GENERATED_DIR that aren't in
+  // this set at the end get removed — lets us avoid a full rmSync that would
+  // race with Astro's file handles.
+  const written = new Set<string>()
 
   const skillDirs = readdirSync(SKILLS_DIR, { withFileTypes: true })
     .filter((d) => d.isDirectory())
@@ -121,7 +159,8 @@ function run(): void {
       const text = readFileSync(join(docsDir, file), "utf8")
       const meta = parseFrontmatter(text)
 
-      if (SKIP_AUDIENCES.has(meta.audience ?? "public")) continue
+      const skipSet = audience === "internal" ? SKIP_AUDIENCES_INTERNAL : SKIP_AUDIENCES_USER
+      if (skipSet.has(meta.audience ?? "public")) continue
 
       const title = meta.title ?? skillId
       const group = meta.group ?? skillId
@@ -132,7 +171,7 @@ function run(): void {
       const groupDir = join(GENERATED_DIR, group.toLowerCase().replace(/\s+/g, "-"))
       mkdirSync(groupDir, { recursive: true })
 
-      const body = stripLeadingH1(stripFrontmatter(text))
+      const body = applyAudienceBlocks(stripLeadingH1(stripFrontmatter(text)), audience)
       const fm = buildStarlightFrontmatter({
         title,
         description: meta.description ?? null,
@@ -140,14 +179,61 @@ function run(): void {
         order: meta.order ?? null,
       })
 
-      writeFileSync(join(groupDir, file), fm + body, "utf8")
+      const outPath = join(groupDir, file)
+      writeFileSync(outPath, fm + body, "utf8")
+      written.add(outPath)
       total++
     }
 
     console.log(`[collect-docs] ${skillId} → ${docFiles.length} page(s)`)
   }
 
+  // Sweep orphans: any file under GENERATED_DIR not written this run.
+  const sweep = (dir: string): boolean => {
+    if (!existsSync(dir)) return true
+    let isEmpty = true
+    for (const e of readdirSync(dir, { withFileTypes: true })) {
+      const p = join(dir, e.name)
+      if (e.isDirectory()) {
+        if (!sweep(p)) isEmpty = false
+      } else if (written.has(p)) {
+        isEmpty = false
+      } else {
+        try { unlinkSync(p) } catch { /* handle in flight — retry next run */ }
+      }
+    }
+    if (isEmpty && dir !== GENERATED_DIR) {
+      try { rmdirSync(dir) } catch { /* non-empty due to race */ }
+    }
+    return isEmpty
+  }
+  sweep(GENERATED_DIR)
+
   console.log(`[collect-docs] Total: ${total} pages collected.`)
+
+  if (existsSync(SHIP_ELEMENTS_SRC)) {
+    mkdirSync(PUBLIC_DIR, { recursive: true })
+    copyFileSync(SHIP_ELEMENTS_SRC, SHIP_ELEMENTS_DEST)
+    console.log(`[collect-docs] Copied ship-elements.js to public/.`)
+  } else {
+    console.log(`[collect-docs] ship-elements.js not found at ${SHIP_ELEMENTS_SRC}. Run 'pnpm -C packages/ui bundle:elements' first.`)
+  }
 }
 
 run()
+
+if (process.argv.includes("--watch")) {
+  console.log(`[collect-docs] watching ${SKILLS_DIR} for changes...`)
+  let pending: NodeJS.Timeout | null = null
+  const schedule = (filename: string | null) => {
+    if (!filename || !/\.(md|mdoc)$/.test(filename)) return
+    if (pending) clearTimeout(pending)
+    pending = setTimeout(() => {
+      console.log(`[collect-docs] change: ${filename} — re-running`)
+      try { run() } catch (e) { console.error(`[collect-docs] ${e}`) }
+    }, 150)
+  }
+  watch(SKILLS_DIR, { recursive: true }, (_event, filename) => schedule(filename))
+  // Keep the process alive.
+  setInterval(() => {}, 1 << 30)
+}

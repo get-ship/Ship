@@ -1,5 +1,5 @@
 ---
-import BaseLayout from '../../layouts/BaseLayout.astro';
+import StarlightPage from '@astrojs/starlight/components/StarlightPage.astro';
 import {
   componentsByCategory,
   CATEGORY_LABELS,
@@ -10,11 +10,13 @@ import { getShots } from '../../lib/samples';
 
 const buckets = componentsByCategory();
 const populated = CATEGORY_ORDER.filter((c) => buckets[c].length > 0);
+
 ---
 
-<BaseLayout title="Components · SHIP SET" active="/components">
+<StarlightPage
+  frontmatter={{ title: 'Components', description: `${COMPONENTS.length} web components for AI-native apps.` }}
+>
   <section class="idx-head">
-    <h1 class="idx-title">Components</h1>
     <p class="idx-sub">
       {COMPONENTS.length} web components, grouped. Click any card for
       the full API, source, and variants.
@@ -64,7 +66,7 @@ const populated = CATEGORY_ORDER.filter((c) => buckets[c].length > 0);
           return (
             <a
               class:list={['idx-card', isOverlay && 'idx-card-overlay']}
-              href={`/components/${c.tag}`}
+              href={`/components/${c.tag}/`}
               data-idx-card
               data-idx-tag={c.tag}
               data-idx-summary={c.summary.toLowerCase()}
@@ -80,7 +82,7 @@ const populated = CATEGORY_ORDER.filter((c) => buckets[c].length > 0);
       </div>
     </section>
   ))}
-</BaseLayout>
+</StarlightPage>
 
 <script>
   const input = document.querySelector<HTMLInputElement>('[data-idx-search]');
@@ -119,16 +121,12 @@ const populated = CATEGORY_ORDER.filter((c) => buckets[c].length > 0);
 
 <style>
   .idx-head {
-    padding: 24px 0 16px;
+    padding: 0 0 16px;
     display: flex;
     flex-direction: column;
     gap: 12px;
   }
-  .idx-title {
-    font-size: clamp(30px, 4vw, 44px);
-    letter-spacing: -0.024em;
-  }
-  .idx-sub { color: var(--muted-foreground); max-width: 56ch; }
+  .idx-sub { color: var(--sl-color-gray-2); max-width: 56ch; }
 
   .idx-controls {
     display: flex;
@@ -139,17 +137,17 @@ const populated = CATEGORY_ORDER.filter((c) => buckets[c].length > 0);
   .idx-search {
     height: 38px;
     padding: 0 14px;
-    border: 1px solid color-mix(in oklch, var(--border) 65%, transparent);
-    border-radius: var(--radius-md);
-    background: var(--card);
-    color: var(--foreground);
+    border: 1px solid var(--sl-color-gray-5);
+    border-radius: 6px;
+    background: var(--sl-color-black);
+    color: var(--sl-color-white);
     font: inherit;
     font-size: 14px;
   }
   .idx-search:focus {
     outline: none;
-    border-color: var(--primary);
-    box-shadow: 0 0 0 3px color-mix(in oklch, var(--primary) 22%, transparent);
+    border-color: var(--sl-color-accent);
+    box-shadow: 0 0 0 3px color-mix(in oklch, var(--sl-color-accent) 22%, transparent);
   }
   .idx-pills {
     display: flex;
@@ -158,22 +156,21 @@ const populated = CATEGORY_ORDER.filter((c) => buckets[c].length > 0);
   }
   .idx-pill {
     appearance: none;
-    border: 1px solid color-mix(in oklch, var(--border) 55%, transparent);
-    background: var(--card);
-    color: var(--muted-foreground);
+    border: 1px solid var(--sl-color-gray-5);
+    background: var(--sl-color-black);
+    color: var(--sl-color-gray-2);
     padding: 5px 11px;
     font: inherit;
     font-size: 12px;
     font-weight: 500;
     border-radius: 999px;
     cursor: pointer;
-    transition: color var(--duration-fast) var(--ease-out), background var(--duration-fast) var(--ease-out), border-color var(--duration-fast) var(--ease-out);
   }
-  .idx-pill:hover { color: var(--foreground); }
+  .idx-pill:hover { color: var(--sl-color-white); }
   .idx-pill.is-active {
-    background: var(--primary);
-    color: var(--primary-foreground);
-    border-color: var(--primary);
+    background: var(--sl-color-accent);
+    color: var(--sl-color-black);
+    border-color: var(--sl-color-accent);
   }
 
   .idx-group {
@@ -190,12 +187,15 @@ const populated = CATEGORY_ORDER.filter((c) => buckets[c].length > 0);
     font-size: 16px;
     letter-spacing: 0.05em;
     text-transform: uppercase;
-    color: var(--muted-foreground);
+    color: var(--sl-color-gray-2);
+    border: none;
+    margin: 0;
+    padding: 0;
   }
   .idx-count {
-    font-family: var(--font-mono);
+    font-family: var(--sl-font-mono, monospace);
     font-size: 11px;
-    color: var(--muted-foreground);
+    color: var(--sl-color-gray-2);
   }
   .idx-grid {
     display: grid;
@@ -207,16 +207,16 @@ const populated = CATEGORY_ORDER.filter((c) => buckets[c].length > 0);
     flex-direction: column;
     gap: 10px;
     padding: 14px;
-    border: 1px solid color-mix(in oklch, var(--border) 55%, transparent);
-    border-radius: var(--radius-lg);
-    background: var(--card);
+    border: 1px solid var(--sl-color-gray-5);
+    border-radius: 10px;
+    background: var(--sl-color-black);
     text-decoration: none;
     color: inherit;
     min-height: 140px;
-    transition: border-color var(--duration-fast) var(--ease-out), transform var(--duration-fast) var(--ease-out);
+    transition: border-color 120ms ease-out, transform 120ms ease-out;
   }
   .idx-card:hover {
-    border-color: color-mix(in oklch, var(--primary) 45%, transparent);
+    border-color: color-mix(in oklch, var(--sl-color-accent) 45%, transparent);
     transform: translateY(-1px);
   }
   .idx-card-preview {
@@ -228,30 +228,28 @@ const populated = CATEGORY_ORDER.filter((c) => buckets[c].length > 0);
   }
   .idx-card-meta { display: flex; align-items: center; gap: 8px; }
   .idx-card-tag {
-    font-family: var(--font-mono);
+    font-family: var(--sl-font-mono, monospace);
     font-size: 12px;
-    color: var(--foreground);
+    color: var(--sl-color-white);
     font-weight: 600;
   }
   .idx-card-sum {
     font-size: 12px;
-    color: var(--muted-foreground);
+    color: var(--sl-color-gray-2);
     line-height: 1.45;
     display: -webkit-box;
     -webkit-line-clamp: 2;
     -webkit-box-orient: vertical;
     overflow: hidden;
+    margin: 0;
   }
-
-  /* Overlay-type tiles: show tag name placeholder instead of rendering. */
   .idx-card-overlay .idx-card-preview { padding: 14px 8px; }
   .idx-overlay-hint {
-    font-family: var(--font-mono);
+    font-family: var(--sl-font-mono, monospace);
     font-size: 11px;
     padding: 4px 8px;
-    border-radius: var(--radius-sm);
-    border: 1px dashed color-mix(in oklch, var(--border) 70%, transparent);
-    color: var(--muted-foreground);
+    border-radius: 4px;
+    border: 1px dashed var(--sl-color-gray-4);
+    color: var(--sl-color-gray-2);
   }
-  .idx-card .arrow { color: var(--muted-foreground); padding: 0 3px; }
 </style>

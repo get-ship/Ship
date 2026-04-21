@@ -112,12 +112,18 @@ importers:
       '@fontsource-variable/syne':
         specifier: ^5.2.7
         version: 5.2.7
+      '@ship/ui':
+        specifier: workspace:*
+        version: link:../../packages/ui
       astro:
         specifier: ^6.1.1
         version: 6.1.1(@types/node@22.19.15)(jiti@2.6.1)(lightningcss@1.31.1)(rollup@4.59.0)(tsx@4.21.0)(typescript@5.8.3)(yaml@2.8.3)
       sharp:
         specifier: ^0.33.0
         version: 0.33.5
+      starlight-sidebar-topics:
+        specifier: ^0.7.1
+        version: 0.7.1(@astrojs/starlight@0.38.2(astro@6.1.1(@types/node@22.19.15)(jiti@2.6.1)(lightningcss@1.31.1)(rollup@4.59.0)(tsx@4.21.0)(typescript@5.8.3)(yaml@2.8.3)))
     devDependencies:
       '@astrojs/markdoc':
         specifier: ^1.0.3
@@ -7637,6 +7643,12 @@ packages:
   stackback@0.0.2:
     resolution: {integrity: sha512-1XMJE5fQo1jGH6Y/7ebnwPOBEkIEnT4QF32d5R1+VXdXveM0IBMJt8zfaxX1P3QhVwrYe+576+jkANtSS2mBbw==}
 
+  starlight-sidebar-topics@0.7.1:
+    resolution: {integrity: sha512-2PBR05ZUvnKNoJtbL2u6GoE1qmQD0tFcd5+inYEJHJkx3LE2P+vlNslofTGHLtzch2XzyNbHUBQQu35bouA6NQ==}
+    engines: {node: '>=22.12.0'}
+    peerDependencies:
+      '@astrojs/starlight': '>=0.38.0'
+
   statuses@2.0.2:
     resolution: {integrity: sha512-DvEy55V3DB7uknRo+4iOGT5fP1slR8wQohVdknigZPMpMstaKJQWhwiYBACJE3Ul2pTnATihhBYnRhZQHGBiRw==}
     engines: {node: '>= 0.8'}
@@ -12363,7 +12375,7 @@ snapshots:
       sirv: 3.0.2
       tinyglobby: 0.2.15
       tinyrainbow: 2.0.0
-      vitest: 3.2.4(@types/debug@4.1.12)(@types/node@22.19.15)(@vitest/ui@3.2.4)(jiti@2.6.1)(jsdom@28.1.0(@noble/hashes@2.0.1))(lightningcss@1.31.1)(msw@2.12.10(@types/node@22.19.15)(typescript@5.8.3))(tsx@4.21.0)(yaml@2.8.3)
+      vitest: 3.2.4(@types/debug@4.1.12)(@types/node@25.3.3)(@vitest/ui@3.2.4)(jiti@2.6.1)(jsdom@28.1.0(@noble/hashes@2.0.1))(lightningcss@1.31.1)(msw@2.12.10(@types/node@25.3.3)(typescript@5.8.3))(tsx@4.21.0)(yaml@2.8.3)
 
   '@vitest/utils@3.2.4':
     dependencies:
@@ -16453,6 +16465,11 @@ snapshots:
   srvx@0.11.9: {}
 
   stackback@0.0.2: {}
+
+  starlight-sidebar-topics@0.7.1(@astrojs/starlight@0.38.2(astro@6.1.1(@types/node@22.19.15)(jiti@2.6.1)(lightningcss@1.31.1)(rollup@4.59.0)(tsx@4.21.0)(typescript@5.8.3)(yaml@2.8.3))):
+    dependencies:
+      '@astrojs/starlight': 0.38.2(astro@6.1.1(@types/node@22.19.15)(jiti@2.6.1)(lightningcss@1.31.1)(rollup@4.59.0)(tsx@4.21.0)(typescript@5.8.3)(yaml@2.8.3))
+      picomatch: 4.0.3
 
   statuses@2.0.2: {}
 

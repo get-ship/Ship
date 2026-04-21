@@ -1,7 +1,6 @@
 ---
-import BaseLayout from '../layouts/BaseLayout.astro';
+import StarlightPage from '@astrojs/starlight/components/StarlightPage.astro';
 
-// Semantic color tokens — names match @ship/ui/tokens.css.
 const colorGroups = [
   {
     label: 'Surface',
@@ -62,18 +61,18 @@ const motion = [
   { name: '--ease-in', value: 'cubic-bezier(0.7, 0, 0.84, 0)' },
   { name: '--ease-in-out', value: 'cubic-bezier(0.65, 0, 0.35, 1)' },
 ];
+
 ---
 
-<BaseLayout title="Tokens · SHIP SET" active="/tokens">
-  <section class="tk-head">
-    <h1 class="tk-title">Design tokens</h1>
-    <p class="tk-sub">
-      The canonical surface. Every component reads from these. Click
-      any token to copy its <code>var(--name)</code> reference.
-    </p>
-  </section>
+<StarlightPage
+  frontmatter={{ title: 'Design Tokens', description: 'The canonical surface for SHIP components.' }}
+>
+  <p class="tk-sub">
+    The canonical surface. Every component reads from these. Click
+    any token to copy its <code>var(--name)</code> reference.
+  </p>
 
-  <!-- Colors ------------------------------------------------------- -->
+  <!-- Colors -->
   <section class="tk-section">
     <h2 class="tk-h2">Colors</h2>
     {colorGroups.map((g) => (
@@ -93,7 +92,7 @@ const motion = [
     ))}
   </section>
 
-  <!-- Spacing ----------------------------------------------------- -->
+  <!-- Spacing -->
   <section class="tk-section">
     <h2 class="tk-h2">Spacing</h2>
     <div class="tk-rows">
@@ -107,7 +106,7 @@ const motion = [
     </div>
   </section>
 
-  <!-- Radii ------------------------------------------------------- -->
+  <!-- Radii -->
   <section class="tk-section">
     <h2 class="tk-h2">Radii</h2>
     <div class="tk-radii">
@@ -124,7 +123,7 @@ const motion = [
     </div>
   </section>
 
-  <!-- Shadows ----------------------------------------------------- -->
+  <!-- Shadows -->
   <section class="tk-section">
     <h2 class="tk-h2">Shadows</h2>
     <div class="tk-shadows">
@@ -137,7 +136,7 @@ const motion = [
     </div>
   </section>
 
-  <!-- Typography -------------------------------------------------- -->
+  <!-- Typography -->
   <section class="tk-section">
     <h2 class="tk-h2">Typography</h2>
     <div class="tk-type-fams">
@@ -171,7 +170,7 @@ const motion = [
     </div>
   </section>
 
-  <!-- Motion ------------------------------------------------------ -->
+  <!-- Motion -->
   <section class="tk-section">
     <h2 class="tk-h2">Motion</h2>
     <div class="tk-rows">
@@ -183,7 +182,7 @@ const motion = [
       ))}
     </div>
   </section>
-</BaseLayout>
+</StarlightPage>
 
 <script>
   for (const btn of document.querySelectorAll<HTMLElement>('[data-copy]')) {
@@ -199,26 +198,33 @@ const motion = [
 </script>
 
 <style>
-  .tk-head { padding: 24px 0 18px; display: flex; flex-direction: column; gap: 10px; }
-  .tk-title { font-size: clamp(30px, 4vw, 44px); letter-spacing: -0.024em; }
-  .tk-sub { color: var(--muted-foreground); max-width: 60ch; }
+  .tk-sub {
+    color: var(--sl-color-gray-2);
+    max-width: 60ch;
+    margin-bottom: 8px;
+  }
   .tk-sub code, .tk-muted {
-    font-family: var(--font-mono);
+    font-family: var(--sl-font-mono, monospace);
     font-size: 12px;
-    color: var(--muted-foreground);
+    color: var(--sl-color-gray-2);
   }
 
   .tk-section { padding: 20px 0; display: flex; flex-direction: column; gap: 14px; }
-  .tk-h2 { font-size: 18px; letter-spacing: -0.01em; }
+  .tk-h2 {
+    font-size: 18px;
+    letter-spacing: -0.01em;
+    border: none;
+    margin: 0;
+    padding: 0;
+  }
 
-  /* Colors */
   .tk-color-group { display: flex; flex-direction: column; gap: 8px; }
   .tk-color-head {
     font-size: 11px;
     font-weight: 600;
     letter-spacing: 0.08em;
     text-transform: uppercase;
-    color: var(--muted-foreground);
+    color: var(--sl-color-gray-2);
   }
   .tk-color-grid {
     display: grid;
@@ -227,33 +233,32 @@ const motion = [
   }
   .tk-color {
     appearance: none;
-    background: var(--card);
-    border: 1px solid color-mix(in oklch, var(--border) 55%, transparent);
-    border-radius: var(--radius-md);
+    background: var(--sl-color-black);
+    border: 1px solid var(--sl-color-gray-5);
+    border-radius: 6px;
     padding: 0;
     overflow: hidden;
     text-align: left;
     cursor: pointer;
     font: inherit;
-    transition: border-color var(--duration-fast) var(--ease-out);
+    transition: border-color 120ms ease-out;
   }
-  .tk-color:hover { border-color: var(--primary); }
-  .tk-color.is-copied { border-color: var(--success); }
+  .tk-color:hover { border-color: var(--sl-color-accent); }
+  .tk-color.is-copied { border-color: green; }
   .tk-color-swatch {
     height: 50px;
-    border-bottom: 1px solid color-mix(in oklch, var(--border) 40%, transparent);
+    border-bottom: 1px solid var(--sl-color-gray-5);
   }
   .tk-color-meta { padding: 8px 10px; }
-  .tk-color-meta code { font-family: var(--font-mono); font-size: 11px; color: var(--foreground); }
+  .tk-color-meta code { font-family: var(--sl-font-mono, monospace); font-size: 11px; color: var(--sl-color-white); }
 
-  /* Row-based tokens (spacing, motion, type scale) */
   .tk-rows { display: flex; flex-direction: column; gap: 4px; }
   .tk-row {
     appearance: none;
     background: transparent;
     border: 0;
     padding: 8px 10px;
-    border-radius: var(--radius-md);
+    border-radius: 6px;
     display: grid;
     grid-template-columns: 140px 1fr auto;
     gap: 14px;
@@ -261,30 +266,29 @@ const motion = [
     cursor: pointer;
     font: inherit;
     text-align: left;
-    color: var(--foreground);
-    transition: background var(--duration-fast) var(--ease-out);
+    color: var(--sl-color-white);
+    transition: background 120ms ease-out;
   }
-  .tk-row:hover { background: color-mix(in oklch, var(--border) 20%, transparent); }
-  .tk-row.is-copied { background: color-mix(in oklch, var(--success) 14%, transparent); }
+  .tk-row:hover { background: color-mix(in oklch, var(--sl-color-gray-5) 30%, transparent); }
+  .tk-row.is-copied { background: color-mix(in oklch, green 14%, transparent); }
   .tk-row-wide { grid-template-columns: 220px 1fr; }
   .tk-row-name, .tk-row-val {
-    font-family: var(--font-mono);
+    font-family: var(--sl-font-mono, monospace);
     font-size: 12px;
   }
-  .tk-row-val { color: var(--muted-foreground); }
+  .tk-row-val { color: var(--sl-color-gray-2); }
   .tk-row-bar {
     height: 10px;
-    background: color-mix(in oklch, var(--primary) 40%, transparent);
-    border-radius: var(--radius-sm);
+    background: color-mix(in oklch, var(--sl-color-accent) 40%, transparent);
+    border-radius: 4px;
   }
 
-  /* Radii */
   .tk-radii { display: grid; grid-template-columns: repeat(auto-fill, minmax(120px, 1fr)); gap: 10px; }
   .tk-radius {
     appearance: none;
-    background: var(--card);
-    border: 1px solid color-mix(in oklch, var(--border) 50%, transparent);
-    border-radius: var(--radius-md);
+    background: var(--sl-color-black);
+    border: 1px solid var(--sl-color-gray-5);
+    border-radius: 6px;
     padding: 14px 12px;
     display: flex;
     flex-direction: column;
@@ -292,20 +296,19 @@ const motion = [
     gap: 8px;
     cursor: pointer;
     font: inherit;
-    color: var(--foreground);
-    transition: border-color var(--duration-fast) var(--ease-out);
+    color: var(--sl-color-white);
+    transition: border-color 120ms ease-out;
   }
-  .tk-radius:hover { border-color: var(--primary); }
+  .tk-radius:hover { border-color: var(--sl-color-accent); }
   .tk-radius-box {
     width: 48px;
     height: 48px;
-    background: color-mix(in oklch, var(--primary) 22%, transparent);
-    border: 1px solid color-mix(in oklch, var(--primary) 40%, transparent);
+    background: color-mix(in oklch, var(--sl-color-accent) 22%, transparent);
+    border: 1px solid color-mix(in oklch, var(--sl-color-accent) 40%, transparent);
   }
   .tk-radius code { font-size: 11.5px; }
   .tk-radius span { font-size: 11px; }
 
-  /* Shadows */
   .tk-shadows { display: grid; grid-template-columns: repeat(auto-fill, minmax(180px, 1fr)); gap: 16px; padding: 6px 4px 14px; }
   .tk-shadow {
     appearance: none;
@@ -314,31 +317,31 @@ const motion = [
     flex-direction: column;
     align-items: center;
     gap: 14px;
-    background: var(--background);
+    background: transparent;
     border: 0;
     cursor: pointer;
     font: inherit;
+    color: var(--sl-color-white);
   }
   .tk-shadow-box {
     width: 80px; height: 50px;
-    background: var(--card);
-    border-radius: var(--radius-md);
-    border: 1px solid color-mix(in oklch, var(--border) 30%, transparent);
+    background: var(--sl-color-black);
+    border-radius: 6px;
+    border: 1px solid var(--sl-color-gray-5);
   }
-  .tk-shadow code { font-family: var(--font-mono); font-size: 11.5px; }
+  .tk-shadow code { font-family: var(--sl-font-mono, monospace); font-size: 11.5px; }
 
-  /* Typography */
   .tk-type-fams {
     display: flex;
     flex-direction: column;
     gap: 10px;
     padding: 10px 12px;
-    border: 1px solid color-mix(in oklch, var(--border) 50%, transparent);
-    border-radius: var(--radius-lg);
-    background: var(--card);
+    border: 1px solid var(--sl-color-gray-5);
+    border-radius: 10px;
+    background: var(--sl-color-black);
   }
-  .tk-type-fam code { font-family: var(--font-mono); font-size: 11px; color: var(--muted-foreground); display: inline-block; margin-right: 10px; }
-  .tk-type-fam p { margin: 4px 0 8px; color: var(--foreground); }
+  .tk-type-fam code { font-family: var(--sl-font-mono, monospace); font-size: 11px; color: var(--sl-color-gray-2); display: inline-block; margin-right: 10px; }
+  .tk-type-fam p { margin: 4px 0 8px; color: var(--sl-color-white); }
   .tk-type-scale { display: flex; flex-direction: column; gap: 4px; padding-top: 6px; }
   .tk-type-row {
     appearance: none;
@@ -351,14 +354,13 @@ const motion = [
     background: transparent;
     cursor: pointer;
     text-align: left;
-    color: var(--foreground);
-    border-radius: var(--radius-md);
-    transition: background var(--duration-fast) var(--ease-out);
+    color: var(--sl-color-white);
+    border-radius: 6px;
+    transition: background 120ms ease-out;
   }
-  .tk-type-row:hover { background: color-mix(in oklch, var(--border) 20%, transparent); }
+  .tk-type-row:hover { background: color-mix(in oklch, var(--sl-color-gray-5) 30%, transparent); }
   .tk-type-sample {
-    font-family: var(--font-body);
-    color: var(--foreground);
+    color: var(--sl-color-white);
     line-height: 1.2;
   }
 </style>

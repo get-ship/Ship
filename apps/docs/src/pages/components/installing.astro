@@ -1,16 +1,16 @@
 ---
-import BaseLayout from '../layouts/BaseLayout.astro';
+import StarlightPage from '@astrojs/starlight/components/StarlightPage.astro';
+
 ---
 
-<BaseLayout title="Installing · SHIP SET" active="/installing">
-  <section class="in-head">
-    <h1 class="in-title">Installing</h1>
-    <p class="in-sub">
-      SHIP SET is published as <code>@ship/ui</code> today. Install
-      into any Vite / Astro / plain-HTML app, import the elements
-      bundle once, use them anywhere.
-    </p>
-  </section>
+<StarlightPage
+  frontmatter={{ title: 'Installing', description: 'Install @ship/ui into any Vite / Astro / plain-HTML app.' }}
+>
+  <p class="in-sub">
+    <code>@ship/ui</code> is available as an npm package. Install it
+    into any Vite / Astro / plain-HTML app, import the elements bundle
+    once, use them anywhere.
+  </p>
 
   <section class="in-section">
     <h2 class="in-h2">1 · Install</h2>
@@ -30,9 +30,7 @@ import BaseLayout from '../layouts/BaseLayout.astro';
 <pre><code>import '@ship/ui/elements'
 import '@ship/ui/tokens.css'
 import '@ship/ui/themes.css'</code></pre>
-      <button type="button" class="in-copy" data-copy={`import '@ship/ui/elements'
-import '@ship/ui/tokens.css'
-import '@ship/ui/themes.css'`}>Copy</button>
+      <button type="button" class="in-copy" data-copy={`import '@ship/ui/elements'\nimport '@ship/ui/tokens.css'\nimport '@ship/ui/themes.css'`}>Copy</button>
     </div>
     <p class="in-note">
       The elements module registers every <code>&lt;ship-*&gt;</code>
@@ -44,18 +42,15 @@ import '@ship/ui/themes.css'`}>Copy</button>
   <section class="in-section">
     <h2 class="in-h2">3 · Use</h2>
     <div class="in-code">
-<pre><code>&lt;ship-card variant="outline" padding="lg"&gt;
-  &lt;strong slot="header"&gt;Hello&lt;/strong&gt;
-  Any framework, any template engine, any file format that renders HTML.
-&lt;/ship-card&gt;</code></pre>
-      <button type="button" class="in-copy" data-copy={`<ship-card variant="outline" padding="lg">
+<pre><code>{`<ship-card variant="outline" padding="lg">
   <strong slot="header">Hello</strong>
   Any framework, any template engine, any file format that renders HTML.
-</ship-card>`}>Copy</button>
+</ship-card>`}</code></pre>
+      <button type="button" class="in-copy" data-copy={`<ship-card variant="outline" padding="lg">\n  <strong slot="header">Hello</strong>\n  Any framework, any template engine, any file format that renders HTML.\n</ship-card>`}>Copy</button>
     </div>
     <div class="in-preview">
       <ship-card variant="outline" padding="lg">
-        <strong slot="header" style="font-family:var(--font-display);font-weight:700;font-size:16px;">Hello</strong>
+        <strong slot="header" style="font-weight:700;font-size:16px;">Hello</strong>
         Any framework, any template engine, any file format that renders HTML.
       </ship-card>
     </div>
@@ -69,17 +64,14 @@ import '@ship/ui/themes.css'`}>Copy</button>
       so shadow/elevation tokens flip too.
     </p>
     <div class="in-code">
-<pre><code>import &#123; applyTheme, persistTheme &#125; from '@ship/ui/themes'
+<pre><code>{`import { applyTheme, persistTheme } from '@ship/ui/themes'
 
-applyTheme('gruvbox-dark')   // sets data-theme + .dark on &lt;html&gt;
-persistTheme('gruvbox-dark') // localStorage for next load</code></pre>
-      <button type="button" class="in-copy" data-copy={`import { applyTheme, persistTheme } from '@ship/ui/themes'
-
-applyTheme('gruvbox-dark')
-persistTheme('gruvbox-dark')`}>Copy</button>
+applyTheme('gruvbox-dark')   // sets data-theme + .dark on <html>
+persistTheme('gruvbox-dark') // localStorage for next load`}</code></pre>
+      <button type="button" class="in-copy" data-copy={`import { applyTheme, persistTheme } from '@ship/ui/themes'\n\napplyTheme('gruvbox-dark')\npersistTheme('gruvbox-dark')`}>Copy</button>
     </div>
   </section>
-</BaseLayout>
+</StarlightPage>
 
 <script>
   for (const btn of document.querySelectorAll<HTMLElement>('[data-copy]')) {
@@ -96,38 +88,46 @@ persistTheme('gruvbox-dark')`}>Copy</button>
 </script>
 
 <style>
-  .in-head { padding: 24px 0 18px; display: flex; flex-direction: column; gap: 10px; }
-  .in-title { font-size: clamp(30px, 4vw, 44px); letter-spacing: -0.024em; }
-  .in-sub { color: var(--muted-foreground); max-width: 60ch; }
+  .in-sub {
+    color: var(--sl-color-gray-2);
+    max-width: 60ch;
+    margin-bottom: 8px;
+  }
   .in-sub code,
   .in-note code {
-    font-family: var(--font-mono);
+    font-family: var(--sl-font-mono, monospace);
     font-size: 12px;
     padding: 1px 5px;
-    border-radius: var(--radius-sm);
-    background: color-mix(in oklch, var(--border) 30%, transparent);
-    color: var(--foreground);
+    border-radius: 4px;
+    background: color-mix(in oklch, var(--sl-color-gray-5) 40%, transparent);
+    color: var(--sl-color-white);
   }
 
   .in-section { padding: 18px 0; display: flex; flex-direction: column; gap: 12px; }
-  .in-h2 { font-size: 18px; letter-spacing: -0.01em; }
-  .in-note { color: var(--muted-foreground); font-size: 13.5px; max-width: 62ch; }
+  .in-h2 {
+    font-size: 18px;
+    letter-spacing: -0.01em;
+    border: none;
+    margin: 0;
+    padding: 0;
+  }
+  .in-note { color: var(--sl-color-gray-2); font-size: 13.5px; max-width: 62ch; margin: 0; }
 
   .in-code {
     position: relative;
-    border: 1px solid color-mix(in oklch, var(--border) 55%, transparent);
-    border-radius: var(--radius-lg);
-    background: color-mix(in oklch, var(--muted) 40%, transparent);
+    border: 1px solid var(--sl-color-gray-5);
+    border-radius: 10px;
+    background: color-mix(in oklch, var(--sl-color-gray-6) 50%, transparent);
     overflow: hidden;
   }
   .in-code pre {
     margin: 0;
     padding: 14px 16px 16px;
-    font-family: var(--font-mono);
+    font-family: var(--sl-font-mono, monospace);
     font-size: 13px;
     line-height: 1.6;
     overflow: auto;
-    color: var(--foreground);
+    color: var(--sl-color-white);
     tab-size: 2;
   }
   .in-copy {
@@ -137,20 +137,20 @@ persistTheme('gruvbox-dark')`}>Copy</button>
     font: inherit;
     font-size: 11px;
     font-weight: 600;
-    border-radius: var(--radius-sm);
-    border: 1px solid color-mix(in oklch, var(--border) 70%, transparent);
-    background: var(--card);
-    color: var(--foreground);
+    border-radius: 4px;
+    border: 1px solid var(--sl-color-gray-5);
+    background: var(--sl-color-black);
+    color: var(--sl-color-white);
     cursor: pointer;
   }
-  .in-copy:hover { border-color: var(--primary); color: var(--primary); }
+  .in-copy:hover { border-color: var(--sl-color-accent); color: var(--sl-color-accent); }
 
   .in-preview {
     display: grid;
     place-items: center;
     padding: 24px;
-    border: 1px solid color-mix(in oklch, var(--border) 50%, transparent);
-    border-radius: var(--radius-lg);
-    background: var(--card);
+    border: 1px solid var(--sl-color-gray-5);
+    border-radius: 10px;
+    background: var(--sl-color-black);
   }
 </style>

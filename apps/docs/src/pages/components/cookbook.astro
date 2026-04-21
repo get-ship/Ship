@@ -1,15 +1,13 @@
 ---
-import BaseLayout from '../layouts/BaseLayout.astro';
+import StarlightPage from '@astrojs/starlight/components/StarlightPage.astro';
 
-// Each recipe is a self-contained composition of ship-* components.
-// Rendered live, with a collapsible source block.
 const recipes = [
   {
     id: 'sign-in-card',
     title: 'Sign-in card',
     blurb: 'ship-card as a shell, ship-input for email/password, ship-button for submit + provider.',
     html: `<ship-card variant="outline" padding="lg" style="max-width:380px;">
-  <div slot="header" style="font-family:var(--font-display);font-weight:700;font-size:18px;">Welcome back</div>
+  <div slot="header" style="font-weight:700;font-size:18px;">Welcome back</div>
   <div style="display:flex;flex-direction:column;gap:10px;margin:10px 0 14px;">
     <ship-input placeholder="you@company.com" type="email"></ship-input>
     <ship-input placeholder="Password" type="password"></ship-input>
@@ -28,7 +26,7 @@ const recipes = [
   <div style="display:flex;align-items:flex-start;justify-content:space-between;gap:10px;">
     <div>
       <div style="font-size:11px;font-weight:600;letter-spacing:0.08em;text-transform:uppercase;color:var(--muted-foreground);">Runs this week</div>
-      <div style="font-family:var(--font-display);font-weight:800;font-size:32px;margin-top:4px;">58</div>
+      <div style="font-weight:800;font-size:32px;margin-top:4px;">58</div>
     </div>
     <ship-badge tone="success" variant="soft" size="sm">on budget</ship-badge>
   </div>
@@ -67,30 +65,6 @@ const recipes = [
 </ship-pipeline-dag>`,
   },
   {
-    id: 'command-palette',
-    title: 'Command palette',
-    blurb: 'ship-dialog + ship-input + ship-list-item + ship-kbd. Exact pattern the site uses.',
-    html: `<ship-card variant="outline" padding="none" style="max-width:420px;box-shadow:var(--shadow-md);">
-  <div style="padding:10px 14px;border-bottom:1px solid var(--border);">
-    <ship-input placeholder="Jump to…" style="width:100%;"></ship-input>
-  </div>
-  <div style="padding:6px 6px 10px;display:flex;flex-direction:column;gap:2px;">
-    <ship-list-item selected>
-      <span>Components</span>
-      <ship-kbd slot="trailing" keys="G C"></ship-kbd>
-    </ship-list-item>
-    <ship-list-item>
-      <span>Themes</span>
-      <ship-kbd slot="trailing" keys="G T"></ship-kbd>
-    </ship-list-item>
-    <ship-list-item>
-      <span>Tokens</span>
-      <ship-kbd slot="trailing" keys="G D"></ship-kbd>
-    </ship-list-item>
-  </div>
-</ship-card>`,
-  },
-  {
     id: 'chat-row',
     title: 'Chat row',
     blurb: 'ship-avatar + agent badge + body. Drop into any conversation view.',
@@ -109,16 +83,16 @@ const recipes = [
 </div>`,
   },
 ];
+
 ---
 
-<BaseLayout title="Cookbook · SHIP SET" active="/cookbook">
-  <section class="cb-head">
-    <h1 class="cb-title">Cookbook</h1>
-    <p class="cb-sub">
-      Compositions, not docs. Paste the source, tweak the copy, ship
-      the thing. Every recipe is live below.
-    </p>
-  </section>
+<StarlightPage
+  frontmatter={{ title: 'Cookbook', description: 'Component compositions ready to paste and ship.' }}
+>
+  <p class="cb-sub">
+    Compositions, not docs. Paste the source, tweak the copy, ship
+    the thing. Every recipe is live below.
+  </p>
 
   <div class="cb-list">
     {recipes.map((r) => (
@@ -140,7 +114,7 @@ const recipes = [
       </article>
     ))}
   </div>
-</BaseLayout>
+</StarlightPage>
 
 <script>
   for (const btn of document.querySelectorAll<HTMLElement>('[data-copy]')) {
@@ -157,24 +131,37 @@ const recipes = [
 </script>
 
 <style>
-  .cb-head { padding: 24px 0 18px; display: flex; flex-direction: column; gap: 10px; }
-  .cb-title { font-size: clamp(30px, 4vw, 44px); letter-spacing: -0.024em; }
-  .cb-sub { color: var(--muted-foreground); max-width: 60ch; }
+  .cb-sub {
+    color: var(--sl-color-gray-2);
+    max-width: 60ch;
+    margin-bottom: 8px;
+  }
 
   .cb-list { display: flex; flex-direction: column; gap: 28px; padding-bottom: 48px; }
   .cb-recipe {
-    border: 1px solid color-mix(in oklch, var(--border) 55%, transparent);
-    border-radius: var(--radius-lg);
-    background: var(--card);
+    border: 1px solid var(--sl-color-gray-5);
+    border-radius: 10px;
+    background: var(--sl-color-black);
     overflow: hidden;
     scroll-margin-top: 80px;
   }
   .cb-recipe-head {
     padding: 14px 18px 10px;
-    border-bottom: 1px solid color-mix(in oklch, var(--border) 35%, transparent);
+    border-bottom: 1px solid var(--sl-color-gray-5);
   }
-  .cb-recipe-head h2 { font-size: 18px; letter-spacing: -0.012em; }
-  .cb-recipe-head p { color: var(--muted-foreground); font-size: 13px; margin-top: 4px; }
+  .cb-recipe-head h2 {
+    font-size: 18px;
+    letter-spacing: -0.012em;
+    border: none;
+    margin: 0;
+    padding: 0;
+  }
+  .cb-recipe-head p {
+    color: var(--sl-color-gray-2);
+    font-size: 13px;
+    margin-top: 4px;
+    margin-bottom: 0;
+  }
 
   .cb-preview-surface {
     padding: clamp(24px, 4vw, 48px);
@@ -183,12 +170,12 @@ const recipes = [
     background:
       repeating-linear-gradient(
         45deg,
-        color-mix(in oklch, var(--border) 18%, transparent) 0 1px,
+        color-mix(in oklch, var(--sl-color-gray-6) 80%, transparent) 0 1px,
         transparent 1px 10px
       );
-    border-bottom: 1px solid color-mix(in oklch, var(--border) 35%, transparent);
+    border-bottom: 1px solid var(--sl-color-gray-5);
   }
-  .cb-preview-surface .arrow { color: var(--muted-foreground); padding: 0 4px; }
+  .cb-preview-surface .arrow { color: var(--sl-color-gray-2); padding: 0 4px; }
 
   .cb-code summary {
     list-style: none;
@@ -200,30 +187,31 @@ const recipes = [
     gap: 10px;
     font-size: 12px;
     font-weight: 600;
-    color: var(--muted-foreground);
+    color: var(--sl-color-gray-2);
   }
   .cb-code summary::-webkit-details-marker { display: none; }
-  .cb-code[open] summary { color: var(--foreground); }
+  .cb-code[open] summary { color: var(--sl-color-white); }
   .cb-copy {
     padding: 4px 10px;
     font: inherit;
     font-size: 11px;
     font-weight: 600;
-    border-radius: var(--radius-sm);
-    border: 1px solid color-mix(in oklch, var(--border) 70%, transparent);
-    background: var(--card);
-    color: var(--foreground);
+    border-radius: 4px;
+    border: 1px solid var(--sl-color-gray-5);
+    background: var(--sl-color-black);
+    color: var(--sl-color-white);
     cursor: pointer;
   }
-  .cb-copy:hover { border-color: var(--primary); color: var(--primary); }
+  .cb-copy:hover { border-color: var(--sl-color-accent); color: var(--sl-color-accent); }
   .cb-code pre {
     margin: 0;
     padding: 14px 16px 18px;
-    background: color-mix(in oklch, var(--muted) 40%, transparent);
-    font-family: var(--font-mono);
+    background: color-mix(in oklch, var(--sl-color-gray-6) 50%, transparent);
+    font-family: var(--sl-font-mono, monospace);
     font-size: 12.5px;
     line-height: 1.55;
     overflow: auto;
-    border-top: 1px solid color-mix(in oklch, var(--border) 35%, transparent);
+    color: var(--sl-color-white);
+    border-top: 1px solid var(--sl-color-gray-5);
   }
 </style>

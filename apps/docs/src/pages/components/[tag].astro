@@ -1,5 +1,5 @@
 ---
-import BaseLayout from '../../layouts/BaseLayout.astro';
+import StarlightPage from '@astrojs/starlight/components/StarlightPage.astro';
 import {
   COMPONENTS,
   COMPONENTS_BY_TAG,
@@ -17,7 +17,6 @@ if (!doc) throw new Error(`Missing component doc for ${tag}`);
 
 const shots = getShots(doc.tag);
 
-// Render an attribute list as a string for the code sample.
 function attrsToString(attrs?: Record<string, string>): string {
   if (!attrs) return '';
   return Object.entries(attrs)
@@ -41,26 +40,30 @@ function shotMarkup(tag: string, shot: ComponentShot): string {
 const codeShots = shots.filter((s) => !s.overlay);
 const overlayShots = shots.filter((s) => s.overlay);
 const allCode = codeShots.map((s) => shotMarkup(doc.tag, s)).join('\n\n');
+
 ---
 
-<BaseLayout title={`${doc.tag} · SHIP SET`} active={`/components/${doc.tag}`}>
+<StarlightPage
+  frontmatter={{
+    title: doc.tag,
+    description: doc.summary || `${doc.tag} web component API reference.`,
+  }}
+
+>
   <article class="cmp-page">
     <header class="cmp-head">
       <div class="cmp-breadcrumb">
-        <a href="/components">Components</a>
+        <a href="/components/">Components</a>
         <span>/</span>
         <span>{CATEGORY_LABELS[doc.category]}</span>
       </div>
-      <h1 class="cmp-title"><code>{doc.tag}</code></h1>
       {doc.summary && <p class="cmp-summary">{doc.summary}</p>}
       <div class="cmp-meta">
-        <ship-badge tone="muted" variant="outline" size="sm">{doc.className}</ship-badge>
-        <ship-badge tone="muted" variant="outline" size="sm">{CATEGORY_LABELS[doc.category]}</ship-badge>
+        <code class="cmp-meta-badge">{doc.className}</code>
+        <code class="cmp-meta-badge">{CATEGORY_LABELS[doc.category]}</code>
         <code class="cmp-meta-path">{doc.path}</code>
       </div>
     </header>
-
-    <!-- ===== Preview + code ===== -->
 
     <section class="cmp-section">
       <h2 class="cmp-h2">Preview</h2>
@@ -110,8 +113,6 @@ const allCode = codeShots.map((s) => shotMarkup(doc.tag, s)).join('\n\n');
         )}
       </div>
     </section>
-
-    <!-- ===== API ===== -->
 
     {doc.attributes.length > 0 && (
       <section class="cmp-section">
@@ -222,10 +223,9 @@ const allCode = codeShots.map((s) => shotMarkup(doc.tag, s)).join('\n\n');
       </section>
     )}
   </article>
-</BaseLayout>
+</StarlightPage>
 
 <script>
-  // Click-to-copy on the "Copy" button next to each "View source".
   for (const btn of document.querySelectorAll<HTMLElement>('[data-copy]')) {
     btn.addEventListener('click', async (ev) => {
       ev.preventDefault();
@@ -248,9 +248,7 @@ const allCode = codeShots.map((s) => shotMarkup(doc.tag, s)).join('\n\n');
     padding-bottom: 64px;
   }
 
-  /* Header -------------------------------------------------------- */
   .cmp-head {
-    padding-top: 12px;
     display: flex;
     flex-direction: column;
     gap: 10px;
@@ -259,69 +257,67 @@ const allCode = codeShots.map((s) => shotMarkup(doc.tag, s)).join('\n\n');
     display: inline-flex;
     gap: 8px;
     font-size: 12px;
-    color: var(--muted-foreground);
+    color: var(--sl-color-gray-2);
   }
-  .cmp-breadcrumb a { text-decoration: none; border-bottom: 1px dashed color-mix(in oklch, var(--border) 70%, transparent); padding-bottom: 1px; }
-  .cmp-breadcrumb a:hover { color: var(--foreground); }
+  .cmp-breadcrumb a { text-decoration: none; color: var(--sl-color-gray-2); }
+  .cmp-breadcrumb a:hover { color: var(--sl-color-white); }
 
-  .cmp-title {
-    font-size: clamp(28px, 3.6vw, 40px);
-    letter-spacing: -0.024em;
-    line-height: 1.1;
-    margin-top: 2px;
-  }
-  .cmp-title code {
-    font-family: var(--font-mono);
-    font-weight: 700;
-    color: var(--foreground);
-  }
   .cmp-summary {
-    color: var(--muted-foreground);
+    color: var(--sl-color-gray-2);
     font-size: clamp(15px, 1.3vw, 17px);
     line-height: 1.55;
     max-width: 64ch;
+    margin: 0;
   }
   .cmp-meta {
     display: inline-flex;
     align-items: center;
     gap: 8px;
-    margin-top: 6px;
+    flex-wrap: wrap;
+  }
+  .cmp-meta-badge {
+    font-family: var(--sl-font-mono, monospace);
+    font-size: 11.5px;
+    padding: 2px 7px;
+    border-radius: 4px;
+    border: 1px solid var(--sl-color-gray-5);
+    color: var(--sl-color-gray-2);
   }
   .cmp-meta-path {
-    font-family: var(--font-mono);
+    font-family: var(--sl-font-mono, monospace);
     font-size: 11.5px;
-    color: var(--muted-foreground);
+    color: var(--sl-color-gray-3);
   }
 
-  /* Sections ------------------------------------------------------ */
   .cmp-section { display: flex; flex-direction: column; gap: 12px; }
   .cmp-h2 {
     font-size: 18px;
     letter-spacing: -0.01em;
-    color: var(--foreground);
+    color: var(--sl-color-white);
+    border: none;
+    margin: 0;
+    padding: 0;
   }
 
-  /* Preview surface ---------------------------------------------- */
   .cmp-preview {
     display: flex;
     flex-direction: column;
     gap: 0;
-    border: 1px solid color-mix(in oklch, var(--border) 55%, transparent);
-    border-radius: var(--radius-lg);
+    border: 1px solid var(--sl-color-gray-5);
+    border-radius: 10px;
     overflow: hidden;
-    background: var(--card);
+    background: var(--sl-color-black);
   }
   .cmp-preview-surface {
     padding: clamp(24px, 4vw, 48px);
     min-height: 180px;
     display: grid;
     place-items: center;
-    background:
-      repeating-linear-gradient(
-        45deg,
-        color-mix(in oklch, var(--border) 18%, transparent) 0 1px,
-        transparent 1px 10px
-      );
+    background: repeating-linear-gradient(
+      45deg,
+      color-mix(in oklch, var(--sl-color-gray-6) 80%, transparent) 0 1px,
+      transparent 1px 10px
+    );
   }
   .cmp-shots {
     display: flex;
@@ -345,19 +341,12 @@ const allCode = codeShots.map((s) => shotMarkup(doc.tag, s)).join('\n\n');
     min-height: 32px;
   }
   .cmp-shot-label {
-    font-family: var(--font-mono);
+    font-family: var(--sl-font-mono, monospace);
     font-size: 10.5px;
     letter-spacing: 0.04em;
-    color: var(--muted-foreground);
-  }
-  .cmp-preview-surface .arrow {
-    color: var(--muted-foreground);
-    padding: 0 6px;
-    display: inline-flex;
-    align-items: center;
+    color: var(--sl-color-gray-3);
   }
 
-  /* Overlay placeholder — describes the component instead of rendering it. */
   .cmp-overlay-notes {
     display: flex;
     flex-direction: column;
@@ -371,17 +360,16 @@ const allCode = codeShots.map((s) => shotMarkup(doc.tag, s)).join('\n\n');
     gap: 12px;
     align-items: start;
     padding: 12px 14px;
-    border: 1px dashed color-mix(in oklch, var(--border) 60%, transparent);
-    border-radius: var(--radius-md);
-    background: var(--card);
-    color: var(--muted-foreground);
+    border: 1px dashed var(--sl-color-gray-4);
+    border-radius: 6px;
+    background: var(--sl-color-black);
+    color: var(--sl-color-gray-2);
   }
-  .cmp-overlay-note > svg { color: var(--primary); margin-top: 1px; }
+  .cmp-overlay-note > svg { color: var(--sl-color-accent); margin-top: 1px; }
   .cmp-overlay-label {
-    font-family: var(--font-display);
     font-weight: 700;
     font-size: 13.5px;
-    color: var(--foreground);
+    color: var(--sl-color-white);
   }
   .cmp-overlay-caption {
     font-size: 12.5px;
@@ -389,10 +377,9 @@ const allCode = codeShots.map((s) => shotMarkup(doc.tag, s)).join('\n\n');
     margin-top: 3px;
   }
 
-  /* Code block ---------------------------------------------------- */
   .cmp-code {
-    border-top: 1px solid color-mix(in oklch, var(--border) 40%, transparent);
-    background: color-mix(in oklch, var(--muted) 40%, transparent);
+    border-top: 1px solid var(--sl-color-gray-5);
+    background: color-mix(in oklch, var(--sl-color-gray-6) 50%, transparent);
   }
   .cmp-code summary {
     cursor: pointer;
@@ -400,45 +387,43 @@ const allCode = codeShots.map((s) => shotMarkup(doc.tag, s)).join('\n\n');
     padding: 10px 16px;
     font-size: 12px;
     font-weight: 600;
-    color: var(--muted-foreground);
+    color: var(--sl-color-gray-2);
     display: flex;
     align-items: center;
     justify-content: space-between;
     gap: 10px;
   }
   .cmp-code summary::-webkit-details-marker { display: none; }
-  .cmp-code[open] summary { color: var(--foreground); }
+  .cmp-code[open] summary { color: var(--sl-color-white); }
   .cmp-copy {
     appearance: none;
     padding: 4px 10px;
     font: inherit;
     font-size: 11px;
     font-weight: 600;
-    border-radius: var(--radius-sm);
-    border: 1px solid color-mix(in oklch, var(--border) 70%, transparent);
-    background: var(--card);
-    color: var(--foreground);
+    border-radius: 4px;
+    border: 1px solid var(--sl-color-gray-5);
+    background: var(--sl-color-black);
+    color: var(--sl-color-white);
     cursor: pointer;
-    transition: border-color var(--duration-fast) var(--ease-out);
   }
-  .cmp-copy:hover { border-color: var(--primary); color: var(--primary); }
+  .cmp-copy:hover { border-color: var(--sl-color-accent); color: var(--sl-color-accent); }
   .cmp-code-pre {
     margin: 0;
     padding: 14px 16px 18px;
-    font-family: var(--font-mono);
+    font-family: var(--sl-font-mono, monospace);
     font-size: 12.5px;
     line-height: 1.55;
     overflow: auto;
-    color: var(--foreground);
+    color: var(--sl-color-white);
     background: transparent;
-    border-top: 1px solid color-mix(in oklch, var(--border) 40%, transparent);
+    border-top: 1px solid var(--sl-color-gray-5);
     tab-size: 2;
   }
 
-  /* API tables ---------------------------------------------------- */
   .cmp-table {
-    border: 1px solid color-mix(in oklch, var(--border) 55%, transparent);
-    border-radius: var(--radius-lg);
+    border: 1px solid var(--sl-color-gray-5);
+    border-radius: 10px;
     overflow: hidden;
   }
   .cmp-table table {
@@ -451,7 +436,7 @@ const allCode = codeShots.map((s) => shotMarkup(doc.tag, s)).join('\n\n');
     padding: 10px 14px;
     text-align: left;
     vertical-align: top;
-    border-bottom: 1px solid color-mix(in oklch, var(--border) 40%, transparent);
+    border-bottom: 1px solid var(--sl-color-gray-5);
   }
   .cmp-table tr:last-child td { border-bottom: 0; }
   .cmp-table th {
@@ -459,15 +444,15 @@ const allCode = codeShots.map((s) => shotMarkup(doc.tag, s)).join('\n\n');
     text-transform: uppercase;
     letter-spacing: 0.08em;
     font-weight: 600;
-    color: var(--muted-foreground);
-    background: color-mix(in oklch, var(--muted) 30%, transparent);
+    color: var(--sl-color-gray-2);
+    background: color-mix(in oklch, var(--sl-color-gray-6) 50%, transparent);
   }
   .cmp-table td code {
-    font-family: var(--font-mono);
+    font-family: var(--sl-font-mono, monospace);
     font-size: 12px;
     padding: 1px 5px;
-    border-radius: var(--radius-sm);
-    background: color-mix(in oklch, var(--border) 22%, transparent);
+    border-radius: 4px;
+    background: color-mix(in oklch, var(--sl-color-gray-5) 40%, transparent);
   }
-  .cmp-table td code.cmp-muted { color: var(--muted-foreground); }
+  .cmp-table td code.cmp-muted { color: var(--sl-color-gray-2); }
 </style>
