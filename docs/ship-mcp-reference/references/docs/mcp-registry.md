@@ -80,4 +80,4 @@ The fallback list is maintained in `apps/shipd/src/mcp_registry/fallback.rs`. It
 
 ## Authentication
 
-This endpoint is behind the standard daemon auth middleware. Callers must include a valid `Authorization: Bearer <token>` header, as with all `/api/*` daemon endpoints.
+This endpoint is public — no bearer token required. This matches the contract of the Cloudflare Worker handler it replaces and lets the shell's agent builder query the catalog before any pairing step completes.

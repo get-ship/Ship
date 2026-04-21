@@ -18,12 +18,6 @@ use tokio::sync::Mutex;
 mod fallback;
 pub use fallback::curated_fallback;
 
-// Current canonical endpoint per registry docs. The old Cloudflare Worker
-// hit `/api/v0/servers`, which is now 404. The v0.1 response wraps each
-// entry in `{ server: {...}, _meta: {...} }` rather than the flat shape
-// our UpstreamServer still expects — deserialization fails silently and
-// callers get the curated fallback list. Proper upstream parsing lands
-// in a follow-up.
 const REGISTRY_API: &str = "https://registry.modelcontextprotocol.io/v0.1/servers";
 const CACHE_TTL: Duration = Duration::from_secs(24 * 60 * 60);
 const MAX_LIMIT: usize = 100;
@@ -83,35 +77,82 @@ struct McpServersResponse {
     cached: bool,
 }
 
-// ── Upstream wire types ────────────────────────────────────────────────────
+// ── Upstream wire types (registry v0.1) ────────────────────────────────────
+//
+// The v0.1 response wraps each server in `{ server: {...}, _meta: {...} }`.
+// Multiple rows per server exist (one per published version); we keep only
+// those whose `_meta` marks them as `isLatest`.
 
 #[derive(Debug, Deserialize)]
 struct UpstreamResponse {
-    servers: Vec<UpstreamServer>,
+    servers: Vec<UpstreamEntry>,
+}
+
+#[derive(Debug, Deserialize)]
+struct UpstreamEntry {
+    server: UpstreamServer,
+    #[serde(default, rename = "_meta")]
+    meta: UpstreamMeta,
+}
+
+#[derive(Debug, Default, Deserialize)]
+struct UpstreamMeta {
+    #[serde(default, rename = "io.modelcontextprotocol.registry/official")]
+    official: Option<UpstreamOfficialMeta>,
+}
+
+#[derive(Debug, Deserialize)]
+struct UpstreamOfficialMeta {
+    #[serde(default, rename = "isLatest")]
+    is_latest: bool,
+    #[serde(default)]
+    status: Option<String>,
 }
 
 #[derive(Debug, Deserialize)]
 struct UpstreamServer {
-    id: Option<String>,
     name: String,
+    #[serde(default)]
     description: Option<String>,
-    homepage: Option<String>,
-    repository: Option<String>,
-    tags: Option<Vec<String>>,
-    package: Option<UpstreamPackage>,
-    vendor: Option<UpstreamVendor>,
+    #[serde(default)]
+    title: Option<String>,
+    #[serde(default, rename = "websiteUrl")]
+    website_url: Option<String>,
+    #[serde(default)]
+    repository: Option<UpstreamRepository>,
+    #[serde(default)]
+    packages: Option<Vec<UpstreamPackage>>,
+    #[serde(default)]
+    icons: Option<Vec<UpstreamIcon>>,
+}
+
+#[derive(Debug, Deserialize)]
+struct UpstreamRepository {
+    #[serde(default)]
+    url: Option<String>,
+    #[serde(default)]
+    source: Option<String>,
 }
 
 #[derive(Debug, Deserialize)]
 struct UpstreamPackage {
-    registry: Option<String>,
-    command: Option<String>,
-    args: Option<Vec<String>>,
+    #[serde(default, rename = "registryType")]
+    registry_type: Option<String>,
+    #[serde(default)]
+    identifier: Option<String>,
+    #[serde(default)]
+    transport: Option<UpstreamTransport>,
 }
 
 #[derive(Debug, Deserialize)]
-struct UpstreamVendor {
-    name: Option<String>,
+struct UpstreamTransport {
+    #[serde(default, rename = "type")]
+    kind: Option<String>,
+}
+
+#[derive(Debug, Deserialize)]
+struct UpstreamIcon {
+    src: String,
 }
 
 // ── Registry state ─────────────────────────────────────────────────────────
@@ -228,13 +269,29 @@ async fn fetch_upstream(
 ) -> Result<Vec<McpServer>, reqwest::Error> {
     let resp = client
         .get(url)
-        .query(&[("per_page", "100")])
+        .query(&[("limit", "100")])
         .send()
         .await?
         .error_for_status()?
         .json::<UpstreamResponse>()
         .await?;
-    Ok(resp.servers.into_iter().map(upstream_to_server).collect())
+
+    // Keep only the latest published version of each server, drop anything
+    // the registry has marked deleted/deprecated.
+    let mut out = Vec::with_capacity(resp.servers.len());
+    for entry in resp.servers {
+        let Some(official) = entry.meta.official.as_ref() else {
+            continue;
+        };
+        if !official.is_latest {
+            continue;
+        }
+        if matches!(official.status.as_deref(), Some("deleted") | Some("deprecated")) {
+            continue;
+        }
+        out.push(upstream_to_server(entry.server));
+    }
+    Ok(out)
 }
 
 fn resolve_image_url(url: Option<&str>) -> Option<String> {
@@ -249,27 +306,49 @@ fn resolve_image_url(url: Option<&str>) -> Option<String> {
     Some(format!("https://github.com/{org}.png"))
 }
 
+/// Short id for vetted-list matching + UI keys. Names in v0.1 look like
+/// `io.github.owner/repo` or `ac.inference.sh/mcp`; we use the last
+/// path segment so historical ids (`github`, `filesystem`) keep matching.
+fn short_id(name: &str) -> String {
+    let tail = name.rsplit('/').next().unwrap_or(name);
+    tail.to_lowercase()
+        .chars()
+        .map(|c| if c.is_ascii_alphanumeric() || c == '-' { c } else { '-' })
+        .collect()
+}
+
 fn upstream_to_server(s: UpstreamServer) -> McpServer {
-    let id = s.id.unwrap_or_else(|| {
-        s.name
-            .to_lowercase()
-            .chars()
-            .map(|c| if c.is_ascii_alphanumeric() || c == '-' { c } else { '-' })
-            .collect()
-    });
+    let id = short_id(&s.name);
     let vetted = VETTED_IDS.contains(&id.as_str());
-    let image_url = resolve_image_url(s.homepage.as_deref())
-        .or_else(|| resolve_image_url(s.repository.as_deref()));
+    let repo_url = s.repository.as_ref().and_then(|r| r.url.clone());
+    let homepage = s.website_url.clone().or_else(|| repo_url.clone());
+    let image_url = s
+        .icons
+        .as_ref()
+        .and_then(|is| is.first())
+        .map(|i| i.src.clone())
+        .or_else(|| resolve_image_url(s.website_url.as_deref()))
+        .or_else(|| resolve_image_url(repo_url.as_deref()));
+    let first_pkg = s.packages.as_ref().and_then(|p| p.first());
+    let package_registry = first_pkg.and_then(|p| p.registry_type.clone());
+    let command = first_pkg.and_then(|p| p.transport.as_ref()?.kind.clone());
+    let args = first_pkg
+        .and_then(|p| p.identifier.clone())
+        .map(|i| vec![i])
+        .unwrap_or_default();
+    // Display name prefers the human `title` if the registry provides one;
+    // falls back to the technical `name` so there's always something to show.
+    let display_name = s.title.clone().unwrap_or_else(|| s.name.clone());
     McpServer {
         id,
-        name: s.name,
+        name: display_name,
         description: s.description,
-        homepage: s.homepage,
-        tags: s.tags.unwrap_or_default(),
-        vendor: s.vendor.and_then(|v| v.name),
-        package_registry: s.package.as_ref().and_then(|p| p.registry.clone()),
-        command: s.package.as_ref().and_then(|p| p.command.clone()),
-        args: s.package.and_then(|p| p.args).unwrap_or_default(),
+        homepage,
+        tags: Vec::new(), // v0.1 schema dropped the tags field
+        vendor: None,     // v0.1 schema dropped the vendor object
+        package_registry,
+        command,
+        args,
         vetted,
         image_url,
     }
