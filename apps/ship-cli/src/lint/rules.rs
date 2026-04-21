@@ -10,7 +10,8 @@ use std::path::PathBuf;
 use super::report::{Finding, Severity};
 use super::source::{self, Source};
 use super::{
-    RULE_INLINE_STYLE_BUDGET, RULE_NO_INLINE_SCRIPT, RULE_UNDEFINED_SIGNAL, ViewTarget,
+    RULE_INLINE_STYLE_BUDGET, RULE_MISSING_PACK_DECLARATION, RULE_NO_INLINE_SCRIPT,
+    RULE_STALE_PACK_DECLARATION, RULE_UNDEFINED_SIGNAL, ViewTarget,
 };
 
 const STYLE_WARN_THRESHOLD: usize = 50;
@@ -41,6 +42,12 @@ pub fn lint_view(view: &ViewTarget, enabled: &[&'static str]) -> Vec<Finding> {
 
     if enabled.contains(&RULE_UNDEFINED_SIGNAL) {
         out.extend(rule_undefined_signal(&sources));
+    }
+
+    if enabled.contains(&RULE_MISSING_PACK_DECLARATION)
+        || enabled.contains(&RULE_STALE_PACK_DECLARATION)
+    {
+        out.extend(rule_pack_declarations(view, &sources, enabled));
     }
 
     out
@@ -236,5 +243,242 @@ fn is_inside_jinja_expr(value: &str, pos: usize) -> bool {
     match last_close {
         Some(close) => close < open,
         None => true,
+    }
+}
+
+// ── Rules 4 & 5 — missing-pack-declaration / stale-pack-declaration ───────────
+
+/// Known packs → heavy-island tags the pack provides. Mirror of the daemon's
+/// `views::packs::pack_bundles` map in pack→tag direction. Kept in the
+/// linter so the rule has no runtime dependency on the daemon crate.
+const PACKS: &[(&str, &[&str])] = &[
+    ("editor", &["ship-code-editor", "ship-markdown-editor"]),
+    ("terminal", &["ship-terminal"]),
+];
+
+fn rule_pack_declarations(
+    view: &ViewTarget,
+    sources: &[Source],
+    enabled: &[&'static str],
+) -> Vec<Finding> {
+    let mut out = Vec::new();
+
+    // Collect every heavy-island tag referenced in the templates.
+    let tag_open_re = pack_tag_regex();
+    let mut used_tags: HashSet<String> = HashSet::new();
+    // Track (pack, first-seen-location) so a missing declaration points at
+    // the template that triggered the requirement, not the view root.
+    let mut first_tag_loc: std::collections::HashMap<&'static str, (PathBuf, usize, usize)> =
+        std::collections::HashMap::new();
+
+    for src in sources {
+        for (idx, line) in src.lines.iter().enumerate() {
+            for cap in tag_open_re.captures_iter(line) {
+                let Some(tag_match) = cap.get(1) else { continue };
+                let tag = tag_match.as_str();
+                used_tags.insert(tag.to_string());
+                if let Some(pack) = pack_for_tag(tag) {
+                    first_tag_loc
+                        .entry(pack)
+                        .or_insert_with(|| (src.path.clone(), idx + 1, tag_match.start() + 1));
+                }
+            }
+        }
+    }
+
+    let declared = match read_manifest_packs(&view.dir) {
+        Ok(list) => list,
+        Err(_) => Vec::new(),
+    };
+
+    // Rule: missing-pack-declaration
+    if enabled.contains(&RULE_MISSING_PACK_DECLARATION) {
+        for &(pack, tags) in PACKS {
+            let view_uses_pack = tags.iter().any(|t| used_tags.contains(*t));
+            if view_uses_pack && !declared.iter().any(|d| d == pack) {
+                let (file, line, col) = first_tag_loc
+                    .get(pack)
+                    .cloned()
+                    .unwrap_or_else(|| (view.dir.clone(), 1, 1));
+                let used_list = tags
+                    .iter()
+                    .filter(|t| used_tags.contains(**t))
+                    .map(|t| format!("<{t}>"))
+                    .collect::<Vec<_>>()
+                    .join(", ");
+                out.push(Finding {
+                    file,
+                    line,
+                    col,
+                    rule: RULE_MISSING_PACK_DECLARATION,
+                    severity: Severity::Error,
+                    message: format!(
+                        "view '{}' uses {} but manifest does not declare `packs: [{}]` — element will not upgrade without the bundle",
+                        view.name, used_list, pack,
+                    ),
+                });
+            }
+        }
+    }
+
+    // Rule: stale-pack-declaration
+    if enabled.contains(&RULE_STALE_PACK_DECLARATION) {
+        for pack in &declared {
+            let Some(tags) = PACKS
+                .iter()
+                .find(|(name, _)| *name == pack.as_str())
+                .map(|(_, tags)| *tags)
+            else {
+                // Unknown pack — not our rule's job (daemon ignores it).
+                continue;
+            };
+            let view_uses_pack = tags.iter().any(|t| used_tags.contains(*t));
+            if !view_uses_pack {
+                out.push(Finding {
+                    file: view.dir.join(manifest_filename(&view.dir)),
+                    line: 1,
+                    col: 1,
+                    rule: RULE_STALE_PACK_DECLARATION,
+                    severity: Severity::Warn,
+                    message: format!(
+                        "view '{}' declares `packs: [{}]` but no template uses its tags — drop the declaration or the view loads unused bundles",
+                        view.name, pack,
+                    ),
+                });
+            }
+        }
+    }
+
+    out
+}
+
+fn pack_for_tag(tag: &str) -> Option<&'static str> {
+    for &(pack, tags) in PACKS {
+        if tags.contains(&tag) {
+            return Some(pack);
+        }
+    }
+    None
+}
+
+fn pack_tag_regex() -> regex::Regex {
+    // `<ship-name` followed by whitespace, `>`, or `/`. Capturing just the
+    // tag name keeps the match cheap. Case-insensitive for defensive parity
+    // with HTML's tag name rules even though Ship tags are always lower.
+    regex::Regex::new(r"(?i)<(ship-[a-z0-9-]+)(?:[\s/>])").unwrap()
+}
+
+/// Read the `packs:` list from a view manifest. Returns the declared packs
+/// as lower-case strings, or an empty vec when the manifest is missing or
+/// has no packs field.
+///
+/// Only `manifest.yaml`, `manifest.jsonc`, and `manifest.json` are
+/// recognised — mirrors the daemon's resolution order so the linter can't
+/// disagree with what the runtime actually reads.
+fn read_manifest_packs(view_dir: &std::path::Path) -> anyhow::Result<Vec<String>> {
+    let yaml = view_dir.join("manifest.yaml");
+    let jsonc = view_dir.join("manifest.jsonc");
+    let json = view_dir.join("manifest.json");
+
+    if yaml.exists() {
+        let raw = std::fs::read_to_string(&yaml)?;
+        let parsed: serde_yaml::Value = serde_yaml::from_str(&raw)?;
+        return Ok(extract_packs(&value_from_yaml(&parsed)));
+    }
+    if jsonc.exists() {
+        let raw = std::fs::read_to_string(&jsonc)?;
+        let stripped = strip_jsonc_comments(&raw);
+        let parsed: serde_json::Value = serde_json::from_str(&stripped)?;
+        return Ok(extract_packs(&parsed));
+    }
+    if json.exists() {
+        let raw = std::fs::read_to_string(&json)?;
+        let parsed: serde_json::Value = serde_json::from_str(&raw)?;
+        return Ok(extract_packs(&parsed));
+    }
+    Ok(Vec::new())
+}
+
+fn extract_packs(value: &serde_json::Value) -> Vec<String> {
+    value
+        .get("packs")
+        .and_then(|v| v.as_array())
+        .map(|arr| {
+            arr.iter()
+                .filter_map(|v| v.as_str().map(|s| s.to_string()))
+                .collect()
+        })
+        .unwrap_or_default()
+}
+
+/// Coerce `serde_yaml::Value` to `serde_json::Value` so both manifest
+/// formats hit the same `extract_packs` path. `serde_yaml` preserves JSON
+/// numeric and string shapes, so a direct `to_value(...)` round-trip works.
+fn value_from_yaml(v: &serde_yaml::Value) -> serde_json::Value {
+    serde_json::to_value(v).unwrap_or(serde_json::Value::Null)
+}
+
+/// Minimal JSONC comment stripper — removes `//` line comments and `/* */`
+/// block comments while preserving string literal contents. Sufficient for
+/// the linter; the daemon uses `compiler::jsonc::strip_jsonc_comments`
+/// which this tracks in behavior but does not depend on (keeps the linter
+/// crate free of compiler deps).
+fn strip_jsonc_comments(src: &str) -> String {
+    let bytes = src.as_bytes();
+    let mut out = String::with_capacity(src.len());
+    let mut i = 0;
+    let mut in_string = false;
+    let mut string_delim = b'"';
+    while i < bytes.len() {
+        let c = bytes[i];
+        if in_string {
+            out.push(c as char);
+            if c == b'\\' && i + 1 < bytes.len() {
+                out.push(bytes[i + 1] as char);
+                i += 2;
+                continue;
+            }
+            if c == string_delim {
+                in_string = false;
+            }
+            i += 1;
+            continue;
+        }
+        if c == b'"' || c == b'\'' {
+            in_string = true;
+            string_delim = c;
+            out.push(c as char);
+            i += 1;
+            continue;
+        }
+        // Line comment
+        if c == b'/' && i + 1 < bytes.len() && bytes[i + 1] == b'/' {
+            while i < bytes.len() && bytes[i] != b'\n' {
+                i += 1;
+            }
+            continue;
+        }
+        // Block comment
+        if c == b'/' && i + 1 < bytes.len() && bytes[i + 1] == b'*' {
+            i += 2;
+            while i + 1 < bytes.len() && !(bytes[i] == b'*' && bytes[i + 1] == b'/') {
+                i += 1;
+            }
+            i = (i + 2).min(bytes.len());
+            continue;
+        }
+        out.push(c as char);
+        i += 1;
+    }
+    out
+}
+
+fn manifest_filename(view_dir: &std::path::Path) -> &'static str {
+    if view_dir.join("manifest.yaml").exists() {
+        "manifest.yaml"
+    } else if view_dir.join("manifest.jsonc").exists() {
+        "manifest.jsonc"
+    } else {
+        "manifest.json"
     }
 }

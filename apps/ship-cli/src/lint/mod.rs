@@ -1,6 +1,6 @@
 //! `ship lint views` — enforce view-authoring discipline.
 //!
-//! Three rules, independently toggleable:
+//! Five rules, independently toggleable:
 //! - `no-inline-script` (error): `<script>` tags are forbidden in views.
 //! - `inline-style-budget` (warn > 50 lines, error > 150 lines): total
 //!   content-line count inside `<style>` blocks across a view directory.
@@ -8,6 +8,13 @@
 //!   `signal('name', ...)` declaration or `data-signals:name=` attribute
 //!   within the same view, excluding Datastar internals and per-view
 //!   `@lint:signals-ok` allowlist entries.
+//! - `missing-pack-declaration` (error): view templates reference a
+//!   heavy-island tag (`<ship-code-editor>`, `<ship-markdown-editor>`,
+//!   `<ship-terminal>`) but the manifest's `packs:` list omits the pack
+//!   that defines the element. The element will render but never upgrade.
+//! - `stale-pack-declaration` (warn): manifest declares a pack that no
+//!   template actually uses. Dead declaration — drop it or the view
+//!   downloads bundles it doesn't need.
 
 use anyhow::Result;
 use std::path::{Path, PathBuf};
@@ -26,11 +33,15 @@ pub use report::{Finding, OutputFormat, Severity};
 pub const RULE_NO_INLINE_SCRIPT: &str = "no-inline-script";
 pub const RULE_INLINE_STYLE_BUDGET: &str = "inline-style-budget";
 pub const RULE_UNDEFINED_SIGNAL: &str = "undefined-signal";
+pub const RULE_MISSING_PACK_DECLARATION: &str = "missing-pack-declaration";
+pub const RULE_STALE_PACK_DECLARATION: &str = "stale-pack-declaration";
 
 pub const ALL_RULES: &[&str] = &[
     RULE_NO_INLINE_SCRIPT,
     RULE_INLINE_STYLE_BUDGET,
     RULE_UNDEFINED_SIGNAL,
+    RULE_MISSING_PACK_DECLARATION,
+    RULE_STALE_PACK_DECLARATION,
 ];
 
 /// Entrypoint wired from the CLI dispatcher.
