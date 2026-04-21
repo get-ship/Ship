@@ -3,6 +3,7 @@
 pub mod collections;
 #[cfg(feature = "unstable")]
 mod dispatch;
+mod lint;
 mod job;
 mod mesh;
 mod planning;
@@ -20,3 +21,4 @@ pub use project::*;
 #[cfg(feature = "unstable")]
 pub use view::*;
 pub use workspace::*;
+pub use lint::*;

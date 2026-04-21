@@ -672,6 +672,57 @@ impl ShipServer {
         }
     }
 
+    // ---- View linting ----
+
+    #[tool(
+        description = "Lint a Ship view (.j2 template) against the Ship view authoring rules. \
+        Checks for: inline <script> tags (forbidden), inline style budget, undefined Datastar \
+        signals, missing pack declarations, and stale pack declarations. \
+        AGENTS MUST call this before declaring a view-editing task done. \
+        Pass 'name' to lint a saved view by name, or 'source' to lint an in-flight draft. \
+        Returns a structured list of findings with severity, rule, file, line, and message."
+    )]
+    async fn lint_view(&self, Parameters(req): Parameters<LintViewRequest>) -> String {
+        let project_dir = match self.get_effective_project_dir().await {
+            Ok(d) => d,
+            Err(e) => return e,
+        };
+
+        let findings: Vec<lint::Finding> = if let Some(source) = req.source {
+            let label = req.name.as_deref().unwrap_or("inline");
+            lint::lint_view_source(label, &source)
+        } else if let Some(name) = req.name {
+            let views_dir = project_dir.join(".ship").join("views").join(&name);
+            if !views_dir.exists() {
+                return format!("Error: view '{}' not found under .ship/views/", name);
+            }
+            lint::lint_view_dir(&views_dir)
+        } else {
+            return "Error: provide 'name' or 'source'".to_string();
+        };
+
+        if findings.is_empty() {
+            return "clean — no findings".to_string();
+        }
+
+        let mut out = String::new();
+        for f in &findings {
+            out.push_str(&format!(
+                "[{}] {}:{}:{} ({}): {}\n",
+                f.severity.as_str(),
+                f.file.display(),
+                f.line,
+                f.col,
+                f.rule,
+                f.message,
+            ));
+        }
+        let errors = findings.iter().filter(|f| f.severity == lint::Severity::Error).count();
+        let warns = findings.iter().filter(|f| f.severity == lint::Severity::Warn).count();
+        out.push_str(&format!("\n{} error(s), {} warning(s)", errors, warns));
+        out
+    }
+
 }
 
 // ---- Unstable tool registration ----
