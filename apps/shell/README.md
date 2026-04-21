@@ -45,6 +45,4 @@ longer vendored into `public/`.
 
 ## Scope
 
-This app is a **proof of concept**, not a replacement for `apps/web`. If
-findings are accepted, a follow-up promotes this into
-`ship daemon --with-ui` and the standalone shell route.
+This app is the Ship daemon shell UI. The legacy TanStack Start app (`apps/web/`) has been retired.

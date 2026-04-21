@@ -58,7 +58,7 @@ fn exchange_code_for_token(code: &str, verifier: &str, port: u16) -> Result<Stri
         "redirect_uri": format!("http://127.0.0.1:{}/callback", port),
     });
 
-    let resp: String = ureq::post("https://getship.dev/api/auth/token")
+    let resp: String = ureq::post("https://api.getship.dev/api/auth/token")
         .header("Content-Type", "application/json")
         .send(body.to_string().as_bytes())
         .map_err(|e| anyhow::anyhow!("Token exchange failed: {}", e))?
@@ -91,7 +91,7 @@ pub fn run_login() -> Result<()> {
     let state = format!("{:x}", port as u64 ^ 0xdead_beef);
 
     let auth_url = format!(
-        "https://getship.dev/auth/cli\
+        "https://api.getship.dev/auth/cli\
         ?code_challenge={challenge}\
         &code_challenge_method=S256\
         &redirect_uri=http://127.0.0.1:{port}/callback\
@@ -155,7 +155,7 @@ pub fn run_login() -> Result<()> {
 /// Fetch the authenticated user's id and record it as the daemon owner in
 /// platform.db. The daemon checks this on every server-attest call.
 fn bind_daemon_owner(token: &str) -> Result<Option<String>> {
-    let mut resp = ureq::get("https://getship.dev/api/me")
+    let mut resp = ureq::get("https://api.getship.dev/api/me")
         .header("Authorization", &format!("Bearer {token}"))
         .call()
         .map_err(|e| anyhow::anyhow!("fetch user profile: {e}"))?;
@@ -358,9 +358,9 @@ fn print_local_identity() {
     }
 }
 
-/// Fetch /api/auth/me and return a display string.
+/// Fetch /api/me and return a display string.
 fn fetch_me(token: &str) -> Result<String> {
-    let mut resp = ureq::get("https://getship.dev/api/auth/me")
+    let mut resp = ureq::get("https://api.getship.dev/api/me")
         .header("Authorization", &format!("Bearer {}", token))
         .call()
         .map_err(|e| anyhow::anyhow!("API request failed: {}", e))?;

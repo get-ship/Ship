@@ -85,7 +85,7 @@ Always set explicit file scope in the job spec. The agent constrains capability
 (what the agent knows how to do). Scope constrains authority (what it's allowed to touch).
 
 ```
-Scope: apps/web/src/routes/, apps/web/src/lib/auth*
+Scope: apps/gateway/src/routes/, apps/gateway/src/lib/
 Off-limits: crates/, apps/mcp/, apps/ship-studio-cli/
 ```
 
