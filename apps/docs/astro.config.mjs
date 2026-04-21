@@ -2,9 +2,14 @@ import { defineConfig } from "astro/config";
 import starlight from "@astrojs/starlight";
 import markdoc from "@astrojs/markdoc";
 import starlightSidebarTopics from "starlight-sidebar-topics";
+import starlightOpenAPI, { openAPISidebarGroups } from "starlight-openapi";
 
-// The Internals topic is only visible when AUDIENCE=internal.
-const isInternal = process.env.AUDIENCE === "internal";
+// Internals visibility:
+//   - dev (pnpm dev): always on — contributors want access locally.
+//   - build: off unless AUDIENCE=internal is set explicitly (for building an
+//     internal variant of the site).
+// The command arg is threaded in via defineConfig's functional form at bottom
+// of this file. We compute isInternal there.
 
 // Directories that belong exclusively to the Internals topic.
 // In public builds they get no sidebar topic (we exclude them from topic
@@ -15,10 +20,12 @@ const INTERNALS_DIRS = [
   "reference/runtime",
   "reference/compiler",
   "reference/ship-stack",
+  "reference/http-api",
 ];
 
-// Build the topics array. Internals is conditionally included.
-const topics = [
+// Build the topics array. Internals is conditionally included via buildTopics(isInternal).
+function buildTopics(isInternal) {
+  const topics = [
   {
     label: "Guide",
     icon: "open-book",
@@ -143,6 +150,7 @@ const topics = [
   ...(isInternal
     ? [
         {
+          id: "internals",
           label: "Internals",
           icon: "setting",
           link: "/reference/architecture/",
@@ -167,20 +175,33 @@ const topics = [
               label: "Ship Stack",
               autogenerate: { directory: "reference/ship-stack" },
             },
+            // openAPISidebarGroups is a placeholder — starlight-openapi replaces
+            // it with the generated per-endpoint sidebar entries at build time.
+            ...openAPISidebarGroups,
           ],
         },
       ]
     : []),
-];
+  ];
+  return topics;
+}
 
 // In public builds, pages that live only under Internals are excluded from
 // topic resolution so they render without a topic bar (sidebar-free). Their
 // URLs continue to work — they just won't appear in any topic's navigation.
-const excludedPatterns = isInternal
-  ? []
-  : INTERNALS_DIRS.map((d) => `/${d}/**`).concat(
-      INTERNALS_DIRS.map((d) => `/${d}`)
-    );
+function buildExcludedPatterns(isInternal) {
+  return isInternal
+    ? []
+    : INTERNALS_DIRS.map((d) => `/${d}/**`).concat(
+        INTERNALS_DIRS.map((d) => `/${d}`)
+      );
+}
+
+// predev sets AUDIENCE=internal so dev runs internal mode automatically.
+// Public build omits AUDIENCE and hides Internals.
+const isInternal = process.env.AUDIENCE === 'internal';
+const topics = buildTopics(isInternal);
+const excludedPatterns = buildExcludedPatterns(isInternal);
 
 export default defineConfig({
   site: "https://docs.getship.dev",
@@ -202,43 +223,59 @@ export default defineConfig({
       },
       head: [
         {
+          tag: "link",
+          attrs: { rel: "icon", type: "image/svg+xml", href: "/favicon.svg" },
+        },
+        {
           tag: "script",
           attrs: { type: "module", src: "/ship-elements.js" },
         },
-        // Restore persisted theme before first paint to avoid flash.
-        // Must run before first paint — inline script, no src.
+        // Ship theme ownership.
+        //
+        // Starlight ships its own theme init that fights over `data-theme` and
+        // the `.dark` class. We take ownership: apply the stored ship theme
+        // before first paint, then defend against any external writes to
+        // either attribute via a MutationObserver.
         {
           tag: "script",
           content: `
             (function() {
               var KEY = 'ship-site-theme';
-              var VALID = ['ship-light','ship-dark','high-contrast','warm','gruvbox-dark','gruvbox-light','nord','solarized-dark'];
-              var DARK = ['ship-dark','high-contrast','gruvbox-dark','nord','solarized-dark'];
-              try {
-                var stored = localStorage.getItem(KEY);
-                if (stored && VALID.indexOf(stored) !== -1) {
-                  document.documentElement.dataset.theme = stored;
-                  if (DARK.indexOf(stored) !== -1) {
-                    document.documentElement.classList.add('dark');
-                  }
+              var VALID = {
+                'ship-light':1,'ship-dark':1,'high-contrast':1,'warm':1,
+                'gruvbox-dark':1,'gruvbox-light':1,'nord':1,'solarized-dark':1
+              };
+              var DARK = {
+                'ship-dark':1,'high-contrast':1,'gruvbox-dark':1,'nord':1,'solarized-dark':1
+              };
+              function apply(id) {
+                if (!VALID[id]) return false;
+                var root = document.documentElement;
+                if (root.dataset.theme !== id) root.dataset.theme = id;
+                root.classList.toggle('dark', !!DARK[id]);
+                return true;
+              }
+              function restore() {
+                try {
+                  var stored = localStorage.getItem(KEY);
+                  if (stored && VALID[stored]) return apply(stored);
+                } catch(e) {}
+                return false;
+              }
+              // Pre-paint restore.
+              restore();
+              // Defend data-theme + .dark against external writes.
+              new MutationObserver(function() {
+                var current = document.documentElement.dataset.theme;
+                if (!VALID[current]) { restore(); return; }
+                var expectedDark = !!DARK[current];
+                if (document.documentElement.classList.contains('dark') !== expectedDark) {
+                  document.documentElement.classList.toggle('dark', expectedDark);
                 }
-              } catch(e) {}
+              }).observe(document.documentElement, {
+                attributes: true, attributeFilter: ['data-theme', 'class']
+              });
             })();
-          `,
-        },
-        // Keep html.dark in sync whenever data-theme changes at runtime.
-        {
-          tag: "script",
-          content: `
-            var DARK_THEMES = ['ship-dark','high-contrast','gruvbox-dark','nord','solarized-dark'];
-            var sync = function() {
-              var t = document.documentElement.dataset.theme;
-              document.documentElement.classList.toggle('dark', DARK_THEMES.indexOf(t) !== -1);
-            };
-            sync();
-            new MutationObserver(sync).observe(document.documentElement, {
-              attributes: true, attributeFilter: ['data-theme']
-            });
           `,
         },
       ],
@@ -246,12 +283,35 @@ export default defineConfig({
         starlightSidebarTopics(topics, {
           // Map all /components/* Astro pages (not in content collection) to
           // the Components topic by ID.
+          // Map HTTP API pages (generated by starlight-openapi) to the internals topic.
           topics: {
             components: ["/components/**", "/components"],
+            ...(isInternal
+              ? {
+                  internals: [
+                    "/reference/http-api/**",
+                    "/reference/http-api",
+                  ],
+                }
+              : {}),
           },
           // In public builds, Internals-only pages render without a topic bar.
           exclude: excludedPatterns,
         }),
+        ...(isInternal
+          ? [
+              starlightOpenAPI([
+                {
+                  base: "reference/http-api",
+                  schema: "./openapi.json",
+                  sidebar: {
+                    label: "HTTP API",
+                    collapsed: false,
+                  },
+                },
+              ]),
+            ]
+          : []),
       ],
       // All URLs are preserved — no content was moved, only sidebar topology
       // changed. No redirects needed.

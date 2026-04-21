@@ -6,8 +6,9 @@
   "scripts": {
     "collect": "pnpm exec tsx scripts/collect-skill-docs.ts",
     "collect:watch": "AUDIENCE=internal pnpm exec tsx scripts/collect-skill-docs.ts --watch",
-    "dev": "AUDIENCE=internal pnpm exec tsx scripts/collect-skill-docs.ts --watch & astro dev --host; kill 0",
-    "prebuild": "pnpm run collect",
+    "dev": "env AUDIENCE=internal sh -c 'pnpm exec tsx scripts/collect-skill-docs.ts --watch & astro dev --host; kill 0'",
+    "openapi:generate": "cargo run -q --bin ship -- openapi export --pretty > openapi.json",
+    "prebuild": "pnpm run openapi:generate && AUDIENCE=internal pnpm run collect",
     "build": "astro build",
     "preview": "astro preview"
   },
@@ -18,6 +19,7 @@
     "@ship/ui": "workspace:*",
     "astro": "^6.1.1",
     "sharp": "^0.33.0",
+    "starlight-openapi": "^0.24.0",
     "starlight-sidebar-topics": "^0.7.1"
   },
   "devDependencies": {

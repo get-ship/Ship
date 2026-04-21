@@ -35,10 +35,11 @@ mod publish;
 mod ship_run;
 mod validate;
 mod vars;
+mod openapi;
 mod workspace_cmd;
 
 use anyhow::Result;
-use cli::{Cli, Commands, ConfigCommands, EventsCommands, HookCommands, McpCommands, WorkspaceCommands};
+use cli::{Cli, Commands, ConfigCommands, EventsCommands, HookCommands, McpCommands, OpenapiCommands, WorkspaceCommands};
 use std::path::PathBuf;
 
 /// Initialize the global KernelRouter for CLI commands that emit events.
@@ -202,7 +203,14 @@ fn dispatch(command: Option<Commands>) -> Result<()> {
                 Cli::command().print_help()?;
                 Ok(())
             }
+            Commands::Openapi { action } => dispatch_openapi(action),
         },
+    }
+}
+
+fn dispatch_openapi(action: OpenapiCommands) -> Result<()> {
+    match action {
+        OpenapiCommands::Export { pretty } => openapi::run(pretty),
     }
 }
 
