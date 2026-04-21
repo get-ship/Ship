@@ -37,13 +37,13 @@ const points = [
               <path d="M 320 110 C 380 110 380 60 440 60" stroke="url(#landing-pe)" stroke-width="1.5" fill="none" stroke-dasharray="4 3"></path>
               <path d="M 320 150 C 380 150 380 200 440 200" stroke="var(--plate-line)" stroke-width="1.5" fill="none" stroke-dasharray="4 3"></path>
             </svg>
-            <div class="pn done"  style="--x:0;--y:12.86%;"><div class="state"></div><div class="nm">cron · 07:00</div><div class="sub">trigger</div></div>
-            <div class="pn done"  style="--x:0;--y:45%;"><div class="state"></div><div class="nm">webhook · pr-merged</div><div class="sub">trigger</div></div>
-            <div class="pn done"  style="--x:0;--y:77.14%;"><div class="state"></div><div class="nm">file · inbox/*.md</div><div class="sub">trigger</div></div>
-            <div class="pn done"  style="--x:42.3%;--y:30.71%;"><div class="state"></div><div class="nm">gather</div><div class="sub">4 sources</div></div>
-            <div class="pn running" style="--x:42.3%;--y:45%;"><div class="state"></div><div class="nm">summarize</div><div class="sub">on Rust Lane</div></div>
-            <div class="pn queued min" style="--x:84.6%;--y:12.86%;"><div class="state"></div><div class="nm">publish</div><div class="sub">slack</div></div>
-            <div class="pn queued min" style="--x:84.6%;--y:62.86%;"><div class="state"></div><div class="nm">review</div><div class="sub">human gate</div></div>
+            <div class="pn done col-trig"  style="--y:21.43%;"><div class="state"></div><div class="nm">cron · 07:00</div><div class="sub">trigger</div></div>
+            <div class="pn done col-trig"  style="--y:53.57%;"><div class="state"></div><div class="nm">webhook · pr-merged</div><div class="sub">trigger</div></div>
+            <div class="pn done col-trig"  style="--y:85.71%;"><div class="state"></div><div class="nm">file · inbox/*.md</div><div class="sub">trigger</div></div>
+            <div class="pn done col-mid"   style="--y:39.29%;"><div class="state"></div><div class="nm">gather</div><div class="sub">4 sources</div></div>
+            <div class="pn running col-mid" style="--y:53.57%;"><div class="state"></div><div class="nm">summarize</div><div class="sub">on Rust Lane</div></div>
+            <div class="pn queued col-out" style="--y:21.43%;"><div class="state"></div><div class="nm">publish</div><div class="sub">slack</div></div>
+            <div class="pn queued col-out" style="--y:71.43%;"><div class="state"></div><div class="nm">review</div><div class="sub">human gate</div></div>
           </div>
         </div>
       </div>
@@ -108,7 +108,7 @@ const points = [
   }
   .pn {
     position: absolute;
-    left: var(--x); top: var(--y);
+    top: var(--y);
     transform: translateY(-50%);
     background: color-mix(in oklab, var(--plate) 92%, var(--page-bg));
     border: 1px solid var(--plate-line);
@@ -116,13 +116,21 @@ const points = [
     padding: 8px 10px;
     font-size: 11px; color: var(--plate-muted);
     font-family: 'JetBrains Mono', ui-monospace, monospace;
-    width: clamp(92px, 18%, 130px);
   }
-  .pn.min { width: clamp(64px, 12%, 86px); }
+  /* Columns anchor to the same x-coordinates the SVG edges start/end at
+   * (viewBox 520 wide: triggers 0→98, middle 220→320, outputs 440→520). */
+  /* Node widths are wider than the SVG column cells so trigger labels
+   * like "webhook · pr-merged" fit without truncation; the short segment
+   * of each edge path that starts inside a node sits harmlessly under
+   * the node background. */
+  .col-trig { left: 0;      width: 28%; }
+  .col-mid  { left: 42.3%;  width: 22%; }
+  .col-out  { left: 84.6%;  width: 15.38%; }
   .pn .nm {
     color: var(--plate-ink); font-weight: 600;
     font-family: var(--font-body); font-size: 12.5px;
     letter-spacing: -0.005em;
+    padding-right: 14px;
   }
   .pn .sub {
     font-size: 10px; color: var(--plate-sub);
