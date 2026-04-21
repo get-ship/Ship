@@ -1,6 +1,7 @@
 {
   // Example trigger: on job.failed, emit a follow-up event the daemon can log.
   // Remove or edit freely — this is a seed to show the shape.
+  "$schema": "https://raw.githubusercontent.com/madvib/ship/main/schemas/trigger.schema.json",
   "name": "log-failed-jobs",
   "description": "Emit a derived trigger.job_failed_notice when a job ends in failure.",
   "trigger": {

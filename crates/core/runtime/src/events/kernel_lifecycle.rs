@@ -13,10 +13,9 @@ impl KernelRouter {
     /// Handle actor crash: close mailbox, emit `actor.crashed` event, clean up
     /// subscriptions. The actor's event store is retained for debugging.
     pub fn handle_actor_crash(&mut self, actor_id: &str, reason: &str) -> Result<()> {
-        if self.mailboxes.remove(actor_id).is_none() {
+        if !self.inner.has_actor(actor_id) {
             return Err(anyhow!("actor '{}' not found", actor_id));
         }
-        self.actor_configs.remove(actor_id);
 
         #[cfg(feature = "unstable")]
         {
@@ -25,9 +24,8 @@ impl KernelRouter {
             self.actor_meta.remove(actor_id);
         }
 
-        for actor_ids in self.subscriptions.values_mut() {
-            actor_ids.retain(|id| id != actor_id);
-        }
+        // stop_actor removes the actor from inner's mailboxes and subscriptions.
+        let _ = self.inner.stop_actor(actor_id);
 
         let payload = serde_json::json!({
             "actor_id": actor_id,
@@ -46,14 +44,15 @@ impl KernelRouter {
     }
 
     pub fn snapshot(&self, actor_id: &str) -> Result<ActorSnapshot> {
-        if !self.mailboxes.contains_key(actor_id) {
+        if !self.inner.has_actor(actor_id) {
             return Err(anyhow!("actor '{}' not found", actor_id));
         }
-        let config = self
-            .actor_configs
-            .get(actor_id)
-            .ok_or_else(|| anyhow!("actor config missing for '{}'", actor_id))?
-            .clone();
+        let configs = self.inner.list_actors();
+        let config = configs
+            .iter()
+            .find(|(id, _)| id == actor_id)
+            .map(|(_, cfg)| cfg.clone())
+            .ok_or_else(|| anyhow!("actor config missing for '{}'", actor_id))?;
         let db_path = self.actor_db_path(actor_id);
         flush_wal(&db_path)?;
         let db_bytes = std::fs::read(&db_path)?;
@@ -95,7 +94,7 @@ impl KernelRouter {
     }
 
     pub fn restore(&mut self, snapshot: ActorSnapshot) -> Result<(ActorStore, Mailbox)> {
-        if self.mailboxes.contains_key(&snapshot.actor_id) {
+        if self.inner.has_actor(&snapshot.actor_id) {
             return Err(anyhow!("actor '{}' already exists", snapshot.actor_id));
         }
         let db_path = self.actor_db_path(&snapshot.actor_id);

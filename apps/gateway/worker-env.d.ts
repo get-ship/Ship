@@ -4,7 +4,27 @@ declare namespace Cloudflare {
   }
 }
 
+interface RateLimit {
+  limit(options: { key: string }): Promise<{ success: boolean }>
+}
+
 interface Env {
   PLATFORM: DurableObjectNamespace<import('../actors/platform/src/index').Platform>;
   WORKSPACE: DurableObjectNamespace<import('../actors/workspace/src/index').Workspace>;
+  AUTH_DB: D1Database;
+  REGISTRY_DB: D1Database;
+  RATE_LIMITER_PUBLISH: RateLimit;
+  RATE_LIMITER_CLAIM: RateLimit;
+  RATE_LIMITER_INSTALL: RateLimit;
+  RATE_LIMITER_SEARCH: RateLimit;
+  RATE_LIMITER_STAR: RateLimit;
+  GITHUB_CLIENT_ID: string;
+  GITHUB_CLIENT_SECRET: string;
+  GITHUB_WEBHOOK_SECRET: string;
+  JWT_SECRET: string;
+  SHIP_JWT_PRIVATE_KEY: string;
+  SHIP_JWT_PRIVATE_KEY_ID: string;
+  SHIP_JWT_PUBLIC_KEY: string;
+  SHIP_JWT_PUBLIC_JWKS: string;
+  BETTER_AUTH_SECRET: string;
 }

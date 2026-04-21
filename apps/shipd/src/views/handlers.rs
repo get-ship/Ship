@@ -52,7 +52,7 @@ fn build_view_context(view_name: &str, params: &HashMap<String, String>) -> serd
             }).collect();
             ctx["schema"] = serde_json::json!({ "id": first.id, "name": first.name, "fields": fields_list });
 
-            if let Ok(mut svc) = runtime::collections::store::open_docs_db(&ship_dir) {
+            if let Ok(mut svc) = runtime::collections::store::open_data_db(&ship_dir) {
                 let _ = runtime::collections::store::ensure_collection_table(&mut svc, first);
                 let req = runtime::collections::query::QueryRequest {
                     collection: first.id.clone(),

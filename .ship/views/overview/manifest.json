@@ -1,4 +1,5 @@
 {
+  "$schema": "https://raw.githubusercontent.com/madvib/ship/main/schemas/view-manifest.schema.json",
   "name": "overview",
   "type": "html",
   "description": "Canvas-based planning surface for the Ship `systems` collection. One node per system, drag to reposition, arrows for depends_on, click to edit.",

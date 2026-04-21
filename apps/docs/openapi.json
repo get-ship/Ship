@@ -1,0 +1,866 @@
+{
+  "openapi": "3.1.0",
+  "info": {
+    "title": "Ship Daemon API",
+    "description": "",
+    "license": {
+      "name": ""
+    },
+    "version": "0.3.0"
+  },
+  "servers": [
+    {
+      "url": "http://localhost:9315",
+      "description": "Local shipd daemon"
+    }
+  ],
+  "paths": {
+    "/api/actor/spawn": {
+      "post": {
+        "tags": [
+          "actor"
+        ],
+        "operationId": "actor_spawn",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/ActorSpawnReq"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/MeshResponse"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/capabilities": {
+      "get": {
+        "tags": [
+          "capabilities"
+        ],
+        "operationId": "capabilities",
+        "responses": {
+          "200": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/CapabilitiesResponse"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/events/route": {
+      "post": {
+        "tags": [
+          "actor"
+        ],
+        "operationId": "event_route",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/EventRouteReq"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/MeshResponse"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/mesh/broadcast": {
+      "post": {
+        "tags": [
+          "mesh"
+        ],
+        "operationId": "mesh_broadcast",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/MeshBroadcastReq"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/MeshResponse"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/mesh/discover": {
+      "get": {
+        "tags": [
+          "mesh"
+        ],
+        "operationId": "mesh_discover",
+        "responses": {
+          "200": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/MeshResponse"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/mesh/events/{agent_id}": {
+      "get": {
+        "tags": [
+          "mesh"
+        ],
+        "summary": "SSE endpoint — drains an agent's mailbox as server-sent events.\nThe agent must register first (which spawns the actor + stashes the mailbox).\nOnly one SSE connection per agent is supported (mailbox is taken, not cloned).",
+        "operationId": "mesh_events",
+        "parameters": [
+          {
+            "name": "agent_id",
+            "in": "path",
+            "description": "Agent ID",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "SSE stream of mesh events"
+          }
+        }
+      }
+    },
+    "/api/mesh/register": {
+      "post": {
+        "tags": [
+          "mesh"
+        ],
+        "operationId": "mesh_register",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/MeshRegisterReq"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/MeshResponse"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/mesh/send": {
+      "post": {
+        "tags": [
+          "mesh"
+        ],
+        "operationId": "mesh_send",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/MeshSendReq"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/MeshResponse"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/mesh/status": {
+      "post": {
+        "tags": [
+          "mesh"
+        ],
+        "operationId": "mesh_status_update",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/MeshStatusReq"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/MeshResponse"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/providers": {
+      "get": {
+        "tags": [
+          "settings"
+        ],
+        "operationId": "list_providers",
+        "responses": {
+          "200": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/MeshResponse"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/runtime/agents": {
+      "get": {
+        "tags": [
+          "runtime"
+        ],
+        "summary": "GET /api/runtime/agents",
+        "operationId": "list_agents",
+        "responses": {
+          "200": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/MeshResponse"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/runtime/events": {
+      "get": {
+        "tags": [
+          "runtime"
+        ],
+        "summary": "GET /api/runtime/events — SSE stream of all kernel events.",
+        "operationId": "event_stream",
+        "responses": {
+          "200": {
+            "description": "SSE stream of kernel events"
+          }
+        }
+      }
+    },
+    "/api/runtime/jobs": {
+      "get": {
+        "tags": [
+          "runtime"
+        ],
+        "summary": "GET /api/runtime/jobs",
+        "description": "Returns each `JobRecord` with two operator-visibility annotations:\n\n- `process_state`: `\"alive\"` when the latest process projection for the\n  slug is still Running, `\"missing\"` when the most recent supervisor\n  sweep flagged drift (no_process) without a coherence_restored after\n  it, `\"terminal\"` for jobs in a terminal status, `\"none\"` otherwise.\n- `notes`: optional truncated error / blocker for the row's NOTES column.",
+        "operationId": "list_jobs",
+        "responses": {
+          "200": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/MeshResponse"
+                }
+              }
+            }
+          }
+        }
+      },
+      "post": {
+        "tags": [
+          "runtime"
+        ],
+        "summary": "POST /api/runtime/jobs — emit job.created event through the kernel.",
+        "description": "The kernel persists the event and routes it to subscribers.\nThe job_dispatch service handles all heavy lifting (worktree creation,\ndependency resolution, agent spawning).",
+        "operationId": "create_job",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/CreateJobRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/MeshResponse"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/runtime/jobs/end": {
+      "post": {
+        "tags": [
+          "runtime"
+        ],
+        "summary": "POST /api/runtime/jobs/end — signal that a provider turn ended for a job.",
+        "description": "Called by the session Stop hook when an agent finishes a response turn.\nFor multi-step pipeline jobs, this sends a TurnEnded signal to the step\nmonitor (which accumulates evidence before deciding to advance).\nFor single-step jobs, emits job.completed directly.",
+        "operationId": "end_job",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/JobEndRequest"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/MeshResponse"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/runtime/rebuild-projections": {
+      "post": {
+        "tags": [
+          "runtime"
+        ],
+        "summary": "POST /api/runtime/rebuild-projections — rebuild all projections from events.",
+        "operationId": "rebuild_projections",
+        "responses": {
+          "200": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/MeshResponse"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/runtime/sessions": {
+      "get": {
+        "tags": [
+          "runtime"
+        ],
+        "summary": "GET /api/runtime/sessions[?workspace_id=<id>]",
+        "operationId": "list_sessions",
+        "parameters": [
+          {
+            "name": "workspace_id",
+            "in": "query",
+            "required": false,
+            "schema": {
+              "type": [
+                "string",
+                "null"
+              ]
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/MeshResponse"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/runtime/workspaces": {
+      "get": {
+        "tags": [
+          "runtime"
+        ],
+        "summary": "GET /api/runtime/workspaces",
+        "description": "Returns only active workspaces. Archived/dead workspaces are excluded\nfrom the API surface — the reconciler handles cleanup internally.",
+        "operationId": "list_workspaces",
+        "responses": {
+          "200": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/MeshResponse"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/settings": {
+      "get": {
+        "tags": [
+          "settings"
+        ],
+        "operationId": "list_settings",
+        "responses": {
+          "200": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/MeshResponse"
+                }
+              }
+            }
+          }
+        }
+      },
+      "put": {
+        "tags": [
+          "settings"
+        ],
+        "operationId": "update_setting",
+        "requestBody": {
+          "content": {
+            "application/json": {
+              "schema": {
+                "$ref": "#/components/schemas/SettingsUpdateReq"
+              }
+            }
+          },
+          "required": true
+        },
+        "responses": {
+          "200": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/MeshResponse"
+                }
+              }
+            }
+          }
+        }
+      }
+    },
+    "/api/settings/{key}": {
+      "get": {
+        "tags": [
+          "settings"
+        ],
+        "operationId": "get_setting",
+        "parameters": [
+          {
+            "name": "key",
+            "in": "path",
+            "description": "Setting key (e.g. defaults.provider)",
+            "required": true,
+            "schema": {
+              "type": "string"
+            }
+          }
+        ],
+        "responses": {
+          "200": {
+            "description": "",
+            "content": {
+              "application/json": {
+                "schema": {
+                  "$ref": "#/components/schemas/MeshResponse"
+                }
+              }
+            }
+          }
+        }
+      }
+    }
+  },
+  "components": {
+    "schemas": {
+      "ActorSpawnReq": {
+        "type": "object",
+        "required": [
+          "actor_id",
+          "config"
+        ],
+        "properties": {
+          "actor_id": {
+            "type": "string"
+          },
+          "capabilities": {
+            "type": [
+              "array",
+              "null"
+            ],
+            "items": {
+              "type": "string"
+            },
+            "description": "Optional mesh capabilities for auto-registration."
+          },
+          "config": {
+            "type": "object"
+          }
+        }
+      },
+      "CapabilitiesResponse": {
+        "type": "object",
+        "required": [
+          "authenticated",
+          "mode",
+          "tier",
+          "features"
+        ],
+        "properties": {
+          "authenticated": {
+            "type": "boolean"
+          },
+          "features": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
+          },
+          "mode": {
+            "type": "string"
+          },
+          "tier": {
+            "type": "string"
+          }
+        }
+      },
+      "CheckoutHookReq": {
+        "type": "object",
+        "required": [
+          "branch",
+          "path"
+        ],
+        "properties": {
+          "branch": {
+            "type": "string"
+          },
+          "path": {
+            "type": "string"
+          }
+        }
+      },
+      "CreateJobRequest": {
+        "type": "object",
+        "required": [
+          "slug",
+          "agent",
+          "branch",
+          "spec_path"
+        ],
+        "properties": {
+          "agent": {
+            "type": "string"
+          },
+          "branch": {
+            "type": "string"
+          },
+          "depends_on": {
+            "type": [
+              "array",
+              "null"
+            ],
+            "items": {
+              "type": "string"
+            }
+          },
+          "headless": {
+            "type": "boolean",
+            "description": "When true, force the headless (ProcessExecutor) path. When false or\nabsent, the default TmuxWindowExecutor (tmux-window) path is used."
+          },
+          "pipeline": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "provider": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "slug": {
+            "type": "string"
+          },
+          "source_spec_path": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "description": "Operator-facing path to the spec file (absolute when resolvable).\nPlumbed into the JobRecord so `ship jobs` can distinguish which\nspec each job was dispatched from. Distinct from `spec_path`\n(daemon-side worktree destination). Optional: `--spec-text`\ndispatches and legacy callers send `None`."
+          },
+          "spec_content": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "description": "Inline spec content. Travels in the JobCreated event; the worktree\nadapter writes it to `spec_path` at dispatch time."
+          },
+          "spec_path": {
+            "type": "string"
+          },
+          "vars": {
+            "type": [
+              "object",
+              "null"
+            ],
+            "description": "Pipeline variables for `{{ var }}` interpolation in step fields.\nMerged over pipeline-file defaults; CLI `--var` flags land here.",
+            "additionalProperties": {
+              "type": "string"
+            },
+            "propertyNames": {
+              "type": "string"
+            }
+          }
+        }
+      },
+      "EventRouteReq": {
+        "type": "object",
+        "required": [
+          "envelope"
+        ],
+        "properties": {
+          "envelope": {
+            "type": "object"
+          },
+          "session_id": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "workspace_id": {
+            "type": [
+              "string",
+              "null"
+            ]
+          }
+        }
+      },
+      "JobEndRequest": {
+        "type": "object",
+        "required": [
+          "slug"
+        ],
+        "properties": {
+          "slug": {
+            "type": "string"
+          }
+        }
+      },
+      "MeshBroadcastReq": {
+        "type": "object",
+        "required": [
+          "from",
+          "body"
+        ],
+        "properties": {
+          "body": {},
+          "capability_filter": {
+            "type": [
+              "string",
+              "null"
+            ]
+          },
+          "from": {
+            "type": "string"
+          }
+        }
+      },
+      "MeshRegisterReq": {
+        "type": "object",
+        "required": [
+          "agent_id",
+          "capabilities"
+        ],
+        "properties": {
+          "agent_id": {
+            "type": "string"
+          },
+          "capabilities": {
+            "type": "array",
+            "items": {
+              "type": "string"
+            }
+          }
+        }
+      },
+      "MeshResponse": {
+        "type": "object",
+        "required": [
+          "ok",
+          "data"
+        ],
+        "properties": {
+          "data": {},
+          "ok": {
+            "type": "boolean"
+          }
+        }
+      },
+      "MeshSendReq": {
+        "type": "object",
+        "required": [
+          "from",
+          "to",
+          "body"
+        ],
+        "properties": {
+          "body": {},
+          "from": {
+            "type": "string"
+          },
+          "to": {
+            "type": "string"
+          }
+        }
+      },
+      "MeshStatusReq": {
+        "type": "object",
+        "required": [
+          "agent_id",
+          "status"
+        ],
+        "properties": {
+          "agent_id": {
+            "type": "string"
+          },
+          "status": {
+            "type": "string"
+          }
+        }
+      },
+      "ProviderStatus": {
+        "type": "object",
+        "required": [
+          "id",
+          "available",
+          "binary"
+        ],
+        "properties": {
+          "available": {
+            "type": "boolean"
+          },
+          "binary": {
+            "type": "string"
+          },
+          "id": {
+            "type": "string"
+          },
+          "version": {
+            "type": [
+              "string",
+              "null"
+            ]
+          }
+        }
+      },
+      "SettingsUpdateReq": {
+        "type": "object",
+        "required": [
+          "key",
+          "value"
+        ],
+        "properties": {
+          "key": {
+            "type": "string"
+          },
+          "value": {}
+        }
+      }
+    },
+    "securitySchemes": {
+      "bearer_token": {
+        "type": "http",
+        "scheme": "bearer",
+        "bearerFormat": "opaque",
+        "description": "Daemon bearer token — found in ~/.ship/daemon.token after `ship daemon start`."
+      }
+    }
+  }
+}

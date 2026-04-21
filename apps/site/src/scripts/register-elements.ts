@@ -13,24 +13,25 @@
 type Loader = () => Promise<unknown>;
 
 const coreLoaders: Loader[] = [
-  () => import('@ship/set/web-components/core/ship-button'),
-  () => import('@ship/set/web-components/core/ship-card'),
-  () => import('@ship/set/web-components/core/ship-popover'),
-  () => import('@ship/set/web-components/core/ship-badge'),
-  () => import('@ship/set/web-components/core/ship-status-dot'),
-  () => import('@ship/set/web-components/core/ship-separator'),
-  () => import('@ship/set/web-components/core/ship-toolbar'),
-  () => import('@ship/set/web-components/core/ship-alert'),
+  () => import('@ship/ui/web-components/ship-button'),
+  () => import('@ship/ui/web-components/ship-card'),
+  () => import('@ship/ui/web-components/ship-mark'),
+  () => import('@ship/ui/web-components/ship-popover'),
+  () => import('@ship/ui/web-components/ship-badge'),
+  () => import('@ship/ui/web-components/ship-status-dot'),
+  () => import('@ship/ui/web-components/ship-separator'),
+  () => import('@ship/ui/web-components/ship-toolbar'),
+  () => import('@ship/ui/web-components/ship-alert'),
 ];
 
 // Auth dialog + its deps load on first user interaction with an auth
 // trigger (or immediately on dedicated /sign-in /sign-up routes).
 // Not eager because they're below the fold / opt-in.
 const authLoaders: Loader[] = [
-  () => import('@ship/set/web-components/core/ship-input'),
-  () => import('@ship/set/web-components/core/ship-tabs'),
-  () => import('@ship/set/web-components/core/ship-dialog'),
-  () => import('@ship/set/web-components/domain/ship-auth-dialog'),
+  () => import('@ship/ui/web-components/ship-input'),
+  () => import('@ship/ui/web-components/ship-tabs'),
+  () => import('@ship/ui/web-components/ship-dialog'),
+  () => import('@ship/ui/web-components/domain/ship-auth-dialog'),
 ];
 
 const loadAll = (loaders: Loader[]) => Promise.all(loaders.map((l) => l()));

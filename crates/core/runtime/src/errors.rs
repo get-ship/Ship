@@ -18,6 +18,29 @@ pub enum KernelError {
     Persistence(#[from] anyhow::Error),
 }
 
+impl From<ship_kernel::KernelError> for KernelError {
+    fn from(e: ship_kernel::KernelError) -> Self {
+        match e {
+            ship_kernel::KernelError::ActorNotFound { actor_id } => {
+                KernelError::ActorNotFound { actor_id }
+            }
+            ship_kernel::KernelError::ActorAlreadyExists { actor_id } => {
+                KernelError::ActorAlreadyExists { actor_id }
+            }
+            ship_kernel::KernelError::NamespaceViolation { namespace, actor_id } => {
+                KernelError::NamespaceViolation { namespace, actor_id }
+            }
+            ship_kernel::KernelError::MailboxFull { actor_id } => {
+                KernelError::MailboxFull { actor_id }
+            }
+            ship_kernel::KernelError::ValidationFailed { reason } => {
+                KernelError::Persistence(anyhow::anyhow!("validation failed: {reason}"))
+            }
+            ship_kernel::KernelError::Persistence(e) => KernelError::Persistence(e),
+        }
+    }
+}
+
 #[derive(Debug, Error)]
 pub enum WorkspaceError {
     #[error("Workspace not found for branch '{branch}'")]

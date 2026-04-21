@@ -5,9 +5,10 @@
   "type": "module",
   "scripts": {
     "collect": "pnpm exec tsx scripts/collect-skill-docs.ts",
-    "predev": "pnpm run collect",
-    "dev": "astro dev",
-    "prebuild": "pnpm run collect",
+    "collect:watch": "AUDIENCE=internal pnpm exec tsx scripts/collect-skill-docs.ts --watch",
+    "dev": "env AUDIENCE=internal sh -c 'pnpm exec tsx scripts/collect-skill-docs.ts --watch & astro dev --host; kill 0'",
+    "openapi:generate": "cargo run -q --bin ship -- openapi export --pretty > openapi.json",
+    "prebuild": "pnpm run openapi:generate && AUDIENCE=internal pnpm run collect",
     "build": "astro build",
     "preview": "astro preview"
   },
@@ -15,8 +16,11 @@
     "@astrojs/starlight": "^0.38.2",
     "@fontsource-variable/dm-sans": "^5.2.8",
     "@fontsource-variable/syne": "^5.2.7",
+    "@ship/ui": "workspace:*",
     "astro": "^6.1.1",
-    "sharp": "^0.33.0"
+    "sharp": "^0.33.0",
+    "starlight-openapi": "^0.24.0",
+    "starlight-sidebar-topics": "^0.7.1"
   },
   "devDependencies": {
     "@astrojs/markdoc": "^1.0.3",

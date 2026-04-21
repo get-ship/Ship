@@ -1,0 +1,156 @@
+---
+import StarlightPage from '@astrojs/starlight/components/StarlightPage.astro';
+
+---
+
+<StarlightPage
+  frontmatter={{ title: 'Installing', description: 'Install @ship/ui into any Vite / Astro / plain-HTML app.' }}
+>
+  <p class="in-sub">
+    <code>@ship/ui</code> is available as an npm package. Install it
+    into any Vite / Astro / plain-HTML app, import the elements bundle
+    once, use them anywhere.
+  </p>
+
+  <section class="in-section">
+    <h2 class="in-h2">1 · Install</h2>
+    <div class="in-code">
+      <pre><code>pnpm add @ship/ui</code></pre>
+      <button type="button" class="in-copy" data-copy="pnpm add @ship/ui">Copy</button>
+    </div>
+    <p class="in-note">
+      Works with npm, yarn, bun, and any package manager that reads
+      <code>package.json</code>.
+    </p>
+  </section>
+
+  <section class="in-section">
+    <h2 class="in-h2">2 · Import once</h2>
+    <div class="in-code">
+<pre><code>import '@ship/ui/elements'
+import '@ship/ui/tokens.css'
+import '@ship/ui/themes.css'</code></pre>
+      <button type="button" class="in-copy" data-copy={`import '@ship/ui/elements'\nimport '@ship/ui/tokens.css'\nimport '@ship/ui/themes.css'`}>Copy</button>
+    </div>
+    <p class="in-note">
+      The elements module registers every <code>&lt;ship-*&gt;</code>
+      tag via side-effect. Tokens and themes are plain CSS files —
+      drop them into your global stylesheet.
+    </p>
+  </section>
+
+  <section class="in-section">
+    <h2 class="in-h2">3 · Use</h2>
+    <div class="in-code">
+<pre><code>{`<ship-card variant="outline" padding="lg">
+  <strong slot="header">Hello</strong>
+  Any framework, any template engine, any file format that renders HTML.
+</ship-card>`}</code></pre>
+      <button type="button" class="in-copy" data-copy={`<ship-card variant="outline" padding="lg">\n  <strong slot="header">Hello</strong>\n  Any framework, any template engine, any file format that renders HTML.\n</ship-card>`}>Copy</button>
+    </div>
+    <div class="in-preview">
+      <ship-card variant="outline" padding="lg">
+        <strong slot="header" style="font-weight:700;font-size:16px;">Hello</strong>
+        Any framework, any template engine, any file format that renders HTML.
+      </ship-card>
+    </div>
+  </section>
+
+  <section class="in-section">
+    <h2 class="in-h2">Applying a theme</h2>
+    <p class="in-note">
+      Themes are opt-in via <code>data-theme</code> on <code>&lt;html&gt;</code>.
+      Pair with the <code>.dark</code> class for inherently-dark themes
+      so shadow/elevation tokens flip too.
+    </p>
+    <div class="in-code">
+<pre><code>{`import { applyTheme, persistTheme } from '@ship/ui/themes'
+
+applyTheme('gruvbox-dark')   // sets data-theme + .dark on <html>
+persistTheme('gruvbox-dark') // localStorage for next load`}</code></pre>
+      <button type="button" class="in-copy" data-copy={`import { applyTheme, persistTheme } from '@ship/ui/themes'\n\napplyTheme('gruvbox-dark')\npersistTheme('gruvbox-dark')`}>Copy</button>
+    </div>
+  </section>
+</StarlightPage>
+
+<script>
+  for (const btn of document.querySelectorAll<HTMLElement>('[data-copy]')) {
+    btn.addEventListener('click', async (ev) => {
+      ev.preventDefault();
+      try {
+        await navigator.clipboard.writeText(btn.getAttribute('data-copy') ?? '');
+        const prev = btn.textContent;
+        btn.textContent = 'Copied';
+        setTimeout(() => { btn.textContent = prev; }, 1200);
+      } catch {}
+    });
+  }
+</script>
+
+<style>
+  .in-sub {
+    color: var(--sl-color-gray-2);
+    max-width: 60ch;
+    margin-bottom: 8px;
+  }
+  .in-sub code,
+  .in-note code {
+    font-family: var(--sl-font-mono, monospace);
+    font-size: 12px;
+    padding: 1px 5px;
+    border-radius: 4px;
+    background: color-mix(in oklch, var(--sl-color-gray-5) 40%, transparent);
+    color: var(--sl-color-white);
+  }
+
+  .in-section { padding: 18px 0; display: flex; flex-direction: column; gap: 12px; }
+  .in-h2 {
+    font-size: 18px;
+    letter-spacing: -0.01em;
+    border: none;
+    margin: 0;
+    padding: 0;
+  }
+  .in-note { color: var(--sl-color-gray-2); font-size: 13.5px; max-width: 62ch; margin: 0; }
+
+  .in-code {
+    position: relative;
+    border: 1px solid var(--sl-color-gray-5);
+    border-radius: 10px;
+    background: color-mix(in oklch, var(--sl-color-gray-6) 50%, transparent);
+    overflow: hidden;
+  }
+  .in-code pre {
+    margin: 0;
+    padding: 14px 16px 16px;
+    font-family: var(--sl-font-mono, monospace);
+    font-size: 13px;
+    line-height: 1.6;
+    overflow: auto;
+    color: var(--sl-color-white);
+    tab-size: 2;
+  }
+  .in-copy {
+    position: absolute;
+    top: 10px; right: 10px;
+    padding: 3px 9px;
+    font: inherit;
+    font-size: 11px;
+    font-weight: 600;
+    border-radius: 4px;
+    border: 1px solid var(--sl-color-gray-5);
+    background: var(--sl-color-black);
+    color: var(--sl-color-white);
+    cursor: pointer;
+  }
+  .in-copy:hover { border-color: var(--sl-color-accent); color: var(--sl-color-accent); }
+
+  .in-preview {
+    display: grid;
+    place-items: center;
+    padding: 24px;
+    border: 1px solid var(--sl-color-gray-5);
+    border-radius: 10px;
+    background: var(--sl-color-black);
+  }
+</style>

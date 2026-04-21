@@ -26,3 +26,5 @@ pub use loader::{LoadError, LoadReport, load_triggers_dir};
 
 #[cfg(test)]
 mod tests;
+#[cfg(test)]
+mod schema_tests;

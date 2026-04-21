@@ -22,7 +22,7 @@ pub fn ship_items(collection: String) -> Vec<Value> {
         Some(s) => s,
         None => return vec![],
     };
-    let mut svc = match runtime::collections::store::open_docs_db(&ship_dir) {
+    let mut svc = match runtime::collections::store::open_data_db(&ship_dir) {
         Ok(s) => s,
         Err(_) => return vec![],
     };
@@ -74,7 +74,7 @@ pub fn ship_query(collection: String, opts: Option<Value>) -> Vec<Value> {
         Some(s) => s,
         None => return vec![],
     };
-    let mut svc = match runtime::collections::store::open_docs_db(&ship_dir) {
+    let mut svc = match runtime::collections::store::open_data_db(&ship_dir) {
         Ok(s) => s,
         Err(_) => return vec![],
     };

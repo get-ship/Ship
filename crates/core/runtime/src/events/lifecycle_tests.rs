@@ -135,9 +135,13 @@ fn crash_payload_contains_reason() {
 }
 
 // ── Mailbox overflow in stable path ─────────────────────────────────────────
+//
+// Since route() is delivery-only (deprecated best-effort path), overflow silently
+// drops the event and returns Ok. The event is not delivered but no error is
+// propagated — backpressure is a separate concern (see job/kernel-backpressure-01).
 
 #[tokio::test(flavor = "multi_thread", worker_threads = 2)]
-async fn stable_path_mailbox_full_returns_error() {
+async fn stable_path_mailbox_full_drops_silently() {
     let (_tmp, mut router) = setup();
     let (_store, _mb) = router.spawn_actor("studio", ActorConfig {
         namespace: "studio".into(),
@@ -157,8 +161,8 @@ async fn stable_path_mailbox_full_returns_error() {
         router.route(event, &runtime_ctx()).await.unwrap();
     }
 
-    // Next event should fail.
+    // Overflow event: route() returns Ok (delivery-only, best-effort — drop on full).
     let overflow = ev("studio.overflow");
     let result = router.route(overflow, &runtime_ctx()).await;
-    assert!(result.is_err(), "must return error when mailbox is full");
+    assert!(result.is_ok(), "route() must not error on mailbox full (best-effort delivery)");
 }

@@ -5,7 +5,20 @@ set -euo pipefail
 
 # ── Defaults ──────────────────────────────────────────────────────────────────
 SHIP_GLOBAL_DIR="${SHIP_GLOBAL_DIR:-$HOME/.ship}"
-WORKTREE_BASE="${SHIP_WORKTREE_DIR:-${HOME}/dev/ship-worktrees}"
+
+# Resolve worktree base. Precedence: --dir flag > SHIP_WORKTREE_DIR env >
+# `ship config get worktrees.dir` > legacy HOME default.
+resolve_worktree_base() {
+  if [[ -n "${SHIP_WORKTREE_DIR:-}" ]]; then echo "$SHIP_WORKTREE_DIR"; return; fi
+  local cfg=""
+  if command -v ship &>/dev/null; then
+    cfg="$(ship config get worktrees.dir 2>/dev/null | tail -n1 | tr -d '[:space:]')"
+  fi
+  if [[ -n "$cfg" && "$cfg" != "(unset)" ]]; then echo "$cfg"; return; fi
+  echo "${HOME}/dev/ship-worktrees"
+}
+WORKTREE_BASE="$(resolve_worktree_base)"
+WORKTREE_BASE="${WORKTREE_BASE/#\~/$HOME}"
 BASE_BRANCH=""
 NO_OPEN=false
 DRY_RUN=false

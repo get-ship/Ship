@@ -54,7 +54,7 @@ impl KernelRouter {
         permissions.validate()?;
 
         let label = &identity.label;
-        if self.mailboxes.contains_key(label) {
+        if self.inner.has_actor(label) {
             return Err(anyhow!("actor '{}' already exists", label));
         }
 
@@ -62,17 +62,26 @@ impl KernelRouter {
 
         let db_path = self.actor_db_path(label);
 
+        // Build an mpsc channel manually so we can replay into it before returning.
         let (tx, rx) = mpsc::channel(MAILBOX_CAPACITY);
-        self.mailboxes.insert(label.to_string(), tx.clone());
+
+        // Build the ActorConfig from permissions for inner registration.
+        let config = ship_types::ActorConfig {
+            namespace: label.to_string(),
+            write_namespaces: permissions.emit.clone(),
+            read_namespaces: subs_to_namespaces(&permissions.subscribe),
+            subscribe_namespaces: subs_to_namespaces(&permissions.subscribe),
+        };
+
+        // Register with inner for subscription state and actor config lookup.
+        // inner.spawn_actor() creates its own channel — we discard that Mailbox
+        // and use our own channel (tx/rx) so cursor-based replay can inject
+        // events before returning. deliver_with_scope() uses unstable_senders
+        // for actual delivery to these actors, not inner's mailboxes.
+        let _ = self.inner.spawn_actor(label, config.clone())
+            .map_err(|e| anyhow!("{e}"))?;
 
         let subs = permissions.subscribe.clone();
-        for sub in &subs {
-            self.subscriptions
-                .entry(sub.namespace.clone())
-                .or_default()
-                .push(label.to_string());
-        }
-
         self.actor_meta.insert(
             label.to_string(),
             ActorMeta {
@@ -95,6 +104,9 @@ impl KernelRouter {
                 let _ = tx.try_send(ev.clone());
             }
         }
+
+        // Stash the sender so deliver_with_scope can reach this actor's mailbox.
+        self.unstable_senders.insert(label.to_string(), tx);
 
         let store = ActorStore::new(
             label,
@@ -174,13 +186,18 @@ impl KernelRouter {
 
     /// Deliver event to matching subscribers respecting scope and directed delivery.
     ///
-    /// Returns `Err` if any actor's mailbox was full. The event is still
-    /// delivered to all actors that have capacity — only the full ones miss it.
+    /// Returns `Err` if any permissions-based actor's mailbox was full. Actors
+    /// spawned via `spawn_actor()` (legacy path) silently drop on full — only
+    /// actors with `actor_meta` (spawned via `spawn_actor_with_permissions*`)
+    /// trigger error propagation and `actor.mailbox_full` events.
     pub(crate) async fn deliver_with_scope(&self, event: &EventEnvelope) -> Result<()> {
         let mut full_actors: Vec<String> = Vec::new();
 
         if let Some(ref target) = event.target_actor_id {
-            if let Some(tx) = self.mailboxes.get(target)
+            // Try unstable senders first, then fall back to inner's channel.
+            let tx_opt = self.unstable_senders.get(target)
+                .or_else(|| self.inner.mailbox_sender(target));
+            if let Some(tx) = tx_opt
                 && self.should_deliver(event, target)
             {
                 match tx.try_send(event.clone()) {
@@ -192,7 +209,16 @@ impl KernelRouter {
                         );
                     }
                     Err(mpsc::error::TrySendError::Full(_)) => {
-                        full_actors.push(target.clone());
+                        // Only propagate full errors for permissions-based actors.
+                        if self.actor_meta.contains_key(target) {
+                            full_actors.push(target.clone());
+                        } else {
+                            tracing::warn!(
+                                actor_id = target,
+                                event_type = %event.event_type,
+                                "kernel-router: mailbox full, event dropped"
+                            );
+                        }
                     }
                     Err(mpsc::error::TrySendError::Closed(_)) => {
                         tracing::warn!(
@@ -214,12 +240,15 @@ impl KernelRouter {
             return Ok(());
         }
 
-        for (ns, actor_ids) in &self.subscriptions {
+        for (ns, actor_ids) in self.inner.subscriptions() {
             if event.event_type.starts_with(ns.as_str()) {
                 for actor_id in actor_ids {
-                    if self.should_deliver(event, actor_id)
-                        && let Some(tx) = self.mailboxes.get(actor_id)
-                    {
+                    if !self.should_deliver(event, actor_id) {
+                        continue;
+                    }
+                    let tx_opt = self.unstable_senders.get(actor_id)
+                        .or_else(|| self.inner.mailbox_sender(actor_id));
+                    if let Some(tx) = tx_opt {
                         match tx.try_send(event.clone()) {
                             Ok(()) => {
                                 tracing::debug!(
@@ -229,7 +258,16 @@ impl KernelRouter {
                                 );
                             }
                             Err(mpsc::error::TrySendError::Full(_)) => {
-                                full_actors.push(actor_id.clone());
+                                // Only propagate full errors for permissions-based actors.
+                                if self.actor_meta.contains_key(actor_id) {
+                                    full_actors.push(actor_id.clone());
+                                } else {
+                                    tracing::warn!(
+                                        actor_id,
+                                        event_type = %event.event_type,
+                                        "kernel-router: mailbox full, event dropped"
+                                    );
+                                }
                             }
                             Err(mpsc::error::TrySendError::Closed(_)) => {
                                 tracing::warn!(

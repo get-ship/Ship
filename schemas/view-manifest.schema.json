@@ -1,0 +1,62 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://raw.githubusercontent.com/madvib/ship/main/schemas/view-manifest.schema.json",
+  "title": "Ship View Manifest",
+  "description": "Schema for .ship/views/<name>/manifest.json — declares a Ship HTML view's identity, data sources, and event subscriptions.",
+  "type": "object",
+  "required": ["name", "type", "description"],
+  "additionalProperties": false,
+  "properties": {
+    "$schema": {
+      "type": "string",
+      "description": "JSON Schema reference. Set to this schema's $id for editor validation."
+    },
+    "name": {
+      "type": "string",
+      "minLength": 1,
+      "pattern": "^[a-z0-9][a-z0-9-_]*$",
+      "description": "View identifier. Must match the directory name under .ship/views/."
+    },
+    "type": {
+      "type": "string",
+      "enum": ["html"],
+      "description": "View rendering type. Only 'html' is supported today."
+    },
+    "description": {
+      "type": "string",
+      "minLength": 1,
+      "description": "Human-readable description of the view's purpose. Shown in Studio listings."
+    },
+    "title": {
+      "type": "string",
+      "description": "Page title override. Defaults to the view name when absent."
+    },
+    "icon": {
+      "type": "string",
+      "description": "Optional icon hint for Studio navigation. Free-form string."
+    },
+    "data": {
+      "type": "object",
+      "description": "Data sources the view requires at render time.",
+      "additionalProperties": false,
+      "properties": {
+        "collections": {
+          "type": "array",
+          "items": {
+            "type": "string",
+            "minLength": 1
+          },
+          "description": "Collection IDs whose items are injected into the view template context."
+        }
+      }
+    },
+    "events": {
+      "type": "array",
+      "items": {
+        "type": "string",
+        "minLength": 1
+      },
+      "description": "Event types the view subscribes to. Matching events trigger SSE re-renders. Examples: 'collection.item_created', 'workspace.started'."
+    }
+  }
+}

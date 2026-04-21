@@ -3,6 +3,27 @@
 //! An actor's full state is its event store. This module provides a struct
 //! that captures the SQLite DB bytes (post WAL-checkpoint) plus the config
 //! needed to respawn the actor on any host.
+//!
+//! ## STALE SEMANTICS — read before using
+//!
+//! This module was designed when each actor had its own SQLite file at
+//! `~/.ship/actors/{id}/events.db`. That architecture is gone. All actor
+//! events now live in the shared `events` table in `platform.db` with an
+//! `actor_id` column for logical isolation (see `persistence::actor_store`).
+//!
+//! Under shared-log architecture, `db_bytes` no longer has an obvious
+//! meaning — there is no per-actor DB file to checkpoint. `event_stats`
+//! correctly filters by `actor_id`, but the snapshot/restore round-trip is
+//! not exercised in production and may not work as the docstrings below
+//! describe.
+//!
+//! Before depending on `ActorSnapshot`:
+//!
+//!   1. Decide whether snapshots should now be event-slice exports
+//!      (rows from `events WHERE actor_id = ?`) or be removed entirely.
+//!   2. Update callers and this module consistently.
+//!
+//! Do not expand this module's surface in the meantime.
 
 use std::path::Path;
 

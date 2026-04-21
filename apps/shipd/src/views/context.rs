@@ -113,7 +113,7 @@ fn load_collections(
         "fields": fields_list,
     });
 
-    if let Ok(mut svc) = runtime::collections::store::open_docs_db(ship_dir) {
+    if let Ok(mut svc) = runtime::collections::store::open_data_db(ship_dir) {
         let _ = runtime::collections::store::ensure_collection_table(&mut svc, first);
         let req = runtime::collections::query::QueryRequest {
             collection: first.id.clone(),

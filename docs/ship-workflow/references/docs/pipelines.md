@@ -1,3 +1,9 @@
+---
+audience: agent-only
+---
+
+Moved to [ship-pipelines](../../ship-pipelines/references/docs/) as part of the pipelines-split. This file is retained only so inbound file-path links don't 404; it does not render on the site.
+
 # Pipelines
 
 Pipelines define how a job executes — a DAG of steps that the runtime walks automatically. When a step completes, the engine finds unblocked steps and dispatches them.

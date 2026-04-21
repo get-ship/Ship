@@ -1,0 +1,72 @@
+---
+const clusters = [
+  { num: '01', href: '#cluster-agents', title: 'Agents', joiner: '+', right: 'Skills', desc: 'Universal agent config. Skills drop in as folders.' },
+  { num: '02', href: '#cluster-logic', title: 'Pipelines', joiner: '+', right: 'Triggers', desc: 'DAGs that react to anything — cron, webhook, file, message.' },
+  { num: '03', href: '#cluster-data', title: 'Artifacts', joiner: '+', right: 'Collections', desc: 'Files you produce. Structured data you shape.' },
+  { num: '04', href: '#cluster-views', title: 'Views', joiner: '', right: '', desc: '80+ web components and a reactive SDK wired to every runtime signal.' },
+];
+---
+
+<section class="axes-strip" id="features">
+  <div class="container">
+    <div class="cluster-grid">
+      {clusters.map((c) => (
+        <a class="cluster" href={c.href}>
+          <span class="cluster-num">{c.num}</span>
+          <span class="cluster-title">
+            {c.title}
+            {c.joiner && <i> {c.joiner} </i>}
+            {c.right}
+          </span>
+          <span class="cluster-desc">{c.desc}</span>
+        </a>
+      ))}
+    </div>
+  </div>
+</section>
+
+<style>
+  .axes-strip {
+    padding: 28px 0 64px;
+    border-top: 1px solid var(--rail);
+    background: color-mix(in oklab, var(--plate) 35%, transparent);
+  }
+  .cluster-grid {
+    display: grid;
+    grid-template-columns: 1fr 1fr 1fr 1.35fr;
+    gap: 16px;
+  }
+  @media (max-width: 1060px) { .cluster-grid { grid-template-columns: 1fr 1fr; } }
+  @media (max-width: 640px) { .cluster-grid { grid-template-columns: 1fr; } }
+  .cluster {
+    display: flex; flex-direction: column; gap: 10px;
+    padding: 24px 22px; border-radius: 16px;
+    background: var(--plate);
+    border: 1px solid var(--plate-border);
+    text-decoration: none; min-height: 160px;
+    position: relative;
+    transition: transform 200ms var(--ease-out), border-color 200ms;
+  }
+  .cluster:hover {
+    transform: translateY(-2px);
+    border-color: color-mix(in oklab, var(--primary) 45%, var(--plate-border));
+  }
+  .cluster-num {
+    font-family: 'JetBrains Mono', ui-monospace, monospace;
+    font-size: 10.5px; color: var(--subtle-ink);
+    letter-spacing: 0.16em;
+  }
+  .cluster-title {
+    font-family: var(--font-display); font-weight: 600;
+    font-size: 22px; color: var(--page-fg);
+    letter-spacing: -0.02em; line-height: 1.05;
+  }
+  .cluster-title i {
+    font-style: normal; color: var(--primary);
+    font-weight: 400; margin: 0 2px;
+  }
+  .cluster-desc {
+    font-size: 13px; line-height: 1.5;
+    color: var(--muted-ink); margin-top: auto;
+  }
+</style>

@@ -61,6 +61,15 @@ impl DataService {
                 "collections: migrated legacy platform rows into data.db"
             );
         }
+        let prune = crate::collections::migration::prune_legacy_source_rows(self, &platform_path)?;
+        if !prune.already_pruned && !prune.skipped_not_migrated {
+            tracing::info!(
+                notes = prune.notes_deleted,
+                adrs = prune.adrs_deleted,
+                specs = prune.specs_deleted,
+                "collections: pruned legacy source rows from platform.db"
+            );
+        }
         Ok(())
     }
 

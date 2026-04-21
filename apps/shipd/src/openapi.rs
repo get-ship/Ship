@@ -1,10 +1,41 @@
 //! OpenAPI spec generation for the Ship daemon REST API.
 
-use utoipa::OpenApi;
+use utoipa::openapi::security::{HttpAuthScheme, HttpBuilder, SecurityScheme};
+use utoipa::openapi::ServerBuilder;
+use utoipa::{Modify, OpenApi};
+
+/// Adds the bearer security scheme and localhost server to the generated spec.
+struct SecurityAndServer;
+
+impl Modify for SecurityAndServer {
+    fn modify(&self, openapi: &mut utoipa::openapi::OpenApi) {
+        if let Some(components) = openapi.components.as_mut() {
+            components.add_security_scheme(
+                "bearer_token",
+                SecurityScheme::Http(
+                    HttpBuilder::new()
+                        .scheme(HttpAuthScheme::Bearer)
+                        .bearer_format("opaque")
+                        .description(Some(
+                            "Daemon bearer token — found in ~/.ship/daemon.token after `ship daemon start`.",
+                        ))
+                        .build(),
+                ),
+            );
+        }
+        openapi.servers = Some(vec![
+            ServerBuilder::new()
+                .url("http://localhost:9315")
+                .description(Some("Local shipd daemon"))
+                .build(),
+        ]);
+    }
+}
 
 #[derive(OpenApi)]
 #[openapi(
     info(title = "Ship Daemon API", version = "0.3.0"),
+    modifiers(&SecurityAndServer),
     paths(
         crate::rest_api::mesh_register,
         crate::rest_api::mesh_send,
@@ -45,3 +76,18 @@ use utoipa::OpenApi;
     ))
 )]
 pub struct ApiDoc;
+
+/// Generate the OpenAPI spec as a JSON string.
+///
+/// `pretty` controls indented vs compact output. Errors are returned as
+/// `anyhow::Error` so callers don't need to import utoipa.
+pub fn to_json(pretty: bool) -> anyhow::Result<String> {
+    use utoipa::OpenApi as _;
+    let spec = ApiDoc::openapi();
+    let json = if pretty {
+        spec.to_pretty_json()?
+    } else {
+        spec.to_json()?
+    };
+    Ok(json)
+}

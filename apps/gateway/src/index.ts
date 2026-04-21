@@ -1,30 +1,50 @@
 import { Hono } from 'hono';
 import { cors } from 'hono/cors';
-import { authMiddleware } from './middleware/auth.js';
 import { errorHandler } from './middleware/on-error.js';
 import { syncRoutes, workspaceRoutes, jobRoutes } from './routes/index.js';
+import { authRoutes } from './routes/auth.js';
+import { githubRoutes } from './routes/github.js';
+import { registryRoutes } from './routes/registry.js';
 
-const app = new Hono<{
-  Bindings: Env;
-  Variables: { projectId: string };
-}>()
+const CORS_ORIGINS = ['http://localhost:3000', 'https://staging.getship.dev', 'https://getship.dev'];
+
+const app = new Hono<{ Bindings: Env; Variables: { projectId: string } }>()
   .onError(errorHandler)
   .use(
     '/api/*',
     cors({
-      origin: ['http://localhost:3000', 'https://staging.getship.dev', 'https://getship.dev'],
+      origin: CORS_ORIGINS,
       allowHeaders: ['Content-Type', 'Authorization', 'x-project-id'],
       allowMethods: ['GET', 'POST', 'PUT', 'DELETE', 'PATCH', 'OPTIONS'],
       credentials: true,
     }),
   )
-  .use('/api/*', authMiddleware)
+  // Platform routes (workspace/job proxy to Durable Objects — require x-project-id)
+  .use('/api/sync/*', async (c, next) => {
+    const projectId = c.req.header('x-project-id');
+    if (!projectId) return c.json({ error: 'Missing x-project-id header' }, 400);
+    c.set('projectId', projectId);
+    return next();
+  })
+  .use('/api/workspaces/*', async (c, next) => {
+    const projectId = c.req.header('x-project-id');
+    if (!projectId) return c.json({ error: 'Missing x-project-id header' }, 400);
+    c.set('projectId', projectId);
+    return next();
+  })
+  .use('/api/jobs/*', async (c, next) => {
+    const projectId = c.req.header('x-project-id');
+    if (!projectId) return c.json({ error: 'Missing x-project-id header' }, 400);
+    c.set('projectId', projectId);
+    return next();
+  })
   .route('/api/sync', syncRoutes)
   .route('/api/workspaces', workspaceRoutes)
   .route('/api/jobs', jobRoutes)
-  .get('/health', (c) => {
-    return c.json({ status: 'ok', timestamp: new Date().toISOString() });
-  });
+  // Auth, GitHub, registry routes (no x-project-id middleware)
+  .route('/', authRoutes)
+  .route('/', githubRoutes)
+  .route('/', registryRoutes);
 
 export default app;
 

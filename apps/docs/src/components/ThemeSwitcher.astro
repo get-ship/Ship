@@ -1,0 +1,163 @@
+---
+// Theme picker shared with the marketing site pattern — swatch cards
+// in a popover. Drives off @ship/set/themes metadata.
+import { THEMES } from '@ship/set/themes';
+
+const groups = Array.from(new Set(THEMES.map((t) => t.group)));
+---
+
+<ship-popover placement="bottom-end" class="set-theme-popover" data-theme-picker>
+  <ship-button
+    slot="trigger"
+    variant="outline"
+    size="sm"
+    class="set-theme-trigger"
+    aria-haspopup="menu"
+    aria-label="Choose theme"
+  >
+    <span class="set-theme-dot" aria-hidden="true"></span>
+    <span class="set-theme-label" data-theme-label>SHIP Light</span>
+    <svg width="10" height="6" viewBox="0 0 10 6" aria-hidden="true">
+      <path d="M1 1l4 4 4-4" fill="none" stroke="currentColor" stroke-width="1.5" stroke-linecap="round" stroke-linejoin="round" />
+    </svg>
+  </ship-button>
+
+  <div class="set-theme-grid" role="listbox">
+    {groups.map((g) => (
+      <section aria-label={g} class="set-theme-group">
+        <header class="set-theme-group-head">{g}</header>
+        <div class="set-theme-cards">
+          {THEMES.filter((t) => t.group === g).map((t) => (
+            <button
+              type="button"
+              class="set-theme-card"
+              role="option"
+              data-theme-card={t.id}
+              aria-label={t.label}
+              style={`
+                --sw-bg: ${t.swatches[0]};
+                --sw-card: ${t.swatches[1]};
+                --sw-primary: ${t.swatches[2]};
+                --sw-accent: ${t.swatches[3]};
+              `}
+            >
+              <div class="set-theme-swatches">
+                <span style={`background:${t.swatches[0]}`}></span>
+                <span style={`background:${t.swatches[1]}`}></span>
+                <span style={`background:${t.swatches[2]}`}></span>
+                <span style={`background:${t.swatches[3]}`}></span>
+              </div>
+              <div class="set-theme-card-name">{t.label}</div>
+            </button>
+          ))}
+        </div>
+      </section>
+    ))}
+  </div>
+</ship-popover>
+
+<script>
+  import {
+    THEMES,
+    applyTheme,
+    persistTheme,
+    readStoredTheme,
+    isValidTheme,
+  } from '@ship/set/themes';
+
+  const pickers = document.querySelectorAll<HTMLElement>('[data-theme-picker]');
+  for (const picker of pickers) {
+    const cards = picker.querySelectorAll<HTMLButtonElement>('[data-theme-card]');
+    const label = picker.querySelector<HTMLElement>('[data-theme-label]');
+    const dot = picker.querySelector<HTMLElement>('.set-theme-dot');
+
+    const paint = (id: string) => {
+      const t = THEMES.find((x) => x.id === id);
+      if (!t) return;
+      if (label) label.textContent = t.label;
+      if (dot) dot.style.background = t.swatches[2];
+      for (const c of cards) {
+        c.setAttribute('aria-selected', c.dataset.themeCard === id ? 'true' : 'false');
+      }
+    };
+
+    paint(readStoredTheme());
+
+    for (const card of cards) {
+      card.addEventListener('click', () => {
+        const id = card.dataset.themeCard;
+        if (!isValidTheme(id)) return;
+        const next = applyTheme(id);
+        persistTheme(next);
+        paint(next);
+        (picker as any).hide?.();
+      });
+    }
+  }
+</script>
+
+<style>
+  .set-theme-popover { display: inline-flex; }
+
+  .set-theme-trigger { --btn-gap: 6px; min-width: 0; }
+  .set-theme-dot {
+    width: 10px; height: 10px; border-radius: 999px;
+    background: var(--primary);
+    box-shadow: 0 0 0 1px color-mix(in oklch, var(--foreground) 15%, transparent);
+    flex: 0 0 auto;
+  }
+  .set-theme-label {
+    font-weight: 500;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    max-width: 10ch;
+  }
+  /* Hide the label on narrow headers — dot + caret is enough. */
+  @media (max-width: 52rem) {
+    .set-theme-label { display: none; }
+  }
+
+  .set-theme-grid {
+    display: flex; flex-direction: column; gap: 10px;
+    padding: 4px;
+    width: min(320px, calc(100vw - 2rem));
+    max-height: calc(100vh - 6rem);
+    overflow-y: auto;
+  }
+  .set-theme-group-head {
+    font-size: 10px; font-weight: 600;
+    letter-spacing: 0.1em; text-transform: uppercase;
+    color: var(--muted-foreground);
+    padding: 0 6px; margin-bottom: 6px;
+  }
+  .set-theme-cards {
+    display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 6px;
+  }
+  .set-theme-card {
+    appearance: none; background: var(--sw-bg);
+    border: 2px solid transparent;
+    border-radius: var(--radius-md);
+    padding: 6px;
+    cursor: pointer; text-align: left; font: inherit;
+    display: flex; flex-direction: column; gap: 6px;
+    transition: border-color var(--duration-fast) var(--ease-out);
+  }
+  .set-theme-card:hover {
+    border-color: color-mix(in oklch, var(--sw-primary) 55%, transparent);
+  }
+  .set-theme-card[aria-selected='true'] {
+    border-color: var(--sw-primary);
+    box-shadow: 0 0 0 3px color-mix(in oklch, var(--sw-primary) 20%, transparent);
+  }
+  .set-theme-swatches {
+    display: flex; gap: 3px; height: 18px;
+    border-radius: var(--radius-sm); overflow: hidden;
+    border: 1px solid color-mix(in oklch, var(--sw-primary) 30%, transparent);
+  }
+  .set-theme-swatches > span { flex: 1; display: block; }
+  .set-theme-card-name {
+    font-size: 11px; font-weight: 600;
+    color: color-mix(in oklch, var(--sw-primary) 20%, var(--sw-accent));
+  }
+</style>

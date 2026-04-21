@@ -7,7 +7,7 @@ mod tests {
     use crate::collections::schema::{self, CollectionSchema};
     use crate::collections::store::{
         self, create_item, delete_item, ensure_collection_table, get_item,
-        open_docs_db, query_items, update_item,
+        open_data_db, query_items, update_item,
     };
     use serde_json::json;
     use std::collections::BTreeMap;
@@ -30,7 +30,7 @@ mod tests {
         let tmp = tempfile::tempdir().unwrap();
         let ship_dir = tmp.path().join(".ship");
         std::fs::create_dir_all(&ship_dir).unwrap();
-        let mut svc = open_docs_db(&ship_dir).unwrap();
+        let mut svc = open_data_db(&ship_dir).unwrap();
         let schema = task_schema();
         ensure_collection_table(&mut svc, &schema).unwrap();
         (svc, schema, tmp)
@@ -352,7 +352,7 @@ mod tests {
         let tmp = tempfile::tempdir().unwrap();
         let ship_dir = tmp.path().join(".ship");
         std::fs::create_dir_all(&ship_dir).unwrap();
-        let mut svc = open_docs_db(&ship_dir).unwrap();
+        let mut svc = open_data_db(&ship_dir).unwrap();
 
         let tasks = schema::parse_schema(r#"{
             "id": "task",
