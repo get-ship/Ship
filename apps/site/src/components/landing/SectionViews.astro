@@ -1,0 +1,159 @@
+---
+const checkIcon = `<svg width="14" height="14" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.5"><path d="M20 6L9 17l-5-5"></path></svg>`;
+const points = [
+  { title: '80+ web components, built-in', body: 'Stats, sparklines, tables, chat streams, DAG views, artifact viewers, inbox lists, form builders. Compose them like Lego — or extend them, since they\'re real standards-based components.' },
+  { title: 'Reactive SDK, wired to the runtime', body: 'Subscribe to any agent, any run, any collection row, any artifact. No polling, no manual state sync. Write a view; it lives.' },
+  { title: 'Themeable to the bone', body: 'Every component respects the active theme. Pick from ship\'s palette, bring your own, or let users pick theirs. The UI follows.' },
+  { title: 'Hot reload, always', body: 'Save the file, the view updates. No build step. The whole thing was designed to be enjoyable to sit in.' },
+];
+---
+
+<section class="section stage" id="cluster-views">
+  <div class="bg" aria-hidden="true">
+    <div class="bg-grid"></div>
+    <div class="bg-blob b1" style="top: -10%; left: 40%; width: 500px; height: 500px; opacity: 0.35;"></div>
+  </div>
+  <div class="container">
+    <div class="section-head">
+      <div class="section-kicker">04 · Views</div>
+      <h1 class="section-title">A reactive UI framework,<br><em>wired to everything.</em></h1>
+      <p class="section-sub">Ship ships with <b>80+ custom web components</b> and a <b>reactive SDK</b> with live access to every runtime signal — agents, pipelines, triggers, collections, artifacts. Build a dashboard, a chat UI, an inbox, a control panel. It updates itself.</p>
+    </div>
+
+    <div class="views-stack">
+      <div class="view-preview">
+        <div class="vp-head">
+          <span class="vp-chrome-dot r"></span>
+          <span class="vp-chrome-dot y"></span>
+          <span class="vp-chrome-dot g"></span>
+          <div class="url">today · dashboard</div>
+          <span class="vp-live-top">● live</span>
+        </div>
+        <div class="body">
+          <div class="vp-card">
+            <div class="vp-card-head">
+              <div class="vp-title">Today</div>
+              <div class="vp-live">live · reactive</div>
+            </div>
+            <div class="vp-kpis">
+              <div class="vp-kpi"><div class="lbl">RUNS / WK</div><div class="val">128<span class="dlt">+12</span></div></div>
+              <div class="vp-kpi"><div class="lbl">ON BUDGET</div><div class="val">94%<span class="dlt">+3</span></div></div>
+              <div class="vp-kpi"><div class="lbl">AGENTS</div><div class="val">8<span class="dlt dim">3 idle</span></div></div>
+            </div>
+            <div class="vp-chart">
+              <div class="vp-chart-head"><b>Last 7 days</b><span>runs</span></div>
+              <svg viewBox="0 0 300 70" preserveAspectRatio="none">
+                <defs><linearGradient id="landing-vpArea" x1="0" y1="0" x2="0" y2="1"><stop offset="0" stop-color="var(--primary)" stop-opacity="0.35"></stop><stop offset="1" stop-color="var(--primary)" stop-opacity="0"></stop></linearGradient></defs>
+                <path fill="url(#landing-vpArea)" d="M0 46 L40 40 L75 44 L115 22 L155 28 L195 16 L240 18 L300 8 L300 70 L0 70 Z"></path>
+                <path fill="none" stroke="var(--primary)" stroke-width="2" stroke-linecap="round" d="M0 46 L40 40 L75 44 L115 22 L155 28 L195 16 L240 18 L300 8"></path>
+              </svg>
+            </div>
+            <div class="vp-row"><span class="vp-status done">DONE</span><span class="vp-name">weekly-digest</span><span class="vp-meta">1m 42s</span></div>
+            <div class="vp-row"><span class="vp-status done">DONE</span><span class="vp-name">pr-review</span><span class="vp-meta">48s</span></div>
+            <div class="vp-row"><span class="vp-status">RUN</span><span class="vp-name">inbox-triage</span><span class="vp-meta">live</span></div>
+          </div>
+        </div>
+      </div>
+
+      <div>
+        <div class="feature-points">
+          {points.map((p) => (
+            <div class="fp-row">
+              <div class="tick" set:html={checkIcon}></div>
+              <div>
+                <h4>{p.title}</h4>
+                <p>{p.body}</p>
+              </div>
+            </div>
+          ))}
+        </div>
+      </div>
+    </div>
+  </div>
+</section>
+
+<style>
+  .views-stack {
+    display: grid;
+    grid-template-columns: minmax(0, 1.15fr) minmax(0, 1fr);
+    gap: 56px; align-items: start;
+    position: relative; z-index: 1;
+  }
+  @media (max-width: 1060px) { .views-stack { grid-template-columns: 1fr; } }
+
+  .view-preview {
+    background: var(--plate);
+    border: 1px solid var(--plate-border);
+    border-radius: 16px;
+    box-shadow: var(--shadow-plate);
+    overflow: hidden;
+  }
+  .vp-head {
+    padding: 10px 14px;
+    border-bottom: 1px solid var(--plate-line);
+    display: flex; align-items: center; gap: 8px;
+    font-family: 'JetBrains Mono', ui-monospace, monospace;
+    font-size: 11px; color: var(--plate-sub);
+  }
+  .vp-chrome-dot { width: 8px; height: 8px; border-radius: 50%; display: inline-block; }
+  .vp-chrome-dot.r { background: var(--status-red); }
+  .vp-chrome-dot.y { background: var(--status-yellow); }
+  .vp-chrome-dot.g { background: var(--status-green); }
+  .url {
+    background: var(--chip-bg); border-radius: 6px;
+    padding: 3px 8px; color: var(--plate-ink);
+    flex: 1; font-size: 10.5px;
+  }
+  .vp-live-top { color: var(--primary); }
+  .body { padding: 22px; display: grid; gap: 14px; }
+  .vp-card {
+    border: 1px solid var(--plate-line);
+    border-radius: 12px; padding: 16px;
+    background: color-mix(in oklab, var(--plate) 92%, var(--page-bg));
+    display: grid; gap: 10px;
+  }
+  .vp-card-head { display: flex; justify-content: space-between; align-items: baseline; }
+  .vp-title {
+    font-family: var(--font-display);
+    font-size: 22px; font-weight: 600;
+    letter-spacing: -0.02em; color: var(--plate-ink);
+  }
+  .vp-live {
+    font-family: 'JetBrains Mono', ui-monospace, monospace;
+    font-size: 10px; padding: 3px 8px; border-radius: 999px;
+    background: color-mix(in oklab, var(--primary) 15%, transparent);
+    color: var(--primary);
+    letter-spacing: 0.08em; text-transform: uppercase;
+  }
+  .vp-kpis { display: grid; grid-template-columns: 1fr 1fr 1fr; gap: 12px; }
+  .vp-kpi { border: 1px solid var(--plate-line); border-radius: 12px; padding: 12px; background: color-mix(in oklab, var(--plate) 92%, var(--page-bg)); }
+  .vp-kpi .lbl { font-family: 'JetBrains Mono', ui-monospace, monospace; font-size: 10px; letter-spacing: 0.12em; text-transform: uppercase; color: var(--plate-sub); }
+  .vp-kpi .val { display: flex; align-items: baseline; gap: 6px; margin-top: 6px; font-family: var(--font-display); font-weight: 600; font-size: 24px; color: var(--plate-ink); letter-spacing: -0.02em; }
+  .vp-kpi .dlt { font-family: 'JetBrains Mono', ui-monospace, monospace; font-size: 10.5px; color: var(--success); }
+  .vp-kpi .dlt.dim { color: var(--plate-sub); }
+
+  .vp-chart { border: 1px solid var(--plate-line); border-radius: 12px; padding: 14px; background: color-mix(in oklab, var(--plate) 92%, var(--page-bg)); display: grid; grid-template-rows: auto 1fr; gap: 10px; min-height: 120px; }
+  .vp-chart-head { display: flex; justify-content: space-between; font-size: 11.5px; color: var(--plate-sub); font-family: 'JetBrains Mono', ui-monospace, monospace; }
+  .vp-chart-head b { color: var(--plate-ink); font-weight: 600; font-family: var(--font-body); font-size: 12.5px; }
+  .vp-chart svg { width: 100%; height: 100%; }
+
+  .vp-row {
+    display: grid; grid-template-columns: 80px 1fr auto;
+    gap: 12px; align-items: center;
+    padding: 10px; border-radius: 8px;
+    background: var(--chip-bg); font-size: 12.5px;
+  }
+  .vp-status {
+    font-family: 'JetBrains Mono', ui-monospace, monospace;
+    font-size: 10px; letter-spacing: 0.1em;
+    padding: 3px 8px; border-radius: 999px;
+    background: color-mix(in oklab, var(--primary) 15%, transparent);
+    color: var(--primary); text-align: center;
+  }
+  .vp-status.done {
+    background: color-mix(in oklab, var(--success) 15%, transparent);
+    color: var(--success);
+  }
+  .vp-name { font-weight: 600; color: var(--plate-ink); }
+  .vp-meta { font-family: 'JetBrains Mono', ui-monospace, monospace; font-size: 10.5px; color: var(--plate-sub); }
+</style>

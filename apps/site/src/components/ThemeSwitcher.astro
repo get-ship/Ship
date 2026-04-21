@@ -105,9 +105,19 @@ const groups = Array.from(new Set(THEMES.map((t) => t.group)));
         const next = applyTheme(id);
         persistTheme(next);
         setActive(next);
+        document.dispatchEvent(
+          new CustomEvent('ship-theme-change', { detail: { id: next } }),
+        );
         (picker as any).hide?.();
       });
     }
+
+    // Sync when another control on the page (landing vibe chip, `t`
+    // keypress, tweaks panel) changes the theme.
+    document.addEventListener('ship-theme-change', (e) => {
+      const id = (e as CustomEvent<{ id: string }>).detail?.id;
+      if (isValidTheme(id)) setActive(id);
+    });
   }
 </script>
 

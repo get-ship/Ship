@@ -1,0 +1,150 @@
+---
+import HeroPlate from './HeroPlate.astro';
+---
+
+<section class="stage hero">
+  <div class="bg" aria-hidden="true">
+    <div class="bg-grid"></div>
+    <div class="bg-blob b1"></div>
+    <div class="bg-blob b2"></div>
+    <div class="bg-noise"></div>
+  </div>
+
+  <div class="container hero-grid">
+    <div>
+      <span class="eyebrow"><span class="eyebrow-dot"></span>Public beta</span>
+      <h1 class="display" id="landing-headline"></h1>
+      <p class="sub" id="landing-sub"></p>
+      <div class="ctas">
+        <ship-button size="lg">
+          <a href="#download" class="cta-inner">
+            Download SHIP
+            <svg class="caret" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2"><path d="M5 12h14M13 6l6 6-6 6"></path></svg>
+          </a>
+        </ship-button>
+        <ship-button size="lg" variant="outline">
+          <a href="#demo" class="cta-inner">
+            <svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor"><polygon points="5 3 19 12 5 21 5 3"></polygon></svg>
+            Watch the 30s demo
+            <span class="kbd">D</span>
+          </a>
+        </ship-button>
+      </div>
+      <div class="workswith">
+        <div class="workswith-label">Works with</div>
+        <div class="workswith-list">
+          <span><i class="glyph glyph-claude"></i>Claude</span>
+          <span><i class="glyph glyph-codex"></i>Codex</span>
+          <span><i class="glyph glyph-gemini"></i>Gemini</span>
+          <span><i class="glyph glyph-cursor"></i>Cursor</span>
+          <span><i class="glyph glyph-opencode"></i>OpenCode</span>
+        </div>
+      </div>
+    </div>
+
+    <HeroPlate />
+  </div>
+</section>
+
+<style>
+  .hero { padding: 40px 0 100px; }
+  .hero-grid {
+    display: grid;
+    grid-template-columns: minmax(0, 1.05fr) minmax(0, 1fr);
+    gap: 72px;
+    align-items: center;
+    position: relative;
+    z-index: 1;
+  }
+  @media (max-width: 1060px) {
+    .hero-grid { grid-template-columns: 1fr; gap: 48px; }
+  }
+
+  .eyebrow {
+    display: inline-flex; align-items: center; gap: 8px;
+    padding: 6px 12px 6px 10px;
+    background: color-mix(in oklab, var(--accent) 14%, transparent);
+    color: var(--accent);
+    border: 1px solid color-mix(in oklab, var(--accent) 25%, transparent);
+    border-radius: 999px;
+    font-family: 'JetBrains Mono', ui-monospace, monospace;
+    font-size: 11px; font-weight: 600;
+    letter-spacing: 0.12em; text-transform: uppercase;
+  }
+  .eyebrow-dot {
+    width: 6px; height: 6px; border-radius: 50%;
+    background: var(--accent);
+    animation: landing-pulse 2.2s ease-in-out infinite;
+  }
+
+  h1.display {
+    font-family: var(--font-display); font-weight: 700;
+    font-size: clamp(56px, 8.5vw, 136px);
+    line-height: 0.88; letter-spacing: -0.035em;
+    margin: 24px 0 0; color: var(--page-fg);
+  }
+  h1.display :global(.verb) { font-style: italic; font-weight: 500; }
+  h1.display :global(.any) {
+    background: linear-gradient(100deg, var(--primary) 0%, var(--accent) 80%);
+    -webkit-background-clip: text; background-clip: text;
+    color: transparent; padding-right: 0.04em;
+  }
+  h1.display :global(.period) {
+    color: var(--primary); display: inline-block;
+    transform: translateY(-0.02em);
+  }
+
+  .sub {
+    font-size: 18px; line-height: 1.55; color: var(--muted-ink);
+    max-width: 540px; margin: 28px 0 0;
+    letter-spacing: -0.005em;
+  }
+  .sub :global(b) { color: var(--page-fg); font-weight: 600; }
+
+  .workswith { margin-top: 56px; display: flex; align-items: center; gap: 28px; flex-wrap: wrap; }
+  .workswith-label {
+    font-family: 'JetBrains Mono', ui-monospace, monospace;
+    font-size: 10.5px; letter-spacing: 0.18em; text-transform: uppercase;
+    color: var(--subtle-ink);
+    display: flex; align-items: center; gap: 10px;
+  }
+  .workswith-label::after { content: ""; width: 24px; height: 1px; background: var(--rail); }
+  .workswith-list {
+    display: flex; gap: 22px; align-items: center;
+    font-family: var(--font-display); font-weight: 600; font-size: 15px;
+    color: var(--muted-ink); flex-wrap: wrap;
+  }
+  .workswith-list span {
+    display: inline-flex; align-items: center; gap: 8px;
+    transition: color 150ms;
+  }
+  .workswith-list span:hover { color: var(--page-fg); }
+  .workswith-list .glyph { width: 14px; height: 14px; display: inline-block; }
+  .glyph-claude {
+    background: conic-gradient(from 0deg, var(--status-orange), var(--status-red));
+    border-radius: 50%;
+  }
+  .glyph-codex {
+    background: var(--foreground);
+    border-radius: 3px;
+  }
+  .glyph-gemini {
+    background: conic-gradient(from 90deg, var(--status-blue), var(--status-green));
+    border-radius: 50%;
+  }
+  .glyph-cursor {
+    background: var(--foreground);
+    border-radius: 4px;
+  }
+  .glyph-opencode {
+    background: linear-gradient(135deg, var(--accent), var(--status-blue));
+    border-radius: 3px;
+  }
+
+  .cta-inner {
+    color: inherit; text-decoration: none;
+    display: inline-flex; align-items: center; gap: 10px;
+  }
+  .cta-inner .caret { transition: transform 180ms var(--ease-out); }
+  ship-button:hover .cta-inner .caret { transform: translateX(3px); }
+</style>
