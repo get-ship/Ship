@@ -1,0 +1,156 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://raw.githubusercontent.com/madvib/ship/main/schemas/trigger.schema.json",
+  "title": "Ship Trigger",
+  "description": "Schema for .ship/hooks/*.jsonc — a reactive trigger that subscribes to an event and runs actions. (Directory is currently named 'hooks'; rename to 'triggers' is planned.)",
+  "type": "object",
+  "required": ["name", "trigger", "actions"],
+  "additionalProperties": false,
+  "properties": {
+    "$schema": {
+      "type": "string",
+      "description": "JSON Schema reference. Set to this schema's $id for editor validation."
+    },
+    "name": {
+      "type": "string",
+      "minLength": 1,
+      "description": "Unique trigger identifier within the project."
+    },
+    "description": {
+      "type": "string",
+      "description": "Human-readable description of what this trigger does."
+    },
+    "trigger": {
+      "type": "object",
+      "required": ["event"],
+      "additionalProperties": false,
+      "description": "The event subscription this trigger listens on.",
+      "properties": {
+        "event": {
+          "type": "string",
+          "minLength": 1,
+          "description": "Event type to match. Any registered event type string (e.g. 'job.failed', 'collection.item_created')."
+        },
+        "filter": {
+          "description": "Optional dot-path filter on the event payload. Trigger runs only when the filter evaluates to a truthy value."
+        }
+      }
+    },
+    "actions": {
+      "type": "array",
+      "description": "Ordered list of actions to run when the trigger fires.",
+      "items": {
+        "type": "object",
+        "required": ["type"],
+        "properties": {
+          "when": {
+            "type": "string",
+            "description": "Jinja expression. Action is skipped when this evaluates to falsy."
+          }
+        },
+        "oneOf": [
+          {
+            "title": "collection.insert",
+            "description": "Insert a new item into a collection.",
+            "required": ["type", "collection"],
+            "additionalProperties": false,
+            "properties": {
+              "type": {
+                "type": "string",
+                "const": "collection.insert"
+              },
+              "when": {
+                "type": "string"
+              },
+              "collection": {
+                "type": "string",
+                "minLength": 1,
+                "description": "Collection ID to insert into."
+              },
+              "data": {
+                "description": "Item data to insert. May use Jinja template expressions."
+              },
+              "template_file": {
+                "type": "string",
+                "description": "Path relative to .ship/ of a Jinja template that renders the item data JSON."
+              }
+            }
+          },
+          {
+            "title": "collection.update",
+            "description": "Update items in a collection that match a filter.",
+            "required": ["type", "collection", "filter", "data"],
+            "additionalProperties": false,
+            "properties": {
+              "type": {
+                "type": "string",
+                "const": "collection.update"
+              },
+              "when": {
+                "type": "string"
+              },
+              "collection": {
+                "type": "string",
+                "minLength": 1,
+                "description": "Collection ID to update."
+              },
+              "filter": {
+                "type": "object",
+                "description": "Filter object to select items to update."
+              },
+              "data": {
+                "description": "Partial item data to merge. May use Jinja template expressions."
+              }
+            }
+          },
+          {
+            "title": "event.emit",
+            "description": "Emit a derived event through the kernel.",
+            "required": ["type", "event_type"],
+            "additionalProperties": false,
+            "properties": {
+              "type": {
+                "type": "string",
+                "const": "event.emit"
+              },
+              "when": {
+                "type": "string"
+              },
+              "event_type": {
+                "type": "string",
+                "minLength": 1,
+                "description": "Event type to emit."
+              },
+              "payload": {
+                "description": "Payload to attach. May use Jinja template expressions."
+              }
+            }
+          },
+          {
+            "title": "pipeline.trigger",
+            "description": "Dispatch a pipeline run.",
+            "required": ["type", "pipeline"],
+            "additionalProperties": false,
+            "properties": {
+              "type": {
+                "type": "string",
+                "const": "pipeline.trigger"
+              },
+              "when": {
+                "type": "string"
+              },
+              "pipeline": {
+                "type": "string",
+                "minLength": 1,
+                "description": "Pipeline identifier to dispatch."
+              },
+              "args": {
+                "description": "Optional arguments to pass to the pipeline."
+              }
+            }
+          }
+        ]
+      }
+    }
+  }
+}

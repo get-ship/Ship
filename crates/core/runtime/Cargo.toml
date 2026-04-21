@@ -46,3 +46,4 @@ unstable = []
 
 [dev-dependencies]
 tokio = { version = "1", features = ["test-util"] }
+jsonschema = { version = "0.46", default-features = false }
