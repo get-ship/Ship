@@ -20,7 +20,9 @@
     consistently even when a subset of agents provide branded icons. -#}
 {% set _icon_raw = a.icon if a.icon is defined else '' %}
 {% set _icon_s = _icon_raw | string %}
-{% set _is_simpleicons = _icon_s.startswith('simpleicons:') %}
+{#- MiniJinja lacks `.startswith`; use the slice trick: `s[:N] == prefix`.
+    `simpleicons:` is 12 chars. -#}
+{% set _is_simpleicons = _icon_s and _icon_s[:12] == 'simpleicons:' %}
 {% set _slug = _icon_s[12:] if _is_simpleicons else '' %}
 {% set _is_short = (not _is_simpleicons) and _icon_s and _icon_s|length <= 3 %}
 {% set _is_registry = (not _is_simpleicons) and _icon_s and _icon_s|length > 3 %}
