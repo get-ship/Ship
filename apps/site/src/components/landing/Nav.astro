@@ -5,7 +5,7 @@ import ThemeSwitcher from '../ThemeSwitcher.astro';
 <nav class="topnav">
   <div class="inner">
     <a href="/" class="brand" aria-label="Ship home">
-      <img src="/ship-logo.svg" alt="" class="mark" width="28" height="28" />
+      <ship-mark size="md" class="mark"></ship-mark>
       SHIP
     </a>
     <div class="nav-links">
@@ -50,8 +50,6 @@ import ThemeSwitcher from '../ThemeSwitcher.astro';
     text-decoration: none;
   }
   .mark {
-    width: 28px; height: 28px; flex: none;
-    display: block; object-fit: contain;
     filter: drop-shadow(0 2px 6px color-mix(in oklab, var(--primary) 35%, transparent));
   }
   .nav-links { display: flex; gap: 4px; font-size: 13px; font-weight: 500; }

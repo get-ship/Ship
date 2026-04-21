@@ -15,6 +15,7 @@ type Loader = () => Promise<unknown>;
 const coreLoaders: Loader[] = [
   () => import('@ship/ui/web-components/ship-button'),
   () => import('@ship/ui/web-components/ship-card'),
+  () => import('@ship/ui/web-components/ship-mark'),
   () => import('@ship/ui/web-components/ship-popover'),
   () => import('@ship/ui/web-components/ship-badge'),
   () => import('@ship/ui/web-components/ship-status-dot'),
