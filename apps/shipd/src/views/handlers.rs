@@ -179,6 +179,18 @@ pub async fn serve_view(
     let packs = read_view_packs(&view_dir);
     let html = inject_packs(html, &packs, is_fragment);
 
+    // In dev mode, run the linter and inject a findings overlay if any exist.
+    let html = if super::lint_overlay::is_dev_mode() {
+        let findings = lint::lint_view_dir(&view_dir);
+        if findings.is_empty() {
+            html
+        } else {
+            super::lint_overlay::inject_lint_overlay(html, &findings)
+        }
+    } else {
+        html
+    };
+
     // Content negotiation: if the caller wants HTML, return it raw.
     // Studio/MCP get the JSON envelope; shell and browsers get HTML.
     let wants_html = headers

@@ -40,6 +40,7 @@ pub mod context;
 pub mod error_overlay;
 pub mod generic_sse;
 mod handlers;
+mod lint_overlay;
 pub(crate) mod packs;
 mod resolve;
 pub mod view_filters;
