@@ -51,7 +51,6 @@ The stack exists to separate concerns that move at different speeds. A bug in th
 
 | Surface           | Location                | Docs           |
 | ----------------- | ----------------------- | -------------- |
-| ship-set site     | `apps/web/` (component gallery) | ship-studio    |
 | Marketing site    | `apps/docs/` or similar | (audit gap)    |
 | Daemon shell      | `apps/shell/`           | ship-studio    |
 | Studio            | `apps/web/`             | ship-studio    |

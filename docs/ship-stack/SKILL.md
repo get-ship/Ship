@@ -32,7 +32,7 @@ See [ship-collections](../ship-collections/SKILL.md), [ship-agents](../ship-agen
 
 ## Layer 4 — Surfaces
 
-User-facing output: the ship-set component site, the marketing site, and the daemon-served shell (Studio). These consume L1–L3 and have the fastest iteration cycle.
+User-facing output: the marketing site and the daemon-served shell (Studio). These consume L1–L3 and have the fastest iteration cycle.
 
 See [ship-studio](../ship-studio/SKILL.md), [ship-cloud](../ship-cloud/SKILL.md), [ship-registry](../ship-registry/SKILL.md).
 

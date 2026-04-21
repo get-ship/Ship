@@ -16,7 +16,7 @@
     "jsx": "react-jsx",
     "jsxImportSource": "hono/jsx"
   },
-  "include": ["src/**/*"],
+  "include": ["src/**/*", "test/**/*"],
   "references": [
     { "path": "../../cloud/apps/actors/platform" },
     { "path": "../../cloud/apps/actors/workspace" },
