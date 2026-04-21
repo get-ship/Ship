@@ -41,6 +41,10 @@ export const shipDrawerStyles = [reducedMotion, css`
     position: fixed;
     top: 0;
     bottom: 0;
+    /* Default = right edge. Without these, the UA sheet's `left: 0; right: 0;
+     * margin: auto` recipe leaves the dialog centered / left-aligned. */
+    right: 0;
+    left: auto;
     margin: 0;
     padding: 0;
     border: none;
