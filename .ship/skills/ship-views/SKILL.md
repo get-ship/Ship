@@ -50,7 +50,7 @@ If you reach for something the rule forbids, the fix is upstream:
 
 | Temptation | Right home |
 |---|---|
-| Inline `<script>` for interactivity | A `<ship-*>` element, or a Datastar plugin in the `datastar-views` skill. |
+| Inline `<script>` for interactivity | A `<ship-*>` element, a `data-effect="..."` reactive expression (see Reactivity below), or a custom Datastar plugin in the `datastar-views` skill. |
 | Inline `<style>` for layout or theming | Shadow DOM inside a ship-element, or CSS custom properties the element already exposes. |
 | Copy-pasting the same markup block five times in one template | A Jinja partial in `.ship/views/<view>/_components/`. |
 | A new `<ship-X-row>` element that only exists to hold view-specific text | Compose `<ship-list-tile>` with slots. See the distribution test in the `ship-components` skill. |
@@ -308,6 +308,44 @@ Signals starting with `_` are **local** (not sent to server — use for UI state
 <span data-text="$count"></span>
 ```
 
+### Reactive side-effects — `data-effect`
+
+When a view needs to run arbitrary code whenever signals change (canvas
+redraws, DOM measurements, syncing to a non-Datastar-aware widget),
+Datastar's built-in `data-effect` directive is the escape hatch.
+**Reach for this instead of an inline `<script>` that polls
+`window.ds.signals`.**
+
+```jinja
+{# Redraw a canvas whenever zoom or node state changes.
+   The expression auto-subscribes to every $signal it reads,
+   runs once on element connect, and re-runs on every change. #}
+<canvas id="graph"
+        data-effect="drawGraph(document.getElementById('graph'), $zoom, $nodes)"></canvas>
+
+{# Sync a Datastar signal into a third-party widget's API. #}
+<div id="editor"
+     data-effect="window.editor?.setValue($draftText)"></div>
+
+{# Log-only side effect for debugging. #}
+<div data-effect="console.log('tab changed:', $tab)"></div>
+```
+
+Rules:
+
+- The expression runs **once on connect** and again on **every
+  dependency change**. Dependencies are the `$signal` references
+  Datastar observes in the expression body.
+- **No cleanup semantic** in the current Datastar build — if you
+  return a function from the expression, it's discarded. That means
+  `setInterval`/`addEventListener` patterns need explicit teardown
+  wiring (e.g., keyed by a signal you can flip). Flag as an SDK gap
+  when you hit it; most canvas/DOM-sync cases are idempotent and
+  don't need cleanup.
+- Keep expressions short. Long imperative blocks are a smell — either
+  the work belongs in a custom element (encapsulates state) or the
+  signals are structured wrong.
+
 ### SSE — long-lived reads
 
 ```jinja
@@ -324,13 +362,13 @@ The daemon's generic SSE handler reads your manifest `events:` list, subscribes 
 ### Datastar usage depth
 
 Today's views use Datastar shallowly — mostly `data-on`, `data-show`,
-`data-bind`, `data-text`, and the wrapped `@get`/`@post` actions.
-That's deliberate; it's what the current patterns need. Advanced
-Datastar (computed signals, effects, custom plugins, store composition)
-is in scope as the SDK matures, but don't reach for it pre-emptively.
-When a pattern genuinely needs it, file a `{#- SDK gap: ... -#}`,
-prototype once, and lift it into a macro before copying it across
-views.
+`data-bind`, `data-text`, `data-effect` (see above), and the wrapped
+`@get`/`@post` actions. That's deliberate; it's what the current
+patterns need. Other advanced Datastar primitives (store composition,
+custom plugins beyond the built-ins) are in scope as the SDK matures,
+but don't reach for them pre-emptively. When a pattern genuinely
+needs it, file a `{#- SDK gap: ... -#}`, prototype once, and lift it
+into a macro before copying it across views.
 
 ## Design tokens
 
