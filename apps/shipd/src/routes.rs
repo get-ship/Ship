@@ -456,6 +456,11 @@ pub enum Route {
 
     /// @route GET "/api/capabilities"
     Capabilities,
+
+    // ── Lint ─────────────────────────────────────────────────────────────
+
+    /// @route POST "/api/runtime/lint/view"
+    LintView,
 }
 
 #[cfg(test)]

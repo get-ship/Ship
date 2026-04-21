@@ -15,8 +15,8 @@ use utoipa::OpenApi;
 
 use crate::{
     NetworkServer, actor_api, annotations_api, artifacts_api, attest, auth, cors, feedback_api, hooks_api,
-    human_webhook, logs_api, openapi, pairing, project_api, pty_handler, rest_api, runtime_api, session,
-    settings_api, shell_assets, ship_runtime, specs_api, specs_view, supervisor,
+    human_webhook, lint_api, logs_api, openapi, pairing, project_api, pty_handler, rest_api, runtime_api,
+    session, settings_api, shell_assets, ship_runtime, specs_api, specs_view, supervisor,
     view_morph_target, view_sessions_api, views, collection_api, views_agents, views_chat,
     views_events, views_git, views_pipelines, views_raw, views_settings, views_skills,
 };
@@ -338,6 +338,8 @@ fn build_ship_routes(st: rest_api::ApiState) -> Router {
         .ship_route(Route::UpdateCollectionItem_template(), collection_api::update_item)
         .ship_route(Route::DeleteCollectionItem_template(), collection_api::delete_item)
         .ship_route(Route::QueryCollection_template(), collection_api::query_items)
+        // Lint
+        .ship_route(Route::LintView, lint_api::lint_view)
         // Glob-param file handlers (not in enum — glob syntax is project_api
         // internal; keep flat).
         .route(

@@ -18,6 +18,7 @@ path = "src/main.rs"
 
 [dependencies]
 runtime = { path = "../../crates/core/runtime" }
+lint = { path = "../../crates/core/lint" }
 compiler = { path = "../../crates/core/compiler" }
 ship-jobs = { path = "../../crates/core/ship-jobs" }
 chrono = { version = "0.4", features = ["serde"] }
