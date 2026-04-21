@@ -11,26 +11,26 @@
       <p>Download Ship. Pick a theme. Build something that feels like yours.</p>
       <div class="ctas foot-ctas">
         <ship-button size="lg">
-          <a href="#download" class="cta-inner">
+          <a href="/download" class="cta-inner">
             Download SHIP
             <svg class="caret" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2"><path d="M5 12h14M13 6l6 6-6 6"></path></svg>
           </a>
         </ship-button>
         <ship-button size="lg" variant="outline">
-          <a href="/docs" class="cta-inner">Read the docs</a>
+          <a href="https://docs.getship.dev" class="cta-inner">Read the docs</a>
         </ship-button>
       </div>
     </div>
     <div class="foot-bottom">
-      <div class="brand">
-        <span class="mark" aria-hidden="true"></span>
+      <a href="/" class="brand" aria-label="Ship home">
+        <img src="/ship-logo.svg" alt="" class="mark" width="22" height="22" />
         SHIP
-      </div>
+      </a>
       <div class="foot-links">
         <a href="#features">Features</a>
-        <a href="#store">Store</a>
-        <a href="#download">Download</a>
-        <a href="/docs">Docs</a>
+        <a href="/store">Store</a>
+        <a href="/download">Download</a>
+        <a href="https://docs.getship.dev">Docs</a>
       </div>
       <div class="foot-copy">© 2026 Ship</div>
     </div>
@@ -71,21 +71,12 @@
     font-family: var(--font-display);
     font-weight: 700; letter-spacing: 0.02em;
     font-size: 15px; color: var(--page-fg);
+    text-decoration: none;
   }
   .mark {
-    width: 22px; height: 22px; border-radius: 6px;
-    background: conic-gradient(from 220deg, var(--primary), var(--accent), var(--primary));
-    box-shadow: 0 4px 14px -4px var(--primary);
-    position: relative; flex: none;
-  }
-  .mark::after {
-    content: ""; position: absolute; inset: 4px;
-    border-radius: 3px; background: var(--page-bg);
-  }
-  .mark::before {
-    content: ""; position: absolute; inset: 7px;
-    border-radius: 2px;
-    background: conic-gradient(from 40deg, var(--primary), var(--accent));
+    width: 22px; height: 22px; flex: none;
+    display: block; object-fit: contain;
+    filter: drop-shadow(0 2px 6px color-mix(in oklab, var(--primary) 35%, transparent));
   }
   .foot-links { display: flex; gap: 24px; font-size: 13px; }
   .foot-links a {

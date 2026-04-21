@@ -17,27 +17,26 @@ import HeroPlate from './HeroPlate.astro';
       <p class="sub" id="landing-sub"></p>
       <div class="ctas">
         <ship-button size="lg">
-          <a href="#download" class="cta-inner">
+          <a href="/download" class="cta-inner">
             Download SHIP
             <svg class="caret" width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2.2"><path d="M5 12h14M13 6l6 6-6 6"></path></svg>
           </a>
         </ship-button>
         <ship-button size="lg" variant="outline">
-          <a href="#demo" class="cta-inner">
+          <a href="#cluster-views" class="cta-inner">
             <svg width="16" height="16" viewBox="0 0 24 24" fill="currentColor"><polygon points="5 3 19 12 5 21 5 3"></polygon></svg>
-            Watch the 30s demo
-            <span class="kbd">D</span>
+            See it in action
           </a>
         </ship-button>
       </div>
       <div class="workswith">
         <div class="workswith-label">Works with</div>
         <div class="workswith-list">
-          <span><i class="glyph glyph-claude"></i>Claude</span>
-          <span><i class="glyph glyph-codex"></i>Codex</span>
-          <span><i class="glyph glyph-gemini"></i>Gemini</span>
-          <span><i class="glyph glyph-cursor"></i>Cursor</span>
-          <span><i class="glyph glyph-opencode"></i>OpenCode</span>
+          <span><img src="/provider-logos/claude.svg" alt="" width="16" height="16" class="glyph" />Claude</span>
+          <span><img src="/provider-logos/OpenAI-black-monoblossom.svg" alt="" width="16" height="16" class="glyph glyph-adaptive" />Codex</span>
+          <span><img src="/provider-logos/googlegemini.svg" alt="" width="16" height="16" class="glyph" />Gemini</span>
+          <span><img src="/provider-logos/cursor.svg" alt="" width="16" height="16" class="glyph glyph-adaptive" />Cursor</span>
+          <span><img src="/provider-logos/opencode-logo-light.svg" alt="" width="16" height="16" class="glyph glyph-adaptive" />OpenCode</span>
         </div>
       </div>
     </div>
@@ -119,27 +118,13 @@ import HeroPlate from './HeroPlate.astro';
     transition: color 150ms;
   }
   .workswith-list span:hover { color: var(--page-fg); }
-  .workswith-list .glyph { width: 14px; height: 14px; display: inline-block; }
-  .glyph-claude {
-    background: conic-gradient(from 0deg, var(--status-orange), var(--status-red));
-    border-radius: 50%;
+  .workswith-list .glyph {
+    width: 16px; height: 16px; display: inline-block;
+    object-fit: contain;
   }
-  .glyph-codex {
-    background: var(--foreground);
-    border-radius: 3px;
-  }
-  .glyph-gemini {
-    background: conic-gradient(from 90deg, var(--status-blue), var(--status-green));
-    border-radius: 50%;
-  }
-  .glyph-cursor {
-    background: var(--foreground);
-    border-radius: 4px;
-  }
-  .glyph-opencode {
-    background: linear-gradient(135deg, var(--accent), var(--status-blue));
-    border-radius: 3px;
-  }
+  /* Monochrome logos (Codex, Cursor, OpenCode) — invert in dark themes so
+   * the black artwork stays readable on dark backgrounds. */
+  :global(.dark) .workswith-list .glyph-adaptive { filter: invert(1); }
 
   .cta-inner {
     color: inherit; text-decoration: none;

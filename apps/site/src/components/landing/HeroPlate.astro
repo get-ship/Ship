@@ -1,5 +1,4 @@
 ---
-import { THEMES } from '@ship/ui/themes';
 ---
 
 <div class="stage-right">
@@ -85,20 +84,7 @@ import { THEMES } from '@ship/ui/themes';
     </div>
   </div>
 
-  <div class="vibe-chip" data-vibe-chip>
-    <div class="vibe-title">theme · pick a vibe</div>
-    <div class="swatches">
-      {THEMES.map((t) => (
-        <button
-          type="button"
-          class="swatch"
-          data-vibe-theme={t.id}
-          title={t.label}
-          style={`background: linear-gradient(135deg, ${t.swatches[0]}, ${t.swatches[2]} 70%, ${t.swatches[3]});`}
-        ></button>
-      ))}
-    </div>
-  </div>
+
 </div>
 
 <style>
@@ -212,32 +198,7 @@ import { THEMES } from '@ship/ui/themes';
   .plate-tabs button { appearance: none; border: none; cursor: pointer; background: transparent; color: var(--plate-muted); padding: 6px 12px; border-radius: 999px; font-family: inherit; font-size: inherit; font-weight: 500; letter-spacing: 0.04em; }
   .plate-tabs button[aria-selected="true"] { background: var(--plate-ink); color: var(--plate); }
 
-  .vibe-chip {
-    position: absolute; right: -14px; top: 12%;
-    background: var(--plate); border: 1px solid var(--plate-border);
-    border-radius: 14px; padding: 10px 12px;
-    box-shadow: var(--shadow-plate);
-    display: flex; flex-direction: column; gap: 8px;
-    width: 170px; z-index: 4;
-    animation: vibe-float 8s ease-in-out infinite;
-  }
-  @keyframes vibe-float { 0%, 100% { transform: translateY(0); } 50% { transform: translateY(-8px); } }
-  .vibe-title { font-family: 'JetBrains Mono', ui-monospace, monospace; font-size: 9.5px; letter-spacing: 0.14em; text-transform: uppercase; color: var(--plate-sub); }
-  .swatches { display: grid; grid-template-columns: repeat(4, 1fr); gap: 6px; }
-  .swatch {
-    appearance: none; border: 1px solid var(--plate-line);
-    aspect-ratio: 1/1; border-radius: 6px; cursor: pointer;
-    padding: 0; position: relative;
-    transition: transform 150ms var(--ease-out);
-  }
-  .swatch:hover { transform: scale(1.08); }
-  .swatch[data-active="true"]::after {
-    content: ""; position: absolute; inset: -3px;
-    border: 2px solid var(--plate-ink); border-radius: 8px;
-  }
-
   @media (max-width: 1060px) {
     .stage-right { height: auto; padding: 40px 0 60px; }
-    .vibe-chip { right: 8px; top: 0; }
   }
 </style>

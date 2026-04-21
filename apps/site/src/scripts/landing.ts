@@ -131,15 +131,12 @@ for (const b of document.querySelectorAll<HTMLButtonElement>('[data-tweak-group=
   });
 }
 
-// ---- theme: vibe chip + t key -------------------------------------
+// ---- theme: plate pill label + t key ------------------------------
 
 const themeLabelEls = document.querySelectorAll<HTMLElement>('[data-theme-pill-label]');
-const vibeSwatches = document.querySelectorAll<HTMLButtonElement>('[data-vibe-theme]');
 
 function paintThemeLabel(id: ThemeId) {
-  const theme = THEMES.find((t) => t.id === id);
-  for (const el of themeLabelEls) el.textContent = theme?.id ?? id;
-  for (const s of vibeSwatches) s.dataset.active = s.dataset.vibeTheme === id ? 'true' : 'false';
+  for (const el of themeLabelEls) el.textContent = id;
 }
 
 function setTheme(id: string) {
@@ -150,18 +147,11 @@ function setTheme(id: string) {
   document.dispatchEvent(new CustomEvent('ship-theme-change', { detail: { id: next } }));
 }
 
-for (const s of vibeSwatches) {
-  s.addEventListener('click', () => {
-    const id = s.dataset.vibeTheme;
-    if (id) setTheme(id);
-  });
-}
-
 // Paint initial state from the stored value (the inline FOUC script has
 // already applied the theme to <html>; we just reflect it in UI).
 paintThemeLabel(readStoredTheme());
 
-// Keep pill + swatches in sync if the ThemeSwitcher fires a change.
+// Keep the plate pill in sync when the ThemeSwitcher fires a change.
 document.addEventListener('ship-theme-change', (e) => {
   const id = (e as CustomEvent<{ id: ThemeId }>).detail?.id;
   if (id) paintThemeLabel(id);
