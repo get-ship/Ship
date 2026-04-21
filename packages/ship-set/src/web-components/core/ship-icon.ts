@@ -69,13 +69,21 @@ export const ICONS: Record<string, string> = {
   maximize: 'M8 3H5a2 2 0 00-2 2v3M21 8V5a2 2 0 00-2-2h-3M3 16v3a2 2 0 002 2h3M16 21h3a2 2 0 002-2v-3',
   minimize: 'M4 14h6v6M20 10h-6V4M14 10l7-7M3 21l7-7',
   zap: 'M13 2L3 14h9l-1 8 10-12h-9l1-8z',
+  columns: 'M12 3v18M3 3h18v18H3z',
+  filter: 'M22 3H2l8 9.46V19l4 2v-8.54z',
+  'check-circle': 'M22 11.08V12a10 10 0 11-5.93-9.14M22 4L12 14.01l-3-3',
+  'list-check': 'M11 18H3M21 6H3M16 12H3M16.5 20l2 2 4-4',
+  book: 'M4 19.5A2.5 2.5 0 016.5 17H20M6.5 2H20v20H6.5A2.5 2.5 0 014 19.5v-15A2.5 2.5 0 016.5 2z',
+  activity: 'M22 12h-4l-3 9L9 3l-3 9H2',
 }
+
 
 /** Icons that need multiple SVG elements (circles + lines). */
 const COMPLEX_ICONS: Record<string, unknown> = {
   git: svg`<line x1="6" y1="3" x2="6" y2="15"></line><circle cx="18" cy="6" r="3"></circle><circle cx="6" cy="18" r="3"></circle><path d="M18 9a9 9 0 01-9 9"></path>`,
   'git-branch': svg`<line x1="6" y1="3" x2="6" y2="15"></line><circle cx="18" cy="6" r="3"></circle><circle cx="6" cy="18" r="3"></circle><path d="M18 9a9 9 0 01-9 9"></path>`,
   cpu: svg`<rect x="4" y="4" width="16" height="16" rx="2"/><rect x="9" y="9" width="6" height="6"/><path d="M9 2v2M15 2v2M9 20v2M15 20v2M2 9h2M2 15h2M20 9h2M20 15h2"/>`,
+  database: svg`<ellipse cx="12" cy="5" rx="9" ry="3"/><path d="M3 5v14c0 1.66 4 3 9 3s9-1.34 9-3V5"/><path d="M3 12c0 1.66 4 3 9 3s9-1.34 9-3"/>`,
 }
 
 export class ShipIcon extends LitElement {

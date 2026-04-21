@@ -37,4 +37,18 @@ describe('ship-icon', () => {
     const el = await mount('<ship-icon><svg data-custom></svg></ship-icon>')
     expect(el.querySelector('svg[data-custom]')).not.toBeNull()
   })
+
+  it('renders collection icons added for the data view', async () => {
+    for (const name of ['columns', 'filter', 'check-circle', 'book', 'activity']) {
+      const el = await mount(`<ship-icon name="${name}"></ship-icon>`)
+      expect(el.shadowRoot!.querySelector('path')).not.toBeNull()
+    }
+  })
+
+  it('renders database as a multi-element complex icon', async () => {
+    const el = await mount('<ship-icon name="database"></ship-icon>')
+    const svg = el.shadowRoot!.querySelector('svg')
+    expect(svg).not.toBeNull()
+    expect(svg!.querySelector('ellipse')).not.toBeNull()
+  })
 })
