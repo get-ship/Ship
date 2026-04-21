@@ -154,6 +154,14 @@ pub fn build_router(
 
     let feedback_guard = feedback_api::FeedbackGuard::new();
     let registry_state = mcp_registry::McpRegistryState::new();
+
+    // MCP registry proxy is a public, read-only endpoint — match the
+    // original Cloudflare Worker handler's "no auth required" contract
+    // so the shell's agent builder can query it before pairing.
+    let mcp_registry_routes = Router::new()
+        .ship_route(Route::McpServers, mcp_registry::list_mcp_servers)
+        .layer(axum::Extension(registry_state));
+
     let authenticated_routes = Router::new()
         .nest("/api", pair_confirm_routes)
         .ship_route(Route::IssueSession, session_issue_handler)
@@ -162,13 +170,13 @@ pub fn build_router(
         .nest("/api", webhook_routes)
         .nest_service("/mcp", service)
         .layer(axum::Extension(feedback_guard))
-        .layer(axum::Extension(registry_state))
         .layer(axum::middleware::from_fn(move |req, next| {
             auth::auth_middleware(auth_token.clone(), auth_registry.clone(), req, next)
         }));
 
     let mut root = Router::new()
         .merge(public_routes)
+        .merge(mcp_registry_routes)
         .route("/api/openapi.json", axum::routing::get(|| async {
             Json(openapi::ApiDoc::openapi())
         }))
@@ -217,8 +225,6 @@ fn build_ship_routes(st: rest_api::ApiState) -> Router {
         .ship_route(Route::EventRoute, actor_api::event_route)
         // Capabilities (no state required; ok against a stateful router)
         .ship_route(Route::Capabilities, rest_api::capabilities)
-        // MCP registry proxy
-        .ship_route(Route::McpServers, mcp_registry::list_mcp_servers)
         // Runtime
         .ship_route(Route::ListWorkspaces, runtime_api::list_workspaces)
         .ship_route(Route::ListSessions, runtime_api::list_sessions)

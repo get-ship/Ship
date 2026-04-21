@@ -18,7 +18,13 @@ use tokio::sync::Mutex;
 mod fallback;
 pub use fallback::curated_fallback;
 
-const REGISTRY_API: &str = "https://registry.modelcontextprotocol.io/api/v0/servers";
+// Current canonical endpoint per registry docs. The old Cloudflare Worker
+// hit `/api/v0/servers`, which is now 404. The v0.1 response wraps each
+// entry in `{ server: {...}, _meta: {...} }` rather than the flat shape
+// our UpstreamServer still expects — deserialization fails silently and
+// callers get the curated fallback list. Proper upstream parsing lands
+// in a follow-up.
+const REGISTRY_API: &str = "https://registry.modelcontextprotocol.io/v0.1/servers";
 const CACHE_TTL: Duration = Duration::from_secs(24 * 60 * 60);
 const MAX_LIMIT: usize = 100;
 const DEFAULT_LIMIT: usize = 20;
