@@ -55,8 +55,9 @@ use crate::rest_api::MeshResponse;
 
 pub use assets::{
     serve_code_editor, serve_datastar_js, serve_elements_catalog,
-    serve_elements_manifest, serve_markdown_editor, serve_ship_elements,
-    serve_terminal, serve_theme_css, serve_themes_list, serve_view_tokens,
+    serve_elements_manifest, serve_jinja_macros_json, serve_jinja_macros_md,
+    serve_markdown_editor, serve_ship_elements, serve_terminal, serve_theme_css,
+    serve_themes_list, serve_view_tokens,
 };
 pub use handlers::{
     list_views, serve_view, serve_view_asset, serve_view_bundle, serve_view_manifest,

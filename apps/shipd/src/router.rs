@@ -100,6 +100,8 @@ pub fn build_router(
         .ship_route(Route::AssetTerminalJs, views::serve_terminal)
         .ship_route(Route::AssetElementsManifest, views::serve_elements_manifest)
         .ship_route(Route::AssetElementsCatalog, views::serve_elements_catalog)
+        .ship_route(Route::AssetJinjaMacrosJson, views::serve_jinja_macros_json)
+        .ship_route(Route::AssetJinjaMacrosMd, views::serve_jinja_macros_md)
         .ship_route(Route::AssetThemeCss, views::serve_theme_css)
         .ship_route(Route::ListThemes, views::serve_themes_list)
         // First-run flow — both routes are unauthenticated so a fresh

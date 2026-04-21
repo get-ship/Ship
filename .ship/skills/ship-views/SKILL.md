@@ -572,6 +572,23 @@ Import from `_ship.html.j2`.
 
 These work on any list — they're general utilities, not collection-specific. For collection queries, prefer `ship_query` (SQL pushdown vs memory filter).
 
+## Full macro reference
+
+The SDK macros defined in `apps/shipd/templates/_ship.html.j2` are
+published as both a machine-readable manifest and a grouped Markdown
+reference:
+
+- `GET /api/runtime/assets/jinja-macros.json` — structured manifest
+  (name, signature, args, summary, description, example, source
+  location). Editor tooling should consume this for autocomplete and
+  signature help.
+- `GET /api/runtime/assets/jinja-macros.md` — human-readable reference
+  grouped by category, with a table of contents.
+
+Both are generated from the macro source by
+`scripts/build-jinja-docs.mjs` (`pnpm build:jinja-docs`) and embedded
+into the daemon at compile time — they never drift from the template.
+
 ## See also
 
 - `ship-components` skill — the `@ship/set` library charter, including

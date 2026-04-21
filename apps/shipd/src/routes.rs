@@ -84,6 +84,12 @@ pub enum Route {
     /// @route GET "/api/runtime/assets/ship-elements.md"
     AssetElementsCatalog,
 
+    /// @route GET "/api/runtime/assets/jinja-macros.json"
+    AssetJinjaMacrosJson,
+
+    /// @route GET "/api/runtime/assets/jinja-macros.md"
+    AssetJinjaMacrosMd,
+
     /// @route GET "/api/runtime/assets/theme.css"
     AssetThemeCss,
 

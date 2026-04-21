@@ -5,6 +5,7 @@
     "dev": "pnpm --filter web dev",
     "build:bundles": "node scripts/build-bundles.mjs",
     "build:bundles:watch": "node scripts/build-bundles.mjs --watch",
+    "build:jinja-docs": "node scripts/build-jinja-docs.mjs",
     "test": "pnpm --filter web test",
     "test:rust": "cargo test",
     "typecheck": "pnpm --filter web exec tsc --noEmit",
