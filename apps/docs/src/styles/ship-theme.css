@@ -1,44 +1,53 @@
-/* Ship brand theme for Starlight */
+/* Ship brand theme for Starlight.
+ *
+ * Strategy: bridge Ship's design tokens (@ship/ui/tokens.css + themes.css)
+ * into Starlight's --sl-color-* variables so every Ship theme repaints the
+ * full Starlight content area, not just ship-elements. Ship tokens are
+ * already theme-aware via :root[data-theme='...'] selectors in themes.css
+ * and the .dark class from tokens.css — so mapping them here is enough.
+ */
+
 @import "@fontsource-variable/syne";
 @import "@fontsource-variable/dm-sans";
 
 :root {
-  /* Typography — Ship fonts */
+  /* Typography */
   --sl-font: "DM Sans Variable", "DM Sans", "Inter", ui-sans-serif, sans-serif;
   --sl-font-system: var(--sl-font);
+
+  /* Bridge Ship tokens -> Starlight vars. */
+  --sl-color-bg: var(--background);
+  --sl-color-bg-nav: var(--background);
+  --sl-color-bg-sidebar: var(--sidebar);
+  --sl-color-bg-inline-code: var(--muted);
+
+  --sl-color-text: var(--foreground);
+  --sl-color-text-accent: var(--primary);
+  --sl-color-text-invert: var(--primary-foreground);
+
+  --sl-color-accent: var(--primary);
+  --sl-color-accent-low: color-mix(in oklch, var(--primary) 18%, var(--background));
+  --sl-color-accent-high: color-mix(in oklch, var(--primary) 85%, var(--foreground));
+
+  --sl-color-hairline: var(--border);
+  --sl-color-hairline-shade: var(--border);
+  --sl-color-hairline-light: color-mix(in oklch, var(--border) 60%, transparent);
+
+  /* Gray scale — derived from foreground/background mix so it tracks
+   * with every Ship theme. Starlight uses these across muted text,
+   * borders, subtle backgrounds, code blocks. */
+  --sl-color-white: var(--foreground);
+  --sl-color-gray-1: color-mix(in oklch, var(--foreground) 92%, var(--background));
+  --sl-color-gray-2: color-mix(in oklch, var(--foreground) 72%, var(--background));
+  --sl-color-gray-3: var(--muted-foreground);
+  --sl-color-gray-4: color-mix(in oklch, var(--foreground) 35%, var(--background));
+  --sl-color-gray-5: var(--border);
+  --sl-color-gray-6: var(--muted);
+  --sl-color-gray-7: color-mix(in oklch, var(--background) 85%, var(--foreground));
+  --sl-color-black: var(--background);
 }
 
-/* Light mode */
-:root[data-theme="light"] {
-  --sl-color-accent-low: #fdf3e7;
-  --sl-color-accent: #b06a1f;
-  --sl-color-accent-high: #5a3510;
-  --sl-color-white: #18140f;
-  --sl-color-gray-1: #362e25;
-  --sl-color-gray-2: #55493e;
-  --sl-color-gray-3: #8a7e72;
-  --sl-color-gray-4: #bfb5a8;
-  --sl-color-gray-5: #e8ddd0;
-  --sl-color-gray-6: #f4efe8;
-  --sl-color-black: #faf7f3;
-}
-
-/* Dark mode */
-:root[data-theme="dark"] {
-  --sl-color-accent-low: #2a1a08;
-  --sl-color-accent: #c67b2e;
-  --sl-color-accent-high: #f5d4a8;
-  --sl-color-white: #f8f4ef;
-  --sl-color-gray-1: #e8ddd0;
-  --sl-color-gray-2: #bfb5a8;
-  --sl-color-gray-3: #8a7e72;
-  --sl-color-gray-4: #55493e;
-  --sl-color-gray-5: #362e25;
-  --sl-color-gray-6: #231d17;
-  --sl-color-black: #18140f;
-}
-
-/* Display headings use Syne */
+/* Display headings use Syne. */
 h1, h2, h3,
 .site-title,
 .sl-markdown-content h1,
@@ -49,7 +58,6 @@ h1, h2, h3,
   letter-spacing: -0.02em;
 }
 
-/* Site title in header — match Ship branding */
 .site-title {
   font-weight: 800;
   text-transform: uppercase;
@@ -57,12 +65,11 @@ h1, h2, h3,
   font-size: 1.1rem;
 }
 
-/* Logo sizing */
 .site-title img {
   height: 1.75rem;
 }
 
-/* Hero centering — target Starlight's actual class names */
+/* Hero layout. */
 .hero {
   text-align: center !important;
   align-items: center !important;
@@ -75,27 +82,12 @@ h1, h2, h3,
   justify-content: center !important;
 }
 
-/* Flow steps — equal width */
-.ship-flow {
-  gap: 1rem;
-}
-.ship-flow > .ship-step {
-  flex: 1 1 0;
-  min-width: 0;
-}
-
-/* Cards — equal sizing, no stray paragraphs */
-.ship-cards > .ship-card {
-  min-height: 0;
-}
-
-/* Code blocks */
+/* Code blocks — pick up the bridged hairline color. */
 pre {
-  border: 1px solid var(--sl-color-gray-5);
+  border: 1px solid var(--sl-color-hairline);
   border-radius: 0.5rem;
 }
 
-/* Tighter sidebar spacing */
 nav.sidebar .top-level > li {
   margin-top: 0.25rem;
 }

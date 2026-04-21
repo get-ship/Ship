@@ -15,34 +15,35 @@ hero:
 
 ## How it works
 
-{% flow %}
-{% step title="Declare" %}
-`ship init` scaffolds your `.ship/` config. Add skills and agents from the registry or write your own.
-{% /step %}
-{% step title="Activate" %}
-Set an active agent. Ship compiles everything into provider-native config.
-{% /step %}
-{% step title="Run" %}
-Each provider gets its own output format. Same source, every provider.
-{% /step %}
-{% /flow %}
+1. **Declare** — `ship init` scaffolds your `.ship/` config. Add skills and agents from the registry or write your own.
+2. **Activate** — Set an active agent. Ship compiles everything into provider-native config.
+3. **Run** — Each provider gets its own output format. Same source, every provider.
 
 ## What Ship gives you
 
-{% cards %}
-{% card title="Smart Skills" icon="⚡" %}
+<div style="display: grid; grid-template-columns: repeat(auto-fit, minmax(240px, 1fr)); gap: 1rem; margin: 1.5rem 0;">
+
+<ship-card padding="md">
+<strong slot="header">Smart Skills</strong>
 Instruction sets with typed variables that adapt to each user and project. Same skill, personalized output for everyone.
-{% /card %}
-{% card title="Agent Profiles" icon="👤" %}
+</ship-card>
+
+<ship-card padding="md">
+<strong slot="header">Agent Profiles</strong>
 Compose skills, MCP servers, permissions, and rules into portable agent configs.
-{% /card %}
-{% card title="Ship Studio" icon="🖥️" %}
+</ship-card>
+
+<ship-card padding="md">
+<strong slot="header">Ship Studio</strong>
 A visual IDE connected to your local projects. Edit skills, set variables, browse the registry.
-{% /card %}
-{% card title="Registry" icon="📦" %}
+</ship-card>
+
+<ship-card padding="md">
+<strong slot="header">Registry</strong>
 Publish and install at getship.dev. Content-hashed, versioned, verified.
-{% /card %}
-{% /cards %}
+</ship-card>
+
+</div>
 
 ## Supported providers
 
@@ -61,10 +62,7 @@ ship init
 ship studio --open
 ```
 
-{% aside type="tip" title="Migrating from existing provider config?" %}
-Ship converts CLAUDE.md, .cursor/rules, and other provider configs into `.ship/` format:
-
-```bash
-ship convert .
-```
-{% /aside %}
+<ship-alert tone="info">
+<strong slot="title">Migrating from existing provider config?</strong>
+Ship converts CLAUDE.md, .cursor/rules, and other provider configs into `.ship/` format. Run `ship convert .` in your project root.
+</ship-alert>

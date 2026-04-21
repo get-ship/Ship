@@ -1,13 +1,13 @@
 ---
-// Starlight header override — injects the ThemeSwitcher before the existing
-// ThemeSelect slot. All standard Starlight header parts are preserved.
+// Starlight header override — replaces Starlight's ThemeSelect with the Ship
+// ThemeSwitcher (8-theme swatch picker driving design tokens). All other
+// standard Starlight header parts are preserved.
 import config from 'virtual:starlight/user-config';
 
 import LanguageSelect from 'virtual:starlight/components/LanguageSelect';
 import Search from 'virtual:starlight/components/Search';
 import SiteTitle from 'virtual:starlight/components/SiteTitle';
 import SocialIcons from 'virtual:starlight/components/SocialIcons';
-import ThemeSelect from 'virtual:starlight/components/ThemeSelect';
 import ThemeSwitcher from './ThemeSwitcher.astro';
 
 const shouldRenderSearch =
@@ -26,7 +26,6 @@ const shouldRenderSearch =
       <SocialIcons />
     </div>
     <ThemeSwitcher />
-    <ThemeSelect />
     <LanguageSelect />
   </div>
 </div>

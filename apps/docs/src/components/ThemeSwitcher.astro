@@ -6,7 +6,7 @@ import { THEMES } from '@ship/ui/themes';
 const groups = Array.from(new Set(THEMES.map((t) => t.group)));
 ---
 
-<ship-popover placement="bottom" class="set-theme-popover" data-theme-picker>
+<ship-popover placement="bottom-end" class="set-theme-popover" data-theme-picker>
   <ship-button
     slot="trigger"
     variant="outline"
@@ -99,17 +99,31 @@ const groups = Array.from(new Set(THEMES.map((t) => t.group)));
 <style>
   .set-theme-popover { display: inline-flex; }
 
-  .set-theme-trigger { --btn-gap: 6px; }
+  .set-theme-trigger { --btn-gap: 6px; min-width: 0; }
   .set-theme-dot {
     width: 10px; height: 10px; border-radius: 999px;
     background: var(--primary);
     box-shadow: 0 0 0 1px color-mix(in oklch, var(--foreground) 15%, transparent);
+    flex: 0 0 auto;
   }
-  .set-theme-label { font-weight: 500; }
+  .set-theme-label {
+    font-weight: 500;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+    max-width: 10ch;
+  }
+  /* Hide the label on narrow headers — dot + caret is enough. */
+  @media (max-width: 52rem) {
+    .set-theme-label { display: none; }
+  }
 
   .set-theme-grid {
     display: flex; flex-direction: column; gap: 10px;
-    padding: 4px; width: 320px;
+    padding: 4px;
+    width: min(320px, calc(100vw - 2rem));
+    max-height: calc(100vh - 6rem);
+    overflow-y: auto;
   }
   .set-theme-group-head {
     font-size: 10px; font-weight: 600;

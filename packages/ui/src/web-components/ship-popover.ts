@@ -47,7 +47,9 @@ export class ShipPopover extends LitElement {
     }
     :host([placement='bottom']) .panel,
     :host(:not([placement])) .panel { top: calc(100% + 6px); left: 0; }
+    :host([placement='bottom-end']) .panel { top: calc(100% + 6px); right: 0; }
     :host([placement='top']) .panel { bottom: calc(100% + 6px); left: 0; }
+    :host([placement='top-end']) .panel { bottom: calc(100% + 6px); right: 0; }
     :host([placement='right']) .panel { left: calc(100% + 6px); top: 0; }
     :host([placement='left']) .panel { right: calc(100% + 6px); top: 0; }
   `
