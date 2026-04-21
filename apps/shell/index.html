@@ -6,26 +6,23 @@
     <title>Ship</title>
     <link rel="icon" href="/favicon.ico" />
     <script>
-      // Load daemon-served assets dynamically (avoids Vite pre-transform errors).
+      // Load daemon-served core assets dynamically (avoids Vite pre-transform
+      // errors). Only core runtime + element registry load here — heavy
+      // island bundles (code editor, markdown editor, terminal) arrive per
+      // view via the `packs:` declaration in each view's manifest. The
+      // daemon injects `<script type="module" src=...>` tags for the
+      // declared packs; mount.ts rehydrates them after innerHTML assignment
+      // so fragment navigation still fires the module loads.
       (function() {
         var base = '/api/runtime/assets/';
         var css = document.createElement('link');
         css.rel = 'stylesheet'; css.href = base + 'view-tokens.css';
         document.head.appendChild(css);
-        // Core: load eagerly (blocking). Islands: load async (non-blocking).
         ['datastar.js','ship-elements.js'].forEach(function(f) {
           var s = document.createElement('script');
           s.type = 'module'; s.src = base + f;
           document.head.appendChild(s);
         });
-        // Island bundles — defer until after initial paint.
-        requestIdleCallback(function() {
-          ['ship-code-editor.js','ship-markdown-editor.js','ship-terminal.js'].forEach(function(f) {
-            var s = document.createElement('script');
-            s.type = 'module'; s.src = base + f;
-            document.head.appendChild(s);
-          });
-        }, { timeout: 3000 });
       })();
     </script>
     <script>
