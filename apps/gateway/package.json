@@ -5,11 +5,22 @@
   "type": "module",
   "scripts": {
     "test": "vitest run",
-    "test:watch": "vitest"
+    "test:watch": "vitest",
+    "db:generate:auth": "drizzle-kit generate --config drizzle-auth.config.ts",
+    "db:generate:registry": "drizzle-kit generate --config drizzle-registry.config.ts",
+    "db:generate": "pnpm db:generate:auth && pnpm db:generate:registry"
   },
   "dependencies": {
     "@ship-cloud/types": "workspace:*",
+    "@ship/ui": "workspace:*",
+    "better-auth": "^1.5.3",
+    "drizzle-orm": "catalog:",
     "hono": "catalog:",
+    "jose": "^6.2.2",
     "zod": "catalog:"
+  },
+  "devDependencies": {
+    "drizzle-kit": "^0.31.10",
+    "wrangler": "^4.75.0"
   }
 }
