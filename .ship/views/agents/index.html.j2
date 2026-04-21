@@ -48,10 +48,15 @@
 
   /* Grid layout — breakpoints mirror the React parity (1/2/3 cols).
      ship-list-tile doesn't own its own layout context, so the grid rules
-     live here. */
+     live here. `grid-auto-rows: 1fr` + `align-items: stretch` forces
+     every row to match the tallest card in that row, so short
+     descriptions don't produce ragged card heights. */
   .agents-grid {
     display: grid; grid-template-columns: 1fr; gap: var(--space-3);
+    grid-auto-rows: 1fr;
+    align-items: stretch;
   }
+  .agents-grid > ship-list-tile.agents-card-tile { height: 100%; }
   @media (min-width: 768px) {
     .agents-grid { grid-template-columns: repeat(2, 1fr); }
   }
@@ -101,15 +106,6 @@
   .agents-card-badges {
     display: flex; align-items: center; gap: var(--radius-md);
   }
-
-  /* Arrow icon — right-aligned in the tile's trailing slot. Pointed
-     forward; ship-list-tile already handles hover color via inherit. */
-  .agents-card-arrow {
-    width: 14px; height: 14px;
-    color: var(--muted-foreground);
-    transition: color var(--duration-fast) var(--ease-out);
-  }
-  ship-list-tile.agents-card-tile:hover .agents-card-arrow { color: var(--foreground); }
 
   /* Keep the tile body's primary slot happy — it wraps its content in a
      span (.primary) that's flex:1 min-width:0 inside the tile row. Our

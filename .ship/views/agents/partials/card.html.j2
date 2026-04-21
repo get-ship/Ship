@@ -1,15 +1,20 @@
 {#- One agent card. Context: `a` = AgentSummary.
     ship-list-tile variant=card supplies surface chrome (border, radius,
     hover lift, shadow). navigable renders an <a href> so cmd/middle-click
-    open in a new tab. ship-avatar (size=lg → 40px) supplies the gradient
-    tile in the leading slot. Primary slot holds the vertical stack:
-    name, description, stats row, source badge — stacked view-locally
-    because the tile's meta slot flex-rows its children at 10px font.
+    open in a new tab — the whole tile is the click target, so no
+    trailing chevron is needed (a static arrow that does nothing on click
+    reads as a misleading affordance).
+    ship-avatar is rendered as a rounded orange square (tone=primary,
+    shape=square) for the pre-migration brand treatment. Primary slot
+    holds the vertical stack: name, description, stats row, source badge
+    — stacked view-locally because the tile's meta slot flex-rows its
+    children at 10px font.
     Matches: apps/web/src/routes/studio/agents/index.tsx L141-203. -#}
 <ship-list-tile variant="card" density="normal" interactive
                 navigable="/agents/{{ a.id }}"
                 class="agents-card-tile">
-  <ship-avatar slot="leading" size="lg" initials="{{ a.letter }}" name="{{ a.name }}"></ship-avatar>
+  <ship-avatar slot="leading" size="lg" tone="primary" shape="square"
+               initials="{{ a.letter }}" name="{{ a.name }}"></ship-avatar>
   <div class="agents-card-body">
     <div class="agents-card-head">
       <div class="agents-card-title">{{ a.name }}</div>
@@ -26,5 +31,4 @@
       <ship-badge tone="muted" variant="outline" size="sm" class="agents-card-badge-source">{{ a.source }}</ship-badge>
     </div>
   </div>
-  <ship-icon slot="trailing" class="agents-card-arrow" name="arrow-right" tone="muted"></ship-icon>
 </ship-list-tile>
