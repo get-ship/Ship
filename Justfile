@@ -112,6 +112,11 @@ fmt:
 fmt-check:
     cargo fmt --check
 
+# Lint Ship views — no inline <script>, style budget, undefined signals.
+# Exits non-zero on any error-severity finding so CI can gate on it.
+lint-views:
+    cargo run --features unstable -p ship-cli --quiet -- lint views --format json
+
 # ── Docs ──────────────────────────────────────────────────────────────────────
 
 # Build docs site
