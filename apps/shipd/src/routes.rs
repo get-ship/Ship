@@ -432,6 +432,11 @@ pub enum Route {
 
     /// @route GET "/api/capabilities"
     Capabilities,
+
+    // ── MCP registry proxy ────────────────────────────────────────────────
+
+    /// @route GET "/api/mcp/servers"
+    McpServers,
 }
 
 #[cfg(test)]

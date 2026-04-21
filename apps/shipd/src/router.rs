@@ -15,7 +15,7 @@ use utoipa::OpenApi;
 
 use crate::{
     NetworkServer, actor_api, annotations_api, artifacts_api, attest, auth, cors, feedback_api, hooks_api,
-    human_webhook, openapi, pairing, project_api, pty_handler, rest_api, runtime_api, session,
+    human_webhook, mcp_registry, openapi, pairing, project_api, pty_handler, rest_api, runtime_api, session,
     settings_api, shell_assets, ship_runtime, specs_api, specs_view, supervisor,
     view_morph_target, view_sessions_api, views, collection_api, views_agents, views_chat,
     views_events, views_git, views_pipelines, views_raw, views_settings, views_skills,
@@ -153,6 +153,15 @@ pub fn build_router(
     };
 
     let feedback_guard = feedback_api::FeedbackGuard::new();
+    let registry_state = mcp_registry::McpRegistryState::new();
+
+    // MCP registry proxy is a public, read-only endpoint — match the
+    // original Cloudflare Worker handler's "no auth required" contract
+    // so the shell's agent builder can query it before pairing.
+    let mcp_registry_routes = Router::new()
+        .ship_route(Route::McpServers, mcp_registry::list_mcp_servers)
+        .layer(axum::Extension(registry_state));
+
     let authenticated_routes = Router::new()
         .nest("/api", pair_confirm_routes)
         .ship_route(Route::IssueSession, session_issue_handler)
@@ -167,6 +176,7 @@ pub fn build_router(
 
     let mut root = Router::new()
         .merge(public_routes)
+        .merge(mcp_registry_routes)
         .route("/api/openapi.json", axum::routing::get(|| async {
             Json(openapi::ApiDoc::openapi())
         }))

@@ -30,6 +30,7 @@ pub mod view_sessions_api;
 pub mod annotations_api;
 pub mod feedback_api;
 pub mod mcp_apps_bridge;
+pub mod mcp_registry;
 mod server;
 pub mod themes;
 pub mod views;
