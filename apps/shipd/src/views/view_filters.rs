@@ -86,20 +86,42 @@ pub fn ship_query(collection: String, opts: Option<Value>) -> Vec<Value> {
 
 /// Global function: `ship_collections()`.
 /// Returns all collection schemas as `[{id, name, field_count, fields}]`.
+///
+/// Merges built-in schemas (specs, adrs, notes, feedback, annotations —
+/// owned by the runtime) with user-defined schemas under `.ship/schemas/`.
+/// Matches the `/api/collections` HTTP endpoint so the Jinja helper and
+/// REST API see the same collection set.
 pub fn ship_collections() -> Vec<Value> {
     let ship_dir = match runtime::project::get_global_dir() {
         Ok(d) => d,
         Err(_) => return vec![],
     };
-    let schemas = runtime::collections::schema::load_schemas(&ship_dir).unwrap_or_default();
+    let mut schemas = runtime::collections::builtin::all_schemas();
+    schemas.extend(runtime::collections::schema::load_schemas(&ship_dir).unwrap_or_default());
     schemas
         .iter()
         .map(|s| {
+            // Emit fields as an ordered list of {name, type, required, values}
+            // objects so templates can `{% for f in c.fields %}{{ f.name }}{{ f.type }}`
+            // without needing dict-iteration helpers.
+            let fields: Vec<serde_json::Value> = s
+                .fields
+                .iter()
+                .map(|(name, def)| {
+                    serde_json::json!({
+                        "name": name,
+                        "type": def.field_type,
+                        "required": def.required,
+                        "filterable": def.filterable,
+                        "values": def.values,
+                    })
+                })
+                .collect();
             Value::from_serialize(&serde_json::json!({
                 "id": s.id,
                 "name": s.name,
                 "field_count": s.fields.len(),
-                "fields": s.fields,
+                "fields": fields,
             }))
         })
         .collect()

@@ -46,7 +46,11 @@ fn load_collections(
     if !should_load {
         return;
     }
-    let schemas = runtime::collections::schema::load_schemas(ship_dir).unwrap_or_default();
+    // Merge built-in schemas (specs/adrs/notes/feedback/annotations) with
+    // user-defined ones so SSE context matches initial-render context and
+    // /api/collections.
+    let mut schemas = runtime::collections::builtin::all_schemas();
+    schemas.extend(runtime::collections::schema::load_schemas(ship_dir).unwrap_or_default());
     let active_id = signals
         .get("collection")
         .and_then(|v| v.as_str())

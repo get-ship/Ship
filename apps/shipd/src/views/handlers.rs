@@ -16,7 +16,11 @@ fn build_view_context(view_name: &str, params: &HashMap<String, String>) -> serd
         "query": params,
     });
     if let Ok(ship_dir) = runtime::project::get_global_dir() {
-        let schemas = runtime::collections::schema::load_schemas(&ship_dir).unwrap_or_default();
+        // Merge built-in schemas (specs/adrs/notes/feedback/annotations) with
+        // user-defined ones so the view's active_collection lookup + items
+        // query see the same set as /api/collections.
+        let mut schemas = runtime::collections::builtin::all_schemas();
+        schemas.extend(runtime::collections::schema::load_schemas(&ship_dir).unwrap_or_default());
         let summaries: Vec<serde_json::Value> = schemas.iter().map(|s| {
             let fields: Vec<serde_json::Value> = s.fields.iter().map(|(k, v)| {
                 serde_json::json!([k, {

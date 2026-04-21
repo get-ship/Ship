@@ -8,7 +8,7 @@
       <h1 class="data-index-title">Collections</h1>
       <div class="data-index-sub">
         Typed datasets defined in <span class="mono-snip">.ship/schemas/</span> —
-        stored in <span class="mono-snip">.ship/data.db</span>, reactive via
+        stored in <span class="mono-snip">~/.ship/data.db</span>, reactive via
         <span class="mono-snip">collection.item_*</span> events.
       </div>
     </div>
@@ -35,13 +35,13 @@
         <span class="data-card-count">{{ c.field_count }} field{{ "s" if c.field_count != 1 else "" }}</span>
       </div>
       <div class="data-card-fields">
-        {% for f in c.fields[:5] %}
+        {% for f in c.fields %}{% if loop.index <= 5 %}
         <span class="data-card-field">
-          <ship-badge variant="secondary" size="sm">{{ f[1].field_type }}</ship-badge>
-          <span class="mono-snip">{{ f[0] }}</span>
-          {% if f[1].required %}<span class="data-card-req">*</span>{% endif %}
+          <ship-badge variant="secondary" size="sm">{{ f.type }}</ship-badge>
+          <span class="mono-snip">{{ f.name }}</span>
+          {% if f.required %}<span class="data-card-req">*</span>{% endif %}
         </span>
-        {% endfor %}
+        {% endif %}{% endfor %}
         {% if c.fields | length > 5 %}
         <span class="data-card-field data-card-field-more">+{{ c.fields | length - 5 }} more</span>
         {% endif %}
