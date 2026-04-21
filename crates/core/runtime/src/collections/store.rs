@@ -16,8 +16,8 @@ use super::schema::{CollectionSchema, FieldType};
 /// System columns present on every collection table.
 const SYSTEM_COLS: &[&str] = &["id", "created_by", "created_at", "updated_at"];
 
-/// Open a DataService for collections.
-pub fn open_docs_db(ship_dir: &Path) -> Result<DataService> {
+/// Open a DataService backed by `.ship/data.db`.
+pub fn open_data_db(ship_dir: &Path) -> Result<DataService> {
     DataService::open(ship_dir)
 }
 
@@ -356,7 +356,7 @@ mod tests {
         let tmp = tempfile::tempdir().unwrap();
         let ship_dir = tmp.path().join(".ship");
         std::fs::create_dir_all(&ship_dir).unwrap();
-        let mut svc = open_docs_db(&ship_dir).unwrap();
+        let mut svc = open_data_db(&ship_dir).unwrap();
         let schema = test_schema();
         ensure_collection_table(&mut svc, &schema).unwrap();
         (svc, schema, tmp)

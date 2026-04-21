@@ -209,7 +209,7 @@ fn envelope_payload_mut(envelope: &mut EventEnvelope) -> Result<Value> {
 }
 
 fn open_docs(ship_dir: &Path) -> Result<DataService> {
-    collection_store::open_docs_db(ship_dir)
+    collection_store::open_data_db(ship_dir)
 }
 
 fn load_schema(ship_dir: &Path, collection: &str) -> Result<CollectionSchema> {

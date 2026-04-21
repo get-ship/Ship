@@ -317,7 +317,7 @@ async fn template_file_is_rendered() {
 
     engine.dispatch_event(&job_failed_envelope()).await;
 
-    let mut svc = crate::collections::store::open_docs_db(&ship_dir).unwrap();
+    let mut svc = crate::collections::store::open_data_db(&ship_dir).unwrap();
     let schema = crate::collections::schema::load_schemas(&ship_dir)
         .unwrap()
         .into_iter()

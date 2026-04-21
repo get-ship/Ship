@@ -1,6 +1,6 @@
 //! Collection service — wraps store CRUD with event emission.
 //!
-//! Each mutation (create, update, delete) writes to docs.db then emits
+//! Each mutation (create, update, delete) writes to data.db then emits
 //! an event to the kernel. Events are idempotent — the item ID is stable
 //! and re-emitting the same event type for the same entity is harmless.
 
@@ -122,7 +122,7 @@ async fn emit_collection_event(
 mod tests {
     use super::*;
     use crate::collections::schema::parse_schema;
-    use crate::collections::store::open_docs_db;
+    use crate::collections::store::open_data_db;
     use serde_json::json;
 
     fn test_schema() -> CollectionSchema {
@@ -139,7 +139,7 @@ mod tests {
         let tmp = tempfile::tempdir().unwrap();
         let ship_dir = tmp.path().join(".ship");
         std::fs::create_dir_all(&ship_dir).unwrap();
-        let mut svc = open_docs_db(&ship_dir).unwrap();
+        let mut svc = open_data_db(&ship_dir).unwrap();
         let schema = test_schema();
         store::ensure_collection_table(&mut svc, &schema).unwrap();
         (svc, schema, tmp)
