@@ -214,12 +214,6 @@
   color: color-mix(in oklch, var(--muted-foreground) 40%, transparent);
   overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
 }
-/* Inter-sibling divider between rule rows. SDK gap (also flagged by
-   dashboard + settings migrations): ship-list-tile row variant has no
-   list-group wrapper that draws dividers. */
-.ad-rule-list > ship-list-tile + ship-list-tile {
-  border-top: 1px solid color-mix(in oklch, var(--border) 30%, transparent);
-}
 
 /* Providers grid — responsive 2-col (single col on narrow). Cards show
    a colored logo + name + status dot. Uses ship-list-tile variant=card

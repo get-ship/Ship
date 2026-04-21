@@ -47,8 +47,18 @@
  *     Pins the <thead> while the body scrolls. Pair with an inline
  *     `style="max-height: 400px"` on the host so the wrapper has a
  *     scroll container.
+ *   - sticky-first-col: boolean
+ *     Pins the first column during horizontal scroll.
+ *   - gutter: boolean
+ *     Prepends a narrow 40px leading column. Fill via `class="ship-table-gutter-cell"`
+ *     on the first th/td of each row, or let the element inject the header cell.
  *   - label: string
  *     Forwarded to the internal table as `aria-label`.
+ *
+ * Events:
+ *   - ship-sort — CustomEvent { detail: { key, direction } }
+ *   - ship-row-click — CustomEvent { detail: { id, index } }
+ *     Dispatched when a cell in a row with data-row-id is clicked (non-gutter).
  *
  * Per-cell conventions (consumer markup):
  *   - align="left|right|center" on <th>/<td>
@@ -112,6 +122,8 @@ export class ShipTable extends LitElement {
     hoverable: { type: Boolean, reflect: true },
     striped: { type: Boolean, reflect: true },
     stickyHeader: { type: Boolean, reflect: true, attribute: 'sticky-header' },
+    stickyFirstCol: { type: Boolean, reflect: true, attribute: 'sticky-first-col' },
+    gutter: { type: Boolean, reflect: true },
     label: { type: String },
   }
 
@@ -121,6 +133,8 @@ export class ShipTable extends LitElement {
   hoverable = true
   striped = false
   stickyHeader = false
+  stickyFirstCol = false
+  gutter = false
   label = ''
 
   private structureObserver?: MutationObserver
@@ -129,12 +143,14 @@ export class ShipTable extends LitElement {
     super.connectedCallback()
     installLightDomStyles(this.ownerDocument)
     this.addEventListener('click', this.onHeaderClick)
+    this.addEventListener('click', this.onRowClick)
     this.addEventListener('keydown', this.onHeaderKey)
   }
 
   disconnectedCallback() {
     super.disconnectedCallback()
     this.removeEventListener('click', this.onHeaderClick)
+    this.removeEventListener('click', this.onRowClick)
     this.removeEventListener('keydown', this.onHeaderKey)
     this.structureObserver?.disconnect()
   }
@@ -226,6 +242,23 @@ export class ShipTable extends LitElement {
     if (!th || !this.contains(th)) return
     e.preventDefault()
     this.cycleSort(th)
+  }
+
+  private onRowClick = (e: MouseEvent) => {
+    const td = (e.target as HTMLElement).closest('td') as HTMLTableCellElement | null
+    if (!td || !this.contains(td)) return
+    // Skip gutter cells
+    if (td.classList.contains('ship-table-gutter-cell')) return
+    const tr = td.closest('tr') as HTMLTableRowElement | null
+    if (!tr) return
+    const rowId = tr.getAttribute('data-row-id')
+    if (!rowId) return
+    const index = tr.rowIndex
+    this.dispatchEvent(new CustomEvent('ship-row-click', {
+      detail: { id: rowId, index },
+      bubbles: true,
+      composed: true,
+    }))
   }
 
   /** Cycle: none -> ascending -> descending -> none. Clearing peers keeps

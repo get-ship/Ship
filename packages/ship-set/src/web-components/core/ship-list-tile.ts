@@ -52,6 +52,49 @@
 import { LitElement, css, html } from 'lit'
 import { reducedMotion, toneVars } from './util'
 
+/**
+ * Document-level side effect: installs a single CSS rule that draws a 1px
+ * top border between adjacent row-variant tiles. Shadow DOM cannot style
+ * sibling host elements from inside the shadow root, so this rule is
+ * registered on the owning document via CSSStyleSheet / adoptedStyleSheets
+ * (with a <style> fallback for environments that don't support the API).
+ *
+ * Rule suppression: when the current tile has the `selected` attribute the
+ * tile's own border takes visual priority and the divider is hidden.
+ */
+const DIVIDER_CSS = `
+ship-list-tile[variant='row'] + ship-list-tile[variant='row'] {
+  border-top: 1px solid color-mix(in oklch, var(--border) 50%, transparent);
+}
+ship-list-tile[variant='row'][selected] + ship-list-tile[variant='row'],
+ship-list-tile[variant='row'] + ship-list-tile[variant='row'][selected] {
+  border-top: none;
+}
+`
+
+const _dividerInstalled = new WeakSet<Document>()
+function installDividerStyles(doc: Document) {
+  if (_dividerInstalled.has(doc)) return
+  _dividerInstalled.add(doc)
+  try {
+    if (
+      typeof CSSStyleSheet !== 'undefined' &&
+      'replaceSync' in CSSStyleSheet.prototype
+    ) {
+      const sheet = new CSSStyleSheet()
+      sheet.replaceSync(DIVIDER_CSS)
+      doc.adoptedStyleSheets = [...doc.adoptedStyleSheets, sheet]
+      return
+    }
+  } catch {
+    /* fall through */
+  }
+  const style = doc.createElement('style')
+  style.setAttribute('data-ship-list-tile-dividers', '')
+  style.textContent = DIVIDER_CSS
+  doc.head.appendChild(style)
+}
+
 type Variant = 'row' | 'card'
 type Density = 'compact' | 'normal' | 'relaxed'
 
@@ -194,6 +237,7 @@ export class ShipListTile extends LitElement {
 
   connectedCallback() {
     super.connectedCallback()
+    installDividerStyles(this.ownerDocument)
     if (!this.hasAttribute('role')) {
       this.setAttribute('role', this.resolveRole())
     }

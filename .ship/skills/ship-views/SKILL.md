@@ -162,6 +162,7 @@ Every UI element is a `<ship-*>` web component. They style themselves. They hand
 | Icon | `<ship-icon name="...">` |
 | Timestamp | `<ship-timestamp>` |
 | Tabs | `<ship-tabs>` + `<ship-tab>` + `<ship-tab-panel>` |
+| Segmented control (tab strip, density toggle, view-mode switcher) | `<ship-segmented>` + `<ship-segmented-option>` |
 | Dialog | `<ship-dialog>` |
 | Toast | `<ship-toast>` |
 | **Any list row, tile, or card** — agent row, event row, log line, history entry, settings row, dashboard card | **`<ship-list-tile>`** (slots: `leading`, default for primary, `meta` for sub-label, `trailing` for badges/controls; `variant=row\|card`, `density=compact\|normal\|relaxed`, `interactive`, `selected`, `tone`) |

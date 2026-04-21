@@ -8,7 +8,7 @@
     - Edit row: opens _editDrawer prefilled from clicked row
     - New collection: opens _newCollectionDrawer
 -#}
-{% from '_ship.html.j2' import head, signal, show, live, styles, tab, tab_panel %}
+{% from '_ship.html.j2' import head, signal, show, live, styles, tab_panel %}
 {% if not fragment %}
 <!DOCTYPE html>
 <html lang="en">
@@ -106,18 +106,12 @@
             </span>
           </div>
           <div class="col-head-right">
-            <div class="col-tabs" role="tablist">
-              <button type="button" role="tab" class="col-tab"
-                {{ tab('tab', 'rows') }}>
-                <ship-icon name="list-check" size="sm"></ship-icon>
-                <span>Rows</span>
-              </button>
-              <button type="button" role="tab" class="col-tab"
-                {{ tab('tab', 'schema') }}>
-                <ship-icon name="columns" size="sm"></ship-icon>
-                <span>Schema</span>
-              </button>
-            </div>
+            <ship-segmented size="sm"
+              data-attr:value="$tab"
+              data-on:ship-change="$tab = evt.detail.value">
+              <ship-segmented-option value="rows" icon="list-check">Rows</ship-segmented-option>
+              <ship-segmented-option value="schema" icon="columns">Schema</ship-segmented-option>
+            </ship-segmented>
             <span class="col-head-sep" aria-hidden="true"></span>
             <ship-button size="sm" tone="accent" variant="solid"
               data-on:click="$_rowDraft = {}; $_newRowOpen = true">

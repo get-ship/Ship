@@ -288,6 +288,83 @@ export const shipTableLightDomCss = `
     display: none;
   }
 
+  /* ----------------------------------------------------------------
+   * Sticky first column — first td/th stays pinned during horizontal
+   * scroll. Pair with sticky-header for the full Drizzle experience.
+   * ---------------------------------------------------------------- */
+  ship-table[sticky-first-col] th:first-child,
+  ship-table[sticky-first-col] td:first-child {
+    position: sticky;
+    left: 0;
+    z-index: 1;
+    background: var(--card);
+    border-right: 1px solid var(--border);
+  }
+  ship-table[sticky-first-col] thead th:first-child {
+    z-index: 3;
+    background: color-mix(in oklch, var(--muted) 55%, var(--card));
+  }
+  ship-table[sticky-first-col] tbody tr:hover td:first-child {
+    background: color-mix(in oklch, var(--muted) var(--row-hover-mix, 45%), transparent);
+  }
+
+  /* ----------------------------------------------------------------
+   * Gutter column — narrow leading column for checkboxes / row numbers.
+   * Enabled via the gutter attribute. ship-table-gutter slot per row.
+   * ---------------------------------------------------------------- */
+  ship-table[gutter] th.ship-table-gutter-cell,
+  ship-table[gutter] td.ship-table-gutter-cell {
+    width: 40px;
+    min-width: 40px;
+    max-width: 40px;
+    padding: 0;
+    text-align: center;
+    color: var(--muted-foreground);
+    background: color-mix(in oklch, var(--muted-foreground) 5%, var(--background));
+    border-right: 1px solid var(--border);
+    position: sticky;
+    left: 0;
+    z-index: 2;
+  }
+  ship-table[gutter] thead th.ship-table-gutter-cell { z-index: 4; }
+
+  /* ----------------------------------------------------------------
+   * Field-type badges in column headers. Move .ft-badge from the data
+   * view into the element light-DOM stylesheet so all consumers inherit.
+   * ---------------------------------------------------------------- */
+  ship-table .ft-badge {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    height: 16px;
+    padding: 0 5px;
+    border-radius: var(--radius-sm);
+    font-family: var(--font-mono);
+    font-size: 9.5px;
+    font-weight: var(--font-weight-semibold);
+    letter-spacing: 0.02em;
+    line-height: 1;
+    text-transform: lowercase;
+    color: var(--muted-foreground);
+    background: color-mix(in oklch, var(--muted-foreground) 12%, transparent);
+    vertical-align: middle;
+  }
+  ship-table .ft-badge.ft-string     { color: var(--primary);       background: color-mix(in oklch, var(--primary) 14%, transparent); }
+  ship-table .ft-badge.ft-number     { color: var(--accent);        background: color-mix(in oklch, var(--accent) 14%, transparent); }
+  ship-table .ft-badge.ft-boolean    { color: var(--success);       background: color-mix(in oklch, var(--success) 14%, transparent); }
+  ship-table .ft-badge.ft-enum       { color: var(--warning);       background: color-mix(in oklch, var(--warning) 16%, transparent); }
+  ship-table .ft-badge.ft-array      { color: var(--info);          background: color-mix(in oklch, var(--info) 14%, transparent); }
+  ship-table .ft-badge.ft-markdown   { color: var(--status-purple); background: color-mix(in oklch, var(--status-purple) 14%, transparent); }
+  ship-table .ft-badge.ft-timestamp  { color: var(--muted-foreground); background: color-mix(in oklch, var(--muted-foreground) 10%, transparent); }
+
+  /* ----------------------------------------------------------------
+   * Clickable rows — ship-row-click is dispatched for rows that have
+   * a row-id attribute on cells (any cell not .ship-table-gutter-cell).
+   * ---------------------------------------------------------------- */
+  ship-table tr[data-row-id] > td:not(.ship-table-gutter-cell) {
+    cursor: pointer;
+  }
+
   /* Forced colors — keep legibility in high-contrast mode. */
   @media (forced-colors: active) {
     ship-table th, ship-table td { border-bottom-color: CanvasText; }

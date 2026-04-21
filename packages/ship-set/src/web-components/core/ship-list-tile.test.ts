@@ -175,4 +175,19 @@ describe('ship-list-tile', () => {
       expect(fired).toBe(1)
     })
   })
+
+  describe('inter-sibling dividers (adopted stylesheet)', () => {
+    it('installs adopted stylesheet on first connect', async () => {
+      const el = await mount('<ship-list-tile variant="row">A</ship-list-tile>')
+      const sheets = document.adoptedStyleSheets
+      const hasDividerSheet = sheets.some(s => {
+        try { return [...s.cssRules].some(r => r.cssText.includes('ship-list-tile')) } catch { return false }
+      })
+      // If constructable stylesheets not supported we check the fallback <style>
+      const hasFallback = !!document.querySelector('style[data-ship-list-tile-dividers]')
+      expect(hasDividerSheet || hasFallback).toBe(true)
+      // cleanup
+      el.remove()
+    })
+  })
 })

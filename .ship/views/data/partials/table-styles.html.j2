@@ -69,49 +69,13 @@
   margin-left: var(--space-1);
 }
 
-/* Field-type pill — a compact tag to the left of every column name.
-   Tone per known type; anything else gets the neutral default. */
-.data-view .ft-badge {
-  display: inline-flex;
-  align-items: center;
-  justify-content: center;
-  height: 16px;
-  padding: 0 5px;
-  border-radius: var(--radius-sm);
-  font-family: var(--font-mono);
-  font-size: 9.5px;
-  font-weight: var(--font-weight-semibold);
-  letter-spacing: 0.02em;
-  line-height: 1;
-  text-transform: lowercase;
-  color: var(--muted-foreground);
-  background: color-mix(in oklch, var(--muted-foreground) 12%, transparent);
-}
-.data-view .ft-badge.ft-string     { color: var(--primary);     background: color-mix(in oklch, var(--primary) 14%, transparent); }
-.data-view .ft-badge.ft-number     { color: var(--accent);      background: color-mix(in oklch, var(--accent) 14%, transparent); }
-.data-view .ft-badge.ft-boolean    { color: var(--success);     background: color-mix(in oklch, var(--success) 14%, transparent); }
-.data-view .ft-badge.ft-enum       { color: var(--warning);     background: color-mix(in oklch, var(--warning) 16%, transparent); }
-.data-view .ft-badge.ft-array      { color: var(--info);        background: color-mix(in oklch, var(--info) 14%, transparent); }
-.data-view .ft-badge.ft-markdown   { color: var(--status-purple); background: color-mix(in oklch, var(--status-purple) 14%, transparent); }
-.data-view .ft-badge.ft-timestamp  { color: var(--muted-foreground); background: color-mix(in oklch, var(--muted-foreground) 10%, transparent); }
 
-/* Gutter + sticky id column — always visible during horizontal scroll. */
-.data-view .tbl .th-gutter,
-.data-view .tbl .td-gutter {
-  width: 40px;
-  padding: 0;
-  text-align: center;
-  background: color-mix(in oklch, var(--muted-foreground) 5%, var(--background));
-  border-right: 1px solid var(--border);
-  color: var(--muted-foreground);
-  position: sticky;
-  left: 0;
-  z-index: 1;
-}
-.data-view .tbl .td-gutter { background: var(--background); }
-.data-view .tbl .th-gutter input,
-.data-view .tbl .td-gutter input { cursor: not-allowed; accent-color: var(--primary); }
+/* Gutter input styling — view-local (ship-table provides position:sticky + border). */
+.data-view .th-gutter input,
+.data-view .td-gutter input { cursor: not-allowed; accent-color: var(--primary); }
 
+/* Second sticky column (id cell) — offset past gutter. ship-table handles
+   sticky-first-col for the gutter; this handles the id column. */
 .data-view .tbl .th-sticky,
 .data-view .tbl .td-sticky {
   position: sticky;

@@ -271,61 +271,6 @@
   background: var(--border);
 }
 
-/* Tabs — inline composition via data-on:click because ship-tabs requires
-   panel content inside the element and our panels are separate regions. */
-.data-view .col-tabs {
-  display: inline-flex;
-  padding: 2px;
-  background: var(--muted);
-  border: 1px solid var(--border);
-  border-radius: var(--radius-md);
-}
-.data-view .col-tab {
-  appearance: none;
-  border: 0;
-  background: transparent;
-  padding: 4px var(--space-3);
-  border-radius: var(--radius-sm);
-  font-size: var(--text-xs);
-  font-family: var(--font-body);
-  color: var(--muted-foreground);
-  cursor: pointer;
-  display: inline-flex;
-  align-items: center;
-  gap: var(--space-1);
-  transition: background var(--duration-fast) var(--ease-out), color var(--duration-fast) var(--ease-out);
-}
-.data-view .col-tab[aria-selected="true"] {
-  background: var(--card);
-  color: var(--foreground);
-  box-shadow: var(--shadow-xs);
-}
-
-/* Density segmented control — same shape as tabs. */
-.data-view .col-density {
-  display: inline-flex;
-  padding: 2px;
-  background: var(--muted);
-  border: 1px solid var(--border);
-  border-radius: var(--radius-md);
-}
-.data-view .col-density-btn {
-  appearance: none;
-  border: 0;
-  background: transparent;
-  padding: 4px var(--space-2);
-  border-radius: var(--radius-sm);
-  font-size: var(--text-xs);
-  font-family: var(--font-body);
-  color: var(--muted-foreground);
-  cursor: pointer;
-  transition: background var(--duration-fast) var(--ease-out), color var(--duration-fast) var(--ease-out);
-}
-.data-view .col-density-btn[aria-pressed="true"] {
-  background: var(--card);
-  color: var(--foreground);
-  box-shadow: var(--shadow-xs);
-}
 
 /* Tab panels — each occupies the remaining column flex space. */
 .data-view .col-tab-panel {

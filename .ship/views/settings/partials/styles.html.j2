@@ -49,16 +49,7 @@
     flex-shrink: 0;
   }
 
-  /* Row dividers between sibling list-tiles.
-     SDK gap: ship-list-tile row variant has no inter-sibling divider —
-     dashboard migration flagged the same (list-group wrapper candidate). */
-  .s-section-body > ship-list-tile + ship-list-tile,
-  .s-collapse-inner .s-section-body > ship-list-tile + ship-list-tile,
-  .s-provider-list > ship-list-tile + ship-list-tile {
-    border-top: 1px solid color-mix(in oklch, var(--border) 30%, transparent);
-  }
-
-  /* Installed-providers sub-list. Label is a micro-heading above a dense
+/* Installed-providers sub-list. Label is a micro-heading above a dense
      list; ship-list-tile carries the rows but the section header treatment
      is a view-local pattern. */
   .s-provider-list { padding: var(--space-1) 0 var(--space-2); }
