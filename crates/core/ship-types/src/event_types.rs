@@ -61,6 +61,11 @@ pub const DAEMON_CRASHED: &str = "daemon.crashed";
 pub const DAEMON_PORT_BIND_FAILED: &str = "daemon.port_bind_failed";
 pub const DAEMON_PIDFILE_ACQUIRED: &str = "daemon.pidfile_acquired";
 pub const DAEMON_PIDFILE_STALE_TAKEN: &str = "daemon.pidfile_stale_taken";
+pub const JOB_STEP_COMPLETED: &str = "job.step_completed";
+pub const JOB_STEP_FAILED: &str = "job.step_failed";
+pub const JOB_CANCELLED: &str = "job.cancelled";
+pub const JOB_MERGED: &str = "job.merged";
+pub const JOB_SPAWN_FAILED: &str = "job.spawn_failed";
 
 pub const ALL: &[&str] = &[
     WORKSPACE_CREATED,
@@ -126,6 +131,11 @@ pub const ALL: &[&str] = &[
     DAEMON_PORT_BIND_FAILED,
     DAEMON_PIDFILE_ACQUIRED,
     DAEMON_PIDFILE_STALE_TAKEN,
+    JOB_STEP_COMPLETED,
+    JOB_STEP_FAILED,
+    JOB_CANCELLED,
+    JOB_MERGED,
+    JOB_SPAWN_FAILED,
 ];
 
 #[cfg(test)]

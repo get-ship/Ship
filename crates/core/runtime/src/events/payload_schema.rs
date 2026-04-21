@@ -86,6 +86,11 @@ fn schema_for_event_type(
         "job.completed" => Some(check::<JobCompleted>),
         "job.failed" => Some(check::<JobFailed>),
         "job.dispatched" => Some(check::<JobDispatched>),
+        ship_types::event_types::JOB_STEP_COMPLETED => Some(check::<crate::events::job::StepCompletedPayload>),
+        ship_types::event_types::JOB_STEP_FAILED => Some(check::<crate::events::job::StepFailedPayload>),
+        ship_types::event_types::JOB_CANCELLED => Some(check::<crate::events::job::JobCancelledPayload>),
+        ship_types::event_types::JOB_MERGED => Some(check::<crate::events::job::JobMergedPayload>),
+        ship_types::event_types::JOB_SPAWN_FAILED => Some(check::<crate::events::job::JobSpawnFailedPayload>),
         // config
         "config.changed" => Some(check::<ConfigChanged>),
         // project

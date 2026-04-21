@@ -5,6 +5,7 @@
 
 use crate::events::job::StepObservedPayload;
 use crate::events::EventEnvelope;
+use ship_types::event_types as et;
 use std::sync::atomic::Ordering;
 use std::sync::Arc;
 use tokio::sync::Mutex;
@@ -119,7 +120,7 @@ pub async fn handle_job_event(
     match envelope.event_type.as_str() {
         "job.created" => handle_job_created(kernel, envelope, octx).await,
         "job.update" => handle_job_update(kernel, envelope).await,
-        "job.cancelled" => handle_job_cancelled(kernel, envelope, octx).await,
+        et::JOB_CANCELLED => handle_job_cancelled(kernel, envelope, octx).await,
         "job.completed" => {
             tracing::info!(entity_id = %envelope.entity_id, "job-dispatch: handling job.completed");
             let slug = extract_slug(envelope);
@@ -138,21 +139,21 @@ pub async fn handle_job_event(
                 }
             }
         }
-        "job.step_completed" => {
+        et::JOB_STEP_COMPLETED => {
             tracing::info!(entity_id = %envelope.entity_id, "job-dispatch: handling job.step_completed");
             if !advance_pipeline(kernel, envelope, octx).await {
                 finalize_pipeline_if_done(kernel, envelope).await;
                 super::pending::dispatch_ready_pending_jobs(kernel, octx).await;
             }
         }
-        "job.step_failed" => {
+        et::JOB_STEP_FAILED => {
             tracing::warn!(entity_id = %envelope.entity_id, "job-dispatch: pipeline step failed — advancement halted");
             let payload: serde_json::Value = serde_json::from_str(&envelope.payload_json).unwrap_or_default();
             if let Some(slug) = payload["slug"].as_str() {
                 octx.registry.unregister(slug).await;
             }
         }
-        "job.merged" => {
+        et::JOB_MERGED => {
             tracing::info!(entity_id = %envelope.entity_id, "job-dispatch: handling job.merged");
             let slug = extract_slug(envelope);
             if let Some(slug) = &slug {
@@ -314,10 +315,9 @@ async fn maybe_auto_merge(
 /// pipeline progression. These are exempt from the terminal-state guard
 /// so operators can still issue signals about a finalized job.
 fn is_operator_event(event_type: &str) -> bool {
-    matches!(
-        event_type,
-        "job.created" | "job.update" | "job.cancelled"
-    )
+    event_type == "job.created"
+        || event_type == "job.update"
+        || event_type == et::JOB_CANCELLED
 }
 
 /// Load the projected record for a single job by entity_id.
