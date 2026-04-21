@@ -192,6 +192,32 @@ Available `data:` loaders: `collections`, `agents`, `skills`, `settings`, `event
 
 Events: any kernel namespace prefix (`collection.`, `job.`, `workspace.`, `config.`, etc.) or empty string for all events.
 
+### `packs` — per-view bundle loading
+
+The shell eager-loads only two JS assets on boot: `datastar.js` (reactivity) and `ship-elements.js` (the `<ship-*>` registry). Heavy island bundles — TipTap, CodeMirror, xterm — are ~5 MB combined and stay off the wire unless a view declares it needs them.
+
+Declare them via `packs:` in the manifest. The daemon reads the list at render time and injects `<script type="module" src=...>` tags into the response; `mount.ts` rehydrates injected scripts after fragment navigation so they actually execute.
+
+```yaml
+name: skills
+type: html
+data:
+  skills: true
+events:
+  - config.changed
+packs:
+  - editor    # provides <ship-code-editor> and <ship-markdown-editor>
+```
+
+Available packs:
+
+| Pack | Bundles | Elements enabled |
+|---|---|---|
+| `editor` | `ship-code-editor.js` + `ship-markdown-editor.js` | `<ship-code-editor>`, `<ship-markdown-editor>` |
+| `terminal` | `ship-terminal.js` | `<ship-terminal>` |
+
+Only declare packs the view actually uses. The `ship lint views` linter enforces this in both directions: `missing-pack-declaration` (error) fires when a template uses a heavy-island tag without the matching pack, and `stale-pack-declaration` (warn) fires when a declared pack has no corresponding tag in the view. Unknown pack names are ignored by the daemon but not enforced by the linter (reserved for future additions like `viz`).
+
 ## Working with collections — the primary data story
 
 Collections are structured data tables defined by JSON schema. They're the extension author's main data surface.
