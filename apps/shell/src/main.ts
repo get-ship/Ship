@@ -113,43 +113,67 @@ document.getElementById("close-terminal")!.addEventListener("click", () => {
 });
 
 // ── Mount a daemon view ──────────────────────────────────────────────
+//
+// Cross-fade strategy: the OLD root stays visible during the fetch (no blank
+// interval). Once the new content has settled:
+//  1. Insert the new root (opacity 0 via ship-content-entering).
+//  2. Mark the old root as leaving (ship-content-leaving → opacity 0).
+//  3. After ~140ms remove the old root and reveal the new one.
+// Respects prefers-reduced-motion (CSS collapses transitions to none).
 async function mount(endpoint: string) {
+  // Keep a reference to the OLD root — it stays in the DOM during fetch.
+  const old = document.getElementById("ship-view-root");
+  const parent = old?.parentElement ?? document.body;
 
-  // Remove old view from DOM entirely. This is critical — Datastar's
-  // MutationObserver fires on removed nodes and cleans up internal SSE
-  // connections from {{ live() }} macros. textContent="" alone is not
-  // enough; we need to remove and re-create the mount point.
-  //
-  // Re-query fresh: a prior Datastar @get may have morphed the root
-  // element out from under us (replacing <main id="ship-view-root"> with
-  // a <div id="ship-view-root"> from the fragment response). The cached
-  // `view` reference would then be detached with a null parentElement.
-  const live = document.getElementById("ship-view-root");
-  const parent = live?.parentElement ?? document.body;
+  // Build the new root but don't insert it yet.
   const newView = document.createElement("main");
-  newView.id = "ship-view-root";
+  newView.id = "ship-view-root-next";
   newView.className = "ship-content ship-content-entering";
-  if (live && live.parentElement) {
-    parent.replaceChild(newView, live);
+  // Position it out of flow until content is ready.
+  newView.style.position = "absolute";
+  newView.style.inset = "0";
+  newView.style.zIndex = "-1";
+  newView.style.pointerEvents = "none";
+
+  // Attach alongside old so Datastar can see both in the DOM, then fetch.
+  if (old) {
+    parent.insertBefore(newView, old.nextSibling);
   } else {
     parent.appendChild(newView);
   }
-  view = newView;
 
   try {
-    await mountDaemonFragment(view, endpoint, {
+    await mountDaemonFragment(newView, endpoint, {
       token: TOKEN,
       base: DAEMON_BASE,
     });
   } catch {
-    view.innerHTML = `<div class="mount-error">Failed to load view.\nCheck that the daemon is running.</div>`;
-  } finally {
-    // Trigger the enter animation AFTER content has landed so the blank
-    // interval between node-create and fetch-settle stays invisible rather
-    // than flashing empty.
-    requestAnimationFrame(() => {
-      view.classList.remove("ship-content-entering");
-    });
+    newView.innerHTML = `<div class="mount-error">Failed to load view.\nCheck that the daemon is running.</div>`;
+  }
+
+  // Content landed. Now do the visual swap atomically.
+  // Clear old root's id first to avoid duplicate ids during the brief overlap.
+  if (old) old.id = "ship-view-root-leaving";
+  newView.id = "ship-view-root";
+  newView.style.position = "";
+  newView.style.inset = "";
+  newView.style.zIndex = "";
+  newView.style.pointerEvents = "";
+  view = newView;
+
+  // Fade in new view.
+  requestAnimationFrame(() => {
+    newView.classList.remove("ship-content-entering");
+  });
+
+  // Fade out old view and remove after transition completes.
+  if (old && old !== newView) {
+    old.classList.add("ship-content-leaving");
+    // Remove old root after the leave transition. Use a slightly longer
+    // timeout than the CSS transition (140ms) to ensure cleanup.
+    setTimeout(() => {
+      if (old.parentElement) old.parentElement.removeChild(old);
+    }, 180);
   }
 }
 
@@ -186,16 +210,34 @@ async function submitFragmentForm(form: HTMLFormElement) {
 }
 
 // ── Breadcrumbs ──────────────────────────────────────────────────────
+const ROUTE_DISPLAY_NAMES: Record<string, string> = {
+  data: "Collections",
+  dashboard: "Dashboard",
+  pipelines: "Pipelines",
+  agents: "Agents",
+  skills: "Skills",
+  settings: "Settings",
+  git: "Git",
+  events: "Events",
+  canvas: "Canvas",
+  overview: "Overview",
+};
+
+function displayName(segment: string): string {
+  return ROUTE_DISPLAY_NAMES[segment] ?? segment;
+}
+
 function updateBreadcrumbs(path: string) {
   const parts = path.split("/").filter(Boolean);
   if (parts.length === 0) parts.push("dashboard");
   const crumbs = parts.map((part, i) => {
     const isLast = i === parts.length - 1;
     const href = "/" + parts.slice(0, i + 1).join("/");
+    const label = displayName(part);
     if (isLast) {
-      return `<span class="current">${part}</span>`;
+      return `<span class="current">${label}</span>`;
     }
-    return `<a onclick="event.preventDefault();window.router.navigate('${href}')">${part}</a><span class="chevron">›</span>`;
+    return `<a onclick="event.preventDefault();window.router.navigate('${href}')">${label}</a><span class="chevron">›</span>`;
   });
   breadcrumbs.innerHTML = crumbs.join("");
 }

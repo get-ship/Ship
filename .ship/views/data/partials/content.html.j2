@@ -49,7 +49,11 @@
           <td class="td-gutter">
             <input type="checkbox" disabled aria-label="Select row">
           </td>
-          <td class="td-sticky mono-snip id-cell" title="{{ item.id }}">
+          <td class="td-sticky mono-snip id-cell" title="{{ item.id }}"
+            data-item-id="{{ item.id }}"
+            data-item-data="{{ item.data | to_attr_json }}"
+            data-on:click="$_editId = evt.currentTarget.dataset.itemId; try { $_editDraft = JSON.parse(evt.currentTarget.dataset.itemData) } catch(_e) { $_editDraft = {} }; $_editOpen = true"
+            style="cursor:pointer" tabindex="0" role="button" aria-label="Edit row {{ item.id }}">
             {{ item.id[:12] }}{% if item.id | length > 12 %}…{% endif %}
           </td>
           {% for field_name, field_def in schema.fields %}
@@ -99,9 +103,7 @@
   {% elif schema is defined %}
   <ship-empty-state>
     <span slot="title">No items in {{ schema.name or active_collection }}</span>
-    <span slot="description">
-      Create one via the API or CLI — the create flow lands in Phase 2.
-    </span>
+    <span slot="description">Click "New row" to create the first item.</span>
   </ship-empty-state>
   {% else %}
   <ship-empty-state>

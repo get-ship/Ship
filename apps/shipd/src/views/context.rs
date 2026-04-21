@@ -46,9 +46,10 @@ fn load_collections(
     if !should_load {
         return;
     }
-    // Merge built-in schemas (specs/adrs/notes/feedback/annotations) with
-    // user-defined ones so SSE context matches initial-render context and
-    // /api/collections.
+    // Merge built-in schemas (notes + system ones) with user-defined ones
+    // so SSE context matches initial-render context and /api/collections.
+    // We include all built-ins here so navigating to any collection (including
+    // system ones) works; user-facing listing uses user_schemas().
     let mut schemas = runtime::collections::builtin::all_schemas();
     schemas.extend(runtime::collections::schema::load_schemas(ship_dir).unwrap_or_default());
     let active_id = signals

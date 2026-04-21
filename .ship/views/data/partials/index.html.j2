@@ -13,10 +13,8 @@
       </div>
     </div>
     <div class="data-index-actions">
-      <ship-button size="sm" variant="ghost" disabled title="Opening folders — coming soon">
-        <ship-icon slot="leading" name="folder"></ship-icon>Open schemas folder
-      </ship-button>
-      <ship-button size="sm" tone="accent" variant="solid" disabled title="Create flow — coming soon">
+      <ship-button size="sm" tone="accent" variant="solid"
+        data-on:click="$_newColOpen = true">
         <ship-icon slot="leading" name="plus"></ship-icon>New collection
       </ship-button>
     </div>

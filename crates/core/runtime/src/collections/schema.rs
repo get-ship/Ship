@@ -14,6 +14,11 @@ pub struct CollectionSchema {
     #[serde(default)]
     pub name: Option<String>,
     pub fields: IndexMap<String, FieldDef>,
+    /// If true, this schema is system-internal and hidden from user-facing
+    /// listings by default. Set by built-in generators for schemas that
+    /// serve the runtime kernel (e.g. feedback, annotations).
+    #[serde(default)]
+    pub system: bool,
 }
 
 /// Definition of a single field in a collection schema.

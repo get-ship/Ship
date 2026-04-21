@@ -1,13 +1,18 @@
 {#-
-  Data — Drizzle-Studio-style collections browser.
+  Collections — Drizzle-Studio-style collections browser.
   Nav + workspace shell render once; the Rows tab body patches via SSE from
   partials/content.html.j2 whenever collection.item_* events fire.
+
+  CRUD via ship-drawer:
+    - New row: opens _newRowDrawer with per-schema inputs
+    - Edit row: opens _editDrawer prefilled from clicked row
+    - New collection: opens _newCollectionDrawer
 -#}
-{% from '_ship.html.j2' import head, signal, show, live, styles, tab, tab_panel, nav %}
+{% from '_ship.html.j2' import head, signal, show, live, styles, tab, tab_panel %}
 {% if not fragment %}
 <!DOCTYPE html>
 <html lang="en">
-<head>{{ head('Data') }}</head>
+<head>{{ head('Collections') }}</head>
 <body>
 {% endif %}
 {% set sdk_collections = ship_collections() %}
@@ -18,7 +23,15 @@
      {{ signal('tab', 'rows') }}
      {{ signal('_density', 'cozy') }}
      {{ signal('selected', []) }}
-     {{ signal('_page', 1) }}>
+     {{ signal('_page', 1) }}
+     {{ signal('_newRowOpen', false) }}
+     {{ signal('_editOpen', false) }}
+     {{ signal('_editId', '') }}
+     {{ signal('_newColOpen', false) }}
+     {{ signal('_rowDraft', {}) }}
+     {{ signal('_editDraft', {}) }}
+     {{ signal('_newColDraft', {id: '', name: '', fields: [{name: 'title', type: 'string', required: true}]}) }}
+     {{ signal('_drawerError', '') }}>
   {{ styles() }}
   {% include 'data/partials/styles.html.j2' %}
   {% include 'data/partials/workspace-styles.html.j2' %}
@@ -33,10 +46,16 @@
           Typed datasets defined in <span class="mono-snip">.ship/schemas/</span>,
           stored in <span class="mono-snip">~/.ship/data.db</span>.
         </div>
+        <div class="data-index-actions">
+          <ship-button size="sm" tone="accent" variant="solid"
+            data-on:click="$_newColOpen = true">
+            <ship-icon slot="leading" name="plus"></ship-icon>New collection
+          </ship-button>
+        </div>
       </div>
       <ship-empty-state>
         <span slot="title">No collections yet</span>
-        <span slot="description">Add a schema .jsonc file to .ship/schemas/ to get started.</span>
+        <span slot="description">Click "New collection" or drop a .jsonc file in .ship/schemas/ to get started.</span>
       </ship-empty-state>
     </div>
   {% elif query.browse == 'index' or active_collection is not defined or schema is not defined %}
@@ -44,13 +63,15 @@
     {% include 'data/partials/index.html.j2' %}
   {% else %}
     {# Collection workspace — nav + header + tab body. #}
+    {% set _is_builtin = active_collection in ['notes', 'feedback', 'annotations'] %}
     <div class="col-workspace no-events">
 
       {# -- Left nav -- #}
       <aside class="col-nav">
         <div class="col-nav-section">
           <span>Collections</span>
-          <span class="col-nav-add" title="New collection (coming soon)" aria-disabled="true">
+          <span class="col-nav-add" title="New collection"
+            data-on:click="$_newColOpen = true" style="cursor:pointer">
             <ship-icon name="plus" size="sm"></ship-icon>
           </span>
         </div>
@@ -69,17 +90,6 @@
           </div>
         {% endif %}
         {% endfor %}
-
-        <div class="col-nav-section" style="margin-top:var(--space-4)">
-          <span>Saved queries</span>
-          <span class="col-nav-add" title="Save current query (coming soon)" aria-disabled="true">
-            <ship-icon name="plus" size="sm"></ship-icon>
-          </span>
-        </div>
-        <div class="col-nav-row is-muted" aria-disabled="true">
-          <span class="col-nav-icon"><ship-icon name="filter" size="sm"></ship-icon></span>
-          <span class="col-nav-label">No saved queries</span>
-        </div>
       </aside>
 
       {# -- Main workspace pane -- #}
@@ -109,13 +119,8 @@
               </button>
             </div>
             <span class="col-head-sep" aria-hidden="true"></span>
-            {#- Build a stub JSON body for required fields as a signal so the
-                @post expression stays readable. Use &quot; in attribute context
-                so the browser normalizes to " before Datastar evaluates. -#}
-            {% set _stub_parts = [] %}
-            {% for f in schema.fields %}{% if f[1].required %}{% if f[1].field_type == 'number' %}{% set _stub_parts = _stub_parts + [('&quot;' ~ f[0] ~ '&quot;: 0')] %}{% elif f[1].field_type == 'boolean' %}{% set _stub_parts = _stub_parts + [('&quot;' ~ f[0] ~ '&quot;: false')] %}{% elif f[1].field_type == 'enum' and f[1].values and f[1].values | length > 0 %}{% set _stub_parts = _stub_parts + [('&quot;' ~ f[0] ~ '&quot;: &quot;' ~ f[1].values[0] ~ '&quot;')] %}{% elif f[1].field_type == 'array' %}{% set _stub_parts = _stub_parts + [('&quot;' ~ f[0] ~ '&quot;: []')] %}{% else %}{% set _stub_parts = _stub_parts + [('&quot;' ~ f[0] ~ '&quot;: &quot;New ' ~ f[0] ~ '&quot;')] %}{% endif %}{% endif %}{% endfor %}
             <ship-button size="sm" tone="accent" variant="solid"
-              data-on:click="@post('/api/collections/{{ active_collection }}/items', {contentType: 'json', body: {data: { {{- _stub_parts | join(', ') -}} }}})">
+              data-on:click="$_rowDraft = {}; $_newRowOpen = true">
               <ship-icon slot="leading" name="plus"></ship-icon>New row
             </ship-button>
           </div>
@@ -134,10 +139,7 @@
           </div>
         </div>
 
-        {# Schema tab — inline editor. Built-in collections (runtime-owned) are
-           presented read-only; user-defined collections are fully editable
-           via PUT /api/collections/<id>/schema. #}
-        {% set _is_builtin = active_collection in ['specs', 'adrs', 'notes', 'feedback', 'annotations'] %}
+        {# Schema tab #}
         <div {{ tab_panel('tab', 'schema') }} class="col-tab-panel schema-panel">
           <div class="schema-pane"
                {{ signal('_savedAt', 0) }}
@@ -156,12 +158,8 @@
             {% if _is_builtin %}
             <div class="schema-builtin-note">
               <ship-icon name="lock" size="sm"></ship-icon>
-              Built-in collections ship with the runtime. Fields are listed below for reference — editing would require a code change + rebuild.
+              Built-in collections ship with the runtime. Fields are listed below for reference — editing requires a code change + rebuild.
             </div>
-            {% endif %}
-
-            {% if _is_builtin %}
-            {# Read-only view. #}
             <div class="schema-fields">
               {% for f in schema.fields %}
               <div class="schema-field">
@@ -173,7 +171,7 @@
               {% endfor %}
             </div>
             {% else %}
-            {# Editable form. Each field row binds to a signal slot in $schemaDraft. #}
+            {# Editable schema form #}
             {% set _field_json_parts = [] %}
             {% for f in schema.fields %}{% set _field_json_parts = _field_json_parts + [
               '{&quot;name&quot;: &quot;' ~ f[0] ~ '&quot;, &quot;type&quot;: &quot;' ~ f[1].field_type ~ '&quot;, &quot;required&quot;: ' ~ ('true' if f[1].required else 'false') ~ ', &quot;values&quot;: ' ~ (f[1].values | tojson if f[1].values else '[]') ~ '}'
@@ -190,11 +188,6 @@
                   <span>Values (enum)</span>
                   <span></span>
                 </div>
-                <template data-for="(f, i) in $schemaDraft.fields">
-                  {# Datastar doesn't ship a native for-template, so we render one row per field server-side and
-                     bind indexes. Keeps the editor declarative; the template comment above is a placeholder for future
-                     dynamic row counts — add/remove will reload the view for now (Phase 2.5). #}
-                </template>
                 {% for f in schema.fields %}
                 <div class="schema-edit-row">
                   <ship-select size="sm" data-bind="schemaDraft.fields.{{ loop.index0 }}.type">
@@ -214,16 +207,16 @@
                   </label>
                   <ship-input size="sm" placeholder="comma-separated"
                     data-bind="schemaDraft.fields.{{ loop.index0 }}._valuesCsv"
-                    data-attr:disabled="$schemaDraft.fields.{{ loop.index0 }}.type != 'enum'"></ship-input>
+                    data-attr:disabled="$schemaDraft.fields[{{ loop.index0 }}].type != 'enum'"></ship-input>
                   <ship-button size="sm" variant="ghost" aria-label="Remove field"
-                    data-on:click="$schemaDraft.fields.splice({{ loop.index0 }}, 1)">
+                    data-on:click.prevent="$schemaDraft.fields.splice({{ loop.index0 }}, 1)">
                     <ship-icon name="trash" size="sm"></ship-icon>
                   </ship-button>
                 </div>
                 {% endfor %}
               </div>
               <div class="schema-edit-footer">
-                <ship-button size="sm" variant="ghost"
+                <ship-button size="sm" variant="ghost" type="button"
                   data-on:click.prevent="$schemaDraft.fields.push({name: 'new_field', type: 'string', required: false, values: []})">
                   <ship-icon slot="leading" name="plus"></ship-icon>Add field
                 </ship-button>
@@ -242,6 +235,167 @@
       </div>
     </div>
   {% endif %}
+
+  {# ── New Row Drawer ─────────────────────────────────────────────────────── #}
+  {% if schema is defined %}
+  <ship-drawer data-attr:open="$_newRowOpen ? &quot;&quot; : null" size="md"
+    data-on:ship-close="$_newRowOpen = false; $_drawerError = ''">
+    <span slot="title">New row</span>
+    <span slot="description">Add a new item to {{ schema.name or active_collection }}</span>
+    <div class="drawer-form">
+      {% for f in schema.fields %}
+      <div class="drawer-field">
+        <label class="drawer-label">
+          {{ f[0] }}{% if f[1].required %}<span class="drawer-req">*</span>{% endif %}
+          <span class="drawer-type">{{ f[1].field_type }}</span>
+        </label>
+        {% if f[1].field_type == 'boolean' %}
+        <ship-switch data-bind="_rowDraft.{{ f[0] }}"></ship-switch>
+        {% elif f[1].field_type == 'enum' and f[1].values %}
+        <ship-select data-bind="_rowDraft.{{ f[0] }}">
+          {% if not f[1].required %}<option value="">— none —</option>{% endif %}
+          {% for v in f[1].values %}<option value="{{ v }}">{{ v }}</option>{% endfor %}
+        </ship-select>
+        {% elif f[1].field_type == 'markdown' %}
+        <ship-textarea rows="4" data-bind="_rowDraft.{{ f[0] }}"
+          placeholder="{{ f[0] }}..."></ship-textarea>
+        {% elif f[1].field_type == 'number' %}
+        <ship-input type="number" data-bind="_rowDraft.{{ f[0] }}"
+          placeholder="0"></ship-input>
+        {% elif f[1].field_type == 'array' %}
+        <ship-input data-bind="_rowDraft.{{ f[0] }}"
+          placeholder="item1, item2, item3"></ship-input>
+        {% else %}
+        <ship-input data-bind="_rowDraft.{{ f[0] }}"
+          placeholder="{{ f[0] }}"
+          {%- if f[1].required %} required{% endif %}></ship-input>
+        {% endif %}
+      </div>
+      {% endfor %}
+      <div data-show="$_drawerError" class="drawer-error" data-text="$_drawerError"></div>
+    </div>
+    <div slot="footer">
+      <ship-button variant="ghost"
+        data-on:click="$_newRowOpen = false; $_drawerError = ''">Cancel</ship-button>
+      <ship-button tone="accent" variant="solid"
+        data-on:click="@post('/api/collections/{{ active_collection }}/items', {contentType: 'json', body: {data: $_rowDraft}}); $_newRowOpen = false; $_rowDraft = {}; $_drawerError = ''">
+        Save
+      </ship-button>
+    </div>
+  </ship-drawer>
+
+  {# ── Edit Row Drawer ────────────────────────────────────────────────────── #}
+  <ship-drawer data-attr:open="$_editOpen ? &quot;&quot; : null" size="md"
+    data-on:ship-close="$_editOpen = false; $_drawerError = ''">
+    <span slot="title">Edit row</span>
+    <span slot="description" data-text="'Editing ' + $_editId"></span>
+    <div class="drawer-form">
+      {% for f in schema.fields %}
+      <div class="drawer-field">
+        <label class="drawer-label">
+          {{ f[0] }}{% if f[1].required %}<span class="drawer-req">*</span>{% endif %}
+          <span class="drawer-type">{{ f[1].field_type }}</span>
+        </label>
+        {% if f[1].field_type == 'boolean' %}
+        <ship-switch data-bind="_editDraft.{{ f[0] }}"></ship-switch>
+        {% elif f[1].field_type == 'enum' and f[1].values %}
+        <ship-select data-bind="_editDraft.{{ f[0] }}">
+          {% if not f[1].required %}<option value="">— none —</option>{% endif %}
+          {% for v in f[1].values %}<option value="{{ v }}">{{ v }}</option>{% endfor %}
+        </ship-select>
+        {% elif f[1].field_type == 'markdown' %}
+        <ship-textarea rows="4" data-bind="_editDraft.{{ f[0] }}"
+          placeholder="{{ f[0] }}..."></ship-textarea>
+        {% elif f[1].field_type == 'number' %}
+        <ship-input type="number" data-bind="_editDraft.{{ f[0] }}"
+          placeholder="0"></ship-input>
+        {% elif f[1].field_type == 'array' %}
+        <ship-input data-bind="_editDraft.{{ f[0] }}"
+          placeholder="item1, item2, item3"></ship-input>
+        {% else %}
+        <ship-input data-bind="_editDraft.{{ f[0] }}"
+          placeholder="{{ f[0] }}"></ship-input>
+        {% endif %}
+      </div>
+      {% endfor %}
+      <div data-show="$_drawerError" class="drawer-error" data-text="$_drawerError"></div>
+    </div>
+    <div slot="footer">
+      <ship-button tone="destructive" variant="soft" style="margin-right:auto"
+        data-on:click="if(confirm('Delete this row?')) { @delete('/api/collections/{{ active_collection }}/items/' + $_editId); $_editOpen = false; $_drawerError = '' }">
+        Delete
+      </ship-button>
+      <ship-button variant="ghost"
+        data-on:click="$_editOpen = false; $_drawerError = ''">Cancel</ship-button>
+      <ship-button tone="accent" variant="solid"
+        data-on:click="@put('/api/collections/{{ active_collection }}/items/' + $_editId, {contentType: 'json', body: {data: $_editDraft}}); $_editOpen = false; $_drawerError = ''">
+        Save
+      </ship-button>
+    </div>
+  </ship-drawer>
+  {% endif %}
+
+  {# ── New Collection Drawer ──────────────────────────────────────────────── #}
+  <ship-drawer data-attr:open="$_newColOpen ? &quot;&quot; : null" size="md"
+    data-on:ship-close="$_newColOpen = false; $_drawerError = ''">
+    <span slot="title">New collection</span>
+    <span slot="description">Define a typed dataset stored in data.db</span>
+    <div class="drawer-form">
+      <div class="drawer-field">
+        <label class="drawer-label">
+          Collection ID <span class="drawer-req">*</span>
+          <span class="drawer-type">snake_case</span>
+        </label>
+        <ship-input data-bind="_newColDraft.id" placeholder="my_collection" required
+          style="font-family: var(--font-mono)"></ship-input>
+      </div>
+      <div class="drawer-field">
+        <label class="drawer-label">Display name</label>
+        <ship-input data-bind="_newColDraft.name" placeholder="My Collection"></ship-input>
+      </div>
+      <div class="drawer-field-group-label">Fields</div>
+      <div class="schema-edit-table">
+        <div class="schema-edit-head">
+          <span>Type</span>
+          <span>Name</span>
+          <span>Required</span>
+          <span></span>
+        </div>
+        <div id="new-col-fields-placeholder">
+          {# Fields rendered via _newColDraft signal — at minimum one #}
+          <div class="schema-edit-row">
+            <ship-select size="sm" data-bind="_newColDraft.fields.0.type">
+              <option value="string">string</option>
+              <option value="markdown">markdown</option>
+              <option value="number">number</option>
+              <option value="boolean">boolean</option>
+              <option value="enum">enum</option>
+              <option value="date">date</option>
+              <option value="array">array</option>
+              <option value="object">object</option>
+            </ship-select>
+            <ship-input size="sm" data-bind="_newColDraft.fields.0.name"></ship-input>
+            <label class="schema-edit-check">
+              <input type="checkbox" data-bind="_newColDraft.fields.0.required">
+            </label>
+            <ship-button size="sm" variant="ghost" aria-label="Remove field" disabled>
+              <ship-icon name="trash" size="sm"></ship-icon>
+            </ship-button>
+          </div>
+        </div>
+      </div>
+      <div data-show="$_drawerError" class="drawer-error" data-text="$_drawerError"></div>
+    </div>
+    <div slot="footer">
+      <ship-button variant="ghost"
+        data-on:click="$_newColOpen = false; $_drawerError = ''">Cancel</ship-button>
+      <ship-button tone="accent" variant="solid"
+        data-on:click="@post('/api/collections', {contentType: 'json', body: {id: $_newColDraft.id, name: $_newColDraft.name, fields: Object.fromEntries($_newColDraft.fields.map(f => [f.name, {type: f.type, required: f.required}]))}}); $_newColOpen = false; window.router && window.router.navigate('/data/' + $_newColDraft.id)">
+        Create collection
+      </ship-button>
+    </div>
+  </ship-drawer>
+
 </div>
 {% if not fragment %}
 </body>

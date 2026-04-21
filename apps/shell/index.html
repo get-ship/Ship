@@ -215,9 +215,15 @@
         opacity: 0;
         transform: translateY(2px);
       }
+      .ship-content-leaving {
+        opacity: 0;
+        transform: translateY(-2px);
+        pointer-events: none;
+      }
       @media (prefers-reduced-motion: reduce) {
         .ship-content,
-        .ship-content-entering { opacity: 1; transform: none; transition: none; }
+        .ship-content-entering,
+        .ship-content-leaving { opacity: 1; transform: none; transition: none; }
       }
 
       /* ── Right drawer: chat panel ── */
@@ -349,7 +355,7 @@
       <a data-route="/agents" title="Agents"><ship-icon name="users"></ship-icon></a>
       <a data-route="/skills" title="Skills"><ship-icon name="zap"></ship-icon></a>
       <a data-route="/git" title="Git"><ship-icon name="git"></ship-icon></a>
-      <a data-route="/data" title="Data"><ship-icon name="folder"></ship-icon></a>
+      <a data-route="/data" title="Collections"><ship-icon name="database"></ship-icon></a>
       <a data-route="/canvas" title="Canvas"><ship-icon name="image"></ship-icon></a>
       <a data-route="/overview" title="Overview"><ship-icon name="git"></ship-icon></a>
       <a data-route="/events" title="Events"><ship-icon name="sparkles"></ship-icon></a>

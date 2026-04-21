@@ -85,10 +85,10 @@ pub fn ship_query(collection: String, opts: Option<Value>) -> Vec<Value> {
 }
 
 /// Global function: `ship_collections()`.
-/// Returns all collection schemas as `[{id, name, field_count, fields}]`.
+/// Returns user-visible collection schemas as `[{id, name, field_count, fields}]`.
 ///
-/// Merges built-in schemas (specs, adrs, notes, feedback, annotations —
-/// owned by the runtime) with user-defined schemas under `.ship/schemas/`.
+/// Merges user-visible built-in schemas (notes — system schemas like feedback
+/// and annotations are excluded) with user-defined schemas under `.ship/schemas/`.
 /// Matches the `/api/collections` HTTP endpoint so the Jinja helper and
 /// REST API see the same collection set.
 pub fn ship_collections() -> Vec<Value> {
@@ -96,7 +96,7 @@ pub fn ship_collections() -> Vec<Value> {
         Ok(d) => d,
         Err(_) => return vec![],
     };
-    let mut schemas = runtime::collections::builtin::all_schemas();
+    let mut schemas = runtime::collections::builtin::user_schemas();
     schemas.extend(runtime::collections::schema::load_schemas(&ship_dir).unwrap_or_default());
     schemas
         .iter()
@@ -302,11 +302,22 @@ pub fn register_all(env: &mut minijinja::Environment) {
     env.add_filter("sort_by", filter_sort_by);
     env.add_filter("take", filter_take);
     env.add_filter("tojson", filter_tojson);
+    env.add_filter("to_attr_json", filter_to_attr_json);
 }
 
 /// Filter: `| tojson` — serialize any value to a JSON string.
 fn filter_tojson(value: Value) -> String {
     serde_json::to_string(&value).unwrap_or_else(|_| "null".to_string())
+}
+
+/// Filter: `| to_attr_json` — serialize to JSON with `"` replaced by `&quot;`
+/// so the result is safe inside a double-quoted HTML attribute value.
+/// Example: `data-item-data="{{ item.data | to_attr_json }}"`
+/// The browser decodes &quot; back to " when you read element.dataset.itemData.
+fn filter_to_attr_json(value: Value) -> String {
+    serde_json::to_string(&value)
+        .unwrap_or_else(|_| "null".to_string())
+        .replace('"', "&quot;")
 }
 
 #[cfg(test)]

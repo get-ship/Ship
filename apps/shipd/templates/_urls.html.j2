@@ -117,6 +117,7 @@
 {%- macro event_route() -%}/api/events/route{%- endmacro -%}
 {%- macro list_collections() -%}/api/collections{%- endmacro -%}
 {%- macro get_collection_schema(collection) -%}/api/collections/{{ collection }}/schema{%- endmacro -%}
+{%- macro update_collection_schema(collection) -%}/api/collections/{{ collection }}/schema{%- endmacro -%}
 {%- macro create_collection_item(collection) -%}/api/collections/{{ collection }}/items{%- endmacro -%}
 {%- macro get_collection_item(collection, item_id) -%}/api/collections/{{ collection }}/items/{{ item_id }}{%- endmacro -%}
 {%- macro update_collection_item(collection, item_id) -%}/api/collections/{{ collection }}/items/{{ item_id }}{%- endmacro -%}

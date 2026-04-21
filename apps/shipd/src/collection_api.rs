@@ -12,10 +12,6 @@ use runtime::collections::{builtin, query::QueryRequest, schema, service, store}
 
 // ── Helpers ──────────────────────────────────────────────────────────────────
 
-fn err(status: StatusCode, msg: &str) -> axum::response::Response {
-    (status, Json(serde_json::json!({ "ok": false, "error": msg }))).into_response()
-}
-
 fn err_owned(status: StatusCode, msg: String) -> axum::response::Response {
     (status, Json(serde_json::json!({ "ok": false, "error": msg }))).into_response()
 }
@@ -44,21 +40,33 @@ async fn get_svc_and_schema<'a>(
     Ok((guard, schema))
 }
 
-/// Load all schemas: built-in + user-defined from .ship/schemas/*.jsonc.
+/// Load all schemas: built-in (user-visible) + user-defined from .ship/schemas/*.jsonc.
+/// System schemas (feedback, annotations) are excluded from user-facing listing.
 fn load_all_schemas(ship_dir: &std::path::Path) -> anyhow::Result<Vec<schema::CollectionSchema>> {
-    let mut schemas = builtin::all_schemas();
+    let mut schemas = builtin::user_schemas();
     schemas.extend(schema::load_schemas(ship_dir)?);
     Ok(schemas)
+}
+
+/// Load ALL schemas including system-internal ones — used internally for
+/// lookup when we need to operate on any collection (including system ones).
+fn load_any_schema(
+    ship_dir: &std::path::Path,
+    collection: &str,
+) -> anyhow::Result<schema::CollectionSchema> {
+    let mut schemas = builtin::all_schemas();
+    schemas.extend(schema::load_schemas(ship_dir)?);
+    schemas
+        .into_iter()
+        .find(|s| s.id == collection)
+        .ok_or_else(|| anyhow::anyhow!("collection '{}' not found", collection))
 }
 
 fn load_schema(
     ship_dir: &std::path::Path,
     collection: &str,
 ) -> anyhow::Result<schema::CollectionSchema> {
-    load_all_schemas(ship_dir)?
-        .into_iter()
-        .find(|s| s.id == collection)
-        .ok_or_else(|| anyhow::anyhow!("collection '{}' not found", collection))
+    load_any_schema(ship_dir, collection)
 }
 
 fn generate_item_id() -> String {
@@ -96,6 +104,70 @@ pub async fn list_collections(
     }
 }
 
+/// POST /api/collections — create a new user-defined collection schema.
+/// Body: full `CollectionSchema` JSON (id, name, fields).
+/// Rejects built-in ids and duplicates (409).
+pub async fn create_collection(
+    State(state): State<ApiState>,
+    Extension(auth): Extension<AuthContext>,
+    Json(new_schema): Json<schema::CollectionSchema>,
+) -> impl IntoResponse {
+    if let Err(e) = require_scope(&auth, Scope::WriteWorkspace) {
+        return e.into_response();
+    }
+    // Reject if it conflicts with any known built-in id.
+    let known_builtin_ids = [
+        builtin::NOTES_ID,
+        builtin::FEEDBACK_ID,
+        builtin::ANNOTATIONS_ID,
+        builtin::SPECS_ID,
+        builtin::ADRS_ID,
+    ];
+    if known_builtin_ids.contains(&new_schema.id.as_str()) {
+        return err_owned(
+            StatusCode::CONFLICT,
+            format!("'{}' is a reserved built-in collection id", new_schema.id),
+        );
+    }
+    // Validate snake_case id (basic check: non-empty, alphanumeric + underscores).
+    if new_schema.id.is_empty()
+        || !new_schema.id.chars().all(|c| c.is_alphanumeric() || c == '_')
+    {
+        return err_owned(
+            StatusCode::BAD_REQUEST,
+            format!("collection id '{}' must be non-empty alphanumeric/underscore", new_schema.id),
+        );
+    }
+    let schemas_dir = state.ship_dir().join("schemas");
+    if let Err(e) = std::fs::create_dir_all(&schemas_dir) {
+        return err_owned(
+            StatusCode::INTERNAL_SERVER_ERROR,
+            format!("cannot create {}: {e}", schemas_dir.display()),
+        );
+    }
+    let path = schemas_dir.join(format!("{}.jsonc", new_schema.id));
+    if path.exists() {
+        return err_owned(
+            StatusCode::CONFLICT,
+            format!("collection '{}' already exists", new_schema.id),
+        );
+    }
+    let json = match serde_json::to_string_pretty(&new_schema) {
+        Ok(s) => s,
+        Err(e) => return err_owned(StatusCode::BAD_REQUEST, format!("serialize error: {e}")),
+    };
+    let tmp = path.with_extension("jsonc.tmp");
+    if let Err(e) = std::fs::write(&tmp, &json) {
+        return err_owned(StatusCode::INTERNAL_SERVER_ERROR, format!("write failed: {e}"));
+    }
+    if let Err(e) = std::fs::rename(&tmp, &path) {
+        let _ = std::fs::remove_file(&tmp);
+        return err_owned(StatusCode::INTERNAL_SERVER_ERROR, format!("rename failed: {e}"));
+    }
+    (StatusCode::CREATED, Json(serde_json::json!({ "ok": true, "data": new_schema })))
+        .into_response()
+}
+
 /// GET /api/collections/{collection}/schema — get schema definition.
 pub async fn get_schema(
     State(state): State<ApiState>,
@@ -125,14 +197,24 @@ pub async fn update_schema(
     if let Err(e) = require_scope(&auth, Scope::WriteWorkspace) {
         return e.into_response();
     }
-    // Reject schema edits for built-ins — they live in Rust, not on disk.
-    if builtin::all_schemas().iter().any(|s| s.id == collection) {
-        return err_owned(
-            StatusCode::CONFLICT,
-            format!(
-                "'{collection}' is a built-in collection; its schema is defined in the runtime and cannot be edited through the API"
-            ),
-        );
+    // Reject schema edits for any built-in (including system and removed ones) —
+    // they live in Rust, not on disk.
+    {
+        let known_builtin_ids = [
+            builtin::NOTES_ID,
+            builtin::FEEDBACK_ID,
+            builtin::ANNOTATIONS_ID,
+            builtin::SPECS_ID,
+            builtin::ADRS_ID,
+        ];
+        if known_builtin_ids.contains(&collection.as_str()) {
+            return err_owned(
+                StatusCode::CONFLICT,
+                format!(
+                    "'{collection}' is a built-in collection; its schema is defined in the runtime and cannot be edited through the API"
+                ),
+            );
+        }
     }
     // Path id must match body id to prevent accidental renames via URL drift.
     if updated.id != collection {

@@ -66,6 +66,7 @@ pub fn artifacts_schema() -> CollectionSchema {
         id: ARTIFACTS_COLLECTION_ID.to_string(),
         name: Some("Artifacts".to_string()),
         fields,
+        system: true,
     }
 }
 

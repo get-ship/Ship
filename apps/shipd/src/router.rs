@@ -325,7 +325,12 @@ fn build_ship_routes(st: rest_api::ApiState) -> Router {
                 )),
         )
         // Collections
-        .ship_route(Route::ListCollections, collection_api::list_collections)
+        // Collections — GET + POST on /api/collections merged on one route.
+        .route(
+            "/api/collections",
+            axum::routing::get(collection_api::list_collections)
+                .post(collection_api::create_collection),
+        )
         .ship_route(Route::GetCollectionSchema_template(), collection_api::get_schema)
         .ship_route(Route::UpdateCollectionSchema_template(), collection_api::update_schema)
         .ship_route(Route::CreateCollectionItem_template(), collection_api::create_item)

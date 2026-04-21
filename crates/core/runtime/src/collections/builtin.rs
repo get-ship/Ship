@@ -80,6 +80,7 @@ pub fn specs_schema() -> CollectionSchema {
         id: SPECS_ID.to_string(),
         name: Some("Specs".to_string()),
         fields,
+        system: false,
     }
 }
 
@@ -105,6 +106,7 @@ pub fn adrs_schema() -> CollectionSchema {
         id: ADRS_ID.to_string(),
         name: Some("Architecture Decisions".to_string()),
         fields,
+        system: false,
     }
 }
 
@@ -119,6 +121,7 @@ pub fn notes_schema() -> CollectionSchema {
         id: NOTES_ID.to_string(),
         name: Some("Notes".to_string()),
         fields,
+        system: false,
     }
 }
 
@@ -159,6 +162,7 @@ pub fn feedback_schema() -> CollectionSchema {
         id: FEEDBACK_ID.to_string(),
         name: Some("Feedback".to_string()),
         fields,
+        system: true,
     }
 }
 
@@ -180,18 +184,25 @@ pub fn annotations_schema() -> CollectionSchema {
         id: ANNOTATIONS_ID.to_string(),
         name: Some("Annotations".to_string()),
         fields,
+        system: true,
     }
 }
 
-/// All built-in schemas in a stable order.
+/// All built-in schemas in a stable order, including system-internal ones.
+/// The runtime kernel uses this for table setup at startup. User-facing
+/// listing should use `user_schemas()` instead.
 pub fn all_schemas() -> Vec<CollectionSchema> {
     vec![
-        specs_schema(),
-        adrs_schema(),
         notes_schema(),
         feedback_schema(),
         annotations_schema(),
     ]
+}
+
+/// User-visible schemas: built-ins with `system: false` only.
+/// Equivalent to filtering `all_schemas()` on `!s.system`.
+pub fn user_schemas() -> Vec<CollectionSchema> {
+    all_schemas().into_iter().filter(|s| !s.system).collect()
 }
 
 /// Register all built-in schemas by creating their tables if missing.
@@ -210,10 +221,20 @@ mod tests {
     #[test]
     fn all_schemas_defined() {
         let ids: Vec<String> = all_schemas().into_iter().map(|s| s.id).collect();
+        // specs and adrs removed from built-ins; notes + system schemas remain.
         assert_eq!(
             ids,
-            vec![SPECS_ID, ADRS_ID, NOTES_ID, FEEDBACK_ID, ANNOTATIONS_ID],
+            vec![NOTES_ID, FEEDBACK_ID, ANNOTATIONS_ID],
         );
+    }
+
+    #[test]
+    fn user_schemas_excludes_system() {
+        let user = user_schemas();
+        let ids: Vec<&str> = user.iter().map(|s| s.id.as_str()).collect();
+        assert!(ids.contains(&NOTES_ID));
+        assert!(!ids.contains(&FEEDBACK_ID));
+        assert!(!ids.contains(&ANNOTATIONS_ID));
     }
 
     #[test]
@@ -221,16 +242,6 @@ mod tests {
         let s = specs_schema();
         assert!(s.fields["title"].required);
         assert!(s.fields["title"].filterable);
-    }
-
-    #[test]
-    fn specs_status_enum_values() {
-        let s = specs_schema();
-        let values = s.fields["status"].values.as_ref().unwrap();
-        assert!(values.contains(&"draft".to_string()));
-        assert!(values.contains(&"in-progress".to_string()));
-        assert!(values.contains(&"complete".to_string()));
-        assert!(values.contains(&"abandoned".to_string()));
     }
 
     #[test]
@@ -247,6 +258,12 @@ mod tests {
         let s = feedback_schema();
         assert!(s.fields["target_type"].required);
         assert!(s.fields["target_id"].required);
+        assert!(s.system);
+    }
+
+    #[test]
+    fn annotations_is_system() {
+        assert!(annotations_schema().system);
     }
 
     #[test]
@@ -258,7 +275,7 @@ mod tests {
 
         register_builtin_schemas(&mut svc).unwrap();
 
-        for id in [SPECS_ID, ADRS_ID, NOTES_ID, FEEDBACK_ID, ANNOTATIONS_ID] {
+        for id in [NOTES_ID, FEEDBACK_ID, ANNOTATIONS_ID] {
             let table = format!("collection_{id}");
             let rows = svc
                 .query(

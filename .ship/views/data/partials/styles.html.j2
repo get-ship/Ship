@@ -146,4 +146,58 @@
 }
 .data-view .data-card-footer ship-icon { color: var(--muted-foreground); }
 
+/* ── Drawer form styles ─────────────────────────────── */
+.data-view .drawer-form {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-4);
+}
+.data-view .drawer-field {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-1);
+}
+.data-view .drawer-label {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+  font-size: var(--text-sm);
+  font-weight: var(--font-weight-medium);
+  color: var(--foreground);
+}
+.data-view .drawer-req {
+  color: var(--destructive);
+  font-weight: var(--font-weight-bold);
+}
+.data-view .drawer-type {
+  font-family: var(--font-mono);
+  font-size: 10px;
+  color: var(--muted-foreground);
+  background: var(--muted);
+  padding: 1px 5px;
+  border-radius: var(--radius-sm);
+  margin-left: auto;
+}
+.data-view .drawer-error {
+  font-size: var(--text-sm);
+  color: var(--destructive);
+  padding: var(--space-2) var(--space-3);
+  background: color-mix(in oklch, var(--destructive) 8%, transparent);
+  border: 1px solid color-mix(in oklch, var(--destructive) 30%, var(--border));
+  border-radius: var(--radius-md);
+}
+.data-view .drawer-field-group-label {
+  font-size: 10.5px;
+  font-weight: var(--font-weight-semibold);
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--muted-foreground);
+  padding-top: var(--space-2);
+}
+.data-view .data-index-actions {
+  display: flex;
+  gap: var(--space-2);
+  align-items: flex-start;
+}
+
 </style>
