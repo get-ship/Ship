@@ -9,12 +9,40 @@
     holds the vertical stack: name, description, stats row, source badge
     — stacked view-locally because the tile's meta slot flex-rows its
     children at 10px font.
-    Matches: apps/web/src/routes/studio/agents/index.tsx L141-203. -#}
+    Matches: apps/web/src/routes/studio/agents/index.tsx L141-203.
+
+    agent.icon handling (template-only, schema field already exists):
+      - "simpleicons:<slug>"  → ship-avatar icon-slug=<slug>
+      - short string (≤3)     → literal initials
+      - longer string         → ship-icon registry name (future)
+      - empty/undefined       → first-letter initials (a.letter)
+    In every branch the tile stays orange + square so the grid reads
+    consistently even when a subset of agents provide branded icons. -#}
+{% set _icon_raw = a.icon if a.icon is defined else '' %}
+{% set _icon_s = _icon_raw | string %}
+{% set _is_simpleicons = _icon_s.startswith('simpleicons:') %}
+{% set _slug = _icon_s[12:] if _is_simpleicons else '' %}
+{% set _is_short = (not _is_simpleicons) and _icon_s and _icon_s|length <= 3 %}
+{% set _is_registry = (not _is_simpleicons) and _icon_s and _icon_s|length > 3 %}
 <ship-list-tile variant="card" density="normal" interactive
                 navigable="/agents/{{ a.id }}"
                 class="agents-card-tile">
-  <ship-avatar slot="leading" size="lg" tone="primary" shape="square"
-               initials="{{ a.letter }}" name="{{ a.name }}"></ship-avatar>
+  {% if _is_simpleicons and _slug %}
+    <ship-avatar slot="leading" size="lg" tone="primary" shape="square"
+                 icon-slug="{{ _slug }}" name="{{ a.name }}"></ship-avatar>
+  {% elif _is_short %}
+    <ship-avatar slot="leading" size="lg" tone="primary" shape="square"
+                 initials="{{ _icon_s }}" name="{{ a.name }}"></ship-avatar>
+  {% elif _is_registry %}
+    {#- Registry name — render ship-icon centered inside a manually-
+        styled square tile so the tone/shape treatment matches. -#}
+    <span slot="leading" class="agents-card-icon-tile" aria-label="{{ a.name }}">
+      <ship-icon name="{{ _icon_s }}" size="md"></ship-icon>
+    </span>
+  {% else %}
+    <ship-avatar slot="leading" size="lg" tone="primary" shape="square"
+                 initials="{{ a.letter }}" name="{{ a.name }}"></ship-avatar>
+  {% endif %}
   <div class="agents-card-body">
     <div class="agents-card-head">
       <div class="agents-card-title">{{ a.name }}</div>
