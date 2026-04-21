@@ -9,5 +9,6 @@
     "collection.item_created",
     "collection.item_updated",
     "collection.item_deleted"
-  ]
+  ],
+  "packs": ["editor"]
 }

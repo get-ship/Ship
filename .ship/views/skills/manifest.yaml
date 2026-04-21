@@ -5,3 +5,8 @@ data:
 events:
   - config.changed
   - workspace.changed
+# Heavy island bundles this view needs. `editor` pulls in both the
+# code-editor and markdown-editor bundles; the detail pane embeds
+# <ship-markdown-editor> when rendering SKILL.md and .md files.
+packs:
+  - editor
