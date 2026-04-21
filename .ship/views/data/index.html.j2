@@ -55,12 +55,12 @@
           </span>
         </div>
         {% for c in sdk_collections %}
-        <a href="/api/runtime/view/data?collection={{ c.id }}"
+        <a href="/data/{{ c.id }}" data-route="/data/{{ c.id }}"
            class="col-nav-row{% if c.id == active_collection %} is-active{% endif %}"
-           data-on:click.prevent="$collection = '{{ c.id }}'; $selected = []; $_page = 1; @get('/api/runtime/view/data?collection={{ c.id }}')">
+           data-on:click.prevent="window.router ? window.router.navigate('/data/{{ c.id }}') : (location.href = '/data/{{ c.id }}')">
           <span class="col-nav-icon"><ship-icon name="database" size="sm"></ship-icon></span>
           <span class="col-nav-label">{{ c.name or c.id }}</span>
-          <span class="col-nav-count">{{ c.field_count }}</span>
+          <span class="col-nav-count">{{ c.field_count }} field{% if c.field_count != 1 %}s{% endif %}</span>
         </a>
         {% if c.id == active_collection %}
           <div class="col-nav-sub">
@@ -120,11 +120,18 @@
                 title="Compact density">Compact</button>
             </div>
             <span class="col-head-sep" aria-hidden="true"></span>
-            <ship-button size="sm" variant="ghost" disabled title="Schema editor — coming soon">
+            <ship-button size="sm" variant="ghost"
+              data-on:click="$tab = 'schema'">
               <ship-icon slot="leading" name="columns"></ship-icon>Schema
             </ship-button>
-            <ship-button size="sm" tone="accent" variant="solid" disabled title="Create flow — coming soon">
-              <ship-icon slot="leading" name="plus"></ship-icon>New {{ (schema.name or active_collection) | lower }}
+            {#- Build a stub JSON body for required fields as a signal so the
+                @post expression stays readable. Use &quot; in attribute context
+                so the browser normalizes to " before Datastar evaluates. -#}
+            {% set _stub_parts = [] %}
+            {% for f in schema.fields %}{% if f[1].required %}{% if f[1].field_type == 'number' %}{% set _stub_parts = _stub_parts + [('&quot;' ~ f[0] ~ '&quot;: 0')] %}{% elif f[1].field_type == 'boolean' %}{% set _stub_parts = _stub_parts + [('&quot;' ~ f[0] ~ '&quot;: false')] %}{% elif f[1].field_type == 'enum' and f[1].values and f[1].values | length > 0 %}{% set _stub_parts = _stub_parts + [('&quot;' ~ f[0] ~ '&quot;: &quot;' ~ f[1].values[0] ~ '&quot;')] %}{% elif f[1].field_type == 'array' %}{% set _stub_parts = _stub_parts + [('&quot;' ~ f[0] ~ '&quot;: []')] %}{% else %}{% set _stub_parts = _stub_parts + [('&quot;' ~ f[0] ~ '&quot;: &quot;New ' ~ f[0] ~ '&quot;')] %}{% endif %}{% endif %}{% endfor %}
+            <ship-button size="sm" tone="accent" variant="solid"
+              data-on:click="@post('/api/collections/{{ active_collection }}/items', {contentType: 'json', body: {data: { {{- _stub_parts | join(', ') -}} }}})">
+              <ship-icon slot="leading" name="plus"></ship-icon>New row
             </ship-button>
           </div>
         </div>
@@ -142,14 +149,30 @@
           </div>
         </div>
 
-        {# Schema tab — placeholder for Phase 3. #}
+        {# Schema tab — read-only view of the collection's schema. Editor lands in Phase 3. #}
         <div {{ tab_panel('tab', 'schema') }} class="col-tab-panel schema-panel">
-          <ship-empty-state>
-            <span slot="title">Schema editor coming soon</span>
-            <span slot="description">
-              Edit <span class="mono-snip">.ship/schemas/{{ active_collection }}.jsonc</span> directly for now.
-            </span>
-          </ship-empty-state>
+          <div class="schema-pane">
+            <div class="schema-pane-head">
+              <div>
+                <h3 class="schema-pane-title">{{ schema.name or active_collection }}</h3>
+                <div class="schema-pane-sub mono-snip">.ship/schemas/{{ active_collection }}.jsonc</div>
+              </div>
+              <span class="schema-pane-count">{{ schema.fields | length }} field{% if schema.fields | length != 1 %}s{% endif %}</span>
+            </div>
+            <div class="schema-fields">
+              {% for f in schema.fields %}
+              <div class="schema-field">
+                <span class="ft-badge ft-{{ f[1].field_type }}">{{ f[1].field_type }}</span>
+                <span class="schema-field-name mono-snip">{{ f[0] }}</span>
+                {% if f[1].required %}<span class="schema-field-req" title="Required">required</span>{% endif %}
+                {% if f[1].values %}<span class="schema-field-values mono-snip">{{ f[1].values | join(' | ') }}</span>{% endif %}
+              </div>
+              {% endfor %}
+            </div>
+            <div class="schema-pane-note">
+              Inline schema editor is Phase 3. Edit the <span class="mono-snip">.jsonc</span> directly for now — changes hot-reload.
+            </div>
+          </div>
         </div>
 
       </div>

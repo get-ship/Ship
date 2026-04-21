@@ -7,8 +7,74 @@
   flex: 1;
   min-height: 0;
   display: grid;
-  grid-template-columns: 220px 1fr;
+  grid-template-columns: 240px 1fr;
   overflow: hidden;
+}
+
+/* Schema tab content. */
+.data-view .schema-pane {
+  padding: var(--space-5) var(--space-6);
+  max-width: 56rem;
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-4);
+}
+.data-view .schema-pane-head {
+  display: flex; align-items: flex-start; justify-content: space-between;
+  gap: var(--space-4);
+  padding-bottom: var(--space-3);
+  border-bottom: 1px solid var(--border);
+}
+.data-view .schema-pane-title {
+  margin: 0;
+  font-size: var(--text-lg);
+  font-weight: var(--font-weight-semibold);
+  color: var(--foreground);
+}
+.data-view .schema-pane-sub {
+  font-size: var(--text-xs);
+  color: var(--muted-foreground);
+  margin-top: 2px;
+}
+.data-view .schema-pane-count {
+  font-size: var(--text-xs);
+  color: var(--muted-foreground);
+  font-variant-numeric: tabular-nums;
+}
+.data-view .schema-fields {
+  display: flex;
+  flex-direction: column;
+  gap: 1px;
+  background: var(--border);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-md);
+  overflow: hidden;
+}
+.data-view .schema-field {
+  display: grid;
+  grid-template-columns: 92px 1fr auto auto;
+  align-items: center;
+  gap: var(--space-3);
+  padding: var(--space-2) var(--space-4);
+  background: var(--background);
+  font-size: var(--text-sm);
+}
+.data-view .schema-field:hover { background: var(--muted); }
+.data-view .schema-field-name { color: var(--foreground); font-weight: var(--font-weight-medium); }
+.data-view .schema-field-req {
+  font-size: var(--text-xs);
+  color: var(--destructive);
+  font-weight: var(--font-weight-medium);
+}
+.data-view .schema-field-values {
+  font-size: var(--text-xs);
+  color: var(--muted-foreground);
+  max-width: 20rem; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
+}
+.data-view .schema-pane-note {
+  font-size: var(--text-xs);
+  color: var(--muted-foreground);
+  padding: var(--space-2) 0;
 }
 .data-view .col-workspace.no-events { grid-template-columns: 220px 1fr; }
 
@@ -207,6 +273,14 @@
   display: flex;
   flex-direction: column;
   overflow: hidden;
+}
+/* Direct children of col-tab-panel must also flex-grow so the table / empty
+   state fills the panel instead of collapsing to content height. */
+.data-view .col-tab-panel > * { flex: 1; min-height: 0; display: flex; flex-direction: column; }
+.data-view .col-tab-panel > * > #data-content { flex: 1; min-height: 0; display: flex; flex-direction: column; }
+.data-view #data-content > ship-empty-state {
+  flex: 1; min-height: 0;
+  display: flex; align-items: center; justify-content: center;
 }
 .data-view .schema-panel { padding: var(--space-6); overflow: auto; }
 </style>

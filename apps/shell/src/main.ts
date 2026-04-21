@@ -231,6 +231,12 @@ viewRoute("/canvas", "/api/runtime/view/canvas");
 viewRoute("/overview", "/api/runtime/view/overview");
 
 // Dynamic routes
+router.on("/data/:collection", ({ data }) => {
+  updateNav("/data");
+  updateBreadcrumbs(`/data/${data!.collection}`);
+  void mount(`/api/runtime/view/data?collection=${encodeURIComponent(data!.collection)}`);
+});
+
 router.on("/agents/:id", ({ data }) => {
   updateNav("/agents");
   updateBreadcrumbs(`/agents/${data!.id}`);
