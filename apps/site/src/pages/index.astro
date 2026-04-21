@@ -1,37 +1,31 @@
 ---
 import BaseLayout from '../layouts/BaseLayout.astro';
-import Navbar from '../components/Navbar.astro';
-import Hero from '../components/Hero.astro';
-import HighlightAINative from '../components/HighlightAINative.astro';
-import HighlightExtend from '../components/HighlightExtend.astro';
-import HighlightObserve from '../components/HighlightObserve.astro';
-import DownloadSection from '../components/DownloadSection.astro';
-import Footer from '../components/Footer.astro';
+import '../styles/landing.css';
+import Nav from '../components/landing/Nav.astro';
+import Hero from '../components/landing/Hero.astro';
+import ClusterStrip from '../components/landing/ClusterStrip.astro';
+import SectionAgents from '../components/landing/SectionAgents.astro';
+import SectionPipelines from '../components/landing/SectionPipelines.astro';
+import SectionData from '../components/landing/SectionData.astro';
+import SectionViews from '../components/landing/SectionViews.astro';
+import FooterCta from '../components/landing/FooterCta.astro';
+import TweaksPanel from '../components/landing/TweaksPanel.astro';
 ---
 
-<BaseLayout title="SHIP — the missing AI interface">
-  <Navbar />
+<BaseLayout title="SHIP — the missing AI interface" bodyClass="landing-root">
+  <Nav />
   <main id="main">
     <Hero />
-    <div id="features" class="features-anchor" aria-hidden="true"></div>
-    <HighlightAINative />
-    <section class="features-divider" aria-hidden="true"></section>
-    <HighlightExtend />
-    <section class="features-divider" aria-hidden="true"></section>
-    <HighlightObserve />
-    <DownloadSection />
+    <ClusterStrip />
+    <SectionAgents />
+    <SectionPipelines />
+    <SectionData />
+    <SectionViews />
   </main>
-  <Footer />
+  <FooterCta />
+  <TweaksPanel />
 </BaseLayout>
 
-<style>
-  .features-anchor {
-    height: 0;
-    scroll-margin-top: 80px;
-  }
-  .features-divider {
-    max-width: 720px;
-    margin: 0 auto;
-    border-top: 1px solid color-mix(in oklch, var(--border) 40%, transparent);
-  }
-</style>
+<script>
+  import '../scripts/landing';
+</script>
