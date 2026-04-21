@@ -76,7 +76,7 @@ For an event-driven update: the manifest declares `events: ["collection.item_cre
 | Surface | Purpose | How authored |
 |---|---|---|
 | **View** (`.ship/views/*`) | Extend Ship's daemon-served UI for a specific domain | Jinja template + manifest |
-| **Studio** (`apps/web`) | The full-featured SPA — agents, settings, skills IDE | TanStack Start app |
+| **Shell** (`apps/shell`) | The daemon-connected UI — agents, settings, skills IDE | Cloudflare Worker + Hono |
 | **Marketing site** (`apps/site`) | Public-facing content | Astro site |
 
 Views are the extension mechanism. Studio is a first-party consumer of the same kernel+runtime, not an extension — you don't author "a new Studio" the way you author "a new view."

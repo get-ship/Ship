@@ -124,7 +124,7 @@ Inline rules appended to the compiled context file after shared `.ship/rules/*.m
 ```jsonc
 {
   "rules": {
-    "inline": "You are a web specialist working in apps/web/.\nNEVER touch: wrangler.toml, package.json"
+    "inline": "You are a gateway specialist working in apps/gateway/.\nNEVER touch: wrangler.jsonc, package.json"
   }
 }
 ```

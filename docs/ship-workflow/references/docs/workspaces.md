@@ -32,7 +32,7 @@ create_workspace({
   branch: "feat/new-ui",       // optional, derived from name if omitted
   base_branch: "main",         // optional, defaults to "main"
   preset_id: "web-lane",       // optional, agent preset to activate
-  file_scope: "apps/web/"      // optional, path restriction
+  file_scope: "apps/gateway/"  // optional, path restriction
 })
 ```
 

@@ -123,11 +123,4 @@ The `unstable` feature flag gates development-only features. `just build` enable
 
 ## Web App
 
-Ship Studio (`apps/web/`) is a TanStack Start application on Cloudflare Workers.
-
-- TanStack Router with `createServerFn` for type-safe server functions
-- Cloudflare D1 via Drizzle ORM
-- Better Auth for authentication
-- `@ship/compiler` (WASM) for in-browser compilation
-- `@ship/primitives` (shadcn) for UI components
-- `@ship/ui` for generated Rust types via Specta
+Ship Studio runs at `apps/shell/` (Cloudflare Worker). The legacy TanStack Start app (`apps/web/`) has been retired — API routes now live in `apps/gateway/`.

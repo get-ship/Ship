@@ -134,7 +134,7 @@ Here is the `web-lane.jsonc` agent, which configures an autonomous frontend spec
     "tools_deny": ["Bash(rm -rf *)", "Bash(git reset --hard*)"]
   },
   "rules": {
-    "inline": "You are a web specialist working in apps/web/."
+    "inline": "You are a gateway specialist working in apps/gateway/."
   }
 }
 ```

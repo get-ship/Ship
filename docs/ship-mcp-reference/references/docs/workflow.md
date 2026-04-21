@@ -51,7 +51,7 @@ create_job(
   kind="feature",
   description="Implement OAuth provider",
   branch="auth-flow",
-  file_scope=["apps/web/src/auth/"],
+  file_scope=["apps/gateway/src/routes/"],
   acceptance_criteria=["OAuth flow completes", "Tokens stored"],
   capability_id="<cap-id>"
 )
