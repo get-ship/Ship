@@ -22,7 +22,8 @@
 //! - `note` -- human-facing scratchpad
 //! - `adr` -- architecture decision records
 //!
-//! The canonical DDL lives in `migrations/0001_initial.sql`.
+//! The canonical DDL lives in `migrations/0001_schema.sql` (with
+//! `0002_specs.sql` adding the `spec` table).
 //! These modules retain the constants as code-level documentation.
 
 #[allow(dead_code)]
