@@ -5,7 +5,7 @@ as the same user can reach those endpoints, the daemon authenticates every calle
 scopes what each can do.
 
 This document is for contributors. For user-facing docs, see
-[Connecting Studio to your daemon](../../ship-studio/references/docs/auth.md).
+[Connecting Studio to your daemon](/reference/studio/auth/).
 
 ## Token types
 

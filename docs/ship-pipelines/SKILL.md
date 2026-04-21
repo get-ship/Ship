@@ -1,0 +1,17 @@
+---
+name: ship-pipelines
+stable-id: ship-pipelines
+description: Reference docs for Ship pipelines — YAML-declared DAGs of steps that the runtime walks automatically. Covers the file format, step types, resolution order, and the ship-jobs crate that owns the types.
+tags: [ship, pipelines, extension, reference]
+authors: [ship]
+---
+
+# Ship Pipelines
+
+A pipeline is a YAML file in `.ship/pipelines/<name>.yaml` (or `.yml`) that declares a DAG of steps. The runtime walks the DAG when a job runs the pipeline — when a step completes, the orchestrator finds unblocked dependents and dispatches them.
+
+- **[Overview](/reference/pipelines/)** — concept, minimal example, when to reach for a pipeline vs a single agent.
+- **[Reference](/reference/pipelines/reference/)** — YAML format, step types, resolution order, schema, short/long form, gate retries.
+- **[ship-jobs crate](/reference/pipelines/ship-jobs/)** — contributor-internal detail on the types and normalization that backs the user-facing YAML.
+
+The orchestrator is what executes pipelines at runtime — see [Orchestrator](/reference/runtime/orchestrator/) for how events flow through the DAG.

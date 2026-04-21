@@ -125,3 +125,22 @@ The MiniJinja environment has no source or file loader configured. Include and e
 ### Fast Path
 
 If skill content contains no template markers, `resolve_template` returns the original string without constructing a MiniJinja environment.
+
+{% internal %}
+### Aspiration: runtime queries in templates
+
+Skill templates today interpolate values from a static HashMap. A future direction is letting a skill inline data the runtime already has — a short list of recent ADRs, the last few tasks, the active workspace's open artifacts. Example sketch:
+
+```
+Recent decisions:
+{% for adr in collections.adrs | latest(3) %}
+- {{ adr.title }}
+{% endfor %}
+```
+
+This lets a skill carry context that's current at compile time without the user wiring it by hand. The skill stays declarative; the data flows in through resolution.
+
+To preserve the compiler's purity invariant, the query expansion happens in the resolve stage (which already does I/O), not in compile. `resolve` would accept a runtime handle, run the queries against a pinned event cursor, and stuff the results into the same vars HashMap `compile` consumes. Two `ship use` invocations at the same cursor still produce identical bytes; the cursor advances between invocations, which is the honest answer to what "live data" means at a snapshot.
+
+Not implemented. No syntax committed. Questions still open: query language shape, determinism semantics (pin to cursor or accept drift), failure modes when a query returns empty, security posture (can any skill query any collection, or is it scoped by the agent's permissions).
+{% endinternal %}
