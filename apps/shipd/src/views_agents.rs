@@ -28,11 +28,17 @@ use crate::views::templates;
 /// Try rendering a template from `.ship/views/<view>/<file>`.
 /// Returns `None` if the view directory or file does not exist, or if
 /// rendering fails (in which case the caller falls back to embedded templates).
+///
+/// Also splices any `packs:` script tags declared in the view manifest into
+/// the rendered `<head>`. The fragment extractor in view_morph_target
+/// preserves module `<script src=...>` from head when it strips to body.
 fn try_render_view<C: Serialize>(view: &str, file: &str, ctx: &C) -> Option<String> {
     let (view_dir, _source) = resolve_view_dir(view)?;
     let source = std::fs::read_to_string(view_dir.join(file)).ok()?;
     let template_name = format!("{view}/{file}");
-    templates::render_view_source(&template_name, &source, ctx).ok()
+    let html = templates::render_view_source(&template_name, &source, ctx).ok()?;
+    let packs = crate::views::read_view_packs(&view_dir);
+    Some(crate::views::inject_packs(html, &packs, false))
 }
 
 #[derive(Serialize)]

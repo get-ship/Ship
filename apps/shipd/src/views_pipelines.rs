@@ -808,6 +808,12 @@ fn is_fragment_request(headers: &HeaderMap) -> bool {
 /// Render a view file with fragment mode forwarded into the template
 /// context so `{% if not fragment %}<!DOCTYPE ...{% endif %}` elides
 /// the outer chrome when the shell requests a fragment.
+///
+/// Always emits a full document (including `<head>`) unless the caller
+/// set `fragment=true` for this render, and splices per-view pack scripts
+/// into `<head>`. The fragment extractor in `view_morph_target` preserves
+/// `<script type="module" src=...>` from head when it strips to body, so
+/// head-injection works for both full-page and shell-navigated responses.
 fn render_with_fragment<T: serde::Serialize>(
     template_name: &str,
     source: &str,
@@ -823,12 +829,27 @@ fn render_with_fragment<T: serde::Serialize>(
     {
         map.insert("fragment".into(), serde_json::Value::Bool(true));
     }
-    templates::render_view_source(template_name, source, &value)
-        .map(Html)
+    let html = templates::render_view_source(template_name, source, &value)
         .map_err(|e| {
             tracing::error!(error = %e, template = %template_name, "view render failed");
             StatusCode::INTERNAL_SERVER_ERROR
-        })
+        })?;
+    // All pipelines sub-routes (focus, run, history) share the top-level
+    // `pipelines` view directory — its manifest owns the pack list for
+    // this whole surface. `pipelines/focus` is the one that needs `editor`
+    // for the raw-edit code editor.
+    let html = inject_view_packs(html, "pipelines", fragment);
+    Ok(Html(html))
+}
+
+/// Resolve the given view's pack list and splice script tags into the
+/// rendered HTML. No-op when the view declares no packs.
+fn inject_view_packs(html: String, view: &str, fragment: bool) -> String {
+    let Some((view_dir, _)) = crate::views::resolve_view_dir(view) else {
+        return html;
+    };
+    let packs = crate::views::read_view_packs(&view_dir);
+    crate::views::inject_packs(html, &packs, fragment)
 }
 
 /// GET /api/runtime/view/pipelines/pipeline/{name} — per-pipeline focus shell.

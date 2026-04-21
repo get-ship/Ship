@@ -50,7 +50,14 @@ fn try_render_view<C: Serialize>(view: &str, file: &str, ctx: &C) -> Option<Stri
     let source = std::fs::read_to_string(view_dir.join(file)).ok()?;
     let template_name = format!("{view}/{file}");
     match templates::render_view_source(&template_name, &source, ctx) {
-        Ok(html) => Some(html),
+        Ok(html) => {
+            // Inject per-view pack scripts into <head>. The fragment
+            // extractor in view_morph_target preserves module `<script
+            // src=...>` tags from head when it strips to body, so this
+            // works for both direct loads and shell-navigated fragments.
+            let packs = crate::views::read_view_packs(&view_dir);
+            Some(crate::views::inject_packs(html, &packs, false))
+        }
         Err(e) => {
             tracing::warn!(view = %view, file = %file, "view render failed, falling back: {e}");
             None

@@ -4,6 +4,7 @@ use std::collections::HashMap;
 
 use axum::{extract::Path, http::StatusCode, response::IntoResponse};
 
+use super::packs::{inject_packs, read_view_packs};
 use super::resolve::{is_valid_view_name, read_manifest_file, resolve_view_dir, scan_views_dir};
 use super::{ViewListEntry, ViewManifest, mesh_err, mesh_ok};
 
@@ -163,6 +164,13 @@ pub async fn serve_view(
         source.replace("{{SHIP_TOKEN}}", "")
     };
 
+    // Inject per-view bundle loaders declared via `packs:` in the manifest.
+    // Core bundles (datastar.js, ship-elements.js) stay eager in the shell;
+    // heavy islands arrive via pack declarations so views that don't need
+    // them never pay the download cost.
+    let packs = read_view_packs(&view_dir);
+    let html = inject_packs(html, &packs, is_fragment);
+
     // Content negotiation: if the caller wants HTML, return it raw.
     // Studio/MCP get the JSON envelope; shell and browsers get HTML.
     let wants_html = headers
@@ -189,7 +197,10 @@ pub async fn serve_view_manifest(Path(name): Path<String>) -> impl IntoResponse 
         Some(v) => v,
         None => return mesh_err(StatusCode::NOT_FOUND, format!("view '{name}' not found")),
     };
-    if view_dir.join("manifest.yaml").exists() || view_dir.join("manifest.json").exists() {
+    if view_dir.join("manifest.yaml").exists()
+        || view_dir.join("manifest.jsonc").exists()
+        || view_dir.join("manifest.json").exists()
+    {
         if let Some(m) = read_manifest_file(&view_dir, &name) {
             return mesh_ok(serde_json::json!(m));
         }

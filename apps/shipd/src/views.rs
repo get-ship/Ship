@@ -40,6 +40,7 @@ pub mod context;
 pub mod error_overlay;
 pub mod generic_sse;
 mod handlers;
+pub(crate) mod packs;
 mod resolve;
 pub mod view_filters;
 pub mod view_filters_list;
@@ -62,6 +63,7 @@ pub use assets::{
 pub use handlers::{
     list_views, serve_view, serve_view_asset, serve_view_bundle, serve_view_manifest,
 };
+pub(crate) use packs::{inject_packs, read_view_packs};
 pub(crate) use resolve::{is_valid_view_name, read_raw_manifest, resolve_view_dir};
 
 #[derive(Serialize, Clone)]

@@ -17,6 +17,12 @@ pub(crate) struct ManifestFile {
     entry: Option<String>,
     pub data: Option<ManifestData>,
     pub events: Option<Vec<String>>,
+    /// Optional list of bundle packs this view needs at load time.
+    /// Each pack name expands to a fixed set of JS bundles that the daemon
+    /// injects as `<script type="module">` tags into the response. Known
+    /// packs live in [`super::packs`]. Unknown names are silently skipped.
+    #[serde(default)]
+    pub packs: Option<Vec<String>>,
 }
 
 #[derive(Deserialize, Clone)]
@@ -59,9 +65,16 @@ pub(crate) fn resolve_view_dir(name: &str) -> Option<(PathBuf, &'static str)> {
 }
 
 /// Read the raw manifest file (with data/events fields) for the SSE handler.
+///
+/// Supports three formats, checked in order: `manifest.yaml`, `manifest.jsonc`
+/// (comments stripped), `manifest.json`.
 pub(crate) fn read_raw_manifest(dir: &PathBuf) -> Option<ManifestFile> {
     if dir.join("manifest.yaml").exists() {
         serde_yaml::from_str(&std::fs::read_to_string(dir.join("manifest.yaml")).ok()?).ok()
+    } else if dir.join("manifest.jsonc").exists() {
+        let raw = std::fs::read_to_string(dir.join("manifest.jsonc")).ok()?;
+        let json = compiler::jsonc::strip_jsonc_comments(&raw);
+        serde_json::from_str(&json).ok()
     } else if dir.join("manifest.json").exists() {
         serde_json::from_str(&std::fs::read_to_string(dir.join("manifest.json")).ok()?).ok()
     } else {
@@ -84,7 +97,10 @@ pub(super) fn read_manifest_file(dir: &PathBuf, name: &str) -> Option<ViewManife
 }
 
 fn detect_view_type(dir: &PathBuf) -> Option<String> {
-    if dir.join("manifest.yaml").exists() || dir.join("manifest.json").exists() {
+    if dir.join("manifest.yaml").exists()
+        || dir.join("manifest.jsonc").exists()
+        || dir.join("manifest.json").exists()
+    {
         if let Some(m) = read_manifest_file(dir, "unknown") { return Some(m.view_type); }
     }
     if dir.join("index.html").exists() { return Some("html".into()); }
