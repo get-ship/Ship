@@ -1,9 +1,9 @@
 /**
  * <ship-avatar>
  *
- * Circular avatar: image when `src` loads, otherwise initials derived
- * from `name` (or supplied explicitly via `initials`). Single-word names
- * -> 1-char initial; multi-word -> first char of first and last word,
+ * Avatar tile: image when `src` loads, otherwise initials derived from
+ * `name` (or supplied explicitly via `initials`). Single-word names ->
+ * 1-char initial; multi-word -> first char of first and last word,
  * uppercased.
  *
  * Attributes:
@@ -18,11 +18,17 @@
  *       md = 32px (default)
  *       lg = 40px
  *       xl = 56px
- *   - tone: background tone for the initials fallback
+ *   - shape: round (default) | square. `square` uses `--radius-sm` so
+ *       the tile reads as a rounded square — the pre-migration
+ *       treatment for agent avatars. Round keeps the circular mask.
+ *   - tone: background tone. Respected in the initials path too —
+ *       `tone="primary"` yields a solid `--primary` background with
+ *       `--primary-foreground` text. Unset / `default` / `muted` keep
+ *       the primary→accent gradient fallback so anonymous avatars stay
+ *       distinctive without any per-site configuration.
  *
- * The initials fallback always renders with a primary→accent gradient
- * tile (via CSS only — no JS state) so it carries production visual
- * weight without view-level CSS.
+ * Combining `tone="primary" shape="square"` reproduces the pre-migration
+ * orange square avatar treatment exactly.
  */
 
 import { LitElement, css, html } from 'lit'
@@ -30,6 +36,7 @@ import { reducedMotion, toneVars } from './util'
 import type { Tone } from './util'
 
 export type AvatarSize = 'sm' | 'md' | 'lg' | 'xl'
+export type AvatarShape = 'round' | 'square'
 
 export function initialsFromName(name: string): string {
   const parts = name.trim().split(/\s+/).filter(Boolean)
@@ -59,10 +66,17 @@ export class ShipAvatar extends LitElement {
       :host([size='lg']) { width: 40px; height: 40px; font-size: var(--text-md); }
       :host([size='xl']) { width: 56px; height: 56px; font-size: var(--text-lg); }
 
+      /* Square shape — rounded-square tile. Used for branded/product
+       * avatars (agents) where the round circle reads as "user photo".
+       * Round stays the default. */
+      :host([shape='square']) { border-radius: var(--radius-sm); }
+
       /* Rich initials tile — gradient background, bold uppercase glyph.
        * Applied when the host is rendering initials (i.e. no loaded image).
        * Uses [data-initials] so image and initials paths share the same
-       * host shell without cascading into the image. */
+       * host shell without cascading into the image. Anonymous case —
+       * no explicit tone or tone=default/muted — renders the
+       * primary→accent gradient. Explicit tones short-circuit below. */
       :host([data-initials]) {
         background:
           linear-gradient(
@@ -72,13 +86,24 @@ export class ShipAvatar extends LitElement {
           );
         color: var(--foreground);
       }
-      :host([data-initials][tone='muted']) {
-        /* The default tone shouldn't override the gradient unless the
-         * caller explicitly picks a non-default tone. */
+      /* Explicit tone="primary" → solid primary background + primary
+       * foreground text. Reproduces the pre-migration orange square. */
+      :host([data-initials][tone='primary']) {
+        background: var(--primary);
+        color: var(--primary-foreground);
       }
-      :host([data-initials][tone]:not([tone='muted']):not([tone='default'])) {
-        /* Honor tone overrides for callers who want a tinted wash instead
-         * of the gradient. */
+      /* Explicit tone="accent" → solid accent. */
+      :host([data-initials][tone='accent']) {
+        background: var(--accent);
+        color: var(--accent-foreground);
+      }
+      /* Other explicit tones (info/success/warning/destructive) use the
+       * existing tone wash from toneVars — soft tint + fg. Muted and
+       * default fall through to the gradient above. */
+      :host([data-initials][tone='info']),
+      :host([data-initials][tone='success']),
+      :host([data-initials][tone='warning']),
+      :host([data-initials][tone='destructive']) {
         background: var(--tone-bg);
         color: var(--tone-fg);
       }
@@ -102,6 +127,7 @@ export class ShipAvatar extends LitElement {
     name: { type: String },
     initials: { type: String },
     size: { type: String, reflect: true },
+    shape: { type: String, reflect: true },
     tone: { type: String, reflect: true },
     _errored: { state: true },
   }
@@ -110,6 +136,7 @@ export class ShipAvatar extends LitElement {
   name = ''
   initials = ''
   size: AvatarSize = 'md'
+  shape: AvatarShape = 'round'
   tone: Tone = 'muted'
   private _errored = false
 

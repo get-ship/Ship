@@ -77,4 +77,55 @@ describe('ship-avatar', () => {
     expect(css).toContain(`:host([size='sm']) { width: 28px; height: 28px;`)
     expect(css).not.toContain('width: 24px')
   })
+
+  it('shape="square" uses --radius-sm instead of the round mask', async () => {
+    const el = await mount('<ship-avatar shape="square" initials="C"></ship-avatar>')
+    // The attribute reflects so CSS can target it; the style rule lives
+    // in the static sheet.
+    expect(el.getAttribute('shape')).toBe('square')
+    const staticStyles = ShipAvatar.styles as unknown as Array<{ cssText: string }>
+    const css = staticStyles.map((s) => s.cssText || String(s)).join('\n')
+    expect(css).toContain(`:host([shape='square']) { border-radius: var(--radius-sm); }`)
+  })
+
+  it('shape defaults to round when unset', async () => {
+    const el = await mount('<ship-avatar initials="C"></ship-avatar>')
+    // Default reflects as 'round'; the important invariant is that it's
+    // not 'square' so the round border-radius rule wins.
+    expect(el.shape).toBe('round')
+    expect(el.getAttribute('shape')).not.toBe('square')
+  })
+
+  it('tone="primary" with initials uses --primary background, not the gradient', async () => {
+    const el = await mount('<ship-avatar tone="primary" initials="C"></ship-avatar>')
+    // Data marker is still present (no image loaded)...
+    expect(el.hasAttribute('data-initials')).toBe(true)
+    // ...and the style rule for the primary override exists.
+    const staticStyles = ShipAvatar.styles as unknown as Array<{ cssText: string }>
+    const css = staticStyles.map((s) => s.cssText || String(s)).join('\n')
+    expect(css).toContain(
+      `:host([data-initials][tone='primary']) {\n        background: var(--primary);\n        color: var(--primary-foreground);\n      }`,
+    )
+  })
+
+  it('tone unset keeps the gradient on initials', async () => {
+    const el = await mount('<ship-avatar initials="C"></ship-avatar>')
+    expect(el.hasAttribute('data-initials')).toBe(true)
+    // Tone defaults to 'muted' — the gradient [data-initials] rule wins
+    // because there's no primary/accent/info/success/etc override for it.
+    const staticStyles = ShipAvatar.styles as unknown as Array<{ cssText: string }>
+    const css = staticStyles.map((s) => s.cssText || String(s)).join('\n')
+    expect(css).toContain(':host([data-initials]) {')
+    expect(css).toContain('linear-gradient(')
+  })
+
+  it('tone="accent" with initials uses solid accent background', async () => {
+    const el = await mount('<ship-avatar tone="accent" initials="C"></ship-avatar>')
+    expect(el.hasAttribute('data-initials')).toBe(true)
+    const staticStyles = ShipAvatar.styles as unknown as Array<{ cssText: string }>
+    const css = staticStyles.map((s) => s.cssText || String(s)).join('\n')
+    expect(css).toContain(
+      `:host([data-initials][tone='accent']) {\n        background: var(--accent);\n        color: var(--accent-foreground);\n      }`,
+    )
+  })
 })
