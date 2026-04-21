@@ -2,6 +2,7 @@
 members = [
     "crates/core/cli-framework",
     "crates/core/compiler",
+    "crates/core/lint",
     "crates/core/mcp-framework",
     "crates/core/runtime",
     "crates/core/ship-jobs",

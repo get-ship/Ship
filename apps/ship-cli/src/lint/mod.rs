@@ -1,54 +1,23 @@
-//! `ship lint views` — enforce view-authoring discipline.
+//! CLI shim for the view linter.
 //!
-//! Five rules, independently toggleable:
-//! - `no-inline-script` (error): `<script>` tags are forbidden in views.
-//! - `inline-style-budget` (warn > 50 lines, error > 150 lines): total
-//!   content-line count inside `<style>` blocks across a view directory.
-//! - `undefined-signal` (warn): `$name` references that have no matching
-//!   `signal('name', ...)` declaration or `data-signals:name=` attribute
-//!   within the same view, excluding Datastar internals and per-view
-//!   `@lint:signals-ok` allowlist entries.
-//! - `missing-pack-declaration` (error): view templates reference a
-//!   heavy-island tag (`<ship-code-editor>`, `<ship-markdown-editor>`,
-//!   `<ship-terminal>`) but the manifest's `packs:` list omits the pack
-//!   that defines the element. The element will render but never upgrade.
-//! - `stale-pack-declaration` (warn): manifest declares a pack that no
-//!   template actually uses. Dead declaration — drop it or the view
-//!   downloads bundles it doesn't need.
+//! All rule logic lives in `crates/core/lint`. This module handles:
+//! - CLI arg resolution (project root, view filter, rule list, output format)
+//! - Output formatting for human/JSON
+//! - Exit code on errors
 
 use anyhow::Result;
-use std::path::{Path, PathBuf};
+use std::path::Path;
 
-pub mod report;
-pub mod rules;
-pub mod source;
+pub use lint::{ALL_RULES, Finding, Severity};
 
-#[cfg(test)]
-mod tests;
-
-pub use report::{Finding, OutputFormat, Severity};
-
-/// Rule identifiers. Kept as string constants so they survive round-trips
-/// through JSON output and `--rule` CLI args without a type dance.
-pub const RULE_NO_INLINE_SCRIPT: &str = "no-inline-script";
-pub const RULE_INLINE_STYLE_BUDGET: &str = "inline-style-budget";
-pub const RULE_UNDEFINED_SIGNAL: &str = "undefined-signal";
-pub const RULE_MISSING_PACK_DECLARATION: &str = "missing-pack-declaration";
-pub const RULE_STALE_PACK_DECLARATION: &str = "stale-pack-declaration";
-
-pub const ALL_RULES: &[&str] = &[
-    RULE_NO_INLINE_SCRIPT,
-    RULE_INLINE_STYLE_BUDGET,
-    RULE_UNDEFINED_SIGNAL,
-    RULE_MISSING_PACK_DECLARATION,
-    RULE_STALE_PACK_DECLARATION,
-];
+/// Output format for the `ship lint views` command.
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+pub enum OutputFormat {
+    Human,
+    Json,
+}
 
 /// Entrypoint wired from the CLI dispatcher.
-///
-/// - `project_root` points at the directory that contains `.ship/`.
-/// - `view_name` filters to a single `.ship/views/<view_name>/` tree.
-/// - `rules` restricts which rules run (empty = all).
 pub fn run_views(
     project_root: &Path,
     view_name: Option<&str>,
@@ -65,24 +34,28 @@ pub fn run_views(
 
     let enabled = normalize_rules(rules)?;
     let targets = discover_views(&views_root, view_name)?;
+
     if targets.is_empty() {
         if let Some(name) = view_name {
-            anyhow::bail!(
-                "no view named '{}' under {}",
-                name,
-                views_root.display()
-            );
+            anyhow::bail!("no view named '{}' under {}", name, views_root.display());
         }
-        report::print_empty(format);
+        match format {
+            OutputFormat::Human => println!("no views to lint"),
+            OutputFormat::Json => println!("[]"),
+        }
         return Ok(());
     }
 
     let mut findings: Vec<Finding> = Vec::new();
-    for view in &targets {
-        findings.extend(rules::lint_view(view, &enabled));
+    for (_view_name, view_dir) in &targets {
+        let mut fs = lint::lint_view_dir(view_dir);
+        // Filter to only enabled rules.
+        if enabled.len() < ALL_RULES.len() {
+            fs.retain(|f| enabled.contains(&f.rule));
+        }
+        findings.extend(fs);
     }
 
-    // Stable ordering — file then line — makes diffs across runs comparable.
     findings.sort_by(|a, b| {
         a.file
             .cmp(&b.file)
@@ -91,7 +64,7 @@ pub fn run_views(
     });
 
     let has_error = findings.iter().any(|f| f.severity == Severity::Error);
-    report::emit(&findings, format, &targets)?;
+    emit(&findings, format, targets.len())?;
 
     if has_error {
         std::process::exit(1);
@@ -99,9 +72,6 @@ pub fn run_views(
     Ok(())
 }
 
-/// Resolve a list of `--rule` values into the concrete set we will run.
-/// Empty input means "all rules". Unknown rules error out — silently
-/// ignoring them would hide typos like `--rule no-script`.
 fn normalize_rules(raw: &[String]) -> Result<Vec<&'static str>> {
     if raw.is_empty() {
         return Ok(ALL_RULES.to_vec());
@@ -125,23 +95,16 @@ fn normalize_rules(raw: &[String]) -> Result<Vec<&'static str>> {
     Ok(out)
 }
 
-/// A single view target — the directory plus the `.html.j2` files inside it
-/// (index + partials). Elements/SDK templates live elsewhere; only
-/// author-written views are considered.
-#[derive(Debug, Clone)]
-pub struct ViewTarget {
-    pub name: String,
-    pub dir: PathBuf,
-    pub files: Vec<PathBuf>,
-}
-
-fn discover_views(views_root: &Path, filter: Option<&str>) -> Result<Vec<ViewTarget>> {
+fn discover_views(
+    views_root: &Path,
+    filter: Option<&str>,
+) -> Result<Vec<(String, std::path::PathBuf)>> {
     let mut out = Vec::new();
     let entries = match std::fs::read_dir(views_root) {
         Ok(e) => e,
         Err(e) => anyhow::bail!("failed to read {}: {}", views_root.display(), e),
     };
-    let mut dirs: Vec<PathBuf> = entries
+    let mut dirs: Vec<std::path::PathBuf> = entries
         .flatten()
         .filter(|e| e.file_type().map(|t| t.is_dir()).unwrap_or(false))
         .map(|e| e.path())
@@ -157,49 +120,66 @@ fn discover_views(views_root: &Path, filter: Option<&str>) -> Result<Vec<ViewTar
         if name.is_empty() || name.starts_with('_') {
             continue;
         }
-        if let Some(f) = filter
-            && f != name
-        {
+        if let Some(f) = filter {
+            if f != name {
+                continue;
+            }
+        }
+        if lint::collect_view_files(&dir).is_empty() {
             continue;
         }
-        let files = collect_view_files(&dir);
-        if files.is_empty() {
-            continue;
-        }
-        out.push(ViewTarget {
-            name,
-            dir,
-            files,
-        });
+        out.push((name, dir));
     }
     Ok(out)
 }
 
-/// Recursively collect every `.html.j2` file under a view directory.
-/// Views may nest sub-directories (`pipelines/focus/`, `pipelines/run/`,
-/// `partials/`, …); the signal-budget and style-budget rules span the
-/// whole tree.
-fn collect_view_files(dir: &Path) -> Vec<PathBuf> {
-    let mut out = Vec::new();
-    collect_view_files_inner(dir, &mut out);
-    out.sort();
-    out
-}
-
-fn collect_view_files_inner(dir: &Path, out: &mut Vec<PathBuf>) {
-    let Ok(entries) = std::fs::read_dir(dir) else {
-        return;
-    };
-    for e in entries.flatten() {
-        let p = e.path();
-        if p.is_dir() {
-            collect_view_files_inner(&p, out);
-        } else if p
-            .to_str()
-            .map(|s| s.ends_with(".html.j2"))
-            .unwrap_or(false)
-        {
-            out.push(p);
+fn emit(findings: &[Finding], format: OutputFormat, view_count: usize) -> Result<()> {
+    match format {
+        OutputFormat::Json => {
+            let payload: Vec<serde_json::Value> = findings
+                .iter()
+                .map(|f| {
+                    serde_json::json!({
+                        "file": f.file.display().to_string(),
+                        "line": f.line,
+                        "col": f.col,
+                        "rule": f.rule,
+                        "severity": f.severity.as_str(),
+                        "message": f.message,
+                    })
+                })
+                .collect();
+            println!("{}", serde_json::to_string_pretty(&payload)?);
+        }
+        OutputFormat::Human => {
+            if findings.is_empty() {
+                println!(
+                    "✓ {} view{} — clean",
+                    view_count,
+                    if view_count == 1 { "" } else { "s" }
+                );
+                return Ok(());
+            }
+            let mut errors = 0usize;
+            let mut warns = 0usize;
+            for f in findings {
+                let label = match f.severity {
+                    Severity::Error => { errors += 1; "error" }
+                    Severity::Warn => { warns += 1; "warn" }
+                };
+                println!(
+                    "{}:{}:{} {}[{}]: {}",
+                    f.file.display(), f.line, f.col, label, f.rule, f.message,
+                );
+            }
+            println!();
+            println!(
+                "{} error{}, {} warning{} across {} view{}",
+                errors, if errors == 1 { "" } else { "s" },
+                warns, if warns == 1 { "" } else { "s" },
+                view_count, if view_count == 1 { "" } else { "s" },
+            );
         }
     }
+    Ok(())
 }

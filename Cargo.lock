@@ -1946,6 +1946,19 @@ dependencies = [
 ]
 
 [[package]]
+name = "lint"
+version = "0.1.0"
+dependencies = [
+ "anyhow",
+ "once_cell",
+ "regex",
+ "serde",
+ "serde_json",
+ "serde_yaml",
+ "tempfile",
+]
+
+[[package]]
 name = "linux-raw-sys"
 version = "0.4.15"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -2060,6 +2073,7 @@ dependencies = [
  "compiler",
  "dirs 5.0.1",
  "futures-util",
+ "lint",
  "mcp-framework",
  "reqwest 0.12.28",
  "rmcp",
@@ -3605,6 +3619,7 @@ dependencies = [
  "dirs 5.0.1",
  "getrandom 0.2.17",
  "libc",
+ "lint",
  "mcp",
  "mockito",
  "predicates",
@@ -3685,6 +3700,7 @@ dependencies = [
  "jsonschema",
  "jsonwebtoken",
  "libc",
+ "lint",
  "minijinja",
  "notify",
  "portable-pty",
