@@ -327,6 +327,7 @@ fn build_ship_routes(st: rest_api::ApiState) -> Router {
         // Collections
         .ship_route(Route::ListCollections, collection_api::list_collections)
         .ship_route(Route::GetCollectionSchema_template(), collection_api::get_schema)
+        .ship_route(Route::UpdateCollectionSchema_template(), collection_api::update_schema)
         .ship_route(Route::CreateCollectionItem_template(), collection_api::create_item)
         .ship_route(Route::GetCollectionItem_template(), collection_api::get_item)
         .ship_route(Route::UpdateCollectionItem_template(), collection_api::update_item)

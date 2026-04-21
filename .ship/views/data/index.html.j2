@@ -109,21 +109,6 @@
               </button>
             </div>
             <span class="col-head-sep" aria-hidden="true"></span>
-            <div class="col-density" role="radiogroup" aria-label="Density">
-              <button type="button" class="col-density-btn"
-                data-on:click="$_density = 'cozy'"
-                data-attr:aria-pressed="$_density == 'cozy'"
-                title="Comfortable density">Cozy</button>
-              <button type="button" class="col-density-btn"
-                data-on:click="$_density = 'compact'"
-                data-attr:aria-pressed="$_density == 'compact'"
-                title="Compact density">Compact</button>
-            </div>
-            <span class="col-head-sep" aria-hidden="true"></span>
-            <ship-button size="sm" variant="ghost"
-              data-on:click="$tab = 'schema'">
-              <ship-icon slot="leading" name="columns"></ship-icon>Schema
-            </ship-button>
             {#- Build a stub JSON body for required fields as a signal so the
                 @post expression stays readable. Use &quot; in attribute context
                 so the browser normalizes to " before Datastar evaluates. -#}
@@ -149,16 +134,34 @@
           </div>
         </div>
 
-        {# Schema tab — read-only view of the collection's schema. Editor lands in Phase 3. #}
+        {# Schema tab — inline editor. Built-in collections (runtime-owned) are
+           presented read-only; user-defined collections are fully editable
+           via PUT /api/collections/<id>/schema. #}
+        {% set _is_builtin = active_collection in ['specs', 'adrs', 'notes', 'feedback', 'annotations'] %}
         <div {{ tab_panel('tab', 'schema') }} class="col-tab-panel schema-panel">
-          <div class="schema-pane">
+          <div class="schema-pane"
+               {{ signal('_savedAt', 0) }}
+               {{ signal('_saveError', '') }}>
             <div class="schema-pane-head">
               <div>
                 <h3 class="schema-pane-title">{{ schema.name or active_collection }}</h3>
-                <div class="schema-pane-sub mono-snip">.ship/schemas/{{ active_collection }}.jsonc</div>
+                <div class="schema-pane-sub mono-snip">
+                  {% if _is_builtin %}built-in · defined in crates/core/runtime/src/collections/builtin.rs
+                  {%- else -%}.ship/schemas/{{ active_collection }}.jsonc{% endif -%}
+                </div>
               </div>
               <span class="schema-pane-count">{{ schema.fields | length }} field{% if schema.fields | length != 1 %}s{% endif %}</span>
             </div>
+
+            {% if _is_builtin %}
+            <div class="schema-builtin-note">
+              <ship-icon name="lock" size="sm"></ship-icon>
+              Built-in collections ship with the runtime. Fields are listed below for reference — editing would require a code change + rebuild.
+            </div>
+            {% endif %}
+
+            {% if _is_builtin %}
+            {# Read-only view. #}
             <div class="schema-fields">
               {% for f in schema.fields %}
               <div class="schema-field">
@@ -169,9 +172,70 @@
               </div>
               {% endfor %}
             </div>
-            <div class="schema-pane-note">
-              Inline schema editor is Phase 3. Edit the <span class="mono-snip">.jsonc</span> directly for now — changes hot-reload.
-            </div>
+            {% else %}
+            {# Editable form. Each field row binds to a signal slot in $schemaDraft. #}
+            {% set _field_json_parts = [] %}
+            {% for f in schema.fields %}{% set _field_json_parts = _field_json_parts + [
+              '{&quot;name&quot;: &quot;' ~ f[0] ~ '&quot;, &quot;type&quot;: &quot;' ~ f[1].field_type ~ '&quot;, &quot;required&quot;: ' ~ ('true' if f[1].required else 'false') ~ ', &quot;values&quot;: ' ~ (f[1].values | tojson if f[1].values else '[]') ~ '}'
+            ] %}{% endfor %}
+            <form class="schema-form"
+                  {{ signal('schemaDraft', '') }}
+                  data-signals:schemaDraft="{id: '{{ active_collection }}', name: '{{ schema.name or active_collection }}', fields: [{{- _field_json_parts | join(', ') -}}]}"
+                  data-on:submit.prevent="@put('/api/collections/{{ active_collection }}/schema', {contentType: 'json', body: $schemaDraft}); $_savedAt = Date.now(); $_saveError = ''">
+              <div class="schema-edit-table">
+                <div class="schema-edit-head">
+                  <span>Type</span>
+                  <span>Name</span>
+                  <span>Required</span>
+                  <span>Values (enum)</span>
+                  <span></span>
+                </div>
+                <template data-for="(f, i) in $schemaDraft.fields">
+                  {# Datastar doesn't ship a native for-template, so we render one row per field server-side and
+                     bind indexes. Keeps the editor declarative; the template comment above is a placeholder for future
+                     dynamic row counts — add/remove will reload the view for now (Phase 2.5). #}
+                </template>
+                {% for f in schema.fields %}
+                <div class="schema-edit-row">
+                  <ship-select size="sm" data-bind="schemaDraft.fields.{{ loop.index0 }}.type">
+                    <option value="string">string</option>
+                    <option value="markdown">markdown</option>
+                    <option value="number">number</option>
+                    <option value="boolean">boolean</option>
+                    <option value="enum">enum</option>
+                    <option value="date">date</option>
+                    <option value="file">file</option>
+                    <option value="array">array</option>
+                    <option value="object">object</option>
+                  </ship-select>
+                  <ship-input size="sm" data-bind="schemaDraft.fields.{{ loop.index0 }}.name"></ship-input>
+                  <label class="schema-edit-check">
+                    <input type="checkbox" data-bind="schemaDraft.fields.{{ loop.index0 }}.required">
+                  </label>
+                  <ship-input size="sm" placeholder="comma-separated"
+                    data-bind="schemaDraft.fields.{{ loop.index0 }}._valuesCsv"
+                    data-attr:disabled="$schemaDraft.fields.{{ loop.index0 }}.type != 'enum'"></ship-input>
+                  <ship-button size="sm" variant="ghost" aria-label="Remove field"
+                    data-on:click="$schemaDraft.fields.splice({{ loop.index0 }}, 1)">
+                    <ship-icon name="trash" size="sm"></ship-icon>
+                  </ship-button>
+                </div>
+                {% endfor %}
+              </div>
+              <div class="schema-edit-footer">
+                <ship-button size="sm" variant="ghost"
+                  data-on:click.prevent="$schemaDraft.fields.push({name: 'new_field', type: 'string', required: false, values: []})">
+                  <ship-icon slot="leading" name="plus"></ship-icon>Add field
+                </ship-button>
+                <span class="schema-edit-spacer"></span>
+                <span class="schema-edit-saved" data-show="$_savedAt > 0">Saved</span>
+                <span class="schema-edit-error" data-text="$_saveError" data-show="$_saveError"></span>
+                <ship-button size="sm" tone="accent" variant="solid" type="submit">
+                  <ship-icon slot="leading" name="check"></ship-icon>Save schema
+                </ship-button>
+              </div>
+            </form>
+            {% endif %}
           </div>
         </div>
 

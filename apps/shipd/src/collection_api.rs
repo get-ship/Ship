@@ -112,6 +112,79 @@ pub async fn get_schema(
     }
 }
 
+/// PUT /api/collections/{collection}/schema — write the user-defined schema
+/// to `.ship/schemas/<collection>.jsonc`. Rejects writes to built-in
+/// collections (specs, adrs, notes, feedback, annotations) — those are
+/// owned by the runtime and shipped as code.
+pub async fn update_schema(
+    State(state): State<ApiState>,
+    Extension(auth): Extension<AuthContext>,
+    Path(collection): Path<String>,
+    Json(updated): Json<schema::CollectionSchema>,
+) -> impl IntoResponse {
+    if let Err(e) = require_scope(&auth, Scope::WriteWorkspace) {
+        return e.into_response();
+    }
+    // Reject schema edits for built-ins — they live in Rust, not on disk.
+    if builtin::all_schemas().iter().any(|s| s.id == collection) {
+        return err_owned(
+            StatusCode::CONFLICT,
+            format!(
+                "'{collection}' is a built-in collection; its schema is defined in the runtime and cannot be edited through the API"
+            ),
+        );
+    }
+    // Path id must match body id to prevent accidental renames via URL drift.
+    if updated.id != collection {
+        return err_owned(
+            StatusCode::BAD_REQUEST,
+            format!(
+                "path collection '{collection}' does not match body id '{}' — rename is unsupported",
+                updated.id
+            ),
+        );
+    }
+    // Validate, serialize, write atomically.
+    let schemas_dir = state.ship_dir().join("schemas");
+    if let Err(e) = std::fs::create_dir_all(&schemas_dir) {
+        return err_owned(
+            StatusCode::INTERNAL_SERVER_ERROR,
+            format!("cannot create {}: {e}", schemas_dir.display()),
+        );
+    }
+    let path = schemas_dir.join(format!("{collection}.jsonc"));
+    let json = match serde_json::to_string_pretty(&updated) {
+        Ok(s) => s,
+        Err(e) => {
+            return err_owned(
+                StatusCode::BAD_REQUEST,
+                format!("could not serialize schema: {e}"),
+            )
+        }
+    };
+    // Write via a sibling temp file + rename so a partial write can't leave
+    // the .jsonc in an invalid state mid-edit.
+    let tmp = path.with_extension("jsonc.tmp");
+    if let Err(e) = std::fs::write(&tmp, &json) {
+        return err_owned(
+            StatusCode::INTERNAL_SERVER_ERROR,
+            format!("write failed: {e}"),
+        );
+    }
+    if let Err(e) = std::fs::rename(&tmp, &path) {
+        let _ = std::fs::remove_file(&tmp);
+        return err_owned(
+            StatusCode::INTERNAL_SERVER_ERROR,
+            format!("rename failed: {e}"),
+        );
+    }
+    (
+        StatusCode::OK,
+        Json(serde_json::json!({ "ok": true, "data": updated })),
+    )
+        .into_response()
+}
+
 #[derive(Deserialize)]
 pub struct CreateItemRequest {
     pub id: Option<String>,

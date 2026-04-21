@@ -420,6 +420,9 @@ pub enum Route {
     /// @route GET "/api/collections/{collection}/schema"
     GetCollectionSchema { collection: String },
 
+    /// @route PUT "/api/collections/{collection}/schema"
+    UpdateCollectionSchema { collection: String },
+
     /// @route POST "/api/collections/{collection}/items"
     CreateCollectionItem { collection: String },
 

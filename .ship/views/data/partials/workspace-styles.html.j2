@@ -76,6 +76,63 @@
   color: var(--muted-foreground);
   padding: var(--space-2) 0;
 }
+.data-view .schema-builtin-note {
+  display: flex; align-items: center; gap: var(--space-2);
+  padding: var(--space-3) var(--space-4);
+  background: color-mix(in oklch, var(--muted) 30%, transparent);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-md);
+  font-size: var(--text-sm);
+  color: var(--muted-foreground);
+}
+
+/* Editable schema form. */
+.data-view .schema-form { display: contents; }
+.data-view .schema-edit-table {
+  border: 1px solid var(--border);
+  border-radius: var(--radius-md);
+  overflow: hidden;
+}
+.data-view .schema-edit-head,
+.data-view .schema-edit-row {
+  display: grid;
+  grid-template-columns: 140px 1fr 80px minmax(160px, 1fr) 40px;
+  align-items: center;
+  gap: var(--space-3);
+  padding: var(--space-2) var(--space-3);
+}
+.data-view .schema-edit-head {
+  background: color-mix(in oklch, var(--muted) 40%, transparent);
+  border-bottom: 1px solid var(--border);
+  font-size: var(--text-xs);
+  color: var(--muted-foreground);
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  font-weight: var(--font-weight-medium);
+}
+.data-view .schema-edit-row + .schema-edit-row { border-top: 1px solid color-mix(in oklch, var(--border) 50%, transparent); }
+.data-view .schema-edit-row:hover { background: color-mix(in oklch, var(--muted) 15%, transparent); }
+.data-view .schema-edit-check {
+  display: inline-flex; align-items: center; justify-content: flex-start;
+}
+.data-view .schema-edit-footer {
+  display: flex; align-items: center; gap: var(--space-3);
+  padding: var(--space-2) 0;
+}
+.data-view .schema-edit-spacer { flex: 1; }
+.data-view .schema-edit-saved {
+  font-size: var(--text-xs);
+  color: var(--success);
+  animation: schema-save-flash 2s ease-out forwards;
+}
+@keyframes schema-save-flash {
+  0%, 30% { opacity: 1; }
+  100% { opacity: 0; }
+}
+.data-view .schema-edit-error {
+  font-size: var(--text-xs);
+  color: var(--destructive);
+}
 .data-view .col-workspace.no-events { grid-template-columns: 220px 1fr; }
 
 .data-view .col-nav {

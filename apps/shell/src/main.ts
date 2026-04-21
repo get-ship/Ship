@@ -128,7 +128,7 @@ async function mount(endpoint: string) {
   const parent = live?.parentElement ?? document.body;
   const newView = document.createElement("main");
   newView.id = "ship-view-root";
-  newView.className = "ship-content";
+  newView.className = "ship-content ship-content-entering";
   if (live && live.parentElement) {
     parent.replaceChild(newView, live);
   } else {
@@ -143,7 +143,13 @@ async function mount(endpoint: string) {
     });
   } catch {
     view.innerHTML = `<div class="mount-error">Failed to load view.\nCheck that the daemon is running.</div>`;
-    return;
+  } finally {
+    // Trigger the enter animation AFTER content has landed so the blank
+    // interval between node-create and fetch-settle stays invisible rather
+    // than flashing empty.
+    requestAnimationFrame(() => {
+      view.classList.remove("ship-content-entering");
+    });
   }
 }
 

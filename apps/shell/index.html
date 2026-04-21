@@ -201,6 +201,23 @@
         overflow: auto;
         background: var(--background);
         min-width: 0;
+        /* Soften view-swap flash. mount() marks the new root as
+           `ship-content-entering` before the fetch, and removes the class
+           only AFTER content lands — so the blank interval is invisible
+           and the new view fades in once it's actually populated.
+           Respect reduced-motion. */
+        opacity: 1;
+        transform: translateY(0);
+        transition: opacity 140ms cubic-bezier(0.22, 1, 0.36, 1),
+                    transform 140ms cubic-bezier(0.22, 1, 0.36, 1);
+      }
+      .ship-content-entering {
+        opacity: 0;
+        transform: translateY(2px);
+      }
+      @media (prefers-reduced-motion: reduce) {
+        .ship-content,
+        .ship-content-entering { opacity: 1; transform: none; transition: none; }
       }
 
       /* ── Right drawer: chat panel ── */
