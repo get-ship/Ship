@@ -40,11 +40,17 @@ async fn get_svc_and_schema<'a>(
     Ok((guard, schema))
 }
 
-/// Load all schemas: built-in (user-visible) + user-defined from .ship/schemas/*.jsonc.
+/// Load all schemas: built-in (user-visible) + user-defined from .ship/collections/*.jsonc.
+/// Merges global (~/.ship/) and project-local schemas; project-local override global on id clash.
 /// System schemas (feedback, annotations) are excluded from user-facing listing.
 fn load_all_schemas(ship_dir: &std::path::Path) -> anyhow::Result<Vec<schema::CollectionSchema>> {
+    let project_dir = runtime::project::get_project_dir(None).ok();
+    let user_schemas = schema::load_schemas_merged(
+        ship_dir,
+        project_dir.as_deref(),
+    )?;
     let mut schemas = builtin::user_schemas();
-    schemas.extend(schema::load_schemas(ship_dir)?);
+    schemas.extend(user_schemas);
     Ok(schemas)
 }
 
@@ -54,8 +60,10 @@ fn load_any_schema(
     ship_dir: &std::path::Path,
     collection: &str,
 ) -> anyhow::Result<schema::CollectionSchema> {
+    let project_dir = runtime::project::get_project_dir(None).ok();
+    let user_schemas = schema::load_schemas_merged(ship_dir, project_dir.as_deref())?;
     let mut schemas = builtin::all_schemas();
-    schemas.extend(schema::load_schemas(ship_dir)?);
+    schemas.extend(user_schemas);
     schemas
         .into_iter()
         .find(|s| s.id == collection)
@@ -115,13 +123,12 @@ pub async fn create_collection(
     if let Err(e) = require_scope(&auth, Scope::WriteWorkspace) {
         return e.into_response();
     }
-    // Reject if it conflicts with any known built-in id.
+    // Reject if it conflicts with any known built-in id (runtime-owned schemas).
+    // specs and adrs are user-editable .ship/collections/ files, not runtime built-ins.
     let known_builtin_ids = [
         builtin::NOTES_ID,
         builtin::FEEDBACK_ID,
         builtin::ANNOTATIONS_ID,
-        builtin::SPECS_ID,
-        builtin::ADRS_ID,
     ];
     if known_builtin_ids.contains(&new_schema.id.as_str()) {
         return err_owned(
@@ -138,7 +145,7 @@ pub async fn create_collection(
             format!("collection id '{}' must be non-empty alphanumeric/underscore", new_schema.id),
         );
     }
-    let schemas_dir = state.ship_dir().join("schemas");
+    let schemas_dir = state.ship_dir().join("collections");
     if let Err(e) = std::fs::create_dir_all(&schemas_dir) {
         return err_owned(
             StatusCode::INTERNAL_SERVER_ERROR,
@@ -185,7 +192,7 @@ pub async fn get_schema(
 }
 
 /// PUT /api/collections/{collection}/schema — write the user-defined schema
-/// to `.ship/schemas/<collection>.jsonc`. Rejects writes to built-in
+/// to `.ship/collections/<collection>.jsonc`. Rejects writes to built-in
 /// collections (specs, adrs, notes, feedback, annotations) — those are
 /// owned by the runtime and shipped as code.
 pub async fn update_schema(
@@ -197,15 +204,13 @@ pub async fn update_schema(
     if let Err(e) = require_scope(&auth, Scope::WriteWorkspace) {
         return e.into_response();
     }
-    // Reject schema edits for any built-in (including system and removed ones) —
-    // they live in Rust, not on disk.
+    // Reject schema edits for runtime built-ins — they live in Rust, not on disk.
+    // specs and adrs are user-editable .ship/collections/ files, so writes to them are allowed.
     {
         let known_builtin_ids = [
             builtin::NOTES_ID,
             builtin::FEEDBACK_ID,
             builtin::ANNOTATIONS_ID,
-            builtin::SPECS_ID,
-            builtin::ADRS_ID,
         ];
         if known_builtin_ids.contains(&collection.as_str()) {
             return err_owned(
@@ -227,7 +232,7 @@ pub async fn update_schema(
         );
     }
     // Validate, serialize, write atomically.
-    let schemas_dir = state.ship_dir().join("schemas");
+    let schemas_dir = state.ship_dir().join("collections");
     if let Err(e) = std::fs::create_dir_all(&schemas_dir) {
         return err_owned(
             StatusCode::INTERNAL_SERVER_ERROR,

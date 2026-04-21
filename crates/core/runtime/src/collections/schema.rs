@@ -1,13 +1,13 @@
 //! Collection schema definitions.
 //!
 //! A schema declares the shape of items in a collection: field names, types,
-//! defaults, and validation constraints. Schemas live in `.ship/schemas/<id>.jsonc`.
+//! defaults, and validation constraints. Schemas live in `.ship/collections/<id>.jsonc`.
 
 use serde::{Deserialize, Serialize};
 use indexmap::IndexMap;
 use std::path::Path;
 
-/// A collection schema parsed from `.ship/schemas/<id>.jsonc`.
+/// A collection schema parsed from `.ship/collections/<id>.jsonc`.
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct CollectionSchema {
     pub id: String,
@@ -59,9 +59,9 @@ pub fn parse_schema(jsonc: &str) -> anyhow::Result<CollectionSchema> {
     Ok(schema)
 }
 
-/// Load all schemas from a `.ship/schemas/` directory.
+/// Load all schemas from a `.ship/collections/` directory.
 pub fn load_schemas(ship_dir: &Path) -> anyhow::Result<Vec<CollectionSchema>> {
-    let schemas_dir = ship_dir.join("schemas");
+    let schemas_dir = ship_dir.join("collections");
     if !schemas_dir.is_dir() {
         return Ok(vec![]);
     }
@@ -79,8 +79,43 @@ pub fn load_schemas(ship_dir: &Path) -> anyhow::Result<Vec<CollectionSchema>> {
     Ok(schemas)
 }
 
+/// Load schemas from both the global `~/.ship/collections/` and the project's
+/// `.ship/collections/`, merging them. Order: global first, then project-local.
+/// Project-local schemas with the same `id` as a global schema override (shadow)
+/// the global one. A warning is emitted via `tracing::warn!` when this occurs.
+///
+/// If `project_ship_dir` is `None` or points to the same directory as
+/// `global_ship_dir`, only global schemas are loaded.
+pub fn load_schemas_merged(
+    global_ship_dir: &Path,
+    project_ship_dir: Option<&Path>,
+) -> anyhow::Result<Vec<CollectionSchema>> {
+    let mut global_schemas = load_schemas(global_ship_dir)?;
+
+    let project_dir = match project_ship_dir {
+        Some(p) if p != global_ship_dir => p,
+        _ => return Ok(global_schemas),
+    };
+
+    let project_schemas = load_schemas(project_dir)?;
+
+    for proj in project_schemas {
+        if let Some(pos) = global_schemas.iter().position(|g| g.id == proj.id) {
+            tracing::warn!(
+                id = %proj.id,
+                "project-local collection schema shadows global schema with same id"
+            );
+            global_schemas[pos] = proj;
+        } else {
+            global_schemas.push(proj);
+        }
+    }
+
+    Ok(global_schemas)
+}
+
 /// Load schemas from the parent directory of a database path.
-/// Given `/path/.ship/data.db`, looks for `/path/.ship/schemas/`.
+/// Given `/path/.ship/data.db`, looks for `/path/.ship/collections/`.
 pub fn load_schemas_from_parent(db_path: &std::path::Path) -> anyhow::Result<Vec<CollectionSchema>> {
     if let Some(ship_dir) = db_path.parent() {
         load_schemas(ship_dir)
@@ -311,7 +346,7 @@ mod tests {
     fn load_schemas_from_empty_dir() {
         let tmp = tempfile::tempdir().unwrap();
         let ship_dir = tmp.path().join(".ship");
-        std::fs::create_dir_all(ship_dir.join("schemas")).unwrap();
+        std::fs::create_dir_all(ship_dir.join("collections")).unwrap();
         let schemas = load_schemas(&ship_dir).unwrap();
         assert!(schemas.is_empty());
     }
@@ -320,7 +355,7 @@ mod tests {
     fn load_schemas_from_dir() {
         let tmp = tempfile::tempdir().unwrap();
         let ship_dir = tmp.path().join(".ship");
-        let schemas_dir = ship_dir.join("schemas");
+        let schemas_dir = ship_dir.join("collections");
         std::fs::create_dir_all(&schemas_dir).unwrap();
         std::fs::write(
             schemas_dir.join("task.jsonc"),
@@ -335,9 +370,71 @@ mod tests {
     fn load_schemas_skips_non_schema_dir() {
         let tmp = tempfile::tempdir().unwrap();
         let ship_dir = tmp.path().join(".ship");
-        // No schemas/ directory at all
+        // No collections/ directory at all
         std::fs::create_dir_all(&ship_dir).unwrap();
         let schemas = load_schemas(&ship_dir).unwrap();
         assert!(schemas.is_empty());
+    }
+
+    #[test]
+    fn load_schemas_merged_combines_global_and_project() {
+        let tmp = tempfile::tempdir().unwrap();
+        let global_dir = tmp.path().join("global").join(".ship");
+        let project_dir = tmp.path().join("project").join(".ship");
+        let global_col = global_dir.join("collections");
+        let project_col = project_dir.join("collections");
+        std::fs::create_dir_all(&global_col).unwrap();
+        std::fs::create_dir_all(&project_col).unwrap();
+
+        std::fs::write(
+            global_col.join("global_task.jsonc"),
+            r#"{ "id": "global_task", "fields": { "title": { "type": "string", "required": true } } }"#,
+        ).unwrap();
+        std::fs::write(
+            project_col.join("project_task.jsonc"),
+            r#"{ "id": "project_task", "fields": { "name": { "type": "string", "required": true } } }"#,
+        ).unwrap();
+
+        let merged = load_schemas_merged(&global_dir, Some(&project_dir)).unwrap();
+        let ids: Vec<&str> = merged.iter().map(|s| s.id.as_str()).collect();
+        assert!(ids.contains(&"global_task"), "expected global_task in merged");
+        assert!(ids.contains(&"project_task"), "expected project_task in merged");
+        assert_eq!(merged.len(), 2);
+    }
+
+    #[test]
+    fn load_schemas_merged_project_shadows_global() {
+        let tmp = tempfile::tempdir().unwrap();
+        let global_dir = tmp.path().join("global").join(".ship");
+        let project_dir = tmp.path().join("project").join(".ship");
+        std::fs::create_dir_all(global_dir.join("collections")).unwrap();
+        std::fs::create_dir_all(project_dir.join("collections")).unwrap();
+
+        std::fs::write(
+            global_dir.join("collections").join("task.jsonc"),
+            r#"{ "id": "task", "name": "Global Task", "fields": { "title": { "type": "string", "required": true } } }"#,
+        ).unwrap();
+        std::fs::write(
+            project_dir.join("collections").join("task.jsonc"),
+            r#"{ "id": "task", "name": "Project Task", "fields": { "title": { "type": "string", "required": true } } }"#,
+        ).unwrap();
+
+        let merged = load_schemas_merged(&global_dir, Some(&project_dir)).unwrap();
+        assert_eq!(merged.len(), 1, "shadowed schema should not duplicate");
+        assert_eq!(merged[0].name.as_deref(), Some("Project Task"), "project should shadow global");
+    }
+
+    #[test]
+    fn load_schemas_merged_no_project_equals_global() {
+        let tmp = tempfile::tempdir().unwrap();
+        let global_dir = tmp.path().join(".ship");
+        std::fs::create_dir_all(global_dir.join("collections")).unwrap();
+        std::fs::write(
+            global_dir.join("collections").join("task.jsonc"),
+            r#"{ "id": "task", "fields": { "title": { "type": "string", "required": true } } }"#,
+        ).unwrap();
+
+        let merged = load_schemas_merged(&global_dir, None).unwrap();
+        assert_eq!(merged.len(), 1);
     }
 }

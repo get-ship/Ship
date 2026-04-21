@@ -163,7 +163,7 @@
         "name": "collection",
         "required": true,
         "default": null,
-        "description": "Collection id (matches a schema in `.ship/schemas/`)."
+        "description": "Collection id (matches a schema in `.ship/collections/`)."
       },
       {
         "name": "data",

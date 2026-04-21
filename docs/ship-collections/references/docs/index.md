@@ -7,7 +7,7 @@ order: 1
 
 # Collections
 
-A collection is a typed dataset. You define a schema in `.ship/schemas/`, and Ship gives you storage, a query API, event emission, and agent access.
+A collection is a typed dataset. You define a schema in `.ship/collections/`, and Ship gives you storage, a query API, event emission, and agent access.
 
 ## When to use collections
 
@@ -17,7 +17,7 @@ A collection is a typed dataset. You define a schema in `.ship/schemas/`, and Sh
 
 ## How it works
 
-1. Define a schema in `.ship/schemas/<id>.jsonc`
+1. Define a schema in `.ship/collections/<id>.jsonc`
 2. Ship creates a table in `.ship/data.db` with typed columns
 3. Use the REST API or MCP tools to create, query, update, delete items
 4. Views fetch collection data and render it however they choose
@@ -28,7 +28,7 @@ A collection is a typed dataset. You define a schema in `.ship/schemas/`, and Sh
 Create a schema:
 
 ```jsonc
-// .ship/schemas/task.jsonc
+// .ship/collections/task.jsonc
 {
   "id": "task",
   "name": "Task",
@@ -61,7 +61,7 @@ curl -X POST /api/collections/task/query \
 Collections sit on top of the data service — a managed SQLite database at `.ship/data.db`. Each collection gets its own table with real typed columns. The data service is available to any Ship extension, not just collections.
 
 ```
-.ship/schemas/<id>.jsonc    → schema definition
+.ship/collections/<id>.jsonc    → schema definition
 .ship/data.db               → SQLite storage (managed by daemon)
 /api/collections/...        → REST API
 MCP tools                   → agent access (create_doc, query_docs, etc.)

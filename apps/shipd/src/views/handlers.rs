@@ -17,10 +17,14 @@ fn build_view_context(view_name: &str, params: &HashMap<String, String>) -> serd
     });
     if let Ok(ship_dir) = runtime::project::get_global_dir() {
         // Merge built-in schemas (notes, feedback, annotations) with
-        // user-defined ones so the view's active_collection lookup + items
-        // query work for any navigable collection.
+        // user-defined ones (global + project-local) so the view's
+        // active_collection lookup + items query work for any navigable collection.
+        let project_dir = runtime::project::get_project_dir(None).ok();
         let mut schemas = runtime::collections::builtin::all_schemas();
-        schemas.extend(runtime::collections::schema::load_schemas(&ship_dir).unwrap_or_default());
+        schemas.extend(
+            runtime::collections::schema::load_schemas_merged(&ship_dir, project_dir.as_deref())
+                .unwrap_or_default(),
+        );
         let summaries: Vec<serde_json::Value> = schemas.iter().map(|s| {
             let fields: Vec<serde_json::Value> = s.fields.iter().map(|(k, v)| {
                 serde_json::json!([k, {

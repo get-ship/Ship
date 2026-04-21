@@ -43,7 +43,7 @@
       <div class="data-index-head">
         <h1 class="data-index-title">Collections</h1>
         <div class="data-index-sub">
-          Typed datasets defined in <span class="mono-snip">.ship/schemas/</span>,
+          Typed datasets defined in <span class="mono-snip">.ship/collections/</span>,
           stored in <span class="mono-snip">~/.ship/data.db</span>.
         </div>
         <div class="data-index-actions">
@@ -55,7 +55,7 @@
       </div>
       <ship-empty-state>
         <span slot="title">No collections yet</span>
-        <span slot="description">Click "New collection" or drop a .jsonc file in .ship/schemas/ to get started.</span>
+        <span slot="description">Click "New collection" or drop a .jsonc file in .ship/collections/ to get started.</span>
       </ship-empty-state>
     </div>
   {% elif query.browse == 'index' or active_collection is not defined or schema is not defined %}
@@ -149,7 +149,7 @@
                 <h3 class="schema-pane-title">{{ schema.name or active_collection }}</h3>
                 <div class="schema-pane-sub mono-snip">
                   {% if _is_builtin %}built-in · defined in crates/core/runtime/src/collections/builtin.rs
-                  {%- else -%}.ship/schemas/{{ active_collection }}.jsonc{% endif -%}
+                  {%- else -%}.ship/collections/{{ active_collection }}.jsonc{% endif -%}
                 </div>
               </div>
               <span class="schema-pane-count">{{ schema.fields | length }} field{% if schema.fields | length != 1 %}s{% endif %}</span>

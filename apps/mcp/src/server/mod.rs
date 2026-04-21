@@ -599,7 +599,7 @@ impl ShipServer {
 
     #[tool(
         description = "Create a new item in a collection. The collection must have a schema \
-        defined in .ship/schemas/. Data is validated against the schema before writing."
+        defined in .ship/collections/. Data is validated against the schema before writing."
     )]
     async fn create_doc(
         &self,

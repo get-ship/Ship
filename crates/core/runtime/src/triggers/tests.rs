@@ -17,7 +17,7 @@ fn tmp_ship_dir() -> (TempDir, std::path::PathBuf) {
     let tmp = tempfile::tempdir().unwrap();
     let ship_dir = tmp.path().join(".ship");
     std::fs::create_dir_all(ship_dir.join("triggers")).unwrap();
-    std::fs::create_dir_all(ship_dir.join("schemas")).unwrap();
+    std::fs::create_dir_all(ship_dir.join("collections")).unwrap();
     crate::db::ensure_db_at(&ship_dir).unwrap();
     (tmp, ship_dir)
 }
@@ -43,7 +43,7 @@ fn write_schema(ship_dir: &Path, id: &str) {
             }}
         }}"#
     );
-    std::fs::write(ship_dir.join("schemas").join(format!("{id}.jsonc")), schema).unwrap();
+    std::fs::write(ship_dir.join("collections").join(format!("{id}.jsonc")), schema).unwrap();
 }
 
 fn job_failed_envelope() -> EventEnvelope {

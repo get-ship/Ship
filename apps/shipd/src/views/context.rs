@@ -47,11 +47,15 @@ fn load_collections(
         return;
     }
     // Merge built-in schemas (notes + system ones) with user-defined ones
-    // so SSE context matches initial-render context and /api/collections.
-    // We include all built-ins here so navigating to any collection (including
-    // system ones) works; user-facing listing uses user_schemas().
+    // (global + project-local) so SSE context matches initial-render context
+    // and /api/collections. We include all built-ins here so navigating to any
+    // collection (including system ones) works; user-facing listing uses user_schemas().
+    let project_dir = runtime::project::get_project_dir(None).ok();
     let mut schemas = runtime::collections::builtin::all_schemas();
-    schemas.extend(runtime::collections::schema::load_schemas(ship_dir).unwrap_or_default());
+    schemas.extend(
+        runtime::collections::schema::load_schemas_merged(ship_dir, project_dir.as_deref())
+            .unwrap_or_default(),
+    );
     let active_id = signals
         .get("collection")
         .and_then(|v| v.as_str())

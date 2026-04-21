@@ -15,7 +15,9 @@ pub fn ship_items(collection: String) -> Vec<Value> {
         Ok(d) => d,
         Err(_) => return vec![],
     };
-    let schemas = runtime::collections::schema::load_schemas(&ship_dir).unwrap_or_default();
+    let project_dir = runtime::project::get_project_dir(None).ok();
+    let schemas = runtime::collections::schema::load_schemas_merged(&ship_dir, project_dir.as_deref())
+        .unwrap_or_default();
     let schema = match schemas.iter().find(|s| s.id == collection) {
         Some(s) => s,
         None => return vec![],
@@ -49,7 +51,9 @@ pub fn ship_schema(collection: String) -> Value {
         Ok(d) => d,
         Err(_) => return Value::UNDEFINED,
     };
-    let schemas = runtime::collections::schema::load_schemas(&ship_dir).unwrap_or_default();
+    let project_dir = runtime::project::get_project_dir(None).ok();
+    let schemas = runtime::collections::schema::load_schemas_merged(&ship_dir, project_dir.as_deref())
+        .unwrap_or_default();
     match schemas.into_iter().find(|s| s.id == collection) {
         Some(s) => Value::from_serialize(&s),
         None => Value::UNDEFINED,
@@ -63,7 +67,9 @@ pub fn ship_query(collection: String, opts: Option<Value>) -> Vec<Value> {
         Ok(d) => d,
         Err(_) => return vec![],
     };
-    let schemas = runtime::collections::schema::load_schemas(&ship_dir).unwrap_or_default();
+    let project_dir = runtime::project::get_project_dir(None).ok();
+    let schemas = runtime::collections::schema::load_schemas_merged(&ship_dir, project_dir.as_deref())
+        .unwrap_or_default();
     let schema = match schemas.iter().find(|s| s.id == collection) {
         Some(s) => s,
         None => return vec![],
@@ -88,7 +94,7 @@ pub fn ship_query(collection: String, opts: Option<Value>) -> Vec<Value> {
 /// Returns user-visible collection schemas as `[{id, name, field_count, fields}]`.
 ///
 /// Merges user-visible built-in schemas (notes — system schemas like feedback
-/// and annotations are excluded) with user-defined schemas under `.ship/schemas/`.
+/// and annotations are excluded) with user-defined schemas under `.ship/collections/`.
 /// Matches the `/api/collections` HTTP endpoint so the Jinja helper and
 /// REST API see the same collection set.
 pub fn ship_collections() -> Vec<Value> {
@@ -96,8 +102,12 @@ pub fn ship_collections() -> Vec<Value> {
         Ok(d) => d,
         Err(_) => return vec![],
     };
+    let project_dir = runtime::project::get_project_dir(None).ok();
     let mut schemas = runtime::collections::builtin::user_schemas();
-    schemas.extend(runtime::collections::schema::load_schemas(&ship_dir).unwrap_or_default());
+    schemas.extend(
+        runtime::collections::schema::load_schemas_merged(&ship_dir, project_dir.as_deref())
+            .unwrap_or_default(),
+    );
     schemas
         .iter()
         .map(|s| {

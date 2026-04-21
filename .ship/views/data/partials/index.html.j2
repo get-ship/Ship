@@ -7,7 +7,7 @@
     <div>
       <h1 class="data-index-title">Collections</h1>
       <div class="data-index-sub">
-        Typed datasets defined in <span class="mono-snip">.ship/schemas/</span> —
+        Typed datasets defined in <span class="mono-snip">.ship/collections/</span> —
         stored in <span class="mono-snip">~/.ship/data.db</span>, reactive via
         <span class="mono-snip">collection.item_*</span> events.
       </div>
@@ -28,7 +28,7 @@
         <span class="data-card-icon"><ship-icon name="database"></ship-icon></span>
         <div class="data-card-identity">
           <div class="data-card-name">{{ c.name or c.id }}</div>
-          <div class="data-card-id mono-snip">.ship/schemas/{{ c.id }}.jsonc</div>
+          <div class="data-card-id mono-snip">.ship/collections/{{ c.id }}.jsonc</div>
         </div>
         <span class="data-card-count">{{ c.field_count }} field{{ "s" if c.field_count != 1 else "" }}</span>
       </div>

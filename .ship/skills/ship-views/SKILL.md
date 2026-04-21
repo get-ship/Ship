@@ -224,7 +224,7 @@ Collections are structured data tables defined by JSON schema. They're the exten
 
 ### Schema definition
 
-`.ship/schemas/task.jsonc`:
+`.ship/collections/task.jsonc`:
 ```jsonc
 {
   "id": "task",

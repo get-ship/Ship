@@ -545,7 +545,7 @@ signal such as `$form`.
 
 **Arguments:**
 
-- `collection` (*required*) — Collection id (matches a schema in `.ship/schemas/`).
+- `collection` (*required*) — Collection id (matches a schema in `.ship/collections/`).
 - `data` (*required*) — Datastar expression whose value becomes the item's `data` payload.
 
 **Example:**
