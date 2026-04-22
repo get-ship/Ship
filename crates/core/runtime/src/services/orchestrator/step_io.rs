@@ -322,6 +322,11 @@ fn read_failure_reason(path: &Path) -> Option<String> {
 
 /// Write an artifact blob to `<worktree>/.artifacts/input/<name>`.
 /// Tries hardlink first (fast, same device); falls back to byte copy.
+///
+/// Defense-in-depth: even though `pipeline_loader::validate_output_name`
+/// rejects traversal at load time, we re-verify here that `dst` resolves
+/// within `input_dir`. A loader bypass (e.g. payload injected via an
+/// unvalidated code path) cannot escape the worktree.
 fn write_input_file(
     worktree_path: &Path,
     name: &str,
@@ -331,12 +336,42 @@ fn write_input_file(
     let input_dir = worktree_path.join(".artifacts/input");
     std::fs::create_dir_all(&input_dir)?;
     let dst = input_dir.join(name);
+    ensure_within(&input_dir, &dst)?;
     if dst.exists() {
         return Ok(());
     }
     let src = ship_dir.join(&record.path);
     if std::fs::hard_link(&src, &dst).is_err() {
         std::fs::copy(&src, &dst)?;
+    }
+    Ok(())
+}
+
+/// Verify that `candidate` resolves under `base`. We intentionally do NOT
+/// call `canonicalize` on the candidate — the file may not exist yet, and
+/// canonicalize follows symlinks which could itself be an attack vector.
+/// Instead we canonicalize `base` (which must exist) and walk the candidate
+/// component-by-component, rejecting `..` / absolute paths / root prefixes.
+pub(crate) fn ensure_within(base: &Path, candidate: &Path) -> std::io::Result<()> {
+    use std::path::Component;
+    let base = base.canonicalize()?;
+    // Strip the base prefix if present, otherwise walk relative components.
+    let relative = candidate.strip_prefix(&base).unwrap_or(candidate);
+    for comp in relative.components() {
+        match comp {
+            Component::Normal(_) => continue,
+            Component::CurDir => continue,
+            Component::ParentDir | Component::RootDir | Component::Prefix(_) => {
+                return Err(std::io::Error::new(
+                    std::io::ErrorKind::PermissionDenied,
+                    format!(
+                        "path traversal rejected: '{}' escapes '{}'",
+                        candidate.display(),
+                        base.display()
+                    ),
+                ));
+            }
+        }
     }
     Ok(())
 }
@@ -447,5 +482,39 @@ mod tests {
     fn output_scope_to_artifact_scope_run_errors() {
         let err = output_scope_to_artifact_scope(&OutputScope::Run, "my-proj");
         assert!(err.is_err());
+    }
+
+    #[test]
+    fn ensure_within_rejects_parent_dir_traversal() {
+        // Defense-in-depth: a loader bypass that planted `"../../../etc/evil"`
+        // as a consumes name must not escape the input dir at write time.
+        let tmp = tempfile::tempdir().expect("tmpdir");
+        let base = tmp.path().join("input");
+        std::fs::create_dir_all(&base).unwrap();
+        let malicious = base.join("../../../etc/evil");
+        let err = ensure_within(&base, &malicious).expect_err("traversal must be rejected");
+        assert_eq!(err.kind(), std::io::ErrorKind::PermissionDenied);
+        let msg = err.to_string();
+        assert!(msg.contains("path traversal"), "message must flag traversal: {msg}");
+    }
+
+    #[test]
+    fn ensure_within_accepts_plain_filename() {
+        let tmp = tempfile::tempdir().expect("tmpdir");
+        let base = tmp.path().join("input");
+        std::fs::create_dir_all(&base).unwrap();
+        let safe = base.join("patch.diff");
+        ensure_within(&base, &safe).expect("plain filename must be allowed");
+    }
+
+    #[test]
+    fn ensure_within_rejects_absolute_escape() {
+        let tmp = tempfile::tempdir().expect("tmpdir");
+        let base = tmp.path().join("input");
+        std::fs::create_dir_all(&base).unwrap();
+        // An attacker-supplied absolute path that doesn't share base's prefix.
+        let escaped = std::path::PathBuf::from("/etc/passwd");
+        let err = ensure_within(&base, &escaped).expect_err("absolute escape must be rejected");
+        assert_eq!(err.kind(), std::io::ErrorKind::PermissionDenied);
     }
 }

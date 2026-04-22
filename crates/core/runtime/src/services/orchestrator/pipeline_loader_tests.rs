@@ -304,6 +304,91 @@ fn promotes_project_to_user_fails_at_load() {
 }
 
 #[test]
+fn produces_name_with_path_traversal_fails_at_load() {
+    // Security: a pipeline that declares a produces.name containing "../"
+    // must be rejected at load time. Otherwise `input_dir.join(name)` in
+    // step_io::write_input_file would escape the worktree.
+    let mut payload = base_payload("coder");
+    let mut step = agent_step("evil", "coder");
+    step.produces = vec![StepOutput {
+        name: "../../../etc/evil".into(),
+        scope: OutputScope::Run,
+        required: false,
+    }];
+    payload.steps = Some(Pipeline { steps: vec![step], auto_merge: false });
+    let err = ensure_pipeline(payload).expect_err("traversal in produces must fail");
+    assert!(
+        err.contains("..") || err.to_lowercase().contains("traversal") || err.contains("disallowed"),
+        "error must cite traversal/disallowed chars: {err}"
+    );
+}
+
+#[test]
+fn consumes_with_path_traversal_fails_at_load() {
+    let mut payload = base_payload("coder");
+    let mut step = agent_step("consumer", "coder");
+    step.consumes = vec!["../../secret".into()];
+    payload.steps = Some(Pipeline { steps: vec![step], auto_merge: false });
+    let err = ensure_pipeline(payload).expect_err("traversal in consumes must fail");
+    assert!(
+        err.contains("..") || err.to_lowercase().contains("traversal") || err.contains("disallowed"),
+        "error must cite traversal: {err}"
+    );
+}
+
+#[test]
+fn produces_name_leading_dot_rejected() {
+    let mut payload = base_payload("coder");
+    let mut step = agent_step("s1", "coder");
+    step.produces = vec![StepOutput {
+        name: ".hidden".into(),
+        scope: OutputScope::Run,
+        required: false,
+    }];
+    payload.steps = Some(Pipeline { steps: vec![step], auto_merge: false });
+    let err = ensure_pipeline(payload).expect_err("leading dot must be rejected");
+    assert!(err.to_lowercase().contains("."), "error must name the offending char: {err}");
+}
+
+#[test]
+fn produces_name_with_slash_rejected() {
+    let mut payload = base_payload("coder");
+    let mut step = agent_step("s1", "coder");
+    step.produces = vec![StepOutput {
+        name: "sub/dir/file".into(),
+        scope: OutputScope::Run,
+        required: false,
+    }];
+    payload.steps = Some(Pipeline { steps: vec![step], auto_merge: false });
+    let err = ensure_pipeline(payload).expect_err("slash must be rejected");
+    assert!(err.to_lowercase().contains("disallowed"), "error must flag disallowed chars: {err}");
+}
+
+#[test]
+fn duplicate_produces_name_across_steps_fails_at_load() {
+    // Two sibling steps both claim to produce "patch" — the consumes
+    // resolver would non-deterministically pick one. Reject at load.
+    let mut payload = base_payload("coder");
+    let mut s1 = agent_step("lane-a", "coder");
+    s1.produces = vec![StepOutput {
+        name: "patch".into(),
+        scope: OutputScope::Run,
+        required: false,
+    }];
+    let mut s2 = agent_step("lane-b", "coder");
+    s2.produces = vec![StepOutput {
+        name: "patch".into(),
+        scope: OutputScope::Run,
+        required: false,
+    }];
+    payload.steps = Some(Pipeline { steps: vec![s1, s2], auto_merge: false });
+    let err = ensure_pipeline(payload).expect_err("duplicate produces name must fail");
+    assert!(err.contains("patch"), "error must name the duplicated output: {err}");
+    assert!(err.contains("lane-a") && err.contains("lane-b"),
+        "error must list both offending steps: {err}");
+}
+
+#[test]
 fn multiple_producers_are_indexed_correctly() {
     let mut payload = base_payload("coder");
     let mut s1 = agent_step("write-tests", "coder");
