@@ -20,8 +20,10 @@
 // cap on this file. Re-exports let callers use `views::state::list_agents`
 // without knowing about the split.
 pub use super::agents_state::{
-    AgentDetail, AgentSummary, CreateAgentError, CreateAgentRequest,
-    create_agent, list_agents, load_agent,
+    AgentCatalogs, AgentDetail, AgentSummary, CatalogEntry,
+    CreateAgentError, CreateAgentRequest,
+    PatchAgentError, PatchAgentRequest,
+    create_agent, list_agent_catalogs, list_agents, load_agent, patch_agent,
 };
 pub use super::skills_state::{
     SkillDetail, SkillKind, SkillSummary, list_skills, load_skill,

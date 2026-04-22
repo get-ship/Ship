@@ -381,6 +381,190 @@ pub fn create_agent(
     })
 }
 
+// ─── Patch agent ──────────────────────────────────────────────────────
+//
+// Atomic-ish patch of an existing agent's JSONC. Supports appending to
+// the three array-typed slots the detail panels expose:
+//   - skills.refs       — skill IDs to activate
+//   - mcp.servers       — MCP server IDs to activate
+//   - rules.refs        — rule file IDs to activate (extension of the
+//                         schema's rules.inline; view already reads
+//                         either shape via resolve_array_field)
+//
+// Duplicates are de-duped. Arrays are created if missing. The rest of
+// the document — including comments, field order, and unrelated keys —
+// survives only for keys we round-trip through serde_json; JSONC
+// comments on the specific edited keys are lost. For comment-preserving
+// edits we'd need a lossless JSONC round-trip (e.g. `jsonc-parser`
+// crate with span retention), filed as a follow-up.
+
+#[derive(serde::Deserialize, Debug)]
+pub struct PatchAgentRequest {
+    #[serde(default)]
+    pub skills: Vec<String>,
+    #[serde(default)]
+    pub mcp: Vec<String>,
+    #[serde(default)]
+    pub rules: Vec<String>,
+}
+
+#[derive(Debug)]
+pub enum PatchAgentError {
+    NotFound(String),
+    Parse(String),
+    Io(std::io::Error),
+}
+
+impl std::fmt::Display for PatchAgentError {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        match self {
+            Self::NotFound(id) => write!(f, "agent `{id}` not found"),
+            Self::Parse(e) => write!(f, "couldn't parse agent JSONC: {e}"),
+            Self::Io(e) => write!(f, "{e}"),
+        }
+    }
+}
+
+/// Locate the JSONC file for an agent id across project + global scopes.
+fn find_agent_path(ship_dir: &Path, id: &str) -> Option<PathBuf> {
+    let scopes = resolve_scopes(ship_dir);
+    let mut candidates: Vec<PathBuf> = Vec::new();
+    if let Some(p) = scopes.project_dir {
+        candidates.push(p.join(format!("{id}.jsonc")));
+        candidates.push(p.join(format!("{id}.json")));
+    }
+    candidates.push(scopes.global_dir.join(format!("{id}.jsonc")));
+    candidates.push(scopes.global_dir.join(format!("{id}.json")));
+    candidates.into_iter().find(|p| p.exists())
+}
+
+/// Merge a string array into `doc.section.key` ensuring uniqueness.
+fn merge_array(
+    doc: &mut serde_json::Map<String, serde_json::Value>,
+    section: &str,
+    key: &str,
+    adds: &[String],
+) {
+    if adds.is_empty() {
+        return;
+    }
+    let section_entry = doc
+        .entry(section.to_string())
+        .or_insert_with(|| serde_json::Value::Object(serde_json::Map::new()));
+    let Some(section_obj) = section_entry.as_object_mut() else {
+        return;
+    };
+    let arr_entry = section_obj
+        .entry(key.to_string())
+        .or_insert_with(|| serde_json::Value::Array(Vec::new()));
+    let Some(arr) = arr_entry.as_array_mut() else {
+        return;
+    };
+    let mut seen: HashSet<String> = arr
+        .iter()
+        .filter_map(|v| v.as_str().map(|s| s.to_string()))
+        .collect();
+    for v in adds {
+        if seen.insert(v.clone()) {
+            arr.push(serde_json::Value::String(v.clone()));
+        }
+    }
+}
+
+pub fn patch_agent(
+    ship_dir: &Path,
+    id: &str,
+    req: &PatchAgentRequest,
+) -> Result<(), PatchAgentError> {
+    let path = find_agent_path(ship_dir, id).ok_or_else(|| PatchAgentError::NotFound(id.into()))?;
+    let raw = std::fs::read_to_string(&path).map_err(PatchAgentError::Io)?;
+    let stripped = super::agents_jsonc::strip_jsonc(&raw);
+    let mut doc: serde_json::Map<String, serde_json::Value> =
+        serde_json::from_str(&stripped).map_err(|e| PatchAgentError::Parse(e.to_string()))?;
+
+    merge_array(&mut doc, "skills", "refs", &req.skills);
+    merge_array(&mut doc, "mcp", "servers", &req.mcp);
+    merge_array(&mut doc, "rules", "refs", &req.rules);
+
+    let body = serde_json::to_string_pretty(&serde_json::Value::Object(doc))
+        .map_err(|e| PatchAgentError::Io(std::io::Error::other(e)))?;
+    let tmp = path.with_extension("jsonc.tmp");
+    std::fs::write(&tmp, body).map_err(PatchAgentError::Io)?;
+    std::fs::rename(&tmp, &path).map_err(PatchAgentError::Io)?;
+    Ok(())
+}
+
+// ─── Catalogs (available skills / mcp / rules) ────────────────────────
+//
+// The detail-panel pickers need to know what the user can select. We
+// enumerate the three stores on disk:
+//   - skills: reuse list_skills() → id + name
+//   - mcp: runtime::config::list_mcp_servers()
+//   - rules: scan .ship/rules/*.md
+
+#[derive(Serialize, Debug)]
+pub struct CatalogEntry {
+    pub id: String,
+    pub name: String,
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub description: Option<String>,
+}
+
+#[derive(Serialize, Debug)]
+pub struct AgentCatalogs {
+    pub skills: Vec<CatalogEntry>,
+    pub mcp: Vec<CatalogEntry>,
+    pub rules: Vec<CatalogEntry>,
+}
+
+fn list_rule_files(ship_dir: &Path) -> Vec<CatalogEntry> {
+    let dir = runtime::project::rules_dir(ship_dir);
+    let mut out = Vec::new();
+    let Ok(rd) = std::fs::read_dir(&dir) else {
+        return out;
+    };
+    for entry in rd.flatten() {
+        let path = entry.path();
+        if path.extension().and_then(|e| e.to_str()) != Some("md") {
+            continue;
+        }
+        let Some(stem) = path.file_stem().and_then(|s| s.to_str()) else {
+            continue;
+        };
+        out.push(CatalogEntry {
+            id: stem.to_string(),
+            name: stem.to_string(),
+            description: None,
+        });
+    }
+    out.sort_by(|a, b| a.id.cmp(&b.id));
+    out
+}
+
+pub fn list_agent_catalogs(ship_dir: &Path) -> AgentCatalogs {
+    let skills = super::skills_state::list_skills(ship_dir)
+        .into_iter()
+        .map(|s| CatalogEntry {
+            id: s.id,
+            name: s.name,
+            description: if s.description.is_empty() { None } else { Some(s.description) },
+        })
+        .collect();
+    let mcp = runtime::config::list_mcp_servers(Some(
+        ship_dir.parent().map(Path::to_path_buf).unwrap_or_else(|| ship_dir.to_path_buf()),
+    ))
+    .unwrap_or_default()
+    .into_iter()
+    .map(|s| CatalogEntry {
+        id: if s.id.is_empty() { s.name.clone() } else { s.id },
+        name: s.name,
+        description: None,
+    })
+    .collect();
+    let rules = list_rule_files(ship_dir);
+    AgentCatalogs { skills, mcp, rules }
+}
+
 #[cfg(test)]
 #[path = "agents_state_tests.rs"]
 mod tests;

@@ -22,7 +22,7 @@ use serde::Serialize;
 
 use crate::rest_api::ApiState;
 use crate::views::resolve_view_dir;
-use crate::views::state::{AgentDetail, AgentSummary, CreateAgentError, CreateAgentRequest, create_agent, list_agents, load_agent};
+use crate::views::state::{AgentDetail, AgentSummary, CreateAgentError, CreateAgentRequest, create_agent, list_agents, list_agent_catalogs, load_agent, patch_agent, PatchAgentError, PatchAgentRequest};
 use crate::views::templates;
 
 /// Try rendering a template from `.ship/views/<view>/<file>`.
@@ -121,6 +121,10 @@ pub struct AgentDetailCtx {
     pub agent: AgentDetail,
     /// The canonical permission tiers, rendered as a radio-card triad.
     pub tiers: Vec<TierRow>,
+    /// Skills / MCP servers / rules available to add. Powers the picker
+    /// dialog on the detail page. Entries already attached to the agent
+    /// are filtered out server-side so the dialog only shows real choices.
+    pub catalogs: crate::views::state::AgentCatalogs,
 }
 
 #[derive(Serialize, Clone)]
@@ -206,7 +210,13 @@ pub async fn agent_settings(
         return Err(StatusCode::NOT_FOUND);
     };
     let tiers = build_tiers(&agent.permissions_tier);
-    let ctx = AgentDetailCtx { agent, tiers };
+    // Filter catalogs to exclude what the agent already has — no point
+    // offering "add skill X" if X is already in the skills panel.
+    let mut catalogs = list_agent_catalogs(state.ship_dir());
+    catalogs.skills.retain(|e| !agent.skills.contains(&e.id));
+    catalogs.mcp.retain(|e| !agent.mcp_servers.contains(&e.id));
+    catalogs.rules.retain(|e| !agent.rules.contains(&e.id));
+    let ctx = AgentDetailCtx { agent, tiers, catalogs };
     if let Some(html) = try_render_view("agents", "detail.html.j2", &ctx) {
         return Ok(Html(html));
     }
@@ -466,6 +476,54 @@ pub async fn agents_create(
             })),
         ),
         Err(CreateAgentError::Io(e)) => (
+            StatusCode::INTERNAL_SERVER_ERROR,
+            Json(serde_json::json!({
+                "ok": false,
+                "error": "io",
+                "message": e.to_string(),
+            })),
+        ),
+    }
+}
+
+/// GET /api/agents/catalogs — list available skills + MCP servers + rules
+/// a user can attach to an agent. Drives the detail-panel "Add" picker.
+pub async fn agent_catalogs(State(state): State<ApiState>) -> Json<serde_json::Value> {
+    let cats = list_agent_catalogs(state.ship_dir());
+    Json(serde_json::to_value(&cats).unwrap_or_else(|_| serde_json::json!({})))
+}
+
+/// POST /api/agents/{id}/patch — append skills/mcp/rules into the agent
+/// JSONC. Payload: `{ skills: ["id"], mcp: ["id"], rules: ["id"] }`.
+/// Any of the three arrays may be empty/omitted. Duplicates are
+/// silently de-duped inside `patch_agent`.
+pub async fn agent_patch(
+    State(state): State<ApiState>,
+    Path(id): Path<String>,
+    Json(req): Json<PatchAgentRequest>,
+) -> (StatusCode, Json<serde_json::Value>) {
+    match patch_agent(state.ship_dir(), &id, &req) {
+        Ok(()) => (
+            StatusCode::OK,
+            Json(serde_json::json!({ "ok": true, "id": id })),
+        ),
+        Err(PatchAgentError::NotFound(_)) => (
+            StatusCode::NOT_FOUND,
+            Json(serde_json::json!({
+                "ok": false,
+                "error": "not_found",
+                "message": format!("agent `{id}` not found"),
+            })),
+        ),
+        Err(PatchAgentError::Parse(msg)) => (
+            StatusCode::BAD_REQUEST,
+            Json(serde_json::json!({
+                "ok": false,
+                "error": "parse",
+                "message": msg,
+            })),
+        ),
+        Err(PatchAgentError::Io(e)) => (
             StatusCode::INTERNAL_SERVER_ERROR,
             Json(serde_json::json!({
                 "ok": false,

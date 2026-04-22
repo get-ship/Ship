@@ -155,6 +155,12 @@ pub enum Route {
     /// @route GET "/api/runtime/view/agents/detail/{id}/settings"
     ViewAgentSettings { id: String },
 
+    /// @route GET "/api/agents/catalogs"
+    AgentCatalogs,
+
+    /// @route POST "/api/agents/{id}/patch"
+    PatchAgent { id: String },
+
     /// @route GET "/api/runtime/view/skills"
     ViewSkills,
 
