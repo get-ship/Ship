@@ -1,0 +1,181 @@
+//! `gen-sdk` — emit six machine-readable JSON files that describe the entire
+//! Ship authoring surface. Downstream tasks (AST lint, view-meta endpoint, MCP
+//! scaffolder, editor tooling) read these instead of re-parsing raw source.
+
+use std::{
+    fs,
+    path::{Path, PathBuf},
+};
+
+use anyhow::{Context, Result};
+use serde_json::{json, Map, Value};
+
+mod jsonc;
+mod macros;
+mod urls;
+mod view_contexts;
+
+const VERSION: &str = "0.1.0";
+const HEADER: &str = "just gen-sdk — DO NOT EDIT";
+
+/// Entry point. Creates `packages/ship-set/sdk/` if missing and writes all six
+/// JSON artifacts. Each is a complete top-level object with `_generated`,
+/// `version`, and `$schema`.
+pub fn run(repo_root: &Path) -> Result<()> {
+    let out_dir = repo_root.join("packages/ship-set/sdk");
+    fs::create_dir_all(&out_dir)
+        .with_context(|| format!("create {}", out_dir.display()))?;
+
+    write_doc(
+        &out_dir.join("sdk-macros.json"),
+        "sdk-macros",
+        macros::extract(repo_root)?,
+    )?;
+    write_doc(
+        &out_dir.join("sdk-urls.json"),
+        "sdk-urls",
+        urls::extract()?,
+    )?;
+    write_doc(
+        &out_dir.join("sdk-view-contexts.json"),
+        "sdk-view-contexts",
+        view_contexts::extract(repo_root)?,
+    )?;
+    write_doc(
+        &out_dir.join("sdk-collections.json"),
+        "sdk-collections",
+        collect_jsonc_dir(
+            &repo_root.join(".ship/collections"),
+            |v| v.get("id").and_then(|x| x.as_str()).map(str::to_owned),
+        )?,
+    )?;
+    write_doc(
+        &out_dir.join("sdk-triggers.json"),
+        "sdk-triggers",
+        collect_jsonc_dir(
+            &repo_root.join(".ship/triggers"),
+            |v| v.get("name").and_then(|x| x.as_str()).map(str::to_owned),
+        )?,
+    )?;
+    write_doc(
+        &out_dir.join("sdk-views.json"),
+        "sdk-views",
+        collect_view_manifests(&repo_root.join(".ship/views"))?,
+    )?;
+
+    eprintln!("gen-sdk: wrote 6 files to {}", out_dir.display());
+    Ok(())
+}
+
+fn write_doc(path: &PathBuf, name: &str, entries: Value) -> Result<()> {
+    let mut root = Map::new();
+    root.insert("_generated".into(), Value::String(HEADER.into()));
+    root.insert("version".into(), Value::String(VERSION.into()));
+    root.insert(
+        "$schema".into(),
+        Value::String(format!("https://ship.design/schemas/{name}.schema.json")),
+    );
+    root.insert("entries".into(), entries);
+    let text = serde_json::to_string_pretty(&Value::Object(root))? + "\n";
+    fs::write(path, text).with_context(|| format!("write {}", path.display()))?;
+    Ok(())
+}
+
+/// Walk a directory of `.jsonc` files, strip comments, return a map keyed by
+/// whatever `key_of` extracts from each parsed value (falls back to file stem).
+fn collect_jsonc_dir<F>(dir: &Path, key_of: F) -> Result<Value>
+where
+    F: Fn(&Value) -> Option<String>,
+{
+    let mut out = Map::new();
+    if !dir.exists() {
+        return Ok(Value::Object(out));
+    }
+    let mut files: Vec<_> = fs::read_dir(dir)
+        .with_context(|| format!("read_dir {}", dir.display()))?
+        .filter_map(|e| e.ok())
+        .map(|e| e.path())
+        .filter(|p| p.extension().and_then(|s| s.to_str()) == Some("jsonc"))
+        .collect();
+    files.sort();
+    for path in files {
+        let raw = fs::read_to_string(&path)
+            .with_context(|| format!("read {}", path.display()))?;
+        let value = jsonc::parse(&raw)
+            .with_context(|| format!("parse {}", path.display()))?;
+        let key = key_of(&value)
+            .or_else(|| {
+                path.file_stem()
+                    .and_then(|s| s.to_str())
+                    .map(|s| s.to_owned())
+            })
+            .unwrap_or_default();
+        out.insert(key, value);
+    }
+    Ok(Value::Object(out))
+}
+
+/// Walk `.ship/views/<name>/manifest.jsonc`, keyed by view name.
+fn collect_view_manifests(views_dir: &Path) -> Result<Value> {
+    let mut out = Map::new();
+    if !views_dir.exists() {
+        return Ok(Value::Object(out));
+    }
+    let mut entries: Vec<_> = fs::read_dir(views_dir)
+        .with_context(|| format!("read_dir {}", views_dir.display()))?
+        .filter_map(|e| e.ok())
+        .map(|e| e.path())
+        .filter(|p| p.is_dir())
+        .collect();
+    entries.sort();
+    for view_dir in entries {
+        let manifest = view_dir.join("manifest.jsonc");
+        if !manifest.exists() {
+            continue;
+        }
+        let name = view_dir
+            .file_name()
+            .and_then(|s| s.to_str())
+            .unwrap_or_default()
+            .to_owned();
+        let raw = fs::read_to_string(&manifest)
+            .with_context(|| format!("read {}", manifest.display()))?;
+        let mut value = jsonc::parse(&raw)
+            .with_context(|| format!("parse {}", manifest.display()))?;
+        // Fold in companion manifest.yaml data if view author used yaml (some
+        // views use yaml per the skill docs); pragmatic passthrough only.
+        if let Value::Object(obj) = &mut value {
+            obj.entry("name".to_string())
+                .or_insert_with(|| Value::String(name.clone()));
+        }
+        out.insert(name, value);
+    }
+    // Also surface yaml-only manifests (data loaders / events / packs).
+    let mut yaml_entries: Vec<_> = fs::read_dir(views_dir)?
+        .filter_map(|e| e.ok())
+        .map(|e| e.path())
+        .filter(|p| p.is_dir())
+        .collect();
+    yaml_entries.sort();
+    for view_dir in yaml_entries {
+        let name = view_dir
+            .file_name()
+            .and_then(|s| s.to_str())
+            .unwrap_or_default()
+            .to_owned();
+        if out.contains_key(&name) {
+            continue;
+        }
+        let yml = view_dir.join("manifest.yaml");
+        if yml.exists() {
+            out.insert(
+                name,
+                json!({
+                    "source": "manifest.yaml",
+                    "note": "yaml manifest not parsed; raw passthrough reserved for downstream tooling"
+                }),
+            );
+        }
+    }
+    Ok(Value::Object(out))
+}

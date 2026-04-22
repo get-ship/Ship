@@ -4,6 +4,7 @@
 //! findings. Public entry is `lint_view`, which dispatches to each rule
 //! conditionally based on the enabled set.
 
+pub mod ast;
 mod packs;
 
 use std::collections::HashSet;
@@ -49,6 +50,10 @@ pub fn lint_source_in_memory(name: &str, raw: &str) -> Vec<Finding> {
     out.extend(rule_inline_style_budget_single(&src, name));
     let sources = vec![src];
     out.extend(rule_undefined_signal(&sources));
+    // AST pass — best-effort; gated rules still apply.
+    let mut ast_out = ast::lint_ast(name, raw, &sources[0].path);
+    ast_out.extend(ast::lint_routes(&sources[0].path, raw, ast::sdk()));
+    out.extend(ast_out);
     out
 }
 
@@ -81,6 +86,20 @@ pub fn lint_view(view: &ViewTarget, enabled: &[&'static str]) -> Vec<Finding> {
         out.extend(packs::rule_pack_declarations(view, &sources, enabled));
     }
 
+    // AST pass — runs when any ast-* rule is enabled. Each finding is gated
+    // by its specific rule ID so callers can disable individual rules.
+    let any_ast = ast::AST_RULES.iter().any(|r| enabled.contains(r));
+    if any_ast {
+        for src in &sources {
+            if let Ok(raw) = std::fs::read_to_string(&src.path) {
+                let mut ast_findings = ast::lint_ast(&view.name, &raw, &src.path);
+                ast_findings.extend(ast::lint_routes(&src.path, &raw, ast::sdk()));
+                ast_findings.retain(|f| enabled.contains(&f.rule));
+                out.extend(ast_findings);
+            }
+        }
+    }
+
     out
 }
 
@@ -99,6 +118,7 @@ fn rule_no_inline_script(src: &Source) -> Vec<Finding> {
                 severity: Severity::Error,
                 message: "inline <script> block (use data-effect or extend an element)"
                     .to_string(),
+                suggest: Some("move the logic into a `data-effect=\"…\"` attribute or a custom element class".to_string()),
             });
         }
     }
@@ -196,6 +216,7 @@ fn emit_style_budget_finding(
             "view '{}' has {} lines of inline <style>, {} {} lines (extract into an element or macro)",
             view_name, total, label, threshold,
         ),
+        suggest: Some("move repeated CSS into a custom element's stylesheet or a shared macro".to_string()),
     }]
 }
 
@@ -229,6 +250,7 @@ fn rule_undefined_signal(sources: &[Source]) -> Vec<Finding> {
                         "signal ${} referenced but never declared (add signal('{}', …) or allow via {{#- @lint:signals-ok: {} -#}})",
                         name, name, name,
                     ),
+                    suggest: Some(format!("add `{{{{ signal('{name}', …) }}}}` near the top of the template")),
                 });
             }
         }

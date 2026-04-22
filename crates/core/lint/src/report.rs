@@ -36,4 +36,9 @@ pub struct Finding {
     pub rule: &'static str,
     pub severity: Severity,
     pub message: String,
+    /// Optional fix hint — e.g. the close-match filter/macro name. When
+    /// present, the MCP `ship_view_lint` tool surfaces this on its own
+    /// line as `  → suggest: <text>`.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub suggest: Option<String>,
 }

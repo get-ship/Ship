@@ -4,10 +4,16 @@
 //!   cargo xtask gen-types          # regenerate packages/ship-set/src/generated.ts
 //!   cargo xtask gen-types --check  # verify generated file is up-to-date (CI)
 
+mod gen_sdk;
+
 use std::path::{Path, PathBuf};
 
 use specta::TypeCollection;
 use specta_typescript::{BigIntExportBehavior, Typescript};
+
+pub(crate) fn repo_root_pub() -> PathBuf {
+    repo_root()
+}
 
 fn repo_root() -> PathBuf {
     Path::new(env!("CARGO_MANIFEST_DIR"))
@@ -141,12 +147,19 @@ fn main() {
             let check = args.iter().any(|a| a == "--check");
             gen_types(check);
         }
+        "gen-sdk" => {
+            if let Err(e) = gen_sdk::run(&repo_root()) {
+                eprintln!("gen-sdk failed: {e:#}");
+                std::process::exit(1);
+            }
+        }
         "help" | "--help" | "-h" => {
             eprintln!("Usage: cargo xtask <command>");
             eprintln!();
             eprintln!("Commands:");
             eprintln!("  gen-types          Regenerate packages/ship-set/src/generated.ts");
             eprintln!("  gen-types --check  Verify generated file is up-to-date (CI)");
+            eprintln!("  gen-sdk            Emit packages/ship-set/sdk/*.json");
         }
         other => {
             eprintln!("Unknown command: {other}");

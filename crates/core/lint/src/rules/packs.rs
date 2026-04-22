@@ -70,6 +70,7 @@ pub(super) fn rule_pack_declarations(
                         "view '{}' uses {} but manifest does not declare `packs: [{}]` — element will not upgrade without the bundle",
                         view.name, used_list, pack,
                     ),
+                    suggest: Some(format!("add `\"packs\": [\"{pack}\"]` to the view manifest")),
                 });
             }
         }
@@ -96,6 +97,7 @@ pub(super) fn rule_pack_declarations(
                         "view '{}' declares `packs: [{}]` but no template uses its tags — drop the declaration or the view loads unused bundles",
                         view.name, pack,
                     ),
+                    suggest: Some(format!("remove `\"{pack}\"` from `packs` in the manifest")),
                 });
             }
         }

@@ -7,8 +7,10 @@ use tempfile::TempDir;
 use crate::report::Severity;
 use crate::rules::lint_view;
 use crate::{
-    ALL_RULES, RULE_INLINE_STYLE_BUDGET, RULE_MISSING_PACK_DECLARATION, RULE_NO_INLINE_SCRIPT,
-    RULE_STALE_PACK_DECLARATION, RULE_UNDEFINED_SIGNAL, ViewTarget, collect_view_files,
+    ALL_RULES, RULE_AST_UNKNOWN_FILTER, RULE_AST_UNKNOWN_MACRO, RULE_AST_UNKNOWN_ROUTE,
+    RULE_AST_UNUSED_IMPORT, RULE_INLINE_STYLE_BUDGET, RULE_MISSING_PACK_DECLARATION,
+    RULE_NO_INLINE_SCRIPT, RULE_STALE_PACK_DECLARATION, RULE_UNDEFINED_SIGNAL, ViewTarget,
+    collect_view_files,
 };
 
 fn write(root: &Path, rel: &str, content: &str) {
@@ -397,6 +399,162 @@ fn stale_pack_silent_when_no_packs_declared() {
     );
     let findings = lint_view(&view(tmp.path(), "demo"), &[RULE_STALE_PACK_DECLARATION]);
     assert!(findings.is_empty(), "{findings:?}");
+}
+
+// ── AST rules ─────────────────────────────────────────────────────────────────
+
+#[test]
+fn ast_unknown_macro_import_fires() {
+    let tmp = TempDir::new().unwrap();
+    write(
+        tmp.path(),
+        "demo/index.html.j2",
+        "{% from '_ship.html.j2' import bogus_xyz %}<div>x</div>\n",
+    );
+    let findings = lint_view(&view(tmp.path(), "demo"), &[RULE_AST_UNKNOWN_MACRO]);
+    let hits: Vec<_> = findings
+        .iter()
+        .filter(|f| f.rule == RULE_AST_UNKNOWN_MACRO)
+        .collect();
+    assert_eq!(hits.len(), 1, "{findings:?}");
+    assert!(hits[0].message.contains("bogus_xyz"));
+}
+
+#[test]
+fn ast_unused_import_fires() {
+    let tmp = TempDir::new().unwrap();
+    write(
+        tmp.path(),
+        "demo/index.html.j2",
+        "{% from '_ship.html.j2' import signal %}<div>no signals</div>\n",
+    );
+    let findings = lint_view(&view(tmp.path(), "demo"), &[RULE_AST_UNUSED_IMPORT]);
+    assert!(
+        findings.iter().any(|f| f.rule == RULE_AST_UNUSED_IMPORT),
+        "{findings:?}"
+    );
+}
+
+#[test]
+fn ast_unknown_filter_fires() {
+    let tmp = TempDir::new().unwrap();
+    write(
+        tmp.path(),
+        "demo/index.html.j2",
+        "<div>{{ title | urlencod }}</div>\n",
+    );
+    let findings = lint_view(&view(tmp.path(), "demo"), &[RULE_AST_UNKNOWN_FILTER]);
+    let hits: Vec<_> = findings
+        .iter()
+        .filter(|f| f.rule == RULE_AST_UNKNOWN_FILTER)
+        .collect();
+    assert_eq!(hits.len(), 1, "{findings:?}");
+    assert!(
+        hits[0].message.contains("urlencod"),
+        "{}",
+        hits[0].message
+    );
+}
+
+#[test]
+fn ast_unknown_filter_suggests_close_match() {
+    let tmp = TempDir::new().unwrap();
+    write(
+        tmp.path(),
+        "demo/index.html.j2",
+        "<div>{{ title | urlencod }}</div>\n",
+    );
+    let findings = lint_view(&view(tmp.path(), "demo"), &[RULE_AST_UNKNOWN_FILTER]);
+    let hit = findings
+        .iter()
+        .find(|f| f.rule == RULE_AST_UNKNOWN_FILTER)
+        .expect("filter finding");
+    assert!(
+        hit.message.contains("urlencode"),
+        "should suggest close match: {}",
+        hit.message
+    );
+}
+
+#[test]
+fn ast_unknown_route_fires() {
+    let tmp = TempDir::new().unwrap();
+    write(
+        tmp.path(),
+        "demo/index.html.j2",
+        "<button data-on:click=\"@get('/api/nope/nope')\">Go</button>\n",
+    );
+    let findings = lint_view(&view(tmp.path(), "demo"), &[RULE_AST_UNKNOWN_ROUTE]);
+    assert!(
+        findings.iter().any(|f| f.rule == RULE_AST_UNKNOWN_ROUTE),
+        "{findings:?}"
+    );
+}
+
+#[test]
+fn ast_pass_silent_on_clean_template() {
+    let tmp = TempDir::new().unwrap();
+    write(
+        tmp.path(),
+        "demo/index.html.j2",
+        "{% from '_ship.html.j2' import signal %}<div {{ signal('n', 1) }}>ok</div>\n",
+    );
+    let findings = lint_view(
+        &view(tmp.path(), "demo"),
+        &[
+            RULE_AST_UNKNOWN_MACRO,
+            RULE_AST_UNUSED_IMPORT,
+            RULE_AST_UNKNOWN_FILTER,
+            RULE_AST_UNKNOWN_ROUTE,
+        ],
+    );
+    assert!(findings.is_empty(), "{findings:?}");
+}
+
+#[test]
+fn ast_real_git_view_baseline() {
+    // Real view — establishes a baseline findings count we can alert on.
+    let git_view = std::path::Path::new(env!("CARGO_MANIFEST_DIR"))
+        .join("../../../.ship/views/git");
+    if !git_view.exists() {
+        eprintln!("skipping: real git view not present at {:?}", git_view);
+        return;
+    }
+    let files = crate::collect_view_files(&git_view);
+    assert!(!files.is_empty(), "git view has no templates");
+    let target = ViewTarget {
+        name: "git".into(),
+        dir: git_view.clone(),
+        files,
+    };
+    let findings = lint_view(
+        &target,
+        &[
+            RULE_AST_UNKNOWN_MACRO,
+            RULE_AST_UNUSED_IMPORT,
+            RULE_AST_UNKNOWN_FILTER,
+            RULE_AST_UNKNOWN_ROUTE,
+        ],
+    );
+    // No parse errors or unknown macros — the git view is the reference.
+    let parse_errs: Vec<_> = findings
+        .iter()
+        .filter(|f| f.rule == "ast-parse-error")
+        .collect();
+    let unknown_macros: Vec<_> = findings
+        .iter()
+        .filter(|f| f.rule == RULE_AST_UNKNOWN_MACRO)
+        .collect();
+    assert!(parse_errs.is_empty(), "parse errors: {:?}", parse_errs);
+    assert!(
+        unknown_macros.is_empty(),
+        "unknown macros: {:?}",
+        unknown_macros
+    );
+    // Print for baseline observation (shown with `cargo test -- --nocapture`).
+    for f in &findings {
+        eprintln!("[{}] {}:{} {}", f.rule, f.line, f.col, f.message);
+    }
 }
 
 #[test]
