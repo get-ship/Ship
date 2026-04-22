@@ -16,7 +16,7 @@
            data-signals:pAllow="{{ agent.permissions.tools_allow | tojson | replace('\"', '&quot;') }}"
            data-signals:pAsk="{{ agent.permissions.tools_ask | tojson | replace('\"', '&quot;') }}"
            data-signals:pDeny="{{ agent.permissions.tools_deny | tojson | replace('\"', '&quot;') }}"
-           data-signals:pPreset="'{{ agent.permissions.preset | e }}'"
+           data-signals:pPreset="'{% if agent.permissions.preset %}{{ agent.permissions.preset | e }}{% elif catalogs.presets | length > 0 %}{{ catalogs.presets[0].id | e }}{% endif %}'"
            data-signals:pDirty="false"
            data-signals:pSaving="false">
   <div slot="header" class="ad-section-head">
@@ -40,9 +40,11 @@
       <ship-select id="perm-preset" size="sm"
                    data-bind="pPreset"
                    data-on:change="$pDirty = true">
-        <option value="">(none)</option>
         {% for p in catalogs.presets %}
-          <option value="{{ p.id | e }}">{{ p.name | e }}</option>
+          <option value="{{ p.id | e }}"
+            {% if p.id == agent.permissions.preset %}selected{% endif %}>
+            {{ p.name | e }}
+          </option>
         {% endfor %}
       </ship-select>
       <span slot="hint" style="font-size:var(--text-xs); color:var(--muted-foreground)">

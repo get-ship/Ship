@@ -29,7 +29,10 @@
   {{ signals({
     'selected_kind': 'agent',
     'selected_id':   agent.id,
-  }) }}>
+  }) }}
+  data-signals:pickerOpen="false"
+  data-signals:pickerKind="'skill'"
+  data-signals:pickerSelected="[]">
 
 <style>
   .agents-wire { display: grid; grid-template-columns: 260px 1fr 320px; height: calc(100vh - 60px); overflow: hidden; }
@@ -135,7 +138,7 @@
     Skills
     <span class="count">{{ agent.skills | length }}</span>
     <ship-button variant="ghost" size="icon" class="add-btn" aria-label="Add skill"
-      data-on:click="$selected_kind = 'add'; $selected_id = 'skill'">
+      data-on:click="$pickerKind = 'skill'; $pickerSelected = []; $pickerOpen = true">
       <ship-icon name="plus" size="xs"></ship-icon>
     </ship-button>
   </div>
@@ -154,7 +157,7 @@
     MCP Servers
     <span class="count">{{ agent.mcp_servers | length }}</span>
     <ship-button variant="ghost" size="icon" class="add-btn" aria-label="Add MCP server"
-      data-on:click="$selected_kind = 'add'; $selected_id = 'mcp'">
+      data-on:click="$pickerKind = 'mcp'; $pickerSelected = []; $pickerOpen = true">
       <ship-icon name="plus" size="xs"></ship-icon>
     </ship-button>
   </div>
@@ -172,7 +175,7 @@
     Rules
     <span class="count">{{ agent.rules | length }}</span>
     <ship-button variant="ghost" size="icon" class="add-btn" aria-label="Add rule"
-      data-on:click="$selected_kind = 'add'; $selected_id = 'rule'">
+      data-on:click="$pickerKind = 'rule'; $pickerSelected = []; $pickerOpen = true">
       <ship-icon name="plus" size="xs"></ship-icon>
     </ship-button>
   </div>
@@ -181,7 +184,8 @@
   {%- endfor %}
 
   <div class="tip-card">
-    <strong style="color:var(--foreground)">Wire view.</strong> Click any node to inspect it on the right. Drag-to-wire and the "browse available" palette are on the roadmap.
+    <strong style="color:var(--foreground)">Wire view.</strong>
+    Click any node to inspect. Use + on a section to add.
   </div>
 </aside>
 
@@ -268,7 +272,14 @@
         {%- endfor %}
       </div>
     </div>
-    <div class="insp-help">Select any peripheral node on the canvas to inspect it. Edits round-trip to <span class="mono">{{ agent.source }}</span> (coming soon).</div>
+    <div class="insp-help">
+      Select any peripheral node on the canvas to inspect.
+    </div>
+    <ship-button size="sm" variant="outline" style="margin-top: var(--space-3); width:100%"
+      data-on:click="window.router ? window.router.navigate('/agents/{{ agent.id }}/settings') : location.href='/agents/{{ agent.id }}/settings'">
+      <ship-icon slot="leading" name="edit" size="xs"></ship-icon>
+      Edit settings
+    </ship-button>
   </div>
 
   {# Skill #}
@@ -285,11 +296,18 @@
       <label>Source</label>
       <div class="mono" data-text="'.ship/skills/' + $selected_id + '/SKILL.md'"></div>
     </div>
-    <ship-button size="sm" variant="ghost"
-      data-on:click="window.router ? window.router.navigate('/skills/' + $selected_id) : location.href='/skills/' + $selected_id">
-      <ship-icon slot="leading" name="external-link" size="xs"></ship-icon>
-      Open skill
-    </ship-button>
+    <div style="display:flex; gap:6px; margin-top: var(--space-3)">
+      <ship-button size="sm" variant="ghost"
+        data-on:click="window.router ? window.router.navigate('/skills/' + $selected_id) : location.href='/skills/' + $selected_id">
+        <ship-icon slot="leading" name="external-link" size="xs"></ship-icon>
+        Open
+      </ship-button>
+      <ship-button size="sm" variant="ghost" tone="destructive"
+        data-on:click="if (confirm('Remove ' + $selected_id + ' from {{ agent.name | e }}?')) { @post('/api/agents/{{ agent.id | e }}/patch', {contentType:'json', body: JSON.stringify({remove: {skills: [$selected_id]}})}); window.location.reload() }">
+        <ship-icon slot="leading" name="trash" size="xs"></ship-icon>
+        Remove
+      </ship-button>
+    </div>
   </div>
 
   {# MCP server #}
@@ -302,6 +320,11 @@
       <label>Source</label>
       <div class="mono" data-text="'.ship/mcp.jsonc → servers.' + $selected_id"></div>
     </div>
+    <ship-button size="sm" variant="ghost" tone="destructive" style="margin-top: var(--space-3)"
+      data-on:click="if (confirm('Remove ' + $selected_id + ' from {{ agent.name | e }}?')) { @post('/api/agents/{{ agent.id | e }}/patch', {contentType:'json', body: JSON.stringify({remove: {mcp: [$selected_id]}})}); window.location.reload() }">
+      <ship-icon slot="leading" name="trash" size="xs"></ship-icon>
+      Remove
+    </ship-button>
   </div>
 
   {# Rules bundle #}
@@ -324,52 +347,39 @@
   <div {{ show("$selected_kind == 'perm'") }}>
     <div class="insp-h">
       <ship-icon name="lock" size="sm" style="color:var(--tone-destructive-fg)"></ship-icon>
-      <div><div class="tag">Permissions</div><div class="title">{{ agent.permissions_tier | title }}</div></div>
+      <div>
+        <div class="tag">Permissions</div>
+        <div class="title">{{ agent.permissions.preset or 'no preset' }}</div>
+      </div>
     </div>
-    <div class="insp-help">Presets set a base tier. Allow / ask / deny lists layer on top. Edit the agent file to override.</div>
+    <div class="insp-field">
+      <label>Allow</label>
+      <div style="font-size:var(--text-sm)">
+        {{ agent.permissions.tools_allow | length }} pattern{% if agent.permissions.tools_allow | length != 1 %}s{% endif %}
+      </div>
+    </div>
+    <div class="insp-field">
+      <label>Ask</label>
+      <div style="font-size:var(--text-sm)">
+        {{ agent.permissions.tools_ask | length }} pattern{% if agent.permissions.tools_ask | length != 1 %}s{% endif %}
+      </div>
+    </div>
+    <div class="insp-field">
+      <label>Deny</label>
+      <div style="font-size:var(--text-sm)">
+        {{ agent.permissions.tools_deny | length }} pattern{% if agent.permissions.tools_deny | length != 1 %}s{% endif %}
+      </div>
+    </div>
+    <ship-button size="sm" variant="outline" style="margin-top: var(--space-3); width:100%"
+      data-on:click="window.router ? window.router.navigate('/agents/{{ agent.id }}/settings') : location.href='/agents/{{ agent.id }}/settings'">
+      <ship-icon slot="leading" name="edit" size="xs"></ship-icon>
+      Edit permissions
+    </ship-button>
   </div>
 
-  {# Add affordance — surfaces an inline form for the requested kind.
-     The POST endpoint doesn't exist yet; this is the UI staging the
-     request. Wizard → jsonc write is the fuller flow. #}
-  <div {{ show("$selected_kind == 'add'") }}>
-    <div class="insp-h">
-      <ship-icon name="plus" size="sm" style="color:var(--primary)"></ship-icon>
-      <div>
-        <div class="tag">Add</div>
-        <div class="title" data-text="$selected_id"></div>
-      </div>
-    </div>
-    <div {{ show("$selected_id == 'skill'") }}>
-      <div class="insp-field">
-        <label>Skill id</label>
-        <ship-input placeholder="e.g. tdd, rust-compile" size="sm" id="add-skill-id"></ship-input>
-      </div>
-      <div class="insp-help">Skill must exist at <span class="mono">.ship/skills/&lt;id&gt;/SKILL.md</span>. Listing available skills in-place is on the roadmap.</div>
-    </div>
-    <div {{ show("$selected_id == 'mcp'") }}>
-      <div class="insp-field">
-        <label>Server id</label>
-        <ship-input placeholder="e.g. ship, playwright, postgres" size="sm" id="add-mcp-id"></ship-input>
-      </div>
-      <div class="insp-help">Server must be registered in <span class="mono">.ship/mcp.jsonc</span>.</div>
-    </div>
-    <div {{ show("$selected_id == 'rule'") }}>
-      <div class="insp-field">
-        <label>Rule file</label>
-        <ship-input placeholder="e.g. .ship/rules/style.md" size="sm" id="add-rule-path"></ship-input>
-      </div>
-      <div class="insp-help">Path relative to the project or home dir. Inline rules are a separate field on the agent jsonc.</div>
-    </div>
-    <div style="display:flex; gap:6px; margin-top:var(--space-3)">
-      <ship-button variant="ghost" size="sm" data-on:click="$selected_kind = 'agent'; $selected_id = '{{ agent.id }}'">
-        Cancel
-      </ship-button>
-      <ship-button tone="accent" variant="solid" size="sm" disabled>
-        Wire (soon)
-      </ship-button>
-    </div>
-  </div>
+  {#- Add flow deliberately lives in the picker dialog, not here.
+      The palette + buttons open the dialog directly; see the include
+      at the bottom of this view. -#}
 
   {# Provider target #}
   <div {{ show("$selected_kind == 'prov'") }}>
@@ -380,6 +390,8 @@
     <div class="insp-help">Provider-specific settings (<span class="mono">provider_settings.&lt;provider&gt;</span>) are compiled on top of project defaults.</div>
   </div>
 </aside>
+
+{% include 'agents/partials/picker_dialog.html.j2' %}
 
 </div>
 {% if not fragment %}</body></html>{% endif %}

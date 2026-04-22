@@ -2,8 +2,11 @@
     One dialog per page; caller toggles $pickerKind to pick a list.
     Context: agent (AgentDetail), catalogs (AgentCatalogs). Signals from
     detail.html.j2: pickerOpen, pickerKind, pickerSelected. -#}
+{#- `data-attr:open` emits `open="false"` on falsy signal; Lit's
+    Boolean attribute reflection treats any attr presence as true, so
+    the dialog stays open. Bind the JS property instead. -#}
 <ship-dialog id="agent-add-picker"
-             data-attr:open="$pickerOpen"
+             data-prop:open="$pickerOpen"
              data-on:ship-close="$pickerOpen = false; $pickerSelected = []">
   <span slot="title">
     Add <span data-text="$pickerKind == 'skill' ? 'skill' : ($pickerKind == 'mcp' ? 'MCP server' : 'rule')"></span>

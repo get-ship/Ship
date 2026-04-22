@@ -17,6 +17,24 @@
 </head>
 <body>
 {% endif %}
+
+<ship-view-chrome title="{{ agent.name }}">
+  <ship-segmented slot="actions" value="settings" size="sm">
+    <ship-segmented-option value="wire"
+      data-on:click="window.router ? window.router.navigate('/agents/{{ agent.id }}/wire') : location.href='/agents/{{ agent.id }}'">
+      Wire
+    </ship-segmented-option>
+    <ship-segmented-option value="settings"
+      data-on:click="window.router ? window.router.navigate('/agents/{{ agent.id }}/settings') : location.href='/agents/{{ agent.id }}/settings'">
+      Settings
+    </ship-segmented-option>
+  </ship-segmented>
+  <ship-button slot="actions" variant="ghost" size="sm" {{ nav('/agents') }}>
+    <ship-icon slot="leading" name="chevron-left" size="xs"></ship-icon>
+    Agents
+  </ship-button>
+</ship-view-chrome>
+
 <div class="ship-view ad-view"
      {{ signal('tier', agent.permissions_tier) }}
      data-signals:pickerOpen="false"
@@ -25,21 +43,6 @@
      data-signals:catalogsLoaded="false"
      data-signals:catalogs="{skills: [], mcp: [], rules: []}">
   {% include 'agents/partials/detail_styles.html.j2' %}
-
-  <!-- Sticky header -->
-  <header class="ad-header">
-    <ship-button variant="ghost" size="sm" {{ nav('/agents') }}
-            aria-label="Back to agents">
-      <ship-icon slot="leading" name="chevron-left"></ship-icon>
-    </ship-button>
-    <ship-avatar size="sm" shape="square" identity-hue="{{ agent.id }}" initials="{{ agent.letter }}" name="{{ agent.name }}"></ship-avatar>
-    <h1 class="ad-name">{{ agent.name }}</h1>
-    <span class="ad-version">0.0.0</span>
-    <div class="ad-header-spacer"></div>
-    <ship-button variant="ghost" size="sm" tone="destructive" aria-label="Delete agent">
-      <ship-icon slot="leading" name="trash"></ship-icon>
-    </ship-button>
-  </header>
 
   <!-- Scrollable body with all sections -->
   <div class="ad-body">
