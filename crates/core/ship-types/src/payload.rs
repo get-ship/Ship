@@ -302,6 +302,49 @@ pub struct JobDispatched {
     pub agent_id: Option<String>,
 }
 
+// -- Artifact events -----------------------------------------------------------
+
+#[derive(Debug, Serialize, Deserialize)]
+pub struct ArtifactCreated {
+    pub id: String,
+    pub scope: String,
+    pub name: String,
+    pub mime: String,
+    pub size: u64,
+    #[serde(default)]
+    pub content_hash: Option<String>,
+    #[serde(default)]
+    pub owner_actor: Option<String>,
+    #[serde(default)]
+    pub project_id: Option<String>,
+    #[serde(default)]
+    pub run_id: Option<String>,
+}
+
+#[derive(Debug, Serialize, Deserialize)]
+pub struct ArtifactUpdated {
+    pub id: String,
+    pub scope: String,
+    pub changed: serde_json::Value,
+}
+
+#[derive(Debug, Serialize, Deserialize)]
+pub struct ArtifactMoved {
+    pub id: String,
+    pub from_scope: String,
+    pub to_scope: String,
+}
+
+#[derive(Debug, Serialize, Deserialize)]
+pub struct ArtifactDeleted {
+    pub id: String,
+    pub scope: String,
+    #[serde(default)]
+    pub project_id: Option<String>,
+    #[serde(default)]
+    pub run_id: Option<String>,
+}
+
 // -- Config / Log aggregates ---------------------------------------------------
 
 #[derive(Debug, Serialize, Deserialize)]

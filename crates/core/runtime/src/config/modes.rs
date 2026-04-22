@@ -1,6 +1,6 @@
 use super::artifact_registry::{
     ARTIFACT_KIND_MCP, ARTIFACT_KIND_RULE, ARTIFACT_KIND_SKILL, resolve_external_ids_to_refs,
-    resolve_refs_to_external_ids, sync_agent_artifact_registry,
+    resolve_refs_to_external_ids, sync_compiled_asset_cache,
 };
 use super::project::AgentProfile;
 use super::types::{HookConfig, PermissionConfig};
@@ -31,7 +31,7 @@ struct ModeRow {
 }
 
 pub(super) fn get_modes_config(ship_dir: &Path) -> Result<Vec<AgentProfile>> {
-    sync_agent_artifact_registry(ship_dir)?;
+    sync_compiled_asset_cache(ship_dir)?;
 
     let ns = project_ns(ship_dir);
     let rows: Vec<ModeRow> = match kv::get(&ns, KEY)? {
@@ -74,7 +74,7 @@ pub(super) fn get_modes_config(ship_dir: &Path) -> Result<Vec<AgentProfile>> {
 }
 
 pub(super) fn save_modes_config(ship_dir: &Path, modes: &[AgentProfile]) -> Result<()> {
-    sync_agent_artifact_registry(ship_dir)?;
+    sync_compiled_asset_cache(ship_dir)?;
 
     let mut rows = Vec::with_capacity(modes.len());
     for mode in modes {

@@ -134,9 +134,11 @@ CREATE INDEX IF NOT EXISTS idx_event_job ON event_log(job_id);
 CREATE INDEX IF NOT EXISTS idx_event_entity ON event_log(entity_type, entity_id);
 "#;
 
-/// Agent artifact registry: content-addressed registry of compiled artifacts.
-pub const AGENT_ARTIFACT_REGISTRY: &str = r#"
-CREATE TABLE IF NOT EXISTS agent_artifact_registry (
+/// Compiled asset cache: content-addressed registry of compiled skills, rules,
+/// and MCP server configs. Previously called `agent_artifact_registry`.
+#[allow(dead_code)]
+pub const COMPILED_ASSET_CACHE: &str = r#"
+CREATE TABLE IF NOT EXISTS compiled_asset_cache (
   uuid         TEXT PRIMARY KEY,
   kind         TEXT NOT NULL,
   external_id  TEXT NOT NULL,
@@ -146,9 +148,13 @@ CREATE TABLE IF NOT EXISTS agent_artifact_registry (
   updated_at   TEXT NOT NULL,
   UNIQUE(kind, external_id)
 );
-CREATE INDEX IF NOT EXISTS agent_artifact_kind_idx
-  ON agent_artifact_registry(kind);
+CREATE INDEX IF NOT EXISTS compiled_asset_cache_kind_idx
+  ON compiled_asset_cache(kind);
 "#;
+
+/// Backwards-compatible alias — remove when all consumers migrate.
+#[allow(dead_code)]
+pub const AGENT_ARTIFACT_REGISTRY: &str = COMPILED_ASSET_CACHE;
 
 /// Managed MCP state: tracks which MCP server processes Ship manages
 /// per provider, and the last agent config that was applied.

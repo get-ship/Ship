@@ -465,3 +465,97 @@ pub async fn delete_doc(collection: &str, item_id: &str) -> Result<String> {
 pub async fn query_docs(collection: &str, body: Value) -> Result<String> {
     post(&format!("/collections/{collection}/query"), body).await
 }
+
+// ── Artifact operations ───────────────────────────────────────────────────────
+
+/// Upload an artifact via multipart POST. `bytes_b64` is base64-encoded content.
+pub async fn artifact_upload(
+    scope: &str,
+    run_id: Option<&str>,
+    bytes_b64: &str,
+    name: &str,
+    mime: Option<&str>,
+    expires_at: Option<&str>,
+) -> Result<String> {
+    use base64::Engine;
+    let bytes = base64::engine::general_purpose::STANDARD
+        .decode(bytes_b64)
+        .map_err(|e| anyhow!("base64 decode failed: {e}"))?;
+
+    let port = get_network_port()?;
+    let token = get_effective_token().await?;
+
+    let mut url = format!("http://127.0.0.1:{port}/api/artifacts?scope={scope}");
+    if let Some(rid) = run_id {
+        url.push_str(&format!("&run_id={rid}"));
+    }
+
+    let mime_str = mime.unwrap_or("application/octet-stream").to_string();
+    let file_part = reqwest::multipart::Part::bytes(bytes)
+        .file_name(name.to_string())
+        .mime_str(&mime_str)
+        .map_err(|e| anyhow!("invalid mime: {e}"))?;
+
+    let mut form = reqwest::multipart::Form::new().part("file", file_part);
+    if let Some(exp) = expires_at {
+        form = form.text("expires_at", exp.to_string());
+    }
+
+    let resp = reqwest::Client::new()
+        .post(&url)
+        .bearer_auth(&token)
+        .multipart(form)
+        .send()
+        .await
+        .map_err(|e| anyhow!("daemon unavailable: {e}"))?;
+
+    let status = resp.status();
+    let text = resp.text().await.map_err(|e| anyhow!("read response: {e}"))?;
+    if !status.is_success() {
+        return Err(anyhow!("daemon error ({}): {}", status, text));
+    }
+    Ok(text)
+}
+
+/// Get artifact metadata. Returns JSON.
+pub async fn artifact_get(id: &str) -> Result<String> {
+    get(&format!("/artifacts/{id}/metadata")).await
+}
+
+/// List artifacts with optional scope filter and extra query params.
+pub async fn artifact_list(scope: Option<&str>, filter_json: Option<&str>) -> Result<String> {
+    let mut path = "/artifacts".to_string();
+    let mut params = Vec::new();
+    if let Some(s) = scope {
+        params.push(format!("scope={s}"));
+    }
+    if let Some(f) = filter_json {
+        // Parse as JSON object and append each k=v as query params.
+        if let Ok(obj) = serde_json::from_str::<serde_json::Map<String, Value>>(f) {
+            for (k, v) in &obj {
+                if let Some(s) = v.as_str() {
+                    params.push(format!("{k}={s}"));
+                }
+            }
+        }
+    }
+    if !params.is_empty() {
+        path.push('?');
+        path.push_str(&params.join("&"));
+    }
+    get(&path).await
+}
+
+/// Delete an artifact by ID.
+pub async fn artifact_delete(id: &str) -> Result<String> {
+    delete(&format!("/artifacts/{id}")).await
+}
+
+/// Promote an artifact to a new scope.
+pub async fn artifact_promote(id: &str, target_scope: &str) -> Result<String> {
+    post(
+        &format!("/artifacts/{id}/promote"),
+        serde_json::json!({ "target_scope": target_scope }),
+    )
+    .await
+}
