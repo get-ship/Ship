@@ -193,9 +193,31 @@ async fn dedup_same_hash_same_scope_produces_new_row() {
     let bytes = b"identical bytes";
     let r1 = svc.store(&mut data, &kernel, "a.txt", "text/plain", bytes, &scope, None, None, None, None).await.unwrap();
     let r2 = svc.store(&mut data, &kernel, "b.txt", "text/plain", bytes, &scope, None, None, None, None).await.unwrap();
-    // Different IDs, same hash.
+    // Different IDs, same hash, same on-disk blob path (dedup reuses bytes).
     assert_ne!(r1.id, r2.id);
     assert_eq!(r1.content_hash, r2.content_hash);
+    assert_eq!(r1.path, r2.path, "dedup should point both rows at the same blob file");
+}
+
+#[tokio::test(flavor = "multi_thread", worker_threads = 2)]
+async fn dedup_delete_first_row_keeps_blob_for_second() {
+    let (svc, mut data, kernel, _tmp) = setup();
+    let scope = project_scope("p");
+    let bytes = b"shared payload";
+    let r1 = svc.store(&mut data, &kernel, "a.txt", "text/plain", bytes, &scope, None, None, None, None).await.unwrap();
+    let r2 = svc.store(&mut data, &kernel, "b.txt", "text/plain", bytes, &scope, None, None, None, None).await.unwrap();
+    assert_eq!(r1.path, r2.path, "sanity: dedup'd to the same path");
+
+    // Delete the first row. The blob must survive because r2 still points at it.
+    svc.delete(&mut data, &kernel, &r1.id).await.unwrap();
+    let (_rec, fetched) = svc.get(&mut data, &r2.id).unwrap()
+        .expect("r2 still resolvable after r1 delete");
+    assert_eq!(fetched, bytes);
+
+    // Deleting the last row drops the blob.
+    svc.delete(&mut data, &kernel, &r2.id).await.unwrap();
+    let re_fetch = svc.get(&mut data, &r2.id).unwrap();
+    assert!(re_fetch.is_none(), "metadata gone");
 }
 
 // ── GC ───────────────────────────────────────────────────────────────────────

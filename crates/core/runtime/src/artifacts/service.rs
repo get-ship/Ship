@@ -117,15 +117,20 @@ impl ArtifactService {
         let id = crate::gen_ulid();
         let content_hash = sha256_hex(bytes);
 
-        // Dedup: only write blob file if it doesn't already exist at this path.
-        if !self.backend.exists(scope, &id)? {
-            self.backend.put(scope, &id, bytes)
-                .with_context(|| format!("writing blob for {id}"))?;
-        }
-
         let backend_fs = self.global_dir.as_path();
         let local = LocalFsBackend::new(backend_fs.to_path_buf());
-        let rel_path = local.rel_blob_path(scope, &id);
+
+        // Content-addressed dedup within the same scope: if an existing
+        // metadata row in this scope has the same content_hash, reuse its
+        // blob path in the new row instead of writing a duplicate file.
+        let rel_path = match find_blob_by_hash(svc, scope, &content_hash)? {
+            Some(existing_path) => existing_path,
+            None => {
+                self.backend.put(scope, &id, bytes)
+                    .with_context(|| format!("writing blob for {id}"))?;
+                local.rel_blob_path(scope, &id)
+            }
+        };
 
         let mut data = serde_json::json!({
             "name": name,
@@ -200,8 +205,12 @@ impl ArtifactService {
             return Ok(None);
         };
         let record = ArtifactRecord::from_item(&item);
-        let scope = record_to_scope(&record)?;
-        let bytes = self.backend.get(&scope, id)?;
+        // Under dedup a row's blob may live at another row's id-derived
+        // path. Resolve from the record's stored relative path, not from
+        // this row's id.
+        let abs = self.global_dir.join(&record.path);
+        let bytes = std::fs::read(&abs)
+            .with_context(|| format!("reading blob {}", abs.display()))?;
         Ok(Some((record, bytes)))
     }
 
@@ -230,11 +239,21 @@ impl ArtifactService {
         };
         let scope = record_to_scope(&record)?;
 
+        let rel_path = record.path.clone();
         let deleted = collection_service::delete_item(
             svc, kernel, ARTIFACTS_COLLECTION_ID, id,
         ).await?;
         if deleted {
-            self.backend.delete(&scope, id)?;
+            // Only drop the blob bytes when no other metadata row (from
+            // dedup) still references this path in the same scope.
+            if count_refs_to_path(svc, &scope, &rel_path)? == 0 {
+                let abs = self.global_dir.join(&rel_path);
+                match std::fs::remove_file(&abs) {
+                    Ok(()) => {}
+                    Err(e) if e.kind() == std::io::ErrorKind::NotFound => {}
+                    Err(e) => return Err(e.into()),
+                }
+            }
             emit_artifact_event(kernel, "artifact.deleted", id, serde_json::json!({
                 "id": id,
                 "scope": record.scope,
@@ -309,19 +328,27 @@ impl ArtifactService {
         };
         let old_record = ArtifactRecord::from_item(&existing_item);
         let from_scope = record_to_scope(&old_record)?;
+        let old_rel_path = old_record.path.clone();
 
-        // Read bytes from old location.
-        let bytes = self.backend.get(&from_scope, id)?;
+        // Read bytes from the record's stored path (may differ from the
+        // id-derived path when this row was a dedup'd reference).
+        let old_abs = self.global_dir.join(&old_rel_path);
+        let bytes = std::fs::read(&old_abs)
+            .with_context(|| format!("reading blob {}", old_abs.display()))?;
 
         let new_id = crate::gen_ulid();
         let content_hash = sha256_hex(&bytes);
 
-        // 1. Write blob to new location.
-        self.backend.put(&target_scope, &new_id, &bytes)?;
-
-        // 2. Build new metadata.
         let local = LocalFsBackend::new(self.global_dir.clone());
-        let rel_path = local.rel_blob_path(&target_scope, &new_id);
+        // Dedup at the target scope: if bytes already exist there, reuse
+        // their path rather than writing a duplicate.
+        let rel_path = match find_blob_by_hash(svc, &target_scope, &content_hash)? {
+            Some(existing_path) => existing_path,
+            None => {
+                self.backend.put(&target_scope, &new_id, &bytes)?;
+                local.rel_blob_path(&target_scope, &new_id)
+            }
+        };
         let mut new_data = existing_item.data.clone();
         new_data["path"] = serde_json::Value::String(rel_path);
         new_data["scope"] = serde_json::Value::String(target_scope.kind_str().to_string());
@@ -354,8 +381,11 @@ impl ArtifactService {
         // 3. Delete old metadata.
         let _ = collection_service::delete_item(svc, kernel, ARTIFACTS_COLLECTION_ID, id).await;
 
-        // 4. Delete old blob.
-        let _ = self.backend.delete(&from_scope, id);
+        // 4. Delete old blob only if no other metadata row in the source
+        // scope still references it (dedup refcount).
+        if count_refs_to_path(svc, &from_scope, &old_rel_path)? == 0 {
+            let _ = std::fs::remove_file(self.global_dir.join(&old_rel_path));
+        }
 
         let new_record = ArtifactRecord::from_item(&new_item);
         emit_artifact_event(kernel, "artifact.moved", &new_id, serde_json::json!({
@@ -397,6 +427,81 @@ fn record_to_scope(record: &ArtifactRecord) -> Result<ArtifactScope> {
             Ok(ArtifactScope::Project { project_id })
         }
     }
+}
+
+/// Find an existing artifact blob in the same scope with a matching
+/// content hash. Used for dedup: a second upload of identical bytes
+/// into the same scope produces a new metadata row whose `path` points
+/// at the original blob file rather than writing a duplicate.
+fn find_blob_by_hash(
+    svc: &mut DataService,
+    scope: &ArtifactScope,
+    content_hash: &str,
+) -> Result<Option<String>> {
+    use std::collections::BTreeMap;
+    let mut filter = BTreeMap::new();
+    filter.insert("scope".into(), serde_json::Value::String(scope.kind_str().to_string()));
+    filter.insert("content_hash".into(), serde_json::Value::String(content_hash.to_string()));
+    match scope {
+        ArtifactScope::Run { project_id, run_id } => {
+            filter.insert("project_id".into(), serde_json::Value::String(project_id.clone()));
+            filter.insert("run_id".into(), serde_json::Value::String(run_id.clone()));
+        }
+        ArtifactScope::Project { project_id } => {
+            filter.insert("project_id".into(), serde_json::Value::String(project_id.clone()));
+        }
+        ArtifactScope::User { user_id } => {
+            filter.insert("user_id".into(), serde_json::Value::String(user_id.clone()));
+        }
+    }
+    let req = QueryRequest {
+        collection: ARTIFACTS_COLLECTION_ID.to_string(),
+        filter,
+        sort: BTreeMap::new(),
+        limit: 1,
+        offset: 0,
+    };
+    let schema = artifacts_schema();
+    let items = collection_service::query_items(svc, &schema, &req)?;
+    Ok(items
+        .into_iter()
+        .next()
+        .and_then(|it| it.data.get("path").and_then(|v| v.as_str().map(str::to_string))))
+}
+
+/// Count how many metadata rows share a given (scope, rel_path). Used
+/// before blob deletion to avoid yanking bytes another dedup'd row
+/// still points at.
+fn count_refs_to_path(
+    svc: &mut DataService,
+    scope: &ArtifactScope,
+    rel_path: &str,
+) -> Result<usize> {
+    use std::collections::BTreeMap;
+    let mut filter = BTreeMap::new();
+    filter.insert("scope".into(), serde_json::Value::String(scope.kind_str().to_string()));
+    filter.insert("path".into(), serde_json::Value::String(rel_path.to_string()));
+    match scope {
+        ArtifactScope::Run { project_id, run_id } => {
+            filter.insert("project_id".into(), serde_json::Value::String(project_id.clone()));
+            filter.insert("run_id".into(), serde_json::Value::String(run_id.clone()));
+        }
+        ArtifactScope::Project { project_id } => {
+            filter.insert("project_id".into(), serde_json::Value::String(project_id.clone()));
+        }
+        ArtifactScope::User { user_id } => {
+            filter.insert("user_id".into(), serde_json::Value::String(user_id.clone()));
+        }
+    }
+    let req = QueryRequest {
+        collection: ARTIFACTS_COLLECTION_ID.to_string(),
+        filter,
+        sort: BTreeMap::new(),
+        limit: 100,
+        offset: 0,
+    };
+    let schema = artifacts_schema();
+    Ok(collection_service::query_items(svc, &schema, &req)?.len())
 }
 
 /// Fire a best-effort artifact event through the kernel router.

@@ -352,6 +352,25 @@ impl ShipRuntime {
             .await
     }
 
+    /// Rehash blobs for legacy artifact metadata rows that predate the
+    /// content_hash column. One-shot; idempotent. Logged on failure but
+    /// doesn't block startup.
+    pub async fn backfill_artifact_content_hashes(&self) {
+        let ship_dir = self.ship_dir.clone();
+        tokio::task::spawn_blocking(move || {
+            match runtime::data::DataService::open(&ship_dir) {
+                Ok(mut svc) => {
+                    if let Err(e) = runtime::artifacts::gc::backfill_content_hashes(&ship_dir, &mut svc) {
+                        tracing::warn!("artifact content_hash backfill failed: {e}");
+                    }
+                }
+                Err(e) => tracing::warn!("artifact backfill: failed to open DataService: {e}"),
+            }
+        })
+        .await
+        .ok();
+    }
+
     /// Spawn the artifact GC loop. Runs immediately on startup then every hour.
     ///
     /// Best-effort: errors are logged but don't take down the daemon.
