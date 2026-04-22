@@ -1,7 +1,7 @@
 ---
-title: Competing Approaches
-description: Run K agents in parallel against the same spec, then a judge step picks or merges the best result.
+title: "ship-pipelines"
 ---
+Run K agents in parallel against the same spec, then a judge step picks or merges the best result.
 
 ## When to use
 
@@ -33,7 +33,7 @@ steps:
           model: gemini-pro
       judge:
         step: choose
-      min_successful_lanes: 1   # default
+      min_successful_lanes: 1   # default; how many lanes must succeed
     produces:
       - name: result
         scope: run
@@ -87,6 +87,8 @@ The judge agent reads all lane outputs, compares them, and uploads its chosen (o
 | All lanes fail | Fanout step fails, judge does not dispatch |
 | Judge fails | Same as any other step failure |
 
+Failed lanes are silently skipped — the judge sees only the lanes that produced outputs. If you need the judge to know which lanes failed, set `min_successful_lanes` higher than 1 and the pipeline will halt before dispatch.
+
 ## Configuration reference
 
 | Field | Type | Default | Description |
@@ -103,5 +105,5 @@ The judge agent reads all lane outputs, compares them, and uploads its chosen (o
 
 - **Judge-as-primitive.** The judge is a normal `review` step. No special step type.
 - **Automatic merging.** The judge agent decides: pick, merge, or synthesize. Ship does not auto-merge lane outputs.
-- **Cross-pipeline fanout.** All lanes share the pipeline run.
+- **Cross-pipeline fanout.** All lanes share the pipeline run. Cross-pipeline orchestration is out of scope.
 - **Dynamic lane count.** Lanes are declared statically in the pipeline YAML.

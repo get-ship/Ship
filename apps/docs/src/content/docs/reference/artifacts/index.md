@@ -1,130 +1,104 @@
 ---
-title: Artifacts
-description: Ship's three-scope file store — upload, download, promote, and GC for agent-produced files.
+title: "Artifacts"
+description: "Ship's file API — three-scope blob store (run, project, user) with collection-backed metadata, REST API, MCP tools, and TTL-based GC."
+sidebar:
+  label: "Artifacts"
+  order: 1
 ---
+An artifact is a managed file: bytes with metadata. Agents produce them; users consume them. Ship owns storage paths, GC, content addressing, and scope routing.
 
-# Artifacts
+## Three scopes
 
-The artifact store is Ship's managed file layer. Upload a file, get a stable ID back. Scope controls how long it lives and where it goes.
+| Scope | Lifespan | Path (local) | Typical use |
+|---|---|---|---|
+| `run` | TTL-based (default 24 h) | `{global}/artifacts/{project}/runs/{run_id}/{id[0:2]}/{id}` | Step outputs, scratch, logs |
+| `project` | Until deleted | `{global}/artifacts/{project}/blobs/{id[0:2]}/{id}` | Canvas docs, design files, persistent outputs |
+| `user` | Until deleted | `{global}/artifacts/users/{user_id}/{id[0:2]}/{id}` | Cross-project personal storage |
 
-## Scopes
+Content addressing: SHA-256 hex. Same bytes at the same scope path share a blob file; a new metadata row is still written.
 
-| Scope | Lifespan | Use when |
+## REST API
+
+All routes require a valid daemon token.
+
+| Method | Path | Description |
 |---|---|---|
-| `run` | TTL (default 24 h) | Step scratch, transient outputs |
-| `project` | Until deleted | Docs, designs, files you want to keep |
-| `user` | Until deleted | Cross-project personal storage |
+| `POST` | `/api/artifacts` | Upload (multipart). Required: `scope`. For `run`: also `run_id`. |
+| `GET` | `/api/artifacts/:id` | Download bytes. |
+| `HEAD` | `/api/artifacts/:id` | Metadata headers only (no body). |
+| `GET` | `/api/artifacts/:id/metadata` | JSON metadata record. |
+| `PATCH` | `/api/artifacts/:id` | Update `name`, `owner_actor`, `expires_at`. Bytes are immutable. |
+| `DELETE` | `/api/artifacts/:id` | Delete blob + metadata. |
+| `POST` | `/api/artifacts/:id/promote` | Promote to new scope. Body: `{ "target_scope": "project" \| "user" }`. |
+| `GET` | `/api/artifacts` | List with filters. |
 
-## Upload
+### List filters
 
-```http
-POST /api/artifacts
-Content-Type: multipart/form-data
-
-scope=project
-file=<bytes>
-name=report.html
-mime=text/html
-```
-
-For `run` scope, also include `run_id`.
-
-Returns `{ "id": "<ulid>", ... }`.
-
-## Download
-
-```http
-GET /api/artifacts/:id
-```
-
-Returns the raw bytes with the artifact's MIME type.
-
-## Metadata
-
-```http
-GET /api/artifacts/:id/metadata
-```
-
-Returns the full metadata record:
-
-```json
-{
-  "id": "01J...",
-  "name": "report.html",
-  "mime": "text/html",
-  "size": 14832,
-  "scope": "project",
-  "project_id": "my-project",
-  "content_hash": "abc123...",
-  "created_at": "2026-04-22T10:00:00Z"
-}
-```
-
-## Update metadata
-
-```http
-PATCH /api/artifacts/:id
-Content-Type: application/json
-
-{ "name": "new-name.html", "expires_at": "2026-05-01T00:00:00Z" }
-```
-
-Only `name`, `owner_actor`, and `expires_at` are mutable. Bytes are immutable — upload a new artifact to change content.
-
-## Delete
-
-```http
-DELETE /api/artifacts/:id
-```
-
-Removes both the blob and the metadata row.
-
-## Promote
-
-Move an artifact to a more persistent scope:
-
-```http
-POST /api/artifacts/:id/promote
-Content-Type: application/json
-
-{ "target_scope": "project" }
-```
-
-Valid promotions: `run → project`, `run → user`, `project → user`. Requires the `PromoteArtifact` permission.
-
-## List
-
-```http
-GET /api/artifacts?scope=project&mime=text/html&limit=20
-```
-
-Filter parameters: `scope`, `project_id`, `run_id`, `user_id`, `mime`, `collection_id`, `content_hash`, `owner_actor`, `expires_at`, `limit`, `offset`, `sort`.
+`scope`, `project_id`, `run_id`, `user_id`, `mime`, `collection_id`, `content_hash`, `owner_actor`, `expires_at`, plus `limit`/`offset`/`sort`.
 
 ## MCP tools
 
-Agents use the MCP tools instead of the REST API directly:
-
 | Tool | Description |
 |---|---|
-| `artifact_upload` | Upload base64-encoded bytes. Returns `{ id }`. |
-| `artifact_get` | Retrieve a record and its bytes. |
-| `artifact_list` | List with optional scope and filter. |
+| `artifact_upload` | Upload bytes (base64-encoded). Returns `{ id }`. |
+| `artifact_get` | Retrieve record + bytes. |
+| `artifact_list` | List with optional scope and filter JSON. |
 | `artifact_delete` | Delete by ID. |
-| `artifact_promote` | Promote to a new scope. |
+| `artifact_promote` | Promote to new scope. |
 
-## GC
+## Metadata schema
 
-Run-scope artifacts expire automatically. The default TTL is 24 hours, configurable in `.ship/ship.jsonc`:
+Stored in the built-in `artifacts` collection on `data.db`.
 
-```jsonc
-"artifacts": {
-  "run": { "ttl_hours": 24, "size_max_mb": 50 }
-}
-```
+| Field | Type | Description |
+|---|---|---|
+| `id` | ULID string | Stable artifact ID. |
+| `name` | string | File name. |
+| `mime` | string | MIME type. |
+| `size` | integer | Bytes. |
+| `path` | string | Relative blob path (backend-opaque). |
+| `scope` | string | `run` \| `project` \| `user` |
+| `project_id` | string? | Set for `run` and `project` scopes. |
+| `run_id` | string? | Set for `run` scope. |
+| `user_id` | string? | Set for `user` scope. |
+| `content_hash` | string | SHA-256 hex. |
+| `expires_at` | ISO-8601 string? | GC deadline. Run-scope gets a default TTL if unset. |
+| `owner_actor` | string? | Actor that created the artifact. |
+| `collection_id` | string? | Optional parent collection. |
+| `item_id` | string? | Optional parent collection item. |
+| `created_at` | ISO-8601 string | Creation timestamp. |
 
-Override per-upload by setting `expires_at` explicitly. The daemon runs GC on startup and every hour.
+## Permissions
+
+| Scope | Grant required |
+|---|---|
+| Read run artifacts | `ReadArtifactsRun` |
+| Write run artifacts | `WriteArtifactsRun` |
+| Delete run artifacts | `DeleteArtifactsRun` |
+| Read project artifacts | `ReadArtifactsProject` |
+| Write project artifacts | `WriteArtifactsProject` |
+| Delete project artifacts | `DeleteArtifactsProject` |
+| Read user artifacts | `ReadArtifactsUser` |
+| Write user artifacts | `WriteArtifactsUser` |
+| Delete user artifacts | `DeleteArtifactsUser` |
+| Promote between scopes | `PromoteArtifact` |
+
+Pipeline agents (worker/lead/commander roles) receive `Read/Write/DeleteArtifactsRun` and `ReadArtifactsProject` automatically.
+
+## Events
+
+| Event | Payload |
+|---|---|
+| `artifact.created` | `id`, `scope`, `name`, `mime`, `size`, `content_hash`, `owner_actor`, `project_id`, `run_id` |
+| `artifact.updated` | `id`, `scope`, `changed` (map of updated fields) |
+| `artifact.moved` | `id`, `from_scope`, `to_scope` |
+| `artifact.deleted` | `id`, `scope`, `project_id`, `run_id` |
+
+Each mutation also emits a `collection.item_*` event for the underlying metadata row.
 
 ## Settings
+
+In `.ship/ship.jsonc`:
 
 ```jsonc
 "artifacts": {
@@ -132,16 +106,27 @@ Override per-upload by setting `expires_at` explicitly. The daemon runs GC on st
   "project": { "size_max_mb": 100, "total_max_gb": 5 },
   "user":    { "size_max_mb": 100, "total_max_gb": 10 },
   "mime_allowlist": null,
-  "mime_denylist":  ["application/x-msdownload"],
+  "mime_denylist":  ["application/x-msdownload", "application/x-executable"],
   "sync": { "enabled": false }
 }
 ```
 
-## Content deduplication
+All values have defaults. The daemon validates the block at startup; negative sizes or zero TTLs are rejected.
 
-Uploads are content-addressed (SHA-256). Uploading the same bytes twice in the same scope reuses the blob file — you get two distinct artifact IDs pointing to the same content.
+## GC
+
+Run-scope artifacts with `expires_at < now` are deleted on daemon startup and every hour. `expires_at` is set at upload time; callers can override per-upload. Default TTL is `run.ttl_hours` from settings (24 h).
+
+## Backend abstraction
+
+The `ArtifactBackend` trait in `crates/core/runtime/src/artifacts/backend.rs` decouples storage from logic. Phase 1 ships `LocalFsBackend`. Cloud (R2/S3) swap is phase 3 — no API changes required.
+
+## `compiled_asset_cache` (formerly `agent_artifact_registry`)
+
+The internal table that indexes compiled skills, rules, and MCP configs is `compiled_asset_cache` in `platform.db`. It is **not** an artifact-store table — it's a compiler cache for the daemon's internal asset pipeline. It was renamed from `agent_artifact_registry` to reduce confusion with the artifact storage described on this page.
 
 ## Related
 
-- [Collections](/reference/collections/) — artifact metadata is stored in the `artifacts` collection. `File` field types in collection schemas resolve to artifact IDs.
-- [Step I/O](/reference/pipelines/step-io/) — declare what each pipeline step produces and consumes; promote run artifacts to project scope on success.
+- [Collections](/reference/collections/) — the `artifacts` collection stores metadata rows. `File` field types in collection schemas resolve to artifact IDs.
+- [Pipelines](/reference/pipelines/) — step I/O via artifact produce/consume/promote is a phase-2 deliverable.
+- [Views](/reference/views/) — canvas views use project-scope artifacts via `artifact_upload`.

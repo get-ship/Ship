@@ -13,7 +13,6 @@ Scaffold `.ship/` in the current project, or configure `~/.ship/` globally.
 
 | Flag | Description |
 |------|-------------|
-| `--from <url>` | Fetch a JSON config bundle and scaffold from it |
 | `--global` | Configure `~/.ship/` instead of current project |
 | `--provider <id>` | Default provider: `claude`, `gemini`, `codex`, `cursor` |
 | `--force` | Overwrite existing `.ship/` |
@@ -157,15 +156,3 @@ ship docs topics    # list all topics
 ship docs agents    # agent management help
 ```
 
-### `ship view`
-
-Browse and manage project state in the terminal UI.
-
-### `ship surface`
-
-Print the CLI command tree and MCP core tools as markdown.
-
-| Flag | Description |
-|------|-------------|
-| `--emit` | Write to `docs/surface.md` |
-| `--check` | Fail if `docs/surface.md` is out of date |

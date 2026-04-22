@@ -37,7 +37,7 @@ Fields:
 |---|---|---|
 | `name` | yes | Unique identifier. |
 | `description` | no | Human-readable intent. |
-| `trigger.event` | one-of | Internal event type to match (e.g. `workspace.compiled`). Mutually exclusive with `trigger.source`. |
+| `trigger.event` | one-of | Internal event type to match. Mutually exclusive with `trigger.source`. |
 | `trigger.source` | one-of | External trigger source (webhook, file, or cron). Mutually exclusive with `trigger.event`. |
 | `trigger.filter` | no | Dot-path filter on the event payload. Match runs only when the filter resolves to a truthy value. |
 | `actions` | yes | Ordered list. Each step has a `type` and type-specific fields. |
@@ -45,11 +45,11 @@ Fields:
 
 ## External sources
 
-Instead of `trigger.event`, a trigger can use `trigger.source` to react to external signals. Three source kinds are supported.
+Instead of `trigger.event`, a trigger can use `trigger.source` to react to external signals.
 
 ### Webhook source
 
-Fires when an HTTP POST arrives at a registered path. The daemon exposes a **public** (unauthenticated) endpoint at `/api/hooks/webhook/*` — authentication is the trigger's own `secret` field.
+Fires when an HTTP POST arrives at a registered path. The daemon exposes a **public** endpoint at `/api/hooks/webhook/*path` — the trigger's own `secret` is the auth boundary.
 
 ```jsonc
 {
@@ -79,18 +79,13 @@ Source fields:
 | `path` | yes | — | Route suffix. Must start with `/webhooks/`. |
 | `secret` | no | — | Verified against `X-Ship-Webhook-Secret` header. Use `env:VAR_NAME` to read from the environment. |
 
-**Security notes:**
-- The path is public — any client can POST to it. The `secret` is the auth boundary. Always set a secret for production webhooks.
-- Secrets written as `env:VAR_NAME` are resolved once at trigger-load time and on hot-reload.
-- Rate limit: 60 requests/minute per registered path (token bucket).
+Security: Always set a secret. Rate limit is 60 req/min/path. Response: `200 {"ok":true}` · `401` bad secret · `404` unknown path · `429` rate limited.
 
-**Response codes:** `200 {"ok":true}` on accept · `401` on bad/missing secret · `404` on unknown path · `429` on rate limit exceeded.
-
-The emitted event has type `external.webhook.<trigger_name>` with payload `{ "path": "...", "body": <parsed JSON or null> }`.
+Emitted event: `external.webhook.<trigger_name>` · payload: `{ "path", "body" }`.
 
 ### File source
 
-Fires when a file or directory matching the watch path/glob changes.
+Fires when a file matching the watch path or glob changes.
 
 ```jsonc
 {
@@ -119,16 +114,14 @@ Source fields:
 |---|---|---|---|
 | `type` | yes | — | `"file"` |
 | `watch` | yes | — | Path or glob. Relative paths resolve from the project root. |
-| `events` | no | all three | Event kinds to react to: `"created"`, `"modified"`, `"deleted"`. |
-| `debounce_ms` | no | `200` | Coalescing debounce window in milliseconds. |
+| `events` | no | all three | `"created"`, `"modified"`, `"deleted"` — defaults to all. |
+| `debounce_ms` | no | `200` | Debounce window in milliseconds. |
 
-**Trust model:** Watch paths are relative to the project root. Absolute paths are allowed but must be accessible to the daemon process. The trigger fires for any file that matches the path — ensure globs don't accidentally include sensitive files.
-
-The emitted event has type `external.file.<trigger_name>` with payload `{ "path": "...", "event_kind": "created|modified|deleted", "timestamp": "..." }`.
+Emitted event: `external.file.<trigger_name>` · payload: `{ "path", "event_kind", "timestamp" }`.
 
 ### Cron source
 
-Fires on a schedule defined by a cron expression.
+Fires on a schedule.
 
 ```jsonc
 {
@@ -141,10 +134,7 @@ Fires on a schedule defined by a cron expression.
     }
   },
   "actions": [
-    {
-      "type": "pipeline.trigger",
-      "pipeline": "nightly-digest"
-    }
+    { "type": "pipeline.trigger", "pipeline": "nightly-digest" }
   ]
 }
 ```
@@ -154,12 +144,12 @@ Source fields:
 | Field | Required | Default | Purpose |
 |---|---|---|---|
 | `type` | yes | — | `"cron"` |
-| `expression` | yes | — | Standard 5-field cron (`min hour dom month dow`). Optionally prefix with a seconds field (6 fields total). |
+| `expression` | yes | — | Standard 5-field cron (`min hour dom month dow`). Optional seconds prefix. |
 | `timezone` | no | `"UTC"` | IANA timezone name. |
 
-**Restart behavior:** Last-fire timestamps are persisted so restarts don't double-fire within the same scheduled interval. Missed runs while the daemon was down are not caught up — the next fire is computed from the current time.
+Restart behavior: last-fire times are persisted; no double-fire on restart; missed runs are not caught up.
 
-The emitted event has type `external.cron.<trigger_name>` with payload `{ "scheduled_for": "...", "fired_at": "..." }`.
+Emitted event: `external.cron.<trigger_name>` · payload: `{ "scheduled_for", "fired_at" }`.
 
 ## Action types
 
@@ -213,8 +203,6 @@ The official JSON Schema for trigger files is at [`schemas/trigger.schema.json`]
   ...
 }
 ```
-
-The schema uses `oneOf` to describe the source kinds and action variants. Files also validate at load time — unknown source types or conflicting `event`+`source` fields fail with a clear message.
 
 ## Related
 

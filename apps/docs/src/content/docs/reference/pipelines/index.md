@@ -44,7 +44,7 @@ steps:
 Run it:
 
 ```bash
-ship run tdd --spec-file spec.md
+ship run tdd --spec spec.md
 ```
 
 The orchestrator creates a job on `job/<slug>`, allocates a git worktree, and dispatches `test` first. When `test` completes, `impl` fires. When `impl` completes, `review` fires as a gate. If the gate passes and `auto_merge` is set (see Reference), the job merges to the parent branch; otherwise it sits Completed.
