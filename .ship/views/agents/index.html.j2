@@ -9,8 +9,7 @@
   - card hover: border-primary/30 + arrow foreground (ship-list-tile supplies)
   - empty state (ship-empty-state in content partial)
 -#}
-{% from '_ship.html.j2' import head, signal, live, post %}
-{% from '_urls.html.j2' import view_agents_create %}
+{% from '_ship.html.j2' import head, signal, live, nav %}
 {% if not fragment %}
 <!DOCTYPE html>
 <html lang="en">
@@ -53,10 +52,57 @@
      descriptions don't produce ragged card heights. */
   .agents-grid {
     display: grid; grid-template-columns: 1fr; gap: var(--space-3);
-    grid-auto-rows: 1fr;
     align-items: stretch;
   }
-  .agents-grid > ship-list-tile.agents-card-tile { height: 100%; }
+  /* `align-items: stretch` (the default) makes all cards in a row match
+     the tallest sibling. Rows can differ in height naturally. We don't
+     set `grid-auto-rows: 1fr` — that forces equal row heights but the
+     ship-list-tile's internal .tile element sizes to content, leaving
+     whitespace below short cards. Stretching works and matches React. */
+  .agents-grid > ship-list-tile.agents-card-tile { overflow: hidden; }
+
+  /* Card internals: uniform rows regardless of payload. Description clamps
+     to 2 lines, chip-row stays single-line and clips on overflow, provider
+     row is fixed height. Without this the chips wrapping to a second line
+     blows past the grid's allocated 1fr height. */
+  .agents-card-tile .agents-card-body { display: flex; flex-direction: column; gap: 6px; min-width: 0; }
+  .agents-card-tile .agents-card-head { min-width: 0; }
+  .agents-card-tile .agents-card-title {
+    font-weight: var(--font-weight-semibold);
+    font-size: var(--text-md);
+    line-height: 1.25;
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+  }
+  .agents-card-tile .agents-card-desc {
+    font-size: var(--text-xs);
+    color: var(--muted-foreground);
+    line-height: 1.4;
+    margin: 2px 0 0;
+    display: -webkit-box;
+    -webkit-box-orient: vertical;
+    -webkit-line-clamp: 2;
+    line-clamp: 2;
+    overflow: hidden;
+  }
+  .agents-card-tile .agents-card-stats {
+    display: flex;
+    align-items: center;
+    gap: 6px;
+    font-size: 10.5px;
+    color: var(--muted-foreground);
+  }
+  .agents-card-tile .agents-card-sep { color: var(--border); }
+  .agents-card-tile .agents-card-providers { min-height: 12px; }
+  .agents-card-tile .agents-card-badges {
+    display: flex;
+    align-items: center;
+    gap: 4px;
+    flex-wrap: nowrap;
+    overflow: hidden;
+    min-height: 22px;
+  }
   @media (min-width: 768px) {
     .agents-grid { grid-template-columns: repeat(2, 1fr); }
   }
@@ -133,6 +179,17 @@
     font-size: 14px; color: var(--muted-foreground);
     padding: var(--space-4) 0; margin: 0;
   }
+
+  /* Provider row — each provider gets a real brand glyph via
+     <ship-provider-blob>. No per-provider CSS here; the component
+     owns the mark + color. */
+  .agents-card-providers {
+    display: inline-flex; align-items: center; gap: 4px;
+    margin-top: 2px;
+  }
+
+  /* Badges row grows gap + wraps when chips overflow. */
+  .agents-card-badges { flex-wrap: wrap; }
   </style>
   <div class="agents-wrap">
 
@@ -141,7 +198,7 @@
         <h1 class="agents-title">Agents</h1>
         <p class="agents-sub">{{ total }} agent{% if total != 1 %}s{% endif %}</p>
       </div>
-      <ship-button tone="accent" variant="solid" {{ post(view_agents_create(), '{}') }}>
+      <ship-button tone="accent" variant="solid" {{ nav('/agents/create') }}>
         <ship-icon slot="leading" name="plus"></ship-icon>
         New agent
       </ship-button>

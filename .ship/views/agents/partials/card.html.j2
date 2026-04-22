@@ -30,10 +30,10 @@
                 navigable="/agents/{{ a.id }}"
                 class="agents-card-tile">
   {% if _is_simpleicons and _slug %}
-    <ship-avatar slot="leading" size="lg" tone="primary" shape="square"
+    <ship-avatar slot="leading" size="lg" shape="square" identity-hue="{{ a.id }}"
                  icon-slug="{{ _slug }}" name="{{ a.name }}"></ship-avatar>
   {% elif _is_short %}
-    <ship-avatar slot="leading" size="lg" tone="primary" shape="square"
+    <ship-avatar slot="leading" size="lg" shape="square" identity-hue="{{ a.id }}"
                  initials="{{ _icon_s }}" name="{{ a.name }}"></ship-avatar>
   {% elif _is_registry %}
     {#- Registry name — render ship-icon centered inside a manually-
@@ -42,7 +42,7 @@
       <ship-icon name="{{ _icon_s }}" size="md"></ship-icon>
     </span>
   {% else %}
-    <ship-avatar slot="leading" size="lg" tone="primary" shape="square"
+    <ship-avatar slot="leading" size="lg" shape="square" identity-hue="{{ a.id }}"
                  initials="{{ a.letter }}" name="{{ a.name }}"></ship-avatar>
   {% endif %}
   <div class="agents-card-body">
@@ -57,8 +57,33 @@
       <span class="agents-card-sep">&middot;</span>
       <span>{{ a.rules_count }} rule{% if a.rules_count != 1 %}s{% endif %}</span>
     </div>
+    {#- Provider blobs: tiny colored circles showing which AI providers
+        the agent compiles to. Inline SVG keeps the row in one flow; a
+        future `<ship-provider-blob>` primitive would remove the span-
+        wrapping boilerplate. Tracked in SDK roadmap. -#}
+    {% if a.providers %}
+    <div class="agents-card-providers" aria-label="Compiles to">
+      {% for p in a.providers %}
+      <ship-provider-blob provider="{{ p }}" size="sm" variant="glyph" title="{{ p }}"></ship-provider-blob>
+      {% endfor %}
+    </div>
+    {% endif %}
     <div class="agents-card-badges">
       <ship-badge tone="muted" variant="outline" size="sm" class="agents-card-badge-source">{{ a.source }}</ship-badge>
+      {% if a.active %}
+      <ship-chip tone="success" variant="soft" size="sm">
+        <ship-status-dot slot="leading" tone="success" size="sm" pulse></ship-status-dot>
+        active session
+      </ship-chip>
+      {% endif %}
+      {%- set tag_cap = 2 -%}
+      {%- set tags = a.tags | default([]) -%}
+      {% for t in tags[:tag_cap] %}
+      <ship-chip tone="muted" variant="soft" size="sm">{{ t }}</ship-chip>
+      {% endfor %}
+      {% if tags | length > tag_cap %}
+      <ship-chip tone="muted" variant="outline" size="sm">+{{ tags | length - tag_cap }}</ship-chip>
+      {% endif %}
     </div>
   </div>
 </ship-list-tile>

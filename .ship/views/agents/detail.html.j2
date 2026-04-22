@@ -27,7 +27,7 @@
             aria-label="Back to agents">
       <ship-icon slot="leading" name="chevron-left"></ship-icon>
     </ship-button>
-    <ship-avatar size="sm" initials="{{ agent.letter }}" name="{{ agent.name }}"></ship-avatar>
+    <ship-avatar size="sm" shape="square" identity-hue="{{ agent.id }}" initials="{{ agent.letter }}" name="{{ agent.name }}"></ship-avatar>
     <h1 class="ad-name">{{ agent.name }}</h1>
     <span class="ad-version">0.0.0</span>
     <div class="ad-header-spacer"></div>
