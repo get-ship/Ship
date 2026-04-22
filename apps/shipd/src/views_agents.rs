@@ -17,12 +17,11 @@
 use axum::extract::{Path, State};
 use axum::http::StatusCode;
 use axum::response::Html;
-use axum::Json;
 use serde::Serialize;
 
 use crate::rest_api::ApiState;
 use crate::views::resolve_view_dir;
-use crate::views::state::{AgentDetail, AgentSummary, CreateAgentError, CreateAgentRequest, create_agent, list_agents, list_agent_catalogs, load_agent, patch_agent, replace_permissions, PatchAgentError, PatchAgentRequest, ReplacePermissionsError, ReplacePermissionsRequest};
+use crate::views::state::{AgentDetail, AgentSummary, list_agent_catalogs, list_agents, load_agent};
 use crate::views::templates;
 
 /// Try rendering a template from `.ship/views/<view>/<file>`.
@@ -441,140 +440,6 @@ pub async fn agents_create_view(
         return Ok(Html(html));
     }
     Err(StatusCode::NOT_FOUND)
-}
-
-/// POST /api/runtime/view/agents/new — write a new agent JSONC.
-///
-/// Payload shape matches the create-wizard's step-3 JSON. Writes under the
-/// project dir when available, global otherwise. Returns a structured
-/// response the view can morph into a success or error state.
-pub async fn agents_create(
-    State(state): State<ApiState>,
-    Json(req): Json<CreateAgentRequest>,
-) -> (StatusCode, Json<serde_json::Value>) {
-    match create_agent(state.ship_dir(), &req) {
-        Ok(result) => (
-            StatusCode::CREATED,
-            Json(serde_json::json!({
-                "ok": true,
-                "id": result.id,
-                "path": result.path,
-                "scope": result.scope,
-                "redirect": format!("/agents/{}", result.id),
-            })),
-        ),
-        Err(CreateAgentError::BadId) => (
-            StatusCode::BAD_REQUEST,
-            Json(serde_json::json!({
-                "ok": false,
-                "error": "bad_id",
-                "message": "id must match ^[a-z0-9-]+$",
-            })),
-        ),
-        Err(CreateAgentError::BadProvider(p)) => (
-            StatusCode::BAD_REQUEST,
-            Json(serde_json::json!({
-                "ok": false,
-                "error": "bad_provider",
-                "message": format!("unknown provider `{p}`"),
-            })),
-        ),
-        Err(CreateAgentError::Exists(path)) => (
-            StatusCode::CONFLICT,
-            Json(serde_json::json!({
-                "ok": false,
-                "error": "exists",
-                "message": format!("{} already exists", path.display()),
-            })),
-        ),
-        Err(CreateAgentError::Io(e)) => (
-            StatusCode::INTERNAL_SERVER_ERROR,
-            Json(serde_json::json!({
-                "ok": false,
-                "error": "io",
-                "message": e.to_string(),
-            })),
-        ),
-    }
-}
-
-/// GET /api/agents/catalogs — list available skills + MCP servers + rules
-/// a user can attach to an agent. Drives the detail-panel "Add" picker.
-pub async fn agent_catalogs(State(state): State<ApiState>) -> Json<serde_json::Value> {
-    let cats = list_agent_catalogs(state.ship_dir());
-    Json(serde_json::to_value(&cats).unwrap_or_else(|_| serde_json::json!({})))
-}
-
-/// POST /api/agents/{id}/patch — append skills/mcp/rules into the agent
-/// JSONC. Payload: `{ skills: ["id"], mcp: ["id"], rules: ["id"] }`.
-/// Any of the three arrays may be empty/omitted. Duplicates are
-/// silently de-duped inside `patch_agent`.
-pub async fn agent_patch(
-    State(state): State<ApiState>,
-    Path(id): Path<String>,
-    Json(req): Json<PatchAgentRequest>,
-) -> (StatusCode, Json<serde_json::Value>) {
-    match patch_agent(state.ship_dir(), &id, &req) {
-        Ok(()) => (
-            StatusCode::OK,
-            Json(serde_json::json!({ "ok": true, "id": id })),
-        ),
-        Err(PatchAgentError::NotFound(_)) => (
-            StatusCode::NOT_FOUND,
-            Json(serde_json::json!({
-                "ok": false,
-                "error": "not_found",
-                "message": format!("agent `{id}` not found"),
-            })),
-        ),
-        Err(PatchAgentError::Parse(msg)) => (
-            StatusCode::BAD_REQUEST,
-            Json(serde_json::json!({
-                "ok": false,
-                "error": "parse",
-                "message": msg,
-            })),
-        ),
-        Err(PatchAgentError::Io(e)) => (
-            StatusCode::INTERNAL_SERVER_ERROR,
-            Json(serde_json::json!({
-                "ok": false,
-                "error": "io",
-                "message": e.to_string(),
-            })),
-        ),
-    }
-}
-
-/// PUT /api/agents/{id}/permissions — wholesale-replace the permissions
-/// block. Merge semantics are wrong for tool removal, so this writes the
-/// full shape (preset + three lists) atomically.
-pub async fn agent_put_permissions(
-    State(state): State<ApiState>,
-    Path(id): Path<String>,
-    Json(req): Json<ReplacePermissionsRequest>,
-) -> (StatusCode, Json<serde_json::Value>) {
-    match replace_permissions(state.ship_dir(), &id, &req) {
-        Ok(()) => (
-            StatusCode::OK,
-            Json(serde_json::json!({ "ok": true, "id": id })),
-        ),
-        Err(ReplacePermissionsError::NotFound(_)) => (
-            StatusCode::NOT_FOUND,
-            Json(serde_json::json!({
-                "ok": false, "error": "not_found",
-                "message": format!("agent `{id}` not found"),
-            })),
-        ),
-        Err(ReplacePermissionsError::Parse(msg)) => (
-            StatusCode::BAD_REQUEST,
-            Json(serde_json::json!({ "ok": false, "error": "parse", "message": msg })),
-        ),
-        Err(ReplacePermissionsError::Io(e)) => (
-            StatusCode::INTERNAL_SERVER_ERROR,
-            Json(serde_json::json!({ "ok": false, "error": "io", "message": e.to_string() })),
-        ),
-    }
 }
 
 #[cfg(test)]

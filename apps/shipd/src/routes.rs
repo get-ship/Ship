@@ -143,9 +143,6 @@ pub enum Route {
     /// @route GET "/api/runtime/view/agents/detail/{id}"
     ViewAgentDetail { id: String },
 
-    /// @route POST "/api/runtime/view/agents/new"
-    ViewAgentsCreate,
-
     /// @route GET "/api/runtime/view/agents/create"
     ViewAgentsCreateShell,
 
@@ -155,14 +152,34 @@ pub enum Route {
     /// @route GET "/api/runtime/view/agents/detail/{id}/settings"
     ViewAgentSettings { id: String },
 
-    /// @route GET "/api/agents/catalogs"
-    AgentCatalogs,
+    // ── AgentService — service-shaped CRUD + lifecycle ──
 
-    /// @route POST "/api/agents/{id}/patch"
-    PatchAgent { id: String },
+    /// @route GET "/api/agents"
+    AgentsList,
 
-    /// @route PUT "/api/agents/{id}/permissions"
-    PutAgentPermissions { id: String },
+    /// @route GET "/api/agents/{id}"
+    AgentsGet { id: String },
+
+    /// @route PUT "/api/agents/{id}"
+    AgentsPut { id: String },
+
+    /// @route PATCH "/api/agents/{id}"
+    AgentsPatch { id: String },
+
+    /// @route DELETE "/api/agents/{id}"
+    AgentsDelete { id: String },
+
+    /// @route POST "/api/agents"
+    AgentsCreate,
+
+    /// @route POST "/api/agents/{id}/rename"
+    AgentsRename { id: String },
+
+    /// @route POST "/api/agents/{id}/duplicate"
+    AgentsDuplicate { id: String },
+
+    /// @route POST "/api/agents/{id}/move"
+    AgentsMove { id: String },
 
     /// @route GET "/api/runtime/view/skills"
     ViewSkills,

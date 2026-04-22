@@ -12,6 +12,7 @@ fn empty_ctx() -> GitCtx {
     GitCtx {
         workspace_id: None,
         branch: Some("main".into()),
+        head_short: None,
         clean: true,
         total_changed: 0,
         staged: vec![],
@@ -22,6 +23,7 @@ fn empty_ctx() -> GitCtx {
         ahead: 0,
         behind: 0,
         selected_commit: None,
+        active_file: None,
         annotations: Default::default(),
         error: None,
     }

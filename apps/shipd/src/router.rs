@@ -16,9 +16,9 @@ use utoipa::OpenApi;
 use crate::{
     NetworkServer, actor_api, annotations_api, artifacts_api, attest, auth, cors, feedback_api, hooks_api,
     human_webhook, lint_api, logs_api, openapi, pairing, project_api, pty_handler, rest_api, runtime_api,
-    sdk_manifest, session, settings_api, shell_assets, ship_runtime, specs_api, specs_view, supervisor,
-    view_errors_api, view_morph_target, view_sessions_api, views, collection_api, views_agents, views_chat,
-    views_events, views_git, views_pipelines, views_raw, views_settings, views_skills,
+    sdk_manifest, services, session, settings_api, shell_assets, ship_runtime, specs_api, specs_view,
+    supervisor, view_errors_api, view_morph_target, view_sessions_api, views, collection_api, views_agents,
+    views_chat, views_events, views_git, views_pipelines, views_raw, views_settings, views_skills,
 };
 
 /// Build the full Axum router with all route groups, auth, and CORS.
@@ -267,13 +267,20 @@ fn build_ship_routes(st: rest_api::ApiState) -> Router {
         .ship_route(Route::ViewSettingsSse, views_settings::settings_sse)
         .ship_route(Route::ViewAgents, views_agents::agents_shell)
         .ship_route(Route::ViewAgentDetail_template(), views_agents::agent_detail)
-        .ship_route(Route::ViewAgentsCreate, views_agents::agents_create)
         .ship_route(Route::ViewAgentsCreateShell, views_agents::agents_create_view)
         .ship_route(Route::ViewAgentWire_template(), views_agents::agent_wire)
         .ship_route(Route::ViewAgentSettings_template(), views_agents::agent_settings)
-        .ship_route(Route::AgentCatalogs, views_agents::agent_catalogs)
-        .ship_route(Route::PatchAgent_template(), views_agents::agent_patch)
-        .ship_route(Route::PutAgentPermissions_template(), views_agents::agent_put_permissions)
+        // AgentService — generic CRUD + lifecycle. First-party and
+        // third-party views use this surface equally.
+        .ship_route(Route::AgentsList, services::agents::list)
+        .ship_route(Route::AgentsGet_template(), services::agents::get)
+        .ship_route(Route::AgentsPut_template(), services::agents::put)
+        .ship_route(Route::AgentsPatch_template(), services::agents::patch)
+        .ship_route(Route::AgentsDelete_template(), services::agents::delete)
+        .ship_route(Route::AgentsCreate, services::agents::create)
+        .ship_route(Route::AgentsRename_template(), services::agents::rename)
+        .ship_route(Route::AgentsDuplicate_template(), services::agents::duplicate)
+        .ship_route(Route::AgentsMove_template(), services::agents::move_scope)
         .ship_route(Route::ViewSkills, views_skills::skills_shell)
         .ship_route(Route::ViewSkillsRail, views_skills::skills_rail)
         .ship_route(Route::ViewSkillDetail_template(), views_skills::skill_detail)

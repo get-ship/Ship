@@ -36,13 +36,18 @@
 {%- macro view_settings_sse() -%}/api/runtime/view/settings/sse{%- endmacro -%}
 {%- macro view_agents() -%}/api/runtime/view/agents{%- endmacro -%}
 {%- macro view_agent_detail(id) -%}/api/runtime/view/agents/detail/{{ id }}{%- endmacro -%}
-{%- macro view_agents_create() -%}/api/runtime/view/agents/new{%- endmacro -%}
 {%- macro view_agents_create_shell() -%}/api/runtime/view/agents/create{%- endmacro -%}
 {%- macro view_agent_wire(id) -%}/api/runtime/view/agents/{{ id }}/wire{%- endmacro -%}
 {%- macro view_agent_settings(id) -%}/api/runtime/view/agents/detail/{{ id }}/settings{%- endmacro -%}
-{%- macro agent_catalogs() -%}/api/agents/catalogs{%- endmacro -%}
-{%- macro patch_agent(id) -%}/api/agents/{{ id }}/patch{%- endmacro -%}
-{%- macro put_agent_permissions(id) -%}/api/agents/{{ id }}/permissions{%- endmacro -%}
+{%- macro agents_list() -%}/api/agents{%- endmacro -%}
+{%- macro agents_get(id) -%}/api/agents/{{ id }}{%- endmacro -%}
+{%- macro agents_put(id) -%}/api/agents/{{ id }}{%- endmacro -%}
+{%- macro agents_patch(id) -%}/api/agents/{{ id }}{%- endmacro -%}
+{%- macro agents_delete(id) -%}/api/agents/{{ id }}{%- endmacro -%}
+{%- macro agents_create() -%}/api/agents{%- endmacro -%}
+{%- macro agents_rename(id) -%}/api/agents/{{ id }}/rename{%- endmacro -%}
+{%- macro agents_duplicate(id) -%}/api/agents/{{ id }}/duplicate{%- endmacro -%}
+{%- macro agents_move(id) -%}/api/agents/{{ id }}/move{%- endmacro -%}
 {%- macro view_skills() -%}/api/runtime/view/skills{%- endmacro -%}
 {%- macro view_skills_rail() -%}/api/runtime/view/skills/rail{%- endmacro -%}
 {%- macro view_skill_detail(id) -%}/api/runtime/view/skills/detail/{{ id }}{%- endmacro -%}

@@ -1,7 +1,7 @@
 //! Tests for the agents view context + template rendering.
 
 use super::*;
-use crate::views::state::{AgentDetail, AgentSummary};
+use crate::views::state::{AgentCatalogs, AgentDetail, AgentSummary, Permissions};
 use crate::views::templates;
 
 fn sample_summary(name: &str, letter: &str) -> AgentSummary {
@@ -15,6 +15,9 @@ fn sample_summary(name: &str, letter: &str) -> AgentSummary {
         rules_count: 2,
         letter: letter.to_string(),
         source: "PROJECT AGENTS".into(),
+        providers: vec!["claude".into(), "codex".into()],
+        tags: vec![],
+        active: false,
     }
 }
 
@@ -30,7 +33,18 @@ fn sample_detail() -> AgentDetail {
         providers: vec!["claude".into(), "codex".into()],
         default_provider: Some("claude".into()),
         permissions_tier: "standard".into(),
+        permissions: Permissions::default(),
         source: "PROJECT AGENTS".into(),
+    }
+}
+
+fn empty_catalogs() -> AgentCatalogs {
+    AgentCatalogs {
+        skills: vec![],
+        mcp: vec![],
+        rules: vec![],
+        presets: vec![],
+        tool_patterns: vec![],
     }
 }
 
@@ -39,6 +53,9 @@ fn shell_renders_card_grid_and_new_button() {
     let ctx = AgentsIndexCtx {
         agents: vec![sample_summary("Coder", "C"), sample_summary("Reviewer", "R")],
         total: 2,
+        templates: builtin_templates(),
+        permission_presets: builtin_permission_presets(),
+        available_providers: builtin_providers(),
     };
     let html = templates::render("agents/shell.html.j2", &ctx).expect("render");
     assert!(!html.contains("<!DOCTYPE"), "fragment only");
@@ -51,7 +68,13 @@ fn shell_renders_card_grid_and_new_button() {
 
 #[test]
 fn shell_empty_state_when_no_agents() {
-    let ctx = AgentsIndexCtx { agents: vec![], total: 0 };
+    let ctx = AgentsIndexCtx {
+        agents: vec![],
+        total: 0,
+        templates: builtin_templates(),
+        permission_presets: builtin_permission_presets(),
+        available_providers: builtin_providers(),
+    };
     let html = templates::render("agents/shell.html.j2", &ctx).expect("render");
     assert!(
         html.contains("<ship-empty-state"),
@@ -64,6 +87,7 @@ fn detail_renders_all_sections() {
     let ctx = AgentDetailCtx {
         agent: sample_detail(),
         tiers: build_tiers("standard"),
+        catalogs: empty_catalogs(),
     };
     let html = templates::render("agents/detail.html.j2", &ctx).expect("render");
     for header in ["Skills", "MCP Servers", "Permissions", "Rules", "Providers"] {
@@ -89,6 +113,7 @@ fn detail_renders_empty_lists_gracefully() {
     let ctx = AgentDetailCtx {
         agent,
         tiers: build_tiers("standard"),
+        catalogs: empty_catalogs(),
     };
     let html = templates::render("agents/detail.html.j2", &ctx).expect("render");
     // Every empty-list section falls back to an empty-state chip.
