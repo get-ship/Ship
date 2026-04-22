@@ -7,3 +7,4 @@
 
 pub mod files;
 pub mod agents;
+pub mod pipelines;
