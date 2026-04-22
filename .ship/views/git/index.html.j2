@@ -4,7 +4,7 @@
        untracked[], commits[], branches[], ahead, behind, selected_commit,
        active_file, annotations, error, workspace_id
 -#}
-{% from '_ship.html.j2' import head, nav %}
+{% from '_ship.html.j2' import head, nav, error_state %}
 {% from '_urls.html.j2' import view_git %}
 {%- set ws_qs = '' -%}
 {%- if workspace_id %}{%- set ws_qs = '&workspace_id=' ~ workspace_id -%}{%- endif -%}
@@ -128,9 +128,7 @@
 </div>
 
 {% if error %}
-  <div class="gv-pad">
-    <ship-alert tone="destructive">{{ error.title | e }}{% if error.body %} — {{ error.body | e }}{% endif %}</ship-alert>
-  </div>
+  <div class="gv-pad">{{ error_state(error, retry=base_url) }}</div>
 {% endif %}
 
 <div class="gv-body">

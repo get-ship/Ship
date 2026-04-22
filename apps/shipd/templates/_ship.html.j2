@@ -206,6 +206,43 @@ data-signals:{{ name }}="{% if default is string %}'{{ default }}'{% elif defaul
 -#}
 {% macro spinner(signal_name) %}<span data-show="${{ signal_name }}" style="display:none"><span class="ship-spinner"></span></span>{% endmacro %}
 
+{#-
+  error_state(err, size='md', variant='default', retry=none)
+
+  Standard error branch for any view. Takes an `ErrorView`-shaped dict
+  ({title, body, details?}) and renders a <ship-error-state>. Keep
+  templates simple: one line at the top of each view guarded by
+  `{% if error %}`.
+
+  Args:
+    err: dict/struct with .title (str), .body (str), .details (str?)
+    size: sm | md | lg (default md)
+    variant: default | inline (default default)
+    retry: optional hypermedia endpoint; when set, emits a primary
+      "Retry" button that GETs the endpoint. Use the current view's
+      own URL for a full reload.
+
+  Example:
+    {% if error %}{{ error_state(error, retry=view_git()) }}{% endif %}
+-#}
+{% macro error_state(err, size='md', variant='default', retry=none) -%}
+<ship-error-state size="{{ size }}" variant="{{ variant }}"
+  title="{{ err.title | default('Something went wrong') | e }}">
+  {{- err.body | default('') | e -}}
+  {%- if err.details %}
+  <pre slot="details">{{ err.details | e }}</pre>
+  {%- endif %}
+  {%- if retry %}
+  <ship-button slot="action" tone="accent" variant="solid" size="{{ size }}"
+               slot-name="retry"
+               data-on:click="@get('{{ retry }}')">
+    <ship-icon slot="leading" name="refresh-cw" size="xs"></ship-icon>
+    Retry
+  </ship-button>
+  {%- endif %}
+</ship-error-state>
+{%- endmacro %}
+
 {#- === Collection Actions === -#}
 
 {#-
