@@ -165,6 +165,12 @@ pub async fn events_sse(
 
 fn render_content(params: &EventsParams, ship_dir: &std::path::Path) -> Option<String> {
     let ctx = build_ctx(params, ship_dir);
+    // Prefer the user-level .ship/views/events/partials/content.html.j2 so
+    // edits there hot-reload the SSE-patched content. Falls back to the
+    // embedded template if the on-disk view isn't present or errors.
+    if let Some(html) = try_render_view("partials/content.html.j2", &ctx) {
+        return Some(html);
+    }
     match templates::render("events/content.html.j2", &ctx) {
         Ok(html) => Some(html),
         Err(e) => {
