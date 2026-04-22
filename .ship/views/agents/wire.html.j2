@@ -1,0 +1,385 @@
+{#- Wire view: 3-pane graph/canvas detail mode for an agent.
+    Left palette (browse-only for v1), center canvas with SVG bezier
+    edges + positioned nodes, right inspector. Server computes all
+    positions + edge paths — template stays declarative. -#}
+{% from '_ship.html.j2' import head, signals, show, nav %}
+{% if not fragment %}
+<!DOCTYPE html>
+<html lang="en"><head>{{ head('Agent · ' ~ agent.name) }}</head><body>
+{% endif %}
+
+<ship-view-chrome title="{{ agent.name }}">
+  <ship-segmented slot="actions" value="wire" size="sm">
+    <ship-segmented-option value="wire"
+      data-on:click="window.router ? window.router.navigate('/agents/{{ agent.id }}/wire') : location.href='/agents/{{ agent.id }}'">
+      Wire
+    </ship-segmented-option>
+    <ship-segmented-option value="settings"
+      data-on:click="window.router ? window.router.navigate('/agents/{{ agent.id }}/settings') : location.href='/agents/{{ agent.id }}/settings'">
+      Settings
+    </ship-segmented-option>
+  </ship-segmented>
+  <ship-button slot="actions" variant="ghost" size="sm" {{ nav('/agents') }}>
+    <ship-icon slot="leading" name="chevron-left" size="xs"></ship-icon>
+    Agents
+  </ship-button>
+</ship-view-chrome>
+
+<div class="ship-view agents-wire"
+  {{ signals({
+    'selected_kind': 'agent',
+    'selected_id':   agent.id,
+  }) }}>
+
+<style>
+  .agents-wire { display: grid; grid-template-columns: 260px 1fr 320px; height: calc(100vh - 60px); overflow: hidden; }
+  @media (max-width: 1200px) { .agents-wire { grid-template-columns: 220px 1fr 280px; } }
+
+  /* ── Palette (left) ── */
+  .wire-palette { border-right: 1px solid var(--border-subtle); overflow-y: auto; padding: var(--space-3); }
+  .wire-palette .section-h {
+    display: flex; align-items: center; gap: 6px;
+    font-size: 10px; font-weight: var(--font-weight-semibold);
+    letter-spacing: .08em; text-transform: uppercase;
+    color: var(--muted-foreground);
+    margin: var(--space-3) 0 6px;
+  }
+  .wire-palette .section-h .count { margin-left: auto; font-size: 10px; padding: 1px 6px; border-radius: 999px; background: var(--muted); }
+  .wire-palette .add-btn { margin-left: 4px; }
+  .palette-item {
+    display: flex; align-items: center; gap: 6px;
+    padding: 4px 6px; border-radius: var(--radius-sm);
+    font-size: var(--text-xs);
+    color: var(--muted-foreground);
+  }
+  .palette-item .mono { font-family: var(--font-mono); color: var(--foreground); }
+  .tip-card {
+    margin-top: var(--space-4); padding: 8px 10px;
+    border: 1px dashed var(--border); border-radius: var(--radius-md);
+    font-size: 11px; color: var(--muted-foreground); line-height: 1.5;
+  }
+
+  /* ── Canvas (center) ── */
+  .wire-canvas {
+    position: relative; overflow: hidden;
+    background:
+      radial-gradient(circle at 1px 1px, var(--border-subtle) 1px, transparent 0)
+      0 0 / 28px 28px, var(--background);
+  }
+  .wire-canvas svg.wires {
+    position: absolute; inset: 0; width: 100%; height: 100%;
+    pointer-events: none;
+  }
+  .node {
+    position: absolute; z-index: 1;
+    border: 1px solid var(--border-subtle);
+    background: var(--surface-1);
+    border-radius: var(--radius-md);
+    padding: 10px 12px;
+    cursor: pointer;
+    transition: border-color var(--duration-fast) var(--ease-out),
+                box-shadow var(--duration-fast) var(--ease-out),
+                transform var(--duration-fast) var(--ease-out);
+    box-shadow: var(--shadow-xs);
+  }
+  .node:hover { transform: translateY(-1px); box-shadow: var(--shadow-sm); }
+  .node[data-selected="true"] { box-shadow: 0 0 0 3px var(--tone-primary-ring); border-color: var(--primary); }
+  .node-h { display: flex; align-items: center; gap: 6px; font-size: 10px; letter-spacing: .06em;
+    text-transform: uppercase; font-weight: var(--font-weight-semibold);
+    color: var(--muted-foreground); margin-bottom: 4px; }
+  .node-h .swatch { width: 6px; height: 6px; border-radius: 50%; background: currentColor; }
+  .node-title { font-family: var(--font-mono); font-size: 12.5px; font-weight: var(--font-weight-semibold);
+    color: var(--foreground); white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
+  .node-sub { font-size: 10.5px; color: var(--muted-foreground); margin-top: 2px; }
+
+  .node.skill  { --tone-accent: var(--tone-success-fg); color: var(--tone-success-fg); }
+  .node.mcp    { --tone-accent: var(--tone-info-fg);    color: var(--tone-info-fg); }
+  .node.rule   { --tone-accent: var(--tone-warning-fg); color: var(--tone-warning-fg); }
+  .node.perm   { --tone-accent: var(--tone-destructive-fg); color: var(--tone-destructive-fg); }
+  .node.prov   { --tone-accent: var(--tone-accent-fg);  color: var(--tone-accent-fg); }
+  .node.agent  { --tone-accent: var(--primary);         color: var(--primary);
+    border: 2px solid var(--primary);
+    background: color-mix(in oklch, var(--primary) 4%, var(--surface-1)); }
+  .node.agent .node-title { font-size: 15px; font-family: var(--heading-font); }
+
+  .wire-legend {
+    position: absolute; left: 12px; bottom: 12px;
+    display: flex; gap: 10px; padding: 6px 10px;
+    background: color-mix(in oklch, var(--surface-1) 92%, transparent);
+    border: 1px solid var(--border-subtle); border-radius: 999px;
+    backdrop-filter: blur(4px);
+    font-size: 10.5px; color: var(--muted-foreground);
+  }
+  .wire-legend .sw { display: flex; align-items: center; gap: 5px; }
+  .wire-legend .sw i { width: 14px; height: 2px; border-radius: 1px; display: inline-block; }
+
+  /* ── Inspector (right) ── */
+  .wire-inspector {
+    border-left: 1px solid var(--border-subtle);
+    overflow-y: auto;
+    padding: var(--space-4);
+  }
+  .insp-h { display: flex; align-items: center; gap: 10px; margin-bottom: var(--space-3); padding-bottom: var(--space-3); border-bottom: 1px solid var(--border-subtle); }
+  .insp-h .tag { font-size: 10px; letter-spacing: .06em; text-transform: uppercase; color: var(--muted-foreground); }
+  .insp-h .title { font-family: var(--heading-font); font-size: var(--text-md); font-weight: var(--heading-weight); }
+  .insp-field { margin-bottom: var(--space-3); }
+  .insp-field label { display: block; font-size: var(--text-xs); color: var(--muted-foreground); margin-bottom: 4px; }
+  .insp-field .mono { font-family: var(--font-mono); font-size: var(--text-xs); color: var(--muted-foreground); }
+  .insp-help { font-size: var(--text-xs); color: var(--muted-foreground); line-height: 1.5; margin-top: var(--space-3); }
+</style>
+
+{# ── Palette ────────────────────────────────────────────────────── #}
+<aside class="wire-palette">
+  <div class="section-h">
+    <ship-icon name="zap" size="xs"></ship-icon>
+    Skills
+    <span class="count">{{ agent.skills | length }}</span>
+    <ship-button variant="ghost" size="icon" class="add-btn" aria-label="Add skill"
+      data-on:click="$selected_kind = 'add'; $selected_id = 'skill'">
+      <ship-icon name="plus" size="xs"></ship-icon>
+    </ship-button>
+  </div>
+  {%- for s in agent.skills %}
+  <div class="palette-item">
+    <ship-icon name="check-circle" size="xs" style="color:var(--tone-success-fg)"></ship-icon>
+    <span class="mono">{{ s }}</span>
+    <span style="margin-left:auto; font-size:10px">wired</span>
+  </div>
+  {%- else %}
+  <div class="palette-item" style="font-style:italic">no skills wired</div>
+  {%- endfor %}
+
+  <div class="section-h" style="margin-top:16px">
+    <ship-icon name="terminal" size="xs"></ship-icon>
+    MCP Servers
+    <span class="count">{{ agent.mcp_servers | length }}</span>
+    <ship-button variant="ghost" size="icon" class="add-btn" aria-label="Add MCP server"
+      data-on:click="$selected_kind = 'add'; $selected_id = 'mcp'">
+      <ship-icon name="plus" size="xs"></ship-icon>
+    </ship-button>
+  </div>
+  {%- for m in agent.mcp_servers %}
+  <div class="palette-item">
+    <ship-icon name="check-circle" size="xs" style="color:var(--tone-info-fg)"></ship-icon>
+    <span class="mono">{{ m }}</span>
+  </div>
+  {%- else %}
+  <div class="palette-item" style="font-style:italic">no servers</div>
+  {%- endfor %}
+
+  <div class="section-h" style="margin-top:16px">
+    <ship-icon name="file-text" size="xs"></ship-icon>
+    Rules
+    <span class="count">{{ agent.rules | length }}</span>
+    <ship-button variant="ghost" size="icon" class="add-btn" aria-label="Add rule"
+      data-on:click="$selected_kind = 'add'; $selected_id = 'rule'">
+      <ship-icon name="plus" size="xs"></ship-icon>
+    </ship-button>
+  </div>
+  {%- for r in agent.rules %}
+  <div class="palette-item"><span class="mono">{{ r }}</span></div>
+  {%- endfor %}
+
+  <div class="tip-card">
+    <strong style="color:var(--foreground)">Wire view.</strong> Click any node to inspect it on the right. Drag-to-wire and the "browse available" palette are on the roadmap.
+  </div>
+</aside>
+
+{# ── Canvas ────────────────────────────────────────────────────── #}
+<div class="wire-canvas">
+  <svg class="wires" viewBox="0 0 1000 600" preserveAspectRatio="none">
+    {%- for e in edges %}
+    <path d="{{ e.path_d }}"
+      stroke="var(--tone-{% if e.kind == 'skill' %}success{% elif e.kind == 'mcp' %}info{% elif e.kind == 'rule' %}warning{% elif e.kind == 'perm' %}destructive{% else %}accent{% endif %}-fg)"
+      stroke-width="1.3"
+      stroke-opacity="0.55"
+      fill="none"
+      {% if e.dashed %}stroke-dasharray="4 3"{% endif %} />
+    {%- endfor %}
+  </svg>
+
+  {%- for n in nodes %}
+  {#- Positions mirror the SVG viewBox (0-1000 x, 0-600 y). Convert to
+      percentages so the canvas stays aligned regardless of viewport. -#}
+  <div class="node {{ n.kind }}"
+    style="left:{{ (n.x / 10) }}%; top:{{ (n.y / 6) }}%; width:{{ (n.w / 10) }}%; min-width:{{ n.w * 0.7 }}px"
+    data-attr:data-selected="$selected_kind == '{{ n.kind }}' && $selected_id == '{{ n.id | e }}'"
+    data-on:click="$selected_kind = '{{ n.kind }}'; $selected_id = '{{ n.id | e }}'">
+    <div class="node-h">
+      <span class="swatch"></span>
+      <span>{% if n.kind == 'agent' %}AGENT{% elif n.kind == 'skill' %}SKILL{% elif n.kind == 'mcp' %}MCP SERVER{% elif n.kind == 'rule' %}RULES{% elif n.kind == 'perm' %}PERMISSIONS{% else %}PROVIDER{% endif %}</span>
+    </div>
+    {% if n.kind == 'prov' %}
+      <div style="display:flex; align-items:center; gap:8px">
+        <ship-provider-blob provider="{{ n.id }}" size="md"></ship-provider-blob>
+        <div style="min-width:0">
+          <div class="node-title">{{ n.title }}</div>
+          <div class="node-sub">{{ n.sub }}</div>
+        </div>
+      </div>
+    {% elif n.kind == 'agent' %}
+      <div style="display:flex; align-items:center; gap:10px">
+        <ship-avatar size="md" shape="square" identity-hue="{{ agent.id }}" initials="{{ agent.letter }}" name="{{ agent.name }}"></ship-avatar>
+        <div style="min-width:0">
+          <div class="node-title">{{ n.title }}</div>
+          <div class="node-sub">{{ n.sub }}</div>
+        </div>
+      </div>
+    {% else %}
+      <div class="node-title">{{ n.title }}</div>
+      <div class="node-sub">{{ n.sub }}</div>
+    {% endif %}
+  </div>
+  {%- endfor %}
+
+  <div class="wire-legend">
+    <div class="sw"><i style="background:var(--tone-success-fg)"></i>skill</div>
+    <div class="sw"><i style="background:var(--tone-info-fg)"></i>mcp</div>
+    <div class="sw"><i style="background:var(--tone-warning-fg); background-image: repeating-linear-gradient(90deg, transparent 0 2px, var(--background) 2px 3px)"></i>rule</div>
+    <div class="sw"><i style="background:var(--tone-destructive-fg)"></i>perm</div>
+    <div class="sw"><i style="background:var(--tone-accent-fg)"></i>provider</div>
+  </div>
+</div>
+
+{# ── Inspector ────────────────────────────────────────────────── #}
+<aside class="wire-inspector">
+  {# Agent — default #}
+  <div {{ show("$selected_kind == 'agent'") }}>
+    <div class="insp-h">
+      <div><div class="tag">Agent</div><div class="title">{{ agent.name }}</div></div>
+    </div>
+    <div class="insp-field">
+      <label>ID</label>
+      <div class="mono">{{ agent.id }}</div>
+    </div>
+    <div class="insp-field">
+      <label>Description</label>
+      <div style="font-size:var(--text-sm); line-height:1.5">{{ agent.description | default('No description') }}</div>
+    </div>
+    <div class="insp-field">
+      <label>Source</label>
+      <div class="mono">{{ agent.source }}</div>
+    </div>
+    <div class="insp-field">
+      <label>Providers</label>
+      <div style="display:flex; gap:10px; flex-wrap:wrap">
+        {%- for p in agent.providers %}
+        <ship-provider-blob provider="{{ p }}" size="md">{{ p }}</ship-provider-blob>
+        {%- endfor %}
+      </div>
+    </div>
+    <div class="insp-help">Select any peripheral node on the canvas to inspect it. Edits round-trip to <span class="mono">{{ agent.source }}</span> (coming soon).</div>
+  </div>
+
+  {# Skill #}
+  <div {{ show("$selected_kind == 'skill'") }}>
+    <div class="insp-h">
+      <ship-icon name="zap" size="sm" style="color:var(--tone-success-fg)"></ship-icon>
+      <div><div class="tag">Skill</div><div class="title" data-text="$selected_id"></div></div>
+    </div>
+    <div class="insp-field">
+      <label>Scope</label>
+      <ship-chip tone="success" variant="soft" size="sm">project</ship-chip>
+    </div>
+    <div class="insp-field">
+      <label>Source</label>
+      <div class="mono" data-text="'.ship/skills/' + $selected_id + '/SKILL.md'"></div>
+    </div>
+    <ship-button size="sm" variant="ghost"
+      data-on:click="window.router ? window.router.navigate('/skills/' + $selected_id) : location.href='/skills/' + $selected_id">
+      <ship-icon slot="leading" name="external-link" size="xs"></ship-icon>
+      Open skill
+    </ship-button>
+  </div>
+
+  {# MCP server #}
+  <div {{ show("$selected_kind == 'mcp'") }}>
+    <div class="insp-h">
+      <ship-icon name="terminal" size="sm" style="color:var(--tone-info-fg)"></ship-icon>
+      <div><div class="tag">MCP server</div><div class="title" data-text="$selected_id"></div></div>
+    </div>
+    <div class="insp-field">
+      <label>Source</label>
+      <div class="mono" data-text="'.ship/mcp.jsonc → servers.' + $selected_id"></div>
+    </div>
+  </div>
+
+  {# Rules bundle #}
+  <div {{ show("$selected_kind == 'rule'") }}>
+    <div class="insp-h">
+      <ship-icon name="file-text" size="sm" style="color:var(--tone-warning-fg)"></ship-icon>
+      <div><div class="tag">Rules bundle</div><div class="title">{{ agent.rules | length }} file{% if agent.rules | length != 1 %}s{% endif %}</div></div>
+    </div>
+    <div class="insp-field">
+      <label>Files</label>
+      {%- for r in agent.rules %}
+      <div class="mono" style="padding:4px 8px; background:var(--muted); border-radius:4px; margin-bottom:4px">{{ r }}</div>
+      {%- else %}
+      <div class="insp-help">No rule files wired.</div>
+      {%- endfor %}
+    </div>
+  </div>
+
+  {# Permission preset #}
+  <div {{ show("$selected_kind == 'perm'") }}>
+    <div class="insp-h">
+      <ship-icon name="lock" size="sm" style="color:var(--tone-destructive-fg)"></ship-icon>
+      <div><div class="tag">Permissions</div><div class="title">{{ agent.permissions_tier | title }}</div></div>
+    </div>
+    <div class="insp-help">Presets set a base tier. Allow / ask / deny lists layer on top. Edit the agent file to override.</div>
+  </div>
+
+  {# Add affordance — surfaces an inline form for the requested kind.
+     The POST endpoint doesn't exist yet; this is the UI staging the
+     request. Wizard → jsonc write is the fuller flow. #}
+  <div {{ show("$selected_kind == 'add'") }}>
+    <div class="insp-h">
+      <ship-icon name="plus" size="sm" style="color:var(--primary)"></ship-icon>
+      <div>
+        <div class="tag">Add</div>
+        <div class="title" data-text="$selected_id"></div>
+      </div>
+    </div>
+    <div {{ show("$selected_id == 'skill'") }}>
+      <div class="insp-field">
+        <label>Skill id</label>
+        <ship-input placeholder="e.g. tdd, rust-compile" size="sm" id="add-skill-id"></ship-input>
+      </div>
+      <div class="insp-help">Skill must exist at <span class="mono">.ship/skills/&lt;id&gt;/SKILL.md</span>. Listing available skills in-place is on the roadmap.</div>
+    </div>
+    <div {{ show("$selected_id == 'mcp'") }}>
+      <div class="insp-field">
+        <label>Server id</label>
+        <ship-input placeholder="e.g. ship, playwright, postgres" size="sm" id="add-mcp-id"></ship-input>
+      </div>
+      <div class="insp-help">Server must be registered in <span class="mono">.ship/mcp.jsonc</span>.</div>
+    </div>
+    <div {{ show("$selected_id == 'rule'") }}>
+      <div class="insp-field">
+        <label>Rule file</label>
+        <ship-input placeholder="e.g. .ship/rules/style.md" size="sm" id="add-rule-path"></ship-input>
+      </div>
+      <div class="insp-help">Path relative to the project or home dir. Inline rules are a separate field on the agent jsonc.</div>
+    </div>
+    <div style="display:flex; gap:6px; margin-top:var(--space-3)">
+      <ship-button variant="ghost" size="sm" data-on:click="$selected_kind = 'agent'; $selected_id = '{{ agent.id }}'">
+        Cancel
+      </ship-button>
+      <ship-button tone="accent" variant="solid" size="sm" disabled>
+        Wire (soon)
+      </ship-button>
+    </div>
+  </div>
+
+  {# Provider target #}
+  <div {{ show("$selected_kind == 'prov'") }}>
+    <div class="insp-h">
+      <ship-provider-blob size="lg" data-attr:provider="$selected_id"></ship-provider-blob>
+      <div><div class="tag">Provider</div><div class="title" data-text="$selected_id"></div></div>
+    </div>
+    <div class="insp-help">Provider-specific settings (<span class="mono">provider_settings.&lt;provider&gt;</span>) are compiled on top of project defaults.</div>
+  </div>
+</aside>
+
+</div>
+{% if not fragment %}</body></html>{% endif %}

@@ -1,0 +1,295 @@
+{#- agents-create — 4-step create-agent wizard, ported from React Agents.html.
+    Every step uses Ship primitives: signals for state, show for gating,
+    bind for inputs, ship-* components for chrome. Zero raw Datastar
+    (the one `data-on:keydown.enter` is a modifier form of `on`). Zero
+    hand-written JS. -#}
+{% from '_ship.html.j2' import head, signals, show, bind, on, navigate %}
+{%- set templates = [
+  { 'id': 'blank',        'label': 'Blank',         'desc': 'Start from nothing. Just an identity.',      'letter': '?', 'hue': 'slate'  },
+  { 'id': 'lane',         'label': 'Language Lane', 'desc': 'Narrow agent scoped to one stack. Lane preset.', 'letter': 'L', 'hue': 'red'    },
+  { 'id': 'reviewer',     'label': 'Reviewer',      'desc': 'Read-only critic for PRs and diffs.',         'letter': 'R', 'hue': 'amber'  },
+  { 'id': 'orchestrator', 'label': 'Orchestrator',  'desc': 'Routes work to specialist agents.',           'letter': 'O', 'hue': 'violet' },
+  { 'id': 'writer',       'label': 'Test Writer',   'desc': 'TDD loop — writes failing tests first.',      'letter': 'T', 'hue': 'teal'   },
+  { 'id': 'investigator', 'label': 'Investigator',  'desc': 'Reads, searches, summarises. Never writes.',  'letter': 'I', 'hue': 'blue'   },
+] -%}
+{%- set providers = ['claude', 'codex', 'cursor', 'gemini', 'opencode'] -%}
+{%- set presets = [
+  { 'id': 'standard',   'nm': 'Standard',   'dc': 'Human confirms risky actions before they run.' },
+  { 'id': 'autonomous', 'nm': 'Autonomous', 'dc': 'Agent acts end-to-end; safety rails still apply.' },
+  { 'id': 'read-only',  'nm': 'Read-only',  'dc': 'Agent inspects and reports. No writes.' },
+  { 'id': 'sandbox',    'nm': 'Sandbox',    'dc': 'Allow anything inside a worktree; block outside.' },
+] -%}
+
+{% if not fragment %}
+<!DOCTYPE html>
+<html lang="en">
+<head>{{ head('New Agent') }}</head>
+<body>
+{% endif %}
+
+<ship-view-chrome title="New agent">
+  <ship-button slot="actions" variant="ghost" size="sm" {{ navigate('/agents') }}>
+    <ship-icon slot="leading" name="x" size="xs"></ship-icon>
+    Cancel
+  </ship-button>
+</ship-view-chrome>
+
+<div id="ship-view-root" class="agents-create"
+  {{ signals({
+    'step':     0,
+    'template': 'blank',
+    'hue':      'orange',
+    'name':     '',
+    'id':       '',
+    'desc':     '',
+    'tags':     [],
+    'providers': ['claude', 'codex'],
+    'preset':   'standard',
+    '_creating': false,
+  }) }}>
+
+<style>
+  .agents-create { max-width: 960px; margin: 0 auto; padding: 24px var(--space-6) 80px; font-family: var(--font-body); color: var(--foreground); }
+
+  /* Stepper — flat, chip-free; one data-class swap per step. */
+  .step-row { display: flex; align-items: center; gap: 0; margin-bottom: var(--space-6); }
+  .step { display: inline-flex; align-items: center; gap: 8px; padding: 6px 14px;
+    border-radius: 999px; border: 1px solid var(--border-subtle);
+    background: var(--surface-1); font-size: var(--text-sm); cursor: pointer;
+    transition: background var(--duration-fast) var(--ease-out),
+                border-color var(--duration-fast) var(--ease-out),
+                color var(--duration-fast) var(--ease-out); }
+  .step .n { display: inline-grid; place-items: center; width: 18px; height: 18px;
+    border-radius: 50%; font-size: 10.5px; font-weight: 600;
+    background: var(--muted); color: var(--muted-foreground); }
+  .step.active { border-color: var(--primary); background: var(--tone-primary-bg); }
+  .step.active .n { background: var(--primary); color: var(--primary-foreground); }
+  .step.done .n { background: var(--success); color: var(--primary-foreground); }
+  .step-join { flex: 1; height: 1px; background: var(--border-subtle); margin: 0 6px; }
+
+  h2.create-h { font-family: var(--heading-font); font-weight: var(--heading-weight); font-size: var(--text-xl); margin: 0 0 6px; letter-spacing: var(--heading-tracking); }
+  .create-sub { color: var(--muted-foreground); font-size: var(--text-sm); margin: 0 0 var(--space-5); line-height: var(--leading-normal); }
+
+  /* Template grid — 3 columns on wide, 2 on narrow. Each card is a
+     ship-card with click-to-select. Selected state uses primary ring. */
+  .tpl-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: var(--space-3); }
+  @media (max-width: 780px) { .tpl-grid { grid-template-columns: repeat(2, 1fr); } }
+  .tpl-card { cursor: pointer; padding: var(--space-3); display: flex; gap: var(--space-3);
+    transition: box-shadow var(--duration-fast) var(--ease-out),
+                border-color var(--duration-fast) var(--ease-out); }
+  .tpl-card[data-selected="true"] {
+    border-color: var(--primary) !important;
+    box-shadow: 0 0 0 3px var(--tone-primary-ring);
+  }
+  .tpl-nm { font-weight: var(--font-weight-semibold); font-size: var(--text-md); line-height: 1.25; }
+  .tpl-dc { font-size: var(--text-xs); color: var(--muted-foreground); margin-top: 2px; line-height: 1.4; }
+
+  /* Identity step */
+  .id-grid { display: grid; grid-template-columns: 180px 1fr; gap: var(--space-5); align-items: flex-start; }
+  @media (max-width: 700px) { .id-grid { grid-template-columns: 1fr; } }
+  .hue-pick { display: grid; grid-template-columns: repeat(3, 1fr); gap: 6px; margin-top: var(--space-3); }
+  .hue-tile { width: 100%; aspect-ratio: 1 / 1; border-radius: var(--radius-md);
+    cursor: pointer; border: 2px solid transparent;
+    transition: border-color var(--duration-fast) var(--ease-out); }
+  .hue-tile[data-selected="true"] { border-color: var(--foreground); }
+  .hue-orange { background: conic-gradient(from 220deg, oklch(0.78 0.18 40), oklch(0.62 0.20 30)); }
+  .hue-amber  { background: conic-gradient(from 220deg, oklch(0.82 0.17 70), oklch(0.70 0.18 55)); }
+  .hue-red    { background: conic-gradient(from 220deg, oklch(0.70 0.22 20), oklch(0.55 0.22 15)); }
+  .hue-violet { background: conic-gradient(from 220deg, oklch(0.68 0.22 300), oklch(0.55 0.25 305)); }
+  .hue-blue   { background: conic-gradient(from 220deg, oklch(0.72 0.16 245), oklch(0.58 0.18 255)); }
+  .hue-teal   { background: conic-gradient(from 220deg, oklch(0.75 0.12 195), oklch(0.60 0.14 190)); }
+  .hue-green  { background: conic-gradient(from 220deg, oklch(0.76 0.17 155), oklch(0.60 0.18 150)); }
+  .hue-pink   { background: conic-gradient(from 220deg, oklch(0.78 0.17 350), oklch(0.62 0.20 355)); }
+  .hue-slate  { background: conic-gradient(from 220deg, oklch(0.72 0.03 260), oklch(0.50 0.04 260)); }
+
+  .field { display: flex; flex-direction: column; gap: 6px; margin-bottom: var(--space-3); }
+  .field label { font-size: var(--text-xs); color: var(--muted-foreground); font-weight: var(--font-weight-medium); }
+  .field-row-dual { display: grid; grid-template-columns: 1fr 1fr; gap: var(--space-3); }
+  .slug-hint { font-family: var(--font-mono); font-size: var(--text-xs); color: var(--muted-foreground); margin-top: 4px; }
+  .slug-hint code { background: var(--muted); padding: 1px 6px; border-radius: 4px; }
+
+  /* Wiring step — provider toggles + permission preset */
+  .prov-grid { display: grid; grid-template-columns: repeat(5, 1fr); gap: 8px; }
+  @media (max-width: 700px) { .prov-grid { grid-template-columns: repeat(2, 1fr); } }
+  .preset-list { display: flex; flex-direction: column; gap: 8px; margin-top: var(--space-2); }
+  .preset-card { cursor: pointer; padding: var(--space-3); }
+  .preset-card[data-selected="true"] {
+    border-color: var(--primary) !important;
+    box-shadow: 0 0 0 3px var(--tone-primary-ring);
+  }
+
+  /* Review step — JSONC preview */
+  .review-card { padding: var(--space-4); }
+  .review-card pre { margin: 0; font-family: var(--font-mono); font-size: var(--text-xs); line-height: 1.55; background: var(--surface-2); border-radius: var(--radius-md); padding: var(--space-3); overflow-x: auto; }
+
+  /* Footer actions */
+  .actions-row { display: flex; align-items: center; gap: var(--space-2); margin-top: var(--space-6); }
+  .actions-row .spacer { flex: 1; }
+</style>
+
+{# Stepper — clicking a step jumps only if it's already been visited (<= current). #}
+<div class="step-row">
+  {%- for s in [
+    { 'k': 'template', 'l': 'Template' },
+    { 'k': 'identity', 'l': 'Identity' },
+    { 'k': 'wiring',   'l': 'Wiring' },
+    { 'k': 'review',   'l': 'Review' },
+  ] %}
+    {%- if loop.index0 > 0 %}<span class="step-join"></span>{% endif %}
+    <button type="button" class="step"
+      data-attr:data-active="$step == {{ loop.index0 }}"
+      data-class:active="$step == {{ loop.index0 }}"
+      data-class:done="$step > {{ loop.index0 }}"
+      data-on:click="if ({{ loop.index0 }} <= $step) $step = {{ loop.index0 }}">
+      <span class="n" data-text="$step > {{ loop.index0 }} ? '✓' : '{{ loop.index }}'"></span>
+      <span>{{ s.l }}</span>
+    </button>
+  {%- endfor %}
+</div>
+
+{# ── Step 0: Template ───────────────────────────────────────────── #}
+<div {{ show('$step == 0') }}>
+  <h2 class="create-h">Start from a template</h2>
+  <p class="create-sub">Templates pre-wire skills, MCP servers, and a sensible permission preset. You can change everything in the next steps.</p>
+  <div class="tpl-grid">
+    {%- for t in templates %}
+    <ship-card padding="none" class="tpl-card"
+      data-attr:data-selected="$template == '{{ t.id }}'"
+      data-on:click="$template = '{{ t.id }}'">
+      <div class="hue-tile hue-{{ t.hue }}" style="width: 44px; height: 44px; border: none; cursor: default; display: grid; place-items: center; color: white; font-weight: 700; flex-shrink: 0">{{ t.letter }}</div>
+      <div style="flex: 1; min-width: 0">
+        <div class="tpl-nm">{{ t.label }}</div>
+        <div class="tpl-dc">{{ t.desc }}</div>
+      </div>
+    </ship-card>
+    {%- endfor %}
+  </div>
+</div>
+
+{# ── Step 1: Identity ──────────────────────────────────────────── #}
+<div {{ show('$step == 1') }}>
+  <h2 class="create-h">Identity</h2>
+  <p class="create-sub">A human name plus a machine id. The id must match the filename stem — <code>rust-compiler.jsonc</code> has id <code>rust-compiler</code>.</p>
+  <div class="id-grid">
+    <div>
+      <ship-avatar size="xl" shape="square" tone="primary"
+        data-attr:initials="$id && $id[0] ? $id[0].toUpperCase() : ($name && $name[0] ? $name[0].toUpperCase() : '?')"></ship-avatar>
+      <div class="hue-pick">
+        {%- for h in ['orange','amber','red','violet','blue','teal','green','pink','slate'] %}
+        <div class="hue-tile hue-{{ h }}"
+          data-attr:data-selected="$hue == '{{ h }}'"
+          data-on:click="$hue = '{{ h }}'"
+          role="button" tabindex="0"
+          aria-label="{{ h }} avatar color"></div>
+        {%- endfor %}
+      </div>
+    </div>
+    <div>
+      <div class="field-row-dual">
+        <div class="field">
+          <label>Name</label>
+          <ship-input {{ bind('name') }} placeholder="e.g. Rust Compiler"
+            data-on:input="if (!$id && $name) $id = $name.toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/(^-|-$)/g, '')"></ship-input>
+        </div>
+        <div class="field">
+          <label>ID</label>
+          <ship-input {{ bind('id') }} placeholder="rust-compiler"></ship-input>
+        </div>
+      </div>
+      <div class="slug-hint">saves to <code data-text="'.ship/agents/' + ($id || '&lt;id&gt;') + '.jsonc'"></code></div>
+      <div class="field">
+        <label>Description</label>
+        <ship-textarea {{ bind('desc') }} rows="3" placeholder="What does this agent do?"></ship-textarea>
+      </div>
+    </div>
+  </div>
+</div>
+
+{# ── Step 2: Wiring ────────────────────────────────────────────── #}
+<div {{ show('$step == 2') }}>
+  <h2 class="create-h">Wiring</h2>
+  <p class="create-sub">Which AI providers this agent compiles to, and what permission preset applies. You can fine-tune skills and MCP after creation.</p>
+
+  <div class="field">
+    <label>Providers — compiled to all selected targets</label>
+    <div class="prov-grid">
+      {%- for p in providers %}
+      <ship-card padding="sm" class="tpl-card"
+        data-attr:data-selected="$providers.includes('{{ p }}')"
+        data-on:click="$providers = $providers.includes('{{ p }}') ? $providers.filter(x => x !== '{{ p }}') : [...$providers, '{{ p }}']"
+        style="justify-content: center; text-align: center; flex-direction: column; gap: 4px">
+        <span class="prov-blob prov-{{ p }}" style="width: 18px; height: 18px; margin: 0 auto"></span>
+        <span style="font-size: var(--text-xs); text-transform: capitalize">{{ p }}</span>
+      </ship-card>
+      {%- endfor %}
+    </div>
+  </div>
+
+  <div class="field" style="margin-top: var(--space-5)">
+    <label>Permission preset</label>
+    <div class="preset-list">
+      {%- for p in presets %}
+      <ship-card padding="sm" class="preset-card"
+        data-attr:data-selected="$preset == '{{ p.id }}'"
+        data-on:click="$preset = '{{ p.id }}'">
+        <div style="display: flex; align-items: center; gap: var(--space-3)">
+          <div style="flex: 1">
+            <div style="font-weight: var(--font-weight-semibold); font-size: var(--text-md)">{{ p.nm }}</div>
+            <div style="font-size: var(--text-xs); color: var(--muted-foreground); margin-top: 2px">{{ p.dc }}</div>
+          </div>
+          <ship-icon name="check-circle" size="sm" data-show="$preset == '{{ p.id }}'" style="color: var(--primary); display: none"></ship-icon>
+        </div>
+      </ship-card>
+      {%- endfor %}
+    </div>
+  </div>
+</div>
+
+{# ── Step 3: Review ────────────────────────────────────────────── #}
+<div {{ show('$step == 3') }}>
+  <h2 class="create-h">Review</h2>
+  <p class="create-sub">Final configuration. Creates <code data-text="'.ship/agents/' + ($id || 'new') + '.jsonc'"></code> on submit.</p>
+  <ship-card class="review-card">
+    <pre data-text="JSON.stringify({ id: $id, name: $name, description: $desc, template: $template, hue: $hue, providers: $providers, permissions: { preset: $preset } }, null, 2)"></pre>
+  </ship-card>
+</div>
+
+{# Provider-blob palette — same CSS as agents/index.html.j2. Kept view-local
+   until <ship-provider-blob> primitive lands (tracked in ship-sdk roadmap). #}
+<style>
+  .prov-blob { display: inline-block; width: 10px; height: 10px; border-radius: 50%;
+    box-shadow: inset 0 0 0 1px color-mix(in oklch, var(--foreground) 14%, transparent); }
+  .prov-claude   { background: color-mix(in oklch, var(--primary) 90%, black); }
+  .prov-codex    { background: color-mix(in oklch, var(--success) 85%, black); }
+  .prov-cursor   { background: color-mix(in oklch, var(--info) 85%, black); }
+  .prov-gemini   { background: color-mix(in oklch, var(--accent) 85%, black); }
+  .prov-opencode { background: color-mix(in oklch, var(--warning) 85%, black); }
+</style>
+
+{# Footer actions — back / next / create #}
+<div class="actions-row">
+  <ship-button variant="ghost" size="sm"
+    data-show="$step > 0"
+    data-on:click="$step = $step - 1">
+    <ship-icon slot="leading" name="arrow-left" size="xs"></ship-icon>
+    Back
+  </ship-button>
+  <span class="spacer"></span>
+  <ship-button variant="ghost" size="sm" {{ navigate('/agents') }}>Cancel</ship-button>
+  <ship-button tone="accent" variant="solid" size="sm"
+    data-show="$step < 3"
+    data-on:click="$step = $step + 1">
+    Continue
+    <ship-icon slot="trailing" name="arrow-right" size="xs"></ship-icon>
+  </ship-button>
+  <ship-button tone="accent" variant="solid" size="sm"
+    data-show="$step == 3"
+    data-attr:disabled="$_creating || !$id"
+    data-on:click="$_creating = true; @post('/api/runtime/view/agents/create', { payload: { id: $id, name: $name, description: $desc, providers: $providers, permissions: { preset: $preset } } })">
+    <ship-icon slot="leading" name="check" size="xs"></ship-icon>
+    Create agent
+  </ship-button>
+</div>
+
+</div>
+{% if not fragment %}</body></html>{% endif %}

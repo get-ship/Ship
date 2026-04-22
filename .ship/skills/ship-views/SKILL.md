@@ -34,6 +34,39 @@ Create `.ship/views/hello/index.html.j2`:
 
 Load `http://localhost:3000/hello`. Type. The heading updates as you type. No JS. No build.
 
+## Shell chrome — views contribute, they don't reimplement
+
+The shell (`apps/shell/`) owns the top bar (brand + breadcrumb + ⌘K + rail toggle + theme + chat) and the status bar. **Your view must not render its own breadcrumb, branch pill, search box, or status bar.** Those ship with the shell. Views contribute metadata and optional actions via a single element:
+
+```jinja
+<ship-view-chrome
+  title="Git"
+  branch="{{ branch }}"
+  ahead="{{ ahead }}"
+  behind="{{ behind }}"
+  tone="{% if clean %}success{% else %}warning{% endif %}">
+  <ship-button slot="actions" variant="ghost" size="icon" aria-label="Refresh"
+    data-on:click="@get('{{ view_url('git') }}')">
+    <ship-icon name="refresh-cw" size="sm"></ship-icon>
+  </ship-button>
+  <ship-chip slot="status-end" size="sm" variant="soft">{{ total_changed }} changed</ship-chip>
+</ship-view-chrome>
+```
+
+**Attributes** (shell-owned fields):
+- `title` — overrides the breadcrumb leaf (defaults to route name).
+- `branch`, `ahead`, `behind` — rendered in the status bar (`main ↑2 ↓1`).
+- `tone` / `busy` — tints and pulses the status dot.
+
+**Slots** (free-form contribution regions):
+- `actions` → right side of the topbar (after branch/title-relevant chrome).
+- `status-start` → left side of the status bar (after branch).
+- `status-end` → right side of the status bar (before theme indicator).
+
+**Mechanism.** Same-DOM: the element moves slotted children into shell-owned containers (`#view-topbar-actions`, `#view-status-start`, `#view-status-end`) and writes attribute values into `#breadcrumbs-title`, `#status-branch`, `#status-ab`. Datastar bindings on slotted elements survive the move. On route change the view fragment unmounts and the element's `disconnectedCallback` auto-clears the contributed chrome.
+
+**Absence is safe.** If `ship-view-chrome` is missing, the shell breadcrumb falls back to the route name; the status bar's view regions stay empty. Omit it for mini/embedded views; include it for full-page views.
+
 ## Hard rule — views are composition only
 
 **A view template contains no inline `<script>` and no inline `<style>`.**
@@ -52,6 +85,11 @@ If you reach for something the rule forbids, the fix is upstream:
 |---|---|
 | Inline `<script>` for interactivity | A `<ship-*>` element, a `data-effect="..."` reactive expression (see Reactivity below), or a custom Datastar plugin in the `datastar-views` skill. |
 | Inline `<style>` for layout or theming | Shadow DOM inside a ship-element, or CSS custom properties the element already exposes. |
+| Raw CSS layout in a first-party view | A pack component that owns its layout |
+| A custom topbar / breadcrumb / status bar inside the view | `<ship-view-chrome>` (see Shell chrome above). The shell owns that chrome. |
+| Raw `data-on:click="@get('/api/...')"` | A URL macro from `_urls.html.j2` |
+| Inline `data-signals:x="'val'"` | `{{ signal('x', 'val') }}` macro |
+| `data-attr:data-active="$tab == 'x'"` | `{{ attr('data-active', "$tab == 'x'") }}` macro or `data-class:active="..."` |
 | Copy-pasting the same markup block five times in one template | A Jinja partial in `.ship/views/<view>/_components/`. |
 | A new `<ship-X-row>` element that only exists to hold view-specific text | Compose `<ship-list-tile>` with slots. See the distribution test in the `ship-components` skill. |
 
@@ -142,6 +180,12 @@ Every UI element is a `<ship-*>` web component. They style themselves. They hand
 </ship-select>
 ```
 
+Before writing any `<ship-*>` element, query the CEM (Custom Elements Manifest):
+```
+GET /api/runtime/assets/custom-elements.json
+```
+This is the authoritative catalog. Every element in the library is listed with its properties, attributes, events, slots, and CSS parts. Use it to discover what exists before reaching for raw HTML. The CEM is machine-readable — an agent should fetch it at the start of any view authoring session.
+
 ### Common components (reach for these first)
 
 | Need | Use |
@@ -216,6 +260,22 @@ Available packs:
 |---|---|---|
 | `editor` | `ship-code-editor.js` + `ship-markdown-editor.js` | `<ship-code-editor>`, `<ship-markdown-editor>` |
 | `terminal` | `ship-terminal.js` | `<ship-terminal>` |
+
+## Component packs
+
+The `@ship/set` library is organized in layers:
+- **Core** (`ship-button`, `ship-icon`, `ship-input`, etc.) — primitives, always loaded
+- **Domain** (`ship-git-diff`, `ship-history-row`, `ship-pipeline-dag`, etc.) — domain components, loaded on demand via `packs:`
+- **Packs** — cohesive bundles of domain components for a specific context (git, data, pipelines)
+
+Domain packs live in `packages/ship-set/src/packs/<name>/` and are bundled as separate JS files. Declare them in the view manifest under `packs:`. Each pack ships its own CEM fragment so the catalog stays complete.
+
+Current packs:
+| Pack | Manifest key | Components |
+|---|---|---|
+| Git | `git` | `<ship-git-view>`, `<ship-file-row>`, `<ship-branch-row>`, `<ship-diff-pane>` |
+
+When a view needs domain-specific UI that doesn't exist yet, the right move is to create or extend a pack component — not inline raw CSS/HTML in the template. File an `{#- SDK gap: pack/<name>: ... -#}` comment and escalate.
 
 Only declare packs the view actually uses. The `ship lint views` linter enforces this in both directions: `missing-pack-declaration` (error) fires when a template uses a heavy-island tag without the matching pack, and `stale-pack-declaration` (warn) fires when a declared pack has no corresponding tag in the view. Unknown pack names are ignored by the daemon but not enforced by the linter (reserved for future additions like `viz`).
 
@@ -434,6 +494,7 @@ Everything uses CSS custom properties from `view-tokens.css`:
 - String signal values are wrapped in single quotes: `$collection` evaluates to `'task'`, not `task`.
 - Multiple statements: separate with semicolons. `data-on:click="$tab = 'new'; @get('/sse')"`
 - Loading indicators pair with a signal that can be ANY name, conventionally `_creating`, `_loading`, `_sending`.
+- Forward slashes in Jinja string values are HTML-escaped to `&#x2F;` when rendered inside HTML attributes. Branch names like `feat/x` in a `data-show="$branch == '{{ b.name | e }}'"` will never match because the rendered attribute contains `&#x2F;` but the signal holds the literal `/`. **Workaround:** avoid slashes in signal comparison keys — use the index in the branches array instead, or a slugified key. This is a known framework gap.
 
 ### CQRS patterns
 
@@ -520,6 +581,18 @@ Ship's view authoring is a co-evolving system. If you hit a pattern the SDK does
 
 1. **Don't work around it in templates** — that's how the SDK rots.
 2. **File the gap.** Add a `{#- SDK gap: ... -#}` comment in the template.
+
+Gap comment formats:
+```jinja
+{#- SDK gap: component — ship-X doesn't support Y prop yet -#}
+{#- SDK gap: macro — need a macro for Z pattern -#}
+{#- SDK gap: pack/git — need ship-git-view component -#}
+{#- SDK gap: filter — need tojson filter for array attributes -#}
+{#- SDK gap: datastar — signal comparison with slash in value breaks -#}
+```
+
+The linter will surface these as warnings in `ship lint views` output so they're tracked.
+
 3. **Escalate:** either (a) improve the macro in `_ship.html.j2`, (b) fix the ship-element component, or (c) add a Jinja filter in `view_filters.rs`.
 4. **Dogfood first, document after.** Views must prove patterns before they become recommendations.
 

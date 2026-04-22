@@ -7,8 +7,6 @@
 // Drives off THEMES in @ship/set/themes. No theme ids, labels, or
 // swatches live in the site.
 import { THEMES } from '@ship/set/themes';
-
-const groups = Array.from(new Set(THEMES.map((t) => t.group)));
 ---
 
 <ship-popover placement="bottom" class="theme-popover" data-theme-picker>
@@ -28,37 +26,32 @@ const groups = Array.from(new Set(THEMES.map((t) => t.group)));
   </ship-button>
 
   <div class="theme-grid" role="listbox" aria-label="Theme">
-    {groups.map((g) => (
-      <section class="theme-group" aria-label={g}>
-        <header class="theme-group-head">{g}</header>
-        <div class="theme-group-cards">
-          {THEMES.filter((t) => t.group === g).map((t) => (
-            <button
-              type="button"
-              class="theme-card"
-              role="option"
-              data-theme-card={t.id}
-              data-dark={t.dark ? 'true' : 'false'}
-              aria-label={t.label}
-              style={`
-                --swatch-bg: ${t.swatches[0]};
-                --swatch-card: ${t.swatches[1]};
-                --swatch-primary: ${t.swatches[2]};
-                --swatch-accent: ${t.swatches[3]};
-              `}
-            >
-              <div class="theme-card-swatches">
-                <span style={`background:${t.swatches[0]}`}></span>
-                <span style={`background:${t.swatches[1]}`}></span>
-                <span style={`background:${t.swatches[2]}`}></span>
-                <span style={`background:${t.swatches[3]}`}></span>
-              </div>
-              <div class="theme-card-name">{t.label}</div>
-            </button>
-          ))}
-        </div>
-      </section>
-    ))}
+    <div class="theme-group-cards">
+      {THEMES.map((t) => (
+        <button
+          type="button"
+          class="theme-card"
+          role="option"
+          data-theme-card={t.id}
+          data-dark={t.dark ? 'true' : 'false'}
+          aria-label={t.label}
+          style={`
+            --swatch-bg: ${t.swatches[0]};
+            --swatch-card: ${t.swatches[1]};
+            --swatch-primary: ${t.swatches[2]};
+            --swatch-accent: ${t.swatches[3]};
+          `}
+        >
+          <div class="theme-card-swatches">
+            <span style={`background:${t.swatches[0]}`}></span>
+            <span style={`background:${t.swatches[1]}`}></span>
+            <span style={`background:${t.swatches[2]}`}></span>
+            <span style={`background:${t.swatches[3]}`}></span>
+          </div>
+          <div class="theme-card-name">{t.label}</div>
+        </button>
+      ))}
+    </div>
   </div>
 </ship-popover>
 

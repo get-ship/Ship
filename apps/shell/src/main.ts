@@ -1,8 +1,11 @@
 import Navigo from "navigo";
 import { mountDaemonFragment, isSameOrigin } from "./mount";
 import { initSignalInspector } from "./signal-inspector";
-import { initThemeLoader, setTheme, getThemeName } from "./theme-loader";
 import { toggle as toggleCmdk, isCommandPaletteOpen } from "./command-palette";
+import { installErrorReporter } from "./error-reporter";
+
+// Install as early as possible so any boot-time throw gets captured.
+installErrorReporter();
 
 // ── Daemon URL rewriting ─────────────────────────────────────────────
 const DAEMON_ORIGINS = new Set([
@@ -65,11 +68,86 @@ const statusAgents = document.getElementById("status-agents") as HTMLElement;
 const statusTheme = document.getElementById("status-theme") as HTMLElement;
 const statusDot = document.getElementById("status-dot") as HTMLElement;
 
-// ── Theme toggle ─────────────────────────────────────────────────────
-document.getElementById("toggle-theme")!.addEventListener("click", () => {
-  const isDark = document.documentElement.classList.toggle("dark");
-  localStorage.setItem("ship-shell-theme", isDark ? "dark" : "light");
-});
+// ── Theme picker ─────────────────────────────────────────────────────
+import {
+  THEMES,
+  applyTheme,
+  persistTheme,
+  readStoredTheme,
+  isValidTheme,
+} from "@ship/set/themes";
+
+function mountThemePicker() {
+  const root = document.getElementById("theme-picker");
+  if (!root) return;
+  const grid = root.querySelector<HTMLElement>(".theme-grid");
+  if (!grid) return;
+
+  // Flat grid — every Ship theme is a full aesthetic bundle, so there
+  // are no tiers. Pick one.
+  const card = (t: (typeof THEMES)[number]) => `
+    <button type="button" class="theme-card" role="option"
+      data-theme-card="${t.id}" data-dark="${t.dark}"
+      aria-label="${t.label}"
+      style="
+        --swatch-bg: ${t.swatches[0]};
+        --swatch-card: ${t.swatches[1]};
+        --swatch-primary: ${t.swatches[2]};
+        --swatch-accent: ${t.swatches[3]};
+      ">
+      <div class="theme-card-swatches">
+        <span style="background:${t.swatches[0]}"></span>
+        <span style="background:${t.swatches[1]}"></span>
+        <span style="background:${t.swatches[2]}"></span>
+        <span style="background:${t.swatches[3]}"></span>
+      </div>
+      <div class="theme-card-name">${t.label}</div>
+    </button>`;
+  grid.innerHTML = `
+    <section class="theme-group" aria-label="Themes">
+      <div class="theme-group-cards">${THEMES.map(card).join("")}</div>
+    </section>`;
+
+  const setActive = (id: string) => {
+    grid.querySelectorAll<HTMLElement>("[data-theme-card]").forEach((c) => {
+      c.setAttribute(
+        "aria-selected",
+        c.dataset.themeCard === id ? "true" : "false",
+      );
+    });
+  };
+
+  const initial = readStoredTheme();
+  applyTheme(initial);
+  setActive(initial);
+
+  grid.addEventListener("click", (e) => {
+    const card = (e.target as HTMLElement).closest<HTMLElement>(
+      "[data-theme-card]",
+    );
+    if (!card) return;
+    const id = card.dataset.themeCard;
+    if (!isValidTheme(id)) return;
+    const next = applyTheme(id);
+    persistTheme(next);
+    setActive(next);
+    document.dispatchEvent(
+      new CustomEvent("ship-theme-change", { detail: { id: next } }),
+    );
+    (root as any).hide?.();
+  });
+
+  document.addEventListener("ship-theme-change", (e) => {
+    const id = (e as CustomEvent<{ id: string }>).detail?.id;
+    if (isValidTheme(id)) {
+      setActive(id);
+      const status = document.getElementById("status-theme");
+      if (status) status.textContent = id;
+    }
+  });
+}
+
+mountThemePicker();
 
 // ── Rail toggle ──────────────────────────────────────────────────────
 document.getElementById("toggle-rail")!.addEventListener("click", () => {
@@ -235,7 +313,7 @@ function updateBreadcrumbs(path: string) {
     const href = "/" + parts.slice(0, i + 1).join("/");
     const label = displayName(part);
     if (isLast) {
-      return `<span class="current">${label}</span>`;
+      return `<span class="current" id="breadcrumbs-title">${label}</span>`;
     }
     return `<a onclick="event.preventDefault();window.router.navigate('${href}')">${label}</a><span class="chevron">›</span>`;
   });
@@ -283,6 +361,28 @@ router.on("/data/:collection", ({ data }) => {
   updateNav("/data");
   updateBreadcrumbs(`/data/${data!.collection}`);
   void mount(`/api/runtime/view/data?collection=${encodeURIComponent(data!.collection)}`);
+});
+
+// Static sub-routes under /agents must be registered BEFORE the
+// generic `/agents/:id` so Navigo doesn't match "create" as an id.
+router.on("/agents/create", () => {
+  updateNav("/agents");
+  updateBreadcrumbs("/agents/create");
+  void mount("/api/runtime/view/agents/create");
+});
+
+// Detail sub-mode: wire/canvas view (also served as the default detail).
+router.on("/agents/:id/wire", ({ data }) => {
+  updateNav("/agents");
+  updateBreadcrumbs(`/agents/${data!.id}/wire`);
+  void mount(`/api/runtime/view/agents/${data!.id}/wire`);
+});
+
+// Detail sub-mode: classic panels layout (skills / MCP / permissions / rules).
+router.on("/agents/:id/settings", ({ data }) => {
+  updateNav("/agents");
+  updateBreadcrumbs(`/agents/${data!.id}/settings`);
+  void mount(`/api/runtime/view/agents/detail/${data!.id}/settings`);
 });
 
 router.on("/agents/:id", ({ data }) => {
@@ -409,7 +509,7 @@ document.addEventListener("keydown", (e) => {
 let daemonConnected = false;
 
 async function updateStatus() {
-  statusTheme.textContent = getThemeName();
+  statusTheme.textContent = document.documentElement.dataset.theme ?? "ship-light";
   try {
     const res = await fetch("/api/runtime/workspaces", {
       credentials: SAME_ORIGIN ? "include" : "omit",
@@ -444,11 +544,14 @@ setInterval(updateStatus, 15000);
 
 // ── Expose globals ───────────────────────────────────────────────────
 (window as any).router = router;
-(window as any).setShipTheme = setTheme;
+(window as any).setShipTheme = (id: string) => {
+  const applied = applyTheme(id);
+  persistTheme(applied);
+  document.dispatchEvent(new CustomEvent("ship-theme-change", { detail: { id: applied } }));
+};
 
 // ── Boot ─────────────────────────────────────────────────────────────
 router.resolve();
-initThemeLoader();
 initSignalInspector();
 updateStatus();
 

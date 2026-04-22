@@ -242,6 +242,102 @@ needed (e.g., `ship-button::part(button) { ... }`).
 - `aria-*` attrs on the wrapped native element, reflected from host
   attrs where it makes sense (`aria-label`, `aria-describedby`).
 
+### Design tokens — read the highest layer that fits
+
+Ship has a four-layer token system. Components should **never** read hardcoded
+`oklch(0 0 0 / 40%)` / `rgba(0,0,0,0.08)` / bespoke `color-mix` formulas.
+Read from the highest layer that captures intent. Themes override these
+layers; your component rides along without change.
+
+**Layer 1 — semantic surfaces and intents.** Reach for these first.
+
+| What you want | Token |
+|---|---|
+| Page background | `var(--surface-0)` |
+| Card surface | `var(--surface-1)` |
+| Raised surface (nested panel, sticky header) | `var(--surface-2)` |
+| Popover / overlay surface | `var(--surface-3)` |
+| Dialog / drawer backdrop | `var(--backdrop)` |
+| Light dim behind a drawer | `var(--scrim)` |
+| Hover tint on an interactive row | `var(--hover-bg)` |
+| Active / pressed tint | `var(--active-bg)` |
+| Selected-row tint | `var(--selected-bg)` |
+| Selected-row border | `var(--selected-border)` |
+| Thin divider | `var(--divider)` or `var(--border-subtle)` |
+| Hard boundary in high-contrast themes | `var(--border-strong)` |
+
+**Layer 2 — tone ramps.** Any component tinted by intent (success, warning,
+destructive, info, accent, muted) reads its ramp:
+
+```css
+/* Chip with success tone — all four values come from tokens. */
+.chip-success {
+  color: var(--tone-success-fg);
+  background: var(--tone-success-bg);        /* soft tint, ~14% */
+  border: 1px solid var(--tone-success-border);
+}
+.chip-success:focus-visible {
+  box-shadow: 0 0 0 3px var(--tone-success-ring);
+}
+```
+
+Do **not** write `color-mix(in oklch, var(--success) 14%, transparent)` in
+component CSS. That formula is in tokens.css once — change one line, every
+chip/badge/alert/status-dot inherits it across every theme.
+
+Tones: `default`, `muted`, `info`, `success`, `warning`, `destructive`,
+`accent`, `primary`. Each exposes `-fg`, `-bg` (soft), `-bg-solid`,
+`-border`, `-ring`.
+
+Components that accept a `tone` attribute should import `toneVars` from
+`./util` and then read `var(--tone-fg)` / `--tone-bg` / `--tone-border` /
+`--tone-ring`. The helper routes the host's `[tone='…']` attribute to the
+matching ramp automatically.
+
+**Layer 3 — typography roles, motion, density.** These are theme-aware
+roles, not font/curve/size primitives.
+
+| Intent | Token |
+|---|---|
+| Heading / panel head / card header / dialog title | `font-family: var(--heading-font); font-weight: var(--heading-weight); letter-spacing: var(--heading-tracking);` |
+| Body text | `var(--body-font)` |
+| Monospace | `var(--mono-font)` |
+| Eyebrow label / group head | `var(--label-font); font-weight: var(--label-weight); letter-spacing: var(--label-tracking);` |
+| Soft motion for surface changes | `var(--ease-out-soft)` |
+| Tactile spring for buttons | `var(--ease-spring)` |
+| Expressive default | `var(--ease-out)` |
+| Row padding — density-aware | `padding: var(--density-row-py) var(--density-row-px)` |
+| Icon size — density-aware | `width: var(--density-icon); height: var(--density-icon);` |
+
+A theme can set `--heading-font: var(--font-body)` to demote display
+typography (the `paper` theme already does this). Never hardcode
+`"Syne"` or `"Inter"` — use the role.
+
+**Layer 4 — primitives.** Spacing scale, radii, shadow ramp, typography
+scale, duration primitives. Reach for these only when the higher layers
+don't fit. `var(--space-3)` is fine; `12px` is a smell.
+
+**Shadows.** Read from the semantic shadow tokens:
+
+| Intent | Token |
+|---|---|
+| Resting card | `var(--shadow-xs)` |
+| Raised surface at rest | `var(--shadow-sm)` |
+| Interactive card hover | `var(--shadow-hover)` |
+| Dropdown / popover | `var(--shadow-md)` |
+| Dialog | `var(--shadow-lg)` |
+| Toast / topmost overlay | `var(--shadow-xl)` |
+| Sticky header bottom cue | `var(--shadow-sticky)` |
+| Primary-tinted focus glow | `var(--shadow-accent)` |
+
+Dark-mode and theme-specific depth intensities are already tokenised —
+you get the right recipe automatically.
+
+**Density.** A view can set `<html data-density="compact">` or
+`"spacious"` and every component that reads `--density-*` adapts. When
+authoring a new list-like component, pull padding and icon size from
+the density channel, not the base `--space-*` scale.
+
 ### Shadow DOM conventions
 
 - Lit `static styles = css\`...\`` for every component.

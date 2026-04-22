@@ -2,5 +2,6 @@
   "name": "git",
   "type": "html",
   "description": "Git status, log, and diff viewer",
-  "claims": []
+  "claims": [],
+  "packs": ["git"]
 }

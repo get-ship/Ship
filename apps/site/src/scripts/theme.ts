@@ -1,6 +1,6 @@
 // Runs before paint to prevent theme flash.
 const KEY = 'ship-site-theme';
-const valid = ['default', 'high-contrast', 'warm'] as const;
+const valid = ['default', 'ship-light', 'ship-dark', 'paper', 'halo', 'console', 'contrast'] as const;
 type Theme = (typeof valid)[number];
 
 function read(): Theme {
