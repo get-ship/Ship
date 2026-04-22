@@ -34,21 +34,20 @@ Ship supports multiple agents working in parallel through git worktrees. The pat
 1. A **commander** agent operates on the main branch. It reads project state (targets, capabilities, jobs) and decides what work to dispatch.
 2. The commander creates workspaces for specialist agents using `create_workspace`, which sets up a git worktree branched from a base (usually `main`).
 3. Each specialist gets its own worktree directory, branch, workspace, and session. It works in filesystem isolation -- its file scope is limited to its worktree.
-4. The commander monitors progress via `list_sessions` and `list_workspaces`. Specialists log their work via `log_progress`.
-5. When a specialist finishes, it calls `end_session` with a summary and `complete_workspace` to archive the workspace.
+4. The commander monitors progress via `ship://workspaces` and `ship://sessions` resources. Specialists log their work via `log_progress`.
+5. When a specialist finishes, it calls `complete_workspace` to archive the workspace.
 
 This model keeps agents from stepping on each other's files while maintaining a shared project database for coordination.
 
 ## The typical agent workflow
 
 ```
-activate_workspace  →  start_session  →  log_progress (repeated)  →  end_session
+(session auto-started by daemon)  →  log_progress (repeated)  →  complete_workspace
 ```
 
-1. **Activate** -- `activate_workspace` ensures the workspace record exists, compiles the agent's config into provider-specific output, and marks the workspace active.
-2. **Start** -- `start_session` creates a session, resolves providers, and compiles context. If a session already exists on this workspace, it attaches to it instead.
-3. **Work** -- The agent performs its task. It calls `log_progress` periodically to record what it did, decided, or got blocked on.
-4. **End** -- `end_session` closes the session, computes duration, creates an immutable session record, persists artifacts, and runs any configured post-session hooks.
+1. **Session auto-start** -- The daemon auto-creates a workspace and session when an agent begins work in a worktree. The agent does not call `start_session` directly; the daemon handles this on dispatch.
+2. **Work** -- The agent performs its task. It calls `log_progress` periodically via the Ship MCP tool to record what it did, decided, or got blocked on.
+3. **Complete** -- When done, the agent calls `complete_workspace` (available on ShipServer) to archive the workspace and write a handoff note.
 
 ## State storage
 

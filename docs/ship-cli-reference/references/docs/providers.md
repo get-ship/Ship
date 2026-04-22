@@ -53,9 +53,9 @@ The default provider. Outputs:
 |------|---------|
 | `GEMINI.md` | Agent context -- rules, inline instructions, skill content |
 | `.gemini/settings.json` | MCP server configuration and workspace policy |
-| `.gemini/skills/<name>/SKILL.md` | Individual skill files |
+| `.agents/skills/<name>/SKILL.md` | Individual skill files |
 
-`GEMINI.md` serves the same role as `CLAUDE.md` but formatted for Gemini's context window. The `.gemini/` directory contains both the settings file and a workspace policy.
+`GEMINI.md` serves the same role as `CLAUDE.md` but formatted for Gemini's context window. The `.gemini/` directory contains the settings file. Skills are shared with Codex in `.agents/skills/`.
 
 ## Codex (`codex`)
 
@@ -129,7 +129,7 @@ All of these paths are relative to the project root and are gitignored:
 | `.cursor/environment.json` | cursor | MCP environment vars |
 | `.cursor/rules/*.mdc` | cursor | Rule files |
 | `.claude/skills/` | claude | Native skill directory |
-| `.gemini/skills/` | gemini | Native skill directory |
+| `.agents/skills/` | gemini | Native skill directory |
 | `.agents/skills/` | codex | Native skill directory |
 | `.cursor/skills/` | cursor | Native skill directory |
 

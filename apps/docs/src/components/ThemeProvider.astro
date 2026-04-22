@@ -1,0 +1,7 @@
+---
+// Ship owns theme state. Starlight's default ThemeProvider writes
+// data-theme='light'|'dark' on every navigation, which fights our
+// Ship theme IDs (ship-light, ship-dark, nord, etc.) and causes a
+// flash. This replacement emits nothing — the real theme init runs
+// from the inline head script in astro.config.mjs.
+---

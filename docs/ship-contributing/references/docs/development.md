@@ -43,7 +43,7 @@ Named volumes persist across container rebuilds: cargo registry, cargo git, buil
 | 3002 | Vite HMR websocket |
 | 4321 | Astro docs site |
 | 6006 | Storybook |
-| 51741 | Ship MCP server (HTTP mode) |
+| 51741 | Ship Studio MCP server |
 
 ## Justfile Reference
 

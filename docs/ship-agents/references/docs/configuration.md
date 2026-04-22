@@ -15,7 +15,7 @@ Agent identity and metadata. Both `id` and `name` are required.
 | Field | Type | Required | Description |
 |-------|------|----------|-------------|
 | `id` | string | yes | Machine identifier. Must match the filename stem. Pattern: `^[a-z0-9-]+$` |
-| `name` | string | yes | Human-readable name. Shown in `ship agents list` and Studio UI. |
+| `name` | string | yes | Human-readable name. Shown in Studio UI. |
 | `version` | string | no | Semver version. Default: `"0.1.0"` |
 | `description` | string | no | What this agent does. Shown in listings and editor UI. |
 | `tags` | string[] | no | Searchable tags for registry discovery (e.g., `["frontend", "review"]`) |
