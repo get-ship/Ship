@@ -29,12 +29,18 @@
   gap: var(--space-3);
 }
 
-/* Pipeline definition tiles — grid of interactive cards. */
+/* Pipeline definition tiles — grid of interactive cards. `align-items:
+   stretch` (the default) makes all cards in a row match the tallest
+   sibling. We deliberately don't set `grid-auto-rows: 1fr` — that would
+   force equal row heights but ship-card's internal surface sizes to
+   content, leaving whitespace below short cards. Stretching is enough. */
 .ship-pipelines-def-list {
   display: grid;
   grid-template-columns: repeat(auto-fill, minmax(22rem, 1fr));
   gap: var(--space-4);
+  align-items: stretch;
 }
+.ship-pipelines-def-list > ship-card { overflow: hidden; }
 .ship-def-title {
   display: flex;
   align-items: center;
@@ -55,15 +61,20 @@
   margin: 0 0 var(--space-3);
   line-height: 1.55;
   display: -webkit-box;
-  -webkit-line-clamp: 3;
   -webkit-box-orient: vertical;
+  -webkit-line-clamp: 2;
+  line-clamp: 2;
   overflow: hidden;
 }
+/* Chip row stays single-line — the template caps count and renders a
+   `+N` overflow chip when there are more than fit. */
 .ship-def-chips {
   display: flex;
   gap: var(--space-2);
-  flex-wrap: wrap;
   align-items: center;
+  flex-wrap: nowrap;
+  overflow: hidden;
+  min-height: 22px;
 }
 .ship-def-stats {
   display: flex;

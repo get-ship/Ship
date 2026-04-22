@@ -38,8 +38,15 @@
           </ship-button>
 
           <div class="ship-run-detail">
+            {% if run.agent %}
+            <ship-avatar size="sm" shape="circle" identity-hue="{{ run.agent }}"
+              name="{{ run.agent }}" title="{{ run.agent }}"></ship-avatar>
+            {% endif %}
             {% if run.branch %}<code>{{ run.branch }}</code>{% endif %}
-            {% if run.provider %}<ship-chip size="sm">{{ run.provider }}</ship-chip>{% endif %}
+            {% if run.provider %}
+            <ship-provider-blob provider="{{ run.provider }}" size="sm" variant="glyph"
+              title="{{ run.provider }}"></ship-provider-blob>
+            {% endif %}
             {% if run.model %}<ship-chip size="sm">{{ run.model }}</ship-chip>{% endif %}
           </div>
 

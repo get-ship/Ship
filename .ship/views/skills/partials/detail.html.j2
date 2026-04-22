@@ -33,7 +33,28 @@
       <ship-metachip label="kind" value="{{ skill.kind }}"></ship-metachip>
       <ship-metachip label="source" value="{{ skill.source|lower }}"></ship-metachip>
       {% if skill.authors|length > 0 %}
-        <ship-metachip label="authors" value="{{ skill.authors|join(', ') }}"></ship-metachip>
+        <span style="display:inline-flex;align-items:center" aria-label="Authors">
+          {% for author in skill.authors[:3] %}
+            <ship-avatar
+              size="sm"
+              shape="round"
+              identity-hue="{{ author }}"
+              name="{{ author }}"
+              title="{{ author }}"
+              style="{% if not loop.first %}margin-left:-6px;{% endif %}border:2px solid var(--background);box-sizing:content-box"
+            ></ship-avatar>
+          {% endfor %}
+          {% if skill.authors|length > 3 %}
+            <ship-avatar
+              size="sm"
+              shape="round"
+              initials="+{{ skill.authors|length - 3 }}"
+              name="+{{ skill.authors|length - 3 }} more"
+              title="{% for a in skill.authors[3:] %}{{ a }}{% if not loop.last %}, {% endif %}{% endfor %}"
+              style="margin-left:-6px;border:2px solid var(--background);box-sizing:content-box"
+            ></ship-avatar>
+          {% endif %}
+        </span>
       {% endif %}
       {% if skill.variables|length > 0 %}
         <ship-metachip label="vars" value="{{ skill.variables|length }}"></ship-metachip>

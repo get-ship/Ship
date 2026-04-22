@@ -64,9 +64,17 @@
   display: grid;
   grid-template-columns: repeat(auto-fill, minmax(340px, 1fr));
   gap: var(--space-3);
+  /* Match agents-view: stretch (default) lets each row's cards match the
+     tallest sibling so hover translateY reads consistently across the grid
+     regardless of how many fields each schema declares. */
+  align-items: stretch;
 }
 .data-view .data-card {
-  display: grid;
+  /* Flex column (not grid) so the footer pins to the bottom even when the
+     fields section is shorter than a sibling card. Without this, cards with
+     fewer fields leave gaps above the footer, breaking the uniform look. */
+  display: flex;
+  flex-direction: column;
   gap: var(--space-3);
   padding: var(--space-4);
   background: var(--card);
@@ -75,7 +83,33 @@
   color: inherit;
   text-decoration: none;
   cursor: pointer;
+  min-width: 0;
+  overflow: hidden;
   transition: border-color var(--duration-fast) var(--ease-out), transform var(--duration-fast) var(--ease-out);
+}
+.data-view .data-card-fields {
+  /* Let fields region consume available vertical space so the footer sits
+     at the card's bottom edge, matching agents-view card uniformity. */
+  flex: 1;
+  /* Single-line chip row that clips overflow — the template caps at 5 +
+     the "+N more" chip so wrap rarely trips, but clipping prevents a 6th
+     chip from leaking past the card border if the template changes. */
+  max-height: calc((var(--text-xs) * 1.4 + 6px) * 3);
+  overflow: hidden;
+}
+.data-view .data-card-name {
+  /* Single-line name — long collection names must ellipsize, not wrap, so
+     card heights stay uniform. */
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+.data-view .data-card-id {
+  /* Path-like id line clamps to one line; it's informational, not critical. */
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+  max-width: 100%;
 }
 .data-view .data-card:hover {
   border-color: color-mix(in oklch, var(--primary) 55%, var(--border));
