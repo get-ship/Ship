@@ -99,10 +99,31 @@ it with raw HTML + CSS. File the gap with the
 escalate to extending the element or adding an SDK macro. That is
 how the library grows; shadow workarounds in views is how it rots.
 
-View-local Jinja partials are the right abstraction when a composition
-**repeats within one view** but isn't yet reusable enough to earn a
-library element. Once the same partial appears in 3+ views, promote
-it — preferably by adding slots to an existing `<ship-*>` element.
+### Splitting into partials
+
+**Split into partials when it makes the template easier to reason
+about.** Good signals you should split:
+
+- A section you can name — "the diff toolbar", "the branches
+  sidebar", "the one-row history entry", "the create-form body".
+- A block that repeats inside a `{% for %}` loop with non-trivial
+  markup. Extracting it gives you a name and a file to iterate on
+  without scrolling past unrelated chrome.
+- A preview you'd want to tweak in isolation — copy, states, a
+  specific empty variant. The partial becomes your visual sandbox.
+- Any time you notice yourself scrolling past unrelated markup to
+  understand one piece of the view. If you can't see the whole
+  concept on one screen, another reader can't either.
+
+View-local partials live in `.ship/views/<view>/partials/` and
+are pulled in with `{% include 'view/partials/<name>.html.j2' %}`.
+Naming is short and descriptive — `changes_panel.html.j2`,
+`history_row.html.j2`, not `section_2.html.j2`.
+
+Once the same partial appears in **3+ views**, promote it —
+preferably by adding slots to an existing `<ship-*>` element
+(that's the library growing), or by filing the gap with the
+`{#- SDK gap: ... -#}` convention below.
 
 ## The SDK — always import from `_ship.html.j2`
 
@@ -500,6 +521,36 @@ Everything uses CSS custom properties from `view-tokens.css`:
 
 - Writes (`@post`, `@delete`) don't need to render anything — the SSE read stream pushes the visual update via kernel events.
 - One long-lived `@get(/sse)` per view. Multiple SSE connections is an anti-pattern.
+
+### Error handling
+
+Every view has an error branch. Always. The shell catches network
+failures; your template catches render failures.
+
+```jinja
+{% from '_ship.html.j2' import error_state %}
+
+{% if error %}
+  {{ error_state(error, retry=view_self()) }}
+{% else %}
+  {# normal render #}
+{% endif %}
+```
+
+Your Rust ctx should expose an `error: Option<ErrorView>` field, where
+`ErrorView` has three fields:
+
+- `title` — one-sentence summary ("Can't reach the pipeline registry")
+- `body` — what the user should do ("Check the daemon is running and retry.")
+- `details` — optional technical context (stack, request id, SQL) —
+  collapsed behind "Show details" in the UI, visible to devs who need it.
+
+Good error messages tell the user *what happened*, *what to do*, and
+*enough detail for a human to debug*. Bad error messages say "error"
+or surface a raw stack trace with no framing. Skip neither.
+
+When there's no retry endpoint (the error isn't transient), omit the
+`retry=` kwarg — the macro emits no retry button.
 
 ## Example: full CRUD view in 50 lines
 
