@@ -7,6 +7,7 @@ use axum::{Extension, Json, extract::{Path, State}, http::StatusCode, response::
 use axum::response::sse::{Event, KeepAlive, Sse};
 use runtime::events::{CallerKind, EventEnvelope};
 use serde::{Deserialize, Serialize};
+use serde_json::json;
 use std::sync::Arc;
 
 use crate::auth::{AuthContext, Scope, require_scope};
@@ -21,12 +22,21 @@ pub type SharedKernel = crate::ship_runtime::SharedKernel;
 // ---- Request / Response types ----
 
 #[derive(Deserialize, utoipa::ToSchema)]
+#[schema(example = json!({
+    "agent_id": "agent-writer",
+    "capabilities": ["writes.prose", "reads.repo"]
+}))]
 pub struct MeshRegisterReq {
     pub agent_id: String,
     pub capabilities: Vec<String>,
 }
 
 #[derive(Deserialize, utoipa::ToSchema)]
+#[schema(example = json!({
+    "from": "agent-planner",
+    "to": "agent-writer",
+    "body": { "task": "draft README section: overview" }
+}))]
 pub struct MeshSendReq {
     pub from: String,
     pub to: String,
@@ -37,6 +47,11 @@ pub struct MeshSendReq {
 }
 
 #[derive(Deserialize, utoipa::ToSchema)]
+#[schema(example = json!({
+    "from": "agent-planner",
+    "body": { "announcement": "build step complete" },
+    "capability_filter": "reads.repo"
+}))]
 pub struct MeshBroadcastReq {
     pub from: String,
     /// Arbitrary JSON broadcast payload. Delivered to every agent whose
@@ -47,12 +62,14 @@ pub struct MeshBroadcastReq {
 }
 
 #[derive(Deserialize, utoipa::ToSchema)]
+#[schema(example = json!({ "agent_id": "agent-writer", "status": "idle" }))]
 pub struct MeshStatusReq {
     pub agent_id: String,
     pub status: String,
 }
 
 #[derive(Debug, Serialize, utoipa::ToSchema)]
+#[schema(example = json!({ "ok": true, "data": { "registered": "agent-writer" } }))]
 pub struct MeshResponse {
     /// `true` on success; `false` when the handler returned a structured error.
     pub ok: bool,
@@ -68,6 +85,7 @@ pub struct MeshResponse {
 // ---- Handlers ----
 
 #[utoipa::path(
+    operation_id = "meshRegister",
     post,
     path = "/api/mesh/register",
     request_body = MeshRegisterReq,
@@ -161,6 +179,7 @@ pub async fn mesh_register(
 }
 
 #[utoipa::path(
+    operation_id = "meshSend",
     post,
     path = "/api/mesh/send",
     request_body = MeshSendReq,
@@ -202,6 +221,7 @@ pub async fn mesh_send(
 }
 
 #[utoipa::path(
+    operation_id = "meshBroadcast",
     post,
     path = "/api/mesh/broadcast",
     request_body = MeshBroadcastReq,
@@ -240,6 +260,7 @@ pub async fn mesh_broadcast(
 }
 
 #[utoipa::path(
+    operation_id = "meshDiscover",
     get,
     path = "/api/mesh/discover",
     responses(
@@ -268,6 +289,7 @@ pub async fn mesh_discover(
 }
 
 #[utoipa::path(
+    operation_id = "meshStatusUpdate",
     post,
     path = "/api/mesh/status",
     request_body = MeshStatusReq,
@@ -305,6 +327,12 @@ pub async fn mesh_status_update(
 // ---- Capabilities ----
 
 #[derive(Serialize, utoipa::ToSchema)]
+#[schema(example = json!({
+    "authenticated": true,
+    "mode": "local",
+    "tier": "owner",
+    "features": ["mesh", "artifacts", "collections", "pipelines"]
+}))]
 pub struct CapabilitiesResponse {
     pub authenticated: bool,
     pub mode: String,
@@ -313,6 +341,7 @@ pub struct CapabilitiesResponse {
 }
 
 #[utoipa::path(
+    operation_id = "capabilities",
     get,
     path = "/api/capabilities",
     responses(
@@ -346,12 +375,17 @@ pub async fn capabilities(
 // ---- Checkout hook ----
 
 #[derive(Deserialize, utoipa::ToSchema)]
+#[schema(example = json!({
+    "branch": "job/write-readme",
+    "path": "/home/me/project"
+}))]
 pub struct CheckoutHookReq {
     pub branch: String,
     pub path: String,
 }
 
 #[utoipa::path(
+    operation_id = "hooksCheckout",
     post,
     path = "/api/hooks/checkout",
     request_body = CheckoutHookReq,
@@ -412,6 +446,7 @@ pub async fn hooks_checkout(
 /// The agent must register first (which spawns the actor + stashes the mailbox).
 /// Only one SSE connection per agent is supported (mailbox is taken, not cloned).
 #[utoipa::path(
+    operation_id = "meshEvents",
     get,
     path = "/api/mesh/events/{agent_id}",
     params(("agent_id" = String, Path, description = "Agent ID")),

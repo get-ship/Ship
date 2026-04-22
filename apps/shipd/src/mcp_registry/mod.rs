@@ -11,6 +11,7 @@ use axum::{
     response::{IntoResponse, Response},
 };
 use serde::{Deserialize, Serialize};
+use serde_json::json;
 use std::sync::Arc;
 use std::time::{Duration, Instant};
 use tokio::sync::Mutex;
@@ -47,6 +48,19 @@ pub const VETTED_IDS: &[&str] = &[
 // ── Public API types ───────────────────────────────────────────────────────
 
 #[derive(Debug, Clone, Serialize, Deserialize, utoipa::ToSchema)]
+#[schema(example = json!({
+    "id": "filesystem",
+    "name": "Filesystem",
+    "description": "Local filesystem access for MCP clients",
+    "homepage": "https://github.com/modelcontextprotocol/servers",
+    "tags": ["storage", "official"],
+    "vendor": "modelcontextprotocol",
+    "packageRegistry": "npm",
+    "command": "npx",
+    "args": ["-y", "@modelcontextprotocol/server-filesystem"],
+    "vetted": true,
+    "imageUrl": null
+}))]
 pub struct McpServer {
     pub id: String,
     pub name: String,
@@ -72,6 +86,18 @@ pub struct McpServersQuery {
 }
 
 #[derive(Debug, Serialize, utoipa::ToSchema)]
+#[schema(example = json!({
+    "servers": [{
+        "id": "filesystem",
+        "name": "Filesystem",
+        "tags": ["storage", "official"],
+        "vendor": "modelcontextprotocol",
+        "command": "npx",
+        "args": ["-y", "@modelcontextprotocol/server-filesystem"],
+        "vetted": true
+    }],
+    "cached": true
+}))]
 pub struct McpServersResponse {
     pub servers: Vec<McpServer>,
     pub cached: bool,
@@ -376,6 +402,7 @@ pub fn apply_filters(
 // ── Handler ────────────────────────────────────────────────────────────────
 
 #[utoipa::path(
+    operation_id = "listMcpServers",
     get,
     path = "/api/mcp/servers",
     params(McpServersQuery),

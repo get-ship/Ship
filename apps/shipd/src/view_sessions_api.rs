@@ -20,13 +20,18 @@ use axum::{
     response::{IntoResponse, Response},
 };
 use serde::Deserialize;
-use serde_json::Value;
+use serde_json::{json, Value};
 
 use crate::auth::AuthContext;
 use crate::rest_api::ApiState;
 use crate::views::session::SessionError;
 
 #[derive(Deserialize, utoipa::ToSchema)]
+#[schema(example = json!({
+    "template": "chat",
+    "title": "Planner chat",
+    "initial_context": { "topic": "ship" }
+}))]
 pub struct OpenReq {
     pub template: String,
     pub title: Option<String>,
@@ -34,12 +39,20 @@ pub struct OpenReq {
 }
 
 #[derive(Deserialize, utoipa::ToSchema)]
+#[schema(example = json!({
+    "selector": "#status",
+    "html": "<span class=\"ok\">running</span>"
+}))]
 pub struct PatchReq {
     pub selector: String,
     pub html: String,
 }
 
 #[derive(Deserialize, utoipa::ToSchema)]
+#[schema(example = json!({
+    "name": "approve",
+    "value": { "by": "me", "at": "2026-04-22T10:15:00Z" }
+}))]
 pub struct SignalReq {
     pub name: String,
     pub value: Value,
@@ -84,6 +97,7 @@ fn ok_json(body: Value) -> Response {
 // ───────────────────────── Handlers ─────────────────────────
 
 #[utoipa::path(
+    operation_id = "openSession",
     post,
     path = "/api/runtime/view-sessions",
     request_body = OpenReq,
@@ -126,6 +140,7 @@ pub async fn open_session(
 }
 
 #[utoipa::path(
+    operation_id = "patchSession",
     post,
     path = "/api/runtime/view-sessions/{id}/patch",
     params(("id" = String, Path, description = "View session id")),
@@ -152,6 +167,7 @@ pub async fn patch_session(
 }
 
 #[utoipa::path(
+    operation_id = "appendSession",
     post,
     path = "/api/runtime/view-sessions/{id}/append",
     params(("id" = String, Path, description = "View session id")),
@@ -178,6 +194,7 @@ pub async fn append_session(
 }
 
 #[utoipa::path(
+    operation_id = "signalSession",
     post,
     path = "/api/runtime/view-sessions/{id}/signal",
     params(("id" = String, Path, description = "View session id")),
@@ -204,6 +221,7 @@ pub async fn signal_session(
 }
 
 #[utoipa::path(
+    operation_id = "closeSession",
     delete,
     path = "/api/runtime/view-sessions/{id}",
     params(("id" = String, Path, description = "View session id")),
@@ -228,6 +246,7 @@ pub async fn close_session(
 }
 
 #[utoipa::path(
+    operation_id = "subscribeSession",
     get,
     path = "/api/runtime/view-sessions/{id}",
     params(("id" = String, Path, description = "View session id")),
@@ -260,6 +279,7 @@ pub async fn subscribe_session(
 /// env, exposing `{view_id, title, context}` plus `{{SHIP_TOKEN}}` scrubbed
 /// for cookie-auth parity with `views::serve_view_raw`.
 #[utoipa::path(
+    operation_id = "rawSession",
     get,
     path = "/api/runtime/view-sessions/{id}/raw",
     params(("id" = String, Path, description = "View session id")),

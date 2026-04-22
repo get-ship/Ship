@@ -26,6 +26,7 @@ const NOTE_MAX_BYTES: usize = 10 * 1024;
 const SELECTION_TEXT_MAX_BYTES: usize = 20 * 1024;
 
 #[utoipa::path(
+    operation_id = "postAnnotation",
     post,
     path = "/api/runtime/annotations",
     request_body(content_type = "application/json", description = "AnnotationEvent payload — target, selector, intent, note"),

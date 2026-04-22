@@ -15,6 +15,7 @@ use axum::{
     http::{HeaderValue, Response, StatusCode, header},
     response::IntoResponse,
 };
+use serde_json::json;
 use std::time::{Duration, Instant};
 
 fn now_unix() -> i64 {
@@ -105,6 +106,7 @@ pub async fn lookup_browser_session(
 
 /// Response body for `POST /api/runtime/session`.
 #[derive(serde::Serialize, utoipa::ToSchema)]
+#[schema(example = json!({ "ok": true, "expires_in": 3600 }))]
 pub struct SessionIssueResponse {
     pub ok: bool,
     pub expires_in: u64,
@@ -116,6 +118,7 @@ pub struct SessionIssueResponse {
 /// middleware enforces this). Issues a browser-session cookie scoped to
 /// `/api/runtime` and returns `{ok, expires_in}`.
 #[utoipa::path(
+    operation_id = "issueSessionHandler",
     post,
     path = "/api/runtime/session",
     responses(

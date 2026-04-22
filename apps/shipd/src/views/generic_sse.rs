@@ -71,6 +71,7 @@ fn render_partial(
 
 /// GET /api/runtime/view/{name}/sse
 #[utoipa::path(
+    operation_id = "serveViewSse",
     get,
     path = "/api/runtime/view/{name}/sse",
     params(("name" = String, Path, description = "View name")),

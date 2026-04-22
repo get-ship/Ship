@@ -20,10 +20,19 @@ use crate::openapi_modifier::SecurityAndServer;
     info(
         title = "Ship Daemon API",
         version = "0.3.0",
-        description = "HTTP surface for the Ship daemon (shipd). Covers auth pairing, \
-            workspace + job + spec management, artifacts, collections, views, mesh + actor \
-            routing, hook ingress, and the public webhook trigger. Bearer auth is required \
-            by default; public operations carry an empty `security` override.",
+        description = "HTTP surface for the Ship daemon (shipd).\n\n\
+            **Base URL:** `http://localhost:<port>` — the daemon runs locally.\n\
+            - Port: `~/.ship/daemon.port`\n\
+            - Bearer token: `~/.ship/daemon.token`\n\n\
+            **Quick-start**\n\
+            ```bash\n\
+            export SHIP_TOKEN=$(cat ~/.ship/daemon.token)\n\
+            export SHIP_PORT=$(cat ~/.ship/daemon.port)\n\
+            curl -s -H \"Authorization: Bearer $SHIP_TOKEN\" \\\n\
+              http://localhost:$SHIP_PORT/api/runtime/daemon/status\n\
+            ```\n\n\
+            Bearer auth is required by default; public operations carry an empty `security` override. \
+            See the [errors reference](/reference/http-api/errors/) for the `ErrorResponse` contract.",
     ),
     modifiers(&SecurityAndServer),
     tags(

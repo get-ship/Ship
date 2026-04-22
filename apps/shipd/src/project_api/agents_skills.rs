@@ -94,6 +94,7 @@ fn strip_trailing_commas(input: &str) -> String {
 
 /// GET /api/workspaces/{id}/agents
 #[utoipa::path(
+    operation_id = "listAgents",
     get,
     path = "/api/workspaces/{id}/agents",
     params(("id" = String, Path, description = "Workspace id")),
@@ -168,6 +169,7 @@ pub async fn list_agents(
 
 /// GET /api/workspaces/{id}/skills
 #[utoipa::path(
+    operation_id = "listSkills",
     get,
     path = "/api/workspaces/{id}/skills",
     params(("id" = String, Path, description = "Workspace id")),

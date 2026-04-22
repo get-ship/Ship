@@ -6,6 +6,7 @@
 //! annotations don't have to repeat them.
 
 use serde::Serialize;
+use serde_json::json;
 use utoipa::ToSchema;
 
 /// Canonical error body returned by non-2xx responses.
@@ -14,7 +15,15 @@ use utoipa::ToSchema;
 /// `{"ok": false, "data": "..."}`. The spec standardizes on this richer
 /// shape so SDK consumers can branch on a machine-readable `error` code
 /// without parsing the human-readable message.
+///
+/// See the [errors reference](/reference/http-api/errors/) for the full
+/// set of codes emitted by the daemon and their remediation.
 #[derive(Debug, Serialize, ToSchema)]
+#[schema(example = json!({
+    "error": "not_found",
+    "message": "spec not found: introductions",
+    "details": null
+}))]
 pub struct ErrorResponse {
     /// Machine-readable error code. Examples: `not_found`, `unauthorized`,
     /// `bad_request`, `conflict`, `rate_limited`, `internal_error`.
@@ -29,6 +38,7 @@ pub struct ErrorResponse {
 
 /// Minimal acknowledgement returned by webhook ingress.
 #[derive(Debug, Serialize, ToSchema)]
+#[schema(example = json!({ "ok": true }))]
 pub struct WebhookAck {
     /// Always `true` when the trigger accepted the request.
     pub ok: bool,
@@ -36,6 +46,7 @@ pub struct WebhookAck {
 
 /// Generic OK acknowledgement for endpoints whose only signal is success.
 #[derive(Debug, Serialize, ToSchema)]
+#[schema(example = json!({ "ok": true }))]
 pub struct GenericOk {
     pub ok: bool,
 }

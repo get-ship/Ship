@@ -5,6 +5,7 @@
 
 use axum::{Json, extract::{Path, State}, http::StatusCode};
 use serde::Deserialize;
+use serde_json::json;
 use std::path::PathBuf;
 
 use crate::auth::{AuthContext, Scope, require_scope};
@@ -26,6 +27,14 @@ fn safe_join(base: &std::path::Path, relative: &str) -> Result<PathBuf, (StatusC
 // ── Request bodies ────────────────────────────────────────────────────────────
 
 #[derive(Deserialize, utoipa::ToSchema)]
+#[schema(example = json!({
+    "id": "writer",
+    "profile": { "name": "writer", "provider": "claude" },
+    "skills": ["ship:planning", "ship:writing"],
+    "mcpServers": [],
+    "rules": ["no-placeholders", "cite-sources"],
+    "hooks": { "onStart": "ship.read:context" }
+}))]
 pub struct WriteAgentReq {
     pub id: String,
     pub profile: serde_json::Value,
@@ -42,6 +51,9 @@ pub struct WriteFileReq {
 }
 
 #[derive(Deserialize, utoipa::ToSchema)]
+#[schema(example = json!({
+    "value_json": "\"gitmoji\""
+}))]
 pub struct SetVarReq {
     pub value_json: String,
 }
@@ -52,6 +64,7 @@ pub struct SetVarReq {
 ///
 /// Write an agent transfer bundle to `{worktree}/.ship/agents/{agent_id}.jsonc`.
 #[utoipa::path(
+    operation_id = "writeAgent",
     post,
     path = "/api/workspaces/{id}/agents",
     params(("id" = String, Path, description = "Workspace id")),
@@ -88,7 +101,7 @@ pub async fn write_agent(
         return Err(err_response(StatusCode::BAD_REQUEST, "invalid agent id"));
     }
 
-    let bundle = serde_json::json!({
+    let bundle = json!({
         "agent": body.profile,
         "skills": body.skills,
         "mcpServers": body.mcp_servers,
@@ -111,13 +124,14 @@ pub async fn write_agent(
         )
     })?;
 
-    Ok(ok_response(serde_json::json!({ "id": body.id })))
+    Ok(ok_response(json!({ "id": body.id })))
 }
 
 /// PUT /api/workspaces/{id}/skills/{skillId}/files/{*path}
 ///
 /// Write content to `{worktree}/.ship/skills/{skillId}/{path}`.
 #[utoipa::path(
+    operation_id = "writeSkillFile",
     put,
     path = "/api/workspaces/{id}/skills/{skillId}/files/{path}",
     params(
@@ -166,13 +180,14 @@ pub async fn write_skill_file(
         )
     })?;
 
-    Ok(ok_response(serde_json::json!({})))
+    Ok(ok_response(json!({})))
 }
 
 /// DELETE /api/workspaces/{id}/skills/{skillId}/files/{*path}
 ///
 /// Delete `{worktree}/.ship/skills/{skillId}/{path}`.
 #[utoipa::path(
+    operation_id = "deleteSkillFile",
     delete,
     path = "/api/workspaces/{id}/skills/{skillId}/files/{path}",
     params(
@@ -214,13 +229,14 @@ pub async fn delete_skill_file(
         )
     })?;
 
-    Ok(ok_response(serde_json::json!({})))
+    Ok(ok_response(json!({})))
 }
 
 /// GET /api/workspaces/{id}/skills/{skillId}/vars
 ///
 /// Return merged skill variable state. Uses the worktree `.ship` dir as context.
 #[utoipa::path(
+    operation_id = "getSkillVars",
     get,
     path = "/api/workspaces/{id}/skills/{skillId}/vars",
     params(
@@ -256,9 +272,9 @@ pub async fn get_skill_vars(
         Some(map) => {
             let vars_json: serde_json::Map<String, serde_json::Value> =
                 map.into_iter().collect();
-            Ok(ok_response(serde_json::json!({ "vars": vars_json })))
+            Ok(ok_response(json!({ "vars": vars_json })))
         }
-        None => Ok(ok_response(serde_json::json!({ "vars": null }))),
+        None => Ok(ok_response(json!({ "vars": null }))),
     }
 }
 
@@ -266,6 +282,7 @@ pub async fn get_skill_vars(
 ///
 /// Set a single skill variable. Body: `{ value_json: "<json-encoded-value>" }`.
 #[utoipa::path(
+    operation_id = "setSkillVar",
     put,
     path = "/api/workspaces/{id}/skills/{skillId}/vars/{key}",
     params(
@@ -313,7 +330,7 @@ pub async fn set_skill_var(
         }
     })?;
 
-    Ok(ok_response(serde_json::json!({})))
+    Ok(ok_response(json!({})))
 }
 
 // ── Internal helpers ──────────────────────────────────────────────────────────
@@ -398,11 +415,11 @@ mod tests {
         let (state, _dir) = make_test_state();
         let req = WriteAgentReq {
             id: "test-agent".to_string(),
-            profile: serde_json::json!({"name": "Test"}),
-            skills: serde_json::json!([]),
-            mcp_servers: serde_json::json!([]),
-            rules: serde_json::json!([]),
-            hooks: serde_json::json!([]),
+            profile: json!({"name": "Test"}),
+            skills: json!([]),
+            mcp_servers: json!([]),
+            rules: json!([]),
+            hooks: json!([]),
         };
         let result = write_agent(State(state), full_auth(), Path("no-such-ws".to_string()), Json(req)).await;
         let (status, _) = result.unwrap_err();
@@ -449,13 +466,13 @@ mod tests {
     fn set_var_req_parses_string_value_json() {
         let req: SetVarReq = serde_json::from_str(r#"{"value_json": "\"gitmoji\""}"#).unwrap();
         let val: serde_json::Value = serde_json::from_str(&req.value_json).unwrap();
-        assert_eq!(val, serde_json::json!("gitmoji"));
+        assert_eq!(val, json!("gitmoji"));
     }
 
     #[test]
     fn set_var_req_parses_bool_value_json() {
         let req: SetVarReq = serde_json::from_str(r#"{"value_json": "true"}"#).unwrap();
         let val: serde_json::Value = serde_json::from_str(&req.value_json).unwrap();
-        assert_eq!(val, serde_json::json!(true));
+        assert_eq!(val, json!(true));
     }
 }

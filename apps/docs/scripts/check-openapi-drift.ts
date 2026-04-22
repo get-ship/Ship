@@ -16,6 +16,10 @@ import { resolve } from "node:path";
 
 const REPO_ROOT = resolve(new URL(".", import.meta.url).pathname, "..", "..", "..");
 const COMMITTED = resolve(REPO_ROOT, "apps/docs/openapi.json");
+const AUGMENT = resolve(
+  REPO_ROOT,
+  "apps/docs/scripts/augment-openapi.ts",
+);
 
 function fatal(msg: string): never {
   console.error(`check-openapi-drift: ${msg}`);
@@ -23,17 +27,37 @@ function fatal(msg: string): never {
 }
 
 function runSpec(): string {
-  const result = spawnSync(
+  // Step 1: emit the raw spec from shipd.
+  const cargo = spawnSync(
     "cargo",
     ["run", "-q", "--bin", "ship", "--", "openapi", "export", "--pretty"],
     { cwd: REPO_ROOT, encoding: "utf8", maxBuffer: 32 * 1024 * 1024 },
   );
-  if (result.status !== 0) {
+  if (cargo.status !== 0) {
     fatal(
-      `cargo run failed (exit ${result.status}): ${result.stderr.slice(0, 2000)}`,
+      `cargo run failed (exit ${cargo.status}): ${cargo.stderr.slice(0, 2000)}`,
     );
   }
-  return result.stdout;
+  // Step 2: run the same augmentation the generate pipeline applies, so
+  // drift-check compares augmented-vs-augmented. The augment script is
+  // deterministic (fixed traversal order, no clock / rng) so this stays
+  // exact.
+  const augment = spawnSync(
+    "pnpm",
+    ["exec", "tsx", AUGMENT],
+    {
+      cwd: REPO_ROOT,
+      encoding: "utf8",
+      input: cargo.stdout,
+      maxBuffer: 32 * 1024 * 1024,
+    },
+  );
+  if (augment.status !== 0) {
+    fatal(
+      `augment-openapi failed (exit ${augment.status}): ${augment.stderr.slice(0, 2000)}`,
+    );
+  }
+  return augment.stdout;
 }
 
 function loadCommitted(): string {

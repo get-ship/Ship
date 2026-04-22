@@ -397,6 +397,7 @@ pub(crate) fn handle_panic(info: Box<dyn std::any::Any + Send + 'static>) -> Res
 /// Returns daemon uptime, PID, and status of all supervised background tasks.
 /// Any dead task sets the top-level `healthy` flag to false.
 #[utoipa::path(
+    operation_id = "healthCheck",
     get,
     path = "/api/health",
     responses(

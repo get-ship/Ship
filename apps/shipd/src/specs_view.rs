@@ -470,6 +470,7 @@ fn try_render_view(file: &str, ctx: &SpecsCtx) -> Option<String> {
 
 /// GET /api/runtime/view/specs — full shell, minijinja-rendered.
 #[utoipa::path(
+    operation_id = "specsShell",
     get,
     path = "/api/runtime/view/specs",
     responses(
@@ -501,6 +502,7 @@ pub async fn specs_shell(
 /// GET /api/runtime/view/specs/sse — Datastar patches for the rail list on
 /// any `spec.*`/`job.*` kernel event.
 #[utoipa::path(
+    operation_id = "specsViewSse",
     get,
     path = "/api/runtime/view/specs/sse",
     responses(

@@ -4,6 +4,7 @@
 //! the agent's role. Handlers check scopes before executing.
 
 use axum::http::StatusCode;
+use serde_json::json;
 use std::collections::HashMap;
 use std::sync::Arc;
 use tokio::sync::Mutex;
@@ -312,7 +313,7 @@ pub fn require_scope(
             StatusCode::FORBIDDEN,
             axum::Json(crate::rest_api::MeshResponse {
                 ok: false,
-                data: serde_json::json!(format!("insufficient scope: {scope:?} required")),
+                data: json!(format!("insufficient scope: {scope:?} required")),
             }),
         ))
     }
@@ -321,6 +322,11 @@ pub fn require_scope(
 // ---- Session register endpoint ----
 
 #[derive(serde::Deserialize, utoipa::ToSchema)]
+#[schema(example = json!({
+    "agent_id": "agent-writer",
+    "role": "worker",
+    "workspace_id": "default"
+}))]
 pub struct SessionRegisterRequest {
     pub agent_id: String,
     #[serde(default)]
@@ -330,6 +336,10 @@ pub struct SessionRegisterRequest {
 }
 
 #[derive(serde::Serialize, utoipa::ToSchema)]
+#[schema(example = json!({
+    "session_token": "ses_01J3Z5ZQXAM3E4T7W",
+    "scopes": ["read_workspace", "read_jobs", "emit_events"]
+}))]
 pub struct SessionRegisterResponse {
     pub session_token: String,
     pub scopes: Vec<Scope>,
@@ -346,6 +356,7 @@ pub struct SessionRegisterResponse {
 /// grants Full) is blocked — agents must use "worker", "lead", or
 /// "commander".
 #[utoipa::path(
+    operation_id = "sessionRegister",
     post,
     path = "/api/session/register",
     request_body = SessionRegisterRequest,
