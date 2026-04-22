@@ -343,6 +343,9 @@ pub enum Route {
     /// @route GET "/api/runtime/view/{name}"
     ServeView { name: String },
 
+    /// @route GET "/api/runtime/v/{*path}"
+    ServeViewRouted { path: String },
+
     /// @route GET "/api/runtime/view/{name}/manifest"
     ServeViewManifest { name: String },
 

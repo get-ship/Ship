@@ -23,6 +23,7 @@
 //!   convenience helpers.
 
 pub mod router;
+pub mod routed_handler;
 pub mod stream;
 pub mod state;
 pub mod chat_state;

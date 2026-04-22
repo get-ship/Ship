@@ -243,6 +243,7 @@ fn build_ship_routes(st: rest_api::ApiState) -> Router {
         .ship_route(Route::ViewPipelineRun_template(), views_pipelines::pipelines_run_shell)
         .ship_route(Route::ListViews, views::list_views)
         .ship_route(Route::ServeView_template(), views::serve_view)
+        .ship_route(Route::ServeViewRouted_template(), views::routed_handler::serve_view_routed)
         .ship_route(Route::ServeViewManifest_template(), views::serve_view_manifest)
         .ship_route(Route::ServeViewBundle_template(), views::serve_view_bundle)
         .ship_route(Route::ServeViewRaw_template(), views_raw::serve_view_raw)
