@@ -24,8 +24,9 @@ use crate::rest_api::ApiState;
 use crate::services::ship_ns::ShipNs;
 use crate::views::router::match_path;
 
-/// Candidate view roots, in project-wins-first order.
-fn view_roots(state: &ApiState) -> Vec<std::path::PathBuf> {
+/// Candidate view roots, in project-wins-first order. `pub(crate)`
+/// so the routed SSE handler can reuse the same resolution rules.
+pub(crate) fn view_roots(state: &ApiState) -> Vec<std::path::PathBuf> {
     let mut roots = Vec::new();
     // Project scope: .ship/views/ of the enclosing project (if any).
     if let Ok(project_ship) = runtime::project::get_project_dir(None) {
@@ -81,6 +82,44 @@ fn build_context(
         "workspace": workspace,
         "env": env,
     })
+}
+
+/// Render-only entry point — reused by the routed SSE handler to
+/// re-render on kernel events. Returns rendered HTML or a render
+/// error string.
+pub(crate) fn render_routed(
+    state: &ApiState,
+    path: &str,
+    query: &HashMap<String, String>,
+    headers: &HeaderMap,
+) -> Result<String, String> {
+    let roots = view_roots(state);
+    if roots.is_empty() {
+        return Err("no view roots available".into());
+    }
+    let m = roots
+        .iter()
+        .find_map(|root| match_path(root, path))
+        .ok_or_else(|| format!("no view matches /{path}"))?;
+
+    let is_fragment = headers
+        .get("datastar-request")
+        .and_then(|v| v.to_str().ok())
+        .map(|s| s.eq_ignore_ascii_case("true"))
+        .unwrap_or(false);
+
+    let ctx_json = build_context(
+        &m.params,
+        query,
+        headers,
+        state,
+        &m.view_name,
+        is_fragment,
+    );
+    let source = std::fs::read_to_string(&m.template)
+        .map_err(|e| format!("read {}: {e}", m.template.display()))?;
+    let ctx_with_ship = build_render_ctx(ctx_json, state, &m, query);
+    render_source(&m.template, &source, ctx_with_ship)
 }
 
 pub async fn serve_view_routed(

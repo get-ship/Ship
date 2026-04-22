@@ -99,6 +99,7 @@
 {%- macro list_views() -%}/api/runtime/views{%- endmacro -%}
 {%- macro serve_view(name) -%}/api/runtime/view/{{ name }}{%- endmacro -%}
 {%- macro serve_view_routed(path) -%}/api/runtime/v/{{ path }}{%- endmacro -%}
+{%- macro serve_view_sse_routed(path) -%}/api/runtime/sse/{{ path }}{%- endmacro -%}
 {%- macro serve_view_manifest(name) -%}/api/runtime/view/{{ name }}/manifest{%- endmacro -%}
 {%- macro serve_view_bundle(name) -%}/api/runtime/view/{{ name }}/bundle{%- endmacro -%}
 {%- macro serve_view_raw(name) -%}/api/runtime/view/{{ name }}/raw{%- endmacro -%}
