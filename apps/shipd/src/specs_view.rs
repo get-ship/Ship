@@ -469,6 +469,15 @@ fn try_render_view(file: &str, ctx: &SpecsCtx) -> Option<String> {
 }
 
 /// GET /api/runtime/view/specs — full shell, minijinja-rendered.
+#[utoipa::path(
+    get,
+    path = "/api/runtime/view/specs",
+    responses(
+        (status = 200, description = "Rendered specs view shell", content_type = "text/html"),
+        (status = 401, description = "Unauthenticated", body = crate::openapi_types::ErrorResponse),
+    ),
+    tag = "views"
+)]
 pub async fn specs_shell(
     State(_state): State<crate::rest_api::ApiState>,
     Query(params): Query<SpecsParams>,
@@ -491,6 +500,15 @@ pub async fn specs_shell(
 
 /// GET /api/runtime/view/specs/sse — Datastar patches for the rail list on
 /// any `spec.*`/`job.*` kernel event.
+#[utoipa::path(
+    get,
+    path = "/api/runtime/view/specs/sse",
+    responses(
+        (status = 200, description = "Datastar SSE fragments for specs view", content_type = "text/event-stream"),
+        (status = 401, description = "Unauthenticated", body = crate::openapi_types::ErrorResponse),
+    ),
+    tag = "views"
+)]
 pub async fn specs_view_sse(
     State(state): State<crate::rest_api::ApiState>,
     Query(params): Query<SpecsParams>,

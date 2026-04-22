@@ -26,6 +26,34 @@ pub type SharedKernelRef = Arc<Mutex<KernelRouter>>;
 /// Injected state:
 /// - `Extension<SharedWebhookSource>` — the webhook registry from HookEngine
 /// - `Extension<SharedKernelRef>` — shared kernel for event emission
+///
+/// Authentication is hook-declared: each trigger in `.ship/hooks/` carries
+/// its own `secret`, which must be supplied via the `x-ship-webhook-secret`
+/// request header. Callers that send the wrong secret (or none at all for
+/// a trigger that requires one) get `401`. Bearer auth is explicitly not
+/// used — see `security = []` in the OpenAPI decoration.
+///
+/// Rate limiting is per-trigger as configured at hook definition time;
+/// exceeding the limit yields `429`.
+#[utoipa::path(
+    post,
+    path = "/api/hooks/webhook/{path}",
+    params(
+        ("path" = String, Path, description = "Trigger path as declared under .ship/hooks/. Matches the `*path` glob from the router."),
+    ),
+    request_body(
+        content_type = "application/octet-stream",
+        description = "Raw request body forwarded to the trigger's handler. Content-type is opaque to the daemon.",
+    ),
+    responses(
+        (status = 200, description = "Trigger accepted the request", body = crate::openapi_types::WebhookAck),
+        (status = 401, description = "Missing or invalid x-ship-webhook-secret header", body = crate::openapi_types::ErrorResponse),
+        (status = 404, description = "No trigger registered for this path", body = crate::openapi_types::ErrorResponse),
+        (status = 429, description = "Trigger rate limit exceeded", body = crate::openapi_types::ErrorResponse),
+    ),
+    security(),
+    tag = "hooks"
+)]
 pub async fn handle_webhook(
     Path(path_suffix): Path<String>,
     Extension(source): Extension<SharedWebhookSource>,

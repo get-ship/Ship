@@ -93,6 +93,18 @@ fn strip_trailing_commas(input: &str) -> String {
 }
 
 /// GET /api/workspaces/{id}/agents
+#[utoipa::path(
+    get,
+    path = "/api/workspaces/{id}/agents",
+    params(("id" = String, Path, description = "Workspace id")),
+    responses(
+        (status = 200, description = "Agents discovered in .ship/agents/", body = MeshResponse),
+        (status = 401, description = "Unauthenticated", body = crate::openapi_types::ErrorResponse),
+        (status = 404, description = "Workspace not found", body = crate::openapi_types::ErrorResponse),
+        (status = 500, description = "Server error", body = crate::openapi_types::ErrorResponse),
+    ),
+    tag = "project"
+)]
 pub async fn list_agents(
     State(state): State<ApiState>,
     Path(id): Path<String>,
@@ -155,6 +167,18 @@ pub async fn list_agents(
 }
 
 /// GET /api/workspaces/{id}/skills
+#[utoipa::path(
+    get,
+    path = "/api/workspaces/{id}/skills",
+    params(("id" = String, Path, description = "Workspace id")),
+    responses(
+        (status = 200, description = "Skills discovered in .ship/skills/", body = MeshResponse),
+        (status = 401, description = "Unauthenticated", body = crate::openapi_types::ErrorResponse),
+        (status = 404, description = "Workspace not found", body = crate::openapi_types::ErrorResponse),
+        (status = 500, description = "Server error", body = crate::openapi_types::ErrorResponse),
+    ),
+    tag = "project"
+)]
 pub async fn list_skills(
     State(state): State<ApiState>,
     Path(id): Path<String>,

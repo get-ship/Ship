@@ -12,7 +12,12 @@ use crate::rest_api::{ApiState, MeshResponse};
 
 #[derive(Deserialize, utoipa::ToSchema)]
 pub struct SettingsUpdateReq {
+    /// Dotted setting key, e.g. `defaults.provider`.
     pub key: String,
+    /// Setting value as JSON. Shape depends on the setting (string, bool,
+    /// number, or structured object). Validated against the setting's
+    /// registered schema before persist.
+    #[schema(value_type = Object)]
     pub value: serde_json::Value,
 }
 
@@ -68,7 +73,11 @@ fn cached_providers() -> Vec<ProviderStatus> {
 #[utoipa::path(
     get,
     path = "/api/settings",
-    responses((status = 200, body = MeshResponse)),
+    responses(
+        (status = 200, body = MeshResponse),
+        (status = 401, description = "unauthorized", body = crate::openapi_types::ErrorResponse),
+        (status = 500, description = "server error", body = crate::openapi_types::ErrorResponse),
+    ),
     tag = "settings"
 )]
 pub async fn list_settings(
@@ -96,7 +105,13 @@ pub async fn list_settings(
     put,
     path = "/api/settings",
     request_body = SettingsUpdateReq,
-    responses((status = 200, body = MeshResponse)),
+    responses(
+        (status = 200, body = MeshResponse),
+        (status = 400, description = "bad request", body = crate::openapi_types::ErrorResponse),
+        (status = 401, description = "unauthorized", body = crate::openapi_types::ErrorResponse),
+        (status = 403, description = "insufficient scope", body = crate::openapi_types::ErrorResponse),
+        (status = 500, description = "server error", body = crate::openapi_types::ErrorResponse),
+    ),
     tag = "settings"
 )]
 pub async fn update_setting(
@@ -135,7 +150,12 @@ pub async fn update_setting(
     get,
     path = "/api/settings/{key}",
     params(("key" = String, Path, description = "Setting key (e.g. defaults.provider)")),
-    responses((status = 200, body = MeshResponse)),
+    responses(
+        (status = 200, body = MeshResponse),
+        (status = 401, description = "unauthorized", body = crate::openapi_types::ErrorResponse),
+        (status = 404, description = "setting not found", body = crate::openapi_types::ErrorResponse),
+        (status = 500, description = "server error", body = crate::openapi_types::ErrorResponse),
+    ),
     tag = "settings"
 )]
 pub async fn get_setting(
@@ -170,7 +190,11 @@ pub async fn get_setting(
 #[utoipa::path(
     get,
     path = "/api/providers",
-    responses((status = 200, body = MeshResponse)),
+    responses(
+        (status = 200, body = MeshResponse),
+        (status = 401, description = "unauthorized", body = crate::openapi_types::ErrorResponse),
+        (status = 500, description = "server error", body = crate::openapi_types::ErrorResponse),
+    ),
     tag = "settings"
 )]
 pub async fn list_providers(

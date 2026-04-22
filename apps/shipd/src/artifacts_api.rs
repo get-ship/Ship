@@ -63,13 +63,30 @@ fn parse_scope(scope_str: &str, run_id: Option<&str>, user_id: Option<&str>, pro
 
 // ── POST /api/artifacts ───────────────────────────────────────────────────────
 
-#[derive(Deserialize, Default)]
+#[derive(Deserialize, Default, utoipa::IntoParams)]
 pub struct UploadQuery {
+    /// Artifact scope: `run`, `project`, or `user`.
     pub scope: Option<String>,
+    /// Required when `scope=run`.
     pub run_id: Option<String>,
+    /// Required when `scope=user`.
     pub user_id: Option<String>,
 }
 
+#[utoipa::path(
+    post,
+    path = "/api/artifacts",
+    params(UploadQuery),
+    request_body(content_type = "multipart/form-data", description = "File upload with optional collection_id, item_id, expires_at fields"),
+    responses(
+        (status = 201, description = "Artifact uploaded"),
+        (status = 400, description = "Invalid scope or multipart payload", body = crate::openapi_types::ErrorResponse),
+        (status = 401, description = "Unauthenticated", body = crate::openapi_types::ErrorResponse),
+        (status = 403, description = "Insufficient scope", body = crate::openapi_types::ErrorResponse),
+        (status = 500, description = "Server error", body = crate::openapi_types::ErrorResponse),
+    ),
+    tag = "artifacts"
+)]
 pub async fn upload_artifact(
     State(state): State<ApiState>,
     Extension(auth): Extension<AuthContext>,
@@ -174,6 +191,19 @@ pub async fn upload_artifact(
 
 // ── GET /api/artifacts/:id ────────────────────────────────────────────────────
 
+#[utoipa::path(
+    get,
+    path = "/api/artifacts/{id}",
+    params(("id" = String, Path, description = "Artifact id")),
+    responses(
+        (status = 200, description = "Artifact bytes stream", content_type = "application/octet-stream"),
+        (status = 401, description = "Unauthenticated", body = crate::openapi_types::ErrorResponse),
+        (status = 403, description = "Insufficient scope", body = crate::openapi_types::ErrorResponse),
+        (status = 404, description = "Artifact not found", body = crate::openapi_types::ErrorResponse),
+        (status = 500, description = "Server error", body = crate::openapi_types::ErrorResponse),
+    ),
+    tag = "artifacts"
+)]
 pub async fn download_artifact(
     State(state): State<ApiState>,
     Extension(auth): Extension<AuthContext>,
@@ -220,6 +250,19 @@ pub async fn download_artifact(
 
 // ── HEAD /api/artifacts/:id ───────────────────────────────────────────────────
 
+#[utoipa::path(
+    head,
+    path = "/api/artifacts/{id}",
+    params(("id" = String, Path, description = "Artifact id")),
+    responses(
+        (status = 200, description = "Metadata-only response; body empty, headers carry size/mime/scope/hash"),
+        (status = 401, description = "Unauthenticated", body = crate::openapi_types::ErrorResponse),
+        (status = 403, description = "Insufficient scope", body = crate::openapi_types::ErrorResponse),
+        (status = 404, description = "Artifact not found", body = crate::openapi_types::ErrorResponse),
+        (status = 500, description = "Server error", body = crate::openapi_types::ErrorResponse),
+    ),
+    tag = "artifacts"
+)]
 pub async fn head_artifact(
     State(state): State<ApiState>,
     Extension(auth): Extension<AuthContext>,
@@ -253,6 +296,19 @@ pub async fn head_artifact(
 
 // ── GET /api/artifacts/:id/metadata ──────────────────────────────────────────
 
+#[utoipa::path(
+    get,
+    path = "/api/artifacts/{id}/metadata",
+    params(("id" = String, Path, description = "Artifact id")),
+    responses(
+        (status = 200, description = "Artifact metadata as JSON"),
+        (status = 401, description = "Unauthenticated", body = crate::openapi_types::ErrorResponse),
+        (status = 403, description = "Insufficient scope", body = crate::openapi_types::ErrorResponse),
+        (status = 404, description = "Artifact not found", body = crate::openapi_types::ErrorResponse),
+        (status = 500, description = "Server error", body = crate::openapi_types::ErrorResponse),
+    ),
+    tag = "artifacts"
+)]
 pub async fn artifact_metadata(
     State(state): State<ApiState>,
     Extension(auth): Extension<AuthContext>,
@@ -279,13 +335,27 @@ pub async fn artifact_metadata(
 
 // ── PATCH /api/artifacts/:id ──────────────────────────────────────────────────
 
-#[derive(Deserialize)]
+#[derive(Deserialize, utoipa::ToSchema)]
 pub struct PatchBody {
     pub name: Option<String>,
     pub owner_actor: Option<String>,
     pub expires_at: Option<String>,
 }
 
+#[utoipa::path(
+    patch,
+    path = "/api/artifacts/{id}",
+    params(("id" = String, Path, description = "Artifact id")),
+    request_body = PatchBody,
+    responses(
+        (status = 200, description = "Artifact metadata patched"),
+        (status = 401, description = "Unauthenticated", body = crate::openapi_types::ErrorResponse),
+        (status = 403, description = "Insufficient scope", body = crate::openapi_types::ErrorResponse),
+        (status = 404, description = "Artifact not found", body = crate::openapi_types::ErrorResponse),
+        (status = 500, description = "Server error", body = crate::openapi_types::ErrorResponse),
+    ),
+    tag = "artifacts"
+)]
 pub async fn patch_artifact(
     State(state): State<ApiState>,
     Extension(auth): Extension<AuthContext>,
@@ -321,6 +391,19 @@ pub async fn patch_artifact(
 
 // ── DELETE /api/artifacts/:id ─────────────────────────────────────────────────
 
+#[utoipa::path(
+    delete,
+    path = "/api/artifacts/{id}",
+    params(("id" = String, Path, description = "Artifact id")),
+    responses(
+        (status = 200, description = "Artifact soft-deleted"),
+        (status = 401, description = "Unauthenticated", body = crate::openapi_types::ErrorResponse),
+        (status = 403, description = "Insufficient scope", body = crate::openapi_types::ErrorResponse),
+        (status = 404, description = "Artifact not found", body = crate::openapi_types::ErrorResponse),
+        (status = 500, description = "Server error", body = crate::openapi_types::ErrorResponse),
+    ),
+    tag = "artifacts"
+)]
 pub async fn delete_artifact(
     State(state): State<ApiState>,
     Extension(auth): Extension<AuthContext>,
@@ -351,13 +434,28 @@ pub async fn delete_artifact(
 
 // ── POST /api/artifacts/:id/promote ──────────────────────────────────────────
 
-#[derive(Deserialize)]
+#[derive(Deserialize, utoipa::ToSchema)]
 pub struct PromoteBody {
     pub target_scope: String,
     pub run_id: Option<String>,
     pub user_id: Option<String>,
 }
 
+#[utoipa::path(
+    post,
+    path = "/api/artifacts/{id}/promote",
+    params(("id" = String, Path, description = "Artifact id")),
+    request_body = PromoteBody,
+    responses(
+        (status = 200, description = "Artifact promoted to target scope"),
+        (status = 400, description = "Invalid target scope", body = crate::openapi_types::ErrorResponse),
+        (status = 401, description = "Unauthenticated", body = crate::openapi_types::ErrorResponse),
+        (status = 403, description = "Insufficient scope", body = crate::openapi_types::ErrorResponse),
+        (status = 404, description = "Artifact not found", body = crate::openapi_types::ErrorResponse),
+        (status = 500, description = "Server error", body = crate::openapi_types::ErrorResponse),
+    ),
+    tag = "artifacts"
+)]
 pub async fn promote_artifact(
     State(state): State<ApiState>,
     Extension(auth): Extension<AuthContext>,
@@ -393,7 +491,7 @@ pub async fn promote_artifact(
 
 // ── GET /api/artifacts ────────────────────────────────────────────────────────
 
-#[derive(Deserialize, Default)]
+#[derive(Deserialize, Default, utoipa::IntoParams)]
 pub struct ListQuery {
     pub scope: Option<String>,
     pub mime: Option<String>,
@@ -406,6 +504,18 @@ pub struct ListQuery {
     pub sort: Option<String>,
 }
 
+#[utoipa::path(
+    get,
+    path = "/api/artifacts",
+    params(ListQuery),
+    responses(
+        (status = 200, description = "Filtered, paginated list of artifacts"),
+        (status = 401, description = "Unauthenticated", body = crate::openapi_types::ErrorResponse),
+        (status = 403, description = "Insufficient scope", body = crate::openapi_types::ErrorResponse),
+        (status = 500, description = "Server error", body = crate::openapi_types::ErrorResponse),
+    ),
+    tag = "artifacts"
+)]
 pub async fn list_artifacts(
     State(state): State<ApiState>,
     Extension(auth): Extension<AuthContext>,

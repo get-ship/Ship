@@ -25,7 +25,7 @@ fn safe_join(base: &std::path::Path, relative: &str) -> Result<PathBuf, (StatusC
 
 // ── Request bodies ────────────────────────────────────────────────────────────
 
-#[derive(Deserialize)]
+#[derive(Deserialize, utoipa::ToSchema)]
 pub struct WriteAgentReq {
     pub id: String,
     pub profile: serde_json::Value,
@@ -36,12 +36,12 @@ pub struct WriteAgentReq {
     pub hooks: serde_json::Value,
 }
 
-#[derive(Deserialize)]
+#[derive(Deserialize, utoipa::ToSchema)]
 pub struct WriteFileReq {
     pub content: String,
 }
 
-#[derive(Deserialize)]
+#[derive(Deserialize, utoipa::ToSchema)]
 pub struct SetVarReq {
     pub value_json: String,
 }
@@ -51,6 +51,21 @@ pub struct SetVarReq {
 /// POST /api/workspaces/{id}/agents
 ///
 /// Write an agent transfer bundle to `{worktree}/.ship/agents/{agent_id}.jsonc`.
+#[utoipa::path(
+    post,
+    path = "/api/workspaces/{id}/agents",
+    params(("id" = String, Path, description = "Workspace id")),
+    request_body = WriteAgentReq,
+    responses(
+        (status = 200, description = "Agent bundle written", body = MeshResponse),
+        (status = 400, description = "Invalid agent id", body = crate::openapi_types::ErrorResponse),
+        (status = 401, description = "Unauthenticated", body = crate::openapi_types::ErrorResponse),
+        (status = 403, description = "Insufficient scope", body = crate::openapi_types::ErrorResponse),
+        (status = 404, description = "Workspace not found", body = crate::openapi_types::ErrorResponse),
+        (status = 500, description = "Server error", body = crate::openapi_types::ErrorResponse),
+    ),
+    tag = "project"
+)]
 pub async fn write_agent(
     State(state): State<ApiState>,
     axum::Extension(auth): axum::Extension<AuthContext>,
@@ -102,6 +117,25 @@ pub async fn write_agent(
 /// PUT /api/workspaces/{id}/skills/{skillId}/files/{*path}
 ///
 /// Write content to `{worktree}/.ship/skills/{skillId}/{path}`.
+#[utoipa::path(
+    put,
+    path = "/api/workspaces/{id}/skills/{skillId}/files/{path}",
+    params(
+        ("id" = String, Path, description = "Workspace id"),
+        ("skillId" = String, Path, description = "Skill id"),
+        ("path" = String, Path, description = "Relative path under the skill directory"),
+    ),
+    request_body = WriteFileReq,
+    responses(
+        (status = 200, description = "File written", body = MeshResponse),
+        (status = 400, description = "Invalid skill id or path", body = crate::openapi_types::ErrorResponse),
+        (status = 401, description = "Unauthenticated", body = crate::openapi_types::ErrorResponse),
+        (status = 403, description = "Insufficient scope", body = crate::openapi_types::ErrorResponse),
+        (status = 404, description = "Workspace not found", body = crate::openapi_types::ErrorResponse),
+        (status = 500, description = "Server error", body = crate::openapi_types::ErrorResponse),
+    ),
+    tag = "project"
+)]
 pub async fn write_skill_file(
     State(state): State<ApiState>,
     axum::Extension(auth): axum::Extension<AuthContext>,
@@ -138,6 +172,24 @@ pub async fn write_skill_file(
 /// DELETE /api/workspaces/{id}/skills/{skillId}/files/{*path}
 ///
 /// Delete `{worktree}/.ship/skills/{skillId}/{path}`.
+#[utoipa::path(
+    delete,
+    path = "/api/workspaces/{id}/skills/{skillId}/files/{path}",
+    params(
+        ("id" = String, Path, description = "Workspace id"),
+        ("skillId" = String, Path, description = "Skill id"),
+        ("path" = String, Path, description = "Relative path under the skill directory"),
+    ),
+    responses(
+        (status = 200, description = "File deleted", body = MeshResponse),
+        (status = 400, description = "Invalid skill id or path", body = crate::openapi_types::ErrorResponse),
+        (status = 401, description = "Unauthenticated", body = crate::openapi_types::ErrorResponse),
+        (status = 403, description = "Insufficient scope", body = crate::openapi_types::ErrorResponse),
+        (status = 404, description = "File not found", body = crate::openapi_types::ErrorResponse),
+        (status = 500, description = "Server error", body = crate::openapi_types::ErrorResponse),
+    ),
+    tag = "project"
+)]
 pub async fn delete_skill_file(
     State(state): State<ApiState>,
     axum::Extension(auth): axum::Extension<AuthContext>,
@@ -168,6 +220,22 @@ pub async fn delete_skill_file(
 /// GET /api/workspaces/{id}/skills/{skillId}/vars
 ///
 /// Return merged skill variable state. Uses the worktree `.ship` dir as context.
+#[utoipa::path(
+    get,
+    path = "/api/workspaces/{id}/skills/{skillId}/vars",
+    params(
+        ("id" = String, Path, description = "Workspace id"),
+        ("skillId" = String, Path, description = "Skill id"),
+    ),
+    responses(
+        (status = 200, description = "Merged skill vars", body = MeshResponse),
+        (status = 400, description = "Invalid skill id", body = crate::openapi_types::ErrorResponse),
+        (status = 401, description = "Unauthenticated", body = crate::openapi_types::ErrorResponse),
+        (status = 404, description = "Workspace not found", body = crate::openapi_types::ErrorResponse),
+        (status = 500, description = "Server error", body = crate::openapi_types::ErrorResponse),
+    ),
+    tag = "project"
+)]
 pub async fn get_skill_vars(
     State(state): State<ApiState>,
     Path((id, skill_id)): Path<(String, String)>,
@@ -197,6 +265,25 @@ pub async fn get_skill_vars(
 /// PUT /api/workspaces/{id}/skills/{skillId}/vars/{key}
 ///
 /// Set a single skill variable. Body: `{ value_json: "<json-encoded-value>" }`.
+#[utoipa::path(
+    put,
+    path = "/api/workspaces/{id}/skills/{skillId}/vars/{key}",
+    params(
+        ("id" = String, Path, description = "Workspace id"),
+        ("skillId" = String, Path, description = "Skill id"),
+        ("key" = String, Path, description = "Variable key"),
+    ),
+    request_body = SetVarReq,
+    responses(
+        (status = 200, description = "Variable set", body = MeshResponse),
+        (status = 400, description = "Invalid payload", body = crate::openapi_types::ErrorResponse),
+        (status = 401, description = "Unauthenticated", body = crate::openapi_types::ErrorResponse),
+        (status = 403, description = "Insufficient scope", body = crate::openapi_types::ErrorResponse),
+        (status = 404, description = "Unknown variable or skill", body = crate::openapi_types::ErrorResponse),
+        (status = 500, description = "Server error", body = crate::openapi_types::ErrorResponse),
+    ),
+    tag = "project"
+)]
 pub async fn set_skill_var(
     State(state): State<ApiState>,
     axum::Extension(auth): axum::Extension<AuthContext>,

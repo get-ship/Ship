@@ -4,17 +4,18 @@
 //! filesystem, git, and event operations on a single local project.
 //! Routes are mounted under `/api` in lib.rs.
 
-mod agents_skills;
-mod agents_skills_write;
-mod git;
-mod pipelines;
-pub(crate) mod session_files;
+pub mod agents_skills;
+pub mod agents_skills_write;
+pub mod git;
+pub mod pipelines;
+pub mod session_files;
 
 pub use agents_skills::{list_agents, list_skills};
 pub use agents_skills_write::{
-    delete_skill_file, get_skill_vars, set_skill_var, write_agent, write_skill_file,
+    SetVarReq, WriteAgentReq, delete_skill_file, get_skill_vars, set_skill_var, write_agent,
+    write_skill_file,
 };
-pub use pipelines::{list_pipelines, write_pipeline, delete_pipeline};
+pub use pipelines::{WritePipelineReq, delete_pipeline, list_pipelines, write_pipeline};
 pub use git::{git_diff, git_log, git_status, project_git_diff, project_git_log, project_git_status};
 pub use session_files::{
     delete_session_file, list_session_files, read_session_file, write_session_file,
@@ -187,7 +188,7 @@ pub(crate) fn safe_resolve(
 
 // ---- Event emit endpoint ----
 
-#[derive(Deserialize)]
+#[derive(Deserialize, utoipa::ToSchema)]
 pub struct EmitEventReq {
     pub event_type: String,
     pub entity_id: String,
@@ -196,6 +197,18 @@ pub struct EmitEventReq {
 }
 
 /// POST /api/events/emit
+#[utoipa::path(
+    post,
+    path = "/api/events/emit",
+    request_body = EmitEventReq,
+    responses(
+        (status = 200, description = "Event persisted and routed", body = MeshResponse),
+        (status = 400, description = "Invalid envelope", body = crate::openapi_types::ErrorResponse),
+        (status = 401, description = "Unauthenticated", body = crate::openapi_types::ErrorResponse),
+        (status = 500, description = "Server error", body = crate::openapi_types::ErrorResponse),
+    ),
+    tag = "runtime"
+)]
 pub async fn emit_event(
     State(state): State<ApiState>,
     auth: Option<axum::Extension<crate::auth::AuthContext>>,
@@ -243,6 +256,18 @@ pub async fn emit_event(
 // ---- Workspace delete endpoint ----
 
 /// DELETE /api/workspaces/{id}
+#[utoipa::path(
+    delete,
+    path = "/api/workspaces/{id}",
+    params(("id" = String, Path, description = "Workspace id / branch")),
+    responses(
+        (status = 200, description = "Workspace deleted", body = MeshResponse),
+        (status = 401, description = "Unauthenticated", body = crate::openapi_types::ErrorResponse),
+        (status = 403, description = "Insufficient scope", body = crate::openapi_types::ErrorResponse),
+        (status = 500, description = "Server error", body = crate::openapi_types::ErrorResponse),
+    ),
+    tag = "project"
+)]
 pub async fn delete_workspace(
     State(state): State<ApiState>,
     axum::Extension(auth): axum::Extension<crate::auth::AuthContext>,
@@ -262,6 +287,18 @@ pub async fn delete_workspace(
 ///
 /// Creates the workspace if it doesn't exist. No-op if it does.
 /// Kept as /activate for API backward compat.
+#[utoipa::path(
+    post,
+    path = "/api/workspaces/{id}/activate",
+    params(("id" = String, Path, description = "Workspace id / branch")),
+    responses(
+        (status = 200, description = "Workspace created or already existed", body = MeshResponse),
+        (status = 401, description = "Unauthenticated", body = crate::openapi_types::ErrorResponse),
+        (status = 403, description = "Insufficient scope", body = crate::openapi_types::ErrorResponse),
+        (status = 500, description = "Server error", body = crate::openapi_types::ErrorResponse),
+    ),
+    tag = "project"
+)]
 pub async fn activate_workspace(
     State(state): State<ApiState>,
     axum::Extension(auth): axum::Extension<crate::auth::AuthContext>,

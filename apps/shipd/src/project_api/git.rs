@@ -34,6 +34,18 @@ fn run_git(
 }
 
 /// GET /api/workspaces/{id}/git/status
+#[utoipa::path(
+    get,
+    path = "/api/workspaces/{id}/git/status",
+    params(("id" = String, Path, description = "Workspace id")),
+    responses(
+        (status = 200, description = "git status output", body = MeshResponse),
+        (status = 401, description = "Unauthenticated", body = crate::openapi_types::ErrorResponse),
+        (status = 404, description = "Workspace not found", body = crate::openapi_types::ErrorResponse),
+        (status = 500, description = "Server error", body = crate::openapi_types::ErrorResponse),
+    ),
+    tag = "project"
+)]
 pub async fn git_status(
     State(state): State<ApiState>,
     Path(id): Path<String>,
@@ -43,12 +55,24 @@ pub async fn git_status(
     Ok(ok_response(serde_json::json!({ "output": output })))
 }
 
-#[derive(Deserialize)]
+#[derive(Deserialize, utoipa::IntoParams)]
 pub struct DiffQuery {
     pub range: Option<String>,
 }
 
 /// GET /api/workspaces/{id}/git/diff
+#[utoipa::path(
+    get,
+    path = "/api/workspaces/{id}/git/diff",
+    params(("id" = String, Path, description = "Workspace id"), DiffQuery),
+    responses(
+        (status = 200, description = "git diff output", body = MeshResponse),
+        (status = 401, description = "Unauthenticated", body = crate::openapi_types::ErrorResponse),
+        (status = 404, description = "Workspace not found", body = crate::openapi_types::ErrorResponse),
+        (status = 500, description = "Server error", body = crate::openapi_types::ErrorResponse),
+    ),
+    tag = "project"
+)]
 pub async fn git_diff(
     State(state): State<ApiState>,
     Path(id): Path<String>,
@@ -62,12 +86,24 @@ pub async fn git_diff(
     Ok(ok_response(serde_json::json!({ "output": output })))
 }
 
-#[derive(Deserialize)]
+#[derive(Deserialize, utoipa::IntoParams)]
 pub struct LogQuery {
     pub limit: Option<u32>,
 }
 
 /// GET /api/workspaces/{id}/git/log
+#[utoipa::path(
+    get,
+    path = "/api/workspaces/{id}/git/log",
+    params(("id" = String, Path, description = "Workspace id"), LogQuery),
+    responses(
+        (status = 200, description = "git log entries", body = MeshResponse),
+        (status = 401, description = "Unauthenticated", body = crate::openapi_types::ErrorResponse),
+        (status = 404, description = "Workspace not found", body = crate::openapi_types::ErrorResponse),
+        (status = 500, description = "Server error", body = crate::openapi_types::ErrorResponse),
+    ),
+    tag = "project"
+)]
 pub async fn git_log(
     State(state): State<ApiState>,
     Path(id): Path<String>,
@@ -131,6 +167,16 @@ fn resolve_project_root(
 }
 
 /// GET /api/project/git/status
+#[utoipa::path(
+    get,
+    path = "/api/project/git/status",
+    responses(
+        (status = 200, description = "git status output for project root", body = MeshResponse),
+        (status = 401, description = "Unauthenticated", body = crate::openapi_types::ErrorResponse),
+        (status = 500, description = "Server error", body = crate::openapi_types::ErrorResponse),
+    ),
+    tag = "project"
+)]
 pub async fn project_git_status(
     State(state): State<ApiState>,
 ) -> Result<(StatusCode, Json<MeshResponse>), (StatusCode, Json<MeshResponse>)> {
@@ -140,6 +186,17 @@ pub async fn project_git_status(
 }
 
 /// GET /api/project/git/diff
+#[utoipa::path(
+    get,
+    path = "/api/project/git/diff",
+    params(DiffQuery),
+    responses(
+        (status = 200, description = "git diff output for project root", body = MeshResponse),
+        (status = 401, description = "Unauthenticated", body = crate::openapi_types::ErrorResponse),
+        (status = 500, description = "Server error", body = crate::openapi_types::ErrorResponse),
+    ),
+    tag = "project"
+)]
 pub async fn project_git_diff(
     State(state): State<ApiState>,
     Query(params): Query<DiffQuery>,
@@ -153,6 +210,17 @@ pub async fn project_git_diff(
 }
 
 /// GET /api/project/git/log
+#[utoipa::path(
+    get,
+    path = "/api/project/git/log",
+    params(LogQuery),
+    responses(
+        (status = 200, description = "git log entries for project root", body = MeshResponse),
+        (status = 401, description = "Unauthenticated", body = crate::openapi_types::ErrorResponse),
+        (status = 500, description = "Server error", body = crate::openapi_types::ErrorResponse),
+    ),
+    tag = "project"
+)]
 pub async fn project_git_log(
     State(state): State<ApiState>,
     Query(params): Query<LogQuery>,

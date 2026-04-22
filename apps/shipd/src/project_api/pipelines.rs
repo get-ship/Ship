@@ -22,6 +22,18 @@ fn parse_pipeline_content(content: &str) -> Result<serde_json::Value, String> {
 }
 
 /// GET /api/workspaces/{id}/pipelines
+#[utoipa::path(
+    get,
+    path = "/api/workspaces/{id}/pipelines",
+    params(("id" = String, Path, description = "Workspace id")),
+    responses(
+        (status = 200, description = "Pipeline definitions discovered in .ship/pipelines/", body = MeshResponse),
+        (status = 401, description = "Unauthenticated", body = crate::openapi_types::ErrorResponse),
+        (status = 404, description = "Workspace not found", body = crate::openapi_types::ErrorResponse),
+        (status = 500, description = "Server error", body = crate::openapi_types::ErrorResponse),
+    ),
+    tag = "project"
+)]
 pub async fn list_pipelines(
     axum::extract::State(state): axum::extract::State<ApiState>,
     Path(id): Path<String>,
@@ -77,12 +89,30 @@ pub async fn list_pipelines(
     Ok(ok_response(serde_json::json!({ "pipelines": pipelines })))
 }
 
-#[derive(Deserialize)]
+#[derive(Deserialize, utoipa::ToSchema)]
 pub struct WritePipelineReq {
     pub content: String,
 }
 
 /// PUT /api/workspaces/{id}/pipelines/{name}
+#[utoipa::path(
+    put,
+    path = "/api/workspaces/{id}/pipelines/{name}",
+    params(
+        ("id" = String, Path, description = "Workspace id"),
+        ("name" = String, Path, description = "Pipeline name (without extension)"),
+    ),
+    request_body = WritePipelineReq,
+    responses(
+        (status = 200, description = "Pipeline definition written", body = MeshResponse),
+        (status = 400, description = "Invalid pipeline name or content", body = crate::openapi_types::ErrorResponse),
+        (status = 401, description = "Unauthenticated", body = crate::openapi_types::ErrorResponse),
+        (status = 403, description = "Insufficient scope", body = crate::openapi_types::ErrorResponse),
+        (status = 404, description = "Workspace not found", body = crate::openapi_types::ErrorResponse),
+        (status = 500, description = "Server error", body = crate::openapi_types::ErrorResponse),
+    ),
+    tag = "project"
+)]
 pub async fn write_pipeline(
     axum::extract::State(state): axum::extract::State<ApiState>,
     axum::Extension(auth): axum::Extension<AuthContext>,
@@ -112,6 +142,22 @@ pub async fn write_pipeline(
 }
 
 /// DELETE /api/workspaces/{id}/pipelines/{name}
+#[utoipa::path(
+    delete,
+    path = "/api/workspaces/{id}/pipelines/{name}",
+    params(
+        ("id" = String, Path, description = "Workspace id"),
+        ("name" = String, Path, description = "Pipeline name (without extension)"),
+    ),
+    responses(
+        (status = 200, description = "Pipeline deleted", body = MeshResponse),
+        (status = 401, description = "Unauthenticated", body = crate::openapi_types::ErrorResponse),
+        (status = 403, description = "Insufficient scope", body = crate::openapi_types::ErrorResponse),
+        (status = 404, description = "Pipeline not found", body = crate::openapi_types::ErrorResponse),
+        (status = 500, description = "Server error", body = crate::openapi_types::ErrorResponse),
+    ),
+    tag = "project"
+)]
 pub async fn delete_pipeline(
     axum::extract::State(state): axum::extract::State<ApiState>,
     axum::Extension(auth): axum::Extension<AuthContext>,

@@ -34,12 +34,12 @@ pub mod session;
 pub mod session_types;
 pub mod sanitize;
 
-mod assets;
+pub mod assets;
 pub mod agents_jsonc;
 pub mod context;
 pub mod error_overlay;
 pub mod generic_sse;
-mod handlers;
+pub mod handlers;
 mod resolve;
 pub mod view_filters;
 pub mod view_filters_list;

@@ -70,6 +70,17 @@ fn render_partial(
 }
 
 /// GET /api/runtime/view/{name}/sse
+#[utoipa::path(
+    get,
+    path = "/api/runtime/view/{name}/sse",
+    params(("name" = String, Path, description = "View name")),
+    responses(
+        (status = 200, description = "Server-sent-event stream of view fragments", content_type = "text/event-stream"),
+        (status = 401, description = "Unauthenticated", body = crate::openapi_types::ErrorResponse),
+        (status = 404, description = "View not found", body = crate::openapi_types::ErrorResponse),
+    ),
+    tag = "views"
+)]
 pub async fn serve_view_sse(
     Path(name): Path<String>,
     State(state): State<ApiState>,

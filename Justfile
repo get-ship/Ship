@@ -112,6 +112,15 @@ docs:
 docs-dev:
     cd apps/docs && pnpm dev --port 4321 --host
 
+# Regenerate the committed OpenAPI snapshot from the live daemon spec.
+openapi-regen:
+    cd apps/docs && pnpm run openapi:generate
+
+# Fail if the committed apps/docs/openapi.json disagrees with the live spec.
+# CI gate for "someone edited a utoipa annotation but forgot to regenerate".
+check-openapi-drift:
+    cd apps/docs && pnpm run openapi:check-drift
+
 # ── Deploy ─────────────────────────────────────────────────────────────────────
 
 # Deploy Studio to Cloudflare Workers

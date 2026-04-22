@@ -13,7 +13,7 @@ use serde::{Deserialize, Serialize};
 use crate::auth::AuthContext;
 
 /// Normalized hook event sent by Claude HTTP hooks or the `ship hook` adapter.
-#[derive(Debug, Deserialize)]
+#[derive(Debug, Deserialize, utoipa::ToSchema)]
 pub struct ShipHookEvent {
     #[serde(default)]
     pub tool_name: Option<String>,
@@ -30,16 +30,17 @@ pub struct ShipHookEvent {
 }
 
 /// Hook response: allow or block with reason.
-#[derive(Debug, Serialize)]
+#[derive(Debug, Serialize, utoipa::ToSchema)]
 pub struct HookResponse {
-    pub action: &'static str,
+    #[schema(example = "allow")]
+    pub action: String,
     #[serde(skip_serializing_if = "Option::is_none")]
     pub reason: Option<String>,
 }
 
 impl HookResponse {
     fn allow() -> Self {
-        Self { action: "allow", reason: None }
+        Self { action: "allow".to_string(), reason: None }
     }
 }
 
@@ -58,6 +59,18 @@ fn resolve_session(event: &ShipHookEvent, auth: &AuthContext) -> Option<String> 
 }
 
 /// POST /api/hooks/session-start
+#[utoipa::path(
+    post,
+    path = "/api/hooks/session-start",
+    request_body = ShipHookEvent,
+    responses(
+        (status = 200, description = "Hook processed", body = HookResponse),
+        (status = 400, description = "Invalid payload", body = crate::openapi_types::ErrorResponse),
+        (status = 401, description = "Unauthenticated", body = crate::openapi_types::ErrorResponse),
+        (status = 500, description = "Server error", body = crate::openapi_types::ErrorResponse),
+    ),
+    tag = "hooks"
+)]
 pub async fn hook_session_start(
     Extension(auth): Extension<AuthContext>,
     Json(event): Json<ShipHookEvent>,
@@ -76,6 +89,18 @@ pub async fn hook_session_start(
 }
 
 /// POST /api/hooks/before-tool
+#[utoipa::path(
+    post,
+    path = "/api/hooks/before-tool",
+    request_body = ShipHookEvent,
+    responses(
+        (status = 200, description = "Hook allow or block decision", body = HookResponse),
+        (status = 400, description = "Invalid payload", body = crate::openapi_types::ErrorResponse),
+        (status = 401, description = "Unauthenticated", body = crate::openapi_types::ErrorResponse),
+        (status = 500, description = "Server error", body = crate::openapi_types::ErrorResponse),
+    ),
+    tag = "hooks"
+)]
 pub async fn hook_before_tool(
     Extension(auth): Extension<AuthContext>,
     Json(event): Json<ShipHookEvent>,
@@ -98,6 +123,18 @@ pub async fn hook_before_tool(
 }
 
 /// POST /api/hooks/after-tool
+#[utoipa::path(
+    post,
+    path = "/api/hooks/after-tool",
+    request_body = ShipHookEvent,
+    responses(
+        (status = 200, description = "Hook processed", body = HookResponse),
+        (status = 400, description = "Invalid payload", body = crate::openapi_types::ErrorResponse),
+        (status = 401, description = "Unauthenticated", body = crate::openapi_types::ErrorResponse),
+        (status = 500, description = "Server error", body = crate::openapi_types::ErrorResponse),
+    ),
+    tag = "hooks"
+)]
 pub async fn hook_after_tool(
     Extension(auth): Extension<AuthContext>,
     Json(event): Json<ShipHookEvent>,
@@ -116,6 +153,18 @@ pub async fn hook_after_tool(
 }
 
 /// POST /api/hooks/session-end
+#[utoipa::path(
+    post,
+    path = "/api/hooks/session-end",
+    request_body = ShipHookEvent,
+    responses(
+        (status = 200, description = "Hook processed", body = HookResponse),
+        (status = 400, description = "Invalid payload", body = crate::openapi_types::ErrorResponse),
+        (status = 401, description = "Unauthenticated", body = crate::openapi_types::ErrorResponse),
+        (status = 500, description = "Server error", body = crate::openapi_types::ErrorResponse),
+    ),
+    tag = "hooks"
+)]
 pub async fn hook_session_end(
     Extension(auth): Extension<AuthContext>,
     Json(event): Json<ShipHookEvent>,

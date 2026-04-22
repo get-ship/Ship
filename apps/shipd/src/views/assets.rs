@@ -35,6 +35,16 @@ const VIEW_TOKENS_CSS: &str = concat!(
 );
 
 /// GET /api/runtime/assets/datastar.js
+#[utoipa::path(
+    get,
+    path = "/api/runtime/assets/datastar.js",
+    responses(
+        (status = 200, description = "Datastar client bundle", content_type = "application/javascript"),
+        (status = 500, description = "server error", body = crate::openapi_types::ErrorResponse),
+    ),
+    security(),
+    tag = "views"
+)]
 pub async fn serve_datastar_js() -> axum::response::Response {
     axum::response::Response::builder()
         .status(StatusCode::OK)
@@ -45,6 +55,16 @@ pub async fn serve_datastar_js() -> axum::response::Response {
 }
 
 /// GET /api/runtime/assets/view-tokens.css
+#[utoipa::path(
+    get,
+    path = "/api/runtime/assets/view-tokens.css",
+    responses(
+        (status = 200, description = "Design tokens + base CSS for views", content_type = "text/css"),
+        (status = 500, description = "server error", body = crate::openapi_types::ErrorResponse),
+    ),
+    security(),
+    tag = "views"
+)]
 pub async fn serve_view_tokens() -> axum::response::Response {
     axum::response::Response::builder()
         .status(StatusCode::OK)
@@ -55,6 +75,16 @@ pub async fn serve_view_tokens() -> axum::response::Response {
 }
 
 /// GET /api/runtime/assets/ship-elements.js
+#[utoipa::path(
+    get,
+    path = "/api/runtime/assets/ship-elements.js",
+    responses(
+        (status = 200, description = "Web-component element bundle", content_type = "application/javascript"),
+        (status = 500, description = "server error", body = crate::openapi_types::ErrorResponse),
+    ),
+    security(),
+    tag = "views"
+)]
 pub async fn serve_ship_elements() -> axum::response::Response {
     axum::response::Response::builder()
         .status(StatusCode::OK)
@@ -65,6 +95,16 @@ pub async fn serve_ship_elements() -> axum::response::Response {
 }
 
 /// GET /api/runtime/assets/custom-elements.json
+#[utoipa::path(
+    get,
+    path = "/api/runtime/assets/custom-elements.json",
+    responses(
+        (status = 200, description = "Custom Elements Manifest (CEM)", content_type = "application/json"),
+        (status = 500, description = "server error", body = crate::openapi_types::ErrorResponse),
+    ),
+    security(),
+    tag = "views"
+)]
 pub async fn serve_elements_manifest() -> axum::response::Response {
     axum::response::Response::builder()
         .status(StatusCode::OK)
@@ -81,6 +121,16 @@ const SHIP_MARKDOWN_EDITOR_JS: &str = include_str!("../../assets/ship-markdown-e
 const SHIP_TERMINAL_JS: &str = include_str!("../../assets/ship-terminal.js");
 
 /// GET /api/runtime/assets/ship-code-editor.js
+#[utoipa::path(
+    get,
+    path = "/api/runtime/assets/ship-code-editor.js",
+    responses(
+        (status = 200, description = "Code editor island bundle", content_type = "application/javascript"),
+        (status = 500, description = "server error", body = crate::openapi_types::ErrorResponse),
+    ),
+    security(),
+    tag = "views"
+)]
 pub async fn serve_code_editor() -> axum::response::Response {
     axum::response::Response::builder()
         .status(StatusCode::OK)
@@ -91,6 +141,16 @@ pub async fn serve_code_editor() -> axum::response::Response {
 }
 
 /// GET /api/runtime/assets/ship-markdown-editor.js
+#[utoipa::path(
+    get,
+    path = "/api/runtime/assets/ship-markdown-editor.js",
+    responses(
+        (status = 200, description = "Markdown editor island bundle", content_type = "application/javascript"),
+        (status = 500, description = "server error", body = crate::openapi_types::ErrorResponse),
+    ),
+    security(),
+    tag = "views"
+)]
 pub async fn serve_markdown_editor() -> axum::response::Response {
     axum::response::Response::builder()
         .status(StatusCode::OK)
@@ -101,6 +161,16 @@ pub async fn serve_markdown_editor() -> axum::response::Response {
 }
 
 /// GET /api/runtime/assets/ship-terminal.js
+#[utoipa::path(
+    get,
+    path = "/api/runtime/assets/ship-terminal.js",
+    responses(
+        (status = 200, description = "Terminal island bundle", content_type = "application/javascript"),
+        (status = 500, description = "server error", body = crate::openapi_types::ErrorResponse),
+    ),
+    security(),
+    tag = "views"
+)]
 pub async fn serve_terminal() -> axum::response::Response {
     axum::response::Response::builder()
         .status(StatusCode::OK)
@@ -112,6 +182,16 @@ pub async fn serve_terminal() -> axum::response::Response {
 
 /// GET /api/runtime/assets/ship-elements.md
 /// Compact, token-efficient catalog for agent context.
+#[utoipa::path(
+    get,
+    path = "/api/runtime/assets/ship-elements.md",
+    responses(
+        (status = 200, description = "Compact element catalog for agent context", content_type = "text/markdown"),
+        (status = 500, description = "server error", body = crate::openapi_types::ErrorResponse),
+    ),
+    security(),
+    tag = "views"
+)]
 pub async fn serve_elements_catalog() -> axum::response::Response {
     axum::response::Response::builder()
         .status(StatusCode::OK)
@@ -123,6 +203,16 @@ pub async fn serve_elements_catalog() -> axum::response::Response {
 
 /// GET /api/runtime/assets/theme.css
 /// Returns the active theme's CSS overrides. No-cache so theme changes apply immediately.
+#[utoipa::path(
+    get,
+    path = "/api/runtime/assets/theme.css",
+    responses(
+        (status = 200, description = "Active theme CSS overrides", content_type = "text/css"),
+        (status = 500, description = "server error", body = crate::openapi_types::ErrorResponse),
+    ),
+    security(),
+    tag = "views"
+)]
 pub async fn serve_theme_css() -> axum::response::Response {
     let css = crate::themes::resolve_theme_css();
     axum::response::Response::builder()
@@ -135,6 +225,16 @@ pub async fn serve_theme_css() -> axum::response::Response {
 
 /// GET /api/runtime/themes
 /// Returns JSON list of all available themes.
+#[utoipa::path(
+    get,
+    path = "/api/runtime/themes",
+    responses(
+        (status = 200, description = "Available themes", content_type = "application/json"),
+        (status = 500, description = "server error", body = crate::openapi_types::ErrorResponse),
+    ),
+    security(),
+    tag = "views"
+)]
 pub async fn serve_themes_list() -> axum::response::Response {
     let themes = crate::themes::list_themes();
     let json = serde_json::to_string(&themes).unwrap_or_else(|_| "[]".to_string());

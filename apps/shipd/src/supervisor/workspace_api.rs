@@ -18,14 +18,14 @@ use super::helpers::{
 };
 use super::terminal_launcher;
 
-#[derive(Deserialize)]
+#[derive(Deserialize, utoipa::ToSchema)]
 pub struct StartWorkspaceRequest {
     pub agent_id: String,
     pub base_branch: Option<String>,
     pub open_terminal: Option<bool>,
 }
 
-#[derive(Serialize)]
+#[derive(Serialize, utoipa::ToSchema)]
 pub struct StartWorkspaceResponse {
     pub ok: bool,
     pub worktree_path: String,
@@ -39,6 +39,20 @@ fn err(status: StatusCode, msg: impl Into<String>) -> (StatusCode, Json<serde_js
 }
 
 /// POST /api/supervisor/workspaces/:id/start
+#[utoipa::path(
+    post,
+    path = "/api/supervisor/workspaces/{id}/start",
+    params(("id" = String, Path, description = "Workspace id")),
+    request_body = StartWorkspaceRequest,
+    responses(
+        (status = 200, description = "Workspace worktree provisioned; agent launched", body = StartWorkspaceResponse),
+        (status = 401, description = "Unauthenticated", body = crate::openapi_types::ErrorResponse),
+        (status = 403, description = "Insufficient scope", body = crate::openapi_types::ErrorResponse),
+        (status = 404, description = "Workspace not found", body = crate::openapi_types::ErrorResponse),
+        (status = 500, description = "Server error", body = crate::openapi_types::ErrorResponse),
+    ),
+    tag = "project"
+)]
 pub async fn start_workspace(
     Path(workspace_id): Path<String>,
     State(state): State<ApiState>,

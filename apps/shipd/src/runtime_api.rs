@@ -33,7 +33,11 @@ pub struct SessionsQuery {
 #[utoipa::path(
     get,
     path = "/api/runtime/workspaces",
-    responses((status = 200, body = MeshResponse)),
+    responses(
+        (status = 200, body = MeshResponse),
+        (status = 401, description = "unauthorized", body = crate::openapi_types::ErrorResponse),
+        (status = 500, description = "server error", body = crate::openapi_types::ErrorResponse),
+    ),
     tag = "runtime"
 )]
 pub async fn list_workspaces(
@@ -133,7 +137,11 @@ fn git_worktrees() -> Option<Vec<(String, String)>> {
     get,
     path = "/api/runtime/sessions",
     params(SessionsQuery),
-    responses((status = 200, body = MeshResponse)),
+    responses(
+        (status = 200, body = MeshResponse),
+        (status = 401, description = "unauthorized", body = crate::openapi_types::ErrorResponse),
+        (status = 500, description = "server error", body = crate::openapi_types::ErrorResponse),
+    ),
     tag = "runtime"
 )]
 pub async fn list_sessions(
@@ -190,7 +198,11 @@ pub async fn list_sessions(
 #[utoipa::path(
     get,
     path = "/api/runtime/agents",
-    responses((status = 200, body = MeshResponse)),
+    responses(
+        (status = 200, body = MeshResponse),
+        (status = 401, description = "unauthorized", body = crate::openapi_types::ErrorResponse),
+        (status = 500, description = "server error", body = crate::openapi_types::ErrorResponse),
+    ),
     tag = "runtime"
 )]
 pub async fn list_agents(
@@ -295,7 +307,11 @@ pub struct CreateJobRequest {
 #[utoipa::path(
     get,
     path = "/api/runtime/jobs",
-    responses((status = 200, body = MeshResponse)),
+    responses(
+        (status = 200, body = MeshResponse),
+        (status = 401, description = "unauthorized", body = crate::openapi_types::ErrorResponse),
+        (status = 500, description = "server error", body = crate::openapi_types::ErrorResponse),
+    ),
     tag = "runtime"
 )]
 pub async fn list_jobs(State(state): State<ApiState>) -> impl IntoResponse {
@@ -459,7 +475,12 @@ pub struct EventSummary {
 #[utoipa::path(
     get,
     path = "/api/runtime/jobs/{job_id}",
-    responses((status = 200, body = MeshResponse)),
+    responses(
+        (status = 200, body = MeshResponse),
+        (status = 401, description = "unauthorized", body = crate::openapi_types::ErrorResponse),
+        (status = 404, description = "job not found", body = crate::openapi_types::ErrorResponse),
+        (status = 500, description = "server error", body = crate::openapi_types::ErrorResponse),
+    ),
     tag = "runtime"
 )]
 pub async fn get_job_detail(
@@ -547,7 +568,13 @@ pub async fn get_job_detail(
     post,
     path = "/api/runtime/jobs",
     request_body = CreateJobRequest,
-    responses((status = 200, body = MeshResponse)),
+    responses(
+        (status = 200, body = MeshResponse),
+        (status = 400, description = "bad request", body = crate::openapi_types::ErrorResponse),
+        (status = 401, description = "unauthorized", body = crate::openapi_types::ErrorResponse),
+        (status = 409, description = "job slug already exists", body = crate::openapi_types::ErrorResponse),
+        (status = 500, description = "server error", body = crate::openapi_types::ErrorResponse),
+    ),
     tag = "runtime"
 )]
 pub async fn create_job(
@@ -644,7 +671,14 @@ fn default_cancel_reason() -> String {
     post,
     path = "/api/runtime/jobs/{slug}/cancel",
     request_body = CancelJobRequest,
-    responses((status = 200, body = MeshResponse)),
+    responses(
+        (status = 200, body = MeshResponse),
+        (status = 400, description = "bad request", body = crate::openapi_types::ErrorResponse),
+        (status = 401, description = "unauthorized", body = crate::openapi_types::ErrorResponse),
+        (status = 404, description = "job not found", body = crate::openapi_types::ErrorResponse),
+        (status = 409, description = "job already finished", body = crate::openapi_types::ErrorResponse),
+        (status = 500, description = "server error", body = crate::openapi_types::ErrorResponse),
+    ),
     tag = "runtime"
 )]
 pub async fn cancel_job(
@@ -752,7 +786,12 @@ pub struct JobEndRequest {
     post,
     path = "/api/runtime/jobs/end",
     request_body = JobEndRequest,
-    responses((status = 200, body = MeshResponse)),
+    responses(
+        (status = 200, body = MeshResponse),
+        (status = 400, description = "bad request", body = crate::openapi_types::ErrorResponse),
+        (status = 401, description = "unauthorized", body = crate::openapi_types::ErrorResponse),
+        (status = 500, description = "server error", body = crate::openapi_types::ErrorResponse),
+    ),
     tag = "runtime"
 )]
 pub async fn end_job(
@@ -848,7 +887,12 @@ pub struct SteerAgentRequest {
 #[utoipa::path(
     post,
     path = "/api/runtime/agents/{slug}/stop",
-    responses((status = 200, body = MeshResponse)),
+    responses(
+        (status = 200, body = MeshResponse),
+        (status = 401, description = "unauthorized", body = crate::openapi_types::ErrorResponse),
+        (status = 404, description = "agent not found", body = crate::openapi_types::ErrorResponse),
+        (status = 500, description = "server error", body = crate::openapi_types::ErrorResponse),
+    ),
     tag = "runtime"
 )]
 pub async fn stop_agent(
@@ -899,7 +943,13 @@ pub async fn stop_agent(
     post,
     path = "/api/runtime/agents/{slug}/steer",
     request_body = SteerAgentRequest,
-    responses((status = 200, body = MeshResponse)),
+    responses(
+        (status = 200, body = MeshResponse),
+        (status = 400, description = "bad request", body = crate::openapi_types::ErrorResponse),
+        (status = 401, description = "unauthorized", body = crate::openapi_types::ErrorResponse),
+        (status = 404, description = "agent not found", body = crate::openapi_types::ErrorResponse),
+        (status = 500, description = "server error", body = crate::openapi_types::ErrorResponse),
+    ),
     tag = "runtime"
 )]
 pub async fn steer_agent(
@@ -961,7 +1011,11 @@ pub struct ProcsQuery {
     get,
     path = "/api/runtime/procs",
     params(ProcsQuery),
-    responses((status = 200, body = MeshResponse)),
+    responses(
+        (status = 200, body = MeshResponse),
+        (status = 401, description = "unauthorized", body = crate::openapi_types::ErrorResponse),
+        (status = 500, description = "server error", body = crate::openapi_types::ErrorResponse),
+    ),
     tag = "runtime"
 )]
 pub async fn list_procs(
@@ -1013,7 +1067,11 @@ pub struct EventsPollQuery {
     get,
     path = "/api/runtime/events/poll",
     params(EventsPollQuery),
-    responses((status = 200, body = MeshResponse)),
+    responses(
+        (status = 200, body = MeshResponse),
+        (status = 401, description = "unauthorized", body = crate::openapi_types::ErrorResponse),
+        (status = 500, description = "server error", body = crate::openapi_types::ErrorResponse),
+    ),
     tag = "runtime"
 )]
 pub async fn poll_events(
@@ -1086,7 +1144,11 @@ pub async fn poll_events(
 #[utoipa::path(
     get,
     path = "/api/runtime/daemon/status",
-    responses((status = 200, body = MeshResponse)),
+    responses(
+        (status = 200, body = MeshResponse),
+        (status = 401, description = "unauthorized", body = crate::openapi_types::ErrorResponse),
+        (status = 500, description = "server error", body = crate::openapi_types::ErrorResponse),
+    ),
     tag = "runtime"
 )]
 pub async fn daemon_status(State(state): State<ApiState>) -> impl IntoResponse {
@@ -1149,7 +1211,12 @@ pub async fn daemon_status(State(state): State<ApiState>) -> impl IntoResponse {
 #[utoipa::path(
     post,
     path = "/api/runtime/rebuild-projections",
-    responses((status = 200, body = MeshResponse)),
+    responses(
+        (status = 200, body = MeshResponse),
+        (status = 401, description = "unauthorized", body = crate::openapi_types::ErrorResponse),
+        (status = 409, description = "rebuild already running", body = crate::openapi_types::ErrorResponse),
+        (status = 500, description = "server error", body = crate::openapi_types::ErrorResponse),
+    ),
     tag = "runtime"
 )]
 pub async fn rebuild_projections(
@@ -1201,7 +1268,11 @@ impl Drop for ActorGuard {
 #[utoipa::path(
     get,
     path = "/api/runtime/events",
-    responses((status = 200, description = "SSE stream of kernel events")),
+    responses(
+        (status = 200, description = "SSE stream of kernel events"),
+        (status = 401, description = "unauthorized", body = crate::openapi_types::ErrorResponse),
+        (status = 500, description = "server error", body = crate::openapi_types::ErrorResponse),
+    ),
     tag = "runtime"
 )]
 pub async fn event_stream(

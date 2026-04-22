@@ -73,6 +73,15 @@ fn build_tiers(selected: &str) -> Vec<TierRow> {
 }
 
 /// GET /api/runtime/view/agents — index shell.
+#[utoipa::path(
+    get,
+    path = "/api/runtime/view/agents",
+    responses(
+        (status = 200, description = "Rendered agents index view", content_type = "text/html"),
+        (status = 401, description = "Unauthenticated", body = crate::openapi_types::ErrorResponse),
+    ),
+    tag = "views"
+)]
 pub async fn agents_shell(
     State(state): State<ApiState>,
 ) -> Result<Html<String>, StatusCode> {
@@ -95,6 +104,17 @@ pub async fn agents_shell(
 }
 
 /// GET /api/runtime/view/agents/detail/{id} — detail shell.
+#[utoipa::path(
+    get,
+    path = "/api/runtime/view/agents/detail/{id}",
+    params(("id" = String, Path, description = "Agent id")),
+    responses(
+        (status = 200, description = "Rendered agent detail view", content_type = "text/html"),
+        (status = 401, description = "Unauthenticated", body = crate::openapi_types::ErrorResponse),
+        (status = 404, description = "Agent not found", body = crate::openapi_types::ErrorResponse),
+    ),
+    tag = "views"
+)]
 pub async fn agent_detail(
     State(state): State<ApiState>,
     Path(id): Path<String>,
@@ -120,6 +140,14 @@ pub async fn agent_detail(
 }
 
 /// POST /api/runtime/view/agents/new — structured not-implemented response.
+#[utoipa::path(
+    post,
+    path = "/api/runtime/view/agents/new",
+    responses(
+        (status = 501, description = "Not implemented — agents are created via files under .ship/agents/", body = crate::openapi_types::ErrorResponse),
+    ),
+    tag = "views"
+)]
 pub async fn agents_create(
     State(_state): State<ApiState>,
 ) -> (StatusCode, Json<serde_json::Value>) {
