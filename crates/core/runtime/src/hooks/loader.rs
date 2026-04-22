@@ -4,7 +4,7 @@ use std::path::Path;
 
 use ship_types::event_types::ALL as KNOWN_EVENT_TYPES;
 
-use super::def::{HookAction, HookActionType, HookDef};
+use super::def::{HookAction, HookActionType, HookDef, TriggerSourceDef};
 
 /// A single hook that failed to load, with a human-readable reason.
 #[derive(Debug, Clone)]
@@ -80,13 +80,66 @@ pub fn validate_hook(hook: &HookDef, ship_dir: &Path) -> Result<(), String> {
     if hook.name.trim().is_empty() {
         return Err("hook name is required".to_string());
     }
-    if !is_known_event(&hook.trigger.event) {
-        return Err(format!("unknown event type '{}'", hook.trigger.event));
+    match (&hook.trigger.event, &hook.trigger.source) {
+        (Some(_), Some(_)) => {
+            return Err(
+                "trigger must have either 'event' or 'source', not both".to_string(),
+            );
+        }
+        (None, None) => {
+            return Err("trigger must have either 'event' or 'source'".to_string());
+        }
+        (Some(event), None) => {
+            if !is_known_event(event) {
+                return Err(format!("unknown event type '{event}'"));
+            }
+        }
+        (None, Some(source)) => {
+            validate_source(source)?;
+        }
     }
     for (idx, action) in hook.actions.iter().enumerate() {
         validate_action(action, idx, ship_dir)?;
     }
     Ok(())
+}
+
+fn validate_source(source: &TriggerSourceDef) -> Result<(), String> {
+    match source {
+        TriggerSourceDef::Webhook(w) => {
+            if !w.path.starts_with("/webhooks/") {
+                return Err(format!(
+                    "webhook source path must start with '/webhooks/', got '{}'",
+                    w.path
+                ));
+            }
+        }
+        TriggerSourceDef::File(f) => {
+            if f.watch.trim().is_empty() {
+                return Err("file source: 'watch' path is required".to_string());
+            }
+        }
+        TriggerSourceDef::Cron(c) => {
+            if c.expression.trim().is_empty() {
+                return Err("cron source: 'expression' is required".to_string());
+            }
+            normalize_and_parse_cron(&c.expression)
+                .map_err(|e| format!("cron source: invalid expression '{}': {e}", c.expression))?;
+        }
+    }
+    Ok(())
+}
+
+/// Normalize a 5-field cron expression to 6 fields (prepend seconds=0),
+/// then parse it.
+pub(crate) fn normalize_and_parse_cron(expr: &str) -> Result<cron::Schedule, String> {
+    use std::str::FromStr;
+    let normalized = if expr.split_whitespace().count() == 5 {
+        format!("0 {}", expr)
+    } else {
+        expr.to_string()
+    };
+    cron::Schedule::from_str(&normalized).map_err(|e| e.to_string())
 }
 
 fn validate_action(action: &HookAction, idx: usize, ship_dir: &Path) -> Result<(), String> {

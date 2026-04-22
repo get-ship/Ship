@@ -19,6 +19,7 @@ use crate::{
     settings_api, shell_assets, ship_runtime, specs_api, specs_view, supervisor,
     view_morph_target, view_sessions_api, views, collection_api, views_agents, views_chat,
     views_events, views_git, views_pipelines, views_raw, views_settings, views_skills,
+    webhook_ext,
 };
 use axum::routing;
 
@@ -61,6 +62,20 @@ pub fn build_router(
     // Enumerated routes — one `ApiState`-typed router, registered via
     // `ship_route(Route::X, handler)` against the canonical full paths.
     let api_ship_routes = build_ship_routes(st);
+
+    // Public webhook route — unauthenticated; each trigger carries its own secret.
+    let webhook_kernel = rt.kernel().clone();
+    let webhook_source_route = if let Some(src) = rt.webhook_source() {
+        Router::new()
+            .route(
+                "/api/hooks/webhook/{*path}",
+                axum::routing::post(webhook_ext::handle_webhook),
+            )
+            .layer(axum::Extension(src))
+            .layer(axum::Extension(webhook_kernel))
+    } else {
+        Router::new()
+    };
 
     // Unauthenticated routes (before auth middleware)
     let register_registry = session_registry.clone();
@@ -178,6 +193,7 @@ pub fn build_router(
     let mut root = Router::new()
         .merge(public_routes)
         .merge(mcp_registry_routes)
+        .merge(webhook_source_route)
         .route("/api/openapi.json", axum::routing::get(|| async {
             Json(openapi::ApiDoc::openapi())
         }))

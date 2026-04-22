@@ -15,6 +15,7 @@ use super::actions::{ActionCtx, dispatch};
 use super::def::{HookAction, HookDef};
 use super::filter;
 use super::render;
+use super::sources::SourceManager;
 
 /// Maximum hook chain depth. Events emitted by a hook carry a depth marker; at
 /// depth ≥ this value, hooks are not executed.
@@ -35,6 +36,9 @@ pub struct HookEngine {
     kernel: Arc<Mutex<KernelRouter>>,
     ship_dir: PathBuf,
     hooks: Arc<RwLock<HashMap<String, HookDef>>>,
+    /// External source adapters. `None` when the engine is created without
+    /// source support (e.g. in tests that only exercise the internal-event path).
+    sources: Option<Arc<SourceManager>>,
 }
 
 impl HookEngine {
@@ -43,6 +47,20 @@ impl HookEngine {
             kernel,
             ship_dir,
             hooks: Arc::new(RwLock::new(HashMap::new())),
+            sources: None,
+        }
+    }
+
+    pub fn new_with_sources(
+        kernel: Arc<Mutex<KernelRouter>>,
+        ship_dir: PathBuf,
+        sources: Arc<SourceManager>,
+    ) -> Self {
+        Self {
+            kernel,
+            ship_dir,
+            hooks: Arc::new(RwLock::new(HashMap::new())),
+            sources: Some(sources),
         }
     }
 
@@ -50,7 +68,15 @@ impl HookEngine {
         &self.ship_dir
     }
 
+    /// Access the webhook source (for wiring into the HTTP router).
+    pub fn webhook_source(
+        &self,
+    ) -> Option<Arc<super::sources::webhook::WebhookSource>> {
+        self.sources.as_ref().map(|s| s.webhook.clone())
+    }
+
     /// Replace the registered hook set by rescanning the hooks directory.
+    /// Also notifies all source adapters of the updated definitions.
     pub async fn reload(&self) {
         let report = super::loader::load_hooks_dir(&self.ship_dir);
         let mut map = HashMap::with_capacity(report.hooks.len());
@@ -58,7 +84,12 @@ impl HookEngine {
             map.insert(hook.name.clone(), hook);
         }
         tracing::info!(count = map.len(), errors = report.errors.len(), "hooks: reloaded");
+        let defs: Vec<HookDef> = map.values().cloned().collect();
         *self.hooks.write().await = map;
+
+        if let Some(sources) = &self.sources {
+            sources.reload(&defs);
+        }
     }
 
     /// Snapshot the hooks map (useful for tests).
@@ -82,7 +113,10 @@ impl HookEngine {
         let event_ctx = filter::build_event_context(envelope);
         let hooks = self.hooks.read().await;
         for hook in hooks.values() {
-            if hook.trigger.event != envelope.event_type {
+            let Some(expected_type) = hook.trigger.dispatch_event_type(&hook.name) else {
+                continue;
+            };
+            if expected_type != envelope.event_type {
                 continue;
             }
             if !filter::matches(hook.trigger.filter.as_ref(), &event_ctx) {
@@ -198,20 +232,27 @@ impl ServiceHandler for HookService {
     }
 }
 
-/// Spawn the hook service on the kernel. Reloads the hook set once before
-/// returning so hooks are live immediately.
+/// Spawn the hook service on the kernel with source adapters enabled.
+/// Reloads the hook set once before returning so hooks are live immediately.
 pub async fn spawn_hook_service(
     kernel: Arc<Mutex<KernelRouter>>,
     ship_dir: PathBuf,
 ) -> Result<Arc<HookEngine>> {
-    let engine = Arc::new(HookEngine::new(kernel.clone(), ship_dir));
+    let source_mgr = Arc::new(SourceManager::new(ship_dir.clone()));
+    source_mgr.start_all(kernel.clone());
+
+    let engine = Arc::new(HookEngine::new_with_sources(
+        kernel.clone(),
+        ship_dir,
+        source_mgr,
+    ));
     engine.reload().await;
 
     let runtime = tokio::runtime::Handle::current();
     let service = Box::new(HookService::new(engine.clone(), runtime));
     let config = ActorConfig {
         namespace: "service.hooks".to_string(),
-        write_namespaces: vec!["hook.".to_string()],
+        write_namespaces: vec!["hook.".to_string(), "external.".to_string()],
         read_namespaces: vec![],
         // Subscribe to everything so the hook engine sees every event.
         subscribe_namespaces: vec!["".to_string()],
