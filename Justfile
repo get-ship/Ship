@@ -51,6 +51,13 @@ daemon-restart: install-dev
     @sleep 1
     ship daemon start
 
+# Watch Rust sources and auto-restart the daemon on changes.
+# Templates in .ship/views/ are hot-reloaded without restart.
+# Install watchexec once: cargo install watchexec-cli
+daemon-watch:
+    watchexec --watch apps/shipd/src --watch crates --watch apps/shipd/assets \
+        --exts rs,js --on-busy-update restart -- just daemon-restart
+
 # Rebuild WASM compiler (requires build-essential)
 wasm:
     wasm-pack build crates/core/compiler --target web --out-dir ../../../packages/compiler --out-name compiler -- --features wasm
@@ -93,6 +100,10 @@ db-migrate:
 # Regenerate Specta types (Rust → packages/ship-set/src/generated.ts)
 gen-types:
     cargo run -p xtask -- gen-types
+
+# Regenerate the Ship SDK manifest (→ packages/ship-set/sdk/*.json)
+gen-sdk:
+    cargo run -p xtask -- gen-sdk
 
 # Regenerate Cloudflare worker types from wrangler.jsonc
 cf-types:
