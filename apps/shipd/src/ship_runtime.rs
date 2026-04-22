@@ -90,6 +90,8 @@ pub struct ShipRuntime {
     workspace_dir: Option<PathBuf>,
     /// Wall-clock instant the daemon process started — used for uptime.
     started_at: std::time::Instant,
+    /// Hook engine (external source adapters + hot-reload watcher).
+    hook_engine: std::sync::OnceLock<std::sync::Arc<runtime::hooks::engine::HookEngine>>,
 }
 
 impl ShipRuntime {
@@ -217,6 +219,7 @@ impl ShipRuntime {
             view_sessions: Arc::new(crate::views::session::ViewSessionRegistry::default()),
             workspace_dir,
             started_at: std::time::Instant::now(),
+            hook_engine: std::sync::OnceLock::new(),
         })
     }
 
@@ -402,6 +405,44 @@ impl ShipRuntime {
         );
     }
 
+    /// Start the hook engine: spawns external source adapters (webhook, file, cron)
+    /// and the hot-reload watcher. Idempotent — subsequent calls are no-ops.
+    pub async fn start_hook_engine(&self) {
+        if self.hook_engine.get().is_some() {
+            return;
+        }
+        match runtime::hooks::engine::spawn_hook_service(
+            self.kernel.clone(),
+            self.ship_dir.clone(),
+        )
+        .await
+        {
+            Ok(engine) => {
+                // Also start the filesystem watcher for hot-reload.
+                if let Err(e) = runtime::hooks::watcher::spawn_watcher(engine.clone()) {
+                    tracing::warn!("hook watcher failed to start: {e}");
+                }
+                let _ = self.hook_engine.set(engine);
+                tracing::info!("hooks: engine started");
+            }
+            Err(e) => tracing::warn!("hooks: failed to start engine: {e}"),
+        }
+    }
+
+    /// The running hook engine, if started.
+    pub fn hook_engine(
+        &self,
+    ) -> Option<&std::sync::Arc<runtime::hooks::engine::HookEngine>> {
+        self.hook_engine.get()
+    }
+
+    /// The webhook source for the public webhook route, if the engine is running.
+    pub fn webhook_source(
+        &self,
+    ) -> Option<std::sync::Arc<runtime::hooks::sources::webhook::WebhookSource>> {
+        self.hook_engine.get()?.webhook_source()
+    }
+
     /// Persist event to platform.db and deliver through the kernel.
     ///
     /// Delegates to `KernelRouter::emit` — the single write path. A successful
@@ -444,6 +485,7 @@ impl ShipRuntime {
             view_sessions: Arc::new(crate::views::session::ViewSessionRegistry::default()),
             workspace_dir,
             started_at: std::time::Instant::now(),
+            hook_engine: std::sync::OnceLock::new(),
         }
     }
 
@@ -472,6 +514,7 @@ impl ShipRuntime {
             view_sessions: Arc::new(crate::views::session::ViewSessionRegistry::default()),
             workspace_dir,
             started_at: std::time::Instant::now(),
+            hook_engine: std::sync::OnceLock::new(),
         }
     }
 

@@ -86,7 +86,7 @@ fn loader_parses_valid_hook() {
     assert!(report.errors.is_empty());
     let hook = &report.hooks[0];
     assert_eq!(hook.name, "notify-failed");
-    assert_eq!(hook.trigger.event, "job.failed");
+    assert_eq!(hook.trigger.event.as_deref(), Some("job.failed"));
     assert_eq!(hook.actions.len(), 1);
     matches!(hook.actions[0].action_type, HookActionType::EventEmit { .. });
 }

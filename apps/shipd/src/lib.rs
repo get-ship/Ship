@@ -54,6 +54,7 @@ pub mod shell_assets;
 pub mod ship_runtime;
 pub mod supervised;
 pub mod supervisor;
+pub mod webhook_ext;
 
 #[cfg(test)]
 pub mod test_harness;
@@ -154,6 +155,7 @@ pub async fn run_network(
     // Start the artifact GC loop (runs now then every hour).
     rt.start_artifact_gc();
     human_gateway::spawn_human_gateway(rt.kernel(), rt.health_registry()).await;
+    rt.start_hook_engine().await;
 
     let token = match auth::read_token(&global_dir) {
         Ok(existing) if !existing.is_empty() => Arc::new(existing),

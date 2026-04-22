@@ -39,6 +39,7 @@ indexmap = { version = "2.14.0", features = ["serde"] }
 globset = "0.4"
 minijinja = "2"
 notify = { version = "7", default-features = false, features = ["macos_fsevent"] }
+cron = "0.12"
 sysinfo = { version = "0.38", default-features = false, features = ["system"] }
 
 [features]
