@@ -230,7 +230,7 @@ pub fn patch_doc(
         None => find(files, name).ok_or_else(|| Error::NotFound(name.into()))?,
     };
     let mut doc = parse_pipeline_bytes(files, scope, &rel, &ext)?;
-    ensure_paths_for_adds(&mut doc, patch);
+    crate::services::path_tolerant::ensure_paths_for_adds(&mut doc, patch);
     json_patch::patch(&mut doc, patch).map_err(|e| Error::Patch(e.to_string()))?;
     // Migrate legacy formats to jsonc on write so the tree normalises.
     let target = rel_for(name, "jsonc");
@@ -239,46 +239,6 @@ pub fn patch_doc(
         let _ = files.trash(scope, &rel);
     }
     Ok(scope)
-}
-
-/// Copied verbatim from AgentService — keeps path-tolerant `add` ops
-/// working for templates that don't do a GET-then-PUT dance.
-fn ensure_paths_for_adds(doc: &mut serde_json::Value, patch: &json_patch::Patch) {
-    use json_patch::PatchOperation as Op;
-    for op in patch.0.iter() {
-        let Op::Add(add) = op else { continue };
-        let path = add.path.to_string();
-        if path.is_empty() { continue }
-        let container_path = if path.ends_with("/-") {
-            &path[..path.len() - 2]
-        } else {
-            path.as_str()
-        };
-        let segments: Vec<&str> = container_path
-            .trim_start_matches('/')
-            .split('/')
-            .filter(|s| !s.is_empty())
-            .collect();
-        if segments.is_empty() { continue }
-        let last_idx = segments.len().saturating_sub(1);
-        let ends_with_append = path.ends_with("/-");
-        let mut cursor: &mut serde_json::Value = doc;
-        for (i, seg) in segments.iter().enumerate() {
-            let is_last = i == last_idx;
-            if !cursor.is_object() { break }
-            let obj = cursor.as_object_mut().unwrap();
-            if !obj.contains_key(*seg) {
-                let placeholder = if is_last && ends_with_append {
-                    serde_json::Value::Array(Vec::new())
-                } else {
-                    serde_json::Value::Object(serde_json::Map::new())
-                };
-                obj.insert((*seg).to_string(), placeholder);
-            }
-            cursor = obj.get_mut(*seg).unwrap();
-        }
-        let _ = cursor;
-    }
 }
 
 pub fn delete_doc(

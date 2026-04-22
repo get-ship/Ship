@@ -19,6 +19,7 @@
 //! fork the write path.
 
 pub mod state;
+pub mod view_state;
 
 use axum::extract::{Path, Query, State};
 use axum::http::StatusCode;

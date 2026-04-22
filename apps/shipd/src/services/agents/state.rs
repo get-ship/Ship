@@ -195,62 +195,10 @@ pub fn patch_doc(
     // ancestors are missing), but it matches user expectations and
     // avoids every client having to do a GET-then-PUT dance.
     let mut doc: serde_json::Value = files.read_jsonc(scope, &rel)?;
-    ensure_paths_for_adds(&mut doc, patch);
+    crate::services::path_tolerant::ensure_paths_for_adds(&mut doc, patch);
     json_patch::patch(&mut doc, patch).map_err(|e| Error::Patch(e.to_string()))?;
     files.write_jsonc(scope, &rel, &doc)?;
     Ok(scope)
-}
-
-/// Walk every `add` op's path and create missing ancestors as empty
-/// objects / arrays. No-ops for paths that already exist and for the
-/// strictly-defined ops (`test`, `remove`, `replace`, `move`, `copy`) —
-/// those follow RFC 6902 exactly.
-fn ensure_paths_for_adds(doc: &mut serde_json::Value, patch: &json_patch::Patch) {
-    use json_patch::PatchOperation as Op;
-    for op in patch.0.iter() {
-        let Op::Add(add) = op else { continue };
-        let path = add.path.to_string();
-        if path.is_empty() { continue }
-        // Strip trailing `-` (RFC 6902 array-append) so we think about
-        // the container, not the slot.
-        let container_path = if path.ends_with("/-") {
-            &path[..path.len() - 2]
-        } else {
-            path.as_str()
-        };
-        // Walk segment by segment. Segments are `/`-separated after
-        // the leading `/`. RFC 6901 escapes are rare in our schema;
-        // we don't bother unescaping here.
-        let segments: Vec<&str> = container_path
-            .trim_start_matches('/')
-            .split('/')
-            .filter(|s| !s.is_empty())
-            .collect();
-        if segments.is_empty() { continue }
-        // Descend into `doc`, creating empty objects along the way.
-        // Reborrow each step so the loop doesn't move the outer mutable
-        // reference. Escape the loop on non-object cursors — those are
-        // RFC-6902 violations the patch call itself will surface.
-        let last_idx = segments.len().saturating_sub(1);
-        let ends_with_append = path.ends_with("/-");
-        let mut cursor: &mut serde_json::Value = doc;
-        for (i, seg) in segments.iter().enumerate() {
-            let is_last = i == last_idx;
-            if !cursor.is_object() { break }
-            let obj = cursor.as_object_mut().unwrap();
-            if !obj.contains_key(*seg) {
-                let placeholder = if is_last && ends_with_append {
-                    serde_json::Value::Array(Vec::new())
-                } else {
-                    serde_json::Value::Object(serde_json::Map::new())
-                };
-                obj.insert((*seg).to_string(), placeholder);
-            }
-            cursor = obj.get_mut(*seg).unwrap();
-        }
-        // `cursor` is dropped at end of iteration; `doc` reborrows next pass.
-        let _ = cursor;
-    }
 }
 
 pub fn delete_doc(

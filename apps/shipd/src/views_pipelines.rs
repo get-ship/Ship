@@ -11,7 +11,7 @@
 //!   state changes (kernel `job.*` / `step.*` events).
 //!
 //! All rendering goes through `crate::views::templates`; all state reads
-//! go through `crate::views::state` + `crate::views_pipelines_data`.
+//! go through `crate::views::state` + `crate::services::pipelines::view_state`.
 
 use axum::extract::{Query, State};
 use axum::http::{HeaderMap, StatusCode};
@@ -30,7 +30,7 @@ use crate::views::state::{
 };
 use crate::views::stream::{ViewSse, ViewStream};
 use crate::views::templates;
-use crate::views_pipelines_data::{BranchStats, branch_stats};
+use crate::services::pipelines::view_state::{BranchStats, branch_stats};
 
 /// Query string for both shell + SSE endpoints. `tab` drives the content
 /// dispatch; the flattened `Filter` fields drive filter chips.

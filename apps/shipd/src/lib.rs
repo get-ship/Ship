@@ -43,7 +43,6 @@ pub mod views_git;
 pub mod views_git_annotations;
 pub mod views_git_diff;
 pub mod views_pipelines;
-pub mod views_pipelines_data;
 pub mod views_settings;
 pub mod views_agents;
 pub mod views_skills;

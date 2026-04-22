@@ -6,7 +6,7 @@
 use super::*;
 use crate::views::state::{Filter, PipelineDef};
 use crate::views::templates;
-use crate::views_pipelines_data::BranchStats;
+use crate::services::pipelines::view_state::BranchStats;
 
 fn empty_ctx(active_tab: &str) -> PipelinesCtx {
     PipelinesCtx {
