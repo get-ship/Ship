@@ -5,7 +5,7 @@
 
 use super::*;
 use crate::views::templates;
-use crate::views_git_data::{CommitSummary, StatusFile};
+use crate::services::git::state::{CommitSummary, StatusFile};
 use crate::views_git_diff::parse_unified_diff;
 
 fn empty_ctx() -> GitCtx {
@@ -180,7 +180,7 @@ fn shell_renders_branch_pill_with_ahead_behind() {
 
 #[test]
 fn shell_renders_branches_tab_entries() {
-    use crate::views_git_data::BranchSummary;
+    use crate::services::git::state::BranchSummary;
     let mut ctx = empty_ctx();
     ctx.branches = vec![
         BranchSummary {
