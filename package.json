@@ -26,7 +26,12 @@
     "overrides": {
       "react": "^19.0.0",
       "react-dom": "^19.0.0"
-    }
+    },
+    "ignoredBuiltDependencies": [
+      "esbuild",
+      "lightningcss",
+      "rs-module-lexer"
+    ]
   },
   "dependencies": {
     "@tiptap/core": "^3.21.0",
