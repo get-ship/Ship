@@ -6,7 +6,7 @@
 //! 3. Inline `steps:` in spec frontmatter
 //! 4. None → single `Agent` step using the job's declared agent
 
-use crate::events::job::{JobCreatedPayload, Pipeline, PipelineStep, StepType};
+use crate::events::job::{JobCreatedPayload, OutputScope, Pipeline, PipelineStep, StepType};
 use ship_jobs::pipeline::{PipelineMeta, normalize_pipeline};
 
 /// Enrich a job with a pipeline and validate it. Resolution order:
@@ -33,9 +33,7 @@ pub fn ensure_pipeline(mut payload: JobCreatedPayload) -> Result<JobCreatedPaylo
     Ok(payload)
 }
 
-/// Enforce platform invariants on a resolved pipeline. Currently: any step
-/// whose type requires an agent (`Agent`, `Gate`) must declare one. No silent
-/// fallbacks — naming the step id makes misconfigured pipelines fail loud.
+/// Enforce platform invariants on a resolved pipeline.
 fn validate_pipeline(pipeline: &Pipeline) -> Result<(), String> {
     for step in &pipeline.steps {
         let needs_agent = matches!(step.step_type, StepType::Agent | StepType::Review);
@@ -45,6 +43,103 @@ fn validate_pipeline(pipeline: &Pipeline) -> Result<(), String> {
                 step.id, step.step_type
             ));
         }
+    }
+    validate_pipeline_io(pipeline)
+}
+
+/// Validate `produces`/`consumes`/`promotes` declarations across all steps.
+///
+/// Rules enforced at load time:
+/// - Every `consumes: name` must have a producer in the pipeline.
+/// - A step cannot consume its own output.
+/// - Every `promotes: name` must match a `produces.name` on the same step.
+/// - Promote scope transitions must be valid: Run→Project, Run→User, Project→User.
+fn validate_pipeline_io(pipeline: &Pipeline) -> Result<(), String> {
+    use std::collections::HashMap;
+    // Build produces-name → step-id index.
+    let mut producers: HashMap<&str, &str> = HashMap::new();
+    for step in &pipeline.steps {
+        for output in &step.produces {
+            producers.insert(output.name.as_str(), step.id.as_str());
+        }
+    }
+
+    for step in &pipeline.steps {
+        // Check that every consumed name has a producer.
+        for name in &step.consumes {
+            match producers.get(name.as_str()) {
+                None => return Err(format!(
+                    "step '{}' consumes '{name}' but no step in the pipeline produces it",
+                    step.id
+                )),
+                Some(&pid) if pid == step.id => return Err(format!(
+                    "step '{}' cannot consume its own output '{name}'",
+                    step.id
+                )),
+                _ => {}
+            }
+        }
+
+        // Check promotes reference either this step's produces or its consumes (from prior steps),
+        // and that scope transitions are valid.
+        let produces_names: std::collections::HashSet<&str> =
+            step.produces.iter().map(|o| o.name.as_str()).collect();
+        let consumes_names: std::collections::HashSet<&str> =
+            step.consumes.iter().map(|s| s.as_str()).collect();
+        for promote in &step.promotes {
+            let source_scope = if let Some(output) = step.produces.iter().find(|o| o.name == promote.name) {
+                // Promoting own produced output — use declared scope.
+                &output.scope
+            } else if consumes_names.contains(promote.name.as_str()) {
+                // Promoting a consumed upstream artifact — assume run scope (the only
+                // scope consumes can reference in phase 2).
+                &OutputScope::Run
+            } else if !produces_names.contains(promote.name.as_str()) {
+                return Err(format!(
+                    "step '{}' promotes '{}' but this step neither produces nor consumes it",
+                    step.id, promote.name
+                ));
+            } else {
+                continue;
+            };
+            validate_scope_transition(source_scope, &promote.target_scope, &step.id, &promote.name)?;
+        }
+    }
+    Ok(())
+}
+
+fn validate_scope_transition(
+    from: &OutputScope,
+    to: &OutputScope,
+    step_id: &str,
+    name: &str,
+) -> Result<(), String> {
+    // User-scope targets are blocked at load time because the orchestrator
+    // has no user identity to promote *to* yet — pipelines run in a
+    // daemon context that doesn't carry a signed-in user. Once cloud/auth
+    // lands and the orchestrator gets a user-id resolver, widen this to
+    // also accept Run→User and Project→User. Today the executor errors on
+    // User scope; the validator must match the executor's reality.
+    let valid = matches!(
+        (from, to),
+        (OutputScope::Run, OutputScope::Project)
+    );
+    if !valid {
+        let reason = match to {
+            OutputScope::User => {
+                "User-scope promotes are not yet supported — the orchestrator \
+                 has no user-id resolver (blocked on cloud/auth). \
+                 Use Project scope for now."
+            }
+            _ => {
+                "invalid scope transition (only Run→Project is supported today; \
+                 Run→User and Project→User are blocked on cloud/auth)"
+            }
+        };
+        return Err(format!(
+            "step '{step_id}' promotes '{name}': {reason} \
+             (requested: {from:?}→{to:?})"
+        ));
     }
     Ok(())
 }
@@ -132,6 +227,9 @@ fn resolve_steps(payload: &mut JobCreatedPayload) {
             command: None,
             max_retries: None,
             gate: None,
+            produces: vec![],
+            consumes: vec![],
+            promotes: vec![],
         }],
         auto_merge: false,
     });

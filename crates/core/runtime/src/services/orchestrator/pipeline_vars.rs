@@ -52,6 +52,9 @@ pub fn interpolate_step(
         command: step.command.as_deref().map(interp).transpose()?,
         max_retries: step.max_retries,
         gate: step.gate.clone(),
+        produces: step.produces.clone(),
+        consumes: step.consumes.clone(),
+        promotes: step.promotes.clone(),
     })
 }
 
@@ -72,6 +75,9 @@ mod tests {
             command: None,
             max_retries: None,
             gate: None,
+            produces: vec![],
+            consumes: vec![],
+            promotes: vec![],
         }
     }
 

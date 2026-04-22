@@ -1,5 +1,6 @@
 use rmcp::schemars::{self, JsonSchema};
 use serde::Deserialize;
+use std::collections::BTreeMap;
 
 #[derive(Deserialize, JsonSchema)]
 pub struct CreateJobRequest {
@@ -57,4 +58,9 @@ pub struct GetJobRequest {
 pub struct StepDoneRequest {
     /// What was accomplished in this step (optional summary).
     pub summary: Option<String>,
+    /// Map of `produces.name → artifact_id` for outputs uploaded during this step.
+    /// Required when the step declares `produces` entries; the orchestrator
+    /// verifies all `required: true` outputs are present.
+    #[serde(default)]
+    pub outputs: BTreeMap<String, String>,
 }

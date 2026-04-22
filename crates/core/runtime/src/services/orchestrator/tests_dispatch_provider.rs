@@ -125,6 +125,9 @@ fn payload_with_first_step(
         command: None,
         max_retries: None,
         gate: None,
+        produces: vec![],
+        consumes: vec![],
+        promotes: vec![],
     };
     JobCreatedPayload {
         job_id: job_id.into(),

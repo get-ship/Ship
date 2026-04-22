@@ -13,6 +13,9 @@ fn step(id: &str, agent: &str) -> PipelineStep {
         command: None,
         max_retries: None,
         gate: None,
+        produces: vec![],
+        consumes: vec![],
+        promotes: vec![],
     }
 }
 
@@ -118,7 +121,7 @@ fn legacy_fallback_shares_spec_across_stages() {
 #[test]
 fn dispatch_prompt_points_at_own_and_sibling_specs() {
     let pipeline = tdd_pipeline();
-    let out = render_dispatch_prompt(Some("tdd"), &pipeline, &pipeline.steps[1]);
+    let out = render_dispatch_prompt(Some("tdd"), &pipeline, &pipeline.steps[1], &[]);
     assert!(out.contains("Read `.artifacts/pipeline/02-step-2.md`"));
     assert!(out.contains(".artifacts/pipeline/spec.md"));
     assert!(out.contains(".artifacts/pipeline/01-step-1.md"));

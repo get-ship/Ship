@@ -144,4 +144,4 @@ Uploads are content-addressed (SHA-256). Uploading the same bytes twice in the s
 ## Related
 
 - [Collections](/reference/collections/) — artifact metadata is stored in the `artifacts` collection. `File` field types in collection schemas resolve to artifact IDs.
-- [Pipelines](/reference/pipelines/) — step I/O via artifact produce/consume/promote is coming in phase 2.
+- [Step I/O](/reference/pipelines/step-io/) — declare what each pipeline step produces and consumes; promote run artifacts to project scope on success.

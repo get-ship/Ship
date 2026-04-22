@@ -195,6 +195,9 @@ mod replay_filter {
             command: None,
             max_retries: None,
             gate: None,
+            produces: vec![],
+            consumes: vec![],
+            promotes: vec![],
         }
     }
 
