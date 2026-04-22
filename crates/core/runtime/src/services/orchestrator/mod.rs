@@ -17,6 +17,8 @@ pub mod dedup;
 pub mod emit;
 pub mod fanout;
 pub mod fanout_aggregate;
+pub mod fanout_cancel;
+pub mod fanout_recover;
 pub mod git_helpers;
 pub mod review_retry;
 pub mod gate_rules;
@@ -65,6 +67,10 @@ mod tests_fanout;
 mod tests_fanout_harness;
 #[cfg(test)]
 mod tests_fanout_integration;
+#[cfg(test)]
+mod tests_fanout_cancel;
+#[cfg(test)]
+mod tests_fanout_recover;
 
 use crate::services::dispatch_ports::{
     AgentPlatform, IsolationStrategy, JobExecutor, ProcessRegistryPort, ProcessTreeProbe,

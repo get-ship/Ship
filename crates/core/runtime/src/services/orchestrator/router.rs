@@ -55,6 +55,7 @@ pub async fn start_orchestrator(
     let replay_octx = octx.clone();
     tokio::spawn(async move {
         super::replay::reconcile_dispatched_jobs(&replay_kernel, &replay_octx).await;
+        super::fanout_recover::reconcile_fanout_lanes(&replay_kernel, &replay_octx).await;
         super::replay::replay_unprocessed_completions(&replay_kernel, &replay_octx).await;
         super::pending::dispatch_ready_pending_jobs(&replay_kernel, &replay_octx).await;
         replay_octx.platform.cleanup_orphaned_worktrees().await;
