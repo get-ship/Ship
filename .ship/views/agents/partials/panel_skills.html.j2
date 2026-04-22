@@ -9,10 +9,6 @@
       Skills
       <span class="ad-section-count">{{ agent.skills | length }} attached</span>
     </h2>
-    <ship-button variant="outline" size="sm" disabled>
-      <ship-icon slot="leading" name="plus"></ship-icon>
-      Add
-    </ship-button>
   </div>
   <div class="ad-section-body">
     {% if agent.skills | length == 0 %}
@@ -30,10 +26,6 @@
             <span slot="meta" class="ad-chip-meta">project</span>
           </ship-list-tile>
         {% endfor %}
-        <button type="button" class="ad-add-chip" disabled>
-          <ship-icon name="plus"></ship-icon>
-          Add skill
-        </button>
       </div>
     {% endif %}
   </div>

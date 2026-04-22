@@ -18,15 +18,13 @@
       MCP Servers
       <span class="ad-section-count">{{ agent.mcp_servers | length }} attached</span>
     </h2>
-    <ship-button variant="outline" size="sm" disabled>
-      <ship-icon slot="leading" name="plus"></ship-icon>
-      Add
-    </ship-button>
   </div>
   <div class="ad-section-body">
     {% if agent.mcp_servers | length == 0 %}
       <div class="ad-empty">
-        No MCP servers connected. Add one in the agent profile.
+        No MCP servers connected. Edit
+        <code style="font-family:var(--font-mono);font-size:var(--text-xs)">.ship/agents/{{ agent.id }}.jsonc</code>
+        to add one.
       </div>
     {% else %}
       <div class="ad-chip-grid">
@@ -37,10 +35,6 @@
             <span slot="meta" class="ad-chip-meta">server</span>
           </ship-list-tile>
         {% endfor %}
-        <button type="button" class="ad-add-chip" disabled>
-          <ship-icon name="plus"></ship-icon>
-          Add server
-        </button>
       </div>
     {% endif %}
   </div>

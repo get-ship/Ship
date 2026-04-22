@@ -8,10 +8,6 @@
       Rules
       <span class="ad-section-count">{{ agent.rules | length }} rules</span>
     </h2>
-    <ship-button variant="outline" size="sm" disabled>
-      <ship-icon slot="leading" name="plus"></ship-icon>
-      Add
-    </ship-button>
   </div>
   <div class="ad-section-body">
     {% if agent.rules | length == 0 %}
@@ -24,7 +20,6 @@
           <ship-list-tile density="compact">
             <span slot="leading" class="ad-rule-name">{{ rule }}</span>
             <span class="ad-rule-preview">Project rule</span>
-            <ship-button slot="trailing" variant="ghost" size="sm" disabled>edit</ship-button>
           </ship-list-tile>
         {% endfor %}
       </div>
