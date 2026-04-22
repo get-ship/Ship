@@ -56,7 +56,7 @@ export class ShipStat extends LitElement {
       flex-wrap: wrap;
     }
     .value {
-      font-family: var(--font-display);
+      font-family: var(--heading-font);
       font-size: var(--text-3xl);
       font-weight: var(--font-weight-semibold);
       font-variant-numeric: tabular-nums;

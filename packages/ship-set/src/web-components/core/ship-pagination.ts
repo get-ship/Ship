@@ -27,7 +27,7 @@ export class ShipPagination extends LitElement {
         align-items: center;
         gap: 12px;
         font-size: 0.8125rem;
-        font-family: var(--font-sans, sans-serif);
+        font-family: var(--font-body);
       }
       .info {
         color: var(--muted-foreground);

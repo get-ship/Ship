@@ -57,13 +57,13 @@ export class ShipAnnotationMarker extends LitElement {
     [part='box'] {
       position: absolute;
       border: 2px dashed var(--primary);
-      background: color-mix(in oklch, var(--primary) 10%, transparent);
+      background: var(--tone-primary-bg);
       border-radius: var(--radius-sm);
       cursor: pointer;
       box-sizing: border-box;
     }
     :host([active]) [part='box'] {
-      background: color-mix(in oklch, var(--primary) 18%, transparent);
+      background: var(--tone-primary-bg);
     }
   `
 

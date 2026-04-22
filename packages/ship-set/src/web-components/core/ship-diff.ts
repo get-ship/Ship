@@ -69,9 +69,9 @@ export class ShipDiff extends LitElement {
       white-space: pre-wrap;
       word-break: break-word;
     }
-    .line.add { background: color-mix(in oklch, var(--success) 12%, transparent); color: var(--foreground); }
-    .line.del { background: color-mix(in oklch, var(--destructive) 12%, transparent); color: var(--foreground); }
-    .line.hunk { background: color-mix(in oklch, var(--info) 10%, transparent); color: var(--info); }
+    .line.add { background: var(--tone-success-bg); color: var(--foreground); }
+    .line.del { background: var(--tone-destructive-bg); color: var(--foreground); }
+    .line.hunk { background: var(--tone-info-bg); color: var(--info); }
     .sign { color: var(--muted-foreground); user-select: none; }
     .line.add .sign { color: var(--success); }
     .line.del .sign { color: var(--destructive); }

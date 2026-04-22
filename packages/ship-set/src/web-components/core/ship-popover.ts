@@ -92,8 +92,13 @@ export class ShipPopover extends LitElement {
 
   private onDocClick = (e: MouseEvent) => {
     if (!this.open) return
-    const target = e.composedPath()[0] as Node
-    if (!this.contains(target) && target !== this) this.hide()
+    // Use composedPath so clicks on slotted content whose descendants live
+    // in a different shadow root (e.g. <ship-button> trigger) don't falsely
+    // register as outside clicks. `this.contains(target)` can't cross
+    // shadow boundaries; path inclusion can.
+    const path = e.composedPath()
+    if (path.includes(this)) return
+    this.hide()
   }
 
   private onKeydown = (e: KeyboardEvent) => {

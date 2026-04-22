@@ -22,7 +22,7 @@ export const shipMarkdownEditorBubbleStyles = css`
     background: var(--card);
     border: 1px solid var(--border);
     border-radius: var(--radius-md);
-    box-shadow: var(--shadow-md, 0 4px 12px rgba(0, 0, 0, 0.14));
+    box-shadow: var(--shadow-md);
     transform: translateX(-50%);
     opacity: 0;
     pointer-events: none;
@@ -95,7 +95,7 @@ export const shipMarkdownEditorBubbleStyles = css`
     background: var(--card);
     border: 1px solid var(--border);
     border-radius: var(--radius-lg);
-    box-shadow: var(--shadow-lg, 0 12px 32px rgba(0, 0, 0, 0.22));
+    box-shadow: var(--shadow-lg);
     overflow: hidden;
     transform: translate(-50%, 0);
     transform-origin: 50% 0;

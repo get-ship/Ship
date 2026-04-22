@@ -37,7 +37,7 @@ export class ShipButton extends LitElement {
        * the variant selectors can stay tone-agnostic and compose freely. */
       --tone: var(--primary);
       --tone-fg: var(--primary-foreground);
-      --tone-contrast: oklch(0.99 0.02 95);
+      --tone-contrast: var(--primary-foreground);
     }
     :host([hidden]) { display: none; }
 
@@ -58,22 +58,22 @@ export class ShipButton extends LitElement {
     :host([tone='info']) {
       --tone: var(--info);
       --tone-fg: var(--info);
-      --tone-contrast: oklch(0.99 0.02 260);
+      --tone-contrast: var(--info-foreground);
     }
     :host([tone='success']) {
       --tone: var(--success);
       --tone-fg: var(--success);
-      --tone-contrast: oklch(0.99 0.02 150);
+      --tone-contrast: var(--success-foreground);
     }
     :host([tone='warning']) {
       --tone: var(--warning);
       --tone-fg: var(--warning);
-      --tone-contrast: oklch(0.2 0.04 75);
+      --tone-contrast: var(--warning-foreground);
     }
     :host([tone='destructive']) {
       --tone: var(--destructive);
       --tone-fg: var(--destructive);
-      --tone-contrast: oklch(0.99 0.02 25);
+      --tone-contrast: var(--destructive-foreground);
     }
     :host([tone='accent']) {
       --tone: var(--accent);
@@ -329,7 +329,7 @@ export class ShipButton extends LitElement {
       box-shadow:
         inset 0 1px 0 0 color-mix(in oklch, white 24%, transparent),
         var(--shadow-sm),
-        0 0 0 1px color-mix(in oklch, var(--accent) 40%, transparent),
+        0 0 0 1px var(--tone-accent-border),
         0 6px 20px -8px color-mix(in oklch, var(--accent) 70%, transparent);
     }
 
@@ -380,7 +380,7 @@ export class ShipButton extends LitElement {
       background: transparent;
     }
     :host([variant='outline']) button:disabled {
-      border-color: color-mix(in oklch, var(--border) 60%, transparent);
+      border-color: var(--border-subtle);
     }
 
     /* Loading — fade the label out while preserving layout, overlay spinner

@@ -13,6 +13,7 @@
     "./elements": "./src/web-components/index.ts",
     "./web-components": "./src/web-components/index.ts",
     "./web-components/*": "./src/web-components/*.ts",
+    "./packs/git": "./src/packs/git/index.ts",
     "./tokens.css": "./src/tokens.css",
     "./themes.css": "./src/themes.css"
   },
@@ -20,8 +21,11 @@
     "build": "tsc -p tsconfig.build.json && pnpm manifest && pnpm catalog",
     "manifest": "custom-elements-manifest analyze --config custom-elements-manifest.config.mjs",
     "catalog": "node scripts/generate-catalog.mjs",
-    "bundle:elements": "esbuild src/web-components/index.ts --bundle --format=esm --target=es2020 --outfile=../../apps/shipd/assets/ship-elements.js --log-level=warning",
+    "bundle:elements": "esbuild src/web-components/index.ts --bundle --format=esm --target=es2020 --loader:.svg=text --outfile=../../apps/shipd/assets/ship-elements.js --log-level=warning",
     "bundle:code-editor": "esbuild src/web-components/islands/ship-code-editor.ts --bundle --format=esm --target=es2020 --outfile=../../apps/shipd/assets/ship-code-editor.js --log-level=warning",
+    "bundle:git": "esbuild src/packs/git/index.ts --bundle --format=esm --target=es2020 --outfile=../../apps/shipd/assets/ship-git.js --log-level=warning",
+    "lint:tokens": "node scripts/lint-tokens.mjs",
+    "check:sdk": "node scripts/check-sdk.mjs",
     "test": "vitest run",
     "test:watch": "vitest",
     "typecheck": "tsc -p tsconfig.json --noEmit"

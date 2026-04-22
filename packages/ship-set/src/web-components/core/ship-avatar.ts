@@ -48,6 +48,20 @@ export type AvatarShape = 'round' | 'square'
 /** Simpleicons CDN base. Exported so tests and callers can introspect. */
 export const SIMPLEICONS_BASE = 'https://cdn.simpleicons.org'
 
+/**
+ * Stable string → hue angle (0–360). Used by `identity-hue` so the same
+ * agent id always produces the same avatar gradient. Small FNV-ish hash
+ * — cheap, browser-safe, no crypto dep.
+ */
+export function hashToHueAngle(input: string): number {
+  let h = 2166136261
+  for (let i = 0; i < input.length; i++) {
+    h ^= input.charCodeAt(i)
+    h = Math.imul(h, 16777619)
+  }
+  return Math.abs(h) % 360
+}
+
 export function initialsFromName(name: string): string {
   const parts = name.trim().split(/\s+/).filter(Boolean)
   if (parts.length === 0) return ''
@@ -150,6 +164,7 @@ export class ShipAvatar extends LitElement {
     shape: { type: String, reflect: true },
     tone: { type: String, reflect: true },
     iconSlug: { type: String, attribute: 'icon-slug' },
+    identityHue: { type: String, attribute: 'identity-hue' },
     _errored: { state: true },
   }
 
@@ -161,6 +176,15 @@ export class ShipAvatar extends LitElement {
   tone: Tone = 'muted'
   /** Simpleicons slug — populates `src` with the branded glyph URL. */
   iconSlug = ''
+  /**
+   * Identity seed: when set, a deterministic conic-gradient hue is derived
+   * and applied to the initials tile. Same seed → same face across every
+   * view that mounts the avatar. Use the agent id (or any stable identifier)
+   * so the same agent renders identically on the list, wire view, detail
+   * inspector, etc. Explicit `tone` still wins when set to a non-muted
+   * value; `identity-hue` only activates when no explicit tone is applied.
+   */
+  identityHue = ''
   private _errored = false
 
   private onError = () => {
@@ -184,6 +208,22 @@ export class ShipAvatar extends LitElement {
     const showImage = Boolean(this.resolvedSrc()) && !this._errored
     if (showImage) this.removeAttribute('data-initials')
     else this.setAttribute('data-initials', '')
+
+    // Identity-hue seeding — only applied when the host is rendering
+    // initials (no image) AND no explicit tone has been set or tone is
+    // the default/muted fallback (where the gradient is active).
+    const canSeedHue = !showImage && (!this.tone || this.tone === 'default' || this.tone === 'muted')
+    if (canSeedHue && this.identityHue) {
+      const h = hashToHueAngle(this.identityHue)
+      // Two-stop conic gradient, anchored hues spaced ~60° for visual
+      // distinction, mirroring the design's `.conic-<name>` palette.
+      this.style.background = `conic-gradient(from 220deg, oklch(0.72 0.16 ${h}), oklch(0.60 0.20 ${(h + 40) % 360}))`
+      this.style.color = 'var(--primary-foreground, #fff)'
+    } else if (changed.has('identityHue') || changed.has('tone') || changed.has('src') || changed.has('iconSlug')) {
+      // Clear prior inline background when conditions no longer apply.
+      this.style.background = ''
+      this.style.color = ''
+    }
   }
 
   private resolvedInitials(): string {

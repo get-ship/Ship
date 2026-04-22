@@ -64,7 +64,7 @@ import { reducedMotion, toneVars } from './util'
  */
 const DIVIDER_CSS = `
 ship-list-tile[variant='row'] + ship-list-tile[variant='row'] {
-  border-top: 1px solid color-mix(in oklch, var(--border) 50%, transparent);
+  border-top: 1px solid var(--border-subtle);
 }
 ship-list-tile[variant='row'][selected] + ship-list-tile[variant='row'],
 ship-list-tile[variant='row'] + ship-list-tile[variant='row'][selected] {
@@ -145,11 +145,11 @@ export class ShipListTile extends LitElement {
        * shadcn/Radix Card-as-interactive-tile treatment. */
       :host([variant='card']) .tile {
         background: var(--card);
-        border-color: color-mix(in oklch, var(--border) 60%, transparent);
+        border-color: var(--border-subtle);
         box-shadow: var(--shadow-xs);
       }
       :host([variant='card']) .tile:hover {
-        border-color: color-mix(in oklch, var(--primary) 40%, transparent);
+        border-color: var(--tone-primary-border);
         box-shadow: var(--shadow-sm);
         transform: translateY(-1px);
       }

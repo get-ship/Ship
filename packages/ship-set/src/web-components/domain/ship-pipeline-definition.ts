@@ -25,7 +25,7 @@ export class ShipPipelineDefinition extends LitElement {
       align-items: baseline; gap: 12px;
     }
     .name {
-      font-family: var(--font-display);
+      font-family: var(--heading-font);
       font-size: 15px;
       font-weight: 600;
       letter-spacing: -0.01em;

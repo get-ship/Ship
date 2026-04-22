@@ -72,6 +72,7 @@ import './core/ship-toggle-group'
 import './core/ship-toolbar'
 import './core/ship-tooltip'
 import './core/ship-tree-view'
+import './core/ship-view-chrome'
 
 // Domain — platform concepts
 import './domain/ship-pipeline-step'
@@ -79,6 +80,8 @@ import './domain/ship-pipeline-run'
 import './domain/ship-pipeline-definition'
 import './domain/ship-pipeline-dag'
 import './domain/ship-git-diff'
+import './domain/ship-provider-blob'
+import './domain/ship-history-row'
 import './domain/ship-auth-dialog'
 
 // Viz — chart primitives (index registers its own)
@@ -125,6 +128,7 @@ export { ShipThemeToggle } from './core/ship-theme-toggle'
 export { ShipToggle, ShipToggleGroup } from './core/ship-toggle-group'
 export { ShipToolbar } from './core/ship-toolbar'
 export { ShipTooltip } from './core/ship-tooltip'
+export { ShipViewChrome } from './core/ship-view-chrome'
 
 // Observability primitives (now under core/)
 export { ShipLogStream } from './core/ship-log-stream'
@@ -159,6 +163,8 @@ export { ShipPipelineRun } from './domain/ship-pipeline-run'
 export { ShipPipelineDefinition } from './domain/ship-pipeline-definition'
 export { ShipPipelineDag } from './domain/ship-pipeline-dag'
 export { ShipGitDiff, ShipGitDiffFile, ShipGitDiffHunk, ShipGitDiffLine } from './domain/ship-git-diff'
+export { ShipProviderBlob } from './domain/ship-provider-blob'
+export { ShipHistoryRow } from './domain/ship-history-row'
 
 export type { Tone, Variant, Size } from './core/util'
 

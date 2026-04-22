@@ -36,7 +36,7 @@ export class ShipLogStream extends LitElement {
       min-height: 8rem;
       max-height: 24rem;
       border-radius: var(--radius-md);
-      border: 1px solid color-mix(in oklch, var(--border) 60%, transparent);
+      border: 1px solid var(--border-subtle);
       background: color-mix(in oklch, var(--background) 95%, black 5%);
       color: var(--foreground);
       overflow: hidden;

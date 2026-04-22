@@ -50,40 +50,17 @@ export type Size = 'sm' | 'md' | 'lg'
  */
 export const toneVars = css`
   :host {
-    --tone-fg: var(--foreground);
-    --tone-bg: var(--muted);
-    --tone-border: var(--border);
+    --tone-fg: var(--tone-default-fg);
+    --tone-bg: var(--tone-default-bg);
+    --tone-border: var(--tone-default-border);
+    --tone-ring: var(--tone-default-ring);
   }
-  :host([tone='info']) {
-    --tone-fg: var(--info);
-    --tone-bg: color-mix(in oklch, var(--info) 16%, transparent);
-    --tone-border: color-mix(in oklch, var(--info) 35%, transparent);
-  }
-  :host([tone='success']) {
-    --tone-fg: var(--success);
-    --tone-bg: color-mix(in oklch, var(--success) 16%, transparent);
-    --tone-border: color-mix(in oklch, var(--success) 35%, transparent);
-  }
-  :host([tone='warning']) {
-    --tone-fg: var(--warning);
-    --tone-bg: color-mix(in oklch, var(--warning) 18%, transparent);
-    --tone-border: color-mix(in oklch, var(--warning) 40%, transparent);
-  }
-  :host([tone='destructive']) {
-    --tone-fg: var(--destructive);
-    --tone-bg: color-mix(in oklch, var(--destructive) 16%, transparent);
-    --tone-border: color-mix(in oklch, var(--destructive) 35%, transparent);
-  }
-  :host([tone='accent']) {
-    --tone-fg: var(--accent);
-    --tone-bg: color-mix(in oklch, var(--accent) 16%, transparent);
-    --tone-border: color-mix(in oklch, var(--accent) 35%, transparent);
-  }
-  :host([tone='muted']) {
-    --tone-fg: var(--muted-foreground);
-    --tone-bg: var(--muted);
-    --tone-border: var(--border);
-  }
+  :host([tone='info'])        { --tone-fg: var(--tone-info-fg);        --tone-bg: var(--tone-info-bg);        --tone-border: var(--tone-info-border);        --tone-ring: var(--tone-info-ring); }
+  :host([tone='success'])     { --tone-fg: var(--tone-success-fg);     --tone-bg: var(--tone-success-bg);     --tone-border: var(--tone-success-border);     --tone-ring: var(--tone-success-ring); }
+  :host([tone='warning'])     { --tone-fg: var(--tone-warning-fg);     --tone-bg: var(--tone-warning-bg);     --tone-border: var(--tone-warning-border);     --tone-ring: var(--tone-warning-ring); }
+  :host([tone='destructive']) { --tone-fg: var(--tone-destructive-fg); --tone-bg: var(--tone-destructive-bg); --tone-border: var(--tone-destructive-border); --tone-ring: var(--tone-destructive-ring); }
+  :host([tone='accent'])      { --tone-fg: var(--tone-accent-fg);      --tone-bg: var(--tone-accent-bg);      --tone-border: var(--tone-accent-border);      --tone-ring: var(--tone-accent-ring); }
+  :host([tone='muted'])       { --tone-fg: var(--tone-muted-fg);       --tone-bg: var(--tone-muted-bg);       --tone-border: var(--tone-muted-border);       --tone-ring: var(--tone-muted-ring); }
 `
 
 /**

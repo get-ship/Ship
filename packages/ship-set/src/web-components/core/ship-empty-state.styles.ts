@@ -236,11 +236,12 @@ export const shipEmptyStateStyles = [
       align-items: flex-start;
     }
     .title {
+      font-family: var(--heading-font);
       font-size: var(--es-title-fs);
-      font-weight: var(--es-title-weight);
+      font-weight: var(--heading-weight, var(--es-title-weight));
+      letter-spacing: var(--heading-tracking);
       color: var(--foreground);
       line-height: var(--leading-tight);
-      letter-spacing: -0.005em;
     }
     .title:empty { display: none; }
 

@@ -21,7 +21,7 @@ export const layerStyles = css`
   .drag-rect {
     position: absolute;
     border: 2px dashed var(--primary);
-    background: color-mix(in oklch, var(--primary) 10%, transparent);
+    background: var(--tone-primary-bg);
     pointer-events: none;
     border-radius: var(--radius-sm);
   }

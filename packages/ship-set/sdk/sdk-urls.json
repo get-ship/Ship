@@ -1,0 +1,277 @@
+{
+  "_generated": "just gen-sdk — DO NOT EDIT",
+  "version": "0.1.0",
+  "$schema": "https://ship.design/schemas/sdk-urls.schema.json",
+  "entries": {
+    "POST /api/actor/spawn": {
+      "method": "POST",
+      "path": "/api/actor/spawn",
+      "purpose": "create",
+      "params": [],
+      "summary": null,
+      "description": null,
+      "request": {
+        "$ref": "#/components/schemas/ActorSpawnReq"
+      },
+      "response": {
+        "$ref": "#/components/schemas/MeshResponse"
+      }
+    },
+    "GET /api/capabilities": {
+      "method": "GET",
+      "path": "/api/capabilities",
+      "purpose": "read",
+      "params": [],
+      "summary": null,
+      "description": null,
+      "request": null,
+      "response": {
+        "$ref": "#/components/schemas/CapabilitiesResponse"
+      }
+    },
+    "POST /api/events/route": {
+      "method": "POST",
+      "path": "/api/events/route",
+      "purpose": "create",
+      "params": [],
+      "summary": null,
+      "description": null,
+      "request": {
+        "$ref": "#/components/schemas/EventRouteReq"
+      },
+      "response": {
+        "$ref": "#/components/schemas/MeshResponse"
+      }
+    },
+    "POST /api/mesh/broadcast": {
+      "method": "POST",
+      "path": "/api/mesh/broadcast",
+      "purpose": "create",
+      "params": [],
+      "summary": null,
+      "description": null,
+      "request": {
+        "$ref": "#/components/schemas/MeshBroadcastReq"
+      },
+      "response": {
+        "$ref": "#/components/schemas/MeshResponse"
+      }
+    },
+    "GET /api/mesh/discover": {
+      "method": "GET",
+      "path": "/api/mesh/discover",
+      "purpose": "read",
+      "params": [],
+      "summary": null,
+      "description": null,
+      "request": null,
+      "response": {
+        "$ref": "#/components/schemas/MeshResponse"
+      }
+    },
+    "GET /api/mesh/events/{agent_id}": {
+      "method": "GET",
+      "path": "/api/mesh/events/{agent_id}",
+      "purpose": "read",
+      "params": [
+        "agent_id"
+      ],
+      "summary": "SSE endpoint — drains an agent's mailbox as server-sent events.\nThe agent must register first (which spawns the actor + stashes the mailbox).\nOnly one SSE connection per agent is supported (mailbox is taken, not cloned).",
+      "description": null,
+      "request": null,
+      "response": null
+    },
+    "POST /api/mesh/register": {
+      "method": "POST",
+      "path": "/api/mesh/register",
+      "purpose": "create",
+      "params": [],
+      "summary": null,
+      "description": null,
+      "request": {
+        "$ref": "#/components/schemas/MeshRegisterReq"
+      },
+      "response": {
+        "$ref": "#/components/schemas/MeshResponse"
+      }
+    },
+    "POST /api/mesh/send": {
+      "method": "POST",
+      "path": "/api/mesh/send",
+      "purpose": "create",
+      "params": [],
+      "summary": null,
+      "description": null,
+      "request": {
+        "$ref": "#/components/schemas/MeshSendReq"
+      },
+      "response": {
+        "$ref": "#/components/schemas/MeshResponse"
+      }
+    },
+    "POST /api/mesh/status": {
+      "method": "POST",
+      "path": "/api/mesh/status",
+      "purpose": "create",
+      "params": [],
+      "summary": null,
+      "description": null,
+      "request": {
+        "$ref": "#/components/schemas/MeshStatusReq"
+      },
+      "response": {
+        "$ref": "#/components/schemas/MeshResponse"
+      }
+    },
+    "GET /api/providers": {
+      "method": "GET",
+      "path": "/api/providers",
+      "purpose": "read",
+      "params": [],
+      "summary": null,
+      "description": null,
+      "request": null,
+      "response": {
+        "$ref": "#/components/schemas/MeshResponse"
+      }
+    },
+    "GET /api/runtime/agents": {
+      "method": "GET",
+      "path": "/api/runtime/agents",
+      "purpose": "read",
+      "params": [],
+      "summary": "GET /api/runtime/agents",
+      "description": null,
+      "request": null,
+      "response": {
+        "$ref": "#/components/schemas/MeshResponse"
+      }
+    },
+    "POST /api/runtime/dispatch": {
+      "method": "POST",
+      "path": "/api/runtime/dispatch",
+      "purpose": "create",
+      "params": [],
+      "summary": "POST /api/runtime/dispatch",
+      "description": "UI-facing dispatch — mirrors `ship run` on the CLI. Loads the\nnamed pipeline, generates slug/branch/agent, and emits\n`job.created`. The orchestrator picks it up from there.",
+      "request": {
+        "$ref": "#/components/schemas/DispatchRequest"
+      },
+      "response": {
+        "$ref": "#/components/schemas/MeshResponse"
+      }
+    },
+    "GET /api/runtime/events": {
+      "method": "GET",
+      "path": "/api/runtime/events",
+      "purpose": "read",
+      "params": [],
+      "summary": null,
+      "description": null,
+      "request": null,
+      "response": null
+    },
+    "GET /api/runtime/jobs": {
+      "method": "GET",
+      "path": "/api/runtime/jobs",
+      "purpose": "read",
+      "params": [],
+      "summary": "GET /api/runtime/jobs",
+      "description": "Returns each `JobRecord` with two operator-visibility annotations:\n\n- `process_state`: `\"alive\"` when the latest process projection for the\n  slug is still Running, `\"missing\"` when the most recent supervisor\n  sweep flagged drift (no_process) without a coherence_restored after\n  it, `\"terminal\"` for jobs in a terminal status, `\"none\"` otherwise.\n- `notes`: optional truncated error / blocker for the row's NOTES column.",
+      "request": null,
+      "response": {
+        "$ref": "#/components/schemas/MeshResponse"
+      }
+    },
+    "POST /api/runtime/jobs/end": {
+      "method": "POST",
+      "path": "/api/runtime/jobs/end",
+      "purpose": "create",
+      "params": [],
+      "summary": "POST /api/runtime/jobs/end — signal that a provider turn ended for a job.",
+      "description": "Called by the session Stop hook when an agent finishes a response turn.\nFor multi-step pipeline jobs, this sends a TurnEnded signal to the step\nmonitor (which accumulates evidence before deciding to advance).\nFor single-step jobs, emits job.completed directly.",
+      "request": {
+        "$ref": "#/components/schemas/JobEndRequest"
+      },
+      "response": {
+        "$ref": "#/components/schemas/MeshResponse"
+      }
+    },
+    "POST /api/runtime/rebuild-projections": {
+      "method": "POST",
+      "path": "/api/runtime/rebuild-projections",
+      "purpose": "create",
+      "params": [],
+      "summary": "POST /api/runtime/rebuild-projections — rebuild all projections from events.",
+      "description": null,
+      "request": null,
+      "response": {
+        "$ref": "#/components/schemas/MeshResponse"
+      }
+    },
+    "GET /api/runtime/sessions": {
+      "method": "GET",
+      "path": "/api/runtime/sessions",
+      "purpose": "read",
+      "params": [],
+      "summary": "GET /api/runtime/sessions[?workspace_id=<id>]",
+      "description": null,
+      "request": null,
+      "response": {
+        "$ref": "#/components/schemas/MeshResponse"
+      }
+    },
+    "GET /api/runtime/workspaces": {
+      "method": "GET",
+      "path": "/api/runtime/workspaces",
+      "purpose": "read",
+      "params": [],
+      "summary": "GET /api/runtime/workspaces",
+      "description": "Returns only active workspaces. Archived/dead workspaces are excluded\nfrom the API surface — the reconciler handles cleanup internally.",
+      "request": null,
+      "response": {
+        "$ref": "#/components/schemas/MeshResponse"
+      }
+    },
+    "GET /api/settings": {
+      "method": "GET",
+      "path": "/api/settings",
+      "purpose": "read",
+      "params": [],
+      "summary": null,
+      "description": null,
+      "request": null,
+      "response": {
+        "$ref": "#/components/schemas/MeshResponse"
+      }
+    },
+    "PUT /api/settings": {
+      "method": "PUT",
+      "path": "/api/settings",
+      "purpose": "update",
+      "params": [],
+      "summary": null,
+      "description": null,
+      "request": {
+        "$ref": "#/components/schemas/SettingsUpdateReq"
+      },
+      "response": {
+        "$ref": "#/components/schemas/MeshResponse"
+      }
+    },
+    "GET /api/settings/{key}": {
+      "method": "GET",
+      "path": "/api/settings/{key}",
+      "purpose": "read",
+      "params": [
+        "key"
+      ],
+      "summary": null,
+      "description": null,
+      "request": null,
+      "response": {
+        "$ref": "#/components/schemas/MeshResponse"
+      }
+    }
+  }
+}

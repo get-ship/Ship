@@ -58,7 +58,7 @@ export class ShipTreeNode extends LitElement {
     }
     .row:hover { background: var(--muted); }
     :host([selected]) .row {
-      background: color-mix(in oklch, var(--primary) 14%, transparent);
+      background: var(--tone-primary-bg);
       color: var(--foreground);
       font-weight: var(--font-weight-medium);
     }

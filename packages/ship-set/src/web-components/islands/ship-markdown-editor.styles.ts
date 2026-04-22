@@ -189,13 +189,13 @@ export const shipMarkdownEditorStyles = [reducedMotion, css`
   }
 
   .ProseMirror h1 {
-    font-family: var(--font-display, var(--font-body));
+    font-family: var(--heading-font);
     font-size: 1.6rem; font-weight: 700;
     margin: 1.5rem 0 0.5rem; line-height: 1.25;
     letter-spacing: -0.015em;
   }
   .ProseMirror h2 {
-    font-family: var(--font-display, var(--font-body));
+    font-family: var(--heading-font);
     font-size: 1.3rem; font-weight: 650;
     margin: 1.25rem 0 0.4rem; line-height: 1.3;
     letter-spacing: -0.01em;
@@ -262,13 +262,13 @@ export const shipMarkdownEditorStyles = [reducedMotion, css`
   .ProseMirror pre .hljs-quote { color: var(--muted-foreground); font-style: italic; }
   .ProseMirror pre .hljs-keyword,
   .ProseMirror pre .hljs-selector-tag,
-  .ProseMirror pre .hljs-built_in { color: oklch(0.65 0.15 280); }
+  .ProseMirror pre .hljs-built_in { color: var(--status-purple); }
   .ProseMirror pre .hljs-string,
-  .ProseMirror pre .hljs-attr { color: oklch(0.65 0.15 150); }
+  .ProseMirror pre .hljs-attr { color: var(--status-green); }
   .ProseMirror pre .hljs-number,
-  .ProseMirror pre .hljs-literal { color: oklch(0.65 0.15 40); }
+  .ProseMirror pre .hljs-literal { color: var(--status-orange); }
   .ProseMirror pre .hljs-title,
-  .ProseMirror pre .hljs-function { color: oklch(0.7 0.12 230); }
+  .ProseMirror pre .hljs-function { color: var(--status-blue); }
 
   .ProseMirror table {
     width: 100%;

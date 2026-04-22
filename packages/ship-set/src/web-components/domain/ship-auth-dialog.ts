@@ -119,7 +119,7 @@ export class ShipAuthDialog extends LitElement {
     input:focus {
       outline: none;
       border-color: var(--accent);
-      box-shadow: 0 0 0 3px color-mix(in oklch, var(--accent) 22%, transparent);
+      box-shadow: 0 0 0 3px var(--tone-accent-ring);
     }
 
     .submit-row {

@@ -41,8 +41,8 @@ export const shipDrawerStyles = [reducedMotion, css`
     position: fixed;
     top: 0;
     bottom: 0;
-    /* Default = right edge. Without these, the UA sheet's `left: 0; right: 0;
-     * margin: auto` recipe leaves the dialog centered / left-aligned. */
+    /* Default = right edge. Without these, the UA sheet's "left: 0; right: 0;
+     * margin: auto" recipe leaves the dialog centered / left-aligned. */
     right: 0;
     left: auto;
     margin: 0;
@@ -81,7 +81,7 @@ export const shipDrawerStyles = [reducedMotion, css`
 
   /* Backdrop */
   dialog::backdrop {
-    background: oklch(0 0 0 / 40%);
+    background: var(--backdrop);
     opacity: 0;
     transition: opacity var(--duration-medium) var(--ease-out);
   }

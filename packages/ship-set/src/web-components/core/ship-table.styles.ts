@@ -239,7 +239,7 @@ export const shipTableLightDomCss = `
   /* Selected row — data-selected attr or aria-selected="true". */
   ship-table tr[data-selected] > *,
   ship-table tr[aria-selected='true'] > * {
-    background: color-mix(in oklch, var(--primary) 14%, transparent);
+    background: var(--tone-primary-bg);
   }
   ship-table tr[data-selected] > *:first-child,
   ship-table tr[aria-selected='true'] > *:first-child {
@@ -349,11 +349,11 @@ export const shipTableLightDomCss = `
     background: color-mix(in oklch, var(--muted-foreground) 12%, transparent);
     vertical-align: middle;
   }
-  ship-table .ft-badge.ft-string     { color: var(--primary);       background: color-mix(in oklch, var(--primary) 14%, transparent); }
-  ship-table .ft-badge.ft-number     { color: var(--accent);        background: color-mix(in oklch, var(--accent) 14%, transparent); }
-  ship-table .ft-badge.ft-boolean    { color: var(--success);       background: color-mix(in oklch, var(--success) 14%, transparent); }
-  ship-table .ft-badge.ft-enum       { color: var(--warning);       background: color-mix(in oklch, var(--warning) 16%, transparent); }
-  ship-table .ft-badge.ft-array      { color: var(--info);          background: color-mix(in oklch, var(--info) 14%, transparent); }
+  ship-table .ft-badge.ft-string     { color: var(--primary);       background: var(--tone-primary-bg); }
+  ship-table .ft-badge.ft-number     { color: var(--accent);        background: var(--tone-accent-bg); }
+  ship-table .ft-badge.ft-boolean    { color: var(--success);       background: var(--tone-success-bg); }
+  ship-table .ft-badge.ft-enum       { color: var(--warning);       background: var(--tone-warning-bg); }
+  ship-table .ft-badge.ft-array      { color: var(--info);          background: var(--tone-info-bg); }
   ship-table .ft-badge.ft-markdown   { color: var(--status-purple); background: color-mix(in oklch, var(--status-purple) 14%, transparent); }
   ship-table .ft-badge.ft-timestamp  { color: var(--muted-foreground); background: color-mix(in oklch, var(--muted-foreground) 10%, transparent); }
 

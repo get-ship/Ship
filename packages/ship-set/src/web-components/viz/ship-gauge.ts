@@ -35,7 +35,7 @@ export class ShipGauge extends LitElement {
     .label {
       position: absolute; inset: 0;
       display: flex; align-items: center; justify-content: center;
-      font-family: var(--font-display);
+      font-family: var(--heading-font);
       font-weight: var(--font-weight-semibold);
       font-size: var(--text-xl);
       color: var(--foreground);

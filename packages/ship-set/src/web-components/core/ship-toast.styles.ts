@@ -222,7 +222,7 @@ export const shipToastStyles = [
         transform var(--duration-fast) var(--ease-out);
     }
     .close:hover {
-      background: color-mix(in oklch, var(--foreground) 8%, transparent);
+      background: var(--active-bg);
       color: var(--foreground);
     }
     .close:active { transform: scale(0.94); }

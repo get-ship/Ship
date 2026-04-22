@@ -27,7 +27,7 @@ export const shipEditorTheme = EditorView.theme({
     borderLeftWidth: '2px',
   },
   '&.cm-focused .cm-selectionBackground, .cm-selectionBackground': {
-    background: 'color-mix(in oklch, var(--primary) 20%, transparent)',
+    background: 'var(--tone-primary-bg)',
   },
   '.cm-activeLine': {
     backgroundColor: 'color-mix(in oklch, var(--muted) 30%, transparent)',
@@ -60,10 +60,10 @@ export const shipEditorTheme = EditorView.theme({
     },
   },
   '.cm-searchMatch': {
-    backgroundColor: 'color-mix(in oklch, var(--info) 25%, transparent)',
+    backgroundColor: 'var(--tone-info-border)',
   },
   '.cm-searchMatch.cm-searchMatch-selected': {
-    backgroundColor: 'color-mix(in oklch, var(--primary) 30%, transparent)',
+    backgroundColor: 'var(--tone-primary-border)',
   },
   '.cm-placeholder': {
     color: 'var(--muted-foreground)',

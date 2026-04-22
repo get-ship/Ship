@@ -33,7 +33,7 @@ export class ShipDonut extends LitElement {
       display: flex;
       align-items: center;
       justify-content: center;
-      font-family: var(--font-display);
+      font-family: var(--heading-font);
       font-weight: var(--font-weight-semibold);
       font-size: var(--text-lg);
       color: var(--foreground);

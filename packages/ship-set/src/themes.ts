@@ -1,28 +1,29 @@
 /**
  * Shared theme catalog for the SHIP app and marketing site.
  *
- * The palette definitions live alongside this module in `./themes.css`
- * (alternates) and `./tokens.css` (canonical light + dark). Consumers
- * only need this module to know the theme ids, human labels, and
- * whether each theme should carry the canonical `.dark` class.
+ * Every theme is a full aesthetic bundle — palette, surfaces, radii,
+ * shadows, motion, typography, and interaction strength. The picker is
+ * flat: no tiers, no split. Pick one and the app *feels* different,
+ * not just looks different.
+ *
+ * Palette definitions live alongside this module in `./themes.css`
+ * (per-theme overrides) and `./tokens.css` (canonical ship-light +
+ * ship-dark base). Consumers only need this module to know the theme
+ * ids, human labels, and whether each theme should carry the canonical
+ * `.dark` class.
  */
 
 export type ThemeId =
   | 'ship-light'
   | 'ship-dark'
-  | 'high-contrast'
-  | 'warm'
-  | 'gruvbox-dark'
-  | 'gruvbox-light'
-  | 'nord'
-  | 'solarized-dark'
+  | 'paper'
+  | 'halo'
+  | 'console'
+  | 'contrast'
 
 export interface Theme {
   id: ThemeId
   label: string
-  /** Grouping hint for pickers — "Ship" for the canonical themes,
-   *  "Classics" for the community alternates. */
-  group: 'Ship' | 'Classics'
   /** Whether the theme needs the canonical `.dark` class applied so
    *  shadow/elevation tokens from @ship/set/tokens.css flip too. */
   dark: boolean
@@ -34,7 +35,7 @@ export interface Theme {
 
 export const THEMES: Theme[] = [
   {
-    id: 'ship-light', label: 'SHIP Light', group: 'Ship', dark: false,
+    id: 'ship-light', label: 'SHIP Light', dark: false,
     swatches: [
       'oklch(0.99 0.001 106.423)', // background
       'oklch(1 0 0)',              // card
@@ -43,7 +44,7 @@ export const THEMES: Theme[] = [
     ],
   },
   {
-    id: 'ship-dark', label: 'SHIP Dark', group: 'Ship', dark: true,
+    id: 'ship-dark', label: 'SHIP Dark', dark: true,
     swatches: [
       'oklch(0.18 0.01 250)',      // background
       'oklch(0.18 0.01 50)',       // card
@@ -52,57 +53,39 @@ export const THEMES: Theme[] = [
     ],
   },
   {
-    id: 'high-contrast', label: 'High Contrast', group: 'Ship', dark: true,
+    id: 'paper', label: 'Paper', dark: false,
     swatches: [
-      'oklch(0.09 0 0)',
-      'oklch(0.15 0 0)',
+      'oklch(0.97 0.014 80)',      // warm cream
+      'oklch(0.99 0.010 80)',      // card
+      'oklch(0.55 0.14 35)',       // terracotta primary
+      'oklch(0.48 0.09 55)',       // muted accent
+    ],
+  },
+  {
+    id: 'halo', label: 'Halo', dark: false,
+    swatches: [
+      'oklch(0.97 0.012 240)',     // pale blue
+      'oklch(0.94 0.020 235)',     // tinted card
+      'oklch(0.62 0.14 240)',      // primary
+      'oklch(0.72 0.10 200)',      // accent
+    ],
+  },
+  {
+    id: 'console', label: 'Console', dark: false,
+    swatches: [
+      'oklch(0.90 0.020 85)',      // beige
+      'oklch(0.94 0.018 85)',      // tan card
+      'oklch(0.65 0.15 65)',       // amber
+      'oklch(0.60 0.09 195)',      // teal accent
+    ],
+  },
+  {
+    id: 'contrast', label: 'High Contrast', dark: true,
+    swatches: [
+      'oklch(0.09 0 0)',           // near-black
+      'oklch(0.15 0 0)',           // card
       'oklch(0.87 0.18 85)',       // amber primary = accent
-      'oklch(0.99 0 0)',
-    ],
-  },
-  {
-    id: 'warm', label: 'Warm (paper)', group: 'Ship', dark: false,
-    swatches: [
-      'oklch(0.97 0.014 80)',
-      'oklch(0.99 0.010 80)',
-      'oklch(0.55 0.14 35)',
-      'oklch(0.28 0.03 55)',
-    ],
-  },
-  {
-    id: 'gruvbox-dark', label: 'Gruvbox Dark', group: 'Classics', dark: true,
-    swatches: [
-      'oklch(0.28 0.014 80)',
-      'oklch(0.33 0.016 80)',
-      'oklch(0.82 0.16 80)',
-      'oklch(0.72 0.03 85)',
-    ],
-  },
-  {
-    id: 'gruvbox-light', label: 'Gruvbox Light', group: 'Classics', dark: false,
-    swatches: [
-      'oklch(0.95 0.04 85)',
-      'oklch(0.97 0.035 85)',
-      'oklch(0.66 0.16 55)',
-      'oklch(0.50 0.02 80)',
-    ],
-  },
-  {
-    id: 'nord', label: 'Nord', group: 'Classics', dark: true,
-    swatches: [
-      'oklch(0.29 0.02 255)',
-      'oklch(0.34 0.02 255)',
-      'oklch(0.77 0.06 220)',
-      'oklch(0.95 0.01 250)',
-    ],
-  },
-  {
-    id: 'solarized-dark', label: 'Solarized Dark', group: 'Classics', dark: true,
-    swatches: [
-      'oklch(0.26 0.03 220)',
-      'oklch(0.30 0.03 215)',
-      'oklch(0.65 0.14 240)',
-      'oklch(0.72 0.02 220)',
+      'oklch(0.99 0 0)',           // pure white fg
     ],
   },
 ]

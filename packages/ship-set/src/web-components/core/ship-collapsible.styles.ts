@@ -21,7 +21,7 @@ export const shipCollapsibleStyles = [
     .content-wrap {
       display: grid;
       grid-template-rows: 0fr;
-      transition: grid-template-rows var(--duration-normal, 200ms) var(--ease-out);
+      transition: grid-template-rows var(--duration-medium) var(--ease-out);
     }
     :host([open]) .content-wrap {
       grid-template-rows: 1fr;

@@ -21,14 +21,14 @@ export class ShipGitDiff extends LitElement {
       font-family: var(--font-body);
       background: var(--background);
       color: var(--foreground);
-      border: 1px solid color-mix(in oklch, var(--border) 60%, transparent);
+      border: 1px solid var(--border-subtle);
       border-radius: var(--radius-lg);
       overflow: hidden;
     }
     .toolbar {
       display: flex; align-items: center; gap: 12px;
       padding: 6px 16px;
-      border-bottom: 1px solid color-mix(in oklch, var(--border) 60%, transparent);
+      border-bottom: 1px solid var(--border-subtle);
       background: color-mix(in oklch, var(--card) 50%, transparent);
       flex-shrink: 0;
     }
@@ -116,7 +116,7 @@ export class ShipGitDiffFile extends LitElement {
       padding: 6px 12px;
       background: transparent;
       border: 0;
-      border-bottom: 1px solid color-mix(in oklch, var(--border) 40%, transparent);
+      border-bottom: 1px solid var(--border-subtle);
       text-align: left;
       cursor: pointer;
       color: var(--foreground);
@@ -186,9 +186,9 @@ export class ShipGitDiffHunk extends LitElement {
     :host {
       display: block;
       padding: 2px 12px;
-      background: color-mix(in oklch, var(--info) 10%, transparent);
-      border-top: 1px solid color-mix(in oklch, var(--info) 20%, transparent);
-      border-bottom: 1px solid color-mix(in oklch, var(--info) 20%, transparent);
+      background: var(--tone-info-bg);
+      border-top: 1px solid var(--tone-info-bg);
+      border-bottom: 1px solid var(--tone-info-bg);
       font-family: ${MONO};
       font-size: 11px;
       color: var(--info);
@@ -211,9 +211,11 @@ export class ShipGitDiffLine extends LitElement {
       font-family: ${MONO};
       font-size: 11px;
       line-height: 1.45;
+      position: relative;
     }
-    :host([type='add']) { background: color-mix(in oklch, var(--success) 12%, transparent); }
-    :host([type='del']) { background: color-mix(in oklch, var(--destructive) 12%, transparent); }
+    :host([type='add']) { background: var(--tone-success-bg); }
+    :host([type='del']) { background: var(--tone-destructive-bg); }
+    :host([comment-count]) { border-left: 2px solid var(--accent); }
     .num {
       width: 42px;
       flex-shrink: 0;
@@ -232,7 +234,7 @@ export class ShipGitDiffLine extends LitElement {
     }
     .content {
       flex: 1;
-      padding-right: 12px;
+      padding-right: 28px;
       white-space: pre-wrap;
       word-break: break-all;
       color: var(--muted-foreground);
@@ -241,17 +243,48 @@ export class ShipGitDiffLine extends LitElement {
     :host([type='add']) .content { color: var(--success); }
     :host([type='del']) .sig,
     :host([type='del']) .content { color: var(--destructive); }
+
+    /* Comment button — revealed on row hover */
+    .comment-btn {
+      position: absolute;
+      right: 4px;
+      top: 50%;
+      transform: translateY(-50%);
+      width: 18px;
+      height: 18px;
+      border-radius: var(--radius-sm);
+      background: var(--accent);
+      color: var(--accent-foreground);
+      border: 0;
+      display: grid;
+      place-items: center;
+      cursor: pointer;
+      opacity: 0;
+      transition: opacity var(--duration-fast) ease;
+      font-size: 13px;
+      line-height: 1;
+      font-family: var(--font-body);
+    }
+    :host(:hover) .comment-btn { opacity: 1; }
+    :host([comment-count]) .comment-btn { opacity: 0.7; }
+    :host([comment-count]:hover) .comment-btn { opacity: 1; }
+    .comment-btn:focus-visible {
+      outline: 2px solid var(--ring-color);
+      outline-offset: 1px;
+    }
   `
 
   static properties = {
-    type: { type: String, reflect: true },
-    old: { type: String, reflect: true },
-    new: { type: String, reflect: true },
+    type:         { type: String, reflect: true },
+    old:          { type: String, reflect: true },
+    new:          { type: String, reflect: true },
+    commentCount: { type: Number, reflect: true, attribute: 'comment-count' },
   }
 
   type: LineType = 'context'
   old = ''
   new = ''
+  commentCount = 0
 
   updated() {
     const verb = this.type === 'add' ? 'added' : this.type === 'del' ? 'removed' : 'context'
@@ -262,12 +295,30 @@ export class ShipGitDiffLine extends LitElement {
     return this.type === 'add' ? '+' : this.type === 'del' ? '-' : ' '
   }
 
+  private _onComment(e: Event) {
+    e.stopPropagation()
+    this.dispatchEvent(
+      new CustomEvent('ship-comment', {
+        detail: { old: this.old, new: this.new },
+        bubbles: true,
+        composed: true,
+      }),
+    )
+  }
+
   render() {
     return html`
       <span class="num">${this.old}</span>
       <span class="num">${this.new}</span>
       <span class="sig">${this.sig()}</span>
       <span class="content"><slot></slot></span>
+      <button
+        class="comment-btn"
+        type="button"
+        aria-label="Comment on this line"
+        title="Comment on this line"
+        @click=${this._onComment}
+      >+</button>
     `
   }
 }

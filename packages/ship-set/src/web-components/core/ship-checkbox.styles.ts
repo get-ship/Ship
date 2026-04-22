@@ -41,10 +41,10 @@ export const shipCheckboxStyles = [
       --tone: var(--primary);
       --tone-on-fg: var(--primary-foreground);
     }
-    :host([tone='info'])        { --tone: var(--info);        --tone-on-fg: oklch(0.99 0.02 260); }
-    :host([tone='success'])     { --tone: var(--success);     --tone-on-fg: oklch(0.99 0.02 150); }
-    :host([tone='warning'])     { --tone: var(--warning);     --tone-on-fg: oklch(0.2 0.04 75); }
-    :host([tone='destructive']) { --tone: var(--destructive); --tone-on-fg: oklch(0.99 0.02 25); }
+    :host([tone='info'])        { --tone: var(--info);        --tone-on-fg: var(--info-foreground); }
+    :host([tone='success'])     { --tone: var(--success);     --tone-on-fg: var(--success-foreground); }
+    :host([tone='warning'])     { --tone: var(--warning);     --tone-on-fg: var(--warning-foreground); }
+    :host([tone='destructive']) { --tone: var(--destructive); --tone-on-fg: var(--destructive-foreground); }
     :host([tone='accent'])      { --tone: var(--accent);      --tone-on-fg: var(--accent-foreground); }
     :host([tone='muted'])       { --tone: var(--muted-foreground); --tone-on-fg: var(--background); }
 

@@ -95,7 +95,7 @@ export class ShipMarkdown extends LitElement {
       color: var(--foreground);
     }
     h1, h2, h3, h4, h5, h6 {
-      font-family: var(--font-display);
+      font-family: var(--heading-font);
       font-weight: var(--font-weight-semibold);
       line-height: var(--leading-tight);
       margin: 1em 0 0.4em;

@@ -1,16 +1,29 @@
 /*
  * Ship canonical design tokens.
  *
- * Single source of truth for the OKLCH brand palette, radii, font stacks,
- * sidebar, and chart colors. Consumed by:
+ * Single source of truth. Every component reads from these. Themes
+ * override this layer (see ./themes.css) to ship more than color —
+ * surfaces, motion, typography, density, shadow depth, and tone ramps
+ * all bend through the token API.
+ *
+ * Token layers, in order of abstraction (highest first):
+ *   1. Semantic surfaces  — --surface-0..3, --backdrop
+ *   2. Tone ramps         — --tone-{name}-{fg|bg|bg-solid|border|ring}
+ *   3. Brand palette      — --primary, --accent, --foreground, etc.
+ *   4. Primitives         — spacing, radii, typography scale, motion curves
+ *
+ * Components should read the HIGHEST layer that fits. A card reads
+ * --surface-1, not --card. A success chip reads --tone-success-bg, not
+ * `color-mix(in oklch, var(--success) 14%, transparent)`. A panel head
+ * reads --heading-font, not --font-display.
+ *
+ * Consumed by:
  *   - apps/web/src/styles.css (Studio shell)
  *   - apps/shipd/assets/view-tokens.css (daemon-served runtime views)
  *   - packages/ship-set/src/web-components/* (via var(--foo) in shadow DOM)
- *
- * No Tailwind directives, no @source, no @import of fonts — those live in
- * the consumer (Studio) since daemon-served views don't need them.
  */
 
+/* ─── Primitives: these never change per theme ────────────────────── */
 :root {
   /* Radii */
   --radius: 0.625rem;
@@ -20,14 +33,7 @@
   --radius-xl: 14px;
   --radius-full: 9999px;
 
-  /* Elevation — OKLCH-friendly compositional shadows. Light mode. */
-  --shadow-xs: 0 1px 2px 0 oklch(0 0 0 / 5%);
-  --shadow-sm: 0 1px 3px 0 oklch(0 0 0 / 8%), 0 1px 2px -1px oklch(0 0 0 / 6%);
-  --shadow-md: 0 4px 8px -2px oklch(0 0 0 / 10%), 0 2px 4px -2px oklch(0 0 0 / 6%);
-  --shadow-lg: 0 12px 24px -4px oklch(0 0 0 / 10%), 0 4px 8px -4px oklch(0 0 0 / 6%);
-  --shadow-xl: 0 20px 40px -8px oklch(0 0 0 / 12%);
-
-  /* Spacing scale — 4px base, consistent across views and components. */
+  /* Spacing scale — 4px base */
   --space-1: 4px;
   --space-2: 8px;
   --space-3: 12px;
@@ -47,7 +53,7 @@
   --z-toast: 50;
   --z-max: 100;
 
-  /* Typography scale — matches existing ad-hoc values in components. */
+  /* Typography scale */
   --text-xs: 10.5px;
   --text-sm: 12px;
   --text-base: 13px;
@@ -67,41 +73,36 @@
   --font-weight-semibold: 600;
   --font-weight-bold: 700;
 
-  /* Motion */
+  /* Letter spacing */
+  --tracking-tight: -0.01em;
+  --tracking-normal: 0;
+  --tracking-wide: 0.04em;
+  --tracking-wider: 0.1em;
+
+  /* Motion curves — expressive by default, soft for surface changes,
+   * spring for tactile feedback, linear for utility. */
   --ease-out: cubic-bezier(0.16, 1, 0.3, 1);
+  --ease-out-soft: cubic-bezier(0.33, 1, 0.68, 1);
   --ease-in: cubic-bezier(0.7, 0, 0.84, 0);
   --ease-in-out: cubic-bezier(0.65, 0, 0.35, 1);
+  --ease-spring: cubic-bezier(0.34, 1.56, 0.64, 1);
+  --duration-instant: 60ms;
   --duration-fast: 120ms;
   --duration-medium: 180ms;
   --duration-slow: 280ms;
-}
-
-@media (prefers-reduced-motion: reduce) {
-  :root {
-    --duration-fast: 0.01ms;
-    --duration-medium: 0.01ms;
-    --duration-slow: 0.01ms;
-  }
-  *, *::before, *::after {
-    animation-duration: 0.01ms !important;
-    animation-iteration-count: 1 !important;
-    transition-duration: 0.01ms !important;
-    scroll-behavior: auto !important;
-  }
-}
-
-:root {
+  --duration-deliberate: 420ms;
 
   /* Focus ring */
-  --ring-color: var(--primary);
   --ring-width: 3px;
   --ring-offset: 2px;
   --ring-opacity: 25%;
 
-  /* Tone-mix percentages — exposed for tone-vars composition. */
-  --tone-bg-mix: 18%;
-  --tone-border-mix: 35%;
-  --tone-hover-mix: 24%;
+  /* Interaction tints — used by hover/active/selected states so the
+   * depth hierarchy stays consistent. Themes can dial these up (high
+   * contrast) or relax (paper). */
+  --hover-strength: 6%;
+  --active-strength: 10%;
+  --selected-strength: 14%;
 
   /* Tooltip delays */
   --tooltip-show-delay: 300ms;
@@ -111,10 +112,78 @@
    * loaded by Studio; daemon views fall back to the web-safe stacks. */
   --font-display-app: "Syne Variable", "Syne", "Inter", sans-serif;
   --font-body-app: "DM Sans Variable", "DM Sans", "Inter", sans-serif;
+  --font-mono-app: "JetBrains Mono Variable", "JetBrains Mono", ui-monospace, "SFMono-Regular", Menlo, Consolas, monospace;
   --font-display: var(--font-display-app);
   --font-body: var(--font-body-app);
+  --font-mono: var(--font-mono-app);
 
-  /* Light mode brand */
+  /* Typography roles — components read these, themes override. A theme
+   * can swap --heading-font to body, or flip display roles entirely. */
+  --heading-font: var(--font-display);
+  --heading-weight: var(--font-weight-semibold);
+  --heading-tracking: var(--tracking-tight);
+  --body-font: var(--font-body);
+  --mono-font: var(--font-mono);
+  --label-font: var(--font-body);
+  --label-weight: var(--font-weight-semibold);
+  --label-tracking: var(--tracking-wide);
+
+  /* Density channel — :root[data-density=compact|comfortable|spacious]
+   * overrides these. Components that present rows/tiles read from here
+   * instead of the base scale so density propagates everywhere at once. */
+  --density-row-py: var(--space-2);
+  --density-row-px: var(--space-3);
+  --density-row-gap: var(--space-2);
+  --density-text: var(--text-base);
+  --density-icon: 16px;
+
+  /* Elevation — light mode defaults. Dark mode + accent themes override. */
+  --shadow-xs: 0 1px 2px 0 oklch(0 0 0 / 5%);
+  --shadow-sm: 0 1px 3px 0 oklch(0 0 0 / 8%), 0 1px 2px -1px oklch(0 0 0 / 6%);
+  --shadow-md: 0 4px 8px -2px oklch(0 0 0 / 10%), 0 2px 4px -2px oklch(0 0 0 / 6%);
+  --shadow-lg: 0 12px 24px -4px oklch(0 0 0 / 10%), 0 4px 8px -4px oklch(0 0 0 / 6%);
+  --shadow-xl: 0 20px 40px -8px oklch(0 0 0 / 12%);
+  /* Semantic shadows — components read these for intent, not depth. */
+  --shadow-hover: 0 2px 6px -1px oklch(0 0 0 / 8%), 0 1px 3px -1px oklch(0 0 0 / 5%);
+  --shadow-sticky: 0 2px 4px -2px oklch(0 0 0 / 6%);
+  --shadow-accent: 0 8px 24px -6px color-mix(in oklch, var(--primary) 45%, transparent);
+}
+
+@media (prefers-reduced-motion: reduce) {
+  :root {
+    --duration-instant: 0.01ms;
+    --duration-fast: 0.01ms;
+    --duration-medium: 0.01ms;
+    --duration-slow: 0.01ms;
+    --duration-deliberate: 0.01ms;
+  }
+  *, *::before, *::after {
+    animation-duration: 0.01ms !important;
+    animation-iteration-count: 1 !important;
+    transition-duration: 0.01ms !important;
+    scroll-behavior: auto !important;
+  }
+}
+
+/* ─── Density channels (opt-in via :root[data-density=…]) ───────────── */
+:root[data-density='compact'] {
+  --density-row-py: 4px;
+  --density-row-px: 8px;
+  --density-row-gap: 6px;
+  --density-text: var(--text-sm);
+  --density-icon: 14px;
+}
+:root[data-density='spacious'] {
+  --density-row-py: var(--space-3);
+  --density-row-px: var(--space-4);
+  --density-row-gap: var(--space-3);
+  --density-text: var(--text-md);
+  --density-icon: 18px;
+}
+
+/* ─── Brand palette — light (:root) ──────────────────────────────────
+ * The canonical palette. Themes override this layer. */
+:root {
   --background: oklch(0.99 0.001 106.423);
   --foreground: oklch(0.147 0.004 49.25);
   --card: oklch(1 0 0);
@@ -133,18 +202,24 @@
   --border: oklch(0.147 0.004 49.25 / 25%);
   --input: oklch(0.147 0.004 49.25 / 25%);
   --ring: oklch(0.67 0.16 58 / 40%);
+  --ring-color: var(--primary);
 
-  /* Sidebar — light */
-  --sidebar: oklch(0.99 0.001 106.423);
-  --sidebar-foreground: oklch(0.147 0.004 49.25);
-  --sidebar-primary: oklch(0.67 0.16 58);
-  --sidebar-primary-foreground: oklch(0.99 0.02 95);
-  --sidebar-accent: oklch(0.95 0.001 106);
-  --sidebar-accent-foreground: oklch(0.147 0.004 49.25);
-  --sidebar-border: oklch(0.147 0.004 49.25 / 12%);
-  --sidebar-ring: oklch(0.67 0.16 58 / 20%);
+  /* Feedback semantics (legacy names kept for backward compat) */
+  --success: oklch(0.65 0.2 150);
+  --warning: oklch(0.75 0.15 75);
+  --info: oklch(0.6 0.18 260);
 
-  /* Status / chart semantics */
+  /* Contrast foregrounds for solid feedback fills (used by tone-on-fg /
+   * tone-contrast in components like ship-button, ship-badge, ship-checkbox,
+   * ship-switch, ship-chip). Theme-invariant — solid tone surfaces stay the
+   * same saturation in light + dark. */
+  --info-foreground:        oklch(0.99 0.02 260);
+  --success-foreground:     oklch(0.99 0.02 150);
+  --warning-foreground:     oklch(0.2 0.04 75);
+  --destructive-foreground: oklch(0.99 0.02 25);
+
+  /* Chart / data-viz — kept separate from feedback so theme authors
+   * can set them independently. */
   --status-gray: oklch(0.5 0.01 58);
   --status-blue: oklch(0.6 0.18 260);
   --status-red: oklch(0.55 0.25 25);
@@ -154,12 +229,108 @@
   --status-orange: oklch(0.6 0.2 35);
   --status-amber: oklch(0.75 0.15 75);
 
-  /* Feedback semantics used by web components */
-  --success: oklch(0.65 0.2 150);
-  --warning: oklch(0.75 0.15 75);
-  --info: oklch(0.6 0.18 260);
+  /* Sidebar — kept as-is for Studio compat. */
+  --sidebar: oklch(0.99 0.001 106.423);
+  --sidebar-foreground: oklch(0.147 0.004 49.25);
+  --sidebar-primary: oklch(0.67 0.16 58);
+  --sidebar-primary-foreground: oklch(0.99 0.02 95);
+  --sidebar-accent: oklch(0.95 0.001 106);
+  --sidebar-accent-foreground: oklch(0.147 0.004 49.25);
+  --sidebar-border: oklch(0.147 0.004 49.25 / 12%);
+  --sidebar-ring: oklch(0.67 0.16 58 / 20%);
 }
 
+/* ─── Semantic surface stack ──────────────────────────────────────────
+ * Components read --surface-{N} for depth; brand palette slots map the
+ * canonical values. A theme that wants a warmer card can shift
+ * --surface-1 without touching every component. */
+:root {
+  --surface-0: var(--background);
+  --surface-1: var(--card);
+  --surface-2: color-mix(in oklch, var(--card) 94%, var(--foreground));
+  --surface-3: var(--popover);
+  --surface-inverse: var(--foreground);
+
+  --backdrop: oklch(0 0 0 / 40%);
+  --scrim: oklch(0 0 0 / 20%);
+
+  /* Border variants */
+  --border-subtle: color-mix(in oklch, var(--border) 60%, transparent);
+  --border-strong: color-mix(in oklch, var(--border) 150%, transparent);
+  --divider: var(--border-subtle);
+
+  /* Interaction surfaces — use these for hover/pressed states instead
+   * of re-inventing color-mix per component. */
+  --hover-bg: color-mix(in oklch, var(--foreground) var(--hover-strength), transparent);
+  --active-bg: color-mix(in oklch, var(--foreground) var(--active-strength), transparent);
+  --selected-bg: color-mix(in oklch, var(--primary) var(--selected-strength), transparent);
+  --selected-border: color-mix(in oklch, var(--primary) 40%, transparent);
+}
+
+/* ─── Tone ramps ───────────────────────────────────────────────────────
+ * Each tone exposes fg / bg-soft / bg-solid / border / ring. Every
+ * component that tints by tone (chips, alerts, badges, status dots,
+ * diff lines) reads from here — no bespoke color-mix in component CSS.
+ *
+ * Theme authors: override the base --success / --warning / etc. values
+ * and the ramps rebuild automatically. */
+:root {
+  --tone-default-fg: var(--foreground);
+  --tone-default-bg: var(--muted);
+  --tone-default-bg-solid: var(--muted);
+  --tone-default-border: var(--border);
+  --tone-default-ring: var(--ring);
+
+  --tone-muted-fg: var(--muted-foreground);
+  --tone-muted-bg: color-mix(in oklch, var(--muted) 60%, transparent);
+  --tone-muted-bg-solid: var(--muted);
+  --tone-muted-border: var(--border-subtle);
+  --tone-muted-ring: color-mix(in oklch, var(--muted-foreground) 20%, transparent);
+
+  --tone-info-fg: var(--info);
+  --tone-info-bg: color-mix(in oklch, var(--info) 14%, transparent);
+  --tone-info-bg-solid: var(--info);
+  --tone-info-border: color-mix(in oklch, var(--info) 30%, transparent);
+  --tone-info-ring: color-mix(in oklch, var(--info) 22%, transparent);
+
+  --tone-success-fg: var(--success);
+  --tone-success-bg: color-mix(in oklch, var(--success) 14%, transparent);
+  --tone-success-bg-solid: var(--success);
+  --tone-success-border: color-mix(in oklch, var(--success) 30%, transparent);
+  --tone-success-ring: color-mix(in oklch, var(--success) 22%, transparent);
+
+  --tone-warning-fg: var(--warning);
+  --tone-warning-bg: color-mix(in oklch, var(--warning) 14%, transparent);
+  --tone-warning-bg-solid: var(--warning);
+  --tone-warning-border: color-mix(in oklch, var(--warning) 30%, transparent);
+  --tone-warning-ring: color-mix(in oklch, var(--warning) 22%, transparent);
+
+  --tone-destructive-fg: var(--destructive);
+  --tone-destructive-bg: color-mix(in oklch, var(--destructive) 14%, transparent);
+  --tone-destructive-bg-solid: var(--destructive);
+  --tone-destructive-border: color-mix(in oklch, var(--destructive) 30%, transparent);
+  --tone-destructive-ring: color-mix(in oklch, var(--destructive) 22%, transparent);
+
+  --tone-accent-fg: var(--accent);
+  --tone-accent-bg: color-mix(in oklch, var(--accent) 14%, transparent);
+  --tone-accent-bg-solid: var(--accent);
+  --tone-accent-border: color-mix(in oklch, var(--accent) 30%, transparent);
+  --tone-accent-ring: color-mix(in oklch, var(--accent) 22%, transparent);
+
+  --tone-primary-fg: var(--primary);
+  --tone-primary-bg: color-mix(in oklch, var(--primary) 14%, transparent);
+  --tone-primary-bg-solid: var(--primary);
+  --tone-primary-border: color-mix(in oklch, var(--primary) 30%, transparent);
+  --tone-primary-ring: var(--ring);
+
+  /* Legacy tone mix percentages — still exposed for util.toneVars() but
+   * new code should read the ramp variables above directly. */
+  --tone-bg-mix: 18%;
+  --tone-border-mix: 35%;
+  --tone-hover-mix: 24%;
+}
+
+/* ─── Dark mode overrides ─────────────────────────────────────────── */
 .dark {
   --background: oklch(0.18 0.01 250);
   --foreground: oklch(0.98 0.001 106);
@@ -189,12 +360,15 @@
   --sidebar-border: oklch(1 0 0 / 15%);
   --sidebar-ring: oklch(0.77 0.16 70 / 25%);
 
-  /* Dark-mode shadow overrides — deeper black, lower alpha to preserve
-   * contrast against dark surfaces. */
+  /* Dark elevation — deeper, lower-alpha blacks preserve contrast. */
   --shadow-xs: 0 1px 2px 0 oklch(0 0 0 / 30%);
   --shadow-sm: 0 1px 3px 0 oklch(0 0 0 / 35%), 0 1px 2px -1px oklch(0 0 0 / 25%);
   --shadow-md: 0 4px 8px -2px oklch(0 0 0 / 40%), 0 2px 4px -2px oklch(0 0 0 / 25%);
   --shadow-lg: 0 12px 24px -4px oklch(0 0 0 / 45%), 0 4px 8px -4px oklch(0 0 0 / 30%);
   --shadow-xl: 0 20px 40px -8px oklch(0 0 0 / 50%);
-}
+  --shadow-hover: 0 2px 6px -1px oklch(0 0 0 / 35%), 0 1px 3px -1px oklch(0 0 0 / 25%);
+  --shadow-sticky: 0 2px 4px -2px oklch(0 0 0 / 30%);
 
+  --backdrop: oklch(0 0 0 / 55%);
+  --scrim: oklch(0 0 0 / 30%);
+}

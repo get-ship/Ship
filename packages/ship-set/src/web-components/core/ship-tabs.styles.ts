@@ -187,7 +187,7 @@ export const shipTabsStyles = [reducedMotion, css`
     background: var(--background);
     color: var(--foreground);
     box-shadow:
-      inset 0 0 0 1px color-mix(in oklch, var(--border) 60%, transparent),
+      inset 0 0 0 1px var(--border-subtle),
       var(--shadow-xs);
   }
   .tablist.segmented::after { display: none; }

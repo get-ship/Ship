@@ -46,7 +46,7 @@ export class ShipPipelineStepDef extends LitElement {
     :host {
       display: block;
       padding: 16px 0;
-      border-top: 1px solid color-mix(in oklch, var(--border) 40%, transparent);
+      border-top: 1px solid var(--border-subtle);
     }
     :host(:first-of-type), :host([first]) { border-top: none; padding-top: 0; }
     :host(:last-of-type) { padding-bottom: 0; }
@@ -91,7 +91,7 @@ export class ShipPipelineStepDef extends LitElement {
       margin: 0;
       padding: 10px 12px;
       border-radius: var(--radius-md);
-      border: 1px solid color-mix(in oklch, var(--border) 40%, transparent);
+      border: 1px solid var(--border-subtle);
       background: color-mix(in oklch, var(--muted) 35%, transparent);
       font-family: ${MONO};
       font-size: var(--text-xs);

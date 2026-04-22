@@ -92,7 +92,7 @@ export const shipDialogStyles = [reducedMotion, css`
    * the 'blur' variant adds a backdrop-filter for a premium feel. Both fade
    * in with the dialog. */
   dialog::backdrop {
-    background: oklch(0 0 0 / 42%);
+    background: var(--backdrop);
     opacity: 0;
     transition: opacity var(--duration-medium) var(--ease-out);
   }
@@ -100,12 +100,12 @@ export const shipDialogStyles = [reducedMotion, css`
     opacity: 1;
   }
   :host([backdrop='blur']) dialog::backdrop {
-    background: oklch(0 0 0 / 32%);
+    background: var(--backdrop);
     backdrop-filter: blur(6px) saturate(1.1);
     -webkit-backdrop-filter: blur(6px) saturate(1.1);
   }
   :host([backdrop='solid']) dialog::backdrop {
-    background: oklch(0 0 0 / 62%);
+    background: var(--backdrop);
   }
 
   /* Focus-trap sentinels — invisible, zero-size, but keyboard-tabbable.
@@ -134,10 +134,11 @@ export const shipDialogStyles = [reducedMotion, css`
   .header {
     padding: var(--dlg-header-py) var(--dlg-px);
     padding-right: calc(var(--dlg-px) + 28px);
-    border-bottom: 1px solid color-mix(in oklch, var(--border) 120%, transparent);
+    border-bottom: 1px solid var(--border-strong);
+    font-family: var(--heading-font);
     font-size: var(--dlg-title-fs);
-    font-weight: var(--font-weight-semibold);
-    letter-spacing: -0.01em;
+    font-weight: var(--heading-weight);
+    letter-spacing: var(--heading-tracking);
     line-height: var(--leading-tight);
     color: var(--foreground);
     flex: 0 0 auto;

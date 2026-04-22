@@ -81,7 +81,7 @@ export const shipAccordionItemStyles = [
       width: 16px;
       height: 16px;
       color: var(--muted-foreground);
-      transition: transform var(--duration-normal, 200ms) var(--ease-out);
+      transition: transform var(--duration-medium) var(--ease-out);
     }
     :host([open]) .chevron {
       transform: rotate(180deg);
@@ -91,7 +91,7 @@ export const shipAccordionItemStyles = [
     .content-wrap {
       display: grid;
       grid-template-rows: 0fr;
-      transition: grid-template-rows var(--duration-normal, 200ms) var(--ease-out);
+      transition: grid-template-rows var(--duration-medium) var(--ease-out);
     }
     :host([open]) .content-wrap {
       grid-template-rows: 1fr;

@@ -44,19 +44,19 @@ export class ShipPipelineStep extends LitElement {
       line-height: 1;
     }
     :host([state='completed']) {
-      border-color: oklch(0.62 0.17 150 / 50%);
-      background: oklch(0.62 0.17 150 / 5%);
+      border-color: var(--tone-success-border);
+      background: var(--tone-success-bg);
     }
     :host([state='completed']) .icon { color: var(--success); }
     :host([state='running']) {
-      border-color: oklch(0.65 0.15 240 / 60%);
-      background: oklch(0.65 0.15 240 / 7%);
-      box-shadow: 0 0 0 3px oklch(0.65 0.15 240 / 12%);
+      border-color: var(--tone-info-border);
+      background: var(--tone-info-bg);
+      box-shadow: 0 0 0 3px var(--tone-info-ring);
     }
     :host([state='running']) .icon { color: var(--info); }
     :host([state='failed']) {
-      border-color: oklch(0.58 0.22 27 / 55%);
-      background: oklch(0.58 0.22 27 / 6%);
+      border-color: var(--tone-destructive-border);
+      background: var(--tone-destructive-bg);
     }
     :host([state='failed']) .icon { color: var(--destructive); }
 
