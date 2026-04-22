@@ -1,7 +1,8 @@
 {#- Permissions section — preset select + three tool-pattern lists.
-    Context: agent (AgentDetail), catalogs (AgentCatalogs). Edits post
-    to PUT /api/agents/{id}/permissions (wholesale replace; merge is
-    wrong for tool removal).
+    Context: agent (AgentDetail), catalogs (AgentCatalogs). Edits send
+    a PATCH with a single replace op on `/permissions` against the
+    generic AgentService at /api/agents/{id}. Replace semantics are
+    correct for tool lists (merge can't express removal).
 
     Signals (view-root):
       pAllow / pAsk / pDeny — string arrays, seed from agent.permissions
@@ -27,7 +28,17 @@
     <ship-button variant="outline" size="sm"
                  data-attr:disabled="!$pDirty || $pSaving"
                  data-class:is-saving="$pSaving"
-                 data-on:click="$pSaving = true; @put('/api/agents/{{ agent.id | e }}/permissions', {contentType: 'json', body: JSON.stringify({preset: $pPreset, tools_allow: $pAllow, tools_ask: $pAsk, tools_deny: $pDeny})}); $pDirty = false; $pSaving = false">
+                 data-on:click="$pSaving = true; @patch('/api/agents/{{ agent.id | e }}', {
+                   contentType: 'json',
+                   body: JSON.stringify([
+                     { op: 'add', path: '/permissions', value: {
+                       preset: $pPreset,
+                       tools_allow: $pAllow,
+                       tools_ask: $pAsk,
+                       tools_deny: $pDeny,
+                     }},
+                   ]),
+                 }); $pDirty = false; $pSaving = false; window.location.reload()">
       <ship-icon slot="leading" name="check"></ship-icon>
       Save
     </ship-button>

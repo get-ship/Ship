@@ -302,8 +302,23 @@
         <ship-icon slot="leading" name="external-link" size="xs"></ship-icon>
         Open
       </ship-button>
+      {#- Remove by index. RFC 6902 has no "remove by value"; we GET the
+          current refs, find the index, then PATCH. Two round-trips but
+          still cleaner than hand-serialising whole doc. -#}
       <ship-button size="sm" variant="ghost" tone="destructive"
-        data-on:click="if (confirm('Remove ' + $selected_id + ' from {{ agent.name | e }}?')) { @post('/api/agents/{{ agent.id | e }}/patch', {contentType:'json', body: JSON.stringify({remove: {skills: [$selected_id]}})}); window.location.reload() }">
+        data-on:click="if (confirm('Remove ' + $selected_id + ' from {{ agent.name | e }}?')) {
+          fetch('/api/agents/{{ agent.id | e }}', {credentials:'include'})
+            .then(r => r.json()).then(({ doc }) => {
+              const refs = (doc.skills && doc.skills.refs) || [];
+              const i = refs.indexOf($selected_id);
+              if (i < 0) return;
+              return fetch('/api/agents/{{ agent.id | e }}', {
+                method:'PATCH', credentials:'include',
+                headers:{'Content-Type':'application/json'},
+                body: JSON.stringify([{ op: 'remove', path: `/skills/refs/${i}` }]),
+              });
+            }).then(() => window.location.reload());
+        }">
         <ship-icon slot="leading" name="trash" size="xs"></ship-icon>
         Remove
       </ship-button>
@@ -321,7 +336,19 @@
       <div class="mono" data-text="'.ship/mcp.jsonc → servers.' + $selected_id"></div>
     </div>
     <ship-button size="sm" variant="ghost" tone="destructive" style="margin-top: var(--space-3)"
-      data-on:click="if (confirm('Remove ' + $selected_id + ' from {{ agent.name | e }}?')) { @post('/api/agents/{{ agent.id | e }}/patch', {contentType:'json', body: JSON.stringify({remove: {mcp: [$selected_id]}})}); window.location.reload() }">
+      data-on:click="if (confirm('Remove ' + $selected_id + ' from {{ agent.name | e }}?')) {
+        fetch('/api/agents/{{ agent.id | e }}', {credentials:'include'})
+          .then(r => r.json()).then(({ doc }) => {
+            const servers = (doc.mcp && doc.mcp.servers) || [];
+            const i = servers.indexOf($selected_id);
+            if (i < 0) return;
+            return fetch('/api/agents/{{ agent.id | e }}', {
+              method:'PATCH', credentials:'include',
+              headers:{'Content-Type':'application/json'},
+              body: JSON.stringify([{ op: 'remove', path: `/mcp/servers/${i}` }]),
+            });
+          }).then(() => window.location.reload());
+      }">
       <ship-icon slot="leading" name="trash" size="xs"></ship-icon>
       Remove
     </ship-button>

@@ -1,6 +1,6 @@
 {#- Agent create wizard — 4-step flow. Every catalog (templates,
     permission presets, providers) comes from server ctx; zero inline
-    hardcoding. Submits via POST /api/runtime/view/agents/new. -#}
+    hardcoding. Submits via POST /api/agents. -#}
 {% from '_ship.html.j2' import head, signals, show, bind, nav %}
 {% if not fragment %}
 <!DOCTYPE html>
@@ -230,7 +230,25 @@
   <ship-button tone="accent" variant="solid" size="sm"
     data-show="$step == 3"
     data-attr:disabled="$_creating || !$id"
-    data-on:click="$_creating = true; $_err = ''; @post('/api/runtime/view/agents/new', { payload: { id: $id, name: $name, description: $desc, template: $template, hue: $hue, providers: $providers, permissions: { preset: $preset } } })">
+    data-on:click="$_creating = true; $_err = ''; @post('/api/agents', {
+      contentType: 'json',
+      body: JSON.stringify({
+        id: $id,
+        doc: {
+          '$schema': 'https://raw.githubusercontent.com/madvib/ship/main/schemas/agent.schema.json',
+          schema_version: '1',
+          agent: {
+            id: $id,
+            name: $name,
+            description: $desc,
+            providers: $providers,
+          },
+          permissions: { preset: $preset },
+        },
+      }),
+      onSuccess: (r) => { $_creating = false; r.json().then(b => window.location.href = '/agents/' + b.id) },
+      onError: (r) => { $_creating = false; r.json().then(b => $_err = b.message || 'Create failed') },
+    })">
     <ship-icon slot="leading" name="check" size="xs"></ship-icon>
     Create agent
   </ship-button>

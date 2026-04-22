@@ -63,9 +63,19 @@
     </span>
     <ship-button variant="ghost" size="sm"
                  data-on:click="$pickerOpen = false; $pickerSelected = []">Cancel</ship-button>
+    {#- One @patch per clicked id. AgentService's PATCH is path-tolerant:
+        `add /skills/refs/-` succeeds even if `/skills/refs` didn't exist.
+        No GET-mutate-PUT dance. -#}
     <ship-button tone="accent" variant="solid" size="sm"
                  data-attr:disabled="$pickerSelected.length == 0"
-                 data-on:click="@post('/api/agents/{{ agent.id | e }}/patch', {contentType: 'json', body: JSON.stringify({[$pickerKind == 'rule' ? 'rules' : ($pickerKind == 'mcp' ? 'mcp' : 'skills')]: $pickerSelected})}); $pickerOpen = false; $pickerSelected = []; window.location.reload()">
+                 data-on:click="@patch('/api/agents/{{ agent.id | e }}', {
+                   contentType: 'json',
+                   body: JSON.stringify($pickerSelected.map(id => ({
+                     op: 'add',
+                     path: '/' + ($pickerKind == 'rule' ? 'rules' : ($pickerKind == 'mcp' ? 'mcp' : 'skills')) + '/' + ($pickerKind == 'mcp' ? 'servers' : 'refs') + '/-',
+                     value: id,
+                   }))),
+                 }); $pickerOpen = false; $pickerSelected = []; window.location.reload()">
       Add
     </ship-button>
   </ship-toolbar>
