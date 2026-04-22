@@ -26,20 +26,20 @@ use crate::auth::AuthContext;
 use crate::rest_api::ApiState;
 use crate::views::session::SessionError;
 
-#[derive(Deserialize)]
+#[derive(Deserialize, utoipa::ToSchema)]
 pub struct OpenReq {
     pub template: String,
     pub title: Option<String>,
     pub initial_context: Option<Value>,
 }
 
-#[derive(Deserialize)]
+#[derive(Deserialize, utoipa::ToSchema)]
 pub struct PatchReq {
     pub selector: String,
     pub html: String,
 }
 
-#[derive(Deserialize)]
+#[derive(Deserialize, utoipa::ToSchema)]
 pub struct SignalReq {
     pub name: String,
     pub value: Value,
@@ -83,6 +83,19 @@ fn ok_json(body: Value) -> Response {
 
 // ───────────────────────── Handlers ─────────────────────────
 
+#[utoipa::path(
+    post,
+    path = "/api/runtime/view-sessions",
+    request_body = OpenReq,
+    responses(
+        (status = 200, description = "View session created"),
+        (status = 401, description = "Unauthenticated / missing agent id", body = crate::openapi_types::ErrorResponse),
+        (status = 400, description = "Unknown template", body = crate::openapi_types::ErrorResponse),
+        (status = 409, description = "Agent quota exceeded", body = crate::openapi_types::ErrorResponse),
+        (status = 429, description = "Rate limited", body = crate::openapi_types::ErrorResponse),
+    ),
+    tag = "views"
+)]
 pub async fn open_session(
     State(state): State<ApiState>,
     Extension(auth): Extension<AuthContext>,
@@ -112,6 +125,19 @@ pub async fn open_session(
     }
 }
 
+#[utoipa::path(
+    post,
+    path = "/api/runtime/view-sessions/{id}/patch",
+    params(("id" = String, Path, description = "View session id")),
+    request_body = PatchReq,
+    responses(
+        (status = 200, description = "Patch applied"),
+        (status = 401, description = "Unauthenticated / missing agent id", body = crate::openapi_types::ErrorResponse),
+        (status = 403, description = "Not session owner", body = crate::openapi_types::ErrorResponse),
+        (status = 404, description = "Session not found", body = crate::openapi_types::ErrorResponse),
+    ),
+    tag = "views"
+)]
 pub async fn patch_session(
     State(state): State<ApiState>,
     Extension(auth): Extension<AuthContext>,
@@ -125,6 +151,19 @@ pub async fn patch_session(
     }
 }
 
+#[utoipa::path(
+    post,
+    path = "/api/runtime/view-sessions/{id}/append",
+    params(("id" = String, Path, description = "View session id")),
+    request_body = PatchReq,
+    responses(
+        (status = 200, description = "Fragment appended"),
+        (status = 401, description = "Unauthenticated / missing agent id", body = crate::openapi_types::ErrorResponse),
+        (status = 403, description = "Not session owner", body = crate::openapi_types::ErrorResponse),
+        (status = 404, description = "Session not found", body = crate::openapi_types::ErrorResponse),
+    ),
+    tag = "views"
+)]
 pub async fn append_session(
     State(state): State<ApiState>,
     Extension(auth): Extension<AuthContext>,
@@ -138,6 +177,19 @@ pub async fn append_session(
     }
 }
 
+#[utoipa::path(
+    post,
+    path = "/api/runtime/view-sessions/{id}/signal",
+    params(("id" = String, Path, description = "View session id")),
+    request_body = SignalReq,
+    responses(
+        (status = 200, description = "Signal delivered"),
+        (status = 401, description = "Unauthenticated / missing agent id", body = crate::openapi_types::ErrorResponse),
+        (status = 403, description = "Not session owner", body = crate::openapi_types::ErrorResponse),
+        (status = 404, description = "Session not found", body = crate::openapi_types::ErrorResponse),
+    ),
+    tag = "views"
+)]
 pub async fn signal_session(
     State(state): State<ApiState>,
     Extension(auth): Extension<AuthContext>,
@@ -151,6 +203,18 @@ pub async fn signal_session(
     }
 }
 
+#[utoipa::path(
+    delete,
+    path = "/api/runtime/view-sessions/{id}",
+    params(("id" = String, Path, description = "View session id")),
+    responses(
+        (status = 200, description = "Session closed"),
+        (status = 401, description = "Unauthenticated / missing agent id", body = crate::openapi_types::ErrorResponse),
+        (status = 403, description = "Not session owner", body = crate::openapi_types::ErrorResponse),
+        (status = 404, description = "Session not found", body = crate::openapi_types::ErrorResponse),
+    ),
+    tag = "views"
+)]
 pub async fn close_session(
     State(state): State<ApiState>,
     Extension(auth): Extension<AuthContext>,
@@ -163,6 +227,17 @@ pub async fn close_session(
     }
 }
 
+#[utoipa::path(
+    get,
+    path = "/api/runtime/view-sessions/{id}",
+    params(("id" = String, Path, description = "View session id")),
+    responses(
+        (status = 200, description = "SSE stream of session patches", content_type = "text/event-stream"),
+        (status = 401, description = "Unauthenticated / missing agent id", body = crate::openapi_types::ErrorResponse),
+        (status = 404, description = "Session not found", body = crate::openapi_types::ErrorResponse),
+    ),
+    tag = "views"
+)]
 pub async fn subscribe_session(
     State(state): State<ApiState>,
     Extension(auth): Extension<AuthContext>,
@@ -184,6 +259,17 @@ pub async fn subscribe_session(
 /// Iframe shell HTML. Renders the session's template via the static minijinja
 /// env, exposing `{view_id, title, context}` plus `{{SHIP_TOKEN}}` scrubbed
 /// for cookie-auth parity with `views::serve_view_raw`.
+#[utoipa::path(
+    get,
+    path = "/api/runtime/view-sessions/{id}/raw",
+    params(("id" = String, Path, description = "View session id")),
+    responses(
+        (status = 200, description = "Rendered iframe shell HTML", content_type = "text/html"),
+        (status = 401, description = "Unauthenticated", body = crate::openapi_types::ErrorResponse),
+        (status = 404, description = "Session not found", body = crate::openapi_types::ErrorResponse),
+    ),
+    tag = "views"
+)]
 pub async fn raw_session(
     State(state): State<ApiState>,
     Path(id): Path<String>,

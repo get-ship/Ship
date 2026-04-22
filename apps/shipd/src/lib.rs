@@ -20,6 +20,8 @@ pub mod human_webhook;
 mod human_gateway;
 pub mod managers;
 pub mod openapi;
+pub mod openapi_modifier;
+pub mod openapi_types;
 pub mod project_api;
 pub mod pty_handler;
 pub mod rest_api;

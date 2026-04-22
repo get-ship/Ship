@@ -30,12 +30,18 @@ pub struct MeshRegisterReq {
 pub struct MeshSendReq {
     pub from: String,
     pub to: String,
+    /// Arbitrary JSON message body. Delivered verbatim to the target agent's
+    /// `mesh.send` event; schema is caller-defined.
+    #[schema(value_type = Object)]
     pub body: serde_json::Value,
 }
 
 #[derive(Deserialize, utoipa::ToSchema)]
 pub struct MeshBroadcastReq {
     pub from: String,
+    /// Arbitrary JSON broadcast payload. Delivered to every agent whose
+    /// capabilities match `capability_filter` (or all agents when unset).
+    #[schema(value_type = Object)]
     pub body: serde_json::Value,
     pub capability_filter: Option<String>,
 }
@@ -48,7 +54,14 @@ pub struct MeshStatusReq {
 
 #[derive(Debug, Serialize, utoipa::ToSchema)]
 pub struct MeshResponse {
+    /// `true` on success; `false` when the handler returned a structured error.
     pub ok: bool,
+    /// Response payload; shape varies by endpoint. See individual operation
+    /// responses for concrete shapes. Represented as arbitrary JSON because
+    /// this envelope is reused across dozens of handlers that return
+    /// heterogeneous bodies (lists, single records, ack strings, error
+    /// details, etc.).
+    #[schema(value_type = Object, nullable = true)]
     pub data: serde_json::Value,
 }
 
@@ -58,7 +71,12 @@ pub struct MeshResponse {
     post,
     path = "/api/mesh/register",
     request_body = MeshRegisterReq,
-    responses((status = 200, body = MeshResponse)),
+    responses(
+        (status = 200, body = MeshResponse),
+        (status = 400, description = "bad request", body = crate::openapi_types::ErrorResponse),
+        (status = 401, description = "unauthorized", body = crate::openapi_types::ErrorResponse),
+        (status = 500, description = "server error", body = crate::openapi_types::ErrorResponse),
+    ),
     tag = "mesh"
 )]
 pub async fn mesh_register(
@@ -146,7 +164,13 @@ pub async fn mesh_register(
     post,
     path = "/api/mesh/send",
     request_body = MeshSendReq,
-    responses((status = 200, body = MeshResponse)),
+    responses(
+        (status = 200, body = MeshResponse),
+        (status = 400, description = "bad request", body = crate::openapi_types::ErrorResponse),
+        (status = 401, description = "unauthorized", body = crate::openapi_types::ErrorResponse),
+        (status = 404, description = "target agent not found", body = crate::openapi_types::ErrorResponse),
+        (status = 500, description = "server error", body = crate::openapi_types::ErrorResponse),
+    ),
     tag = "mesh"
 )]
 pub async fn mesh_send(
@@ -181,7 +205,12 @@ pub async fn mesh_send(
     post,
     path = "/api/mesh/broadcast",
     request_body = MeshBroadcastReq,
-    responses((status = 200, body = MeshResponse)),
+    responses(
+        (status = 200, body = MeshResponse),
+        (status = 400, description = "bad request", body = crate::openapi_types::ErrorResponse),
+        (status = 401, description = "unauthorized", body = crate::openapi_types::ErrorResponse),
+        (status = 500, description = "server error", body = crate::openapi_types::ErrorResponse),
+    ),
     tag = "mesh"
 )]
 pub async fn mesh_broadcast(
@@ -213,7 +242,11 @@ pub async fn mesh_broadcast(
 #[utoipa::path(
     get,
     path = "/api/mesh/discover",
-    responses((status = 200, body = MeshResponse)),
+    responses(
+        (status = 200, body = MeshResponse),
+        (status = 401, description = "unauthorized", body = crate::openapi_types::ErrorResponse),
+        (status = 500, description = "server error", body = crate::openapi_types::ErrorResponse),
+    ),
     tag = "mesh"
 )]
 pub async fn mesh_discover(
@@ -238,7 +271,12 @@ pub async fn mesh_discover(
     post,
     path = "/api/mesh/status",
     request_body = MeshStatusReq,
-    responses((status = 200, body = MeshResponse)),
+    responses(
+        (status = 200, body = MeshResponse),
+        (status = 400, description = "bad request", body = crate::openapi_types::ErrorResponse),
+        (status = 401, description = "unauthorized", body = crate::openapi_types::ErrorResponse),
+        (status = 500, description = "server error", body = crate::openapi_types::ErrorResponse),
+    ),
     tag = "mesh"
 )]
 pub async fn mesh_status_update(
@@ -277,7 +315,11 @@ pub struct CapabilitiesResponse {
 #[utoipa::path(
     get,
     path = "/api/capabilities",
-    responses((status = 200, body = CapabilitiesResponse)),
+    responses(
+        (status = 200, body = CapabilitiesResponse),
+        (status = 401, description = "unauthorized", body = crate::openapi_types::ErrorResponse),
+        (status = 500, description = "server error", body = crate::openapi_types::ErrorResponse),
+    ),
     tag = "capabilities"
 )]
 pub async fn capabilities(
@@ -309,6 +351,18 @@ pub struct CheckoutHookReq {
     pub path: String,
 }
 
+#[utoipa::path(
+    post,
+    path = "/api/hooks/checkout",
+    request_body = CheckoutHookReq,
+    responses(
+        (status = 200, description = "Workspace reconciled for the checked-out branch", body = MeshResponse),
+        (status = 400, description = "Invalid project path", body = crate::openapi_types::ErrorResponse),
+        (status = 401, description = "Unauthenticated", body = crate::openapi_types::ErrorResponse),
+        (status = 500, description = "Server error", body = crate::openapi_types::ErrorResponse),
+    ),
+    tag = "hooks"
+)]
 pub async fn hooks_checkout(
     Json(req): Json<CheckoutHookReq>,
 ) -> impl IntoResponse {
@@ -361,7 +415,12 @@ pub async fn hooks_checkout(
     get,
     path = "/api/mesh/events/{agent_id}",
     params(("agent_id" = String, Path, description = "Agent ID")),
-    responses((status = 200, description = "SSE stream of mesh events")),
+    responses(
+        (status = 200, description = "SSE stream of mesh events"),
+        (status = 401, description = "unauthorized", body = crate::openapi_types::ErrorResponse),
+        (status = 404, description = "no mailbox for agent — register first", body = crate::openapi_types::ErrorResponse),
+        (status = 500, description = "server error", body = crate::openapi_types::ErrorResponse),
+    ),
     tag = "mesh"
 )]
 pub async fn mesh_events(

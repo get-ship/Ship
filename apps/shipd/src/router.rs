@@ -396,6 +396,16 @@ pub(crate) fn handle_panic(info: Box<dyn std::any::Any + Send + 'static>) -> Res
 ///
 /// Returns daemon uptime, PID, and status of all supervised background tasks.
 /// Any dead task sets the top-level `healthy` flag to false.
+#[utoipa::path(
+    get,
+    path = "/api/health",
+    responses(
+        (status = 200, description = "Daemon health snapshot with supervised task status"),
+        (status = 500, description = "server error", body = crate::openapi_types::ErrorResponse),
+    ),
+    security(),
+    tag = "health"
+)]
 pub(crate) async fn health_check(rt: Arc<ship_runtime::ShipRuntime>) -> Json<serde_json::Value> {
     let tasks = rt.health_registry().snapshot();
     let all_healthy = tasks.iter().all(|t| t.alive);

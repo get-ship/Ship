@@ -46,7 +46,7 @@ pub const VETTED_IDS: &[&str] = &[
 
 // ── Public API types ───────────────────────────────────────────────────────
 
-#[derive(Debug, Clone, Serialize, Deserialize)]
+#[derive(Debug, Clone, Serialize, Deserialize, utoipa::ToSchema)]
 pub struct McpServer {
     pub id: String,
     pub name: String,
@@ -63,7 +63,7 @@ pub struct McpServer {
     pub image_url: Option<String>,
 }
 
-#[derive(Debug, Deserialize)]
+#[derive(Debug, Deserialize, utoipa::IntoParams)]
 pub struct McpServersQuery {
     #[serde(rename = "q")]
     pub query: Option<String>,
@@ -71,10 +71,10 @@ pub struct McpServersQuery {
     pub limit: Option<usize>,
 }
 
-#[derive(Debug, Serialize)]
-struct McpServersResponse {
-    servers: Vec<McpServer>,
-    cached: bool,
+#[derive(Debug, Serialize, utoipa::ToSchema)]
+pub struct McpServersResponse {
+    pub servers: Vec<McpServer>,
+    pub cached: bool,
 }
 
 // ── Upstream wire types (registry v0.1) ────────────────────────────────────
@@ -375,6 +375,18 @@ pub fn apply_filters(
 
 // ── Handler ────────────────────────────────────────────────────────────────
 
+#[utoipa::path(
+    get,
+    path = "/api/mcp/servers",
+    params(McpServersQuery),
+    responses(
+        (status = 200, description = "Filtered MCP server catalog", body = McpServersResponse),
+        (status = 400, description = "Query too long", body = crate::openapi_types::ErrorResponse),
+        (status = 429, description = "Rate limited", body = crate::openapi_types::ErrorResponse),
+    ),
+    security(),
+    tag = "runtime"
+)]
 pub async fn list_mcp_servers(
     Query(params): Query<McpServersQuery>,
     Extension(registry): Extension<Arc<McpRegistryState>>,

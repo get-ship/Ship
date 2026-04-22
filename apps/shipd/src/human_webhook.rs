@@ -37,6 +37,18 @@ pub struct TelegramChat {
 // ── Handler ───────────────────────────────────────────────────────────────────
 
 /// Receive a Telegram webhook update and emit `human.response` on the kernel.
+#[utoipa::path(
+    post,
+    path = "/api/webhook/telegram",
+    request_body(content_type = "application/json", description = "Telegram webhook update payload (TelegramUpdate)"),
+    responses(
+        (status = 200, description = "Update accepted; may be a no-op for non-message updates"),
+        (status = 400, description = "malformed Telegram update payload", body = crate::openapi_types::ErrorResponse),
+        (status = 401, description = "unauthorized", body = crate::openapi_types::ErrorResponse),
+        (status = 500, description = "server error", body = crate::openapi_types::ErrorResponse),
+    ),
+    tag = "hooks"
+)]
 pub async fn telegram_webhook(
     State(kernel): State<SharedKernel>,
     Json(update): Json<TelegramUpdate>,

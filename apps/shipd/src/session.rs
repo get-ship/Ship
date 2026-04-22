@@ -104,7 +104,7 @@ pub async fn lookup_browser_session(
 }
 
 /// Response body for `POST /api/runtime/session`.
-#[derive(serde::Serialize)]
+#[derive(serde::Serialize, utoipa::ToSchema)]
 pub struct SessionIssueResponse {
     pub ok: bool,
     pub expires_in: u64,
@@ -115,6 +115,16 @@ pub struct SessionIssueResponse {
 /// Requires the caller to already hold a daemon-token credential (the auth
 /// middleware enforces this). Issues a browser-session cookie scoped to
 /// `/api/runtime` and returns `{ok, expires_in}`.
+#[utoipa::path(
+    post,
+    path = "/api/runtime/session",
+    responses(
+        (status = 200, description = "Browser session cookie issued", body = SessionIssueResponse),
+        (status = 401, description = "Unauthenticated", body = crate::openapi_types::ErrorResponse),
+        (status = 403, description = "Session issuance requires Full scope"),
+    ),
+    tag = "auth"
+)]
 pub async fn issue_session_handler(
     registry: SessionRegistry,
     auth: AuthContext,

@@ -8,6 +8,7 @@
     "collect:watch": "AUDIENCE=internal pnpm exec tsx scripts/collect-skill-docs.ts --watch",
     "dev": "env AUDIENCE=internal sh -c 'pnpm exec tsx scripts/collect-skill-docs.ts --watch & astro dev --host; kill 0'",
     "openapi:generate": "cargo run -q --bin ship -- openapi export --pretty > openapi.json",
+    "openapi:check-drift": "pnpm exec tsx scripts/check-openapi-drift.ts",
     "prebuild": "pnpm run openapi:generate && AUDIENCE=internal pnpm run collect",
     "build": "astro build",
     "preview": "astro preview"

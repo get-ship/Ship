@@ -11,7 +11,7 @@ use tokio::sync::Mutex;
 /// Coarse-grained capability scopes for daemon session access control.
 /// Each handler declares which scope it requires; the auth layer checks
 /// the session's granted scopes before the handler runs.
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, serde::Serialize, serde::Deserialize)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, serde::Serialize, serde::Deserialize, utoipa::ToSchema)]
 #[serde(rename_all = "snake_case")]
 pub enum Scope {
     ReadWorkspace,
@@ -320,7 +320,7 @@ pub fn require_scope(
 
 // ---- Session register endpoint ----
 
-#[derive(serde::Deserialize)]
+#[derive(serde::Deserialize, utoipa::ToSchema)]
 pub struct SessionRegisterRequest {
     pub agent_id: String,
     #[serde(default)]
@@ -329,7 +329,7 @@ pub struct SessionRegisterRequest {
     pub workspace_id: Option<String>,
 }
 
-#[derive(serde::Serialize)]
+#[derive(serde::Serialize, utoipa::ToSchema)]
 pub struct SessionRegisterResponse {
     pub session_token: String,
     pub scopes: Vec<Scope>,
@@ -345,6 +345,17 @@ pub struct SessionRegisterResponse {
 /// token holders) can issue sessions, and the "contributor" role (which
 /// grants Full) is blocked — agents must use "worker", "lead", or
 /// "commander".
+#[utoipa::path(
+    post,
+    path = "/api/session/register",
+    request_body = SessionRegisterRequest,
+    responses(
+        (status = 200, description = "Session token minted for the agent role", body = SessionRegisterResponse),
+        (status = 401, description = "Unauthenticated", body = crate::openapi_types::ErrorResponse),
+        (status = 403, description = "Requires daemon token"),
+    ),
+    tag = "auth"
+)]
 pub async fn session_register(
     registry: SessionRegistry,
     axum::Extension(auth): axum::Extension<crate::auth::AuthContext>,

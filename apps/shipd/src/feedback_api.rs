@@ -94,6 +94,19 @@ impl FeedbackGuard {
 
 // ───────────────────────── Handler ─────────────────────────
 
+#[utoipa::path(
+    post,
+    path = "/api/runtime/feedback",
+    request_body(content_type = "application/json", description = "FeedbackEvent — kind, author_kind, target, payload"),
+    responses(
+        (status = 200, description = "Feedback accepted"),
+        (status = 400, description = "Invalid feedback payload", body = crate::openapi_types::ErrorResponse),
+        (status = 401, description = "Unauthenticated", body = crate::openapi_types::ErrorResponse),
+        (status = 429, description = "Rate limited", body = crate::openapi_types::ErrorResponse),
+        (status = 500, description = "Server error", body = crate::openapi_types::ErrorResponse),
+    ),
+    tag = "runtime"
+)]
 pub async fn post_feedback(
     State(state): State<ApiState>,
     Extension(auth): Extension<AuthContext>,

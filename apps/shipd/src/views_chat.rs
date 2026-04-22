@@ -35,7 +35,7 @@ pub struct ChatCtx {
     pub total: usize,
 }
 
-#[derive(Deserialize)]
+#[derive(Deserialize, utoipa::ToSchema)]
 pub struct ChatSendRequest {
     pub text: String,
     #[serde(default)]
@@ -52,6 +52,15 @@ fn build_ctx(params: &ChatParams, ship_dir: &std::path::Path) -> ChatCtx {
     }
 }
 
+#[utoipa::path(
+    get,
+    path = "/api/runtime/view/chat",
+    responses(
+        (status = 200, description = "Rendered chat view shell", content_type = "text/html"),
+        (status = 401, description = "Unauthenticated", body = crate::openapi_types::ErrorResponse),
+    ),
+    tag = "views"
+)]
 pub async fn chat_shell(
     State(state): State<ApiState>,
     Query(params): Query<ChatParams>,
@@ -77,6 +86,15 @@ pub async fn chat_shell(
     })
 }
 
+#[utoipa::path(
+    get,
+    path = "/api/runtime/view/chat/sse",
+    responses(
+        (status = 200, description = "Datastar SSE fragments for chat view", content_type = "text/event-stream"),
+        (status = 401, description = "Unauthenticated", body = crate::openapi_types::ErrorResponse),
+    ),
+    tag = "views"
+)]
 pub async fn chat_sse(
     State(state): State<ApiState>,
     Query(params): Query<ChatParams>,
@@ -140,6 +158,18 @@ fn render_content(params: &ChatParams, ship_dir: &std::path::Path) -> Option<Str
     }
 }
 
+#[utoipa::path(
+    post,
+    path = "/api/runtime/view/chat/send",
+    request_body = ChatSendRequest,
+    responses(
+        (status = 200, description = "Message emitted", body = MeshResponse),
+        (status = 400, description = "Empty message", body = crate::openapi_types::ErrorResponse),
+        (status = 401, description = "Unauthenticated", body = crate::openapi_types::ErrorResponse),
+        (status = 500, description = "Server error", body = crate::openapi_types::ErrorResponse),
+    ),
+    tag = "views"
+)]
 pub async fn chat_send(
     State(state): State<ApiState>,
     Json(req): Json<ChatSendRequest>,

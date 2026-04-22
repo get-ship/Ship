@@ -75,6 +75,16 @@ fn generate_item_id() -> String {
 // ── Handlers ─────────────────────────────────────────────────────────────────
 
 /// GET /api/collections — list registered schemas.
+#[utoipa::path(
+    get,
+    path = "/api/collections",
+    responses(
+        (status = 200, description = "List of registered collection schemas"),
+        (status = 401, description = "Unauthenticated", body = crate::openapi_types::ErrorResponse),
+        (status = 500, description = "Server error", body = crate::openapi_types::ErrorResponse),
+    ),
+    tag = "collections"
+)]
 pub async fn list_collections(
     State(state): State<ApiState>,
     Extension(auth): Extension<AuthContext>,
@@ -97,6 +107,18 @@ pub async fn list_collections(
 }
 
 /// GET /api/collections/{collection}/schema — get schema definition.
+#[utoipa::path(
+    get,
+    path = "/api/collections/{collection}/schema",
+    params(("collection" = String, Path, description = "Collection id")),
+    responses(
+        (status = 200, description = "Collection schema"),
+        (status = 401, description = "Unauthenticated", body = crate::openapi_types::ErrorResponse),
+        (status = 404, description = "Collection not found", body = crate::openapi_types::ErrorResponse),
+        (status = 500, description = "Server error", body = crate::openapi_types::ErrorResponse),
+    ),
+    tag = "collections"
+)]
 pub async fn get_schema(
     State(state): State<ApiState>,
     Extension(auth): Extension<AuthContext>,
@@ -112,13 +134,27 @@ pub async fn get_schema(
     }
 }
 
-#[derive(Deserialize)]
+#[derive(Deserialize, utoipa::ToSchema)]
 pub struct CreateItemRequest {
     pub id: Option<String>,
     pub data: serde_json::Value,
 }
 
 /// POST /api/collections/{collection}/items — create item.
+#[utoipa::path(
+    post,
+    path = "/api/collections/{collection}/items",
+    params(("collection" = String, Path, description = "Collection id")),
+    request_body = CreateItemRequest,
+    responses(
+        (status = 201, description = "Item created"),
+        (status = 400, description = "Validation error", body = crate::openapi_types::ErrorResponse),
+        (status = 401, description = "Unauthenticated", body = crate::openapi_types::ErrorResponse),
+        (status = 404, description = "Collection not found", body = crate::openapi_types::ErrorResponse),
+        (status = 500, description = "Server error", body = crate::openapi_types::ErrorResponse),
+    ),
+    tag = "collections"
+)]
 pub async fn create_item(
     State(state): State<ApiState>,
     Extension(auth): Extension<AuthContext>,
@@ -152,6 +188,21 @@ pub async fn create_item(
 }
 
 /// GET /api/collections/{collection}/items/{item_id} — get item.
+#[utoipa::path(
+    get,
+    path = "/api/collections/{collection}/items/{item_id}",
+    params(
+        ("collection" = String, Path, description = "Collection id"),
+        ("item_id" = String, Path, description = "Item id"),
+    ),
+    responses(
+        (status = 200, description = "Item"),
+        (status = 401, description = "Unauthenticated", body = crate::openapi_types::ErrorResponse),
+        (status = 404, description = "Item not found", body = crate::openapi_types::ErrorResponse),
+        (status = 500, description = "Server error", body = crate::openapi_types::ErrorResponse),
+    ),
+    tag = "collections"
+)]
 pub async fn get_item(
     State(state): State<ApiState>,
     Extension(auth): Extension<AuthContext>,
@@ -174,12 +225,29 @@ pub async fn get_item(
     }
 }
 
-#[derive(Deserialize)]
+#[derive(Deserialize, utoipa::ToSchema)]
 pub struct UpdateItemRequest {
     pub data: serde_json::Value,
 }
 
 /// PUT /api/collections/{collection}/items/{item_id} — update item (partial merge).
+#[utoipa::path(
+    put,
+    path = "/api/collections/{collection}/items/{item_id}",
+    params(
+        ("collection" = String, Path, description = "Collection id"),
+        ("item_id" = String, Path, description = "Item id"),
+    ),
+    request_body = UpdateItemRequest,
+    responses(
+        (status = 200, description = "Item updated"),
+        (status = 400, description = "Validation error", body = crate::openapi_types::ErrorResponse),
+        (status = 401, description = "Unauthenticated", body = crate::openapi_types::ErrorResponse),
+        (status = 404, description = "Item not found", body = crate::openapi_types::ErrorResponse),
+        (status = 500, description = "Server error", body = crate::openapi_types::ErrorResponse),
+    ),
+    tag = "collections"
+)]
 pub async fn update_item(
     State(state): State<ApiState>,
     Extension(auth): Extension<AuthContext>,
@@ -212,6 +280,21 @@ pub async fn update_item(
 }
 
 /// DELETE /api/collections/{collection}/items/{item_id} — delete item.
+#[utoipa::path(
+    delete,
+    path = "/api/collections/{collection}/items/{item_id}",
+    params(
+        ("collection" = String, Path, description = "Collection id"),
+        ("item_id" = String, Path, description = "Item id"),
+    ),
+    responses(
+        (status = 200, description = "Item deleted"),
+        (status = 401, description = "Unauthenticated", body = crate::openapi_types::ErrorResponse),
+        (status = 404, description = "Item not found", body = crate::openapi_types::ErrorResponse),
+        (status = 500, description = "Server error", body = crate::openapi_types::ErrorResponse),
+    ),
+    tag = "collections"
+)]
 pub async fn delete_item(
     State(state): State<ApiState>,
     Extension(auth): Extension<AuthContext>,
@@ -235,6 +318,20 @@ pub async fn delete_item(
 }
 
 /// POST /api/collections/{collection}/query — query items with filter/sort/limit.
+#[utoipa::path(
+    post,
+    path = "/api/collections/{collection}/query",
+    params(("collection" = String, Path, description = "Collection id")),
+    request_body(content_type = "application/json", description = "Query request: filter, sort, limit, offset"),
+    responses(
+        (status = 200, description = "Matching items"),
+        (status = 400, description = "Invalid query", body = crate::openapi_types::ErrorResponse),
+        (status = 401, description = "Unauthenticated", body = crate::openapi_types::ErrorResponse),
+        (status = 404, description = "Collection not found", body = crate::openapi_types::ErrorResponse),
+        (status = 500, description = "Server error", body = crate::openapi_types::ErrorResponse),
+    ),
+    tag = "collections"
+)]
 pub async fn query_items(
     State(state): State<ApiState>,
     Extension(auth): Extension<AuthContext>,

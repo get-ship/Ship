@@ -31,7 +31,14 @@ pub struct EventRouteReq {
     post,
     path = "/api/actor/spawn",
     request_body = ActorSpawnReq,
-    responses((status = 200, body = MeshResponse)),
+    responses(
+        (status = 200, body = MeshResponse),
+        (status = 400, description = "bad request", body = crate::openapi_types::ErrorResponse),
+        (status = 401, description = "unauthorized", body = crate::openapi_types::ErrorResponse),
+        (status = 404, description = "actor not found", body = crate::openapi_types::ErrorResponse),
+        (status = 409, description = "actor already exists", body = crate::openapi_types::ErrorResponse),
+        (status = 500, description = "server error", body = crate::openapi_types::ErrorResponse),
+    ),
     tag = "actor"
 )]
 pub async fn actor_spawn(
@@ -91,7 +98,12 @@ pub async fn actor_spawn(
     post,
     path = "/api/events/route",
     request_body = EventRouteReq,
-    responses((status = 200, body = MeshResponse)),
+    responses(
+        (status = 200, body = MeshResponse),
+        (status = 400, description = "bad request", body = crate::openapi_types::ErrorResponse),
+        (status = 401, description = "unauthorized", body = crate::openapi_types::ErrorResponse),
+        (status = 500, description = "server error", body = crate::openapi_types::ErrorResponse),
+    ),
     tag = "actor"
 )]
 pub async fn event_route(

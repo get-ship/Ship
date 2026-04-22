@@ -211,6 +211,15 @@ fn build_rail(ship_dir: &std::path::Path, params: &SkillsParams) -> RailCtx {
 }
 
 /// GET /api/runtime/view/skills — full shell with empty right pane.
+#[utoipa::path(
+    get,
+    path = "/api/runtime/view/skills",
+    responses(
+        (status = 200, description = "Rendered skills view shell", content_type = "text/html"),
+        (status = 401, description = "Unauthenticated", body = crate::openapi_types::ErrorResponse),
+    ),
+    tag = "views"
+)]
 pub async fn skills_shell(
     State(state): State<ApiState>,
     Query(params): Query<SkillsParams>,
@@ -233,6 +242,15 @@ pub async fn skills_shell(
 }
 
 /// GET /api/runtime/view/skills/rail — partial rail (datastar active_search).
+#[utoipa::path(
+    get,
+    path = "/api/runtime/view/skills/rail",
+    responses(
+        (status = 200, description = "Rendered skills rail partial", content_type = "text/html"),
+        (status = 401, description = "Unauthenticated", body = crate::openapi_types::ErrorResponse),
+    ),
+    tag = "views"
+)]
 pub async fn skills_rail(
     State(state): State<ApiState>,
     Query(params): Query<SkillsParams>,
@@ -249,6 +267,17 @@ pub async fn skills_rail(
 
 /// GET /api/runtime/view/skills/detail/{id}?file=SKILL.md — full shell with
 /// a populated detail pane; optionally shows a specific file in the editor.
+#[utoipa::path(
+    get,
+    path = "/api/runtime/view/skills/detail/{id}",
+    params(("id" = String, Path, description = "Skill id")),
+    responses(
+        (status = 200, description = "Rendered skill detail view", content_type = "text/html"),
+        (status = 401, description = "Unauthenticated", body = crate::openapi_types::ErrorResponse),
+        (status = 404, description = "Skill not found", body = crate::openapi_types::ErrorResponse),
+    ),
+    tag = "views"
+)]
 pub async fn skill_detail(
     State(state): State<ApiState>,
     Path(id): Path<String>,

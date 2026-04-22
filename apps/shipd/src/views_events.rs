@@ -89,6 +89,15 @@ fn try_render_view(file: &str, ctx: &EventsCtx) -> Option<String> {
     templates::render_view_source(&template_name, &source, ctx).ok()
 }
 
+#[utoipa::path(
+    get,
+    path = "/api/runtime/view/events",
+    responses(
+        (status = 200, description = "Rendered events view shell", content_type = "text/html"),
+        (status = 401, description = "Unauthenticated", body = crate::openapi_types::ErrorResponse),
+    ),
+    tag = "views"
+)]
 pub async fn events_shell(
     State(state): State<ApiState>,
     Query(params): Query<EventsParams>,
@@ -115,6 +124,15 @@ pub async fn events_shell(
     })
 }
 
+#[utoipa::path(
+    get,
+    path = "/api/runtime/view/events/sse",
+    responses(
+        (status = 200, description = "Datastar SSE fragments for events view", content_type = "text/event-stream"),
+        (status = 401, description = "Unauthenticated", body = crate::openapi_types::ErrorResponse),
+    ),
+    tag = "views"
+)]
 pub async fn events_sse(
     State(state): State<ApiState>,
     Query(params): Query<EventsParams>,

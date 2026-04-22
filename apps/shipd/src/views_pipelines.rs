@@ -390,6 +390,15 @@ fn try_render_view(file: &str, ctx: &PipelinesCtx) -> Option<String> {
 }
 
 /// GET /api/runtime/view/pipelines — full shell, minijinja-rendered.
+#[utoipa::path(
+    get,
+    path = "/api/runtime/view/pipelines",
+    responses(
+        (status = 200, description = "Rendered pipelines view shell", content_type = "text/html"),
+        (status = 401, description = "Unauthenticated", body = crate::openapi_types::ErrorResponse),
+    ),
+    tag = "views"
+)]
 pub async fn pipelines_shell(
     State(state): State<crate::rest_api::ApiState>,
     Query(params): Query<PipelinesParams>,
@@ -411,6 +420,15 @@ pub async fn pipelines_shell(
 /// GET /api/runtime/view/pipelines/sse — Datastar patches for the
 /// `#pipelines-content` fragment, re-rendered on any `job.*`/`step.*`
 /// event.
+#[utoipa::path(
+    get,
+    path = "/api/runtime/view/pipelines/sse",
+    responses(
+        (status = 200, description = "Datastar SSE fragments for pipelines view", content_type = "text/event-stream"),
+        (status = 401, description = "Unauthenticated", body = crate::openapi_types::ErrorResponse),
+    ),
+    tag = "views"
+)]
 pub async fn pipelines_sse(
     State(state): State<crate::rest_api::ApiState>,
     Query(params): Query<PipelinesParams>,

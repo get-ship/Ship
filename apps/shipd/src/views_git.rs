@@ -192,6 +192,15 @@ fn try_render_view(file: &str, ctx: &GitCtx) -> Option<String> {
 }
 
 /// GET /api/runtime/view/git — full shell, minijinja-rendered.
+#[utoipa::path(
+    get,
+    path = "/api/runtime/view/git",
+    responses(
+        (status = 200, description = "Rendered git view shell", content_type = "text/html"),
+        (status = 401, description = "Unauthenticated", body = crate::openapi_types::ErrorResponse),
+    ),
+    tag = "views"
+)]
 pub async fn git_shell(
     State(state): State<crate::rest_api::ApiState>,
     Query(params): Query<GitParams>,
@@ -210,6 +219,15 @@ pub async fn git_shell(
 }
 
 /// GET /api/runtime/view/git/sse — periodic patches for `#git-root`.
+#[utoipa::path(
+    get,
+    path = "/api/runtime/view/git/sse",
+    responses(
+        (status = 200, description = "Datastar SSE fragments for the git view", content_type = "text/event-stream"),
+        (status = 401, description = "Unauthenticated", body = crate::openapi_types::ErrorResponse),
+    ),
+    tag = "views"
+)]
 pub async fn git_sse(
     State(state): State<crate::rest_api::ApiState>,
     Query(params): Query<GitParams>,

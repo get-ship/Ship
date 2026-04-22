@@ -129,6 +129,8 @@ apps/shipd/assets/ship-elements.js
 apps/shipd/assets/ship-code-editor.js
 apps/shipd/assets/ship-markdown-editor.js
 apps/shipd/assets/ship-terminal.js
+apps/shipd/assets/custom-elements.json
+apps/shipd/assets/ship-elements.md
 apps/shipd/assets/.cache/
 
 # Legacy shell vendor dir — shell now loads bundles via /api/runtime/assets/*.
