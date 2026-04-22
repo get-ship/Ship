@@ -193,7 +193,11 @@ pub async fn agent_detail(
         return Err(StatusCode::NOT_FOUND);
     };
     let (nodes, edges) = compute_wire_layout(&agent);
-    let ctx = AgentWireCtx { agent, nodes, edges };
+    let mut catalogs = list_agent_catalogs(state.ship_dir());
+    catalogs.skills.retain(|e| !agent.skills.contains(&e.id));
+    catalogs.mcp.retain(|e| !agent.mcp_servers.contains(&e.id));
+    catalogs.rules.retain(|e| !agent.rules.contains(&e.id));
+    let ctx = AgentWireCtx { agent, nodes, edges, catalogs };
     if let Some(html) = try_render_view("agents", "wire.html.j2", &ctx) {
         return Ok(Html(html));
     }
@@ -256,6 +260,10 @@ pub struct AgentWireCtx {
     pub agent: AgentDetail,
     pub nodes: Vec<WireNode>,
     pub edges: Vec<WireEdge>,
+    /// Catalogs for the picker dialog (skills/mcp/rules not already
+    /// attached to this agent). Shared with the settings view; same
+    /// filter rules.
+    pub catalogs: crate::views::state::AgentCatalogs,
 }
 
 fn compute_wire_layout(agent: &AgentDetail) -> (Vec<WireNode>, Vec<WireEdge>) {
@@ -407,7 +415,11 @@ pub async fn agent_wire(
         return Err(StatusCode::NOT_FOUND);
     };
     let (nodes, edges) = compute_wire_layout(&agent);
-    let ctx = AgentWireCtx { agent, nodes, edges };
+    let mut catalogs = list_agent_catalogs(state.ship_dir());
+    catalogs.skills.retain(|e| !agent.skills.contains(&e.id));
+    catalogs.mcp.retain(|e| !agent.mcp_servers.contains(&e.id));
+    catalogs.rules.retain(|e| !agent.rules.contains(&e.id));
+    let ctx = AgentWireCtx { agent, nodes, edges, catalogs };
     if let Some(html) = try_render_view("agents", "wire.html.j2", &ctx) {
         return Ok(Html(html));
     }

@@ -434,8 +434,24 @@ pub fn create_agent(
 // edits we'd need a lossless JSONC round-trip (e.g. `jsonc-parser`
 // crate with span retention), filed as a follow-up.
 
-#[derive(serde::Deserialize, Debug)]
+#[derive(serde::Deserialize, Debug, Default)]
 pub struct PatchAgentRequest {
+    /// Items to add (merged, de-duped).
+    #[serde(default)]
+    pub skills: Vec<String>,
+    #[serde(default)]
+    pub mcp: Vec<String>,
+    #[serde(default)]
+    pub rules: Vec<String>,
+    /// Items to remove from each of the same lists. Silently ignored if
+    /// the item isn't present. A single patch can both add and remove
+    /// (useful for "swap one for another" without two round-trips).
+    #[serde(default)]
+    pub remove: PatchAgentRemove,
+}
+
+#[derive(serde::Deserialize, Debug, Default)]
+pub struct PatchAgentRemove {
     #[serde(default)]
     pub skills: Vec<String>,
     #[serde(default)]
@@ -505,6 +521,30 @@ fn merge_array(
             arr.push(serde_json::Value::String(v.clone()));
         }
     }
+}
+
+/// Remove string values from `doc.section.key`. No-op when the section
+/// or key is absent. Leaves an empty array rather than deleting the key
+/// — callers who want to clean empty keys can do so explicitly.
+fn remove_from_array(
+    doc: &mut serde_json::Map<String, serde_json::Value>,
+    section: &str,
+    key: &str,
+    removes: &[String],
+) {
+    if removes.is_empty() {
+        return;
+    }
+    let Some(section_obj) = doc.get_mut(section).and_then(|v| v.as_object_mut()) else {
+        return;
+    };
+    let Some(arr) = section_obj.get_mut(key).and_then(|v| v.as_array_mut()) else {
+        return;
+    };
+    arr.retain(|v| {
+        let Some(s) = v.as_str() else { return true };
+        !removes.iter().any(|r| r == s)
+    });
 }
 
 // ─── Replace permissions (wholesale) ──────────────────────────────────
@@ -605,6 +645,9 @@ pub fn patch_agent(
     merge_array(&mut doc, "skills", "refs", &req.skills);
     merge_array(&mut doc, "mcp", "servers", &req.mcp);
     merge_array(&mut doc, "rules", "refs", &req.rules);
+    remove_from_array(&mut doc, "skills", "refs", &req.remove.skills);
+    remove_from_array(&mut doc, "mcp", "servers", &req.remove.mcp);
+    remove_from_array(&mut doc, "rules", "refs", &req.remove.rules);
 
     let body = serde_json::to_string_pretty(&serde_json::Value::Object(doc))
         .map_err(|e| PatchAgentError::Io(std::io::Error::other(e)))?;
