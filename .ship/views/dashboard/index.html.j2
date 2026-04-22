@@ -113,11 +113,19 @@
                                 (history_runs | take(5)) if history_runs is defined else [] -%}
           {% if recent_jobs | length > 0 %}
             {% for run in recent_jobs %}
+            {%- set run_agent = run.agent if run.agent is defined else '' -%}
             <ship-list-tile density="compact" class="dash-job-tile">
               <ship-status-dot slot="leading" tone="{{ run.tone if run.tone is defined else 'muted' }}"></ship-status-dot>
               <span class="dash-job-name">{{ run.slug if run.slug is defined else run.id }}</span>
               <span slot="trailing" class="dash-job-trailing">
-                <span class="dash-job-agent">{{ run.agent if run.agent is defined else '—' }}</span>
+                {%- if run_agent -%}
+                <ship-avatar size="sm" identity-hue="{{ run_agent }}"
+                             name="{{ run_agent }}"
+                             initials="{{ run_agent[:1] | upper }}"></ship-avatar>
+                <span class="dash-job-agent">{{ run_agent }}</span>
+                {%- else -%}
+                <span class="dash-job-agent">—</span>
+                {%- endif -%}
                 {%- set ts = run.started_at if run.started_at is defined else (run.created_at if run.created_at is defined else '') -%}
                 {%- if ts -%}
                   <ship-timestamp value="{{ ts }}" class="dash-job-time"></ship-timestamp>
@@ -158,22 +166,46 @@
         <div class="dash-section-body">
           {% if all_agents | length > 0 %}
           <div class="dash-agents-grid">
-            {% for agent in all_agents | take(8) %}
+            {% for agent in all_agents | take(6) %}
             {%- set agent_name = agent.name if agent.name is defined else agent.id -%}
-            {%- set agent_initial = (agent.name[0] if agent.name is defined and agent.name | length > 0 else 'A') -%}
+            {%- set agent_letter = agent.letter if agent.letter is defined else (agent.name[0] if agent.name is defined and agent.name | length > 0 else 'A') -%}
+            {%- set agent_desc = agent.description if agent.description is defined else '' -%}
+            {%- set agent_providers = agent.providers if agent.providers is defined else [] -%}
+            {%- set agent_tags = agent.tags if agent.tags is defined else [] -%}
+            {%- set tag_cap = 2 -%}
             <ship-list-tile
                variant="card"
                density="compact"
                interactive
-               class="dash-agent-tile"
-               data-on:click.prevent="window.router ? window.router.navigate('/agents/{{ agent.id }}') : void(0)">
-              <ship-avatar slot="leading" initials="{{ agent_initial }}" name="{{ agent_name }}"></ship-avatar>
-              <span class="dash-agent-name">{{ agent_name }}</span>
-              <span slot="meta" class="dash-agent-role">
-                {%- if agent.role is defined -%}{{ agent.role }}
-                {%- elif agent.description is defined -%}{{ agent.description }}
-                {%- else -%}{{ agent.id }}{%- endif -%}
-              </span>
+               navigable="/agents/{{ agent.id }}"
+               class="dash-agent-tile">
+              <ship-avatar slot="leading" size="md" shape="square"
+                           identity-hue="{{ agent.id }}"
+                           initials="{{ agent_letter }}"
+                           name="{{ agent_name }}"></ship-avatar>
+              <div class="dash-agent-body">
+                <div class="dash-agent-head">
+                  <span class="dash-agent-name">{{ agent_name }}</span>
+                  {% if agent_desc %}
+                  <p class="dash-agent-desc">{{ agent_desc }}</p>
+                  {% endif %}
+                </div>
+                <div class="dash-agent-foot">
+                  {% if agent_providers | length > 0 %}
+                  <span class="dash-agent-providers" aria-label="Compiles to">
+                    {% for p in agent_providers %}
+                    <ship-provider-blob provider="{{ p }}" size="sm" variant="glyph" title="{{ p }}"></ship-provider-blob>
+                    {% endfor %}
+                  </span>
+                  {% endif %}
+                  {% for t in agent_tags[:tag_cap] %}
+                  <ship-chip tone="muted" variant="soft" size="sm">{{ t }}</ship-chip>
+                  {% endfor %}
+                  {% if agent_tags | length > tag_cap %}
+                  <ship-chip tone="muted" variant="outline" size="sm">+{{ agent_tags | length - tag_cap }}</ship-chip>
+                  {% endif %}
+                </div>
+              </div>
             </ship-list-tile>
             {% endfor %}
           </div>
@@ -210,19 +242,35 @@
         <div class="dash-section-body">
           {%- if rows is defined and rows | length > 0 -%}
             {% for r in rows | take(10) %}
+            {%- set ev_actor = r.actor if r.actor is defined else '' -%}
             <div class="dash-event-row">
               <span class="dash-event-ts">{{ r.timestamp }}</span>
               <span class="dash-event-type">{{ r.event_type }}</span>
-              <span class="dash-event-actor">{{ r.actor if r.actor is defined else '—' }}</span>
+              <span class="dash-event-actor">
+                {%- if ev_actor -%}
+                <ship-avatar size="sm" identity-hue="{{ ev_actor }}"
+                             name="{{ ev_actor }}"
+                             initials="{{ ev_actor[:1] | upper }}"></ship-avatar>
+                <span>{{ ev_actor }}</span>
+                {%- else -%}<span>—</span>{%- endif -%}
+              </span>
             </div>
             {% endfor %}
           {%- elif groups is defined and groups | length > 0 -%}
             {%- set ev = namespace(n=0) -%}
             {% for g in groups %}{% if ev.n < 10 %}{% for r in g.rows %}{% if ev.n < 10 %}
+            {%- set ev_actor = r.actor if r.actor is defined else '' -%}
             <div class="dash-event-row">
               <span class="dash-event-ts">{{ r.timestamp }}</span>
               <span class="dash-event-type">{{ r.event_type }}</span>
-              <span class="dash-event-actor">{{ r.actor if r.actor is defined else '—' }}</span>
+              <span class="dash-event-actor">
+                {%- if ev_actor -%}
+                <ship-avatar size="sm" identity-hue="{{ ev_actor }}"
+                             name="{{ ev_actor }}"
+                             initials="{{ ev_actor[:1] | upper }}"></ship-avatar>
+                <span>{{ ev_actor }}</span>
+                {%- else -%}<span>—</span>{%- endif -%}
+              </span>
             </div>
             {%- set ev.n = ev.n + 1 -%}
             {% endif %}{% endfor %}{% endif %}{% endfor %}

@@ -1,6 +1,14 @@
 {#- Quick links tile row — vertical icon-above-label cards. Composition
     kept view-local (no ship-element covers this shape today). Separated
-    from index.html.j2 to stay under the 300-line file cap. -#}
+    from index.html.j2 to stay under the 300-line file cap.
+
+    SDK gap: this is a HARDCODED route catalog. Labels, icons, hrefs and
+    color keys are duplicated here from the shell rail / router. Candidate:
+    a runtime-provided `ship_quick_links()` filter (or a manifest
+    declaration) that returns the same metadata the shell uses to draw its
+    primary nav, so adding a first-party view adds a dashboard tile for
+    free. Until that exists, both this file and the shell must be edited
+    together when nav changes. -#}
 <div class="dash-links">
   <a class="dash-link-btn" href="/api/runtime/view/pipelines" data-on:click.prevent="@get('/api/runtime/view/pipelines')">
     <div class="dash-link-icon dash-link-icon--workflows" aria-hidden="true">
