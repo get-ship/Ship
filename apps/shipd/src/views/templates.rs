@@ -168,6 +168,22 @@ const TEMPLATES: &[(&str, &str)] = &[
         include_str!("../../templates/git/partials/status_block.html.j2"),
     ),
     (
+        "git/partials/changes_panel.html.j2",
+        include_str!("../../templates/git/partials/changes_panel.html.j2"),
+    ),
+    (
+        "git/partials/diff_pane.html.j2",
+        include_str!("../../templates/git/partials/diff_pane.html.j2"),
+    ),
+    (
+        "git/partials/history_tab.html.j2",
+        include_str!("../../templates/git/partials/history_tab.html.j2"),
+    ),
+    (
+        "git/partials/branches_tab.html.j2",
+        include_str!("../../templates/git/partials/branches_tab.html.j2"),
+    ),
+    (
         "git/shell.html.j2",
         include_str!("../../templates/git/shell.html.j2"),
     ),
@@ -289,6 +305,9 @@ fn build_env() -> Environment<'static> {
             s.push('…');
             s
         }
+    });
+    env.add_filter("urlencode", |value: String| -> String {
+        form_urlencoded::byte_serialize(value.as_bytes()).collect()
     });
     for (name, src) in TEMPLATES {
         // The registered `TEMPLATES` list is a compile-time constant of

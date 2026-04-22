@@ -16,8 +16,8 @@ use utoipa::OpenApi;
 use crate::{
     NetworkServer, actor_api, annotations_api, artifacts_api, attest, auth, cors, feedback_api, hooks_api,
     human_webhook, lint_api, logs_api, openapi, pairing, project_api, pty_handler, rest_api, runtime_api,
-    session, settings_api, shell_assets, ship_runtime, specs_api, specs_view, supervisor,
-    view_morph_target, view_sessions_api, views, collection_api, views_agents, views_chat,
+    sdk_manifest, session, settings_api, shell_assets, ship_runtime, specs_api, specs_view, supervisor,
+    view_errors_api, view_morph_target, view_sessions_api, views, collection_api, views_agents, views_chat,
     views_events, views_git, views_pipelines, views_raw, views_settings, views_skills,
 };
 
@@ -98,6 +98,7 @@ pub fn build_router(
         .ship_route(Route::AssetCodeEditorJs, views::serve_code_editor)
         .ship_route(Route::AssetMarkdownEditorJs, views::serve_markdown_editor)
         .ship_route(Route::AssetTerminalJs, views::serve_terminal)
+        .ship_route(Route::AssetGitJs, views::serve_git)
         .ship_route(Route::AssetElementsManifest, views::serve_elements_manifest)
         .ship_route(Route::AssetElementsCatalog, views::serve_elements_catalog)
         .ship_route(Route::AssetJinjaMacrosJson, views::serve_jinja_macros_json)
@@ -163,6 +164,10 @@ pub fn build_router(
         .nest("/api", webhook_routes)
         .nest_service("/mcp", service)
         .layer(axum::Extension(feedback_guard))
+        // Dry-run view interceptor runs INSIDE auth (applied before the
+        // auth layer here, which means outer->inner order wraps it with
+        // auth) so requests must carry a valid bearer before short-circuit.
+        .layer(axum::middleware::from_fn(views::dry_run::dry_run_middleware))
         .layer(axum::middleware::from_fn(move |req, next| {
             auth::auth_middleware(auth_token.clone(), auth_registry.clone(), req, next)
         }));
@@ -241,6 +246,7 @@ fn build_ship_routes(st: rest_api::ApiState) -> Router {
         .ship_route(Route::ServeViewManifest_template(), views::serve_view_manifest)
         .ship_route(Route::ServeViewBundle_template(), views::serve_view_bundle)
         .ship_route(Route::ServeViewRaw_template(), views_raw::serve_view_raw)
+        .ship_route(Route::ServeViewContext_template(), views::dry_run::serve_view_context)
         .ship_route(Route::ServeViewSse_template(), views::generic_sse::serve_view_sse)
         // Agent-owned view sessions
         .ship_route(Route::OpenViewSession, view_sessions_api::open_session)
@@ -262,6 +268,9 @@ fn build_ship_routes(st: rest_api::ApiState) -> Router {
         .ship_route(Route::ViewAgents, views_agents::agents_shell)
         .ship_route(Route::ViewAgentDetail_template(), views_agents::agent_detail)
         .ship_route(Route::ViewAgentsCreate, views_agents::agents_create)
+        .ship_route(Route::ViewAgentsCreateShell, views_agents::agents_create_view)
+        .ship_route(Route::ViewAgentWire_template(), views_agents::agent_wire)
+        .ship_route(Route::ViewAgentSettings_template(), views_agents::agent_settings)
         .ship_route(Route::ViewSkills, views_skills::skills_shell)
         .ship_route(Route::ViewSkillsRail, views_skills::skills_rail)
         .ship_route(Route::ViewSkillDetail_template(), views_skills::skill_detail)
@@ -340,6 +349,20 @@ fn build_ship_routes(st: rest_api::ApiState) -> Router {
         .ship_route(Route::QueryCollection_template(), collection_api::query_items)
         // Lint
         .ship_route(Route::LintView, lint_api::lint_view)
+        // SDK manifest (read-side)
+        .ship_route(Route::ViewMeta_template(), sdk_manifest::get_view_meta)
+        .ship_route(Route::SdkRoot, sdk_manifest::get_sdk_root)
+        .ship_route(Route::SdkQuery, sdk_manifest::query_sdk)
+        // Client-side view error capture — GET/POST/DELETE on one path,
+        // merged into a single MethodRouter (axum panics on duplicate paths
+        // across `.route()` calls). Canonical path comes from the Route enum
+        // so URL builders (TS, Jinja) stay consistent.
+        .route(
+            "/api/runtime/view-errors",
+            axum::routing::post(view_errors_api::post_error)
+                .get(view_errors_api::list_errors)
+                .delete(view_errors_api::clear_errors),
+        )
         // Glob-param file handlers (not in enum — glob syntax is project_api
         // internal; keep flat).
         .route(

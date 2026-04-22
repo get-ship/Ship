@@ -55,6 +55,7 @@ thiserror = "2"
 # canvas HTML (see apps/shipd/src/views/sanitize.rs).
 ammonia = "4"
 form_urlencoded = "1"
+git2 = { version = "0.19" }
 include_dir = "0.7"
 # JSON Schema validator (Draft 2020-12). Used to validate pipeline
 # documents on write — catches structural errors beyond parse errors.

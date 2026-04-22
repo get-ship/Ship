@@ -261,7 +261,7 @@ fn load_git(
         commit: query_params.get("commit").cloned(),
         file: query_params.get("file").cloned(),
     };
-    let git_ctx = crate::views_git::build_ctx(&params, ship_dir);
+    let git_ctx = crate::views_git::build_base_ctx(&params, ship_dir);
     let val = serde_json::to_value(&git_ctx).unwrap_or_default();
     if let serde_json::Value::Object(map) = val {
         for (k, v) in map {

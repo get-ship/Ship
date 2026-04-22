@@ -9,11 +9,25 @@
 //! worktree directory, which the kernel already records on dispatch.
 //!
 //! These helpers are intentionally separate from `views_git_data` so
-//! that module stays focused on the git view's own reads; we only
-//! borrow its `run_git` shell wrapper.
+//! that module stays focused on the git view's own reads. They use a
+//! local subprocess wrapper because the worktree paths here are
+//! pipeline-owned directories that may not be valid git repos (pruned
+//! or mid-clone), and the two queries needed do not justify pulling in
+//! the full git2 overhead.
 
-use crate::views_git_data::run_git;
 use std::path::Path;
+
+fn run_git(root: &Path, args: &[&str]) -> Result<String, String> {
+    let out = std::process::Command::new("git")
+        .args(args)
+        .current_dir(root)
+        .output()
+        .map_err(|e| format!("git spawn: {e}"))?;
+    if !out.status.success() {
+        return Err(String::from_utf8_lossy(&out.stderr).to_string());
+    }
+    Ok(String::from_utf8_lossy(&out.stdout).to_string())
+}
 
 /// Branch-level git stats for a single pipeline run.
 ///

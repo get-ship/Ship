@@ -1,0 +1,118 @@
+{#-
+  Changes panel — left pane of the Changes tab.
+  Shows staged/modified/untracked files with tree/flat toggle.
+  Clicking a file row fetches the working-tree diff into the right pane.
+  Expects: staged[], modified[], untracked[], total_changed, workspace_id, selected_commit
+-#}
+{% from '_urls.html.j2' import view_git %}
+{%- set ws_qs = '' -%}
+{%- if workspace_id %}{%- set ws_qs = '&workspace_id=' ~ workspace_id -%}{%- endif -%}
+{%- set diff_base = view_git() ~ '?commit=WORKING' ~ ws_qs -%}
+
+<div class="git-pane-left">
+  {#- Panel header -#}
+  <div class="git-panel-head">
+    <strong>Changes</strong>
+    {% if total_changed %}
+      <span>{{ total_changed }} file{% if total_changed != 1 %}s{% endif %}</span>
+    {% endif %}
+    <span class="spacer"></span>
+    <div class="git-view-toggle" role="group" aria-label="View mode">
+      <button type="button"
+        data-class:active="$viewMode == 'tree'"
+        data-on:click="$viewMode = 'tree'"
+        title="Tree view">Tree</button>
+      <button type="button"
+        data-class:active="$viewMode == 'flat'"
+        data-on:click="$viewMode = 'flat'"
+        title="Flat view">Flat</button>
+    </div>
+  </div>
+
+  {#- File list -#}
+  <div class="git-file-scroll">
+    {% if not clean %}
+      {% set all_files = staged + modified + untracked %}
+
+      {#- Flat mode: grouped by bucket -#}
+      <div data-show="$viewMode == 'flat'">
+        {% if staged %}
+          <div class="git-group-label">Staged ({{ staged | length }})</div>
+          {% for f in staged %}
+            {%- set active_cls = 'active' if (selected_commit and selected_commit.is_working) else '' -%}
+            <button type="button" class="git-file-row {{ active_cls }}"
+              data-on:click="@get('{{ diff_base | safe }}&file={{ f.path | urlencode }}')">
+              <span class="git-file-badge {{ f.status }}">{{ f.label }}</span>
+              <span class="git-file-name" title="{{ f.path }}">
+                <span class="git-file-dir">{{ f.path | replace(f.basename, '') }}</span>{{ f.basename }}
+              </span>
+            </button>
+          {% endfor %}
+        {% endif %}
+        {% if modified %}
+          <div class="git-group-label">Modified ({{ modified | length }})</div>
+          {% for f in modified %}
+            {%- set active_cls = 'active' if (selected_commit and selected_commit.is_working) else '' -%}
+            <button type="button" class="git-file-row {{ active_cls }}"
+              data-on:click="@get('{{ diff_base | safe }}&file={{ f.path | urlencode }}')">
+              <span class="git-file-badge {{ f.status }}">{{ f.label }}</span>
+              <span class="git-file-name" title="{{ f.path }}">
+                <span class="git-file-dir">{{ f.path | replace(f.basename, '') }}</span>{{ f.basename }}
+              </span>
+            </button>
+          {% endfor %}
+        {% endif %}
+        {% if untracked %}
+          <div class="git-group-label">Untracked ({{ untracked | length }})</div>
+          {% for f in untracked %}
+            <button type="button" class="git-file-row"
+              data-on:click="@get('{{ diff_base | safe }}&file={{ f.path | urlencode }}')">
+              <span class="git-file-badge Q">?</span>
+              <span class="git-file-name" title="{{ f.path }}">
+                <span class="git-file-dir">{{ f.path | replace(f.basename, '') }}</span>{{ f.basename }}
+              </span>
+            </button>
+          {% endfor %}
+        {% endif %}
+      </div>
+
+      {#- Tree mode: all files alphabetically with path prefix muted -#}
+      <div data-show="$viewMode == 'tree'">
+        {% for f in all_files | sort(attribute='path') %}
+          {%- set active_cls = 'active' if (selected_commit and selected_commit.is_working) else '' -%}
+          <button type="button" class="git-file-row {{ active_cls }}"
+            data-on:click="@get('{{ diff_base | safe }}&file={{ f.path | urlencode }}')">
+            <span class="git-file-badge {% if f.status == '?' %}Q{% else %}{{ f.status }}{% endif %}">
+              {% if f.status == '?' %}?{% else %}{{ f.label }}{% endif %}
+            </span>
+            <span class="git-file-name" title="{{ f.path }}">
+              <span class="git-file-dir">{{ f.path | replace(f.basename, '') }}</span>{{ f.basename }}
+            </span>
+          </button>
+        {% endfor %}
+      </div>
+
+    {% else %}
+      <div style="padding:24px 12px;text-align:center;font-size:12px;color:var(--muted-foreground)">
+        <ship-icon name="check-circle" size="md" style="display:block;margin:0 auto 8px"></ship-icon>
+        Working tree is clean.
+      </div>
+    {% endif %}
+  </div>
+
+  {#- Commit composer -#}
+  {% if not clean %}
+  <div class="git-commit-bar">
+    <textarea class="git-commit-input" rows="2" placeholder="Commit message…"
+      data-bind:value="$commitMsg"
+      data-on:input="$commitMsg = evt.target?.value ?? ''"
+      data-signals:commitMsg="''"></textarea>
+    <div class="git-commit-actions">
+      <ship-button variant="ghost" size="sm"
+        data-on:click="@post('/api/project/git/commit', {payload: {message: $commitMsg, workspace_id: '{{ workspace_id or '' }}'}})">
+        Commit {{ total_changed }}
+      </ship-button>
+    </div>
+  </div>
+  {% endif %}
+</div>

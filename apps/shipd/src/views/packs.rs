@@ -34,6 +34,7 @@ pub(crate) fn pack_bundles(name: &str) -> &'static [&'static str] {
     match name {
         "editor" => &["ship-code-editor.js", "ship-markdown-editor.js"],
         "terminal" => &["ship-terminal.js"],
+        "git" => &["ship-git.js"],
         _ => &[],
     }
 }

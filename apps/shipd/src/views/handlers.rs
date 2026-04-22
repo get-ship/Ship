@@ -10,7 +10,7 @@ use super::{ViewListEntry, ViewManifest, mesh_err, mesh_ok};
 
 /// Build a rich context for Jinja view rendering.
 /// Includes collection schemas and items so views can render server-side.
-fn build_view_context(view_name: &str, params: &HashMap<String, String>) -> serde_json::Value {
+pub(super) fn build_view_context(view_name: &str, params: &HashMap<String, String>) -> serde_json::Value {
     let mut ctx = serde_json::json!({
         "view_name": view_name,
         "query": params,

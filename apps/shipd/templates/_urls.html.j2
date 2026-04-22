@@ -15,6 +15,7 @@
 {%- macro asset_code_editor_js() -%}/api/runtime/assets/ship-code-editor.js{%- endmacro -%}
 {%- macro asset_markdown_editor_js() -%}/api/runtime/assets/ship-markdown-editor.js{%- endmacro -%}
 {%- macro asset_terminal_js() -%}/api/runtime/assets/ship-terminal.js{%- endmacro -%}
+{%- macro asset_git_js() -%}/api/runtime/assets/ship-git.js{%- endmacro -%}
 {%- macro asset_elements_manifest() -%}/api/runtime/assets/custom-elements.json{%- endmacro -%}
 {%- macro asset_elements_catalog() -%}/api/runtime/assets/ship-elements.md{%- endmacro -%}
 {%- macro asset_jinja_macros_json() -%}/api/runtime/assets/jinja-macros.json{%- endmacro -%}
@@ -36,6 +37,9 @@
 {%- macro view_agents() -%}/api/runtime/view/agents{%- endmacro -%}
 {%- macro view_agent_detail(id) -%}/api/runtime/view/agents/detail/{{ id }}{%- endmacro -%}
 {%- macro view_agents_create() -%}/api/runtime/view/agents/new{%- endmacro -%}
+{%- macro view_agents_create_shell() -%}/api/runtime/view/agents/create{%- endmacro -%}
+{%- macro view_agent_wire(id) -%}/api/runtime/view/agents/{{ id }}/wire{%- endmacro -%}
+{%- macro view_agent_settings(id) -%}/api/runtime/view/agents/detail/{{ id }}/settings{%- endmacro -%}
 {%- macro view_skills() -%}/api/runtime/view/skills{%- endmacro -%}
 {%- macro view_skills_rail() -%}/api/runtime/view/skills/rail{%- endmacro -%}
 {%- macro view_skill_detail(id) -%}/api/runtime/view/skills/detail/{{ id }}{%- endmacro -%}
@@ -49,6 +53,7 @@
 {%- macro serve_view_manifest(name) -%}/api/runtime/view/{{ name }}/manifest{%- endmacro -%}
 {%- macro serve_view_bundle(name) -%}/api/runtime/view/{{ name }}/bundle{%- endmacro -%}
 {%- macro serve_view_raw(name) -%}/api/runtime/view/{{ name }}/raw{%- endmacro -%}
+{%- macro serve_view_context(name) -%}/api/runtime/view/{{ name }}/context{%- endmacro -%}
 {%- macro serve_view_sse(name) -%}/api/runtime/view/{{ name }}/sse{%- endmacro -%}
 {%- macro open_view_session() -%}/api/runtime/view-sessions{%- endmacro -%}
 {%- macro patch_view_session(id) -%}/api/runtime/view-sessions/{{ id }}/patch{%- endmacro -%}
@@ -129,3 +134,9 @@
 {%- macro artifact_delete(id) -%}/api/artifacts/{{ id }}{%- endmacro -%}
 {%- macro capabilities() -%}/api/capabilities{%- endmacro -%}
 {%- macro lint_view() -%}/api/runtime/lint/view{%- endmacro -%}
+{%- macro view_meta(name) -%}/api/runtime/views/{{ name }}/meta{%- endmacro -%}
+{%- macro sdk_root() -%}/api/runtime/sdk{%- endmacro -%}
+{%- macro sdk_query() -%}/api/runtime/sdk/query{%- endmacro -%}
+{%- macro post_view_error() -%}/api/runtime/view-errors{%- endmacro -%}
+{%- macro list_view_errors() -%}/api/runtime/view-errors{%- endmacro -%}
+{%- macro clear_view_errors() -%}/api/runtime/view-errors{%- endmacro -%}

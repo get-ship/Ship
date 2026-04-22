@@ -1301,7 +1301,27 @@ impl Drop for ActorGuard {
     }
 }
 
-/// GET /api/runtime/events — SSE stream of all kernel events.
+/// GET /api/runtime/events — SSE stream of kernel events.
+///
+/// Two output modes and an optional topic filter:
+///
+/// * Default mode (no query params): subscribes to all namespaces and emits
+///   each envelope as a `ship.event` frame carrying the raw JSON envelope.
+///   This is the existing contract — callers relying on it are unchanged.
+/// * `?mode=datastar`: emits `datastar-patch-signals` frames that merge each
+///   event into the client's Datastar signal store. The target signal is
+///   controlled by `?signal=<name>` (default `events`). Events accumulate as
+///   an array with most-recent-first ordering, capped at 50 entries.
+/// * `?topics=a,b,c`: comma-separated list of **prefix** filters matched
+///   against `envelope.event_type`. `topics=job` matches `job.started`,
+///   `job.step.started`, etc. Applies in both modes.
+#[derive(Deserialize)]
+pub struct EventStreamQuery {
+    pub topics: Option<String>,
+    pub mode: Option<String>,
+    pub signal: Option<String>,
+}
+
 #[utoipa::path(
     get,
     path = "/api/runtime/events",
@@ -1310,6 +1330,7 @@ impl Drop for ActorGuard {
 )]
 pub async fn event_stream(
     State(state): State<ApiState>,
+    Query(q): Query<EventStreamQuery>,
 ) -> Result<Sse<impl futures::stream::Stream<Item = Result<Event, std::convert::Infallible>>>, (StatusCode, String)> {
     let actor_id = format!(
         "studio-events-{}",
@@ -1343,17 +1364,65 @@ pub async fn event_stream(
         kernel: state.kernel().clone(),
     };
 
+    let topic_prefixes: Vec<String> = q
+        .topics
+        .as_deref()
+        .map(|s| {
+            s.split(',')
+                .map(str::trim)
+                .filter(|p| !p.is_empty())
+                .map(str::to_string)
+                .collect()
+        })
+        .unwrap_or_default();
+    let datastar_mode = q.mode.as_deref() == Some("datastar");
+    let signal_name = q.signal.unwrap_or_else(|| "events".to_string());
+
     let stream = async_stream::stream! {
         let _guard = guard;
         let mut mb = mailbox;
+        let mut acc: std::collections::VecDeque<serde_json::Value> =
+            std::collections::VecDeque::with_capacity(50);
         while let Some(event) = mb.recv().await {
-            let json = match serde_json::to_string(&event) {
-                Ok(j) => j,
-                Err(_) => continue,
-            };
-            yield Ok::<_, std::convert::Infallible>(
-                Event::default().event("ship.event").data(json)
-            );
+            if !topic_prefixes.is_empty()
+                && !topic_prefixes.iter().any(|p| event.event_type.starts_with(p))
+            {
+                continue;
+            }
+            if datastar_mode {
+                let payload_value: serde_json::Value =
+                    serde_json::from_str(&event.payload_json)
+                        .unwrap_or(serde_json::Value::Null);
+                let entry = serde_json::json!({
+                    "id": event.id,
+                    "event_type": event.event_type,
+                    "entity_id": event.entity_id,
+                    "created_at": event.created_at,
+                    "payload": payload_value,
+                });
+                acc.push_front(entry);
+                while acc.len() > 50 {
+                    acc.pop_back();
+                }
+                let arr: Vec<&serde_json::Value> = acc.iter().collect();
+                let mut body = serde_json::Map::new();
+                body.insert(
+                    signal_name.clone(),
+                    serde_json::to_value(&arr).unwrap_or(serde_json::Value::Null),
+                );
+                let data = format!("signals {}", serde_json::Value::Object(body));
+                yield Ok::<_, std::convert::Infallible>(
+                    Event::default().event("datastar-patch-signals").data(data)
+                );
+            } else {
+                let json = match serde_json::to_string(&event) {
+                    Ok(j) => j,
+                    Err(_) => continue,
+                };
+                yield Ok::<_, std::convert::Infallible>(
+                    Event::default().event("ship.event").data(json)
+                );
+            }
         }
     };
 

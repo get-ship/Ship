@@ -50,6 +50,8 @@ const JINJA_MACROS_MD: &str = include_str!("../../../../packages/ship-set/jinja-
 const VIEW_TOKENS_CSS: &str = concat!(
     include_str!("../../../../packages/ship-set/src/tokens.css"),
     "\n",
+    include_str!("../../../../packages/ship-set/src/themes.css"),
+    "\n",
     include_str!("../../assets/view-tokens.css"),
 );
 
@@ -159,6 +161,7 @@ pub async fn serve_elements_manifest(headers: axum::http::HeaderMap) -> axum::re
 const SHIP_CODE_EDITOR_JS: &str = include_str!("../../assets/ship-code-editor.js");
 const SHIP_MARKDOWN_EDITOR_JS: &str = include_str!("../../assets/ship-markdown-editor.js");
 const SHIP_TERMINAL_JS: &str = include_str!("../../assets/ship-terminal.js");
+const SHIP_GIT_JS: &str = include_str!("../../assets/ship-git.js");
 
 /// GET /api/runtime/assets/ship-code-editor.js
 pub async fn serve_code_editor(headers: axum::http::HeaderMap) -> axum::response::Response {
@@ -189,6 +192,17 @@ pub async fn serve_terminal(headers: axum::http::HeaderMap) -> axum::response::R
         SHIP_TERMINAL_JS,
         "application/javascript; charset=utf-8",
         etag_for(SHIP_TERMINAL_JS, &ETAG),
+        if_none_match(&headers),
+    )
+}
+
+/// GET /api/runtime/assets/ship-git.js
+pub async fn serve_git(headers: axum::http::HeaderMap) -> axum::response::Response {
+    static ETAG: OnceLock<String> = OnceLock::new();
+    serve_with_etag(
+        SHIP_GIT_JS,
+        "application/javascript; charset=utf-8",
+        etag_for(SHIP_GIT_JS, &ETAG),
         if_none_match(&headers),
     )
 }

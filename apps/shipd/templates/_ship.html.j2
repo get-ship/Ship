@@ -55,6 +55,33 @@
 {% macro signal(name, default='') %}data-signals:{{ name }}="{% if default is string %}'{{ default }}'{% elif default is none %}null{% else %}{{ default }}{% endif %}"{% endmacro %}
 
 {#-
+  signals(fields)
+
+  Declare multiple Datastar signals at once with inferred types. Preferred
+  over repeated `signal()` calls when a view has more than two or three
+  signals: concise at the call site, and the type metadata it emits
+  (`data-ship-signal-types`) drives AST-lint's type-mismatch rule so a
+  later `$count = 'hello'` against a numeric signal is flagged.
+
+  Types are inferred from each default: strings → str, booleans → bool,
+  integers → int, other numbers → num, null → any, other → any.
+
+  Args:
+    fields: mapping of signal name → default value.
+
+  Example:
+    <div {{ signals({'title': '', 'count': 0, 'active': false}) }}>
+
+  Emits (roughly):
+    data-signals:title="''" data-signals:count="0" data-signals:active="false"
+    data-ship-signal-types='{"title":"str","count":"int","active":"bool"}'
+-#}
+{% macro signals(fields) -%}
+{%- for name, default in fields | items -%}
+data-signals:{{ name }}="{% if default is string %}'{{ default }}'{% elif default is none %}null{% elif default is number %}{{ default }}{% elif default is boolean %}{{ default | lower }}{% else %}{{ default | tojson | replace('"', "'") }}{% endif %}" {% endfor -%}
+{%- endmacro %}
+
+{#-
   show(expr)
 
   Hide the element until the Datastar expression becomes truthy. Emits
@@ -116,6 +143,31 @@
     </div>
 -#}
 {% macro live(view_name) %}data-init="@get('/api/runtime/view/{{ view_name }}/sse')"{% endmacro %}
+
+{#-
+  live_topic(topics, into='events')
+
+  Subscribe to a filtered slice of the kernel event stream and merge the
+  payloads into a Datastar signal. Unlike `live()` which refreshes the
+  whole view via SSE morph, this primitive streams raw events into a
+  signal for client-side rendering.
+
+  Args:
+    topics: comma-separated topic prefix(es), e.g. 'job' or 'job,workspace'.
+      Matched against `envelope.event_type` — `job` matches `job.started`,
+      `job.step.started`, etc.
+    into:   signal name (default `events`) — the merged array lives under
+      `$<name>`. Pass without the leading `$` (convention — like `signal()`).
+
+  Emits:
+    data-init="@get('/api/runtime/events?mode=datastar&topics=<topics>&signal=<name>')"
+
+  Example:
+    <div {{ live_topic('job.updated,job.failed', into='jobs') }}>
+      <template data-for="$jobs" ...>...</template>
+    </div>
+-#}
+{% macro live_topic(topics, into='events') %}data-init="@get('/api/runtime/events?mode=datastar&topics={{ topics }}&signal={{ into }}')"{% endmacro %}
 
 {#- === Loading & Indicators === -#}
 
@@ -648,40 +700,45 @@
 {#-
   form(schema, collection, form_signal='form')
 
-  Auto-generate a form from a collection schema. Emits one labelled
-  input per field, with the input type chosen from the field definition:
-  `enum` -> `<ship-select>`, `boolean` -> `<ship-switch>`, `number` ->
-  numeric `<ship-input>`, `markdown` -> `<ship-textarea>`, everything
-  else -> `<ship-input>`. Required fields get a red asterisk. Each input
-  is two-way-bound under `form_signal.<field>`.
+  Auto-generate field inputs from a collection schema, two-way-bound to
+  $<form_signal>.<field>. For the full CRUD surface (submit, loading,
+  error surface, create vs update), pair this with explicit `create()`
+  or `update()` macros on a separate button — the deferred full-CRUD
+  primitive is tracked in docs/ship-sdk/references/docs/roadmap.md.
+
+  Field types: enum → <ship-select>, boolean → <ship-switch>, number →
+  numeric <ship-input>, markdown → <ship-textarea>, else <ship-input>.
+  Required fields render a red asterisk suffix.
 
   Args:
-    schema: Collection schema dict (from `ship_schema(collection)`).
-    collection: Collection id. Currently accepted for parity with
-      related macros; not used by the emitted HTML.
-    form_signal: Parent signal object inputs bind into. Defaults to
-      `form`.
+    schema: Collection schema (from `ship_schema(collection)`).
+    collection: Collection id. Kept for future extension and lint
+      alignment.
+    form_signal: Parent signal object inputs bind into. Defaults to `form`.
 
   Example:
-    {{ form(ship_schema('task'), 'task') }}
+    <div {{ signal('form', {}) }}>
+      {{ form(ship_schema('notes'), 'notes') }}
+      <ship-button {{ create('notes', '$form') }}>Save</ship-button>
+    </div>
 -#}
 {% macro form(schema, collection, form_signal='form') %}
 <div class="ship-form">
-  {% for field_name, field_def in schema.fields %}
+  {% for field_name, field_def in schema.fields | items%}
   <div class="ship-form-field">
     <label class="ship-form-label">
       {{ field_name }}{% if field_def.required %}<span style="color:var(--destructive)"> *</span>{% endif %}
     </label>
-    {% if field_def.field_type == "enum" and field_def.values %}
+    {% if field_def.type == "enum" and field_def.values %}
     <ship-select size="sm" data-bind="{{ form_signal }}.{{ field_name }}">
       <option value="">--</option>
       {% for v in field_def.values %}<option value="{{ v }}">{{ v }}</option>{% endfor %}
     </ship-select>
-    {% elif field_def.field_type == "boolean" %}
+    {% elif field_def.type == "boolean" %}
     <ship-switch data-bind="{{ form_signal }}.{{ field_name }}"></ship-switch>
-    {% elif field_def.field_type == "number" %}
+    {% elif field_def.type == "number" %}
     <ship-input size="sm" type="number" data-bind="{{ form_signal }}.{{ field_name }}" placeholder="0"></ship-input>
-    {% elif field_def.field_type == "markdown" %}
+    {% elif field_def.type == "markdown" %}
     <ship-textarea size="sm" data-bind="{{ form_signal }}.{{ field_name }}" rows="3" placeholder="{{ field_name }}"></ship-textarea>
     {% else %}
     <ship-input size="sm" data-bind="{{ form_signal }}.{{ field_name }}" placeholder="{{ field_name }}"></ship-input>
@@ -720,7 +777,7 @@
     {% for item in items %}
     <tr id="item-{{ item.id }}">
       <td class="mono muted" title="{{ item.id }}">{{ item.id[:10] }}</td>
-      {% for field_name, field_def in schema.fields %}
+      {% for field_name, field_def in schema.fields | items%}
       <td>
         {% set val = item.data[field_name] if item.data[field_name] is defined else none %}
         {% if val is none or val == "" %}<span class="null">--</span>

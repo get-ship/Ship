@@ -14,7 +14,6 @@
 use axum::extract::{Query, State};
 use axum::http::StatusCode;
 use axum::response::Html;
-use runtime::projections::job::{JobStatus, load_jobs_at};
 use serde::{Deserialize, Serialize};
 use std::path::Path;
 use std::time::Duration;
@@ -22,9 +21,10 @@ use std::time::Duration;
 use crate::views::resolve_view_dir;
 use crate::views::stream::{ViewSse, ViewStream};
 use crate::views::templates;
+use crate::views_git_annotations::{AnnotationsByLine, load_file_annotations};
 use crate::views_git_data::{
-    CommitSummary, StatusFile, load_branch, load_commit_diff, load_log, load_status_buckets,
-    load_working_diff, resolve_root,
+    BranchSummary, CommitSummary, StatusFile, load_ahead_behind, load_branch, load_branches,
+    load_commit_diff, load_log, load_status_buckets, load_working_diff, resolve_root,
 };
 use crate::views_git_diff::{ParsedDiff, parse_unified_diff};
 
@@ -45,11 +45,6 @@ pub(crate) struct ErrorView {
     pub body: String,
 }
 
-#[derive(Serialize)]
-pub(crate) struct CompletedJob {
-    pub slug: String,
-    pub branch: String,
-}
 
 #[derive(Serialize)]
 pub(crate) struct DiffView {
@@ -64,35 +59,23 @@ pub(crate) struct DiffView {
 pub(crate) struct GitCtx {
     pub workspace_id: Option<String>,
     pub branch: Option<String>,
+    pub head_short: Option<String>,
     pub clean: bool,
     pub total_changed: usize,
     pub staged: Vec<StatusFile>,
     pub modified: Vec<StatusFile>,
     pub untracked: Vec<StatusFile>,
     pub commits: Vec<CommitSummary>,
+    pub branches: Vec<BranchSummary>,
+    /// `(ahead, behind)` vs the upstream tracking branch, if one is configured.
+    pub ahead: usize,
+    pub behind: usize,
     pub selected_commit: Option<DiffView>,
-    pub completed_jobs: Vec<CompletedJob>,
+    /// File path the user has selected (for per-file diff focus).
+    pub active_file: Option<String>,
+    /// Annotations for the active diff file, keyed by `"{sha}:{line}"`.
+    pub annotations: AnnotationsByLine,
     pub error: Option<ErrorView>,
-}
-
-fn load_completed_jobs(ship_dir: &Path) -> Vec<CompletedJob> {
-    let jobs = match load_jobs_at(ship_dir) {
-        Ok(j) => j,
-        Err(e) => {
-            tracing::error!(error = %e, "load_jobs_at failed for git view");
-            std::collections::HashMap::new()
-        }
-    };
-    let mut out: Vec<CompletedJob> = jobs
-        .into_values()
-        .filter(|j| matches!(j.status, JobStatus::Completed))
-        .map(|j| CompletedJob {
-            slug: j.slug.clone(),
-            branch: j.branch.clone(),
-        })
-        .collect();
-    out.sort_by(|a, b| a.slug.cmp(&b.slug));
-    out
 }
 
 fn resolve_selected(params: &GitParams, root: &Path) -> Option<DiffView> {
@@ -126,22 +109,29 @@ fn resolve_selected(params: &GitParams, root: &Path) -> Option<DiffView> {
     })
 }
 
-pub(crate) fn build_ctx(params: &GitParams, ship_dir: &Path) -> GitCtx {
-    let completed_jobs = load_completed_jobs(ship_dir);
+/// Sync base — used by the git view handler and by cross-view context
+/// injection (`views/context.rs`). Does not load annotations.
+pub(crate) fn build_base_ctx(params: &GitParams, ship_dir: &Path) -> GitCtx {
     let root = match resolve_root(ship_dir, params.workspace_id.as_deref()) {
         Ok(r) => r,
         Err(e) => {
             return GitCtx {
                 workspace_id: params.workspace_id.clone(),
                 branch: None,
+                head_short: None,
                 clean: true,
                 total_changed: 0,
                 staged: vec![],
                 modified: vec![],
                 untracked: vec![],
                 commits: vec![],
+                branches: vec![],
+                ahead: 0,
+                behind: 0,
                 selected_commit: None,
-                completed_jobs,
+                active_file: None,
+                annotations: Default::default(),
+
                 error: Some(ErrorView {
                     title: "Git unavailable".into(),
                     body: e,
@@ -151,27 +141,71 @@ pub(crate) fn build_ctx(params: &GitParams, ship_dir: &Path) -> GitCtx {
     };
 
     let branch = load_branch(&root);
+    let head_short = commits_head_short(&root);
     let buckets = load_status_buckets(&root);
     let commits = load_log(&root);
+    let branches = load_branches(&root);
+    let (ahead, behind) = load_ahead_behind(&root).unwrap_or((0, 0));
     let selected_commit = resolve_selected(params, &root);
+    let active_file = params
+        .file
+        .as_ref()
+        .map(|s| s.trim().to_string())
+        .filter(|s| !s.is_empty());
 
     GitCtx {
         workspace_id: params.workspace_id.clone(),
         branch,
+        head_short,
         clean: buckets.clean,
         total_changed: buckets.total,
         staged: buckets.staged,
         modified: buckets.modified,
         untracked: buckets.untracked,
         commits,
+        branches,
+        ahead,
+        behind,
         selected_commit,
-        completed_jobs,
+        active_file,
+        annotations: Default::default(),
         error: None,
     }
 }
 
-fn render_shell(params: &GitParams, ship_dir: &Path) -> Option<String> {
-    let ctx = build_ctx(params, ship_dir);
+fn commits_head_short(root: &Path) -> Option<String> {
+    let repo = git2::Repository::open(root).ok()?;
+    let head = repo.head().ok()?;
+    let oid = head.target()?;
+    Some(oid.to_string().chars().take(7).collect())
+}
+
+/// Async full context — adds annotations for the active diff file.
+pub(crate) async fn build_ctx(
+    params: &GitParams,
+    ship_dir: &Path,
+    state: &crate::rest_api::ApiState,
+) -> GitCtx {
+    let mut ctx = build_base_ctx(params, ship_dir);
+
+    if let Some(file) = params.file.as_deref().filter(|s| !s.is_empty()) {
+        if let Ok(mut guard) = state.data_service().await {
+            if let Some(svc) = guard.as_mut() {
+                ctx.annotations =
+                    load_file_annotations(svc, file, params.workspace_id.as_deref());
+            }
+        }
+    }
+
+    ctx
+}
+
+async fn render_shell(
+    params: &GitParams,
+    ship_dir: &Path,
+    state: &crate::rest_api::ApiState,
+) -> Option<String> {
+    let ctx = build_ctx(params, ship_dir, state).await;
     match templates::render("git/shell.html.j2", &ctx) {
         Ok(html) => Some(html),
         Err(e) => {
@@ -188,7 +222,9 @@ fn try_render_view(file: &str, ctx: &GitCtx) -> Option<String> {
     let (view_dir, _source) = resolve_view_dir("git")?;
     let source = std::fs::read_to_string(view_dir.join(file)).ok()?;
     let template_name = format!("git/{file}");
-    templates::render_view_source(&template_name, &source, ctx).ok()
+    let html = templates::render_view_source(&template_name, &source, ctx).ok()?;
+    let packs = crate::views::read_view_packs(&view_dir);
+    Some(crate::views::inject_packs(html, &packs, false))
 }
 
 /// GET /api/runtime/view/git — full shell, minijinja-rendered.
@@ -196,7 +232,7 @@ pub async fn git_shell(
     State(state): State<crate::rest_api::ApiState>,
     Query(params): Query<GitParams>,
 ) -> Result<Html<String>, StatusCode> {
-    let ctx = build_ctx(&params, state.ship_dir());
+    let ctx = build_ctx(&params, state.ship_dir(), &state).await;
 
     // Try .ship/views/git/index.html.j2 first (new canonical location).
     if let Some(html) = try_render_view("index.html.j2", &ctx) {
@@ -204,7 +240,8 @@ pub async fn git_shell(
     }
 
     // Fallback to embedded template.
-    render_shell(&params, state.ship_dir())
+    render_shell(&params, state.ship_dir(), &state)
+        .await
         .map(Html)
         .ok_or(StatusCode::INTERNAL_SERVER_ERROR)
 }
@@ -220,7 +257,7 @@ pub async fn git_sse(
     tokio::spawn(async move {
         let _hb = vs.heartbeat_every(Duration::from_secs(15));
 
-        if let Some(html) = render_shell(&params, &ship_dir) {
+        if let Some(html) = render_shell(&params, &ship_dir, &state).await {
             if vs.patch("#git-root", html).await.is_err() {
                 return;
             }
@@ -233,7 +270,9 @@ pub async fn git_sse(
             if vs.is_closed() {
                 break;
             }
-            let Some(html) = render_shell(&params, &ship_dir) else { continue };
+            let Some(html) = render_shell(&params, &ship_dir, &state).await else {
+                continue;
+            };
             if vs.patch("#git-root", html).await.is_err() {
                 break;
             }
