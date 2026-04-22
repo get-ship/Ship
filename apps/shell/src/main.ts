@@ -335,6 +335,13 @@ function updateNav(path: string) {
 // ── Router (Navigo) ──────────────────────────────────────────────────
 const router = new Navigo("/");
 
+// Retry hook exposed to the error-state fallback rendered by mount.ts
+// when a view fetch fails. mount.ts is a lower-level module and can't
+// reach the router directly; this indirection keeps the boundary tidy.
+(window as unknown as { __shipRetryMount?: (endpoint: string) => void }).__shipRetryMount = (endpoint) => {
+  void mount(endpoint);
+};
+
 function viewRoute(path: string, endpoint: string) {
   router.on(path, () => {
     updateNav(path);

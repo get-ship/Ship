@@ -22,13 +22,31 @@ export async function mountDaemonFragment(
     "Datastar-Request": "true",
   };
   if (!sameOrigin && opts.token) headers.Authorization = `Bearer ${opts.token}`;
-  const res = await fetch(url, {
-    method: "GET",
-    credentials: sameOrigin ? "include" : "omit",
-    headers,
-  });
+  let res: Response;
+  try {
+    res = await fetch(url, {
+      method: "GET",
+      credentials: sameOrigin ? "include" : "omit",
+      headers,
+    });
+  } catch (err) {
+    target.innerHTML = renderErrorState({
+      title: "Can't reach the Ship daemon",
+      body: "The view server didn't respond. Make sure the daemon is running.",
+      details: `GET ${url}\n${String(err)}`,
+      retry: path,
+    });
+    return;
+  }
   if (!res.ok) {
-    target.innerHTML = `<div class="mount-error">mount failed: ${res.status} ${res.statusText}\nGET ${url}</div>`;
+    target.innerHTML = renderErrorState({
+      title: `Failed to load this view (${res.status})`,
+      body: res.status >= 500
+        ? "The daemon couldn't render this view. The details below may help."
+        : "The view couldn't be loaded. Try reloading, or check that the route exists.",
+      details: `GET ${url}\n${res.status} ${res.statusText}`,
+      retry: path,
+    });
     return;
   }
   const html = await res.text();
@@ -43,6 +61,39 @@ export async function mountDaemonFragment(
     fresh.text = old.textContent ?? '';
     old.replaceWith(fresh);
   }
+}
+
+/**
+ * Render a ship-error-state HTML fragment for mount failures.
+ *
+ * Kept as a string template rather than a Lit component because this
+ * runs before ship-elements.js finishes loading in the worst case
+ * (daemon unreachable from the first nav). <ship-error-state> is
+ * already registered, so the element hydrates when it connects; the
+ * fallback copy below stays readable even if hydration never happens.
+ */
+function renderErrorState(opts: {
+  title: string;
+  body: string;
+  details?: string;
+  retry?: string;
+}): string {
+  const esc = (s: string) =>
+    s.replace(/[&<>"']/g, c => ({ "&": "&amp;", "<": "&lt;", ">": "&gt;", '"': "&quot;", "'": "&#39;" })[c]!);
+  const details = opts.details
+    ? `<pre slot="details">${esc(opts.details)}</pre>`
+    : "";
+  const retry = opts.retry
+    ? `<ship-button slot="action" tone="accent" variant="solid"
+         onclick="window.__shipRetryMount && window.__shipRetryMount(${JSON.stringify(opts.retry)})">
+         Retry
+       </ship-button>`
+    : "";
+  return `<ship-error-state size="lg" title="${esc(opts.title)}">
+    ${esc(opts.body)}
+    ${details}
+    ${retry}
+  </ship-error-state>`;
 }
 
 /**
