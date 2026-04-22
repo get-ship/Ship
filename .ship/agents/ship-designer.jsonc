@@ -1,0 +1,23 @@
+{
+  "$schema": "../../schemas/agent.schema.json",
+  "agent": {
+    "id": "ship-designer",
+    "name": "Ship Designer",
+    "version": "0.1.0",
+    "description": "UI component work — ship-set (Lit web components), minijinja templates, Datastar reactivity, accessibility, visual polish",
+    "providers": ["claude", "codex", "cursor", "gemini", "opencode"],
+    "tags": ["ui", "ship-set", "views", "design"]
+  },
+  "skills": {
+    "refs": ["ship-views", "ship-components", "ship-design-system"]
+  },
+  "mcp": {
+    "servers": ["ship"]
+  },
+  "permissions": {
+    "preset": "ship-standard"
+  },
+  "rules": {
+    "inline": "UI specialist for ship-set primitives and first-party views. Default scope: `packages/ship-set/src/web-components/` and `.ship/views/`. Hand off service/data work to rust-runtime, orchestration to commander, new-primitive tests to test-writer."
+  }
+}
