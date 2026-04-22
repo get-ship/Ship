@@ -18,6 +18,7 @@ mod handler;
 pub mod hooks_api;
 pub mod logs_api;
 pub mod sdk_manifest;
+pub mod services;
 pub mod human_webhook;
 mod human_gateway;
 pub mod managers;

@@ -6,7 +6,7 @@
 
 /// Strip `// …` / `/* … */` comments and trailing commas from a JSONC
 /// input, producing a string suitable for `serde_json::from_str`.
-pub(crate) fn strip_jsonc(input: &str) -> String {
+pub fn strip_jsonc(input: &str) -> String {
     let mut out = String::with_capacity(input.len());
     let mut in_block = false;
     let mut in_str = false;
