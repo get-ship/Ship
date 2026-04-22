@@ -1,13 +1,14 @@
-//! Artifact registry CRUD — content-addressed registry of compiled artifacts.
+//! Compiled asset cache CRUD — content-addressed registry of compiled skills,
+//! rules, and MCP server configs.
 
 use anyhow::Result;
 use chrono::Utc;
 use sqlx::Row;
 
-use super::types::AgentArtifactRegistryDb;
+use super::types::CompiledAssetCacheDb;
 use super::{block_on, open_db};
 
-pub fn upsert_agent_artifact_registry_db(
+pub fn upsert_compiled_asset_cache_db(
     kind: &str,
     external_id: &str,
     name: &str,
@@ -18,7 +19,7 @@ pub fn upsert_agent_artifact_registry_db(
     let existing_uuid = block_on(async {
         sqlx::query(
             "SELECT uuid
-             FROM agent_artifact_registry
+             FROM compiled_asset_cache
              WHERE kind = ? AND external_id = ?",
         )
         .bind(kind)
@@ -32,7 +33,7 @@ pub fn upsert_agent_artifact_registry_db(
     let now = Utc::now().to_rfc3339();
     block_on(async {
         sqlx::query(
-            "INSERT INTO agent_artifact_registry
+            "INSERT INTO compiled_asset_cache
                 (uuid, kind, external_id, name, source_path, content_hash, updated_at)
              VALUES (?, ?, ?, ?, ?, ?, ?)
              ON CONFLICT(kind, external_id) DO UPDATE SET
@@ -55,15 +56,15 @@ pub fn upsert_agent_artifact_registry_db(
     Ok(uuid)
 }
 
-pub fn get_agent_artifact_registry_by_uuid_db(
+pub fn get_compiled_asset_cache_by_uuid_db(
     kind: &str,
     uuid: &str,
-) -> Result<Option<AgentArtifactRegistryDb>> {
+) -> Result<Option<CompiledAssetCacheDb>> {
     let mut conn = open_db()?;
     let row_opt = block_on(async {
         sqlx::query(
             "SELECT uuid, kind, external_id, name, source_path, content_hash
-             FROM agent_artifact_registry
+             FROM compiled_asset_cache
              WHERE kind = ? AND uuid = ?",
         )
         .bind(kind)
@@ -76,7 +77,7 @@ pub fn get_agent_artifact_registry_by_uuid_db(
         return Ok(None);
     };
 
-    Ok(Some(AgentArtifactRegistryDb {
+    Ok(Some(CompiledAssetCacheDb {
         uuid: row.get(0),
         kind: row.get(1),
         external_id: row.get(2),
@@ -86,15 +87,15 @@ pub fn get_agent_artifact_registry_by_uuid_db(
     }))
 }
 
-pub fn get_agent_artifact_registry_by_external_id_db(
+pub fn get_compiled_asset_cache_by_external_id_db(
     kind: &str,
     external_id: &str,
-) -> Result<Option<AgentArtifactRegistryDb>> {
+) -> Result<Option<CompiledAssetCacheDb>> {
     let mut conn = open_db()?;
     let row_opt = block_on(async {
         sqlx::query(
             "SELECT uuid, kind, external_id, name, source_path, content_hash
-             FROM agent_artifact_registry
+             FROM compiled_asset_cache
              WHERE kind = ? AND external_id = ?",
         )
         .bind(kind)
@@ -107,7 +108,7 @@ pub fn get_agent_artifact_registry_by_external_id_db(
         return Ok(None);
     };
 
-    Ok(Some(AgentArtifactRegistryDb {
+    Ok(Some(CompiledAssetCacheDb {
         uuid: row.get(0),
         kind: row.get(1),
         external_id: row.get(2),
@@ -116,3 +117,4 @@ pub fn get_agent_artifact_registry_by_external_id_db(
         content_hash: row.get(5),
     }))
 }
+

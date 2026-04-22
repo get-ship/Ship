@@ -149,6 +149,8 @@ pub async fn run_network(
     }
     // Start the abandoned session scanner.
     rt.session_scanner().await;
+    // Start the artifact GC loop (runs now then every hour).
+    rt.start_artifact_gc();
     human_gateway::spawn_human_gateway(rt.kernel(), rt.health_registry()).await;
 
     let token = match auth::read_token(&global_dir) {

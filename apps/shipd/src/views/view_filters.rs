@@ -209,7 +209,8 @@ fn canvas_artifact_service()
     let slug = runtime::project::project_slug_from_ship_dir(&project_ship);
     let mut svc = runtime::data::DataService::open(&global).ok()?;
     runtime::artifacts::ensure_artifacts_collection(&mut svc).ok()?;
-    Some((runtime::artifacts::ArtifactService::new(&global, &slug), svc))
+    let _ = slug;
+    Some((runtime::artifacts::ArtifactService::new(&global), svc))
 }
 
 /// Global function: `ship_canvas_docs()`.

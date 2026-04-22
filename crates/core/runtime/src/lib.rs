@@ -75,8 +75,8 @@ pub use skill_vars::{get_skill_vars, list_skill_vars, reset_skill_vars, set_skil
 
 // ─── Re-exports from db (formerly state_db) ────────────────────────────────
 pub use db::artifact_registry::{
-    get_agent_artifact_registry_by_external_id_db, get_agent_artifact_registry_by_uuid_db,
-    upsert_agent_artifact_registry_db,
+    get_compiled_asset_cache_by_external_id_db, get_compiled_asset_cache_by_uuid_db,
+    upsert_compiled_asset_cache_db,
 };
 pub use db::branch_context::{
     clear_branch_doc, clear_branch_link, get_branch_doc, get_branch_link, set_branch_doc,

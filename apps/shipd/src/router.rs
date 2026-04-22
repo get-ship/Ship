@@ -20,6 +20,7 @@ use crate::{
     view_morph_target, view_sessions_api, views, collection_api, views_agents, views_chat,
     views_events, views_git, views_pipelines, views_raw, views_settings, views_skills,
 };
+use axum::routing;
 
 /// Build the full Axum router with all route groups, auth, and CORS.
 pub fn build_router(
@@ -313,21 +314,24 @@ fn build_ship_routes(st: rest_api::ApiState) -> Router {
         .ship_route(Route::ProjectGitDiff, project_api::project_git_diff)
         .ship_route(Route::ProjectGitLog, project_api::project_git_log)
         .ship_route(Route::EmitEvent, project_api::emit_event)
-        .ship_route(Route::ArtifactsStatus_template(), project_api::artifacts_status)
-        .ship_route(Route::PromoteArtifact_template(), project_api::promote_artifact)
-        // Artifacts — upload route needs a relaxed `DefaultBodyLimit` so
-        // Multipart can read the full 50 MB upload ceiling; other extractors
-        // on this router continue to use the axum default.
+        // Artifacts platform (three-scope)
         .merge(
             Router::<rest_api::ApiState>::new()
                 .ship_route(Route::ArtifactsUpload, artifacts_api::upload_artifact)
-                .ship_route(Route::ArtifactsList, artifacts_api::list_artifacts)
-                .ship_route(Route::ArtifactDownload_template(), artifacts_api::download_artifact)
-                .ship_route(Route::ArtifactDelete_template(), artifacts_api::delete_artifact)
                 .layer(axum::extract::DefaultBodyLimit::max(
                     artifacts_api::MAX_UPLOAD_BYTES,
                 )),
         )
+        .ship_route(Route::ArtifactsList, artifacts_api::list_artifacts)
+        .ship_route(Route::ArtifactDownload_template(), artifacts_api::download_artifact)
+        .route(
+            "/api/artifacts/:id",
+            routing::head(artifacts_api::head_artifact),
+        )
+        .ship_route(Route::ArtifactMetadata_template(), artifacts_api::artifact_metadata)
+        .ship_route(Route::ArtifactPatch_template(), artifacts_api::patch_artifact)
+        .ship_route(Route::ArtifactDelete_template(), artifacts_api::delete_artifact)
+        .ship_route(Route::ArtifactPromote_template(), artifacts_api::promote_artifact)
         // Collections
         .ship_route(Route::ListCollections, collection_api::list_collections)
         .ship_route(Route::GetCollectionSchema_template(), collection_api::get_schema)

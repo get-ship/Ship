@@ -14,7 +14,8 @@ use std::path::PathBuf;
 
 use crate::requests::*;
 use crate::tools::{
-    job as job_tools, project, session, session_files, skills, workspace, workspace_ops,
+    artifacts as artifact_tools, job as job_tools, project, session, session_files, skills,
+    workspace, workspace_ops,
 };
 #[cfg(feature = "unstable")]
 use crate::tools::event;
@@ -670,6 +671,70 @@ impl ShipServer {
             Ok(r) => r,
             Err(e) => format!("Error: {e}"),
         }
+    }
+
+    // ---- Artifacts ----
+
+    #[tool(
+        description = "Upload an artifact to the Ship artifact store. \
+        bytes_b64 is the file content base64-encoded. \
+        scope: run|project|user. run_id required when scope=run. \
+        Returns { id } of the stored artifact."
+    )]
+    async fn artifact_upload(
+        &self,
+        Parameters(req): Parameters<crate::requests::artifacts::ArtifactUploadRequest>,
+    ) -> String {
+        artifact_tools::artifact_upload(
+            &req.scope,
+            req.run_id.as_deref(),
+            &req.bytes_b64,
+            &req.name,
+            req.mime.as_deref(),
+            req.expires_at.as_deref(),
+        )
+        .await
+    }
+
+    #[tool(
+        description = "Get artifact metadata (JSON). Does not return bytes. \
+        Use artifact_download to retrieve binary content."
+    )]
+    async fn artifact_get(
+        &self,
+        Parameters(req): Parameters<crate::requests::artifacts::ArtifactIdRequest>,
+    ) -> String {
+        artifact_tools::artifact_get(&req.id).await
+    }
+
+    #[tool(
+        description = "List artifacts. scope: run|project|user (default project). \
+        filter_json: optional JSON object with additional query filters."
+    )]
+    async fn artifact_list(
+        &self,
+        Parameters(req): Parameters<crate::requests::artifacts::ArtifactListRequest>,
+    ) -> String {
+        artifact_tools::artifact_list(req.scope.as_deref(), req.filter_json.as_deref()).await
+    }
+
+    #[tool(description = "Delete an artifact by ID.")]
+    async fn artifact_delete(
+        &self,
+        Parameters(req): Parameters<crate::requests::artifacts::ArtifactIdRequest>,
+    ) -> String {
+        artifact_tools::artifact_delete(&req.id).await
+    }
+
+    #[tool(
+        description = "Promote an artifact to a new scope. \
+        target_scope: project|user. Requires PromoteArtifact grant."
+    )]
+    async fn artifact_promote(
+        &self,
+        Parameters(req): Parameters<crate::requests::artifacts::ArtifactPromoteRequest>,
+    ) -> String {
+        artifact_tools::artifact_promote(&req.id, &req.target_scope).await
     }
 
 }

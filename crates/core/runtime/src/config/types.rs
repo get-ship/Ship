@@ -165,6 +165,184 @@ pub struct NamespaceConfig {
     pub owner: String,
 }
 
+// ─── Artifacts settings ───────────────────────────────────────────────────────
+
+/// Per-scope artifact storage limits.
+#[derive(Serialize, Deserialize, Debug, Clone, Type)]
+pub struct ArtifactsScopeConfig {
+    /// Maximum size per individual artifact in megabytes.
+    #[serde(default)]
+    pub size_max_mb: Option<u64>,
+    /// TTL in hours for run-scope artifacts (only meaningful for `run` scope).
+    #[serde(default)]
+    pub ttl_hours: Option<u64>,
+    /// Total storage cap for the scope in gigabytes.
+    #[serde(default)]
+    pub total_max_gb: Option<u64>,
+}
+
+impl Default for ArtifactsScopeConfig {
+    fn default() -> Self {
+        Self {
+            size_max_mb: None,
+            ttl_hours: None,
+            total_max_gb: None,
+        }
+    }
+}
+
+/// Sync options (phase-3 placeholder — `enabled: false` in phase 1).
+#[derive(Serialize, Deserialize, Debug, Clone, Default, Type)]
+pub struct ArtifactsSyncConfig {
+    #[serde(default)]
+    pub enabled: bool,
+}
+
+/// Top-level `artifacts` block in ship.jsonc.
+#[derive(Serialize, Deserialize, Debug, Clone, Type)]
+pub struct ArtifactsConfig {
+    #[serde(default)]
+    pub run: ArtifactsScopeConfig,
+    #[serde(default)]
+    pub project: ArtifactsScopeConfig,
+    #[serde(default)]
+    pub user: ArtifactsScopeConfig,
+    /// MIME types to allow. `null` means all types are allowed.
+    #[serde(default)]
+    pub mime_allowlist: Option<Vec<String>>,
+    /// MIME types to reject.
+    #[serde(default)]
+    pub mime_denylist: Vec<String>,
+    #[serde(default)]
+    pub sync: ArtifactsSyncConfig,
+}
+
+impl Default for ArtifactsConfig {
+    fn default() -> Self {
+        Self {
+            run: ArtifactsScopeConfig {
+                ttl_hours: Some(24),
+                size_max_mb: Some(50),
+                total_max_gb: None,
+            },
+            project: ArtifactsScopeConfig {
+                size_max_mb: Some(100),
+                total_max_gb: Some(5),
+                ttl_hours: None,
+            },
+            user: ArtifactsScopeConfig {
+                size_max_mb: Some(100),
+                total_max_gb: Some(10),
+                ttl_hours: None,
+            },
+            mime_allowlist: None,
+            mime_denylist: vec![
+                "application/x-msdownload".into(),
+                "application/x-executable".into(),
+            ],
+            sync: ArtifactsSyncConfig { enabled: false },
+        }
+    }
+}
+
+impl ArtifactsConfig {
+    /// Validate settings; return an error string describing the first invalid
+    /// value found. Called at daemon startup.
+    pub fn validate(&self) -> Result<(), String> {
+        fn check_scope(name: &str, cfg: &ArtifactsScopeConfig) -> Result<(), String> {
+            if let Some(mb) = cfg.size_max_mb {
+                if mb == 0 {
+                    return Err(format!("artifacts.{name}.size_max_mb must be > 0"));
+                }
+            }
+            if let Some(gb) = cfg.total_max_gb {
+                if gb == 0 {
+                    return Err(format!("artifacts.{name}.total_max_gb must be > 0"));
+                }
+            }
+            if let Some(h) = cfg.ttl_hours {
+                if h == 0 {
+                    return Err(format!("artifacts.{name}.ttl_hours must be > 0"));
+                }
+            }
+            Ok(())
+        }
+        check_scope("run", &self.run)?;
+        check_scope("project", &self.project)?;
+        check_scope("user", &self.user)?;
+        Ok(())
+    }
+
+    /// TTL for run-scope artifacts in hours (default 24).
+    pub fn run_ttl_hours(&self) -> u64 {
+        self.run.ttl_hours.unwrap_or(24)
+    }
+
+    /// Size cap for the given scope in bytes, or None if uncapped.
+    pub fn size_max_bytes(&self, scope: &str) -> Option<u64> {
+        let mb = match scope {
+            "run" => self.run.size_max_mb,
+            "project" => self.project.size_max_mb,
+            "user" => self.user.size_max_mb,
+            _ => None,
+        }?;
+        Some(mb * 1024 * 1024)
+    }
+}
+
+#[cfg(test)]
+mod artifacts_config_tests {
+    use super::*;
+
+    #[test]
+    fn defaults_are_sane() {
+        let cfg = ArtifactsConfig::default();
+        assert!(cfg.validate().is_ok());
+        assert_eq!(cfg.run_ttl_hours(), 24);
+        assert_eq!(cfg.size_max_bytes("run"), Some(50 * 1024 * 1024));
+        assert_eq!(cfg.size_max_bytes("project"), Some(100 * 1024 * 1024));
+        assert_eq!(cfg.size_max_bytes("user"), Some(100 * 1024 * 1024));
+    }
+
+    #[test]
+    fn parses_from_json() {
+        let json = r#"{
+            "run": { "ttl_hours": 48, "size_max_mb": 20 },
+            "project": { "size_max_mb": 200, "total_max_gb": 10 },
+            "user": {},
+            "sync": { "enabled": true }
+        }"#;
+        let cfg: ArtifactsConfig = serde_json::from_str(json).unwrap();
+        assert_eq!(cfg.run.ttl_hours, Some(48));
+        assert_eq!(cfg.run.size_max_mb, Some(20));
+        assert_eq!(cfg.project.total_max_gb, Some(10));
+        assert!(cfg.sync.enabled);
+        assert!(cfg.validate().is_ok());
+    }
+
+    #[test]
+    fn zero_size_max_rejected() {
+        let mut cfg = ArtifactsConfig::default();
+        cfg.run.size_max_mb = Some(0);
+        assert!(cfg.validate().is_err());
+    }
+
+    #[test]
+    fn zero_ttl_hours_rejected() {
+        let mut cfg = ArtifactsConfig::default();
+        cfg.run.ttl_hours = Some(0);
+        assert!(cfg.validate().is_err());
+    }
+
+    #[test]
+    fn absent_artifacts_block_uses_defaults() {
+        let json = r#"{}"#;
+        let cfg: ArtifactsConfig = serde_json::from_str(json).unwrap();
+        assert!(cfg.validate().is_ok());
+        assert_eq!(cfg.run_ttl_hours(), 24);
+    }
+}
+
 // Used as a serde default in project.rs — must be pub.
 pub fn default_namespaces() -> Vec<NamespaceConfig> {
     vec![

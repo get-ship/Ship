@@ -1,6 +1,6 @@
 use super::types::{
-    AgentLayerConfig, AiConfig, GitConfig, HookConfig, NamespaceConfig, PermissionConfig,
-    StatusConfig, is_agent_layer_empty,
+    AgentLayerConfig, AiConfig, ArtifactsConfig, GitConfig, HookConfig, NamespaceConfig,
+    PermissionConfig, StatusConfig, is_agent_layer_empty,
 };
 use serde::{Deserialize, Serialize};
 use specta::Type;
@@ -145,6 +145,9 @@ pub struct ProjectConfig {
     /// Claimed `.ship` namespaces. First-party modules are always present.
     #[serde(default = "default_namespaces")]
     pub namespaces: Vec<NamespaceConfig>,
+    /// Artifact storage settings. Defaults apply if the block is absent.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub artifacts: Option<ArtifactsConfig>,
 }
 
 #[derive(Serialize, Deserialize, Debug, Clone, Default)]
@@ -216,6 +219,7 @@ impl Default for ProjectConfig {
             agent: AgentLayerConfig::default(),
             namespaces: default_namespaces(),
             providers: default_providers(),
+            artifacts: None,
         }
     }
 }
