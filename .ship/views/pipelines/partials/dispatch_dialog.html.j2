@@ -47,10 +47,9 @@
       Cancel
     </ship-button>
     <ship-button tone="accent" variant="solid"
-      data-on:click="@post('/api/runtime/dispatch', {
+      data-on:click="@post('/api/pipelines/' + encodeURIComponent({% if fixed_pipeline %}'{{ fixed_pipeline }}'{% else %}$dispatch_pipeline{% endif %}) + '/dispatch', {
         contentType: 'json',
         body: JSON.stringify({
-          pipeline: {% if fixed_pipeline %}'{{ fixed_pipeline }}'{% else %}$dispatch_pipeline{% endif %},
           spec: $dispatch_spec,
           provider: $dispatch_provider || null,
           headless: $dispatch_headless
