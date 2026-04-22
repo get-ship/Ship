@@ -16,7 +16,7 @@
       </ship-button>
     </ship-empty-state>
   {% else %}
-    <div class="agents-grid">
+    <div class="agents-grid" data-view-enter>
       {% for a in agents %}
         {% include 'agents/partials/card.html.j2' %}
       {% endfor %}

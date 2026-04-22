@@ -21,7 +21,7 @@
       </h2>
       <ship-badge tone="info">{{ active_runs | length }}</ship-badge>
     </div>
-    <div class="ship-pipelines-run-list">
+    <div class="ship-pipelines-run-list" data-view-enter>
       {% for run in active_runs %}
         {% set run_state = run.state | replace('-', '') %}
         <ship-pipeline-run state="{{ run_state }}" slug="{{ run.slug }}" agent="{{ run.agent }}">
@@ -87,7 +87,7 @@
       <ship-badge tone="muted">{{ defs | length }}</ship-badge>
     </div>
     {% if defs and defs | length > 0 %}
-    <div class="ship-pipelines-def-list">
+    <div class="ship-pipelines-def-list" data-view-enter>
       {% for def in defs %}
       {% set tile_tone = 'info' if (def.active_runs and def.active_runs > 0) else (def.last_run_tone or 'muted') %}
       <ship-card interactive status-rail tone="{{ tile_tone }}"

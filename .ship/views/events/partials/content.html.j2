@@ -9,7 +9,7 @@
    - payload preview clamped to 2 lines in the collapsed summary; full payload
      still renders in the <pre> drawer once expanded.
 -#}
-<div id="events-content" class="events-content">
+<div id="events-content" class="events-content" data-view-enter>
   {% if groups|length == 0 %}
     <ship-empty-state
       icon="activity"

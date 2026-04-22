@@ -56,7 +56,7 @@
         tints the value text, not a top border-bar). The 2px colored stripe
         is part of dashboard visual identity, so we keep a thin view-local
         wrapper that paints the stripe via `::before` on top of ship-stat. -#}
-    <div class="dash-stats" role="list" aria-label="Workspace statistics">
+    <div class="dash-stats" role="list" aria-label="Workspace statistics" data-view-enter>
       <div class="dash-stat-wrap dash-stat-wrap--jobs" role="listitem">
         <ship-stat>
           <span slot="label">Total jobs</span>
@@ -165,7 +165,7 @@
         </div>
         <div class="dash-section-body">
           {% if all_agents | length > 0 %}
-          <div class="dash-agents-grid">
+          <div class="dash-agents-grid" data-view-enter>
             {% for agent in all_agents | take(6) %}
             {%- set agent_name = agent.name if agent.name is defined else agent.id -%}
             {%- set agent_letter = agent.letter if agent.letter is defined else (agent.name[0] if agent.name is defined and agent.name | length > 0 else 'A') -%}
