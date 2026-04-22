@@ -1,62 +1,128 @@
-{#- Permissions section. Context: agent (AgentDetail), tiers (Vec<TierRow>).
-    Hand-wrapped ship-card — action button in header; preset-cards and
-    permission-cards are specialized view-local compositions.
-    Parity: apps/web/src/features/agents/sections/PermissionsSection.tsx -#}
-{% from '_ship.html.j2' import radio %}
-<ship-card padding="none" id="section-permissions">
+{#- Permissions section — preset select + three tool-pattern lists.
+    Context: agent (AgentDetail), catalogs (AgentCatalogs). Edits post
+    to PUT /api/agents/{id}/permissions (wholesale replace; merge is
+    wrong for tool removal).
+
+    Signals (view-root):
+      pAllow / pAsk / pDeny — string arrays, seed from agent.permissions
+      pPreset — preset id from agent.permissions.preset
+      pDirty — true once the user touches any field; gates the Save button
+    Seeded via the `signals` macro at the top of the include.
+
+    Autocomplete: three plain <ship-input>s backed by <datalist> so the
+    suggestion popup is native + accessible without a custom combobox.
+-#}
+<ship-card padding="none" id="section-permissions"
+           data-signals:pAllow="{{ agent.permissions.tools_allow | tojson | replace('\"', '&quot;') }}"
+           data-signals:pAsk="{{ agent.permissions.tools_ask | tojson | replace('\"', '&quot;') }}"
+           data-signals:pDeny="{{ agent.permissions.tools_deny | tojson | replace('\"', '&quot;') }}"
+           data-signals:pPreset="'{{ agent.permissions.preset | e }}'"
+           data-signals:pDirty="false"
+           data-signals:pSaving="false">
   <div slot="header" class="ad-section-head">
     <h2 class="ad-section-title">
       <ship-icon name="lock"></ship-icon>
       Permissions
     </h2>
+    <ship-button variant="outline" size="sm"
+                 data-attr:disabled="!$pDirty || $pSaving"
+                 data-class:is-saving="$pSaving"
+                 data-on:click="$pSaving = true; @put('/api/agents/{{ agent.id | e }}/permissions', {contentType: 'json', body: JSON.stringify({preset: $pPreset, tools_allow: $pAllow, tools_ask: $pAsk, tools_deny: $pDeny})}); $pDirty = false; $pSaving = false">
+      <ship-icon slot="leading" name="check"></ship-icon>
+      Save
+    </ship-button>
   </div>
   <div class="ad-section-body">
-    <!-- Preset buttons -->
-    <div class="ad-preset-row" role="radiogroup" aria-label="Permission preset">
-      {% for t in tiers %}
-        <button type="button" class="ad-preset-btn"
-                role="radio"
-                tabindex="0"
-                {{ radio('tier', t.id) }}
-                aria-checked="{% if t.selected %}true{% else %}false{% endif %}">
-          <span class="ad-preset-label">
-            {% if t.id == 'standard' %}
-              <ship-icon name="lock"></ship-icon>
-            {% elif t.id == 'autonomous' %}
-              <ship-icon name="check"></ship-icon>
+
+    {# ── Preset select ─────────────────────────────────────────── #}
+    <ship-field style="margin-bottom: var(--space-4)">
+      <ship-label for="perm-preset">Preset</ship-label>
+      <ship-select id="perm-preset" size="sm"
+                   data-bind="pPreset"
+                   data-on:change="$pDirty = true">
+        <option value="">(none)</option>
+        {% for p in catalogs.presets %}
+          <option value="{{ p.id | e }}">{{ p.name | e }}</option>
+        {% endfor %}
+      </ship-select>
+      <span slot="hint" style="font-size:var(--text-xs); color:var(--muted-foreground)">
+        Named entry from <code style="font-family:var(--font-mono)">.ship/permissions.jsonc</code>.
+        Tool lists below merge on top of the preset's own lists.
+      </span>
+    </ship-field>
+
+    {# ── Shared autocomplete source ────────────────────────────── #}
+    <datalist id="perm-tool-catalog">
+      {% for t in catalogs.tool_patterns %}
+        <option value="{{ t.pattern | e }}">{{ t.label | e }}</option>
+      {% endfor %}
+    </datalist>
+
+    {# ── Three tool-pattern lists ──────────────────────────────── #}
+    <div class="ad-perm-grid">
+      {% for row in [
+        ('allow', 'pAllow', 'Allow', 'check', 'allow'),
+        ('ask',   'pAsk',   'Ask',   'info',  'ask'),
+        ('deny',  'pDeny',  'Deny',  'x',     'deny'),
+      ] %}
+        {% set key = row[0] %}
+        {% set sig = row[1] %}
+        {% set label = row[2] %}
+        {% set icon = row[3] %}
+        {% set tone = row[4] %}
+        <div class="ad-perm-card" data-perm-tone="{{ tone }}">
+          <div class="ad-perm-card-head ad-perm-card-head--{{ tone }}">
+            <ship-icon name="{{ icon }}"></ship-icon>
+            {{ label }}
+            <span class="ad-perm-count" data-text="${{ sig }}.length"></span>
+          </div>
+
+          {# Add input — enter or catalog pick commits the value. #}
+          <div class="ad-perm-add">
+            <input
+              type="text" list="perm-tool-catalog"
+              class="ad-perm-add-input"
+              placeholder="Tool pattern…"
+              data-signals:_{{ key }}Draft="''"
+              data-bind="_{{ key }}Draft"
+              data-on:keydown="if (evt.key === 'Enter' && $_{{ key }}Draft.trim() && !${{ sig }}.includes($_{{ key }}Draft.trim())) { ${{ sig }} = [...${{ sig }}, $_{{ key }}Draft.trim()]; $_{{ key }}Draft = ''; $pDirty = true; evt.preventDefault() }">
+            <ship-button variant="ghost" size="sm" aria-label="Add"
+              data-attr:disabled="!$_{{ key }}Draft.trim()"
+              data-on:click="if ($_{{ key }}Draft.trim() && !${{ sig }}.includes($_{{ key }}Draft.trim())) { ${{ sig }} = [...${{ sig }}, $_{{ key }}Draft.trim()]; $_{{ key }}Draft = ''; $pDirty = true }">
+              <ship-icon name="plus" size="xs"></ship-icon>
+            </ship-button>
+          </div>
+
+          {# Seeded chips — rendered server-side. After the first edit the
+             chip list becomes stale (client owns truth), so we swap to
+             a data-show'd "modified" banner and rely on Save to refresh. #}
+          <div class="ad-perm-list" data-show="!$pDirty">
+            {% set current = agent.permissions.tools_allow if key == 'allow' else (agent.permissions.tools_ask if key == 'ask' else agent.permissions.tools_deny) %}
+            {% if current | length == 0 %}
+              <span class="ad-perm-none">none</span>
             {% else %}
-              <ship-icon name="eye-off"></ship-icon>
+              {% for pattern in current %}
+                <span class="ad-perm-chip">
+                  <span class="ad-perm-chip-text">{{ pattern | e }}</span>
+                  <button type="button" class="ad-perm-chip-rm" aria-label="Remove"
+                          data-on:click="${{ sig }} = ${{ sig }}.filter(x => x != '{{ pattern | e }}'); $pDirty = true">
+                    ×
+                  </button>
+                </span>
+              {% endfor %}
             {% endif %}
-            {{ t.label }}
-          </span>
-          <p class="ad-preset-desc">{{ t.description }}</p>
-        </button>
+          </div>
+          <div class="ad-perm-list" data-show="$pDirty" style="display:none">
+            <span class="ad-perm-dirty-note">Unsaved changes — hit Save to apply.</span>
+          </div>
+        </div>
       {% endfor %}
     </div>
 
-    <!-- Permission cards -->
-    <div class="ad-perm-grid">
-      <div class="ad-perm-card">
-        <div class="ad-perm-card-head ad-perm-card-head--allow">
-          <ship-icon name="check"></ship-icon>
-          Allow
-        </div>
-        <p class="ad-perm-card-list"><span class="ad-perm-none">none</span></p>
-      </div>
-      <div class="ad-perm-card">
-        <div class="ad-perm-card-head ad-perm-card-head--ask">
-          <ship-icon name="info"></ship-icon>
-          Ask
-        </div>
-        <p class="ad-perm-card-list"><span class="ad-perm-none">none</span></p>
-      </div>
-      <div class="ad-perm-card">
-        <div class="ad-perm-card-head ad-perm-card-head--deny">
-          <ship-icon name="x"></ship-icon>
-          Deny
-        </div>
-        <p class="ad-perm-card-list"><span class="ad-perm-none">none</span></p>
-      </div>
-    </div>
+    <p class="ad-perm-hint">
+      Tool patterns: <code>Read</code>, <code>Write</code>,
+      <code>Bash(git *)</code>, <code>mcp__ship__*</code>. Globs allowed.
+      Preset lists merge first; these lists layer on top.
+    </p>
   </div>
 </ship-card>

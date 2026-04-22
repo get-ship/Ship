@@ -219,11 +219,94 @@
 .ad-perm-card-head--allow { color: oklch(0.55 0.2 155); }
 .ad-perm-card-head--ask { color: oklch(0.65 0.16 70); }
 .ad-perm-card-head--deny { color: var(--destructive); }
+.ad-perm-count {
+  margin-left: auto;
+  font-size: 10px; font-weight: var(--font-weight-medium);
+  color: var(--muted-foreground);
+  background: var(--muted); padding: 1px 6px; border-radius: var(--radius-full);
+  font-variant-numeric: tabular-nums;
+}
 .ad-perm-card-list {
   font-size: var(--text-xs); color: var(--muted-foreground);
   margin: 0; line-height: 1.5;
 }
-.ad-perm-none { font-style: italic; opacity: 0.5; }
+.ad-perm-none { font-style: italic; opacity: 0.5; font-size: var(--text-xs); }
+
+/* Per-tone tints on the card body so the three lists read distinctly
+ * without a heavy chrome swap. Keeps the tile shape identical — only
+ * the wash changes. */
+.ad-perm-card[data-perm-tone="allow"] {
+  background: color-mix(in oklch, var(--success) 5%, var(--card));
+  border-color: color-mix(in oklch, var(--success) 20%, var(--border));
+}
+.ad-perm-card[data-perm-tone="ask"] {
+  background: color-mix(in oklch, var(--warning) 5%, var(--card));
+  border-color: color-mix(in oklch, var(--warning) 20%, var(--border));
+}
+.ad-perm-card[data-perm-tone="deny"] {
+  background: color-mix(in oklch, var(--destructive) 5%, var(--card));
+  border-color: color-mix(in oklch, var(--destructive) 20%, var(--border));
+}
+
+/* Add-input row at the top of each list. Native datalist popup means
+ * we inherit browser a11y + autocomplete for free. */
+.ad-perm-add {
+  display: flex; align-items: center; gap: var(--space-1);
+  margin: var(--space-2) 0;
+}
+.ad-perm-add-input {
+  flex: 1; min-width: 0;
+  appearance: none; border: 1px solid var(--border);
+  background: var(--background); color: var(--foreground);
+  font: inherit; font-size: var(--text-xs);
+  padding: 4px 8px; border-radius: var(--radius-sm);
+  font-family: var(--font-mono);
+}
+.ad-perm-add-input:focus {
+  outline: 2px solid var(--ring); outline-offset: 0;
+  border-color: transparent;
+}
+
+/* Chip list — server-rendered seeds. After first edit the authoritative
+ * source is the signal array; we hide this block until Save refreshes. */
+.ad-perm-list {
+  display: flex; flex-wrap: wrap; gap: 4px;
+  min-height: 28px;
+}
+.ad-perm-chip {
+  display: inline-flex; align-items: center; gap: 4px;
+  padding: 2px 4px 2px 8px;
+  background: var(--card); border: 1px solid var(--border);
+  border-radius: var(--radius-sm);
+  font-family: var(--font-mono); font-size: 11px;
+  color: var(--foreground);
+}
+.ad-perm-chip-text { white-space: nowrap; }
+.ad-perm-chip-rm {
+  appearance: none; border: 0; background: transparent;
+  width: 16px; height: 16px;
+  display: grid; place-items: center;
+  border-radius: 2px;
+  color: var(--muted-foreground); cursor: pointer;
+  font-size: 14px; line-height: 1;
+}
+.ad-perm-chip-rm:hover {
+  background: var(--muted); color: var(--destructive);
+}
+.ad-perm-dirty-note {
+  font-size: var(--text-xs); color: var(--muted-foreground);
+  font-style: italic;
+}
+
+.ad-perm-hint {
+  margin: var(--space-3) 0 0;
+  font-size: var(--text-xs); color: var(--muted-foreground);
+  line-height: 1.5;
+}
+.ad-perm-hint code {
+  font-family: var(--font-mono); font-size: 11px;
+  background: var(--muted); padding: 1px 4px; border-radius: 3px;
+}
 
 /* Rules row — list of ship-list-tile rows with the rule name in primary
    (mono) and an edit ship-button in trailing. The mono-styled primary
