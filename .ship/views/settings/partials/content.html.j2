@@ -48,7 +48,8 @@
         <div class="s-provider-label">Installed providers</div>
         {% for p in providers %}
         <ship-list-tile density="compact" class="s-prov-tile">
-          <ship-status-dot slot="leading" tone="{{ 'success' if p.available else 'muted' }}"></ship-status-dot>
+          <ship-provider-blob slot="leading" provider="{{ p.id }}" size="sm" variant="glyph"
+                              {% if not p.available %}style="opacity:0.45;filter:grayscale(1)"{% endif %}></ship-provider-blob>
           <span class="s-prov-name">{{ p.id }}</span>
           <span slot="trailing" class="s-prov-right">
             <span>{% if p.available %}installed{% else %}not found{% endif %}</span>
