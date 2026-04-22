@@ -169,6 +169,14 @@ pub async fn dispatch_fanout_step(
             activity_rx,
         );
 
+        // Persist a lane-scoped step.dispatched with `fanout_parent_step`
+        // + `lane_slug` so the restart reconciler can enumerate lanes
+        // after a daemon crash — `fanout_lane_refs` lives in-memory only.
+        super::fanout_recover::emit_fanout_lane_dispatched(
+            kernel, &job.job_id, slug, &step.id,
+            &lane.id, &lane_slug, &lane_step_id,
+        ).await;
+
         lane_rxs.push((lane.id.clone(), rx));
         spawned += 1;
     }
@@ -197,6 +205,20 @@ pub async fn dispatch_fanout_step(
                     // registering rx). Treat as a failed lane with no outputs.
                 }
             }
+        }
+
+        // If every lane's sender was dropped without a value AND the
+        // parent job is already terminal (typically Cancelled), exit
+        // quietly. The terminal-state guard would drop any step.failed
+        // we emitted anyway, and emitting one would pollute the event
+        // log with a misleading "insufficient successful lanes" reason
+        // for an operator-initiated cancellation.
+        if outcomes.is_empty() && parent_job_is_terminal(&job_id) {
+            tracing::info!(
+                job_id, step_id,
+                "fanout: aggregator exiting — parent job is terminal (cancelled or failed)"
+            );
+            return;
         }
 
         let decision = aggregate_lane_outcomes(&outcomes, min_ok, total);
@@ -242,4 +264,25 @@ pub async fn dispatch_fanout_step(
     emit_step_dispatched_event(kernel, &job.job_id, &step.id, "fanout", slug, ship_dir_override).await;
 
     spawned
+}
+
+/// Peek at the projection to see whether `job_id` is in a terminal state.
+/// Used by the fanout aggregator to suppress misleading `step.failed`
+/// emissions after operator cancellation (or any other path that drops
+/// every lane sender without reporting an outcome).
+///
+/// Returns `false` when the projection can't be loaded so we never
+/// swallow a genuine fanout failure.
+fn parent_job_is_terminal(job_id: &str) -> bool {
+    use crate::projections::job::{load_jobs, JobStatus};
+    match load_jobs() {
+        Ok(jobs) => jobs.values().any(|j| {
+            j.job_id == job_id
+                && matches!(
+                    j.status,
+                    JobStatus::Cancelled | JobStatus::Failed | JobStatus::Merged
+                )
+        }),
+        Err(_) => false,
+    }
 }

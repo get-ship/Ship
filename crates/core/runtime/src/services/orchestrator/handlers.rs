@@ -216,12 +216,22 @@ pub async fn handle_job_cancelled(
         }
     }
 
+    // Fanout reliability: walk every lane registered under this job and
+    // tear it down. The parent-slug kill above only hits the parent
+    // fanout step (if any); lane tmux windows + worktrees would survive
+    // as orphans otherwise, and the aggregator's `rx.await` would block
+    // forever. Drop the lane oneshot senders so the aggregator wakes
+    // promptly — it checks the parent job's terminal status before
+    // emitting a misleading step.failed.
+    super::fanout_cancel::cancel_job_fanout_lanes(kernel, &envelope.entity_id, octx).await;
+
     // Drop per-slug bookkeeping so a subsequent retry with the same slug
     // isn't confused by stale state.
     octx.done_flags.lock().await.remove(slug.as_str());
     octx.activity_txs.lock().await.remove(slug.as_str());
     octx.job_locks.lock().await.remove(&envelope.entity_id);
 }
+
 
 /// Execute a merge step: git merge the job branch, emit `job.merged` on success.
 /// Returns `true` if the merge succeeded.
