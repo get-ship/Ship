@@ -15,6 +15,8 @@
 
 pub mod dedup;
 pub mod emit;
+pub mod fanout;
+pub mod fanout_aggregate;
 pub mod git_helpers;
 pub mod review_retry;
 pub mod gate_rules;
@@ -55,6 +57,12 @@ mod tests_terminal_guard;
 mod tests_heartbeat;
 #[cfg(test)]
 mod tests_step_io;
+#[cfg(test)]
+mod tests_fanout;
+#[cfg(test)]
+mod tests_fanout_harness;
+#[cfg(test)]
+mod tests_fanout_integration;
 
 use crate::services::dispatch_ports::{
     AgentPlatform, IsolationStrategy, JobExecutor, ProcessRegistryPort, ProcessTreeProbe,
@@ -70,6 +78,24 @@ pub enum StepActivity {
     /// A provider Stop hook fired — the agent finished a response turn.
     /// In interactive mode this does NOT mean the task is done.
     TurnEnded,
+}
+
+/// Outcome from a single fanout lane after its step monitor fires.
+#[derive(Debug, Clone)]
+pub struct LaneOutcome {
+    pub lane_id: String,
+    pub success: bool,
+    pub outputs: std::collections::BTreeMap<String, String>,
+}
+
+/// Reference that links a lane slug back to its parent fanout step.
+#[derive(Debug, Clone)]
+pub struct FanoutLaneRef {
+    pub job_id: String,
+    pub parent_slug: String,
+    pub fanout_step_id: String,
+    pub fanout_step_index: usize,
+    pub lane_id: String,
 }
 
 /// Bundles the injected strategies for job orchestration.
@@ -98,4 +124,9 @@ pub struct OrchestratorContext {
     /// envelope (mailbox redelivery, startup replay race, test replay)
     /// from advancing the pipeline twice.
     pub event_dedup: Arc<dedup::EventDedup>,
+    /// Maps lane_slug → oneshot sender. When a lane's step.observed fires,
+    /// the router sends the lane outcome here instead of calling advance_pipeline.
+    pub fanout_lane_txs: Arc<Mutex<HashMap<String, tokio::sync::oneshot::Sender<LaneOutcome>>>>,
+    /// Maps lane_slug → FanoutLaneRef so the router can identify fanout lanes.
+    pub fanout_lane_refs: Arc<Mutex<HashMap<String, FanoutLaneRef>>>,
 }

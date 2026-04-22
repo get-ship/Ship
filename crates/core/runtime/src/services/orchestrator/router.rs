@@ -205,6 +205,15 @@ pub async fn handle_job_event(
                 octx.activity_txs.lock().await.remove(slug.as_str());
             }
 
+            // Fanout lane completion: route to the aggregator instead of advance_pipeline.
+            if let Some(slug) = &slug {
+                let lane_ref = octx.fanout_lane_refs.lock().await.get(slug.as_str()).cloned();
+                if let Some(lane_ref) = lane_ref {
+                    super::fanout::complete_fanout_lane(kernel, &payload, &lane_ref, octx).await;
+                    return;
+                }
+            }
+
             use crate::events::job::StepVerdict;
 
             // Evaluate any declared post-step diff gate. This short-circuits

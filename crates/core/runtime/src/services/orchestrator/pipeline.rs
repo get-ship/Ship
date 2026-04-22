@@ -179,6 +179,18 @@ async fn advance_pipeline_inner(
             agent = ?step.agent, "pipeline: dispatching next step"
         );
 
+        // Fanout step: dispatch all lanes in parallel, aggregator handles completion.
+        if let Some(fanout) = &step.fanout {
+            let spawned = super::fanout::dispatch_fanout_step(
+                kernel, &job, step, fanout, step_idx, ship_dir_override, octx,
+            ).await;
+            if spawned > 0 {
+                emit_job_dispatched_with_meta(kernel, &job.job_id, &worktree_path, slug, None, ship_dir_override).await;
+                dispatched_any = true;
+            }
+            continue;
+        }
+
         match step.step_type {
             StepType::Run => {
                 let command = match step.command {

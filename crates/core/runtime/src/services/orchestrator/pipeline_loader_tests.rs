@@ -51,6 +51,7 @@ fn missing_agent_on_agent_step_fails_at_load() {
             produces: vec![],
             consumes: vec![],
             promotes: vec![],
+            fanout: None,
         }],
         auto_merge: false,
     });
@@ -79,6 +80,7 @@ fn missing_agent_on_review_step_fails_at_load() {
                 produces: vec![],
                 consumes: vec![],
                 promotes: vec![],
+                fanout: None,
             },
             PipelineStep {
                 id: "naked-gate".into(),
@@ -94,6 +96,7 @@ fn missing_agent_on_review_step_fails_at_load() {
                 produces: vec![],
                 consumes: vec![],
                 promotes: vec![],
+                fanout: None,
             },
         ],
         auto_merge: false,
@@ -143,6 +146,7 @@ fn run_step_without_agent_is_fine() {
             produces: vec![],
             consumes: vec![],
             promotes: vec![],
+            fanout: None,
         }],
         auto_merge: false,
     });
@@ -166,6 +170,7 @@ fn agent_step(id: &str, agent: &str) -> PipelineStep {
         produces: vec![],
         consumes: vec![],
         promotes: vec![],
+        fanout: None,
     }
 }
 
