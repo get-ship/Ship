@@ -21,11 +21,12 @@ use std::time::Duration;
 use crate::views::resolve_view_dir;
 use crate::views::stream::{ViewSse, ViewStream};
 use crate::views::templates;
-use crate::views_git_annotations::{AnnotationsByLine, load_file_annotations};
-use crate::views_git_data::{
-    BranchSummary, CommitSummary, StatusFile, load_ahead_behind, load_branch, load_branches,
-    load_commit_diff, load_log, load_status_buckets, load_working_diff, resolve_root,
+use crate::services::git::read::{
+    load_ahead_behind, load_branch, load_branches, load_commit_diff, load_log,
+    load_status_buckets, load_working_diff, DEFAULT_LOG_LIMIT,
 };
+use crate::services::git::state::{resolve_root, BranchSummary, CommitSummary, StatusFile};
+use crate::views_git_annotations::{AnnotationsByLine, load_file_annotations};
 use crate::views_git_diff::{ParsedDiff, parse_unified_diff};
 
 /// Query string for both shell + SSE endpoints.
@@ -143,7 +144,7 @@ pub(crate) fn build_base_ctx(params: &GitParams, ship_dir: &Path) -> GitCtx {
     let branch = load_branch(&root);
     let head_short = commits_head_short(&root);
     let buckets = load_status_buckets(&root);
-    let commits = load_log(&root);
+    let commits = load_log(&root, None, DEFAULT_LOG_LIMIT);
     let branches = load_branches(&root);
     let (ahead, behind) = load_ahead_behind(&root).unwrap_or((0, 0));
     let selected_commit = resolve_selected(params, &root);

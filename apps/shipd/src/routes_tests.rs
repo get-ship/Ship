@@ -35,13 +35,12 @@ fn named_variant_substitutes_params() {
 
 #[test]
 fn multi_param_variant_substitutes_all() {
-    let url = Route::SetSkillVar {
-        id: "ws-1".to_string(),
-        skillId: "code".to_string(),
+    let url = Route::SkillsPutVar {
+        id: "code".to_string(),
         key: "model".to_string(),
     }
     .full_path();
-    assert_eq!(url, "/api/workspaces/ws-1/skills/code/vars/model");
+    assert_eq!(url, "/api/skills/code/vars/model");
 }
 
 #[test]
@@ -74,13 +73,12 @@ fn template_path_preserves_placeholders() {
         "/api/runtime/specs/{id}"
     );
     assert_eq!(
-        Route::SetSkillVar {
+        Route::SkillsPutVar {
             id: String::new(),
-            skillId: String::new(),
             key: String::new()
         }
         .template_path(),
-        "/api/workspaces/{id}/skills/{skillId}/vars/{key}"
+        "/api/skills/{id}/vars/{key}"
     );
 }
 

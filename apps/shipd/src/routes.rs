@@ -213,6 +213,104 @@ pub enum Route {
     /// @route GET "/api/pipelines/runs/{slug}/log/stream"
     PipelineRunLogStream { slug: String },
 
+    // ── RuleService — markdown rules at <scope>/rules/<id>.md ──
+
+    /// @route GET "/api/rules"
+    RulesList,
+
+    /// @route GET "/api/rules/{id}"
+    RulesGet { id: String },
+
+    /// @route PUT "/api/rules/{id}"
+    RulesPut { id: String },
+
+    /// @route DELETE "/api/rules/{id}"
+    RulesDelete { id: String },
+
+    /// @route POST "/api/rules"
+    RulesCreate,
+
+    // ── McpService — entries in <scope>/mcp.jsonc ──
+
+    /// @route GET "/api/mcp"
+    McpList,
+
+    /// @route GET "/api/mcp/{id}"
+    McpGet { id: String },
+
+    /// @route PUT "/api/mcp/{id}"
+    McpPut { id: String },
+
+    /// @route PATCH "/api/mcp/{id}"
+    McpPatch { id: String },
+
+    /// @route DELETE "/api/mcp/{id}"
+    McpDelete { id: String },
+
+    /// @route POST "/api/mcp"
+    McpCreate,
+
+    // ── PermissionService — preset entries in <scope>/permissions.jsonc ──
+
+    /// @route GET "/api/permissions"
+    PermissionsList,
+
+    /// @route GET "/api/permissions/tool-patterns"
+    PermissionsToolPatterns,
+
+    /// @route GET "/api/permissions/{id}"
+    PermissionsGet { id: String },
+
+    /// @route PUT "/api/permissions/{id}"
+    PermissionsPut { id: String },
+
+    /// @route PATCH "/api/permissions/{id}"
+    PermissionsPatch { id: String },
+
+    /// @route DELETE "/api/permissions/{id}"
+    PermissionsDelete { id: String },
+
+    /// @route POST "/api/permissions"
+    PermissionsCreate,
+
+    // ── SkillService — service-shaped CRUD + vars ──
+
+    /// @route GET "/api/skills"
+    SkillsList,
+
+    /// @route GET "/api/skills/{id}"
+    SkillsGet { id: String },
+
+    /// @route POST "/api/skills"
+    SkillsCreate,
+
+    /// @route DELETE "/api/skills/{id}"
+    SkillsDelete { id: String },
+
+    /// @route PUT "/api/skills/{id}/frontmatter"
+    SkillsPutFrontmatter { id: String },
+
+    /// @route PUT "/api/skills/{id}/body"
+    SkillsPutBody { id: String },
+
+    /// @route POST "/api/skills/{id}/rename"
+    SkillsRename { id: String },
+
+    /// @route POST "/api/skills/{id}/duplicate"
+    SkillsDuplicate { id: String },
+
+    /// @route POST "/api/skills/{id}/move"
+    SkillsMove { id: String },
+
+    /// @route GET "/api/skills/{id}/vars"
+    SkillsGetVars { id: String },
+
+    /// @route PUT "/api/skills/{id}/vars/{key}"
+    SkillsPutVar { id: String, key: String },
+
+    /// @route DELETE "/api/skills/{id}/vars/{key}"
+    SkillsDeleteVar { id: String, key: String },
+
     /// @route GET "/api/runtime/view/skills"
     ViewSkills,
 
@@ -396,31 +494,11 @@ pub enum Route {
     /// @route GET "/api/workspaces/{id}/session-files"
     ListSessionFiles { id: String },
 
-    /// @route GET "/api/workspaces/{id}/git/status"
-    WorkspaceGitStatus { id: String },
-
-    /// @route GET "/api/workspaces/{id}/git/diff"
-    WorkspaceGitDiff { id: String },
-
-    /// @route GET "/api/workspaces/{id}/git/log"
-    WorkspaceGitLog { id: String },
-
     /// @route GET "/api/workspaces/{id}/agents"
     ListWorkspaceAgents { id: String },
 
     /// @route POST "/api/workspaces/{id}/agents"
     WriteWorkspaceAgent { id: String },
-
-    /// @route GET "/api/workspaces/{id}/skills"
-    ListWorkspaceSkills { id: String },
-
-    /// @route GET "/api/workspaces/{id}/skills/{skillId}/vars"
-    #[allow(non_snake_case)]
-    GetSkillVars { id: String, skillId: String },
-
-    /// @route PUT "/api/workspaces/{id}/skills/{skillId}/vars/{key}"
-    #[allow(non_snake_case)]
-    SetSkillVar { id: String, skillId: String, key: String },
 
     /// @route DELETE "/api/workspaces/{id}"
     DeleteWorkspace { id: String },
@@ -428,14 +506,52 @@ pub enum Route {
     /// @route POST "/api/workspaces/{id}/activate"
     ActivateWorkspace { id: String },
 
-    /// @route GET "/api/project/git/status"
-    ProjectGitStatus,
+    // ── GitService — canonical `/api/git/*` surface ──────────────────────
 
-    /// @route GET "/api/project/git/diff"
-    ProjectGitDiff,
+    /// @route GET "/api/git/status"
+    GitStatus,
 
-    /// @route GET "/api/project/git/log"
-    ProjectGitLog,
+    /// @route GET "/api/git/diff"
+    GitDiff,
+
+    /// @route GET "/api/git/log"
+    GitLog,
+
+    /// @route GET "/api/git/branches"
+    GitBranches,
+
+    /// @route POST "/api/git/stage"
+    GitStage,
+
+    /// @route POST "/api/git/unstage"
+    GitUnstage,
+
+    /// @route POST "/api/git/commit"
+    GitCommit,
+
+    /// @route POST "/api/git/push"
+    GitPush,
+
+    /// @route POST "/api/git/fetch"
+    GitFetch,
+
+    /// @route POST "/api/git/pull"
+    GitPull,
+
+    /// @route POST "/api/git/checkout"
+    GitCheckout,
+
+    /// @route GET "/api/git/commit-draft"
+    GitCommitDraftGet,
+
+    /// @route PUT "/api/git/commit-draft"
+    GitCommitDraftPut,
+
+    /// @route DELETE "/api/git/commit-draft"
+    GitCommitDraftDelete,
+
+    /// @route GET "/api/git/sse"
+    GitSse,
 
     /// @route POST "/api/events/emit"
     EmitEvent,

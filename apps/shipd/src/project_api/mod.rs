@@ -7,15 +7,11 @@
 pub mod artifacts;
 mod agents_skills;
 mod agents_skills_write;
-mod git;
 pub(crate) mod session_files;
 
-pub use agents_skills::{list_agents, list_skills};
-pub use agents_skills_write::{
-    delete_skill_file, get_skill_vars, set_skill_var, write_agent, write_skill_file,
-};
+pub use agents_skills::list_agents;
+pub use agents_skills_write::write_agent;
 pub use artifacts::{artifacts_status, promote_artifact};
-pub use git::{git_diff, git_log, git_status, project_git_diff, project_git_log, project_git_status};
 pub use session_files::{
     delete_session_file, list_session_files, read_session_file, write_session_file,
 };
@@ -311,7 +307,10 @@ mod tests_inline {
     #[tokio::test(flavor = "multi_thread")]
     async fn nonexistent_workspace_returns_404() {
         let (state, _dir) = make_test_state();
-        let response = git_status(
+        // Use `list_agents` as a stand-in for a workspace-scoped handler that
+        // calls `resolve_worktree` — the git endpoints that previously covered
+        // this now live in GitService (`services::git`).
+        let response = list_agents(
             State(state),
             Path("nonexistent-branch-xyz".to_string()),
         )

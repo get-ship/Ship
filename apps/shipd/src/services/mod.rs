@@ -6,5 +6,11 @@
 //! Canonical services architecture doc: `.artifacts/daemon-services.md`.
 
 pub mod files;
+pub mod path_tolerant;
 pub mod agents;
 pub mod pipelines;
+pub mod skills;
+pub mod rules;
+pub mod mcp;
+pub mod permissions;
+pub mod git;

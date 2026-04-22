@@ -109,7 +109,7 @@
       data-signals:commitMsg="''"></textarea>
     <div class="git-commit-actions">
       <ship-button variant="ghost" size="sm"
-        data-on:click="@post('/api/project/git/commit', {payload: {message: $commitMsg, workspace_id: '{{ workspace_id or '' }}'}})">
+        data-on:click="@post('/api/git/commit', {payload: {message: $commitMsg, workspace_id: '{{ workspace_id or '' }}'}})">
         Commit {{ total_changed }}
       </ship-button>
     </div>
