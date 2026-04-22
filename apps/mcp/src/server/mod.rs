@@ -672,17 +672,34 @@ impl ShipServer {
         }
     }
 
+    // ---- View client-error capture ----
+
+    #[tool(
+        description = "Retrieve client-side errors captured from Ship views (Datastar, JS, fetch). \
+        Use this instead of asking the user to copy browser console output. \
+        Returns recent browser-reported errors from the daemon's ring buffer: \
+        JS errors, unhandled promise rejections, and Datastar fetch failures. \
+        Args: since (id floor, for incremental polling), view (filter), limit \
+        (default 50, max 200), clear_after (drain buffer after returning)."
+    )]
+    async fn ship_view_errors(
+        &self,
+        Parameters(req): Parameters<crate::requests::ViewErrorsRequest>,
+    ) -> String {
+        crate::tools::view_errors::view_errors(req).await
+    }
+
     // ---- View linting ----
 
     #[tool(
         description = "Lint a Ship view (.j2 template) against the Ship view authoring rules. \
         Checks for: inline <script> tags (forbidden), inline style budget, undefined Datastar \
-        signals, missing pack declarations, and stale pack declarations. \
-        AGENTS MUST call this before declaring a view-editing task done. \
+        signals, missing pack declarations, stale pack declarations, unknown macros/filters/routes, \
+        and undefined context fields. AGENTS MUST call this before declaring a view-editing task done. \
         Pass 'name' to lint a saved view by name, or 'source' to lint an in-flight draft. \
-        Returns a structured list of findings with severity, rule, file, line, and message."
+        Output groups errors before warnings and includes fix hints (`→ suggest: …`) when available."
     )]
-    async fn lint_view(&self, Parameters(req): Parameters<LintViewRequest>) -> String {
+    async fn ship_view_lint(&self, Parameters(req): Parameters<LintViewRequest>) -> String {
         let project_dir = match self.get_effective_project_dir().await {
             Ok(d) => d,
             Err(e) => return e,
@@ -705,24 +722,92 @@ impl ShipServer {
             return "clean — no findings".to_string();
         }
 
-        let mut out = String::new();
-        for f in &findings {
-            out.push_str(&format!(
-                "[{}] {}:{}:{} ({}): {}\n",
-                f.severity.as_str(),
-                f.file.display(),
-                f.line,
-                f.col,
-                f.rule,
-                f.message,
-            ));
-        }
-        let errors = findings.iter().filter(|f| f.severity == lint::Severity::Error).count();
-        let warns = findings.iter().filter(|f| f.severity == lint::Severity::Warn).count();
-        out.push_str(&format!("\n{} error(s), {} warning(s)", errors, warns));
-        out
+        format_findings(&findings)
     }
 
+    #[tool(
+        description = "Fuzzy-search Ship's SDK surface — macros in _ship.html.j2, REST routes, \
+        view manifests, collection/trigger schemas. Use this BEFORE authoring a view or asking \
+        which macro exists. Prefer this over grepping the daemon source. \
+        Args: query (required), limit (default 20), kind ('macro'|'route'|'view'|'collection'|'trigger')."
+    )]
+    async fn ship_sdk_query(
+        &self,
+        Parameters(req): Parameters<crate::requests::SdkQueryRequest>,
+    ) -> String {
+        crate::tools::sdk_query::sdk_query(req).await
+    }
+
+    #[tool(
+        description = "Generate a starter Ship view template for a given shape. Returns Jinja source \
+        + manifest JSON — the caller writes them. Prefer this over authoring a view from scratch; \
+        idioms stay consistent. \
+        Args: name (required), collection (required for list/form/detail shapes), \
+        shape ('blank'|'list'|'list-edit-delete'|'form'|'detail'|'tabs', default 'blank')."
+    )]
+    async fn ship_view_scaffold(
+        &self,
+        Parameters(req): Parameters<crate::requests::ViewScaffoldRequest>,
+    ) -> String {
+        crate::tools::view_scaffold::view_scaffold(req)
+    }
+
+}
+
+/// Format a list of lint findings: errors first, warnings after, each with
+/// file:line:col [rule] message and an optional `→ suggest` line.
+fn format_findings(findings: &[lint::Finding]) -> String {
+    let mut errors: Vec<&lint::Finding> = findings
+        .iter()
+        .filter(|f| f.severity == lint::Severity::Error)
+        .collect();
+    let mut warns: Vec<&lint::Finding> = findings
+        .iter()
+        .filter(|f| f.severity == lint::Severity::Warn)
+        .collect();
+    // Deterministic order within a severity — by file, then line, then col.
+    let sort_key = |f: &&lint::Finding| (f.file.clone(), f.line, f.col);
+    errors.sort_by_key(sort_key);
+    warns.sort_by_key(sort_key);
+
+    let mut out = String::new();
+    let render = |out: &mut String, f: &lint::Finding| {
+        out.push_str(&format!(
+            "{}:{}:{} [{}] {}\n",
+            f.file.display(),
+            f.line,
+            f.col,
+            f.rule,
+            f.message,
+        ));
+        if let Some(s) = &f.suggest
+            && !s.is_empty()
+        {
+            out.push_str(&format!("  → suggest: {s}\n"));
+        }
+    };
+
+    if !errors.is_empty() {
+        out.push_str(&format!("-- {} error(s) --\n", errors.len()));
+        for f in &errors {
+            render(&mut out, f);
+        }
+    }
+    if !warns.is_empty() {
+        if !errors.is_empty() {
+            out.push('\n');
+        }
+        out.push_str(&format!("-- {} warning(s) --\n", warns.len()));
+        for f in &warns {
+            render(&mut out, f);
+        }
+    }
+    out.push_str(&format!(
+        "\n{} error(s), {} warning(s)",
+        errors.len(),
+        warns.len(),
+    ));
+    out
 }
 
 // ---- Unstable tool registration ----
