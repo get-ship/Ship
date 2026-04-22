@@ -8,6 +8,11 @@
       Rules
       <span class="ad-section-count">{{ agent.rules | length }} rules</span>
     </h2>
+    <ship-button variant="outline" size="sm"
+                 data-on:click="$pickerKind = 'rule'; $pickerSelected = []; $pickerOpen = true">
+      <ship-icon slot="leading" name="plus"></ship-icon>
+      Add
+    </ship-button>
   </div>
   <div class="ad-section-body">
     {% if agent.rules | length == 0 %}

@@ -1,0 +1,69 @@
+{#- Picker dialog for adding skills / MCP servers / rules to an agent.
+    One dialog per page; caller toggles $pickerKind to pick a list.
+    Context: agent (AgentDetail), catalogs (AgentCatalogs). Signals from
+    detail.html.j2: pickerOpen, pickerKind, pickerSelected. -#}
+<ship-dialog id="agent-add-picker"
+             data-attr:open="$pickerOpen"
+             data-on:ship-close="$pickerOpen = false; $pickerSelected = []">
+  <span slot="title">
+    Add <span data-text="$pickerKind == 'skill' ? 'skill' : ($pickerKind == 'mcp' ? 'MCP server' : 'rule')"></span>
+  </span>
+  <span slot="description">
+    Select one or more to attach to <strong>{{ agent.name | e }}</strong>.
+  </span>
+
+  <div class="ad-picker-body">
+    {% for kind, items, singular in [
+      ('skill', catalogs.skills, 'skill'),
+      ('mcp', catalogs.mcp, 'MCP server'),
+      ('rule', catalogs.rules, 'rule'),
+    ] %}
+      <div data-show="$pickerKind == '{{ kind }}'" style="display:none">
+        {% if items | length == 0 %}
+          <ship-empty-state variant="placeholder" size="sm">
+            <span slot="title">No {{ singular }}s to add</span>
+            {% if kind == 'skill' %}
+              Create one in <code style="font-family:var(--font-mono)">.ship/skills/</code> or install from a registry.
+            {% elif kind == 'mcp' %}
+              Configure servers in <code style="font-family:var(--font-mono)">.ship/mcp.jsonc</code>.
+            {% else %}
+              Drop a markdown file in <code style="font-family:var(--font-mono)">.ship/rules/</code>.
+            {% endif %}
+          </ship-empty-state>
+        {% else %}
+          <div class="ad-picker-list">
+            {% for entry in items %}
+              <label class="ad-picker-row">
+                <input type="checkbox" class="ad-picker-check"
+                       value="{{ entry.id | e }}"
+                       data-on:change="evt.target.checked ? ($pickerSelected = [...$pickerSelected, '{{ entry.id | e }}']) : ($pickerSelected = $pickerSelected.filter(x => x != '{{ entry.id | e }}'))"
+                       data-attr:checked="$pickerSelected.includes('{{ entry.id | e }}')">
+                <span class="ad-picker-row-body">
+                  <span class="ad-picker-name">{{ entry.name | e }}</span>
+                  {% if entry.description %}
+                    <span class="ad-picker-desc">{{ entry.description | e }}</span>
+                  {% else %}
+                    <span class="ad-picker-desc gv-mono" style="font-family:var(--font-mono);font-size:var(--text-xs)">{{ entry.id | e }}</span>
+                  {% endif %}
+                </span>
+              </label>
+            {% endfor %}
+          </div>
+        {% endif %}
+      </div>
+    {% endfor %}
+  </div>
+
+  <ship-toolbar slot="footer">
+    <span style="flex:1;font-size:var(--text-xs);color:var(--muted-foreground)">
+      <span data-text="$pickerSelected.length"></span> selected
+    </span>
+    <ship-button variant="ghost" size="sm"
+                 data-on:click="$pickerOpen = false; $pickerSelected = []">Cancel</ship-button>
+    <ship-button tone="accent" variant="solid" size="sm"
+                 data-attr:disabled="$pickerSelected.length == 0"
+                 data-on:click="@post('/api/agents/{{ agent.id | e }}/patch', {contentType: 'json', body: JSON.stringify({[$pickerKind == 'rule' ? 'rules' : ($pickerKind == 'mcp' ? 'mcp' : 'skills')]: $pickerSelected})}); $pickerOpen = false; $pickerSelected = []; window.location.reload()">
+      Add
+    </ship-button>
+  </ship-toolbar>
+</ship-dialog>

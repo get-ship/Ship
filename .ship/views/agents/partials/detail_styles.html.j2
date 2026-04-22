@@ -142,6 +142,31 @@
 .ad-add-chip:hover { border-color: var(--primary); color: var(--primary); }
 .ad-add-chip ship-icon { width: 14px; height: 14px; }
 
+/* Picker dialog — list of addable skills/mcp/rules with checkbox each. */
+.ad-picker-body { min-width: 320px; max-height: 360px; overflow-y: auto; }
+.ad-picker-list { display: flex; flex-direction: column; gap: 2px; }
+.ad-picker-row {
+  display: flex; align-items: flex-start; gap: var(--space-2);
+  padding: var(--space-2) var(--space-3);
+  border-radius: var(--radius-sm);
+  cursor: pointer;
+  transition: background var(--duration-fast);
+}
+.ad-picker-row:hover { background: var(--muted); }
+.ad-picker-row:has(input:checked) {
+  background: color-mix(in oklch, var(--primary) 12%, transparent);
+}
+.ad-picker-check { margin-top: 3px; flex: none; accent-color: var(--primary); }
+.ad-picker-row-body { display: flex; flex-direction: column; gap: 2px; min-width: 0; }
+.ad-picker-name {
+  font-size: var(--text-sm); font-weight: var(--font-weight-medium);
+  color: var(--foreground);
+}
+.ad-picker-desc {
+  font-size: var(--text-xs); color: var(--muted-foreground);
+  overflow: hidden; text-overflow: ellipsis;
+}
+
 /* Permissions preset row — 3 radio-style cards. Uses ship-button with
    role=radio; button sizes itself via text content, but the preset cells
    need equal-flex + stacked label/description which ship-button doesn't

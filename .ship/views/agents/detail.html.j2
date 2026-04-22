@@ -18,7 +18,12 @@
 <body>
 {% endif %}
 <div class="ship-view ad-view"
-     {{ signal('tier', agent.permissions_tier) }}>
+     {{ signal('tier', agent.permissions_tier) }}
+     data-signals:pickerOpen="false"
+     data-signals:pickerKind="'skill'"
+     data-signals:pickerSelected="[]"
+     data-signals:catalogsLoaded="false"
+     data-signals:catalogs="{skills: [], mcp: [], rules: []}">
   {% include 'agents/partials/detail_styles.html.j2' %}
 
   <!-- Sticky header -->
@@ -47,6 +52,8 @@
     </div>
     <div class="ad-bottom-spacer"></div>
   </div>
+
+  {% include 'agents/partials/picker_dialog.html.j2' %}
 
 </div>
 {% if not fragment %}

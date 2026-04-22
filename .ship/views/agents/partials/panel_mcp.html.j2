@@ -18,6 +18,11 @@
       MCP Servers
       <span class="ad-section-count">{{ agent.mcp_servers | length }} attached</span>
     </h2>
+    <ship-button variant="outline" size="sm"
+                 data-on:click="$pickerKind = 'mcp'; $pickerSelected = []; $pickerOpen = true">
+      <ship-icon slot="leading" name="plus"></ship-icon>
+      Add
+    </ship-button>
   </div>
   <div class="ad-section-body">
     {% if agent.mcp_servers | length == 0 %}
