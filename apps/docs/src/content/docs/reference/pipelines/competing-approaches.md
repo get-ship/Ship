@@ -1,5 +1,9 @@
 ---
-title: "ship-pipelines"
+title: "Competing Approaches"
+description: "Run K agents in parallel against the same spec and let a judge step pick or merge the best result."
+sidebar:
+  label: "Competing Approaches"
+  order: 3
 ---
 Run K agents in parallel against the same spec, then a judge step picks or merges the best result.
 
