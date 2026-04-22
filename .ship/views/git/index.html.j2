@@ -1,242 +1,527 @@
 {#-
-  Git view -- single-column layout with two mutually exclusive states:
-    A) Status overview (branch, file changes, commit log)
-    B) Diff viewer (toolbar, summary, per-file hunks)
-
-  Context from daemon (views_git.rs -> GitCtx):
-    workspace_id, branch, clean, total_changed, staged[], modified[],
-    untracked[], commits[], selected_commit, completed_jobs[], error
+  Git view — Layout B. Tabs + split panes, composed from ship-set primitives.
+  Ctx: branch, head_short, clean, total_changed, staged[], modified[],
+       untracked[], commits[], branches[], ahead, behind, selected_commit,
+       active_file, annotations, error, workspace_id
 -#}
-{% from '_ship.html.j2' import head %}
+{% from '_ship.html.j2' import head, nav %}
 {% from '_urls.html.j2' import view_git %}
 {%- set ws_qs = '' -%}
 {%- if workspace_id %}{%- set ws_qs = '&workspace_id=' ~ workspace_id -%}{%- endif -%}
+{%- set base_url = view_git() -%}
 {% if not fragment %}
 <!DOCTYPE html>
-<html lang="en">
-<head>{{ head('Git') }}</head>
-<body>
+<html lang="en"><head>{{ head('Git') }}</head><body>
 {% endif %}
-<div class="ship-view ship-view-git">
-  <style>
-  {#- Base layout -#}
-  .ship-view-git { color: var(--foreground); }
-  .git-wrap { width: 100%; max-width: 672px; margin: 0 auto; padding: calc(var(--space-4) + var(--space-2)) var(--space-4); }
-  .git-wrap--diff { max-width: none; padding: 0; }
 
-  {#- Header -#}
-  .git-header {
-    display: flex; align-items: center; gap: var(--space-2);
-    margin-bottom: var(--space-4);
-  }
-  .git-header h1 {
-    font-family: var(--font-display);
-    font-size: 18px; font-weight: var(--font-weight-semibold);
-    letter-spacing: -0.01em; margin: 0;
-  }
-  .git-header-icon { color: var(--muted-foreground); }
-  .git-badge {
-    display: inline-flex; align-items: center; gap: var(--space-1);
-    font-size: var(--text-xs); font-weight: var(--font-weight-medium);
-    padding: 2px var(--space-2); border-radius: 9999px;
-  }
-  .git-badge--clean { color: var(--success); background: color-mix(in oklch, var(--success) 10%, transparent); }
-  .git-badge--dirty { color: var(--warning); background: color-mix(in oklch, var(--warning) 10%, transparent); }
+<div id="ship-view-root" class="gv"
+  data-signals:tab="'changes'"
+  data-signals:diffMode="'unified'"
+  data-signals:activeBranch="0"
+  data-signals:commentLine="''"
+  data-signals:commentDraft="''"
+  data-signals:sendTo="'keep'">
 
-  {#- Review banner -#}
-  .git-review-banner {
-    display: flex; align-items: flex-start; gap: var(--space-2);
-    margin-bottom: var(--space-3); padding: var(--space-2) var(--space-3);
+<style>
+  /* Layout-only CSS. All chrome comes from ship-* primitives. */
+  .gv { display: flex; flex-direction: column; height: 100%; min-height: 0; overflow: hidden; background: var(--background); color: var(--foreground); }
+  .gv-body { flex: 1; min-height: 0; display: flex; flex-direction: column; overflow: hidden; }
+  .gv-panel { flex: 1; min-height: 0; display: flex; flex-direction: column; overflow: hidden; }
+  .gv-split { flex: 1; min-height: 0; display: grid; grid-template-columns: minmax(280px, 360px) 1fr; overflow: hidden; }
+  .gv-split > * { min-width: 0; display: flex; flex-direction: column; overflow: hidden; }
+  .gv-split > .gv-left { border-right: 1px solid var(--border); }
+  .gv-branches-split { flex: 1; min-height: 0; display: grid; grid-template-columns: 320px 1fr; overflow: hidden; }
+  .gv-branches-split > * { min-width: 0; overflow: hidden; }
+  .gv-branches-split > .gv-bleft { border-right: 1px solid var(--border); display: flex; flex-direction: column; }
+  .gv-branches-split > .gv-bright { display: flex; flex-direction: column; }
+  .gv-pad { padding: var(--space-3); }
+  .gv-row { display: flex; align-items: center; gap: var(--space-2); }
+  .gv-grow { flex: 1; }
+  .gv-stack { display: flex; flex-direction: column; gap: var(--space-3); }
+  .gv-grid-2 { display: grid; grid-template-columns: 1fr 1fr; gap: var(--space-3); }
+  .gv-mono { font-family: var(--font-mono); font-variant-numeric: tabular-nums; }
+  .gv-add { color: var(--success); }
+  .gv-del { color: var(--destructive); }
+
+  /* Hero clean-empty state — halo + two-col recent commits/branches */
+  .gv-clean { flex: 1; overflow: auto; padding: 32px 28px; }
+  .gv-clean .hero {
+    display: flex; align-items: center; gap: 16px;
+    padding: 20px 22px;
+    border: 1px solid var(--border);
+    background: linear-gradient(180deg, color-mix(in oklab, var(--primary) 6%, var(--card)), var(--card));
     border-radius: var(--radius-lg);
-    border: 1px solid color-mix(in oklch, var(--success) 30%, transparent);
-    background: color-mix(in oklch, var(--success) 10%, transparent);
   }
-  .git-review-banner ship-icon { color: var(--success); flex-shrink: 0; margin-top: 1px; }
-  .git-review-banner p { font-size: var(--text-xs); color: var(--foreground); margin: 0; }
-  .git-review-banner strong { font-weight: var(--font-weight-medium); }
+  .gv-clean .halo {
+    width: 52px; height: 52px; border-radius: 14px;
+    background: conic-gradient(from 220deg, var(--primary), var(--accent), var(--primary));
+    display: grid; place-items: center; color: var(--primary-foreground);
+    box-shadow: 0 10px 24px -10px var(--primary);
+    flex: none;
+  }
+  .gv-clean .hero h2 { margin: 0; font-family: var(--font-display); font-size: 22px; letter-spacing: -0.01em; }
+  .gv-clean .hero p { margin: 2px 0 0; color: var(--muted-foreground); font-size: 13px; }
+  .gv-clean .two-col { display: grid; grid-template-columns: 1.3fr 1fr; gap: 18px; margin-top: 20px; }
+  .gv-clean .sec { background: var(--card); border: 1px solid var(--border); border-radius: var(--radius-lg); padding: 16px 18px; }
+  .gv-clean .sec h3 {
+    margin: 0 0 10px; font-size: 11px; font-weight: 600;
+    letter-spacing: 0.04em; text-transform: uppercase; color: var(--muted-foreground);
+  }
+  .gv-clean .row {
+    display: flex; align-items: center; gap: 10px;
+    padding: 6px 0; border-bottom: 1px solid var(--border);
+  }
+  .gv-clean .row:last-child { border-bottom: 0; }
+  .gv-clean .row .title { flex: 1; min-width: 0; font-size: 12px; font-weight: 500; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  .gv-clean .row .sub { font-size: 11px; color: var(--muted-foreground); font-family: var(--font-mono); }
 
-  {#- Branch toolbar -#}
-  .git-branch-bar {
-    display: flex; align-items: center; gap: var(--space-2);
-    padding: var(--space-3); margin-bottom: var(--space-3);
-    border-radius: var(--radius-lg);
-    background: color-mix(in oklch, var(--card) 80%, var(--muted));
-    border: 1px solid color-mix(in oklch, var(--border) 50%, transparent);
+  /* Tabs-right strip */
+  .gv-tabs-right { margin-left: auto; display: flex; align-items: center; gap: 6px; padding: 4px 12px 4px 0; }
+
+  /* Provenance banner above diff */
+  .gv-prov-banner {
+    display: flex; align-items: center; gap: 10px;
+    padding: 8px 14px;
+    background: color-mix(in oklab, var(--accent) 6%, transparent);
+    border-bottom: 1px solid color-mix(in oklab, var(--accent) 20%, var(--border));
+    font-size: 12px; color: var(--foreground); flex: none;
   }
-  .git-branch-name {
+  .gv-prov-banner .tag {
     display: inline-flex; align-items: center; gap: 6px;
-    font-family: var(--font-mono); font-size: var(--text-xs); font-weight: var(--font-weight-medium);
+    padding: 2px 8px; border-radius: var(--radius-full);
+    background: color-mix(in oklab, var(--accent) 18%, transparent);
+    color: var(--accent); font-size: 11px; font-weight: 500;
   }
-  .git-dot {
-    width: 6px; height: 6px; border-radius: 9999px; flex-shrink: 0;
-  }
-  .git-dot--ok { background: var(--success); }
-  .git-dot--warn { background: var(--warning); }
-  .git-changed-count {
-    margin-left: auto;
-    display: inline-flex; align-items: center; gap: var(--space-1);
-    font-size: 10px; color: var(--muted-foreground);
-  }
+  .gv-prov-banner .desc { color: var(--muted-foreground); font-size: 12px; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  .gv-prov-banner .right { margin-left: auto; display: flex; gap: 6px; }
+</style>
 
-  {#- Status breakdown -#}
-  .git-breakdown {
-    display: flex; gap: var(--space-3); font-size: 10px;
-    color: var(--muted-foreground); margin-bottom: 10px;
-  }
-  .git-breakdown span { display: inline-flex; align-items: center; gap: var(--space-1); }
+{# Contribute view metadata to the shell chrome (topbar + statusbar). #}
+<ship-view-chrome
+  title="Git"
+  branch="{{ branch | default('') | e }}"
+  ahead="{{ ahead }}"
+  behind="{{ behind }}"
+  tone="{% if clean %}success{% else %}warning{% endif %}">
+  <ship-button slot="actions" variant="ghost" size="icon" aria-label="Refresh"
+    data-on:click="@get('{{ base_url }}{% if workspace_id %}?workspace_id={{ workspace_id }}{% endif %}')">
+    <ship-icon name="refresh-cw" size="sm"></ship-icon>
+  </ship-button>
+  <ship-chip slot="status-end" size="sm" variant="soft">{{ total_changed }} changed</ship-chip>
+</ship-view-chrome>
 
-  {#- File list -#}
-  .git-file-list {
-    display: flex; flex-direction: column;
-    margin-bottom: var(--space-3);
-    border: 1px solid color-mix(in oklch, var(--border) 50%, transparent);
-    border-radius: var(--radius-md); overflow: hidden;
-  }
-  .git-file-row {
-    display: flex; align-items: center; gap: var(--space-2);
-    width: 100%; padding: 6px 10px;
-    background: transparent; border: 0;
-    font-family: var(--font-mono); font-size: var(--text-xs);
-    color: var(--foreground); cursor: pointer; text-align: left;
-    transition: background var(--duration-fast) ease;
-  }
-  .git-file-row + .git-file-row {
-    border-top: 1px solid color-mix(in oklch, var(--border) 30%, transparent);
-  }
-  .git-file-row:hover {
-    background: color-mix(in oklch, var(--muted) 40%, transparent);
-    color: var(--foreground);
-  }
-  .git-file-badge {
-    display: inline-block;
-    font-family: var(--font-mono); font-size: 9px; line-height: 1;
-    padding: 2px 5px; border-radius: var(--radius-sm);
-    font-weight: 700; letter-spacing: 0.02em;
-    flex-shrink: 0; text-align: center; min-width: 18px;
-  }
-  .git-file-badge--stg { background: color-mix(in oklch, var(--success) 15%, transparent); color: var(--success); }
-  .git-file-badge--mod { background: color-mix(in oklch, var(--warning) 15%, transparent); color: var(--warning); }
-  .git-file-badge--unt { background: color-mix(in oklch, var(--destructive) 15%, transparent); color: var(--destructive); }
-  .git-file-badge--add { background: color-mix(in oklch, var(--success) 15%, transparent); color: var(--success); }
-  .git-file-badge--del { background: color-mix(in oklch, var(--destructive) 15%, transparent); color: var(--destructive); }
-  .git-file-name {
-    overflow: hidden; text-overflow: ellipsis; white-space: nowrap; flex: 1;
-  }
-
-  {#- View diff button -#}
-  .git-view-diff-btn {
-    display: flex; align-items: center; justify-content: center; gap: 6px;
-    width: 100%; padding: 7px var(--space-3);
-    font-size: 10px; font-weight: var(--font-weight-medium);
-    color: var(--primary);
-    border: 1px solid color-mix(in oklch, var(--primary) 20%, transparent);
-    border-radius: var(--radius-md);
-    background: transparent; cursor: pointer;
-    transition: background var(--duration-fast) ease;
-  }
-  .git-view-diff-btn:hover {
-    background: color-mix(in oklch, var(--primary) 5%, transparent);
-  }
-
-  {#- Divider -#}
-  .git-divider {
-    border: 0;
-    border-top: 1px solid color-mix(in oklch, var(--border) 40%, transparent);
-    margin: var(--space-4) 0;
-  }
-
-  {#- Commit log -#}
-  .git-log-heading {
-    font-size: 10px; font-weight: var(--font-weight-semibold);
-    text-transform: uppercase; letter-spacing: 0.08em;
-    color: color-mix(in oklch, var(--muted-foreground) 50%, transparent);
-    margin-bottom: var(--space-2);
-  }
-  .git-log { display: flex; flex-direction: column; gap: 2px; }
-  .git-commit {
-    display: block; width: 100%; text-align: left;
-    background: transparent; border: 0;
-    padding: var(--space-2); margin: 0 -4px;
-    border-radius: var(--radius-md); cursor: pointer;
-    transition: background var(--duration-fast) ease;
-  }
-  .git-commit:hover {
-    background: color-mix(in oklch, var(--muted) 40%, transparent);
-  }
-  .git-commit-subject {
-    font-size: var(--text-sm); color: var(--muted-foreground);
-    line-height: 1.4;
-    transition: color var(--duration-fast) ease;
-  }
-  .git-commit:hover .git-commit-subject { color: var(--foreground); }
-  .git-commit-meta {
-    display: flex; align-items: center; gap: var(--space-2);
-    margin-top: 3px; font-size: 10px;
-    color: color-mix(in oklch, var(--muted-foreground) 50%, transparent);
-  }
-  .git-commit-sha { font-family: var(--font-mono); }
-  .git-commit-meta .spacer { flex: 1; }
-  .git-commit-meta .hint {
-    opacity: 0;
-    transition: opacity var(--duration-fast) ease;
-    color: var(--muted-foreground);
-  }
-  .git-commit:hover .git-commit-meta .hint { opacity: 0.6; }
-
-  .git-empty {
-    font-size: 10px;
-    color: color-mix(in oklch, var(--muted-foreground) 60%, transparent);
-  }
-
-  {#- Diff toolbar -#}
-  .git-diff-toolbar {
-    display: flex; align-items: center; gap: var(--space-2);
-    padding: var(--space-2) var(--space-4);
-    border-bottom: 1px solid color-mix(in oklch, var(--border) 60%, transparent);
-    flex-shrink: 0;
-  }
-  .git-back {
-    display: inline-flex; align-items: center; justify-content: center;
-    width: 28px; height: 28px;
-    border-radius: var(--radius-md);
-    background: transparent; border: 0;
-    color: var(--foreground); cursor: pointer;
-    transition: background var(--duration-fast) ease;
-  }
-  .git-back:hover {
-    background: color-mix(in oklch, var(--muted) 60%, transparent);
-  }
-  .git-diff-label {
-    font-size: var(--text-xs); font-weight: var(--font-weight-medium);
-    color: var(--foreground);
-  }
-  .git-show-working {
-    background: transparent; border: 0;
-    font-size: 10px; color: var(--muted-foreground);
-    cursor: pointer; margin-left: var(--space-2);
-    transition: color var(--duration-fast) ease;
-  }
-  .git-show-working:hover { color: var(--foreground); }
-
-  {#- Diff body -#}
-  .git-diff-body { padding: 0 var(--space-4) var(--space-4); }
-  </style>
-  <div class="git-wrap{% if selected_commit %} git-wrap--diff{% endif %}">
-    {% if error %}
-      {% include 'git/partials/error.html.j2' %}
-    {% elif selected_commit %}
-      {% include 'git/partials/diff_toolbar.html.j2' %}
-      {% include 'git/partials/review_banner.html.j2' %}
-      {% include 'git/partials/diff_body.html.j2' %}
-    {% else %}
-      {% include 'git/partials/header.html.j2' %}
-      {% include 'git/partials/review_banner.html.j2' %}
-      {% include 'git/partials/status_block.html.j2' %}
-      {% include 'git/partials/commit_log.html.j2' %}
-    {% endif %}
+{# ── Tabs bar + tabs-right action strip, sharing a bottom border ── #}
+<div class="gv-row" style="border-bottom: 1px solid var(--border); padding: 0 12px; gap: 0">
+  <ship-tabs variant="underline" tone="accent" data-attr:active="$tab"
+    data-on:ship-tab-change="$tab = evt.detail.name"
+    style="flex:1;min-width:0;border:0;padding:0">
+    <ship-tab name="changes" count="{{ total_changed }}">Changes</ship-tab>
+    <ship-tab name="history" count="{{ commits | default([]) | length }}">History</ship-tab>
+    <ship-tab name="branches" count="{{ branches | default([]) | length }}">Branches</ship-tab>
+  </ship-tabs>
+  <div class="gv-tabs-right">
+    <ship-button variant="ghost" size="sm" {{ nav('/pipelines') }}>
+      <ship-icon slot="leading" name="play" size="xs"></ship-icon>
+      Run checks
+    </ship-button>
   </div>
 </div>
-{% if not fragment %}
-</body>
-</html>
+
+{% if error %}
+  <div class="gv-pad">
+    <ship-alert tone="destructive">{{ error.title | e }}{% if error.body %} — {{ error.body | e }}{% endif %}</ship-alert>
+  </div>
 {% endif %}
+
+<div class="gv-body">
+
+  {# ── Changes ─────────────────────────────────────────────── #}
+  <div class="gv-panel" data-show="$tab == 'changes'" style="display:none">
+    {% if clean %}
+      <div class="gv-clean">
+        <div class="hero">
+          <div class="halo"><ship-icon name="check" size="md"></ship-icon></div>
+          <div>
+            <h2>Working tree is clean.</h2>
+            <p>Nothing to commit on <span class="gv-mono">{{ branch | default('HEAD') | e }}</span>.
+              {% if ahead == 0 and behind == 0 %}You're up to date with the upstream.
+              {% elif ahead > 0 %}{{ ahead }} commit{% if ahead != 1 %}s{% endif %} ahead of upstream.
+              {% elif behind > 0 %}{{ behind }} commit{% if behind != 1 %}s{% endif %} behind upstream.
+              {% endif %}
+            </p>
+          </div>
+        </div>
+        <div class="two-col">
+          <div class="sec">
+            <h3>Recent on this branch</h3>
+            {% for c in commits[:5] %}
+              <div class="row">
+                <ship-avatar size="sm" shape="round" identity-hue="{{ c.author | e }}" name="{{ c.author | e }}"></ship-avatar>
+                <div style="flex:1;min-width:0">
+                  <div class="title">{{ c.subject | e }}</div>
+                  <div class="sub">{{ c.short_sha | e }} · {{ c.author | e }} · {{ c.date | e }}</div>
+                </div>
+                <div class="gv-mono" style="font-size:11px;display:flex;gap:6px">
+                  <span class="gv-add">+{{ c.additions }}</span>
+                  <span class="gv-del">−{{ c.deletions }}</span>
+                </div>
+              </div>
+            {% else %}
+              <div style="font-size:12px;color:var(--muted-foreground)">No commits yet.</div>
+            {% endfor %}
+          </div>
+          <div class="sec">
+            <h3>Branches</h3>
+            {% for b in branches[:6] %}
+              <div class="row">
+                <ship-icon name="git-branch" size="xs" style="color:{% if b.active %}var(--primary){% else %}var(--muted-foreground){% endif %}"></ship-icon>
+                <div style="flex:1;min-width:0">
+                  <div class="title gv-mono">{{ b.name | e }}</div>
+                  <div class="sub" style="font-family:var(--font-body)">
+                    {% if b.upstream %}{{ b.upstream | e }}{% else %}local only{% endif %}
+                  </div>
+                </div>
+                <div class="gv-mono" style="font-size:11px;display:flex;gap:6px">
+                  {% if b.ahead > 0 %}<span class="gv-add">↑{{ b.ahead }}</span>{% endif %}
+                  {% if b.behind > 0 %}<span class="gv-del">↓{{ b.behind }}</span>{% endif %}
+                </div>
+              </div>
+            {% else %}
+              <div style="font-size:12px;color:var(--muted-foreground)">No branches.</div>
+            {% endfor %}
+          </div>
+        </div>
+      </div>
+    {% else %}
+      <div class="gv-split">
+        {# Left: file list #}
+        <div class="gv-left">
+          <ship-toolbar variant="bordered" style="padding: 8px 12px">
+            <ship-icon name="git-branch" size="xs"></ship-icon>
+            <strong style="font-size:11px;letter-spacing:.04em;text-transform:uppercase;color:var(--muted-foreground)">Changes</strong>
+            <span slot="spacer"></span>
+            <span class="gv-mono" style="font-size:11px;color:var(--muted-foreground)">{{ total_changed }} files</span>
+          </ship-toolbar>
+
+          <div class="gv-row gv-pad" style="gap:6px;flex-wrap:wrap;border-bottom:1px solid var(--border);padding:8px 12px">
+            {% if staged | length > 0 %}
+              <ship-chip tone="success" variant="soft" size="sm">
+                <ship-status-dot slot="leading" tone="success" size="sm"></ship-status-dot>
+                {{ staged | length }} staged
+              </ship-chip>
+            {% endif %}
+            <ship-chip tone="warning" variant="soft" size="sm">
+              <ship-status-dot slot="leading" tone="warning" size="sm"></ship-status-dot>
+              {{ modified | length }} modified
+            </ship-chip>
+            {% if untracked | length > 0 %}
+              <ship-chip tone="muted" variant="outline" size="sm">
+                {{ untracked | length }} untracked
+              </ship-chip>
+            {% endif %}
+          </div>
+
+          <ship-scroll-area style="flex:1">
+            {% if staged | length > 0 %}
+              <div style="padding:10px 12px 4px;font-size:10.5px;font-weight:600;letter-spacing:.04em;text-transform:uppercase;color:var(--muted-foreground)">Staged</div>
+              {% for f in staged %}
+                <ship-file-row
+                  path="{{ f.path | e }}" basename="{{ f.basename | e }}" status="S"
+                  {% if active_file == f.path %}active{% endif %}
+                  data-on:ship-select="@get('{{ base_url }}?commit=WORKING&file={{ f.path | e }}{{ ws_qs }}')">
+                </ship-file-row>
+              {% endfor %}
+            {% endif %}
+            {% if modified | length > 0 %}
+              <div style="padding:10px 12px 4px;font-size:10.5px;font-weight:600;letter-spacing:.04em;text-transform:uppercase;color:var(--muted-foreground)">Modified</div>
+              {% for f in modified %}
+                <ship-file-row
+                  path="{{ f.path | e }}" basename="{{ f.basename | e }}" status="{{ f.status | e }}"
+                  {% if active_file == f.path %}active{% endif %}
+                  data-on:ship-select="@get('{{ base_url }}?commit=WORKING&file={{ f.path | e }}{{ ws_qs }}')">
+                </ship-file-row>
+              {% endfor %}
+            {% endif %}
+            {% if untracked | length > 0 %}
+              <div style="padding:10px 12px 4px;font-size:10.5px;font-weight:600;letter-spacing:.04em;text-transform:uppercase;color:var(--muted-foreground)">Untracked</div>
+              {% for f in untracked %}
+                <ship-file-row
+                  path="{{ f.path | e }}" basename="{{ f.basename | e }}" status="?"
+                  {% if active_file == f.path %}active{% endif %}
+                  data-on:ship-select="@get('{{ base_url }}?commit=WORKING&file={{ f.path | e }}{{ ws_qs }}')">
+                </ship-file-row>
+              {% endfor %}
+            {% endif %}
+          </ship-scroll-area>
+        </div>
+
+        {# Right: diff pane #}
+        <div>
+          {% if selected_commit %}
+            {%- set parsed = selected_commit.parsed -%}
+            {%- set all_files = parsed.files if parsed and parsed.files else [] -%}
+            {%- if active_file -%}
+              {%- set filtered_files = all_files | selectattr('path', 'equalto', active_file) | list -%}
+            {%- else -%}
+              {%- set filtered_files = all_files -%}
+            {%- endif -%}
+
+            {% if filtered_files | length > 0 %}
+              {%- set shown = filtered_files[0] -%}
+
+              <ship-toolbar variant="bordered" style="padding: 8px 12px">
+                <ship-badge tone="warning" variant="soft" size="sm">diff</ship-badge>
+                <span class="gv-mono" style="font-size:12.5px">{{ shown.path | e }}</span>
+                <span slot="spacer"></span>
+                <span class="gv-mono" style="font-size:11.5px">
+                  <span class="gv-add">+{{ shown.additions }}</span>
+                  <span class="gv-del">−{{ shown.deletions }}</span>
+                </span>
+                <ship-segmented value="unified" size="sm"
+                  data-attr:value="$diffMode"
+                  data-on:ship-change="$diffMode = evt.detail.value">
+                  <ship-segmented-option value="unified">Unified</ship-segmented-option>
+                  <ship-segmented-option value="split">Split</ship-segmented-option>
+                </ship-segmented>
+              </ship-toolbar>
+
+              {% if shown.pipeline %}
+                {#- Pipeline provenance banner — shown when ctx supplies per-file pipeline attribution. -#}
+                <div class="gv-prov-banner">
+                  <span class="tag">
+                    <ship-icon name="sparkles" size="xs"></ship-icon>
+                    {{ shown.pipeline | e }}
+                  </span>
+                  <span class="desc">
+                    Produced by agent <b style="color:var(--foreground)">{{ shown.agent | default('—') | e }}</b>
+                    {% if shown.run_at %} · {{ shown.run_at | e }}{% endif %}
+                    {% if shown.run_id %} · run #{{ shown.run_id }}{% endif %}
+                  </span>
+                  <div class="right">
+                    {% if shown.run_id %}
+                      <ship-button size="sm" variant="ghost" {{ nav('/pipelines') }}>View run</ship-button>
+                    {% endif %}
+                    {% if shown.agent %}
+                      <ship-button size="sm" variant="ghost" {{ nav('/agents/' ~ shown.agent) }}>Open agent</ship-button>
+                    {% endif %}
+                  </div>
+                </div>
+              {% elif selected_commit.is_working %}
+                <ship-alert tone="muted" style="display:block;margin:0;border-radius:0;border-left:0;border-right:0;border-top:0">
+                  <span slot="icon"><ship-icon name="git-commit" size="xs"></ship-icon></span>
+                  Viewing working tree changes vs HEAD.
+                </ship-alert>
+              {% endif %}
+
+              <ship-scroll-area style="flex:1"
+                data-on:ship-comment="$commentLine = evt.detail.new || evt.detail.old">
+                <div class="gv-pad">
+                  {% for file in filtered_files %}
+                    <ship-git-diff files="1">
+                      <ship-git-diff-file
+                        path="{{ file.path | e }}"
+                        additions="{{ file.additions }}"
+                        deletions="{{ file.deletions }}">
+                        {% for hunk in file.hunks %}
+                          <ship-git-diff-hunk header="{{ hunk.header | e }}"></ship-git-diff-hunk>
+                          {% for line in hunk.lines %}
+                            <ship-git-diff-line
+                              type="{{ line.kind }}"
+                              old="{% if line.old_num %}{{ line.old_num }}{% endif %}"
+                              new="{% if line.new_num %}{{ line.new_num }}{% endif %}">{{ line.content | e }}</ship-git-diff-line>
+                          {% endfor %}
+                        {% endfor %}
+                      </ship-git-diff-file>
+                    </ship-git-diff>
+                  {% endfor %}
+
+                  {% if annotations %}
+                    {%- set sha = selected_commit.sha -%}
+                    <div class="gv-stack" style="margin-top:var(--space-3)">
+                      {% for key, thread in annotations %}
+                        {% for ann in thread %}
+                          <ship-card padding="sm" tone="accent">
+                            <div slot="header" class="gv-row" style="font-size:11px;color:var(--muted-foreground)">
+                              <ship-icon name="message-circle" size="xs"></ship-icon>
+                              <span class="gv-mono">line {{ key | replace(sha ~ ':', '') }}</span>
+                              <span slot="spacer"></span>
+                              <ship-badge tone="accent" size="sm">{{ ann.author_kind | default('agent') | e }}</ship-badge>
+                            </div>
+                            <ship-markdown>{{ ann.note | e }}</ship-markdown>
+                          </ship-card>
+                        {% endfor %}
+                      {% endfor %}
+                    </div>
+                  {% endif %}
+                </div>
+              </ship-scroll-area>
+
+              <ship-card padding="sm" variant="outline"
+                data-show="$commentLine != ''" style="display:none;border-left:0;border-right:0;border-bottom:0;border-radius:0">
+                <div slot="header" class="gv-row" style="font-size:var(--text-xs);color:var(--muted-foreground)">
+                  Comment on line <span class="gv-mono" data-text="$commentLine"></span>
+                  in <ship-code inline>{{ shown.path | e }}</ship-code>
+                </div>
+                <ship-textarea data-bind="commentDraft" placeholder="Note for the agent…" rows="3"></ship-textarea>
+                <ship-toolbar slot="footer">
+                  <label style="font-size:11.5px;color:var(--muted-foreground);display:inline-flex;align-items:center;gap:6px">
+                    Send to
+                    <ship-select size="sm" data-bind="sendTo">
+                      <ship-select-option value="keep">Keep (no routing)</ship-select-option>
+                      <ship-select-option value="rust-lane">rust-lane</ship-select-option>
+                      <ship-select-option value="review-lane">review-lane</ship-select-option>
+                      <ship-select-option value="original">Original author</ship-select-option>
+                    </ship-select>
+                  </label>
+                  <span slot="spacer"></span>
+                  <ship-button variant="ghost" size="sm"
+                    data-on:click="$commentLine = ''; $commentDraft = ''; $sendTo = 'keep'">Cancel</ship-button>
+                  <ship-button tone="accent" variant="solid" size="sm"
+                    data-on:click="@post('/api/collections/annotations/items', {payload: {file_path: '{{ shown.path | e }}', view_id: 'git', selector: $commentLine, note: $commentDraft, intent: 'review', route_to: $sendTo}}); $commentLine = ''; $commentDraft = ''; $sendTo = 'keep'">
+                    Save comment
+                  </ship-button>
+                </ship-toolbar>
+              </ship-card>
+            {% else %}
+              <ship-empty-state icon="file-diff" tone="muted" size="md" style="flex:1">
+                <span slot="title">No changes in this diff</span>
+              </ship-empty-state>
+            {% endif %}
+          {% else %}
+            <ship-empty-state icon="mouse-pointer" tone="muted" size="md" style="flex:1">
+              <span slot="title">Select a file</span>
+              Pick a file on the left to view its diff.
+            </ship-empty-state>
+          {% endif %}
+        </div>
+      </div>
+    {% endif %}
+  </div>
+
+  {# ── History ─────────────────────────────────────────────── #}
+  <div class="gv-panel" data-show="$tab == 'history'" style="display:none">
+    {% if commits and commits | length > 0 %}
+      <ship-scroll-area style="flex:1">
+        <div style="padding:6px 0 16px">
+          {% for c in commits %}
+            <ship-history-row
+              sha="{{ c.short_sha | e }}"
+              subject="{{ c.subject | e }}"
+              author="{{ c.author | e }}"
+              timestamp="{{ c.date | e }}"
+              additions="{{ c.additions }}"
+              deletions="{{ c.deletions }}"
+              data-on:ship-select="$tab = 'changes'; @get('{{ base_url }}?commit={{ c.sha }}{{ ws_qs }}')">
+            </ship-history-row>
+          {% endfor %}
+        </div>
+      </ship-scroll-area>
+    {% else %}
+      <ship-empty-state icon="git-commit" tone="muted" size="md" style="flex:1">
+        <span slot="title">No commits</span>
+      </ship-empty-state>
+    {% endif %}
+  </div>
+
+  {# ── Branches ─────────────────────────────────────────────── #}
+  <div class="gv-panel" data-show="$tab == 'branches'" style="display:none">
+    {% if branches and branches | length > 0 %}
+      <div class="gv-branches-split">
+        <div class="gv-bleft">
+          <ship-scroll-area style="flex:1">
+            <div style="padding:6px 0">
+              {% for b in branches %}
+                <ship-list-tile interactive density="compact"
+                  {% if b.active %}tone="accent"{% endif %}
+                  data-attr:selected="$activeBranch == {{ loop.index0 }}"
+                  data-on:ship-select="$activeBranch = {{ loop.index0 }}">
+                  <ship-status-dot slot="leading"
+                    tone="{% if b.active %}success{% else %}muted{% endif %}"
+                    {% if b.active %}pulse{% endif %}></ship-status-dot>
+                  <span class="gv-mono" style="font-size:12.5px">{{ b.name | e }}</span>
+                  <span slot="meta">
+                    {% if b.upstream %}{{ b.upstream | e }}{% else %}local only{% endif %}
+                  </span>
+                  <span slot="trailing" class="gv-mono" style="font-size:11px">
+                    {% if b.ahead > 0 %}<span class="gv-add">↑{{ b.ahead }}</span>{% endif %}
+                    {% if b.behind > 0 %}<span class="gv-del">↓{{ b.behind }}</span>{% endif %}
+                  </span>
+                </ship-list-tile>
+              {% endfor %}
+            </div>
+          </ship-scroll-area>
+        </div>
+
+        <div class="gv-bright">
+          <ship-scroll-area style="flex:1">
+            <div class="gv-stack gv-pad" style="padding:24px">
+              {% for b in branches %}
+                <div class="gv-stack" data-show="$activeBranch == {{ loop.index0 }}" style="display:none">
+
+                  <ship-toolbar justify="between">
+                    <div>
+                      <div class="gv-mono" style="font-size:16px;font-weight:600">{{ b.name | e }}</div>
+                      <div style="font-size:12px;color:var(--muted-foreground);margin-top:2px">
+                        {% if b.upstream %}tracking <ship-code inline>{{ b.upstream | e }}</ship-code>{% else %}no upstream{% endif %}
+                      </div>
+                    </div>
+                    <ship-toolbar>
+                      <ship-button size="sm" variant="ghost">Compare</ship-button>
+                      {% if not b.active %}
+                        <ship-button size="sm" variant="solid" tone="accent">Checkout</ship-button>
+                      {% endif %}
+                    </ship-toolbar>
+                  </ship-toolbar>
+
+                  <div class="gv-grid-2">
+                    <ship-card>
+                      <div slot="header" style="font-size:11px;font-weight:600;letter-spacing:.04em;text-transform:uppercase;color:var(--muted-foreground)">
+                        Status
+                      </div>
+                      <div style="display:flex;flex-direction:column;gap:0">
+                        <ship-metachip label="Head"><ship-code inline>{{ b.name | e }}</ship-code></ship-metachip>
+                        {% if b.upstream %}
+                          <ship-metachip label="Upstream"><ship-code inline>{{ b.upstream | e }}</ship-code></ship-metachip>
+                        {% endif %}
+                        <ship-metachip label="Divergence">
+                          <span class="gv-add">↑{{ b.ahead }}</span>
+                          <span class="gv-del">↓{{ b.behind }}</span>
+                        </ship-metachip>
+                      </div>
+                    </ship-card>
+
+                    <ship-card>
+                      <div slot="header" style="font-size:11px;font-weight:600;letter-spacing:.04em;text-transform:uppercase;color:var(--muted-foreground)">
+                        Actions
+                      </div>
+                      <ship-toolbar style="flex-direction:column;align-items:stretch;gap:8px">
+                        <ship-button variant="ghost" size="sm" style="justify-content:flex-start">
+                          <ship-icon name="arrow-down" size="xs"></ship-icon> Pull latest
+                        </ship-button>
+                        <ship-button variant="ghost" size="sm" style="justify-content:flex-start">
+                          <ship-icon name="arrow-up" size="xs"></ship-icon> Push changes
+                        </ship-button>
+                        <ship-button variant="ghost" size="sm" style="justify-content:flex-start">
+                          <ship-icon name="git-merge" size="xs"></ship-icon> Rebase on main
+                        </ship-button>
+                      </ship-toolbar>
+                    </ship-card>
+                  </div>
+
+                </div>
+              {% endfor %}
+            </div>
+          </ship-scroll-area>
+        </div>
+      </div>
+    {% else %}
+      <ship-empty-state icon="git-branch" tone="muted" size="md" style="flex:1">
+        <span slot="title">No branches</span>
+      </ship-empty-state>
+    {% endif %}
+  </div>
+
+</div>
+
+</div>
+{% if not fragment %}</body></html>{% endif %}
