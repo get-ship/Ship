@@ -1,9 +1,6 @@
 ---
 import StarlightPage from '@astrojs/starlight/components/StarlightPage.astro';
 import { THEMES } from '@ship/ui/themes';
-
-const groups = Array.from(new Set(THEMES.map((t) => t.group)));
-
 ---
 
 <StarlightPage
@@ -15,48 +12,45 @@ const groups = Array.from(new Set(THEMES.map((t) => t.group)));
     <code>:root[data-theme]</code> block to use it in your own app.
   </p>
 
-  {groups.map((g) => (
-    <section class="th-group">
-      <header class="th-group-head">{g}</header>
-      <div class="th-grid">
-        {THEMES.filter((t) => t.group === g).map((t) => (
-          <article
-            class="th-card"
-            data-theme-card={t.id}
-            style={`
-              --t-bg: ${t.swatches[0]};
-              --t-card: ${t.swatches[1]};
-              --t-primary: ${t.swatches[2]};
-              --t-accent: ${t.swatches[3]};
-            `}
+  <section class="th-group">
+    <div class="th-grid">
+      {THEMES.map((t) => (
+        <article
+          class="th-card"
+          data-theme-card={t.id}
+          style={`
+            --t-bg: ${t.swatches[0]};
+            --t-card: ${t.swatches[1]};
+            --t-primary: ${t.swatches[2]};
+            --t-accent: ${t.swatches[3]};
+          `}
+        >
+          <button
+            type="button"
+            class="th-apply"
+            data-apply-theme={t.id}
+            aria-label={`Apply ${t.label}`}
           >
-            <button
-              type="button"
-              class="th-apply"
-              data-apply-theme={t.id}
-              aria-label={`Apply ${t.label}`}
-            >
-              <div class="th-swatches" aria-hidden="true">
-                <span style={`background:${t.swatches[0]}`}></span>
-                <span style={`background:${t.swatches[1]}`}></span>
-                <span style={`background:${t.swatches[2]}`}></span>
-                <span style={`background:${t.swatches[3]}`}></span>
+            <div class="th-swatches" aria-hidden="true">
+              <span style={`background:${t.swatches[0]}`}></span>
+              <span style={`background:${t.swatches[1]}`}></span>
+              <span style={`background:${t.swatches[2]}`}></span>
+              <span style={`background:${t.swatches[3]}`}></span>
+            </div>
+            <div class="th-card-body">
+              <div class="th-card-head">
+                <span class="th-card-name">{t.label}</span>
+                <code class="th-card-id">{t.id}</code>
               </div>
-              <div class="th-card-body">
-                <div class="th-card-head">
-                  <span class="th-card-name">{t.label}</span>
-                  <code class="th-card-id">{t.id}</code>
-                </div>
-                <div class="th-card-meta">
-                  {t.dark ? 'Dark' : 'Light'} &middot; {t.group}
-                </div>
+              <div class="th-card-meta">
+                {t.dark ? 'Dark' : 'Light'}
               </div>
-            </button>
-          </article>
-        ))}
-      </div>
-    </section>
-  ))}
+            </div>
+          </button>
+        </article>
+      ))}
+    </div>
+  </section>
 </StarlightPage>
 
 <script>

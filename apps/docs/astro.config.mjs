@@ -242,11 +242,11 @@ export default defineConfig({
             (function() {
               var KEY = 'ship-site-theme';
               var VALID = {
-                'ship-light':1,'ship-dark':1,'high-contrast':1,'warm':1,
-                'gruvbox-dark':1,'gruvbox-light':1,'nord':1,'solarized-dark':1
+                'ship-light':1,'ship-dark':1,'paper':1,
+                'halo':1,'console':1,'contrast':1
               };
               var DARK = {
-                'ship-dark':1,'high-contrast':1,'gruvbox-dark':1,'nord':1,'solarized-dark':1
+                'ship-dark':1,'contrast':1
               };
               function apply(id) {
                 if (!VALID[id]) return false;
