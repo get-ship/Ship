@@ -30,6 +30,9 @@ pub struct ResolvedInput {
     pub worktree_path: String,
     pub size: u64,
     pub mime: String,
+    /// For lane-scoped `.failed` markers: a short human-readable reason
+    /// extracted from the sentinel artifact. `None` for regular outputs.
+    pub failure_reason: Option<String>,
 }
 
 /// Resolve a step's `consumes` list to artifact records.
@@ -60,25 +63,34 @@ pub fn resolve_consumes(
     let mut resolved = Vec::new();
 
     for consumed_name in &step.consumes {
-        // Find the step that produces this name.
-        let producer = pipeline
-            .steps
-            .iter()
-            .find(|s| s.produces.iter().any(|o| o.name == *consumed_name))
-            .ok_or_else(|| {
-                format!(
+        // Lane-scoped references like "lane-claude.draft" resolve via the lane's
+        // step.done_declared event (step_id = "<fanout_step_id>.<lane_id>").
+        let (producer_step_id, output_key) = if let Some((lane_id, output_name)) = parse_lane_scoped_ref(consumed_name) {
+            let fanout_step = find_fanout_step_for_lane(pipeline, lane_id)
+                .ok_or_else(|| format!(
+                    "step '{}' consumes '{consumed_name}': no fanout step found for lane '{lane_id}'",
+                    step.id
+                ))?;
+            (format!("{}.{}", fanout_step.id, lane_id), output_name.to_string())
+        } else {
+            // Normal path: find the step that produces this name.
+            let producer = pipeline
+                .steps
+                .iter()
+                .find(|s| s.produces.iter().any(|o| o.name == *consumed_name))
+                .ok_or_else(|| format!(
                     "step '{}' consumes '{consumed_name}' but no producer found in pipeline",
                     step.id
-                )
-            })?;
+                ))?;
+            (producer.id.clone(), consumed_name.clone())
+        };
 
         // Look up the artifact_id from the producer's step.done_declared event.
         let artifact_id =
-            find_artifact_id_in_events(job_id, &producer.id, consumed_name).ok_or_else(|| {
+            find_artifact_id_in_events(job_id, &producer_step_id, &output_key).ok_or_else(|| {
                 format!(
-                    "artifact '{consumed_name}' not found in step '{}' outputs — \
+                    "artifact '{consumed_name}' not found in step '{producer_step_id}' outputs — \
                      the step may not have uploaded it or omitted it from step_done.outputs",
-                    producer.id
                 )
             })?;
 
@@ -98,12 +110,21 @@ pub fn resolve_consumes(
         write_input_file(worktree_path, consumed_name, &record, &ship_dir)
             .map_err(|e| format!("resolve_consumes: failed writing input '{consumed_name}': {e}"))?;
 
+        // Extract a failure reason from `<lane>.failed` sentinel artifacts.
+        let failure_reason = if output_key == "failed" {
+            let p = worktree_path.join(format!(".artifacts/input/{consumed_name}"));
+            read_failure_reason(&p)
+        } else {
+            None
+        };
+
         resolved.push(ResolvedInput {
             name: consumed_name.clone(),
             artifact_id,
             worktree_path: format!(".artifacts/input/{consumed_name}"),
             size: record.size,
             mime: record.mime,
+            failure_reason,
         });
     }
 
@@ -239,8 +260,25 @@ pub fn find_artifact_id_in_events(
     None
 }
 
+/// Parse a lane-scoped consume reference like `"lane-claude.draft"` into
+/// `Some(("lane-claude", "draft"))`. Returns `None` for plain names with no `.`.
+pub fn parse_lane_scoped_ref(name: &str) -> Option<(&str, &str)> {
+    let dot = name.find('.')?;
+    Some((&name[..dot], &name[dot + 1..]))
+}
+
+/// Find the fanout step that owns a given lane_id.
+pub fn find_fanout_step_for_lane<'a>(
+    pipeline: &'a crate::events::job::Pipeline,
+    lane_id: &str,
+) -> Option<&'a crate::events::job::PipelineStep> {
+    pipeline.steps.iter().find(|s| {
+        s.fanout.as_ref().map_or(false, |f| f.lanes.iter().any(|l| l.id == lane_id))
+    })
+}
+
 /// Retrieve the full `outputs` map from a step's `step.done_declared` event.
-fn get_step_outputs_from_events(job_id: &str, step_id: &str) -> BTreeMap<String, String> {
+pub fn get_step_outputs_from_events(job_id: &str, step_id: &str) -> BTreeMap<String, String> {
     let Ok(store) = SqliteEventStore::new() else {
         return BTreeMap::new();
     };
@@ -266,6 +304,20 @@ fn get_step_outputs_from_events(job_id: &str, step_id: &str) -> BTreeMap<String,
         }
     }
     BTreeMap::new()
+}
+
+/// Read the `reason:` line from a `<lane>.failed` sentinel artifact.
+/// The marker file is small plain text; we cap reads at 4 KiB defensively.
+fn read_failure_reason(path: &Path) -> Option<String> {
+    let bytes = std::fs::read(path).ok()?;
+    let text = std::str::from_utf8(&bytes).ok()?;
+    let trimmed = if text.len() > 4096 { &text[..4096] } else { text };
+    for line in trimmed.lines() {
+        if let Some(rest) = line.strip_prefix("reason:") {
+            return Some(rest.trim().to_string());
+        }
+    }
+    None
 }
 
 /// Write an artifact blob to `<worktree>/.artifacts/input/<name>`.

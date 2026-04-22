@@ -144,6 +144,8 @@ async fn cancel_stops_registered_handle_and_emits_process_killed() {
         activity_txs: Arc::new(Mutex::new(std::collections::HashMap::new())),
         job_locks: Arc::new(Mutex::new(std::collections::HashMap::new())),
         event_dedup: Arc::new(crate::services::orchestrator::dedup::EventDedup::new()),
+        fanout_lane_txs: Arc::new(Mutex::new(std::collections::HashMap::new())),
+        fanout_lane_refs: Arc::new(Mutex::new(std::collections::HashMap::new())),
     };
 
     let job_id = "j-cancel-1";
@@ -204,6 +206,8 @@ async fn cancel_without_registered_handle_still_cleans_and_emits() {
         activity_txs: Arc::new(Mutex::new(std::collections::HashMap::new())),
         job_locks: Arc::new(Mutex::new(std::collections::HashMap::new())),
         event_dedup: Arc::new(crate::services::orchestrator::dedup::EventDedup::new()),
+        fanout_lane_txs: Arc::new(Mutex::new(std::collections::HashMap::new())),
+        fanout_lane_refs: Arc::new(Mutex::new(std::collections::HashMap::new())),
     };
 
     let job_id = "j-cancel-2";

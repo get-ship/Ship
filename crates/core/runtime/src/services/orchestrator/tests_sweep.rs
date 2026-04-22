@@ -154,6 +154,8 @@ fn make_octx(
         activity_txs: Arc::new(Mutex::new(std::collections::HashMap::new())),
         job_locks: Arc::new(Mutex::new(std::collections::HashMap::new())),
         event_dedup: Arc::new(crate::services::orchestrator::dedup::EventDedup::new()),
+        fanout_lane_txs: Arc::new(Mutex::new(std::collections::HashMap::new())),
+        fanout_lane_refs: Arc::new(Mutex::new(std::collections::HashMap::new())),
     })
 }
 
@@ -289,6 +291,7 @@ fn one_step_pipeline(step_id: &str, step_type: crate::events::job::StepType)
             produces: vec![],
             consumes: vec![],
             promotes: vec![],
+            fanout: None,
         }],
     }
 }

@@ -7,6 +7,7 @@
 //! 4. None → single `Agent` step using the job's declared agent
 
 use crate::events::job::{JobCreatedPayload, OutputScope, Pipeline, PipelineStep, StepType};
+use crate::services::orchestrator::step_io::parse_lane_scoped_ref;
 use ship_jobs::pipeline::{PipelineMeta, normalize_pipeline};
 
 /// Enrich a job with a pipeline and validate it. Resolution order:
@@ -64,9 +65,22 @@ fn validate_pipeline_io(pipeline: &Pipeline) -> Result<(), String> {
         }
     }
 
+    // Validate fanout declarations first.
+    for step in &pipeline.steps {
+        if let Some(fanout) = &step.fanout {
+            validate_fanout(pipeline, step, fanout)?;
+        }
+    }
+
     for step in &pipeline.steps {
         // Check that every consumed name has a producer.
         for name in &step.consumes {
+            // Lane-scoped references (e.g. "lane-claude.draft") are validated
+            // against their fanout step separately — skip the producers map.
+            if let Some((lane_id, output_name)) = parse_lane_scoped_ref(name) {
+                validate_lane_scoped_consume(pipeline, &step.id, name, lane_id, output_name)?;
+                continue;
+            }
             match producers.get(name.as_str()) {
                 None => return Err(format!(
                     "step '{}' consumes '{name}' but no step in the pipeline produces it",
@@ -141,6 +155,87 @@ fn validate_scope_transition(
              (requested: {from:?}→{to:?})"
         ));
     }
+    Ok(())
+}
+
+/// Validate a `fanout:` declaration on `step`.
+fn validate_fanout(
+    pipeline: &Pipeline,
+    step: &PipelineStep,
+    fanout: &crate::events::job::FanoutSpec,
+) -> Result<(), String> {
+    // Judge step must exist.
+    let judge = pipeline.steps.iter().find(|s| s.id == fanout.judge.step)
+        .ok_or_else(|| format!(
+            "fanout step '{}': judge.step '{}' not found in pipeline",
+            step.id, fanout.judge.step
+        ))?;
+
+    // Judge must declare the fanout step in its `after`.
+    if !judge.after.contains(&step.id) {
+        return Err(format!(
+            "fanout step '{}': judge step '{}' must list '{}' in its `after`",
+            step.id, judge.id, step.id
+        ));
+    }
+
+    // Lane IDs must be unique within the fanout.
+    let mut seen = std::collections::HashSet::new();
+    for lane in &fanout.lanes {
+        if !seen.insert(lane.id.as_str()) {
+            return Err(format!(
+                "fanout step '{}': duplicate lane id '{}'",
+                step.id, lane.id
+            ));
+        }
+        if lane.agent.is_empty() {
+            return Err(format!(
+                "fanout step '{}' lane '{}': agent must be declared",
+                step.id, lane.id
+            ));
+        }
+    }
+
+    if fanout.min_successful_lanes == 0 {
+        return Err(format!(
+            "fanout step '{}': min_successful_lanes must be at least 1",
+            step.id
+        ));
+    }
+
+    Ok(())
+}
+
+/// Validate a lane-scoped consume reference like `lane-claude.draft`.
+fn validate_lane_scoped_consume(
+    pipeline: &Pipeline,
+    consuming_step_id: &str,
+    full_name: &str,
+    lane_id: &str,
+    output_name: &str,
+) -> Result<(), String> {
+    // Find the fanout step that owns this lane.
+    let fanout_step = pipeline.steps.iter().find(|s| {
+        s.fanout.as_ref().map_or(false, |f| f.lanes.iter().any(|l| l.id == lane_id))
+    }).ok_or_else(|| format!(
+        "step '{consuming_step_id}' consumes '{full_name}': no fanout step has lane '{lane_id}'"
+    ))?;
+
+    // `<lane_id>.failed` is a reserved marker emitted by the aggregator when
+    // a lane fails — valid for any lane regardless of the fanout's produces.
+    if output_name == super::fanout::FAILED_MARKER_NAME {
+        return Ok(());
+    }
+
+    // The fanout step must produce the referenced output.
+    if !fanout_step.produces.iter().any(|o| o.name == output_name) {
+        return Err(format!(
+            "step '{consuming_step_id}' consumes '{full_name}': \
+             fanout step '{}' does not produce '{output_name}'",
+            fanout_step.id
+        ));
+    }
+
     Ok(())
 }
 
@@ -230,6 +325,7 @@ fn resolve_steps(payload: &mut JobCreatedPayload) {
             produces: vec![],
             consumes: vec![],
             promotes: vec![],
+            fanout: None,
         }],
         auto_merge: false,
     });

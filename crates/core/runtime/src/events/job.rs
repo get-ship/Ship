@@ -65,6 +65,40 @@ pub struct StepPromote {
     pub target_scope: OutputScope,
 }
 
+/// A single lane in a fanout step — runs the same spec through a different agent/model/provider.
+#[derive(Debug, Clone, Serialize, Deserialize, Type)]
+pub struct FanoutLane {
+    /// Unique identifier within the fanout.
+    pub id: String,
+    /// Agent profile to use for this lane.
+    pub agent: String,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub model: Option<String>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub provider: Option<String>,
+}
+
+/// Points to the judge step that arbitrates lane outputs.
+#[derive(Debug, Clone, Serialize, Deserialize, Type)]
+pub struct FanoutJudge {
+    /// Step ID of the judge. Must come after the fanout step in the pipeline DAG.
+    pub step: String,
+}
+
+/// Fanout configuration — run K agents in parallel, then a judge step picks or merges.
+#[derive(Debug, Clone, Serialize, Deserialize, Type)]
+pub struct FanoutSpec {
+    /// Parallel lanes. Each runs the fanout step's spec through a different agent/model/provider.
+    pub lanes: Vec<FanoutLane>,
+    /// Judge step that receives all lane outputs and arbitrates.
+    pub judge: FanoutJudge,
+    /// Minimum number of successful lanes required for the fanout step to succeed. Default: 1.
+    #[serde(default = "default_min_successful_lanes")]
+    pub min_successful_lanes: usize,
+}
+
+fn default_min_successful_lanes() -> usize { 1 }
+
 /// A single step in a pipeline DAG.
 ///
 /// Custom `Deserialize` allows YAML shorthand: `run: <command>` implies
@@ -115,6 +149,9 @@ pub struct PipelineStep {
     /// Outputs to promote to a wider scope when this step succeeds.
     #[serde(default, skip_serializing_if = "Vec::is_empty")]
     pub promotes: Vec<StepPromote>,
+    /// When present, run K parallel lanes instead of a single agent.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub fanout: Option<FanoutSpec>,
 }
 
 /// Declarative diff-based gate attached to a step. Runtime evaluates after the
@@ -197,6 +234,8 @@ impl<'de> serde::Deserialize<'de> for PipelineStep {
             consumes: Vec<String>,
             #[serde(default)]
             promotes: Vec<StepPromote>,
+            #[serde(default)]
+            fanout: Option<FanoutSpec>,
         }
         let raw = Raw::deserialize(d)?;
         let step_type = raw.step_type.unwrap_or_else(|| {
@@ -220,6 +259,7 @@ impl<'de> serde::Deserialize<'de> for PipelineStep {
             produces: raw.produces,
             consumes: raw.consumes,
             promotes: raw.promotes,
+            fanout: raw.fanout,
         })
     }
 }

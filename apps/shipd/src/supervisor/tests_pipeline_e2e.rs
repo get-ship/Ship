@@ -201,6 +201,8 @@ async fn pipeline_advances_through_all_steps() {
         activity_txs: Arc::new(Mutex::new(std::collections::HashMap::new())),
         job_locks: Arc::new(Mutex::new(std::collections::HashMap::new())),
         event_dedup: Arc::new(runtime::services::orchestrator::dedup::EventDedup::new()),
+        fanout_lane_txs: Arc::new(Mutex::new(std::collections::HashMap::new())),
+        fanout_lane_refs: Arc::new(Mutex::new(std::collections::HashMap::new())),
     };
 
     // First step completes — simulate agent finishing
@@ -447,6 +449,8 @@ async fn run_step_advances_to_agent_step() {
         activity_txs: Arc::new(Mutex::new(std::collections::HashMap::new())),
         job_locks: Arc::new(Mutex::new(std::collections::HashMap::new())),
         event_dedup: Arc::new(runtime::services::orchestrator::dedup::EventDedup::new()),
+        fanout_lane_txs: Arc::new(Mutex::new(std::collections::HashMap::new())),
+        fanout_lane_refs: Arc::new(Mutex::new(std::collections::HashMap::new())),
     };
 
     // advance_pipeline with the step_completed event — should dispatch "implement"
@@ -534,6 +538,8 @@ async fn first_step_run_executes_without_agent() {
         activity_txs: Arc::new(Mutex::new(std::collections::HashMap::new())),
         job_locks: Arc::new(Mutex::new(std::collections::HashMap::new())),
         event_dedup: Arc::new(runtime::services::orchestrator::dedup::EventDedup::new()),
+        fanout_lane_txs: Arc::new(Mutex::new(std::collections::HashMap::new())),
+        fanout_lane_refs: Arc::new(Mutex::new(std::collections::HashMap::new())),
     };
 
     // Dispatch the first run step directly — should execute without spawning an agent.
