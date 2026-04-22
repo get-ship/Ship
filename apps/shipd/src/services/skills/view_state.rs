@@ -293,5 +293,5 @@ pub fn load_skill_file(ship_dir: &Path, id: &str, file_path: &str) -> Option<Str
 }
 
 #[cfg(test)]
-#[path = "skills_state_tests.rs"]
+#[path = "view_state_tests.rs"]
 mod tests;

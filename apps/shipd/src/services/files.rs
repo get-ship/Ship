@@ -177,7 +177,7 @@ impl FilesService {
     /// before deserialising.
     pub fn read_jsonc<T: DeserializeOwned>(&self, scope: Scope, rel: &Path) -> Result<T, Error> {
         let raw = self.read_string(scope, rel)?;
-        let stripped = crate::views::agents_jsonc::strip_jsonc(&raw);
+        let stripped = crate::services::jsonc::strip_jsonc(&raw);
         serde_json::from_str(&stripped).map_err(|e| Error::Json(e.to_string()))
     }
 

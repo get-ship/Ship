@@ -12,12 +12,12 @@ use serde::Serialize;
 use std::collections::HashSet;
 use std::path::{Path, PathBuf};
 
-use super::agents_jsonc::{first_letter, parse_file, resolve_array_field};
+use super::super::jsonc::{first_letter, parse_file, resolve_array_field};
 
 // Re-export helpers whose names tests refer to directly (via `super::*`
 // in the sibling tests file). Canonical home is `agents_jsonc`.
 #[cfg(test)]
-pub(crate) use super::agents_jsonc::strip_jsonc;
+pub(crate) use super::super::jsonc::strip_jsonc;
 
 #[derive(Clone, Debug, Serialize)]
 pub struct AgentSummary {
@@ -428,7 +428,7 @@ fn list_tool_patterns(ship_dir: &Path) -> Vec<ToolPatternEntry> {
 }
 
 pub fn list_agent_catalogs(ship_dir: &Path) -> AgentCatalogs {
-    let skills = super::skills_state::list_skills(ship_dir)
+    let skills = super::super::skills::view_state::list_skills(ship_dir)
         .into_iter()
         .map(|s| CatalogEntry {
             id: s.id,
@@ -455,5 +455,5 @@ pub fn list_agent_catalogs(ship_dir: &Path) -> AgentCatalogs {
 }
 
 #[cfg(test)]
-#[path = "agents_state_tests.rs"]
+#[path = "view_state_tests.rs"]
 mod tests;

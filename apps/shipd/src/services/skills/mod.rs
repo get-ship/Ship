@@ -21,6 +21,7 @@
 //! The skill's filesystem is the source of truth for everything else.
 
 pub mod state;
+pub mod view_state;
 
 use axum::extract::{Path, Query, State};
 use axum::http::StatusCode;

@@ -17,6 +17,8 @@
 //! stay there — that module is the runtime-state side of the domain.
 
 pub mod state;
+pub mod view_state;
+
 
 use axum::extract::{Path, Query, State};
 use axum::http::StatusCode;

@@ -24,8 +24,6 @@
 
 pub mod stream;
 pub mod state;
-pub mod agents_state;
-pub mod skills_state;
 pub mod chat_state;
 pub mod events_state;
 pub mod setup;
@@ -35,7 +33,6 @@ pub mod session_types;
 pub mod sanitize;
 
 mod assets;
-pub mod agents_jsonc;
 pub mod context;
 pub mod error_overlay;
 pub mod generic_sse;
