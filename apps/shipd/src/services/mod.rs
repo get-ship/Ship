@@ -8,6 +8,8 @@
 pub mod files;
 pub mod jsonc;
 pub mod path_tolerant;
+pub mod registry;
+pub mod ship_ns;
 pub mod agents;
 pub mod pipelines;
 pub mod skills;
