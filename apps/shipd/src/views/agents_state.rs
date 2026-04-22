@@ -318,59 +318,41 @@ pub struct ToolPatternEntry {
     pub source: String,
 }
 
+/// Enumerate rules via RuleService state. Returns project+user, project-wins.
 fn list_rule_files(ship_dir: &Path) -> Vec<CatalogEntry> {
-    let dir = runtime::project::rules_dir(ship_dir);
-    let mut out = Vec::new();
-    let Ok(rd) = std::fs::read_dir(&dir) else {
-        return out;
-    };
-    for entry in rd.flatten() {
-        let path = entry.path();
-        if path.extension().and_then(|e| e.to_str()) != Some("md") {
-            continue;
-        }
-        let Some(stem) = path.file_stem().and_then(|s| s.to_str()) else {
-            continue;
-        };
-        out.push(CatalogEntry {
-            id: stem.to_string(),
-            name: stem.to_string(),
+    let files = crate::services::files::FilesService::resolve_roots(ship_dir);
+    crate::services::rules::state::list(&files)
+        .into_iter()
+        .map(|e| CatalogEntry {
+            id: e.id.clone(),
+            name: e.id,
             description: None,
+        })
+        .collect()
+}
+
+/// Enumerate permission presets via PermissionService state. Falls back to
+/// the three canonical tiers when no file exists — so the UI always has
+/// something to pick.
+fn list_permission_presets(ship_dir: &Path) -> Vec<CatalogEntry> {
+    let files = crate::services::files::FilesService::resolve_roots(ship_dir);
+    let entries = crate::services::permissions::state::list(&files);
+    if entries.is_empty() {
+        return fallback_presets();
+    }
+    // Load each preset's doc so we can surface `description` (best-effort).
+    let mut out: Vec<CatalogEntry> = Vec::new();
+    for e in entries {
+        let description = crate::services::permissions::state::load_entry(&files, &e.id, None)
+            .ok()
+            .and_then(|(_, v)| v.get("description").and_then(|d| d.as_str()).map(String::from));
+        out.push(CatalogEntry {
+            id: e.id.clone(),
+            name: e.id,
+            description,
         });
     }
     out.sort_by(|a, b| a.id.cmp(&b.id));
-    out
-}
-
-/// Parse `.ship/permissions.jsonc` and enumerate preset names.
-/// Fall back to the three canonical tiers when the file is absent or
-/// unparseable — so the UI always has something to pick.
-fn list_permission_presets(ship_dir: &Path) -> Vec<CatalogEntry> {
-    let path = runtime::project::permissions_config_path(ship_dir);
-    let Ok(raw) = std::fs::read_to_string(&path) else {
-        return fallback_presets();
-    };
-    let stripped = super::agents_jsonc::strip_jsonc(&raw);
-    let Ok(doc) = serde_json::from_str::<serde_json::Map<String, serde_json::Value>>(&stripped) else {
-        return fallback_presets();
-    };
-    let mut out: Vec<CatalogEntry> = doc
-        .iter()
-        .filter(|(k, _)| !k.starts_with('_') && !k.starts_with('$'))
-        .filter(|(_, v)| v.is_object())
-        .map(|(k, v)| CatalogEntry {
-            id: k.clone(),
-            name: k.clone(),
-            description: v
-                .get("description")
-                .and_then(|d| d.as_str())
-                .map(String::from),
-        })
-        .collect();
-    out.sort_by(|a, b| a.id.cmp(&b.id));
-    if out.is_empty() {
-        return fallback_presets();
-    }
     out
 }
 
@@ -432,21 +414,14 @@ fn list_tool_patterns(ship_dir: &Path) -> Vec<ToolPatternEntry> {
         });
     }
 
-    // User-declared MCP servers — their `active_tools` list if present.
-    // MCP tool patterns follow `mcp__<server>__<tool>`.
-    let project_root = ship_dir.parent().map(Path::to_path_buf).unwrap_or_else(|| ship_dir.to_path_buf());
-    if let Ok(servers) = runtime::config::list_mcp_servers(Some(project_root)) {
-        for server in servers {
-            let server_id = if server.id.is_empty() { server.name.clone() } else { server.id.clone() };
-            // Wildcard entry for the whole server. Per-tool enumeration
-            // would require introspecting each MCP server's advertised
-            // tools — a separate capability. Wildcard is honest today.
-            out.push(ToolPatternEntry {
-                pattern: format!("mcp__{server_id}__*"),
-                label: format!("mcp · {} · all tools", server_id),
-                source: format!("mcp-{server_id}"),
-            });
-        }
+    // MCP servers — wildcard entry per server. Delegates to McpService.
+    let files = crate::services::files::FilesService::resolve_roots(ship_dir);
+    for entry in crate::services::mcp::state::list(&files) {
+        out.push(ToolPatternEntry {
+            pattern: format!("mcp__{}__*", entry.id),
+            label: format!("mcp · {} · all tools", entry.id),
+            source: format!("mcp-{}", entry.id),
+        });
     }
 
     out
@@ -461,17 +436,18 @@ pub fn list_agent_catalogs(ship_dir: &Path) -> AgentCatalogs {
             description: if s.description.is_empty() { None } else { Some(s.description) },
         })
         .collect();
-    let mcp = runtime::config::list_mcp_servers(Some(
-        ship_dir.parent().map(Path::to_path_buf).unwrap_or_else(|| ship_dir.to_path_buf()),
-    ))
-    .unwrap_or_default()
-    .into_iter()
-    .map(|s| CatalogEntry {
-        id: if s.id.is_empty() { s.name.clone() } else { s.id },
-        name: s.name,
-        description: None,
-    })
-    .collect();
+    let mcp_files = crate::services::files::FilesService::resolve_roots(ship_dir);
+    let mcp: Vec<CatalogEntry> = crate::services::mcp::state::list(&mcp_files)
+        .into_iter()
+        .map(|e| {
+            // Best-effort name: load entry and use `name` if present, else id.
+            let name = crate::services::mcp::state::load_entry(&mcp_files, &e.id, None)
+                .ok()
+                .and_then(|(_, v)| v.get("name").and_then(|n| n.as_str()).map(String::from))
+                .unwrap_or_else(|| e.id.clone());
+            CatalogEntry { id: e.id, name, description: None }
+        })
+        .collect();
     let rules = list_rule_files(ship_dir);
     let presets = list_permission_presets(ship_dir);
     let tool_patterns = list_tool_patterns(ship_dir);

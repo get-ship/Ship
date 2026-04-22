@@ -173,6 +173,28 @@ pub fn set_skill_var(ship_dir: &Path, skill_id: &str, key: &str, value: Value) -
     Ok(())
 }
 
+/// Delete a single variable for a skill across whichever scope stores it.
+/// Routes by the var's `storage-hint`. Returns `true` if a value was present
+/// and removed, `false` if the key had no stored override (defaults remain).
+pub fn delete_skill_var(ship_dir: &Path, skill_id: &str, key: &str) -> Result<bool> {
+    let schema = parse_vars_schema(ship_dir, skill_id)
+        .ok_or_else(|| anyhow::anyhow!("skill '{}' has no assets/vars.json", skill_id))?;
+    let meta = schema
+        .get(key)
+        .ok_or_else(|| anyhow::anyhow!("unknown variable '{}' for skill '{}'", key, skill_id))?;
+    let ctx = context_key(ship_dir);
+    let ns = match meta.storage_hint {
+        StorageHint::Global => kv_ns_global(skill_id),
+        StorageHint::Local => kv_ns_local(&ctx, skill_id),
+        StorageHint::Project => kv_ns_project(&ctx, skill_id),
+    };
+    let had = crate::db::kv::get(&ns, key)?.is_some();
+    if had {
+        crate::db::kv::delete(&ns, key)?;
+    }
+    Ok(had)
+}
+
 /// Clear all stored state for a skill across all three scopes.
 pub fn reset_skill_vars(ship_dir: &Path, skill_id: &str) -> Result<bool> {
     let ctx = context_key(ship_dir);
