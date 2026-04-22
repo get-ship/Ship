@@ -181,6 +181,38 @@ pub enum Route {
     /// @route POST "/api/agents/{id}/move"
     AgentsMove { id: String },
 
+    // ── PipelineService — service-shaped CRUD + run ops ──
+
+    /// @route GET "/api/pipelines"
+    PipelinesList,
+
+    /// @route GET "/api/pipelines/{name}"
+    PipelinesGet { name: String },
+
+    /// @route PUT "/api/pipelines/{name}"
+    PipelinesPut { name: String },
+
+    /// @route PATCH "/api/pipelines/{name}"
+    PipelinesPatch { name: String },
+
+    /// @route DELETE "/api/pipelines/{name}"
+    PipelinesDelete { name: String },
+
+    /// @route POST "/api/pipelines/{name}/dispatch"
+    PipelinesDispatch { name: String },
+
+    /// @route POST "/api/pipelines/runs/{slug}/cancel"
+    PipelineRunCancel { slug: String },
+
+    /// @route GET "/api/pipelines/runs"
+    PipelineRunsList,
+
+    /// @route GET "/api/pipelines/runs/{slug}"
+    PipelineRunGet { slug: String },
+
+    /// @route GET "/api/pipelines/runs/{slug}/log/stream"
+    PipelineRunLogStream { slug: String },
+
     /// @route GET "/api/runtime/view/skills"
     ViewSkills,
 
@@ -395,15 +427,6 @@ pub enum Route {
 
     /// @route POST "/api/workspaces/{id}/activate"
     ActivateWorkspace { id: String },
-
-    /// @route GET "/api/workspaces/{id}/pipelines"
-    ListWorkspacePipelines { id: String },
-
-    /// @route PUT "/api/workspaces/{id}/pipelines/{name}"
-    WritePipeline { id: String, name: String },
-
-    /// @route DELETE "/api/workspaces/{id}/pipelines/{name}"
-    DeletePipeline { id: String, name: String },
 
     /// @route GET "/api/project/git/status"
     ProjectGitStatus,

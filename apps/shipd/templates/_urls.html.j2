@@ -48,6 +48,16 @@
 {%- macro agents_rename(id) -%}/api/agents/{{ id }}/rename{%- endmacro -%}
 {%- macro agents_duplicate(id) -%}/api/agents/{{ id }}/duplicate{%- endmacro -%}
 {%- macro agents_move(id) -%}/api/agents/{{ id }}/move{%- endmacro -%}
+{%- macro pipelines_list() -%}/api/pipelines{%- endmacro -%}
+{%- macro pipelines_get(name) -%}/api/pipelines/{{ name }}{%- endmacro -%}
+{%- macro pipelines_put(name) -%}/api/pipelines/{{ name }}{%- endmacro -%}
+{%- macro pipelines_patch(name) -%}/api/pipelines/{{ name }}{%- endmacro -%}
+{%- macro pipelines_delete(name) -%}/api/pipelines/{{ name }}{%- endmacro -%}
+{%- macro pipelines_dispatch(name) -%}/api/pipelines/{{ name }}/dispatch{%- endmacro -%}
+{%- macro pipeline_run_cancel(slug) -%}/api/pipelines/runs/{{ slug }}/cancel{%- endmacro -%}
+{%- macro pipeline_runs_list() -%}/api/pipelines/runs{%- endmacro -%}
+{%- macro pipeline_run_get(slug) -%}/api/pipelines/runs/{{ slug }}{%- endmacro -%}
+{%- macro pipeline_run_log_stream(slug) -%}/api/pipelines/runs/{{ slug }}/log/stream{%- endmacro -%}
 {%- macro view_skills() -%}/api/runtime/view/skills{%- endmacro -%}
 {%- macro view_skills_rail() -%}/api/runtime/view/skills/rail{%- endmacro -%}
 {%- macro view_skill_detail(id) -%}/api/runtime/view/skills/detail/{{ id }}{%- endmacro -%}
@@ -111,9 +121,6 @@
 {%- macro set_skill_var(id, skillId, key) -%}/api/workspaces/{{ id }}/skills/{{ skillId }}/vars/{{ key }}{%- endmacro -%}
 {%- macro delete_workspace(id) -%}/api/workspaces/{{ id }}{%- endmacro -%}
 {%- macro activate_workspace(id) -%}/api/workspaces/{{ id }}/activate{%- endmacro -%}
-{%- macro list_workspace_pipelines(id) -%}/api/workspaces/{{ id }}/pipelines{%- endmacro -%}
-{%- macro write_pipeline(id, name) -%}/api/workspaces/{{ id }}/pipelines/{{ name }}{%- endmacro -%}
-{%- macro delete_pipeline(id, name) -%}/api/workspaces/{{ id }}/pipelines/{{ name }}{%- endmacro -%}
 {%- macro project_git_status() -%}/api/project/git/status{%- endmacro -%}
 {%- macro project_git_diff() -%}/api/project/git/diff{%- endmacro -%}
 {%- macro project_git_log() -%}/api/project/git/log{%- endmacro -%}
