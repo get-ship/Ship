@@ -1,7 +1,7 @@
 //! Registry dispatch tests. Verifies name resolution + arg parsing
 //! without spinning up ApiState — we rely on pure state-function calls.
 
-use super::registry::*;
+use super::*;
 use serde_json::json;
 
 #[test]

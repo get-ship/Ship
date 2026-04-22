@@ -22,6 +22,7 @@
 //!   `apps/shipd/templates/` via the `loader` feature, plus `render`
 //!   convenience helpers.
 
+pub mod router;
 pub mod stream;
 pub mod state;
 pub mod chat_state;
