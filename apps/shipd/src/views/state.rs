@@ -23,7 +23,10 @@ pub use super::agents_state::{
     AgentCatalogs, AgentDetail, AgentSummary, CatalogEntry,
     CreateAgentError, CreateAgentRequest,
     PatchAgentError, PatchAgentRequest,
-    create_agent, list_agent_catalogs, list_agents, load_agent, patch_agent,
+    Permissions, ReplacePermissionsError, ReplacePermissionsRequest,
+    ToolPatternEntry,
+    create_agent, list_agent_catalogs, list_agents, load_agent,
+    patch_agent, replace_permissions,
 };
 pub use super::skills_state::{
     SkillDetail, SkillKind, SkillSummary, list_skills, load_skill,

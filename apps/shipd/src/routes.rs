@@ -161,6 +161,9 @@ pub enum Route {
     /// @route POST "/api/agents/{id}/patch"
     PatchAgent { id: String },
 
+    /// @route PUT "/api/agents/{id}/permissions"
+    PutAgentPermissions { id: String },
+
     /// @route GET "/api/runtime/view/skills"
     ViewSkills,
 

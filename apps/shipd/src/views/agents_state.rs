@@ -52,8 +52,25 @@ pub struct AgentDetail {
     pub rules: Vec<String>,
     pub providers: Vec<String>,
     pub default_provider: Option<String>,
+    /// Legacy — canonicalized tier for existing UI that only shows a
+    /// single "tier" (one of standard / autonomous / read-only). Kept
+    /// for backward compat while the permissions panel migrates to
+    /// the full editor; derived from `permissions.preset` by stripping
+    /// a `ship-` prefix.
     pub permissions_tier: String,
+    /// Full permissions shape matching the agent schema. Preset is the
+    /// named entry from .ship/permissions.jsonc; the three tool-pattern
+    /// lists are merged on top of the preset.
+    pub permissions: Permissions,
     pub source: String,
+}
+
+#[derive(Clone, Debug, Default, Serialize)]
+pub struct Permissions {
+    pub preset: String,
+    pub tools_allow: Vec<String>,
+    pub tools_ask: Vec<String>,
+    pub tools_deny: Vec<String>,
 }
 
 /// Source label for project-scoped agents (enclosing `.ship/` of cwd).
@@ -180,6 +197,24 @@ fn load_from_dir(dir: &Path, id: &str, source: &str) -> Option<AgentDetail> {
                     .map(|s: &str| s.trim_start_matches("ship-").to_string())
             })
             .unwrap_or_else(|| "standard".to_string());
+        let permissions = Permissions {
+            preset: permissions_obj
+                .and_then(|p| p.get("preset").and_then(|t| t.as_str()))
+                .unwrap_or("")
+                .to_string(),
+            tools_allow: permissions_obj
+                .and_then(|p| p.get("tools_allow").and_then(|v| v.as_array()))
+                .map(|arr| arr.iter().filter_map(|v| v.as_str().map(String::from)).collect())
+                .unwrap_or_default(),
+            tools_ask: permissions_obj
+                .and_then(|p| p.get("tools_ask").and_then(|v| v.as_array()))
+                .map(|arr| arr.iter().filter_map(|v| v.as_str().map(String::from)).collect())
+                .unwrap_or_default(),
+            tools_deny: permissions_obj
+                .and_then(|p| p.get("tools_deny").and_then(|v| v.as_array()))
+                .map(|arr| arr.iter().filter_map(|v| v.as_str().map(String::from)).collect())
+                .unwrap_or_default(),
+        };
         return Some(AgentDetail {
             id: file_id,
             name: name.clone(),
@@ -191,6 +226,7 @@ fn load_from_dir(dir: &Path, id: &str, source: &str) -> Option<AgentDetail> {
             providers,
             default_provider,
             permissions_tier,
+            permissions,
             source: source.to_string(),
         });
     }
@@ -471,6 +507,90 @@ fn merge_array(
     }
 }
 
+// ─── Replace permissions (wholesale) ──────────────────────────────────
+//
+// Separate from patch_agent because merge-semantics for tool lists are
+// wrong: users need to *remove* patterns, not just add. This writes the
+// full permissions block (preset + three arrays) atomically.
+
+#[derive(serde::Deserialize, Debug, Default)]
+pub struct ReplacePermissionsRequest {
+    #[serde(default)]
+    pub preset: String,
+    #[serde(default)]
+    pub tools_allow: Vec<String>,
+    #[serde(default)]
+    pub tools_ask: Vec<String>,
+    #[serde(default)]
+    pub tools_deny: Vec<String>,
+}
+
+#[derive(Debug)]
+pub enum ReplacePermissionsError {
+    NotFound(String),
+    Parse(String),
+    Io(std::io::Error),
+}
+
+impl std::fmt::Display for ReplacePermissionsError {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        match self {
+            Self::NotFound(id) => write!(f, "agent `{id}` not found"),
+            Self::Parse(e) => write!(f, "couldn't parse agent JSONC: {e}"),
+            Self::Io(e) => write!(f, "{e}"),
+        }
+    }
+}
+
+pub fn replace_permissions(
+    ship_dir: &Path,
+    id: &str,
+    req: &ReplacePermissionsRequest,
+) -> Result<(), ReplacePermissionsError> {
+    let path = find_agent_path(ship_dir, id)
+        .ok_or_else(|| ReplacePermissionsError::NotFound(id.into()))?;
+    let raw = std::fs::read_to_string(&path).map_err(ReplacePermissionsError::Io)?;
+    let stripped = super::agents_jsonc::strip_jsonc(&raw);
+    let mut doc: serde_json::Map<String, serde_json::Value> =
+        serde_json::from_str(&stripped).map_err(|e| ReplacePermissionsError::Parse(e.to_string()))?;
+
+    // Build the new permissions object. Omit empty lists so the JSONC
+    // stays clean.
+    let mut perms = serde_json::Map::new();
+    if !req.preset.trim().is_empty() {
+        perms.insert("preset".into(), serde_json::Value::String(req.preset.trim().into()));
+    }
+    let push_arr = |m: &mut serde_json::Map<String, serde_json::Value>, key: &str, v: &[String]| {
+        if !v.is_empty() {
+            m.insert(
+                key.into(),
+                serde_json::Value::Array(
+                    v.iter()
+                        .filter(|s| !s.trim().is_empty())
+                        .map(|s| serde_json::Value::String(s.clone()))
+                        .collect(),
+                ),
+            );
+        }
+    };
+    push_arr(&mut perms, "tools_allow", &req.tools_allow);
+    push_arr(&mut perms, "tools_ask", &req.tools_ask);
+    push_arr(&mut perms, "tools_deny", &req.tools_deny);
+
+    if perms.is_empty() {
+        doc.remove("permissions");
+    } else {
+        doc.insert("permissions".into(), serde_json::Value::Object(perms));
+    }
+
+    let body = serde_json::to_string_pretty(&serde_json::Value::Object(doc))
+        .map_err(|e| ReplacePermissionsError::Io(std::io::Error::other(e)))?;
+    let tmp = path.with_extension("jsonc.tmp");
+    std::fs::write(&tmp, body).map_err(ReplacePermissionsError::Io)?;
+    std::fs::rename(&tmp, &path).map_err(ReplacePermissionsError::Io)?;
+    Ok(())
+}
+
 pub fn patch_agent(
     ship_dir: &Path,
     id: &str,
@@ -515,6 +635,25 @@ pub struct AgentCatalogs {
     pub skills: Vec<CatalogEntry>,
     pub mcp: Vec<CatalogEntry>,
     pub rules: Vec<CatalogEntry>,
+    /// Named permission presets from `.ship/permissions.jsonc`.
+    /// The editor's preset select populates from this list; falls back
+    /// to the three canonical tiers when the file is absent.
+    pub presets: Vec<CatalogEntry>,
+    /// Known-good tool patterns the autocomplete suggests. Merged from
+    /// provider builtins + Ship MCP tools + user-declared MCP
+    /// `active_tools` + a small curated Bash-shape list. Free-form
+    /// strings outside this list are still accepted in the editor.
+    pub tool_patterns: Vec<ToolPatternEntry>,
+}
+
+#[derive(Serialize, Debug)]
+pub struct ToolPatternEntry {
+    pub pattern: String,
+    /// Short label shown in the autocomplete dropdown.
+    pub label: String,
+    /// Where this pattern comes from — "provider", "mcp-ship",
+    /// "mcp-<server>", "bash".
+    pub source: String,
 }
 
 fn list_rule_files(ship_dir: &Path) -> Vec<CatalogEntry> {
@@ -541,6 +680,116 @@ fn list_rule_files(ship_dir: &Path) -> Vec<CatalogEntry> {
     out
 }
 
+/// Parse `.ship/permissions.jsonc` and enumerate preset names.
+/// Fall back to the three canonical tiers when the file is absent or
+/// unparseable — so the UI always has something to pick.
+fn list_permission_presets(ship_dir: &Path) -> Vec<CatalogEntry> {
+    let path = runtime::project::permissions_config_path(ship_dir);
+    let Ok(raw) = std::fs::read_to_string(&path) else {
+        return fallback_presets();
+    };
+    let stripped = super::agents_jsonc::strip_jsonc(&raw);
+    let Ok(doc) = serde_json::from_str::<serde_json::Map<String, serde_json::Value>>(&stripped) else {
+        return fallback_presets();
+    };
+    let mut out: Vec<CatalogEntry> = doc
+        .iter()
+        .filter(|(k, _)| !k.starts_with('_') && !k.starts_with('$'))
+        .filter(|(_, v)| v.is_object())
+        .map(|(k, v)| CatalogEntry {
+            id: k.clone(),
+            name: k.clone(),
+            description: v
+                .get("description")
+                .and_then(|d| d.as_str())
+                .map(String::from),
+        })
+        .collect();
+    out.sort_by(|a, b| a.id.cmp(&b.id));
+    if out.is_empty() {
+        return fallback_presets();
+    }
+    out
+}
+
+fn fallback_presets() -> Vec<CatalogEntry> {
+    vec![
+        CatalogEntry {
+            id: "ship-standard".into(),
+            name: "ship-standard".into(),
+            description: Some("Human confirms risky actions before they run.".into()),
+        },
+        CatalogEntry {
+            id: "ship-autonomous".into(),
+            name: "ship-autonomous".into(),
+            description: Some("Agent acts end-to-end; safety rails still apply.".into()),
+        },
+        CatalogEntry {
+            id: "ship-readonly".into(),
+            name: "ship-readonly".into(),
+            description: Some("Agent inspects and reports. No writes.".into()),
+        },
+    ]
+}
+
+/// Build the tool-pattern autocomplete catalog. Intentionally small —
+/// provider builtins + Ship MCP tool names + curated Bash shapes +
+/// a wildcard hint. User-declared MCP server `active_tools` get
+/// added when present.
+fn list_tool_patterns(ship_dir: &Path) -> Vec<ToolPatternEntry> {
+    let mut out: Vec<ToolPatternEntry> = Vec::new();
+
+    // Provider builtins — invariant across projects.
+    for t in &[
+        "Read", "Write", "Edit", "Glob", "Grep", "Bash",
+        "NotebookEdit", "WebFetch", "WebSearch", "Task",
+    ] {
+        out.push(ToolPatternEntry {
+            pattern: t.to_string(),
+            label: t.to_string(),
+            source: "provider".into(),
+        });
+    }
+
+    // Common Bash shapes — curated, not exhaustive.
+    for (p, l) in &[
+        ("Bash(git *)", "Bash git · all git subcommands"),
+        ("Bash(git reset*)", "Bash git · reset (destructive)"),
+        ("Bash(git push --force*)", "Bash git · force push (destructive)"),
+        ("Bash(npm *)", "Bash npm · all npm subcommands"),
+        ("Bash(pnpm *)", "Bash pnpm"),
+        ("Bash(cargo *)", "Bash cargo"),
+        ("Bash(ship *)", "Bash ship · Ship CLI"),
+        ("Bash(just *)", "Bash just"),
+        ("Bash(rm -rf *)", "Bash rm · recursive delete (destructive)"),
+    ] {
+        out.push(ToolPatternEntry {
+            pattern: (*p).into(),
+            label: (*l).into(),
+            source: "bash".into(),
+        });
+    }
+
+    // User-declared MCP servers — their `active_tools` list if present.
+    // MCP tool patterns follow `mcp__<server>__<tool>`.
+    let project_root = ship_dir.parent().map(Path::to_path_buf).unwrap_or_else(|| ship_dir.to_path_buf());
+    if let Ok(servers) = runtime::config::list_mcp_servers(Some(project_root)) {
+        for server in servers {
+            let server_id = if server.id.is_empty() { server.name.clone() } else { server.id.clone() };
+            // Wildcard entry for the whole server. Per-tool enumeration
+            // would require introspecting each MCP server's advertised
+            // tools — a separate capability. Wildcard is honest today.
+            out.push(ToolPatternEntry {
+                pattern: format!("mcp__{server_id}__*"),
+                label: format!("mcp · {} · all tools", server_id),
+                source: format!("mcp-{server_id}"),
+            });
+        }
+    }
+
+    out
+}
+
 pub fn list_agent_catalogs(ship_dir: &Path) -> AgentCatalogs {
     let skills = super::skills_state::list_skills(ship_dir)
         .into_iter()
@@ -562,7 +811,9 @@ pub fn list_agent_catalogs(ship_dir: &Path) -> AgentCatalogs {
     })
     .collect();
     let rules = list_rule_files(ship_dir);
-    AgentCatalogs { skills, mcp, rules }
+    let presets = list_permission_presets(ship_dir);
+    let tool_patterns = list_tool_patterns(ship_dir);
+    AgentCatalogs { skills, mcp, rules, presets, tool_patterns }
 }
 
 #[cfg(test)]

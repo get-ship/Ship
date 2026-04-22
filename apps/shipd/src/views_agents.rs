@@ -22,7 +22,7 @@ use serde::Serialize;
 
 use crate::rest_api::ApiState;
 use crate::views::resolve_view_dir;
-use crate::views::state::{AgentDetail, AgentSummary, CreateAgentError, CreateAgentRequest, create_agent, list_agents, list_agent_catalogs, load_agent, patch_agent, PatchAgentError, PatchAgentRequest};
+use crate::views::state::{AgentDetail, AgentSummary, CreateAgentError, CreateAgentRequest, create_agent, list_agents, list_agent_catalogs, load_agent, patch_agent, replace_permissions, PatchAgentError, PatchAgentRequest, ReplacePermissionsError, ReplacePermissionsRequest};
 use crate::views::templates;
 
 /// Try rendering a template from `.ship/views/<view>/<file>`.
@@ -530,6 +530,37 @@ pub async fn agent_patch(
                 "error": "io",
                 "message": e.to_string(),
             })),
+        ),
+    }
+}
+
+/// PUT /api/agents/{id}/permissions — wholesale-replace the permissions
+/// block. Merge semantics are wrong for tool removal, so this writes the
+/// full shape (preset + three lists) atomically.
+pub async fn agent_put_permissions(
+    State(state): State<ApiState>,
+    Path(id): Path<String>,
+    Json(req): Json<ReplacePermissionsRequest>,
+) -> (StatusCode, Json<serde_json::Value>) {
+    match replace_permissions(state.ship_dir(), &id, &req) {
+        Ok(()) => (
+            StatusCode::OK,
+            Json(serde_json::json!({ "ok": true, "id": id })),
+        ),
+        Err(ReplacePermissionsError::NotFound(_)) => (
+            StatusCode::NOT_FOUND,
+            Json(serde_json::json!({
+                "ok": false, "error": "not_found",
+                "message": format!("agent `{id}` not found"),
+            })),
+        ),
+        Err(ReplacePermissionsError::Parse(msg)) => (
+            StatusCode::BAD_REQUEST,
+            Json(serde_json::json!({ "ok": false, "error": "parse", "message": msg })),
+        ),
+        Err(ReplacePermissionsError::Io(e)) => (
+            StatusCode::INTERNAL_SERVER_ERROR,
+            Json(serde_json::json!({ "ok": false, "error": "io", "message": e.to_string() })),
         ),
     }
 }

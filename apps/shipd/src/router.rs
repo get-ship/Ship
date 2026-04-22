@@ -273,6 +273,7 @@ fn build_ship_routes(st: rest_api::ApiState) -> Router {
         .ship_route(Route::ViewAgentSettings_template(), views_agents::agent_settings)
         .ship_route(Route::AgentCatalogs, views_agents::agent_catalogs)
         .ship_route(Route::PatchAgent_template(), views_agents::agent_patch)
+        .ship_route(Route::PutAgentPermissions_template(), views_agents::agent_put_permissions)
         .ship_route(Route::ViewSkills, views_skills::skills_shell)
         .ship_route(Route::ViewSkillsRail, views_skills::skills_rail)
         .ship_route(Route::ViewSkillDetail_template(), views_skills::skill_detail)
