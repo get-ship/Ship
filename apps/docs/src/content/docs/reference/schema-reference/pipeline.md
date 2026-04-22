@@ -27,6 +27,24 @@ Workflow templates defining a DAG of steps for job execution. Pipelines coordina
 | `after` | string[] | no | Step IDs that must complete first. Empty = root step. |
 | `model` | string | no | Model override, e.g. `sonnet`, `opus`, `haiku` |
 | `provider` | string | no | Provider override, e.g. `anthropic` |
+| `produces` | StepOutput[] | no | Artifacts this step produces. See [Step I/O](/reference/pipelines/step-io/). |
+| `consumes` | string[] | no | Output names from prior steps to resolve before dispatch. |
+| `promotes` | StepPromote[] | no | Outputs to promote to a wider scope on success. |
+
+### StepOutput fields
+
+| Field | Type | Default | Description |
+|-------|------|---------|-------------|
+| `name` | string | — | Logical name, unique within the step. |
+| `scope` | `run` \| `project` \| `user` | `run` | Storage scope. |
+| `required` | boolean | `false` | Fail the step when this output is missing from `step_done.outputs`. |
+
+### StepPromote fields
+
+| Field | Type | Description |
+|-------|------|-------------|
+| `name` | string | Must match a `produces.name` on this step. |
+| `target_scope` | `project` \| `user` | Valid transitions: `run→project`, `run→user`, `project→user`. |
 
 ## Step types
 

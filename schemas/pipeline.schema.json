@@ -49,6 +49,59 @@
           "provider": {
             "type": "string",
             "description": "Provider override (e.g. 'anthropic')."
+          },
+          "produces": {
+            "type": "array",
+            "description": "Artifacts this step produces. The agent uploads them and reports their IDs in step_done.outputs.",
+            "items": {
+              "type": "object",
+              "required": ["name"],
+              "properties": {
+                "name": {
+                  "type": "string",
+                  "description": "Logical name, unique within this step. Used in consumes and promotes references.",
+                  "pattern": "^[a-z0-9][a-z0-9_-]*$"
+                },
+                "scope": {
+                  "type": "string",
+                  "enum": ["run", "project", "user"],
+                  "default": "run",
+                  "description": "Storage scope. 'run' is ephemeral (default); 'project' and 'user' are persistent."
+                },
+                "required": {
+                  "type": "boolean",
+                  "default": false,
+                  "description": "When true, the step fails if this output is absent from step_done.outputs."
+                }
+              }
+            },
+            "default": []
+          },
+          "consumes": {
+            "type": "array",
+            "items": { "type": "string" },
+            "description": "Names of outputs from prior steps this step depends on. Resolved by the orchestrator before dispatch and written to .artifacts/input/<name>.",
+            "default": []
+          },
+          "promotes": {
+            "type": "array",
+            "description": "Outputs to promote to a wider scope when this step succeeds.",
+            "items": {
+              "type": "object",
+              "required": ["name", "target_scope"],
+              "properties": {
+                "name": {
+                  "type": "string",
+                  "description": "Must match a produces.name on this step."
+                },
+                "target_scope": {
+                  "type": "string",
+                  "enum": ["project", "user"],
+                  "description": "Target scope. Valid transitions: run→project, run→user, project→user."
+                }
+              }
+            },
+            "default": []
           }
         },
         "if": {

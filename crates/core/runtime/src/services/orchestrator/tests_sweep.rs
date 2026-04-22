@@ -286,6 +286,9 @@ fn one_step_pipeline(step_id: &str, step_type: crate::events::job::StepType)
             command,
             max_retries: None,
             gate: None,
+            produces: vec![],
+            consumes: vec![],
+            promotes: vec![],
         }],
     }
 }

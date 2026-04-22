@@ -10,7 +10,11 @@ use crate::services::dispatch_ports::{JobContext, LaunchProfile};
 use std::sync::Arc;
 use tokio::sync::Mutex;
 
-use super::emit::{emit_job_dispatched_with_meta, emit_process_spawned, emit_step_dispatched_event};
+use super::emit::{
+    emit_job_dispatched_with_meta, emit_process_spawned, emit_step_dispatched_event,
+    emit_step_failed,
+};
+use super::step_io::resolve_consumes;
 use super::step_monitor::{StepMonitor, start_step_monitor};
 use super::OrchestratorContext;
 
@@ -211,6 +215,25 @@ async fn advance_pipeline_inner(
                     continue;
                 }
 
+                // Resolve consumes before dispatch — fail fast if inputs are missing.
+                let resolved_inputs = if let Some(pipeline) = &job.steps {
+                    match resolve_consumes(step, pipeline, &job.job_id, &worktree_path) {
+                        Ok(inputs) => inputs,
+                        Err(e) => {
+                            tracing::error!(
+                                slug, step_id = step.id,
+                                "pipeline: consumes resolution failed: {e}"
+                            );
+                            emit_step_failed(
+                                kernel, &job.job_id, slug, &step.id, &e,
+                            ).await;
+                            continue;
+                        }
+                    }
+                } else {
+                    vec![]
+                };
+
                 octx.platform.graceful_agent_exit(slug, step.provider.as_deref()).await;
 
                 tracing::info!(slug, agent, step_id = step.id, "pipeline: compiling agent config");
@@ -221,7 +244,7 @@ async fn advance_pipeline_inner(
                 if let Some(pipeline) = &job.steps {
                     super::pipeline_specs::prepare_step_for_dispatch(
                         &worktree_path, slug, &job.job_id,
-                        &job.spec_path, pipeline, step,
+                        &job.spec_path, pipeline, step, &resolved_inputs,
                     );
                 }
 

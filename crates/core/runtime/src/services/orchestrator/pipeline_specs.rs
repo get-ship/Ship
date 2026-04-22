@@ -21,6 +21,7 @@
 //!    a deprecation log line).
 
 use crate::events::job::{Pipeline, PipelineStep};
+use crate::services::orchestrator::step_io::ResolvedInput;
 use anyhow::{Context, Result};
 use std::path::{Path, PathBuf};
 
@@ -78,8 +79,9 @@ pub fn write_dispatch_prompt(
     pipeline_name: Option<&str>,
     pipeline: &Pipeline,
     current: &PipelineStep,
+    resolved_inputs: &[ResolvedInput],
 ) -> Result<PathBuf> {
-    let content = render_dispatch_prompt(pipeline_name, pipeline, current);
+    let content = render_dispatch_prompt(pipeline_name, pipeline, current, resolved_inputs);
     let dst = worktree_path.join(spec_path);
     if let Some(parent) = dst.parent() {
         std::fs::create_dir_all(parent)
@@ -100,6 +102,7 @@ pub fn prepare_step_for_dispatch(
     spec_path: &str,
     pipeline: &Pipeline,
     current: &PipelineStep,
+    resolved_inputs: &[ResolvedInput],
 ) {
     let ctx = super::prompt_composer::load_job_context(job_id);
     let step_specs = ctx
@@ -112,7 +115,7 @@ pub fn prepare_step_for_dispatch(
         tracing::error!(slug, step_id = current.id, "pipeline: failed to write pipeline specs: {e}");
     }
     match write_dispatch_prompt(
-        worktree_path, spec_path, ctx.pipeline_name.as_deref(), pipeline, current,
+        worktree_path, spec_path, ctx.pipeline_name.as_deref(), pipeline, current, resolved_inputs,
     ) {
         Ok(path) => tracing::info!(
             slug, step_id = current.id,
@@ -209,6 +212,7 @@ fn render_dispatch_prompt(
     pipeline_name: Option<&str>,
     pipeline: &Pipeline,
     current: &PipelineStep,
+    resolved_inputs: &[ResolvedInput],
 ) -> String {
     let idx = pipeline
         .steps
@@ -255,6 +259,46 @@ fn render_dispatch_prompt(
         out.push_str(&format!("{marker} step-{n} `{id}` ({role})\n", n = i + 1, id = s.id));
     }
     out.push('\n');
+
+    // Resolved inputs section (populated when this step has `consumes`).
+    if !resolved_inputs.is_empty() {
+        out.push_str("## Inputs available\n\n");
+        for inp in resolved_inputs {
+            let size_kb = if inp.size >= 1024 {
+                format!("{:.1} KB", inp.size as f64 / 1024.0)
+            } else {
+                format!("{} B", inp.size)
+            };
+            out.push_str(&format!(
+                "  - **{}** — id: `{}`, path: `{}`, size: {}\n",
+                inp.name, inp.artifact_id, inp.worktree_path, size_kb
+            ));
+        }
+        out.push('\n');
+    }
+
+    // Produces contract section (populated when this step has `produces`).
+    if !current.produces.is_empty() {
+        out.push_str("## This step must produce the following artifact(s)\n\n");
+        for output in &current.produces {
+            let req = if output.required { "required" } else { "optional" };
+            out.push_str(&format!(
+                "  - **{}** ({} scope, {})\n",
+                output.name,
+                format!("{:?}", output.scope).to_lowercase(),
+                req
+            ));
+            out.push_str(&format!(
+                "    Upload: `artifact_upload(scope: \"{}\", metadata: {{ produced_name: \"{}\" }})`\n",
+                format!("{:?}", output.scope).to_lowercase(),
+                output.name
+            ));
+            out.push_str(&format!(
+                "    Report: include `{{ \"{}\": \"<id>\" }}` in `step_done.outputs`.\n\n",
+                output.name
+            ));
+        }
+    }
 
     out.push_str(super::prompt_composer::RUNTIME_CONTRACT);
     out

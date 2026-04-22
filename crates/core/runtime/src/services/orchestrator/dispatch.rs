@@ -151,6 +151,7 @@ pub async fn dispatch_job_internal(
             payload.pipeline_name.as_deref(),
             pipeline,
             root,
+            &[],
         ) {
             Ok(path) => tracing::info!(
                 slug, step_id = root.id,

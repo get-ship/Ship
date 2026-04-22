@@ -206,6 +206,7 @@ pub async fn step_done(req: StepDoneRequest) -> String {
         slug: slug.clone(),
         step_id: step_id.clone(),
         summary: req.summary,
+        outputs: req.outputs,
     };
 
     let envelope = match EventEnvelope::new(

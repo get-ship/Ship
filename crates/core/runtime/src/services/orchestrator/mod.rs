@@ -31,6 +31,7 @@ pub mod replay;
 pub mod router;
 pub mod run_step;
 pub mod step_executor;
+pub mod step_io;
 pub mod step_monitor;
 pub mod sweep;
 
@@ -52,6 +53,8 @@ mod tests_sweep;
 mod tests_terminal_guard;
 #[cfg(test)]
 mod tests_heartbeat;
+#[cfg(test)]
+mod tests_step_io;
 
 use crate::services::dispatch_ports::{
     AgentPlatform, IsolationStrategy, JobExecutor, ProcessRegistryPort, ProcessTreeProbe,
