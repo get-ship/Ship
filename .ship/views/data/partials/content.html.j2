@@ -17,9 +17,6 @@
         </colgroup>
         <thead>
           <tr>
-            <th class="ship-table-gutter-cell th-gutter" scope="col" aria-label="Select all">
-              <input type="checkbox" disabled>
-            </th>
             <th class="th-sticky" scope="col">
               <span class="th-inner">
                 <span class="ft-badge ft-string">string</span>
@@ -47,9 +44,6 @@
         <tbody>
           {% for item in items %}
           <tr data-row-id="{{ item.id }}">
-            <td class="ship-table-gutter-cell td-gutter">
-              <input type="checkbox" disabled aria-label="Select row">
-            </td>
             <td class="td-sticky mono-snip id-cell" title="{{ item.id }}"
               data-item-id="{{ item.id }}"
               data-item-data="{{ item.data | to_attr_json }}"
@@ -90,16 +84,7 @@
       live · <span class="mono-snip">collection.item_*</span>
     </span>
     <span class="tbl-footer-spacer"></span>
-    <span>{{ item_total }} shown of {{ item_total }} total</span>
-    <div class="tbl-footer-pager" role="group" aria-label="Pagination">
-      <button type="button" disabled aria-label="Previous page">
-        <ship-icon name="chevron-left" size="sm"></ship-icon>
-      </button>
-      <span class="mono-snip">1 / 1</span>
-      <button type="button" disabled aria-label="Next page">
-        <ship-icon name="chevron-right" size="sm"></ship-icon>
-      </button>
-    </div>
+    <span>{{ item_total }} items</span>
   </div>
 
   {% elif schema is defined %}

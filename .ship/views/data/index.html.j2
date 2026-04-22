@@ -372,7 +372,9 @@
             <label class="schema-edit-check">
               <input type="checkbox" data-bind="_newColDraft.fields.0.required">
             </label>
-            <ship-button size="sm" variant="ghost" aria-label="Remove field" disabled>
+            <ship-button size="sm" variant="ghost" aria-label="Remove field"
+                         data-attr:disabled="$_newColDraft.fields.length <= 1"
+                         data-on:click="$_newColDraft.fields.splice(0, 1)">
               <ship-icon name="trash" size="sm"></ship-icon>
             </ship-button>
           </div>
