@@ -1,5 +1,0 @@
-{% from '_ship.html.j2' import head, form, signal %}
-<!DOCTYPE html><html><head>{{ head('form test') }}</head><body>
-<div {{ signal('form', {}) }}>
-{{ form(ship_schema('adrs'), 'adrs') }}
-</div></body></html>

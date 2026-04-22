@@ -1,7 +1,0 @@
-{
-  "name": "agents-create",
-  "type": "html",
-  "description": "Create-agent wizard: 4-step flow (template → identity → wiring → review). Ports the React Agents.html create view.",
-  "claims": [],
-  "packs": []
-}
