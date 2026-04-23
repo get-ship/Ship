@@ -1,16 +1,18 @@
-{#- SDK gaps:
-    - no panel/layout macro for two-pane rail+detail layout
-    - no confirmation dialog macro for destructive actions
-    - no navigation macro for linking between views
-    - no search/filter input macro with debounce
--#}
 {#-
   Specs view — two-pane layout: left rail (grouped by status) + right detail.
-  Daemon passes: selected_id, q, counts, groups, total, selected, pipelines.
-  Datastar for all interactions. ZERO script tags.
+  Data pulled inline via `ship.specs.*`. Selection is carried by `?id=`
+  query — the template branches on `ship.query.id`.
 -#}
 {% from '_ship.html.j2' import head, signal %}
-{% from '_urls.html.j2' import create_spec, view_specs, view_specs_sse %}
+
+{% set q = ship.query.q | default('') %}
+{% set selected_id = ship.query.id | default('') %}
+{% set rail = ship.specs.summaries(q=q, selected=selected_id) %}
+{% set selected = none %}
+{% if selected_id %}
+  {% set selected = ship.specs.detail(id=selected_id) %}
+{% endif %}
+
 {% if not fragment %}
 <!DOCTYPE html>
 <html lang="en">
@@ -194,26 +196,22 @@
       <div class="specs-rail-head">
         <h1>Specs</h1>
         <ship-button variant="solid" tone="accent" size="sm"
-                     data-on:click="@post('{{ create_spec() }}', {contentType: 'json', body: JSON.stringify({title: 'New spec', body: '## Goal\n\n## Acceptance\n- [ ] '})})">
+                     data-on:click="@post('/api/runtime/specs', {contentType: 'json', body: JSON.stringify({title: 'New spec', body: '## Goal\n\n## Acceptance\n- [ ] '})})">
           + New
         </ship-button>
       </div>
       <div class="specs-rail-filter">
         <ship-input size="sm" placeholder="Filter..." value="{{ q }}"
                     data-bind="q"
-                    data-on:input.debounce.200ms="@get('{{ view_specs() }}?q=' + encodeURIComponent($q){% if selected_id %} + '&selected={{ selected_id }}'{% endif %})"></ship-input>
+                    data-on:input.debounce.200ms="@get('/api/v/specs?q=' + encodeURIComponent($q){% if selected_id %} + '&id={{ selected_id }}'{% endif %})"></ship-input>
       </div>
-      <div id="specs-rail-list"
-           data-init="@get('{{ view_specs_sse() }}?q={{ q }}{% if selected_id %}&selected={{ selected_id }}{% endif %}', {requestCancellation: 'disabled'})">
+      <div id="specs-rail-list">
         {% include 'specs/partials/rail.html.j2' %}
       </div>
     </aside>
 
     <main class="specs-detail" aria-label="Spec detail">
-      <div id="specs-content"
-           data-init="@get('/api/runtime/view/specs/sse{% if selected_id %}?selected={{ selected_id }}{% endif %}')">
-        {% include 'specs/content.html.j2' %}
-      </div>
+      {% include 'specs/partials/content.html.j2' %}
     </main>
   </div>
 </div>

@@ -373,6 +373,21 @@ pub fn call(name: &str, args: &Value, state: &ApiState) -> Result<Value, Registr
                 .unwrap_or_default();
             Ok(json!({ "spec": spec, "body": body }))
         }
+        "specs.summaries" => {
+            let q = args.get("q").and_then(|v| v.as_str()).unwrap_or("");
+            let selected = args
+                .get("selected")
+                .and_then(|v| v.as_str())
+                .filter(|s| !s.is_empty());
+            let ctx = crate::services::specs::view_state::build_summaries(q, selected);
+            serde_json::to_value(&ctx).map_err(|e| RegistryError::service(e.to_string()))
+        }
+        "specs.detail" => {
+            let id = required_str(args, "id")?;
+            let detail = crate::services::specs::view_state::build_detail(id)
+                .ok_or_else(|| RegistryError::not_found(format!("spec `{id}`")))?;
+            serde_json::to_value(&detail).map_err(|e| RegistryError::service(e.to_string()))
+        }
 
         // ── settings ──────────────────────────────────────────────
         "settings.state" => {
@@ -487,7 +502,7 @@ pub fn names() -> &'static [&'static str] {
         "permissions.list", "permissions.get", "permissions.tool_patterns",
         "pipelines.list", "pipelines.get",
         "events.list",
-        "specs.list", "specs.get",
+        "specs.list", "specs.get", "specs.summaries", "specs.detail",
         "git.status", "git.log", "git.branches", "git.overview", "git.diff", "git.annotations",
         "settings.state",
     ]

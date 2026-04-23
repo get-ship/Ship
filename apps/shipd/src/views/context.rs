@@ -27,7 +27,6 @@ pub(crate) fn build_generic_context(
     load_skills(&mut ctx, manifest_data, &ship_dir);
     load_settings(&mut ctx, manifest_data);
     load_events(&mut ctx, manifest_data, &ship_dir);
-    load_specs(&mut ctx, manifest_data);
     load_chat(&mut ctx, manifest_data, query_params, &ship_dir);
     load_pipelines(&mut ctx, signals, manifest_data, &ship_dir);
 
@@ -184,15 +183,6 @@ fn load_events(
     ctx["types"] = serde_json::to_value(&types).unwrap_or_default();
     ctx["actors"] = serde_json::to_value(&actors).unwrap_or_default();
     ctx["groups"] = serde_json::to_value(&groups).unwrap_or_default();
-}
-
-fn load_specs(ctx: &mut serde_json::Value, manifest_data: &Option<ManifestData>) {
-    if !manifest_data.as_ref().and_then(|d| d.specs).unwrap_or(false) {
-        return;
-    }
-    let all = runtime::db::specs::list_specs().unwrap_or_default();
-    ctx["total"] = serde_json::json!(all.len());
-    ctx["specs"] = serde_json::to_value(&all).unwrap_or_default();
 }
 
 fn load_pipelines(

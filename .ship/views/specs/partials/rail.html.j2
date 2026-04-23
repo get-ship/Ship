@@ -1,13 +1,12 @@
-{#- Grouped spec list. Morph target: #specs-rail-list-inner. -#}
-{% from '_urls.html.j2' import view_specs %}
+{#- Grouped spec list. Consumes `rail` + `selected_id` from the enclosing scope. -#}
 <div id="specs-rail-list-inner">
-  {% if total == 0 %}
+  {% if rail.total == 0 %}
     <ship-empty-state variant="placeholder" style="padding: 24px 14px;">
       <span slot="title">No specs yet</span>
       Click + New to start one.
     </ship-empty-state>
   {% else %}
-    {% for group in groups %}
+    {% for group in rail.groups %}
       {% if group.count > 0 %}
         <section class="specs-rail-group">
           <div class="specs-rail-group-head">
@@ -18,7 +17,7 @@
             {% for spec in group.items %}
               <ship-list-tile interactive
                 {% if selected_id == spec.id %}selected{% endif %}
-                data-on:click="@get('{{ view_specs() }}?selected={{ spec.id }}&q=' + encodeURIComponent($q || ''))">
+                data-on:click="@get('/api/v/specs?id={{ spec.id }}&q=' + encodeURIComponent($q || ''))">
                 <ship-status-dot slot="leading" size="sm" tone="{{ spec.tone }}"
                   {% if group.key == 'launched' %}pulse{% endif %}></ship-status-dot>
                 <div class="spec-row-main">

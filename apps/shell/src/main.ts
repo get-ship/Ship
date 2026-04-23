@@ -351,7 +351,7 @@ function viewRoute(path: string, endpoint: string) {
 
 viewRoute("/", "/api/runtime/view/dashboard");
 viewRoute("/pipelines", "/api/runtime/view/pipelines");
-viewRoute("/specs", "/api/runtime/view/specs");
+viewRoute("/specs", "/api/v/specs");
 viewRoute("/git", "/api/v/git");
 viewRoute("/settings", "/api/runtime/view/settings");
 viewRoute("/agents", "/api/runtime/view/agents");

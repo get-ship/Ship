@@ -16,7 +16,7 @@ use utoipa::OpenApi;
 use crate::{
     NetworkServer, actor_api, annotations_api, artifacts_api, attest, auth, cors, feedback_api, hooks_api,
     human_webhook, lint_api, logs_api, openapi, pairing, project_api, pty_handler, rest_api, runtime_api,
-    sdk_manifest, services, session, settings_api, shell_assets, ship_runtime, specs_api, specs_view,
+    sdk_manifest, services, session, settings_api, shell_assets, ship_runtime, specs_api,
     supervisor, view_errors_api, view_morph_target, view_sessions_api, views, collection_api, views_agents,
     views_chat, views_events, views_pipelines, views_raw, views_settings,
 };
@@ -335,8 +335,6 @@ fn build_ship_routes(st: rest_api::ApiState) -> Router {
         .ship_route(Route::ViewChatSend, views_chat::chat_send)
         .ship_route(Route::ViewEvents, views_events::events_shell)
         .ship_route(Route::ViewEventsSse, views_events::events_sse)
-        .ship_route(Route::ViewSpecs, specs_view::specs_shell)
-        .ship_route(Route::ViewSpecsSse, specs_view::specs_view_sse)
         // Specs REST
         .ship_route(Route::ListSpecs, specs_api::list_specs)
         .ship_route(Route::CreateSpec, specs_api::create_spec)

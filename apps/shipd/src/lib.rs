@@ -45,7 +45,6 @@ pub mod views_agents;
 pub mod views_chat;
 pub mod views_events;
 pub mod specs_api;
-pub mod specs_view;
 pub mod settings_api;
 pub mod attest;
 pub mod pairing;

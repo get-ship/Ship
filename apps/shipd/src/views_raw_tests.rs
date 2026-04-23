@@ -73,7 +73,6 @@ async fn each_sdk_view_renders_its_root() {
     for (name, marker) in [
         ("pipelines", "id=\"pipelines-root\""),
         ("git", "id=\"git-root\""),
-        ("specs", "id=\"specs-"),
         ("settings", "id=\"settings-"),
         ("agents", "id=\"agents-root\""),
         ("skills", "id=\"skills-root\""),

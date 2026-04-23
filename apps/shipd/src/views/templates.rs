@@ -211,26 +211,6 @@ pub(crate) const TEMPLATES: &[(&str, &str)] = &[
         "settings/shell.html.j2",
         include_str!("../../templates/settings/shell.html.j2"),
     ),
-    (
-        "specs/content.html.j2",
-        include_str!("../../templates/specs/content.html.j2"),
-    ),
-    (
-        "specs/partials/detail.html.j2",
-        include_str!("../../templates/specs/partials/detail.html.j2"),
-    ),
-    (
-        "specs/partials/launch_bar.html.j2",
-        include_str!("../../templates/specs/partials/launch_bar.html.j2"),
-    ),
-    (
-        "specs/partials/rail.html.j2",
-        include_str!("../../templates/specs/partials/rail.html.j2"),
-    ),
-    (
-        "specs/shell.html.j2",
-        include_str!("../../templates/specs/shell.html.j2"),
-    ),
     // (Data browser view lives in .ship/views/data/ as a client-side view,
     // not as daemon-rendered Jinja templates.)
 ];
