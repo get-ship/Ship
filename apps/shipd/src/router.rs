@@ -18,7 +18,7 @@ use crate::{
     human_webhook, lint_api, logs_api, openapi, pairing, project_api, pty_handler, rest_api, runtime_api,
     sdk_manifest, services, session, settings_api, shell_assets, ship_runtime, specs_api,
     supervisor, view_errors_api, view_morph_target, view_sessions_api, views, collection_api,
-    views_chat, views_events, views_raw, views_settings,
+    views_chat, views_raw,
 };
 
 /// Build the full Axum router with all route groups, auth, and CORS.
@@ -258,8 +258,6 @@ fn build_ship_routes(st: rest_api::ApiState) -> Router {
         // Feedback ingress
         .ship_route(Route::PostFeedback, feedback_api::post_feedback)
         .ship_route(Route::PostAnnotation, annotations_api::post_annotation)
-        .ship_route(Route::ViewSettings, views_settings::settings_shell)
-        .ship_route(Route::ViewSettingsSse, views_settings::settings_sse)
         // AgentService — generic CRUD + lifecycle. First-party and
         // third-party views use this surface equally.
         .ship_route(Route::AgentsList, services::agents::list)
@@ -323,8 +321,6 @@ fn build_ship_routes(st: rest_api::ApiState) -> Router {
         .ship_route(Route::ViewChat, views_chat::chat_shell)
         .ship_route(Route::ViewChatSse, views_chat::chat_sse)
         .ship_route(Route::ViewChatSend, views_chat::chat_send)
-        .ship_route(Route::ViewEvents, views_events::events_shell)
-        .ship_route(Route::ViewEventsSse, views_events::events_sse)
         // Specs REST
         .ship_route(Route::ListSpecs, specs_api::list_specs)
         .ship_route(Route::CreateSpec, specs_api::create_spec)

@@ -18,3 +18,4 @@ pub mod mcp;
 pub mod permissions;
 pub mod git;
 pub mod specs;
+pub mod settings;

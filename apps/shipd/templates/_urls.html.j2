@@ -22,8 +22,6 @@
 {%- macro asset_jinja_macros_md() -%}/api/runtime/assets/jinja-macros.md{%- endmacro -%}
 {%- macro asset_theme_css() -%}/api/runtime/assets/theme.css{%- endmacro -%}
 {%- macro list_themes() -%}/api/runtime/themes{%- endmacro -%}
-{%- macro view_settings() -%}/api/runtime/view/settings{%- endmacro -%}
-{%- macro view_settings_sse() -%}/api/runtime/view/settings/sse{%- endmacro -%}
 {%- macro agents_list() -%}/api/agents{%- endmacro -%}
 {%- macro agents_get(id) -%}/api/agents/{{ id }}{%- endmacro -%}
 {%- macro agents_put(id) -%}/api/agents/{{ id }}{%- endmacro -%}
@@ -76,8 +74,6 @@
 {%- macro view_chat() -%}/api/runtime/view/chat{%- endmacro -%}
 {%- macro view_chat_sse() -%}/api/runtime/view/chat/sse{%- endmacro -%}
 {%- macro view_chat_send() -%}/api/runtime/view/chat/send{%- endmacro -%}
-{%- macro view_events() -%}/api/runtime/view/events{%- endmacro -%}
-{%- macro view_events_sse() -%}/api/runtime/view/events/sse{%- endmacro -%}
 {%- macro list_views() -%}/api/runtime/views{%- endmacro -%}
 {%- macro serve_view(name) -%}/api/runtime/view/{{ name }}{%- endmacro -%}
 {%- macro serve_view_routed(path) -%}/api/v/{{ path }}{%- endmacro -%}

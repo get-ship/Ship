@@ -62,26 +62,8 @@ fn wrap(title: &str, inner: &str) -> Option<String> {
 /// Returns `None` for unknown names, leaving the caller to fall back.
 async fn render_sdk_shell(state: &ApiState, name: &str) -> Option<String> {
     let inner = match name {
-        "settings" => {
-            crate::views_settings::settings_shell(
-                State(state.clone()),
-                Query(Default::default()),
-            )
-            .await
-            .ok()?
-            .0
-        }
         "chat" => {
             crate::views_chat::chat_shell(
-                State(state.clone()),
-                Query(Default::default()),
-            )
-            .await
-            .ok()?
-            .0
-        }
-        "events" => {
-            crate::views_events::events_shell(
                 State(state.clone()),
                 Query(Default::default()),
             )
@@ -92,9 +74,7 @@ async fn render_sdk_shell(state: &ApiState, name: &str) -> Option<String> {
         _ => return None,
     };
     let title = match name {
-        "settings" => "Settings",
         "chat" => "Chat",
-        "events" => "Events",
         _ => "Ship",
     };
     wrap(title, &inner)

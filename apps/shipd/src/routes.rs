@@ -99,14 +99,6 @@ pub enum Route {
     /// @route GET "/api/runtime/themes"
     ListThemes,
 
-    // ── Views: HTML shells + SSE streams ─────────────────────────────────
-
-    /// @route GET "/api/runtime/view/settings"
-    ViewSettings,
-
-    /// @route GET "/api/runtime/view/settings/sse"
-    ViewSettingsSse,
-
     // ── AgentService — service-shaped CRUD + lifecycle ──
 
     /// @route GET "/api/agents"
@@ -274,12 +266,6 @@ pub enum Route {
 
     /// @route POST "/api/runtime/view/chat/send"
     ViewChatSend,
-
-    /// @route GET "/api/runtime/view/events"
-    ViewEvents,
-
-    /// @route GET "/api/runtime/view/events/sse"
-    ViewEventsSse,
 
     // ── Generic view serving ─────────────────────────────────────────────
 

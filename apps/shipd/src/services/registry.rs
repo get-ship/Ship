@@ -449,7 +449,7 @@ pub fn call(name: &str, args: &Value, state: &ApiState) -> Result<Value, Registr
 
         // ── settings ──────────────────────────────────────────────
         "settings.state" => {
-            let ctx = crate::views_settings::build_ctx(&Default::default());
+            let ctx = crate::services::settings::view_state::build_ctx();
             serde_json::to_value(&ctx)
                 .map_err(|e| RegistryError::service(e.to_string()))
         }
