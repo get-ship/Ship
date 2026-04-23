@@ -1,11 +1,12 @@
 {#- Left palette for agents wire view. Context: agent (AgentDetail). -#}
+{% from '_ship.html.j2' import on_click %}
 <aside class="wire-palette">
   <div class="section-h">
     <ship-icon name="zap" size="xs"></ship-icon>
     Skills
     <span class="count">{{ agent.skills | length }}</span>
     <ship-button variant="ghost" size="icon" class="add-btn" aria-label="Add skill"
-      data-on:click="$pickerKind = 'skill'; $pickerSelected = []; $pickerOpen = true">
+      {{ on_click("$pickerKind = 'skill'; $pickerSelected = []; $pickerOpen = true") }}>
       <ship-icon name="plus" size="xs"></ship-icon>
     </ship-button>
   </div>
@@ -24,7 +25,7 @@
     MCP Servers
     <span class="count">{{ agent.mcp_servers | length }}</span>
     <ship-button variant="ghost" size="icon" class="add-btn" aria-label="Add MCP server"
-      data-on:click="$pickerKind = 'mcp'; $pickerSelected = []; $pickerOpen = true">
+      {{ on_click("$pickerKind = 'mcp'; $pickerSelected = []; $pickerOpen = true") }}>
       <ship-icon name="plus" size="xs"></ship-icon>
     </ship-button>
   </div>
@@ -42,7 +43,7 @@
     Rules
     <span class="count">{{ agent.rules | length }}</span>
     <ship-button variant="ghost" size="icon" class="add-btn" aria-label="Add rule"
-      data-on:click="$pickerKind = 'rule'; $pickerSelected = []; $pickerOpen = true">
+      {{ on_click("$pickerKind = 'rule'; $pickerSelected = []; $pickerOpen = true") }}>
       <ship-icon name="plus" size="xs"></ship-icon>
     </ship-button>
   </div>

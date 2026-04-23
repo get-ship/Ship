@@ -9,7 +9,7 @@
     - panel_history          : History tab (commit rows)
     - panel_branches         : Branches tab (rail + detail cards)
 -#}
-{% from '_ship.html.j2' import head, nav, error_state %}
+{% from '_ship.html.j2' import head, nav, error_state, on, on_click, attr_if %}
 {%- set workspace_id = ship.query.workspace_id | default('') -%}
 {%- set overview = ship.git.overview(workspace_id=workspace_id) -%}
 {%- set branch = overview.branch -%}
@@ -131,7 +131,7 @@
   behind="{{ behind }}"
   tone="{% if clean %}success{% else %}warning{% endif %}">
   <ship-button slot="actions" variant="ghost" size="icon" aria-label="Refresh"
-    data-on:click="@get('{{ base_url }}{% if workspace_id %}?workspace_id={{ workspace_id }}{% endif %}')">
+    {{ on_click("@get('" ~ base_url ~ (('?workspace_id=' ~ workspace_id) if workspace_id else '') ~ "')") }}>
     <ship-icon name="refresh-cw" size="sm"></ship-icon>
   </ship-button>
   <ship-chip slot="status-end" size="sm" variant="soft">{{ total_changed }} changed</ship-chip>
@@ -139,8 +139,8 @@
 
 {# ── Tabs bar + tabs-right action strip, sharing a bottom border ── #}
 <div class="gv-row" style="border-bottom: 1px solid var(--border); padding: 0 12px; gap: 0">
-  <ship-tabs variant="underline" tone="accent" data-attr:active="$tab"
-    data-on:ship-tab-change="$tab = evt.detail.name"
+  <ship-tabs variant="underline" tone="accent" {{ attr_if('$tab', 'active') }}
+    {{ on('ship-tab-change', '$tab = evt.detail.name') }}
     style="flex:1;min-width:0;border:0;padding:0">
     <ship-tab name="changes" count="{{ total_changed }}">Changes</ship-tab>
     <ship-tab name="history" count="{{ commits | default([]) | length }}">History</ship-tab>

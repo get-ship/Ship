@@ -2,7 +2,7 @@
   Run detail — single run, full timeline, per-step observations, live log.
   Data pulled via `ship.pipelines.run(slug=ship.route.slug)`.
 -#}
-{% from '_ship.html.j2' import head, signal %}
+{% from '_ship.html.j2' import head, signal, on_click %}
 {% from '_urls.html.j2' import end_job %}
 
 {% set slug = ship.route.slug %}
@@ -102,7 +102,7 @@
       <div>
         <div class="ship-run-detail-title-row">
           <ship-button size="sm" variant="ghost"
-            data-on:click="window.location.href='/pipelines'">
+            {{ on_click("window.location.href='/pipelines'") }}>
             <ship-icon slot="leading" name="chevron-left"></ship-icon>
             All runs
           </ship-button>
@@ -120,7 +120,7 @@
       <div style="display: flex; gap: var(--space-2);">
         {% if run.state == 'dispatched' or run.state == 'pending' %}
         <ship-button variant="outline" size="sm" tone="destructive"
-          data-on:click="@post('{{ end_job() }}', {contentType: 'json', body: JSON.stringify({job_id: '{{ run.job_id }}'})})">
+          {{ on_click("@post('" ~ end_job() ~ "', {contentType: 'json', body: JSON.stringify({job_id: '" ~ run.job_id ~ "'})})") }}>
           <ship-icon slot="leading" name="stop"></ship-icon>
           Stop
         </ship-button>

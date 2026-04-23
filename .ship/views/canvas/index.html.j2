@@ -1,5 +1,5 @@
 {#- Canvas workspace — agent-authored interaction artifacts with feedback. -#}
-{% from '_ship.html.j2' import head, styles, toast_container %}
+{% from '_ship.html.j2' import head, styles, toast_container, on_click, on_click_prevent %}
 {% if not fragment %}
 <!DOCTYPE html>
 <html lang="en">
@@ -71,7 +71,7 @@
         {% for doc in docs %}
         <a href="/canvas/{{ doc.slug }}"
            class="canvas-rail-item {% if doc.slug == active_slug %}active{% endif %}"
-           data-on:click.prevent="window.router ? window.router.navigate('/canvas/{{ doc.slug }}') : void(0)">
+           {{ on_click_prevent("window.router ? window.router.navigate('/canvas/" ~ doc.slug ~ "') : void(0)") }}>
           <span class="canvas-rail-item-title">{{ doc.title or doc.slug }}</span>
           <span class="canvas-rail-item-meta">
             <span class="canvas-rail-item-id">{{ doc.slug[:8] }}</span>
@@ -100,7 +100,7 @@
 
     {# -- New Canvas CTA ------------------------------------------------- #}
     <div class="canvas-rail-cta">
-      <a data-on:click="window.router ? window.router.navigate('/chat') : void(0)">
+      <a {{ on_click("window.router ? window.router.navigate('/chat') : void(0)") }}>
         Ask an agent to create a canvas
       </a>
     </div>

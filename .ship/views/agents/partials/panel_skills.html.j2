@@ -2,6 +2,7 @@
     Hand-wrapped ship-card — the section() macro doesn't support an
     action-button slot in the header.
     Parity: apps/web/src/features/agents/sections/SkillsSection.tsx -#}
+{% from '_ship.html.j2' import on_click %}
 <ship-card padding="none" id="section-skills">
   <div slot="header" class="ad-section-head">
     <h2 class="ad-section-title">
@@ -10,7 +11,7 @@
       <span class="ad-section-count">{{ agent.skills | length }} attached</span>
     </h2>
     <ship-button variant="outline" size="sm"
-                 data-on:click="$pickerKind = 'skill'; $pickerSelected = []; $pickerOpen = true">
+                 {{ on_click("$pickerKind = 'skill'; $pickerSelected = []; $pickerOpen = true") }}>
       <ship-icon slot="leading" name="plus"></ship-icon>
       Add
     </ship-button>

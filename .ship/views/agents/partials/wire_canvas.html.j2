@@ -1,5 +1,6 @@
 {#- Center canvas: SVG bezier edges + positioned nodes. Server owns layout.
     Context: agent, nodes, edges. -#}
+{% from '_ship.html.j2' import on_click, attr_if %}
 <div class="wire-canvas">
   <svg class="wires" viewBox="0 0 1000 600" preserveAspectRatio="none">
     {%- for e in edges %}
@@ -15,8 +16,8 @@
   {%- for n in nodes %}
   <div class="node {{ n.kind }}"
     style="left:{{ (n.x / 10) }}%; top:{{ (n.y / 6) }}%; width:{{ (n.w / 10) }}%; min-width:{{ n.w * 0.7 }}px"
-    data-attr:data-selected="$selected_kind == '{{ n.kind }}' && $selected_id == '{{ n.id | e }}'"
-    data-on:click="$selected_kind = '{{ n.kind }}'; $selected_id = '{{ n.id | e }}'">
+    {{ attr_if("$selected_kind == '" ~ n.kind ~ "' && $selected_id == '" ~ (n.id | e) ~ "'", 'data-selected') }}
+    {{ on_click("$selected_kind = '" ~ n.kind ~ "'; $selected_id = '" ~ (n.id | e) ~ "'") }}>
     <div class="node-h">
       <span class="swatch"></span>
       <span>{% if n.kind == 'agent' %}AGENT{% elif n.kind == 'skill' %}SKILL{% elif n.kind == 'mcp' %}MCP SERVER{% elif n.kind == 'rule' %}RULES{% elif n.kind == 'perm' %}PERMISSIONS{% else %}PROVIDER{% endif %}</span>

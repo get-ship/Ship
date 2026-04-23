@@ -3,6 +3,7 @@
   ops-center section so the same card isn't rendered twice. Hidden when
   no history exists.
 -#}
+{% from '_ship.html.j2' import on_click %}
 <ship-card>
   <h3 slot="header" class="ship-focus-section-label">
     {% if ops_mode %}Recent runs (history){% else %}Recent runs{% endif %}
@@ -14,7 +15,7 @@
       <ship-pipeline-run state="{{ run_state }}" slug="{{ run.slug }}" agent="{{ run.agent }}">
         <ship-timestamp slot="actions" value="{{ run.updated_at }}" relative></ship-timestamp>
         <ship-button slot="actions" variant="ghost" size="sm"
-          data-on:click="window.location.href='/pipelines/run/{{ run.slug }}'">
+          {{ on_click("window.location.href='/pipelines/run/" ~ run.slug ~ "'") }}>
           <ship-icon slot="leading" name="chevron-right"></ship-icon>
           Open
         </ship-button>

@@ -1,7 +1,7 @@
 {#- Agent settings — panels layout (pre-wire detail). Five stacked
     section cards: Skills / MCP / Permissions / Rules / Providers.
     Data pulled via `ship.agents.settings(id=ship.route.id)`. -#}
-{% from '_ship.html.j2' import head, signal, nav %}
+{% from '_ship.html.j2' import head, signal, nav, on_click %}
 {% set ctx = ship.agents.settings(id=ship.route.id) %}
 {% set agent = ctx.agent %}
 {% set tiers = ctx.tiers %}
@@ -17,11 +17,11 @@
 <ship-view-chrome title="{{ agent.name }}">
   <ship-segmented slot="actions" value="settings" size="sm">
     <ship-segmented-option value="wire"
-      data-on:click="window.router ? window.router.navigate('/agents/{{ agent.id }}/wire') : location.href='/agents/{{ agent.id }}'">
+      {{ on_click("window.router ? window.router.navigate('/agents/" ~ agent.id ~ "/wire') : location.href='/agents/" ~ agent.id ~ "'") }}>
       Wire
     </ship-segmented-option>
     <ship-segmented-option value="settings"
-      data-on:click="window.router ? window.router.navigate('/agents/{{ agent.id }}/settings') : location.href='/agents/{{ agent.id }}/settings'">
+      {{ on_click("window.router ? window.router.navigate('/agents/" ~ agent.id ~ "/settings') : location.href='/agents/" ~ agent.id ~ "/settings'") }}>
       Settings
     </ship-segmented-option>
   </ship-segmented>

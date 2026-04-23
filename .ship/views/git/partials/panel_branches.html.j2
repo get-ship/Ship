@@ -1,4 +1,5 @@
 {#- Branches tab: split rail + detail cards per branch. -#}
+{% from '_ship.html.j2' import on, attr_if %}
 <div class="gv-panel" data-show="$tab == 'branches'" style="display:none">
   {% if branches and branches | length > 0 %}
     <div class="gv-branches-split">
@@ -8,8 +9,8 @@
             {% for b in branches %}
               <ship-list-tile interactive density="compact"
                 {% if b.active %}tone="accent"{% endif %}
-                data-attr:selected="$activeBranch == {{ loop.index0 }}"
-                data-on:ship-select="$activeBranch = {{ loop.index0 }}">
+                {{ attr_if('$activeBranch == ' ~ loop.index0, 'selected') }}
+                {{ on('ship-select', '$activeBranch = ' ~ loop.index0) }}>
                 <ship-status-dot slot="leading"
                   tone="{% if b.active %}success{% else %}muted{% endif %}"
                   {% if b.active %}pulse{% endif %}></ship-status-dot>

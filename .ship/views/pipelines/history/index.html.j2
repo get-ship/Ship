@@ -2,7 +2,7 @@
   Pipelines history — paginated log of every completed run. Data pulled
   via `ship.pipelines.history()`. All filtering/pagination server-side.
 -#}
-{% from '_ship.html.j2' import head, signal %}
+{% from '_ship.html.j2' import head, signal, on_click %}
 
 {% set ctx = ship.pipelines.history(
   q=ship.query.q | default(''),
@@ -127,7 +127,7 @@
     <header class="ship-hist-head">
       <div>
         <ship-button variant="ghost" size="sm"
-          data-on:click="window.location.href='/pipelines'"
+          {{ on_click("window.location.href='/pipelines'") }}
           style="margin-bottom: var(--space-2);">
           <ship-icon slot="leading" name="chevron-left" size="xs"></ship-icon>
           All pipelines
@@ -162,7 +162,7 @@
       </ship-button>
       {% if q or pipeline_filter %}
       <ship-button type="button" variant="ghost" size="sm"
-        data-on:click="window.location.href='/pipelines/history'">
+        {{ on_click("window.location.href='/pipelines/history'") }}>
         Clear
       </ship-button>
       {% endif %}
@@ -183,7 +183,7 @@
         </thead>
         <tbody>
           {% for row in rows %}
-          <tr data-on:click="window.location.href='/pipelines/run/{{ row.slug }}'">
+          <tr {{ on_click("window.location.href='/pipelines/run/" ~ row.slug ~ "'") }}>
             <td><span class="ship-hist-slug">{{ row.slug }}</span></td>
             <td>{% if row.pipeline %}<code>{{ row.pipeline }}</code>{% else %}<span class="ship-hist-agent">—</span>{% endif %}</td>
             <td><ship-badge tone="{{ row.tone }}" size="sm">{{ row.state }}</ship-badge></td>
@@ -214,14 +214,14 @@
         {% if has_prev %}
         {% set prev_offset = [offset - limit, 0] | max %}
         <ship-button variant="outline" size="sm"
-          data-on:click="window.location.href='/pipelines/history?offset={{ prev_offset }}&limit={{ limit }}{% if q %}&q={{ q }}{% endif %}{% if pipeline_filter %}&pipeline={{ pipeline_filter }}{% endif %}'">
+          {{ on_click("window.location.href='/pipelines/history?offset=" ~ prev_offset ~ "&limit=" ~ limit ~ (('&q=' ~ q) if q else '') ~ (('&pipeline=' ~ pipeline_filter) if pipeline_filter else '') ~ "'") }}>
           <ship-icon slot="leading" name="chevron-left" size="sm"></ship-icon>
           Previous
         </ship-button>
         {% endif %}
         {% if has_next %}
         <ship-button variant="outline" size="sm"
-          data-on:click="window.location.href='/pipelines/history?offset={{ offset + limit }}&limit={{ limit }}{% if q %}&q={{ q }}{% endif %}{% if pipeline_filter %}&pipeline={{ pipeline_filter }}{% endif %}'">
+          {{ on_click("window.location.href='/pipelines/history?offset=" ~ (offset + limit) ~ "&limit=" ~ limit ~ (('&q=' ~ q) if q else '') ~ (('&pipeline=' ~ pipeline_filter) if pipeline_filter else '') ~ "'") }}>
           Next
           <ship-icon slot="trailing" name="chevron-right" size="sm"></ship-icon>
         </ship-button>

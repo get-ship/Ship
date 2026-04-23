@@ -3,7 +3,7 @@
   Shows: header, quick stats, recent jobs, agents, events feed, quick links.
   All data loaded via manifest.yaml. No hardcoded colors or px values.
 -#}
-{% from '_ship.html.j2' import head, signal, styles %}
+{% from '_ship.html.j2' import head, signal, styles, on_click_prevent %}
 {% if not fragment %}
 <!DOCTYPE html>
 <html lang="en">
@@ -106,7 +106,7 @@
             Recent jobs
           </h2>
           <a class="dash-section-link" href="/api/view/pipelines"
-             data-on:click.prevent="@get('/api/view/pipelines')">
+             {{ on_click_prevent("@get('/api/view/pipelines')") }}>
             View all <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor"
               stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
               <polyline points="9 18 15 12 9 6"/></svg>
@@ -159,7 +159,7 @@
             <ship-badge tone="muted" variant="soft" size="sm">{{ all_agents | length }}</ship-badge>
           </h2>
           <a class="dash-section-link" href="/api/v/agents"
-             data-on:click.prevent="@get('/api/v/agents')">
+             {{ on_click_prevent("@get('/api/v/agents')") }}>
             Manage <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor"
               stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
               <polyline points="9 18 15 12 9 6"/></svg>
@@ -235,7 +235,7 @@
             Latest events
           </h2>
           <a class="dash-section-link" href="/api/view/events"
-             data-on:click.prevent="@get('/api/view/events')">
+             {{ on_click_prevent("@get('/api/view/events')") }}>
             Full stream <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor"
               stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
               <polyline points="9 18 15 12 9 6"/></svg>

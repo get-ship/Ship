@@ -4,6 +4,7 @@
   Context (from parent): `active_for_pipeline` list of RunView.
 -#}
 {% from '_urls.html.j2' import end_job %}
+{% from '_ship.html.j2' import on, on_click %}
 <section>
   <h2 class="ship-focus-section-label" style="margin-bottom: var(--space-3);">
     Ops · active now
@@ -12,15 +13,15 @@
     {% for run in active_for_pipeline %}
       {% set run_state = run.state | replace('-', '') %}
       <ship-pipeline-run class="ship-live-run" state="{{ run_state }}" slug="{{ run.slug }}" agent="{{ run.agent }}"
-        data-on:ship-log-tick="window.pulseRun && window.pulseRun(evt.currentTarget)">
+        {{ on('ship-log-tick', 'window.pulseRun && window.pulseRun(evt.currentTarget)') }}>
         <ship-timestamp slot="actions" value="{{ run.updated_at }}" relative></ship-timestamp>
         <ship-button slot="actions" variant="ghost" size="sm"
-          data-on:click="window.location.href='/pipelines/run/{{ run.slug }}'">
+          {{ on_click("window.location.href='/pipelines/run/" ~ run.slug ~ "'") }}>
           <ship-icon slot="leading" name="chevron-right"></ship-icon>
           Open
         </ship-button>
         <ship-button slot="actions" variant="outline" size="sm" tone="destructive"
-          data-on:click="@post('{{ end_job() }}', {contentType: 'json', body: JSON.stringify({job_id: '{{ run.job_id }}'})})">
+          {{ on_click("@post('" ~ end_job() ~ "', {contentType: 'json', body: JSON.stringify({job_id: '" ~ run.job_id ~ "'})})") }}>
           <ship-icon slot="leading" name="stop"></ship-icon>
           Stop
         </ship-button>

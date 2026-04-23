@@ -5,7 +5,7 @@
   flat names so the sibling partials (`partials/content.html.j2`,
   `partials/dispatch_dialog.html.j2`) stay unchanged.
 -#}
-{% from '_ship.html.j2' import head, signal %}
+{% from '_ship.html.j2' import head, signal, bind, on_click, attr_if %}
 
 {% set ctx = ship.pipelines.summaries(
   q=ship.query.q | default(''),
@@ -96,19 +96,19 @@
       </div>
       <div class="ship-pipelines-head-actions">
         <ship-button variant="outline" size="sm"
-          data-on:click="window.location.href='/pipelines/history'">
+          {{ on_click("window.location.href='/pipelines/history'") }}>
           <ship-icon slot="leading" name="list" size="sm"></ship-icon>
           History
         </ship-button>
         {% if workspace_id %}
         <ship-button variant="outline" size="sm"
-          data-on:click="document.getElementById('new-pipeline-dialog').showModal()">
+          {{ on_click("document.getElementById('new-pipeline-dialog').showModal()") }}>
           <ship-icon slot="leading" name="plus" size="sm"></ship-icon>
           New pipeline
         </ship-button>
         {% endif %}
         <ship-button tone="accent" variant="solid" size="sm"
-          data-on:click="document.getElementById('dispatch-dialog').showModal()">
+          {{ on_click("document.getElementById('dispatch-dialog').showModal()") }}>
           <ship-icon slot="leading" name="play" size="sm"></ship-icon>
           Dispatch
         </ship-button>
@@ -135,7 +135,7 @@
     {{ signal('new_pipe_creating', false) }}>
     <span slot="header">New pipeline</span>
     <ship-field label="Name" hint="Lowercase, kebab-case. Becomes the filename.">
-      <ship-input data-bind="new_pipe_name" placeholder="my-pipeline"
+      <ship-input {{ bind('new_pipe_name') }} placeholder="my-pipeline"
         autofocus></ship-input>
     </ship-field>
     <ship-alert tone="destructive" compact data-show="$new_pipe_error">
@@ -143,13 +143,13 @@
     </ship-alert>
     <div slot="footer">
       <ship-button variant="outline"
-        data-on:click="document.getElementById('new-pipeline-dialog').close()">
+        {{ on_click("document.getElementById('new-pipeline-dialog').close()") }}>
         Cancel
       </ship-button>
       <ship-button tone="accent" variant="solid"
-        data-attr:loading="$new_pipe_creating"
-        data-attr:disabled="$new_pipe_creating"
-        data-on:click="window.createPipeline('{{ workspace_id }}', $new_pipe_name, document.querySelector('.ship-view-pipelines'))">
+        {{ attr_if('$new_pipe_creating', 'loading') }}
+        {{ attr_if('$new_pipe_creating', 'disabled') }}
+        {{ on_click("window.createPipeline('" ~ workspace_id ~ "', $new_pipe_name, document.querySelector('.ship-view-pipelines'))") }}>
         <ship-icon slot="leading" name="plus" size="sm"></ship-icon>
         Create
       </ship-button>

@@ -1,6 +1,7 @@
 {#- Rules section. Context: agent (AgentDetail).
     Hand-wrapped ship-card — section() macro has no action-button slot.
     Parity: apps/web/src/features/agents/sections/RulesSection.tsx -#}
+{% from '_ship.html.j2' import on_click %}
 <ship-card padding="none" id="section-rules">
   <div slot="header" class="ad-section-head">
     <h2 class="ad-section-title">
@@ -9,7 +10,7 @@
       <span class="ad-section-count">{{ agent.rules | length }} rules</span>
     </h2>
     <ship-button variant="outline" size="sm"
-                 data-on:click="$pickerKind = 'rule'; $pickerSelected = []; $pickerOpen = true">
+                 {{ on_click("$pickerKind = 'rule'; $pickerSelected = []; $pickerOpen = true") }}>
       <ship-icon slot="leading" name="plus"></ship-icon>
       Add
     </ship-button>

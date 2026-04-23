@@ -3,6 +3,7 @@
   + inline parse/schema diagnostics. Emits ship-save / ship-cancel from the
   editor which the parent wires to window.savePipeline / inline signal writes.
 -#}
+{% from '_ship.html.j2' import on %}
 <ship-card data-show="$edit_mode">
   <div slot="header" class="ship-focus-header-row">
     <h3 class="ship-focus-section-label">
@@ -30,7 +31,7 @@
   <ship-code-editor id="pipeline-editor"
     language="{{ 'jsonc' if format == 'jsonc' else ('json' if format == 'json' else 'yaml') }}"
     value="{{ raw }}"
-    data-on:ship-save="window.savePipeline('{{ workspace_id }}', '{{ name }}')"
-    data-on:ship-cancel="if ($edit_mode) { $edit_mode = false; $edit_error = ''; $edit_issue_count = 0; window.resetPipelineEditor() }"
+    {{ on('ship-save', "window.savePipeline('" ~ workspace_id ~ "', '" ~ name ~ "')") }}
+    {{ on('ship-cancel', "if ($edit_mode) { $edit_mode = false; $edit_error = ''; $edit_issue_count = 0; window.resetPipelineEditor() }") }}
     style="min-height: 24rem;"></ship-code-editor>
 </ship-card>

@@ -3,6 +3,7 @@
     Parity: apps/web/src/features/agents/sections/McpSection.tsx
     SDK gap: no 'grid-3x3' glyph in ship-icon's registry; MCP's source
     React parity uses a 4-rect grid icon. Slotted SVG preserves parity. -#}
+{% from '_ship.html.j2' import on_click %}
 <ship-card padding="none" id="section-mcp">
   <div slot="header" class="ad-section-head">
     <h2 class="ad-section-title">
@@ -19,7 +20,7 @@
       <span class="ad-section-count">{{ agent.mcp_servers | length }} attached</span>
     </h2>
     <ship-button variant="outline" size="sm"
-                 data-on:click="$pickerKind = 'mcp'; $pickerSelected = []; $pickerOpen = true">
+                 {{ on_click("$pickerKind = 'mcp'; $pickerSelected = []; $pickerOpen = true") }}>
       <ship-icon slot="leading" name="plus"></ship-icon>
       Add
     </ship-button>

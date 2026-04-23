@@ -3,6 +3,7 @@
   id="data-content" so the generic SSE handler can patch it on every
   collection.item_* event.
 -#}
+{% from '_ship.html.j2' import on_click %}
 {% set item_total = items | length if items is defined else 0 %}
 <div id="data-content">
   {% if schema is defined and items is defined and items | length > 0 %}
@@ -47,7 +48,7 @@
             <td class="td-sticky mono-snip id-cell" title="{{ item.id }}"
               data-item-id="{{ item.id }}"
               data-item-data="{{ item.data | to_attr_json }}"
-              data-on:click="$_editId = evt.currentTarget.dataset.itemId; try { $_editDraft = JSON.parse(evt.currentTarget.dataset.itemData) } catch(_e) { $_editDraft = {} }; $_editOpen = true"
+              {{ on_click('$_editId = evt.currentTarget.dataset.itemId; try { $_editDraft = JSON.parse(evt.currentTarget.dataset.itemData) } catch(_e) { $_editDraft = {} }; $_editOpen = true') }}
               style="cursor:pointer" tabindex="0" role="button" aria-label="Edit row {{ item.id }}">
               {{ item.id[:12] }}{% if item.id | length > 12 %}…{% endif %}
             </td>

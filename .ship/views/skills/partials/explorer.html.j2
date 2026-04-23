@@ -3,6 +3,7 @@
   skill-to-file tree. Matches React SkillsFileExplorer layout.
 -#}
 {#- URLs hit the file-routed framework directly: /api/v/skills[/<id>]. -#}
+{% from '_ship.html.j2' import on_click %}
 <style>
 .skills-explorer {
   display: flex; flex-direction: column;
@@ -144,7 +145,7 @@
     <div class="se-filters" role="group" aria-label="Filter by kind">
       {% for kc in rail.kind_counts %}
         <button class="se-pill{% if kc.selected %} is-active{% endif %}"
-          data-on:click="@get('/api/v/skills?kind={{ kc.id }}{% if rail.q %}&q={{ rail.q }}{% endif %}')">
+          {{ on_click("@get('/api/v/skills?kind=" ~ kc.id ~ (('&q=' ~ rail.q) if rail.q else '') ~ "')") }}>
           {{ kc.label }} <span style="opacity:0.6;font-variant-numeric:tabular-nums">{{ kc.count }}</span>
         </button>
       {% endfor %}
@@ -180,7 +181,7 @@
               {% set is_expanded = is_active %}
               <div role="treeitem">
                 <button class="se-skill"
-                  data-on:click="@get('/api/v/skills/{{ s.id }}?q={{ rail.q }}&kind={{ rail.active_kind }}&file=SKILL.md')"
+                  {{ on_click("@get('/api/v/skills/" ~ s.id ~ "?q=" ~ rail.q ~ "&kind=" ~ rail.active_kind ~ "&file=SKILL.md')") }}
                   title="{{ s.description }}">
                   <span class="se-chevron" aria-hidden="true">
                     {% if is_expanded %}
@@ -205,7 +206,7 @@
                     {% set is_file_active = file and (file.path == f) %}
                     <button class="se-file{% if is_file_active %} is-active{% endif %}"
                       role="treeitem"
-                      data-on:click="@get('/api/v/skills/{{ s.id }}?q={{ rail.q }}&kind={{ rail.active_kind }}&file={{ f }}')"
+                      {{ on_click("@get('/api/v/skills/" ~ s.id ~ "?q=" ~ rail.q ~ "&kind=" ~ rail.active_kind ~ "&file=" ~ f ~ "')") }}
                       title="{{ f }}">
                       {% if f == 'SKILL.md' %}
                         <ship-icon name="file" size="xs" tone="info"></ship-icon>

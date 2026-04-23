@@ -1,16 +1,16 @@
 {#- Agents wire-layout body. Composes palette + canvas + inspector inside
     the grid container. Callers must have already {% set %} `agent`,
     `nodes`, `edges`, `catalogs` from a `ship.agents.wire(id=...)` call. -#}
-{% from '_ship.html.j2' import head, signals, nav %}
+{% from '_ship.html.j2' import head, signals, nav, on_click %}
 
 <ship-view-chrome title="{{ agent.name }}">
   <ship-segmented slot="actions" value="wire" size="sm">
     <ship-segmented-option value="wire"
-      data-on:click="window.router ? window.router.navigate('/agents/{{ agent.id }}/wire') : location.href='/agents/{{ agent.id }}'">
+      {{ on_click("window.router ? window.router.navigate('/agents/" ~ agent.id ~ "/wire') : location.href='/agents/" ~ agent.id ~ "'") }}>
       Wire
     </ship-segmented-option>
     <ship-segmented-option value="settings"
-      data-on:click="window.router ? window.router.navigate('/agents/{{ agent.id }}/settings') : location.href='/agents/{{ agent.id }}/settings'">
+      {{ on_click("window.router ? window.router.navigate('/agents/" ~ agent.id ~ "/settings') : location.href='/agents/" ~ agent.id ~ "/settings'") }}>
       Settings
     </ship-segmented-option>
   </ship-segmented>

@@ -1,14 +1,12 @@
-{#- SDK gaps:
-    - no submit() macro — must use raw data-on:submit for form submission
-    - no bind() macro — must use raw data-bind for two-way input binding
-    - no keyboard shortcut macro (Enter-to-submit pattern)
--#}
 {#-
   Chat view -- conversation + composer.
   The daemon passes workspace_id, messages, total as Jinja context.
   Datastar for all interactions. ZERO script tags.
+
+  Note: the Enter-to-submit keydown handler stays as raw data-on:keydown —
+  no dedicated keyboard-shortcut macro exists yet (see audit).
 -#}
-{% from '_ship.html.j2' import head, signal, show, live, loading, attr %}
+{% from '_ship.html.j2' import head, signal, show, live, loading, attr, bind, on, init %}
 {% if not fragment %}
 <!DOCTYPE html>
 <html lang="en">
@@ -51,16 +49,16 @@
     </div>
 
     <div id="chat-messages" class="chat-messages"
-         data-init="@get('/api/sse/chat{% if workspace_id %}?workspace_id={{ workspace_id }}{% endif %}', {requestCancellation: 'disabled'})">
+         {{ init("@get('/api/sse/chat" ~ (('?workspace_id=' ~ workspace_id) if workspace_id else '') ~ "', {requestCancellation: 'disabled'})") }}>
       {% include 'chat/partials/messages.html.j2' %}
     </div>
 
     <form id="chat-composer" class="chat-composer"
-          data-on:submit="event.preventDefault(); $sending = true; @post('/api/chat/send', {contentType: 'json', body: JSON.stringify({text: $draft, workspace_id: $workspace_id || null})}); $draft = ''; $sending = false">
+          {{ on('submit', "event.preventDefault(); $sending = true; @post('/api/chat/send', {contentType: 'json', body: JSON.stringify({text: $draft, workspace_id: $workspace_id || null})}); $draft = ''; $sending = false") }}>
       <textarea name="text" placeholder="Message the agent..."
-                data-bind="draft"
+                {{ bind('draft') }}
                 {{ loading('sending') }}
-                data-on:keydown="if (evt.key === 'Enter' && !evt.shiftKey) { evt.preventDefault(); evt.target.form.requestSubmit(); }"></textarea>
+                {{ on('keydown', "if (evt.key === 'Enter' && !evt.shiftKey) { evt.preventDefault(); evt.target.form.requestSubmit(); }") }}></textarea>
       <ship-button type="submit" tone="accent" variant="solid" size="sm"
                    {{ attr('disabled', '$sending') }}>Send</ship-button>
     </form>

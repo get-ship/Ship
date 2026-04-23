@@ -1,6 +1,6 @@
 {#- Right inspector for agents wire view. Shows per-node detail panels
     based on the $selected_kind signal. Context: agent (AgentDetail). -#}
-{% from '_ship.html.j2' import show %}
+{% from '_ship.html.j2' import show, on_click, attr_if %}
 <aside class="wire-inspector">
   {# Agent — default #}
   <div {{ show("$selected_kind == 'agent'") }}>
@@ -31,7 +31,7 @@
       Select any peripheral node on the canvas to inspect.
     </div>
     <ship-button size="sm" variant="outline" style="margin-top: var(--space-3); width:100%"
-      data-on:click="window.router ? window.router.navigate('/agents/{{ agent.id }}/settings') : location.href='/agents/{{ agent.id }}/settings'">
+      {{ on_click("window.router ? window.router.navigate('/agents/" ~ agent.id ~ "/settings') : location.href='/agents/" ~ agent.id ~ "/settings'") }}>
       <ship-icon slot="leading" name="edit" size="xs"></ship-icon>
       Edit settings
     </ship-button>
@@ -53,24 +53,24 @@
     </div>
     <div style="display:flex; gap:6px; margin-top: var(--space-3)">
       <ship-button size="sm" variant="ghost"
-        data-on:click="window.router ? window.router.navigate('/skills/' + $selected_id) : location.href='/skills/' + $selected_id">
+        {{ on_click("window.router ? window.router.navigate('/skills/' + $selected_id) : location.href='/skills/' + $selected_id") }}>
         <ship-icon slot="leading" name="external-link" size="xs"></ship-icon>
         Open
       </ship-button>
       <ship-button size="sm" variant="ghost" tone="destructive"
-        data-on:click="if (confirm('Remove ' + $selected_id + ' from {{ agent.name | e }}?')) {
-          fetch('/api/agents/{{ agent.id | e }}', {credentials:'include'})
+        {{ on_click("if (confirm('Remove ' + $selected_id + ' from " ~ (agent.name | e) ~ "?')) {
+          fetch('/api/agents/" ~ (agent.id | e) ~ "', {credentials:'include'})
             .then(r => r.json()).then(({ doc }) => {
               const refs = (doc.skills && doc.skills.refs) || [];
               const i = refs.indexOf($selected_id);
               if (i < 0) return;
-              return fetch('/api/agents/{{ agent.id | e }}', {
+              return fetch('/api/agents/" ~ (agent.id | e) ~ "', {
                 method:'PATCH', credentials:'include',
                 headers:{'Content-Type':'application/json'},
                 body: JSON.stringify([{ op: 'remove', path: `/skills/refs/${i}` }]),
               });
             }).then(() => window.location.reload());
-        }">
+        }") }}>
         <ship-icon slot="leading" name="trash" size="xs"></ship-icon>
         Remove
       </ship-button>
@@ -88,19 +88,19 @@
       <div class="mono" data-text="'.ship/mcp.jsonc → servers.' + $selected_id"></div>
     </div>
     <ship-button size="sm" variant="ghost" tone="destructive" style="margin-top: var(--space-3)"
-      data-on:click="if (confirm('Remove ' + $selected_id + ' from {{ agent.name | e }}?')) {
-        fetch('/api/agents/{{ agent.id | e }}', {credentials:'include'})
+      {{ on_click("if (confirm('Remove ' + $selected_id + ' from " ~ (agent.name | e) ~ "?')) {
+        fetch('/api/agents/" ~ (agent.id | e) ~ "', {credentials:'include'})
           .then(r => r.json()).then(({ doc }) => {
             const servers = (doc.mcp && doc.mcp.servers) || [];
             const i = servers.indexOf($selected_id);
             if (i < 0) return;
-            return fetch('/api/agents/{{ agent.id | e }}', {
+            return fetch('/api/agents/" ~ (agent.id | e) ~ "', {
               method:'PATCH', credentials:'include',
               headers:{'Content-Type':'application/json'},
               body: JSON.stringify([{ op: 'remove', path: `/mcp/servers/${i}` }]),
             });
           }).then(() => window.location.reload());
-      }">
+      }") }}>
       <ship-icon slot="leading" name="trash" size="xs"></ship-icon>
       Remove
     </ship-button>
@@ -150,7 +150,7 @@
       </div>
     </div>
     <ship-button size="sm" variant="outline" style="margin-top: var(--space-3); width:100%"
-      data-on:click="window.router ? window.router.navigate('/agents/{{ agent.id }}/settings') : location.href='/agents/{{ agent.id }}/settings'">
+      {{ on_click("window.router ? window.router.navigate('/agents/" ~ agent.id ~ "/settings') : location.href='/agents/" ~ agent.id ~ "/settings'") }}>
       <ship-icon slot="leading" name="edit" size="xs"></ship-icon>
       Edit permissions
     </ship-button>
@@ -159,7 +159,7 @@
   {# Provider target #}
   <div {{ show("$selected_kind == 'prov'") }}>
     <div class="insp-h">
-      <ship-provider-blob size="lg" data-attr:provider="$selected_id"></ship-provider-blob>
+      <ship-provider-blob size="lg" {{ attr_if('$selected_id', 'provider') }}></ship-provider-blob>
       <div><div class="tag">Provider</div><div class="title" data-text="$selected_id"></div></div>
     </div>
     <div class="insp-help">Provider-specific settings (<span class="mono">provider_settings.&lt;provider&gt;</span>) are compiled on top of project defaults.</div>

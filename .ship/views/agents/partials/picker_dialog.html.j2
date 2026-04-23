@@ -5,9 +5,10 @@
 {#- `data-attr:open` emits `open="false"` on falsy signal; Lit's
     Boolean attribute reflection treats any attr presence as true, so
     the dialog stays open. Bind the JS property instead. -#}
+{% from '_ship.html.j2' import on, on_click, on_change, attr_if %}
 <ship-dialog id="agent-add-picker"
              data-prop:open="$pickerOpen"
-             data-on:ship-close="$pickerOpen = false; $pickerSelected = []">
+             {{ on('ship-close', '$pickerOpen = false; $pickerSelected = []') }}>
   <span slot="title">
     Add <span data-text="$pickerKind == 'skill' ? 'skill' : ($pickerKind == 'mcp' ? 'MCP server' : 'rule')"></span>
   </span>
@@ -39,8 +40,8 @@
               <label class="ad-picker-row">
                 <input type="checkbox" class="ad-picker-check"
                        value="{{ entry.id | e }}"
-                       data-on:change="evt.target.checked ? ($pickerSelected = [...$pickerSelected, '{{ entry.id | e }}']) : ($pickerSelected = $pickerSelected.filter(x => x != '{{ entry.id | e }}'))"
-                       data-attr:checked="$pickerSelected.includes('{{ entry.id | e }}')">
+                       {{ on('change', "evt.target.checked ? ($pickerSelected = [...$pickerSelected, '" ~ (entry.id | e) ~ "']) : ($pickerSelected = $pickerSelected.filter(x => x != '" ~ (entry.id | e) ~ "'))") }}
+                       {{ attr_if("$pickerSelected.includes('" ~ (entry.id | e) ~ "')", 'checked') }}>
                 <span class="ad-picker-row-body">
                   <span class="ad-picker-name">{{ entry.name | e }}</span>
                   {% if entry.description %}
@@ -62,20 +63,20 @@
       <span data-text="$pickerSelected.length"></span> selected
     </span>
     <ship-button variant="ghost" size="sm"
-                 data-on:click="$pickerOpen = false; $pickerSelected = []">Cancel</ship-button>
+                 {{ on_click('$pickerOpen = false; $pickerSelected = []') }}>Cancel</ship-button>
     {#- One @patch per clicked id. AgentService's PATCH is path-tolerant:
         `add /skills/refs/-` succeeds even if `/skills/refs` didn't exist.
         No GET-mutate-PUT dance. -#}
     <ship-button tone="accent" variant="solid" size="sm"
-                 data-attr:disabled="$pickerSelected.length == 0"
-                 data-on:click="@patch('/api/agents/{{ agent.id | e }}', {
+                 {{ attr_if('$pickerSelected.length == 0', 'disabled') }}
+                 {{ on_click("@patch('/api/agents/" ~ (agent.id | e) ~ "', {
                    contentType: 'json',
                    body: JSON.stringify($pickerSelected.map(id => ({
                      op: 'add',
                      path: '/' + ($pickerKind == 'rule' ? 'rules' : ($pickerKind == 'mcp' ? 'mcp' : 'skills')) + '/' + ($pickerKind == 'mcp' ? 'servers' : 'refs') + '/-',
                      value: id,
                    }))),
-                 }); $pickerOpen = false; $pickerSelected = []; window.location.reload()">
+                 }); $pickerOpen = false; $pickerSelected = []; window.location.reload()") }}>
       Add
     </ship-button>
   </ship-toolbar>

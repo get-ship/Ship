@@ -1,6 +1,7 @@
 {#- Right pane of the split Changes view: selected commit's diff
     body with toolbar, provenance banner, annotations, and comment
     composer. Requires: selected_commit, active_file, annotations. -#}
+{% from '_ship.html.j2' import on, on_click, on_change, bind, attr_if %}
 <div>
   {% if selected_commit %}
     {%- set parsed = selected_commit.parsed -%}
@@ -23,8 +24,8 @@
           <span class="gv-del">−{{ shown.deletions }}</span>
         </span>
         <ship-segmented value="unified" size="sm"
-          data-attr:value="$diffMode"
-          data-on:ship-change="$diffMode = evt.detail.value">
+          {{ attr_if('$diffMode', 'value') }}
+          {{ on_change('$diffMode = evt.detail.value') }}>
           <ship-segmented-option value="unified">Unified</ship-segmented-option>
           <ship-segmented-option value="split">Split</ship-segmented-option>
         </ship-segmented>
@@ -58,7 +59,7 @@
       {% endif %}
 
       <ship-scroll-area style="flex:1"
-        data-on:ship-comment="$commentLine = evt.detail.new || evt.detail.old">
+        {{ on('ship-comment', '$commentLine = evt.detail.new || evt.detail.old') }}>
         <div class="gv-pad">
           {% for file in filtered_files %}
             <ship-git-diff files="1">
@@ -106,11 +107,11 @@
           Comment on line <span class="gv-mono" data-text="$commentLine"></span>
           in <ship-code inline>{{ shown.path | e }}</ship-code>
         </div>
-        <ship-textarea data-bind="commentDraft" placeholder="Note for the agent…" rows="3"></ship-textarea>
+        <ship-textarea {{ bind('commentDraft') }} placeholder="Note for the agent…" rows="3"></ship-textarea>
         <ship-toolbar slot="footer">
           <label style="font-size:11.5px;color:var(--muted-foreground);display:inline-flex;align-items:center;gap:6px">
             Send to
-            <ship-select size="sm" data-bind="sendTo">
+            <ship-select size="sm" {{ bind('sendTo') }}>
               <ship-select-option value="keep">Keep (no routing)</ship-select-option>
               <ship-select-option value="rust-lane">rust-lane</ship-select-option>
               <ship-select-option value="review-lane">review-lane</ship-select-option>
@@ -119,9 +120,9 @@
           </label>
           <span slot="spacer"></span>
           <ship-button variant="ghost" size="sm"
-            data-on:click="$commentLine = ''; $commentDraft = ''; $sendTo = 'keep'">Cancel</ship-button>
+            {{ on_click("$commentLine = ''; $commentDraft = ''; $sendTo = 'keep'") }}>Cancel</ship-button>
           <ship-button tone="accent" variant="solid" size="sm"
-            data-on:click="@post('/api/collections/annotations/items', {payload: {file_path: '{{ shown.path | e }}', view_id: 'git', selector: $commentLine, note: $commentDraft, intent: 'review', route_to: $sendTo}}); $commentLine = ''; $commentDraft = ''; $sendTo = 'keep'">
+            {{ on_click("@post('/api/collections/annotations/items', {payload: {file_path: '" ~ (shown.path | e) ~ "', view_id: 'git', selector: $commentLine, note: $commentDraft, intent: 'review', route_to: $sendTo}}); $commentLine = ''; $commentDraft = ''; $sendTo = 'keep'") }}>
             Save comment
           </ship-button>
         </ship-toolbar>

@@ -2,6 +2,7 @@
   Collections index — grid of schema cards. Shown when the user explicitly
   visits `?browse=index` or when no collection has been activated.
 -#}
+{% from '_ship.html.j2' import on_click, on_click_prevent %}
 <div class="data-index">
   <div class="data-index-head">
     <div>
@@ -14,7 +15,7 @@
     </div>
     <div class="data-index-actions">
       <ship-button size="sm" tone="accent" variant="solid"
-        data-on:click="$_newColOpen = true">
+        {{ on_click('$_newColOpen = true') }}>
         <ship-icon slot="leading" name="plus"></ship-icon>New collection
       </ship-button>
     </div>
@@ -23,7 +24,7 @@
   <div class="data-card-grid">
     {% for c in sdk_collections %}
     <a class="data-card" href="/collections/{{ c.id }}" data-route="/collections/{{ c.id }}"
-       data-on:click.prevent="window.router ? window.router.navigate('/collections/{{ c.id }}') : (location.href = '/collections/{{ c.id }}')">
+       {{ on_click_prevent("window.router ? window.router.navigate('/collections/" ~ c.id ~ "') : (location.href = '/collections/" ~ c.id ~ "')") }}>
       <div class="data-card-head">
         <span class="data-card-icon"><ship-icon name="database"></ship-icon></span>
         <div class="data-card-identity">

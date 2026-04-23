@@ -1,6 +1,7 @@
 {#- Left rail of the split Changes panel: file list grouped by
     staged / modified / untracked. Requires: staged, modified,
     untracked, active_file, base_url, ws_qs, total_changed. -#}
+{% from '_ship.html.j2' import on %}
 <div class="gv-left">
   <ship-toolbar variant="bordered" style="padding: 8px 12px">
     <ship-icon name="git-branch" size="xs"></ship-icon>
@@ -34,7 +35,7 @@
         <ship-file-row
           path="{{ f.path | e }}" basename="{{ f.basename | e }}" status="S"
           {% if active_file == f.path %}active{% endif %}
-          data-on:ship-select="@get('{{ base_url }}?commit=WORKING&file={{ f.path | e }}{{ ws_qs }}')">
+          {{ on('ship-select', "@get('" ~ base_url ~ "?commit=WORKING&file=" ~ (f.path | e) ~ ws_qs ~ "')") }}>
         </ship-file-row>
       {% endfor %}
     {% endif %}
@@ -44,7 +45,7 @@
         <ship-file-row
           path="{{ f.path | e }}" basename="{{ f.basename | e }}" status="{{ f.status | e }}"
           {% if active_file == f.path %}active{% endif %}
-          data-on:ship-select="@get('{{ base_url }}?commit=WORKING&file={{ f.path | e }}{{ ws_qs }}')">
+          {{ on('ship-select', "@get('" ~ base_url ~ "?commit=WORKING&file=" ~ (f.path | e) ~ ws_qs ~ "')") }}>
         </ship-file-row>
       {% endfor %}
     {% endif %}
@@ -54,7 +55,7 @@
         <ship-file-row
           path="{{ f.path | e }}" basename="{{ f.basename | e }}" status="?"
           {% if active_file == f.path %}active{% endif %}
-          data-on:ship-select="@get('{{ base_url }}?commit=WORKING&file={{ f.path | e }}{{ ws_qs }}')">
+          {{ on('ship-select', "@get('" ~ base_url ~ "?commit=WORKING&file=" ~ (f.path | e) ~ ws_qs ~ "')") }}>
         </ship-file-row>
       {% endfor %}
     {% endif %}

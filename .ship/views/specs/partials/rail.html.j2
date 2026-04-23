@@ -1,4 +1,5 @@
 {#- Grouped spec list. Consumes `rail` + `selected_id` from the enclosing scope. -#}
+{% from '_ship.html.j2' import on_click %}
 <div id="specs-rail-list-inner">
   {% if rail.total == 0 %}
     <ship-empty-state variant="placeholder" style="padding: 24px 14px;">
@@ -17,7 +18,7 @@
             {% for spec in group.items %}
               <ship-list-tile interactive
                 {% if selected_id == spec.id %}selected{% endif %}
-                data-on:click="@get('/api/v/specs?id={{ spec.id }}&q=' + encodeURIComponent($q || ''))">
+                {{ on_click("@get('/api/v/specs?id=" ~ spec.id ~ "&q=' + encodeURIComponent($q || ''))") }}>
                 <ship-status-dot slot="leading" size="sm" tone="{{ spec.tone }}"
                   {% if group.key == 'launched' %}pulse{% endif %}></ship-status-dot>
                 <div class="spec-row-main">
