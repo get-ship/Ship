@@ -67,7 +67,6 @@ const TOKEN = SAME_ORIGIN
 // ── DOM refs ─────────────────────────────────────────────────────────
 let view = document.getElementById("ship-view-root") as HTMLElement;
 const drawerContent = document.getElementById("drawer-content") as HTMLElement;
-const breadcrumbs = document.getElementById("breadcrumbs") as HTMLElement;
 const statusBranch = document.getElementById("status-branch") as HTMLElement;
 const statusAgents = document.getElementById("status-agents") as HTMLElement;
 const statusTheme = document.getElementById("status-theme") as HTMLElement;
@@ -152,7 +151,16 @@ function mountThemePicker() {
   });
 }
 
-mountThemePicker();
+// Wait for <ship-nav-top> to render its light-DOM theme-picker host before
+// wiring up the grid. firstUpdated on nav-top dispatches ship:nav-top:ready.
+const _navTopReady = () => {
+  mountThemePicker();
+};
+document
+  .querySelector("ship-shell")
+  ?.addEventListener("ship:nav-top:ready", _navTopReady, { once: true });
+// Fallback: if nav-top already rendered (e.g. HMR), wire immediately.
+if (document.getElementById("theme-picker")) mountThemePicker();
 
 // ── Rail toggle ──────────────────────────────────────────────────────
 // The shell root component owns rail-open body-class state + persistence;
@@ -182,9 +190,13 @@ async function toggleDrawer() {
   }
 }
 
-document.getElementById("toggle-drawer")!.addEventListener("click", () => {
-  void toggleDrawer();
-});
+// Chat drawer: nav-top button dispatches `ship:chat:toggle` on the shell.
+// Keyboard shortcut (below) still calls toggleDrawer() directly.
+document
+  .querySelector("ship-shell")
+  ?.addEventListener("ship:chat:toggle", () => {
+    void toggleDrawer();
+  });
 
 // ── Terminal panel toggle ────────────────────────────────────────────
 document.getElementById("close-terminal")!.addEventListener("click", () => {
@@ -288,43 +300,14 @@ async function submitFragmentForm(form: HTMLFormElement) {
   target.innerHTML = html;
 }
 
-// ── Breadcrumbs ──────────────────────────────────────────────────────
-const ROUTE_DISPLAY_NAMES: Record<string, string> = {
-  collections: "Collections",
-  dashboard: "Dashboard",
-  pipelines: "Pipelines",
-  agents: "Agents",
-  skills: "Skills",
-  settings: "Settings",
-  git: "Git",
-  events: "Events",
-  canvas: "Canvas",
-  overview: "Overview",
-};
+// Breadcrumbs moved to <ship-nav-top>; display-name mapping lives in
+// packages/ship-shell/src/view-catalog.ts.
 
-function displayName(segment: string): string {
-  return ROUTE_DISPLAY_NAMES[segment] ?? segment;
-}
-
-function updateBreadcrumbs(path: string) {
-  const parts = path.split("/").filter(Boolean);
-  if (parts.length === 0) parts.push("dashboard");
-  const crumbs = parts.map((part, i) => {
-    const isLast = i === parts.length - 1;
-    const href = "/" + parts.slice(0, i + 1).join("/");
-    const label = displayName(part);
-    if (isLast) {
-      return `<span class="current" id="breadcrumbs-title">${label}</span>`;
-    }
-    return `<a onclick="event.preventDefault();window.router.navigate('${href}')">${label}</a><span class="chevron">›</span>`;
-  });
-  breadcrumbs.innerHTML = crumbs.join("");
-}
-
-// ── Update nav active state (rail + any data-route links) ────────────
+// ── Navigation broadcast ─────────────────────────────────────────────
+// <ship-rail> highlights the active item; <ship-nav-top> re-renders
+// breadcrumbs. Both listen for ship:navigate on <ship-shell>.
 let lastNavPath = "/";
 function updateNav(path: string) {
-  // Legacy [data-route] anchors (still used by e.g. topbar brand).
   document
     .querySelectorAll<HTMLAnchorElement>("[data-route]")
     .forEach((a) => {
@@ -332,9 +315,6 @@ function updateNav(path: string) {
       const active = path === route || path.startsWith(route + "/");
       a.classList.toggle("active", active);
     });
-  updateBreadcrumbs(path);
-  // Broadcast navigation to shell components (<ship-rail> highlights
-  // the active item; future <ship-nav-top> updates breadcrumbs).
   document.querySelector("ship-shell")?.dispatchEvent(
     new CustomEvent("ship:navigate", {
       detail: { from: lastNavPath, to: path },
@@ -603,16 +583,11 @@ router.resolve();
 initSignalInspector();
 updateStatus();
 
-// ⌘K trigger button
-document.getElementById("cmdk-open")?.addEventListener("click", () => {
-  toggleCmdk();
-});
+// ⌘K trigger — <ship-nav-top> dispatches ship:command:open.
+document
+  .querySelector("ship-shell")
+  ?.addEventListener("ship:command:open", () => {
+    toggleCmdk();
+  });
 
-// Fullscreen button
-document.getElementById("toggle-fullscreen")?.addEventListener("click", () => {
-  if (document.fullscreenElement) {
-    document.exitFullscreen();
-  } else {
-    document.documentElement.requestFullscreen();
-  }
-});
+// Fullscreen button — handled inline by <ship-nav-top>.

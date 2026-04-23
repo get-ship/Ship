@@ -407,38 +407,9 @@
   </head>
   <body>
     <ship-shell>
-    <!-- Top bar: brand, breadcrumbs, ⌘K, user -->
-    <div class="ship-topbar">
-      <a class="brand" id="topbar-brand" href="/" title="Ship home">
-        <ship-mark size="sm" aria-label="Ship"></ship-mark>
-      </a>
-      <div class="sep"></div>
-      <div class="crumbs" id="breadcrumbs">
-        <span class="current">dashboard</span>
-      </div>
-      <span id="view-topbar-actions" style="display:inline-flex;gap:4px;align-items:center"></span>
-      <span class="spacer"></span>
-      <button class="cmdk-trigger" id="cmdk-open" title="Command palette">
-        <ship-icon name="search" size="sm"></ship-icon>
-        <span>Search or jump to...</span>
-        <kbd>⌘K</kbd>
-      </button>
-      <ship-button variant="ghost" size="sm" id="toggle-rail" title="Toggle navigation (⌘B)" aria-label="Toggle navigation">
-        <ship-icon slot="leading" name="menu"></ship-icon>
-      </ship-button>
-      <ship-popover placement="bottom-end" id="theme-picker">
-        <ship-button slot="trigger" variant="ghost" size="sm" aria-label="Choose theme" title="Theme">
-          <ship-icon slot="leading" name="palette"></ship-icon>
-        </ship-button>
-        <div class="theme-grid" role="listbox" aria-label="Theme"></div>
-      </ship-popover>
-      <ship-button variant="ghost" size="sm" id="toggle-fullscreen" title="Fullscreen (F11)" aria-label="Toggle fullscreen">
-        <ship-icon slot="leading" name="maximize"></ship-icon>
-      </ship-button>
-      <ship-button variant="ghost" size="sm" id="toggle-drawer" title="Chat (⌘/)" aria-label="Toggle chat drawer">
-        <ship-icon slot="leading" name="message-square-plus"></ship-icon>
-      </ship-button>
-    </div>
+    <!-- Top bar: brand, breadcrumbs, view actions, cmdk, rail toggle,
+         theme picker, fullscreen, chat drawer toggle. -->
+    <ship-nav-top></ship-nav-top>
 
     <!-- Left rail: dock-style pinned view launcher. -->
     <ship-rail id="ship-rail"></ship-rail>
