@@ -36,6 +36,7 @@ pub type SharedKernelRef = Arc<Mutex<KernelRouter>>;
 /// Rate limiting is per-trigger as configured at hook definition time;
 /// exceeding the limit yields `429`.
 #[utoipa::path(
+    operation_id = "handleWebhook",
     post,
     path = "/api/hooks/webhook/{path}",
     params(

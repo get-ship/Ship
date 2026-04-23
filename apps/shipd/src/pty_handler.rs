@@ -34,6 +34,7 @@ const MAX_PTY_CONNECTIONS: usize = 5;
 /// the 404/429 paths without a live HTTP connection (which axum requires for
 /// upgrade state — without it the extractor returns 426 before the handler runs).
 #[utoipa::path(
+    operation_id = "workspacePty",
     get,
     path = "/api/runtime/workspaces/{id}/pty",
     params(("id" = String, Path, description = "Workspace id")),

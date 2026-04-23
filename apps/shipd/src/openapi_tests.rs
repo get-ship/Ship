@@ -43,6 +43,57 @@ fn error_response_schema_is_present() {
     );
 }
 
+/// The committed spec at `apps/docs/openapi.json` carries the augmented
+/// `x-codeSamples` arrays from `apps/docs/scripts/augment-openapi.ts`.
+///
+/// Every operation must have curl + JavaScript entries (length ≥ 2) after
+/// augmentation — the drift check in CI keeps this file in sync with the
+/// live daemon spec, so a regression here means the augment script failed
+/// or an operation slipped past it.
+#[test]
+fn committed_spec_has_code_samples_on_every_operation() {
+    // Path is relative to the repo root when tests run under `cargo test -p
+    // shipd`. Locate it by walking up from the crate manifest dir.
+    let manifest_dir = std::path::PathBuf::from(env!("CARGO_MANIFEST_DIR"));
+    let repo_root = manifest_dir
+        .ancestors()
+        .find(|p| p.join("apps/docs/openapi.json").exists())
+        .expect("could not locate apps/docs/openapi.json from CARGO_MANIFEST_DIR");
+    let path = repo_root.join("apps/docs/openapi.json");
+    let raw = std::fs::read_to_string(&path)
+        .unwrap_or_else(|e| panic!("read {}: {e}", path.display()));
+    let spec: serde_json::Value = serde_json::from_str(&raw).expect("valid JSON");
+
+    let mut missing: Vec<String> = Vec::new();
+    let paths = spec
+        .get("paths")
+        .and_then(|p| p.as_object())
+        .expect("paths object");
+    for (route, item) in paths {
+        let obj = item.as_object().expect("path-item object");
+        for (method, op) in obj {
+            // skip non-operation keys like `parameters` / `summary` if ever present
+            if !matches!(
+                method.as_str(),
+                "get" | "post" | "put" | "patch" | "delete" | "head" | "options"
+            ) {
+                continue;
+            }
+            let samples = op.get("x-codeSamples").and_then(|v| v.as_array());
+            match samples {
+                Some(arr) if arr.len() >= 2 => continue,
+                _ => missing.push(format!("{} {}", method.to_uppercase(), route)),
+            }
+        }
+    }
+
+    assert!(
+        missing.is_empty(),
+        "operations missing x-codeSamples (expected curl + javascript):\n  - {}",
+        missing.join("\n  - ")
+    );
+}
+
 /// Every advertised operation must document at least one non-2xx response.
 ///
 /// Handlers that only declare `200` let SDK codegen assume a total success

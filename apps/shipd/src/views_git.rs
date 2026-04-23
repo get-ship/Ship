@@ -193,6 +193,7 @@ fn try_render_view(file: &str, ctx: &GitCtx) -> Option<String> {
 
 /// GET /api/runtime/view/git — full shell, minijinja-rendered.
 #[utoipa::path(
+    operation_id = "gitShell",
     get,
     path = "/api/runtime/view/git",
     responses(
@@ -220,6 +221,7 @@ pub async fn git_shell(
 
 /// GET /api/runtime/view/git/sse — periodic patches for `#git-root`.
 #[utoipa::path(
+    operation_id = "gitSse",
     get,
     path = "/api/runtime/view/git/sse",
     responses(

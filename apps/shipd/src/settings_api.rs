@@ -2,6 +2,7 @@
 
 use axum::{Json, extract::{Path, State}, http::StatusCode, response::IntoResponse};
 use serde::{Deserialize, Serialize};
+use serde_json::json;
 use std::sync::Mutex;
 use std::time::{Duration, Instant};
 
@@ -11,6 +12,10 @@ use crate::rest_api::{ApiState, MeshResponse};
 // ─── Types ──────────────────────────────────────────────────────────────────
 
 #[derive(Deserialize, utoipa::ToSchema)]
+#[schema(example = json!({
+    "key": "defaults.provider",
+    "value": "claude"
+}))]
 pub struct SettingsUpdateReq {
     /// Dotted setting key, e.g. `defaults.provider`.
     pub key: String,
@@ -22,6 +27,12 @@ pub struct SettingsUpdateReq {
 }
 
 #[derive(Clone, Serialize, utoipa::ToSchema)]
+#[schema(example = json!({
+    "id": "claude",
+    "available": true,
+    "binary": "/usr/local/bin/claude",
+    "version": "1.0.12"
+}))]
 pub struct ProviderStatus {
     pub id: String,
     pub available: bool,
@@ -71,6 +82,7 @@ fn cached_providers() -> Vec<ProviderStatus> {
 // ─── Handlers ───────────────────────────────────────────────────────────────
 
 #[utoipa::path(
+    operation_id = "listSettings",
     get,
     path = "/api/settings",
     responses(
@@ -102,6 +114,7 @@ pub async fn list_settings(
 }
 
 #[utoipa::path(
+    operation_id = "updateSetting",
     put,
     path = "/api/settings",
     request_body = SettingsUpdateReq,
@@ -147,6 +160,7 @@ pub async fn update_setting(
 }
 
 #[utoipa::path(
+    operation_id = "getSetting",
     get,
     path = "/api/settings/{key}",
     params(("key" = String, Path, description = "Setting key (e.g. defaults.provider)")),
@@ -188,6 +202,7 @@ pub async fn get_setting(
 }
 
 #[utoipa::path(
+    operation_id = "listProviders",
     get,
     path = "/api/providers",
     responses(

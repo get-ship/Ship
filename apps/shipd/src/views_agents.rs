@@ -74,6 +74,7 @@ fn build_tiers(selected: &str) -> Vec<TierRow> {
 
 /// GET /api/runtime/view/agents — index shell.
 #[utoipa::path(
+    operation_id = "agentsShell",
     get,
     path = "/api/runtime/view/agents",
     responses(
@@ -105,6 +106,7 @@ pub async fn agents_shell(
 
 /// GET /api/runtime/view/agents/detail/{id} — detail shell.
 #[utoipa::path(
+    operation_id = "agentDetail",
     get,
     path = "/api/runtime/view/agents/detail/{id}",
     params(("id" = String, Path, description = "Agent id")),
@@ -141,6 +143,7 @@ pub async fn agent_detail(
 
 /// POST /api/runtime/view/agents/new — structured not-implemented response.
 #[utoipa::path(
+    operation_id = "agentsCreate",
     post,
     path = "/api/runtime/view/agents/new",
     responses(

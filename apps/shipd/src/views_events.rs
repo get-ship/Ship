@@ -90,6 +90,7 @@ fn try_render_view(file: &str, ctx: &EventsCtx) -> Option<String> {
 }
 
 #[utoipa::path(
+    operation_id = "eventsShell",
     get,
     path = "/api/runtime/view/events",
     responses(
@@ -125,6 +126,7 @@ pub async fn events_shell(
 }
 
 #[utoipa::path(
+    operation_id = "eventsSse",
     get,
     path = "/api/runtime/view/events/sse",
     responses(

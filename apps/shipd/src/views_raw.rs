@@ -154,6 +154,7 @@ async fn render_sdk_shell(state: &ApiState, name: &str) -> Option<String> {
 /// authenticate without needing the query token. The auth middleware
 /// has already validated the caller's token/session before we run.
 #[utoipa::path(
+    operation_id = "serveViewRaw",
     get,
     path = "/api/runtime/view/{name}/raw",
     params(("name" = String, Path, description = "View name")),

@@ -18,6 +18,7 @@ use axum::{
     response::{IntoResponse, Response},
 };
 use serde::Deserialize;
+use serde_json::json;
 use std::collections::BTreeMap;
 
 use crate::auth::{AuthContext, Scope};
@@ -74,6 +75,7 @@ pub struct UploadQuery {
 }
 
 #[utoipa::path(
+    operation_id = "uploadArtifact",
     post,
     path = "/api/artifacts",
     params(UploadQuery),
@@ -192,6 +194,7 @@ pub async fn upload_artifact(
 // ── GET /api/artifacts/:id ────────────────────────────────────────────────────
 
 #[utoipa::path(
+    operation_id = "downloadArtifact",
     get,
     path = "/api/artifacts/{id}",
     params(("id" = String, Path, description = "Artifact id")),
@@ -251,6 +254,7 @@ pub async fn download_artifact(
 // ── HEAD /api/artifacts/:id ───────────────────────────────────────────────────
 
 #[utoipa::path(
+    operation_id = "headArtifact",
     head,
     path = "/api/artifacts/{id}",
     params(("id" = String, Path, description = "Artifact id")),
@@ -297,6 +301,7 @@ pub async fn head_artifact(
 // ── GET /api/artifacts/:id/metadata ──────────────────────────────────────────
 
 #[utoipa::path(
+    operation_id = "artifactMetadata",
     get,
     path = "/api/artifacts/{id}/metadata",
     params(("id" = String, Path, description = "Artifact id")),
@@ -336,6 +341,11 @@ pub async fn artifact_metadata(
 // ── PATCH /api/artifacts/:id ──────────────────────────────────────────────────
 
 #[derive(Deserialize, utoipa::ToSchema)]
+#[schema(example = json!({
+    "name": "README.md",
+    "owner_actor": "agent-writer",
+    "expires_at": "2026-05-22T00:00:00Z"
+}))]
 pub struct PatchBody {
     pub name: Option<String>,
     pub owner_actor: Option<String>,
@@ -343,6 +353,7 @@ pub struct PatchBody {
 }
 
 #[utoipa::path(
+    operation_id = "patchArtifact",
     patch,
     path = "/api/artifacts/{id}",
     params(("id" = String, Path, description = "Artifact id")),
@@ -392,6 +403,7 @@ pub async fn patch_artifact(
 // ── DELETE /api/artifacts/:id ─────────────────────────────────────────────────
 
 #[utoipa::path(
+    operation_id = "deleteArtifact",
     delete,
     path = "/api/artifacts/{id}",
     params(("id" = String, Path, description = "Artifact id")),
@@ -435,6 +447,11 @@ pub async fn delete_artifact(
 // ── POST /api/artifacts/:id/promote ──────────────────────────────────────────
 
 #[derive(Deserialize, utoipa::ToSchema)]
+#[schema(example = json!({
+    "target_scope": "project",
+    "run_id": "01J3Z5ZQXAM3E4T7W",
+    "user_id": "me"
+}))]
 pub struct PromoteBody {
     pub target_scope: String,
     pub run_id: Option<String>,
@@ -442,6 +459,7 @@ pub struct PromoteBody {
 }
 
 #[utoipa::path(
+    operation_id = "promoteArtifact",
     post,
     path = "/api/artifacts/{id}/promote",
     params(("id" = String, Path, description = "Artifact id")),
@@ -505,6 +523,7 @@ pub struct ListQuery {
 }
 
 #[utoipa::path(
+    operation_id = "listArtifacts",
     get,
     path = "/api/artifacts",
     params(ListQuery),

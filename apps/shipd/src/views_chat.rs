@@ -15,6 +15,7 @@ use axum::response::Html;
 use runtime::events::ActorConfig;
 use runtime::gen_ulid;
 use serde::{Deserialize, Serialize};
+use serde_json::json;
 use std::time::Duration;
 
 use crate::rest_api::{ApiState, MeshResponse};
@@ -36,6 +37,10 @@ pub struct ChatCtx {
 }
 
 #[derive(Deserialize, utoipa::ToSchema)]
+#[schema(example = json!({
+    "text": "Summarize today's job log.",
+    "workspace_id": "default"
+}))]
 pub struct ChatSendRequest {
     pub text: String,
     #[serde(default)]
@@ -53,6 +58,7 @@ fn build_ctx(params: &ChatParams, ship_dir: &std::path::Path) -> ChatCtx {
 }
 
 #[utoipa::path(
+    operation_id = "chatShell",
     get,
     path = "/api/runtime/view/chat",
     responses(
@@ -87,6 +93,7 @@ pub async fn chat_shell(
 }
 
 #[utoipa::path(
+    operation_id = "chatSse",
     get,
     path = "/api/runtime/view/chat/sse",
     responses(
@@ -159,6 +166,7 @@ fn render_content(params: &ChatParams, ship_dir: &std::path::Path) -> Option<Str
 }
 
 #[utoipa::path(
+    operation_id = "chatSend",
     post,
     path = "/api/runtime/view/chat/send",
     request_body = ChatSendRequest,
@@ -180,12 +188,12 @@ pub async fn chat_send(
             StatusCode::BAD_REQUEST,
             Json(MeshResponse {
                 ok: false,
-                data: serde_json::json!({ "error": "empty message" }),
+                data: json!({ "error": "empty message" }),
             }),
         );
     }
     let entity = req.workspace_id.clone().unwrap_or_else(|| "studio".into());
-    let payload = serde_json::json!({
+    let payload = json!({
         "summary": text,
         "workspace_id": req.workspace_id,
     });
@@ -200,7 +208,7 @@ pub async fn chat_send(
                 StatusCode::BAD_REQUEST,
                 Json(MeshResponse {
                     ok: false,
-                    data: serde_json::json!({ "error": e.to_string() }),
+                    data: json!({ "error": e.to_string() }),
                 }),
             );
         }
@@ -220,7 +228,7 @@ pub async fn chat_send(
             StatusCode::INTERNAL_SERVER_ERROR,
             Json(MeshResponse {
                 ok: false,
-                data: serde_json::json!({ "error": e.to_string() }),
+                data: json!({ "error": e.to_string() }),
             }),
         );
     }
@@ -228,7 +236,7 @@ pub async fn chat_send(
         StatusCode::OK,
         Json(MeshResponse {
             ok: true,
-            data: serde_json::json!({ "sent": true }),
+            data: json!({ "sent": true }),
         }),
     )
 }

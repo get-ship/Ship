@@ -233,6 +233,7 @@ fn resolve_settings_view_dir() -> Option<std::path::PathBuf> {
 /// Reads from `.ship/views/settings/index.html.j2` when available, falls
 /// back to the embedded `settings/shell.html.j2` template.
 #[utoipa::path(
+    operation_id = "settingsShell",
     get,
     path = "/api/runtime/view/settings",
     responses(
@@ -264,6 +265,7 @@ pub async fn settings_shell(
 
 /// GET /api/runtime/view/settings/sse — Datastar patches for `#settings-panel`.
 #[utoipa::path(
+    operation_id = "settingsSse",
     get,
     path = "/api/runtime/view/settings/sse",
     responses(

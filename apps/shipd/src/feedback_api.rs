@@ -95,6 +95,7 @@ impl FeedbackGuard {
 // ───────────────────────── Handler ─────────────────────────
 
 #[utoipa::path(
+    operation_id = "postFeedback",
     post,
     path = "/api/runtime/feedback",
     request_body(content_type = "application/json", description = "FeedbackEvent — kind, author_kind, target, payload"),

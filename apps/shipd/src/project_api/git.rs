@@ -35,6 +35,7 @@ fn run_git(
 
 /// GET /api/workspaces/{id}/git/status
 #[utoipa::path(
+    operation_id = "gitStatus",
     get,
     path = "/api/workspaces/{id}/git/status",
     params(("id" = String, Path, description = "Workspace id")),
@@ -62,6 +63,7 @@ pub struct DiffQuery {
 
 /// GET /api/workspaces/{id}/git/diff
 #[utoipa::path(
+    operation_id = "gitDiff",
     get,
     path = "/api/workspaces/{id}/git/diff",
     params(("id" = String, Path, description = "Workspace id"), DiffQuery),
@@ -93,6 +95,7 @@ pub struct LogQuery {
 
 /// GET /api/workspaces/{id}/git/log
 #[utoipa::path(
+    operation_id = "gitLog",
     get,
     path = "/api/workspaces/{id}/git/log",
     params(("id" = String, Path, description = "Workspace id"), LogQuery),
@@ -168,6 +171,7 @@ fn resolve_project_root(
 
 /// GET /api/project/git/status
 #[utoipa::path(
+    operation_id = "projectGitStatus",
     get,
     path = "/api/project/git/status",
     responses(
@@ -187,6 +191,7 @@ pub async fn project_git_status(
 
 /// GET /api/project/git/diff
 #[utoipa::path(
+    operation_id = "projectGitDiff",
     get,
     path = "/api/project/git/diff",
     params(DiffQuery),
@@ -211,6 +216,7 @@ pub async fn project_git_diff(
 
 /// GET /api/project/git/log
 #[utoipa::path(
+    operation_id = "projectGitLog",
     get,
     path = "/api/project/git/log",
     params(LogQuery),

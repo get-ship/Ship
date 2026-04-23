@@ -78,6 +78,7 @@ pub(super) fn collect_files_recursive(
 
 /// GET /api/workspaces/{id}/session-files
 #[utoipa::path(
+    operation_id = "listSessionFiles",
     get,
     path = "/api/workspaces/{id}/session-files",
     params(("id" = String, Path, description = "Workspace id")),
@@ -108,6 +109,7 @@ pub async fn list_session_files(
 
 /// GET /api/workspaces/{id}/session-files/*path
 #[utoipa::path(
+    operation_id = "readSessionFile",
     get,
     path = "/api/workspaces/{id}/session-files/{path}",
     params(
@@ -177,6 +179,7 @@ pub struct WriteFileReq {
 
 /// PUT /api/workspaces/{id}/session-files/*path
 #[utoipa::path(
+    operation_id = "writeSessionFile",
     put,
     path = "/api/workspaces/{id}/session-files/{path}",
     params(
@@ -232,6 +235,7 @@ pub async fn write_session_file(
 
 /// DELETE /api/workspaces/{id}/session-files/*path
 #[utoipa::path(
+    operation_id = "deleteSessionFile",
     delete,
     path = "/api/workspaces/{id}/session-files/{path}",
     params(

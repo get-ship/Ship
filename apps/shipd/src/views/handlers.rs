@@ -65,6 +65,7 @@ fn build_view_context(view_name: &str, params: &HashMap<String, String>) -> serd
 
 /// GET /api/runtime/views
 #[utoipa::path(
+    operation_id = "listViews",
     get,
     path = "/api/runtime/views",
     responses(
@@ -126,6 +127,7 @@ pub async fn serve_view_asset(Path((name, file)): Path<(String, String)>) -> axu
 
 /// GET /api/runtime/view/{name}
 #[utoipa::path(
+    operation_id = "serveView",
     get,
     path = "/api/runtime/view/{name}",
     params(("name" = String, Path, description = "View name")),
@@ -204,6 +206,7 @@ pub async fn serve_view(
 
 /// GET /api/runtime/view/{name}/manifest
 #[utoipa::path(
+    operation_id = "serveViewManifest",
     get,
     path = "/api/runtime/view/{name}/manifest",
     params(("name" = String, Path, description = "View name")),
@@ -244,6 +247,7 @@ pub async fn serve_view_manifest(Path(name): Path<String>) -> impl IntoResponse 
 
 /// GET /api/runtime/view/{name}/bundle — raw JS, not JSON-wrapped.
 #[utoipa::path(
+    operation_id = "serveViewBundle",
     get,
     path = "/api/runtime/view/{name}/bundle",
     params(("name" = String, Path, description = "View name")),

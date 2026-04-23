@@ -212,6 +212,7 @@ fn build_rail(ship_dir: &std::path::Path, params: &SkillsParams) -> RailCtx {
 
 /// GET /api/runtime/view/skills — full shell with empty right pane.
 #[utoipa::path(
+    operation_id = "skillsShell",
     get,
     path = "/api/runtime/view/skills",
     responses(
@@ -243,6 +244,7 @@ pub async fn skills_shell(
 
 /// GET /api/runtime/view/skills/rail — partial rail (datastar active_search).
 #[utoipa::path(
+    operation_id = "skillsRail",
     get,
     path = "/api/runtime/view/skills/rail",
     responses(
@@ -268,6 +270,7 @@ pub async fn skills_rail(
 /// GET /api/runtime/view/skills/detail/{id}?file=SKILL.md — full shell with
 /// a populated detail pane; optionally shows a specific file in the editor.
 #[utoipa::path(
+    operation_id = "skillDetail",
     get,
     path = "/api/runtime/view/skills/detail/{id}",
     params(("id" = String, Path, description = "Skill id")),

@@ -391,6 +391,7 @@ fn try_render_view(file: &str, ctx: &PipelinesCtx) -> Option<String> {
 
 /// GET /api/runtime/view/pipelines — full shell, minijinja-rendered.
 #[utoipa::path(
+    operation_id = "pipelinesShell",
     get,
     path = "/api/runtime/view/pipelines",
     responses(
@@ -421,6 +422,7 @@ pub async fn pipelines_shell(
 /// `#pipelines-content` fragment, re-rendered on any `job.*`/`step.*`
 /// event.
 #[utoipa::path(
+    operation_id = "pipelinesSse",
     get,
     path = "/api/runtime/view/pipelines/sse",
     responses(

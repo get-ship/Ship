@@ -38,6 +38,7 @@ pub struct TelegramChat {
 
 /// Receive a Telegram webhook update and emit `human.response` on the kernel.
 #[utoipa::path(
+    operation_id = "telegramWebhook",
     post,
     path = "/api/webhook/telegram",
     request_body(content_type = "application/json", description = "Telegram webhook update payload (TelegramUpdate)"),

@@ -2,6 +2,7 @@
 
 use axum::{Json, extract::Path, http::StatusCode};
 use serde::Deserialize;
+use serde_json::json;
 
 use super::{err_response, ok_response, resolve_worktree};
 use crate::auth::{AuthContext, Scope, require_scope};
@@ -23,6 +24,7 @@ fn parse_pipeline_content(content: &str) -> Result<serde_json::Value, String> {
 
 /// GET /api/workspaces/{id}/pipelines
 #[utoipa::path(
+    operation_id = "listPipelines",
     get,
     path = "/api/workspaces/{id}/pipelines",
     params(("id" = String, Path, description = "Workspace id")),
@@ -42,7 +44,7 @@ pub async fn list_pipelines(
     let pipelines_dir = worktree.join(".ship").join("pipelines");
 
     if !pipelines_dir.exists() {
-        return Ok(ok_response(serde_json::json!({ "pipelines": [] })));
+        return Ok(ok_response(json!({ "pipelines": [] })));
     }
 
     let entries = std::fs::read_dir(&pipelines_dir)
@@ -66,7 +68,7 @@ pub async fn list_pipelines(
         let description = val.get("description").and_then(|v| v.as_str()).unwrap_or("").to_string();
         let steps = val.get("steps").and_then(|v| v.as_array()).map(|arr| {
             arr.iter().filter_map(|s| {
-                Some(serde_json::json!({
+                Some(json!({
                     "id": s.get("id")?.as_str()?,
                     "type": s.get("type")?.as_str()?,
                     "agent": s.get("agent").and_then(|a| a.as_str()),
@@ -78,7 +80,7 @@ pub async fn list_pipelines(
             }).collect::<Vec<_>>()
         }).unwrap_or_default();
 
-        pipelines.push(serde_json::json!({
+        pipelines.push(json!({
             "name": name,
             "description": description,
             "steps": steps,
@@ -86,16 +88,20 @@ pub async fn list_pipelines(
         }));
     }
 
-    Ok(ok_response(serde_json::json!({ "pipelines": pipelines })))
+    Ok(ok_response(json!({ "pipelines": pipelines })))
 }
 
 #[derive(Deserialize, utoipa::ToSchema)]
+#[schema(example = json!({
+    "content": "name: write-readme\nsteps:\n  - id: draft\n    agent: writer\n    produces: [README.md]\n  - id: review\n    agent: reviewer\n    consumes: [README.md]\n    promotes: [README.md]\n"
+}))]
 pub struct WritePipelineReq {
     pub content: String,
 }
 
 /// PUT /api/workspaces/{id}/pipelines/{name}
 #[utoipa::path(
+    operation_id = "writePipeline",
     put,
     path = "/api/workspaces/{id}/pipelines/{name}",
     params(
@@ -138,11 +144,12 @@ pub async fn write_pipeline(
     std::fs::write(&path, &body.content)
         .map_err(|e| err_response(StatusCode::INTERNAL_SERVER_ERROR, &format!("write: {e}")))?;
 
-    Ok(ok_response(serde_json::json!({ "name": name })))
+    Ok(ok_response(json!({ "name": name })))
 }
 
 /// DELETE /api/workspaces/{id}/pipelines/{name}
 #[utoipa::path(
+    operation_id = "deletePipeline",
     delete,
     path = "/api/workspaces/{id}/pipelines/{name}",
     params(
@@ -180,5 +187,5 @@ pub async fn delete_pipeline(
     std::fs::remove_file(&path)
         .map_err(|e| err_response(StatusCode::INTERNAL_SERVER_ERROR, &format!("delete: {e}")))?;
 
-    Ok(ok_response(serde_json::json!({ "name": name })))
+    Ok(ok_response(json!({ "name": name })))
 }

@@ -13,6 +13,7 @@ use axum::response::sse::{Event, KeepAlive, Sse};
 use runtime::events::{ActorConfig, EventEnvelope};
 use runtime::events::job::{JobCreatedPayload, event_types};
 use serde::Deserialize;
+use serde_json::json;
 
 use crate::auth::{AuthContext, Scope, require_scope};
 use crate::rest_api::{ApiState, MeshResponse};
@@ -31,6 +32,7 @@ pub struct SessionsQuery {
 /// Returns only active workspaces. Archived/dead workspaces are excluded
 /// from the API surface — the reconciler handles cleanup internally.
 #[utoipa::path(
+    operation_id = "listWorkspaces",
     get,
     path = "/api/runtime/workspaces",
     responses(
@@ -134,6 +136,7 @@ fn git_worktrees() -> Option<Vec<(String, String)>> {
 
 /// GET /api/runtime/sessions[?workspace_id=<id>]
 #[utoipa::path(
+    operation_id = "listSessions",
     get,
     path = "/api/runtime/sessions",
     params(SessionsQuery),
@@ -196,6 +199,7 @@ pub async fn list_sessions(
 
 /// GET /api/runtime/agents
 #[utoipa::path(
+    operation_id = "listAgents",
     get,
     path = "/api/runtime/agents",
     responses(
@@ -267,6 +271,16 @@ pub async fn list_agents(
 // ---- Job request types ----
 
 #[derive(Deserialize, utoipa::ToSchema)]
+#[schema(example = json!({
+    "slug": "write-readme",
+    "agent": "writer",
+    "branch": "job/write-readme",
+    "spec_path": ".ship/specs/write-readme.md",
+    "source_spec_path": "/home/me/project/.ship/specs/write-readme.md",
+    "spec_content": "# Write README\n\nSummarize the project.\n",
+    "vars": { "topic": "ship" },
+    "headless": false
+}))]
 pub struct CreateJobRequest {
     pub slug: String,
     pub agent: String,
@@ -305,6 +319,7 @@ pub struct CreateJobRequest {
 ///   it, `"terminal"` for jobs in a terminal status, `"none"` otherwise.
 /// - `notes`: optional truncated error / blocker for the row's NOTES column.
 #[utoipa::path(
+    operation_id = "listJobs",
     get,
     path = "/api/runtime/jobs",
     responses(
@@ -473,6 +488,7 @@ pub struct EventSummary {
 
 /// GET /api/runtime/jobs/{job_id}
 #[utoipa::path(
+    operation_id = "getJobDetail",
     get,
     path = "/api/runtime/jobs/{job_id}",
     responses(
@@ -565,6 +581,7 @@ pub async fn get_job_detail(
 /// The job_dispatch service handles all heavy lifting (worktree creation,
 /// dependency resolution, agent spawning).
 #[utoipa::path(
+    operation_id = "createJob",
     post,
     path = "/api/runtime/jobs",
     request_body = CreateJobRequest,
@@ -668,6 +685,7 @@ fn default_cancel_reason() -> String {
 /// job with this slug. Idempotent: returns 409 with the current status
 /// when the job is already in a terminal state, and emits no event.
 #[utoipa::path(
+    operation_id = "cancelJob",
     post,
     path = "/api/runtime/jobs/{slug}/cancel",
     request_body = CancelJobRequest,
@@ -772,6 +790,7 @@ pub async fn cancel_job(
 // ---- Job end (hook-triggered) ----
 
 #[derive(Deserialize, utoipa::ToSchema)]
+#[schema(example = json!({ "slug": "write-readme" }))]
 pub struct JobEndRequest {
     pub slug: String,
 }
@@ -783,6 +802,7 @@ pub struct JobEndRequest {
 /// monitor (which accumulates evidence before deciding to advance).
 /// For single-step jobs, emits job.completed directly.
 #[utoipa::path(
+    operation_id = "endJob",
     post,
     path = "/api/runtime/jobs/end",
     request_body = JobEndRequest,
@@ -885,6 +905,7 @@ pub struct SteerAgentRequest {
 ///
 /// Uses the process registry and executor to terminate the agent process.
 #[utoipa::path(
+    operation_id = "stopAgent",
     post,
     path = "/api/runtime/agents/{slug}/stop",
     responses(
@@ -940,6 +961,7 @@ pub async fn stop_agent(
 
 /// POST /api/runtime/agents/{slug}/steer — inject a message into a running agent.
 #[utoipa::path(
+    operation_id = "steerAgent",
     post,
     path = "/api/runtime/agents/{slug}/steer",
     request_body = SteerAgentRequest,
@@ -1008,6 +1030,7 @@ pub struct ProcsQuery {
 /// `slug`, returns the most recent `limit` records (default 100), sorted
 /// newest first.
 #[utoipa::path(
+    operation_id = "listProcs",
     get,
     path = "/api/runtime/procs",
     params(ProcsQuery),
@@ -1064,6 +1087,7 @@ pub struct EventsPollQuery {
 /// poll allows the CLI to walk the log forward from a known cursor.
 /// Use `since_id` (ULID) for incremental polling. Limit defaults to 200.
 #[utoipa::path(
+    operation_id = "pollEvents",
     get,
     path = "/api/runtime/events/poll",
     params(EventsPollQuery),
@@ -1142,6 +1166,7 @@ pub async fn poll_events(
 /// job counts by status, last sweep timestamp, drift count over the
 /// last 50 sweep events.
 #[utoipa::path(
+    operation_id = "daemonStatus",
     get,
     path = "/api/runtime/daemon/status",
     responses(
@@ -1209,6 +1234,7 @@ pub async fn daemon_status(State(state): State<ApiState>) -> impl IntoResponse {
 
 /// POST /api/runtime/rebuild-projections — rebuild all projections from events.
 #[utoipa::path(
+    operation_id = "rebuildProjections",
     post,
     path = "/api/runtime/rebuild-projections",
     responses(
@@ -1266,6 +1292,7 @@ impl Drop for ActorGuard {
 
 /// GET /api/runtime/events — SSE stream of all kernel events.
 #[utoipa::path(
+    operation_id = "eventStream",
     get,
     path = "/api/runtime/events",
     responses(

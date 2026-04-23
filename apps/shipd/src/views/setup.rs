@@ -46,6 +46,7 @@ const PLACEHOLDER_HTML: &str = r#"<!doctype html>
 /// `GET /setup` — serve the setup wizard if no workspaces exist, otherwise
 /// redirect to `/` so the user lands on the dashboard.
 #[utoipa::path(
+    operation_id = "setupHandler",
     get,
     path = "/setup",
     responses(
@@ -69,6 +70,7 @@ pub async fn setup_handler() -> Response {
 /// `GET /` — redirect to `/setup` on a fresh install, or to `/shell/` once
 /// at least one workspace is configured.
 #[utoipa::path(
+    operation_id = "indexHandler",
     get,
     path = "/",
     responses(
