@@ -257,8 +257,10 @@
             </div>
             {% endfor %}
           {%- elif groups is defined and groups | length > 0 -%}
-            {%- set ev = namespace(n=0) -%}
-            {% for g in groups %}{% if ev.n < 10 %}{% for r in g.rows %}{% if ev.n < 10 %}
+            {#- Flatten groups → first 10 rows. No namespace mutation
+                (minijinja 2.x disallows it); `loop.index` + outer caps
+                instead. -#}
+            {% for g in groups %}{% if loop.index <= 10 %}{% for r in g.rows %}{% if loop.index <= 10 %}
             {%- set ev_actor = r.actor if r.actor is defined else '' -%}
             <div class="dash-event-row">
               <span class="dash-event-ts">{{ r.timestamp }}</span>
@@ -272,7 +274,6 @@
                 {%- else -%}<span>—</span>{%- endif -%}
               </span>
             </div>
-            {%- set ev.n = ev.n + 1 -%}
             {% endif %}{% endfor %}{% endif %}{% endfor %}
           {%- else -%}
             <ship-empty-state variant="placeholder" size="sm" icon="activity">
