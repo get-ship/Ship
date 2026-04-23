@@ -101,24 +101,6 @@ pub enum Route {
 
     // ── Views: HTML shells + SSE streams ─────────────────────────────────
 
-    /// @route GET "/api/runtime/view/pipelines"
-    ViewPipelines,
-
-    /// @route GET "/api/runtime/view/pipelines/sse"
-    ViewPipelinesSse,
-
-    /// @route GET "/api/runtime/view/pipelines/history"
-    ViewPipelinesHistory,
-
-    /// @route GET "/api/runtime/view/pipelines/pipeline/{name}"
-    ViewPipelineFocus { name: String },
-
-    /// @route GET "/api/runtime/view/pipelines/run/{slug}"
-    ViewPipelineRun { slug: String },
-
-    /// @route GET "/api/runtime/view/pipelines/run/{slug}/sse"
-    ViewPipelineRunSse { slug: String },
-
     /// @route GET "/api/runtime/view/settings"
     ViewSettings,
 

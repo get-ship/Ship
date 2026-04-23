@@ -28,7 +28,6 @@ pub(crate) fn build_generic_context(
     load_settings(&mut ctx, manifest_data);
     load_events(&mut ctx, manifest_data, &ship_dir);
     load_chat(&mut ctx, manifest_data, query_params, &ship_dir);
-    load_pipelines(&mut ctx, signals, manifest_data, &ship_dir);
 
     ctx
 }
@@ -183,37 +182,6 @@ fn load_events(
     ctx["types"] = serde_json::to_value(&types).unwrap_or_default();
     ctx["actors"] = serde_json::to_value(&actors).unwrap_or_default();
     ctx["groups"] = serde_json::to_value(&groups).unwrap_or_default();
-}
-
-fn load_pipelines(
-    ctx: &mut serde_json::Value,
-    signals: &serde_json::Value,
-    manifest_data: &Option<ManifestData>,
-    ship_dir: &Path,
-) {
-    if !manifest_data.as_ref().and_then(|d| d.pipelines).unwrap_or(false) {
-        return;
-    }
-    let params = crate::views_pipelines::PipelinesParams {
-        tab: signals.get("tab").and_then(|v| v.as_str()).map(String::from),
-        filter: crate::views::state::Filter {
-            q: None,
-            agent: signals
-                .get("agent")
-                .and_then(|v| v.as_str())
-                .filter(|s| !s.is_empty())
-                .map(String::from),
-            pipeline: None,
-            status: signals.get("status").and_then(|v| v.as_str()).map(String::from),
-        },
-    };
-    let pipelines_ctx = crate::views_pipelines::build_ctx(&params, ship_dir);
-    let val = serde_json::to_value(&pipelines_ctx).unwrap_or_default();
-    if let serde_json::Value::Object(map) = val {
-        for (k, v) in map {
-            ctx[k] = v;
-        }
-    }
 }
 
 fn load_chat(

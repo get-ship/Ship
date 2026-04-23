@@ -18,7 +18,7 @@ use crate::{
     human_webhook, lint_api, logs_api, openapi, pairing, project_api, pty_handler, rest_api, runtime_api,
     sdk_manifest, services, session, settings_api, shell_assets, ship_runtime, specs_api,
     supervisor, view_errors_api, view_morph_target, view_sessions_api, views, collection_api, views_agents,
-    views_chat, views_events, views_pipelines, views_raw, views_settings,
+    views_chat, views_events, views_raw, views_settings,
 };
 
 /// Build the full Axum router with all route groups, auth, and CORS.
@@ -238,9 +238,6 @@ fn build_ship_routes(st: rest_api::ApiState) -> Router {
         .ship_route(Route::PollEvents, runtime_api::poll_events)
         .ship_route(Route::DaemonStatus, runtime_api::daemon_status)
         // Views
-        .ship_route(Route::ViewPipelinesHistory, views_pipelines::pipelines_history_shell)
-        .ship_route(Route::ViewPipelineFocus_template(), views_pipelines::pipeline_focus_shell)
-        .ship_route(Route::ViewPipelineRun_template(), views_pipelines::pipelines_run_shell)
         .ship_route(Route::ListViews, views::list_views)
         .ship_route(Route::ServeView_template(), views::serve_view)
         .ship_route(Route::ServeViewRouted_template(), views::routed_handler::serve_view_routed)
@@ -261,8 +258,6 @@ fn build_ship_routes(st: rest_api::ApiState) -> Router {
         // Feedback ingress
         .ship_route(Route::PostFeedback, feedback_api::post_feedback)
         .ship_route(Route::PostAnnotation, annotations_api::post_annotation)
-        .ship_route(Route::ViewPipelines, views_pipelines::pipelines_shell)
-        .ship_route(Route::ViewPipelinesSse, views_pipelines::pipelines_sse)
         .ship_route(Route::ViewSettings, views_settings::settings_shell)
         .ship_route(Route::ViewSettingsSse, views_settings::settings_sse)
         .ship_route(Route::ViewAgents, views_agents::agents_shell)

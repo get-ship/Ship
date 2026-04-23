@@ -1,7 +1,7 @@
 //! `/api/runtime/view/{name}/raw` — full HTML document for Studio and
 //! direct-browser mounting.
 //!
-//! For SDK-backed first-party views (pipelines, git, specs, settings)
+//! For SDK-backed first-party views (settings, agents, chat, events)
 //! this renders the canonical shell template inline and wraps it in
 //! `_raw_shell.html.j2`. Asset URLs in the wrapper are absolute so the
 //! document works identically when opened directly in a browser or when
@@ -62,16 +62,6 @@ fn wrap(title: &str, inner: &str) -> Option<String> {
 /// Returns `None` for unknown names, leaving the caller to fall back.
 async fn render_sdk_shell(state: &ApiState, name: &str) -> Option<String> {
     let inner = match name {
-        "pipelines" => {
-            crate::views_pipelines::pipelines_shell(
-                State(state.clone()),
-                axum::http::HeaderMap::new(),
-                Query(Default::default()),
-            )
-            .await
-            .ok()?
-            .0
-        }
         "settings" => {
             crate::views_settings::settings_shell(
                 State(state.clone()),
@@ -108,7 +98,6 @@ async fn render_sdk_shell(state: &ApiState, name: &str) -> Option<String> {
         _ => return None,
     };
     let title = match name {
-        "pipelines" => "Pipelines",
         "settings" => "Settings",
         "agents" => "Agents",
         "chat" => "Chat",

@@ -152,42 +152,6 @@ pub(crate) const TEMPLATES: &[(&str, &str)] = &[
         include_str!("../../templates/events/partials/filters.html.j2"),
     ),
     (
-        "pipelines/content.html.j2",
-        include_str!("../../templates/pipelines/content.html.j2"),
-    ),
-    (
-        "pipelines/partials/active.html.j2",
-        include_str!("../../templates/pipelines/partials/active.html.j2"),
-    ),
-    (
-        "pipelines/partials/def_card.html.j2",
-        include_str!("../../templates/pipelines/partials/def_card.html.j2"),
-    ),
-    (
-        "pipelines/partials/definitions.html.j2",
-        include_str!("../../templates/pipelines/partials/definitions.html.j2"),
-    ),
-    (
-        "pipelines/partials/history.html.j2",
-        include_str!("../../templates/pipelines/partials/history.html.j2"),
-    ),
-    (
-        "pipelines/partials/history_row.html.j2",
-        include_str!("../../templates/pipelines/partials/history_row.html.j2"),
-    ),
-    (
-        "pipelines/partials/run_card.html.j2",
-        include_str!("../../templates/pipelines/partials/run_card.html.j2"),
-    ),
-    (
-        "pipelines/partials/step_card.html.j2",
-        include_str!("../../templates/pipelines/partials/step_card.html.j2"),
-    ),
-    (
-        "pipelines/shell.html.j2",
-        include_str!("../../templates/pipelines/shell.html.j2"),
-    ),
-    (
         "settings/partials/about.html.j2",
         include_str!("../../templates/settings/partials/about.html.j2"),
     ),

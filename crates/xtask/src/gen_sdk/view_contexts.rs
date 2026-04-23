@@ -15,7 +15,6 @@ use serde_json::{json, Map, Value};
 
 const SOURCES: &[&str] = &[
     "apps/shipd/src/specs_view.rs",
-    "apps/shipd/src/views_pipelines.rs",
     "apps/shipd/src/views_settings.rs",
     "apps/shipd/src/views_chat.rs",
     "apps/shipd/src/views_git.rs",
