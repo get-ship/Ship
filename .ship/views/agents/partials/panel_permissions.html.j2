@@ -13,6 +13,7 @@
     Autocomplete: three plain <ship-input>s backed by <datalist> so the
     suggestion popup is native + accessible without a custom combobox.
 -#}
+{% from '_ship.html.j2' import on, on_click, bind, attr_if, class_if %}
 <ship-card padding="none" id="section-permissions"
            data-signals:pAllow="{{ agent.permissions.tools_allow | tojson | replace('\"', '&quot;') }}"
            data-signals:pAsk="{{ agent.permissions.tools_ask | tojson | replace('\"', '&quot;') }}"
@@ -26,9 +27,9 @@
       Permissions
     </h2>
     <ship-button variant="outline" size="sm"
-                 data-attr:disabled="!$pDirty || $pSaving"
-                 data-class:is-saving="$pSaving"
-                 data-on:click="$pSaving = true; @patch('/api/agents/{{ agent.id | e }}', {
+                 {{ attr_if('!$pDirty || $pSaving', 'disabled') }}
+                 {{ class_if('$pSaving', 'is-saving') }}
+                 {{ on_click("$pSaving = true; @patch('/api/agents/" ~ (agent.id | e) ~ "', {
                    contentType: 'json',
                    body: JSON.stringify([
                      { op: 'add', path: '/permissions', value: {
@@ -38,7 +39,7 @@
                        tools_deny: $pDeny,
                      }},
                    ]),
-                 }); $pDirty = false; $pSaving = false; window.location.reload()">
+                 }); $pDirty = false; $pSaving = false; window.location.reload()") }}>
       <ship-icon slot="leading" name="check"></ship-icon>
       Save
     </ship-button>
@@ -49,8 +50,8 @@
     <ship-field style="margin-bottom: var(--space-4)">
       <ship-label for="perm-preset">Preset</ship-label>
       <ship-select id="perm-preset" size="sm"
-                   data-bind="pPreset"
-                   data-on:change="$pDirty = true">
+                   {{ bind('pPreset') }}
+                   {{ on('change', '$pDirty = true') }}>
         {% for p in catalogs.presets %}
           <option value="{{ p.id | e }}"
             {% if p.id == agent.permissions.preset %}selected{% endif %}>
@@ -97,11 +98,11 @@
               class="ad-perm-add-input"
               placeholder="Tool pattern…"
               data-signals:_{{ key }}Draft="''"
-              data-bind="_{{ key }}Draft"
-              data-on:keydown="if (evt.key === 'Enter' && $_{{ key }}Draft.trim() && !${{ sig }}.includes($_{{ key }}Draft.trim())) { ${{ sig }} = [...${{ sig }}, $_{{ key }}Draft.trim()]; $_{{ key }}Draft = ''; $pDirty = true; evt.preventDefault() }">
+              {{ bind('_' ~ key ~ 'Draft') }}
+              {{ on('keydown', "if (evt.key === 'Enter' && $_" ~ key ~ "Draft.trim() && !$" ~ sig ~ ".includes($_" ~ key ~ "Draft.trim())) { $" ~ sig ~ " = [...$" ~ sig ~ ", $_" ~ key ~ "Draft.trim()]; $_" ~ key ~ "Draft = ''; $pDirty = true; evt.preventDefault() }") }}>
             <ship-button variant="ghost" size="sm" aria-label="Add"
-              data-attr:disabled="!$_{{ key }}Draft.trim()"
-              data-on:click="if ($_{{ key }}Draft.trim() && !${{ sig }}.includes($_{{ key }}Draft.trim())) { ${{ sig }} = [...${{ sig }}, $_{{ key }}Draft.trim()]; $_{{ key }}Draft = ''; $pDirty = true }">
+              {{ attr_if('!$_' ~ key ~ 'Draft.trim()', 'disabled') }}
+              {{ on_click("if ($_" ~ key ~ "Draft.trim() && !$" ~ sig ~ ".includes($_" ~ key ~ "Draft.trim())) { $" ~ sig ~ " = [...$" ~ sig ~ ", $_" ~ key ~ "Draft.trim()]; $_" ~ key ~ "Draft = ''; $pDirty = true }") }}>
               <ship-icon name="plus" size="xs"></ship-icon>
             </ship-button>
           </div>
@@ -118,7 +119,7 @@
                 <span class="ad-perm-chip">
                   <span class="ad-perm-chip-text">{{ pattern | e }}</span>
                   <button type="button" class="ad-perm-chip-rm" aria-label="Remove"
-                          data-on:click="${{ sig }} = ${{ sig }}.filter(x => x != '{{ pattern | e }}'); $pDirty = true">
+                          {{ on_click('$' ~ sig ~ ' = $' ~ sig ~ ".filter(x => x != '" ~ (pattern | e) ~ "'); $pDirty = true") }}>
                     ×
                   </button>
                 </span>

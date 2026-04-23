@@ -243,6 +243,87 @@ data-signals:{{ name }}="{% if default is string %}'{{ default }}'{% elif defaul
 </ship-error-state>
 {%- endmacro %}
 
+{#- === Datastar event / binding primitives === -#}
+
+{#-
+  on_click(action)
+
+  Wire a raw click handler. The `action` payload is Datastar syntax
+  (e.g. `@get('/x')` or `$y = true`) passed through verbatim.
+
+  Example:
+    <ship-button {{ on_click("@get('/api/v/foo')") }}>Refresh</ship-button>
+-#}
+{% macro on_click(action) %}data-on:click="{{ action }}"{% endmacro %}
+
+{#-
+  on_click_prevent(action)
+
+  Like `on_click`, but with `.prevent` to stop the default action. Use
+  for anchors and form buttons where a bare click would navigate or
+  submit.
+
+  Example:
+    <a href="/foo" {{ on_click_prevent("@get('/api/v/foo')") }}>Foo</a>
+-#}
+{% macro on_click_prevent(action) %}data-on:click.prevent="{{ action }}"{% endmacro %}
+
+{#-
+  on_submit(action)
+
+  Wire a form-submit handler that always prevents the default browser
+  submission. `action` is Datastar syntax.
+
+  Example:
+    <form {{ on_submit("@post('/api/collections/task/items', {payload: $form})") }}>
+-#}
+{% macro on_submit(action) %}data-on:submit.prevent="{{ action }}"{% endmacro %}
+
+{#-
+  on_change(action)
+
+  Wire a handler for the ship-element `ship-change` custom event. Use
+  for `<ship-select>`, `<ship-switch>`, etc. `evt` is in scope.
+
+  Example:
+    <ship-select {{ on_change("$status = evt.detail.value") }}>...</ship-select>
+-#}
+{% macro on_change(action) %}data-on:ship-change="{{ action }}"{% endmacro %}
+
+{#-
+  class_if(expr, cls)
+
+  Toggle a CSS class reactively. Equivalent to `toggle_class(cls, expr)`
+  with natural "condition-first" argument order.
+
+  Example:
+    <div {{ class_if("$tab === 'rows'", 'active') }}>...</div>
+-#}
+{% macro class_if(expr, cls) %}data-class:{{ cls }}="{{ expr }}"{% endmacro %}
+
+{#-
+  attr_if(expr, name)
+
+  Reactively toggle/bind an HTML attribute. Natural argument order
+  (condition first, name second) — mirrors `class_if`. For the
+  legacy name-first form see `attr(name, expr)`.
+
+  Example:
+    <ship-button {{ attr_if('$_saving', 'disabled') }}>Save</ship-button>
+-#}
+{% macro attr_if(expr, name) %}data-attr:{{ name }}="{{ expr }}"{% endmacro %}
+
+{#-
+  init(action)
+
+  Run a Datastar action when the element connects. Mostly used to
+  bootstrap an SSE subscription or seed signals on mount.
+
+  Example:
+    <div {{ init("@get('/api/sse/chat')") }}>...</div>
+-#}
+{% macro init(action) %}data-init="{{ action }}"{% endmacro %}
+
 {#- === Collection Actions === -#}
 
 {#-

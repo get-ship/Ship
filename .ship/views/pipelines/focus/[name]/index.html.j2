@@ -6,7 +6,7 @@
   `ops_mode` so this template no longer mutates lists in jinja
   (minijinja 2.x doesn't support list.append / namespace mutation).
 -#}
-{% from '_ship.html.j2' import head, signal %}
+{% from '_ship.html.j2' import head, signal, show, on, on_click, attr_if %}
 {% from '_urls.html.j2' import end_job %}
 
 {% set name = ship.route.name %}
@@ -125,7 +125,7 @@
     <header class="ship-focus-head">
       <div class="ship-focus-title-block">
         <ship-button variant="ghost" size="sm"
-          data-on:click="window.location.href='/pipelines'"
+          {{ on_click("window.location.href='/pipelines'") }}
           style="width: fit-content;">
           <ship-icon slot="leading" name="chevron-left" size="xs"></ship-icon>
           All pipelines
@@ -151,30 +151,30 @@
       </div>
       <div class="ship-focus-actions">
         {% if workspace_id %}
-        <ship-button variant="outline" data-show="!$edit_mode"
-          data-on:click="$edit_mode = true; $edit_error = ''; $edit_issue_count = 0">
+        <ship-button variant="outline" {{ show('!$edit_mode') }}
+          {{ on_click("$edit_mode = true; $edit_error = ''; $edit_issue_count = 0") }}>
           <ship-icon slot="leading" name="edit-3" size="sm"></ship-icon>
           Edit
         </ship-button>
-        <ship-button variant="outline" data-show="$edit_mode"
-          data-on:click="$edit_mode = false; $edit_error = ''; $edit_issue_count = 0; window.resetPipelineEditor()">
+        <ship-button variant="outline" {{ show('$edit_mode') }}
+          {{ on_click("$edit_mode = false; $edit_error = ''; $edit_issue_count = 0; window.resetPipelineEditor()") }}>
           Cancel
         </ship-button>
-        <ship-button tone="accent" variant="solid" data-show="$edit_mode"
-          data-attr:loading="$edit_saving"
-          data-attr:disabled="$edit_saving"
-          data-on:click="window.savePipeline('{{ workspace_id }}', '{{ name }}')">
+        <ship-button tone="accent" variant="solid" {{ show('$edit_mode') }}
+          {{ attr_if('$edit_saving', 'loading') }}
+          {{ attr_if('$edit_saving', 'disabled') }}
+          {{ on_click("window.savePipeline('" ~ workspace_id ~ "', '" ~ name ~ "')") }}>
           <ship-icon slot="leading" name="check" size="sm"></ship-icon>
           Save
         </ship-button>
-        <ship-button variant="outline" tone="destructive" size="sm" data-show="$edit_mode"
-          data-on:click="document.getElementById('delete-pipeline-dialog').open = true">
+        <ship-button variant="outline" tone="destructive" size="sm" {{ show('$edit_mode') }}
+          {{ on_click("document.getElementById('delete-pipeline-dialog').open = true") }}>
           <ship-icon slot="leading" name="trash-2" size="sm"></ship-icon>
           Delete
         </ship-button>
         {% endif %}
-        <ship-button tone="accent" variant="solid" data-show="!$edit_mode"
-          data-on:click="document.getElementById('dispatch-dialog').showModal()">
+        <ship-button tone="accent" variant="solid" {{ show('!$edit_mode') }}
+          {{ on_click("document.getElementById('dispatch-dialog').showModal()") }}>
           <ship-icon slot="leading" name="play" size="sm"></ship-icon>
           Dispatch
         </ship-button>
@@ -204,8 +204,8 @@
   {% if workspace_id %}
   <ship-alert-dialog id="delete-pipeline-dialog" tone="destructive"
     confirm-label="Delete pipeline" cancel-label="Keep it"
-    data-on:ship-confirm="window.deletePipeline('{{ workspace_id }}', '{{ name }}')"
-    data-on:ship-cancel="document.getElementById('delete-pipeline-dialog').open = false">
+    {{ on('ship-confirm', "window.deletePipeline('" ~ workspace_id ~ "', '" ~ name ~ "')") }}
+    {{ on('ship-cancel', "document.getElementById('delete-pipeline-dialog').open = false") }}>
     <span slot="title">Delete <code>{{ name }}</code>?</span>
     <p style="margin: 0; color: var(--muted-foreground); line-height: 1.5;">
       This removes the pipeline file from <code>.ship/pipelines/</code>.
