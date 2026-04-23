@@ -75,7 +75,6 @@
 {%- macro view_chat_sse() -%}/api/runtime/view/chat/sse{%- endmacro -%}
 {%- macro view_chat_send() -%}/api/runtime/view/chat/send{%- endmacro -%}
 {%- macro list_views() -%}/api/runtime/views{%- endmacro -%}
-{%- macro serve_view(name) -%}/api/runtime/view/{{ name }}{%- endmacro -%}
 {%- macro serve_view_routed(path) -%}/api/v/{{ path }}{%- endmacro -%}
 {%- macro serve_view_sse_routed(path) -%}/api/sse/{{ path }}{%- endmacro -%}
 {%- macro serve_view_manifest(name) -%}/api/runtime/view/{{ name }}/manifest{%- endmacro -%}

@@ -63,7 +63,7 @@ pub use assets::{
     serve_themes_list, serve_view_tokens,
 };
 pub use handlers::{
-    list_views, serve_view, serve_view_asset, serve_view_bundle, serve_view_manifest,
+    list_views, serve_view_asset, serve_view_bundle, serve_view_manifest,
 };
 pub(crate) use packs::{inject_packs, read_view_packs};
 pub(crate) use resolve::{is_valid_view_name, read_raw_manifest, resolve_view_dir};

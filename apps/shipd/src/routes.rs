@@ -272,9 +272,6 @@ pub enum Route {
     /// @route GET "/api/runtime/views"
     ListViews,
 
-    /// @route GET "/api/runtime/view/{name}"
-    ServeView { name: String },
-
     /// @route GET "/api/v/{*path}"
     ServeViewRouted { path: String },
 
