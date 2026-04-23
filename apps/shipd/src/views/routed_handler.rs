@@ -228,6 +228,16 @@ pub async fn serve_view_routed(
         }
     };
 
+    // Inject per-view pack scripts. Manifest lives at the top-level view
+    // dir (first segment of view_name); look it up in each root.
+    let top = m.view_name.split('/').next().unwrap_or(&m.view_name);
+    let packs: Vec<String> = roots.iter()
+        .map(|r| r.join(top))
+        .find(|d| d.is_dir())
+        .map(|d| crate::views::packs::read_view_packs(&d))
+        .unwrap_or_default();
+    let html = crate::views::packs::inject_packs(html, &packs, is_fragment);
+
     let mut resp = html.into_response();
     resp.headers_mut().insert(
         axum::http::header::CONTENT_TYPE,
