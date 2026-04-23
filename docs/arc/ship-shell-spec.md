@@ -69,15 +69,6 @@ interface WindowShip {
   // Delegates to <ship-shell>'s single SSE connection — no per-subscriber socket.
   subscribe(namespace: string, handler: (event: KernelEvent) => void): () => void;
 
-  // ── Signals (Datastar bridge) ──────────────────────────────
-  // Read/write page-scoped Datastar signals imperatively. Useful when
-  // a shell component needs to peek at the active view's signal state.
-  signals: {
-    get(key: string): unknown;
-    set(key: string, value: unknown): void;
-    watch(key: string, handler: (value: unknown) => void): () => void;
-  };
-
   // ── Session / env ──────────────────────────────────────────
   session: { id: string; workspace_id?: string };
   env: { scope: 'user' | 'project'; version: string; dev: boolean };
@@ -207,6 +198,24 @@ Each phase: green build, dogfooded (the browser app still works), committed befo
 - Not building a plugin marketplace today.
 - Not invoking shell components from view templates (shell is pure browser; templates render in the daemon).
 - Not exposing kernel event emission from arbitrary views via `window.ship`. Views POST to their own HTTP endpoints, which emit kernel events server-side. `window.ship.subscribe` is read-only.
+- **No signal bridging in `window.ship`.** Views use Datastar signals for local state; the shell does not peek. Cross-view coordination goes through kernel events or explicit DOM custom events — never by reading another view's signals. Keeping this out keeps `window.ship` library-agnostic.
+
+## Datastar decoupling
+
+Datastar is the view-interactivity layer (reactive signals, `@get`/`@post` actions, SSE patching, two-way binding). It's ~10kb and earns its weight on rich views. But it's not the framework — the framework (file routing, `ship.*` SDK, `<ship-shell>`, `window.ship`) is independent. Three deliberate seams keep it swappable:
+
+1. **Macro discipline.** Every interactive attribute in view templates goes through a macro in `_ship.html.j2`: `signal()`, `live()`, `show_when()`, `bind()`, `on_click()`, `class_if()`. Raw `data-on:click`, `data-bind`, `$signal` syntax in view templates is a lint-level violation. Swapping Datastar = rewrite ~15 macros, not every view.
+2. **SSE patch-format indirection.** `views::routed_sse` emits Datastar's patch frames directly today (`event: datastar-patch-elements`). Wrap in a single `shell_sse::emit_patch(selector, html)` primitive. One function owns the wire format.
+3. **No signal access in `window.ship`.** The shell API never reads/writes Datastar signals. See the non-goal above.
+
+Not fighting: `@get`/`@post` action shorthand inline in `data-on` attributes. Wrapping in macros would destroy inline readability. Accept this seam as Datastar-specific.
+
+Coverage is tracked as a metric. `window.ship.signals` was removed from the spec for exactly this reason.
+
+## Shell responsibilities not yet specified
+
+- **Connection state.** When the daemon blips (restart, network drop), the shell's kernel bridge reconnects automatically but views may have in-flight fetches that fail. The shell should surface connection state (a signal on `<ship-shell>` or a dedicated `<ship-connection-status>` component) so views can degrade gracefully. Not in phase 1 — flagged for later.
+- **Fetch retry queue.** When a write fails because the daemon is unreachable, should the shell queue + retry? Probably not by default (risk of duplicate writes); opt-in per call. Future design.
 
 ## Vocabulary
 
