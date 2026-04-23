@@ -350,7 +350,7 @@ function viewRoute(path: string, endpoint: string) {
 }
 
 viewRoute("/", "/api/runtime/view/dashboard");
-viewRoute("/pipelines", "/api/runtime/view/pipelines");
+viewRoute("/pipelines", "/api/v/pipelines");
 viewRoute("/specs", "/api/v/specs");
 viewRoute("/git", "/api/v/git");
 viewRoute("/settings", "/api/runtime/view/settings");
@@ -416,10 +416,10 @@ router.on("/canvas/:doc", ({ data }) => {
   void mount(`/api/runtime/view/canvas?doc=${encodeURIComponent(data!.doc)}`);
 });
 
-router.on("/pipelines/pipeline/:name", ({ data }) => {
+router.on("/pipelines/focus/:name", ({ data }) => {
   updateNav("/pipelines");
   updateBreadcrumbs(`/pipelines/${data!.name}`);
-  void mount(`/api/runtime/view/pipelines/pipeline/${encodeURIComponent(data!.name)}`);
+  void mount(`/api/v/pipelines/focus/${encodeURIComponent(data!.name)}`);
 });
 
 router.on("/pipelines/history", () => {
@@ -427,13 +427,13 @@ router.on("/pipelines/history", () => {
   updateBreadcrumbs(`/pipelines/history`);
   // Forward any query string so pagination/search survive shell nav.
   const qs = location.search ?? "";
-  void mount(`/api/runtime/view/pipelines/history${qs}`);
+  void mount(`/api/v/pipelines/history${qs}`);
 });
 
 router.on("/pipelines/run/:slug", ({ data }) => {
   updateNav("/pipelines");
   updateBreadcrumbs(`/pipelines/run/${data!.slug}`);
-  void mount(`/api/runtime/view/pipelines/run/${encodeURIComponent(data!.slug)}`);
+  void mount(`/api/v/pipelines/run/${encodeURIComponent(data!.slug)}`);
 });
 
 // 404

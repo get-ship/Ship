@@ -1,16 +1,38 @@
 {#-
-  Pipelines view — pipeline-first layout with live ops state.
-  The daemon passes PipelinesCtx as Jinja context.
+  Pipelines — list view. Data pulled inline via `ship.pipelines.summaries()`.
+  The call returns the pre-shaped ctx (stats, defs, active_runs, history_runs,
+  providers, workspace_id, agents, status_pills, ...). We destructure into
+  flat names so the sibling partials (`partials/content.html.j2`,
+  `partials/dispatch_dialog.html.j2`) stay unchanged.
 -#}
-{% from '_ship.html.j2' import head, signal, live %}
-{% from '_urls.html.j2' import view_pipelines_sse, end_job %}
+{% from '_ship.html.j2' import head, signal %}
+
+{% set ctx = ship.pipelines.summaries(
+  q=ship.query.q | default(''),
+  agent=ship.query.agent | default(''),
+  pipeline=ship.query.pipeline | default(''),
+  status=ship.query.status | default(''),
+  tab=ship.query.tab | default(''),
+) %}
+{% set stats_subtitle = ctx.stats_subtitle %}
+{% set stats = ctx.stats %}
+{% set defs = ctx.defs %}
+{% set active_runs = ctx.active_runs %}
+{% set history_runs = ctx.history_runs %}
+{% set providers = ctx.providers %}
+{% set workspace_id = ctx.workspace_id %}
+{% set agents = ctx.agents %}
+{% set status_pills = ctx.status_pills %}
+{% set active_tab = ctx.active_tab %}
+{% set agent_filter = ctx.agent_filter %}
+{% set filter = ctx.filter %}
+
 {% if not fragment %}
 <!DOCTYPE html>
 <html lang="en">
 <head>{{ head('Pipelines') }}</head>
 <body>
 {% endif %}
-{#- Shell provides <main id="ship-view-root">; classes do the styling. -#}
 <div class="ship-view ship-view-pipelines">
   <style>
   .ship-view-pipelines {
@@ -93,10 +115,7 @@
       </div>
     </header>
 
-    {# Initial content rendered server-side so the first paint shows
-       real data. SSE ({{ live('pipelines') }}) patches this on any
-       job.* / step.* event. #}
-    <div {{ live('pipelines') }}>
+    <div>
       {% include 'pipelines/partials/content.html.j2' %}
     </div>
   </div>
@@ -175,7 +194,7 @@
           body: JSON.stringify({ content: body }),
         });
         if (resp.ok) {
-          window.location.href = '/pipelines/pipeline/' + encodeURIComponent(trimmed) + '?edit=1';
+          window.location.href = '/pipelines/focus/' + encodeURIComponent(trimmed) + '?edit=1';
           return;
         }
         const parsed = await resp.json().catch(function () { return {}; });

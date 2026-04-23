@@ -1,17 +1,31 @@
 {#-
-  Pipelines history — dedicated paginated log of every completed run.
-
-  Context: HistoryCtx { q, pipeline_filter, rows, total, offset, limit,
-                        has_prev, has_next, pipelines }
+  Pipelines history — paginated log of every completed run. Data pulled
+  via `ship.pipelines.history()`. All filtering/pagination server-side.
 -#}
 {% from '_ship.html.j2' import head, signal %}
+
+{% set ctx = ship.pipelines.history(
+  q=ship.query.q | default(''),
+  pipeline=ship.query.pipeline | default(''),
+  offset=(ship.query.offset | default('0') | int),
+  limit=(ship.query.limit | default('50') | int),
+) %}
+{% set q = ctx.q %}
+{% set pipeline_filter = ctx.pipeline_filter %}
+{% set rows = ctx.rows %}
+{% set total = ctx.total %}
+{% set offset = ctx.offset %}
+{% set limit = ctx.limit %}
+{% set has_prev = ctx.has_prev %}
+{% set has_next = ctx.has_next %}
+{% set pipelines = ctx.pipelines %}
+
 {% if not fragment %}
 <!DOCTYPE html>
 <html lang="en">
 <head>{{ head('Pipelines history') }}</head>
 <body>
 {% endif %}
-{#- Shell provides <main id="ship-view-root">; classes drive styling. -#}
 <div class="ship-view ship-view-pipelines-history"
      {{ signal('hist_q', q) }}
      {{ signal('hist_pipeline', pipeline_filter) }}>
@@ -127,7 +141,10 @@
       </div>
     </header>
 
-    <form class="ship-hist-toolbar" action="/api/runtime/view/pipelines/history" method="get">
+    {# Native GET form — browser serializes signals into the URL, shell
+       router matches `/pipelines/history?...` and re-mounts with the
+       updated query. No API path hardcoded. #}
+    <form class="ship-hist-toolbar" action="/pipelines/history" method="get">
       <ship-field label="Search" hint="Slug, agent, or pipeline name.">
         <ship-input name="q" value="{{ q }}" placeholder="e.g. shell-smoke, rust-lane…"></ship-input>
       </ship-field>
