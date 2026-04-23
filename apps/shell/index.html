@@ -265,6 +265,11 @@
         border-radius: 0 2px 2px 0;
       }
       .ship-rail .rail-spacer { flex: 1; }
+      .ship-rail .rail-launcher {
+        margin-top: var(--space-1);
+        opacity: 0.7;
+      }
+      .ship-rail .rail-launcher:hover { opacity: 1; }
 
       /* ── Main content: full bleed ── */
       .ship-content {
@@ -435,20 +440,9 @@
       </ship-button>
     </div>
 
-    <!-- Left rail: icon navigation (hidden by default) -->
-    <nav class="ship-rail" id="ship-rail">
-      <a data-route="/dashboard" title="Dashboard"><ship-icon name="sparkles"></ship-icon></a>
-      <a data-route="/pipelines" title="Pipelines"><ship-icon name="play"></ship-icon></a>
-      <a data-route="/agents" title="Agents"><ship-icon name="users"></ship-icon></a>
-      <a data-route="/skills" title="Skills"><ship-icon name="zap"></ship-icon></a>
-      <a data-route="/git" title="Git"><ship-icon name="git"></ship-icon></a>
-      <a data-route="/collections" title="Collections"><ship-icon name="database"></ship-icon></a>
-      <a data-route="/canvas" title="Canvas"><ship-icon name="image"></ship-icon></a>
-      <a data-route="/overview" title="Overview"><ship-icon name="git"></ship-icon></a>
-      <a data-route="/events" title="Events"><ship-icon name="sparkles"></ship-icon></a>
-      <div class="rail-spacer"></div>
-      <a data-route="/settings" title="Settings"><ship-icon name="settings"></ship-icon></a>
-    </nav>
+    <!-- Left rail: dock-style pinned view launcher. -->
+    <ship-rail id="ship-rail"></ship-rail>
+    <ship-launcher></ship-launcher>
 
     <!-- Main content: full bleed -->
     <main class="ship-content" id="ship-view-root">

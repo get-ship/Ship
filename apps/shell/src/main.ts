@@ -155,17 +155,13 @@ function mountThemePicker() {
 mountThemePicker();
 
 // ── Rail toggle ──────────────────────────────────────────────────────
+// The shell root component owns rail-open body-class state + persistence;
+// the topbar button just dispatches the intent.
 document.getElementById("toggle-rail")!.addEventListener("click", () => {
-  document.body.classList.toggle("rail-open");
-  localStorage.setItem(
-    "ship-rail-open",
-    document.body.classList.contains("rail-open") ? "1" : "",
-  );
+  document
+    .querySelector("ship-shell")
+    ?.dispatchEvent(new CustomEvent("ship:rail:toggle", { bubbles: true }));
 });
-// Restore rail state
-if (localStorage.getItem("ship-rail-open")) {
-  document.body.classList.add("rail-open");
-}
 
 // ── Drawer toggle ────────────────────────────────────────────────────
 async function toggleDrawer() {
@@ -326,7 +322,9 @@ function updateBreadcrumbs(path: string) {
 }
 
 // ── Update nav active state (rail + any data-route links) ────────────
+let lastNavPath = "/";
 function updateNav(path: string) {
+  // Legacy [data-route] anchors (still used by e.g. topbar brand).
   document
     .querySelectorAll<HTMLAnchorElement>("[data-route]")
     .forEach((a) => {
@@ -335,10 +333,46 @@ function updateNav(path: string) {
       a.classList.toggle("active", active);
     });
   updateBreadcrumbs(path);
+  // Broadcast navigation to shell components (<ship-rail> highlights
+  // the active item; future <ship-nav-top> updates breadcrumbs).
+  document.querySelector("ship-shell")?.dispatchEvent(
+    new CustomEvent("ship:navigate", {
+      detail: { from: lastNavPath, to: path },
+      bubbles: true,
+    }),
+  );
+  lastNavPath = path;
 }
 
 // ── Router (Navigo) ──────────────────────────────────────────────────
 const router = new Navigo("/");
+
+// Register with <ship-shell> so `window.ship.navigate/back/current`
+// delegates here. Has to happen after the element upgrades — we defer
+// to the next microtask since customElements.define() ran via the
+// `@ship/shell` side-effect import at the top of this file.
+queueMicrotask(() => {
+  const shell = document.querySelector("ship-shell") as
+    | (HTMLElement & {
+        registerRouter?: (a: {
+          navigate: (p: string, o?: { replace?: boolean }) => void;
+          back: () => void;
+          current: () => { path: string; params: Record<string, string>; query: Record<string, string> };
+        }) => void;
+      })
+    | null;
+  shell?.registerRouter?.({
+    navigate: (p) => {
+      router.navigate(p);
+    },
+    back: () => history.back(),
+    current: () => ({
+      path: location.pathname,
+      params: {},
+      query: Object.fromEntries(new URLSearchParams(location.search)),
+    }),
+  });
+});
 
 // Retry hook exposed to the error-state fallback rendered by mount.ts
 // when a view fetch fails. mount.ts is a lower-level module and can't
