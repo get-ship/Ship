@@ -1,18 +1,11 @@
 //! Agents view — minijinja-rendered shells for index + detail pages.
 //!
-//! Routes:
-//!
-//! - `GET /api/runtime/view/agents` — card grid of every agent discovered
-//!   under `.ship/agents/*.{jsonc,json}`.
-//! - `GET /api/runtime/view/agents/detail/{id}` — full config page for a
-//!   single agent (Skills, MCP, Permissions, Rules, Providers).
-//! - `POST /api/runtime/view/agents/new` — returns a structured
-//!   `not_implemented` error. The "New agent" button in the mockup
-//!   renders but does not invent an add flow.
-//!
-//! No SSE stream yet — agent configs change rarely and are file-backed;
-//! a plain full-page reload is sufficient until we have a concrete
-//! interaction that needs live updates.
+//! Transitional: the four subroute handlers (`agent_detail`,
+//! `agent_settings`, `agent_wire`, `agents_create_view`) are being
+//! migrated onto the file-routed framework (`/api/v/agents/*`). This
+//! module now delegates to `services::agents::{wire,create,settings_view}`
+//! for shaping; once the file-routed templates land the bespoke
+//! handlers here will be deleted in a follow-up commit.
 
 use axum::extract::{Path, State};
 use axum::http::StatusCode;
@@ -20,17 +13,24 @@ use axum::response::Html;
 use serde::Serialize;
 
 use crate::rest_api::ApiState;
+use crate::services::agents::create::{
+    AgentsCreateCtx, build_create_ctx, builtin_permission_presets, builtin_providers,
+    builtin_templates,
+};
+use crate::services::agents::settings_view::{AgentSettingsCtx, build as build_settings, build_tiers};
+use crate::services::agents::wire::{AgentWireCtx, build as build_wire};
 use crate::views::resolve_view_dir;
-use crate::views::state::{AgentDetail, AgentSummary, list_agent_catalogs, list_agents, load_agent};
+use crate::views::state::{AgentSummary, list_agents};
 use crate::views::templates;
+
+// Re-exports for existing callers / tests that reach through this module.
+pub use crate::services::agents::create::{AgentTemplate, PermissionPreset};
+pub use crate::services::agents::settings_view::TierRow;
+pub use crate::services::agents::wire::{WireEdge, WireNode, compute_wire_layout};
 
 /// Try rendering a template from `.ship/views/<view>/<file>`.
 /// Returns `None` if the view directory or file does not exist, or if
 /// rendering fails (in which case the caller falls back to embedded templates).
-///
-/// Also splices any `packs:` script tags declared in the view manifest into
-/// the rendered `<head>`. The fragment extractor in view_morph_target
-/// preserves module `<script src=...>` from head when it strips to body.
 fn try_render_view<C: Serialize>(view: &str, file: &str, ctx: &C) -> Option<String> {
     let (view_dir, _source) = resolve_view_dir(view)?;
     let source = std::fs::read_to_string(view_dir.join(file)).ok()?;
@@ -40,114 +40,17 @@ fn try_render_view<C: Serialize>(view: &str, file: &str, ctx: &C) -> Option<Stri
     Some(crate::views::inject_packs(html, &packs, false))
 }
 
-/// Context for the create-agent wizard view. Server-driven: the template
-/// reads every list out of this struct, never hardcodes catalogs.
-#[derive(Serialize)]
-pub struct AgentsCreateCtx {
-    pub templates: Vec<AgentTemplate>,
-    pub permission_presets: Vec<PermissionPreset>,
-    pub available_providers: Vec<String>,
-}
+/// Detail-view context used by the legacy settings-panel template. Kept
+/// here as a type alias so the tests file continues to compile.
+pub type AgentDetailCtx = AgentSettingsCtx;
 
 #[derive(Serialize)]
 pub struct AgentsIndexCtx {
     pub agents: Vec<AgentSummary>,
     pub total: usize,
-    /// Starter templates surfaced to the create-wizard (`$mode == 'create'`
-    /// subtree in index.html.j2). Driven by the daemon so the view never
-    /// hardcodes template catalogs.
     pub templates: Vec<AgentTemplate>,
-    /// Permission presets for the wizard's wiring step. Same contract as
-    /// `TierRow` in the detail view but without the `selected` flag —
-    /// the wizard tracks selection client-side via a signal.
     pub permission_presets: Vec<PermissionPreset>,
-    /// Providers the agent may compile to. Today a fixed catalog; will
-    /// become configurable per-project.
     pub available_providers: Vec<String>,
-}
-
-/// A starter template for the create-wizard. Pre-wires skills + MCP + a
-/// permission preset so a user can create a productive agent in seconds.
-#[derive(Serialize, Clone)]
-pub struct AgentTemplate {
-    pub id: &'static str,
-    pub label: &'static str,
-    pub description: &'static str,
-    /// Avatar glyph initial for the preview tile.
-    pub letter: &'static str,
-    /// Conic-gradient hue key (matches `.hue-<name>` in the view CSS).
-    pub hue: &'static str,
-    pub skill_ids: Vec<&'static str>,
-    pub permission_preset: &'static str,
-}
-
-#[derive(Serialize, Clone)]
-pub struct PermissionPreset {
-    pub id: &'static str,
-    pub label: &'static str,
-    pub description: &'static str,
-}
-
-fn builtin_templates() -> Vec<AgentTemplate> {
-    vec![
-        AgentTemplate { id: "blank",        label: "Blank",         description: "Start from nothing. Just an identity.",         letter: "?", hue: "slate",  skill_ids: vec![],                                      permission_preset: "standard" },
-        AgentTemplate { id: "lane",         label: "Language Lane", description: "Narrow agent scoped to one stack. Sandbox preset.", letter: "L", hue: "red",    skill_ids: vec!["rust-compile", "tdd", "git-hygiene"],  permission_preset: "sandbox"  },
-        AgentTemplate { id: "reviewer",     label: "Reviewer",      description: "Read-only critic for PRs and diffs.",           letter: "R", hue: "amber",  skill_ids: vec!["diff-review", "a11y-audit"],          permission_preset: "read-only" },
-        AgentTemplate { id: "orchestrator", label: "Orchestrator",  description: "Routes work to specialist agents.",             letter: "O", hue: "violet", skill_ids: vec!["cmdr", "spawn-agent", "ship-coordination", "ship-agents", "write-adr"], permission_preset: "standard" },
-        AgentTemplate { id: "writer",       label: "Test Writer",   description: "TDD loop — writes failing tests first.",        letter: "T", hue: "teal",   skill_ids: vec!["tdd", "rust-compile", "git-hygiene"], permission_preset: "standard" },
-        AgentTemplate { id: "investigator", label: "Investigator",  description: "Reads, searches, summarises. Never writes.",    letter: "I", hue: "blue",   skill_ids: vec!["docs-first", "a11y-audit"],          permission_preset: "read-only" },
-    ]
-}
-
-fn builtin_permission_presets() -> Vec<PermissionPreset> {
-    vec![
-        PermissionPreset { id: "standard",   label: "Standard",   description: "Human confirms risky actions before they run." },
-        PermissionPreset { id: "autonomous", label: "Autonomous", description: "Agent acts end-to-end; safety rails still apply." },
-        PermissionPreset { id: "read-only",  label: "Read-only",  description: "Agent inspects and reports. No writes." },
-        PermissionPreset { id: "sandbox",    label: "Sandbox",    description: "Allow anything inside a worktree; block outside." },
-    ]
-}
-
-fn builtin_providers() -> Vec<String> {
-    vec!["claude", "codex", "cursor", "gemini", "opencode"]
-        .into_iter()
-        .map(String::from)
-        .collect()
-}
-
-#[derive(Serialize)]
-pub struct AgentDetailCtx {
-    pub agent: AgentDetail,
-    /// The canonical permission tiers, rendered as a radio-card triad.
-    pub tiers: Vec<TierRow>,
-    /// Skills / MCP servers / rules available to add. Powers the picker
-    /// dialog on the detail page. Entries already attached to the agent
-    /// are filtered out server-side so the dialog only shows real choices.
-    pub catalogs: crate::views::state::AgentCatalogs,
-}
-
-#[derive(Serialize, Clone)]
-pub struct TierRow {
-    pub id: &'static str,
-    pub label: &'static str,
-    pub description: &'static str,
-    pub selected: bool,
-}
-
-fn build_tiers(selected: &str) -> Vec<TierRow> {
-    [
-        ("standard", "Standard", "Human confirms risky actions before they run."),
-        ("autonomous", "Autonomous", "Agent acts end-to-end; safety rails still apply."),
-        ("read-only", "Read Only", "Agent inspects and reports. No writes."),
-    ]
-    .iter()
-    .map(|(id, label, desc)| TierRow {
-        id,
-        label,
-        description: desc,
-        selected: *id == selected,
-    })
-    .collect()
 }
 
 /// GET /api/runtime/view/agents — index shell.
@@ -164,12 +67,9 @@ pub async fn agents_shell(
         available_providers: builtin_providers(),
     };
 
-    // Try .ship/views/agents/index.html.j2 first (new canonical location).
     if let Some(html) = try_render_view("agents", "index.html.j2", &ctx) {
         return Ok(Html(html));
     }
-
-    // Fallback to embedded template.
     templates::render("agents/shell.html.j2", &ctx)
         .map(Html)
         .map_err(|e| {
@@ -178,48 +78,21 @@ pub async fn agents_shell(
         })
 }
 
-/// GET /api/runtime/view/agents/detail/{id} — detail shell.
-/// GET /api/runtime/view/agents/detail/{id} — default detail view.
-///
-/// Wire/canvas layout is the canonical detail surface (matches the
-/// design's `detailLayout=wire`). The panels layout lives at
-/// `/api/runtime/view/agents/detail/{id}/settings` via `agent_settings`.
+/// GET /api/runtime/view/agents/detail/{id} — canonical detail (wire layout).
 pub async fn agent_detail(
     State(state): State<ApiState>,
     Path(id): Path<String>,
 ) -> Result<Html<String>, StatusCode> {
-    let Some(agent) = load_agent(state.ship_dir(), &id) else {
-        return Err(StatusCode::NOT_FOUND);
-    };
-    let (nodes, edges) = compute_wire_layout(&agent);
-    let mut catalogs = list_agent_catalogs(state.ship_dir());
-    catalogs.skills.retain(|e| !agent.skills.contains(&e.id));
-    catalogs.mcp.retain(|e| !agent.mcp_servers.contains(&e.id));
-    catalogs.rules.retain(|e| !agent.rules.contains(&e.id));
-    let ctx = AgentWireCtx { agent, nodes, edges, catalogs };
-    if let Some(html) = try_render_view("agents", "wire.html.j2", &ctx) {
-        return Ok(Html(html));
-    }
-    Err(StatusCode::NOT_FOUND)
+    let ctx = build_wire(&id, state.ship_dir()).ok_or(StatusCode::NOT_FOUND)?;
+    try_render_view("agents", "wire.html.j2", &ctx).map(Html).ok_or(StatusCode::NOT_FOUND)
 }
 
-/// GET /api/runtime/view/agents/detail/{id}/settings — panels layout
-/// (the pre-wire detail view). Matches the design's `detailLayout=settings`.
+/// GET /api/runtime/view/agents/detail/{id}/settings — panels layout.
 pub async fn agent_settings(
     State(state): State<ApiState>,
     Path(id): Path<String>,
 ) -> Result<Html<String>, StatusCode> {
-    let Some(agent) = load_agent(state.ship_dir(), &id) else {
-        return Err(StatusCode::NOT_FOUND);
-    };
-    let tiers = build_tiers(&agent.permissions_tier);
-    // Filter catalogs to exclude what the agent already has — no point
-    // offering "add skill X" if X is already in the skills panel.
-    let mut catalogs = list_agent_catalogs(state.ship_dir());
-    catalogs.skills.retain(|e| !agent.skills.contains(&e.id));
-    catalogs.mcp.retain(|e| !agent.mcp_servers.contains(&e.id));
-    catalogs.rules.retain(|e| !agent.rules.contains(&e.id));
-    let ctx = AgentDetailCtx { agent, tiers, catalogs };
+    let ctx = build_settings(&id, state.ship_dir()).ok_or(StatusCode::NOT_FOUND)?;
     if let Some(html) = try_render_view("agents", "detail.html.j2", &ctx) {
         return Ok(Html(html));
     }
@@ -231,215 +104,21 @@ pub async fn agent_settings(
         })
 }
 
-/// A positioned node on the wire canvas. `kind` drives color/shape in
-/// the template; the server owns all layout so the template stays
-/// declarative.
-#[derive(Serialize)]
-pub struct WireNode {
-    pub kind: &'static str, // agent | skill | mcp | rule | perm | prov
-    pub id: String,
-    pub title: String,
-    pub sub: String,
-    pub x: f32,
-    pub y: f32,
-    pub w: f32,
-}
-
-/// A bezier edge between the center agent node and a peripheral.
-#[derive(Serialize)]
-pub struct WireEdge {
-    pub kind: &'static str,
-    pub id: String, // matches the peripheral node's id
-    pub path_d: String,
-    pub dashed: bool,
-}
-
-#[derive(Serialize)]
-pub struct AgentWireCtx {
-    pub agent: AgentDetail,
-    pub nodes: Vec<WireNode>,
-    pub edges: Vec<WireEdge>,
-    /// Catalogs for the picker dialog (skills/mcp/rules not already
-    /// attached to this agent). Shared with the settings view; same
-    /// filter rules.
-    pub catalogs: crate::views::state::AgentCatalogs,
-}
-
-fn compute_wire_layout(agent: &AgentDetail) -> (Vec<WireNode>, Vec<WireEdge>) {
-    // Canvas: 1000x600 viewBox. Agent anchored center-left.
-    let agent_x = 420.0_f32;
-    let agent_y = 240.0_f32;
-    let agent_w = 220.0_f32;
-    let agent_h = 80.0_f32;
-
-    let mut nodes: Vec<WireNode> = Vec::new();
-    nodes.push(WireNode {
-        kind: "agent",
-        id: agent.id.clone(),
-        title: agent.name.clone(),
-        sub: agent.id.clone(),
-        x: agent_x,
-        y: agent_y,
-        w: agent_w,
-    });
-
-    // Helper: distribute N items down a column between y0..y1.
-    fn column(n: usize, y0: f32, y1: f32) -> Vec<f32> {
-        if n == 0 { return vec![] }
-        if n == 1 { return vec![(y0 + y1) / 2.0] }
-        let step = (y1 - y0) / (n as f32 - 1.0).max(1.0);
-        (0..n).map(|i| y0 + step * i as f32).collect()
-    }
-
-    let node_w: f32 = 160.0;
-
-    // Skills — left column.
-    for (i, y) in column(agent.skills.len(), 60.0, 420.0).into_iter().enumerate() {
-        let s = &agent.skills[i];
-        nodes.push(WireNode {
-            kind: "skill",
-            id: s.clone(),
-            title: s.clone(),
-            sub: "project skill".into(),
-            x: 70.0,
-            y,
-            w: node_w,
-        });
-    }
-
-    // MCP — top row centered above agent, one per server.
-    for (i, s) in agent.mcp_servers.iter().enumerate() {
-        let x = 280.0 + (i as f32) * 180.0;
-        nodes.push(WireNode {
-            kind: "mcp",
-            id: s.clone(),
-            title: s.clone(),
-            sub: "mcp server".into(),
-            x,
-            y: 90.0,
-            w: node_w,
-        });
-    }
-
-    // Rules — bottom-center.
-    if !agent.rules.is_empty() {
-        nodes.push(WireNode {
-            kind: "rule",
-            id: "rules".into(),
-            title: format!("{} rule{}", agent.rules.len(), if agent.rules.len() == 1 { "" } else { "s" }),
-            sub: "always-on + inline".into(),
-            x: 470.0,
-            y: 470.0,
-            w: node_w,
-        });
-    }
-
-    // Permissions — bottom-left.
-    nodes.push(WireNode {
-        kind: "perm",
-        id: "permissions".into(),
-        title: capitalize(&agent.permissions_tier),
-        sub: "permission preset".into(),
-        x: 220.0,
-        y: 470.0,
-        w: node_w,
-    });
-
-    // Providers — right column.
-    for (i, y) in column(agent.providers.len(), 100.0, 420.0).into_iter().enumerate() {
-        let p = &agent.providers[i];
-        nodes.push(WireNode {
-            kind: "prov",
-            id: p.clone(),
-            title: capitalize(p),
-            sub: "compiled target".into(),
-            x: 830.0,
-            y,
-            w: node_w,
-        });
-    }
-
-    // Edges: from agent to each peripheral. Pick the agent port based on
-    // whether the node is left/right/top/bottom.
-    let agent_left = (agent_x, agent_y + agent_h / 2.0);
-    let agent_right = (agent_x + agent_w, agent_y + agent_h / 2.0);
-    let agent_top = (agent_x + agent_w / 2.0, agent_y);
-    let agent_bottom = (agent_x + agent_w / 2.0, agent_y + agent_h);
-
-    let mut edges: Vec<WireEdge> = Vec::new();
-    for n in nodes.iter().skip(1) {
-        let (fx, fy);
-        let tx;
-        let ty = n.y + 30.0; // node vertical center
-        if n.x < agent_x {
-            fx = agent_left.0; fy = agent_left.1;
-            tx = n.x + node_w; // right edge of left-side peripheral
-        } else if n.x > agent_x + agent_w {
-            fx = agent_right.0; fy = agent_right.1;
-            tx = n.x;
-        } else if n.y < agent_y {
-            fx = agent_top.0; fy = agent_top.1;
-            tx = n.x + node_w / 2.0;
-        } else {
-            fx = agent_bottom.0; fy = agent_bottom.1;
-            tx = n.x + node_w / 2.0;
-        }
-        let mx = (fx + tx) / 2.0;
-        let path_d = format!("M{fx:.0},{fy:.0} C{mx:.0},{fy:.0} {mx:.0},{ty:.0} {tx:.0},{ty:.0}");
-        edges.push(WireEdge {
-            kind: n.kind,
-            id: n.id.clone(),
-            path_d,
-            dashed: n.kind == "rule",
-        });
-    }
-
-    (nodes, edges)
-}
-
-fn capitalize(s: &str) -> String {
-    let mut c = s.chars();
-    match c.next() {
-        None => String::new(),
-        Some(first) => first.to_uppercase().chain(c).collect(),
-    }
-}
-
 /// GET /api/runtime/view/agents/{id}/wire — graph/canvas detail view.
 pub async fn agent_wire(
     State(state): State<ApiState>,
     Path(id): Path<String>,
 ) -> Result<Html<String>, StatusCode> {
-    let Some(agent) = load_agent(state.ship_dir(), &id) else {
-        return Err(StatusCode::NOT_FOUND);
-    };
-    let (nodes, edges) = compute_wire_layout(&agent);
-    let mut catalogs = list_agent_catalogs(state.ship_dir());
-    catalogs.skills.retain(|e| !agent.skills.contains(&e.id));
-    catalogs.mcp.retain(|e| !agent.mcp_servers.contains(&e.id));
-    catalogs.rules.retain(|e| !agent.rules.contains(&e.id));
-    let ctx = AgentWireCtx { agent, nodes, edges, catalogs };
-    if let Some(html) = try_render_view("agents", "wire.html.j2", &ctx) {
-        return Ok(Html(html));
-    }
-    Err(StatusCode::NOT_FOUND)
+    let ctx = build_wire(&id, state.ship_dir()).ok_or(StatusCode::NOT_FOUND)?;
+    try_render_view("agents", "wire.html.j2", &ctx).map(Html).ok_or(StatusCode::NOT_FOUND)
 }
 
 /// GET /api/runtime/view/agents/create — create-agent wizard shell.
-/// Every catalog the wizard needs (templates, permission presets, providers)
-/// is in the context. The view template never hardcodes.
 pub async fn agents_create_view(
     State(_state): State<ApiState>,
 ) -> Result<Html<String>, StatusCode> {
-    let ctx = AgentsCreateCtx {
-        templates: builtin_templates(),
-        permission_presets: builtin_permission_presets(),
-        available_providers: builtin_providers(),
-    };
-    if let Some(html) = try_render_view("agents", "create.html.j2", &ctx) {
-        return Ok(Html(html));
-    }
-    Err(StatusCode::NOT_FOUND)
+    let ctx: AgentsCreateCtx = build_create_ctx();
+    try_render_view("agents", "create.html.j2", &ctx).map(Html).ok_or(StatusCode::NOT_FOUND)
 }
 
 #[cfg(test)]

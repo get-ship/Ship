@@ -137,6 +137,31 @@ pub fn call(name: &str, args: &Value, state: &ApiState) -> Result<Value, Registr
                 "doc": doc,
             }))
         }
+        "agents.wire" => {
+            let id = required_str(args, "id")?;
+            let ctx = crate::services::agents::wire::build(id, state.ship_dir())
+                .ok_or_else(|| RegistryError::not_found(format!("agent `{id}`")))?;
+            serde_json::to_value(&ctx).map_err(|e| RegistryError::service(e.to_string()))
+        }
+        "agents.settings" => {
+            let id = required_str(args, "id")?;
+            let ctx = crate::services::agents::settings_view::build(id, state.ship_dir())
+                .ok_or_else(|| RegistryError::not_found(format!("agent `{id}`")))?;
+            serde_json::to_value(&ctx).map_err(|e| RegistryError::service(e.to_string()))
+        }
+        "agents.templates" => Ok(json!({
+            "items": crate::services::agents::create::builtin_templates(),
+        })),
+        "agents.permission_presets" => Ok(json!({
+            "items": crate::services::agents::create::builtin_permission_presets(),
+        })),
+        "agents.providers" => Ok(json!({
+            "items": crate::services::agents::create::builtin_providers(),
+        })),
+        "agents.create_ctx" => {
+            let ctx = crate::services::agents::create::build_create_ctx();
+            serde_json::to_value(&ctx).map_err(|e| RegistryError::service(e.to_string()))
+        }
 
         // ── skills ────────────────────────────────────────────────
         "skills.list" => Ok(json!({
@@ -529,6 +554,8 @@ pub fn call(name: &str, args: &Value, state: &ApiState) -> Result<Value, Registr
 pub fn names() -> &'static [&'static str] {
     &[
         "agents.list", "agents.get", "agents.summaries", "agents.detail", "agents.catalogs",
+        "agents.wire", "agents.settings", "agents.templates", "agents.permission_presets",
+        "agents.providers", "agents.create_ctx",
         "skills.list", "skills.get", "skills.summaries", "skills.file", "skills.detail", "skills.summaries", "skills.file",
         "rules.list", "rules.get",
         "mcp.list", "mcp.get",
