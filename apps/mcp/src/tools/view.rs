@@ -1,7 +1,7 @@
 //! `view.*` MCP tool handlers — thin transport over daemon REST.
 //!
 //! Each handler resolves the caller's actor id, delegates to the daemon's
-//! `/api/runtime/view-sessions/*` endpoints via `network_client`, and
+//! `/api/view-sessions/*` endpoints via `network_client`, and
 //! surfaces structured responses or the daemon's error string to the agent.
 //!
 //! All five tools are feature-gated behind `unstable` (mirrors

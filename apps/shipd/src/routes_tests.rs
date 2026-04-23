@@ -5,10 +5,10 @@ use super::*;
 #[test]
 fn unit_variant_full_path_is_literal() {
     assert_eq!(Route::ListJobs.full_path(), "/api/runtime/jobs");
-    assert_eq!(Route::IssueSession.full_path(), "/api/runtime/session");
+    assert_eq!(Route::IssueSession.full_path(), "/api/session");
     assert_eq!(
         Route::AssetDatastarJs.full_path(),
-        "/api/runtime/assets/datastar.js"
+        "/api/assets/datastar.js"
     );
 }
 

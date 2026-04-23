@@ -61,7 +61,7 @@ function SessionPage() {
   const { data: viewHtml } = useQuery({
     queryKey: ['view', activeView],
     queryFn: async () => {
-      const res = await daemonFetch(`/api/runtime/view/${activeView}`)
+      const res = await daemonFetch(`/api/view/${activeView}`)
       if (!res.ok) return null
       const body = await res.json() as { ok: boolean; data: { html: string } }
       return body.data.html

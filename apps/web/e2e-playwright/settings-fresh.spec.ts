@@ -18,7 +18,7 @@ test('settings fresh context', async () => {
     if (resp.url().includes('/api/')) logs.push(`[res ${resp.status()}] ${resp.url().slice(0, 150)}`)
   })
 
-  await page.goto(`http://127.0.0.1:9315/api/runtime/view/settings/raw?token=${TOKEN}`)
+  await page.goto(`http://127.0.0.1:9315/api/view/settings/raw?token=${TOKEN}`)
   await page.waitForTimeout(6000)
 
   const hasConnecting = await page.locator('text=Connecting').isVisible()

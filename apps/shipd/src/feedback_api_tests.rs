@@ -21,7 +21,7 @@ fn router_for(state: ApiState, auth: AuthContext) -> Router {
         // A view-session route is included so tests can open a session to
         // exercise the view-scoped routing branch through the same harness.
         .route(
-            "/api/runtime/view-sessions",
+            "/api/view-sessions",
             axum::routing::post(crate::view_sessions_api::open_session),
         )
         .with_state(state)
@@ -78,7 +78,7 @@ fn base_payload() -> serde_json::Value {
 async fn open_view(router: &Router) -> String {
     let (s, body) = send_json(
         router,
-        "/api/runtime/view-sessions",
+        "/api/view-sessions",
         serde_json::json!({"template": "canvas/blank"}),
     )
     .await;

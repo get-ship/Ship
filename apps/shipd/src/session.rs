@@ -3,7 +3,7 @@
 //! Phase 1 of the meta-framework auth story: cookie-first, token-fallback.
 //!
 //! A browser session is a short-lived, `Scope::Full` entry in the existing
-//! [`SessionRegistry`]. It is issued by `POST /api/runtime/session` — which
+//! [`SessionRegistry`]. It is issued by `POST /api/session` — which
 //! is itself gated by the auth middleware (daemon token required) — and
 //! returned to the browser as a `Set-Cookie: ship_session=<id>` header.
 //!
@@ -24,7 +24,7 @@ fn now_unix() -> i64 {
 use crate::auth::{AuthContext, hex_encode};
 use crate::scopes::{DaemonSession, Scope, SessionRegistry};
 
-/// Cookie name used for browser sessions. Scoped to `/api/runtime`.
+/// Cookie name used for browser sessions. Scoped to `/api`.
 pub const COOKIE_NAME: &str = "ship_session";
 
 /// Browser-session lifetime (seconds). 24 hours.
@@ -103,18 +103,18 @@ pub async fn lookup_browser_session(
     }
 }
 
-/// Response body for `POST /api/runtime/session`.
+/// Response body for `POST /api/session`.
 #[derive(serde::Serialize)]
 pub struct SessionIssueResponse {
     pub ok: bool,
     pub expires_in: u64,
 }
 
-/// `POST /api/runtime/session` handler.
+/// `POST /api/session` handler.
 ///
 /// Requires the caller to already hold a daemon-token credential (the auth
 /// middleware enforces this). Issues a browser-session cookie scoped to
-/// `/api/runtime` and returns `{ok, expires_in}`.
+/// `/api` and returns `{ok, expires_in}`.
 pub async fn issue_session_handler(
     registry: SessionRegistry,
     auth: AuthContext,
@@ -127,7 +127,7 @@ pub async fn issue_session_handler(
 
     let id = issue_browser_session(&registry).await;
     let cookie = format!(
-        "{COOKIE_NAME}={id}; HttpOnly; SameSite=Strict; Path=/api/runtime; Max-Age={BROWSER_SESSION_TTL_SECS}"
+        "{COOKIE_NAME}={id}; HttpOnly; SameSite=Strict; Path=/api; Max-Age={BROWSER_SESSION_TTL_SECS}"
     );
 
     let body = serde_json::to_vec(&SessionIssueResponse {

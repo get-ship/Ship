@@ -42,11 +42,11 @@ export default defineConfig(({ mode }) => {
     // Tell Vite not to try pre-transforming them.
     optimizeDeps: {
       exclude: [
-        "/api/runtime/assets/ship-elements.js",
-        "/api/runtime/assets/ship-code-editor.js",
-        "/api/runtime/assets/ship-markdown-editor.js",
-        "/api/runtime/assets/ship-terminal.js",
-        "/api/runtime/assets/datastar.js",
+        "/api/assets/ship-elements.js",
+        "/api/assets/ship-code-editor.js",
+        "/api/assets/ship-markdown-editor.js",
+        "/api/assets/ship-terminal.js",
+        "/api/assets/datastar.js",
       ],
     },
     server: {

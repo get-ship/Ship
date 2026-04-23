@@ -11,7 +11,7 @@ test('pipelines debug', async ({ page }) => {
     if (resp.url().includes('/api/')) logs.push(`[net] ${resp.status()} ${resp.url().slice(0, 120)}`)
   })
 
-  await page.goto(`http://127.0.0.1:9315/api/runtime/view/pipelines/raw?token=${TOKEN}`)
+  await page.goto(`http://127.0.0.1:9315/api/view/pipelines/raw?token=${TOKEN}`)
   await page.waitForTimeout(4000)
   const rootHtml = await page.$eval('#pipelines-root', (el) => el.outerHTML.slice(0, 400))
   console.log('=== console + network ===')

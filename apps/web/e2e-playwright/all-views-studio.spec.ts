@@ -50,7 +50,7 @@ for (const { name, rootId } of VIEWS) {
   })
 
   test(`${name} direct daemon populates`, async ({ page }) => {
-    await page.goto(`http://127.0.0.1:9315/api/runtime/view/${name}/raw?token=${TOKEN}`)
+    await page.goto(`http://127.0.0.1:9315/api/view/${name}/raw?token=${TOKEN}`)
     await expect(page.locator(`#${rootId}`)).toBeAttached({ timeout: 5000 })
     await expect(page.locator(`#${rootId}`)).not.toHaveText(/Connecting/i)
     await page.screenshot({ path: `../../.artifacts/qa-screenshots/direct-${name}.png`, fullPage: true })

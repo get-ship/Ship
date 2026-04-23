@@ -1,11 +1,11 @@
 //! Chat view — streaming conversation + composer.
 //!
 //! Endpoints:
-//! - `GET /api/runtime/view/chat` — full-page shell fragment, scoped to an
+//! - `GET /api/view/chat` — full-page shell fragment, scoped to an
 //!   optional `workspace_id` query param.
-//! - `GET /api/runtime/view/chat/sse` — Datastar SSE stream that patches
+//! - `GET /api/view/chat/sse` — Datastar SSE stream that patches
 //!   `#chat-messages` on every new event for the scoped workspace.
-//! - `POST /api/runtime/view/chat/send` — emits a `studio.message` event so
+//! - `POST /api/view/chat/send` — emits a `studio.message` event so
 //!   the composer is a single daemon round-trip with no web-side routing.
 
 use axum::Json;

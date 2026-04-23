@@ -173,7 +173,7 @@ fn router_with_session(token: &str) -> (Router, SessionRegistry) {
     let router = Router::new()
         .route("/test", axum::routing::get(ok_handler))
         .route(
-            "/api/runtime/session",
+            "/api/session",
             axum::routing::post(move |auth: axum::Extension<AuthContext>| {
                 let reg = reg_for_endpoint.clone();
                 async move { session::issue_session_handler(reg, auth.0).await }
@@ -191,7 +191,7 @@ async fn session_endpoint_issues_cookie_with_valid_daemon_token() {
     let (router, _reg) = router_with_session(VALID_DAEMON_TOKEN);
     let req = Request::builder()
         .method("POST")
-        .uri("/api/runtime/session")
+        .uri("/api/session")
         .header("authorization", format!("Bearer {VALID_DAEMON_TOKEN}"))
         .body(Body::empty())
         .unwrap();
@@ -207,7 +207,7 @@ async fn session_endpoint_issues_cookie_with_valid_daemon_token() {
     assert!(cookie.contains("ship_session="));
     assert!(cookie.contains("HttpOnly"));
     assert!(cookie.contains("SameSite=Strict"));
-    assert!(cookie.contains("Path=/api/runtime"));
+    assert!(cookie.contains("Path=/api"));
     assert!(cookie.contains("Max-Age=86400"));
     let body = resp.into_body().collect().await.unwrap().to_bytes();
     let parsed: serde_json::Value = serde_json::from_slice(&body).unwrap();
@@ -220,7 +220,7 @@ async fn session_endpoint_rejects_missing_auth() {
     let (router, _reg) = router_with_session(VALID_DAEMON_TOKEN);
     let req = Request::builder()
         .method("POST")
-        .uri("/api/runtime/session")
+        .uri("/api/session")
         .body(Body::empty())
         .unwrap();
     let resp = router.oneshot(req).await.unwrap();
@@ -292,7 +292,7 @@ async fn query_token_accepted_on_raw_view_path() {
     ));
     let router = Router::new()
         .route(
-            "/api/runtime/view/{name}/raw",
+            "/api/view/{name}/raw",
             axum::routing::get(ok_handler),
         )
         .layer(middleware::from_fn({
@@ -300,7 +300,7 @@ async fn query_token_accepted_on_raw_view_path() {
             move |req, next| auth::auth_middleware(token.clone(), registry.clone(), req, next)
         }));
     let req = Request::builder()
-        .uri(format!("/api/runtime/view/pipelines/raw?token={VALID_DAEMON_TOKEN}"))
+        .uri(format!("/api/view/pipelines/raw?token={VALID_DAEMON_TOKEN}"))
         .body(Body::empty())
         .unwrap();
     let (status, _) = send(router, req).await;

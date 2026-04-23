@@ -112,7 +112,7 @@ fn if_none_match(headers: &axum::http::HeaderMap) -> Option<&str> {
 
 // ── Handlers ────────────────────────────────────────────────────────────────
 
-/// GET /api/runtime/assets/datastar.js
+/// GET /api/assets/datastar.js
 pub async fn serve_datastar_js(headers: axum::http::HeaderMap) -> axum::response::Response {
     static ETAG: OnceLock<String> = OnceLock::new();
     serve_with_etag(
@@ -123,7 +123,7 @@ pub async fn serve_datastar_js(headers: axum::http::HeaderMap) -> axum::response
     )
 }
 
-/// GET /api/runtime/assets/view-tokens.css
+/// GET /api/assets/view-tokens.css
 pub async fn serve_view_tokens(headers: axum::http::HeaderMap) -> axum::response::Response {
     static ETAG: OnceLock<String> = OnceLock::new();
     serve_with_etag(
@@ -134,7 +134,7 @@ pub async fn serve_view_tokens(headers: axum::http::HeaderMap) -> axum::response
     )
 }
 
-/// GET /api/runtime/assets/ship-elements.js
+/// GET /api/assets/ship-elements.js
 pub async fn serve_ship_elements(headers: axum::http::HeaderMap) -> axum::response::Response {
     static ETAG: OnceLock<String> = OnceLock::new();
     serve_with_etag(
@@ -145,7 +145,7 @@ pub async fn serve_ship_elements(headers: axum::http::HeaderMap) -> axum::respon
     )
 }
 
-/// GET /api/runtime/assets/custom-elements.json
+/// GET /api/assets/custom-elements.json
 pub async fn serve_elements_manifest(headers: axum::http::HeaderMap) -> axum::response::Response {
     static ETAG: OnceLock<String> = OnceLock::new();
     serve_with_etag(
@@ -163,7 +163,7 @@ const SHIP_MARKDOWN_EDITOR_JS: &str = include_str!("../../assets/ship-markdown-e
 const SHIP_TERMINAL_JS: &str = include_str!("../../assets/ship-terminal.js");
 const SHIP_GIT_JS: &str = include_str!("../../assets/ship-git.js");
 
-/// GET /api/runtime/assets/ship-code-editor.js
+/// GET /api/assets/ship-code-editor.js
 pub async fn serve_code_editor(headers: axum::http::HeaderMap) -> axum::response::Response {
     static ETAG: OnceLock<String> = OnceLock::new();
     serve_with_etag(
@@ -174,7 +174,7 @@ pub async fn serve_code_editor(headers: axum::http::HeaderMap) -> axum::response
     )
 }
 
-/// GET /api/runtime/assets/ship-markdown-editor.js
+/// GET /api/assets/ship-markdown-editor.js
 pub async fn serve_markdown_editor(headers: axum::http::HeaderMap) -> axum::response::Response {
     static ETAG: OnceLock<String> = OnceLock::new();
     serve_with_etag(
@@ -185,7 +185,7 @@ pub async fn serve_markdown_editor(headers: axum::http::HeaderMap) -> axum::resp
     )
 }
 
-/// GET /api/runtime/assets/ship-terminal.js
+/// GET /api/assets/ship-terminal.js
 pub async fn serve_terminal(headers: axum::http::HeaderMap) -> axum::response::Response {
     static ETAG: OnceLock<String> = OnceLock::new();
     serve_with_etag(
@@ -196,7 +196,7 @@ pub async fn serve_terminal(headers: axum::http::HeaderMap) -> axum::response::R
     )
 }
 
-/// GET /api/runtime/assets/ship-git.js
+/// GET /api/assets/ship-git.js
 pub async fn serve_git(headers: axum::http::HeaderMap) -> axum::response::Response {
     static ETAG: OnceLock<String> = OnceLock::new();
     serve_with_etag(
@@ -207,7 +207,7 @@ pub async fn serve_git(headers: axum::http::HeaderMap) -> axum::response::Respon
     )
 }
 
-/// GET /api/runtime/assets/ship-elements.md
+/// GET /api/assets/ship-elements.md
 /// Compact, token-efficient catalog for agent context.
 pub async fn serve_elements_catalog(headers: axum::http::HeaderMap) -> axum::response::Response {
     static ETAG: OnceLock<String> = OnceLock::new();
@@ -219,7 +219,7 @@ pub async fn serve_elements_catalog(headers: axum::http::HeaderMap) -> axum::res
     )
 }
 
-/// GET /api/runtime/assets/jinja-macros.json
+/// GET /api/assets/jinja-macros.json
 /// Structured manifest of the Jinja SDK macros — consumed by editor tooling
 /// for autocomplete and signature help.
 pub async fn serve_jinja_macros_json(headers: axum::http::HeaderMap) -> axum::response::Response {
@@ -232,7 +232,7 @@ pub async fn serve_jinja_macros_json(headers: axum::http::HeaderMap) -> axum::re
     )
 }
 
-/// GET /api/runtime/assets/jinja-macros.md
+/// GET /api/assets/jinja-macros.md
 /// Grouped human-readable reference for the Jinja SDK macros.
 pub async fn serve_jinja_macros_md(headers: axum::http::HeaderMap) -> axum::response::Response {
     static ETAG: OnceLock<String> = OnceLock::new();
@@ -244,7 +244,7 @@ pub async fn serve_jinja_macros_md(headers: axum::http::HeaderMap) -> axum::resp
     )
 }
 
-/// GET /api/runtime/assets/theme.css
+/// GET /api/assets/theme.css
 /// Returns the active theme's CSS overrides. No-cache so theme changes apply immediately.
 pub async fn serve_theme_css() -> axum::response::Response {
     let css = crate::themes::resolve_theme_css();
@@ -256,7 +256,7 @@ pub async fn serve_theme_css() -> axum::response::Response {
         .unwrap()
 }
 
-/// GET /api/runtime/themes
+/// GET /api/themes
 /// Returns JSON list of all available themes.
 pub async fn serve_themes_list() -> axum::response::Response {
     let themes = crate::themes::list_themes();

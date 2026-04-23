@@ -89,7 +89,7 @@ pub(super) fn read_manifest_file(dir: &PathBuf, name: &str) -> Option<ViewManife
     let mname = raw.name.unwrap_or_else(|| name.into());
     let (el, url) = if vtype == "component" {
         (Some(raw.element.unwrap_or_else(|| format!("ship-{name}-view"))),
-         Some(format!("/api/runtime/view/{name}/bundle")))
+         Some(format!("/api/view/{name}/bundle")))
     } else {
         (raw.element, None)
     };

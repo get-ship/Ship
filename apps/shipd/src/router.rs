@@ -407,7 +407,7 @@ fn build_ship_routes(st: rest_api::ApiState) -> Router {
         // across `.route()` calls). Canonical path comes from the Route enum
         // so URL builders (TS, Jinja) stay consistent.
         .route(
-            "/api/runtime/view-errors",
+            "/api/view-errors",
             axum::routing::post(view_errors_api::post_error)
                 .get(view_errors_api::list_errors)
                 .delete(view_errors_api::clear_errors),

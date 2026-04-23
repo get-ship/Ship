@@ -218,7 +218,7 @@ fn unauthorized_or<F: FnOnce() -> axum::response::Response>(
     }
 }
 
-/// GET /api/runtime/views/{name}/meta
+/// GET /api/views/{name}/meta
 pub async fn get_view_meta(
     Extension(auth): Extension<AuthContext>,
     AxumPath(name): AxumPath<String>,
@@ -353,7 +353,7 @@ fn search(q: &str, p: &Parsed) -> Vec<SdkSearchHit> {
                 .and_then(|x| x.as_str())
                 .unwrap_or("")
                 .to_string();
-            push("view", id, summary, format!("/api/runtime/view/{id}"));
+            push("view", id, summary, format!("/api/view/{id}"));
         }
     }
     if let Some(m) = entries(&p.collections) {

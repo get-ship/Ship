@@ -163,15 +163,15 @@ pub async fn auth_middleware(
         .map(|s| s.to_string());
 
     // Query-param tokens are accepted ONLY for the iframe raw-serve flow
-    // (`/api/runtime/view/*/raw` and `/api/runtime/view-sessions/*/raw`).
+    // (`/api/view/*/raw` and `/api/view-sessions/*/raw`).
     // Iframes cannot set Authorization headers or share cookies reliably
     // across origins, so `?token=` is the only option there. Every other
     // endpoint must use the `Authorization: Bearer` header or the
     // `ship_session` cookie — otherwise the token leaks into access logs.
     let path = req.uri().path();
     let is_raw_iframe = req.method() == axum::http::Method::GET
-        && (path.starts_with("/api/runtime/view/") && path.ends_with("/raw")
-            || path.starts_with("/api/runtime/view-sessions/") && path.ends_with("/raw"));
+        && (path.starts_with("/api/view/") && path.ends_with("/raw")
+            || path.starts_with("/api/view-sessions/") && path.ends_with("/raw"));
     let query_has_token = req
         .uri()
         .query()

@@ -72,7 +72,7 @@ pub(super) fn build_view_context(view_name: &str, params: &HashMap<String, Strin
     ctx
 }
 
-/// GET /api/runtime/views
+/// GET /api/views
 pub async fn list_views() -> impl IntoResponse {
     let mut views: HashMap<String, ViewListEntry> = HashMap::new();
     if let Ok(d) = runtime::project::get_project_dir(None) { scan_views_dir(&d.join("views"), "project", &mut views); }
@@ -82,7 +82,7 @@ pub async fn list_views() -> impl IntoResponse {
     mesh_ok(serde_json::json!({ "views": list }))
 }
 
-/// GET /api/runtime/view/{name}/asset/{file} — serve static assets from view dir.
+/// GET /api/view/{name}/asset/{file} — serve static assets from view dir.
 pub async fn serve_view_asset(Path((name, file)): Path<(String, String)>) -> axum::response::Response {
     use axum::http::header;
 
@@ -124,7 +124,7 @@ pub async fn serve_view_asset(Path((name, file)): Path<(String, String)>) -> axu
         .unwrap()
 }
 
-/// GET /api/runtime/view/{name}/manifest
+/// GET /api/view/{name}/manifest
 pub async fn serve_view_manifest(Path(name): Path<String>) -> impl IntoResponse {
     if !is_valid_view_name(&name) { return mesh_err(StatusCode::BAD_REQUEST, "invalid view name"); }
     let (view_dir, _) = match resolve_view_dir(&name) {
@@ -149,14 +149,14 @@ pub async fn serve_view_manifest(Path(name): Path<String>) -> impl IntoResponse 
         return mesh_ok(serde_json::json!(ViewManifest {
             name: name.clone(), view_type: "component".into(),
             element_name: Some(format!("ship-{name}-view")),
-            bundle_url: Some(format!("/api/runtime/view/{name}/bundle")),
+            bundle_url: Some(format!("/api/view/{name}/bundle")),
             claims: None, entry: None,
         }));
     }
     mesh_err(StatusCode::NOT_FOUND, format!("view '{name}' has no servable content"))
 }
 
-/// GET /api/runtime/view/{name}/bundle — raw JS, not JSON-wrapped.
+/// GET /api/view/{name}/bundle — raw JS, not JSON-wrapped.
 pub async fn serve_view_bundle(Path(name): Path<String>) -> axum::response::Response {
     use axum::http::header;
 

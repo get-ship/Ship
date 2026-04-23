@@ -25,7 +25,7 @@ fn render_pack_scripts_emits_script_tags() {
     assert!(html.contains("ship-code-editor.js"));
     assert!(html.contains("ship-markdown-editor.js"));
     assert!(html.contains("type=\"module\""));
-    assert!(html.contains("/api/runtime/assets/"));
+    assert!(html.contains("/api/assets/"));
 }
 
 #[test]

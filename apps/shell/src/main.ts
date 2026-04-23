@@ -168,7 +168,7 @@ async function toggleDrawer() {
   document.body.classList.toggle("drawer-open");
   if (opening) {
     try {
-      await mountDaemonFragment(drawerContent, "/api/runtime/view/chat", {
+      await mountDaemonFragment(drawerContent, "/api/view/chat", {
         token: TOKEN,
         base: DAEMON_BASE,
       });
@@ -349,25 +349,25 @@ function viewRoute(path: string, endpoint: string) {
   });
 }
 
-viewRoute("/", "/api/runtime/view/dashboard");
+viewRoute("/", "/api/view/dashboard");
 viewRoute("/pipelines", "/api/v/pipelines");
 viewRoute("/specs", "/api/v/specs");
 viewRoute("/git", "/api/v/git");
-viewRoute("/settings", "/api/runtime/view/settings");
+viewRoute("/settings", "/api/view/settings");
 viewRoute("/agents", "/api/v/agents");
-viewRoute("/skills", "/api/runtime/view/skills");
-viewRoute("/chat", "/api/runtime/view/chat");
-viewRoute("/events", "/api/runtime/view/events");
-viewRoute("/data", "/api/runtime/view/data");
-viewRoute("/dashboard", "/api/runtime/view/dashboard");
-viewRoute("/canvas", "/api/runtime/view/canvas");
-viewRoute("/overview", "/api/runtime/view/overview");
+viewRoute("/skills", "/api/view/skills");
+viewRoute("/chat", "/api/view/chat");
+viewRoute("/events", "/api/view/events");
+viewRoute("/data", "/api/view/data");
+viewRoute("/dashboard", "/api/view/dashboard");
+viewRoute("/canvas", "/api/view/canvas");
+viewRoute("/overview", "/api/view/overview");
 
 // Dynamic routes
 router.on("/data/:collection", ({ data }) => {
   updateNav("/data");
   updateBreadcrumbs(`/data/${data!.collection}`);
-  void mount(`/api/runtime/view/data?collection=${encodeURIComponent(data!.collection)}`);
+  void mount(`/api/view/data?collection=${encodeURIComponent(data!.collection)}`);
 });
 
 // Static sub-routes under /agents must be registered BEFORE the
@@ -401,19 +401,19 @@ router.on("/agents/:id", ({ data }) => {
 router.on("/skills/:id", ({ data }) => {
   updateNav("/skills");
   updateBreadcrumbs(`/skills/${data!.id}`);
-  void mount(`/api/runtime/view/skills/detail/${data!.id}`);
+  void mount(`/api/view/skills/detail/${data!.id}`);
 });
 
 router.on("/skills/:id/:file", ({ data }) => {
   updateNav("/skills");
   updateBreadcrumbs(`/skills/${data!.id}/${data!.file}`);
-  void mount(`/api/runtime/view/skills/detail/${data!.id}?file=${encodeURIComponent(data!.file)}`);
+  void mount(`/api/view/skills/detail/${data!.id}?file=${encodeURIComponent(data!.file)}`);
 });
 
 router.on("/canvas/:doc", ({ data }) => {
   updateNav("/canvas");
   updateBreadcrumbs(`/canvas/${data!.doc}`);
-  void mount(`/api/runtime/view/canvas?doc=${encodeURIComponent(data!.doc)}`);
+  void mount(`/api/view/canvas?doc=${encodeURIComponent(data!.doc)}`);
 });
 
 router.on("/pipelines/focus/:name", ({ data }) => {

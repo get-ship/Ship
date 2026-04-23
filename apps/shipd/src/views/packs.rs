@@ -28,7 +28,7 @@
 use std::path::PathBuf;
 
 /// Map a pack name to the JS bundle filenames served under
-/// `/api/runtime/assets/`. Returning a `&'static [&'static str]` keeps this
+/// `/api/assets/`. Returning a `&'static [&'static str]` keeps this
 /// a trivially-cheap lookup with no allocation.
 pub(crate) fn pack_bundles(name: &str) -> &'static [&'static str] {
     match name {
@@ -50,7 +50,7 @@ pub(crate) fn read_view_packs(dir: &PathBuf) -> Vec<String> {
     raw.packs.unwrap_or_default()
 }
 
-/// Build `<script type="module" src="/api/runtime/assets/<bundle>">` tags
+/// Build `<script type="module" src="/api/assets/<bundle>">` tags
 /// for every bundle mapped by the given pack list. Deduplicates bundles
 /// across packs (so two packs that share a bundle only emit it once) and
 /// returns the concatenated HTML string. Empty when no packs resolve.
@@ -69,7 +69,7 @@ pub(crate) fn render_pack_scripts(packs: &[String]) -> String {
     let mut out = String::new();
     for bundle in emitted {
         out.push_str(&format!(
-            "<script type=\"module\" src=\"/api/runtime/assets/{bundle}\"></script>\n"
+            "<script type=\"module\" src=\"/api/assets/{bundle}\"></script>\n"
         ));
     }
     out

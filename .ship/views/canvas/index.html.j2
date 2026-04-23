@@ -53,7 +53,7 @@
 {% set feedback_items = ship_query('feedback', {'_sort': '-created_at', '_limit': 5}) %}
 
 <div class="canvas-workspace"
-     data-on-load="@get('/api/runtime/view/canvas/sse', {openWhenHidden: true})">
+     data-on-load="@get('/api/view/canvas/sse', {openWhenHidden: true})">
 
   {# -- Sidebar --------------------------------------------------------- #}
   <aside class="canvas-rail">

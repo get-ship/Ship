@@ -27,7 +27,7 @@ type ReportPayload = {
   timestamp_client: string;
 };
 
-const ENDPOINT = "/api/runtime/view-errors";
+const ENDPOINT = "/api/view-errors";
 const DEDUPE_WINDOW_MS = 5000;
 const dedupe = new Map<string, number>();
 

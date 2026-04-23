@@ -11,7 +11,7 @@ export const Route = createFileRoute('/studio/view/$name')({
 })
 
 function buildFrameSrc(name: string, token: string): string {
-  const path = `/api/runtime/view/${encodeURIComponent(name)}/raw`
+  const path = `/api/view/${encodeURIComponent(name)}/raw`
   return `${DAEMON_BASE_URL}${path}?token=${encodeURIComponent(token)}`
 }
 

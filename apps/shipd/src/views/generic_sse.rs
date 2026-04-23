@@ -1,6 +1,6 @@
 //! Generic SSE handler for user-authored Ship views.
 //!
-//! `GET /api/runtime/view/{name}/sse` reads the view's `manifest.yaml` to
+//! `GET /api/view/{name}/sse` reads the view's `manifest.yaml` to
 //! determine which kernel events to subscribe to, renders partials on each
 //! event, and pushes them to the browser via Datastar's PatchElements.
 
@@ -69,7 +69,7 @@ fn render_partial(
     }
 }
 
-/// GET /api/runtime/view/{name}/sse
+/// GET /api/view/{name}/sse
 pub async fn serve_view_sse(
     Path(name): Path<String>,
     State(state): State<ApiState>,

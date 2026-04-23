@@ -86,7 +86,7 @@ pub struct ListQuery {
     pub limit: Option<usize>,
 }
 
-/// POST /api/runtime/view-errors
+/// POST /api/view-errors
 pub async fn post_error(
     Extension(auth): Extension<AuthContext>,
     Json(req): Json<PostErrorReq>,
@@ -124,7 +124,7 @@ pub async fn post_error(
         .into_response()
 }
 
-/// GET /api/runtime/view-errors
+/// GET /api/view-errors
 pub async fn list_errors(
     Extension(auth): Extension<AuthContext>,
     Query(q): Query<ListQuery>,
@@ -154,7 +154,7 @@ pub async fn list_errors(
         .into_response()
 }
 
-/// DELETE /api/runtime/view-errors
+/// DELETE /api/view-errors
 pub async fn clear_errors(
     Extension(auth): Extension<AuthContext>,
 ) -> axum::response::Response {

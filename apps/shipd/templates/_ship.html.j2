@@ -25,9 +25,9 @@
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>{{ title }}</title>
-  <link rel="stylesheet" href="/api/runtime/assets/view-tokens.css">
-  <script type="module" src="/api/runtime/assets/datastar.js"></script>
-  <script type="module" src="/api/runtime/assets/ship-elements.js"></script>
+  <link rel="stylesheet" href="/api/assets/view-tokens.css">
+  <script type="module" src="/api/assets/datastar.js"></script>
+  <script type="module" src="/api/assets/ship-elements.js"></script>
 {% endif %}
 {% endmacro %}
 
@@ -135,14 +135,14 @@ data-signals:{{ name }}="{% if default is string %}'{{ default }}'{% elif defaul
 
   Args:
     view_name: View slug registered with the daemon. Resolves to
-      `/api/runtime/view/<view_name>/sse`.
+      `/api/view/<view_name>/sse`.
 
   Example:
     <div {{ live('tasks') }}>
       <div id="tasks-content">Loading...</div>
     </div>
 -#}
-{% macro live(view_name) %}data-init="@get('/api/runtime/view/{{ view_name }}/sse')"{% endmacro %}
+{% macro live(view_name) %}data-init="@get('/api/view/{{ view_name }}/sse')"{% endmacro %}
 
 {#-
   live_topic(topics, into='events')
@@ -304,10 +304,10 @@ data-signals:{{ name }}="{% if default is string %}'{{ default }}'{% elif defaul
   current view. For full shell-level routing use `nav()` or `view()`.
 
   Args:
-    url: URL to GET (typically under `/api/runtime/view/...`).
+    url: URL to GET (typically under `/api/view/...`).
 
   Example:
-    <ship-button {{ navigate('/api/runtime/view/pipelines') }}>
+    <ship-button {{ navigate('/api/view/pipelines') }}>
       Pipelines
     </ship-button>
 -#}
@@ -568,14 +568,14 @@ data-signals:{{ name }}="{% if default is string %}'{{ default }}'{% elif defaul
   Args:
     signal_name: Filter signal.
     value: Value this chip selects.
-    view_name: When set, a `@get('/api/runtime/view/<view_name>/sse')` is
+    view_name: When set, a `@get('/api/view/<view_name>/sse')` is
       appended to refresh results. Defaults to the empty string
       (client-only filter).
 
   Example:
     <ship-chip {{ chip('status', 'active', 'tasks') }}>Active</ship-chip>
 -#}
-{% macro chip(signal_name, value, view_name='') %}data-on:click="${{ signal_name }} = '{{ value }}'{% if view_name %}; @get('/api/runtime/view/{{ view_name }}/sse'){% endif %}" data-attr:selected="${{ signal_name }} == '{{ value }}'"{% endmacro %}
+{% macro chip(signal_name, value, view_name='') %}data-on:click="${{ signal_name }} = '{{ value }}'{% if view_name %}; @get('/api/view/{{ view_name }}/sse'){% endif %}" data-attr:selected="${{ signal_name }} == '{{ value }}'"{% endmacro %}
 
 {#-
   chip_all(signal_name, view_name='')
@@ -586,13 +586,13 @@ data-signals:{{ name }}="{% if default is string %}'{{ default }}'{% elif defaul
 
   Args:
     signal_name: Filter signal to clear.
-    view_name: When set, refreshes `/api/runtime/view/<view_name>/sse`
+    view_name: When set, refreshes `/api/view/<view_name>/sse`
       after clearing.
 
   Example:
     <ship-chip {{ chip_all('status', 'tasks') }}>All</ship-chip>
 -#}
-{% macro chip_all(signal_name, view_name='') %}data-on:click="${{ signal_name }} = ''{% if view_name %}; @get('/api/runtime/view/{{ view_name }}/sse'){% endif %}" data-attr:selected="${{ signal_name }} == ''"{% endmacro %}
+{% macro chip_all(signal_name, view_name='') %}data-on:click="${{ signal_name }} = ''{% if view_name %}; @get('/api/view/{{ view_name }}/sse'){% endif %}" data-attr:selected="${{ signal_name }} == ''"{% endmacro %}
 
 {#- === Search & Debounce === -#}
 
@@ -611,7 +611,7 @@ data-signals:{{ name }}="{% if default is string %}'{{ default }}'{% elif defaul
   Example:
     <ship-input {{ search('q', 'tasks') }} placeholder="Search..."></ship-input>
 -#}
-{% macro search(signal_name, view_name, delay='300ms') %}data-bind="{{ signal_name }}" data-on:input__debounce.{{ delay }}="@get('/api/runtime/view/{{ view_name }}/sse')"{% endmacro %}
+{% macro search(signal_name, view_name, delay='300ms') %}data-bind="{{ signal_name }}" data-on:input__debounce.{{ delay }}="@get('/api/view/{{ view_name }}/sse')"{% endmacro %}
 
 {#-
   on_change_debounced(expr, delay='300ms')
@@ -701,7 +701,7 @@ data-signals:{{ name }}="{% if default is string %}'{{ default }}'{% elif defaul
       <div id="events-content"></div>
     </div>
 -#}
-{% macro live_persistent(view_name) %}data-init="@get('/api/runtime/view/{{ view_name }}/sse', {requestCancellation: 'disabled'})"{% endmacro %}
+{% macro live_persistent(view_name) %}data-init="@get('/api/view/{{ view_name }}/sse', {requestCancellation: 'disabled'})"{% endmacro %}
 
 {#- === Fetch error handling === -#}
 
@@ -1003,7 +1003,7 @@ data-signals:{{ name }}="{% if default is string %}'{{ default }}'{% elif defaul
   (muted text + right-chevron) on the right. Must be paired with
   `endsection()`.
 
-  When `link_href` starts with `/api/runtime/view/`, the trailing link
+  When `link_href` starts with `/api/view/`, the trailing link
   is wired to `@get(link_href)` with `.prevent` so SSE-aware navigation
   takes over. Otherwise it is a plain anchor.
 
@@ -1019,7 +1019,7 @@ data-signals:{{ name }}="{% if default is string %}'{{ default }}'{% elif defaul
 
   Example:
     {{ section('Recent jobs', icon='activity',
-               link_href='/api/runtime/view/pipelines',
+               link_href='/api/view/pipelines',
                link_label='View all') }}
       <ship-list-tile>...</ship-list-tile>
     {{ endsection() }}
@@ -1033,7 +1033,7 @@ data-signals:{{ name }}="{% if default is string %}'{{ default }}'{% elif defaul
     </h2>
     {% if link_href and link_label %}
     <a href="{{ link_href }}"
-       {% if link_href is startingwith('/api/runtime/view/') %}data-on:click.prevent="@get('{{ link_href }}')"{% endif %}
+       {% if link_href is startingwith('/api/view/') %}data-on:click.prevent="@get('{{ link_href }}')"{% endif %}
        style="display:inline-flex;align-items:center;gap:var(--space-1);padding:var(--space-1) var(--space-2);font-size:var(--text-xs);color:var(--muted-foreground);text-decoration:none;border-radius:var(--radius-sm)">
       {{ link_label }}
       <ship-icon name="chevron-right" style="width:10px;height:10px"></ship-icon>

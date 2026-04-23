@@ -64,7 +64,7 @@ fn composer_posts_via_chat_send_endpoint() {
     assert!(html.contains("chat-composer"));
     // Send hooks into the typed URL macro so the wire contract is locked.
     assert!(
-        html.contains("/api/runtime/view/chat/send"),
+        html.contains("/api/view/chat/send"),
         "composer should POST to chat/send: {html}"
     );
 }

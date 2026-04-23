@@ -1,4 +1,4 @@
-//! `/api/runtime/view/{name}/raw` — full HTML document for Studio and
+//! `/api/view/{name}/raw` — full HTML document for Studio and
 //! direct-browser mounting.
 //!
 //! For SDK-backed first-party views (settings, agents, chat, events)
@@ -37,7 +37,7 @@ async fn mint_cookie(state: &ApiState) -> String {
     let session_id =
         crate::session::issue_browser_session(state.session_registry()).await;
     format!(
-        "{name}={id}; HttpOnly; SameSite=Strict; Path=/api/runtime; Max-Age={ttl}",
+        "{name}={id}; HttpOnly; SameSite=Strict; Path=/api; Max-Age={ttl}",
         name = crate::session::COOKIE_NAME,
         id = session_id,
         ttl = crate::session::BROWSER_SESSION_TTL_SECS,
@@ -80,10 +80,10 @@ async fn render_sdk_shell(state: &ApiState, name: &str) -> Option<String> {
     wrap(title, &inner)
 }
 
-/// GET `/api/runtime/view/{name}/raw`
+/// GET `/api/view/{name}/raw`
 ///
 /// Cookie-first auth: mints a `ship_session` cookie scoped to
-/// `/api/runtime` so subsequent fetches from the served document
+/// `/api` so subsequent fetches from the served document
 /// authenticate without needing the query token. The auth middleware
 /// has already validated the caller's token/session before we run.
 pub async fn serve_view_raw(

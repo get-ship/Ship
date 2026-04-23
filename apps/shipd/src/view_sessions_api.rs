@@ -2,13 +2,13 @@
 //!
 //! Seven routes (spec §Daemon REST endpoints):
 //!
-//! - `POST   /api/runtime/view-sessions`              — open
-//! - `POST   /api/runtime/view-sessions/{id}/patch`   — patch
-//! - `POST   /api/runtime/view-sessions/{id}/append`  — append
-//! - `POST   /api/runtime/view-sessions/{id}/signal`  — signal
-//! - `DELETE /api/runtime/view-sessions/{id}`         — close
-//! - `GET    /api/runtime/view-sessions/{id}`         — subscribe (SSE)
-//! - `GET    /api/runtime/view-sessions/{id}/raw`     — iframe HTML shell
+//! - `POST   /api/view-sessions`              — open
+//! - `POST   /api/view-sessions/{id}/patch`   — patch
+//! - `POST   /api/view-sessions/{id}/append`  — append
+//! - `POST   /api/view-sessions/{id}/signal`  — signal
+//! - `DELETE /api/view-sessions/{id}`         — close
+//! - `GET    /api/view-sessions/{id}`         — subscribe (SSE)
+//! - `GET    /api/view-sessions/{id}/raw`     — iframe HTML shell
 //!
 //! Authentication/ownership: the caller's `AuthContext.agent_id` must be
 //! present; mutating routes require the caller to own the session.
@@ -100,7 +100,7 @@ pub async fn open_session(
         .await
     {
         Ok(view_id) => {
-            let url = format!("/api/runtime/view-sessions/{view_id}/raw");
+            let url = format!("/api/view-sessions/{view_id}/raw");
             let meta = crate::mcp_apps_bridge::view_session_meta(&view_id);
             ok_json(serde_json::json!({
                 "view_id": view_id,

@@ -2,13 +2,13 @@
 //!
 //! Two entry points, both gated by dev mode OR `X-Ship-Dry-Run: allow`:
 //!
-//! - Middleware on `/api/runtime/view/{name}` that intercepts requests with
+//! - Middleware on `/api/view/{name}` that intercepts requests with
 //!   `?__dry-run=1`. With `__context=<urlencoded JSON>` supplied, we render
 //!   the view template against that context alone (no data fetch, no DB).
 //!   Without `__context`, the request falls through to the normal handler
 //!   and we attach an `X-Ship-Context-JSON` response header echoing the
 //!   context that WOULD be used (currently: a fresh `build_view_context`).
-//! - `serve_view_context` handler for `/api/runtime/view/{name}/context`
+//! - `serve_view_context` handler for `/api/view/{name}/context`
 //!   returns just the context JSON (no HTML).
 //!
 //! Dry-run must not leak in production. We require SHIP_DEV/RUST_ENV=dev OR
@@ -55,10 +55,10 @@ fn query_map(uri: &axum::http::Uri) -> HashMap<String, String> {
         .unwrap_or_default()
 }
 
-/// Extract the view name from `/api/runtime/view/{name}` (rejects deeper
+/// Extract the view name from `/api/view/{name}` (rejects deeper
 /// sub-paths like `/manifest`, `/bundle`, `/context`, `/sse`).
 fn extract_view_name(path: &str) -> Option<&str> {
-    let rest = path.strip_prefix("/api/runtime/view/")?;
+    let rest = path.strip_prefix("/api/view/")?;
     if rest.contains('/') || rest.is_empty() { return None; }
     Some(rest)
 }
@@ -86,7 +86,7 @@ fn render_dry(name: &str, ctx: &serde_json::Value) -> Result<String, (StatusCode
         .map_err(|e| (StatusCode::INTERNAL_SERVER_ERROR, e))
 }
 
-/// Middleware: intercept `?__dry-run=1` on `/api/runtime/view/{name}` GETs.
+/// Middleware: intercept `?__dry-run=1` on `/api/view/{name}` GETs.
 pub async fn dry_run_middleware(req: Request<Body>, next: Next) -> Response {
     let path = req.uri().path().to_string();
     let Some(name) = extract_view_name(&path).map(|s| s.to_string()) else {
@@ -149,7 +149,7 @@ pub async fn dry_run_middleware(req: Request<Body>, next: Next) -> Response {
     response
 }
 
-/// GET /api/runtime/view/{name}/context — return just the context JSON.
+/// GET /api/view/{name}/context — return just the context JSON.
 pub async fn serve_view_context(
     Path(name): Path<String>,
     axum::extract::Query(q): axum::extract::Query<HashMap<String, String>>,
@@ -182,15 +182,15 @@ mod tests {
 
     #[test]
     fn extracts_view_name() {
-        assert_eq!(extract_view_name("/api/runtime/view/git"), Some("git"));
-        assert_eq!(extract_view_name("/api/runtime/view/git/sse"), None);
-        assert_eq!(extract_view_name("/api/runtime/view/"), None);
+        assert_eq!(extract_view_name("/api/view/git"), Some("git"));
+        assert_eq!(extract_view_name("/api/view/git/sse"), None);
+        assert_eq!(extract_view_name("/api/view/"), None);
         assert_eq!(extract_view_name("/other"), None);
     }
 
     #[test]
     fn parses_query() {
-        let uri: axum::http::Uri = "/api/runtime/view/git?__dry-run=1&__context=%7B%7D".parse().unwrap();
+        let uri: axum::http::Uri = "/api/view/git?__dry-run=1&__context=%7B%7D".parse().unwrap();
         let q = query_map(&uri);
         assert_eq!(q.get("__dry-run").map(String::as_str), Some("1"));
         assert_eq!(q.get("__context").map(String::as_str), Some("{}"));

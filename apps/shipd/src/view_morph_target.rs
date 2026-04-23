@@ -1,6 +1,6 @@
 //! Middleware that makes in-shell view navigation clean.
 //!
-//! When the shell does `@get('/api/runtime/view/skills')` from within an
+//! When the shell does `@get('/api/view/skills')` from within an
 //! already-mounted view, Datastar morphs the response into the current
 //! DOM. Two problems if we don't intervene:
 //!
@@ -30,7 +30,7 @@ use axum::{
 
 /// Wrap responses from view routes for in-shell navigation compatibility.
 pub async fn view_morph_target_middleware(req: Request<Body>, next: Next) -> Response {
-    let is_view_route = req.uri().path().starts_with("/api/runtime/view/");
+    let is_view_route = req.uri().path().starts_with("/api/view/");
     let is_datastar = req
         .headers()
         .get("datastar-request")
@@ -248,8 +248,8 @@ mod tests {
 <html>
 <head>
 <title>Skills</title>
-<script type="module" src="/api/runtime/assets/ship-markdown-editor.js"></script>
-<script type="module" src="/api/runtime/assets/ship-code-editor.js"></script>
+<script type="module" src="/api/assets/ship-markdown-editor.js"></script>
+<script type="module" src="/api/assets/ship-code-editor.js"></script>
 </head>
 <body>
 <div class="ship-view">content</div>
@@ -276,7 +276,7 @@ mod tests {
 <html>
 <head>
 <script>window.CHROME_ONLY = true;</script>
-<script type="module" src="/api/runtime/assets/ship-terminal.js"></script>
+<script type="module" src="/api/assets/ship-terminal.js"></script>
 </head>
 <body>
 <div class="ship-view">x</div>

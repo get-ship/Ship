@@ -9,7 +9,7 @@ use anyhow::{Result, anyhow};
 
 use crate::requests::ViewErrorsRequest;
 
-/// GET + optional DELETE against `/api/runtime/view-errors`.
+/// GET + optional DELETE against `/api/view-errors`.
 ///
 /// Returns a readable text summary — the MCP contract is stringly typed.
 pub async fn view_errors(req: ViewErrorsRequest) -> String {
@@ -93,7 +93,7 @@ async fn http_get_errors(
     let global_dir = runtime::project::get_global_dir()?;
     let port = read_port(&global_dir)?;
     let token = read_token(&global_dir)?;
-    let mut url = format!("http://127.0.0.1:{port}/api/runtime/view-errors");
+    let mut url = format!("http://127.0.0.1:{port}/api/view-errors");
     let mut sep = '?';
     if let Some(s) = since {
         url.push_str(&format!("{sep}since={s}"));
@@ -128,7 +128,7 @@ async fn http_delete_errors() -> Result<u64> {
     let global_dir = runtime::project::get_global_dir()?;
     let port = read_port(&global_dir)?;
     let token = read_token(&global_dir)?;
-    let url = format!("http://127.0.0.1:{port}/api/runtime/view-errors");
+    let url = format!("http://127.0.0.1:{port}/api/view-errors");
     let resp = reqwest::Client::new()
         .delete(&url)
         .bearer_auth(&token)

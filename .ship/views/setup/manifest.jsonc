@@ -1,5 +1,5 @@
 {
-  // First-run setup wizard. Served at /api/runtime/view/setup (and mounted at
+  // First-run setup wizard. Served at /api/view/setup (and mounted at
   // top-level /setup by the shell once installer-lane wires the route).
   // Four linear steps: welcome → workspace → provider → done. No auth.
   "name": "setup",
