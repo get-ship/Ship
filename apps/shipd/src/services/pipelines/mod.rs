@@ -20,6 +20,11 @@
 
 pub mod state;
 pub mod view_state;
+pub mod shape;
+pub mod summaries;
+pub mod focus;
+pub mod run_detail;
+pub mod history;
 
 use axum::extract::{Path, Query, State};
 use axum::http::StatusCode;
