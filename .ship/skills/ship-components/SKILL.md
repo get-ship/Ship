@@ -460,8 +460,8 @@ After changes, run the full loop:
      tones/variants/sizes/states. Inject it via
      `await page.setContent(html)` or render it inline into localhost:3000.
    - Load scripts from the running daemon at `http://localhost:9315`
-     (`/api/runtime/assets/view-tokens.css`,
-     `/api/runtime/assets/ship-elements.js`).
+     (`/api/assets/view-tokens.css`,
+     `/api/assets/ship-elements.js`).
    - Capture console errors: target 0.
    - Screenshot the gallery at 1400×1800, deviceScaleFactor: 2.
    - Screenshot hover and focus states separately.
@@ -572,7 +572,7 @@ element: tag, attrs (enums as `attr=a|b|c`, booleans as bare names),
 slots, events.
 
 - **Repo:** `packages/ship-set/catalog.md`
-- **Daemon URL:** `GET /api/runtime/assets/ship-elements.md`
+- **Daemon URL:** `GET /api/assets/ship-elements.md`
 
 Agents authoring daemon views should read this first. It's small
 enough to sit in-context at all times. For ~95% of emission work
@@ -584,7 +584,7 @@ When you need types, defaults, descriptions, or CSS custom properties,
 load the full manifest.
 
 - **Repo:** `packages/ship-set/custom-elements.json` (~190KB)
-- **Daemon URL:** `GET /api/runtime/assets/custom-elements.json`
+- **Daemon URL:** `GET /api/assets/custom-elements.json`
 
 IDE tooling (lit-plugin, lsp-cem, VS Code) consumes this for
 attribute autocomplete and type checking.
@@ -605,10 +605,10 @@ First-party views (`apps/shipd/templates/<view>/`) render `<ship-*>`
 elements from the daemon via minijinja, then patch live updates over
 Datastar SSE. The pattern is two endpoints per view:
 
-- `GET /api/runtime/view/<name>` — full shell. Extends
+- `GET /api/view/<name>` — full shell. Extends
   `_page_shell.html.j2`, overrides `title`/`head`/`body_class`/`body`.
   Returns text/html.
-- `GET /api/runtime/view/<name>/sse` — `ViewSse` response. On connect
+- `GET /api/view/<name>/sse` — `ViewSse` response. On connect
   it renders the content partial and emits
   `vs.patch("#<name>-content", html)`. It then subscribes to kernel
   events via `state.kernel().spawn_actor(...)` and re-renders on each
@@ -635,7 +635,7 @@ query-deserializable `Filter`. Do not re-walk the filesystem inside
 handlers.
 
 Filter persistence is URL-based: tab switches and chip clicks emit
-`@get('/api/runtime/view/<name>?tab=...&status=...')`. The server
+`@get('/api/view/<name>?tab=...&status=...')`. The server
 re-renders and Datastar morphs the page; the browser URL updates from
 `@get`'s fetch. No client-side state machine.
 

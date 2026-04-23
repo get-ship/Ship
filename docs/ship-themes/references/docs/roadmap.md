@@ -30,4 +30,4 @@ The shell status bar reads `var(--card)` directly for its background. In warm th
 
 ## 6. Theme persistence is per-browser — non-blocking
 
-`persistTheme` writes `localStorage['ship-site-theme']`. There is no cross-device or daemon-side sync: opening Ship in a second browser always starts at `ship-light`. **Fix:** wire the theme through daemon settings (`GET /api/runtime/settings/theme`, `PUT …`) with localStorage as the offline fallback. Trivial now since theme is the only setting of its kind. Non-blocking until the multi-device story becomes a priority.
+`persistTheme` writes `localStorage['ship-site-theme']`. There is no cross-device or daemon-side sync: opening Ship in a second browser always starts at `ship-light`. **Fix:** wire the theme through daemon settings (`GET /api/settings/theme`, `PUT …`) with localStorage as the offline fallback. Trivial now since theme is the only setting of its kind. Non-blocking until the multi-device story becomes a priority.

@@ -160,14 +160,14 @@ data-signals:{{ name }}="{% if default is string %}'{{ default }}'{% elif defaul
       `$<name>`. Pass without the leading `$` (convention — like `signal()`).
 
   Emits:
-    data-init="@get('/api/runtime/events?mode=datastar&topics=<topics>&signal=<name>')"
+    data-init="@get('/api/events/stream?mode=datastar&topics=<topics>&signal=<name>')"
 
   Example:
     <div {{ live_topic('job.updated,job.failed', into='jobs') }}>
       <template data-for="$jobs" ...>...</template>
     </div>
 -#}
-{% macro live_topic(topics, into='events') %}data-init="@get('/api/runtime/events?mode=datastar&topics={{ topics }}&signal={{ into }}')"{% endmacro %}
+{% macro live_topic(topics, into='events') %}data-init="@get('/api/events/stream?mode=datastar&topics={{ topics }}&signal={{ into }}')"{% endmacro %}
 
 {#- === Loading & Indicators === -#}
 
@@ -373,7 +373,7 @@ data-signals:{{ name }}="{% if default is string %}'{{ default }}'{% elif defaul
     url: Fully-qualified path to GET.
 
   Example:
-    <ship-button {{ get('/api/runtime/jobs') }}>Refresh jobs</ship-button>
+    <ship-button {{ get('/api/jobs') }}>Refresh jobs</ship-button>
 -#}
 {% macro get(url) %}data-on:click="@get('{{ url }}')"{% endmacro %}
 
@@ -389,7 +389,7 @@ data-signals:{{ name }}="{% if default is string %}'{{ default }}'{% elif defaul
       body. Defaults to an empty object.
 
   Example:
-    <ship-button {{ post('/api/runtime/jobs', '$newJob') }}>Run</ship-button>
+    <ship-button {{ post('/api/jobs', '$newJob') }}>Run</ship-button>
 -#}
 {% macro post(url, payload='{}') %}data-on:click="@post('{{ url }}', {payload: {{ payload }}})"{% endmacro %}
 
@@ -435,7 +435,7 @@ data-signals:{{ name }}="{% if default is string %}'{{ default }}'{% elif defaul
     payload: Request body expression. Defaults to an empty object.
 
   Example:
-    <form {{ submit('/api/runtime/specs', '$form') }}>...</form>
+    <form {{ submit('/api/specs', '$form') }}>...</form>
 -#}
 {% macro submit(url, payload='{}') %}data-on:submit="@post('{{ url }}', {payload: {{ payload }}})"{% endmacro %}
 
@@ -474,7 +474,7 @@ data-signals:{{ name }}="{% if default is string %}'{{ default }}'{% elif defaul
       Run
     </ship-button>
 -#}
-{% macro create_job(agent_expr, pipeline='') %}data-on:click="@post('/api/runtime/jobs', {payload: {agent: {{ agent_expr }}{% if pipeline %}, pipeline: '{{ pipeline }}'{% endif %}}})"{% endmacro %}
+{% macro create_job(agent_expr, pipeline='') %}data-on:click="@post('/api/jobs', {payload: {agent: {{ agent_expr }}{% if pipeline %}, pipeline: '{{ pipeline }}'{% endif %}}})"{% endmacro %}
 
 {#-
   emit(event_type, data_expr='{}')
@@ -517,7 +517,7 @@ data-signals:{{ name }}="{% if default is string %}'{{ default }}'{% elif defaul
       Pick A
     </ship-button>
 -#}
-{% macro feedback(payload_expr) %}data-on:click="@post('/api/runtime/feedback', {contentType: 'json', body: JSON.stringify({id: '', kind: 'action', target: {file_path: location.pathname}, author_kind: 'human', created_at: new Date().toISOString(), payload: {{ payload_expr }}})})"{% endmacro %}
+{% macro feedback(payload_expr) %}data-on:click="@post('/api/feedback', {contentType: 'json', body: JSON.stringify({id: '', kind: 'action', target: {file_path: location.pathname}, author_kind: 'human', created_at: new Date().toISOString(), payload: {{ payload_expr }}})})"{% endmacro %}
 
 {#- === Tabs === -#}
 
@@ -677,7 +677,7 @@ data-signals:{{ name }}="{% if default is string %}'{{ default }}'{% elif defaul
     action_expr: Datastar expression to run when the user confirms.
 
   Example:
-    <ship-button {{ confirm('Cancel this job?', "@post('/api/runtime/jobs/" ~ job.id ~ "/cancel')") }}>
+    <ship-button {{ confirm('Cancel this job?', "@post('/api/jobs/" ~ job.id ~ "/cancel')") }}>
       Cancel
     </ship-button>
 -#}

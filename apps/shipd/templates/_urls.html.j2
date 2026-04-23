@@ -89,31 +89,31 @@
 {%- macro close_view_session(id) -%}/api/view-sessions/{{ id }}{%- endmacro -%}
 {%- macro subscribe_view_session(id) -%}/api/view-sessions/{{ id }}{%- endmacro -%}
 {%- macro view_session_raw(id) -%}/api/view-sessions/{{ id }}/raw{%- endmacro -%}
-{%- macro post_feedback() -%}/api/runtime/feedback{%- endmacro -%}
-{%- macro post_annotation() -%}/api/runtime/annotations{%- endmacro -%}
-{%- macro list_workspaces() -%}/api/runtime/workspaces{%- endmacro -%}
-{%- macro list_sessions() -%}/api/runtime/sessions{%- endmacro -%}
-{%- macro list_agents() -%}/api/runtime/agents{%- endmacro -%}
-{%- macro stop_agent(slug) -%}/api/runtime/agents/{{ slug }}/stop{%- endmacro -%}
-{%- macro steer_agent(slug) -%}/api/runtime/agents/{{ slug }}/steer{%- endmacro -%}
-{%- macro list_jobs() -%}/api/runtime/jobs{%- endmacro -%}
-{%- macro dispatch_pipeline() -%}/api/runtime/dispatch{%- endmacro -%}
-{%- macro get_job(job_id) -%}/api/runtime/jobs/{{ job_id }}{%- endmacro -%}
-{%- macro end_job() -%}/api/runtime/jobs/end{%- endmacro -%}
-{%- macro cancel_job(slug) -%}/api/runtime/jobs/{{ slug }}/cancel{%- endmacro -%}
-{%- macro stream_job_log(slug) -%}/api/runtime/jobs/{{ slug }}/log/stream{%- endmacro -%}
-{%- macro list_procs() -%}/api/runtime/procs{%- endmacro -%}
-{%- macro poll_events() -%}/api/runtime/events/poll{%- endmacro -%}
-{%- macro daemon_status() -%}/api/runtime/daemon/status{%- endmacro -%}
-{%- macro list_specs() -%}/api/runtime/specs{%- endmacro -%}
-{%- macro create_spec() -%}/api/runtime/specs{%- endmacro -%}
-{%- macro get_spec(id) -%}/api/runtime/specs/{{ id }}{%- endmacro -%}
-{%- macro update_spec(id) -%}/api/runtime/specs/{{ id }}{%- endmacro -%}
-{%- macro delete_spec(id) -%}/api/runtime/specs/{{ id }}{%- endmacro -%}
-{%- macro launch_spec(id) -%}/api/runtime/specs/{{ id }}/launch{%- endmacro -%}
-{%- macro event_stream() -%}/api/runtime/events{%- endmacro -%}
-{%- macro rebuild_projections() -%}/api/runtime/rebuild-projections{%- endmacro -%}
-{%- macro workspace_pty(id) -%}/api/runtime/workspaces/{{ id }}/pty{%- endmacro -%}
+{%- macro post_feedback() -%}/api/feedback{%- endmacro -%}
+{%- macro post_annotation() -%}/api/annotations{%- endmacro -%}
+{%- macro list_workspaces() -%}/api/workspaces{%- endmacro -%}
+{%- macro list_sessions() -%}/api/sessions{%- endmacro -%}
+{%- macro list_agents() -%}/api/agents/active{%- endmacro -%}
+{%- macro stop_agent(slug) -%}/api/agents/{{ slug }}/stop{%- endmacro -%}
+{%- macro steer_agent(slug) -%}/api/agents/{{ slug }}/steer{%- endmacro -%}
+{%- macro list_jobs() -%}/api/jobs{%- endmacro -%}
+{%- macro dispatch_pipeline() -%}/api/jobs/dispatch{%- endmacro -%}
+{%- macro get_job(job_id) -%}/api/jobs/{{ job_id }}{%- endmacro -%}
+{%- macro end_job() -%}/api/jobs/end{%- endmacro -%}
+{%- macro cancel_job(slug) -%}/api/jobs/{{ slug }}/cancel{%- endmacro -%}
+{%- macro stream_job_log(slug) -%}/api/jobs/{{ slug }}/log/stream{%- endmacro -%}
+{%- macro list_procs() -%}/api/procs{%- endmacro -%}
+{%- macro poll_events() -%}/api/events/poll{%- endmacro -%}
+{%- macro daemon_status() -%}/api/daemon/status{%- endmacro -%}
+{%- macro list_specs() -%}/api/specs{%- endmacro -%}
+{%- macro create_spec() -%}/api/specs{%- endmacro -%}
+{%- macro get_spec(id) -%}/api/specs/{{ id }}{%- endmacro -%}
+{%- macro update_spec(id) -%}/api/specs/{{ id }}{%- endmacro -%}
+{%- macro delete_spec(id) -%}/api/specs/{{ id }}{%- endmacro -%}
+{%- macro launch_spec(id) -%}/api/specs/{{ id }}/launch{%- endmacro -%}
+{%- macro event_stream() -%}/api/events/stream{%- endmacro -%}
+{%- macro rebuild_projections() -%}/api/rebuild-projections{%- endmacro -%}
+{%- macro workspace_pty(id) -%}/api/workspaces/{{ id }}/pty{%- endmacro -%}
 {%- macro list_settings() -%}/api/settings{%- endmacro -%}
 {%- macro update_setting() -%}/api/settings{%- endmacro -%}
 {%- macro get_setting(key) -%}/api/settings/{{ key }}{%- endmacro -%}
@@ -163,10 +163,10 @@
 {%- macro artifact_download(id) -%}/api/artifacts/{{ id }}{%- endmacro -%}
 {%- macro artifact_delete(id) -%}/api/artifacts/{{ id }}{%- endmacro -%}
 {%- macro capabilities() -%}/api/capabilities{%- endmacro -%}
-{%- macro lint_view() -%}/api/runtime/lint/view{%- endmacro -%}
+{%- macro lint_view() -%}/api/lint/view{%- endmacro -%}
 {%- macro view_meta(name) -%}/api/views/{{ name }}/meta{%- endmacro -%}
-{%- macro sdk_root() -%}/api/runtime/sdk{%- endmacro -%}
-{%- macro sdk_query() -%}/api/runtime/sdk/query{%- endmacro -%}
+{%- macro sdk_root() -%}/api/sdk{%- endmacro -%}
+{%- macro sdk_query() -%}/api/sdk/query{%- endmacro -%}
 {%- macro post_view_error() -%}/api/view-errors{%- endmacro -%}
 {%- macro list_view_errors() -%}/api/view-errors{%- endmacro -%}
 {%- macro clear_view_errors() -%}/api/view-errors{%- endmacro -%}

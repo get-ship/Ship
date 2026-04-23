@@ -29,7 +29,7 @@ reach for raw `data-*` for anything else.
 
     {% if has_more %}
       <div id="scroll-sentinel"
-           data-on:intersect="@get('/api/runtime/view/tasks?after=' + $lastId)">
+           data-on:intersect="@get('/api/view/tasks?after=' + $lastId)">
         Loading more...
       </div>
     {% endif %}

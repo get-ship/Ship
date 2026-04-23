@@ -1,4 +1,4 @@
-//! REST handler for `POST /api/runtime/annotations`.
+//! REST handler for `POST /api/annotations`.
 //!
 //! Accepts an `AnnotationEvent`, persists it to the built-in `annotations`
 //! collection (which fires `collection.item_created`), then emits the

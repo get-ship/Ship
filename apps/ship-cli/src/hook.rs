@@ -226,7 +226,7 @@ fn signal_job_completed(slug: &str) {
     };
     let client = reqwest::blocking::Client::new();
     let _ = client
-        .post(format!("http://127.0.0.1:{port}/api/runtime/jobs/end"))
+        .post(format!("http://127.0.0.1:{port}/api/jobs/end"))
         .bearer_auth(&token)
         .json(&serde_json::json!({"slug": slug}))
         .timeout(std::time::Duration::from_secs(5))

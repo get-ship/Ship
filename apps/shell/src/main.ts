@@ -518,7 +518,7 @@ let daemonConnected = false;
 async function updateStatus() {
   statusTheme.textContent = document.documentElement.dataset.theme ?? "ship-light";
   try {
-    const res = await fetch("/api/runtime/workspaces", {
+    const res = await fetch("/api/workspaces", {
       credentials: SAME_ORIGIN ? "include" : "omit",
       headers: !SAME_ORIGIN && TOKEN ? { Authorization: `Bearer ${TOKEN}` } : {},
     });

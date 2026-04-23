@@ -24,7 +24,7 @@ A view opts into a pack by listing it in its manifest. Example
 ```
 
 The daemon reads the manifest at render time and injects
-`<script type="module" src="/api/runtime/assets/<bundle>.js">` tags
+`<script type="module" src="/api/assets/<bundle>.js">` tags
 into the response — into `<head>` for a full-page load, at the top of
 the body for a Datastar fragment navigation. The shell only eagerly
 loads the two core bundles (`datastar.js`, `ship-elements.js`); every
@@ -58,7 +58,7 @@ bundle. The git pack's script is the template for a new pack:
 ```
 
 The output lands in `apps/shipd/assets/`, which the daemon serves at
-`/api/runtime/assets/<filename>`.
+`/api/assets/<filename>`.
 
 ## Custom-elements manifest (CEM)
 
@@ -70,8 +70,8 @@ props, slots, events, CSS custom properties, types, defaults.
 Sources of truth:
 
 - **Repo:** `packages/ship-set/custom-elements.json` (~190KB).
-- **Daemon URL:** `GET /api/runtime/assets/custom-elements.json`.
-- **Compact catalog:** `GET /api/runtime/assets/ship-elements.md`
+- **Daemon URL:** `GET /api/assets/custom-elements.json`.
+- **Compact catalog:** `GET /api/assets/ship-elements.md`
   (machine-generated, ~4KB, one line per element).
 
 The manifest analyzer walks `packages/ship-set/src/**/*.ts`, so pack
@@ -90,7 +90,7 @@ as standalone npm packages:
 - `package.json` with `peerDependencies: { "@ship/set": "^x.y" }`.
   Do not bundle `@ship/set` — the host already has it.
 - A bundled ESM artifact (e.g. `dist/<pack>.js`) the consuming daemon
-  serves under `/api/runtime/assets/`.
+  serves under `/api/assets/`.
 - A generated `custom-elements.json` shipped in the package so agents
   in the consumer's project discover the new `<ship-*>` tags.
 - A short README documenting the `packs: ["<name>"]` manifest value

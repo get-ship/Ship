@@ -1,4 +1,4 @@
-//! REST handler for `POST /api/runtime/feedback`.
+//! REST handler for `POST /api/feedback`.
 //!
 //! Accepts a `FeedbackEvent` payload and routes it to the right subscriber:
 //!

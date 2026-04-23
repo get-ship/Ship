@@ -85,7 +85,7 @@ React's `Tweaks` panel mutates live props; the design canvas lets the designer A
 - Server rendering is the default — HTML arrives complete, no hydration lag.
 - Design-system first — tokens + themes + primitives are a first-class contract; no ecosystem shopping.
 - Zero build in dev — edit the `.j2`, refresh, see. (Caveat: `_ship.html.j2` is embedded via `include_str!` — daemon rebuild required for SDK changes. Tracked in roadmap as dev-ergonomics.)
-- Agent retrieval via `GET /api/runtime/sdk/query` — no React-side equivalent unless you ship CEM + a search index manually.
+- Agent retrieval via `GET /api/sdk/query` — no React-side equivalent unless you ship CEM + a search index manually.
 - AST-lint catches undefined-context-field at authoring time, not runtime — better than TypeScript's component-render errors.
 
 ## Top three framework investments this exercise motivated

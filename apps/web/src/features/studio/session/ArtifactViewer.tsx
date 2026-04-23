@@ -204,7 +204,7 @@ function TextViewer({ content, file }: { content: string; file: SessionFile }) {
 
 async function tryLaunchUrl(url: string): Promise<void> {
   try {
-    const res = await daemonFetch(`/api/runtime/open-url`, {
+    const res = await daemonFetch(`/api/open-url`, {
       method: 'POST',
       body: JSON.stringify({ url }),
     })

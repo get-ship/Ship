@@ -203,7 +203,7 @@ Every UI element is a `<ship-*>` web component. They style themselves. They hand
 
 Before writing any `<ship-*>` element, query the CEM (Custom Elements Manifest):
 ```
-GET /api/runtime/assets/custom-elements.json
+GET /api/assets/custom-elements.json
 ```
 This is the authoritative catalog. Every element in the library is listed with its properties, attributes, events, slots, and CSS parts. Use it to discover what exists before reaching for raw HTML. The CEM is machine-readable — an agent should fetch it at the start of any view authoring session.
 
@@ -232,7 +232,7 @@ This is the authoritative catalog. Every element in the library is listed with i
 | Toast | `<ship-toast>` |
 | **Any list row, tile, or card** — agent row, event row, log line, history entry, settings row, dashboard card | **`<ship-list-tile>`** (slots: `leading`, default for primary, `meta` for sub-label, `trailing` for badges/controls; `variant=row\|card`, `density=compact\|normal\|relaxed`, `interactive`, `selected`, `tone`) |
 
-Full list: `GET /api/runtime/assets/ship-elements.md` (served by the daemon).
+Full list: `GET /api/assets/ship-elements.md` (served by the daemon).
 
 ## The manifest — declarative data + events
 
@@ -700,7 +700,7 @@ Import from `_ship.html.j2`.
   `endsection()` — paired macros that open/close a `<ship-card>` with
   a standardized header: optional leading ship-icon + title on the left,
   optional right-side link pill (chevron + muted text). When
-  `link_href` starts with `/api/runtime/view/<name>`, the link uses
+  `link_href` starts with `/api/view/<name>`, the link uses
   `@get(link_href)` with `.prevent` for SSE-aware navigation;
   otherwise it falls back to plain anchor semantics. Replaces
   hand-rolled `<ship-card padding="none">` + `<div slot="header" class="dash-section-head">` patterns.
@@ -729,11 +729,11 @@ The SDK macros defined in `apps/shipd/templates/_ship.html.j2` are
 published as both a machine-readable manifest and a grouped Markdown
 reference:
 
-- `GET /api/runtime/assets/jinja-macros.json` — structured manifest
+- `GET /api/assets/jinja-macros.json` — structured manifest
   (name, signature, args, summary, description, example, source
   location). Editor tooling should consume this for autocomplete and
   signature help.
-- `GET /api/runtime/assets/jinja-macros.md` — human-readable reference
+- `GET /api/assets/jinja-macros.md` — human-readable reference
   grouped by category, with a table of contents.
 
 Both are generated from the macro source by

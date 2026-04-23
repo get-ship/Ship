@@ -35,7 +35,7 @@ const POLL_INTERVAL: Duration = Duration::from_millis(500);
 /// once. Subsequent appends are not capped.
 const INITIAL_TAIL_BYTES: u64 = 64 * 1024;
 
-/// GET /api/runtime/jobs/{slug}/log/stream
+/// GET /api/jobs/{slug}/log/stream
 pub async fn stream_job_log(
     State(_state): State<ApiState>,
     Path(slug): Path<String>,

@@ -18,7 +18,7 @@ failure message. Render the signal through `show()` + `data-text` in a
   <ship-input {{ bind('payload.title') }} placeholder="Title"></ship-input>
 
   <ship-button variant="primary"
-               {{ post('/api/runtime/specs', '$payload') }}
+               {{ post('/api/specs', '$payload') }}
                {{ on_fetch_error('err') }}>
     Submit
   </ship-button>

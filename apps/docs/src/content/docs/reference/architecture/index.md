@@ -189,9 +189,9 @@ Two paths out of transport: HTTP to the daemon, or a direct compile call. The da
   <!-- Phase 1: synchronous POST + persist + deliver -->
   <rect class="phase-bar" x="20" y="92" width="860" height="20"/>
   <text class="phase-text" x="32" y="107">1 · synchronous: POST → event durable → mailbox filled</text>
-  <!-- 1. CLI → Daemon: POST /api/runtime/jobs -->
+  <!-- 1. CLI → Daemon: POST /api/jobs -->
   <line class="msg msg-http" x1="80" y1="135" x2="215" y2="135" marker-end="url(#seq-arrow-info)"/>
-  <text class="msg-label" x="150" y="128" text-anchor="middle" fill="color-mix(in oklch, var(--info) 70%, var(--foreground))">POST /api/runtime/jobs</text>
+  <text class="msg-label" x="150" y="128" text-anchor="middle" fill="color-mix(in oklch, var(--info) 70%, var(--foreground))">POST /api/jobs</text>
   <text class="msg-note"  x="150" y="148" text-anchor="middle">slug · branch · agent · pipeline · spec_content</text>
   <!-- 2. Daemon self: ensure_pipeline enrich -->
   <path class="msg msg-self" d="M 220 168 L 260 168 L 260 184 L 225 184" marker-end="url(#seq-arrow)"/>

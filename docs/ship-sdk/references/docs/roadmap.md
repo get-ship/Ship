@@ -22,12 +22,12 @@ or escalate.
 ## `live_topic` SSE primitive
 
 - **Done.** `live()` and `live_persistent()` subscribe to the view's
-  declared event list via `/api/runtime/view/<name>/sse`.
+  declared event list via `/api/view/<name>/sse`.
 - **Blocked on.** A topic-filtered kernel endpoint. Today the view
   re-renders on every event in its manifest list; there's no way to
   subscribe an element to a single kernel topic for signal-only
   patches.
-- **Next step.** Design `/api/runtime/sse/<topic>` with a
+- **Next step.** Design `/api/sse/<topic>` with a
   `datastar-patch-signals` framer, then add a `live_topic(topic,
   signal)` macro. Do not ship the macro before the endpoint — there's
   no workaround that isn't a foot-gun.
@@ -57,10 +57,10 @@ or escalate.
 
 - **Done.** Machine-readable spec at
   `packages/ship-set/sdk/sdk-macros.json`. Human-readable Markdown at
-  `GET /api/runtime/assets/jinja-macros.md`.
+  `GET /api/assets/jinja-macros.md`.
 - **Blocked on.** The static site doesn't render the live spec — the
   [catalog](./catalog.md) page is hand-maintained against the JSON.
 - **Next step.** Either (a) generate `catalog.md` as part of
   `build-jinja-docs.mjs` on every SDK regen, or (b) embed a
-  `fetch('/api/runtime/sdk')` driven component into the Starlight
+  `fetch('/api/sdk')` driven component into the Starlight
   page for live-updating reference. (a) is simpler.

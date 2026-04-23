@@ -16,7 +16,7 @@ A view template contains no `<script>` tag. If you find yourself
 reaching for one, the destination is one of:
 
 - A macro or `<ship-*>` element. Start with
-  `GET /api/runtime/sdk/query?q=<concept>`.
+  `GET /api/sdk/query?q=<concept>`.
 - A reactive `data-effect="…"` expression for idempotent side effects
   (canvas redraws, syncing a third-party widget). See the impl skill
   for the exact rules.
@@ -41,7 +41,7 @@ Don't type a `<button>` when `<ship-button>` exists. Don't write a
 `<div class="card">` when `<ship-card>` exists. The full catalog is:
 
 ```bash
-curl -s http://localhost:3000/api/runtime/assets/custom-elements.json | jq .
+curl -s http://localhost:3000/api/assets/custom-elements.json | jq .
 ```
 
 For list rows, tiles, and cards — the most common need — the answer

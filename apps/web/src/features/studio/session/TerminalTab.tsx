@@ -19,7 +19,7 @@ type ConnectionState = 'idle' | 'connecting' | 'connected' | 'disconnected' | 'e
 function buildWsUrl(workspaceId: string): string {
   // daemonUrlWithToken appends the session token as a query param — the only
   // auth channel WebSocket upgrades have. Then convert the scheme to ws://.
-  const httpUrl = daemonUrlWithToken(`/api/runtime/workspaces/${workspaceId}/pty`)
+  const httpUrl = daemonUrlWithToken(`/api/workspaces/${workspaceId}/pty`)
   return httpUrl.replace(/^http/, 'ws')
 }
 

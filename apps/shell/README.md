@@ -35,7 +35,7 @@ Writes PNGs + `report.json` to `findings-evidence/`.
 ## Layout
 
 - `index.html` — boots `ship-elements.js` + `datastar.js` from the daemon
-  at `/api/runtime/assets/*` (proxied same-origin via Vite in dev)
+  at `/api/assets/*` (proxied same-origin via Vite in dev)
 - `src/mount.ts` — `mountDaemonFragment` primitive (+ `openDaemonSSE`)
 - `src/main.ts` — minimal router, drawer toggle, form interception
 - `fixtures/views/` — sample daemon-served fragments used by the POC

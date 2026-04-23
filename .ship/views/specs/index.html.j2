@@ -196,7 +196,7 @@
       <div class="specs-rail-head">
         <h1>Specs</h1>
         <ship-button variant="solid" tone="accent" size="sm"
-                     data-on:click="@post('/api/runtime/specs', {contentType: 'json', body: JSON.stringify({title: 'New spec', body: '## Goal\n\n## Acceptance\n- [ ] '})})">
+                     data-on:click="@post('/api/specs', {contentType: 'json', body: JSON.stringify({title: 'New spec', body: '## Goal\n\n## Acceptance\n- [ ] '})})">
           + New
         </ship-button>
       </div>

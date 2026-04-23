@@ -155,7 +155,7 @@ used for in-page morphs. For shell-level navigation (changing the
 route), reach for `nav(path)` or `view(name)` instead.
 
 ```jinja
-<ship-button {{ navigate('/api/runtime/view/pipelines') }}>Pipelines</ship-button>
+<ship-button {{ navigate('/api/view/pipelines') }}>Pipelines</ship-button>
 ```
 
 ## `tab(signal, value)` / `tab_panel(signal, value)`

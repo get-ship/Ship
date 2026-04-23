@@ -5,10 +5,10 @@
 use anyhow::{Result, anyhow};
 use chrono::Utc;
 
-/// GET /api/runtime/jobs and render either as a table or as JSON.
+/// GET /api/jobs and render either as a table or as JSON.
 pub fn run(json: bool) -> Result<()> {
     let (port, token) = crate::daemon::ensure_daemon()?;
-    let url = format!("http://127.0.0.1:{port}/api/runtime/jobs");
+    let url = format!("http://127.0.0.1:{port}/api/jobs");
     let mut resp = ureq::get(&url)
         .header("Authorization", &format!("Bearer {token}"))
         .config()

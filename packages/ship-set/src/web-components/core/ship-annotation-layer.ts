@@ -9,7 +9,7 @@
  * Attributes:
  *   - view-id   — required; sets `target.view_id` on emitted events
  *   - mode      — off | point | region (default "off")
- *   - endpoint  — override the default `/api/runtime/feedback`
+ *   - endpoint  — override the default `/api/feedback`
  *   - staging   — boolean; if set, batch until `send()` is called
  *
  * Events (bubbles, composed):
@@ -45,7 +45,7 @@ interface Pending {
   rect?: [number, number, number, number]
 }
 
-const DEFAULT_ENDPOINT = '/api/runtime/feedback'
+const DEFAULT_ENDPOINT = '/api/feedback'
 
 export class ShipAnnotationLayer extends LitElement {
   static styles = layerStyles

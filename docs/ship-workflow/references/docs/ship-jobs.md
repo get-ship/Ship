@@ -229,7 +229,7 @@ pub mod event_types {
 
 ## Where the pipeline gets consumed
 
-1. **CLI** (`ship run`): loads pipeline YAML, calls `normalize_pipeline`, POSTs to `/api/runtime/jobs` with the normalized form in `JobCreatedPayload`.
+1. **CLI** (`ship run`): loads pipeline YAML, calls `normalize_pipeline`, POSTs to `/api/jobs` with the normalized form in `JobCreatedPayload`.
 2. **Daemon** (`runtime_api::create_job`): enriches the payload via `orchestrator::pipeline_loader::ensure_pipeline` (idempotent, returns the `Pipeline` struct deserialized into the payload's `steps` field). Persists the event.
 3. **Orchestrator**: consumes `JobCreatedPayload`, reads the `steps` field (already a `Pipeline`), runs `advance_pipeline` to dispatch each step.
 

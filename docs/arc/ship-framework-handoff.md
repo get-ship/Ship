@@ -83,23 +83,23 @@ Drop the `runtime` segment from all view/view-as-app URLs:
 
 | Old | New |
 |-----|-----|
-| `/api/runtime/view/{name}/raw` | `/api/view/{name}/raw` |
-| `/api/runtime/view/{name}/manifest` | `/api/view/{name}/manifest` |
-| `/api/runtime/view/{name}/bundle` | `/api/view/{name}/bundle` |
-| `/api/runtime/view/{name}/context` | `/api/view/{name}/context` |
-| `/api/runtime/view/{name}/sse` | `/api/view/{name}/sse` (generic per-view SSE — distinct from `/api/sse/*` routed) |
-| `/api/runtime/view/{name}/asset/{file}` | `/api/view/{name}/asset/{file}` |
-| `/api/runtime/view-sessions/*` | `/api/view-sessions/*` |
-| `/api/runtime/view-errors` | `/api/view-errors` |
-| `/api/runtime/views` | `/api/views` |
-| `/api/runtime/views/{name}/meta` | `/api/views/{name}/meta` |
+| `/api/view/{name}/raw` | `/api/view/{name}/raw` |
+| `/api/view/{name}/manifest` | `/api/view/{name}/manifest` |
+| `/api/view/{name}/bundle` | `/api/view/{name}/bundle` |
+| `/api/view/{name}/context` | `/api/view/{name}/context` |
+| `/api/view/{name}/sse` | `/api/view/{name}/sse` (generic per-view SSE — distinct from `/api/sse/*` routed) |
+| `/api/view/{name}/asset/{file}` | `/api/view/{name}/asset/{file}` |
+| `/api/view-sessions/*` | `/api/view-sessions/*` |
+| `/api/view-errors` | `/api/view-errors` |
+| `/api/views` | `/api/views` |
+| `/api/views/{name}/meta` | `/api/views/{name}/meta` |
 
-These are the view-as-app plumbing endpoints — still needed; just losing the `runtime` prefix. Chat routes (`/api/runtime/view/chat*`) also need updating if chat stays bespoke.
+These are the view-as-app plumbing endpoints — still needed; just losing the `runtime` prefix. Chat routes (`/api/view/chat*`) also need updating if chat stays bespoke.
 
 **Callers to update in lockstep:**
 - `apps/shell/src/main.ts` — `viewRoute()` targets, `getRawUrl()`, pack loader URLs
 - `apps/shipd/templates/_urls.html.j2` is build-script-generated — regenerates automatically
-- Any remaining `/api/runtime/` hrefs in `.ship/views/` templates (grep + replace; the agent pass already caught dashboard)
+- Any remaining `/api/` hrefs in `.ship/views/` templates (grep + replace; the agent pass already caught dashboard)
 - `packages/sdk/src/generated/routes.ts` regenerates automatically
 
 ### Known debt
@@ -110,7 +110,7 @@ These are the view-as-app plumbing endpoints — still needed; just losing the `
 4. **`build_view_context`** in `views/handlers.rs` — legacy context builder, only used by the generic per-view SSE endpoint (`serve_view_sse` via `generic_sse.rs`). Needs review: does the routed SSE handler replace it? If yes, delete. If it has a role for third-party views, document it.
 5. **registry.rs at 570 lines** — split into `registry/agents.rs`, `registry/skills.rs`, etc. Keep the dispatcher + `RegistryError` in `registry/mod.rs`.
 6. **Error handling in `ship.*`** — spec §11.3 promised structured errors templates can render. Not implemented. Current behavior: service error → `RegistryError` → minijinja `InvalidOperation` → template render fails with 500. Fine for link errors (URL is the contract) but bad for soft-fail cases (e.g., `ship.skills.file()` when file was recently deleted but UI still links to it). Two approaches: (a) a `_opt` suffix convention that returns null instead of raising, or (b) a `ship.try(...)` filter. Punt until you actually feel the pain.
-7. **Dry-run / context introspection** — `/api/runtime/view/{name}/context` used to let third-party devs see their template's context as JSON. Useful for extension debugging. Not preserved by the routed handler. Re-implement as `/api/v/{*path}?__dbg=context` or `/api/view/{name}/context`.
+7. **Dry-run / context introspection** — `/api/view/{name}/context` used to let third-party devs see their template's context as JSON. Useful for extension debugging. Not preserved by the routed handler. Re-implement as `/api/v/{*path}?__dbg=context` or `/api/view/{name}/context`.
 
 ### Test coverage drift
 

@@ -267,7 +267,7 @@ pub async fn get_view_meta(
     })
 }
 
-/// GET /api/runtime/sdk — full SDK root.
+/// GET /api/sdk — full SDK root.
 pub async fn get_sdk_root(
     Extension(auth): Extension<AuthContext>,
 ) -> axum::response::Response {
@@ -285,7 +285,7 @@ pub async fn get_sdk_root(
     })
 }
 
-/// GET /api/runtime/sdk/query?q=term
+/// GET /api/sdk/query?q=term
 pub async fn query_sdk(
     Extension(auth): Extension<AuthContext>,
     axum::extract::Query(q): axum::extract::Query<SdkQuery>,

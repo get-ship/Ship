@@ -34,9 +34,9 @@ right loading/indicator plumbing.
 
 The live SDK is published two ways:
 
-- `GET /api/runtime/sdk` — JSON manifest of every macro, every URL,
+- `GET /api/sdk` — JSON manifest of every macro, every URL,
   every registered view context and collection.
-- `GET /api/runtime/assets/jinja-macros.md` — human-readable macro
+- `GET /api/assets/jinja-macros.md` — human-readable macro
   reference, generated from the template source so it never drifts.
 
 The curated pages under this skill are the same material, organized

@@ -86,7 +86,7 @@ pub struct UpdateSpecRequest {
 
 // ---- Handlers ----
 
-/// GET /api/runtime/specs
+/// GET /api/specs
 pub async fn list_specs() -> impl IntoResponse {
     match specs::list_specs() {
         Ok(list) => {
@@ -97,7 +97,7 @@ pub async fn list_specs() -> impl IntoResponse {
     }
 }
 
-/// GET /api/runtime/specs/{id}
+/// GET /api/specs/{id}
 pub async fn get_spec(Path(id): Path<String>) -> impl IntoResponse {
     match specs::get_spec(&id) {
         Ok(Some(s)) => {
@@ -111,7 +111,7 @@ pub async fn get_spec(Path(id): Path<String>) -> impl IntoResponse {
     }
 }
 
-/// POST /api/runtime/specs
+/// POST /api/specs
 pub async fn create_spec(Json(req): Json<CreateSpecRequest>) -> impl IntoResponse {
     let id = runtime::gen_ulid();
     let body_path = format!(".artifacts/specs/{id}.md");
@@ -139,7 +139,7 @@ pub async fn create_spec(Json(req): Json<CreateSpecRequest>) -> impl IntoRespons
     }
 }
 
-/// PUT /api/runtime/specs/{id}
+/// PUT /api/specs/{id}
 pub async fn update_spec(
     Path(id): Path<String>,
     Json(req): Json<UpdateSpecRequest>,
@@ -170,7 +170,7 @@ pub async fn update_spec(
     }
 }
 
-/// DELETE /api/runtime/specs/{id}
+/// DELETE /api/specs/{id}
 pub async fn delete_spec(Path(id): Path<String>) -> impl IntoResponse {
     match specs::delete_spec(&id) {
         Ok(()) => ok(serde_json::json!({ "id": id })),
@@ -178,7 +178,7 @@ pub async fn delete_spec(Path(id): Path<String>) -> impl IntoResponse {
     }
 }
 
-/// POST /api/runtime/specs/{id}/launch — create a job from the spec.
+/// POST /api/specs/{id}/launch — create a job from the spec.
 pub async fn launch_spec(
     State(state): State<ApiState>,
     Path(id): Path<String>,

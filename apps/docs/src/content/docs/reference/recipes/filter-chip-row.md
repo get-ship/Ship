@@ -8,7 +8,7 @@ sidebar:
 When you need to narrow a list by a known facet (category, status,
 owner) plus freeform keyword, compose `chip`, `chip_all`, and `search`
 against the view's own SSE stream. Each macro sets a signal and
-refreshes `/api/runtime/view/<view>/sse`; the server re-runs the query
+refreshes `/api/view/<view>/sse`; the server re-runs the query
 with the new filter and patches the list region.
 
 The pattern: declare the filter signals at the root, wrap the list

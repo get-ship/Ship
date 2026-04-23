@@ -669,7 +669,7 @@
   }
 
   function sendFeedback(payload) {
-    fetch('/api/runtime/feedback', {
+    fetch('/api/feedback', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({

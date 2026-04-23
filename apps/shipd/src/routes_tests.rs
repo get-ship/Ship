@@ -4,7 +4,7 @@ use super::*;
 
 #[test]
 fn unit_variant_full_path_is_literal() {
-    assert_eq!(Route::ListJobs.full_path(), "/api/runtime/jobs");
+    assert_eq!(Route::ListJobs.full_path(), "/api/jobs");
     assert_eq!(Route::IssueSession.full_path(), "/api/session");
     assert_eq!(
         Route::AssetDatastarJs.full_path(),
@@ -18,19 +18,19 @@ fn named_variant_substitutes_params() {
         id: "abc".to_string(),
     }
     .full_path();
-    assert_eq!(url, "/api/runtime/specs/abc");
+    assert_eq!(url, "/api/specs/abc");
 
     let url = Route::DeleteSpec {
         id: "spec-42".to_string(),
     }
     .full_path();
-    assert_eq!(url, "/api/runtime/specs/spec-42");
+    assert_eq!(url, "/api/specs/spec-42");
 
     let url = Route::GetJob {
         job_id: "job-xyz".to_string(),
     }
     .full_path();
-    assert_eq!(url, "/api/runtime/jobs/job-xyz");
+    assert_eq!(url, "/api/jobs/job-xyz");
 }
 
 #[test]
@@ -70,7 +70,7 @@ fn template_path_preserves_placeholders() {
             id: String::new()
         }
         .template_path(),
-        "/api/runtime/specs/{id}"
+        "/api/specs/{id}"
     );
     assert_eq!(
         Route::SkillsPutVar {

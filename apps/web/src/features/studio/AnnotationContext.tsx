@@ -38,7 +38,7 @@ function stagedToEvent({ filePath, ann: a }: StagedAnnotation): AnnotationEvent 
 }
 
 async function postFeedback(ev: AnnotationEvent): Promise<void> {
-  const res = await daemonFetch('/api/runtime/feedback', {
+  const res = await daemonFetch('/api/feedback', {
     method: 'POST',
     body: JSON.stringify(ev),
   })

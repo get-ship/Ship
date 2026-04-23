@@ -18,7 +18,7 @@ Ship's default authoring surface is three things stacked:
    ([ship-sdk](/reference/sdk/)).
 2. **`<ship-*>` elements** from `@ship/set` — buttons, cards,
    list-tiles, inputs, charts. See the compact catalog at
-   `GET /api/runtime/assets/ship-elements.md`.
+   `GET /api/assets/ship-elements.md`.
 3. **Design tokens** — `var(--surface-1)`, `var(--tone-success-fg)`,
    `var(--radius-md)`. Themes override them ([ship-themes](/reference/themes/)).
 

@@ -46,6 +46,6 @@ live template rules.
   (the escape hatch when the SDK genuinely doesn't cover a pattern).
 - `docs/ship-themes/` — tokens and theme catalog. Referenced from the
   Rules page.
-- `GET /api/runtime/sdk` — live machine-readable SDK manifest.
-- `GET /api/runtime/assets/jinja-macros.md` — generated macro reference
+- `GET /api/sdk` — live machine-readable SDK manifest.
+- `GET /api/assets/jinja-macros.md` — generated macro reference
   served by the daemon.

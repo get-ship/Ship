@@ -73,7 +73,7 @@ test.describe('data browser view (server-rendered)', () => {
 
     const html = await page.content();
     expect(html).toContain('EventSource');
-    expect(html).toContain('/api/runtime/events');
+    expect(html).toContain('/api/events/stream');
   });
 
   test('screenshot', async ({ page }) => {

@@ -1,6 +1,6 @@
 //! Runtime read API — exposes live platform state for Studio.
 //!
-//! Routes are mounted under `/api/runtime` in lib.rs.
+//! Routes are mounted at domain-level paths (`/api/jobs`, `/api/workspaces`, ...) in lib.rs.
 //! All handlers are read-only and use the existing `ApiState`.
 
 use axum::{
@@ -26,13 +26,13 @@ pub struct SessionsQuery {
 
 // ---- Handlers ----
 
-/// GET /api/runtime/workspaces
+/// GET /api/workspaces
 ///
 /// Returns only active workspaces. Archived/dead workspaces are excluded
 /// from the API surface — the reconciler handles cleanup internally.
 #[utoipa::path(
     get,
-    path = "/api/runtime/workspaces",
+    path = "/api/workspaces",
     responses((status = 200, body = MeshResponse)),
     tag = "runtime"
 )]
@@ -128,10 +128,10 @@ fn git_worktrees() -> Option<Vec<(String, String)>> {
     Some(out)
 }
 
-/// GET /api/runtime/sessions[?workspace_id=<id>]
+/// GET /api/sessions[?workspace_id=<id>]
 #[utoipa::path(
     get,
-    path = "/api/runtime/sessions",
+    path = "/api/sessions",
     params(SessionsQuery),
     responses((status = 200, body = MeshResponse)),
     tag = "runtime"
@@ -186,10 +186,10 @@ pub async fn list_sessions(
         .into_response()
 }
 
-/// GET /api/runtime/agents
+/// GET /api/agents/active
 #[utoipa::path(
     get,
-    path = "/api/runtime/agents",
+    path = "/api/agents/active",
     responses((status = 200, body = MeshResponse)),
     tag = "runtime"
 )]
@@ -252,7 +252,7 @@ pub async fn list_agents(
         .into_response()
 }
 
-/// GET /api/runtime/jobs
+/// GET /api/jobs
 ///
 /// Returns each `JobRecord` with two operator-visibility annotations:
 ///
@@ -263,7 +263,7 @@ pub async fn list_agents(
 /// - `notes`: optional truncated error / blocker for the row's NOTES column.
 #[utoipa::path(
     get,
-    path = "/api/runtime/jobs",
+    path = "/api/jobs",
     responses((status = 200, body = MeshResponse)),
     tag = "runtime"
 )]
@@ -424,10 +424,10 @@ pub struct EventSummary {
     payload_preview: String,
 }
 
-/// GET /api/runtime/jobs/{job_id}
+/// GET /api/jobs/{job_id}
 #[utoipa::path(
     get,
-    path = "/api/runtime/jobs/{job_id}",
+    path = "/api/jobs/{job_id}",
     responses((status = 200, body = MeshResponse)),
     tag = "runtime"
 )]
@@ -559,14 +559,14 @@ pub struct DispatchRequest {
     pub depends_on: Option<Vec<String>>,
 }
 
-/// POST /api/runtime/dispatch
+/// POST /api/jobs/dispatch
 ///
 /// UI-facing dispatch — mirrors `ship run` on the CLI. Loads the
 /// named pipeline, generates slug/branch/agent, and emits
 /// `job.created`. The orchestrator picks it up from there.
 #[utoipa::path(
     post,
-    path = "/api/runtime/dispatch",
+    path = "/api/jobs/dispatch",
     request_body = DispatchRequest,
     responses((status = 200, body = MeshResponse)),
     tag = "runtime"
@@ -741,12 +741,12 @@ fn default_cancel_reason() -> String {
     "operator-cancelled".to_string()
 }
 
-/// POST /api/runtime/jobs/{slug}/cancel — emit `job.cancelled` for the
+/// POST /api/jobs/{slug}/cancel — emit `job.cancelled` for the
 /// job with this slug. Idempotent: returns 409 with the current status
 /// when the job is already in a terminal state, and emits no event.
 #[utoipa::path(
     post,
-    path = "/api/runtime/jobs/{slug}/cancel",
+    path = "/api/jobs/{slug}/cancel",
     request_body = CancelJobRequest,
     responses((status = 200, body = MeshResponse)),
     tag = "runtime"
@@ -846,7 +846,7 @@ pub struct JobEndRequest {
     pub slug: String,
 }
 
-/// POST /api/runtime/jobs/end — signal that a provider turn ended for a job.
+/// POST /api/jobs/end — signal that a provider turn ended for a job.
 ///
 /// Called by the session Stop hook when an agent finishes a response turn.
 /// For multi-step pipeline jobs, this sends a TurnEnded signal to the step
@@ -854,7 +854,7 @@ pub struct JobEndRequest {
 /// For single-step jobs, emits job.completed directly.
 #[utoipa::path(
     post,
-    path = "/api/runtime/jobs/end",
+    path = "/api/jobs/end",
     request_body = JobEndRequest,
     responses((status = 200, body = MeshResponse)),
     tag = "runtime"
@@ -946,12 +946,12 @@ pub struct SteerAgentRequest {
     pub message: String,
 }
 
-/// POST /api/runtime/agents/{slug}/stop — stop a running agent by slug.
+/// POST /api/agents/{slug}/stop — stop a running agent by slug.
 ///
 /// Uses the process registry and executor to terminate the agent process.
 #[utoipa::path(
     post,
-    path = "/api/runtime/agents/{slug}/stop",
+    path = "/api/agents/{slug}/stop",
     responses((status = 200, body = MeshResponse)),
     tag = "runtime"
 )]
@@ -998,10 +998,10 @@ pub async fn stop_agent(
     }
 }
 
-/// POST /api/runtime/agents/{slug}/steer — inject a message into a running agent.
+/// POST /api/agents/{slug}/steer — inject a message into a running agent.
 #[utoipa::path(
     post,
-    path = "/api/runtime/agents/{slug}/steer",
+    path = "/api/agents/{slug}/steer",
     request_body = SteerAgentRequest,
     responses((status = 200, body = MeshResponse)),
     tag = "runtime"
@@ -1056,14 +1056,14 @@ pub struct ProcsQuery {
     pub limit: Option<usize>,
 }
 
-/// GET /api/runtime/procs[?slug=X][&limit=N]
+/// GET /api/procs[?slug=X][&limit=N]
 ///
 /// Returns process records from the `process.*` projection. Without
 /// `slug`, returns the most recent `limit` records (default 100), sorted
 /// newest first.
 #[utoipa::path(
     get,
-    path = "/api/runtime/procs",
+    path = "/api/procs",
     params(ProcsQuery),
     responses((status = 200, body = MeshResponse)),
     tag = "runtime"
@@ -1108,14 +1108,14 @@ pub struct EventsPollQuery {
     pub limit: Option<usize>,
 }
 
-/// GET /api/runtime/events/poll
+/// GET /api/events/poll
 ///
 /// Polling fallback for `ship tail`. SSE replays only future events;
 /// poll allows the CLI to walk the log forward from a known cursor.
 /// Use `since_id` (ULID) for incremental polling. Limit defaults to 200.
 #[utoipa::path(
     get,
-    path = "/api/runtime/events/poll",
+    path = "/api/events/poll",
     params(EventsPollQuery),
     responses((status = 200, body = MeshResponse)),
     tag = "runtime"
@@ -1182,14 +1182,14 @@ pub async fn poll_events(
     )
 }
 
-/// GET /api/runtime/daemon/status
+/// GET /api/daemon/status
 ///
 /// Real, live status for `ship daemon status` — pid, version, uptime,
 /// job counts by status, last sweep timestamp, drift count over the
 /// last 50 sweep events.
 #[utoipa::path(
     get,
-    path = "/api/runtime/daemon/status",
+    path = "/api/daemon/status",
     responses((status = 200, body = MeshResponse)),
     tag = "runtime"
 )]
@@ -1249,10 +1249,10 @@ pub async fn daemon_status(State(state): State<ApiState>) -> impl IntoResponse {
     )
 }
 
-/// POST /api/runtime/rebuild-projections — rebuild all projections from events.
+/// POST /api/rebuild-projections — rebuild all projections from events.
 #[utoipa::path(
     post,
-    path = "/api/runtime/rebuild-projections",
+    path = "/api/rebuild-projections",
     responses((status = 200, body = MeshResponse)),
     tag = "runtime"
 )]
@@ -1301,7 +1301,7 @@ impl Drop for ActorGuard {
     }
 }
 
-/// GET /api/runtime/events — SSE stream of kernel events.
+/// GET /api/events/stream — SSE stream of kernel events.
 ///
 /// Two output modes and an optional topic filter:
 ///
@@ -1324,7 +1324,7 @@ pub struct EventStreamQuery {
 
 #[utoipa::path(
     get,
-    path = "/api/runtime/events",
+    path = "/api/events/stream",
     responses((status = 200, description = "SSE stream of kernel events")),
     tag = "runtime"
 )]

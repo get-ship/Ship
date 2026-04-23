@@ -101,7 +101,7 @@
   }
   </style>
   {#- File-routed: data pulled inline via ship.events.list(). SSE
-      live reload hits /api/runtime/sse/events (manifest.yaml
+      live reload hits /api/sse/events (manifest.yaml
       declares the kernel-event topics). -#}
   {% set data = ship.events.list(q=ship.query.q|default(''),
                                   event_type=ship.query.eventType|default(''),

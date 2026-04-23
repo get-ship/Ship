@@ -133,7 +133,7 @@ body), Datastar emits a `datastar-fetch` document event with
   signal-scoped error message. Pair with a `<ship-alert>`.
 - **Global debugging:** the shell's error reporter posts every
   uncaught error, view render failure, and fetch failure to
-  `POST /api/runtime/view-errors`. Agents retrieve these via the
+  `POST /api/view-errors`. Agents retrieve these via the
   `ship_view_errors` MCP tool (see the Authoring loop page).
 
 The daemon also validates each render. A missing signal, a malformed

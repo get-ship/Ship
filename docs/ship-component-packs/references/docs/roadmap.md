@@ -15,7 +15,7 @@ vs what is scaffolded. It is deliberately not on the public site.
   no discovery API, and no install step for third-party packs. Adding
   a pack today means editing that Rust match arm.
 - **CEM retrieval for external packs not wired.** Agents consume
-  `GET /api/runtime/assets/ship-elements.md` (the compact catalog) and
+  `GET /api/assets/ship-elements.md` (the compact catalog) and
   `custom-elements.json` from the daemon. Those are generated from the
   in-tree `@ship/set` source only. An external pro-pack shipping its
   own CEM has no path into that retrieval surface yet.

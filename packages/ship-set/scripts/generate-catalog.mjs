@@ -53,7 +53,7 @@ for (const mod of cem.modules) {
 
 const lines = []
 lines.push('# Ship element catalog\n')
-lines.push('Compact reference auto-generated from `custom-elements.json`. For depth (types, defaults, descriptions, CSS custom properties), load the full CEM at `/api/runtime/assets/custom-elements.json`.\n')
+lines.push('Compact reference auto-generated from `custom-elements.json`. For depth (types, defaults, descriptions, CSS custom properties), load the full CEM at `/api/assets/custom-elements.json`.\n')
 lines.push('Convention: `attr=value|value` = enum, bare `attr` = boolean.\n')
 
 const headings = {

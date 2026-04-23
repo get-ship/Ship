@@ -100,7 +100,7 @@ pub fn run(opts: RunOptions) -> Result<()> {
         format!("ship-{sanitized}")
     };
 
-    match post_to_daemon("/api/runtime/dispatch", &body) {
+    match post_to_daemon("/api/jobs/dispatch", &body) {
         Ok(resp) => {
             eprintln!("Pipeline: {pipeline_name}");
             eprintln!("Steps:    {}", steps.len());
