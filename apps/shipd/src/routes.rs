@@ -258,14 +258,8 @@ pub enum Route {
     /// @route DELETE "/api/skills/{id}/vars/{key}"
     SkillsDeleteVar { id: String, key: String },
 
-    /// @route GET "/api/view/chat"
-    ViewChat,
-
-    /// @route GET "/api/view/chat/sse"
-    ViewChatSse,
-
-    /// @route POST "/api/view/chat/send"
-    ViewChatSend,
+    /// @route POST "/api/chat/send"
+    ChatSend,
 
     // ── Generic view serving ─────────────────────────────────────────────
 

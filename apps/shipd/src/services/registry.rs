@@ -520,6 +520,21 @@ pub fn call(name: &str, args: &Value, state: &ApiState) -> Result<Value, Registr
             }))
         }
 
+        // ── chat ──────────────────────────────────────────────────
+        "chat.state" => {
+            let ship_dir = state.ship_dir();
+            let ws_arg = args.get("workspace_id").and_then(|v| v.as_str())
+                .filter(|s| !s.is_empty());
+            let messages = crate::views::chat_state::list_messages(
+                ship_dir, ws_arg, crate::views::chat_state::DEFAULT_LIMIT,
+            );
+            Ok(json!({
+                "workspace_id": ws_arg.unwrap_or(""),
+                "messages": messages.clone(),
+                "total": messages.len(),
+            }))
+        }
+
         // ── dashboard ─────────────────────────────────────────────
         "dashboard.state" => {
             let ship_dir = state.ship_dir();
@@ -674,6 +689,7 @@ pub fn names() -> &'static [&'static str] {
         "settings.state",
         "dashboard.state",
         "collections.state",
+        "chat.state",
     ]
 }
 

@@ -168,7 +168,7 @@ async function toggleDrawer() {
   document.body.classList.toggle("drawer-open");
   if (opening) {
     try {
-      await mountDaemonFragment(drawerContent, "/api/view/chat", {
+      await mountDaemonFragment(drawerContent, "/api/v/chat", {
         token: TOKEN,
         base: DAEMON_BASE,
       });

@@ -15,6 +15,10 @@
 <head>{{ head('Chat') }}</head>
 <body>
 {% endif %}
+{%- set _state = ship.chat.state(workspace_id=ship.query.workspace_id | default('')) -%}
+{%- set workspace_id = _state.workspace_id -%}
+{%- set messages = _state.messages -%}
+{%- set total = _state.total -%}
 <div class="ship-view ship-view-chat"
      {{ signal('draft', '') }}
      {{ signal('workspace_id', workspace_id) }}
@@ -47,12 +51,12 @@
     </div>
 
     <div id="chat-messages" class="chat-messages"
-         data-init="@get('/api/view/chat/sse{% if workspace_id %}?workspace_id={{ workspace_id }}{% endif %}', {requestCancellation: 'disabled'})">
+         data-init="@get('/api/sse/chat{% if workspace_id %}?workspace_id={{ workspace_id }}{% endif %}', {requestCancellation: 'disabled'})">
       {% include 'chat/partials/messages.html.j2' %}
     </div>
 
     <form id="chat-composer" class="chat-composer"
-          data-on:submit="event.preventDefault(); $sending = true; @post('/api/view/chat/send', {contentType: 'json', body: JSON.stringify({text: $draft, workspace_id: $workspace_id || null})}); $draft = ''; $sending = false">
+          data-on:submit="event.preventDefault(); $sending = true; @post('/api/chat/send', {contentType: 'json', body: JSON.stringify({text: $draft, workspace_id: $workspace_id || null})}); $draft = ''; $sending = false">
       <textarea name="text" placeholder="Message the agent..."
                 data-bind="draft"
                 {{ loading('sending') }}

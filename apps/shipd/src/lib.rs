@@ -39,7 +39,6 @@ mod server;
 pub mod themes;
 pub mod views;
 pub mod views_raw;
-pub mod views_chat;
 pub mod specs_api;
 pub mod settings_api;
 pub mod attest;

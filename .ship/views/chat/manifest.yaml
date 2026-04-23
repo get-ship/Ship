@@ -1,7 +1,5 @@
 name: chat
 type: html
-data:
-  chat: true
 events:
   - studio.message
   - session.progress

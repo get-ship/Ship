@@ -71,9 +71,7 @@
 {%- macro skills_get_vars(id) -%}/api/skills/{{ id }}/vars{%- endmacro -%}
 {%- macro skills_put_var(id, key) -%}/api/skills/{{ id }}/vars/{{ key }}{%- endmacro -%}
 {%- macro skills_delete_var(id, key) -%}/api/skills/{{ id }}/vars/{{ key }}{%- endmacro -%}
-{%- macro view_chat() -%}/api/view/chat{%- endmacro -%}
-{%- macro view_chat_sse() -%}/api/view/chat/sse{%- endmacro -%}
-{%- macro view_chat_send() -%}/api/view/chat/send{%- endmacro -%}
+{%- macro chat_send() -%}/api/chat/send{%- endmacro -%}
 {%- macro list_views() -%}/api/views{%- endmacro -%}
 {%- macro serve_view_routed(path) -%}/api/v/{{ path }}{%- endmacro -%}
 {%- macro serve_view_sse_routed(path) -%}/api/sse/{{ path }}{%- endmacro -%}

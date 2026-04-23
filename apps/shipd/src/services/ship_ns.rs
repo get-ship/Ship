@@ -52,7 +52,7 @@ impl Object for ShipNs {
             // whose callable methods dispatch to the registry.
             "agents" | "skills" | "rules" | "mcp" | "permissions"
             | "pipelines" | "git" | "collections" | "specs" | "events"
-            | "settings" | "dashboard" => {
+            | "settings" | "dashboard" | "chat" => {
                 Some(Value::from_object(Domain {
                     state: self.state.clone(),
                     name: k.to_string(),
