@@ -1,6 +1,6 @@
 //! Generic file-routed view handler.
 //!
-//! Endpoint: `GET /api/runtime/v/{*path}`.
+//! Endpoint: `GET /api/v/{*path}`.
 //!
 //! 1. Match `path` against `.ship/views/` + `~/.ship/views/` via
 //!    `views::router::match_path` (project scope wins on overlap).

@@ -76,7 +76,7 @@
 </style>
 
 <div class="skills-editor">
-  {% if file is defined %}
+  {% if file %}
     <div class="se-toolbar">
       <div class="se-breadcrumb">
         <span>skills</span>
@@ -107,7 +107,7 @@
         <pre class="se-code-view">{{ file.content }}</pre>
       {% endif %}
     </div>
-  {% elif skill is defined %}
+  {% elif skill %}
     {# Skill selected but no file specified — show SKILL.md body #}
     <div class="se-toolbar">
       <div class="se-breadcrumb">

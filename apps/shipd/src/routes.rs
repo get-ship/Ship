@@ -311,15 +311,6 @@ pub enum Route {
     /// @route DELETE "/api/skills/{id}/vars/{key}"
     SkillsDeleteVar { id: String, key: String },
 
-    /// @route GET "/api/runtime/view/skills"
-    ViewSkills,
-
-    /// @route GET "/api/runtime/view/skills/rail"
-    ViewSkillsRail,
-
-    /// @route GET "/api/runtime/view/skills/detail/{id}"
-    ViewSkillDetail { id: String },
-
     /// @route GET "/api/runtime/view/chat"
     ViewChat,
 
@@ -343,10 +334,10 @@ pub enum Route {
     /// @route GET "/api/runtime/view/{name}"
     ServeView { name: String },
 
-    /// @route GET "/api/runtime/v/{*path}"
+    /// @route GET "/api/v/{*path}"
     ServeViewRouted { path: String },
 
-    /// @route GET "/api/runtime/sse/{*path}"
+    /// @route GET "/api/sse/{*path}"
     ServeViewSseRouted { path: String },
 
     /// @route GET "/api/runtime/view/{name}/manifest"

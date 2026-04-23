@@ -52,6 +52,25 @@ impl std::fmt::Display for RegistryError {
 }
 impl std::error::Error for RegistryError {}
 
+/// Minimal HTML entity escape for interpolated user content in views.
+/// The user-view env runs AutoEscape::None (needed for Datastar attrs),
+/// so untrusted content (file bodies) must be pre-escaped at the
+/// service boundary to prevent `<script>`/`<style>`/`<link>` injection.
+fn html_escape(s: &str) -> String {
+    let mut out = String::with_capacity(s.len());
+    for ch in s.chars() {
+        match ch {
+            '&' => out.push_str("&amp;"),
+            '<' => out.push_str("&lt;"),
+            '>' => out.push_str("&gt;"),
+            '"' => out.push_str("&quot;"),
+            '\'' => out.push_str("&#x27;"),
+            c => out.push(c),
+        }
+    }
+    out
+}
+
 // ── Args helpers ─────────────────────────────────────────────────────
 
 fn parse_scope(args: &Value) -> Result<Option<Scope>, RegistryError> {
@@ -123,6 +142,78 @@ pub fn call(name: &str, args: &Value, state: &ApiState) -> Result<Value, Registr
         "skills.list" => Ok(json!({
             "items": crate::services::skills::state::list(&files),
         })),
+        "skills.summaries" => {
+            let all = crate::views::state::list_skills(state.ship_dir());
+            let q = args.get("q").and_then(|v| v.as_str()).unwrap_or("");
+            let kind = args.get("kind").and_then(|v| v.as_str()).unwrap_or("all");
+            let tag = args.get("tag").and_then(|v| v.as_str()).unwrap_or("");
+            let needle = q.to_lowercase();
+            let total = all.len();
+            let mut smart = 0usize;
+            let mut docs = 0usize;
+            let mut tag_set: std::collections::BTreeSet<String> = Default::default();
+            for s in &all {
+                match serde_json::to_value(&s.kind).ok().and_then(|v| v.as_str().map(String::from)).as_deref() {
+                    Some("smart") => smart += 1,
+                    Some("docs") => docs += 1,
+                    _ => {}
+                }
+                for t in &s.tags { tag_set.insert(t.clone()); }
+            }
+            let filtered: Vec<_> = all.iter().filter(|s| {
+                let k = serde_json::to_value(&s.kind).ok().and_then(|v| v.as_str().map(String::from)).unwrap_or_default();
+                let kind_ok = kind == "all" || kind == k;
+                let hay = format!("{} {}", s.name, s.description).to_lowercase();
+                let q_ok = needle.is_empty() || hay.contains(&needle);
+                let tag_ok = tag.is_empty() || s.tags.iter().any(|t| t == tag);
+                kind_ok && q_ok && tag_ok
+            }).cloned().collect();
+            let mut by_source: std::collections::BTreeMap<String, Vec<_>> = Default::default();
+            for s in &filtered { by_source.entry(s.source.clone()).or_default().push(s.clone()); }
+            let groups: Vec<_> = by_source.into_iter()
+                .map(|(source, skills)| json!({ "source": source, "skills": skills }))
+                .collect();
+            Ok(json!({
+                "items": all,
+                "filtered": filtered,
+                "groups": groups,
+                "kind_counts": [
+                    { "id": "all", "label": "All", "count": total, "selected": kind == "all" },
+                    { "id": "smart", "label": "Smart", "count": smart, "selected": kind == "smart" },
+                    { "id": "docs", "label": "Docs", "count": docs, "selected": kind == "docs" },
+                ],
+                "tags": tag_set,
+                "total": total,
+                "filtered_count": filtered.len(),
+                "q": q,
+                "active_kind": kind,
+                "active_tag": tag,
+            }))
+        }
+        "skills.file" => {
+            let id = required_str(args, "id")?;
+            let path = required_str(args, "path")?;
+            let content = crate::views::state::load_skill_file(state.ship_dir(), id, path)
+                .ok_or_else(|| RegistryError::not_found(format!("file `{path}` in skill `{id}`")))?;
+            // HTML-escape: user-view env runs AutoEscape::None so any
+            // <script>/<style>/<link> in user content would otherwise
+            // leak into the document. Pre-escape at the service boundary.
+            let escaped = html_escape(&content);
+            let name = path.rsplit('/').next().unwrap_or(path).to_string();
+            let ext = name.rsplit('.').next().unwrap_or("").to_lowercase();
+            Ok(json!({
+                "path": path,
+                "name": name,
+                "ext": ext,
+                "content": escaped,
+            }))
+        }
+        "skills.detail" => {
+            let id = required_str(args, "id")?;
+            let detail = crate::views::state::load_skill(state.ship_dir(), id)
+                .ok_or_else(|| RegistryError::not_found(format!("skill `{id}`")))?;
+            serde_json::to_value(&detail).map_err(|e| RegistryError::service(e.to_string()))
+        }
         "skills.get" => {
             let id = required_str(args, "id")?;
             let scope = parse_scope(args)?;
@@ -324,7 +415,7 @@ pub fn call(name: &str, args: &Value, state: &ApiState) -> Result<Value, Registr
 pub fn names() -> &'static [&'static str] {
     &[
         "agents.list", "agents.get", "agents.summaries", "agents.detail", "agents.catalogs",
-        "skills.list", "skills.get",
+        "skills.list", "skills.get", "skills.summaries", "skills.file", "skills.detail", "skills.summaries", "skills.file",
         "rules.list", "rules.get",
         "mcp.list", "mcp.get",
         "permissions.list", "permissions.get", "permissions.tool_patterns",

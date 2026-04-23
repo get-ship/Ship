@@ -1,7 +1,7 @@
 //! Routed SSE handler — live server-pushed re-renders for file-routed
 //! views.
 //!
-//! Endpoint: `GET /api/runtime/sse/{*path}`.
+//! Endpoint: `GET /api/sse/{*path}`.
 //!
 //! 1. Match `path` against `.ship/views/` via `router::match_path`.
 //! 2. Look for `manifest.jsonc` / `manifest.yaml` next to the matched

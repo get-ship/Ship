@@ -88,9 +88,6 @@
 {%- macro skills_get_vars(id) -%}/api/skills/{{ id }}/vars{%- endmacro -%}
 {%- macro skills_put_var(id, key) -%}/api/skills/{{ id }}/vars/{{ key }}{%- endmacro -%}
 {%- macro skills_delete_var(id, key) -%}/api/skills/{{ id }}/vars/{{ key }}{%- endmacro -%}
-{%- macro view_skills() -%}/api/runtime/view/skills{%- endmacro -%}
-{%- macro view_skills_rail() -%}/api/runtime/view/skills/rail{%- endmacro -%}
-{%- macro view_skill_detail(id) -%}/api/runtime/view/skills/detail/{{ id }}{%- endmacro -%}
 {%- macro view_chat() -%}/api/runtime/view/chat{%- endmacro -%}
 {%- macro view_chat_sse() -%}/api/runtime/view/chat/sse{%- endmacro -%}
 {%- macro view_chat_send() -%}/api/runtime/view/chat/send{%- endmacro -%}
@@ -98,8 +95,8 @@
 {%- macro view_events_sse() -%}/api/runtime/view/events/sse{%- endmacro -%}
 {%- macro list_views() -%}/api/runtime/views{%- endmacro -%}
 {%- macro serve_view(name) -%}/api/runtime/view/{{ name }}{%- endmacro -%}
-{%- macro serve_view_routed(path) -%}/api/runtime/v/{{ path }}{%- endmacro -%}
-{%- macro serve_view_sse_routed(path) -%}/api/runtime/sse/{{ path }}{%- endmacro -%}
+{%- macro serve_view_routed(path) -%}/api/v/{{ path }}{%- endmacro -%}
+{%- macro serve_view_sse_routed(path) -%}/api/sse/{{ path }}{%- endmacro -%}
 {%- macro serve_view_manifest(name) -%}/api/runtime/view/{{ name }}/manifest{%- endmacro -%}
 {%- macro serve_view_bundle(name) -%}/api/runtime/view/{{ name }}/bundle{%- endmacro -%}
 {%- macro serve_view_raw(name) -%}/api/runtime/view/{{ name }}/raw{%- endmacro -%}

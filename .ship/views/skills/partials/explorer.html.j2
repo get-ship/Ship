@@ -2,7 +2,7 @@
   File explorer — 240px left pane with search, filter chips, and nested
   skill-to-file tree. Matches React SkillsFileExplorer layout.
 -#}
-{% from '_urls.html.j2' import view_skills, view_skill_detail %}
+{#- URLs hit the file-routed framework directly: /api/v/skills[/<id>]. -#}
 <style>
 .skills-explorer {
   display: flex; flex-direction: column;
@@ -138,13 +138,13 @@
         placeholder="Search skills..."
         spellcheck="false"
         aria-label="Search skills"
-        data-on:input__debounce.250ms="@get('{{ view_skills() }}?q=' + encodeURIComponent(evt.target.value) + '&kind={{ rail.active_kind }}')"
+        data-on:input__debounce.250ms="@get('/api/v/skills?q=' + encodeURIComponent(evt.target.value) + '&kind={{ rail.active_kind }}')"
       >
     </div>
     <div class="se-filters" role="group" aria-label="Filter by kind">
       {% for kc in rail.kind_counts %}
         <button class="se-pill{% if kc.selected %} is-active{% endif %}"
-          data-on:click="@get('{{ view_skills() }}?kind={{ kc.id }}{% if rail.q %}&q={{ rail.q }}{% endif %}')">
+          data-on:click="@get('/api/v/skills?kind={{ kc.id }}{% if rail.q %}&q={{ rail.q }}{% endif %}')">
           {{ kc.label }} <span style="opacity:0.6;font-variant-numeric:tabular-nums">{{ kc.count }}</span>
         </button>
       {% endfor %}
@@ -176,11 +176,11 @@
             </div>
           {% else %}
             {% for s in g.skills %}
-              {% set is_active = (skill is defined) and (skill.id == s.id) %}
+              {% set is_active = skill and (skill.id == s.id) %}
               {% set is_expanded = is_active %}
               <div role="treeitem">
                 <button class="se-skill"
-                  data-on:click="@get('{{ view_skill_detail(s.id) }}?q={{ rail.q }}&kind={{ rail.active_kind }}&file=SKILL.md')"
+                  data-on:click="@get('/api/v/skills/{{ s.id }}?q={{ rail.q }}&kind={{ rail.active_kind }}&file=SKILL.md')"
                   title="{{ s.description }}">
                   <span class="se-chevron" aria-hidden="true">
                     {% if is_expanded %}
@@ -202,10 +202,10 @@
                 </button>
                 {% if is_expanded and s.files|length > 0 %}
                   {% for f in s.files %}
-                    {% set is_file_active = (file is defined) and (file.path == f) %}
+                    {% set is_file_active = file and (file.path == f) %}
                     <button class="se-file{% if is_file_active %} is-active{% endif %}"
                       role="treeitem"
-                      data-on:click="@get('{{ view_skill_detail(s.id) }}?q={{ rail.q }}&kind={{ rail.active_kind }}&file={{ f }}')"
+                      data-on:click="@get('/api/v/skills/{{ s.id }}?q={{ rail.q }}&kind={{ rail.active_kind }}&file={{ f }}')"
                       title="{{ f }}">
                       {% if f == 'SKILL.md' %}
                         <ship-icon name="file" size="xs" tone="info"></ship-icon>

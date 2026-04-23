@@ -105,15 +105,6 @@ async fn render_sdk_shell(state: &ApiState, name: &str) -> Option<String> {
                 .ok()?
                 .0
         }
-        "skills" => {
-            crate::views_skills::skills_shell(
-                State(state.clone()),
-                Query(Default::default()),
-            )
-            .await
-            .ok()?
-            .0
-        }
         "chat" => {
             crate::views_chat::chat_shell(
                 State(state.clone()),
@@ -140,7 +131,6 @@ async fn render_sdk_shell(state: &ApiState, name: &str) -> Option<String> {
         "specs" => "Specs",
         "settings" => "Settings",
         "agents" => "Agents",
-        "skills" => "Skills",
         "chat" => "Chat",
         "events" => "Events",
         _ => "Ship",

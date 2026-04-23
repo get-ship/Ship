@@ -45,7 +45,6 @@ pub mod views_git_diff;
 pub mod views_pipelines;
 pub mod views_settings;
 pub mod views_agents;
-pub mod views_skills;
 pub mod views_chat;
 pub mod views_events;
 pub mod specs_api;

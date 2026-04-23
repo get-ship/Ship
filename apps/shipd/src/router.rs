@@ -18,7 +18,7 @@ use crate::{
     human_webhook, lint_api, logs_api, openapi, pairing, project_api, pty_handler, rest_api, runtime_api,
     sdk_manifest, services, session, settings_api, shell_assets, ship_runtime, specs_api, specs_view,
     supervisor, view_errors_api, view_morph_target, view_sessions_api, views, collection_api, views_agents,
-    views_chat, views_events, views_git, views_pipelines, views_raw, views_settings, views_skills,
+    views_chat, views_events, views_git, views_pipelines, views_raw, views_settings,
 };
 
 /// Build the full Axum router with all route groups, auth, and CORS.
@@ -332,9 +332,6 @@ fn build_ship_routes(st: rest_api::ApiState) -> Router {
         .ship_route(Route::SkillsGetVars_template(), services::skills::get_vars)
         .ship_route(Route::SkillsPutVar_template(), services::skills::put_var)
         .ship_route(Route::SkillsDeleteVar_template(), services::skills::delete_var)
-        .ship_route(Route::ViewSkills, views_skills::skills_shell)
-        .ship_route(Route::ViewSkillsRail, views_skills::skills_rail)
-        .ship_route(Route::ViewSkillDetail_template(), views_skills::skill_detail)
         .ship_route(Route::ViewChat, views_chat::chat_shell)
         .ship_route(Route::ViewChatSse, views_chat::chat_sse)
         .ship_route(Route::ViewChatSend, views_chat::chat_send)
