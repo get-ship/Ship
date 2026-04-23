@@ -55,7 +55,7 @@ fn source_hash(source: &str) -> u64 {
 /// New templates must be added here to be loadable. Names use forward
 /// slashes regardless of host OS (minijinja convention). Keep this list
 /// alphabetized for easier diffing.
-const TEMPLATES: &[(&str, &str)] = &[
+pub(crate) const TEMPLATES: &[(&str, &str)] = &[
     (
         "_breadcrumb.html.j2",
         include_str!("../../templates/_breadcrumb.html.j2"),
@@ -370,7 +370,7 @@ fn walk_templates(
 /// pairs. Scans the project `.ship/views/<view>/` first, then the
 /// global dir, with the project winning on path collisions. Excludes
 /// the top-level `name` template itself — caller supplies that source.
-fn collect_siblings(name: &str) -> Vec<(String, String)> {
+pub(crate) fn collect_siblings(name: &str) -> Vec<(String, String)> {
     let mut sibling_sources: Vec<(String, String)> = Vec::new();
     let Some(view_name) = name.split('/').next() else { return sibling_sources };
     let mut registered: std::collections::HashSet<String> = std::collections::HashSet::new();

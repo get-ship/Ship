@@ -193,6 +193,12 @@
   </style>
   <div class="agents-wrap">
 
+    {#- File-routed view — data pulled inline via ship.* SDK, no
+        custom Rust handler. SSE lives at /api/runtime/sse/agents
+        (manifest.yaml declares its event subscriptions). -#}
+    {% set agents = ship.agents.summaries()['items'] %}
+    {% set total = agents | length %}
+
     <header class="agents-head">
       <div>
         <h1 class="agents-title">Agents</h1>
@@ -204,11 +210,7 @@
       </ship-button>
     </header>
 
-    <div {{ live('agents') }}>
-      <div id="agents-content">
-        <p class="loading-copy">Loading...</p>
-      </div>
-    </div>
+    {% include 'agents/partials/content.html.j2' %}
 
   </div>
 </div>

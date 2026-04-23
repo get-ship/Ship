@@ -119,7 +119,7 @@ pub(crate) fn render_routed(
     let source = std::fs::read_to_string(&m.template)
         .map_err(|e| format!("read {}: {e}", m.template.display()))?;
     let ctx_with_ship = build_render_ctx(ctx_json, state, &m, query);
-    render_source(&m.template, &source, ctx_with_ship)
+    render_source(&m.template, &source, &m.view_name, ctx_with_ship)
 }
 
 pub async fn serve_view_routed(
@@ -216,7 +216,7 @@ pub async fn serve_view_routed(
     // object arg that merges into the render scope.
     let ctx_with_ship = build_render_ctx(ctx_json.clone(), &state, &m, &query);
 
-    let html = match render_source(&m.template, &source, ctx_with_ship) {
+    let html = match render_source(&m.template, &source, &m.view_name, ctx_with_ship) {
         Ok(h) => h,
         Err(e) => {
             tracing::warn!(view = %m.view_name, "routed view render failed: {e}");
@@ -267,19 +267,49 @@ fn build_render_ctx(
     minijinja::context! { ship, ..base }
 }
 
-/// Render a template source directly using a local env. This bypasses
-/// the global `templates::render` because we need a per-render env
-/// that can carry the ShipNs (which holds ApiState).
+/// Render a template source with a fresh env that mirrors what the
+/// user-view renderer sets up: embedded `TEMPLATES` (macros, shared
+/// partials), sibling partials discovered on disk, SDK filters,
+/// auto-escape disabled. Adds our `__routed__` source + renders.
+///
+/// We don't use the cached user-view renderer because we need to
+/// pass a minijinja::Value (holding the ShipNs Object, which owns
+/// ApiState) rather than a Serialize ctx.
 fn render_source(
     template_path: &std::path::Path,
     source: &str,
+    view_name: &str,
     ctx: Value,
 ) -> Result<String, String> {
-    // Build a transient env with the shared template corpus + our
-    // one-off source. Reuses the global env's registered templates
-    // (macros, `_urls.html.j2`, etc.) so templates can import.
-    let shared = crate::views::templates::env();
-    let mut env = shared.clone();
+    use minijinja::Environment;
+
+    let mut env = Environment::new();
+    env.set_undefined_behavior(minijinja::UndefinedBehavior::Lenient);
+    env.set_auto_escape_callback(|_| minijinja::AutoEscape::None);
+    env.add_filter("truncate", |value: String, length: usize| -> String {
+        if value.chars().count() <= length { value }
+        else { let mut s: String = value.chars().take(length.saturating_sub(1)).collect(); s.push('…'); s }
+    });
+    crate::views::view_filters::register_all(&mut env);
+
+    // Embedded TEMPLATES — macros (_ship.html.j2), _urls, shared
+    // partials (agents/shell.html.j2, agents/partials/card.html.j2,
+    // chat/partials/*, etc.).
+    for (n, s) in crate::views::templates::TEMPLATES {
+        let _ = env.add_template(n, s);
+    }
+
+    // Sibling partials on disk. Leak strings into 'static so the env
+    // satisfies Environment<'static> — transient env, strings freed
+    // with the env drop (technically leak, but per-request so fine).
+    let top = view_name.split('/').next().unwrap_or(view_name);
+    for (n, s) in crate::views::templates::collect_siblings(top) {
+        let leaked_n: &'static str = Box::leak(n.into_boxed_str());
+        let leaked_s: &'static str = Box::leak(s.into_boxed_str());
+        let _ = env.add_template(leaked_n, leaked_s);
+    }
+
+    // Add the main source under a stable name.
     env.add_template_owned("__routed__", source.to_string())
         .map_err(|e| format!("parse {}: {e}", template_path.display()))?;
     let tpl = env

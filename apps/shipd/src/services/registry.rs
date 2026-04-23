@@ -89,6 +89,21 @@ pub fn call(name: &str, args: &Value, state: &ApiState) -> Result<Value, Registr
         "agents.list" => Ok(json!({
             "items": crate::services::agents::state::list(&files),
         })),
+        "agents.summaries" => Ok(json!({
+            "items": crate::services::agents::view_state::list_agents(state.ship_dir()),
+        })),
+        "agents.detail" => {
+            let id = required_str(args, "id")?;
+            let detail = crate::services::agents::view_state::load_agent(state.ship_dir(), id)
+                .ok_or_else(|| RegistryError::not_found(format!("agent `{id}`")))?;
+            serde_json::to_value(&detail)
+                .map_err(|e| RegistryError::service(e.to_string()))
+        }
+        "agents.catalogs" => {
+            let cats = crate::services::agents::view_state::list_agent_catalogs(state.ship_dir());
+            serde_json::to_value(&cats)
+                .map_err(|e| RegistryError::service(e.to_string()))
+        }
         "agents.get" => {
             let id = required_str(args, "id")?;
             let scope = parse_scope(args)?;
@@ -265,7 +280,7 @@ pub fn call(name: &str, args: &Value, state: &ApiState) -> Result<Value, Registr
 /// registration, lint diagnostics.
 pub fn names() -> &'static [&'static str] {
     &[
-        "agents.list", "agents.get",
+        "agents.list", "agents.get", "agents.summaries", "agents.detail", "agents.catalogs",
         "skills.list", "skills.get",
         "rules.list", "rules.get",
         "mcp.list", "mcp.get",
