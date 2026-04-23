@@ -152,42 +152,6 @@ pub(crate) const TEMPLATES: &[(&str, &str)] = &[
         include_str!("../../templates/events/partials/filters.html.j2"),
     ),
     (
-        "git/partials/diff_viewer.html.j2",
-        include_str!("../../templates/git/partials/diff_viewer.html.j2"),
-    ),
-    (
-        "git/partials/log_section.html.j2",
-        include_str!("../../templates/git/partials/log_section.html.j2"),
-    ),
-    (
-        "git/partials/review_banner.html.j2",
-        include_str!("../../templates/git/partials/review_banner.html.j2"),
-    ),
-    (
-        "git/partials/status_block.html.j2",
-        include_str!("../../templates/git/partials/status_block.html.j2"),
-    ),
-    (
-        "git/partials/changes_panel.html.j2",
-        include_str!("../../templates/git/partials/changes_panel.html.j2"),
-    ),
-    (
-        "git/partials/diff_pane.html.j2",
-        include_str!("../../templates/git/partials/diff_pane.html.j2"),
-    ),
-    (
-        "git/partials/history_tab.html.j2",
-        include_str!("../../templates/git/partials/history_tab.html.j2"),
-    ),
-    (
-        "git/partials/branches_tab.html.j2",
-        include_str!("../../templates/git/partials/branches_tab.html.j2"),
-    ),
-    (
-        "git/shell.html.j2",
-        include_str!("../../templates/git/shell.html.j2"),
-    ),
-    (
         "pipelines/content.html.j2",
         include_str!("../../templates/pipelines/content.html.j2"),
     ),

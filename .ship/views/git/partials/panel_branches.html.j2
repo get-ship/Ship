@@ -1,0 +1,97 @@
+{#- Branches tab: split rail + detail cards per branch. -#}
+<div class="gv-panel" data-show="$tab == 'branches'" style="display:none">
+  {% if branches and branches | length > 0 %}
+    <div class="gv-branches-split">
+      <div class="gv-bleft">
+        <ship-scroll-area style="flex:1">
+          <div style="padding:6px 0">
+            {% for b in branches %}
+              <ship-list-tile interactive density="compact"
+                {% if b.active %}tone="accent"{% endif %}
+                data-attr:selected="$activeBranch == {{ loop.index0 }}"
+                data-on:ship-select="$activeBranch = {{ loop.index0 }}">
+                <ship-status-dot slot="leading"
+                  tone="{% if b.active %}success{% else %}muted{% endif %}"
+                  {% if b.active %}pulse{% endif %}></ship-status-dot>
+                <span class="gv-mono" style="font-size:12.5px">{{ b.name | e }}</span>
+                <span slot="meta">
+                  {% if b.upstream %}{{ b.upstream | e }}{% else %}local only{% endif %}
+                </span>
+                <span slot="trailing" class="gv-mono" style="font-size:11px">
+                  {% if b.ahead > 0 %}<span class="gv-add">↑{{ b.ahead }}</span>{% endif %}
+                  {% if b.behind > 0 %}<span class="gv-del">↓{{ b.behind }}</span>{% endif %}
+                </span>
+              </ship-list-tile>
+            {% endfor %}
+          </div>
+        </ship-scroll-area>
+      </div>
+
+      <div class="gv-bright">
+        <ship-scroll-area style="flex:1">
+          <div class="gv-stack gv-pad" style="padding:24px">
+            {% for b in branches %}
+              <div class="gv-stack" data-show="$activeBranch == {{ loop.index0 }}" style="display:none">
+
+                <ship-toolbar justify="between">
+                  <div>
+                    <div class="gv-mono" style="font-size:16px;font-weight:600">{{ b.name | e }}</div>
+                    <div style="font-size:12px;color:var(--muted-foreground);margin-top:2px">
+                      {% if b.upstream %}tracking <ship-code inline>{{ b.upstream | e }}</ship-code>{% else %}no upstream{% endif %}
+                    </div>
+                  </div>
+                  <ship-toolbar>
+                    <ship-button size="sm" variant="ghost">Compare</ship-button>
+                    {% if not b.active %}
+                      <ship-button size="sm" variant="solid" tone="accent">Checkout</ship-button>
+                    {% endif %}
+                  </ship-toolbar>
+                </ship-toolbar>
+
+                <div class="gv-grid-2">
+                  <ship-card>
+                    <div slot="header" style="font-size:11px;font-weight:600;letter-spacing:.04em;text-transform:uppercase;color:var(--muted-foreground)">
+                      Status
+                    </div>
+                    <div style="display:flex;flex-direction:column;gap:0">
+                      <ship-metachip label="Head"><ship-code inline>{{ b.name | e }}</ship-code></ship-metachip>
+                      {% if b.upstream %}
+                        <ship-metachip label="Upstream"><ship-code inline>{{ b.upstream | e }}</ship-code></ship-metachip>
+                      {% endif %}
+                      <ship-metachip label="Divergence">
+                        <span class="gv-add">↑{{ b.ahead }}</span>
+                        <span class="gv-del">↓{{ b.behind }}</span>
+                      </ship-metachip>
+                    </div>
+                  </ship-card>
+
+                  <ship-card>
+                    <div slot="header" style="font-size:11px;font-weight:600;letter-spacing:.04em;text-transform:uppercase;color:var(--muted-foreground)">
+                      Actions
+                    </div>
+                    <ship-toolbar style="flex-direction:column;align-items:stretch;gap:8px">
+                      <ship-button variant="ghost" size="sm" style="justify-content:flex-start">
+                        <ship-icon name="arrow-down" size="xs"></ship-icon> Pull latest
+                      </ship-button>
+                      <ship-button variant="ghost" size="sm" style="justify-content:flex-start">
+                        <ship-icon name="arrow-up" size="xs"></ship-icon> Push changes
+                      </ship-button>
+                      <ship-button variant="ghost" size="sm" style="justify-content:flex-start">
+                        <ship-icon name="git-merge" size="xs"></ship-icon> Rebase on main
+                      </ship-button>
+                    </ship-toolbar>
+                  </ship-card>
+                </div>
+
+              </div>
+            {% endfor %}
+          </div>
+        </ship-scroll-area>
+      </div>
+    </div>
+  {% else %}
+    <ship-empty-state icon="git-branch" tone="muted" size="md" style="flex:1">
+      <span slot="title">No branches</span>
+    </ship-empty-state>
+  {% endif %}
+</div>

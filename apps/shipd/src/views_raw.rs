@@ -72,15 +72,6 @@ async fn render_sdk_shell(state: &ApiState, name: &str) -> Option<String> {
             .ok()?
             .0
         }
-        "git" => {
-            crate::views_git::git_shell(
-                State(state.clone()),
-                Query(Default::default()),
-            )
-            .await
-            .ok()?
-            .0
-        }
         "specs" => {
             crate::specs_view::specs_shell(
                 State(state.clone()),
@@ -127,7 +118,6 @@ async fn render_sdk_shell(state: &ApiState, name: &str) -> Option<String> {
     };
     let title = match name {
         "pipelines" => "Pipelines",
-        "git" => "Git",
         "specs" => "Specs",
         "settings" => "Settings",
         "agents" => "Agents",

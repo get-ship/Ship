@@ -1,10 +1,10 @@
-//! Unified-diff parser for the git detail view.
+//! Unified-diff parser for the git view.
 //!
 //! Mirrors `apps/web/src/features/studio/session/diff-parser.ts` so the
 //! daemon can emit pre-parsed structured markup for the
-//! `<ship-git-diff>` component tree. Kept decoupled from the handler +
-//! data loaders so it can be unit-tested in isolation and the other
-//! files stay under the 300-line cap.
+//! `<ship-git-diff>` component tree. Lives in the service layer so the
+//! registry op (`git.diff`) can produce already-structured data for
+//! templates to consume without mutation gymnastics.
 
 use serde::Serialize;
 
@@ -86,7 +86,6 @@ pub fn parse_unified_diff(text: &str) -> ParsedDiff {
 
     for line in text.split('\n') {
         if let Some(rest) = line.strip_prefix("diff --git ") {
-            // push previous file
             if let Some(mut f) = current_file.take() {
                 flush_hunk(&mut f, &mut current_hunk);
                 files.push(f);
@@ -163,7 +162,6 @@ pub fn parse_unified_diff(text: &str) -> ParsedDiff {
             file.deletions += 1;
             old_line += 1;
         } else if line.starts_with('\\') {
-            // "\ No newline at end of file" — skip
             continue;
         } else {
             let content = escape_html(line.strip_prefix(' ').unwrap_or(line));
@@ -208,8 +206,6 @@ mod tests {
         assert_eq!(f.deletions, 1);
         assert_eq!(f.hunks.len(), 1);
         assert_eq!(f.hunks[0].header, "@@ -1,3 +1,4 @@");
-        // 5 "real" lines plus a trailing context produced by the final \n
-        // — mirrors the JS parser's split('\n') behavior.
         assert_eq!(f.hunks[0].lines.len(), 6);
     }
 

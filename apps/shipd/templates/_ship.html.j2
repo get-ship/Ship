@@ -223,7 +223,7 @@ data-signals:{{ name }}="{% if default is string %}'{{ default }}'{% elif defaul
       own URL for a full reload.
 
   Example:
-    {% if error %}{{ error_state(error, retry=view_git()) }}{% endif %}
+    {% if error %}{{ error_state(error, retry='/api/v/git') }}{% endif %}
 -#}
 {% macro error_state(err, size='md', variant='default', retry=none) -%}
 <ship-error-state size="{{ size }}" variant="{{ variant }}"

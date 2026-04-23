@@ -30,7 +30,6 @@ pub(crate) fn build_generic_context(
     load_specs(&mut ctx, manifest_data);
     load_chat(&mut ctx, manifest_data, query_params, &ship_dir);
     load_pipelines(&mut ctx, signals, manifest_data, &ship_dir);
-    load_git(&mut ctx, manifest_data, query_params, &ship_dir);
 
     ctx
 }
@@ -247,25 +246,3 @@ fn load_chat(
     ctx["messages"] = serde_json::to_value(&messages).unwrap_or_default();
 }
 
-fn load_git(
-    ctx: &mut serde_json::Value,
-    manifest_data: &Option<ManifestData>,
-    query_params: &HashMap<String, String>,
-    ship_dir: &Path,
-) {
-    if !manifest_data.as_ref().and_then(|d| d.git).unwrap_or(false) {
-        return;
-    }
-    let params = crate::views_git::GitParams {
-        workspace_id: query_params.get("workspace_id").cloned(),
-        commit: query_params.get("commit").cloned(),
-        file: query_params.get("file").cloned(),
-    };
-    let git_ctx = crate::views_git::build_base_ctx(&params, ship_dir);
-    let val = serde_json::to_value(&git_ctx).unwrap_or_default();
-    if let serde_json::Value::Object(map) = val {
-        for (k, v) in map {
-            ctx[k] = v;
-        }
-    }
-}

@@ -18,7 +18,7 @@ use crate::{
     human_webhook, lint_api, logs_api, openapi, pairing, project_api, pty_handler, rest_api, runtime_api,
     sdk_manifest, services, session, settings_api, shell_assets, ship_runtime, specs_api, specs_view,
     supervisor, view_errors_api, view_morph_target, view_sessions_api, views, collection_api, views_agents,
-    views_chat, views_events, views_git, views_pipelines, views_raw, views_settings,
+    views_chat, views_events, views_pipelines, views_raw, views_settings,
 };
 
 /// Build the full Axum router with all route groups, auth, and CORS.
@@ -261,8 +261,6 @@ fn build_ship_routes(st: rest_api::ApiState) -> Router {
         // Feedback ingress
         .ship_route(Route::PostFeedback, feedback_api::post_feedback)
         .ship_route(Route::PostAnnotation, annotations_api::post_annotation)
-        .ship_route(Route::ViewGit, views_git::git_shell)
-        .ship_route(Route::ViewGitSse, views_git::git_sse)
         .ship_route(Route::ViewPipelines, views_pipelines::pipelines_shell)
         .ship_route(Route::ViewPipelinesSse, views_pipelines::pipelines_sse)
         .ship_route(Route::ViewSettings, views_settings::settings_shell)

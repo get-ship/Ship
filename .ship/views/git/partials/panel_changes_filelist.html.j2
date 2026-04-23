@@ -1,0 +1,62 @@
+{#- Left rail of the split Changes panel: file list grouped by
+    staged / modified / untracked. Requires: staged, modified,
+    untracked, active_file, base_url, ws_qs, total_changed. -#}
+<div class="gv-left">
+  <ship-toolbar variant="bordered" style="padding: 8px 12px">
+    <ship-icon name="git-branch" size="xs"></ship-icon>
+    <strong style="font-size:11px;letter-spacing:.04em;text-transform:uppercase;color:var(--muted-foreground)">Changes</strong>
+    <span slot="spacer"></span>
+    <span class="gv-mono" style="font-size:11px;color:var(--muted-foreground)">{{ total_changed }} files</span>
+  </ship-toolbar>
+
+  <div class="gv-row gv-pad" style="gap:6px;flex-wrap:wrap;border-bottom:1px solid var(--border);padding:8px 12px">
+    {% if staged | length > 0 %}
+      <ship-chip tone="success" variant="soft" size="sm">
+        <ship-status-dot slot="leading" tone="success" size="sm"></ship-status-dot>
+        {{ staged | length }} staged
+      </ship-chip>
+    {% endif %}
+    <ship-chip tone="warning" variant="soft" size="sm">
+      <ship-status-dot slot="leading" tone="warning" size="sm"></ship-status-dot>
+      {{ modified | length }} modified
+    </ship-chip>
+    {% if untracked | length > 0 %}
+      <ship-chip tone="muted" variant="outline" size="sm">
+        {{ untracked | length }} untracked
+      </ship-chip>
+    {% endif %}
+  </div>
+
+  <ship-scroll-area style="flex:1">
+    {% if staged | length > 0 %}
+      <div style="padding:10px 12px 4px;font-size:10.5px;font-weight:600;letter-spacing:.04em;text-transform:uppercase;color:var(--muted-foreground)">Staged</div>
+      {% for f in staged %}
+        <ship-file-row
+          path="{{ f.path | e }}" basename="{{ f.basename | e }}" status="S"
+          {% if active_file == f.path %}active{% endif %}
+          data-on:ship-select="@get('{{ base_url }}?commit=WORKING&file={{ f.path | e }}{{ ws_qs }}')">
+        </ship-file-row>
+      {% endfor %}
+    {% endif %}
+    {% if modified | length > 0 %}
+      <div style="padding:10px 12px 4px;font-size:10.5px;font-weight:600;letter-spacing:.04em;text-transform:uppercase;color:var(--muted-foreground)">Modified</div>
+      {% for f in modified %}
+        <ship-file-row
+          path="{{ f.path | e }}" basename="{{ f.basename | e }}" status="{{ f.status | e }}"
+          {% if active_file == f.path %}active{% endif %}
+          data-on:ship-select="@get('{{ base_url }}?commit=WORKING&file={{ f.path | e }}{{ ws_qs }}')">
+        </ship-file-row>
+      {% endfor %}
+    {% endif %}
+    {% if untracked | length > 0 %}
+      <div style="padding:10px 12px 4px;font-size:10.5px;font-weight:600;letter-spacing:.04em;text-transform:uppercase;color:var(--muted-foreground)">Untracked</div>
+      {% for f in untracked %}
+        <ship-file-row
+          path="{{ f.path | e }}" basename="{{ f.basename | e }}" status="?"
+          {% if active_file == f.path %}active{% endif %}
+          data-on:ship-select="@get('{{ base_url }}?commit=WORKING&file={{ f.path | e }}{{ ws_qs }}')">
+        </ship-file-row>
+      {% endfor %}
+    {% endif %}
+  </ship-scroll-area>
+</div>

@@ -125,12 +125,6 @@ pub enum Route {
     /// @route GET "/api/runtime/view/specs/sse"
     ViewSpecsSse,
 
-    /// @route GET "/api/runtime/view/git"
-    ViewGit,
-
-    /// @route GET "/api/runtime/view/git/sse"
-    ViewGitSse,
-
     /// @route GET "/api/runtime/view/settings"
     ViewSettings,
 

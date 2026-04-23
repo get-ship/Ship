@@ -11,6 +11,7 @@ use runtime::collections::{builtin::ANNOTATIONS_ID, query::QueryRequest, service
 use runtime::data::DataService;
 use serde::Serialize;
 use std::collections::BTreeMap;
+use std::path::Path;
 
 #[derive(Clone, Serialize)]
 pub struct GitAnnotation {
@@ -28,8 +29,24 @@ pub struct GitAnnotation {
 pub type AnnotationsByLine = BTreeMap<String, Vec<GitAnnotation>>;
 
 /// Query the annotations collection for all comments attached to `file_path`
-/// in the given git view context. Returns a map keyed by selector.
+/// in the given git view context. Synchronous — opens a fresh DataService
+/// handle per call so the registry op can run on a sync dispatch path.
 pub fn load_file_annotations(
+    ship_dir: &Path,
+    file_path: &str,
+    workspace_id: Option<&str>,
+) -> AnnotationsByLine {
+    let mut svc = match DataService::open(ship_dir) {
+        Ok(s) => s,
+        Err(e) => {
+            tracing::warn!(error = %e, "failed to open DataService for git annotations");
+            return BTreeMap::new();
+        }
+    };
+    load_from_svc(&mut svc, file_path, workspace_id)
+}
+
+fn load_from_svc(
     svc: &mut DataService,
     file_path: &str,
     workspace_id: Option<&str>,
@@ -42,7 +59,10 @@ pub fn load_file_annotations(
     let schema = runtime::collections::builtin::annotations_schema();
 
     let mut filter = BTreeMap::new();
-    filter.insert("file_path".to_string(), serde_json::Value::String(file_path.to_string()));
+    filter.insert(
+        "file_path".to_string(),
+        serde_json::Value::String(file_path.to_string()),
+    );
     filter.insert("view_id".to_string(), serde_json::Value::String(view_id));
 
     let req = QueryRequest {
@@ -68,8 +88,6 @@ pub fn load_file_annotations(
     let mut out: AnnotationsByLine = BTreeMap::new();
 
     for item in items {
-        // Item.data holds the collection fields; item.id and item.created_at
-        // are top-level.
         let data = &item.data;
         let selector = match data.get("selector").and_then(|v| v.as_str()) {
             Some(s) => s.to_string(),
@@ -78,14 +96,8 @@ pub fn load_file_annotations(
         let annotation = GitAnnotation {
             id: item.id.clone(),
             selector: selector.clone(),
-            note: data
-                .get("note")
-                .and_then(|v| v.as_str())
-                .map(str::to_string),
-            intent: data
-                .get("intent")
-                .and_then(|v| v.as_str())
-                .map(str::to_string),
+            note: data.get("note").and_then(|v| v.as_str()).map(str::to_string),
+            intent: data.get("intent").and_then(|v| v.as_str()).map(str::to_string),
             author_kind: data
                 .get("author_kind")
                 .and_then(|v| v.as_str())

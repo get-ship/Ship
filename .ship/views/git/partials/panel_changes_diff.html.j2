@@ -1,0 +1,140 @@
+{#- Right pane of the split Changes view: selected commit's diff
+    body with toolbar, provenance banner, annotations, and comment
+    composer. Requires: selected_commit, active_file, annotations. -#}
+<div>
+  {% if selected_commit %}
+    {%- set parsed = selected_commit.parsed -%}
+    {%- set all_files = parsed.files if parsed and parsed.files else [] -%}
+    {%- if active_file -%}
+      {%- set filtered_files = all_files | selectattr('path', 'equalto', active_file) | list -%}
+    {%- else -%}
+      {%- set filtered_files = all_files -%}
+    {%- endif -%}
+
+    {% if filtered_files | length > 0 %}
+      {%- set shown = filtered_files[0] -%}
+
+      <ship-toolbar variant="bordered" style="padding: 8px 12px">
+        <ship-badge tone="warning" variant="soft" size="sm">diff</ship-badge>
+        <span class="gv-mono" style="font-size:12.5px">{{ shown.path | e }}</span>
+        <span slot="spacer"></span>
+        <span class="gv-mono" style="font-size:11.5px">
+          <span class="gv-add">+{{ shown.additions }}</span>
+          <span class="gv-del">−{{ shown.deletions }}</span>
+        </span>
+        <ship-segmented value="unified" size="sm"
+          data-attr:value="$diffMode"
+          data-on:ship-change="$diffMode = evt.detail.value">
+          <ship-segmented-option value="unified">Unified</ship-segmented-option>
+          <ship-segmented-option value="split">Split</ship-segmented-option>
+        </ship-segmented>
+      </ship-toolbar>
+
+      {% if shown.pipeline %}
+        <div class="gv-prov-banner">
+          <span class="tag">
+            <ship-icon name="sparkles" size="xs"></ship-icon>
+            {{ shown.pipeline | e }}
+          </span>
+          <span class="desc">
+            Produced by agent <b style="color:var(--foreground)">{{ shown.agent | default('—') | e }}</b>
+            {% if shown.run_at %} · {{ shown.run_at | e }}{% endif %}
+            {% if shown.run_id %} · run #{{ shown.run_id }}{% endif %}
+          </span>
+          <div class="right">
+            {% if shown.run_id %}
+              <ship-button size="sm" variant="ghost" {{ nav('/pipelines') }}>View run</ship-button>
+            {% endif %}
+            {% if shown.agent %}
+              <ship-button size="sm" variant="ghost" {{ nav('/agents/' ~ shown.agent) }}>Open agent</ship-button>
+            {% endif %}
+          </div>
+        </div>
+      {% elif selected_commit.is_working %}
+        <ship-alert tone="muted" style="display:block;margin:0;border-radius:0;border-left:0;border-right:0;border-top:0">
+          <span slot="icon"><ship-icon name="git-commit" size="xs"></ship-icon></span>
+          Viewing working tree changes vs HEAD.
+        </ship-alert>
+      {% endif %}
+
+      <ship-scroll-area style="flex:1"
+        data-on:ship-comment="$commentLine = evt.detail.new || evt.detail.old">
+        <div class="gv-pad">
+          {% for file in filtered_files %}
+            <ship-git-diff files="1">
+              <ship-git-diff-file
+                path="{{ file.path | e }}"
+                additions="{{ file.additions }}"
+                deletions="{{ file.deletions }}">
+                {% for hunk in file.hunks %}
+                  <ship-git-diff-hunk header="{{ hunk.header | e }}"></ship-git-diff-hunk>
+                  {% for line in hunk.lines %}
+                    <ship-git-diff-line
+                      type="{{ line.kind }}"
+                      old="{% if line.old_num %}{{ line.old_num }}{% endif %}"
+                      new="{% if line.new_num %}{{ line.new_num }}{% endif %}">{{ line.content | e }}</ship-git-diff-line>
+                  {% endfor %}
+                {% endfor %}
+              </ship-git-diff-file>
+            </ship-git-diff>
+          {% endfor %}
+
+          {% if annotations %}
+            {%- set sha = selected_commit.sha -%}
+            <div class="gv-stack" style="margin-top:var(--space-3)">
+              {% for key, thread in annotations %}
+                {% for ann in thread %}
+                  <ship-card padding="sm" tone="accent">
+                    <div slot="header" class="gv-row" style="font-size:11px;color:var(--muted-foreground)">
+                      <ship-icon name="message-circle" size="xs"></ship-icon>
+                      <span class="gv-mono">line {{ key | replace(sha ~ ':', '') }}</span>
+                      <span slot="spacer"></span>
+                      <ship-badge tone="accent" size="sm">{{ ann.author_kind | default('agent') | e }}</ship-badge>
+                    </div>
+                    <ship-markdown>{{ ann.note | e }}</ship-markdown>
+                  </ship-card>
+                {% endfor %}
+              {% endfor %}
+            </div>
+          {% endif %}
+        </div>
+      </ship-scroll-area>
+
+      <ship-card padding="sm" variant="outline"
+        data-show="$commentLine != ''" style="display:none;border-left:0;border-right:0;border-bottom:0;border-radius:0">
+        <div slot="header" class="gv-row" style="font-size:var(--text-xs);color:var(--muted-foreground)">
+          Comment on line <span class="gv-mono" data-text="$commentLine"></span>
+          in <ship-code inline>{{ shown.path | e }}</ship-code>
+        </div>
+        <ship-textarea data-bind="commentDraft" placeholder="Note for the agent…" rows="3"></ship-textarea>
+        <ship-toolbar slot="footer">
+          <label style="font-size:11.5px;color:var(--muted-foreground);display:inline-flex;align-items:center;gap:6px">
+            Send to
+            <ship-select size="sm" data-bind="sendTo">
+              <ship-select-option value="keep">Keep (no routing)</ship-select-option>
+              <ship-select-option value="rust-lane">rust-lane</ship-select-option>
+              <ship-select-option value="review-lane">review-lane</ship-select-option>
+              <ship-select-option value="original">Original author</ship-select-option>
+            </ship-select>
+          </label>
+          <span slot="spacer"></span>
+          <ship-button variant="ghost" size="sm"
+            data-on:click="$commentLine = ''; $commentDraft = ''; $sendTo = 'keep'">Cancel</ship-button>
+          <ship-button tone="accent" variant="solid" size="sm"
+            data-on:click="@post('/api/collections/annotations/items', {payload: {file_path: '{{ shown.path | e }}', view_id: 'git', selector: $commentLine, note: $commentDraft, intent: 'review', route_to: $sendTo}}); $commentLine = ''; $commentDraft = ''; $sendTo = 'keep'">
+            Save comment
+          </ship-button>
+        </ship-toolbar>
+      </ship-card>
+    {% else %}
+      <ship-empty-state icon="file-diff" tone="muted" size="md" style="flex:1">
+        <span slot="title">No changes in this diff</span>
+      </ship-empty-state>
+    {% endif %}
+  {% else %}
+    <ship-empty-state icon="mouse-pointer" tone="muted" size="md" style="flex:1">
+      <span slot="title">Select a file</span>
+      Pick a file on the left to view its diff.
+    </ship-empty-state>
+  {% endif %}
+</div>
