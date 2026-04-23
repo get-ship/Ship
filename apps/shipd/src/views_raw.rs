@@ -71,12 +71,6 @@ async fn render_sdk_shell(state: &ApiState, name: &str) -> Option<String> {
             .ok()?
             .0
         }
-        "agents" => {
-            crate::views_agents::agents_shell(State(state.clone()))
-                .await
-                .ok()?
-                .0
-        }
         "chat" => {
             crate::views_chat::chat_shell(
                 State(state.clone()),
@@ -99,7 +93,6 @@ async fn render_sdk_shell(state: &ApiState, name: &str) -> Option<String> {
     };
     let title = match name {
         "settings" => "Settings",
-        "agents" => "Agents",
         "chat" => "Chat",
         "events" => "Events",
         _ => "Ship",

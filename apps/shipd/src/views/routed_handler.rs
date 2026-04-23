@@ -303,8 +303,8 @@ fn render_source(
     crate::views::view_filters::register_all(&mut env);
 
     // Embedded TEMPLATES — macros (_ship.html.j2), _urls, shared
-    // partials (agents/shell.html.j2, agents/partials/card.html.j2,
-    // chat/partials/*, etc.).
+    // partials (chat/partials/*, etc.). First-party view trees live on
+    // disk under .ship/views/ and are registered per-request below.
     for (n, s) in crate::views::templates::TEMPLATES {
         let _ = env.add_template(n, s);
     }

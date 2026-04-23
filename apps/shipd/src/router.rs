@@ -17,7 +17,7 @@ use crate::{
     NetworkServer, actor_api, annotations_api, artifacts_api, attest, auth, cors, feedback_api, hooks_api,
     human_webhook, lint_api, logs_api, openapi, pairing, project_api, pty_handler, rest_api, runtime_api,
     sdk_manifest, services, session, settings_api, shell_assets, ship_runtime, specs_api,
-    supervisor, view_errors_api, view_morph_target, view_sessions_api, views, collection_api, views_agents,
+    supervisor, view_errors_api, view_morph_target, view_sessions_api, views, collection_api,
     views_chat, views_events, views_raw, views_settings,
 };
 
@@ -260,11 +260,6 @@ fn build_ship_routes(st: rest_api::ApiState) -> Router {
         .ship_route(Route::PostAnnotation, annotations_api::post_annotation)
         .ship_route(Route::ViewSettings, views_settings::settings_shell)
         .ship_route(Route::ViewSettingsSse, views_settings::settings_sse)
-        .ship_route(Route::ViewAgents, views_agents::agents_shell)
-        .ship_route(Route::ViewAgentDetail_template(), views_agents::agent_detail)
-        .ship_route(Route::ViewAgentsCreateShell, views_agents::agents_create_view)
-        .ship_route(Route::ViewAgentWire_template(), views_agents::agent_wire)
-        .ship_route(Route::ViewAgentSettings_template(), views_agents::agent_settings)
         // AgentService — generic CRUD + lifecycle. First-party and
         // third-party views use this surface equally.
         .ship_route(Route::AgentsList, services::agents::list)

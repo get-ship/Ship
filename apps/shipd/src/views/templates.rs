@@ -100,18 +100,6 @@ pub(crate) const TEMPLATES: &[(&str, &str)] = &[
         include_str!("../../templates/_toolbar.html.j2"),
     ),
     (
-        "agents/shell.html.j2",
-        include_str!("../../templates/agents/shell.html.j2"),
-    ),
-    (
-        "agents/detail.html.j2",
-        include_str!("../../templates/agents/detail.html.j2"),
-    ),
-    (
-        "agents/partials/card.html.j2",
-        include_str!("../../templates/agents/partials/card.html.j2"),
-    ),
-    (
         "canvas/blank.html.j2",
         include_str!("../../templates/canvas/blank.html.j2"),
     ),

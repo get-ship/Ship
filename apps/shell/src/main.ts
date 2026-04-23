@@ -354,7 +354,7 @@ viewRoute("/pipelines", "/api/v/pipelines");
 viewRoute("/specs", "/api/v/specs");
 viewRoute("/git", "/api/v/git");
 viewRoute("/settings", "/api/runtime/view/settings");
-viewRoute("/agents", "/api/runtime/view/agents");
+viewRoute("/agents", "/api/v/agents");
 viewRoute("/skills", "/api/runtime/view/skills");
 viewRoute("/chat", "/api/runtime/view/chat");
 viewRoute("/events", "/api/runtime/view/events");

@@ -107,21 +107,6 @@ pub enum Route {
     /// @route GET "/api/runtime/view/settings/sse"
     ViewSettingsSse,
 
-    /// @route GET "/api/runtime/view/agents"
-    ViewAgents,
-
-    /// @route GET "/api/runtime/view/agents/detail/{id}"
-    ViewAgentDetail { id: String },
-
-    /// @route GET "/api/runtime/view/agents/create"
-    ViewAgentsCreateShell,
-
-    /// @route GET "/api/runtime/view/agents/{id}/wire"
-    ViewAgentWire { id: String },
-
-    /// @route GET "/api/runtime/view/agents/detail/{id}/settings"
-    ViewAgentSettings { id: String },
-
     // ── AgentService — service-shaped CRUD + lifecycle ──
 
     /// @route GET "/api/agents"

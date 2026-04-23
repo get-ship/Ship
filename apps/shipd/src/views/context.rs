@@ -23,7 +23,6 @@ pub(crate) fn build_generic_context(
     let Ok(ship_dir) = runtime::project::get_global_dir() else { return ctx };
 
     load_collections(&mut ctx, signals, manifest_data, query_params, &ship_dir);
-    load_agents(&mut ctx, manifest_data, &ship_dir);
     load_skills(&mut ctx, manifest_data, &ship_dir);
     load_settings(&mut ctx, manifest_data);
     load_events(&mut ctx, manifest_data, &ship_dir);
@@ -128,20 +127,6 @@ fn load_collections(
             ctx["items"] = serde_json::json!(items_json);
         }
     }
-}
-
-fn load_agents(
-    ctx: &mut serde_json::Value,
-    manifest_data: &Option<ManifestData>,
-    ship_dir: &Path,
-) {
-    if !manifest_data.as_ref().and_then(|d| d.agents).unwrap_or(false) {
-        return;
-    }
-    let agents = crate::views::state::list_agents(ship_dir);
-    let total = agents.len();
-    ctx["agents"] = serde_json::to_value(&agents).unwrap_or_default();
-    ctx["total"] = serde_json::json!(total);
 }
 
 fn load_skills(

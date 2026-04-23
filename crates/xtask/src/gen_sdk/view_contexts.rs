@@ -20,7 +20,9 @@ const SOURCES: &[&str] = &[
     "apps/shipd/src/views_git.rs",
     "apps/shipd/src/views_events.rs",
     "apps/shipd/src/views_skills.rs",
-    "apps/shipd/src/views_agents.rs",
+    "apps/shipd/src/services/agents/wire.rs",
+    "apps/shipd/src/services/agents/create.rs",
+    "apps/shipd/src/services/agents/settings_view.rs",
 ];
 
 pub fn extract(repo_root: &Path) -> Result<Value> {

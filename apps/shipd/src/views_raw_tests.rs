@@ -28,7 +28,6 @@ async fn each_sdk_view_renders_its_root() {
 
     for (name, marker) in [
         ("settings", "id=\"settings-"),
-        ("agents", "id=\"agents-root\""),
         ("chat", "id=\"chat-root\""),
         ("events", "id=\"events-root\""),
     ] {

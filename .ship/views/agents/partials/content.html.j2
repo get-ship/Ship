@@ -1,6 +1,5 @@
 {#- Agents SSE content partial. Target: <div id="agents-content">.
     Context: agents (Vec<AgentSummary>), total (usize). -#}
-{% from '_urls.html.j2' import view_agent_detail %}
 <div id="agents-content">
   {% if agents | length == 0 %}
     <ship-empty-state icon="sparkles" variant="default" size="lg">

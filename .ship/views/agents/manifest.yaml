@@ -1,7 +1,5 @@
 name: agents
 type: html
-data:
-  agents: true
 events:
   - config.
   - workspace.

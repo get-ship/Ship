@@ -24,11 +24,6 @@
 {%- macro list_themes() -%}/api/runtime/themes{%- endmacro -%}
 {%- macro view_settings() -%}/api/runtime/view/settings{%- endmacro -%}
 {%- macro view_settings_sse() -%}/api/runtime/view/settings/sse{%- endmacro -%}
-{%- macro view_agents() -%}/api/runtime/view/agents{%- endmacro -%}
-{%- macro view_agent_detail(id) -%}/api/runtime/view/agents/detail/{{ id }}{%- endmacro -%}
-{%- macro view_agents_create_shell() -%}/api/runtime/view/agents/create{%- endmacro -%}
-{%- macro view_agent_wire(id) -%}/api/runtime/view/agents/{{ id }}/wire{%- endmacro -%}
-{%- macro view_agent_settings(id) -%}/api/runtime/view/agents/detail/{{ id }}/settings{%- endmacro -%}
 {%- macro agents_list() -%}/api/agents{%- endmacro -%}
 {%- macro agents_get(id) -%}/api/agents/{{ id }}{%- endmacro -%}
 {%- macro agents_put(id) -%}/api/agents/{{ id }}{%- endmacro -%}

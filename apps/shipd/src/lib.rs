@@ -40,7 +40,6 @@ pub mod themes;
 pub mod views;
 pub mod views_raw;
 pub mod views_settings;
-pub mod views_agents;
 pub mod views_chat;
 pub mod views_events;
 pub mod specs_api;
