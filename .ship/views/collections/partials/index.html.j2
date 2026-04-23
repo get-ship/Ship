@@ -22,8 +22,8 @@
 
   <div class="data-card-grid">
     {% for c in sdk_collections %}
-    <a class="data-card" href="/data/{{ c.id }}" data-route="/data/{{ c.id }}"
-       data-on:click.prevent="window.router ? window.router.navigate('/data/{{ c.id }}') : (location.href = '/data/{{ c.id }}')">
+    <a class="data-card" href="/collections/{{ c.id }}" data-route="/collections/{{ c.id }}"
+       data-on:click.prevent="window.router ? window.router.navigate('/collections/{{ c.id }}') : (location.href = '/collections/{{ c.id }}')">
       <div class="data-card-head">
         <span class="data-card-icon"><ship-icon name="database"></ship-icon></span>
         <div class="data-card-identity">

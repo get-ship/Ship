@@ -289,7 +289,7 @@ async function submitFragmentForm(form: HTMLFormElement) {
 
 // ── Breadcrumbs ──────────────────────────────────────────────────────
 const ROUTE_DISPLAY_NAMES: Record<string, string> = {
-  data: "Collections",
+  collections: "Collections",
   dashboard: "Dashboard",
   pipelines: "Pipelines",
   agents: "Agents",
@@ -349,25 +349,27 @@ function viewRoute(path: string, endpoint: string) {
   });
 }
 
-viewRoute("/", "/api/view/dashboard");
+viewRoute("/", "/api/v/dashboard");
 viewRoute("/pipelines", "/api/v/pipelines");
 viewRoute("/specs", "/api/v/specs");
 viewRoute("/git", "/api/v/git");
-viewRoute("/settings", "/api/view/settings");
+viewRoute("/settings", "/api/v/settings");
 viewRoute("/agents", "/api/v/agents");
-viewRoute("/skills", "/api/view/skills");
-viewRoute("/chat", "/api/view/chat");
-viewRoute("/events", "/api/view/events");
-viewRoute("/data", "/api/view/data");
-viewRoute("/dashboard", "/api/view/dashboard");
-viewRoute("/canvas", "/api/view/canvas");
-viewRoute("/overview", "/api/view/overview");
+viewRoute("/skills", "/api/v/skills");
+viewRoute("/chat", "/api/v/chat");
+viewRoute("/events", "/api/v/events");
+viewRoute("/collections", "/api/v/collections");
+viewRoute("/dashboard", "/api/v/dashboard");
+viewRoute("/canvas", "/api/v/canvas");
+viewRoute("/overview", "/api/v/overview");
 
 // Dynamic routes
-router.on("/data/:collection", ({ data }) => {
-  updateNav("/data");
-  updateBreadcrumbs(`/data/${data!.collection}`);
-  void mount(`/api/view/data?collection=${encodeURIComponent(data!.collection)}`);
+router.on("/collections/:collection", ({ data }) => {
+  updateNav("/collections");
+  updateBreadcrumbs(`/collections/${data!.collection}`);
+  void mount(
+    `/api/v/collections?collection=${encodeURIComponent(data!.collection)}`,
+  );
 });
 
 // Static sub-routes under /agents must be registered BEFORE the

@@ -1,9 +1,6 @@
-name: data
+name: collections
 type: html
 claims: []
-data:
-  collections: all
-  items: "$collection"
 events:
   - collection.item_created
   - collection.item_updated

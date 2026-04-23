@@ -15,7 +15,13 @@
 <head>{{ head('Collections') }}</head>
 <body>
 {% endif %}
-{% set sdk_collections = ship_collections() %}
+{%- set _state = ship.collections.state(active=ship.query.collection | default('')) -%}
+{%- set collections = _state.collections -%}
+{%- set active_collection = _state.active_collection -%}
+{%- set schema = _state.schema -%}
+{%- set items = _state.items -%}
+{%- set total_items = _state.total_items -%}
+{% set sdk_collections = collections %}
 {% set active_field_count = 0 %}
 {% for c in sdk_collections %}{% if c.id == active_collection %}{% set active_field_count = c.field_count %}{% endif %}{% endfor %}
 <div class="ship-view data-view"
@@ -33,9 +39,9 @@
      {{ signal('_newColDraft', {id: '', name: '', fields: [{name: 'title', type: 'string', required: true}]}) }}
      {{ signal('_drawerError', '') }}>
   {{ styles() }}
-  {% include 'data/partials/styles.html.j2' %}
-  {% include 'data/partials/workspace-styles.html.j2' %}
-  {% include 'data/partials/table-styles.html.j2' %}
+  {% include 'collections/partials/styles.html.j2' %}
+  {% include 'collections/partials/workspace-styles.html.j2' %}
+  {% include 'collections/partials/table-styles.html.j2' %}
 
   {% if sdk_collections | length == 0 %}
     {# Empty workspace — no schemas on disk. #}
@@ -60,7 +66,7 @@
     </div>
   {% elif query.browse == 'index' or active_collection is not defined or schema is not defined %}
     {# Collections index surface — grid of cards. #}
-    {% include 'data/partials/index.html.j2' %}
+    {% include 'collections/partials/index.html.j2' %}
   {% else %}
     {# Collection workspace — nav + header + tab body. #}
     {% set _is_builtin = active_collection in ['notes', 'feedback', 'annotations'] %}
@@ -76,9 +82,9 @@
           </span>
         </div>
         {% for c in sdk_collections %}
-        <a href="/data/{{ c.id }}" data-route="/data/{{ c.id }}"
+        <a href="/collections/{{ c.id }}" data-route="/collections/{{ c.id }}"
            class="col-nav-row{% if c.id == active_collection %} is-active{% endif %}"
-           data-on:click.prevent="window.router ? window.router.navigate('/data/{{ c.id }}') : (location.href = '/data/{{ c.id }}')">
+           data-on:click.prevent="window.router ? window.router.navigate('/collections/{{ c.id }}') : (location.href = '/collections/{{ c.id }}')">
           <span class="col-nav-icon"><ship-icon name="database" size="sm"></ship-icon></span>
           <span class="col-nav-label">{{ c.name or c.id }}</span>
           <span class="col-nav-count">{{ c.field_count }} field{% if c.field_count != 1 %}s{% endif %}</span>
@@ -120,17 +126,11 @@
           </div>
         </div>
 
-        {# Rows tab — table body. Patched via SSE. #}
+        {# Rows tab — table body. Data inline via ship.collections.state();
+           routed SSE at /api/sse/collections re-renders on item events. #}
         <div {{ tab_panel('tab', 'rows') }} class="col-tab-panel rows-panel"
           data-class:is-dense="$_density == 'compact'">
-          <div {{ live('data') }}>
-            <div id="data-content">
-              <div class="data-loading">
-                <span class="ship-spinner"></span>
-                <span>Loading rows…</span>
-              </div>
-            </div>
-          </div>
+          {% include 'collections/partials/content.html.j2' %}
         </div>
 
         {# Schema tab #}
@@ -386,7 +386,7 @@
       <ship-button variant="ghost"
         data-on:click="$_newColOpen = false; $_drawerError = ''">Cancel</ship-button>
       <ship-button tone="accent" variant="solid"
-        data-on:click="@post('/api/collections', {contentType: 'json', body: {id: $_newColDraft.id, name: $_newColDraft.name, fields: Object.fromEntries($_newColDraft.fields.map(f => [f.name, {type: f.type, required: f.required}]))}}); $_newColOpen = false; window.router && window.router.navigate('/data/' + $_newColDraft.id)">
+        data-on:click="@post('/api/collections', {contentType: 'json', body: {id: $_newColDraft.id, name: $_newColDraft.name, fields: Object.fromEntries($_newColDraft.fields.map(f => [f.name, {type: f.type, required: f.required}]))}}); $_newColOpen = false; window.router && window.router.navigate('/collections/' + $_newColDraft.id)">
         Create collection
       </ship-button>
     </div>

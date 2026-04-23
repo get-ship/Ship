@@ -18,7 +18,7 @@ const COMMANDS: Command[] = [
   { label: "Agents", path: "/agents", icon: "users", keywords: "configure profiles" },
   { label: "Skills", path: "/skills", icon: "zap", keywords: "browse edit files" },
   { label: "Git", path: "/git", icon: "git", keywords: "status diff commit branch" },
-  { label: "Data", path: "/data", icon: "folder", keywords: "collections items query" },
+  { label: "Collections", path: "/collections", icon: "folder", keywords: "collections data items query" },
   { label: "Canvas", path: "/canvas", icon: "image", keywords: "docs visual feedback" },
   { label: "Events", path: "/events", icon: "sparkles", keywords: "stream log kernel" },
   { label: "Settings", path: "/settings", icon: "settings", keywords: "config theme provider" },
