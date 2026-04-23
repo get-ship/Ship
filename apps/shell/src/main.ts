@@ -375,27 +375,27 @@ router.on("/data/:collection", ({ data }) => {
 router.on("/agents/create", () => {
   updateNav("/agents");
   updateBreadcrumbs("/agents/create");
-  void mount("/api/runtime/view/agents/create");
+  void mount("/api/v/agents/create");
 });
 
 // Detail sub-mode: wire/canvas view (also served as the default detail).
 router.on("/agents/:id/wire", ({ data }) => {
   updateNav("/agents");
   updateBreadcrumbs(`/agents/${data!.id}/wire`);
-  void mount(`/api/runtime/view/agents/${data!.id}/wire`);
+  void mount(`/api/v/agents/${data!.id}/wire`);
 });
 
 // Detail sub-mode: classic panels layout (skills / MCP / permissions / rules).
 router.on("/agents/:id/settings", ({ data }) => {
   updateNav("/agents");
   updateBreadcrumbs(`/agents/${data!.id}/settings`);
-  void mount(`/api/runtime/view/agents/detail/${data!.id}/settings`);
+  void mount(`/api/v/agents/${data!.id}/settings`);
 });
 
 router.on("/agents/:id", ({ data }) => {
   updateNav("/agents");
   updateBreadcrumbs(`/agents/${data!.id}`);
-  void mount(`/api/runtime/view/agents/detail/${data!.id}`);
+  void mount(`/api/v/agents/${data!.id}`);
 });
 
 router.on("/skills/:id", ({ data }) => {

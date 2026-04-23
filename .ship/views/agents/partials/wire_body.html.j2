@@ -1,0 +1,38 @@
+{#- Agents wire-layout body. Composes palette + canvas + inspector inside
+    the grid container. Callers must have already {% set %} `agent`,
+    `nodes`, `edges`, `catalogs` from a `ship.agents.wire(id=...)` call. -#}
+{% from '_ship.html.j2' import head, signals, nav %}
+
+<ship-view-chrome title="{{ agent.name }}">
+  <ship-segmented slot="actions" value="wire" size="sm">
+    <ship-segmented-option value="wire"
+      data-on:click="window.router ? window.router.navigate('/agents/{{ agent.id }}/wire') : location.href='/agents/{{ agent.id }}'">
+      Wire
+    </ship-segmented-option>
+    <ship-segmented-option value="settings"
+      data-on:click="window.router ? window.router.navigate('/agents/{{ agent.id }}/settings') : location.href='/agents/{{ agent.id }}/settings'">
+      Settings
+    </ship-segmented-option>
+  </ship-segmented>
+  <ship-button slot="actions" variant="ghost" size="sm" {{ nav('/agents') }}>
+    <ship-icon slot="leading" name="chevron-left" size="xs"></ship-icon>
+    Agents
+  </ship-button>
+</ship-view-chrome>
+
+<div class="ship-view agents-wire"
+  {{ signals({
+    'selected_kind': 'agent',
+    'selected_id':   agent.id,
+  }) }}
+  data-signals:pickerOpen="false"
+  data-signals:pickerKind="'skill'"
+  data-signals:pickerSelected="[]">
+
+  {% include 'agents/partials/wire_styles.html.j2' %}
+  {% include 'agents/partials/wire_palette.html.j2' %}
+  {% include 'agents/partials/wire_canvas.html.j2' %}
+  {% include 'agents/partials/wire_inspector.html.j2' %}
+  {% include 'agents/partials/picker_dialog.html.j2' %}
+
+</div>

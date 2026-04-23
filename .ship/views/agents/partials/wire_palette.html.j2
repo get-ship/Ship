@@ -1,0 +1,57 @@
+{#- Left palette for agents wire view. Context: agent (AgentDetail). -#}
+<aside class="wire-palette">
+  <div class="section-h">
+    <ship-icon name="zap" size="xs"></ship-icon>
+    Skills
+    <span class="count">{{ agent.skills | length }}</span>
+    <ship-button variant="ghost" size="icon" class="add-btn" aria-label="Add skill"
+      data-on:click="$pickerKind = 'skill'; $pickerSelected = []; $pickerOpen = true">
+      <ship-icon name="plus" size="xs"></ship-icon>
+    </ship-button>
+  </div>
+  {%- for s in agent.skills %}
+  <div class="palette-item">
+    <ship-icon name="check-circle" size="xs" style="color:var(--tone-success-fg)"></ship-icon>
+    <span class="mono">{{ s }}</span>
+    <span style="margin-left:auto; font-size:10px">wired</span>
+  </div>
+  {%- else %}
+  <div class="palette-item" style="font-style:italic">no skills wired</div>
+  {%- endfor %}
+
+  <div class="section-h" style="margin-top:16px">
+    <ship-icon name="terminal" size="xs"></ship-icon>
+    MCP Servers
+    <span class="count">{{ agent.mcp_servers | length }}</span>
+    <ship-button variant="ghost" size="icon" class="add-btn" aria-label="Add MCP server"
+      data-on:click="$pickerKind = 'mcp'; $pickerSelected = []; $pickerOpen = true">
+      <ship-icon name="plus" size="xs"></ship-icon>
+    </ship-button>
+  </div>
+  {%- for m in agent.mcp_servers %}
+  <div class="palette-item">
+    <ship-icon name="check-circle" size="xs" style="color:var(--tone-info-fg)"></ship-icon>
+    <span class="mono">{{ m }}</span>
+  </div>
+  {%- else %}
+  <div class="palette-item" style="font-style:italic">no servers</div>
+  {%- endfor %}
+
+  <div class="section-h" style="margin-top:16px">
+    <ship-icon name="file-text" size="xs"></ship-icon>
+    Rules
+    <span class="count">{{ agent.rules | length }}</span>
+    <ship-button variant="ghost" size="icon" class="add-btn" aria-label="Add rule"
+      data-on:click="$pickerKind = 'rule'; $pickerSelected = []; $pickerOpen = true">
+      <ship-icon name="plus" size="xs"></ship-icon>
+    </ship-button>
+  </div>
+  {%- for r in agent.rules %}
+  <div class="palette-item"><span class="mono">{{ r }}</span></div>
+  {%- endfor %}
+
+  <div class="tip-card">
+    <strong style="color:var(--foreground)">Wire view.</strong>
+    Click any node to inspect. Use + on a section to add.
+  </div>
+</aside>

@@ -1,0 +1,262 @@
+{#- Agent create wizard — 4-step flow. Every catalog (templates,
+    permission presets, providers) comes from `ship.agents.create_ctx()`.
+    Submits via POST /api/agents. -#}
+{% from '_ship.html.j2' import head, signals, show, bind, nav %}
+{% set ctx = ship.agents.create_ctx() %}
+{% set templates = ctx.templates %}
+{% set permission_presets = ctx.permission_presets %}
+{% set available_providers = ctx.available_providers %}
+
+{% if not fragment %}
+<!DOCTYPE html>
+<html lang="en"><head>{{ head('New Agent') }}</head><body>
+{% endif %}
+
+<ship-view-chrome title="New agent">
+  <ship-button slot="actions" variant="ghost" size="sm" {{ nav('/agents') }}>
+    <ship-icon slot="leading" name="x" size="xs"></ship-icon>
+    Cancel
+  </ship-button>
+</ship-view-chrome>
+
+<div class="ship-view agents-create"
+  {{ signals({
+    'step':      0,
+    'template':  'blank',
+    'hue':       'orange',
+    'name':      '',
+    'id':        '',
+    'desc':      '',
+    'providers': ['claude'],
+    'preset':    'standard',
+    '_creating': false,
+    '_err':      '',
+  }) }}>
+
+<style>
+  .agents-create { max-width: 960px; margin: 0 auto; padding: var(--space-4) var(--space-6) var(--space-8); font-family: var(--font-body); color: var(--foreground); }
+
+  .step-row { display: flex; align-items: center; gap: 0; margin-bottom: var(--space-6); }
+  .step-btn { appearance: none; border: 1px solid var(--border-subtle); background: var(--surface-1);
+    padding: 6px 14px; border-radius: 999px; font: inherit; font-size: var(--text-sm);
+    display: inline-flex; align-items: center; gap: 8px; cursor: pointer; color: var(--foreground);
+    transition: background var(--duration-fast) var(--ease-out), border-color var(--duration-fast) var(--ease-out); }
+  .step-btn .n { display: inline-grid; place-items: center; width: 18px; height: 18px;
+    border-radius: 50%; font-size: 10.5px; font-weight: 600;
+    background: var(--muted); color: var(--muted-foreground); }
+  .step-btn.active { border-color: var(--primary); background: var(--tone-primary-bg); }
+  .step-btn.active .n { background: var(--primary); color: var(--primary-foreground); }
+  .step-btn.done .n { background: var(--success); color: var(--primary-foreground); }
+  .step-join { flex: 1; height: 1px; background: var(--border-subtle); margin: 0 6px; }
+
+  h2.create-h { font-family: var(--heading-font); font-weight: var(--heading-weight); font-size: var(--text-xl); margin: 0 0 6px; letter-spacing: var(--heading-tracking); }
+  .create-sub { color: var(--muted-foreground); font-size: var(--text-sm); margin: 0 0 var(--space-5); line-height: var(--leading-normal); }
+
+  .tpl-grid { display: grid; grid-template-columns: repeat(3, 1fr); gap: var(--space-3); align-items: stretch; }
+  @media (max-width: 780px) { .tpl-grid { grid-template-columns: repeat(2, 1fr); } }
+  .tpl-card { cursor: pointer; padding: var(--space-3); display: flex; gap: var(--space-3);
+    transition: box-shadow var(--duration-fast) var(--ease-out), border-color var(--duration-fast) var(--ease-out); }
+  .tpl-card[data-selected="true"] { border-color: var(--primary) !important; box-shadow: 0 0 0 3px var(--tone-primary-ring); }
+  .tpl-nm { font-weight: var(--font-weight-semibold); font-size: var(--text-md); line-height: 1.25; }
+  .tpl-dc { font-size: var(--text-xs); color: var(--muted-foreground); margin-top: 2px; line-height: 1.4; }
+
+  .hue-tile { width: 44px; height: 44px; display: grid; place-items: center;
+    color: white; font-weight: 700; font-size: 18px; flex-shrink: 0;
+    border-radius: var(--radius-md); border: 2px solid transparent; }
+  .hue-slate  { background: conic-gradient(from 220deg, oklch(0.72 0.03 260), oklch(0.50 0.04 260)); }
+  .hue-red    { background: conic-gradient(from 220deg, oklch(0.70 0.22 20),  oklch(0.55 0.22 15)); }
+  .hue-amber  { background: conic-gradient(from 220deg, oklch(0.82 0.17 70),  oklch(0.70 0.18 55)); }
+  .hue-violet { background: conic-gradient(from 220deg, oklch(0.68 0.22 300), oklch(0.55 0.25 305)); }
+  .hue-teal   { background: conic-gradient(from 220deg, oklch(0.75 0.12 195), oklch(0.60 0.14 190)); }
+  .hue-blue   { background: conic-gradient(from 220deg, oklch(0.72 0.16 245), oklch(0.58 0.18 255)); }
+  .hue-orange { background: conic-gradient(from 220deg, oklch(0.78 0.18 40),  oklch(0.62 0.20 30)); }
+  .hue-green  { background: conic-gradient(from 220deg, oklch(0.76 0.17 155), oklch(0.60 0.18 150)); }
+  .hue-pink   { background: conic-gradient(from 220deg, oklch(0.78 0.17 350), oklch(0.62 0.20 355)); }
+
+  .id-grid { display: grid; grid-template-columns: 180px 1fr; gap: var(--space-5); align-items: flex-start; }
+  @media (max-width: 700px) { .id-grid { grid-template-columns: 1fr; } }
+  .hue-pick { display: grid; grid-template-columns: repeat(3, 1fr); gap: 6px; margin-top: var(--space-3); }
+  .hue-pick .hue-tile { width: 100%; height: auto; aspect-ratio: 1 / 1; cursor: pointer; }
+  .hue-pick .hue-tile[data-selected="true"] { border-color: var(--foreground); }
+
+  .field { display: flex; flex-direction: column; gap: 6px; margin-bottom: var(--space-3); }
+  .field label { font-size: var(--text-xs); color: var(--muted-foreground); font-weight: var(--font-weight-medium); }
+  .field-row-dual { display: grid; grid-template-columns: 1fr 1fr; gap: var(--space-3); }
+  .slug-hint { font-family: var(--font-mono); font-size: var(--text-xs); color: var(--muted-foreground); margin-top: 4px; }
+  .slug-hint code { background: var(--muted); padding: 1px 6px; border-radius: 4px; }
+
+  .prov-grid { display: grid; grid-template-columns: repeat({{ available_providers | length }}, 1fr); gap: 8px; }
+  @media (max-width: 700px) { .prov-grid { grid-template-columns: repeat(2, 1fr); } }
+  .preset-list { display: flex; flex-direction: column; gap: 8px; margin-top: var(--space-2); }
+  .preset-card, .tpl-card.prov-card { cursor: pointer; }
+  .preset-card[data-selected="true"], .prov-card[data-selected="true"] { border-color: var(--primary) !important; box-shadow: 0 0 0 3px var(--tone-primary-ring); }
+
+  .review-card pre { margin: 0; font-family: var(--font-mono); font-size: var(--text-xs); line-height: 1.55; background: var(--surface-2); border-radius: var(--radius-md); padding: var(--space-3); overflow-x: auto; }
+
+  .actions-row { display: flex; align-items: center; gap: var(--space-2); margin-top: var(--space-6); }
+  .actions-row .spacer { flex: 1; }
+</style>
+
+{# ── Stepper ────────────────────────────────────────────────────────── #}
+<div class="step-row">
+  {%- for s in ['Template', 'Identity', 'Wiring', 'Review'] %}
+    {%- if loop.index0 > 0 %}<span class="step-join"></span>{% endif %}
+    <button type="button" class="step-btn"
+      data-class:active="$step == {{ loop.index0 }}"
+      data-class:done="$step > {{ loop.index0 }}"
+      data-on:click="if ({{ loop.index0 }} <= $step) $step = {{ loop.index0 }}">
+      <span class="n" data-text="$step > {{ loop.index0 }} ? '✓' : '{{ loop.index }}'"></span>
+      <span>{{ s }}</span>
+    </button>
+  {%- endfor %}
+</div>
+
+{# ── Step 0: Template ──────────────────────────────────────────────── #}
+<div {{ show('$step == 0') }}>
+  <h2 class="create-h">Start from a template</h2>
+  <p class="create-sub">Templates pre-wire skills, MCP servers, and a sensible permission preset. You can change everything in the next steps.</p>
+  <div class="tpl-grid">
+    {%- for t in templates %}
+    <ship-card padding="none" class="tpl-card"
+      data-attr:data-selected="$template == '{{ t.id }}'"
+      data-on:click="$template = '{{ t.id }}'; $preset = '{{ t.permission_preset }}'; $hue = '{{ t.hue }}'">
+      <span class="hue-tile hue-{{ t.hue }}">{{ t.letter }}</span>
+      <div style="flex:1; min-width:0">
+        <div class="tpl-nm">{{ t.label }}</div>
+        <div class="tpl-dc">{{ t.description }}</div>
+      </div>
+    </ship-card>
+    {%- endfor %}
+  </div>
+</div>
+
+{# ── Step 1: Identity ──────────────────────────────────────────────── #}
+<div {{ show('$step == 1') }}>
+  <h2 class="create-h">Identity</h2>
+  <p class="create-sub">A human name plus a machine id. The id matches the filename stem — <code>rust-compiler.jsonc</code> has id <code>rust-compiler</code>.</p>
+  <div class="id-grid">
+    <div>
+      <div class="hue-tile"
+        data-attr:class="'hue-tile hue-' + $hue"
+        style="width:64px; height:64px; font-size:24px"
+        data-text="($id && $id[0] ? $id[0] : ($name && $name[0] ? $name[0] : '?')).toUpperCase()"></div>
+      <div class="hue-pick">
+        {%- for h in ['orange','amber','red','violet','blue','teal','green','pink','slate'] %}
+        <div class="hue-tile hue-{{ h }}"
+          data-attr:data-selected="$hue == '{{ h }}'"
+          data-on:click="$hue = '{{ h }}'"
+          role="button" tabindex="0" aria-label="{{ h }} avatar color"></div>
+        {%- endfor %}
+      </div>
+    </div>
+    <div>
+      <div class="field-row-dual">
+        <div class="field">
+          <label>Name</label>
+          <ship-input {{ bind('name') }} placeholder="e.g. Rust Compiler"
+            data-on:input="if (!$id && $name) $id = $name.toLowerCase().replace(/[^a-z0-9]+/g, '-').replace(/(^-|-$)/g, '')"></ship-input>
+        </div>
+        <div class="field">
+          <label>ID</label>
+          <ship-input {{ bind('id') }} placeholder="rust-compiler"></ship-input>
+        </div>
+      </div>
+      <div class="slug-hint">saves to <code data-text="'.ship/agents/' + ($id || '&lt;id&gt;') + '.jsonc'"></code></div>
+      <div class="field">
+        <label>Description</label>
+        <ship-textarea {{ bind('desc') }} rows="3" placeholder="What does this agent do?"></ship-textarea>
+      </div>
+    </div>
+  </div>
+</div>
+
+{# ── Step 2: Wiring ──────────────────────────────────────────────── #}
+<div {{ show('$step == 2') }}>
+  <h2 class="create-h">Wiring</h2>
+  <p class="create-sub">Which AI providers this agent compiles to, and what permission preset applies.</p>
+
+  <div class="field">
+    <label>Providers</label>
+    <div class="prov-grid">
+      {%- for p in available_providers %}
+      <ship-card padding="sm" class="tpl-card prov-card"
+        data-attr:data-selected="$providers.includes('{{ p }}')"
+        data-on:click="$providers = $providers.includes('{{ p }}') ? $providers.filter(x => x !== '{{ p }}') : [...$providers, '{{ p }}']"
+        style="flex-direction:column; align-items:center; gap:6px; text-align:center">
+        <ship-provider-blob provider="{{ p }}" size="md"></ship-provider-blob>
+        <span style="font-size:var(--text-xs); text-transform:capitalize">{{ p }}</span>
+      </ship-card>
+      {%- endfor %}
+    </div>
+  </div>
+
+  <div class="field" style="margin-top: var(--space-5)">
+    <label>Permission preset</label>
+    <div class="preset-list">
+      {%- for p in permission_presets %}
+      <ship-card padding="sm" class="preset-card"
+        data-attr:data-selected="$preset == '{{ p.id }}'"
+        data-on:click="$preset = '{{ p.id }}'">
+        <div style="display:flex; align-items:center; gap:var(--space-3)">
+          <div style="flex:1">
+            <div style="font-weight:var(--font-weight-semibold); font-size:var(--text-md)">{{ p.label }}</div>
+            <div style="font-size:var(--text-xs); color:var(--muted-foreground); margin-top:2px">{{ p.description }}</div>
+          </div>
+        </div>
+      </ship-card>
+      {%- endfor %}
+    </div>
+  </div>
+</div>
+
+{# ── Step 3: Review ────────────────────────────────────────────────── #}
+<div {{ show('$step == 3') }}>
+  <h2 class="create-h">Review</h2>
+  <p class="create-sub">Creates <code data-text="'.ship/agents/' + ($id || 'new') + '.jsonc'"></code> on submit.</p>
+  <ship-card class="review-card" padding="md">
+    <pre data-text="JSON.stringify({ id: $id, name: $name, description: $desc, template: $template, hue: $hue, providers: $providers, permissions: { preset: $preset } }, null, 2)"></pre>
+  </ship-card>
+  <ship-alert tone="destructive" data-show="$_err != ''" data-text="$_err" style="display:none; margin-top:var(--space-3)"></ship-alert>
+</div>
+
+{# ── Footer actions ────────────────────────────────────────────────── #}
+<div class="actions-row">
+  <ship-button variant="ghost" size="sm" data-show="$step > 0" data-on:click="$step = $step - 1">
+    <ship-icon slot="leading" name="arrow-left" size="xs"></ship-icon>Back
+  </ship-button>
+  <span class="spacer"></span>
+  <ship-button variant="ghost" size="sm" {{ nav('/agents') }}>Cancel</ship-button>
+  <ship-button tone="accent" variant="solid" size="sm"
+    data-show="$step < 3" data-on:click="$step = $step + 1">
+    Continue
+    <ship-icon slot="trailing" name="arrow-right" size="xs"></ship-icon>
+  </ship-button>
+  <ship-button tone="accent" variant="solid" size="sm"
+    data-show="$step == 3"
+    data-attr:disabled="$_creating || !$id"
+    data-on:click="$_creating = true; $_err = ''; @post('/api/agents', {
+      contentType: 'json',
+      body: JSON.stringify({
+        id: $id,
+        doc: {
+          '$schema': 'https://raw.githubusercontent.com/madvib/ship/main/schemas/agent.schema.json',
+          schema_version: '1',
+          agent: {
+            id: $id,
+            name: $name,
+            description: $desc,
+            providers: $providers,
+          },
+          permissions: { preset: $preset },
+        },
+      }),
+      onSuccess: (r) => { $_creating = false; r.json().then(b => window.location.href = '/agents/' + b.id) },
+      onError: (r) => { $_creating = false; r.json().then(b => $_err = b.message || 'Create failed') },
+    })">
+    <ship-icon slot="leading" name="check" size="xs"></ship-icon>
+    Create agent
+  </ship-button>
+</div>
+
+</div>
+{% if not fragment %}</body></html>{% endif %}
