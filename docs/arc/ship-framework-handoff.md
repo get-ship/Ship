@@ -77,30 +77,17 @@ Skills/git/specs used one commit because scope allowed. Larger migrations NEED p
 
 ## What's left
 
-### Route rename (in progress when thread ended)
+### Route rename — DONE (d46fc398 + 70a11133)
 
-Drop the `runtime` segment from all view/view-as-app URLs:
+`/api/runtime/` is gone. Domain-per-namespace:
+- Render: `/api/v/{*path}`, SSE: `/api/sse/{*path}`
+- View-as-app plumbing: `/api/view/{name}/{raw,manifest,bundle,context,sse,asset}`, `/api/views`, `/api/view-sessions/*`, `/api/view-errors`
+- Static: `/api/assets/*`, `/api/themes`, `/api/session`
+- Jobs: `/api/jobs/*`, `/api/jobs/dispatch`
+- Agents: `/api/agents` (config) + `/api/agents/active` (live) + `/api/agents/{slug}/{stop,steer}`
+- Everything else lost the prefix: `/api/specs/*`, `/api/feedback`, `/api/annotations`, `/api/workspaces/*`, `/api/sessions`, `/api/procs`, `/api/events/{poll,stream}`, `/api/daemon/status`
 
-| Old | New |
-|-----|-----|
-| `/api/view/{name}/raw` | `/api/view/{name}/raw` |
-| `/api/view/{name}/manifest` | `/api/view/{name}/manifest` |
-| `/api/view/{name}/bundle` | `/api/view/{name}/bundle` |
-| `/api/view/{name}/context` | `/api/view/{name}/context` |
-| `/api/view/{name}/sse` | `/api/view/{name}/sse` (generic per-view SSE — distinct from `/api/sse/*` routed) |
-| `/api/view/{name}/asset/{file}` | `/api/view/{name}/asset/{file}` |
-| `/api/view-sessions/*` | `/api/view-sessions/*` |
-| `/api/view-errors` | `/api/view-errors` |
-| `/api/views` | `/api/views` |
-| `/api/views/{name}/meta` | `/api/views/{name}/meta` |
-
-These are the view-as-app plumbing endpoints — still needed; just losing the `runtime` prefix. Chat routes (`/api/view/chat*`) also need updating if chat stays bespoke.
-
-**Callers to update in lockstep:**
-- `apps/shell/src/main.ts` — `viewRoute()` targets, `getRawUrl()`, pack loader URLs
-- `apps/shipd/templates/_urls.html.j2` is build-script-generated — regenerates automatically
-- Any remaining `/api/` hrefs in `.ship/views/` templates (grep + replace; the agent pass already caught dashboard)
-- `packages/sdk/src/generated/routes.ts` regenerates automatically
+Internal Rust identifiers (`runtime_api`, `ship_runtime`) stay — only URLs changed.
 
 ### Known debt
 
