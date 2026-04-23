@@ -1410,9 +1410,9 @@ pub async fn event_stream(
                     signal_name.clone(),
                     serde_json::to_value(&arr).unwrap_or(serde_json::Value::Null),
                 );
-                let data = format!("signals {}", serde_json::Value::Object(body));
+                let json = serde_json::Value::Object(body).to_string();
                 yield Ok::<_, std::convert::Infallible>(
-                    Event::default().event("datastar-patch-signals").data(data)
+                    crate::views::stream::patch_signals_event(json)
                 );
             } else {
                 let json = match serde_json::to_string(&event) {

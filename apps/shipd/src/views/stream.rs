@@ -99,8 +99,7 @@ impl ViewStream {
 
     /// Merge a JSON signal object into the client's signal store.
     pub async fn signal(&self, json: String) -> Result<(), ()> {
-        let event = PatchSignals::new(json).write_as_axum_sse_event();
-        self.tx.send(Ok(event)).await.map_err(|_| ())
+        self.tx.send(Ok(patch_signals_event(json))).await.map_err(|_| ())
     }
 
     /// Send an SSE comment heartbeat every `dur`. Returns a handle that
@@ -134,6 +133,17 @@ impl ViewStream {
     pub fn is_closed(&self) -> bool {
         self.tx.is_closed()
     }
+}
+
+/// Build a Datastar `patch-signals` SSE `Event` from a JSON signal blob.
+///
+/// This is the single place in the project that knows the Datastar
+/// signal-patch wire format. Callers that can't use [`ViewStream`] (because
+/// they yield directly from an `async_stream::stream!` rather than through
+/// our mpsc-backed handle) can emit via this free helper instead of
+/// constructing an `Event` by hand.
+pub(crate) fn patch_signals_event(json: String) -> Event {
+    PatchSignals::new(json).write_as_axum_sse_event()
 }
 
 /// Guard that stops a heartbeat task on drop.
