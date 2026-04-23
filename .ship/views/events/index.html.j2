@@ -100,6 +100,19 @@
     color: var(--foreground); font-size: var(--text-xs); min-width: 160px;
   }
   </style>
+  {#- File-routed: data pulled inline via ship.events.list(). SSE
+      live reload hits /api/runtime/sse/events (manifest.yaml
+      declares the kernel-event topics). -#}
+  {% set data = ship.events.list(q=ship.query.q|default(''),
+                                  event_type=ship.query.eventType|default(''),
+                                  actor=ship.query.actor|default(''),
+                                  entity=ship.query.entity|default('')) %}
+  {% set types = data.types %}
+  {% set actors = data.actors %}
+  {% set groups = data.groups %}
+  {% set total = 0 %}
+  {% for g in groups %}{% set total = total + (g.rows | length) %}{% endfor %}
+
   <div class="events-wrap">
     <div class="events-head">
       <div>
@@ -108,7 +121,6 @@
       </div>
     </div>
 
-    {# -- Filter chips -- #}
     <div class="events-filters" role="group" aria-label="Filter events">
       <ship-chip size="sm" {{ chip_all('eventType', 'events') }}>All types</ship-chip>
       {% for t in types %}
@@ -125,12 +137,7 @@
              {{ search('q', 'events') }}></ship-input>
     </div>
 
-    {# -- Content (SSE-driven) -- #}
-    <div {{ live('events') }}>
-      <div id="events-content" class="events-content">
-        <p style="padding: var(--space-4) 0; font-size: var(--text-xs); color: var(--muted-foreground)">Loading...</p>
-      </div>
-    </div>
+    {% include 'events/partials/content.html.j2' %}
 
   </div>
 </div>

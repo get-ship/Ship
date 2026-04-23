@@ -247,6 +247,42 @@ pub fn call(name: &str, args: &Value, state: &ApiState) -> Result<Value, Registr
             }))
         }
 
+        // ── events ────────────────────────────────────────────────
+        "events.list" => {
+            let limit = optional_usize(args, "limit", 200);
+            let filter = crate::views::events_state::EventFilter {
+                event_type: args.get("event_type").and_then(|v| v.as_str()).map(String::from),
+                actor: args.get("actor").and_then(|v| v.as_str()).map(String::from),
+                entity: args.get("entity").and_then(|v| v.as_str()).map(String::from),
+                q: args.get("q").and_then(|v| v.as_str()).map(String::from),
+            };
+            let rows = crate::views::events_state::list_events(state.ship_dir(), &filter, limit);
+            let types = crate::views::events_state::distinct_types(&rows);
+            let actors = crate::views::events_state::distinct_actors(&rows);
+            let groups = crate::views::events_state::group_by_entity(rows);
+            Ok(json!({
+                "groups": groups,
+                "types": types,
+                "actors": actors,
+            }))
+        }
+
+        // ── specs ─────────────────────────────────────────────────
+        "specs.list" => {
+            let specs = runtime::db::specs::list_specs()
+                .map_err(|e| RegistryError::service(e.to_string()))?;
+            Ok(json!({ "items": specs }))
+        }
+        "specs.get" => {
+            let id = required_str(args, "id")?;
+            let spec = runtime::db::specs::get_spec(id)
+                .map_err(|e| RegistryError::service(e.to_string()))?
+                .ok_or_else(|| RegistryError::not_found(format!("spec `{id}`")))?;
+            let body = runtime::db::specs::load_body(&spec.body_path)
+                .unwrap_or_default();
+            Ok(json!({ "spec": spec, "body": body }))
+        }
+
         // ── git ───────────────────────────────────────────────────
         "git.status" => {
             let root = crate::services::git::state::resolve_root(state.ship_dir(), None)
@@ -286,6 +322,8 @@ pub fn names() -> &'static [&'static str] {
         "mcp.list", "mcp.get",
         "permissions.list", "permissions.get", "permissions.tool_patterns",
         "pipelines.list", "pipelines.get",
+        "events.list",
+        "specs.list", "specs.get",
         "git.status", "git.log", "git.branches",
     ]
 }
