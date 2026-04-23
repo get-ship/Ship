@@ -10,7 +10,8 @@
     "typecheck": "tsc --noEmit"
   },
   "dependencies": {
-    "@ship/set": "workspace:*"
+    "@ship/set": "workspace:*",
+    "@ship/shell": "workspace:*"
   },
   "devDependencies": {
     "navigo": "^8.11.1",

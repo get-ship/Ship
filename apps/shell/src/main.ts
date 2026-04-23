@@ -3,6 +3,11 @@ import { mountDaemonFragment, isSameOrigin } from "./mount";
 import { initSignalInspector } from "./signal-inspector";
 import { toggle as toggleCmdk, isCommandPaletteOpen } from "./command-palette";
 import { installErrorReporter } from "./error-reporter";
+// Side-effect import: registers `<ship-shell>` + mounts `window.ship`
+// on first `connectedCallback`. The custom-element registration fires
+// before the element in index.html upgrades, so the shell is ready by
+// the time view code starts calling `window.ship.*`.
+import "@ship/shell";
 
 // Install as early as possible so any boot-time throw gets captured.
 installErrorReporter();
