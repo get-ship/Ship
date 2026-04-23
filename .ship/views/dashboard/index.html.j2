@@ -45,12 +45,16 @@
       </div>
     </header>
 
-    {# ── Stats row ────────────────────────────────────────────── #}
-    {%- set total_jobs    = (stats.active + stats.history) if stats is defined else 0 -%}
-    {%- set active_jobs   = stats.active if stats is defined else 0 -%}
-    {%- set all_agents    = ship_agents() -%}
-    {%- set all_cols      = ship_collections() -%}
-    {%- set event_total   = total if total is defined else 0 -%}
+    {# ── Dashboard state — pulled inline via ship.* SDK. ───────── #}
+    {%- set dash = ship.dashboard.state() -%}
+    {%- set stats = dash.stats -%}
+    {%- set recent_jobs = dash.recent_runs -%}
+    {%- set rows = dash.events -%}
+    {%- set total_jobs = stats.active + stats.history -%}
+    {%- set active_jobs = stats.active -%}
+    {%- set all_agents = dash.agents -%}
+    {%- set all_cols = dash.collections -%}
+    {%- set event_total = dash.total_events -%}
 
     {#- SDK gap: ship-stat has no "accent stripe" channel (its `accent` attr
         tints the value text, not a top border-bar). The 2px colored stripe
@@ -109,8 +113,6 @@
           </a>
         </div>
         <div class="dash-jobs-list">
-          {%- set recent_jobs = (active_runs | take(5)) if active_runs is defined else
-                                (history_runs | take(5)) if history_runs is defined else [] -%}
           {% if recent_jobs | length > 0 %}
             {% for run in recent_jobs %}
             {%- set run_agent = run.agent if run.agent is defined else '' -%}
@@ -240,8 +242,8 @@
           </a>
         </div>
         <div class="dash-section-body">
-          {%- if rows is defined and rows | length > 0 -%}
-            {% for r in rows | take(10) %}
+          {%- if rows | length > 0 -%}
+            {% for r in rows %}
             {%- set ev_actor = r.actor if r.actor is defined else '' -%}
             <div class="dash-event-row">
               <span class="dash-event-ts">{{ r.timestamp }}</span>
@@ -256,25 +258,6 @@
               </span>
             </div>
             {% endfor %}
-          {%- elif groups is defined and groups | length > 0 -%}
-            {#- Flatten groups → first 10 rows. No namespace mutation
-                (minijinja 2.x disallows it); `loop.index` + outer caps
-                instead. -#}
-            {% for g in groups %}{% if loop.index <= 10 %}{% for r in g.rows %}{% if loop.index <= 10 %}
-            {%- set ev_actor = r.actor if r.actor is defined else '' -%}
-            <div class="dash-event-row">
-              <span class="dash-event-ts">{{ r.timestamp }}</span>
-              <span class="dash-event-type">{{ r.event_type }}</span>
-              <span class="dash-event-actor">
-                {%- if ev_actor -%}
-                <ship-avatar size="sm" identity-hue="{{ ev_actor }}"
-                             name="{{ ev_actor }}"
-                             initials="{{ ev_actor[:1] | upper }}"></ship-avatar>
-                <span>{{ ev_actor }}</span>
-                {%- else -%}<span>—</span>{%- endif -%}
-              </span>
-            </div>
-            {% endif %}{% endfor %}{% endif %}{% endfor %}
           {%- else -%}
             <ship-empty-state variant="placeholder" size="sm" icon="activity">
               <span slot="title">Waiting for events</span>

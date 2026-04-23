@@ -454,6 +454,46 @@ pub fn call(name: &str, args: &Value, state: &ApiState) -> Result<Value, Registr
                 .map_err(|e| RegistryError::service(e.to_string()))
         }
 
+        // ── dashboard ─────────────────────────────────────────────
+        "dashboard.state" => {
+            let ship_dir = state.ship_dir();
+            // Jobs: split into active / history for stats + recent feed.
+            let runs = crate::views::state::list_pipeline_runs(
+                ship_dir,
+                &crate::views::state::Filter::default(),
+            );
+            let (active, history) = crate::views::state::partition_runs(runs);
+            let stats = json!({ "active": active.len(), "history": history.len() });
+            let recent_runs: Vec<_> = if !active.is_empty() {
+                active.iter().take(5).cloned().collect()
+            } else {
+                history.iter().take(5).cloned().collect()
+            };
+            // Events feed.
+            let filter = crate::views::events_state::EventFilter::default();
+            let events = crate::views::events_state::list_events(ship_dir, &filter, 10);
+            let total_events = events.len();
+            // Agents + collections lists.
+            let agents = crate::views::state::list_agents(ship_dir);
+            let project_dir = runtime::project::get_project_dir(None).ok();
+            let mut schemas = runtime::collections::builtin::all_schemas();
+            schemas.extend(
+                runtime::collections::schema::load_schemas_merged(ship_dir, project_dir.as_deref())
+                    .unwrap_or_default(),
+            );
+            let collections: Vec<_> = schemas.iter().map(|s| json!({
+                "id": s.id, "name": s.name, "field_count": s.fields.len(),
+            })).collect();
+            Ok(json!({
+                "stats": stats,
+                "recent_runs": recent_runs,
+                "events": events,
+                "total_events": total_events,
+                "agents": agents,
+                "collections": collections,
+            }))
+        }
+
         // ── git ───────────────────────────────────────────────────
         "git.status" => {
             let root = crate::services::git::state::resolve_root(state.ship_dir(), None)
@@ -566,6 +606,7 @@ pub fn names() -> &'static [&'static str] {
         "specs.list", "specs.get", "specs.summaries", "specs.detail",
         "git.status", "git.log", "git.branches", "git.overview", "git.diff", "git.annotations",
         "settings.state",
+        "dashboard.state",
     ]
 }
 
