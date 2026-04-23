@@ -51,7 +51,8 @@ impl Object for ShipNs {
             // Service domain namespaces — each returns a Domain object
             // whose callable methods dispatch to the registry.
             "agents" | "skills" | "rules" | "mcp" | "permissions"
-            | "pipelines" | "git" | "collections" | "specs" | "events" => {
+            | "pipelines" | "git" | "collections" | "specs" | "events"
+            | "settings" => {
                 Some(Value::from_object(Domain {
                     state: self.state.clone(),
                     name: k.to_string(),

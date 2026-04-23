@@ -283,6 +283,13 @@ pub fn call(name: &str, args: &Value, state: &ApiState) -> Result<Value, Registr
             Ok(json!({ "spec": spec, "body": body }))
         }
 
+        // ── settings ──────────────────────────────────────────────
+        "settings.state" => {
+            let ctx = crate::views_settings::build_ctx(&Default::default());
+            serde_json::to_value(&ctx)
+                .map_err(|e| RegistryError::service(e.to_string()))
+        }
+
         // ── git ───────────────────────────────────────────────────
         "git.status" => {
             let root = crate::services::git::state::resolve_root(state.ship_dir(), None)
@@ -325,6 +332,7 @@ pub fn names() -> &'static [&'static str] {
         "events.list",
         "specs.list", "specs.get",
         "git.status", "git.log", "git.branches",
+        "settings.state",
     ]
 }
 

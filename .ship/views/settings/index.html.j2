@@ -45,11 +45,21 @@
       <p>CLI and studio configuration</p>
     </header>
 
+    {#- File-routed view — data pulled inline via ship.* SDK. The
+        `live()` directive still subscribes to the legacy SSE endpoint
+        for settings-save echo updates. -#}
+    {% set s = ship.settings.state() %}
+    {% set providers = s.providers %}
+    {% set default_provider = s.default_provider %}
+    {% set default_model = s.default_model %}
+    {% set terminal = s.terminal %}
+    {% set advanced_registry = s.advanced_registry %}
+    {% set daemon_endpoint = s.daemon_endpoint %}
+    {% set about = s.about %}
+
     <div id="settings-panel"
          {{ live('settings') }}>
-      <div id="settings-content">
-        <p style="font-size: 12px; color: var(--muted-foreground); padding: 12px 0">Loading...</p>
-      </div>
+      {% include 'settings/partials/content.html.j2' %}
     </div>
   </main>
 </div>

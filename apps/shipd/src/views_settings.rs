@@ -155,7 +155,7 @@ fn build_about() -> AboutInfo {
     }
 }
 
-fn build_ctx(_params: &SettingsParams) -> SettingsCtx {
+pub fn build_ctx(_params: &SettingsParams) -> SettingsCtx {
     let default_provider = runtime::config::get_setting("defaults.provider")
         .ok()
         .flatten()
