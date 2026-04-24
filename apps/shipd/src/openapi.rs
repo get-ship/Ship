@@ -64,6 +64,7 @@ impl Modify for SecurityAndServer {
         crate::views::routed_handler::serve_view_routed,
         crate::views::routed_sse::serve_view_sse_routed,
         crate::views::source_api::serve_view_source,
+        crate::create_api::create_surface,
         // Static assets + lazy island bundles.
         crate::views::assets::serve_datastar_js,
         crate::views::assets::serve_view_tokens,
@@ -93,6 +94,9 @@ impl Modify for SecurityAndServer {
         crate::settings_api::ProviderStatus,
         crate::services::chat::send::ChatSendRequest,
         crate::views::source_api::ViewSourceResponse,
+        crate::create_api::CreateRequest,
+        crate::create_api::CreateResponse,
+        crate::create_api::CreateData,
     ))
 )]
 pub struct ApiDoc;

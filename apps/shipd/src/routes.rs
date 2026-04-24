@@ -278,6 +278,9 @@ pub enum Route {
     /// @route GET "/api/view-source/{*path}"
     ServeViewSource { path: String },
 
+    /// @route POST "/api/create/{surface}"
+    CreateSurface { surface: String },
+
     /// @route GET "/api/view/{name}/manifest"
     ServeViewManifest { name: String },
 
