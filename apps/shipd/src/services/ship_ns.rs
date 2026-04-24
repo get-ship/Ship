@@ -48,6 +48,14 @@ impl Object for ShipNs {
     fn get_value(self: &Arc<Self>, key: &Value) -> Option<Value> {
         let k = key.as_str()?;
         match k {
+            // Soft-fail namespace: every domain re-exposed but runtime
+            // errors (not_found, service_error) come back as an `{error,
+            // code, message}` object instead of raising. Author bugs
+            // (unknown_service, bad_args) still raise.
+            //
+            //   {% set spec = ship.try.specs.detail(id=ship.route.id) %}
+            //   {% if spec.error %} … {% else %} … {% endif %}
+            "try" => Some(Value::from_object(TryNs { state: self.state.clone() })),
             // Service domain namespaces — each returns a Domain object
             // whose callable methods dispatch to the registry.
             "agents" | "skills" | "rules" | "mcp" | "permissions"
@@ -56,6 +64,7 @@ impl Object for ShipNs {
                 Some(Value::from_object(Domain {
                     state: self.state.clone(),
                     name: k.to_string(),
+                    soft: false,
                 }))
             }
             "route" => Some(self.route.clone()),
@@ -71,9 +80,15 @@ impl Object for ShipNs {
 
 /// One service domain — `ship.agents`, `ship.git`, etc. Methods on the
 /// domain (`list`, `get`, `diff`, …) dispatch through the registry.
+///
+/// `soft = true` comes from the `ship.try.*` path: runtime errors
+/// (not_found, service_error) return an `{error, code, message}` object
+/// instead of raising. Author bugs (bad_args, unknown_service) still
+/// raise under both modes — they're not recoverable at render time.
 pub struct Domain {
     state: ApiState,
     name: String,
+    soft: bool,
 }
 
 impl std::fmt::Debug for Domain {
@@ -98,10 +113,55 @@ impl Object for Domain {
         let full = format!("{}.{method}", self.name);
         match registry::call(&full, &args_json, &self.state) {
             Ok(value) => Ok(Value::from_serialize(&value)),
-            Err(e) => Err(Error::new(
-                ErrorKind::InvalidOperation,
-                format!("ship.{full}: [{code}] {msg}", code = e.code, msg = e.message),
-            )),
+            Err(e) => {
+                // Soft-fail mode wraps runtime conditions as an object
+                // templates can render. Author bugs always raise.
+                if self.soft && matches!(e.code, "not_found" | "service_error") {
+                    Ok(Value::from_serialize(&serde_json::json!({
+                        "error": true,
+                        "code": e.code,
+                        "message": e.message,
+                        "op": format!("ship.{full}"),
+                    })))
+                } else {
+                    Err(Error::new(
+                        ErrorKind::InvalidOperation,
+                        format!("ship.{full}: [{code}] {msg}", code = e.code, msg = e.message),
+                    ))
+                }
+            }
+        }
+    }
+}
+
+/// `ship.try` — soft-fail namespace. Re-exposes every domain as a
+/// `Domain { soft: true }`. Call shape is identical to `ship.<domain>`.
+pub struct TryNs {
+    state: ApiState,
+}
+
+impl std::fmt::Debug for TryNs {
+    fn fmt(&self, f: &mut std::fmt::Formatter<'_>) -> std::fmt::Result {
+        write!(f, "ship.try")
+    }
+}
+
+impl Object for TryNs {
+    fn repr(self: &Arc<Self>) -> ObjectRepr { ObjectRepr::Map }
+
+    fn get_value(self: &Arc<Self>, key: &Value) -> Option<Value> {
+        let k = key.as_str()?;
+        match k {
+            "agents" | "skills" | "rules" | "mcp" | "permissions"
+            | "pipelines" | "git" | "collections" | "specs" | "events"
+            | "settings" | "dashboard" | "chat" => {
+                Some(Value::from_object(Domain {
+                    state: self.state.clone(),
+                    name: k.to_string(),
+                    soft: true,
+                }))
+            }
+            _ => None,
         }
     }
 }
