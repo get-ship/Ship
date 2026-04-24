@@ -121,6 +121,23 @@ fn collect_types() -> TypeCollection {
     c.register::<runtime::events::job::PipelineStep>();
     c.register::<runtime::events::job::StepType>();
 
+    // events/feedback.rs
+    c.register::<runtime::events::feedback::FeedbackEvent>();
+    c.register::<runtime::events::feedback::FeedbackKind>();
+    c.register::<runtime::events::feedback::FeedbackIntent>();
+    c.register::<runtime::events::feedback::FeedbackTarget>();
+    c.register::<runtime::events::feedback::Selection>();
+    c.register::<runtime::events::feedback::AuthorKind>();
+
+    // events/annotation.rs (AuthorKind/Selection shared with feedback.rs — registered above)
+    c.register::<runtime::events::annotation::AnnotationEvent>();
+    c.register::<runtime::events::annotation::AnnotationKind>();
+    c.register::<runtime::events::annotation::AnnotationIntent>();
+    c.register::<runtime::events::annotation::AnnotationTarget>();
+
+    // events/filter.rs
+    c.register::<runtime::events::filter::EventFilter>();
+
     // workspace/types.rs
     c.register::<runtime::Workspace>();
     c.register::<runtime::WorkspaceStatus>();

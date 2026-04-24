@@ -1,6 +1,7 @@
 use chrono::{DateTime, Utc};
+use specta::Type;
 
-#[derive(Debug, Default, Clone)]
+#[derive(Debug, Default, Clone, Type)]
 pub struct EventFilter {
     pub entity_id: Option<String>,
     pub event_type: Option<String>,

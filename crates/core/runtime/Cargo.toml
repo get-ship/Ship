@@ -21,7 +21,7 @@ chrono = { version = "0.4", features = ["serde"] }
 nanoid = "0.4"
 ulid = "1"
 walkdir = "2.3"
-specta = { version = "=2.0.0-rc.22", features = ["derive", "chrono"] }
+specta = { version = "=2.0.0-rc.22", features = ["derive", "chrono", "serde_json"] }
 sqlx = { version = "0.8", default-features = false, features = ["sqlite", "runtime-tokio-rustls", "migrate", "macros"] }
 tokio = { version = "1", features = ["rt", "rt-multi-thread", "time", "sync", "macros", "process", "io-util"] }
 async-trait = "0.1"

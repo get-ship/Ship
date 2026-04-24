@@ -5,10 +5,11 @@
 
 use chrono::{DateTime, Utc};
 use serde::{Deserialize, Serialize};
+use specta::Type;
 
 /// A single user- or agent-authored feedback event against a live canvas,
 /// spec doc, or file.
-#[derive(Debug, Clone, PartialEq, Serialize, Deserialize)]
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize, Type)]
 pub struct FeedbackEvent {
     pub id: String,
     pub kind: FeedbackKind,
@@ -29,7 +30,7 @@ pub struct FeedbackEvent {
     pub author_kind: AuthorKind,
 }
 
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize, Type)]
 #[serde(rename_all = "snake_case")]
 pub enum FeedbackKind {
     Point,
@@ -37,7 +38,7 @@ pub enum FeedbackKind {
     Action,
 }
 
-#[derive(Debug, Clone, PartialEq, Serialize, Deserialize, Default)]
+#[derive(Debug, Clone, PartialEq, Serialize, Deserialize, Default, Type)]
 pub struct FeedbackTarget {
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub view_id: Option<String>,
@@ -51,7 +52,7 @@ pub struct FeedbackTarget {
     pub viewport: Option<[f32; 2]>,
 }
 
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize, Type)]
 #[serde(rename_all = "snake_case")]
 pub enum FeedbackIntent {
     Comment,
@@ -62,14 +63,14 @@ pub enum FeedbackIntent {
     Reject,
 }
 
-#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize)]
+#[derive(Debug, Clone, PartialEq, Eq, Serialize, Deserialize, Type)]
 pub struct Selection {
     /// e.g. "text", "image", "code"
     pub kind: String,
     pub text: Option<String>,
 }
 
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Serialize, Deserialize, Type)]
 #[serde(rename_all = "snake_case")]
 pub enum AuthorKind {
     Human,
