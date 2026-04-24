@@ -167,6 +167,7 @@ impl StudioServer {
             adapter: Box::new(adapter),
             allowed_events: std::collections::HashSet::new(),
             workspace_branch: None, // Studio sees all workspaces
+            session_id: None, // Studio is cross-session
         };
         relay.add_peer(peer_handle).await;
         let _handle = relay.spawn(mailbox);

@@ -254,16 +254,29 @@ impl ShipServer {
             .ok()
             .and_then(|d| tool_gate::current_branch(&d).ok());
 
+        // Ship chat session id — set by the daemon when spawning an agent
+        // as part of a command-bar session. Unset for free-standing Claude
+        // invocations outside Ship's session registry.
+        let ship_session_id = std::env::var("SHIP_SESSION_ID")
+            .ok()
+            .filter(|v| !v.is_empty());
+
         // Select push adapter based on detected provider, register as peer.
         if let Some(peer) = self.notification_peer.lock().await.clone() {
             let provider = self.mcp_provider.lock().await.clone();
             let adapter =
                 crate::push::select_adapter(provider.as_deref(), peer);
-            tracing::info!(adapter = adapter.adapter_name(), branch = ?workspace_branch, "push adapter selected");
+            tracing::info!(
+                adapter = adapter.adapter_name(),
+                branch = ?workspace_branch,
+                session = ?ship_session_id,
+                "push adapter selected"
+            );
             let peer_handle = notification_relay::PeerHandle {
                 adapter,
                 allowed_events: std::collections::HashSet::new(),
                 workspace_branch,
+                session_id: ship_session_id,
             };
             relay.add_peer(peer_handle).await;
         }

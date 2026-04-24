@@ -71,6 +71,12 @@ pub const ARTIFACT_UPDATED: &str = "artifact.updated";
 pub const ARTIFACT_MOVED: &str = "artifact.moved";
 pub const ARTIFACT_DELETED: &str = "artifact.deleted";
 
+/// Emitted when a user sends a turn in a Ship command-bar chat session.
+/// Scoped to the originating Ship `session_id` via `EventEnvelope.session_id`
+/// so per-session filtering in the MCP `EventRelay` can route the turn only
+/// to the intended long-lived agent. Payload: `{ session_id, text, agent_id? }`.
+pub const STUDIO_CHAT_TURN: &str = "studio.chat_turn";
+
 pub const ALL: &[&str] = &[
     WORKSPACE_CREATED,
     WORKSPACE_DELETED,
@@ -144,6 +150,7 @@ pub const ALL: &[&str] = &[
     ARTIFACT_UPDATED,
     ARTIFACT_MOVED,
     ARTIFACT_DELETED,
+    STUDIO_CHAT_TURN,
 ];
 
 #[cfg(test)]

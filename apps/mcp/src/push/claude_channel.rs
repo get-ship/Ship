@@ -78,6 +78,18 @@ impl PushAdapter for ClaudeChannelAdapter {
 /// Keep it concise — Claude reads this as part of its conversation.
 pub fn format_event_content(event: &EventEnvelope, payload: &serde_json::Value) -> String {
     match event.event_type.as_str() {
+        "studio.chat_turn" => {
+            // Rendered directly as the user's next turn in the Ship
+            // command bar chat. Prefix makes the source unambiguous to
+            // the agent; `chat_reply` is the expected response path.
+            let text = payload["text"]
+                .as_str()
+                .unwrap_or("");
+            format!(
+                "[ship.chat] User turn in Ship command bar — respond via the `chat_reply` MCP tool \
+                 (session_id is in SHIP_SESSION_ID env). Do not print to stdout.\n\n{text}"
+            )
+        }
         "mesh.message" => {
             let from = payload["from"].as_str()
                 .or_else(|| payload["from_agent_id"].as_str())

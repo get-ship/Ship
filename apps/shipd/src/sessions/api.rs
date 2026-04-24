@@ -16,14 +16,16 @@ use axum::extract::{Path, State};
 use axum::http::StatusCode;
 use axum::response::sse::{Event, KeepAlive, Sse};
 use axum::response::IntoResponse;
-use axum::Json;
+use axum::{Extension, Json};
 use futures_util::stream::{self, Stream};
+use runtime::events::{types::event_types, EventEnvelope};
 use serde::{Deserialize, Serialize};
 use std::convert::Infallible;
 use std::time::Duration;
 use tokio_stream::wrappers::BroadcastStream;
 use tokio_stream::StreamExt as TokioStreamExt;
 
+use crate::auth::AuthContext;
 use crate::rest_api::ApiState;
 
 use super::lifecycle;
@@ -176,6 +178,7 @@ pub struct MessageBody {
 )]
 pub async fn session_message(
     State(state): State<ApiState>,
+    Extension(auth): Extension<AuthContext>,
     Path(id): Path<String>,
     Json(body): Json<MessageBody>,
 ) -> axum::response::Response {
@@ -183,6 +186,35 @@ pub async fn session_message(
     if text.is_empty() {
         return err(StatusCode::BAD_REQUEST, "empty message");
     }
+
+    // Emit `studio.chat_turn` for channel-capable long-lived agents.
+    // Per-turn providers ignore this path; they still get driven by the
+    // spawn + stdin prompt below. The event is scoped to `session_id` so
+    // the MCP `EventRelay` can filter it to the exact Claude instance.
+    let (workspace_id, agent_id) = state
+        .pty_sessions()
+        .get(&id)
+        .map(|s| {
+            let m = s.meta();
+            (m.workspace_id, m.agent_id)
+        })
+        .unwrap_or_default();
+    let payload = serde_json::json!({
+        "session_id": id,
+        "text": text,
+        "agent_id": agent_id,
+    });
+    if let Ok(envelope) = EventEnvelope::new(
+        event_types::STUDIO_CHAT_TURN,
+        &id,
+        &payload,
+    ) {
+        let envelope = envelope
+            .with_context(Some(&workspace_id), Some(&id));
+        let ctx = auth.to_daemon_emit_context();
+        let _ = state.kernel().lock().await.emit(envelope, &ctx).await;
+    }
+
     let work_dir = work_dir_for(&state, "main");
     match super::lifecycle::send_agent_message(
         state.pty_sessions(),
