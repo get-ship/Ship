@@ -122,15 +122,53 @@ pub(crate) fn resolve_view_dir(name: &str) -> Option<(PathBuf, &'static str)> {
 ///
 /// Supports three formats, checked in order: `manifest.yaml`, `manifest.jsonc`
 /// (comments stripped), `manifest.json`.
+///
+/// Parse errors are logged at `warn` level with the file path + error
+/// detail, then the handler falls back to an absent manifest — rather
+/// than silently hiding author mistakes. Authors see the diagnostic
+/// in daemon logs while the view still renders its index.html.j2
+/// (sans rail metadata, events, packs).
 pub(crate) fn read_raw_manifest(dir: &PathBuf) -> Option<ManifestFile> {
+    fn warn_parse(path: &std::path::Path, err: impl std::fmt::Display) {
+        tracing::warn!(
+            manifest = %path.display(),
+            error = %err,
+            "view manifest parse failed — view will render without manifest metadata. \
+             Check schema at https://raw.githubusercontent.com/madvib/ship/main/schemas/view-manifest.schema.json"
+        );
+    }
+
     if dir.join("manifest.yaml").exists() {
-        serde_yaml::from_str(&std::fs::read_to_string(dir.join("manifest.yaml")).ok()?).ok()
+        let path = dir.join("manifest.yaml");
+        let raw = match std::fs::read_to_string(&path) {
+            Ok(s) => s,
+            Err(e) => { warn_parse(&path, e); return None; }
+        };
+        match serde_yaml::from_str(&raw) {
+            Ok(m) => Some(m),
+            Err(e) => { warn_parse(&path, e); None }
+        }
     } else if dir.join("manifest.jsonc").exists() {
-        let raw = std::fs::read_to_string(dir.join("manifest.jsonc")).ok()?;
+        let path = dir.join("manifest.jsonc");
+        let raw = match std::fs::read_to_string(&path) {
+            Ok(s) => s,
+            Err(e) => { warn_parse(&path, e); return None; }
+        };
         let json = compiler::jsonc::strip_jsonc_comments(&raw);
-        serde_json::from_str(&json).ok()
+        match serde_json::from_str(&json) {
+            Ok(m) => Some(m),
+            Err(e) => { warn_parse(&path, e); None }
+        }
     } else if dir.join("manifest.json").exists() {
-        serde_json::from_str(&std::fs::read_to_string(dir.join("manifest.json")).ok()?).ok()
+        let path = dir.join("manifest.json");
+        let raw = match std::fs::read_to_string(&path) {
+            Ok(s) => s,
+            Err(e) => { warn_parse(&path, e); return None; }
+        };
+        match serde_json::from_str(&raw) {
+            Ok(m) => Some(m),
+            Err(e) => { warn_parse(&path, e); None }
+        }
     } else {
         None
     }
