@@ -1,6 +1,8 @@
 import Navigo from "navigo";
 import { mountDaemonFragment, isSameOrigin } from "./mount";
-import { toggle as toggleCmdk, isCommandPaletteOpen } from "./command-palette";
+// Legacy command palette — retained for the scripted `/cmdk` fallback
+// but no longer bound to ⌘K (claimed by <ship-command-bar>).
+import { toggle as toggleCmdk } from "./command-palette";
 import { installErrorReporter } from "./error-reporter";
 // Side-effect import: registers `<ship-shell>` + mounts `window.ship`
 // on first `connectedCallback`. The custom-element registration fires
@@ -548,19 +550,9 @@ document
 document.addEventListener("keydown", (e) => {
   const meta = e.metaKey || e.ctrlKey;
 
-  // ⌘K — Command palette
-  if (meta && e.key === "k") {
-    e.preventDefault();
-    toggleCmdk();
-    return;
-  }
-
-  // Escape — close palette if open
-  if (e.key === "Escape" && isCommandPaletteOpen()) {
-    e.preventDefault();
-    toggleCmdk();
-    return;
-  }
+  // ⌘K is claimed by <ship-command-bar>; its own keydown handler
+  // focuses the bar from anywhere. main.ts no longer toggles the
+  // legacy palette.
 
   // ⌘B — Toggle rail
   if (meta && e.key === "b") {
@@ -660,7 +652,9 @@ setInterval(updateStatus, 15000);
 router.resolve();
 updateStatus();
 
-// ⌘K trigger — <ship-nav-top> dispatches ship:command:open.
+// Legacy ship:command:open listener — kept as a non-shortcut way to
+// raise the old palette while we migrate callers to the bar. Not
+// wired to ⌘K anymore.
 document
   .querySelector("ship-shell")
   ?.addEventListener("ship:command:open", () => {

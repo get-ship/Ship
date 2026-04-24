@@ -52,27 +52,125 @@ export class ShipCommandBar extends LitElement {
     :host {
       display: inline-flex;
       align-items: center;
-      gap: 6px;
       flex: 1;
-      max-width: 640px;
-      min-width: 220px;
-      position: relative;
+      max-width: 320px;
+      min-width: 200px;
       font: inherit;
     }
-    .shell {
+    /* ── Trigger (slim button in the nav-top) ────────────────────── */
+    .trigger {
       display: flex;
       align-items: center;
       gap: 8px;
-      padding: 3px 10px;
+      padding: 4px 12px;
       width: 100%;
       border: 1px solid var(--border);
       border-radius: var(--radius-md, 6px);
       background: var(--background);
       color: var(--muted-foreground);
+      font: inherit;
+      font-size: var(--text-xs);
+      cursor: pointer;
       transition: border-color var(--duration-fast, 120ms) var(--ease-out, ease);
     }
-    .shell:focus-within {
-      border-color: color-mix(in oklch, var(--primary) 60%, var(--border));
+    .trigger:hover {
+      border-color: color-mix(in oklch, var(--foreground) 30%, var(--border));
+    }
+    .trigger .label {
+      flex: 1;
+      text-align: left;
+    }
+    .trigger kbd {
+      font-family: var(--font-mono);
+      font-size: 10px;
+      padding: 1px 5px;
+      border: 1px solid var(--border);
+      border-radius: 3px;
+      background: var(--muted);
+      color: var(--muted-foreground);
+    }
+    .trigger .dot {
+      width: 6px;
+      height: 6px;
+      border-radius: 999px;
+      background: var(--muted-foreground);
+    }
+    .trigger .dot.active {
+      background: var(--success, #16a34a);
+    }
+    .trigger .dot.thinking {
+      background: var(--warning, #d97706);
+    }
+    /* ── Centered modal overlay ─────────────────────────────────── */
+    .backdrop {
+      position: fixed;
+      inset: 0;
+      background: rgba(0, 0, 0, 0.4);
+      backdrop-filter: blur(2px);
+      z-index: 9900;
+    }
+    :host-context(.dark) .backdrop {
+      background: rgba(0, 0, 0, 0.6);
+    }
+    .panel {
+      position: fixed;
+      top: max(80px, 12%);
+      left: 50%;
+      transform: translateX(-50%);
+      width: min(720px, 94vw);
+      max-height: min(70vh, 600px);
+      background: var(--card, var(--background));
+      border: 1px solid var(--border);
+      border-radius: var(--radius-lg, 10px);
+      box-shadow: 0 24px 60px rgba(0, 0, 0, 0.22);
+      z-index: 9901;
+      display: flex;
+      flex-direction: column;
+      color: var(--foreground);
+      overflow: hidden;
+    }
+    .panel-input {
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      padding: var(--space-3, 12px) var(--space-4, 16px);
+      border-bottom: 1px solid var(--border);
+    }
+    .panel-input kbd {
+      font-family: var(--font-mono);
+      font-size: 10px;
+      padding: 1px 5px;
+      border: 1px solid var(--border);
+      border-radius: 3px;
+      background: var(--muted);
+      color: var(--muted-foreground);
+    }
+    .panel-chip {
+      display: inline-flex;
+      align-items: center;
+      gap: 6px;
+      padding: 2px 8px;
+      border-left: 1px solid var(--border);
+      color: var(--foreground);
+      font-size: var(--text-xs);
+      cursor: pointer;
+    }
+    .panel-chip .dot {
+      width: 6px;
+      height: 6px;
+      border-radius: 999px;
+      background: var(--muted-foreground);
+    }
+    .panel-chip .dot.active {
+      background: var(--success, #16a34a);
+    }
+    .panel-chip .dot.thinking {
+      background: var(--warning, #d97706);
+    }
+    .panel-body {
+      flex: 1;
+      overflow: auto;
+      padding: var(--space-3, 12px) var(--space-4, 16px);
       color: var(--foreground);
     }
     input {
@@ -103,55 +201,13 @@ export class ShipCommandBar extends LitElement {
     }
     .mode-glyph {
       color: var(--muted-foreground);
-      width: 14px;
+      width: 18px;
       text-align: center;
       font-family: var(--font-mono);
-      font-size: 11px;
+      font-size: 12px;
     }
     .mode-glyph.ai {
       color: var(--primary);
-    }
-    .chip {
-      display: inline-flex;
-      align-items: center;
-      gap: 6px;
-      padding: 2px 8px;
-      border-left: 1px solid var(--border);
-      color: var(--foreground);
-      font-size: var(--text-xs);
-      cursor: pointer;
-    }
-    .chip .dot {
-      width: 6px;
-      height: 6px;
-      border-radius: 999px;
-      background: var(--muted-foreground);
-    }
-    .chip .dot.active {
-      background: var(--success, #16a34a);
-    }
-    .chip .dot.thinking {
-      background: var(--warning, #d97706);
-    }
-    .flyout {
-      position: absolute;
-      top: calc(100% + 4px);
-      left: 0;
-      right: 0;
-      background: var(--card, var(--background));
-      border: 1px solid var(--border);
-      border-radius: var(--radius-md, 6px);
-      box-shadow: 0 12px 28px rgba(0, 0, 0, 0.12);
-      min-height: 120px;
-      max-height: min(70vh, 560px);
-      overflow: auto;
-      z-index: 9800;
-      padding: var(--space-3, 12px);
-      color: var(--foreground);
-    }
-    .flyout.empty {
-      color: var(--muted-foreground);
-      font-size: var(--text-sm);
     }
     .mode-hint {
       font-size: 10px;
@@ -159,6 +215,35 @@ export class ShipCommandBar extends LitElement {
       letter-spacing: 0.08em;
       color: var(--muted-foreground);
       margin-bottom: var(--space-2, 8px);
+    }
+    .empty-msg {
+      padding: var(--space-4, 16px);
+      color: var(--muted-foreground);
+      font-size: var(--text-sm);
+      text-align: center;
+    }
+    .nav-list {
+      display: grid;
+      gap: 2px;
+    }
+    .nav-item {
+      display: grid;
+      grid-template-columns: 20px 1fr auto;
+      gap: 8px;
+      align-items: center;
+      padding: 6px 10px;
+      border-radius: var(--radius-sm, 4px);
+      font-size: var(--text-sm);
+      cursor: pointer;
+      color: var(--foreground);
+    }
+    .nav-item:hover,
+    .nav-item.selected {
+      background: var(--muted);
+    }
+    .nav-item .hint {
+      color: var(--muted-foreground);
+      font-size: var(--text-xs);
     }
     .spawn-card {
       display: grid;
@@ -553,7 +638,6 @@ export class ShipCommandBar extends LitElement {
   }
 
   render() {
-    const { text: glyph, tone, placeholder } = this._modeGlyph();
     const statusClass =
       this._session?.status === "thinking"
         ? "thinking"
@@ -561,41 +645,67 @@ export class ShipCommandBar extends LitElement {
           ? "active"
           : "";
     return html`
-      <div class="shell" role="combobox" aria-expanded=${this.open ? "true" : "false"}>
-        <span class="mode-glyph ${tone}">${glyph}</span>
-        <input
-          type="text"
-          .value=${this._value}
-          placeholder=${placeholder}
-          @input=${this._onInput}
-          @focus=${this._onFocus}
-          @keydown=${this._onKeydown}
-          aria-label="Ship command bar"
-        />
-        ${this._value.length === 0 ? html`<kbd>⌘K</kbd>` : nothing}
-        <span
-          class="chip"
-          title=${this._session
-            ? `${this._session.agent_id ?? "—"} · ${this._session.provider ?? "—"}`
-            : "No session attached"}
-          @click=${(e: MouseEvent) => {
-            e.stopPropagation();
-            this._openSessionPicker();
-          }}
-        >
-          <span class="dot ${statusClass}"></span>
-          <span>${this._session?.agent_id ?? "No session"}</span>
-        </span>
-      </div>
-      ${this.open ? this._renderFlyout() : nothing}
+      ${this._renderTrigger(statusClass)}
+      ${this.open ? this._renderModal(statusClass) : nothing}
     `;
   }
 
-  private _renderFlyout() {
+  private _renderTrigger(statusClass: string) {
+    const label = this._session
+      ? `Ask ${this._session.agent_id} or jump to…`
+      : "Ask Ship or jump to…";
     return html`
-      <div class="flyout">
-        <div class="mode-hint">${this._mode}</div>
-        ${this._renderFlyoutBody()}
+      <button
+        class="trigger"
+        type="button"
+        aria-label="Open command bar"
+        @click=${() => void this.focus()}
+      >
+        <ship-icon name="search" size="sm"></ship-icon>
+        <span class="label">${label}</span>
+        <span class="dot ${statusClass}"
+              title=${this._session
+                ? `${this._session.agent_id ?? "—"} · ${this._session.provider ?? "—"}`
+                : "No session attached"}></span>
+        <kbd>⌘K</kbd>
+      </button>
+    `;
+  }
+
+  private _renderModal(statusClass: string) {
+    const { text: glyph, tone, placeholder } = this._modeGlyph();
+    return html`
+      <div class="backdrop" @click=${() => this.blur()}></div>
+      <div class="panel" role="dialog" aria-label="Ship command bar">
+        <div class="panel-input">
+          <span class="mode-glyph ${tone}">${glyph}</span>
+          <input
+            type="text"
+            .value=${this._value}
+            placeholder=${placeholder}
+            @input=${this._onInput}
+            @focus=${this._onFocus}
+            @keydown=${this._onKeydown}
+            aria-label="Ship command bar"
+          />
+          <kbd>esc</kbd>
+          <span
+            class="panel-chip"
+            title=${this._session
+              ? `${this._session.agent_id ?? "—"} · ${this._session.provider ?? "—"}`
+              : "No session attached"}
+            @click=${(e: MouseEvent) => {
+              e.stopPropagation();
+              this._openSessionPicker();
+            }}
+          >
+            <span class="dot ${statusClass}"></span>
+            <span>${this._session?.agent_id ?? "No session"}</span>
+          </span>
+        </div>
+        <div class="panel-body">
+          ${this._renderFlyoutBody()}
+        </div>
       </div>
     `;
   }
@@ -603,17 +713,85 @@ export class ShipCommandBar extends LitElement {
   private _renderFlyoutBody() {
     switch (this._mode) {
       case "command":
-        return html`<div class="flyout empty">Slash commands coming next commit.</div>`;
+        return html`<div class="empty-msg">Slash commands coming next commit.</div>`;
       case "find":
-        return html`<div class="flyout empty">Fuzzy find coming next commit.</div>`;
+        return this._renderFindList();
       case "mention":
-        return html`<div class="flyout empty">Mentions coming next commit.</div>`;
+        return html`<div class="empty-msg">Mentions coming next commit.</div>`;
       case "create":
-        return html`<div class="flyout empty">Create coming next commit.</div>`;
+        return html`<div class="empty-msg">Create coming next commit.</div>`;
       case "ai":
       default:
-        return this._session ? this._renderThread() : this._renderSpawnCard();
+        // When input is empty, render both the AI surface AND the nav
+        // list so the palette is useful from a single open.
+        const empty = this._value.trim().length === 0;
+        return html`
+          ${this._session ? this._renderThread() : this._renderSpawnCard()}
+          ${empty
+            ? html`
+                <div style="margin-top: var(--space-4, 16px); border-top: 1px solid var(--border); padding-top: var(--space-3, 12px)">
+                  ${this._renderFindList()}
+                </div>
+              `
+            : nothing}
+        `;
     }
+  }
+
+  /** Built-in navigation destinations. The legacy command palette
+   * kept these 11 — we surface them in the Find mode now. */
+  private _navDestinations(): Array<{ label: string; path: string; icon: string; keywords: string }> {
+    return [
+      { label: "Dashboard", path: "/dashboard", icon: "sparkles", keywords: "home overview" },
+      { label: "Pipelines", path: "/pipelines", icon: "play", keywords: "workflows runs jobs" },
+      { label: "Agents", path: "/agents", icon: "users", keywords: "configure profiles" },
+      { label: "Skills", path: "/skills", icon: "zap", keywords: "browse edit files" },
+      { label: "Git", path: "/git", icon: "git", keywords: "status diff commit branch" },
+      { label: "Collections", path: "/collections", icon: "folder", keywords: "data items query" },
+      { label: "Canvas", path: "/canvas", icon: "image", keywords: "docs visual feedback" },
+      { label: "Events", path: "/events", icon: "sparkles", keywords: "stream log kernel" },
+      { label: "Settings", path: "/settings", icon: "settings", keywords: "config theme provider" },
+      { label: "Chat", path: "/chat", icon: "message-square-plus", keywords: "agent conversation" },
+      { label: "Specs", path: "/specs", icon: "file", keywords: "features design" },
+      { label: "Theme Studio", path: "/theme-studio", icon: "palette", keywords: "design tokens" },
+      { label: "Chats (Mission Control)", path: "/chats", icon: "messages-square", keywords: "sessions active" },
+    ];
+  }
+
+  private _renderFindList() {
+    const needle = this._value.replace(/^>+\s*/, "").toLowerCase().trim();
+    const items = this._navDestinations().filter((d) => {
+      if (!needle) return true;
+      return (
+        d.label.toLowerCase().includes(needle) ||
+        d.keywords.toLowerCase().includes(needle) ||
+        d.path.toLowerCase().includes(needle)
+      );
+    });
+    if (items.length === 0) {
+      return html`<div class="empty-msg">No matches.</div>`;
+    }
+    return html`
+      <div class="mode-hint">Jump to</div>
+      <div class="nav-list">
+        ${items.map(
+          (d) => html`
+            <div
+              class="nav-item"
+              role="option"
+              @click=${() => {
+                window.ship?.navigate(d.path);
+                this.blur();
+              }}
+            >
+              <ship-icon name=${d.icon} size="sm"></ship-icon>
+              <span>${d.label}</span>
+              <span class="hint">${d.path}</span>
+            </div>
+          `,
+        )}
+      </div>
+    `;
   }
 
   private _renderSpawnCard() {
@@ -672,7 +850,7 @@ export class ShipCommandBar extends LitElement {
         ${this._thread.length === 0
           ? html`
               <div class="thread-empty">
-                Type a message below. The agent will reply here.
+                Type above and press Enter. The agent's replies land here.
               </div>
             `
           : this._thread.map(
