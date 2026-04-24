@@ -23,6 +23,7 @@ pub const RULE_INLINE_STYLE_BUDGET: &str = "inline-style-budget";
 pub const RULE_UNDEFINED_SIGNAL: &str = "undefined-signal";
 pub const RULE_MISSING_PACK_DECLARATION: &str = "missing-pack-declaration";
 pub const RULE_STALE_PACK_DECLARATION: &str = "stale-pack-declaration";
+pub const RULE_THEME_TOKEN_REF: &str = "theme-token-ref";
 
 pub use rules::ast::{
     RULE_AST_PARSE_ERROR, RULE_AST_UNDECLARED_SIGNAL, RULE_AST_UNDEFINED_CONTEXT,
@@ -30,6 +31,7 @@ pub use rules::ast::{
     RULE_AST_UNUSED_IMPORT,
 };
 pub use rules::ast::RULE_AST_UNKNOWN_SHIP_OP;
+pub use rules::rule_theme_token_ref;
 
 pub const ALL_RULES: &[&str] = &[
     RULE_NO_INLINE_SCRIPT,

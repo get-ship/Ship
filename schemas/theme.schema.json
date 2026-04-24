@@ -1,0 +1,102 @@
+{
+  "$schema": "https://json-schema.org/draft/2020-12/schema",
+  "$id": "https://raw.githubusercontent.com/madvib/ship/main/schemas/theme.schema.json",
+  "title": "Ship Theme",
+  "description": "A user-authored Ship theme. Defines the token bundle a shell renders against. Validated on save by POST /api/themes; lint rule theme-token-ref flags views that reference raw colors instead of var(--token).",
+  "type": "object",
+  "required": ["id", "label", "mode", "tokens"],
+  "additionalProperties": false,
+  "properties": {
+    "$schema": {
+      "type": "string"
+    },
+    "id": {
+      "type": "string",
+      "pattern": "^[a-z0-9][a-z0-9-]*$",
+      "description": "Theme identifier. Kebab-case. Must be unique across bundled + user themes."
+    },
+    "label": {
+      "type": "string",
+      "minLength": 1,
+      "maxLength": 40,
+      "description": "Human-readable name shown in the theme picker."
+    },
+    "description": {
+      "type": "string",
+      "maxLength": 280
+    },
+    "mode": {
+      "type": "string",
+      "enum": ["light", "dark"],
+      "description": "Whether this theme is intended as light or dark. Drives the shell's .dark class toggle."
+    },
+    "extends": {
+      "type": "string",
+      "description": "Optional base theme id to inherit tokens from. The `tokens` map overrides selectively.",
+      "pattern": "^[a-z0-9][a-z0-9-]*$"
+    },
+    "tokens": {
+      "type": "object",
+      "required": [
+        "foreground",
+        "background",
+        "primary",
+        "border",
+        "muted",
+        "destructive",
+        "success",
+        "warning",
+        "accent"
+      ],
+      "additionalProperties": {
+        "$ref": "#/$defs/color"
+      },
+      "properties": {
+        "foreground": { "$ref": "#/$defs/color" },
+        "background": { "$ref": "#/$defs/color" },
+        "primary": { "$ref": "#/$defs/color" },
+        "primary-foreground": { "$ref": "#/$defs/color" },
+        "secondary": { "$ref": "#/$defs/color" },
+        "secondary-foreground": { "$ref": "#/$defs/color" },
+        "border": { "$ref": "#/$defs/color" },
+        "muted": { "$ref": "#/$defs/color" },
+        "muted-foreground": { "$ref": "#/$defs/color" },
+        "destructive": { "$ref": "#/$defs/color" },
+        "destructive-foreground": { "$ref": "#/$defs/color" },
+        "success": { "$ref": "#/$defs/color" },
+        "warning": { "$ref": "#/$defs/color" },
+        "accent": { "$ref": "#/$defs/color" },
+        "accent-foreground": { "$ref": "#/$defs/color" },
+        "card": { "$ref": "#/$defs/color" },
+        "sidebar": { "$ref": "#/$defs/color" },
+        "sidebar-accent": { "$ref": "#/$defs/color" }
+      }
+    },
+    "contrast": {
+      "type": "object",
+      "description": "Optional contrast overrides. When absent the server computes defaults.",
+      "additionalProperties": false,
+      "properties": {
+        "minBodyRatio": {
+          "type": "number",
+          "minimum": 1,
+          "maximum": 21,
+          "description": "Minimum foreground/background ratio (WCAG). Default 4.5 (AA body text)."
+        },
+        "minInteractiveRatio": {
+          "type": "number",
+          "minimum": 1,
+          "maximum": 21,
+          "description": "Minimum ratio for interactive surfaces (primary on background, etc.). Default 3."
+        }
+      }
+    }
+  },
+  "$defs": {
+    "color": {
+      "description": "A CSS color. Allowed forms: hex (#rgb, #rrggbb, #rrggbbaa), rgb()/rgba(), oklch()/oklab(), hsl(). No named colors, no raw keywords — every user-visible color must round-trip through a parser.",
+      "type": "string",
+      "pattern": "^(#[0-9a-fA-F]{3,8}|oklch\\(.+\\)|oklab\\(.+\\)|rgb\\(.+\\)|rgba\\(.+\\)|hsl\\(.+\\)|hsla\\(.+\\))$"
+    }
+  }
+}
