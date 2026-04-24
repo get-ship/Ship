@@ -78,6 +78,9 @@
 {%- macro serve_view_sse_routed(path) -%}/api/sse/{{ path }}{%- endmacro -%}
 {%- macro serve_view_source(path) -%}/api/view-source/{{ path }}{%- endmacro -%}
 {%- macro create_surface(surface) -%}/api/create/{{ surface }}{%- endmacro -%}
+{%- macro write_view_template(name) -%}/api/views/{{ name }}/template{%- endmacro -%}
+{%- macro write_view_manifest_api(name) -%}/api/views/{{ name }}/manifest{%- endmacro -%}
+{%- macro fork_view(name) -%}/api/views/{{ name }}/fork{%- endmacro -%}
 {%- macro serve_view_manifest(name) -%}/api/view/{{ name }}/manifest{%- endmacro -%}
 {%- macro serve_view_bundle(name) -%}/api/view/{{ name }}/bundle{%- endmacro -%}
 {%- macro serve_view_raw(name) -%}/api/view/{{ name }}/raw{%- endmacro -%}

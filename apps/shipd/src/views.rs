@@ -26,6 +26,7 @@ pub mod router;
 pub mod routed_handler;
 pub mod routed_sse;
 pub mod source_api;
+pub mod write_api;
 pub mod stream;
 pub mod state;
 pub mod chat_state;

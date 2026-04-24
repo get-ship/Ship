@@ -281,6 +281,15 @@ pub enum Route {
     /// @route POST "/api/create/{surface}"
     CreateSurface { surface: String },
 
+    /// @route PUT "/api/views/{name}/template"
+    WriteViewTemplate { name: String },
+
+    /// @route PUT "/api/views/{name}/manifest"
+    WriteViewManifestApi { name: String },
+
+    /// @route POST "/api/views/{name}/fork"
+    ForkView { name: String },
+
     /// @route GET "/api/view/{name}/manifest"
     ServeViewManifest { name: String },
 

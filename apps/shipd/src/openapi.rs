@@ -65,6 +65,9 @@ impl Modify for SecurityAndServer {
         crate::views::routed_sse::serve_view_sse_routed,
         crate::views::source_api::serve_view_source,
         crate::create_api::create_surface,
+        crate::views::write_api::write_view_template,
+        crate::views::write_api::write_view_manifest,
+        crate::views::write_api::fork_view,
         // Static assets + lazy island bundles.
         crate::views::assets::serve_datastar_js,
         crate::views::assets::serve_view_tokens,
@@ -97,6 +100,11 @@ impl Modify for SecurityAndServer {
         crate::create_api::CreateRequest,
         crate::create_api::CreateResponse,
         crate::create_api::CreateData,
+        crate::views::write_api::WriteTemplateRequest,
+        crate::views::write_api::WriteManifestRequest,
+        crate::views::write_api::WriteResponse,
+        crate::views::write_api::WriteDiagnostics,
+        crate::views::write_api::LintFinding,
     ))
 )]
 pub struct ApiDoc;
