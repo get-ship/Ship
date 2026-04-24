@@ -447,6 +447,7 @@ viewRoute("/settings", "/api/v/settings");
 viewRoute("/agents", "/api/v/agents");
 viewRoute("/skills", "/api/v/skills");
 viewRoute("/chat", "/api/v/chat");
+viewRoute("/chats", "/api/v/chats");
 viewRoute("/events", "/api/v/events");
 viewRoute("/collections", "/api/v/collections");
 viewRoute("/dashboard", "/api/v/dashboard");
