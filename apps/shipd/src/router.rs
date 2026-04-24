@@ -57,7 +57,8 @@ pub fn build_router(
         .route("/hooks/session-start", axum::routing::post(hooks_api::hook_session_start))
         .route("/hooks/before-tool", axum::routing::post(hooks_api::hook_before_tool))
         .route("/hooks/after-tool", axum::routing::post(hooks_api::hook_after_tool))
-        .route("/hooks/session-end", axum::routing::post(hooks_api::hook_session_end));
+        .route("/hooks/session-end", axum::routing::post(hooks_api::hook_session_end))
+        .with_state(st.clone());
     // Enumerated routes — one `ApiState`-typed router, registered via
     // `ship_route(Route::X, handler)` against the canonical full paths.
     let api_ship_routes = build_ship_routes(st);

@@ -75,6 +75,22 @@ impl SessionRegistry {
         None
     }
 
+    /// Reverse-lookup: find the Ship session whose captured
+    /// `provider_session_id` matches the provider's own session id.
+    /// Used by hook endpoints to route `PreToolUse` / `PostToolUse`
+    /// events (which carry the provider's session id) to the
+    /// corresponding Ship chat bubble.
+    pub fn find_by_provider_session(&self, provider_session_id: &str) -> Option<PtySession> {
+        let guard = self.inner.lock().unwrap();
+        for handle in guard.values() {
+            let meta = handle.meta.lock().unwrap();
+            if meta.provider_session_id.as_deref() == Some(provider_session_id) {
+                return Some(PtySession(handle.clone()));
+            }
+        }
+        None
+    }
+
     pub fn len(&self) -> usize {
         self.inner.lock().unwrap().len()
     }

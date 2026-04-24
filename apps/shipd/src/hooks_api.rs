@@ -7,11 +7,12 @@
 //! Phase 1: the hook pipeline always returns "allow". Security scanning
 //! and custom rules are Phase 2.
 
-use axum::{Extension, Json, http::StatusCode, response::IntoResponse};
+use axum::{extract::State, Extension, Json, http::StatusCode, response::IntoResponse};
 use serde::{Deserialize, Serialize};
 use serde_json::json;
 
 use crate::auth::AuthContext;
+use crate::rest_api::ApiState;
 
 /// Normalized hook event sent by Claude HTTP hooks or the `ship hook` adapter.
 #[derive(Debug, Deserialize, utoipa::ToSchema)]
@@ -113,6 +114,7 @@ pub async fn hook_session_start(
     tag = "hooks"
 )]
 pub async fn hook_before_tool(
+    State(state): State<ApiState>,
     Extension(auth): Extension<AuthContext>,
     Json(event): Json<ShipHookEvent>,
 ) -> impl IntoResponse {
@@ -123,14 +125,42 @@ pub async fn hook_before_tool(
     tracing::debug!(actor = %actor, tool = %tool, session = ?session, "hook: before-tool");
 
     if let Some(ref sid) = session {
-        // Increment tool call counter.
         let _ = runtime::db::session_drain::increment_tool_count(sid);
-        // Update heartbeat.
         let _ = runtime::db::session_drain::update_heartbeat(sid);
+        broadcast_tool_use(&state, sid, tool, event.tool_input.as_ref());
     }
 
-    // Phase 1: always allow. Phase 2 adds security scanning here.
     (StatusCode::OK, Json(HookResponse::allow()))
+}
+
+/// Route a tool-use event into the matching Ship chat session so the
+/// command bar renders it as an inline tool card. The hook carries the
+/// provider's own session id — we reverse-lookup our Ship session via
+/// `provider_session_id` and broadcast a `ProviderEvent::ToolUse` on
+/// its existing event channel (the UI already consumes this variant).
+fn broadcast_tool_use(
+    state: &ApiState,
+    provider_session_id: &str,
+    tool: &str,
+    input: Option<&serde_json::Value>,
+) {
+    let Some(session) = state
+        .pty_sessions()
+        .find_by_provider_session(provider_session_id)
+    else {
+        return;
+    };
+    let input_preview = input
+        .map(|v| {
+            let s = v.to_string();
+            if s.len() > 400 { s.chars().take(400).collect() } else { s }
+        })
+        .unwrap_or_default();
+    let ev = runtime::services::provider_adapter::ProviderEvent::ToolUse {
+        tool: tool.to_string(),
+        input_preview,
+    };
+    let _ = session.0.event_tx.send(ev);
 }
 
 /// POST /api/hooks/after-tool
@@ -148,6 +178,7 @@ pub async fn hook_before_tool(
     tag = "hooks"
 )]
 pub async fn hook_after_tool(
+    State(state): State<ApiState>,
     Extension(auth): Extension<AuthContext>,
     Json(event): Json<ShipHookEvent>,
 ) -> impl IntoResponse {
@@ -159,6 +190,11 @@ pub async fn hook_after_tool(
 
     if let Some(ref sid) = session {
         let _ = runtime::db::session_drain::update_heartbeat(sid);
+        // The UI distinguishes start from finish by arrival order, not a
+        // dedicated event variant. Emitting a second ToolUse with the
+        // response preview lets the card flip from "running" to "done"
+        // without a schema change.
+        broadcast_tool_use(&state, sid, tool, event.tool_response.as_ref());
     }
 
     (StatusCode::OK, Json(HookResponse::allow()))
