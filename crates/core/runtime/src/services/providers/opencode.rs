@@ -28,6 +28,7 @@ impl ProviderAdapter for OpenCodeAdapter {
             mcp: true,
             hooks: false,
             session_resume: true,
+            channels: false,
         }
     }
 

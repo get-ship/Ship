@@ -20,6 +20,7 @@ impl ProviderAdapter for CursorAdapter {
             mcp: false,
             hooks: true,
             session_resume: false,
+            channels: false,
         }
     }
 

@@ -20,6 +20,7 @@ impl ProviderAdapter for GeminiAdapter {
             mcp: true,
             hooks: true,
             session_resume: false,
+            channels: false,
         }
     }
 

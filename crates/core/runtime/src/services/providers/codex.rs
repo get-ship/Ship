@@ -20,6 +20,7 @@ impl ProviderAdapter for CodexAdapter {
             mcp: true,
             hooks: true,
             session_resume: true,
+            channels: false,
         }
     }
 
