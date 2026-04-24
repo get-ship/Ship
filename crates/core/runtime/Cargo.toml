@@ -41,10 +41,10 @@ minijinja = "2"
 notify = { version = "7", default-features = false, features = ["macos_fsevent"] }
 cron = "0.12"
 sysinfo = { version = "0.38", default-features = false, features = ["system"] }
+jsonschema = { version = "0.46", default-features = false }
 
 [features]
 unstable = []
 
 [dev-dependencies]
 tokio = { version = "1", features = ["test-util"] }
-jsonschema = { version = "0.46", default-features = false }
