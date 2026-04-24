@@ -406,7 +406,7 @@ fn build_ship_routes(st: rest_api::ApiState) -> Router {
         .ship_route(Route::ArtifactsList, artifacts_api::list_artifacts)
         .ship_route(Route::ArtifactDownload_template(), artifacts_api::download_artifact)
         .route(
-            "/api/artifacts/:id",
+            "/api/artifacts/{id}",
             routing::head(artifacts_api::head_artifact),
         )
         .ship_route(Route::ArtifactMetadata_template(), artifacts_api::artifact_metadata)
