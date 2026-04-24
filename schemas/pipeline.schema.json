@@ -4,15 +4,56 @@
   "description": "Workflow template defining a DAG of steps for job execution.",
   "type": "object",
   "required": ["name", "steps"],
+  "$defs": {
+    "globList": {
+      "type": "array",
+      "description": "List of glob patterns. Pipe-separated strings (e.g. \"a|b\") are rejected — split into separate entries.",
+      "items": {
+        "type": "string",
+        "minLength": 1,
+        "not": { "pattern": "\\|" }
+      }
+    },
+    "gateRule": {
+      "type": "object",
+      "required": ["match"],
+      "additionalProperties": false,
+      "properties": {
+        "match": { "$ref": "#/$defs/globList" },
+        "not_match": { "$ref": "#/$defs/globList" },
+        "min": { "type": "integer", "minimum": 0, "default": 1 }
+      }
+    },
+    "gateRuleList": {
+      "type": "array",
+      "description": "Canonical: a list of gate rule objects. The legacy single-object shorthand was removed in the v1 contract freeze.",
+      "items": { "$ref": "#/$defs/gateRule" }
+    }
+  },
   "properties": {
     "name": {
       "type": "string",
-      "description": "Pipeline identifier. Matches the filename without .yaml extension.",
+      "description": "Pipeline identifier. Matches the filename without extension.",
       "pattern": "^[a-z0-9][a-z0-9-]*$"
     },
     "description": {
       "type": "string",
       "description": "Human-readable description of what this pipeline does."
+    },
+    "auto_merge": {
+      "type": "boolean",
+      "default": false,
+      "description": "When true, the runtime runs `git merge` on the job branch after the final step. Replaces the former `type: merge` step."
+    },
+    "vars": {
+      "type": "object",
+      "description": "Pipeline-level default vars for `{{ var }}` template interpolation.",
+      "additionalProperties": { "type": "string" }
+    },
+    "step_specs": {
+      "type": "array",
+      "description": "Per-step spec bodies. Indexed by step position; written to `.artifacts/pipeline/NN-<step_id>.md` at launch.",
+      "items": { "type": "string" }
     },
     "steps": {
       "type": "array",
@@ -20,21 +61,30 @@
       "minItems": 1,
       "items": {
         "type": "object",
-        "required": ["id", "type"],
+        "required": ["id"],
+        "description": "When `type` is omitted it is inferred: `run:` shorthand implies `run`; otherwise `agent`. `name:` is accepted as an alias for `id:`.",
         "properties": {
           "id": {
             "type": "string",
             "description": "Unique step identifier within the pipeline.",
             "pattern": "^[a-z0-9][a-z0-9-]*$"
           },
+          "name": {
+            "type": "string",
+            "description": "Alias for `id:` accepted by the deserializer."
+          },
           "type": {
             "type": "string",
-            "enum": ["agent", "gate", "merge", "human"],
-            "description": "Step type. 'agent' runs an agent, 'gate' reviews output, 'merge' merges the branch, 'human' waits for human action."
+            "enum": ["agent", "review", "run"],
+            "description": "Step type. `agent` runs an agent, `review` is an agent-backed reviewer of the previous step, `run` executes a shell command. The legacy `merge` and `human` variants were removed in the v1 contract freeze; use `auto_merge: true` for merge and emit `job.blocked { needs_human: true }` from a step for human handoff. Optional — inferred from `run:` vs `agent:` shorthand when absent."
           },
           "agent": {
             "type": "string",
-            "description": "Agent profile ID (e.g. 'rust-runtime'). Required for agent and gate steps."
+            "description": "Agent profile ID. Required for `agent` and `review` steps."
+          },
+          "goal": {
+            "type": "string",
+            "description": "Goal or instruction for the agent (templated)."
           },
           "after": {
             "type": "array",
@@ -49,6 +99,28 @@
           "provider": {
             "type": "string",
             "description": "Provider override (e.g. 'anthropic')."
+          },
+          "command": {
+            "type": "string",
+            "description": "Shell command to run. Aliased as `run:` for YAML shorthand."
+          },
+          "run": {
+            "type": "string",
+            "description": "YAML shorthand for `command:`. Implies `type: run` when set."
+          },
+          "max_retries": {
+            "type": "integer",
+            "minimum": 0,
+            "description": "Maximum number of retries when the step's diff gate fails. 0 or absent = gate failure is terminal."
+          },
+          "gate": {
+            "type": "object",
+            "description": "Post-step diff gate. Evaluated against the files changed by this step's commits.",
+            "additionalProperties": false,
+            "properties": {
+              "require_changed": { "$ref": "#/$defs/gateRuleList" },
+              "forbid_changed":  { "$ref": "#/$defs/gateRuleList" }
+            }
           },
           "produces": {
             "type": "array",
@@ -66,7 +138,7 @@
                   "type": "string",
                   "enum": ["run", "project", "user"],
                   "default": "run",
-                  "description": "Storage scope. 'run' is ephemeral (default); 'project' and 'user' are persistent."
+                  "description": "Storage scope. `run` is ephemeral (default); `project` and `user` are persistent."
                 },
                 "required": {
                   "type": "boolean",
@@ -104,12 +176,16 @@
             "default": []
           }
         },
-        "if": {
-          "properties": { "type": { "enum": ["agent", "gate"] } }
-        },
-        "then": {
-          "required": ["agent"]
-        }
+        "allOf": [
+          {
+            "if": { "properties": { "type": { "const": "agent" } }, "required": ["type"] },
+            "then": { "required": ["agent"] }
+          },
+          {
+            "if": { "properties": { "type": { "const": "review" } }, "required": ["type"] },
+            "then": { "required": ["agent"] }
+          }
+        ]
       }
     }
   }

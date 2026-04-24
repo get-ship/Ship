@@ -120,9 +120,9 @@ Plain shell command. No agent process. Used for build/test/lint steps that don't
 
 Non-zero exit = `job.step_failed`; pipeline halts.
 
-### `human`
+### Human handoff (no `type: human`)
 
-Historically a step type for pipeline-level human gates. **Current status**: this type is recognized by the parser but primary human-in-the-loop support routes through the human gateway service on `job.blocked` events (see [Human Gateway](/reference/runtime/human-gateway/)). If you need an explicit pause-point, emit `job.blocked { needs_human: true }` from a step rather than using `type: human`.
+There is no `type: human` step. The legacy variant was removed in the v1 contract freeze; the loader rejects it. For an explicit pause-point, emit `job.blocked { needs_human: true }` from a `run`/`agent` step — that routes through the human gateway service (see [Human Gateway](/reference/runtime/human-gateway/)).
 
 ## Gates
 
@@ -132,6 +132,21 @@ Two distinct concepts share the name — be careful:
 2. **Diff-rule `gate` attribute on any step** — declarative rules the runtime checks against the step's output (e.g., "no files outside `src/foo/**` changed," "test file count increased"). Authored as a `gate:` block on the step. Failure triggers `review_retry::retry_gated_step` which re-dispatches the step up to `max_retries` times.
 
 The review step type produces an agent-flavored yes/no. The gate attribute does a mechanical check on the diff. Both can appear on the same pipeline — review the agent's output, then mechanically verify constraints.
+
+### Canonical `gate:` shape
+
+`require_changed` and `forbid_changed` are **lists of rule objects**. Each rule's `match`/`not_match` are **lists of glob strings**. The legacy single-object and pipe-separated string shorthands were removed in the v1 contract freeze; the loader rejects them.
+
+```yaml
+gate:
+  require_changed:
+    - match: ["**/*.rs"]
+      not_match: ["**/tests/**"]
+      min: 1
+  forbid_changed:
+    - match: [".artifacts/**", "Cargo.lock"]
+      min: 0
+```
 
 ## DAG dependencies
 
