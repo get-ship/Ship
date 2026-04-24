@@ -1,170 +1,150 @@
 {#-
-  Pipelines content — dispatches on active_tab signal.
-  Root element MUST have id="pipelines-content" for Datastar patching.
-  This file mirrors the embedded pipelines/content.html.j2.
+  Pipelines content — pipeline-first layout.
+
+  Each entry in `defs` is a PipelineDef (name, description, step_count,
+  total_runs, success_runs, failed_runs, active_runs, success_rate,
+  last_run_{at,status,tone,slug}). Active runs across all pipelines
+  still render as a prominent section at the top so operators see
+  what's live without drilling into a specific pipeline.
 -#}
-{% from '_urls.html.j2' import create_job, get_job, end_job, view_pipelines %}
+{% from '_urls.html.j2' import end_job %}
+{% from '_ship.html.j2' import on_click %}
+
 <div id="pipelines-content" class="ship-pipelines-content">
-  {% if active_tab == 'definitions' %}
-    {# -- Templates tab -- #}
-    <div class="ship-def-templates-head">
-      <span class="ship-def-templates-desc">Pipeline templates define multi-step agent workflows.</span>
-      <ship-button size="sm" variant="outline">
-        <ship-icon slot="leading" name="plus" size="sm"></ship-icon>
-        New Template
-      </ship-button>
-    </div>
-    {% if defs and defs | length > 0 %}
-    <div class="ship-pipelines-def-list">
-      {% for def in defs %}
-      <div class="ship-def-card">
-        <div class="ship-def-header" tabindex="0" role="button" aria-expanded="false">
-          <ship-icon name="git-merge" size="sm" tone="muted"></ship-icon>
-          <span class="ship-def-name">{{ def.name }}</span>
-          <span class="ship-def-desc">{{ def.description }}</span>
-          <span class="ship-def-steps-count">{{ def.step_count }} step{{ 's' if def.step_count != 1 else '' }}</span>
-          <ship-icon name="chevron-right" size="xs" tone="muted"></ship-icon>
-        </div>
-      </div>
-      {% endfor %}
-    </div>
-    {% else %}
-    <div style="display: flex; flex-direction: column; align-items: center; padding: 4rem 0; text-align: center;">
-      <ship-icon name="git-merge" size="xl" tone="muted" style="margin-bottom: 0.75rem; opacity: 0.3;"></ship-icon>
-      <span style="font-size: 0.875rem; font-weight: 500;">No pipeline templates</span>
-      <span style="font-size: 0.75rem; color: var(--muted-foreground);">Create a pipeline in .ship/pipelines/</span>
-    </div>
-    {% endif %}
 
-  {% elif active_tab == 'history' %}
-    {# -- History tab -- #}
-    {% if history_runs and history_runs | length > 0 %}
-    <div style="display: flex; flex-direction: column; gap: 0.5rem;">
-      {% for run in history_runs %}
-      <section class="ship-run-card" aria-label="Pipeline run {{ run.slug }}">
-        <div class="ship-run-dot">
-          <ship-status-dot tone="{{ run.tone }}"></ship-status-dot>
-        </div>
-        <div class="ship-run-body">
-          <div class="ship-run-title-row">
-            <span class="ship-run-slug">{{ run.slug }}</span>
-            <span class="ship-run-status" style="color: var(--{{ run.tone }})">{{ run.status_text }}</span>
-          </div>
-          <div class="ship-run-detail">
-            {{ run.agent }}{% if run.branch %} / {{ run.branch }}{% endif %}{% if run.provider %} / {{ run.provider }}{% endif %}{% if run.model %} / {{ run.model }}{% endif %}
-          </div>
-          {% if run.error %}
-          <div class="ship-run-banner error">Error: {{ run.error }}</div>
-          {% endif %}
-          {% if run.depends_on and run.depends_on | length > 0 %}
-          <div class="ship-run-deps">
-            <span class="ship-run-deps-label">depends on:</span>
-            {% for dep in run.depends_on %}
-            <span class="ship-run-dep-tag">{{ dep }}</span>
-            {% endfor %}
-          </div>
-          {% endif %}
-          {% if run.steps and run.steps | length > 0 %}
-          <div class="ship-run-steps">
-            {% for step in run.steps %}
-            <span class="ship-step-pill {{ step.state }}">{{ step.id }}</span>
-            {% endfor %}
-          </div>
-          {% endif %}
-        </div>
-        <div class="ship-run-right">
-          <span class="ship-run-when">
-            <ship-timestamp value="{{ run.updated_at }}" relative></ship-timestamp>
-          </span>
-        </div>
-      </section>
-      {% endfor %}
+  {# ── Active runs (all pipelines) ───────────────────────────────── #}
+  {% if active_runs and active_runs | length > 0 %}
+  <div class="ship-pipelines-section">
+    <div class="ship-pipelines-section-head">
+      <h2 class="ship-pipelines-section-title">
+        <ship-icon name="play" size="sm" tone="info"></ship-icon>
+        Active runs
+      </h2>
+      <ship-badge tone="info">{{ active_runs | length }}</ship-badge>
     </div>
-    {% if stats.history > history_runs | length %}
-    <p class="ship-pipelines-load-more">
-      <ship-chip size="sm"
-        data-on:click="@get('{{ view_pipelines() }}?tab=history')">
-        Load {{ stats.history - (history_runs | length) }} more
-      </ship-chip>
-    </p>
-    {% endif %}
-    {% else %}
-    <div style="display: flex; flex-direction: column; align-items: center; justify-content: center; padding: 4rem 0; text-align: center;">
-      <div style="width: 3rem; height: 3rem; border-radius: 0.75rem; border: 1px solid color-mix(in oklch, var(--border) 60%, transparent); background: color-mix(in oklch, var(--muted) 40%, transparent); display: flex; align-items: center; justify-content: center; margin-bottom: 1rem;">
-        <ship-icon name="list" size="md" tone="muted"></ship-icon>
-      </div>
-      <span style="font-size: 0.875rem; font-weight: 500; color: var(--foreground);">No completed runs</span>
-      <span style="font-size: 0.75rem; color: var(--muted-foreground);">Completed, merged, and failed runs will appear here.</span>
-    </div>
-    {% endif %}
-
-  {% else %}
-    {# -- Active runs (default) -- #}
-    {% if active_runs and active_runs | length > 0 %}
-    <div style="display: flex; flex-direction: column; gap: 0.5rem;">
+    <div class="ship-pipelines-run-list" data-view-enter>
       {% for run in active_runs %}
-      <section class="ship-run-card" aria-label="Pipeline run {{ run.slug }}">
-        <div class="ship-run-dot">
-          <ship-status-dot tone="{{ run.tone }}"{% if run.state == 'dispatched' or run.state == 'gate-pending' %} pulse{% endif %}></ship-status-dot>
-        </div>
-        <div class="ship-run-body">
-          <div class="ship-run-title-row">
-            <span class="ship-run-slug">{{ run.slug }}</span>
-            <span class="ship-run-status" style="color: var(--{{ run.tone }})">{{ run.status_text }}</span>
-          </div>
-          <div class="ship-run-detail">
-            {{ run.agent }}{% if run.branch %} / {{ run.branch }}{% endif %}{% if run.provider %} / {{ run.provider }}{% endif %}{% if run.model %} / {{ run.model }}{% endif %}
-          </div>
-          {% if run.blocker %}
-          <div class="ship-run-banner blocker">Blocked: {{ run.blocker }}</div>
-          {% endif %}
-          {% if run.error %}
-          <div class="ship-run-banner error">Error: {{ run.error }}</div>
-          {% endif %}
-          {% if run.depends_on and run.depends_on | length > 0 %}
-          <div class="ship-run-deps">
-            <span class="ship-run-deps-label">depends on:</span>
-            {% for dep in run.depends_on %}
-            <span class="ship-run-dep-tag">{{ dep }}</span>
-            {% endfor %}
-          </div>
-          {% endif %}
-          {% if run.steps and run.steps | length > 0 %}
-          <div class="ship-run-steps">
-            {% for step in run.steps %}
-            <span class="ship-step-pill {{ step.state }}">{{ step.id }}</span>
-            {% endfor %}
-          </div>
-          {% endif %}
-        </div>
-        <div class="ship-run-right">
-          <span class="ship-run-when">
-            <ship-timestamp value="{{ run.updated_at }}" relative></ship-timestamp>
-          </span>
-          {% if run.state == 'dispatched' or run.state == 'pending' %}
-          <ship-button variant="outline" size="sm" tone="destructive"
-            data-on:click="@post('{{ end_job() }}', {contentType: 'json', body: JSON.stringify({job_id: '{{ run.job_id }}'})})">
+        {% set run_state = run.state | replace('-', '') %}
+        <ship-pipeline-run state="{{ run_state }}" slug="{{ run.slug }}" agent="{{ run.agent }}">
+          <ship-timestamp slot="actions" value="{{ run.updated_at }}" relative></ship-timestamp>
+          <ship-button slot="actions" variant="ghost" size="sm"
+            {{ on_click("window.location.href='/pipelines/run/" ~ run.slug ~ "'") }}>
+            <ship-icon slot="leading" name="chevron-right"></ship-icon>
+            Open
+          </ship-button>
+          <ship-button slot="actions" variant="outline" size="sm" tone="destructive"
+            {{ on_click("@post('" ~ end_job() ~ "', {contentType: 'json', body: JSON.stringify({job_id: '" ~ run.job_id ~ "'})})") }}>
             <ship-icon slot="leading" name="stop"></ship-icon>
             Stop
           </ship-button>
+
+          <div class="ship-run-detail">
+            {% if run.agent %}
+            <ship-avatar size="sm" shape="circle" identity-hue="{{ run.agent }}"
+              name="{{ run.agent }}" title="{{ run.agent }}"></ship-avatar>
+            {% endif %}
+            {% if run.branch %}<code>{{ run.branch }}</code>{% endif %}
+            {% if run.provider %}
+            <ship-provider-blob provider="{{ run.provider }}" size="sm" variant="glyph"
+              title="{{ run.provider }}"></ship-provider-blob>
+            {% endif %}
+            {% if run.model %}<ship-chip size="sm">{{ run.model }}</ship-chip>{% endif %}
+          </div>
+
+          {% if run.blocker %}
+          <ship-alert tone="warning" compact>Blocked: {{ run.blocker }}</ship-alert>
+          {% endif %}
+
+          {% if run.steps and run.steps | length > 0 %}
+          <ship-pipeline-dag>
+            {% for step in run.steps %}
+            <ship-pipeline-step
+              name="{{ step.id }}"
+              state="{{ step.state }}"
+              step-type="{{ step.step_type }}"
+              {% if step.agent %}agent="{{ step.agent }}"{% endif %}></ship-pipeline-step>
+            {% if not loop.last %}<span class="arrow" aria-hidden="true">→</span>{% endif %}
+            {% endfor %}
+          </ship-pipeline-dag>
+          {% endif %}
+
+          <ship-log-stream slot="footer"
+            id="logs-{{ run.slug }}"
+            url="/api/pipelines/runs/{{ run.slug }}/log/stream"
+            autoscroll></ship-log-stream>
+        </ship-pipeline-run>
+      {% endfor %}
+    </div>
+  </div>
+  {% endif %}
+
+  {# ── Pipelines list ───────────────────────────────────────────── #}
+  <div class="ship-pipelines-section">
+    <div class="ship-pipelines-section-head">
+      <h2 class="ship-pipelines-section-title">
+        <ship-icon name="git-merge" size="sm"></ship-icon>
+        Pipelines
+      </h2>
+      <ship-badge tone="muted">{{ defs | length }}</ship-badge>
+    </div>
+    {% if defs and defs | length > 0 %}
+    <div class="ship-pipelines-def-list" data-view-enter>
+      {% for def in defs %}
+      {% set tile_tone = 'info' if (def.active_runs and def.active_runs > 0) else (def.last_run_tone or 'muted') %}
+      <ship-card interactive status-rail tone="{{ tile_tone }}"
+        {{ on_click("window.location.href='/pipelines/focus/" ~ def.name ~ "'") }}>
+        <div class="ship-def-title">
+          <span class="ship-def-name">{{ def.name }}</span>
+          {% if def.active_runs and def.active_runs > 0 %}
+          <ship-badge tone="info">{{ def.active_runs }} running</ship-badge>
           {% endif %}
         </div>
-      </section>
+        {% if def.description %}
+        <p class="ship-def-desc">{{ def.description }}</p>
+        {% endif %}
+        <div class="ship-def-chips">
+          <ship-chip size="sm" tone="muted">{{ def.step_count }} step{{ 's' if def.step_count != 1 else '' }}</ship-chip>
+          {% if def.last_run_status %}
+          <ship-chip size="sm" tone="{{ def.last_run_tone or 'muted' }}">{{ def.last_run_status }}</ship-chip>
+          {% endif %}
+          {% if def.recent_outcomes and def.recent_outcomes | length > 0 %}
+          <span class="ship-def-spark" aria-label="Last {{ def.recent_outcomes | length }} run outcomes">
+            {% for outcome in def.recent_outcomes %}
+            <span class="ship-def-spark-cell ship-def-spark-{{ outcome | replace('-', '') }}"
+              title="{{ outcome }}"></span>
+            {% endfor %}
+          </span>
+          {% endif %}
+        </div>
+        <div slot="footer" class="ship-def-stats">
+          {% if def.total_runs and def.total_runs > 0 %}
+            <span class="ship-def-stat">
+              <span class="ship-def-stat-value">{{ def.total_runs }}</span>
+              <span class="ship-def-stat-label">runs</span>
+            </span>
+            <span class="ship-def-stat">
+              <span class="ship-def-stat-value">{{ (def.success_rate * 100) | int }}<span class="ship-def-stat-unit">%</span></span>
+              <span class="ship-def-stat-label">success</span>
+            </span>
+            {% if def.last_run_at %}
+            <span class="ship-def-stat ship-def-stat-grow">
+              <span class="ship-def-stat-value ship-def-stat-time">
+                <ship-timestamp value="{{ def.last_run_at }}" relative></ship-timestamp>
+              </span>
+              <span class="ship-def-stat-label">last run</span>
+            </span>
+            {% endif %}
+          {% else %}
+            <span class="ship-def-stat-empty">No runs yet — click to dispatch</span>
+          {% endif %}
+        </div>
+      </ship-card>
       {% endfor %}
     </div>
     {% else %}
-    <div style="display: flex; flex-direction: column; align-items: center; justify-content: center; padding: 4rem 0; text-align: center;">
-      <div style="width: 3rem; height: 3rem; border-radius: 0.75rem; border: 1px solid color-mix(in oklch, var(--border) 60%, transparent); background: color-mix(in oklch, var(--muted) 40%, transparent); display: flex; align-items: center; justify-content: center; margin-bottom: 1rem;">
-        <ship-icon name="play" size="md" tone="muted"></ship-icon>
-      </div>
-      <span style="font-size: 0.875rem; font-weight: 500; color: var(--foreground);">No active runs</span>
-      <span style="font-size: 0.75rem; color: var(--muted-foreground); max-width: 20rem; margin-top: 0.25rem;">Launch a run from a pipeline template or create one manually.</span>
-      <ship-button size="sm" tone="accent" variant="solid" style="margin-top: 1rem;"
-        data-on:click="@post('{{ create_job() }}', {contentType: 'json', body: JSON.stringify({})})">
-        <ship-icon slot="leading" name="plus" size="sm"></ship-icon>
-        New Run
-      </ship-button>
-    </div>
+    <ship-empty-state icon="git-merge" heading="No pipelines"
+      description="Define a pipeline in .ship/pipelines/ to see it here."></ship-empty-state>
     {% endif %}
-  {% endif %}
+  </div>
+
 </div>

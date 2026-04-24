@@ -1,0 +1,145 @@
+{#-
+  Editor helpers for the pipeline focus view.
+
+  Design:
+  - Datastar expressions (on the buttons themselves) do all signal
+    mutation — `$edit_mode = false`, `$edit_error = ''`, etc. JS doesn't
+    read/write Datastar signals; that's Datastar's job.
+  - JS owns two things: HTTP (PUT/DELETE) and editor DOM state.
+  - `<ship-code-editor>` is the single source of truth for draft text.
+    `editor.value` = live draft. `editor.getAttribute('value')` = the
+    pristine content the daemon rendered. No parallel `edit_draft` signal.
+
+  Exposed on window:
+    - savePipeline(workspaceId, name) — PUT + push diagnostics + reload
+    - deletePipeline(workspaceId, name) — DELETE + redirect
+    - resetPipelineEditor() — restore editor to pristine value + clear lint
+-#}
+<script>
+(function () {
+  const EDITOR_ID = 'pipeline-editor';
+  const VIEW_CLASS = '.ship-view-pipeline-focus';
+
+  const editor = () => document.getElementById(EDITOR_ID);
+  const view = () => document.querySelector(VIEW_CLASS);
+
+  // Mutate a Datastar signal via the attribute mechanism. Writing to
+  // `data-signal-name` on the root element triggers Datastar's observer,
+  // which patches the internal signal store.
+  function setSignal(name, value) {
+    const v = view();
+    if (!v) return;
+    v.setAttribute('data-signal-' + name, typeof value === 'string' ? value : String(value));
+  }
+
+  // Honor `?edit=1` from the New-pipeline flow — land in edit mode.
+  if (/[?&]edit=1(&|$)/.test(window.location.search)) {
+    window.addEventListener('DOMContentLoaded', () => setSignal('edit_mode', true));
+  }
+
+  // Ops-center heartbeat: each <ship-pipeline-run data-on:ship-log-tick>
+  // pings this helper whenever its log stream emits bytes. We add a brief
+  // halo class and auto-remove it after 1.5s so steady output reads as a
+  // continuous pulse; idle runs settle back to static styling.
+  const HEARTBEAT_TIMERS = new WeakMap();
+  window.pulseRun = function (el) {
+    if (!el) return;
+    el.classList.add('ship-heartbeat');
+    const existing = HEARTBEAT_TIMERS.get(el);
+    if (existing) clearTimeout(existing);
+    HEARTBEAT_TIMERS.set(el, setTimeout(() => el.classList.remove('ship-heartbeat'), 1500));
+  };
+
+  window.resetPipelineEditor = function () {
+    const ed = editor();
+    if (!ed) return;
+    ed.value = ed.getAttribute('value') ?? '';
+    ed.setDiagnostics?.([]);
+  };
+
+  // beforeunload — warn if leaving with a dirty draft. `value` attr is
+  // the pristine content; `.value` property is the live draft.
+  window.addEventListener('beforeunload', (e) => {
+    const ed = editor();
+    if (!ed) return;
+    const pristine = ed.getAttribute('value') ?? '';
+    const dirty = ed.value !== pristine;
+    // Only warn while in edit mode. We can't read $edit_mode from JS,
+    // so use the edit card's visibility as a proxy — data-show hides it
+    // with display:none when out of edit mode.
+    const card = view()?.querySelector('ship-card[data-show="$edit_mode"]');
+    const editing = card && getComputedStyle(card).display !== 'none';
+    if (editing && dirty) {
+      e.preventDefault();
+      e.returnValue = '';
+    }
+  });
+
+  window.deletePipeline = async function (workspaceId, name) {
+    const url = '/api/workspaces/' + encodeURIComponent(workspaceId)
+      + '/pipelines/' + encodeURIComponent(name);
+    try {
+      const resp = await fetch(url, { method: 'DELETE', credentials: 'include' });
+      if (resp.ok) { window.location.href = '/pipelines'; return; }
+      const body = await resp.json().catch(() => ({}));
+      const msg = body?.data || ('HTTP ' + resp.status);
+      window.alert('Delete failed: ' + (typeof msg === 'string' ? msg : JSON.stringify(msg)));
+    } catch (err) {
+      window.alert('Delete failed: ' + (err?.message || String(err)));
+    }
+  };
+
+  function pushDiagnostics(issues) {
+    editor()?.setDiagnostics?.((issues || []).map(i => ({
+      line: i.line || 1,
+      column: i.column || 1,
+      severity: i.kind === 'parse' ? 'error' : 'warning',
+      message: i.message || 'validation error',
+      source: i.path || i.kind,
+    })));
+  }
+
+  window.savePipeline = async function (workspaceId, name) {
+    const ed = editor();
+    if (!ed) return;
+    const draft = ed.value;
+    setSignal('edit_saving', 'true');
+    setSignal('edit_error', '');
+    setSignal('edit_error_line', '0');
+    setSignal('edit_error_col', '0');
+    setSignal('edit_issue_count', '0');
+    pushDiagnostics([]);
+    const url = '/api/workspaces/' + encodeURIComponent(workspaceId)
+      + '/pipelines/' + encodeURIComponent(name);
+    try {
+      const resp = await fetch(url, {
+        method: 'PUT',
+        credentials: 'include',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ content: draft }),
+      });
+      if (resp.ok) {
+        window.location.reload();
+        return;
+      }
+      const body = await resp.json().catch(() => ({}));
+      const data = body?.data || {};
+      const issues = Array.isArray(data.issues) ? data.issues : (data.parse ? [data.parse] : []);
+      const primary = issues[0];
+      if (primary) {
+        setSignal('edit_error', primary.message || 'validation error');
+        setSignal('edit_error_line', String(primary.line || 0));
+        setSignal('edit_error_col', String(primary.column || 0));
+        setSignal('edit_issue_count', String(issues.length));
+        pushDiagnostics(issues);
+      } else {
+        setSignal('edit_error', data.error || ('HTTP ' + resp.status));
+      }
+    } catch (err) {
+      setSignal('edit_error', 'network: ' + (err?.message || String(err)));
+    } finally {
+      setSignal('edit_saving', 'false');
+    }
+  };
+})();
+</script>

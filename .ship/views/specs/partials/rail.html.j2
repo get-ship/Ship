@@ -1,0 +1,43 @@
+{#- Grouped spec list. Consumes `rail` + `selected_id` from the enclosing scope. -#}
+{% from '_ship.html.j2' import on_click %}
+<div id="specs-rail-list-inner">
+  {% if rail.total == 0 %}
+    <ship-empty-state variant="placeholder" style="padding: 24px 14px;">
+      <span slot="title">No specs yet</span>
+      Click + New to start one.
+    </ship-empty-state>
+  {% else %}
+    {% for group in rail.groups %}
+      {% if group.count > 0 %}
+        <section class="specs-rail-group">
+          <div class="specs-rail-group-head">
+            <span>{{ group.label }}</span>
+            <span class="count">{{ group.count }}</span>
+          </div>
+          <div class="specs-rail-items">
+            {% for spec in group.items %}
+              <ship-list-tile interactive
+                {% if selected_id == spec.id %}selected{% endif %}
+                {{ on_click("@get('/api/v/specs?id=" ~ spec.id ~ "&q=' + encodeURIComponent($q || ''))") }}>
+                <ship-status-dot slot="leading" size="sm" tone="{{ spec.tone }}"
+                  {% if group.key == 'launched' %}pulse{% endif %}></ship-status-dot>
+                <div class="spec-row-main">
+                  <span class="spec-row-name">{{ spec.title }}</span>
+                  <span class="spec-row-when">{{ spec.when }}</span>
+                </div>
+                <span slot="trailing" class="spec-row-pipeline">
+                  {% if spec.pipeline %}{{ spec.pipeline }}{% else %}—{% endif %}
+                </span>
+              </ship-list-tile>
+            {% endfor %}
+            {% if group.items | length == 0 %}
+              <div style="padding: 4px 10px; font-size: 11px; color: var(--muted-foreground); opacity: 0.6;">
+                No matches
+              </div>
+            {% endif %}
+          </div>
+        </section>
+      {% endif %}
+    {% endfor %}
+  {% endif %}
+</div>

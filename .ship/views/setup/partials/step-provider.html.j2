@@ -1,5 +1,5 @@
 {#- Step 3 — Pick and test an AI provider. Skippable. -#}
-{% from '_ship.html.j2' import bind, on_fetch_error %}
+{% from '_ship.html.j2' import bind, on_fetch_error, on, on_click, attr_if %}
 
 <p class="setup-eyebrow">Step 3 of 4</p>
 <h2 class="setup-title">Connect an AI provider</h2>
@@ -20,15 +20,20 @@
     { 'id': 'opencode', 'name': 'OpenCode', 'sub': 'Open source · opencode' },
   ] %}
   <ship-card interactive padding="md" role="radio"
-             data-attr:tone="$provider == '{{ p.id }}' ? 'accent' : ''"
-             data-attr:fill="$provider == '{{ p.id }}'"
-             data-attr:aria-checked="$provider == '{{ p.id }}'"
-             data-on:click="$provider = '{{ p.id }}'; $api_key = ''; $provider_test_result = 'idle'; $provider_test_error = ''">
-    <div style="font-size:var(--text-md); font-weight:var(--font-weight-semibold); color:var(--foreground)">
-      {{ p.name }}
-    </div>
-    <div style="font-size:var(--text-xs); color:var(--muted-foreground); margin-top:2px">
-      {{ p.sub }}
+             {{ attr_if("$provider == '" ~ p.id ~ "' ? 'accent' : ''", 'tone') }}
+             {{ attr_if("$provider == '" ~ p.id ~ "'", 'fill') }}
+             {{ attr_if("$provider == '" ~ p.id ~ "'", 'aria-checked') }}
+             {{ on_click("$provider = '" ~ p.id ~ "'; $api_key = ''; $provider_test_result = 'idle'; $provider_test_error = ''") }}>
+    <div style="display:flex; align-items:center; gap:var(--space-3)">
+      <ship-provider-blob provider="{{ p.id }}" size="md" variant="glyph"></ship-provider-blob>
+      <div style="min-width:0">
+        <div style="font-size:var(--text-md); font-weight:var(--font-weight-semibold); color:var(--foreground)">
+          {{ p.name }}
+        </div>
+        <div style="font-size:var(--text-xs); color:var(--muted-foreground); margin-top:2px">
+          {{ p.sub }}
+        </div>
+      </div>
     </div>
   </ship-card>
   {% endfor %}
@@ -41,7 +46,7 @@
     <ship-input id="setup-api-key" size="md" type="password"
                 placeholder="sk-..."
                 {{ bind('api_key') }}
-                data-on:input="$provider_test_result = 'idle'; $provider_test_error = ''"></ship-input>
+                {{ on('input', "$provider_test_result = 'idle'; $provider_test_error = ''") }}></ship-input>
     <span slot="hint" style="font-size:var(--text-xs); color:var(--muted-foreground)">
       Stored locally in your Ship settings. Never sent anywhere but the
       provider you chose.
@@ -54,10 +59,10 @@
         into $provider_test_error. Two SDK macros would clobber each
         other on the same data-on attribute, so we inline the chain.  -#}
     <ship-button variant="outline" size="sm"
-                 data-attr:disabled="!$api_key || $provider_test_result == 'testing'"
-                 data-attr:loading="$provider_test_result == 'testing'"
-                 data-on:click="$provider_test_result = 'testing'; @post('/api/providers/test', {payload: {provider: $provider, key: $api_key}})"
-                 data-on:datastar-fetch__document="evt.detail && evt.detail.el === el && evt.detail.type === 'error' ? ($provider_test_result = 'failed', $provider_test_error = 'Could not reach ' + $provider + ' (HTTP ' + (evt.detail.argsRaw && evt.detail.argsRaw.status || '?') + ')') : null">
+                 {{ attr_if("!$api_key || $provider_test_result == 'testing'", 'disabled') }}
+                 {{ attr_if("$provider_test_result == 'testing'", 'loading') }}
+                 {{ on_click("$provider_test_result = 'testing'; @post('/api/providers/test', {payload: {provider: $provider, key: $api_key}})") }}
+                 {{ on('datastar-fetch__document', "evt.detail && evt.detail.el === el && evt.detail.type === 'error' ? ($provider_test_result = 'failed', $provider_test_error = 'Could not reach ' + $provider + ' (HTTP ' + (evt.detail.argsRaw && evt.detail.argsRaw.status || '?') + ')') : null") }}>
       Test connection
     </ship-button>
 
@@ -75,13 +80,13 @@
 
 <div class="setup-actions">
   <ship-button variant="ghost" size="md"
-               data-on:click="$provider = ''; $api_key = ''; $provider_test_result = 'idle'; $step = 4">
+               {{ on_click("$provider = ''; $api_key = ''; $provider_test_result = 'idle'; $step = 4") }}>
     Skip, configure later
   </ship-button>
 
   <ship-button tone="accent" variant="solid" size="md"
-               data-attr:disabled="$provider_test_result != 'ok'"
-               data-on:click="$step = 4; @post('/api/settings', {payload: {provider: $provider, key: $api_key}})">
+               {{ attr_if("$provider_test_result != 'ok'", 'disabled') }}
+               {{ on_click("$step = 4; @post('/api/settings', {payload: {provider: $provider, key: $api_key}})") }}>
     Save &amp; continue
     <ship-icon slot="trailing" name="arrow-right"></ship-icon>
   </ship-button>

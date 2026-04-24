@@ -1,0 +1,295 @@
+//! Unit tests for GitService state/read/write modules.
+//!
+//! All write tests use `git2::Repository::init` in tempdirs — no network,
+//! no shared state. Draft tests use the platform DB via `init_project`.
+
+#![cfg(test)]
+
+use super::{read, write};
+use git2::{Repository, Signature};
+use std::fs;
+use std::path::{Path, PathBuf};
+use tempfile::{tempdir, TempDir};
+
+// ── fixtures ─────────────────────────────────────────────────────────────
+
+struct Repo {
+    _tmp: TempDir,
+    root: PathBuf,
+}
+
+fn init_repo() -> Repo {
+    let tmp = tempdir().unwrap();
+    let root = tmp.path().to_path_buf();
+    Repository::init(&root).unwrap();
+    // Set a committer for `signature()` calls.
+    let repo = Repository::open(&root).unwrap();
+    let mut config = repo.config().unwrap();
+    config.set_str("user.name", "Tester").unwrap();
+    config.set_str("user.email", "t@example.com").unwrap();
+    Repo { _tmp: tmp, root }
+}
+
+fn write_file(root: &Path, rel: &str, content: &str) {
+    let p = root.join(rel);
+    if let Some(parent) = p.parent() {
+        fs::create_dir_all(parent).unwrap();
+    }
+    fs::write(p, content).unwrap();
+}
+
+/// Stage + commit all pending changes. Returns the commit sha.
+fn initial_commit(root: &Path) -> String {
+    let repo = Repository::open(root).unwrap();
+    let mut index = repo.index().unwrap();
+    index.add_all(["."].iter(), git2::IndexAddOption::DEFAULT, None).unwrap();
+    index.write().unwrap();
+    let tree_oid = index.write_tree().unwrap();
+    let tree = repo.find_tree(tree_oid).unwrap();
+    let sig = Signature::now("Tester", "t@example.com").unwrap();
+    let oid = repo.commit(Some("HEAD"), &sig, &sig, "initial", &tree, &[]).unwrap();
+    oid.to_string()
+}
+
+// ── status / branches / log ──────────────────────────────────────────────
+
+#[test]
+fn status_on_empty_repo_is_clean() {
+    let r = init_repo();
+    let b = read::load_status_buckets(&r.root);
+    assert!(b.clean);
+    assert_eq!(b.total, 0);
+}
+
+#[test]
+fn status_picks_up_untracked_file() {
+    let r = init_repo();
+    write_file(&r.root, "a.txt", "hello");
+    let b = read::load_status_buckets(&r.root);
+    assert!(!b.clean);
+    assert_eq!(b.untracked.len(), 1);
+    assert_eq!(b.untracked[0].path, "a.txt");
+}
+
+#[test]
+fn status_reports_staged_vs_modified() {
+    let r = init_repo();
+    write_file(&r.root, "a.txt", "v1");
+    initial_commit(&r.root);
+    // Modify and leave unstaged.
+    write_file(&r.root, "a.txt", "v2");
+    let b = read::load_status_buckets(&r.root);
+    assert_eq!(b.modified.len(), 1);
+    assert_eq!(b.modified[0].status, "M");
+
+    // Stage it.
+    write::stage_paths(&r.root, &["a.txt".into()]).unwrap();
+    let b = read::load_status_buckets(&r.root);
+    assert_eq!(b.staged.len(), 1);
+    assert_eq!(b.modified.len(), 0);
+}
+
+#[test]
+fn log_returns_commit_summaries() {
+    let r = init_repo();
+    write_file(&r.root, "a.txt", "v1");
+    let sha = initial_commit(&r.root);
+    let commits = read::load_log(&r.root, None, 10);
+    assert_eq!(commits.len(), 1);
+    assert_eq!(commits[0].sha, sha);
+    assert_eq!(commits[0].subject, "initial");
+}
+
+#[test]
+fn log_respects_limit() {
+    let r = init_repo();
+    write_file(&r.root, "a.txt", "v1");
+    initial_commit(&r.root);
+    write_file(&r.root, "b.txt", "v2");
+    // Second commit.
+    let repo = Repository::open(&r.root).unwrap();
+    let mut idx = repo.index().unwrap();
+    idx.add_path(Path::new("b.txt")).unwrap();
+    idx.write().unwrap();
+    let tree = repo.find_tree(idx.write_tree().unwrap()).unwrap();
+    let sig = Signature::now("T", "t@e").unwrap();
+    let head = repo.head().unwrap().peel_to_commit().unwrap();
+    repo.commit(Some("HEAD"), &sig, &sig, "second", &tree, &[&head]).unwrap();
+
+    let one = read::load_log(&r.root, None, 1);
+    assert_eq!(one.len(), 1);
+    assert_eq!(one[0].subject, "second");
+}
+
+#[test]
+fn branches_lists_local_branches() {
+    let r = init_repo();
+    write_file(&r.root, "a.txt", "v1");
+    initial_commit(&r.root);
+    let repo = Repository::open(&r.root).unwrap();
+    let head = repo.head().unwrap().peel_to_commit().unwrap();
+    repo.branch("feature/x", &head, false).unwrap();
+    let bs = read::load_branches(&r.root);
+    let names: Vec<&str> = bs.iter().map(|b| b.name.as_str()).collect();
+    assert!(names.contains(&"feature/x"), "branches: {names:?}");
+}
+
+// ── stage / unstage ──────────────────────────────────────────────────────
+
+#[test]
+fn stage_adds_untracked_file() {
+    let r = init_repo();
+    write_file(&r.root, "a.txt", "hi");
+    let n = write::stage_paths(&r.root, &["a.txt".into()]).unwrap();
+    assert_eq!(n, 1);
+    let b = read::load_status_buckets(&r.root);
+    assert_eq!(b.staged.len(), 1);
+    assert_eq!(b.staged[0].status, "A");
+}
+
+#[test]
+fn unstage_reverts_staged_entry_to_head() {
+    let r = init_repo();
+    write_file(&r.root, "a.txt", "v1");
+    initial_commit(&r.root);
+    write_file(&r.root, "a.txt", "v2");
+    write::stage_paths(&r.root, &["a.txt".into()]).unwrap();
+    assert_eq!(read::load_status_buckets(&r.root).staged.len(), 1);
+    write::unstage_paths(&r.root, &["a.txt".into()]).unwrap();
+    let b = read::load_status_buckets(&r.root);
+    assert_eq!(b.staged.len(), 0);
+    assert_eq!(b.modified.len(), 1, "still modified vs HEAD");
+}
+
+#[test]
+fn stage_handles_deleted_file() {
+    let r = init_repo();
+    write_file(&r.root, "a.txt", "v1");
+    initial_commit(&r.root);
+    fs::remove_file(r.root.join("a.txt")).unwrap();
+    write::stage_paths(&r.root, &["a.txt".into()]).unwrap();
+    let b = read::load_status_buckets(&r.root);
+    assert_eq!(b.staged.len(), 1);
+    assert_eq!(b.staged[0].status, "D");
+}
+
+// ── commit ───────────────────────────────────────────────────────────────
+
+#[test]
+fn commit_refuses_when_nothing_staged() {
+    let r = init_repo();
+    write_file(&r.root, "a.txt", "v1");
+    initial_commit(&r.root);
+    let err = write::commit_staged(&r.root, "no-op", None).unwrap_err();
+    assert!(matches!(err, super::state::GitError::NothingStaged));
+}
+
+#[test]
+fn commit_creates_new_head() {
+    let r = init_repo();
+    write_file(&r.root, "a.txt", "v1");
+    initial_commit(&r.root);
+    write_file(&r.root, "b.txt", "hi");
+    write::stage_paths(&r.root, &["b.txt".into()]).unwrap();
+    let res = write::commit_staged(&r.root, "add b", None).unwrap();
+    assert_eq!(res.sha.len(), 40);
+    let commits = read::load_log(&r.root, None, 10);
+    assert_eq!(commits.len(), 2);
+    assert_eq!(commits[0].subject, "add b");
+}
+
+#[test]
+fn commit_accepts_explicit_author() {
+    let r = init_repo();
+    write_file(&r.root, "a.txt", "v1");
+    write::stage_paths(&r.root, &["a.txt".into()]).unwrap();
+    let res = write::commit_staged(
+        &r.root,
+        "initial",
+        Some("Alice <a@x.com>"),
+    )
+    .unwrap();
+    assert_eq!(res.sha.len(), 40);
+    let commits = read::load_log(&r.root, None, 1);
+    assert_eq!(commits[0].author, "Alice");
+}
+
+#[test]
+fn commit_rejects_bad_author_string() {
+    let r = init_repo();
+    write_file(&r.root, "a.txt", "v1");
+    write::stage_paths(&r.root, &["a.txt".into()]).unwrap();
+    let err = write::commit_staged(&r.root, "x", Some("no-email")).unwrap_err();
+    assert!(matches!(err, super::state::GitError::Git(_)));
+}
+
+// ── diff ─────────────────────────────────────────────────────────────────
+
+#[test]
+fn working_diff_shows_modified_content() {
+    let r = init_repo();
+    write_file(&r.root, "a.txt", "v1\n");
+    initial_commit(&r.root);
+    write_file(&r.root, "a.txt", "v2\n");
+    let text = read::load_working_diff(&r.root);
+    assert!(text.contains("-v1"), "working diff text: {text}");
+    assert!(text.contains("+v2"));
+}
+
+#[test]
+fn commit_diff_matches_commit_sha() {
+    let r = init_repo();
+    write_file(&r.root, "a.txt", "v1\n");
+    let sha = initial_commit(&r.root);
+    let text = read::load_commit_diff(&r.root, &sha);
+    assert!(text.contains("+v1"), "commit diff: {text}");
+    assert!(read::load_commit_diff(&r.root, "not-a-sha").is_empty());
+}
+
+// ── checkout ─────────────────────────────────────────────────────────────
+
+#[test]
+fn checkout_switches_local_branch() {
+    let r = init_repo();
+    write_file(&r.root, "a.txt", "v1");
+    initial_commit(&r.root);
+    let repo = Repository::open(&r.root).unwrap();
+    let head = repo.head().unwrap().peel_to_commit().unwrap();
+    repo.branch("feature", &head, false).unwrap();
+    write::checkout(&r.root, "feature").unwrap();
+    assert_eq!(read::load_branch(&r.root).as_deref(), Some("feature"));
+}
+
+#[test]
+fn checkout_unknown_ref_errors() {
+    let r = init_repo();
+    write_file(&r.root, "a.txt", "v1");
+    initial_commit(&r.root);
+    let err = write::checkout(&r.root, "does-not-exist").unwrap_err();
+    assert!(matches!(err, super::state::GitError::BadRef(_)));
+}
+
+// ── drafts (DB-backed) ───────────────────────────────────────────────────
+
+#[test]
+fn draft_crud_via_platform_db() {
+    let tmp = tempdir().unwrap();
+    runtime::project::init_project(tmp.path().to_path_buf()).unwrap();
+    runtime::db::ensure_db().unwrap();
+
+    assert!(runtime::db::git_drafts::get_draft("b").unwrap().is_none());
+
+    let d = runtime::db::git_drafts::CommitDraft {
+        branch: "b".into(),
+        subject: "feat: x".into(),
+        body: "...".into(),
+        by_agent: Some("rust-lane".into()),
+        by_pipeline: None,
+        drafted_at: chrono::Utc::now(),
+    };
+    runtime::db::git_drafts::upsert_draft(&d).unwrap();
+    let got = runtime::db::git_drafts::get_draft("b").unwrap().unwrap();
+    assert_eq!(got.subject, "feat: x");
+    runtime::db::git_drafts::delete_draft("b").unwrap();
+    assert!(runtime::db::git_drafts::get_draft("b").unwrap().is_none());
+}

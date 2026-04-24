@@ -13,5 +13,11 @@ path = "src/main.rs"
 compiler = { path = "../core/compiler", features = ["specta"] }
 runtime = { path = "../core/runtime" }
 ship-types = { path = "../core/ship-types", features = ["specta"] }
+shipd = { path = "../../apps/shipd" }
 specta = { version = "=2.0.0-rc.22", features = ["derive", "chrono", "serde_json"] }
 specta-typescript = "0.0.9"
+serde = { version = "1", features = ["derive"] }
+serde_json = "1"
+regex = "1"
+anyhow = "1"
+utoipa = { version = "5", features = ["axum_extras"] }

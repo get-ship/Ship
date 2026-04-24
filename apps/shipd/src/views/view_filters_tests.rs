@@ -134,15 +134,6 @@ fn ship_query_nonexistent_returns_empty() {
 }
 
 #[test]
-fn ship_collections_returns_vec() {
-    // Even if no schemas exist, it should return an empty vec (not panic).
-    let result = ship_collections();
-    // Result may or may not be empty depending on test environment.
-    // Just verify it returns without panicking.
-    let _ = result.len();
-}
-
-#[test]
 fn build_query_request_parses_opts() {
     use super::build_query_request;
     let opts = Value::from_serialize(&serde_json::json!({
@@ -173,22 +164,3 @@ fn build_query_request_defaults_without_opts() {
     assert!(req.sort.is_empty());
 }
 
-#[test]
-fn ship_agents_returns_vec_without_panic() {
-    // Even if no agents exist, should return empty vec (not panic).
-    let result = ship_agents();
-    let _ = result.len();
-}
-
-#[test]
-fn ship_agent_missing_returns_undefined() {
-    let result = ship_agent("nonexistent_agent_xyz".into());
-    assert!(result.is_undefined());
-}
-
-#[test]
-fn ship_skills_returns_vec_without_panic() {
-    // Even if no skills exist, should return empty vec (not panic).
-    let result = ship_skills();
-    let _ = result.len();
-}

@@ -138,7 +138,7 @@ export class DirectTransport implements Transport {
 
   private ensureStream(): void {
     if (this.eventSource) return
-    let url = `${this.baseUrl}/api/runtime/events`
+    let url = `${this.baseUrl}/api/events/stream`
     if (this.token) url += `?token=${encodeURIComponent(this.token)}`
     this.eventSource = new EventSource(url)
     this.eventSource.addEventListener('ship.event', (e: MessageEvent) => {

@@ -1,0 +1,18 @@
+{#- Agent detail — canonical wire/canvas layout. Matches the legacy
+    `/api/view/agents/detail/{id}` response so the shell's
+    `/agents/{id}` route renders the same surface. Data via `ship.*`. -#}
+{% from '_ship.html.j2' import head %}
+{% set ctx = ship.agents.wire(id=ship.route.id) %}
+{% set agent = ctx.agent %}
+{% set nodes = ctx.nodes %}
+{% set edges = ctx.edges %}
+{% set catalogs = ctx.catalogs %}
+
+{% if not fragment %}
+<!DOCTYPE html>
+<html lang="en"><head>{{ head('Agent · ' ~ agent.name) }}</head><body>
+{% endif %}
+
+{% include 'agents/partials/wire_body.html.j2' %}
+
+{% if not fragment %}</body></html>{% endif %}

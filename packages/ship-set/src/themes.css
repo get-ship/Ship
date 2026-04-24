@@ -1,0 +1,285 @@
+/*
+ * Ship theme catalog.
+ *
+ * Every theme is a full design-system override — not just color. Themes
+ * bend: surface depth, radii, motion curves, shadow vocabulary,
+ * typography roles, and interaction strength. The palette is the
+ * starting point; the feel is what keeps people here.
+ *
+ * How themes layer:
+ *   1. ./tokens.css defines the canonical ship-light palette under :root
+ *      and the sibling ship-dark overrides under .dark, plus all
+ *      surface/tone/motion/density primitives.
+ *   2. This file applies per-theme overrides via :root[data-theme='id'].
+ *      ship-light is canonical in tokens.css and therefore not
+ *      re-declared here. ship-dark adds the amber/navy sibling tweaks
+ *      on top of the base .dark block. Every other theme is a full
+ *      aesthetic override.
+ *
+ * Guidance for theme authors:
+ *   • Override the highest layer that captures intent. A theme that
+ *     wants a flatter feel overrides shadow + hover-strength too. A
+ *     theme that wants an editorial feel swaps --heading-font.
+ *   • Always override the tone-ramp base colors (--success, --warning,
+ *     --destructive, --info) so status semantics stay legible against
+ *     your background. The ramp variables rebuild automatically.
+ */
+
+/* ───────────────────────────────────────────────────────────────────
+ * ship-dark — sibling to ship-light. Warm amber on deep warm-navy.
+ * Same motion, radii, and typography feel as the default so users
+ * can dark-mode the canonical SHIP aesthetic without losing its feel.
+ * Most tokens are inherited from the .dark block in tokens.css; this
+ * selector exists so `data-theme='ship-dark'` resolves cleanly and
+ * can pin a couple of surface details.
+ * ─────────────────────────────────────────────────────────────────── */
+:root[data-theme='ship-dark'] {
+  --surface-2: oklch(0.22 0.012 50);
+  --border-subtle: oklch(1 0 0 / 8%);
+  --border-strong: oklch(1 0 0 / 22%);
+  --shadow-accent: 0 8px 24px -6px oklch(0.77 0.16 70 / 40%);
+}
+
+/* ───────────────────────────────────────────────────────────────────
+ * paper — editorial reading mode. Warm cream background with a quiet
+ * terracotta primary, rounded corners, slow calm motion, display
+ * font demoted so headings read like body copy. Low interaction
+ * tints keep the page still while you read.
+ * ─────────────────────────────────────────────────────────────────── */
+:root[data-theme='paper'] {
+  --background: oklch(0.97 0.014 80);
+  --foreground: oklch(0.28 0.03 55);
+  --card: oklch(0.99 0.010 80);
+  --card-foreground: oklch(0.28 0.03 55);
+  --popover: oklch(0.99 0.010 80);
+  --popover-foreground: oklch(0.28 0.03 55);
+  --muted: oklch(0.93 0.025 75);
+  --muted-foreground: oklch(0.46 0.04 55);
+  --border: oklch(0.28 0.03 55 / 22%);
+  --input: oklch(0.28 0.03 55 / 22%);
+  --primary: oklch(0.55 0.14 35);
+  --primary-foreground: oklch(0.99 0.01 80);
+  --accent: oklch(0.48 0.09 55);
+  --accent-foreground: oklch(0.99 0.01 80);
+  --destructive: oklch(0.55 0.22 27);
+  --success: oklch(0.58 0.14 150);
+  --warning: oklch(0.70 0.15 75);
+  --info: oklch(0.55 0.15 240);
+  --ring: oklch(0.55 0.14 35 / 35%);
+
+  /* Paper surfaces: tinted cards, slightly deeper warm surface-2. */
+  --surface-2: oklch(0.95 0.020 75);
+  --border-subtle: oklch(0.28 0.03 55 / 12%);
+  --border-strong: oklch(0.28 0.03 55 / 34%);
+
+  /* Rounder, softer corners. */
+  --radius-sm: 6px;
+  --radius-md: 12px;
+  --radius-lg: 16px;
+  --radius-xl: 20px;
+
+  /* Slower, calmer motion — long reading sessions. */
+  --duration-fast: 200ms;
+  --duration-medium: 300ms;
+  --duration-slow: 420ms;
+  --duration-deliberate: 560ms;
+  --ease-out: var(--ease-out-soft);
+
+  /* Softer, warm-tinted shadows. */
+  --shadow-xs: 0 1px 2px 0 oklch(0.28 0.03 55 / 5%);
+  --shadow-sm: 0 2px 4px -1px oklch(0.28 0.03 55 / 8%);
+  --shadow-md: 0 6px 14px -4px oklch(0.28 0.03 55 / 10%);
+  --shadow-lg: 0 14px 30px -6px oklch(0.28 0.03 55 / 12%);
+  --shadow-xl: 0 24px 48px -10px oklch(0.28 0.03 55 / 14%);
+  --shadow-hover: 0 3px 8px -2px oklch(0.28 0.03 55 / 10%);
+  --shadow-accent: 0 8px 24px -6px oklch(0.55 0.14 35 / 30%);
+
+  /* Editorial voice: demote display; use body for headings. */
+  --heading-font: var(--font-body);
+  --heading-weight: var(--font-weight-semibold);
+  --heading-tracking: var(--tracking-tight);
+  --label-font: var(--font-body);
+  --label-weight: var(--font-weight-medium);
+  --label-tracking: var(--tracking-normal);
+
+  /* Calm tints — don't fight the paper. */
+  --hover-strength: 4%;
+  --active-strength: 7%;
+  --selected-strength: 10%;
+}
+
+/* ───────────────────────────────────────────────────────────────────
+ * halo — glassy, atmospheric, calm. Cool pale-blue surfaces with a
+ * primary-tinted nested surface for a subtle translucency. Spring
+ * motion as the default ease gives interactions a quiet bounce;
+ * durations are quick. Radii are rounded without being soft.
+ * ─────────────────────────────────────────────────────────────────── */
+:root[data-theme='halo'] {
+  --background: oklch(0.97 0.012 240);
+  --foreground: oklch(0.22 0.03 245);
+  --card: oklch(0.94 0.020 235);
+  --card-foreground: oklch(0.22 0.03 245);
+  --popover: oklch(0.96 0.018 235);
+  --popover-foreground: oklch(0.22 0.03 245);
+  --muted: oklch(0.92 0.022 235);
+  --muted-foreground: oklch(0.46 0.04 240);
+  --border: oklch(0.22 0.03 245 / 14%);
+  --input: oklch(0.22 0.03 245 / 14%);
+  --primary: oklch(0.62 0.14 240);
+  --primary-foreground: oklch(0.98 0.01 240);
+  --accent: oklch(0.72 0.10 200);
+  --accent-foreground: oklch(0.15 0.03 245);
+  --destructive: oklch(0.58 0.22 25);
+  --success: oklch(0.65 0.15 155);
+  --warning: oklch(0.72 0.14 75);
+  --info: oklch(0.62 0.14 240);
+  --ring: oklch(0.62 0.14 240 / 40%);
+
+  /* Primary-tinted nested surface — the "glass" layer. */
+  --surface-2: oklch(0.90 0.035 235);
+  --border-subtle: oklch(0.22 0.03 245 / 8%);
+  --border-strong: oklch(0.22 0.03 245 / 24%);
+
+  /* Rounded, not soft. */
+  --radius-sm: 6px;
+  --radius-md: 8px;
+  --radius-lg: 12px;
+  --radius-xl: 16px;
+
+  /* Snappy motion, spring as default ease — the tactile bounce. */
+  --duration-fast: 100ms;
+  --duration-medium: 150ms;
+  --duration-slow: 200ms;
+  --duration-deliberate: 320ms;
+  --ease-out: var(--ease-spring);
+
+  /* Cool, soft shadows with a primary-tinted accent glow. */
+  --shadow-xs: 0 1px 2px 0 oklch(0.30 0.05 245 / 6%);
+  --shadow-sm: 0 1px 3px 0 oklch(0.30 0.05 245 / 10%), 0 1px 2px -1px oklch(0.30 0.05 245 / 6%);
+  --shadow-md: 0 6px 14px -3px oklch(0.30 0.05 245 / 12%), 0 2px 4px -2px oklch(0.30 0.05 245 / 8%);
+  --shadow-lg: 0 16px 32px -6px oklch(0.30 0.05 245 / 14%), 0 4px 10px -4px oklch(0.30 0.05 245 / 8%);
+  --shadow-xl: 0 24px 48px -8px oklch(0.30 0.05 245 / 18%);
+  --shadow-hover: 0 3px 10px -2px oklch(0.30 0.05 245 / 12%);
+  --shadow-accent: 0 10px 32px -6px oklch(0.62 0.14 240 / 45%);
+}
+
+/* ───────────────────────────────────────────────────────────────────
+ * console — 90s beige-box nostalgia. Warm tan surfaces, amber primary
+ * with a teal accent, sharp tiny radii, inset-style borders in lieu
+ * of blurred shadows, mono-forward labels. Chunky interaction tints
+ * make everything feel buttoned and physical.
+ * ─────────────────────────────────────────────────────────────────── */
+:root[data-theme='console'] {
+  --background: oklch(0.90 0.020 85);
+  --foreground: oklch(0.22 0.02 80);
+  --card: oklch(0.94 0.018 85);
+  --card-foreground: oklch(0.22 0.02 80);
+  --popover: oklch(0.94 0.018 85);
+  --popover-foreground: oklch(0.22 0.02 80);
+  --muted: oklch(0.86 0.025 85);
+  --muted-foreground: oklch(0.40 0.02 80);
+  --border: oklch(0.22 0.02 80 / 28%);
+  --input: oklch(0.22 0.02 80 / 28%);
+  --primary: oklch(0.65 0.15 65);
+  --primary-foreground: oklch(0.15 0.02 80);
+  --accent: oklch(0.60 0.09 195);
+  --accent-foreground: oklch(0.98 0.01 195);
+  --destructive: oklch(0.55 0.22 27);
+  --success: oklch(0.60 0.14 145);
+  --warning: oklch(0.70 0.15 75);
+  --info: oklch(0.55 0.12 220);
+  --ring: oklch(0.65 0.15 65 / 45%);
+
+  /* Inset chrome surfaces. */
+  --surface-2: oklch(0.87 0.024 85);
+  --border-subtle: oklch(0.22 0.02 80 / 16%);
+  --border-strong: oklch(0.22 0.02 80 / 50%);
+
+  /* Sharp radii — hardware edges. */
+  --radius-sm: 2px;
+  --radius-md: 3px;
+  --radius-lg: 4px;
+  --radius-xl: 6px;
+
+  /* Inset-style shadows — dark inner edges, no blur. */
+  --shadow-xs: inset 0 1px 0 oklch(1 0 0 / 60%), inset 0 -1px 0 oklch(0.22 0.02 80 / 20%);
+  --shadow-sm: inset 0 1px 0 oklch(1 0 0 / 55%), 0 1px 0 oklch(0.22 0.02 80 / 22%);
+  --shadow-md: inset 0 1px 0 oklch(1 0 0 / 50%), 0 1px 0 oklch(0.22 0.02 80 / 28%), 0 2px 0 oklch(0.22 0.02 80 / 10%);
+  --shadow-lg: inset 0 1px 0 oklch(1 0 0 / 45%), 0 2px 0 oklch(0.22 0.02 80 / 30%), 0 3px 0 oklch(0.22 0.02 80 / 12%);
+  --shadow-xl: inset 0 1px 0 oklch(1 0 0 / 40%), 0 3px 0 oklch(0.22 0.02 80 / 32%);
+  --shadow-hover: inset 0 1px 0 oklch(1 0 0 / 60%), 0 1px 0 oklch(0.22 0.02 80 / 30%);
+  --shadow-sticky: 0 1px 0 oklch(0.22 0.02 80 / 24%);
+  --shadow-accent: 0 0 0 2px oklch(0.65 0.15 65 / 55%);
+
+  /* Mono-forward labels, chunky heading weight. */
+  --heading-font: var(--font-body);
+  --heading-weight: var(--font-weight-bold);
+  --heading-tracking: var(--tracking-normal);
+  --label-font: var(--font-mono);
+  --label-weight: var(--font-weight-bold);
+  --label-tracking: var(--tracking-wide);
+
+  /* Chunky interaction — everything "clicks". */
+  --hover-strength: 12%;
+  --active-strength: 18%;
+  --selected-strength: 22%;
+}
+
+/* ───────────────────────────────────────────────────────────────────
+ * contrast — accessibility-hero. Near-black background, amber
+ * primary/accent fused into one high-chroma signal, pure white
+ * foreground. Flat 1–2px border "shadows" in lieu of blurs. Tiny
+ * blocky radii. Bold labels and headings. Amped interaction tints
+ * so every focus/active state is impossible to miss.
+ * ─────────────────────────────────────────────────────────────────── */
+:root[data-theme='contrast'] {
+  --background: oklch(0.09 0 0);
+  --foreground: oklch(0.99 0 0);
+  --card: oklch(0.15 0 0);
+  --card-foreground: oklch(0.99 0 0);
+  --popover: oklch(0.15 0 0);
+  --popover-foreground: oklch(0.99 0 0);
+  --muted: oklch(0.20 0 0);
+  --muted-foreground: oklch(0.85 0 0);
+  --border: oklch(0.75 0 0);
+  --input: oklch(0.75 0 0);
+  --primary: oklch(0.87 0.18 85);
+  --primary-foreground: oklch(0.08 0 0);
+  --accent: oklch(0.87 0.18 85);
+  --accent-foreground: oklch(0.08 0 0);
+  --destructive: oklch(0.65 0.24 25);
+  --success: oklch(0.80 0.22 150);
+  --warning: oklch(0.87 0.18 85);
+  --info: oklch(0.75 0.22 260);
+  --ring: oklch(0.87 0.18 85 / 60%);
+
+  /* No subtle surfaces — every boundary is hard. */
+  --surface-2: oklch(0.20 0 0);
+  --border-subtle: oklch(0.50 0 0);
+  --border-strong: oklch(0.99 0 0);
+
+  /* Blocky tiny radii. */
+  --radius-sm: 2px;
+  --radius-md: 3px;
+  --radius-lg: 4px;
+  --radius-xl: 6px;
+
+  /* Flat border "shadows" — rely on 1–2px rings for elevation. */
+  --shadow-xs: 0 0 0 1px oklch(1 0 0 / 60%);
+  --shadow-sm: 0 0 0 1px oklch(1 0 0 / 65%);
+  --shadow-md: 0 0 0 1px oklch(1 0 0 / 75%);
+  --shadow-lg: 0 0 0 2px oklch(1 0 0 / 80%);
+  --shadow-xl: 0 0 0 2px oklch(1 0 0 / 90%);
+  --shadow-hover: 0 0 0 2px oklch(0.87 0.18 85 / 70%);
+  --shadow-sticky: 0 0 0 1px oklch(1 0 0 / 60%);
+  --shadow-accent: 0 0 0 3px oklch(0.87 0.18 85 / 60%);
+
+  /* Bold everything — legibility over nuance. */
+  --heading-weight: var(--font-weight-bold);
+  --label-weight: var(--font-weight-bold);
+
+  /* Amped interaction — focus states must be unmistakable. */
+  --hover-strength: 14%;
+  --active-strength: 22%;
+  --selected-strength: 30%;
+}

@@ -15,11 +15,10 @@ use utoipa::OpenApi;
 
 use crate::{
     NetworkServer, actor_api, annotations_api, artifacts_api, attest, auth, cors, feedback_api, hooks_api,
-    human_webhook, mcp_registry, openapi, pairing, project_api, pty_handler, rest_api, runtime_api, session,
-    settings_api, shell_assets, ship_runtime, specs_api, specs_view, supervisor,
-    view_morph_target, view_sessions_api, views, collection_api, views_agents, views_chat,
-    views_events, views_git, views_pipelines, views_raw, views_settings, views_skills,
-    webhook_ext,
+    human_webhook, lint_api, logs_api, mcp_registry, openapi, pairing, project_api, pty_handler,
+    rest_api, runtime_api, sdk_manifest, services, session, settings_api, shell_assets,
+    ship_runtime, specs_api, supervisor, view_errors_api, view_morph_target, view_sessions_api,
+    views, collection_api, views_raw, webhook_ext,
 };
 use axum::routing;
 
@@ -114,8 +113,11 @@ pub fn build_router(
         .ship_route(Route::AssetCodeEditorJs, views::serve_code_editor)
         .ship_route(Route::AssetMarkdownEditorJs, views::serve_markdown_editor)
         .ship_route(Route::AssetTerminalJs, views::serve_terminal)
+        .ship_route(Route::AssetGitJs, views::serve_git)
         .ship_route(Route::AssetElementsManifest, views::serve_elements_manifest)
         .ship_route(Route::AssetElementsCatalog, views::serve_elements_catalog)
+        .ship_route(Route::AssetJinjaMacrosJson, views::serve_jinja_macros_json)
+        .ship_route(Route::AssetJinjaMacrosMd, views::serve_jinja_macros_md)
         .ship_route(Route::AssetThemeCss, views::serve_theme_css)
         .ship_route(Route::ListThemes, views::serve_themes_list)
         // First-run flow — both routes are unauthenticated so a fresh
@@ -186,6 +188,9 @@ pub fn build_router(
         .nest("/api", webhook_routes)
         .nest_service("/mcp", service)
         .layer(axum::Extension(feedback_guard))
+        // Dry-run view interceptor runs INSIDE auth (applied before the
+        // auth layer here, which means outer->inner order wraps it with
+        // auth) so requests must carry a valid bearer before short-circuit.
         .layer(axum::middleware::from_fn(move |req, next| {
             auth::auth_middleware(auth_token.clone(), auth_registry.clone(), req, next)
         }));
@@ -227,7 +232,7 @@ pub fn build_router(
 /// - `/api/workspaces/{id}/session-files/{*path}` — glob param, specific to
 ///   project_api's recursive file handler. Kept alongside the enum variant
 ///   that exposes the non-glob listing endpoint.
-/// - `/api/workspaces/{id}/skills/{skillId}/files/{*path}` — same reason.
+/// - `/api/skills/{id}/files/{*path}` — same reason (SkillService sub-file route).
 fn build_ship_routes(st: rest_api::ApiState) -> Router {
     use crate::routes::{Route, ShipRouterExt};
     Router::new()
@@ -249,16 +254,19 @@ fn build_ship_routes(st: rest_api::ApiState) -> Router {
         .ship_route(Route::StopAgent_template(), runtime_api::stop_agent)
         .ship_route(Route::SteerAgent_template(), runtime_api::steer_agent)
         .ship_route(Route::ListJobs, runtime_api::list_jobs)
-        .ship_route(Route::CreateJob, runtime_api::create_job)
+        .ship_route(Route::DispatchPipeline, runtime_api::dispatch_pipeline)
         .ship_route(Route::GetJob_template(), runtime_api::get_job_detail)
         .ship_route(Route::EndJob, runtime_api::end_job)
         .ship_route(Route::CancelJob_template(), runtime_api::cancel_job)
+        .ship_route(Route::StreamJobLog_template(), logs_api::stream_job_log)
         .ship_route(Route::ListProcs, runtime_api::list_procs)
         .ship_route(Route::PollEvents, runtime_api::poll_events)
         .ship_route(Route::DaemonStatus, runtime_api::daemon_status)
         // Views
         .ship_route(Route::ListViews, views::list_views)
-        .ship_route(Route::ServeView_template(), views::serve_view)
+        .ship_route(Route::ShipSchema, services::schema::serve_schema)
+        .ship_route(Route::ServeViewRouted_template(), views::routed_handler::serve_view_routed)
+        .ship_route(Route::ServeViewSseRouted_template(), views::routed_sse::serve_view_sse_routed)
         .ship_route(Route::ServeViewManifest_template(), views::serve_view_manifest)
         .ship_route(Route::ServeViewBundle_template(), views::serve_view_bundle)
         .ship_route(Route::ServeViewRaw_template(), views_raw::serve_view_raw)
@@ -274,25 +282,67 @@ fn build_ship_routes(st: rest_api::ApiState) -> Router {
         // Feedback ingress
         .ship_route(Route::PostFeedback, feedback_api::post_feedback)
         .ship_route(Route::PostAnnotation, annotations_api::post_annotation)
-        .ship_route(Route::ViewGit, views_git::git_shell)
-        .ship_route(Route::ViewGitSse, views_git::git_sse)
-        .ship_route(Route::ViewPipelines, views_pipelines::pipelines_shell)
-        .ship_route(Route::ViewPipelinesSse, views_pipelines::pipelines_sse)
-        .ship_route(Route::ViewSettings, views_settings::settings_shell)
-        .ship_route(Route::ViewSettingsSse, views_settings::settings_sse)
-        .ship_route(Route::ViewAgents, views_agents::agents_shell)
-        .ship_route(Route::ViewAgentDetail_template(), views_agents::agent_detail)
-        .ship_route(Route::ViewAgentsCreate, views_agents::agents_create)
-        .ship_route(Route::ViewSkills, views_skills::skills_shell)
-        .ship_route(Route::ViewSkillsRail, views_skills::skills_rail)
-        .ship_route(Route::ViewSkillDetail_template(), views_skills::skill_detail)
-        .ship_route(Route::ViewChat, views_chat::chat_shell)
-        .ship_route(Route::ViewChatSse, views_chat::chat_sse)
-        .ship_route(Route::ViewChatSend, views_chat::chat_send)
-        .ship_route(Route::ViewEvents, views_events::events_shell)
-        .ship_route(Route::ViewEventsSse, views_events::events_sse)
-        .ship_route(Route::ViewSpecs, specs_view::specs_shell)
-        .ship_route(Route::ViewSpecsSse, specs_view::specs_view_sse)
+        // AgentService — generic CRUD + lifecycle. First-party and
+        // third-party views use this surface equally.
+        .ship_route(Route::AgentsList, services::agents::list)
+        .ship_route(Route::AgentsGet_template(), services::agents::get)
+        .ship_route(Route::AgentsPut_template(), services::agents::put)
+        .ship_route(Route::AgentsPatch_template(), services::agents::patch)
+        .ship_route(Route::AgentsDelete_template(), services::agents::delete)
+        .ship_route(Route::AgentsCreate, services::agents::create)
+        .ship_route(Route::AgentsRename_template(), services::agents::rename)
+        .ship_route(Route::AgentsDuplicate_template(), services::agents::duplicate)
+        .ship_route(Route::AgentsMove_template(), services::agents::move_scope)
+        // PipelineService — CRUD + run ops. Dispatch / cancel / log-stream
+        // wrap the existing kernel-backed handlers so the write paths stay
+        // single-sourced.
+        .ship_route(Route::PipelinesList, services::pipelines::list)
+        .ship_route(Route::PipelinesGet_template(), services::pipelines::get)
+        .ship_route(Route::PipelinesPut_template(), services::pipelines::put)
+        .ship_route(Route::PipelinesPatch_template(), services::pipelines::patch)
+        .ship_route(Route::PipelinesDelete_template(), services::pipelines::delete)
+        .ship_route(Route::PipelinesDispatch_template(), services::pipelines::dispatch)
+        .ship_route(Route::PipelineRunCancel_template(), services::pipelines::cancel_run)
+        .ship_route(Route::PipelineRunsList, services::pipelines::list_runs)
+        .ship_route(Route::PipelineRunGet_template(), services::pipelines::get_run)
+        .ship_route(Route::PipelineRunLogStream_template(), logs_api::stream_job_log)
+        // RuleService — markdown rules.
+        .ship_route(Route::RulesList, services::rules::list)
+        .ship_route(Route::RulesGet_template(), services::rules::get)
+        .ship_route(Route::RulesPut_template(), services::rules::put)
+        .ship_route(Route::RulesDelete_template(), services::rules::delete)
+        .ship_route(Route::RulesCreate, services::rules::create)
+        // McpService — entries in mcp.jsonc as a collection surface.
+        .ship_route(Route::McpList, services::mcp::list)
+        .ship_route(Route::McpGet_template(), services::mcp::get)
+        .ship_route(Route::McpPut_template(), services::mcp::put)
+        .ship_route(Route::McpPatch_template(), services::mcp::patch)
+        .ship_route(Route::McpDelete_template(), services::mcp::delete)
+        .ship_route(Route::McpCreate, services::mcp::create)
+        // PermissionService — preset entries + composed tool-patterns.
+        .ship_route(Route::PermissionsList, services::permissions::list)
+        .ship_route(Route::PermissionsToolPatterns, services::permissions::tool_patterns)
+        .ship_route(Route::PermissionsGet_template(), services::permissions::get)
+        .ship_route(Route::PermissionsPut_template(), services::permissions::put)
+        .ship_route(Route::PermissionsPatch_template(), services::permissions::patch)
+        .ship_route(Route::PermissionsDelete_template(), services::permissions::delete)
+        .ship_route(Route::PermissionsCreate, services::permissions::create)
+        // SkillService — service-shaped CRUD + file tree + vars. Replaces
+        // the workspace-scoped skill endpoints that used to hang off
+        // /api/workspaces/{id}/skills/*.
+        .ship_route(Route::SkillsList, services::skills::list)
+        .ship_route(Route::SkillsGet_template(), services::skills::get)
+        .ship_route(Route::SkillsCreate, services::skills::create)
+        .ship_route(Route::SkillsDelete_template(), services::skills::delete)
+        .ship_route(Route::SkillsPutFrontmatter_template(), services::skills::put_frontmatter)
+        .ship_route(Route::SkillsPutBody_template(), services::skills::put_body)
+        .ship_route(Route::SkillsRename_template(), services::skills::rename)
+        .ship_route(Route::SkillsDuplicate_template(), services::skills::duplicate)
+        .ship_route(Route::SkillsMove_template(), services::skills::move_scope)
+        .ship_route(Route::SkillsGetVars_template(), services::skills::get_vars)
+        .ship_route(Route::SkillsPutVar_template(), services::skills::put_var)
+        .ship_route(Route::SkillsDeleteVar_template(), services::skills::delete_var)
+        .ship_route(Route::ChatSend, services::chat::send_message)
         // Specs REST
         .ship_route(Route::ListSpecs, specs_api::list_specs)
         .ship_route(Route::CreateSpec, specs_api::create_spec)
@@ -313,22 +363,32 @@ fn build_ship_routes(st: rest_api::ApiState) -> Router {
         .ship_route(Route::StartWorkspace_template(), supervisor::start_workspace)
         // Project
         .ship_route(Route::ListSessionFiles_template(), project_api::list_session_files)
-        .ship_route(Route::WorkspaceGitStatus_template(), project_api::git_status)
-        .ship_route(Route::WorkspaceGitDiff_template(), project_api::git_diff)
-        .ship_route(Route::WorkspaceGitLog_template(), project_api::git_log)
         .ship_route(Route::ListWorkspaceAgents_template(), project_api::list_agents)
         .ship_route(Route::WriteWorkspaceAgent_template(), project_api::write_agent)
-        .ship_route(Route::ListWorkspaceSkills_template(), project_api::list_skills)
-        .ship_route(Route::GetSkillVars_template(), project_api::get_skill_vars)
-        .ship_route(Route::SetSkillVar_template(), project_api::set_skill_var)
         .ship_route(Route::DeleteWorkspace_template(), project_api::delete_workspace)
         .ship_route(Route::ActivateWorkspace_template(), project_api::activate_workspace)
-        .ship_route(Route::ListWorkspacePipelines_template(), project_api::list_pipelines)
-        .ship_route(Route::WritePipeline_template(), project_api::write_pipeline)
-        .ship_route(Route::DeletePipeline_template(), project_api::delete_pipeline)
-        .ship_route(Route::ProjectGitStatus, project_api::project_git_status)
-        .ship_route(Route::ProjectGitDiff, project_api::project_git_diff)
-        .ship_route(Route::ProjectGitLog, project_api::project_git_log)
+        // GitService — canonical `/api/git/*` surface. Consolidates the
+        // old workspace- and project-scoped git endpoints into one.
+        .ship_route(Route::GitStatus, services::git::status_handler)
+        .ship_route(Route::GitDiff, services::git::diff_handler)
+        .ship_route(Route::GitLog, services::git::log_handler)
+        .ship_route(Route::GitBranches, services::git::branches_handler)
+        .ship_route(Route::GitStage, services::git::stage_handler)
+        .ship_route(Route::GitUnstage, services::git::unstage_handler)
+        .ship_route(Route::GitCommit, services::git::commit_handler)
+        .ship_route(Route::GitPush, services::git::push_handler)
+        .ship_route(Route::GitFetch, services::git::fetch_handler)
+        .ship_route(Route::GitPull, services::git::pull_handler)
+        .ship_route(Route::GitCheckout, services::git::checkout_handler)
+        .ship_route(Route::GitSse, services::git::sse_handler)
+        // commit-draft — GET/PUT/DELETE merged on one path (canonical path
+        // matches `Route::GitCommitDraft{Get,Put,Delete}` in the enum).
+        .route(
+            "/api/git/commit-draft",
+            axum::routing::get(services::git::draft_get_handler)
+                .put(services::git::draft_put_handler)
+                .delete(services::git::draft_delete_handler),
+        )
         .ship_route(Route::EmitEvent, project_api::emit_event)
         // Artifacts platform (three-scope)
         .merge(
@@ -349,13 +409,35 @@ fn build_ship_routes(st: rest_api::ApiState) -> Router {
         .ship_route(Route::ArtifactDelete_template(), artifacts_api::delete_artifact)
         .ship_route(Route::ArtifactPromote_template(), artifacts_api::promote_artifact)
         // Collections
-        .ship_route(Route::ListCollections, collection_api::list_collections)
+        // Collections — GET + POST on /api/collections merged on one route.
+        .route(
+            "/api/collections",
+            axum::routing::get(collection_api::list_collections)
+                .post(collection_api::create_collection),
+        )
         .ship_route(Route::GetCollectionSchema_template(), collection_api::get_schema)
+        .ship_route(Route::UpdateCollectionSchema_template(), collection_api::update_schema)
         .ship_route(Route::CreateCollectionItem_template(), collection_api::create_item)
         .ship_route(Route::GetCollectionItem_template(), collection_api::get_item)
         .ship_route(Route::UpdateCollectionItem_template(), collection_api::update_item)
         .ship_route(Route::DeleteCollectionItem_template(), collection_api::delete_item)
         .ship_route(Route::QueryCollection_template(), collection_api::query_items)
+        // Lint
+        .ship_route(Route::LintView, lint_api::lint_view)
+        // SDK manifest (read-side)
+        .ship_route(Route::ViewMeta_template(), sdk_manifest::get_view_meta)
+        .ship_route(Route::SdkRoot, sdk_manifest::get_sdk_root)
+        .ship_route(Route::SdkQuery, sdk_manifest::query_sdk)
+        // Client-side view error capture — GET/POST/DELETE on one path,
+        // merged into a single MethodRouter (axum panics on duplicate paths
+        // across `.route()` calls). Canonical path comes from the Route enum
+        // so URL builders (TS, Jinja) stay consistent.
+        .route(
+            "/api/view-errors",
+            axum::routing::post(view_errors_api::post_error)
+                .get(view_errors_api::list_errors)
+                .delete(view_errors_api::clear_errors),
+        )
         // Glob-param file handlers (not in enum — glob syntax is project_api
         // internal; keep flat).
         .route(
@@ -364,10 +446,12 @@ fn build_ship_routes(st: rest_api::ApiState) -> Router {
                 .put(project_api::write_session_file)
                 .delete(project_api::delete_session_file),
         )
+        // SkillService files subresource — glob param keeps this flat (the
+        // codegen Route enum doesn't model `{*path}`).
         .route(
-            "/api/workspaces/{id}/skills/{skillId}/files/{*path}",
-            axum::routing::put(project_api::write_skill_file)
-                .delete(project_api::delete_skill_file),
+            "/api/skills/{id}/files/{*path}",
+            axum::routing::put(services::skills::put_file)
+                .delete(services::skills::delete_file),
         )
         .with_state(st)
 }

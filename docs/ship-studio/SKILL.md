@@ -37,7 +37,7 @@ Studio is a TanStack Start app. The CLI runs `ship mcp serve --http --port 51741
 
 ## Key Patterns
 
-- All transfer types come from Rust via Specta. TypeScript types are auto-generated to `@ship/ui`. Never hand-write transfer types.
+- All transfer types come from Rust via Specta. TypeScript types are auto-generated to `@ship/set`. Never hand-write transfer types.
 - `useLocalMcp()` manages the MCP connection lifecycle and exposes `callTool()`.
 - `LocalMcpContext` wraps the app so any component can call MCP tools.
 - TanStack Query hooks in `mcp-queries.ts` handle all MCP reads (auto-refetch) and writes (mutation with cache invalidation).

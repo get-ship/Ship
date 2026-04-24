@@ -1,0 +1,292 @@
+<style>
+/* =============================================================
+   WORKSPACE — nav + main pane
+   Events rail is out of scope this phase (no-events grid).
+   ============================================================= */
+.data-view .col-workspace {
+  flex: 1;
+  min-height: 0;
+  display: grid;
+  grid-template-columns: 240px 1fr;
+  overflow: hidden;
+}
+
+/* Schema tab content. */
+.data-view .schema-pane {
+  padding: var(--space-5) var(--space-6);
+  max-width: 56rem;
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-4);
+}
+.data-view .schema-pane-head {
+  display: flex; align-items: flex-start; justify-content: space-between;
+  gap: var(--space-4);
+  padding-bottom: var(--space-3);
+  border-bottom: 1px solid var(--border);
+}
+.data-view .schema-pane-title {
+  margin: 0;
+  font-size: var(--text-lg);
+  font-weight: var(--font-weight-semibold);
+  color: var(--foreground);
+}
+.data-view .schema-pane-sub {
+  font-size: var(--text-xs);
+  color: var(--muted-foreground);
+  margin-top: 2px;
+}
+.data-view .schema-pane-count {
+  font-size: var(--text-xs);
+  color: var(--muted-foreground);
+  font-variant-numeric: tabular-nums;
+}
+.data-view .schema-fields {
+  display: flex;
+  flex-direction: column;
+  gap: 1px;
+  background: var(--border);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-md);
+  overflow: hidden;
+}
+.data-view .schema-field {
+  display: grid;
+  grid-template-columns: 92px 1fr auto auto;
+  align-items: center;
+  gap: var(--space-3);
+  padding: var(--space-2) var(--space-4);
+  background: var(--background);
+  font-size: var(--text-sm);
+}
+.data-view .schema-field:hover { background: var(--muted); }
+.data-view .schema-field-name { color: var(--foreground); font-weight: var(--font-weight-medium); }
+.data-view .schema-field-req {
+  font-size: var(--text-xs);
+  color: var(--destructive);
+  font-weight: var(--font-weight-medium);
+}
+.data-view .schema-field-values {
+  font-size: var(--text-xs);
+  color: var(--muted-foreground);
+  max-width: 20rem; overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
+}
+.data-view .schema-pane-note {
+  font-size: var(--text-xs);
+  color: var(--muted-foreground);
+  padding: var(--space-2) 0;
+}
+.data-view .schema-builtin-note {
+  display: flex; align-items: center; gap: var(--space-2);
+  padding: var(--space-3) var(--space-4);
+  background: color-mix(in oklch, var(--muted) 30%, transparent);
+  border: 1px solid var(--border);
+  border-radius: var(--radius-md);
+  font-size: var(--text-sm);
+  color: var(--muted-foreground);
+}
+
+/* Editable schema form. */
+.data-view .schema-form { display: contents; }
+.data-view .schema-edit-table {
+  border: 1px solid var(--border);
+  border-radius: var(--radius-md);
+  overflow: hidden;
+}
+.data-view .schema-edit-head,
+.data-view .schema-edit-row {
+  display: grid;
+  grid-template-columns: 140px 1fr 80px minmax(160px, 1fr) 40px;
+  align-items: center;
+  gap: var(--space-3);
+  padding: var(--space-2) var(--space-3);
+}
+.data-view .schema-edit-head {
+  background: color-mix(in oklch, var(--muted) 40%, transparent);
+  border-bottom: 1px solid var(--border);
+  font-size: var(--text-xs);
+  color: var(--muted-foreground);
+  text-transform: uppercase;
+  letter-spacing: 0.04em;
+  font-weight: var(--font-weight-medium);
+}
+.data-view .schema-edit-row + .schema-edit-row { border-top: 1px solid color-mix(in oklch, var(--border) 50%, transparent); }
+.data-view .schema-edit-row:hover { background: color-mix(in oklch, var(--muted) 15%, transparent); }
+.data-view .schema-edit-check {
+  display: inline-flex; align-items: center; justify-content: flex-start;
+}
+.data-view .schema-edit-footer {
+  display: flex; align-items: center; gap: var(--space-3);
+  padding: var(--space-2) 0;
+}
+.data-view .schema-edit-spacer { flex: 1; }
+.data-view .schema-edit-saved {
+  font-size: var(--text-xs);
+  color: var(--success);
+  animation: schema-save-flash 2s ease-out forwards;
+}
+@keyframes schema-save-flash {
+  0%, 30% { opacity: 1; }
+  100% { opacity: 0; }
+}
+.data-view .schema-edit-error {
+  font-size: var(--text-xs);
+  color: var(--destructive);
+}
+.data-view .col-workspace.no-events { grid-template-columns: 220px 1fr; }
+
+.data-view .col-nav {
+  border-right: 1px solid var(--border);
+  background: color-mix(in oklch, var(--muted-foreground) 3%, var(--background));
+  overflow: auto;
+  padding: var(--space-3) var(--space-2) var(--space-5);
+}
+.data-view .col-nav-section {
+  display: flex;
+  align-items: center;
+  justify-content: space-between;
+  padding: var(--space-2) var(--space-3) var(--space-1);
+  font-size: 10.5px;
+  font-weight: var(--font-weight-semibold);
+  letter-spacing: 0.08em;
+  text-transform: uppercase;
+  color: var(--muted-foreground);
+}
+.data-view .col-nav-add {
+  width: 18px; height: 18px;
+  display: grid; place-items: center;
+  border-radius: var(--radius-sm);
+  color: var(--muted-foreground);
+  cursor: pointer;
+  transition: background var(--duration-fast) var(--ease-out), color var(--duration-fast) var(--ease-out);
+}
+.data-view .col-nav-add:hover {
+  background: var(--muted);
+  color: var(--foreground);
+}
+.data-view .col-nav-row {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+  padding: 5px var(--space-3);
+  border-radius: var(--radius-sm);
+  color: var(--foreground);
+  font-size: var(--text-sm);
+  text-decoration: none;
+  cursor: pointer;
+  transition: background var(--duration-fast) var(--ease-out);
+}
+.data-view .col-nav-row:hover { background: var(--muted); }
+.data-view .col-nav-row.is-active {
+  background: color-mix(in oklch, var(--primary) 14%, transparent);
+  color: var(--primary);
+}
+.data-view .col-nav-row.is-active .col-nav-count { color: var(--primary); }
+.data-view .col-nav-row.is-muted {
+  color: var(--muted-foreground);
+  cursor: default;
+  font-style: italic;
+}
+.data-view .col-nav-icon {
+  width: 18px; height: 18px;
+  display: grid; place-items: center;
+  color: var(--muted-foreground);
+  flex: none;
+}
+.data-view .col-nav-row.is-active .col-nav-icon { color: var(--primary); }
+.data-view .col-nav-label { flex: 1; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+.data-view .col-nav-count {
+  font-family: var(--font-mono);
+  font-size: 10.5px;
+  color: var(--muted-foreground);
+}
+.data-view .col-nav-sub {
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+  padding: 4px var(--space-3) 4px 30px;
+  font-size: var(--text-xs);
+  color: var(--muted-foreground);
+}
+.data-view .col-nav-sub-dot {
+  width: 5px; height: 5px; border-radius: 50%;
+  background: var(--muted-foreground);
+  flex: none;
+}
+
+/* =============================================================
+   WORKSPACE MAIN PANE
+   ============================================================= */
+.data-view .col-work-main {
+  display: flex;
+  flex-direction: column;
+  min-width: 0;
+  min-height: 0;
+  overflow: hidden;
+  background: var(--background);
+}
+
+.data-view .col-head {
+  display: flex;
+  align-items: center;
+  gap: var(--space-3);
+  padding: var(--space-3) var(--space-5);
+  border-bottom: 1px solid var(--border);
+  flex: none;
+}
+.data-view .col-head-identity {
+  display: inline-flex;
+  align-items: center;
+  gap: var(--space-2);
+}
+.data-view .col-head-icon {
+  width: 24px; height: 24px;
+  border-radius: var(--radius-md);
+  display: grid; place-items: center;
+  background: color-mix(in oklch, var(--primary) 14%, transparent);
+  color: var(--primary);
+  flex: none;
+}
+.data-view .col-head-name {
+  font-family: var(--font-display);
+  font-size: var(--text-lg);
+  font-weight: var(--font-weight-semibold);
+  letter-spacing: -0.01em;
+}
+.data-view .col-head-id { font-size: 11px; }
+.data-view .col-head-count {
+  font-family: var(--font-mono);
+  font-size: var(--text-xs);
+  color: var(--muted-foreground);
+}
+.data-view .col-head-right {
+  margin-left: auto;
+  display: flex;
+  align-items: center;
+  gap: var(--space-2);
+}
+.data-view .col-head-sep {
+  width: 1px;
+  height: 18px;
+  background: var(--border);
+}
+
+
+/* Tab panels — each occupies the remaining column flex space. */
+.data-view .col-tab-panel {
+  flex: 1;
+  min-height: 0;
+  display: flex;
+  flex-direction: column;
+  overflow: hidden;
+}
+/* Direct children of col-tab-panel must also flex-grow so the table / empty
+   state fills the panel instead of collapsing to content height. */
+.data-view .col-tab-panel > * { flex: 1; min-height: 0; display: flex; flex-direction: column; }
+.data-view .col-tab-panel > * > #data-content { flex: 1; min-height: 0; display: flex; flex-direction: column; }
+.data-view #data-content > ship-empty-state {
+  flex: 1; min-height: 0;
+  display: flex; align-items: center; justify-content: center;
+}
+.data-view .schema-panel { padding: var(--space-6); overflow: auto; }
+</style>

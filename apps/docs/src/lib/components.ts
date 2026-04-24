@@ -1,5 +1,5 @@
 /**
- * Build-time loader over packages/ui/custom-elements.json.
+ * Build-time loader over packages/ship-set/custom-elements.json.
  *
  * Extracts every class declaration with `kind === 'class'` that has a
  * customElement tagName. Returns a typed record per component with
@@ -7,11 +7,10 @@
  * events, parts, CSS custom properties, and the source file.
  *
  * Groups are derived from the source file path:
- *   web-components/              → 'primitives'
- *   web-components/domain/       → 'domain'
- *   web-components/charts/       → 'charts'
- *   web-components/observability/→ 'observability'
- *   web-components/utility/      → 'utility'
+ *   web-components/core/    → primitives (subdivided per tag below)
+ *   web-components/domain/  → 'domain'
+ *   web-components/viz/     → 'charts'
+ *   web-components/islands/ → 'layout' (heavy editors live with primitives)
  *
  * The shell's old `GROUPS` array separated primitives into topic
  * buckets (Typography, Actions, Forms, Status, Data, Layout, Utility,
@@ -19,7 +18,7 @@
  * basis here — if a tag isn't listed it stays in `primitives`.
  */
 
-import cem from '../../../../packages/ui/custom-elements.json' with { type: 'json' };
+import cem from '../../../../packages/ship-set/custom-elements.json' with { type: 'json' };
 
 export type ComponentCategory =
   | 'typography'
@@ -116,7 +115,7 @@ const CATEGORY_BY_TAG: Record<string, ComponentCategory> = {
   'ship-accordion-item': 'data',
   'ship-collapsible': 'data',
   'ship-empty-state': 'data',
-  'ship-list-item': 'data',
+  'ship-list-tile': 'data',
   'ship-pagination': 'data',
   'ship-tabs': 'data',
   'ship-tab': 'data',
@@ -136,6 +135,33 @@ const CATEGORY_BY_TAG: Record<string, ComponentCategory> = {
   'ship-hover-card': 'overlays',
   'ship-popover': 'overlays',
   'ship-tooltip': 'overlays',
+
+  // Utility primitives (formerly under web-components/utility/)
+  'ship-avatar': 'utility',
+  'ship-breadcrumb': 'utility',
+  'ship-chip': 'utility',
+  'ship-icon': 'utility',
+  'ship-kbd': 'utility',
+  'ship-link': 'utility',
+  'ship-metachip': 'utility',
+  'ship-skeleton': 'utility',
+  'ship-step-segments': 'utility',
+  'ship-toast': 'utility',
+  'ship-toast-container': 'utility',
+
+  // Observability primitives (formerly under web-components/observability/)
+  'ship-code': 'observability',
+  'ship-copy-button': 'observability',
+  'ship-diff': 'observability',
+  'ship-json-view': 'observability',
+  'ship-log-stream': 'observability',
+  'ship-markdown': 'observability',
+  'ship-table': 'observability',
+  'ship-timeline': 'observability',
+  'ship-timeline-item': 'observability',
+  'ship-timestamp': 'observability',
+  'ship-tree-view': 'observability',
+  'ship-tree-node': 'observability',
 };
 
 export const CATEGORY_LABELS: Record<ComponentCategory, string> = {
@@ -168,9 +194,7 @@ export const CATEGORY_ORDER: ComponentCategory[] = [
 
 function deriveCategory(tag: string, path: string): ComponentCategory {
   if (CATEGORY_BY_TAG[tag]) return CATEGORY_BY_TAG[tag];
-  if (path.includes('/charts/')) return 'charts';
-  if (path.includes('/observability/')) return 'observability';
-  if (path.includes('/utility/')) return 'utility';
+  if (path.includes('/viz/')) return 'charts';
   if (path.includes('/domain/')) return 'domain';
   return 'layout';
 }

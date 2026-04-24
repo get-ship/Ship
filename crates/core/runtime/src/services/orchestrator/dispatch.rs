@@ -111,7 +111,7 @@ pub async fn dispatch_job_internal(
         env: [("SHIP_MESH_ID".to_string(), slug.to_string())].into(),
         exit_tx: None,
         launch: LaunchProfile {
-            provider: launch_provider,
+            provider: launch_provider.clone(),
             model: launch_model,
             persist_session: true,
             ..Default::default()
@@ -179,9 +179,10 @@ pub async fn dispatch_job_internal(
     };
 
     let executor_kind = if payload.headless { "process" } else { "pty" };
+    let cmd_label = launch_provider.as_deref().unwrap_or("claude");
     emit_process_spawned(
         kernel, slug, &payload.job_id, handle.pid,
-        "claude", &[], &[], &worktree_path.to_string_lossy(),
+        cmd_label, &[], &[], &worktree_path.to_string_lossy(),
         executor_kind, job_ctx_with_dir.step.as_ref().map(|s| s.id.as_str()),
     ).await;
 

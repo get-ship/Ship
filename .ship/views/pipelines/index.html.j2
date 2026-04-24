@@ -1,42 +1,55 @@
 {#-
-  Pipelines (Workflows) view — spec-parity with the React /studio/workflows route.
-  Single-column centered layout. Datastar-driven tab switching and SSE content patches.
-  The daemon passes PipelinesCtx as Jinja context.
+  Pipelines — list view. Data pulled inline via `ship.pipelines.summaries()`.
+  The call returns the pre-shaped ctx (stats, defs, active_runs, history_runs,
+  providers, workspace_id, agents, status_pills, ...). We destructure into
+  flat names so the sibling partials (`partials/content.html.j2`,
+  `partials/dispatch_dialog.html.j2`) stay unchanged.
 -#}
-{% from '_ship.html.j2' import head, signal, show, live, loading, spinner, chip, chip_all %}
-{% from '_urls.html.j2' import create_job, view_pipelines_sse, get_job, end_job %}
+{% from '_ship.html.j2' import head, signal, bind, on_click, attr_if %}
+
+{% set ctx = ship.pipelines.summaries(
+  q=ship.query.q | default(''),
+  agent=ship.query.agent | default(''),
+  pipeline=ship.query.pipeline | default(''),
+  status=ship.query.status | default(''),
+  tab=ship.query.tab | default(''),
+) %}
+{% set stats_subtitle = ctx.stats_subtitle %}
+{% set stats = ctx.stats %}
+{% set defs = ctx.defs %}
+{% set active_runs = ctx.active_runs %}
+{% set history_runs = ctx.history_runs %}
+{% set providers = ctx.providers %}
+{% set workspace_id = ctx.workspace_id %}
+{% set agents = ctx.agents %}
+{% set status_pills = ctx.status_pills %}
+{% set active_tab = ctx.active_tab %}
+{% set agent_filter = ctx.agent_filter %}
+{% set filter = ctx.filter %}
+
 {% if not fragment %}
 <!DOCTYPE html>
 <html lang="en">
-<head>{{ head('Workflows') }}</head>
+<head>{{ head('Pipelines') }}</head>
 <body>
 {% endif %}
-<div class="ship-view ship-view-pipelines"
-     {{ signal('tab', active_tab) }}
-     {{ signal('agent', agent_filter) }}
-     {{ signal('_creating', false) }}>
+<div class="ship-view ship-view-pipelines">
   <style>
   .ship-view-pipelines {
     color: var(--foreground);
     background: var(--background);
-    height: 100vh;
-    overflow: hidden;
-  }
-  .ship-pipelines-scroll {
-    flex: 1;
-    overflow: auto;
-    height: 100%;
   }
   .ship-pipelines-wrap {
     width: 100%;
-    max-width: 64rem;
+    max-width: 96rem;
     margin: 0 auto;
-    padding: var(--space-8) var(--space-6);
+    padding: var(--space-6) var(--space-8);
   }
   .ship-pipelines-head {
     display: flex;
-    align-items: center;
+    align-items: flex-start;
     justify-content: space-between;
+    gap: var(--space-4);
     margin-bottom: var(--space-6);
   }
   .ship-pipelines-title {
@@ -52,35 +65,12 @@
     color: var(--muted-foreground);
     margin-top: var(--space-1);
   }
-  .ship-pipelines-stats {
+  .ship-pipelines-head-actions {
     display: flex;
-    align-items: center;
-    gap: var(--space-4);
-    margin-bottom: var(--space-6);
-    border-radius: var(--radius-lg);
-    border: 1px solid color-mix(in oklch, var(--border) 60%, transparent);
-    background: color-mix(in oklch, var(--card) 50%, transparent);
-    padding: var(--space-3) var(--space-4);
+    gap: var(--space-2);
   }
-  .ship-stat { display: inline-flex; align-items: center; gap: var(--space-1); }
-  .ship-stat-label { font-size: var(--text-xs); color: var(--muted-foreground); }
-  .ship-stat-count {
-    font-size: var(--text-xs);
-    font-weight: var(--font-weight-medium);
-    color: var(--foreground);
-    font-variant-numeric: tabular-nums;
-  }
-  .ship-pipelines-tabs-row { margin-bottom: var(--space-4); }
-  .ship-pipelines-filters {
-    display: flex;
-    flex-wrap: wrap;
-    gap: var(--space-1);
-    margin-bottom: var(--space-4);
-  }
-  .ship-pipelines-content { padding: 0; }
-
   @media (max-width: 767px) {
-    .ship-pipelines-scroll { display: none; }
+    .ship-pipelines-wrap { display: none; }
     .ship-mobile-gate { display: flex; }
   }
   @media (min-width: 768px) {
@@ -89,7 +79,7 @@
   .ship-mobile-gate {
     align-items: center;
     justify-content: center;
-    height: 100%;
+    min-height: 60vh;
     flex-direction: column;
     gap: var(--space-2);
     color: var(--muted-foreground);
@@ -98,57 +88,35 @@
   </style>
   {% include 'pipelines/partials/styles.html.j2' %}
 
-  <div class="ship-pipelines-scroll">
-    <div class="ship-pipelines-wrap">
-      <div class="ship-pipelines-head">
-        <div>
-          <h1 class="ship-pipelines-title">Workflows</h1>
-          <p class="ship-pipelines-sub">{{ stats_subtitle }}</p>
-        </div>
-        <ship-button size="sm" tone="accent" variant="solid"
-          data-on:click="@post('{{ create_job() }}', {contentType: 'json', body: JSON.stringify({})})"
-          {{ loading('_creating') }}>
-          <ship-icon slot="leading" name="play" size="sm"></ship-icon>
-          New Run
+  <div class="ship-pipelines-wrap">
+    <header class="ship-pipelines-head">
+      <div>
+        <h1 class="ship-pipelines-title">Pipelines</h1>
+        <p class="ship-pipelines-sub">{{ stats_subtitle }}</p>
+      </div>
+      <div class="ship-pipelines-head-actions">
+        <ship-button variant="outline" size="sm"
+          {{ on_click("window.location.href='/pipelines/history'") }}>
+          <ship-icon slot="leading" name="list" size="sm"></ship-icon>
+          History
         </ship-button>
-        {{ spinner('_creating') }}
+        {% if workspace_id %}
+        <ship-button variant="outline" size="sm"
+          {{ on_click("document.getElementById('new-pipeline-dialog').showModal()") }}>
+          <ship-icon slot="leading" name="plus" size="sm"></ship-icon>
+          New pipeline
+        </ship-button>
+        {% endif %}
+        <ship-button tone="accent" variant="solid" size="sm"
+          {{ on_click("document.getElementById('dispatch-dialog').showModal()") }}>
+          <ship-icon slot="leading" name="play" size="sm"></ship-icon>
+          Dispatch
+        </ship-button>
       </div>
+    </header>
 
-      {% if status_pills and status_pills | length > 0 %}
-      <div class="ship-pipelines-stats" role="group" aria-label="Run status summary">
-        {% for pill in status_pills %}
-        <span class="ship-stat">
-          <ship-status-dot tone="{{ pill.tone }}"></ship-status-dot>
-          <span class="ship-stat-label">{{ pill.label }}</span>
-          <span class="ship-stat-count">{{ pill.count }}</span>
-        </span>
-        {% endfor %}
-      </div>
-      {% endif %}
-
-      <div class="ship-pipelines-tabs-row">
-        <ship-tabs variant="underline" active="{{ active_tab }}"
-          data-on:ship-tab-change="$tab = evt.detail.name; @get('/api/runtime/view/pipelines/sse?tab=' + evt.detail.name)">
-          <ship-tab name="active" label="Active Runs" count="{{ stats.active }}"></ship-tab>
-          <ship-tab name="definitions" label="Templates" count="{{ stats.definitions }}"></ship-tab>
-          <ship-tab name="history" label="History" count="{{ stats.history }}"></ship-tab>
-        </ship-tabs>
-      </div>
-
-      {% if agents and agents | length > 0 %}
-      <div class="ship-pipelines-filters" role="group" aria-label="Filter by agent">
-        <ship-chip size="sm" {{ chip_all('agent', 'pipelines') }}>All agents</ship-chip>
-        {% for a in agents %}
-        <ship-chip size="sm" {{ chip('agent', a, 'pipelines') }}>{{ a }}</ship-chip>
-        {% endfor %}
-      </div>
-      {% endif %}
-
-      <div {{ live('pipelines') }}>
-        <div id="pipelines-content" class="ship-pipelines-content">
-          <p style="padding: var(--space-8) 0; font-size: var(--text-xs); color: var(--muted-foreground)">Loading...</p>
-        </div>
-      </div>
+    <div>
+      {% include 'pipelines/partials/content.html.j2' %}
     </div>
   </div>
 
@@ -156,6 +124,91 @@
     <ship-icon name="monitor" size="xl" tone="muted"></ship-icon>
     <span>Best experienced on desktop</span>
   </div>
+
+  {% include 'pipelines/partials/dispatch_dialog.html.j2' %}
+
+  {# ── New pipeline ─────────────────────────────────────────────── #}
+  {% if workspace_id %}
+  <ship-dialog id="new-pipeline-dialog" size="sm"
+    {{ signal('new_pipe_name', '') }}
+    {{ signal('new_pipe_error', '') }}
+    {{ signal('new_pipe_creating', false) }}>
+    <span slot="header">New pipeline</span>
+    <ship-field label="Name" hint="Lowercase, kebab-case. Becomes the filename.">
+      <ship-input {{ bind('new_pipe_name') }} placeholder="my-pipeline"
+        autofocus></ship-input>
+    </ship-field>
+    <ship-alert tone="destructive" compact data-show="$new_pipe_error">
+      <span data-text="$new_pipe_error"></span>
+    </ship-alert>
+    <div slot="footer">
+      <ship-button variant="outline"
+        {{ on_click("document.getElementById('new-pipeline-dialog').close()") }}>
+        Cancel
+      </ship-button>
+      <ship-button tone="accent" variant="solid"
+        {{ attr_if('$new_pipe_creating', 'loading') }}
+        {{ attr_if('$new_pipe_creating', 'disabled') }}
+        {{ on_click("window.createPipeline('" ~ workspace_id ~ "', $new_pipe_name, document.querySelector('.ship-view-pipelines'))") }}>
+        <ship-icon slot="leading" name="plus" size="sm"></ship-icon>
+        Create
+      </ship-button>
+    </div>
+  </ship-dialog>
+  <script>
+  (function () {
+    function setSig(root, k, v) {
+      const sigs = root.__ds?.signals;
+      if (sigs && sigs[k]) { sigs[k].value = v; return; }
+      root.setAttribute('data-signal-' + k, v);
+    }
+    const KEBAB = /^[a-z0-9][a-z0-9-]*$/;
+    const TEMPLATE = [
+      '{',
+      '  // Pipeline definition. Lowercase-kebab name, one or more steps.',
+      '  "name": "__NAME__",',
+      '  "description": "",',
+      '  "steps": [',
+      '    { "id": "one", "run": "echo hello" }',
+      '  ]',
+      '}',
+      '',
+    ].join('\n');
+
+    window.createPipeline = async function (workspaceId, name, root) {
+      const trimmed = (name || '').trim();
+      if (!KEBAB.test(trimmed)) {
+        setSig(root, 'new_pipe_error', 'Name must be lowercase kebab-case (a–z, 0–9, -).');
+        return;
+      }
+      setSig(root, 'new_pipe_creating', true);
+      setSig(root, 'new_pipe_error', '');
+      const body = TEMPLATE.replace('__NAME__', trimmed);
+      const url = '/api/workspaces/' + encodeURIComponent(workspaceId)
+        + '/pipelines/' + encodeURIComponent(trimmed);
+      try {
+        const resp = await fetch(url, {
+          method: 'PUT',
+          credentials: 'include',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ content: body }),
+        });
+        if (resp.ok) {
+          window.location.href = '/pipelines/focus/' + encodeURIComponent(trimmed) + '?edit=1';
+          return;
+        }
+        const parsed = await resp.json().catch(function () { return {}; });
+        const data = (parsed && parsed.data) || {};
+        setSig(root, 'new_pipe_error', data.error || data || ('HTTP ' + resp.status));
+      } catch (err) {
+        setSig(root, 'new_pipe_error', 'network: ' + (err && err.message ? err.message : String(err)));
+      } finally {
+        setSig(root, 'new_pipe_creating', false);
+      }
+    };
+  })();
+  </script>
+  {% endif %}
 </div>
 {% if not fragment %}
 </body>

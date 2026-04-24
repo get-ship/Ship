@@ -16,3 +16,6 @@ pub mod studio_inbox;
 pub mod studio_push;
 pub mod workspace;
 pub mod workspace_ops;
+pub mod view_errors;
+pub mod sdk_query;
+pub mod view_scaffold;

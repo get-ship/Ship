@@ -20,6 +20,7 @@ use std::time::Duration;
 
 use super::builtin;
 use super::migration_tables as tables;
+use super::store;
 use crate::data::{DataService, SqlParam};
 
 pub(super) const MIGRATION_KEY: &str = "platform_to_collections_v1";
@@ -66,6 +67,12 @@ pub fn migrate_platform_to_collections(
     let notes_schema = builtin::notes_schema();
     let adrs_schema = builtin::adrs_schema();
     let specs_schema = builtin::specs_schema();
+
+    // Ensure adrs/specs tables exist for migration targets. These were removed
+    // from register_builtin_schemas (they're no longer user-facing built-ins)
+    // but the migration still needs them to land legacy data.
+    store::ensure_collection_table(svc, &adrs_schema)?;
+    store::ensure_collection_table(svc, &specs_schema)?;
 
     let notes_migrated = tables::migrate_notes(svc, &notes_schema, &mut platform)?;
     let adrs_migrated = tables::migrate_adrs(svc, &adrs_schema, &mut platform)?;

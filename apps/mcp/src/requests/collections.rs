@@ -3,7 +3,7 @@ use serde::Deserialize;
 
 #[derive(Deserialize, JsonSchema)]
 pub struct CreateDocRequest {
-    /// Collection ID (e.g. "adr", "task"). Must match a schema in .ship/schemas/.
+    /// Collection ID (e.g. "adr", "task"). Must match a schema in .ship/collections/.
     pub collection: String,
     /// Item data as a JSON object. Fields are validated against the collection schema.
     pub data: serde_json::Value,

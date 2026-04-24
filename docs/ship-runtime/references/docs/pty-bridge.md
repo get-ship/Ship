@@ -10,7 +10,7 @@ audience: internal
 
 `apps/shipd/src/pty_handler.rs`. A WebSocket endpoint that spawns `tmux attach-session` and pipes bytes between the WebSocket and the tmux process's stdio. Used by Studio (browser) to attach to an agent's live terminal session.
 
-Route: `GET /api/runtime/workspaces/:id/pty`
+Route: `GET /api/workspaces/:id/pty`
 
 Upgrades to WebSocket, spawns tmux, bridges the frame stream. Multiple clients can attach to the same tmux session concurrently — tmux handles the multiplexing. Limit: 5 concurrent attachments per workspace.
 

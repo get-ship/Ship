@@ -1,6 +1,6 @@
 //! Middleware that makes in-shell view navigation clean.
 //!
-//! When the shell does `@get('/api/runtime/view/skills')` from within an
+//! When the shell does `@get('/api/view/skills')` from within an
 //! already-mounted view, Datastar morphs the response into the current
 //! DOM. Two problems if we don't intervene:
 //!
@@ -30,7 +30,7 @@ use axum::{
 
 /// Wrap responses from view routes for in-shell navigation compatibility.
 pub async fn view_morph_target_middleware(req: Request<Body>, next: Next) -> Response {
-    let is_view_route = req.uri().path().starts_with("/api/runtime/view/");
+    let is_view_route = req.uri().path().starts_with("/api/view/");
     let is_datastar = req
         .headers()
         .get("datastar-request")
@@ -104,11 +104,12 @@ pub async fn view_morph_target_middleware(req: Request<Body>, next: Next) -> Res
 
 /// Extract the body content of a full HTML document. Returns everything
 /// between `<body...>` and `</body>`, prepended by any `<style>` blocks
-/// from `<head>` (so per-view CSS isn't lost when the chrome is stripped).
+/// AND `<script type="module" src="...">` tags from `<head>` (so per-view
+/// CSS and pack-loader scripts aren't lost when the chrome is stripped).
 /// Falls back to returning the input unchanged if no `<body>` is found.
 fn extract_fragment(html: &str) -> String {
     // Collect <style> blocks from the <head> so per-view CSS survives.
-    let mut styles = String::new();
+    let mut preserved = String::new();
     let head_end = html.find("</head>").unwrap_or(0);
     if head_end > 0 {
         let head_slice = &html[..head_end];
@@ -117,12 +118,40 @@ fn extract_fragment(html: &str) -> String {
             let abs_start = search_from + style_start;
             if let Some(style_end) = head_slice[abs_start..].find("</style>") {
                 let abs_end = abs_start + style_end + "</style>".len();
-                styles.push_str(&head_slice[abs_start..abs_end]);
-                styles.push('\n');
+                preserved.push_str(&head_slice[abs_start..abs_end]);
+                preserved.push('\n');
                 search_from = abs_end;
             } else {
                 break;
             }
+        }
+        // Also forward self-closing / src-only `<script ... src="..."></script>`
+        // tags from <head>. The per-view pack loaders live here; losing them
+        // would leave heavy islands (code editor, terminal, markdown editor)
+        // forever un-upgraded on shell fragment navigation. Only src= scripts
+        // survive — inline <script> in <head> is already banned by the view
+        // linter, but we defensively skip them here too.
+        let mut search_from = 0;
+        while let Some(script_start) = head_slice[search_from..].find("<script") {
+            let abs_start = search_from + script_start;
+            let after = &head_slice[abs_start..];
+            // Find end of opening tag
+            let Some(open_end) = after.find('>') else { break };
+            let open_tag = &after[..=open_end];
+            // Find matching </script> for the body gate.
+            let script_end = after.find("</script>");
+            let abs_script_end = script_end.map(|e| abs_start + e + "</script>".len());
+            // Only lift script tags with a src= attribute (external loaders).
+            if open_tag.contains("src=") {
+                if let Some(end) = abs_script_end {
+                    preserved.push_str(&head_slice[abs_start..end]);
+                    preserved.push('\n');
+                    search_from = end;
+                    continue;
+                }
+            }
+            // Move past this script tag even if it's inline — we don't lift it.
+            search_from = abs_script_end.unwrap_or(abs_start + open_tag.len());
         }
     }
 
@@ -138,10 +167,10 @@ fn extract_fragment(html: &str) -> String {
         return html.to_string();
     };
     let content = html[content_start..content_start + body_close_start].trim();
-    if styles.is_empty() {
+    if preserved.is_empty() {
         content.to_string()
     } else {
-        format!("{styles}\n{content}")
+        format!("{preserved}\n{content}")
     }
 }
 
@@ -208,5 +237,53 @@ mod tests {
         assert!(frag.contains("class=\"ship-view\""), "root element present");
         assert!(!frag.contains("DOCTYPE"), "no DOCTYPE");
         assert!(!frag.contains("<head>"), "no head tag");
+    }
+
+    #[test]
+    fn preserves_module_scripts_from_head() {
+        // Per-view pack loaders live in <head> as <script type="module"
+        // src="...">. Fragment extraction must carry them forward or the
+        // heavy-island bundles never load on shell navigation.
+        let html = r#"<!DOCTYPE html>
+<html>
+<head>
+<title>Skills</title>
+<script type="module" src="/api/assets/ship-markdown-editor.js"></script>
+<script type="module" src="/api/assets/ship-code-editor.js"></script>
+</head>
+<body>
+<div class="ship-view">content</div>
+</body>
+</html>"#;
+        let frag = extract_fragment(html);
+        assert!(
+            frag.contains("ship-markdown-editor.js"),
+            "markdown-editor script preserved: {frag}"
+        );
+        assert!(
+            frag.contains("ship-code-editor.js"),
+            "code-editor script preserved: {frag}"
+        );
+        assert!(frag.contains("class=\"ship-view\""));
+    }
+
+    #[test]
+    fn fragment_skips_inline_head_scripts() {
+        // Inline <script> (no src=) in <head> is already banned by the view
+        // linter. Defensively ensure we don't accidentally forward it, as
+        // it may reference chrome-only globals that don't exist in fragments.
+        let html = r#"<!DOCTYPE html>
+<html>
+<head>
+<script>window.CHROME_ONLY = true;</script>
+<script type="module" src="/api/assets/ship-terminal.js"></script>
+</head>
+<body>
+<div class="ship-view">x</div>
+</body>
+</html>"#;
+        let frag = extract_fragment(html);
+        assert!(!frag.contains("CHROME_ONLY"), "inline script dropped");
+        assert!(frag.contains("ship-terminal.js"), "module script preserved");
     }
 }

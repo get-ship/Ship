@@ -1,0 +1,167 @@
+{#- Right inspector for agents wire view. Shows per-node detail panels
+    based on the $selected_kind signal. Context: agent (AgentDetail). -#}
+{% from '_ship.html.j2' import show, on_click, attr_if %}
+<aside class="wire-inspector">
+  {# Agent — default #}
+  <div {{ show("$selected_kind == 'agent'") }}>
+    <div class="insp-h">
+      <div><div class="tag">Agent</div><div class="title">{{ agent.name }}</div></div>
+    </div>
+    <div class="insp-field">
+      <label>ID</label>
+      <div class="mono">{{ agent.id }}</div>
+    </div>
+    <div class="insp-field">
+      <label>Description</label>
+      <div style="font-size:var(--text-sm); line-height:1.5">{{ agent.description | default('No description') }}</div>
+    </div>
+    <div class="insp-field">
+      <label>Source</label>
+      <div class="mono">{{ agent.source }}</div>
+    </div>
+    <div class="insp-field">
+      <label>Providers</label>
+      <div style="display:flex; gap:10px; flex-wrap:wrap">
+        {%- for p in agent.providers %}
+        <ship-provider-blob provider="{{ p }}" size="md">{{ p }}</ship-provider-blob>
+        {%- endfor %}
+      </div>
+    </div>
+    <div class="insp-help">
+      Select any peripheral node on the canvas to inspect.
+    </div>
+    <ship-button size="sm" variant="outline" style="margin-top: var(--space-3); width:100%"
+      {{ on_click("window.router ? window.router.navigate('/agents/" ~ agent.id ~ "/settings') : location.href='/agents/" ~ agent.id ~ "/settings'") }}>
+      <ship-icon slot="leading" name="edit" size="xs"></ship-icon>
+      Edit settings
+    </ship-button>
+  </div>
+
+  {# Skill #}
+  <div {{ show("$selected_kind == 'skill'") }}>
+    <div class="insp-h">
+      <ship-icon name="zap" size="sm" style="color:var(--tone-success-fg)"></ship-icon>
+      <div><div class="tag">Skill</div><div class="title" data-text="$selected_id"></div></div>
+    </div>
+    <div class="insp-field">
+      <label>Scope</label>
+      <ship-chip tone="success" variant="soft" size="sm">project</ship-chip>
+    </div>
+    <div class="insp-field">
+      <label>Source</label>
+      <div class="mono" data-text="'.ship/skills/' + $selected_id + '/SKILL.md'"></div>
+    </div>
+    <div style="display:flex; gap:6px; margin-top: var(--space-3)">
+      <ship-button size="sm" variant="ghost"
+        {{ on_click("window.router ? window.router.navigate('/skills/' + $selected_id) : location.href='/skills/' + $selected_id") }}>
+        <ship-icon slot="leading" name="external-link" size="xs"></ship-icon>
+        Open
+      </ship-button>
+      <ship-button size="sm" variant="ghost" tone="destructive"
+        {{ on_click("if (confirm('Remove ' + $selected_id + ' from " ~ (agent.name | e) ~ "?')) {
+          fetch('/api/agents/" ~ (agent.id | e) ~ "', {credentials:'include'})
+            .then(r => r.json()).then(({ doc }) => {
+              const refs = (doc.skills && doc.skills.refs) || [];
+              const i = refs.indexOf($selected_id);
+              if (i < 0) return;
+              return fetch('/api/agents/" ~ (agent.id | e) ~ "', {
+                method:'PATCH', credentials:'include',
+                headers:{'Content-Type':'application/json'},
+                body: JSON.stringify([{ op: 'remove', path: `/skills/refs/${i}` }]),
+              });
+            }).then(() => window.location.reload());
+        }") }}>
+        <ship-icon slot="leading" name="trash" size="xs"></ship-icon>
+        Remove
+      </ship-button>
+    </div>
+  </div>
+
+  {# MCP server #}
+  <div {{ show("$selected_kind == 'mcp'") }}>
+    <div class="insp-h">
+      <ship-icon name="terminal" size="sm" style="color:var(--tone-info-fg)"></ship-icon>
+      <div><div class="tag">MCP server</div><div class="title" data-text="$selected_id"></div></div>
+    </div>
+    <div class="insp-field">
+      <label>Source</label>
+      <div class="mono" data-text="'.ship/mcp.jsonc → servers.' + $selected_id"></div>
+    </div>
+    <ship-button size="sm" variant="ghost" tone="destructive" style="margin-top: var(--space-3)"
+      {{ on_click("if (confirm('Remove ' + $selected_id + ' from " ~ (agent.name | e) ~ "?')) {
+        fetch('/api/agents/" ~ (agent.id | e) ~ "', {credentials:'include'})
+          .then(r => r.json()).then(({ doc }) => {
+            const servers = (doc.mcp && doc.mcp.servers) || [];
+            const i = servers.indexOf($selected_id);
+            if (i < 0) return;
+            return fetch('/api/agents/" ~ (agent.id | e) ~ "', {
+              method:'PATCH', credentials:'include',
+              headers:{'Content-Type':'application/json'},
+              body: JSON.stringify([{ op: 'remove', path: `/mcp/servers/${i}` }]),
+            });
+          }).then(() => window.location.reload());
+      }") }}>
+      <ship-icon slot="leading" name="trash" size="xs"></ship-icon>
+      Remove
+    </ship-button>
+  </div>
+
+  {# Rules bundle #}
+  <div {{ show("$selected_kind == 'rule'") }}>
+    <div class="insp-h">
+      <ship-icon name="file-text" size="sm" style="color:var(--tone-warning-fg)"></ship-icon>
+      <div><div class="tag">Rules bundle</div><div class="title">{{ agent.rules | length }} file{% if agent.rules | length != 1 %}s{% endif %}</div></div>
+    </div>
+    <div class="insp-field">
+      <label>Files</label>
+      {%- for r in agent.rules %}
+      <div class="mono" style="padding:4px 8px; background:var(--muted); border-radius:4px; margin-bottom:4px">{{ r }}</div>
+      {%- else %}
+      <div class="insp-help">No rule files wired.</div>
+      {%- endfor %}
+    </div>
+  </div>
+
+  {# Permission preset #}
+  <div {{ show("$selected_kind == 'perm'") }}>
+    <div class="insp-h">
+      <ship-icon name="lock" size="sm" style="color:var(--tone-destructive-fg)"></ship-icon>
+      <div>
+        <div class="tag">Permissions</div>
+        <div class="title">{{ agent.permissions.preset or 'no preset' }}</div>
+      </div>
+    </div>
+    <div class="insp-field">
+      <label>Allow</label>
+      <div style="font-size:var(--text-sm)">
+        {{ agent.permissions.tools_allow | length }} pattern{% if agent.permissions.tools_allow | length != 1 %}s{% endif %}
+      </div>
+    </div>
+    <div class="insp-field">
+      <label>Ask</label>
+      <div style="font-size:var(--text-sm)">
+        {{ agent.permissions.tools_ask | length }} pattern{% if agent.permissions.tools_ask | length != 1 %}s{% endif %}
+      </div>
+    </div>
+    <div class="insp-field">
+      <label>Deny</label>
+      <div style="font-size:var(--text-sm)">
+        {{ agent.permissions.tools_deny | length }} pattern{% if agent.permissions.tools_deny | length != 1 %}s{% endif %}
+      </div>
+    </div>
+    <ship-button size="sm" variant="outline" style="margin-top: var(--space-3); width:100%"
+      {{ on_click("window.router ? window.router.navigate('/agents/" ~ agent.id ~ "/settings') : location.href='/agents/" ~ agent.id ~ "/settings'") }}>
+      <ship-icon slot="leading" name="edit" size="xs"></ship-icon>
+      Edit permissions
+    </ship-button>
+  </div>
+
+  {# Provider target #}
+  <div {{ show("$selected_kind == 'prov'") }}>
+    <div class="insp-h">
+      <ship-provider-blob size="lg" {{ attr_if('$selected_id', 'provider') }}></ship-provider-blob>
+      <div><div class="tag">Provider</div><div class="title" data-text="$selected_id"></div></div>
+    </div>
+    <div class="insp-help">Provider-specific settings (<span class="mono">provider_settings.&lt;provider&gt;</span>) are compiled on top of project defaults.</div>
+  </div>
+</aside>

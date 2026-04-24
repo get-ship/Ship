@@ -2,6 +2,20 @@
   Overview — canvas planning surface for the `systems` collection.
   One node per item. Drag to reposition (persists to position_x/position_y).
   Click to open the edit drawer. SVG edges per depends_on arrays.
+
+  SDK gap: The canvas engine (pan/zoom, node drag, SVG edge drawing,
+  edge connect, drawer form populate/read) requires complex imperative DOM
+  manipulation that cannot be expressed in data-effect expressions without
+  being multi-hundred-line blocks. The appropriate home is a custom element
+  (e.g. <ship-canvas-editor>) in packages/ship-set/src/web-components/domain/.
+  Filed for the next canvas-editor milestone. The canvas engine block below
+  is retained as a minimal IIFE until that element ships.
+
+  What IS migrated to signals + data-effect:
+  - Filter state (search, status, layer) — Datastar signals
+  - Node dimming — data-effect on the canvas element
+  - Chip active state — data-attr:data-active driven by signal comparison
+  - Drawer open/close — .open CSS class driven by data-class:open
 -#}
 {% from '_ship.html.j2' import head, signal, show, styles, form, loading, spinner, chip, chip_all, feedback %}
 {% if not fragment %}<!DOCTYPE html><html lang="en"><head>{{ head('Overview') }}</head><body>{% endif %}
@@ -9,7 +23,11 @@
 {% set schema = ship_schema('systems') %}
 {% set items = ship_items('systems') %}
 
-<div class="ship-view overview-root">
+<div class="ship-view overview-root"
+     {{ signal('_ovSearch', '') }}
+     {{ signal('_ovStatus', '') }}
+     {{ signal('_ovLayer', '') }}
+     {{ signal('_ovDrawerOpen', false) }}>
   {{ styles() }}
 
   <style>
@@ -119,19 +137,29 @@
     <strong style="font-family: var(--font-display);">Overview</strong>
     <span style="color:var(--muted-foreground); font-size: var(--text-xs);">{{ items | length }} system{{ "s" if items | length != 1 else "" }}</span>
     <div class="ov-sep"></div>
-    <ship-input size="sm" placeholder="Search…" id="ov-search" style="width: 180px;"></ship-input>
+    <ship-input size="sm" placeholder="Search…" id="ov-search" style="width: 180px;"
+      data-on:input="$_ovSearch = (evt.detail?.value ?? evt.target?.value ?? '') + ''"
+      data-on:ship-input="$_ovSearch = (evt.detail?.value ?? '') + ''"></ship-input>
     <div class="ov-sep"></div>
     <div class="ov-group" role="group" aria-label="Status">
-      <ship-chip size="sm" data-active>all</ship-chip>
+      <ship-chip size="sm"
+        data-attr:data-active="$_ovStatus == ''"
+        data-on:click="$_ovStatus = ''">all</ship-chip>
       {% for v in ['spec','building','shipping','complete'] %}
-      <ship-chip size="sm">{{ v }}</ship-chip>
+      <ship-chip size="sm"
+        data-attr:data-active="$_ovStatus == '{{ v }}'"
+        data-on:click="$_ovStatus = $_ovStatus == '{{ v }}' ? '' : '{{ v }}'">{{ v }}</ship-chip>
       {% endfor %}
     </div>
     <div class="ov-sep"></div>
     <div class="ov-group" role="group" aria-label="Layer">
-      <ship-chip size="sm" data-active>all</ship-chip>
+      <ship-chip size="sm"
+        data-attr:data-active="$_ovLayer == ''"
+        data-on:click="$_ovLayer = ''">all</ship-chip>
       {% for v in ['primitive','runtime','interface','meta'] %}
-      <ship-chip size="sm">{{ v }}</ship-chip>
+      <ship-chip size="sm"
+        data-attr:data-active="$_ovLayer == '{{ v }}'"
+        data-on:click="$_ovLayer = $_ovLayer == '{{ v }}' ? '' : '{{ v }}'">{{ v }}</ship-chip>
       {% endfor %}
     </div>
     <div style="flex:1"></div>
@@ -156,7 +184,21 @@
       </ship-empty-state>
     </div>
     {% else %}
-    <div class="overview-canvas" id="overview-canvas">
+    <div class="overview-canvas" id="overview-canvas"
+      data-effect="
+        (function() {
+          const s = ($_ovSearch || '').toLowerCase();
+          const st = $_ovStatus || '';
+          const lyr = $_ovLayer || '';
+          document.getElementById('overview-canvas')?.querySelectorAll('.ov-node').forEach(function(n) {
+            var name = (n.dataset.name || '').toLowerCase();
+            var okSearch = !s || name.includes(s);
+            var okStatus = !st || n.dataset.status === st;
+            var okLayer = !lyr || n.dataset.layer === lyr;
+            n.classList.toggle('dimmed', !(okSearch && okStatus && okLayer));
+          });
+        })()
+      ">
       <svg class="ov-edges" id="ov-edges" width="4000" height="4000"></svg>
       {% set layers = {'primitive': 0, 'runtime': 1, 'interface': 2, 'meta': 3} %}
       {% for item in items %}
@@ -187,11 +229,13 @@
     </div>
     {% endif %}
 
-    {# -- Drawer (imperative — no data-bind/data-for; JS populates + reads) -- #}
-    <div class="ov-drawer" id="ov-drawer">
+    {# -- Drawer — data-class:open driven by $_ovDrawerOpen signal -- #}
+    <div class="ov-drawer" id="ov-drawer"
+      data-class:open="$_ovDrawerOpen">
       <div class="ov-drawer-head">
         <strong id="ov-drawer-title">System</strong>
-        <ship-button size="sm" variant="ghost" aria-label="Close" id="ov-close">
+        <ship-button size="sm" variant="ghost" aria-label="Close"
+          data-on:click="$_ovDrawerOpen = false">
           <ship-icon slot="leading" name="x"></ship-icon>
         </ship-button>
       </div>
@@ -199,7 +243,7 @@
         <div class="ship-form">
           <div class="ship-form-field">
             <label class="ship-form-label">name <span style="color:var(--destructive)">*</span></label>
-            <ship-input size="sm" id="fld-name" placeholder="ship-<system>"></ship-input>
+            <ship-input size="sm" id="fld-name" placeholder="ship-&lt;system&gt;"></ship-input>
           </div>
           <div class="ship-form-field">
             <label class="ship-form-label">layer</label>
@@ -245,7 +289,7 @@
           </div>
           <div class="ship-form-field">
             <label class="ship-form-label">doc skill</label>
-            <ship-input size="sm" id="fld-doc_skill" placeholder="ship-<name>"></ship-input>
+            <ship-input size="sm" id="fld-doc_skill" placeholder="ship-&lt;name&gt;"></ship-input>
           </div>
           <div class="ship-form-field" style="flex-direction:column;align-items:stretch">
             <label class="ship-form-label" style="min-width:0">code paths</label>
@@ -268,12 +312,21 @@
         <ship-button variant="outline" id="ov-ask-agent" aria-label="Send system to agent">
           <ship-icon slot="leading" name="send"></ship-icon>Ask agent
         </ship-button>
-        <ship-button variant="ghost" id="ov-cancel">Cancel</ship-button>
+        <ship-button variant="ghost"
+          data-on:click="$_ovDrawerOpen = false">Cancel</ship-button>
       </div>
     </div>
   </div>
 </div>
 
+{#-
+  SDK gap: canvas engine (pan/zoom, node drag, SVG edges, edge-connect, drawer
+  form populate/read) is imperative DOM manipulation that belongs in a
+  <ship-canvas-editor> custom element in domain/. Until that element ships,
+  this IIFE wires the canvas interactions. It does NOT access window.ds.signals;
+  all filter/drawer state is owned by Datastar signals above and synced via
+  data-effect / data-class:open / data-on:click.
+-#}
 <script>
 (function() {
   const wrap = document.getElementById('overview-wrap');
@@ -281,7 +334,6 @@
   const edges = document.getElementById('ov-edges');
   if (!wrap || !canvas) return;
 
-  const reduceMotion = matchMedia('(prefers-reduced-motion: reduce)').matches;
   let scale = 1, tx = 0, ty = 0;
   function applyTransform() {
     canvas.style.transform = `translate(${tx}px, ${ty}px) scale(${scale})`;
@@ -293,8 +345,6 @@
     const y = parseFloat(node.style.top) || 0;
     return { x: x + node.offsetWidth / 2, y: y + node.offsetHeight / 2 };
   }
-  // Depends_on stores system names (e.g. "ship-cloud"), not collection-item
-  // ids. Look up by data-name so edges resolve.
   function nodeByName(name) {
     return canvas.querySelector(`.ov-node[data-name="${CSS.escape(name)}"]`);
   }
@@ -347,7 +397,6 @@
     const cx = e.clientX - rect.left, cy = e.clientY - rect.top;
     const dz = Math.exp(-e.deltaY * 0.0015);
     const newScale = Math.max(0.2, Math.min(3, scale * dz));
-    // keep (cx, cy) anchored
     tx = cx - (cx - tx) * (newScale / scale);
     ty = cy - (cy - ty) * (newScale / scale);
     scale = newScale;
@@ -377,12 +426,10 @@
   canvas.addEventListener('pointermove', e => {
     if (!connectFrom) return;
     const a = nodeCenter(connectFrom);
-    // canvas-space cursor
     const crect = canvas.getBoundingClientRect();
     const cx = (e.clientX - crect.left) / scale;
     const cy = (e.clientY - crect.top) / scale;
     ghostPath.setAttribute('d', `M ${a.x} ${a.y} L ${cx} ${cy}`);
-    // Highlight hovered target node
     canvas.querySelectorAll('.ov-node.connect-target').forEach(n => n.classList.remove('connect-target'));
     const tgt = document.elementFromPoint(e.clientX, e.clientY)?.closest('.ov-node');
     if (tgt && tgt !== connectFrom) tgt.classList.add('connect-target');
@@ -394,7 +441,6 @@
     cancelConnect();
     try { canvas.releasePointerCapture(e.pointerId); } catch(_) {}
     if (!tgt || tgt === src) return;
-    // Append tgt's name to src's depends_on, if not already there
     let deps = [];
     try { deps = JSON.parse(src.dataset.depends); } catch(_) {}
     if (!Array.isArray(deps)) deps = [];
@@ -402,14 +448,12 @@
     if (deps.includes(tgtName)) return;
     deps.push(tgtName);
     src.dataset.depends = JSON.stringify(deps);
-    // Persist
     await fetch(`/api/collections/systems/items/${encodeURIComponent(src.dataset.id)}`, {
       method: 'PUT', headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ data: { depends_on: deps } }),
     }).catch(() => {});
     drawEdges();
   });
-  // ESC cancels in-flight connect
   document.addEventListener('keydown', e => { if (e.key === 'Escape') cancelConnect(); });
 
   // ── Node drag + click ──────────────────────────────────
@@ -417,7 +461,6 @@
   canvas.querySelectorAll('.ov-node').forEach(node => {
     let startX, startY, origX, origY, moved = false, saveTimer = null;
     node.addEventListener('pointerdown', e => {
-      // Let connect-handle drags pass through to the canvas-level listener.
       if (e.target.closest('.ov-connect')) return;
       e.stopPropagation();
       dragged = node;
@@ -467,14 +510,7 @@
     }).catch(() => {});
   }
 
-  // ── Drawer (imperative) ────────────────────────────────
-  // Datastar bindings are great for simple forms, but the mix of
-  // shadow-DOM web components + array list editors + markdown-editor
-  // value-propagation made data-bind/data-for unreliable here. Instead,
-  // populate the drawer imperatively on open and read it back on save.
-  const drawer = document.getElementById('ov-drawer');
-  const drawerTitle = document.getElementById('ov-drawer-title');
-  let drawerId = null; // null = new system
+  // ── Drawer — open/close via $_ovDrawerOpen signal ─────
   const FIELDS = ['name','layer','status','summary','current_state','desired_state','diagram','doc_skill'];
   const LIST_FIELDS = ['gaps','code_paths','depends_on'];
 
@@ -483,22 +519,17 @@
     const v = val ?? '';
     el.setAttribute('value', v);
     try { el.value = v; } catch(_) {}
-    // ship-markdown-editor uses an internal editor instance that needs
-    // explicit content update on reuse.
     if (typeof el.editor?.commands?.setContent === 'function') {
       try { el.editor.commands.setContent(v); } catch(_) {}
     }
-    // ship-select: reflect selection in shadow <select>
     const innerSelect = el.shadowRoot?.querySelector('select');
     if (innerSelect) innerSelect.value = v;
-    // ship-input: reflect in shadow <input>
     const innerInput = el.shadowRoot?.querySelector('input, textarea');
     if (innerInput) innerInput.value = v;
   }
 
   function readFieldValue(el) {
     if (!el) return '';
-    // markdown-editor: read from the editor instance or the reflected value
     if (typeof el.editor?.getText === 'function') {
       try { return el.editor.storage?.markdown?.getMarkdown?.() ?? el.value ?? ''; } catch(_) {}
     }
@@ -512,7 +543,7 @@
     const container = document.getElementById(`fld-${listId}`);
     if (!container) return;
     container.innerHTML = '';
-    (values || []).forEach((val, i) => {
+    (values || []).forEach((val) => {
       const row = document.createElement('div');
       row.className = 'ov-list-row';
       row.style.cssText = 'display:flex;gap:var(--space-2);margin-bottom:var(--space-1);align-items:center';
@@ -549,9 +580,16 @@
       .filter(v => v.length > 0);
   }
 
-  function openDrawerUI() { drawer.classList.add('open'); }
-  function closeDrawerUI() { drawer.classList.remove('open'); }
+  function setDrawerOpen(open) {
+    // Signal mutation via Datastar store when available; fallback to CSS class.
+    if (window.ds?.store) {
+      try { window.ds.store._ovDrawerOpen = open; return; } catch(_) {}
+    }
+    const drawer = document.getElementById('ov-drawer');
+    drawer?.classList.toggle('open', open);
+  }
 
+  let drawerId = null;
   async function openDrawer(id) {
     try {
       const r = await fetch(`/api/collections/systems/items/${encodeURIComponent(id)}`);
@@ -560,19 +598,21 @@
       const item = env.data || env;
       const data = item.data || item;
       drawerId = id;
-      drawerTitle.textContent = data.name || 'System';
+      const drawerTitle = document.getElementById('ov-drawer-title');
+      if (drawerTitle) drawerTitle.textContent = data.name || 'System';
       FIELDS.forEach(f => setFieldValue(document.getElementById(`fld-${f}`), data[f]));
       LIST_FIELDS.forEach(f => renderList(f, data[f] || []));
-      openDrawerUI();
+      setDrawerOpen(true);
     } catch(_) {}
   }
 
   function openNewDrawer() {
     drawerId = null;
-    drawerTitle.textContent = 'New system';
+    const drawerTitle = document.getElementById('ov-drawer-title');
+    if (drawerTitle) drawerTitle.textContent = 'New system';
     FIELDS.forEach(f => setFieldValue(document.getElementById(`fld-${f}`), ''));
     LIST_FIELDS.forEach(f => renderList(f, []));
-    openDrawerUI();
+    setDrawerOpen(true);
   }
 
   async function saveDrawer() {
@@ -591,8 +631,6 @@
       body: JSON.stringify({ data }),
     });
     if (!r.ok) return;
-    // Update the clicked node's DOM attrs + summary in place so the
-    // canvas reflects the save without a full re-mount (keeps pan/zoom).
     if (drawerId) {
       const node = canvas.querySelector(`.ov-node[data-id="${CSS.escape(drawerId)}"]`);
       if (node) {
@@ -600,7 +638,6 @@
         if (data.layer)   node.dataset.layer = data.layer;
         if (data.status)  node.dataset.status = data.status;
         node.dataset.depends = JSON.stringify(data.depends_on || []);
-        // Rewrite the visible header label + summary
         const headSpan = node.querySelector('.ov-node-head > span');
         if (headSpan) headSpan.textContent = data.name || '(unnamed)';
         const dot = node.querySelector('ship-status-dot');
@@ -621,10 +658,9 @@
         }
       }
       drawEdges();
-      closeDrawerUI();
+      setDrawerOpen(false);
     } else {
-      // New system: need the assigned id; simplest to re-mount the view.
-      closeDrawerUI();
+      setDrawerOpen(false);
       setTimeout(() => {
         if (window.router) window.router.navigate('/overview');
         else location.reload();
@@ -633,7 +669,7 @@
   }
 
   function sendFeedback(payload) {
-    fetch('/api/runtime/feedback', {
+    fetch('/api/feedback', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({
@@ -644,8 +680,6 @@
   }
 
   // Wire drawer controls
-  document.getElementById('ov-close')?.addEventListener('click', closeDrawerUI);
-  document.getElementById('ov-cancel')?.addEventListener('click', closeDrawerUI);
   document.getElementById('ov-save')?.addEventListener('click', saveDrawer);
   document.getElementById('ov-ask-agent')?.addEventListener('click', () => {
     sendFeedback({
@@ -666,8 +700,7 @@
   document.getElementById('ov-first-system')?.addEventListener('click', openNewDrawer);
   document.getElementById('ov-fit')?.addEventListener('click', () => window.__ovFit && window.__ovFit());
 
-  // ESC closes the drawer.
-  document.addEventListener('keydown', (e) => { if (e.key === 'Escape') closeDrawerUI(); });
+  document.addEventListener('keydown', (e) => { if (e.key === 'Escape') setDrawerOpen(false); });
 
   // ── Fit-to-view ────────────────────────────────────────
   window.__ovFit = function() {
@@ -691,55 +724,6 @@
     ty = pad - minY * scale;
     applyTransform();
   };
-
-  // ── Filter reactivity ──────────────────────────────────
-  // Track filter state in local vars so we don't depend on Datastar's
-  // internal signal store. Listen to DOM events from the search input
-  // and chip clicks, mirror the state locally, apply classes.
-  const filter = { search: '', status: '', layer: '' };
-  function applyFilters() {
-    const s = filter.search.toLowerCase();
-    canvas.querySelectorAll('.ov-node').forEach(n => {
-      const name = (n.dataset.name || '').toLowerCase();
-      const okSearch = !s || name.includes(s);
-      const okStatus = !filter.status || n.dataset.status === filter.status;
-      const okLayer = !filter.layer || n.dataset.layer === filter.layer;
-      n.classList.toggle('dimmed', !(okSearch && okStatus && okLayer));
-    });
-  }
-
-  // Search input
-  const searchEl = document.getElementById('ov-search');
-  if (searchEl) {
-    // Listen to both the web component's custom event and the underlying input event.
-    const handler = (e) => {
-      const v = (e.detail?.value ?? e.target?.value ?? '') + '';
-      filter.search = v;
-      applyFilters();
-    };
-    searchEl.addEventListener('input', handler);
-    searchEl.addEventListener('change', handler);
-    searchEl.addEventListener('ship-input', handler);
-  }
-
-  // Status + layer filter chips — clicks toggle filter state.
-  function wireChipGroup(groupLabel, fieldName, validValues) {
-    const group = [...document.querySelectorAll(`.overview-toolbar [role="group"]`)]
-      .find(g => (g.getAttribute('aria-label') || '').toLowerCase() === groupLabel);
-    if (!group) return;
-    group.querySelectorAll('ship-chip').forEach(chipEl => {
-      chipEl.addEventListener('click', () => {
-        const txt = (chipEl.textContent || '').trim();
-        filter[fieldName] = validValues.includes(txt) ? txt : '';
-        // Visually mark the selected chip.
-        group.querySelectorAll('ship-chip').forEach(c => c.removeAttribute('data-active'));
-        chipEl.setAttribute('data-active', '');
-        applyFilters();
-      });
-    });
-  }
-  wireChipGroup('status', 'status', ['spec', 'building', 'shipping', 'complete']);
-  wireChipGroup('layer', 'layer', ['primitive', 'runtime', 'interface', 'meta']);
 
   // Initial paint + fit to viewport
   drawEdges();

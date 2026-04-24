@@ -1,0 +1,23 @@
+{
+  // Pure-shell headless smoke. Zero LLM cost. Reproduces the headless
+  // dispatch regression — if shell steps fail, it's not agent-side.
+  "name": "shell-smoke",
+  "description": "Pure-shell headless smoke — zero LLM cost, exercises dispatch + advancement + merge.",
+  "auto_merge": false,
+  "steps": [
+    {
+      "id": "one",
+      "run": "echo \"step 1\"\necho \"step 1\" > smoke.txt\ngit add smoke.txt\ngit -c user.name=smoke -c user.email=smoke@ship.dev commit -m \"smoke step 1\"\n"
+    },
+    {
+      "id": "two",
+      "after": ["one"],
+      "run": "echo \"step 2 appended\" >> smoke.txt\ngit -c user.name=smoke -c user.email=smoke@ship.dev commit -am \"smoke step 2\"\n"
+    },
+    {
+      "id": "three",
+      "after": ["two"],
+      "run": "test -f smoke.txt && grep -q \"step 2 appended\" smoke.txt\n"
+    }
+  ]
+}

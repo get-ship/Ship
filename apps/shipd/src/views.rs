@@ -22,10 +22,11 @@
 //!   `apps/shipd/templates/` via the `loader` feature, plus `render`
 //!   convenience helpers.
 
+pub mod router;
+pub mod routed_handler;
+pub mod routed_sse;
 pub mod stream;
 pub mod state;
-pub mod agents_state;
-pub mod skills_state;
 pub mod chat_state;
 pub mod events_state;
 pub mod setup;
@@ -35,11 +36,12 @@ pub mod session_types;
 pub mod sanitize;
 
 pub mod assets;
-pub mod agents_jsonc;
 pub mod context;
 pub mod error_overlay;
 pub mod generic_sse;
 pub mod handlers;
+mod lint_overlay;
+pub(crate) mod packs;
 mod resolve;
 pub mod view_filters;
 pub mod view_filters_list;
@@ -54,13 +56,14 @@ use serde::Serialize;
 use crate::rest_api::MeshResponse;
 
 pub use assets::{
-    serve_code_editor, serve_datastar_js, serve_elements_catalog,
-    serve_elements_manifest, serve_markdown_editor, serve_ship_elements,
-    serve_terminal, serve_theme_css, serve_themes_list, serve_view_tokens,
+    serve_code_editor, serve_datastar_js, serve_elements_catalog, serve_elements_manifest,
+    serve_git, serve_jinja_macros_json, serve_jinja_macros_md, serve_markdown_editor,
+    serve_ship_elements, serve_terminal, serve_theme_css, serve_themes_list, serve_view_tokens,
 };
 pub use handlers::{
-    list_views, serve_view, serve_view_asset, serve_view_bundle, serve_view_manifest,
+    list_views, serve_view_asset, serve_view_bundle, serve_view_manifest,
 };
+pub(crate) use packs::{inject_packs, read_view_packs};
 pub(crate) use resolve::{is_valid_view_name, read_raw_manifest, resolve_view_dir};
 
 #[derive(Serialize, Clone)]
@@ -80,10 +83,24 @@ pub struct ViewManifest {
 
 #[derive(Serialize)]
 pub(crate) struct ViewListEntry {
-    name: String,
+    pub(crate) name: String,
     #[serde(rename = "type")]
-    view_type: String,
-    source: String,
+    pub(crate) view_type: String,
+    pub(crate) source: String,
+    /// Optional shell display metadata — label, icon, default_pinned,
+    /// order. Populated from the view's manifest `rail:` block (or
+    /// equivalent). Absent = view has no pinned/launcher presence.
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub(crate) rail: Option<RailMeta>,
+}
+
+/// Per-view shell display metadata. Maps to `<ship-rail>` /
+/// `<ship-launcher>`. Identity only — pin state and ordering are user
+/// settings (tier 2, daemon-persisted), not view config.
+#[derive(Serialize, Clone)]
+pub struct RailMeta {
+    pub label: String,
+    pub icon: String,
 }
 
 pub(crate) type MeshResult = (StatusCode, Json<MeshResponse>);

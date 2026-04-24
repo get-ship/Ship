@@ -1,6 +1,6 @@
 //! PTY WebSocket endpoint — bridges a tmux attach-session process to a WS client.
 //!
-//! Route: GET /api/runtime/workspaces/:id/pty
+//! Route: GET /api/workspaces/:id/pty
 //! Upgrades to WebSocket, then spawns `tmux attach-session -t <name>` with stdin/stdout
 //! bridged to the WS frame stream. Multiple clients may attach concurrently (tmux handles
 //! multiplexing). Limit: 5 concurrent attachments per workspace.
@@ -27,7 +27,7 @@ use crate::rest_api::ApiState;
 /// Maximum concurrent tmux attach processes per workspace.
 const MAX_PTY_CONNECTIONS: usize = 5;
 
-/// GET /api/runtime/workspaces/:id/pty
+/// GET /api/workspaces/:id/pty
 ///
 /// Upgrades to WebSocket or returns 404/429 before the upgrade.
 /// WebSocketUpgrade is extracted manually after validation so tests can reach
@@ -36,7 +36,7 @@ const MAX_PTY_CONNECTIONS: usize = 5;
 #[utoipa::path(
     operation_id = "workspacePty",
     get,
-    path = "/api/runtime/workspaces/{id}/pty",
+    path = "/api/workspaces/{id}/pty",
     params(("id" = String, Path, description = "Workspace id")),
     responses(
         (status = 101, description = "WebSocket upgrade; bidirectional PTY stream"),

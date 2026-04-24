@@ -1,5 +1,10 @@
 {
+  "$schema": "https://raw.githubusercontent.com/madvib/ship/main/schemas/view-manifest.schema.json",
   "name": "specs",
   "type": "html",
-  "claims": []
+  "claims": [],
+  "rail": {
+    "label": "Specs",
+    "icon": "file"
+  }
 }

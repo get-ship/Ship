@@ -284,9 +284,10 @@ async fn advance_pipeline_inner(
                 match octx.executor.spawn(&job_ctx).await {
                     Ok(handle) => {
                         let exec_kind = if job.headless { "process" } else { "pty" };
+                        let cmd_label = step.provider.as_deref().unwrap_or("claude");
                         emit_process_spawned(
                             kernel, slug, &job.job_id, handle.pid,
-                            "claude", &[], &[],
+                            cmd_label, &[], &[],
                             &worktree_path.to_string_lossy(),
                             exec_kind, Some(&step.id),
                         ).await;

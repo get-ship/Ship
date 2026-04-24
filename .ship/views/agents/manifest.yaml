@@ -1,7 +1,9 @@
+# yaml-language-server: $schema=https://raw.githubusercontent.com/madvib/ship/main/schemas/view-manifest.schema.json
 name: agents
 type: html
-data:
-  agents: true
+rail:
+  label: Agents
+  icon: users
 events:
   - config.
   - workspace.

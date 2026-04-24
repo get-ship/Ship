@@ -1,14 +1,11 @@
+# yaml-language-server: $schema=https://raw.githubusercontent.com/madvib/ship/main/schemas/view-manifest.schema.json
 name: dashboard
 type: html
-data:
-  collections: all
-  agents: true
-  skills: true
-  pipelines: true
-  events_data: true
+rail:
+  label: Dashboard
+  icon: sparkles
 events:
   - job.
   - step.
   - workspace.
   - config.
-  - ""

@@ -34,6 +34,97 @@ Create `.ship/views/hello/index.html.j2`:
 
 Load `http://localhost:3000/hello`. Type. The heading updates as you type. No JS. No build.
 
+## Shell chrome — views contribute, they don't reimplement
+
+The shell (`apps/shell/`) owns the top bar (brand + breadcrumb + ⌘K + rail toggle + theme + chat) and the status bar. **Your view must not render its own breadcrumb, branch pill, search box, or status bar.** Those ship with the shell. Views contribute metadata and optional actions via a single element:
+
+```jinja
+<ship-view-chrome
+  title="Git"
+  branch="{{ branch }}"
+  ahead="{{ ahead }}"
+  behind="{{ behind }}"
+  tone="{% if clean %}success{% else %}warning{% endif %}">
+  <ship-button slot="actions" variant="ghost" size="icon" aria-label="Refresh"
+    data-on:click="@get('{{ view_url('git') }}')">
+    <ship-icon name="refresh-cw" size="sm"></ship-icon>
+  </ship-button>
+  <ship-chip slot="status-end" size="sm" variant="soft">{{ total_changed }} changed</ship-chip>
+</ship-view-chrome>
+```
+
+**Attributes** (shell-owned fields):
+- `title` — overrides the breadcrumb leaf (defaults to route name).
+- `branch`, `ahead`, `behind` — rendered in the status bar (`main ↑2 ↓1`).
+- `tone` / `busy` — tints and pulses the status dot.
+
+**Slots** (free-form contribution regions):
+- `actions` → right side of the topbar (after branch/title-relevant chrome).
+- `status-start` → left side of the status bar (after branch).
+- `status-end` → right side of the status bar (before theme indicator).
+
+**Mechanism.** Same-DOM: the element moves slotted children into shell-owned containers (`#view-topbar-actions`, `#view-status-start`, `#view-status-end`) and writes attribute values into `#breadcrumbs-title`, `#status-branch`, `#status-ab`. Datastar bindings on slotted elements survive the move. On route change the view fragment unmounts and the element's `disconnectedCallback` auto-clears the contributed chrome.
+
+**Absence is safe.** If `ship-view-chrome` is missing, the shell breadcrumb falls back to the route name; the status bar's view regions stay empty. Omit it for mini/embedded views; include it for full-page views.
+
+## Hard rule — views are composition only
+
+**A view template contains no inline `<script>` and no inline `<style>`.**
+Not "should avoid"; does not contain. A view has two jobs:
+
+1. **Compose `<ship-*>` elements and Datastar attributes.** The
+   elements bring styling and behavior with them; the view picks
+   which ones and wires signals between them.
+2. **Declare view-local partials** in
+   `.ship/views/<view>/_components/*.j2` when a composition repeats
+   within the view.
+
+If you reach for something the rule forbids, the fix is upstream:
+
+| Temptation | Right home |
+|---|---|
+| Inline `<script>` for interactivity | A `<ship-*>` element, a `data-effect="..."` reactive expression (see Reactivity below), or a custom Datastar plugin in the `datastar-views` skill. |
+| Inline `<style>` for layout or theming | Shadow DOM inside a ship-element, or CSS custom properties the element already exposes. |
+| Raw CSS layout in a first-party view | A pack component that owns its layout |
+| A custom topbar / breadcrumb / status bar inside the view | `<ship-view-chrome>` (see Shell chrome above). The shell owns that chrome. |
+| Raw `data-on:click="@get('/api/...')"` | A URL macro from `_urls.html.j2` |
+| Inline `data-signals:x="'val'"` | `{{ signal('x', 'val') }}` macro |
+| `data-attr:data-active="$tab == 'x'"` | `{{ attr('data-active', "$tab == 'x'") }}` macro or `data-class:active="..."` |
+| Copy-pasting the same markup block five times in one template | A Jinja partial in `.ship/views/<view>/_components/`. |
+| A new `<ship-X-row>` element that only exists to hold view-specific text | Compose `<ship-list-tile>` with slots. See the distribution test in the `ship-components` skill. |
+
+When the elements genuinely don't support a pattern, don't paper over
+it with raw HTML + CSS. File the gap with the
+`{#- SDK gap: ... -#}` convention (see the iteration loop below) and
+escalate to extending the element or adding an SDK macro. That is
+how the library grows; shadow workarounds in views is how it rots.
+
+### Splitting into partials
+
+**Split into partials when it makes the template easier to reason
+about.** Good signals you should split:
+
+- A section you can name — "the diff toolbar", "the branches
+  sidebar", "the one-row history entry", "the create-form body".
+- A block that repeats inside a `{% for %}` loop with non-trivial
+  markup. Extracting it gives you a name and a file to iterate on
+  without scrolling past unrelated chrome.
+- A preview you'd want to tweak in isolation — copy, states, a
+  specific empty variant. The partial becomes your visual sandbox.
+- Any time you notice yourself scrolling past unrelated markup to
+  understand one piece of the view. If you can't see the whole
+  concept on one screen, another reader can't either.
+
+View-local partials live in `.ship/views/<view>/partials/` and
+are pulled in with `{% include 'view/partials/<name>.html.j2' %}`.
+Naming is short and descriptive — `changes_panel.html.j2`,
+`history_row.html.j2`, not `section_2.html.j2`.
+
+Once the same partial appears in **3+ views**, promote it —
+preferably by adding slots to an existing `<ship-*>` element
+(that's the library growing), or by filing the gap with the
+`{#- SDK gap: ... -#}` convention below.
+
 ## The SDK — always import from `_ship.html.j2`
 
 Every view starts with:
@@ -110,6 +201,12 @@ Every UI element is a `<ship-*>` web component. They style themselves. They hand
 </ship-select>
 ```
 
+Before writing any `<ship-*>` element, query the CEM (Custom Elements Manifest):
+```
+GET /api/assets/custom-elements.json
+```
+This is the authoritative catalog. Every element in the library is listed with its properties, attributes, events, slots, and CSS parts. Use it to discover what exists before reaching for raw HTML. The CEM is machine-readable — an agent should fetch it at the start of any view authoring session.
+
 ### Common components (reach for these first)
 
 | Need | Use |
@@ -130,10 +227,12 @@ Every UI element is a `<ship-*>` web component. They style themselves. They hand
 | Icon | `<ship-icon name="...">` |
 | Timestamp | `<ship-timestamp>` |
 | Tabs | `<ship-tabs>` + `<ship-tab>` + `<ship-tab-panel>` |
+| Segmented control (tab strip, density toggle, view-mode switcher) | `<ship-segmented>` + `<ship-segmented-option>` |
 | Dialog | `<ship-dialog>` |
 | Toast | `<ship-toast>` |
+| **Any list row, tile, or card** — agent row, event row, log line, history entry, settings row, dashboard card | **`<ship-list-tile>`** (slots: `leading`, default for primary, `meta` for sub-label, `trailing` for badges/controls; `variant=row\|card`, `density=compact\|normal\|relaxed`, `interactive`, `selected`, `tone`) |
 
-Full list: `GET /api/runtime/assets/ship-elements.md` (served by the daemon).
+Full list: `GET /api/assets/ship-elements.md` (served by the daemon).
 
 ## The manifest — declarative data + events
 
@@ -159,13 +258,55 @@ Available `data:` loaders: `collections`, `agents`, `skills`, `settings`, `event
 
 Events: any kernel namespace prefix (`collection.`, `job.`, `workspace.`, `config.`, etc.) or empty string for all events.
 
+### `packs` — per-view bundle loading
+
+The shell eager-loads only two JS assets on boot: `datastar.js` (reactivity) and `ship-elements.js` (the `<ship-*>` registry). Heavy island bundles — TipTap, CodeMirror, xterm — are ~5 MB combined and stay off the wire unless a view declares it needs them.
+
+Declare them via `packs:` in the manifest. The daemon reads the list at render time and injects `<script type="module" src=...>` tags into the response; `mount.ts` rehydrates injected scripts after fragment navigation so they actually execute.
+
+```yaml
+name: skills
+type: html
+data:
+  skills: true
+events:
+  - config.changed
+packs:
+  - editor    # provides <ship-code-editor> and <ship-markdown-editor>
+```
+
+Available packs:
+
+| Pack | Bundles | Elements enabled |
+|---|---|---|
+| `editor` | `ship-code-editor.js` + `ship-markdown-editor.js` | `<ship-code-editor>`, `<ship-markdown-editor>` |
+| `terminal` | `ship-terminal.js` | `<ship-terminal>` |
+
+## Component packs
+
+The `@ship/set` library is organized in layers:
+- **Core** (`ship-button`, `ship-icon`, `ship-input`, etc.) — primitives, always loaded
+- **Domain** (`ship-git-diff`, `ship-history-row`, `ship-pipeline-dag`, etc.) — domain components, loaded on demand via `packs:`
+- **Packs** — cohesive bundles of domain components for a specific context (git, data, pipelines)
+
+Domain packs live in `packages/ship-set/src/packs/<name>/` and are bundled as separate JS files. Declare them in the view manifest under `packs:`. Each pack ships its own CEM fragment so the catalog stays complete.
+
+Current packs:
+| Pack | Manifest key | Components |
+|---|---|---|
+| Git | `git` | `<ship-git-view>`, `<ship-file-row>`, `<ship-branch-row>`, `<ship-diff-pane>` |
+
+When a view needs domain-specific UI that doesn't exist yet, the right move is to create or extend a pack component — not inline raw CSS/HTML in the template. File an `{#- SDK gap: pack/<name>: ... -#}` comment and escalate.
+
+Only declare packs the view actually uses. The `ship lint views` linter enforces this in both directions: `missing-pack-declaration` (error) fires when a template uses a heavy-island tag without the matching pack, and `stale-pack-declaration` (warn) fires when a declared pack has no corresponding tag in the view. Unknown pack names are ignored by the daemon but not enforced by the linter (reserved for future additions like `viz`).
+
 ## Working with collections — the primary data story
 
 Collections are structured data tables defined by JSON schema. They're the extension author's main data surface.
 
 ### Schema definition
 
-`.ship/schemas/task.jsonc`:
+`.ship/collections/task.jsonc`:
 ```jsonc
 {
   "id": "task",
@@ -275,6 +416,44 @@ Signals starting with `_` are **local** (not sent to server — use for UI state
 <span data-text="$count"></span>
 ```
 
+### Reactive side-effects — `data-effect`
+
+When a view needs to run arbitrary code whenever signals change (canvas
+redraws, DOM measurements, syncing to a non-Datastar-aware widget),
+Datastar's built-in `data-effect` directive is the escape hatch.
+**Reach for this instead of an inline `<script>` that polls
+`window.ds.signals`.**
+
+```jinja
+{# Redraw a canvas whenever zoom or node state changes.
+   The expression auto-subscribes to every $signal it reads,
+   runs once on element connect, and re-runs on every change. #}
+<canvas id="graph"
+        data-effect="drawGraph(document.getElementById('graph'), $zoom, $nodes)"></canvas>
+
+{# Sync a Datastar signal into a third-party widget's API. #}
+<div id="editor"
+     data-effect="window.editor?.setValue($draftText)"></div>
+
+{# Log-only side effect for debugging. #}
+<div data-effect="console.log('tab changed:', $tab)"></div>
+```
+
+Rules:
+
+- The expression runs **once on connect** and again on **every
+  dependency change**. Dependencies are the `$signal` references
+  Datastar observes in the expression body.
+- **No cleanup semantic** in the current Datastar build — if you
+  return a function from the expression, it's discarded. That means
+  `setInterval`/`addEventListener` patterns need explicit teardown
+  wiring (e.g., keyed by a signal you can flip). Flag as an SDK gap
+  when you hit it; most canvas/DOM-sync cases are idempotent and
+  don't need cleanup.
+- Keep expressions short. Long imperative blocks are a smell — either
+  the work belongs in a custom element (encapsulates state) or the
+  signals are structured wrong.
+
 ### SSE — long-lived reads
 
 ```jinja
@@ -287,6 +466,17 @@ Signals starting with `_` are **local** (not sent to server — use for UI state
 The daemon's generic SSE handler reads your manifest `events:` list, subscribes to those kernel events, re-renders `partials/content.html.j2` on each, and pushes via Datastar's `datastar-patch-elements`.
 
 **CQRS pattern:** reads flow over SSE (long-lived `@get`), writes are short-lived `@post`/`@delete` (the read stream pushes the visual update).
+
+### Datastar usage depth
+
+Today's views use Datastar shallowly — mostly `data-on`, `data-show`,
+`data-bind`, `data-text`, `data-effect` (see above), and the wrapped
+`@get`/`@post` actions. That's deliberate; it's what the current
+patterns need. Other advanced Datastar primitives (store composition,
+custom plugins beyond the built-ins) are in scope as the SDK matures,
+but don't reach for them pre-emptively. When a pattern genuinely
+needs it, file a `{#- SDK gap: ... -#}`, prototype once, and lift it
+into a macro before copying it across views.
 
 ## Design tokens
 
@@ -325,11 +515,42 @@ Everything uses CSS custom properties from `view-tokens.css`:
 - String signal values are wrapped in single quotes: `$collection` evaluates to `'task'`, not `task`.
 - Multiple statements: separate with semicolons. `data-on:click="$tab = 'new'; @get('/sse')"`
 - Loading indicators pair with a signal that can be ANY name, conventionally `_creating`, `_loading`, `_sending`.
+- Forward slashes in Jinja string values are HTML-escaped to `&#x2F;` when rendered inside HTML attributes. Branch names like `feat/x` in a `data-show="$branch == '{{ b.name | e }}'"` will never match because the rendered attribute contains `&#x2F;` but the signal holds the literal `/`. **Workaround:** avoid slashes in signal comparison keys — use the index in the branches array instead, or a slugified key. This is a known framework gap.
 
 ### CQRS patterns
 
 - Writes (`@post`, `@delete`) don't need to render anything — the SSE read stream pushes the visual update via kernel events.
 - One long-lived `@get(/sse)` per view. Multiple SSE connections is an anti-pattern.
+
+### Error handling
+
+Every view has an error branch. Always. The shell catches network
+failures; your template catches render failures.
+
+```jinja
+{% from '_ship.html.j2' import error_state %}
+
+{% if error %}
+  {{ error_state(error, retry=view_self()) }}
+{% else %}
+  {# normal render #}
+{% endif %}
+```
+
+Your Rust ctx should expose an `error: Option<ErrorView>` field, where
+`ErrorView` has three fields:
+
+- `title` — one-sentence summary ("Can't reach the pipeline registry")
+- `body` — what the user should do ("Check the daemon is running and retry.")
+- `details` — optional technical context (stack, request id, SQL) —
+  collapsed behind "Show details" in the UI, visible to devs who need it.
+
+Good error messages tell the user *what happened*, *what to do*, and
+*enough detail for a human to debug*. Bad error messages say "error"
+or surface a raw stack trace with no framing. Skip neither.
+
+When there's no retry endpoint (the error isn't transient), omit the
+`retry=` kwarg — the macro emits no retry button.
 
 ## Example: full CRUD view in 50 lines
 
@@ -411,6 +632,18 @@ Ship's view authoring is a co-evolving system. If you hit a pattern the SDK does
 
 1. **Don't work around it in templates** — that's how the SDK rots.
 2. **File the gap.** Add a `{#- SDK gap: ... -#}` comment in the template.
+
+Gap comment formats:
+```jinja
+{#- SDK gap: component — ship-X doesn't support Y prop yet -#}
+{#- SDK gap: macro — need a macro for Z pattern -#}
+{#- SDK gap: pack/git — need ship-git-view component -#}
+{#- SDK gap: filter — need tojson filter for array attributes -#}
+{#- SDK gap: datastar — signal comparison with slash in value breaks -#}
+```
+
+The linter will surface these as warnings in `ship lint views` output so they're tracked.
+
 3. **Escalate:** either (a) improve the macro in `_ship.html.j2`, (b) fix the ship-element component, or (c) add a Jinja filter in `view_filters.rs`.
 4. **Dogfood first, document after.** Views must prove patterns before they become recommendations.
 
@@ -463,6 +696,14 @@ Import from `_ship.html.j2`.
 - `on_change_debounced(expr, delay?)` — debounced change handler
 - `radio(signal, value)` — radio-style selection
 - `confirm(message, action)` — confirm before action
+- `section(title, icon?, link_href?, link_label?)` /
+  `endsection()` — paired macros that open/close a `<ship-card>` with
+  a standardized header: optional leading ship-icon + title on the left,
+  optional right-side link pill (chevron + muted text). When
+  `link_href` starts with `/api/view/<name>`, the link uses
+  `@get(link_href)` with `.prevent` for SSE-aware navigation;
+  otherwise it falls back to plain anchor semantics. Replaces
+  hand-rolled `<ship-card padding="none">` + `<div slot="header" class="dash-section-head">` patterns.
 
 ## Reference — Jinja functions
 
@@ -482,9 +723,31 @@ Import from `_ship.html.j2`.
 
 These work on any list — they're general utilities, not collection-specific. For collection queries, prefer `ship_query` (SQL pushdown vs memory filter).
 
+## Full macro reference
+
+The SDK macros defined in `apps/shipd/templates/_ship.html.j2` are
+published as both a machine-readable manifest and a grouped Markdown
+reference:
+
+- `GET /api/assets/jinja-macros.json` — structured manifest
+  (name, signature, args, summary, description, example, source
+  location). Editor tooling should consume this for autocomplete and
+  signature help.
+- `GET /api/assets/jinja-macros.md` — human-readable reference
+  grouped by category, with a table of contents.
+
+Both are generated from the macro source by
+`scripts/build-jinja-docs.mjs` (`pnpm build:jinja-docs`) and embedded
+into the daemon at compile time — they never drift from the template.
+
 ## See also
 
-- `ship-components` skill — the web component library catalog
+- `ship-components` skill — the `@ship/set` library charter, including
+  the **distribution test** (when does an element belong in the library
+  vs stay a view-local composition?) and the `ship-list-tile` API.
+- `datastar-views` skill — wire-level details for SSE framing,
+  selectors, signal patches, and writing Datastar plugins when a view
+  genuinely needs one.
 - `.artifacts/specs/view-sdk-design.md` — SDK architecture decisions
 - `apps/shipd/templates/_ship.html.j2` — the canonical macro source
 - `.ship/views/data/` — reference implementation of the patterns above

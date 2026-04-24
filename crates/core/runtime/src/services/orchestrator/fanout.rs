@@ -253,6 +253,7 @@ pub async fn dispatch_fanout_step(
             verdict: StepVerdict::Advance,
             succeeded: true,
             start_sha: None,
+            log_tail: None,
         };
         if let Ok(env) = EventEnvelope::new(event_types::STEP_OBSERVED, &job_id, &payload) {
             let env = env.with_actor_id("service.job-dispatch");

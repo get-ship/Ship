@@ -6,41 +6,67 @@
     <title>Ship</title>
     <link rel="icon" href="/favicon.ico" />
     <script>
-      // Load daemon-served assets dynamically (avoids Vite pre-transform errors).
+      // Load daemon-served core assets dynamically (avoids Vite pre-transform
+      // errors). Only core runtime + element registry load here — heavy
+      // island bundles (code editor, markdown editor, terminal) arrive per
+      // view via the `packs:` declaration in each view's manifest. The
+      // daemon injects `<script type="module" src=...>` tags for the
+      // declared packs; mount.ts rehydrates them after innerHTML assignment
+      // so fragment navigation still fires the module loads.
       (function() {
-        var base = '/api/runtime/assets/';
+        var base = '/api/assets/';
         var css = document.createElement('link');
         css.rel = 'stylesheet'; css.href = base + 'view-tokens.css';
         document.head.appendChild(css);
-        // Core: load eagerly (blocking). Islands: load async (non-blocking).
         ['datastar.js','ship-elements.js'].forEach(function(f) {
           var s = document.createElement('script');
           s.type = 'module'; s.src = base + f;
           document.head.appendChild(s);
         });
-        // Island bundles — defer until after initial paint.
-        requestIdleCallback(function() {
-          ['ship-code-editor.js','ship-markdown-editor.js','ship-terminal.js'].forEach(function(f) {
-            var s = document.createElement('script');
-            s.type = 'module'; s.src = base + f;
-            document.head.appendChild(s);
-          });
-        }, { timeout: 3000 });
       })();
     </script>
     <script>
-      // Theme + mode boot — sync before first paint.
+      // Theme boot — sync before first paint to avoid flash-of-wrong-theme.
+      // Applies the persisted ship-set theme id (data-theme + .dark class).
+      // Must stay in sync with @ship/set/themes → persistTheme / applyTheme.
       (() => {
-        const saved = localStorage.getItem("ship-shell-theme");
-        const prefers = matchMedia("(prefers-color-scheme: dark)").matches;
-        const dark = saved === "dark" || (!saved && prefers);
-        document.documentElement.classList.toggle("dark", dark);
+        const VALID = new Set(["ship-light","ship-dark","paper","halo","console","contrast"]);
+        const DARK = new Set(["ship-dark","contrast"]);
+        const PREFERS_DARK = matchMedia("(prefers-color-scheme: dark)").matches;
+        const raw = localStorage.getItem("ship-site-theme");
+        const id = VALID.has(raw) ? raw : (PREFERS_DARK ? "ship-dark" : "ship-light");
+        document.documentElement.dataset.theme = id;
+        document.documentElement.classList.toggle("dark", DARK.has(id));
       })();
     </script>
     <style>
       /* ── Reset ── */
       html, body { height: 100%; margin: 0; }
       * { box-sizing: border-box; }
+
+      /* ── Global scrollbar: thin, tokenized, reveal-on-hover ──
+         Replaces platform scrollbars which read as chrome on panel-heavy
+         layouts (3-panel git, agents detail, skills explorer). Firefox
+         uses scrollbar-*; WebKit/Blink use ::-webkit-scrollbar. Track
+         stays invisible; thumb fades in on hover. */
+      * { scrollbar-width: thin; scrollbar-color: transparent transparent; }
+      *:hover { scrollbar-color: color-mix(in oklab, var(--foreground) 22%, transparent) transparent; }
+      *::-webkit-scrollbar { width: 10px; height: 10px; }
+      *::-webkit-scrollbar-track { background: transparent; }
+      *::-webkit-scrollbar-thumb {
+        background: transparent;
+        border-radius: 999px;
+        border: 2px solid transparent;
+        background-clip: padding-box;
+        transition: background-color 160ms var(--ease-out, ease-out);
+      }
+      *:hover::-webkit-scrollbar-thumb {
+        background-color: color-mix(in oklab, var(--foreground) 22%, transparent);
+      }
+      *::-webkit-scrollbar-thumb:hover {
+        background-color: color-mix(in oklab, var(--foreground) 38%, transparent);
+      }
+      *::-webkit-scrollbar-corner { background: transparent; }
 
       /* ── Shell: content-first layout ──
          Top bar (32px) + full-bleed content + status bar (24px).
@@ -146,6 +172,48 @@
         margin-left: auto;
       }
 
+      /* ── Theme picker ── */
+      .theme-grid {
+        display: flex; flex-direction: column; gap: 12px;
+        padding: 4px; width: 320px; max-height: min(70vh, 520px);
+        overflow-y: auto;
+      }
+      .theme-group-cards {
+        display: grid; grid-template-columns: repeat(2, minmax(0, 1fr)); gap: 8px;
+      }
+      .theme-card {
+        appearance: none;
+        background: var(--swatch-bg);
+        border: 2px solid color-mix(in oklch, var(--swatch-primary) 0%, transparent);
+        border-radius: 10px;
+        padding: 8px;
+        cursor: pointer;
+        text-align: left;
+        font: inherit;
+        display: flex; flex-direction: column; gap: 8px;
+        transition:
+          border-color var(--duration-fast) var(--ease-out),
+          box-shadow var(--duration-fast) var(--ease-out),
+          transform var(--duration-fast) var(--ease-out);
+      }
+      .theme-card:hover {
+        border-color: color-mix(in oklch, var(--swatch-primary) 50%, transparent);
+        transform: translateY(-1px);
+      }
+      .theme-card[aria-selected='true'] {
+        border-color: var(--swatch-primary);
+        box-shadow: 0 0 0 3px color-mix(in oklch, var(--swatch-primary) 22%, transparent);
+      }
+      .theme-card-swatches {
+        display: flex; gap: 3px; height: 22px; border-radius: 6px;
+        overflow: hidden;
+        border: 1px solid color-mix(in oklch, var(--swatch-primary) 35%, transparent);
+      }
+      .theme-card-swatches > span { flex: 1; display: block; }
+      .theme-card-name { font-size: 12px; font-weight: 600; }
+      .theme-card[data-dark='true']  .theme-card-name { color: #f5f5f5; }
+      .theme-card[data-dark='false'] .theme-card-name { color: #0a0a0a; }
+
       /* ── Nav rail: toggleable, left edge ── */
       .ship-rail {
         grid-row: 2;
@@ -197,6 +265,11 @@
         border-radius: 0 2px 2px 0;
       }
       .ship-rail .rail-spacer { flex: 1; }
+      .ship-rail .rail-launcher {
+        margin-top: var(--space-1);
+        opacity: 0.7;
+      }
+      .ship-rail .rail-launcher:hover { opacity: 1; }
 
       /* ── Main content: full bleed ── */
       .ship-content {
@@ -204,6 +277,41 @@
         overflow: auto;
         background: var(--background);
         min-width: 0;
+        /* Soften view-swap flash. mount() marks the new root as
+           `ship-content-entering` before the fetch, and removes the class
+           only AFTER content lands — so the blank interval is invisible
+           and the new view fades in once it's actually populated.
+           Respect reduced-motion. */
+        opacity: 1;
+        transform: translateY(0);
+        transition: opacity 220ms cubic-bezier(0.22, 1, 0.36, 1),
+                    transform 220ms cubic-bezier(0.22, 1, 0.36, 1);
+      }
+      .ship-content-entering {
+        opacity: 0;
+        transform: translateY(6px);
+      }
+      .ship-content-leaving {
+        opacity: 0;
+        transform: translateY(-4px);
+        pointer-events: none;
+      }
+      /* Subtle child stagger — any direct child of a freshly-mounted view
+         with [data-view-enter] inherits a 40ms cascade. Templates opt in
+         by adding the attr to grids/lists they want to reveal sequentially. */
+      @keyframes ship-view-enter {
+        from { opacity: 0; transform: translateY(4px); }
+        to   { opacity: 1; transform: none; }
+      }
+      #ship-view-root [data-view-enter] > * {
+        animation: ship-view-enter 260ms cubic-bezier(0.22, 1, 0.36, 1) both;
+        animation-delay: calc(var(--i, 0) * 24ms);
+      }
+      @media (prefers-reduced-motion: reduce) {
+        .ship-content,
+        .ship-content-entering,
+        .ship-content-leaving { opacity: 1; transform: none; transition: none; }
+        #ship-view-root [data-view-enter] > * { animation: none; }
       }
 
       /* ── Right drawer: chat panel ── */
@@ -298,50 +406,14 @@
     </style>
   </head>
   <body>
-    <!-- Top bar: brand, breadcrumbs, ⌘K, user -->
-    <div class="ship-topbar">
-      <a class="brand" id="topbar-brand" href="/" title="Ship home">
-        <img src="/ship-logo.svg" alt="Ship" height="18" class="brand-logo light-only" />
-        <img src="/ship-logo-secondary.svg" alt="Ship" height="18" class="brand-logo dark-only" />
-      </a>
-      <div class="sep"></div>
-      <div class="crumbs" id="breadcrumbs">
-        <span class="current">dashboard</span>
-      </div>
-      <span class="spacer"></span>
-      <button class="cmdk-trigger" id="cmdk-open" title="Command palette">
-        <ship-icon name="search" size="sm"></ship-icon>
-        <span>Search or jump to...</span>
-        <kbd>⌘K</kbd>
-      </button>
-      <ship-button variant="ghost" size="sm" id="toggle-rail" title="Toggle navigation (⌘B)" aria-label="Toggle navigation">
-        <ship-icon slot="leading" name="menu"></ship-icon>
-      </ship-button>
-      <ship-button variant="ghost" size="sm" id="toggle-theme" title="Toggle theme" aria-label="Toggle theme">
-        <ship-icon slot="leading" name="moon"></ship-icon>
-      </ship-button>
-      <ship-button variant="ghost" size="sm" id="toggle-fullscreen" title="Fullscreen (F11)" aria-label="Toggle fullscreen">
-        <ship-icon slot="leading" name="maximize"></ship-icon>
-      </ship-button>
-      <ship-button variant="ghost" size="sm" id="toggle-drawer" title="Chat (⌘/)" aria-label="Toggle chat drawer">
-        <ship-icon slot="leading" name="message-square-plus"></ship-icon>
-      </ship-button>
-    </div>
+    <ship-shell>
+    <!-- Top bar: brand, breadcrumbs, view actions, cmdk, rail toggle,
+         theme picker, fullscreen, chat drawer toggle. -->
+    <ship-nav-top></ship-nav-top>
 
-    <!-- Left rail: icon navigation (hidden by default) -->
-    <nav class="ship-rail" id="ship-rail">
-      <a data-route="/dashboard" title="Dashboard"><ship-icon name="sparkles"></ship-icon></a>
-      <a data-route="/pipelines" title="Pipelines"><ship-icon name="play"></ship-icon></a>
-      <a data-route="/agents" title="Agents"><ship-icon name="users"></ship-icon></a>
-      <a data-route="/skills" title="Skills"><ship-icon name="zap"></ship-icon></a>
-      <a data-route="/git" title="Git"><ship-icon name="git"></ship-icon></a>
-      <a data-route="/data" title="Data"><ship-icon name="folder"></ship-icon></a>
-      <a data-route="/canvas" title="Canvas"><ship-icon name="image"></ship-icon></a>
-      <a data-route="/overview" title="Overview"><ship-icon name="git"></ship-icon></a>
-      <a data-route="/events" title="Events"><ship-icon name="sparkles"></ship-icon></a>
-      <div class="rail-spacer"></div>
-      <a data-route="/settings" title="Settings"><ship-icon name="settings"></ship-icon></a>
-    </nav>
+    <!-- Left rail: dock-style pinned view launcher. -->
+    <ship-rail id="ship-rail"></ship-rail>
+    <ship-launcher></ship-launcher>
 
     <!-- Main content: full bleed -->
     <main class="ship-content" id="ship-view-root">
@@ -371,15 +443,17 @@
     <!-- Status bar -->
     <div class="ship-statusbar">
       <span class="status-dot" id="status-dot"></span>
-      <span id="status-branch">main</span>
-      <span>·</span>
-      <span id="status-agents">0 agents</span>
+      <span id="status-branch"></span>
+      <span id="status-ab" style="font-variant-numeric:tabular-nums;color:var(--muted-foreground)"></span>
+      <span id="view-status-start" style="display:inline-flex;gap:8px;align-items:center"></span>
       <span class="spacer"></span>
+      <span id="view-status-end" style="display:inline-flex;gap:8px;align-items:center"></span>
       <span id="status-theme">ship</span>
     </div>
 
-    <!-- Toast container -->
-    <ship-toast-container position="bottom-right" id="ship-toasts"></ship-toast-container>
+    <!-- Toast host: listens for ship:notify, forwards to ship-toast-container. -->
+    <ship-toast-host position="bottom-right"></ship-toast-host>
+    </ship-shell>
 
     <script type="module" src="/src/main.ts"></script>
   </body>

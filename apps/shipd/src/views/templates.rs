@@ -55,7 +55,7 @@ fn source_hash(source: &str) -> u64 {
 /// New templates must be added here to be loadable. Names use forward
 /// slashes regardless of host OS (minijinja convention). Keep this list
 /// alphabetized for easier diffing.
-const TEMPLATES: &[(&str, &str)] = &[
+pub(crate) const TEMPLATES: &[(&str, &str)] = &[
     (
         "_breadcrumb.html.j2",
         include_str!("../../templates/_breadcrumb.html.j2"),
@@ -100,18 +100,6 @@ const TEMPLATES: &[(&str, &str)] = &[
         include_str!("../../templates/_toolbar.html.j2"),
     ),
     (
-        "agents/shell.html.j2",
-        include_str!("../../templates/agents/shell.html.j2"),
-    ),
-    (
-        "agents/detail.html.j2",
-        include_str!("../../templates/agents/detail.html.j2"),
-    ),
-    (
-        "agents/partials/card.html.j2",
-        include_str!("../../templates/agents/partials/card.html.j2"),
-    ),
-    (
         "canvas/blank.html.j2",
         include_str!("../../templates/canvas/blank.html.j2"),
     ),
@@ -152,62 +140,6 @@ const TEMPLATES: &[(&str, &str)] = &[
         include_str!("../../templates/events/partials/filters.html.j2"),
     ),
     (
-        "git/partials/diff_viewer.html.j2",
-        include_str!("../../templates/git/partials/diff_viewer.html.j2"),
-    ),
-    (
-        "git/partials/log_section.html.j2",
-        include_str!("../../templates/git/partials/log_section.html.j2"),
-    ),
-    (
-        "git/partials/review_banner.html.j2",
-        include_str!("../../templates/git/partials/review_banner.html.j2"),
-    ),
-    (
-        "git/partials/status_block.html.j2",
-        include_str!("../../templates/git/partials/status_block.html.j2"),
-    ),
-    (
-        "git/shell.html.j2",
-        include_str!("../../templates/git/shell.html.j2"),
-    ),
-    (
-        "pipelines/content.html.j2",
-        include_str!("../../templates/pipelines/content.html.j2"),
-    ),
-    (
-        "pipelines/partials/active.html.j2",
-        include_str!("../../templates/pipelines/partials/active.html.j2"),
-    ),
-    (
-        "pipelines/partials/def_card.html.j2",
-        include_str!("../../templates/pipelines/partials/def_card.html.j2"),
-    ),
-    (
-        "pipelines/partials/definitions.html.j2",
-        include_str!("../../templates/pipelines/partials/definitions.html.j2"),
-    ),
-    (
-        "pipelines/partials/history.html.j2",
-        include_str!("../../templates/pipelines/partials/history.html.j2"),
-    ),
-    (
-        "pipelines/partials/history_row.html.j2",
-        include_str!("../../templates/pipelines/partials/history_row.html.j2"),
-    ),
-    (
-        "pipelines/partials/run_card.html.j2",
-        include_str!("../../templates/pipelines/partials/run_card.html.j2"),
-    ),
-    (
-        "pipelines/partials/step_card.html.j2",
-        include_str!("../../templates/pipelines/partials/step_card.html.j2"),
-    ),
-    (
-        "pipelines/shell.html.j2",
-        include_str!("../../templates/pipelines/shell.html.j2"),
-    ),
-    (
         "settings/partials/about.html.j2",
         include_str!("../../templates/settings/partials/about.html.j2"),
     ),
@@ -230,38 +162,6 @@ const TEMPLATES: &[(&str, &str)] = &[
     (
         "settings/shell.html.j2",
         include_str!("../../templates/settings/shell.html.j2"),
-    ),
-    (
-        "skills/shell.html.j2",
-        include_str!("../../templates/skills/shell.html.j2"),
-    ),
-    (
-        "skills/partials/rail.html.j2",
-        include_str!("../../templates/skills/partials/rail.html.j2"),
-    ),
-    (
-        "skills/partials/detail_pane.html.j2",
-        include_str!("../../templates/skills/partials/detail_pane.html.j2"),
-    ),
-    (
-        "specs/content.html.j2",
-        include_str!("../../templates/specs/content.html.j2"),
-    ),
-    (
-        "specs/partials/detail.html.j2",
-        include_str!("../../templates/specs/partials/detail.html.j2"),
-    ),
-    (
-        "specs/partials/launch_bar.html.j2",
-        include_str!("../../templates/specs/partials/launch_bar.html.j2"),
-    ),
-    (
-        "specs/partials/rail.html.j2",
-        include_str!("../../templates/specs/partials/rail.html.j2"),
-    ),
-    (
-        "specs/shell.html.j2",
-        include_str!("../../templates/specs/shell.html.j2"),
     ),
     // (Data browser view lives in .ship/views/data/ as a client-side view,
     // not as daemon-rendered Jinja templates.)
@@ -289,6 +189,9 @@ fn build_env() -> Environment<'static> {
             s.push('…');
             s
         }
+    });
+    env.add_filter("urlencode", |value: String| -> String {
+        form_urlencoded::byte_serialize(value.as_bytes()).collect()
     });
     for (name, src) in TEMPLATES {
         // The registered `TEMPLATES` list is a compile-time constant of
@@ -351,7 +254,7 @@ fn walk_templates(
 /// pairs. Scans the project `.ship/views/<view>/` first, then the
 /// global dir, with the project winning on path collisions. Excludes
 /// the top-level `name` template itself — caller supplies that source.
-fn collect_siblings(name: &str) -> Vec<(String, String)> {
+pub(crate) fn collect_siblings(name: &str) -> Vec<(String, String)> {
     let mut sibling_sources: Vec<(String, String)> = Vec::new();
     let Some(view_name) = name.split('/').next() else { return sibling_sources };
     let mut registered: std::collections::HashSet<String> = std::collections::HashSet::new();

@@ -176,7 +176,7 @@ impl ViewSessionRegistry {
 
     /// Deliver a feedback payload to every live subscriber of `view_id`
     /// as a Datastar signal (`{"feedback": <payload>}`). Used by the
-    /// `/api/runtime/feedback` handler so co-watchers of a canvas see
+    /// `/api/feedback` handler so co-watchers of a canvas see
     /// feedback without needing a separate SSE stream.
     ///
     /// Not caller-authorized: any authenticated request that passed the

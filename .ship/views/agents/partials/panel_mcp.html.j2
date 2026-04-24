@@ -1,43 +1,47 @@
 {#- MCP Servers section. Context: agent (AgentDetail).
-    Parity: apps/web/src/features/agents/sections/McpSection.tsx -#}
-<section id="section-mcp" class="ad-section">
-  <div class="ad-section-head">
-    <h2 class="ad-section-label">
-      <svg class="ad-section-icon" viewBox="0 0 24 24" fill="none"
-           stroke="currentColor" stroke-width="2" stroke-linecap="round"
-           stroke-linejoin="round">
-        <rect width="7" height="7" x="3" y="3" rx="1"/>
-        <rect width="7" height="7" x="14" y="3" rx="1"/>
-        <rect width="7" height="7" x="14" y="14" rx="1"/>
-        <rect width="7" height="7" x="3" y="14" rx="1"/>
-      </svg>
+    Hand-wrapped ship-card — section() macro has no action-button slot.
+    Parity: apps/web/src/features/agents/sections/McpSection.tsx
+    SDK gap: no 'grid-3x3' glyph in ship-icon's registry; MCP's source
+    React parity uses a 4-rect grid icon. Slotted SVG preserves parity. -#}
+{% from '_ship.html.j2' import on_click %}
+<ship-card padding="none" id="section-mcp">
+  <div slot="header" class="ad-section-head">
+    <h2 class="ad-section-title">
+      <ship-icon>
+        <svg viewBox="0 0 24 24" fill="none" stroke="currentColor"
+             stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+          <rect width="7" height="7" x="3" y="3" rx="1"/>
+          <rect width="7" height="7" x="14" y="3" rx="1"/>
+          <rect width="7" height="7" x="14" y="14" rx="1"/>
+          <rect width="7" height="7" x="3" y="14" rx="1"/>
+        </svg>
+      </ship-icon>
       MCP Servers
       <span class="ad-section-count">{{ agent.mcp_servers | length }} attached</span>
     </h2>
-    <ship-button class="ad-section-action" variant="outline" size="sm" disabled>
+    <ship-button variant="outline" size="sm"
+                 {{ on_click("$pickerKind = 'mcp'; $pickerSelected = []; $pickerOpen = true") }}>
       <ship-icon slot="leading" name="plus"></ship-icon>
       Add
     </ship-button>
   </div>
-  {% if agent.mcp_servers | length == 0 %}
-    <div class="ad-empty">
-      No MCP servers connected. Add one in the agent profile.
-    </div>
-  {% else %}
-    <div class="ad-chip-grid">
-      {% for server in agent.mcp_servers %}
-        <div class="ad-chip">
-          <span class="ad-chip-icon ad-chip-icon--mcp">{{ server[:2] }}</span>
-          <div class="ad-chip-body">
-            <div class="ad-chip-name">{{ server }}</div>
-            <div class="ad-chip-meta">server</div>
-          </div>
-        </div>
-      {% endfor %}
-      <ship-button class="ad-add-chip" variant="ghost" size="sm" disabled>
-        <ship-icon slot="leading" name="plus"></ship-icon>
-        Add server
-      </ship-button>
-    </div>
-  {% endif %}
-</section>
+  <div class="ad-section-body">
+    {% if agent.mcp_servers | length == 0 %}
+      <div class="ad-empty">
+        No MCP servers connected. Edit
+        <code style="font-family:var(--font-mono);font-size:var(--text-xs)">.ship/agents/{{ agent.id }}.jsonc</code>
+        to add one.
+      </div>
+    {% else %}
+      <div class="ad-chip-grid">
+        {% for server in agent.mcp_servers %}
+          <ship-list-tile variant="card" density="compact">
+            <span slot="leading" class="ad-chip-icon ad-chip-icon--mcp">{{ server[:2] }}</span>
+            <span class="ad-chip-name">{{ server }}</span>
+            <span slot="meta" class="ad-chip-meta">server</span>
+          </ship-list-tile>
+        {% endfor %}
+      </div>
+    {% endif %}
+  </div>
+</ship-card>

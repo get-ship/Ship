@@ -1,4 +1,4 @@
-//! REST handler for `POST /api/runtime/annotations`.
+//! REST handler for `POST /api/annotations`.
 //!
 //! Accepts an `AnnotationEvent`, persists it to the built-in `annotations`
 //! collection (which fires `collection.item_created`), then emits the
@@ -28,7 +28,7 @@ const SELECTION_TEXT_MAX_BYTES: usize = 20 * 1024;
 #[utoipa::path(
     operation_id = "postAnnotation",
     post,
-    path = "/api/runtime/annotations",
+    path = "/api/annotations",
     request_body(content_type = "application/json", description = "AnnotationEvent payload — target, selector, intent, note"),
     responses(
         (status = 200, description = "Annotation persisted and broadcast"),

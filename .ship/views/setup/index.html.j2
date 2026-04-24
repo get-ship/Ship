@@ -1,12 +1,12 @@
 {#-
   First-run setup wizard — welcome → workspace → provider → done.
-  Rendered at /api/runtime/view/setup; installer-lane mounts it at /setup.
+  Rendered at /api/view/setup; installer-lane mounts it at /setup.
 
   State: client-side Datastar signals (no SSE). Writes go via `@post`;
   servers patch response signals (`$ws_error`, `$provider_test_result`)
   per the CQRS pattern in the ship-views skill.
 -#}
-{% from '_ship.html.j2' import head, signal %}
+{% from '_ship.html.j2' import head, signal, attr_if %}
 
 {% if not fragment %}
 <!DOCTYPE html>
@@ -106,7 +106,7 @@
     {# ── Progress indicator ───────────────────────────────────────── #}
     <div class="setup-stepper-wrap">
       <ship-stepper total="4" tone="accent" label="Setup progress"
-                    data-attr:current="$step"></ship-stepper>
+                    {{ attr_if('$step', 'current') }}></ship-stepper>
     </div>
 
     {# ── Step panels ──────────────────────────────────────────────── #}

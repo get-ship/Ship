@@ -1,7 +1,6 @@
 {#- Agents SSE content partial. Target: <div id="agents-content">.
     Context: agents (Vec<AgentSummary>), total (usize). -#}
-{% from '_ship.html.j2' import get, post %}
-{% from '_urls.html.j2' import view_agent_detail, view_agents_create %}
+{% from '_ship.html.j2' import on_click %}
 <div id="agents-content">
   {% if agents | length == 0 %}
     <ship-empty-state icon="sparkles" variant="default" size="lg">
@@ -10,13 +9,13 @@
       <code style="font-family:var(--font-mono);font-size:var(--text-xs);padding:2px var(--radius-md);border-radius:var(--radius-sm);background:var(--muted);color:var(--foreground)">.ship/agents/</code>
       or create one from the Studio.
       <ship-button slot="action" tone="accent" variant="solid"
-        {{ post(view_agents_create(), '{}') }}>
+        {{ on_click("window.router ? window.router.navigate('/agents/create') : location.href='/agents/create'") }}>
         <ship-icon slot="leading" name="plus"></ship-icon>
         New agent
       </ship-button>
     </ship-empty-state>
   {% else %}
-    <div class="agents-grid">
+    <div class="agents-grid" data-view-enter>
       {% for a in agents %}
         {% include 'agents/partials/card.html.j2' %}
       {% endfor %}

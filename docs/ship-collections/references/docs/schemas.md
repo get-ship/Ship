@@ -7,12 +7,12 @@ order: 2
 
 # Schemas
 
-A schema defines the shape of items in a collection. Schemas are JSONC files in `.ship/schemas/`.
+A schema defines the shape of items in a collection. Schemas are JSONC files in `.ship/collections/`.
 
 ## Format
 
 ```jsonc
-// .ship/schemas/adr.jsonc
+// .ship/collections/adr.jsonc
 {
   "id": "adr",
   "name": "Architecture Decision Record",

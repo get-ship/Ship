@@ -106,61 +106,41 @@ async fn worker_can_send_mesh_message() {
 }
 
 // ── CreateJobs scope ──────────────────────────────────────────────────────
+//
+// Worker tokens must be rejected by the dispatch endpoint so sub-agents
+// can't spawn top-level jobs on behalf of the user.
+
+fn dispatch_req(pipeline: &str) -> crate::runtime_api::DispatchRequest {
+    crate::runtime_api::DispatchRequest {
+        pipeline: pipeline.into(),
+        spec: None,
+        provider: None,
+        model: None,
+        vars: None,
+        headless: false,
+        workspace: None,
+        slug: None,
+        branch: None,
+        agent: None,
+        source_spec_path: None,
+        depends_on: None,
+    }
+}
 
 #[tokio::test(flavor = "multi_thread")]
 async fn worker_cannot_create_jobs() {
     let dir = TempDir::new().unwrap();
     let state = make_api_state(&dir);
 
-    let resp = crate::runtime_api::create_job(
+    let resp = crate::runtime_api::dispatch_pipeline(
         axum::extract::State(state),
         Extension(worker_auth()),
-        Json(crate::runtime_api::CreateJobRequest {
-            slug: "test-job".into(),
-            agent: "rust-lane".into(),
-            branch: "job/test".into(),
-            spec_path: ".artifacts/job-spec.md".into(),
-            source_spec_path: None,
-            depends_on: None,
-            pipeline: None,
-            provider: None,
-            spec_content: None,
-            vars: None,
-            headless: false,
-        }),
+        Json(dispatch_req("test-pipeline")),
     )
     .await
     .into_response();
 
     assert_eq!(resp.status(), StatusCode::FORBIDDEN);
-}
-
-#[tokio::test(flavor = "multi_thread")]
-async fn commander_can_create_jobs() {
-    let dir = TempDir::new().unwrap();
-    let state = make_api_state(&dir);
-
-    let resp = crate::runtime_api::create_job(
-        axum::extract::State(state),
-        Extension(commander_auth()),
-        Json(crate::runtime_api::CreateJobRequest {
-            slug: "test-job".into(),
-            agent: "rust-lane".into(),
-            branch: "job/test".into(),
-            spec_path: ".artifacts/job-spec.md".into(),
-            source_spec_path: None,
-            depends_on: None,
-            pipeline: None,
-            provider: None,
-            spec_content: None,
-            vars: None,
-            headless: false,
-        }),
-    )
-    .await
-    .into_response();
-
-    assert_eq!(resp.status(), StatusCode::OK);
 }
 
 // ── Full scope for daemon token and contributor ───────────────────────────

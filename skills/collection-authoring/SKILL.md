@@ -8,12 +8,12 @@ authors: [ship]
 
 # Collection Authoring
 
-You write one JSONC file at `.ship/schemas/<id>.jsonc`, the daemon picks it up, and you have a typed table with CRUD, query, events, and API access. This skill is the practical companion to `ship-collections` — read that for concept depth and the full query-operator list. Read this when you are sitting down to design a new collection.
+You write one JSONC file at `.ship/collections/<id>.jsonc`, the daemon picks it up, and you have a typed table with CRUD, query, events, and API access. This skill is the practical companion to `ship-collections` — read that for concept depth and the full query-operator list. Read this when you are sitting down to design a new collection.
 
 ## The one-screen schema
 
 ```jsonc
-// .ship/schemas/todo.jsonc
+// .ship/collections/todo.jsonc
 {
   "id": "todo",
   "name": "Todo",
@@ -29,7 +29,7 @@ You write one JSONC file at `.ship/schemas/<id>.jsonc`, the daemon picks it up, 
 }
 ```
 
-Drop the file in `.ship/schemas/`, hit `POST /api/collections/todo/items`, done.
+Drop the file in `.ship/collections/`, hit `POST /api/collections/todo/items`, done.
 
 ## The authoring checklist
 
@@ -84,7 +84,7 @@ For the authoritative storage mapping + full operator list see `docs/ship-collec
 
 ```bash
 # 1. Drop the schema file
-$EDITOR .ship/schemas/todo.jsonc
+$EDITOR .ship/collections/todo.jsonc
 
 # 2. Seed an item
 curl -X POST http://localhost:9315/api/collections/todo/items \

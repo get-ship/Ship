@@ -10,6 +10,7 @@ use std::path::{Path, PathBuf};
 
 pub mod pidfile;
 pub mod service_registration;
+pub mod stop;
 pub mod supervision;
 pub mod supervision_pidfile;
 pub mod supervision_systemd;
@@ -560,38 +561,12 @@ fn daemon_run(host: String, port: u16, dev: bool, with_ui: bool) -> Result<()> {
 }
 
 /// Legacy stop path wired to the pidfile adapter. Reads the supervisor
-/// pid from `~/.ship/daemon.pid` and sends SIGTERM. Only the pidfile
-/// adapter invokes this — systemd-managed installations go through
-/// `systemctl --user stop`.
+/// pid from the flock-based pidfile and sends SIGTERM, then waits for
+/// the supervisor to exit so the lock is released before returning.
+/// Only the pidfile adapter invokes this — systemd-managed installations
+/// go through `systemctl --user stop`.
 pub(super) fn daemon_stop_inner() -> Result<()> {
-    let pid_path = pid_file()?;
-
-    let pid = match read_pid(&pid_path)? {
-        Some(p) => p,
-        None => {
-            println!("shipd not running (no PID file)");
-            return Ok(());
-        }
-    };
-
-    if !is_process_alive(pid) {
-        println!("shipd not running (stale PID {})", pid);
-        let _ = std::fs::remove_file(&pid_path);
-        return Ok(());
-    }
-
-    let status = std::process::Command::new("kill")
-        .args(["-TERM", &pid.to_string()])
-        .status()
-        .context("cannot invoke `kill`")?;
-
-    if !status.success() {
-        anyhow::bail!("failed to send SIGTERM to pid {}", pid);
-    }
-
-    let _ = std::fs::remove_file(&pid_path);
-    println!("shipd stopped (pid {})", pid);
-    Ok(())
+    stop::daemon_stop_at(&ship_dir()?)
 }
 
 fn daemon_status() -> Result<()> {
@@ -638,7 +613,7 @@ fn print_supervision_only(s: &SupervisionStatus) {
 
 fn print_live_status(port: u16, token: &str, supervision: &SupervisionStatus) -> Result<()> {
     let supervisor_pid = supervision.pid;
-    let url = format!("http://127.0.0.1:{port}/api/runtime/daemon/status");
+    let url = format!("http://127.0.0.1:{port}/api/daemon/status");
     let mut resp = ureq::get(&url)
         .header("Authorization", &format!("Bearer {token}"))
         .config()

@@ -32,8 +32,13 @@
     font-size: var(--text-xs); color: var(--muted-foreground); margin-top: 2px;
     font-variant-numeric: tabular-nums;
   }
+  /* Filter rail — wraps freely; the trailing search input is pushed to the
+     right via margin-left:auto in the search chip (see ship-input below).
+     align-items: stretch keeps chip + input on the same baseline as rows
+     grow/shrink. */
   .events-filters {
-    display: flex; flex-wrap: wrap; gap: var(--space-1); margin-bottom: var(--space-3);
+    display: flex; flex-wrap: wrap; align-items: stretch;
+    gap: var(--space-1); margin-bottom: var(--space-3);
     padding: var(--space-2) 0; border-bottom: 1px solid var(--border);
   }
   .events-content details {
@@ -52,18 +57,38 @@
   .events-content summary .count {
     font-size: var(--text-xs); color: var(--muted-foreground); margin-left: auto;
   }
+  /* Row layout — grid with fixed leading/trailing columns and an elastic
+     middle for the event kind. `align-items: center` keeps the ship-avatar
+     vertically centered against the mono text. We deliberately avoid
+     `grid-auto-rows: 1fr`: row heights are content-sized so sparse events
+     don't balloon to match denser ones. */
   .events-row {
-    display: grid; grid-template-columns: 90px 1fr 140px 140px;
+    display: grid; grid-template-columns: 170px 1fr 180px 150px;
     gap: var(--space-2); padding: var(--space-1) var(--space-3); border-top: 1px solid var(--border);
-    font-size: var(--text-xs); align-items: baseline;
+    font-size: var(--text-xs); align-items: center;
   }
   .events-row .ts { color: var(--muted-foreground); font-variant-numeric: tabular-nums; }
-  .events-row .kind { font-family: var(--font-mono); color: var(--foreground); }
-  .events-row .actor { color: var(--muted-foreground); }
+  .events-row .kind {
+    font-family: var(--font-mono); color: var(--foreground);
+    overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
+  }
+  /* Actor cell: avatar + label on one row, label ellipsifies. The
+     ship-avatar supplies identity color via identity-hue, so the row reads
+     as a who+what at a glance (parity with agents-view cards). */
+  .events-row .actor-cell {
+    display: inline-flex; align-items: center; gap: 6px;
+    min-width: 0; color: var(--muted-foreground);
+  }
+  .events-row .actor-cell .actor-name {
+    overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
+  }
   .events-row .id {
     color: var(--muted-foreground); font-family: var(--font-mono);
     font-size: var(--text-xs); overflow: hidden; text-overflow: ellipsis; white-space: nowrap;
   }
+  /* Payload drawer — shown when the row <details> is open. Mono, wraps
+     long lines, scrollable horizontally for deep JSON. Spanning the full
+     grid via grid-column:1/-1 keeps the pre aligned under the header row. */
   .events-row pre {
     grid-column: 1 / -1; margin: var(--space-1) 0 0;
     background: color-mix(in oklch, var(--muted) 30%, transparent);
@@ -75,6 +100,19 @@
     color: var(--foreground); font-size: var(--text-xs); min-width: 160px;
   }
   </style>
+  {#- File-routed: data pulled inline via ship.events.list(). SSE
+      live reload hits /api/sse/events (manifest.yaml
+      declares the kernel-event topics). -#}
+  {% set data = ship.events.list(q=ship.query.q|default(''),
+                                  event_type=ship.query.eventType|default(''),
+                                  actor=ship.query.actor|default(''),
+                                  entity=ship.query.entity|default('')) %}
+  {% set types = data.types %}
+  {% set actors = data.actors %}
+  {% set groups = data.groups %}
+  {% set total = 0 %}
+  {% for g in groups %}{% set total = total + (g.rows | length) %}{% endfor %}
+
   <div class="events-wrap">
     <div class="events-head">
       <div>
@@ -83,7 +121,6 @@
       </div>
     </div>
 
-    {# -- Filter chips -- #}
     <div class="events-filters" role="group" aria-label="Filter events">
       <ship-chip size="sm" {{ chip_all('eventType', 'events') }}>All types</ship-chip>
       {% for t in types %}
@@ -100,12 +137,7 @@
              {{ search('q', 'events') }}></ship-input>
     </div>
 
-    {# -- Content (SSE-driven) -- #}
-    <div {{ live('events') }}>
-      <div id="events-content" class="events-content">
-        <p style="padding: var(--space-4) 0; font-size: var(--text-xs); color: var(--muted-foreground)">Loading...</p>
-      </div>
-    </div>
+    {% include 'events/partials/content.html.j2' %}
 
   </div>
 </div>

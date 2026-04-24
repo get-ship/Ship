@@ -1,2 +1,3 @@
+# yaml-language-server: $schema=https://raw.githubusercontent.com/madvib/ship/main/schemas/view-manifest.schema.json
 name: setup
 type: html

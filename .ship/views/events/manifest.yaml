@@ -1,6 +1,8 @@
+# yaml-language-server: $schema=https://raw.githubusercontent.com/madvib/ship/main/schemas/view-manifest.schema.json
 name: events
 type: html
-data:
-  events_data: true
+rail:
+  label: Events
+  icon: sparkles
 events:
   - ""

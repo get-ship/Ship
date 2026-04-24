@@ -64,7 +64,7 @@ pub fn read_log(project_dir: &std::path::Path) -> Result<String> {
     Ok(out)
 }
 
-/// Parse log entries from the event stream into structured log rows.
+/// Parse log entries from the event stream into structured rows, newest first, capped at `MAX_LOG_ENTRIES`.
 pub fn read_log_entries(_project_dir: &std::path::Path) -> Result<Vec<LogEntry>> {
     let store = SqliteEventStore::new()?;
     let events = store.query(&EventFilter {

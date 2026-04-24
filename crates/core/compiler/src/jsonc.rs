@@ -11,8 +11,32 @@
 /// - Trailing commas before `]` or `}`
 /// - Strings (comments inside strings are preserved)
 pub fn strip_jsonc_comments(input: &str) -> String {
+    strip_jsonc_comments_inner(input, false)
+}
+
+/// Strip JSONC comments while preserving every source character's byte
+/// offset: comments are replaced with whitespace, not removed.
+///
+/// Use this when you need line/column positions in the cleaned JSON to
+/// match the original JSONC exactly — e.g. for editor diagnostics that
+/// render on the user's raw buffer.
+pub fn strip_jsonc_comments_preserve_positions(input: &str) -> String {
+    strip_jsonc_comments_inner(input, true)
+}
+
+fn strip_jsonc_comments_inner(input: &str, preserve_positions: bool) -> String {
     let mut out = String::with_capacity(input.len());
     let mut chars = input.char_indices().peekable();
+
+    // Helper — emit `c` when keeping positions, otherwise drop it (except
+    // for newlines, which are always kept so line counts stay correct).
+    let blank = |c: char, keep: bool, out: &mut String| {
+        if c == '\n' || c == '\r' {
+            out.push(c);
+        } else if keep {
+            out.push(' ');
+        }
+    };
 
     while let Some(&(_, ch)) = chars.peek() {
         match ch {
@@ -43,22 +67,37 @@ pub fn strip_jsonc_comments(input: &str) -> String {
                 match chars.peek().map(|&(_, c)| c) {
                     Some('/') => {
                         // Line comment — skip to end of line
+                        if preserve_positions {
+                            out.push(' ');
+                            out.push(' ');
+                        }
                         chars.next();
                         while let Some(&(_, c)) = chars.peek() {
                             if c == '\n' {
                                 break;
                             }
+                            blank(c, preserve_positions, &mut out);
                             chars.next();
                         }
                     }
                     Some('*') => {
                         // Block comment — skip to */
+                        if preserve_positions {
+                            out.push(' ');
+                            out.push(' ');
+                        }
                         chars.next();
                         let mut prev = '\0';
                         for (_, c) in chars.by_ref() {
                             if prev == '*' && c == '/' {
+                                if preserve_positions {
+                                    // The `*` was emitted below as blank;
+                                    // emit the closing `/` too so char count matches.
+                                    out.push(' ');
+                                }
                                 break;
                             }
+                            blank(c, preserve_positions, &mut out);
                             prev = c;
                         }
                     }
@@ -74,8 +113,13 @@ pub fn strip_jsonc_comments(input: &str) -> String {
         }
     }
 
-    // Strip trailing commas before ] or }
-    strip_trailing_commas(&out)
+    // Strip trailing commas before ] or } — only in the strip mode.
+    // Preserving positions means keeping every byte in place, commas included.
+    if preserve_positions {
+        out
+    } else {
+        strip_trailing_commas(&out)
+    }
 }
 
 /// Remove trailing commas: `,` followed by optional whitespace then `]` or `}`.
@@ -181,6 +225,29 @@ mod tests {
         let json = strip_jsonc_comments(input);
         let v: serde_json::Value = serde_json::from_str(&json).unwrap();
         assert_eq!(v["msg"], r#"say "hello""#);
+    }
+
+    #[test]
+    fn preserve_positions_keeps_byte_count() {
+        let input = r#"{
+  // a comment
+  "key": "value" // end
+}"#;
+        let cleaned = strip_jsonc_comments_preserve_positions(input);
+        assert_eq!(
+            cleaned.len(),
+            input.len(),
+            "preserve_positions must not shrink the source"
+        );
+        // Newlines still at same byte offsets.
+        let nl_in: Vec<_> = input.match_indices('\n').map(|(i, _)| i).collect();
+        let nl_out: Vec<_> = cleaned.match_indices('\n').map(|(i, _)| i).collect();
+        assert_eq!(nl_in, nl_out);
+        // The cleaned text is still JSONC (trailing commas preserved).
+        // strip_jsonc_comments on the cleaned buffer produces valid JSON.
+        let final_json = strip_jsonc_comments(&cleaned);
+        let v: serde_json::Value = serde_json::from_str(&final_json).unwrap();
+        assert_eq!(v["key"], "value");
     }
 
     #[test]

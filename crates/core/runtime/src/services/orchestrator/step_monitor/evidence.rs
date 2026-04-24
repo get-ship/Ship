@@ -66,6 +66,16 @@ pub(super) async fn emit_and_finish(
         "step-monitor: emitting observation"
     );
 
+    // Capture the tail of the agent's stdout/stderr log when the step
+    // didn't Advance, so operators see error messages without shelling
+    // into the worktree. Successful steps skip this to keep the event
+    // stream lean.
+    let log_tail = if succeeded {
+        None
+    } else {
+        scan_agent_log_tail(&monitor.work_dir, &monitor.slug)
+    };
+
     let payload = StepObservedPayload {
         job_id: monitor.job_id.clone(),
         slug: monitor.slug.clone(),
@@ -82,6 +92,7 @@ pub(super) async fn emit_and_finish(
         verdict,
         succeeded,
         start_sha: monitor.start_sha.clone(),
+        log_tail,
     };
 
     crate::services::orchestrator::emit::emit_process_exited(
@@ -131,6 +142,70 @@ pub(super) fn scan_git_evidence(
         .unwrap_or(0);
 
     (commits, uncommitted)
+}
+
+/// Read the tail of the dispatched agent's log at
+/// `<work_dir>/.artifacts/agent-<slug>.log`. Returns at most ~2 KiB of the
+/// last ~30 non-empty lines, with ANSI escape sequences stripped. None
+/// when the log doesn't exist or is empty.
+pub(super) fn scan_agent_log_tail(
+    work_dir: &std::path::Path,
+    slug: &str,
+) -> Option<String> {
+    const MAX_BYTES: usize = 2048;
+    const MAX_LINES: usize = 30;
+
+    let path = work_dir
+        .join(".artifacts")
+        .join(format!("agent-{slug}.log"));
+    let raw = std::fs::read_to_string(&path).ok()?;
+    if raw.trim().is_empty() {
+        return None;
+    }
+
+    // Last MAX_BYTES. Slice on a char boundary to avoid mid-codepoint cuts.
+    let start = raw.len().saturating_sub(MAX_BYTES);
+    let mut cut = start;
+    while cut < raw.len() && !raw.is_char_boundary(cut) {
+        cut += 1;
+    }
+    let tail = &raw[cut..];
+
+    // Strip ANSI escape sequences (CSI: ESC [ ... cmd) and keep last N lines.
+    let cleaned = strip_ansi(tail);
+    let mut lines: Vec<&str> = cleaned.lines().filter(|l| !l.trim().is_empty()).collect();
+    if lines.len() > MAX_LINES {
+        lines = lines.split_off(lines.len() - MAX_LINES);
+    }
+    if lines.is_empty() {
+        None
+    } else {
+        Some(lines.join("\n"))
+    }
+}
+
+fn strip_ansi(input: &str) -> String {
+    let mut out = String::with_capacity(input.len());
+    let mut chars = input.chars().peekable();
+    while let Some(c) = chars.next() {
+        if c == '\x1b' {
+            // CSI: ESC [ ... final byte in 0x40..=0x7E
+            if chars.peek() == Some(&'[') {
+                chars.next();
+                while let Some(nc) = chars.next() {
+                    if matches!(nc, '\x40'..='\x7E') {
+                        break;
+                    }
+                }
+                continue;
+            }
+            // Other escape sequences: skip the next character.
+            chars.next();
+            continue;
+        }
+        out.push(c);
+    }
+    out
 }
 
 /// Resolve HEAD SHA in a worktree. Returns `None` if git fails.

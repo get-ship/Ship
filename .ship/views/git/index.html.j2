@@ -1,242 +1,180 @@
 {#-
-  Git view -- single-column layout with two mutually exclusive states:
-    A) Status overview (branch, file changes, commit log)
-    B) Diff viewer (toolbar, summary, per-file hunks)
-
-  Context from daemon (views_git.rs -> GitCtx):
-    workspace_id, branch, clean, total_changed, staged[], modified[],
-    untracked[], commits[], selected_commit, completed_jobs[], error
+  Git view — Layout B. Tabs + split panes, composed from ship-set primitives.
+  Data: fetched via `ship.git.*` inline. Overview is one call; diff +
+  annotations are conditional on `ship.query.commit` / `ship.query.file`.
+  Body is split into partials under `git/partials/`:
+    - panel_changes_clean    : clean-tree hero + recent commits/branches
+    - panel_changes_filelist : left rail for the split Changes view
+    - panel_changes_diff     : right rail (diff body + comment composer)
+    - panel_history          : History tab (commit rows)
+    - panel_branches         : Branches tab (rail + detail cards)
 -#}
-{% from '_ship.html.j2' import head %}
-{% from '_urls.html.j2' import view_git %}
+{% from '_ship.html.j2' import head, nav, error_state, on, on_click, attr_if %}
+{%- set workspace_id = ship.query.workspace_id | default('') -%}
+{%- set overview = ship.git.overview(workspace_id=workspace_id) -%}
+{%- set branch = overview.branch -%}
+{%- set head_short = overview.head_short -%}
+{%- set clean = overview.clean -%}
+{%- set total_changed = overview.total_changed -%}
+{%- set staged = overview.staged | default([]) -%}
+{%- set modified = overview.modified | default([]) -%}
+{%- set untracked = overview.untracked | default([]) -%}
+{%- set commits = overview.commits | default([]) -%}
+{%- set branches = overview.branches | default([]) -%}
+{%- set ahead = overview.ahead | default(0) -%}
+{%- set behind = overview.behind | default(0) -%}
+{%- set active_file = ship.query.file | default('') -%}
+{%- set selected_commit = none -%}
+{%- if ship.query.commit -%}
+  {%- set selected_commit = ship.git.diff(commit=ship.query.commit, workspace_id=workspace_id) -%}
+{%- endif -%}
+{%- set annotations = {} -%}
+{%- if active_file and selected_commit -%}
+  {%- set annotations = ship.git.annotations(file=active_file, workspace_id=workspace_id) -%}
+{%- endif -%}
+{%- set error = none -%}
 {%- set ws_qs = '' -%}
 {%- if workspace_id %}{%- set ws_qs = '&workspace_id=' ~ workspace_id -%}{%- endif -%}
+{%- set base_url = '/api/v/git' -%}
 {% if not fragment %}
 <!DOCTYPE html>
-<html lang="en">
-<head>{{ head('Git') }}</head>
-<body>
+<html lang="en"><head>{{ head('Git') }}</head><body>
 {% endif %}
-<div class="ship-view ship-view-git">
-  <style>
-  {#- Base layout -#}
-  .ship-view-git { color: var(--foreground); }
-  .git-wrap { width: 100%; max-width: 672px; margin: 0 auto; padding: calc(var(--space-4) + var(--space-2)) var(--space-4); }
-  .git-wrap--diff { max-width: none; padding: 0; }
 
-  {#- Header -#}
-  .git-header {
-    display: flex; align-items: center; gap: var(--space-2);
-    margin-bottom: var(--space-4);
-  }
-  .git-header h1 {
-    font-family: var(--font-display);
-    font-size: 18px; font-weight: var(--font-weight-semibold);
-    letter-spacing: -0.01em; margin: 0;
-  }
-  .git-header-icon { color: var(--muted-foreground); }
-  .git-badge {
-    display: inline-flex; align-items: center; gap: var(--space-1);
-    font-size: var(--text-xs); font-weight: var(--font-weight-medium);
-    padding: 2px var(--space-2); border-radius: 9999px;
-  }
-  .git-badge--clean { color: var(--success); background: color-mix(in oklch, var(--success) 10%, transparent); }
-  .git-badge--dirty { color: var(--warning); background: color-mix(in oklch, var(--warning) 10%, transparent); }
+<div id="ship-view-root" class="gv"
+  data-signals:tab="'changes'"
+  data-signals:diffMode="'unified'"
+  data-signals:activeBranch="0"
+  data-signals:commentLine="''"
+  data-signals:commentDraft="''"
+  data-signals:sendTo="'keep'">
 
-  {#- Review banner -#}
-  .git-review-banner {
-    display: flex; align-items: flex-start; gap: var(--space-2);
-    margin-bottom: var(--space-3); padding: var(--space-2) var(--space-3);
+<style>
+  /* Layout-only CSS. All chrome comes from ship-* primitives. */
+  .gv { display: flex; flex-direction: column; height: 100%; min-height: 0; overflow: hidden; background: var(--background); color: var(--foreground); }
+  .gv-body { flex: 1; min-height: 0; display: flex; flex-direction: column; overflow: hidden; }
+  .gv-panel { flex: 1; min-height: 0; display: flex; flex-direction: column; overflow: hidden; }
+  .gv-split { flex: 1; min-height: 0; display: grid; grid-template-columns: minmax(280px, 360px) 1fr; overflow: hidden; }
+  .gv-split > * { min-width: 0; display: flex; flex-direction: column; overflow: hidden; }
+  .gv-split > .gv-left { border-right: 1px solid var(--border); }
+  .gv-branches-split { flex: 1; min-height: 0; display: grid; grid-template-columns: 320px 1fr; overflow: hidden; }
+  .gv-branches-split > * { min-width: 0; overflow: hidden; }
+  .gv-branches-split > .gv-bleft { border-right: 1px solid var(--border); display: flex; flex-direction: column; }
+  .gv-branches-split > .gv-bright { display: flex; flex-direction: column; }
+  .gv-pad { padding: var(--space-3); }
+  .gv-row { display: flex; align-items: center; gap: var(--space-2); }
+  .gv-grow { flex: 1; }
+  .gv-stack { display: flex; flex-direction: column; gap: var(--space-3); }
+  .gv-grid-2 { display: grid; grid-template-columns: 1fr 1fr; gap: var(--space-3); }
+  .gv-mono { font-family: var(--font-mono); font-variant-numeric: tabular-nums; }
+  .gv-add { color: var(--success); }
+  .gv-del { color: var(--destructive); }
+
+  /* Hero clean-empty state — halo + two-col recent commits/branches */
+  .gv-clean { flex: 1; overflow: auto; padding: 32px 28px; }
+  .gv-clean .hero {
+    display: flex; align-items: center; gap: 16px;
+    padding: 20px 22px;
+    border: 1px solid var(--border);
+    background: linear-gradient(180deg, color-mix(in oklab, var(--primary) 6%, var(--card)), var(--card));
     border-radius: var(--radius-lg);
-    border: 1px solid color-mix(in oklch, var(--success) 30%, transparent);
-    background: color-mix(in oklch, var(--success) 10%, transparent);
   }
-  .git-review-banner ship-icon { color: var(--success); flex-shrink: 0; margin-top: 1px; }
-  .git-review-banner p { font-size: var(--text-xs); color: var(--foreground); margin: 0; }
-  .git-review-banner strong { font-weight: var(--font-weight-medium); }
+  .gv-clean .halo {
+    width: 52px; height: 52px; border-radius: 14px;
+    background: conic-gradient(from 220deg, var(--primary), var(--accent), var(--primary));
+    display: grid; place-items: center; color: var(--primary-foreground);
+    box-shadow: 0 10px 24px -10px var(--primary);
+    flex: none;
+  }
+  .gv-clean .hero h2 { margin: 0; font-family: var(--font-display); font-size: 22px; letter-spacing: -0.01em; }
+  .gv-clean .hero p { margin: 2px 0 0; color: var(--muted-foreground); font-size: 13px; }
+  .gv-clean .two-col { display: grid; grid-template-columns: 1.3fr 1fr; gap: 18px; margin-top: 20px; }
+  .gv-clean .sec { background: var(--card); border: 1px solid var(--border); border-radius: var(--radius-lg); padding: 16px 18px; }
+  .gv-clean .sec h3 {
+    margin: 0 0 10px; font-size: 11px; font-weight: 600;
+    letter-spacing: 0.04em; text-transform: uppercase; color: var(--muted-foreground);
+  }
+  .gv-clean .row {
+    display: flex; align-items: center; gap: 10px;
+    padding: 6px 0; border-bottom: 1px solid var(--border);
+  }
+  .gv-clean .row:last-child { border-bottom: 0; }
+  .gv-clean .row .title { flex: 1; min-width: 0; font-size: 12px; font-weight: 500; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  .gv-clean .row .sub { font-size: 11px; color: var(--muted-foreground); font-family: var(--font-mono); }
 
-  {#- Branch toolbar -#}
-  .git-branch-bar {
-    display: flex; align-items: center; gap: var(--space-2);
-    padding: var(--space-3); margin-bottom: var(--space-3);
-    border-radius: var(--radius-lg);
-    background: color-mix(in oklch, var(--card) 80%, var(--muted));
-    border: 1px solid color-mix(in oklch, var(--border) 50%, transparent);
+  /* Tabs-right strip */
+  .gv-tabs-right { margin-left: auto; display: flex; align-items: center; gap: 6px; padding: 4px 12px 4px 0; }
+
+  /* Provenance banner above diff */
+  .gv-prov-banner {
+    display: flex; align-items: center; gap: 10px;
+    padding: 8px 14px;
+    background: color-mix(in oklab, var(--accent) 6%, transparent);
+    border-bottom: 1px solid color-mix(in oklab, var(--accent) 20%, var(--border));
+    font-size: 12px; color: var(--foreground); flex: none;
   }
-  .git-branch-name {
+  .gv-prov-banner .tag {
     display: inline-flex; align-items: center; gap: 6px;
-    font-family: var(--font-mono); font-size: var(--text-xs); font-weight: var(--font-weight-medium);
+    padding: 2px 8px; border-radius: var(--radius-full);
+    background: color-mix(in oklab, var(--accent) 18%, transparent);
+    color: var(--accent); font-size: 11px; font-weight: 500;
   }
-  .git-dot {
-    width: 6px; height: 6px; border-radius: 9999px; flex-shrink: 0;
-  }
-  .git-dot--ok { background: var(--success); }
-  .git-dot--warn { background: var(--warning); }
-  .git-changed-count {
-    margin-left: auto;
-    display: inline-flex; align-items: center; gap: var(--space-1);
-    font-size: 10px; color: var(--muted-foreground);
-  }
+  .gv-prov-banner .desc { color: var(--muted-foreground); font-size: 12px; min-width: 0; overflow: hidden; text-overflow: ellipsis; white-space: nowrap; }
+  .gv-prov-banner .right { margin-left: auto; display: flex; gap: 6px; }
+</style>
 
-  {#- Status breakdown -#}
-  .git-breakdown {
-    display: flex; gap: var(--space-3); font-size: 10px;
-    color: var(--muted-foreground); margin-bottom: 10px;
-  }
-  .git-breakdown span { display: inline-flex; align-items: center; gap: var(--space-1); }
+{# Contribute view metadata to the shell chrome (topbar + statusbar). #}
+<ship-view-chrome
+  title="Git"
+  branch="{{ branch | default('') | e }}"
+  ahead="{{ ahead }}"
+  behind="{{ behind }}"
+  tone="{% if clean %}success{% else %}warning{% endif %}">
+  <ship-button slot="actions" variant="ghost" size="icon" aria-label="Refresh"
+    {{ on_click("@get('" ~ base_url ~ (('?workspace_id=' ~ workspace_id) if workspace_id else '') ~ "')") }}>
+    <ship-icon name="refresh-cw" size="sm"></ship-icon>
+  </ship-button>
+  <ship-chip slot="status-end" size="sm" variant="soft">{{ total_changed }} changed</ship-chip>
+</ship-view-chrome>
 
-  {#- File list -#}
-  .git-file-list {
-    display: flex; flex-direction: column;
-    margin-bottom: var(--space-3);
-    border: 1px solid color-mix(in oklch, var(--border) 50%, transparent);
-    border-radius: var(--radius-md); overflow: hidden;
-  }
-  .git-file-row {
-    display: flex; align-items: center; gap: var(--space-2);
-    width: 100%; padding: 6px 10px;
-    background: transparent; border: 0;
-    font-family: var(--font-mono); font-size: var(--text-xs);
-    color: var(--foreground); cursor: pointer; text-align: left;
-    transition: background var(--duration-fast) ease;
-  }
-  .git-file-row + .git-file-row {
-    border-top: 1px solid color-mix(in oklch, var(--border) 30%, transparent);
-  }
-  .git-file-row:hover {
-    background: color-mix(in oklch, var(--muted) 40%, transparent);
-    color: var(--foreground);
-  }
-  .git-file-badge {
-    display: inline-block;
-    font-family: var(--font-mono); font-size: 9px; line-height: 1;
-    padding: 2px 5px; border-radius: var(--radius-sm);
-    font-weight: 700; letter-spacing: 0.02em;
-    flex-shrink: 0; text-align: center; min-width: 18px;
-  }
-  .git-file-badge--stg { background: color-mix(in oklch, var(--success) 15%, transparent); color: var(--success); }
-  .git-file-badge--mod { background: color-mix(in oklch, var(--warning) 15%, transparent); color: var(--warning); }
-  .git-file-badge--unt { background: color-mix(in oklch, var(--destructive) 15%, transparent); color: var(--destructive); }
-  .git-file-badge--add { background: color-mix(in oklch, var(--success) 15%, transparent); color: var(--success); }
-  .git-file-badge--del { background: color-mix(in oklch, var(--destructive) 15%, transparent); color: var(--destructive); }
-  .git-file-name {
-    overflow: hidden; text-overflow: ellipsis; white-space: nowrap; flex: 1;
-  }
-
-  {#- View diff button -#}
-  .git-view-diff-btn {
-    display: flex; align-items: center; justify-content: center; gap: 6px;
-    width: 100%; padding: 7px var(--space-3);
-    font-size: 10px; font-weight: var(--font-weight-medium);
-    color: var(--primary);
-    border: 1px solid color-mix(in oklch, var(--primary) 20%, transparent);
-    border-radius: var(--radius-md);
-    background: transparent; cursor: pointer;
-    transition: background var(--duration-fast) ease;
-  }
-  .git-view-diff-btn:hover {
-    background: color-mix(in oklch, var(--primary) 5%, transparent);
-  }
-
-  {#- Divider -#}
-  .git-divider {
-    border: 0;
-    border-top: 1px solid color-mix(in oklch, var(--border) 40%, transparent);
-    margin: var(--space-4) 0;
-  }
-
-  {#- Commit log -#}
-  .git-log-heading {
-    font-size: 10px; font-weight: var(--font-weight-semibold);
-    text-transform: uppercase; letter-spacing: 0.08em;
-    color: color-mix(in oklch, var(--muted-foreground) 50%, transparent);
-    margin-bottom: var(--space-2);
-  }
-  .git-log { display: flex; flex-direction: column; gap: 2px; }
-  .git-commit {
-    display: block; width: 100%; text-align: left;
-    background: transparent; border: 0;
-    padding: var(--space-2); margin: 0 -4px;
-    border-radius: var(--radius-md); cursor: pointer;
-    transition: background var(--duration-fast) ease;
-  }
-  .git-commit:hover {
-    background: color-mix(in oklch, var(--muted) 40%, transparent);
-  }
-  .git-commit-subject {
-    font-size: var(--text-sm); color: var(--muted-foreground);
-    line-height: 1.4;
-    transition: color var(--duration-fast) ease;
-  }
-  .git-commit:hover .git-commit-subject { color: var(--foreground); }
-  .git-commit-meta {
-    display: flex; align-items: center; gap: var(--space-2);
-    margin-top: 3px; font-size: 10px;
-    color: color-mix(in oklch, var(--muted-foreground) 50%, transparent);
-  }
-  .git-commit-sha { font-family: var(--font-mono); }
-  .git-commit-meta .spacer { flex: 1; }
-  .git-commit-meta .hint {
-    opacity: 0;
-    transition: opacity var(--duration-fast) ease;
-    color: var(--muted-foreground);
-  }
-  .git-commit:hover .git-commit-meta .hint { opacity: 0.6; }
-
-  .git-empty {
-    font-size: 10px;
-    color: color-mix(in oklch, var(--muted-foreground) 60%, transparent);
-  }
-
-  {#- Diff toolbar -#}
-  .git-diff-toolbar {
-    display: flex; align-items: center; gap: var(--space-2);
-    padding: var(--space-2) var(--space-4);
-    border-bottom: 1px solid color-mix(in oklch, var(--border) 60%, transparent);
-    flex-shrink: 0;
-  }
-  .git-back {
-    display: inline-flex; align-items: center; justify-content: center;
-    width: 28px; height: 28px;
-    border-radius: var(--radius-md);
-    background: transparent; border: 0;
-    color: var(--foreground); cursor: pointer;
-    transition: background var(--duration-fast) ease;
-  }
-  .git-back:hover {
-    background: color-mix(in oklch, var(--muted) 60%, transparent);
-  }
-  .git-diff-label {
-    font-size: var(--text-xs); font-weight: var(--font-weight-medium);
-    color: var(--foreground);
-  }
-  .git-show-working {
-    background: transparent; border: 0;
-    font-size: 10px; color: var(--muted-foreground);
-    cursor: pointer; margin-left: var(--space-2);
-    transition: color var(--duration-fast) ease;
-  }
-  .git-show-working:hover { color: var(--foreground); }
-
-  {#- Diff body -#}
-  .git-diff-body { padding: 0 var(--space-4) var(--space-4); }
-  </style>
-  <div class="git-wrap{% if selected_commit %} git-wrap--diff{% endif %}">
-    {% if error %}
-      {% include 'git/partials/error.html.j2' %}
-    {% elif selected_commit %}
-      {% include 'git/partials/diff_toolbar.html.j2' %}
-      {% include 'git/partials/review_banner.html.j2' %}
-      {% include 'git/partials/diff_body.html.j2' %}
-    {% else %}
-      {% include 'git/partials/header.html.j2' %}
-      {% include 'git/partials/review_banner.html.j2' %}
-      {% include 'git/partials/status_block.html.j2' %}
-      {% include 'git/partials/commit_log.html.j2' %}
-    {% endif %}
+{# ── Tabs bar + tabs-right action strip, sharing a bottom border ── #}
+<div class="gv-row" style="border-bottom: 1px solid var(--border); padding: 0 12px; gap: 0">
+  <ship-tabs variant="underline" tone="accent" {{ attr_if('$tab', 'active') }}
+    {{ on('ship-tab-change', '$tab = evt.detail.name') }}
+    style="flex:1;min-width:0;border:0;padding:0">
+    <ship-tab name="changes" count="{{ total_changed }}">Changes</ship-tab>
+    <ship-tab name="history" count="{{ commits | default([]) | length }}">History</ship-tab>
+    <ship-tab name="branches" count="{{ branches | default([]) | length }}">Branches</ship-tab>
+  </ship-tabs>
+  <div class="gv-tabs-right">
+    <ship-button variant="ghost" size="sm" {{ nav('/pipelines') }}>
+      <ship-icon slot="leading" name="play" size="xs"></ship-icon>
+      Run checks
+    </ship-button>
   </div>
 </div>
-{% if not fragment %}
-</body>
-</html>
+
+{% if error %}
+  <div class="gv-pad">{{ error_state(error, retry=base_url) }}</div>
 {% endif %}
+
+<div class="gv-body">
+
+  <div class="gv-panel" data-show="$tab == 'changes'" style="display:none">
+    {% if clean %}
+      {% include 'git/partials/panel_changes_clean.html.j2' %}
+    {% else %}
+      <div class="gv-split">
+        {% include 'git/partials/panel_changes_filelist.html.j2' %}
+        {% include 'git/partials/panel_changes_diff.html.j2' %}
+      </div>
+    {% endif %}
+  </div>
+
+  {% include 'git/partials/panel_history.html.j2' %}
+  {% include 'git/partials/panel_branches.html.j2' %}
+
+</div>
+
+</div>
+{% if not fragment %}</body></html>{% endif %}

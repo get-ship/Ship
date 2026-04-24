@@ -2,13 +2,13 @@
 
 use anyhow::{Result, anyhow};
 
-/// POST /api/runtime/jobs/{slug}/cancel.
+/// POST /api/jobs/{slug}/cancel.
 ///
 /// Prints a user-facing summary on success; treats 409 as a clean exit
 /// (already terminal, idempotent) and surfaces other errors verbatim.
 pub fn cancel(slug: &str, reason: &str) -> Result<()> {
     let (port, token) = crate::daemon::ensure_daemon()?;
-    let url = format!("http://127.0.0.1:{port}/api/runtime/jobs/{slug}/cancel");
+    let url = format!("http://127.0.0.1:{port}/api/jobs/{slug}/cancel");
     let body = serde_json::json!({ "reason": reason });
 
     let mut resp = ureq::post(&url)

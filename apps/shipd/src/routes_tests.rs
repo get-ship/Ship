@@ -4,11 +4,11 @@ use super::*;
 
 #[test]
 fn unit_variant_full_path_is_literal() {
-    assert_eq!(Route::ListJobs.full_path(), "/api/runtime/jobs");
-    assert_eq!(Route::IssueSession.full_path(), "/api/runtime/session");
+    assert_eq!(Route::ListJobs.full_path(), "/api/jobs");
+    assert_eq!(Route::IssueSession.full_path(), "/api/session");
     assert_eq!(
         Route::AssetDatastarJs.full_path(),
-        "/api/runtime/assets/datastar.js"
+        "/api/assets/datastar.js"
     );
 }
 
@@ -18,36 +18,35 @@ fn named_variant_substitutes_params() {
         id: "abc".to_string(),
     }
     .full_path();
-    assert_eq!(url, "/api/runtime/specs/abc");
+    assert_eq!(url, "/api/specs/abc");
 
     let url = Route::DeleteSpec {
         id: "spec-42".to_string(),
     }
     .full_path();
-    assert_eq!(url, "/api/runtime/specs/spec-42");
+    assert_eq!(url, "/api/specs/spec-42");
 
     let url = Route::GetJob {
         job_id: "job-xyz".to_string(),
     }
     .full_path();
-    assert_eq!(url, "/api/runtime/jobs/job-xyz");
+    assert_eq!(url, "/api/jobs/job-xyz");
 }
 
 #[test]
 fn multi_param_variant_substitutes_all() {
-    let url = Route::SetSkillVar {
-        id: "ws-1".to_string(),
-        skillId: "code".to_string(),
+    let url = Route::SkillsPutVar {
+        id: "code".to_string(),
         key: "model".to_string(),
     }
     .full_path();
-    assert_eq!(url, "/api/workspaces/ws-1/skills/code/vars/model");
+    assert_eq!(url, "/api/skills/code/vars/model");
 }
 
 #[test]
 fn method_returns_uppercase_str() {
     assert_eq!(Route::ListJobs.method(), "GET");
-    assert_eq!(Route::CreateJob.method(), "POST");
+    assert_eq!(Route::DispatchPipeline.method(), "POST");
     assert_eq!(
         Route::UpdateSpec {
             id: String::new()
@@ -71,16 +70,15 @@ fn template_path_preserves_placeholders() {
             id: String::new()
         }
         .template_path(),
-        "/api/runtime/specs/{id}"
+        "/api/specs/{id}"
     );
     assert_eq!(
-        Route::SetSkillVar {
+        Route::SkillsPutVar {
             id: String::new(),
-            skillId: String::new(),
             key: String::new()
         }
         .template_path(),
-        "/api/workspaces/{id}/skills/{skillId}/vars/{key}"
+        "/api/skills/{id}/vars/{key}"
     );
 }
 

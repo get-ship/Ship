@@ -15,7 +15,9 @@ pub fn ship_items(collection: String) -> Vec<Value> {
         Ok(d) => d,
         Err(_) => return vec![],
     };
-    let schemas = runtime::collections::schema::load_schemas(&ship_dir).unwrap_or_default();
+    let project_dir = runtime::project::get_project_dir(None).ok();
+    let schemas = runtime::collections::schema::load_schemas_merged(&ship_dir, project_dir.as_deref())
+        .unwrap_or_default();
     let schema = match schemas.iter().find(|s| s.id == collection) {
         Some(s) => s,
         None => return vec![],
@@ -49,7 +51,9 @@ pub fn ship_schema(collection: String) -> Value {
         Ok(d) => d,
         Err(_) => return Value::UNDEFINED,
     };
-    let schemas = runtime::collections::schema::load_schemas(&ship_dir).unwrap_or_default();
+    let project_dir = runtime::project::get_project_dir(None).ok();
+    let schemas = runtime::collections::schema::load_schemas_merged(&ship_dir, project_dir.as_deref())
+        .unwrap_or_default();
     match schemas.into_iter().find(|s| s.id == collection) {
         Some(s) => Value::from_serialize(&s),
         None => Value::UNDEFINED,
@@ -63,7 +67,9 @@ pub fn ship_query(collection: String, opts: Option<Value>) -> Vec<Value> {
         Ok(d) => d,
         Err(_) => return vec![],
     };
-    let schemas = runtime::collections::schema::load_schemas(&ship_dir).unwrap_or_default();
+    let project_dir = runtime::project::get_project_dir(None).ok();
+    let schemas = runtime::collections::schema::load_schemas_merged(&ship_dir, project_dir.as_deref())
+        .unwrap_or_default();
     let schema = match schemas.iter().find(|s| s.id == collection) {
         Some(s) => s,
         None => return vec![],
@@ -81,27 +87,6 @@ pub fn ship_query(collection: String, opts: Option<Value>) -> Vec<Value> {
     items
         .into_iter()
         .map(|item| Value::from_serialize(&item))
-        .collect()
-}
-
-/// Global function: `ship_collections()`.
-/// Returns all collection schemas as `[{id, name, field_count, fields}]`.
-pub fn ship_collections() -> Vec<Value> {
-    let ship_dir = match runtime::project::get_global_dir() {
-        Ok(d) => d,
-        Err(_) => return vec![],
-    };
-    let schemas = runtime::collections::schema::load_schemas(&ship_dir).unwrap_or_default();
-    schemas
-        .iter()
-        .map(|s| {
-            Value::from_serialize(&serde_json::json!({
-                "id": s.id,
-                "name": s.name,
-                "field_count": s.fields.len(),
-                "fields": s.fields,
-            }))
-        })
         .collect()
 }
 
@@ -157,46 +142,9 @@ fn parse_sort_string(val: &serde_json::Value, sort: &mut std::collections::BTree
     }
 }
 
-/// Global function: `ship_agents()`.
-/// Returns all agents as a list of serialized AgentSummary objects.
-pub fn ship_agents() -> Vec<Value> {
-    let ship_dir = match runtime::project::get_global_dir() {
-        Ok(d) => d,
-        Err(_) => return vec![],
-    };
-    let agents = crate::views::state::list_agents(&ship_dir);
-    agents
-        .into_iter()
-        .map(|a| Value::from_serialize(&a))
-        .collect()
-}
-
-/// Global function: `ship_agent(id)`.
-/// Returns a single agent detail, or UNDEFINED if not found.
-pub fn ship_agent(id: String) -> Value {
-    let ship_dir = match runtime::project::get_global_dir() {
-        Ok(d) => d,
-        Err(_) => return Value::UNDEFINED,
-    };
-    match crate::views::state::load_agent(&ship_dir, &id) {
-        Some(a) => Value::from_serialize(&a),
-        None => Value::UNDEFINED,
-    }
-}
-
-/// Global function: `ship_skills()`.
-/// Returns all skills as a list of serialized SkillSummary objects.
-pub fn ship_skills() -> Vec<Value> {
-    let ship_dir = match runtime::project::get_global_dir() {
-        Ok(d) => d,
-        Err(_) => return vec![],
-    };
-    let skills = crate::views::state::list_skills(&ship_dir);
-    skills
-        .into_iter()
-        .map(|s| Value::from_serialize(&s))
-        .collect()
-}
+// Legacy globals `ship_collections()`, `ship_agents()`, `ship_agent(id)`,
+// `ship_skills()` were removed after the dashboard migration. Use the
+// `ship.<domain>.summaries()/get()/detail()` SDK via the registry instead.
 
 /// Open a project-scoped ArtifactService and shared DataService for canvas
 /// queries. Returns `None` when no project workspace is attached or the
@@ -271,21 +219,28 @@ pub fn register_all(env: &mut minijinja::Environment) {
     env.add_function("ship_items", ship_items);
     env.add_function("ship_schema", ship_schema);
     env.add_function("ship_query", ship_query);
-    env.add_function("ship_collections", ship_collections);
-    env.add_function("ship_agents", ship_agents);
-    env.add_function("ship_agent", ship_agent);
-    env.add_function("ship_skills", ship_skills);
     env.add_function("ship_canvas_docs", ship_canvas_docs);
     env.add_function("ship_canvas_doc_content", ship_canvas_doc_content);
     env.add_filter("where", filter_where);
     env.add_filter("sort_by", filter_sort_by);
     env.add_filter("take", filter_take);
     env.add_filter("tojson", filter_tojson);
+    env.add_filter("to_attr_json", filter_to_attr_json);
 }
 
 /// Filter: `| tojson` — serialize any value to a JSON string.
 fn filter_tojson(value: Value) -> String {
     serde_json::to_string(&value).unwrap_or_else(|_| "null".to_string())
+}
+
+/// Filter: `| to_attr_json` — serialize to JSON with `"` replaced by `&quot;`
+/// so the result is safe inside a double-quoted HTML attribute value.
+/// Example: `data-item-data="{{ item.data | to_attr_json }}"`
+/// The browser decodes &quot; back to " when you read element.dataset.itemData.
+fn filter_to_attr_json(value: Value) -> String {
+    serde_json::to_string(&value)
+        .unwrap_or_else(|_| "null".to_string())
+        .replace('"', "&quot;")
 }
 
 #[cfg(test)]

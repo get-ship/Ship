@@ -1,4 +1,5 @@
 {#- Step 4 — Finished. Resource links + launch button. -#}
+{% from '_ship.html.j2' import on_click %}
 <p class="setup-eyebrow">Step 4 of 4</p>
 <h2 class="setup-title">Ship is ready</h2>
 <p class="setup-lede">
@@ -34,7 +35,7 @@
   {#- Fire-and-forget the completion write; small delay lets Datastar
       flush the POST before the navigation tears the page down.      -#}
   <ship-button tone="accent" variant="solid" size="lg"
-               data-on:click="@post('/api/settings', {payload: {key: 'setup.completed', value: true}}); setTimeout(() => window.location.assign('/'), 100)">
+               {{ on_click("@post('/api/settings', {payload: {key: 'setup.completed', value: true}}); setTimeout(() => window.location.assign('/'), 100)") }}>
     Open Ship
     <ship-icon slot="trailing" name="arrow-right"></ship-icon>
   </ship-button>

@@ -23,23 +23,40 @@ build:
 build-release:
     cargo build --release -p ship-cli -p mcp -p shipd
 
-# Install dev binaries to ~/.local/bin (ship + shipd)
+# Install dev binaries to ~/.local/bin (ship + shipd).
+# Resolves the cargo target dir via `cargo metadata` so the copy works when
+# .cargo/config.toml redirects target-dir (e.g. for a shared build cache
+# across worktrees).
 install-dev: build
-    cp -f target/debug/ship ~/.local/bin/ship.new && mv ~/.local/bin/ship.new ~/.local/bin/ship
-    cp -f target/debug/shipd ~/.local/bin/shipd
-    @echo "Installed: ship + shipd → ~/.local/bin"
+    #!/usr/bin/env bash
+    set -euo pipefail
+    target=$(cargo metadata --format-version 1 --no-deps --offline | grep -o '"target_directory":"[^"]*"' | cut -d'"' -f4)
+    cp -f "$target/debug/ship" ~/.local/bin/ship.new && mv ~/.local/bin/ship.new ~/.local/bin/ship
+    cp -f "$target/debug/shipd" ~/.local/bin/shipd
+    echo "Installed: ship + shipd → ~/.local/bin"
 
 # Install stable binary to ~/.cargo/bin
 install: build-release
+    #!/usr/bin/env bash
+    set -euo pipefail
+    target=$(cargo metadata --format-version 1 --no-deps --offline | grep -o '"target_directory":"[^"]*"' | cut -d'"' -f4)
     cargo install --path apps/ship-cli
-    cp -f target/release/shipd ~/.local/bin/shipd
+    cp -f "$target/release/shipd" ~/.local/bin/shipd
 
-# Restart shipd with the latest dev build (build → install → hard restart)
+# Restart shipd with the latest dev build (build → install → graceful restart).
+# `ship daemon stop` terminates the supervisor cleanly and shipd's own
+# shutdown path removes stale daemon.pid/daemon.port before the next start.
 daemon-restart: install-dev
-    -pkill -9 shipd 2>/dev/null; true
+    -ship daemon stop 2>/dev/null || true
     @sleep 1
-    @rm -f ~/.ship/network.port ~/.ship/daemon.pid
     ship daemon start
+
+# Watch Rust sources and auto-restart the daemon on changes.
+# Templates in .ship/views/ are hot-reloaded without restart.
+# Install watchexec once: cargo install watchexec-cli
+daemon-watch:
+    watchexec --watch apps/shipd/src --watch crates --watch apps/shipd/assets \
+        --exts rs,js --on-busy-update restart -- just daemon-restart
 
 # Rebuild WASM compiler (requires build-essential)
 wasm:
@@ -80,9 +97,13 @@ typecheck:
 db-migrate:
     cd apps/web && npx wrangler d1 migrations apply ship --local
 
-# Regenerate Specta types (Rust → packages/ui/src/generated.ts)
+# Regenerate Specta types (Rust → packages/ship-set/src/generated.ts)
 gen-types:
     cargo run -p xtask -- gen-types
+
+# Regenerate the Ship SDK manifest (→ packages/ship-set/sdk/*.json)
+gen-sdk:
+    cargo run -p xtask -- gen-sdk
 
 # Regenerate Cloudflare worker types from wrangler.jsonc
 cf-types:
@@ -101,6 +122,11 @@ fmt:
 # Check Rust formatting
 fmt-check:
     cargo fmt --check
+
+# Lint Ship views — no inline <script>, style budget, undefined signals.
+# Exits non-zero on any error-severity finding so CI can gate on it.
+lint-views:
+    cargo run --features unstable -p ship-cli --quiet -- lint views --format json
 
 # ── Docs ──────────────────────────────────────────────────────────────────────
 

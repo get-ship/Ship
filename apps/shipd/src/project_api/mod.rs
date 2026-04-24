@@ -6,8 +6,6 @@
 
 pub mod agents_skills;
 pub mod agents_skills_write;
-pub mod git;
-pub mod pipelines;
 pub mod session_files;
 
 pub use agents_skills::{list_agents, list_skills};
@@ -15,8 +13,6 @@ pub use agents_skills_write::{
     SetVarReq, WriteAgentReq, delete_skill_file, get_skill_vars, set_skill_var, write_agent,
     write_skill_file,
 };
-pub use pipelines::{WritePipelineReq, delete_pipeline, list_pipelines, write_pipeline};
-pub use git::{git_diff, git_log, git_status, project_git_diff, project_git_log, project_git_status};
 pub use session_files::{
     delete_session_file, list_session_files, read_session_file, write_session_file,
 };
@@ -31,17 +27,25 @@ use crate::rest_api::{ApiState, MeshResponse};
 
 // ---- Shared helpers ----
 
-/// Resolve a workspace branch to its project root. Reconciles first, then
-/// falls back to ship_dir parent for non-worktree workspaces.
+/// Resolve a workspace branch to its project root.
+///
+/// Priority: explicit DB path → checked-out git worktree → CWD walk (if
+/// the id matches the daemon's current branch). The DB fallback of
+/// `resolve_project_root` returns `ship_dir.parent()` when a workspace
+/// has no explicit path — for a global ship_dir that's the user's HOME,
+/// which has a `.ship/` dir and would pass the old "exists" check.
+/// Writes would then land in `~/.ship/pipelines/` instead of the real
+/// project root. We now only trust the DB answer when `path` is set.
 pub(crate) fn resolve_worktree(
     ship_dir: &std::path::Path,
     id: &str,
 ) -> Result<PathBuf, (StatusCode, Json<MeshResponse>)> {
-    // 1. DB-backed workspace resolution (honors explicit path if set).
-    if let Ok((root, _ws)) = runtime::workspace::resolve_project_root(ship_dir, id) {
-        if root.join(".ship").exists() || root.join(".git").exists() {
-            return Ok(root);
-        }
+    // 1. DB-backed workspace resolution — only trust explicit paths.
+    if let Ok((root, ws)) = runtime::workspace::resolve_project_root(ship_dir, id)
+        && ws.path.is_some()
+        && (root.join(".ship").exists() || root.join(".git").exists())
+    {
+        return Ok(root);
     }
 
     // 2. Workspace name is a branch — resolve to its actual worktree path
@@ -52,11 +56,10 @@ pub(crate) fn resolve_worktree(
         return Ok(path);
     }
 
-    // 3. Last resort: the daemon's active project root, but ONLY when the
-    //    requested id actually matches the active project's current branch.
-    //    Previously this fell through for any id, which meant random
-    //    workspace names silently resolved to the main repo and endpoints
-    //    returned 200 for workspaces that don't exist.
+    // 3. The daemon's active project root — only if id matches the
+    //    current branch. get_project_dir walks up from CWD looking for
+    //    .ship/, so it lands on the real project even if the daemon was
+    //    started with a global ship_dir.
     if let Ok(project_ship) = runtime::project::get_project_dir(None)
         && let Some(root) = project_ship.parent()
         && let Some(current_branch) = current_branch_at(root)
@@ -351,7 +354,10 @@ mod tests_inline {
     #[tokio::test(flavor = "multi_thread")]
     async fn nonexistent_workspace_returns_404() {
         let (state, _dir) = make_test_state();
-        let response = git_status(
+        // Use `list_agents` as a stand-in for a workspace-scoped handler that
+        // calls `resolve_worktree` — the git endpoints that previously covered
+        // this now live in GitService (`services::git`).
+        let response = list_agents(
             State(state),
             Path("nonexistent-branch-xyz".to_string()),
         )

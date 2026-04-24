@@ -6,202 +6,857 @@
 
 {#- === Page Setup === -#}
 
-{# Emit standard <head> contents: meta, title, CSS, Datastar, ship-elements.
-   In fragment mode (loaded inside the shell via Datastar), these assets are
-   already present — emit nothing. #}
+{#-
+  head(title='Ship View')
+
+  Emit the standard <head> contents for a view: meta tags, title, design
+  token CSS, Datastar, and the ship-elements bundle. In fragment mode
+  (loaded inside the shell via Datastar) these assets are already present,
+  so the macro emits nothing.
+
+  Args:
+    title: Document title. Shown in the browser tab. Defaults to 'Ship View'.
+
+  Example:
+    <head>{{ head('Tasks') }}</head>
+-#}
 {% macro head(title='Ship View') %}
 {% if not fragment %}
   <meta charset="UTF-8">
   <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>{{ title }}</title>
-  <link rel="stylesheet" href="/api/runtime/assets/view-tokens.css">
-  <script type="module" src="/api/runtime/assets/datastar.js"></script>
-  <script type="module" src="/api/runtime/assets/ship-elements.js"></script>
+  <link rel="stylesheet" href="/api/assets/view-tokens.css">
+  <script type="module" src="/api/assets/datastar.js"></script>
+  <script type="module" src="/api/assets/ship-elements.js"></script>
 {% endif %}
 {% endmacro %}
 
 {#- === Signals & Reactivity === -#}
 
-{# Declare a reactive signal. String defaults get quoted, others pass through. #}
+{#-
+  signal(name, default='')
+
+  Declare a reactive Datastar signal on the current element. String defaults
+  are emitted wrapped in single quotes, `none` becomes literal `null`, and
+  other types pass through unquoted so objects/arrays/numbers/booleans
+  serialize correctly.
+
+  Args:
+    name: Signal name. Use a leading underscore (`_loading`, `_showForm`)
+      for client-only state that should not round-trip to the server.
+    default: Initial value. String, number, boolean, `none`, or a JSON-like
+      literal such as `{}` or `[]`. Defaults to the empty string.
+
+  Example:
+    <div {{ signal('collection', 'task') }}
+         {{ signal('_showForm', false) }}
+         {{ signal('form', {}) }}>
+-#}
 {% macro signal(name, default='') %}data-signals:{{ name }}="{% if default is string %}'{{ default }}'{% elif default is none %}null{% else %}{{ default }}{% endif %}"{% endmacro %}
 
-{# Show element only when expression is true (hidden by default to prevent flash) #}
+{#-
+  signals(fields)
+
+  Declare multiple Datastar signals at once with inferred types. Preferred
+  over repeated `signal()` calls when a view has more than two or three
+  signals: concise at the call site, and the type metadata it emits
+  (`data-ship-signal-types`) drives AST-lint's type-mismatch rule so a
+  later `$count = 'hello'` against a numeric signal is flagged.
+
+  Types are inferred from each default: strings → str, booleans → bool,
+  integers → int, other numbers → num, null → any, other → any.
+
+  Args:
+    fields: mapping of signal name → default value.
+
+  Example:
+    <div {{ signals({'title': '', 'count': 0, 'active': false}) }}>
+
+  Emits (roughly):
+    data-signals:title="''" data-signals:count="0" data-signals:active="false"
+    data-ship-signal-types='{"title":"str","count":"int","active":"bool"}'
+-#}
+{% macro signals(fields) -%}
+{%- for name, default in fields | items -%}
+data-signals:{{ name }}="{% if default is string %}'{{ default }}'{% elif default is none %}null{% elif default is number %}{{ default }}{% elif default is boolean %}{{ default | lower }}{% else %}{{ default | tojson | replace('"', "'") }}{% endif %}" {% endfor -%}
+{%- endmacro %}
+
+{#-
+  show(expr)
+
+  Hide the element until the Datastar expression becomes truthy. Emits
+  `display:none` as an inline style so the element cannot flash into view
+  before Datastar hydrates.
+
+  Args:
+    expr: Datastar expression (references signals with `$name`).
+
+  Example:
+    <ship-card {{ show('$_showForm') }}>...</ship-card>
+-#}
 {% macro show(expr) %}data-show="{{ expr }}" style="display:none"{% endmacro %}
 
-{# Toggle class based on expression #}
+{#-
+  toggle_class(cls, expr)
+
+  Reactively toggle a single CSS class based on a Datastar expression.
+
+  Args:
+    cls: Class name to add/remove.
+    expr: Datastar expression; class is present when truthy.
+
+  Example:
+    <div {{ toggle_class('active', '$tab == "details"') }}>...</div>
+-#}
 {% macro toggle_class(cls, expr) %}data-class:{{ cls }}="{{ expr }}"{% endmacro %}
 
-{# Bind an attribute reactively #}
+{#-
+  attr(name, expr)
+
+  Reactively bind an HTML attribute's value to a Datastar expression.
+
+  Args:
+    name: Attribute name (e.g. `selected`, `disabled`, `aria-pressed`).
+    expr: Datastar expression producing the attribute value.
+
+  Example:
+    <ship-chip {{ attr('selected', '$status == "active"') }}>Active</ship-chip>
+-#}
 {% macro attr(name, expr) %}data-attr:{{ name }}="{{ expr }}"{% endmacro %}
 
 {#- === SSE & Live Updates === -#}
 
-{# Subscribe to SSE stream for a view (long-lived read connection) #}
-{% macro live(view_name) %}data-init="@get('/api/runtime/view/{{ view_name }}/sse')"{% endmacro %}
+{#-
+  live(view_name)
+
+  Subscribe the current element to a view's long-lived SSE stream on
+  connect. The daemon pushes `datastar-patch-elements` frames that replace
+  marked regions whenever the view's declared kernel events fire.
+
+  Args:
+    view_name: View slug registered with the daemon. Resolves to
+      `/api/view/<view_name>/sse`.
+
+  Example:
+    <div {{ live('tasks') }}>
+      <div id="tasks-content">Loading...</div>
+    </div>
+-#}
+{% macro live(view_name) %}data-init="@get('/api/view/{{ view_name }}/sse')"{% endmacro %}
+
+{#-
+  live_topic(topics, into='events')
+
+  Subscribe to a filtered slice of the kernel event stream and merge the
+  payloads into a Datastar signal. Unlike `live()` which refreshes the
+  whole view via SSE morph, this primitive streams raw events into a
+  signal for client-side rendering.
+
+  Args:
+    topics: comma-separated topic prefix(es), e.g. 'job' or 'job,workspace'.
+      Matched against `envelope.event_type` — `job` matches `job.started`,
+      `job.step.started`, etc.
+    into:   signal name (default `events`) — the merged array lives under
+      `$<name>`. Pass without the leading `$` (convention — like `signal()`).
+
+  Emits:
+    data-init="@get('/api/events/stream?mode=datastar&topics=<topics>&signal=<name>')"
+
+  Example:
+    <div {{ live_topic('job.updated,job.failed', into='jobs') }}>
+      <template data-for="$jobs" ...>...</template>
+    </div>
+-#}
+{% macro live_topic(topics, into='events') %}data-init="@get('/api/events/stream?mode=datastar&topics={{ topics }}&signal={{ into }}')"{% endmacro %}
 
 {#- === Loading & Indicators === -#}
 
-{# Mark an element as having a loading indicator signal #}
+{#-
+  loading(signal_name)
+
+  Mark the element as a Datastar action trigger whose in-flight state
+  writes a boolean to the given signal. Pair with `spinner()` or
+  `show()` to render a visual indicator.
+
+  Args:
+    signal_name: Signal that will flip to `true` while the fetch is
+      in flight. Conventionally underscore-prefixed (`_creating`).
+
+  Example:
+    <ship-button {{ create('task', '$form') }}
+                 {{ loading('_creating') }}>Create</ship-button>
+-#}
 {% macro loading(signal_name) %}data-indicator="{{ signal_name }}"{% endmacro %}
 
-{# Render a spinner that shows during loading #}
+{#-
+  spinner(signal_name)
+
+  Render an inline spinner that is visible while the given signal is
+  truthy. Designed to sit next to a button that uses `loading()` on the
+  same signal.
+
+  Args:
+    signal_name: Signal the spinner watches. Same value passed to
+      `loading()`.
+
+  Example:
+    <ship-button {{ create('task', '$form') }}
+                 {{ loading('_creating') }}>Create</ship-button>
+    {{ spinner('_creating') }}
+-#}
 {% macro spinner(signal_name) %}<span data-show="${{ signal_name }}" style="display:none"><span class="ship-spinner"></span></span>{% endmacro %}
+
+{#-
+  error_state(err, size='md', variant='default', retry=none)
+
+  Standard error branch for any view. Takes an `ErrorView`-shaped dict
+  ({title, body, details?}) and renders a <ship-error-state>. Keep
+  templates simple: one line at the top of each view guarded by
+  `{% if error %}`.
+
+  Args:
+    err: dict/struct with .title (str), .body (str), .details (str?)
+    size: sm | md | lg (default md)
+    variant: default | inline (default default)
+    retry: optional hypermedia endpoint; when set, emits a primary
+      "Retry" button that GETs the endpoint. Use the current view's
+      own URL for a full reload.
+
+  Example:
+    {% if error %}{{ error_state(error, retry='/api/v/git') }}{% endif %}
+-#}
+{% macro error_state(err, size='md', variant='default', retry=none) -%}
+<ship-error-state size="{{ size }}" variant="{{ variant }}"
+  title="{{ err.title | default('Something went wrong') | e }}">
+  {{- err.body | default('') | e -}}
+  {%- if err.details %}
+  <pre slot="details">{{ err.details | e }}</pre>
+  {%- endif %}
+  {%- if retry %}
+  <ship-button slot="action" tone="accent" variant="solid" size="{{ size }}"
+               slot-name="retry"
+               data-on:click="@get('{{ retry }}')">
+    <ship-icon slot="leading" name="refresh-cw" size="xs"></ship-icon>
+    Retry
+  </ship-button>
+  {%- endif %}
+</ship-error-state>
+{%- endmacro %}
+
+{#- === Datastar event / binding primitives === -#}
+
+{#-
+  on_click(action)
+
+  Wire a raw click handler. The `action` payload is Datastar syntax
+  (e.g. `@get('/x')` or `$y = true`) passed through verbatim.
+
+  Example:
+    <ship-button {{ on_click("@get('/api/v/foo')") }}>Refresh</ship-button>
+-#}
+{% macro on_click(action) %}data-on:click="{{ action }}"{% endmacro %}
+
+{#-
+  on_click_prevent(action)
+
+  Like `on_click`, but with `.prevent` to stop the default action. Use
+  for anchors and form buttons where a bare click would navigate or
+  submit.
+
+  Example:
+    <a href="/foo" {{ on_click_prevent("@get('/api/v/foo')") }}>Foo</a>
+-#}
+{% macro on_click_prevent(action) %}data-on:click.prevent="{{ action }}"{% endmacro %}
+
+{#-
+  on_submit(action)
+
+  Wire a form-submit handler that always prevents the default browser
+  submission. `action` is Datastar syntax.
+
+  Example:
+    <form {{ on_submit("@post('/api/collections/task/items', {payload: $form})") }}>
+-#}
+{% macro on_submit(action) %}data-on:submit.prevent="{{ action }}"{% endmacro %}
+
+{#-
+  on_change(action)
+
+  Wire a handler for the ship-element `ship-change` custom event. Use
+  for `<ship-select>`, `<ship-switch>`, etc. `evt` is in scope.
+
+  Example:
+    <ship-select {{ on_change("$status = evt.detail.value") }}>...</ship-select>
+-#}
+{% macro on_change(action) %}data-on:ship-change="{{ action }}"{% endmacro %}
+
+{#-
+  class_if(expr, cls)
+
+  Toggle a CSS class reactively. Equivalent to `toggle_class(cls, expr)`
+  with natural "condition-first" argument order.
+
+  Example:
+    <div {{ class_if("$tab === 'rows'", 'active') }}>...</div>
+-#}
+{% macro class_if(expr, cls) %}data-class:{{ cls }}="{{ expr }}"{% endmacro %}
+
+{#-
+  attr_if(expr, name)
+
+  Reactively toggle/bind an HTML attribute. Natural argument order
+  (condition first, name second) — mirrors `class_if`. For the
+  legacy name-first form see `attr(name, expr)`.
+
+  Example:
+    <ship-button {{ attr_if('$_saving', 'disabled') }}>Save</ship-button>
+-#}
+{% macro attr_if(expr, name) %}data-attr:{{ name }}="{{ expr }}"{% endmacro %}
+
+{#-
+  init(action)
+
+  Run a Datastar action when the element connects. Mostly used to
+  bootstrap an SSE subscription or seed signals on mount.
+
+  Example:
+    <div {{ init("@get('/api/sse/chat')") }}>...</div>
+-#}
+{% macro init(action) %}data-init="{{ action }}"{% endmacro %}
 
 {#- === Collection Actions === -#}
 
-{# Create an item in a collection. data is a Datastar signal expression (e.g. '$form') #}
+{#-
+  create(collection, data)
+
+  Wire a click handler that POSTs a new item into a collection. The
+  payload's `data` field is a Datastar expression — typically a form
+  signal such as `$form`.
+
+  Args:
+    collection: Collection id (matches a schema in `.ship/collections/`).
+    data: Datastar expression whose value becomes the item's `data`
+      payload.
+
+  Example:
+    <ship-button {{ create('task', '$form') }}
+                 {{ loading('_creating') }}>Create</ship-button>
+-#}
 {% macro create(collection, data) %}data-on:click="@post('/api/collections/{{ collection }}/items', {payload: {data: {{ data }}}})"{% endmacro %}
 
-{# Update an item in a collection #}
+{#-
+  update(collection, id, data)
+
+  Wire a click handler that PUTs updated data onto a specific collection
+  item.
+
+  Args:
+    collection: Collection id.
+    id: Target item id.
+    data: Datastar expression for the new `data` payload.
+
+  Example:
+    <ship-button {{ update('task', item.id, '$form') }}>Save</ship-button>
+-#}
 {% macro update(collection, id, data) %}data-on:click="@put('/api/collections/{{ collection }}/items/{{ id }}', {payload: {data: {{ data }}}})"{% endmacro %}
 
-{# Delete an item from a collection #}
+{#-
+  delete(collection, id)
+
+  Wire a click handler that DELETEs a specific collection item. Does not
+  prompt — use `confirm_delete()` when a confirmation step is required.
+
+  Args:
+    collection: Collection id.
+    id: Item id to delete.
+
+  Example:
+    <ship-button {{ delete('task', item.id) }}>Delete</ship-button>
+-#}
 {% macro delete(collection, id) %}data-on:click="@delete('/api/collections/{{ collection }}/items/{{ id }}')"{% endmacro %}
 
 {#- === Navigation === -#}
 
-{# Navigate to another view via Datastar morph (use for in-view partial updates) #}
+{#-
+  navigate(url)
+
+  Wire a click handler that fetches another view via Datastar `@get`,
+  triggering an in-page morph. Use this for partial updates within the
+  current view. For full shell-level routing use `nav()` or `view()`.
+
+  Args:
+    url: URL to GET (typically under `/api/view/...`).
+
+  Example:
+    <ship-button {{ navigate('/api/view/pipelines') }}>
+      Pipelines
+    </ship-button>
+-#}
 {% macro navigate(url) %}data-on:click="@get('{{ url }}')"{% endmacro %}
 
-{# Navigate to a shell route (uses router when available, falls back to Datastar) #}
+{#-
+  nav(path)
+
+  Wire a click handler that navigates via the shell router when present,
+  falling back to a full page load. Use this for shell-level navigation.
+
+  Args:
+    path: Shell path to navigate to (e.g. `/agents`).
+
+  Example:
+    <ship-button {{ nav('/agents') }}>Agents</ship-button>
+-#}
 {% macro nav(path) %}data-on:click="window.router ? window.router.navigate('{{ path }}') : window.location.href='{{ path }}'"{% endmacro %}
 
-{# Navigate to a named view via shell router #}
+{#-
+  view(name)
+
+  Wire a click handler that navigates to a named view via the shell router
+  when present, falling back to a full page load at `/<name>`.
+
+  Args:
+    name: View slug. Becomes the path `/<name>`.
+
+  Example:
+    <ship-button {{ view('tasks') }}>Tasks</ship-button>
+-#}
 {% macro view(name) %}data-on:click="window.router ? window.router.navigate('/{{ name }}') : window.location.href='/{{ name }}'"{% endmacro %}
 
 {#- === Event Listeners === -#}
 
-{# Generic event listener for ship-element custom events #}
+{#-
+  on(event, expr)
+
+  Generic event-listener binding. Use for ship-element custom events
+  (`ship-change`, `ship-select`, etc.) and any DOM event not covered by
+  the action-specific macros.
+
+  Args:
+    event: Event name. Prefix is not required (no `on`).
+    expr: Datastar expression to run when the event fires. `evt` is in
+      scope.
+
+  Example:
+    <ship-select {{ on('ship-change', '$status = evt.detail.value') }}>
+      ...
+    </ship-select>
+-#}
 {% macro on(event, expr) %}data-on:{{ event }}="{{ expr }}"{% endmacro %}
 
 {#- === Generic Actions === -#}
 
-{# GET request on click #}
+{#-
+  get(url)
+
+  Wire a click handler that issues a Datastar `@get` to the given URL.
+
+  Args:
+    url: Fully-qualified path to GET.
+
+  Example:
+    <ship-button {{ get('/api/jobs') }}>Refresh jobs</ship-button>
+-#}
 {% macro get(url) %}data-on:click="@get('{{ url }}')"{% endmacro %}
 
-{# POST request on click with payload #}
+{#-
+  post(url, payload='{}')
+
+  Wire a click handler that issues a Datastar `@post` to the given URL
+  with the supplied payload expression.
+
+  Args:
+    url: Target URL.
+    payload: Datastar expression (or JSON literal) passed as the request
+      body. Defaults to an empty object.
+
+  Example:
+    <ship-button {{ post('/api/jobs', '$newJob') }}>Run</ship-button>
+-#}
 {% macro post(url, payload='{}') %}data-on:click="@post('{{ url }}', {payload: {{ payload }}})"{% endmacro %}
 
-{# PUT request on click with payload #}
+{#-
+  put(url, payload='{}')
+
+  Wire a click handler that issues a Datastar `@put`.
+
+  Args:
+    url: Target URL.
+    payload: Request body expression. Defaults to an empty object.
+
+  Example:
+    <ship-button {{ put('/api/settings', '{theme: $theme}') }}>Save</ship-button>
+-#}
 {% macro put(url, payload='{}') %}data-on:click="@put('{{ url }}', {payload: {{ payload }}})"{% endmacro %}
 
-{# PUT request on change (for settings/config updates) #}
+{#-
+  put_on_change(url, payload='{}')
+
+  Wire a change-event handler (fires on every committed input change)
+  that issues a Datastar `@put`. Good for settings inputs that persist
+  on change without an explicit save button.
+
+  Args:
+    url: Target URL.
+    payload: Request body expression. Defaults to an empty object.
+
+  Example:
+    <ship-input {{ bind('theme') }}
+                {{ put_on_change('/api/settings', '{theme: $theme}') }}>
+    </ship-input>
+-#}
 {% macro put_on_change(url, payload='{}') %}data-on:change="@put('{{ url }}', {payload: {{ payload }}})"{% endmacro %}
 
-{# POST on submit (for forms) #}
+{#-
+  submit(url, payload='{}')
+
+  Wire a form `submit` handler that POSTs the given payload.
+
+  Args:
+    url: Target URL.
+    payload: Request body expression. Defaults to an empty object.
+
+  Example:
+    <form {{ submit('/api/specs', '$form') }}>...</form>
+-#}
 {% macro submit(url, payload='{}') %}data-on:submit="@post('{{ url }}', {payload: {{ payload }}})"{% endmacro %}
 
-{# Bind a signal to an input element's value #}
+{#-
+  bind(signal_name)
+
+  Two-way-bind an input element's value to a Datastar signal.
+
+  Args:
+    signal_name: Signal to bind. Dotted paths (`form.title`) are
+      supported when the parent signal is an object.
+
+  Example:
+    <ship-input {{ bind('form.title') }} placeholder="Title"></ship-input>
+-#}
 {% macro bind(signal_name) %}data-bind="{{ signal_name }}"{% endmacro %}
 
 {#- === Job Actions === -#}
 
-{# Create a new job. agent_expr is a signal expression, pipeline is optional. #}
-{% macro create_job(agent_expr, pipeline='') %}data-on:click="@post('/api/runtime/jobs', {payload: {agent: {{ agent_expr }}{% if pipeline %}, pipeline: '{{ pipeline }}'{% endif %}}})"{% endmacro %}
+{#-
+  create_job(agent_expr, pipeline='')
 
-{# Emit a kernel event #}
+  Wire a click handler that POSTs a new job to the runtime. The agent is
+  passed as a Datastar expression so UI state (a select value, signal,
+  etc.) can drive it. When `pipeline` is supplied it is added to the
+  payload verbatim.
+
+  Args:
+    agent_expr: Datastar expression producing the agent slug (e.g.
+      `$selectedAgent`).
+    pipeline: Optional pipeline name. When truthy it is inlined into the
+      request body. Defaults to the empty string (omitted).
+
+  Example:
+    <ship-button {{ create_job('$selectedAgent', 'review') }}>
+      Run
+    </ship-button>
+-#}
+{% macro create_job(agent_expr, pipeline='') %}data-on:click="@post('/api/jobs', {payload: {agent: {{ agent_expr }}{% if pipeline %}, pipeline: '{{ pipeline }}'{% endif %}}})"{% endmacro %}
+
+{#-
+  emit(event_type, data_expr='{}')
+
+  Wire a click handler that posts a kernel event via `/api/events/emit`.
+  Use to trigger backend side-effects that other views listen to over SSE.
+
+  Args:
+    event_type: Kernel event type (e.g. `task.requested`).
+    data_expr: Datastar expression for the event's `data` payload.
+      Defaults to an empty object.
+
+  Example:
+    <ship-button {{ emit('task.requested', '{title: $title}') }}>
+      Request
+    </ship-button>
+-#}
 {% macro emit(event_type, data_expr='{}') %}data-on:click="@post('/api/events/emit', {payload: {event_type: '{{ event_type }}', data: {{ data_expr }}}})"{% endmacro %}
 
 {#- === Agent Feedback === -#}
 
-{# Send structured feedback to the active agent/session.
-   The payload is whatever shape the agent designed — the receiving prompt
-   reads it. Use this when an agent-authored view needs typed human input
-   beyond free-text (ratings, selections, pick-one, etc.).
+{#-
+  feedback(payload_expr)
 
-   Emits as feedback (kind=action) so it flows through the
-   studio.feedback.created pipeline. The agent reads `payload` on the
-   event to see what the user picked.
+  Wire a click handler that posts structured feedback to the active
+  agent/session. The payload shape is whatever the agent designed — the
+  receiving prompt reads it. Use this when an agent-authored view needs
+  typed human input beyond free-text (ratings, selections, pick-one).
 
-   Usage:
-     <ship-button {{ feedback("{selected: 2, comment: 'bolder one'}") }}>Pick A</ship-button>
-     <ship-button {{ feedback("{rating: $rating, slot: 'hero'}") }}>Submit</ship-button> #}
-{% macro feedback(payload_expr) %}data-on:click="@post('/api/runtime/feedback', {contentType: 'json', body: JSON.stringify({id: '', kind: 'action', target: {file_path: location.pathname}, author_kind: 'human', created_at: new Date().toISOString(), payload: {{ payload_expr }}})})"{% endmacro %}
+  Emits as feedback (kind=action) so it flows through the
+  studio.feedback.created pipeline. The agent reads `payload` on the
+  event to see what the user picked.
+
+  Args:
+    payload_expr: Datastar/JS object expression that becomes the
+      feedback `payload`.
+
+  Example:
+    <ship-button {{ feedback("{selected: 2, comment: 'bolder one'}") }}>
+      Pick A
+    </ship-button>
+-#}
+{% macro feedback(payload_expr) %}data-on:click="@post('/api/feedback', {contentType: 'json', body: JSON.stringify({id: '', kind: 'action', target: {file_path: location.pathname}, author_kind: 'human', created_at: new Date().toISOString(), payload: {{ payload_expr }}})})"{% endmacro %}
 
 {#- === Tabs === -#}
 
-{# Tab button — sets a signal and optionally re-fetches SSE #}
+{#-
+  tab(signal_name, value, label='')
+
+  Wire a tab button. Sets the named signal to `value` on click and
+  exposes `aria-selected` reactively so CSS can style the active tab.
+
+  Args:
+    signal_name: Signal that tracks the active tab value.
+    value: The string value this tab represents.
+    label: Accepted for call-site readability; currently unused by the
+      emitted attributes. Defaults to the empty string.
+
+  Example:
+    <ship-tab {{ tab('activeTab', 'details') }}>Details</ship-tab>
+    <ship-tab {{ tab('activeTab', 'history') }}>History</ship-tab>
+-#}
 {% macro tab(signal_name, value, label='') %}data-on:click="${{ signal_name }} = '{{ value }}'" data-attr:aria-selected="${{ signal_name }} == '{{ value }}'"{% endmacro %}
 
-{# Tab panel — visible when signal matches value #}
+{#-
+  tab_panel(signal_name, value)
+
+  Show the tab panel only when the tab signal matches `value`. Uses
+  `display:none` as a base style so panels don't flash before Datastar
+  hydrates.
+
+  Args:
+    signal_name: The same signal used with `tab()`.
+    value: The value this panel is visible for.
+
+  Example:
+    <div {{ tab_panel('activeTab', 'details') }}>...</div>
+-#}
 {% macro tab_panel(signal_name, value) %}data-show="${{ signal_name }} == '{{ value }}'" style="display:none"{% endmacro %}
 
 {#- === Filter Chips === -#}
 
-{# Chip that sets a signal value and refreshes SSE #}
-{% macro chip(signal_name, value, view_name='') %}data-on:click="${{ signal_name }} = '{{ value }}'{% if view_name %}; @get('/api/runtime/view/{{ view_name }}/sse'){% endif %}" data-attr:selected="${{ signal_name }} == '{{ value }}'"{% endmacro %}
+{#-
+  chip(signal_name, value, view_name='')
 
-{# Chip to clear/reset a signal (show all) #}
-{% macro chip_all(signal_name, view_name='') %}data-on:click="${{ signal_name }} = ''{% if view_name %}; @get('/api/runtime/view/{{ view_name }}/sse'){% endif %}" data-attr:selected="${{ signal_name }} == ''"{% endmacro %}
+  Wire a filter chip: on click, sets the named signal to `value` and
+  (optionally) refreshes the view's SSE stream so the server reruns the
+  query with the new filter. Also exposes `selected` reactively for the
+  active chip.
+
+  Args:
+    signal_name: Filter signal.
+    value: Value this chip selects.
+    view_name: When set, a `@get('/api/view/<view_name>/sse')` is
+      appended to refresh results. Defaults to the empty string
+      (client-only filter).
+
+  Example:
+    <ship-chip {{ chip('status', 'active', 'tasks') }}>Active</ship-chip>
+-#}
+{% macro chip(signal_name, value, view_name='') %}data-on:click="${{ signal_name }} = '{{ value }}'{% if view_name %}; @get('/api/view/{{ view_name }}/sse'){% endif %}" data-attr:selected="${{ signal_name }} == '{{ value }}'"{% endmacro %}
+
+{#-
+  chip_all(signal_name, view_name='')
+
+  A companion to `chip()` that clears the filter (sets the signal to the
+  empty string) and optionally refreshes SSE. Use for an "All" chip next
+  to value-specific chips.
+
+  Args:
+    signal_name: Filter signal to clear.
+    view_name: When set, refreshes `/api/view/<view_name>/sse`
+      after clearing.
+
+  Example:
+    <ship-chip {{ chip_all('status', 'tasks') }}>All</ship-chip>
+-#}
+{% macro chip_all(signal_name, view_name='') %}data-on:click="${{ signal_name }} = ''{% if view_name %}; @get('/api/view/{{ view_name }}/sse'){% endif %}" data-attr:selected="${{ signal_name }} == ''"{% endmacro %}
 
 {#- === Search & Debounce === -#}
 
-{# Debounced input that refreshes SSE after typing stops #}
-{% macro search(signal_name, view_name, delay='300ms') %}data-bind="{{ signal_name }}" data-on:input__debounce.{{ delay }}="@get('/api/runtime/view/{{ view_name }}/sse')"{% endmacro %}
+{#-
+  search(signal_name, view_name, delay='300ms')
 
-{# Debounced action on change (e.g., settings auto-save) #}
+  Wire a debounced search input: two-way-binds to a signal and refreshes
+  the view's SSE stream when the user pauses typing.
+
+  Args:
+    signal_name: Query signal (bound with `data-bind`).
+    view_name: View whose SSE stream to refresh on input.
+    delay: Datastar debounce modifier (e.g. `300ms`, `500ms`). Defaults
+      to `300ms`.
+
+  Example:
+    <ship-input {{ search('q', 'tasks') }} placeholder="Search..."></ship-input>
+-#}
+{% macro search(signal_name, view_name, delay='300ms') %}data-bind="{{ signal_name }}" data-on:input__debounce.{{ delay }}="@get('/api/view/{{ view_name }}/sse')"{% endmacro %}
+
+{#-
+  on_change_debounced(expr, delay='300ms')
+
+  Run an expression on `change`, debounced. Useful for settings that
+  auto-save after the user finishes editing.
+
+  Args:
+    expr: Datastar expression.
+    delay: Debounce duration. Defaults to `300ms`.
+
+  Example:
+    <ship-input {{ bind('name') }}
+                {{ on_change_debounced("@put('/api/settings', {payload: {name: $name}})") }}>
+    </ship-input>
+-#}
 {% macro on_change_debounced(expr, delay='300ms') %}data-on:change__debounce.{{ delay }}="{{ expr }}"{% endmacro %}
 
 {#- === Radio / Selection === -#}
 
-{# Radio-style selection — sets a signal, marks as checked #}
+{#-
+  radio(signal_name, value)
+
+  Wire a radio-style button: sets the named signal to `value` on click
+  and reflects the selection via `aria-checked`.
+
+  Args:
+    signal_name: Selection signal.
+    value: Value this option represents.
+
+  Example:
+    <ship-button {{ radio('theme', 'dark') }}>Dark</ship-button>
+    <ship-button {{ radio('theme', 'light') }}>Light</ship-button>
+-#}
 {% macro radio(signal_name, value) %}data-on:click="${{ signal_name }} = '{{ value }}'" data-attr:aria-checked="${{ signal_name }} == '{{ value }}'"{% endmacro %}
 
 {#- === Confirmation === -#}
 
-{# Confirm before action — shows browser confirm dialog #}
+{#-
+  confirm_delete(collection, id)
+
+  Wire a click handler that shows a browser `confirm()` dialog with
+  "Delete this item?" and, on OK, DELETEs the item. For a typed
+  Ship-styled confirm dialog use `confirm_dialog()` / `confirm_trigger()`.
+
+  Args:
+    collection: Collection id.
+    id: Item id to delete.
+
+  Example:
+    <ship-button {{ confirm_delete('task', item.id) }}>Delete</ship-button>
+-#}
 {% macro confirm_delete(collection, id) %}data-on:click="confirm('Delete this item?') && @delete('/api/collections/{{ collection }}/items/{{ id }}')"{% endmacro %}
 
-{# Generic confirm before action #}
+{#-
+  confirm(message, action_expr)
+
+  Wire a click handler that shows a browser `confirm()` dialog with the
+  given message and, on OK, runs the Datastar expression.
+
+  Args:
+    message: Dialog text.
+    action_expr: Datastar expression to run when the user confirms.
+
+  Example:
+    <ship-button {{ confirm('Cancel this job?', "@post('/api/jobs/" ~ job.id ~ "/cancel')") }}>
+      Cancel
+    </ship-button>
+-#}
 {% macro confirm(message, action_expr) %}data-on:click="confirm('{{ message }}') && {{ action_expr }}"{% endmacro %}
 
 {#- === Extended Live === -#}
 
-{# SSE subscription with requestCancellation disabled (for persistent connections) #}
-{% macro live_persistent(view_name) %}data-init="@get('/api/runtime/view/{{ view_name }}/sse', {requestCancellation: 'disabled'})"{% endmacro %}
+{#-
+  live_persistent(view_name)
+
+  Like `live()`, but configures Datastar with `requestCancellation: 'disabled'`
+  so the SSE connection is not aborted when other `@get`/`@post` actions
+  fire on the page. Use for views that must stay subscribed across
+  navigations within the same shell region.
+
+  Args:
+    view_name: View slug whose SSE stream to subscribe to.
+
+  Example:
+    <div {{ live_persistent('events') }}>
+      <div id="events-content"></div>
+    </div>
+-#}
+{% macro live_persistent(view_name) %}data-init="@get('/api/view/{{ view_name }}/sse', {requestCancellation: 'disabled'})"{% endmacro %}
 
 {#- === Fetch error handling === -#}
 
-{# Bind a signal to receive a failure message when a fetch action on
-   THIS element returns an HTTP error or non-SSE body.
+{#-
+  on_fetch_error(signal_name, message="'HTTP ' + (evt.detail.argsRaw && evt.detail.argsRaw.status || '?')")
 
-   Datastar fires a `datastar-fetch` event on document with
-     detail: { type: 'error', el: <trigger>, argsRaw: { status } }
-   when `onopen` sees a >= 400 response. This macro attaches a
-   document-level listener scoped to the current element so a failed
-   @post/@get/@put/@delete patches the named error signal.
+  Bind a signal to receive a failure message when a fetch action on
+  THIS element returns an HTTP error or non-SSE body.
 
-   Usage (compose alongside `post()` / a raw @post chain):
-     <ship-button
-       data-on:click="$step = 3; @post('/api/projects', {payload: ...})"
-       {{ on_fetch_error('ws_error') }}>
-       Continue
-     </ship-button>
+  Datastar fires a `datastar-fetch` event on document with
+    detail: { type: 'error', el: <trigger>, argsRaw: { status } }
+  when `onopen` sees a >= 400 response. This macro attaches a
+  document-level listener scoped to the current element so a failed
+  `@post`/`@get`/`@put`/`@delete` patches the named error signal.
 
-   The default message is "HTTP <status>"; pass a JS expression via
-   `message` to override (has access to `evt.detail.argsRaw.status`). #}
+  Args:
+    signal_name: Signal that receives the error message when the fetch
+      fails.
+    message: JS expression producing the error message. Has access to
+      `evt.detail.argsRaw.status`. Defaults to `'HTTP ' + status`.
+
+  Example:
+    <ship-button
+      data-on:click="$step = 3; @post('/api/projects', {payload: ...})"
+      {{ on_fetch_error('ws_error') }}>
+      Continue
+    </ship-button>
+-#}
 {% macro on_fetch_error(signal_name, message="'HTTP ' + (evt.detail.argsRaw && evt.detail.argsRaw.status || '?')") %}data-on:datastar-fetch__document="evt.detail && evt.detail.el === el && evt.detail.type === 'error' ? ${{ signal_name }} = {{ message }} : null"{% endmacro %}
 
 {#- === Data Macros === -#}
 
-{# Auto-form: generate typed form fields from a collection schema #}
+{#-
+  form(schema, collection, form_signal='form')
+
+  Auto-generate field inputs from a collection schema, two-way-bound to
+  $<form_signal>.<field>. For the full CRUD surface (submit, loading,
+  error surface, create vs update), pair this with explicit `create()`
+  or `update()` macros on a separate button — the deferred full-CRUD
+  primitive is tracked in docs/ship-sdk/references/docs/roadmap.md.
+
+  Field types: enum → <ship-select>, boolean → <ship-switch>, number →
+  numeric <ship-input>, markdown → <ship-textarea>, else <ship-input>.
+  Required fields render a red asterisk suffix.
+
+  Args:
+    schema: Collection schema (from `ship_schema(collection)`).
+    collection: Collection id. Kept for future extension and lint
+      alignment.
+    form_signal: Parent signal object inputs bind into. Defaults to `form`.
+
+  Example:
+    <div {{ signal('form', {}) }}>
+      {{ form(ship_schema('notes'), 'notes') }}
+      <ship-button {{ create('notes', '$form') }}>Save</ship-button>
+    </div>
+-#}
 {% macro form(schema, collection, form_signal='form') %}
 <div class="ship-form">
-  {% for field_name, field_def in schema.fields %}
+  {% for field_name, field_def in schema.fields | items%}
   <div class="ship-form-field">
     <label class="ship-form-label">
       {{ field_name }}{% if field_def.required %}<span style="color:var(--destructive)"> *</span>{% endif %}
     </label>
-    {% if field_def.field_type == "enum" and field_def.values %}
+    {% if field_def.type == "enum" and field_def.values %}
     <ship-select size="sm" data-bind="{{ form_signal }}.{{ field_name }}">
       <option value="">--</option>
       {% for v in field_def.values %}<option value="{{ v }}">{{ v }}</option>{% endfor %}
     </ship-select>
-    {% elif field_def.field_type == "boolean" %}
+    {% elif field_def.type == "boolean" %}
     <ship-switch data-bind="{{ form_signal }}.{{ field_name }}"></ship-switch>
-    {% elif field_def.field_type == "number" %}
+    {% elif field_def.type == "number" %}
     <ship-input size="sm" type="number" data-bind="{{ form_signal }}.{{ field_name }}" placeholder="0"></ship-input>
-    {% elif field_def.field_type == "markdown" %}
+    {% elif field_def.type == "markdown" %}
     <ship-textarea size="sm" data-bind="{{ form_signal }}.{{ field_name }}" rows="3" placeholder="{{ field_name }}"></ship-textarea>
     {% else %}
     <ship-input size="sm" data-bind="{{ form_signal }}.{{ field_name }}" placeholder="{{ field_name }}"></ship-input>
@@ -211,7 +866,23 @@
 </div>
 {% endmacro %}
 
-{# Auto-table: generate a data table from schema + items #}
+{#-
+  table(schema, items, collection)
+
+  Auto-generate a data table from a schema plus a list of items. Emits
+  an ID column, one column per schema field with type-appropriate
+  formatting (enum -> chip, boolean -> badge, number -> monospace,
+  array -> up-to-4 chips with overflow badge), an Updated column, and a
+  per-row delete button wired with `delete(collection, item.id)`.
+
+  Args:
+    schema: Collection schema dict.
+    items: Iterable of item records with `.id`, `.data`, `.updated_at`.
+    collection: Collection id (used by the per-row delete button).
+
+  Example:
+    {{ table(ship_schema('task'), ship_items('task'), 'task') }}
+-#}
 {% macro table(schema, items, collection) %}
 <table class="ship-table">
   <thead><tr>
@@ -224,7 +895,7 @@
     {% for item in items %}
     <tr id="item-{{ item.id }}">
       <td class="mono muted" title="{{ item.id }}">{{ item.id[:10] }}</td>
-      {% for field_name, field_def in schema.fields %}
+      {% for field_name, field_def in schema.fields | items%}
       <td>
         {% set val = item.data[field_name] if item.data[field_name] is defined else none %}
         {% if val is none or val == "" %}<span class="null">--</span>
@@ -245,40 +916,138 @@
 
 {#- === Layout === -#}
 
-{# Centered single-column layout with max-width. Good for settings, forms, detail pages. #}
+{#-
+  layout_center(max_width='768px')
+
+  Open a centered single-column layout wrapper: `max-width` with
+  horizontal auto-margins and generous vertical padding (space-6 top,
+  space-12 bottom). Must be closed with `layout_end()`. Good for
+  settings pages, forms, and detail views.
+
+  Args:
+    max_width: CSS length for the column's maximum width. Defaults to
+      `768px`.
+
+  Example:
+    {{ layout_center('960px') }}
+      ...content...
+    {{ layout_end() }}
+-#}
 {% macro layout_center(max_width='768px') %}
 <div style="max-width:{{ max_width }};margin:0 auto;padding:var(--space-6) var(--space-5) var(--space-12)">
 {% endmacro %}
 
-{# Two-column layout: fixed sidebar + flexible main pane. Good for explorers, canvas. #}
+{#-
+  layout_sidebar(sidebar_width='240px')
+
+  Open a two-column grid: fixed sidebar + flexible main pane, full
+  height. Must be closed with `layout_end()`. Good for explorers and
+  canvas-style views.
+
+  Args:
+    sidebar_width: CSS length for the sidebar column. Defaults to
+      `240px`.
+
+  Example:
+    {{ layout_sidebar() }}
+      <aside>...</aside>
+      <main>...</main>
+    {{ layout_end() }}
+-#}
 {% macro layout_sidebar(sidebar_width='240px') %}
 <div style="display:grid;grid-template-columns:{{ sidebar_width }} 1fr;height:100%;min-height:0">
 {% endmacro %}
 
-{# Three-column layout: sidebar + main + info panel. Good for IDE-style views. #}
+{#-
+  layout_three_col(left='240px', right='320px')
+
+  Open a three-column grid: fixed left sidebar + flexible main pane +
+  fixed right info panel, full height. Must be closed with
+  `layout_end()`. Good for IDE-style views.
+
+  Args:
+    left: CSS length for the left column. Defaults to `240px`.
+    right: CSS length for the right column. Defaults to `320px`.
+
+  Example:
+    {{ layout_three_col() }}
+      <aside>...</aside>
+      <main>...</main>
+      <aside>...</aside>
+    {{ layout_end() }}
+-#}
 {% macro layout_three_col(left='240px', right='320px') %}
 <div style="display:grid;grid-template-columns:{{ left }} 1fr {{ right }};height:100%;min-height:0">
 {% endmacro %}
 
-{# Close a layout wrapper. #}
+{#-
+  layout_end()
+
+  Close a layout wrapper opened by `layout_center()`, `layout_sidebar()`,
+  or `layout_three_col()`.
+
+  Example:
+    {{ layout_center() }}
+      ...content...
+    {{ layout_end() }}
+-#}
 {% macro layout_end() %}</div>{% endmacro %}
 
 {#- === Toast Notifications === -#}
 
-{# Show a toast notification programmatically. Uses ship-toast-container. #}
+{#-
+  toast_container()
+
+  Mount the `<ship-toast-container>` in the bottom-right corner with the
+  id `ship-toasts`. `toast_action()` looks this up by id to dispatch
+  toasts. Place once per page.
+
+  Example:
+    {{ toast_container() }}
+-#}
 {% macro toast_container() %}
 <ship-toast-container position="bottom-right" id="ship-toasts"></ship-toast-container>
 {% endmacro %}
 
-{# Trigger a toast from a button click or event handler.
-   Usage: <ship-button {{ toast_action('Saved!', 'success') }}>Save</ship-button> #}
+{#-
+  toast_action(message, tone='default', duration=3000)
+
+  Wire a click handler that dispatches a toast through the container
+  mounted by `toast_container()`.
+
+  Args:
+    message: Toast title text.
+    tone: Visual tone — `default`, `info`, `success`, `warning`,
+      `destructive`. Defaults to `default`.
+    duration: Time in milliseconds before auto-dismiss. Defaults to
+      `3000`.
+
+  Example:
+    <ship-button {{ toast_action('Saved!', 'success') }}>Save</ship-button>
+-#}
 {% macro toast_action(message, tone='default', duration=3000) %}data-on:click="(() => { const c = document.getElementById('ship-toasts') || document.querySelector('ship-toast-container'); if(c) c.show({title: '{{ message }}', tone: '{{ tone }}', duration: {{ duration }}}); })()"{% endmacro %}
 
 {#- === Confirm Dialog === -#}
 
-{# Render a confirm dialog that gates a destructive action.
-   Usage: {{ confirm_dialog('delete-item', 'Delete this item?', 'This cannot be undone.', delete('/tasks', item_id)) }}
-   Then on the trigger: <ship-button {{ confirm_trigger('delete-item') }}>Delete</ship-button> #}
+{#-
+  confirm_dialog(id, title, description, action_attrs)
+
+  Render a `<ship-alert-dialog>` that gates a destructive action.
+  Cancel closes the dialog; Confirm executes `action_attrs` and then
+  closes. Pair with `confirm_trigger(id)` on the opening button.
+
+  Args:
+    id: Unique id suffix. The dialog's DOM id becomes `confirm-<id>`.
+    title: Heading text.
+    description: Body text under the heading.
+    action_attrs: Pre-rendered attributes for the confirm button —
+      typically a `delete()` / `post()` / `put()` macro call.
+
+  Example:
+    {{ confirm_dialog('delete-item', 'Delete this item?',
+       'This cannot be undone.', delete('task', item.id)) }}
+    <ship-button {{ confirm_trigger('delete-item') }}>Delete</ship-button>
+-#}
 {% macro confirm_dialog(id, title, description, action_attrs) %}
 <ship-alert-dialog id="confirm-{{ id }}">
   <span slot="title">{{ title }}</span>
@@ -291,12 +1060,94 @@
 </ship-alert-dialog>
 {% endmacro %}
 
-{# Open a confirm dialog by id. #}
+{#-
+  confirm_trigger(id)
+
+  Wire a click handler that opens a `confirm_dialog()` by id (adds the
+  `open` attribute to `confirm-<id>`).
+
+  Args:
+    id: Matching id passed to `confirm_dialog()`.
+
+  Example:
+    <ship-button {{ confirm_trigger('delete-item') }}>Delete</ship-button>
+-#}
 {% macro confirm_trigger(id) %}data-on:click="document.getElementById('confirm-{{ id }}').setAttribute('open', '')"{% endmacro %}
+
+{#- === Section (card with standardized header) === -#}
+
+{#-
+  section(title, icon=none, link_href=none, link_label=none)
+
+  Open a `<ship-card>` with a standardized slot-header row: optional
+  leading ship-icon + title on the left, optional trailing link pill
+  (muted text + right-chevron) on the right. Must be paired with
+  `endsection()`.
+
+  When `link_href` starts with `/api/view/`, the trailing link
+  is wired to `@get(link_href)` with `.prevent` so SSE-aware navigation
+  takes over. Otherwise it is a plain anchor.
+
+  The layout is inline-styled on purpose — the macro owns the
+  standardized design tokens so view authors don't have to re-declare
+  `.dash-section-head`.
+
+  Args:
+    title: Section heading text. Required.
+    icon: ship-icon registry name (e.g. `activity`, `cpu`). Optional.
+    link_href: URL for the trailing pill. Optional.
+    link_label: Visible text on the trailing pill. Optional.
+
+  Example:
+    {{ section('Recent jobs', icon='activity',
+               link_href='/api/view/pipelines',
+               link_label='View all') }}
+      <ship-list-tile>...</ship-list-tile>
+    {{ endsection() }}
+-#}
+{% macro section(title, icon=none, link_href=none, link_label=none) %}
+<ship-card padding="none">
+  <div slot="header" style="display:flex;align-items:center;justify-content:space-between;gap:var(--space-3);padding:var(--space-4) var(--space-5)">
+    <h2 style="display:flex;align-items:center;gap:var(--space-2);margin:0;font-size:var(--text-sm);font-weight:var(--font-weight-semibold);color:var(--foreground)">
+      {% if icon %}<ship-icon name="{{ icon }}" style="width:16px;height:16px;color:var(--muted-foreground)"></ship-icon>{% endif %}
+      {{ title }}
+    </h2>
+    {% if link_href and link_label %}
+    <a href="{{ link_href }}"
+       {% if link_href is startingwith('/api/view/') %}data-on:click.prevent="@get('{{ link_href }}')"{% endif %}
+       style="display:inline-flex;align-items:center;gap:var(--space-1);padding:var(--space-1) var(--space-2);font-size:var(--text-xs);color:var(--muted-foreground);text-decoration:none;border-radius:var(--radius-sm)">
+      {{ link_label }}
+      <ship-icon name="chevron-right" style="width:10px;height:10px"></ship-icon>
+    </a>
+    {% endif %}
+  </div>
+{% endmacro %}
+
+{#-
+  endsection()
+
+  Close the `<ship-card>` opened by `section()`.
+
+  Example:
+    {{ section('Recent jobs') }}
+      ...body...
+    {{ endsection() }}
+-#}
+{% macro endsection() %}</ship-card>{% endmacro %}
 
 {#- === Shared Styles === -#}
 
-{# Shared styles for ship-form and ship-table #}
+{#-
+  styles()
+
+  Emit the shared `<style>` block used by `form()` and `table()`:
+  `.ship-form-field`, `.ship-form-label`, `.ship-table`, `.mono`,
+  `.muted`, `.null`. Place once in `<head>` when a view renders an
+  auto-form or auto-table.
+
+  Example:
+    <head>{{ head('Tasks') }}{{ styles() }}</head>
+-#}
 {% macro styles() %}
 <style>
 .ship-form-field { display: flex; align-items: flex-start; gap: var(--space-3); margin-bottom: var(--space-2); }

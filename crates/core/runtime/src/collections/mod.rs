@@ -1,6 +1,6 @@
 //! Collections — structured, queryable data for any domain.
 //!
-//! A collection has a schema (`.ship/schemas/<id>.jsonc`), contains items
+//! A collection has a schema (`.ship/collections/<id>.jsonc`), contains items
 //! stored in `.ship/data.db`, and can be queried by any surface.
 
 pub mod builtin;

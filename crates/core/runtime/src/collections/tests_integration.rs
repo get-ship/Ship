@@ -326,7 +326,7 @@ mod tests {
     fn schema_loads_from_directory() {
         let tmp = tempfile::tempdir().unwrap();
         let ship_dir = tmp.path().join(".ship");
-        let schemas_dir = ship_dir.join("schemas");
+        let schemas_dir = ship_dir.join("collections");
         std::fs::create_dir_all(&schemas_dir).unwrap();
         std::fs::write(
             schemas_dir.join("note.jsonc"),

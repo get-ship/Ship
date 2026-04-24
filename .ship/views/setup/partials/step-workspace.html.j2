@@ -1,6 +1,6 @@
 {#- Step 2 — Create or open a workspace.
     Submit → @post /api/projects. Server patches $ws_error on failure. -#}
-{% from '_ship.html.j2' import bind, on, on_fetch_error %}
+{% from '_ship.html.j2' import bind, on, on_fetch_error, on_click, attr_if %}
 
 <p class="setup-eyebrow">Step 2 of 4</p>
 <h2 class="setup-title">Pick a project folder</h2>
@@ -14,7 +14,7 @@
     drive it via data-attr:active, and we listen to ship-tab-change to
     mirror it back into $ws_mode.                                      -#}
 <ship-tabs variant="segmented" size="md"
-           data-attr:active="$ws_mode"
+           {{ attr_if('$ws_mode', 'active') }}
            {{ on('ship-tab-change', "$ws_mode = evt.detail.name; $ws_error = ''") }}
            style="width:100%; margin-bottom: var(--space-5)">
   <ship-tab name="new" label="Create new project"></ship-tab>
@@ -51,7 +51,7 @@
 
 <div class="setup-actions">
   <ship-button variant="ghost" size="md"
-               data-on:click="$step = 1">
+               {{ on_click('$step = 1') }}>
     <ship-icon slot="leading" name="arrow-left"></ship-icon>
     Back
   </ship-button>
@@ -60,8 +60,8 @@
       element so a 4xx / 5xx / non-SSE response patches $ws_error into
       the inline error slot without any custom JS.                   -#}
   <ship-button tone="accent" variant="solid" size="md"
-               data-attr:disabled="($ws_mode == 'new' ? !$ws_name : !$ws_path)"
-               data-on:click="$step = 3; @post('/api/projects', {payload: {mode: $ws_mode, name: $ws_name, path: $ws_path}})"
+               {{ attr_if("($ws_mode == 'new' ? !$ws_name : !$ws_path)", 'disabled') }}
+               {{ on_click("$step = 3; @post('/api/projects', {payload: {mode: $ws_mode, name: $ws_name, path: $ws_path}})") }}
                {{ on_fetch_error('ws_error', "'Could not create workspace (HTTP ' + (evt.detail.argsRaw && evt.detail.argsRaw.status || '?') + ')'") }}>
     Continue
     <ship-icon slot="trailing" name="arrow-right"></ship-icon>

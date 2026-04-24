@@ -13,12 +13,14 @@
 use serde::Serialize;
 use std::path::Path;
 
-// ── Built-in themes (compile-time embedded) ──────────────────────────────────
-
-const GRUVBOX_CSS: &str = include_str!("../themes/gruvbox.css");
-const NORD_CSS: &str = include_str!("../themes/nord.css");
-const CATPPUCCIN_CSS: &str = include_str!("../themes/catppuccin.css");
-const TOKYO_NIGHT_CSS: &str = include_str!("../themes/tokyo-night.css");
+// ── Built-in themes ──────────────────────────────────────────────────
+//
+// The canonical theme catalog lives in `packages/ship-set/src/themes.css`
+// (`ship-light`, `ship-dark`, `paper`, `halo`, `console`, `contrast`) and
+// ships to the browser via `view-tokens.css`. The daemon-side theme.css
+// endpoint is now a power-user override hook — project/global CSS files
+// merge with the ship-set catalog. No compile-time built-ins overlay the
+// shell catalog anymore.
 
 /// Metadata for a discovered theme.
 #[derive(Debug, Clone, Serialize)]
@@ -43,12 +45,7 @@ struct BuiltinTheme {
     css: &'static str,
 }
 
-const BUILTIN_THEMES: &[BuiltinTheme] = &[
-    BuiltinTheme { name: "gruvbox", css: GRUVBOX_CSS },
-    BuiltinTheme { name: "nord", css: NORD_CSS },
-    BuiltinTheme { name: "catppuccin", css: CATPPUCCIN_CSS },
-    BuiltinTheme { name: "tokyo-night", css: TOKYO_NIGHT_CSS },
-];
+const BUILTIN_THEMES: &[BuiltinTheme] = &[];
 
 /// Return metadata for all discovered themes across all sources.
 pub fn list_themes() -> Vec<ThemeMeta> {

@@ -42,7 +42,7 @@
   {
     "id": "event-stream-panel",
     "status": "rc",
-    "notes": "EventDebugPanel and useEventStream work. Receives SSE from /api/runtime/events. Displays event stream in debug view. Cache invalidation logic exists but incomplete — only invalidates workspace queries on workspace.* events, not all affected caches."
+    "notes": "EventDebugPanel and useEventStream work. Receives SSE from /api/events/stream. Displays event stream in debug view. Cache invalidation logic exists but incomplete — only invalidates workspace queries on workspace.* events, not all affected caches."
   },
   {
     "id": "publish-dialog",
@@ -67,7 +67,7 @@
   {
     "id": "daemon-event-listener",
     "status": "rc",
-    "notes": "DaemonEventListener component mounts in app root. Receives SSE from /api/runtime/events. Updates React Query cache on workspace.* events. Exponential backoff reconnection. But invalidation coverage is incomplete for all mutation types (skill/agent writes)."
+    "notes": "DaemonEventListener component mounts in app root. Receives SSE from /api/events/stream. Updates React Query cache on workspace.* events. Exponential backoff reconnection. But invalidation coverage is incomplete for all mutation types (skill/agent writes)."
   },
   {
     "id": "registry-browser",
@@ -122,7 +122,7 @@
   {
     "id": "embedded-terminal",
     "status": "aspirational",
-    "notes": "TerminalTab.tsx skeleton exists with xterm.js integration. Attempts to connect to /api/runtime/workspaces/{id}/pty WebSocket. No evidence daemon PTY endpoint exists. Code will fail to connect. Zero testing."
+    "notes": "TerminalTab.tsx skeleton exists with xterm.js integration. Attempts to connect to /api/workspaces/{id}/pty WebSocket. No evidence daemon PTY endpoint exists. Code will fail to connect. Zero testing."
   },
   {
     "id": "analytics-dashboard",

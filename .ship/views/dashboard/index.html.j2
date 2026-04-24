@@ -3,7 +3,7 @@
   Shows: header, quick stats, recent jobs, agents, events feed, quick links.
   All data loaded via manifest.yaml. No hardcoded colors or px values.
 -#}
-{% from '_ship.html.j2' import head, signal, styles %}
+{% from '_ship.html.j2' import head, signal, styles, on_click_prevent %}
 {% if not fragment %}
 <!DOCTYPE html>
 <html lang="en">
@@ -36,39 +36,58 @@
         </div>
       </div>
       <div class="dash-status-row">
+        {#- SDK gap: no ship-element for a live/pulsing status badge.
+            Candidate: ship-status-dot with `pulse` + a label slot, or a
+            dedicated ship-live-indicator. Kept view-local. -#}
         <div class="dash-live-badge" role="status" aria-label="Live updates active">
           <span class="dash-live-dot"></span>live
         </div>
       </div>
     </header>
 
-    {# ── Stats row ────────────────────────────────────────────── #}
-    {%- set total_jobs    = (stats.active + stats.history) if stats is defined else 0 -%}
-    {%- set active_jobs   = stats.active if stats is defined else 0 -%}
-    {%- set all_agents    = ship_agents() -%}
-    {%- set all_cols      = ship_collections() -%}
-    {%- set event_total   = total if total is defined else 0 -%}
+    {# ── Dashboard state — pulled inline via ship.* SDK. ───────── #}
+    {%- set dash = ship.dashboard.state() -%}
+    {%- set stats = dash.stats -%}
+    {%- set recent_jobs = dash.recent_runs -%}
+    {%- set rows = dash.events -%}
+    {%- set total_jobs = stats.active + stats.history -%}
+    {%- set active_jobs = stats.active -%}
+    {%- set all_agents = dash.agents -%}
+    {%- set all_cols = dash.collections -%}
+    {%- set event_total = dash.total_events -%}
 
-    <div class="dash-stats" role="list" aria-label="Workspace statistics">
-      <div class="dash-stat-card dash-stat-card--jobs" role="listitem">
-        <span class="dash-stat-label">Total jobs</span>
-        <span class="dash-stat-value">{{ total_jobs }}</span>
-        <span class="dash-stat-sub">{{ active_jobs }} active</span>
+    {#- SDK gap: ship-stat has no "accent stripe" channel (its `accent` attr
+        tints the value text, not a top border-bar). The 2px colored stripe
+        is part of dashboard visual identity, so we keep a thin view-local
+        wrapper that paints the stripe via `::before` on top of ship-stat. -#}
+    <div class="dash-stats" role="list" aria-label="Workspace statistics" data-view-enter>
+      <div class="dash-stat-wrap dash-stat-wrap--jobs" role="listitem">
+        <ship-stat>
+          <span slot="label">Total jobs</span>
+          {{ total_jobs }}
+          <span slot="hint">{{ active_jobs }} active</span>
+        </ship-stat>
       </div>
-      <div class="dash-stat-card dash-stat-card--agents" role="listitem">
-        <span class="dash-stat-label">Agents</span>
-        <span class="dash-stat-value">{{ all_agents | length }}</span>
-        <span class="dash-stat-sub">configured</span>
+      <div class="dash-stat-wrap dash-stat-wrap--agents" role="listitem">
+        <ship-stat>
+          <span slot="label">Agents</span>
+          {{ all_agents | length }}
+          <span slot="hint">configured</span>
+        </ship-stat>
       </div>
-      <div class="dash-stat-card dash-stat-card--events" role="listitem">
-        <span class="dash-stat-label">Events</span>
-        <span class="dash-stat-value">{{ event_total }}</span>
-        <span class="dash-stat-sub">in stream</span>
+      <div class="dash-stat-wrap dash-stat-wrap--events" role="listitem">
+        <ship-stat>
+          <span slot="label">Events</span>
+          {{ event_total }}
+          <span slot="hint">in stream</span>
+        </ship-stat>
       </div>
-      <div class="dash-stat-card dash-stat-card--collections" role="listitem">
-        <span class="dash-stat-label">Collections</span>
-        <span class="dash-stat-value">{{ all_cols | length }}</span>
-        <span class="dash-stat-sub">schemas defined</span>
+      <div class="dash-stat-wrap dash-stat-wrap--collections" role="listitem">
+        <ship-stat>
+          <span slot="label">Collections</span>
+          {{ all_cols | length }}
+          <span slot="hint">schemas defined</span>
+        </ship-stat>
       </div>
     </div>
 
@@ -76,8 +95,8 @@
     <div class="dash-body">
 
       {# Recent jobs #}
-      <section class="dash-section" aria-label="Recent jobs">
-        <div class="dash-section-head">
+      <ship-card padding="none" class="dash-section" aria-label="Recent jobs">
+        <div slot="header" class="dash-section-head">
           <h2 class="dash-section-title">
             <svg class="dash-section-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor"
                  stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
@@ -86,43 +105,50 @@
             </svg>
             Recent jobs
           </h2>
-          <a class="dash-section-link" href="/api/runtime/view/pipelines"
-             data-on:click.prevent="@get('/api/runtime/view/pipelines')">
+          <a class="dash-section-link" href="/api/view/pipelines"
+             {{ on_click_prevent("@get('/api/view/pipelines')") }}>
             View all <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor"
               stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
               <polyline points="9 18 15 12 9 6"/></svg>
           </a>
         </div>
-        <div class="dash-section-body">
-          {%- set recent_jobs = (active_runs | take(5)) if active_runs is defined else
-                                (history_runs | take(5)) if history_runs is defined else [] -%}
+        <div class="dash-jobs-list">
           {% if recent_jobs | length > 0 %}
             {% for run in recent_jobs %}
-            <div class="dash-job-item">
-              <span class="dash-job-dot">
-                <ship-status-dot tone="{{ run.tone if run.tone is defined else 'muted' }}"></ship-status-dot>
-              </span>
+            {%- set run_agent = run.agent if run.agent is defined else '' -%}
+            <ship-list-tile density="compact" class="dash-job-tile">
+              <ship-status-dot slot="leading" tone="{{ run.tone if run.tone is defined else 'muted' }}"></ship-status-dot>
               <span class="dash-job-name">{{ run.slug if run.slug is defined else run.id }}</span>
-              <span class="dash-job-agent">{{ run.agent if run.agent is defined else '—' }}</span>
-              <span class="dash-job-time">
-                {%- if run.started_at is defined -%}{{ run.started_at }}
-                {%- elif run.created_at is defined -%}{{ run.created_at }}
-                {%- else -%}—{%- endif -%}
+              <span slot="trailing" class="dash-job-trailing">
+                {%- if run_agent -%}
+                <ship-avatar size="sm" identity-hue="{{ run_agent }}"
+                             name="{{ run_agent }}"
+                             initials="{{ run_agent[:1] | upper }}"></ship-avatar>
+                <span class="dash-job-agent">{{ run_agent }}</span>
+                {%- else -%}
+                <span class="dash-job-agent">—</span>
+                {%- endif -%}
+                {%- set ts = run.started_at if run.started_at is defined else (run.created_at if run.created_at is defined else '') -%}
+                {%- if ts -%}
+                  <ship-timestamp value="{{ ts }}" class="dash-job-time"></ship-timestamp>
+                {%- else -%}
+                  <span class="dash-job-time">—</span>
+                {%- endif -%}
               </span>
-            </div>
+            </ship-list-tile>
             {% endfor %}
           {% else %}
-            <div class="dash-empty">
-              <ship-icon name="play" size="lg" tone="muted"></ship-icon>
-              <span class="dash-empty-label">No jobs yet — start a workflow</span>
-            </div>
+            <ship-empty-state variant="placeholder" size="sm" icon="play">
+              <span slot="title">No jobs yet</span>
+              Start a workflow to see runs here.
+            </ship-empty-state>
           {% endif %}
         </div>
-      </section>
+      </ship-card>
 
       {# Agents #}
-      <section class="dash-section" aria-label="Agents">
-        <div class="dash-section-head">
+      <ship-card padding="none" class="dash-section" aria-label="Agents">
+        <div slot="header" class="dash-section-head">
           <h2 class="dash-section-title">
             <svg class="dash-section-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor"
                  stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
@@ -132,8 +158,8 @@
             Agents
             <ship-badge tone="muted" variant="soft" size="sm">{{ all_agents | length }}</ship-badge>
           </h2>
-          <a class="dash-section-link" href="/api/runtime/view/agents"
-             data-on:click.prevent="@get('/api/runtime/view/agents')">
+          <a class="dash-section-link" href="/api/v/agents"
+             {{ on_click_prevent("@get('/api/v/agents')") }}>
             Manage <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor"
               stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
               <polyline points="9 18 15 12 9 6"/></svg>
@@ -141,37 +167,66 @@
         </div>
         <div class="dash-section-body">
           {% if all_agents | length > 0 %}
-          <div class="dash-agents-grid">
-            {% for agent in all_agents | take(8) %}
-            <a class="dash-agent-pill"
-               href="/agents/{{ agent.id }}"
-               data-on:click.prevent="window.router ? window.router.navigate('/agents/{{ agent.id }}') : void(0)">
-              <div class="dash-agent-avatar" aria-hidden="true">
-                {{ agent.name[0] if agent.name is defined and agent.name | length > 0 else 'A' }}
+          <div class="dash-agents-grid" data-view-enter>
+            {% for agent in all_agents | take(6) %}
+            {%- set agent_name = agent.name if agent.name is defined else agent.id -%}
+            {%- set agent_letter = agent.letter if agent.letter is defined else (agent.name[0] if agent.name is defined and agent.name | length > 0 else 'A') -%}
+            {%- set agent_desc = agent.description if agent.description is defined else '' -%}
+            {%- set agent_providers = agent.providers if agent.providers is defined else [] -%}
+            {%- set agent_tags = agent.tags if agent.tags is defined else [] -%}
+            {%- set tag_cap = 2 -%}
+            <ship-list-tile
+               variant="card"
+               density="compact"
+               interactive
+               navigable="/agents/{{ agent.id }}"
+               class="dash-agent-tile">
+              <ship-avatar slot="leading" size="md" shape="square"
+                           identity-hue="{{ agent.id }}"
+                           initials="{{ agent_letter }}"
+                           name="{{ agent_name }}"></ship-avatar>
+              <div class="dash-agent-body">
+                <div class="dash-agent-head">
+                  <span class="dash-agent-name">{{ agent_name }}</span>
+                  {% if agent_desc %}
+                  <p class="dash-agent-desc">{{ agent_desc }}</p>
+                  {% endif %}
+                </div>
+                <div class="dash-agent-foot">
+                  {% if agent_providers | length > 0 %}
+                  <span class="dash-agent-providers" aria-label="Compiles to">
+                    {% for p in agent_providers %}
+                    <ship-provider-blob provider="{{ p }}" size="sm" variant="glyph" title="{{ p }}"></ship-provider-blob>
+                    {% endfor %}
+                  </span>
+                  {% endif %}
+                  {% for t in agent_tags[:tag_cap] %}
+                  <ship-chip tone="muted" variant="soft" size="sm">{{ t }}</ship-chip>
+                  {% endfor %}
+                  {% if agent_tags | length > tag_cap %}
+                  <ship-chip tone="muted" variant="outline" size="sm">+{{ agent_tags | length - tag_cap }}</ship-chip>
+                  {% endif %}
+                </div>
               </div>
-              <div class="dash-agent-info">
-                <p class="dash-agent-name">{{ agent.name if agent.name is defined else agent.id }}</p>
-                <p class="dash-agent-role">
-                  {%- if agent.role is defined -%}{{ agent.role }}
-                  {%- elif agent.description is defined -%}{{ agent.description }}
-                  {%- else -%}{{ agent.id }}{%- endif -%}
-                </p>
-              </div>
-            </a>
+            </ship-list-tile>
             {% endfor %}
           </div>
           {% else %}
-          <div class="dash-empty">
-            <ship-icon name="user-plus" size="lg" tone="muted"></ship-icon>
-            <span class="dash-empty-label">No agents configured</span>
-          </div>
+          <ship-empty-state variant="placeholder" size="sm" icon="user-plus">
+            <span slot="title">No agents configured</span>
+            Add an agent to dispatch work.
+          </ship-empty-state>
           {% endif %}
         </div>
-      </section>
+      </ship-card>
 
       {# Latest events — full width #}
-      <section class="dash-section dash-body--wide" aria-label="Latest events">
-        <div class="dash-section-head">
+      {#- SDK gap: the events feed is a 3-column grid (timestamp / type / actor)
+          that doesn't flex into ship-list-tile's leading/primary/trailing slot
+          layout cleanly. Kept as view-local composition until we add a
+          grid-tile primitive or a ship-log-row. -#}
+      <ship-card padding="none" class="dash-section dash-body--wide" aria-label="Latest events">
+        <div slot="header" class="dash-section-head">
           <h2 class="dash-section-title">
             <svg class="dash-section-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor"
                  stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
@@ -179,44 +234,47 @@
             </svg>
             Latest events
           </h2>
-          <a class="dash-section-link" href="/api/runtime/view/events"
-             data-on:click.prevent="@get('/api/runtime/view/events')">
+          <a class="dash-section-link" href="/api/view/events"
+             {{ on_click_prevent("@get('/api/view/events')") }}>
             Full stream <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor"
               stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
               <polyline points="9 18 15 12 9 6"/></svg>
           </a>
         </div>
         <div class="dash-section-body">
-          {%- if rows is defined and rows | length > 0 -%}
-            {% for r in rows | take(10) %}
+          {%- if rows | length > 0 -%}
+            {% for r in rows %}
+            {%- set ev_actor = r.actor if r.actor is defined else '' -%}
             <div class="dash-event-row">
               <span class="dash-event-ts">{{ r.timestamp }}</span>
               <span class="dash-event-type">{{ r.event_type }}</span>
-              <span class="dash-event-actor">{{ r.actor if r.actor is defined else '—' }}</span>
+              <span class="dash-event-actor">
+                {%- if ev_actor -%}
+                <ship-avatar size="sm" identity-hue="{{ ev_actor }}"
+                             name="{{ ev_actor }}"
+                             initials="{{ ev_actor[:1] | upper }}"></ship-avatar>
+                <span>{{ ev_actor }}</span>
+                {%- else -%}<span>—</span>{%- endif -%}
+              </span>
             </div>
             {% endfor %}
-          {%- elif groups is defined and groups | length > 0 -%}
-            {%- set ev = namespace(n=0) -%}
-            {% for g in groups %}{% if ev.n < 10 %}{% for r in g.rows %}{% if ev.n < 10 %}
-            <div class="dash-event-row">
-              <span class="dash-event-ts">{{ r.timestamp }}</span>
-              <span class="dash-event-type">{{ r.event_type }}</span>
-              <span class="dash-event-actor">{{ r.actor if r.actor is defined else '—' }}</span>
-            </div>
-            {%- set ev.n = ev.n + 1 -%}
-            {% endif %}{% endfor %}{% endif %}{% endfor %}
           {%- else -%}
-            <div class="dash-empty">
-              <ship-icon name="activity" size="lg" tone="muted"></ship-icon>
-              <span class="dash-empty-label">Waiting for events</span>
-            </div>
+            <ship-empty-state variant="placeholder" size="sm" icon="activity">
+              <span slot="title">Waiting for events</span>
+              The stream will fill as the daemon emits events.
+            </ship-empty-state>
           {%- endif -%}
         </div>
-      </section>
+      </ship-card>
 
       {# Quick links — full width #}
-      <section class="dash-section dash-body--wide" aria-label="Quick links">
-        <div class="dash-section-head">
+      {#- SDK gap: vertical icon-above-label tile pattern. No ship-element
+          covers this shape today — ship-list-tile is row-oriented with
+          leading/primary/trailing; ship-card is a full panel, not a
+          compact action tile. Candidate: a `ship-action-tile` primitive
+          (icon tile + label) for quick-nav grids. Kept view-local. -#}
+      <ship-card padding="none" class="dash-section dash-body--wide" aria-label="Quick links">
+        <div slot="header" class="dash-section-head">
           <h2 class="dash-section-title">
             <svg class="dash-section-icon" viewBox="0 0 24 24" fill="none" stroke="currentColor"
                  stroke-width="2" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
@@ -226,51 +284,8 @@
             Quick links
           </h2>
         </div>
-        <div class="dash-links">
-          <a class="dash-link-btn" href="/api/runtime/view/pipelines" data-on:click.prevent="@get('/api/runtime/view/pipelines')">
-            <div class="dash-link-icon dash-link-icon--workflows" aria-hidden="true">
-              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-                <circle cx="12" cy="12" r="3"/><path d="M19.07 4.93A10 10 0 0 0 6.99 3.34M4 6h.01M2.29 9.62A10 10 0 1 0 21.54 16"/>
-              </svg>
-            </div>Workflows
-          </a>
-          <a class="dash-link-btn" href="/api/runtime/view/agents" data-on:click.prevent="@get('/api/runtime/view/agents')">
-            <div class="dash-link-icon dash-link-icon--agents" aria-hidden="true">
-              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-                <path d="M20 21v-2a4 4 0 0 0-4-4H8a4 4 0 0 0-4 4v2"/><circle cx="12" cy="7" r="4"/>
-              </svg>
-            </div>Agents
-          </a>
-          <a class="dash-link-btn" href="/api/runtime/view/skills" data-on:click.prevent="@get('/api/runtime/view/skills')">
-            <div class="dash-link-icon dash-link-icon--skills" aria-hidden="true">
-              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-                <path d="M2 3h6a4 4 0 0 1 4 4v14a3 3 0 0 0-3-3H2z"/><path d="M22 3h-6a4 4 0 0 0-4 4v14a3 3 0 0 1 3-3h7z"/>
-              </svg>
-            </div>Skills
-          </a>
-          <a class="dash-link-btn" href="/api/runtime/view/data" data-on:click.prevent="@get('/api/runtime/view/data')">
-            <div class="dash-link-icon dash-link-icon--data" aria-hidden="true">
-              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-                <ellipse cx="12" cy="5" rx="9" ry="3"/><path d="M21 12c0 1.66-4 3-9 3s-9-1.34-9-3M3 5v14c0 1.66 4 3 9 3s9-1.34 9-3V5"/>
-              </svg>
-            </div>Data
-          </a>
-          <a class="dash-link-btn" href="/api/runtime/view/events" data-on:click.prevent="@get('/api/runtime/view/events')">
-            <div class="dash-link-icon dash-link-icon--events" aria-hidden="true">
-              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-                <polyline points="22 12 18 12 15 21 9 3 6 12 2 12"/>
-              </svg>
-            </div>Events
-          </a>
-          <a class="dash-link-btn" href="/api/runtime/view/settings" data-on:click.prevent="@get('/api/runtime/view/settings')">
-            <div class="dash-link-icon dash-link-icon--settings" aria-hidden="true">
-              <svg width="16" height="16" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
-                <circle cx="12" cy="12" r="3"/><path d="M19.07 4.93a10 10 0 0 0-14.14 0M4.93 19.07a10 10 0 0 0 14.14 0M20.83 9A10 10 0 0 0 3.17 9m17.66 6a10 10 0 0 1-17.66 0"/>
-              </svg>
-            </div>Settings
-          </a>
-        </div>
-      </section>
+        {% include 'dashboard/partials/quick_links.html.j2' %}
+      </ship-card>
 
     </div>{# /.dash-body #}
   </div>{# /.dash-wrap #}

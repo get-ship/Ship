@@ -1,5 +1,10 @@
 {
+  "$schema": "https://raw.githubusercontent.com/madvib/ship/main/schemas/view-manifest.schema.json",
   "name": "settings",
   "type": "html",
-  "description": "Workspace, project, agent, and integration configuration"
+  "description": "Workspace, project, agent, and integration configuration",
+  "rail": {
+    "label": "Settings",
+    "icon": "settings"
+  }
 }

@@ -1,9 +1,7 @@
 ---
 // Theme picker shared with the marketing site pattern — swatch cards
-// in a popover. Drives off @ship/ui/themes metadata.
-import { THEMES } from '@ship/ui/themes';
-
-const groups = Array.from(new Set(THEMES.map((t) => t.group)));
+// in a popover. Drives off @ship/set/themes metadata.
+import { THEMES } from '@ship/set/themes';
 ---
 
 <ship-popover placement="bottom-end" class="set-theme-popover" data-theme-picker>
@@ -23,36 +21,31 @@ const groups = Array.from(new Set(THEMES.map((t) => t.group)));
   </ship-button>
 
   <div class="set-theme-grid" role="listbox">
-    {groups.map((g) => (
-      <section aria-label={g} class="set-theme-group">
-        <header class="set-theme-group-head">{g}</header>
-        <div class="set-theme-cards">
-          {THEMES.filter((t) => t.group === g).map((t) => (
-            <button
-              type="button"
-              class="set-theme-card"
-              role="option"
-              data-theme-card={t.id}
-              aria-label={t.label}
-              style={`
-                --sw-bg: ${t.swatches[0]};
-                --sw-card: ${t.swatches[1]};
-                --sw-primary: ${t.swatches[2]};
-                --sw-accent: ${t.swatches[3]};
-              `}
-            >
-              <div class="set-theme-swatches">
-                <span style={`background:${t.swatches[0]}`}></span>
-                <span style={`background:${t.swatches[1]}`}></span>
-                <span style={`background:${t.swatches[2]}`}></span>
-                <span style={`background:${t.swatches[3]}`}></span>
-              </div>
-              <div class="set-theme-card-name">{t.label}</div>
-            </button>
-          ))}
-        </div>
-      </section>
-    ))}
+    <div class="set-theme-cards">
+      {THEMES.map((t) => (
+        <button
+          type="button"
+          class="set-theme-card"
+          role="option"
+          data-theme-card={t.id}
+          aria-label={t.label}
+          style={`
+            --sw-bg: ${t.swatches[0]};
+            --sw-card: ${t.swatches[1]};
+            --sw-primary: ${t.swatches[2]};
+            --sw-accent: ${t.swatches[3]};
+          `}
+        >
+          <div class="set-theme-swatches">
+            <span style={`background:${t.swatches[0]}`}></span>
+            <span style={`background:${t.swatches[1]}`}></span>
+            <span style={`background:${t.swatches[2]}`}></span>
+            <span style={`background:${t.swatches[3]}`}></span>
+          </div>
+          <div class="set-theme-card-name">{t.label}</div>
+        </button>
+      ))}
+    </div>
   </div>
 </ship-popover>
 
@@ -63,7 +56,7 @@ const groups = Array.from(new Set(THEMES.map((t) => t.group)));
     persistTheme,
     readStoredTheme,
     isValidTheme,
-  } from '@ship/ui/themes';
+  } from '@ship/set/themes';
 
   const pickers = document.querySelectorAll<HTMLElement>('[data-theme-picker]');
   for (const picker of pickers) {

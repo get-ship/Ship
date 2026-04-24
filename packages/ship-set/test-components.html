@@ -1,0 +1,110 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1" />
+<title>Ship Web Components — Demo</title>
+<style>
+  /* Minimal Ship tokens replicated so the page works without apps/web. */
+  :root {
+    --radius: 0.625rem;
+    --background: oklch(0.99 0.001 106.423);
+    --foreground: oklch(0.147 0.004 49.25);
+    --card: oklch(1 0 0);
+    --card-foreground: oklch(0.147 0.004 49.25);
+    --primary: oklch(0.67 0.16 58);
+    --primary-foreground: oklch(0.99 0.02 95);
+    --muted: oklch(0.95 0.003 106.424);
+    --muted-foreground: oklch(0.40 0.02 58.071);
+    --accent: oklch(0.61 0.23 303);
+    --accent-foreground: oklch(0.98 0.02 301);
+    --destructive: oklch(0.577 0.245 27.325);
+    --border: oklch(0.147 0.004 49.25 / 25%);
+  }
+  .dark {
+    --background: oklch(0.18 0.01 250);
+    --foreground: oklch(0.98 0.001 106);
+    --card: oklch(0.18 0.01 50);
+    --card-foreground: oklch(0.98 0.001 106);
+    --primary: oklch(0.77 0.16 70);
+    --muted: oklch(0.2 0.01 50);
+    --muted-foreground: oklch(0.75 0.015 50);
+    --border: oklch(1 0 0 / 12%);
+  }
+  body {
+    background: var(--background); color: var(--foreground);
+    font: 14px system-ui, sans-serif;
+    margin: 0; padding: 32px; max-width: 960px; margin-inline: auto;
+  }
+  h1 { font-size: 20px; margin: 0 0 16px; }
+  h2 { font-size: 14px; text-transform: uppercase; letter-spacing: 0.08em;
+       color: var(--muted-foreground); margin: 28px 0 10px; }
+  .row { display: flex; flex-wrap: wrap; gap: 8px; align-items: center; }
+  .stack { display: flex; flex-direction: column; gap: 8px; }
+  button.primary {
+    background: var(--primary); color: var(--primary-foreground);
+    border: none; border-radius: 6px; padding: 6px 12px; cursor: pointer;
+    font: inherit;
+  }
+  .toggle { float: right; }
+</style>
+</head>
+<body>
+  <button class="toggle" onclick="document.body.classList.toggle('dark')">Toggle dark</button>
+  <h1>Ship Web Components</h1>
+
+  <h2>ship-badge</h2>
+  <div class="row">
+    <ship-badge>Default</ship-badge>
+    <ship-badge variant="success">Completed</ship-badge>
+    <ship-badge variant="warning">Gate</ship-badge>
+    <ship-badge variant="destructive">Failed</ship-badge>
+    <ship-badge variant="info">Info</ship-badge>
+    <ship-badge variant="muted">Muted</ship-badge>
+    <ship-badge variant="success" size="sm">sm</ship-badge>
+  </div>
+
+  <h2>ship-step-card</h2>
+  <div class="stack">
+    <ship-step-card name="plan" type="agent" status="completed" agent="architect" commits="3" duration="47"></ship-step-card>
+    <ship-step-card name="review-gate" type="gate" status="running" duration="12" selected></ship-step-card>
+    <ship-step-card name="merge-main" type="merge" status="pending"></ship-step-card>
+    <ship-step-card name="tests" type="run" status="failed" duration="128"></ship-step-card>
+    <ship-step-card name="approve" type="human" status="pending"></ship-step-card>
+  </div>
+
+  <h2>ship-file-row</h2>
+  <div class="stack">
+    <ship-file-row path="crates/core/src/compiler/mod.rs" status="M" additions="42" deletions="7"></ship-file-row>
+    <ship-file-row path="apps/shipd/src/jobs/runner.rs" status="A" additions="180"></ship-file-row>
+    <ship-file-row path="legacy/old.rs" status="D" deletions="92"></ship-file-row>
+    <ship-file-row path="docs/new-name.md" status="R"></ship-file-row>
+    <ship-file-row path="packages/ship-set/src/some/really/deep/path/that/should/truncate/for/narrow/layouts/file.ts" status="M" truncate additions="3" deletions="3"></ship-file-row>
+  </div>
+
+  <h2>ship-empty-state</h2>
+  <ship-empty-state icon="inbox" title="No pipelines yet" description="Create your first pipeline to orchestrate agents across steps.">
+    <button slot="action" class="primary">Create pipeline</button>
+  </ship-empty-state>
+
+  <h2>ship-tabs</h2>
+  <ship-tabs id="demo-tabs" active="definitions">
+    <ship-tab name="definitions" label="Definitions">
+      <p>Pipeline definitions live here.</p>
+    </ship-tab>
+    <ship-tab name="runs" label="Runs">
+      <p>Run history.</p>
+    </ship-tab>
+    <ship-tab name="artifacts" label="Artifacts">
+      <p>Artifacts from recent runs.</p>
+    </ship-tab>
+  </ship-tabs>
+
+  <script type="module">
+    import '/src/web-components/index.ts'
+    document.getElementById('demo-tabs').addEventListener('ship-tab-change', e => {
+      console.log('tab changed ->', e.detail.name)
+    })
+  </script>
+</body>
+</html>

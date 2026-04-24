@@ -1,0 +1,55 @@
+{#- Clean-tree hero: branch up-to-date plus recent commits/branches. -#}
+<div class="gv-clean">
+  <div class="hero">
+    <div class="halo"><ship-icon name="check" size="md"></ship-icon></div>
+    <div>
+      <h2>Working tree is clean.</h2>
+      <p>Nothing to commit on <span class="gv-mono">{{ branch | default('HEAD') | e }}</span>.
+        {% if ahead == 0 and behind == 0 %}You're up to date with the upstream.
+        {% elif ahead > 0 %}{{ ahead }} commit{% if ahead != 1 %}s{% endif %} ahead of upstream.
+        {% elif behind > 0 %}{{ behind }} commit{% if behind != 1 %}s{% endif %} behind upstream.
+        {% endif %}
+      </p>
+    </div>
+  </div>
+  <div class="two-col">
+    <div class="sec">
+      <h3>Recent on this branch</h3>
+      {% for c in commits[:5] %}
+        <div class="row">
+          <ship-avatar size="sm" shape="round" identity-hue="{{ c.author | e }}" name="{{ c.author | e }}"></ship-avatar>
+          <div style="flex:1;min-width:0">
+            <div class="title">{{ c.subject | e }}</div>
+            <div class="sub">{{ c.short_sha | e }} · {{ c.author | e }} · {{ c.date | e }}</div>
+          </div>
+          <div class="gv-mono" style="font-size:11px;display:flex;gap:6px">
+            <span class="gv-add">+{{ c.additions }}</span>
+            <span class="gv-del">−{{ c.deletions }}</span>
+          </div>
+        </div>
+      {% else %}
+        <div style="font-size:12px;color:var(--muted-foreground)">No commits yet.</div>
+      {% endfor %}
+    </div>
+    <div class="sec">
+      <h3>Branches</h3>
+      {% for b in branches[:6] %}
+        <div class="row">
+          <ship-icon name="git-branch" size="xs" style="color:{% if b.active %}var(--primary){% else %}var(--muted-foreground){% endif %}"></ship-icon>
+          <div style="flex:1;min-width:0">
+            <div class="title gv-mono">{{ b.name | e }}</div>
+            <div class="sub" style="font-family:var(--font-body)">
+              {% if b.upstream %}{{ b.upstream | e }}{% else %}local only{% endif %}
+            </div>
+          </div>
+          <div class="gv-mono" style="font-size:11px;display:flex;gap:6px">
+            {% if b.ahead > 0 %}<span class="gv-add">↑{{ b.ahead }}</span>{% endif %}
+            {% if b.behind > 0 %}<span class="gv-del">↓{{ b.behind }}</span>{% endif %}
+          </div>
+        </div>
+      {% else %}
+        <div style="font-size:12px;color:var(--muted-foreground)">No branches.</div>
+      {% endfor %}
+    </div>
+  </div>
+</div>

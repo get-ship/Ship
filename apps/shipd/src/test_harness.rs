@@ -134,7 +134,8 @@ impl TestDaemon {
         let collection_routes = Router::new()
             .route(
                 "/collections",
-                axum::routing::get(crate::collection_api::list_collections),
+                axum::routing::get(crate::collection_api::list_collections)
+                    .post(crate::collection_api::create_collection),
             )
             .route(
                 "/collections/{collection}/schema",

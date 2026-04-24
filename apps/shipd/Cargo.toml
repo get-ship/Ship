@@ -18,7 +18,9 @@ path = "src/main.rs"
 
 [dependencies]
 runtime = { path = "../../crates/core/runtime" }
+lint = { path = "../../crates/core/lint" }
 compiler = { path = "../../crates/core/compiler" }
+ship-jobs = { path = "../../crates/core/ship-jobs" }
 chrono = { version = "0.4", features = ["serde"] }
 tokio = { version = "1.0", features = ["full"] }
 tokio-util = { version = "0.7", features = ["full"] }
@@ -31,6 +33,10 @@ serde = { version = "1.0", features = ["derive"] }
 base64 = "0.22"
 serde_yaml = "0.9"
 serde_json = "1.0"
+# RFC 6902 JSON Patch — FilesService.patch_jsonc applies these against
+# the current document. No shims; callers that want partial edits use
+# this, callers that want full replace use write_jsonc/PUT.
+json-patch = "4"
 tracing = "0.1"
 tracing-subscriber = { version = "0.3", features = ["env-filter", "json"] }
 tracing-appender = "0.2"
@@ -46,14 +52,18 @@ utoipa = { version = "5", features = ["axum_extras"] }
 datastar = { version = "0.3.1", features = ["axum"] }
 jsonwebtoken = "9"
 reqwest = { version = "0.12", default-features = false, features = ["rustls-tls", "json"] }
-minijinja = { version = "2", features = ["loader"] }
+minijinja = { version = "2", features = ["loader", "builtins", "json"] }
 ulid = "1"
 thiserror = "2"
 # HTML sanitizer — allowlist-based DOM cleaner used for agent-supplied
 # canvas HTML (see apps/shipd/src/views/sanitize.rs).
 ammonia = "4"
 form_urlencoded = "1"
+git2 = { version = "0.19" }
 include_dir = "0.7"
+# JSON Schema validator (Draft 2020-12). Used to validate pipeline
+# documents on write — catches structural errors beyond parse errors.
+jsonschema = { version = "0.46", default-features = false }
 # Cross-platform pseudo-terminal allocation (PTY on Unix, ConPTY on
 # Windows). Used by ProcessExecutor so spawned agents see a real TTY —
 # stream-json and human output stay line-buffered, isatty checks work.

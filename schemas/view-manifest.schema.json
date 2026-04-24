@@ -2,61 +2,98 @@
   "$schema": "https://json-schema.org/draft/2020-12/schema",
   "$id": "https://raw.githubusercontent.com/madvib/ship/main/schemas/view-manifest.schema.json",
   "title": "Ship View Manifest",
-  "description": "Schema for .ship/views/<name>/manifest.json — declares a Ship HTML view's identity, data sources, and event subscriptions.",
+  "description": "Metadata for a view under .ship/views/<name>/. Loaded by the daemon on request; drives shell rail display, SSE event subscriptions, bundle pack injection, and view-as-app plumbing.",
   "type": "object",
-  "required": ["name", "type", "description"],
+  "required": ["name", "type"],
   "additionalProperties": false,
   "properties": {
     "$schema": {
       "type": "string",
-      "description": "JSON Schema reference. Set to this schema's $id for editor validation."
+      "description": "JSON Schema reference. Set to this schema's $id so editors offer validation + autocomplete."
     },
     "name": {
       "type": "string",
-      "minLength": 1,
-      "pattern": "^[a-z0-9][a-z0-9-_]*$",
-      "description": "View identifier. Must match the directory name under .ship/views/."
+      "pattern": "^[a-z0-9][a-z0-9-]*$",
+      "description": "View identifier. Must match the containing directory name. Lowercase kebab-case."
     },
     "type": {
       "type": "string",
-      "enum": ["html"],
-      "description": "View rendering type. Only 'html' is supported today."
+      "enum": ["html", "component"],
+      "description": "`html` — Jinja-rendered view under /api/v/<name> (the dominant pattern). `component` — standalone web-component bundle served at /api/view/<name>/bundle."
     },
     "description": {
       "type": "string",
-      "minLength": 1,
-      "description": "Human-readable description of the view's purpose. Shown in Studio listings."
+      "description": "Human-readable summary. Surfaced in /api/views, editor tooltips, and docs."
     },
     "title": {
       "type": "string",
-      "description": "Page title override. Defaults to the view name when absent."
+      "description": "Page <title> override. Defaults to the view name humanized."
     },
-    "icon": {
+    "element": {
       "type": "string",
-      "description": "Optional icon hint for Studio navigation. Free-form string."
+      "description": "For `type: component` only — custom element tag name (defaults to `ship-<name>-view`)."
     },
-    "data": {
+    "entry": {
+      "type": "string",
+      "description": "For `type: component` only — override the default `index.js` entrypoint."
+    },
+    "claims": {
+      "type": "array",
+      "description": "Capability tags the view advertises. Metadata today; future permission layer may gate loading based on declared claims.",
+      "items": { "type": "string" }
+    },
+    "rail": {
       "type": "object",
-      "description": "Data sources the view requires at render time.",
+      "description": "Shell rail + launcher display metadata. View identity only — pin state and ordering are user preferences (stored under `shell.rail.pinned` in /api/settings, not per-view).",
       "additionalProperties": false,
       "properties": {
-        "collections": {
-          "type": "array",
-          "items": {
-            "type": "string",
-            "minLength": 1
-          },
-          "description": "Collection IDs whose items are injected into the view template context."
+        "label": {
+          "type": "string",
+          "description": "Short human label (e.g. `Dashboard`, `Agents`). Falls back to a humanized view name when omitted."
+        },
+        "icon": {
+          "type": "string",
+          "description": "ship-icon name. See packages/ship-set/src/web-components/core/ship-icon.ts for the catalog. Falls back to `app-window`."
         }
+      }
+    },
+    "packs": {
+      "type": "array",
+      "description": "Heavy JS bundles the view needs at render time. The daemon injects `<script type=\"module\">` tags into the response; fragment requests get them prepended for rehydration. Known packs live in apps/shipd/src/views/packs.rs — unknown names are silently skipped.",
+      "items": {
+        "type": "string",
+        "enum": ["editor", "terminal", "git"]
       }
     },
     "events": {
       "type": "array",
-      "items": {
-        "type": "string",
-        "minLength": 1
-      },
-      "description": "Event types the view subscribes to. Matching events trigger SSE re-renders. Examples: 'collection.item_created', 'workspace.started'."
+      "description": "Kernel event namespaces this view subscribes to for live re-renders. Prefix-match — `job.` fires on every `job.created`, `job.failed`, etc. Empty string subscribes to everything. Routed SSE at /api/sse/<name> re-renders the view when any subscribed event fires.",
+      "items": { "type": "string" }
+    },
+    "data": {
+      "type": "object",
+      "description": "Legacy declaration consumed by generic_sse.rs for views still on the pre-framework context-injection pathway (canvas, overview, setup). File-routed views on the ship.* SDK pull data inline and should omit this block.",
+      "additionalProperties": true,
+      "properties": {
+        "collections": {
+          "oneOf": [
+            {
+              "type": "string",
+              "enum": ["all"],
+              "description": "Inject the full collection catalog + active collection schema + items into the render context."
+            },
+            {
+              "type": "array",
+              "items": { "type": "string" },
+              "description": "Inject only the named collection schemas."
+            }
+          ]
+        },
+        "items": {
+          "type": "string",
+          "description": "Collection id — or the literal `$collection` placeholder — to load items for."
+        }
+      }
     }
   }
 }

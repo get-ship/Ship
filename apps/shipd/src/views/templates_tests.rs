@@ -94,6 +94,84 @@ fn render_view_source_imports_ship_macros() {
     assert!(html.contains("datastar.js"), "html: {html}");
 }
 
+#[test]
+fn section_macro_opens_ship_card_with_title() {
+    #[derive(Serialize)]
+    struct Ctx {}
+    let source = r#"{% from '_ship.html.j2' import section, endsection %}{{ section('Recent jobs') }}body{{ endsection() }}"#;
+    let html = render_view_source("test-section-basic", source, &Ctx {}).unwrap();
+    assert!(html.contains(r#"<ship-card padding="none">"#), "html: {html}");
+    assert!(html.contains(r#"slot="header""#), "html: {html}");
+    assert!(html.contains("Recent jobs"), "html: {html}");
+    assert!(html.contains("body"), "html: {html}");
+    assert!(html.contains("</ship-card>"), "html: {html}");
+}
+
+#[test]
+fn section_macro_renders_leading_icon_when_supplied() {
+    #[derive(Serialize)]
+    struct Ctx {}
+    let source = r#"{% from '_ship.html.j2' import section, endsection %}{{ section('Agents', icon='users') }}{{ endsection() }}"#;
+    let html = render_view_source("test-section-icon", source, &Ctx {}).unwrap();
+    assert!(
+        html.contains(r#"<ship-icon name="users""#),
+        "leading icon must render: {html}"
+    );
+}
+
+#[test]
+fn section_macro_omits_icon_when_not_supplied() {
+    #[derive(Serialize)]
+    struct Ctx {}
+    let source = r#"{% from '_ship.html.j2' import section, endsection %}{{ section('Plain') }}{{ endsection() }}"#;
+    let html = render_view_source("test-section-no-icon", source, &Ctx {}).unwrap();
+    assert!(!html.contains("<ship-icon"), "no icon should render: {html}");
+}
+
+#[test]
+fn section_macro_emits_sse_link_for_view_href() {
+    #[derive(Serialize)]
+    struct Ctx {}
+    let source = r#"{% from '_ship.html.j2' import section, endsection %}{{ section('Jobs', link_href='/api/view/pipelines', link_label='View all') }}{{ endsection() }}"#;
+    let html = render_view_source("test-section-sse-link", source, &Ctx {}).unwrap();
+    assert!(html.contains("View all"), "label: {html}");
+    assert!(
+        html.contains("data-on:click.prevent=\"@get('/api/view/pipelines')\""),
+        "SSE handler must render for /api/view/ hrefs: {html}"
+    );
+    assert!(
+        html.contains(r#"href="/api/view/pipelines""#),
+        "href must render for fallback: {html}"
+    );
+    assert!(
+        html.contains(r#"name="chevron-right""#),
+        "chevron icon must render: {html}"
+    );
+}
+
+#[test]
+fn section_macro_plain_anchor_for_non_view_href() {
+    #[derive(Serialize)]
+    struct Ctx {}
+    let source = r#"{% from '_ship.html.j2' import section, endsection %}{{ section('External', link_href='https://example.com/docs', link_label='Docs') }}{{ endsection() }}"#;
+    let html = render_view_source("test-section-plain-link", source, &Ctx {}).unwrap();
+    assert!(html.contains(r#"href="https://example.com/docs""#), "html: {html}");
+    assert!(
+        !html.contains("data-on:click.prevent"),
+        "non-view hrefs should not wire @get: {html}"
+    );
+}
+
+#[test]
+fn section_macro_omits_link_region_when_label_missing() {
+    // Both link_href and link_label must be set to render the link.
+    #[derive(Serialize)]
+    struct Ctx {}
+    let source = r#"{% from '_ship.html.j2' import section, endsection %}{{ section('NoLink', link_href='/x') }}{{ endsection() }}"#;
+    let html = render_view_source("test-section-no-link-label", source, &Ctx {}).unwrap();
+    assert!(!html.contains(r#"href="/x""#), "no link should render without label: {html}");
+}
+
 /// Regression: editing a sibling partial must invalidate the user-env
 /// cache so the next render sees the new partial. Before this fix the
 /// cache key hashed only the top view's source, so partial edits

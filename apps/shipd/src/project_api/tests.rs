@@ -1,6 +1,6 @@
 //! End-to-end tests for the project REST API endpoints.
 
-use axum::extract::{Path, Query, State};
+use axum::extract::{Path, State};
 use axum::http::StatusCode;
 use tempfile::TempDir;
 
@@ -188,94 +188,6 @@ async fn delete_session_file() {
     assert_eq!(status, StatusCode::NOT_FOUND);
 }
 
-// ---- Git ----
-
-fn init_git_repo(dir: &TempDir) {
-    std::process::Command::new("git")
-        .args(["init"])
-        .current_dir(dir.path())
-        .output()
-        .unwrap();
-    std::process::Command::new("git")
-        .args(["config", "user.email", "test@test.com"])
-        .current_dir(dir.path())
-        .output()
-        .unwrap();
-    std::process::Command::new("git")
-        .args(["config", "user.name", "Test"])
-        .current_dir(dir.path())
-        .output()
-        .unwrap();
-}
-
-#[tokio::test(flavor = "multi_thread")]
-async fn git_status_returns_output() {
-    let dir = TempDir::new().unwrap();
-    init_git_repo(&dir);
-    let (branch, state) = create_test_workspace(&dir);
-
-    let (status, body) = git_status(State(state), Path(branch)).await.unwrap();
-    assert_eq!(status, StatusCode::OK);
-    let output = body.0.data["output"].as_str().unwrap();
-    assert!(output.contains("On branch"));
-}
-
-#[tokio::test(flavor = "multi_thread")]
-async fn git_log_returns_commits() {
-    let dir = TempDir::new().unwrap();
-    init_git_repo(&dir);
-
-    // Create a commit
-    std::fs::write(dir.path().join("file.txt"), "hello").unwrap();
-    std::process::Command::new("git")
-        .args(["add", "file.txt"])
-        .current_dir(dir.path())
-        .output()
-        .unwrap();
-    std::process::Command::new("git")
-        .args(["commit", "-m", "initial commit"])
-        .current_dir(dir.path())
-        .output()
-        .unwrap();
-
-    let (branch, state) = create_test_workspace(&dir);
-    let (status, body) = git_log(State(state), Path(branch), Query(git::LogQuery { limit: Some(5) }))
-        .await
-        .unwrap();
-    assert_eq!(status, StatusCode::OK);
-
-    let commits = body.0.data["commits"].as_array().unwrap();
-    assert_eq!(commits.len(), 1);
-    assert_eq!(commits[0]["subject"], "initial commit");
-    assert_eq!(commits[0]["author"], "Test");
-    assert!(commits[0]["hash"].as_str().unwrap().len() >= 40);
-}
-
-#[tokio::test(flavor = "multi_thread")]
-async fn git_diff_empty_on_clean() {
-    let dir = TempDir::new().unwrap();
-    init_git_repo(&dir);
-
-    std::fs::write(dir.path().join("file.txt"), "hello").unwrap();
-    std::process::Command::new("git")
-        .args(["add", "file.txt"])
-        .current_dir(dir.path())
-        .output()
-        .unwrap();
-    std::process::Command::new("git")
-        .args(["commit", "-m", "init"])
-        .current_dir(dir.path())
-        .output()
-        .unwrap();
-
-    let (branch, state) = create_test_workspace(&dir);
-    let (status, body) = git_diff(State(state), Path(branch), Query(git::DiffQuery { range: None }))
-        .await
-        .unwrap();
-    assert_eq!(status, StatusCode::OK);
-    assert_eq!(body.0.data["output"].as_str().unwrap(), "");
-}
-
 // ---- Agents ----
 
 #[tokio::test(flavor = "multi_thread")]
@@ -345,42 +257,6 @@ async fn list_agents_strips_comments() {
     assert_eq!(agents[0]["description"], "has comments");
 }
 
-// ---- Skills ----
-
-#[tokio::test(flavor = "multi_thread")]
-async fn list_skills_empty() {
-    let dir = TempDir::new().unwrap();
-    let (branch, state) = create_test_workspace(&dir);
-
-    let (status, body) = list_skills(State(state), Path(branch)).await.unwrap();
-    assert_eq!(status, StatusCode::OK);
-    assert_eq!(body.0.data["skills"].as_array().unwrap().len(), 0);
-}
-
-#[tokio::test(flavor = "multi_thread")]
-async fn list_skills_reads_directories() {
-    let dir = TempDir::new().unwrap();
-    let skill_dir = dir.path().join(".ship").join("skills").join("my-skill");
-    std::fs::create_dir_all(&skill_dir).unwrap();
-    std::fs::write(
-        skill_dir.join("SKILL.md"),
-        "---\nname: My Skill\ndescription: A test skill\n---\nBody here",
-    )
-    .unwrap();
-
-    let (branch, state) = create_test_workspace(&dir);
-    let (status, body) = list_skills(State(state), Path(branch)).await.unwrap();
-    assert_eq!(status, StatusCode::OK);
-
-    let skills = body.0.data["skills"].as_array().unwrap();
-    assert_eq!(skills.len(), 1);
-    assert_eq!(skills[0]["id"], "my-skill");
-    assert_eq!(skills[0]["name"], "My Skill");
-    assert_eq!(skills[0]["description"], "A test skill");
-    let files = skills[0]["files"].as_array().unwrap();
-    assert!(files.iter().any(|f| f == "SKILL.md"));
-}
-
 // ---- Workspace activate ----
 
 #[tokio::test(flavor = "multi_thread")]
@@ -428,17 +304,6 @@ async fn emit_event_routes_to_kernel() {
 
 // ---- Error cases ----
 
-#[tokio::test(flavor = "multi_thread")]
-async fn workspace_not_found_returns_404() {
-    let dir = TempDir::new().unwrap();
-    let state = make_api_state(&dir);
-    let (status, body) = git_status(State(state), Path("nonexistent-branch-xyz-e2e".to_string()))
-        .await
-        .unwrap_err();
-    assert_eq!(status, StatusCode::NOT_FOUND);
-    assert!(!body.0.ok);
-}
-
 /// Path traversal via `..` must be blocked by canonicalization in safe_resolve.
 #[tokio::test(flavor = "multi_thread")]
 async fn session_file_path_traversal_blocked() {
@@ -473,4 +338,34 @@ async fn session_file_path_traversal_blocked() {
         !dir.path().join("traversed.txt").exists(),
         "write traversal must not create file outside session dir"
     );
+}
+
+#[tokio::test(flavor = "multi_thread")]
+async fn resolve_worktree_ignores_pathless_workspace_fallback() {
+    // Reproduces the bug where a workspace registered in the DB without
+    // an explicit `path` made resolve_project_root fall back to
+    // ship_dir.parent() — if ship_dir is HOME/.ship, the fallback is HOME
+    // itself, which has a `.ship/` dir and passed the old existence
+    // check. Writes then landed in the global ~/.ship/pipelines/ instead
+    // of the real project.
+    let dir = TempDir::new().unwrap();
+    let ship_dir = dir.path().join(".ship");
+    std::fs::create_dir_all(&ship_dir).unwrap();
+    runtime::db::ensure_db_at(&ship_dir).unwrap();
+    let branch = test_branch("no-path");
+    runtime::workspace::create_workspace(
+        &ship_dir,
+        runtime::workspace::CreateWorkspaceRequest {
+            branch: branch.clone(),
+            path: None, // explicit: no path
+            ..Default::default()
+        },
+    )
+    .unwrap();
+
+    // With no explicit path, no checked-out worktree matching `branch`,
+    // and no matching current branch, the resolver must return 404
+    // rather than silently returning the parent of ship_dir.
+    let err = resolve_worktree(&ship_dir, &branch).unwrap_err();
+    assert_eq!(err.0, StatusCode::NOT_FOUND);
 }

@@ -120,7 +120,7 @@ pub struct SessionIssueResponse {
 #[utoipa::path(
     operation_id = "issueSessionHandler",
     post,
-    path = "/api/runtime/session",
+    path = "/api/session",
     responses(
         (status = 200, description = "Browser session cookie issued", body = SessionIssueResponse),
         (status = 401, description = "Unauthenticated", body = crate::openapi_types::ErrorResponse),

@@ -1,8 +1,16 @@
 import Navigo from "navigo";
 import { mountDaemonFragment, isSameOrigin } from "./mount";
 import { initSignalInspector } from "./signal-inspector";
-import { initThemeLoader, setTheme, getThemeName } from "./theme-loader";
 import { toggle as toggleCmdk, isCommandPaletteOpen } from "./command-palette";
+import { installErrorReporter } from "./error-reporter";
+// Side-effect import: registers `<ship-shell>` + mounts `window.ship`
+// on first `connectedCallback`. The custom-element registration fires
+// before the element in index.html upgrades, so the shell is ready by
+// the time view code starts calling `window.ship.*`.
+import "@ship/shell";
+
+// Install as early as possible so any boot-time throw gets captured.
+installErrorReporter();
 
 // ── Daemon URL rewriting ─────────────────────────────────────────────
 const DAEMON_ORIGINS = new Set([
@@ -59,30 +67,123 @@ const TOKEN = SAME_ORIGIN
 // ── DOM refs ─────────────────────────────────────────────────────────
 let view = document.getElementById("ship-view-root") as HTMLElement;
 const drawerContent = document.getElementById("drawer-content") as HTMLElement;
-const breadcrumbs = document.getElementById("breadcrumbs") as HTMLElement;
 const statusBranch = document.getElementById("status-branch") as HTMLElement;
 const statusAgents = document.getElementById("status-agents") as HTMLElement;
 const statusTheme = document.getElementById("status-theme") as HTMLElement;
 const statusDot = document.getElementById("status-dot") as HTMLElement;
 
-// ── Theme toggle ─────────────────────────────────────────────────────
-document.getElementById("toggle-theme")!.addEventListener("click", () => {
-  const isDark = document.documentElement.classList.toggle("dark");
-  localStorage.setItem("ship-shell-theme", isDark ? "dark" : "light");
+// ── Theme picker ─────────────────────────────────────────────────────
+import {
+  THEMES,
+  applyTheme,
+  persistTheme,
+  readStoredTheme,
+  isValidTheme,
+  syncThemeFromSettings,
+} from "@ship/set/themes";
+
+// Reconcile local theme cache with daemon settings on boot. Fire and
+// forget — the pre-paint boot script already applied the cached value;
+// this just updates it if another device/browser changed the tier-2
+// authoritative copy.
+void syncThemeFromSettings().then((remote) => {
+  if (remote && remote !== document.documentElement.dataset.theme) {
+    applyTheme(remote);
+    document.dispatchEvent(
+      new CustomEvent("ship-theme-change", { detail: { id: remote } }),
+    );
+  }
 });
 
-// ── Rail toggle ──────────────────────────────────────────────────────
-document.getElementById("toggle-rail")!.addEventListener("click", () => {
-  document.body.classList.toggle("rail-open");
-  localStorage.setItem(
-    "ship-rail-open",
-    document.body.classList.contains("rail-open") ? "1" : "",
-  );
-});
-// Restore rail state
-if (localStorage.getItem("ship-rail-open")) {
-  document.body.classList.add("rail-open");
+function mountThemePicker() {
+  const root = document.getElementById("theme-picker");
+  if (!root) return;
+  const grid = root.querySelector<HTMLElement>(".theme-grid");
+  if (!grid) return;
+
+  // Flat grid — every Ship theme is a full aesthetic bundle, so there
+  // are no tiers. Pick one.
+  const card = (t: (typeof THEMES)[number]) => `
+    <button type="button" class="theme-card" role="option"
+      data-theme-card="${t.id}" data-dark="${t.dark}"
+      aria-label="${t.label}"
+      style="
+        --swatch-bg: ${t.swatches[0]};
+        --swatch-card: ${t.swatches[1]};
+        --swatch-primary: ${t.swatches[2]};
+        --swatch-accent: ${t.swatches[3]};
+      ">
+      <div class="theme-card-swatches">
+        <span style="background:${t.swatches[0]}"></span>
+        <span style="background:${t.swatches[1]}"></span>
+        <span style="background:${t.swatches[2]}"></span>
+        <span style="background:${t.swatches[3]}"></span>
+      </div>
+      <div class="theme-card-name">${t.label}</div>
+    </button>`;
+  grid.innerHTML = `
+    <section class="theme-group" aria-label="Themes">
+      <div class="theme-group-cards">${THEMES.map(card).join("")}</div>
+    </section>`;
+
+  const setActive = (id: string) => {
+    grid.querySelectorAll<HTMLElement>("[data-theme-card]").forEach((c) => {
+      c.setAttribute(
+        "aria-selected",
+        c.dataset.themeCard === id ? "true" : "false",
+      );
+    });
+  };
+
+  const initial = readStoredTheme();
+  applyTheme(initial);
+  setActive(initial);
+
+  grid.addEventListener("click", (e) => {
+    const card = (e.target as HTMLElement).closest<HTMLElement>(
+      "[data-theme-card]",
+    );
+    if (!card) return;
+    const id = card.dataset.themeCard;
+    if (!isValidTheme(id)) return;
+    const next = applyTheme(id);
+    persistTheme(next);
+    setActive(next);
+    document.dispatchEvent(
+      new CustomEvent("ship-theme-change", { detail: { id: next } }),
+    );
+    (root as any).hide?.();
+  });
+
+  document.addEventListener("ship-theme-change", (e) => {
+    const id = (e as CustomEvent<{ id: string }>).detail?.id;
+    if (isValidTheme(id)) {
+      setActive(id);
+      const status = document.getElementById("status-theme");
+      if (status) status.textContent = id;
+    }
+  });
 }
+
+// Wait for <ship-nav-top> to render its light-DOM theme-picker host before
+// wiring up the grid. firstUpdated on nav-top dispatches ship:nav-top:ready.
+const _navTopReady = () => {
+  mountThemePicker();
+};
+document
+  .querySelector("ship-shell")
+  ?.addEventListener("ship:nav-top:ready", _navTopReady, { once: true });
+// Fallback: if nav-top already rendered (e.g. HMR), wire immediately.
+if (document.getElementById("theme-picker")) mountThemePicker();
+
+// ── Rail toggle ──────────────────────────────────────────────────────
+// The shell root component owns rail-open body-class state + persistence;
+// the topbar button just dispatches the intent.
+document.getElementById("toggle-rail")!.addEventListener("click", () => {
+  document
+    .querySelector("ship-shell")
+    ?.dispatchEvent(new CustomEvent("ship:rail:toggle", { bubbles: true }));
+});
 
 // ── Drawer toggle ────────────────────────────────────────────────────
 async function toggleDrawer() {
@@ -90,7 +191,7 @@ async function toggleDrawer() {
   document.body.classList.toggle("drawer-open");
   if (opening) {
     try {
-      await mountDaemonFragment(drawerContent, "/api/runtime/view/chat", {
+      await mountDaemonFragment(drawerContent, "/api/v/chat", {
         token: TOKEN,
         base: DAEMON_BASE,
       });
@@ -103,8 +204,18 @@ async function toggleDrawer() {
   }
 }
 
-document.getElementById("toggle-drawer")!.addEventListener("click", () => {
+// Chat drawer: nav-top button and `window.ship.chat.*` dispatch events
+// on the shell; this app owns the actual toggle because it uses
+// mountDaemonFragment which holds auth context.
+const shellEl = document.querySelector("ship-shell");
+shellEl?.addEventListener("ship:chat:toggle", () => {
   void toggleDrawer();
+});
+shellEl?.addEventListener("ship:chat:open", () => {
+  if (!document.body.classList.contains("drawer-open")) void toggleDrawer();
+});
+shellEl?.addEventListener("ship:chat:close", () => {
+  if (document.body.classList.contains("drawer-open")) void toggleDrawer();
 });
 
 // ── Terminal panel toggle ────────────────────────────────────────────
@@ -113,37 +224,67 @@ document.getElementById("close-terminal")!.addEventListener("click", () => {
 });
 
 // ── Mount a daemon view ──────────────────────────────────────────────
+//
+// Cross-fade strategy: the OLD root stays visible during the fetch (no blank
+// interval). Once the new content has settled:
+//  1. Insert the new root (opacity 0 via ship-content-entering).
+//  2. Mark the old root as leaving (ship-content-leaving → opacity 0).
+//  3. After ~140ms remove the old root and reveal the new one.
+// Respects prefers-reduced-motion (CSS collapses transitions to none).
 async function mount(endpoint: string) {
+  // Keep a reference to the OLD root — it stays in the DOM during fetch.
+  const old = document.getElementById("ship-view-root");
+  const parent = old?.parentElement ?? document.body;
 
-  // Remove old view from DOM entirely. This is critical — Datastar's
-  // MutationObserver fires on removed nodes and cleans up internal SSE
-  // connections from {{ live() }} macros. textContent="" alone is not
-  // enough; we need to remove and re-create the mount point.
-  //
-  // Re-query fresh: a prior Datastar @get may have morphed the root
-  // element out from under us (replacing <main id="ship-view-root"> with
-  // a <div id="ship-view-root"> from the fragment response). The cached
-  // `view` reference would then be detached with a null parentElement.
-  const live = document.getElementById("ship-view-root");
-  const parent = live?.parentElement ?? document.body;
+  // Build the new root but don't insert it yet.
   const newView = document.createElement("main");
-  newView.id = "ship-view-root";
-  newView.className = "ship-content";
-  if (live && live.parentElement) {
-    parent.replaceChild(newView, live);
+  newView.id = "ship-view-root-next";
+  newView.className = "ship-content ship-content-entering";
+  // Position it out of flow until content is ready.
+  newView.style.position = "absolute";
+  newView.style.inset = "0";
+  newView.style.zIndex = "-1";
+  newView.style.pointerEvents = "none";
+
+  // Attach alongside old so Datastar can see both in the DOM, then fetch.
+  if (old) {
+    parent.insertBefore(newView, old.nextSibling);
   } else {
     parent.appendChild(newView);
   }
-  view = newView;
 
   try {
-    await mountDaemonFragment(view, endpoint, {
+    await mountDaemonFragment(newView, endpoint, {
       token: TOKEN,
       base: DAEMON_BASE,
     });
   } catch {
-    view.innerHTML = `<div class="mount-error">Failed to load view.\nCheck that the daemon is running.</div>`;
-    return;
+    newView.innerHTML = `<div class="mount-error">Failed to load view.\nCheck that the daemon is running.</div>`;
+  }
+
+  // Content landed. Now do the visual swap atomically.
+  // Clear old root's id first to avoid duplicate ids during the brief overlap.
+  if (old) old.id = "ship-view-root-leaving";
+  newView.id = "ship-view-root";
+  newView.style.position = "";
+  newView.style.inset = "";
+  newView.style.zIndex = "";
+  newView.style.pointerEvents = "";
+  view = newView;
+
+  // Fade in new view.
+  requestAnimationFrame(() => {
+    newView.classList.remove("ship-content-entering");
+  });
+
+  // Fade out old view and remove after transition completes.
+  if (old && old !== newView) {
+    old.classList.add("ship-content-leaving");
+    // Remove old root after the leave transition. Use a slightly longer
+    // timeout than the CSS transition (140ms) to ensure cleanup.
+    setTimeout(() => {
+      if (old.parentElement) old.parentElement.removeChild(old);
+    }, 180);
   }
 }
 
@@ -179,22 +320,13 @@ async function submitFragmentForm(form: HTMLFormElement) {
   target.innerHTML = html;
 }
 
-// ── Breadcrumbs ──────────────────────────────────────────────────────
-function updateBreadcrumbs(path: string) {
-  const parts = path.split("/").filter(Boolean);
-  if (parts.length === 0) parts.push("dashboard");
-  const crumbs = parts.map((part, i) => {
-    const isLast = i === parts.length - 1;
-    const href = "/" + parts.slice(0, i + 1).join("/");
-    if (isLast) {
-      return `<span class="current">${part}</span>`;
-    }
-    return `<a onclick="event.preventDefault();window.router.navigate('${href}')">${part}</a><span class="chevron">›</span>`;
-  });
-  breadcrumbs.innerHTML = crumbs.join("");
-}
+// Breadcrumbs moved to <ship-nav-top>; display-name mapping lives in
+// packages/ship-shell/src/view-catalog.ts.
 
-// ── Update nav active state (rail + any data-route links) ────────────
+// ── Navigation broadcast ─────────────────────────────────────────────
+// <ship-rail> highlights the active item; <ship-nav-top> re-renders
+// breadcrumbs. Both listen for ship:navigate on <ship-shell>.
+let lastNavPath = "/";
 function updateNav(path: string) {
   document
     .querySelectorAll<HTMLAnchorElement>("[data-route]")
@@ -203,11 +335,51 @@ function updateNav(path: string) {
       const active = path === route || path.startsWith(route + "/");
       a.classList.toggle("active", active);
     });
-  updateBreadcrumbs(path);
+  document.querySelector("ship-shell")?.dispatchEvent(
+    new CustomEvent("ship:navigate", {
+      detail: { from: lastNavPath, to: path },
+      bubbles: true,
+    }),
+  );
+  lastNavPath = path;
 }
 
 // ── Router (Navigo) ──────────────────────────────────────────────────
 const router = new Navigo("/");
+
+// Register with <ship-shell> so `window.ship.navigate/back/current`
+// delegates here. Has to happen after the element upgrades — we defer
+// to the next microtask since customElements.define() ran via the
+// `@ship/shell` side-effect import at the top of this file.
+queueMicrotask(() => {
+  const shell = document.querySelector("ship-shell") as
+    | (HTMLElement & {
+        registerRouter?: (a: {
+          navigate: (p: string, o?: { replace?: boolean }) => void;
+          back: () => void;
+          current: () => { path: string; params: Record<string, string>; query: Record<string, string> };
+        }) => void;
+      })
+    | null;
+  shell?.registerRouter?.({
+    navigate: (p) => {
+      router.navigate(p);
+    },
+    back: () => history.back(),
+    current: () => ({
+      path: location.pathname,
+      params: {},
+      query: Object.fromEntries(new URLSearchParams(location.search)),
+    }),
+  });
+});
+
+// Retry hook exposed to the error-state fallback rendered by mount.ts
+// when a view fetch fails. mount.ts is a lower-level module and can't
+// reach the router directly; this indirection keeps the boundary tidy.
+(window as unknown as { __shipRetryMount?: (endpoint: string) => void }).__shipRetryMount = (endpoint) => {
+  void mount(endpoint);
+};
 
 function viewRoute(path: string, endpoint: string) {
   router.on(path, () => {
@@ -216,43 +388,93 @@ function viewRoute(path: string, endpoint: string) {
   });
 }
 
-viewRoute("/", "/api/runtime/view/dashboard");
-viewRoute("/pipelines", "/api/runtime/view/pipelines");
-viewRoute("/specs", "/api/runtime/view/specs");
-viewRoute("/git", "/api/runtime/view/git");
-viewRoute("/settings", "/api/runtime/view/settings");
-viewRoute("/agents", "/api/runtime/view/agents");
-viewRoute("/skills", "/api/runtime/view/skills");
-viewRoute("/chat", "/api/runtime/view/chat");
-viewRoute("/events", "/api/runtime/view/events");
-viewRoute("/data", "/api/runtime/view/data");
-viewRoute("/dashboard", "/api/runtime/view/dashboard");
-viewRoute("/canvas", "/api/runtime/view/canvas");
-viewRoute("/overview", "/api/runtime/view/overview");
+viewRoute("/", "/api/v/dashboard");
+viewRoute("/pipelines", "/api/v/pipelines");
+viewRoute("/specs", "/api/v/specs");
+viewRoute("/git", "/api/v/git");
+viewRoute("/settings", "/api/v/settings");
+viewRoute("/agents", "/api/v/agents");
+viewRoute("/skills", "/api/v/skills");
+viewRoute("/chat", "/api/v/chat");
+viewRoute("/events", "/api/v/events");
+viewRoute("/collections", "/api/v/collections");
+viewRoute("/dashboard", "/api/v/dashboard");
+viewRoute("/canvas", "/api/v/canvas");
+viewRoute("/overview", "/api/v/overview");
 
 // Dynamic routes
+router.on("/collections/:collection", ({ data }) => {
+  updateNav("/collections");
+  updateBreadcrumbs(`/collections/${data!.collection}`);
+  void mount(
+    `/api/v/collections?collection=${encodeURIComponent(data!.collection)}`,
+  );
+});
+
+// Static sub-routes under /agents must be registered BEFORE the
+// generic `/agents/:id` so Navigo doesn't match "create" as an id.
+router.on("/agents/create", () => {
+  updateNav("/agents");
+  updateBreadcrumbs("/agents/create");
+  void mount("/api/v/agents/create");
+});
+
+// Detail sub-mode: wire/canvas view (also served as the default detail).
+router.on("/agents/:id/wire", ({ data }) => {
+  updateNav("/agents");
+  updateBreadcrumbs(`/agents/${data!.id}/wire`);
+  void mount(`/api/v/agents/${data!.id}/wire`);
+});
+
+// Detail sub-mode: classic panels layout (skills / MCP / permissions / rules).
+router.on("/agents/:id/settings", ({ data }) => {
+  updateNav("/agents");
+  updateBreadcrumbs(`/agents/${data!.id}/settings`);
+  void mount(`/api/v/agents/${data!.id}/settings`);
+});
+
 router.on("/agents/:id", ({ data }) => {
   updateNav("/agents");
   updateBreadcrumbs(`/agents/${data!.id}`);
-  void mount(`/api/runtime/view/agents/detail/${data!.id}`);
+  void mount(`/api/v/agents/${data!.id}`);
 });
 
 router.on("/skills/:id", ({ data }) => {
   updateNav("/skills");
   updateBreadcrumbs(`/skills/${data!.id}`);
-  void mount(`/api/runtime/view/skills/detail/${data!.id}`);
+  void mount(`/api/view/skills/detail/${data!.id}`);
 });
 
 router.on("/skills/:id/:file", ({ data }) => {
   updateNav("/skills");
   updateBreadcrumbs(`/skills/${data!.id}/${data!.file}`);
-  void mount(`/api/runtime/view/skills/detail/${data!.id}?file=${encodeURIComponent(data!.file)}`);
+  void mount(`/api/view/skills/detail/${data!.id}?file=${encodeURIComponent(data!.file)}`);
 });
 
 router.on("/canvas/:doc", ({ data }) => {
   updateNav("/canvas");
   updateBreadcrumbs(`/canvas/${data!.doc}`);
-  void mount(`/api/runtime/view/canvas?doc=${encodeURIComponent(data!.doc)}`);
+  void mount(`/api/view/canvas?doc=${encodeURIComponent(data!.doc)}`);
+});
+
+router.on("/pipelines/focus/:name", ({ data }) => {
+  updateNav("/pipelines");
+  updateBreadcrumbs(`/pipelines/${data!.name}`);
+  void mount(`/api/v/pipelines/focus/${encodeURIComponent(data!.name)}`);
+});
+
+router.on("/pipelines/history", () => {
+  updateNav("/pipelines");
+  updateBreadcrumbs(`/pipelines/history`);
+  // Forward any query string so pagination/search survive shell nav.
+  const qs = location.search ?? "";
+  void mount(`/api/v/pipelines/history${qs}`);
+});
+
+router.on("/pipelines/run/:slug", ({ data }) => {
+  updateNav("/pipelines");
+  updateBreadcrumbs(`/pipelines/run/${data!.slug}`);
+  void mount(`/api/v/pipelines/run/${encodeURIComponent(data!.slug)}`);
 });
 
 // 404
@@ -335,9 +557,9 @@ document.addEventListener("keydown", (e) => {
 let daemonConnected = false;
 
 async function updateStatus() {
-  statusTheme.textContent = getThemeName();
+  statusTheme.textContent = document.documentElement.dataset.theme ?? "ship-light";
   try {
-    const res = await fetch("/api/runtime/workspaces", {
+    const res = await fetch("/api/workspaces", {
       credentials: SAME_ORIGIN ? "include" : "omit",
       headers: !SAME_ORIGIN && TOKEN ? { Authorization: `Bearer ${TOKEN}` } : {},
     });
@@ -370,24 +592,22 @@ setInterval(updateStatus, 15000);
 
 // ── Expose globals ───────────────────────────────────────────────────
 (window as any).router = router;
-(window as any).setShipTheme = setTheme;
+(window as any).setShipTheme = (id: string) => {
+  const applied = applyTheme(id);
+  persistTheme(applied);
+  document.dispatchEvent(new CustomEvent("ship-theme-change", { detail: { id: applied } }));
+};
 
 // ── Boot ─────────────────────────────────────────────────────────────
 router.resolve();
-initThemeLoader();
 initSignalInspector();
 updateStatus();
 
-// ⌘K trigger button
-document.getElementById("cmdk-open")?.addEventListener("click", () => {
-  toggleCmdk();
-});
+// ⌘K trigger — <ship-nav-top> dispatches ship:command:open.
+document
+  .querySelector("ship-shell")
+  ?.addEventListener("ship:command:open", () => {
+    toggleCmdk();
+  });
 
-// Fullscreen button
-document.getElementById("toggle-fullscreen")?.addEventListener("click", () => {
-  if (document.fullscreenElement) {
-    document.exitFullscreen();
-  } else {
-    document.documentElement.requestFullscreen();
-  }
-});
+// Fullscreen button — handled inline by <ship-nav-top>.

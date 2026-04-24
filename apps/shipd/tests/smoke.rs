@@ -120,7 +120,7 @@ async fn openapi_spec_is_valid_json() {
 #[tokio::test]
 async fn list_workspaces_returns_ok() {
     let d = TestDaemon::start().await;
-    let res = d.authed().get(d.url("/api/runtime/workspaces")).send().await.unwrap();
+    let res = d.authed().get(d.url("/api/workspaces")).send().await.unwrap();
     assert_eq!(res.status(), 200);
     let body: serde_json::Value = res.json().await.unwrap();
     assert_eq!(body["ok"], true);
@@ -129,7 +129,7 @@ async fn list_workspaces_returns_ok() {
 #[tokio::test]
 async fn list_jobs_returns_ok() {
     let d = TestDaemon::start().await;
-    let res = d.authed().get(d.url("/api/runtime/jobs")).send().await.unwrap();
+    let res = d.authed().get(d.url("/api/jobs")).send().await.unwrap();
     assert_eq!(res.status(), 200);
     let body: serde_json::Value = res.json().await.unwrap();
     assert_eq!(body["ok"], true);
@@ -140,7 +140,7 @@ async fn cors_preflight_returns_headers() {
     let d = TestDaemon::start().await;
     let res = d
         .bare()
-        .request(reqwest::Method::OPTIONS, d.url("/api/runtime/workspaces"))
+        .request(reqwest::Method::OPTIONS, d.url("/api/workspaces"))
         .header("origin", "http://localhost:3000")
         .send()
         .await
@@ -157,7 +157,7 @@ async fn cors_rejects_bad_origin() {
     let d = TestDaemon::start().await;
     let res = d
         .bare()
-        .request(reqwest::Method::OPTIONS, d.url("/api/runtime/workspaces"))
+        .request(reqwest::Method::OPTIONS, d.url("/api/workspaces"))
         .header("origin", "https://evil.com")
         .send()
         .await

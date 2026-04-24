@@ -73,7 +73,7 @@ fn render_partial(
 #[utoipa::path(
     operation_id = "serveViewSse",
     get,
-    path = "/api/runtime/view/{name}/sse",
+    path = "/api/view/{name}/sse",
     params(("name" = String, Path, description = "View name")),
     responses(
         (status = 200, description = "Server-sent-event stream of view fragments", content_type = "text/event-stream"),

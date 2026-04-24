@@ -1,97 +1,130 @@
-{#- Settings CSS -- included by content.html.j2 -#}
+{#- Settings CSS -- included by content.html.j2.
+    Every retained rule is justified inline: either an element gap, a
+    view-specific identity concern, or layout glue around the tiles. -#}
 <style>
-  .s-card {
-    margin-bottom: var(--space-4);
-    overflow: hidden;
-    border-radius: var(--radius-xl);
-    border: 1px solid color-mix(in oklch, var(--border) 60%, transparent);
-    background: var(--card, #fff);
-  }
-  .s-card-head {
-    display: flex;
-    align-items: center;
-    justify-content: space-between;
-    padding: var(--space-3) var(--space-4);
-    border-bottom: 1px solid color-mix(in oklch, var(--border) 40%, transparent);
-  }
-  .s-card-title {
-    display: flex; align-items: center; gap: var(--space-2);
-    font-size: var(--text-base); font-weight: var(--font-weight-semibold); color: var(--muted-foreground);
-  }
-  .s-card-title svg { width: 15px; height: 15px; color: var(--muted-foreground); flex-shrink: 0; }
-  .s-card-body { padding: var(--space-1) var(--space-4); }
+  /* Vertical rhythm between stacked section cards. The section() macro
+     emits <ship-card> siblings; without a gap they bump up against each
+     other. Using flex+gap on the container keeps section macros agnostic
+     of rhythm — each view owns its own spacing. */
+  .s-sections { display: flex; flex-direction: column; gap: var(--space-4); }
 
-  .s-row {
+  /* Section body horizontal padding — the section() macro hands spacing
+     back to the caller via `padding="none"` on the ship-card, and our
+     ship-list-tile rows need 16px left/right to match React parity. */
+  .s-section-body { padding: var(--space-1) var(--space-4); }
+
+  /* Section head wrapper for the one hand-wrapped section (Providers).
+     Matches the section() macro's inline-styled header exactly so the
+     custom-icon case visually aligns with the macro-rendered ones. */
+  .s-section-head {
     display: flex; align-items: center; justify-content: space-between;
-    padding: var(--space-2) 0;
-    border-bottom: 1px solid color-mix(in oklch, var(--border) 30%, transparent);
+    gap: var(--space-3); padding: var(--space-4) var(--space-5);
   }
-  .s-row:last-child { border-bottom: 0; }
-  .s-row-label { font-size: var(--text-sm); color: color-mix(in oklch, var(--foreground) 80%, transparent); }
-  .s-row-sub { display: block; margin-top: 2px; font-size: var(--text-xs); color: var(--muted-foreground); }
-  .s-row-ctrl { display: flex; align-items: center; gap: var(--space-2); flex-shrink: 0; }
+  .s-section-title {
+    display: flex; align-items: center; gap: var(--space-2);
+    margin: 0;
+    font-size: var(--text-sm);
+    font-weight: var(--font-weight-semibold);
+    color: var(--foreground);
+  }
+  .s-section-title ship-icon {
+    color: var(--muted-foreground);
+    width: 16px; height: 16px;
+  }
 
+  /* Row label — ship-list-tile's primary slot has font-weight-medium +
+     text-base; settings rows want a lighter, 80%-opacity foreground so
+     the label reads as a field name rather than a headline. */
+  .s-row-label {
+    font-size: var(--text-sm);
+    color: color-mix(in oklch, var(--foreground) 80%, transparent);
+    font-weight: var(--font-weight-normal);
+  }
+
+  /* Trailing group — the tile's trailing slot is a single node; settings
+     rows pair a save badge with the control, so we collapse both into an
+     inline flex container. */
+  .s-row-trailing {
+    display: inline-flex; align-items: center; gap: var(--space-2);
+    flex-shrink: 0;
+  }
+
+/* Installed-providers sub-list. Label is a micro-heading above a dense
+     list; ship-list-tile carries the rows but the section header treatment
+     is a view-local pattern. */
+  .s-provider-list { padding: var(--space-1) 0 var(--space-2); }
   .s-provider-label {
-    font-size: var(--text-xs); font-weight: var(--font-weight-semibold); text-transform: uppercase;
-    letter-spacing: 0.05em; color: var(--muted-foreground); padding: var(--space-2) 0 var(--space-1);
+    font-size: var(--text-xs); font-weight: var(--font-weight-semibold);
+    text-transform: uppercase; letter-spacing: 0.05em;
+    color: var(--muted-foreground);
+    padding: var(--space-2) var(--space-2) var(--space-1);
   }
-  .s-prov { display: flex; align-items: center; justify-content: space-between; padding: var(--space-1) 0; }
-  .s-prov-left { display: flex; align-items: center; gap: var(--space-2); }
-  .s-prov-dot {
-    width: var(--space-2); height: var(--space-2); border-radius: var(--radius-full); flex-shrink: 0;
-    background: color-mix(in oklch, var(--muted-foreground) 40%, transparent);
+  /* Provider name uses mono + 80% fg to match the React parity — the
+     tile's default primary styling is sans + medium-weight. */
+  .s-prov-name {
+    font-size: var(--text-xs);
+    color: color-mix(in oklch, var(--foreground) 80%, transparent);
+    font-family: var(--font-mono);
+    font-weight: var(--font-weight-normal);
   }
-  .s-prov-dot.on { background: var(--success); }
-  .s-prov-name { font-size: var(--text-xs); color: color-mix(in oklch, var(--foreground) 80%, transparent); font-family: var(--font-mono); }
-  .s-prov-right { display: flex; align-items: center; gap: var(--space-2); font-size: var(--text-xs); color: var(--muted-foreground); }
+  .s-prov-right {
+    display: inline-flex; align-items: center; gap: var(--space-2);
+    font-size: var(--text-xs); color: var(--muted-foreground);
+  }
   .s-prov-right .mono { font-family: var(--font-mono); }
 
-  /* Collapsible trigger styling */
+  /* Collapsible trigger — ship-collapsible ships a slot-only trigger with
+     no styling; section() macro pairs with an always-open card so its
+     header treatment doesn't apply here. */
   .s-collapse-trigger {
     display: flex; align-items: center; justify-content: space-between;
-    width: 100%; padding: var(--space-3) var(--space-4); cursor: pointer; box-sizing: border-box;
+    width: 100%; padding: var(--space-4) var(--space-5); cursor: pointer;
+    box-sizing: border-box;
   }
   .s-collapse-trigger:focus-visible {
     outline: var(--ring-width) solid color-mix(in oklch, var(--ring) 50%, transparent);
     outline-offset: -3px; border-radius: var(--radius-xl);
   }
   .s-chevron {
-    width: var(--space-4); height: var(--space-4); color: var(--muted-foreground);
+    width: var(--space-4); height: var(--space-4);
+    color: var(--muted-foreground);
     transition: transform var(--duration-medium) var(--ease-out);
   }
   .s-chevron.open { transform: rotate(180deg); }
-  /* Separator between trigger and collapsible content */
+  /* Separator between trigger and collapsible content (ship-card's header
+     divider is only drawn when slot=header is filled, and our trigger
+     lives outside ship-collapsible's default slot, so the card can't
+     auto-draw it). */
   .s-collapse-inner {
     border-top: 1px solid color-mix(in oklch, var(--border) 40%, transparent);
   }
 
-  .s-link {
-    display: inline-flex; align-items: center; gap: var(--space-1);
-    font-size: var(--text-xs); color: var(--primary); text-decoration: none;
-    transition: all var(--duration-fast) var(--ease-out);
-  }
-  .s-link:hover { text-decoration: underline; }
-  .s-link svg { width: var(--space-3); height: var(--space-3); }
-
-  .s-save-badge {
-    display: inline-flex; align-items: center; gap: var(--space-1);
-    font-size: var(--text-xs); color: var(--success); opacity: 0;
-    transition: opacity var(--duration-slow) var(--ease-out);
-  }
+  /* Save-badge fade — badge defaults to opacity:1; settings wants a
+     toast-like 1.5s flash on successful save. Toggled from the inline
+     script via classList.add('visible'). */
+  .s-save-badge { opacity: 0; transition: opacity var(--duration-slow) var(--ease-out); }
   .s-save-badge.visible { opacity: 1; }
-  .s-save-badge svg { width: var(--space-3); height: var(--space-3); }
 
-  .s-status { display: inline-flex; align-items: center; gap: 6px; font-size: var(--text-xs); }
-  .s-status-dot { width: var(--space-2); height: var(--space-2); border-radius: var(--radius-full); background: var(--success); }
-  .s-status-text { color: var(--foreground); font-size: var(--text-xs); }
-  .s-mono-val { font-family: var(--font-mono); font-size: var(--text-xs); color: var(--foreground); }
+  /* Mono-formatted value used for the daemon endpoint readout. */
+  .s-mono-val {
+    font-family: var(--font-mono); font-size: var(--text-xs);
+    color: var(--foreground);
+  }
 
-  /* ship-input width override for settings layout */
+  /* Readable "Connected" status text that sits next to a ship-status-dot.
+     ship-status-dot has only an a11y `label` attr (no visible slot). */
+  .s-status-text { font-size: var(--text-xs); color: var(--foreground); }
+
+  /* ship-input width override for settings layout — keeps the right-hand
+     control column aligned across rows. */
   ship-input { width: 160px; }
 
+  /* Mode picker button group — 3 buttons side-by-side to the right of
+     the "Color mode" label. Stacked at narrow widths. */
+  .s-mode-ctrl { display: inline-flex; gap: var(--space-2); }
+
   @media (max-width: 640px) {
-    .s-row { flex-direction: column; align-items: flex-start; gap: 6px; }
-    .s-row-ctrl { width: 100%; }
+    .s-row-trailing { width: 100%; flex-wrap: wrap; }
     ship-input { width: 100%; }
   }
 </style>

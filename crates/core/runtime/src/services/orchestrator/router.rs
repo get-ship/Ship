@@ -463,9 +463,14 @@ async fn emit_step_gate_failure(
         super::emit::persist_and_route(kernel, env, &payload.slug, None).await;
     }
 
+    let base_error = format!("step `{}` gate failed: {reason}", payload.step_name);
+    let error = match &payload.log_tail {
+        Some(tail) => format!("{base_error}\n\nagent log tail:\n{tail}"),
+        None => base_error,
+    };
     let job_fail = JobFailedPayload {
         job_id: payload.job_id.clone(),
-        error: format!("step `{}` gate failed: {reason}", payload.step_name),
+        error,
     };
     if let Ok(env) = EventEnvelope::new(event_types::JOB_FAILED, &payload.job_id, &job_fail) {
         let env = env.with_actor_id("service.job-dispatch");

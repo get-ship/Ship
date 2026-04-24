@@ -57,9 +57,10 @@ fn headless_emits_exec_subcommand() {
     let cmd = adapter.build_headless("test-slug", &profile);
     assert_eq!(cmd.bin, "codex");
     assert_eq!(cmd.args[0], "exec");
-    assert!(cmd
-        .args
-        .contains(&"--full-auto".to_string()));
+    assert!(cmd.args.contains(&"--full-auto".to_string()));
+    assert!(cmd.args.contains(&"--skip-git-repo-check".to_string()));
+    assert!(cmd.args.contains(&"--json".to_string()));
+    assert!(cmd.args.contains(&"--ephemeral".to_string()));
     assert_eq!(cmd.args.last().unwrap(), "test prompt");
     assert_eq!(
         cmd.env.get("SHIP_MESH_ID").map(String::as_str),

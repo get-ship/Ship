@@ -1,5 +1,17 @@
 {
+  "$schema": "https://raw.githubusercontent.com/madvib/ship/main/schemas/view-manifest.schema.json",
   "name": "pipelines",
   "type": "html",
-  "claims": []
+  "claims": [],
+
+  "rail": {
+    "label": "Pipelines",
+    "icon": "play"
+  },
+
+  // Heavy island bundles this view needs. The `pipelines/focus` sub-route
+  // hosts `<ship-code-editor>` for the raw-edit mode (JSONC/YAML definition
+  // editing). Loading `editor` pulls in both TipTap + CodeMirror bundles;
+  // future pipeline editing surfaces that need markdown get it for free.
+  "packs": ["editor"]
 }

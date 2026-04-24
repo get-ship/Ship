@@ -1,0 +1,55 @@
+{#- Center canvas: SVG bezier edges + positioned nodes. Server owns layout.
+    Context: agent, nodes, edges. -#}
+{% from '_ship.html.j2' import on_click, attr_if %}
+<div class="wire-canvas">
+  <svg class="wires" viewBox="0 0 1000 600" preserveAspectRatio="none">
+    {%- for e in edges %}
+    <path d="{{ e.path_d }}"
+      stroke="var(--tone-{% if e.kind == 'skill' %}success{% elif e.kind == 'mcp' %}info{% elif e.kind == 'rule' %}warning{% elif e.kind == 'perm' %}destructive{% else %}accent{% endif %}-fg)"
+      stroke-width="1.3"
+      stroke-opacity="0.55"
+      fill="none"
+      {% if e.dashed %}stroke-dasharray="4 3"{% endif %} />
+    {%- endfor %}
+  </svg>
+
+  {%- for n in nodes %}
+  <div class="node {{ n.kind }}"
+    style="left:{{ (n.x / 10) }}%; top:{{ (n.y / 6) }}%; width:{{ (n.w / 10) }}%; min-width:{{ n.w * 0.7 }}px"
+    {{ attr_if("$selected_kind == '" ~ n.kind ~ "' && $selected_id == '" ~ (n.id | e) ~ "'", 'data-selected') }}
+    {{ on_click("$selected_kind = '" ~ n.kind ~ "'; $selected_id = '" ~ (n.id | e) ~ "'") }}>
+    <div class="node-h">
+      <span class="swatch"></span>
+      <span>{% if n.kind == 'agent' %}AGENT{% elif n.kind == 'skill' %}SKILL{% elif n.kind == 'mcp' %}MCP SERVER{% elif n.kind == 'rule' %}RULES{% elif n.kind == 'perm' %}PERMISSIONS{% else %}PROVIDER{% endif %}</span>
+    </div>
+    {% if n.kind == 'prov' %}
+      <div style="display:flex; align-items:center; gap:8px">
+        <ship-provider-blob provider="{{ n.id }}" size="md"></ship-provider-blob>
+        <div style="min-width:0">
+          <div class="node-title">{{ n.title }}</div>
+          <div class="node-sub">{{ n.sub }}</div>
+        </div>
+      </div>
+    {% elif n.kind == 'agent' %}
+      <div style="display:flex; align-items:center; gap:10px">
+        <ship-avatar size="md" shape="square" identity-hue="{{ agent.id }}" initials="{{ agent.letter }}" name="{{ agent.name }}"></ship-avatar>
+        <div style="min-width:0">
+          <div class="node-title">{{ n.title }}</div>
+          <div class="node-sub">{{ n.sub }}</div>
+        </div>
+      </div>
+    {% else %}
+      <div class="node-title">{{ n.title }}</div>
+      <div class="node-sub">{{ n.sub }}</div>
+    {% endif %}
+  </div>
+  {%- endfor %}
+
+  <div class="wire-legend">
+    <div class="sw"><i style="background:var(--tone-success-fg)"></i>skill</div>
+    <div class="sw"><i style="background:var(--tone-info-fg)"></i>mcp</div>
+    <div class="sw"><i style="background:var(--tone-warning-fg); background-image: repeating-linear-gradient(90deg, transparent 0 2px, var(--background) 2px 3px)"></i>rule</div>
+    <div class="sw"><i style="background:var(--tone-destructive-fg)"></i>perm</div>
+    <div class="sw"><i style="background:var(--tone-accent-fg)"></i>provider</div>
+  </div>
+</div>

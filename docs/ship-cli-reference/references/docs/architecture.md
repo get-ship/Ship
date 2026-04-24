@@ -118,7 +118,7 @@ These commands POST to `http://127.0.0.1:{port}` using the daemon token.
 - `ship jobs` — GETs `/api/runtime/jobs` for the current projection.
 - `ship job <slug>` — single-job operations (status, cancel, tail).
 - `ship workspace *` — some subcommands go through the daemon for pipeline coordination.
-- `ship events list` — GETs `/api/runtime/events` with filters.
+- `ship events list` — GETs `/api/events/stream` with filters.
 - `ship hook <trigger>` — emits hook events via daemon (for hook scripts invoked by providers).
 - `ship tail` — SSE / long-poll for live events.
 

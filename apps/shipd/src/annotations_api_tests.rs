@@ -1,4 +1,4 @@
-//! Integration tests for `POST /api/runtime/annotations`.
+//! Integration tests for `POST /api/annotations`.
 
 use axum::{Router, body::Body, http::Request};
 use http_body_util::BodyExt;
@@ -14,7 +14,7 @@ use crate::ship_runtime::ShipRuntime;
 fn router_for(state: ApiState, auth: AuthContext) -> Router {
     Router::new()
         .route(
-            "/api/runtime/annotations",
+            "/api/annotations",
             axum::routing::post(super::post_annotation),
         )
         .with_state(state)
@@ -46,7 +46,7 @@ fn human_auth() -> AuthContext {
 async fn send_json(router: &Router, body: serde_json::Value) -> (u16, serde_json::Value) {
     let req = Request::builder()
         .method("POST")
-        .uri("/api/runtime/annotations")
+        .uri("/api/annotations")
         .header("content-type", "application/json")
         .body(Body::from(serde_json::to_vec(&body).unwrap()))
         .unwrap();
