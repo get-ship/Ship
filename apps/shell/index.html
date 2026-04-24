@@ -84,10 +84,22 @@
         overflow: hidden;
       }
 
-      /* <ship-shell> uses light DOM (no shadow root) so its :host
-         `display: contents` never matches. Force it here so the grid
-         layout on <body> reaches the shell's children. */
+      /* Light-DOM shell components — their `:host` styles never match
+         (no shadow root). Force layout/positioning here so they don't
+         steal grid cells. */
       ship-shell { display: contents; }
+      ship-rail, .ship-rail { grid-column: 1; }
+      .ship-content { grid-column: 2; }
+      ship-toast-host { display: contents; }
+      ship-edit-overlay {
+        position: fixed;
+        inset: 0;
+        pointer-events: none;
+        z-index: 9500;
+        display: none;
+      }
+      body.edit-mode ship-edit-overlay { display: block; }
+      ship-create-dialog { display: contents; }
 
       /* ── Top bar: slim, one line ── */
       .ship-topbar {
@@ -337,6 +349,7 @@
       /* ── Right drawer: chat panel ── */
       .ship-drawer {
         grid-row: 2;
+        grid-column: 3;
         width: 0;
         overflow: hidden;
         background: var(--sidebar);

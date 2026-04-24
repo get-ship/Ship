@@ -176,17 +176,9 @@ document
 if (document.getElementById("theme-picker")) mountThemePicker();
 
 // ── Rail toggle ──────────────────────────────────────────────────────
-// The shell root component owns rail-open body-class state + persistence;
-// the topbar button just dispatches the intent.
-// Delegated listener — <ship-nav-top> renders its light-DOM children
-// asynchronously, so `#toggle-rail` may not exist yet at module eval.
-document.addEventListener("click", (e) => {
-  const t = (e.target as HTMLElement | null)?.closest?.("#toggle-rail");
-  if (!t) return;
-  document
-    .querySelector("ship-shell")
-    ?.dispatchEvent(new CustomEvent("ship:rail:toggle", { bubbles: true }));
-});
+// <ship-nav-top>'s own @click on #toggle-rail dispatches
+// ship:rail:toggle; <ship-shell> owns the body class toggle. Nothing
+// to wire here.
 
 // ── Drawer toggle ────────────────────────────────────────────────────
 async function toggleDrawer() {

@@ -75,8 +75,8 @@
     </div>
 
     <div id="chat-messages" class="chat-messages"
-         {{ init("@get('/api/sse/chat" ~ (('?workspace_id=' ~ workspace_id) if workspace_id else '') ~ "', {requestCancellation: 'disabled'})") }}>
-      {% include 'chat/partials/messages.html.j2' %}
+         {{ init("@get('/api/view/chat/sse" ~ (('?workspace_id=' ~ workspace_id) if workspace_id else '') ~ "', {requestCancellation: 'disabled'})") }}>
+      {% include 'chat/partials/content.html.j2' %}
     </div>
 
     <div class="chat-annotations" data-show="$annotations.length > 0">
