@@ -219,8 +219,32 @@ shellEl?.addEventListener("ship:chat:close", () => {
 });
 
 // ── Panel dock toggle ───────────────────────────────────────────────
-document.getElementById("panel-dock")!.addEventListener("ship:dock:close", () => {
+const dock = document.getElementById("panel-dock")!;
+dock.addEventListener("ship:dock:close", () => {
   document.body.classList.remove("dock-open");
+});
+
+// Devtools packs load lazily on first activation of the tab that needs
+// them. Tracked per pack so repeat activations don't re-inject.
+const loadedPacks = new Set<string>();
+function loadPack(src: string): void {
+  if (loadedPacks.has(src)) return;
+  loadedPacks.add(src);
+  const s = document.createElement("script");
+  s.type = "module";
+  s.src = `/api/assets/${src}`;
+  document.head.appendChild(s);
+}
+
+dock.addEventListener("ship:dock:activate", (ev) => {
+  const tab = (ev as CustomEvent<{ tab: string }>).detail.tab;
+  if (tab === "source") {
+    loadPack("ship-code-editor.js");
+    const el = dock.querySelector("ship-devtools-source") as
+      | (HTMLElement & { refresh?: () => void })
+      | null;
+    el?.refresh?.();
+  }
 });
 
 // ── Mount a daemon view ──────────────────────────────────────────────

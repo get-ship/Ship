@@ -275,6 +275,9 @@ pub enum Route {
     /// @route GET "/api/sse/{*path}"
     ServeViewSseRouted { path: String },
 
+    /// @route GET "/api/view-source/{*path}"
+    ServeViewSource { path: String },
+
     /// @route GET "/api/view/{name}/manifest"
     ServeViewManifest { name: String },
 

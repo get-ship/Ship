@@ -11,6 +11,7 @@ export { ShipLauncher } from "./ship-launcher";
 export { ShipNavTop } from "./ship-nav-top";
 export { ShipPanelDock } from "./ship-panel-dock";
 export type { DockTab } from "./ship-panel-dock";
+export { ShipDevtoolsSource } from "./devtools/source-tab";
 export { ShipToastHost } from "./ship-toast-host";
 export { KernelBridge } from "./kernel-bridge";
 export { DEFAULT_PINS, humanize } from "./view-catalog";
