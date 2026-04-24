@@ -222,6 +222,7 @@ dock.addEventListener("ship:dock:close", () => {
 });
 document.querySelector("ship-shell")?.addEventListener("ship:dock:toggle", () => {
   document.body.classList.toggle("dock-open");
+  maybeInitDockActive();
 });
 
 // Devtools packs load lazily on first activation of the tab that needs
@@ -272,7 +273,79 @@ dock.addEventListener("ship:dock:activate", (ev) => {
       | null;
     el?.refresh?.();
   }
+  if (tab === "terminal") {
+    loadPack("ship-terminal.js");
+    void initDockTerminal();
+  }
 });
+
+// ── Dock terminal ↔ PTY shell session ─────────────────────────────
+// First activation spawns a kind=shell session, subscribes to its
+// output SSE, and wires xterm input back via /input. One shared
+// session per browser; tab switches reuse it.
+let dockTerminalSessionId: string | null = null;
+let dockTerminalES: EventSource | null = null;
+
+function maybeInitDockActive(): void {
+  if (!document.body.classList.contains("dock-open")) return;
+  const active = dock.getAttribute("active-tab") ?? "terminal";
+  if (active === "terminal") {
+    loadPack("ship-terminal.js");
+    void initDockTerminal();
+  }
+}
+
+async function initDockTerminal(): Promise<void> {
+  const xterm = document.getElementById("shell-terminal") as
+    | (HTMLElement & {
+        write?: (s: string) => void;
+        terminal?: { onData?: (cb: (s: string) => void) => void };
+      })
+    | null;
+  if (!xterm) return;
+  if (!dockTerminalSessionId) {
+    try {
+      const resp = await fetch("/api/sessions/spawn", {
+        method: "POST",
+        credentials: "same-origin",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ workspace_id: "main", kind: "shell" }),
+      });
+      if (!resp.ok) return;
+      const body = (await resp.json()) as { session_id: string };
+      dockTerminalSessionId = body.session_id;
+    } catch {
+      return;
+    }
+  }
+  // Wait for xterm to be ready, then wire output + input.
+  const wireWhenReady = (): void => {
+    if (!xterm.write || !xterm.terminal?.onData) {
+      xterm.addEventListener("ship-ready", wireWhenReady, { once: true });
+      return;
+    }
+    if (dockTerminalES) return; // already wired
+    dockTerminalES = new EventSource(
+      `/api/sessions/${dockTerminalSessionId}/stream`,
+      { withCredentials: true },
+    );
+    dockTerminalES.addEventListener("bytes", (ev) => {
+      const text = (ev as MessageEvent).data;
+      xterm.write?.(text);
+    });
+    xterm.addEventListener("ship-data", (ev) => {
+      const data = (ev as CustomEvent<{ data: string }>).detail?.data;
+      if (!data || !dockTerminalSessionId) return;
+      void fetch(`/api/sessions/${dockTerminalSessionId}/input`, {
+        method: "POST",
+        credentials: "same-origin",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ data }),
+      });
+    });
+  };
+  wireWhenReady();
+}
 
 // ── Mount a daemon view ──────────────────────────────────────────────
 //
@@ -571,6 +644,7 @@ document.addEventListener("keydown", (e) => {
   if (meta && e.key === "j") {
     e.preventDefault();
     document.body.classList.toggle("dock-open");
+    maybeInitDockActive();
   }
 
   // ⌘⇧D — Focus devtools (opens dock + jumps to Source)
