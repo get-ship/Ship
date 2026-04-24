@@ -245,6 +245,73 @@ export class ShipCommandBar extends LitElement {
       color: var(--muted-foreground);
       font-size: var(--text-xs);
     }
+    .session-popover {
+      position: absolute;
+      top: 100%;
+      right: 0;
+      margin-top: 6px;
+      min-width: 280px;
+      background: var(--card, var(--background));
+      border: 1px solid var(--border);
+      border-radius: var(--radius-md, 6px);
+      box-shadow: 0 12px 24px rgba(0, 0, 0, 0.18);
+      z-index: 9902;
+      padding: 6px;
+      font-size: var(--text-sm);
+    }
+    .session-row {
+      display: grid;
+      grid-template-columns: 10px 1fr auto;
+      gap: 8px;
+      align-items: center;
+      padding: 6px 10px;
+      border-radius: var(--radius-sm, 4px);
+      cursor: pointer;
+    }
+    .session-row:hover {
+      background: var(--muted);
+    }
+    .session-row.current {
+      color: var(--primary);
+    }
+    .session-row .meta {
+      font-size: var(--text-xs);
+      color: var(--muted-foreground);
+    }
+    .session-row .end {
+      appearance: none;
+      background: transparent;
+      border: 0;
+      color: var(--muted-foreground);
+      cursor: pointer;
+      font: inherit;
+      font-size: var(--text-xs);
+      padding: 2px 6px;
+    }
+    .session-row .end:hover {
+      color: var(--destructive);
+    }
+    .session-sep {
+      height: 1px;
+      background: var(--border);
+      margin: 4px 0;
+    }
+    .session-start-new {
+      display: flex;
+      align-items: center;
+      gap: 6px;
+      padding: 6px 10px;
+      border-radius: var(--radius-sm, 4px);
+      color: var(--muted-foreground);
+      cursor: pointer;
+    }
+    .session-start-new:hover {
+      background: var(--muted);
+      color: var(--foreground);
+    }
+    .panel-chip-wrap {
+      position: relative;
+    }
     .spawn-card {
       display: grid;
       gap: var(--space-2, 8px);
@@ -343,15 +410,46 @@ export class ShipCommandBar extends LitElement {
   @state() private _spawnError: string | null = null;
   @state() private _thread: ThreadLine[] = [];
   @state() private _workspaceId: string = "main";
+  @state() private _sessionPickerOpen = false;
+  @state() private _allSessions: SessionSummary[] = [];
   private _streamAbort: AbortController | null = null;
+
+  private _lastSpaceAt = 0;
 
   private _onDocKeydown = (e: KeyboardEvent): void => {
     const meta = e.metaKey || e.ctrlKey;
     if (meta && e.key.toLowerCase() === "k") {
       e.preventDefault();
-      this.focus();
-    } else if (e.key === "Escape" && this.open) {
+      this.focus("find");
+      return;
+    }
+    if (e.key === "Escape" && this.open) {
       this.blur();
+      return;
+    }
+    // Space+Space doubletap → open in AI mode. Only when focus isn't
+    // inside an input/textarea/contenteditable so regular typing
+    // doesn't trigger. Gap ≤ 350ms for "doubletap" feel.
+    if (e.key === " " && !this.open) {
+      const target = e.target as HTMLElement | null;
+      if (
+        target &&
+        (target.tagName === "INPUT" ||
+          target.tagName === "TEXTAREA" ||
+          target.isContentEditable ||
+          target.closest("ship-code-editor") ||
+          target.closest("ship-command-bar"))
+      ) {
+        return;
+      }
+      const now = performance.now();
+      if (now - this._lastSpaceAt < 350) {
+        this._lastSpaceAt = 0;
+        e.preventDefault();
+        void this.focus("ai");
+      } else {
+        this._lastSpaceAt = now;
+      }
     }
   };
 
@@ -394,8 +492,14 @@ export class ShipCommandBar extends LitElement {
     this.focus();
   };
 
-  async focus(): Promise<void> {
+  /** Focus the bar. Seeds the default mode when the input is empty —
+   *  ⌘K opens in `find` (nav/command palette), Space+Space opens in
+   *  `ai` (chat/spawn). Typing a prefix always overrides. */
+  async focus(mode: BarMode = "find"): Promise<void> {
     this.open = true;
+    if (this._value.trim().length === 0) {
+      this._mode = mode;
+    }
     await this.updateComplete;
     const input = this.renderRoot.querySelector("input");
     input?.focus();
@@ -414,6 +518,7 @@ export class ShipCommandBar extends LitElement {
       });
       if (resp.ok) {
         const body = (await resp.json()) as { sessions: SessionSummary[] };
+        this._allSessions = body.sessions;
         const active = body.sessions.find(
           (s) => s.status !== "ended" && s.agent_id,
         );
@@ -431,6 +536,18 @@ export class ShipCommandBar extends LitElement {
     }
     if (this._agents.length === 0) void this._loadAgents();
     if (this._providers.length === 0) void this._loadProviders();
+  }
+
+  private _switchTo(session: SessionSummary): void {
+    if (session.id === this._session?.id) {
+      this._sessionPickerOpen = false;
+      return;
+    }
+    this._session = session;
+    this._thread = [];
+    this._attachStream(session.id);
+    this._sessionPickerOpen = false;
+    this._mode = "ai";
   }
 
   private async _loadAgents(): Promise<void> {
@@ -535,16 +652,19 @@ export class ShipCommandBar extends LitElement {
     }
   }
 
-  private _detectMode(value: string): BarMode {
+  private _detectMode(value: string, fallback: BarMode): BarMode {
     if (value.startsWith("/")) return "command";
     if (value.startsWith(">")) return "find";
     if (value.startsWith("@")) return "mention";
+    if (value.trim().length === 0) return fallback;
+    // Default for typed text: switch to AI mode so the user's message
+    // lands in the session. `>` prefix is the way to stay in find.
     return "ai";
   }
 
   private _onInput = (e: Event): void => {
     this._value = (e.target as HTMLInputElement).value;
-    this._mode = this._detectMode(this._value);
+    this._mode = this._detectMode(this._value, this._mode);
     this.open = true;
   };
 
@@ -613,12 +733,26 @@ export class ShipCommandBar extends LitElement {
   }
 
   private _openSessionPicker(): void {
-    this.dispatchEvent(
-      new CustomEvent("ship:bar:session-picker", {
-        bubbles: true,
-        composed: true,
-      }),
-    );
+    this._sessionPickerOpen = !this._sessionPickerOpen;
+    if (this._sessionPickerOpen) {
+      void this._loadCurrentSession();
+    }
+  }
+
+  private async _endSession(id: string): Promise<void> {
+    try {
+      await fetch(`/api/sessions/${id}`, {
+        method: "DELETE",
+        credentials: "same-origin",
+      });
+    } catch {
+      /* best effort */
+    }
+    if (this._session?.id === id) {
+      this._session = null;
+      this._detachStream();
+    }
+    await this._loadCurrentSession();
   }
 
   private _modeGlyph(): { text: string; tone: string; placeholder: string } {
@@ -689,19 +823,22 @@ export class ShipCommandBar extends LitElement {
             aria-label="Ship command bar"
           />
           <kbd>esc</kbd>
-          <span
-            class="panel-chip"
-            title=${this._session
-              ? `${this._session.agent_id ?? "—"} · ${this._session.provider ?? "—"}`
-              : "No session attached"}
-            @click=${(e: MouseEvent) => {
-              e.stopPropagation();
-              this._openSessionPicker();
-            }}
-          >
-            <span class="dot ${statusClass}"></span>
-            <span>${this._session?.agent_id ?? "No session"}</span>
-          </span>
+          <div class="panel-chip-wrap">
+            <span
+              class="panel-chip"
+              title=${this._session
+                ? `${this._session.agent_id ?? "—"} · ${this._session.provider ?? "—"}`
+                : "No session attached"}
+              @click=${(e: MouseEvent) => {
+                e.stopPropagation();
+                this._openSessionPicker();
+              }}
+            >
+              <span class="dot ${statusClass}"></span>
+              <span>${this._session?.agent_id ?? "No session"}</span>
+            </span>
+            ${this._sessionPickerOpen ? this._renderSessionPopover() : nothing}
+          </div>
         </div>
         <div class="panel-body">
           ${this._renderFlyoutBody()}
@@ -722,19 +859,7 @@ export class ShipCommandBar extends LitElement {
         return html`<div class="empty-msg">Create coming next commit.</div>`;
       case "ai":
       default:
-        // When input is empty, render both the AI surface AND the nav
-        // list so the palette is useful from a single open.
-        const empty = this._value.trim().length === 0;
-        return html`
-          ${this._session ? this._renderThread() : this._renderSpawnCard()}
-          ${empty
-            ? html`
-                <div style="margin-top: var(--space-4, 16px); border-top: 1px solid var(--border); padding-top: var(--space-3, 12px)">
-                  ${this._renderFindList()}
-                </div>
-              `
-            : nothing}
-        `;
+        return this._session ? this._renderThread() : this._renderSpawnCard();
     }
   }
 
@@ -756,6 +881,76 @@ export class ShipCommandBar extends LitElement {
       { label: "Theme Studio", path: "/theme-studio", icon: "palette", keywords: "design tokens" },
       { label: "Chats (Mission Control)", path: "/chats", icon: "messages-square", keywords: "sessions active" },
     ];
+  }
+
+  private _renderSessionPopover() {
+    const active = this._allSessions.filter(
+      (s) => s.status !== "ended" && s.agent_id,
+    );
+    return html`
+      <div
+        class="session-popover"
+        @click=${(e: MouseEvent) => e.stopPropagation()}
+      >
+        ${active.length === 0
+          ? html`<div class="session-row">
+              <span></span>
+              <span class="meta">No active sessions</span>
+              <span></span>
+            </div>`
+          : active.map(
+              (s) => html`
+                <div
+                  class="session-row ${s.id === this._session?.id ? "current" : ""}"
+                  @click=${() => this._switchTo(s)}
+                >
+                  <span class="dot" style="background: ${
+                    s.status === "thinking"
+                      ? "var(--warning, #d97706)"
+                      : "var(--success, #16a34a)"
+                  }"></span>
+                  <span>
+                    <strong>${s.agent_id}</strong>
+                    <span class="meta">${s.provider} · ${s.workspace_id}</span>
+                  </span>
+                  <button
+                    class="end"
+                    title="End session"
+                    @click=${(e: MouseEvent) => {
+                      e.stopPropagation();
+                      void this._endSession(s.id);
+                    }}
+                  >
+                    ×
+                  </button>
+                </div>
+              `,
+            )}
+        <div class="session-sep"></div>
+        <div
+          class="session-start-new"
+          @click=${() => {
+            this._sessionPickerOpen = false;
+            this._session = null;
+            this._mode = "ai";
+          }}
+        >
+          <ship-icon name="plus" size="sm"></ship-icon>
+          <span>Start new session</span>
+        </div>
+        <div
+          class="session-start-new"
+          @click=${() => {
+            this._sessionPickerOpen = false;
+            window.ship?.navigate("/chats");
+            this.blur();
+          }}
+        >
+          <ship-icon name="layout-grid" size="sm"></ship-icon>
+          <span>View all chats</span>
+        </div>
+      </div>
+    `;
   }
 
   private _renderFindList() {
