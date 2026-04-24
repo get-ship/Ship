@@ -20,11 +20,17 @@
 import { LitElement, html } from "lit";
 import { customElement, state } from "lit/decorators.js";
 
-import { BUILTIN_DISPLAY, displayFor } from "./view-catalog";
+import { humanize } from "./view-catalog";
+
+interface ApiView {
+  name: string;
+  rail?: { label: string; icon: string };
+}
 
 @customElement("ship-nav-top")
 export class ShipNavTop extends LitElement {
   @state() private path: string = location.pathname;
+  @state() private labels: Map<string, string> = new Map();
 
   private get shell(): HTMLElement | null {
     return this.closest("ship-shell");
@@ -39,6 +45,22 @@ export class ShipNavTop extends LitElement {
     super.connectedCallback();
     this.classList.add("ship-topbar");
     this.shell?.addEventListener("ship:navigate", this.onNavigate);
+    void this.loadLabels();
+  }
+
+  private async loadLabels(): Promise<void> {
+    try {
+      const resp = await fetch("/api/views", { credentials: "same-origin" });
+      if (!resp.ok) return;
+      const body = (await resp.json()) as { data?: { views?: ApiView[] } };
+      const next = new Map<string, string>();
+      for (const v of body.data?.views ?? []) {
+        if (v.rail?.label) next.set(v.name, v.rail.label);
+      }
+      this.labels = next;
+    } catch {
+      /* leave fallback humanized labels */
+    }
   }
 
   firstUpdated(): void {
@@ -154,7 +176,10 @@ export class ShipNavTop extends LitElement {
     return segs.map((seg, i) => {
       const isLast = i === segs.length - 1;
       const href = "/" + segs.slice(0, i + 1).join("/");
-      const label = i === 0 ? displayFor(seg).label : seg;
+      const label =
+        i === 0
+          ? (this.labels.get(seg) ?? humanize(seg))
+          : seg;
       return isLast
         ? html`<span class="current" id="breadcrumbs-title">${label}</span>`
         : html`<a
@@ -168,10 +193,6 @@ export class ShipNavTop extends LitElement {
     });
   }
 }
-
-// Silence unused-import lint: BUILTIN_DISPLAY is exposed for future
-// callers that might want to list canonical labels.
-void BUILTIN_DISPLAY;
 
 declare global {
   interface HTMLElementTagNameMap {

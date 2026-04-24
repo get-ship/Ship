@@ -1,33 +1,39 @@
 //! `<ship-rail>` — macOS-dock-style pinned view launcher.
 //!
 //! Light-DOM, uses the existing `.ship-rail` stylesheet from the shell's
-//! index.html. Reads pin state from localStorage via `./pins`. Subscribes
-//! to `ship:navigate` on `<ship-shell>` to highlight the active item.
-//!
-//! Clicking an item dispatches `ship:launcher:close` + calls
-//! `window.ship.navigate(path)`. Right-click (or context menu) unpins.
-//! A bottom "+" button dispatches `ship:launcher:open` with itself as
-//! anchor; `<ship-launcher>` consumes the event.
+//! index.html. Pin state lives in daemon settings (`shell.rail.pinned`);
+//! display metadata (label, icon) comes from each view's manifest via
+//! `/api/views`. Subscribes to `ship:navigate` on `<ship-shell>` to
+//! highlight the active item. Right-click on an item unpins. A bottom
+//! "+" button dispatches `ship:launcher:open`.
 
 import { LitElement, html, nothing } from "lit";
 import { customElement, state } from "lit/decorators.js";
 
-import { loadPins, unpin } from "./pins";
-import { displayFor } from "./view-catalog";
+import { fetchPins, unpin } from "./pins";
+import { humanize } from "./view-catalog";
+
+interface ApiView {
+  name: string;
+  type: string;
+  source: string;
+  rail?: { label: string; icon: string };
+}
 
 @customElement("ship-rail")
 export class ShipRail extends LitElement {
-  @state() private pins: string[] = loadPins();
+  @state() private pins: string[] = [];
   @state() private active = "";
+  @state() private viewsByName: Map<string, ApiView> = new Map();
 
   private get shell(): HTMLElement | null {
     return this.closest("ship-shell");
   }
 
   private onNavigate = (e: Event): void => {
-    const detail = (e as CustomEvent).detail as { to?: string } | undefined;
-    if (!detail?.to) return;
-    this.active = this.routeToViewName(detail.to);
+    const to = (e as CustomEvent).detail?.to as string | undefined;
+    if (!to) return;
+    this.active = this.routeToViewName(to);
   };
 
   private onPinsChanged = (e: Event): void => {
@@ -38,12 +44,13 @@ export class ShipRail extends LitElement {
   connectedCallback(): void {
     super.connectedCallback();
     this.active = this.routeToViewName(location.pathname);
+    this.classList.add("ship-rail");
     this.shell?.addEventListener("ship:navigate", this.onNavigate);
     this.shell?.addEventListener(
       "ship:rail:pins-changed" as keyof HTMLElementEventMap,
       this.onPinsChanged,
     );
-    this.classList.add("ship-rail");
+    void this.load();
   }
 
   disconnectedCallback(): void {
@@ -59,7 +66,12 @@ export class ShipRail extends LitElement {
     return this;
   }
 
-  /** Map a URL path to a view name by taking the first path segment. */
+  private async load(): Promise<void> {
+    const [pins, views] = await Promise.all([fetchPins(), fetchViews()]);
+    this.pins = pins;
+    this.viewsByName = new Map(views.map((v) => [v.name, v]));
+  }
+
   private routeToViewName(path: string): string {
     const seg = path.split("/").filter(Boolean)[0] ?? "dashboard";
     return seg === "" ? "dashboard" : seg;
@@ -70,10 +82,15 @@ export class ShipRail extends LitElement {
     window.ship?.navigate(`/${name === "dashboard" ? "" : name}`);
   }
 
-  private onItemContext(e: MouseEvent, name: string): void {
+  private async onItemContext(e: MouseEvent, name: string): Promise<void> {
     e.preventDefault();
-    // For now, right-click unpins. Future: context menu with rename/reorder.
-    this.pins = unpin(name);
+    this.pins = await unpin(name, this.pins);
+    this.shell?.dispatchEvent(
+      new CustomEvent("ship:rail:pins-changed", {
+        detail: { pins: this.pins },
+        bubbles: true,
+      }),
+    );
   }
 
   private openLauncher(e: MouseEvent): void {
@@ -88,8 +105,6 @@ export class ShipRail extends LitElement {
   }
 
   render() {
-    // Partition pins into settings (always last) + rest so the spacer
-    // pushes Settings to the bottom.
     const settings = this.pins.filter((n) => n === "settings");
     const rest = this.pins.filter((n) => n !== "settings");
     return html`
@@ -109,20 +124,33 @@ export class ShipRail extends LitElement {
   }
 
   private renderItem(name: string) {
-    const display = displayFor(name);
+    const v = this.viewsByName.get(name);
+    const label = v?.rail?.label ?? humanize(name);
+    const icon = v?.rail?.icon ?? "app-window";
     const classes = `rail-item${this.active === name ? " active" : ""}`;
     return html`
       <a
         class=${classes}
-        title=${display.label}
+        title=${label}
         data-view=${name}
         href=${`/${name === "dashboard" ? "" : name}`}
         @click=${(e: MouseEvent) => this.onItemClick(e, name)}
         @contextmenu=${(e: MouseEvent) => this.onItemContext(e, name)}
       >
-        <ship-icon name=${display.icon}></ship-icon>
+        <ship-icon name=${icon}></ship-icon>
       </a>
     `;
+  }
+}
+
+async function fetchViews(): Promise<ApiView[]> {
+  try {
+    const resp = await fetch("/api/views", { credentials: "same-origin" });
+    if (!resp.ok) return [];
+    const body = (await resp.json()) as { data?: { views?: ApiView[] } };
+    return body.data?.views ?? [];
+  } catch {
+    return [];
   }
 }
 

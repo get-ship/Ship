@@ -3,6 +3,11 @@
   "type": "html",
   "claims": [],
 
+  "rail": {
+    "label": "Pipelines",
+    "icon": "play"
+  },
+
   // Heavy island bundles this view needs. The `pipelines/focus` sub-route
   // hosts `<ship-code-editor>` for the raw-edit mode (JSONC/YAML definition
   // editing). Loading `editor` pulls in both TipTap + CodeMirror bundles;

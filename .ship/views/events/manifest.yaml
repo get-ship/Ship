@@ -1,6 +1,7 @@
 name: events
 type: html
-data:
-  events_data: true
+rail:
+  label: Events
+  icon: sparkles
 events:
   - ""

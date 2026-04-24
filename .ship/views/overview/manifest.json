@@ -3,6 +3,10 @@
   "name": "overview",
   "type": "html",
   "description": "Canvas-based planning surface for the Ship `systems` collection. One node per system, drag to reposition, arrows for depends_on, click to edit.",
+  "rail": {
+    "label": "Overview",
+    "icon": "git"
+  },
   "data": {
     "collections": ["systems"]
   },

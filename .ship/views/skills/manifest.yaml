@@ -1,7 +1,8 @@
 name: skills
 type: html
-data:
-  skills: true
+rail:
+  label: Skills
+  icon: zap
 events:
   - config.changed
   - workspace.changed

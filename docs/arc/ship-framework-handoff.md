@@ -103,6 +103,24 @@ Internal Rust identifiers (`runtime_api`, `ship_runtime`) stay — only URLs cha
 
 - `views_raw_tests.rs::each_sdk_view_renders_its_root` was trimmed to just `chat` + the remaining SDK shell views as first-party views migrated. It's mostly vacuous now — delete when chat migrates, or recycle for testing the routed handler's pack injection.
 
+## Data storage tiers
+
+Every piece of state Ship manages falls into one of four tiers. Misfiling data is the most common source of accidental coupling and duplicated prefs stores.
+
+1. **Project config** — version-controlled with the project, agent-authored or user-authored, agents compile from it. **Files under `.ship/`:** `agents/`, `skills/`, `pipelines/`, `rules/`, `mcp.jsonc`, `permissions.jsonc`, `collections/<name>.jsonc`, `views/<name>/` (manifest + templates). Hand-editable, diff-friendly, deliberately file-based.
+
+2. **User prefs / workspace state** — daemon-authoritative, HTTP-accessed, survives restarts, UI-editable. **Home: `config.toml` via `/api/settings`.** Keyed by dotted namespace: `defaults.*`, `terminal.*`, `theme.*`, `shell.rail.pinned`, etc. Any "is this a setting?" question lands here. The settings view renders tier-2 keys; the same keys syncable across devices (future).
+
+3. **Application data** — structured, queryable, high-volume, lifecycle events. **Home: `data.db` (SQLite).** Collections + items, events projection, jobs, specs, annotations, feedback, artifact metadata. Indexable, migratable, relational.
+
+4. **Browser-ephemeral** — truly session-scoped, loses nothing if forgotten. **Home: localStorage/memory.** Cmdk input, scroll position, currently-open overlays. No ceremony.
+
+**Rule of thumb:** when adding state, ask *which tier?* first. If it's tier 2, the answer is always `/api/settings` + a new key — never a new prefs store. If you can't decide between tier 2 and tier 4, ask "would the user be annoyed if it didn't persist across browser restarts?" Yes → tier 2, no → tier 4.
+
+Current misalignments (fix opportunistically as you touch code paths):
+- **Theme** (`ship-site-theme`) — in localStorage, should be tier 2. `persistTheme` in `@ship/set/themes` bridges both sides; unblock this at the package boundary when it's near a larger pass.
+- **Rail-open state** (`ship-rail-open`) — arguably tier 4 (session) or tier 2 (pref). Currently tier 4; leaning 2 for consistency.
+
 ## Framework stance for next thread
 
 Keep compounding: every migrated view that needed a new primitive (pack injection, dynamic routes, compound filter ops) revealed a real gap. The remaining unknowns are chat (session-stateful + message-passing) and canvas views (overview, agent wire). The bet is that both resolve to "add a registry op + build a web component" — neither requires bespoke Rust per view. If chat turns out to need a new primitive (likely `ship.chat.stream()` or a shell↔extension message bus), that's a framework extension, not a failure.

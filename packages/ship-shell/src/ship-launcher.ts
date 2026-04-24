@@ -10,13 +10,14 @@
 import { LitElement, css, html, nothing } from "lit";
 import { customElement, state } from "lit/decorators.js";
 
-import { loadPins, pin, unpin } from "./pins";
-import { displayFor } from "./view-catalog";
+import { fetchPins, pin, unpin } from "./pins";
+import { humanize } from "./view-catalog";
 
 interface ApiView {
   name: string;
   type: string;
   source: string;
+  rail?: { label: string; icon: string };
 }
 
 @customElement("ship-launcher")
@@ -123,15 +124,15 @@ export class ShipLauncher extends LitElement {
 
   @state() private open = false;
   @state() private views: ApiView[] = [];
-  @state() private pins: string[] = loadPins();
+  @state() private pins: string[] = [];
   private anchor: HTMLElement | null = null;
 
-  private onOpen = (e: Event): void => {
+  private onOpen = async (e: Event): Promise<void> => {
     this.anchor = ((e as CustomEvent).detail?.anchor as HTMLElement) ?? null;
-    this.pins = loadPins();
     this.open = true;
     this.setAttribute("open", "");
-    void this.fetchViews();
+    const [pins] = await Promise.all([fetchPins(), this.fetchViews()]);
+    this.pins = pins;
   };
 
   private onClose = (): void => {
@@ -177,11 +178,12 @@ export class ShipLauncher extends LitElement {
     this.onClose();
   }
 
-  private togglePin(e: MouseEvent, name: string): void {
+  private async togglePin(e: MouseEvent, name: string): Promise<void> {
     e.preventDefault();
     e.stopPropagation();
-    this.pins = this.pins.includes(name) ? unpin(name) : pin(name);
-    // Let the rail know.
+    this.pins = this.pins.includes(name)
+      ? await unpin(name, this.pins)
+      : await pin(name, this.pins);
     this.shell?.dispatchEvent(
       new CustomEvent("ship:rail:pins-changed", {
         detail: { pins: this.pins },
@@ -209,21 +211,22 @@ export class ShipLauncher extends LitElement {
   }
 
   private renderTile(v: ApiView) {
-    const d = displayFor(v.name);
+    const label = v.rail?.label ?? humanize(v.name);
+    const icon = v.rail?.icon ?? "app-window";
     const pinned = this.pins.includes(v.name);
     return html`
       <a
         class="tile"
         data-pinned=${pinned ? "true" : "false"}
         href=${`/${v.name === "dashboard" ? "" : v.name}`}
-        title=${`${d.label} · ${v.source}`}
+        title=${`${label} · ${v.source}`}
         @click=${(e: MouseEvent) => {
           e.preventDefault();
           this.navigate(v.name);
         }}
       >
-        <ship-icon name=${d.icon} size="lg"></ship-icon>
-        <span class="label">${d.label}</span>
+        <ship-icon name=${icon} size="lg"></ship-icon>
+        <span class="label">${label}</span>
         <span
           class="badge"
           role="button"

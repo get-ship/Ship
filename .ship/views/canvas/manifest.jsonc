@@ -8,6 +8,11 @@
   "type": "html",
   "description": "Live interaction surface — agent-created HTML artifacts with annotation + feedback round-trip",
 
+  "rail": {
+    "label": "Canvas",
+    "icon": "image"
+  },
+
   // SSE subscriptions. The rail listens for canvas-artifact mutations and
   // for round-tripped feedback / annotation events so the panel updates
   // without a full page reload.

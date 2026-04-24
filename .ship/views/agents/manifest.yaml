@@ -1,5 +1,8 @@
 name: agents
 type: html
+rail:
+  label: Agents
+  icon: users
 events:
   - config.
   - workspace.

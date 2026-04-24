@@ -5,7 +5,7 @@ use std::path::PathBuf;
 
 use serde::Deserialize;
 
-use super::{ViewListEntry, ViewManifest};
+use super::{RailMeta, ViewListEntry, ViewManifest};
 
 #[derive(Deserialize)]
 pub(crate) struct ManifestFile {
@@ -23,6 +23,43 @@ pub(crate) struct ManifestFile {
     /// packs live in [`super::packs`]. Unknown names are silently skipped.
     #[serde(default)]
     pub packs: Option<Vec<String>>,
+    /// Shell display metadata — rail label, icon, pin defaults.
+    /// Absent → view has no pinned/launcher presence unless the shell
+    /// falls back (e.g. user-authored views default to their id).
+    #[serde(default)]
+    pub rail: Option<ManifestRail>,
+}
+
+/// View identity for the shell rail / launcher. No preference data —
+/// pin state, order, default-pinned are user settings (tier 2 storage:
+/// daemon-backed `shell.rail.*` keys), not per-view config.
+#[derive(Deserialize, Clone)]
+pub struct ManifestRail {
+    pub label: Option<String>,
+    pub icon: Option<String>,
+}
+
+impl ManifestRail {
+    pub fn into_meta(self, view_name: &str) -> RailMeta {
+        RailMeta {
+            label: self.label.unwrap_or_else(|| humanize(view_name)),
+            icon: self.icon.unwrap_or_else(|| "app-window".into()),
+        }
+    }
+}
+
+fn humanize(id: &str) -> String {
+    id.replace('-', " ")
+        .split(' ')
+        .map(|w| {
+            let mut c = w.chars();
+            match c.next() {
+                Some(ch) => ch.to_uppercase().chain(c).collect::<String>(),
+                None => String::new(),
+            }
+        })
+        .collect::<Vec<_>>()
+        .join(" ")
 }
 
 #[derive(Deserialize, Clone)]
@@ -114,8 +151,18 @@ pub(super) fn scan_views_dir(dir: &PathBuf, source: &'static str, out: &mut Hash
         if !entry.file_type().map(|t| t.is_dir()).unwrap_or(false) { continue; }
         let name = entry.file_name().to_string_lossy().to_string();
         if out.contains_key(&name) { continue; }
-        if let Some(vtype) = detect_view_type(&entry.path()) {
-            out.insert(name.clone(), ViewListEntry { name, view_type: vtype, source: source.into() });
+        let path = entry.path();
+        if let Some(vtype) = detect_view_type(&path) {
+            // Read rail metadata from the manifest if present. User-authored
+            // views without a `rail:` block still land in the launcher (the
+            // shell fills in a fallback label/icon client-side).
+            let rail = read_raw_manifest(&path)
+                .and_then(|m| m.rail)
+                .map(|r| r.into_meta(&name));
+            out.insert(
+                name.clone(),
+                ViewListEntry { name, view_type: vtype, source: source.into(), rail },
+            );
         }
     }
 }

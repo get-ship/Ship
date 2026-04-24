@@ -1,5 +1,8 @@
 name: chat
 type: html
+rail:
+  label: Chat
+  icon: message-square-plus
 events:
   - studio.message
   - session.progress

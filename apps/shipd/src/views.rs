@@ -85,10 +85,24 @@ pub struct ViewManifest {
 
 #[derive(Serialize)]
 pub(crate) struct ViewListEntry {
-    name: String,
+    pub(crate) name: String,
     #[serde(rename = "type")]
-    view_type: String,
-    source: String,
+    pub(crate) view_type: String,
+    pub(crate) source: String,
+    /// Optional shell display metadata — label, icon, default_pinned,
+    /// order. Populated from the view's manifest `rail:` block (or
+    /// equivalent). Absent = view has no pinned/launcher presence.
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub(crate) rail: Option<RailMeta>,
+}
+
+/// Per-view shell display metadata. Maps to `<ship-rail>` /
+/// `<ship-launcher>`. Identity only — pin state and ordering are user
+/// settings (tier 2, daemon-persisted), not view config.
+#[derive(Serialize, Clone)]
+pub struct RailMeta {
+    pub label: String,
+    pub icon: String,
 }
 
 pub(crate) type MeshResult = (StatusCode, Json<MeshResponse>);

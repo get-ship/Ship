@@ -1,5 +1,9 @@
 {
   "name": "specs",
   "type": "html",
-  "claims": []
+  "claims": [],
+  "rail": {
+    "label": "Specs",
+    "icon": "file"
+  }
 }
