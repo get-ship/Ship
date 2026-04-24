@@ -670,27 +670,11 @@ pub fn call(name: &str, args: &Value, state: &ApiState) -> Result<Value, Registr
     }
 }
 
-/// Enumerate registered service names — drives SDK codegen, MCP tool
-/// registration, lint diagnostics.
-pub fn names() -> &'static [&'static str] {
-    &[
-        "agents.list", "agents.get", "agents.summaries", "agents.detail", "agents.catalogs",
-        "agents.wire", "agents.settings", "agents.templates", "agents.permission_presets",
-        "agents.providers", "agents.create_ctx",
-        "skills.list", "skills.get", "skills.summaries", "skills.file", "skills.detail", "skills.summaries", "skills.file",
-        "rules.list", "rules.get",
-        "mcp.list", "mcp.get",
-        "permissions.list", "permissions.get", "permissions.tool_patterns",
-        "pipelines.list", "pipelines.get",
-        "pipelines.summaries", "pipelines.focus", "pipelines.run", "pipelines.history",
-        "events.list",
-        "specs.list", "specs.get", "specs.summaries", "specs.detail",
-        "git.status", "git.log", "git.branches", "git.overview", "git.diff", "git.annotations",
-        "settings.state",
-        "dashboard.state",
-        "collections.state",
-        "chat.state",
-    ]
+/// Enumerate registered service names — derived from the rich op
+/// descriptors in `services::schema`. Keep `services::registry::call`'s
+/// match arms in sync with `schema::OPS`; drift is visible in diff.
+pub fn names() -> Vec<&'static str> {
+    super::schema::OPS.iter().map(|op| op.name).collect()
 }
 
 #[cfg(test)]

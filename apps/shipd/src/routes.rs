@@ -266,6 +266,9 @@ pub enum Route {
     /// @route GET "/api/views"
     ListViews,
 
+    /// @route GET "/api/ship/schema"
+    ShipSchema,
+
     /// @route GET "/api/v/{*path}"
     ServeViewRouted { path: String },
 

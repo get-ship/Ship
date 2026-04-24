@@ -73,6 +73,7 @@
 {%- macro skills_delete_var(id, key) -%}/api/skills/{{ id }}/vars/{{ key }}{%- endmacro -%}
 {%- macro chat_send() -%}/api/chat/send{%- endmacro -%}
 {%- macro list_views() -%}/api/views{%- endmacro -%}
+{%- macro ship_schema() -%}/api/ship/schema{%- endmacro -%}
 {%- macro serve_view_routed(path) -%}/api/v/{{ path }}{%- endmacro -%}
 {%- macro serve_view_sse_routed(path) -%}/api/sse/{{ path }}{%- endmacro -%}
 {%- macro serve_view_manifest(name) -%}/api/view/{{ name }}/manifest{%- endmacro -%}

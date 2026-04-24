@@ -238,6 +238,7 @@ fn build_ship_routes(st: rest_api::ApiState) -> Router {
         .ship_route(Route::DaemonStatus, runtime_api::daemon_status)
         // Views
         .ship_route(Route::ListViews, views::list_views)
+        .ship_route(Route::ShipSchema, services::schema::serve_schema)
         .ship_route(Route::ServeViewRouted_template(), views::routed_handler::serve_view_routed)
         .ship_route(Route::ServeViewSseRouted_template(), views::routed_sse::serve_view_sse_routed)
         .ship_route(Route::ServeViewManifest_template(), views::serve_view_manifest)
