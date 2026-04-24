@@ -195,6 +195,35 @@ pub async fn session_message(
     }
 }
 
+#[utoipa::path(
+    operation_id = "sessionReply",
+    post,
+    path = "/api/sessions/{id}/reply",
+    params(("id" = String, Path, description = "Agent session id")),
+    request_body = MessageBody,
+    responses(
+        (status = 202, description = "Reply broadcast to session subscribers"),
+        (status = 404, description = "Not found"),
+    ),
+    tag = "sessions"
+)]
+pub async fn session_reply(
+    State(state): State<ApiState>,
+    Path(id): Path<String>,
+    Json(body): Json<MessageBody>,
+) -> axum::response::Response {
+    let text = body.text;
+    if text.is_empty() {
+        return err(StatusCode::BAD_REQUEST, "empty reply");
+    }
+    let Some(session) = state.pty_sessions().get(&id) else {
+        return err(StatusCode::NOT_FOUND, format!("session '{id}' not found"));
+    };
+    let ev = runtime::services::provider_adapter::ProviderEvent::Message { text };
+    let _ = session.0.event_tx.send(ev);
+    (StatusCode::ACCEPTED, ()).into_response()
+}
+
 #[derive(Deserialize, utoipa::ToSchema)]
 pub struct InputBody {
     /// Raw bytes (UTF-8 text). Added verbatim to PTY stdin — include

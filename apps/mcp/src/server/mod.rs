@@ -693,6 +693,26 @@ impl ShipServer {
     // ---- View linting ----
 
     #[tool(
+        description = "Post a plain-text reply into a Ship command-bar chat session. \
+        This is how Shipwright (and other agents) address the user in the Ship UI — \
+        the text renders as an agent bubble in the session's thread. \
+        Read the target `session_id` from the `SHIP_SESSION_ID` environment variable \
+        the Ship daemon sets when spawning you; never guess it. \
+        Prefer `chat_reply` over printing to stdout — stdout is logged, not shown to \
+        the user. Keep replies concise; no markdown formatting (the UI is not a \
+        markdown renderer)."
+    )]
+    async fn chat_reply(
+        &self,
+        Parameters(req): Parameters<crate::requests::ChatReplyRequest>,
+    ) -> String {
+        match crate::network_client::session_reply(&req.session_id, &req.text).await {
+            Ok(_) => "ok".to_string(),
+            Err(e) => format!("Error: {e}"),
+        }
+    }
+
+    #[tool(
         description = "Lint a Ship view (.j2 template) against the Ship view authoring rules. \
         Checks for: inline <script> tags (forbidden), inline style budget, undefined Datastar \
         signals, missing pack declarations, stale pack declarations, unknown macros/filters/routes, \

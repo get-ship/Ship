@@ -1,6 +1,7 @@
 #![allow(dead_code)]
 
 pub mod artifacts;
+pub mod chat;
 pub mod collections;
 #[cfg(feature = "unstable")]
 mod dispatch;
@@ -25,6 +26,7 @@ pub use project::*;
 #[cfg(feature = "unstable")]
 pub use view::*;
 pub use workspace::*;
+pub use chat::*;
 pub use lint::*;
 pub use view_errors::*;
 pub use sdk_query::*;

@@ -53,6 +53,11 @@ impl ClaudeAdapter {
             args.push("--no-session-persistence".to_string());
         }
 
+        if let Some(ref sys) = profile.append_system_prompt {
+            args.push("--append-system-prompt".to_string());
+            args.push(sys.clone());
+        }
+
         let mut env = HashMap::new();
         env.insert("SHIP_MESH_ID".to_string(), slug.to_string());
 
@@ -72,6 +77,7 @@ impl ProviderAdapter for ClaudeAdapter {
             mcp: true,
             hooks: true,
             session_resume: false,
+            channels: true,
         }
     }
 

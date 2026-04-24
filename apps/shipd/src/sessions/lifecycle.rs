@@ -133,12 +133,17 @@ pub fn send_agent_message(
         (p, m.provider_session_id.clone(), m.id.clone())
     };
     let adapter = adapter_for(&provider).map_err(|e| anyhow!(e))?;
+    let agent_id_opt = session.0.meta.lock().unwrap().agent_id.clone();
+    let append_system_prompt = agent_id_opt
+        .as_deref()
+        .and_then(|aid| load_agent_rules(&work_dir, aid));
     let profile = LaunchProfile {
         provider: Some(provider.clone()),
         resume_session: resume,
         autostart_prompt: Some(text.to_string()),
         persist_session: true,
         structured_output: true,
+        append_system_prompt,
         ..LaunchProfile::default()
     };
     let launch = adapter.build_headless(&slug, &profile);
@@ -181,6 +186,9 @@ fn run_agent_turn(
     for (k, v) in &launch.env {
         cmd.env(k, v);
     }
+    // Advertised to the MCP server so `chat_reply` knows which session
+    // bubble to target without the agent having to carry the id.
+    cmd.env("SHIP_SESSION_ID", &session.0.meta.lock().unwrap().id);
     cmd.stdin(Stdio::null())
         .stdout(Stdio::piped())
         .stderr(Stdio::piped());
@@ -524,3 +532,80 @@ pub fn stop(registry: &SessionRegistry, id: &str) -> bool {
     registry.remove(id);
     true
 }
+
+/// Load an agent's `rules.inline` from `.ship/agents/<agent_id>.jsonc` in
+/// the work directory. Prepended with a Ship-specific preamble so the agent
+/// knows which session id to reply into. Returns `None` if the file is
+/// absent, unreadable, or has no inline rules — callers fall back to vanilla
+/// provider behaviour.
+fn load_agent_rules(work_dir: &std::path::Path, agent_id: &str) -> Option<String> {
+    let path = work_dir.join(".ship").join("agents").join(format!("{agent_id}.jsonc"));
+    let raw = std::fs::read_to_string(&path).ok()?;
+    let stripped = strip_jsonc(&raw);
+    let v: serde_json::Value = serde_json::from_str(&stripped).ok()?;
+    let inline = v
+        .get("rules")
+        .and_then(|r| r.get("inline"))
+        .and_then(|s| s.as_str())?;
+    if inline.trim().is_empty() {
+        return None;
+    }
+    Some(format!(
+        "# Ship agent context\n\nYou are the \"{agent_id}\" agent spawned by the Ship daemon. \
+         Your chat session id is in the SHIP_SESSION_ID environment variable — \
+         pass it to the chat_reply MCP tool to reply to the user.\n\n{inline}"
+    ))
+}
+
+/// Minimal JSONC stripper: removes `// line` and `/* block */` comments.
+/// Does not handle comments inside string literals; good enough for hand-
+/// written agent configs.
+fn strip_jsonc(src: &str) -> String {
+    let mut out = String::with_capacity(src.len());
+    let bytes = src.as_bytes();
+    let mut i = 0;
+    let mut in_str = false;
+    let mut esc = false;
+    while i < bytes.len() {
+        let b = bytes[i];
+        if in_str {
+            out.push(b as char);
+            if esc {
+                esc = false;
+            } else if b == b'\\' {
+                esc = true;
+            } else if b == b'"' {
+                in_str = false;
+            }
+            i += 1;
+            continue;
+        }
+        if b == b'"' {
+            in_str = true;
+            out.push('"');
+            i += 1;
+            continue;
+        }
+        if b == b'/' && i + 1 < bytes.len() {
+            let n = bytes[i + 1];
+            if n == b'/' {
+                while i < bytes.len() && bytes[i] != b'\n' {
+                    i += 1;
+                }
+                continue;
+            }
+            if n == b'*' {
+                i += 2;
+                while i + 1 < bytes.len() && !(bytes[i] == b'*' && bytes[i + 1] == b'/') {
+                    i += 1;
+                }
+                i = (i + 2).min(bytes.len());
+                continue;
+            }
+        }
+        out.push(b as char);
+        i += 1;
+    }
+    out
+}
+

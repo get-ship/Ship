@@ -75,6 +75,7 @@ impl Modify for SecurityAndServer {
         crate::sessions::api::stop_session,
         crate::sessions::api::session_input,
         crate::sessions::api::session_message,
+        crate::sessions::api::session_reply,
         crate::sessions::api::stream_session,
         crate::sessions::api::stream_session_events,
         crate::sessions::api::installed_providers,
