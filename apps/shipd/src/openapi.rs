@@ -68,6 +68,7 @@ impl Modify for SecurityAndServer {
         crate::views::write_api::write_view_template,
         crate::views::write_api::write_view_manifest,
         crate::views::write_api::fork_view,
+        crate::themes_api::theme_contrast,
         // Static assets + lazy island bundles.
         crate::views::assets::serve_datastar_js,
         crate::views::assets::serve_view_tokens,
@@ -105,6 +106,9 @@ impl Modify for SecurityAndServer {
         crate::views::write_api::WriteResponse,
         crate::views::write_api::WriteDiagnostics,
         crate::views::write_api::LintFinding,
+        crate::themes_api::ContrastRequest,
+        crate::themes_api::ContrastReport,
+        crate::themes_api::PairReport,
     ))
 )]
 pub struct ApiDoc;

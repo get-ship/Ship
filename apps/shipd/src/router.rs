@@ -18,7 +18,7 @@ use crate::{
     human_webhook, lint_api, logs_api, mcp_registry, openapi, pairing, project_api, pty_handler,
     rest_api, runtime_api, sdk_manifest, services, session, settings_api, shell_assets,
     ship_runtime, specs_api, supervisor, view_errors_api, view_morph_target, view_sessions_api,
-    views, collection_api, create_api, views_raw, webhook_ext,
+    views, collection_api, create_api, themes_api, views_raw, webhook_ext,
 };
 use axum::routing;
 
@@ -272,6 +272,7 @@ fn build_ship_routes(st: rest_api::ApiState) -> Router {
         .ship_route(Route::WriteViewTemplate_template(), views::write_api::write_view_template)
         .ship_route(Route::WriteViewManifestApi_template(), views::write_api::write_view_manifest)
         .ship_route(Route::ForkView_template(), views::write_api::fork_view)
+        .ship_route(Route::ThemeContrast, themes_api::theme_contrast)
         .ship_route(Route::ServeViewManifest_template(), views::serve_view_manifest)
         .ship_route(Route::ServeViewBundle_template(), views::serve_view_bundle)
         .ship_route(Route::ServeViewRaw_template(), views_raw::serve_view_raw)

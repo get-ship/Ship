@@ -290,6 +290,9 @@ pub enum Route {
     /// @route POST "/api/views/{name}/fork"
     ForkView { name: String },
 
+    /// @route POST "/api/themes/contrast"
+    ThemeContrast,
+
     /// @route GET "/api/view/{name}/manifest"
     ServeViewManifest { name: String },
 
