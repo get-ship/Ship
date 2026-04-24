@@ -293,6 +293,24 @@ pub enum Route {
     /// @route POST "/api/themes/contrast"
     ThemeContrast,
 
+    /// @route POST "/api/sessions/spawn"
+    SpawnPtySession,
+
+    /// @route GET "/api/pty-sessions"
+    ListPtySessions,
+
+    /// @route GET "/api/sessions/{id}"
+    GetPtySession { id: String },
+
+    /// @route DELETE "/api/sessions/{id}"
+    StopPtySession { id: String },
+
+    /// @route POST "/api/sessions/{id}/input"
+    PtySessionInput { id: String },
+
+    /// @route GET "/api/sessions/{id}/stream"
+    StreamPtySession { id: String },
+
     /// @route GET "/api/view/{name}/manifest"
     ServeViewManifest { name: String },
 

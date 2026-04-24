@@ -24,6 +24,7 @@
 pub mod types;
 pub mod registry;
 pub mod lifecycle;
+pub mod api;
 
 pub use registry::SessionRegistry;
 pub use types::{PtySession, SessionId, SessionKind, SessionStatus, SpawnRequest};
