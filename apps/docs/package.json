@@ -18,7 +18,6 @@
     "@fontsource-variable/dm-sans": "^5.2.8",
     "@fontsource-variable/syne": "^5.2.7",
     "@ship/set": "workspace:*",
-    "@ship/ui": "workspace:*",
     "astro": "^6.1.1",
     "sharp": "^0.33.0",
     "starlight-openapi": "^0.24.0",

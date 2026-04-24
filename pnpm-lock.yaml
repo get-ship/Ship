@@ -115,9 +115,6 @@ importers:
       '@ship/set':
         specifier: workspace:*
         version: link:../../packages/ship-set
-      '@ship/ui':
-        specifier: workspace:*
-        version: link:../../packages/ui
       astro:
         specifier: ^6.1.1
         version: 6.1.1(@types/node@22.19.15)(jiti@2.6.1)(lightningcss@1.31.1)(rollup@4.59.0)(tsx@4.21.0)(typescript@5.8.3)(yaml@2.8.3)

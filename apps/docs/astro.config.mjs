@@ -224,8 +224,8 @@ export default defineConfig({
       },
       social: [],
       customCss: [
-        "@ship/ui/tokens.css",
-        "@ship/ui/themes.css",
+        "@ship/set/tokens.css",
+        "@ship/set/themes.css",
         "./src/styles/ship-theme.css",
       ],
       components: {
