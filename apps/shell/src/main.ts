@@ -79,7 +79,21 @@ import {
   persistTheme,
   readStoredTheme,
   isValidTheme,
+  syncThemeFromSettings,
 } from "@ship/set/themes";
+
+// Reconcile local theme cache with daemon settings on boot. Fire and
+// forget — the pre-paint boot script already applied the cached value;
+// this just updates it if another device/browser changed the tier-2
+// authoritative copy.
+void syncThemeFromSettings().then((remote) => {
+  if (remote && remote !== document.documentElement.dataset.theme) {
+    applyTheme(remote);
+    document.dispatchEvent(
+      new CustomEvent("ship-theme-change", { detail: { id: remote } }),
+    );
+  }
+});
 
 function mountThemePicker() {
   const root = document.getElementById("theme-picker");

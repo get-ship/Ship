@@ -1,4 +1,5 @@
 {
+  "$schema": "https://raw.githubusercontent.com/madvib/ship/main/schemas/view-manifest.schema.json",
   // Canvas workspace: hosts agent-authored interaction artifacts. Each
   // artifact is a row in the built-in `artifacts` collection tagged with
   // `collection_id = "canvas"`; HTML bytes live on disk under

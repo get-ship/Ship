@@ -132,9 +132,49 @@ export function readStoredTheme(): ThemeId {
   }
 }
 
+/**
+ * Persist the current theme. localStorage is the tier-4 cache that
+ * the pre-paint boot script reads (must be synchronous); `/api/settings`
+ * is the tier-2 authoritative store so the choice is queryable by the
+ * settings view and future cross-device sync. Write-through is
+ * fire-and-forget — if the daemon is unreachable the local cache is
+ * still correct and `syncThemeFromSettings()` reconciles on next load.
+ */
 export function persistTheme(id: ThemeId): void {
   if (typeof localStorage === 'undefined') return
   try {
     localStorage.setItem(THEME_STORAGE_KEY, id)
   } catch {}
+  // Tier-2 sync-through. Ignore failures — cache is source of next read.
+  try {
+    fetch('/api/settings', {
+      method: 'PUT',
+      credentials: 'same-origin',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({ key: 'shell.theme', value: id }),
+    }).catch(() => {})
+  } catch {}
+}
+
+/**
+ * Fetch the authoritative theme from `/api/settings` and update the
+ * local cache to match. Call on shell mount so another device's change
+ * propagates. If the daemon is unreachable, localStorage stays as-is.
+ */
+export async function syncThemeFromSettings(): Promise<ThemeId | null> {
+  try {
+    const resp = await fetch('/api/settings', { credentials: 'same-origin' })
+    if (!resp.ok) return null
+    const body = (await resp.json()) as {
+      data?: Record<string, unknown>
+    }
+    const raw = body.data?.['shell.theme']
+    if (!isValidTheme(raw)) return null
+    try {
+      localStorage.setItem(THEME_STORAGE_KEY, raw)
+    } catch {}
+    return raw
+  } catch {
+    return null
+  }
 }
