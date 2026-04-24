@@ -39,7 +39,6 @@ mod assets;
 pub mod context;
 pub mod error_overlay;
 pub mod generic_sse;
-pub mod dry_run;
 mod handlers;
 mod lint_overlay;
 pub(crate) mod packs;

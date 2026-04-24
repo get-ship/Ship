@@ -281,9 +281,6 @@ pub enum Route {
     /// @route GET "/api/view/{name}/raw"
     ServeViewRaw { name: String },
 
-    /// @route GET "/api/view/{name}/context"
-    ServeViewContext { name: String },
-
     /// @route GET "/api/view/{name}/sse"
     ServeViewSse { name: String },
 

@@ -167,7 +167,6 @@ pub fn build_router(
         // Dry-run view interceptor runs INSIDE auth (applied before the
         // auth layer here, which means outer->inner order wraps it with
         // auth) so requests must carry a valid bearer before short-circuit.
-        .layer(axum::middleware::from_fn(views::dry_run::dry_run_middleware))
         .layer(axum::middleware::from_fn(move |req, next| {
             auth::auth_middleware(auth_token.clone(), auth_registry.clone(), req, next)
         }));
@@ -244,7 +243,6 @@ fn build_ship_routes(st: rest_api::ApiState) -> Router {
         .ship_route(Route::ServeViewManifest_template(), views::serve_view_manifest)
         .ship_route(Route::ServeViewBundle_template(), views::serve_view_bundle)
         .ship_route(Route::ServeViewRaw_template(), views_raw::serve_view_raw)
-        .ship_route(Route::ServeViewContext_template(), views::dry_run::serve_view_context)
         .ship_route(Route::ServeViewSse_template(), views::generic_sse::serve_view_sse)
         // Agent-owned view sessions
         .ship_route(Route::OpenViewSession, view_sessions_api::open_session)
