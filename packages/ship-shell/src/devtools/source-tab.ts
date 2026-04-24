@@ -149,6 +149,95 @@ export class ShipDevtoolsSource extends LitElement {
     message: string;
   }> = [];
 
+  private _editorEl(): (HTMLElement & {
+    setDiagnostics?: (d: Array<{
+      line: number;
+      column?: number;
+      severity: "error" | "warning" | "info";
+      message: string;
+      source?: string;
+    }>) => void;
+  }) | null {
+    return this.renderRoot.querySelector(
+      'ship-code-editor[language="html"]',
+    ) as (HTMLElement & {
+      setDiagnostics?: (d: Array<{
+        line: number;
+        column?: number;
+        severity: "error" | "warning" | "info";
+        message: string;
+        source?: string;
+      }>) => void;
+    }) | null;
+  }
+
+  private _pushEditorDiagnostics(
+    findings: Array<{
+      line: number;
+      col: number;
+      rule: string;
+      message: string;
+      severity?: string;
+    }>,
+  ): void {
+    const ed = this._editorEl();
+    if (!ed?.setDiagnostics) return;
+    const mapped = findings.map((f) => ({
+      line: f.line,
+      column: f.col,
+      severity:
+        f.severity === "warn" || f.severity === "warning"
+          ? ("warning" as const)
+          : f.severity === "info"
+            ? ("info" as const)
+            : ("error" as const),
+      message: f.message,
+      source: f.rule,
+    }));
+    ed.setDiagnostics(mapped);
+  }
+
+  private _clearEditorDiagnostics(): void {
+    const ed = this._editorEl();
+    ed?.setDiagnostics?.([]);
+  }
+
+  private async _loadLintMarkers(viewName: string): Promise<void> {
+    try {
+      const resp = await fetch("/api/lint/view", {
+        method: "POST",
+        credentials: "same-origin",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ name: viewName }),
+      });
+      if (!resp.ok) return;
+      const body = (await resp.json()) as {
+        ok: boolean;
+        data?: {
+          findings: Array<{
+            line: number;
+            col: number;
+            rule: string;
+            message: string;
+            severity?: string;
+            file: string;
+          }>;
+        };
+      };
+      // Only markers for the template file we're showing. Nested
+      // partials surface in the Lint tab instead.
+      const templateFile = this._src?.template_path ?? "";
+      const relevant =
+        body.data?.findings.filter((f) =>
+          templateFile.endsWith(f.file) || f.file.endsWith(templateFile.split("/").pop() ?? ""),
+        ) ?? [];
+      // Wait a frame so the editor has mounted before we push.
+      requestAnimationFrame(() => this._pushEditorDiagnostics(relevant));
+    } catch {
+      /* best-effort */
+    }
+  }
+
   private _lastPath: string | null = null;
   private _onNavigate = (): void => {
     this._maybeRefresh();
@@ -208,6 +297,12 @@ export class ShipDevtoolsSource extends LitElement {
         return;
       }
       this._src = (await resp.json()) as ViewSource;
+      // Fire-and-forget lint on load so gutter markers show up even
+      // before the first save attempt. Only for editable views —
+      // bundled/project views already show read-only.
+      if (this._src.scope === "global") {
+        void this._loadLintMarkers(this._src.view_name.split(".")[0]);
+      }
     } catch (e) {
       this._error = e instanceof Error ? e.message : String(e);
     } finally {
@@ -288,9 +383,11 @@ export class ShipDevtoolsSource extends LitElement {
             col: number;
             rule: string;
             message: string;
+            severity?: string;
           }>;
         };
         this._diagnostics = body.findings ?? [];
+        this._pushEditorDiagnostics(this._diagnostics);
         this._saveError = "Lint errors — fix before saving.";
         return;
       }
@@ -302,6 +399,8 @@ export class ShipDevtoolsSource extends LitElement {
       // Commit the draft to baseline and force a view re-render so the
       // user sees their change immediately.
       this._src = { ...this._src, template: this._draft };
+      this._diagnostics = [];
+      this._clearEditorDiagnostics();
       window.ship?.notify?.("Saved", "success");
       const current = window.ship?.current();
       if (current?.path) {
