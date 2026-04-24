@@ -804,6 +804,37 @@ export class ShipCommandBar extends LitElement {
   private async _submit(): Promise<void> {
     const text = this._value.trim();
     if (!text) return;
+    if (this._mode === "command") {
+      const needle = text.replace(/^\/+\s*/, "").toLowerCase();
+      const match = this._slashCommands().find(
+        (c) =>
+          c.key === needle ||
+          c.key.startsWith(needle) ||
+          c.label.toLowerCase() === "/" + needle,
+      );
+      if (match) {
+        this._value = "";
+        await match.run();
+      } else {
+        window.ship?.notify?.(`Unknown command: ${text}`, "warning");
+      }
+      return;
+    }
+    if (this._mode === "find") {
+      const needle = text.replace(/^>+\s*/, "").toLowerCase();
+      const match = this._navDestinations().find(
+        (d) =>
+          d.label.toLowerCase().includes(needle) ||
+          d.keywords.toLowerCase().includes(needle) ||
+          d.path.toLowerCase().includes(needle),
+      );
+      if (match) {
+        window.ship?.navigate(match.path);
+        this._value = "";
+        this.blur();
+      }
+      return;
+    }
     if (this._mode === "ai") {
       if (!this._session) {
         // No session — nudge the spawn card. Don't swallow the text
@@ -1048,7 +1079,7 @@ export class ShipCommandBar extends LitElement {
   private _renderFlyoutBody() {
     switch (this._mode) {
       case "command":
-        return html`<div class="empty-msg">Slash commands coming next commit.</div>`;
+        return this._renderCommandList();
       case "find":
         return this._renderFindList();
       case "mention":
@@ -1147,6 +1178,137 @@ export class ShipCommandBar extends LitElement {
           <ship-icon name="layout-grid" size="sm"></ship-icon>
           <span>View all chats</span>
         </div>
+      </div>
+    `;
+  }
+
+  /** Slash-command registry. Keep small and discoverable; extend as
+   *  actions earn their spot. Each command has an explicit handler so
+   *  invariants are tight. */
+  private _slashCommands(): Array<{
+    key: string;
+    label: string;
+    hint: string;
+    run: () => void | Promise<void>;
+  }> {
+    return [
+      {
+        key: "new",
+        label: "/new",
+        hint: "Scaffold a view, skill, agent, …",
+        run: () => {
+          this._mode = "create";
+          this._value = "";
+        },
+      },
+      {
+        key: "chats",
+        label: "/chats",
+        hint: "Open Mission Control",
+        run: () => {
+          window.ship?.navigate("/chats");
+          this.blur();
+        },
+      },
+      {
+        key: "settings",
+        label: "/settings",
+        hint: "Jump to settings",
+        run: () => {
+          window.ship?.navigate("/settings");
+          this.blur();
+        },
+      },
+      {
+        key: "lint",
+        label: "/lint",
+        hint: "Run lint on the current view",
+        run: async () => {
+          const current = window.ship?.current?.();
+          const name =
+            current?.path?.replace(/^\/+/, "").split("/")[0] ?? "";
+          if (!name) {
+            window.ship?.notify?.("No view in context.", "warning");
+            return;
+          }
+          try {
+            const resp = await fetch("/api/lint/view", {
+              method: "POST",
+              credentials: "same-origin",
+              headers: { "Content-Type": "application/json" },
+              body: JSON.stringify({ name }),
+            });
+            if (resp.ok) {
+              const body = (await resp.json()) as {
+                data?: { findings?: unknown[] };
+              };
+              const count = body.data?.findings?.length ?? 0;
+              window.ship?.notify?.(
+                count === 0
+                  ? `${name}: no lint findings`
+                  : `${name}: ${count} lint findings`,
+                count === 0 ? "success" : "warning",
+              );
+            } else {
+              window.ship?.notify?.(`lint failed: ${resp.status}`, "destructive");
+            }
+          } catch (e) {
+            window.ship?.notify?.(String(e), "destructive");
+          }
+          this.blur();
+        },
+      },
+      {
+        key: "end",
+        label: "/end",
+        hint: "End the current session",
+        run: async () => {
+          if (!this._session) return;
+          await this._endSession(this._session.id);
+          this.blur();
+        },
+      },
+      {
+        key: "close",
+        label: "/close",
+        hint: "Close the command bar",
+        run: () => this.blur(),
+      },
+    ];
+  }
+
+  private _renderCommandList() {
+    const needle = this._value.replace(/^\/+\s*/, "").toLowerCase().trim();
+    const items = this._slashCommands().filter((c) => {
+      if (!needle) return true;
+      return (
+        c.key.includes(needle) ||
+        c.label.toLowerCase().includes(needle) ||
+        c.hint.toLowerCase().includes(needle)
+      );
+    });
+    if (items.length === 0) {
+      return html`<div class="empty-msg">No commands match.</div>`;
+    }
+    return html`
+      <div class="mode-hint">Actions</div>
+      <div class="nav-list">
+        ${items.map(
+          (c) => html`
+            <div
+              class="nav-item"
+              role="option"
+              @click=${async () => {
+                this._value = "";
+                await c.run();
+              }}
+            >
+              <span style="font-family: var(--font-mono)">${c.label}</span>
+              <span></span>
+              <span class="hint">${c.hint}</span>
+            </div>
+          `,
+        )}
       </div>
     `;
   }
