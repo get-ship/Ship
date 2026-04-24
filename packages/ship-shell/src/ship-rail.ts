@@ -104,11 +104,27 @@ export class ShipRail extends LitElement {
     );
   }
 
+  private openCreate(e: MouseEvent): void {
+    e.preventDefault();
+    this.shell?.dispatchEvent(
+      new CustomEvent("ship:create:open", { bubbles: true }),
+    );
+  }
+
   render() {
     const settings = this.pins.filter((n) => n === "settings");
     const rest = this.pins.filter((n) => n !== "settings");
     return html`
       ${rest.map((name) => this.renderItem(name))}
+      <a
+        class="rail-item rail-new"
+        title="Create new…"
+        aria-label="Create new feature"
+        href="#"
+        @click=${(e: MouseEvent) => this.openCreate(e)}
+      >
+        <ship-icon name="plus"></ship-icon>
+      </a>
       <div class="rail-spacer"></div>
       <a
         class="rail-launcher"

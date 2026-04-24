@@ -15,6 +15,7 @@ export { ShipDevtoolsSource } from "./devtools/source-tab";
 export { ShipDevtoolsSignals } from "./devtools/signals-tab";
 export { ShipDevtoolsLint } from "./devtools/lint-tab";
 export { ShipDevtoolsSchema } from "./devtools/schema-tab";
+export { ShipCreateDialog } from "./ship-create-dialog";
 export { ShipToastHost } from "./ship-toast-host";
 export { KernelBridge } from "./kernel-bridge";
 export { DEFAULT_PINS, humanize } from "./view-catalog";
