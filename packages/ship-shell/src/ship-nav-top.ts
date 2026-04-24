@@ -124,17 +124,8 @@ export class ShipNavTop extends LitElement {
         id="view-topbar-actions"
         style="display:inline-flex;gap:4px;align-items:center"
       ></span>
+      <ship-command-bar></ship-command-bar>
       <span class="spacer"></span>
-      <button
-        class="cmdk-trigger"
-        id="cmdk-open"
-        title="Command palette"
-        @click=${() => this.dispatch("ship:command:open")}
-      >
-        <ship-icon name="search" size="sm"></ship-icon>
-        <span>Search or jump to...</span>
-        <kbd>⌘K</kbd>
-      </button>
       <ship-button
         variant="ghost"
         size="sm"
