@@ -3,8 +3,18 @@
   The daemon passes workspace_id, messages, total as Jinja context.
   Datastar for all interactions. ZERO script tags.
 
-  Note: the Enter-to-submit keydown handler stays as raw data-on:keydown —
-  no dedicated keyboard-shortcut macro exists yet (see audit).
+  Phase 1 polish:
+  - Fills the entire drawer (no max-width).
+  - Working-state header pill that reacts to ship:create:submitted /
+    ship:create:done events dispatched on <ship-shell>.
+  - Annotation staging row above the composer (populated by edit-mode
+    in phase 2; the slot and signals ship now so the contract is
+    stable).
+
+  Markdown rendering for message bodies is deferred: messages render
+  as plain text. Rich rendering (markdown-it + code highlighting)
+  lands alongside edit-mode in the next phase when the pack cost is
+  justified by day-to-day authoring.
 -#}
 {% from '_ship.html.j2' import head, signal, show, live, loading, attr, bind, on, init %}
 {% if not fragment %}
@@ -20,12 +30,20 @@
 <div class="ship-view ship-view-chat"
      {{ signal('draft', '') }}
      {{ signal('workspace_id', workspace_id) }}
-     {{ signal('sending', false) }}>
+     {{ signal('sending', false) }}
+     {{ signal('working_title', '') }}
+     {{ signal('annotations', []) }}
+     data-on-ship:create:submitted__window="$working_title = evt.detail?.name || ''"
+     data-on-ship:create:done__window="$working_title = ''"
+     data-on-ship:chat:annotate__window="$annotations = [...$annotations, evt.detail]">
   <style>
-  .ship-view-chat { color: var(--foreground); display: flex; flex-direction: column; height: 100%; min-height: 420px; }
-  .chat-wrap { display: flex; flex-direction: column; flex: 1; min-height: 0; max-width: 720px; width: 100%; margin: 0 auto; }
+  .ship-view-chat { color: var(--foreground); display: flex; flex-direction: column; height: 100%; min-height: 0; }
+  .chat-wrap { display: flex; flex-direction: column; flex: 1; min-height: 0; width: 100%; }
   .chat-header { display: flex; align-items: center; gap: var(--space-2); padding: var(--space-2) var(--space-4); border-bottom: 1px solid var(--border); font-size: var(--text-xs); color: var(--muted-foreground); }
   .chat-header .dot { width: var(--space-1); height: var(--space-1); border-radius: 999px; background: var(--primary); }
+  .chat-working { padding: var(--space-2) var(--space-4); border-bottom: 1px solid var(--border); background: color-mix(in oklch, var(--primary) 6%, transparent); font-size: var(--text-xs); color: var(--muted-foreground); display: flex; align-items: center; gap: var(--space-2); }
+  .chat-working .pulse { width: 8px; height: 8px; border-radius: 999px; background: var(--primary); animation: chat-pulse 1.4s ease-in-out infinite; }
+  @keyframes chat-pulse { 0%, 100% { opacity: 1; } 50% { opacity: 0.3; } }
   .chat-messages { flex: 1; overflow-y: auto; padding: var(--space-4); display: flex; flex-direction: column; gap: var(--space-3); min-height: 0; }
   .chat-row { display: flex; gap: var(--space-2); align-items: flex-end; max-width: 100%; }
   .chat-row[data-sender="user"] { flex-direction: row-reverse; margin-left: auto; }
@@ -37,6 +55,9 @@
   .chat-bubble .meta { display: block; font-size: var(--text-xs); color: var(--muted-foreground); margin-top: var(--space-1); }
   .chat-bubble .detail { display: inline-flex; align-items: center; gap: var(--space-1); font-size: var(--text-xs); color: var(--warning); margin-top: var(--space-1); }
   .chat-empty { text-align: center; color: var(--muted-foreground); font-size: var(--text-xs); padding: var(--space-12) var(--space-4); }
+  .chat-annotations { display: flex; flex-wrap: wrap; gap: var(--space-1); padding: var(--space-1) var(--space-3) 0; }
+  .chat-annotation-chip { display: inline-flex; align-items: center; gap: 4px; padding: 2px 8px; font-size: 10px; font-family: var(--font-mono); color: var(--muted-foreground); background: var(--muted); border: 1px solid var(--border); border-radius: 999px; cursor: pointer; }
+  .chat-annotation-chip:hover { color: var(--destructive); }
   .chat-composer { border-top: 1px solid var(--border); padding: var(--space-2) var(--space-3); display: flex; gap: var(--space-2); align-items: flex-end; }
   .chat-composer textarea { flex: 1; min-height: 36px; max-height: 160px; resize: vertical; border: 1px solid var(--border); background: var(--background); color: var(--foreground); border-radius: var(--radius-md); padding: var(--space-2) var(--space-2); font: inherit; font-size: var(--text-xs); }
   .chat-composer textarea:focus { outline: none; border-color: color-mix(in oklch, var(--primary) 50%, var(--border)); }
@@ -48,13 +69,29 @@
       {% if workspace_id %}<span style="margin-left:auto">{{ workspace_id }}</span>{% endif %}
     </div>
 
+    <div class="chat-working" data-show="$working_title">
+      <span class="pulse"></span>
+      <span>Shipwright is working on <strong data-text="$working_title"></strong></span>
+    </div>
+
     <div id="chat-messages" class="chat-messages"
          {{ init("@get('/api/sse/chat" ~ (('?workspace_id=' ~ workspace_id) if workspace_id else '') ~ "', {requestCancellation: 'disabled'})") }}>
       {% include 'chat/partials/messages.html.j2' %}
     </div>
 
+    <div class="chat-annotations" data-show="$annotations.length > 0">
+      <template data-for="(a, i) in $annotations">
+        <span class="chat-annotation-chip"
+              data-on-click="$annotations = $annotations.filter((_, j) => j !== i)"
+              title="Remove annotation">
+          <span data-text="a.tag || 'ref'"></span>
+          <span>×</span>
+        </span>
+      </template>
+    </div>
+
     <form id="chat-composer" class="chat-composer"
-          {{ on('submit', "event.preventDefault(); $sending = true; @post('/api/chat/send', {contentType: 'json', body: JSON.stringify({text: $draft, workspace_id: $workspace_id || null})}); $draft = ''; $sending = false") }}>
+          {{ on('submit', "event.preventDefault(); $sending = true; const annBlock = $annotations.length ? '\\n\\nContext:\\n' + $annotations.map(a => '- ' + (a.tag || 'ref') + (a.note ? ': ' + a.note : '')).join('\\n') : ''; @post('/api/chat/send', {contentType: 'json', body: JSON.stringify({text: $draft + annBlock, workspace_id: $workspace_id || null})}); $draft = ''; $annotations = []; $sending = false") }}>
       <textarea name="text" placeholder="Message the agent..."
                 {{ bind('draft') }}
                 {{ loading('sending') }}
