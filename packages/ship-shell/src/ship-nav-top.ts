@@ -31,6 +31,9 @@ interface ApiView {
 export class ShipNavTop extends LitElement {
   @state() private path: string = location.pathname;
   @state() private labels: Map<string, string> = new Map();
+  @state() private dockOpen = document.body.classList.contains("dock-open");
+
+  private _dockObserver: MutationObserver | null = null;
 
   private get shell(): HTMLElement | null {
     return this.closest("ship-shell");
@@ -46,6 +49,14 @@ export class ShipNavTop extends LitElement {
     this.classList.add("ship-topbar");
     this.shell?.addEventListener("ship:navigate", this.onNavigate);
     void this.loadLabels();
+    this._dockObserver = new MutationObserver(() => {
+      const open = document.body.classList.contains("dock-open");
+      if (open !== this.dockOpen) this.dockOpen = open;
+    });
+    this._dockObserver.observe(document.body, {
+      attributes: true,
+      attributeFilter: ["class"],
+    });
   }
 
   private async loadLabels(): Promise<void> {
@@ -74,6 +85,8 @@ export class ShipNavTop extends LitElement {
   disconnectedCallback(): void {
     super.disconnectedCallback();
     this.shell?.removeEventListener("ship:navigate", this.onNavigate);
+    this._dockObserver?.disconnect();
+    this._dockObserver = null;
   }
 
   createRenderRoot(): Element {
@@ -144,6 +157,19 @@ export class ShipNavTop extends LitElement {
         </ship-button>
         <div class="theme-grid" role="listbox" aria-label="Theme"></div>
       </ship-popover>
+      <ship-button
+        variant="ghost"
+        size="sm"
+        id="toggle-dock"
+        title="Toggle panel dock (⌘J)"
+        aria-label="Toggle panel dock"
+        aria-pressed=${this.dockOpen ? "true" : "false"}
+        @click=${() => this.shell?.dispatchEvent(
+          new CustomEvent("ship:dock:toggle", { bubbles: true }),
+        )}
+      >
+        <ship-icon slot="leading" name="terminal"></ship-icon>
+      </ship-button>
       <ship-button
         variant="ghost"
         size="sm"

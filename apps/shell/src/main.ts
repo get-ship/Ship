@@ -1,6 +1,5 @@
 import Navigo from "navigo";
 import { mountDaemonFragment, isSameOrigin } from "./mount";
-import { initSignalInspector } from "./signal-inspector";
 import { toggle as toggleCmdk, isCommandPaletteOpen } from "./command-palette";
 import { installErrorReporter } from "./error-reporter";
 // Side-effect import: registers `<ship-shell>` + mounts `window.ship`
@@ -222,6 +221,9 @@ shellEl?.addEventListener("ship:chat:close", () => {
 const dock = document.getElementById("panel-dock")!;
 dock.addEventListener("ship:dock:close", () => {
   document.body.classList.remove("dock-open");
+});
+document.querySelector("ship-shell")?.addEventListener("ship:dock:toggle", () => {
+  document.body.classList.toggle("dock-open");
 });
 
 // Devtools packs load lazily on first activation of the tab that needs
@@ -566,6 +568,22 @@ document.addEventListener("keydown", (e) => {
     document.body.classList.toggle("dock-open");
   }
 
+  // ⌘⇧D — Focus devtools (opens dock + jumps to Source)
+  if (meta && e.shiftKey && (e.key === "D" || e.key === "d")) {
+    e.preventDefault();
+    document.body.classList.add("dock-open");
+    const dockEl = document.getElementById("panel-dock") as
+      | (HTMLElement & { activate?: (t: string) => void })
+      | null;
+    dockEl?.activate?.("source");
+  }
+
+  // ⌘⇧E — Edit mode (reserved; enabled in phase 2)
+  if (meta && e.shiftKey && (e.key === "E" || e.key === "e")) {
+    e.preventDefault();
+    window.ship?.notify?.("Edit mode lands in the next phase.", "info");
+  }
+
   // F11 — Fullscreen
   if (e.key === "F11") {
     e.preventDefault();
@@ -624,7 +642,6 @@ setInterval(updateStatus, 15000);
 
 // ── Boot ─────────────────────────────────────────────────────────────
 router.resolve();
-initSignalInspector();
 updateStatus();
 
 // ⌘K trigger — <ship-nav-top> dispatches ship:command:open.
