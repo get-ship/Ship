@@ -24,6 +24,41 @@ import { customElement, property, state } from "lit/decorators.js";
 
 type BarMode = "ai" | "command" | "find" | "mention" | "create";
 
+type CreateSurface =
+  | "view"
+  | "skill"
+  | "agent"
+  | "pipeline"
+  | "trigger"
+  | "theme";
+
+interface CreateSurfaceDef {
+  id: CreateSurface;
+  label: string;
+  icon: string;
+  shapes: string[];
+  shapeLabel: string;
+}
+
+const CREATE_SURFACES: CreateSurfaceDef[] = [
+  { id: "view", label: "View", icon: "app-window",
+    shapes: ["list", "form", "detail", "dashboard", "tabs", "blank"],
+    shapeLabel: "Starting shape" },
+  { id: "skill", label: "Skill", icon: "sparkles",
+    shapes: ["task", "reference", "workflow"], shapeLabel: "Skill kind" },
+  { id: "agent", label: "Agent", icon: "bot",
+    shapes: ["specialist", "generalist", "reviewer"], shapeLabel: "Agent kind" },
+  { id: "pipeline", label: "Pipeline", icon: "workflow",
+    shapes: ["sequential", "fanout", "review-gated"], shapeLabel: "Topology" },
+  { id: "trigger", label: "Trigger", icon: "zap",
+    shapes: ["webhook", "schedule", "file-change"], shapeLabel: "Kind" },
+  { id: "theme", label: "Theme", icon: "palette",
+    shapes: ["light", "dark", "brand-accent", "high-contrast"],
+    shapeLabel: "Starting shape" },
+];
+
+const KEBAB_RE = /^[a-z][a-z0-9-]{0,48}$/;
+
 interface SessionSummary {
   id: string;
   workspace_id: string;
@@ -312,6 +347,80 @@ export class ShipCommandBar extends LitElement {
     .panel-chip-wrap {
       position: relative;
     }
+    .create-surfaces {
+      display: grid;
+      grid-template-columns: repeat(6, minmax(0, 1fr));
+      gap: 8px;
+      margin-bottom: var(--space-3, 12px);
+    }
+    .create-surface {
+      appearance: none;
+      background: var(--background);
+      color: var(--foreground);
+      border: 1px solid var(--border);
+      border-radius: var(--radius-md, 6px);
+      padding: 10px 4px;
+      cursor: pointer;
+      display: grid;
+      justify-items: center;
+      gap: 4px;
+      font: inherit;
+      font-size: var(--text-xs);
+    }
+    .create-surface[aria-pressed="true"] {
+      border-color: var(--primary);
+      background: color-mix(in oklch, var(--primary) 10%, transparent);
+      color: var(--primary);
+    }
+    .create-grid {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: var(--space-2, 8px) var(--space-3, 12px);
+      margin-bottom: var(--space-3, 12px);
+    }
+    .create-grid label {
+      display: grid;
+      gap: 4px;
+      font-size: var(--text-xs);
+      color: var(--muted-foreground);
+    }
+    .create-grid label.span-2 {
+      grid-column: 1 / -1;
+    }
+    .create-grid input,
+    .create-grid select {
+      font: inherit;
+      font-size: var(--text-sm);
+      color: var(--foreground);
+      background: var(--background);
+      border: 1px solid var(--border);
+      border-radius: var(--radius-sm, 4px);
+      padding: 6px 10px;
+    }
+    .create-error {
+      color: var(--destructive);
+      font-size: var(--text-xs);
+      margin-bottom: var(--space-2, 8px);
+    }
+    .create-actions {
+      display: flex;
+      justify-content: flex-end;
+    }
+    .create-submit {
+      appearance: none;
+      font: inherit;
+      font-size: var(--text-sm);
+      padding: 6px 14px;
+      border-radius: var(--radius-sm, 4px);
+      background: var(--primary);
+      color: var(--primary-foreground, #fff);
+      border: 1px solid var(--primary);
+      cursor: pointer;
+    }
+    .create-submit:disabled {
+      opacity: 0.5;
+      cursor: not-allowed;
+    }
     .spawn-card {
       display: grid;
       gap: var(--space-2, 8px);
@@ -412,6 +521,12 @@ export class ShipCommandBar extends LitElement {
   @state() private _workspaceId: string = "main";
   @state() private _sessionPickerOpen = false;
   @state() private _allSessions: SessionSummary[] = [];
+  @state() private _createSurface: CreateSurface = "view";
+  @state() private _createName = "";
+  @state() private _createPurpose = "";
+  @state() private _createShape = "list";
+  @state() private _createSubmitting = false;
+  @state() private _createError: string | null = null;
   private _streamAbort: AbortController | null = null;
 
   private _lastSpaceAt = 0;
@@ -467,9 +582,9 @@ export class ShipCommandBar extends LitElement {
     document.addEventListener("click", this._onDocClick, true);
     void this._loadCurrentSession();
     window.addEventListener("ship:session:changed", this._onSessionChanged);
-    document
-      .querySelector("ship-shell")
-      ?.addEventListener("ship:bar:open", this._onBarOpen as EventListener);
+    const shell = document.querySelector("ship-shell");
+    shell?.addEventListener("ship:bar:open", this._onBarOpen as EventListener);
+    shell?.addEventListener("ship:create:open", this._onCreateOpen);
   }
 
   disconnectedCallback(): void {
@@ -477,10 +592,14 @@ export class ShipCommandBar extends LitElement {
     document.removeEventListener("keydown", this._onDocKeydown);
     document.removeEventListener("click", this._onDocClick, true);
     window.removeEventListener("ship:session:changed", this._onSessionChanged);
-    document
-      .querySelector("ship-shell")
-      ?.removeEventListener("ship:bar:open", this._onBarOpen as EventListener);
+    const shell = document.querySelector("ship-shell");
+    shell?.removeEventListener("ship:bar:open", this._onBarOpen as EventListener);
+    shell?.removeEventListener("ship:create:open", this._onCreateOpen);
   }
+
+  private _onCreateOpen = (): void => {
+    void this.focus("create");
+  };
 
   private _onSessionChanged = (): void => {
     void this._loadCurrentSession();
@@ -656,6 +775,7 @@ export class ShipCommandBar extends LitElement {
     if (value.startsWith("/")) return "command";
     if (value.startsWith(">")) return "find";
     if (value.startsWith("@")) return "mention";
+    if (value.startsWith("+")) return "create";
     if (value.trim().length === 0) return fallback;
     // Default for typed text: switch to AI mode so the user's message
     // lands in the session. `>` prefix is the way to stay in find.
@@ -730,6 +850,84 @@ export class ShipCommandBar extends LitElement {
     );
     this._value = "";
     this._mode = "ai";
+  }
+
+  private _createDef(): CreateSurfaceDef {
+    return CREATE_SURFACES.find((s) => s.id === this._createSurface)!;
+  }
+
+  private _createNameValid(): boolean {
+    return KEBAB_RE.test(this._createName);
+  }
+
+  private _pickCreateSurface(id: CreateSurface): void {
+    this._createSurface = id;
+    const def = this._createDef();
+    if (!def.shapes.includes(this._createShape)) {
+      this._createShape = def.shapes[0];
+    }
+  }
+
+  private async _submitCreate(): Promise<void> {
+    if (!this._createNameValid()) {
+      this._createError = "Name must be kebab-case.";
+      return;
+    }
+    this._createSubmitting = true;
+    this._createError = null;
+    try {
+      const resp = await fetch(
+        `/api/create/${encodeURIComponent(this._createSurface)}`,
+        {
+          method: "POST",
+          credentials: "same-origin",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            name: this._createName,
+            purpose: this._createPurpose,
+            shape: this._createShape,
+          }),
+        },
+      );
+      if (!resp.ok) {
+        const text = await resp.text().catch(() => "");
+        this._createError = `create failed: ${resp.status} ${text}`;
+        return;
+      }
+      const body = (await resp.json()) as
+        | { ok?: boolean; data?: { route?: string }; error?: string }
+        | Record<string, unknown>;
+      if ((body as { ok?: boolean }).ok === false) {
+        this._createError = (body as { error?: string }).error ?? "create failed";
+        return;
+      }
+      const route = (body as { data?: { route?: string } }).data?.route;
+      window.ship?.notify?.(`${this._createName} created`, "success");
+      this.closest("ship-shell")?.dispatchEvent(
+        new CustomEvent("ship:create:submitted", {
+          detail: {
+            surface: this._createSurface,
+            name: this._createName,
+            route,
+          },
+          bubbles: true,
+        }),
+      );
+      if (route) window.ship?.navigate(route);
+      this._resetCreate();
+      this.blur();
+    } catch (e) {
+      this._createError = e instanceof Error ? e.message : String(e);
+    } finally {
+      this._createSubmitting = false;
+    }
+  }
+
+  private _resetCreate(): void {
+    this._createName = "";
+    this._createPurpose = "";
+    this._createShape = "list";
+    this._createSurface = "view";
   }
 
   private _openSessionPicker(): void {
@@ -856,7 +1054,7 @@ export class ShipCommandBar extends LitElement {
       case "mention":
         return html`<div class="empty-msg">Mentions coming next commit.</div>`;
       case "create":
-        return html`<div class="empty-msg">Create coming next commit.</div>`;
+        return this._renderCreateForm();
       case "ai":
       default:
         return this._session ? this._renderThread() : this._renderSpawnCard();
@@ -949,6 +1147,79 @@ export class ShipCommandBar extends LitElement {
           <ship-icon name="layout-grid" size="sm"></ship-icon>
           <span>View all chats</span>
         </div>
+      </div>
+    `;
+  }
+
+  private _renderCreateForm() {
+    const def = this._createDef();
+    return html`
+      <div class="mode-hint">Create</div>
+      <div class="create-surfaces">
+        ${CREATE_SURFACES.map(
+          (s) => html`
+            <button
+              class="create-surface"
+              aria-pressed=${this._createSurface === s.id ? "true" : "false"}
+              @click=${() => this._pickCreateSurface(s.id)}
+            >
+              <ship-icon name=${s.icon}></ship-icon>
+              <span>${s.label}</span>
+            </button>
+          `,
+        )}
+      </div>
+      <div class="create-grid">
+        <label>
+          <span>Name (kebab-case)</span>
+          <input
+            type="text"
+            placeholder="my-${def.id}"
+            .value=${this._createName}
+            @input=${(e: Event) =>
+              (this._createName = (e.target as HTMLInputElement).value)}
+            @keydown=${(e: KeyboardEvent) => {
+              if (e.key === "Enter" && this._createNameValid()) {
+                e.preventDefault();
+                void this._submitCreate();
+              }
+            }}
+          />
+        </label>
+        <label>
+          <span>${def.shapeLabel}</span>
+          <select
+            .value=${this._createShape}
+            @change=${(e: Event) =>
+              (this._createShape = (e.target as HTMLSelectElement).value)}
+          >
+            ${def.shapes.map(
+              (s) => html`<option value=${s}>${s}</option>`,
+            )}
+          </select>
+        </label>
+        <label class="span-2">
+          <span>Purpose (optional)</span>
+          <input
+            type="text"
+            placeholder="One-line description"
+            .value=${this._createPurpose}
+            @input=${(e: Event) =>
+              (this._createPurpose = (e.target as HTMLInputElement).value)}
+          />
+        </label>
+      </div>
+      ${this._createError
+        ? html`<div class="create-error">${this._createError}</div>`
+        : nothing}
+      <div class="create-actions">
+        <button
+          class="create-submit"
+          ?disabled=${this._createSubmitting || !this._createNameValid()}
+          @click=${() => void this._submitCreate()}
+        >
+          ${this._createSubmitting ? "Creating…" : `Create ${def.label}`}
+        </button>
       </div>
     `;
   }

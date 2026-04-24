@@ -99,7 +99,6 @@
         display: none;
       }
       body.edit-mode ship-edit-overlay { display: block; }
-      ship-create-dialog { display: contents; }
 
       /* ── Top bar: slim, one line ── */
       .ship-topbar {
@@ -464,8 +463,9 @@
       <span id="status-theme">ship</span>
     </div>
 
-    <!-- Create dialog: triggered by rail "+" tile / ship:create:open. -->
-    <ship-create-dialog></ship-create-dialog>
+    <!-- Create is now handled by <ship-command-bar> in Create mode.
+         The rail's "+" tile fires ship:create:open; the bar listens.
+         -->
 
     <!-- Edit-mode overlay: hover highlight + click to annotate. Toggled
          by ⌘⇧E via body.edit-mode. -->
