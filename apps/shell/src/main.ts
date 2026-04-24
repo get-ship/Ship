@@ -218,9 +218,9 @@ shellEl?.addEventListener("ship:chat:close", () => {
   if (document.body.classList.contains("drawer-open")) void toggleDrawer();
 });
 
-// ── Terminal panel toggle ────────────────────────────────────────────
-document.getElementById("close-terminal")!.addEventListener("click", () => {
-  document.body.classList.remove("terminal-open");
+// ── Panel dock toggle ───────────────────────────────────────────────
+document.getElementById("panel-dock")!.addEventListener("ship:dock:close", () => {
+  document.body.classList.remove("dock-open");
 });
 
 // ── Mount a daemon view ──────────────────────────────────────────────
@@ -536,10 +536,10 @@ document.addEventListener("keydown", (e) => {
     toggleDrawer();
   }
 
-  // ⌘J — Toggle terminal panel
+  // ⌘J — Toggle panel dock
   if (meta && e.key === "j") {
     e.preventDefault();
-    document.body.classList.toggle("terminal-open");
+    document.body.classList.toggle("dock-open");
   }
 
   // F11 — Fullscreen

@@ -1,13 +1,16 @@
 //! `@ship/shell` — shell framework for the Ship browser app.
 //!
 //! Side effects: registers custom elements `<ship-shell>`, `<ship-rail>`,
-//! `<ship-launcher>`, `<ship-nav-top>`, `<ship-toast-host>` and
-//! publishes `window.ship` on first shell connect.
+//! `<ship-launcher>`, `<ship-nav-top>`, `<ship-panel-dock>`,
+//! `<ship-toast-host>` and publishes `window.ship` on first shell
+//! connect.
 
 export { ShipShell } from "./ship-shell";
 export { ShipRail } from "./ship-rail";
 export { ShipLauncher } from "./ship-launcher";
 export { ShipNavTop } from "./ship-nav-top";
+export { ShipPanelDock } from "./ship-panel-dock";
+export type { DockTab } from "./ship-panel-dock";
 export { ShipToastHost } from "./ship-toast-host";
 export { KernelBridge } from "./kernel-bridge";
 export { DEFAULT_PINS, humanize } from "./view-catalog";

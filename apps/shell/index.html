@@ -330,8 +330,8 @@
       }
       .ship-drawer style { display: none !important; }
 
-      /* ── Bottom terminal panel: toggleable ── */
-      .ship-terminal-panel {
+      /* ── Bottom panel dock: toggleable, multi-tab ── */
+      ship-panel-dock {
         grid-column: 1 / -1;
         height: 0;
         overflow: hidden;
@@ -339,24 +339,9 @@
         border-top: none;
         transition: height var(--duration-normal) var(--ease-out);
       }
-      body.terminal-open .ship-terminal-panel {
+      body.dock-open ship-panel-dock {
         height: 240px;
         border-top: 1px solid var(--border);
-        overflow: auto;
-      }
-      .ship-terminal-panel .panel-header {
-        display: flex;
-        align-items: center;
-        gap: var(--space-2);
-        padding: var(--space-1) var(--space-3);
-        border-bottom: 1px solid var(--border);
-        background: var(--sidebar);
-        font-size: var(--text-xs);
-        color: var(--muted-foreground);
-        font-weight: var(--font-weight-medium);
-      }
-      .ship-terminal-panel .panel-body {
-        height: calc(100% - 28px);
       }
 
       /* ── Status bar: hairline bottom ── */
@@ -425,20 +410,14 @@
       <div id="drawer-content"><div class="empty-hint">chat</div></div>
     </aside>
 
-    <!-- Bottom terminal panel (hidden by default) -->
-    <div class="ship-terminal-panel" id="terminal-panel">
-      <div class="panel-header">
-        <ship-icon name="terminal" size="sm"></ship-icon>
-        <span>Terminal</span>
-        <span class="spacer" style="flex:1"></span>
-        <ship-button variant="ghost" size="sm" id="close-terminal" aria-label="Close terminal">
-          <ship-icon slot="leading" name="x"></ship-icon>
-        </ship-button>
-      </div>
-      <div class="panel-body">
-        <ship-terminal id="shell-terminal" fit readonly></ship-terminal>
-      </div>
-    </div>
+    <!-- Bottom panel dock (hidden by default) -->
+    <ship-panel-dock id="panel-dock" active-tab="terminal">
+      <ship-terminal slot="terminal" id="shell-terminal" fit readonly></ship-terminal>
+      <div slot="source" class="empty-hint">Source devtools — coming soon</div>
+      <div slot="signals" class="empty-hint">Signals devtools — coming soon</div>
+      <div slot="lint" class="empty-hint">Lint devtools — coming soon</div>
+      <div slot="schema" class="empty-hint">Schema devtools — coming soon</div>
+    </ship-panel-dock>
 
     <!-- Status bar -->
     <div class="ship-statusbar">
