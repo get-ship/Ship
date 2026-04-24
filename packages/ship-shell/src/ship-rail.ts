@@ -25,6 +25,8 @@ export class ShipRail extends LitElement {
   @state() private pins: string[] = [];
   @state() private active = "";
   @state() private viewsByName: Map<string, ApiView> = new Map();
+  @state() private activeSessionCount = 0;
+  private _sessionPoll: ReturnType<typeof setInterval> | null = null;
 
   private get shell(): HTMLElement | null {
     return this.closest("ship-shell");
@@ -50,7 +52,10 @@ export class ShipRail extends LitElement {
       "ship:rail:pins-changed" as keyof HTMLElementEventMap,
       this.onPinsChanged,
     );
+    window.addEventListener("ship:session:changed", this.onSessionChanged);
     void this.load();
+    void this.pollSessions();
+    this._sessionPoll = setInterval(() => void this.pollSessions(), 15000);
   }
 
   disconnectedCallback(): void {
@@ -60,6 +65,34 @@ export class ShipRail extends LitElement {
       "ship:rail:pins-changed" as keyof HTMLElementEventMap,
       this.onPinsChanged,
     );
+    window.removeEventListener("ship:session:changed", this.onSessionChanged);
+    if (this._sessionPoll) clearInterval(this._sessionPoll);
+  }
+
+  private onSessionChanged = (): void => {
+    void this.pollSessions();
+  };
+
+  private async pollSessions(): Promise<void> {
+    try {
+      const resp = await fetch("/api/pty-sessions", {
+        credentials: "same-origin",
+      });
+      if (!resp.ok) return;
+      const body = (await resp.json()) as {
+        sessions: Array<{ status: string }>;
+      };
+      this.activeSessionCount = body.sessions.filter(
+        (s) => s.status !== "ended",
+      ).length;
+    } catch {
+      /* leave previous count */
+    }
+  }
+
+  private onChatsClick(e: MouseEvent): void {
+    e.preventDefault();
+    window.ship?.navigate("/chats");
   }
 
   createRenderRoot(): Element {
@@ -124,6 +157,18 @@ export class ShipRail extends LitElement {
         @click=${(e: MouseEvent) => this.openCreate(e)}
       >
         <ship-icon name="plus"></ship-icon>
+      </a>
+      <a
+        class="rail-item rail-chats${this.active === "chats" ? " active" : ""}"
+        title="Chats (${this.activeSessionCount} active)"
+        aria-label="Mission Control"
+        href="/chats"
+        data-badge=${this.activeSessionCount > 0
+          ? String(this.activeSessionCount)
+          : ""}
+        @click=${(e: MouseEvent) => this.onChatsClick(e)}
+      >
+        <ship-icon name="messages-square"></ship-icon>
       </a>
       <div class="rail-spacer"></div>
       <a

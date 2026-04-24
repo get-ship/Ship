@@ -281,6 +281,21 @@
         border-radius: 0 2px 2px 0;
       }
       .ship-rail .rail-spacer { flex: 1; }
+      .ship-rail .rail-chats { position: relative; }
+      .ship-rail .rail-chats[data-badge]:not([data-badge=""])::after {
+        content: attr(data-badge);
+        position: absolute;
+        top: 4px; right: 4px;
+        min-width: 14px; height: 14px;
+        padding: 0 3px;
+        border-radius: 999px;
+        background: var(--primary);
+        color: var(--primary-foreground, #fff);
+        font-size: 9px;
+        line-height: 14px;
+        text-align: center;
+        font-weight: var(--font-weight-medium, 500);
+      }
       .ship-rail .rail-new {
         margin: 4px 6px;
         width: 36px;
