@@ -149,6 +149,11 @@ export class ShipDevtoolsSource extends LitElement {
     message: string;
   }> = [];
 
+  private _completionSources: Array<{
+    trigger: string;
+    items: Array<{ label: string; detail?: string; info?: string; insert?: string }>;
+  }> | null = null;
+
   private _editorEl(): (HTMLElement & {
     setDiagnostics?: (d: Array<{
       line: number;
@@ -157,6 +162,12 @@ export class ShipDevtoolsSource extends LitElement {
       message: string;
       source?: string;
     }>) => void;
+    setCompletions?: (
+      s: Array<{
+        trigger: string;
+        items: Array<{ label: string; detail?: string; info?: string; insert?: string }>;
+      }>,
+    ) => void;
   }) | null {
     return this.renderRoot.querySelector(
       'ship-code-editor[language="html"]',
@@ -200,6 +211,102 @@ export class ShipDevtoolsSource extends LitElement {
   private _clearEditorDiagnostics(): void {
     const ed = this._editorEl();
     ed?.setDiagnostics?.([]);
+  }
+
+  private async _loadCompletionSources(): Promise<
+    Array<{
+      trigger: string;
+      items: Array<{
+        label: string;
+        detail?: string;
+        info?: string;
+        insert?: string;
+      }>;
+    }>
+  > {
+    if (this._completionSources) return this._completionSources;
+    const [macros, schema] = await Promise.all([
+      fetch("/api/assets/jinja-macros.json", { credentials: "same-origin" })
+        .then((r) => (r.ok ? r.json() : null))
+        .catch(() => null),
+      fetch("/api/ship/schema", { credentials: "same-origin" })
+        .then((r) => (r.ok ? r.json() : null))
+        .catch(() => null),
+    ]);
+
+    const sources: Array<{
+      trigger: string;
+      items: Array<{
+        label: string;
+        detail?: string;
+        info?: string;
+        insert?: string;
+      }>;
+    }> = [];
+
+    if (Array.isArray(macros)) {
+      const items = (
+        macros as Array<{
+          name: string;
+          signature?: string;
+          summary?: string;
+          description?: string;
+        }>
+      ).map((m) => ({
+        label: m.name,
+        detail: m.signature,
+        info: m.summary ?? m.description,
+        insert: `${m.name}()`,
+      }));
+      // Both {{ }} and {% %} blocks can reference macros, so register
+      // the same items under two triggers.
+      sources.push({ trigger: "{{ ", items });
+      sources.push({ trigger: "{% ", items });
+    }
+
+    if (
+      schema &&
+      (schema as { data?: { ops?: unknown[] } }).data?.ops &&
+      Array.isArray((schema as { data: { ops: unknown[] } }).data.ops)
+    ) {
+      const ops = (
+        schema as {
+          data: {
+            ops: Array<{
+              name: string;
+              description?: string;
+              returns?: string;
+              permission?: string;
+              args?: Array<{ name: string; kind: string; required?: boolean }>;
+            }>;
+          };
+        }
+      ).data.ops;
+      const items = ops.map((op) => {
+        const argList =
+          op.args
+            ?.map((a) => `${a.name}${a.required ? "" : "?"}: ${a.kind}`)
+            .join(", ") ?? "";
+        return {
+          label: op.name,
+          detail: `→ ${op.returns ?? "?"}`,
+          info: `${op.description ?? ""}\n\nargs: ${argList}\nperm: ${op.permission ?? "?"}`,
+          insert: `${op.name}()`,
+        };
+      });
+      sources.push({ trigger: "ship.", items });
+      sources.push({ trigger: "ship.try.", items });
+    }
+
+    this._completionSources = sources;
+    return sources;
+  }
+
+  private async _wireCompletions(): Promise<void> {
+    const ed = this._editorEl();
+    if (!ed?.setCompletions) return;
+    const sources = await this._loadCompletionSources();
+    ed.setCompletions(sources);
   }
 
   private async _loadLintMarkers(viewName: string): Promise<void> {
@@ -302,6 +409,9 @@ export class ShipDevtoolsSource extends LitElement {
       // bundled/project views already show read-only.
       if (this._src.scope === "global") {
         void this._loadLintMarkers(this._src.view_name.split(".")[0]);
+        // Wait a frame so the editor has mounted before we inject
+        // completion sources.
+        requestAnimationFrame(() => void this._wireCompletions());
       }
     } catch (e) {
       this._error = e instanceof Error ? e.message : String(e);

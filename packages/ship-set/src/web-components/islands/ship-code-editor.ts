@@ -47,7 +47,10 @@ import {
 import {
   defaultKeymap, history, historyKeymap, indentWithTab,
 } from '@codemirror/commands'
-import { closeBrackets, closeBracketsKeymap } from '@codemirror/autocomplete'
+import {
+  closeBrackets, closeBracketsKeymap,
+  autocompletion, type CompletionContext, type CompletionResult,
+} from '@codemirror/autocomplete'
 import { searchKeymap, highlightSelectionMatches } from '@codemirror/search'
 import { lintGutter, setDiagnostics, type Diagnostic } from '@codemirror/lint'
 import { shipEditorTheme, shipHighlighting } from './ship-code-editor.theme'
@@ -65,6 +68,25 @@ export interface ShipDiagnostic {
   severity: 'error' | 'warning' | 'info'
   message: string
   source?: string
+}
+
+/** Declarative completion source — the editor converts these into
+ *  CodeMirror completion providers so callers don't need to import
+ *  `@codemirror/autocomplete` types.
+ *
+ *  - `trigger` is the literal text that must appear immediately before
+ *    the cursor for this source to fire (e.g. `ship.`, `{% `, `{{ `).
+ *  - `items` are returned verbatim; `label` is mandatory, `detail` and
+ *    `info` are rendered in the CM popup.
+ *  - `insert` overrides the inserted text; defaults to `label`. */
+export interface ShipCompletionSource {
+  trigger: string
+  items: Array<{
+    label: string
+    detail?: string
+    info?: string
+    insert?: string
+  }>
 }
 
 const DEBOUNCE_MS = 150
@@ -100,6 +122,8 @@ export class ShipCodeEditor extends LitElement {
   private _readonlyCompartment = new Compartment()
   private _lineNumbersCompartment = new Compartment()
   private _placeholderCompartment = new Compartment()
+  private _completionCompartment = new Compartment()
+  private _completions: ShipCompletionSource[] = []
   private _suppressUpdate = false
   /** Pending diagnostics queued before the view finishes constructing. */
   private _pendingDiagnostics: ShipDiagnostic[] | null = null
@@ -165,6 +189,7 @@ export class ShipCodeEditor extends LitElement {
       shipHighlighting,
       lintGutter(),
       this._langCompartment.of(langExt),
+      this._completionCompartment.of(this._buildCompletionExt()),
       this._readonlyCompartment.of(EditorState.readOnly.of(this.readonly)),
       this._placeholderCompartment.of(
         this.placeholder ? cmPlaceholder(this.placeholder) : [],
@@ -308,8 +333,71 @@ export class ShipCodeEditor extends LitElement {
     this._view.dispatch(setDiagnostics(state, cmDiagnostics))
   }
 
+  /** Replace the completion sources. Takes effect immediately — no
+   *  re-render needed. Pass an empty array to disable. */
+  setCompletions(sources: ShipCompletionSource[]): void {
+    this._completions = sources ?? []
+    if (this._view) {
+      this._view.dispatch({
+        effects: this._completionCompartment.reconfigure(
+          this._buildCompletionExt(),
+        ),
+      })
+    }
+  }
+
+  private _buildCompletionExt(): Extension {
+    if (this._completions.length === 0) return []
+    const sources = this._completions.map((s) =>
+      makeCompletionSource(s),
+    )
+    return autocompletion({ override: sources, defaultKeymap: true })
+  }
+
   render() {
     return html`<div class="editor-root" part="editor"></div>`
+  }
+}
+
+/** Convert a declarative source into a CodeMirror CompletionSource.
+ *  Matches the `trigger` text immediately before the cursor; when it's
+ *  present, returns the items. CM handles prefix filtering against
+ *  whatever the user has typed after the trigger. */
+function makeCompletionSource(src: ShipCompletionSource) {
+  return (ctx: CompletionContext): CompletionResult | null => {
+    const { pos, state } = ctx
+    const trig = src.trigger
+    const start = pos - trig.length
+    if (start < 0) return null
+    const preceding = state.sliceDoc(start, pos)
+    if (preceding !== trig) {
+      // Also allow a partial-word match after the trigger (e.g. `ship.ag`).
+      const word = ctx.matchBefore(/[A-Za-z0-9_.]+/)
+      if (!word) return null
+      const before = state.sliceDoc(
+        Math.max(0, word.from - trig.length),
+        word.from,
+      )
+      if (before !== trig) return null
+      return {
+        from: word.from,
+        options: src.items.map((it) => ({
+          label: it.label,
+          detail: it.detail,
+          info: it.info,
+          apply: it.insert ?? it.label,
+        })),
+      }
+    }
+    return {
+      from: pos,
+      options: src.items.map((it) => ({
+        label: it.label,
+        detail: it.detail,
+        info: it.info,
+        apply: it.insert ?? it.label,
+      })),
+    }
   }
 }
 
