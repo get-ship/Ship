@@ -18,6 +18,7 @@ export { ShipDevtoolsSchema } from "./devtools/schema-tab";
 export { ShipDevtoolsComponents } from "./devtools/components-tab";
 export { ShipEditOverlay } from "./ship-edit-overlay";
 export { ShipCommandBar } from "./ship-command-bar";
+export { ShipLoading } from "./ship-loading";
 export { ShipToastHost } from "./ship-toast-host";
 export { KernelBridge } from "./kernel-bridge";
 export { DEFAULT_PINS, humanize } from "./view-catalog";
