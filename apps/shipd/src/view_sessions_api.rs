@@ -99,7 +99,7 @@ fn ok_json(body: Value) -> Response {
 #[utoipa::path(
     operation_id = "openSession",
     post,
-    path = "/api/runtime/view-sessions",
+    path = "/api/view-sessions",
     request_body = OpenReq,
     responses(
         (status = 200, description = "View session created"),
@@ -142,7 +142,7 @@ pub async fn open_session(
 #[utoipa::path(
     operation_id = "patchSession",
     post,
-    path = "/api/runtime/view-sessions/{id}/patch",
+    path = "/api/view-sessions/{id}/patch",
     params(("id" = String, Path, description = "View session id")),
     request_body = PatchReq,
     responses(
@@ -169,7 +169,7 @@ pub async fn patch_session(
 #[utoipa::path(
     operation_id = "appendSession",
     post,
-    path = "/api/runtime/view-sessions/{id}/append",
+    path = "/api/view-sessions/{id}/append",
     params(("id" = String, Path, description = "View session id")),
     request_body = PatchReq,
     responses(
@@ -196,7 +196,7 @@ pub async fn append_session(
 #[utoipa::path(
     operation_id = "signalSession",
     post,
-    path = "/api/runtime/view-sessions/{id}/signal",
+    path = "/api/view-sessions/{id}/signal",
     params(("id" = String, Path, description = "View session id")),
     request_body = SignalReq,
     responses(
@@ -223,7 +223,7 @@ pub async fn signal_session(
 #[utoipa::path(
     operation_id = "closeSession",
     delete,
-    path = "/api/runtime/view-sessions/{id}",
+    path = "/api/view-sessions/{id}",
     params(("id" = String, Path, description = "View session id")),
     responses(
         (status = 200, description = "Session closed"),
@@ -248,7 +248,7 @@ pub async fn close_session(
 #[utoipa::path(
     operation_id = "subscribeSession",
     get,
-    path = "/api/runtime/view-sessions/{id}",
+    path = "/api/view-sessions/{id}",
     params(("id" = String, Path, description = "View session id")),
     responses(
         (status = 200, description = "SSE stream of session patches", content_type = "text/event-stream"),
@@ -281,7 +281,7 @@ pub async fn subscribe_session(
 #[utoipa::path(
     operation_id = "rawSession",
     get,
-    path = "/api/runtime/view-sessions/{id}/raw",
+    path = "/api/view-sessions/{id}/raw",
     params(("id" = String, Path, description = "View session id")),
     responses(
         (status = 200, description = "Rendered iframe shell HTML", content_type = "text/html"),

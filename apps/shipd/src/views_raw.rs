@@ -67,7 +67,7 @@ fn wrap(title: &str, inner: &str) -> Option<String> {
 #[utoipa::path(
     operation_id = "serveViewRaw",
     get,
-    path = "/api/runtime/view/{name}/raw",
+    path = "/api/view/{name}/raw",
     params(("name" = String, Path, description = "View name")),
     responses(
         (status = 200, description = "Raw view shell HTML with session cookie", content_type = "text/html"),

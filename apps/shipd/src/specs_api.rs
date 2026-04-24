@@ -105,7 +105,7 @@ pub struct UpdateSpecRequest {
 #[utoipa::path(
     operation_id = "listSpecs",
     get,
-    path = "/api/runtime/specs",
+    path = "/api/specs",
     responses(
         (status = 200, description = "List of specs", body = MeshResponse),
         (status = 500, description = "Server error", body = crate::openapi_types::ErrorResponse),
@@ -126,7 +126,7 @@ pub async fn list_specs() -> impl IntoResponse {
 #[utoipa::path(
     operation_id = "getSpec",
     get,
-    path = "/api/runtime/specs/{id}",
+    path = "/api/specs/{id}",
     params(("id" = String, Path, description = "Spec id")),
     responses(
         (status = 200, description = "Spec detail with body", body = MeshResponse),
@@ -152,7 +152,7 @@ pub async fn get_spec(Path(id): Path<String>) -> impl IntoResponse {
 #[utoipa::path(
     operation_id = "createSpec",
     post,
-    path = "/api/runtime/specs",
+    path = "/api/specs",
     request_body = CreateSpecRequest,
     responses(
         (status = 200, description = "Created spec", body = MeshResponse),
@@ -192,7 +192,7 @@ pub async fn create_spec(Json(req): Json<CreateSpecRequest>) -> impl IntoRespons
 #[utoipa::path(
     operation_id = "updateSpec",
     put,
-    path = "/api/runtime/specs/{id}",
+    path = "/api/specs/{id}",
     params(("id" = String, Path, description = "Spec id")),
     request_body = UpdateSpecRequest,
     responses(
@@ -237,7 +237,7 @@ pub async fn update_spec(
 #[utoipa::path(
     operation_id = "deleteSpec",
     delete,
-    path = "/api/runtime/specs/{id}",
+    path = "/api/specs/{id}",
     params(("id" = String, Path, description = "Spec id")),
     responses(
         (status = 200, description = "Deleted", body = MeshResponse),
@@ -257,7 +257,7 @@ pub async fn delete_spec(Path(id): Path<String>) -> impl IntoResponse {
 #[utoipa::path(
     operation_id = "launchSpec",
     post,
-    path = "/api/runtime/specs/{id}/launch",
+    path = "/api/specs/{id}/launch",
     params(("id" = String, Path, description = "Spec id")),
     responses(
         (status = 200, description = "Job dispatched from spec", body = MeshResponse),

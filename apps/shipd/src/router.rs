@@ -113,11 +113,11 @@ pub fn build_router(
         .ship_route(Route::AssetCodeEditorJs, views::serve_code_editor)
         .ship_route(Route::AssetMarkdownEditorJs, views::serve_markdown_editor)
         .ship_route(Route::AssetTerminalJs, views::serve_terminal)
-        // TODO(post-merge): restore serve_git + serve_jinja_macros_* — handlers
-        // existed on our branch but main's assets.rs doesn't have them. Re-port
-        // with their AssetGitJs / AssetJinjaMacros* Route variants.
+        .ship_route(Route::AssetGitJs, views::serve_git)
         .ship_route(Route::AssetElementsManifest, views::serve_elements_manifest)
         .ship_route(Route::AssetElementsCatalog, views::serve_elements_catalog)
+        .ship_route(Route::AssetJinjaMacrosJson, views::serve_jinja_macros_json)
+        .ship_route(Route::AssetJinjaMacrosMd, views::serve_jinja_macros_md)
         .ship_route(Route::AssetThemeCss, views::serve_theme_css)
         .ship_route(Route::ListThemes, views::serve_themes_list)
         // First-run flow — both routes are unauthenticated so a fresh
@@ -254,9 +254,7 @@ fn build_ship_routes(st: rest_api::ApiState) -> Router {
         .ship_route(Route::StopAgent_template(), runtime_api::stop_agent)
         .ship_route(Route::SteerAgent_template(), runtime_api::steer_agent)
         .ship_route(Route::ListJobs, runtime_api::list_jobs)
-        // TODO(post-merge): main dropped `runtime_api::dispatch_pipeline`;
-        // re-wire the /api/jobs/dispatch endpoint against main's replacement
-        // (likely lives in services::pipelines or similar).
+        .ship_route(Route::DispatchPipeline, runtime_api::dispatch_pipeline)
         .ship_route(Route::GetJob_template(), runtime_api::get_job_detail)
         .ship_route(Route::EndJob, runtime_api::end_job)
         .ship_route(Route::CancelJob_template(), runtime_api::cancel_job)

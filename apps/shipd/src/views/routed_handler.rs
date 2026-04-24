@@ -122,6 +122,18 @@ pub(crate) fn render_routed(
     render_source(&m.template, &source, &m.view_name, ctx_with_ship)
 }
 
+#[utoipa::path(
+    operation_id = "serveViewRouted",
+    get,
+    path = "/api/v/{path}",
+    params(("path" = String, Path, description = "Dotted view path matched against .ship/views/ tree")),
+    responses(
+        (status = 200, description = "Rendered view HTML", content_type = "text/html"),
+        (status = 404, description = "No view matches the given path"),
+        (status = 500, description = "Template render failed"),
+    ),
+    tag = "framework"
+)]
 pub async fn serve_view_routed(
     State(state): State<ApiState>,
     Path(path): Path<String>,

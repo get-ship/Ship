@@ -102,6 +102,16 @@ fn view_roots(state: &ApiState) -> Vec<std::path::PathBuf> {
     roots
 }
 
+#[utoipa::path(
+    operation_id = "serveViewSseRouted",
+    get,
+    path = "/api/sse/{path}",
+    params(("path" = String, Path, description = "View path; matches the /api/v/{path} tree")),
+    responses(
+        (status = 200, description = "Datastar SSE stream of view re-renders on subscribed kernel events", content_type = "text/event-stream"),
+    ),
+    tag = "framework"
+)]
 pub async fn serve_view_sse_routed(
     State(state): State<ApiState>,
     Path(path): Path<String>,

@@ -36,7 +36,7 @@ const MAX_PTY_CONNECTIONS: usize = 5;
 #[utoipa::path(
     operation_id = "workspacePty",
     get,
-    path = "/api/runtime/workspaces/{id}/pty",
+    path = "/api/workspaces/{id}/pty",
     params(("id" = String, Path, description = "Workspace id")),
     responses(
         (status = 101, description = "WebSocket upgrade; bidirectional PTY stream"),

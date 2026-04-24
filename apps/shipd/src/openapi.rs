@@ -58,6 +58,23 @@ impl Modify for SecurityAndServer {
         crate::settings_api::update_setting,
         crate::settings_api::get_setting,
         crate::settings_api::list_providers,
+        // Framework surface added in the ship-set-architecture arc.
+        crate::services::schema::serve_schema,
+        crate::services::chat::send::send_message,
+        crate::views::routed_handler::serve_view_routed,
+        crate::views::routed_sse::serve_view_sse_routed,
+        // Static assets + lazy island bundles.
+        crate::views::assets::serve_datastar_js,
+        crate::views::assets::serve_view_tokens,
+        crate::views::assets::serve_ship_elements,
+        crate::views::assets::serve_elements_manifest,
+        crate::views::assets::serve_elements_catalog,
+        crate::views::assets::serve_code_editor,
+        crate::views::assets::serve_markdown_editor,
+        crate::views::assets::serve_terminal,
+        crate::views::assets::serve_git,
+        crate::views::assets::serve_jinja_macros_json,
+        crate::views::assets::serve_jinja_macros_md,
     ),
     components(schemas(
         crate::rest_api::MeshRegisterReq,
@@ -73,6 +90,7 @@ impl Modify for SecurityAndServer {
         crate::actor_api::EventRouteReq,
         crate::settings_api::SettingsUpdateReq,
         crate::settings_api::ProviderStatus,
+        crate::services::chat::send::ChatSendRequest,
     ))
 )]
 pub struct ApiDoc;
