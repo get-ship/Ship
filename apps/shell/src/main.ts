@@ -463,7 +463,6 @@ viewRoute("/theme-studio", "/api/v/theme-studio");
 // Dynamic routes
 router.on("/collections/:collection", ({ data }) => {
   updateNav("/collections");
-  updateBreadcrumbs(`/collections/${data!.collection}`);
   void mount(
     `/api/v/collections?collection=${encodeURIComponent(data!.collection)}`,
   );
@@ -473,57 +472,48 @@ router.on("/collections/:collection", ({ data }) => {
 // generic `/agents/:id` so Navigo doesn't match "create" as an id.
 router.on("/agents/create", () => {
   updateNav("/agents");
-  updateBreadcrumbs("/agents/create");
   void mount("/api/v/agents/create");
 });
 
 // Detail sub-mode: wire/canvas view (also served as the default detail).
 router.on("/agents/:id/wire", ({ data }) => {
   updateNav("/agents");
-  updateBreadcrumbs(`/agents/${data!.id}/wire`);
   void mount(`/api/v/agents/${data!.id}/wire`);
 });
 
 // Detail sub-mode: classic panels layout (skills / MCP / permissions / rules).
 router.on("/agents/:id/settings", ({ data }) => {
   updateNav("/agents");
-  updateBreadcrumbs(`/agents/${data!.id}/settings`);
   void mount(`/api/v/agents/${data!.id}/settings`);
 });
 
 router.on("/agents/:id", ({ data }) => {
   updateNav("/agents");
-  updateBreadcrumbs(`/agents/${data!.id}`);
   void mount(`/api/v/agents/${data!.id}`);
 });
 
 router.on("/skills/:id", ({ data }) => {
   updateNav("/skills");
-  updateBreadcrumbs(`/skills/${data!.id}`);
   void mount(`/api/view/skills/detail/${data!.id}`);
 });
 
 router.on("/skills/:id/:file", ({ data }) => {
   updateNav("/skills");
-  updateBreadcrumbs(`/skills/${data!.id}/${data!.file}`);
   void mount(`/api/view/skills/detail/${data!.id}?file=${encodeURIComponent(data!.file)}`);
 });
 
 router.on("/canvas/:doc", ({ data }) => {
   updateNav("/canvas");
-  updateBreadcrumbs(`/canvas/${data!.doc}`);
   void mount(`/api/view/canvas?doc=${encodeURIComponent(data!.doc)}`);
 });
 
 router.on("/pipelines/focus/:name", ({ data }) => {
   updateNav("/pipelines");
-  updateBreadcrumbs(`/pipelines/${data!.name}`);
   void mount(`/api/v/pipelines/focus/${encodeURIComponent(data!.name)}`);
 });
 
 router.on("/pipelines/history", () => {
   updateNav("/pipelines");
-  updateBreadcrumbs(`/pipelines/history`);
   // Forward any query string so pagination/search survive shell nav.
   const qs = location.search ?? "";
   void mount(`/api/v/pipelines/history${qs}`);
@@ -531,14 +521,12 @@ router.on("/pipelines/history", () => {
 
 router.on("/pipelines/run/:slug", ({ data }) => {
   updateNav("/pipelines");
-  updateBreadcrumbs(`/pipelines/run/${data!.slug}`);
   void mount(`/api/v/pipelines/run/${encodeURIComponent(data!.slug)}`);
 });
 
 // 404
 router.notFound(() => {
   updateNav("");
-  updateBreadcrumbs(location.pathname);
   view.innerHTML = `
     <div style="display:flex;flex-direction:column;align-items:center;justify-content:center;height:100%;gap:var(--space-3)">
       <h2 style="font-family:var(--font-display);font-size:var(--text-xl);margin:0">Page not found</h2>
