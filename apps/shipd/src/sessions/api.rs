@@ -157,6 +157,45 @@ pub async fn installed_providers() -> axum::response::Response {
 }
 
 #[derive(Deserialize, utoipa::ToSchema)]
+pub struct MessageBody {
+    pub text: String,
+}
+
+#[utoipa::path(
+    operation_id = "sessionMessage",
+    post,
+    path = "/api/sessions/{id}/message",
+    params(("id" = String, Path, description = "Agent session id")),
+    request_body = MessageBody,
+    responses(
+        (status = 202, description = "Accepted; response streams via /events"),
+        (status = 404, description = "Not found"),
+        (status = 400, description = "Not an agent session"),
+    ),
+    tag = "sessions"
+)]
+pub async fn session_message(
+    State(state): State<ApiState>,
+    Path(id): Path<String>,
+    Json(body): Json<MessageBody>,
+) -> axum::response::Response {
+    let text = body.text.trim().to_string();
+    if text.is_empty() {
+        return err(StatusCode::BAD_REQUEST, "empty message");
+    }
+    let work_dir = work_dir_for(&state, "main");
+    match super::lifecycle::send_agent_message(
+        state.pty_sessions(),
+        &id,
+        &text,
+        work_dir,
+    ) {
+        Ok(_) => (StatusCode::ACCEPTED, ()).into_response(),
+        Err(e) => err(StatusCode::INTERNAL_SERVER_ERROR, e.to_string()),
+    }
+}
+
+#[derive(Deserialize, utoipa::ToSchema)]
 pub struct InputBody {
     /// Raw bytes (UTF-8 text). Added verbatim to PTY stdin — include
     /// `\n` for enter-key behaviour.
@@ -361,10 +400,7 @@ pub async fn stream_session_events(
     let ev_stream = BroadcastStream::new(rx)
         .filter_map(|r| r.ok())
         .map(|ev| {
-            let data = serde_json::to_string(&serde_json::json!({
-                "kind": format!("{:?}", ev),
-            }))
-            .unwrap_or_else(|_| "{}".into());
+            let data = serde_json::to_string(&ev).unwrap_or_else(|_| "{}".into());
             Ok::<_, Infallible>(Event::default().event("provider").data(data))
         });
     let sse = Sse::new(ev_stream).keep_alive(KeepAlive::new().interval(Duration::from_secs(15)));

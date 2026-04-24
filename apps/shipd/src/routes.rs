@@ -308,6 +308,9 @@ pub enum Route {
     /// @route POST "/api/sessions/{id}/input"
     PtySessionInput { id: String },
 
+    /// @route POST "/api/sessions/{id}/message"
+    PtySessionMessage { id: String },
+
     /// @route GET "/api/sessions/{id}/stream"
     StreamPtySession { id: String },
 

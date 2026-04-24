@@ -8,14 +8,19 @@ use std::path::Path;
 use super::dispatch_ports::{LaunchCommand, LaunchProfile};
 
 /// Events extracted from provider process output.
-#[derive(Debug, Clone, PartialEq)]
+#[derive(Debug, Clone, PartialEq, serde::Serialize)]
+#[serde(tag = "kind", rename_all = "snake_case")]
 pub enum ProviderEvent {
     ToolUse { tool: String, input_preview: String },
     Message { text: String },
     Usage { input_tokens: u64, output_tokens: u64 },
     SessionStarted { session_id: String },
     TurnComplete { stop_reason: String },
-    Custom { kind: String, data: serde_json::Value },
+    Custom {
+        #[serde(rename = "subtype")]
+        kind: String,
+        data: serde_json::Value,
+    },
 }
 
 /// Declarative capability flags per provider.

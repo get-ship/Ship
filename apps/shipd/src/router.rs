@@ -278,6 +278,7 @@ fn build_ship_routes(st: rest_api::ApiState) -> Router {
         .ship_route(Route::GetPtySession_template(), sessions::api::get_session)
         .ship_route(Route::StopPtySession_template(), sessions::api::stop_session)
         .ship_route(Route::PtySessionInput_template(), sessions::api::session_input)
+        .ship_route(Route::PtySessionMessage_template(), sessions::api::session_message)
         .ship_route(Route::StreamPtySession_template(), sessions::api::stream_session)
         .ship_route(Route::StreamPtySessionEvents_template(), sessions::api::stream_session_events)
         .ship_route(Route::InstalledProviders, sessions::api::installed_providers)

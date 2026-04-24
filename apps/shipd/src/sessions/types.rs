@@ -58,6 +58,11 @@ pub struct SessionMeta {
     pub last_activity: DateTime<Utc>,
     #[serde(skip_serializing_if = "Option::is_none")]
     pub exit_code: Option<i32>,
+    /// Claude-side conversation id captured from the first
+    /// SessionStarted event of the most recent turn. Used by the next
+    /// `/message` call to continue the conversation via --resume.
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub provider_session_id: Option<String>,
 }
 
 /// Incoming spawn request. Agent-kind sessions require `agent_id` +
@@ -87,14 +92,14 @@ pub(crate) mod private {
     pub struct Inner {
         pub meta: Mutex<SessionMeta>,
         /// Writer to the PTY master (stdin from the child's view).
+        /// Shell sessions hold a live writer; agent sessions spawn
+        /// fresh per-turn processes so they leave this `None`.
         /// portable-pty's `take_writer()` is single-use on the master,
-        /// so we take it once at spawn time and hold it here. Every
-        /// input write goes through this lock.
-        pub writer: Mutex<Box<dyn std::io::Write + Send>>,
-        /// Keep the master alive for the lifetime of the session.
-        /// `_master` is never accessed after spawn — drop would kill
-        /// the PTY which is why we hold it.
-        pub _master: Mutex<Box<dyn MasterPty + Send>>,
+        /// so we take it once at spawn time and hold it here.
+        pub writer: Mutex<Option<Box<dyn std::io::Write + Send>>>,
+        /// Keep the PTY master alive for the lifetime of the session.
+        /// `None` for agent sessions (no PTY).
+        pub _master: Mutex<Option<Box<dyn MasterPty + Send>>>,
         /// Raw-bytes broadcast for subscribers that want the full PTY
         /// stream (terminal view, debug logs).
         pub output_tx: broadcast::Sender<Vec<u8>>,

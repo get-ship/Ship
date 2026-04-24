@@ -87,6 +87,7 @@
 {%- macro get_pty_session(id) -%}/api/sessions/{{ id }}{%- endmacro -%}
 {%- macro stop_pty_session(id) -%}/api/sessions/{{ id }}{%- endmacro -%}
 {%- macro pty_session_input(id) -%}/api/sessions/{{ id }}/input{%- endmacro -%}
+{%- macro pty_session_message(id) -%}/api/sessions/{{ id }}/message{%- endmacro -%}
 {%- macro stream_pty_session(id) -%}/api/sessions/{{ id }}/stream{%- endmacro -%}
 {%- macro stream_pty_session_events(id) -%}/api/sessions/{{ id }}/events{%- endmacro -%}
 {%- macro installed_providers() -%}/api/providers/installed{%- endmacro -%}

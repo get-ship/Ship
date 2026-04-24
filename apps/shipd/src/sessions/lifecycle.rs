@@ -58,32 +58,186 @@ pub fn spawn_agent(
         });
     }
 
-    let adapter = adapter_for(provider).map_err(|e| anyhow!(e))?;
-    let slug = format!("chat-{}-{}", agent_id, runtime::gen_ulid());
+    // Agent sessions are just metadata. Each `/message` call spawns a
+    // fresh headless provider run with stream-json output, parses the
+    // events, and broadcasts them. No long-lived PTY — interactive
+    // mode's ANSI TUI output is impractical to parse.
+    std::fs::create_dir_all(&log_dir)
+        .with_context(|| format!("create log dir {}", log_dir.display()))?;
+    let id: SessionId = runtime::gen_ulid();
+    let log_path = log_dir.join(format!("agent-{agent_id}-{id}.log"));
+    // Touch the log file so subscribers can tail it.
+    let _ = std::fs::write(&log_path, "");
 
-    let profile = LaunchProfile {
+    let (output_tx, _) = broadcast::channel(OUTPUT_CHANNEL_CAP);
+    let (event_tx, _) = broadcast::channel(256);
+
+    let now = Utc::now();
+    let meta = SessionMeta {
+        id: id.clone(),
+        kind: SessionKind::Agent,
+        workspace_id: workspace_id.to_string(),
+        agent_id: Some(agent_id.to_string()),
         provider: Some(provider.to_string()),
-        persist_session: true,
-        ..LaunchProfile::default()
+        pid: None,
+        status: SessionStatus::Idle,
+        log_path: log_path.display().to_string(),
+        spawned_at: now,
+        last_activity: now,
+        exit_code: None,
+        provider_session_id: None,
     };
-    let launch = adapter.build_interactive(&slug, &profile);
 
-    let session = spawn_command(
-        registry,
-        SessionKind::Agent,
-        workspace_id.to_string(),
-        Some(agent_id.to_string()),
-        Some(provider.to_string()),
-        launch,
-        work_dir,
-        log_dir,
-        &slug,
-    )?;
+    let inner = Arc::new(Inner {
+        meta: StdMutex::new(meta),
+        writer: StdMutex::new(None),
+        _master: StdMutex::new(None),
+        output_tx,
+        event_tx,
+        child: StdMutex::new(None),
+        log_path,
+    });
 
+    registry.insert(id.clone(), inner.clone());
+    // Reference `work_dir` / work with the adapter in send_agent_message
+    // at turn time — nothing to do on spawn itself.
+    let _ = (work_dir, adapter_for(provider));
     Ok(SpawnOutcome {
-        session,
+        session: PtySession(inner),
         attached: false,
     })
+}
+
+/// Send a user turn to an agent session. Spawns the provider headless
+/// with stream-json output, parses events line-by-line, broadcasts
+/// `ProviderEvent`s on the session's event_tx, and captures the
+/// provider's session id for subsequent `--resume` calls.
+pub fn send_agent_message(
+    registry: &SessionRegistry,
+    session_id: &str,
+    text: &str,
+    work_dir: PathBuf,
+) -> Result<()> {
+    let session = registry
+        .get(session_id)
+        .ok_or_else(|| anyhow!("session '{session_id}' not found"))?;
+    let (provider, resume, slug) = {
+        let m = session.0.meta.lock().unwrap();
+        if m.kind != SessionKind::Agent {
+            bail!("send_agent_message: session is not an agent session");
+        }
+        let p = m
+            .provider
+            .clone()
+            .ok_or_else(|| anyhow!("agent session missing provider"))?;
+        (p, m.provider_session_id.clone(), m.id.clone())
+    };
+    let adapter = adapter_for(&provider).map_err(|e| anyhow!(e))?;
+    let profile = LaunchProfile {
+        provider: Some(provider.clone()),
+        resume_session: resume,
+        autostart_prompt: Some(text.to_string()),
+        persist_session: true,
+        structured_output: true,
+        ..LaunchProfile::default()
+    };
+    let launch = adapter.build_headless(&slug, &profile);
+
+    // Mark thinking and kick the child off-thread so this call returns
+    // fast to the HTTP handler; the spawned process + reader continue.
+    set_status(&session.0, SessionStatus::Thinking);
+
+    let session_clone = session.clone();
+    let adapter_id = adapter.id().to_string();
+    std::thread::spawn(move || {
+        if let Err(e) = run_agent_turn(&session_clone, &launch, &adapter_id, work_dir) {
+            tracing::error!(session = %session_clone.0.meta.lock().unwrap().id, error = %e, "agent turn failed");
+            let _ = session_clone.0.event_tx.send(
+                runtime::services::provider_adapter::ProviderEvent::Message {
+                    text: format!("[ship] turn failed: {e}"),
+                },
+            );
+            set_status(&session_clone.0, SessionStatus::Idle);
+        }
+    });
+
+    Ok(())
+}
+
+fn run_agent_turn(
+    session: &PtySession,
+    launch: &LaunchCommand,
+    provider_id: &str,
+    work_dir: PathBuf,
+) -> Result<()> {
+    use std::io::BufRead;
+    use std::process::{Command, Stdio};
+
+    let mut cmd = Command::new(&launch.bin);
+    for arg in &launch.args {
+        cmd.arg(arg);
+    }
+    cmd.current_dir(&work_dir);
+    for (k, v) in &launch.env {
+        cmd.env(k, v);
+    }
+    cmd.stdin(Stdio::null())
+        .stdout(Stdio::piped())
+        .stderr(Stdio::piped());
+
+    let mut child = cmd
+        .spawn()
+        .with_context(|| format!("spawn {}", launch.bin))?;
+    {
+        let mut m = session.0.meta.lock().unwrap();
+        m.pid = child.id().into();
+        m.last_activity = Utc::now();
+    }
+
+    let stdout = child.stdout.take().ok_or_else(|| anyhow!("no stdout"))?;
+    let log_path = session.0.log_path.clone();
+    let adapter = adapter_for(provider_id).map_err(|e| anyhow!(e))?;
+    let mut log = std::fs::OpenOptions::new()
+        .create(true)
+        .append(true)
+        .open(&log_path)
+        .ok();
+
+    let reader = std::io::BufReader::new(stdout);
+    for line in reader.lines() {
+        let Ok(line) = line else { continue };
+        if let Some(ref mut f) = log {
+            let _ = writeln!(f, "{line}");
+        }
+        // Broadcast raw for terminal/raw-mode subscribers.
+        let _ = session
+            .0
+            .output_tx
+            .send((line.clone() + "\n").into_bytes());
+        if let Some(ev) = adapter.parse_output(&line) {
+            // Capture provider session id for next-turn --resume.
+            if let runtime::services::provider_adapter::ProviderEvent::SessionStarted {
+                session_id: sid,
+            } = &ev
+            {
+                let mut m = session.0.meta.lock().unwrap();
+                m.provider_session_id = Some(sid.clone());
+            }
+            let _ = session.0.event_tx.send(ev);
+            let mut m = session.0.meta.lock().unwrap();
+            m.last_activity = Utc::now();
+        }
+    }
+
+    let status = child.wait().ok();
+    let mut m = session.0.meta.lock().unwrap();
+    m.status = SessionStatus::Idle;
+    m.last_activity = Utc::now();
+    m.pid = None;
+    if let Some(s) = status {
+        m.exit_code = Some(s.code().unwrap_or(-1));
+    }
+    Ok(())
 }
 
 /// Spawn a plain shell session (dock terminal). No agent, no provider,
@@ -186,6 +340,7 @@ fn spawn_command(
         spawned_at: now,
         last_activity: now,
         exit_code: None,
+        provider_session_id: None,
     };
 
     // portable-pty's `take_writer()` is single-use on the master,
@@ -198,8 +353,8 @@ fn spawn_command(
 
     let inner = Arc::new(Inner {
         meta: StdMutex::new(meta),
-        writer: StdMutex::new(writer),
-        _master: StdMutex::new(pair.master),
+        writer: StdMutex::new(Some(writer)),
+        _master: StdMutex::new(Some(pair.master)),
         output_tx: output_tx.clone(),
         event_tx: event_tx.clone(),
         child: StdMutex::new(Some(child)),
@@ -333,11 +488,16 @@ pub fn sweep_idle(registry: &SessionRegistry) {
 }
 
 /// Write bytes to a session's PTY master (stdin from the child's view).
+/// Agent sessions don't hold a PTY writer; callers should use
+/// `send_agent_message` instead.
 pub fn write_input(session: &PtySession, bytes: &[u8]) -> Result<()> {
     if bytes.len() > MAX_INPUT_BYTES {
         bail!("input exceeds {MAX_INPUT_BYTES} byte limit");
     }
-    let mut writer = session.0.writer.lock().unwrap();
+    let mut guard = session.0.writer.lock().unwrap();
+    let writer = guard
+        .as_mut()
+        .ok_or_else(|| anyhow!("session has no stdin writer (agent sessions use /message)"))?;
     writer
         .write_all(bytes)
         .map_err(|e| anyhow!("write pty: {e}"))?;

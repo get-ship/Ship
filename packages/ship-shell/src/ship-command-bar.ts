@@ -854,21 +854,60 @@ export class ShipCommandBar extends LitElement {
     const es = new EventSource(`/api/sessions/${sessionId}/events`, {
       withCredentials: true,
     });
+    // Accumulate text_delta fragments into the most recent agent
+    // bubble — Claude streams `message` events chunk-by-chunk and
+    // appending one bubble per chunk would be unreadable.
+    let currentAgentId: string | null = null;
     es.addEventListener("provider", (ev) => {
-      const payload = (ev as MessageEvent).data;
-      let text = payload;
+      let parsed: { kind?: string; text?: string; tool?: string; stop_reason?: string };
       try {
-        const parsed = JSON.parse(payload);
-        text = parsed.kind ?? payload;
-      } catch { /* raw */ }
-      this._thread = [
-        ...this._thread,
-        {
-          id: String(Date.now() + Math.random()),
-          sender: "agent",
-          text: String(text),
-        },
-      ];
+        parsed = JSON.parse((ev as MessageEvent).data);
+      } catch {
+        return;
+      }
+      switch (parsed.kind) {
+        case "message": {
+          const chunk = parsed.text ?? "";
+          if (!chunk) return;
+          if (currentAgentId) {
+            this._thread = this._thread.map((m) =>
+              m.id === currentAgentId
+                ? { ...m, text: m.text + chunk }
+                : m,
+            );
+          } else {
+            const id = String(Date.now() + Math.random());
+            currentAgentId = id;
+            this._thread = [
+              ...this._thread,
+              { id, sender: "agent", text: chunk },
+            ];
+          }
+          break;
+        }
+        case "tool_use": {
+          this._thread = [
+            ...this._thread,
+            {
+              id: String(Date.now() + Math.random()),
+              sender: "system",
+              text: `→ tool: ${parsed.tool ?? "?"}`,
+            },
+          ];
+          break;
+        }
+        case "turn_complete": {
+          // Flush any in-progress agent bubble so next turn starts fresh.
+          currentAgentId = null;
+          break;
+        }
+        case "session_started":
+        case "usage":
+        case "custom":
+        default:
+          // Quiet — these don't render as turns.
+          break;
+      }
     });
     es.onerror = () => {
       if (ac.signal.aborted) return;
@@ -995,27 +1034,23 @@ export class ShipCommandBar extends LitElement {
     }
     if (this._mode === "ai") {
       if (!this._session) {
-        // No session — nudge the spawn card. Don't swallow the text
-        // silently; keep it in the input so the user can retry after
-        // starting a session.
         this._spawnError = "Start a session below first.";
         return;
       }
+      // Append user turn locally + clear, then POST /message. The
+      // agent's streamed reply lands via the events SSE.
+      this._thread = [
+        ...this._thread,
+        { id: String(Date.now()), sender: "user", text },
+      ];
+      this._value = "";
       try {
-        await fetch(`/api/sessions/${this._session.id}/input`, {
+        await fetch(`/api/sessions/${this._session.id}/message`, {
           method: "POST",
           credentials: "same-origin",
           headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ data: text + "\n" }),
+          body: JSON.stringify({ text }),
         });
-        this._thread = [
-          ...this._thread,
-          {
-            id: String(Date.now()),
-            sender: "user",
-            text,
-          },
-        ];
       } catch (e) {
         this._thread = [
           ...this._thread,
@@ -1026,7 +1061,6 @@ export class ShipCommandBar extends LitElement {
           },
         ];
       }
-      this._value = "";
       return;
     }
     // Other modes land in subsequent commits.
