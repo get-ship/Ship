@@ -8,6 +8,7 @@ pub mod artifacts_api;
 pub mod collection_api;
 pub mod create_api;
 pub mod themes_api;
+pub mod sessions;
 pub mod auth;
 mod connections;
 mod cors;

@@ -85,6 +85,9 @@ pub struct ShipRuntime {
     data_service: tokio::sync::Mutex<Option<runtime::data::DataService>>,
     /// Agent-owned view sessions (Phase 1 canvas framework).
     view_sessions: crate::views::session::SharedViewSessionRegistry,
+    /// PTY session registry — chat, pipelines, dock terminal all go
+    /// through here. See `crate::sessions`.
+    pty_sessions: crate::sessions::SessionRegistry,
     /// Project workspace dir (e.g. `/path/to/repo`) when the daemon was
     /// started with `--workspace`. Drives project-scoped artifact storage.
     workspace_dir: Option<PathBuf>,
@@ -217,6 +220,7 @@ impl ShipRuntime {
             health_registry: HealthRegistry::new(),
             data_service: tokio::sync::Mutex::new(None),
             view_sessions: Arc::new(crate::views::session::ViewSessionRegistry::default()),
+            pty_sessions: crate::sessions::SessionRegistry::new(),
             workspace_dir,
             started_at: std::time::Instant::now(),
             hook_engine: std::sync::OnceLock::new(),
@@ -278,6 +282,10 @@ impl ShipRuntime {
 
     pub fn pty_connections(&self) -> &PtyConnections {
         &self.pty_connections
+    }
+
+    pub fn pty_sessions(&self) -> &crate::sessions::SessionRegistry {
+        &self.pty_sessions
     }
 
     pub fn session_registry(&self) -> &SessionRegistry {
@@ -483,6 +491,7 @@ impl ShipRuntime {
             health_registry: HealthRegistry::new(),
             data_service: tokio::sync::Mutex::new(None),
             view_sessions: Arc::new(crate::views::session::ViewSessionRegistry::default()),
+            pty_sessions: crate::sessions::SessionRegistry::new(),
             workspace_dir,
             started_at: std::time::Instant::now(),
             hook_engine: std::sync::OnceLock::new(),
@@ -512,6 +521,7 @@ impl ShipRuntime {
             health_registry: HealthRegistry::new(),
             data_service: tokio::sync::Mutex::new(None),
             view_sessions: Arc::new(crate::views::session::ViewSessionRegistry::default()),
+            pty_sessions: crate::sessions::SessionRegistry::new(),
             workspace_dir,
             started_at: std::time::Instant::now(),
             hook_engine: std::sync::OnceLock::new(),
