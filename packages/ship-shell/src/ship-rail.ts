@@ -26,6 +26,9 @@ export class ShipRail extends LitElement {
   @state() private active = "";
   @state() private viewsByName: Map<string, ApiView> = new Map();
   @state() private activeSessionCount = 0;
+  @state() private projects: Array<{ id: string; name: string; path: string; label?: string }> = [];
+  @state() private activeProject: string | null = null;
+  @state() private projectSwitcherOpen = false;
   private _sessionPoll: ReturnType<typeof setInterval> | null = null;
 
   private get shell(): HTMLElement | null {
@@ -55,7 +58,54 @@ export class ShipRail extends LitElement {
     window.addEventListener("ship:session:changed", this.onSessionChanged);
     void this.load();
     void this.pollSessions();
+    void this.loadProjects();
     this._sessionPoll = setInterval(() => void this.pollSessions(), 15000);
+  }
+
+  private async loadProjects(): Promise<void> {
+    try {
+      const resp = await fetch("/api/projects", {
+        credentials: "same-origin",
+      });
+      if (!resp.ok) return;
+      const body = (await resp.json()) as {
+        projects: Array<{ id: string; name: string; path: string; label?: string }>;
+        active?: string;
+      };
+      this.projects = body.projects;
+      this.activeProject = body.active ?? null;
+    } catch {
+      /* empty */
+    }
+  }
+
+  private async switchProject(id: string): Promise<void> {
+    try {
+      await fetch("/api/projects/switch", {
+        method: "POST",
+        credentials: "same-origin",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ id }),
+      });
+      this.activeProject = id;
+      this.projectSwitcherOpen = false;
+      this.shell?.dispatchEvent(
+        new CustomEvent("ship:project:change", {
+          detail: { id },
+          bubbles: true,
+        }),
+      );
+    } catch {
+      /* empty */
+    }
+  }
+
+  private _currentProject(): { id: string; name: string; path: string; label?: string } | null {
+    return (
+      this.projects.find((p) => p.id === this.activeProject) ??
+      this.projects[0] ??
+      null
+    );
   }
 
   disconnectedCallback(): void {
@@ -147,7 +197,25 @@ export class ShipRail extends LitElement {
   render() {
     const settings = this.pins.filter((n) => n === "settings");
     const rest = this.pins.filter((n) => n !== "settings");
+    const cur = this._currentProject();
     return html`
+      <div class="rail-project" style="position: relative">
+        <a
+          class="rail-item rail-project-badge"
+          title=${cur ? `Project: ${cur.label ?? cur.name}` : "No project"}
+          aria-label="Switch project"
+          href="#"
+          @click=${(e: MouseEvent) => {
+            e.preventDefault();
+            this.projectSwitcherOpen = !this.projectSwitcherOpen;
+          }}
+        >
+          <span class="rail-project-initial">
+            ${(cur?.label ?? cur?.name ?? "?").charAt(0).toUpperCase()}
+          </span>
+        </a>
+        ${this.projectSwitcherOpen ? this._renderProjectPopover() : ""}
+      </div>
       ${rest.map((name) => this.renderItem(name))}
       <a
         class="rail-item rail-new"
@@ -182,6 +250,59 @@ export class ShipRail extends LitElement {
       </a>
       ${settings.length > 0 ? settings.map((name) => this.renderItem(name)) : nothing}
     `;
+  }
+
+  private _renderProjectPopover() {
+    return html`
+      <div class="rail-project-popover"
+           @click=${(e: MouseEvent) => e.stopPropagation()}>
+        <div class="rail-project-title">Projects</div>
+        ${this.projects.length === 0
+          ? html`<div class="rail-project-empty">No projects tracked.</div>`
+          : this.projects.map(
+              (p) => html`
+                <div
+                  class="rail-project-row ${p.id === this.activeProject ? "active" : ""}"
+                  @click=${() => void this.switchProject(p.id)}
+                >
+                  <span class="rail-project-row-name">${p.label ?? p.name}</span>
+                  <span class="rail-project-row-path">${p.path}</span>
+                </div>
+              `,
+            )}
+        <div class="rail-project-sep"></div>
+        <div class="rail-project-row add" @click=${() => this._addProjectFlow()}>
+          <span>+ Add project</span>
+        </div>
+      </div>
+    `;
+  }
+
+  private async _addProjectFlow(): Promise<void> {
+    const path = window.prompt("Path to project directory:");
+    if (!path) return;
+    try {
+      const resp = await fetch("/api/projects", {
+        method: "POST",
+        credentials: "same-origin",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ path }),
+      });
+      if (!resp.ok) {
+        const err = await resp.text().catch(() => "");
+        window.ship?.notify?.(`Add failed: ${err || resp.status}`, "warning");
+        return;
+      }
+      const body = (await resp.json()) as {
+        projects: Array<{ id: string; name: string; path: string; label?: string }>;
+        active?: string;
+      };
+      this.projects = body.projects;
+      this.activeProject = body.active ?? null;
+      window.ship?.notify?.("Project added.", "success");
+    } catch (e) {
+      window.ship?.notify?.(String(e), "destructive");
+    }
   }
 
   private renderItem(name: string) {

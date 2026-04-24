@@ -317,6 +317,15 @@ pub enum Route {
     /// @route GET "/api/providers/installed"
     InstalledProviders,
 
+    /// @route GET "/api/projects"
+    ListProjects,
+
+    /// @route POST "/api/projects"
+    AddProject,
+
+    /// @route POST "/api/projects/switch"
+    SwitchProject,
+
     /// @route GET "/api/view/{name}/manifest"
     ServeViewManifest { name: String },
 

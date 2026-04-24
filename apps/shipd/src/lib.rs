@@ -9,6 +9,7 @@ pub mod collection_api;
 pub mod create_api;
 pub mod themes_api;
 pub mod sessions;
+pub mod projects_api;
 pub mod auth;
 mod connections;
 mod cors;

@@ -90,6 +90,9 @@
 {%- macro stream_pty_session(id) -%}/api/sessions/{{ id }}/stream{%- endmacro -%}
 {%- macro stream_pty_session_events(id) -%}/api/sessions/{{ id }}/events{%- endmacro -%}
 {%- macro installed_providers() -%}/api/providers/installed{%- endmacro -%}
+{%- macro list_projects() -%}/api/projects{%- endmacro -%}
+{%- macro add_project() -%}/api/projects{%- endmacro -%}
+{%- macro switch_project() -%}/api/projects/switch{%- endmacro -%}
 {%- macro serve_view_manifest(name) -%}/api/view/{{ name }}/manifest{%- endmacro -%}
 {%- macro serve_view_bundle(name) -%}/api/view/{{ name }}/bundle{%- endmacro -%}
 {%- macro serve_view_raw(name) -%}/api/view/{{ name }}/raw{%- endmacro -%}

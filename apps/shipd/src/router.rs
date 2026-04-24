@@ -18,7 +18,7 @@ use crate::{
     human_webhook, lint_api, logs_api, mcp_registry, openapi, pairing, project_api, pty_handler,
     rest_api, runtime_api, sdk_manifest, services, session, settings_api, shell_assets,
     ship_runtime, specs_api, supervisor, view_errors_api, view_morph_target, view_sessions_api,
-    views, collection_api, create_api, themes_api, sessions, views_raw, webhook_ext,
+    views, collection_api, create_api, themes_api, sessions, projects_api, views_raw, webhook_ext,
 };
 use axum::routing;
 
@@ -281,6 +281,9 @@ fn build_ship_routes(st: rest_api::ApiState) -> Router {
         .ship_route(Route::StreamPtySession_template(), sessions::api::stream_session)
         .ship_route(Route::StreamPtySessionEvents_template(), sessions::api::stream_session_events)
         .ship_route(Route::InstalledProviders, sessions::api::installed_providers)
+        .ship_route(Route::ListProjects, projects_api::list_projects)
+        .ship_route(Route::AddProject, projects_api::add_project)
+        .ship_route(Route::SwitchProject, projects_api::switch_project)
         .ship_route(Route::ServeViewManifest_template(), views::serve_view_manifest)
         .ship_route(Route::ServeViewBundle_template(), views::serve_view_bundle)
         .ship_route(Route::ServeViewRaw_template(), views_raw::serve_view_raw)

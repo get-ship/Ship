@@ -77,6 +77,9 @@ impl Modify for SecurityAndServer {
         crate::sessions::api::stream_session,
         crate::sessions::api::stream_session_events,
         crate::sessions::api::installed_providers,
+        crate::projects_api::list_projects,
+        crate::projects_api::add_project,
+        crate::projects_api::switch_project,
         // Static assets + lazy island bundles.
         crate::views::assets::serve_datastar_js,
         crate::views::assets::serve_view_tokens,
@@ -123,6 +126,10 @@ impl Modify for SecurityAndServer {
         crate::sessions::api::SessionMetaWire,
         crate::sessions::api::InputBody,
         crate::sessions::api::InstalledProvidersResponse,
+        crate::projects_api::Project,
+        crate::projects_api::ProjectsResponse,
+        crate::projects_api::ProjectAddReq,
+        crate::projects_api::ProjectSwitchReq,
     ))
 )]
 pub struct ApiDoc;
