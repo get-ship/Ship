@@ -211,7 +211,9 @@ export class ShipRail extends LitElement {
           }}
         >
           <span class="rail-project-initial">
-            ${(cur?.label ?? cur?.name ?? "?").charAt(0).toUpperCase()}
+            ${cur
+              ? (cur.label ?? cur.name).charAt(0).toUpperCase()
+              : html`<span style="opacity:0.5">·</span>`}
           </span>
         </a>
         ${this.projectSwitcherOpen ? this._renderProjectPopover() : ""}
@@ -236,7 +238,7 @@ export class ShipRail extends LitElement {
           : ""}
         @click=${(e: MouseEvent) => this.onChatsClick(e)}
       >
-        <ship-icon name="messages-square"></ship-icon>
+        <ship-icon name="message-square-plus"></ship-icon>
       </a>
       <div class="rail-spacer"></div>
       <a

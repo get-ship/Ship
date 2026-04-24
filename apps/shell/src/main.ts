@@ -333,15 +333,36 @@ async function initDockTerminal(): Promise<void> {
       const text = (ev as MessageEvent).data;
       xterm.write?.(text);
     });
+    // Queue keystrokes + flush serially so multi-char input arrives
+    // in-order. xterm fires `ship-data` per key; parallel fetches
+    // let bursts land out-of-order and corrupt input to the shell.
+    let inputBuffer = "";
+    let inputInflight = false;
+    const flushInput = async (): Promise<void> => {
+      if (inputInflight || !inputBuffer || !dockTerminalSessionId) return;
+      inputInflight = true;
+      const batch = inputBuffer;
+      inputBuffer = "";
+      try {
+        await fetch(`/api/sessions/${dockTerminalSessionId}/input`, {
+          method: "POST",
+          credentials: "same-origin",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ data: batch }),
+        });
+      } catch {
+        // On failure, requeue so the user's keystrokes aren't dropped.
+        inputBuffer = batch + inputBuffer;
+      } finally {
+        inputInflight = false;
+        if (inputBuffer) void flushInput();
+      }
+    };
     xterm.addEventListener("ship-data", (ev) => {
       const data = (ev as CustomEvent<{ data: string }>).detail?.data;
       if (!data || !dockTerminalSessionId) return;
-      void fetch(`/api/sessions/${dockTerminalSessionId}/input`, {
-        method: "POST",
-        credentials: "same-origin",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ data }),
-      });
+      inputBuffer += data;
+      void flushInput();
     });
   };
   wireWhenReady();

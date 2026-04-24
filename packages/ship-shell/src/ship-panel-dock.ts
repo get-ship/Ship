@@ -111,10 +111,12 @@ export class ShipPanelDock extends LitElement {
       flex: 1;
       min-height: 0;
       position: relative;
+      overflow: hidden;
     }
     ::slotted(*) {
       display: none;
       height: 100%;
+      overflow: auto;
     }
     slot[data-active]::slotted(*) {
       display: block;

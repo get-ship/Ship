@@ -41,14 +41,14 @@ interface CreateSurfaceDef {
 }
 
 const CREATE_SURFACES: CreateSurfaceDef[] = [
-  { id: "view", label: "View", icon: "app-window",
+  { id: "view", label: "View", icon: "file",
     shapes: ["list", "form", "detail", "dashboard", "tabs", "blank"],
     shapeLabel: "Starting shape" },
   { id: "skill", label: "Skill", icon: "sparkles",
     shapes: ["task", "reference", "workflow"], shapeLabel: "Skill kind" },
-  { id: "agent", label: "Agent", icon: "bot",
+  { id: "agent", label: "Agent", icon: "users",
     shapes: ["specialist", "generalist", "reviewer"], shapeLabel: "Agent kind" },
-  { id: "pipeline", label: "Pipeline", icon: "workflow",
+  { id: "pipeline", label: "Pipeline", icon: "play",
     shapes: ["sequential", "fanout", "review-gated"], shapeLabel: "Topology" },
   { id: "trigger", label: "Trigger", icon: "zap",
     shapes: ["webhook", "schedule", "file-change"], shapeLabel: "Kind" },
@@ -1195,7 +1195,7 @@ export class ShipCommandBar extends LitElement {
             this.blur();
           }}
         >
-          <ship-icon name="layout-grid" size="sm"></ship-icon>
+          <ship-icon name="columns" size="sm"></ship-icon>
           <span>View all chats</span>
         </div>
       </div>

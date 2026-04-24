@@ -124,6 +124,7 @@ export class ShipNavTop extends LitElement {
         id="view-topbar-actions"
         style="display:inline-flex;gap:4px;align-items:center"
       ></span>
+      <span class="spacer"></span>
       <ship-command-bar></ship-command-bar>
       <span class="spacer"></span>
       <ship-button
