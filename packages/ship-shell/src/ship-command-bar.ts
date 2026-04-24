@@ -149,11 +149,12 @@ export class ShipCommandBar extends LitElement {
     }
     .panel {
       position: fixed;
-      top: max(80px, 12%);
+      top: max(60px, 8%);
       left: 50%;
       transform: translateX(-50%);
-      width: min(720px, 94vw);
-      max-height: min(70vh, 600px);
+      width: min(840px, 94vw);
+      height: min(80vh, 780px);
+      max-height: calc(100vh - 80px);
       background: var(--card, var(--background));
       border: 1px solid var(--border);
       border-radius: var(--radius-lg, 10px);
@@ -162,7 +163,29 @@ export class ShipCommandBar extends LitElement {
       display: flex;
       flex-direction: column;
       color: var(--foreground);
-      overflow: hidden;
+      /* No overflow:hidden — it clips the session popover. The panel's
+         first/last children extend edge-to-edge so the border-radius
+         still looks clean visually. */
+    }
+    .panel > :first-child {
+      border-top-left-radius: inherit;
+      border-top-right-radius: inherit;
+    }
+    .panel > :last-child {
+      border-bottom-left-radius: inherit;
+      border-bottom-right-radius: inherit;
+    }
+    /* Chat-mode panel: composer pinned to bottom, thread fills. */
+    :host([chat-mode]) .panel-input {
+      order: 3;
+      border-bottom: 0;
+      border-top: 1px solid var(--border);
+    }
+    :host([chat-mode]) .panel-body {
+      order: 2;
+    }
+    :host([chat-mode]) .panel-header {
+      order: 1;
     }
     .panel-input {
       display: flex;
@@ -501,6 +524,120 @@ export class ShipCommandBar extends LitElement {
       font-family: var(--font-mono);
       font-size: var(--text-xs);
     }
+    /* Traditional chat styling when a session is attached. */
+    .chat-header {
+      display: flex;
+      align-items: center;
+      gap: var(--space-2, 8px);
+      padding: var(--space-3, 12px) var(--space-4, 16px);
+      border-bottom: 1px solid var(--border);
+      font-size: var(--text-sm);
+      background: var(--sidebar);
+    }
+    .chat-header .title {
+      font-weight: var(--font-weight-medium, 500);
+    }
+    .chat-header .sub {
+      color: var(--muted-foreground);
+      font-size: var(--text-xs);
+    }
+    .chat-header .dot {
+      width: 8px;
+      height: 8px;
+      border-radius: 999px;
+      background: var(--success, #16a34a);
+    }
+    .chat-body {
+      display: flex;
+      flex-direction: column;
+      gap: var(--space-3, 12px);
+      padding: var(--space-4, 16px);
+    }
+    .chat-turn {
+      display: flex;
+      gap: var(--space-2, 8px);
+      align-items: flex-start;
+    }
+    .chat-turn[data-sender="user"] {
+      flex-direction: row-reverse;
+    }
+    .chat-bubble {
+      max-width: 78%;
+      padding: var(--space-2, 8px) var(--space-3, 12px);
+      border-radius: var(--radius-md, 6px);
+      font-size: var(--text-sm);
+      line-height: 1.5;
+      white-space: pre-wrap;
+      overflow-wrap: anywhere;
+    }
+    .chat-turn[data-sender="user"] .chat-bubble {
+      background: color-mix(in oklch, var(--primary) 15%, transparent);
+      color: var(--foreground);
+    }
+    .chat-turn[data-sender="agent"] .chat-bubble {
+      background: var(--muted);
+      color: var(--foreground);
+      font-family: var(--font-mono);
+      font-size: var(--text-xs);
+    }
+    .chat-turn[data-sender="system"] {
+      justify-content: center;
+    }
+    .chat-turn[data-sender="system"] .chat-bubble {
+      background: transparent;
+      color: var(--muted-foreground);
+      font-size: var(--text-xs);
+      border-top: 1px solid var(--border);
+      border-bottom: 1px solid var(--border);
+      width: 100%;
+      text-align: center;
+      max-width: none;
+    }
+    .chat-empty {
+      padding: var(--space-12, 48px) var(--space-5, 20px);
+      text-align: center;
+      color: var(--muted-foreground);
+      font-size: var(--text-sm);
+    }
+    .chat-composer {
+      display: flex;
+      align-items: flex-end;
+      gap: var(--space-2, 8px);
+      padding: var(--space-3, 12px) var(--space-4, 16px);
+      border-top: 1px solid var(--border);
+    }
+    .chat-composer textarea {
+      flex: 1;
+      min-height: 36px;
+      max-height: 160px;
+      font: inherit;
+      font-size: var(--text-sm);
+      color: var(--foreground);
+      background: var(--background);
+      border: 1px solid var(--border);
+      border-radius: var(--radius-md, 6px);
+      padding: 6px 10px;
+      resize: vertical;
+    }
+    .chat-composer textarea:focus {
+      outline: none;
+      border-color: color-mix(in oklch, var(--primary) 50%, var(--border));
+    }
+    .chat-composer button {
+      appearance: none;
+      font: inherit;
+      font-size: var(--text-sm);
+      padding: 8px 16px;
+      border-radius: var(--radius-md, 6px);
+      background: var(--primary);
+      color: var(--primary-foreground, #fff);
+      border: 1px solid var(--primary);
+      cursor: pointer;
+    }
+    .chat-composer button:disabled {
+      opacity: 0.5;
+      cursor: not-allowed;
+    }
   `;
 
   /** Controlled open state. The shell can imperatively open/close via
@@ -781,7 +918,20 @@ export class ShipCommandBar extends LitElement {
         this._spawnError = `spawn failed: ${resp.status} ${text}`;
         return;
       }
-      await this._loadCurrentSession();
+      const body = (await resp.json()) as { session_id: string };
+      // Use the spawn response directly so the chip reflects the
+      // session the user actually started — not whatever the registry
+      // list returns first. Then refresh for the full list.
+      this._session = {
+        id: body.session_id,
+        workspace_id: this._workspaceId,
+        agent_id: this._spawnAgent,
+        provider: this._spawnProvider,
+        status: "idle",
+      };
+      this._thread = [];
+      this._attachStream(body.session_id);
+      void this._loadCurrentSession();
       window.dispatchEvent(new CustomEvent("ship:session:changed"));
     } catch (e) {
       this._spawnError = e instanceof Error ? e.message : String(e);
@@ -1056,42 +1206,116 @@ export class ShipCommandBar extends LitElement {
   }
 
   private _renderModal(statusClass: string) {
-    const { text: glyph, tone, placeholder } = this._modeGlyph();
+    // Chat layout when user is actively conversing with an attached
+    // session: header at top, messages scroll in the middle, composer
+    // anchored at the bottom. Traditional shape. Other modes keep
+    // the palette layout (input at top, list below).
+    const inChat = this._mode === "ai" && !!this._session;
+    this.toggleAttribute("chat-mode", inChat);
     return html`
       <div class="backdrop" @click=${() => this.blur()}></div>
       <div class="panel" role="dialog" aria-label="Ship command bar">
-        <div class="panel-input">
-          <span class="mode-glyph ${tone}">${glyph}</span>
-          <input
-            type="text"
-            .value=${this._value}
-            placeholder=${placeholder}
-            @input=${this._onInput}
-            @focus=${this._onFocus}
-            @keydown=${this._onKeydown}
-            aria-label="Ship command bar"
-          />
-          <kbd>esc</kbd>
-          <div class="panel-chip-wrap">
-            <span
-              class="panel-chip"
-              title=${this._session
-                ? `${this._session.agent_id ?? "—"} · ${this._session.provider ?? "—"}`
-                : "No session attached"}
-              @click=${(e: MouseEvent) => {
-                e.stopPropagation();
-                this._openSessionPicker();
-              }}
-            >
-              <span class="dot ${statusClass}"></span>
-              <span>${this._session?.agent_id ?? "No session"}</span>
-            </span>
-            ${this._sessionPickerOpen ? this._renderSessionPopover() : nothing}
-          </div>
+        ${inChat
+          ? this._renderChatLayout(statusClass)
+          : this._renderPaletteLayout(statusClass)}
+      </div>
+    `;
+  }
+
+  private _renderPaletteLayout(statusClass: string) {
+    const { text: glyph, tone, placeholder } = this._modeGlyph();
+    return html`
+      <div class="panel-input">
+        <span class="mode-glyph ${tone}">${glyph}</span>
+        <input
+          type="text"
+          .value=${this._value}
+          placeholder=${placeholder}
+          @input=${this._onInput}
+          @focus=${this._onFocus}
+          @keydown=${this._onKeydown}
+          aria-label="Ship command bar"
+        />
+        <kbd>esc</kbd>
+        <div class="panel-chip-wrap">
+          <span
+            class="panel-chip"
+            title=${this._session
+              ? `${this._session.agent_id ?? "—"} · ${this._session.provider ?? "—"}`
+              : "No session attached"}
+            @click=${(e: MouseEvent) => {
+              e.stopPropagation();
+              this._openSessionPicker();
+            }}
+          >
+            <span class="dot ${statusClass}"></span>
+            <span>${this._session?.agent_id ?? "No session"}</span>
+          </span>
+          ${this._sessionPickerOpen ? this._renderSessionPopover() : nothing}
         </div>
-        <div class="panel-body">
-          ${this._renderFlyoutBody()}
+      </div>
+      <div class="panel-body">${this._renderFlyoutBody()}</div>
+    `;
+  }
+
+  private _renderChatLayout(statusClass: string) {
+    return html`
+      <div class="chat-header">
+        <span class="dot ${statusClass}"></span>
+        <div style="display: grid; line-height: 1.25">
+          <span class="title">${this._session?.agent_id}</span>
+          <span class="sub">
+            ${this._session?.provider ?? "—"} · ${this._session?.workspace_id ?? "—"}
+          </span>
         </div>
+        <span style="flex: 1"></span>
+        <div class="panel-chip-wrap">
+          <span
+            class="panel-chip"
+            title="Switch session"
+            @click=${(e: MouseEvent) => {
+              e.stopPropagation();
+              this._openSessionPicker();
+            }}
+          >Switch</span>
+          ${this._sessionPickerOpen ? this._renderSessionPopover() : nothing}
+        </div>
+        <kbd>esc</kbd>
+      </div>
+      <div class="panel-body chat-body" id="chat-scroll">
+        ${this._thread.length === 0
+          ? html`<div class="chat-empty">
+              No messages yet. Type below to send.
+            </div>`
+          : this._thread.map(
+              (m) => html`
+                <div class="chat-turn" data-sender=${m.sender}>
+                  <div class="chat-bubble">${m.text}</div>
+                </div>
+              `,
+            )}
+      </div>
+      <div class="chat-composer">
+        <textarea
+          .value=${this._value}
+          placeholder="Message the agent…"
+          @input=${this._onInput}
+          @keydown=${(e: KeyboardEvent) => {
+            if (e.key === "Enter" && !e.shiftKey) {
+              e.preventDefault();
+              void this._submit();
+            } else if (e.key === "Escape") {
+              this.blur();
+            }
+          }}
+          rows="2"
+        ></textarea>
+        <button
+          ?disabled=${this._value.trim().length === 0}
+          @click=${() => void this._submit()}
+        >
+          Send
+        </button>
       </div>
     `;
   }

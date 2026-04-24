@@ -188,9 +188,18 @@ fn spawn_command(
         exit_code: None,
     };
 
+    // portable-pty's `take_writer()` is single-use on the master,
+    // so take it once here and hold the resulting writer for every
+    // subsequent input call.
+    let writer = pair
+        .master
+        .take_writer()
+        .map_err(|e| anyhow!("take pty writer: {e}"))?;
+
     let inner = Arc::new(Inner {
         meta: StdMutex::new(meta),
-        master: StdMutex::new(pair.master),
+        writer: StdMutex::new(writer),
+        _master: StdMutex::new(pair.master),
         output_tx: output_tx.clone(),
         event_tx: event_tx.clone(),
         child: StdMutex::new(Some(child)),
@@ -328,12 +337,13 @@ pub fn write_input(session: &PtySession, bytes: &[u8]) -> Result<()> {
     if bytes.len() > MAX_INPUT_BYTES {
         bail!("input exceeds {MAX_INPUT_BYTES} byte limit");
     }
-    let mut master = session.0.master.lock().unwrap();
-    master
-        .take_writer()
-        .map_err(|e| anyhow!("take pty writer: {e}"))?
+    let mut writer = session.0.writer.lock().unwrap();
+    writer
         .write_all(bytes)
         .map_err(|e| anyhow!("write pty: {e}"))?;
+    writer
+        .flush()
+        .map_err(|e| anyhow!("flush pty: {e}"))?;
     Ok(())
 }
 

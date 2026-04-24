@@ -220,15 +220,6 @@ export class ShipRail extends LitElement {
       </div>
       ${rest.map((name) => this.renderItem(name))}
       <a
-        class="rail-item rail-new"
-        title="Create new…"
-        aria-label="Create new feature"
-        href="#"
-        @click=${(e: MouseEvent) => this.openCreate(e)}
-      >
-        <ship-icon name="plus"></ship-icon>
-      </a>
-      <a
         class="rail-item rail-chats${this.active === "chats" ? " active" : ""}"
         title="Chats (${this.activeSessionCount} active)"
         aria-label="Mission Control"
@@ -248,7 +239,16 @@ export class ShipRail extends LitElement {
         href="#"
         @click=${(e: MouseEvent) => this.openLauncher(e)}
       >
-        <ship-icon name="grid"></ship-icon>
+        <ship-icon name="folder"></ship-icon>
+      </a>
+      <a
+        class="rail-item rail-new"
+        title="Create new…"
+        aria-label="Create new feature"
+        href="#"
+        @click=${(e: MouseEvent) => this.openCreate(e)}
+      >
+        <ship-icon name="plus"></ship-icon>
       </a>
       ${settings.length > 0 ? settings.map((name) => this.renderItem(name)) : nothing}
     `;

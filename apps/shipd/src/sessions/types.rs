@@ -77,6 +77,7 @@ pub(crate) mod private {
     use super::*;
     use portable_pty::MasterPty;
     use runtime::services::provider_adapter::ProviderEvent;
+    use std::io::Write as _;
     use std::path::PathBuf;
     use std::sync::{Arc, Mutex};
     use tokio::sync::broadcast;
@@ -85,9 +86,15 @@ pub(crate) mod private {
     /// [`SessionMeta`] snapshot built from this plus the header fields.
     pub struct Inner {
         pub meta: Mutex<SessionMeta>,
-        /// PTY master — stdin + stdout bridge. The reader thread clones
-        /// a reader off this; we hold the master to keep the PTY alive.
-        pub master: Mutex<Box<dyn MasterPty + Send>>,
+        /// Writer to the PTY master (stdin from the child's view).
+        /// portable-pty's `take_writer()` is single-use on the master,
+        /// so we take it once at spawn time and hold it here. Every
+        /// input write goes through this lock.
+        pub writer: Mutex<Box<dyn std::io::Write + Send>>,
+        /// Keep the master alive for the lifetime of the session.
+        /// `_master` is never accessed after spawn — drop would kill
+        /// the PTY which is why we hold it.
+        pub _master: Mutex<Box<dyn MasterPty + Send>>,
         /// Raw-bytes broadcast for subscribers that want the full PTY
         /// stream (terminal view, debug logs).
         pub output_tx: broadcast::Sender<Vec<u8>>,

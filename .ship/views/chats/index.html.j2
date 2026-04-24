@@ -11,10 +11,13 @@
 <head>{{ head('Chats') }}</head>
 <body>
 {% endif %}
-{%- set items = ship.sessions.list().items -%}
+{%- set all_items = ship.sessions.list().items -%}
+{#- Chats = agent sessions only. Shell + pipeline sessions live
+    elsewhere (dock terminal, pipelines view). -#}
+{%- set items = all_items | selectattr('kind', 'equalto', 'agent') | list -%}
 {%- set active_count = items | selectattr('status', 'ne', 'ended') | list | length -%}
 <ship-view-chrome title="Chats"></ship-view-chrome>
-<div class="ship-view ship-chats" {{ signals({'filter': 'active'}) }}>
+<div class="ship-view ship-chats">
   <style>
   .ship-chats { padding: var(--space-5, 20px); max-width: 1280px; margin: 0 auto; color: var(--foreground); }
   .chats-head { display: flex; align-items: baseline; gap: var(--space-4, 16px); margin-bottom: var(--space-4, 16px); flex-wrap: wrap; }
@@ -46,17 +49,6 @@
   <header class="chats-head">
     <h1>Chats</h1>
     <div class="sub">{{ active_count }} active · total {{ items | length }}</div>
-    <div class="chats-filters" role="tablist">
-      <button class="chats-filter"
-              data-attr-aria-pressed="$filter === 'active'"
-              data-on-click="$filter = 'active'">Active</button>
-      <button class="chats-filter"
-              data-attr-aria-pressed="$filter === 'all'"
-              data-on-click="$filter = 'all'">All</button>
-      <button class="chats-filter"
-              data-attr-aria-pressed="$filter === 'ended'"
-              data-on-click="$filter = 'ended'">Ended</button>
-    </div>
   </header>
 
   {% if items | length == 0 %}
@@ -64,7 +56,7 @@
       No sessions. Open the command bar (⌘K or Space Space) and start one.
     </div>
   {% else %}
-    <div class="chats-grid" data-attr-data-filter="$filter">
+    <div class="chats-grid">
       {% for s in items %}
       <div class="chat-card" data-status="{{ s.status }}"
            data-on-click="window.ship.navigate('/')">
