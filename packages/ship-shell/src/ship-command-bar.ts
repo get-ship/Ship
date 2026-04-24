@@ -32,6 +32,20 @@ interface SessionSummary {
   status: string;
 }
 
+interface AgentSummary {
+  id: string;
+  name?: string;
+  label?: string;
+  providers?: string[];
+}
+
+interface ThreadLine {
+  id: string;
+  sender: "user" | "agent" | "system";
+  text: string;
+  detail?: string;
+}
+
 @customElement("ship-command-bar")
 export class ShipCommandBar extends LitElement {
   static styles = css`
@@ -146,6 +160,86 @@ export class ShipCommandBar extends LitElement {
       color: var(--muted-foreground);
       margin-bottom: var(--space-2, 8px);
     }
+    .spawn-card {
+      display: grid;
+      gap: var(--space-2, 8px);
+    }
+    .spawn-title {
+      font-weight: var(--font-weight-medium, 500);
+      font-size: var(--text-sm);
+    }
+    .spawn-row {
+      display: grid;
+      grid-template-columns: 80px 1fr;
+      gap: var(--space-2, 8px);
+      align-items: center;
+    }
+    .spawn-row label {
+      font-size: var(--text-xs);
+      color: var(--muted-foreground);
+    }
+    .spawn-row select {
+      font: inherit;
+      font-size: var(--text-sm);
+      border: 1px solid var(--border);
+      background: var(--background);
+      color: var(--foreground);
+      border-radius: var(--radius-sm, 4px);
+      padding: 4px 8px;
+    }
+    .spawn-error {
+      color: var(--destructive);
+      font-size: var(--text-xs);
+    }
+    .spawn-start {
+      appearance: none;
+      font: inherit;
+      font-size: var(--text-sm);
+      padding: 6px 12px;
+      border-radius: var(--radius-sm, 4px);
+      background: var(--primary);
+      color: var(--primary-foreground, #fff);
+      border: 1px solid var(--primary);
+      cursor: pointer;
+      justify-self: end;
+    }
+    .spawn-start:disabled {
+      opacity: 0.5;
+      cursor: not-allowed;
+    }
+    .thread {
+      display: grid;
+      gap: var(--space-2, 8px);
+      font-size: var(--text-sm);
+    }
+    .thread-empty {
+      color: var(--muted-foreground);
+      font-size: var(--text-xs);
+    }
+    .turn {
+      display: grid;
+      grid-template-columns: 60px 1fr;
+      gap: var(--space-2, 8px);
+    }
+    .turn .sender {
+      font-size: 10px;
+      text-transform: uppercase;
+      letter-spacing: 0.06em;
+      color: var(--muted-foreground);
+      padding-top: 2px;
+    }
+    .turn[data-sender="user"] .sender {
+      color: var(--primary);
+    }
+    .turn[data-sender="agent"] .sender {
+      color: var(--success, #16a34a);
+    }
+    .turn .text {
+      white-space: pre-wrap;
+      overflow-wrap: anywhere;
+      font-family: var(--font-mono);
+      font-size: var(--text-xs);
+    }
   `;
 
   /** Controlled open state. The shell can imperatively open/close via
@@ -156,6 +250,15 @@ export class ShipCommandBar extends LitElement {
   @state() private _value = "";
   @state() private _mode: BarMode = "ai";
   @state() private _session: SessionSummary | null = null;
+  @state() private _agents: AgentSummary[] = [];
+  @state() private _providers: string[] = [];
+  @state() private _spawnAgent: string = "";
+  @state() private _spawnProvider: string = "";
+  @state() private _spawning = false;
+  @state() private _spawnError: string | null = null;
+  @state() private _thread: ThreadLine[] = [];
+  @state() private _workspaceId: string = "main";
+  private _streamAbort: AbortController | null = null;
 
   private _onDocKeydown = (e: KeyboardEvent): void => {
     const meta = e.metaKey || e.ctrlKey;
@@ -224,13 +327,126 @@ export class ShipCommandBar extends LitElement {
       const resp = await fetch("/api/pty-sessions", {
         credentials: "same-origin",
       });
+      if (resp.ok) {
+        const body = (await resp.json()) as { sessions: SessionSummary[] };
+        const active = body.sessions.find(
+          (s) => s.status !== "ended" && s.agent_id,
+        );
+        if (active && active.id !== this._session?.id) {
+          this._session = active;
+          this._thread = [];
+          this._attachStream(active.id);
+        } else if (!active) {
+          this._session = null;
+          this._detachStream();
+        }
+      }
+    } catch {
+      /* leave null */
+    }
+    if (this._agents.length === 0) void this._loadAgents();
+    if (this._providers.length === 0) void this._loadProviders();
+  }
+
+  private async _loadAgents(): Promise<void> {
+    try {
+      const resp = await fetch("/api/agents", { credentials: "same-origin" });
       if (!resp.ok) return;
       const body = (await resp.json()) as {
-        sessions: SessionSummary[];
+        items?: Array<{ id: string; scope?: string }>;
       };
-      this._session = body.sessions.find((s) => s.status !== "ended") ?? null;
+      const list: AgentSummary[] = (body.items ?? []).map((a) => ({ id: a.id }));
+      this._agents = list;
+      if (!this._spawnAgent && list.length > 0) {
+        const ship = list.find((a) => a.id === "shipwright");
+        this._spawnAgent = (ship ?? list[0]).id;
+      }
     } catch {
-      /* fall back to no session */
+      /* empty */
+    }
+  }
+
+  private async _loadProviders(): Promise<void> {
+    try {
+      const resp = await fetch("/api/providers/installed", {
+        credentials: "same-origin",
+      });
+      if (!resp.ok) return;
+      const body = (await resp.json()) as { providers: string[] };
+      this._providers = body.providers;
+      if (!this._spawnProvider && body.providers.length > 0) {
+        this._spawnProvider = body.providers[0];
+      }
+    } catch {
+      /* empty */
+    }
+  }
+
+  private _attachStream(sessionId: string): void {
+    this._detachStream();
+    const ac = new AbortController();
+    this._streamAbort = ac;
+    const es = new EventSource(`/api/sessions/${sessionId}/events`, {
+      withCredentials: true,
+    });
+    es.addEventListener("provider", (ev) => {
+      const payload = (ev as MessageEvent).data;
+      let text = payload;
+      try {
+        const parsed = JSON.parse(payload);
+        text = parsed.kind ?? payload;
+      } catch { /* raw */ }
+      this._thread = [
+        ...this._thread,
+        {
+          id: String(Date.now() + Math.random()),
+          sender: "agent",
+          text: String(text),
+        },
+      ];
+    });
+    es.onerror = () => {
+      if (ac.signal.aborted) return;
+      es.close();
+    };
+    ac.signal.addEventListener("abort", () => es.close());
+  }
+
+  private _detachStream(): void {
+    this._streamAbort?.abort();
+    this._streamAbort = null;
+  }
+
+  private async _startSession(): Promise<void> {
+    if (!this._spawnAgent || !this._spawnProvider) {
+      this._spawnError = "Pick an agent and a provider first.";
+      return;
+    }
+    this._spawning = true;
+    this._spawnError = null;
+    try {
+      const resp = await fetch("/api/sessions/spawn", {
+        method: "POST",
+        credentials: "same-origin",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          workspace_id: this._workspaceId,
+          kind: "agent",
+          agent_id: this._spawnAgent,
+          provider: this._spawnProvider,
+        }),
+      });
+      if (!resp.ok) {
+        const text = await resp.text().catch(() => "");
+        this._spawnError = `spawn failed: ${resp.status} ${text}`;
+        return;
+      }
+      await this._loadCurrentSession();
+      window.dispatchEvent(new CustomEvent("ship:session:changed"));
+    } catch (e) {
+      this._spawnError = e instanceof Error ? e.message : String(e);
+    } finally {
+      this._spawning = false;
     }
   }
 
@@ -263,9 +479,43 @@ export class ShipCommandBar extends LitElement {
   private async _submit(): Promise<void> {
     const text = this._value.trim();
     if (!text) return;
-    // Placeholder — subsequent commit wires each mode to its action.
-    // AI goes to the current session's input; command to a slash
-    // dispatcher; find to navigate; mention to inject context.
+    if (this._mode === "ai") {
+      if (!this._session) {
+        // No session — nudge the spawn card. Don't swallow the text
+        // silently; keep it in the input so the user can retry after
+        // starting a session.
+        this._spawnError = "Start a session below first.";
+        return;
+      }
+      try {
+        await fetch(`/api/sessions/${this._session.id}/input`, {
+          method: "POST",
+          credentials: "same-origin",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ data: text + "\n" }),
+        });
+        this._thread = [
+          ...this._thread,
+          {
+            id: String(Date.now()),
+            sender: "user",
+            text,
+          },
+        ];
+      } catch (e) {
+        this._thread = [
+          ...this._thread,
+          {
+            id: String(Date.now()),
+            sender: "system",
+            text: `send failed: ${e instanceof Error ? e.message : String(e)}`,
+          },
+        ];
+      }
+      this._value = "";
+      return;
+    }
+    // Other modes land in subsequent commits.
     this.dispatchEvent(
       new CustomEvent("ship:bar:submit", {
         detail: { mode: this._mode, value: text },
@@ -362,23 +612,79 @@ export class ShipCommandBar extends LitElement {
         return html`<div class="flyout empty">Create coming next commit.</div>`;
       case "ai":
       default:
-        if (!this._session) {
-          return html`
-            <div class="flyout empty">
-              <strong>No session attached.</strong>
-              Start one from the session chip on the right.
-            </div>
-          `;
-        }
-        return html`
-          <div class="flyout empty">
-            Session thread view coming next commit. Session:
-            <code>${this._session.id}</code> · agent
-            <code>${this._session.agent_id ?? "—"}</code> ·
-            provider <code>${this._session.provider ?? "—"}</code>
-          </div>
-        `;
+        return this._session ? this._renderThread() : this._renderSpawnCard();
     }
+  }
+
+  private _renderSpawnCard() {
+    return html`
+      <div class="spawn-card">
+        <div class="spawn-title">Start a session</div>
+        <div class="spawn-row">
+          <label>Agent</label>
+          <select
+            .value=${this._spawnAgent}
+            @change=${(e: Event) =>
+              (this._spawnAgent = (e.target as HTMLSelectElement).value)}
+          >
+            ${this._agents.length === 0
+              ? html`<option value="">No agents found</option>`
+              : this._agents.map(
+                  (a) => html`
+                    <option value=${a.id}>${a.name ?? a.label ?? a.id}</option>
+                  `,
+                )}
+          </select>
+        </div>
+        <div class="spawn-row">
+          <label>Provider</label>
+          <select
+            .value=${this._spawnProvider}
+            @change=${(e: Event) =>
+              (this._spawnProvider = (e.target as HTMLSelectElement).value)}
+          >
+            ${this._providers.length === 0
+              ? html`<option value="">No providers installed</option>`
+              : this._providers.map(
+                  (p) => html`<option value=${p}>${p}</option>`,
+                )}
+          </select>
+        </div>
+        ${this._spawnError
+          ? html`<div class="spawn-error">${this._spawnError}</div>`
+          : nothing}
+        <button
+          class="spawn-start"
+          ?disabled=${this._spawning ||
+          !this._spawnAgent ||
+          !this._spawnProvider}
+          @click=${() => void this._startSession()}
+        >
+          ${this._spawning ? "Starting…" : "Start session"}
+        </button>
+      </div>
+    `;
+  }
+
+  private _renderThread() {
+    return html`
+      <div class="thread">
+        ${this._thread.length === 0
+          ? html`
+              <div class="thread-empty">
+                Type a message below. The agent will reply here.
+              </div>
+            `
+          : this._thread.map(
+              (m) => html`
+                <div class="turn" data-sender=${m.sender}>
+                  <span class="sender">${m.sender}</span>
+                  <span class="text">${m.text}</span>
+                </div>
+              `,
+            )}
+      </div>
+    `;
   }
 }
 

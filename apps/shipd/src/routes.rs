@@ -314,6 +314,9 @@ pub enum Route {
     /// @route GET "/api/sessions/{id}/events"
     StreamPtySessionEvents { id: String },
 
+    /// @route GET "/api/providers/installed"
+    InstalledProviders,
+
     /// @route GET "/api/view/{name}/manifest"
     ServeViewManifest { name: String },
 

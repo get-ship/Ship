@@ -76,6 +76,7 @@ impl Modify for SecurityAndServer {
         crate::sessions::api::session_input,
         crate::sessions::api::stream_session,
         crate::sessions::api::stream_session_events,
+        crate::sessions::api::installed_providers,
         // Static assets + lazy island bundles.
         crate::views::assets::serve_datastar_js,
         crate::views::assets::serve_view_tokens,
@@ -121,6 +122,7 @@ impl Modify for SecurityAndServer {
         crate::sessions::api::SessionListResponse,
         crate::sessions::api::SessionMetaWire,
         crate::sessions::api::InputBody,
+        crate::sessions::api::InstalledProvidersResponse,
     ))
 )]
 pub struct ApiDoc;

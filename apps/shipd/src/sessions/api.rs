@@ -96,6 +96,66 @@ impl From<SessionMeta> for SessionMetaWire {
     }
 }
 
+/// Provider detection: which of the known providers have their CLI
+/// binaries on PATH. Powers the command-bar's spawn card.
+#[derive(Serialize, utoipa::ToSchema)]
+pub struct InstalledProvidersResponse {
+    pub providers: Vec<String>,
+}
+
+const KNOWN_PROVIDERS: &[(&str, &str)] = &[
+    ("claude", "claude"),
+    ("codex", "codex"),
+    ("cursor", "cursor-agent"),
+    ("gemini", "gemini"),
+    ("opencode", "opencode"),
+];
+
+fn binary_exists(bin: &str) -> bool {
+    let Some(path) = std::env::var_os("PATH") else {
+        return false;
+    };
+    std::env::split_paths(&path).any(|p| {
+        let candidate = p.join(bin);
+        if !candidate.is_file() {
+            return false;
+        }
+        #[cfg(unix)]
+        {
+            use std::os::unix::fs::PermissionsExt;
+            std::fs::metadata(&candidate)
+                .map(|m| m.permissions().mode() & 0o111 != 0)
+                .unwrap_or(false)
+        }
+        #[cfg(not(unix))]
+        {
+            true
+        }
+    })
+}
+
+#[utoipa::path(
+    operation_id = "installedProviders",
+    get,
+    path = "/api/providers/installed",
+    responses(
+        (status = 200, description = "Providers detected on PATH", body = InstalledProvidersResponse),
+    ),
+    tag = "sessions"
+)]
+pub async fn installed_providers() -> axum::response::Response {
+    let providers = KNOWN_PROVIDERS
+        .iter()
+        .filter(|(_, bin)| binary_exists(bin))
+        .map(|(id, _)| id.to_string())
+        .collect();
+    (
+        StatusCode::OK,
+        Json(InstalledProvidersResponse { providers }),
+    )
+        .into_response()
+}
+
 #[derive(Deserialize, utoipa::ToSchema)]
 pub struct InputBody {
     /// Raw bytes (UTF-8 text). Added verbatim to PTY stdin — include
