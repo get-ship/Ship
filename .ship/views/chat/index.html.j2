@@ -84,14 +84,14 @@
         <span class="chat-annotation-chip"
               data-on-click="$annotations = $annotations.filter((_, j) => j !== i)"
               title="Remove annotation">
-          <span data-text="a.tag || 'ref'"></span>
+          <span data-text="a.selector || a.tag || 'ref'"></span>
           <span>×</span>
         </span>
       </template>
     </div>
 
     <form id="chat-composer" class="chat-composer"
-          {{ on('submit', "event.preventDefault(); $sending = true; const annBlock = $annotations.length ? '\\n\\nContext:\\n' + $annotations.map(a => '- ' + (a.tag || 'ref') + (a.note ? ': ' + a.note : '')).join('\\n') : ''; @post('/api/chat/send', {contentType: 'json', body: JSON.stringify({text: $draft + annBlock, workspace_id: $workspace_id || null})}); $draft = ''; $annotations = []; $sending = false") }}>
+          {{ on('submit', "event.preventDefault(); $sending = true; const annBlock = $annotations.length ? '\\n\\nContext:\\n' + $annotations.map(a => '- ' + (a.selector || a.tag || 'ref') + (a.preview ? ': ' + a.preview : '')).join('\\n') : ''; @post('/api/chat/send', {contentType: 'json', body: JSON.stringify({text: $draft + annBlock, workspace_id: $workspace_id || null})}); $draft = ''; $annotations = []; $sending = false") }}>
       <textarea name="text" placeholder="Message the agent..."
                 {{ bind('draft') }}
                 {{ loading('sending') }}

@@ -605,10 +605,14 @@ document.addEventListener("keydown", (e) => {
     dockEl?.activate?.("source");
   }
 
-  // ⌘⇧E — Edit mode (reserved; enabled in phase 2)
+  // ⌘⇧E — Toggle edit mode
   if (meta && e.shiftKey && (e.key === "E" || e.key === "e")) {
     e.preventDefault();
-    window.ship?.notify?.("Edit mode lands in the next phase.", "info");
+    const on = document.body.classList.toggle("edit-mode");
+    window.ship?.notify?.(
+      on ? "Edit mode on — hover to highlight, click to annotate." : "Edit mode off.",
+      "info",
+    );
   }
 
   // F11 — Fullscreen
