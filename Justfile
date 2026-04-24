@@ -212,6 +212,16 @@ check-gates:
     just check-no-set-var-global-dir
     @echo "Both gates compile ✓"
 
+# Run home-layout grep guards (warn-only in phase-1; phase-2 will flip to hard-fail)
+check-raw:
+    @scripts/check-raw-ship-paths.sh
+    @scripts/check-raw-env-reads.sh
+    @just check-migrations
+
+# Enforce platform.db migration naming discipline (timestamp-prefixed; 0001–0006 frozen)
+check-migrations:
+    @scripts/check-migration-naming.sh
+
 # Fail if any test uses set_var("SHIP_GLOBAL_DIR") — causes env var races
 check-no-set-var-global-dir:
     @if grep -rn 'set_var.*SHIP_GLOBAL_DIR' apps/ crates/ --include='*.rs'; then \
