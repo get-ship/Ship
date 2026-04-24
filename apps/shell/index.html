@@ -84,6 +84,11 @@
         overflow: hidden;
       }
 
+      /* <ship-shell> uses light DOM (no shadow root) so its :host
+         `display: contents` never matches. Force it here so the grid
+         layout on <body> reaches the shell's children. */
+      ship-shell { display: contents; }
+
       /* ── Top bar: slim, one line ── */
       .ship-topbar {
         grid-column: 1 / -1;
