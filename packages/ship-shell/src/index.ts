@@ -15,6 +15,7 @@ export { ShipDevtoolsSource } from "./devtools/source-tab";
 export { ShipDevtoolsSignals } from "./devtools/signals-tab";
 export { ShipDevtoolsLint } from "./devtools/lint-tab";
 export { ShipDevtoolsSchema } from "./devtools/schema-tab";
+export { ShipDevtoolsComponents } from "./devtools/components-tab";
 export { ShipCreateDialog } from "./ship-create-dialog";
 export { ShipEditOverlay } from "./ship-edit-overlay";
 export { ShipToastHost } from "./ship-toast-host";

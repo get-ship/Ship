@@ -27,7 +27,8 @@ export type DockTab =
   | "source"
   | "signals"
   | "lint"
-  | "schema";
+  | "schema"
+  | "components";
 
 interface TabDef {
   name: DockTab;
@@ -41,6 +42,7 @@ const TABS: TabDef[] = [
   { name: "signals", label: "Signals", icon: "activity" },
   { name: "lint", label: "Lint", icon: "alert-triangle" },
   { name: "schema", label: "Schema", icon: "braces" },
+  { name: "components", label: "Components", icon: "component" },
 ];
 
 @customElement("ship-panel-dock")
