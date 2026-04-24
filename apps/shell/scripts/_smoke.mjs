@@ -21,6 +21,7 @@ const ROUTES = [
   "/chat",
   "/events",
   "/git",
+  "/theme-studio",
 ];
 
 async function run() {

@@ -6,7 +6,7 @@
   roll back on exit. Calls POST /api/themes/contrast on every debounced
   change so the pass/fail counts update inline.
 -#}
-{% from '_ship.html.j2' import head, signal, on, init %}
+{% from '_ship.html.j2' import head, signal, signals, on, init %}
 {% if not fragment %}
 <!DOCTYPE html>
 <html lang="en">
@@ -15,22 +15,24 @@
 {% endif %}
 <ship-view-chrome title="Theme Studio"></ship-view-chrome>
 <div class="ship-view ship-theme-studio"
-     {{ signal('tokens', {
-       'foreground': '#0a0a0a',
-       'background': '#ffffff',
-       'primary': 'oklch(0.53 0.22 263)',
-       'primary-foreground': '#ffffff',
-       'border': '#e5e5e5',
-       'muted': '#f5f5f5',
-       'muted-foreground': '#737373',
-       'destructive': '#dc2626',
-       'destructive-foreground': '#ffffff',
-       'success': '#16a34a',
-       'warning': '#d97706',
-       'accent': '#f4f4f5',
-       'accent-foreground': '#0a0a0a',
-     }) }}
-     {{ signal('report', null) }}>
+     {{ signals({
+       'tokens': {
+         'foreground': '#0a0a0a',
+         'background': '#ffffff',
+         'primary': 'oklch(0.53 0.22 263)',
+         'primary-foreground': '#ffffff',
+         'border': '#e5e5e5',
+         'muted': '#f5f5f5',
+         'muted-foreground': '#737373',
+         'destructive': '#dc2626',
+         'destructive-foreground': '#ffffff',
+         'success': '#16a34a',
+         'warning': '#d97706',
+         'accent': '#f4f4f5',
+         'accent-foreground': '#0a0a0a',
+       },
+       'report': none,
+     }) }}>
   <style>
     .ship-theme-studio {
       display: grid;

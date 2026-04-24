@@ -458,6 +458,7 @@ viewRoute("/collections", "/api/v/collections");
 viewRoute("/dashboard", "/api/v/dashboard");
 viewRoute("/canvas", "/api/v/canvas");
 viewRoute("/overview", "/api/v/overview");
+viewRoute("/theme-studio", "/api/v/theme-studio");
 
 // Dynamic routes
 router.on("/collections/:collection", ({ data }) => {
