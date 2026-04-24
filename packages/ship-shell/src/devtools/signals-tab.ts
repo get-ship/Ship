@@ -143,16 +143,44 @@ export class ShipDevtoolsSignals extends LitElement {
   @state() private _filter = "";
 
   private _timer: ReturnType<typeof setInterval> | null = null;
+  private _onDockActivate = (ev: Event): void => {
+    const tab = (ev as CustomEvent<{ tab: string }>).detail?.tab;
+    if (tab === "signals") this._start();
+    else this._stop();
+  };
 
   connectedCallback(): void {
     super.connectedCallback();
-    this._sample();
-    this._timer = setInterval(() => this._sample(), 500);
+    // The dock leaves every slotted child connected; it only toggles
+    // visibility via CSS. Start sampling only when the signals tab is
+    // actually active.
+    const dock = this.closest("ship-panel-dock");
+    dock?.addEventListener("ship:dock:activate", this._onDockActivate);
+    if (
+      (dock as HTMLElement | null)?.getAttribute("active-tab") === "signals"
+    ) {
+      this._start();
+    }
   }
 
   disconnectedCallback(): void {
     super.disconnectedCallback();
-    if (this._timer) clearInterval(this._timer);
+    this.closest("ship-panel-dock")?.removeEventListener(
+      "ship:dock:activate",
+      this._onDockActivate,
+    );
+    this._stop();
+  }
+
+  private _start(): void {
+    if (this._timer) return;
+    this._sample();
+    this._timer = setInterval(() => this._sample(), 500);
+  }
+
+  private _stop(): void {
+    if (!this._timer) return;
+    clearInterval(this._timer);
     this._timer = null;
   }
 
