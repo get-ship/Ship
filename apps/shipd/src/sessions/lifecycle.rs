@@ -170,6 +170,7 @@ fn spawn_command(
         .map_err(|e| anyhow!("pty clone_reader failed: {e}"))?;
 
     let (output_tx, _) = broadcast::channel(OUTPUT_CHANNEL_CAP);
+    let (event_tx, _) = broadcast::channel(256);
 
     let id: SessionId = runtime::gen_ulid();
     let now = Utc::now();
@@ -191,6 +192,7 @@ fn spawn_command(
         meta: StdMutex::new(meta),
         master: StdMutex::new(pair.master),
         output_tx: output_tx.clone(),
+        event_tx: event_tx.clone(),
         child: StdMutex::new(Some(child)),
         log_path: log_path.clone(),
     });
@@ -202,8 +204,16 @@ fn spawn_command(
     let reader_inner = inner.clone();
     let reader_registry = registry.clone();
     let reader_id = id.clone();
+    let reader_provider = inner.meta.lock().unwrap().provider.clone();
     std::thread::spawn(move || {
-        reader_loop(reader, log_file, reader_inner, reader_registry, reader_id);
+        reader_loop(
+            reader,
+            log_file,
+            reader_inner,
+            reader_registry,
+            reader_id,
+            reader_provider,
+        );
     });
 
     Ok(PtySession(inner))
@@ -215,10 +225,18 @@ fn reader_loop(
     inner: SessionHandle,
     registry: SessionRegistry,
     id: SessionId,
+    provider: Option<String>,
 ) {
     set_status(&inner, SessionStatus::Idle);
 
+    // Optional provider adapter for parsing agent output line-by-line.
+    // Shell sessions leave this None and skip the parse path.
+    let adapter = provider
+        .as_deref()
+        .and_then(|p| runtime::services::provider_adapter::adapter_for(p).ok());
+
     let mut buf = [0u8; 4096];
+    let mut line_buf = String::new();
     loop {
         match reader.read(&mut buf) {
             Ok(0) => break,
@@ -227,6 +245,22 @@ fn reader_loop(
                 let _ = log_file.write_all(chunk);
                 let _ = log_file.flush();
                 let _ = inner.output_tx.send(chunk.to_vec());
+                if let Some(ref adapter) = adapter {
+                    // Accumulate into a line buffer and flush on \n so
+                    // parse_output sees whole lines. ANSI codes pass
+                    // through — adapters know their own provider's
+                    // output formatting.
+                    line_buf.push_str(&String::from_utf8_lossy(chunk));
+                    while let Some(nl) = line_buf.find('\n') {
+                        let line: String = line_buf.drain(..=nl).collect();
+                        let trimmed = line.trim_end_matches(['\n', '\r']);
+                        if !trimmed.is_empty() {
+                            if let Some(ev) = adapter.parse_output(trimmed) {
+                                let _ = inner.event_tx.send(ev);
+                            }
+                        }
+                    }
+                }
                 {
                     let mut m = inner.meta.lock().unwrap();
                     m.last_activity = Utc::now();

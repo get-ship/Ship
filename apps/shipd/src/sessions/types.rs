@@ -76,6 +76,7 @@ pub struct SpawnRequest {
 pub(crate) mod private {
     use super::*;
     use portable_pty::MasterPty;
+    use runtime::services::provider_adapter::ProviderEvent;
     use std::path::PathBuf;
     use std::sync::{Arc, Mutex};
     use tokio::sync::broadcast;
@@ -87,9 +88,13 @@ pub(crate) mod private {
         /// PTY master — stdin + stdout bridge. The reader thread clones
         /// a reader off this; we hold the master to keep the PTY alive.
         pub master: Mutex<Box<dyn MasterPty + Send>>,
-        /// Broadcast channel feeding every subscriber (flyout, terminal
-        /// view, logs endpoint). Reader thread publishes bytes here.
+        /// Raw-bytes broadcast for subscribers that want the full PTY
+        /// stream (terminal view, debug logs).
         pub output_tx: broadcast::Sender<Vec<u8>>,
+        /// Parsed-event broadcast for Agent sessions. Reader thread
+        /// feeds lines through the provider adapter and publishes
+        /// extracted `ProviderEvent`s here. Shell sessions ignore it.
+        pub event_tx: broadcast::Sender<ProviderEvent>,
         /// Child process handle, used for graceful stop / try_wait().
         pub child: Mutex<Option<Box<dyn portable_pty::Child + Send + Sync>>>,
         /// Absolute path to the tee'd log file for replay.
@@ -117,5 +122,13 @@ impl PtySession {
     /// Historical bytes are in the log file (`meta().log_path`).
     pub fn subscribe(&self) -> tokio::sync::broadcast::Receiver<Vec<u8>> {
         self.0.output_tx.subscribe()
+    }
+
+    /// Subscribe to parsed provider events (agent sessions only).
+    /// Shell sessions return a receiver that will never produce.
+    pub fn subscribe_events(
+        &self,
+    ) -> tokio::sync::broadcast::Receiver<runtime::services::provider_adapter::ProviderEvent> {
+        self.0.event_tx.subscribe()
     }
 }

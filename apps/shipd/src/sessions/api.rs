@@ -280,6 +280,38 @@ pub async fn session_input(
 }
 
 #[utoipa::path(
+    operation_id = "streamSessionEvents",
+    get,
+    path = "/api/sessions/{id}/events",
+    params(("id" = String, Path, description = "Session id")),
+    responses(
+        (status = 200, description = "SSE stream of parsed ProviderEvents", content_type = "text/event-stream"),
+        (status = 404, description = "Not found"),
+    ),
+    tag = "sessions"
+)]
+pub async fn stream_session_events(
+    State(state): State<ApiState>,
+    Path(id): Path<String>,
+) -> axum::response::Response {
+    let Some(session) = state.pty_sessions().get(&id) else {
+        return err(StatusCode::NOT_FOUND, format!("session '{id}' not found"));
+    };
+    let rx = session.subscribe_events();
+    let ev_stream = BroadcastStream::new(rx)
+        .filter_map(|r| r.ok())
+        .map(|ev| {
+            let data = serde_json::to_string(&serde_json::json!({
+                "kind": format!("{:?}", ev),
+            }))
+            .unwrap_or_else(|_| "{}".into());
+            Ok::<_, Infallible>(Event::default().event("provider").data(data))
+        });
+    let sse = Sse::new(ev_stream).keep_alive(KeepAlive::new().interval(Duration::from_secs(15)));
+    sse.into_response()
+}
+
+#[utoipa::path(
     operation_id = "streamSession",
     get,
     path = "/api/sessions/{id}/stream",

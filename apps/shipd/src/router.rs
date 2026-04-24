@@ -279,6 +279,7 @@ fn build_ship_routes(st: rest_api::ApiState) -> Router {
         .ship_route(Route::StopPtySession_template(), sessions::api::stop_session)
         .ship_route(Route::PtySessionInput_template(), sessions::api::session_input)
         .ship_route(Route::StreamPtySession_template(), sessions::api::stream_session)
+        .ship_route(Route::StreamPtySessionEvents_template(), sessions::api::stream_session_events)
         .ship_route(Route::ServeViewManifest_template(), views::serve_view_manifest)
         .ship_route(Route::ServeViewBundle_template(), views::serve_view_bundle)
         .ship_route(Route::ServeViewRaw_template(), views_raw::serve_view_raw)

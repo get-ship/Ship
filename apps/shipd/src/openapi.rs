@@ -75,6 +75,7 @@ impl Modify for SecurityAndServer {
         crate::sessions::api::stop_session,
         crate::sessions::api::session_input,
         crate::sessions::api::stream_session,
+        crate::sessions::api::stream_session_events,
         // Static assets + lazy island bundles.
         crate::views::assets::serve_datastar_js,
         crate::views::assets::serve_view_tokens,
