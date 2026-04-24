@@ -17,10 +17,10 @@ URL, every registered view and collection.
 
 ```bash
 # Full manifest
-curl -s http://localhost:3000/api/runtime/sdk | jq .
+curl -s http://localhost:3000/api/sdk | jq .
 
 # Focused query across macros, URLs, views, collections
-curl -s 'http://localhost:3000/api/runtime/sdk/query?q=collection' | jq .
+curl -s 'http://localhost:3000/api/sdk/query?q=collection' | jq .
 ```
 
 The machine-readable spec is also checked into
@@ -34,7 +34,7 @@ Jinja context at render time — available signals, SSE topics, action
 URLs, required packs, referenced collections.
 
 ```bash
-curl -s http://localhost:3000/api/runtime/views/<name>/meta | jq .
+curl -s http://localhost:3000/api/views/<name>/meta | jq .
 ```
 
 ## 3. Edit on disk — it hot-reloads
@@ -68,7 +68,7 @@ ship lint views .ship/views/tasks/index.html.j2
 **Runtime HTTP (per-template, for agents mid-edit):**
 
 ```bash
-curl -s -X POST http://localhost:3000/api/runtime/lint/view \
+curl -s -X POST http://localhost:3000/api/lint/view \
   -H 'content-type: application/json' \
   -d '{"label":"tasks","source":"…raw template…"}' | jq .
 ```
@@ -91,10 +91,10 @@ your provided context instead of hitting collections / the kernel.
 
 ```bash
 # Render with fabricated context, no DB dependency
-curl -s 'http://localhost:3000/api/runtime/view/tasks?__dry-run=1&__context=%7B%22items%22%3A%5B%5D%7D'
+curl -s 'http://localhost:3000/api/view/tasks?__dry-run=1&__context=%7B%22items%22%3A%5B%5D%7D'
 
 # Inspect the real context without rendering
-curl -s 'http://localhost:3000/api/runtime/view/tasks?__dry-run=1'
+curl -s 'http://localhost:3000/api/view/tasks?__dry-run=1'
 ```
 
 Use this to build views against context shapes that aren't fixtured
@@ -107,10 +107,10 @@ fetch error is buffered by the daemon.
 
 ```bash
 # List recent errors
-curl -s http://localhost:3000/api/runtime/view-errors | jq .
+curl -s http://localhost:3000/api/view-errors | jq .
 
 # Clear
-curl -s -X DELETE http://localhost:3000/api/runtime/view-errors
+curl -s -X DELETE http://localhost:3000/api/view-errors
 ```
 
 **MCP tool (preferred for agent loops):** `ship_view_errors`. Returns
@@ -122,7 +122,7 @@ so runtime-only bugs surface without a browser devtools round-trip.
 
 The loop in practice:
 
-1. `curl /api/runtime/sdk/query?q=<concept>` — find the macro.
+1. `curl /api/sdk/query?q=<concept>` — find the macro.
 2. Edit `.ship/views/<name>/index.html.j2`.
 3. Refresh the browser (or dispatch an `@get` in the shell).
 4. If the render fails visibly → `ship_view_errors`.
