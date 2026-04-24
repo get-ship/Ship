@@ -43,7 +43,8 @@ fn write_schema(ship_dir: &Path, id: &str) {
             }}
         }}"#
     );
-    std::fs::write(ship_dir.join("schemas").join(format!("{id}.jsonc")), schema).unwrap();
+    std::fs::create_dir_all(ship_dir.join("collections")).unwrap();
+    std::fs::write(ship_dir.join("collections").join(format!("{id}.jsonc")), schema).unwrap();
 }
 
 fn job_failed_envelope() -> EventEnvelope {

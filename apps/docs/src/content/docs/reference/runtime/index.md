@@ -41,17 +41,17 @@ Bypasses MCP for relay clients (e.g. `ship-mcp`). Endpoints:
 | POST | `/api/mesh/status` | Update agent status |
 | GET | `/api/mesh/events/{agent_id}` | SSE stream of agent's mailbox |
 
-### Runtime API (`/api/runtime/*`)
+### Runtime API
 
 Read-only endpoints for Studio:
 
 | Method | Path | Purpose |
 |--------|------|---------|
-| GET | `/api/runtime/workspaces` | List all workspaces |
-| GET | `/api/runtime/sessions` | List sessions (optional `?workspace_id=`) |
-| GET | `/api/runtime/agents` | List mesh-registered agents |
-| GET | `/api/runtime/events` | SSE stream of all kernel events |
-| GET | `/api/runtime/workspaces/{id}/pty` | WebSocket PTY bridge |
+| GET | `/api/workspaces` | List all workspaces |
+| GET | `/api/sessions` | List sessions (optional `?workspace_id=`) |
+| GET | `/api/agents/active` | List mesh-registered agents |
+| GET | `/api/events/stream` | SSE stream of all kernel events |
+| GET | `/api/workspaces/{id}/pty` | WebSocket PTY bridge |
 
 ### Supervisor API (`/api/supervisor/*`)
 

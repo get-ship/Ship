@@ -216,6 +216,7 @@ pub fn mk_observed(
         succeeded: matches!(verdict, StepVerdict::Advance),
         verdict,
         start_sha: None,
+        log_tail: None,
     }
 }
 

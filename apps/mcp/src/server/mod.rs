@@ -753,62 +753,6 @@ impl ShipServer {
         crate::tools::view_scaffold::view_scaffold(req)
     }
 
-}
-
-/// Format a list of lint findings: errors first, warnings after, each with
-/// file:line:col [rule] message and an optional `→ suggest` line.
-fn format_findings(findings: &[lint::Finding]) -> String {
-    let mut errors: Vec<&lint::Finding> = findings
-        .iter()
-        .filter(|f| f.severity == lint::Severity::Error)
-        .collect();
-    let mut warns: Vec<&lint::Finding> = findings
-        .iter()
-        .filter(|f| f.severity == lint::Severity::Warn)
-        .collect();
-    // Deterministic order within a severity — by file, then line, then col.
-    let sort_key = |f: &&lint::Finding| (f.file.clone(), f.line, f.col);
-    errors.sort_by_key(sort_key);
-    warns.sort_by_key(sort_key);
-
-    let mut out = String::new();
-    let render = |out: &mut String, f: &lint::Finding| {
-        out.push_str(&format!(
-            "{}:{}:{} [{}] {}\n",
-            f.file.display(),
-            f.line,
-            f.col,
-            f.rule,
-            f.message,
-        ));
-        if let Some(s) = &f.suggest
-            && !s.is_empty()
-        {
-            out.push_str(&format!("  → suggest: {s}\n"));
-        }
-    };
-
-    if !errors.is_empty() {
-        out.push_str(&format!("-- {} error(s) --\n", errors.len()));
-        for f in &errors {
-            render(&mut out, f);
-        }
-    }
-    if !warns.is_empty() {
-        if !errors.is_empty() {
-            out.push('\n');
-        }
-        out.push_str(&format!("-- {} warning(s) --\n", warns.len()));
-        for f in &warns {
-            render(&mut out, f);
-        }
-    }
-    out.push_str(&format!(
-        "\n{} error(s), {} warning(s)",
-        errors.len(),
-        warns.len(),
-    ));
-    out
     // ---- Artifacts ----
 
     #[tool(
@@ -872,6 +816,62 @@ fn format_findings(findings: &[lint::Finding]) -> String {
     ) -> String {
         artifact_tools::artifact_promote(&req.id, &req.target_scope).await
     }
+}
+
+/// Format a list of lint findings: errors first, warnings after, each with
+/// file:line:col [rule] message and an optional `→ suggest` line.
+fn format_findings(findings: &[lint::Finding]) -> String {
+    let mut errors: Vec<&lint::Finding> = findings
+        .iter()
+        .filter(|f| f.severity == lint::Severity::Error)
+        .collect();
+    let mut warns: Vec<&lint::Finding> = findings
+        .iter()
+        .filter(|f| f.severity == lint::Severity::Warn)
+        .collect();
+    // Deterministic order within a severity — by file, then line, then col.
+    let sort_key = |f: &&lint::Finding| (f.file.clone(), f.line, f.col);
+    errors.sort_by_key(sort_key);
+    warns.sort_by_key(sort_key);
+
+    let mut out = String::new();
+    let render = |out: &mut String, f: &lint::Finding| {
+        out.push_str(&format!(
+            "{}:{}:{} [{}] {}\n",
+            f.file.display(),
+            f.line,
+            f.col,
+            f.rule,
+            f.message,
+        ));
+        if let Some(s) = &f.suggest
+            && !s.is_empty()
+        {
+            out.push_str(&format!("  → suggest: {s}\n"));
+        }
+    };
+
+    if !errors.is_empty() {
+        out.push_str(&format!("-- {} error(s) --\n", errors.len()));
+        for f in &errors {
+            render(&mut out, f);
+        }
+    }
+    if !warns.is_empty() {
+        if !errors.is_empty() {
+            out.push('\n');
+        }
+        out.push_str(&format!("-- {} warning(s) --\n", warns.len()));
+        for f in &warns {
+            render(&mut out, f);
+        }
+    }
+    out.push_str(&format!(
+        "\n{} error(s), {} warning(s)",
+        errors.len(),
+        warns.len(),
+    ));
+    out
 }
 
 // ---- Unstable tool registration ----

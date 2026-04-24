@@ -4,10 +4,10 @@ import StarlightPage from '@astrojs/starlight/components/StarlightPage.astro';
 ---
 
 <StarlightPage
-  frontmatter={{ title: 'Installing', description: 'Install @ship/ui into any Vite / Astro / plain-HTML app.' }}
+  frontmatter={{ title: 'Installing', description: 'Install @ship/set into any Vite / Astro / plain-HTML app.' }}
 >
   <p class="in-sub">
-    <code>@ship/ui</code> is available as an npm package. Install it
+    <code>@ship/set</code> is available as an npm package. Install it
     into any Vite / Astro / plain-HTML app, import the elements bundle
     once, use them anywhere.
   </p>
@@ -15,8 +15,8 @@ import StarlightPage from '@astrojs/starlight/components/StarlightPage.astro';
   <section class="in-section">
     <h2 class="in-h2">1 · Install</h2>
     <div class="in-code">
-      <pre><code>pnpm add @ship/ui</code></pre>
-      <button type="button" class="in-copy" data-copy="pnpm add @ship/ui">Copy</button>
+      <pre><code>pnpm add @ship/set</code></pre>
+      <button type="button" class="in-copy" data-copy="pnpm add @ship/set">Copy</button>
     </div>
     <p class="in-note">
       Works with npm, yarn, bun, and any package manager that reads
@@ -27,10 +27,10 @@ import StarlightPage from '@astrojs/starlight/components/StarlightPage.astro';
   <section class="in-section">
     <h2 class="in-h2">2 · Import once</h2>
     <div class="in-code">
-<pre><code>import '@ship/ui/elements'
-import '@ship/ui/tokens.css'
-import '@ship/ui/themes.css'</code></pre>
-      <button type="button" class="in-copy" data-copy={`import '@ship/ui/elements'\nimport '@ship/ui/tokens.css'\nimport '@ship/ui/themes.css'`}>Copy</button>
+<pre><code>import '@ship/set/elements'
+import '@ship/set/tokens.css'
+import '@ship/set/themes.css'</code></pre>
+      <button type="button" class="in-copy" data-copy={`import '@ship/set/elements'\nimport '@ship/set/tokens.css'\nimport '@ship/set/themes.css'`}>Copy</button>
     </div>
     <p class="in-note">
       The elements module registers every <code>&lt;ship-*&gt;</code>
@@ -64,11 +64,11 @@ import '@ship/ui/themes.css'</code></pre>
       so shadow/elevation tokens flip too.
     </p>
     <div class="in-code">
-<pre><code>{`import { applyTheme, persistTheme } from '@ship/ui/themes'
+<pre><code>{`import { applyTheme, persistTheme } from '@ship/set/themes'
 
 applyTheme('halo')   // sets data-theme + .dark on <html>
 persistTheme('halo') // localStorage for next load`}</code></pre>
-      <button type="button" class="in-copy" data-copy={`import { applyTheme, persistTheme } from '@ship/ui/themes'\n\napplyTheme('halo')\npersistTheme('halo')`}>Copy</button>
+      <button type="button" class="in-copy" data-copy={`import { applyTheme, persistTheme } from '@ship/set/themes'\n\napplyTheme('halo')\npersistTheme('halo')`}>Copy</button>
     </div>
   </section>
 </StarlightPage>

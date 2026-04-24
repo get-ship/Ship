@@ -109,6 +109,22 @@ function buildTopics(isInternal) {
         label: "Triggers",
         autogenerate: { directory: "reference/triggers" },
       },
+      {
+        label: "Component Packs",
+        autogenerate: { directory: "reference/component-packs" },
+      },
+      {
+        label: "Design System",
+        autogenerate: { directory: "reference/design-system" },
+      },
+      {
+        label: "SDK",
+        autogenerate: { directory: "reference/sdk" },
+      },
+      {
+        label: "Recipes",
+        autogenerate: { directory: "reference/recipes" },
+      },
     ],
   },
   {
@@ -208,8 +224,8 @@ export default defineConfig({
       },
       social: [],
       customCss: [
-        "@ship/ui/tokens.css",
-        "@ship/ui/themes.css",
+        "@ship/set/tokens.css",
+        "@ship/set/themes.css",
         "./src/styles/ship-theme.css",
       ],
       components: {
