@@ -175,18 +175,6 @@ export class ShipCommandBar extends LitElement {
       border-bottom-left-radius: inherit;
       border-bottom-right-radius: inherit;
     }
-    /* Chat-mode panel: composer pinned to bottom, thread fills. */
-    :host([chat-mode]) .panel-input {
-      order: 3;
-      border-bottom: 0;
-      border-top: 1px solid var(--border);
-    }
-    :host([chat-mode]) .panel-body {
-      order: 2;
-    }
-    :host([chat-mode]) .panel-header {
-      order: 1;
-    }
     .panel-input {
       display: flex;
       align-items: center;
