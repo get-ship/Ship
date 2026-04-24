@@ -47,17 +47,6 @@ pub async fn resolve_resource_uri(
         let spec_path = runtime::project::specs_dir(&ship_dir).join(format!("{id}.md"));
         return std::fs::read_to_string(&spec_path).ok();
     }
-    if uri == "ship://adrs" {
-        return resolve_adr_list();
-    }
-    if let Some(id) = uri.strip_prefix("ship://adrs/") {
-        return runtime::db::adrs::get_adr(id).ok().flatten().map(|a| {
-            format!(
-                "Title: {}\nStatus: {}\nDate: {}\n\n## Context\n\n{}\n\n## Decision\n\n{}",
-                a.title, a.status, a.date, a.context, a.decision
-            )
-        });
-    }
     if uri == "ship://skills" {
         let entries = list_effective_skills(&ship_dir).ok()?;
         if entries.is_empty() {
@@ -153,20 +142,6 @@ fn resolve_specs_list(ship_dir: &Path) -> Option<String> {
             Some(out)
         }
         Err(_) => Some("No specs found.".to_string()),
-    }
-}
-
-fn resolve_adr_list() -> Option<String> {
-    match runtime::db::adrs::list_adrs() {
-        Ok(adrs) if adrs.is_empty() => Some("No ADRs found.".to_string()),
-        Ok(adrs) => {
-            let mut out = String::from("ADRs:\n");
-            for a in &adrs {
-                out.push_str(&format!("- {} [{}] {}\n", a.id, a.status, a.title));
-            }
-            Some(out)
-        }
-        Err(_) => Some("No ADRs found.".to_string()),
     }
 }
 

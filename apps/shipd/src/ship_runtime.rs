@@ -152,10 +152,20 @@ impl ShipRuntime {
         }
 
         // Ensure DB exists and init kernel.
+        //
+        // Ordering matters: open `data.db` (which runs the collections
+        // migration that copies legacy user-content rows out of
+        // `platform.db`) BEFORE `ensure_db_at` applies sqlx migrations —
+        // migration 0006 drops the legacy tables, so any data left there
+        // would be lost. `DataService::open` reads platform.db through a
+        // raw connection that does not touch sqlx migrations.
+        //
         // Use spawn_blocking because the DB layer uses block_in_place internally,
         // which requires the multi-threaded runtime. spawn_blocking works in both.
         let dir = global_dir.clone();
         let kernel = tokio::task::spawn_blocking(move || {
+            // Open data.db + run collections migration first.
+            let _ = runtime::data::DataService::open(&dir)?;
             runtime::db::ensure_db_at(&dir)?;
             runtime::events::init_kernel_router(dir)
                 .map_err(|e| anyhow!("failed to initialize KernelRouter: {e}"))

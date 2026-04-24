@@ -80,10 +80,6 @@ pub use db::artifact_registry::{
     get_compiled_asset_cache_by_external_id_db, get_compiled_asset_cache_by_uuid_db,
     upsert_compiled_asset_cache_db,
 };
-pub use db::branch_context::{
-    clear_branch_doc, clear_branch_link, get_branch_doc, get_branch_link, set_branch_doc,
-    set_branch_link,
-};
 pub use db::managed_state::{get_managed_state_db, set_managed_state_db};
 pub use db::session::get_workspace_session_record_db;
 pub use db::types::{

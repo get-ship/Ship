@@ -1,4 +1,3 @@
-use crate::db::branch_context::clear_branch_link;
 use crate::db::workspace_state::{
     get_workspace_by_id_db, get_workspace_db, has_active_session_db, list_workspaces_db,
 };
@@ -77,7 +76,6 @@ pub fn delete_workspace(ship_dir: &Path, id_or_branch: &str) -> Result<(), Works
         Some((resolved_branch, _)) => resolved_branch,
         None => id_or_branch.to_string(),
     };
-    clear_branch_link(&branch)?;
     upsert_workspace_on_deleted(ship_dir, &branch)?;
     Ok(())
 }

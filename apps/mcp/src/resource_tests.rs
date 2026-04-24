@@ -72,19 +72,6 @@ async fn spec_get_nonexistent_returns_none() {
     );
 }
 
-// ── ADR resources ─────────────────────────────────────────────────
-
-#[tokio::test(flavor = "multi_thread")]
-async fn adrs_resource_round_trip() {
-    let (_tmp, _ship_dir, project_dir) = setup();
-    let result = resolve("ship://adrs", &project_dir).await.unwrap();
-    assert_eq!(result, "No ADRs found.");
-
-    runtime::db::adrs::create_adr("Test ADR", "context", "decision", "proposed").unwrap();
-    let list = resolve("ship://adrs", &project_dir).await.unwrap();
-    assert!(list.contains("Test ADR"));
-}
-
 // ── Job resources (event-sourced) ────────────────────────────────
 
 fn job_created_event(job_id: &str, slug: &str, agent: &str) -> EventEnvelope {
