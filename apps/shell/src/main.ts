@@ -238,6 +238,33 @@ function loadPack(src: string): void {
   document.head.appendChild(s);
 }
 
+// ── Agent task completion notifications ─────────────────────────────
+// The `agent` kernel namespace emits `agent.task.complete` when a
+// creation or iteration finishes. Toast + click-through routes to
+// the created artifact (e.g. the new view).
+window.ship?.subscribe?.("agent", (ev) => {
+  if (ev.event_type !== "agent.task.complete") return;
+  const payload = ev.payload as {
+    surface?: string;
+    name?: string;
+    route?: string;
+  };
+  const name = payload?.name ?? "task";
+  window.ship?.notify?.(`${name} is ready`, "success");
+  // Also fire a public shell event that the chat drawer listens on
+  // to clear its working-state pill.
+  document.querySelector("ship-shell")?.dispatchEvent(
+    new CustomEvent("ship:create:done", { detail: payload, bubbles: true }),
+  );
+  if (payload?.route) {
+    // Click-through: toast-host doesn't expose a click API yet, so
+    // auto-navigate after a short delay to let the user see the toast.
+    setTimeout(() => {
+      if (payload.route) window.ship?.navigate(payload.route);
+    }, 800);
+  }
+});
+
 dock.addEventListener("ship:dock:activate", (ev) => {
   const tab = (ev as CustomEvent<{ tab: string }>).detail.tab;
   if (tab === "source") {

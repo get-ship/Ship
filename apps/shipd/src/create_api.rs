@@ -104,15 +104,51 @@ pub async fn create_surface(
         return err(StatusCode::BAD_REQUEST, "name must be kebab-case");
     }
 
-    match surface.as_str() {
+    let resp = match surface.as_str() {
         "view" => scaffold_view(&state, &req),
         "skill" | "agent" | "pipeline" | "trigger" | "theme" => err(
             StatusCode::NOT_IMPLEMENTED,
             format!("surface '{surface}' scaffolding lands in a later commit"),
         ),
         other => err(StatusCode::BAD_REQUEST, format!("unknown surface '{other}'")),
+    };
+
+    // Emit a kernel completion event so the shell can toast + route.
+    // Fire-and-forget — scaffolding already succeeded by the time we
+    // get here, and a best-effort notification shouldn't fail the
+    // request if the kernel is busy.
+    if resp.status() == StatusCode::OK {
+        let state = state.clone();
+        let surface = surface.clone();
+        let name = req.name.clone();
+        let route = if surface == "view" {
+            Some(format!("/api/v/{name}"))
+        } else {
+            None
+        };
+        tokio::spawn(async move {
+            let payload = serde_json::json!({
+                "surface": surface,
+                "name": name,
+                "route": route,
+            });
+            if let Ok(envelope) = runtime::events::EventEnvelope::new(
+                "agent.task.complete",
+                &name,
+                &payload,
+            ) {
+                let ctx = runtime::events::EmitContext {
+                    caller_kind: runtime::events::CallerKind::Cli,
+                    skill_id: None,
+                    workspace_id: None,
+                    session_id: None,
+                };
+                let _ = state.kernel().lock().await.route(envelope, &ctx).await;
+            }
+        });
     }
-    .into_response()
+
+    resp
 }
 
 fn scaffold_view(state: &ApiState, req: &CreateRequest) -> axum::response::Response {
