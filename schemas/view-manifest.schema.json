@@ -65,6 +65,18 @@
         "enum": ["editor", "terminal", "git"]
       }
     },
+    "theme": {
+      "type": "object",
+      "description": "Publisher-authored theme preference. Only honored when the user's `shell.theme.respect_publisher` setting is `true`; otherwise the shell-wide user theme applies everywhere.",
+      "additionalProperties": false,
+      "properties": {
+        "prefers": {
+          "type": "string",
+          "enum": ["auto", "light", "dark"],
+          "description": "Which light/dark mode the view was designed for. `auto` defers to the user's mode; `light`/`dark` force that mode for this view only."
+        }
+      }
+    },
     "events": {
       "type": "array",
       "description": "Kernel event namespaces this view subscribes to for live re-renders. Prefix-match — `job.` fires on every `job.created`, `job.failed`, etc. Empty string subscribes to everything. Routed SSE at /api/sse/<name> re-renders the view when any subscribed event fires.",
