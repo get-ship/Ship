@@ -1,0 +1,604 @@
+{
+  "_generated": "just gen-sdk — DO NOT EDIT",
+  "version": "0.1.0",
+  "$schema": "https://ship.design/schemas/sdk-ship-ops.schema.json",
+  "entries": {
+    "agents.list": {
+      "name": "agents.list",
+      "description": "List all agents as minimal IndexEntry rows.",
+      "args": [],
+      "returns": "{items: [IndexEntry]}",
+      "permission": "ship.agents.read",
+      "sensitive": false
+    },
+    "agents.summaries": {
+      "name": "agents.summaries",
+      "description": "List all agents with display metadata (label, providers, tags).",
+      "args": [],
+      "returns": "{items: [AgentSummary]}",
+      "permission": "ship.agents.read",
+      "sensitive": false
+    },
+    "agents.detail": {
+      "name": "agents.detail",
+      "description": "Full view-shaped agent detail — catalogs, permissions, providers, tags.",
+      "args": [
+        {
+          "name": "id",
+          "kind": "string",
+          "required": true
+        }
+      ],
+      "returns": "AgentDetail",
+      "permission": "ship.agents.read",
+      "sensitive": false
+    },
+    "agents.catalogs": {
+      "name": "agents.catalogs",
+      "description": "Catalog rows for the agents list (providers, skills, etc.).",
+      "args": [],
+      "returns": "AgentCatalogs",
+      "permission": "ship.agents.read",
+      "sensitive": false
+    },
+    "agents.get": {
+      "name": "agents.get",
+      "description": "Raw agent doc from disk at the requested scope.",
+      "args": [
+        {
+          "name": "id",
+          "kind": "string",
+          "required": true
+        },
+        {
+          "name": "scope",
+          "kind": "string?",
+          "required": false
+        }
+      ],
+      "returns": "{id, scope, doc}",
+      "permission": "ship.agents.read",
+      "sensitive": false
+    },
+    "agents.wire": {
+      "name": "agents.wire",
+      "description": "Graph payload (nodes + edges) for the agent-wire canvas.",
+      "args": [
+        {
+          "name": "id",
+          "kind": "string",
+          "required": true
+        }
+      ],
+      "returns": "AgentWireCtx",
+      "permission": "ship.agents.read",
+      "sensitive": false
+    },
+    "agents.settings": {
+      "name": "agents.settings",
+      "description": "Tier list + catalog rows for the per-agent settings pane.",
+      "args": [
+        {
+          "name": "id",
+          "kind": "string",
+          "required": true
+        }
+      ],
+      "returns": "AgentSettingsCtx",
+      "permission": "ship.agents.read",
+      "sensitive": false
+    },
+    "agents.templates": {
+      "name": "agents.templates",
+      "description": "Starter templates for the agent-create wizard.",
+      "args": [],
+      "returns": "{items: [AgentTemplate]}",
+      "permission": "ship.agents.read",
+      "sensitive": false
+    },
+    "agents.permission_presets": {
+      "name": "agents.permission_presets",
+      "description": "Permission presets for the agent-create wizard.",
+      "args": [],
+      "returns": "{items: [PermissionPreset]}",
+      "permission": "ship.agents.read",
+      "sensitive": false
+    },
+    "agents.providers": {
+      "name": "agents.providers",
+      "description": "Enumerate known providers (claude, openai, gemini, ...).",
+      "args": [],
+      "returns": "{items: [string]}",
+      "permission": "ship.agents.read",
+      "sensitive": false
+    },
+    "agents.create_ctx": {
+      "name": "agents.create_ctx",
+      "description": "Convenience: templates + presets + providers for the create view.",
+      "args": [],
+      "returns": "AgentsCreateCtx",
+      "permission": "ship.agents.read",
+      "sensitive": false
+    },
+    "skills.list": {
+      "name": "skills.list",
+      "description": "List all skills as minimal IndexEntry rows.",
+      "args": [],
+      "returns": "{items: [IndexEntry]}",
+      "permission": "ship.skills.read",
+      "sensitive": false
+    },
+    "skills.summaries": {
+      "name": "skills.summaries",
+      "description": "Rail shape: filtered + grouped + kind counts + tags.",
+      "args": [
+        {
+          "name": "q",
+          "kind": "string?",
+          "required": false
+        },
+        {
+          "name": "kind",
+          "kind": "string?",
+          "required": false
+        },
+        {
+          "name": "tag",
+          "kind": "string?",
+          "required": false
+        }
+      ],
+      "returns": "SkillsRailCtx",
+      "permission": "ship.skills.read",
+      "sensitive": false
+    },
+    "skills.detail": {
+      "name": "skills.detail",
+      "description": "Full view-shaped skill detail — authors, variables, files.",
+      "args": [
+        {
+          "name": "id",
+          "kind": "string",
+          "required": true
+        }
+      ],
+      "returns": "SkillDetail",
+      "permission": "ship.skills.read",
+      "sensitive": false
+    },
+    "skills.file": {
+      "name": "skills.file",
+      "description": "HTML-escaped file content within a skill dir.",
+      "args": [
+        {
+          "name": "id",
+          "kind": "string",
+          "required": true
+        },
+        {
+          "name": "path",
+          "kind": "string",
+          "required": true
+        }
+      ],
+      "returns": "{path, name, ext, content}",
+      "permission": "ship.skills.read",
+      "sensitive": false
+    },
+    "skills.get": {
+      "name": "skills.get",
+      "description": "Raw skill detail at the requested scope.",
+      "args": [
+        {
+          "name": "id",
+          "kind": "string",
+          "required": true
+        },
+        {
+          "name": "scope",
+          "kind": "string?",
+          "required": false
+        }
+      ],
+      "returns": "SkillDetail",
+      "permission": "ship.skills.read",
+      "sensitive": false
+    },
+    "rules.list": {
+      "name": "rules.list",
+      "description": "List markdown rules across scopes.",
+      "args": [],
+      "returns": "{items: [IndexEntry]}",
+      "permission": "ship.rules.read",
+      "sensitive": false
+    },
+    "rules.get": {
+      "name": "rules.get",
+      "description": "Raw rule body at the requested scope.",
+      "args": [
+        {
+          "name": "id",
+          "kind": "string",
+          "required": true
+        },
+        {
+          "name": "scope",
+          "kind": "string?",
+          "required": false
+        }
+      ],
+      "returns": "{id, scope, body}",
+      "permission": "ship.rules.read",
+      "sensitive": false
+    },
+    "mcp.list": {
+      "name": "mcp.list",
+      "description": "List MCP server entries across scopes.",
+      "args": [],
+      "returns": "{items: [IndexEntry]}",
+      "permission": "ship.mcp.read",
+      "sensitive": false
+    },
+    "mcp.get": {
+      "name": "mcp.get",
+      "description": "Raw MCP entry at the requested scope.",
+      "args": [
+        {
+          "name": "id",
+          "kind": "string",
+          "required": true
+        },
+        {
+          "name": "scope",
+          "kind": "string?",
+          "required": false
+        }
+      ],
+      "returns": "{id, scope, entry}",
+      "permission": "ship.mcp.read",
+      "sensitive": false
+    },
+    "permissions.list": {
+      "name": "permissions.list",
+      "description": "List permission presets across scopes.",
+      "args": [],
+      "returns": "{items: [IndexEntry]}",
+      "permission": "ship.permissions.read",
+      "sensitive": false
+    },
+    "permissions.get": {
+      "name": "permissions.get",
+      "description": "Raw permission preset at the requested scope.",
+      "args": [
+        {
+          "name": "id",
+          "kind": "string",
+          "required": true
+        },
+        {
+          "name": "scope",
+          "kind": "string?",
+          "required": false
+        }
+      ],
+      "returns": "{id, scope, entry}",
+      "permission": "ship.permissions.read",
+      "sensitive": false
+    },
+    "permissions.tool_patterns": {
+      "name": "permissions.tool_patterns",
+      "description": "Enumerate tool-pattern capability names (for agent builders).",
+      "args": [],
+      "returns": "{patterns: [ToolPattern]}",
+      "permission": "ship.permissions.read",
+      "sensitive": false
+    },
+    "pipelines.list": {
+      "name": "pipelines.list",
+      "description": "List pipeline definitions across scopes.",
+      "args": [],
+      "returns": "{items: [IndexEntry]}",
+      "permission": "ship.pipelines.read",
+      "sensitive": false
+    },
+    "pipelines.get": {
+      "name": "pipelines.get",
+      "description": "Raw pipeline doc at the requested scope.",
+      "args": [
+        {
+          "name": "name",
+          "kind": "string",
+          "required": true
+        },
+        {
+          "name": "scope",
+          "kind": "string?",
+          "required": false
+        }
+      ],
+      "returns": "{name, scope, format, doc}",
+      "permission": "ship.pipelines.read",
+      "sensitive": false
+    },
+    "pipelines.summaries": {
+      "name": "pipelines.summaries",
+      "description": "Index-view shape: defs + active/history + pills + agents.",
+      "args": [],
+      "returns": "PipelinesSummariesCtx",
+      "permission": "ship.pipelines.read",
+      "sensitive": false
+    },
+    "pipelines.focus": {
+      "name": "pipelines.focus",
+      "description": "Per-pipeline detail with active + other runs precomputed.",
+      "args": [
+        {
+          "name": "name",
+          "kind": "string",
+          "required": true
+        }
+      ],
+      "returns": "PipelineFocusCtx",
+      "permission": "ship.pipelines.read",
+      "sensitive": false
+    },
+    "pipelines.run": {
+      "name": "pipelines.run",
+      "description": "Run detail with steps + timeline.",
+      "args": [
+        {
+          "name": "slug",
+          "kind": "string",
+          "required": true
+        }
+      ],
+      "returns": "RunDetailCtx",
+      "permission": "ship.pipelines.read",
+      "sensitive": false
+    },
+    "pipelines.history": {
+      "name": "pipelines.history",
+      "description": "Paginated run history with pipeline filter options.",
+      "args": [
+        {
+          "name": "limit",
+          "kind": "number?",
+          "required": false
+        },
+        {
+          "name": "offset",
+          "kind": "number?",
+          "required": false
+        },
+        {
+          "name": "pipeline",
+          "kind": "string?",
+          "required": false
+        }
+      ],
+      "returns": "HistoryCtx",
+      "permission": "ship.pipelines.read",
+      "sensitive": false
+    },
+    "events.list": {
+      "name": "events.list",
+      "description": "Kernel events with filters, grouped by entity.",
+      "args": [
+        {
+          "name": "limit",
+          "kind": "number?",
+          "required": false
+        },
+        {
+          "name": "event_type",
+          "kind": "string?",
+          "required": false
+        },
+        {
+          "name": "actor",
+          "kind": "string?",
+          "required": false
+        },
+        {
+          "name": "entity",
+          "kind": "string?",
+          "required": false
+        },
+        {
+          "name": "q",
+          "kind": "string?",
+          "required": false
+        }
+      ],
+      "returns": "{groups, types, actors}",
+      "permission": "ship.events.read",
+      "sensitive": true
+    },
+    "specs.list": {
+      "name": "specs.list",
+      "description": "Raw spec records from the DB.",
+      "args": [],
+      "returns": "{items: [Spec]}",
+      "permission": "ship.specs.read",
+      "sensitive": false
+    },
+    "specs.get": {
+      "name": "specs.get",
+      "description": "Full spec record + body.",
+      "args": [
+        {
+          "name": "id",
+          "kind": "string",
+          "required": true
+        }
+      ],
+      "returns": "{spec, body}",
+      "permission": "ship.specs.read",
+      "sensitive": false
+    },
+    "specs.summaries": {
+      "name": "specs.summaries",
+      "description": "Rail shape: grouped + counts + pipelines.",
+      "args": [
+        {
+          "name": "q",
+          "kind": "string?",
+          "required": false
+        },
+        {
+          "name": "selected",
+          "kind": "string?",
+          "required": false
+        }
+      ],
+      "returns": "SpecsSummariesCtx",
+      "permission": "ship.specs.read",
+      "sensitive": false
+    },
+    "specs.detail": {
+      "name": "specs.detail",
+      "description": "Full view-shaped spec detail: parsed sections, launch ctx.",
+      "args": [
+        {
+          "name": "id",
+          "kind": "string",
+          "required": true
+        }
+      ],
+      "returns": "SpecDetail",
+      "permission": "ship.specs.read",
+      "sensitive": false
+    },
+    "git.status": {
+      "name": "git.status",
+      "description": "Working tree + index status buckets.",
+      "args": [],
+      "returns": "GitStatusBuckets",
+      "permission": "ship.git.read",
+      "sensitive": true
+    },
+    "git.log": {
+      "name": "git.log",
+      "description": "Commit log up to `limit` entries.",
+      "args": [
+        {
+          "name": "limit",
+          "kind": "number?",
+          "required": false
+        }
+      ],
+      "returns": "{commits: [CommitSummary]}",
+      "permission": "ship.git.read",
+      "sensitive": true
+    },
+    "git.branches": {
+      "name": "git.branches",
+      "description": "Local + remote branches with ahead/behind vs upstream.",
+      "args": [],
+      "returns": "{branches, ahead, behind}",
+      "permission": "ship.git.read",
+      "sensitive": true
+    },
+    "git.overview": {
+      "name": "git.overview",
+      "description": "One-call shape for the git view's default route.",
+      "args": [
+        {
+          "name": "workspace_id",
+          "kind": "string?",
+          "required": false
+        },
+        {
+          "name": "limit",
+          "kind": "number?",
+          "required": false
+        }
+      ],
+      "returns": "GitCtx",
+      "permission": "ship.git.read",
+      "sensitive": true
+    },
+    "git.diff": {
+      "name": "git.diff",
+      "description": "Diff for a commit or 'WORKING'.",
+      "args": [
+        {
+          "name": "commit",
+          "kind": "string",
+          "required": true
+        },
+        {
+          "name": "workspace_id",
+          "kind": "string?",
+          "required": false
+        }
+      ],
+      "returns": "DiffView",
+      "permission": "ship.git.read",
+      "sensitive": true
+    },
+    "git.annotations": {
+      "name": "git.annotations",
+      "description": "AnnotationsByLine for the active diff file.",
+      "args": [
+        {
+          "name": "file",
+          "kind": "string",
+          "required": true
+        },
+        {
+          "name": "workspace_id",
+          "kind": "string?",
+          "required": false
+        }
+      ],
+      "returns": "AnnotationsByLine",
+      "permission": "ship.git.read",
+      "sensitive": false
+    },
+    "settings.state": {
+      "name": "settings.state",
+      "description": "Providers, defaults, terminal, about — everything the settings view renders.",
+      "args": [],
+      "returns": "SettingsCtx",
+      "permission": "ship.settings.read",
+      "sensitive": false
+    },
+    "dashboard.state": {
+      "name": "dashboard.state",
+      "description": "Aggregate stats + recent runs + events + agents + collections.",
+      "args": [],
+      "returns": "DashboardCtx",
+      "permission": "ship.dashboard.read",
+      "sensitive": false
+    },
+    "collections.state": {
+      "name": "collections.state",
+      "description": "Collections list + active schema + items (tier-3 app data).",
+      "args": [
+        {
+          "name": "active",
+          "kind": "string?",
+          "required": false
+        }
+      ],
+      "returns": "CollectionsCtx",
+      "permission": "ship.collections.read",
+      "sensitive": false
+    },
+    "chat.state": {
+      "name": "chat.state",
+      "description": "Recent messages for the chat drawer, scoped by workspace.",
+      "args": [
+        {
+          "name": "workspace_id",
+          "kind": "string?",
+          "required": false
+        }
+      ],
+      "returns": "{workspace_id, messages, total}",
+      "permission": "ship.chat.read",
+      "sensitive": true
+    }
+  }
+}

@@ -29,6 +29,7 @@ pub use rules::ast::{
     RULE_AST_UNKNOWN_FILTER, RULE_AST_UNKNOWN_MACRO, RULE_AST_UNKNOWN_ROUTE,
     RULE_AST_UNUSED_IMPORT,
 };
+pub use rules::ast::RULE_AST_UNKNOWN_SHIP_OP;
 
 pub const ALL_RULES: &[&str] = &[
     RULE_NO_INLINE_SCRIPT,
@@ -43,6 +44,7 @@ pub const ALL_RULES: &[&str] = &[
     RULE_AST_UNDECLARED_SIGNAL,
     RULE_AST_UNKNOWN_ROUTE,
     RULE_AST_PARSE_ERROR,
+    RULE_AST_UNKNOWN_SHIP_OP,
 ];
 
 /// A single view target — the directory plus the `.html.j2` files inside it.

@@ -3,446 +3,34 @@
   "version": "0.1.0",
   "$schema": "https://ship.design/schemas/sdk-view-contexts.schema.json",
   "entries": {
-    "specs": {
-      "source": "apps/shipd/src/specs_view.rs:115::SpecsCtx",
-      "struct": "SpecsCtx",
+    "agent-wire": {
+      "source": "apps/shipd/src/services/agents/wire.rs:35::AgentWireCtx",
+      "struct": "AgentWireCtx",
       "fields": [
         {
-          "name": "selected_id",
-          "type": "Option<String>"
+          "name": "agent",
+          "type": "AgentDetail"
         },
         {
-          "name": "q",
-          "type": "String"
+          "name": "nodes",
+          "type": "Vec<WireNode>"
         },
         {
-          "name": "counts",
-          "type": "Counts"
+          "name": "edges",
+          "type": "Vec<WireEdge>"
         },
         {
-          "name": "groups",
-          "type": "Vec<RailGroup>"
-        },
-        {
-          "name": "total",
-          "type": "usize"
-        },
-        {
-          "name": "selected",
-          "type": "Option<SpecDetail>"
-        },
-        {
-          "name": "pipelines",
-          "type": "Vec<String>"
+          "name": "catalogs",
+          "type": "AgentCatalogs"
         }
       ],
       "schema": null,
       "skipped": "full JsonSchema deferred — `schemars` not yet wired into runtime/shipd; struct fields surfaced for structural consumers"
     },
-    "pipelines": {
-      "source": "apps/shipd/src/views_pipelines.rs:140::PipelinesCtx",
-      "struct": "PipelinesCtx",
+    "agents-create": {
+      "source": "apps/shipd/src/services/agents/create.rs:61::AgentsCreateCtx",
+      "struct": "AgentsCreateCtx",
       "fields": [
-        {
-          "name": "active_tab",
-          "type": "String"
-        },
-        {
-          "name": "filter",
-          "type": "Filter"
-        },
-        {
-          "name": "stats",
-          "type": "Stats"
-        },
-        {
-          "name": "stats_subtitle",
-          "type": "String"
-        },
-        {
-          "name": "agent_filter",
-          "type": "String"
-        },
-        {
-          "name": "agents",
-          "type": "Vec<String>"
-        },
-        {
-          "name": "defs",
-          "type": "Vec<PipelineDef>"
-        },
-        {
-          "name": "active_runs",
-          "type": "Vec<RunView>"
-        },
-        {
-          "name": "history_runs",
-          "type": "Vec<RunView>"
-        },
-        {
-          "name": "status_pills",
-          "type": "Vec<StatusPill>"
-        },
-        {
-          "name": "providers",
-          "type": "Vec<String>"
-        }
-      ],
-      "schema": null,
-      "skipped": "full JsonSchema deferred — `schemars` not yet wired into runtime/shipd; struct fields surfaced for structural consumers"
-    },
-    "run-detail": {
-      "source": "apps/shipd/src/views_pipelines.rs:439::RunDetailCtx",
-      "struct": "RunDetailCtx",
-      "fields": [
-        {
-          "name": "slug",
-          "type": "String"
-        },
-        {
-          "name": "run",
-          "type": "RunView"
-        },
-        {
-          "name": "observations",
-          "type": "Vec<StepObservationRow>"
-        },
-        {
-          "name": "timeline",
-          "type": "Vec<TimelineRow>"
-        }
-      ],
-      "schema": null,
-      "skipped": "full JsonSchema deferred — `schemars` not yet wired into runtime/shipd; struct fields surfaced for structural consumers"
-    },
-    "pipeline-focus": {
-      "source": "apps/shipd/src/views_pipelines.rs:551::PipelineFocusCtx",
-      "struct": "PipelineFocusCtx",
-      "fields": [
-        {
-          "name": "name",
-          "type": "String"
-        },
-        {
-          "name": "def",
-          "type": "PipelineDef"
-        },
-        {
-          "name": "doc",
-          "type": "serde_json::Value"
-        }
-      ],
-      "schema": null,
-      "skipped": "full JsonSchema deferred — `schemars` not yet wired into runtime/shipd; struct fields surfaced for structural consumers"
-    },
-    "history": {
-      "source": "apps/shipd/src/views_pipelines.rs:607::HistoryCtx",
-      "struct": "HistoryCtx",
-      "fields": [
-        {
-          "name": "q",
-          "type": "String"
-        },
-        {
-          "name": "pipeline_filter",
-          "type": "String"
-        },
-        {
-          "name": "rows",
-          "type": "Vec<HistoryRow>"
-        },
-        {
-          "name": "total",
-          "type": "usize"
-        },
-        {
-          "name": "offset",
-          "type": "usize"
-        },
-        {
-          "name": "limit",
-          "type": "usize"
-        },
-        {
-          "name": "has_prev",
-          "type": "bool"
-        },
-        {
-          "name": "has_next",
-          "type": "bool"
-        },
-        {
-          "name": "pipelines",
-          "type": "Vec<String>"
-        }
-      ],
-      "schema": null,
-      "skipped": "full JsonSchema deferred — `schemars` not yet wired into runtime/shipd; struct fields surfaced for structural consumers"
-    },
-    "settings": {
-      "source": "apps/shipd/src/views_settings.rs:71::SettingsCtx",
-      "struct": "SettingsCtx",
-      "fields": [
-        {
-          "name": "providers",
-          "type": "Vec<ProviderRow>"
-        },
-        {
-          "name": "default_provider",
-          "type": "String"
-        },
-        {
-          "name": "default_model",
-          "type": "String"
-        },
-        {
-          "name": "terminal",
-          "type": "TerminalConfig"
-        },
-        {
-          "name": "advanced",
-          "type": "Vec<FeatureFlag>"
-        },
-        {
-          "name": "advanced_registry",
-          "type": "String"
-        },
-        {
-          "name": "daemon_endpoint",
-          "type": "String"
-        },
-        {
-          "name": "about",
-          "type": "AboutInfo"
-        }
-      ],
-      "schema": null,
-      "skipped": "full JsonSchema deferred — `schemars` not yet wired into runtime/shipd; struct fields surfaced for structural consumers"
-    },
-    "chat": {
-      "source": "apps/shipd/src/views_chat.rs:32::ChatCtx",
-      "struct": "ChatCtx",
-      "fields": [
-        {
-          "name": "workspace_id",
-          "type": "String"
-        },
-        {
-          "name": "messages",
-          "type": "Vec<ChatMessage>"
-        },
-        {
-          "name": "total",
-          "type": "usize"
-        }
-      ],
-      "schema": null,
-      "skipped": "full JsonSchema deferred — `schemars` not yet wired into runtime/shipd; struct fields surfaced for structural consumers"
-    },
-    "git": {
-      "source": "apps/shipd/src/views_git.rs:59::GitCtx",
-      "struct": "GitCtx",
-      "fields": [
-        {
-          "name": "workspace_id",
-          "type": "Option<String>"
-        },
-        {
-          "name": "branch",
-          "type": "Option<String>"
-        },
-        {
-          "name": "head_short",
-          "type": "Option<String>"
-        },
-        {
-          "name": "clean",
-          "type": "bool"
-        },
-        {
-          "name": "total_changed",
-          "type": "usize"
-        },
-        {
-          "name": "staged",
-          "type": "Vec<StatusFile>"
-        },
-        {
-          "name": "modified",
-          "type": "Vec<StatusFile>"
-        },
-        {
-          "name": "untracked",
-          "type": "Vec<StatusFile>"
-        },
-        {
-          "name": "commits",
-          "type": "Vec<CommitSummary>"
-        },
-        {
-          "name": "branches",
-          "type": "Vec<BranchSummary>"
-        },
-        {
-          "name": "ahead",
-          "type": "usize"
-        },
-        {
-          "name": "behind",
-          "type": "usize"
-        },
-        {
-          "name": "selected_commit",
-          "type": "Option<DiffView>"
-        },
-        {
-          "name": "active_file",
-          "type": "Option<String>"
-        }
-      ],
-      "schema": null,
-      "skipped": "full JsonSchema deferred — `schemars` not yet wired into runtime/shipd; struct fields surfaced for structural consumers"
-    },
-    "events": {
-      "source": "apps/shipd/src/views_events.rs:55::EventsCtx",
-      "struct": "EventsCtx",
-      "fields": [
-        {
-          "name": "filter",
-          "type": "EventFilter"
-        },
-        {
-          "name": "types",
-          "type": "Vec<String>"
-        },
-        {
-          "name": "actors",
-          "type": "Vec<String>"
-        },
-        {
-          "name": "groups",
-          "type": "Vec<EntityGroup>"
-        },
-        {
-          "name": "rows",
-          "type": "Vec<EventRow>"
-        },
-        {
-          "name": "total",
-          "type": "usize"
-        }
-      ],
-      "schema": null,
-      "skipped": "full JsonSchema deferred — `schemars` not yet wired into runtime/shipd; struct fields surfaced for structural consumers"
-    },
-    "rail": {
-      "source": "apps/shipd/src/views_skills.rs:98::RailCtx",
-      "struct": "RailCtx",
-      "fields": [
-        {
-          "name": "q",
-          "type": "String"
-        },
-        {
-          "name": "active_kind",
-          "type": "String"
-        },
-        {
-          "name": "active_tag",
-          "type": "String"
-        },
-        {
-          "name": "groups",
-          "type": "Vec<SkillGroup>"
-        },
-        {
-          "name": "kind_counts",
-          "type": "Vec<KindCount>"
-        },
-        {
-          "name": "tags",
-          "type": "Vec<String>"
-        },
-        {
-          "name": "total",
-          "type": "usize"
-        },
-        {
-          "name": "filtered",
-          "type": "usize"
-        }
-      ],
-      "schema": null,
-      "skipped": "full JsonSchema deferred — `schemars` not yet wired into runtime/shipd; struct fields surfaced for structural consumers"
-    },
-    "skills-shell": {
-      "source": "apps/shipd/src/views_skills.rs:110::SkillsShellCtx",
-      "struct": "SkillsShellCtx",
-      "fields": [
-        {
-          "name": "rail",
-          "type": "RailCtx"
-        }
-      ],
-      "schema": null,
-      "skipped": "full JsonSchema deferred — `schemars` not yet wired into runtime/shipd; struct fields surfaced for structural consumers"
-    },
-    "skill-file": {
-      "source": "apps/shipd/src/views_skills.rs:115::SkillFileCtx",
-      "struct": "SkillFileCtx",
-      "fields": [
-        {
-          "name": "path",
-          "type": "String"
-        },
-        {
-          "name": "name",
-          "type": "String"
-        },
-        {
-          "name": "ext",
-          "type": "String"
-        },
-        {
-          "name": "content",
-          "type": "String"
-        }
-      ],
-      "schema": null,
-      "skipped": "full JsonSchema deferred — `schemars` not yet wired into runtime/shipd; struct fields surfaced for structural consumers"
-    },
-    "skill-detail": {
-      "source": "apps/shipd/src/views_skills.rs:123::SkillDetailCtx",
-      "struct": "SkillDetailCtx",
-      "fields": [
-        {
-          "name": "skill",
-          "type": "SkillDetail"
-        },
-        {
-          "name": "rail",
-          "type": "RailCtx"
-        },
-        {
-          "name": "file",
-          "type": "Option<SkillFileCtx>"
-        }
-      ],
-      "schema": null,
-      "skipped": "full JsonSchema deferred — `schemars` not yet wired into runtime/shipd; struct fields surfaced for structural consumers"
-    },
-    "agents-index": {
-      "source": "apps/shipd/src/views_agents.rs:45::AgentsIndexCtx",
-      "struct": "AgentsIndexCtx",
-      "fields": [
-        {
-          "name": "agents",
-          "type": "Vec<AgentSummary>"
-        },
-        {
-          "name": "total",
-          "type": "usize"
-        },
         {
           "name": "templates",
           "type": "Vec<AgentTemplate>"
@@ -459,9 +47,9 @@
       "schema": null,
       "skipped": "full JsonSchema deferred — `schemars` not yet wired into runtime/shipd; struct fields surfaced for structural consumers"
     },
-    "agent-detail": {
-      "source": "apps/shipd/src/views_agents.rs:111::AgentDetailCtx",
-      "struct": "AgentDetailCtx",
+    "agent-settings": {
+      "source": "apps/shipd/src/services/agents/settings_view.rs:37::AgentSettingsCtx",
+      "struct": "AgentSettingsCtx",
       "fields": [
         {
           "name": "agent",
@@ -470,6 +58,10 @@
         {
           "name": "tiers",
           "type": "Vec<TierRow>"
+        },
+        {
+          "name": "catalogs",
+          "type": "AgentCatalogs"
         }
       ],
       "schema": null,

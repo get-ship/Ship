@@ -3,23 +3,14 @@
   "version": "0.1.0",
   "$schema": "https://ship.design/schemas/sdk-views.schema.json",
   "entries": {
-    "__form_test": {
-      "name": "__form_test",
-      "type": "html",
-      "description": "smoke",
-      "packs": []
-    },
-    "agents-create": {
-      "name": "agents-create",
-      "type": "html",
-      "description": "Create-agent wizard: 4-step flow (template Ã¢ÂÂ identity Ã¢ÂÂ wiring Ã¢ÂÂ review). Ports the React Agents.html create view.",
-      "claims": [],
-      "packs": []
-    },
     "canvas": {
       "name": "canvas",
       "type": "html",
       "description": "Live interaction surface Ã¢ÂÂ agent-created HTML artifacts with annotation + feedback round-trip",
+      "rail": {
+        "label": "Canvas",
+        "icon": "image"
+      },
       "events": [
         "collection.item_created",
         "collection.item_updated",
@@ -33,6 +24,10 @@
       "type": "html",
       "description": "Git status, log, and diff viewer",
       "claims": [],
+      "rail": {
+        "label": "Git",
+        "icon": "git"
+      },
       "packs": [
         "git"
       ]
@@ -41,6 +36,10 @@
       "name": "pipelines",
       "type": "html",
       "claims": [],
+      "rail": {
+        "label": "Pipelines",
+        "icon": "play"
+      },
       "packs": [
         "editor"
       ]
@@ -48,7 +47,11 @@
     "settings": {
       "name": "settings",
       "type": "html",
-      "description": "Workspace, project, agent, and integration configuration"
+      "description": "Workspace, project, agent, and integration configuration",
+      "rail": {
+        "label": "Settings",
+        "icon": "settings"
+      }
     },
     "setup": {
       "name": "setup",
@@ -167,7 +170,11 @@
     "specs": {
       "name": "specs",
       "type": "html",
-      "claims": []
+      "claims": [],
+      "rail": {
+        "label": "Specs",
+        "icon": "file"
+      }
     },
     "agents": {
       "source": "manifest.yaml",
@@ -177,11 +184,11 @@
       "source": "manifest.yaml",
       "note": "yaml manifest not parsed; raw passthrough reserved for downstream tooling"
     },
-    "dashboard": {
+    "collections": {
       "source": "manifest.yaml",
       "note": "yaml manifest not parsed; raw passthrough reserved for downstream tooling"
     },
-    "data": {
+    "dashboard": {
       "source": "manifest.yaml",
       "note": "yaml manifest not parsed; raw passthrough reserved for downstream tooling"
     },

@@ -17,6 +17,18 @@
         "$ref": "#/components/schemas/MeshResponse"
       }
     },
+    "GET /api/agents/active": {
+      "method": "GET",
+      "path": "/api/agents/active",
+      "purpose": "read",
+      "params": [],
+      "summary": "GET /api/agents/active",
+      "description": null,
+      "request": null,
+      "response": {
+        "$ref": "#/components/schemas/MeshResponse"
+      }
+    },
     "GET /api/capabilities": {
       "method": "GET",
       "path": "/api/capabilities",
@@ -38,6 +50,56 @@
       "description": null,
       "request": {
         "$ref": "#/components/schemas/EventRouteReq"
+      },
+      "response": {
+        "$ref": "#/components/schemas/MeshResponse"
+      }
+    },
+    "GET /api/events/stream": {
+      "method": "GET",
+      "path": "/api/events/stream",
+      "purpose": "sse",
+      "params": [],
+      "summary": null,
+      "description": null,
+      "request": null,
+      "response": null
+    },
+    "GET /api/jobs": {
+      "method": "GET",
+      "path": "/api/jobs",
+      "purpose": "read",
+      "params": [],
+      "summary": "GET /api/jobs",
+      "description": "Returns each `JobRecord` with two operator-visibility annotations:\n\n- `process_state`: `\"alive\"` when the latest process projection for the\n  slug is still Running, `\"missing\"` when the most recent supervisor\n  sweep flagged drift (no_process) without a coherence_restored after\n  it, `\"terminal\"` for jobs in a terminal status, `\"none\"` otherwise.\n- `notes`: optional truncated error / blocker for the row's NOTES column.",
+      "request": null,
+      "response": {
+        "$ref": "#/components/schemas/MeshResponse"
+      }
+    },
+    "POST /api/jobs/dispatch": {
+      "method": "POST",
+      "path": "/api/jobs/dispatch",
+      "purpose": "create",
+      "params": [],
+      "summary": "POST /api/jobs/dispatch",
+      "description": "UI-facing dispatch — mirrors `ship run` on the CLI. Loads the\nnamed pipeline, generates slug/branch/agent, and emits\n`job.created`. The orchestrator picks it up from there.",
+      "request": {
+        "$ref": "#/components/schemas/DispatchRequest"
+      },
+      "response": {
+        "$ref": "#/components/schemas/MeshResponse"
+      }
+    },
+    "POST /api/jobs/end": {
+      "method": "POST",
+      "path": "/api/jobs/end",
+      "purpose": "create",
+      "params": [],
+      "summary": "POST /api/jobs/end — signal that a provider turn ended for a job.",
+      "description": "Called by the session Stop hook when an agent finishes a response turn.\nFor multi-step pipeline jobs, this sends a TurnEnded signal to the step\nmonitor (which accumulates evidence before deciding to advance).\nFor single-step jobs, emits job.completed directly.",
+      "request": {
+        "$ref": "#/components/schemas/JobEndRequest"
       },
       "response": {
         "$ref": "#/components/schemas/MeshResponse"
@@ -135,99 +197,25 @@
         "$ref": "#/components/schemas/MeshResponse"
       }
     },
-    "GET /api/runtime/agents": {
-      "method": "GET",
-      "path": "/api/runtime/agents",
-      "purpose": "read",
-      "params": [],
-      "summary": "GET /api/runtime/agents",
-      "description": null,
-      "request": null,
-      "response": {
-        "$ref": "#/components/schemas/MeshResponse"
-      }
-    },
-    "POST /api/runtime/dispatch": {
+    "POST /api/rebuild-projections": {
       "method": "POST",
-      "path": "/api/runtime/dispatch",
+      "path": "/api/rebuild-projections",
       "purpose": "create",
       "params": [],
-      "summary": "POST /api/runtime/dispatch",
-      "description": "UI-facing dispatch — mirrors `ship run` on the CLI. Loads the\nnamed pipeline, generates slug/branch/agent, and emits\n`job.created`. The orchestrator picks it up from there.",
-      "request": {
-        "$ref": "#/components/schemas/DispatchRequest"
-      },
-      "response": {
-        "$ref": "#/components/schemas/MeshResponse"
-      }
-    },
-    "GET /api/runtime/events": {
-      "method": "GET",
-      "path": "/api/runtime/events",
-      "purpose": "read",
-      "params": [],
-      "summary": null,
-      "description": null,
-      "request": null,
-      "response": null
-    },
-    "GET /api/runtime/jobs": {
-      "method": "GET",
-      "path": "/api/runtime/jobs",
-      "purpose": "read",
-      "params": [],
-      "summary": "GET /api/runtime/jobs",
-      "description": "Returns each `JobRecord` with two operator-visibility annotations:\n\n- `process_state`: `\"alive\"` when the latest process projection for the\n  slug is still Running, `\"missing\"` when the most recent supervisor\n  sweep flagged drift (no_process) without a coherence_restored after\n  it, `\"terminal\"` for jobs in a terminal status, `\"none\"` otherwise.\n- `notes`: optional truncated error / blocker for the row's NOTES column.",
-      "request": null,
-      "response": {
-        "$ref": "#/components/schemas/MeshResponse"
-      }
-    },
-    "POST /api/runtime/jobs/end": {
-      "method": "POST",
-      "path": "/api/runtime/jobs/end",
-      "purpose": "create",
-      "params": [],
-      "summary": "POST /api/runtime/jobs/end — signal that a provider turn ended for a job.",
-      "description": "Called by the session Stop hook when an agent finishes a response turn.\nFor multi-step pipeline jobs, this sends a TurnEnded signal to the step\nmonitor (which accumulates evidence before deciding to advance).\nFor single-step jobs, emits job.completed directly.",
-      "request": {
-        "$ref": "#/components/schemas/JobEndRequest"
-      },
-      "response": {
-        "$ref": "#/components/schemas/MeshResponse"
-      }
-    },
-    "POST /api/runtime/rebuild-projections": {
-      "method": "POST",
-      "path": "/api/runtime/rebuild-projections",
-      "purpose": "create",
-      "params": [],
-      "summary": "POST /api/runtime/rebuild-projections — rebuild all projections from events.",
+      "summary": "POST /api/rebuild-projections — rebuild all projections from events.",
       "description": null,
       "request": null,
       "response": {
         "$ref": "#/components/schemas/MeshResponse"
       }
     },
-    "GET /api/runtime/sessions": {
+    "GET /api/sessions": {
       "method": "GET",
-      "path": "/api/runtime/sessions",
+      "path": "/api/sessions",
       "purpose": "read",
       "params": [],
-      "summary": "GET /api/runtime/sessions[?workspace_id=<id>]",
+      "summary": "GET /api/sessions[?workspace_id=<id>]",
       "description": null,
-      "request": null,
-      "response": {
-        "$ref": "#/components/schemas/MeshResponse"
-      }
-    },
-    "GET /api/runtime/workspaces": {
-      "method": "GET",
-      "path": "/api/runtime/workspaces",
-      "purpose": "read",
-      "params": [],
-      "summary": "GET /api/runtime/workspaces",
-      "description": "Returns only active workspaces. Archived/dead workspaces are excluded\nfrom the API surface — the reconciler handles cleanup internally.",
       "request": null,
       "response": {
         "$ref": "#/components/schemas/MeshResponse"
@@ -268,6 +256,18 @@
       ],
       "summary": null,
       "description": null,
+      "request": null,
+      "response": {
+        "$ref": "#/components/schemas/MeshResponse"
+      }
+    },
+    "GET /api/workspaces": {
+      "method": "GET",
+      "path": "/api/workspaces",
+      "purpose": "read",
+      "params": [],
+      "summary": "GET /api/workspaces",
+      "description": "Returns only active workspaces. Archived/dead workspaces are excluded\nfrom the API surface — the reconciler handles cleanup internally.",
       "request": null,
       "response": {
         "$ref": "#/components/schemas/MeshResponse"

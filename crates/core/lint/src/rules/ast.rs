@@ -29,6 +29,7 @@ pub const RULE_AST_UNDEFINED_CONTEXT: &str = "ast-undefined-context";
 pub const RULE_AST_UNDECLARED_SIGNAL: &str = "ast-undeclared-signal";
 pub const RULE_AST_UNKNOWN_ROUTE: &str = "ast-unknown-route";
 pub const RULE_AST_PARSE_ERROR: &str = "ast-parse-error";
+pub const RULE_AST_UNKNOWN_SHIP_OP: &str = "ast-unknown-ship-op";
 
 pub const AST_RULES: &[&str] = &[
     RULE_AST_UNKNOWN_MACRO,
@@ -38,6 +39,7 @@ pub const AST_RULES: &[&str] = &[
     RULE_AST_UNDECLARED_SIGNAL,
     RULE_AST_UNKNOWN_ROUTE,
     RULE_AST_PARSE_ERROR,
+    RULE_AST_UNKNOWN_SHIP_OP,
 ];
 
 // ── Embedded SDK manifest ─────────────────────────────────────────────────────
@@ -48,6 +50,8 @@ const SDK_VIEW_CTX_JSON: &str =
     include_str!("../../../../../packages/ship-set/sdk/sdk-view-contexts.json");
 const SDK_URLS_JSON: &str =
     include_str!("../../../../../packages/ship-set/sdk/sdk-urls.json");
+const SDK_SHIP_OPS_JSON: &str =
+    include_str!("../../../../../packages/ship-set/sdk/sdk-ship-ops.json");
 
 pub struct Sdk {
     pub macros: HashSet<String>,
@@ -56,6 +60,9 @@ pub struct Sdk {
     /// "{METHOD} {path}" entries, e.g. "GET /api/git/status"
     pub routes: HashSet<String>,
     pub filters: HashSet<String>,
+    /// `ship.<domain>.<op>` names registered in services::schema::OPS
+    /// (served at `/api/ship/schema`). E.g. `agents.list`, `git.diff`.
+    pub ship_ops: HashSet<String>,
 }
 
 static SDK: LazyLock<Sdk> = LazyLock::new(load_sdk);
@@ -69,7 +76,16 @@ fn load_sdk() -> Sdk {
     let view_contexts = parse_view_contexts(SDK_VIEW_CTX_JSON);
     let routes = parse_routes(SDK_URLS_JSON);
     let filters = builtin_filters();
-    Sdk { macros, view_contexts, routes, filters }
+    let ship_ops = parse_ship_ops(SDK_SHIP_OPS_JSON);
+    Sdk { macros, view_contexts, routes, filters, ship_ops }
+}
+
+fn parse_ship_ops(raw: &str) -> HashSet<String> {
+    let v: serde_json::Value = serde_json::from_str(raw).unwrap_or(serde_json::Value::Null);
+    v.get("entries")
+        .and_then(|e| e.as_object())
+        .map(|obj| obj.keys().cloned().collect())
+        .unwrap_or_default()
 }
 
 fn parse_macro_names(raw: &str) -> HashSet<String> {
@@ -452,6 +468,30 @@ impl<'a> Visitor<'a> {
                     // avoid noisy false positives for user-added functions.
                     let _ = name; // names already filtered via import tracking
                 }
+                // R7 — unknown `ship.<domain>.<op>` or `ship.try.<domain>.<op>`.
+                if let Some((op, span)) = ship_op_chain(&e.expr) {
+                    if !self.sdk.ship_ops.contains(&op) {
+                        let suggestion =
+                            closest(&op, self.sdk.ship_ops.iter().map(|s| s.as_str()));
+                        self.findings.push(Finding {
+                            file: self.file.clone(),
+                            line: span.start_line as usize,
+                            col: span.start_col as usize + 1,
+                            rule: RULE_AST_UNKNOWN_SHIP_OP,
+                            severity: Severity::Error,
+                            message: format!(
+                                "`ship.{op}` is not a registered op{}",
+                                suggestion
+                                    .as_deref()
+                                    .map(|s| format!(" — did you mean `ship.{s}`?"))
+                                    .unwrap_or_default()
+                            ),
+                            suggest: suggestion
+                                .clone()
+                                .map(|s| format!("call `ship.{s}` instead of `ship.{op}`")),
+                        });
+                    }
+                }
                 self.walk_expr(&e.expr);
                 for a in &e.args {
                     self.walk_callarg(a);
@@ -613,6 +653,37 @@ fn is_known_ship_macro(name: &str) -> bool {
 
 // ── Close-match helper ────────────────────────────────────────────────────────
 
+/// Extract a dotted `ship.<domain>.<op>` or `ship.try.<domain>.<op>` chain
+/// from a call-expression callee. Returns `(dotted_op, span)` — e.g.
+/// `("agents.list", span)` — or None if the callee isn't rooted at `ship`.
+fn ship_op_chain<'a>(expr: &Expr<'a>) -> Option<(String, minijinja::machinery::Span)> {
+    // Walk GetAttr chain outward → inward, collecting names.
+    let mut names: Vec<&str> = Vec::new();
+    let mut cursor = expr;
+    let span = expr.span();
+    loop {
+        match cursor {
+            Expr::GetAttr(g) => {
+                names.push(g.name);
+                cursor = &g.expr;
+            }
+            Expr::Var(v) if v.id == "ship" => {
+                names.reverse();
+                break;
+            }
+            _ => return None,
+        }
+    }
+    // names is now the chain after `ship.` in reading order.
+    // Accept: ship.<domain>.<op>  OR  ship.try.<domain>.<op>
+    let op = match names.as_slice() {
+        [dom, op] => format!("{dom}.{op}"),
+        ["try", dom, op] => format!("{dom}.{op}"),
+        _ => return None,
+    };
+    Some((op, span))
+}
+
 fn closest_macro(name: &str, pool: &HashSet<String>) -> Option<String> {
     closest(name, pool.iter().map(|s| s.as_str()))
 }
@@ -725,5 +796,49 @@ mod inner_tests {
     fn levenshtein_smoke() {
         assert_eq!(levenshtein("urlencod", "urlencode"), 1);
         assert_eq!(closest("urlencod", ["urlencode", "escape"]).as_deref(), Some("urlencode"));
+    }
+
+    #[test]
+    fn unknown_ship_op_fires() {
+        let src = r#"{% set bad = ship.agents.detial(id="x") %}"#;
+        let findings = lint_ast("demo", src, std::path::Path::new("demo/index.html.j2"));
+        let hit = findings
+            .iter()
+            .find(|f| f.rule == RULE_AST_UNKNOWN_SHIP_OP)
+            .unwrap_or_else(|| panic!("expected {RULE_AST_UNKNOWN_SHIP_OP}: {findings:?}"));
+        assert!(hit.message.contains("agents.detial"));
+        assert!(hit.message.contains("agents.detail")); // suggestion
+    }
+
+    #[test]
+    fn known_ship_op_silent() {
+        let src = r#"{% set ok = ship.skills.summaries() %}"#;
+        let findings = lint_ast("demo", src, std::path::Path::new("demo/index.html.j2"));
+        assert!(
+            !findings.iter().any(|f| f.rule == RULE_AST_UNKNOWN_SHIP_OP),
+            "{findings:?}"
+        );
+    }
+
+    #[test]
+    fn unknown_ship_try_op_fires() {
+        let src = r#"{% set bad = ship.try.specs.detal(id="y") %}"#;
+        let findings = lint_ast("demo", src, std::path::Path::new("demo/index.html.j2"));
+        assert!(
+            findings
+                .iter()
+                .any(|f| f.rule == RULE_AST_UNKNOWN_SHIP_OP && f.message.contains("specs.detal")),
+            "{findings:?}"
+        );
+    }
+
+    #[test]
+    fn known_ship_try_op_silent() {
+        let src = r#"{% set ok = ship.try.git.status() %}"#;
+        let findings = lint_ast("demo", src, std::path::Path::new("demo/index.html.j2"));
+        assert!(
+            !findings.iter().any(|f| f.rule == RULE_AST_UNKNOWN_SHIP_OP),
+            "{findings:?}"
+        );
     }
 }

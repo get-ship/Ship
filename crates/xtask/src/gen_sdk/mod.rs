@@ -12,6 +12,7 @@ use serde_json::{json, Map, Value};
 
 mod jsonc;
 mod macros;
+mod ship_ops;
 mod urls;
 mod view_contexts;
 
@@ -62,8 +63,13 @@ pub fn run(repo_root: &Path) -> Result<()> {
         "sdk-views",
         collect_view_manifests(&repo_root.join(".ship/views"))?,
     )?;
+    write_doc(
+        &out_dir.join("sdk-ship-ops.json"),
+        "sdk-ship-ops",
+        ship_ops::extract()?,
+    )?;
 
-    eprintln!("gen-sdk: wrote 6 files to {}", out_dir.display());
+    eprintln!("gen-sdk: wrote 7 files to {}", out_dir.display());
     Ok(())
 }
 
