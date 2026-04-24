@@ -190,13 +190,19 @@ async function toggleDrawer() {
   }
 }
 
-// Chat drawer: nav-top button dispatches `ship:chat:toggle` on the shell.
-// Keyboard shortcut (below) still calls toggleDrawer() directly.
-document
-  .querySelector("ship-shell")
-  ?.addEventListener("ship:chat:toggle", () => {
-    void toggleDrawer();
-  });
+// Chat drawer: nav-top button and `window.ship.chat.*` dispatch events
+// on the shell; this app owns the actual toggle because it uses
+// mountDaemonFragment which holds auth context.
+const shellEl = document.querySelector("ship-shell");
+shellEl?.addEventListener("ship:chat:toggle", () => {
+  void toggleDrawer();
+});
+shellEl?.addEventListener("ship:chat:open", () => {
+  if (!document.body.classList.contains("drawer-open")) void toggleDrawer();
+});
+shellEl?.addEventListener("ship:chat:close", () => {
+  if (document.body.classList.contains("drawer-open")) void toggleDrawer();
+});
 
 // ── Terminal panel toggle ────────────────────────────────────────────
 document.getElementById("close-terminal")!.addEventListener("click", () => {

@@ -74,10 +74,12 @@ export class ShipShell extends LitElement {
 
   private publishWindowShip(): void {
     const shell = this;
+    const emit = (name: string, detail?: Record<string, unknown>): void => {
+      shell.dispatchEvent(new CustomEvent(name, { detail, bubbles: true }));
+    };
     const api: WindowShip = {
       navigate(path: string, opts?: { replace?: boolean }): void {
         if (!shell.router) {
-          // Fallback to hard navigation if the app hasn't registered yet.
           if (opts?.replace) location.replace(path);
           else location.assign(path);
           return;
@@ -95,6 +97,31 @@ export class ShipShell extends LitElement {
             query: {},
           }
         );
+      },
+      notify(message, tone) {
+        emit("ship:notify", { message, tone });
+      },
+      command(opts) {
+        emit("ship:command:open", opts ?? {});
+      },
+      chat: {
+        open(opts) {
+          emit("ship:chat:open", opts ?? {});
+        },
+        close() {
+          emit("ship:chat:close");
+        },
+        async send(text: string, workspace_id?: string) {
+          const resp = await fetch("/api/chat/send", {
+            method: "POST",
+            credentials: "same-origin",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({ text, workspace_id }),
+          });
+          if (!resp.ok) {
+            throw new Error(`chat send failed: ${resp.status}`);
+          }
+        },
       },
       subscribe(namespace: string, handler: EventHandler): UnsubscribeFn {
         return shell.bridge.subscribe(namespace, handler);

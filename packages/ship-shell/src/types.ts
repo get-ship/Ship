@@ -43,7 +43,8 @@ export interface RouterAdapter {
 /**
  * `window.ship` — the single view-facing API surface. Everything
  * imperative a view might need from the browser app goes through here.
- * Additions land in phases; phase-2a adds `navigate` + `current`.
+ * Additions land in phases; phase 3 adds shell services (notify,
+ * command, chat).
  */
 export interface WindowShip {
   /** Programmatic navigation. Delegates to the registered router adapter. */
@@ -54,6 +55,22 @@ export interface WindowShip {
 
   /** Current route snapshot. */
   current(): CurrentView;
+
+  /** Show a toast. Shorthand for `dispatchEvent(ship:notify)`. */
+  notify(
+    message: string,
+    tone?: "info" | "success" | "warning" | "destructive",
+  ): void;
+
+  /** Open the command palette, optionally prefilled. */
+  command(opts?: { query?: string }): void;
+
+  /** Chat drawer services. */
+  chat: {
+    open(opts?: { workspace_id?: string }): void;
+    close(): void;
+    send(text: string, workspace_id?: string): Promise<void>;
+  };
 
   /** Subscribe to a kernel event namespace (prefix match). */
   subscribe(namespace: string, handler: EventHandler): UnsubscribeFn;
@@ -74,6 +91,18 @@ export type ShellDomEvents = {
   "ship:rail:toggle": Record<string, never>;
   "ship:launcher:open": { anchor?: HTMLElement };
   "ship:launcher:close": Record<string, never>;
+  "ship:notify": {
+    message?: string;
+    description?: string;
+    tone?: "info" | "success" | "warning" | "destructive";
+    duration?: number;
+    actionHtml?: string;
+  };
+  "ship:command:open": { query?: string };
+  "ship:chat:toggle": Record<string, never>;
+  "ship:chat:open": { workspace_id?: string };
+  "ship:chat:close": Record<string, never>;
+  "ship:chat:send": { text: string; workspace_id?: string };
 };
 
 declare global {

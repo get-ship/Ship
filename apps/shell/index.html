@@ -451,8 +451,8 @@
       <span id="status-theme">ship</span>
     </div>
 
-    <!-- Toast container -->
-    <ship-toast-container position="bottom-right" id="ship-toasts"></ship-toast-container>
+    <!-- Toast host: listens for ship:notify, forwards to ship-toast-container. -->
+    <ship-toast-host position="bottom-right"></ship-toast-host>
     </ship-shell>
 
     <script type="module" src="/src/main.ts"></script>
