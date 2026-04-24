@@ -527,6 +527,7 @@ export class ShipCommandBar extends LitElement {
   @state() private _createShape = "list";
   @state() private _createSubmitting = false;
   @state() private _createError: string | null = null;
+  @state() private _views: string[] = [];
   private _streamAbort: AbortController | null = null;
 
   private _lastSpaceAt = 0;
@@ -655,6 +656,7 @@ export class ShipCommandBar extends LitElement {
     }
     if (this._agents.length === 0) void this._loadAgents();
     if (this._providers.length === 0) void this._loadProviders();
+    if (this._views.length === 0) void this._loadViews();
   }
 
   private _switchTo(session: SessionSummary): void {
@@ -682,6 +684,23 @@ export class ShipCommandBar extends LitElement {
         const ship = list.find((a) => a.id === "shipwright");
         this._spawnAgent = (ship ?? list[0]).id;
       }
+    } catch {
+      /* empty */
+    }
+  }
+
+  private async _loadViews(): Promise<void> {
+    try {
+      const resp = await fetch("/api/views", { credentials: "same-origin" });
+      if (!resp.ok) return;
+      const body = (await resp.json()) as
+        | { data?: { views?: Array<{ name: string }> } }
+        | { views?: Array<{ name: string }> };
+      const list: Array<{ name: string }> =
+        (body as { data?: { views?: Array<{ name: string }> } }).data?.views ??
+        (body as { views?: Array<{ name: string }> }).views ??
+        [];
+      this._views = list.map((v) => v.name).sort();
     } catch {
       /* empty */
     }
@@ -774,11 +793,12 @@ export class ShipCommandBar extends LitElement {
   private _detectMode(value: string, fallback: BarMode): BarMode {
     if (value.startsWith("/")) return "command";
     if (value.startsWith(">")) return "find";
-    if (value.startsWith("@")) return "mention";
     if (value.startsWith("+")) return "create";
     if (value.trim().length === 0) return fallback;
-    // Default for typed text: switch to AI mode so the user's message
-    // lands in the session. `>` prefix is the way to stay in find.
+    // `@token` at the start OR the last whitespace-separated token
+    // triggers mention autocomplete. Lets users type "summarize @view"
+    // mid-message.
+    if (/(^|\s)@[^\s@]*$/.test(value)) return "mention";
     return "ai";
   }
 
@@ -1083,7 +1103,7 @@ export class ShipCommandBar extends LitElement {
       case "find":
         return this._renderFindList();
       case "mention":
-        return html`<div class="empty-msg">Mentions coming next commit.</div>`;
+        return this._renderMentionList();
       case "create":
         return this._renderCreateForm();
       case "ai":
@@ -1275,6 +1295,73 @@ export class ShipCommandBar extends LitElement {
         run: () => this.blur(),
       },
     ];
+  }
+
+  private _renderMentionList() {
+    const needle = this._value.replace(/^@+/, "").toLowerCase().trim();
+    type Ref = { kind: "view" | "agent" | "session"; id: string; label: string };
+    const refs: Ref[] = [
+      ...this._views.map((v) => ({
+        kind: "view" as const,
+        id: v,
+        label: v,
+      })),
+      ...this._agents.map((a) => ({
+        kind: "agent" as const,
+        id: a.id,
+        label: a.id,
+      })),
+      ...this._allSessions
+        .filter((s) => s.status !== "ended" && s.agent_id)
+        .map((s) => ({
+          kind: "session" as const,
+          id: s.id,
+          label: `${s.agent_id} (session)`,
+        })),
+    ];
+    const items = refs
+      .filter((r) => !needle || r.id.toLowerCase().includes(needle))
+      .slice(0, 40);
+    if (items.length === 0) {
+      return html`<div class="empty-msg">No matching views or agents.</div>`;
+    }
+    return html`
+      <div class="mode-hint">Reference</div>
+      <div class="nav-list">
+        ${items.map(
+          (r) => html`
+            <div
+              class="nav-item"
+              role="option"
+              @click=${() => this._insertMention(r.kind, r.id)}
+            >
+              <ship-icon
+                name=${r.kind === "view"
+                  ? "app-window"
+                  : r.kind === "agent"
+                    ? "bot"
+                    : "message-square-plus"}
+                size="sm"
+              ></ship-icon>
+              <span>${r.label}</span>
+              <span class="hint">${r.kind}</span>
+            </div>
+          `,
+        )}
+      </div>
+    `;
+  }
+
+  /** Insert `@kind:id ` (with trailing space) replacing the current
+   * `@…` token so the user can continue typing their message. */
+  private _insertMention(kind: "view" | "agent" | "session", id: string): void {
+    const ref = kind === "view" ? `@${id}` : `@${kind}:${id}`;
+    // Replace only the most recent `@…` token, preserving the rest.
+    const updated = this._value.replace(/@[^@\s]*$/, `${ref} `);
+    this._value = updated;
+    this._mode = this._detectMode(this._value, this._mode);
+    const input = this.renderRoot.querySelector("input");
+    input?.focus();
   }
 
   private _renderCommandList() {
