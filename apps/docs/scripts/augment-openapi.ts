@@ -149,6 +149,63 @@ function buildFetch(method: string, path: string, op: Json, spec: Json): string 
   return `const res = await fetch("${url}", {\n  method: "${methodUpper}",${hdrBlock}${bodyBlock}\n});\nconst data = await res.json();`;
 }
 
+/** Convert a camelCase / snake_case operationId into a human-readable title.
+ *
+ *  starlight-openapi renders the page heading as `operation.summary ??
+ *  operationId`. Our upstream Rust exporter fills `summary` with the raw
+ *  "METHOD /path — descriptor" string which reads like a descriptor, not a
+ *  page title. We rewrite it here: derive a clean Title Case label from
+ *  `operationId` and demote the original summary into the body description
+ *  so the descriptor text is still rendered, just below the title.
+ *
+ *    listAgents            → "List Agents"
+ *    rebuildProjections    → "Rebuild Projections"
+ *    serveCodeEditor       → "Serve Code Editor"
+ *    actor_spawn           → "Actor Spawn"
+ */
+function humanizeOperationId(id: string): string {
+  if (!id) return id;
+  // snake_case → space, camelCase → split before capitals.
+  const spaced = id
+    .replace(/[_-]+/g, " ")
+    .replace(/([a-z0-9])([A-Z])/g, "$1 $2")
+    .replace(/\s+/g, " ")
+    .trim();
+  return spaced
+    .split(" ")
+    .map((w) => (w ? w[0].toUpperCase() + w.slice(1) : w))
+    .join(" ");
+}
+
+function rewriteTitleAndDescription(op: Json): void {
+  const originalSummary: string | undefined =
+    typeof op.summary === "string" ? op.summary : undefined;
+  const originalDescription: string =
+    typeof op.description === "string" ? op.description : "";
+
+  // The raw summary from the Rust exporter is typically a descriptor like
+  // "POST /api/runtime/rebuild-projections — rebuild all projections from
+  // events." or a multi-line blurb. Anything that contains a slash, an
+  // em-dash, or a newline is treated as descriptor-text, not a title.
+  const looksLikeDescriptor =
+    !!originalSummary &&
+    (/[\/\n]/.test(originalSummary) || originalSummary.includes("—"));
+
+  if (looksLikeDescriptor && op.operationId) {
+    // Move descriptor into description so it still renders in the body.
+    // Prefer descriptor if we don't already have a description; otherwise
+    // prepend so the explicit description wins the reading order.
+    const descriptor = originalSummary.trim();
+    op.description = originalDescription
+      ? `${descriptor}\n\n${originalDescription}`
+      : descriptor;
+    op.summary = humanizeOperationId(op.operationId);
+  } else if (!originalSummary && op.operationId) {
+    // No summary at all — give the page a title from the operationId.
+    op.summary = humanizeOperationId(op.operationId);
+  }
+}
+
 function augment(spec: Json): Json {
   const paths = spec.paths ?? {};
   for (const path of Object.keys(paths).sort()) {
@@ -156,6 +213,9 @@ function augment(spec: Json): Json {
     for (const method of METHODS) {
       const op = item[method];
       if (!op || typeof op !== "object") continue;
+      // Clean up title-vs-description before adding code samples so the
+      // rewritten fields land in the committed spec too.
+      rewriteTitleAndDescription(op);
       // `lang: "bash"` (not "curl") so expressive-code in starlight-openapi
       // has a syntax-highlighter registered. Label keeps the cURL framing for
       // readers; `x-codeSamples` consumers that filter by `lang` still get

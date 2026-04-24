@@ -93,6 +93,7 @@
             }
           }
         },
+        "summary": "Actor Spawn",
         "x-codeSamples": [
           {
             "lang": "bash",
@@ -112,7 +113,7 @@
         "tags": [
           "runtime"
         ],
-        "summary": "GET /api/runtime/agents",
+        "summary": "List Agents",
         "operationId": "listAgents",
         "responses": {
           "200": {
@@ -146,6 +147,7 @@
             }
           }
         },
+        "description": "GET /api/runtime/agents",
         "x-codeSamples": [
           {
             "lang": "bash",
@@ -165,7 +167,7 @@
         "tags": [
           "views"
         ],
-        "summary": "GET /api/runtime/assets/custom-elements.json",
+        "summary": "Serve Elements Manifest",
         "operationId": "serveElementsManifest",
         "responses": {
           "200": {
@@ -186,6 +188,7 @@
           }
         },
         "security": [],
+        "description": "GET /api/runtime/assets/custom-elements.json",
         "x-codeSamples": [
           {
             "lang": "bash",
@@ -205,7 +208,7 @@
         "tags": [
           "views"
         ],
-        "summary": "GET /api/runtime/assets/datastar.js",
+        "summary": "Serve Datastar Js",
         "operationId": "serveDatastarJs",
         "responses": {
           "200": {
@@ -226,6 +229,7 @@
           }
         },
         "security": [],
+        "description": "GET /api/runtime/assets/datastar.js",
         "x-codeSamples": [
           {
             "lang": "bash",
@@ -245,7 +249,7 @@
         "tags": [
           "views"
         ],
-        "summary": "GET /api/assets/jinja-macros.json",
+        "summary": "Serve Jinja Macros Json",
         "operationId": "serveJinjaMacrosJson",
         "responses": {
           "200": {
@@ -256,6 +260,7 @@
           }
         },
         "security": [],
+        "description": "GET /api/assets/jinja-macros.json",
         "x-codeSamples": [
           {
             "lang": "bash",
@@ -275,7 +280,7 @@
         "tags": [
           "views"
         ],
-        "summary": "GET /api/assets/jinja-macros.md",
+        "summary": "Serve Jinja Macros Md",
         "operationId": "serveJinjaMacrosMd",
         "responses": {
           "200": {
@@ -286,6 +291,7 @@
           }
         },
         "security": [],
+        "description": "GET /api/assets/jinja-macros.md",
         "x-codeSamples": [
           {
             "lang": "bash",
@@ -305,7 +311,7 @@
         "tags": [
           "views"
         ],
-        "summary": "GET /api/runtime/assets/ship-code-editor.js",
+        "summary": "Serve Code Editor",
         "operationId": "serveCodeEditor",
         "responses": {
           "200": {
@@ -326,6 +332,7 @@
           }
         },
         "security": [],
+        "description": "GET /api/runtime/assets/ship-code-editor.js",
         "x-codeSamples": [
           {
             "lang": "bash",
@@ -345,7 +352,7 @@
         "tags": [
           "views"
         ],
-        "summary": "GET /api/runtime/assets/ship-elements.js",
+        "summary": "Serve Ship Elements",
         "operationId": "serveShipElements",
         "responses": {
           "200": {
@@ -366,6 +373,7 @@
           }
         },
         "security": [],
+        "description": "GET /api/runtime/assets/ship-elements.js",
         "x-codeSamples": [
           {
             "lang": "bash",
@@ -385,7 +393,7 @@
         "tags": [
           "views"
         ],
-        "summary": "GET /api/runtime/assets/ship-elements.md\nCompact, token-efficient catalog for agent context.",
+        "summary": "Serve Elements Catalog",
         "operationId": "serveElementsCatalog",
         "responses": {
           "200": {
@@ -406,6 +414,7 @@
           }
         },
         "security": [],
+        "description": "GET /api/runtime/assets/ship-elements.md\nCompact, token-efficient catalog for agent context.",
         "x-codeSamples": [
           {
             "lang": "bash",
@@ -425,7 +434,7 @@
         "tags": [
           "views"
         ],
-        "summary": "GET /api/assets/ship-git.js",
+        "summary": "Serve Git Js",
         "operationId": "serveGitJs",
         "responses": {
           "200": {
@@ -436,6 +445,7 @@
           }
         },
         "security": [],
+        "description": "GET /api/assets/ship-git.js",
         "x-codeSamples": [
           {
             "lang": "bash",
@@ -455,7 +465,7 @@
         "tags": [
           "views"
         ],
-        "summary": "GET /api/runtime/assets/ship-markdown-editor.js",
+        "summary": "Serve Markdown Editor",
         "operationId": "serveMarkdownEditor",
         "responses": {
           "200": {
@@ -476,6 +486,7 @@
           }
         },
         "security": [],
+        "description": "GET /api/runtime/assets/ship-markdown-editor.js",
         "x-codeSamples": [
           {
             "lang": "bash",
@@ -495,7 +506,7 @@
         "tags": [
           "views"
         ],
-        "summary": "GET /api/runtime/assets/ship-terminal.js",
+        "summary": "Serve Terminal",
         "operationId": "serveTerminal",
         "responses": {
           "200": {
@@ -516,6 +527,7 @@
           }
         },
         "security": [],
+        "description": "GET /api/runtime/assets/ship-terminal.js",
         "x-codeSamples": [
           {
             "lang": "bash",
@@ -535,7 +547,7 @@
         "tags": [
           "views"
         ],
-        "summary": "GET /api/runtime/assets/view-tokens.css",
+        "summary": "Serve View Tokens",
         "operationId": "serveViewTokens",
         "responses": {
           "200": {
@@ -556,6 +568,7 @@
           }
         },
         "security": [],
+        "description": "GET /api/runtime/assets/view-tokens.css",
         "x-codeSamples": [
           {
             "lang": "bash",
@@ -608,6 +621,7 @@
             }
           }
         },
+        "summary": "Capabilities",
         "x-codeSamples": [
           {
             "lang": "bash",
@@ -649,6 +663,7 @@
             "description": "Kernel routing failed"
           }
         },
+        "summary": "Chat Send",
         "x-codeSamples": [
           {
             "lang": "bash",
@@ -668,7 +683,7 @@
         "tags": [
           "runtime"
         ],
-        "summary": "GET /api/runtime/events — SSE stream of all kernel events.",
+        "summary": "Event Stream",
         "operationId": "eventStream",
         "responses": {
           "200": {
@@ -695,6 +710,7 @@
             }
           }
         },
+        "description": "GET /api/runtime/events — SSE stream of all kernel events.",
         "x-codeSamples": [
           {
             "lang": "bash",
@@ -767,6 +783,7 @@
             }
           }
         },
+        "summary": "Event Route",
         "x-codeSamples": [
           {
             "lang": "bash",
@@ -786,8 +803,8 @@
         "tags": [
           "runtime"
         ],
-        "summary": "GET /api/runtime/jobs",
-        "description": "Returns each `JobRecord` with two operator-visibility annotations:\n\n- `process_state`: `\"alive\"` when the latest process projection for the\n  slug is still Running, `\"missing\"` when the most recent supervisor\n  sweep flagged drift (no_process) without a coherence_restored after\n  it, `\"terminal\"` for jobs in a terminal status, `\"none\"` otherwise.\n- `notes`: optional truncated error / blocker for the row's NOTES column.",
+        "summary": "List Jobs",
+        "description": "GET /api/runtime/jobs\n\nReturns each `JobRecord` with two operator-visibility annotations:\n\n- `process_state`: `\"alive\"` when the latest process projection for the\n  slug is still Running, `\"missing\"` when the most recent supervisor\n  sweep flagged drift (no_process) without a coherence_restored after\n  it, `\"terminal\"` for jobs in a terminal status, `\"none\"` otherwise.\n- `notes`: optional truncated error / blocker for the row's NOTES column.",
         "operationId": "listJobs",
         "responses": {
           "200": {
@@ -840,8 +857,8 @@
         "tags": [
           "runtime"
         ],
-        "summary": "POST /api/jobs/dispatch",
-        "description": "UI-facing dispatch — mirrors `ship run` on the CLI. Loads the\nnamed pipeline, generates slug/branch/agent, and emits\n`job.created`. The orchestrator picks it up from there.",
+        "summary": "Dispatch Pipeline",
+        "description": "POST /api/jobs/dispatch\n\nUI-facing dispatch — mirrors `ship run` on the CLI. Loads the\nnamed pipeline, generates slug/branch/agent, and emits\n`job.created`. The orchestrator picks it up from there.",
         "operationId": "dispatch_pipeline",
         "requestBody": {
           "content": {
@@ -884,8 +901,8 @@
         "tags": [
           "runtime"
         ],
-        "summary": "POST /api/runtime/jobs/end — signal that a provider turn ended for a job.",
-        "description": "Called by the session Stop hook when an agent finishes a response turn.\nFor multi-step pipeline jobs, this sends a TurnEnded signal to the step\nmonitor (which accumulates evidence before deciding to advance).\nFor single-step jobs, emits job.completed directly.",
+        "summary": "End Job",
+        "description": "POST /api/runtime/jobs/end — signal that a provider turn ended for a job.\n\nCalled by the session Stop hook when an agent finishes a response turn.\nFor multi-step pipeline jobs, this sends a TurnEnded signal to the step\nmonitor (which accumulates evidence before deciding to advance).\nFor single-step jobs, emits job.completed directly.",
         "operationId": "endJob",
         "requestBody": {
           "content": {
@@ -1011,6 +1028,7 @@
             }
           }
         },
+        "summary": "Mesh Broadcast",
         "x-codeSamples": [
           {
             "lang": "bash",
@@ -1063,6 +1081,7 @@
             }
           }
         },
+        "summary": "Mesh Discover",
         "x-codeSamples": [
           {
             "lang": "bash",
@@ -1082,7 +1101,7 @@
         "tags": [
           "mesh"
         ],
-        "summary": "SSE endpoint — drains an agent's mailbox as server-sent events.\nThe agent must register first (which spawns the actor + stashes the mailbox).\nOnly one SSE connection per agent is supported (mailbox is taken, not cloned).",
+        "summary": "Mesh Events",
         "operationId": "meshEvents",
         "parameters": [
           {
@@ -1130,6 +1149,7 @@
             }
           }
         },
+        "description": "SSE endpoint — drains an agent's mailbox as server-sent events.\nThe agent must register first (which spawns the actor + stashes the mailbox).\nOnly one SSE connection per agent is supported (mailbox is taken, not cloned).",
         "x-codeSamples": [
           {
             "lang": "bash",
@@ -1202,6 +1222,7 @@
             }
           }
         },
+        "summary": "Mesh Register",
         "x-codeSamples": [
           {
             "lang": "bash",
@@ -1284,6 +1305,7 @@
             }
           }
         },
+        "summary": "Mesh Send",
         "x-codeSamples": [
           {
             "lang": "bash",
@@ -1356,6 +1378,7 @@
             }
           }
         },
+        "summary": "Mesh Status Update",
         "x-codeSamples": [
           {
             "lang": "bash",
@@ -1408,6 +1431,7 @@
             }
           }
         },
+        "summary": "List Providers",
         "x-codeSamples": [
           {
             "lang": "bash",
@@ -1427,7 +1451,7 @@
         "tags": [
           "runtime"
         ],
-        "summary": "POST /api/runtime/rebuild-projections — rebuild all projections from events.",
+        "summary": "Rebuild Projections",
         "operationId": "rebuildProjections",
         "responses": {
           "200": {
@@ -1471,6 +1495,7 @@
             }
           }
         },
+        "description": "POST /api/runtime/rebuild-projections — rebuild all projections from events.",
         "x-codeSamples": [
           {
             "lang": "bash",
@@ -1490,7 +1515,7 @@
         "tags": [
           "runtime"
         ],
-        "summary": "GET /api/runtime/sessions[?workspace_id=<id>]",
+        "summary": "List Sessions",
         "operationId": "listSessions",
         "parameters": [
           {
@@ -1537,6 +1562,7 @@
             }
           }
         },
+        "description": "GET /api/runtime/sessions[?workspace_id=<id>]",
         "x-codeSamples": [
           {
             "lang": "bash",
@@ -1589,6 +1615,7 @@
             }
           }
         },
+        "summary": "List Settings",
         "x-codeSamples": [
           {
             "lang": "bash",
@@ -1669,6 +1696,7 @@
             }
           }
         },
+        "summary": "Update Setting",
         "x-codeSamples": [
           {
             "lang": "bash",
@@ -1742,6 +1770,7 @@
             }
           }
         },
+        "summary": "Get Setting",
         "x-codeSamples": [
           {
             "lang": "bash",
@@ -1761,13 +1790,14 @@
         "tags": [
           "framework"
         ],
-        "summary": "`GET /api/ship/schema` — catalog of every `ship.<domain>.<op>` the\nregistry exposes. Consumers:\n- `@ship/shell` TS SDK: codegen typed `window.ship.*` methods\n- Lint: flag template calls that don't match a known op\n- MCP server: auto-register ops as tools\n- Third-party view authors: editor autocomplete via `/api/ship/schema`",
+        "summary": "Serve Ship Schema",
         "operationId": "serveShipSchema",
         "responses": {
           "200": {
             "description": "ship.* op catalog (names, args, returns, permissions)"
           }
         },
+        "description": "`GET /api/ship/schema` — catalog of every `ship.<domain>.<op>` the\nregistry exposes. Consumers:\n- `@ship/shell` TS SDK: codegen typed `window.ship.*` methods\n- Lint: flag template calls that don't match a known op\n- MCP server: auto-register ops as tools\n- Third-party view authors: editor autocomplete via `/api/ship/schema`",
         "x-codeSamples": [
           {
             "lang": "bash",
@@ -1807,6 +1837,7 @@
             }
           }
         },
+        "summary": "Serve View Sse Routed",
         "x-codeSamples": [
           {
             "lang": "bash",
@@ -1852,6 +1883,7 @@
             "description": "Template render failed"
           }
         },
+        "summary": "Serve View Routed",
         "x-codeSamples": [
           {
             "lang": "bash",
@@ -1871,8 +1903,8 @@
         "tags": [
           "runtime"
         ],
-        "summary": "GET /api/runtime/workspaces",
-        "description": "Returns only active workspaces. Archived/dead workspaces are excluded\nfrom the API surface — the reconciler handles cleanup internally.",
+        "summary": "List Workspaces",
+        "description": "GET /api/runtime/workspaces\n\nReturns only active workspaces. Archived/dead workspaces are excluded\nfrom the API surface — the reconciler handles cleanup internally.",
         "operationId": "listWorkspaces",
         "responses": {
           "200": {
