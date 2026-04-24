@@ -22,14 +22,81 @@
     },
     "trigger": {
       "type": "object",
-      "required": ["event"],
+      "description": "The event subscription or external source this trigger listens on.",
       "additionalProperties": false,
-      "description": "The event subscription this trigger listens on.",
       "properties": {
         "event": {
           "type": "string",
           "minLength": 1,
-          "description": "Event type to match. Any registered event type string (e.g. 'job.failed', 'collection.item_created')."
+          "description": "Internal event type to match (e.g. 'job.failed'). Mutually exclusive with 'source'."
+        },
+        "source": {
+          "description": "External trigger source. Mutually exclusive with 'event'.",
+          "oneOf": [
+            {
+              "title": "webhook",
+              "description": "Fires when an HTTP POST arrives at the registered path.",
+              "type": "object",
+              "required": ["type", "path"],
+              "additionalProperties": false,
+              "properties": {
+                "type": { "type": "string", "const": "webhook" },
+                "path": {
+                  "type": "string",
+                  "pattern": "^/webhooks/",
+                  "description": "Route suffix. Must start with /webhooks/."
+                },
+                "secret": {
+                  "type": "string",
+                  "description": "Verified against X-Ship-Webhook-Secret header. Use 'env:VAR_NAME' to read from environment."
+                }
+              }
+            },
+            {
+              "title": "file",
+              "description": "Fires when a filesystem event matches the watched path or glob.",
+              "type": "object",
+              "required": ["type", "watch"],
+              "additionalProperties": false,
+              "properties": {
+                "type": { "type": "string", "const": "file" },
+                "watch": {
+                  "type": "string",
+                  "minLength": 1,
+                  "description": "Path or glob to watch. Relative paths resolve from the project root."
+                },
+                "events": {
+                  "type": "array",
+                  "items": { "type": "string", "enum": ["created", "modified", "deleted"] },
+                  "description": "Event kinds to react to. Defaults to all three if omitted."
+                },
+                "debounce_ms": {
+                  "type": "integer",
+                  "minimum": 0,
+                  "description": "Coalescing debounce in milliseconds. Defaults to 200."
+                }
+              }
+            },
+            {
+              "title": "cron",
+              "description": "Fires on a cron schedule.",
+              "type": "object",
+              "required": ["type", "expression"],
+              "additionalProperties": false,
+              "properties": {
+                "type": { "type": "string", "const": "cron" },
+                "expression": {
+                  "type": "string",
+                  "minLength": 1,
+                  "description": "Standard 5-field cron expression (min hour dom month dow). Seconds field optional as prefix."
+                },
+                "timezone": {
+                  "type": "string",
+                  "description": "IANA timezone name. Defaults to UTC."
+                }
+              }
+            }
+          ]
         },
         "filter": {
           "description": "Optional dot-path filter on the event payload. Trigger runs only when the filter evaluates to a truthy value."
@@ -55,13 +122,8 @@
             "required": ["type", "collection"],
             "additionalProperties": false,
             "properties": {
-              "type": {
-                "type": "string",
-                "const": "collection.insert"
-              },
-              "when": {
-                "type": "string"
-              },
+              "type": { "type": "string", "const": "collection.insert" },
+              "when": { "type": "string" },
               "collection": {
                 "type": "string",
                 "minLength": 1,
@@ -82,13 +144,8 @@
             "required": ["type", "collection", "filter", "data"],
             "additionalProperties": false,
             "properties": {
-              "type": {
-                "type": "string",
-                "const": "collection.update"
-              },
-              "when": {
-                "type": "string"
-              },
+              "type": { "type": "string", "const": "collection.update" },
+              "when": { "type": "string" },
               "collection": {
                 "type": "string",
                 "minLength": 1,
@@ -109,13 +166,8 @@
             "required": ["type", "event_type"],
             "additionalProperties": false,
             "properties": {
-              "type": {
-                "type": "string",
-                "const": "event.emit"
-              },
-              "when": {
-                "type": "string"
-              },
+              "type": { "type": "string", "const": "event.emit" },
+              "when": { "type": "string" },
               "event_type": {
                 "type": "string",
                 "minLength": 1,
@@ -132,13 +184,8 @@
             "required": ["type", "pipeline"],
             "additionalProperties": false,
             "properties": {
-              "type": {
-                "type": "string",
-                "const": "pipeline.trigger"
-              },
-              "when": {
-                "type": "string"
-              },
+              "type": { "type": "string", "const": "pipeline.trigger" },
+              "when": { "type": "string" },
               "pipeline": {
                 "type": "string",
                 "minLength": 1,

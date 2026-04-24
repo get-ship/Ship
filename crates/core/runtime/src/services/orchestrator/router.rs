@@ -3,7 +3,7 @@
 //! This is the entry point for all `job.*` and `step.*` events flowing
 //! through the orchestrator.
 
-use crate::events::job::StepObservedPayload;
+use crate::events::job::{StepDoneDeclaredPayload, StepObservedPayload};
 use crate::events::EventEnvelope;
 use ship_types::event_types as et;
 use std::sync::atomic::Ordering;
@@ -11,11 +11,13 @@ use std::sync::Arc;
 use tokio::sync::Mutex;
 
 use super::dispatch::handle_job_created;
+use super::emit::emit_step_failed;
 use super::review_retry::{emit_job_failed_for_review, try_review_retry};
 use super::handlers::{
     finalize_pipeline_if_done, handle_job_cancelled, handle_job_cleanup, handle_job_update,
 };
 use super::pipeline::advance_pipeline;
+use super::step_io::{check_required_outputs, run_step_promotes};
 use super::OrchestratorContext;
 
 /// Bootstrap the orchestrator: start liveness monitoring, reconcile state,
@@ -53,6 +55,7 @@ pub async fn start_orchestrator(
     let replay_octx = octx.clone();
     tokio::spawn(async move {
         super::replay::reconcile_dispatched_jobs(&replay_kernel, &replay_octx).await;
+        super::fanout_recover::reconcile_fanout_lanes(&replay_kernel, &replay_octx).await;
         super::replay::replay_unprocessed_completions(&replay_kernel, &replay_octx).await;
         super::pending::dispatch_ready_pending_jobs(&replay_kernel, &replay_octx).await;
         replay_octx.platform.cleanup_orphaned_worktrees().await;
@@ -174,6 +177,7 @@ pub async fn handle_job_event(
         }
         "step.done_declared" => {
             let slug = extract_slug(envelope);
+            // Set done flag so the step monitor knows step_done was called.
             if let Some(slug) = &slug {
                 if let Some(flag) = octx.done_flags.lock().await.get(slug.as_str()) {
                     flag.store(true, Ordering::Release);
@@ -181,6 +185,10 @@ pub async fn handle_job_event(
                 } else {
                     tracing::warn!(slug, "job-dispatch: step.done_declared but no active monitor");
                 }
+            }
+            // Check required outputs — fail the step immediately when any are missing.
+            if let Ok(declared) = serde_json::from_str::<StepDoneDeclaredPayload>(&envelope.payload_json) {
+                check_and_fail_missing_outputs(kernel, &declared).await;
             }
         }
         "step.observed" => {
@@ -196,6 +204,15 @@ pub async fn handle_job_event(
             if let Some(slug) = &slug {
                 octx.done_flags.lock().await.remove(slug.as_str());
                 octx.activity_txs.lock().await.remove(slug.as_str());
+            }
+
+            // Fanout lane completion: route to the aggregator instead of advance_pipeline.
+            if let Some(slug) = &slug {
+                let lane_ref = octx.fanout_lane_refs.lock().await.get(slug.as_str()).cloned();
+                if let Some(lane_ref) = lane_ref {
+                    super::fanout::complete_fanout_lane(kernel, &payload, &lane_ref, octx).await;
+                    return;
+                }
             }
 
             use crate::events::job::StepVerdict;
@@ -229,6 +246,8 @@ pub async fn handle_job_event(
                         done_declared = payload.done_declared,
                         "job-dispatch: step evidence → advance"
                     );
+                    // Run promotes before advancing — failures are non-fatal.
+                    run_promotes_for_step(kernel, &payload).await;
                     if !advance_pipeline(kernel, envelope, octx).await {
                         finalize_pipeline_if_done(kernel, envelope).await;
                         super::pending::dispatch_ready_pending_jobs(kernel, octx).await;
@@ -337,6 +356,50 @@ fn load_job_record(entity_id: &str) -> Option<crate::projections::job::JobRecord
 fn extract_slug(envelope: &EventEnvelope) -> Option<String> {
     let payload: serde_json::Value = serde_json::from_str(&envelope.payload_json).ok()?;
     payload["slug"].as_str().map(str::to_string)
+}
+
+/// Check that all `required: true` outputs were reported in `step.done_declared`.
+/// When any are missing, emits `step.failed` + `job.failed` immediately.
+async fn check_and_fail_missing_outputs(
+    kernel: &Arc<Mutex<crate::events::KernelRouter>>,
+    declared: &StepDoneDeclaredPayload,
+) {
+    let Ok(jobs) = crate::projections::job::load_jobs() else { return };
+    let Some(job) = jobs.values().find(|j| j.job_id == declared.job_id).cloned() else {
+        return;
+    };
+    let Some(pipeline) = job.steps.as_ref() else { return };
+    let Some(step) = pipeline.steps.iter().find(|s| s.id == declared.step_id) else {
+        return;
+    };
+    if let Some(reason) = check_required_outputs(&step.produces, &declared.outputs) {
+        tracing::warn!(
+            job_id = declared.job_id, step_id = declared.step_id,
+            "job-dispatch: required output missing: {reason}"
+        );
+        emit_step_failed(
+            kernel, &declared.job_id, &declared.slug, &declared.step_id, &reason,
+        ).await;
+    }
+}
+
+/// Run promotes for the step that just advanced. Non-fatal — failures are
+/// logged but do not block pipeline advancement.
+async fn run_promotes_for_step(
+    kernel: &Arc<Mutex<crate::events::KernelRouter>>,
+    payload: &StepObservedPayload,
+) {
+    let Ok(jobs) = crate::projections::job::load_jobs() else { return };
+    let Some(job) = jobs.values().find(|j| j.job_id == payload.job_id).cloned() else {
+        return;
+    };
+    let Some(pipeline) = job.steps.as_ref() else { return };
+    let Some(step) = pipeline.steps.iter().find(|s| s.id == payload.step_name) else {
+        return;
+    };
+    if !step.promotes.is_empty() {
+        run_step_promotes(kernel, &payload.job_id, step).await;
+    }
 }
 
 /// Evaluate the step's declared `gate:` block against its diff. Returns a

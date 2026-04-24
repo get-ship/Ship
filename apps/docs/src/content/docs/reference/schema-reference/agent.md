@@ -29,7 +29,7 @@ An agent profile composes skills, MCP servers, permissions, rules, and provider 
 | `id` | string | yes | Machine identifier. Must match filename stem. Pattern: `^[a-z0-9-]+$` |
 | `name` | string | yes | Human-readable name |
 | `version` | string | no | Semver version. Default: `"0.1.0"` |
-| `description` | string | no | What this agent does — shown in `ship agents` and Studio |
+| `description` | string | no | What this agent does — shown in Studio UI |
 | `tags` | string[] | no | Searchable tags for registry discovery |
 | `icon` | string | no | Emoji or icon name |
 | `providers` | string[] | no | Provider targets. Overrides project-level `providers`. Values: `claude`, `cursor`, `codex`, `gemini`, `opencode` |

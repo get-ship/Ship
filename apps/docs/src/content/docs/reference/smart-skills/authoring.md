@@ -116,7 +116,7 @@ ship publish
 This pushes the package to the registry. Consumers install with:
 
 ```bash
-ship skill add github.com/your-org/your-package
+ship add github.com/your-org/your-package
 ```
 
 The resolver scans the package for all exported skills automatically.

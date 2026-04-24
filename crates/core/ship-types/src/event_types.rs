@@ -66,6 +66,10 @@ pub const JOB_STEP_FAILED: &str = "job.step_failed";
 pub const JOB_CANCELLED: &str = "job.cancelled";
 pub const JOB_MERGED: &str = "job.merged";
 pub const JOB_SPAWN_FAILED: &str = "job.spawn_failed";
+pub const ARTIFACT_CREATED: &str = "artifact.created";
+pub const ARTIFACT_UPDATED: &str = "artifact.updated";
+pub const ARTIFACT_MOVED: &str = "artifact.moved";
+pub const ARTIFACT_DELETED: &str = "artifact.deleted";
 
 pub const ALL: &[&str] = &[
     WORKSPACE_CREATED,
@@ -136,6 +140,10 @@ pub const ALL: &[&str] = &[
     JOB_CANCELLED,
     JOB_MERGED,
     JOB_SPAWN_FAILED,
+    ARTIFACT_CREATED,
+    ARTIFACT_UPDATED,
+    ARTIFACT_MOVED,
+    ARTIFACT_DELETED,
 ];
 
 #[cfg(test)]

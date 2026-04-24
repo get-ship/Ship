@@ -41,7 +41,7 @@ Named volumes persist across container rebuilds: cargo registry, cargo git, buil
 | 3002 | Vite HMR websocket |
 | 4321 | Astro docs site |
 | 6006 | Storybook |
-| 51741 | Ship MCP server (HTTP mode) |
+| 51741 | Ship Studio MCP server |
 
 ## Justfile Reference
 
@@ -121,11 +121,4 @@ The `unstable` feature flag gates development-only features. `just build` enable
 
 ## Web App
 
-Ship Studio (`apps/web/`) is a TanStack Start application on Cloudflare Workers.
-
-- TanStack Router with `createServerFn` for type-safe server functions
-- Cloudflare D1 via Drizzle ORM
-- Better Auth for authentication
-- `@ship/compiler` (WASM) for in-browser compilation
-- `@ship/primitives` (shadcn) for UI components
-- `@ship/set` for generated Rust types via Specta
+Ship Studio runs at `apps/shell/` (Cloudflare Worker). The legacy TanStack Start app (`apps/web/`) has been retired — API routes now live in `apps/gateway/`.

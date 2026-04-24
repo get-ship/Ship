@@ -75,8 +75,6 @@ Agents come from two locations:
 - **Project agents** -- `.ship/agents/` in your repository. Version-controlled, shared with the team.
 - **Library agents** -- `~/.ship/agents/` in your home directory. Personal, not committed.
 
-`ship agents list` shows both sources.
-
 ## Multi-provider compilation
 
 A single agent can target multiple providers. The `providers` array controls which outputs `ship use` generates:
@@ -95,12 +93,10 @@ Running `ship use web-lane` compiles for every listed provider simultaneously. E
 
 | Command | Description |
 |---------|-------------|
-| `ship agents list` | List all agents (project and library) |
-| `ship agents create <name>` | Scaffold a new agent profile |
-| `ship agents edit <name>` | Open agent in your editor |
-| `ship agents clone <src> <dst>` | Duplicate an agent |
-| `ship agents delete <name>` | Remove an agent profile |
 | `ship use <agent-id>` | Compile and activate an agent |
+| `ship compile` | Recompile the active agent |
+| `ship status` | Show active agent and compilation status |
+| `ship validate --agent <id>` | Validate a single agent profile |
 
 ## A specialized agent
 
@@ -134,7 +130,7 @@ Here is the `web-lane.jsonc` agent, which configures an autonomous frontend spec
     "tools_deny": ["Bash(rm -rf *)", "Bash(git reset --hard*)"]
   },
   "rules": {
-    "inline": "You are a web specialist working in apps/web/."
+    "inline": "You are a gateway specialist working in apps/gateway/."
   }
 }
 ```

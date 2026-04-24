@@ -15,11 +15,12 @@ use utoipa::OpenApi;
 
 use crate::{
     NetworkServer, actor_api, annotations_api, artifacts_api, attest, auth, cors, feedback_api, hooks_api,
-    human_webhook, lint_api, logs_api, openapi, pairing, project_api, pty_handler, rest_api, runtime_api,
-    sdk_manifest, services, session, settings_api, shell_assets, ship_runtime, specs_api,
-    supervisor, view_errors_api, view_morph_target, view_sessions_api, views, collection_api,
-    views_raw,
+    human_webhook, lint_api, logs_api, mcp_registry, openapi, pairing, project_api, pty_handler,
+    rest_api, runtime_api, sdk_manifest, services, session, settings_api, shell_assets,
+    ship_runtime, specs_api, supervisor, view_errors_api, view_morph_target, view_sessions_api,
+    views, collection_api, views_raw, webhook_ext,
 };
+use axum::routing;
 
 /// Build the full Axum router with all route groups, auth, and CORS.
 pub fn build_router(
@@ -61,6 +62,20 @@ pub fn build_router(
     // `ship_route(Route::X, handler)` against the canonical full paths.
     let api_ship_routes = build_ship_routes(st);
 
+    // Public webhook route — unauthenticated; each trigger carries its own secret.
+    let webhook_kernel = rt.kernel().clone();
+    let webhook_source_route = if let Some(src) = rt.webhook_source() {
+        Router::new()
+            .route(
+                "/api/hooks/webhook/{*path}",
+                axum::routing::post(webhook_ext::handle_webhook),
+            )
+            .layer(axum::Extension(src))
+            .layer(axum::Extension(webhook_kernel))
+    } else {
+        Router::new()
+    };
+
     // Unauthenticated routes (before auth middleware)
     let register_registry = session_registry.clone();
     let health_rt = rt.clone();
@@ -98,11 +113,11 @@ pub fn build_router(
         .ship_route(Route::AssetCodeEditorJs, views::serve_code_editor)
         .ship_route(Route::AssetMarkdownEditorJs, views::serve_markdown_editor)
         .ship_route(Route::AssetTerminalJs, views::serve_terminal)
-        .ship_route(Route::AssetGitJs, views::serve_git)
+        // TODO(post-merge): restore serve_git + serve_jinja_macros_* — handlers
+        // existed on our branch but main's assets.rs doesn't have them. Re-port
+        // with their AssetGitJs / AssetJinjaMacros* Route variants.
         .ship_route(Route::AssetElementsManifest, views::serve_elements_manifest)
         .ship_route(Route::AssetElementsCatalog, views::serve_elements_catalog)
-        .ship_route(Route::AssetJinjaMacrosJson, views::serve_jinja_macros_json)
-        .ship_route(Route::AssetJinjaMacrosMd, views::serve_jinja_macros_md)
         .ship_route(Route::AssetThemeCss, views::serve_theme_css)
         .ship_route(Route::ListThemes, views::serve_themes_list)
         // First-run flow — both routes are unauthenticated so a fresh
@@ -156,6 +171,15 @@ pub fn build_router(
     };
 
     let feedback_guard = feedback_api::FeedbackGuard::new();
+    let registry_state = mcp_registry::McpRegistryState::new();
+
+    // MCP registry proxy is a public, read-only endpoint — match the
+    // original Cloudflare Worker handler's "no auth required" contract
+    // so the shell's agent builder can query it before pairing.
+    let mcp_registry_routes = Router::new()
+        .ship_route(Route::McpServers, mcp_registry::list_mcp_servers)
+        .layer(axum::Extension(registry_state));
+
     let authenticated_routes = Router::new()
         .nest("/api", pair_confirm_routes)
         .ship_route(Route::IssueSession, session_issue_handler)
@@ -173,6 +197,8 @@ pub fn build_router(
 
     let mut root = Router::new()
         .merge(public_routes)
+        .merge(mcp_registry_routes)
+        .merge(webhook_source_route)
         .route("/api/openapi.json", axum::routing::get(|| async {
             Json(openapi::ApiDoc::openapi())
         }))
@@ -228,7 +254,9 @@ fn build_ship_routes(st: rest_api::ApiState) -> Router {
         .ship_route(Route::StopAgent_template(), runtime_api::stop_agent)
         .ship_route(Route::SteerAgent_template(), runtime_api::steer_agent)
         .ship_route(Route::ListJobs, runtime_api::list_jobs)
-        .ship_route(Route::DispatchPipeline, runtime_api::dispatch_pipeline)
+        // TODO(post-merge): main dropped `runtime_api::dispatch_pipeline`;
+        // re-wire the /api/jobs/dispatch endpoint against main's replacement
+        // (likely lives in services::pipelines or similar).
         .ship_route(Route::GetJob_template(), runtime_api::get_job_detail)
         .ship_route(Route::EndJob, runtime_api::end_job)
         .ship_route(Route::CancelJob_template(), runtime_api::cancel_job)
@@ -364,21 +392,24 @@ fn build_ship_routes(st: rest_api::ApiState) -> Router {
                 .delete(services::git::draft_delete_handler),
         )
         .ship_route(Route::EmitEvent, project_api::emit_event)
-        .ship_route(Route::ArtifactsStatus_template(), project_api::artifacts_status)
-        .ship_route(Route::PromoteArtifact_template(), project_api::promote_artifact)
-        // Artifacts — upload route needs a relaxed `DefaultBodyLimit` so
-        // Multipart can read the full 50 MB upload ceiling; other extractors
-        // on this router continue to use the axum default.
+        // Artifacts platform (three-scope)
         .merge(
             Router::<rest_api::ApiState>::new()
                 .ship_route(Route::ArtifactsUpload, artifacts_api::upload_artifact)
-                .ship_route(Route::ArtifactsList, artifacts_api::list_artifacts)
-                .ship_route(Route::ArtifactDownload_template(), artifacts_api::download_artifact)
-                .ship_route(Route::ArtifactDelete_template(), artifacts_api::delete_artifact)
                 .layer(axum::extract::DefaultBodyLimit::max(
                     artifacts_api::MAX_UPLOAD_BYTES,
                 )),
         )
+        .ship_route(Route::ArtifactsList, artifacts_api::list_artifacts)
+        .ship_route(Route::ArtifactDownload_template(), artifacts_api::download_artifact)
+        .route(
+            "/api/artifacts/:id",
+            routing::head(artifacts_api::head_artifact),
+        )
+        .ship_route(Route::ArtifactMetadata_template(), artifacts_api::artifact_metadata)
+        .ship_route(Route::ArtifactPatch_template(), artifacts_api::patch_artifact)
+        .ship_route(Route::ArtifactDelete_template(), artifacts_api::delete_artifact)
+        .ship_route(Route::ArtifactPromote_template(), artifacts_api::promote_artifact)
         // Collections
         // Collections — GET + POST on /api/collections merged on one route.
         .route(
@@ -451,6 +482,17 @@ pub(crate) fn handle_panic(info: Box<dyn std::any::Any + Send + 'static>) -> Res
 ///
 /// Returns daemon uptime, PID, and status of all supervised background tasks.
 /// Any dead task sets the top-level `healthy` flag to false.
+#[utoipa::path(
+    operation_id = "healthCheck",
+    get,
+    path = "/api/health",
+    responses(
+        (status = 200, description = "Daemon health snapshot with supervised task status"),
+        (status = 500, description = "server error", body = crate::openapi_types::ErrorResponse),
+    ),
+    security(),
+    tag = "health"
+)]
 pub(crate) async fn health_check(rt: Arc<ship_runtime::ShipRuntime>) -> Json<serde_json::Value> {
     let tasks = rt.health_registry().snapshot();
     let all_healthy = tasks.iter().all(|t| t.alive);

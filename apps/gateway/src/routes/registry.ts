@@ -93,15 +93,6 @@ registry.get('/api/registry/duplicates', async (c) => {
   return c.json({ hash, packages: (results ?? []).map((r) => ({ path: r.package_path, name: r.package_name, skill_name: r.skill_name })) })
 })
 
-// ── MCP servers ───────────────────────────────────────────────────────────────
-
-registry.get('/api/mcp/servers', async (c) => {
-  const d1 = getRegistryDb(c.env)
-  if (!d1) return c.json({ servers: [] })
-  const { results } = await d1.prepare('SELECT * FROM mcp_servers WHERE status = ? ORDER BY vetted DESC, name ASC').bind('active').all()
-  return c.json({ servers: results ?? [] })
-})
-
 // ── Package detail ────────────────────────────────────────────────────────────
 
 registry.get('/api/registry/:path{.+}', async (c) => {

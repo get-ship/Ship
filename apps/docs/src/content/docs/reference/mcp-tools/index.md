@@ -23,7 +23,7 @@ The primary server. Runs via `ship mcp serve` (stdio) or `ship mcp serve --http 
 
 Runs via `ship studio --port <N>`. Designed for the Ship Studio web IDE. Features:
 
-- Project, studio sync, skills, and vars tools only
+- Project, studio sync, skills, vars, session files, and git info tools
 - No tool gating -- all registered tools are always callable
 - No resource support
 - Listens on HTTP for browser connections
@@ -56,17 +56,13 @@ The Studio server prints the MCP endpoint URL and optionally opens the Studio we
 
 ## Project Resolution
 
-On first use, call `open_project` with the absolute path to the project root. This sets the active project for all subsequent tool calls.
-
-If a project is not explicitly opened, the server attempts to resolve it from the current working directory by walking up the tree looking for `.ship/`.
+The server attempts to resolve the project from the current working directory by walking up the tree looking for `.ship/`. If auto-detection fails, use `open_project` on the StudioServer, or ensure the MCP server is launched from the project directory.
 
 ## Tool Gating
 
 The full server gates tool visibility based on the active agent profile.
 
-**Core tools** are always visible regardless of agent configuration. These include: `open_project`, `activate_workspace`, `create_workspace`, `complete_workspace`, `list_stale_worktrees`, `list_workspaces`, `set_agent`, `start_session`, `end_session`, `log_progress`, `get_session`, `list_sessions`, `list_skills`, `event`, `mesh_send`, `mesh_broadcast`, `mesh_discover`, `mesh_status`.
-
-**Unstable tools** (compiled with the `unstable` feature flag) are also core: `create_adr`.
+**Core tools** are always visible regardless of agent configuration. These include: `create_workspace`, `complete_workspace`, `log_progress`, `set_skill_var`, `write_session_file`, `mesh_send`, `mesh_broadcast`, `mesh_discover`, `mesh_status`, `create_job`, `update_job`, `step_done`, `create_doc`, `update_doc`, `get_doc`, `delete_doc`, `query_docs`.
 
 When an agent profile defines an `active_tools` list, only core tools and tools in that list are visible. If `active_tools` is empty, all tools are visible.
 

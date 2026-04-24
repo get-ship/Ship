@@ -8,7 +8,7 @@ pub mod artifacts;
 pub mod errors;
 pub mod events;
 pub mod fs_util;
-pub mod triggers;
+pub mod hooks;
 pub mod log;
 pub mod persistence;
 pub mod project;
@@ -77,8 +77,8 @@ pub use skill_vars::{
 
 // ─── Re-exports from db (formerly state_db) ────────────────────────────────
 pub use db::artifact_registry::{
-    get_agent_artifact_registry_by_external_id_db, get_agent_artifact_registry_by_uuid_db,
-    upsert_agent_artifact_registry_db,
+    get_compiled_asset_cache_by_external_id_db, get_compiled_asset_cache_by_uuid_db,
+    upsert_compiled_asset_cache_db,
 };
 pub use db::branch_context::{
     clear_branch_doc, clear_branch_link, get_branch_doc, get_branch_link, set_branch_doc,

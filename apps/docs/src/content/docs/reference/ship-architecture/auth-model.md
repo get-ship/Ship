@@ -220,6 +220,5 @@ request.
 - `apps/shipd/src/pairing.rs` — `PairingRegistry`, code generation, dev mode flag
 - `apps/shipd/src/attest.rs` — JWKS fetch+cache, JWT verify, daemon-owner binding
 - `apps/shipd/src/pairing_integration_tests.rs` — end-to-end pair flow tests
-- `apps/web/src/lib/daemon-jwt.ts` — JWT signing (jose library), JWKS builder
-- `apps/web/src/routes/api/jwks.ts` — public JWKS endpoint
-- `apps/web/src/routes/api/auth/daemon-attest.ts` — authenticated JWT minting
+- `apps/gateway/src/lib/daemon-jwt.ts` — JWT signing (jose library), JWKS builder
+- `apps/gateway/src/routes/auth.ts` — `/api/jwks` endpoint and `/api/auth/daemon-attest` route

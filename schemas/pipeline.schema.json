@@ -1,157 +1,114 @@
 {
   "$schema": "https://json-schema.org/draft/2020-12/schema",
   "title": "Ship Pipeline",
-  "description": "Pipeline definition — a DAG of steps executed against a job branch.",
+  "description": "Workflow template defining a DAG of steps for job execution.",
   "type": "object",
-  "required": ["name"],
-  "additionalProperties": false,
+  "required": ["name", "steps"],
   "properties": {
     "name": {
       "type": "string",
-      "description": "Pipeline identifier. Lowercase kebab-case; matches the filename stem.",
+      "description": "Pipeline identifier. Matches the filename without .yaml extension.",
       "pattern": "^[a-z0-9][a-z0-9-]*$"
     },
     "description": {
       "type": "string",
-      "description": "Human-readable summary of what this pipeline does."
-    },
-    "auto_merge": {
-      "type": "boolean",
-      "description": "When true, runtime runs `git merge` on the job branch after the final step."
-    },
-    "vars": {
-      "type": "object",
-      "description": "String variables available to step templates.",
-      "additionalProperties": { "type": "string" }
-    },
-    "timeout": {
-      "type": "string",
-      "description": "Pipeline-level timeout (e.g. \"30m\", \"2h\")."
-    },
-    "max_retries": {
-      "type": "integer",
-      "minimum": 0,
-      "description": "Default retry count applied to each step unless overridden."
-    },
-    "step_specs": {
-      "type": "array",
-      "description": "Optional per-step spec bodies, aligned by index with `steps`.",
-      "items": { "type": "string" }
-    },
-    "agents": {
-      "type": "array",
-      "description": "Short form — a sequential list of agent profile IDs.",
-      "items": { "type": "string" },
-      "minItems": 1
+      "description": "Human-readable description of what this pipeline does."
     },
     "steps": {
       "type": "array",
-      "description": "Long form — explicit DAG of steps.",
+      "description": "Ordered list of pipeline steps forming a DAG.",
       "minItems": 1,
-      "items": { "$ref": "#/$defs/step" }
-    }
-  },
-  "anyOf": [
-    { "required": ["agents"] },
-    { "required": ["steps"] }
-  ],
-  "$defs": {
-    "step": {
-      "oneOf": [
-        { "type": "string", "description": "Agent name shorthand." },
-        { "$ref": "#/$defs/stepObject" }
-      ]
-    },
-    "stepObject": {
-      "type": "object",
-      "additionalProperties": false,
-      "properties": {
-        "id": {
-          "type": "string",
-          "description": "Unique step ID within the pipeline.",
-          "pattern": "^[a-z0-9][a-z0-9-]*$"
-        },
-        "name": {
-          "type": "string",
-          "description": "Legacy alias for `id`."
-        },
-        "type": {
-          "type": "string",
-          "enum": ["agent", "run", "review", "gate"],
-          "description": "Step kind. `gate` is a legacy alias for `review` (agent-backed reviewer)."
-        },
-        "agent": {
-          "type": "string",
-          "description": "Agent profile ID. Required for agent/review steps."
-        },
-        "provider": {
-          "type": "string",
-          "description": "Provider override (claude, codex, gemini, opencode)."
-        },
-        "model": {
-          "type": "string",
-          "description": "Model override (e.g. sonnet, opus, haiku)."
-        },
-        "run": {
-          "type": "string",
-          "description": "Shell command. Presence marks the step as a run step."
-        },
-        "human": {
-          "type": "string",
-          "description": "Human-in-the-loop prompt. Pipeline halts until a human action."
-        },
-        "goal": {
-          "type": "string",
-          "description": "Brief description of what this step should accomplish."
-        },
-        "command": {
-          "type": "string",
-          "description": "Legacy alias for `run`."
-        },
-        "after": {
-          "type": "array",
-          "description": "Step IDs this step depends on. Empty or absent = root step.",
-          "items": { "type": "string" },
-          "default": []
-        },
-        "max_retries": {
-          "type": "integer",
-          "minimum": 0
-        },
-        "parallel": {
-          "type": "array",
-          "description": "Fan-out group — nested steps run in parallel.",
-          "items": { "$ref": "#/$defs/step" },
-          "minItems": 1
-        },
-        "gate": {
-          "type": "object",
-          "description": "Declarative diff-rule check on the step's output (orthogonal to `type`).",
-          "additionalProperties": false,
-          "properties": {
-            "require_changed": { "$ref": "#/$defs/diffRule" },
-            "forbid_changed": { "$ref": "#/$defs/diffRule" }
+      "items": {
+        "type": "object",
+        "required": ["id", "type"],
+        "properties": {
+          "id": {
+            "type": "string",
+            "description": "Unique step identifier within the pipeline.",
+            "pattern": "^[a-z0-9][a-z0-9-]*$"
+          },
+          "type": {
+            "type": "string",
+            "enum": ["agent", "gate", "merge", "human"],
+            "description": "Step type. 'agent' runs an agent, 'gate' reviews output, 'merge' merges the branch, 'human' waits for human action."
+          },
+          "agent": {
+            "type": "string",
+            "description": "Agent profile ID (e.g. 'rust-runtime'). Required for agent and gate steps."
+          },
+          "after": {
+            "type": "array",
+            "items": { "type": "string" },
+            "description": "Step IDs that must complete before this step runs. Empty = root step.",
+            "default": []
+          },
+          "model": {
+            "type": "string",
+            "description": "Model override (e.g. 'sonnet', 'opus', 'haiku')."
+          },
+          "provider": {
+            "type": "string",
+            "description": "Provider override (e.g. 'anthropic')."
+          },
+          "produces": {
+            "type": "array",
+            "description": "Artifacts this step produces. The agent uploads them and reports their IDs in step_done.outputs.",
+            "items": {
+              "type": "object",
+              "required": ["name"],
+              "properties": {
+                "name": {
+                  "type": "string",
+                  "description": "Logical name, unique within this step. Used in consumes and promotes references.",
+                  "pattern": "^[a-z0-9][a-z0-9_-]*$"
+                },
+                "scope": {
+                  "type": "string",
+                  "enum": ["run", "project", "user"],
+                  "default": "run",
+                  "description": "Storage scope. 'run' is ephemeral (default); 'project' and 'user' are persistent."
+                },
+                "required": {
+                  "type": "boolean",
+                  "default": false,
+                  "description": "When true, the step fails if this output is absent from step_done.outputs."
+                }
+              }
+            },
+            "default": []
+          },
+          "consumes": {
+            "type": "array",
+            "items": { "type": "string" },
+            "description": "Names of outputs from prior steps this step depends on. Resolved by the orchestrator before dispatch and written to .artifacts/input/<name>.",
+            "default": []
+          },
+          "promotes": {
+            "type": "array",
+            "description": "Outputs to promote to a wider scope when this step succeeds.",
+            "items": {
+              "type": "object",
+              "required": ["name", "target_scope"],
+              "properties": {
+                "name": {
+                  "type": "string",
+                  "description": "Must match a produces.name on this step."
+                },
+                "target_scope": {
+                  "type": "string",
+                  "enum": ["project", "user"],
+                  "description": "Target scope. Valid transitions: run→project, run→user, project→user."
+                }
+              }
+            },
+            "default": []
           }
-        }
-      },
-      "anyOf": [
-        { "required": ["id"] },
-        { "required": ["name"] },
-        { "required": ["parallel"] }
-      ]
-    },
-    "diffRule": {
-      "type": "object",
-      "additionalProperties": false,
-      "properties": {
-        "match": {
-          "type": "string",
-          "description": "Glob pattern against changed file paths (e.g. \"**/*.rs\")."
         },
-        "min": {
-          "type": "integer",
-          "minimum": 0,
-          "description": "Minimum (or for forbid, maximum) matching file count."
+        "if": {
+          "properties": { "type": { "enum": ["agent", "gate"] } }
+        },
+        "then": {
+          "required": ["agent"]
         }
       }
     }

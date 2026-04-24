@@ -52,8 +52,7 @@ The agent gets instructions automatically. When it needs depth, it reads specifi
 
 | Surface | What it does |
 |---------|-------------|
-| `ship vars` CLI | Read, write, append, reset variable state from the terminal |
-| MCP tools | Agents read/write vars programmatically (`get_skill_vars`, `set_skill_var`, `list_skill_vars`) |
+| MCP tools | Agents write vars via `set_skill_var` (ShipServer). Studio reads vars via `get_skill_vars` and `list_skill_vars` (StudioServer). |
 | Studio Skills IDE | Visual editor for SKILL.md, vars UI with type-appropriate controls |
 | `ship use` / `ship compile` | Resolves templates and writes provider output |
 
@@ -64,7 +63,7 @@ Stable in Ship 0.1.0:
 - SKILL.md with frontmatter and MiniJinja template resolution
 - `assets/vars.json` with all five types (string, bool, enum, array, object)
 - Three storage scopes with KV merge order
-- `ship vars` CLI commands (get, set, append, reset)
+- `set_skill_var` MCP tool (ShipServer) for agent-side variable writes
 - MCP tools for var access
 - `references/docs/` with frontmatter
 - `scripts/` directory

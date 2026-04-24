@@ -485,15 +485,8 @@ pub enum Route {
     /// @route POST "/api/events/emit"
     EmitEvent,
 
-    /// @route GET "/api/workspaces/{id}/artifacts/status"
-    ArtifactsStatus { id: String },
-
-    /// @route POST "/api/workspaces/{id}/artifacts/promote"
-    PromoteArtifact { id: String },
-
-    // `GET /api/artifacts` is owned by the artifacts API below — it lists
-    // DB-backed artifact metadata. The prior FS-scanning endpoint on this
-    // path has been replaced.
+    // Workspace-scoped artifact status/promote removed — callers get 404.
+    // Use the unified /api/artifacts/* surface instead.
 
     // ── Mesh / actors ────────────────────────────────────────────────────
 
@@ -558,8 +551,18 @@ pub enum Route {
     /// @route GET "/api/artifacts/{id}"
     ArtifactDownload { id: String },
 
+
+    /// @route GET "/api/artifacts/{id}/metadata"
+    ArtifactMetadata { id: String },
+
+    /// @route PATCH "/api/artifacts/{id}"
+    ArtifactPatch { id: String },
+
     /// @route DELETE "/api/artifacts/{id}"
     ArtifactDelete { id: String },
+
+    /// @route POST "/api/artifacts/{id}/promote"
+    ArtifactPromote { id: String },
 
     // ── Capabilities ─────────────────────────────────────────────────────
 
@@ -592,6 +595,11 @@ pub enum Route {
 
     /// @route DELETE "/api/view-errors"
     ClearViewErrors,
+
+    // ── MCP registry proxy ────────────────────────────────────────────────
+
+    /// @route GET "/api/mcp/servers"
+    McpServers,
 }
 
 #[cfg(test)]

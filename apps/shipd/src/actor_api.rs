@@ -6,11 +6,21 @@
 use axum::{Extension, Json, extract::State, http::StatusCode, response::IntoResponse};
 use runtime::events::{EmitContext, EventEnvelope};
 use serde::Deserialize;
+use serde_json::json;
 
 use crate::auth::{AuthContext, Scope, require_scope};
 use crate::rest_api::{ApiState, MeshResponse};
 
 #[derive(Deserialize, utoipa::ToSchema)]
+#[schema(example = json!({
+    "actor_id": "agent-writer",
+    "config": {
+        "kind": "agent",
+        "provider": "claude",
+        "spec_path": ".ship/specs/write-readme.md"
+    },
+    "capabilities": ["writes.prose", "reads.repo"]
+}))]
 pub struct ActorSpawnReq {
     pub actor_id: String,
     #[schema(value_type = Object)]
@@ -20,6 +30,15 @@ pub struct ActorSpawnReq {
 }
 
 #[derive(Deserialize, utoipa::ToSchema)]
+#[schema(example = json!({
+    "envelope": {
+        "kind": "job.completed",
+        "slug": "write-readme",
+        "ts": "2026-04-22T10:15:00Z"
+    },
+    "workspace_id": "default",
+    "session_id": "sess-2f9c"
+}))]
 pub struct EventRouteReq {
     #[schema(value_type = Object)]
     pub envelope: runtime::events::EventEnvelope,
@@ -28,10 +47,18 @@ pub struct EventRouteReq {
 }
 
 #[utoipa::path(
+    operation_id = "actorSpawn",
     post,
     path = "/api/actor/spawn",
     request_body = ActorSpawnReq,
-    responses((status = 200, body = MeshResponse)),
+    responses(
+        (status = 200, body = MeshResponse),
+        (status = 400, description = "bad request", body = crate::openapi_types::ErrorResponse),
+        (status = 401, description = "unauthorized", body = crate::openapi_types::ErrorResponse),
+        (status = 404, description = "actor not found", body = crate::openapi_types::ErrorResponse),
+        (status = 409, description = "actor already exists", body = crate::openapi_types::ErrorResponse),
+        (status = 500, description = "server error", body = crate::openapi_types::ErrorResponse),
+    ),
     tag = "actor"
 )]
 pub async fn actor_spawn(
@@ -88,10 +115,16 @@ pub async fn actor_spawn(
 }
 
 #[utoipa::path(
+    operation_id = "eventRoute",
     post,
     path = "/api/events/route",
     request_body = EventRouteReq,
-    responses((status = 200, body = MeshResponse)),
+    responses(
+        (status = 200, body = MeshResponse),
+        (status = 400, description = "bad request", body = crate::openapi_types::ErrorResponse),
+        (status = 401, description = "unauthorized", body = crate::openapi_types::ErrorResponse),
+        (status = 500, description = "server error", body = crate::openapi_types::ErrorResponse),
+    ),
     tag = "actor"
 )]
 pub async fn event_route(

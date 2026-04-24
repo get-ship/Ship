@@ -92,7 +92,7 @@ Ship-elements for typed inputs, Datastar `@post` for submission:
 
 ```html
 <script>
-const es = new EventSource('/api/events/stream', { withCredentials: true });
+const es = new EventSource('/api/runtime/events', { withCredentials: true });
 es.onmessage = e => {
   try { if (JSON.parse(e.data).event_type?.startsWith('collection.')) location.reload(); }
   catch {}

@@ -2,19 +2,13 @@
   "name": "ship-monorepo",
   "private": true,
   "scripts": {
-    "dev": "pnpm --filter web dev",
     "build:bundles": "node scripts/build-bundles.mjs",
     "build:bundles:watch": "node scripts/build-bundles.mjs --watch",
     "build:jinja-docs": "node scripts/build-jinja-docs.mjs",
-    "test": "pnpm --filter web test",
     "test:rust": "cargo test",
-    "typecheck": "pnpm --filter web exec tsc --noEmit",
     "wasm": "wasm-pack build crates/core/compiler --target web --out-dir ../../../packages/compiler --out-name compiler -- --features wasm",
     "lint": "vp lint",
-    "lint:fix": "vp lint --fix",
-    "db:migrate": "cd apps/web && npx wrangler d1 migrations apply ship --local",
-    "cf:types": "cd apps/web && npx wrangler types",
-    "cf:deploy": "pnpm --filter web deploy"
+    "lint:fix": "vp lint --fix"
   },
   "devDependencies": {
     "@cloudflare/vite-plugin": "^1.25.1",
@@ -33,7 +27,12 @@
     "overrides": {
       "react": "^19.0.0",
       "react-dom": "^19.0.0"
-    }
+    },
+    "ignoredBuiltDependencies": [
+      "esbuild",
+      "lightningcss",
+      "rs-module-lexer"
+    ]
   },
   "dependencies": {
     "@tiptap/core": "^3.21.0",

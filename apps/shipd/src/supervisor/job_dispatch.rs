@@ -77,6 +77,8 @@ pub async fn subscribe_job_events(
         activity_txs: activity_txs.clone(),
         job_locks: Arc::new(Mutex::new(HashMap::new())),
         event_dedup: Arc::new(runtime::services::orchestrator::dedup::EventDedup::new()),
+        fanout_lane_txs: Arc::new(Mutex::new(HashMap::new())),
+        fanout_lane_refs: Arc::new(Mutex::new(HashMap::new())),
     });
 
     let kr = kernel.clone();

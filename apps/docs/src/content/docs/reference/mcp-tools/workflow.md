@@ -13,14 +13,13 @@ Read project state, define goals, break work into capabilities.
 
 ### Typical sequence
 
-1. `open_project` -- register the project path
-2. Read resources for context: `ship://project_info`, `ship://targets`, `ship://jobs`, `ship://workspaces`
-3. `create_adr` -- record architecture decisions
+1. Read resources for context: `ship://project_info`, `ship://jobs`, `ship://workspaces`
+2. Create jobs via `create_job` to capture planned work
 
 ### What planning produces
 
-- ADRs documenting trade-offs and decisions
-- Understanding of existing targets and job state from resources
+- Jobs documenting planned work
+- Understanding of existing state from resources
 
 ## Orchestration Mode
 
@@ -30,8 +29,6 @@ Create workspaces, dispatch jobs, monitor progress, handle file conflicts.
 
 ```
 create_workspace(name="auth-flow", kind="imperative", base_branch="main")
-activate_workspace(branch="auth-flow")
-set_agent(id="web-specialist")
 ```
 
 Workspace kinds determine worktree lifecycle:
@@ -49,7 +46,7 @@ create_job(
   kind="feature",
   description="Implement OAuth provider",
   branch="auth-flow",
-  file_scope=["apps/web/src/auth/"],
+  file_scope=["apps/gateway/src/routes/"],
   acceptance_criteria=["OAuth flow completes", "Tokens stored"],
   capability_id="<cap-id>"
 )
@@ -59,9 +56,8 @@ Jobs move through: `pending` -> `running` -> `complete` or `failed`.
 
 ### Monitoring
 
-- `list_jobs(status="running")` -- see active work
 - Read `ship://events` -- watch for recent state changes across all workspaces
-- Read `ship://workspaces/{branch}/session` -- check session state
+- Read `ship://workspaces` -- check workspace state
 
 ### Job dependencies
 
@@ -96,19 +92,14 @@ The job stays in the queue with failure context. A new job or a retry can pick u
 
 ## Session Lifecycle
 
-Sessions track individual agent visits within a workspace. One active session per workspace.
+Sessions are tracked automatically. The MCP server starts and manages a session on connection. Use `log_progress` to record progress notes during a session.
 
 ```
-start_session(goal="Implement OAuth login")
-  ... work ...
-  log_progress(note="Created auth provider config")
-  log_progress(note="Login UI renders, testing OAuth flow")
-end_session(summary="OAuth flow working", files_changed=12, model="claude-opus-4-20250514")
+log_progress(note="Created auth provider config")
+log_progress(note="Login UI renders, testing OAuth flow")
 ```
 
 Session records are immutable once ended. They include: start/end timestamps, goal, progress notes, summary, file count, model used, and optional gate result.
-
-`end_session` accepts `gate_result` ("pass" or "fail") for sessions that represent a gate check.
 
 ## Event Log
 
@@ -121,10 +112,10 @@ The event log is the audit trail for understanding what happened across all work
 
 ## End-to-End Example
 
-1. **Plan:** Read `ship://targets` and `ship://jobs`, create ADR for decisions
+1. **Plan:** Read `ship://jobs` and `ship://workspaces`, create jobs for planned work
 2. **Dispatch:** Create imperative workspace `auth-flow`, create job for the feature
-3. **Work:** Start session, implement the feature, log progress at checkpoints
-4. **Gate:** Run tests, update job to completed
-5. **Complete:** End session with summary, complete workspace (prunes worktree)
+3. **Work:** Implement the feature, log progress at checkpoints with `log_progress`
+4. **Gate:** Run tests, update job to completed with `update_job`
+5. **Complete:** Call `complete_workspace` (writes handoff.md, prunes worktree)
 
 Each step uses the tools from the corresponding mode. The event log captures the full history.

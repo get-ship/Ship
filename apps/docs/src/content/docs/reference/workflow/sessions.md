@@ -26,28 +26,20 @@ A session is a heartbeat within a workspace. It represents one continuous unit o
 
 ## Starting a session
 
-```
-start_session({
-  branch: "feat/new-ui",       // optional, defaults to current git branch
-  goal: "implement sidebar",   // optional
-  agent_id: "web-lane",        // optional, overrides workspace agent
-  provider_id: "claude"        // optional, must be in the agent's allowed providers
-})
-```
+Sessions are started automatically by the daemon when it dispatches an agent into a worktree. The runtime performs these steps:
 
-`start_session` performs these steps:
-
-1. Resolves the branch. If omitted, uses the current git branch.
+1. Resolves the branch from the worktree's git HEAD.
 2. Auto-creates the workspace record if it does not exist.
 3. Activates the workspace if it is not already active.
-4. Sets the agent if `agent_id` is provided.
-5. Checks for an existing active session. If one exists, returns it (attach semantics).
-6. Resolves allowed providers from the agent config and validates the requested provider.
-7. Compiles the workspace context (agent config into provider-specific output).
-8. Emits a `session.started` event and creates the session record.
-9. Persists a session artifact snapshot.
+4. Checks for an existing active session. If one exists, attaches to it.
+5. Resolves allowed providers from the agent config and validates the requested provider.
+6. Compiles the workspace context (agent config into provider-specific output).
+7. Emits a `session.started` event and creates the session record.
+8. Persists a session artifact snapshot.
 
 Only one active session per workspace. The attach-on-existing behavior prevents duplicate sessions when an agent restarts or reconnects.
+
+Agents do not call `start_session` directly — it is not available as an agent-facing MCP tool on the ShipServer.
 
 ## Logging progress
 
@@ -69,17 +61,7 @@ Notes cannot be empty. The runtime trims whitespace and rejects blank strings.
 
 ## Ending a session
 
-```
-end_session({
-  branch: "feat/new-ui",
-  summary: "Implemented sidebar with navigation and event handlers",
-  model: "claude-opus-4-20250514",
-  files_changed: 5,
-  gate_result: "pass"     // optional, result of any quality gate
-})
-```
-
-`end_session` performs these steps:
+Sessions end when an agent calls `complete_workspace` (available on ShipServer) or when the daemon-side session lifecycle completes. The runtime performs these steps:
 
 1. Finds the active session on the workspace.
 2. Sets the session status to `ended` and records the end timestamp.
@@ -139,10 +121,12 @@ Hooks configured with trigger `session_end` or `stop` run after a session ends. 
 
 ## Querying sessions
 
+Read session state via MCP resources (available on ShipServer):
+
 ```
-get_session({ branch: "feat/new-ui" })          // active session for a branch
-list_sessions({ branch: "feat/new-ui", limit: 10 })  // recent sessions
-list_sessions({ limit: 20 })                    // all recent sessions across workspaces
+ship://sessions             # recent sessions across all workspaces (up to 50)
+ship://sessions/{workspace} # sessions for a specific workspace
+ship://workspaces/{branch}/session  # active session for a branch
 ```
 
-`list_sessions` returns up to 100 sessions (default 20), ordered by recency. Results include staleness annotations and session record IDs where available.
+`list_sessions` and `get_session` are not available as agent-facing MCP tools; use the `ship://` resources above instead.

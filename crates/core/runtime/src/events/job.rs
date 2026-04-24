@@ -30,6 +30,75 @@ pub enum StepType {
     Run,
 }
 
+/// Scope of a step output artifact.
+#[derive(Debug, Clone, Serialize, Deserialize, Type, Default, PartialEq)]
+#[serde(rename_all = "snake_case")]
+pub enum OutputScope {
+    /// Ephemeral — lives for the duration of the run. Default.
+    #[default]
+    Run,
+    /// Persistent project-level artifact.
+    Project,
+    /// Persistent user-personal artifact.
+    User,
+}
+
+/// A named output produced by a pipeline step.
+#[derive(Debug, Clone, Serialize, Deserialize, Type)]
+pub struct StepOutput {
+    /// Logical handle, unique within this step.
+    pub name: String,
+    /// Storage scope. Defaults to `run`.
+    #[serde(default)]
+    pub scope: OutputScope,
+    /// When `true`, the step fails if this output is absent from `step_done.outputs`.
+    #[serde(default)]
+    pub required: bool,
+}
+
+/// Promote a named output to a wider scope when the step succeeds.
+#[derive(Debug, Clone, Serialize, Deserialize, Type)]
+pub struct StepPromote {
+    /// Must match a `produces.name` on this step.
+    pub name: String,
+    /// Valid transitions: Run→Project, Run→User, Project→User.
+    pub target_scope: OutputScope,
+}
+
+/// A single lane in a fanout step — runs the same spec through a different agent/model/provider.
+#[derive(Debug, Clone, Serialize, Deserialize, Type)]
+pub struct FanoutLane {
+    /// Unique identifier within the fanout.
+    pub id: String,
+    /// Agent profile to use for this lane.
+    pub agent: String,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub model: Option<String>,
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub provider: Option<String>,
+}
+
+/// Points to the judge step that arbitrates lane outputs.
+#[derive(Debug, Clone, Serialize, Deserialize, Type)]
+pub struct FanoutJudge {
+    /// Step ID of the judge. Must come after the fanout step in the pipeline DAG.
+    pub step: String,
+}
+
+/// Fanout configuration — run K agents in parallel, then a judge step picks or merges.
+#[derive(Debug, Clone, Serialize, Deserialize, Type)]
+pub struct FanoutSpec {
+    /// Parallel lanes. Each runs the fanout step's spec through a different agent/model/provider.
+    pub lanes: Vec<FanoutLane>,
+    /// Judge step that receives all lane outputs and arbitrates.
+    pub judge: FanoutJudge,
+    /// Minimum number of successful lanes required for the fanout step to succeed. Default: 1.
+    #[serde(default = "default_min_successful_lanes")]
+    pub min_successful_lanes: usize,
+}
+
+fn default_min_successful_lanes() -> usize { 1 }
+
 /// A single step in a pipeline DAG.
 ///
 /// Custom `Deserialize` allows YAML shorthand: `run: <command>` implies
@@ -67,6 +136,22 @@ pub struct PipelineStep {
     /// the files changed by this step's commits. See `services::orchestrator::gate_rules`.
     #[serde(default, skip_serializing_if = "Option::is_none")]
     pub gate: Option<GateSpec>,
+    /// Artifacts this step is expected to produce. The agent uploads them via
+    /// `artifact_upload` and reports `{ name: artifact_id }` pairs in
+    /// `step_done.outputs`. Required outputs fail the step when absent.
+    #[serde(default, skip_serializing_if = "Vec::is_empty")]
+    pub produces: Vec<StepOutput>,
+    /// Names of outputs from prior steps that this step needs. Resolved to
+    /// artifact records by the orchestrator before dispatch and written to
+    /// `.artifacts/input/<name>` in the worktree.
+    #[serde(default, skip_serializing_if = "Vec::is_empty")]
+    pub consumes: Vec<String>,
+    /// Outputs to promote to a wider scope when this step succeeds.
+    #[serde(default, skip_serializing_if = "Vec::is_empty")]
+    pub promotes: Vec<StepPromote>,
+    /// When present, run K parallel lanes instead of a single agent.
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub fanout: Option<FanoutSpec>,
 }
 
 /// Declarative diff-based gate attached to a step. Runtime evaluates after the
@@ -143,6 +228,14 @@ impl<'de> serde::Deserialize<'de> for PipelineStep {
             max_retries: Option<u32>,
             #[serde(default)]
             gate: Option<GateSpec>,
+            #[serde(default)]
+            produces: Vec<StepOutput>,
+            #[serde(default)]
+            consumes: Vec<String>,
+            #[serde(default)]
+            promotes: Vec<StepPromote>,
+            #[serde(default)]
+            fanout: Option<FanoutSpec>,
         }
         let raw = Raw::deserialize(d)?;
         let step_type = raw.step_type.unwrap_or_else(|| {
@@ -163,6 +256,10 @@ impl<'de> serde::Deserialize<'de> for PipelineStep {
             command: raw.command,
             max_retries: raw.max_retries,
             gate: raw.gate,
+            produces: raw.produces,
+            consumes: raw.consumes,
+            promotes: raw.promotes,
+            fanout: raw.fanout,
         })
     }
 }
@@ -393,6 +490,10 @@ pub struct StepDoneDeclaredPayload {
     pub slug: String,
     pub step_id: String,
     pub summary: Option<String>,
+    /// Map of `produces.name → artifact_id` for outputs the agent uploaded.
+    /// Empty when the step declares no `produces` or the agent omitted outputs.
+    #[serde(default, skip_serializing_if = "std::collections::BTreeMap::is_empty")]
+    pub outputs: std::collections::BTreeMap<String, String>,
 }
 
 /// Emitted when a gated step is retried after gate failure.

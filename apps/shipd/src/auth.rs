@@ -272,14 +272,22 @@ pub fn is_daemon_token(token: &str) -> bool {
 // ---- Pairing endpoints ----
 
 use crate::pairing::{ClaimResult, ConfirmError, SharedPairingRegistry};
+use serde_json::json;
 
-#[derive(serde::Deserialize, Default)]
+#[derive(serde::Deserialize, Default, utoipa::ToSchema)]
+#[schema(example = json!({ "client_label": "studio-macbook" }))]
 pub struct PairInitRequest {
     #[serde(default)]
     pub client_label: Option<String>,
 }
 
-#[derive(serde::Serialize)]
+#[derive(serde::Serialize, utoipa::ToSchema)]
+#[schema(example = json!({
+    "code": "842-019",
+    "claim_token": "pt_01J3Z5ZQXAM3E4T7W",
+    "code_expires_in_secs": 300,
+    "dev_mode": false
+}))]
 pub struct PairInitResponse {
     pub code: String,
     pub claim_token: String,
@@ -287,24 +295,26 @@ pub struct PairInitResponse {
     pub dev_mode: bool,
 }
 
-#[derive(serde::Deserialize)]
+#[derive(serde::Deserialize, utoipa::ToSchema)]
+#[schema(example = json!({ "code": "842-019" }))]
 pub struct PairConfirmRequest {
     pub code: String,
 }
 
-#[derive(serde::Serialize)]
+#[derive(serde::Serialize, utoipa::ToSchema)]
+#[schema(example = json!({ "ok": true }))]
 pub struct PairConfirmResponse {
     pub ok: bool,
     #[serde(skip_serializing_if = "Option::is_none")]
     pub error: Option<String>,
 }
 
-#[derive(serde::Deserialize)]
+#[derive(serde::Deserialize, utoipa::IntoParams)]
 pub struct PairStatusQuery {
     pub claim_token: String,
 }
 
-#[derive(Debug, serde::Serialize)]
+#[derive(Debug, serde::Serialize, utoipa::ToSchema)]
 #[serde(tag = "status", rename_all = "lowercase")]
 pub enum PairStatusResponse {
     Pending,
@@ -318,6 +328,19 @@ pub enum PairStatusResponse {
 /// In dev mode, the pairing is auto-approved: the response includes the
 /// session token directly via the pending approval, and the client can skip
 /// the confirmation step. This is signaled via `dev_mode: true`.
+#[utoipa::path(
+    operation_id = "pairInit",
+    post,
+    path = "/auth/pair/init",
+    request_body = PairInitRequest,
+    responses(
+        (status = 200, description = "Pairing initiated", body = PairInitResponse),
+        (status = 429, description = "Too many pending pairings", body = crate::openapi_types::ErrorResponse),
+        (status = 500, description = "Server error", body = crate::openapi_types::ErrorResponse),
+    ),
+    security(),
+    tag = "auth"
+)]
 pub async fn pair_init(
     registry: SharedPairingRegistry,
     session_registry: SessionRegistry,
@@ -370,6 +393,22 @@ pub async fn pair_init(
 
 /// POST /api/auth/pair/confirm — confirm a pending pairing (requires daemon
 /// token via auth middleware).
+#[utoipa::path(
+    operation_id = "pairConfirm",
+    post,
+    path = "/api/auth/pair/confirm",
+    request_body = PairConfirmRequest,
+    responses(
+        (status = 200, description = "Pairing confirmed; session persisted", body = PairConfirmResponse),
+        (status = 401, description = "Unauthenticated", body = crate::openapi_types::ErrorResponse),
+        (status = 403, description = "Requires daemon token", body = PairConfirmResponse),
+        (status = 404, description = "Unknown or already-used code", body = PairConfirmResponse),
+        (status = 409, description = "Pairing already approved", body = PairConfirmResponse),
+        (status = 410, description = "Pairing code expired", body = PairConfirmResponse),
+        (status = 500, description = "Server error", body = PairConfirmResponse),
+    ),
+    tag = "auth"
+)]
 pub async fn pair_confirm(
     registry: SharedPairingRegistry,
     session_registry: SessionRegistry,
@@ -452,6 +491,18 @@ pub async fn pair_confirm(
 
 /// GET /auth/pair/status?claim_token=... — poll for approval (unauthenticated;
 /// the claim_token itself is the secret).
+#[utoipa::path(
+    operation_id = "pairStatus",
+    get,
+    path = "/auth/pair/status",
+    params(PairStatusQuery),
+    responses(
+        (status = 200, description = "Pairing status — pending|approved|expired|unknown", body = PairStatusResponse),
+        (status = 500, description = "server error", body = crate::openapi_types::ErrorResponse),
+    ),
+    security(),
+    tag = "auth"
+)]
 pub async fn pair_status(
     registry: SharedPairingRegistry,
     axum::extract::Query(q): axum::extract::Query<PairStatusQuery>,
@@ -498,12 +549,17 @@ use crate::attest::{
     daemon_owner, set_daemon_owner,
 };
 
-#[derive(serde::Deserialize)]
+#[derive(serde::Deserialize, utoipa::ToSchema)]
+#[schema(example = json!({ "jwt": "eyJhbGciOiJSUzI1NiIsInR5cCI6IkpXVCJ9..." }))]
 pub struct AttestRequest {
     pub jwt: String,
 }
 
-#[derive(serde::Serialize)]
+#[derive(serde::Serialize, utoipa::ToSchema)]
+#[schema(example = json!({
+    "session_token": "ses_01J3Z5ZQXAM3E4T7WABCDEF",
+    "expires_at_unix": 1_777_000_000
+}))]
 pub struct AttestResponse {
     pub session_token: String,
     pub expires_at_unix: i64,
@@ -523,6 +579,21 @@ fn configured_attestation_issuer() -> AttestationConfig {
 /// POST /auth/server-attest { jwt } — verify a JWT signed by a trusted
 /// issuer (getship.dev) and issue a session token. Unauthenticated; the
 /// JWT itself is the proof.
+#[utoipa::path(
+    operation_id = "serverAttest",
+    post,
+    path = "/auth/server-attest",
+    request_body = AttestRequest,
+    responses(
+        (status = 200, description = "Attestation accepted; session minted"),
+        (status = 401, description = "Invalid JWT", body = crate::openapi_types::ErrorResponse),
+        (status = 403, description = "Daemon bound to a different user", body = crate::openapi_types::ErrorResponse),
+        (status = 502, description = "JWKS endpoint unavailable", body = crate::openapi_types::ErrorResponse),
+        (status = 500, description = "Server error", body = crate::openapi_types::ErrorResponse),
+    ),
+    security(),
+    tag = "auth"
+)]
 pub async fn server_attest(
     verifier: AttestationVerifier,
     session_registry: SessionRegistry,
@@ -606,7 +677,15 @@ pub async fn server_attest(
 
 // ---- Session listing / revoke ----
 
-#[derive(serde::Serialize)]
+#[derive(serde::Serialize, utoipa::ToSchema)]
+#[schema(example = json!({
+    "token_prefix": "ses_01J3Z5ZQ",
+    "agent_id": "agent-writer",
+    "workspace_id": "default",
+    "scopes": ["read_workspace", "manage_jobs"],
+    "expires_at_unix": 1_777_000_000,
+    "ephemeral": false
+}))]
 pub struct SessionSummary {
     /// First 12 chars of the token for display — never the full value.
     pub token_prefix: String,
@@ -617,12 +696,35 @@ pub struct SessionSummary {
     pub ephemeral: bool,
 }
 
-#[derive(serde::Serialize)]
+#[derive(serde::Serialize, utoipa::ToSchema)]
+#[schema(example = json!({
+    "sessions": [
+        {
+            "token_prefix": "ses_01J3Z5ZQ",
+            "agent_id": "agent-writer",
+            "workspace_id": "default",
+            "scopes": ["read_workspace"],
+            "expires_at_unix": 1_777_000_000,
+            "ephemeral": false
+        }
+    ]
+}))]
 pub struct ListSessionsResponse {
     pub sessions: Vec<SessionSummary>,
 }
 
 /// GET /api/auth/sessions — list active sessions. Requires Scope::Full.
+#[utoipa::path(
+    operation_id = "listSessions",
+    get,
+    path = "/auth/sessions",
+    responses(
+        (status = 200, description = "Active sessions", body = ListSessionsResponse),
+        (status = 401, description = "Unauthenticated", body = crate::openapi_types::ErrorResponse),
+        (status = 403, description = "Requires daemon token"),
+    ),
+    tag = "auth"
+)]
 pub async fn list_sessions(
     session_registry: SessionRegistry,
     axum::Extension(auth): axum::Extension<AuthContext>,
@@ -646,7 +748,8 @@ pub async fn list_sessions(
     Ok(axum::Json(ListSessionsResponse { sessions }))
 }
 
-#[derive(serde::Deserialize)]
+#[derive(serde::Deserialize, utoipa::ToSchema)]
+#[schema(example = json!({ "token_prefix": "ses_01J3Z5ZQ", "all": false }))]
 pub struct RevokeSessionsRequest {
     /// If set, revoke only sessions whose token starts with this prefix.
     /// If unset AND `all` is true, revoke every non-ephemeral session.
@@ -656,12 +759,26 @@ pub struct RevokeSessionsRequest {
     pub all: bool,
 }
 
-#[derive(serde::Serialize)]
+#[derive(serde::Serialize, utoipa::ToSchema)]
+#[schema(example = json!({ "revoked": 3 }))]
 pub struct RevokeSessionsResponse {
     pub revoked: usize,
 }
 
 /// POST /api/auth/sessions/revoke — revoke sessions. Requires Scope::Full.
+#[utoipa::path(
+    operation_id = "revokeSessions",
+    post,
+    path = "/auth/sessions/revoke",
+    request_body = RevokeSessionsRequest,
+    responses(
+        (status = 200, description = "Sessions revoked", body = RevokeSessionsResponse),
+        (status = 400, description = "Invalid request", body = crate::openapi_types::ErrorResponse),
+        (status = 401, description = "Unauthenticated", body = crate::openapi_types::ErrorResponse),
+        (status = 403, description = "Requires daemon token"),
+    ),
+    tag = "auth"
+)]
 pub async fn revoke_sessions(
     session_registry: SessionRegistry,
     axum::Extension(auth): axum::Extension<AuthContext>,

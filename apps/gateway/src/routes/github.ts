@@ -1,11 +1,10 @@
 import { Hono } from 'hono'
 import { requireSession } from '../lib/session-auth.js'
 import { getRegistryDb } from '../lib/d1.js'
-import { getUser, listRepos, createConfigPr } from '../lib/github/github-app.js'
+import { getUser, listRepos } from '../lib/github/github-app.js'
 import { getGitHubToken } from '../lib/github/github-token.js'
-import { parseGithubUrl, extractLibrary } from '../lib/github/github-import.js'
+import { extractLibrary } from '../lib/github/github-import.js'
 import { fetchRepoFiles } from '../lib/github/fetch-repo-files.js'
-import { libraryToShipFiles } from '../lib/ship-config.js'
 
 const github = new Hono<{ Bindings: Env }>()
 
@@ -72,53 +71,6 @@ github.get('/api/github/repos-config', async (c) => {
     return c.json(library)
   } catch (err) {
     return c.json({ error: err instanceof Error ? err.message : 'Failed to fetch repo config' }, 502)
-  }
-})
-
-github.post('/api/github/import', async (c) => {
-  let body: unknown
-  try { body = await c.req.json() } catch { return c.json({ error: 'Invalid JSON body' }, 400) }
-
-  if (!body || typeof body !== 'object' || !('url' in body) || typeof (body as Record<string, unknown>).url !== 'string') {
-    return c.json({ error: 'Missing or invalid url field' }, 400)
-  }
-
-  const url = (body as { url: string }).url
-  const parsed = parseGithubUrl(url)
-  if (!parsed) return c.json({ error: 'Malformed GitHub URL' }, 400)
-
-  const result = await fetchRepoFiles(parsed.owner, parsed.repo)
-  if (result === 'not_found') return c.json({ error: 'Repository not found' }, 404)
-
-  const library = extractLibrary(result)
-  if (!library) return c.json({ error: 'No extractable agent config found in this repository' }, 422)
-
-  return c.json(library)
-})
-
-github.post('/api/github/create-pr', async (c) => {
-  const token = await getGitHubToken(c.req.raw, c.env)
-  if (!token) return c.json({ error: 'Not authenticated' }, 401)
-
-  let body: { owner: string; repo: string; default_branch: string; mode_name?: string }
-  try { body = await c.req.json() } catch { return c.json({ error: 'Invalid JSON' }, 400) }
-
-  const { owner, repo, default_branch, mode_name } = body
-  if (!owner || !repo || !default_branch) return c.json({ error: 'Missing owner, repo, or default_branch' }, 400)
-
-  try {
-    const repoFiles = await fetchRepoFiles(owner, repo, token)
-    if (repoFiles === 'not_found') return c.json({ error: 'Repository not found or no access' }, 404)
-
-    const library = extractLibrary(repoFiles)
-    const shipFiles = libraryToShipFiles(
-      library ?? { modes: [], active_agent: null, mcp_servers: [], skills: [], rules: [], agent_profiles: [], claude_team_agents: [], env: {}, available_models: [], provider_defaults: {} },
-      mode_name ?? 'default',
-    )
-    const pr = await createConfigPr(token, owner, repo, default_branch, shipFiles)
-    return c.json({ html_url: pr.html_url, number: pr.number })
-  } catch (err) {
-    return c.json({ error: err instanceof Error ? err.message : 'PR creation failed' }, 502)
   }
 })
 

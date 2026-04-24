@@ -30,7 +30,7 @@ create_workspace({
   branch: "feat/new-ui",       // optional, derived from name if omitted
   base_branch: "main",         // optional, defaults to "main"
   preset_id: "web-lane",       // optional, agent preset to activate
-  file_scope: "apps/web/"      // optional, path restriction
+  file_scope: "apps/gateway/"  // optional, path restriction
 })
 ```
 
@@ -38,30 +38,17 @@ create_workspace({
 
 ## Activation
 
-`activate_workspace` does three things:
+Workspace activation does three things:
 
 1. Creates the workspace record if it does not exist.
 2. Compiles the active agent's config into provider-specific output files (CLAUDE.md, .cursor/, etc.).
 3. Marks the workspace as `active` and updates `last_activated_at`.
 
-Activation is idempotent. Calling it multiple times on the same branch re-compiles but does not create duplicates.
-
-```
-activate_workspace({
-  branch: "feat/new-ui",
-  agent_id: "web-lane"    // optional, overrides the workspace's active agent
-})
-```
+Activation is idempotent. It is triggered automatically when the daemon dispatches an agent into a worktree. `activate_workspace` is not available as an agent-facing MCP tool on the ShipServer.
 
 ## Agent assignment
 
-Each workspace can have one active agent. Setting the agent triggers a recompile of provider configs if the workspace is active.
-
-```
-set_workspace_active_agent(ship_dir, "feat/new-ui", Some("web-lane"))
-```
-
-Via MCP, pass `agent_id` to `activate_workspace` to set and compile in one call.
+Each workspace can have one active agent. Setting the agent triggers a recompile of provider configs if the workspace is active. Agent assignment is handled by the daemon at dispatch time.
 
 ## Status transitions
 
@@ -87,12 +74,15 @@ The `file_scope` field on a workspace restricts which paths the agent should edi
 
 ## Listing and querying
 
+Read workspace state via MCP resources (available on ShipServer):
+
 ```
-list_workspaces({ status: "active" })   // filter by status
-get_session({ branch: "feat/new-ui" })  // check if a session is running
+ship://workspaces              # all workspaces as JSON
+ship://workspaces/{branch}     # single workspace object
+ship://workspaces/{branch}/session  # active session for a workspace
 ```
 
-`list_workspaces` returns all workspaces, optionally filtered by status. Each workspace includes its current agent, worktree path, and activation timestamp.
+`list_workspaces` and `activate_workspace` are not available as agent-facing MCP tools; use the `ship://` resources above instead.
 
 ## Completing a workspace
 

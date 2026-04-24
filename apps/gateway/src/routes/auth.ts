@@ -8,13 +8,6 @@ import { checkRateLimit, rateLimitResponse } from '../lib/rate-limit.js'
 
 const auth = new Hono<{ Bindings: Env }>()
 
-// ── Better Auth passthrough ──────────────────────────────────────────────────
-
-auth.on(['GET', 'POST'], '/api/auth/*', async (c) => {
-  const a = await getAuth(c.env)
-  return a.handler(c.req.raw)
-})
-
 // ── JWKS ─────────────────────────────────────────────────────────────────────
 
 auth.get('/api/jwks', async (c) => {
@@ -276,6 +269,13 @@ auth.post('/api/auth/daemon-attest', async (c) => {
   }
 
   return c.json({ jwt, issuer, expires_at: Math.floor(Date.now() / 1000) + ttlSeconds })
+})
+
+// ── Better Auth passthrough (catch-all, must be last) ─────────────────────────
+
+auth.on(['GET', 'POST'], '/api/auth/*', async (c) => {
+  const a = await getAuth(c.env)
+  return a.handler(c.req.raw)
 })
 
 export { auth as authRoutes }

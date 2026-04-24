@@ -87,7 +87,7 @@ cat > .artifacts/jobs/impl-<feature>.md << 'SPEC'
 ---
 status: ready
 agent: web-lane
-scope: apps/web/src/
+scope: apps/gateway/src/
 ---
 
 # Implement: <feature>

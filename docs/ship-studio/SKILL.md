@@ -8,7 +8,7 @@ authors: [ship]
 
 # Ship Studio
 
-Studio is the web-based IDE for Ship agent configuration. It runs at getship.dev (hosted) or locally via `pnpm dev` in `apps/web/`. It communicates with the local CLI through an MCP bridge over HTTP.
+Studio is the web-based IDE for Ship agent configuration. It runs at getship.dev (hosted) via `apps/shell/`. It communicates with the local CLI through an MCP bridge over HTTP.
 
 ## Architecture
 

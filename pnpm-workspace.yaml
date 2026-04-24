@@ -1,6 +1,5 @@
 packages:
   - "apps/docs"
-  - "apps/web"
   - "apps/shell"
   - "apps/site"
   - "apps/gateway"

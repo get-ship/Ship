@@ -25,6 +25,19 @@ use crate::rest_api::ApiState;
 const NOTE_MAX_BYTES: usize = 10 * 1024;
 const SELECTION_TEXT_MAX_BYTES: usize = 20 * 1024;
 
+#[utoipa::path(
+    operation_id = "postAnnotation",
+    post,
+    path = "/api/runtime/annotations",
+    request_body(content_type = "application/json", description = "AnnotationEvent payload — target, selector, intent, note"),
+    responses(
+        (status = 200, description = "Annotation persisted and broadcast"),
+        (status = 400, description = "Invalid annotation payload", body = crate::openapi_types::ErrorResponse),
+        (status = 401, description = "Unauthenticated", body = crate::openapi_types::ErrorResponse),
+        (status = 500, description = "Server error", body = crate::openapi_types::ErrorResponse),
+    ),
+    tag = "runtime"
+)]
 pub async fn post_annotation(
     State(state): State<ApiState>,
     Extension(auth): Extension<AuthContext>,

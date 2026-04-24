@@ -6,7 +6,8 @@
 //! 3. Inline `steps:` in spec frontmatter
 //! 4. None → single `Agent` step using the job's declared agent
 
-use crate::events::job::{JobCreatedPayload, Pipeline, PipelineStep, StepType};
+use crate::events::job::{JobCreatedPayload, OutputScope, Pipeline, PipelineStep, StepType};
+use crate::services::orchestrator::step_io::parse_lane_scoped_ref;
 use ship_jobs::pipeline::{PipelineMeta, normalize_pipeline};
 
 /// Enrich a job with a pipeline and validate it. Resolution order:
@@ -33,9 +34,7 @@ pub fn ensure_pipeline(mut payload: JobCreatedPayload) -> Result<JobCreatedPaylo
     Ok(payload)
 }
 
-/// Enforce platform invariants on a resolved pipeline. Currently: any step
-/// whose type requires an agent (`Agent`, `Gate`) must declare one. No silent
-/// fallbacks — naming the step id makes misconfigured pipelines fail loud.
+/// Enforce platform invariants on a resolved pipeline.
 fn validate_pipeline(pipeline: &Pipeline) -> Result<(), String> {
     for step in &pipeline.steps {
         let needs_agent = matches!(step.step_type, StepType::Agent | StepType::Review);
@@ -46,6 +45,267 @@ fn validate_pipeline(pipeline: &Pipeline) -> Result<(), String> {
             ));
         }
     }
+    validate_pipeline_io(pipeline)
+}
+
+/// Validate that a `produces.name` / `consumes` entry is a safe filename
+/// fragment — `.artifacts/input/<name>` must not escape the worktree.
+///
+/// Allowed: `[a-zA-Z0-9_.-]+`, 1–128 chars, no leading dot, no `..` anywhere.
+/// This is a load-time guard; `step_io::write_input_file` re-checks at
+/// dispatch as defense-in-depth.
+pub(crate) fn validate_output_name(step_id: &str, name: &str, kind: &str) -> Result<(), String> {
+    if name.is_empty() || name.len() > 128 {
+        return Err(format!(
+            "step '{step_id}' declares {kind} name '{name}' with invalid length \
+             (must be 1–128 chars)"
+        ));
+    }
+    if name.starts_with('.') {
+        return Err(format!(
+            "step '{step_id}' declares {kind} name '{name}' which starts with '.' \
+             (disallowed); allowed: [a-zA-Z0-9_.-]"
+        ));
+    }
+    if name.contains("..") {
+        return Err(format!(
+            "step '{step_id}' declares {kind} name '{name}' containing '..' \
+             (path traversal disallowed); allowed: [a-zA-Z0-9_.-]"
+        ));
+    }
+    if !name.chars().all(|c| c.is_ascii_alphanumeric() || c == '_' || c == '.' || c == '-') {
+        return Err(format!(
+            "step '{step_id}' declares {kind} name '{name}' which contains \
+             disallowed characters; allowed: [a-zA-Z0-9_.-]"
+        ));
+    }
+    Ok(())
+}
+
+/// Validate `produces`/`consumes`/`promotes` declarations across all steps.
+///
+/// Rules enforced at load time:
+/// - Every `produces.name` and `consumes` entry must be a safe filename
+///   (see `validate_output_name`). Lane-scoped `consumes` split on `.`
+///   before validation — both sides must be safe.
+/// - No two top-level steps may declare the same `produces.name`
+///   (fanout lanes are exempt — duplicate names across lanes are expected).
+/// - Every `consumes: name` must have a producer in the pipeline.
+/// - A step cannot consume its own output.
+/// - Every `promotes: name` must match a `produces.name` on the same step.
+/// - Promote scope transitions must be valid: Run→Project, Run→User, Project→User.
+fn validate_pipeline_io(pipeline: &Pipeline) -> Result<(), String> {
+    use std::collections::HashMap;
+
+    // Charset + duplicate-producer check on every `produces.name` across
+    // top-level steps. Fanout lanes live inside `step.fanout.lanes[].produces`
+    // and are intentionally excluded from the duplicate check — the whole
+    // point of fanout is N lanes producing the same logical output.
+    let mut producers: HashMap<&str, Vec<&str>> = HashMap::new();
+    for step in &pipeline.steps {
+        for output in &step.produces {
+            validate_output_name(&step.id, &output.name, "produces")?;
+            producers
+                .entry(output.name.as_str())
+                .or_default()
+                .push(step.id.as_str());
+        }
+    }
+    for (name, owners) in &producers {
+        if owners.len() > 1 {
+            return Err(format!(
+                "produces name '{name}' is declared by multiple steps: [{}]",
+                owners.join(", ")
+            ));
+        }
+    }
+    // Downstream logic wants first-hit semantics; flatten to single owner.
+    let producers: HashMap<&str, &str> = producers
+        .into_iter()
+        .map(|(k, v)| (k, v[0]))
+        .collect();
+
+    // Validate fanout declarations first.
+    for step in &pipeline.steps {
+        if let Some(fanout) = &step.fanout {
+            validate_fanout(pipeline, step, fanout)?;
+        }
+    }
+
+    for step in &pipeline.steps {
+        // Check that every consumed name has a producer.
+        for name in &step.consumes {
+            // The raw consume entry becomes a filename under
+            // `.artifacts/input/` — validate traversal *before* splitting on
+            // `.` for lane-scoped parsing. A malicious input like
+            // `"../../secret"` would otherwise be misparsed as lane-scoped.
+            validate_output_name(&step.id, name, "consumes")?;
+            // Lane-scoped references (e.g. "lane-claude.draft") are validated
+            // against their fanout step separately — skip the producers map.
+            if let Some((lane_id, output_name)) = parse_lane_scoped_ref(name) {
+                // Both halves must also be safe. A lane id of `""` (leading
+                // dot in the raw name) was already rejected above; this
+                // catches pathological pairs like `a.` where output is empty.
+                validate_output_name(&step.id, lane_id, "consumes (lane id)")?;
+                validate_output_name(&step.id, output_name, "consumes (lane output)")?;
+                validate_lane_scoped_consume(pipeline, &step.id, name, lane_id, output_name)?;
+                continue;
+            }
+            match producers.get(name.as_str()) {
+                None => return Err(format!(
+                    "step '{}' consumes '{name}' but no step in the pipeline produces it",
+                    step.id
+                )),
+                Some(&pid) if pid == step.id => return Err(format!(
+                    "step '{}' cannot consume its own output '{name}'",
+                    step.id
+                )),
+                _ => {}
+            }
+        }
+
+        // Check promotes reference either this step's produces or its consumes (from prior steps),
+        // and that scope transitions are valid.
+        let produces_names: std::collections::HashSet<&str> =
+            step.produces.iter().map(|o| o.name.as_str()).collect();
+        let consumes_names: std::collections::HashSet<&str> =
+            step.consumes.iter().map(|s| s.as_str()).collect();
+        for promote in &step.promotes {
+            let source_scope = if let Some(output) = step.produces.iter().find(|o| o.name == promote.name) {
+                // Promoting own produced output — use declared scope.
+                &output.scope
+            } else if consumes_names.contains(promote.name.as_str()) {
+                // Promoting a consumed upstream artifact — assume run scope (the only
+                // scope consumes can reference in phase 2).
+                &OutputScope::Run
+            } else if !produces_names.contains(promote.name.as_str()) {
+                return Err(format!(
+                    "step '{}' promotes '{}' but this step neither produces nor consumes it",
+                    step.id, promote.name
+                ));
+            } else {
+                continue;
+            };
+            validate_scope_transition(source_scope, &promote.target_scope, &step.id, &promote.name)?;
+        }
+    }
+    Ok(())
+}
+
+fn validate_scope_transition(
+    from: &OutputScope,
+    to: &OutputScope,
+    step_id: &str,
+    name: &str,
+) -> Result<(), String> {
+    // User-scope targets are blocked at load time because the orchestrator
+    // has no user identity to promote *to* yet — pipelines run in a
+    // daemon context that doesn't carry a signed-in user. Once cloud/auth
+    // lands and the orchestrator gets a user-id resolver, widen this to
+    // also accept Run→User and Project→User. Today the executor errors on
+    // User scope; the validator must match the executor's reality.
+    let valid = matches!(
+        (from, to),
+        (OutputScope::Run, OutputScope::Project)
+    );
+    if !valid {
+        let reason = match to {
+            OutputScope::User => {
+                "User-scope promotes are not yet supported — the orchestrator \
+                 has no user-id resolver (blocked on cloud/auth). \
+                 Use Project scope for now."
+            }
+            _ => {
+                "invalid scope transition (only Run→Project is supported today; \
+                 Run→User and Project→User are blocked on cloud/auth)"
+            }
+        };
+        return Err(format!(
+            "step '{step_id}' promotes '{name}': {reason} \
+             (requested: {from:?}→{to:?})"
+        ));
+    }
+    Ok(())
+}
+
+/// Validate a `fanout:` declaration on `step`.
+fn validate_fanout(
+    pipeline: &Pipeline,
+    step: &PipelineStep,
+    fanout: &crate::events::job::FanoutSpec,
+) -> Result<(), String> {
+    // Judge step must exist.
+    let judge = pipeline.steps.iter().find(|s| s.id == fanout.judge.step)
+        .ok_or_else(|| format!(
+            "fanout step '{}': judge.step '{}' not found in pipeline",
+            step.id, fanout.judge.step
+        ))?;
+
+    // Judge must declare the fanout step in its `after`.
+    if !judge.after.contains(&step.id) {
+        return Err(format!(
+            "fanout step '{}': judge step '{}' must list '{}' in its `after`",
+            step.id, judge.id, step.id
+        ));
+    }
+
+    // Lane IDs must be unique within the fanout.
+    let mut seen = std::collections::HashSet::new();
+    for lane in &fanout.lanes {
+        if !seen.insert(lane.id.as_str()) {
+            return Err(format!(
+                "fanout step '{}': duplicate lane id '{}'",
+                step.id, lane.id
+            ));
+        }
+        if lane.agent.is_empty() {
+            return Err(format!(
+                "fanout step '{}' lane '{}': agent must be declared",
+                step.id, lane.id
+            ));
+        }
+    }
+
+    if fanout.min_successful_lanes == 0 {
+        return Err(format!(
+            "fanout step '{}': min_successful_lanes must be at least 1",
+            step.id
+        ));
+    }
+
+    Ok(())
+}
+
+/// Validate a lane-scoped consume reference like `lane-claude.draft`.
+fn validate_lane_scoped_consume(
+    pipeline: &Pipeline,
+    consuming_step_id: &str,
+    full_name: &str,
+    lane_id: &str,
+    output_name: &str,
+) -> Result<(), String> {
+    // Find the fanout step that owns this lane.
+    let fanout_step = pipeline.steps.iter().find(|s| {
+        s.fanout.as_ref().map_or(false, |f| f.lanes.iter().any(|l| l.id == lane_id))
+    }).ok_or_else(|| format!(
+        "step '{consuming_step_id}' consumes '{full_name}': no fanout step has lane '{lane_id}'"
+    ))?;
+
+    // `<lane_id>.failed` is a reserved marker emitted by the aggregator when
+    // a lane fails — valid for any lane regardless of the fanout's produces.
+    if output_name == super::fanout::FAILED_MARKER_NAME {
+        return Ok(());
+    }
+
+    // The fanout step must produce the referenced output.
+    if !fanout_step.produces.iter().any(|o| o.name == output_name) {
+        return Err(format!(
+            "step '{consuming_step_id}' consumes '{full_name}': \
+             fanout step '{}' does not produce '{output_name}'",
+            fanout_step.id
+        ));
+    }
+
     Ok(())
 }
 
@@ -60,44 +320,58 @@ fn resolve_steps(payload: &mut JobCreatedPayload) {
     // Explicit pipeline name on the payload (e.g. `ship run tdd`) takes precedence
     // over anything in the spec — the caller asked for a specific template by name.
     if let Some(name) = payload.pipeline_name.clone() {
-        if let Some((pipeline, meta)) = load_pipeline_file(&name) {
-            tracing::info!(
+        match load_pipeline_file(&name) {
+            Ok(Some((pipeline, meta))) => {
+                tracing::info!(
+                    slug = payload.slug,
+                    pipeline = name,
+                    steps = pipeline.steps.len(),
+                    "pipeline: loaded by name from payload"
+                );
+                merge_meta_vars(payload, &meta);
+                payload.steps = Some(pipeline);
+                return;
+            }
+            Ok(None) => tracing::warn!(
                 slug = payload.slug,
                 pipeline = name,
-                steps = pipeline.steps.len(),
-                "pipeline: loaded by name from payload"
-            );
-            merge_meta_vars(payload, &meta);
-            payload.steps = Some(pipeline);
-            return;
+                "pipeline: name on payload did not resolve to a file, continuing resolution"
+            ),
+            Err(e) => tracing::error!(
+                slug = payload.slug,
+                pipeline = name,
+                "pipeline: failed to parse referenced pipeline file: {e}"
+            ),
         }
-        tracing::warn!(
-            slug = payload.slug,
-            pipeline = name,
-            "pipeline: name on payload did not resolve to a file, continuing resolution"
-        );
     }
 
     let spec_content = spec_content_for_resolution(payload);
 
     // Try named pipeline reference: `pipeline: tdd` in spec frontmatter
     if let Some(name) = parse_pipeline_name_from_frontmatter(&spec_content) {
-        if let Some((pipeline, meta)) = load_pipeline_file(&name) {
-            tracing::info!(
+        match load_pipeline_file(&name) {
+            Ok(Some((pipeline, meta))) => {
+                tracing::info!(
+                    slug = payload.slug,
+                    pipeline = name,
+                    steps = pipeline.steps.len(),
+                    "pipeline: loaded from .ship/pipelines/{name}"
+                );
+                merge_meta_vars(payload, &meta);
+                payload.steps = Some(pipeline);
+                return;
+            }
+            Ok(None) => tracing::warn!(
                 slug = payload.slug,
                 pipeline = name,
-                steps = pipeline.steps.len(),
-                "pipeline: loaded from .ship/pipelines/{name}"
-            );
-            merge_meta_vars(payload, &meta);
-            payload.steps = Some(pipeline);
-            return;
+                "pipeline: referenced pipeline not found, falling back"
+            ),
+            Err(e) => tracing::error!(
+                slug = payload.slug,
+                pipeline = name,
+                "pipeline: failed to parse referenced pipeline file: {e}"
+            ),
         }
-        tracing::warn!(
-            slug = payload.slug,
-            pipeline = name,
-            "pipeline: referenced pipeline not found, falling back"
-        );
     }
 
     // Try inline steps from frontmatter
@@ -132,6 +406,10 @@ fn resolve_steps(payload: &mut JobCreatedPayload) {
             command: None,
             max_retries: None,
             gate: None,
+            produces: vec![],
+            consumes: vec![],
+            promotes: vec![],
+            fanout: None,
         }],
         auto_merge: false,
     });
@@ -176,16 +454,24 @@ fn interpolate_pipeline(payload: &mut JobCreatedPayload) {
 /// `advance_pipeline` so every step dispatch (including replay) can re-write
 /// `.artifacts/pipeline/` idempotently without mutating the event store.
 pub fn load_step_specs_by_name(name: &str) -> Option<Vec<String>> {
-    let (_, meta) = load_pipeline_file(name)?;
+    let (_, meta) = load_pipeline_file(name).ok()??;
     meta.step_specs
 }
 
 /// Load a named pipeline from `.ship/pipelines/<name>.jsonc` (preferred) or
 /// `.ship/pipelines/<name>.yaml` (legacy) in the project root.
+///
+/// Returns:
+/// - `Ok(Some(..))` — file found and parsed.
+/// - `Ok(None)` — no `.ship/` dir found or no pipeline file of that name exists.
+/// - `Err(msg)` — file exists but could not be read or parsed. The error
+///   message includes the source path so a YAML typo surfaces with context
+///   rather than being misreported as "pipeline not found".
+///
 /// Supports both old format (explicit id/type/agent) and new format (agents list,
 /// simplified steps).
-fn load_pipeline_file(name: &str) -> Option<(Pipeline, PipelineMeta)> {
-    let mut dir = std::env::current_dir().ok()?;
+pub(crate) fn load_pipeline_file(name: &str) -> Result<Option<(Pipeline, PipelineMeta)>, String> {
+    let mut dir = std::env::current_dir().map_err(|e| format!("cwd lookup failed: {e}"))?;
     loop {
         let ship_dir = dir.join(".ship");
         if ship_dir.is_dir() {
@@ -197,33 +483,42 @@ fn load_pipeline_file(name: &str) -> Option<(Pipeline, PipelineMeta)> {
             } else if yaml_path.exists() {
                 yaml_path
             } else {
-                return None;
+                return Ok(None);
             };
-            let content = std::fs::read_to_string(&path).ok()?;
-            return parse_pipeline_content(&content);
+            let content = std::fs::read_to_string(&path)
+                .map_err(|e| format!("failed to read pipeline file '{}': {e}", path.display()))?;
+            return parse_pipeline_content(&content)
+                .map(Some)
+                .map_err(|e| format!("failed to parse pipeline file '{}': {e}", path.display()));
         }
         if !dir.pop() {
-            return None;
+            return Ok(None);
         }
     }
 }
 
 /// Parse pipeline content (JSONC or YAML) into a Pipeline and metadata.
 /// Handles both old and new formats via ship_jobs normalization.
-fn parse_pipeline_content(content: &str) -> Option<(Pipeline, PipelineMeta)> {
-    let (normalized, meta) = normalize_pipeline(content).ok()?;
-    let steps_val = normalized.get("steps")?;
-    let steps: Vec<PipelineStep> = serde_json::from_value(steps_val.clone()).ok()?;
+///
+/// Returns a human-readable error string on any parse failure — the caller
+/// is responsible for prefixing the source path.
+fn parse_pipeline_content(content: &str) -> Result<(Pipeline, PipelineMeta), String> {
+    let (normalized, meta) = normalize_pipeline(content)
+        .map_err(|e| format!("pipeline normalization failed: {e}"))?;
+    let steps_val = normalized
+        .get("steps")
+        .ok_or_else(|| "pipeline content has no `steps` field after normalization".to_string())?;
+    let steps: Vec<PipelineStep> = serde_json::from_value(steps_val.clone())
+        .map_err(|e| format!("failed to deserialize steps: {e}"))?;
     for step in &steps {
         if let Some(gate) = &step.gate
             && let Err(e) = super::gate_rules::validate(gate)
         {
-            tracing::error!(step = step.id, "pipeline: malformed gate block: {e}");
-            return None;
+            return Err(format!("step '{}' has malformed gate block: {e}", step.id));
         }
     }
     let auto_merge = meta.auto_merge.unwrap_or(false);
-    Some((Pipeline { steps, auto_merge }, meta))
+    Ok((Pipeline { steps, auto_merge }, meta))
 }
 
 /// Merge pipeline-level default vars into the job payload.
@@ -296,7 +591,7 @@ fn parse_steps_from_frontmatter(content: &str) -> Option<Pipeline> {
 
     // Try new format first (has agents: or steps: with new-style entries)
     if fm.get("agents").is_some() || fm.get("steps").is_some() {
-        let (pipeline, _) = parse_pipeline_content(yaml_str)?;
+        let (pipeline, _) = parse_pipeline_content(yaml_str).ok()?;
         return Some(pipeline);
     }
 

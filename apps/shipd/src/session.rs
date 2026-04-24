@@ -3,7 +3,7 @@
 //! Phase 1 of the meta-framework auth story: cookie-first, token-fallback.
 //!
 //! A browser session is a short-lived, `Scope::Full` entry in the existing
-//! [`SessionRegistry`]. It is issued by `POST /api/session` — which
+//! [`SessionRegistry`]. It is issued by `POST /api/runtime/session` — which
 //! is itself gated by the auth middleware (daemon token required) — and
 //! returned to the browser as a `Set-Cookie: ship_session=<id>` header.
 //!
@@ -15,6 +15,7 @@ use axum::{
     http::{HeaderValue, Response, StatusCode, header},
     response::IntoResponse,
 };
+use serde_json::json;
 use std::time::{Duration, Instant};
 
 fn now_unix() -> i64 {
@@ -24,7 +25,7 @@ fn now_unix() -> i64 {
 use crate::auth::{AuthContext, hex_encode};
 use crate::scopes::{DaemonSession, Scope, SessionRegistry};
 
-/// Cookie name used for browser sessions. Scoped to `/api`.
+/// Cookie name used for browser sessions. Scoped to `/api/runtime`.
 pub const COOKIE_NAME: &str = "ship_session";
 
 /// Browser-session lifetime (seconds). 24 hours.
@@ -103,18 +104,30 @@ pub async fn lookup_browser_session(
     }
 }
 
-/// Response body for `POST /api/session`.
-#[derive(serde::Serialize)]
+/// Response body for `POST /api/runtime/session`.
+#[derive(serde::Serialize, utoipa::ToSchema)]
+#[schema(example = json!({ "ok": true, "expires_in": 3600 }))]
 pub struct SessionIssueResponse {
     pub ok: bool,
     pub expires_in: u64,
 }
 
-/// `POST /api/session` handler.
+/// `POST /api/runtime/session` handler.
 ///
 /// Requires the caller to already hold a daemon-token credential (the auth
 /// middleware enforces this). Issues a browser-session cookie scoped to
-/// `/api` and returns `{ok, expires_in}`.
+/// `/api/runtime` and returns `{ok, expires_in}`.
+#[utoipa::path(
+    operation_id = "issueSessionHandler",
+    post,
+    path = "/api/runtime/session",
+    responses(
+        (status = 200, description = "Browser session cookie issued", body = SessionIssueResponse),
+        (status = 401, description = "Unauthenticated", body = crate::openapi_types::ErrorResponse),
+        (status = 403, description = "Session issuance requires Full scope"),
+    ),
+    tag = "auth"
+)]
 pub async fn issue_session_handler(
     registry: SessionRegistry,
     auth: AuthContext,
@@ -127,7 +140,7 @@ pub async fn issue_session_handler(
 
     let id = issue_browser_session(&registry).await;
     let cookie = format!(
-        "{COOKIE_NAME}={id}; HttpOnly; SameSite=Strict; Path=/api; Max-Age={BROWSER_SESSION_TTL_SECS}"
+        "{COOKIE_NAME}={id}; HttpOnly; SameSite=Strict; Path=/api/runtime; Max-Age={BROWSER_SESSION_TTL_SECS}"
     );
 
     let body = serde_json::to_vec(&SessionIssueResponse {

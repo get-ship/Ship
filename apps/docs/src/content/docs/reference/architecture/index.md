@@ -189,9 +189,9 @@ Two paths out of transport: HTTP to the daemon, or a direct compile call. The da
   <!-- Phase 1: synchronous POST + persist + deliver -->
   <rect class="phase-bar" x="20" y="92" width="860" height="20"/>
   <text class="phase-text" x="32" y="107">1 · synchronous: POST → event durable → mailbox filled</text>
-  <!-- 1. CLI → Daemon: POST /api/jobs -->
+  <!-- 1. CLI → Daemon: POST /api/runtime/jobs -->
   <line class="msg msg-http" x1="80" y1="135" x2="215" y2="135" marker-end="url(#seq-arrow-info)"/>
-  <text class="msg-label" x="150" y="128" text-anchor="middle" fill="color-mix(in oklch, var(--info) 70%, var(--foreground))">POST /api/jobs</text>
+  <text class="msg-label" x="150" y="128" text-anchor="middle" fill="color-mix(in oklch, var(--info) 70%, var(--foreground))">POST /api/runtime/jobs</text>
   <text class="msg-note"  x="150" y="148" text-anchor="middle">slug · branch · agent · pipeline · spec_content</text>
   <!-- 2. Daemon self: ensure_pipeline enrich -->
   <path class="msg msg-self" d="M 220 168 L 260 168 L 260 184 L 225 184" marker-end="url(#seq-arrow)"/>
@@ -303,3 +303,86 @@ Two paths out of transport: HTTP to the daemon, or a direct compile call. The da
 - [Provider Outputs](/reference/compiler/providers/) — what the compiler writes per provider.
 - [Daemon authentication model](/reference/architecture/auth-model/) — tokens and session scopes.
 
+## Services inside the daemon
+
+`shipd` hosts several service actors. Each has a single responsibility and communicates via the kernel.
+
+**Orchestrator** (`runtime/services/orchestrator/`). Advances pipelines step-by-step. When a job completes, `advance_pipeline` finds newly unblocked steps and dispatches them. Handles gate retries (up to `max_retries`), step monitoring (watches process exit), `run` shell commands, and `human` pauses. `replay.rs` re-dispatches incomplete pipelines on daemon startup.
+
+**Mesh** (`runtime/services/mesh.rs`). Inter-agent message routing via `SharedMeshRegistry`. Agents publish to namespaces; subscribers filter by capability scope. Namespaces are enforced at the `ActorStore` write boundary — an actor cannot emit events into a namespace it lacks write permission for.
+
+**Supervisor** (`apps/shipd/src/supervisor/`). Process dispatch, worktree setup, terminal launch, job lifecycle. Spawns agent processes in git worktrees, wires stdio to the kernel, monitors exit codes, and surfaces results to the orchestrator.
+
+**Human gateway** (`runtime/services/human_gateway.rs`). Pauses pipelines at `human:` steps until a human acknowledges. The web UI renders the pending prompt; acknowledgment advances the pipeline.
+
+**PTY bridge** (`apps/shipd/pty_handler.rs`). WebSocket-to-tmux bridge. Studio opens a terminal session; the daemon proxies bytes between the browser WebSocket and a tmux pane.
+
+## Runtime module map
+
+Top-level modules in `crates/core/runtime/src/lib.rs`:
+
+| Module | Owns |
+|---|---|
+| `actor` | Actor trait, supervisor, restart policies. |
+| `agents` | Agent profiles, export/import, permissions, rules, skills, skill paths, skill vars. |
+| `artifacts` | Artifact metadata, session artifact persistence. |
+| `collections` | Collection types and persistence. |
+| `config` | `.ship/` parsing — catalog, hooks, security, providers. |
+| `data` | Shared data types. |
+| `db` | SQLite connection pool, KV store, workspace/session/artifact persistence, schema migrations. |
+| `events` | Facade over `ship-kernel` + `ship-types` event types. |
+| `hooks` | `RuntimeHooks` trait for lifecycle events. |
+| `log` | File-based project action log. |
+| `persistence` | `EventStore` trait, `SqliteEventStore`, snapshots, cursors. |
+| `project` | Project init, directory resolution, worktree-aware path lookup. |
+| `projections` | Read models rebuilt from events (jobs, sessions, workspaces). |
+| `registry` | Package install, fetch, resolve, verify, tracking. |
+| `services` | Orchestrator, mesh, human gateway, provider adapters, dispatch ports. |
+| `workspace` | Workspace lifecycle, sessions, trash, artifact events, reconciliation. |
+
+## Platform database
+
+Path: `~/.ship/platform.db`. Relational state. Opened via `sqlx` with compile-time query checks. WAL journal mode, foreign keys enabled.
+
+| Table family | Concern |
+|---|---|
+| `workspaces`, `workspace_events` | Workspace records + event projection. |
+| `sessions`, `session_events` | Session records + event projection. |
+| `jobs`, `actor_events` | Job and actor lifecycle events. |
+| `events` | Shared event log. All actor events. `actor_id` column enforces logical isolation. |
+| `file_claims` | Per-file exclusive write locks across parallel agents. |
+| `artifact_registry` | Artifact metadata store. |
+| `kv`, `managed_state` | Generic key-value + state blobs. |
+| `adrs`, `branch_context` | Architecture decision records, branch-scoped docs. |
+
+Tests get automatic isolation: `get_global_dir()` detects test binaries and returns a per-thread temp directory.
+
+## Actor protocol
+
+Every actor has: a `namespace`, permitted write/read/subscribe scopes, and a mailbox. Actors are a logical boundary — `actor_id` column filters reads; `ActorStore` rejects writes outside the actor's `write_namespaces`. No per-actor SQLite files.
+
+| Actor type | Has UI | Has MCP | Examples |
+|---|---|---|---|
+| Agent | no | yes (client) | Code agent, design agent |
+| App | yes | yes (server) | Ship Studio |
+| Service | no | no | Orchestrator, mesh, supervisor |
+
+Routing contract: validate → persist → deliver. Direct messages short-circuit namespace fanout via `target_actor_id`. Broadcasts match by prefix on `event_type` against each subscriber's `subscribe_namespaces`.
+
+## Workspaces
+
+A workspace is an isolated unit of agent work, keyed by git branch today. The supervisor allocates a git worktree per workspace so parallel agents don't collide on the same files. File claims in the platform DB give per-file exclusive locks across agents sharing a workspace.
+
+Sessions track agent time within a workspace — start, progress, end with summary. One active session per workspace.
+
+## Event flow internals
+
+`KernelRouter::route(event)`:
+
+1. Run each registered validator. Fail = error, event discarded.
+2. `sink.persist(&event)` — synchronous. Durable before any delivery.
+3. Deliver:
+   - If `event.target_actor_id` set → direct to that mailbox only.
+   - Otherwise broadcast: deliver to every actor whose `subscribe_namespaces` contains a prefix of `event.event_type`.
+
+Delivery uses `try_send` — mailbox full = silent drop. See [Kernel](/reference/architecture/kernel/) for the full contract, current limitations, and future work.

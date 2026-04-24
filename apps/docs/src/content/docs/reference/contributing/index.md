@@ -25,7 +25,7 @@ crates/
 packages/
   compiler/              @ship/compiler -- WASM npm package (built from crates/core/compiler)
   primitives/            @ship/primitives -- shared UI components (shadcn)
-  ui/                    @ship/set -- generated types from Rust via Specta
+  ui/                    @ship/ui -- generated types from Rust via Specta
   assets/                Shared static assets
 contrib/
   ship-dev.sh            Dev container launcher (Podman)

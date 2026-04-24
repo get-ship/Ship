@@ -44,7 +44,7 @@ steps:
 Run it:
 
 ```bash
-ship run tdd --spec-file spec.md
+ship run tdd --spec spec.md
 ```
 
 The orchestrator creates a job on `job/<slug>`, allocates a git worktree, and dispatches `test` first. When `test` completes, `impl` fires. When `impl` completes, `review` fires as a gate. If the gate passes and `auto_merge` is set (see Reference), the job merges to the parent branch; otherwise it sits Completed.
@@ -87,8 +87,13 @@ Normalized to three sequential steps: `planner` → `coder` → `reviewer`. Shor
 - Orchestrator internals (pipeline advancement, gate retry, replay) — see [Orchestrator](/reference/runtime/orchestrator/).
 - The `ship-jobs` crate that owns the types — see [ship-jobs](/reference/pipelines/ship-jobs/).
 
+## Artifact I/O (phase 2)
+
+Step-to-step artifact passing via `produces`/`consumes`/`promotes` declarations is a **phase-2 deliverable**. In phase 1, agents use the [`artifact_upload`/`artifact_get` MCP tools](/reference/artifacts/) directly to share files across steps — the pipeline orchestrator does not yet manage artifact routing automatically.
+
 ## Related
 
 - [Orchestrator](/reference/runtime/orchestrator/) — how pipelines execute at runtime.
 - [Workspaces](/reference/runtime/workspaces/) — where pipelines run.
 - [Triggers](/reference/triggers/) — a trigger with a `pipeline.trigger` action dispatches a pipeline run.
+- [Artifacts](/reference/artifacts/) — the artifact store agents use for step I/O.

@@ -10,16 +10,16 @@ Studio is a web-based interface for managing agent configuration. It provides a 
 
 **Hosted version:** Visit [getship.dev](https://getship.dev). The hosted app connects to your local CLI over localhost.
 
-**Prerequisites:** The CLI must be running an HTTP MCP server:
+**Prerequisites:** The Ship daemon must be running. Start it with:
 
 ```bash
-ship mcp serve --http
+ship daemon start
 ```
 
-This starts the MCP server on port 51741 (the default). Studio connects to `http://localhost:51741` using HTTP POST with JSON-RPC.
+The daemon listens on port 9315 by default. Studio connects to `http://localhost:9315` using HTTP POST with JSON-RPC.
 
 {% aside type="tip" %}
-HTTPS-to-localhost connections work because browsers exempt `localhost` from mixed-content blocking. The hosted Studio at getship.dev (HTTPS) can call `http://localhost:51741` without security errors.
+HTTPS-to-localhost connections work because browsers exempt `localhost` from mixed-content blocking. The hosted Studio at getship.dev (HTTPS) can call `http://localhost:9315` without security errors.
 {% /aside %}
 
 ## Connection lifecycle
@@ -50,7 +50,7 @@ If the CLI restarts, existing sessions become invalid. When a tool call returns 
 Studio communicates with the filesystem exclusively through MCP tool calls. It never reads or writes `.ship/` directly.
 
 ```
-Browser  -->  HTTP POST (JSON-RPC)  -->  ship mcp serve --http  -->  .ship/ on disk
+Browser  -->  HTTP POST (JSON-RPC)  -->  ship daemon start  -->  .ship/ on disk
 ```
 
 **Read path:** `pull_agents` returns all agents from both project and library sources with fully resolved skills, rules, and configuration. `list_project_skills` returns all skills. TanStack Query caches results with a 5-second stale time.
@@ -72,7 +72,7 @@ The CLI filesystem is always authoritative. IndexedDB is a cache and draft buffe
 
 ## Type safety
 
-Transfer types (`PullResponse`, `TransferBundle`, `ListAgentsResponse`, `PullSkill`) are defined in Rust and auto-generated to TypeScript via Specta. They live in `@ship/set`. Studio imports them directly -- no hand-written parallel type definitions.
+Transfer types (`PullResponse`, `TransferBundle`, `ListAgentsResponse`, `PullSkill`) are defined in Rust and auto-generated to TypeScript via Specta. They live in `@ship/ui`. Studio imports them directly -- no hand-written parallel type definitions.
 
 All MCP calls go through typed TanStack Query hooks in `features/studio/mcp-queries.ts`.
 

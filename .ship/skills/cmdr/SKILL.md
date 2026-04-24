@@ -55,7 +55,7 @@ Plan for "[goal]":
    Done when: tests from #1 pass
 
 3. auth-oauth-ui → web-lane (blocked by #2)
-   Scope: apps/web/src/routes/auth/
+   Scope: apps/gateway/src/routes/
    Done when: login flow works in browser
 
 Confirm and I'll dispatch.
@@ -96,7 +96,7 @@ On **FAIL**: surface specific failures. File follow-on job or send back to agent
 ## Cross-Cutting Rules
 
 - **You don't do specialist work.** If you're tempted to edit source files, dispatch an agent instead.
-- **Scope is authority.** `file_scope="apps/web/"` means that agent cannot touch `crates/`. Enforce at dispatch and gate.
+- **Scope is authority.** `file_scope="apps/gateway/"` means that agent cannot touch `crates/`. Enforce at dispatch and gate.
 - **Escalate what you can't resolve.** Never let a blocker sit silent.
 - **Log decisions, not activity.** Use `log_progress` for state changes and blockers. Not "checking status."
 - **End every session with a handoff.** What was accomplished, what's in flight, what's blocked, what's next. No handoff = next session starts blind.

@@ -9,6 +9,16 @@ use super::resolve::{is_valid_view_name, read_manifest_file, resolve_view_dir, s
 use super::{ViewListEntry, ViewManifest, mesh_err, mesh_ok};
 
 /// GET /api/views
+#[utoipa::path(
+    operation_id = "listViews",
+    get,
+    path = "/api/views",
+    responses(
+        (status = 200, description = "Catalog of available views"),
+        (status = 401, description = "Unauthenticated", body = crate::openapi_types::ErrorResponse),
+    ),
+    tag = "views"
+)]
 pub async fn list_views() -> impl IntoResponse {
     let mut views: HashMap<String, ViewListEntry> = HashMap::new();
     if let Ok(d) = runtime::project::get_project_dir(None) { scan_views_dir(&d.join("views"), "project", &mut views); }
@@ -61,6 +71,18 @@ pub async fn serve_view_asset(Path((name, file)): Path<(String, String)>) -> axu
 }
 
 /// GET /api/view/{name}/manifest
+#[utoipa::path(
+    operation_id = "serveViewManifest",
+    get,
+    path = "/api/view/{name}/manifest",
+    params(("name" = String, Path, description = "View name")),
+    responses(
+        (status = 200, description = "View manifest JSON"),
+        (status = 401, description = "Unauthenticated", body = crate::openapi_types::ErrorResponse),
+        (status = 404, description = "View not found", body = crate::openapi_types::ErrorResponse),
+    ),
+    tag = "views"
+)]
 pub async fn serve_view_manifest(Path(name): Path<String>) -> impl IntoResponse {
     if !is_valid_view_name(&name) { return mesh_err(StatusCode::BAD_REQUEST, "invalid view name"); }
     let (view_dir, _) = match resolve_view_dir(&name) {
@@ -93,6 +115,18 @@ pub async fn serve_view_manifest(Path(name): Path<String>) -> impl IntoResponse 
 }
 
 /// GET /api/view/{name}/bundle — raw JS, not JSON-wrapped.
+#[utoipa::path(
+    operation_id = "serveViewBundle",
+    get,
+    path = "/api/view/{name}/bundle",
+    params(("name" = String, Path, description = "View name")),
+    responses(
+        (status = 200, description = "View module bundle (JavaScript)", content_type = "application/javascript"),
+        (status = 401, description = "Unauthenticated", body = crate::openapi_types::ErrorResponse),
+        (status = 404, description = "View not found", body = crate::openapi_types::ErrorResponse),
+    ),
+    tag = "views"
+)]
 pub async fn serve_view_bundle(Path(name): Path<String>) -> axum::response::Response {
     use axum::http::header;
 

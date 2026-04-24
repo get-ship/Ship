@@ -45,6 +45,18 @@ const PLACEHOLDER_HTML: &str = r#"<!doctype html>
 
 /// `GET /setup` — serve the setup wizard if no workspaces exist, otherwise
 /// redirect to `/` so the user lands on the dashboard.
+#[utoipa::path(
+    operation_id = "setupHandler",
+    get,
+    path = "/setup",
+    responses(
+        (status = 200, description = "Setup wizard HTML", content_type = "text/html"),
+        (status = 303, description = "Redirect to / when a workspace already exists"),
+        (status = 500, description = "server error", body = crate::openapi_types::ErrorResponse),
+    ),
+    security(),
+    tag = "views"
+)]
 pub async fn setup_handler() -> Response {
     if has_any_workspace() {
         return redirect("/");
@@ -57,6 +69,17 @@ pub async fn setup_handler() -> Response {
 
 /// `GET /` — redirect to `/setup` on a fresh install, or to `/shell/` once
 /// at least one workspace is configured.
+#[utoipa::path(
+    operation_id = "indexHandler",
+    get,
+    path = "/",
+    responses(
+        (status = 303, description = "Redirect to /setup or /shell/ depending on first-run state"),
+        (status = 500, description = "server error", body = crate::openapi_types::ErrorResponse),
+    ),
+    security(),
+    tag = "views"
+)]
 pub async fn index_handler() -> Response {
     if has_any_workspace() {
         redirect("/shell/")

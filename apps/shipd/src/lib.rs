@@ -23,6 +23,8 @@ pub mod human_webhook;
 mod human_gateway;
 pub mod managers;
 pub mod openapi;
+pub mod openapi_modifier;
+pub mod openapi_types;
 pub mod project_api;
 pub mod pty_handler;
 pub mod rest_api;
@@ -35,6 +37,7 @@ pub mod feedback_api;
 pub mod lint_api;
 pub mod view_errors_api;
 pub mod mcp_apps_bridge;
+pub mod mcp_registry;
 mod server;
 pub mod themes;
 pub mod views;
@@ -47,6 +50,7 @@ pub mod shell_assets;
 pub mod ship_runtime;
 pub mod supervised;
 pub mod supervisor;
+pub mod webhook_ext;
 
 #[cfg(test)]
 pub mod test_harness;
@@ -142,7 +146,12 @@ pub async fn run_network(
     }
     // Start the abandoned session scanner.
     rt.session_scanner().await;
+    // One-shot: rehash legacy artifact rows that predate content_hash.
+    rt.backfill_artifact_content_hashes().await;
+    // Start the artifact GC loop (runs now then every hour).
+    rt.start_artifact_gc();
     human_gateway::spawn_human_gateway(rt.kernel(), rt.health_registry()).await;
+    rt.start_hook_engine().await;
 
     let token = match auth::read_token(&global_dir) {
         Ok(existing) if !existing.is_empty() => Arc::new(existing),

@@ -25,6 +25,10 @@ fn agent_step(agent: &str) -> PipelineStep {
         command: None,
         max_retries: None,
         gate: None,
+        produces: vec![],
+        consumes: vec![],
+        promotes: vec![],
+        fanout: None,
     }
 }
 
@@ -40,6 +44,10 @@ fn agent_step_with_model(agent: &str, model: &str) -> PipelineStep {
         command: None,
         max_retries: None,
         gate: None,
+        produces: vec![],
+        consumes: vec![],
+        promotes: vec![],
+        fanout: None,
     }
 }
 
@@ -55,6 +63,10 @@ fn run_step(command: &str) -> PipelineStep {
         command: Some(command.to_string()),
         max_retries: None,
         gate: None,
+        produces: vec![],
+        consumes: vec![],
+        promotes: vec![],
+        fanout: None,
     }
 }
 
@@ -89,6 +101,10 @@ fn step_goal_interpolated_from_job_vars() {
         command: None,
         max_retries: None,
         gate: None,
+        produces: vec![],
+        consumes: vec![],
+        promotes: vec![],
+        fanout: None,
     };
     let job_vars = vars(&[("feature_name", "config split")]);
     let resolved = interpolate_step(&step, &job_vars, &HashMap::new())

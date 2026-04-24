@@ -4,12 +4,12 @@ sidebar:
   label: "Schemas"
   order: 2
 ---
-A schema defines the shape of items in a collection. Schemas are JSONC files in `.ship/collections/`.
+A schema defines the shape of items in a collection. Schemas are JSONC files in `.ship/schemas/`.
 
 ## Format
 
 ```jsonc
-// .ship/collections/adr.jsonc
+// .ship/schemas/adr.jsonc
 {
   "id": "adr",
   "name": "Architecture Decision Record",
@@ -46,7 +46,7 @@ A schema defines the shape of items in a collection. Schemas are JSONC files in 
 | `boolean` | BOOLEAN | true/false (stored as 0/1, coerced on read) |
 | `enum` | TEXT | Constrained to `values` list |
 | `date` | TEXT | ISO 8601 date string |
-| `file` | TEXT | Path reference to `.artifacts/` or external URL |
+| `file` | TEXT | Artifact ID (ULID). Resolves via `GET /api/artifacts/:id`. See [Artifacts](/reference/artifacts/). |
 | `array` | TEXT | JSON array (stored as JSON string) |
 | `object` | TEXT | JSON object (stored as JSON string) |
 

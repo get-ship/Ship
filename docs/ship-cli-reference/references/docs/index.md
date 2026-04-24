@@ -58,10 +58,9 @@ To use a different default provider:
 ship init --provider gemini
 ```
 
-### 2. Create and activate an agent
+### 2. Activate an agent
 
 ```bash
-ship agents create my-agent
 ship use my-agent
 ```
 
@@ -109,14 +108,16 @@ Compiled output (gitignored, at project root):
 ```
 CLAUDE.md                  # claude provider
 GEMINI.md                  # gemini provider
-AGENTS.md                  # codex provider
+AGENTS.md                  # codex/opencode provider
 .mcp.json                  # claude MCP config
-.gemini/                   # gemini config + skills
+.gemini/                   # gemini config
 .codex/                    # codex config
 .claude/skills/            # claude native skills
+.agents/skills/            # gemini + codex native skills
 .cursor/rules/             # cursor rule files
 .cursor/mcp.json           # cursor MCP config
-.agents/skills/            # codex native skills
+.cursor/skills/            # cursor native skills
+.opencode/skills/          # opencode native skills
 ```
 
 ## Validation

@@ -1,6 +1,6 @@
 //! Runtime read API — exposes live platform state for Studio.
 //!
-//! Routes are mounted at domain-level paths (`/api/jobs`, `/api/workspaces`, ...) in lib.rs.
+//! Routes are mounted under `/api/runtime` in lib.rs.
 //! All handlers are read-only and use the existing `ApiState`.
 
 use axum::{
@@ -13,6 +13,7 @@ use axum::response::sse::{Event, KeepAlive, Sse};
 use runtime::events::{ActorConfig, EventEnvelope};
 use runtime::events::job::{JobCreatedPayload, event_types};
 use serde::Deserialize;
+use serde_json::json;
 
 use crate::auth::{AuthContext, Scope, require_scope};
 use crate::rest_api::{ApiState, MeshResponse};
@@ -26,14 +27,19 @@ pub struct SessionsQuery {
 
 // ---- Handlers ----
 
-/// GET /api/workspaces
+/// GET /api/runtime/workspaces
 ///
 /// Returns only active workspaces. Archived/dead workspaces are excluded
 /// from the API surface — the reconciler handles cleanup internally.
 #[utoipa::path(
+    operation_id = "listWorkspaces",
     get,
-    path = "/api/workspaces",
-    responses((status = 200, body = MeshResponse)),
+    path = "/api/runtime/workspaces",
+    responses(
+        (status = 200, body = MeshResponse),
+        (status = 401, description = "unauthorized", body = crate::openapi_types::ErrorResponse),
+        (status = 500, description = "server error", body = crate::openapi_types::ErrorResponse),
+    ),
     tag = "runtime"
 )]
 pub async fn list_workspaces(
@@ -128,12 +134,17 @@ fn git_worktrees() -> Option<Vec<(String, String)>> {
     Some(out)
 }
 
-/// GET /api/sessions[?workspace_id=<id>]
+/// GET /api/runtime/sessions[?workspace_id=<id>]
 #[utoipa::path(
+    operation_id = "listSessions",
     get,
-    path = "/api/sessions",
+    path = "/api/runtime/sessions",
     params(SessionsQuery),
-    responses((status = 200, body = MeshResponse)),
+    responses(
+        (status = 200, body = MeshResponse),
+        (status = 401, description = "unauthorized", body = crate::openapi_types::ErrorResponse),
+        (status = 500, description = "server error", body = crate::openapi_types::ErrorResponse),
+    ),
     tag = "runtime"
 )]
 pub async fn list_sessions(
@@ -186,11 +197,16 @@ pub async fn list_sessions(
         .into_response()
 }
 
-/// GET /api/agents/active
+/// GET /api/runtime/agents
 #[utoipa::path(
+    operation_id = "listAgents",
     get,
-    path = "/api/agents/active",
-    responses((status = 200, body = MeshResponse)),
+    path = "/api/runtime/agents",
+    responses(
+        (status = 200, body = MeshResponse),
+        (status = 401, description = "unauthorized", body = crate::openapi_types::ErrorResponse),
+        (status = 500, description = "server error", body = crate::openapi_types::ErrorResponse),
+    ),
     tag = "runtime"
 )]
 pub async fn list_agents(
@@ -252,7 +268,48 @@ pub async fn list_agents(
         .into_response()
 }
 
-/// GET /api/jobs
+// ---- Job request types ----
+
+#[derive(Deserialize, utoipa::ToSchema)]
+#[schema(example = json!({
+    "slug": "write-readme",
+    "agent": "writer",
+    "branch": "job/write-readme",
+    "spec_path": ".ship/specs/write-readme.md",
+    "source_spec_path": "/home/me/project/.ship/specs/write-readme.md",
+    "spec_content": "# Write README\n\nSummarize the project.\n",
+    "vars": { "topic": "ship" },
+    "headless": false
+}))]
+pub struct CreateJobRequest {
+    pub slug: String,
+    pub agent: String,
+    pub branch: String,
+    pub spec_path: String,
+    /// Operator-facing path to the spec file (absolute when resolvable).
+    /// Plumbed into the JobRecord so `ship jobs` can distinguish which
+    /// spec each job was dispatched from. Distinct from `spec_path`
+    /// (daemon-side worktree destination). Optional: `--spec-text`
+    /// dispatches and legacy callers send `None`.
+    #[serde(default)]
+    pub source_spec_path: Option<String>,
+    pub depends_on: Option<Vec<String>>,
+    pub pipeline: Option<String>,
+    pub provider: Option<String>,
+    /// Inline spec content. Travels in the JobCreated event; the worktree
+    /// adapter writes it to `spec_path` at dispatch time.
+    pub spec_content: Option<String>,
+    /// Pipeline variables for `{{ var }}` interpolation in step fields.
+    /// Merged over pipeline-file defaults; CLI `--var` flags land here.
+    #[serde(default)]
+    pub vars: Option<std::collections::HashMap<String, String>>,
+    /// When true, force the headless (ProcessExecutor) path. When false or
+    /// absent, the default TmuxWindowExecutor (tmux-window) path is used.
+    #[serde(default)]
+    pub headless: bool,
+}
+
+/// GET /api/runtime/jobs
 ///
 /// Returns each `JobRecord` with two operator-visibility annotations:
 ///
@@ -262,9 +319,14 @@ pub async fn list_agents(
 ///   it, `"terminal"` for jobs in a terminal status, `"none"` otherwise.
 /// - `notes`: optional truncated error / blocker for the row's NOTES column.
 #[utoipa::path(
+    operation_id = "listJobs",
     get,
-    path = "/api/jobs",
-    responses((status = 200, body = MeshResponse)),
+    path = "/api/runtime/jobs",
+    responses(
+        (status = 200, body = MeshResponse),
+        (status = 401, description = "unauthorized", body = crate::openapi_types::ErrorResponse),
+        (status = 500, description = "server error", body = crate::openapi_types::ErrorResponse),
+    ),
     tag = "runtime"
 )]
 pub async fn list_jobs(State(state): State<ApiState>) -> impl IntoResponse {
@@ -424,11 +486,17 @@ pub struct EventSummary {
     payload_preview: String,
 }
 
-/// GET /api/jobs/{job_id}
+/// GET /api/runtime/jobs/{job_id}
 #[utoipa::path(
+    operation_id = "getJobDetail",
     get,
-    path = "/api/jobs/{job_id}",
-    responses((status = 200, body = MeshResponse)),
+    path = "/api/runtime/jobs/{job_id}",
+    responses(
+        (status = 200, body = MeshResponse),
+        (status = 401, description = "unauthorized", body = crate::openapi_types::ErrorResponse),
+        (status = 404, description = "job not found", body = crate::openapi_types::ErrorResponse),
+        (status = 500, description = "server error", body = crate::openapi_types::ErrorResponse),
+    ),
     tag = "runtime"
 )]
 pub async fn get_job_detail(
@@ -507,186 +575,58 @@ pub async fn get_job_detail(
         .into_response()
 }
 
-// ---- Dispatch (the one canonical dispatch endpoint) ----
-
-/// Dispatch a pipeline run. The only required field is `pipeline`;
-/// every other field is a power-user override. UI callers typically
-/// send `{pipeline, spec, provider?, headless}` and let the daemon
-/// derive slug/branch/agent. CLI callers that already own a slug
-/// naming convention (e.g. `ship run`) pass the full set.
-#[derive(Deserialize, utoipa::ToSchema)]
-pub struct DispatchRequest {
-    /// Pipeline name (file in `.ship/pipelines/<name>.{yaml,yml,jsonc,json}`).
-    pub pipeline: String,
-    /// Inline spec body describing what the run should do.
-    #[serde(default)]
-    pub spec: Option<String>,
-    /// Provider override; when `None`, each step uses whatever the
-    /// pipeline YAML declared (or falls back to claude).
-    #[serde(default)]
-    pub provider: Option<String>,
-    /// Model override (e.g. "sonnet"). When `None`, step YAML decides.
-    #[serde(default)]
-    pub model: Option<String>,
-    /// Pipeline `{{ var }}` overrides.
-    #[serde(default)]
-    pub vars: Option<std::collections::HashMap<String, String>>,
-    /// When true, force the headless (ProcessExecutor) path.
-    #[serde(default)]
-    pub headless: bool,
-    /// Optional workspace name; defaults to the pipeline name. Only
-    /// used when `slug` isn't supplied.
-    #[serde(default)]
-    pub workspace: Option<String>,
-
-    // ── Power-user overrides (CLI + programmatic callers) ──
-    /// Explicit slug (e.g. `ship-dev-01kpx…`). When `None`, the daemon
-    /// generates one from `workspace` + a random suffix.
-    #[serde(default)]
-    pub slug: Option<String>,
-    /// Explicit branch. When `None`, defaults to `job/<slug>`.
-    #[serde(default)]
-    pub branch: Option<String>,
-    /// Agent override. When `None`, falls back to the pipeline's
-    /// first-step `agent`, then `"default"`.
-    #[serde(default)]
-    pub agent: Option<String>,
-    /// Operator-facing path to the spec file (for `ship jobs` display).
-    #[serde(default)]
-    pub source_spec_path: Option<String>,
-    /// Parent job slugs this run depends on.
-    #[serde(default)]
-    pub depends_on: Option<Vec<String>>,
-}
-
-/// POST /api/jobs/dispatch
+/// POST /api/runtime/jobs — emit job.created event through the kernel.
 ///
-/// UI-facing dispatch — mirrors `ship run` on the CLI. Loads the
-/// named pipeline, generates slug/branch/agent, and emits
-/// `job.created`. The orchestrator picks it up from there.
+/// The kernel persists the event and routes it to subscribers.
+/// The job_dispatch service handles all heavy lifting (worktree creation,
+/// dependency resolution, agent spawning).
 #[utoipa::path(
+    operation_id = "createJob",
     post,
-    path = "/api/jobs/dispatch",
-    request_body = DispatchRequest,
-    responses((status = 200, body = MeshResponse)),
+    path = "/api/runtime/jobs",
+    request_body = CreateJobRequest,
+    responses(
+        (status = 200, body = MeshResponse),
+        (status = 400, description = "bad request", body = crate::openapi_types::ErrorResponse),
+        (status = 401, description = "unauthorized", body = crate::openapi_types::ErrorResponse),
+        (status = 409, description = "job slug already exists", body = crate::openapi_types::ErrorResponse),
+        (status = 500, description = "server error", body = crate::openapi_types::ErrorResponse),
+    ),
     tag = "runtime"
 )]
-pub async fn dispatch_pipeline(
+pub async fn create_job(
     State(state): State<ApiState>,
     Extension(auth): Extension<AuthContext>,
-    Json(req): Json<DispatchRequest>,
+    Json(req): Json<CreateJobRequest>,
 ) -> impl IntoResponse {
     if let Err(e) = require_scope(&auth, Scope::CreateJobs) {
         return e;
     }
-
-    // Walk up from the daemon's CWD to find `.ship/pipelines/<name>.{yaml,yml,jsonc,json}`.
-    // Matches runtime::services::orchestrator::pipeline_loader::load_pipeline_file's
-    // resolution strategy so ensure_pipeline (called below) will find the same file.
-    let pipeline_path = {
-        let mut dir = std::env::current_dir().ok();
-        let mut found = None;
-        while let Some(d) = dir.as_ref() {
-            let pipelines_dir = d.join(".ship").join("pipelines");
-            if pipelines_dir.is_dir() {
-                for ext in ["yaml", "yml", "jsonc", "json"] {
-                    let candidate = pipelines_dir.join(format!("{}.{ext}", req.pipeline));
-                    if candidate.exists() {
-                        found = Some(candidate);
-                        break;
-                    }
-                }
-                break;
-            }
-            dir = d.parent().map(|p| p.to_path_buf());
-        }
-        found
-    };
-    let Some(pipeline_path) = pipeline_path else {
-        return (
-            StatusCode::NOT_FOUND,
-            Json(MeshResponse {
-                ok: false,
-                data: serde_json::json!(format!("pipeline '{}' not found", req.pipeline)),
-            }),
-        );
-    };
-    let raw = match std::fs::read_to_string(&pipeline_path) {
-        Ok(s) => s,
-        Err(e) => {
-            return (
-                StatusCode::INTERNAL_SERVER_ERROR,
-                Json(MeshResponse {
-                    ok: false,
-                    data: serde_json::json!(format!("read pipeline: {e}")),
-                }),
-            );
-        }
-    };
-    let (normalized, meta) = match ship_jobs::pipeline::normalize_pipeline_yaml(&raw) {
-        Ok(n) => n,
-        Err(e) => {
-            return (
-                StatusCode::BAD_REQUEST,
-                Json(MeshResponse {
-                    ok: false,
-                    data: serde_json::json!(format!("pipeline parse: {e}")),
-                }),
-            );
-        }
-    };
-
-    let steps = match normalized.get("steps").and_then(|v| v.as_array()) {
-        Some(s) => s,
-        None => {
-            return (
-                StatusCode::BAD_REQUEST,
-                Json(MeshResponse {
-                    ok: false,
-                    data: serde_json::json!("pipeline has no steps"),
-                }),
-            );
-        }
-    };
-
-    let first_agent = req.agent.clone().unwrap_or_else(|| {
-        steps
-            .first()
-            .and_then(|s| s.get("agent"))
-            .and_then(|a| a.as_str())
-            .unwrap_or("default")
-            .to_string()
-    });
-
-    let pipeline_name = meta.name.clone().unwrap_or_else(|| req.pipeline.clone());
-    let workspace_name = req.workspace.unwrap_or_else(|| pipeline_name.clone());
-    let slug = req.slug.unwrap_or_else(|| {
-        format!("{}-{}", workspace_name, &runtime::gen_ulid()[..8].to_lowercase())
-    });
-    let branch = req.branch.unwrap_or_else(|| format!("job/{slug}"));
     let job_id = runtime::gen_ulid();
-
+    let baseline_sha = resolve_project_head_sha();
     let payload = JobCreatedPayload {
         job_id: job_id.clone(),
-        slug,
-        agent: first_agent,
-        branch,
-        spec_path: ".artifacts/job-spec.md".to_string(),
+        slug: req.slug,
+        agent: req.agent,
+        branch: req.branch,
+        spec_path: req.spec_path,
         source_spec_path: req.source_spec_path,
         plan_id: None,
-        model: req.model,
+        model: None,
         provider: req.provider,
         depends_on: req.depends_on,
         pipeline: None,
         steps: None,
-        pipeline_name: Some(pipeline_name),
+        pipeline_name: req.pipeline,
         vars: req.vars,
-        spec_content: req.spec,
+        spec_content: req.spec_content,
         step_specs: None,
         headless: req.headless,
-        baseline_sha: resolve_project_head_sha(),
+        baseline_sha,
     };
 
+    // Enrich with pipeline BEFORE persisting — the persisted event must include steps
+    // so projections can track pipeline state.
     let payload = match runtime::services::orchestrator::pipeline_loader::ensure_pipeline(payload) {
         Ok(p) => p,
         Err(e) => {
@@ -703,7 +643,7 @@ pub async fn dispatch_pipeline(
         Ok(e) => e,
         Err(e) => {
             return (
-                StatusCode::INTERNAL_SERVER_ERROR,
+                StatusCode::BAD_REQUEST,
                 Json(MeshResponse {
                     ok: false,
                     data: serde_json::json!(e.to_string()),
@@ -741,14 +681,22 @@ fn default_cancel_reason() -> String {
     "operator-cancelled".to_string()
 }
 
-/// POST /api/jobs/{slug}/cancel — emit `job.cancelled` for the
+/// POST /api/runtime/jobs/{slug}/cancel — emit `job.cancelled` for the
 /// job with this slug. Idempotent: returns 409 with the current status
 /// when the job is already in a terminal state, and emits no event.
 #[utoipa::path(
+    operation_id = "cancelJob",
     post,
-    path = "/api/jobs/{slug}/cancel",
+    path = "/api/runtime/jobs/{slug}/cancel",
     request_body = CancelJobRequest,
-    responses((status = 200, body = MeshResponse)),
+    responses(
+        (status = 200, body = MeshResponse),
+        (status = 400, description = "bad request", body = crate::openapi_types::ErrorResponse),
+        (status = 401, description = "unauthorized", body = crate::openapi_types::ErrorResponse),
+        (status = 404, description = "job not found", body = crate::openapi_types::ErrorResponse),
+        (status = 409, description = "job already finished", body = crate::openapi_types::ErrorResponse),
+        (status = 500, description = "server error", body = crate::openapi_types::ErrorResponse),
+    ),
     tag = "runtime"
 )]
 pub async fn cancel_job(
@@ -842,21 +790,28 @@ pub async fn cancel_job(
 // ---- Job end (hook-triggered) ----
 
 #[derive(Deserialize, utoipa::ToSchema)]
+#[schema(example = json!({ "slug": "write-readme" }))]
 pub struct JobEndRequest {
     pub slug: String,
 }
 
-/// POST /api/jobs/end — signal that a provider turn ended for a job.
+/// POST /api/runtime/jobs/end — signal that a provider turn ended for a job.
 ///
 /// Called by the session Stop hook when an agent finishes a response turn.
 /// For multi-step pipeline jobs, this sends a TurnEnded signal to the step
 /// monitor (which accumulates evidence before deciding to advance).
 /// For single-step jobs, emits job.completed directly.
 #[utoipa::path(
+    operation_id = "endJob",
     post,
-    path = "/api/jobs/end",
+    path = "/api/runtime/jobs/end",
     request_body = JobEndRequest,
-    responses((status = 200, body = MeshResponse)),
+    responses(
+        (status = 200, body = MeshResponse),
+        (status = 400, description = "bad request", body = crate::openapi_types::ErrorResponse),
+        (status = 401, description = "unauthorized", body = crate::openapi_types::ErrorResponse),
+        (status = 500, description = "server error", body = crate::openapi_types::ErrorResponse),
+    ),
     tag = "runtime"
 )]
 pub async fn end_job(
@@ -946,13 +901,19 @@ pub struct SteerAgentRequest {
     pub message: String,
 }
 
-/// POST /api/agents/{slug}/stop — stop a running agent by slug.
+/// POST /api/runtime/agents/{slug}/stop — stop a running agent by slug.
 ///
 /// Uses the process registry and executor to terminate the agent process.
 #[utoipa::path(
+    operation_id = "stopAgent",
     post,
-    path = "/api/agents/{slug}/stop",
-    responses((status = 200, body = MeshResponse)),
+    path = "/api/runtime/agents/{slug}/stop",
+    responses(
+        (status = 200, body = MeshResponse),
+        (status = 401, description = "unauthorized", body = crate::openapi_types::ErrorResponse),
+        (status = 404, description = "agent not found", body = crate::openapi_types::ErrorResponse),
+        (status = 500, description = "server error", body = crate::openapi_types::ErrorResponse),
+    ),
     tag = "runtime"
 )]
 pub async fn stop_agent(
@@ -998,12 +959,19 @@ pub async fn stop_agent(
     }
 }
 
-/// POST /api/agents/{slug}/steer — inject a message into a running agent.
+/// POST /api/runtime/agents/{slug}/steer — inject a message into a running agent.
 #[utoipa::path(
+    operation_id = "steerAgent",
     post,
-    path = "/api/agents/{slug}/steer",
+    path = "/api/runtime/agents/{slug}/steer",
     request_body = SteerAgentRequest,
-    responses((status = 200, body = MeshResponse)),
+    responses(
+        (status = 200, body = MeshResponse),
+        (status = 400, description = "bad request", body = crate::openapi_types::ErrorResponse),
+        (status = 401, description = "unauthorized", body = crate::openapi_types::ErrorResponse),
+        (status = 404, description = "agent not found", body = crate::openapi_types::ErrorResponse),
+        (status = 500, description = "server error", body = crate::openapi_types::ErrorResponse),
+    ),
     tag = "runtime"
 )]
 pub async fn steer_agent(
@@ -1056,16 +1024,21 @@ pub struct ProcsQuery {
     pub limit: Option<usize>,
 }
 
-/// GET /api/procs[?slug=X][&limit=N]
+/// GET /api/runtime/procs[?slug=X][&limit=N]
 ///
 /// Returns process records from the `process.*` projection. Without
 /// `slug`, returns the most recent `limit` records (default 100), sorted
 /// newest first.
 #[utoipa::path(
+    operation_id = "listProcs",
     get,
-    path = "/api/procs",
+    path = "/api/runtime/procs",
     params(ProcsQuery),
-    responses((status = 200, body = MeshResponse)),
+    responses(
+        (status = 200, body = MeshResponse),
+        (status = 401, description = "unauthorized", body = crate::openapi_types::ErrorResponse),
+        (status = 500, description = "server error", body = crate::openapi_types::ErrorResponse),
+    ),
     tag = "runtime"
 )]
 pub async fn list_procs(
@@ -1108,16 +1081,21 @@ pub struct EventsPollQuery {
     pub limit: Option<usize>,
 }
 
-/// GET /api/events/poll
+/// GET /api/runtime/events/poll
 ///
 /// Polling fallback for `ship tail`. SSE replays only future events;
 /// poll allows the CLI to walk the log forward from a known cursor.
 /// Use `since_id` (ULID) for incremental polling. Limit defaults to 200.
 #[utoipa::path(
+    operation_id = "pollEvents",
     get,
-    path = "/api/events/poll",
+    path = "/api/runtime/events/poll",
     params(EventsPollQuery),
-    responses((status = 200, body = MeshResponse)),
+    responses(
+        (status = 200, body = MeshResponse),
+        (status = 401, description = "unauthorized", body = crate::openapi_types::ErrorResponse),
+        (status = 500, description = "server error", body = crate::openapi_types::ErrorResponse),
+    ),
     tag = "runtime"
 )]
 pub async fn poll_events(
@@ -1182,15 +1160,20 @@ pub async fn poll_events(
     )
 }
 
-/// GET /api/daemon/status
+/// GET /api/runtime/daemon/status
 ///
 /// Real, live status for `ship daemon status` — pid, version, uptime,
 /// job counts by status, last sweep timestamp, drift count over the
 /// last 50 sweep events.
 #[utoipa::path(
+    operation_id = "daemonStatus",
     get,
-    path = "/api/daemon/status",
-    responses((status = 200, body = MeshResponse)),
+    path = "/api/runtime/daemon/status",
+    responses(
+        (status = 200, body = MeshResponse),
+        (status = 401, description = "unauthorized", body = crate::openapi_types::ErrorResponse),
+        (status = 500, description = "server error", body = crate::openapi_types::ErrorResponse),
+    ),
     tag = "runtime"
 )]
 pub async fn daemon_status(State(state): State<ApiState>) -> impl IntoResponse {
@@ -1249,11 +1232,17 @@ pub async fn daemon_status(State(state): State<ApiState>) -> impl IntoResponse {
     )
 }
 
-/// POST /api/rebuild-projections — rebuild all projections from events.
+/// POST /api/runtime/rebuild-projections — rebuild all projections from events.
 #[utoipa::path(
+    operation_id = "rebuildProjections",
     post,
-    path = "/api/rebuild-projections",
-    responses((status = 200, body = MeshResponse)),
+    path = "/api/runtime/rebuild-projections",
+    responses(
+        (status = 200, body = MeshResponse),
+        (status = 401, description = "unauthorized", body = crate::openapi_types::ErrorResponse),
+        (status = 409, description = "rebuild already running", body = crate::openapi_types::ErrorResponse),
+        (status = 500, description = "server error", body = crate::openapi_types::ErrorResponse),
+    ),
     tag = "runtime"
 )]
 pub async fn rebuild_projections(
@@ -1301,36 +1290,20 @@ impl Drop for ActorGuard {
     }
 }
 
-/// GET /api/events/stream — SSE stream of kernel events.
-///
-/// Two output modes and an optional topic filter:
-///
-/// * Default mode (no query params): subscribes to all namespaces and emits
-///   each envelope as a `ship.event` frame carrying the raw JSON envelope.
-///   This is the existing contract — callers relying on it are unchanged.
-/// * `?mode=datastar`: emits `datastar-patch-signals` frames that merge each
-///   event into the client's Datastar signal store. The target signal is
-///   controlled by `?signal=<name>` (default `events`). Events accumulate as
-///   an array with most-recent-first ordering, capped at 50 entries.
-/// * `?topics=a,b,c`: comma-separated list of **prefix** filters matched
-///   against `envelope.event_type`. `topics=job` matches `job.started`,
-///   `job.step.started`, etc. Applies in both modes.
-#[derive(Deserialize)]
-pub struct EventStreamQuery {
-    pub topics: Option<String>,
-    pub mode: Option<String>,
-    pub signal: Option<String>,
-}
-
+/// GET /api/runtime/events — SSE stream of all kernel events.
 #[utoipa::path(
+    operation_id = "eventStream",
     get,
-    path = "/api/events/stream",
-    responses((status = 200, description = "SSE stream of kernel events")),
+    path = "/api/runtime/events",
+    responses(
+        (status = 200, description = "SSE stream of kernel events"),
+        (status = 401, description = "unauthorized", body = crate::openapi_types::ErrorResponse),
+        (status = 500, description = "server error", body = crate::openapi_types::ErrorResponse),
+    ),
     tag = "runtime"
 )]
 pub async fn event_stream(
     State(state): State<ApiState>,
-    Query(q): Query<EventStreamQuery>,
 ) -> Result<Sse<impl futures::stream::Stream<Item = Result<Event, std::convert::Infallible>>>, (StatusCode, String)> {
     let actor_id = format!(
         "studio-events-{}",
@@ -1364,65 +1337,17 @@ pub async fn event_stream(
         kernel: state.kernel().clone(),
     };
 
-    let topic_prefixes: Vec<String> = q
-        .topics
-        .as_deref()
-        .map(|s| {
-            s.split(',')
-                .map(str::trim)
-                .filter(|p| !p.is_empty())
-                .map(str::to_string)
-                .collect()
-        })
-        .unwrap_or_default();
-    let datastar_mode = q.mode.as_deref() == Some("datastar");
-    let signal_name = q.signal.unwrap_or_else(|| "events".to_string());
-
     let stream = async_stream::stream! {
         let _guard = guard;
         let mut mb = mailbox;
-        let mut acc: std::collections::VecDeque<serde_json::Value> =
-            std::collections::VecDeque::with_capacity(50);
         while let Some(event) = mb.recv().await {
-            if !topic_prefixes.is_empty()
-                && !topic_prefixes.iter().any(|p| event.event_type.starts_with(p))
-            {
-                continue;
-            }
-            if datastar_mode {
-                let payload_value: serde_json::Value =
-                    serde_json::from_str(&event.payload_json)
-                        .unwrap_or(serde_json::Value::Null);
-                let entry = serde_json::json!({
-                    "id": event.id,
-                    "event_type": event.event_type,
-                    "entity_id": event.entity_id,
-                    "created_at": event.created_at,
-                    "payload": payload_value,
-                });
-                acc.push_front(entry);
-                while acc.len() > 50 {
-                    acc.pop_back();
-                }
-                let arr: Vec<&serde_json::Value> = acc.iter().collect();
-                let mut body = serde_json::Map::new();
-                body.insert(
-                    signal_name.clone(),
-                    serde_json::to_value(&arr).unwrap_or(serde_json::Value::Null),
-                );
-                let json = serde_json::Value::Object(body).to_string();
-                yield Ok::<_, std::convert::Infallible>(
-                    crate::views::stream::patch_signals_event(json)
-                );
-            } else {
-                let json = match serde_json::to_string(&event) {
-                    Ok(j) => j,
-                    Err(_) => continue,
-                };
-                yield Ok::<_, std::convert::Infallible>(
-                    Event::default().event("ship.event").data(json)
-                );
-            }
+            let json = match serde_json::to_string(&event) {
+                Ok(j) => j,
+                Err(_) => continue,
+            };
+            yield Ok::<_, std::convert::Infallible>(
+                Event::default().event("ship.event").data(json)
+            );
         }
     };
 
@@ -2154,4 +2079,58 @@ mod tests {
         let events = vec![mk("supervisor.drift_detected")];
         assert!(drift_active_for_slug("slug", &events));
     }
+}
+
+// ── Merge shim: dispatch_pipeline ────────────────────────────────────
+// Main dropped dispatch_pipeline from runtime_api; our branch's route
+// (/api/jobs/dispatch) still references it. Stubbed to 501 so shipd
+// compiles; real integration against main's replacement comes post-
+// merge. See TODO in router.rs.
+
+#[derive(serde::Deserialize, utoipa::ToSchema)]
+pub struct DispatchRequest {
+    pub pipeline: String,
+    #[serde(default)]
+    pub spec: Option<String>,
+    #[serde(default)]
+    pub provider: Option<String>,
+    #[serde(default)]
+    pub model: Option<String>,
+    #[serde(default)]
+    pub vars: Option<std::collections::HashMap<String, String>>,
+    #[serde(default)]
+    pub headless: bool,
+    #[serde(default)]
+    pub workspace: Option<String>,
+    #[serde(default)]
+    pub slug: Option<String>,
+    #[serde(default)]
+    pub agent: Option<String>,
+    #[serde(default)]
+    pub branch: Option<String>,
+    #[serde(default)]
+    pub job_id: Option<String>,
+}
+
+#[utoipa::path(
+    post,
+    path = "/api/jobs/dispatch",
+    request_body = DispatchRequest,
+    responses((status = 501, description = "Not implemented — post-merge re-wire pending")),
+    tag = "jobs"
+)]
+pub async fn dispatch_pipeline(
+    axum::extract::State(_state): axum::extract::State<crate::rest_api::ApiState>,
+    axum::Extension(_auth): axum::Extension<crate::auth::AuthContext>,
+    axum::Json(_req): axum::Json<DispatchRequest>,
+) -> (axum::http::StatusCode, axum::Json<crate::rest_api::MeshResponse>) {
+    (
+        axum::http::StatusCode::NOT_IMPLEMENTED,
+        axum::Json(crate::rest_api::MeshResponse {
+            ok: false,
+            data: serde_json::json!(
+                "dispatch_pipeline is temporarily stubbed — awaits post-merge re-wire against main's replacement"
+            ),
+        }),
+    )
 }

@@ -138,8 +138,6 @@
 {%- macro git_commit_draft_delete() -%}/api/git/commit-draft{%- endmacro -%}
 {%- macro git_sse() -%}/api/git/sse{%- endmacro -%}
 {%- macro emit_event() -%}/api/events/emit{%- endmacro -%}
-{%- macro artifacts_status(id) -%}/api/workspaces/{{ id }}/artifacts/status{%- endmacro -%}
-{%- macro promote_artifact(id) -%}/api/workspaces/{{ id }}/artifacts/promote{%- endmacro -%}
 {%- macro mesh_register() -%}/api/mesh/register{%- endmacro -%}
 {%- macro mesh_send() -%}/api/mesh/send{%- endmacro -%}
 {%- macro mesh_broadcast() -%}/api/mesh/broadcast{%- endmacro -%}
@@ -159,7 +157,10 @@
 {%- macro artifacts_upload() -%}/api/artifacts{%- endmacro -%}
 {%- macro artifacts_list() -%}/api/artifacts{%- endmacro -%}
 {%- macro artifact_download(id) -%}/api/artifacts/{{ id }}{%- endmacro -%}
+{%- macro artifact_metadata(id) -%}/api/artifacts/{{ id }}/metadata{%- endmacro -%}
+{%- macro artifact_patch(id) -%}/api/artifacts/{{ id }}{%- endmacro -%}
 {%- macro artifact_delete(id) -%}/api/artifacts/{{ id }}{%- endmacro -%}
+{%- macro artifact_promote(id) -%}/api/artifacts/{{ id }}/promote{%- endmacro -%}
 {%- macro capabilities() -%}/api/capabilities{%- endmacro -%}
 {%- macro lint_view() -%}/api/lint/view{%- endmacro -%}
 {%- macro view_meta(name) -%}/api/views/{{ name }}/meta{%- endmacro -%}
@@ -168,3 +169,4 @@
 {%- macro post_view_error() -%}/api/view-errors{%- endmacro -%}
 {%- macro list_view_errors() -%}/api/view-errors{%- endmacro -%}
 {%- macro clear_view_errors() -%}/api/view-errors{%- endmacro -%}
+{%- macro mcp_servers() -%}/api/mcp/servers{%- endmacro -%}

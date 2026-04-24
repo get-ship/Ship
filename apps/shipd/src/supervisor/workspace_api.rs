@@ -10,6 +10,7 @@ use axum::{
 };
 use runtime::events::{CallerKind, EmitContext, EventEnvelope};
 use serde::{Deserialize, Serialize};
+use serde_json::json;
 
 use crate::auth::{AuthContext, Scope};
 use crate::rest_api::ApiState;
@@ -18,14 +19,26 @@ use super::helpers::{
 };
 use super::terminal_launcher;
 
-#[derive(Deserialize)]
+#[derive(Deserialize, utoipa::ToSchema)]
+#[schema(example = json!({
+    "agent_id": "agent-writer",
+    "base_branch": "main",
+    "open_terminal": true
+}))]
 pub struct StartWorkspaceRequest {
     pub agent_id: String,
     pub base_branch: Option<String>,
     pub open_terminal: Option<bool>,
 }
 
-#[derive(Serialize)]
+#[derive(Serialize, utoipa::ToSchema)]
+#[schema(example = json!({
+    "ok": true,
+    "worktree_path": "/workspaces/worktrees/write-readme",
+    "tmux_session": "ship:write-readme",
+    "terminal_launched": true,
+    "terminal_strategy": "tmux-window"
+}))]
 pub struct StartWorkspaceResponse {
     pub ok: bool,
     pub worktree_path: String,
@@ -35,10 +48,25 @@ pub struct StartWorkspaceResponse {
 }
 
 fn err(status: StatusCode, msg: impl Into<String>) -> (StatusCode, Json<serde_json::Value>) {
-    (status, Json(serde_json::json!({ "error": msg.into() })))
+    (status, Json(json!({ "error": msg.into() })))
 }
 
 /// POST /api/supervisor/workspaces/:id/start
+#[utoipa::path(
+    operation_id = "startWorkspace",
+    post,
+    path = "/api/supervisor/workspaces/{id}/start",
+    params(("id" = String, Path, description = "Workspace id")),
+    request_body = StartWorkspaceRequest,
+    responses(
+        (status = 200, description = "Workspace worktree provisioned; agent launched", body = StartWorkspaceResponse),
+        (status = 401, description = "Unauthenticated", body = crate::openapi_types::ErrorResponse),
+        (status = 403, description = "Insufficient scope", body = crate::openapi_types::ErrorResponse),
+        (status = 404, description = "Workspace not found", body = crate::openapi_types::ErrorResponse),
+        (status = 500, description = "Server error", body = crate::openapi_types::ErrorResponse),
+    ),
+    tag = "project"
+)]
 pub async fn start_workspace(
     Path(workspace_id): Path<String>,
     State(state): State<ApiState>,
@@ -123,7 +151,7 @@ async fn register_on_mesh(state: &crate::ship_runtime::ShipRuntime, agent_id: &s
     let envelope = match EventEnvelope::new(
         "mesh.register",
         agent_id,
-        &serde_json::json!({ "agent_id": agent_id, "capabilities": ["workspace"] }),
+        &json!({ "agent_id": agent_id, "capabilities": ["workspace"] }),
     ) {
         Ok(e) => e.with_actor_id(agent_id),
         Err(e) => {

@@ -4,6 +4,7 @@
 //! the agent's role. Handlers check scopes before executing.
 
 use axum::http::StatusCode;
+use serde_json::json;
 use std::collections::HashMap;
 use std::sync::Arc;
 use tokio::sync::Mutex;
@@ -11,7 +12,7 @@ use tokio::sync::Mutex;
 /// Coarse-grained capability scopes for daemon session access control.
 /// Each handler declares which scope it requires; the auth layer checks
 /// the session's granted scopes before the handler runs.
-#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, serde::Serialize, serde::Deserialize)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq, Hash, serde::Serialize, serde::Deserialize, utoipa::ToSchema)]
 #[serde(rename_all = "snake_case")]
 pub enum Scope {
     ReadWorkspace,
@@ -25,6 +26,18 @@ pub enum Scope {
     LogProgress,
     StepDone,
     AdminDaemon,
+    /// Fine-grained artifact grants — granted in addition to workspace grants.
+    ReadArtifactsRun,
+    WriteArtifactsRun,
+    DeleteArtifactsRun,
+    ReadArtifactsProject,
+    WriteArtifactsProject,
+    DeleteArtifactsProject,
+    ReadArtifactsUser,
+    WriteArtifactsUser,
+    DeleteArtifactsUser,
+    /// Promote an artifact from one scope to another.
+    PromoteArtifact,
     /// Bypass all scope checks — used by daemon.token and contributor profile.
     Full,
 }
@@ -36,40 +49,110 @@ impl Scope {
     }
 }
 
+/// Artifact scopes granted to agents running inside a pipeline (worker/lead).
+/// Agents get read+write+delete on run scope, and read-only on project scope.
+fn pipeline_agent_artifact_scopes() -> Vec<Scope> {
+    vec![
+        Scope::ReadArtifactsRun,
+        Scope::WriteArtifactsRun,
+        Scope::DeleteArtifactsRun,
+        Scope::ReadArtifactsProject,
+    ]
+}
+
+/// Full artifact scopes for the session owner (human / CLI with daemon token).
+fn owner_artifact_scopes() -> Vec<Scope> {
+    vec![
+        Scope::ReadArtifactsRun,
+        Scope::WriteArtifactsRun,
+        Scope::DeleteArtifactsRun,
+        Scope::ReadArtifactsProject,
+        Scope::WriteArtifactsProject,
+        Scope::DeleteArtifactsProject,
+        Scope::ReadArtifactsUser,
+        Scope::WriteArtifactsUser,
+        Scope::DeleteArtifactsUser,
+        Scope::PromoteArtifact,
+    ]
+}
+
 /// Map an agent role to its granted scopes.
 pub fn scopes_for_role(role: Option<&str>) -> Vec<Scope> {
     match role {
-        Some("commander") => vec![
-            Scope::ReadWorkspace,
-            Scope::WriteWorkspace,
-            Scope::ReadJobs,
-            Scope::CreateJobs,
-            Scope::ManageJobs,
-            Scope::EmitEvents,
-            Scope::MeshSend,
-            Scope::MeshBroadcast,
-            Scope::LogProgress,
-        ],
-        Some("lead") => vec![
-            Scope::ReadWorkspace,
-            Scope::WriteWorkspace,
-            Scope::ReadJobs,
-            Scope::CreateJobs,
-            Scope::LogProgress,
-            Scope::StepDone,
-            Scope::MeshSend,
-            Scope::EmitEvents,
-        ],
+        Some("commander") => {
+            let mut s = vec![
+                Scope::ReadWorkspace,
+                Scope::WriteWorkspace,
+                Scope::ReadJobs,
+                Scope::CreateJobs,
+                Scope::ManageJobs,
+                Scope::EmitEvents,
+                Scope::MeshSend,
+                Scope::MeshBroadcast,
+                Scope::LogProgress,
+            ];
+            s.extend(pipeline_agent_artifact_scopes());
+            s
+        }
+        Some("lead") => {
+            let mut s = vec![
+                Scope::ReadWorkspace,
+                Scope::WriteWorkspace,
+                Scope::ReadJobs,
+                Scope::CreateJobs,
+                Scope::LogProgress,
+                Scope::StepDone,
+                Scope::MeshSend,
+                Scope::EmitEvents,
+            ];
+            s.extend(pipeline_agent_artifact_scopes());
+            s
+        }
         Some("contributor") => vec![Scope::Full],
-        Some("worker") | None => vec![
-            Scope::ReadWorkspace,
-            Scope::ReadJobs,
-            Scope::LogProgress,
-            Scope::StepDone,
-            Scope::MeshSend,
-            Scope::EmitEvents,
-        ],
+        Some("worker") | None => {
+            let mut s = vec![
+                Scope::ReadWorkspace,
+                Scope::ReadJobs,
+                Scope::LogProgress,
+                Scope::StepDone,
+                Scope::MeshSend,
+                Scope::EmitEvents,
+            ];
+            s.extend(pipeline_agent_artifact_scopes());
+            s
+        }
         _ => vec![Scope::ReadWorkspace, Scope::ReadJobs, Scope::LogProgress],
+    }
+}
+
+/// Artifact scope check helpers.
+pub fn can_read_artifacts(auth: &super::auth::AuthContext, scope_kind: &str) -> bool {
+    if auth.has_scope(Scope::Full) { return true; }
+    match scope_kind {
+        "run" => auth.has_scope(Scope::ReadArtifactsRun),
+        "project" => auth.has_scope(Scope::ReadArtifactsProject),
+        "user" => auth.has_scope(Scope::ReadArtifactsUser),
+        _ => false,
+    }
+}
+
+pub fn can_write_artifacts(auth: &super::auth::AuthContext, scope_kind: &str) -> bool {
+    if auth.has_scope(Scope::Full) { return true; }
+    match scope_kind {
+        "run" => auth.has_scope(Scope::WriteArtifactsRun),
+        "project" => auth.has_scope(Scope::WriteArtifactsProject),
+        "user" => auth.has_scope(Scope::WriteArtifactsUser),
+        _ => false,
+    }
+}
+
+pub fn can_delete_artifacts(auth: &super::auth::AuthContext, scope_kind: &str) -> bool {
+    if auth.has_scope(Scope::Full) { return true; }
+    match scope_kind {
+        "run" => auth.has_scope(Scope::DeleteArtifactsRun),
+        "project" => auth.has_scope(Scope::DeleteArtifactsProject),
+        "user" => auth.has_scope(Scope::DeleteArtifactsUser),
+        _ => false,
     }
 }
 
@@ -230,7 +313,7 @@ pub fn require_scope(
             StatusCode::FORBIDDEN,
             axum::Json(crate::rest_api::MeshResponse {
                 ok: false,
-                data: serde_json::json!(format!("insufficient scope: {scope:?} required")),
+                data: json!(format!("insufficient scope: {scope:?} required")),
             }),
         ))
     }
@@ -238,7 +321,12 @@ pub fn require_scope(
 
 // ---- Session register endpoint ----
 
-#[derive(serde::Deserialize)]
+#[derive(serde::Deserialize, utoipa::ToSchema)]
+#[schema(example = json!({
+    "agent_id": "agent-writer",
+    "role": "worker",
+    "workspace_id": "default"
+}))]
 pub struct SessionRegisterRequest {
     pub agent_id: String,
     #[serde(default)]
@@ -247,7 +335,11 @@ pub struct SessionRegisterRequest {
     pub workspace_id: Option<String>,
 }
 
-#[derive(serde::Serialize)]
+#[derive(serde::Serialize, utoipa::ToSchema)]
+#[schema(example = json!({
+    "session_token": "ses_01J3Z5ZQXAM3E4T7W",
+    "scopes": ["read_workspace", "read_jobs", "emit_events"]
+}))]
 pub struct SessionRegisterResponse {
     pub session_token: String,
     pub scopes: Vec<Scope>,
@@ -263,6 +355,18 @@ pub struct SessionRegisterResponse {
 /// token holders) can issue sessions, and the "contributor" role (which
 /// grants Full) is blocked — agents must use "worker", "lead", or
 /// "commander".
+#[utoipa::path(
+    operation_id = "sessionRegister",
+    post,
+    path = "/api/session/register",
+    request_body = SessionRegisterRequest,
+    responses(
+        (status = 200, description = "Session token minted for the agent role", body = SessionRegisterResponse),
+        (status = 401, description = "Unauthenticated", body = crate::openapi_types::ErrorResponse),
+        (status = 403, description = "Requires daemon token"),
+    ),
+    tag = "auth"
+)]
 pub async fn session_register(
     registry: SessionRegistry,
     axum::Extension(auth): axum::Extension<crate::auth::AuthContext>,
@@ -374,5 +478,38 @@ mod tests {
         let token = generate_session_token().unwrap();
         assert!(is_session_token(&token));
         assert!(!super::super::auth::is_daemon_token(&token));
+    }
+
+    #[test]
+    fn worker_can_write_run_artifacts_but_not_project() {
+        let scopes = scopes_for_role(Some("worker"));
+        // Workers can write to run scope.
+        assert!(Scope::WriteArtifactsRun.is_granted_by(&scopes));
+        // Workers cannot write to project scope.
+        assert!(!Scope::WriteArtifactsProject.is_granted_by(&scopes));
+    }
+
+    #[test]
+    fn worker_cannot_promote_artifacts() {
+        let scopes = scopes_for_role(Some("worker"));
+        assert!(!Scope::PromoteArtifact.is_granted_by(&scopes));
+    }
+
+    #[test]
+    fn only_contributor_and_full_can_promote_artifacts() {
+        // Pipeline agents (commander/lead/worker) do not get PromoteArtifact.
+        assert!(!Scope::PromoteArtifact.is_granted_by(&scopes_for_role(Some("commander"))));
+        assert!(!Scope::PromoteArtifact.is_granted_by(&scopes_for_role(Some("lead"))));
+        assert!(!Scope::PromoteArtifact.is_granted_by(&scopes_for_role(Some("worker"))));
+        // Full grants (contributor / session owner) include promote.
+        assert!(Scope::PromoteArtifact.is_granted_by(&[Scope::Full]));
+    }
+
+    #[test]
+    fn worker_can_read_project_artifacts_but_not_write() {
+        let scopes = scopes_for_role(Some("worker"));
+        assert!(Scope::ReadArtifactsProject.is_granted_by(&scopes));
+        assert!(!Scope::WriteArtifactsProject.is_granted_by(&scopes));
+        assert!(!Scope::DeleteArtifactsProject.is_granted_by(&scopes));
     }
 }

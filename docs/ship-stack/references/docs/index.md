@@ -53,7 +53,6 @@ The stack exists to separate concerns that move at different speeds. A bug in th
 | ----------------- | ----------------------- | -------------- |
 | Marketing site    | `apps/docs/` or similar | (audit gap)    |
 | Daemon shell      | `apps/shell/`           | ship-studio    |
-| Studio            | `apps/web/`             | ship-studio    |
 
 Cells marked *(audit gap)* are known missing docs — to be filled in during the doc audit pass.
 

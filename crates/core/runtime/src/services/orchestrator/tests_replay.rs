@@ -70,6 +70,8 @@ fn make_octx() -> Arc<OrchestratorContext> {
         activity_txs: Arc::new(Mutex::new(std::collections::HashMap::new())),
         job_locks: Arc::new(Mutex::new(std::collections::HashMap::new())),
         event_dedup: Arc::new(crate::services::orchestrator::dedup::EventDedup::new()),
+        fanout_lane_txs: Arc::new(Mutex::new(std::collections::HashMap::new())),
+        fanout_lane_refs: Arc::new(Mutex::new(std::collections::HashMap::new())),
     })
 }
 
@@ -195,6 +197,10 @@ mod replay_filter {
             command: None,
             max_retries: None,
             gate: None,
+            produces: vec![],
+            consumes: vec![],
+            promotes: vec![],
+            fanout: None,
         }
     }
 

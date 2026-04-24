@@ -70,7 +70,7 @@
     "production": {
       "name": "gateway-production",
       "routes": [
-        { "pattern": "getship.dev/*", "zone_name": "getship.dev" }
+        { "pattern": "api.getship.dev/*", "zone_name": "getship.dev" }
       ],
       "d1_databases": [
         {

@@ -168,7 +168,7 @@ pub fn run_publish(
 
     let payload = build_payload(&manifest, &hashes, tag, export_path);
 
-    let mut resp = ureq::post("https://getship.dev/api/registry/publish")
+    let mut resp = ureq::post("https://api.getship.dev/api/registry/publish")
         .header("Authorization", &format!("Bearer {}", token))
         .header("Content-Type", "application/json")
         .send(payload.to_string().as_bytes())

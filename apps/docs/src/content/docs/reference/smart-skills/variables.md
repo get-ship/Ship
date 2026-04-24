@@ -131,15 +131,7 @@ Runtime variables follow the same template rules as user vars: undefined keys re
 
 ## CLI commands
 
-The `ship vars` CLI reads and writes variable state with type validation.
-
-| Command | Description |
-|---------|-------------|
-| `ship vars get <skill-id>` | Show merged state for all variables |
-| `ship vars get <skill-id> <key>` | Show merged value for a single variable |
-| `ship vars set <skill-id> <key> <value>` | Set a variable. Routes to correct scope. Validates type and enum constraints. |
-| `ship vars append <skill-id> <key> '<json>'` | Append to an array variable |
-| `ship vars reset <skill-id>` | Clear all user state for the skill across all three scopes, reverting to defaults |
+The `ship vars` CLI subcommand has been removed. Use the MCP tools or Studio to read and write variable state.
 
 ## MCP tools
 
@@ -151,7 +143,7 @@ Agents interact with variables through these MCP tools.
 | `set_skill_var` | `skill_id`, `key`, `value` | Writes a single variable value |
 | `list_skill_vars` | (none) | Lists all skills that have `assets/vars.json` with their merged state |
 
-Two additional tools manage skill files on disk:
+Two additional tools manage skill files on disk. These are available on the StudioServer (used by the Studio web IDE), not the standard agent-facing MCP server:
 
 | Tool | Parameters | Description |
 |------|-----------|-------------|

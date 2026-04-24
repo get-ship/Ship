@@ -121,8 +121,4 @@ The cache is safe to delete. `ship install` repopulates it on the next run.
 
 ## Removing a dependency
 
-```bash
-ship skills remove <skill-id>
-```
-
-This removes the skill reference from agent profiles and cleans up installed files.
+Remove the package from `ship.jsonc` `dependencies` and remove the skill ID from any agent `skills.refs` arrays, then run `ship install` to update the lockfile.

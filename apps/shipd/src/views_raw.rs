@@ -64,6 +64,19 @@ fn wrap(title: &str, inner: &str) -> Option<String> {
 /// `/api` so subsequent fetches from the served document
 /// authenticate without needing the query token. The auth middleware
 /// has already validated the caller's token/session before we run.
+#[utoipa::path(
+    operation_id = "serveViewRaw",
+    get,
+    path = "/api/runtime/view/{name}/raw",
+    params(("name" = String, Path, description = "View name")),
+    responses(
+        (status = 200, description = "Raw view shell HTML with session cookie", content_type = "text/html"),
+        (status = 400, description = "Invalid view name", body = crate::openapi_types::ErrorResponse),
+        (status = 401, description = "Unauthenticated", body = crate::openapi_types::ErrorResponse),
+        (status = 404, description = "View not found", body = crate::openapi_types::ErrorResponse),
+    ),
+    tag = "views"
+)]
 pub async fn serve_view_raw(
     State(state): State<ApiState>,
     Path(name): Path<String>,

@@ -34,13 +34,13 @@ Merge order: defaults → global → local → project. Last wins.
 
 ## Variable types
 
-| Type | Default value example | CLI set example |
-|------|----------------------|-----------------|
-| `string` | `"vitest"` | `ship vars set tdd test_runner vitest` |
-| `bool` | `true` | `ship vars set tdd commit_at_green false` |
-| `enum` | `"fast"` | `ship vars set tdd speed fast` |
-| `array` | `["src/"]` | `ship vars append tdd watch_paths '["tests/"]'` |
-| `object` | `{}` | `ship vars set tdd config '{"key":"val"}'` |
+| Type | Default value example | Notes |
+|------|----------------------|-------|
+| `string` | `"vitest"` | Set via Studio Skills IDE or `set_skill_var` MCP tool |
+| `bool` | `true` | Set via Studio Skills IDE or `set_skill_var` MCP tool |
+| `enum` | `"fast"` | Values constrained to `values` list |
+| `array` | `["src/"]` | Stored as JSON array string |
+| `object` | `{}` | Stored as JSON object string |
 
 ## Example
 

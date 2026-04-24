@@ -13,6 +13,7 @@ use runtime::db::specs::{self, Spec};
 use runtime::events::EventEnvelope;
 use runtime::events::job::{JobCreatedPayload, event_types};
 use serde::Deserialize;
+use serde_json::json;
 use std::collections::HashMap;
 
 use crate::rest_api::{ApiState, MeshResponse};
@@ -45,7 +46,17 @@ fn spec_to_json(s: &Spec) -> serde_json::Value {
 
 // ---- Request shapes ----
 
-#[derive(Deserialize)]
+#[derive(Deserialize, utoipa::ToSchema)]
+#[schema(example = json!({
+    "title": "Write README",
+    "body": "# Write README\n\nSummarize the project in 3 bullet points.\n",
+    "pipeline": "single-turn",
+    "status": "draft",
+    "vars": { "topic": "ship" },
+    "criteria": ["README.md exists", "mentions dispatcher"],
+    "scope": ["docs/**"],
+    "priority": 5
+}))]
 pub struct CreateSpecRequest {
     pub title: String,
     #[serde(default)]
@@ -64,7 +75,11 @@ pub struct CreateSpecRequest {
     pub priority: Option<u32>,
 }
 
-#[derive(Deserialize)]
+#[derive(Deserialize, utoipa::ToSchema)]
+#[schema(example = json!({
+    "title": "Write README (v2)",
+    "status": "ready"
+}))]
 pub struct UpdateSpecRequest {
     #[serde(default)]
     pub title: Option<String>,
@@ -86,7 +101,17 @@ pub struct UpdateSpecRequest {
 
 // ---- Handlers ----
 
-/// GET /api/specs
+/// GET /api/runtime/specs
+#[utoipa::path(
+    operation_id = "listSpecs",
+    get,
+    path = "/api/runtime/specs",
+    responses(
+        (status = 200, description = "List of specs", body = MeshResponse),
+        (status = 500, description = "Server error", body = crate::openapi_types::ErrorResponse),
+    ),
+    tag = "specs"
+)]
 pub async fn list_specs() -> impl IntoResponse {
     match specs::list_specs() {
         Ok(list) => {
@@ -97,7 +122,19 @@ pub async fn list_specs() -> impl IntoResponse {
     }
 }
 
-/// GET /api/specs/{id}
+/// GET /api/runtime/specs/{id}
+#[utoipa::path(
+    operation_id = "getSpec",
+    get,
+    path = "/api/runtime/specs/{id}",
+    params(("id" = String, Path, description = "Spec id")),
+    responses(
+        (status = 200, description = "Spec detail with body", body = MeshResponse),
+        (status = 404, description = "Spec not found", body = crate::openapi_types::ErrorResponse),
+        (status = 500, description = "Server error", body = crate::openapi_types::ErrorResponse),
+    ),
+    tag = "specs"
+)]
 pub async fn get_spec(Path(id): Path<String>) -> impl IntoResponse {
     match specs::get_spec(&id) {
         Ok(Some(s)) => {
@@ -111,7 +148,19 @@ pub async fn get_spec(Path(id): Path<String>) -> impl IntoResponse {
     }
 }
 
-/// POST /api/specs
+/// POST /api/runtime/specs
+#[utoipa::path(
+    operation_id = "createSpec",
+    post,
+    path = "/api/runtime/specs",
+    request_body = CreateSpecRequest,
+    responses(
+        (status = 200, description = "Created spec", body = MeshResponse),
+        (status = 400, description = "Invalid payload", body = crate::openapi_types::ErrorResponse),
+        (status = 500, description = "Server error", body = crate::openapi_types::ErrorResponse),
+    ),
+    tag = "specs"
+)]
 pub async fn create_spec(Json(req): Json<CreateSpecRequest>) -> impl IntoResponse {
     let id = runtime::gen_ulid();
     let body_path = format!(".artifacts/specs/{id}.md");
@@ -139,7 +188,21 @@ pub async fn create_spec(Json(req): Json<CreateSpecRequest>) -> impl IntoRespons
     }
 }
 
-/// PUT /api/specs/{id}
+/// PUT /api/runtime/specs/{id}
+#[utoipa::path(
+    operation_id = "updateSpec",
+    put,
+    path = "/api/runtime/specs/{id}",
+    params(("id" = String, Path, description = "Spec id")),
+    request_body = UpdateSpecRequest,
+    responses(
+        (status = 200, description = "Updated spec", body = MeshResponse),
+        (status = 400, description = "Invalid payload", body = crate::openapi_types::ErrorResponse),
+        (status = 404, description = "Spec not found", body = crate::openapi_types::ErrorResponse),
+        (status = 500, description = "Server error", body = crate::openapi_types::ErrorResponse),
+    ),
+    tag = "specs"
+)]
 pub async fn update_spec(
     Path(id): Path<String>,
     Json(req): Json<UpdateSpecRequest>,
@@ -170,7 +233,19 @@ pub async fn update_spec(
     }
 }
 
-/// DELETE /api/specs/{id}
+/// DELETE /api/runtime/specs/{id}
+#[utoipa::path(
+    operation_id = "deleteSpec",
+    delete,
+    path = "/api/runtime/specs/{id}",
+    params(("id" = String, Path, description = "Spec id")),
+    responses(
+        (status = 200, description = "Deleted", body = MeshResponse),
+        (status = 404, description = "Spec not found", body = crate::openapi_types::ErrorResponse),
+        (status = 500, description = "Server error", body = crate::openapi_types::ErrorResponse),
+    ),
+    tag = "specs"
+)]
 pub async fn delete_spec(Path(id): Path<String>) -> impl IntoResponse {
     match specs::delete_spec(&id) {
         Ok(()) => ok(serde_json::json!({ "id": id })),
@@ -178,7 +253,20 @@ pub async fn delete_spec(Path(id): Path<String>) -> impl IntoResponse {
     }
 }
 
-/// POST /api/specs/{id}/launch — create a job from the spec.
+/// POST /api/runtime/specs/{id}/launch — create a job from the spec.
+#[utoipa::path(
+    operation_id = "launchSpec",
+    post,
+    path = "/api/runtime/specs/{id}/launch",
+    params(("id" = String, Path, description = "Spec id")),
+    responses(
+        (status = 200, description = "Job dispatched from spec", body = MeshResponse),
+        (status = 400, description = "Invalid pipeline", body = crate::openapi_types::ErrorResponse),
+        (status = 404, description = "Spec not found", body = crate::openapi_types::ErrorResponse),
+        (status = 500, description = "Server error", body = crate::openapi_types::ErrorResponse),
+    ),
+    tag = "specs"
+)]
 pub async fn launch_spec(
     State(state): State<ApiState>,
     Path(id): Path<String>,

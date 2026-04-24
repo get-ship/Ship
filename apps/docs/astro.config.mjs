@@ -36,14 +36,6 @@ function buildTopics(isInternal) {
         autogenerate: { directory: "reference/getting-started" },
       },
       {
-        label: "Smart Skills",
-        autogenerate: { directory: "reference/smart-skills" },
-      },
-      {
-        label: "Agents",
-        autogenerate: { directory: "reference/agents" },
-      },
-      {
         label: "Workflow",
         autogenerate: { directory: "reference/workflow" },
       },
@@ -186,14 +178,16 @@ function buildTopics(isInternal) {
   return topics;
 }
 
-// In public builds, pages that live only under Internals are excluded from
-// topic resolution so they render without a topic bar (sidebar-free). Their
-// URLs continue to work — they just won't appear in any topic's navigation.
+// Patterns excluded from topic resolution. The homepage belongs to no topic
+// (it's the entry point). In public builds, Internals-only dirs are also
+// excluded so their URLs keep working without requiring a topic assignment.
 function buildExcludedPatterns(isInternal) {
+  const base = ["/"]; // homepage
   return isInternal
-    ? []
-    : INTERNALS_DIRS.map((d) => `/${d}/**`).concat(
-        INTERNALS_DIRS.map((d) => `/${d}`)
+    ? base
+    : base.concat(
+        INTERNALS_DIRS.map((d) => `/${d}/**`),
+        INTERNALS_DIRS.map((d) => `/${d}`),
       );
 }
 
@@ -220,6 +214,8 @@ export default defineConfig({
       ],
       components: {
         Header: "./src/components/Header.astro",
+        ThemeProvider: "./src/components/ThemeProvider.astro",
+        ThemeSelect: "./src/components/ThemeProvider.astro",
       },
       head: [
         {

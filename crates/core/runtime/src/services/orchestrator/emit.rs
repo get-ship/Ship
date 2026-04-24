@@ -106,6 +106,35 @@ pub async fn emit_step_dispatched_event(
     persist_and_route(kernel, envelope, slug, ship_dir).await;
 }
 
+/// Emit `job.step_failed` + `job.failed` for a pipeline step error.
+pub async fn emit_step_failed(
+    kernel: &Arc<Mutex<crate::events::KernelRouter>>,
+    job_id: &str,
+    slug: &str,
+    step_id: &str,
+    reason: &str,
+) {
+    use crate::events::job::{event_types, JobFailedPayload, StepFailedPayload};
+    let step_fail = StepFailedPayload {
+        job_id: job_id.to_string(),
+        slug: slug.to_string(),
+        step_id: step_id.to_string(),
+        error: reason.to_string(),
+    };
+    if let Ok(env) = EventEnvelope::new(event_types::STEP_FAILED, job_id, &step_fail) {
+        let env = env.with_actor_id("service.job-dispatch");
+        persist_and_route(kernel, env, slug, None).await;
+    }
+    let job_fail = JobFailedPayload {
+        job_id: job_id.to_string(),
+        error: format!("step `{step_id}` failed: {reason}"),
+    };
+    if let Ok(env) = EventEnvelope::new(event_types::JOB_FAILED, job_id, &job_fail) {
+        let env = env.with_actor_id("service.job-dispatch");
+        persist_and_route(kernel, env, slug, None).await;
+    }
+}
+
 /// Emit a `job.failed` event when a job cannot be dispatched or encounters a fatal error.
 pub async fn emit_job_failed(
     kernel: &Arc<Mutex<crate::events::KernelRouter>>,

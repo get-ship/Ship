@@ -103,6 +103,8 @@ fn octx_with(
         activity_txs: Arc::new(Mutex::new(std::collections::HashMap::new())),
         job_locks: Arc::new(Mutex::new(std::collections::HashMap::new())),
         event_dedup: Arc::new(crate::services::orchestrator::dedup::EventDedup::new()),
+        fanout_lane_txs: Arc::new(Mutex::new(std::collections::HashMap::new())),
+        fanout_lane_refs: Arc::new(Mutex::new(std::collections::HashMap::new())),
     }
 }
 
@@ -125,6 +127,10 @@ fn payload_with_first_step(
         command: None,
         max_retries: None,
         gate: None,
+        produces: vec![],
+        consumes: vec![],
+        promotes: vec![],
+        fanout: None,
     };
     JobCreatedPayload {
         job_id: job_id.into(),

@@ -90,6 +90,8 @@ pub struct ShipRuntime {
     workspace_dir: Option<PathBuf>,
     /// Wall-clock instant the daemon process started — used for uptime.
     started_at: std::time::Instant,
+    /// Hook engine (external source adapters + hot-reload watcher).
+    hook_engine: std::sync::OnceLock<std::sync::Arc<runtime::hooks::engine::HookEngine>>,
 }
 
 impl ShipRuntime {
@@ -173,6 +175,23 @@ impl ShipRuntime {
             Err(e) => tracing::warn!("trash auto-purge failed: {e}"),
         }
 
+        // Validate artifacts config from project settings (if a workspace is
+        // attached and the block is present). Fail fast on invalid values.
+        if let Some(ws) = &workspace_dir {
+            match runtime::config::get_config(Some(ws.clone())) {
+                Ok(proj) => {
+                    if let Some(art_cfg) = &proj.artifacts {
+                        if let Err(e) = art_cfg.validate() {
+                            return Err(anyhow!(
+                                "invalid [artifacts] config in .ship/ship.jsonc: {e}"
+                            ));
+                        }
+                    }
+                }
+                Err(e) => tracing::warn!("could not read project config for artifacts validation: {e}"),
+            }
+        }
+
         let mesh_registry: SharedMeshRegistry =
             Arc::new(tokio::sync::RwLock::new(HashMap::new()));
 
@@ -200,6 +219,7 @@ impl ShipRuntime {
             view_sessions: Arc::new(crate::views::session::ViewSessionRegistry::default()),
             workspace_dir,
             started_at: std::time::Instant::now(),
+            hook_engine: std::sync::OnceLock::new(),
         })
     }
 
@@ -335,6 +355,94 @@ impl ShipRuntime {
             .await
     }
 
+    /// Rehash blobs for legacy artifact metadata rows that predate the
+    /// content_hash column. One-shot; idempotent. Logged on failure but
+    /// doesn't block startup.
+    pub async fn backfill_artifact_content_hashes(&self) {
+        let ship_dir = self.ship_dir.clone();
+        tokio::task::spawn_blocking(move || {
+            match runtime::data::DataService::open(&ship_dir) {
+                Ok(mut svc) => {
+                    if let Err(e) = runtime::artifacts::gc::backfill_content_hashes(&ship_dir, &mut svc) {
+                        tracing::warn!("artifact content_hash backfill failed: {e}");
+                    }
+                }
+                Err(e) => tracing::warn!("artifact backfill: failed to open DataService: {e}"),
+            }
+        })
+        .await
+        .ok();
+    }
+
+    /// Spawn the artifact GC loop. Runs immediately on startup then every hour.
+    ///
+    /// Best-effort: errors are logged but don't take down the daemon.
+    pub fn start_artifact_gc(&self) {
+        let ship_dir = self.ship_dir.clone();
+        let kernel = self.kernel.clone();
+        crate::supervised::spawn_supervised(
+            &self.health_registry,
+            "artifact-gc",
+            move || {
+                let ship_dir = ship_dir.clone();
+                let kernel = kernel.clone();
+                async move {
+                    loop {
+                        match runtime::data::DataService::open(&ship_dir) {
+                            Ok(mut svc) => {
+                                if let Err(e) = runtime::artifacts::gc::collect_expired(
+                                    &ship_dir, &mut svc, &kernel,
+                                ).await {
+                                    tracing::warn!("artifact GC run failed: {e}");
+                                }
+                            }
+                            Err(e) => tracing::warn!("artifact GC: failed to open DataService: {e}"),
+                        }
+                        tokio::time::sleep(std::time::Duration::from_secs(3600)).await;
+                    }
+                }
+            },
+        );
+    }
+
+    /// Start the hook engine: spawns external source adapters (webhook, file, cron)
+    /// and the hot-reload watcher. Idempotent — subsequent calls are no-ops.
+    pub async fn start_hook_engine(&self) {
+        if self.hook_engine.get().is_some() {
+            return;
+        }
+        match runtime::hooks::engine::spawn_hook_service(
+            self.kernel.clone(),
+            self.ship_dir.clone(),
+        )
+        .await
+        {
+            Ok(engine) => {
+                // Also start the filesystem watcher for hot-reload.
+                if let Err(e) = runtime::hooks::watcher::spawn_watcher(engine.clone()) {
+                    tracing::warn!("hook watcher failed to start: {e}");
+                }
+                let _ = self.hook_engine.set(engine);
+                tracing::info!("hooks: engine started");
+            }
+            Err(e) => tracing::warn!("hooks: failed to start engine: {e}"),
+        }
+    }
+
+    /// The running hook engine, if started.
+    pub fn hook_engine(
+        &self,
+    ) -> Option<&std::sync::Arc<runtime::hooks::engine::HookEngine>> {
+        self.hook_engine.get()
+    }
+
+    /// The webhook source for the public webhook route, if the engine is running.
+    pub fn webhook_source(
+        &self,
+    ) -> Option<std::sync::Arc<runtime::hooks::sources::webhook::WebhookSource>> {
+        self.hook_engine.get()?.webhook_source()
+    }
+
     /// Persist event to platform.db and deliver through the kernel.
     ///
     /// Delegates to `KernelRouter::emit` — the single write path. A successful
@@ -377,6 +485,7 @@ impl ShipRuntime {
             view_sessions: Arc::new(crate::views::session::ViewSessionRegistry::default()),
             workspace_dir,
             started_at: std::time::Instant::now(),
+            hook_engine: std::sync::OnceLock::new(),
         }
     }
 
@@ -405,6 +514,7 @@ impl ShipRuntime {
             view_sessions: Arc::new(crate::views::session::ViewSessionRegistry::default()),
             workspace_dir,
             started_at: std::time::Instant::now(),
+            hook_engine: std::sync::OnceLock::new(),
         }
     }
 
