@@ -135,3 +135,6 @@ apps/shipd/assets/.cache/
 
 # Legacy shell vendor dir — shell now loads bundles via /api/runtime/assets/*.
 apps/shell/public/vendor/
+
+# loop test results — local only
+tests/loops/results/

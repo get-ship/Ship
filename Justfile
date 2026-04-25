@@ -64,8 +64,20 @@ wasm:
 
 # ── Test ───────────────────────────────────────────────────────────────────────
 
-# Run all tests (Rust + web)
-test: test-rust test-web
+# Run all tests (Rust + web + loops)
+test: test-rust test-web test-loops
+
+# End-to-end loop tests against a running daemon (headless only).
+# Each loop is a single-purpose sanity gate exercising one substrate
+# concern (channel delivery, hook correlation, write-path idempotency,
+# id minting, etc.). Run UI-mode loops with `just test-loops-ui`.
+test-loops:
+    node tests/loops/run.mjs
+
+# All loops including Playwright-driven UI checks. Slower, separate
+# CI gate — needs a daemon AND a browser.
+test-loops-ui:
+    node tests/loops/run.mjs --ui
 
 # Rust workspace tests (unstable)
 test-rust:
