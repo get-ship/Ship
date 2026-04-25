@@ -1,0 +1,89 @@
+{#-
+  Unified actors dashboard — every running thing in Ship.
+  Backed by the ActorProjection table via ship.actors.list().
+  Liveness derived from last_event_at; status badge reflects
+  the row's lifecycle field.
+-#}
+{% from '_ship.html.j2' import head, signals %}
+{% if not fragment %}
+<!DOCTYPE html>
+<html lang="en">
+<head>{{ head('Actors') }}</head>
+<body>
+{% endif %}
+{%- set items = ship.actors.list().items -%}
+{%- set running = items | rejectattr('status', 'in', ['stopped', 'crashed']) | list | length -%}
+{%- set chats = items | selectattr('kind', 'equalto', 'agent') | list | length -%}
+{%- set pipelines = items | selectattr('kind', 'equalto', 'pipeline-step') | list | length -%}
+{%- set shells = items | selectattr('kind', 'equalto', 'shell') | list | length -%}
+<ship-view-chrome title="Actors"></ship-view-chrome>
+<div class="ship-view ship-actors">
+  <style>
+  .ship-actors { padding: var(--space-5, 20px); max-width: 1280px; margin: 0 auto; color: var(--foreground); }
+  .actors-head { display: flex; align-items: baseline; gap: var(--space-4, 16px); margin-bottom: var(--space-4, 16px); flex-wrap: wrap; }
+  .actors-head h1 { margin: 0; font-size: var(--text-2xl); font-weight: var(--font-weight-medium, 500); }
+  .actors-head .sub { color: var(--muted-foreground); font-size: var(--text-sm); }
+  .actors-counts { display: flex; gap: 12px; font-size: var(--text-xs); color: var(--muted-foreground); }
+  .actors-counts strong { color: var(--foreground); font-weight: var(--font-weight-medium, 500); }
+  .actors-grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(360px, 1fr)); gap: var(--space-3, 12px); }
+  .actor-card { border: 1px solid var(--border); border-radius: var(--radius-md); padding: var(--space-3, 12px); background: var(--card, var(--background)); display: grid; gap: 6px; transition: border-color var(--duration-fast, 120ms) var(--ease-out, ease); }
+  .actor-card:hover { border-color: color-mix(in oklch, var(--foreground) 30%, var(--border)); }
+  .actor-card[data-status="stopped"], .actor-card[data-status="crashed"] { opacity: 0.55; }
+  .card-head { display: flex; align-items: center; gap: 8px; }
+  .card-head .dot { width: 8px; height: 8px; border-radius: 999px; background: var(--muted-foreground); flex: none; }
+  .card-head .dot[data-status="created"], .card-head .dot[data-status="active"] { background: var(--success, #16a34a); }
+  .card-head .dot[data-status="sleeping"] { background: var(--warning, #d97706); }
+  .card-head .dot[data-status="crashed"] { background: var(--destructive, #dc2626); }
+  .card-head .dot[data-status="stopped"] { background: var(--muted-foreground); }
+  .card-head .name { font-weight: var(--font-weight-medium, 500); }
+  .card-head .kind { font-size: var(--text-xs); color: var(--muted-foreground); text-transform: uppercase; letter-spacing: 0.04em; margin-left: auto; padding: 2px 6px; border-radius: 3px; background: var(--muted); }
+  .card-meta { display: grid; grid-template-columns: auto 1fr; gap: 4px 10px; font-size: var(--text-xs); color: var(--muted-foreground); font-family: var(--font-mono); }
+  .card-meta .k { color: var(--muted-foreground); opacity: 0.7; }
+  .card-meta .v { color: var(--foreground); word-break: break-all; }
+  .card-id { font-family: var(--font-mono); font-size: 11px; color: var(--muted-foreground); opacity: 0.7; }
+  .actors-empty { padding: var(--space-12, 48px) var(--space-5, 20px); text-align: center; color: var(--muted-foreground); border: 1px dashed var(--border); border-radius: var(--radius-md); }
+  </style>
+
+  <header class="actors-head">
+    <h1>Actors</h1>
+    <div class="sub"><strong>{{ running }}</strong> running · {{ items | length }} total</div>
+    <div class="actors-counts" style="margin-left: auto;">
+      <span><strong>{{ chats }}</strong> chats</span>
+      <span><strong>{{ pipelines }}</strong> pipelines</span>
+      <span><strong>{{ shells }}</strong> shells</span>
+    </div>
+  </header>
+
+  {% if items | length == 0 %}
+    <div class="actors-empty">
+      No actors. Spawn one from the command bar (⌘K) or run a pipeline.
+    </div>
+  {% else %}
+    <div class="actors-grid">
+      {% for a in items %}
+      <div class="actor-card" data-status="{{ a.status }}" data-kind="{{ a.kind }}">
+        <div class="card-head">
+          <span class="dot" data-status="{{ a.status }}"></span>
+          <span class="name">{{ a.agent_id or a.id }}</span>
+          <span class="kind">{{ a.kind }}</span>
+        </div>
+        <div class="card-meta">
+          {% if a.workspace_id %}<span class="k">workspace</span><span class="v">{{ a.workspace_id }}</span>{% endif %}
+          {% if a.provider %}<span class="k">provider</span><span class="v">{{ a.provider }}{% if a.model %} · {{ a.model }}{% endif %}</span>{% endif %}
+          {% if a.transport %}<span class="k">transport</span><span class="v">{{ a.transport }}{% if a.persistence %} · {{ a.persistence }}{% endif %}</span>{% endif %}
+          {% if a.pid %}<span class="k">pid</span><span class="v">{{ a.pid }}</span>{% endif %}
+          <span class="k">status</span><span class="v">{{ a.status }}</span>
+          {% if a.last_event_at %}<span class="k">last event</span><span class="v">{{ a.last_event_at }}</span>{% endif %}
+          {% if a.exit_code is not none and a.exit_code != 0 %}<span class="k">exit</span><span class="v">{{ a.exit_code }}{% if a.exit_reason %} ({{ a.exit_reason }}){% endif %}</span>{% endif %}
+          {% if a.parent_actor_id %}<span class="k">parent</span><span class="v">{{ a.parent_actor_id }}</span>{% endif %}
+        </div>
+        <div class="card-id">{{ a.id }}</div>
+      </div>
+      {% endfor %}
+    </div>
+  {% endif %}
+</div>
+{% if not fragment %}
+</body>
+</html>
+{% endif %}

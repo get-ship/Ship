@@ -527,6 +527,25 @@ pub fn call(name: &str, args: &Value, state: &ApiState) -> Result<Value, Registr
             }))
         }
 
+        // ── actors ────────────────────────────────────────────────
+        // Unified projection over every running thing (chat, pipeline,
+        // shell, service). Backed by the ActorProjection table, ordered
+        // by last_event_at desc. Filter args mirror /api/actors.
+        "actors.list" => {
+            let filter = runtime::projections::actor::ListActorsFilter {
+                workspace_id: args.get("workspace_id").and_then(|v| v.as_str())
+                    .filter(|s| !s.is_empty()).map(String::from),
+                kind: args.get("kind").and_then(|v| v.as_str())
+                    .filter(|s| !s.is_empty()).map(String::from),
+                status: args.get("status").and_then(|v| v.as_str())
+                    .filter(|s| !s.is_empty()).map(String::from),
+                limit: args.get("limit").and_then(|v| v.as_i64()).unwrap_or(0),
+            };
+            let actors = runtime::projections::actor::list_actors(&filter)
+                .map_err(|e| RegistryError::service(format!("actors.list: {e}")))?;
+            Ok(json!({ "items": actors }))
+        }
+
         // ── chat ──────────────────────────────────────────────────
         "chat.state" => {
             let ship_dir = state.ship_dir();
