@@ -808,7 +808,7 @@ fn register_with_kernel(actor_id: &str, kind: SessionKind, agent_id: Option<&str
 /// knows which session id to reply into. Returns `None` if the file is
 /// absent, unreadable, or has no inline rules — callers fall back to vanilla
 /// provider behaviour.
-fn load_agent_rules(work_dir: &std::path::Path, agent_id: &str) -> Option<String> {
+pub fn load_agent_rules(work_dir: &std::path::Path, agent_id: &str) -> Option<String> {
     let path = work_dir.join(".ship").join("agents").join(format!("{agent_id}.jsonc"));
     let raw = std::fs::read_to_string(&path).ok()?;
     let stripped = strip_jsonc(&raw);

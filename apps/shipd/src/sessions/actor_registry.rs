@@ -25,6 +25,7 @@ use std::collections::HashMap;
 use std::sync::{Arc, Mutex};
 
 use anyhow::Result;
+use runtime::services::provider_adapter::ProviderEvent;
 use runtime::supervisor::ActorHandle;
 use std::path::PathBuf;
 use tokio::sync::broadcast;
@@ -35,6 +36,11 @@ use super::types::{SessionId, SessionMeta};
 pub struct ActorEntry {
     pub handle: ActorHandle,
     pub meta: Arc<Mutex<SessionMeta>>,
+    /// Provider-event broadcast for agent kinds. Reader middleware
+    /// (provider adapter `parse_output`) publishes here; SSE consumers
+    /// subscribe via `/api/sessions/{id}/events`. Shell entries leave
+    /// this `None`; consumers receive `Closed` immediately.
+    pub event_tx: Option<broadcast::Sender<ProviderEvent>>,
 }
 
 impl ActorEntry {
@@ -59,6 +65,19 @@ impl ActorEntry {
     pub fn log_path(&self) -> PathBuf {
         self.handle.child.log_path().clone()
     }
+
+    pub fn subscribe_events(&self) -> broadcast::Receiver<ProviderEvent> {
+        match &self.event_tx {
+            Some(tx) => tx.subscribe(),
+            None => {
+                // No agent-side event source — return a closed receiver
+                // (created from a fresh sender that's immediately dropped).
+                let (tx, rx) = broadcast::channel::<ProviderEvent>(1);
+                drop(tx);
+                rx
+            }
+        }
+    }
 }
 
 #[derive(Clone, Default)]
@@ -72,10 +91,20 @@ impl ActorRegistry {
     }
 
     pub fn insert(&self, handle: ActorHandle, meta: SessionMeta) -> ActorEntry {
+        self.insert_with(handle, meta, None)
+    }
+
+    pub fn insert_with(
+        &self,
+        handle: ActorHandle,
+        meta: SessionMeta,
+        event_tx: Option<broadcast::Sender<ProviderEvent>>,
+    ) -> ActorEntry {
         debug_assert_eq!(handle.actor_id, meta.id, "handle/meta id mismatch");
         let entry = ActorEntry {
             handle,
             meta: Arc::new(Mutex::new(meta)),
+            event_tx,
         };
         self.inner
             .lock()

@@ -86,11 +86,17 @@ pub fn spawn_actor(profile: ActorProfile) -> Result<ActorHandle> {
 
     // Register with the kernel router so the actor appears on the
     // mesh (kernel.list_actors()) — the source-of-truth contract.
-    // Without this, the child runs but no other actor can address
-    // it via target_actor_id and the dashboard never sees it.
-    // Best-effort: tests run without a kernel; production always has
-    // one mounted via global_kernel_router::install().
-    if let Some(kr) = crate::events::kernel_router() {
+    //
+    // EXCEPT for Agents: agents have an MCP child that calls
+    // actor_spawn over HTTP, which both registers the actor AND
+    // captures the mailbox handle for SSE drain. Pre-registering
+    // here makes the MCP-side call a no-op (has_actor=true) and
+    // orphans the mailbox, silently dropping channel events.
+    // For Shells / Pipelines / Services there is no MCP child, so
+    // the supervisor is the only one who can register them.
+    let pre_register = !matches!(profile.kind, ActorKind::Agent);
+    if pre_register {
+        if let Some(kr) = crate::events::kernel_router() {
         let kernel_config = crate::events::ActorConfig {
             namespace: actor_id.clone(),
             write_namespaces: vec!["".to_string()],
@@ -110,6 +116,7 @@ pub fn spawn_actor(profile: ActorProfile) -> Result<ActorHandle> {
         });
         if let Err(e) = res {
             tracing::warn!(actor_id = %actor_id, "kernel spawn_actor failed: {e}");
+        }
         }
     }
 

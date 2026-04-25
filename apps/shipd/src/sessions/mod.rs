@@ -25,6 +25,7 @@ pub mod types;
 pub mod registry;
 pub mod actor_registry;
 pub mod shell_actor;
+pub mod agent_actor;
 pub mod lifecycle;
 pub mod api;
 

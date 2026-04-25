@@ -191,14 +191,19 @@ pub async fn session_message(
     // Per-turn providers ignore this path; they still get driven by the
     // spawn + stdin prompt below. The event is scoped to `session_id` so
     // the MCP `EventRelay` can filter it to the exact Claude instance.
-    let (workspace_id, agent_id) = state
-        .pty_sessions()
-        .get(&id)
-        .map(|s| {
-            let m = s.meta();
-            (m.workspace_id, m.agent_id)
-        })
-        .unwrap_or_default();
+    let (workspace_id, agent_id) = if let Some(entry) = state.actor_sessions().get(&id) {
+        let m = entry.meta_snapshot();
+        (m.workspace_id, m.agent_id)
+    } else {
+        state
+            .pty_sessions()
+            .get(&id)
+            .map(|s| {
+                let m = s.meta();
+                (m.workspace_id, m.agent_id)
+            })
+            .unwrap_or_default()
+    };
     let payload = serde_json::json!({
         "session_id": id,
         "text": text,
@@ -214,6 +219,16 @@ pub async fn session_message(
             .with_target(&id);
         let ctx = auth.to_daemon_emit_context();
         let _ = state.kernel().lock().await.emit(envelope, &ctx).await;
+    }
+
+    // Long-lived channels agents live in ActorRegistry; the
+    // studio.chat_turn event above is the only delivery they need.
+    // Mark status=Thinking so list/detail reflect the in-flight turn.
+    if let Some(entry) = state.actor_sessions().get(&id) {
+        let mut m = entry.meta.lock().unwrap();
+        m.status = super::types::SessionStatus::Thinking;
+        m.last_activity = chrono::Utc::now();
+        return (StatusCode::ACCEPTED, ()).into_response();
     }
 
     let work_dir = work_dir_for(&state, "main");
@@ -264,11 +279,15 @@ pub async fn session_reply(
         }
     }
 
-    // Legacy in-memory broadcast for any PtySession the registry still
-    // owns (the chats view's event-stream subscribers consume this).
-    // Best-effort; not an error if the actor was launched externally.
-    if let Some(session) = state.pty_sessions().get(&id) {
-        let ev = runtime::services::provider_adapter::ProviderEvent::Message { text };
+    // In-memory broadcast for SSE consumers tailing the session's
+    // parsed-event stream. Check both registries so reply works
+    // regardless of which substrate owns the session.
+    let ev = runtime::services::provider_adapter::ProviderEvent::Message { text };
+    if let Some(entry) = state.actor_sessions().get(&id) {
+        if let Some(tx) = entry.event_tx.as_ref() {
+            let _ = tx.send(ev);
+        }
+    } else if let Some(session) = state.pty_sessions().get(&id) {
         let _ = session.0.event_tx.send(ev);
     }
 
@@ -330,6 +349,35 @@ pub async fn spawn_session(
                 Some(p) if !p.is_empty() => p,
                 _ => return err(StatusCode::BAD_REQUEST, "provider required for agent kind"),
             };
+
+            // Channels-capable providers (Claude today) go through the
+            // supervisor primitive + ActorRegistry. Per-turn providers
+            // stay on the legacy path until per-turn spawns can fold
+            // into the supervisor as one-shot transports.
+            if let Ok(adapter) = runtime::services::provider_adapter::adapter_for(provider) {
+                if adapter.caps().channels {
+                    let append = lifecycle::load_agent_rules(&work_dir, agent_id);
+                    return match super::agent_actor::spawn_or_attach(
+                        state.actor_sessions(),
+                        &req.workspace_id,
+                        agent_id,
+                        provider,
+                        work_dir,
+                        log_dir,
+                        append,
+                    ) {
+                        Ok(outcome) => {
+                            let resp = SpawnResponse {
+                                session_id: outcome.entry.handle.actor_id.clone(),
+                                attached: outcome.attached,
+                            };
+                            (StatusCode::OK, Json(resp)).into_response()
+                        }
+                        Err(e) => err(StatusCode::INTERNAL_SERVER_ERROR, e.to_string()),
+                    };
+                }
+            }
+
             match lifecycle::spawn_agent(
                 registry,
                 &req.workspace_id,
@@ -512,10 +560,13 @@ pub async fn stream_session_events(
     State(state): State<ApiState>,
     Path(id): Path<String>,
 ) -> axum::response::Response {
-    let Some(session) = state.pty_sessions().get(&id) else {
+    let rx = if let Some(entry) = state.actor_sessions().get(&id) {
+        entry.subscribe_events()
+    } else if let Some(session) = state.pty_sessions().get(&id) {
+        session.subscribe_events()
+    } else {
         return err(StatusCode::NOT_FOUND, format!("session '{id}' not found"));
     };
-    let rx = session.subscribe_events();
     let ev_stream = BroadcastStream::new(rx)
         .filter_map(|r| r.ok())
         .map(|ev| {
