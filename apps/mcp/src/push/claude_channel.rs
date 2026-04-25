@@ -64,8 +64,12 @@ impl PushAdapter for ClaudeChannelAdapter {
         );
         let server_notif = ServerNotification::CustomNotification(notification);
 
-        if let Err(e) = self.peer.send_notification(server_notif).await {
-            warn!("claude channel push failed: {e}");
+        match self.peer.send_notification(server_notif).await {
+            Ok(()) => tracing::info!(
+                event_type = %event.event_type,
+                "claude channel push: sent"
+            ),
+            Err(e) => warn!("claude channel push failed: {e}"),
         }
     }
 

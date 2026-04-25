@@ -62,8 +62,21 @@ impl EventRelay {
 
     async fn handle_event(&self, event: &EventEnvelope) {
         let peers = self.peers.read().await;
+        tracing::info!(
+            event_type = %event.event_type,
+            target = ?event.target_actor_id,
+            peers_n = peers.len(),
+            "relay: handle_event"
+        );
         for peer in peers.iter() {
-            if self.peer_should_receive(peer, event) {
+            let receive = self.peer_should_receive(peer, event);
+            tracing::info!(
+                event_type = %event.event_type,
+                adapter = peer.adapter.adapter_name(),
+                receive,
+                "relay: peer decision"
+            );
+            if receive {
                 peer.adapter.push_event(event).await;
             }
         }
@@ -81,13 +94,21 @@ impl EventRelay {
     /// If allowed_events is empty, the peer is a system peer (receives all
     /// system events for its workspace).
     fn peer_should_receive(&self, peer: &PeerHandle, event: &EventEnvelope) -> bool {
-        // Workspace scoping: if the event has a workspace_id and the peer
-        // is scoped to a workspace, only deliver if they match.
-        if let (Some(event_ws), Some(peer_ws)) =
-            (&event.workspace_id, &peer.workspace_branch)
-            && event_ws != peer_ws
-        {
-            return false;
+        // Directed events are pre-filtered by the kernel router via
+        // `target_actor_id` — only the matching actor's mailbox sees them.
+        // No further workspace check is needed (and would be wrong: the
+        // event's `workspace_id` is the slugged form, while the peer's
+        // `workspace_branch` is the raw git branch name — they don't
+        // compare).
+        if event.target_actor_id.is_none() {
+            // Broadcast event: apply workspace scoping so cross-workspace
+            // peers don't see each other's traffic.
+            if let (Some(event_ws), Some(peer_ws)) =
+                (&event.workspace_id, &peer.workspace_branch)
+                && event_ws != peer_ws
+            {
+                return false;
+            }
         }
 
         // System peers receive all (workspace-matched) events
