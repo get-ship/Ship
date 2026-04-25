@@ -242,6 +242,7 @@ pub async fn session_message(
 )]
 pub async fn session_reply(
     State(state): State<ApiState>,
+    Extension(auth): Extension<AuthContext>,
     Path(id): Path<String>,
     Json(body): Json<MessageBody>,
 ) -> axum::response::Response {
@@ -249,11 +250,28 @@ pub async fn session_reply(
     if text.is_empty() {
         return err(StatusCode::BAD_REQUEST, "empty reply");
     }
-    let Some(session) = state.pty_sessions().get(&id) else {
-        return err(StatusCode::NOT_FOUND, format!("session '{id}' not found"));
-    };
-    let ev = runtime::services::provider_adapter::ProviderEvent::Message { text };
-    let _ = session.0.event_tx.send(ev);
+
+    // Emit `studio.reply` to the event log keyed on the actor id. This
+    // is the canonical reply path: every actor in the projection gets
+    // their reply written to the log regardless of whether a legacy
+    // PtySession also exists. Dashboards / views tail this event.
+    let payload = serde_json::json!({ "actor_id": id, "text": &text });
+    if let Ok(envelope) = EventEnvelope::new(event_types::STUDIO_REPLY, &id, &payload) {
+        let envelope = envelope.with_target(&id);
+        let ctx = auth.to_daemon_emit_context();
+        if let Err(e) = state.kernel().lock().await.emit(envelope, &ctx).await {
+            tracing::warn!(actor = %id, "studio.reply emit failed: {e}");
+        }
+    }
+
+    // Legacy in-memory broadcast for any PtySession the registry still
+    // owns (the chats view's event-stream subscribers consume this).
+    // Best-effort; not an error if the actor was launched externally.
+    if let Some(session) = state.pty_sessions().get(&id) {
+        let ev = runtime::services::provider_adapter::ProviderEvent::Message { text };
+        let _ = session.0.event_tx.send(ev);
+    }
+
     (StatusCode::ACCEPTED, ()).into_response()
 }
 
