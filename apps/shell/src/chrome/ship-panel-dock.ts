@@ -293,20 +293,26 @@ export class ShipPanelDock extends LitElement {
 
   protected firstUpdated(): void {
     // Wire toolbar slot visibility — show only when assigned content.
+    // The initial sync is deferred to a microtask so we don't mutate
+    // reactive state inside the update lifecycle (which would trigger
+    // Lit's "scheduled an update after an update completed" warning).
+    const sync = (id: string, slot: HTMLSlotElement) => {
+      const has = slot.assignedElements({ flatten: true }).length > 0;
+      const present = this._toolbarHas.has(id);
+      if (has === present) return;
+      const next = new Set(this._toolbarHas);
+      if (has) next.add(id);
+      else next.delete(id);
+      this._toolbarHas = next;
+    };
     for (const t of this.tabs) {
       const slot = this.renderRoot.querySelector<HTMLSlotElement>(
         `slot[name="toolbar:${t.id}"]`,
       );
       if (!slot) continue;
-      const update = () => {
-        const has = slot.assignedElements({ flatten: true }).length > 0;
-        const next = new Set(this._toolbarHas);
-        if (has) next.add(t.id);
-        else next.delete(t.id);
-        this._toolbarHas = next;
-      };
-      slot.addEventListener("slotchange", update);
-      update();
+      slot.addEventListener("slotchange", () => sync(t.id, slot));
+      // Defer initial probe out of the update cycle.
+      queueMicrotask(() => sync(t.id, slot));
     }
   }
 
