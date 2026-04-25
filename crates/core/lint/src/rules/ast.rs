@@ -841,4 +841,39 @@ mod inner_tests {
             "{findings:?}"
         );
     }
+
+    /// Catalog freeze (Item 13): confirm the catalog the lint rule reads
+    /// from `sdk-ship-ops.json` covers every family the views thread
+    /// added. If any of these regress to "unknown op" the op was dropped
+    /// from the schema or `gen-sdk` was not re-run.
+    #[test]
+    fn ship_ops_catalog_covers_all_families() {
+        let s = sdk();
+        for name in [
+            "agents.detail", "skills.summaries", "rules.list", "mcp.list",
+            "permissions.tool_patterns", "pipelines.summaries", "events.list",
+            "specs.detail", "git.overview", "settings.state",
+            "dashboard.state", "collections.state", "chat.state",
+            "sessions.list",
+        ] {
+            assert!(
+                s.ship_ops.contains(name),
+                "ship op `{name}` missing from sdk-ship-ops.json — run `just gen-sdk`",
+            );
+        }
+    }
+
+    /// Unknown op is reported with an error severity finding — guards the
+    /// invariant the freeze relies on (templates can't drift past the
+    /// published schema without lint catching it).
+    #[test]
+    fn unknown_ship_op_severity_is_error() {
+        let src = r#"{% set bad = ship.agents.no_such_op() %}"#;
+        let findings = lint_ast("demo", src, std::path::Path::new("demo/index.html.j2"));
+        let hit = findings
+            .iter()
+            .find(|f| f.rule == RULE_AST_UNKNOWN_SHIP_OP)
+            .expect("expected unknown-ship-op finding");
+        assert_eq!(hit.severity, Severity::Error);
+    }
 }
