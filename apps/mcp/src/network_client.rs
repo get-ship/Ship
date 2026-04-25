@@ -134,16 +134,36 @@ pub async fn mesh_status(agent_id: &str, status: &str) -> Result<String> {
 
 /// Spawn an actor in the daemon's KernelRouter with the given config.
 /// The daemon stashes the mailbox for SSE delivery via /mesh/events/{actor_id}.
+/// Register an actor with the daemon kernel. The daemon is the only
+/// id minter — pass `None` for `actor_id` and adopt whatever ULID
+/// comes back. The legacy form accepts a client-side hint id (for
+/// daemon-spawned agents that pre-mint via SHIP_ACTOR_ID); the daemon
+/// honours hints that are ULID-shape and mints fresh otherwise.
+///
+/// Returns the canonical actor_id the daemon registered under.
 pub async fn actor_spawn(
-    actor_id: &str,
+    actor_id: Option<&str>,
     config: &runtime::events::ActorConfig,
     capabilities: Option<Vec<String>>,
 ) -> Result<String> {
-    post("/actor/spawn", serde_json::json!({
-        "actor_id": actor_id,
-        "config": config,
-        "capabilities": capabilities,
-    })).await
+    let body = post(
+        "/actor/spawn",
+        serde_json::json!({
+            "actor_id": actor_id,
+            "config": config,
+            "capabilities": capabilities,
+        }),
+    )
+    .await?;
+    // Daemon returns `{"ok": true, "data": {"actor_id": "01..."}}`.
+    let parsed: serde_json::Value = serde_json::from_str(&body)
+        .map_err(|e| anyhow!("actor_spawn response: {e}"))?;
+    parsed
+        .get("data")
+        .and_then(|d| d.get("actor_id"))
+        .and_then(|v| v.as_str())
+        .map(|s| s.to_string())
+        .ok_or_else(|| anyhow!("actor_spawn response missing data.actor_id: {body}"))
 }
 
 /// Create a job via the daemon's REST API. The daemon handles pipeline

@@ -45,6 +45,10 @@ pub struct ShipServer {
     relay: std::sync::Arc<tokio::sync::Mutex<RelayState>>,
     /// Actor-scoped event store for this connection.
     pub actor_store: std::sync::Arc<tokio::sync::Mutex<Option<runtime::events::ActorStore>>>,
+    /// Canonical actor_id for this connection — the id the daemon
+    /// returned from `actor_spawn`. Populated in `on_initialized`.
+    /// Tool handlers read this instead of re-running synthesis fallback.
+    pub canonical_actor_id: std::sync::Arc<tokio::sync::Mutex<Option<String>>>,
     /// MCP provider name from clientInfo (e.g. "claude-code", "cursor").
     pub mcp_provider: std::sync::Arc<tokio::sync::Mutex<Option<String>>>,
     /// Active session ID for this connection (set by auto_session_start).
@@ -96,6 +100,7 @@ impl ShipServer {
                 handle: None,
             })),
             actor_store: std::sync::Arc::new(tokio::sync::Mutex::new(None)),
+            canonical_actor_id: std::sync::Arc::new(tokio::sync::Mutex::new(None)),
             mcp_provider: std::sync::Arc::new(tokio::sync::Mutex::new(None)),
             session_id: std::sync::Arc::new(tokio::sync::Mutex::new(None)),
             last_activity: std::sync::Arc::new(AtomicU64::new(0)),
@@ -130,7 +135,12 @@ impl ShipServer {
             }
         };
 
-        let actor_id = self.resolve_actor_id().await;
+        // Hint id from env (daemon-spawned agents pre-mint and propagate
+        // via SHIP_ACTOR_ID). Externally-launched MCPs have no env id;
+        // the daemon mints in `actor_spawn` and we adopt the response.
+        let hint_id: Option<String> = std::env::var("SHIP_ACTOR_ID")
+            .ok()
+            .filter(|v| !v.is_empty());
 
         // Compute skill-derived subscriptions
         let ship_dir = project_dir.join(".ship");
@@ -175,13 +185,6 @@ impl ShipServer {
             }
         }
 
-        let config = runtime::events::ActorConfig {
-            namespace: actor_id.clone(),
-            write_namespaces: vec!["".to_string()],
-            read_namespaces: vec!["agent.".to_string()],
-            subscribe_namespaces,
-        };
-
         // Mesh capabilities from skills
         let capabilities: Vec<String> = skills_list.iter().map(|s| s.id.clone()).collect();
         let capabilities = if capabilities.is_empty() {
@@ -190,8 +193,40 @@ impl ShipServer {
             capabilities
         };
 
-        // Register a scoped session before spawning the actor so subsequent
-        // requests (including actor_spawn) use the session token.
+        let config = runtime::events::ActorConfig {
+            namespace: hint_id.clone().unwrap_or_default(),
+            write_namespaces: vec!["".to_string()],
+            read_namespaces: vec!["agent.".to_string()],
+            subscribe_namespaces,
+        };
+
+        // Spawn the actor in the daemon's kernel. Daemon mints the
+        // canonical id when no hint is sent (or accepts a ULID hint).
+        // We adopt the returned id for everything downstream.
+        let actor_id = match crate::network_client::actor_spawn(
+            hint_id.as_deref(),
+            &config,
+            Some(capabilities),
+        ).await {
+            Ok(id) => {
+                tracing::info!(actor_id = %id, "actor spawned in daemon kernel");
+                id
+            }
+            Err(e) => {
+                tracing::warn!(
+                    "daemon actor spawn failed (daemon may not be running): {e}"
+                );
+                // Fall back to the hint id if we have one; otherwise an
+                // empty string which will surface in subsequent calls.
+                hint_id.clone().unwrap_or_default()
+            }
+        };
+
+        // Cache the canonical id so resolve_actor_id() returns it for
+        // every subsequent tool call on this connection.
+        *self.canonical_actor_id.lock().await = Some(actor_id.clone());
+
+        // Register a scoped session under the canonical id.
         let active_agent = runtime::get_active_agent(Some(ship_dir.clone())).unwrap_or(None);
         let agent_role = active_agent.as_ref().and_then(|a| a.role.as_deref());
         let workspace_id = self.session_id.lock().await.clone();
@@ -203,14 +238,6 @@ impl ShipServer {
             Ok(_token) => tracing::info!(actor_id, "scoped session registered with daemon"),
             Err(e) => {
                 tracing::debug!(actor_id, "session registration skipped (daemon may not be running): {e}");
-            }
-        }
-
-        // Spawn actor in daemon's kernel (includes mesh registration)
-        match crate::network_client::actor_spawn(&actor_id, &config, Some(capabilities)).await {
-            Ok(_) => tracing::info!(actor_id, "actor spawned in daemon kernel"),
-            Err(e) => {
-                tracing::warn!(actor_id, "daemon actor spawn failed (daemon may not be running): {e}");
             }
         }
 
@@ -297,55 +324,33 @@ impl ShipServer {
         relay_state.handle = Some(relay.spawn(mailbox));
     }
 
-    /// Resolve a unique actor_id for this connection.
+    /// Resolve the actor_id for this connection.
     ///
-    /// If `SHIP_ACTOR_ID` is set (e.g. by the daemon job-dispatch service),
-    /// it is used directly as the actor_id.
+    /// Lookup order:
+    /// 1. `canonical_actor_id` cached from `actor_spawn` response. The
+    ///    daemon is the only id minter; once we've registered, this is
+    ///    the source of truth for everything downstream (tool calls,
+    ///    log lines, env propagation).
+    /// 2. `SHIP_ACTOR_ID` env — pre-mint from daemon-spawned agents.
+    /// 3. Empty string — caller proceeds without an id, expecting the
+    ///    daemon to mint one in the next `actor_spawn` call.
     ///
-    /// Otherwise: `agent.{agent_name}.{branch}` — e.g. `agent.rust-runtime.job/fix-parser`.
-    /// Falls back to `agent.{agent_name}` if branch can't be detected, and
-    /// `agent.mcp.{branch}` if no agent config is set.
+    /// Synthesis (`agent.{name}.{branch}`) is gone. The daemon mints.
     async fn resolve_actor_id(&self) -> String {
-        // SHIP_ACTOR_ID takes precedence — set by daemon when dispatching jobs.
-        if let Ok(mesh_id) = std::env::var("SHIP_ACTOR_ID")
-            && !mesh_id.is_empty()
-        {
-            tracing::info!(actor_id = %mesh_id, "resolved actor ID from SHIP_ACTOR_ID");
-            return mesh_id;
+        if let Some(id) = self.canonical_actor_id.lock().await.clone() {
+            return id;
         }
-
-        let project_dir = self.get_effective_project_dir().await.ok();
-        let agent_name = project_dir
-            .as_ref()
-            .and_then(|d| runtime::get_active_agent(Some(d.join(".ship"))).ok().flatten())
-            .map(|a| a.id)
-            .unwrap_or_else(|| "mcp".to_string());
-
-        // Try project dir first, then CWD as fallback for branch detection.
-        let branch = project_dir
-            .as_ref()
-            .and_then(|d| tool_gate::current_branch(d).ok())
-            .or_else(|| {
-                std::env::current_dir()
-                    .ok()
-                    .and_then(|d| tool_gate::current_branch(&d).ok())
-            });
-
-        // Slugify the branch — slashes break URL routing
-        // (`/api/actors/{id}/input` ambiguity) and ULID-style identity
-        // expectations elsewhere. `feat/view-dev-studio` → `feat-view-dev-studio`.
-        let id = match branch {
-            Some(b) => {
-                let slug: String = b
-                    .chars()
-                    .map(|c| if c.is_ascii_alphanumeric() || c == '-' || c == '_' { c } else { '-' })
-                    .collect();
-                format!("agent.{agent_name}.{slug}")
-            }
-            None => format!("agent.{agent_name}"),
-        };
-        tracing::info!(actor_id = %id, "resolved actor ID");
-        id
+        if let Ok(env_id) = std::env::var("SHIP_ACTOR_ID")
+            && !env_id.is_empty()
+        {
+            tracing::info!(actor_id = %env_id, "resolved actor ID from SHIP_ACTOR_ID");
+            return env_id;
+        }
+        // No id available yet. Tool handlers that hit this before
+        // `on_initialized` populates the canonical id will get an
+        // empty string; the daemon's `actor_spawn` mints one when we
+        // call it.
+        String::new()
     }
 
     /// Automatically start or resume a session on MCP connection init.
