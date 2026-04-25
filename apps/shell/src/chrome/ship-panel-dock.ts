@@ -147,7 +147,7 @@ export class ShipPanelDock extends LitElement {
       color: var(--foreground);
       background: color-mix(
         in oklab,
-        var(--primary) 6%,
+        var(--primary) 12%,
         transparent
       );
       border-bottom-color: var(--primary);

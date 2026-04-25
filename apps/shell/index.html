@@ -463,8 +463,12 @@
       .launcher-row:hover { background: var(--hover-bg, var(--muted)); }
       .launcher-row:hover { transform: translateX(1px); }
       .launcher-row.is-cursor {
-        background: var(--selected-bg, var(--muted));
+        background: color-mix(in oklch, var(--primary) 12%, transparent);
         box-shadow: inset 2px 0 0 var(--primary);
+      }
+      .launcher-row.is-cursor .launcher-row-label {
+        color: var(--foreground);
+        font-weight: var(--font-weight-medium, 500);
       }
       .launcher-row.is-dragging { opacity: 0.4; }
       .launcher-row.is-drag-over {

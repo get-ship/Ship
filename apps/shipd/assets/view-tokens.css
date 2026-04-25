@@ -52,3 +52,16 @@
 @keyframes ship-spin {
   to { transform: rotate(360deg); }
 }
+
+/* Eyebrow label utility — group head, section eyebrow, stat-strip caption.
+   Reads role tokens so themes that demote display typography (paper) still
+   get a coherent label treatment via --label-font / --label-weight /
+   --label-tracking. */
+.ship-eyebrow {
+  font-family: var(--label-font, var(--font-mono));
+  font-weight: var(--label-weight, 500);
+  letter-spacing: var(--label-tracking, 0.12em);
+  text-transform: uppercase;
+  font-size: 10.5px;
+  color: var(--muted-foreground);
+}
