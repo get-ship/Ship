@@ -20,6 +20,7 @@ export type ThemeId =
   | 'halo'
   | 'console'
   | 'contrast'
+  | 'glass'
 
 export interface Theme {
   id: ThemeId
@@ -86,6 +87,15 @@ export const THEMES: Theme[] = [
       'oklch(0.15 0 0)',           // card
       'oklch(0.87 0.18 85)',       // amber primary = accent
       'oklch(0.99 0 0)',           // pure white fg
+    ],
+  },
+  {
+    id: 'glass', label: 'Glass', dark: false,
+    swatches: [
+      'oklch(0.95 0.04 230)',      // soft tinted page backdrop
+      'oklch(0.99 0.005 240)',     // frosted card surface
+      'oklch(0.62 0.16 50)',       // muted brand orange
+      'oklch(0.62 0.14 280)',      // iridescent violet accent
     ],
   },
 ]

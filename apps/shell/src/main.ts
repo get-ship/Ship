@@ -118,6 +118,8 @@ function mountThemePicker() {
       font: "var(--font-display, var(--font-body))" },
     { label: "Texture", ids: ["paper", "halo"],
       font: "var(--font-body)" },
+    { label: "Effects", ids: ["glass"],
+      font: "var(--font-body)" },
     { label: "Special", ids: ["console", "contrast"],
       font: "var(--font-mono)" },
   ];

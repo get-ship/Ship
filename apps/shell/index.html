@@ -27,7 +27,7 @@
       // Applies the persisted ship-set theme id (data-theme + .dark class).
       // Must stay in sync with @ship/set/themes → persistTheme / applyTheme.
       (() => {
-        const VALID = new Set(["ship-light","ship-dark","paper","halo","console","contrast"]);
+        const VALID = new Set(["ship-light","ship-dark","paper","halo","console","contrast","glass"]);
         const DARK = new Set(["ship-dark","contrast","console"]);
         const PREFERS_DARK = matchMedia("(prefers-color-scheme: dark)").matches;
         const raw = localStorage.getItem("ship-site-theme");

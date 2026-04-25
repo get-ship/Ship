@@ -331,16 +331,38 @@
   --scrollbar-thumb-hover: oklch(0.78 0.20 145 / 60%);
 }
 
-/* Faint horizontal scanline — barely perceptible, evokes a CRT. Wired
- * through --surface-overlay; default normal blend (no mix-blend-mode
- * shift) preserves the previous look exactly. */
+/* CRT scanline overlay — every other pixel row darkened by a hair to
+ * evoke phosphor lines without sacrificing legibility. Multiply-blended
+ * over the page so highlights stay green and lows go dark. Tuned for
+ * 1× zoom: 8% black on 1px stripes is barely perceptible at body size
+ * but unmistakable on solid surfaces. Reduced motion skips overlays
+ * entirely (tokens.css). */
 :root[data-theme='console'] {
   --surface-overlay: repeating-linear-gradient(
     to bottom,
-    oklch(0.78 0.20 145 / 0%) 0 1px,
-    oklch(0.78 0.20 145 / 2%) 1px 2px
+    transparent 0px,
+    transparent 1px,
+    oklch(0 0 0 / 8%) 1px,
+    oklch(0 0 0 / 8%) 2px
   );
-  --surface-overlay-blend: normal;
+  --surface-overlay-blend: multiply;
+  --surface-overlay-opacity: 0.55;
+}
+
+/* Bevel-style elevation — terminal apps don't blur, they stack 1px
+ * phosphor borders + hard offset shadows. Override the shadow stack so
+ * elevated surfaces read as outset hardware pixels, not soft cards. */
+:root[data-theme='console'] {
+  --shadow-card-rest: 0 0 0 1px oklch(0.78 0.20 145 / 30%);
+  --shadow-hover:
+    0 0 0 1px oklch(0.78 0.20 145 / 60%),
+    0 0 0 3px oklch(0.78 0.20 145 / 10%);
+  --shadow-md:
+    0 0 0 1px oklch(0.78 0.20 145 / 30%),
+    0 4px 0 -1px oklch(0 0 0 / 60%);
+  --shadow-lg:
+    0 0 0 1px oklch(0.78 0.20 145 / 40%),
+    0 8px 0 -2px oklch(0 0 0 / 70%);
 }
 
 /* ───────────────────────────────────────────────────────────────────
@@ -434,4 +456,101 @@
 :root[data-theme='ship-dark'] {
   --surface-overlay: url("data:image/svg+xml,%3Csvg viewBox='0 0 200 200' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.85' numOctaves='4' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)' opacity='0.025'/%3E%3C/svg%3E");
   --surface-overlay-blend: overlay;
+}
+
+/* ───────────────────────────────────────────────────────────────────
+ * glass — frosted aero. A soft tinted gradient mesh on the page, then
+ * every elevated surface is translucent + backdrop-filter:blur, so
+ * cards, popovers, and dialogs literally see through to whatever's
+ * behind them. Edge-highlight inset shadow + cool drop shadow give the
+ * "glass on glass" lift. Brand orange survives at lower chroma to
+ * integrate with the cool ground; an iridescent violet accent picks up
+ * the glass-prism feel without screaming.
+ *
+ * Performance: backdrop-filter only paints on elevated surfaces (cards,
+ * popovers, dialogs, card-variant tiles via --card-backdrop-filter). The
+ * page background is a flat gradient — no full-page blur cost.
+ * ─────────────────────────────────────────────────────────────────── */
+:root[data-theme='glass'] {
+  --background: oklch(0.97 0.005 240);
+  --foreground: oklch(0.22 0.02 250);
+  --card: oklch(1 0 0 / 65%);
+  --card-foreground: oklch(0.22 0.02 250);
+  --popover: oklch(1 0 0 / 78%);
+  --popover-foreground: oklch(0.22 0.02 250);
+  --muted: oklch(0.94 0.008 240);
+  --muted-foreground: oklch(0.42 0.02 250);
+  --primary: oklch(0.62 0.16 50);
+  --primary-foreground: oklch(0.99 0.005 240);
+  --accent: oklch(0.62 0.14 280);
+  --accent-foreground: oklch(0.99 0.005 240);
+  --destructive: oklch(0.60 0.22 27);
+  --success: oklch(0.62 0.14 152);
+  --warning: oklch(0.72 0.15 75);
+  --info: oklch(0.62 0.14 230);
+  --border: oklch(1 0 0 / 22%);
+  --input: oklch(1 0 0 / 28%);
+  --ring: oklch(0.62 0.16 50 / 45%);
+
+  /* Frosted surfaces — nested layers gain opacity as they climb. */
+  --surface-0: oklch(0.97 0.005 240);
+  --surface-1: oklch(1 0 0 / 65%);
+  --surface-2: oklch(1 0 0 / 75%);
+  --surface-3: oklch(1 0 0 / 82%);
+  --border-subtle: oklch(1 0 0 / 14%);
+  --border-strong: oklch(1 0 0 / 36%);
+
+  /* The hook — every component that opted into the channel renders
+   * frosted automatically. */
+  --card-backdrop-filter: blur(24px) saturate(180%);
+
+  /* Larger radii — glass leans soft and modern. */
+  --radius: 14px;
+  --radius-sm: 8px;
+  --radius-md: 12px;
+  --radius-lg: 18px;
+  --radius-xl: 24px;
+
+  /* Inset top highlight (the glass edge) + cool drop shadow for lift. */
+  --shadow-xs: 0 1px 0 oklch(1 0 0 / 40%) inset, 0 2px 8px oklch(0.30 0.04 240 / 6%);
+  --shadow-sm: 0 1px 0 oklch(1 0 0 / 50%) inset, 0 4px 12px oklch(0.30 0.04 240 / 8%);
+  --shadow-card-rest: 0 1px 0 oklch(1 0 0 / 50%) inset, 0 6px 16px oklch(0.30 0.04 240 / 8%);
+  --shadow-hover: 0 1px 0 oklch(1 0 0 / 60%) inset, 0 12px 32px oklch(0.30 0.04 240 / 14%);
+  --shadow-md: 0 1px 0 oklch(1 0 0 / 50%) inset, 0 8px 24px oklch(0.30 0.04 240 / 10%);
+  --shadow-lg: 0 1px 0 oklch(1 0 0 / 60%) inset, 0 16px 48px oklch(0.30 0.04 240 / 16%);
+  --shadow-xl: 0 1px 0 oklch(1 0 0 / 60%) inset, 0 28px 72px oklch(0.30 0.04 240 / 22%);
+  --shadow-edge-top: 0 -1px 0 oklch(1 0 0 / 36%) inset;
+  --shadow-sticky: 0 1px 0 oklch(1 0 0 / 50%) inset, 0 2px 8px oklch(0.30 0.04 240 / 8%);
+  --shadow-accent: 0 1px 0 oklch(1 0 0 / 60%) inset, 0 8px 24px oklch(0.62 0.16 50 / 28%);
+
+  /* Calm motion — glass should glide. */
+  --duration-fast: 160ms;
+  --duration-medium: 240ms;
+  --ease-out: var(--ease-out-soft);
+
+  /* Calm interaction tints — translucent surfaces magnify color. */
+  --hover-strength: 5%;
+  --active-strength: 9%;
+  --selected-strength: 12%;
+
+  /* Chrome surfaces — frosted topbar / rail / statusbar over the mesh. */
+  --sidebar: oklch(1 0 0 / 55%);
+  --sidebar-foreground: oklch(0.22 0.02 250);
+  --sidebar-accent: oklch(1 0 0 / 70%);
+  --sidebar-accent-foreground: oklch(0.22 0.02 250);
+  --sidebar-border: oklch(1 0 0 / 22%);
+  --sidebar-primary: oklch(0.62 0.16 50);
+  --sidebar-primary-foreground: oklch(0.99 0.005 240);
+  --sidebar-ring: oklch(0.62 0.16 50 / 40%);
+}
+
+/* Tinted gradient mesh — soft warm/cool corners blur into the cool
+ * neutral page. Fixed attachment so scrolling doesn't drag the mesh. */
+:root[data-theme='glass'] body {
+  background-color: oklch(0.97 0.005 240);
+  background-image:
+    radial-gradient(ellipse 70% 50% at 0% 0%, oklch(0.88 0.10 220 / 70%), transparent 60%),
+    radial-gradient(ellipse 60% 45% at 100% 100%, oklch(0.90 0.10 30 / 55%), transparent 60%),
+    radial-gradient(ellipse 50% 40% at 100% 0%, oklch(0.92 0.08 300 / 45%), transparent 65%);
+  background-attachment: fixed;
 }
