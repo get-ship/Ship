@@ -8,14 +8,19 @@ use std::path::Path;
 use super::dispatch_ports::{LaunchCommand, LaunchProfile};
 
 /// Events extracted from provider process output.
-#[derive(Debug, Clone, PartialEq)]
+#[derive(Debug, Clone, PartialEq, serde::Serialize)]
+#[serde(tag = "kind", rename_all = "snake_case")]
 pub enum ProviderEvent {
     ToolUse { tool: String, input_preview: String },
     Message { text: String },
     Usage { input_tokens: u64, output_tokens: u64 },
     SessionStarted { session_id: String },
     TurnComplete { stop_reason: String },
-    Custom { kind: String, data: serde_json::Value },
+    Custom {
+        #[serde(rename = "subtype")]
+        kind: String,
+        data: serde_json::Value,
+    },
 }
 
 /// Declarative capability flags per provider.
@@ -39,6 +44,11 @@ pub struct ProviderCapabilities {
     /// Provider supports resuming a prior session in headless/server mode
     /// (codex exec resume, opencode REST sessions).
     pub session_resume: bool,
+    /// Provider supports bidirectional channel notifications — user turns
+    /// can be pushed into a long-lived process via provider-specific
+    /// channel protocol (Claude Code's `notifications/claude/channel`).
+    /// Enables persistent chat sessions without per-turn subprocess spawn.
+    pub channels: bool,
 }
 
 impl ProviderCapabilities {
@@ -51,6 +61,7 @@ impl ProviderCapabilities {
         mcp: false,
         hooks: false,
         session_resume: false,
+        channels: false,
     };
 }
 
@@ -205,5 +216,17 @@ mod adapter_for_tests {
         assert!(!m.mcp);
         assert!(!m.hooks);
         assert!(!m.session_resume);
+        assert!(!m.channels);
+    }
+
+    #[test]
+    fn only_claude_declares_channels() {
+        let caps = capabilities();
+        let channel_capable: Vec<&str> = caps
+            .iter()
+            .filter(|(_, c)| c.channels)
+            .map(|(id, _)| *id)
+            .collect();
+        assert_eq!(channel_capable, vec!["claude"]);
     }
 }

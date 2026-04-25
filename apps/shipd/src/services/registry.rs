@@ -520,6 +520,13 @@ pub fn call(name: &str, args: &Value, state: &ApiState) -> Result<Value, Registr
             }))
         }
 
+        // ── sessions ──────────────────────────────────────────────
+        "sessions.list" => {
+            Ok(json!({
+                "items": state.pty_sessions().list(),
+            }))
+        }
+
         // ── chat ──────────────────────────────────────────────────
         "chat.state" => {
             let ship_dir = state.ship_dir();

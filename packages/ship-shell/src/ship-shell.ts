@@ -53,8 +53,15 @@ export class ShipShell extends LitElement {
     return this;
   }
 
+  /**
+   * Light-DOM mode with no render output — `<ship-shell>` is a pure
+   * wrapper whose children are authored directly in the host HTML.
+   * Returning a template that contains a `<slot>` would create a
+   * real DOM element (not a shadow slot) and disturb the light-DOM
+   * child layout; returning nothing keeps Lit out of the picture.
+   */
   render() {
-    return html`<slot></slot>`;
+    return null;
   }
 
   /**

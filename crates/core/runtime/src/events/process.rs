@@ -166,7 +166,7 @@ mod tests {
     #[test]
     fn filter_env_keys_keeps_allowed() {
         let keys = vec![
-            "SHIP_MESH_ID".to_string(),
+            "SHIP_ACTOR_ID".to_string(),
             "SHIP_AGENT_ID".to_string(),
             "PATH".to_string(),
             "HOME".to_string(),
@@ -174,6 +174,6 @@ mod tests {
             "DATABASE_URL".to_string(),
         ];
         let result = filter_env_keys(&keys);
-        assert_eq!(result, vec!["SHIP_MESH_ID", "SHIP_AGENT_ID", "PATH", "HOME"]);
+        assert_eq!(result, vec!["SHIP_ACTOR_ID", "SHIP_AGENT_ID", "PATH", "HOME"]);
     }
 }

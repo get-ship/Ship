@@ -64,7 +64,7 @@ fn normalize_stdin(stdin: &str, hook_type: &str) -> serde_json::Value {
 
     let agent = runtime::env::read_raw(runtime::env::Var::AgentId).ok();
     let workspace = runtime::env::read_raw(runtime::env::Var::WorkspaceId).ok();
-    let session = runtime::env::read_raw(runtime::env::Var::SessionId).ok();
+    let session = runtime::env::read_raw(runtime::env::Var::ActorId).ok();
 
     let mut event = serde_json::json!({
         "provider": provider,
@@ -205,7 +205,7 @@ pub fn run_session_end() -> Result<()> {
             println!("{}", serde_json::to_string(&event)?);
             broadcast_session_ended(&actor, &workspace);
         }
-        if let Ok(slug) = runtime::env::read_raw(runtime::env::Var::MeshId) {
+        if let Ok(slug) = runtime::env::read_raw(runtime::env::Var::ActorId) {
             signal_job_completed(&slug);
         }
         Ok(())
@@ -242,7 +242,7 @@ mod tests {
         // SAFETY: single-threaded test, no other threads read env here.
         unsafe {
             runtime::env::set(runtime::env::Var::AgentId, "agent.rust-lane");
-            runtime::env::set(runtime::env::Var::SessionId, "job-abc");
+            runtime::env::set(runtime::env::Var::ActorId, "job-abc");
             runtime::env::set(runtime::env::Var::WorkspaceId, "ws-1");
         }
         let stdin = r#"{"tool_name":"Bash","tool_input":{"command":"ls"}}"#;
@@ -254,7 +254,7 @@ mod tests {
         assert_eq!(event["hook_type"], "before-tool");
         unsafe {
             runtime::env::remove(runtime::env::Var::AgentId);
-            runtime::env::remove(runtime::env::Var::SessionId);
+            runtime::env::remove(runtime::env::Var::ActorId);
             runtime::env::remove(runtime::env::Var::WorkspaceId);
         }
     }

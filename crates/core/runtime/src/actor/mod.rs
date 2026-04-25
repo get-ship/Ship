@@ -10,7 +10,7 @@ use crate::db::actor_events::{
 };
 use crate::events::filter::EventFilter;
 use crate::persistence::event_store::{EventStore, SqliteEventStore};
-use crate::events::types::ActorCreated;
+use crate::events::types::{ActorCreated, ActorStopped};
 
 pub mod supervisor;
 
@@ -36,6 +36,7 @@ pub fn create_actor(
         workspace_id: workspace_id.map(str::to_string),
         parent_actor_id: parent_actor_id.map(str::to_string),
         restart_count: 0,
+        ..Default::default()
     };
     emit_actor_created(id, &payload, workspace_id, parent_actor_id)
 }
@@ -66,7 +67,11 @@ pub fn stop_actor(
     workspace_id: Option<&str>,
     parent_actor_id: Option<&str>,
 ) -> Result<()> {
-    emit_actor_stopped(id, reason, workspace_id, parent_actor_id)
+    let payload = ActorStopped {
+        reason: reason.to_string(),
+        ..Default::default()
+    };
+    emit_actor_stopped(id, &payload, workspace_id, parent_actor_id)
 }
 
 /// Transition actor to `crashed` + persist restart_count via `actor.crashed` event.

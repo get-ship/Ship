@@ -8,7 +8,7 @@ use crate::requests::{
     DeleteSkillFileRequest, GetSkillVarsRequest, ListProjectSkillsRequest, ListSkillVarsRequest,
     ListSkillsRequest, SetSkillVarRequest, WriteSkillFileRequest,
 };
-use crate::tools::studio::{collect_reference_docs, collect_skill_files, parse_skill_frontmatter};
+use crate::tools::skill_files::{collect_reference_docs, collect_skill_files, parse_skill_frontmatter};
 
 pub fn list_skills(project_dir: &Path, req: ListSkillsRequest) -> String {
     let ship_dir = runtime::ShipHome::project_ship_dir(project_dir);

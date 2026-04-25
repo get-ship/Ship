@@ -44,6 +44,12 @@ const VIEW_TOKENS_CSS: &str = concat!(
     include_str!("../../../../packages/ship-set/src/tokens.css"),
     "\n",
     include_str!("../../assets/view-tokens.css"),
+    "\n",
+    // Per-theme overrides — :root[data-theme='paper'] etc. Applied by
+    // the theme picker toggling `data-theme` + `.dark` on <html>.
+    // Without this, `applyTheme` only switches light ↔ dark because
+    // every other theme's overrides are invisible to the browser.
+    include_str!("../../../../packages/ship-set/src/themes.css"),
 );
 
 /// GET /api/runtime/assets/datastar.js
@@ -83,7 +89,9 @@ pub async fn serve_view_tokens() -> axum::response::Response {
     axum::response::Response::builder()
         .status(StatusCode::OK)
         .header(axum::http::header::CONTENT_TYPE, "text/css; charset=utf-8")
-        .header(axum::http::header::CACHE_CONTROL, "public, max-age=3600, immutable")
+        // No-cache so theme/token edits land on the next load without
+        // needing a hard refresh. Production builds can add ETags.
+        .header(axum::http::header::CACHE_CONTROL, "no-cache")
         .body(axum::body::Body::from(VIEW_TOKENS_CSS))
         .unwrap()
 }

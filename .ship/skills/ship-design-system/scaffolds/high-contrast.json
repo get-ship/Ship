@@ -1,0 +1,22 @@
+{
+  "$schema": "https://raw.githubusercontent.com/madvib/ship/main/schemas/theme.schema.json",
+  "id": "{{NAME}}",
+  "label": "{{TITLE}}",
+  "mode": "dark",
+  "description": "High-contrast theme. Exceeds WCAG AAA on every canonical pair.",
+  "tokens": {
+    "foreground": "#ffffff",
+    "background": "#000000",
+    "primary": "#ffff00",
+    "primary-foreground": "#000000",
+    "border": "#ffffff",
+    "muted": "#111111",
+    "muted-foreground": "#dddddd",
+    "destructive": "#ff6b6b",
+    "destructive-foreground": "#000000",
+    "success": "#5af58a",
+    "warning": "#ffbf47",
+    "accent": "#111111",
+    "accent-foreground": "#ffff00"
+  }
+}

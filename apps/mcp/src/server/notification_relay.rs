@@ -6,6 +6,12 @@ use tokio::sync::RwLock;
 use crate::push::PushAdapter;
 
 /// A connected agent peer with its allowed event types.
+///
+/// The peer's actor identity lives on its mailbox in the kernel —
+/// directed-delivery events (those with `target_actor_id` set) only
+/// land in the matching actor's mailbox, so per-peer session/actor
+/// filtering at the relay is unnecessary. The relay only filters by
+/// workspace and skill namespaces.
 pub struct PeerHandle {
     pub adapter: Box<dyn PushAdapter>,
     /// Event types this agent is allowed to receive, derived from

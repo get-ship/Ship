@@ -154,10 +154,10 @@ fn test_payload_round_trip() -> anyhow::Result<()> {
     rt!(event_types::SESSION_STARTED,       SessionStarted { goal: Some("deploy".into()), ..Default::default() });
     rt!(event_types::SESSION_PROGRESS,      SessionProgress { message: "halfway".into(), escalation: None });
     rt!(event_types::SESSION_ENDED,         SessionEnded { summary: Some("done".into()), duration_secs: Some(120), gate_result: Some("pass".into()), ..Default::default() });
-    rt!(event_types::ACTOR_CREATED,         ActorCreated { kind: "worker".into(), environment_type: "cli".into(), workspace_id: None, parent_actor_id: None, restart_count: 0 });
+    rt!(event_types::ACTOR_CREATED,         ActorCreated { kind: "worker".into(), environment_type: "cli".into(), workspace_id: None, parent_actor_id: None, restart_count: 0, ..Default::default() });
     rt!(event_types::ACTOR_WOKE,            ActorWoke {});
     rt!(event_types::ACTOR_SLEPT,           ActorSlept { idle_secs: 45 });
-    rt!(event_types::ACTOR_STOPPED,         ActorStopped { reason: "shutdown".into() });
+    rt!(event_types::ACTOR_STOPPED,         ActorStopped { reason: "shutdown".into(), ..Default::default() });
     rt!(event_types::ACTOR_CRASHED,         ActorCrashed { error: "OOM".into(), restart_count: 2 });
 
     Ok(())

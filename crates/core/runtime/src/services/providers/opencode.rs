@@ -28,6 +28,7 @@ impl ProviderAdapter for OpenCodeAdapter {
             mcp: true,
             hooks: false,
             session_resume: true,
+            channels: false,
         }
     }
 
@@ -38,7 +39,7 @@ impl ProviderAdapter for OpenCodeAdapter {
             args.push(model.clone());
         }
         let mut env = HashMap::new();
-        env.insert("SHIP_MESH_ID".to_string(), slug.to_string());
+        env.insert("SHIP_ACTOR_ID".to_string(), slug.to_string());
         LaunchCommand { bin: "opencode".to_string(), args, env }
     }
 
@@ -60,7 +61,7 @@ impl ProviderAdapter for OpenCodeAdapter {
         args.push(prompt);
 
         let mut env = HashMap::new();
-        env.insert("SHIP_MESH_ID".to_string(), slug.to_string());
+        env.insert("SHIP_ACTOR_ID".to_string(), slug.to_string());
 
         LaunchCommand { bin: "opencode".to_string(), args, env }
     }

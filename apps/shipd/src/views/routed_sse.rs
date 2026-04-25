@@ -26,9 +26,11 @@ use crate::rest_api::ApiState;
 use crate::views::router::match_path;
 use crate::views::stream::{ViewSse, ViewStream};
 
-/// The conventional target for routed-view morph patches. Matches the
-/// id the shell mounts views into.
-const PATCH_SELECTOR: &str = "#ship-view-root";
+/// Default patch target — the id the shell mounts full-page views into.
+/// Callers can override via `?target=<selector>` on the SSE URL when the
+/// view is embedded (drawer, dock, iframe) so re-renders don't clobber
+/// the main content area.
+const DEFAULT_PATCH_SELECTOR: &str = "#ship-view-root";
 
 /// Resolve the nearest `manifest.{jsonc,yaml}` walking up from the
 /// template file to any view-root parent. Returns the parsed events
@@ -138,10 +140,17 @@ pub async fn serve_view_sse_routed(
         // Parse datastar signals + query.
         let (_signals, query_params) = parse_query(&raw_query);
 
+        // Optional per-connection patch target so embedded renders
+        // (drawer chat, panel dock, etc.) don't clobber main content.
+        let patch_selector: String = query_params
+            .get("target")
+            .cloned()
+            .unwrap_or_else(|| DEFAULT_PATCH_SELECTOR.to_string());
+
         // Initial render — push the view root immediately so reconnects
         // pick up current state without waiting for an event.
         if let Ok(html) = render_once(&state, &path, &query_params).await {
-            if vs.patch(PATCH_SELECTOR, html).await.is_err() {
+            if vs.patch(&patch_selector, html).await.is_err() {
                 return;
             }
         }
@@ -183,7 +192,7 @@ pub async fn serve_view_sse_routed(
             let Ok(html) = render_once(&state, &path, &query_params).await else {
                 continue;
             };
-            if vs.patch(PATCH_SELECTOR, html).await.is_err() {
+            if vs.patch(&patch_selector, html).await.is_err() {
                 break;
             }
         }

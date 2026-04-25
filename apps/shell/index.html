@@ -84,6 +84,22 @@
         overflow: hidden;
       }
 
+      /* Light-DOM shell components — their `:host` styles never match
+         (no shadow root). Force layout/positioning here so they don't
+         steal grid cells. */
+      ship-shell { display: contents; }
+      ship-rail, .ship-rail { grid-column: 1; }
+      .ship-content { grid-column: 2; }
+      ship-toast-host { display: contents; }
+      ship-edit-overlay {
+        position: fixed;
+        inset: 0;
+        pointer-events: none;
+        z-index: 9500;
+        display: none;
+      }
+      body.edit-mode ship-edit-overlay { display: block; }
+
       /* ── Top bar: slim, one line ── */
       .ship-topbar {
         grid-column: 1 / -1;
@@ -265,6 +281,68 @@
         border-radius: 0 2px 2px 0;
       }
       .ship-rail .rail-spacer { flex: 1; }
+      .ship-rail .rail-project { border-bottom: 1px solid var(--border); padding-bottom: var(--space-2); margin-bottom: var(--space-2); }
+      .ship-rail .rail-project-badge {
+        display: flex; align-items: center; justify-content: center;
+        width: 32px; height: 32px; margin: 4px auto;
+        border-radius: var(--radius-md);
+        background: color-mix(in oklch, var(--primary) 18%, transparent);
+        color: var(--primary); font-weight: var(--font-weight-medium, 500);
+        font-size: 13px;
+      }
+      .ship-rail .rail-project-badge:hover { background: color-mix(in oklch, var(--primary) 26%, transparent); }
+      .rail-project-popover {
+        position: fixed;
+        top: 44px; left: 56px;
+        min-width: 260px;
+        background: var(--card, var(--background));
+        border: 1px solid var(--border);
+        border-radius: var(--radius-md);
+        box-shadow: 0 12px 24px rgba(0,0,0,0.18);
+        z-index: 9400;
+        padding: 6px;
+        font-size: var(--text-sm);
+      }
+      .rail-project-title { font-size: 10px; text-transform: uppercase; letter-spacing: 0.08em; color: var(--muted-foreground); padding: 4px 10px 6px; }
+      .rail-project-row { display: grid; gap: 2px; padding: 6px 10px; border-radius: var(--radius-sm); cursor: pointer; }
+      .rail-project-row:hover { background: var(--muted); }
+      .rail-project-row.active { color: var(--primary); }
+      .rail-project-row-name { font-weight: var(--font-weight-medium, 500); font-size: var(--text-sm); }
+      .rail-project-row-path { font-size: var(--text-xs); color: var(--muted-foreground); font-family: var(--font-mono); }
+      .rail-project-row.add { color: var(--muted-foreground); font-size: var(--text-xs); padding: 6px 10px; }
+      .rail-project-row.add:hover { color: var(--foreground); }
+      .rail-project-sep { height: 1px; background: var(--border); margin: 4px 0; }
+      .rail-project-empty { padding: 8px 10px; color: var(--muted-foreground); font-size: var(--text-xs); }
+      .ship-rail .rail-chats { position: relative; }
+      .ship-rail .rail-chats[data-badge]:not([data-badge=""])::after {
+        content: attr(data-badge);
+        position: absolute;
+        top: 4px; right: 4px;
+        min-width: 14px; height: 14px;
+        padding: 0 3px;
+        border-radius: 999px;
+        background: var(--primary);
+        color: var(--primary-foreground, #fff);
+        font-size: 9px;
+        line-height: 14px;
+        text-align: center;
+        font-weight: var(--font-weight-medium, 500);
+      }
+      .ship-rail .rail-new {
+        margin: 4px 6px;
+        width: 36px;
+        height: 32px;
+        border: 1px dashed color-mix(in oklch, var(--foreground) 30%, transparent);
+        border-radius: var(--radius-md, 6px);
+        color: var(--muted-foreground);
+        opacity: 0.75;
+      }
+      .ship-rail .rail-new:hover {
+        background: var(--sidebar-accent);
+        color: var(--foreground);
+        border-style: solid;
+        opacity: 1;
+      }
       .ship-rail .rail-launcher {
         margin-top: var(--space-1);
         opacity: 0.7;
@@ -317,6 +395,7 @@
       /* ── Right drawer: chat panel ── */
       .ship-drawer {
         grid-row: 2;
+        grid-column: 3;
         width: 0;
         overflow: hidden;
         background: var(--sidebar);
@@ -330,8 +409,8 @@
       }
       .ship-drawer style { display: none !important; }
 
-      /* ── Bottom terminal panel: toggleable ── */
-      .ship-terminal-panel {
+      /* ── Bottom panel dock: toggleable, multi-tab ── */
+      ship-panel-dock {
         grid-column: 1 / -1;
         height: 0;
         overflow: hidden;
@@ -339,24 +418,9 @@
         border-top: none;
         transition: height var(--duration-normal) var(--ease-out);
       }
-      body.terminal-open .ship-terminal-panel {
+      body.dock-open ship-panel-dock {
         height: 240px;
         border-top: 1px solid var(--border);
-        overflow: auto;
-      }
-      .ship-terminal-panel .panel-header {
-        display: flex;
-        align-items: center;
-        gap: var(--space-2);
-        padding: var(--space-1) var(--space-3);
-        border-bottom: 1px solid var(--border);
-        background: var(--sidebar);
-        font-size: var(--text-xs);
-        color: var(--muted-foreground);
-        font-weight: var(--font-weight-medium);
-      }
-      .ship-terminal-panel .panel-body {
-        height: calc(100% - 28px);
       }
 
       /* ── Status bar: hairline bottom ── */
@@ -417,7 +481,7 @@
 
     <!-- Main content: full bleed -->
     <main class="ship-content" id="ship-view-root">
-      <div class="empty-hint">loading…</div>
+      <ship-loading></ship-loading>
     </main>
 
     <!-- Right drawer: chat -->
@@ -425,20 +489,15 @@
       <div id="drawer-content"><div class="empty-hint">chat</div></div>
     </aside>
 
-    <!-- Bottom terminal panel (hidden by default) -->
-    <div class="ship-terminal-panel" id="terminal-panel">
-      <div class="panel-header">
-        <ship-icon name="terminal" size="sm"></ship-icon>
-        <span>Terminal</span>
-        <span class="spacer" style="flex:1"></span>
-        <ship-button variant="ghost" size="sm" id="close-terminal" aria-label="Close terminal">
-          <ship-icon slot="leading" name="x"></ship-icon>
-        </ship-button>
-      </div>
-      <div class="panel-body">
-        <ship-terminal id="shell-terminal" fit readonly></ship-terminal>
-      </div>
-    </div>
+    <!-- Bottom panel dock (hidden by default) -->
+    <ship-panel-dock id="panel-dock" active-tab="terminal">
+      <ship-terminal slot="terminal" id="shell-terminal" fit></ship-terminal>
+      <ship-devtools-source slot="source"></ship-devtools-source>
+      <ship-devtools-signals slot="signals"></ship-devtools-signals>
+      <ship-devtools-lint slot="lint"></ship-devtools-lint>
+      <ship-devtools-schema slot="schema"></ship-devtools-schema>
+      <ship-devtools-components slot="components"></ship-devtools-components>
+    </ship-panel-dock>
 
     <!-- Status bar -->
     <div class="ship-statusbar">
@@ -450,6 +509,14 @@
       <span id="view-status-end" style="display:inline-flex;gap:8px;align-items:center"></span>
       <span id="status-theme">ship</span>
     </div>
+
+    <!-- Create is now handled by <ship-command-bar> in Create mode.
+         The rail's "+" tile fires ship:create:open; the bar listens.
+         -->
+
+    <!-- Edit-mode overlay: hover highlight + click to annotate. Toggled
+         by ⌘⇧E via body.edit-mode. -->
+    <ship-edit-overlay></ship-edit-overlay>
 
     <!-- Toast host: listens for ship:notify, forwards to ship-toast-container. -->
     <ship-toast-host position="bottom-right"></ship-toast-host>

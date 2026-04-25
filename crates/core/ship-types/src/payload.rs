@@ -232,7 +232,7 @@ pub struct SkillFailed {
 
 // -- Actor aggregate (v0.2.0 kernel) -------------------------------------------
 
-#[derive(Debug, Serialize, Deserialize)]
+#[derive(Debug, Default, Serialize, Deserialize)]
 pub struct ActorCreated {
     pub kind: String,
     pub environment_type: String,
@@ -242,6 +242,33 @@ pub struct ActorCreated {
     pub parent_actor_id: Option<String>,
     #[serde(default)]
     pub restart_count: u32,
+    /// Agent profile id this actor implements (e.g. "shipwright", "rust-runtime").
+    /// None for service actors (mesh, user-inbox, supervisor).
+    #[serde(default)]
+    pub agent_id: Option<String>,
+    /// Provider backing this actor (claude / codex / opencode / gemini / cursor).
+    /// None for non-agent actors.
+    #[serde(default)]
+    pub provider: Option<String>,
+    /// Provider model identifier when known at spawn time.
+    #[serde(default)]
+    pub model: Option<String>,
+    /// Transport profile — `pty` for attached/interactive, `headless` for stream-json.
+    #[serde(default)]
+    pub transport: Option<String>,
+    /// Lifecycle profile — `long-lived` for chat/services, `one-shot` for pipeline steps.
+    #[serde(default)]
+    pub persistence: Option<String>,
+    /// SHA-256 of the system prompt or rules concatenation used at spawn.
+    /// Lets the dashboard detect prompt drift across restarts.
+    #[serde(default)]
+    pub system_prompt_hash: Option<String>,
+    /// OS pid of the held process. `0` or `None` for in-process services.
+    #[serde(default)]
+    pub pid: Option<u32>,
+    /// Capability ids (skill ids the actor advertises).
+    #[serde(default)]
+    pub capabilities: Vec<String>,
 }
 
 #[derive(Debug, Serialize, Deserialize)]
@@ -252,9 +279,13 @@ pub struct ActorSlept {
     pub idle_secs: u64,
 }
 
-#[derive(Debug, Serialize, Deserialize)]
+#[derive(Debug, Default, Serialize, Deserialize)]
 pub struct ActorStopped {
     pub reason: String,
+    #[serde(default)]
+    pub exit_code: Option<i32>,
+    #[serde(default)]
+    pub duration_ms: Option<u64>,
 }
 
 #[derive(Debug, Serialize, Deserialize)]

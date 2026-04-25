@@ -60,7 +60,7 @@ impl Object for ShipNs {
             // whose callable methods dispatch to the registry.
             "agents" | "skills" | "rules" | "mcp" | "permissions"
             | "pipelines" | "git" | "collections" | "specs" | "events"
-            | "settings" | "dashboard" | "chat" => {
+            | "settings" | "dashboard" | "chat" | "sessions" => {
                 Some(Value::from_object(Domain {
                     state: self.state.clone(),
                     name: k.to_string(),
@@ -154,7 +154,7 @@ impl Object for TryNs {
         match k {
             "agents" | "skills" | "rules" | "mcp" | "permissions"
             | "pipelines" | "git" | "collections" | "specs" | "events"
-            | "settings" | "dashboard" | "chat" => {
+            | "settings" | "dashboard" | "chat" | "sessions" => {
                 Some(Value::from_object(Domain {
                     state: self.state.clone(),
                     name: k.to_string(),

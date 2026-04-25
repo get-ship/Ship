@@ -275,6 +275,63 @@ pub enum Route {
     /// @route GET "/api/sse/{*path}"
     ServeViewSseRouted { path: String },
 
+    /// @route GET "/api/view-source/{*path}"
+    ServeViewSource { path: String },
+
+    /// @route POST "/api/create/{surface}"
+    CreateSurface { surface: String },
+
+    /// @route PUT "/api/views/{name}/template"
+    WriteViewTemplate { name: String },
+
+    /// @route PUT "/api/views/{name}/manifest"
+    WriteViewManifestApi { name: String },
+
+    /// @route POST "/api/views/{name}/fork"
+    ForkView { name: String },
+
+    /// @route POST "/api/themes/contrast"
+    ThemeContrast,
+
+    /// @route POST "/api/sessions/spawn"
+    SpawnPtySession,
+
+    /// @route GET "/api/pty-sessions"
+    ListPtySessions,
+
+    /// @route GET "/api/sessions/{id}"
+    GetPtySession { id: String },
+
+    /// @route DELETE "/api/sessions/{id}"
+    StopPtySession { id: String },
+
+    /// @route POST "/api/sessions/{id}/input"
+    PtySessionInput { id: String },
+
+    /// @route POST "/api/sessions/{id}/message"
+    PtySessionMessage { id: String },
+
+    /// @route POST "/api/sessions/{id}/reply"
+    PtySessionReply { id: String },
+
+    /// @route GET "/api/sessions/{id}/stream"
+    StreamPtySession { id: String },
+
+    /// @route GET "/api/sessions/{id}/events"
+    StreamPtySessionEvents { id: String },
+
+    /// @route GET "/api/providers/installed"
+    InstalledProviders,
+
+    /// @route GET "/api/projects"
+    ListProjects,
+
+    /// @route POST "/api/projects"
+    AddProject,
+
+    /// @route POST "/api/projects/switch"
+    SwitchProject,
+
     /// @route GET "/api/view/{name}/manifest"
     ServeViewManifest { name: String },
 

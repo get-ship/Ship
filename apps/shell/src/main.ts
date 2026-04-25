@@ -1,7 +1,8 @@
 import Navigo from "navigo";
 import { mountDaemonFragment, isSameOrigin } from "./mount";
-import { initSignalInspector } from "./signal-inspector";
-import { toggle as toggleCmdk, isCommandPaletteOpen } from "./command-palette";
+// Legacy command palette — retained for the scripted `/cmdk` fallback
+// but no longer bound to ⌘K (claimed by <ship-command-bar>).
+import { toggle as toggleCmdk } from "./command-palette";
 import { installErrorReporter } from "./error-reporter";
 // Side-effect import: registers `<ship-shell>` + mounts `window.ship`
 // on first `connectedCallback`. The custom-element registration fires
@@ -177,13 +178,9 @@ document
 if (document.getElementById("theme-picker")) mountThemePicker();
 
 // ── Rail toggle ──────────────────────────────────────────────────────
-// The shell root component owns rail-open body-class state + persistence;
-// the topbar button just dispatches the intent.
-document.getElementById("toggle-rail")!.addEventListener("click", () => {
-  document
-    .querySelector("ship-shell")
-    ?.dispatchEvent(new CustomEvent("ship:rail:toggle", { bubbles: true }));
-});
+// <ship-nav-top>'s own @click on #toggle-rail dispatches
+// ship:rail:toggle; <ship-shell> owns the body class toggle. Nothing
+// to wire here.
 
 // ── Drawer toggle ────────────────────────────────────────────────────
 async function toggleDrawer() {
@@ -218,10 +215,158 @@ shellEl?.addEventListener("ship:chat:close", () => {
   if (document.body.classList.contains("drawer-open")) void toggleDrawer();
 });
 
-// ── Terminal panel toggle ────────────────────────────────────────────
-document.getElementById("close-terminal")!.addEventListener("click", () => {
-  document.body.classList.remove("terminal-open");
+// ── Panel dock toggle ───────────────────────────────────────────────
+const dock = document.getElementById("panel-dock")!;
+dock.addEventListener("ship:dock:close", () => {
+  document.body.classList.remove("dock-open");
 });
+document.querySelector("ship-shell")?.addEventListener("ship:dock:toggle", () => {
+  document.body.classList.toggle("dock-open");
+  maybeInitDockActive();
+});
+
+// Devtools packs load lazily on first activation of the tab that needs
+// them. Tracked per pack so repeat activations don't re-inject.
+const loadedPacks = new Set<string>();
+function loadPack(src: string): void {
+  if (loadedPacks.has(src)) return;
+  loadedPacks.add(src);
+  const s = document.createElement("script");
+  s.type = "module";
+  s.src = `/api/assets/${src}`;
+  document.head.appendChild(s);
+}
+
+// ── Agent task completion notifications ─────────────────────────────
+// The `agent` kernel namespace emits `agent.task.complete` when a
+// creation or iteration finishes. Toast + click-through routes to
+// the created artifact (e.g. the new view).
+window.ship?.subscribe?.("agent", (ev) => {
+  if (ev.event_type !== "agent.task.complete") return;
+  const payload = ev.payload as {
+    surface?: string;
+    name?: string;
+    route?: string;
+  };
+  const name = payload?.name ?? "task";
+  window.ship?.notify?.(`${name} is ready`, "success");
+  // Also fire a public shell event that the chat drawer listens on
+  // to clear its working-state pill.
+  document.querySelector("ship-shell")?.dispatchEvent(
+    new CustomEvent("ship:create:done", { detail: payload, bubbles: true }),
+  );
+  if (payload?.route) {
+    // Click-through: toast-host doesn't expose a click API yet, so
+    // auto-navigate after a short delay to let the user see the toast.
+    setTimeout(() => {
+      if (payload.route) window.ship?.navigate(payload.route);
+    }, 800);
+  }
+});
+
+dock.addEventListener("ship:dock:activate", (ev) => {
+  const tab = (ev as CustomEvent<{ tab: string }>).detail.tab;
+  if (tab === "source") {
+    loadPack("ship-code-editor.js");
+    const el = dock.querySelector("ship-devtools-source") as
+      | (HTMLElement & { refresh?: () => void })
+      | null;
+    el?.refresh?.();
+  }
+  if (tab === "terminal") {
+    loadPack("ship-terminal.js");
+    void initDockTerminal();
+  }
+});
+
+// ── Dock terminal ↔ PTY shell session ─────────────────────────────
+// First activation spawns a kind=shell session, subscribes to its
+// output SSE, and wires xterm input back via /input. One shared
+// session per browser; tab switches reuse it.
+let dockTerminalSessionId: string | null = null;
+let dockTerminalES: EventSource | null = null;
+
+function maybeInitDockActive(): void {
+  if (!document.body.classList.contains("dock-open")) return;
+  const active = dock.getAttribute("active-tab") ?? "terminal";
+  if (active === "terminal") {
+    loadPack("ship-terminal.js");
+    void initDockTerminal();
+  }
+}
+
+async function initDockTerminal(): Promise<void> {
+  const xterm = document.getElementById("shell-terminal") as
+    | (HTMLElement & {
+        write?: (s: string) => void;
+        terminal?: { onData?: (cb: (s: string) => void) => void };
+      })
+    | null;
+  if (!xterm) return;
+  if (!dockTerminalSessionId) {
+    try {
+      const resp = await fetch("/api/sessions/spawn", {
+        method: "POST",
+        credentials: "same-origin",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ workspace_id: "main", kind: "shell" }),
+      });
+      if (!resp.ok) return;
+      const body = (await resp.json()) as { session_id: string };
+      dockTerminalSessionId = body.session_id;
+    } catch {
+      return;
+    }
+  }
+  // Wait for xterm to be ready, then wire output + input.
+  const wireWhenReady = (): void => {
+    if (!xterm.write || !xterm.terminal?.onData) {
+      xterm.addEventListener("ship-ready", wireWhenReady, { once: true });
+      return;
+    }
+    if (dockTerminalES) return; // already wired
+    dockTerminalES = new EventSource(
+      `/api/sessions/${dockTerminalSessionId}/stream`,
+      { withCredentials: true },
+    );
+    dockTerminalES.addEventListener("bytes", (ev) => {
+      const text = (ev as MessageEvent).data;
+      xterm.write?.(text);
+    });
+    // Queue keystrokes + flush serially so multi-char input arrives
+    // in-order. xterm fires `ship-data` per key; parallel fetches
+    // let bursts land out-of-order and corrupt input to the shell.
+    let inputBuffer = "";
+    let inputInflight = false;
+    const flushInput = async (): Promise<void> => {
+      if (inputInflight || !inputBuffer || !dockTerminalSessionId) return;
+      inputInflight = true;
+      const batch = inputBuffer;
+      inputBuffer = "";
+      try {
+        await fetch(`/api/sessions/${dockTerminalSessionId}/input`, {
+          method: "POST",
+          credentials: "same-origin",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ data: batch }),
+        });
+      } catch {
+        // On failure, requeue so the user's keystrokes aren't dropped.
+        inputBuffer = batch + inputBuffer;
+      } finally {
+        inputInflight = false;
+        if (inputBuffer) void flushInput();
+      }
+    };
+    xterm.addEventListener("ship-data", (ev) => {
+      const data = (ev as CustomEvent<{ data: string }>).detail?.data;
+      if (!data || !dockTerminalSessionId) return;
+      inputBuffer += data;
+      void flushInput();
+    });
+  };
+  wireWhenReady();
+}
 
 // ── Mount a daemon view ──────────────────────────────────────────────
 //
@@ -396,16 +541,17 @@ viewRoute("/settings", "/api/v/settings");
 viewRoute("/agents", "/api/v/agents");
 viewRoute("/skills", "/api/v/skills");
 viewRoute("/chat", "/api/v/chat");
+viewRoute("/chats", "/api/v/chats");
 viewRoute("/events", "/api/v/events");
 viewRoute("/collections", "/api/v/collections");
 viewRoute("/dashboard", "/api/v/dashboard");
 viewRoute("/canvas", "/api/v/canvas");
 viewRoute("/overview", "/api/v/overview");
+viewRoute("/theme-studio", "/api/v/theme-studio");
 
 // Dynamic routes
 router.on("/collections/:collection", ({ data }) => {
   updateNav("/collections");
-  updateBreadcrumbs(`/collections/${data!.collection}`);
   void mount(
     `/api/v/collections?collection=${encodeURIComponent(data!.collection)}`,
   );
@@ -415,57 +561,48 @@ router.on("/collections/:collection", ({ data }) => {
 // generic `/agents/:id` so Navigo doesn't match "create" as an id.
 router.on("/agents/create", () => {
   updateNav("/agents");
-  updateBreadcrumbs("/agents/create");
   void mount("/api/v/agents/create");
 });
 
 // Detail sub-mode: wire/canvas view (also served as the default detail).
 router.on("/agents/:id/wire", ({ data }) => {
   updateNav("/agents");
-  updateBreadcrumbs(`/agents/${data!.id}/wire`);
   void mount(`/api/v/agents/${data!.id}/wire`);
 });
 
 // Detail sub-mode: classic panels layout (skills / MCP / permissions / rules).
 router.on("/agents/:id/settings", ({ data }) => {
   updateNav("/agents");
-  updateBreadcrumbs(`/agents/${data!.id}/settings`);
   void mount(`/api/v/agents/${data!.id}/settings`);
 });
 
 router.on("/agents/:id", ({ data }) => {
   updateNav("/agents");
-  updateBreadcrumbs(`/agents/${data!.id}`);
   void mount(`/api/v/agents/${data!.id}`);
 });
 
 router.on("/skills/:id", ({ data }) => {
   updateNav("/skills");
-  updateBreadcrumbs(`/skills/${data!.id}`);
   void mount(`/api/view/skills/detail/${data!.id}`);
 });
 
 router.on("/skills/:id/:file", ({ data }) => {
   updateNav("/skills");
-  updateBreadcrumbs(`/skills/${data!.id}/${data!.file}`);
   void mount(`/api/view/skills/detail/${data!.id}?file=${encodeURIComponent(data!.file)}`);
 });
 
 router.on("/canvas/:doc", ({ data }) => {
   updateNav("/canvas");
-  updateBreadcrumbs(`/canvas/${data!.doc}`);
   void mount(`/api/view/canvas?doc=${encodeURIComponent(data!.doc)}`);
 });
 
 router.on("/pipelines/focus/:name", ({ data }) => {
   updateNav("/pipelines");
-  updateBreadcrumbs(`/pipelines/${data!.name}`);
   void mount(`/api/v/pipelines/focus/${encodeURIComponent(data!.name)}`);
 });
 
 router.on("/pipelines/history", () => {
   updateNav("/pipelines");
-  updateBreadcrumbs(`/pipelines/history`);
   // Forward any query string so pagination/search survive shell nav.
   const qs = location.search ?? "";
   void mount(`/api/v/pipelines/history${qs}`);
@@ -473,14 +610,12 @@ router.on("/pipelines/history", () => {
 
 router.on("/pipelines/run/:slug", ({ data }) => {
   updateNav("/pipelines");
-  updateBreadcrumbs(`/pipelines/run/${data!.slug}`);
   void mount(`/api/v/pipelines/run/${encodeURIComponent(data!.slug)}`);
 });
 
 // 404
 router.notFound(() => {
   updateNav("");
-  updateBreadcrumbs(location.pathname);
   view.innerHTML = `
     <div style="display:flex;flex-direction:column;align-items:center;justify-content:center;height:100%;gap:var(--space-3)">
       <h2 style="font-family:var(--font-display);font-size:var(--text-xl);margin:0">Page not found</h2>
@@ -510,19 +645,9 @@ document
 document.addEventListener("keydown", (e) => {
   const meta = e.metaKey || e.ctrlKey;
 
-  // ⌘K — Command palette
-  if (meta && e.key === "k") {
-    e.preventDefault();
-    toggleCmdk();
-    return;
-  }
-
-  // Escape — close palette if open
-  if (e.key === "Escape" && isCommandPaletteOpen()) {
-    e.preventDefault();
-    toggleCmdk();
-    return;
-  }
+  // ⌘K is claimed by <ship-command-bar>; its own keydown handler
+  // focuses the bar from anywhere. main.ts no longer toggles the
+  // legacy palette.
 
   // ⌘B — Toggle rail
   if (meta && e.key === "b") {
@@ -536,10 +661,31 @@ document.addEventListener("keydown", (e) => {
     toggleDrawer();
   }
 
-  // ⌘J — Toggle terminal panel
+  // ⌘J — Toggle panel dock
   if (meta && e.key === "j") {
     e.preventDefault();
-    document.body.classList.toggle("terminal-open");
+    document.body.classList.toggle("dock-open");
+    maybeInitDockActive();
+  }
+
+  // ⌘⇧D — Focus devtools (opens dock + jumps to Source)
+  if (meta && e.shiftKey && (e.key === "D" || e.key === "d")) {
+    e.preventDefault();
+    document.body.classList.add("dock-open");
+    const dockEl = document.getElementById("panel-dock") as
+      | (HTMLElement & { activate?: (t: string) => void })
+      | null;
+    dockEl?.activate?.("source");
+  }
+
+  // ⌘⇧E — Toggle edit mode
+  if (meta && e.shiftKey && (e.key === "E" || e.key === "e")) {
+    e.preventDefault();
+    const on = document.body.classList.toggle("edit-mode");
+    window.ship?.notify?.(
+      on ? "Edit mode on — hover to highlight, click to annotate." : "Edit mode off.",
+      "info",
+    );
   }
 
   // F11 — Fullscreen
@@ -600,10 +746,11 @@ setInterval(updateStatus, 15000);
 
 // ── Boot ─────────────────────────────────────────────────────────────
 router.resolve();
-initSignalInspector();
 updateStatus();
 
-// ⌘K trigger — <ship-nav-top> dispatches ship:command:open.
+// Legacy ship:command:open listener — kept as a non-shortcut way to
+// raise the old palette while we migrate callers to the bar. Not
+// wired to ⌘K anymore.
 document
   .querySelector("ship-shell")
   ?.addEventListener("ship:command:open", () => {

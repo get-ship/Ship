@@ -20,6 +20,7 @@ impl ProviderAdapter for CodexAdapter {
             mcp: true,
             hooks: true,
             session_resume: true,
+            channels: false,
         }
     }
 
@@ -30,7 +31,7 @@ impl ProviderAdapter for CodexAdapter {
             args.push(model.clone());
         }
         let mut env = HashMap::new();
-        env.insert("SHIP_MESH_ID".to_string(), slug.to_string());
+        env.insert("SHIP_ACTOR_ID".to_string(), slug.to_string());
         LaunchCommand { bin: "codex".to_string(), args, env }
     }
 
@@ -66,7 +67,7 @@ impl ProviderAdapter for CodexAdapter {
         args.push(prompt);
 
         let mut env = HashMap::new();
-        env.insert("SHIP_MESH_ID".to_string(), slug.to_string());
+        env.insert("SHIP_ACTOR_ID".to_string(), slug.to_string());
         LaunchCommand { bin: "codex".to_string(), args, env }
     }
 

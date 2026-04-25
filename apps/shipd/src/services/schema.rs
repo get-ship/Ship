@@ -426,4 +426,11 @@ pub const OPS: &[OpDescriptor] = &[
         returns: "{workspace_id, messages, total}",
         permission: "ship.chat.read", sensitive: true,
     },
+    OpDescriptor {
+        name: "sessions.list",
+        description: "All live PTY sessions (agent chats, pipeline runs, shells) — Mission Control data.",
+        args: &[],
+        returns: "{items: [SessionMeta]}",
+        permission: "ship.sessions.read", sensitive: false,
+    },
 ];

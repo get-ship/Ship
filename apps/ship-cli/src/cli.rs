@@ -208,17 +208,6 @@ pub enum Commands {
         action: HookCommands,
     },
 
-    /// Launch Ship Studio -- visual IDE for agent configuration
-    Studio {
-        /// HTTP port for the Studio MCP server
-        #[arg(long, default_value_t = 51741)]
-        port: u16,
-        /// Open the Studio in your default browser
-        #[arg(long)]
-        open: bool,
-    },
-
-
     /// Rebuild projection tables from the event log (dev tool — not part of the user-facing CLI)
     #[cfg(feature = "unstable")]
     #[command(hide = true)]

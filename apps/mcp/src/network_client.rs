@@ -293,6 +293,17 @@ pub async fn event_route(
     })).await
 }
 
+/// Broadcast an agent reply onto a session's event stream. The daemon
+/// emits it as a `ProviderEvent::Message`, which the command bar renders
+/// as an agent bubble. Used by the `chat_reply` MCP tool.
+pub async fn session_reply(session_id: &str, text: &str) -> Result<String> {
+    post(
+        &format!("/sessions/{session_id}/reply"),
+        serde_json::json!({ "text": text }),
+    )
+    .await
+}
+
 /// Register a scoped session with the daemon. On success, stores the session
 /// token so all subsequent requests use it instead of the daemon token.
 ///

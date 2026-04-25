@@ -18,7 +18,7 @@ use crate::{
     human_webhook, lint_api, logs_api, mcp_registry, openapi, pairing, project_api, pty_handler,
     rest_api, runtime_api, sdk_manifest, services, session, settings_api, shell_assets,
     ship_runtime, specs_api, supervisor, view_errors_api, view_morph_target, view_sessions_api,
-    views, collection_api, views_raw, webhook_ext,
+    views, collection_api, create_api, themes_api, sessions, projects_api, views_raw, webhook_ext,
 };
 use axum::routing;
 
@@ -57,7 +57,8 @@ pub fn build_router(
         .route("/hooks/session-start", axum::routing::post(hooks_api::hook_session_start))
         .route("/hooks/before-tool", axum::routing::post(hooks_api::hook_before_tool))
         .route("/hooks/after-tool", axum::routing::post(hooks_api::hook_after_tool))
-        .route("/hooks/session-end", axum::routing::post(hooks_api::hook_session_end));
+        .route("/hooks/session-end", axum::routing::post(hooks_api::hook_session_end))
+        .with_state(st.clone());
     // Enumerated routes — one `ApiState`-typed router, registered via
     // `ship_route(Route::X, handler)` against the canonical full paths.
     let api_ship_routes = build_ship_routes(st);
@@ -269,6 +270,25 @@ fn build_ship_routes(st: rest_api::ApiState) -> Router {
         .ship_route(Route::ShipSchema, services::schema::serve_schema)
         .ship_route(Route::ServeViewRouted_template(), views::routed_handler::serve_view_routed)
         .ship_route(Route::ServeViewSseRouted_template(), views::routed_sse::serve_view_sse_routed)
+        .ship_route(Route::ServeViewSource_template(), views::source_api::serve_view_source)
+        .ship_route(Route::CreateSurface_template(), create_api::create_surface)
+        .ship_route(Route::WriteViewTemplate_template(), views::write_api::write_view_template)
+        .ship_route(Route::WriteViewManifestApi_template(), views::write_api::write_view_manifest)
+        .ship_route(Route::ForkView_template(), views::write_api::fork_view)
+        .ship_route(Route::ThemeContrast, themes_api::theme_contrast)
+        .ship_route(Route::SpawnPtySession, sessions::api::spawn_session)
+        .ship_route(Route::ListPtySessions, sessions::api::list_sessions)
+        .ship_route(Route::GetPtySession_template(), sessions::api::get_session)
+        .ship_route(Route::StopPtySession_template(), sessions::api::stop_session)
+        .ship_route(Route::PtySessionInput_template(), sessions::api::session_input)
+        .ship_route(Route::PtySessionMessage_template(), sessions::api::session_message)
+        .ship_route(Route::PtySessionReply_template(), sessions::api::session_reply)
+        .ship_route(Route::StreamPtySession_template(), sessions::api::stream_session)
+        .ship_route(Route::StreamPtySessionEvents_template(), sessions::api::stream_session_events)
+        .ship_route(Route::InstalledProviders, sessions::api::installed_providers)
+        .ship_route(Route::ListProjects, projects_api::list_projects)
+        .ship_route(Route::AddProject, projects_api::add_project)
+        .ship_route(Route::SwitchProject, projects_api::switch_project)
         .ship_route(Route::ServeViewManifest_template(), views::serve_view_manifest)
         .ship_route(Route::ServeViewBundle_template(), views::serve_view_bundle)
         .ship_route(Route::ServeViewRaw_template(), views_raw::serve_view_raw)
@@ -403,7 +423,7 @@ fn build_ship_routes(st: rest_api::ApiState) -> Router {
         .ship_route(Route::ArtifactsList, artifacts_api::list_artifacts)
         .ship_route(Route::ArtifactDownload_template(), artifacts_api::download_artifact)
         .route(
-            "/api/artifacts/:id",
+            "/api/artifacts/{id}",
             routing::head(artifacts_api::head_artifact),
         )
         .ship_route(Route::ArtifactMetadata_template(), artifacts_api::artifact_metadata)

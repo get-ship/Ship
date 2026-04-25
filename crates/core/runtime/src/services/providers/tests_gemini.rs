@@ -21,7 +21,7 @@ fn interactive_emits_gemini_binary() {
 fn interactive_sets_mesh_id_env() {
     let adapter = GeminiAdapter;
     let cmd = adapter.build_interactive("my-job", &default_profile());
-    assert_eq!(cmd.env.get("SHIP_MESH_ID").unwrap(), "my-job");
+    assert_eq!(cmd.env.get("SHIP_ACTOR_ID").unwrap(), "my-job");
 }
 
 #[test]
@@ -52,7 +52,7 @@ fn headless_emits_yolo_prompt_command() {
     assert_eq!(cmd.args[p_idx + 1], "test prompt");
     assert_eq!(cmd.args.last().unwrap(), "test prompt");
     assert_eq!(
-        cmd.env.get("SHIP_MESH_ID").map(String::as_str),
+        cmd.env.get("SHIP_ACTOR_ID").map(String::as_str),
         Some("test-slug")
     );
 }

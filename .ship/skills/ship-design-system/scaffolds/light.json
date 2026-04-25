@@ -1,0 +1,21 @@
+{
+  "$schema": "https://raw.githubusercontent.com/madvib/ship/main/schemas/theme.schema.json",
+  "id": "{{NAME}}",
+  "label": "{{TITLE}}",
+  "mode": "light",
+  "tokens": {
+    "foreground": "#0a0a0a",
+    "background": "#ffffff",
+    "primary": "oklch(0.53 0.22 263)",
+    "primary-foreground": "#ffffff",
+    "border": "#e5e5e5",
+    "muted": "#f5f5f5",
+    "muted-foreground": "#737373",
+    "destructive": "#dc2626",
+    "destructive-foreground": "#ffffff",
+    "success": "#16a34a",
+    "warning": "#d97706",
+    "accent": "#f4f4f5",
+    "accent-foreground": "#0a0a0a"
+  }
+}

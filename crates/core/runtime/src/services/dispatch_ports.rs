@@ -108,6 +108,12 @@ pub struct LaunchProfile {
     /// as the final positional argument to `codex exec`. `None` falls back to
     /// each adapter's default.
     pub autostart_prompt: Option<String>,
+    /// Additional system-prompt content appended to the provider's base
+    /// system prompt. Delivered via Claude's `--append-system-prompt`.
+    /// Used to inject a Ship agent's `rules.inline` into the spawned
+    /// subprocess so the agent knows its editing protocol (read-before-write,
+    /// `chat_reply` conventions, etc.).
+    pub append_system_prompt: Option<String>,
 }
 
 /// Handle returned by a `JobExecutor` after spawning an agent.

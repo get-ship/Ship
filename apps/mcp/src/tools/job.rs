@@ -45,14 +45,14 @@ pub async fn update_job(req: UpdateJobRequest) -> String {
 
 /// Declare the current pipeline step complete.
 ///
-/// Reads `SHIP_MESH_ID` to identify the job and forwards to the daemon's
+/// Reads `SHIP_ACTOR_ID` to identify the job and forwards to the daemon's
 /// step-done endpoint. The daemon resolves the active step from its
 /// projection and emits `step.done_declared` through the kernel.
 pub async fn step_done(req: StepDoneRequest) -> String {
-    let slug = match runtime::env::read_raw(runtime::env::Var::MeshId) {
+    let slug = match runtime::env::read_raw(runtime::env::Var::ActorId) {
         Ok(id) if !id.is_empty() => id,
         _ => {
-            return "Error: SHIP_MESH_ID not set — step_done can only be called from a \
+            return "Error: SHIP_ACTOR_ID not set — step_done can only be called from a \
                     dispatched job"
                 .to_string();
         }

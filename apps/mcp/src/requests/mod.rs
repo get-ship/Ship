@@ -1,6 +1,7 @@
 #![allow(dead_code)]
 
 pub mod artifacts;
+pub mod chat;
 pub mod collections;
 mod dispatch;
 mod lint;
@@ -21,6 +22,7 @@ pub use planning::*;
 pub use project::*;
 pub use view::*;
 pub use workspace::*;
+pub use chat::*;
 pub use lint::*;
 pub use view_errors::*;
 pub use sdk_query::*;

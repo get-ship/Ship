@@ -142,7 +142,7 @@ impl ServerHandler for ShipServer {
                         return true;
                     }
                     // Dispatched agents always get platform tools — the
-                    // dispatch context (SHIP_MESH_ID env) is the truth,
+                    // dispatch context (SHIP_ACTOR_ID env) is the truth,
                     // independent of KV-tracked active_agent.
                     if dispatched && Self::is_platform_tool(n) {
                         return true;

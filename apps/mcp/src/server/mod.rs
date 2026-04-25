@@ -251,11 +251,18 @@ impl ShipServer {
             .and_then(|d| tool_gate::current_branch(&d).ok());
 
         // Select push adapter based on detected provider, register as peer.
+        // The peer's actor identity lives on its mailbox in the kernel —
+        // directed-delivery events route to that mailbox, no per-peer
+        // session/actor filtering needed at the relay.
         if let Some(peer) = self.notification_peer.lock().await.clone() {
             let provider = self.mcp_provider.lock().await.clone();
             let adapter =
                 crate::push::select_adapter(provider.as_deref(), peer);
-            tracing::info!(adapter = adapter.adapter_name(), branch = ?workspace_branch, "push adapter selected");
+            tracing::info!(
+                adapter = adapter.adapter_name(),
+                branch = ?workspace_branch,
+                "push adapter selected"
+            );
             let peer_handle = notification_relay::PeerHandle {
                 adapter,
                 allowed_events: std::collections::HashSet::new(),
@@ -269,18 +276,18 @@ impl ShipServer {
 
     /// Resolve a unique actor_id for this connection.
     ///
-    /// If `SHIP_MESH_ID` is set (e.g. by the daemon job-dispatch service),
+    /// If `SHIP_ACTOR_ID` is set (e.g. by the daemon job-dispatch service),
     /// it is used directly as the actor_id.
     ///
     /// Otherwise: `agent.{agent_name}.{branch}` — e.g. `agent.rust-runtime.job/fix-parser`.
     /// Falls back to `agent.{agent_name}` if branch can't be detected, and
     /// `agent.mcp.{branch}` if no agent config is set.
     async fn resolve_actor_id(&self) -> String {
-        // SHIP_MESH_ID takes precedence — set by daemon when dispatching jobs.
-        if let Ok(mesh_id) = runtime::env::read_raw(runtime::env::Var::MeshId)
+        // SHIP_ACTOR_ID takes precedence — set by daemon when dispatching jobs.
+        if let Ok(mesh_id) = runtime::env::read_raw(runtime::env::Var::ActorId)
             && !mesh_id.is_empty()
         {
-            tracing::info!(actor_id = %mesh_id, "resolved actor ID from SHIP_MESH_ID");
+            tracing::info!(actor_id = %mesh_id, "resolved actor ID from SHIP_ACTOR_ID");
             return mesh_id;
         }
 
@@ -421,11 +428,6 @@ impl ShipServer {
             .collect()
     }
 
-    // ---- Studio sync ----
-
-    // Studio-only tools (pull_agents, list_local_agents, push_bundle) are on
-    // StudioServer, not here. Agents don't need to pull/push their own config.
-
     // ---- Workspace ----
 
     #[tool(
@@ -494,14 +496,11 @@ impl ShipServer {
         result
     }
 
-    // Studio-only tools (write_skill_file, delete_skill_file, list_project_skills)
-    // are on StudioServer. Agents use list_skills and skill_vars for their needs.
-
     // ---- Session Files ----
 
     #[tool(
         description = "Write a file to .artifacts/. Fires a resource update notification \
-        so subscribed clients (Studio, agents) react immediately. \
+        so subscribed clients react immediately. \
         Path is relative to .artifacts/ (e.g. 'canvas.html', 'vitest/report.html')."
     )]
     async fn write_session_file(
@@ -693,6 +692,26 @@ impl ShipServer {
     }
 
     // ---- View linting ----
+
+    #[tool(
+        description = "Post a plain-text reply into a Ship command-bar chat actor. \
+        This is how Shipwright (and other agents) address the user in the Ship UI — \
+        the text renders as an agent bubble in the actor's thread. \
+        Read the target `actor_id` from the `SHIP_ACTOR_ID` environment variable \
+        the Ship daemon sets when spawning you; never guess it. \
+        Prefer `chat_reply` over printing to stdout — stdout is logged, not shown to \
+        the user. Keep replies concise; no markdown formatting (the UI is not a \
+        markdown renderer)."
+    )]
+    async fn chat_reply(
+        &self,
+        Parameters(req): Parameters<crate::requests::ChatReplyRequest>,
+    ) -> String {
+        match crate::network_client::session_reply(&req.actor_id, &req.text).await {
+            Ok(_) => "ok".to_string(),
+            Err(e) => format!("Error: {e}"),
+        }
+    }
 
     #[tool(
         description = "Lint a Ship view (.j2 template) against the Ship view authoring rules. \

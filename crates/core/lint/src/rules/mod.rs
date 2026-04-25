@@ -14,7 +14,7 @@ use crate::report::{Finding, Severity};
 use crate::source::{self, Source};
 use crate::{
     RULE_INLINE_STYLE_BUDGET, RULE_MISSING_PACK_DECLARATION, RULE_NO_INLINE_SCRIPT,
-    RULE_STALE_PACK_DECLARATION, RULE_UNDEFINED_SIGNAL, ViewTarget,
+    RULE_STALE_PACK_DECLARATION, RULE_THEME_TOKEN_REF, RULE_UNDEFINED_SIGNAL, ViewTarget,
 };
 
 const STYLE_WARN_THRESHOLD: usize = 50;
@@ -321,4 +321,55 @@ fn is_inside_jinja_expr(value: &str, pos: usize) -> bool {
         Some(close) => close < open,
         None => true,
     }
+}
+
+// ── Rule — theme-token-ref ────────────────────────────────────────────────
+// Flag raw color literals (#hex, rgb(...), oklch(...), hsl(...)) that aren't
+// wrapped in a `var(--token)` reference. Encourages using the theme token
+// system so theme swaps stay visually consistent. Off by default in the
+// default rule set — opt-in via the Theme Studio or explicit lint calls.
+
+/// Public entry used by themeable consumers (theme studio, daemon write
+/// endpoint). Scans inline `<style>` blocks and HTML/attribute values for
+/// raw colors outside `var(--…)` wrappers.
+pub fn rule_theme_token_ref(view_name: &str, raw: &str) -> Vec<Finding> {
+    use regex::Regex;
+    // Literal color tokens: #hex of 3/4/6/8 chars, rgb()/rgba()/hsl()/hsla()/oklch()/oklab().
+    let color_re = Regex::new(
+        r"(?ix)
+        (?P<hex>\#[0-9a-f]{3,8}\b)
+      | (?P<fn>(?:rgb|rgba|hsl|hsla|oklch|oklab)\s*\(\s*[^)]*\))
+    ",
+    )
+    .unwrap();
+
+    let mut out = Vec::new();
+    for (idx, line) in raw.lines().enumerate() {
+        for m in color_re.find_iter(line) {
+            // Heuristic: ignore matches where the substring immediately
+            // before the match is `var(`, meaning it's a fallback inside a
+            // token lookup — e.g. `var(--primary, #000)`.
+            let prefix = &line[..m.start()];
+            let after_var = prefix.rfind("var(");
+            let after_close = prefix.rfind(')');
+            if let Some(v) = after_var {
+                if after_close.map_or(true, |c| c < v) {
+                    continue;
+                }
+            }
+            out.push(Finding {
+                file: std::path::PathBuf::from(view_name),
+                line: idx + 1,
+                col: m.start() + 1,
+                rule: RULE_THEME_TOKEN_REF,
+                severity: Severity::Warn,
+                message: "raw color literal — use var(--token) so theme swaps apply".to_string(),
+                suggest: Some(
+                    "wrap in var(--token-name) or add the color to schemas/theme.schema.json"
+                        .to_string(),
+                ),
+            });
+        }
+    }
+    out
 }

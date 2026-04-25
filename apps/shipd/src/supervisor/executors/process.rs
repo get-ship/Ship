@@ -120,7 +120,7 @@ impl JobExecutor for ProcessExecutor {
             cmd.env(k, v);
         }
         cmd.env("SHIP_AGENT_ID", &ctx.agent);
-        cmd.env("SHIP_SESSION_ID", &ctx.slug);
+        cmd.env("SHIP_ACTOR_ID", &ctx.slug);
 
         let child = pair
             .slave

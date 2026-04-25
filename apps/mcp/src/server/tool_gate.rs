@@ -23,6 +23,22 @@ impl ShipServer {
         "create_workspace",
         "complete_workspace",
         "set_skill_var",
+        // The chat protocol — every agent spawned into a Ship command-bar
+        // session needs `chat_reply` to address the user, independent of
+        // role/preset. Without it visible, the agent has no path back to
+        // the UI bubble and falls through to stdout (which the parser
+        // catches but loses structure).
+        "chat_reply",
+        // View editing surface — Shipwright (and any iteration agent)
+        // reads + writes views inline; gating these behind a preset
+        // breaks the in-UI editing loop on cold sessions where the
+        // active-agent resolver hasn't populated yet. Names are
+        // post-`normalize_mode_tool_id` (the `ship_` prefix is stripped
+        // before lookup, so list the suffixes here).
+        "view_lint",
+        "view_scaffold",
+        "sdk_query",
+        "view_errors",
     ];
 
     /// Experimental tools that are always callable but advertised as
@@ -92,7 +108,7 @@ impl ShipServer {
     /// True when this MCP server is serving a dispatched agent.
     ///
     /// Detection order:
-    ///   1. SHIP_MESH_ID env var set (works when parent propagates env).
+    ///   1. SHIP_ACTOR_ID env var set (works when parent propagates env).
     ///   2. Current dir or any ancestor contains a `.artifacts/.dispatched`
     ///      marker — written by the isolation adapter on worktree prep.
     ///      Survives providers like codex that don't propagate env.
@@ -100,7 +116,7 @@ impl ShipServer {
     /// Dispatched agents always get PLATFORM_TOOLS regardless of
     /// KV-stored active_agent state — dispatch context is the truth.
     pub fn is_dispatched_context() -> bool {
-        if runtime::env::read_raw(runtime::env::Var::MeshId)
+        if runtime::env::read_raw(runtime::env::Var::ActorId)
             .map(|v| !v.is_empty())
             .unwrap_or(false)
         {
@@ -175,7 +191,7 @@ impl ShipServer {
         if Self::is_project_workspace_tool(tool_name) {
             return Ok(());
         }
-        // Dispatched agents (SHIP_MESH_ID set) always get platform tools.
+        // Dispatched agents (SHIP_ACTOR_ID set) always get platform tools.
         // This bypasses the KV-based active_agent lookup entirely — the
         // dispatch context is the source of truth.
         if Self::is_dispatched_context() && Self::is_platform_tool(tool_name) {
