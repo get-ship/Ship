@@ -138,17 +138,27 @@ impl ShipServer {
         let skill_subs =
             runtime::workspace::artifact_events::skill_event_subscriptions(&skills_list);
 
+        // Default subscription set for an agent peer. The mesh's
+        // subscribe_namespaces IS the filter — anything not declared
+        // here doesn't reach the agent's mailbox. Keep this tight:
+        // agents react to user/peer messages, not to lifecycle noise
+        // (workspace.*, session.*, actor.*, supervisor.* etc.) which
+        // belongs in dashboards / SSE / projections, not in an agent's
+        // context window.
+        //
+        // - studio.chat_turn — user turns from the command bar
+        // - studio.reply — replies from other agents (multi-agent)
+        // - inbox.* / human.* — messages from external user gateways
+        // - mesh.message — inter-agent direct messaging
+        //
+        // Skills extend this list via their declared `in:` events
+        // (visual-brainstorm.annotation_created etc.).
         let mut subscribe_namespaces = vec![
-            "studio.".to_string(),
-            "workspace.".to_string(),
-            "session.".to_string(),
-            "actor.".to_string(),
-            "config.".to_string(),
-            "runtime.".to_string(),
-            "sync.".to_string(),
-            "project.".to_string(),
-            "gate.".to_string(),
-            "mesh.".to_string(),
+            "studio.chat_turn".to_string(),
+            "studio.reply".to_string(),
+            "inbox.".to_string(),
+            "human.".to_string(),
+            "mesh.message".to_string(),
         ];
         for ns in skill_subs {
             if !subscribe_namespaces.contains(&ns) {

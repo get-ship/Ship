@@ -94,6 +94,20 @@ impl EventRelay {
     /// If allowed_events is empty, the peer is a system peer (receives all
     /// system events for its workspace).
     fn peer_should_receive(&self, peer: &PeerHandle, event: &EventEnvelope) -> bool {
+        // Claude-channel peers see ONLY user-actionable events. The
+        // channels protocol is a focused user-input pipe, not a firehose
+        // of every system event in Ship. When we pushed everything,
+        // Claude classified inbound `studio.chat_turn` as "background
+        // mesh event; no user turn to respond to" — drowning the actual
+        // turn in noise. This filter is the docs' "channel listening
+        // for chat platform messages" model: only push what the agent
+        // is supposed to act on.
+        if peer.adapter.adapter_name() == "claude-channel"
+            && !is_user_actionable(&event.event_type)
+        {
+            return false;
+        }
+
         // Directed events are pre-filtered by the kernel router via
         // `target_actor_id` — only the matching actor's mailbox sees them.
         // No further workspace check is needed (and would be wrong: the
@@ -124,6 +138,19 @@ impl EventRelay {
         // Skill-namespaced events: check if peer's skills declared this as `in`
         peer.allowed_events.contains(&event.event_type)
     }
+}
+
+/// Events that the Claude channel pushes to the agent. Restrict to
+/// turns and replies — i.e., things a user types or another agent says
+/// directly to this one. Background lifecycle (`actor.*`, `mesh.*`,
+/// `workspace.*`, `supervisor.*`) goes through SSE / dashboards, never
+/// the channel — Claude has nothing to do with them and treats them
+/// as noise that drowns real user turns.
+fn is_user_actionable(event_type: &str) -> bool {
+    matches!(
+        event_type,
+        "studio.chat_turn" | "studio.reply" | "inbox.message" | "human.message"
+    )
 }
 
 /// System namespaces that all agents receive regardless of skill set.

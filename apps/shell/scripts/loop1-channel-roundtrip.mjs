@@ -24,7 +24,7 @@ import { writeFileSync } from "node:fs";
 
 const BASE = process.env.SHIPD_URL ?? "http://localhost:9315";
 const TOKEN = process.env.TOKEN;
-const TIMEOUT_MS = 30_000;
+const TIMEOUT_MS = 90_000;
 const MARKER = `LOOP1-${Math.random().toString(36).slice(2, 8).toUpperCase()}`;
 const PROMPT = `Reply with exactly this token, nothing else: ${MARKER}`;
 

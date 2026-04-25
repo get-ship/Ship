@@ -71,21 +71,27 @@ pub async fn actor_spawn(
     }
     {
         let mut kernel = state.kernel().lock().await;
-        let _ = kernel.stop_actor(&req.actor_id);
-        match kernel.spawn_actor(&req.actor_id, req.config) {
-            Ok((_store, mailbox)) => {
-                state.agent_mailboxes().lock().await
-                    .insert(req.actor_id.clone(), mailbox);
-            }
-            Err(e) => {
-                let status = match &e {
-                    runtime::KernelError::ActorAlreadyExists { .. } => StatusCode::CONFLICT,
-                    runtime::KernelError::ActorNotFound { .. } => StatusCode::NOT_FOUND,
-                    _ => StatusCode::INTERNAL_SERVER_ERROR,
-                };
-                return (status, Json(MeshResponse {
-                    ok: false, data: serde_json::json!(e.to_string()),
-                }));
+        // Idempotent: if the actor is already registered (e.g. rmcp
+        // framework calling on_initialized twice, or a reconnect), keep
+        // the existing mailbox. Tearing it down invalidates the relay's
+        // handle and silently drops in-flight events. Only spawn if
+        // truly new.
+        if !kernel.has_actor(&req.actor_id) {
+            match kernel.spawn_actor(&req.actor_id, req.config) {
+                Ok((_store, mailbox)) => {
+                    state.agent_mailboxes().lock().await
+                        .insert(req.actor_id.clone(), mailbox);
+                }
+                Err(e) => {
+                    let status = match &e {
+                        runtime::KernelError::ActorAlreadyExists { .. } => StatusCode::CONFLICT,
+                        runtime::KernelError::ActorNotFound { .. } => StatusCode::NOT_FOUND,
+                        _ => StatusCode::INTERNAL_SERVER_ERROR,
+                    };
+                    return (status, Json(MeshResponse {
+                        ok: false, data: serde_json::json!(e.to_string()),
+                    }));
+                }
             }
         }
     }
