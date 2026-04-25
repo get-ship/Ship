@@ -175,30 +175,9 @@ fn spawn_long_lived_agent(
         extras,
     )?;
 
-    // Claude's `--dangerously-load-development-channels` flag opens with
-    // a TUI menu blocking at "Enter to confirm" until the user OK's the
-    // dev-channels warning. Without dismissing it, the MCP child never
-    // boots → no actor_spawn → no kernel mailbox → no channel delivery.
-    // Loop-1 (channel round-trip) depends on this.
-    //
-    // The menu's first option ("I am using this for local development")
-    // is selected by default. Sending Enter accepts. Two more Enters
-    // dismiss any follow-up project-trust dialog. We send across a wider
-    // window with both `\r` and `\n` because keystroke handling in
-    // claude's TUI varies by version. Best-effort polling pattern;
-    // when this gets fragile again, move detection into reader_loop.
-    let confirm_session = session.clone();
-    std::thread::spawn(move || {
-        // Wait for the PTY to settle and the menu to render.
-        std::thread::sleep(Duration::from_millis(800));
-        // Six attempts across ~5s, alternating CR / LF to handle whatever
-        // the TUI's input layer accepts as Enter.
-        for i in 0..6 {
-            let bytes: &[u8] = if i % 2 == 0 { b"\r" } else { b"\n" };
-            let _ = write_input(&confirm_session, bytes);
-            std::thread::sleep(Duration::from_millis(800));
-        }
-    });
+    // The dev-channels confirmation menu is auto-dismissed by the
+    // reader_loop when it sees the menu pattern in the PTY output —
+    // state-aware, fires exactly once per session. No timer here.
 
     Ok(session)
 }
@@ -574,6 +553,12 @@ fn spawn_command(
     Ok(PtySession(inner))
 }
 
+/// Distinctive unbroken byte sequence in Claude's dev-channels
+/// warning. The visible "Enter to confirm" prompt has cursor-movement
+/// escape sequences between words; this string is contiguous in the
+/// byte stream and uniquely identifies the menu's presence.
+const NEEDLE: &[u8] = b"dangerously-load-development-channels";
+
 fn reader_loop(
     mut reader: Box<dyn Read + Send>,
     mut log_file: std::fs::File,
@@ -592,6 +577,14 @@ fn reader_loop(
 
     let mut buf = [0u8; 4096];
     let mut line_buf = String::new();
+    // Detect Claude's `--dangerously-load-development-channels` menu
+    // pattern in the rendered TUI bytes. When seen, send a single CR
+    // to dismiss it. State-aware: fires once per session; we don't
+    // brute-force keystrokes that can land at the main prompt and
+    // submit empty inputs (which under some conditions causes early
+    // exit).
+    let mut menu_dismissed = false;
+    let mut menu_buf: Vec<u8> = Vec::with_capacity(4096);
     loop {
         match reader.read(&mut buf) {
             Ok(0) => break,
@@ -600,6 +593,24 @@ fn reader_loop(
                 let _ = log_file.write_all(chunk);
                 let _ = log_file.flush();
                 let _ = inner.output_tx.send(chunk.to_vec());
+
+                if !menu_dismissed {
+                    menu_buf.extend_from_slice(chunk);
+                    if menu_buf.len() > 16_384 {
+                        // Bound: if we haven't seen the menu in ~16KB
+                        // of TUI output, claude isn't going to show it.
+                        menu_dismissed = true;
+                    } else if menu_buf.windows(NEEDLE.len()).any(|w| w == NEEDLE) {
+                        // Menu rendered. Single CR accepts the
+                        // pre-selected first option. Match against the
+                        // unbroken token in the warning header — the
+                        // visible "Enter to confirm" prompt has cursor-
+                        // movement escapes between words and isn't a
+                        // contiguous byte match.
+                        let _ = write_input(&PtySession(inner.clone()), b"\r");
+                        menu_dismissed = true;
+                    }
+                }
                 if let Some(ref adapter) = adapter {
                     // Accumulate into a line buffer and flush on \n so
                     // parse_output sees whole lines. ANSI codes pass

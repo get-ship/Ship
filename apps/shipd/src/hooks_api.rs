@@ -8,6 +8,7 @@
 //! and custom rules are Phase 2.
 
 use axum::{extract::State, Extension, Json, http::StatusCode, response::IntoResponse};
+use runtime::events::EventEnvelope;
 use serde::{Deserialize, Serialize};
 use serde_json::json;
 
@@ -124,10 +125,36 @@ pub async fn hook_before_tool(
 
     tracing::debug!(actor = %actor, tool = %tool, session = ?session, "hook: before-tool");
 
+    // Existing session-narrative bookkeeping (heartbeat / tool count)
+    // stays — it's the workspace-session vocabulary, separate from the
+    // actor event log.
     if let Some(ref sid) = session {
         let _ = runtime::db::session_drain::increment_tool_count(sid);
         let _ = runtime::db::session_drain::update_heartbeat(sid);
         broadcast_tool_use(&state, sid, tool, event.tool_input.as_ref());
+    }
+
+    // Emit a kernel event correlated by actor_id. Lands in the actor's
+    // event stream (queryable via /api/actors/{id}/events) so chat
+    // threads and dashboards can render tool cards regardless of
+    // whether the actor is in the legacy PtySession registry. No more
+    // broadcast_tool_use silently dropping when the registry doesn't
+    // have a matching provider_session_id.
+    if actor != "unknown" {
+        let payload = json!({
+            "tool": tool,
+            "input_preview": event.tool_input.as_ref().map(|v| {
+                let s = v.to_string();
+                if s.len() > 400 { s.chars().take(400).collect::<String>() } else { s }
+            }),
+        });
+        if let Ok(env) = EventEnvelope::new("hook.tool_use_started", &actor, &payload) {
+            let env = env.with_target(&actor).with_actor_id(&actor);
+            let ctx = auth.to_daemon_emit_context();
+            if let Err(e) = state.kernel().lock().await.emit(env, &ctx).await {
+                tracing::debug!(actor, "hook.tool_use_started emit failed: {e}");
+            }
+        }
     }
 
     (StatusCode::OK, Json(HookResponse::allow()))
@@ -195,6 +222,26 @@ pub async fn hook_after_tool(
         // response preview lets the card flip from "running" to "done"
         // without a schema change.
         broadcast_tool_use(&state, sid, tool, event.tool_response.as_ref());
+    }
+
+    // Actor-correlated tool-completed event — symmetric with the
+    // before-tool emission. Threads / dashboards transition the tool
+    // card from "running" to "done" by arrival order.
+    if actor != "unknown" {
+        let payload = json!({
+            "tool": tool,
+            "response_preview": event.tool_response.as_ref().map(|v| {
+                let s = v.to_string();
+                if s.len() > 400 { s.chars().take(400).collect::<String>() } else { s }
+            }),
+        });
+        if let Ok(env) = EventEnvelope::new("hook.tool_use_completed", &actor, &payload) {
+            let env = env.with_target(&actor).with_actor_id(&actor);
+            let ctx = auth.to_daemon_emit_context();
+            if let Err(e) = state.kernel().lock().await.emit(env, &ctx).await {
+                tracing::debug!(actor, "hook.tool_use_completed emit failed: {e}");
+            }
+        }
     }
 
     (StatusCode::OK, Json(HookResponse::allow()))
