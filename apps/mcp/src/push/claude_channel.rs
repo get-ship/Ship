@@ -43,8 +43,16 @@ impl PushAdapter for ClaudeChannelAdapter {
         let mut meta = serde_json::Map::new();
         meta.insert("event_type".into(), event.event_type.clone().into());
         meta.insert("entity_id".into(), event.entity_id.clone().into());
-        if let Some(ref actor_id) = event.actor_id {
-            meta.insert("actor_id".into(), actor_id.clone().into());
+        // For directed events (chat turns), the recipient is what Claude
+        // needs to know — that's the value to pass back to `chat_reply`.
+        // Prefer `target_actor_id`; fall back to `actor_id` (emitter)
+        // for non-directed events. The reply path keys on this attribute.
+        let reply_to = event
+            .target_actor_id
+            .clone()
+            .or_else(|| event.actor_id.clone());
+        if let Some(reply_to) = reply_to {
+            meta.insert("actor_id".into(), reply_to.into());
         }
         if let Some(ref workspace_id) = event.workspace_id {
             meta.insert("workspace_id".into(), workspace_id.clone().into());
