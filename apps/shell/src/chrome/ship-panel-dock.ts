@@ -74,6 +74,10 @@ export class ShipPanelDock extends LitElement {
       min-height: 0;
       position: relative;
       background: var(--card);
+      /* Seat the dock above content with a soft top-edge cast. The shadow
+       * lands on the page surface above the dock so the dock reads as a
+       * floating panel instead of a flush bottom strip. */
+      box-shadow: var(--shadow-edge-top);
     }
 
     /* Resize handle — top edge, 6px hit area. */
