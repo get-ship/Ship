@@ -44,7 +44,7 @@ pub struct ShellState {
 
 /// Build the `/shell` router (two variants: `/shell` and `/shell/{*path}`).
 pub fn router(sessions: SessionRegistry) -> Router {
-    let dev_proxy = std::env::var("SHIP_SHELL_DEV_URL").ok().map(|s| {
+    let dev_proxy = runtime::env::read_raw(runtime::env::Var::ShellDevUrl).ok().map(|s| {
         let trimmed = s.trim_end_matches('/').to_string();
         tracing::info!("shipd: shell proxying to {}", trimmed);
         Arc::new(trimmed)

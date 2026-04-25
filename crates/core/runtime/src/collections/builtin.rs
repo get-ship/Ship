@@ -269,7 +269,7 @@ mod tests {
     #[test]
     fn register_creates_all_tables() {
         let tmp = tempfile::tempdir().unwrap();
-        let ship_dir = tmp.path().join(".ship");
+        let ship_dir = crate::ShipHome::project_ship_dir(tmp.path());
         std::fs::create_dir_all(&ship_dir).unwrap();
         let mut svc = DataService::open(&ship_dir).unwrap();
 
@@ -290,7 +290,7 @@ mod tests {
     #[test]
     fn register_is_idempotent() {
         let tmp = tempfile::tempdir().unwrap();
-        let ship_dir = tmp.path().join(".ship");
+        let ship_dir = crate::ShipHome::project_ship_dir(tmp.path());
         std::fs::create_dir_all(&ship_dir).unwrap();
         let mut svc = DataService::open(&ship_dir).unwrap();
 

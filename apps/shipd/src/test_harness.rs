@@ -33,7 +33,7 @@ impl TestDaemon {
     /// Create a fully wired TestDaemon with temp dir, DB, kernel, and router.
     pub async fn new() -> Self {
         let temp_dir = TempDir::new().unwrap();
-        let ship_dir = temp_dir.path().join(".ship");
+        let ship_dir = runtime::ShipHome::project_ship_dir(temp_dir.path());
         std::fs::create_dir_all(&ship_dir).unwrap();
         runtime::db::ensure_db_at(&ship_dir).unwrap();
 

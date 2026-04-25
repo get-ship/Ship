@@ -14,7 +14,7 @@ pub fn configured_worktree_dir_impl(
     project_root: &std::path::Path,
     home: &std::path::Path,
 ) -> PathBuf {
-    let config_path = home.join(".ship").join("config.toml");
+    let config_path = runtime::ShipHome::project_ship_dir(home).join("config.toml");
     if let Ok(content) = std::fs::read_to_string(&config_path) {
         let mut in_worktrees = false;
         for line in content.lines() {
@@ -66,7 +66,7 @@ mod tests {
     #[test]
     fn config_present_with_absolute_dir() {
         let tmp = tempfile::tempdir().unwrap();
-        let ship_dir = tmp.path().join(".ship");
+        let ship_dir = runtime::ShipHome::project_ship_dir(tmp.path());
         std::fs::create_dir_all(&ship_dir).unwrap();
         std::fs::write(
             ship_dir.join("config.toml"),
@@ -81,7 +81,7 @@ mod tests {
     #[test]
     fn config_present_with_tilde_dir() {
         let tmp = tempfile::tempdir().unwrap();
-        let ship_dir = tmp.path().join(".ship");
+        let ship_dir = runtime::ShipHome::project_ship_dir(tmp.path());
         std::fs::create_dir_all(&ship_dir).unwrap();
         std::fs::write(
             ship_dir.join("config.toml"),
@@ -97,7 +97,7 @@ mod tests {
     #[test]
     fn config_present_without_worktrees_section_falls_back() {
         let tmp = tempfile::tempdir().unwrap();
-        let ship_dir = tmp.path().join(".ship");
+        let ship_dir = runtime::ShipHome::project_ship_dir(tmp.path());
         std::fs::create_dir_all(&ship_dir).unwrap();
         std::fs::write(
             ship_dir.join("config.toml"),

@@ -5,7 +5,7 @@
 
 /// Returns true when the daemon is running in dev mode.
 pub(super) fn is_dev_mode() -> bool {
-    std::env::var("SHIP_DEV").as_deref() == Ok("1")
+    runtime::env::read_raw(runtime::env::Var::Dev).as_deref() == Ok("1")
         || std::env::var("RUST_ENV").as_deref() == Ok("development")
 }
 

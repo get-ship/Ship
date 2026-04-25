@@ -135,7 +135,7 @@ pub fn run(opts: RunOptions) -> Result<()> {
 fn load_pipeline_yaml(name: &str) -> Result<(String, PathBuf)> {
     let mut dir = std::env::current_dir()?;
     loop {
-        let ship_dir = dir.join(".ship");
+        let ship_dir = runtime::ShipHome::project_ship_dir(&dir);
         if ship_dir.is_dir() {
             let path = ship_dir.join("pipelines").join(format!("{name}.yaml"));
             if path.exists() {

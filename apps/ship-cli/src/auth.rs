@@ -213,9 +213,10 @@ pub fn run_auth_pair(code: &str) -> Result<()> {
 
 /// Read daemon connection info (port + daemon.token) from ~/.ship/.
 fn daemon_connect() -> Result<(u16, String)> {
-    let home = dirs::home_dir()
-        .ok_or_else(|| anyhow::anyhow!("cannot determine home directory"))?
-        .join(".ship");
+    let home = runtime::ShipHome::project_ship_dir(
+        dirs::home_dir()
+            .ok_or_else(|| anyhow::anyhow!("cannot determine home directory"))?,
+    );
     let port: u16 = std::fs::read_to_string(home.join("daemon.port"))
         .map_err(|_| anyhow::anyhow!("daemon is not running — start it with: ship daemon start"))?
         .trim()

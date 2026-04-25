@@ -43,14 +43,14 @@ fn init_creates_ship_structure() {
         .success()
         .stdout(predicate::str::contains("initialized .ship/"));
 
-    assert!(tmp.path().join(".ship").is_dir());
-    assert!(tmp.path().join(".ship/ship.jsonc").exists());
+    assert!(runtime::ShipHome::project_ship_dir(tmp.path()).is_dir());
+    assert!(runtime::ShipHome::project_ship_dir(tmp.path()).join("ship.jsonc").exists());
     // Gitignore for compiled artifacts lives at the project root, not .ship/
     assert!(tmp.path().join(".gitignore").exists());
     // Default dev agent is scaffolded
-    assert!(tmp.path().join(".ship/agents/dev.jsonc").exists());
+    assert!(runtime::ShipHome::project_ship_dir(tmp.path()).join("agents/dev.jsonc").exists());
     // No modes/ directory (deprecated)
-    assert!(!tmp.path().join(".ship/modes").exists());
+    assert!(!runtime::ShipHome::project_ship_dir(tmp.path()).join("modes").exists());
 }
 
 #[test]
@@ -63,7 +63,7 @@ fn init_is_idempotent() {
         .assert()
         .success();
 
-    let original = fs::read_to_string(tmp.path().join(".ship/ship.jsonc")).unwrap();
+    let original = fs::read_to_string(runtime::ShipHome::project_ship_dir(tmp.path()).join("ship.jsonc")).unwrap();
 
     // Second run must succeed without overwriting existing files.
     ship()
@@ -72,7 +72,7 @@ fn init_is_idempotent() {
         .assert()
         .success();
 
-    let after = fs::read_to_string(tmp.path().join(".ship/ship.jsonc")).unwrap();
+    let after = fs::read_to_string(runtime::ShipHome::project_ship_dir(tmp.path()).join("ship.jsonc")).unwrap();
     assert_eq!(
         original, after,
         "init must not overwrite existing ship.jsonc"
@@ -89,7 +89,7 @@ fn init_with_provider_sets_provider_in_toml() {
         .assert()
         .success();
 
-    let content = fs::read_to_string(tmp.path().join(".ship/ship.jsonc")).unwrap();
+    let content = fs::read_to_string(runtime::ShipHome::project_ship_dir(tmp.path()).join("ship.jsonc")).unwrap();
     assert!(
         content.contains("gemini"),
         "provider should appear in ship.jsonc"
@@ -392,7 +392,7 @@ fn install_empty_deps_writes_lock() {
         .success();
 
     assert!(
-        tmp.path().join(".ship/ship.lock").exists(),
+        runtime::ShipHome::project_ship_dir(tmp.path()).join("ship.lock").exists(),
         ".ship/ship.lock must be created by ship install"
     );
 }

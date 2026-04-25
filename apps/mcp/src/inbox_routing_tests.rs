@@ -8,7 +8,7 @@ fn fallback_to_project_dir_when_workspace_not_found() {
     let project = dir.path();
     // Create a minimal .ship directory so the DB open does not error on a
     // missing path; the workspace row simply won't exist.
-    std::fs::create_dir_all(project.join(".ship")).expect("create .ship");
+    std::fs::create_dir_all(runtime::ShipHome::project_ship_dir(project)).expect("create .ship");
 
     let result = resolve_inbox_root(project, "branch-that-does-not-exist");
     assert_eq!(result, project, "expected project_dir fallback");
@@ -24,7 +24,7 @@ fn fallback_to_project_dir_when_worktree_path_missing_on_disk() {
     // project_dir (same behaviour as the is_dir() guard for a stale path).
     let dir = tempfile::tempdir().expect("tempdir");
     let project = dir.path();
-    std::fs::create_dir_all(project.join(".ship")).expect("create .ship");
+    std::fs::create_dir_all(runtime::ShipHome::project_ship_dir(project)).expect("create .ship");
 
     let result = resolve_inbox_root(project, "nonexistent-worktree-branch");
     assert_eq!(result, project);

@@ -76,7 +76,7 @@ async fn state_modifying_tool_sends_resource_notification() {
     tokio::time::sleep(std::time::Duration::from_millis(100)).await;
 
     // Create a skill directory so write_skill_file has somewhere to write
-    let skill_dir = project_dir.join(".ship/skills/test-skill");
+    let skill_dir = runtime::ShipHome::project_ship_dir(project_dir).join("skills/test-skill");
     std::fs::create_dir_all(&skill_dir).unwrap();
     std::fs::write(skill_dir.join("SKILL.md"), "# Test Skill\nA test.").unwrap();
 

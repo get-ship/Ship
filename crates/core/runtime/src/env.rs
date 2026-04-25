@@ -119,6 +119,30 @@ pub fn read(v: Var) -> Option<String> {
     }
 }
 
+/// Read an env var as a non-empty `Result`-style raw value, identical to
+/// `std::env::var(v.as_str())`. Used by the few call sites that branch on
+/// the `VarError` variant or care about empty-string-as-set semantics.
+pub fn read_raw(v: Var) -> Result<String, std::env::VarError> {
+    std::env::var(v.as_str())
+}
+
+/// Set an env var by typed `Var`. Convenience for tests; production code
+/// should prefer not to mutate process env.
+///
+/// # Safety
+/// Wraps `std::env::set_var`, which is `unsafe` on edition 2024.
+pub unsafe fn set<S: AsRef<std::ffi::OsStr>>(v: Var, value: S) {
+    unsafe { std::env::set_var(v.as_str(), value) }
+}
+
+/// Remove an env var by typed `Var`.
+///
+/// # Safety
+/// Wraps `std::env::remove_var`, which is `unsafe` on edition 2024.
+pub unsafe fn remove(v: Var) {
+    unsafe { std::env::remove_var(v.as_str()) }
+}
+
 #[cfg(test)]
 mod tests {
     use super::*;
@@ -151,26 +175,26 @@ mod tests {
     fn read_returns_some_when_set_none_otherwise() {
         // Use a var unlikely to collide with the host environment.
         let v = Var::TelegramToken;
-        let prev = std::env::var(v.as_str()).ok();
+        let prev = read_raw(v).ok();
         // SAFETY: tests run single-threaded relative to this specific var;
         // restored before return.
         unsafe {
-            std::env::remove_var(v.as_str());
+            remove(v);
         }
         assert_eq!(read(v), None);
         unsafe {
-            std::env::set_var(v.as_str(), "abc123");
+            set(v, "abc123");
         }
         assert_eq!(read(v).as_deref(), Some("abc123"));
         // Empty string is treated as unset.
         unsafe {
-            std::env::set_var(v.as_str(), "");
+            set(v, "");
         }
         assert_eq!(read(v), None);
         unsafe {
             match prev {
-                Some(val) => std::env::set_var(v.as_str(), val),
-                None => std::env::remove_var(v.as_str()),
+                Some(val) => set(v, val),
+                None => remove(v),
             }
         }
     }

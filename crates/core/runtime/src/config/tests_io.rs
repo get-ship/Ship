@@ -6,7 +6,7 @@ use tempfile::tempdir;
 #[test]
 fn save_config_keeps_ship_toml_free_of_agent_sections() -> anyhow::Result<()> {
     let tmp = tempdir()?;
-    let ship_dir = tmp.path().join(".ship");
+    let ship_dir = crate::ShipHome::project_ship_dir(tmp.path());
     fs::create_dir_all(&ship_dir)?;
 
     let config = ProjectConfig {
@@ -138,7 +138,7 @@ fn save_config_keeps_ship_toml_free_of_agent_sections() -> anyhow::Result<()> {
 #[test]
 fn get_config_round_trips_agent_sidecars() -> anyhow::Result<()> {
     let tmp = tempdir()?;
-    let ship_dir = tmp.path().join(".ship");
+    let ship_dir = crate::ShipHome::project_ship_dir(tmp.path());
     fs::create_dir_all(&ship_dir)?;
 
     let config = ProjectConfig {

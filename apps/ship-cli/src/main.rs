@@ -243,7 +243,7 @@ fn run_studio(port: u16, open: bool) -> Result<()> {
 
 fn read_daemon_token() -> Option<String> {
     let global_dir: std::path::PathBuf = runtime::project::get_global_dir()
-        .unwrap_or_else(|_| dirs::home_dir().unwrap_or_default().join(".ship"));
+        .unwrap_or_else(|_| runtime::ShipHome::project_ship_dir(dirs::home_dir().unwrap_or_default()));
     let path: std::path::PathBuf = global_dir.join("daemon.token");
     std::fs::read_to_string(path).ok().map(|s| s.trim().to_string())
 }
@@ -317,7 +317,7 @@ fn run_use(agent_id: Option<&str>, path: Option<PathBuf>, extra_skills: Vec<Stri
     try_init_kernel_router();
     let ship_dir = match path {
         Some(ref p) => {
-            let sd = std::fs::canonicalize(p)?.join(".ship");
+            let sd = runtime::ShipHome::project_ship_dir(std::fs::canonicalize(p)?);
             anyhow::ensure!(
                 sd.exists(),
                 ".ship/ not found in {}. Run: ship init",
@@ -351,7 +351,7 @@ fn run_status(path: Option<PathBuf>) -> Result<()> {
         .transpose()?
         .unwrap_or_else(|| std::env::current_dir().unwrap());
 
-    let ship_dir = target.join(".ship");
+    let ship_dir = runtime::ShipHome::project_ship_dir(&target);
     let state = profile::WorkspaceState::load(&ship_dir);
     match state.active_agent {
         Some(ref p) => {
@@ -380,11 +380,11 @@ fn run_compile_cmd(provider: Option<&str>, dry_run: bool, path: Option<PathBuf>)
         .transpose()?
         .unwrap_or_else(|| std::env::current_dir().unwrap());
 
-    if !project_root.join(".ship").exists() {
+    if !runtime::ShipHome::project_ship_dir(&project_root).exists() {
         anyhow::bail!(".ship/ not found. Run: ship init");
     }
 
-    let state = profile::WorkspaceState::load(&project_root.join(".ship"));
+    let state = profile::WorkspaceState::load(&runtime::ShipHome::project_ship_dir(&project_root));
     compile::run_compile(compile::CompileOptions {
         project_root: &project_root,
         output_root: None,

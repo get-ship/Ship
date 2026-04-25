@@ -31,7 +31,7 @@ fn job_dispatch_config() -> ActorConfig {
 
 fn setup() -> (TempDir, KernelRouter) {
     let dir = TempDir::new().unwrap();
-    let router = KernelRouter::new(dir.path().join(".ship")).unwrap();
+    let router = KernelRouter::new(runtime::ShipHome::project_ship_dir(dir.path())).unwrap();
     (dir, router)
 }
 
@@ -265,7 +265,7 @@ async fn pipeline_advances_to_next_phase() {
     store.append(&dispatched).unwrap();
 
     // Set up kernel with a subscriber to capture routed events
-    let mut router = KernelRouter::new(dir.path().join(".ship")).unwrap();
+    let mut router = KernelRouter::new(runtime::ShipHome::project_ship_dir(dir.path())).unwrap();
     let (_actor_store, mut mb) = router
         .spawn_actor("service.job-dispatch", job_dispatch_config())
         .unwrap();
@@ -536,7 +536,7 @@ mod ports {
             }),
         )).unwrap();
 
-        let mut router = KernelRouter::new(dir.path().join(".ship")).unwrap();
+        let mut router = KernelRouter::new(runtime::ShipHome::project_ship_dir(dir.path())).unwrap();
         let (_s, _mb) = router
             .spawn_actor("service.job-dispatch", super::job_dispatch_config())
             .unwrap();
@@ -591,18 +591,18 @@ fn job_projection_handles_model_and_provider_payload() {
 fn ship_mesh_id_env_overrides_derived_actor_id() {
     let slug = "payments-refactor";
 
-    let without = std::env::var("SHIP_MESH_ID")
+    let without = runtime::env::read_raw(runtime::env::Var::MeshId)
         .ok()
         .filter(|s| !s.is_empty())
         .unwrap_or_else(|| "agent.rust-runtime.job/payments-refactor".to_string());
     assert_eq!(without, "agent.rust-runtime.job/payments-refactor");
 
-    unsafe { std::env::set_var("SHIP_MESH_ID", slug) };
-    let with_mesh_id = std::env::var("SHIP_MESH_ID")
+    unsafe { runtime::env::set(runtime::env::Var::MeshId, slug) };
+    let with_mesh_id = runtime::env::read_raw(runtime::env::Var::MeshId)
         .ok()
         .filter(|s| !s.is_empty())
         .unwrap_or_else(|| "agent.rust-runtime.job/payments-refactor".to_string());
-    unsafe { std::env::remove_var("SHIP_MESH_ID") };
+    unsafe { runtime::env::remove(runtime::env::Var::MeshId) };
 
     assert_eq!(
         with_mesh_id, slug,
@@ -667,7 +667,7 @@ fn projection_resolves_pending_deps() {
     use runtime::events::store::{EventStore, SqliteEventStore};
 
     let dir = TempDir::new().unwrap();
-    let ship_dir = dir.path().join(".ship");
+    let ship_dir = runtime::ShipHome::project_ship_dir(dir.path());
     std::fs::create_dir_all(&ship_dir).unwrap();
     let store = SqliteEventStore::new_at(&ship_dir).unwrap();
 
@@ -740,7 +740,7 @@ fn pending_jobs_recoverable_from_event_store() {
     use runtime::events::store::{EventStore, SqliteEventStore};
 
     let dir = TempDir::new().unwrap();
-    let ship_dir = dir.path().join(".ship");
+    let ship_dir = runtime::ShipHome::project_ship_dir(dir.path());
     std::fs::create_dir_all(&ship_dir).unwrap();
     let store = SqliteEventStore::new_at(&ship_dir).unwrap();
 
@@ -790,7 +790,7 @@ fn projection_detects_stale_dispatched_jobs() {
     use runtime::events::store::{EventStore, SqliteEventStore};
 
     let dir = TempDir::new().unwrap();
-    let ship_dir = dir.path().join(".ship");
+    let ship_dir = runtime::ShipHome::project_ship_dir(dir.path());
     std::fs::create_dir_all(&ship_dir).unwrap();
     let store = SqliteEventStore::new_at(&ship_dir).unwrap();
 
@@ -936,7 +936,7 @@ fn dispatched_event_preserves_pid_in_payload() {
     use runtime::events::store::{EventStore, SqliteEventStore};
 
     let dir = TempDir::new().unwrap();
-    let ship_dir = dir.path().join(".ship");
+    let ship_dir = runtime::ShipHome::project_ship_dir(dir.path());
     std::fs::create_dir_all(&ship_dir).unwrap();
     let store = SqliteEventStore::new_at(&ship_dir).unwrap();
 
@@ -1151,7 +1151,7 @@ mod reliability {
         use runtime::events::store::{EventStore, SqliteEventStore};
 
         let dir = TempDir::new().unwrap();
-        let ship_dir = dir.path().join(".ship");
+        let ship_dir = runtime::ShipHome::project_ship_dir(dir.path());
         std::fs::create_dir_all(&ship_dir).unwrap();
         let store = SqliteEventStore::new_at(&ship_dir).unwrap();
 
@@ -1203,7 +1203,7 @@ mod reliability {
         use runtime::events::store::{EventStore, SqliteEventStore};
 
         let dir = TempDir::new().unwrap();
-        let ship_dir = dir.path().join(".ship");
+        let ship_dir = runtime::ShipHome::project_ship_dir(dir.path());
         std::fs::create_dir_all(&ship_dir).unwrap();
         let store = SqliteEventStore::new_at(&ship_dir).unwrap();
 
@@ -1258,7 +1258,7 @@ mod reliability {
         }
 
         let dir = TempDir::new().unwrap();
-        let ship_dir = dir.path().join(".ship");
+        let ship_dir = runtime::ShipHome::project_ship_dir(dir.path());
         std::fs::create_dir_all(&ship_dir).unwrap();
         let store = SqliteEventStore::new_at(&ship_dir).unwrap();
 
@@ -1317,7 +1317,7 @@ mod reliability {
         }
 
         let dir = TempDir::new().unwrap();
-        let ship_dir = dir.path().join(".ship");
+        let ship_dir = runtime::ShipHome::project_ship_dir(dir.path());
         std::fs::create_dir_all(&ship_dir).unwrap();
         let store = SqliteEventStore::new_at(&ship_dir).unwrap();
 
@@ -1383,7 +1383,7 @@ mod reliability {
     async fn graceful_shutdown_emits_shutdown_event() {
         let dir = TempDir::new().unwrap();
         let mut router =
-            runtime::events::kernel_router::KernelRouter::new(dir.path().join(".ship")).unwrap();
+            runtime::events::kernel_router::KernelRouter::new(runtime::ShipHome::project_ship_dir(dir.path())).unwrap();
 
         let config = runtime::events::kernel_router::ActorConfig {
             namespace: "test.shutdown-observer".to_string(),

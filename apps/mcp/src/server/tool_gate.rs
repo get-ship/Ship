@@ -100,7 +100,7 @@ impl ShipServer {
     /// Dispatched agents always get PLATFORM_TOOLS regardless of
     /// KV-stored active_agent state — dispatch context is the truth.
     pub fn is_dispatched_context() -> bool {
-        if std::env::var("SHIP_MESH_ID")
+        if runtime::env::read_raw(runtime::env::Var::MeshId)
             .map(|v| !v.is_empty())
             .unwrap_or(false)
         {

@@ -52,7 +52,7 @@ pub struct SkillBundle {
 /// Run `ship add --from <url>`.
 pub fn run_add_from(url: &str) -> Result<()> {
     let cwd = std::env::current_dir()?;
-    let ship_dir = cwd.join(".ship");
+    let ship_dir = runtime::ShipHome::project_ship_dir(&cwd);
     if !ship_dir.exists() {
         anyhow::bail!(".ship/ not found. Run `ship init` first.");
     }

@@ -12,7 +12,7 @@ use crate::rest_api::*;
 use crate::test_harness::TestDaemon;
 
 fn make_api_state(dir: &TempDir) -> ApiState {
-    let ship_dir = dir.path().join(".ship");
+    let ship_dir = runtime::ShipHome::project_ship_dir(dir.path());
     std::fs::create_dir_all(&ship_dir).unwrap();
     runtime::db::ensure_db_at(&ship_dir).unwrap();
     // Create a fresh KernelRouter per test — never use init_kernel_router(),
@@ -237,7 +237,7 @@ async fn status_update_returns_ok() {
 #[tokio::test(flavor = "multi_thread")]
 async fn checkout_hook_with_valid_ship_dir() {
     let dir = TempDir::new().unwrap();
-    let ship_dir = dir.path().join(".ship");
+    let ship_dir = runtime::ShipHome::project_ship_dir(dir.path());
     std::fs::create_dir_all(&ship_dir).unwrap();
     runtime::db::ensure_db_at(&ship_dir).unwrap();
     // init_project creates the markers that get_project_dir looks for.
@@ -408,7 +408,7 @@ async fn capabilities_returns_unauthenticated_without_token() {
     // A browser request from localhost with no token must be rejected.
     // Today this PASSES through due to the localhost exemption — test must fail.
     let temp_dir = TempDir::new().unwrap();
-    let ship_dir = temp_dir.path().join(".ship");
+    let ship_dir = runtime::ShipHome::project_ship_dir(temp_dir.path());
     std::fs::create_dir_all(&ship_dir).unwrap();
     runtime::db::ensure_db_at(&ship_dir).unwrap();
 

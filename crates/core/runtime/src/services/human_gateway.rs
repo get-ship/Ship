@@ -53,8 +53,8 @@ impl TelegramAdapter {
 
     /// Build from environment variables. Returns `None` if either var is absent.
     pub fn from_env() -> Option<Self> {
-        let token = std::env::var("SHIP_TELEGRAM_TOKEN").ok()?;
-        let chat_id = std::env::var("SHIP_TELEGRAM_CHAT_ID").ok()?;
+        let token = crate::env::read(crate::env::Var::TelegramToken)?;
+        let chat_id = crate::env::read(crate::env::Var::TelegramChatId)?;
         Some(Self::new(token, chat_id))
     }
 }

@@ -287,7 +287,7 @@ mod tests {
 
     fn test_service() -> (DataService, tempfile::TempDir) {
         let tmp = tempfile::tempdir().unwrap();
-        let ship_dir = tmp.path().join(".ship");
+        let ship_dir = crate::ShipHome::project_ship_dir(tmp.path());
         std::fs::create_dir_all(&ship_dir).unwrap();
         let svc = DataService::open(&ship_dir).unwrap();
         (svc, tmp)

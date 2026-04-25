@@ -91,7 +91,7 @@ fn load_local_settings_parses_allow_deny() {
 #[test]
 fn sync_writes_new_allows_to_agent() {
     let tmp = TempDir::new().unwrap();
-    let ship_dir = tmp.path().join(".ship");
+    let ship_dir = runtime::ShipHome::project_ship_dir(tmp.path());
     write(tmp.path(), ".ship/ship.toml", "id = \"test-proj\"\nname = \"test\"\n");
     // Write workspace state with active agent via platform.db
     let mut state = WorkspaceState::default();
@@ -114,7 +114,7 @@ providers = ["claude"]
 "#);
     run_permissions_sync(tmp.path()).unwrap();
     let updated = std::fs::read_to_string(
-        tmp.path().join(".ship/agents/test.toml")
+        runtime::ShipHome::project_ship_dir(tmp.path()).join("agents/test.toml")
     ).unwrap();
     let parsed: ProfileForSync = toml::from_str(&updated).unwrap();
     assert!(parsed.permissions.tools_allow.contains(&"Bash(cargo build*)".to_string()));
@@ -123,7 +123,7 @@ providers = ["claude"]
 #[test]
 fn sync_warns_deny_that_shadows_allow_but_does_not_import() {
     let tmp = TempDir::new().unwrap();
-    let ship_dir = tmp.path().join(".ship");
+    let ship_dir = runtime::ShipHome::project_ship_dir(tmp.path());
     write(tmp.path(), ".ship/ship.toml", "id = \"test-proj\"\nname = \"test\"\n");
     // Write workspace state with active agent via platform.db
     let mut state = WorkspaceState::default();
@@ -149,7 +149,7 @@ tools_allow = ["Bash(cargo*)"]
     // Should succeed without panicking; the deny must NOT be imported.
     run_permissions_sync(tmp.path()).unwrap();
     let updated = std::fs::read_to_string(
-        tmp.path().join(".ship/agents/test.toml")
+        runtime::ShipHome::project_ship_dir(tmp.path()).join("agents/test.toml")
     ).unwrap();
     let parsed: ProfileForSync = toml::from_str(&updated).unwrap();
     assert!(!parsed.permissions.tools_deny.contains(&"Bash".to_string()),

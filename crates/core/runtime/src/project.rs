@@ -54,7 +54,7 @@ mod tests {
     fn resolve_project_ship_dir_follows_git_worktree_pointer() -> Result<()> {
         let tmp = tempdir()?;
         let main_root = tmp.path().join("main");
-        let main_ship = main_root.join(".ship");
+        let main_ship = crate::ShipHome::project_ship_dir(&main_root);
         let common_git = main_root.join(".git");
         let worktree_git = common_git.join("worktrees").join("feature-auth");
         let wt_root = tmp.path().join("worktrees").join("feature-auth");
@@ -77,7 +77,7 @@ mod tests {
     fn resolve_project_ship_dir_prefers_main_ship_over_worktree_copy() -> Result<()> {
         let tmp = tempdir()?;
         let main_root = tmp.path().join("main");
-        let main_ship = main_root.join(".ship");
+        let main_ship = crate::ShipHome::project_ship_dir(&main_root);
         let common_git = main_root.join(".git");
         let worktree_git = common_git.join("worktrees").join("feature-auth");
         let wt_root = tmp.path().join("worktrees").join("feature-auth");
@@ -85,7 +85,7 @@ mod tests {
 
         fs::create_dir_all(&main_ship)?;
         fs::create_dir_all(&worktree_git)?;
-        fs::create_dir_all(wt_root.join(".ship"))?;
+        fs::create_dir_all(crate::ShipHome::project_ship_dir(&wt_root))?;
         fs::create_dir_all(&wt_nested)?;
         fs::write(
             wt_root.join(".git"),
@@ -101,7 +101,7 @@ mod tests {
     fn resolve_project_ship_dir_follows_relative_git_worktree_pointer() -> Result<()> {
         let tmp = tempdir()?;
         let main_root = tmp.path().join("main");
-        let main_ship = main_root.join(".ship");
+        let main_ship = crate::ShipHome::project_ship_dir(&main_root);
         let common_git = main_root.join(".git");
         let worktree_git = common_git.join("worktrees").join("feature-auth");
         let wt_root = tmp.path().join("worktrees").join("feature-auth");
@@ -204,10 +204,10 @@ mod tests {
             return Ok(());
         }
 
-        let main_ship = main_root.join(".ship");
+        let main_ship = crate::ShipHome::project_ship_dir(&main_root);
         fs::create_dir_all(&main_ship)?;
 
-        let wt_ship = wt_root.join(".ship");
+        let wt_ship = crate::ShipHome::project_ship_dir(&wt_root);
         fs::create_dir_all(&wt_ship)?;
 
         let wt_nested = wt_root.join("src").join("deep");
@@ -254,7 +254,7 @@ mod tests {
     #[test]
     fn project_slug_uses_name_and_id_tokens() -> Result<()> {
         let tmp = tempdir()?;
-        let ship = tmp.path().join(".ship");
+        let ship = crate::ShipHome::project_ship_dir(tmp.path());
         fs::create_dir_all(&ship)?;
         fs::write(
             ship.join(crate::config::PRIMARY_CONFIG_FILE),
@@ -287,7 +287,7 @@ mod tests {
     #[test]
     fn ensure_project_id_populates_missing_id() -> Result<()> {
         let tmp = tempdir()?;
-        let ship = tmp.path().join(".ship");
+        let ship = crate::ShipHome::project_ship_dir(tmp.path());
         fs::create_dir_all(&ship)?;
         fs::write(
             ship.join(crate::config::PRIMARY_CONFIG_FILE),

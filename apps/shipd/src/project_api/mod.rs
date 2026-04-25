@@ -43,7 +43,7 @@ pub(crate) fn resolve_worktree(
     // 1. DB-backed workspace resolution — only trust explicit paths.
     if let Ok((root, ws)) = runtime::workspace::resolve_project_root(ship_dir, id)
         && ws.path.is_some()
-        && (root.join(".ship").exists() || root.join(".git").exists())
+        && (runtime::ShipHome::project_ship_dir(&root).exists() || root.join(".git").exists())
     {
         return Ok(root);
     }
@@ -341,7 +341,7 @@ mod tests_inline {
 
     fn make_test_state() -> (ApiState, tempfile::TempDir) {
         let dir = tempfile::TempDir::new().unwrap();
-        let ship_dir = dir.path().join(".ship");
+        let ship_dir = runtime::ShipHome::project_ship_dir(dir.path());
         std::fs::create_dir_all(&ship_dir).unwrap();
         runtime::db::ensure_db_at(&ship_dir).unwrap();
         let kernel = runtime::events::init_kernel_router(ship_dir.clone()).unwrap();

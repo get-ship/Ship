@@ -27,7 +27,7 @@ fn test_branch(name: &str) -> String {
 /// Create a workspace record pointing at the given temp dir so `resolve_worktree` can find it.
 /// Returns `(branch, ApiState)` with an explicit `ship_dir` — no env var mutation.
 fn create_test_workspace(dir: &TempDir) -> (String, crate::rest_api::ApiState) {
-    let ship_dir = dir.path().join(".ship");
+    let ship_dir = runtime::ShipHome::project_ship_dir(dir.path());
     std::fs::create_dir_all(&ship_dir).unwrap();
     runtime::db::ensure_db_at(&ship_dir).unwrap();
     let branch = test_branch("ws");
@@ -44,7 +44,7 @@ fn create_test_workspace(dir: &TempDir) -> (String, crate::rest_api::ApiState) {
 }
 
 fn make_api_state(dir: &TempDir) -> crate::rest_api::ApiState {
-    let ship_dir = dir.path().join(".ship");
+    let ship_dir = runtime::ShipHome::project_ship_dir(dir.path());
     make_api_state_with_dir(&ship_dir)
 }
 
@@ -203,7 +203,7 @@ async fn list_agents_empty() {
 #[tokio::test(flavor = "multi_thread")]
 async fn list_agents_reads_jsonc() {
     let dir = TempDir::new().unwrap();
-    let agents_dir = dir.path().join(".ship").join("agents");
+    let agents_dir = runtime::ShipHome::project_ship_dir(dir.path()).join("agents");
     std::fs::create_dir_all(&agents_dir).unwrap();
     std::fs::write(
         agents_dir.join("test-agent.jsonc"),
@@ -233,7 +233,7 @@ async fn list_agents_reads_jsonc() {
 #[tokio::test(flavor = "multi_thread")]
 async fn list_agents_strips_comments() {
     let dir = TempDir::new().unwrap();
-    let agents_dir = dir.path().join(".ship").join("agents");
+    let agents_dir = runtime::ShipHome::project_ship_dir(dir.path()).join("agents");
     std::fs::create_dir_all(&agents_dir).unwrap();
     std::fs::write(
         agents_dir.join("commented.jsonc"),
@@ -349,7 +349,7 @@ async fn resolve_worktree_ignores_pathless_workspace_fallback() {
     // check. Writes then landed in the global ~/.ship/pipelines/ instead
     // of the real project.
     let dir = TempDir::new().unwrap();
-    let ship_dir = dir.path().join(".ship");
+    let ship_dir = runtime::ShipHome::project_ship_dir(dir.path());
     std::fs::create_dir_all(&ship_dir).unwrap();
     runtime::db::ensure_db_at(&ship_dir).unwrap();
     let branch = test_branch("no-path");

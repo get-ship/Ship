@@ -22,6 +22,10 @@ pub mod workspace;
 pub mod sync;
 pub mod services;
 
+// Re-export typed home accessors at the crate root so callers can write
+// `runtime::ShipHome::project_ship_dir(&p)` without going through `home::`.
+pub use home::{DaemonFile, Db, Scope, ShipHome, Vector};
+
 // Backward-compatible module aliases.
 // Canonical implementation lives under `runtime::agents::*`.
 pub use agents::config as agent_config;
@@ -383,7 +387,7 @@ mod tests {
         assert!(!project_path.exists());
         assert_eq!(
             fs::canonicalize(project_dir)?,
-            fs::canonicalize(tmp.path().join(".ship"))?
+            fs::canonicalize(crate::ShipHome::project_ship_dir(tmp.path()))?
         );
         Ok(())
     }
@@ -392,7 +396,7 @@ mod tests {
     fn test_get_project_dir_resolves_main_ship_from_worktree() -> anyhow::Result<()> {
         let tmp = tempdir()?;
         let main_root = tmp.path().join("main");
-        let main_ship = main_root.join(".ship");
+        let main_ship = crate::ShipHome::project_ship_dir(&main_root);
         let common_git = main_root.join(".git");
         let worktree_git = common_git.join("worktrees").join("feature-auth");
         let worktree_root = tmp.path().join("worktrees").join("feature-auth");
@@ -419,7 +423,7 @@ mod tests {
     fn test_get_project_dir_prefers_main_ship_when_worktree_has_local_copy() -> anyhow::Result<()> {
         let tmp = tempdir()?;
         let main_root = tmp.path().join("main");
-        let main_ship = main_root.join(".ship");
+        let main_ship = crate::ShipHome::project_ship_dir(&main_root);
         let common_git = main_root.join(".git");
         let worktree_git = common_git.join("worktrees").join("feature-auth");
         let worktree_root = tmp.path().join("worktrees").join("feature-auth");
@@ -427,7 +431,7 @@ mod tests {
 
         fs::create_dir_all(&main_ship)?;
         fs::create_dir_all(&worktree_git)?;
-        fs::create_dir_all(worktree_root.join(".ship"))?;
+        fs::create_dir_all(crate::ShipHome::project_ship_dir(&worktree_root))?;
         fs::create_dir_all(&worktree_nested)?;
         fs::write(
             worktree_root.join(".git"),

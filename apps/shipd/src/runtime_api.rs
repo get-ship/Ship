@@ -1364,7 +1364,7 @@ mod tests {
     use tempfile::TempDir;
 
     fn make_api_state(dir: &TempDir) -> ApiState {
-        let ship_dir = dir.path().join(".ship");
+        let ship_dir = runtime::ShipHome::project_ship_dir(dir.path());
         std::fs::create_dir_all(&ship_dir).unwrap();
         runtime::db::ensure_db_at(&ship_dir).unwrap();
         // Isolated per-test kernel — init_kernel_router uses a OnceLock that
@@ -2154,7 +2154,7 @@ pub async fn dispatch_pipeline(
         let mut dir = std::env::current_dir().ok();
         let mut found = None;
         while let Some(d) = dir.as_ref() {
-            let pipelines_dir = d.join(".ship").join("pipelines");
+            let pipelines_dir = runtime::ShipHome::project_ship_dir(&d).join("pipelines");
             if pipelines_dir.is_dir() {
                 for ext in ["yaml", "yml", "jsonc", "json"] {
                     let candidate = pipelines_dir.join(format!("{}.{ext}", req.pipeline));

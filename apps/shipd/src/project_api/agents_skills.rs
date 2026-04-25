@@ -111,7 +111,7 @@ pub async fn list_agents(
     Path(id): Path<String>,
 ) -> Result<(StatusCode, Json<MeshResponse>), (StatusCode, Json<MeshResponse>)> {
     let worktree = resolve_worktree(state.ship_dir(), &id)?;
-    let agents_dir = worktree.join(".ship").join("agents");
+    let agents_dir = runtime::ShipHome::project_ship_dir(&worktree).join("agents");
 
     if !agents_dir.exists() {
         return Ok(ok_response(serde_json::json!({ "agents": [] })));
@@ -186,7 +186,7 @@ pub async fn list_skills(
     Path(id): Path<String>,
 ) -> Result<(StatusCode, Json<MeshResponse>), (StatusCode, Json<MeshResponse>)> {
     let worktree = resolve_worktree(state.ship_dir(), &id)?;
-    let ship_dir = worktree.join(".ship");
+    let ship_dir = runtime::ShipHome::project_ship_dir(&worktree);
 
     // Use read_skill_paths to discover all skill directories (respects skill_paths config)
     let skill_dirs = runtime::read_skill_paths(&ship_dir, &worktree);

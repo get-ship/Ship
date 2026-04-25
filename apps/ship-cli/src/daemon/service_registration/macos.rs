@@ -76,12 +76,12 @@ fn user_plist_path() -> Result<PathBuf> {
 }
 
 fn ship_home() -> Result<PathBuf> {
-    if let Ok(env) = std::env::var("SHIP_HOME")
+    if let Ok(env) = runtime::env::read_raw(runtime::env::Var::Home)
         && !env.is_empty()
     {
         return Ok(PathBuf::from(env));
     }
-    Ok(dirs::home_dir().context("no $HOME")?.join(".ship"))
+    Ok(runtime::ShipHome::project_ship_dir(dirs::home_dir().context("no $HOME")?))
 }
 
 fn render_plist(shipd: &Path, ship_home: &Path, log_dir: &Path) -> String {

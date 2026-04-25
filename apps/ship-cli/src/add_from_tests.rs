@@ -45,7 +45,7 @@ fn build_agent_jsonc_output() {
 #[test]
 fn write_bundle_creates_files() {
     let tmp = TempDir::new().unwrap();
-    let ship_dir = tmp.path().join(".ship");
+    let ship_dir = runtime::ShipHome::project_ship_dir(tmp.path());
     std::fs::create_dir_all(ship_dir.join("skills")).unwrap();
     std::fs::write(
         ship_dir.join("ship.jsonc"),
@@ -125,7 +125,7 @@ fn parse_minimal_bundle_defaults() {
 #[test]
 fn merge_dependencies_toml() {
     let tmp = TempDir::new().unwrap();
-    let ship_dir = tmp.path().join(".ship");
+    let ship_dir = runtime::ShipHome::project_ship_dir(tmp.path());
     std::fs::create_dir_all(&ship_dir).unwrap();
     std::fs::write(
         ship_dir.join("ship.toml"),
@@ -145,7 +145,7 @@ fn merge_dependencies_toml() {
 #[test]
 fn merge_dependencies_skips_existing() {
     let tmp = TempDir::new().unwrap();
-    let ship_dir = tmp.path().join(".ship");
+    let ship_dir = runtime::ShipHome::project_ship_dir(tmp.path());
     std::fs::create_dir_all(&ship_dir).unwrap();
     std::fs::write(
         ship_dir.join("ship.jsonc"),
@@ -166,7 +166,7 @@ fn merge_dependencies_skips_existing() {
 #[test]
 fn merge_dependencies_fails_without_manifest() {
     let tmp = TempDir::new().unwrap();
-    let ship_dir = tmp.path().join(".ship");
+    let ship_dir = runtime::ShipHome::project_ship_dir(tmp.path());
     std::fs::create_dir_all(&ship_dir).unwrap();
 
     let deps = [("pkg".into(), "1.0".into())].into_iter().collect();
@@ -177,7 +177,7 @@ fn merge_dependencies_fails_without_manifest() {
 #[test]
 fn write_skill_with_nested_dirs() {
     let tmp = TempDir::new().unwrap();
-    let ship_dir = tmp.path().join(".ship");
+    let ship_dir = runtime::ShipHome::project_ship_dir(tmp.path());
     std::fs::create_dir_all(&ship_dir).unwrap();
 
     let skill = SkillBundle {
@@ -218,7 +218,7 @@ fn security_scan_blocks_rule_injection() {
 #[test]
 fn overwrite_existing_agent_writes_new_content() {
     let tmp = TempDir::new().unwrap();
-    let ship_dir = tmp.path().join(".ship");
+    let ship_dir = runtime::ShipHome::project_ship_dir(tmp.path());
     std::fs::create_dir_all(ship_dir.join("agents")).unwrap();
 
     let existing = ship_dir.join("agents/test-agent.jsonc");

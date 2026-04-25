@@ -328,7 +328,7 @@ mod tests {
         // must not be silently misread as a flat Permissions struct. get_permissions()
         // should return Permissions::default() rather than data from the named sections.
         let tmp = TempDir::new().unwrap();
-        let ship_dir = tmp.path().join(".ship");
+        let ship_dir = crate::ShipHome::project_ship_dir(tmp.path());
         let agents_dir = ship_dir.join("agents");
         std::fs::create_dir_all(&agents_dir).unwrap();
         let named_section_content = r#"
@@ -360,7 +360,7 @@ tools_ask = ["Bash(*deploy*)"]
         // Saving a flat Permissions struct must not destroy a human-authored
         // named-preset permissions.toml file.
         let tmp = TempDir::new().unwrap();
-        let ship_dir = tmp.path().join(".ship");
+        let ship_dir = crate::ShipHome::project_ship_dir(tmp.path());
         let agents_dir = ship_dir.join("agents");
         std::fs::create_dir_all(&agents_dir).unwrap();
         let original = r#"
@@ -383,7 +383,7 @@ tools_deny = ["Bash(git push --force*)"]
     #[test]
     fn save_permissions_writes_flat_format_when_no_existing_file() {
         let tmp = TempDir::new().unwrap();
-        let ship_dir = tmp.path().join(".ship");
+        let ship_dir = crate::ShipHome::project_ship_dir(tmp.path());
         std::fs::create_dir_all(ship_dir.join("agents")).unwrap();
 
         let perms = Permissions {

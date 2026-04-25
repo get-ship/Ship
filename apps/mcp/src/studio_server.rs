@@ -86,7 +86,7 @@ impl StudioServer {
         };
 
         let ship_dir = match dirs::home_dir() {
-            Some(h) => h.join(".ship"),
+            Some(h) => runtime::ShipHome::project_ship_dir(h),
             None => {
                 tracing::warn!("studio: cannot resolve home directory");
                 return;
@@ -498,7 +498,7 @@ impl StudioServer {
 /// Lookup failure (workspace not found, DB error) is non-fatal: we fall back
 /// to `project_dir` so that inbox writes always have a valid destination.
 fn resolve_inbox_root(project_dir: &std::path::Path, workspace_id: &str) -> std::path::PathBuf {
-    let ship_dir = project_dir.join(".ship");
+    let ship_dir = runtime::ShipHome::project_ship_dir(project_dir);
     match runtime::get_workspace(&ship_dir, workspace_id) {
         Ok(Some(ws)) => {
             if let Some(ref ws_path) = ws.path {
