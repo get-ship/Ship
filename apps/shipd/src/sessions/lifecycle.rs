@@ -58,15 +58,38 @@ pub fn spawn_agent(
         });
     }
 
-    // Agent sessions are just metadata. Each `/message` call spawns a
-    // fresh headless provider run with stream-json output, parses the
-    // events, and broadcasts them. No long-lived PTY — interactive
-    // mode's ANSI TUI output is impractical to parse.
+    let adapter = adapter_for(provider).map_err(|e| anyhow!(e))?;
+
+    // Channels-capable providers (Claude today) get a long-lived PTY-backed
+    // process at spawn. User turns are delivered via `studio.chat_turn`
+    // kernel events that the MCP `EventRelay` pushes to the connected
+    // peer; the agent responds via `chat_reply`. No per-turn subprocess
+    // spawn — same provider session for the lifetime of the chat.
+    //
+    // `spawn_command` is the same primitive `spawn_shell` uses, so chat
+    // and shell sessions share the PTY-holding lifecycle. Pipeline
+    // executors stay one-shot for now; future consolidation can route
+    // them through this primitive too.
+    if adapter.caps().channels {
+        return spawn_long_lived_agent(
+            registry,
+            workspace_id,
+            agent_id,
+            provider,
+            adapter.as_ref(),
+            work_dir,
+            log_dir,
+        )
+        .map(|session| SpawnOutcome { session, attached: false });
+    }
+
+    // Per-turn fallback: agent metadata only. `send_agent_message` spawns
+    // a fresh headless provider run per turn and parses stream-json. Used
+    // by providers without a channels capability (codex, opencode, etc.).
     std::fs::create_dir_all(&log_dir)
         .with_context(|| format!("create log dir {}", log_dir.display()))?;
     let id: SessionId = runtime::gen_ulid();
     let log_path = log_dir.join(format!("agent-{agent_id}-{id}.log"));
-    // Touch the log file so subscribers can tail it.
     let _ = std::fs::write(&log_path, "");
 
     let (output_tx, _) = broadcast::channel(OUTPUT_CHANNEL_CAP);
@@ -99,13 +122,71 @@ pub fn spawn_agent(
     });
 
     registry.insert(id.clone(), inner.clone());
-    // Reference `work_dir` / work with the adapter in send_agent_message
-    // at turn time — nothing to do on spawn itself.
-    let _ = (work_dir, adapter_for(provider));
+    let _ = work_dir;
     Ok(SpawnOutcome {
         session: PtySession(inner),
         attached: false,
     })
+}
+
+/// Long-lived agent spawn for channels-capable providers (J2 Phase 2).
+///
+/// Mirrors `spawn_shell`: builds a `LaunchCommand` from the adapter's
+/// `build_interactive` and hands it to `spawn_command`, which holds the
+/// writer + master for the lifetime of the session. The reader thread
+/// tees PTY output to a log + raw broadcast channel so subscribers can
+/// inspect TUI state during debugging — but the chat UI consumes
+/// structured events from `event_tx` (driven by `chat_reply` MCP tool
+/// calls), not the raw byte stream.
+fn spawn_long_lived_agent(
+    registry: &SessionRegistry,
+    workspace_id: &str,
+    agent_id: &str,
+    provider: &str,
+    adapter: &dyn runtime::services::provider_adapter::ProviderAdapter,
+    work_dir: PathBuf,
+    log_dir: PathBuf,
+) -> Result<PtySession> {
+    let slug = format!("agent-{agent_id}-{}", runtime::gen_ulid());
+    let append_system_prompt = load_agent_rules(&work_dir, agent_id);
+    let profile = LaunchProfile {
+        provider: Some(provider.to_string()),
+        persist_session: true,
+        structured_output: true,
+        append_system_prompt,
+        ..LaunchProfile::default()
+    };
+    let launch = adapter.build_interactive(&slug, &profile);
+    let session = spawn_command(
+        registry,
+        SessionKind::Agent,
+        workspace_id.to_string(),
+        Some(agent_id.to_string()),
+        Some(provider.to_string()),
+        launch,
+        work_dir,
+        log_dir,
+        &slug,
+    )?;
+
+    // Claude's interactive mode opens with a one-shot dev-channels
+    // confirmation TUI menu (`--dangerously-load-development-channels`)
+    // and a project-trust dialog. Both block at "press Enter to confirm".
+    // Auto-dismiss them by writing a few newlines once the PTY is alive.
+    // Harmless on providers that don't show menus — the bytes land at
+    // their input prompt and get echoed back. Phase 2.5 should detect
+    // the actual menu pattern in the reader loop instead of best-effort
+    // timing.
+    let confirm_session = session.clone();
+    std::thread::spawn(move || {
+        std::thread::sleep(Duration::from_millis(1500));
+        for _ in 0..3 {
+            let _ = write_input(&confirm_session, b"\r");
+            std::thread::sleep(Duration::from_millis(800));
+        }
+    });
+
+    Ok(session)
 }
 
 /// Send a user turn to an agent session. Spawns the provider headless
@@ -133,6 +214,31 @@ pub fn send_agent_message(
         (p, m.provider_session_id.clone(), m.id.clone())
     };
     let adapter = adapter_for(&provider).map_err(|e| anyhow!(e))?;
+
+    // Channels path: long-lived process is already running. The HTTP
+    // handler emits a `studio.chat_turn` kernel event scoped to this
+    // session id; the MCP `EventRelay` pushes it to the connected peer
+    // as a `notifications/claude/channel`. The agent reads the channel
+    // event and replies via `chat_reply`. No per-turn subprocess spawn,
+    // no `--resume` flag thrash. If the long-lived process died, fall
+    // through to the headless per-turn fallback below so the chat
+    // remains usable while we add restart logic.
+    let has_long_lived_process = {
+        let writer = session.0.writer.lock().unwrap();
+        writer.is_some()
+    };
+    tracing::info!(
+        session = %slug,
+        provider = %provider,
+        channels = adapter.caps().channels,
+        has_long_lived = has_long_lived_process,
+        "send_agent_message: routing decision"
+    );
+    if adapter.caps().channels && has_long_lived_process {
+        let _ = text; // Delivered via the channel event from the HTTP layer.
+        set_status(&session.0, SessionStatus::Thinking);
+        return Ok(());
+    }
     let agent_id_opt = session.0.meta.lock().unwrap().agent_id.clone();
     let append_system_prompt = agent_id_opt
         .as_deref()
