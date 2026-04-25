@@ -28,6 +28,11 @@
  */
 
 import { LitElement, css, html, nothing } from 'lit'
+// Side-effect import — guarantees `<ship-icon>` is registered whenever
+// `<ship-app-icon>` is loaded, so the inner glyph renders even when the
+// component is mounted in an isolated context (e.g. `page.setContent`)
+// without an explicit registry-init call from the host app.
+import './ship-icon'
 
 type AppName =
   | 'dashboard' | 'pipelines' | 'agents' | 'skills' | 'git'
