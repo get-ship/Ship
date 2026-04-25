@@ -125,7 +125,7 @@ fn active_id(state: &ApiState) -> Option<String> {
 #[utoipa::path(
     operation_id = "listProjects",
     get,
-    path = "/api/projects",
+    path = "/api/v1/projects",
     responses(
         (status = 200, description = "Known projects + active id", body = ProjectsResponse),
     ),
@@ -146,7 +146,7 @@ pub async fn list_projects(State(state): State<ApiState>) -> axum::response::Res
 #[utoipa::path(
     operation_id = "addProject",
     post,
-    path = "/api/projects",
+    path = "/api/v1/projects",
     request_body = ProjectAddReq,
     responses(
         (status = 200, description = "Project added", body = ProjectsResponse),
@@ -200,7 +200,7 @@ pub async fn add_project(
 #[utoipa::path(
     operation_id = "switchProject",
     post,
-    path = "/api/projects/switch",
+    path = "/api/v1/projects/switch",
     request_body = ProjectSwitchReq,
     responses(
         (status = 200, description = "Active project updated"),

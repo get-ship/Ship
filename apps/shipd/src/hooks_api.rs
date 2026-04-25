@@ -68,11 +68,11 @@ fn resolve_session(event: &ShipHookEvent, auth: &AuthContext) -> Option<String> 
     event.session_id.clone().or_else(|| auth.session_id.clone())
 }
 
-/// POST /api/hooks/session-start
+/// POST /api/v1/hooks/session-start
 #[utoipa::path(
     operation_id = "hookSessionStart",
     post,
-    path = "/api/hooks/session-start",
+    path = "/api/v1/hooks/session-start",
     request_body = ShipHookEvent,
     responses(
         (status = 200, description = "Hook processed", body = HookResponse),
@@ -99,11 +99,11 @@ pub async fn hook_session_start(
     (StatusCode::OK, Json(HookResponse::allow()))
 }
 
-/// POST /api/hooks/before-tool
+/// POST /api/v1/hooks/before-tool
 #[utoipa::path(
     operation_id = "hookBeforeTool",
     post,
-    path = "/api/hooks/before-tool",
+    path = "/api/v1/hooks/before-tool",
     request_body = ShipHookEvent,
     responses(
         (status = 200, description = "Hook allow or block decision", body = HookResponse),
@@ -163,11 +163,11 @@ fn broadcast_tool_use(
     let _ = session.0.event_tx.send(ev);
 }
 
-/// POST /api/hooks/after-tool
+/// POST /api/v1/hooks/after-tool
 #[utoipa::path(
     operation_id = "hookAfterTool",
     post,
-    path = "/api/hooks/after-tool",
+    path = "/api/v1/hooks/after-tool",
     request_body = ShipHookEvent,
     responses(
         (status = 200, description = "Hook processed", body = HookResponse),
@@ -200,11 +200,11 @@ pub async fn hook_after_tool(
     (StatusCode::OK, Json(HookResponse::allow()))
 }
 
-/// POST /api/hooks/session-end
+/// POST /api/v1/hooks/session-end
 #[utoipa::path(
     operation_id = "hookSessionEnd",
     post,
-    path = "/api/hooks/session-end",
+    path = "/api/v1/hooks/session-end",
     request_body = ShipHookEvent,
     responses(
         (status = 200, description = "Hook processed", body = HookResponse),

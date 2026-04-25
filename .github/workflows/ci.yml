@@ -30,6 +30,8 @@ jobs:
         run: pnpm build:bundles
       - name: Check silent-error patterns
         run: bash scripts/check-silent-errors.sh
+      - name: Check OpenAPI drift
+        run: cd apps/docs && pnpm run openapi:check-drift
       - name: Clippy
         run: cargo clippy --workspace --features unstable -- -D warnings
       - name: Build (stable)

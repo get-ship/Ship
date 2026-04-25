@@ -110,7 +110,7 @@ fn daemon_info() -> Option<(u16, String)> {
 fn post_to_daemon(endpoint: &str, body: &serde_json::Value) -> Result<serde_json::Value> {
     let (port, token) = daemon_info()
         .ok_or_else(|| anyhow!("daemon not running (no port/token file)"))?;
-    let url = format!("http://127.0.0.1:{port}/api/hooks/{endpoint}");
+    let url = format!("http://127.0.0.1:{port}/api/v1/hooks/{endpoint}");
     let client = reqwest::blocking::Client::new();
     let resp = client
         .post(&url)
@@ -226,7 +226,7 @@ fn signal_job_completed(slug: &str) {
     };
     let client = reqwest::blocking::Client::new();
     let _ = client
-        .post(format!("http://127.0.0.1:{port}/api/jobs/end"))
+        .post(format!("http://127.0.0.1:{port}/api/v1/jobs/end"))
         .bearer_auth(&token)
         .json(&serde_json::json!({"slug": slug}))
         .timeout(std::time::Duration::from_secs(5))

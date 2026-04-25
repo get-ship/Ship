@@ -43,7 +43,7 @@ async fn get_effective_token() -> Result<String> {
 }
 
 fn base_url() -> Result<String> {
-    Ok(format!("http://127.0.0.1:{}/api", get_network_port()?))
+    Ok(format!("http://127.0.0.1:{}/api/v1", get_network_port()?))
 }
 
 /// POST JSON to a REST endpoint, return the response body.
@@ -256,7 +256,7 @@ pub async fn artifact_download(artifact_id: &str) -> Result<String> {
     get(&format!("/artifacts/{artifact_id}")).await
 }
 
-/// Emit a high-level domain event through the daemon's `/api/events/emit`
+/// Emit a high-level domain event through the daemon's `/api/v1/events/emit`
 /// endpoint. The daemon validates reserved namespaces (when
 /// `validate_domain: true`), builds the envelope, persists it, and routes
 /// through the kernel — triggering projection updates and subscriber
@@ -314,7 +314,9 @@ pub async fn register_session(
     role: Option<&str>,
     workspace_id: Option<&str>,
 ) -> Result<String> {
-    let url = format!("{}/session/register", base_url()?);
+    // Auth surface lives at the unversioned `/api/session/register` path —
+    // session issuance predates `/api/v1` and stays stable across versions.
+    let url = format!("http://127.0.0.1:{}/api/session/register", get_network_port()?);
     let daemon_token = get_network_token()?;
     let resp = reqwest::Client::new()
         .post(&url)
@@ -519,7 +521,7 @@ pub async fn artifact_upload(
     let port = get_network_port()?;
     let token = get_effective_token().await?;
 
-    let mut url = format!("http://127.0.0.1:{port}/api/artifacts?scope={scope}");
+    let mut url = format!("http://127.0.0.1:{port}/api/v1/artifacts?scope={scope}");
     if let Some(rid) = run_id {
         url.push_str(&format!("&run_id={rid}"));
     }

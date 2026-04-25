@@ -1,6 +1,6 @@
 {#- Agent create wizard — 4-step flow. Every catalog (templates,
     permission presets, providers) comes from `ship.agents.create_ctx()`.
-    Submits via POST /api/agents. -#}
+    Submits via POST /api/v1/agents. -#}
 {% from '_ship.html.j2' import head, signals, show, bind, nav, on, on_click, class_if, attr_if %}
 {% set ctx = ship.agents.create_ctx() %}
 {% set templates = ctx.templates %}
@@ -234,7 +234,7 @@
   <ship-button tone="accent" variant="solid" size="sm"
     {{ show('$step == 3') }}
     {{ attr_if('$_creating || !$id', 'disabled') }}
-    {{ on_click("$_creating = true; $_err = ''; @post('/api/agents', {
+    {{ on_click("$_creating = true; $_err = ''; @post('/api/v1/agents', {
       contentType: 'json',
       body: JSON.stringify({
         id: $id,

@@ -230,10 +230,10 @@ pub fn build_router(
 /// only binds handlers.
 ///
 /// Two preserved non-enum `.route()` paths:
-/// - `/api/workspaces/{id}/session-files/{*path}` — glob param, specific to
+/// - `/api/v1/workspaces/{id}/session-files/{*path}` — glob param, specific to
 ///   project_api's recursive file handler. Kept alongside the enum variant
 ///   that exposes the non-glob listing endpoint.
-/// - `/api/skills/{id}/files/{*path}` — same reason (SkillService sub-file route).
+/// - `/api/v1/skills/{id}/files/{*path}` — same reason (SkillService sub-file route).
 fn build_ship_routes(st: rest_api::ApiState) -> Router {
     use crate::routes::{Route, ShipRouterExt};
     Router::new()
@@ -351,7 +351,7 @@ fn build_ship_routes(st: rest_api::ApiState) -> Router {
         .ship_route(Route::PermissionsCreate, services::permissions::create)
         // SkillService — service-shaped CRUD + file tree + vars. Replaces
         // the workspace-scoped skill endpoints that used to hang off
-        // /api/workspaces/{id}/skills/*.
+        // /api/v1/workspaces/{id}/skills/*.
         .ship_route(Route::SkillsList, services::skills::list)
         .ship_route(Route::SkillsGet_template(), services::skills::get)
         .ship_route(Route::SkillsCreate, services::skills::create)
@@ -389,7 +389,7 @@ fn build_ship_routes(st: rest_api::ApiState) -> Router {
         .ship_route(Route::WriteWorkspaceAgent_template(), project_api::write_agent)
         .ship_route(Route::DeleteWorkspace_template(), project_api::delete_workspace)
         .ship_route(Route::ActivateWorkspace_template(), project_api::activate_workspace)
-        // GitService — canonical `/api/git/*` surface. Consolidates the
+        // GitService — canonical `/api/v1/git/*` surface. Consolidates the
         // old workspace- and project-scoped git endpoints into one.
         .ship_route(Route::GitStatus, services::git::status_handler)
         .ship_route(Route::GitDiff, services::git::diff_handler)
@@ -406,7 +406,7 @@ fn build_ship_routes(st: rest_api::ApiState) -> Router {
         // commit-draft — GET/PUT/DELETE merged on one path (canonical path
         // matches `Route::GitCommitDraft{Get,Put,Delete}` in the enum).
         .route(
-            "/api/git/commit-draft",
+            "/api/v1/git/commit-draft",
             axum::routing::get(services::git::draft_get_handler)
                 .put(services::git::draft_put_handler)
                 .delete(services::git::draft_delete_handler),
@@ -423,7 +423,7 @@ fn build_ship_routes(st: rest_api::ApiState) -> Router {
         .ship_route(Route::ArtifactsList, artifacts_api::list_artifacts)
         .ship_route(Route::ArtifactDownload_template(), artifacts_api::download_artifact)
         .route(
-            "/api/artifacts/{id}",
+            "/api/v1/artifacts/{id}",
             routing::head(artifacts_api::head_artifact),
         )
         .ship_route(Route::ArtifactMetadata_template(), artifacts_api::artifact_metadata)
@@ -431,9 +431,9 @@ fn build_ship_routes(st: rest_api::ApiState) -> Router {
         .ship_route(Route::ArtifactDelete_template(), artifacts_api::delete_artifact)
         .ship_route(Route::ArtifactPromote_template(), artifacts_api::promote_artifact)
         // Collections
-        // Collections — GET + POST on /api/collections merged on one route.
+        // Collections — GET + POST on /api/v1/collections merged on one route.
         .route(
-            "/api/collections",
+            "/api/v1/collections",
             axum::routing::get(collection_api::list_collections)
                 .post(collection_api::create_collection),
         )
@@ -455,7 +455,7 @@ fn build_ship_routes(st: rest_api::ApiState) -> Router {
         // across `.route()` calls). Canonical path comes from the Route enum
         // so URL builders (TS, Jinja) stay consistent.
         .route(
-            "/api/view-errors",
+            "/api/v1/view-errors",
             axum::routing::post(view_errors_api::post_error)
                 .get(view_errors_api::list_errors)
                 .delete(view_errors_api::clear_errors),
@@ -463,7 +463,7 @@ fn build_ship_routes(st: rest_api::ApiState) -> Router {
         // Glob-param file handlers (not in enum — glob syntax is project_api
         // internal; keep flat).
         .route(
-            "/api/workspaces/{id}/session-files/{*path}",
+            "/api/v1/workspaces/{id}/session-files/{*path}",
             axum::routing::get(project_api::read_session_file)
                 .put(project_api::write_session_file)
                 .delete(project_api::delete_session_file),
@@ -471,7 +471,7 @@ fn build_ship_routes(st: rest_api::ApiState) -> Router {
         // SkillService files subresource — glob param keeps this flat (the
         // codegen Route enum doesn't model `{*path}`).
         .route(
-            "/api/skills/{id}/files/{*path}",
+            "/api/v1/skills/{id}/files/{*path}",
             axum::routing::put(services::skills::put_file)
                 .delete(services::skills::delete_file),
         )

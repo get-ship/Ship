@@ -1,6 +1,6 @@
 //! Generic file-routed view handler.
 //!
-//! Endpoint: `GET /api/v/{*path}`.
+//! Endpoint: `GET /api/v1/v/{*path}`.
 //!
 //! 1. Match `path` against `.ship/views/` + `~/.ship/views/` via
 //!    `views::router::match_path` (project scope wins on overlap).
@@ -125,7 +125,7 @@ pub(crate) fn render_routed(
 #[utoipa::path(
     operation_id = "serveViewRouted",
     get,
-    path = "/api/v/{path}",
+    path = "/api/v1/v/{path}",
     params(("path" = String, Path, description = "Dotted view path matched against .ship/views/ tree")),
     responses(
         (status = 200, description = "Rendered view HTML", content_type = "text/html"),

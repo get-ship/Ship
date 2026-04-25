@@ -1,17 +1,17 @@
-//! AgentService — HTTP surface at `/api/agents/*`.
+//! AgentService — HTTP surface at `/api/v1/agents/*`.
 //!
 //! Routes registered by `router::build_ship_routes`. Canonical shape per
 //! `.artifacts/daemon-services.md`:
 //!
-//! - GET    /api/agents                     list (project + user)
-//! - GET    /api/agents/{id}                full document (?scope= optional)
-//! - PUT    /api/agents/{id}                replace
-//! - PATCH  /api/agents/{id}                RFC 6902 ops
-//! - DELETE /api/agents/{id}                trash
-//! - POST   /api/agents                     create
-//! - POST   /api/agents/{id}/rename         { new_id }
-//! - POST   /api/agents/{id}/duplicate      { new_id, to_scope? }
-//! - POST   /api/agents/{id}/move           { to_scope }
+//! - GET    /api/v1/agents                     list (project + user)
+//! - GET    /api/v1/agents/{id}                full document (?scope= optional)
+//! - PUT    /api/v1/agents/{id}                replace
+//! - PATCH  /api/v1/agents/{id}                RFC 6902 ops
+//! - DELETE /api/v1/agents/{id}                trash
+//! - POST   /api/v1/agents                     create
+//! - POST   /api/v1/agents/{id}/rename         { new_id }
+//! - POST   /api/v1/agents/{id}/duplicate      { new_id, to_scope? }
+//! - POST   /api/v1/agents/{id}/move           { to_scope }
 //!
 //! Runtime actions (invoke/stop/steer) already live in `runtime_api` and
 //! stay there — that module is the runtime-state side of the domain.
@@ -100,14 +100,14 @@ fn files(state: &ApiState) -> FilesService {
 
 // ── Handlers ─────────────────────────────────────────────────────────
 
-/// GET /api/agents
+/// GET /api/v1/agents
 pub async fn list(State(state): State<ApiState>) -> Json<serde_json::Value> {
     let svc = files(&state);
     let items = state::list(&svc);
     Json(serde_json::json!({ "ok": true, "items": items }))
 }
 
-/// GET /api/agents/{id}
+/// GET /api/v1/agents/{id}
 pub async fn get(
     State(state): State<ApiState>,
     Path(id): Path<String>,
@@ -124,7 +124,7 @@ pub async fn get(
     })))
 }
 
-/// PUT /api/agents/{id}
+/// PUT /api/v1/agents/{id}
 pub async fn put(
     State(state): State<ApiState>,
     Path(id): Path<String>,
@@ -145,7 +145,7 @@ pub async fn put(
     })))
 }
 
-/// PATCH /api/agents/{id}
+/// PATCH /api/v1/agents/{id}
 /// Body is an RFC 6902 patch document: `[{op,path,value?}, ...]`.
 pub async fn patch(
     State(state): State<ApiState>,
@@ -164,7 +164,7 @@ pub async fn patch(
     })))
 }
 
-/// DELETE /api/agents/{id}
+/// DELETE /api/v1/agents/{id}
 pub async fn delete(
     State(state): State<ApiState>,
     Path(id): Path<String>,
@@ -179,7 +179,7 @@ pub async fn delete(
     })))
 }
 
-/// POST /api/agents
+/// POST /api/v1/agents
 #[derive(Deserialize)]
 pub struct CreateBody {
     pub id: String,

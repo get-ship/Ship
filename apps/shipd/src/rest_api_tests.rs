@@ -387,8 +387,8 @@ async fn cli_caller_can_register_any_agent() {
 #[tokio::test(flavor = "multi_thread")]
 async fn capabilities_endpoint_exists() {
     let daemon = TestDaemon::new().await;
-    let resp = daemon.get("/api/capabilities").await;
-    assert_eq!(resp.status, 200, "GET /api/capabilities must return 200");
+    let resp = daemon.get("/api/v1/capabilities").await;
+    assert_eq!(resp.status, 200, "GET /api/v1/capabilities must return 200");
     assert!(resp.body.get("authenticated").is_some(), "response must contain 'authenticated'");
     assert!(resp.body.get("mode").is_some(), "response must contain 'mode'");
     assert!(resp.body.get("tier").is_some(), "response must contain 'tier'");
@@ -397,7 +397,7 @@ async fn capabilities_endpoint_exists() {
 #[tokio::test(flavor = "multi_thread")]
 async fn capabilities_returns_local_mode_with_daemon_token() {
     let daemon = TestDaemon::new().await;
-    let resp = daemon.get("/api/capabilities").await;
+    let resp = daemon.get("/api/v1/capabilities").await;
     assert_eq!(resp.status, 200);
     assert_eq!(resp.body["authenticated"], true);
     assert_eq!(resp.body["mode"], "local");
@@ -419,7 +419,7 @@ async fn capabilities_returns_unauthenticated_without_token() {
         tokio::sync::Mutex::new(std::collections::HashMap::new()),
     );
     let router = axum::Router::new()
-        .route("/api/capabilities", axum::routing::get(|| async { "ok" }))
+        .route("/api/v1/capabilities", axum::routing::get(|| async { "ok" }))
         .layer(axum::middleware::from_fn(move |req, next| {
             crate::auth::auth_middleware(token_arc.clone(), registry.clone(), req, next)
         }));
@@ -427,7 +427,7 @@ async fn capabilities_returns_unauthenticated_without_token() {
     // Simulate a browser request from localhost — no token.
     let req = axum::http::Request::builder()
         .method("GET")
-        .uri("/api/capabilities")
+        .uri("/api/v1/capabilities")
         .header("origin", "http://localhost:3000")
         .body(axum::body::Body::empty())
         .unwrap();

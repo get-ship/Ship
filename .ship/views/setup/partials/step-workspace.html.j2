@@ -1,5 +1,5 @@
 {#- Step 2 — Create or open a workspace.
-    Submit → @post /api/projects. Server patches $ws_error on failure. -#}
+    Submit → @post /api/v1/projects. Server patches $ws_error on failure. -#}
 {% from '_ship.html.j2' import bind, on, on_fetch_error, on_click, attr_if %}
 
 <p class="setup-eyebrow">Step 2 of 4</p>
@@ -61,7 +61,7 @@
       the inline error slot without any custom JS.                   -#}
   <ship-button tone="accent" variant="solid" size="md"
                {{ attr_if("($ws_mode == 'new' ? !$ws_name : !$ws_path)", 'disabled') }}
-               {{ on_click("$step = 3; @post('/api/projects', {payload: {mode: $ws_mode, name: $ws_name, path: $ws_path}})") }}
+               {{ on_click("$step = 3; @post('/api/v1/projects', {payload: {mode: $ws_mode, name: $ws_name, path: $ws_path}})") }}
                {{ on_fetch_error('ws_error', "'Could not create workspace (HTTP ' + (evt.detail.argsRaw && evt.detail.argsRaw.status || '?') + ')'") }}>
     Continue
     <ship-icon slot="trailing" name="arrow-right"></ship-icon>

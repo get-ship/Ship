@@ -121,7 +121,7 @@ pub fn convert_from_github_with_base(url: &str, base_url: &str) -> Result<()> {
     let creds = Credentials::load();
     let token = creds.token();
 
-    let endpoint = format!("{}/api/github/import", base_url);
+    let endpoint = format!("{}/api/v1/github/import", base_url);
     let body = serde_json::json!({ "url": url });
 
     let mut req = ureq::post(&endpoint).header("Content-Type", "application/json");

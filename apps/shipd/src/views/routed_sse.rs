@@ -1,7 +1,7 @@
 //! Routed SSE handler — live server-pushed re-renders for file-routed
 //! views.
 //!
-//! Endpoint: `GET /api/sse/{*path}`.
+//! Endpoint: `GET /api/v1/sse/{*path}`.
 //!
 //! 1. Match `path` against `.ship/views/` via `router::match_path`.
 //! 2. Look for `manifest.jsonc` / `manifest.yaml` next to the matched
@@ -107,8 +107,8 @@ fn view_roots(state: &ApiState) -> Vec<std::path::PathBuf> {
 #[utoipa::path(
     operation_id = "serveViewSseRouted",
     get,
-    path = "/api/sse/{path}",
-    params(("path" = String, Path, description = "View path; matches the /api/v/{path} tree")),
+    path = "/api/v1/sse/{path}",
+    params(("path" = String, Path, description = "View path; matches the /api/v1/v/{path} tree")),
     responses(
         (status = 200, description = "Datastar SSE stream of view re-renders on subscribed kernel events", content_type = "text/event-stream"),
     ),

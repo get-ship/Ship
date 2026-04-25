@@ -1,6 +1,6 @@
 //! Generic SSE handler for user-authored Ship views.
 //!
-//! `GET /api/runtime/view/{name}/sse` reads the view's `manifest.yaml` to
+//! `GET /api/v1/runtime/view/{name}/sse` reads the view's `manifest.yaml` to
 //! determine which kernel events to subscribe to, renders partials on each
 //! event, and pushes them to the browser via Datastar's PatchElements.
 
@@ -69,11 +69,11 @@ fn render_partial(
     }
 }
 
-/// GET /api/runtime/view/{name}/sse
+/// GET /api/v1/runtime/view/{name}/sse
 #[utoipa::path(
     operation_id = "serveViewSse",
     get,
-    path = "/api/view/{name}/sse",
+    path = "/api/v1/view/{name}/sse",
     params(("name" = String, Path, description = "View name")),
     responses(
         (status = 200, description = "Server-sent-event stream of view fragments", content_type = "text/event-stream"),

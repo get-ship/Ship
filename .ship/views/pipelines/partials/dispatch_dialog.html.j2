@@ -48,7 +48,7 @@
     </ship-button>
     {%- set _pipe_expr = ("'" ~ fixed_pipeline ~ "'") if fixed_pipeline else '$dispatch_pipeline' -%}
     <ship-button tone="accent" variant="solid"
-      {{ on_click("@post('/api/pipelines/' + encodeURIComponent(" ~ _pipe_expr ~ ") + '/dispatch', {
+      {{ on_click("@post('/api/v1/pipelines/' + encodeURIComponent(" ~ _pipe_expr ~ ") + '/dispatch', {
         contentType: 'json',
         body: JSON.stringify({
           spec: $dispatch_spec,

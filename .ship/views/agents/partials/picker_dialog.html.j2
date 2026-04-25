@@ -69,7 +69,7 @@
         No GET-mutate-PUT dance. -#}
     <ship-button tone="accent" variant="solid" size="sm"
                  {{ attr_if('$pickerSelected.length == 0', 'disabled') }}
-                 {{ on_click("@patch('/api/agents/" ~ (agent.id | e) ~ "', {
+                 {{ on_click("@patch('/api/v1/agents/" ~ (agent.id | e) ~ "', {
                    contentType: 'json',
                    body: JSON.stringify($pickerSelected.map(id => ({
                      op: 'add',

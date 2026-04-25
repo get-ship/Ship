@@ -1,6 +1,6 @@
 //! Telegram webhook handler.
 //!
-//! `POST /api/webhook/telegram` receives Telegram `Update` objects and
+//! `POST /api/v1/webhook/telegram` receives Telegram `Update` objects and
 //! emits `human.response` events on the kernel so Commander can unblock.
 
 use std::sync::Arc;
@@ -40,7 +40,7 @@ pub struct TelegramChat {
 #[utoipa::path(
     operation_id = "telegramWebhook",
     post,
-    path = "/api/webhook/telegram",
+    path = "/api/v1/webhook/telegram",
     request_body(content_type = "application/json", description = "Telegram webhook update payload (TelegramUpdate)"),
     responses(
         (status = 200, description = "Update accepted; may be a no-op for non-message updates"),

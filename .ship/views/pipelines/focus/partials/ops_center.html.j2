@@ -42,7 +42,7 @@
         {# Log stream stays open in ops mode so operators see progress; each
            chunk fires ship-log-tick, which pulses the run-card halo. #}
         <ship-log-stream slot="footer"
-          url="/api/pipelines/runs/{{ run.slug }}/log/stream"
+          url="/api/v1/pipelines/runs/{{ run.slug }}/log/stream"
           active autoscroll></ship-log-stream>
       </ship-pipeline-run>
     {% endfor %}

@@ -75,7 +75,7 @@
           <button class="card-action"
                   data-on-click__stop="window.ship.navigate('/')">Attach</button>
           <button class="card-action danger"
-                  data-on-click__stop="fetch('/api/sessions/{{ s.id }}', {method: 'DELETE', credentials: 'same-origin'}).then(() => window.ship.navigate('/chats'))">End</button>
+                  data-on-click__stop="fetch('/api/v1/sessions/{{ s.id }}', {method: 'DELETE', credentials: 'same-origin'}).then(() => window.ship.navigate('/chats'))">End</button>
         </div>
       </div>
       {% endfor %}

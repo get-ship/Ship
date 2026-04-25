@@ -1,4 +1,4 @@
-//! Integration tests for `POST /api/feedback`.
+//! Integration tests for `POST /api/v1/feedback`.
 
 use axum::{Router, body::Body, http::Request, response::IntoResponse};
 use http_body_util::BodyExt;
@@ -15,13 +15,13 @@ use crate::ship_runtime::ShipRuntime;
 fn router_for(state: ApiState, auth: AuthContext) -> Router {
     Router::new()
         .route(
-            "/api/feedback",
+            "/api/v1/feedback",
             axum::routing::post(super::post_feedback),
         )
         // A view-session route is included so tests can open a session to
         // exercise the view-scoped routing branch through the same harness.
         .route(
-            "/api/view-sessions",
+            "/api/v1/view-sessions",
             axum::routing::post(crate::view_sessions_api::open_session),
         )
         .with_state(state)
@@ -78,7 +78,7 @@ fn base_payload() -> serde_json::Value {
 async fn open_view(router: &Router) -> String {
     let (s, body) = send_json(
         router,
-        "/api/view-sessions",
+        "/api/v1/view-sessions",
         serde_json::json!({"template": "canvas/blank"}),
     )
     .await;
@@ -110,7 +110,7 @@ async fn view_scoped_feedback_fans_out_to_concurrent_sse_subscribers() {
     let mut payload = base_payload();
     payload["target"]["view_id"] = serde_json::Value::String(view_id.clone());
     let id = payload["id"].as_str().unwrap().to_string();
-    let (status, body) = send_json(&router, "/api/feedback", payload).await;
+    let (status, body) = send_json(&router, "/api/v1/feedback", payload).await;
     assert_eq!(status, 201, "unexpected body: {body}");
     assert_eq!(body["id"], serde_json::Value::String(id.clone()));
 
@@ -142,7 +142,7 @@ async fn view_scoped_feedback_reaches_owner_actor_mailbox() {
     let mut payload = base_payload();
     payload["target"]["view_id"] = serde_json::Value::String(view_id.clone());
     let id = payload["id"].as_str().unwrap().to_string();
-    let (status, _) = send_json(&router, "/api/feedback", payload).await;
+    let (status, _) = send_json(&router, "/api/v1/feedback", payload).await;
     assert_eq!(status, 201);
 
     let ev = tokio::time::timeout(std::time::Duration::from_secs(1), mailbox.recv())
@@ -179,7 +179,7 @@ async fn broadcast_feedback_without_view_id_reaches_subscribers() {
     let router = router_for(state, mcp_auth("agent.caller"));
     let payload = base_payload(); // no view_id
     let id = payload["id"].as_str().unwrap().to_string();
-    let (status, _) = send_json(&router, "/api/feedback", payload).await;
+    let (status, _) = send_json(&router, "/api/v1/feedback", payload).await;
     assert_eq!(status, 201);
 
     let ev = tokio::time::timeout(std::time::Duration::from_secs(1), mailbox.recv())
@@ -199,7 +199,7 @@ async fn unknown_view_id_returns_404_without_fallback_broadcast() {
     let router = router_for(state, mcp_auth("agent.caller"));
     let mut payload = base_payload();
     payload["target"]["view_id"] = serde_json::Value::String("view-does-not-exist".into());
-    let (status, body) = send_json(&router, "/api/feedback", payload).await;
+    let (status, body) = send_json(&router, "/api/v1/feedback", payload).await;
     assert_eq!(status, 404);
     assert_eq!(body["error"]["code"], "view_not_found");
     // Give the kernel a chance to (wrongly) deliver; assert it did not.
@@ -239,7 +239,7 @@ async fn validation_rules_return_422() {
         let router = router_for(state, mcp_auth("agent.caller"));
         let mut payload = base_payload();
         mutate(&mut payload);
-        let (status, body) = send_json(&router, "/api/feedback", payload).await;
+        let (status, body) = send_json(&router, "/api/v1/feedback", payload).await;
         assert_eq!(status, 422, "code `{expected_code}` expected 422: {body}");
         assert_eq!(body["error"]["code"], *expected_code, "case `{expected_code}`: {body}");
     }
@@ -250,9 +250,9 @@ async fn duplicate_id_within_window_returns_422() {
     let (state, _tmp) = fresh_state();
     let router = router_for(state, mcp_auth("agent.caller"));
     let payload = base_payload();
-    let (status, _) = send_json(&router, "/api/feedback", payload.clone()).await;
+    let (status, _) = send_json(&router, "/api/v1/feedback", payload.clone()).await;
     assert_eq!(status, 201);
-    let (status, body) = send_json(&router, "/api/feedback", payload).await;
+    let (status, body) = send_json(&router, "/api/v1/feedback", payload).await;
     assert_eq!(status, 422);
     assert_eq!(body["error"]["code"], "duplicate_id");
 }
@@ -268,7 +268,7 @@ async fn agent_author_burst_triggers_429() {
     for _ in 0..12 {
         let mut p = base_payload();
         p["author_kind"] = serde_json::Value::String("agent".into());
-        let (s, body) = send_json(&router, "/api/feedback", p).await;
+        let (s, body) = send_json(&router, "/api/v1/feedback", p).await;
         if s == 429 {
             assert_eq!(body["error"]["code"], "rate_limited");
             saw_429 = true;
@@ -286,7 +286,7 @@ async fn human_author_is_not_rate_limited() {
     let router = router_for(state, mcp_auth("agent.host"));
     // Humans must be allowed to send well past the agent cap.
     for _ in 0..30 {
-        let (s, body) = send_json(&router, "/api/feedback", base_payload()).await;
+        let (s, body) = send_json(&router, "/api/v1/feedback", base_payload()).await;
         assert_eq!(s, 201, "human call unexpectedly failed: {body}");
     }
 }

@@ -188,7 +188,7 @@ async function toggleDrawer() {
   document.body.classList.toggle("drawer-open");
   if (opening) {
     try {
-      await mountDaemonFragment(drawerContent, "/api/v/chat", {
+      await mountDaemonFragment(drawerContent, "/api/v1/v/chat", {
         token: TOKEN,
         base: DAEMON_BASE,
       });
@@ -305,7 +305,7 @@ async function initDockTerminal(): Promise<void> {
   if (!xterm) return;
   if (!dockTerminalSessionId) {
     try {
-      const resp = await fetch("/api/sessions/spawn", {
+      const resp = await fetch("/api/v1/sessions/spawn", {
         method: "POST",
         credentials: "same-origin",
         headers: { "Content-Type": "application/json" },
@@ -326,7 +326,7 @@ async function initDockTerminal(): Promise<void> {
     }
     if (dockTerminalES) return; // already wired
     dockTerminalES = new EventSource(
-      `/api/sessions/${dockTerminalSessionId}/stream`,
+      `/api/v1/sessions/${dockTerminalSessionId}/stream`,
       { withCredentials: true },
     );
     dockTerminalES.addEventListener("bytes", (ev) => {
@@ -344,7 +344,7 @@ async function initDockTerminal(): Promise<void> {
       const batch = inputBuffer;
       inputBuffer = "";
       try {
-        await fetch(`/api/sessions/${dockTerminalSessionId}/input`, {
+        await fetch(`/api/v1/sessions/${dockTerminalSessionId}/input`, {
           method: "POST",
           credentials: "same-origin",
           headers: { "Content-Type": "application/json" },
@@ -533,27 +533,27 @@ function viewRoute(path: string, endpoint: string) {
   });
 }
 
-viewRoute("/", "/api/v/dashboard");
-viewRoute("/pipelines", "/api/v/pipelines");
-viewRoute("/specs", "/api/v/specs");
-viewRoute("/git", "/api/v/git");
-viewRoute("/settings", "/api/v/settings");
-viewRoute("/agents", "/api/v/agents");
-viewRoute("/skills", "/api/v/skills");
-viewRoute("/chat", "/api/v/chat");
-viewRoute("/chats", "/api/v/chats");
-viewRoute("/events", "/api/v/events");
-viewRoute("/collections", "/api/v/collections");
-viewRoute("/dashboard", "/api/v/dashboard");
-viewRoute("/canvas", "/api/v/canvas");
-viewRoute("/overview", "/api/v/overview");
-viewRoute("/theme-studio", "/api/v/theme-studio");
+viewRoute("/", "/api/v1/v/dashboard");
+viewRoute("/pipelines", "/api/v1/v/pipelines");
+viewRoute("/specs", "/api/v1/v/specs");
+viewRoute("/git", "/api/v1/v/git");
+viewRoute("/settings", "/api/v1/v/settings");
+viewRoute("/agents", "/api/v1/v/agents");
+viewRoute("/skills", "/api/v1/v/skills");
+viewRoute("/chat", "/api/v1/v/chat");
+viewRoute("/chats", "/api/v1/v/chats");
+viewRoute("/events", "/api/v1/v/events");
+viewRoute("/collections", "/api/v1/v/collections");
+viewRoute("/dashboard", "/api/v1/v/dashboard");
+viewRoute("/canvas", "/api/v1/v/canvas");
+viewRoute("/overview", "/api/v1/v/overview");
+viewRoute("/theme-studio", "/api/v1/v/theme-studio");
 
 // Dynamic routes
 router.on("/collections/:collection", ({ data }) => {
   updateNav("/collections");
   void mount(
-    `/api/v/collections?collection=${encodeURIComponent(data!.collection)}`,
+    `/api/v1/v/collections?collection=${encodeURIComponent(data!.collection)}`,
   );
 });
 
@@ -561,56 +561,56 @@ router.on("/collections/:collection", ({ data }) => {
 // generic `/agents/:id` so Navigo doesn't match "create" as an id.
 router.on("/agents/create", () => {
   updateNav("/agents");
-  void mount("/api/v/agents/create");
+  void mount("/api/v1/v/agents/create");
 });
 
 // Detail sub-mode: wire/canvas view (also served as the default detail).
 router.on("/agents/:id/wire", ({ data }) => {
   updateNav("/agents");
-  void mount(`/api/v/agents/${data!.id}/wire`);
+  void mount(`/api/v1/v/agents/${data!.id}/wire`);
 });
 
 // Detail sub-mode: classic panels layout (skills / MCP / permissions / rules).
 router.on("/agents/:id/settings", ({ data }) => {
   updateNav("/agents");
-  void mount(`/api/v/agents/${data!.id}/settings`);
+  void mount(`/api/v1/v/agents/${data!.id}/settings`);
 });
 
 router.on("/agents/:id", ({ data }) => {
   updateNav("/agents");
-  void mount(`/api/v/agents/${data!.id}`);
+  void mount(`/api/v1/v/agents/${data!.id}`);
 });
 
 router.on("/skills/:id", ({ data }) => {
   updateNav("/skills");
-  void mount(`/api/view/skills/detail/${data!.id}`);
+  void mount(`/api/v1/view/skills/detail/${data!.id}`);
 });
 
 router.on("/skills/:id/:file", ({ data }) => {
   updateNav("/skills");
-  void mount(`/api/view/skills/detail/${data!.id}?file=${encodeURIComponent(data!.file)}`);
+  void mount(`/api/v1/view/skills/detail/${data!.id}?file=${encodeURIComponent(data!.file)}`);
 });
 
 router.on("/canvas/:doc", ({ data }) => {
   updateNav("/canvas");
-  void mount(`/api/view/canvas?doc=${encodeURIComponent(data!.doc)}`);
+  void mount(`/api/v1/view/canvas?doc=${encodeURIComponent(data!.doc)}`);
 });
 
 router.on("/pipelines/focus/:name", ({ data }) => {
   updateNav("/pipelines");
-  void mount(`/api/v/pipelines/focus/${encodeURIComponent(data!.name)}`);
+  void mount(`/api/v1/v/pipelines/focus/${encodeURIComponent(data!.name)}`);
 });
 
 router.on("/pipelines/history", () => {
   updateNav("/pipelines");
   // Forward any query string so pagination/search survive shell nav.
   const qs = location.search ?? "";
-  void mount(`/api/v/pipelines/history${qs}`);
+  void mount(`/api/v1/v/pipelines/history${qs}`);
 });
 
 router.on("/pipelines/run/:slug", ({ data }) => {
   updateNav("/pipelines");
-  void mount(`/api/v/pipelines/run/${encodeURIComponent(data!.slug)}`);
+  void mount(`/api/v1/v/pipelines/run/${encodeURIComponent(data!.slug)}`);
 });
 
 // 404
@@ -705,7 +705,7 @@ let daemonConnected = false;
 async function updateStatus() {
   statusTheme.textContent = document.documentElement.dataset.theme ?? "ship-light";
   try {
-    const res = await fetch("/api/workspaces", {
+    const res = await fetch("/api/v1/workspaces", {
       credentials: SAME_ORIGIN ? "include" : "omit",
       headers: !SAME_ORIGIN && TOKEN ? { Authorization: `Bearer ${TOKEN}` } : {},
     });

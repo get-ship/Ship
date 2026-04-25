@@ -1,6 +1,6 @@
 //! Specs REST API — CRUD over the `spec` table and pipeline launch.
 //!
-//! Routes are mounted under `/api/runtime` in lib.rs.
+//! Routes are mounted under `/api/v1/runtime` in lib.rs.
 
 use axum::{
     Json,
@@ -101,11 +101,11 @@ pub struct UpdateSpecRequest {
 
 // ---- Handlers ----
 
-/// GET /api/runtime/specs
+/// GET /api/v1/runtime/specs
 #[utoipa::path(
     operation_id = "listSpecs",
     get,
-    path = "/api/specs",
+    path = "/api/v1/specs",
     responses(
         (status = 200, description = "List of specs", body = MeshResponse),
         (status = 500, description = "Server error", body = crate::openapi_types::ErrorResponse),
@@ -122,11 +122,11 @@ pub async fn list_specs() -> impl IntoResponse {
     }
 }
 
-/// GET /api/runtime/specs/{id}
+/// GET /api/v1/runtime/specs/{id}
 #[utoipa::path(
     operation_id = "getSpec",
     get,
-    path = "/api/specs/{id}",
+    path = "/api/v1/specs/{id}",
     params(("id" = String, Path, description = "Spec id")),
     responses(
         (status = 200, description = "Spec detail with body", body = MeshResponse),
@@ -148,11 +148,11 @@ pub async fn get_spec(Path(id): Path<String>) -> impl IntoResponse {
     }
 }
 
-/// POST /api/runtime/specs
+/// POST /api/v1/runtime/specs
 #[utoipa::path(
     operation_id = "createSpec",
     post,
-    path = "/api/specs",
+    path = "/api/v1/specs",
     request_body = CreateSpecRequest,
     responses(
         (status = 200, description = "Created spec", body = MeshResponse),
@@ -188,11 +188,11 @@ pub async fn create_spec(Json(req): Json<CreateSpecRequest>) -> impl IntoRespons
     }
 }
 
-/// PUT /api/runtime/specs/{id}
+/// PUT /api/v1/runtime/specs/{id}
 #[utoipa::path(
     operation_id = "updateSpec",
     put,
-    path = "/api/specs/{id}",
+    path = "/api/v1/specs/{id}",
     params(("id" = String, Path, description = "Spec id")),
     request_body = UpdateSpecRequest,
     responses(
@@ -233,11 +233,11 @@ pub async fn update_spec(
     }
 }
 
-/// DELETE /api/runtime/specs/{id}
+/// DELETE /api/v1/runtime/specs/{id}
 #[utoipa::path(
     operation_id = "deleteSpec",
     delete,
-    path = "/api/specs/{id}",
+    path = "/api/v1/specs/{id}",
     params(("id" = String, Path, description = "Spec id")),
     responses(
         (status = 200, description = "Deleted", body = MeshResponse),
@@ -253,11 +253,11 @@ pub async fn delete_spec(Path(id): Path<String>) -> impl IntoResponse {
     }
 }
 
-/// POST /api/runtime/specs/{id}/launch — create a job from the spec.
+/// POST /api/v1/runtime/specs/{id}/launch — create a job from the spec.
 #[utoipa::path(
     operation_id = "launchSpec",
     post,
-    path = "/api/specs/{id}/launch",
+    path = "/api/v1/specs/{id}/launch",
     params(("id" = String, Path, description = "Spec id")),
     responses(
         (status = 200, description = "Job dispatched from spec", body = MeshResponse),

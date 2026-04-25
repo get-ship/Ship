@@ -39,10 +39,10 @@ pub struct AttestationConfig {
 }
 
 impl AttestationConfig {
-    /// Build from a base issuer URL. JWKS URL is `{issuer}/api/jwks`.
+    /// Build from a base issuer URL. JWKS URL is `{issuer}/api/v1/jwks`.
     pub fn from_issuer(issuer: impl Into<String>) -> Self {
         let issuer = issuer.into();
-        let jwks_url = format!("{}/api/jwks", issuer.trim_end_matches('/'));
+        let jwks_url = format!("{}/api/v1/jwks", issuer.trim_end_matches('/'));
         Self { issuer, jwks_url }
     }
 }
@@ -229,10 +229,10 @@ mod tests {
     #[test]
     fn config_from_issuer_builds_jwks_url() {
         let cfg = AttestationConfig::from_issuer("https://getship.dev");
-        assert_eq!(cfg.jwks_url, "https://getship.dev/api/jwks");
+        assert_eq!(cfg.jwks_url, "https://getship.dev/api/v1/jwks");
 
         let cfg = AttestationConfig::from_issuer("https://getship.dev/");
-        assert_eq!(cfg.jwks_url, "https://getship.dev/api/jwks");
+        assert_eq!(cfg.jwks_url, "https://getship.dev/api/v1/jwks");
     }
 
     #[test]

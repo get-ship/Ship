@@ -35,7 +35,7 @@
 {%- set error = none -%}
 {%- set ws_qs = '' -%}
 {%- if workspace_id %}{%- set ws_qs = '&workspace_id=' ~ workspace_id -%}{%- endif -%}
-{%- set base_url = '/api/v/git' -%}
+{%- set base_url = '/api/v1/v/git' -%}
 {% if not fragment %}
 <!DOCTYPE html>
 <html lang="en"><head>{{ head('Git') }}</head><body>

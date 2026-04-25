@@ -448,7 +448,7 @@
     if (deps.includes(tgtName)) return;
     deps.push(tgtName);
     src.dataset.depends = JSON.stringify(deps);
-    await fetch(`/api/collections/systems/items/${encodeURIComponent(src.dataset.id)}`, {
+    await fetch(`/api/v1/collections/systems/items/${encodeURIComponent(src.dataset.id)}`, {
       method: 'PUT', headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ data: { depends_on: deps } }),
     }).catch(() => {});
@@ -503,7 +503,7 @@
   });
 
   async function savePosition(id, x, y) {
-    await fetch(`/api/collections/systems/items/${encodeURIComponent(id)}`, {
+    await fetch(`/api/v1/collections/systems/items/${encodeURIComponent(id)}`, {
       method: 'PUT',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({ data: { position_x: x, position_y: y } }),
@@ -592,7 +592,7 @@
   let drawerId = null;
   async function openDrawer(id) {
     try {
-      const r = await fetch(`/api/collections/systems/items/${encodeURIComponent(id)}`);
+      const r = await fetch(`/api/v1/collections/systems/items/${encodeURIComponent(id)}`);
       if (!r.ok) return;
       const env = await r.json();
       const item = env.data || env;
@@ -623,8 +623,8 @@
     });
     LIST_FIELDS.forEach(f => { data[f] = readList(f); });
     const url = drawerId
-      ? `/api/collections/systems/items/${encodeURIComponent(drawerId)}`
-      : `/api/collections/systems/items`;
+      ? `/api/v1/collections/systems/items/${encodeURIComponent(drawerId)}`
+      : `/api/v1/collections/systems/items`;
     const method = drawerId ? 'PUT' : 'POST';
     const r = await fetch(url, {
       method, headers: { 'Content-Type': 'application/json' },
@@ -669,7 +669,7 @@
   }
 
   function sendFeedback(payload) {
-    fetch('/api/feedback', {
+    fetch('/api/v1/feedback', {
       method: 'POST',
       headers: { 'Content-Type': 'application/json' },
       body: JSON.stringify({

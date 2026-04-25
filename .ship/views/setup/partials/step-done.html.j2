@@ -35,7 +35,7 @@
   {#- Fire-and-forget the completion write; small delay lets Datastar
       flush the POST before the navigation tears the page down.      -#}
   <ship-button tone="accent" variant="solid" size="lg"
-               {{ on_click("@post('/api/settings', {payload: {key: 'setup.completed', value: true}}); setTimeout(() => window.location.assign('/'), 100)") }}>
+               {{ on_click("@post('/api/v1/settings', {payload: {key: 'setup.completed', value: true}}); setTimeout(() => window.location.assign('/'), 100)") }}>
     Open Ship
     <ship-icon slot="trailing" name="arrow-right"></ship-icon>
   </ship-button>

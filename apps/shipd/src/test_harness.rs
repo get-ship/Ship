@@ -164,7 +164,7 @@ impl TestDaemon {
             .nest("/api", capabilities_routes)
             .nest("/api", collection_routes)
             .nest("/api", artifacts_routes)
-            .nest("/api/runtime", runtime_routes)
+            .nest("/api/v1/runtime", runtime_routes)
             .layer(axum::Extension(default_auth));
 
         Self {
@@ -343,10 +343,10 @@ impl TestDaemon {
         self.router.clone().oneshot(req).await.unwrap()
     }
 
-    /// Register an agent via POST /api/mesh/register.
+    /// Register an agent via POST /api/v1/mesh/register.
     pub async fn register_agent(&self, agent_id: &str, caps: &[&str]) -> TestResponse {
         self.post(
-            "/api/mesh/register",
+            "/api/v1/mesh/register",
             &serde_json::json!({
                 "agent_id": agent_id,
                 "capabilities": caps,
@@ -355,7 +355,7 @@ impl TestDaemon {
         .await
     }
 
-    /// Send a mesh message via POST /api/mesh/send.
+    /// Send a mesh message via POST /api/v1/mesh/send.
     pub async fn mesh_send(
         &self,
         from: &str,
@@ -363,13 +363,13 @@ impl TestDaemon {
         body: serde_json::Value,
     ) -> TestResponse {
         self.post(
-            "/api/mesh/send",
+            "/api/v1/mesh/send",
             &serde_json::json!({ "from": from, "to": to, "body": body }),
         )
         .await
     }
 
-    /// Broadcast via POST /api/mesh/broadcast.
+    /// Broadcast via POST /api/v1/mesh/broadcast.
     pub async fn mesh_broadcast(
         &self,
         from: &str,
@@ -380,6 +380,6 @@ impl TestDaemon {
         if let Some(cap) = cap_filter {
             payload["capability_filter"] = serde_json::json!(cap);
         }
-        self.post("/api/mesh/broadcast", &payload).await
+        self.post("/api/v1/mesh/broadcast", &payload).await
     }
 }

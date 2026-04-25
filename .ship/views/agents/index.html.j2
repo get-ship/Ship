@@ -194,7 +194,7 @@
   <div class="agents-wrap">
 
     {#- File-routed view — data pulled inline via ship.* SDK, no
-        custom Rust handler. SSE lives at /api/sse/agents
+        custom Rust handler. SSE lives at /api/v1/sse/agents
         (manifest.yaml declares its event subscriptions). -#}
     {% set agents = ship.agents.summaries()['items'] %}
     {% set total = agents | length %}

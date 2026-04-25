@@ -1,21 +1,21 @@
-//! SkillService — HTTP surface at `/api/skills/*`.
+//! SkillService — HTTP surface at `/api/v1/skills/*`.
 //!
 //! Canonical shape per `.artifacts/daemon-services.md` §3.SkillService:
 //!
-//! - GET    /api/skills                              list (project + user)
-//! - GET    /api/skills/{id}                         detail (frontmatter + body + files)
-//! - PUT    /api/skills/{id}/frontmatter             replace frontmatter
-//! - PUT    /api/skills/{id}/body                    replace body
-//! - PUT    /api/skills/{id}/files/{*path}           arbitrary file
-//! - DELETE /api/skills/{id}/files/{*path}           trash a file
-//! - POST   /api/skills                              create / scaffold
-//! - DELETE /api/skills/{id}                         trash
-//! - POST   /api/skills/{id}/rename
-//! - POST   /api/skills/{id}/duplicate
-//! - POST   /api/skills/{id}/move
-//! - GET    /api/skills/{id}/vars
-//! - PUT    /api/skills/{id}/vars/{key}
-//! - DELETE /api/skills/{id}/vars/{key}
+//! - GET    /api/v1/skills                              list (project + user)
+//! - GET    /api/v1/skills/{id}                         detail (frontmatter + body + files)
+//! - PUT    /api/v1/skills/{id}/frontmatter             replace frontmatter
+//! - PUT    /api/v1/skills/{id}/body                    replace body
+//! - PUT    /api/v1/skills/{id}/files/{*path}           arbitrary file
+//! - DELETE /api/v1/skills/{id}/files/{*path}           trash a file
+//! - POST   /api/v1/skills                              create / scaffold
+//! - DELETE /api/v1/skills/{id}                         trash
+//! - POST   /api/v1/skills/{id}/rename
+//! - POST   /api/v1/skills/{id}/duplicate
+//! - POST   /api/v1/skills/{id}/move
+//! - GET    /api/v1/skills/{id}/vars
+//! - PUT    /api/v1/skills/{id}/vars/{key}
+//! - DELETE /api/v1/skills/{id}/vars/{key}
 //!
 //! Vars delegate to `runtime::{get,set,delete}_skill_var` (KV-backed).
 //! The skill's filesystem is the source of truth for everything else.
@@ -92,14 +92,14 @@ fn files(state: &ApiState) -> FilesService {
 
 // ── List / detail ─────────────────────────────────────────────────────
 
-/// GET /api/skills
+/// GET /api/v1/skills
 pub async fn list(State(state): State<ApiState>) -> Json<serde_json::Value> {
     let svc = files(&state);
     let items = state::list(&svc);
     Json(serde_json::json!({ "ok": true, "items": items }))
 }
 
-/// GET /api/skills/{id}
+/// GET /api/v1/skills/{id}
 pub async fn get(
     State(state): State<ApiState>,
     Path(id): Path<String>,
@@ -113,7 +113,7 @@ pub async fn get(
 
 // ── Frontmatter / body ────────────────────────────────────────────────
 
-/// PUT /api/skills/{id}/frontmatter
+/// PUT /api/v1/skills/{id}/frontmatter
 pub async fn put_frontmatter(
     State(state): State<ApiState>,
     Path(id): Path<String>,
@@ -134,7 +134,7 @@ pub struct BodyPayload {
     pub body: String,
 }
 
-/// PUT /api/skills/{id}/body
+/// PUT /api/v1/skills/{id}/body
 pub async fn put_body(
     State(state): State<ApiState>,
     Path(id): Path<String>,
@@ -157,7 +157,7 @@ pub struct FilePayload {
     pub content: String,
 }
 
-/// PUT /api/skills/{id}/files/{*path}
+/// PUT /api/v1/skills/{id}/files/{*path}
 pub async fn put_file(
     State(state): State<ApiState>,
     Path((id, path)): Path<(String, String)>,
@@ -174,7 +174,7 @@ pub async fn put_file(
     })))
 }
 
-/// DELETE /api/skills/{id}/files/{*path}
+/// DELETE /api/v1/skills/{id}/files/{*path}
 pub async fn delete_file(
     State(state): State<ApiState>,
     Path((id, path)): Path<(String, String)>,
@@ -205,7 +205,7 @@ pub struct CreateBody {
     pub body: Option<String>,
 }
 
-/// POST /api/skills
+/// POST /api/v1/skills
 pub async fn create(
     State(state): State<ApiState>,
     Json(body): Json<CreateBody>,
@@ -228,7 +228,7 @@ pub async fn create(
     }))))
 }
 
-/// DELETE /api/skills/{id}
+/// DELETE /api/v1/skills/{id}
 pub async fn delete(
     State(state): State<ApiState>,
     Path(id): Path<String>,
@@ -246,7 +246,7 @@ pub async fn delete(
 #[derive(Deserialize)]
 pub struct RenameBody { pub new_id: String }
 
-/// POST /api/skills/{id}/rename
+/// POST /api/v1/skills/{id}/rename
 pub async fn rename(
     State(state): State<ApiState>,
     Path(id): Path<String>,
@@ -265,7 +265,7 @@ pub async fn rename(
 #[derive(Deserialize)]
 pub struct DuplicateBody { pub new_id: String }
 
-/// POST /api/skills/{id}/duplicate
+/// POST /api/v1/skills/{id}/duplicate
 pub async fn duplicate(
     State(state): State<ApiState>,
     Path(id): Path<String>,
@@ -284,7 +284,7 @@ pub async fn duplicate(
 #[derive(Deserialize)]
 pub struct MoveBody { pub to_scope: String }
 
-/// POST /api/skills/{id}/move
+/// POST /api/v1/skills/{id}/move
 pub async fn move_scope(
     State(state): State<ApiState>,
     Path(id): Path<String>,
@@ -306,7 +306,7 @@ pub async fn move_scope(
 
 // ── Vars (KV-backed, delegates to runtime) ────────────────────────────
 
-/// GET /api/skills/{id}/vars
+/// GET /api/v1/skills/{id}/vars
 pub async fn get_vars(
     State(state): State<ApiState>,
     Path(id): Path<String>,
@@ -331,7 +331,7 @@ pub struct SetVarBody {
     pub value: serde_json::Value,
 }
 
-/// PUT /api/skills/{id}/vars/{key}
+/// PUT /api/v1/skills/{id}/vars/{key}
 pub async fn put_var(
     State(state): State<ApiState>,
     Path((id, key)): Path<(String, String)>,
@@ -349,7 +349,7 @@ pub async fn put_var(
     Ok(Json(serde_json::json!({ "ok": true, "id": id, "key": key })))
 }
 
-/// DELETE /api/skills/{id}/vars/{key}
+/// DELETE /api/v1/skills/{id}/vars/{key}
 pub async fn delete_var(
     State(state): State<ApiState>,
     Path((id, key)): Path<(String, String)>,

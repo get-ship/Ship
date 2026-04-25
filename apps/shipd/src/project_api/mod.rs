@@ -227,11 +227,11 @@ pub struct EmitEventReq {
     pub validate_domain: Option<bool>,
 }
 
-/// POST /api/events/emit
+/// POST /api/v1/events/emit
 #[utoipa::path(
     operation_id = "emitEvent",
     post,
-    path = "/api/events/emit",
+    path = "/api/v1/events/emit",
     request_body = EmitEventReq,
     responses(
         (status = 200, description = "Event persisted and routed", body = MeshResponse),
@@ -322,11 +322,11 @@ pub async fn emit_event(
 
 // ---- Workspace delete endpoint ----
 
-/// DELETE /api/workspaces/{id}
+/// DELETE /api/v1/workspaces/{id}
 #[utoipa::path(
     operation_id = "deleteWorkspace",
     delete,
-    path = "/api/workspaces/{id}",
+    path = "/api/v1/workspaces/{id}",
     params(("id" = String, Path, description = "Workspace id / branch")),
     responses(
         (status = 200, description = "Workspace deleted", body = MeshResponse),
@@ -351,14 +351,14 @@ pub async fn delete_workspace(
 
 // ---- Workspace ensure endpoint (replaces activate) ----
 
-/// POST /api/workspaces/{id}/activate
+/// POST /api/v1/workspaces/{id}/activate
 ///
 /// Creates the workspace if it doesn't exist. No-op if it does.
 /// Kept as /activate for API backward compat.
 #[utoipa::path(
     operation_id = "activateWorkspace",
     post,
-    path = "/api/workspaces/{id}/activate",
+    path = "/api/v1/workspaces/{id}/activate",
     params(("id" = String, Path, description = "Workspace id / branch")),
     responses(
         (status = 200, description = "Workspace created or already existed", body = MeshResponse),

@@ -53,7 +53,7 @@
 {% set feedback_items = ship_query('feedback', {'_sort': '-created_at', '_limit': 5}) %}
 
 <div class="canvas-workspace"
-     data-on-load="@get('/api/view/canvas/sse', {openWhenHidden: true})">
+     data-on-load="@get('/api/v1/view/canvas/sse', {openWhenHidden: true})">
 
   {# -- Sidebar --------------------------------------------------------- #}
   <aside class="canvas-rail">
@@ -65,7 +65,7 @@
       {% if docs | length == 0 %}
       <div class="canvas-rail-empty">
         No canvas artifacts yet. Agents create them by uploading HTML to
-        <code>POST /api/artifacts</code> with <code>collection_id=canvas</code>.
+        <code>POST /api/v1/artifacts</code> with <code>collection_id=canvas</code>.
       </div>
       {% else %}
         {% for doc in docs %}

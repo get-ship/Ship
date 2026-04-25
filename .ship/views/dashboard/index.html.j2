@@ -105,8 +105,8 @@
             </svg>
             Recent jobs
           </h2>
-          <a class="dash-section-link" href="/api/view/pipelines"
-             {{ on_click_prevent("@get('/api/view/pipelines')") }}>
+          <a class="dash-section-link" href="/api/v1/view/pipelines"
+             {{ on_click_prevent("@get('/api/v1/view/pipelines')") }}>
             View all <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor"
               stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
               <polyline points="9 18 15 12 9 6"/></svg>
@@ -158,8 +158,8 @@
             Agents
             <ship-badge tone="muted" variant="soft" size="sm">{{ all_agents | length }}</ship-badge>
           </h2>
-          <a class="dash-section-link" href="/api/v/agents"
-             {{ on_click_prevent("@get('/api/v/agents')") }}>
+          <a class="dash-section-link" href="/api/v1/v/agents"
+             {{ on_click_prevent("@get('/api/v1/v/agents')") }}>
             Manage <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor"
               stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
               <polyline points="9 18 15 12 9 6"/></svg>
@@ -234,8 +234,8 @@
             </svg>
             Latest events
           </h2>
-          <a class="dash-section-link" href="/api/view/events"
-             {{ on_click_prevent("@get('/api/view/events')") }}>
+          <a class="dash-section-link" href="/api/v1/view/events"
+             {{ on_click_prevent("@get('/api/v1/view/events')") }}>
             Full stream <svg width="10" height="10" viewBox="0 0 24 24" fill="none" stroke="currentColor"
               stroke-width="2.5" stroke-linecap="round" stroke-linejoin="round" aria-hidden="true">
               <polyline points="9 18 15 12 9 6"/></svg>

@@ -1,4 +1,4 @@
-//! `POST /api/create/{surface}` — server-side feature scaffolding.
+//! `POST /api/v1/create/{surface}` — server-side feature scaffolding.
 //!
 //! The shell's create dialog posts here to materialize a new feature
 //! on disk. For `view`, we copy from
@@ -84,7 +84,7 @@ fn title_case(name: &str) -> String {
 #[utoipa::path(
     operation_id = "createSurface",
     post,
-    path = "/api/create/{surface}",
+    path = "/api/v1/create/{surface}",
     params(("surface" = String, Path, description = "view|skill|agent|pipeline|trigger|theme")),
     request_body = CreateRequest,
     responses(
@@ -122,7 +122,7 @@ pub async fn create_surface(
         let surface = surface.clone();
         let name = req.name.clone();
         let route = if surface == "view" {
-            Some(format!("/api/v/{name}"))
+            Some(format!("/api/v1/v/{name}"))
         } else {
             None
         };
@@ -205,7 +205,7 @@ fn scaffold_view(state: &ApiState, req: &CreateRequest) -> axum::response::Respo
         return err(StatusCode::INTERNAL_SERVER_ERROR, e.to_string());
     }
 
-    let route = format!("/api/v/{}", req.name);
+    let route = format!("/api/v1/v/{}", req.name);
     (
         StatusCode::OK,
         Json(CreateResponse {

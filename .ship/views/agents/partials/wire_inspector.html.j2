@@ -59,12 +59,12 @@
       </ship-button>
       <ship-button size="sm" variant="ghost" tone="destructive"
         {{ on_click("if (confirm('Remove ' + $selected_id + ' from " ~ (agent.name | e) ~ "?')) {
-          fetch('/api/agents/" ~ (agent.id | e) ~ "', {credentials:'include'})
+          fetch('/api/v1/agents/" ~ (agent.id | e) ~ "', {credentials:'include'})
             .then(r => r.json()).then(({ doc }) => {
               const refs = (doc.skills && doc.skills.refs) || [];
               const i = refs.indexOf($selected_id);
               if (i < 0) return;
-              return fetch('/api/agents/" ~ (agent.id | e) ~ "', {
+              return fetch('/api/v1/agents/" ~ (agent.id | e) ~ "', {
                 method:'PATCH', credentials:'include',
                 headers:{'Content-Type':'application/json'},
                 body: JSON.stringify([{ op: 'remove', path: `/skills/refs/${i}` }]),
@@ -89,12 +89,12 @@
     </div>
     <ship-button size="sm" variant="ghost" tone="destructive" style="margin-top: var(--space-3)"
       {{ on_click("if (confirm('Remove ' + $selected_id + ' from " ~ (agent.name | e) ~ "?')) {
-        fetch('/api/agents/" ~ (agent.id | e) ~ "', {credentials:'include'})
+        fetch('/api/v1/agents/" ~ (agent.id | e) ~ "', {credentials:'include'})
           .then(r => r.json()).then(({ doc }) => {
             const servers = (doc.mcp && doc.mcp.servers) || [];
             const i = servers.indexOf($selected_id);
             if (i < 0) return;
-            return fetch('/api/agents/" ~ (agent.id | e) ~ "', {
+            return fetch('/api/v1/agents/" ~ (agent.id | e) ~ "', {
               method:'PATCH', credentials:'include',
               headers:{'Content-Type':'application/json'},
               body: JSON.stringify([{ op: 'remove', path: `/mcp/servers/${i}` }]),

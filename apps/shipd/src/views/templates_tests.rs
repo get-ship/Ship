@@ -132,15 +132,15 @@ fn section_macro_omits_icon_when_not_supplied() {
 fn section_macro_emits_sse_link_for_view_href() {
     #[derive(Serialize)]
     struct Ctx {}
-    let source = r#"{% from '_ship.html.j2' import section, endsection %}{{ section('Jobs', link_href='/api/view/pipelines', link_label='View all') }}{{ endsection() }}"#;
+    let source = r#"{% from '_ship.html.j2' import section, endsection %}{{ section('Jobs', link_href='/api/v1/view/pipelines', link_label='View all') }}{{ endsection() }}"#;
     let html = render_view_source("test-section-sse-link", source, &Ctx {}).unwrap();
     assert!(html.contains("View all"), "label: {html}");
     assert!(
-        html.contains("data-on:click.prevent=\"@get('/api/view/pipelines')\""),
-        "SSE handler must render for /api/view/ hrefs: {html}"
+        html.contains("data-on:click.prevent=\"@get('/api/v1/view/pipelines')\""),
+        "SSE handler must render for /api/v1/view/ hrefs: {html}"
     );
     assert!(
-        html.contains(r#"href="/api/view/pipelines""#),
+        html.contains(r#"href="/api/v1/view/pipelines""#),
         "href must render for fallback: {html}"
     );
     assert!(

@@ -2,7 +2,7 @@
 //!
 //! The agent calls `event(event_type, payload, elevated)`. The handler injects
 //! `actor_id` (MCP connection context) and `workspace_id` (current branch),
-//! then POSTs `/api/events/emit` with `validate_domain=true`. The daemon
+//! then POSTs `/api/v1/events/emit` with `validate_domain=true`. The daemon
 //! enforces the reserved-namespace and dotted-event-type rules and routes the
 //! envelope through its kernel — so projection updates, audit, and subscriber
 //! delivery happen on the same single rail every other event uses.

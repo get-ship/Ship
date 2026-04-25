@@ -1,11 +1,11 @@
 //! Theme endpoints: schema-validated create + contrast reporting.
 //!
-//! - `POST /api/themes/contrast` takes a draft tokens map and returns
+//! - `POST /api/v1/themes/contrast` takes a draft tokens map and returns
 //!   WCAG ratios for the canonical pairs (foreground/background,
 //!   primary/background, etc.). Used by the Theme Studio to gate
 //!   save, and by any other caller wanting a second opinion on
 //!   whether a palette is legible.
-//! - `POST /api/themes` (upcoming phase) will validate against
+//! - `POST /api/v1/themes` (upcoming phase) will validate against
 //!   schemas/theme.schema.json and persist to
 //!   <ship-dir>/themes/<id>.json. Deferred: we don't have storage
 //!   yet, and Theme Studio works fine against a draft-only flow.
@@ -71,7 +71,7 @@ const PAIRS: &[(&str, &str, &str, &str)] = &[
 #[utoipa::path(
     operation_id = "themeContrast",
     post,
-    path = "/api/themes/contrast",
+    path = "/api/v1/themes/contrast",
     request_body = ContrastRequest,
     responses(
         (status = 200, description = "Contrast report", body = ContrastReport),

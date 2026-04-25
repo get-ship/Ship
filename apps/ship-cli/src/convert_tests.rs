@@ -114,7 +114,7 @@ fn run_in_tmp<F: FnOnce(&std::path::Path)>(f: F) {
 fn github_convert_writes_profiles_rules_and_mcp() {
     let mut server = mockito::Server::new();
     let mock = server
-        .mock("POST", "/api/github/import")
+        .mock("POST", "/api/v1/github/import")
         .with_status(200)
         .with_header("content-type", "application/json")
         .with_body(r#"{
@@ -154,7 +154,7 @@ fn github_convert_writes_profiles_rules_and_mcp() {
 fn github_convert_handles_server_error_field() {
     let mut server = mockito::Server::new();
     server
-        .mock("POST", "/api/github/import")
+        .mock("POST", "/api/v1/github/import")
         .with_status(200)
         .with_header("content-type", "application/json")
         .with_body(r#"{"error": "not found"}"#)
@@ -177,7 +177,7 @@ fn github_convert_handles_server_error_field() {
 fn github_convert_skips_duplicate_mcp_servers() {
     let mut server = mockito::Server::new();
     server
-        .mock("POST", "/api/github/import")
+        .mock("POST", "/api/v1/github/import")
         .with_status(200)
         .with_header("content-type", "application/json")
         .with_body(

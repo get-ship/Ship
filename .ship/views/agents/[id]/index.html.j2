@@ -1,5 +1,5 @@
 {#- Agent detail — canonical wire/canvas layout. Matches the legacy
-    `/api/view/agents/detail/{id}` response so the shell's
+    `/api/v1/view/agents/detail/{id}` response so the shell's
     `/agents/{id}` route renders the same surface. Data via `ship.*`. -#}
 {% from '_ship.html.j2' import head %}
 {% set ctx = ship.agents.wire(id=ship.route.id) %}

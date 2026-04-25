@@ -1,22 +1,22 @@
-//! GitService — HTTP surface at `/api/git/*`.
+//! GitService — HTTP surface at `/api/v1/git/*`.
 //!
 //! Canonical shape per `.artifacts/daemon-services.md` §3.GitService:
 //!
-//! | GET    /api/git/status          | bucketed working tree         |
-//! | GET    /api/git/diff            | ?commit=X&path=Y              |
-//! | GET    /api/git/log             | ?branch=X&limit=N             |
-//! | GET    /api/git/branches        |                               |
-//! | POST   /api/git/stage           | {paths}                       |
-//! | POST   /api/git/unstage         | {paths}                       |
-//! | POST   /api/git/commit          | {message, author?}            |
-//! | POST   /api/git/push            | {remote?, force?}             |
-//! | POST   /api/git/fetch           |                               |
-//! | POST   /api/git/pull            | ff-only; 409 on non-ff        |
-//! | POST   /api/git/checkout        | {ref}                         |
-//! | GET    /api/git/commit-draft    |                               |
-//! | PUT    /api/git/commit-draft    | agent-written                 |
-//! | DELETE /api/git/commit-draft    |                               |
-//! | GET    /api/git/sse             | change stream                 |
+//! | GET    /api/v1/git/status          | bucketed working tree         |
+//! | GET    /api/v1/git/diff            | ?commit=X&path=Y              |
+//! | GET    /api/v1/git/log             | ?branch=X&limit=N             |
+//! | GET    /api/v1/git/branches        |                               |
+//! | POST   /api/v1/git/stage           | {paths}                       |
+//! | POST   /api/v1/git/unstage         | {paths}                       |
+//! | POST   /api/v1/git/commit          | {message, author?}            |
+//! | POST   /api/v1/git/push            | {remote?, force?}             |
+//! | POST   /api/v1/git/fetch           |                               |
+//! | POST   /api/v1/git/pull            | ff-only; 409 on non-ff        |
+//! | POST   /api/v1/git/checkout        | {ref}                         |
+//! | GET    /api/v1/git/commit-draft    |                               |
+//! | PUT    /api/v1/git/commit-draft    | agent-written                 |
+//! | DELETE /api/v1/git/commit-draft    |                               |
+//! | GET    /api/v1/git/sse             | change stream                 |
 //!
 //! All endpoints operate on the active workspace / project root resolved
 //! via `state::resolve_root`. Optional `?workspace_id=` query param lets
@@ -167,7 +167,7 @@ fn current_branch(root: &Path) -> Option<String> {
 
 // ── read handlers ────────────────────────────────────────────────────────
 
-/// GET /api/git/status
+/// GET /api/v1/git/status
 pub async fn status_handler(
     State(state): State<ApiState>,
     Query(q): Query<WorkspaceQuery>,
@@ -189,7 +189,7 @@ pub async fn status_handler(
     })))
 }
 
-/// GET /api/git/diff?commit=X&path=Y   (commit=WORKING for working-tree)
+/// GET /api/v1/git/diff?commit=X&path=Y   (commit=WORKING for working-tree)
 pub async fn diff_handler(
     State(state): State<ApiState>,
     Query(q): Query<DiffQuery>,
@@ -209,7 +209,7 @@ pub async fn diff_handler(
     })))
 }
 
-/// GET /api/git/log?branch=X&limit=N
+/// GET /api/v1/git/log?branch=X&limit=N
 pub async fn log_handler(
     State(state): State<ApiState>,
     Query(q): Query<LogQuery>,
@@ -220,7 +220,7 @@ pub async fn log_handler(
     Ok(Json(serde_json::json!({ "ok": true, "commits": commits })))
 }
 
-/// GET /api/git/branches
+/// GET /api/v1/git/branches
 pub async fn branches_handler(
     State(state): State<ApiState>,
     Query(q): Query<WorkspaceQuery>,
@@ -234,7 +234,7 @@ pub async fn branches_handler(
 
 // ── write handlers ───────────────────────────────────────────────────────
 
-/// POST /api/git/stage
+/// POST /api/v1/git/stage
 pub async fn stage_handler(
     State(state): State<ApiState>,
     Json(body): Json<PathsBody>,
@@ -244,7 +244,7 @@ pub async fn stage_handler(
     Ok(Json(serde_json::json!({ "ok": true, "staged": n })))
 }
 
-/// POST /api/git/unstage
+/// POST /api/v1/git/unstage
 pub async fn unstage_handler(
     State(state): State<ApiState>,
     Json(body): Json<PathsBody>,
@@ -254,7 +254,7 @@ pub async fn unstage_handler(
     Ok(Json(serde_json::json!({ "ok": true, "unstaged": n })))
 }
 
-/// POST /api/git/commit
+/// POST /api/v1/git/commit
 pub async fn commit_handler(
     State(state): State<ApiState>,
     Json(body): Json<CommitBody>,
@@ -273,7 +273,7 @@ pub async fn commit_handler(
     })))
 }
 
-/// POST /api/git/push
+/// POST /api/v1/git/push
 pub async fn push_handler(
     State(state): State<ApiState>,
     Json(body): Json<PushBody>,
@@ -284,7 +284,7 @@ pub async fn push_handler(
     Ok(Json(serde_json::json!({ "ok": true, "remote": remote, "force": body.force })))
 }
 
-/// POST /api/git/fetch
+/// POST /api/v1/git/fetch
 pub async fn fetch_handler(
     State(state): State<ApiState>,
     Json(body): Json<RemoteBody>,
@@ -294,7 +294,7 @@ pub async fn fetch_handler(
     Ok(Json(serde_json::json!({ "ok": true, "remote": remote })))
 }
 
-/// POST /api/git/pull — ff-only
+/// POST /api/v1/git/pull — ff-only
 pub async fn pull_handler(
     State(state): State<ApiState>,
     Json(body): Json<RemoteBody>,
@@ -304,7 +304,7 @@ pub async fn pull_handler(
     Ok(Json(serde_json::json!({ "ok": true, "head": sha })))
 }
 
-/// POST /api/git/checkout
+/// POST /api/v1/git/checkout
 pub async fn checkout_handler(
     State(state): State<ApiState>,
     Json(body): Json<CheckoutBody>,
@@ -318,7 +318,7 @@ pub async fn checkout_handler(
 
 // ── commit draft CRUD ────────────────────────────────────────────────────
 
-/// GET /api/git/commit-draft
+/// GET /api/v1/git/commit-draft
 pub async fn draft_get_handler(
     State(state): State<ApiState>,
     Query(q): Query<WorkspaceQuery>,
@@ -332,7 +332,7 @@ pub async fn draft_get_handler(
     Ok(Json(serde_json::json!({ "ok": true, "draft": draft })))
 }
 
-/// PUT /api/git/commit-draft
+/// PUT /api/v1/git/commit-draft
 pub async fn draft_put_handler(
     State(state): State<ApiState>,
     Json(body): Json<DraftBody>,
@@ -353,7 +353,7 @@ pub async fn draft_put_handler(
     Ok(Json(serde_json::json!({ "ok": true, "branch": branch })))
 }
 
-/// DELETE /api/git/commit-draft
+/// DELETE /api/v1/git/commit-draft
 pub async fn draft_delete_handler(
     State(state): State<ApiState>,
     Query(q): Query<WorkspaceQuery>,
@@ -368,7 +368,7 @@ pub async fn draft_delete_handler(
 
 // ── change stream ────────────────────────────────────────────────────────
 
-/// GET /api/git/sse — polls status at 5s cadence; patches `#git-service-data`
+/// GET /api/v1/git/sse — polls status at 5s cadence; patches `#git-service-data`
 /// with a JSON blob inside a `<script>` tag so any view can subscribe to the
 /// server-side truth without re-running its own libgit2 queries.
 pub async fn sse_handler(

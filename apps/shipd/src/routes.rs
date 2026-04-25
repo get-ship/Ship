@@ -54,7 +54,7 @@ pub enum Route {
 
     // ── Session / auth ───────────────────────────────────────────────────
 
-    /// @route POST "/api/session"
+    /// @route POST "/api/v1/session"
     /// @returns SessionIssueResponse
     IssueSession,
 
@@ -96,456 +96,456 @@ pub enum Route {
     /// @route GET "/api/assets/theme.css"
     AssetThemeCss,
 
-    /// @route GET "/api/themes"
+    /// @route GET "/api/v1/themes"
     ListThemes,
 
     // ── AgentService — service-shaped CRUD + lifecycle ──
 
-    /// @route GET "/api/agents"
+    /// @route GET "/api/v1/agents"
     AgentsList,
 
-    /// @route GET "/api/agents/{id}"
+    /// @route GET "/api/v1/agents/{id}"
     AgentsGet { id: String },
 
-    /// @route PUT "/api/agents/{id}"
+    /// @route PUT "/api/v1/agents/{id}"
     AgentsPut { id: String },
 
-    /// @route PATCH "/api/agents/{id}"
+    /// @route PATCH "/api/v1/agents/{id}"
     AgentsPatch { id: String },
 
-    /// @route DELETE "/api/agents/{id}"
+    /// @route DELETE "/api/v1/agents/{id}"
     AgentsDelete { id: String },
 
-    /// @route POST "/api/agents"
+    /// @route POST "/api/v1/agents"
     AgentsCreate,
 
-    /// @route POST "/api/agents/{id}/rename"
+    /// @route POST "/api/v1/agents/{id}/rename"
     AgentsRename { id: String },
 
-    /// @route POST "/api/agents/{id}/duplicate"
+    /// @route POST "/api/v1/agents/{id}/duplicate"
     AgentsDuplicate { id: String },
 
-    /// @route POST "/api/agents/{id}/move"
+    /// @route POST "/api/v1/agents/{id}/move"
     AgentsMove { id: String },
 
     // ── PipelineService — service-shaped CRUD + run ops ──
 
-    /// @route GET "/api/pipelines"
+    /// @route GET "/api/v1/pipelines"
     PipelinesList,
 
-    /// @route GET "/api/pipelines/{name}"
+    /// @route GET "/api/v1/pipelines/{name}"
     PipelinesGet { name: String },
 
-    /// @route PUT "/api/pipelines/{name}"
+    /// @route PUT "/api/v1/pipelines/{name}"
     PipelinesPut { name: String },
 
-    /// @route PATCH "/api/pipelines/{name}"
+    /// @route PATCH "/api/v1/pipelines/{name}"
     PipelinesPatch { name: String },
 
-    /// @route DELETE "/api/pipelines/{name}"
+    /// @route DELETE "/api/v1/pipelines/{name}"
     PipelinesDelete { name: String },
 
-    /// @route POST "/api/pipelines/{name}/dispatch"
+    /// @route POST "/api/v1/pipelines/{name}/dispatch"
     PipelinesDispatch { name: String },
 
-    /// @route POST "/api/pipelines/runs/{slug}/cancel"
+    /// @route POST "/api/v1/pipelines/runs/{slug}/cancel"
     PipelineRunCancel { slug: String },
 
-    /// @route GET "/api/pipelines/runs"
+    /// @route GET "/api/v1/pipelines/runs"
     PipelineRunsList,
 
-    /// @route GET "/api/pipelines/runs/{slug}"
+    /// @route GET "/api/v1/pipelines/runs/{slug}"
     PipelineRunGet { slug: String },
 
-    /// @route GET "/api/pipelines/runs/{slug}/log/stream"
+    /// @route GET "/api/v1/pipelines/runs/{slug}/log/stream"
     PipelineRunLogStream { slug: String },
 
     // ── RuleService — markdown rules at <scope>/rules/<id>.md ──
 
-    /// @route GET "/api/rules"
+    /// @route GET "/api/v1/rules"
     RulesList,
 
-    /// @route GET "/api/rules/{id}"
+    /// @route GET "/api/v1/rules/{id}"
     RulesGet { id: String },
 
-    /// @route PUT "/api/rules/{id}"
+    /// @route PUT "/api/v1/rules/{id}"
     RulesPut { id: String },
 
-    /// @route DELETE "/api/rules/{id}"
+    /// @route DELETE "/api/v1/rules/{id}"
     RulesDelete { id: String },
 
-    /// @route POST "/api/rules"
+    /// @route POST "/api/v1/rules"
     RulesCreate,
 
     // ── McpService — entries in <scope>/mcp.jsonc ──
 
-    /// @route GET "/api/mcp"
+    /// @route GET "/api/v1/mcp"
     McpList,
 
-    /// @route GET "/api/mcp/{id}"
+    /// @route GET "/api/v1/mcp/{id}"
     McpGet { id: String },
 
-    /// @route PUT "/api/mcp/{id}"
+    /// @route PUT "/api/v1/mcp/{id}"
     McpPut { id: String },
 
-    /// @route PATCH "/api/mcp/{id}"
+    /// @route PATCH "/api/v1/mcp/{id}"
     McpPatch { id: String },
 
-    /// @route DELETE "/api/mcp/{id}"
+    /// @route DELETE "/api/v1/mcp/{id}"
     McpDelete { id: String },
 
-    /// @route POST "/api/mcp"
+    /// @route POST "/api/v1/mcp"
     McpCreate,
 
     // ── PermissionService — preset entries in <scope>/permissions.jsonc ──
 
-    /// @route GET "/api/permissions"
+    /// @route GET "/api/v1/permissions"
     PermissionsList,
 
-    /// @route GET "/api/permissions/tool-patterns"
+    /// @route GET "/api/v1/permissions/tool-patterns"
     PermissionsToolPatterns,
 
-    /// @route GET "/api/permissions/{id}"
+    /// @route GET "/api/v1/permissions/{id}"
     PermissionsGet { id: String },
 
-    /// @route PUT "/api/permissions/{id}"
+    /// @route PUT "/api/v1/permissions/{id}"
     PermissionsPut { id: String },
 
-    /// @route PATCH "/api/permissions/{id}"
+    /// @route PATCH "/api/v1/permissions/{id}"
     PermissionsPatch { id: String },
 
-    /// @route DELETE "/api/permissions/{id}"
+    /// @route DELETE "/api/v1/permissions/{id}"
     PermissionsDelete { id: String },
 
-    /// @route POST "/api/permissions"
+    /// @route POST "/api/v1/permissions"
     PermissionsCreate,
 
     // ── SkillService — service-shaped CRUD + vars ──
 
-    /// @route GET "/api/skills"
+    /// @route GET "/api/v1/skills"
     SkillsList,
 
-    /// @route GET "/api/skills/{id}"
+    /// @route GET "/api/v1/skills/{id}"
     SkillsGet { id: String },
 
-    /// @route POST "/api/skills"
+    /// @route POST "/api/v1/skills"
     SkillsCreate,
 
-    /// @route DELETE "/api/skills/{id}"
+    /// @route DELETE "/api/v1/skills/{id}"
     SkillsDelete { id: String },
 
-    /// @route PUT "/api/skills/{id}/frontmatter"
+    /// @route PUT "/api/v1/skills/{id}/frontmatter"
     SkillsPutFrontmatter { id: String },
 
-    /// @route PUT "/api/skills/{id}/body"
+    /// @route PUT "/api/v1/skills/{id}/body"
     SkillsPutBody { id: String },
 
-    /// @route POST "/api/skills/{id}/rename"
+    /// @route POST "/api/v1/skills/{id}/rename"
     SkillsRename { id: String },
 
-    /// @route POST "/api/skills/{id}/duplicate"
+    /// @route POST "/api/v1/skills/{id}/duplicate"
     SkillsDuplicate { id: String },
 
-    /// @route POST "/api/skills/{id}/move"
+    /// @route POST "/api/v1/skills/{id}/move"
     SkillsMove { id: String },
 
-    /// @route GET "/api/skills/{id}/vars"
+    /// @route GET "/api/v1/skills/{id}/vars"
     SkillsGetVars { id: String },
 
-    /// @route PUT "/api/skills/{id}/vars/{key}"
+    /// @route PUT "/api/v1/skills/{id}/vars/{key}"
     SkillsPutVar { id: String, key: String },
 
-    /// @route DELETE "/api/skills/{id}/vars/{key}"
+    /// @route DELETE "/api/v1/skills/{id}/vars/{key}"
     SkillsDeleteVar { id: String, key: String },
 
-    /// @route POST "/api/chat/send"
+    /// @route POST "/api/v1/chat/send"
     ChatSend,
 
     // ── Generic view serving ─────────────────────────────────────────────
 
-    /// @route GET "/api/views"
+    /// @route GET "/api/v1/views"
     ListViews,
 
-    /// @route GET "/api/ship/schema"
+    /// @route GET "/api/v1/ship/schema"
     ShipSchema,
 
-    /// @route GET "/api/v/{*path}"
+    /// @route GET "/api/v1/v/{*path}"
     ServeViewRouted { path: String },
 
-    /// @route GET "/api/sse/{*path}"
+    /// @route GET "/api/v1/sse/{*path}"
     ServeViewSseRouted { path: String },
 
-    /// @route GET "/api/view-source/{*path}"
+    /// @route GET "/api/v1/view-source/{*path}"
     ServeViewSource { path: String },
 
-    /// @route POST "/api/create/{surface}"
+    /// @route POST "/api/v1/create/{surface}"
     CreateSurface { surface: String },
 
-    /// @route PUT "/api/views/{name}/template"
+    /// @route PUT "/api/v1/views/{name}/template"
     WriteViewTemplate { name: String },
 
-    /// @route PUT "/api/views/{name}/manifest"
+    /// @route PUT "/api/v1/views/{name}/manifest"
     WriteViewManifestApi { name: String },
 
-    /// @route POST "/api/views/{name}/fork"
+    /// @route POST "/api/v1/views/{name}/fork"
     ForkView { name: String },
 
-    /// @route POST "/api/themes/contrast"
+    /// @route POST "/api/v1/themes/contrast"
     ThemeContrast,
 
-    /// @route POST "/api/sessions/spawn"
+    /// @route POST "/api/v1/sessions/spawn"
     SpawnPtySession,
 
-    /// @route GET "/api/pty-sessions"
+    /// @route GET "/api/v1/pty-sessions"
     ListPtySessions,
 
-    /// @route GET "/api/sessions/{id}"
+    /// @route GET "/api/v1/sessions/{id}"
     GetPtySession { id: String },
 
-    /// @route DELETE "/api/sessions/{id}"
+    /// @route DELETE "/api/v1/sessions/{id}"
     StopPtySession { id: String },
 
-    /// @route POST "/api/sessions/{id}/input"
+    /// @route POST "/api/v1/sessions/{id}/input"
     PtySessionInput { id: String },
 
-    /// @route POST "/api/sessions/{id}/message"
+    /// @route POST "/api/v1/sessions/{id}/message"
     PtySessionMessage { id: String },
 
-    /// @route POST "/api/sessions/{id}/reply"
+    /// @route POST "/api/v1/sessions/{id}/reply"
     PtySessionReply { id: String },
 
-    /// @route GET "/api/sessions/{id}/stream"
+    /// @route GET "/api/v1/sessions/{id}/stream"
     StreamPtySession { id: String },
 
-    /// @route GET "/api/sessions/{id}/events"
+    /// @route GET "/api/v1/sessions/{id}/events"
     StreamPtySessionEvents { id: String },
 
-    /// @route GET "/api/providers/installed"
+    /// @route GET "/api/v1/providers/installed"
     InstalledProviders,
 
-    /// @route GET "/api/projects"
+    /// @route GET "/api/v1/projects"
     ListProjects,
 
-    /// @route POST "/api/projects"
+    /// @route POST "/api/v1/projects"
     AddProject,
 
-    /// @route POST "/api/projects/switch"
+    /// @route POST "/api/v1/projects/switch"
     SwitchProject,
 
-    /// @route GET "/api/view/{name}/manifest"
+    /// @route GET "/api/v1/view/{name}/manifest"
     ServeViewManifest { name: String },
 
-    /// @route GET "/api/view/{name}/bundle"
+    /// @route GET "/api/v1/view/{name}/bundle"
     ServeViewBundle { name: String },
 
-    /// @route GET "/api/view/{name}/raw"
+    /// @route GET "/api/v1/view/{name}/raw"
     ServeViewRaw { name: String },
 
-    /// @route GET "/api/view/{name}/sse"
+    /// @route GET "/api/v1/view/{name}/sse"
     ServeViewSse { name: String },
 
     // ── Agent-owned view sessions (Phase 1 canvas framework) ─────────────
 
-    /// @route POST "/api/view-sessions"
+    /// @route POST "/api/v1/view-sessions"
     OpenViewSession,
 
-    /// @route POST "/api/view-sessions/{id}/patch"
+    /// @route POST "/api/v1/view-sessions/{id}/patch"
     PatchViewSession { id: String },
 
-    /// @route POST "/api/view-sessions/{id}/append"
+    /// @route POST "/api/v1/view-sessions/{id}/append"
     AppendViewSession { id: String },
 
-    /// @route POST "/api/view-sessions/{id}/signal"
+    /// @route POST "/api/v1/view-sessions/{id}/signal"
     SignalViewSession { id: String },
 
-    /// @route DELETE "/api/view-sessions/{id}"
+    /// @route DELETE "/api/v1/view-sessions/{id}"
     CloseViewSession { id: String },
 
-    /// @route GET "/api/view-sessions/{id}"
+    /// @route GET "/api/v1/view-sessions/{id}"
     SubscribeViewSession { id: String },
 
-    /// @route GET "/api/view-sessions/{id}/raw"
+    /// @route GET "/api/v1/view-sessions/{id}/raw"
     ViewSessionRaw { id: String },
 
     // ── Feedback (agent-designed feedback ingress) ────────────────────────
 
-    /// @route POST "/api/feedback"
+    /// @route POST "/api/v1/feedback"
     PostFeedback,
 
     // ── Annotations (canvas overlay wire format) ─────────────────────────
 
-    /// @route POST "/api/annotations"
+    /// @route POST "/api/v1/annotations"
     PostAnnotation,
 
     // ── Runtime listings ─────────────────────────────────────────────────
 
-    /// @route GET "/api/workspaces"
+    /// @route GET "/api/v1/workspaces"
     ListWorkspaces,
 
-    /// @route GET "/api/sessions"
+    /// @route GET "/api/v1/sessions"
     ListSessions,
 
-    /// @route GET "/api/agents/active"
+    /// @route GET "/api/v1/agents/active"
     ListAgents,
 
-    /// @route POST "/api/agents/{slug}/stop"
+    /// @route POST "/api/v1/agents/{slug}/stop"
     StopAgent { slug: String },
 
-    /// @route POST "/api/agents/{slug}/steer"
+    /// @route POST "/api/v1/agents/{slug}/steer"
     SteerAgent { slug: String },
 
     // ── Jobs ─────────────────────────────────────────────────────────────
 
-    /// @route GET "/api/jobs"
+    /// @route GET "/api/v1/jobs"
     ListJobs,
 
-    /// @route POST "/api/jobs/dispatch"
+    /// @route POST "/api/v1/jobs/dispatch"
     DispatchPipeline,
 
-    /// @route GET "/api/jobs/{job_id}"
+    /// @route GET "/api/v1/jobs/{job_id}"
     GetJob { job_id: String },
 
-    /// @route POST "/api/jobs/end"
+    /// @route POST "/api/v1/jobs/end"
     EndJob,
 
-    /// @route POST "/api/jobs/{slug}/cancel"
+    /// @route POST "/api/v1/jobs/{slug}/cancel"
     CancelJob { slug: String },
 
-    /// @route POST "/api/jobs/{job_id}/status"
+    /// @route POST "/api/v1/jobs/{job_id}/status"
     JobStatusUpdate { job_id: String },
 
-    /// @route POST "/api/jobs/{slug}/step-done"
+    /// @route POST "/api/v1/jobs/{slug}/step-done"
     JobStepDone { slug: String },
 
-    /// @route GET "/api/jobs/{slug}/log/stream"
+    /// @route GET "/api/v1/jobs/{slug}/log/stream"
     StreamJobLog { slug: String },
 
     // ── Process projection / events polling / daemon status (slice 6) ────
 
-    /// @route GET "/api/procs"
+    /// @route GET "/api/v1/procs"
     ListProcs,
 
-    /// @route GET "/api/events/poll"
+    /// @route GET "/api/v1/events/poll"
     PollEvents,
 
-    /// @route GET "/api/daemon/status"
+    /// @route GET "/api/v1/daemon/status"
     DaemonStatus,
 
     // ── Specs ────────────────────────────────────────────────────────────
 
-    /// @route GET "/api/specs"
+    /// @route GET "/api/v1/specs"
     ListSpecs,
 
-    /// @route POST "/api/specs"
+    /// @route POST "/api/v1/specs"
     CreateSpec,
 
-    /// @route GET "/api/specs/{id}"
+    /// @route GET "/api/v1/specs/{id}"
     GetSpec { id: String },
 
-    /// @route PUT "/api/specs/{id}"
+    /// @route PUT "/api/v1/specs/{id}"
     UpdateSpec { id: String },
 
-    /// @route DELETE "/api/specs/{id}"
+    /// @route DELETE "/api/v1/specs/{id}"
     DeleteSpec { id: String },
 
-    /// @route POST "/api/specs/{id}/launch"
+    /// @route POST "/api/v1/specs/{id}/launch"
     LaunchSpec { id: String },
 
     // ── Events / projections ─────────────────────────────────────────────
 
-    /// @route GET "/api/events/stream"
+    /// @route GET "/api/v1/events/stream"
     EventStream,
 
-    /// @route POST "/api/rebuild-projections"
+    /// @route POST "/api/v1/rebuild-projections"
     RebuildProjections,
 
-    /// @route GET "/api/workspaces/{id}/pty"
+    /// @route GET "/api/v1/workspaces/{id}/pty"
     WorkspacePty { id: String },
 
     // ── Settings / providers ─────────────────────────────────────────────
 
-    /// @route GET "/api/settings"
+    /// @route GET "/api/v1/settings"
     ListSettings,
 
-    /// @route PUT "/api/settings"
+    /// @route PUT "/api/v1/settings"
     UpdateSetting,
 
-    /// @route GET "/api/settings/{key}"
+    /// @route GET "/api/v1/settings/{key}"
     GetSetting { key: String },
 
-    /// @route GET "/api/providers"
+    /// @route GET "/api/v1/providers"
     ListProviders,
 
     // ── Supervisor ───────────────────────────────────────────────────────
 
-    /// @route POST "/api/supervisor/workspaces/{id}/start"
+    /// @route POST "/api/v1/supervisor/workspaces/{id}/start"
     StartWorkspace { id: String },
 
     // ── Project / workspace scoped ───────────────────────────────────────
 
-    /// @route GET "/api/workspaces/{id}/session-files"
+    /// @route GET "/api/v1/workspaces/{id}/session-files"
     ListSessionFiles { id: String },
 
-    /// @route GET "/api/workspaces/{id}/agents"
+    /// @route GET "/api/v1/workspaces/{id}/agents"
     ListWorkspaceAgents { id: String },
 
-    /// @route POST "/api/workspaces/{id}/agents"
+    /// @route POST "/api/v1/workspaces/{id}/agents"
     WriteWorkspaceAgent { id: String },
 
-    /// @route DELETE "/api/workspaces/{id}"
+    /// @route DELETE "/api/v1/workspaces/{id}"
     DeleteWorkspace { id: String },
 
-    /// @route POST "/api/workspaces/{id}/activate"
+    /// @route POST "/api/v1/workspaces/{id}/activate"
     ActivateWorkspace { id: String },
 
     // ── GitService — canonical `/api/git/*` surface ──────────────────────
 
-    /// @route GET "/api/git/status"
+    /// @route GET "/api/v1/git/status"
     GitStatus,
 
-    /// @route GET "/api/git/diff"
+    /// @route GET "/api/v1/git/diff"
     GitDiff,
 
-    /// @route GET "/api/git/log"
+    /// @route GET "/api/v1/git/log"
     GitLog,
 
-    /// @route GET "/api/git/branches"
+    /// @route GET "/api/v1/git/branches"
     GitBranches,
 
-    /// @route POST "/api/git/stage"
+    /// @route POST "/api/v1/git/stage"
     GitStage,
 
-    /// @route POST "/api/git/unstage"
+    /// @route POST "/api/v1/git/unstage"
     GitUnstage,
 
-    /// @route POST "/api/git/commit"
+    /// @route POST "/api/v1/git/commit"
     GitCommit,
 
-    /// @route POST "/api/git/push"
+    /// @route POST "/api/v1/git/push"
     GitPush,
 
-    /// @route POST "/api/git/fetch"
+    /// @route POST "/api/v1/git/fetch"
     GitFetch,
 
-    /// @route POST "/api/git/pull"
+    /// @route POST "/api/v1/git/pull"
     GitPull,
 
-    /// @route POST "/api/git/checkout"
+    /// @route POST "/api/v1/git/checkout"
     GitCheckout,
 
-    /// @route GET "/api/git/commit-draft"
+    /// @route GET "/api/v1/git/commit-draft"
     GitCommitDraftGet,
 
-    /// @route PUT "/api/git/commit-draft"
+    /// @route PUT "/api/v1/git/commit-draft"
     GitCommitDraftPut,
 
-    /// @route DELETE "/api/git/commit-draft"
+    /// @route DELETE "/api/v1/git/commit-draft"
     GitCommitDraftDelete,
 
-    /// @route GET "/api/git/sse"
+    /// @route GET "/api/v1/git/sse"
     GitSse,
 
-    /// @route POST "/api/events/emit"
+    /// @route POST "/api/v1/events/emit"
     EmitEvent,
 
     // Workspace-scoped artifact status/promote removed — callers get 404.
@@ -553,115 +553,115 @@ pub enum Route {
 
     // ── Mesh / actors ────────────────────────────────────────────────────
 
-    /// @route POST "/api/mesh/register"
+    /// @route POST "/api/v1/mesh/register"
     MeshRegister,
 
-    /// @route POST "/api/mesh/send"
+    /// @route POST "/api/v1/mesh/send"
     MeshSend,
 
-    /// @route POST "/api/mesh/broadcast"
+    /// @route POST "/api/v1/mesh/broadcast"
     MeshBroadcast,
 
-    /// @route GET "/api/mesh/discover"
+    /// @route GET "/api/v1/mesh/discover"
     MeshDiscover,
 
-    /// @route POST "/api/mesh/status"
+    /// @route POST "/api/v1/mesh/status"
     MeshStatusUpdate,
 
-    /// @route GET "/api/mesh/events/{agent_id}"
+    /// @route GET "/api/v1/mesh/events/{agent_id}"
     MeshEvents { agent_id: String },
 
-    /// @route POST "/api/actor/spawn"
+    /// @route POST "/api/v1/actor/spawn"
     ActorSpawn,
 
-    /// @route POST "/api/events/route"
+    /// @route POST "/api/v1/events/route"
     EventRoute,
 
     // ── Collections ──────────────────────────────────────────────────────
 
-    /// @route GET "/api/collections"
+    /// @route GET "/api/v1/collections"
     ListCollections,
 
-    /// @route GET "/api/collections/{collection}/schema"
+    /// @route GET "/api/v1/collections/{collection}/schema"
     GetCollectionSchema { collection: String },
 
-    /// @route PUT "/api/collections/{collection}/schema"
+    /// @route PUT "/api/v1/collections/{collection}/schema"
     UpdateCollectionSchema { collection: String },
 
-    /// @route POST "/api/collections/{collection}/items"
+    /// @route POST "/api/v1/collections/{collection}/items"
     CreateCollectionItem { collection: String },
 
-    /// @route GET "/api/collections/{collection}/items/{item_id}"
+    /// @route GET "/api/v1/collections/{collection}/items/{item_id}"
     GetCollectionItem { collection: String, item_id: String },
 
-    /// @route PUT "/api/collections/{collection}/items/{item_id}"
+    /// @route PUT "/api/v1/collections/{collection}/items/{item_id}"
     UpdateCollectionItem { collection: String, item_id: String },
 
-    /// @route DELETE "/api/collections/{collection}/items/{item_id}"
+    /// @route DELETE "/api/v1/collections/{collection}/items/{item_id}"
     DeleteCollectionItem { collection: String, item_id: String },
 
-    /// @route POST "/api/collections/{collection}/query"
+    /// @route POST "/api/v1/collections/{collection}/query"
     QueryCollection { collection: String },
 
     // ── Artifacts ────────────────────────────────────────────────────────
 
-    /// @route POST "/api/artifacts"
+    /// @route POST "/api/v1/artifacts"
     ArtifactsUpload,
 
-    /// @route GET "/api/artifacts"
+    /// @route GET "/api/v1/artifacts"
     ArtifactsList,
 
-    /// @route GET "/api/artifacts/{id}"
+    /// @route GET "/api/v1/artifacts/{id}"
     ArtifactDownload { id: String },
 
 
-    /// @route GET "/api/artifacts/{id}/metadata"
+    /// @route GET "/api/v1/artifacts/{id}/metadata"
     ArtifactMetadata { id: String },
 
-    /// @route PATCH "/api/artifacts/{id}"
+    /// @route PATCH "/api/v1/artifacts/{id}"
     ArtifactPatch { id: String },
 
-    /// @route DELETE "/api/artifacts/{id}"
+    /// @route DELETE "/api/v1/artifacts/{id}"
     ArtifactDelete { id: String },
 
-    /// @route POST "/api/artifacts/{id}/promote"
+    /// @route POST "/api/v1/artifacts/{id}/promote"
     ArtifactPromote { id: String },
 
     // ── Capabilities ─────────────────────────────────────────────────────
 
-    /// @route GET "/api/capabilities"
+    /// @route GET "/api/v1/capabilities"
     Capabilities,
 
     // ── Lint ─────────────────────────────────────────────────────────────
 
-    /// @route POST "/api/lint/view"
+    /// @route POST "/api/v1/lint/view"
     LintView,
 
     // ── SDK manifest (read-side; generated by `just gen-sdk`) ────────────
 
-    /// @route GET "/api/views/{name}/meta"
+    /// @route GET "/api/v1/views/{name}/meta"
     ViewMeta { name: String },
 
-    /// @route GET "/api/sdk"
+    /// @route GET "/api/v1/sdk"
     SdkRoot,
 
-    /// @route GET "/api/sdk/query"
+    /// @route GET "/api/v1/sdk/query"
     SdkQuery,
 
     // ── View client-error capture ────────────────────────────────────────
 
-    /// @route POST "/api/view-errors"
+    /// @route POST "/api/v1/view-errors"
     PostViewError,
 
-    /// @route GET "/api/view-errors"
+    /// @route GET "/api/v1/view-errors"
     ListViewErrors,
 
-    /// @route DELETE "/api/view-errors"
+    /// @route DELETE "/api/v1/view-errors"
     ClearViewErrors,
 
     // ── MCP registry proxy ────────────────────────────────────────────────
 
-    /// @route GET "/api/mcp/servers"
+    /// @route GET "/api/v1/mcp/servers"
     McpServers,
 }
 

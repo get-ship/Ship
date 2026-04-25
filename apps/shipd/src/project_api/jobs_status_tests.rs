@@ -156,7 +156,7 @@ async fn step_done_404_when_job_missing() {
     assert_eq!(err.0, StatusCode::NOT_FOUND);
 }
 
-// ---- Domain validation on /api/events/emit ----
+// ---- Domain validation on /api/v1/events/emit ----
 
 #[tokio::test(flavor = "multi_thread")]
 async fn emit_event_validate_domain_rejects_reserved_namespace() {

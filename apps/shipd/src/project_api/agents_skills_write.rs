@@ -60,13 +60,13 @@ pub struct SetVarReq {
 
 // ── Endpoints ─────────────────────────────────────────────────────────────────
 
-/// POST /api/workspaces/{id}/agents
+/// POST /api/v1/workspaces/{id}/agents
 ///
 /// Write an agent transfer bundle to `{worktree}/.ship/agents/{agent_id}.jsonc`.
 #[utoipa::path(
     operation_id = "writeAgent",
     post,
-    path = "/api/workspaces/{id}/agents",
+    path = "/api/v1/workspaces/{id}/agents",
     params(("id" = String, Path, description = "Workspace id")),
     request_body = WriteAgentReq,
     responses(
@@ -127,13 +127,13 @@ pub async fn write_agent(
     Ok(ok_response(json!({ "id": body.id })))
 }
 
-/// PUT /api/workspaces/{id}/skills/{skillId}/files/{*path}
+/// PUT /api/v1/workspaces/{id}/skills/{skillId}/files/{*path}
 ///
 /// Write content to `{worktree}/.ship/skills/{skillId}/{path}`.
 #[utoipa::path(
     operation_id = "writeSkillFile",
     put,
-    path = "/api/workspaces/{id}/skills/{skillId}/files/{path}",
+    path = "/api/v1/workspaces/{id}/skills/{skillId}/files/{path}",
     params(
         ("id" = String, Path, description = "Workspace id"),
         ("skillId" = String, Path, description = "Skill id"),
@@ -183,13 +183,13 @@ pub async fn write_skill_file(
     Ok(ok_response(json!({})))
 }
 
-/// DELETE /api/workspaces/{id}/skills/{skillId}/files/{*path}
+/// DELETE /api/v1/workspaces/{id}/skills/{skillId}/files/{*path}
 ///
 /// Delete `{worktree}/.ship/skills/{skillId}/{path}`.
 #[utoipa::path(
     operation_id = "deleteSkillFile",
     delete,
-    path = "/api/workspaces/{id}/skills/{skillId}/files/{path}",
+    path = "/api/v1/workspaces/{id}/skills/{skillId}/files/{path}",
     params(
         ("id" = String, Path, description = "Workspace id"),
         ("skillId" = String, Path, description = "Skill id"),
@@ -232,13 +232,13 @@ pub async fn delete_skill_file(
     Ok(ok_response(json!({})))
 }
 
-/// GET /api/workspaces/{id}/skills/{skillId}/vars
+/// GET /api/v1/workspaces/{id}/skills/{skillId}/vars
 ///
 /// Return merged skill variable state. Uses the worktree `.ship` dir as context.
 #[utoipa::path(
     operation_id = "getSkillVars",
     get,
-    path = "/api/workspaces/{id}/skills/{skillId}/vars",
+    path = "/api/v1/workspaces/{id}/skills/{skillId}/vars",
     params(
         ("id" = String, Path, description = "Workspace id"),
         ("skillId" = String, Path, description = "Skill id"),
@@ -278,13 +278,13 @@ pub async fn get_skill_vars(
     }
 }
 
-/// PUT /api/workspaces/{id}/skills/{skillId}/vars/{key}
+/// PUT /api/v1/workspaces/{id}/skills/{skillId}/vars/{key}
 ///
 /// Set a single skill variable. Body: `{ value_json: "<json-encoded-value>" }`.
 #[utoipa::path(
     operation_id = "setSkillVar",
     put,
-    path = "/api/workspaces/{id}/skills/{skillId}/vars/{key}",
+    path = "/api/v1/workspaces/{id}/skills/{skillId}/vars/{key}",
     params(
         ("id" = String, Path, description = "Workspace id"),
         ("skillId" = String, Path, description = "Skill id"),

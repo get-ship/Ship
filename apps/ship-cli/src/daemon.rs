@@ -613,7 +613,7 @@ fn print_supervision_only(s: &SupervisionStatus) {
 
 fn print_live_status(port: u16, token: &str, supervision: &SupervisionStatus) -> Result<()> {
     let supervisor_pid = supervision.pid;
-    let url = format!("http://127.0.0.1:{port}/api/daemon/status");
+    let url = format!("http://127.0.0.1:{port}/api/v1/daemon/status");
     let mut resp = ureq::get(&url)
         .header("Authorization", &format!("Bearer {token}"))
         .config()
@@ -854,7 +854,7 @@ pub fn ensure_daemon() -> Result<(u16, String)> {
     anyhow::bail!("shipd: daemon started but did not become healthy within 5 seconds")
 }
 
-/// Try to read daemon info and verify it responds to /api/health.
+/// Try to read daemon info and verify it responds to /api/v1/health.
 fn daemon_info_if_healthy() -> Option<(u16, String)> {
     let home = runtime::ShipHome::project_ship_dir(dirs::home_dir()?);
     let port_str = std::fs::read_to_string(home.join("daemon.port")).ok()?;

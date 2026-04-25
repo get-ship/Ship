@@ -92,11 +92,11 @@ fn strip_trailing_commas(input: &str) -> String {
     result
 }
 
-/// GET /api/workspaces/{id}/agents
+/// GET /api/v1/workspaces/{id}/agents
 #[utoipa::path(
     operation_id = "listAgents",
     get,
-    path = "/api/workspaces/{id}/agents",
+    path = "/api/v1/workspaces/{id}/agents",
     params(("id" = String, Path, description = "Workspace id")),
     responses(
         (status = 200, description = "Agents discovered in .ship/agents/", body = MeshResponse),
@@ -167,11 +167,11 @@ pub async fn list_agents(
     Ok(ok_response(serde_json::json!({ "agents": agents })))
 }
 
-/// GET /api/workspaces/{id}/skills
+/// GET /api/v1/workspaces/{id}/skills
 #[utoipa::path(
     operation_id = "listSkills",
     get,
-    path = "/api/workspaces/{id}/skills",
+    path = "/api/v1/workspaces/{id}/skills",
     params(("id" = String, Path, description = "Workspace id")),
     responses(
         (status = 200, description = "Skills discovered in .ship/skills/", body = MeshResponse),

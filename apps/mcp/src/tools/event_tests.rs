@@ -1,6 +1,6 @@
 //! MCP-side `emit_domain_event` is pure transport — its only job is to
 //! forward the agent-supplied fields plus injected actor/workspace context
-//! to the daemon's `/api/events/emit` endpoint with `validate_domain=true`.
+//! to the daemon's `/api/v1/events/emit` endpoint with `validate_domain=true`.
 //!
 //! Validation (reserved namespaces, dotted event type, payload shape) lives
 //! on the daemon and is exercised by `apps/shipd/src/project_api/tests.rs`.

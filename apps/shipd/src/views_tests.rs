@@ -110,7 +110,7 @@ async fn manifest_from_yaml() {
     assert_eq!(val["ok"], true);
     assert_eq!(val["data"]["type"], "component");
     assert_eq!(val["data"]["elementName"], "ship-pipe-mon");
-    assert_eq!(val["data"]["bundleUrl"], "/api/view/pipe-mon/bundle");
+    assert_eq!(val["data"]["bundleUrl"], "/api/v1/view/pipe-mon/bundle");
 }
 
 #[tokio::test]
