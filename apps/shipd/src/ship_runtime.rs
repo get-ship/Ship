@@ -164,6 +164,11 @@ impl ShipRuntime {
         // which requires the multi-threaded runtime. spawn_blocking works in both.
         let dir = global_dir.clone();
         let kernel = tokio::task::spawn_blocking(move || {
+            // Phase 3: one-shot home-layout migrator. Idempotent; runs before
+            // any DB open so the canonical `~/.ship/library` + `~/.ship/machine`
+            // shape is in place when callers resolve paths.
+            runtime::home::migrate::migrate_home(&runtime::ShipHome::at(dir.clone()))
+                .context("home-layout migration")?;
             // Open data.db + run collections migration first.
             let _ = runtime::data::DataService::open(&dir)?;
             runtime::db::ensure_db_at(&dir)?;

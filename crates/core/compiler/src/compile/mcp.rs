@@ -8,6 +8,7 @@ pub(super) fn build_mcp_servers(
     desc: &ProviderDescriptor,
     servers: &[McpServerConfig],
     studio_url: Option<&str>,
+    ship_home_dir: Option<&str>,
 ) -> Json {
     let mut map = serde_json::Map::new();
 
@@ -15,7 +16,7 @@ pub(super) fn build_mcp_servers(
     // When Studio integration is active, emit HTTP transport instead of stdio.
     let ship_entry = match studio_url {
         Some(url) => ship_server_entry_http(url, desc.emit_type_field),
-        None => ship_server_entry(desc.emit_type_field),
+        None => ship_server_entry(desc.emit_type_field, ship_home_dir),
     };
     map.insert("ship".to_string(), ship_entry);
 
@@ -67,22 +68,23 @@ pub(super) fn server_entry(desc: &ProviderDescriptor, s: &McpServerConfig) -> Js
     entry
 }
 
-pub(super) fn ship_server_entry(emit_type: bool) -> Json {
-    // The `.ship` literal is intentionally split here so the home-layout grep
-    // guard does not match. This file emits an MCP config string literal for a
-    // child process; it does not access `~/.ship/` on disk and is WASM-safe so
-    // it cannot depend on `runtime::ShipHome`.
-    const DIR: &str = ".sh\u{0069}p"; // ".ship", reconstructed from a unicode escape
-    let ship_global_dir = std::env::var("HOME")
-        .map(|h| format!("{}/{}", h, DIR))
-        .unwrap_or_else(|_| format!("~/{}", DIR));
-    let mut e = serde_json::json!({
-        "command": "ship",
-        "args": ["mcp", "serve"],
-        "env": {
-            "SHIP_GLOBAL_DIR": ship_global_dir
-        }
-    });
+pub(super) fn ship_server_entry(emit_type: bool, ship_home_dir: Option<&str>) -> Json {
+    // The compiler is WASM-safe and cannot depend on `runtime::ShipHome` or
+    // read environment variables. Callers (CLI/daemon) inject the resolved
+    // home path; when absent (e.g. WASM frontends), we omit the env block
+    // entirely and let the spawned `ship mcp serve` resolve its own home via
+    // the standard `SHIP_HOME` / default discovery path.
+    let mut e = match ship_home_dir {
+        Some(dir) => serde_json::json!({
+            "command": "ship",
+            "args": ["mcp", "serve"],
+            "env": { "SHIP_GLOBAL_DIR": dir }
+        }),
+        None => serde_json::json!({
+            "command": "ship",
+            "args": ["mcp", "serve"]
+        }),
+    };
     if emit_type {
         e["type"] = Json::String("stdio".to_string());
     }
@@ -104,11 +106,18 @@ mod tests {
 
     #[test]
     fn ship_server_entry_is_stdio() {
-        let entry = ship_server_entry(false);
+        let entry = ship_server_entry(false, None);
         assert_eq!(entry["command"], "ship");
         assert_eq!(entry["args"][0], "mcp");
         assert_eq!(entry["args"][1], "serve");
         assert!(entry.get("url").is_none());
+        assert!(entry.get("env").is_none(), "env omitted when home not injected");
+    }
+
+    #[test]
+    fn ship_server_entry_uses_injected_home_dir() {
+        let entry = ship_server_entry(false, Some("/var/lib/ship"));
+        assert_eq!(entry["env"]["SHIP_GLOBAL_DIR"], "/var/lib/ship");
     }
 
     #[test]
@@ -123,7 +132,7 @@ mod tests {
     fn build_mcp_servers_no_studio_uses_stdio() {
         use crate::compile::provider::get_provider;
         let desc = get_provider("claude").unwrap();
-        let result = build_mcp_servers(desc, &[], None);
+        let result = build_mcp_servers(desc, &[], None, None);
         let ship = &result["ship"];
         assert_eq!(ship["command"], "ship");
     }
@@ -132,7 +141,7 @@ mod tests {
     fn build_mcp_servers_with_studio_uses_http() {
         use crate::compile::provider::get_provider;
         let desc = get_provider("claude").unwrap();
-        let result = build_mcp_servers(desc, &[], Some("http://localhost:51741/agent"));
+        let result = build_mcp_servers(desc, &[], Some("http://localhost:51741/agent"), None);
         let ship = &result["ship"];
         assert_eq!(ship["url"], "http://localhost:51741/agent");
         assert!(ship.get("command").is_none());

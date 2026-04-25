@@ -1,12 +1,9 @@
 use super::project::ProjectConfig;
-use super::types::{
-    AiConfig, GitConfig, HookConfig, LegacyAgentsConfigFile, NamespaceConfig, StatusConfig,
-};
+use super::types::{AiConfig, GitConfig, HookConfig, NamespaceConfig, StatusConfig};
 use crate::db::kv;
 use anyhow::Result;
 use std::collections::HashMap;
-use std::fs;
-use std::path::{Path, PathBuf};
+use std::path::Path;
 
 // ─── User-facing settings API (namespace = "settings") ──────────────────────
 
@@ -160,29 +157,8 @@ pub(super) fn save_runtime_settings(ship_dir: &Path, config: &ProjectConfig) -> 
     Ok(())
 }
 
-pub(super) fn get_legacy_agents_config(ship_dir: &Path) -> Result<Option<LegacyAgentsConfigFile>> {
-    let path = legacy_agents_config_path(ship_dir);
-    if !path.exists() {
-        return Ok(None);
-    }
-    let content = fs::read_to_string(path)?;
-    let parsed: LegacyAgentsConfigFile = toml::from_str(&content)?;
-    Ok(Some(parsed))
-}
-
-pub(super) fn remove_legacy_agents_config(ship_dir: &Path) -> Result<()> {
-    let path = legacy_agents_config_path(ship_dir);
-    if path.exists() {
-        fs::remove_file(path)?;
-    }
-    Ok(())
-}
-
-fn legacy_agents_config_path(ship_dir: &Path) -> PathBuf {
-    ship_dir.join("agents").join("config.toml")
-}
-
 pub(super) fn migrate_json_config(path: &Path) -> Result<ProjectConfig> {
+    use std::fs;
     #[derive(serde::Deserialize, Default)]
     struct LegacyConfig {
         statuses: Option<Vec<String>>,

@@ -135,11 +135,16 @@ pub fn compile(resolved: &ResolvedConfig, provider_id: &str) -> Option<CompileOu
     // Only emit MCP config for providers that support it.
     if flags.supports_mcp {
         let studio_url = resolved.studio_mcp_url.as_deref();
+        let ship_home = resolved.ship_home_dir.as_deref();
         // Use provider-specific MCP builders when available (for per-server fields).
         out.mcp_servers = match provider_id {
-            "gemini" => gemini::build_gemini_mcp_servers(desc, &resolved.mcp_servers, studio_url),
-            "cursor" => cursor::build_cursor_mcp_servers(desc, &resolved.mcp_servers, studio_url),
-            _ => mcp::build_mcp_servers(desc, &resolved.mcp_servers, studio_url),
+            "gemini" => gemini::build_gemini_mcp_servers(
+                desc, &resolved.mcp_servers, studio_url, ship_home,
+            ),
+            "cursor" => cursor::build_cursor_mcp_servers(
+                desc, &resolved.mcp_servers, studio_url, ship_home,
+            ),
+            _ => mcp::build_mcp_servers(desc, &resolved.mcp_servers, studio_url, ship_home),
         };
         out.mcp_config_path = desc.mcp_config_path.map(String::from);
     } else {

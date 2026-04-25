@@ -6,6 +6,8 @@
 //! `scripts/check-raw-ship-paths.sh`.
 
 pub mod daemon;
+pub mod migrate;
+pub mod migrate_toml;
 pub mod scope;
 pub mod ship_home;
 pub mod vector;

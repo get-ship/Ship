@@ -209,13 +209,14 @@ pub(super) fn build_gemini_mcp_servers(
     desc: &ProviderDescriptor,
     servers: &[McpServerConfig],
     studio_url: Option<&str>,
+    ship_home_dir: Option<&str>,
 ) -> Json {
     let mut map = serde_json::Map::new();
 
     // Ship server always first.
     let ship_entry = match studio_url {
         Some(url) => super::mcp::ship_server_entry_http(url, desc.emit_type_field),
-        None => super::mcp::ship_server_entry(desc.emit_type_field),
+        None => super::mcp::ship_server_entry(desc.emit_type_field, ship_home_dir),
     };
     map.insert("ship".to_string(), ship_entry);
 

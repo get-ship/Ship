@@ -93,10 +93,8 @@ fn save_config_keeps_ship_toml_free_of_agent_sections() -> anyhow::Result<()> {
         "ship.jsonc must not persist namespace claims"
     );
 
-    assert!(
-        !ship_dir.join("agents").join("config.toml").exists(),
-        "legacy agents/config.toml should not be written"
-    );
+    // Legacy per-agent TOML config is no longer read or written — the
+    // loader path was removed in the home-layout restructure.
 
     // Verify runtime settings stored in kv_state (project-scoped namespace)
     let ns = super::runtime_settings::project_ns(&ship_dir);
