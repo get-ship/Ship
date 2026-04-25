@@ -349,6 +349,17 @@
   --app-accent-theme:        oklch(0.66 0.20 320);
   --app-accent-setup:        oklch(0.68 0.16 110);
   --app-accent-overview:     oklch(0.60 0.10 230);
+
+  /* ─── Scrollbar channel ──────────────────────────────────────────
+   * Tokenized scrollbars. Themes can sharpen the radius (console),
+   * tint the thumb (paper), or make it heavier (contrast). Every
+   * scroll surface that opts in via `.ship-scroll*` rides along. */
+  --scrollbar-thumb: color-mix(in oklab, var(--foreground) 22%, transparent);
+  --scrollbar-thumb-hover: color-mix(in oklab, var(--foreground) 38%, transparent);
+  --scrollbar-track: transparent;
+  --scrollbar-width: 10px;
+  --scrollbar-width-thin: 6px;
+  --scrollbar-radius: 999px;
 }
 
 /* ─── Dark mode overrides ─────────────────────────────────────────── */
@@ -411,3 +422,60 @@
   --app-accent-setup:        oklch(0.80 0.16 110);
   --app-accent-overview:     oklch(0.74 0.10 230);
 }
+
+/* ─── Scrollbar utility classes ─────────────────────────────────────
+ * Tokenized scroll styling. The `.ship-scroll-thin` utility on a
+ * scrolling ancestor (typically <body>) applies thin tokenized
+ * scrollbars to that element AND, via descendant `*` selectors, to
+ * every nested scroll container — same coverage as the previous
+ * global rules in apps/shell/index.html, now centralized so themes
+ * can bend it through the --scrollbar-* channel.
+ *
+ * Use `.ship-scroll` for default-width, `.ship-scroll-thin` for thin
+ * rails (sidebars, dock), `.ship-scroll-none` to hide completely.
+ * Apply on a single root container; descendants inherit via the
+ * descendant selectors below. */
+.ship-scroll, .ship-scroll-thin {
+  scrollbar-color: var(--scrollbar-thumb) var(--scrollbar-track);
+}
+.ship-scroll-thin, .ship-scroll-thin * { scrollbar-width: thin; }
+.ship-scroll-none, .ship-scroll-none * { scrollbar-width: none; }
+.ship-scroll-thin *,
+.ship-scroll * {
+  scrollbar-color: var(--scrollbar-thumb) var(--scrollbar-track);
+}
+
+.ship-scroll::-webkit-scrollbar,
+.ship-scroll *::-webkit-scrollbar { width: var(--scrollbar-width); height: var(--scrollbar-width); }
+.ship-scroll-thin::-webkit-scrollbar,
+.ship-scroll-thin *::-webkit-scrollbar { width: var(--scrollbar-width-thin); height: var(--scrollbar-width-thin); }
+.ship-scroll-none::-webkit-scrollbar,
+.ship-scroll-none *::-webkit-scrollbar { display: none; }
+
+.ship-scroll::-webkit-scrollbar-track,
+.ship-scroll-thin::-webkit-scrollbar-track,
+.ship-scroll *::-webkit-scrollbar-track,
+.ship-scroll-thin *::-webkit-scrollbar-track { background: var(--scrollbar-track); }
+
+.ship-scroll::-webkit-scrollbar-thumb,
+.ship-scroll-thin::-webkit-scrollbar-thumb,
+.ship-scroll *::-webkit-scrollbar-thumb,
+.ship-scroll-thin *::-webkit-scrollbar-thumb {
+  background: var(--scrollbar-thumb);
+  border-radius: var(--scrollbar-radius);
+  border: 2px solid transparent;
+  background-clip: padding-box;
+  transition: background-color var(--duration-fast) var(--ease-out);
+}
+
+.ship-scroll::-webkit-scrollbar-thumb:hover,
+.ship-scroll-thin::-webkit-scrollbar-thumb:hover,
+.ship-scroll *::-webkit-scrollbar-thumb:hover,
+.ship-scroll-thin *::-webkit-scrollbar-thumb:hover {
+  background-color: var(--scrollbar-thumb-hover);
+}
+
+.ship-scroll::-webkit-scrollbar-corner,
+.ship-scroll-thin::-webkit-scrollbar-corner,
+.ship-scroll *::-webkit-scrollbar-corner,
+.ship-scroll-thin *::-webkit-scrollbar-corner { background: transparent; }

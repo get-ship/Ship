@@ -283,3 +283,24 @@
   --active-strength: 22%;
   --selected-strength: 30%;
 }
+
+/* ───────────────────────────────────────────────────────────────────
+ * Per-theme scrollbar tuning. Each theme picks a thumb intensity and
+ * radius that matches its surface story. Components that opt into
+ * .ship-scroll* inherit the right recipe automatically.
+ * ─────────────────────────────────────────────────────────────────── */
+:root[data-theme='paper'] {
+  --scrollbar-thumb: color-mix(in oklab, var(--foreground) 30%, transparent);
+  --scrollbar-thumb-hover: color-mix(in oklab, var(--foreground) 48%, transparent);
+}
+:root[data-theme='console'] {
+  --scrollbar-radius: 2px;
+  --scrollbar-width: 12px;
+  --scrollbar-width-thin: 8px;
+  --scrollbar-thumb: color-mix(in oklab, var(--foreground) 32%, transparent);
+}
+:root[data-theme='contrast'] {
+  --scrollbar-thumb: color-mix(in oklab, var(--foreground) 50%, transparent);
+  --scrollbar-thumb-hover: var(--foreground);
+  --scrollbar-radius: 4px;
+}
