@@ -442,6 +442,14 @@ async function mount(endpoint: string) {
   newView.style.pointerEvents = "";
   view = newView;
 
+  // Mark the freshly mounted view root as the cascade origin. Direct
+  // children get a staggered reveal via the [data-view-enter] keyframe in
+  // index.html. Cap --i at 8 so the 9th+ child resets and the cascade
+  // never feels indefinitely delayed.
+  newView.setAttribute("data-view-enter", "");
+  const kids = Array.from(newView.children) as HTMLElement[];
+  kids.forEach((el, i) => el.style.setProperty("--i", String(i % 9)));
+
   // Fade in new view.
   requestAnimationFrame(() => {
     newView.classList.remove("ship-content-entering");

@@ -194,7 +194,17 @@ export class ShipButton extends LitElement {
       box-shadow:
         inset 0 1px 2px 0 color-mix(in oklch, black 18%, transparent),
         var(--shadow-xs);
-      transform: translateY(0);
+      transform: translateY(1px) scale(0.98);
+      transition: transform 80ms var(--ease-spring),
+        background-color var(--duration-fast) var(--ease-out),
+        box-shadow var(--duration-fast) var(--ease-out);
+    }
+    /* Tactile press across all variants — feels clicked. */
+    :host(:not([disabled]):not([loading])) button:active:not(:disabled) {
+      transform: translateY(1px) scale(0.98);
+    }
+    @media (prefers-reduced-motion: reduce) {
+      :host button:active:not(:disabled) { transform: none; }
     }
 
     /* Solid default tone: neutral surface that still feels like a filled
@@ -306,6 +316,44 @@ export class ShipButton extends LitElement {
     }
     :host([variant='ghost']) button:active:not(:disabled) {
       background: color-mix(in oklch, var(--tone) 18%, transparent);
+    }
+
+    /* Premium treatment for the primary CTA (solid + primary): subtle
+     * top-light gradient + inset highlight + colored hover glow. Active
+     * inverts the gradient slightly for a tactile pressed feel. */
+    :host([variant='solid'][tone='primary']) button {
+      background:
+        linear-gradient(
+          180deg,
+          color-mix(in oklch, var(--primary) 95%, white) 0%,
+          var(--primary) 100%
+        );
+      box-shadow:
+        inset 0 1px 0 0 color-mix(in oklch, white 25%, transparent),
+        var(--shadow-xs);
+    }
+    :host([variant='solid'][tone='primary']) button:hover:not(:disabled) {
+      background:
+        linear-gradient(
+          180deg,
+          color-mix(in oklch, var(--primary) 92%, white) 0%,
+          color-mix(in oklch, var(--primary) 96%, white 4%) 100%
+        );
+      box-shadow:
+        inset 0 1px 0 0 color-mix(in oklch, white 30%, transparent),
+        var(--shadow-sm),
+        var(--shadow-accent);
+    }
+    :host([variant='solid'][tone='primary']) button:active:not(:disabled) {
+      background:
+        linear-gradient(
+          180deg,
+          color-mix(in oklch, var(--primary) 90%, black 10%) 0%,
+          color-mix(in oklch, var(--primary) 96%, white 4%) 100%
+        );
+      box-shadow:
+        inset 0 1px 2px 0 color-mix(in oklch, black 22%, transparent),
+        var(--shadow-xs);
     }
 
     /* Premium treatment for the primary CTA (solid + accent): a subtle
