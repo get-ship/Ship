@@ -101,6 +101,14 @@
   --shadow-edge-top: 0 -6px 18px oklch(0.30 0.04 60 / 8%), 0 -1px 0 oklch(0.30 0.04 60 / 6%);
   --shadow-accent: 0 8px 24px -6px oklch(0.50 0.16 30 / 30%);
 
+  /* Chrome surfaces use the warm cream so rail/topbar/status bar match
+   * views, not the canonical light defaults. */
+  --sidebar: oklch(0.985 0.020 75);
+  --sidebar-foreground: oklch(0.20 0.015 60);
+  --sidebar-accent: oklch(0.95 0.020 75);
+  --sidebar-accent-foreground: oklch(0.20 0.015 60);
+  --sidebar-border: oklch(0.20 0.015 60 / 14%);
+
   /* Editorial voice: demote display, body for headings; heavier
    * book-print body weight so text reads like a printed page. */
   --heading-font: var(--font-body);
@@ -122,83 +130,115 @@
   --scrollbar-thumb-hover: oklch(0.20 0.015 60 / 36%);
 }
 
-/* Subtle paper grain — very faint, only on the paper theme. */
-:root[data-theme='paper'] body::before {
-  content: '';
-  position: fixed;
-  inset: 0;
-  pointer-events: none;
-  z-index: 9999;
-  background-image: url("data:image/svg+xml,%3Csvg viewBox='0 0 240 240' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='p'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.9' numOctaves='2' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23p)' opacity='0.05'/%3E%3C/svg%3E");
-  mix-blend-mode: multiply;
-  opacity: 0.4;
-}
-@media (prefers-reduced-motion: reduce) {
-  :root[data-theme='paper'] body::before { display: none; }
+/* Subtle paper grain — very faint, only on the paper theme. Riding on the
+ * --surface-overlay channel so future themes opt in via the same hook
+ * (tokens.css owns the body::after rule and reduced-motion guard). */
+:root[data-theme='paper'] {
+  --surface-overlay: url("data:image/svg+xml,%3Csvg viewBox='0 0 240 240' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='p'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.9' numOctaves='2' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23p)' opacity='0.05'/%3E%3C/svg%3E");
+  --surface-overlay-blend: multiply;
+  --surface-overlay-opacity: 0.4;
 }
 
 /* ───────────────────────────────────────────────────────────────────
- * halo — cool-blue dark with iridescent edge highlights. Cards and
- * buttons earn a subtle cyan-violet rim glow that sets the theme
- * apart from generic dark mode. Spring motion as the default ease,
- * snappy durations, a primary-tinted accent shadow for premium CTAs.
+ * halo — neumorphic. Soft, monochromatic, near-flat surface with
+ * dual inset/outset shadows providing all the depth. No borders;
+ * edges read via shadow alone. Surfaces stay within a 2% lightness
+ * band so depth comes from light direction, not contrast. Brand
+ * orange survives at slightly lower chroma to harmonize with the
+ * soft mid-grey-blue ground.
  * ─────────────────────────────────────────────────────────────────── */
 :root[data-theme='halo'] {
-  --background: oklch(0.15 0.020 230);
-  --foreground: oklch(0.95 0.005 230);
-  --card: oklch(0.20 0.025 230);
-  --card-foreground: oklch(0.95 0.005 230);
-  --popover: oklch(0.23 0.028 230);
-  --popover-foreground: oklch(0.95 0.005 230);
-  --muted: oklch(0.22 0.020 230);
-  --muted-foreground: oklch(0.70 0.015 230);
-  --border: oklch(0.78 0.14 230 / 18%);
-  --input: oklch(0.78 0.14 230 / 18%);
-  --primary: oklch(0.78 0.18 220);
-  --primary-foreground: oklch(0.15 0.020 230);
-  --accent: oklch(0.78 0.14 290);
-  --accent-foreground: oklch(0.15 0.020 230);
-  --destructive: oklch(0.65 0.22 25);
-  --success: oklch(0.74 0.18 155);
-  --warning: oklch(0.78 0.16 80);
-  --info: oklch(0.78 0.18 220);
-  --ring: oklch(0.78 0.18 220 / 40%);
+  --background: oklch(0.92 0.008 230);
+  --foreground: oklch(0.30 0.015 230);
+  --card: oklch(0.92 0.008 230);
+  --card-foreground: oklch(0.30 0.015 230);
+  --popover: oklch(0.94 0.008 230);
+  --popover-foreground: oklch(0.30 0.015 230);
+  --muted: oklch(0.90 0.008 230);
+  --muted-foreground: oklch(0.46 0.012 230);
+  --sidebar: oklch(0.92 0.008 230);
+  --sidebar-foreground: oklch(0.30 0.015 230);
+  --sidebar-accent: oklch(0.90 0.010 230);
+  --sidebar-accent-foreground: oklch(0.30 0.015 230);
+  --sidebar-border: transparent;
+  --sidebar-primary: oklch(0.62 0.14 50);
+  --sidebar-primary-foreground: oklch(0.99 0.005 75);
+  --sidebar-ring: oklch(0.62 0.14 50 / 40%);
 
-  /* Surface ladder climbs from near-black through tinted blues —
-   * each step carries a touch more chroma so depth reads as glow. */
-  --surface-0: oklch(0.15 0.020 230);
-  --surface-1: oklch(0.20 0.025 230);
-  --surface-2: oklch(0.23 0.028 230);
-  --surface-3: oklch(0.26 0.030 230);
-  --border-subtle: oklch(0.78 0.14 230 / 10%);
-  --border-strong: oklch(0.78 0.18 220 / 50%);
+  /* No borders — depth is shadow only. */
+  --border: transparent;
+  --input: oklch(0.90 0.008 230);
+  --primary: oklch(0.62 0.14 50);
+  --primary-foreground: oklch(0.99 0.005 75);
+  --accent: oklch(0.55 0.05 230);
+  --accent-foreground: oklch(0.99 0.005 230);
+  --destructive: oklch(0.55 0.20 27);
+  --success: oklch(0.58 0.14 150);
+  --warning: oklch(0.70 0.15 75);
+  --info: oklch(0.55 0.12 240);
+  --ring: oklch(0.62 0.14 50 / 40%);
 
-  /* Rounded, not soft. */
-  --radius-sm: 6px;
-  --radius-md: 8px;
-  --radius-lg: 12px;
-  --radius-xl: 16px;
+  /* Surface ladder kept within ±2% lightness — depth is shadow, not tint. */
+  --surface-0: oklch(0.92 0.008 230);
+  --surface-1: oklch(0.93 0.008 230);
+  --surface-2: oklch(0.94 0.008 230);
+  --surface-3: oklch(0.95 0.008 230);
+  --border-subtle: transparent;
+  --border-strong: oklch(0.30 0.015 230 / 18%);
 
-  /* Snappy motion, spring as default ease — the tactile bounce. */
-  --duration-fast: 100ms;
-  --duration-medium: 150ms;
-  --duration-slow: 200ms;
-  --duration-deliberate: 320ms;
-  --ease-out: var(--ease-spring);
+  /* Larger, softer radii — neumorph signature. */
+  --radius: 14px;
+  --radius-sm: 8px;
+  --radius-md: 12px;
+  --radius-lg: 18px;
+  --radius-xl: 24px;
 
-  /* Iridescent edge-glow shadows. Every elevation carries a thin
-   * cyan rim plus a darker drop, so cards feel haloed against the
-   * deep blue ground. */
-  --shadow-card-rest: 0 0 0 1px oklch(0.78 0.14 230 / 12%), 0 1px 2px oklch(0 0 230 / 50%);
-  --shadow-hover:     0 8px 24px oklch(0.78 0.18 220 / 18%), 0 0 0 1px oklch(0.78 0.18 220 / 30%);
-  --shadow-xs: 0 0 0 1px oklch(0.78 0.14 230 / 10%);
-  --shadow-sm: 0 1px 2px oklch(0 0 230 / 45%), 0 0 0 1px oklch(0.78 0.14 230 / 10%);
-  --shadow-md: 0 4px 14px oklch(0 0 230 / 50%), 0 0 0 1px oklch(0.78 0.14 230 / 14%);
-  --shadow-lg: 0 12px 32px oklch(0 0 230 / 60%), 0 0 0 1px oklch(0.78 0.14 230 / 18%);
-  --shadow-xl: 0 24px 56px oklch(0 0 230 / 70%), 0 0 0 1px oklch(0.78 0.14 230 / 22%);
-  --shadow-accent: 0 0 0 3px color-mix(in oklch, var(--primary) 25%, transparent), 0 0 16px oklch(0.78 0.18 220 / 14%);
-  --shadow-edge-top: 0 -1px 0 oklch(0.78 0.14 230 / 18%), 0 -8px 24px oklch(0 0 0 / 40%);
-  --shadow-sticky: 0 1px 0 oklch(0.78 0.14 230 / 16%), 0 4px 14px oklch(0 0 230 / 40%);
+  /* Dual outset shadows — top-left highlight, bottom-right shade. */
+  --shadow-xs: -2px -2px 5px oklch(1 0 0 / 70%), 2px 2px 5px oklch(0 0 0 / 6%);
+  --shadow-sm: -3px -3px 7px oklch(1 0 0 / 75%), 3px 3px 7px oklch(0 0 0 / 7%);
+  --shadow-card-rest: -3px -3px 8px oklch(1 0 0 / 80%), 3px 3px 8px oklch(0 0 0 / 8%);
+  --shadow-hover:     -5px -5px 14px oklch(1 0 0 / 85%), 5px 5px 14px oklch(0 0 0 / 12%);
+  --shadow-md:        -4px -4px 10px oklch(1 0 0 / 80%), 4px 4px 10px oklch(0 0 0 / 10%);
+  --shadow-lg:        -8px -8px 20px oklch(1 0 0 / 85%), 8px 8px 20px oklch(0 0 0 / 14%);
+  --shadow-xl:       -12px -12px 32px oklch(1 0 0 / 90%), 12px 12px 32px oklch(0 0 0 / 16%);
+  --shadow-inset-soft: inset 2px 2px 5px oklch(0 0 0 / 8%), inset -2px -2px 5px oklch(1 0 0 / 80%);
+  --shadow-edge-top: none;
+  --shadow-sticky: -3px 6px 12px oklch(1 0 0 / 70%), 3px 4px 12px oklch(0 0 0 / 8%);
+  --shadow-accent: -3px -3px 10px oklch(1 0 0 / 80%), 4px 4px 12px oklch(0.62 0.14 50 / 26%);
+
+  /* Calm tints — the surface should never fight the user. */
+  --hover-strength: 5%;
+  --active-strength: 8%;
+  --selected-strength: 11%;
+
+  /* Soft, deliberate motion. */
+  --duration-fast: 140ms;
+  --duration-medium: 220ms;
+  --duration-slow: 320ms;
+  --ease-out: var(--ease-out-soft);
+
+  /* Slightly heavier default body weight — soft surface needs the ink. */
+  --font-weight-medium: 500;
+  --heading-weight: var(--font-weight-semibold);
+}
+
+/* Subtle "spotlit from above" radial — gives the otherwise-flat ground
+ * a directional cue that cooperates with the neumorph shadow lighting. */
+:root[data-theme='halo'] body {
+  background-image: radial-gradient(
+    ellipse 90% 60% at 50% -10%,
+    oklch(1 0 0 / 8%),
+    transparent 70%
+  );
+  background-attachment: fixed;
+}
+
+/* Pressed CTA collapses outset → inset, preserving shadow as the
+ * tactile signal. Skip transform under reduced motion via :active. */
+:root[data-theme='halo'] ship-button[variant='solid']:active::part(button),
+:root[data-theme='halo'] button:active,
+:root[data-theme='halo'] .dash-link-btn:active {
+  box-shadow: var(--shadow-inset-soft);
 }
 
 /* ───────────────────────────────────────────────────────────────────
@@ -255,6 +295,18 @@
   --shadow-sticky: 0 1px 0 oklch(0.78 0.20 145 / 24%);
   --shadow-accent: 0 0 0 2px oklch(0.78 0.20 145 / 55%), 0 0 18px oklch(0.78 0.20 145 / 18%);
 
+  /* Chrome surfaces — phosphor on near-black so the topbar / rail /
+   * statusbar feel like the same machine as the views, not a stray
+   * generic-dark sidebar from the canonical .dark block. */
+  --sidebar: oklch(0.13 0.008 220);
+  --sidebar-foreground: oklch(0.92 0.06 145);
+  --sidebar-accent: oklch(0.18 0.012 220);
+  --sidebar-accent-foreground: oklch(0.92 0.06 145);
+  --sidebar-border: oklch(0.30 0.04 145 / 30%);
+  --sidebar-primary: oklch(0.78 0.20 145);
+  --sidebar-primary-foreground: oklch(0.13 0.008 220);
+  --sidebar-ring: oklch(0.78 0.20 145 / 50%);
+
   /* Mono everywhere. The body remap propagates to every component
    * that reads var(--font-body) — chips, inputs, labels, headings. */
   --font-body: var(--font-mono);
@@ -279,21 +331,16 @@
   --scrollbar-thumb-hover: oklch(0.78 0.20 145 / 60%);
 }
 
-/* Faint horizontal scanline — barely perceptible, evokes a CRT. */
-:root[data-theme='console'] body::before {
-  content: '';
-  position: fixed;
-  inset: 0;
-  pointer-events: none;
-  z-index: 9999;
-  background-image: repeating-linear-gradient(
+/* Faint horizontal scanline — barely perceptible, evokes a CRT. Wired
+ * through --surface-overlay; default normal blend (no mix-blend-mode
+ * shift) preserves the previous look exactly. */
+:root[data-theme='console'] {
+  --surface-overlay: repeating-linear-gradient(
     to bottom,
     oklch(0.78 0.20 145 / 0%) 0 1px,
     oklch(0.78 0.20 145 / 2%) 1px 2px
   );
-}
-@media (prefers-reduced-motion: reduce) {
-  :root[data-theme='console'] body::before { display: none; }
+  --surface-overlay-blend: normal;
 }
 
 /* ───────────────────────────────────────────────────────────────────
@@ -352,6 +399,17 @@
   --scrollbar-thumb: color-mix(in oklab, var(--foreground) 50%, transparent);
   --scrollbar-thumb-hover: var(--foreground);
   --scrollbar-radius: 4px;
+
+  /* Chrome surfaces — solid near-black with white edges so the topbar
+   * / rail / statusbar mirror the high-contrast view ground. */
+  --sidebar: oklch(0.09 0 0);
+  --sidebar-foreground: oklch(0.99 0 0);
+  --sidebar-accent: oklch(0.20 0 0);
+  --sidebar-accent-foreground: oklch(0.99 0 0);
+  --sidebar-border: oklch(0.99 0 0);
+  --sidebar-primary: oklch(0.87 0.18 85);
+  --sidebar-primary-foreground: oklch(0.08 0 0);
+  --sidebar-ring: oklch(0.87 0.18 85 / 60%);
 }
 
 /* ───────────────────────────────────────────────────────────────────
@@ -372,18 +430,8 @@
   background-attachment: fixed;
 }
 
-:root[data-theme='ship-light'] body::before,
-:root[data-theme='ship-dark'] body::before {
-  content: '';
-  position: fixed;
-  inset: 0;
-  pointer-events: none;
-  z-index: 9999;
-  background-image: url("data:image/svg+xml,%3Csvg viewBox='0 0 200 200' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.85' numOctaves='4' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)' opacity='0.025'/%3E%3C/svg%3E");
-  mix-blend-mode: overlay;
-}
-
-@media (prefers-reduced-motion: reduce) {
-  :root[data-theme='ship-light'] body::before,
-  :root[data-theme='ship-dark'] body::before { display: none; }
+:root[data-theme='ship-light'],
+:root[data-theme='ship-dark'] {
+  --surface-overlay: url("data:image/svg+xml,%3Csvg viewBox='0 0 200 200' xmlns='http://www.w3.org/2000/svg'%3E%3Cfilter id='n'%3E%3CfeTurbulence type='fractalNoise' baseFrequency='0.85' numOctaves='4' stitchTiles='stitch'/%3E%3C/filter%3E%3Crect width='100%25' height='100%25' filter='url(%23n)' opacity='0.025'/%3E%3C/svg%3E");
+  --surface-overlay-blend: overlay;
 }
