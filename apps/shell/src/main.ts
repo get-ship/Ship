@@ -220,6 +220,18 @@ const dock = document.getElementById("panel-dock")!;
 dock.addEventListener("ship:dock:close", () => {
   document.body.classList.remove("dock-open");
 });
+// Clear → forward to the active pane via a `clear` method if present.
+dock.addEventListener("ship:dock:clear", (ev) => {
+  const tab = (ev as CustomEvent<{ tab: string }>).detail.tab;
+  const pane = dock.querySelector(`[slot="${tab}"]`) as
+    | (Element & { clear?: () => void; refresh?: () => void })
+    | null;
+  pane?.clear?.() ?? pane?.refresh?.();
+});
+// Pop-out → maximize the dock to fill the viewport (toggle a body class).
+dock.addEventListener("ship:dock:popout", () => {
+  document.body.classList.toggle("dock-popout");
+});
 document.querySelector("ship-shell")?.addEventListener("ship:dock:toggle", () => {
   document.body.classList.toggle("dock-open");
   maybeInitDockActive();
@@ -687,6 +699,31 @@ document.addEventListener("keydown", (e) => {
       on ? "Edit mode on — hover to highlight, click to annotate." : "Edit mode off.",
       "info",
     );
+  }
+
+  // ⌥1–⌥6 — Jump to dock tab N (only when dock is open).
+  if (e.altKey && !meta && !e.shiftKey && /^[1-6]$/.test(e.key)) {
+    if (document.body.classList.contains("dock-open")) {
+      e.preventDefault();
+      const idx = Number.parseInt(e.key, 10) - 1;
+      const dockEl = document.getElementById("panel-dock") as
+        | (HTMLElement & {
+            tabs?: Array<{ id: string }>;
+            activate?: (t: string) => void;
+          })
+        | null;
+      const tab = dockEl?.tabs?.[idx]?.id;
+      if (tab) dockEl?.activate?.(tab);
+    }
+  }
+
+  // Escape — close dock if it has focus and active tab body is empty.
+  if (e.key === "Escape" && document.body.classList.contains("dock-open")) {
+    const dockEl = document.getElementById("panel-dock");
+    if (dockEl && dockEl.contains(document.activeElement)) {
+      e.preventDefault();
+      document.body.classList.remove("dock-open");
+    }
   }
 
   // F11 — Fullscreen

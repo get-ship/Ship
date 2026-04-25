@@ -620,13 +620,33 @@
         grid-column: 1 / -1;
         height: 0;
         overflow: hidden;
-        background: var(--background);
+        background: var(--card);
         border-top: none;
-        transition: height var(--duration-normal) var(--ease-out);
+        opacity: 0;
+        transform: translateY(8px);
+        transition:
+          height var(--duration-normal, 200ms) var(--ease-out),
+          opacity var(--duration-normal, 200ms) var(--ease-out),
+          transform var(--duration-normal, 200ms) var(--ease-out);
       }
       body.dock-open ship-panel-dock {
-        height: 240px;
+        height: var(--ship-dock-height, 240px);
         border-top: 1px solid var(--border);
+        opacity: 1;
+        transform: none;
+      }
+      body.dock-open.dock-popout ship-panel-dock {
+        height: calc(100vh - 48px);
+      }
+      /* Skip height transition during interactive resize drag. */
+      ship-panel-dock[resizing] {
+        transition: none;
+      }
+      @media (prefers-reduced-motion: reduce) {
+        ship-panel-dock {
+          transition: none;
+          transform: none;
+        }
       }
 
       /* ── Status bar: hairline bottom ── */
