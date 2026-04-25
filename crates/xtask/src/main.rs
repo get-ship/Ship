@@ -138,6 +138,10 @@ fn collect_types() -> TypeCollection {
     // events/filter.rs
     c.register::<runtime::events::filter::EventFilter>();
 
+    // collections/schema.rs — collection field-definition types (nested schemas)
+    c.register::<runtime::collections::schema::FieldDef>();
+    c.register::<runtime::collections::schema::FieldType>();
+
     // workspace/types.rs
     c.register::<runtime::Workspace>();
     c.register::<runtime::WorkspaceStatus>();

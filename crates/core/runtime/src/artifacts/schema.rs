@@ -13,101 +13,42 @@ use crate::data::DataService;
 /// ID of the built-in artifacts collection.
 pub const ARTIFACTS_COLLECTION_ID: &str = "artifacts";
 
+fn def(field_type: FieldType, required: bool, filterable: bool) -> FieldDef {
+    FieldDef {
+        field_type,
+        required,
+        filterable,
+        default: None,
+        values: None,
+        items: None,
+        properties: None,
+        required_keys: None,
+    }
+}
+
 /// Construct the artifacts schema.
 pub fn artifacts_schema() -> CollectionSchema {
     let mut fields: IndexMap<String, FieldDef> = IndexMap::new();
-    fields.insert("name".into(), FieldDef {
-        field_type: FieldType::String,
-        required: true,
-        filterable: false,
-        default: None,
-        values: None,
-    });
-    fields.insert("path".into(), FieldDef {
-        field_type: FieldType::String,
-        required: true,
-        filterable: false,
-        default: None,
-        values: None,
-    });
-    fields.insert("mime".into(), FieldDef {
-        field_type: FieldType::String,
-        required: false,
-        filterable: true,
-        default: None,
-        values: None,
-    });
-    fields.insert("size".into(), FieldDef {
-        field_type: FieldType::Number,
-        required: false,
-        filterable: false,
-        default: None,
-        values: None,
-    });
-    fields.insert("collection_id".into(), FieldDef {
-        field_type: FieldType::String,
-        required: false,
-        filterable: true,
-        default: None,
-        values: None,
-    });
-    fields.insert("item_id".into(), FieldDef {
-        field_type: FieldType::String,
-        required: false,
-        filterable: false,
-        default: None,
-        values: None,
-    });
+    fields.insert("name".into(), def(FieldType::String, true, false));
+    fields.insert("path".into(), def(FieldType::String, true, false));
+    fields.insert("mime".into(), def(FieldType::String, false, true));
+    fields.insert("size".into(), def(FieldType::Number, false, false));
+    fields.insert("collection_id".into(), def(FieldType::String, false, true));
+    fields.insert("item_id".into(), def(FieldType::String, false, false));
     // Three-scope model fields
-    fields.insert("scope".into(), FieldDef {
-        field_type: FieldType::String,
-        required: false,
-        filterable: true,
-        default: None,
-        values: Some(vec!["run".into(), "project".into(), "user".into()]),
-    });
-    fields.insert("project_id".into(), FieldDef {
-        field_type: FieldType::String,
-        required: false,
-        filterable: true,
-        default: None,
-        values: None,
-    });
-    fields.insert("run_id".into(), FieldDef {
-        field_type: FieldType::String,
-        required: false,
-        filterable: true,
-        default: None,
-        values: None,
-    });
-    fields.insert("user_id".into(), FieldDef {
-        field_type: FieldType::String,
-        required: false,
-        filterable: true,
-        default: None,
-        values: None,
-    });
-    fields.insert("content_hash".into(), FieldDef {
-        field_type: FieldType::String,
-        required: false,
-        filterable: true,
-        default: None,
-        values: None,
-    });
-    fields.insert("expires_at".into(), FieldDef {
-        field_type: FieldType::String,
-        required: false,
-        filterable: true,
-        default: None,
-        values: None,
-    });
-    fields.insert("owner_actor".into(), FieldDef {
-        field_type: FieldType::String,
-        required: false,
-        filterable: true,
-        default: None,
-        values: None,
-    });
+    fields.insert(
+        "scope".into(),
+        FieldDef {
+            values: Some(vec!["run".into(), "project".into(), "user".into()]),
+            ..def(FieldType::String, false, true)
+        },
+    );
+    fields.insert("project_id".into(), def(FieldType::String, false, true));
+    fields.insert("run_id".into(), def(FieldType::String, false, true));
+    fields.insert("user_id".into(), def(FieldType::String, false, true));
+    fields.insert("content_hash".into(), def(FieldType::String, false, true));
+    fields.insert("expires_at".into(), def(FieldType::String, false, true));
+    fields.insert("owner_actor".into(), def(FieldType::String, false, true));
 
     CollectionSchema {
         id: ARTIFACTS_COLLECTION_ID.to_string(),
