@@ -64,7 +64,7 @@ fn interactive_does_not_include_print_flag() {
 fn interactive_sets_mesh_id_env() {
     let adapter = ClaudeAdapter;
     let cmd = adapter.build_interactive("my-job", &default_profile());
-    assert_eq!(cmd.env.get("SHIP_MESH_ID").unwrap(), "my-job");
+    assert_eq!(cmd.env.get("SHIP_ACTOR_ID").unwrap(), "my-job");
 }
 
 #[test]
@@ -312,7 +312,7 @@ fn to_shell_string_includes_env_and_flags() {
     let adapter = ClaudeAdapter;
     let cmd = adapter.build_interactive("test-slug", &default_profile());
     let shell = cmd.to_shell_string();
-    assert!(shell.contains("SHIP_MESH_ID=test-slug"));
+    assert!(shell.contains("SHIP_ACTOR_ID=test-slug"));
     assert!(shell.contains("claude"));
     assert!(shell.contains("--dangerously-skip-permissions"));
     assert!(shell.contains("--dangerously-load-development-channels"));

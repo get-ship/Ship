@@ -108,7 +108,7 @@ impl ShipServer {
     /// True when this MCP server is serving a dispatched agent.
     ///
     /// Detection order:
-    ///   1. SHIP_MESH_ID env var set (works when parent propagates env).
+    ///   1. SHIP_ACTOR_ID env var set (works when parent propagates env).
     ///   2. Current dir or any ancestor contains a `.artifacts/.dispatched`
     ///      marker — written by the isolation adapter on worktree prep.
     ///      Survives providers like codex that don't propagate env.
@@ -116,7 +116,7 @@ impl ShipServer {
     /// Dispatched agents always get PLATFORM_TOOLS regardless of
     /// KV-stored active_agent state — dispatch context is the truth.
     pub fn is_dispatched_context() -> bool {
-        if std::env::var("SHIP_MESH_ID")
+        if std::env::var("SHIP_ACTOR_ID")
             .map(|v| !v.is_empty())
             .unwrap_or(false)
         {
@@ -187,7 +187,7 @@ impl ShipServer {
         if Self::is_project_workspace_tool(tool_name) {
             return Ok(());
         }
-        // Dispatched agents (SHIP_MESH_ID set) always get platform tools.
+        // Dispatched agents (SHIP_ACTOR_ID set) always get platform tools.
         // This bypasses the KV-based active_agent lookup entirely — the
         // dispatch context is the source of truth.
         if Self::is_dispatched_context() && Self::is_platform_tool(tool_name) {

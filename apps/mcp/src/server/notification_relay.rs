@@ -6,6 +6,12 @@ use tokio::sync::RwLock;
 use crate::push::PushAdapter;
 
 /// A connected agent peer with its allowed event types.
+///
+/// The peer's actor identity lives on its mailbox in the kernel —
+/// directed-delivery events (those with `target_actor_id` set) only
+/// land in the matching actor's mailbox, so per-peer session/actor
+/// filtering at the relay is unnecessary. The relay only filters by
+/// workspace and skill namespaces.
 pub struct PeerHandle {
     pub adapter: Box<dyn PushAdapter>,
     /// Event types this agent is allowed to receive, derived from
@@ -16,12 +22,6 @@ pub struct PeerHandle {
     /// workspace_id are only delivered if it matches this field.
     /// None = unscoped, receives system events for all workspaces.
     pub workspace_branch: Option<String>,
-    /// Ship chat session id this peer was spawned against (from the
-    /// `SHIP_SESSION_ID` env var the daemon sets at spawn time). When
-    /// set, events carrying a `session_id` only reach peers whose
-    /// `session_id` matches — prevents cross-talk when a user has
-    /// multiple chat sessions open in the same workspace.
-    pub session_id: Option<String>,
 }
 
 /// Routes events from an actor's `Mailbox` to connected agent peers.
@@ -86,17 +86,6 @@ impl EventRelay {
         if let (Some(event_ws), Some(peer_ws)) =
             (&event.workspace_id, &peer.workspace_branch)
             && event_ws != peer_ws
-        {
-            return false;
-        }
-
-        // Session scoping: session-targeted events only reach the peer
-        // spawned for that exact session. Used by `studio.chat_turn` so
-        // a user turn routes to the right Claude when several agents
-        // share a workspace.
-        if let (Some(event_sid), Some(peer_sid)) =
-            (&event.session_id, &peer.session_id)
-            && event_sid != peer_sid
         {
             return false;
         }

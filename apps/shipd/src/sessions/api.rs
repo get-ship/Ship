@@ -210,7 +210,8 @@ pub async fn session_message(
         &payload,
     ) {
         let envelope = envelope
-            .with_context(Some(&workspace_id), Some(&id));
+            .with_context(Some(&workspace_id), Some(&id))
+            .with_target(&id);
         let ctx = auth.to_daemon_emit_context();
         let _ = state.kernel().lock().await.emit(envelope, &ctx).await;
     }
@@ -320,6 +321,16 @@ pub async fn spawn_session(
                 log_dir,
             ) {
                 Ok(outcome) => {
+                    if !outcome.attached {
+                        lifecycle::emit_actor_created_for(
+                            &outcome.session,
+                            &lifecycle::ActorSpawnExtras {
+                                transport: Some("pty".to_string()),
+                                persistence: Some("long-lived".to_string()),
+                                ..Default::default()
+                            },
+                        );
+                    }
                     let resp = SpawnResponse {
                         session_id: outcome.session.meta().id,
                         attached: outcome.attached,
@@ -332,6 +343,14 @@ pub async fn spawn_session(
         "shell" => {
             match lifecycle::spawn_shell(registry, &req.workspace_id, work_dir, log_dir) {
                 Ok(session) => {
+                    lifecycle::emit_actor_created_for(
+                        &session,
+                        &lifecycle::ActorSpawnExtras {
+                            transport: Some("pty".to_string()),
+                            persistence: Some("long-lived".to_string()),
+                            ..Default::default()
+                        },
+                    );
                     let resp = SpawnResponse {
                         session_id: session.meta().id,
                         attached: false,

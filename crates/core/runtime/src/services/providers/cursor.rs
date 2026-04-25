@@ -31,7 +31,7 @@ impl ProviderAdapter for CursorAdapter {
             args.push(model.clone());
         }
         let mut env = HashMap::new();
-        env.insert("SHIP_MESH_ID".to_string(), slug.to_string());
+        env.insert("SHIP_ACTOR_ID".to_string(), slug.to_string());
         LaunchCommand { bin: "agent".to_string(), args, env }
     }
 
@@ -51,7 +51,7 @@ impl ProviderAdapter for CursorAdapter {
         args.push(prompt);
 
         let mut env = HashMap::new();
-        env.insert("SHIP_MESH_ID".to_string(), slug.to_string());
+        env.insert("SHIP_ACTOR_ID".to_string(), slug.to_string());
         LaunchCommand { bin: "agent".to_string(), args, env }
     }
 

@@ -114,22 +114,22 @@ fn dispatched_context_detects_filesystem_marker() {
     fs::write(wt.join(".artifacts/.dispatched"), "ship-dev-testslug").unwrap();
 
     let prev_cwd = std::env::current_dir().ok();
-    let prev_env = std::env::var("SHIP_MESH_ID").ok();
+    let prev_env = std::env::var("SHIP_ACTOR_ID").ok();
     // SAFETY: tests run sequentially per test binary; modifying env/cwd
     // here is benign — restored before assertion.
-    unsafe { std::env::remove_var("SHIP_MESH_ID"); }
+    unsafe { std::env::remove_var("SHIP_ACTOR_ID"); }
     std::env::set_current_dir(&wt).unwrap();
     let detected = ShipServer::is_dispatched_context();
     if let Some(p) = prev_cwd {
         let _ = std::env::set_current_dir(p);
     }
     if let Some(v) = prev_env {
-        unsafe { std::env::set_var("SHIP_MESH_ID", v); }
+        unsafe { std::env::set_var("SHIP_ACTOR_ID", v); }
     }
     assert!(
         detected,
         "dispatched context must be detected via .artifacts/.dispatched marker \
-         even when SHIP_MESH_ID is unset (codex strips env to MCP subprocesses)",
+         even when SHIP_ACTOR_ID is unset (codex strips env to MCP subprocesses)",
     );
 }
 
@@ -145,15 +145,15 @@ fn dispatched_context_ignores_artifacts_without_marker() {
     fs::write(wt.join(".artifacts/job-spec.md"), "old job spec").unwrap();
 
     let prev_cwd = std::env::current_dir().ok();
-    let prev_env = std::env::var("SHIP_MESH_ID").ok();
-    unsafe { std::env::remove_var("SHIP_MESH_ID"); }
+    let prev_env = std::env::var("SHIP_ACTOR_ID").ok();
+    unsafe { std::env::remove_var("SHIP_ACTOR_ID"); }
     std::env::set_current_dir(&wt).unwrap();
     let detected = ShipServer::is_dispatched_context();
     if let Some(p) = prev_cwd {
         let _ = std::env::set_current_dir(p);
     }
     if let Some(v) = prev_env {
-        unsafe { std::env::set_var("SHIP_MESH_ID", v); }
+        unsafe { std::env::set_var("SHIP_ACTOR_ID", v); }
     }
     assert!(
         !detected,

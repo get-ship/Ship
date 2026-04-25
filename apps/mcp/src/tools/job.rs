@@ -178,12 +178,12 @@ pub async fn update_job(req: UpdateJobRequest) -> String {
 
 /// Declare the current pipeline step complete.
 ///
-/// Reads `SHIP_MESH_ID` to identify the job, resolves the current step from
+/// Reads `SHIP_ACTOR_ID` to identify the job, resolves the current step from
 /// the projection, and emits a `step.done_declared` event via the daemon.
 pub async fn step_done(req: StepDoneRequest) -> String {
-    let slug = match std::env::var("SHIP_MESH_ID") {
+    let slug = match std::env::var("SHIP_ACTOR_ID") {
         Ok(id) if !id.is_empty() => id,
-        _ => return "Error: SHIP_MESH_ID not set — step_done can only be called from a dispatched job".to_string(),
+        _ => return "Error: SHIP_ACTOR_ID not set — step_done can only be called from a dispatched job".to_string(),
     };
 
     let jobs = match load_jobs() {

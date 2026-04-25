@@ -157,6 +157,11 @@ fn spawn_long_lived_agent(
         ..LaunchProfile::default()
     };
     let launch = adapter.build_interactive(&slug, &profile);
+    let extras = ActorSpawnExtras {
+        transport: Some("pty".to_string()),
+        persistence: Some("long-lived".to_string()),
+        ..Default::default()
+    };
     let session = spawn_command(
         registry,
         SessionKind::Agent,
@@ -167,6 +172,7 @@ fn spawn_long_lived_agent(
         work_dir,
         log_dir,
         &slug,
+        extras,
     )?;
 
     // Claude's interactive mode opens with a one-shot dev-channels
@@ -294,7 +300,7 @@ fn run_agent_turn(
     }
     // Advertised to the MCP server so `chat_reply` knows which session
     // bubble to target without the agent having to carry the id.
-    cmd.env("SHIP_SESSION_ID", &session.0.meta.lock().unwrap().id);
+    cmd.env("SHIP_ACTOR_ID", &session.0.meta.lock().unwrap().id);
     cmd.stdin(Stdio::null())
         .stdout(Stdio::piped())
         .stderr(Stdio::piped());
@@ -379,8 +385,63 @@ pub fn spawn_shell(
         work_dir,
         log_dir,
         &slug,
+        ActorSpawnExtras::default(),
     )?;
     Ok(outcome)
+}
+
+/// Caller-supplied actor metadata recorded into `actor.created` payload.
+/// `kind` and the basics come from spawn_command; this carries the
+/// agent-flavored fields the projection / dashboard cares about.
+#[derive(Default, Clone)]
+pub struct ActorSpawnExtras {
+    pub model: Option<String>,
+    pub transport: Option<String>,
+    pub persistence: Option<String>,
+    pub system_prompt_hash: Option<String>,
+    pub capabilities: Vec<String>,
+}
+
+/// Emit `actor.created` for a freshly spawned PtySession. Reads metadata
+/// from the session's meta lock, then dispatches the emit on a fresh
+/// std::thread so the underlying `block_on` in the kernel-route path
+/// doesn't deadlock the tokio runtime that called us. Fire-and-forget;
+/// emit failures only warn.
+pub fn emit_actor_created_for(session: &PtySession, extras: &ActorSpawnExtras) {
+    let m = session.0.meta.lock().unwrap();
+    let kind_str = match m.kind {
+        SessionKind::Agent => "agent",
+        SessionKind::Pipeline => "pipeline-step",
+        SessionKind::Shell => "shell",
+    };
+    let payload = runtime::events::types::ActorCreated {
+        kind: kind_str.to_string(),
+        environment_type: "local".to_string(),
+        workspace_id: Some(m.workspace_id.clone()),
+        parent_actor_id: None,
+        restart_count: 0,
+        agent_id: m.agent_id.clone(),
+        provider: m.provider.clone(),
+        model: extras.model.clone(),
+        transport: extras.transport.clone().or(Some("pty".to_string())),
+        persistence: extras.persistence.clone().or(Some("long-lived".to_string())),
+        system_prompt_hash: extras.system_prompt_hash.clone(),
+        pid: m.pid.map(|p| p as u32),
+        capabilities: extras.capabilities.clone(),
+    };
+    let actor_id = m.id.clone();
+    let workspace_id = m.workspace_id.clone();
+    drop(m);
+    std::thread::spawn(move || {
+        if let Err(e) = runtime::db::actor_events::emit_actor_created(
+            &actor_id,
+            &payload,
+            Some(&workspace_id),
+            None,
+        ) {
+            tracing::warn!(actor = %actor_id, error = %e, "actor.created emit failed");
+        }
+    });
 }
 
 /// Internal: actually spawn a PTY child and register it.
@@ -395,6 +456,7 @@ fn spawn_command(
     work_dir: PathBuf,
     log_dir: PathBuf,
     slug: &str,
+    extras: ActorSpawnExtras,
 ) -> Result<PtySession> {
     std::fs::create_dir_all(&log_dir)
         .with_context(|| format!("create log dir {}", log_dir.display()))?;
@@ -412,7 +474,7 @@ fn spawn_command(
         })
         .map_err(|e| anyhow!("openpty failed: {e}"))?;
 
-    // Generate the registry id up front so SHIP_SESSION_ID matches the
+    // Generate the registry id up front so SHIP_ACTOR_ID matches the
     // id the daemon and clients use to address this session. The MCP
     // peer registers its `PeerHandle.session_id` from this env var; the
     // relay's session-scoping filter only delivers `studio.chat_turn`
@@ -431,7 +493,7 @@ fn spawn_command(
     if let Some(a) = agent_id.as_deref() {
         cmd.env("SHIP_AGENT_ID", a);
     }
-    cmd.env("SHIP_SESSION_ID", &id);
+    cmd.env("SHIP_ACTOR_ID", &id);
 
     let child = pair
         .slave
@@ -566,13 +628,33 @@ fn reader_loop(
         let mut guard = inner.child.lock().unwrap();
         guard.as_mut().and_then(|c| c.try_wait().ok().flatten()).map(|s| s.exit_code() as i32)
     };
-    {
+    let (workspace_id, spawned_at) = {
         let mut m = inner.meta.lock().unwrap();
         m.status = SessionStatus::Ended;
         m.exit_code = exit_code;
         m.last_activity = Utc::now();
-    }
+        (m.workspace_id.clone(), m.spawned_at)
+    };
     tracing::info!(session = %id, exit = ?exit_code, "session ended");
+
+    // Emit lifecycle event so the actors projection flips status and
+    // captures duration + exit code.
+    let duration_ms = (Utc::now() - spawned_at).num_milliseconds().max(0) as u64;
+    let payload = runtime::events::types::ActorStopped {
+        reason: "process_exit".to_string(),
+        exit_code,
+        duration_ms: Some(duration_ms),
+    };
+    let stopped_id = id.clone();
+    let stopped_ws = workspace_id.clone();
+    std::thread::spawn(move || {
+        let _ = runtime::db::actor_events::emit_actor_stopped(
+            &stopped_id,
+            &payload,
+            Some(&stopped_ws),
+            None,
+        );
+    });
     // Keep in registry for history/list purposes; caller can remove
     // explicitly. A future eviction pass can clean up Ended entries
     // older than N.
@@ -665,7 +747,7 @@ fn load_agent_rules(work_dir: &std::path::Path, agent_id: &str) -> Option<String
     }
     Some(format!(
         "# Ship agent context\n\nYou are the \"{agent_id}\" agent spawned by the Ship daemon. \
-         Your chat session id is in the SHIP_SESSION_ID environment variable — \
+         Your chat session id is in the SHIP_ACTOR_ID environment variable — \
          pass it to the chat_reply MCP tool to reply to the user.\n\n{inline}"
     ))
 }

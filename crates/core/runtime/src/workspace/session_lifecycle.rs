@@ -98,7 +98,7 @@ fn run_post_session_hooks(ship_dir: &Path, session: &WorkspaceSession) -> Result
 
         let output = process
             .current_dir(ship_dir)
-            .env("SHIP_SESSION_ID", &session.id)
+            .env("SHIP_ACTOR_ID", &session.id)
             .env("SHIP_SESSION_BRANCH", &session.workspace_branch)
             .output();
 

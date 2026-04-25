@@ -87,7 +87,7 @@ pub fn format_event_content(event: &EventEnvelope, payload: &serde_json::Value) 
                 .unwrap_or("");
             format!(
                 "[ship.chat] User turn in Ship command bar — respond via the `chat_reply` MCP tool \
-                 (session_id is in SHIP_SESSION_ID env). Do not print to stdout.\n\n{text}"
+                 (session_id is in SHIP_ACTOR_ID env). Do not print to stdout.\n\n{text}"
             )
         }
         "mesh.message" => {

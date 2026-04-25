@@ -30,7 +30,7 @@ fn interactive_does_not_include_claude_flags() {
 fn interactive_sets_mesh_id_env() {
     let adapter = CodexAdapter;
     let cmd = adapter.build_interactive("my-job", &default_profile());
-    assert_eq!(cmd.env.get("SHIP_MESH_ID").unwrap(), "my-job");
+    assert_eq!(cmd.env.get("SHIP_ACTOR_ID").unwrap(), "my-job");
 }
 
 #[test]
@@ -63,7 +63,7 @@ fn headless_emits_exec_subcommand() {
     assert!(cmd.args.contains(&"--ephemeral".to_string()));
     assert_eq!(cmd.args.last().unwrap(), "test prompt");
     assert_eq!(
-        cmd.env.get("SHIP_MESH_ID").map(String::as_str),
+        cmd.env.get("SHIP_ACTOR_ID").map(String::as_str),
         Some("test-slug")
     );
 }

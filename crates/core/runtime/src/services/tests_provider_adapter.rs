@@ -54,9 +54,9 @@ fn all_adapters_set_mesh_id_env() {
         let adapter = adapter_for_or_default(*provider).unwrap();
         let cmd = adapter.build_interactive("test-slug", &default_profile());
         assert_eq!(
-            cmd.env.get("SHIP_MESH_ID").map(|s| s.as_str()),
+            cmd.env.get("SHIP_ACTOR_ID").map(|s| s.as_str()),
             Some("test-slug"),
-            "adapter {} must set SHIP_MESH_ID",
+            "adapter {} must set SHIP_ACTOR_ID",
             adapter.id()
         );
     }

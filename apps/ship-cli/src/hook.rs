@@ -64,7 +64,7 @@ fn normalize_stdin(stdin: &str, hook_type: &str) -> serde_json::Value {
 
     let agent = std::env::var("SHIP_AGENT_ID").ok();
     let workspace = std::env::var("SHIP_WORKSPACE_ID").ok();
-    let session = std::env::var("SHIP_SESSION_ID").ok();
+    let session = std::env::var("SHIP_ACTOR_ID").ok();
 
     let mut event = serde_json::json!({
         "provider": provider,
@@ -205,7 +205,7 @@ pub fn run_session_end() -> Result<()> {
             println!("{}", serde_json::to_string(&event)?);
             broadcast_session_ended(&actor, &workspace);
         }
-        if let Ok(slug) = std::env::var("SHIP_MESH_ID") {
+        if let Ok(slug) = std::env::var("SHIP_ACTOR_ID") {
             signal_job_completed(&slug);
         }
         Ok(())
@@ -242,7 +242,7 @@ mod tests {
         // SAFETY: single-threaded test, no other threads read env here.
         unsafe {
             std::env::set_var("SHIP_AGENT_ID", "agent.rust-lane");
-            std::env::set_var("SHIP_SESSION_ID", "job-abc");
+            std::env::set_var("SHIP_ACTOR_ID", "job-abc");
             std::env::set_var("SHIP_WORKSPACE_ID", "ws-1");
         }
         let stdin = r#"{"tool_name":"Bash","tool_input":{"command":"ls"}}"#;
@@ -254,7 +254,7 @@ mod tests {
         assert_eq!(event["hook_type"], "before-tool");
         unsafe {
             std::env::remove_var("SHIP_AGENT_ID");
-            std::env::remove_var("SHIP_SESSION_ID");
+            std::env::remove_var("SHIP_ACTOR_ID");
             std::env::remove_var("SHIP_WORKSPACE_ID");
         }
     }

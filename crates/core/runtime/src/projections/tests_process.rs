@@ -14,7 +14,7 @@ fn spawned_payload(slug: &str, pid: Option<u32>, kind: &str) -> serde_json::Valu
         "pid": pid,
         "cmd": "claude",
         "argv": ["--print", "-p", "do stuff"],
-        "env_keys": ["SHIP_MESH_ID"],
+        "env_keys": ["SHIP_ACTOR_ID"],
         "cwd": "/tmp/work",
         "executor_kind": kind,
         "step_id": null,

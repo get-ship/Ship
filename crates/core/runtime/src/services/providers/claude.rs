@@ -78,7 +78,7 @@ impl ClaudeAdapter {
         }
 
         let mut env = HashMap::new();
-        env.insert("SHIP_MESH_ID".to_string(), slug.to_string());
+        env.insert("SHIP_ACTOR_ID".to_string(), slug.to_string());
 
         (args, env)
     }

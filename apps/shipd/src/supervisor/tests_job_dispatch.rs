@@ -370,7 +370,7 @@ mod ports {
             branch: format!("job/{slug}"),
             spec_path: ".artifacts/job-spec.md".to_string(),
             work_dir,
-            env: [("SHIP_MESH_ID".to_string(), slug.to_string())].into(),
+            env: [("SHIP_ACTOR_ID".to_string(), slug.to_string())].into(),
             launch: Default::default(),
             exit_tx: None,
             step: None,
@@ -586,27 +586,27 @@ fn job_projection_handles_model_and_provider_payload() {
     assert_eq!(raw["provider"].as_str(), Some("anthropic"));
 }
 
-/// SHIP_MESH_ID env var overrides derived actor ID.
+/// SHIP_ACTOR_ID env var overrides derived actor ID.
 #[test]
 fn ship_mesh_id_env_overrides_derived_actor_id() {
     let slug = "payments-refactor";
 
-    let without = std::env::var("SHIP_MESH_ID")
+    let without = std::env::var("SHIP_ACTOR_ID")
         .ok()
         .filter(|s| !s.is_empty())
         .unwrap_or_else(|| "agent.rust-runtime.job/payments-refactor".to_string());
     assert_eq!(without, "agent.rust-runtime.job/payments-refactor");
 
-    unsafe { std::env::set_var("SHIP_MESH_ID", slug) };
-    let with_mesh_id = std::env::var("SHIP_MESH_ID")
+    unsafe { std::env::set_var("SHIP_ACTOR_ID", slug) };
+    let with_mesh_id = std::env::var("SHIP_ACTOR_ID")
         .ok()
         .filter(|s| !s.is_empty())
         .unwrap_or_else(|| "agent.rust-runtime.job/payments-refactor".to_string());
-    unsafe { std::env::remove_var("SHIP_MESH_ID") };
+    unsafe { std::env::remove_var("SHIP_ACTOR_ID") };
 
     assert_eq!(
         with_mesh_id, slug,
-        "SHIP_MESH_ID must override the derived profile+branch actor ID"
+        "SHIP_ACTOR_ID must override the derived profile+branch actor ID"
     );
 }
 

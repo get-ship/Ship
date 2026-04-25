@@ -270,7 +270,7 @@ async fn advance_pipeline_inner(
                     spec_path: job.spec_path.clone(),
                     spec_content: None,
                     work_dir: worktree_path.clone(),
-                    env: [("SHIP_MESH_ID".to_string(), slug.clone())].into(),
+                    env: [("SHIP_ACTOR_ID".to_string(), slug.clone())].into(),
                     exit_tx: Some(exit_tx),
                     launch: LaunchProfile {
                         provider: step.provider.clone(),

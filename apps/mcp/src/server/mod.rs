@@ -254,14 +254,10 @@ impl ShipServer {
             .ok()
             .and_then(|d| tool_gate::current_branch(&d).ok());
 
-        // Ship chat session id — set by the daemon when spawning an agent
-        // as part of a command-bar session. Unset for free-standing Claude
-        // invocations outside Ship's session registry.
-        let ship_session_id = std::env::var("SHIP_SESSION_ID")
-            .ok()
-            .filter(|v| !v.is_empty());
-
         // Select push adapter based on detected provider, register as peer.
+        // The peer's actor identity lives on its mailbox in the kernel —
+        // directed-delivery events route to that mailbox, no per-peer
+        // session/actor filtering needed at the relay.
         if let Some(peer) = self.notification_peer.lock().await.clone() {
             let provider = self.mcp_provider.lock().await.clone();
             let adapter =
@@ -269,14 +265,12 @@ impl ShipServer {
             tracing::info!(
                 adapter = adapter.adapter_name(),
                 branch = ?workspace_branch,
-                session = ?ship_session_id,
                 "push adapter selected"
             );
             let peer_handle = notification_relay::PeerHandle {
                 adapter,
                 allowed_events: std::collections::HashSet::new(),
                 workspace_branch,
-                session_id: ship_session_id,
             };
             relay.add_peer(peer_handle).await;
         }
@@ -286,18 +280,18 @@ impl ShipServer {
 
     /// Resolve a unique actor_id for this connection.
     ///
-    /// If `SHIP_MESH_ID` is set (e.g. by the daemon job-dispatch service),
+    /// If `SHIP_ACTOR_ID` is set (e.g. by the daemon job-dispatch service),
     /// it is used directly as the actor_id.
     ///
     /// Otherwise: `agent.{agent_name}.{branch}` — e.g. `agent.rust-runtime.job/fix-parser`.
     /// Falls back to `agent.{agent_name}` if branch can't be detected, and
     /// `agent.mcp.{branch}` if no agent config is set.
     async fn resolve_actor_id(&self) -> String {
-        // SHIP_MESH_ID takes precedence — set by daemon when dispatching jobs.
-        if let Ok(mesh_id) = std::env::var("SHIP_MESH_ID")
+        // SHIP_ACTOR_ID takes precedence — set by daemon when dispatching jobs.
+        if let Ok(mesh_id) = std::env::var("SHIP_ACTOR_ID")
             && !mesh_id.is_empty()
         {
-            tracing::info!(actor_id = %mesh_id, "resolved actor ID from SHIP_MESH_ID");
+            tracing::info!(actor_id = %mesh_id, "resolved actor ID from SHIP_ACTOR_ID");
             return mesh_id;
         }
 
@@ -698,10 +692,10 @@ impl ShipServer {
     // ---- View linting ----
 
     #[tool(
-        description = "Post a plain-text reply into a Ship command-bar chat session. \
+        description = "Post a plain-text reply into a Ship command-bar chat actor. \
         This is how Shipwright (and other agents) address the user in the Ship UI — \
-        the text renders as an agent bubble in the session's thread. \
-        Read the target `session_id` from the `SHIP_SESSION_ID` environment variable \
+        the text renders as an agent bubble in the actor's thread. \
+        Read the target `actor_id` from the `SHIP_ACTOR_ID` environment variable \
         the Ship daemon sets when spawning you; never guess it. \
         Prefer `chat_reply` over printing to stdout — stdout is logged, not shown to \
         the user. Keep replies concise; no markdown formatting (the UI is not a \
@@ -711,7 +705,7 @@ impl ShipServer {
         &self,
         Parameters(req): Parameters<crate::requests::ChatReplyRequest>,
     ) -> String {
-        match crate::network_client::session_reply(&req.session_id, &req.text).await {
+        match crate::network_client::session_reply(&req.actor_id, &req.text).await {
             Ok(_) => "ok".to_string(),
             Err(e) => format!("Error: {e}"),
         }

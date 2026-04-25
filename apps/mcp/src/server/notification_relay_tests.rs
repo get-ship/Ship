@@ -37,7 +37,6 @@ fn system_peer(_id: &str, adapter: MockAdapter) -> PeerHandle {
         adapter: Box::new(adapter),
         allowed_events: HashSet::new(),
         workspace_branch: None,
-        session_id: None,
     }
 }
 
@@ -46,7 +45,6 @@ fn scoped_peer(_id: &str, adapter: MockAdapter, branch: &str) -> PeerHandle {
         adapter: Box::new(adapter),
         allowed_events: HashSet::new(),
         workspace_branch: Some(branch.to_string()),
-        session_id: None,
     }
 }
 
@@ -55,7 +53,6 @@ fn skill_peer(_id: &str, adapter: MockAdapter, events: Vec<&str>) -> PeerHandle 
         adapter: Box::new(adapter),
         allowed_events: events.into_iter().map(String::from).collect(),
         workspace_branch: None,
-        session_id: None,
     }
 }
 

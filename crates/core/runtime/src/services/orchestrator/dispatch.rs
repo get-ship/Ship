@@ -108,7 +108,7 @@ pub async fn dispatch_job_internal(
         spec_path: payload.spec_path.clone(),
         spec_content: payload.spec_content.clone(),
         work_dir: octx.platform.worktrees_dir().join(slug),
-        env: [("SHIP_MESH_ID".to_string(), slug.to_string())].into(),
+        env: [("SHIP_ACTOR_ID".to_string(), slug.to_string())].into(),
         exit_tx: None,
         launch: LaunchProfile {
             provider: launch_provider.clone(),
@@ -264,7 +264,7 @@ async fn dispatch_first_run_step_inner(
         spec_path: payload.spec_path.clone(),
         spec_content: payload.spec_content.clone(),
         work_dir: octx.platform.worktrees_dir().join(slug),
-        env: [("SHIP_MESH_ID".to_string(), slug.to_string())].into(),
+        env: [("SHIP_ACTOR_ID".to_string(), slug.to_string())].into(),
         exit_tx: None,
         launch: LaunchProfile {
             provider: payload.provider.clone(),

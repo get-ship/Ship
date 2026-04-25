@@ -11,9 +11,12 @@ use anyhow::Result;
 use crate::db::block_on_anyhow;
 use crate::persistence::event_store::EventStore;
 use crate::events::types::event_types;
+use crate::db::{block_on, open_db};
 use crate::events::types::{ActorCrashed, ActorCreated, ActorSlept, ActorStopped, ActorWoke};
 use crate::events::validator::{CallerKind, EmitContext};
-use crate::events::{EventEnvelope, SqliteEventStore};
+use crate::events::EventEnvelope;
+use crate::persistence::event_store::append_event_with_conn;
+use crate::projections::{ActorProjection, Projection};
 
 fn run_tx<P: serde::Serialize>(
     actor_id: &str,
@@ -30,8 +33,22 @@ fn run_tx<P: serde::Serialize>(
         envelope = envelope.with_parent_actor_id(parent);
     }
 
-    // Persist to platform.db for the reading path (CLI, sync, projections).
-    SqliteEventStore::new()?.append(&envelope)?;
+    // Persist event + apply projection in one transaction, mirroring
+    // `workspace_events.rs` / `session_events.rs`. Kernel routing
+    // happens after commit (fire-and-forget) so the dashboard sees
+    // the actor row even if no kernel listener is up.
+    let mut conn = open_db()?;
+    block_on(async { sqlx::query("BEGIN IMMEDIATE").execute(&mut conn).await })?;
+    if let Err(e) = append_event_with_conn(&envelope, &mut conn) {
+        let _ = block_on(async { sqlx::query("ROLLBACK").execute(&mut conn).await });
+        return Err(e);
+    }
+    let proj = ActorProjection::new();
+    if let Err(e) = proj.apply(&envelope, &mut conn) {
+        let _ = block_on(async { sqlx::query("ROLLBACK").execute(&mut conn).await });
+        return Err(e);
+    }
+    block_on(async { sqlx::query("COMMIT").execute(&mut conn).await })?;
 
     // Route to actor mailboxes if the kernel router is running.
     let ctx = EmitContext {
@@ -85,7 +102,7 @@ pub fn emit_actor_slept(
 
 pub fn emit_actor_stopped(
     id: &str,
-    reason: &str,
+    payload: &ActorStopped,
     workspace_id: Option<&str>,
     parent_actor_id: Option<&str>,
 ) -> Result<()> {
@@ -94,7 +111,7 @@ pub fn emit_actor_stopped(
         workspace_id,
         parent_actor_id,
         event_types::ACTOR_STOPPED,
-        &ActorStopped { reason: reason.to_string(), ..Default::default() },
+        payload,
     )
 }
 
