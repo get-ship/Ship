@@ -15,6 +15,7 @@ pub mod project;
 pub mod registry;
 pub mod projections;
 pub mod workspace;
+pub mod supervisor;
 
 #[cfg(feature = "unstable")]
 pub mod sync;

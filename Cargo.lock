@@ -3359,6 +3359,7 @@ dependencies = [
  "minijinja",
  "nanoid",
  "notify",
+ "portable-pty",
  "reqwest 0.12.28",
  "rmp-serde",
  "sea-query",
