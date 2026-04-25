@@ -1,171 +1,113 @@
 ---
 title: "API URL Shape and Versioning"
-description: "ADR: all HTTP API routes live under /api/v1/; tenancy is a path segment (/api/v1/t/{tenant}/...); auth, assets, and webhooks are exempt from the /api prefix."
+description: "ADR: every HTTP API route on the local daemon lives under /api/v1/; auth, assets, and the dev webhook ingress are exempt; OpenAPI is published and CI-guarded."
 group: ADRs
 order: 30
 audience: internal
-status: proposed
-date: 2026-04-24
+status: accepted
+date: 2026-04-25
 supersedes: []
-tags: [cloud, http-api, versioning, tenancy, contract-freeze]
+tags: [http-api, versioning, contract-freeze]
 ---
 
 # API URL Shape and Versioning
 
 ## Context
 
-Audit Item 9 (`.artifacts/launch-audit/wire-and-storage.md`) is the most irreversible surface in Ship's pre-launch contract freeze. The HTTP API today exposes 137+ routes across `apps/shipd/src/router.rs` with no version prefix, no tenancy addressing, no published OpenAPI, and no CI guard against drift.
+Audit Item 9 — the local daemon's HTTP API today exposes 137+ routes across `apps/shipd/src/router.rs` with no version prefix, no published OpenAPI, and no CI guard against drift. The daemon serves the single local user (CLI, MCP, Studio web shell). It is not a multi-tenant service.
 
-Route families present today:
+This ADR locks in the daemon's URL contract for v1. Cloud has its own architecture and its own URL surface — that's a separate decision when cloud lands, not something this ADR speaks to.
 
-- `/auth/*` — pairing, sessions, attestation.
-- `/api/mesh/*`, `/api/actors/*`, `/api/events/*`, `/api/workspaces`, `/api/sessions`, `/api/agents`, `/api/jobs/*` — core runtime surface.
-- `/api/views`, `/api/v/:name`, `/api/view/:name/*` — view rendering, including SSE streams.
-- `/api/collections/*`, `/api/artifacts/*`, `/api/hooks/*`, `/api/feedback`, `/api/annotations` — data layer.
-- `/api/assets/*` — static asset serving.
-- `/api/hooks/webhook/{*path}` — user-authored webhook triggers (see the trigger namespacing ADR for why this path is wrong).
-- `/api/ship/schema` — SDK surface schema (see audit Item 13).
+Three facts force the decision now:
 
-Three facts force this decision now:
-
-1. **Versioning is retroactive or it is impossible.** Adding `/api/v1/` *after* external callers (cloud SDKs, CLI, MCP, published views, webhooks) pin today's shape means carrying both forever.
-2. **Cloud needs tenancy.** A single `shipd` binary today addresses one local user. The cloud deployment addresses N tenants over one router. The tenancy identifier has to sit *somewhere* in the URL shape (path, subdomain, or header) and that choice constrains every SDK and every cloud router rule downstream.
-3. **Local ↔ cloud parity matters.** A URL that works against `http://127.0.0.1:PORT` must work (modulo host) against `https://{something}.ship.app`. If the tenancy segment only exists in cloud, every SDK either branches on environment or the local daemon pretends to serve a single tenant named `local`.
-
-This ADR locks in the URL shape for v1. Related: `collections-as-data-layer` (every collection CRUD route needs a home under this prefix), `home-layout-and-scope-convention` (the `machine/daemon/` handshake exposes the port local callers hit).
+1. **Versioning is retroactive or it is impossible.** Adding `/api/v1/` after external callers (the CLI, MCP, published views) pin today's shape means carrying both forever.
+2. **OpenAPI is the same problem.** Without a committed `openapi.json` and a CI guard, every new route is a silent contract change. Generated SDKs (`packages/sdk/`) drift from reality.
+3. **Local-first stays local-first.** The daemon serves one user on one machine. Adding tenancy or multi-user shapes "for cloud" at the daemon layer would be premature and wrong — cloud is an adjacent service, not a different runtime mode.
 
 ## Decision
 
 ### 1. `/api/v1/` is the prefix for every versioned route
 
-Every HTTP API route that belongs to the **Ship public contract** lives under `/api/v1/`. Example shapes:
+Every HTTP route the daemon serves belongs to the Ship public contract and lives under `/api/v1/`. Examples:
 
 ```
 /api/v1/workspaces
 /api/v1/workspaces/{id}
 /api/v1/workspaces/{id}/sessions
 /api/v1/jobs/{id}
-/api/v1/jobs/{id}/log          (SSE)
+/api/v1/jobs/{id}/log               (SSE)
 /api/v1/collections/{id}/items
 /api/v1/artifacts/{id}
 /api/v1/views
 /api/v1/view/{name}
-/api/v1/view/{name}/sse         (Datastar signal stream)
+/api/v1/view/{name}/sse              (Datastar signal stream)
 /api/v1/ship/schema
 /api/v1/openapi.json
 ```
 
-The prefix is unconditional. There is no "prefix-less for convenience" escape hatch. Unversioned routes either belong to an exempt family (below) or they are bugs.
+The prefix is unconditional. There is no "convenience prefix-less" escape hatch. Unversioned routes either belong to an exempt family (below) or they are bugs.
 
-### 2. Exempt families: `/auth/*`, `/assets/*`, `/webhooks/*`, `/health`
+### 2. Exempt families
 
-Four route families sit outside `/api/v1/`:
+Three categories sit outside `/api/v1/` because they are not versioned application contract:
 
-| Prefix | Why exempt |
-|---|---|
-| `/auth/*` | Version-independent: pairing and attestation are the bootstrap that *discovers* which API versions a daemon supports. Must not require knowledge of the API version to establish an auth session. |
-| `/assets/*` | Static content. Content-addressed by filename hash; versioning the URL adds nothing. |
-| `/webhooks/{tenant?}/{trigger-id}/{path?}` | User-authored external webhook landing paths. Namespace belongs to *user triggers*, not the Ship API contract. See the trigger webhook namespacing ADR. |
-| `/health` | Liveness probe consumed by orchestrators (systemd, k8s, Cloudflare health checks). Stable URL required; contents may evolve. |
+- **`/auth/*`** — pairing, attestation, session establishment. The pairing protocol is a stable handshake, not a versioned contract.
+- **`/assets/*`** — static UI bundles for the local Studio shell. Cache-controlled, content-addressed.
+- **`/health`** — liveness/readiness probe.
 
-No other exemptions. If a new route does not fit one of these four families, it lives under `/api/v1/`.
+The previous `/api/hooks/webhook/{*path}` (legacy webhook ingress) is **not** part of this v1 contract. It exists today as a development convenience for testing trigger sources locally; in production deployments webhooks come through cloud (separate architecture decision). Either it stays as a dev-only ingress (gated explicitly) or it is removed. That call belongs to whoever designs the trigger-source/cloud-integration story; it is out of scope here.
 
-### 3. Tenancy is a path segment: `/api/v1/t/{tenant}/...`
+### 3. Published OpenAPI and CI guard
 
-Cloud deployments address a tenant via a `t/{tenant-id}` segment immediately after the version:
+`apps/docs/openapi.json` is generated from the daemon's route registrations and is the canonical contract. CI runs an `openapi-check` target that fails when:
+- A route is added or modified without a corresponding OpenAPI entry.
+- A route is removed without a `removed-in: vNext` annotation.
 
-```
-/api/v1/t/{tenant}/workspaces
-/api/v1/t/{tenant}/jobs/{id}
-/api/v1/t/{tenant}/collections/{id}/items
-```
+Generated SDK code (`packages/sdk/`) regenerates from this file. Drift is impossible by construction.
 
-Local `shipd` **does not** emit the `t/{tenant}/` segment. Local routes are:
+### 4. Cloud is out of scope
 
-```
-/api/v1/workspaces
-/api/v1/jobs/{id}
-```
-
-The absence of the tenant segment in local routes is the marker that this daemon is single-tenant. Cloud routers accept both shapes: `t/{tenant}/...` routes to the tenant's workspace; bare routes 404 (cloud has no "current user" inference — tenant must be explicit).
-
-SDKs compose the tenant segment from a configured tenant ID. A `local` SDK configuration omits it; a `cloud` SDK configuration prepends `t/{tenant}`. The operation names and argument shapes are identical in both modes.
-
-### 4. OpenAPI spec is the single source of truth
-
-`apps/docs/openapi.json` is the published contract. It is regenerated from the router at build time (`apps/docs/scripts/generate-openapi.ts`) and committed. A CI guard (`apps/docs/scripts/check-openapi-drift.ts`) fails when the router and the spec disagree.
-
-Every route under `/api/v1/` appears in the spec. Every route in the spec maps to a `utoipa::path!` declaration in the router. Drift is a CI failure, not a docs task.
-
-### 5. SSE endpoints use the same prefix
-
-View stream endpoints (`/api/v1/view/{name}/sse`) and job log endpoints (`/api/v1/jobs/{id}/log`) use the same `/api/v1/` prefix. Content negotiation is by `Accept: text/event-stream` at the route level, not by URL prefix. No separate `/sse/` or `/stream/` top-level namespace.
+Cloud's URL contract is a separate decision. Cloud is not a hosted daemon. Cloud is adjacent services (storage, sync, compute, integrations, auth) that the local daemon talks *to* over published cloud APIs. Whatever shape those cloud APIs take, they do not retroactively constrain the daemon's `/api/v1/` namespace.
 
 ## Consequences
 
 ### Positive
 
-- **v2 is possible.** We can introduce `/api/v2/` side-by-side when a breaking change is required, deprecate v1 on a published schedule, and remove it without carrying forever.
-- **Local ↔ cloud parity.** One SDK, two configurations. The tenancy segment is a concatenation concern, not a branching concern.
-- **OpenAPI is real.** Every external consumer — CLI, MCP, cloud SDK, third-party integrations — reads from one published spec. Code generators work out of the box.
-- **CI guard prevents drift.** The router and the spec cannot silently diverge; the guard job fails PRs that add routes without registering them.
-- **Cloud routing is trivial.** The cloud edge router matches `/api/v1/t/{tenant}/...` and routes to the tenant's `shipd` backend by tenant ID. No header parsing, no subdomain DNS, no per-region cert dance.
+- One clean local API contract. Versioned, documented, drift-protected.
+- Generated SDK matches reality; no hand-maintained type drift.
+- Cloud's design space is not pre-constrained by daemon shape, and vice versa.
+- New routes are documented or they don't merge. Reviewer cost goes to zero on "is this on the contract."
 
 ### Negative
 
-- **Every existing caller migrates.** CLI, MCP, views, internal daemons. Breaking. Mitigant: this lands *before* v1 launch, when there are no external users to break.
-- **Longer URLs.** `/api/v1/workspaces` instead of `/api/workspaces`. A fixed five-character cost for the contract.
-- **The `t/` segment conflicts with legitimately-named resources called "t".** Mitigated by the fact that `t/` is the *first* path segment after `/api/v1/` and is reserved by convention; no Ship resource will ever be named `t`.
-- **Local-cloud SDK symmetry requires discipline.** If a route exists on local but not cloud (or vice-versa), the OpenAPI spec has to encode that. We accept this as the price of one unified shape.
+- Every existing route prefix changes once. Mechanical migration: CLI, MCP, view fetches, hardcoded test URLs.
+- The `openapi-check` CI step has to actually fail loud or it's worthless. Requires up-front rigor.
 
 ## Alternatives Considered
 
-### `/v1/api/...` — version before "api"
+### Unversioned (`/api/...`)
 
-Used by some APIs (Stripe historically used `/v1/`). Rejected: the `/api` segment is the meaningful distinguisher from `/auth`, `/assets`, `/webhooks`, `/health`. Putting `/v1` first orphans the version from the thing it versions, and conflicts with the pattern of having `/v1/ship/schema` mean "version-1-of-ship" rather than "version-1-of-api". `/api/v1/` keeps the scope and version visually coupled.
+Rejected. Without a version prefix, breaking-change communication has nowhere to live. SDKs can't pin a contract. Future v2 routes either coexist messily under `/api/...` or require a global migration.
 
-### Unversioned `/api/...` with an `API-Version:` header
+### Tenancy in URL (`/api/v1/t/{tenant}/...`)
 
-Header-based versioning (GitHub's approach for a period). Rejected on two grounds:
+Rejected as out of scope. Daemon serves one local user. Adding tenancy at the daemon layer "for cloud parity" assumes cloud is a hosted daemon, which it isn't. When cloud's URL surface is designed, it can adopt whatever tenancy model fits cloud's architecture without constraining daemon URLs.
 
-1. **Caching and routing layers are URL-centric.** Cloud edge (Cloudflare, Fastly, Varnish) caches and routes by URL. Header-based versioning defeats the cache and forces every layer to vary on a custom header.
-2. **Debuggability.** A URL containing `v1` tells an operator which API version a request hit. A header requires capturing request metadata to answer the same question. For an API that SREs and users will debug together, the URL wins.
+### Header-based versioning (`X-API-Version: 1`)
 
-### Tenancy via subdomain: `{tenant}.ship.app/api/v1/...`
+Rejected. Less discoverable, harder to debug in browser dev tools, no caching benefit, no copy-paste-able URLs. Path versioning is boring and right.
 
-Clean visually, standard in multi-tenant SaaS (Slack, Stripe Connect). Rejected for v1:
+## Migration
 
-1. **DNS and TLS cost.** Every tenant gets an SSL cert. Cloudflare-for-SaaS or equivalent adds operational cost. For a tool that also runs a free local daemon, forcing subdomain routing in cloud adds a split local-vs-cloud auth story (local has no subdomain).
-2. **Local parity breaks.** `http://127.0.0.1:PORT/api/v1/...` cannot carry a subdomain. SDKs would branch on environment.
-3. **Cookies.** Subdomain-scoped cookies have sharing semantics that a path-scoped tenant segment avoids. One less footgun.
-
-We can add subdomain routing later as a convenience layer that rewrites to `/api/v1/t/{tenant}/...` internally without changing the canonical URL shape.
-
-### Tenancy via `X-Tenant-Id` header
-
-Rejected for the same reasons as header-based versioning: defeats URL-based caching and routing, hurts debuggability. Additionally, it makes the tenant identifier easy to forget, and forgetting it in a cloud context means "act as no tenant" (500) or "act as the authenticated user's default tenant" (correct-looking but ambiguous). A missing path segment is an obvious 404; a missing header is an ambiguous error.
-
-### Unversioned API forever (`/api/...`)
-
-Considered. Rejected: Ship's public contract is young but not soft. Views, MCP clients, and the CLI will pin these URLs at launch. Without a version prefix, every breaking change requires a parallel route for the remainder of the project's life. The cost of the prefix is five characters; the cost of omitting it is permanent.
-
-### Local hardcodes `t/local/`
-
-Considered as a way to make local and cloud URL shapes identical. Rejected: local `shipd` has no tenancy concept — there is exactly one user. A synthetic `t/local/` segment adds noise to every local URL, forces the daemon to validate a tenant ID that can only ever be one value, and teaches developers to ignore the tenant segment ("it's just `local`") — which is exactly the wrong habit to build before they move to cloud. Omitting the segment locally preserves the signal that tenancy only matters in cloud.
+1. Add `/api/v1/` prefix to every existing daemon route.
+2. Update CLI HTTP clients (`apps/ship-cli/src/`) and MCP transport (`apps/mcp/src/network_client.rs`) to include the prefix.
+3. Update view fetch paths (`.ship/views/**` Jinja templates) and Datastar signal sources.
+4. Generate `apps/docs/openapi.json` from the new routes.
+5. Land `openapi-check` CI script and wire into `just check-raw` or a sibling target.
 
 ## How to Measure Success
 
-- Every route in `apps/shipd/src/router.rs` either lives under `/api/v1/` or belongs to one of the four exempt families. A lint/CI check enumerates exceptions; exceptions require an explicit allow-list entry.
-- `apps/docs/openapi.json` exists, is committed, matches the router exactly. `pnpm -F @ship/docs openapi:check-drift` exits 0.
-- Cloud deployment serves the same routes with a `t/{tenant}/` segment inserted, generated by the edge router. No `shipd`-side code change is required to support tenancy — it is an edge concern (for v1).
-- The CLI and MCP callers resolve URLs through a single helper that knows the `/api/v1/` prefix. `grep` for `/api/` outside that helper returns zero hits in caller code.
-- Introducing v2 in the future requires adding `/api/v2/` routes; it does not require renaming v1 routes or rewriting callers still on v1.
-
-## Cross-references
-
-- Audit: `.artifacts/launch-audit/wire-and-storage.md` — Item 9.
-- Audit: `.artifacts/launch-audit/contract-freeze-menu.md` — Item 9 (change-before-freeze), Item 27 (cloud coherence).
-- ADR: `collections-as-data-layer` — every collection CRUD endpoint is hosted under this prefix.
-- ADR: `home-layout-and-scope-convention` — `machine/daemon/port` + `machine/daemon/token` is how local callers discover the API host this prefix attaches to.
-- Related ADR: `trigger-webhook-path-namespacing` — defines the `/webhooks/*` exempt family in detail.
-- Related ADR: `artifact-storage-key-opacity` — `/api/v1/artifacts/{id}` serves storage keys whose format is not part of the URL contract.
+- `rg '"/api/(?!v1/)' apps/ packages/ .ship/` returns zero matches outside the three exempt families.
+- `apps/docs/openapi.json` exists and is regenerated by `just gen-openapi` (or equivalent).
+- A new route added without an OpenAPI entry fails CI.
+- Generated SDK in `packages/sdk/` matches the daemon's route table.
