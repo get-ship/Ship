@@ -30,7 +30,7 @@ update this page in the same commit.
 |-------------------------------|------------|----------|------------------------------------------------------------------------------------------------|
 | `style-no-inline-script`      | error      | style    | Bare `<script>` blocks inside view templates.                                                  |
 | `style-inline-budget`         | warn/error | style    | Total inline `<style>` line count across a view (`>50` warn, `>150` error).                    |
-| `views-undefined-signal`      | warn       | views    | `$name` references on attributes where `name` is never declared via `signal()` / `data-signals*`. |
+| `views-undefined-signal`      | error      | views    | `$name` references on attributes where `name` is never declared via `signal()` / `data-signals*`. |
 | `pkg-missing-pack-declaration`| error      | pkg      | Heavy-island tag (`<ship-code-editor>`, `<ship-terminal>`, ...) used without `packs:` in manifest. |
 | `pkg-stale-pack-declaration`  | warn       | pkg      | A `packs: [name]` entry whose tags never appear in the view's templates.                       |
 | `ast-unknown-macro`           | error      | ast      | `{% from '_ship.html.j2' import x %}` where `x` is not in `sdk-macros.json`.                   |
