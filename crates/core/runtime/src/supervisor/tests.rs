@@ -31,6 +31,7 @@ fn spawn_pty_minimal() {
         provider: None,
         parent_actor_id: None,
         log_dir: Some(log_dir.clone()),
+        subscribe_namespaces: vec![],
     };
 
     let handle = spawn_actor(profile).expect("spawn_actor failed");
@@ -88,6 +89,7 @@ fn spawn_honours_ulid_hint() {
         provider: None,
         parent_actor_id: None,
         log_dir: Some(tmp_log_dir()),
+        subscribe_namespaces: vec![],
     };
     let handle = spawn_actor(profile).expect("spawn");
     assert_eq!(handle.actor_id, hint);
@@ -111,6 +113,7 @@ fn spawn_rejects_non_ulid_hint() {
         provider: None,
         parent_actor_id: None,
         log_dir: Some(tmp_log_dir()),
+        subscribe_namespaces: vec![],
     };
     let handle = spawn_actor(profile).expect("spawn");
     assert_ne!(handle.actor_id, "agent.synth.feat-x");
@@ -134,6 +137,7 @@ fn stop_terminates_child() {
         provider: None,
         parent_actor_id: None,
         log_dir: Some(tmp_log_dir()),
+        subscribe_namespaces: vec![],
     };
     let handle = spawn_actor(profile).expect("spawn");
     let pid = handle.pid().expect("pid");

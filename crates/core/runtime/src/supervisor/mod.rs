@@ -84,6 +84,35 @@ impl ActorHandle {
 pub fn spawn_actor(profile: ActorProfile) -> Result<ActorHandle> {
     let actor_id = profile.resolve_actor_id();
 
+    // Register with the kernel router so the actor appears on the
+    // mesh (kernel.list_actors()) — the source-of-truth contract.
+    // Without this, the child runs but no other actor can address
+    // it via target_actor_id and the dashboard never sees it.
+    // Best-effort: tests run without a kernel; production always has
+    // one mounted via global_kernel_router::install().
+    if let Some(kr) = crate::events::kernel_router() {
+        let kernel_config = crate::events::ActorConfig {
+            namespace: actor_id.clone(),
+            write_namespaces: vec!["".to_string()],
+            read_namespaces: vec!["agent.".to_string()],
+            subscribe_namespaces: profile.subscribe_namespaces.clone(),
+        };
+        let actor_id_for_kr = actor_id.clone();
+        let res = crate::db::block_on_anyhow(async move {
+            let mut kernel = kr.lock().await;
+            if !kernel.has_actor(&actor_id_for_kr) {
+                kernel.spawn_actor(&actor_id_for_kr, kernel_config)
+                    .map(|_| ())
+                    .map_err(|e| anyhow::anyhow!("{e}"))
+            } else {
+                Ok(())
+            }
+        });
+        if let Err(e) = res {
+            tracing::warn!(actor_id = %actor_id, "kernel spawn_actor failed: {e}");
+        }
+    }
+
     // For now there is exactly one transport. The match here gates
     // future transports without changing the call site.
     let child = match profile.transport {

@@ -521,6 +521,8 @@ fn spawn_command(
         .take_writer()
         .map_err(|e| anyhow!("take pty writer: {e}"))?;
 
+    let agent_id_for_kernel = meta.agent_id.clone();
+
     let inner = Arc::new(Inner {
         meta: StdMutex::new(meta),
         writer: StdMutex::new(Some(writer)),
@@ -532,6 +534,17 @@ fn spawn_command(
     });
 
     registry.insert(id.clone(), inner.clone());
+
+    // Register Shell + Pipeline kinds with the kernel router so they
+    // appear on the mesh. Agents register via their MCP child's
+    // `actor_spawn` HTTP call (which also captures the mailbox in
+    // state.agent_mailboxes for SSE drain) — registering again here
+    // would orphan the mailbox between paths and silently drop
+    // channel pushes. Daemon-side registration is for kinds that
+    // DON'T have an MCP-bridge child of their own.
+    if !matches!(kind, SessionKind::Agent) {
+        register_with_kernel(&id, kind, agent_id_for_kernel.as_deref());
+    }
 
     // Reader thread: bytes → log file + broadcast. Updates status on
     // activity + quiet-timeout. Cleans up on child exit.
@@ -745,6 +758,49 @@ pub fn stop(registry: &SessionRegistry, id: &str) -> bool {
     std::thread::sleep(Duration::from_millis(50));
     registry.remove(id);
     true
+}
+
+/// Register the freshly-spawned PtySession with the kernel router so
+/// it appears on the mesh. Different session kinds get different
+/// subscription sets — agents listen for chat turns, shells/pipelines
+/// don't subscribe to anything by default (still receive directed
+/// events via target_actor_id). Failures are logged, not propagated;
+/// process visibility doesn't depend on mesh registration succeeding.
+fn register_with_kernel(actor_id: &str, kind: SessionKind, agent_id: Option<&str>) {
+    let subscribe_namespaces: Vec<String> = match kind {
+        SessionKind::Agent => vec![
+            "studio.chat_turn".to_string(),
+            "studio.reply".to_string(),
+            "inbox.".to_string(),
+            "human.".to_string(),
+            "mesh.message".to_string(),
+        ],
+        SessionKind::Pipeline | SessionKind::Shell => vec![],
+    };
+    let config = runtime::events::ActorConfig {
+        namespace: actor_id.to_string(),
+        write_namespaces: vec!["".to_string()],
+        read_namespaces: vec!["agent.".to_string()],
+        subscribe_namespaces,
+    };
+    let actor_id_owned = actor_id.to_string();
+    let _ = agent_id; // reserved for future per-agent subscription extensions
+    if let Some(kr) = runtime::events::kernel_router() {
+        let res = runtime::db::block_on_anyhow(async move {
+            let mut kernel = kr.lock().await;
+            if !kernel.has_actor(&actor_id_owned) {
+                kernel
+                    .spawn_actor(&actor_id_owned, config)
+                    .map(|_| ())
+                    .map_err(|e| anyhow!("{e}"))
+            } else {
+                Ok(())
+            }
+        });
+        if let Err(e) = res {
+            tracing::warn!(actor_id, "register_with_kernel failed: {e}");
+        }
+    }
 }
 
 /// Load an agent's `rules.inline` from `.ship/agents/<agent_id>.jsonc` in
