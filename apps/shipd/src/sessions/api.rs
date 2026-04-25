@@ -359,18 +359,20 @@ pub async fn spawn_session(
             }
         }
         "shell" => {
-            match lifecycle::spawn_shell(registry, &req.workspace_id, work_dir, log_dir) {
-                Ok(session) => {
-                    lifecycle::emit_actor_created_for(
-                        &session,
-                        &lifecycle::ActorSpawnExtras {
-                            transport: Some("pty".to_string()),
-                            persistence: Some("long-lived".to_string()),
-                            ..Default::default()
-                        },
-                    );
+            // Shell sessions go through the supervisor primitive +
+            // ActorRegistry. Kernel registration, PTY hold, log file,
+            // and `actor.created` emission all happen inside
+            // `runtime::supervisor::spawn_actor` — no second registry
+            // write, no second event emit.
+            match super::shell_actor::spawn_shell(
+                state.actor_sessions(),
+                &req.workspace_id,
+                work_dir,
+                log_dir,
+            ) {
+                Ok(entry) => {
                     let resp = SpawnResponse {
-                        session_id: session.meta().id,
+                        session_id: entry.handle.actor_id.clone(),
                         attached: false,
                     };
                     (StatusCode::OK, Json(resp)).into_response()
@@ -395,12 +397,19 @@ pub async fn list_sessions(State(state): State<ApiState>) -> axum::response::Res
     // Cheap housekeeping — flip thinking → idle as needed before
     // handing the snapshot to the client.
     lifecycle::sweep_idle(state.pty_sessions());
-    let sessions = state
+    let mut sessions: Vec<SessionMetaWire> = state
         .pty_sessions()
         .list()
         .into_iter()
         .map(SessionMetaWire::from)
         .collect();
+    sessions.extend(
+        state
+            .actor_sessions()
+            .list()
+            .into_iter()
+            .map(SessionMetaWire::from),
+    );
     (StatusCode::OK, Json(SessionListResponse { sessions })).into_response()
 }
 
@@ -419,6 +428,10 @@ pub async fn get_session(
     State(state): State<ApiState>,
     Path(id): Path<String>,
 ) -> axum::response::Response {
+    if let Some(entry) = state.actor_sessions().get(&id) {
+        let wire: SessionMetaWire = entry.meta_snapshot().into();
+        return (StatusCode::OK, Json(wire)).into_response();
+    }
     match state.pty_sessions().get(&id) {
         Some(session) => {
             let wire: SessionMetaWire = session.meta().into();
@@ -443,7 +456,9 @@ pub async fn stop_session(
     State(state): State<ApiState>,
     Path(id): Path<String>,
 ) -> axum::response::Response {
-    if lifecycle::stop(state.pty_sessions(), &id) {
+    if super::shell_actor::stop(state.actor_sessions(), &id)
+        || lifecycle::stop(state.pty_sessions(), &id)
+    {
         (StatusCode::NO_CONTENT, ()).into_response()
     } else {
         err(StatusCode::NOT_FOUND, format!("session '{id}' not found"))
@@ -467,6 +482,12 @@ pub async fn session_input(
     Path(id): Path<String>,
     Json(body): Json<InputBody>,
 ) -> axum::response::Response {
+    if let Some(entry) = state.actor_sessions().get(&id) {
+        if let Err(e) = entry.write_input(body.data.as_bytes()) {
+            return err(StatusCode::INTERNAL_SERVER_ERROR, e.to_string());
+        }
+        return (StatusCode::NO_CONTENT, ()).into_response();
+    }
     let Some(session) = state.pty_sessions().get(&id) else {
         return err(StatusCode::NOT_FOUND, format!("session '{id}' not found"));
     };
@@ -520,18 +541,19 @@ pub async fn stream_session(
     State(state): State<ApiState>,
     Path(id): Path<String>,
 ) -> axum::response::Response {
-    let Some(session) = state.pty_sessions().get(&id) else {
+    let (log_path, live) = if let Some(entry) = state.actor_sessions().get(&id) {
+        (entry.log_path(), entry.subscribe())
+    } else if let Some(session) = state.pty_sessions().get(&id) {
+        (session.0.log_path.clone(), session.subscribe())
+    } else {
         return err(StatusCode::NOT_FOUND, format!("session '{id}' not found"));
     };
 
     // Replay log content first, then live tail. The log is written by
     // the reader thread; opening + reading once captures a snapshot.
-    let log_path = session.0.log_path.clone();
     let replay = tokio::task::spawn_blocking(move || std::fs::read(&log_path).unwrap_or_default())
         .await
         .unwrap_or_default();
-
-    let live = session.subscribe();
     let live_stream = BroadcastStream::new(live).filter_map(|r| r.ok());
 
     let replay_stream = stream::iter(std::iter::once(replay));

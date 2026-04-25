@@ -1,0 +1,143 @@
+//! Actor-backed session registry.
+//!
+//! Holds [`runtime::supervisor::ActorHandle`] (the unified spawn primitive)
+//! plus a session-flavored [`SessionMeta`] sidecar. This is the destination
+//! registry — `SessionRegistry` is the legacy parallel system being retired
+//! kind-by-kind. When the last consumer flips, this is renamed to
+//! `Registry` and `SessionRegistry` is deleted.
+//!
+//! Shape: `actor_id -> (ActorHandle, Arc<Mutex<SessionMeta>>)`. The handle
+//! owns process I/O (write_input, subscribe_output, stop). The sidecar
+//! holds session-flavored state the HTTP layer reports — workspace,
+//! agent/provider, status, exit code, provider_session_id — which doesn't
+//! belong inside the supervisor primitive.
+//!
+//! Status updates flow from per-kind reader middleware (auto-dismiss for
+//! agents, raw passthrough for shells) into the sidecar via the entry's
+//! `meta` mutex.
+//!
+//! Insert is keyed by `ActorHandle::actor_id`; the meta's `id` field must
+//! match. Lookup, list, and find-by-* mirror `SessionRegistry` so HTTP
+//! handlers can query whichever registry holds the session without
+//! restructuring routes.
+
+use std::collections::HashMap;
+use std::sync::{Arc, Mutex};
+
+use anyhow::Result;
+use runtime::supervisor::ActorHandle;
+use std::path::PathBuf;
+use tokio::sync::broadcast;
+
+use super::types::{SessionId, SessionMeta};
+
+#[derive(Clone)]
+pub struct ActorEntry {
+    pub handle: ActorHandle,
+    pub meta: Arc<Mutex<SessionMeta>>,
+}
+
+impl ActorEntry {
+    /// Snapshot the session-flavored metadata.
+    pub fn meta_snapshot(&self) -> SessionMeta {
+        self.meta.lock().unwrap().clone()
+    }
+
+    /// Subscribe to raw PTY bytes — replaces `PtySession::subscribe`.
+    pub fn subscribe(&self) -> broadcast::Receiver<Vec<u8>> {
+        self.handle.subscribe_output()
+    }
+
+    pub fn write_input(&self, bytes: &[u8]) -> Result<()> {
+        self.handle.write_input(bytes)
+    }
+
+    pub fn stop(&self) -> Result<()> {
+        self.handle.stop()
+    }
+
+    pub fn log_path(&self) -> PathBuf {
+        self.handle.child.log_path().clone()
+    }
+}
+
+#[derive(Clone, Default)]
+pub struct ActorRegistry {
+    inner: Arc<Mutex<HashMap<SessionId, ActorEntry>>>,
+}
+
+impl ActorRegistry {
+    pub fn new() -> Self {
+        Self::default()
+    }
+
+    pub fn insert(&self, handle: ActorHandle, meta: SessionMeta) -> ActorEntry {
+        debug_assert_eq!(handle.actor_id, meta.id, "handle/meta id mismatch");
+        let entry = ActorEntry {
+            handle,
+            meta: Arc::new(Mutex::new(meta)),
+        };
+        self.inner
+            .lock()
+            .unwrap()
+            .insert(entry.handle.actor_id.clone(), entry.clone());
+        entry
+    }
+
+    pub fn get(&self, id: &str) -> Option<ActorEntry> {
+        self.inner.lock().unwrap().get(id).cloned()
+    }
+
+    pub fn remove(&self, id: &str) -> Option<ActorEntry> {
+        self.inner.lock().unwrap().remove(id)
+    }
+
+    /// Snapshot every entry's meta, sorted by most recent activity.
+    pub fn list(&self) -> Vec<SessionMeta> {
+        let guard = self.inner.lock().unwrap();
+        let mut metas: Vec<SessionMeta> = guard
+            .values()
+            .map(|e| e.meta.lock().unwrap().clone())
+            .collect();
+        metas.sort_by(|a, b| b.last_activity.cmp(&a.last_activity));
+        metas
+    }
+
+    pub fn find_agent_session(
+        &self,
+        workspace_id: &str,
+        agent_id: &str,
+        provider: &str,
+    ) -> Option<ActorEntry> {
+        let guard = self.inner.lock().unwrap();
+        for entry in guard.values() {
+            let meta = entry.meta.lock().unwrap();
+            if meta.workspace_id == workspace_id
+                && meta.agent_id.as_deref() == Some(agent_id)
+                && meta.provider.as_deref() == Some(provider)
+            {
+                return Some(entry.clone());
+            }
+        }
+        None
+    }
+
+    pub fn find_by_provider_session(&self, provider_session_id: &str) -> Option<ActorEntry> {
+        let guard = self.inner.lock().unwrap();
+        for entry in guard.values() {
+            let meta = entry.meta.lock().unwrap();
+            if meta.provider_session_id.as_deref() == Some(provider_session_id) {
+                return Some(entry.clone());
+            }
+        }
+        None
+    }
+
+    pub fn len(&self) -> usize {
+        self.inner.lock().unwrap().len()
+    }
+
+    pub fn is_empty(&self) -> bool {
+        self.inner.lock().unwrap().is_empty()
+    }
+}

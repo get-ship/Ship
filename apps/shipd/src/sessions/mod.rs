@@ -23,8 +23,11 @@
 
 pub mod types;
 pub mod registry;
+pub mod actor_registry;
+pub mod shell_actor;
 pub mod lifecycle;
 pub mod api;
 
 pub use registry::SessionRegistry;
+pub use actor_registry::{ActorEntry, ActorRegistry};
 pub use types::{PtySession, SessionId, SessionKind, SessionStatus, SpawnRequest};
