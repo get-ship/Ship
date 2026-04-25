@@ -1,16 +1,18 @@
-//! `<ship-launcher>` — popover showing all views, with pin/unpin.
+//! `<ship-launcher>` — popover showing all views, with pin/unpin,
+//! fuzzy filter, keyboard nav, and drag-reorder of pinned rows.
 //!
-//! Listens for `ship:launcher:open` on `<ship-shell>`. Fetches the
-//! view universe from `/api/views` (what `ship.views.list()` returns)
-//! and cross-references `view-catalog` for display metadata. Click a
-//! view → navigate + close. Pin/unpin updates localStorage in place
-//! and dispatches a `ship:rail:pins-changed` event so the rail can
-//! refresh.
+//! Anchored to the rail's brand button (`ship:launcher:open` carries
+//! `{ anchor }`). Light-DOM element — its CSS lives in
+//! `apps/shell/index.html` under the `.ship-launcher*` rules so the
+//! existing token cascade applies without a Shadow DOM seam.
+//!
+//! Storage: pin order is `pins.ts` (a string[] in user settings).
+//! Drag-reorder writes the new order through `savePins`.
 
-import { LitElement, css, html, nothing } from "lit";
+import { LitElement, html, nothing } from "lit";
 import { customElement, state } from "lit/decorators.js";
 
-import { fetchPins, pin, unpin } from "./pins";
+import { fetchPins, savePins } from "./pins";
 import { humanize } from "./view-catalog";
 
 interface ApiView {
@@ -20,147 +22,93 @@ interface ApiView {
   rail?: { label: string; icon: string };
 }
 
+interface Project {
+  id: string;
+  name: string;
+  path: string;
+  label?: string;
+}
+
 @customElement("ship-launcher")
 export class ShipLauncher extends LitElement {
-  static styles = css`
-    :host {
-      position: fixed;
-      inset: auto auto 0 0;
-      z-index: 9000;
-      display: none;
-    }
-    :host([open]) {
-      display: block;
-    }
-    .backdrop {
-      position: fixed;
-      inset: 0;
-      background: transparent;
-    }
-    .panel {
-      position: fixed;
-      left: 52px;
-      bottom: 48px;
-      width: 360px;
-      max-height: 60vh;
-      overflow-y: auto;
-      background: var(--popover, var(--background));
-      color: var(--popover-foreground, var(--foreground));
-      border: 1px solid var(--border);
-      border-radius: var(--radius-md);
-      box-shadow: 0 18px 40px -12px rgb(0 0 0 / 0.4);
-      padding: var(--space-2);
-    }
-    .head {
-      display: flex;
-      align-items: center;
-      gap: var(--space-2);
-      padding: var(--space-2) var(--space-3);
-      border-bottom: 1px solid var(--border);
-      font-size: var(--text-xs);
-      color: var(--muted-foreground);
-      text-transform: uppercase;
-      letter-spacing: 0.06em;
-    }
-    .grid {
-      display: grid;
-      grid-template-columns: repeat(3, 1fr);
-      gap: var(--space-1);
-      padding: var(--space-2);
-    }
-    .tile {
-      display: flex;
-      flex-direction: column;
-      align-items: center;
-      justify-content: center;
-      gap: var(--space-1);
-      padding: var(--space-2);
-      border-radius: var(--radius-sm);
-      cursor: pointer;
-      background: transparent;
-      border: 1px solid transparent;
-      color: var(--foreground);
-      text-decoration: none;
-      position: relative;
-      min-height: 80px;
-    }
-    .tile:hover {
-      background: var(--muted, rgb(0 0 0 / 0.05));
-      border-color: var(--border);
-    }
-    .tile .label {
-      font-size: var(--text-xs);
-      text-align: center;
-      line-height: 1.2;
-    }
-    .tile .badge {
-      position: absolute;
-      top: 4px;
-      right: 4px;
-      width: 18px;
-      height: 18px;
-      display: inline-flex;
-      align-items: center;
-      justify-content: center;
-      border-radius: 999px;
-      background: transparent;
-      color: var(--muted-foreground);
-      font-size: 10px;
-      opacity: 0;
-      transition: opacity var(--duration-fast, 120ms);
-    }
-    .tile:hover .badge {
-      opacity: 1;
-    }
-    .tile[data-pinned="true"] .badge {
-      color: var(--primary);
-      opacity: 1;
-    }
-    .badge:hover {
-      background: var(--muted);
-      color: var(--foreground);
-    }
-  `;
-
-  @state() private open = false;
+  @state() private isOpen = false;
   @state() private views: ApiView[] = [];
   @state() private pins: string[] = [];
-  private anchor: HTMLElement | null = null;
+  @state() private filter = "";
+  @state() private cursor = 0;
+  @state() private project: Project | null = null;
+  @state() private dragName: string | null = null;
+  @state() private dragOver: string | null = null;
 
-  private onOpen = async (e: Event): Promise<void> => {
-    this.anchor = ((e as CustomEvent).detail?.anchor as HTMLElement) ?? null;
-    this.open = true;
-    this.setAttribute("open", "");
-    const [pins] = await Promise.all([fetchPins(), this.fetchViews()]);
-    this.pins = pins;
-  };
+  private filterTimer: ReturnType<typeof setTimeout> | null = null;
+  private rafFocus = 0;
 
-  private onClose = (): void => {
-    this.open = false;
-    this.removeAttribute("open");
-  };
+  /** Light-DOM render so global CSS in apps/shell/index.html applies. */
+  createRenderRoot(): Element {
+    return this;
+  }
 
   private get shell(): HTMLElement | null {
     return this.closest("ship-shell");
   }
 
+  // ── public API ───────────────────────────────────────────────
+  open(): void {
+    if (this.isOpen) return;
+    this.isOpen = true;
+    this.setAttribute("open", "");
+    this.cursor = 0;
+    void this.load();
+  }
+
+  close(): void {
+    if (!this.isOpen) return;
+    this.isOpen = false;
+    this.removeAttribute("open");
+    this.filter = "";
+  }
+
+  // ── lifecycle ────────────────────────────────────────────────
+  private onShellOpen = (e: Event): void => {
+    void (e as CustomEvent).detail;
+    this.open();
+  };
+
+  private onShellClose = (): void => {
+    this.close();
+  };
+
   connectedCallback(): void {
     super.connectedCallback();
-    this.shell?.addEventListener("ship:launcher:open", this.onOpen);
-    this.shell?.addEventListener("ship:launcher:close", this.onClose);
-    document.addEventListener("keydown", this.onKey);
+    this.shell?.addEventListener("ship:launcher:open", this.onShellOpen);
+    this.shell?.addEventListener("ship:launcher:close", this.onShellClose);
+    document.addEventListener("keydown", this.onGlobalKey);
   }
 
   disconnectedCallback(): void {
     super.disconnectedCallback();
-    this.shell?.removeEventListener("ship:launcher:open", this.onOpen);
-    this.shell?.removeEventListener("ship:launcher:close", this.onClose);
-    document.removeEventListener("keydown", this.onKey);
+    this.shell?.removeEventListener("ship:launcher:open", this.onShellOpen);
+    this.shell?.removeEventListener("ship:launcher:close", this.onShellClose);
+    document.removeEventListener("keydown", this.onGlobalKey);
+    if (this.filterTimer) clearTimeout(this.filterTimer);
+    if (this.rafFocus) cancelAnimationFrame(this.rafFocus);
   }
 
-  private onKey = (e: KeyboardEvent): void => {
-    if (e.key === "Escape" && this.open) this.onClose();
-  };
+  private async load(): Promise<void> {
+    const [pins, _viewsLoaded, project] = await Promise.all([
+      fetchPins(),
+      this.fetchViews(),
+      this.fetchProject(),
+    ]);
+    void _viewsLoaded;
+    this.pins = pins;
+    this.project = project;
+    // Auto-focus filter after render.
+    this.rafFocus = requestAnimationFrame(() => {
+      const inp = this.querySelector<HTMLInputElement>(".launcher-filter input");
+      inp?.focus();
+    });
+  }
 
   private async fetchViews(): Promise<void> {
     try {
@@ -173,70 +121,317 @@ export class ShipLauncher extends LitElement {
     }
   }
 
-  private navigate(name: string): void {
-    window.ship?.navigate(`/${name === "dashboard" ? "" : name}`);
-    this.onClose();
+  private async fetchProject(): Promise<Project | null> {
+    try {
+      const resp = await fetch("/api/projects", { credentials: "same-origin" });
+      if (!resp.ok) return null;
+      const body = (await resp.json()) as {
+        projects: Project[];
+        active?: string;
+      };
+      return (
+        body.projects.find((p) => p.id === body.active) ??
+        body.projects[0] ??
+        null
+      );
+    } catch {
+      return null;
+    }
   }
 
-  private async togglePin(e: MouseEvent, name: string): Promise<void> {
+  // ── keyboard ─────────────────────────────────────────────────
+  private onGlobalKey = (e: KeyboardEvent): void => {
+    if (!this.isOpen) return;
+    if (e.key === "Escape") {
+      e.preventDefault();
+      this.close();
+      return;
+    }
+    if (e.key === "/" && !this.isFilterFocused()) {
+      e.preventDefault();
+      this.querySelector<HTMLInputElement>(".launcher-filter input")?.focus();
+      return;
+    }
+    if (e.key === "ArrowDown") {
+      e.preventDefault();
+      this.cursor = Math.min(this.visibleRows().length - 1, this.cursor + 1);
+      this.scrollCursorIntoView();
+    } else if (e.key === "ArrowUp") {
+      e.preventDefault();
+      this.cursor = Math.max(0, this.cursor - 1);
+      this.scrollCursorIntoView();
+    } else if (e.key === "Enter") {
+      const row = this.visibleRows()[this.cursor];
+      if (!row) return;
+      e.preventDefault();
+      if (e.metaKey || e.ctrlKey) {
+        this.dispatchEvent(
+          new CustomEvent("ship:launcher:open-pane", {
+            detail: { name: row.name },
+            bubbles: true,
+          }),
+        );
+      }
+      this.navigate(row.name);
+    }
+  };
+
+  private isFilterFocused(): boolean {
+    const inp = this.querySelector<HTMLInputElement>(".launcher-filter input");
+    return inp === document.activeElement;
+  }
+
+  private scrollCursorIntoView(): void {
+    requestAnimationFrame(() => {
+      const sel = this.querySelector<HTMLElement>(".launcher-row.is-cursor");
+      sel?.scrollIntoView({ block: "nearest" });
+    });
+  }
+
+  // ── data shaping ─────────────────────────────────────────────
+  private match(v: ApiView): boolean {
+    const f = this.filter.trim().toLowerCase();
+    if (!f) return true;
+    const label = (v.rail?.label ?? humanize(v.name)).toLowerCase();
+    return label.includes(f) || v.source.toLowerCase().includes(f);
+  }
+
+  private pinnedRows(): ApiView[] {
+    const map = new Map(this.views.map((v) => [v.name, v]));
+    return this.pins
+      .map((n) => map.get(n))
+      .filter((v): v is ApiView => !!v && this.match(v));
+  }
+
+  private otherRows(): ApiView[] {
+    const pinSet = new Set(this.pins);
+    return this.views.filter((v) => !pinSet.has(v.name) && this.match(v));
+  }
+
+  private visibleRows(): ApiView[] {
+    return [...this.pinnedRows(), ...this.otherRows()];
+  }
+
+  // ── actions ──────────────────────────────────────────────────
+  private navigate(name: string): void {
+    window.ship?.navigate(`/${name === "dashboard" ? "" : name}`);
+    this.close();
+  }
+
+  private async togglePin(e: Event, name: string): Promise<void> {
     e.preventDefault();
     e.stopPropagation();
-    this.pins = this.pins.includes(name)
-      ? await unpin(name, this.pins)
-      : await pin(name, this.pins);
+    const next = this.pins.includes(name)
+      ? this.pins.filter((n) => n !== name)
+      : [...this.pins, name];
+    this.pins = next;
+    await savePins(next);
     this.shell?.dispatchEvent(
       new CustomEvent("ship:rail:pins-changed", {
-        detail: { pins: this.pins },
+        detail: { pins: next },
         bubbles: true,
       }),
     );
   }
 
+  private onFilterInput = (e: Event): void => {
+    const v = (e.target as HTMLInputElement).value;
+    if (this.filterTimer) clearTimeout(this.filterTimer);
+    this.filterTimer = setTimeout(() => {
+      this.filter = v;
+      this.cursor = 0;
+    }, 80);
+  };
+
+  // ── drag reorder of pinned rows ──────────────────────────────
+  private onDragStart(e: DragEvent, name: string): void {
+    this.dragName = name;
+    e.dataTransfer?.setData("text/plain", name);
+    if (e.dataTransfer) e.dataTransfer.effectAllowed = "move";
+  }
+
+  private onDragOver(e: DragEvent, name: string): void {
+    if (!this.dragName) return;
+    e.preventDefault();
+    if (e.dataTransfer) e.dataTransfer.dropEffect = "move";
+    if (this.dragOver !== name) this.dragOver = name;
+  }
+
+  private async onDrop(e: DragEvent, target: string): Promise<void> {
+    e.preventDefault();
+    const src = this.dragName;
+    this.dragName = null;
+    this.dragOver = null;
+    if (!src || src === target) return;
+    if (!this.pins.includes(src) || !this.pins.includes(target)) return;
+    const without = this.pins.filter((n) => n !== src);
+    const idx = without.indexOf(target);
+    const next = [...without.slice(0, idx), src, ...without.slice(idx)];
+    this.pins = next;
+    await savePins(next);
+    this.shell?.dispatchEvent(
+      new CustomEvent("ship:rail:pins-changed", {
+        detail: { pins: next },
+        bubbles: true,
+      }),
+    );
+  }
+
+  private onDragEnd = (): void => {
+    this.dragName = null;
+    this.dragOver = null;
+  };
+
+  // ── render ───────────────────────────────────────────────────
   render() {
-    if (!this.open) return nothing;
+    if (!this.isOpen) return nothing;
+    const pinned = this.pinnedRows();
+    const others = this.otherRows();
+    const total = pinned.length + others.length;
     return html`
-      <div class="backdrop" @click=${() => this.onClose()}></div>
       <div
-        class="panel"
+        class="launcher-mask"
+        @click=${() => this.close()}
+        @dragover=${(e: DragEvent) => e.preventDefault()}
+      ></div>
+      <div
+        class="launcher-panel"
         role="dialog"
         aria-label="App launcher"
+        aria-modal="true"
         @click=${(e: Event) => e.stopPropagation()}
       >
-        <div class="head">All views · ${this.views.length}</div>
-        <div class="grid">
-          ${this.views.map((v) => this.renderTile(v))}
+        ${this.renderHead()}
+        ${this.renderFilter(total)}
+        <div class="launcher-body">
+          ${this.renderSection("Pinned to rail", pinned, 0, true)}
+          ${this.renderSection("All views", others, pinned.length, false)}
+          ${total === 0 ? html`<div class="launcher-empty">No views match.</div>` : nothing}
         </div>
+        ${this.renderFoot()}
       </div>
     `;
   }
 
-  private renderTile(v: ApiView) {
-    const label = v.rail?.label ?? humanize(v.name);
-    const icon = v.rail?.icon ?? "app-window";
-    const pinned = this.pins.includes(v.name);
+  private renderHead() {
+    const path = this.project?.path ?? "";
+    const title = this.project?.label ?? this.project?.name ?? "Ship";
     return html`
-      <a
-        class="tile"
-        data-pinned=${pinned ? "true" : "false"}
-        href=${`/${v.name === "dashboard" ? "" : v.name}`}
-        title=${`${label} · ${v.source}`}
-        @click=${(e: MouseEvent) => {
-          e.preventDefault();
-          this.navigate(v.name);
-        }}
+      <div class="launcher-head">
+        <ship-app-icon name="settings" variant="solid" size="md"></ship-app-icon>
+        <span class="launcher-title">${title}</span>
+        <span class="launcher-ws">${path}</span>
+      </div>
+    `;
+  }
+
+  private renderFilter(count: number) {
+    return html`
+      <div class="launcher-filter">
+        <ship-icon name="search" size="sm"></ship-icon>
+        <input
+          type="text"
+          placeholder="Filter views…"
+          aria-label="Filter views"
+          @input=${this.onFilterInput}
+          @keydown=${(e: KeyboardEvent) => {
+            // Don't let the input swallow our nav keys.
+            if (
+              e.key === "ArrowDown" ||
+              e.key === "ArrowUp" ||
+              e.key === "Enter" ||
+              e.key === "Escape"
+            ) {
+              this.onGlobalKey(e);
+            }
+          }}
+        />
+        <span class="launcher-count">${count}</span>
+      </div>
+    `;
+  }
+
+  private renderSection(
+    label: string,
+    rows: ApiView[],
+    indexBase: number,
+    isPinned: boolean,
+  ) {
+    if (rows.length === 0) return nothing;
+    return html`
+      <div class="launcher-section">
+        <div class="launcher-section-h">
+          ${isPinned
+            ? html`<ship-icon name="pin" size="sm"></ship-icon>`
+            : nothing}
+          <span>${label}</span>
+          <span class="launcher-section-spacer"></span>
+          ${isPinned
+            ? html`<span class="launcher-hint">drag to reorder</span>`
+            : nothing}
+        </div>
+        ${rows.map((v, i) => this.renderRow(v, indexBase + i, isPinned))}
+      </div>
+    `;
+  }
+
+  private renderRow(v: ApiView, idx: number, isPinned: boolean) {
+    const label = v.rail?.label ?? humanize(v.name);
+    const icon = v.rail?.icon ?? v.name;
+    const pinned = this.pins.includes(v.name);
+    const isCursor = idx === this.cursor;
+    const isDragOver = this.dragOver === v.name;
+    const isDragging = this.dragName === v.name;
+    const cls = [
+      "launcher-row",
+      isCursor ? "is-cursor" : "",
+      isDragOver ? "is-drag-over" : "",
+      isDragging ? "is-dragging" : "",
+    ]
+      .filter(Boolean)
+      .join(" ");
+    return html`
+      <div
+        class=${cls}
+        role="button"
+        tabindex="-1"
+        draggable=${isPinned ? "true" : "false"}
+        @click=${() => this.navigate(v.name)}
+        @mouseenter=${() => (this.cursor = idx)}
+        @dragstart=${(e: DragEvent) => isPinned && this.onDragStart(e, v.name)}
+        @dragover=${(e: DragEvent) => isPinned && this.onDragOver(e, v.name)}
+        @drop=${(e: DragEvent) => isPinned && this.onDrop(e, v.name)}
+        @dragend=${this.onDragEnd}
       >
-        <ship-icon name=${icon} size="lg"></ship-icon>
-        <span class="label">${label}</span>
-        <span
-          class="badge"
-          role="button"
+        <ship-app-icon name=${icon} variant="tile" size="md"></ship-app-icon>
+        <span class="launcher-row-name">
+          <span class="launcher-row-label">${label}</span>
+          <span class="launcher-row-path">${v.source}</span>
+        </span>
+        <button
+          class="launcher-pin ${pinned ? "is-pinned" : ""}"
           aria-label=${pinned ? "Unpin from rail" : "Pin to rail"}
           title=${pinned ? "Unpin from rail" : "Pin to rail"}
           @click=${(e: MouseEvent) => this.togglePin(e, v.name)}
         >
-          ${pinned ? "★" : "☆"}
-        </span>
-      </a>
+          <ship-icon name="pin" size="sm"></ship-icon>
+        </button>
+      </div>
+    `;
+  }
+
+  private renderFoot() {
+    return html`
+      <div class="launcher-foot">
+        <a class="launcher-add" href="#" @click=${(e: MouseEvent) => e.preventDefault()}>
+          <ship-icon name="plus" size="sm"></ship-icon>
+          <span>Install view</span>
+        </a>
+        <span class="launcher-section-spacer"></span>
+        <span class="launcher-kbd">⌘</span>
+        <span class="launcher-kbd">⇧</span>
+        <span class="launcher-kbd">P</span>
+      </div>
     `;
   }
 }
