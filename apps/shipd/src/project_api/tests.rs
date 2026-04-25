@@ -294,6 +294,9 @@ async fn emit_event_routes_to_kernel() {
             entity_id: "entity-1".to_string(),
             workspace_id: None,
             payload: serde_json::json!({"key": "value"}),
+            actor_id: None,
+            elevated: None,
+            validate_domain: None,
         }),
     )
     .await

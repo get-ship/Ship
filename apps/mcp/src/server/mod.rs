@@ -933,42 +933,20 @@ impl ShipServer {
             tool_gate::current_branch(project_dir.parent().unwrap_or(&project_dir))
                 .unwrap_or_else(|_| "unknown".to_string());
 
-        let envelope = match event::handle_ship_event(
+        match event::emit_domain_event(
             &actor_id,
             &workspace_id,
             &req.event_type,
             req.payload,
             req.elevated.unwrap_or(false),
-        ) {
-            Ok(e) => e,
-            Err(e) => return format!("Error: {}", e),
-        };
-
-        // Persist to actor-scoped store.
+        )
+        .await
         {
-            let store_guard = self.actor_store.lock().await;
-            let Some(ref store) = *store_guard else {
-                return "Error: actor not initialized — ensure on_initialized completed".to_string();
-            };
-            if let Err(e) = store.append(&envelope) {
-                return format!("Error persisting event: {}", e);
+            Ok(resp) => {
+                self.notify_resource_updated("ship://events").await;
+                resp
             }
-        }
-
-        // Route via daemon's KernelRouter for subscriber delivery.
-        if let Err(e) = crate::network_client::event_route(
-            &envelope,
-            Some(&workspace_id),
-            None,
-        ).await {
-            return format!("Error routing event via daemon: {}", e);
-        }
-
-        self.notify_resource_updated("ship://events").await;
-
-        match serde_json::to_string(&envelope) {
-            Ok(json) => json,
-            Err(_) => format!("Event emitted: {}", envelope.id),
+            Err(e) => format!("Error: {}", e),
         }
     }
 

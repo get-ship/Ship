@@ -256,6 +256,29 @@ pub async fn artifact_download(artifact_id: &str) -> Result<String> {
     get(&format!("/artifacts/{artifact_id}")).await
 }
 
+/// Emit a high-level domain event through the daemon's `/api/events/emit`
+/// endpoint. The daemon validates reserved namespaces (when
+/// `validate_domain: true`), builds the envelope, persists it, and routes
+/// through the kernel — triggering projection updates and subscriber
+/// delivery on the same rail every other writer uses.
+pub async fn emit_event_via_daemon(body: Value) -> Result<String> {
+    post("/events/emit", body).await
+}
+
+/// Update a job's status through the daemon. The daemon builds the
+/// appropriate `job.*` envelope server-side, persists it, and routes via
+/// the kernel so projections (jobs table, pipeline state, dispatch) advance.
+pub async fn update_job_status_via_daemon(job_id: &str, body: Value) -> Result<String> {
+    post(&format!("/jobs/{job_id}/status"), body).await
+}
+
+/// Declare a job's current pipeline step complete via the daemon. The
+/// daemon resolves the active step from its projection and emits the
+/// `step.done_declared` event through the kernel.
+pub async fn job_step_done_via_daemon(slug: &str, body: Value) -> Result<String> {
+    post(&format!("/jobs/{slug}/step-done"), body).await
+}
+
 /// Route a pre-built EventEnvelope through the daemon's KernelRouter.
 /// This ensures events reach daemon subscribers (job-dispatch, workspace-sync, etc).
 pub async fn event_route(

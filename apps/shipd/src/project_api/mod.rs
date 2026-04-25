@@ -6,7 +6,10 @@
 
 pub mod agents_skills;
 pub mod agents_skills_write;
+pub mod jobs_status;
 pub mod session_files;
+
+pub use jobs_status::{JobStatusReq, StepDoneReq, job_step_done, update_job_status};
 
 pub use agents_skills::{list_agents, list_skills};
 pub use agents_skills_write::{
@@ -194,9 +197,10 @@ pub(crate) fn safe_resolve(
 
 #[derive(Deserialize, utoipa::ToSchema)]
 #[schema(example = json!({
-    "event_type": "job.completed",
+    "event_type": "deployment.completed",
     "entity_id": "write-readme",
     "workspace_id": "default",
+    "actor_id": "agent-writer",
     "payload": { "slug": "write-readme", "status": "ok" }
 }))]
 pub struct EmitEventReq {
@@ -204,6 +208,18 @@ pub struct EmitEventReq {
     pub entity_id: String,
     pub workspace_id: Option<String>,
     pub payload: serde_json::Value,
+    /// Optional actor attribution. When set, the envelope's actor_id is bound
+    /// to this value (cannot be overridden by the payload).
+    #[serde(default)]
+    pub actor_id: Option<String>,
+    /// Optional elevation flag — only honoured when the auth context permits.
+    #[serde(default)]
+    pub elevated: Option<bool>,
+    /// When true, enforce the agent-domain rules: event_type must contain a
+    /// dot and must not start with a reserved platform namespace. Used by
+    /// MCP's `event` tool so platform namespaces stay daemon-controlled.
+    #[serde(default)]
+    pub validate_domain: Option<bool>,
 }
 
 /// POST /api/events/emit
@@ -228,13 +244,44 @@ pub async fn emit_event(
     if let Some(axum::Extension(ref ac)) = auth {
         require_scope(ac, Scope::EmitEvents)?;
     }
+
+    if body.validate_domain.unwrap_or(false) {
+        if body.event_type.is_empty() {
+            return Err(err_response(StatusCode::BAD_REQUEST, "event_type must not be empty"));
+        }
+        if !body.event_type.contains('.') {
+            return Err(err_response(
+                StatusCode::BAD_REQUEST,
+                &format!(
+                    "event_type '{}' must be namespaced with a dot (e.g. 'deployment.completed')",
+                    body.event_type
+                ),
+            ));
+        }
+        for prefix in runtime::events::RESERVED_NAMESPACES {
+            if body.event_type.starts_with(prefix) {
+                return Err(err_response(
+                    StatusCode::BAD_REQUEST,
+                    &format!(
+                        "event_type '{}' is reserved: '{}' prefix is platform-controlled",
+                        body.event_type, prefix
+                    ),
+                ));
+            }
+        }
+    }
+
     let mut envelope =
         runtime::events::EventEnvelope::new(&body.event_type, &body.entity_id, &body.payload)
             .map_err(|e| err_response(StatusCode::BAD_REQUEST, &e.to_string()))?;
 
-    envelope = envelope.with_actor_id("studio");
+    let actor = body.actor_id.as_deref().unwrap_or("studio");
+    envelope = envelope.with_actor_id(actor);
     if let Some(ref ws_id) = body.workspace_id {
         envelope = envelope.with_context(Some(ws_id), None);
+    }
+    if body.elevated.unwrap_or(false) {
+        envelope = envelope.elevate();
     }
 
     // Use auth context if available (token-based), otherwise treat as CLI caller.

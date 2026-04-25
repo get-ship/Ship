@@ -99,6 +99,8 @@
 {%- macro get_job(job_id) -%}/api/jobs/{{ job_id }}{%- endmacro -%}
 {%- macro end_job() -%}/api/jobs/end{%- endmacro -%}
 {%- macro cancel_job(slug) -%}/api/jobs/{{ slug }}/cancel{%- endmacro -%}
+{%- macro job_status_update(job_id) -%}/api/jobs/{{ job_id }}/status{%- endmacro -%}
+{%- macro job_step_done(slug) -%}/api/jobs/{{ slug }}/step-done{%- endmacro -%}
 {%- macro stream_job_log(slug) -%}/api/jobs/{{ slug }}/log/stream{%- endmacro -%}
 {%- macro list_procs() -%}/api/procs{%- endmacro -%}
 {%- macro poll_events() -%}/api/events/poll{%- endmacro -%}

@@ -354,6 +354,12 @@ pub enum Route {
     /// @route POST "/api/jobs/{slug}/cancel"
     CancelJob { slug: String },
 
+    /// @route POST "/api/jobs/{job_id}/status"
+    JobStatusUpdate { job_id: String },
+
+    /// @route POST "/api/jobs/{slug}/step-done"
+    JobStepDone { slug: String },
+
     /// @route GET "/api/jobs/{slug}/log/stream"
     StreamJobLog { slug: String },
 
