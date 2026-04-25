@@ -132,6 +132,20 @@ ship logout      # remove stored token
 ship whoami      # show current identity
 ```
 
+## Daemon lifecycle
+
+`shipd` is the long-running HTTP daemon every other transport (CLI, MCP, Studio) talks to. The installer registers it with `launchd` (macOS) or `systemd --user` (Linux) so it starts on login. The commands below operate on the registered service when one exists, or on a foreground process otherwise.
+
+| Command | Description |
+|---------|-------------|
+| `ship daemon start [--host <addr>] [--dev]` | Start the daemon in the background. Default host `127.0.0.1`. `--dev` forces localhost bind, auto-pairs browser clients on first localhost request, and skips session hydration. Never use `--dev` in production. |
+| `ship daemon stop` | Read `~/.ship/shipd.pid` and send `SIGTERM`. Under systemd/launchd, defers to the service manager. |
+| `ship daemon restart [--host <addr>] [--dev]` | Stop + start (or `systemctl --user restart` under systemd). |
+| `ship daemon status` | Show pid, port, version, and supervision mode. Reads `~/.ship/shipd.pid` and `~/.ship/shipd.port`. |
+| `ship daemon cleanup` | Remove orphaned worktrees for merged or failed jobs. |
+
+The daemon binds `127.0.0.1:9315` by default. If the port is occupied by a previous daemon that crashed, `ship daemon start` reclaims the pidfile automatically. If another process holds the port, the bind fails and the error names the offending pid.
+
 ## Information and Diagnostics
 
 ### `ship events list`
