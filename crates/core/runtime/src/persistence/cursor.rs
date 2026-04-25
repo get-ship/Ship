@@ -2,9 +2,9 @@
 //!
 //! ## STALE SEMANTICS — read before using
 //!
-//! This module was built for the per-actor-DB architecture, where each actor
-//! had its own `~/.ship/actors/{id}/events.db`. That's gone; all events live
-//! in the shared `events` table in `platform.db`.
+//! This module was built for the per-actor-DB architecture, where each
+//! actor had its own SQLite file. That's gone; all events live in the
+//! shared `events` table in `platform.db`.
 //!
 //! The cursor concept still fits under shared-log (actor X wants to resume
 //! from event N), but the table creation (`actor_cursors`) is not integrated

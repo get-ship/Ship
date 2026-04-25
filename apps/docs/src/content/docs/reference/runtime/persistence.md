@@ -126,7 +126,7 @@ Constructed by the kernel via `KernelRouter::spawn_actor`. Actors never build th
 
 ## Logical vs physical isolation
 
-Historical Ship gave each actor its own SQLite file. That's gone. Today, one `events` table in `~/.ship/machine/db/platform.db` holds every actor's events; isolation is enforced by:
+Historical Ship gave each actor its own SQLite file at `~/.ship/actors/{id}/events.db`. That's gone. Today, one `events` table holds every actor's events; isolation is enforced by:
 
 - `actor_id` column on every row — populated at the `ActorStore::append` boundary.
 - Read queries scoped by `actor_id` — unfiltered reads return only the actor's own events.
@@ -182,9 +182,9 @@ pub struct ActorCursor {
 }
 ```
 
-`init_cursor_table(db_path)` creates the `actor_cursors` table (primary key `actor_label`, value `last_event_id`). Feature-gated; not in the default build. Used by experimental replay logic to resume an actor's event stream from where it left off.
+`init_cursor_table(kernel_db_path)` creates the `actor_cursors` table (primary key `actor_label`, value `last_event_id`). Feature-gated; not in the default build. Used by experimental replay logic to resume an actor's event stream from where it left off.
 
-In shared-log Ship there's no separate kernel DB — callers pass `platform.db`.
+The path argument is named `kernel_db_path` but in shared-log Ship there's no separate kernel DB — callers pass `platform.db`. Stale naming; function still works.
 
 ## Testing
 

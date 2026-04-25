@@ -6,10 +6,10 @@
 //!
 //! ## STALE SEMANTICS — read before using
 //!
-//! This module was designed when each actor had its own SQLite file at
-//! `~/.ship/actors/{id}/events.db`. That architecture is gone. All actor
-//! events now live in the shared `events` table in `platform.db` with an
-//! `actor_id` column for logical isolation (see `persistence::actor_store`).
+//! This module was designed when each actor had its own SQLite file. That
+//! architecture is gone. All actor events now live in the shared `events`
+//! table in `platform.db` with an `actor_id` column for logical isolation
+//! (see `persistence::actor_store`).
 //!
 //! Under shared-log architecture, `db_bytes` no longer has an obvious
 //! meaning — there is no per-actor DB file to checkpoint. `event_stats`

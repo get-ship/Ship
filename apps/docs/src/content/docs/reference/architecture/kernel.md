@@ -64,7 +64,7 @@ Writing is scoped similarly. An event's `event_type` must have a prefix in the e
 
 ## Physical vs logical isolation
 
-Historical Ship gave each actor its own SQLite file. Current Ship does not. Every event goes into the single `events` table in `~/.ship/machine/db/platform.db`. Actor isolation is **logical**:
+Historical Ship gave each actor its own SQLite file at `~/.ship/actors/{id}/events.db`. Current Ship does not. Every event goes into the single `events` table in `~/.ship/platform.db`. Actor isolation is **logical**:
 
 - Reads through `ActorStore` filter by `actor_id` column; an actor's unfiltered queries only return its own events.
 - Writes through `ActorStore` check the event's namespace against the actor's `write_namespaces` and reject mismatches before hitting SQL.

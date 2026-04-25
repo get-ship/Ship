@@ -92,7 +92,20 @@
               }
             }
           }
-        }
+        },
+        "summary": "Actor Spawn",
+        "x-codeSamples": [
+          {
+            "lang": "bash",
+            "label": "curl",
+            "source": "curl -X POST http://localhost:9315/api/actor/spawn \\\n  -H \"Authorization: Bearer $SHIP_TOKEN\" \\\n  -H \"Content-Type: application/json\" \\\n  -d '{\"actor_id\":\"agent-writer\",\"config\":{\"kind\":\"agent\",\"provider\":\"claude\",\"spec_path\":\".ship/specs/write-readme.md\"},\"capabilities\":[\"writes.prose\",\"reads.repo\"]}'"
+          },
+          {
+            "lang": "javascript",
+            "label": "fetch",
+            "source": "const res = await fetch(\"http://localhost:9315/api/actor/spawn\", {\n  method: \"POST\",\n  headers: {\n    \"Authorization\": `Bearer ${process.env.SHIP_TOKEN}`,\n    \"Content-Type\": \"application/json\",\n  },\n  body: JSON.stringify({\n    \"actor_id\": \"agent-writer\",\n    \"config\": {\n      \"kind\": \"agent\",\n      \"provider\": \"claude\",\n      \"spec_path\": \".ship/specs/write-readme.md\"\n    },\n    \"capabilities\": [\n      \"writes.prose\",\n      \"reads.repo\"\n    ]\n  }),\n});\nconst data = await res.json();"
+          }
+        ]
       }
     },
     "/api/agents": {
@@ -100,7 +113,7 @@
         "tags": [
           "runtime"
         ],
-        "summary": "GET /api/runtime/agents",
+        "summary": "List Agents",
         "operationId": "listAgents",
         "responses": {
           "200": {
@@ -133,7 +146,20 @@
               }
             }
           }
-        }
+        },
+        "description": "GET /api/runtime/agents",
+        "x-codeSamples": [
+          {
+            "lang": "bash",
+            "label": "curl",
+            "source": "curl -X GET http://localhost:9315/api/agents \\\n  -H \"Authorization: Bearer $SHIP_TOKEN\""
+          },
+          {
+            "lang": "javascript",
+            "label": "fetch",
+            "source": "const res = await fetch(\"http://localhost:9315/api/agents\", {\n  method: \"GET\",\n  headers: {\n    \"Authorization\": `Bearer ${process.env.SHIP_TOKEN}`,\n  },\n});\nconst data = await res.json();"
+          }
+        ]
       }
     },
     "/api/assets/custom-elements.json": {
@@ -141,7 +167,7 @@
         "tags": [
           "views"
         ],
-        "summary": "GET /api/runtime/assets/custom-elements.json",
+        "summary": "Serve Elements Manifest",
         "operationId": "serveElementsManifest",
         "responses": {
           "200": {
@@ -161,7 +187,20 @@
             }
           }
         },
-        "security": []
+        "security": [],
+        "description": "GET /api/runtime/assets/custom-elements.json",
+        "x-codeSamples": [
+          {
+            "lang": "bash",
+            "label": "curl",
+            "source": "curl -X GET http://localhost:9315/api/assets/custom-elements.json"
+          },
+          {
+            "lang": "javascript",
+            "label": "fetch",
+            "source": "const res = await fetch(\"http://localhost:9315/api/assets/custom-elements.json\", {\n  method: \"GET\",\n});\nconst data = await res.json();"
+          }
+        ]
       }
     },
     "/api/assets/datastar.js": {
@@ -169,7 +208,7 @@
         "tags": [
           "views"
         ],
-        "summary": "GET /api/runtime/assets/datastar.js",
+        "summary": "Serve Datastar Js",
         "operationId": "serveDatastarJs",
         "responses": {
           "200": {
@@ -189,7 +228,20 @@
             }
           }
         },
-        "security": []
+        "security": [],
+        "description": "GET /api/runtime/assets/datastar.js",
+        "x-codeSamples": [
+          {
+            "lang": "bash",
+            "label": "curl",
+            "source": "curl -X GET http://localhost:9315/api/assets/datastar.js"
+          },
+          {
+            "lang": "javascript",
+            "label": "fetch",
+            "source": "const res = await fetch(\"http://localhost:9315/api/assets/datastar.js\", {\n  method: \"GET\",\n});\nconst data = await res.json();"
+          }
+        ]
       }
     },
     "/api/assets/jinja-macros.json": {
@@ -197,7 +249,7 @@
         "tags": [
           "views"
         ],
-        "summary": "GET /api/assets/jinja-macros.json",
+        "summary": "Serve Jinja Macros Json",
         "operationId": "serveJinjaMacrosJson",
         "responses": {
           "200": {
@@ -207,7 +259,20 @@
             }
           }
         },
-        "security": []
+        "security": [],
+        "description": "GET /api/assets/jinja-macros.json",
+        "x-codeSamples": [
+          {
+            "lang": "bash",
+            "label": "curl",
+            "source": "curl -X GET http://localhost:9315/api/assets/jinja-macros.json"
+          },
+          {
+            "lang": "javascript",
+            "label": "fetch",
+            "source": "const res = await fetch(\"http://localhost:9315/api/assets/jinja-macros.json\", {\n  method: \"GET\",\n});\nconst data = await res.json();"
+          }
+        ]
       }
     },
     "/api/assets/jinja-macros.md": {
@@ -215,7 +280,7 @@
         "tags": [
           "views"
         ],
-        "summary": "GET /api/assets/jinja-macros.md",
+        "summary": "Serve Jinja Macros Md",
         "operationId": "serveJinjaMacrosMd",
         "responses": {
           "200": {
@@ -225,7 +290,20 @@
             }
           }
         },
-        "security": []
+        "security": [],
+        "description": "GET /api/assets/jinja-macros.md",
+        "x-codeSamples": [
+          {
+            "lang": "bash",
+            "label": "curl",
+            "source": "curl -X GET http://localhost:9315/api/assets/jinja-macros.md"
+          },
+          {
+            "lang": "javascript",
+            "label": "fetch",
+            "source": "const res = await fetch(\"http://localhost:9315/api/assets/jinja-macros.md\", {\n  method: \"GET\",\n});\nconst data = await res.json();"
+          }
+        ]
       }
     },
     "/api/assets/ship-code-editor.js": {
@@ -233,7 +311,7 @@
         "tags": [
           "views"
         ],
-        "summary": "GET /api/runtime/assets/ship-code-editor.js",
+        "summary": "Serve Code Editor",
         "operationId": "serveCodeEditor",
         "responses": {
           "200": {
@@ -253,7 +331,20 @@
             }
           }
         },
-        "security": []
+        "security": [],
+        "description": "GET /api/runtime/assets/ship-code-editor.js",
+        "x-codeSamples": [
+          {
+            "lang": "bash",
+            "label": "curl",
+            "source": "curl -X GET http://localhost:9315/api/assets/ship-code-editor.js"
+          },
+          {
+            "lang": "javascript",
+            "label": "fetch",
+            "source": "const res = await fetch(\"http://localhost:9315/api/assets/ship-code-editor.js\", {\n  method: \"GET\",\n});\nconst data = await res.json();"
+          }
+        ]
       }
     },
     "/api/assets/ship-elements.js": {
@@ -261,7 +352,7 @@
         "tags": [
           "views"
         ],
-        "summary": "GET /api/runtime/assets/ship-elements.js",
+        "summary": "Serve Ship Elements",
         "operationId": "serveShipElements",
         "responses": {
           "200": {
@@ -281,7 +372,20 @@
             }
           }
         },
-        "security": []
+        "security": [],
+        "description": "GET /api/runtime/assets/ship-elements.js",
+        "x-codeSamples": [
+          {
+            "lang": "bash",
+            "label": "curl",
+            "source": "curl -X GET http://localhost:9315/api/assets/ship-elements.js"
+          },
+          {
+            "lang": "javascript",
+            "label": "fetch",
+            "source": "const res = await fetch(\"http://localhost:9315/api/assets/ship-elements.js\", {\n  method: \"GET\",\n});\nconst data = await res.json();"
+          }
+        ]
       }
     },
     "/api/assets/ship-elements.md": {
@@ -289,7 +393,7 @@
         "tags": [
           "views"
         ],
-        "summary": "GET /api/runtime/assets/ship-elements.md\nCompact, token-efficient catalog for agent context.",
+        "summary": "Serve Elements Catalog",
         "operationId": "serveElementsCatalog",
         "responses": {
           "200": {
@@ -309,7 +413,20 @@
             }
           }
         },
-        "security": []
+        "security": [],
+        "description": "GET /api/runtime/assets/ship-elements.md\nCompact, token-efficient catalog for agent context.",
+        "x-codeSamples": [
+          {
+            "lang": "bash",
+            "label": "curl",
+            "source": "curl -X GET http://localhost:9315/api/assets/ship-elements.md"
+          },
+          {
+            "lang": "javascript",
+            "label": "fetch",
+            "source": "const res = await fetch(\"http://localhost:9315/api/assets/ship-elements.md\", {\n  method: \"GET\",\n});\nconst data = await res.json();"
+          }
+        ]
       }
     },
     "/api/assets/ship-git.js": {
@@ -317,7 +434,7 @@
         "tags": [
           "views"
         ],
-        "summary": "GET /api/assets/ship-git.js",
+        "summary": "Serve Git Js",
         "operationId": "serveGitJs",
         "responses": {
           "200": {
@@ -327,7 +444,20 @@
             }
           }
         },
-        "security": []
+        "security": [],
+        "description": "GET /api/assets/ship-git.js",
+        "x-codeSamples": [
+          {
+            "lang": "bash",
+            "label": "curl",
+            "source": "curl -X GET http://localhost:9315/api/assets/ship-git.js"
+          },
+          {
+            "lang": "javascript",
+            "label": "fetch",
+            "source": "const res = await fetch(\"http://localhost:9315/api/assets/ship-git.js\", {\n  method: \"GET\",\n});\nconst data = await res.json();"
+          }
+        ]
       }
     },
     "/api/assets/ship-markdown-editor.js": {
@@ -335,7 +465,7 @@
         "tags": [
           "views"
         ],
-        "summary": "GET /api/runtime/assets/ship-markdown-editor.js",
+        "summary": "Serve Markdown Editor",
         "operationId": "serveMarkdownEditor",
         "responses": {
           "200": {
@@ -355,7 +485,20 @@
             }
           }
         },
-        "security": []
+        "security": [],
+        "description": "GET /api/runtime/assets/ship-markdown-editor.js",
+        "x-codeSamples": [
+          {
+            "lang": "bash",
+            "label": "curl",
+            "source": "curl -X GET http://localhost:9315/api/assets/ship-markdown-editor.js"
+          },
+          {
+            "lang": "javascript",
+            "label": "fetch",
+            "source": "const res = await fetch(\"http://localhost:9315/api/assets/ship-markdown-editor.js\", {\n  method: \"GET\",\n});\nconst data = await res.json();"
+          }
+        ]
       }
     },
     "/api/assets/ship-terminal.js": {
@@ -363,7 +506,7 @@
         "tags": [
           "views"
         ],
-        "summary": "GET /api/runtime/assets/ship-terminal.js",
+        "summary": "Serve Terminal",
         "operationId": "serveTerminal",
         "responses": {
           "200": {
@@ -383,7 +526,20 @@
             }
           }
         },
-        "security": []
+        "security": [],
+        "description": "GET /api/runtime/assets/ship-terminal.js",
+        "x-codeSamples": [
+          {
+            "lang": "bash",
+            "label": "curl",
+            "source": "curl -X GET http://localhost:9315/api/assets/ship-terminal.js"
+          },
+          {
+            "lang": "javascript",
+            "label": "fetch",
+            "source": "const res = await fetch(\"http://localhost:9315/api/assets/ship-terminal.js\", {\n  method: \"GET\",\n});\nconst data = await res.json();"
+          }
+        ]
       }
     },
     "/api/assets/view-tokens.css": {
@@ -391,7 +547,7 @@
         "tags": [
           "views"
         ],
-        "summary": "GET /api/runtime/assets/view-tokens.css",
+        "summary": "Serve View Tokens",
         "operationId": "serveViewTokens",
         "responses": {
           "200": {
@@ -411,7 +567,20 @@
             }
           }
         },
-        "security": []
+        "security": [],
+        "description": "GET /api/runtime/assets/view-tokens.css",
+        "x-codeSamples": [
+          {
+            "lang": "bash",
+            "label": "curl",
+            "source": "curl -X GET http://localhost:9315/api/assets/view-tokens.css"
+          },
+          {
+            "lang": "javascript",
+            "label": "fetch",
+            "source": "const res = await fetch(\"http://localhost:9315/api/assets/view-tokens.css\", {\n  method: \"GET\",\n});\nconst data = await res.json();"
+          }
+        ]
       }
     },
     "/api/capabilities": {
@@ -451,7 +620,20 @@
               }
             }
           }
-        }
+        },
+        "summary": "Capabilities",
+        "x-codeSamples": [
+          {
+            "lang": "bash",
+            "label": "curl",
+            "source": "curl -X GET http://localhost:9315/api/capabilities \\\n  -H \"Authorization: Bearer $SHIP_TOKEN\""
+          },
+          {
+            "lang": "javascript",
+            "label": "fetch",
+            "source": "const res = await fetch(\"http://localhost:9315/api/capabilities\", {\n  method: \"GET\",\n  headers: {\n    \"Authorization\": `Bearer ${process.env.SHIP_TOKEN}`,\n  },\n});\nconst data = await res.json();"
+          }
+        ]
       }
     },
     "/api/chat/send": {
@@ -480,7 +662,20 @@
           "500": {
             "description": "Kernel routing failed"
           }
-        }
+        },
+        "summary": "Chat Send",
+        "x-codeSamples": [
+          {
+            "lang": "bash",
+            "label": "curl",
+            "source": "curl -X POST http://localhost:9315/api/chat/send \\\n  -H \"Authorization: Bearer $SHIP_TOKEN\""
+          },
+          {
+            "lang": "javascript",
+            "label": "fetch",
+            "source": "const res = await fetch(\"http://localhost:9315/api/chat/send\", {\n  method: \"POST\",\n  headers: {\n    \"Authorization\": `Bearer ${process.env.SHIP_TOKEN}`,\n  },\n});\nconst data = await res.json();"
+          }
+        ]
       }
     },
     "/api/events": {
@@ -488,7 +683,7 @@
         "tags": [
           "runtime"
         ],
-        "summary": "GET /api/runtime/events — SSE stream of all kernel events.",
+        "summary": "Event Stream",
         "operationId": "eventStream",
         "responses": {
           "200": {
@@ -514,7 +709,20 @@
               }
             }
           }
-        }
+        },
+        "description": "GET /api/runtime/events — SSE stream of all kernel events.",
+        "x-codeSamples": [
+          {
+            "lang": "bash",
+            "label": "curl",
+            "source": "curl -X GET http://localhost:9315/api/events \\\n  -H \"Authorization: Bearer $SHIP_TOKEN\""
+          },
+          {
+            "lang": "javascript",
+            "label": "fetch",
+            "source": "const res = await fetch(\"http://localhost:9315/api/events\", {\n  method: \"GET\",\n  headers: {\n    \"Authorization\": `Bearer ${process.env.SHIP_TOKEN}`,\n  },\n});\nconst data = await res.json();"
+          }
+        ]
       }
     },
     "/api/events/emit": {
@@ -522,7 +730,7 @@
         "tags": [
           "runtime"
         ],
-        "summary": "POST /api/events/emit",
+        "summary": "Emit Event",
         "operationId": "emitEvent",
         "requestBody": {
           "content": {
@@ -575,7 +783,20 @@
               }
             }
           }
-        }
+        },
+        "description": "POST /api/events/emit",
+        "x-codeSamples": [
+          {
+            "lang": "bash",
+            "label": "curl",
+            "source": "curl -X POST http://localhost:9315/api/events/emit \\\n  -H \"Authorization: Bearer $SHIP_TOKEN\" \\\n  -H \"Content-Type: application/json\" \\\n  -d '{\"event_type\":\"deployment.completed\",\"entity_id\":\"write-readme\",\"workspace_id\":\"default\",\"actor_id\":\"agent-writer\",\"payload\":{\"slug\":\"write-readme\",\"status\":\"ok\"}}'"
+          },
+          {
+            "lang": "javascript",
+            "label": "fetch",
+            "source": "const res = await fetch(\"http://localhost:9315/api/events/emit\", {\n  method: \"POST\",\n  headers: {\n    \"Authorization\": `Bearer ${process.env.SHIP_TOKEN}`,\n    \"Content-Type\": \"application/json\",\n  },\n  body: JSON.stringify({\n    \"event_type\": \"deployment.completed\",\n    \"entity_id\": \"write-readme\",\n    \"workspace_id\": \"default\",\n    \"actor_id\": \"agent-writer\",\n    \"payload\": {\n      \"slug\": \"write-readme\",\n      \"status\": \"ok\"\n    }\n  }),\n});\nconst data = await res.json();"
+          }
+        ]
       }
     },
     "/api/events/route": {
@@ -635,7 +856,20 @@
               }
             }
           }
-        }
+        },
+        "summary": "Event Route",
+        "x-codeSamples": [
+          {
+            "lang": "bash",
+            "label": "curl",
+            "source": "curl -X POST http://localhost:9315/api/events/route \\\n  -H \"Authorization: Bearer $SHIP_TOKEN\" \\\n  -H \"Content-Type: application/json\" \\\n  -d '{\"envelope\":{\"kind\":\"job.completed\",\"slug\":\"write-readme\",\"ts\":\"2026-04-22T10:15:00Z\"},\"workspace_id\":\"default\",\"session_id\":\"sess-2f9c\"}'"
+          },
+          {
+            "lang": "javascript",
+            "label": "fetch",
+            "source": "const res = await fetch(\"http://localhost:9315/api/events/route\", {\n  method: \"POST\",\n  headers: {\n    \"Authorization\": `Bearer ${process.env.SHIP_TOKEN}`,\n    \"Content-Type\": \"application/json\",\n  },\n  body: JSON.stringify({\n    \"envelope\": {\n      \"kind\": \"job.completed\",\n      \"slug\": \"write-readme\",\n      \"ts\": \"2026-04-22T10:15:00Z\"\n    },\n    \"workspace_id\": \"default\",\n    \"session_id\": \"sess-2f9c\"\n  }),\n});\nconst data = await res.json();"
+          }
+        ]
       }
     },
     "/api/jobs": {
@@ -643,8 +877,8 @@
         "tags": [
           "runtime"
         ],
-        "summary": "GET /api/runtime/jobs",
-        "description": "Returns each `JobRecord` with two operator-visibility annotations:\n\n- `process_state`: `\"alive\"` when the latest process projection for the\n  slug is still Running, `\"missing\"` when the most recent supervisor\n  sweep flagged drift (no_process) without a coherence_restored after\n  it, `\"terminal\"` for jobs in a terminal status, `\"none\"` otherwise.\n- `notes`: optional truncated error / blocker for the row's NOTES column.",
+        "summary": "List Jobs",
+        "description": "GET /api/runtime/jobs\n\nReturns each `JobRecord` with two operator-visibility annotations:\n\n- `process_state`: `\"alive\"` when the latest process projection for the\n  slug is still Running, `\"missing\"` when the most recent supervisor\n  sweep flagged drift (no_process) without a coherence_restored after\n  it, `\"terminal\"` for jobs in a terminal status, `\"none\"` otherwise.\n- `notes`: optional truncated error / blocker for the row's NOTES column.",
         "operationId": "listJobs",
         "responses": {
           "200": {
@@ -677,7 +911,19 @@
               }
             }
           }
-        }
+        },
+        "x-codeSamples": [
+          {
+            "lang": "bash",
+            "label": "curl",
+            "source": "curl -X GET http://localhost:9315/api/jobs \\\n  -H \"Authorization: Bearer $SHIP_TOKEN\""
+          },
+          {
+            "lang": "javascript",
+            "label": "fetch",
+            "source": "const res = await fetch(\"http://localhost:9315/api/jobs\", {\n  method: \"GET\",\n  headers: {\n    \"Authorization\": `Bearer ${process.env.SHIP_TOKEN}`,\n  },\n});\nconst data = await res.json();"
+          }
+        ]
       }
     },
     "/api/jobs/dispatch": {
@@ -685,8 +931,8 @@
         "tags": [
           "runtime"
         ],
-        "summary": "POST /api/jobs/dispatch",
-        "description": "UI-facing dispatch — mirrors `ship run` on the CLI. Loads the\nnamed pipeline, generates slug/branch/agent, and emits\n`job.created`. The orchestrator picks it up from there.",
+        "summary": "Dispatch Pipeline",
+        "description": "POST /api/jobs/dispatch\n\nUI-facing dispatch — mirrors `ship run` on the CLI. Loads the\nnamed pipeline, generates slug/branch/agent, and emits\n`job.created`. The orchestrator picks it up from there.",
         "operationId": "dispatch_pipeline",
         "requestBody": {
           "content": {
@@ -709,7 +955,19 @@
               }
             }
           }
-        }
+        },
+        "x-codeSamples": [
+          {
+            "lang": "bash",
+            "label": "curl",
+            "source": "curl -X POST http://localhost:9315/api/jobs/dispatch \\\n  -H \"Authorization: Bearer $SHIP_TOKEN\""
+          },
+          {
+            "lang": "javascript",
+            "label": "fetch",
+            "source": "const res = await fetch(\"http://localhost:9315/api/jobs/dispatch\", {\n  method: \"POST\",\n  headers: {\n    \"Authorization\": `Bearer ${process.env.SHIP_TOKEN}`,\n  },\n});\nconst data = await res.json();"
+          }
+        ]
       }
     },
     "/api/jobs/end": {
@@ -717,8 +975,8 @@
         "tags": [
           "runtime"
         ],
-        "summary": "POST /api/runtime/jobs/end — signal that a provider turn ended for a job.",
-        "description": "Called by the session Stop hook when an agent finishes a response turn.\nFor multi-step pipeline jobs, this sends a TurnEnded signal to the step\nmonitor (which accumulates evidence before deciding to advance).\nFor single-step jobs, emits job.completed directly.",
+        "summary": "End Job",
+        "description": "POST /api/runtime/jobs/end — signal that a provider turn ended for a job.\n\nCalled by the session Stop hook when an agent finishes a response turn.\nFor multi-step pipeline jobs, this sends a TurnEnded signal to the step\nmonitor (which accumulates evidence before deciding to advance).\nFor single-step jobs, emits job.completed directly.",
         "operationId": "endJob",
         "requestBody": {
           "content": {
@@ -771,7 +1029,19 @@
               }
             }
           }
-        }
+        },
+        "x-codeSamples": [
+          {
+            "lang": "bash",
+            "label": "curl",
+            "source": "curl -X POST http://localhost:9315/api/jobs/end \\\n  -H \"Authorization: Bearer $SHIP_TOKEN\" \\\n  -H \"Content-Type: application/json\" \\\n  -d '{\"slug\":\"write-readme\"}'"
+          },
+          {
+            "lang": "javascript",
+            "label": "fetch",
+            "source": "const res = await fetch(\"http://localhost:9315/api/jobs/end\", {\n  method: \"POST\",\n  headers: {\n    \"Authorization\": `Bearer ${process.env.SHIP_TOKEN}`,\n    \"Content-Type\": \"application/json\",\n  },\n  body: JSON.stringify({\n    \"slug\": \"write-readme\"\n  }),\n});\nconst data = await res.json();"
+          }
+        ]
       }
     },
     "/api/jobs/{job_id}/status": {
@@ -852,7 +1122,20 @@
               }
             }
           }
-        }
+        },
+        "summary": "Update Job Status",
+        "x-codeSamples": [
+          {
+            "lang": "bash",
+            "label": "curl",
+            "source": "curl -X POST http://localhost:9315/api/jobs/01J3Z5ZQXAM3E4T7W/status \\\n  -H \"Authorization: Bearer $SHIP_TOKEN\" \\\n  -H \"Content-Type: application/json\" \\\n  -d '{\"status\":\"dispatched\",\"worktree\":\"/tmp/ws-write-readme\"}'"
+          },
+          {
+            "lang": "javascript",
+            "label": "fetch",
+            "source": "const res = await fetch(\"http://localhost:9315/api/jobs/01J3Z5ZQXAM3E4T7W/status\", {\n  method: \"POST\",\n  headers: {\n    \"Authorization\": `Bearer ${process.env.SHIP_TOKEN}`,\n    \"Content-Type\": \"application/json\",\n  },\n  body: JSON.stringify({\n    \"status\": \"dispatched\",\n    \"worktree\": \"/tmp/ws-write-readme\"\n  }),\n});\nconst data = await res.json();"
+          }
+        ]
       }
     },
     "/api/jobs/{slug}/step-done": {
@@ -860,7 +1143,7 @@
         "tags": [
           "runtime"
         ],
-        "summary": "POST /api/jobs/{slug}/step-done — agent declares the current pipeline step\ncomplete. Daemon resolves the active step from the projection, builds a\n`step.done_declared` envelope, and routes it through the kernel.",
+        "summary": "Job Step Done",
         "operationId": "jobStepDone",
         "parameters": [
           {
@@ -934,7 +1217,20 @@
               }
             }
           }
-        }
+        },
+        "description": "POST /api/jobs/{slug}/step-done — agent declares the current pipeline step\ncomplete. Daemon resolves the active step from the projection, builds a\n`step.done_declared` envelope, and routes it through the kernel.",
+        "x-codeSamples": [
+          {
+            "lang": "bash",
+            "label": "curl",
+            "source": "curl -X POST http://localhost:9315/api/jobs/write-readme/step-done \\\n  -H \"Authorization: Bearer $SHIP_TOKEN\" \\\n  -H \"Content-Type: application/json\" \\\n  -d '{\"summary\":\"Compiled and tests pass.\",\"outputs\":{\"artifact\":\"build.tar.gz\"}}'"
+          },
+          {
+            "lang": "javascript",
+            "label": "fetch",
+            "source": "const res = await fetch(\"http://localhost:9315/api/jobs/write-readme/step-done\", {\n  method: \"POST\",\n  headers: {\n    \"Authorization\": `Bearer ${process.env.SHIP_TOKEN}`,\n    \"Content-Type\": \"application/json\",\n  },\n  body: JSON.stringify({\n    \"summary\": \"Compiled and tests pass.\",\n    \"outputs\": {\n      \"artifact\": \"build.tar.gz\"\n    }\n  }),\n});\nconst data = await res.json();"
+          }
+        ]
       }
     },
     "/api/mesh/broadcast": {
@@ -994,7 +1290,20 @@
               }
             }
           }
-        }
+        },
+        "summary": "Mesh Broadcast",
+        "x-codeSamples": [
+          {
+            "lang": "bash",
+            "label": "curl",
+            "source": "curl -X POST http://localhost:9315/api/mesh/broadcast \\\n  -H \"Authorization: Bearer $SHIP_TOKEN\" \\\n  -H \"Content-Type: application/json\" \\\n  -d '{\"from\":\"agent-planner\",\"body\":{\"announcement\":\"build step complete\"},\"capability_filter\":\"reads.repo\"}'"
+          },
+          {
+            "lang": "javascript",
+            "label": "fetch",
+            "source": "const res = await fetch(\"http://localhost:9315/api/mesh/broadcast\", {\n  method: \"POST\",\n  headers: {\n    \"Authorization\": `Bearer ${process.env.SHIP_TOKEN}`,\n    \"Content-Type\": \"application/json\",\n  },\n  body: JSON.stringify({\n    \"from\": \"agent-planner\",\n    \"body\": {\n      \"announcement\": \"build step complete\"\n    },\n    \"capability_filter\": \"reads.repo\"\n  }),\n});\nconst data = await res.json();"
+          }
+        ]
       }
     },
     "/api/mesh/discover": {
@@ -1034,7 +1343,20 @@
               }
             }
           }
-        }
+        },
+        "summary": "Mesh Discover",
+        "x-codeSamples": [
+          {
+            "lang": "bash",
+            "label": "curl",
+            "source": "curl -X GET http://localhost:9315/api/mesh/discover \\\n  -H \"Authorization: Bearer $SHIP_TOKEN\""
+          },
+          {
+            "lang": "javascript",
+            "label": "fetch",
+            "source": "const res = await fetch(\"http://localhost:9315/api/mesh/discover\", {\n  method: \"GET\",\n  headers: {\n    \"Authorization\": `Bearer ${process.env.SHIP_TOKEN}`,\n  },\n});\nconst data = await res.json();"
+          }
+        ]
       }
     },
     "/api/mesh/events/{agent_id}": {
@@ -1042,7 +1364,7 @@
         "tags": [
           "mesh"
         ],
-        "summary": "SSE endpoint — drains an agent's mailbox as server-sent events.\nThe agent must register first (which spawns the actor + stashes the mailbox).\nOnly one SSE connection per agent is supported (mailbox is taken, not cloned).",
+        "summary": "Mesh Events",
         "operationId": "meshEvents",
         "parameters": [
           {
@@ -1089,7 +1411,20 @@
               }
             }
           }
-        }
+        },
+        "description": "SSE endpoint — drains an agent's mailbox as server-sent events.\nThe agent must register first (which spawns the actor + stashes the mailbox).\nOnly one SSE connection per agent is supported (mailbox is taken, not cloned).",
+        "x-codeSamples": [
+          {
+            "lang": "bash",
+            "label": "curl",
+            "source": "curl -X GET http://localhost:9315/api/mesh/events/agent-writer \\\n  -H \"Authorization: Bearer $SHIP_TOKEN\""
+          },
+          {
+            "lang": "javascript",
+            "label": "fetch",
+            "source": "const res = await fetch(\"http://localhost:9315/api/mesh/events/agent-writer\", {\n  method: \"GET\",\n  headers: {\n    \"Authorization\": `Bearer ${process.env.SHIP_TOKEN}`,\n  },\n});\nconst data = await res.json();"
+          }
+        ]
       }
     },
     "/api/mesh/register": {
@@ -1149,7 +1484,20 @@
               }
             }
           }
-        }
+        },
+        "summary": "Mesh Register",
+        "x-codeSamples": [
+          {
+            "lang": "bash",
+            "label": "curl",
+            "source": "curl -X POST http://localhost:9315/api/mesh/register \\\n  -H \"Authorization: Bearer $SHIP_TOKEN\" \\\n  -H \"Content-Type: application/json\" \\\n  -d '{\"agent_id\":\"agent-writer\",\"capabilities\":[\"writes.prose\",\"reads.repo\"]}'"
+          },
+          {
+            "lang": "javascript",
+            "label": "fetch",
+            "source": "const res = await fetch(\"http://localhost:9315/api/mesh/register\", {\n  method: \"POST\",\n  headers: {\n    \"Authorization\": `Bearer ${process.env.SHIP_TOKEN}`,\n    \"Content-Type\": \"application/json\",\n  },\n  body: JSON.stringify({\n    \"agent_id\": \"agent-writer\",\n    \"capabilities\": [\n      \"writes.prose\",\n      \"reads.repo\"\n    ]\n  }),\n});\nconst data = await res.json();"
+          }
+        ]
       }
     },
     "/api/mesh/send": {
@@ -1219,7 +1567,20 @@
               }
             }
           }
-        }
+        },
+        "summary": "Mesh Send",
+        "x-codeSamples": [
+          {
+            "lang": "bash",
+            "label": "curl",
+            "source": "curl -X POST http://localhost:9315/api/mesh/send \\\n  -H \"Authorization: Bearer $SHIP_TOKEN\" \\\n  -H \"Content-Type: application/json\" \\\n  -d '{\"from\":\"agent-planner\",\"to\":\"agent-writer\",\"body\":{\"task\":\"draft README section: overview\"}}'"
+          },
+          {
+            "lang": "javascript",
+            "label": "fetch",
+            "source": "const res = await fetch(\"http://localhost:9315/api/mesh/send\", {\n  method: \"POST\",\n  headers: {\n    \"Authorization\": `Bearer ${process.env.SHIP_TOKEN}`,\n    \"Content-Type\": \"application/json\",\n  },\n  body: JSON.stringify({\n    \"from\": \"agent-planner\",\n    \"to\": \"agent-writer\",\n    \"body\": {\n      \"task\": \"draft README section: overview\"\n    }\n  }),\n});\nconst data = await res.json();"
+          }
+        ]
       }
     },
     "/api/mesh/status": {
@@ -1279,7 +1640,20 @@
               }
             }
           }
-        }
+        },
+        "summary": "Mesh Status Update",
+        "x-codeSamples": [
+          {
+            "lang": "bash",
+            "label": "curl",
+            "source": "curl -X POST http://localhost:9315/api/mesh/status \\\n  -H \"Authorization: Bearer $SHIP_TOKEN\" \\\n  -H \"Content-Type: application/json\" \\\n  -d '{\"agent_id\":\"agent-writer\",\"status\":\"idle\"}'"
+          },
+          {
+            "lang": "javascript",
+            "label": "fetch",
+            "source": "const res = await fetch(\"http://localhost:9315/api/mesh/status\", {\n  method: \"POST\",\n  headers: {\n    \"Authorization\": `Bearer ${process.env.SHIP_TOKEN}`,\n    \"Content-Type\": \"application/json\",\n  },\n  body: JSON.stringify({\n    \"agent_id\": \"agent-writer\",\n    \"status\": \"idle\"\n  }),\n});\nconst data = await res.json();"
+          }
+        ]
       }
     },
     "/api/providers": {
@@ -1319,7 +1693,20 @@
               }
             }
           }
-        }
+        },
+        "summary": "List Providers",
+        "x-codeSamples": [
+          {
+            "lang": "bash",
+            "label": "curl",
+            "source": "curl -X GET http://localhost:9315/api/providers \\\n  -H \"Authorization: Bearer $SHIP_TOKEN\""
+          },
+          {
+            "lang": "javascript",
+            "label": "fetch",
+            "source": "const res = await fetch(\"http://localhost:9315/api/providers\", {\n  method: \"GET\",\n  headers: {\n    \"Authorization\": `Bearer ${process.env.SHIP_TOKEN}`,\n  },\n});\nconst data = await res.json();"
+          }
+        ]
       }
     },
     "/api/rebuild-projections": {
@@ -1327,7 +1714,7 @@
         "tags": [
           "runtime"
         ],
-        "summary": "POST /api/runtime/rebuild-projections — rebuild all projections from events.",
+        "summary": "Rebuild Projections",
         "operationId": "rebuildProjections",
         "responses": {
           "200": {
@@ -1370,7 +1757,20 @@
               }
             }
           }
-        }
+        },
+        "description": "POST /api/runtime/rebuild-projections — rebuild all projections from events.",
+        "x-codeSamples": [
+          {
+            "lang": "bash",
+            "label": "curl",
+            "source": "curl -X POST http://localhost:9315/api/rebuild-projections \\\n  -H \"Authorization: Bearer $SHIP_TOKEN\""
+          },
+          {
+            "lang": "javascript",
+            "label": "fetch",
+            "source": "const res = await fetch(\"http://localhost:9315/api/rebuild-projections\", {\n  method: \"POST\",\n  headers: {\n    \"Authorization\": `Bearer ${process.env.SHIP_TOKEN}`,\n  },\n});\nconst data = await res.json();"
+          }
+        ]
       }
     },
     "/api/sessions": {
@@ -1378,7 +1778,7 @@
         "tags": [
           "runtime"
         ],
-        "summary": "GET /api/runtime/sessions[?workspace_id=<id>]",
+        "summary": "List Sessions",
         "operationId": "listSessions",
         "parameters": [
           {
@@ -1424,7 +1824,20 @@
               }
             }
           }
-        }
+        },
+        "description": "GET /api/runtime/sessions[?workspace_id=<id>]",
+        "x-codeSamples": [
+          {
+            "lang": "bash",
+            "label": "curl",
+            "source": "curl -X GET http://localhost:9315/api/sessions \\\n  -H \"Authorization: Bearer $SHIP_TOKEN\""
+          },
+          {
+            "lang": "javascript",
+            "label": "fetch",
+            "source": "const res = await fetch(\"http://localhost:9315/api/sessions\", {\n  method: \"GET\",\n  headers: {\n    \"Authorization\": `Bearer ${process.env.SHIP_TOKEN}`,\n  },\n});\nconst data = await res.json();"
+          }
+        ]
       }
     },
     "/api/settings": {
@@ -1464,7 +1877,20 @@
               }
             }
           }
-        }
+        },
+        "summary": "List Settings",
+        "x-codeSamples": [
+          {
+            "lang": "bash",
+            "label": "curl",
+            "source": "curl -X GET http://localhost:9315/api/settings \\\n  -H \"Authorization: Bearer $SHIP_TOKEN\""
+          },
+          {
+            "lang": "javascript",
+            "label": "fetch",
+            "source": "const res = await fetch(\"http://localhost:9315/api/settings\", {\n  method: \"GET\",\n  headers: {\n    \"Authorization\": `Bearer ${process.env.SHIP_TOKEN}`,\n  },\n});\nconst data = await res.json();"
+          }
+        ]
       },
       "put": {
         "tags": [
@@ -1532,7 +1958,20 @@
               }
             }
           }
-        }
+        },
+        "summary": "Update Setting",
+        "x-codeSamples": [
+          {
+            "lang": "bash",
+            "label": "curl",
+            "source": "curl -X PUT http://localhost:9315/api/settings \\\n  -H \"Authorization: Bearer $SHIP_TOKEN\" \\\n  -H \"Content-Type: application/json\" \\\n  -d '{\"key\":\"defaults.provider\",\"value\":\"claude\"}'"
+          },
+          {
+            "lang": "javascript",
+            "label": "fetch",
+            "source": "const res = await fetch(\"http://localhost:9315/api/settings\", {\n  method: \"PUT\",\n  headers: {\n    \"Authorization\": `Bearer ${process.env.SHIP_TOKEN}`,\n    \"Content-Type\": \"application/json\",\n  },\n  body: JSON.stringify({\n    \"key\": \"defaults.provider\",\n    \"value\": \"claude\"\n  }),\n});\nconst data = await res.json();"
+          }
+        ]
       }
     },
     "/api/settings/{key}": {
@@ -1593,7 +2032,20 @@
               }
             }
           }
-        }
+        },
+        "summary": "Get Setting",
+        "x-codeSamples": [
+          {
+            "lang": "bash",
+            "label": "curl",
+            "source": "curl -X GET http://localhost:9315/api/settings/defaults.provider \\\n  -H \"Authorization: Bearer $SHIP_TOKEN\""
+          },
+          {
+            "lang": "javascript",
+            "label": "fetch",
+            "source": "const res = await fetch(\"http://localhost:9315/api/settings/defaults.provider\", {\n  method: \"GET\",\n  headers: {\n    \"Authorization\": `Bearer ${process.env.SHIP_TOKEN}`,\n  },\n});\nconst data = await res.json();"
+          }
+        ]
       }
     },
     "/api/ship/schema": {
@@ -1601,13 +2053,26 @@
         "tags": [
           "framework"
         ],
-        "summary": "`GET /api/ship/schema` — catalog of every `ship.<domain>.<op>` the\nregistry exposes. Consumers:\n- `@ship/shell` TS SDK: codegen typed `window.ship.*` methods\n- Lint: flag template calls that don't match a known op\n- MCP server: auto-register ops as tools\n- Third-party view authors: editor autocomplete via `/api/ship/schema`",
+        "summary": "Serve Ship Schema",
         "operationId": "serveShipSchema",
         "responses": {
           "200": {
             "description": "ship.* op catalog (names, args, returns, permissions)"
           }
-        }
+        },
+        "description": "`GET /api/ship/schema` — catalog of every `ship.<domain>.<op>` the\nregistry exposes. Consumers:\n- `@ship/shell` TS SDK: codegen typed `window.ship.*` methods\n- Lint: flag template calls that don't match a known op\n- MCP server: auto-register ops as tools\n- Third-party view authors: editor autocomplete via `/api/ship/schema`",
+        "x-codeSamples": [
+          {
+            "lang": "bash",
+            "label": "curl",
+            "source": "curl -X GET http://localhost:9315/api/ship/schema \\\n  -H \"Authorization: Bearer $SHIP_TOKEN\""
+          },
+          {
+            "lang": "javascript",
+            "label": "fetch",
+            "source": "const res = await fetch(\"http://localhost:9315/api/ship/schema\", {\n  method: \"GET\",\n  headers: {\n    \"Authorization\": `Bearer ${process.env.SHIP_TOKEN}`,\n  },\n});\nconst data = await res.json();"
+          }
+        ]
       }
     },
     "/api/sse/{path}": {
@@ -1634,7 +2099,20 @@
               "text/event-stream": {}
             }
           }
-        }
+        },
+        "summary": "Serve View Sse Routed",
+        "x-codeSamples": [
+          {
+            "lang": "bash",
+            "label": "curl",
+            "source": "curl -X GET http://localhost:9315/api/sse/webhook-example \\\n  -H \"Authorization: Bearer $SHIP_TOKEN\""
+          },
+          {
+            "lang": "javascript",
+            "label": "fetch",
+            "source": "const res = await fetch(\"http://localhost:9315/api/sse/webhook-example\", {\n  method: \"GET\",\n  headers: {\n    \"Authorization\": `Bearer ${process.env.SHIP_TOKEN}`,\n  },\n});\nconst data = await res.json();"
+          }
+        ]
       }
     },
     "/api/v/{path}": {
@@ -1667,7 +2145,20 @@
           "500": {
             "description": "Template render failed"
           }
-        }
+        },
+        "summary": "Serve View Routed",
+        "x-codeSamples": [
+          {
+            "lang": "bash",
+            "label": "curl",
+            "source": "curl -X GET http://localhost:9315/api/v/webhook-example \\\n  -H \"Authorization: Bearer $SHIP_TOKEN\""
+          },
+          {
+            "lang": "javascript",
+            "label": "fetch",
+            "source": "const res = await fetch(\"http://localhost:9315/api/v/webhook-example\", {\n  method: \"GET\",\n  headers: {\n    \"Authorization\": `Bearer ${process.env.SHIP_TOKEN}`,\n  },\n});\nconst data = await res.json();"
+          }
+        ]
       }
     },
     "/api/workspaces": {
@@ -1675,8 +2166,8 @@
         "tags": [
           "runtime"
         ],
-        "summary": "GET /api/runtime/workspaces",
-        "description": "Returns only active workspaces. Archived/dead workspaces are excluded\nfrom the API surface — the reconciler handles cleanup internally.",
+        "summary": "List Workspaces",
+        "description": "GET /api/runtime/workspaces\n\nReturns only active workspaces. Archived/dead workspaces are excluded\nfrom the API surface — the reconciler handles cleanup internally.",
         "operationId": "listWorkspaces",
         "responses": {
           "200": {
@@ -1709,7 +2200,19 @@
               }
             }
           }
-        }
+        },
+        "x-codeSamples": [
+          {
+            "lang": "bash",
+            "label": "curl",
+            "source": "curl -X GET http://localhost:9315/api/workspaces \\\n  -H \"Authorization: Bearer $SHIP_TOKEN\""
+          },
+          {
+            "lang": "javascript",
+            "label": "fetch",
+            "source": "const res = await fetch(\"http://localhost:9315/api/workspaces\", {\n  method: \"GET\",\n  headers: {\n    \"Authorization\": `Bearer ${process.env.SHIP_TOKEN}`,\n  },\n});\nconst data = await res.json();"
+          }
+        ]
       }
     }
   },
@@ -1928,6 +2431,13 @@
           "payload"
         ],
         "properties": {
+          "actor": {
+            "type": [
+              "string",
+              "null"
+            ],
+            "description": "Optional namespace actor (e.g. \"studio\") — sets envelope.actor.\nDefaults to \"ship\". Used by Studio's event emitter so subscribers\ncan route on namespace."
+          },
           "actor_id": {
             "type": [
               "string",

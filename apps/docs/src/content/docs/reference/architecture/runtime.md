@@ -5,7 +5,7 @@ sidebar:
   label: "Runtime"
   order: 2
 ---
-The runtime crate (`crates/core/runtime/`) owns all persistent state. All events live in the single `events` table in `~/.ship/machine/db/platform.db`. Actor isolation is logical — namespace-scoped writes/reads through `ActorStore`. No other layer touches the database directly — all access goes through the KernelRouter and ActorStore.
+The runtime crate (`crates/core/runtime/`) owns all persistent state. It manages per-actor SQLite databases under `~/.ship/actors/` and the kernel store at `~/.ship/kernel/events.db`. Legacy state remains in `~/.ship/platform.db` during migration. No other layer touches the databases directly — all access goes through the KernelRouter and ActorStore.
 
 ## Module Map
 
@@ -51,7 +51,7 @@ The `db` module contains all platform.db table access. One file per domain:
 | `db::schema` | Schema definitions |
 | `db::types` | Shared DB type definitions |
 
-The platform database path is `~/.ship/machine/db/platform.db`. The `ensure_db()` function runs sqlx migrations idempotently, sets WAL journal mode and foreign keys, then opens a connection. The shared `events` table backs every actor's event log — there is no separate per-actor or kernel database.
+The platform database path is `~/.ship/platform.db`. The `ensure_db()` function runs sqlx migrations idempotently, sets WAL journal mode and foreign keys, then opens a connection. Per-actor event stores live at `~/.ship/actors/{actor_id}/events.db` and are managed by the `KernelRouter` (see Actor Model below). The kernel's own event store lives at `~/.ship/kernel/events.db`.
 
 {% aside type="tip" %}
 Tests get automatic isolation. The `get_global_dir()` function detects test binaries and returns a per-thread temp directory instead of `~/.ship/`.
@@ -106,7 +106,7 @@ A scoped event handle bound to one actor's SQLite DB. Enforces namespace boundar
 
 - Writes reject event types outside the actor's `write_namespaces`.
 - Reads reject filters targeting other namespaces.
-- Actor events all live in the shared `events` table in `~/.ship/machine/db/platform.db`. Isolation is enforced logically by `ActorStore`'s namespace checks.
+- Each actor's DB lives at `~/.ship/actors/{actor_id}/events.db`.
 
 Actors never construct their own store. The kernel creates it via `spawn_actor`.
 
@@ -121,11 +121,14 @@ Every event type is namespaced (e.g. `studio.message.visual`, `agent.task.comple
 ### Directory layout
 
 ```
-~/.ship/machine/db/platform.db
-                  └─ events table
-                       ├─ namespace = "kernel.*"   # System lifecycle
-                       ├─ namespace = "studio.*"   # Studio domain
-                       └─ namespace = "agent.*"    # Agent scoped events
+~/.ship/
+  kernel/
+    events.db           # System lifecycle events only
+  actors/
+    studio/
+      events.db         # Studio's domain events
+    agent-{id}/
+      events.db         # Agent's scoped events
 ```
 
 ### Event flow

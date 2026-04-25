@@ -11,7 +11,7 @@ The Ship daemon (`shipd`) is a long-running Axum HTTP server that provides the e
 
 `shipd::run_network(host, port)` performs these steps in order:
 
-1. **Initialize KernelRouter** — opens the shared platform database at `{global_dir}/machine/db/platform.db`. Every actor's events land in its `events` table.
+1. **Initialize KernelRouter** — creates the kernel event store at `{global_dir}/kernel/events.db`.
 2. **Spawn MeshService** — registers a `service.mesh` actor subscribed to `mesh.*` events. Returns a `SharedMeshRegistry` for REST read access.
 3. **Subscribe workspace events** — spawns `service.workspace-sync` actor to project `workspace.*` events into the workspace database table.
 4. **Subscribe job events** — spawns `service.job-dispatch` actor to handle `job.*` lifecycle (create, update, complete, merge).
