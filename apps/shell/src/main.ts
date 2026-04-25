@@ -9,6 +9,12 @@ import { installErrorReporter } from "./error-reporter";
 // before the element in index.html upgrades, so the shell is ready by
 // the time view code starts calling `window.ship.*`.
 import "./chrome";
+// Side-effect import: registers every `<ship-*>` web component in the
+// same module graph as the shell chrome. Sharing the graph means a
+// single Lit copy at runtime (no "Multiple versions" warning) and
+// removes the need for a daemon-served `/api/assets/ship-elements.js`
+// from the SPA bootstrap.
+import "@ship/set/web-components";
 
 // Install as early as possible so any boot-time throw gets captured.
 installErrorReporter();
@@ -160,11 +166,18 @@ function mountThemePicker() {
     const id = (e as CustomEvent<{ id: string }>).detail?.id;
     if (isValidTheme(id)) {
       setActive(id);
-      const status = document.getElementById("status-theme");
-      if (status) status.textContent = id;
     }
   });
 }
+
+// applyTheme() in @ship/set/themes always dispatches `ship:theme:change`
+// — listen here to repaint the status bar regardless of caller (UI
+// picker, programmatic `setShipTheme`, or external code calling
+// applyTheme directly). Cleaner than a MutationObserver on dataset.
+document.addEventListener("ship:theme:change", (e) => {
+  const id = (e as CustomEvent<{ id: string }>).detail?.id;
+  if (typeof id === "string" && statusTheme) statusTheme.textContent = id;
+});
 
 // Wait for <ship-nav-top> to render its light-DOM theme-picker host before
 // wiring up the grid. firstUpdated on nav-top dispatches ship:nav-top:ready.

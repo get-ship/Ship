@@ -113,8 +113,16 @@ export function applyTheme(
   root: HTMLElement = document.documentElement,
 ): ThemeId {
   const next: ThemeId = isValidTheme(id) ? id : DEFAULT_THEME
+  const dark = isDarkTheme(next)
   root.dataset.theme = next
-  root.classList.toggle('dark', isDarkTheme(next))
+  root.classList.toggle('dark', dark)
+  // Always announce theme application so chrome (status bar, devtools,
+  // etc.) can repaint deterministically without a MutationObserver.
+  if (typeof document !== 'undefined' && typeof CustomEvent !== 'undefined') {
+    document.dispatchEvent(
+      new CustomEvent('ship:theme:change', { detail: { id: next, dark } }),
+    )
+  }
   return next
 }
 
