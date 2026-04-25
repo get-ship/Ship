@@ -605,6 +605,8 @@ pub fn call(name: &str, args: &Value, state: &ApiState) -> Result<Value, Registr
             };
             let pid_alive = runtime::projections::actor::pid_alive;
             let mut processes: Vec<serde_json::Value> = Vec::new();
+
+            // Daemon + supervisor — the "Ship is running" anchor.
             if let Some(pid) = read_pidfile("daemon.pid") {
                 processes.push(json!({
                     "name": "shipd",
@@ -614,10 +616,7 @@ pub fn call(name: &str, args: &Value, state: &ApiState) -> Result<Value, Registr
                     "log": global_dir.join("shipd.log").display().to_string(),
                     "version": option_env!("SHIP_MCP_VERSION_STRING").unwrap_or("dev"),
                 }));
-            }
-            // Supervisor is shipd's parent.
-            if let Some(daemon_pid) = read_pidfile("daemon.pid") {
-                if let Ok(p) = std::fs::read_to_string(format!("/proc/{daemon_pid}/status")) {
+                if let Ok(p) = std::fs::read_to_string(format!("/proc/{pid}/status")) {
                     let ppid: Option<i64> = p.lines()
                         .find(|l| l.starts_with("PPid:"))
                         .and_then(|l| l.split_whitespace().nth(1))
@@ -630,6 +629,95 @@ pub fn call(name: &str, args: &Value, state: &ApiState) -> Result<Value, Registr
                                 "pid": pp,
                                 "alive": pid_alive(pp),
                             }));
+                        }
+                    }
+                }
+            }
+
+            // Walk /proc and pick out provider CLIs + `ship mcp serve`
+            // children. These are processes that exist because of Ship
+            // (or via Ship's MCP integration). Trust contract: if a
+            // ship-spawned `ship` is running on this machine, we show it.
+            let interesting_bins = [
+                ("claude", "claude"),
+                ("codex", "codex"),
+                ("opencode", "opencode"),
+                ("gemini", "gemini"),
+                ("cursor", "cursor"),
+            ];
+            if let Ok(entries) = std::fs::read_dir("/proc") {
+                for entry in entries.flatten() {
+                    let name = entry.file_name();
+                    let pid: i64 = match name.to_string_lossy().parse() {
+                        Ok(p) => p,
+                        _ => continue,
+                    };
+                    let cmdline = match std::fs::read(format!("/proc/{pid}/cmdline")) {
+                        Ok(b) => String::from_utf8_lossy(&b).replace('\0', " ").trim().to_string(),
+                        _ => continue,
+                    };
+                    if cmdline.is_empty() { continue; }
+
+                    // ship mcp serve children (any path).
+                    if cmdline.contains("ship mcp serve")
+                        || cmdline.contains("/ship mcp serve")
+                    {
+                        let parent: Option<String> = std::fs::read_to_string(
+                            format!("/proc/{pid}/status")
+                        )
+                            .ok()
+                            .and_then(|s| s.lines()
+                                .find(|l| l.starts_with("PPid:"))
+                                .map(|l| l.to_string())
+                            );
+                        let ppid: Option<i64> = parent
+                            .and_then(|s| s.split_whitespace().nth(1).map(String::from))
+                            .and_then(|s| s.parse().ok());
+                        let ppid_cmd = ppid.and_then(|p| {
+                            std::fs::read(format!("/proc/{p}/cmdline"))
+                                .ok()
+                                .map(|b| String::from_utf8_lossy(&b)
+                                    .replace('\0', " ").trim().to_string())
+                                .map(|s| s.split_whitespace().next()
+                                    .unwrap_or("")
+                                    .rsplit('/')
+                                    .next()
+                                    .unwrap_or("")
+                                    .to_string())
+                        });
+                        processes.push(json!({
+                            "name": "ship mcp serve",
+                            "role": "mcp-bridge",
+                            "pid": pid,
+                            "alive": true,
+                            "parent": ppid,
+                            "parent_cmd": ppid_cmd,
+                        }));
+                        continue;
+                    }
+
+                    // Provider CLIs (claude, codex, etc.) — the actual
+                    // agent binaries running on the user's machine.
+                    let bin = cmdline.split_whitespace().next().unwrap_or("");
+                    let bin_basename = bin.rsplit('/').next().unwrap_or(bin);
+                    for (probe, label) in &interesting_bins {
+                        if bin_basename == *probe {
+                            // Distinguish ship-spawned vs user-direct:
+                            // ship-spawned has --name job-... or is a
+                            // child of a `ship` parent process.
+                            let role = if cmdline.contains("--name job-") {
+                                "agent (ship-spawned)"
+                            } else {
+                                "agent (user-launched)"
+                            };
+                            processes.push(json!({
+                                "name": *label,
+                                "role": role,
+                                "pid": pid,
+                                "alive": true,
+                                "cmdline_preview": cmdline.chars().take(120).collect::<String>(),
+                            }));
+                            break;
                         }
                     }
                 }

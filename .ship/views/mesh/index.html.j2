@@ -106,7 +106,7 @@
     {% else %}
       <table>
         <thead>
-          <tr><th></th><th>Name</th><th>Role</th><th>Pid</th><th>Version</th><th>Log</th></tr>
+          <tr><th></th><th>Name</th><th>Role</th><th>Pid</th><th>Detail</th></tr>
         </thead>
         <tbody>
           {% for p in snap.processes %}
@@ -115,8 +115,12 @@
             <td><strong>{{ p.name }}</strong></td>
             <td><span class="badge">{{ p.role }}</span></td>
             <td class="pid">{{ p.pid }}</td>
-            <td class="muted">{{ p.version or '—' }}</td>
-            <td class="muted" style="font-size: 11px;">{{ p.log or '—' }}</td>
+            <td class="muted" style="font-size: 11px;">
+              {%- if p.version -%}{{ p.version }}{%- endif -%}
+              {%- if p.log -%} · {{ p.log }}{%- endif -%}
+              {%- if p.parent -%}parent pid {{ p.parent }}{%- if p.parent_cmd %} ({{ p.parent_cmd }}){% endif %}{%- endif -%}
+              {%- if p.cmdline_preview -%}<code style="font-family: var(--font-mono);">{{ p.cmdline_preview }}</code>{%- endif -%}
+            </td>
           </tr>
           {% endfor %}
         </tbody>
