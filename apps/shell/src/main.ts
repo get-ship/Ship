@@ -108,39 +108,90 @@ function mountThemePicker() {
   const grid = root.querySelector<HTMLElement>(".theme-grid");
   if (!grid) return;
 
-  // Flat grid — every Ship theme is a full aesthetic bundle, so there
-  // are no tiers. Pick one.
-  const card = (t: (typeof THEMES)[number]) => `
-    <button type="button" class="theme-card" role="option"
-      data-theme-card="${t.id}" data-dark="${t.dark}"
-      aria-label="${t.label}"
-      style="
-        --swatch-bg: ${t.swatches[0]};
-        --swatch-card: ${t.swatches[1]};
-        --swatch-primary: ${t.swatches[2]};
-        --swatch-accent: ${t.swatches[3]};
-      ">
-      <div class="theme-card-swatches">
-        <span style="background:${t.swatches[0]}"></span>
-        <span style="background:${t.swatches[1]}"></span>
-        <span style="background:${t.swatches[2]}"></span>
-        <span style="background:${t.swatches[3]}"></span>
+  // Personality-aware groups. Each row gets a typography hint matching
+  // the theme's body voice — mono for console, demoted serif-ish for
+  // paper, brand-display for halo/contrast — so the picker previews
+  // not just color but feel.
+  type Group = { label: string; ids: ReadonlyArray<string>; font: string };
+  const GROUPS: Group[] = [
+    { label: "Default", ids: ["ship-light", "ship-dark"],
+      font: "var(--font-display, var(--font-body))" },
+    { label: "Texture", ids: ["paper", "halo"],
+      font: "var(--font-body)" },
+    { label: "Special", ids: ["console", "contrast"],
+      font: "var(--font-mono)" },
+  ];
+
+  const card = (t: (typeof THEMES)[number], font: string) => {
+    // Three-swatch personality preview: bg, primary, surface (card).
+    return `
+      <button type="button" class="theme-card" role="option"
+        data-theme-card="${t.id}" data-dark="${t.dark}"
+        aria-label="${t.label}" aria-selected="false" tabindex="-1"
+        style="
+          --swatch-bg: ${t.swatches[0]};
+          --swatch-card: ${t.swatches[1]};
+          --swatch-primary: ${t.swatches[2]};
+          --swatch-accent: ${t.swatches[3]};
+          --tc-font: ${font};
+        ">
+        <span class="theme-card-radio" aria-hidden="true"></span>
+        <span class="theme-card-swatches" aria-hidden="true">
+          <span style="background:${t.swatches[0]}"></span>
+          <span style="background:${t.swatches[2]}"></span>
+          <span style="background:${t.swatches[1]}"></span>
+        </span>
+        <span class="theme-card-name">${t.label}</span>
+      </button>`;
+  };
+  const byId = new Map(THEMES.map((t) => [t.id, t]));
+  const groupHtml = (g: Group) => `
+    <section class="theme-group" aria-label="${g.label}">
+      <div class="theme-group-h">${g.label}</div>
+      <div class="theme-group-rows">
+        ${g.ids.map((id) => byId.get(id)).filter(Boolean)
+          .map((t) => card(t!, g.font)).join("")}
       </div>
-      <div class="theme-card-name">${t.label}</div>
-    </button>`;
-  grid.innerHTML = `
-    <section class="theme-group" aria-label="Themes">
-      <div class="theme-group-cards">${THEMES.map(card).join("")}</div>
     </section>`;
+  grid.innerHTML = GROUPS.map(groupHtml).join("");
 
   const setActive = (id: string) => {
     grid.querySelectorAll<HTMLElement>("[data-theme-card]").forEach((c) => {
-      c.setAttribute(
-        "aria-selected",
-        c.dataset.themeCard === id ? "true" : "false",
-      );
+      const on = c.dataset.themeCard === id;
+      c.setAttribute("aria-selected", on ? "true" : "false");
+      c.tabIndex = on ? 0 : -1;
     });
   };
+
+  // Keyboard nav: ↑/↓ moves focus, Enter activates. Treat the picker as
+  // one long list across groups.
+  grid.addEventListener("keydown", (e) => {
+    const cards = Array.from(
+      grid.querySelectorAll<HTMLElement>("[data-theme-card]"),
+    );
+    const idx = cards.findIndex((c) => c === document.activeElement);
+    const move = (delta: number) => {
+      const next = cards[(idx + delta + cards.length) % cards.length];
+      if (next) {
+        cards.forEach((c) => (c.tabIndex = -1));
+        next.tabIndex = 0;
+        next.focus();
+        e.preventDefault();
+      }
+    };
+    if (e.key === "ArrowDown") move(1);
+    else if (e.key === "ArrowUp") move(-1);
+    else if (e.key === "Home") {
+      cards[0]?.focus();
+      e.preventDefault();
+    } else if (e.key === "End") {
+      cards[cards.length - 1]?.focus();
+      e.preventDefault();
+    } else if (e.key === "Enter" || e.key === " ") {
+      (document.activeElement as HTMLElement | null)?.click();
+      e.preventDefault();
+    }
+  });
 
   const initial = readStoredTheme();
   applyTheme(initial);
@@ -582,6 +633,7 @@ viewRoute("/dashboard", "/api/v/dashboard");
 viewRoute("/canvas", "/api/v/canvas");
 viewRoute("/overview", "/api/v/overview");
 viewRoute("/theme-studio", "/api/v/theme-studio");
+viewRoute("/setup", "/api/v/setup");
 
 // Dynamic routes
 router.on("/collections/:collection", ({ data }) => {
@@ -654,7 +706,7 @@ router.notFound(() => {
     <div style="display:flex;flex-direction:column;align-items:center;justify-content:center;height:100%;gap:var(--space-3)">
       <h2 style="font-family:var(--font-display);font-size:var(--text-xl);margin:0">Page not found</h2>
       <p style="color:var(--muted-foreground);margin:0">The route "${location.pathname}" doesn't exist.</p>
-      <ship-button tone="accent" variant="solid" onclick="window.router.navigate('/')">Go home</ship-button>
+      <ship-button tone="primary" variant="solid" onclick="window.router.navigate('/')">Go home</ship-button>
     </div>`;
 });
 
