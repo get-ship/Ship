@@ -94,7 +94,7 @@ pub fn emit_actor_stopped(
         workspace_id,
         parent_actor_id,
         event_types::ACTOR_STOPPED,
-        &ActorStopped { reason: reason.to_string() },
+        &ActorStopped { reason: reason.to_string(), ..Default::default() },
     )
 }
 

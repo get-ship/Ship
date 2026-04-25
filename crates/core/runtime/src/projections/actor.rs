@@ -46,7 +46,7 @@ impl Projection for ActorProjection {
             event_types::ACTOR_CREATED => apply_created(entity, &event.payload_json, conn),
             event_types::ACTOR_WOKE => apply_status(entity, "active", conn),
             event_types::ACTOR_SLEPT => apply_status(entity, "sleeping", conn),
-            event_types::ACTOR_STOPPED => apply_status(entity, "stopped", conn),
+            event_types::ACTOR_STOPPED => apply_stopped(entity, &event.payload_json, conn),
             event_types::ACTOR_CRASHED => apply_crashed(entity, &event.payload_json, conn),
             _ => Ok(()),
         }
@@ -87,6 +87,22 @@ struct CreatedPayload {
     parent_actor_id: Option<String>,
     #[serde(default)]
     restart_count: u32,
+    #[serde(default)]
+    agent_id: Option<String>,
+    #[serde(default)]
+    provider: Option<String>,
+    #[serde(default)]
+    model: Option<String>,
+    #[serde(default)]
+    transport: Option<String>,
+    #[serde(default)]
+    persistence: Option<String>,
+    #[serde(default)]
+    system_prompt_hash: Option<String>,
+    #[serde(default)]
+    pid: Option<u32>,
+    #[serde(default)]
+    capabilities: Vec<String>,
 }
 
 fn apply_created(
@@ -95,12 +111,16 @@ fn apply_created(
     conn: &mut SqliteConnection,
 ) -> Result<()> {
     let p: CreatedPayload = serde_json::from_str(payload_json)?;
+    let capabilities_json = serde_json::to_string(&p.capabilities).unwrap_or_else(|_| "[]".into());
     block_on(async {
         sqlx::query(
             "INSERT OR REPLACE INTO actors \
              (id, kind, environment_type, status, workspace_id, parent_actor_id, \
-              restart_count, created_at, updated_at) \
-             VALUES (?, ?, ?, 'created', ?, ?, ?, datetime('now'), datetime('now'))",
+              restart_count, agent_id, provider, model, transport, persistence, \
+              system_prompt_hash, pid, capabilities_json, \
+              created_at, updated_at, last_event_at) \
+             VALUES (?, ?, ?, 'created', ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, ?, \
+                     datetime('now'), datetime('now'), datetime('now'))",
         )
         .bind(entity_id)
         .bind(&p.kind)
@@ -108,6 +128,14 @@ fn apply_created(
         .bind(&p.workspace_id)
         .bind(&p.parent_actor_id)
         .bind(p.restart_count as i64)
+        .bind(&p.agent_id)
+        .bind(&p.provider)
+        .bind(&p.model)
+        .bind(&p.transport)
+        .bind(&p.persistence)
+        .bind(&p.system_prompt_hash)
+        .bind(p.pid.map(|v| v as i64))
+        .bind(&capabilities_json)
         .execute(conn)
         .await?;
         Ok(())
@@ -121,6 +149,41 @@ fn apply_status(entity_id: &str, status: &str, conn: &mut SqliteConnection) -> R
             .bind(entity_id)
             .execute(conn)
             .await?;
+        Ok(())
+    })
+}
+
+#[derive(serde::Deserialize)]
+struct StoppedPayload {
+    #[serde(default)]
+    reason: String,
+    #[serde(default)]
+    exit_code: Option<i32>,
+    #[serde(default)]
+    duration_ms: Option<u64>,
+}
+
+fn apply_stopped(
+    entity_id: &str,
+    payload_json: &str,
+    conn: &mut SqliteConnection,
+) -> Result<()> {
+    let p: StoppedPayload = serde_json::from_str(payload_json).unwrap_or(StoppedPayload {
+        reason: String::new(),
+        exit_code: None,
+        duration_ms: None,
+    });
+    block_on(async {
+        sqlx::query(
+            "UPDATE actors SET status = 'stopped', exit_reason = ?, exit_code = ?, \
+             duration_ms = ?, updated_at = datetime('now') WHERE id = ?",
+        )
+        .bind(&p.reason)
+        .bind(p.exit_code)
+        .bind(p.duration_ms.map(|v| v as i64))
+        .bind(entity_id)
+        .execute(conn)
+        .await?;
         Ok(())
     })
 }

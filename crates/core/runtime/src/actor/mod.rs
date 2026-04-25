@@ -36,6 +36,7 @@ pub fn create_actor(
         workspace_id: workspace_id.map(str::to_string),
         parent_actor_id: parent_actor_id.map(str::to_string),
         restart_count: 0,
+        ..Default::default()
     };
     emit_actor_created(id, &payload, workspace_id, parent_actor_id)
 }
