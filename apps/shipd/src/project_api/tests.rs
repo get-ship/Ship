@@ -297,6 +297,7 @@ async fn emit_event_routes_to_kernel() {
             actor_id: None,
             elevated: None,
             validate_domain: None,
+            actor: None,
         }),
     )
     .await

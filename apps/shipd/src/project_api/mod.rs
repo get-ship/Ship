@@ -212,6 +212,11 @@ pub struct EmitEventReq {
     /// to this value (cannot be overridden by the payload).
     #[serde(default)]
     pub actor_id: Option<String>,
+    /// Optional namespace actor (e.g. "studio") — sets envelope.actor.
+    /// Defaults to "ship". Used by Studio's event emitter so subscribers
+    /// can route on namespace.
+    #[serde(default)]
+    pub actor: Option<String>,
     /// Optional elevation flag — only honoured when the auth context permits.
     #[serde(default)]
     pub elevated: Option<bool>,
@@ -277,12 +282,16 @@ pub async fn emit_event(
 
     let actor = body.actor_id.as_deref().unwrap_or("studio");
     envelope = envelope.with_actor_id(actor);
+    if let Some(ref ns) = body.actor {
+        envelope.actor = ns.clone();
+    }
     if let Some(ref ws_id) = body.workspace_id {
         envelope = envelope.with_context(Some(ws_id), None);
     }
     if body.elevated.unwrap_or(false) {
         envelope = envelope.elevate();
     }
+    let envelope_id: String = envelope.id.clone();
 
     // Use auth context if available (token-based), otherwise treat as CLI caller.
     // Studio (localhost browser) is exempted from auth but needs Cli caller kind
@@ -308,7 +317,7 @@ pub async fn emit_event(
             err_response(StatusCode::INTERNAL_SERVER_ERROR, &e.to_string())
         })?;
 
-    Ok(ok_response(json!({})))
+    Ok(ok_response(json!({ "id": envelope_id })))
 }
 
 // ---- Workspace delete endpoint ----

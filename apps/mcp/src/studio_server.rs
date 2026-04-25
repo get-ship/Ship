@@ -422,43 +422,34 @@ impl StudioServer {
             Ok(d) => d,
             Err(e) => return e,
         };
-        let workspace_id = match current_git_branch(&project_dir) {
+        let workspace_id: String = match current_git_branch(&project_dir) {
             Ok(b) => b,
             Err(e) => return format!("Error resolving workspace: {}", e),
         };
-        let mut envelope = match runtime::events::EventEnvelope::new(
-            &req.event_type,
-            &workspace_id,
-            &req.payload,
-        ) {
-            Ok(e) => e,
-            Err(e) => return format!("Error building event: {}", e),
+
+        // Single write rail: POST /api/events/emit. The daemon builds the
+        // envelope, persists via its event store, and routes through the
+        // KernelRouter so subscribers (skill custom namespaces, agent
+        // mailboxes) deliver on the same single rail. validate_domain is
+        // false here because Studio writes the reserved `studio.` namespace
+        // by design — we already gated that with the prefix check above.
+        let body: serde_json::Value = serde_json::json!({
+            "event_type": req.event_type,
+            "entity_id": workspace_id,
+            "workspace_id": workspace_id,
+            "actor_id": "studio",
+            "actor": "studio",
+            "payload": req.payload,
+            "validate_domain": false,
+        });
+        let resp: String = match crate::network_client::emit_event_via_daemon(body).await {
+            Ok(r) => r,
+            Err(e) => return format!("Error emitting via daemon: {}", e),
         };
-        envelope.actor = "studio".to_string();
-        let envelope = envelope
-            .with_actor_id("studio")
-            .with_context(Some(&workspace_id), None);
-
-        // Persist to Studio's actor-scoped store.
-        {
-            let store_guard = self.actor_store.lock().await;
-            let Some(ref store) = *store_guard else {
-                return "Error: studio actor not initialized — ensure on_initialized completed"
-                    .to_string();
-            };
-            if let Err(e) = store.append(&envelope) {
-                return format!("Error persisting studio event: {}", e);
-            }
-        }
-
-        // Route via daemon's KernelRouter — delivers to agent mailboxes that subscribe to "studio."
-        if let Err(e) = crate::network_client::event_route(
-            &envelope,
-            Some(&workspace_id),
-            None,
-        ).await {
-            return format!("Error routing event via daemon: {}", e);
-        }
+        let envelope_id: String = serde_json::from_str::<serde_json::Value>(&resp)
+            .ok()
+            .and_then(|v| v.get("data").and_then(|d| d.get("id")).and_then(|i| i.as_str()).map(str::to_string))
+            .unwrap_or_default();
 
         // Write to .artifacts/inbox/ so connected Claude Code sessions can
         // read the event via read_session_file.  When the active workspace
@@ -466,13 +457,13 @@ impl StudioServer {
         // .artifacts/, not the main project root.  Failure is non-fatal.
         // target_workspace_id overrides the caller's workspace — used by agents
         // (e.g. gate) that need to notify a different session (e.g. commander).
-        let inbox_workspace = req.target_workspace_id.as_deref().unwrap_or(&workspace_id);
-        let inbox_root = resolve_inbox_root(&project_dir, inbox_workspace);
+        let inbox_workspace: &str = req.target_workspace_id.as_deref().unwrap_or(&workspace_id);
+        let inbox_root: std::path::PathBuf = resolve_inbox_root(&project_dir, inbox_workspace);
         match studio_inbox::write_inbox_file(
             &inbox_root,
             &req.event_type,
             &req.payload,
-            &envelope.id,
+            &envelope_id,
         ) {
             Ok(_) => {
                 self.notify_resources_changed().await;
@@ -482,7 +473,7 @@ impl StudioServer {
             }
         }
 
-        format!("{{\"id\":\"{}\"}}", envelope.id)
+        format!("{{\"id\":\"{}\"}}", envelope_id)
     }
 }
 

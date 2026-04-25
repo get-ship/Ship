@@ -174,6 +174,7 @@ async fn emit_event_validate_domain_rejects_reserved_namespace() {
             actor_id: Some("agent-a".to_string()),
             elevated: None,
             validate_domain: Some(true),
+            actor: None,
         }),
     )
     .await
@@ -197,6 +198,7 @@ async fn emit_event_validate_domain_rejects_undotted() {
             actor_id: Some("agent-a".to_string()),
             elevated: None,
             validate_domain: Some(true),
+            actor: None,
         }),
     )
     .await
@@ -220,6 +222,7 @@ async fn emit_event_accepts_valid_domain_event_with_actor_id() {
             actor_id: Some("agent-writer".to_string()),
             elevated: Some(false),
             validate_domain: Some(true),
+            actor: None,
         }),
     )
     .await
