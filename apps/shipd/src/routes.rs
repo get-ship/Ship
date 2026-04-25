@@ -577,6 +577,9 @@ pub enum Route {
     /// @route GET "/api/actors/{actor_id}"
     GetActor { actor_id: String },
 
+    /// @route GET "/api/actors/{actor_id}/events"
+    ActorEvents { actor_id: String },
+
     /// @route POST "/api/actors/{actor_id}/input"
     ActorInput { actor_id: String },
 

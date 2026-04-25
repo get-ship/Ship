@@ -338,6 +338,75 @@ pub fn get_actor(actor_id: &str) -> Result<Option<ActorRow>> {
     })
 }
 
+/// One row from the event log for a given actor. Strongly-typed wrapper
+/// over the events table — avoids leaking sqlx types to HTTP handlers.
+#[derive(Debug, Clone, serde::Serialize)]
+pub struct ActorEventRow {
+    pub id: String,
+    pub event_type: String,
+    pub entity_id: String,
+    pub actor_id: Option<String>,
+    pub target_actor_id: Option<String>,
+    pub workspace_id: Option<String>,
+    pub session_id: Option<String>,
+    pub parent_actor_id: Option<String>,
+    pub payload_json: String,
+    pub created_at: String,
+}
+
+/// Read events for an actor since a given event id. Used by the
+/// reconnect / replay path: client tracks the last id it saw, requests
+/// `?from_id=<id>` on reconnect, kernel streams everything after.
+///
+/// Matches both events the actor emitted (`actor_id = id`) and events
+/// directed at it (`target_actor_id = id`). Ordered by id ascending so
+/// the replay arrives in causal order.
+pub fn list_actor_events(
+    actor_id: &str,
+    from_id: Option<&str>,
+    limit: i64,
+) -> Result<Vec<ActorEventRow>> {
+    let mut conn = crate::db::open_db()?;
+    let limit = if limit > 0 { limit } else { 500 }.min(2000);
+    let mut sql = String::from(
+        "SELECT id, event_type, entity_id, actor_id, target_actor_id, \
+         workspace_id, session_id, parent_actor_id, payload_json, created_at \
+         FROM events \
+         WHERE (actor_id = ? OR target_actor_id = ?)",
+    );
+    if from_id.is_some() {
+        sql.push_str(" AND id > ?");
+    }
+    sql.push_str(" ORDER BY id ASC LIMIT ?");
+
+    block_on(async {
+        let mut q = sqlx::query(&sql).bind(actor_id).bind(actor_id);
+        if let Some(f) = from_id {
+            q = q.bind(f);
+        }
+        q = q.bind(limit);
+        let rows = q.fetch_all(&mut conn).await?;
+        Ok(rows
+            .iter()
+            .map(|r| {
+                use sqlx::Row;
+                ActorEventRow {
+                    id: r.try_get("id").unwrap_or_default(),
+                    event_type: r.try_get("event_type").unwrap_or_default(),
+                    entity_id: r.try_get("entity_id").unwrap_or_default(),
+                    actor_id: r.try_get("actor_id").ok(),
+                    target_actor_id: r.try_get("target_actor_id").ok(),
+                    workspace_id: r.try_get("workspace_id").ok(),
+                    session_id: r.try_get("session_id").ok(),
+                    parent_actor_id: r.try_get("parent_actor_id").ok(),
+                    payload_json: r.try_get("payload_json").unwrap_or_else(|_| "{}".into()),
+                    created_at: r.try_get("created_at").unwrap_or_default(),
+                }
+            })
+            .collect())
+    })
+}
+
 /// Look up `(status, workspace_id)` for routing decisions in the input
 /// endpoint. Returns `None` if the actor isn't in the projection.
 pub fn actor_status(actor_id: &str) -> Result<Option<(String, Option<String>)>> {

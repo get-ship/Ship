@@ -167,6 +167,7 @@
 {%- macro event_route() -%}/api/events/route{%- endmacro -%}
 {%- macro list_actors() -%}/api/actors{%- endmacro -%}
 {%- macro get_actor(actor_id) -%}/api/actors/{{ actor_id }}{%- endmacro -%}
+{%- macro actor_events(actor_id) -%}/api/actors/{{ actor_id }}/events{%- endmacro -%}
 {%- macro actor_input(actor_id) -%}/api/actors/{{ actor_id }}/input{%- endmacro -%}
 {%- macro list_collections() -%}/api/collections{%- endmacro -%}
 {%- macro get_collection_schema(collection) -%}/api/collections/{{ collection }}/schema{%- endmacro -%}

@@ -16,7 +16,9 @@ use axum::{
 };
 use runtime::events::EventEnvelope;
 use runtime::events::types::event_types;
-use runtime::projections::actor::{ListActorsFilter, actor_status, get_actor, list_actors};
+use runtime::projections::actor::{
+    ListActorsFilter, actor_status, get_actor, list_actor_events, list_actors,
+};
 use serde::Deserialize;
 use serde_json::json;
 
@@ -75,6 +77,35 @@ pub async fn get_actor_handler(
                 ok: false,
                 data: json!(format!("actor '{id}' not found")),
             }),
+        )
+            .into_response(),
+        Err(e) => (
+            StatusCode::INTERNAL_SERVER_ERROR,
+            Json(MeshResponse { ok: false, data: json!(format!("query: {e}")) }),
+        )
+            .into_response(),
+    }
+}
+
+#[derive(Deserialize)]
+pub struct EventsQuery {
+    pub from_id: Option<String>,
+    pub limit: Option<i64>,
+}
+
+/// `GET /api/actors/{id}/events?from_id=<event_id>` — replay events
+/// correlated to the actor in causal order. Used by the SSE reconnect
+/// path: client tracks last seen event id, asks for everything after.
+pub async fn list_actor_events_handler(
+    State(_state): State<ApiState>,
+    Extension(_auth): Extension<AuthContext>,
+    Path(id): Path<String>,
+    Query(q): Query<EventsQuery>,
+) -> impl IntoResponse {
+    match list_actor_events(&id, q.from_id.as_deref(), q.limit.unwrap_or(0)) {
+        Ok(events) => (
+            StatusCode::OK,
+            Json(MeshResponse { ok: true, data: json!({ "events": events }) }),
         )
             .into_response(),
         Err(e) => (

@@ -248,6 +248,7 @@ fn build_ship_routes(st: rest_api::ApiState) -> Router {
         .ship_route(Route::EventRoute, actor_api::event_route)
         .ship_route(Route::ListActors, actors_api::list_actors_handler)
         .ship_route(Route::GetActor_template(), actors_api::get_actor_handler)
+        .ship_route(Route::ActorEvents_template(), actors_api::list_actor_events_handler)
         .ship_route(Route::ActorInput_template(), actors_api::actor_input_handler)
         // Capabilities (no state required; ok against a stateful router)
         .ship_route(Route::Capabilities, rest_api::capabilities)
